@@ -1,6 +1,7 @@
 import {
   mintLTexts,
   rekeyCommand,
+  rekeyDataSource,
   rekeyMenu,
   rekeyProject,
   releaseLTexts,
@@ -1155,6 +1156,7 @@ function generateDataSourceId(): DataSourceId {
 function mintSourceLTexts(pack: Project): void {
   for (const ds of pack.dataSources ?? []) {
     mintLTexts(pack, visitDataSourceLTexts(pack, ds), pack.defaultLang);
+    rekeyDataSource(pack, ds);
   }
 }
 
@@ -3597,7 +3599,10 @@ export const useAccountStore = create<AccountState>()(
             const pack = draft.account.projects.find((p) => p.id === projectId);
             if (!pack) return;
             const ds = pack.dataSources.find((d) => d.id === id);
-            if (ds) ds.name = newName;
+            if (ds) {
+              ds.name = newName;
+              rekeyDataSource(pack, ds);
+            }
           }),
         ),
       editSourceField: ({ projectId, target, edit }) =>
@@ -3693,6 +3698,7 @@ export const useAccountStore = create<AccountState>()(
             const last = path[path.length - 1];
             if (container === undefined || last === undefined) return;
             (container as Record<string | number, unknown>)[last] = nextValue;
+            rekeyDataSource(pack, ds);
           }),
         );
         return { ok: true };

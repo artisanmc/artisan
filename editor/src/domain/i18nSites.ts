@@ -14,6 +14,7 @@ import {
   showTitleKeyAt,
   stateLabel,
 } from "@/lib/i18nKeys";
+import { normalizeDataSourceName } from "./dataModels";
 import { walkActions } from "./stepPath";
 import type {
   Appearance,
@@ -251,8 +252,8 @@ function isLTextNode(v: unknown): v is LText {
 
 /**
  * Walk one value against its declared {@link ModelFieldType}, yielding a site
- * per ltext leaf. `base` is the canonical key prefix (`sources.<id>.<rowKey>`
- * for a table row, `sources.<id>` for a config). List entries follow the
+ * per ltext leaf. `base` is the canonical key prefix (`sources.<name>.<rowKey>`
+ * for a table row, `sources.<name>` for a config). List entries follow the
  * `_${i+1}` suffix convention (`perks`, `perks_2`); non-conforming values are
  * skipped defensively (never throw over authored data).
  */
@@ -281,7 +282,13 @@ function* visitModelValueLTexts(
       if (typeof value !== "object" || value === null || Array.isArray(value)) return;
       const obj = value as Record<string, unknown>;
       for (const f of type.fields) {
-        yield* visitModelValueLTexts(obj[f.name], f.type, `${base}.${f.name}`, models, visited);
+        yield* visitModelValueLTexts(
+          obj[f.name],
+          f.type,
+          `${base}.${f.name.toLowerCase()}`,
+          models,
+          visited,
+        );
       }
       return;
     }
@@ -300,24 +307,38 @@ function* visitModelValueLTexts(
 
 /**
  * Yield every ltext site of one Project source. Table rows key on the row's
- * **Row key** value (`sources.<id>.<rowKey>.<fieldPath>`) so keys survive
- * reordering; an empty key value falls back to `row_<n>` (positional) until
- * the admin fills it. Cf. ADR `project-sources-and-data-models`.
+ * **Row key** value (`sources.<name>.<rowKey>.<fieldPath>`) so keys survive
+ * reordering; empty or duplicate key values fall back to `row_<n>`
+ * (positional) until the admin resolves them. Cf. ADR
+ * `project-sources-and-data-models`.
  */
 export function* visitDataSourceLTexts(pack: Project, ds: DataSource): Generator<LTextSite> {
   const models = pack.dataModels ?? [];
+  const sourceKey = normalizeDataSourceName(ds.name) || String(ds.id).toLowerCase();
   if (ds.shape === "table") {
     const model = models.find((m) => m.id === ds.modelId);
     if (!model) return;
+    const rowKeyCounts = new Map<string, number>();
+    for (const row of ds.rows) {
+      const raw = row[model.keyField];
+      const value =
+        typeof raw === "string" || typeof raw === "number"
+          ? String(raw).trim().toLowerCase()
+          : "";
+      if (value !== "") rowKeyCounts.set(value, (rowKeyCounts.get(value) ?? 0) + 1);
+    }
     for (let i = 0; i < ds.rows.length; i++) {
       const row = ds.rows[i]!;
       const raw = row[model.keyField];
-      const keyVal = typeof raw === "string" || typeof raw === "number" ? String(raw) : "";
-      const rowKey = keyVal !== "" ? keyVal : `row_${i + 1}`;
+      const keyVal =
+        typeof raw === "string" || typeof raw === "number"
+          ? String(raw).trim().toLowerCase()
+          : "";
+      const rowKey = keyVal !== "" && rowKeyCounts.get(keyVal) === 1 ? keyVal : `row_${i + 1}`;
       yield* visitModelValueLTexts(
         row,
         { kind: "object", fields: model.fields },
-        `sources.${ds.id}.${rowKey}`,
+        `sources.${sourceKey}.${rowKey}`,
         models,
         new Set([model.id]),
       );
@@ -326,7 +347,7 @@ export function* visitDataSourceLTexts(pack: Project, ds: DataSource): Generator
     yield* visitModelValueLTexts(
       ds.value,
       { kind: "object", fields: ds.fields },
-      `sources.${ds.id}`,
+      `sources.${sourceKey}`,
       models,
       new Set(),
     );
@@ -365,6 +386,11 @@ export function rekeyCommand(pack: Project, command: Command): void {
 /** Canonicalize one dialog's LText keys. */
 export function rekeyDialog(pack: Project, dialog: Dialog): void {
   rekey(pack, visitDialogLTexts(dialog));
+}
+
+/** Canonicalize every LText key owned by one Project data source. */
+export function rekeyDataSource(pack: Project, dataSource: DataSource): void {
+  rekey(pack, visitDataSourceLTexts(pack, dataSource));
 }
 
 /**

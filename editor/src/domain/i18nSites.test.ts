@@ -282,7 +282,7 @@ describe("visitDataSourceLTexts", () => {
     pack.dataModels = [RANK_MODEL as never];
     pack.dataSources = [
       {
-        id: "ranks" as never,
+        id: "ds_vjjhb260" as never,
         name: "ranks",
         shape: "table",
         modelId: "m_rank" as never,
@@ -297,7 +297,7 @@ describe("visitDataSourceLTexts", () => {
         ],
       },
       {
-        id: "settings" as never,
+        id: "ds_q8k3m1pz" as never,
         name: "settings",
         shape: "config",
         fields: [{ name: "motd", type: { kind: "ltext" } }],
@@ -320,6 +320,49 @@ describe("visitDataSourceLTexts", () => {
     const pack = packWithSources();
     const sites = [...visitDataSourceLTexts(pack, pack.dataSources[0]!)];
     const byLive = new Map(sites.map((s) => [s.lText.key, s.key]));
+    expect(byLive.get("lt_n2" as I18nKey)).toBe("sources.ranks.row_2.name");
+  });
+
+  it("falls back to positional row keys when authored row keys are duplicated", () => {
+    const pack = packWithSources();
+    const source = pack.dataSources[0]!;
+    if (source.shape !== "table") throw new Error("expected table");
+    source.rows = [
+      { id: "vip", name: lt("lt_n1"), perks: [], meta: { label: lt("lt_m1") } },
+      { id: "vip", name: lt("lt_n2"), perks: [], meta: { label: lt("lt_m2") } },
+    ];
+
+    const sites = [...visitDataSourceLTexts(pack, source)];
+    const byLive = new Map(sites.map((s) => [s.lText.key, s.key]));
+    expect(byLive.get("lt_n1" as I18nKey)).toBe("sources.ranks.row_1.name");
+    expect(byLive.get("lt_n2" as I18nKey)).toBe("sources.ranks.row_2.name");
+  });
+
+  it("lowercases source, row, and field path segments", () => {
+    const pack = packWithSources();
+    pack.dataModels![0]!.fields.push({ name: "Lore", type: { kind: "ltext" } });
+    const source = pack.dataSources[0]!;
+    if (source.shape !== "table") throw new Error("expected table");
+    source.name = "Grades";
+    source.rows = [{ id: "VIP", name: lt("lt_n1"), perks: [], meta: {}, Lore: lt("lt_lore") }];
+
+    const sites = [...visitDataSourceLTexts(pack, source)];
+    const lore = sites.find((site) => site.lText.key === ("lt_lore" as I18nKey));
+    expect(lore?.key).toBe("sources.grades.vip.lore");
+  });
+
+  it("treats Row keys that differ only by case as duplicates", () => {
+    const pack = packWithSources();
+    const source = pack.dataSources[0]!;
+    if (source.shape !== "table") throw new Error("expected table");
+    source.rows = [
+      { id: "VIP", name: lt("lt_n1"), perks: [], meta: {} },
+      { id: "vip", name: lt("lt_n2"), perks: [], meta: {} },
+    ];
+
+    const sites = [...visitDataSourceLTexts(pack, source)];
+    const byLive = new Map(sites.map((site) => [site.lText.key, site.key]));
+    expect(byLive.get("lt_n1" as I18nKey)).toBe("sources.ranks.row_1.name");
     expect(byLive.get("lt_n2" as I18nKey)).toBe("sources.ranks.row_2.name");
   });
 
