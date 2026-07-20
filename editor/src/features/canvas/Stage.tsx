@@ -93,6 +93,9 @@ export function Stage({ projectId }: StageProps) {
   // True while a stage-drag pan is in progress (hand/Space/Alt left-drag) — so
   // the cursor can switch from open hand (grab) to closed hand (grabbing).
   const [stageDragging, setStageDragging] = useState(false);
+  // Pan cursor only over EMPTY canvas: entities (menus/slots/commands…) keep
+  // their own affordances — the grab hand over an item read as incoherent.
+  const [overEmpty, setOverEmpty] = useState(true);
 
   // Konva's native stage-drag (single-finger pan) mutates the stage's x/y
   // directly without going through React. Without this sync, the next
@@ -298,10 +301,17 @@ export function Stage({ projectId }: StageProps) {
       className="stage-bg-dots relative h-full w-full"
       style={{
         cursor:
-          middlePan.panning || stageDragging ? "grabbing" : panMode ? "grab" : "default",
+          middlePan.panning || stageDragging
+            ? "grabbing"
+            : panMode && overEmpty
+              ? "grab"
+              : "default",
       }}
       onMouseMove={onWrapperMouseMove}
-      onMouseLeave={onWrapperMouseLeave}
+      onMouseLeave={() => {
+        setOverEmpty(true);
+        onWrapperMouseLeave();
+      }}
     >
       <div aria-hidden className="stage-bg-glow pointer-events-none absolute inset-0" />
       {Object.keys(layout).length === 0 && (
@@ -363,7 +373,10 @@ export function Stage({ projectId }: StageProps) {
         onClick={onStageClick}
         onTap={onStageClick}
         onMouseDown={marquee.onMouseDown}
-        onMouseMove={marquee.onMouseMove}
+        onMouseMove={(e) => {
+          setOverEmpty(e.target === e.target.getStage());
+          marquee.onMouseMove();
+        }}
         onMouseUp={marquee.onMouseUp}
         onContextMenu={onStageContextMenu}
         onTouchStart={onStageTouchStart}
