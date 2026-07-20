@@ -50,6 +50,7 @@ object MenuRenderer {
         lookupAsset: (String) -> AssetEntry? = { null },
         offsetEncoder: OffsetEncoder = OffsetEncoder.EMPTY,
         dataSources: DataSourceRegistry? = null,
+        projectData: ProjectDataResolver? = null,
     ): MenuSession {
         // Deterministic fallback chain: requested lang → pack defaultLang → empty.
         // Previously fell back to `langMaps.values.firstOrNull()` which is map-
@@ -57,9 +58,15 @@ object MenuRenderer {
         val langMap = menu.langMapWithFallback(lang)
 
         // §15.4 : defaults déclarés (l'appelant gagne par nom) + fetch des
-        // ConnectorBinding via le DataSourceRegistry, curryfié sur le player.
-        val fetch: ((String, Map<String, Any?>) -> List<Map<String, Any?>>)? =
-            dataSources?.let { reg -> { ref, params -> reg.fetch(ref, player, params) } }
+        // ConnectorBinding — `pack:` (Project sources du bundle, ltext résolus
+        // ici avec la langue du viewer) puis DataSourceRegistry curryfié sur le
+        // player. Cf. ProjectDataResolver pour le pourquoi du non-registry.
+        val fetch: ((String, Map<String, Any?>) -> Any?)? =
+            if (dataSources == null && projectData == null) null
+            else { ref, params ->
+                if (projectData != null && projectData.canResolve(ref)) projectData.resolve(ref, lang)
+                else dataSources?.fetch(ref, player, params)
+            }
         val boundCtx = ctx.copy(args = ContextBinder.bind(menu.yaml, ctx.args, fetch, Bukkit.getLogger()))
 
         // Pré-calcul des fenêtres de pagination de chaque élément itérant.

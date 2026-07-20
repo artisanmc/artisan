@@ -216,6 +216,75 @@ data class CommandYaml(
     fun resolvedActions(): List<Map<String, Any>> = actions.ifEmpty { extractFromSteps(steps) }
 }
 
+/**
+ * One declared field of a `data/v1` Project source. The editor denormalizes its
+ * Data models at export, so `kind` is always concrete here (never a model ref):
+ * string | number | integer | boolean | ltext | item | list | object.
+ * Cf. ADR project-sources-and-data-models + docs/schema/data/v1.
+ */
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class DataFieldYaml(
+    val name: String = "",
+    val kind: String = "string",
+    /** Element type when kind=list (its `name` is unused). */
+    val of: DataFieldYaml? = null,
+    /** Nested fields when kind=object. */
+    val fields: List<DataFieldYaml> = emptyList(),
+)
+
+/** Parsed `data/<id>.yaml` — a Project source shipped in the Bundle. */
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class DataSourceYaml(
+    val schema: String = "",
+    val id: String = "",
+    val shape: String = "table",
+    @JsonProperty("key_field") val keyField: String? = null,
+    val fields: List<DataFieldYaml> = emptyList(),
+    val rows: List<Map<String, Any?>> = emptyList(),
+    val value: Map<String, Any?> = emptyMap(),
+)
+
+/**
+ * A Project source with its project's lang maps. ltext field values travel as
+ * i18n keys; [resolved] localizes them for the viewer's language at bind time
+ * (requested lang → project default → raw key, same per-key chain as menus).
+ */
+data class BundleDataSource(
+    val yaml: DataSourceYaml,
+    val langMaps: Map<String, Map<String, String>>,
+    val defaultLang: String = "en",
+) {
+    val id: String get() = yaml.id
+
+    fun langMapWithFallback(lang: String): Map<String, String> =
+        langMaps[defaultLang].orEmpty() + langMaps[lang].orEmpty()
+
+    /** Table → localized rows (List<Map>); config → the localized value object (Map). */
+    fun resolved(lang: String): Any {
+        val map = langMapWithFallback(lang)
+        return if (yaml.shape == "config") localizeObject(yaml.value, yaml.fields, map)
+        else yaml.rows.map { localizeObject(it, yaml.fields, map) }
+    }
+
+    private fun localizeObject(
+        obj: Map<String, Any?>,
+        fields: List<DataFieldYaml>,
+        lang: Map<String, String>,
+    ): Map<String, Any?> {
+        val byName = fields.associateBy { it.name }
+        return obj.mapValues { (k, v) -> localizeValue(v, byName[k], lang) }
+    }
+
+    private fun localizeValue(v: Any?, field: DataFieldYaml?, lang: Map<String, String>): Any? = when {
+        field == null -> v
+        field.kind == "ltext" -> (v as? String)?.let { lang[it] ?: it } ?: v
+        field.kind == "list" && v is List<*> -> v.map { localizeValue(it, field.of, lang) }
+        field.kind == "object" && v is Map<*, *> ->
+            localizeObject(v.entries.associate { it.key.toString() to it.value }, field.fields, lang)
+        else -> v
+    }
+}
+
 /** Assembled result for one project — all menus plus their lang maps. */
 data class ProjectBundle(
     val projectId: String,
@@ -224,6 +293,7 @@ data class ProjectBundle(
     val menus: List<BundleMenu>,
     val commands: List<CommandYaml>,
     val dialogs: List<BundleDialog>,
+    val dataSources: List<BundleDataSource> = emptyList(),
 )
 
 /** One menu with its compiled appearances, per-language translation maps, and slot mapping. */
