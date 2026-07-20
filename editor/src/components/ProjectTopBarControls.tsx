@@ -29,6 +29,7 @@ import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
 import { useServerSnapshotsStore } from "@/state/serverSnapshotsStore";
 import { countMissingForLang } from "@/lib/i18nUsages";
+import { useProjectVersionStore } from "@/state/projectVersionStore";
 import { useUiStore } from "@/state/uiStore";
 import { useNavigate } from "@tanstack/react-router";
 import {
@@ -88,6 +89,7 @@ export function ProjectTopBarControls({
   const displayName = projectName ?? pack.name;
   const { t } = useTranslation();
   const panelOpen = useUiStore((s) => s.projectPanelOpen);
+  const conflicted = useProjectVersionStore((s) => Boolean(s.conflicts[projectId]));
 
   // The canvas (and its elements panel) is always mounted now — the secondary
   // views are overlays — so this is a plain open/close toggle.
@@ -108,9 +110,16 @@ export function ProjectTopBarControls({
         <span>{t("projectPanel.openPanel")}</span>
       </button>
       <div className="flex min-w-0 flex-1 items-center gap-2.5 truncate px-1 font-mono text-[13px] text-[var(--text)]">
+        {/* Save-health dot: green = saves flowing; red = the last save was
+            rejected (409 version conflict — another session took the lead).
+            Was a hardcoded warning color that meant nothing. */}
         <span
+          title={conflicted ? t("topbar.saveConflict") : t("topbar.saveHealthy")}
           className="h-1.5 w-1.5 shrink-0 rounded-full"
-          style={{ background: "var(--warning)", boxShadow: "0 0 8px var(--warning)" }}
+          style={{
+            background: conflicted ? "var(--danger)" : "var(--success)",
+            boxShadow: `0 0 8px ${conflicted ? "var(--danger)" : "var(--success)"}`,
+          }}
         />
         <span className="truncate">{displayName}</span>
       </div>
