@@ -50,15 +50,20 @@ export function DataSourcesSidebar({
             </li>
           ))}
         </ul>
-        <div className="mt-2">
+        <div className="mt-2 flex gap-1">
           <button
             type="button"
-            onClick={() => {
-              addProjectDataSource({ projectId: pack.id });
-            }}
-            className="w-full rounded border border-dashed border-[var(--border)] px-2 py-1 text-[11px] text-[var(--text-mut)] hover:border-[var(--border-strong)] hover:text-[var(--text)]"
+            onClick={() => addProjectDataSource({ projectId: pack.id, shape: "table" })}
+            className="flex-1 rounded border border-dashed border-[var(--border)] px-2 py-1 text-[11px] text-[var(--text-mut)] hover:border-[var(--border-strong)] hover:text-[var(--text)]"
           >
-            {t("dataSources.add")}
+            {t("dataSources.addTable")}
+          </button>
+          <button
+            type="button"
+            onClick={() => addProjectDataSource({ projectId: pack.id, shape: "config" })}
+            className="flex-1 rounded border border-dashed border-[var(--border)] px-2 py-1 text-[11px] text-[var(--text-mut)] hover:border-[var(--border-strong)] hover:text-[var(--text)]"
+          >
+            {t("dataSources.addConfig")}
           </button>
         </div>
       </section>
