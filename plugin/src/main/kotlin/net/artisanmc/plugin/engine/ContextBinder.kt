@@ -15,7 +15,9 @@ object ContextBinder {
     fun bind(
         menu: MenuYaml,
         callerArgs: Map<String, Any>,
-        fetchSource: ((ref: String, params: Map<String, Any?>) -> List<Map<String, Any?>>)? = null,
+        // Any? : une source renvoie des rows (List<Map>) OU un objet de config
+        // (Map, Project source shape=config) bindé entier sans shaping.
+        fetchSource: ((ref: String, params: Map<String, Any?>) -> Any?)? = null,
         logger: Logger? = null,
     ): Map<String, Any> {
         val out = callerArgs.toMutableMap()
@@ -23,15 +25,23 @@ object ContextBinder {
             if (input.name.isEmpty() || out.containsKey(input.name)) continue
             val ref = (input.source["ref"] as? String)?.takeIf { it.isNotEmpty() }
             if (ref != null && fetchSource != null) {
-                val rows = runCatching {
+                val fetched = runCatching {
                     fetchSource(ref, interpolateValues(mapOf(input.source, "params"), out))
                 }.getOrElse { e ->
                     logger?.warning("[Artisan] data source '$ref' failed for input '${input.name}': ${e.message}")
                     null
                 }
-                if (rows != null) {
-                    out[input.name] = shape(rows, input.source, out)
-                    continue
+                when (fetched) {
+                    is List<*> -> {
+                        @Suppress("UNCHECKED_CAST")
+                        out[input.name] = shape(fetched as List<Map<String, Any?>>, input.source, out)
+                        continue
+                    }
+                    is Map<*, *> -> {
+                        out[input.name] = fetched
+                        continue
+                    }
+                    else -> { /* null/unusable → defaults below */ }
                 }
             }
             val d = input.default ?: continue

@@ -68,6 +68,25 @@ class ProjectReader(private val projectsRoot: File, private val logger: Logger? 
             BundleDialog(dialogYaml, langMaps, defaultLang = manifest.defaultLang)
         }
 
-        return ProjectBundle(manifest.projectId, manifest.defaultLang, manifest.languages, menus, commands, dialogs)
+        // Project sources (data/v1) — scanned, not manifest-listed. Tolerant per
+        // file: a bad source logs + skips, never blocks the project load.
+        val dataSources = File(projectDir, "data")
+            .listFiles { f -> f.isFile && f.name.endsWith(".yaml") }
+            ?.sortedBy { it.name }
+            ?.mapNotNull { f ->
+                runCatching {
+                    val dsYaml = mapper.readValue(f, DataSourceYaml::class.java)
+                    requireSchema(f, dsYaml.schema, "data/v1")
+                    BundleDataSource(dsYaml, langMaps, manifest.defaultLang)
+                }.getOrElse { e ->
+                    logger?.warning("[Artisan] skipping data source ${f.name}: ${e.message}")
+                    null
+                }
+            } ?: emptyList()
+
+        return ProjectBundle(
+            manifest.projectId, manifest.defaultLang, manifest.languages,
+            menus, commands, dialogs, dataSources,
+        )
     }
 }
