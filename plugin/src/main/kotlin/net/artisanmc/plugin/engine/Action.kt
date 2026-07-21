@@ -49,4 +49,9 @@ sealed class Action {
     /** `list` est la liste de valeurs séparées par des virgules ("price,name"). */
     data class SetArgCycleNext(val arg: String, val list: String) : Action()
     data class SetArgCyclePrev(val arg: String, val list: String) : Action()
+    /**
+     * Exécute la chaîne d'actions (DSL) portée par la valeur de source [actions]
+     * (une expression de scope, ex. `item.on_buy`). Cf. ADR action-dsl §run_actions.
+     */
+    data class RunActions(val actions: String) : Action()
 }
