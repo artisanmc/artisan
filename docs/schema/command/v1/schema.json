@@ -52,10 +52,9 @@
       "description": "Conditions ANDées évaluées avant exécution. Si une échoue, le fallback (s'il existe) est exécuté à la place des actions."
     },
     "steps": {
-      "type": "array",
-      "minItems": 1,
-      "items": { "$ref": "https://docs.artisanmc.net/schema/menu/v1.json#/$defs/Step" },
-      "description": "Séquence de steps exécutée quand la commande est appelée (actions + branches if, comme les click-handlers de menu). Les arguments résolus sont disponibles via les placeholders %args_<name>% et {arg}."
+      "type": "string",
+      "minLength": 1,
+      "description": "Chaîne Action DSL exécutée quand la commande est appelée (actions + branches if, comme les click-handlers de menu). Cf. ADR action-dsl. Les arguments résolus sont disponibles via les placeholders %args_<name>% et {arg}."
     },
     "fallback": {
       "type": "array",

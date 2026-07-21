@@ -136,11 +136,44 @@ useful (decided 2026-07-21).
 - **Phase 1.5 (first executor)** — wire a consumer (shop `on_buy`, or an element
   click bound to a data field) to the existing `ActionExecutor`/`ConditionEvaluator`
   + leaf evaluator. Everything except advanced-tail expressions runs.
-- **Phase 2** — migrate menu/command/template click handlers off the structured
-  wire onto the DSL string; retire the structured serializer + its Kotlin parser.
-  One format everywhere.
+- **Phase 2** — migrate menu/command/dialog click handlers off the structured
+  wire onto the DSL string; retire the structured serializer + its Kotlin parser
+  (`StepParser`/`ActionParser`/`ConditionParser` Map→object). One format everywhere.
+  **Decided 2026-07-21: in-place `menu/v1` change (no `menu/v2`, no migration) —
+  `menu/v1` is not yet in production, so the versioning "never modify a shipped
+  schema" rule does not bite; the Bundle re-exports from the domain model each
+  edit. Big-bang all three document kinds together (not staged).** Menu action
+  text is a registered **Key site**, so it serializes as `@<canonical-key>` (a
+  Project-aware `stepsToDsl(steps, pack)`: key ∈ `i18nKeys` → `@key`, else literal
+  — unlike data-source actions which are literal). Menu/v1 conformance vectors
+  (`menuV1.test`, `canonical.test`, `menuV1ToDomain.roundtrip`) are regenerated.
 - **Deferred** — advanced expression tail, strictly demand-triggered; until then a
   free comparison round-trips but no-ops + WARNs at runtime (tolerant philosophy).
+
+## Portability (other plugins; future Artisan add-on)
+
+The codec is meant to be **reused by other plugins** (e.g. a Quests plugin using
+it for reward/action chains in its own configs, later plugged into Artisan as an
+add-on for interactive forms). This is why the `actiondsl` package
+(Ast/Lexer/Format/Parser/Printer/LeafEval) is **strictly decoupled** from the
+Artisan engine — zero Bukkit/engine imports. Only `DslToEngine` is Artisan-specific.
+
+- **Portable core** = the codec + the `DslStep` AST. Its home is **Artisan Core**
+  (the existing published `net.artisanmc:artisan-core-api` artifact), which grows
+  to host the DSL alongside other shared capabilities — NOT a standalone
+  `action-dsl` micro-module (decided 2026-07-21: one core dependency that grows,
+  not many). Other plugins already depend on core, so they get the DSL for free.
+  Each host maps `DslStep → its own action model` (a standalone Quests plugin maps
+  to its reward actions; once Quests is an Artisan add-on it can instead reuse
+  Artisan's `DslToEngine` + interactive forms via the add-on SDK). Requirement
+  this imposes — already met: `actiondsl` must stay free of plugin-internal deps
+  so it can move into core-api cleanly.
+- **Vocabulary — fixed vs extensible** (to decide **at extraction time**, not
+  now): Artisan-menu verbs (`open_menu`, `paginate`, `open_dialog`, `set_arg`,
+  `run_actions`) don't belong in a Quests context. Leaning **extensible** — a
+  universal core (`give_item`, `run_command`, `send_message`, `if`/conditions…) +
+  host-registered verbs. To keep that door open, Phase 2 keeps `parseVerb`
+  **table-driven** rather than a hardcoded switch.
 
 ## Consequences
 

@@ -48,12 +48,7 @@ layers:
             title: "{cat.name}"
             click:
               left:
-                steps:
-                  - kind: action
-                    action:
-                      type: open_menu
-                      menu_id: shop_category
-                      context: { category: "{cat.id}", category_name: "{cat.name}" }
+                steps: 'open_menu shop_category with category="{cat.id}" category_name="{cat.name}"'
 `;
 
 const MENU_SHOP_CATEGORY = `schema: menu/v1
@@ -86,12 +81,7 @@ layers:
               - "§ePrix : {item.final_price} tokens"
             click:
               left:
-                steps:
-                  - kind: action
-                    action:
-                      type: open_dialog
-                      dialog_id: confirm_purchase
-                      context: { item_id: "{item.id}", item_name: "{item.name}", item_price: "{item.final_price}" }
+                steps: 'open_dialog confirm_purchase with item_id="{item.id}" item_name="{item.name}" item_price="{item.final_price}"'
       - id: back
         positions: "49"
         appearances:
@@ -99,18 +89,14 @@ layers:
             title: "§7Retour"
             click:
               left:
-                steps:
-                  - kind: action
-                    action: { type: open_menu, menu_id: shop_main }
+                steps: "open_menu shop_main"
 `;
 
 const COMMAND_BOUTIQUE = `schema: command/v1
 id: boutique
 name: boutique
 description: "Ouvre la boutique"
-steps:
-  - kind: action
-    action: { type: open_menu, menu_id: shop_main }
+steps: "open_menu shop_main"
 `;
 
 const DIALOG_CONFIRM = `schema: dialog/v1
@@ -122,12 +108,10 @@ body:
 buttons:
   - id: confirm
     label: "§aConfirmer"
-    actions:
-      - { type: run_command, command: "boutique:buy {item_id}" }
+    actions: 'run_command "boutique:buy {item_id}" as player'
   - id: cancel
     label: "§cAnnuler"
-    actions:
-      - { type: open_menu, menu_id: shop_category }
+    actions: "open_menu shop_category"
 `;
 
 const SHOP_YAML = `schema: boutique/v1
@@ -199,31 +183,25 @@ describe("projectImport round-trip (Boutique bootstrap → import → transform)
   it("preserves open_menu/open_dialog/run_command targets and context", () => {
     const { out } = roundTrip();
 
+    // Steps re-export as Action DSL strings (Phase 2). Targets + context tails
+    // survive the structured→domain→DSL round-trip.
     const mainGrid = out["menus/shop_main.yaml"]!.layers[0].elements[0];
     expect(mainGrid.iterates).toEqual({ source: "cats", alias: "cat" });
-    const mainAction = mainGrid.appearances[0].click.left.steps[0].action;
-    expect(mainAction).toMatchObject({
-      type: "open_menu",
-      menu_id: "shop_category",
-      context: { category: "{cat.id}", category_name: "{cat.name}" },
-    });
+    expect(mainGrid.appearances[0].click.left.steps).toBe(
+      'open_menu shop_category with category="{cat.id}" category_name="{cat.name}"',
+    );
 
     const catLayers = out["menus/shop_category.yaml"]!.layers[0].elements;
-    const gridAction = catLayers[0].appearances[0].click.left.steps[0].action;
-    expect(gridAction).toMatchObject({
-      type: "open_dialog",
-      dialog_id: "confirm_purchase",
-      context: { item_id: "{item.id}", item_name: "{item.name}", item_price: "{item.final_price}" },
-    });
-    const backAction = catLayers[1].appearances[0].click.left.steps[0].action;
-    expect(backAction).toMatchObject({ type: "open_menu", menu_id: "shop_main" });
+    expect(catLayers[0].appearances[0].click.left.steps).toBe(
+      'open_dialog confirm_purchase with item_id="{item.id}" item_name="{item.name}" item_price="{item.final_price}"',
+    );
+    expect(catLayers[1].appearances[0].click.left.steps).toBe("open_menu shop_main");
 
-    const cmdAction = out["commands/boutique.yaml"]!.steps[0].action;
-    expect(cmdAction).toMatchObject({ type: "open_menu", menu_id: "shop_main" });
+    expect(out["commands/boutique.yaml"]!.steps).toBe("open_menu shop_main");
 
     const buttons = out["dialogs/confirm_purchase.yaml"]!.buttons;
-    expect(buttons[0].actions[0]).toMatchObject({ type: "run_command", command: "boutique:buy {item_id}" });
-    expect(buttons[1].actions[0]).toMatchObject({ type: "open_menu", menu_id: "shop_category" });
+    expect(buttons[0].actions).toBe('run_command "boutique:buy {item_id}" as player');
+    expect(buttons[1].actions).toBe("open_menu shop_category");
   });
 
   it("re-emits lang/fr.yaml with both bootstrap keys", () => {

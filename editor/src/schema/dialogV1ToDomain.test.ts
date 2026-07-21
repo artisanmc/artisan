@@ -11,7 +11,7 @@ describe("dialogV1ToDomain", () => {
         schema: "dialog/v1",
         id: "confirm",
         title: "Sure?",
-        buttons: [{ id: "yes", label: "Yes", actions: [{ type: "close_dialog" }] }],
+        buttons: [{ id: "yes", label: "Yes", actions: "close_dialog" }],
       },
       opts,
     );

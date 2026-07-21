@@ -70,14 +70,12 @@
       "description": "Conditions à valider à l'ouverture. Si une échoue, le menu ne s'ouvre pas."
     },
     "open_actions": {
-      "type": "array",
-      "items": { "$ref": "#/$defs/Action" },
-      "description": "Actions exécutées à l'ouverture du menu."
+      "type": "string",
+      "description": "Action DSL exécutée à l'ouverture du menu (chaîne d'actions + branches if, cf. ADR action-dsl)."
     },
     "close_actions": {
-      "type": "array",
-      "items": { "$ref": "#/$defs/Action" },
-      "description": "Actions exécutées à la fermeture du menu."
+      "type": "string",
+      "description": "Action DSL exécutée à la fermeture du menu (cf. ADR action-dsl)."
     },
     "layers": {
       "type": "array",
@@ -309,7 +307,10 @@
       "additionalProperties": false,
       "required": ["steps"],
       "properties": {
-        "steps": { "type": "array", "items": { "$ref": "#/$defs/Step" } }
+        "steps": {
+          "type": "string",
+          "description": "Chaîne Action DSL (actions + branches if/else-if/else). Cf. ADR action-dsl. Remplace l'ancien arbre structuré {kind, action|cases} — menu/v1 modifié en place (menu/v1 pas encore en prod)."
+        }
       }
     },
     "Step": {

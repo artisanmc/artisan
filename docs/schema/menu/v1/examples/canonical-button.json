@@ -18,10 +18,7 @@
               "lore": ["{i18n:menus.shop.buy.lore}"],
               "click": {
                 "left": {
-                  "steps": [
-                    { "kind": "action", "action": { "type": "run_command", "command": "buy diamond", "as": "player" } },
-                    { "kind": "action", "action": { "type": "send_message", "text": "{i18n:menus.shop.buy.msg}" } }
-                  ]
+                  "steps": "run_command \"buy diamond\" as player\nsend_message @menus.shop.buy.msg"
                 }
               }
             }

@@ -1,4 +1,5 @@
 import { collectModuleExportFiles, getModule } from "@artisan/editor-sdk";
+import { stepsToDsl } from "@/lib/actionDsl";
 import { getTitleTextLayers } from "@/domain/menuTitle";
 import { walkActions } from "@/domain/stepPath";
 import { visitDataSourceLTexts } from "@/domain/i18nSites";
@@ -166,10 +167,6 @@ function serializeStep(step: Step, pack: Project, textOf: StepTextOf = i18nRef):
   return out;
 }
 
-function serializeSteps(steps: Step[], pack: Project): unknown[] {
-  return steps.map((s) => serializeStep(s, pack));
-}
-
 /**
  * Serialize steps with LITERAL text (the LText `key` holds the raw string) —
  * the wire shape of module-data steps (`actions` field kit widget). Same
@@ -193,7 +190,9 @@ function serializeAppearance(app: Appearance, pack: Project): Record<string, unk
     const clickOut: Record<string, unknown> = {};
     for (const [clickType, handler] of Object.entries(app.click)) {
       if (!handler) continue;
-      clickOut[clickType] = { steps: serializeSteps(handler.steps, pack) };
+      // Click-handler steps serialize to an Action DSL string (ADR action-dsl,
+      // Phase 2); menu action text is a Key site → `@key`, else a "literal".
+      clickOut[clickType] = { steps: stepsToDsl(handler.steps, pack) };
     }
     if (Object.keys(clickOut).length > 0) out.click = clickOut;
   }
@@ -514,7 +513,8 @@ export function serializeCommand(cmd: Command, pack: Project): Record<string, un
     schema: "command/v1",
     id: cmd.id,
     name: cmd.name,
-    steps: serializeSteps(cmd.steps, pack),
+    // command steps serialize to an Action DSL string (ADR action-dsl Phase 2).
+    steps: stepsToDsl(cmd.steps, pack),
   };
   if (cmd.aliases && cmd.aliases.length > 0) out.aliases = cmd.aliases;
   if (cmd.permission) out.permission = cmd.permission;
@@ -536,15 +536,6 @@ export function packToCommandV1(pack: Project): Record<string, unknown>[] {
 }
 
 // ─── dialog serialization ────────────────────────────────────────────────────
-
-function extractFlatActions(steps: Step[]): unknown[] {
-  const result: unknown[] = [];
-  for (const step of steps) {
-    if (step.kind === "action") result.push(serializeAction(step.action));
-    // if-branches not supported in dialog button v1 export
-  }
-  return result;
-}
 
 function serializeDialogBody(body: DialogBody): Record<string, unknown> {
   if (body.type === "text") return { type: "text", text: i18nRef(body.text.key) };
@@ -573,14 +564,16 @@ function serializeDialogInput(input: DialogInput): Record<string, unknown> {
   return out;
 }
 
-function serializeDialogButton(btn: DialogButton): Record<string, unknown> {
+function serializeDialogButton(btn: DialogButton, pack: Project): Record<string, unknown> {
   const out: Record<string, unknown> = { id: btn.id, label: i18nRef(btn.label.key) };
-  const actions = extractFlatActions(btn.steps);
-  if (actions.length > 0) out.actions = actions;
+  // dialog/v1 button actions serialize to an Action DSL string (ADR action-dsl
+  // Phase 2). Unlike the old flat-action wire, if-branches now round-trip.
+  const dsl = stepsToDsl(btn.steps, pack);
+  if (dsl !== "") out.actions = dsl;
   return out;
 }
 
-export function serializeDialog(dialog: Dialog): Record<string, unknown> {
+export function serializeDialog(dialog: Dialog, pack: Project): Record<string, unknown> {
   const out: Record<string, unknown> = {
     schema: "dialog/v1",
     id: dialog.id,
@@ -589,13 +582,13 @@ export function serializeDialog(dialog: Dialog): Record<string, unknown> {
   if (!dialog.canCloseWithEscape) out.can_close_with_escape = false;
   if (dialog.body.length > 0) out.body = dialog.body.map(serializeDialogBody);
   if (dialog.inputs.length > 0) out.inputs = dialog.inputs.map(serializeDialogInput);
-  out.buttons = dialog.buttons.map(serializeDialogButton);
+  out.buttons = dialog.buttons.map((b) => serializeDialogButton(b, pack));
   return out;
 }
 
 /** Serialize every dialog in a pack to canonical dialog/v1 objects. */
 export function packToDialogV1(pack: Project): Record<string, unknown>[] {
-  return pack.dialogs.map((d) => serializeDialog(d));
+  return pack.dialogs.map((d) => serializeDialog(d, pack));
 }
 
 // ─── translations serialization ──────────────────────────────────────────────
@@ -812,7 +805,7 @@ export function transform(pack: Project): Record<string, string> {
   }
 
   for (const dialog of pack.dialogs) {
-    files[`${base}/dialogs/${dialog.id}.yaml`] = stringify(serializeDialog(dialog), yamlOpts);
+    files[`${base}/dialogs/${dialog.id}.yaml`] = stringify(serializeDialog(dialog, pack), yamlOpts);
   }
 
   // Captured items: the opaque serialized stack is the runtime truth — emit it

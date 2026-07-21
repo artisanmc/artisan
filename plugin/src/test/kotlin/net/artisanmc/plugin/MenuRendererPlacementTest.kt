@@ -64,8 +64,7 @@ class MenuRendererPlacementTest {
                     lore: ["{item.name}"]
                     click:
                       left:
-                        steps:
-                          - { kind: action, action: { type: run_command, command: "buy {item.id}" } }
+                        steps: 'run_command "buy {item.id}" as player'
         """.trimIndent(),
     )
 

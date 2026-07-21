@@ -448,8 +448,10 @@ describe("transform", () => {
     const app = menu.layers[0].elements[0].appearances[0];
     expect(app.title).toBe("{i18n:menus.shop.elements.btn.default.title}");
     expect(app.lore).toEqual(["{i18n:menus.shop.elements.btn.default.lore}"]);
-    expect(app.click.left.steps[0].action.type).toBe("send_message");
-    expect(app.click.left.steps[0].action.text).toBe("{i18n:menus.shop.elements.btn.default.click.left.message}");
+    // Click steps are an Action DSL string; menu text is a Key site → `@key`.
+    expect(app.click.left.steps).toBe(
+      "send_message @menus.shop.elements.btn.default.click.left.message",
+    );
   });
 
   it("serializes appearance.head", () => {
@@ -539,13 +541,11 @@ describe("transform", () => {
     });
     const files = transform(pack);
     const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
-    const action = menu.layers[0].elements[0].appearances[0].click.left.steps[0].action;
-    expect(action.type).toBe("show_title");
-    expect(action.title).toBe("{i18n:menus.shop.elements.btn.default.click.left.show_title}");
-    expect(action.subtitle).toBe("{i18n:menus.shop.elements.btn.default.click.left.show_subtitle}");
-    expect(action.fade_in).toBe(5);
-    expect(action.stay).toBe(40);
-    expect(action.fade_out).toBe(15);
+    const steps = menu.layers[0].elements[0].appearances[0].click.left.steps;
+    expect(steps).toBe(
+      "show_title @menus.shop.elements.btn.default.click.left.show_title " +
+        "@menus.shop.elements.btn.default.click.left.show_subtitle fadeIn=5 stay=40 fadeOut=15",
+    );
   });
 
   it("serializes show_title action omitting optional subtitle and timings", () => {
@@ -594,13 +594,9 @@ describe("transform", () => {
     });
     const files = transform(pack);
     const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
-    const action = menu.layers[0].elements[0].appearances[0].click.left.steps[0].action;
-    expect(action.type).toBe("show_title");
-    expect(action.title).toBe("{i18n:menus.shop.elements.btn.default.click.left.show_title}");
-    expect(action).not.toHaveProperty("subtitle");
-    expect(action).not.toHaveProperty("fade_in");
-    expect(action).not.toHaveProperty("stay");
-    expect(action).not.toHaveProperty("fade_out");
+    const steps = menu.layers[0].elements[0].appearances[0].click.left.steps;
+    // No subtitle / timings → DSL carries only the title ref.
+    expect(steps).toBe("show_title @menus.shop.elements.btn.default.click.left.show_title");
   });
 
   it("serializes open_menu action with snake_case fields", () => {
@@ -644,11 +640,10 @@ describe("transform", () => {
     });
     const files = transform(pack);
     const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
-    const action = menu.layers[0].elements[0].appearances[0].click.left.steps[0].action;
-    expect(action.type).toBe("open_menu");
-    expect(action.menu_id).toBe("profile");
-    expect(action.clear_context).toBe(true);
-    expect(action.menuId).toBeUndefined();
+    const steps = menu.layers[0].elements[0].appearances[0].click.left.steps;
+    // DSL: bare menu id + `clear` modifier (no snake_case wire fields).
+    expect(steps).toBe("open_menu profile clear");
+    expect(steps).not.toContain("menuId");
   });
 
   it("round-trips a row-model context input (type object + row_of)", () => {
@@ -686,8 +681,8 @@ describe("transform", () => {
     const files = transform(pack);
     const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
     const steps = menu.layers[0].elements[0].appearances[0].click.left.steps;
-    expect(steps[0].action).toEqual({ type: "pagination_next" });
-    expect(steps[1].action).toEqual({ type: "pagination_prev", element_id: "grid" });
+    // DSL emits `paginate <direction> [elementId]`, one per line.
+    expect(steps).toBe("paginate next\npaginate prev grid");
   });
 
   it("emits a command yaml", () => {
@@ -848,7 +843,8 @@ describe("transform — dialogs", () => {
     };
     const files = transform(projectWithDialog(dialog));
     const yaml = files["plugins/Artisan/projects/p_test/dialogs/d_test.yaml"]!;
-    expect(yaml).toContain("dialog_id: d_other");
+    // Button actions are an Action DSL string: `open_dialog <bare id>`.
+    expect(yaml).toContain("open_dialog d_other");
     expect(yaml).not.toContain("dialogId");
   });
 });
@@ -1461,7 +1457,8 @@ describe("packToCommandV1 / packToDialogV1", () => {
     });
     const [cmd] = packToCommandV1(pack);
     expect(cmd).toMatchObject({ schema: "command/v1", id: "heal", name: "heal" });
-    expect((cmd as any).steps[0].kind).toBe("action");
+    // steps is now an Action DSL string.
+    expect((cmd as any).steps).toBe("close_menu");
     expect((cmd as any).arguments[0]).toEqual({ name: "n", type: "integer", required: true });
   });
 
@@ -1479,6 +1476,7 @@ describe("packToCommandV1 / packToDialogV1", () => {
     });
     const [dlg] = packToDialogV1(pack);
     expect(dlg).toMatchObject({ schema: "dialog/v1", id: "confirm" });
-    expect((dlg as any).buttons[0].actions[0].type).toBe("close_dialog");
+    // Button actions are now an Action DSL string.
+    expect((dlg as any).buttons[0].actions).toBe("close_dialog");
   });
 });
