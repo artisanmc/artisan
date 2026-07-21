@@ -221,4 +221,48 @@ class ProjectReaderTest {
         val bundles = ProjectReader(root).readAll()
         assertEquals(0, bundles.first().dialogs.size)
     }
+
+    @Test
+    fun `an unparseable menu is skipped, the rest of the project still loads`() {
+        val root = java.nio.file.Files.createTempDirectory("artisan_tol_").toFile()
+        val packDir = File(root, "p_tol").apply { mkdirs() }
+        File(packDir, "manifest.yaml").writeText("""
+            schema: manifest/v1
+            project_id: p_tol
+            default_lang: en
+            languages: [en]
+            files:
+              menus:
+                - m_ok
+                - m_bad
+              commands: []
+        """.trimIndent())
+        File(packDir, "menus").mkdirs()
+        File(packDir, "menus/m_ok.yaml").writeText("""
+            schema: menu/v1
+            id: m_ok
+            title: "Shop"
+            size: 27
+            layers:
+              - id: l
+                name: default
+                elements: []
+        """.trimIndent())
+        // Malformed content (here a String where `size` expects an Int; stands in
+        // for e.g. a stale pre-Action-DSL menu whose steps are still an array).
+        // A parse error must skip THIS file, not fail the whole reload + enable.
+        File(packDir, "menus/m_bad.yaml").writeText("""
+            schema: menu/v1
+            id: m_bad
+            title: "Bad"
+            size: "not-a-number"
+            layers: []
+        """.trimIndent())
+        File(packDir, "lang").mkdirs()
+        File(packDir, "lang/en.yaml").writeText("{}\n")
+
+        val bundles = ProjectReader(root).readAll()
+        assertEquals(1, bundles.size)
+        assertEquals(1, bundles.first().menus.size) // m_bad skipped, m_ok loaded
+    }
 }
