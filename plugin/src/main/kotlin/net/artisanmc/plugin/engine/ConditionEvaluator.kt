@@ -1,5 +1,7 @@
 package net.artisanmc.plugin.engine
 
+import java.util.concurrent.atomic.AtomicBoolean
+import org.bukkit.Bukkit
 import org.bukkit.Material
 
 class ConditionEvaluator(val deps: SoftDepRegistry, val cooldowns: CooldownStore) {
@@ -23,6 +25,16 @@ class ConditionEvaluator(val deps: SoftDepRegistry, val cooldowns: CooldownStore
         is Condition.PlayerInRegion    -> deps.worldGuard?.isInRegion(ctx.player, condition.region) ?: false
         is Condition.PaginationAtFirst -> pageInfoFor(ctx, condition.elementId)?.let { it.page <= 0 } ?: true
         is Condition.PaginationAtLast  -> pageInfoFor(ctx, condition.elementId)?.let { it.page >= it.pageCount - 1 } ?: true
+        is Condition.Expression        -> {
+            // Leaf evaluator différé (ADR action-dsl §6) : honnête no-op → false.
+            if (expressionWarned.compareAndSet(false, true)) {
+                Bukkit.getLogger().warning(
+                    "[Artisan] free-comparison conditions (expression) are not yet evaluated — " +
+                        "treating as false. First seen: '${condition.expr}'",
+                )
+            }
+            false
+        }
         is Condition.Not               -> !evaluate(condition.inner, ctx)
         is Condition.And               -> condition.all.all { evaluate(it, ctx) }
         is Condition.Or                -> condition.any.any { evaluate(it, ctx) }
@@ -53,5 +65,8 @@ class ConditionEvaluator(val deps: SoftDepRegistry, val cooldowns: CooldownStore
 
     companion object {
         val EMPTY = ConditionEvaluator(SoftDepRegistry.EMPTY, CooldownStore())
+
+        /** Garde du WARN unique pour les conditions `expression` non-évaluées. */
+        private val expressionWarned = AtomicBoolean(false)
     }
 }

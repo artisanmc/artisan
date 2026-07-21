@@ -21,6 +21,7 @@ object ConditionParser {
             "player_in_region"   -> Condition.PlayerInRegion(str(raw, "region"))
             "pagination_at_first"-> Condition.PaginationAtFirst(raw["element_id"] as? String)
             "pagination_at_last" -> Condition.PaginationAtLast(raw["element_id"] as? String)
+            "expression"         -> Condition.Expression(str(raw, "expr"))
             "not"                -> Condition.Not(parse(raw["of"] as Map<String, Any>))
             "and"                -> Condition.And((raw["of"] as List<*>).map { parse(it as Map<String, Any>) })
             "or"                 -> Condition.Or((raw["of"] as List<*>).map { parse(it as Map<String, Any>) })

@@ -15,6 +15,11 @@ sealed class Condition {
     data class PlayerInRegion(val region: String) : Condition()
     data class PaginationAtFirst(val elementId: String? = null) : Condition()
     data class PaginationAtLast(val elementId: String? = null) : Condition()
+    /**
+     * Comparaison / expression libre (`balance >= 100`). Le leaf evaluator est un
+     * follow-up différé (ADR action-dsl §6) : évaluée à `false` avec un WARN unique.
+     */
+    data class Expression(val expr: String) : Condition()
     data class Not(val inner: Condition) : Condition()
     data class And(val all: List<Condition>) : Condition()
     data class Or(val any: List<Condition>) : Condition()
