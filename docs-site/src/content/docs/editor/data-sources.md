@@ -32,6 +32,7 @@ A Table is backed by a **model**: the list of fields each row has. Add fields wi
 - **localized text** — translatable per language, edited like any other text in the editor (and listed in the Translations view),
 - **minimessage**, **minimessage (multiline)** — text with MiniMessage markup (`<gold>`, `<bold>`…), shown rendered at rest and edited as raw markup on click, like the menu title fields,
 - **item** — a Minecraft item: pick a vanilla material, a custom item, or a captured item from your library,
+- **actions** — a chain of actions and conditions (e.g. what happens when a player buys a row), authored visually or as compact text — see [Action fields](#action-fields--the-action-dsl) below,
 - **list**, **object**, **model** — nested structures (e.g. a `perks` list of localized text for variable-length lore).
 
 One field is the **Row key** — the stable identifier of each row (e.g. `id`). Renaming or retyping a field updates all existing rows automatically.
@@ -43,6 +44,63 @@ Rows are edited in a scrollable sheet: one column per field, with the header and
 New rows automatically get the first available positive number for a numeric Row key, or an ID such as row_1 for a text Row key; unused gaps are reused. Text Row keys are normalized to lowercase and must be unique in their source: empty or duplicate edits show an inline error and leave the row and its translations unchanged.
 
 Deleting a source asks for confirmation and cannot be undone — its rows and translations go with it.
+
+## Action fields & the Action DSL
+
+An **actions** field holds a small program — a sequence of actions with optional
+`if` / `else if` / `else` branches — that describes *what happens* for a row. A
+classic use is a shop item's **on-buy**: take money, run a command, play a sound.
+
+Every actions field has two editing modes, toggled top-right:
+
+- **Visual** — the same block editor used for menu button clicks (actions as rows,
+  conditions as `if` blocks, drag to reorder).
+- **Code** — the raw text, exactly as it lives on disk. This is the **Action DSL**:
+  one action per line, hand-writable.
+
+### Syntax
+
+```
+# one action per line
+give_item DIAMOND 5
+take_money 100
+run_command "spawn" as player
+broadcast "&aWelcome {player}!"     # quoted text can hold placeholders
+broadcast @shop.vip_purchased        # @key = a translatable message (in your lang files)
+
+# branch on typed conditions
+if has_permission(vip) and balance >= 100:
+  take_money 100
+  play_sound ENTITY_PLAYER_LEVELUP
+else if cooldown_passed(daily):
+  give_item DIAMOND 1
+else:
+  send_message "&cNot allowed."
+```
+
+Rules of thumb:
+
+- **Text** is always quoted (`"..."`) — literal, one language — or written as
+  `@some.key` to point at a translatable message stored in your language files.
+- **Conditions** combine with `and` / `or` / `not` and parentheses:
+  `if (has_permission(vip) and balance >= 100) or balance >= 200:`.
+- **Blocks** use `:` and two-space indentation. Blank lines and `#` comments are
+  ignored.
+- If the code doesn't parse, the visual editor steps aside and shows the error so
+  you can fix it in text.
+
+### Running a row's actions from a menu
+
+Give a row an actions field (say `on_buy`), then, on a menu button bound to that
+source, add a **run** action pointing at it:
+
+```
+run_actions item.on_buy
+```
+
+The row's chain runs right there, and inside it the row's own fields are available
+directly — `take_money {price}` reads that row's `price`. So a source's actions are
+written once and work in any menu that invokes them.
 
 ## Filter a source in a menu
 
