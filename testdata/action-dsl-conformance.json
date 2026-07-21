@@ -149,6 +149,22 @@
     ]
   },
   {
+    "name": "time_is tick window",
+    "dsl": "if time_is(1000-5000):\n  broadcast \"daytime\"",
+    "canonicalDsl": "if time_is(1000-5000):\n  broadcast \"daytime\"",
+    "ast": [
+      {
+        "kind": "if",
+        "cases": [
+          {
+            "conditions": [{ "type": "time_is", "range": { "from_ticks": 1000, "to_ticks": 5000 } }],
+            "steps": [{ "kind": "action", "action": { "type": "broadcast", "text": { "lit": "daytime" } } }]
+          }
+        ]
+      }
+    ]
+  },
+  {
     "name": "if else",
     "dsl": "if has_permission(vip):\n  give_money 100\nelse:\n  send_message \"denied\"",
     "canonicalDsl": "if has_permission(vip):\n  give_money 100\nelse:\n  send_message \"denied\"",
