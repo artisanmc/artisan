@@ -35,8 +35,8 @@ export interface Command {
   notes?: string;
   arguments?: Argument[];
   requirements?: Condition[];
-  /** Séquence de steps exécutée quand la commande est appelée (actions + branches if). */
-  steps: Step[];
+  /** Chaîne **Action DSL** exécutée quand la commande est appelée (actions + branches if). Cf. ADR `action-dsl`. */
+  steps: string;
   /** Exécuté si requirements échoue. */
   fallback?: Action[];
   cooldown?: Cooldown;

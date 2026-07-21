@@ -38,8 +38,9 @@ export interface Menu {
   /** Slots nommées que le menu expose. Peuplées à l'ouverture par auto-binding par nom (cf. main-spec §15.4) ou par un ConnectorBinding (cf. §14). Référencées via {name} dans tout champ texte du menu. */
   context_inputs?: ContextInput[];
   open_requirements?: Condition[];
-  open_actions?: Action[];
-  close_actions?: Action[];
+  /** Action chains as Action DSL strings (cf. ADR `action-dsl`). */
+  open_actions?: string;
+  close_actions?: string;
   layers: Layer[];
   metadata?: MenuMetadata;
 }
@@ -188,9 +189,15 @@ export interface ClickMap {
   middle?: ClickHandler;
 }
 
-/** Un handler de clic est une séquence ordonnée de Steps (actions + branches if). */
+/**
+ * Un handler de clic : une chaîne **Action DSL** (`steps`) — la sérialisation
+ * texte de la séquence d'actions + branches if. Cf. ADR `action-dsl` (Phase 2 :
+ * les steps structurés `{kind,action|cases}` sont remplacés par la string DSL).
+ * Les types {@link Step}/{@link IfCase} ci-dessous décrivent la forme que le DSL
+ * parse (domaine), plus le wire.
+ */
 export interface ClickHandler {
-  steps: Step[];
+  steps: string;
 }
 
 /** Un cas conditionnel dans un Step `if`. */
