@@ -40,7 +40,7 @@ describe("validateMenuV1 (backend gate)", () => {
 // (SUPPORTED_ACTIONS / SUPPORTED_CONDITIONS). Le gate doit tenir la promesse
 // du guide : « anything else is rejected ».
 describe("validateMenuV1 (vocab subset gate)", () => {
-  const withClickSteps = (steps: unknown[]) => ({
+  const withClickSteps = (steps: string) => ({
     ...good,
     layers: [{ id: "l1", name: "d", elements: [{ id: "e1", positions: "0", appearances: [
       { material: "STONE", click: { left: { steps } } },
@@ -60,25 +60,25 @@ describe("validateMenuV1 (vocab subset gate)", () => {
     expect(r.errors.join(" ")).toMatch(/vocabulary/i);
   });
 
-  it("rejects expression conditions nested in composites and if-steps", () => {
-    const r = validateMenuV1(withClickSteps([
-      {
-        kind: "if",
-        cases: [{
-          conditions: [{ type: "and", of: [
-            { type: "has_permission", perm: "x" },
-            { type: "expression", expr: "1 == 1" },
-          ] }],
-          steps: [{ kind: "action", action: { type: "close_menu" } }],
-        }],
-        else: [{ kind: "if", cases: [{
-          conditions: [{ type: "expression", expr: "x > 0" }],
-          steps: [],
-        }] }],
-      },
-    ]));
+  it("rejects free-comparison (expression) conditions inside a DSL click chain", () => {
+    // Free comparisons (`balance >= 100`) parse to `{type:"expression"}`, which is
+    // outside the subset — no server-side expression evaluator yet.
+    const r = validateMenuV1(withClickSteps(
+      [
+        'if has_permission(x) and balance >= 100:',
+        '  close_menu',
+        'else if score > 0:',
+        '  send_message "hi"',
+      ].join("\n"),
+    ));
     expect(r.valid).toBe(false);
     expect(r.errors.join(" ")).toMatch(/expression/);
+  });
+
+  it("surfaces a DSL parse error as a readable validation error", () => {
+    const r = validateMenuV1(withClickSteps("if has_permission(x)\n  close_menu"));
+    expect(r.valid).toBe(false);
+    expect(r.errors.join(" ")).toMatch(/invalid Action DSL/);
   });
 
   it("accepts the extended runtime-OK actions and conditions", () => {
@@ -100,14 +100,14 @@ describe("validateMenuV1 (vocab subset gate)", () => {
           ],
           material: "STONE",
           click: { left: { steps: [
-            { kind: "action", action: { type: "broadcast", text: "hi all" } },
-            { kind: "action", action: { type: "play_sound", sound: "ENTITY_PLAYER_LEVELUP", volume: 1, pitch: 1 } },
-            { kind: "action", action: { type: "give_money", amount: 10 } },
-            { kind: "action", action: { type: "give_xp", amount: 5 } },
-            { kind: "action", action: { type: "give_level", amount: 1 } },
-            { kind: "action", action: { type: "take_item", material: "PAPER", count: 1 } },
-            { kind: "action", action: { type: "teleport", world: "spawn", x: 0, y: 64, z: 0 } },
-          ] } },
+            'broadcast "hi all"',
+            "play_sound ENTITY_PLAYER_LEVELUP vol=1 pitch=1",
+            "give_money 10",
+            "give_xp 5",
+            "give_level 1",
+            "take_item PAPER 1",
+            "teleport spawn 0 64 0",
+          ].join("\n") } },
         },
         { material: "STONE" },
       ] }] }],
@@ -119,8 +119,8 @@ describe("validateMenuV1 (vocab subset gate)", () => {
     const r = validateMenuV1({
       ...good,
       open_requirements: [{ type: "has_permission", perm: "x" }],
-      open_actions: [{ type: "send_message", text: "hi" }],
-      close_actions: [{ type: "close_menu" }],
+      open_actions: 'send_message "hi"',
+      close_actions: "close_menu",
       background: { material: "GRAY_STAINED_GLASS_PANE" },
     });
     expect(r.valid).toBe(false);
@@ -142,26 +142,22 @@ describe("validateMenuV1 (vocab subset gate)", () => {
           ],
           material: "STONE",
           click: { left: { steps: [
-            { kind: "if",
-              cases: [{ conditions: [{ type: "placeholder_match", placeholder: "%n%", regex: "^a" }],
-                steps: [
-                  { kind: "action", action: { type: "set_arg", arg: "cat", value: "tools" } },
-                  { kind: "action", action: { type: "set_arg_cycle_next", arg: "sort", list: "price,name" } },
-                  { kind: "action", action: { type: "set_arg_cycle_prev", arg: "sort", list: "price,name" } },
-                  { kind: "action", action: { type: "pagination_next" } },
-                  { kind: "action", action: { type: "pagination_prev" } },
-                  { kind: "action", action: { type: "open_dialog", dialog_id: "confirm" } },
-                  { kind: "action", action: { type: "close_dialog" } },
-                  { kind: "action", action: { type: "show_title", title: "<gold>Hi</gold>" } },
-                  { kind: "action", action: { type: "give_item", material: "DIAMOND", count: 1 } },
-                  { kind: "action", action: { type: "take_money", amount: 5 } },
-                  { kind: "action", action: { type: "run_command", command: "spawn" } },
-                  { kind: "action", action: { type: "open_menu", menu_id: "shop" } },
-                  { kind: "action", action: { type: "send_message", text: "ok" } },
-                  { kind: "action", action: { type: "close_menu" } },
-                ] }],
-            },
-          ] } },
+            'if %n% matches "^a":',
+            "  set cat = tools",
+            '  cycle next sort in "price,name"',
+            '  cycle prev sort in "price,name"',
+            "  paginate next",
+            "  paginate prev",
+            "  open_dialog confirm",
+            "  close_dialog",
+            '  show_title "<gold>Hi</gold>"',
+            "  give_item DIAMOND 1",
+            "  take_money 5",
+            '  run_command "spawn" as player',
+            "  open_menu shop",
+            '  send_message "ok"',
+            "  close_menu",
+          ].join("\n") } },
         },
         { material: "STONE" },
       ] }] }],
@@ -174,34 +170,61 @@ describe("validateCommandV1", () => {
   it("accepts a minimal valid command", () => {
     const r = validateCommandV1({
       schema: "command/v1", id: "heal", name: "heal",
-      steps: [{ kind: "action", action: { type: "close_menu" } }],
+      steps: "close_menu",
     });
     expect(r.valid).toBe(true);
     expect(r.errors).toEqual([]);
   });
 
-  it("rejects an out-of-vocabulary action inside a step", () => {
+  it("rejects an out-of-vocabulary action inside a step (DSL parse error)", () => {
     const r = validateCommandV1({
       schema: "command/v1", id: "c", name: "c",
-      steps: [{ kind: "action", action: { type: "launch_nukes" } }],
+      steps: "launch_nukes",
     });
     expect(r.valid).toBe(false);
     expect(r.errors.join("\n")).toMatch(/launch_nukes/);
   });
 
+  it("rejects run_actions (out of the assistant subset) inside a step", () => {
+    const r = validateCommandV1({
+      schema: "command/v1", id: "c", name: "c",
+      steps: "run_actions item.on_buy",
+    });
+    expect(r.valid).toBe(false);
+    expect(r.errors.join("\n")).toMatch(/run_actions/);
+    expect(r.errors.join("\n")).toMatch(/vocabulary/i);
+  });
+
   it("rejects a structurally invalid command (missing name)", () => {
-    const r = validateCommandV1({ schema: "command/v1", id: "c", steps: [{ kind: "action", action: { type: "close_menu" } }] });
+    const r = validateCommandV1({ schema: "command/v1", id: "c", steps: "close_menu" });
     expect(r.valid).toBe(false);
   });
 
-  it("rejects an out-of-vocab condition in requirements", () => {
+  it("rejects an out-of-vocab condition in requirements (structured)", () => {
     const r = validateCommandV1({
       schema: "command/v1", id: "c", name: "c",
       requirements: [{ type: "moon_phase" }],
-      steps: [{ kind: "action", action: { type: "close_menu" } }],
+      steps: "close_menu",
     });
     expect(r.valid).toBe(false);
     expect(r.errors.join("\n")).toMatch(/moon_phase/);
+  });
+
+  it("accepts an if/else DSL chain with subset conditions and actions", () => {
+    const r = validateCommandV1({
+      schema: "command/v1", id: "pay", name: "pay",
+      requirements: [{ type: "has_money", amount: 1 }],
+      steps: [
+        "if has_permission(artisan.vip):",
+        "  take_money 1",
+        '  send_message "<green>Paid.</green>"',
+        "else:",
+        '  send_message "<red>No perm.</red>"',
+      ].join("\n"),
+      fallback: [{ type: "send_message", text: "<red>Not enough money.</red>" }],
+    });
+    expect(r.valid).toBe(true);
+    expect(r.errors).toEqual([]);
   });
 });
 
@@ -209,15 +232,28 @@ describe("validateDialogV1", () => {
   it("accepts a minimal valid dialog", () => {
     const r = validateDialogV1({
       schema: "dialog/v1", id: "d", title: "T",
-      buttons: [{ id: "ok", label: "OK", actions: [{ type: "close_dialog" }] }],
+      buttons: [{ id: "ok", label: "OK", actions: "close_dialog" }],
     });
     expect(r.valid).toBe(true);
   });
 
-  it("rejects an out-of-vocab action in a button", () => {
+  it("accepts an if-branch DSL chain in a button", () => {
     const r = validateDialogV1({
       schema: "dialog/v1", id: "d", title: "T",
-      buttons: [{ id: "ok", label: "OK", actions: [{ type: "rm_rf" }] }],
+      buttons: [{ id: "ok", label: "OK", actions: [
+        "if has_money(100):",
+        "  take_money 100",
+        "close_dialog",
+      ].join("\n") }],
+    });
+    expect(r.valid).toBe(true);
+    expect(r.errors).toEqual([]);
+  });
+
+  it("rejects an out-of-vocab action in a button (DSL parse error)", () => {
+    const r = validateDialogV1({
+      schema: "dialog/v1", id: "d", title: "T",
+      buttons: [{ id: "ok", label: "OK", actions: "rm_rf" }],
     });
     expect(r.valid).toBe(false);
     expect(r.errors.join("\n")).toMatch(/rm_rf/);
@@ -230,25 +266,26 @@ describe("validateDialogV1", () => {
 });
 
 describe("validators are crash-safe on malformed input", () => {
-  it("validateCommandV1 returns invalid (no throw) for type-wrong containers", () => {
+  it("validateCommandV1 returns invalid (no throw) for type-wrong containers / bad DSL", () => {
     for (const bad of [
-      { schema: "command/v1", id: "c", name: "c", steps: "nope" },
-      { schema: "command/v1", id: "c", name: "c", steps: [{ kind: "if", cases: "x" }] },
-      { schema: "command/v1", id: "c", name: "c", steps: [{ kind: "if", cases: [null] }] },
-      { schema: "command/v1", id: "c", name: "c", steps: [], requirements: "x" },
-      { schema: "command/v1", id: "c", name: "c", steps: [], requirements: [{ type: "and", of: "x" }] },
-      { schema: "command/v1", id: "c", name: "c", steps: [], fallback: "x" },
+      { schema: "command/v1", id: "c", name: "c", steps: "nope" }, // unknown DSL verb
+      { schema: "command/v1", id: "c", name: "c", steps: "if has_money(1)\n  close_menu" }, // missing ':'
+      { schema: "command/v1", id: "c", name: "c", steps: [] }, // wrong type (array, schema wants string)
+      { schema: "command/v1", id: "c", name: "c", steps: "close_menu", requirements: "x" },
+      { schema: "command/v1", id: "c", name: "c", steps: "close_menu", requirements: [{ type: "and", of: "x" }] },
+      { schema: "command/v1", id: "c", name: "c", steps: "close_menu", fallback: "x" },
     ]) {
       expect(() => validateCommandV1(bad)).not.toThrow();
       expect(validateCommandV1(bad).valid).toBe(false);
     }
   });
 
-  it("validateDialogV1 returns invalid (no throw) for type-wrong containers", () => {
+  it("validateDialogV1 returns invalid (no throw) for type-wrong containers / bad DSL", () => {
     for (const bad of [
       { schema: "dialog/v1", id: "d", title: "t", buttons: "x" },
       { schema: "dialog/v1", id: "d", title: "t", buttons: [null] },
-      { schema: "dialog/v1", id: "d", title: "t", buttons: [{ id: "ok", label: "OK", actions: "x" }] },
+      { schema: "dialog/v1", id: "d", title: "t", buttons: [{ id: "ok", label: "OK", actions: 42 }] },
+      { schema: "dialog/v1", id: "d", title: "t", buttons: [{ id: "ok", label: "OK", actions: "nope_verb" }] },
     ]) {
       expect(() => validateDialogV1(bad)).not.toThrow();
       expect(validateDialogV1(bad).valid).toBe(false);
