@@ -689,7 +689,7 @@ function serializeLang(
 // as flattened field kinds — the Bundle/plugin never see model identity (same
 // philosophy as Item templates inlined into menu/v1). ltext values export as
 // their canonical i18n keys (translations travel in lang/); item values as refs
-// (stacks travel in items/).
+// (stacks travel in items/); minimessage fields export as plain strings.
 
 function serializeDataFieldType(
   type: ModelFieldType,
@@ -699,6 +699,11 @@ function serializeDataFieldType(
   switch (type.kind) {
     case "list":
       return { kind: "list", of: serializeDataFieldType(type.of, models, visited) };
+    // minimessage is an editor-only editing affordance — the stored value is
+    // a plain string, so data/v1 (and the plugin) only ever sees `string`.
+    case "minimessage":
+    case "minimessage_multiline":
+      return { kind: "string" };
     case "object":
       return { kind: "object", fields: type.fields.map((f) => serializeDataField(f, models, visited)) };
     case "model": {

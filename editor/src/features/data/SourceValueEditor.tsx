@@ -1,3 +1,4 @@
+import { RevealField } from "@/components/RevealField";
 import { Input } from "@/components/ui/input";
 import { sourceRootFields } from "@/domain/dataModels";
 import type {
@@ -9,6 +10,8 @@ import type {
   Project,
 } from "@/domain/types";
 import { MaterialRefField } from "@/features/canvas/MaterialRefField";
+import { MiniMessageInline } from "@/lib/MiniMessageInline";
+import { cx } from "@/lib/cx";
 import { getText } from "@/lib/i18n";
 import { useAccountStore } from "@/state/accountStore";
 import { useUiStore } from "@/state/uiStore";
@@ -171,6 +174,25 @@ export function ValueEditor({
           onChange={set}
         />
       );
+    case "minimessage":
+    case "minimessage_multiline": {
+      // Same kit as the SchemaForm minimessage widgets: rendered facade at
+      // rest, raw markup in a PlaceholderInput on focus. Plain string value.
+      const multiline = type.kind === "minimessage_multiline";
+      const text = typeof value === "string" ? value : "";
+      return (
+        <RevealField
+          value={text}
+          onChange={set}
+          entries={[]}
+          multiline={multiline}
+          rows={multiline ? 3 : undefined}
+          className={multiline ? "min-w-48 text-[12px]" : "h-7 min-w-24 px-2 text-[12px]"}
+          placeholder={String(path[path.length - 1])}
+          facade={<MiniMessageInline source={text} className="font-mono text-xs" />}
+        />
+      );
+    }
     case "ltext": {
       // Sentinel ({key:""}) = not minted yet — mint runs on row/field add, so
       // this only shows transiently on non-conforming hand-imported data.
@@ -255,7 +277,12 @@ export function ValueEditor({
   }
 }
 
-/** Rows table of a Table source: one column per top-level field. */
+/**
+ * Rows of a Table source as a scrollable sheet: one column per top-level
+ * field, min-width per column so fields never squeeze — wide models scroll
+ * horizontally (spreadsheet-style). Header row, first column and the row
+ * actions column stay sticky.
+ */
 export function SourceRowsTable({
   projectId,
   pack,
@@ -276,23 +303,38 @@ export function SourceRowsTable({
       {source.rows.length === 0 ? (
         <p className="text-[11px] text-[var(--text-faint)]">{t("dataSources.noRows")}</p>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-left">
+        <div
+          className="max-h-[26rem] overflow-auto rounded border border-[var(--border-soft)]"
+          data-testid="source-rows-sheet"
+        >
+          <table className="w-full min-w-max border-collapse text-left">
             <thead>
               <tr>
-                {fields.map((f) => (
-                  <th key={f.name} className="px-2 py-1 font-mono text-[10px] uppercase text-[var(--text-faint)]">
+                {fields.map((f, i) => (
+                  <th
+                    key={f.name}
+                    className={cx(
+                      "sticky top-0 z-10 whitespace-nowrap bg-[var(--surface-raised)] px-2 py-1 font-mono text-[10px] uppercase text-[var(--text-faint)]",
+                      i === 0 && "left-0 z-20",
+                    )}
+                  >
                     {f.name}
                   </th>
                 ))}
-                <th />
+                <th className="sticky top-0 right-0 z-20 w-8 bg-[var(--surface-raised)]" />
               </tr>
             </thead>
             <tbody>
               {source.rows.map((r, i) => (
                 <tr key={i} className="border-t border-[var(--border-soft)] align-top">
-                  {fields.map((f) => (
-                    <td key={f.name} className="px-2 py-1.5">
+                  {fields.map((f, fi) => (
+                    <td
+                      key={f.name}
+                      className={cx(
+                        "min-w-36 px-2 py-1.5",
+                        fi === 0 && "sticky left-0 z-[5] bg-[var(--surface-raised)]",
+                      )}
+                    >
                       {f.name === model?.keyField && isRowKeyType(f.type) ? (
                         <RowKeyEditor
                           projectId={projectId}
@@ -315,7 +357,7 @@ export function SourceRowsTable({
                       )}
                     </td>
                   ))}
-                  <td className="px-1 py-1.5">
+                  <td className="sticky right-0 z-[5] bg-[var(--surface-raised)] px-1 py-1.5">
                     <button
                       type="button"
                       onClick={() => removeSourceRow({ projectId, sourceId: source.id, index: i })}
@@ -334,7 +376,7 @@ export function SourceRowsTable({
       <button
         type="button"
         onClick={() => addSourceRow({ projectId, sourceId: source.id })}
-        className="btn-ghost h-7 self-start rounded px-2 text-[11px]"
+        className="btn-ghost h-7 shrink-0 self-start whitespace-nowrap rounded px-2 text-[11px]"
       >
         {t("dataSources.addRow")}
       </button>

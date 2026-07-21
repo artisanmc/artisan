@@ -3,10 +3,10 @@ import type { ProjectId } from "@/domain/types";
 import { AssetsTab } from "@/features/assets/AssetsTab";
 import { useAssetInit } from "@/features/assets/useAssetInit";
 import { FlowCanvas } from "@/features/flow/FlowCanvas";
-import { type EditorTab, useUiStore } from "@/state/uiStore";
-import { useTranslation } from "react-i18next";
-import { useState } from "react";
 import { cx } from "@/lib/cx";
+import { type EditorTab, useUiStore } from "@/state/uiStore";
+import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { CapturedItemsSection } from "./CapturedItemsSection";
 import { ItemSetsLibrary } from "./ItemSetsLibrary";
 import { Library } from "./Library";
@@ -29,7 +29,8 @@ export function EditorPane({ projectId }: EditorPaneProps) {
   const { t } = useTranslation();
 
   return (
-    // No own border — the SplitPane separator hairline provides the visual edge.
+    // Plain fill — the surrounding container (SplitPane column on mobile, the
+    // FloatingEditorPane glass card on desktop) owns the surface/shape.
     <div className="flex h-full min-h-0 flex-col">
       <Tabs
         value={tab}

@@ -1695,6 +1695,44 @@ describe("accountStore", () => {
       expect(renamed[1]!.name).toBe("new_source_2");
     });
 
+    it("migrates existing opaque source keys when an account is loaded", () => {
+      useAccountStore.getState().addProjectDataSource({ projectId: PERSONAL });
+      const source = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!
+        .dataSources[0]!;
+      if (source.shape !== "table") throw new Error("expected table");
+      useAccountStore
+        .getState()
+        .renameProjectDataSource({ projectId: PERSONAL, id: source.id, newName: "grades" });
+      useAccountStore.getState().editSourceField({
+        projectId: PERSONAL,
+        target: { kind: "model", modelId: source.modelId },
+        edit: { op: "add", path: [], field: { name: "lore", type: { kind: "ltext" } } },
+      });
+      useAccountStore.getState().addSourceRow({ projectId: PERSONAL, sourceId: source.id });
+      useAccountStore.setState((state) =>
+        produce(state, (draft) => {
+          const pack = draft.account.projects.find((p) => p.id === PERSONAL)!;
+          const row = (pack.dataSources[0] as { rows: Record<string, unknown>[] }).rows[0]!;
+          const semanticKey = (row.lore as { key: string }).key;
+          delete pack.i18nKeys[semanticKey as never];
+          row.lore = { key: "lt_random" };
+          pack.i18nKeys["lt_random" as never] = { en: "Lore", fr: "Description" };
+        }),
+      );
+      const loaded = structuredClone(useAccountStore.getState().account);
+
+      useAccountStore.getState().setAccount(loaded);
+
+      const pack = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
+      const row = (pack.dataSources[0] as { rows: Record<string, unknown>[] }).rows[0]!;
+      expect((row.lore as { key: string }).key).toBe("sources.grades.row_1.lore");
+      expect(pack.i18nKeys["sources.grades.row_1.lore" as never]).toEqual({
+        en: "Lore",
+        fr: "Description",
+      });
+      expect(pack.i18nKeys["lt_random" as never]).toBeUndefined();
+    });
+
     it("list items: add appends a minted element, remove releases it", () => {
       useAccountStore.getState().addProjectDataSource({ projectId: PERSONAL });
       const ds0 = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!

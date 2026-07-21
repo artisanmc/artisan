@@ -22,12 +22,15 @@ Besides server sources, you can author **your own data** directly in the project
 - **Table** — a list of rows (ranks, kits, warps…). Menus can paginate over it, place individual rows on specific slots, and build item Sets from it.
 - **Config** — a single object of settings (currency name, support URL…) you reference in menus as `{settings.currency}`.
 
+Project source names are lowercase and unique within the project. The editor lowercases typing and pasted text automatically; if a name is already used, the rename is rejected with an inline error.
+
 ### Declare the schema
 
 A Table is backed by a **model**: the list of fields each row has. Add fields with a name and a type:
 
 - **text**, **number**, **integer**, **boolean** — plain values,
 - **localized text** — translatable per language, edited like any other text in the editor (and listed in the Translations view),
+- **minimessage**, **minimessage (multiline)** — text with MiniMessage markup (`<gold>`, `<bold>`…), shown rendered at rest and edited as raw markup on click, like the menu title fields,
 - **item** — a Minecraft item: pick a vanilla material, a custom item, or a captured item from your library,
 - **list**, **object**, **model** — nested structures (e.g. a `perks` list of localized text for variable-length lore).
 
@@ -35,7 +38,11 @@ One field is the **Row key** — the stable identifier of each row (e.g. `id`). 
 
 ### Fill the rows
 
-Rows are edited in a table: one column per field. Item cells open the item picker; localized text cells edit the currently active language. Reference the source in a menu like any other data source — its ref is `pack:<id>` — then iterate, filter, or place rows exactly as you would with a server source. Your data deploys with the project and works in-game, translated to each player's language.
+Rows are edited in a scrollable sheet: one column per field, with the header and first column staying visible while you scroll — wide models just scroll horizontally. Item cells open the item picker; localized text cells edit the currently active language. Reference the source in a menu like any other data source — its ref is `pack:<id>` — then iterate, filter, or place rows exactly as you would with a server source. Your data deploys with the project and works in-game, translated to each player's language.
+
+New rows automatically get the first available positive number for a numeric Row key, or an ID such as row_1 for a text Row key; unused gaps are reused. Text Row keys are normalized to lowercase and must be unique in their source: empty or duplicate edits show an inline error and leave the row and its translations unchanged.
+
+Deleting a source asks for confirmation and cannot be undone — its rows and translations go with it.
 
 ## Filter a source in a menu
 

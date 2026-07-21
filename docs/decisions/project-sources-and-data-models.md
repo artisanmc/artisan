@@ -22,10 +22,12 @@ monolingual hole (per-item literal `name`/`lore`).
    experience.
 
 2. **Declared schema via Data models, recursive.** The inferred `FieldType` is
-   replaced by an admin-declared schema. A **Data model** is a named, project-level,
-   recursive field shape (text, localized text, number, boolean, item, list, object;
-   models may reference models, no cycles). Every **Table** is a table *of* one Data
-   model (auto-created with the table); the Row key is declared **on the model**.
+    replaced by an admin-declared schema. A **Data model** is a named, project-level,
+    recursive field shape (text, localized text, MiniMessage text — single-/multi-line,
+    stored as a plain string, rendered-facade editing affordance — number, boolean,
+    item, list, object; models may reference models, no cycles). Every **Table** is a
+    table *of* one Data model (auto-created with the table); the Row key is declared
+    **on the model**.
    Rejected: flat-only schemas (real cases like variable-length localized lore need
    nesting); optional inline schemas (two representations to maintain).
 
@@ -41,9 +43,23 @@ monolingual hole (per-item literal `name`/`lore`).
    contract.
 
 5. **Row ltext values are ordinary LTexts / Key sites.** Canonical keys derive from
-   the Row key: `sources.<id>.<rowKey>.<fieldPath>` (Config: no rowKey segment).
+   the Row key: `sources.<sourceName>.<rowKey>.<fieldPath>` (all segments lowercase;
+   Config: no rowKey segment). Source names are lowercase and unique per project.
    Renaming a row's key value re-canonicalizes (accepted churn, keys stay readable).
    Item fields share the material value-space (`material | item:<id> | custom ref`).
+
+   **Row-key invariant.** New rows receive the first free positive integer for a
+   numeric/integer Row key, or the first free textual row_n; gaps are deliberately
+   reused. Textual keys are stored as trim().toLowerCase() and must be unique
+   case-insensitively within a source. Empty or duplicate manual edits are rejected
+   inline without changing the row or its translations. Canonical ltext paths use
+   this validated lowercase key: sources.<sourceName>.<rowKey>.<fieldPath>.
+
+   The i18n visitor retains positional row_n only as a defensive fallback for
+   legacy/imported rows with invalid empty or duplicate keys. That is distinct from
+   an authored generated row_n, which is a valid stored Row-key value. Invalid
+   imported rows are not repaired at load time: their existing identifiers can be
+   externally referenced, so silent renaming would break consumers.
 
 6. **Editing is form-only.** The YAML pane is removed (ltext values make a raw
    textual representation non-editable truth — it would show opaque keys). Bulk
@@ -53,8 +69,10 @@ monolingual hole (per-item literal `name`/`lore`).
 7. **Bundle: denormalized `data/` dir; models are invisible at runtime.** Export
    writes `data/<source_id>.yaml` = `{ shape, key_field, fields, rows }` — the
    model is inlined as a flattened field-kind map, mirroring how Item templates are
-   inlined into `menu/v1`. ltext values export as their canonical keys (translations
-   already travel in `lang/`); item values as refs (stacks travel in `items/`). The
+    inlined into `menu/v1`. ltext values export as their canonical keys (translations
+    already travel in `lang/`); item values as refs (stacks travel in `items/`);
+    MiniMessage fields export as ordinary strings (`kind: string` — data/v1 never
+    sees the editing affordance). The
    reserved `pack:` namespace resolves at the **renderer fetch seam**
    (`ProjectDataResolver`, over the live bundle list) — *amended at implementation
    time*: it was first planned as a `DataSourceRegistry` registration, but the

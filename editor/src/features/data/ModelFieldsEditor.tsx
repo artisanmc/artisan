@@ -22,7 +22,16 @@ import { useTranslation } from "react-i18next";
  * model refs (cycle-guarded), remove. ADR `project-sources-and-data-models`.
  */
 
-const SCALAR_KINDS = ["string", "ltext", "number", "integer", "boolean", "item"] as const;
+const SCALAR_KINDS = [
+  "string",
+  "ltext",
+  "minimessage",
+  "minimessage_multiline",
+  "number",
+  "integer",
+  "boolean",
+  "item",
+] as const;
 type KindChoice = (typeof SCALAR_KINDS)[number] | "list" | "object" | "model";
 
 function kindOf(t: ModelFieldType): KindChoice {
@@ -234,6 +243,9 @@ function FieldList({
 }) {
   const { t } = useTranslation();
   const editSourceField = useAccountStore((s) => s.editSourceField);
+  // The draft stays hidden behind a dashed "+ Ajouter un champ" button:
+  // always-visible inputs looked like an already-added field row.
+  const [draftOpen, setDraftOpen] = useState(false);
   const [newName, setNewName] = useState("");
   const [newKind, setNewKind] = useState<KindChoice>("string");
   const models = pack.dataModels ?? [];
@@ -246,6 +258,10 @@ function FieldList({
       target,
       edit: { op: "add", path, field: { name: clean, type: defaultTypeForKind(newKind, models) } },
     });
+    setNewName(""); // draft stays open — fast multi-add
+  };
+  const closeDraft = () => {
+    setDraftOpen(false);
     setNewName("");
   };
 
@@ -264,28 +280,51 @@ function FieldList({
           />
         ))}
       </ul>
-      <div className="flex items-center gap-1.5">
-        <Input
-          value={newName}
-          onChange={(e) => setNewName(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && addField()}
-          placeholder={t("dataSources.fieldName")}
-          className="h-7 w-36 px-2 font-mono text-[12px]"
-        />
-        <KindSelect
-          value={newKind}
-          allowComplex
-          labelFor={(k) => t(`dataSources.kind.${k}`)}
-          onChange={setNewKind}
-        />
+      {draftOpen ? (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Input
+            autoFocus
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") addField();
+              if (e.key === "Escape") closeDraft();
+            }}
+            placeholder={t("dataSources.fieldName")}
+            className="h-7 w-36 px-2 font-mono text-[12px]"
+          />
+          <KindSelect
+            value={newKind}
+            allowComplex
+            labelFor={(k) => t(`dataSources.kind.${k}`)}
+            onChange={setNewKind}
+          />
+          <button
+            type="button"
+            onClick={addField}
+            className="rounded px-1.5 py-0.5 text-[12px] text-[var(--text-faint)] hover:bg-[var(--surface-raised-2)] hover:text-[var(--success)]"
+            aria-label={t("dataSources.confirmAddField")}
+          >
+            ✓
+          </button>
+          <button
+            type="button"
+            onClick={closeDraft}
+            className="rounded px-1.5 py-0.5 text-[12px] text-[var(--text-faint)] hover:bg-[var(--surface-raised-2)] hover:text-rose-300"
+            aria-label={t("dataSources.cancelAddField")}
+          >
+            ✕
+          </button>
+        </div>
+      ) : (
         <button
           type="button"
-          onClick={addField}
-          className="btn-ghost h-7 rounded px-2 text-[11px]"
+          onClick={() => setDraftOpen(true)}
+          className="self-start rounded border border-dashed border-[var(--border)] px-2 py-1 text-[11px] text-[var(--text-mut)] hover:border-[var(--border-strong)] hover:text-[var(--text)]"
         >
           {t("dataSources.addField")}
         </button>
-      </div>
+      )}
     </div>
   );
 }
