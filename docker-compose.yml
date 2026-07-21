@@ -15,6 +15,23 @@ services:
       timeout: 5s
       retries: 10
 
+  # Boutique add-on's own MySQL (Azuriom shop schema) — separate from Artisan's
+  # Postgres. Boutique creates its tables on enable; a fresh empty DB is fine.
+  boutique-mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: boutique
+      MYSQL_USER: boutique
+      MYSQL_PASSWORD: boutique
+      MYSQL_ROOT_PASSWORD: boutique
+    volumes:
+      - boutique-mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uboutique", "-pboutique"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+
   backend:
     image: oven/bun:1
     working_dir: /app
@@ -75,7 +92,11 @@ services:
       RCON_PASSWORD: local
       BROADCAST_RCON_TO_OPS: "false"
     depends_on:
-      - backend
+      backend:
+        condition: service_started
+      boutique-mysql:
+        condition: service_healthy
 
 volumes:
   pg-data:
+  boutique-mysql-data:
