@@ -29,7 +29,13 @@ function readGrounding(name: string): string {
 
 const VOCAB = [
   "# Vocabulaire AUTORISÉ (exclusif)",
-  "N'émets QUE ces types. Tout autre type sera rejeté / non représentable.",
+  "Ce sont les seuls types d'actions/conditions représentables. Tout autre est rejeté.",
+  "Dans les `steps` de menu, les `steps` de commande et les `actions` de bouton de dialog,",
+  "on les écrit en **Action DSL** (une action par ligne, blocs `if:`/`else:`, cf. guides) :",
+  "p.ex. `pagination_next`/`pagination_prev` s'écrivent `paginate next`/`paginate prev`,",
+  "`set_arg` → `set <arg> = <valeur>`, `set_arg_cycle_next/prev` → `cycle next/prev <arg> in \"a,b\"`.",
+  "Les comparaisons libres (`x >= 100`) donnent une condition `expression` NON évaluée → interdites.",
+  "N'émets JAMAIS `run_actions` (nécessite un binding de source non authorable ici).",
   `Conditions: ${SUPPORTED_CONDITIONS.join(", ")}.`,
   `Actions: ${SUPPORTED_ACTIONS.join(", ")}.`,
 ].join("\n");

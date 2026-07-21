@@ -100,7 +100,7 @@ describe("executeTool", () => {
 });
 
 describe("command tools", () => {
-  const cmd = { schema: "command/v1", id: "heal", name: "heal", steps: [{ kind: "action", action: { type: "close_menu" } }] };
+  const cmd = { schema: "command/v1", id: "heal", name: "heal", steps: "close_menu" };
 
   it("tool defs expose command CRUD", () => {
     const names = TOOL_DEFS.map((t) => t.name);
@@ -130,7 +130,7 @@ describe("command tools", () => {
 });
 
 describe("dialog write tools", () => {
-  const dlg = { schema: "dialog/v1", id: "d", title: "T", buttons: [{ id: "ok", label: "OK", actions: [{ type: "close_dialog" }] }] };
+  const dlg = { schema: "dialog/v1", id: "d", title: "T", buttons: [{ id: "ok", label: "OK", actions: "close_dialog" }] };
 
   it("upsert_dialog validates and emits dialog_written", () => {
     const wc = new WorkingCopy();
