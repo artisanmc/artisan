@@ -1,0 +1,194 @@
+[
+  {
+    "name": "numeric >= true",
+    "expr": "balance >= 100",
+    "scope": { "balance": 150 },
+    "expected": true
+  },
+  {
+    "name": "numeric >= false",
+    "expr": "balance >= 100",
+    "scope": { "balance": 50 },
+    "expected": false
+  },
+  {
+    "name": "numeric > equal boundary",
+    "expr": "balance > 100",
+    "scope": { "balance": 100 },
+    "expected": false
+  },
+  {
+    "name": "numeric <= true",
+    "expr": "balance <= 100",
+    "scope": { "balance": 100 },
+    "expected": true
+  },
+  {
+    "name": "numeric == true",
+    "expr": "level == 5",
+    "scope": { "level": 5 },
+    "expected": true
+  },
+  {
+    "name": "numeric != true",
+    "expr": "level != 5",
+    "scope": { "level": 3 },
+    "expected": true
+  },
+  {
+    "name": "string == true",
+    "expr": "name == \"alice\"",
+    "scope": { "name": "alice" },
+    "expected": true
+  },
+  {
+    "name": "string == false",
+    "expr": "name == \"alice\"",
+    "scope": { "name": "bob" },
+    "expected": false
+  },
+  {
+    "name": "string lexicographic <",
+    "expr": "name < \"b\"",
+    "scope": { "name": "a" },
+    "expected": true
+  },
+  {
+    "name": "numeric string literals compare numerically",
+    "expr": "\"10\" < \"9\"",
+    "scope": {},
+    "expected": false
+  },
+  {
+    "name": "null equals empty string is true",
+    "expr": "missing == \"\"",
+    "scope": {},
+    "expected": true
+  },
+  {
+    "name": "null equals empty via null literal",
+    "expr": "missing == null",
+    "scope": {},
+    "expected": true
+  },
+  {
+    "name": "null equals zero is false",
+    "expr": "missing == 0",
+    "scope": {},
+    "expected": false
+  },
+  {
+    "name": "arithmetic sum then compare true",
+    "expr": "gold + silver > 500",
+    "scope": { "gold": 300, "silver": 250 },
+    "expected": true
+  },
+  {
+    "name": "arithmetic sum then compare false",
+    "expr": "gold + silver > 500",
+    "scope": { "gold": 100, "silver": 100 },
+    "expected": false
+  },
+  {
+    "name": "arithmetic subtraction then compare",
+    "expr": "gold - silver == 0",
+    "scope": { "gold": 5, "silver": 5 },
+    "expected": true
+  },
+  {
+    "name": "left-to-right arithmetic",
+    "expr": "a - b + c == 4",
+    "scope": { "a": 10, "b": 8, "c": 2 },
+    "expected": true
+  },
+  {
+    "name": "missing path bare truthy is false",
+    "expr": "is_vip",
+    "scope": {},
+    "expected": false
+  },
+  {
+    "name": "bare truthy true",
+    "expr": "is_vip",
+    "scope": { "is_vip": true },
+    "expected": true
+  },
+  {
+    "name": "bare number truthy nonzero",
+    "expr": "count",
+    "scope": { "count": 5 },
+    "expected": true
+  },
+  {
+    "name": "bare number zero is falsy",
+    "expr": "count",
+    "scope": { "count": 0 },
+    "expected": false
+  },
+  {
+    "name": "bare empty string is falsy",
+    "expr": "label",
+    "scope": { "label": "" },
+    "expected": false
+  },
+  {
+    "name": "bare false-literal string is truthy",
+    "expr": "flag",
+    "scope": { "flag": "false" },
+    "expected": true
+  },
+  {
+    "name": "nested path compare true",
+    "expr": "item.price < 10",
+    "scope": { "item": { "price": 5 } },
+    "expected": true
+  },
+  {
+    "name": "nested path missing field compare",
+    "expr": "item.qty >= 1",
+    "scope": { "item": { "price": 5 } },
+    "expected": false
+  },
+  {
+    "name": "deep nested path",
+    "expr": "shop.item.price == 42",
+    "scope": { "shop": { "item": { "price": 42 } } },
+    "expected": true
+  },
+  {
+    "name": "boolean literal true",
+    "expr": "true",
+    "scope": {},
+    "expected": true
+  },
+  {
+    "name": "boolean literal false",
+    "expr": "false",
+    "scope": {},
+    "expected": false
+  },
+  {
+    "name": "decimal numeric compare",
+    "expr": "rate <= 1.5",
+    "scope": { "rate": 1.5 },
+    "expected": true
+  },
+  {
+    "name": "string concat then compare",
+    "expr": "prefix + name == \"mr_alice\"",
+    "scope": { "prefix": "mr_", "name": "alice" },
+    "expected": true
+  },
+  {
+    "name": "number-to-string concat compare",
+    "expr": "\"lvl\" + level == \"lvl7\"",
+    "scope": { "level": 7 },
+    "expected": true
+  },
+  {
+    "name": "null equals null literal both missing",
+    "expr": "a == b",
+    "scope": {},
+    "expected": true
+  }
+]
