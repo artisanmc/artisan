@@ -25,19 +25,31 @@ class ConditionEvaluator(val deps: SoftDepRegistry, val cooldowns: CooldownStore
         is Condition.PlayerInRegion    -> deps.worldGuard?.isInRegion(ctx.player, condition.region) ?: false
         is Condition.PaginationAtFirst -> pageInfoFor(ctx, condition.elementId)?.let { it.page <= 0 } ?: true
         is Condition.PaginationAtLast  -> pageInfoFor(ctx, condition.elementId)?.let { it.page >= it.pageCount - 1 } ?: true
-        is Condition.Expression        -> {
-            // Leaf evaluator différé (ADR action-dsl §6) : honnête no-op → false.
-            if (expressionWarned.compareAndSet(false, true)) {
-                Bukkit.getLogger().warning(
-                    "[Artisan] free-comparison conditions (expression) are not yet evaluated — " +
-                        "treating as false. First seen: '${condition.expr}'",
-                )
-            }
-            false
-        }
+        is Condition.Expression        -> evaluateExpression(condition, ctx)
         is Condition.Not               -> !evaluate(condition.inner, ctx)
         is Condition.And               -> condition.all.all { evaluate(it, ctx) }
         is Condition.Or                -> condition.any.any { evaluate(it, ctx) }
+    }
+
+    /**
+     * Free-comparison condition (ADR action-dsl §6) : parse+évalue l'expression
+     * leaf contre `ctx.resolvedArgs`, résout les `%papi%` via `deps.papi`, coerce
+     * en Boolean. Tolérant : toute erreur de parse/éval → false (+ WARN unique).
+     */
+    private fun evaluateExpression(condition: Condition.Expression, ctx: ExecutionContext): Boolean {
+        val papi: ((String) -> String?)? = deps.papi?.let { p -> { name -> p.resolve(ctx.player, "%$name%") } }
+        val value = try {
+            net.artisanmc.plugin.actiondsl.evalLeafOrThrow(condition.expr, ctx.resolvedArgs, papi)
+        } catch (e: Exception) {
+            if (expressionWarned.compareAndSet(false, true)) {
+                Bukkit.getLogger().warning(
+                    "[Artisan] unparseable expression condition — treating as false. " +
+                        "First seen: '${condition.expr}' (${e.message})",
+                )
+            }
+            return false
+        }
+        return net.artisanmc.plugin.actiondsl.toLeafBoolean(value)
     }
 
     private fun countItems(ctx: ExecutionContext, materialName: String): Int {
@@ -66,7 +78,7 @@ class ConditionEvaluator(val deps: SoftDepRegistry, val cooldowns: CooldownStore
     companion object {
         val EMPTY = ConditionEvaluator(SoftDepRegistry.EMPTY, CooldownStore())
 
-        /** Garde du WARN unique pour les conditions `expression` non-évaluées. */
+        /** Garde du WARN unique pour les conditions `expression` non-parseables. */
         private val expressionWarned = AtomicBoolean(false)
     }
 }
