@@ -100,8 +100,7 @@ class ProjectReaderTest {
             buttons:
               - id: btn_ok
                 label: OK
-                actions:
-                  - type: close_dialog
+                actions: close_dialog
         """.trimIndent())
 
         File(packDir, "lang").mkdirs()

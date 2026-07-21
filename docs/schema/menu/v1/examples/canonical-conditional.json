@@ -22,18 +22,7 @@
               "title": "VIP Gold",
               "click": {
                 "left": {
-                  "steps": [
-                    {
-                      "kind": "if",
-                      "cases": [
-                        {
-                          "conditions": [{ "type": "has_money", "amount": 100 }],
-                          "steps": [{ "kind": "action", "action": { "type": "take_money", "amount": 100 } }]
-                        }
-                      ],
-                      "else": [{ "kind": "action", "action": { "type": "send_message", "text": "Not enough money" } }]
-                    }
-                  ]
+                  "steps": "if has_money(100):\n  take_money 100\nelse:\n  send_message \"Not enough money\""
                 }
               }
             },

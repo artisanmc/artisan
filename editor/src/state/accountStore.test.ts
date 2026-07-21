@@ -2134,7 +2134,7 @@ describe("accountStore", () => {
       projectId: PERSONAL, lang: "en",
       commandV1: {
         schema: "command/v1", id: "heal", name: "heal",
-        steps: [{ kind: "action", action: { type: "send_message", text: "Healed" } }],
+        steps: 'send_message "Healed"',
       },
     });
     expect(dropped).toEqual([]);
@@ -2146,7 +2146,7 @@ describe("accountStore", () => {
 
     useAccountStore.getState().applyAssistantCommand({
       projectId: PERSONAL, lang: "en",
-      commandV1: { schema: "command/v1", id: "heal", name: "heal2", steps: [{ kind: "action", action: { type: "close_menu" } }] },
+      commandV1: { schema: "command/v1", id: "heal", name: "heal2", steps: "close_menu" },
     });
     pack = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
     expect(pack.commands.filter((c) => c.id === "heal")).toHaveLength(1);
@@ -2158,7 +2158,7 @@ describe("accountStore", () => {
       projectId: PERSONAL, lang: "en",
       dialogV1: {
         schema: "dialog/v1", id: "d_confirm", title: "Sure?",
-        buttons: [{ id: "yes", label: "Yes", actions: [{ type: "close_dialog" }] }],
+        buttons: [{ id: "yes", label: "Yes", actions: "close_dialog" }],
       },
     });
     const pack = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;

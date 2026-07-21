@@ -21,12 +21,7 @@
   "requirements": [
     { "type": "has_money", "amount": 1 }
   ],
-  "steps": [
-    { "kind": "action", "action": { "type": "take_money", "amount": 1 } },
-    { "kind": "action", "action": { "type": "run_command", "command": "eco give %args_target% %args_amount%", "as": "console" } },
-    { "kind": "action", "action": { "type": "send_message", "text": "§aVous avez envoyé %args_amount% pièces à %args_target%." } },
-    { "kind": "action", "action": { "type": "play_sound", "sound": "entity.experience_orb.pickup" } }
-  ],
+  "steps": "take_money 1\nrun_command \"eco give %args_target% %args_amount%\" as console\nsend_message \"§aVous avez envoyé %args_amount% pièces à %args_target%.\"\nplay_sound entity.experience_orb.pickup",
   "fallback": [
     { "type": "send_message", "text": "§cVous n'avez pas assez d'argent." }
   ],

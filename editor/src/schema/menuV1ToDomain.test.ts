@@ -106,21 +106,13 @@ describe("menuV1ToDomain — i18n + conditions", () => {
   });
 });
 
-describe("menuV1ToDomain — actions + steps", () => {
-  it("un-snakes open_menu (menu_id, clear_context, context)", () => {
+describe("menuV1ToDomain — actions + steps (Action DSL)", () => {
+  it("parses open_menu with clear + context tail", () => {
     const r = menuV1ToDomain(
-      menuWithClick("left", [
-        actionStep({
-          type: "open_menu",
-          menu_id: "target",
-          clear_context: true,
-          context: { player: "{player}" },
-        }),
-      ]),
+      menuWithClick("left", 'open_menu target clear with player="{player}"'),
       opts,
     );
-    const act = clickAction(r);
-    expect(act).toEqual({
+    expect(clickAction(r)).toEqual({
       type: "open_menu",
       menuId: "target",
       clearContext: true,
@@ -128,36 +120,27 @@ describe("menuV1ToDomain — actions + steps", () => {
     });
   });
 
-  it("open_menu without clear_context/context omits those keys", () => {
-    const r = menuV1ToDomain(
-      menuWithClick("left", [actionStep({ type: "open_menu", menu_id: "target" })]),
-      opts,
-    );
+  it("open_menu without clear/context omits those keys", () => {
+    const r = menuV1ToDomain(menuWithClick("left", "open_menu target"), opts);
     expect(clickAction(r)).toEqual({ type: "open_menu", menuId: "target" });
   });
 
-  it("send_message maps text string → LText and stores the value", () => {
-    const r = menuV1ToDomain(
-      menuWithClick("left", [actionStep({ type: "send_message", text: "Hello" })]),
-      opts,
-    );
+  it("send_message literal mints an LText and stores the value", () => {
+    const r = menuV1ToDomain(menuWithClick("left", 'send_message "Hello"'), opts);
     const act = clickAction(r) as { type: string; text: { key: string } };
     expect(act.type).toBe("send_message");
     expect(r.i18nKeys[act.text.key]).toEqual({ en: "Hello" });
   });
 
-  it("show_title un-snakes fade_in/stay/fade_out and maps title/subtitle to LText", () => {
+  it("send_message @key references an existing i18n key (no mint)", () => {
+    const r = menuV1ToDomain(menuWithClick("left", "send_message @menus.x.msg"), opts);
+    const act = clickAction(r) as { type: string; text: { key: string } };
+    expect(act.text.key).toBe("menus.x.msg");
+  });
+
+  it("show_title carries timings and mints title/subtitle literals", () => {
     const r = menuV1ToDomain(
-      menuWithClick("left", [
-        actionStep({
-          type: "show_title",
-          title: "T",
-          subtitle: "S",
-          fade_in: 5,
-          stay: 10,
-          fade_out: 15,
-        }),
-      ]),
+      menuWithClick("left", 'show_title "T" "S" fadeIn=5 stay=10 fadeOut=15'),
       opts,
     );
     const act = clickAction(r) as {
@@ -176,19 +159,13 @@ describe("menuV1ToDomain — actions + steps", () => {
     expect(r.i18nKeys[act.subtitle.key]).toEqual({ en: "S" });
   });
 
-  it("run_command defaults as to player when absent", () => {
-    const r = menuV1ToDomain(
-      menuWithClick("left", [actionStep({ type: "run_command", command: "say hi" })]),
-      opts,
-    );
+  it("parses run_command with an explicit as target", () => {
+    const r = menuV1ToDomain(menuWithClick("left", 'run_command "say hi" as player'), opts);
     expect(clickAction(r)).toEqual({ type: "run_command", command: "say hi", as: "player" });
   });
 
-  it("pagination_next → paginate{direction:'next', targetElementId?}", () => {
-    const r = menuV1ToDomain(
-      menuWithClick("left", [actionStep({ type: "pagination_next", element_id: "grid" })]),
-      opts,
-    );
+  it("paginate next with target element", () => {
+    const r = menuV1ToDomain(menuWithClick("left", "paginate next grid"), opts);
     expect(clickAction(r)).toEqual({
       type: "paginate",
       direction: "next",
@@ -196,42 +173,24 @@ describe("menuV1ToDomain — actions + steps", () => {
     });
   });
 
-  it("pagination_prev without element_id omits targetElementId", () => {
-    const r = menuV1ToDomain(
-      menuWithClick("left", [actionStep({ type: "pagination_prev" })]),
-      opts,
-    );
+  it("paginate prev without target omits targetElementId", () => {
+    const r = menuV1ToDomain(menuWithClick("left", "paginate prev"), opts);
     expect(clickAction(r)).toEqual({ type: "paginate", direction: "prev" });
   });
 
-  it("set_arg passes arg/value through", () => {
-    const r = menuV1ToDomain(
-      menuWithClick("left", [actionStep({ type: "set_arg", arg: "page", value: "2" })]),
-      opts,
-    );
+  it("set arg = value passes through", () => {
+    const r = menuV1ToDomain(menuWithClick("left", "set page = 2"), opts);
     expect(clickAction(r)).toEqual({ type: "set_arg", arg: "page", value: "2" });
   });
 
-  it("open_dialog un-snakes dialog_id", () => {
-    const r = menuV1ToDomain(
-      menuWithClick("left", [actionStep({ type: "open_dialog", dialog_id: "confirm" })]),
-      opts,
-    );
+  it("open_dialog with a bare id", () => {
+    const r = menuV1ToDomain(menuWithClick("left", "open_dialog confirm"), opts);
     expect(clickAction(r)).toEqual({ type: "open_dialog", dialogId: "confirm" });
   });
 
   it("round-trips an if-step (cases + else)", () => {
-    const step = {
-      kind: "if",
-      cases: [
-        {
-          conditions: [{ type: "has_permission", perm: "vip" }],
-          steps: [actionStep({ type: "close_menu" })],
-        },
-      ],
-      else: [actionStep({ type: "run_command", command: "say no", as: "console" })],
-    };
-    const r = menuV1ToDomain(menuWithClick("left", [step]), opts);
+    const dsl = 'if has_permission(vip):\n  close_menu\nelse:\n  run_command "say no" as console';
+    const r = menuV1ToDomain(menuWithClick("left", dsl), opts);
     // biome-ignore lint/suspicious/noExplicitAny: deep structural read of an if-step
     const steps = clickSteps(r) as Array<Record<string, any>>;
     expect(steps[0]!.kind).toBe("if");
@@ -243,21 +202,15 @@ describe("menuV1ToDomain — actions + steps", () => {
     });
   });
 
-  it("flags unknown (future) action and drops it", () => {
-    const r = menuV1ToDomain(
-      menuWithClick("left", [actionStep({ type: "give_effect", effect: "SPEED" })]),
-      opts,
-    );
+  it("flags an unknown (future) verb and drops the chain", () => {
+    const r = menuV1ToDomain(menuWithClick("left", "give_effect SPEED"), opts);
     expect(r.unsupported.join(" ")).toMatch(/give_effect/);
     expect(clickSteps(r)).toHaveLength(0);
   });
 
-  it("flags a teleport without world and drops it", () => {
-    const r = menuV1ToDomain(
-      menuWithClick("left", [actionStep({ type: "teleport", x: 1, y: 2, z: 3 })]),
-      opts,
-    );
-    expect(r.unsupported.join(" ")).toMatch(/teleport/);
+  it("flags a malformed action (teleport missing operands) and drops the chain", () => {
+    const r = menuV1ToDomain(menuWithClick("left", "teleport"), opts);
+    expect(r.unsupported.length).toBeGreaterThan(0);
     expect(clickSteps(r)).toHaveLength(0);
   });
 });
@@ -479,11 +432,7 @@ function menuWithAppearance(appearance: Record<string, unknown>): Record<string,
   };
 }
 
-function actionStep(action: Record<string, unknown>): Record<string, unknown> {
-  return { kind: "action", action };
-}
-
-function menuWithClick(clickType: string, steps: unknown[]): Record<string, unknown> {
+function menuWithClick(clickType: string, steps: string): Record<string, unknown> {
   return {
     schema: "menu/v1",
     id: "shop",
@@ -595,6 +544,15 @@ describe("menuV1ToDomain — extended runtime-OK vocab", () => {
   });
 
   it("imports the extended actions without unsupported markers", () => {
+    const dsl = [
+      'broadcast "<gold>Big news!</gold>"',
+      "play_sound ENTITY_PLAYER_LEVELUP vol=0.5 pitch=1.2",
+      "give_money 250",
+      "give_xp 10",
+      "give_level 1",
+      "take_item PAPER 2",
+      "teleport spawn 0.5 64 0.5 yaw=90 pitch=0",
+    ].join("\n");
     const src = {
       ...minimalMenu({}),
       layers: [
@@ -605,24 +563,7 @@ describe("menuV1ToDomain — extended runtime-OK vocab", () => {
             {
               id: "e1",
               positions: "0",
-              appearances: [
-                {
-                  material: "STONE",
-                  click: {
-                    left: {
-                      steps: [
-                        { kind: "action", action: { type: "broadcast", text: "<gold>Big news!</gold>" } },
-                        { kind: "action", action: { type: "play_sound", sound: "ENTITY_PLAYER_LEVELUP", volume: 0.5, pitch: 1.2 } },
-                        { kind: "action", action: { type: "give_money", amount: 250 } },
-                        { kind: "action", action: { type: "give_xp", amount: 10 } },
-                        { kind: "action", action: { type: "give_level", amount: 1 } },
-                        { kind: "action", action: { type: "take_item", material: "PAPER", count: 2 } },
-                        { kind: "action", action: { type: "teleport", world: "spawn", x: 0.5, y: 64, z: 0.5, yaw: 90, pitch: 0 } },
-                      ],
-                    },
-                  },
-                },
-              ],
+              appearances: [{ material: "STONE", click: { left: { steps: dsl } } }],
             },
           ],
         },

@@ -7,7 +7,6 @@ import type {
   I18nKey,
   LText,
   ProjectId,
-  Step as DomainStep,
 } from "@/domain/types";
 import { newI18nKey } from "@/lib/i18n";
 import { makeStepConverter } from "./actionV1ToDomain";
@@ -43,12 +42,11 @@ export function dialogV1ToDomain(
     return { key };
   }
 
-  const { action } = makeStepConverter({ text, ref, pushUnsupported: (s) => unsupported.push(s) });
-  const actionsToSteps = (actions: Json[] | undefined): DomainStep[] =>
-    (actions ?? [])
-      .map((a) => action(a))
-      .filter(Boolean)
-      .map((act) => ({ kind: "action", action: act! }) as DomainStep);
+  const { steps: parseSteps } = makeStepConverter({
+    text,
+    ref,
+    pushUnsupported: (s) => unsupported.push(s),
+  });
 
   const body: DialogBody[] = ((src.body as Json[]) ?? [])
     .map((b): DialogBody | null => {
@@ -93,7 +91,9 @@ export function dialogV1ToDomain(
   const buttons: DialogButton[] = ((src.buttons as Json[]) ?? []).map((b) => ({
     id: b.id,
     label: text(b.label),
-    steps: actionsToSteps(b.actions),
+    // dialog/v1 button `actions` is an Action DSL string (Phase 2). Unlike the
+    // old flat-action wire, if-branches now round-trip.
+    steps: parseSteps(b.actions),
   }));
 
   const dialog: DomainDialog = {

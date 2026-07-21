@@ -53,7 +53,8 @@ describe("applyAssistantMenu", () => {
                   if: [{ type: "biome_is", biome: "PLAINS" }],
                   material: "DIAMOND",
                   click: {
-                    left: { steps: [{ kind: "action", action: { type: "give_effect", effect: "SPEED" } }] },
+                    // Unknown verb in the DSL steps string → recorded as unsupported.
+                    left: { steps: "give_effect SPEED" },
                   },
                 },
                 { material: "STONE" },
@@ -67,7 +68,7 @@ describe("applyAssistantMenu", () => {
       .getState()
       .applyAssistantMenu({ projectId: projectId("p"), menuV1: withExotics, lang: "en" });
     expect(unsupported).toContain("condition: biome_is");
-    expect(unsupported).toContain("action: give_effect");
+    expect(unsupported.join(" ")).toMatch(/give_effect/);
   });
   it("returns an empty list for a fully supported menu", () => {
     const unsupported = useAccountStore

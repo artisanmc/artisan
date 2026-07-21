@@ -43,8 +43,7 @@ class MenuRendererIterationTest {
                     title: "{shop.name}"
                     click:
                       left:
-                        steps:
-                          - { kind: action, action: { type: run_command, command: "buy {shop.id}" } }
+                        steps: 'run_command "buy {shop.id}" as player'
         """.trimIndent(),
     )
 
