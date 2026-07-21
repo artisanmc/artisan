@@ -74,12 +74,14 @@ function makeProject(): Project {
           { name: "motd", type: { kind: "ltext" } },
           { name: "broadcast", type: { kind: "minimessage" } },
           { name: "rules", type: { kind: "minimessage_multiline" } },
+          { name: "on_join", type: { kind: "actions" } },
         ],
         value: {
           currency: "coins",
           motd: { key: "sources.settings.motd" },
           broadcast: "<gold>Hello",
           rules: "<red>Rule 1\nRule 2",
+          on_join: 'broadcast "hi"\ngive_item DIAMOND 1',
         },
       },
     ],
@@ -147,6 +149,7 @@ describe("data/v1 export", () => {
       motd: "sources.settings.motd",
       broadcast: "<gold>Hello",
       rules: "<red>Rule 1\nRule 2",
+      on_join: 'broadcast "hi"\ngive_item DIAMOND 1',
     });
   });
 
@@ -158,7 +161,15 @@ describe("data/v1 export", () => {
       { name: "motd", kind: "ltext" },
       { name: "broadcast", kind: "string" },
       { name: "rules", kind: "string" },
+      { name: "on_join", kind: "actions" },
     ]);
+  });
+
+  it("exports an actions field as kind=actions with the DSL string verbatim", () => {
+    const files = transform(makeProject());
+    const settings = parse(files[`${BASE}/data/settings.yaml`]!);
+    expect(settings.fields).toContainEqual({ name: "on_join", kind: "actions" });
+    expect(settings.value.on_join).toBe('broadcast "hi"\ngive_item DIAMOND 1');
   });
 
   it("includes source ltext keys in the lang files", () => {

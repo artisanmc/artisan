@@ -154,7 +154,32 @@ export function ActionEditor({ projectId, action, onChange, menuId, elementId, c
       return <OpenDialogEditor projectId={projectId} action={action} onChange={onChange} />;
     case "close_dialog":
       return <div className="text-[11px] text-[var(--text-faint)]">Ferme le dialogue actuel.</div>;
+    case "run_actions":
+      return <RunActionsEditor action={action} onChange={onChange} />;
   }
+}
+
+function RunActionsEditor({
+  action,
+  onChange,
+}: {
+  action: Extract<Action, { type: "run_actions" }>;
+  onChange: (a: Action) => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <div>
+      <FieldLabel>{t("actionEditor.runActionsLabel")}</FieldLabel>
+      <input
+        className="input h-7 w-full font-mono text-[12px]"
+        value={action.actions}
+        onChange={(e) => onChange({ type: "run_actions", actions: e.target.value })}
+        placeholder="item.on_buy"
+        aria-label={t("actionEditor.runActionsLabel")}
+      />
+      <p className="mt-1 text-[10px] text-[var(--text-faint)]">{t("actionEditor.runActionsHint")}</p>
+    </div>
+  );
 }
 
 function FieldLabel({ children }: { children: React.ReactNode }) {

@@ -53,6 +53,8 @@ export function defaultAction(type: Action["type"], firstMenuId?: MenuId): Actio
       return { type: "open_dialog", dialogId: "" as DialogId };
     case "close_dialog":
       return { type: "close_dialog" };
+    case "run_actions":
+      return { type: "run_actions", actions: "" };
   }
 }
 
@@ -77,4 +79,5 @@ export const ACTION_TYPES: Action["type"][] = [
   "set_arg_cycle_prev",
   "open_dialog",
   "close_dialog",
+  "run_actions",
 ];
