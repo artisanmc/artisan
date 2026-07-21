@@ -1,29 +1,31 @@
-import type { I18nKey, LText, Step } from "@/domain/types";
-import { serializeStepsLiteral } from "@/features/export/transform";
-import { makeStepConverter } from "@/schema/actionV1ToDomain";
+import type { Step } from "@/domain/types";
+import { parseToSteps, printFromSteps } from "@/lib/actionDsl";
 
 /**
- * Module-data steps (`actions` field kit widget) — same wire structure as the
- * exported menu step trees, but text is LITERAL: no i18n keys, no LText
- * allocation. In memory the literal string lives in the LText `key` (so the
- * whole domain Step machinery — editors, condition types — is reusable);
- * on the wire it is emitted verbatim, which is exactly what the plugin's
- * ActionParser reads (`text: "raw"` with no `{i18n:…}` wrapper).
+ * Module-data steps (`actions` field kit widget) — the "wire" for a module-data
+ * `actions` field is now the **Action DSL string** (cf. ADR `action-dsl`,
+ * Phase 2), not the old structured `[{kind:"action",...}]` tree. Text is
+ * LITERAL: no i18n keys, no LText allocation — a quoted literal maps to the
+ * LText `key` (the `@/lib/actionDsl` data-source `@`-convention), so the whole
+ * domain Step machinery (editors, condition types) stays reusable.
+ *
+ * `stepsToWire` prints the canonical DSL string; `stepsFromWire` parses it back.
+ * A missing / empty / non-string value → `[]`. The function names are kept: the
+ * caller (SchemaForm `actions` widget) still speaks "wire", only the shape
+ * changed from array to string.
  */
 
-/** Domain steps → wire steps (literal text). */
-export function stepsToWire(steps: Step[]): unknown[] {
-  return serializeStepsLiteral(steps);
+/** Domain steps → wire value (canonical Action DSL string, literal text). */
+export function stepsToWire(steps: Step[]): string {
+  return printFromSteps(steps);
 }
 
-/** Wire steps → domain steps (literal text wrapped into LText.key). */
+/** Wire value (Action DSL string) → domain steps. Non-string / empty / unparseable → []. */
 export function stepsFromWire(raw: unknown): Step[] {
-  if (!Array.isArray(raw)) return [];
-  const literal = (s: string | undefined): LText => ({ key: (s ?? "") as I18nKey });
-  const { step } = makeStepConverter({
-    text: literal,
-    ref: (key) => ({ key: key as I18nKey }),
-    pushUnsupported: () => {},
-  });
-  return raw.map((s) => step(s as Record<string, unknown>)).filter(Boolean) as Step[];
+  if (typeof raw !== "string" || raw.trim() === "") return [];
+  try {
+    return parseToSteps(raw);
+  } catch {
+    return [];
+  }
 }
