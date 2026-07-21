@@ -57,8 +57,8 @@
       "properties": {
         "name": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$" },
         "kind": {
-          "enum": ["string", "number", "integer", "boolean", "ltext", "item", "list", "object"],
-          "description": "ltext = clé i18n (résolue au bind selon la langue du joueur) ; item = espace de valeurs material (`DIAMOND` | `item:<id>` | ref custom). `model` n'existe pas ici : inliné en `object` à l'export."
+          "enum": ["string", "number", "integer", "boolean", "ltext", "item", "actions", "list", "object"],
+          "description": "ltext = clé i18n (résolue au bind selon la langue du joueur) ; item = espace de valeurs material (`DIAMOND` | `item:<id>` | ref custom) ; actions = Action chain sérialisée en Action DSL (string, parsée+exécutée par le plugin, cf. ADR action-dsl). `model` n'existe pas ici : inliné en `object` à l'export."
         },
         "of": { "$ref": "#/$defs/FieldType", "description": "Type des éléments (kind=list uniquement)." },
         "fields": {
@@ -73,7 +73,7 @@
       "additionalProperties": false,
       "required": ["kind"],
       "properties": {
-        "kind": { "enum": ["string", "number", "integer", "boolean", "ltext", "item", "list", "object"] },
+        "kind": { "enum": ["string", "number", "integer", "boolean", "ltext", "item", "actions", "list", "object"] },
         "of": { "$ref": "#/$defs/FieldType" },
         "fields": { "type": "array", "items": { "$ref": "#/$defs/Field" } }
       }

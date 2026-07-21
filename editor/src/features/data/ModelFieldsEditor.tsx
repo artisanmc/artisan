@@ -31,6 +31,7 @@ const SCALAR_KINDS = [
   "integer",
   "boolean",
   "item",
+  "actions",
 ] as const;
 type KindChoice = (typeof SCALAR_KINDS)[number] | "list" | "object" | "model";
 
