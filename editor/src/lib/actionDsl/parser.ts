@@ -351,10 +351,10 @@ class CondParser {
       case "time_is": {
         const v = str(0);
         if (v === "day" || v === "night") return { type: "time_is", range: v };
-        const m = /^(\d+)-(\d+)$/.exec(v.replace(/\s/g, ""));
-        // range came through as three arg tokens (num - num) → reassemble
-        const raw = argVals.map((a) => a.value).join("");
-        const mm = m ?? /^(\d+)-(\d+)$/.exec(raw);
+        // A tick window lexes as `num - num`; reassemble from the RAW arg tokens
+        // (`args`, which keeps the `-` op) — `argVals` has dropped it.
+        const raw = args.map((a) => a.value).join("");
+        const mm = /^(\d+)-(\d+)$/.exec(raw);
         if (!mm) throw new DslParseError("time_is expects day|night|<from>-<to>", this.line);
         return { type: "time_is", range: { from_ticks: Number(mm[1]), to_ticks: Number(mm[2]) } };
       }
