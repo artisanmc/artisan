@@ -6,11 +6,6 @@
   "permission": "artisan.cmd.heal",
   "description": "Restaure votre vie et votre faim.",
   "notes": "Commande sans menu — exécution directe d'actions.",
-  "steps": [
-    { "kind": "action", "action": { "type": "run_command", "command": "minecraft:effect give @s minecraft:instant_health 1 10 true", "as": "console" } },
-    { "kind": "action", "action": { "type": "run_command", "command": "minecraft:effect give @s minecraft:saturation 1 10 true", "as": "console" } },
-    { "kind": "action", "action": { "type": "play_sound", "sound": "entity.player.levelup", "volume": 0.5, "pitch": 1.5 } },
-    { "kind": "action", "action": { "type": "send_message", "text": "§aVous avez été soigné." } }
-  ],
+  "steps": "run_command \"minecraft:effect give @s minecraft:instant_health 1 10 true\" as console\nrun_command \"minecraft:effect give @s minecraft:saturation 1 10 true\" as console\nplay_sound entity.player.levelup vol=0.5 pitch=1.5\nsend_message \"§aVous avez été soigné.\"",
   "cooldown": { "id": "heal_cmd", "duration_seconds": 30, "scope": "player", "message": "§cAttendez avant de relancer /heal." }
 }

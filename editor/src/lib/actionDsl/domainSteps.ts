@@ -1,4 +1,5 @@
-import type { Action, I18nKey, LText, Step } from "@/domain/types";
+import type { Action, I18nKey, LText, Project, Step } from "@/domain/types";
+import { getText } from "@/lib/i18n";
 import type { DslAction, DslStep, DslText } from "./ast";
 import { parseActionDsl } from "./parser";
 import { printActionDsl } from "./printer";
@@ -6,37 +7,46 @@ import { printActionDsl } from "./printer";
 /**
  * Editor adapter: DSL AST ({@link DslStep}) ↔ domain {@link Step}. Cf. ADR
  * `action-dsl`. The domain carries action text as an `LText` (`{key}`), which
- * cannot itself distinguish an inline literal from an `@key` reference — so we
- * encode the distinction reversibly in the key: a reference becomes `@<key>`, a
- * literal stays verbatim (the `literalSteps` convention). This lets the existing
- * `ControlledStepsEditor` (which edits `LText.key` as literal text) round-trip
- * DSL values losslessly: typing `@shop.vip` in a text field reads back as a
- * ref. Full i18n Key-site registration for refs is deferred (Phase 1 stores the
- * DSL string opaque). `parseToSteps` / `printFromSteps` bridge the raw string.
+ * cannot itself distinguish an inline literal from an `@key` reference — so the
+ * conversion between {@link DslText} and {@link LText} is injected.
+ *
+ * Two conventions live on top of the same structural mapping:
+ *  - **Data-source** (the `@`-prefix default): a reference becomes `@<key>`, a
+ *    literal stays verbatim (the `literalSteps` convention). Used where action
+ *    text is a literal disk value, not a registered Key site.
+ *  - **Project-aware** ({@link stepsToDsl}/{@link dslToSteps}): menu / command /
+ *    dialog action text IS a registered Key site, so an `LText` whose key is in
+ *    `Project.i18nKeys` serializes as `@key`; anything else falls back to a
+ *    literal (resolved via `getText`). This is what Phase 2 uses.
  */
 
 const REF_PREFIX = "@";
 
-function textToLText(t: DslText): LText {
-  return { key: ("lit" in t ? t.lit : REF_PREFIX + t.ref) as I18nKey };
-}
+/** DSL text → domain LText. */
+export type TextToLText = (t: DslText) => LText;
+/** Domain LText → DSL text. */
+export type LTextToText = (l: LText) => DslText;
 
-function ltextToText(l: LText): DslText {
+const defaultTextToLText: TextToLText = (t) => ({
+  key: ("lit" in t ? t.lit : REF_PREFIX + t.ref) as I18nKey,
+});
+
+const defaultLTextToText: LTextToText = (l) => {
   const k = String(l.key);
   return k.startsWith(REF_PREFIX) ? { ref: k.slice(1) } : { lit: k };
-}
+};
 
-function dslActionToAction(a: DslAction): Action {
+function dslActionToAction(a: DslAction, toLText: TextToLText): Action {
   switch (a.type) {
     case "send_message":
-      return { type: "send_message", text: textToLText(a.text) };
+      return { type: "send_message", text: toLText(a.text) };
     case "broadcast":
-      return { type: "broadcast", text: textToLText(a.text) };
+      return { type: "broadcast", text: toLText(a.text) };
     case "show_title":
       return {
         type: "show_title",
-        title: textToLText(a.title),
-        ...(a.subtitle ? { subtitle: textToLText(a.subtitle) } : {}),
+        title: toLText(a.title),
+        ...(a.subtitle ? { subtitle: toLText(a.subtitle) } : {}),
         ...(a.fadeIn !== undefined ? { fadeIn: a.fadeIn } : {}),
         ...(a.stay !== undefined ? { stay: a.stay } : {}),
         ...(a.fadeOut !== undefined ? { fadeOut: a.fadeOut } : {}),
@@ -46,17 +56,17 @@ function dslActionToAction(a: DslAction): Action {
   }
 }
 
-function actionToDslAction(a: Action): DslAction {
+function actionToDslAction(a: Action, toText: LTextToText): DslAction {
   switch (a.type) {
     case "send_message":
-      return { type: "send_message", text: ltextToText(a.text) };
+      return { type: "send_message", text: toText(a.text) };
     case "broadcast":
-      return { type: "broadcast", text: ltextToText(a.text) };
+      return { type: "broadcast", text: toText(a.text) };
     case "show_title":
       return {
         type: "show_title",
-        title: ltextToText(a.title),
-        ...(a.subtitle ? { subtitle: ltextToText(a.subtitle) } : {}),
+        title: toText(a.title),
+        ...(a.subtitle ? { subtitle: toText(a.subtitle) } : {}),
         ...(a.fadeIn !== undefined ? { fadeIn: a.fadeIn } : {}),
         ...(a.stay !== undefined ? { stay: a.stay } : {}),
         ...(a.fadeOut !== undefined ? { fadeOut: a.fadeOut } : {}),
@@ -66,44 +76,72 @@ function actionToDslAction(a: Action): DslAction {
   }
 }
 
-export function dslStepsToSteps(steps: DslStep[]): Step[] {
+export function dslStepsToSteps(steps: DslStep[], toLText: TextToLText = defaultTextToLText): Step[] {
   return steps.map((s) =>
     s.kind === "action"
-      ? { kind: "action", action: dslActionToAction(s.action) }
+      ? { kind: "action", action: dslActionToAction(s.action, toLText) }
       : {
           kind: "if",
           cases: s.cases.map((c) => ({
             conditions: c.conditions,
             ...(c.joins ? { joins: c.joins } : {}),
-            steps: dslStepsToSteps(c.steps),
+            steps: dslStepsToSteps(c.steps, toLText),
           })),
-          ...(s.else ? { else: dslStepsToSteps(s.else) } : {}),
+          ...(s.else ? { else: dslStepsToSteps(s.else, toLText) } : {}),
         },
   );
 }
 
-export function stepsToDslSteps(steps: Step[]): DslStep[] {
+export function stepsToDslSteps(steps: Step[], toText: LTextToText = defaultLTextToText): DslStep[] {
   return steps.map((s) =>
     s.kind === "action"
-      ? { kind: "action", action: actionToDslAction(s.action) }
+      ? { kind: "action", action: actionToDslAction(s.action, toText) }
       : {
           kind: "if",
           cases: s.cases.map((c) => ({
             conditions: c.conditions,
             ...(c.joins ? { joins: c.joins } : {}),
-            steps: stepsToDslSteps(c.steps),
+            steps: stepsToDslSteps(c.steps, toText),
           })),
-          ...(s.else ? { else: stepsToDslSteps(s.else) } : {}),
+          ...(s.else ? { else: stepsToDslSteps(s.else, toText) } : {}),
         },
   );
 }
 
-/** Raw DSL string → domain steps (for the visual editor). Throws on parse error. */
-export function parseToSteps(dsl: string): Step[] {
-  return dslStepsToSteps(parseActionDsl(dsl));
+/** Raw DSL string → domain steps (data-source `@`-convention). Throws on parse error. */
+export function parseToSteps(dsl: string, toLText: TextToLText = defaultTextToLText): Step[] {
+  return dslStepsToSteps(parseActionDsl(dsl), toLText);
 }
 
-/** Domain steps → canonical DSL string. */
-export function printFromSteps(steps: Step[]): string {
-  return printActionDsl(stepsToDslSteps(steps));
+/** Domain steps → canonical DSL string (data-source `@`-convention). */
+export function printFromSteps(steps: Step[], toText: LTextToText = defaultLTextToText): string {
+  return printActionDsl(stepsToDslSteps(steps, toText));
+}
+
+// ─── Project-aware conversions (Phase 2: menu / command / dialog) ─────────────
+
+/**
+ * Domain Step[] → DSL string, resolving each action `LText` against the
+ * Project: a key registered in `pack.i18nKeys` serializes as `@key` (a Key-site
+ * reference), anything else as a `"literal"` (default-language text). Cf. ADR
+ * `action-dsl` Phase 2.
+ */
+export function stepsToDsl(steps: Step[], pack: Project): string {
+  const toText: LTextToText = (l) =>
+    String(l.key) in pack.i18nKeys
+      ? { ref: String(l.key) }
+      : { lit: getText(pack, l, pack.defaultLang) };
+  return printActionDsl(stepsToDslSteps(steps, toText));
+}
+
+/**
+ * DSL string → domain Step[], the inverse of {@link stepsToDsl}: `@key` maps to
+ * `LText{key}`, a literal maps to a verbatim `LText{key: literal}` (the
+ * `literalSteps` convention — no key minting, read-only contexts). Import paths
+ * that need to mint/register keys use the converter callbacks instead. Empty /
+ * blank input yields no steps.
+ */
+export function dslToSteps(dsl: string, _pack: Project): Step[] {
+  if (!dsl || dsl.trim() === "") return [];
+  return dslStepsToSteps(parseActionDsl(dsl), defaultTextToLText);
 }

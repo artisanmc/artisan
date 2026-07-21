@@ -7,6 +7,8 @@ import type {
   LText,
   MenuId,
 } from "@/domain/types";
+import type { DslText } from "@/lib/actionDsl";
+import { dslStepsToSteps, parseActionDsl } from "@/lib/actionDsl";
 
 // The menu/v1 wire object is parsed YAML (snake_case, loosely typed). We model
 // it as a bag and reconcile each field explicitly into the domain shapes.
@@ -42,6 +44,19 @@ const DOMAIN_CONDITIONS = new Set([
 
 export interface StepConverter {
   condition: (c: Json) => DomainCondition | null;
+  /**
+   * Parse an Action DSL string (menu/command/dialog click-handler wire since
+   * Phase 2 of ADR `action-dsl`) into domain steps. `@key` → registered LText
+   * ref (translation pulled from `ctx.ref`); a `"literal"` → a freshly-minted
+   * key (`ctx.text`). Blank/unparseable input → `[]` (recorded as unsupported).
+   */
+  steps: (dsl: unknown) => DomainStep[];
+  /**
+   * Legacy STRUCTURED wire → domain (the `{kind, action|cases}` tree). Kept for
+   * the module-data literal-steps path (`@/lib/literalSteps`), which serializes
+   * to structured maps — NOT the menu/command/dialog DSL wire. Do not use for
+   * menu/v1 import (that is now the DSL `steps` above).
+   */
   action: (a: Json) => DomainAction | null;
   step: (s: Json) => DomainStep | null;
   ifArray: (
@@ -50,7 +65,7 @@ export interface StepConverter {
 }
 
 export function makeStepConverter(ctx: ConverterCtx): StepConverter {
-  const { text, pushUnsupported } = ctx;
+  const { text, ref, pushUnsupported } = ctx;
 
   // ── conditions (explicit per-type mapping; NOT pass-through) ──────────────
   function condition(c: Json): DomainCondition | null {
@@ -118,7 +133,24 @@ export function makeStepConverter(ctx: ConverterCtx): StepConverter {
     return { conds, joins: new Array(Math.max(0, conds.length - 1)).fill("and") };
   }
 
-  // ── actions (un-snake, pagination_* → paginate, vocab subset) ─────────────
+  // ── Action DSL string → domain steps (Phase 2 wire) ───────────────────────
+  // A DSL `@key` reference resolves to a registered LText (translation pulled
+  // via `ctx.ref`); a `"literal"` mints a fresh key via `ctx.text`. The codec
+  // (`parseActionDsl` + `dslStepsToSteps`) owns the action/condition vocabulary,
+  // so this layer only bridges DSL text ↔ the i18n Key site.
+  const toLText = (t: DslText): LText => ("ref" in t ? ref(t.ref) : text(t.lit));
+
+  function steps(dsl: unknown): DomainStep[] {
+    if (typeof dsl !== "string" || dsl.trim() === "") return [];
+    try {
+      return dslStepsToSteps(parseActionDsl(dsl), toLText);
+    } catch (e) {
+      pushUnsupported(`steps: ${(e as Error).message}`);
+      return [];
+    }
+  }
+
+  // ── legacy structured actions/steps (module-data literal path only) ───────
   function action(a: Json): DomainAction | null {
     switch (a.type) {
       case "open_menu":
@@ -166,7 +198,6 @@ export function makeStepConverter(ctx: ConverterCtx): StepConverter {
         };
       case "teleport": {
         if (typeof a.world !== "string" || a.world === "") {
-          // A teleport without a world has nothing to execute.
           pushUnsupported("action: teleport (missing world)");
           return null;
         }
@@ -233,5 +264,5 @@ export function makeStepConverter(ctx: ConverterCtx): StepConverter {
     return null;
   }
 
-  return { condition, action, step, ifArray };
+  return { condition, steps, action, step, ifArray };
 }

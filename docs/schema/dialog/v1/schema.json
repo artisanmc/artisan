@@ -131,13 +131,8 @@
         "id": { "$ref": "#/$defs/InputId" },
         "label": { "type": "string" },
         "actions": {
-          "type": "array",
-          "description": "Actions plates (pas de steps if dans les boutons de dialog v1). Mêmes objets Action que menu/v1 — la validation fine vit dans menu/v1 $defs/Action ; ici on valide la forme minimale pour éviter la duplication du oneOf.",
-          "items": {
-            "type": "object",
-            "required": ["type"],
-            "properties": { "type": { "type": "string" } }
-          }
+          "type": "string",
+          "description": "Chaîne Action DSL exécutée au clic du bouton (actions + branches if/else, comme les click-handlers de menu). Cf. ADR action-dsl — remplace l'ancienne liste d'actions plates ; les branches if round-trip désormais."
         }
       }
     },

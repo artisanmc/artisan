@@ -14,7 +14,7 @@ describe("commandV1ToDomain", () => {
         aliases: ["h"],
         permission: "a.heal",
         description: "Heal",
-        steps: [{ kind: "action", action: { type: "close_menu" } }],
+        steps: "close_menu",
       },
       opts,
     );
@@ -37,7 +37,7 @@ describe("commandV1ToDomain", () => {
           { name: "target", type: "online_player", required: true },
           { name: "amount", type: "integer", required: true },
         ],
-        steps: [{ kind: "action", action: { type: "send_message", text: "ok" } }],
+        steps: 'send_message "ok"',
       },
       opts,
     );
@@ -59,7 +59,7 @@ describe("commandV1ToDomain", () => {
         requirements: [{ type: "has_money", amount: 1 }],
         fallback: [{ type: "close_menu" }],
         cooldown: { id: "x", duration_seconds: 5 },
-        steps: [{ kind: "action", action: { type: "close_menu" } }],
+        steps: "close_menu",
       },
       opts,
     );

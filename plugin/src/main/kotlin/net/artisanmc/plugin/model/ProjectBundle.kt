@@ -5,12 +5,6 @@ import com.fasterxml.jackson.annotation.JsonProperty
 import net.artisanmc.plugin.engine.CompiledAppearance
 import net.artisanmc.plugin.engine.MenuTitleParser
 
-@Suppress("UNCHECKED_CAST")
-internal fun extractFromSteps(steps: List<Map<String, Any>>): List<Map<String, Any>> =
-    steps.mapNotNull { step ->
-        if (step["kind"] == "action") step["action"] as? Map<String, Any> else null
-    }
-
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class ManifestYaml(
     val schema: String = "",
@@ -117,11 +111,10 @@ data class ClickHandlerYaml(
     val actions:      List<Map<String, Any>> = emptyList(),
     val fallback:     List<Map<String, Any>> = emptyList(),
     val cooldown:     CooldownYaml? = null,
-    val steps:        List<Map<String, Any>> = emptyList(),
-) {
-    fun resolvedActions(): List<Map<String, Any>> = actions.ifEmpty { extractFromSteps(steps) }
-    fun resolvedFallback(): List<Map<String, Any>> = fallback.ifEmpty { emptyList() }
-}
+    /** Canonical wire since Phase 2 (ADR action-dsl): an Action DSL string
+     *  (actions + if/else). Compiled to a Step tree by [BundleCompiler]. */
+    val steps:        String = "",
+)
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class CooldownYaml(
@@ -162,7 +155,8 @@ data class DialogButtonYaml(
     val id: String = "",
     val label: String = "",
     val requirements: List<Map<String, Any>> = emptyList(),
-    val actions: List<Map<String, Any>> = emptyList(),
+    /** Action DSL string (Phase 2) — compiled to a Step tree by [net.artisanmc.plugin.render.DialogRenderer]. */
+    val actions: String = "",
     val fallback: List<Map<String, Any>> = emptyList(),
 )
 
@@ -203,10 +197,9 @@ data class CommandYaml(
     val actions:      List<Map<String, Any>> = emptyList(),
     val fallback:     List<Map<String, Any>> = emptyList(),
     val cooldown:     CooldownYaml? = null,
-    val steps:        List<Map<String, Any>> = emptyList(),
-) {
-    fun resolvedActions(): List<Map<String, Any>> = actions.ifEmpty { extractFromSteps(steps) }
-}
+    /** Action DSL string (Phase 2) — compiled to a Step tree by [net.artisanmc.plugin.command.CommandCompiler]. */
+    val steps:        String = "",
+)
 
 /**
  * One declared field of a `data/v1` Project source. The editor denormalizes its

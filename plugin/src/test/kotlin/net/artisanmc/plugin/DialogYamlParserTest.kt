@@ -17,8 +17,7 @@ class DialogYamlParserTest {
             buttons:
               - id: btn_ok
                 label: OK
-                actions:
-                  - type: close_dialog
+                actions: close_dialog
         """.trimIndent(), DialogYaml::class.java)
         assertEquals("d_simple", d.id)
         assertEquals("Hello", d.title)
@@ -26,8 +25,8 @@ class DialogYamlParserTest {
         assertEquals(1, d.buttons.size)
         assertEquals("btn_ok", d.buttons[0].id)
         assertEquals("OK", d.buttons[0].label)
-        assertEquals(1, d.buttons[0].actions.size)
-        assertEquals("close_dialog", d.buttons[0].actions[0]["type"])
+        // Button actions are an Action DSL string since Phase 2 (ADR action-dsl).
+        assertEquals("close_dialog", d.buttons[0].actions)
     }
 
     @Test fun `parses can_close_with_escape false`() {
@@ -160,9 +159,7 @@ class DialogYamlParserTest {
                 requirements:
                   - type: has_money
                     amount: 100
-                actions:
-                  - type: take_money
-                    amount: 100
+                actions: take_money 100
                 fallback:
                   - type: send_message
                     text: "Not enough"
@@ -170,7 +167,7 @@ class DialogYamlParserTest {
         val btn = d.buttons[0]
         assertEquals(1, btn.requirements.size)
         assertEquals("has_money", btn.requirements[0]["type"])
-        assertEquals(1, btn.actions.size)
+        assertEquals("take_money 100", btn.actions)
         assertEquals(1, btn.fallback.size)
     }
 }

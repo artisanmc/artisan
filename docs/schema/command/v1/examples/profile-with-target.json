@@ -15,7 +15,5 @@
       "description": "Le joueur à inspecter. Par défaut, vous-même."
     }
   ],
-  "steps": [
-    { "kind": "action", "action": { "type": "open_menu", "menu_id": "profile_menu" } }
-  ]
+  "steps": "open_menu profile_menu"
 }
