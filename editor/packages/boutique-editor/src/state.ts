@@ -7,10 +7,11 @@ export interface BoutiqueItem {
   price: number;
   discount: number;
   lore: string[];
-  /** Purchase step tree (wire shape of the `actions` field kit widget —
-   *  literal text). Runs via `api.actions.execute` after payment. Legacy
-   *  `buy_commands`/`buyCommands` migrate to `run_command` steps on read. */
-  actions: unknown[];
+  /** Purchase actions as an **Action DSL string** (the module-data `actions`
+   *  wire, literal text — cf. ADR `action-dsl`). Runs via `api.actions.execute`
+   *  after payment. Legacy `buy_commands`/`buyCommands` migrate to
+   *  `run_command "…" as console` lines on read. */
+  actions: string;
 }
 
 export interface BoutiqueCategory {
@@ -65,7 +66,7 @@ export function readBoutiqueState(project: unknown): BoutiqueState {
       categories: state.categories.map((c) => ({
         ...c,
         items: c.items.map((i) => {
-          if (Array.isArray(i.actions)) return i;
+          if (typeof i.actions === "string") return i;
           const legacy = (i as unknown as { buyCommands?: unknown }).buyCommands;
           const { buyCommands: _dropped, ...rest } = i as unknown as Record<string, unknown>;
           return {

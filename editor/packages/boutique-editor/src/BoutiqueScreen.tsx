@@ -23,7 +23,7 @@ function makeId(prefix: string): string {
 }
 
 function emptyItem(): BoutiqueItem {
-  return { id: makeId("item"), name: "New item", icon: "BARRIER", price: 0, discount: 0, lore: [], actions: [] };
+  return { id: makeId("item"), name: "New item", icon: "BARRIER", price: 0, discount: 0, lore: [], actions: "" };
 }
 
 function emptyCategory(): BoutiqueCategory {
