@@ -63,20 +63,22 @@ args in texts/commands).
 
 ```json
 { "id": "yes", "label": "<green>Confirm</green>",
-  "actions": [ { "type": "take_money", "amount": 100 },
-               { "type": "send_message", "text": "<green>Purchased!</green>" } ] }
+  "actions": "take_money 100\nsend_message \"<green>Purchased!</green>\"" }
 ```
 
 - `id` (`^[a-z][a-z0-9_]{0,63}$`), `label`, and `actions`.
-- **`actions` is a FLAT list of `Action` objects** — **no `if`/`steps`/`kind` wrapper inside a
-  dialog button** (unlike menus/commands). Use only the allowed action subset from VOCAB.
+- **`actions` is an Action DSL STRING** — the same DSL as menu click handlers / command bodies
+  (one verb per line; `if` / `else if` / `else` branches are allowed and round-trip). See the
+  **Action DSL reference** in the `menu/v1` guide for the full grammar. Use only the allowed
+  action/condition subset from VOCAB; text is always quoted (`"..."`) or `@key`.
 
 ## Cross-reference — opening a dialog
 
-A menu or command opens this dialog with the `open_dialog` action referencing the dialog `id`:
+A menu or command opens this dialog with the `open_dialog` action (a DSL line) referencing the
+dialog `id`:
 
-```json
-{ "type": "open_dialog", "dialog_id": "confirm_buy" }
+```
+open_dialog confirm_buy
 ```
 
 Discover existing dialog ids with **`list_dialogs`** before referencing one.
@@ -95,13 +97,9 @@ Discover existing dialog ids with **`list_dialogs`** before referencing one.
   ],
   "buttons": [
     { "id": "yes", "label": "<green>Confirm</green>",
-      "actions": [
-        { "type": "take_money", "amount": 100 },
-        { "type": "give_item", "material": "DIAMOND", "count": 1 },
-        { "type": "send_message", "text": "<green>You bought a diamond!</green>" }
-      ] },
+      "actions": "if has_money(100):\n  take_money 100\n  give_item DIAMOND 1\n  send_message \"<green>You bought a diamond!</green>\"\nelse:\n  send_message \"<red>Not enough money.</red>\"" },
     { "id": "no", "label": "<red>Cancel</red>",
-      "actions": [ { "type": "close_dialog" } ] }
+      "actions": "close_dialog" }
   ]
 }
 ```

@@ -73,39 +73,38 @@ should be last.
 - **`title`** / **`lore[]`** — literal display text (see Text & i18n below).
 - **`click`** — per-button handlers.
 
-### ClickMap and steps
+### ClickMap and steps (the Action DSL)
 
 ```json
 "click": {
-  "left":        { "steps": [ /* Step[] */ ] },
-  "right":       { "steps": [ ... ] },
-  "shift_left":  { "steps": [ ... ] },
-  "shift_right": { "steps": [ ... ] },
-  "middle":      { "steps": [ ... ] }
+  "left":        { "steps": "<Action DSL string>" },
+  "right":       { "steps": "..." },
+  "shift_left":  { "steps": "..." },
+  "shift_right": { "steps": "..." },
+  "middle":      { "steps": "..." }
 }
 ```
 
-Only these five click keys exist. Each maps to `{ "steps": Step[] }`.
+Only these five click keys exist. Each maps to `{ "steps": "<Action DSL string>" }`.
 
-A `Step` is one of two shapes:
+**`steps` is a STRING** written in the **Action DSL** — *not* a JSON array. One action per
+line; `if` / `else if` / `else` blocks open with `:` and a two-space indent. This is the same
+DSL used by command bodies and dialog buttons — learn it once. Full grammar in the
+**Action DSL reference** section below; a taste:
 
-```json
-{ "kind": "action", "action": { "type": "run_command", "command": "spawn" } }
+```
+if has_money(100):
+  take_money 100
+  give_item DIAMOND 1
+  send_message "<green>You bought a diamond!</green>"
+else:
+  send_message "<red>Not enough money.</red>"
 ```
 
-```json
-{
-  "kind": "if",
-  "cases": [
-    { "conditions": [ /* Condition[] */ ], "joins": ["and"], "steps": [ /* Step[] */ ] }
-  ],
-  "else": [ /* Step[] */ ]
-}
-```
-
-- In an `if` step, each case has `conditions` (a list) plus optional `joins` (a list of
-  `"and"`/`"or"` between consecutive conditions; default is all-AND) and its own `steps`.
-  `cases` are tried in order; `else` runs if none match. `if` steps nest.
+- Conditions after `if` combine with `and` / `or` / `not` and parentheses.
+  `if has_permission(vip) and has_money(100):`. `else if <cond>:` adds another arm; a bare
+  `else:` is the fallback. Blocks nest by indentation.
+- A blank menu handler is the **empty string** `""` (or just omit that click key).
 
 ### Iteration (data-driven elements)
 
@@ -127,69 +126,78 @@ To repeat an element across a list, add `iterates`:
 - `iterates.alias` is the per-item handle; fields are read as `{alias.field}` in any text /
   `material` / placeholder.
 
-## Vocabulary — ALLOWED conditions only
+## Action DSL reference (used by `steps`, command bodies, dialog buttons)
 
-Use **only** these condition `type` values. Any other type is rejected / non-representable.
+Structure:
 
-| `type`              | Fields                          | Example |
-|---------------------|---------------------------------|---------|
-| `has_permission`    | `perm`                          | `{ "type": "has_permission", "perm": "artisan.vip" }` |
-| `has_money`         | `amount` (>0), `currency?`      | `{ "type": "has_money", "amount": 100 }` |
-| `placeholder_equals`| `placeholder`, `value`          | `{ "type": "placeholder_equals", "placeholder": "%player_world%", "value": "spawn" }` |
-| `placeholder_match` | `placeholder`, `regex`          | `{ "type": "placeholder_match", "placeholder": "%player_name%", "regex": "^[Aa].*" }` |
-| `has_item`          | `material` (UPPER_SNAKE), `count` | `{ "type": "has_item", "material": "DIAMOND", "count": 3 }` |
-| `has_xp`            | `amount` (≥1)                   | `{ "type": "has_xp", "amount": 100 }` |
-| `has_level`         | `level` (≥1)                    | `{ "type": "has_level", "level": 30 }` |
-| `world_is`          | `world`                         | `{ "type": "world_is", "world": "spawn" }` |
-| `time_is`           | `range` (`"day"`, `"night"`, or `{from_ticks,to_ticks}` 0–24000) | `{ "type": "time_is", "range": "night" }` |
-| `random_chance`     | `probability` (0–1)             | `{ "type": "random_chance", "probability": 0.25 }` |
-| `cooldown_passed`   | `cooldown_id`                   | `{ "type": "cooldown_passed", "cooldown_id": "daily_reward" }` |
-| `player_in_region`  | `region` (WorldGuard region id) | `{ "type": "player_in_region", "region": "shop_zone" }` |
-| `pagination_at_first`| `element_id?`                   | `{ "type": "pagination_at_first", "element_id": "grid" }` — true on page 0 (hide the Prev button) |
-| `pagination_at_last` | `element_id?`                   | `{ "type": "pagination_at_last" }` — true on the final page (hide the Next button) |
-| `not`               | `of` (a single Condition)       | `{ "type": "not", "of": { "type": "has_permission", "perm": "x" } }` |
-| `and`               | `of` (Condition[])              | `{ "type": "and", "of": [ ... ] }` |
-| `or`                | `of` (Condition[])              | `{ "type": "or", "of": [ ... ] }` |
+- **One action per line.** A line is a verb + its arguments (see the action table).
+- **`if` / `else if` / `else`** open a block with a trailing `:` and a **two-space** indent for
+  the body. `else if <cond>:` chains; `else:` is the catch-all. Blocks nest.
+- **Blank lines** and `#` line comments are ignored.
+- **Text is always quoted**: `"literal MiniMessage / %papi% text"` (default language, may hold
+  `{placeholders}`), **or** `@some.key` to reference a translatable i18n key you were told exists.
+  Never write a bare word where text is expected. Preserve `%papi%` placeholders verbatim.
+- **Bare words** for identifiers, materials (UPPER_SNAKE), sounds, worlds, enums, and numbers.
 
-`placeholder` accepts a PAPI placeholder (`%vault_eco_balance%`), a context input (`{category}`),
-or an iteration field (`{alias.field}`).
+### ALLOWED conditions (inside `if` / `else if`)
 
-## Vocabulary — ALLOWED actions only
+Use **only** these. Combine with `and` / `or` / `not` and parentheses.
 
-Use **only** these action `type` values inside `{ "kind": "action", "action": { ... } }`,
-and in `open_actions` / `close_actions`.
+| Condition | DSL form | Meaning |
+|-----------|----------|---------|
+| `has_permission`     | `has_permission(artisan.vip)`        | player has the permission |
+| `has_money`          | `has_money(100)`                     | balance ≥ amount (needs Vault) |
+| `has_item`           | `has_item(DIAMOND, 3)`               | has ≥ count of material |
+| `has_xp`             | `has_xp(100)`                        | total XP ≥ amount |
+| `has_level`          | `has_level(30)`                      | XP level ≥ level |
+| `world_is`           | `world_is(spawn)`                    | current world matches |
+| `time_is`            | `time_is(night)` / `time_is(0-6000)` | `day`, `night`, or a `<from>-<to>` tick window (0–24000) |
+| `random_chance`      | `random_chance(0.25)`                | passes with probability 0–1 |
+| `cooldown_passed`    | `cooldown_passed(daily_reward)`      | named cooldown elapsed |
+| `player_in_region`   | `player_in_region(shop_zone)`        | inside a WorldGuard region |
+| `pagination_at_first`| `pagination_at_first` / `pagination_at_first(grid)` | on page 0 (hide Prev) |
+| `pagination_at_last` | `pagination_at_last` / `pagination_at_last(grid)`   | on the last page (hide Next) |
+| `placeholder_equals` | `%player_world% == "spawn"`          | PAPI placeholder equals a literal |
+| `placeholder_match`  | `%player_name% matches "^[Aa].*"`    | PAPI placeholder matches a regex |
 
-| `type`                 | Fields                                                | Example |
-|------------------------|-------------------------------------------------------|---------|
-| `run_command`          | `command`, `as?` (`"player"` \| `"console"`)          | `{ "type": "run_command", "command": "spawn", "as": "player" }` |
-| `open_menu`            | `menu_id`, `close_current?`, `context?`, `clear_context?` | `{ "type": "open_menu", "menu_id": "shop" }` |
-| `close_menu`           | —                                                     | `{ "type": "close_menu" }` |
-| `send_message`         | `text`                                                | `{ "type": "send_message", "text": "<green>Done!</green>" }` |
-| `show_title`           | `title`, `subtitle?`, `fade_in?`, `stay?`, `fade_out?`| `{ "type": "show_title", "title": "<gold>Welcome</gold>" }` |
-| `give_item`            | `material` (UPPER_SNAKE), `count` (1–64)              | `{ "type": "give_item", "material": "DIAMOND", "count": 1 }` |
-| `take_item`            | `material` (UPPER_SNAKE), `count` (1–64)              | `{ "type": "take_item", "material": "PAPER", "count": 1 }` |
-| `take_money`           | `amount` (>0)                                         | `{ "type": "take_money", "amount": 100 }` |
-| `give_money`           | `amount` (>0)                                         | `{ "type": "give_money", "amount": 50 }` |
-| `give_xp`              | `amount` (≥1)                                         | `{ "type": "give_xp", "amount": 10 }` |
-| `give_level`           | `amount` (≥1)                                         | `{ "type": "give_level", "amount": 1 }` |
-| `broadcast`            | `text` — to ALL online players                        | `{ "type": "broadcast", "text": "<gold>%player_name% won!</gold>" }` |
-| `play_sound`           | `sound` (Bukkit Sound name), `volume?` (0–1), `pitch?` (0–2) | `{ "type": "play_sound", "sound": "ENTITY_PLAYER_LEVELUP" }` |
-| `teleport`             | `world`, `x`, `y`, `z`, `yaw?`, `pitch?`              | `{ "type": "teleport", "world": "spawn", "x": 0.5, "y": 64, "z": 0.5 }` |
-| `pagination_next`      | `element_id?`                                         | `{ "type": "pagination_next" }` |
-| `pagination_prev`      | `element_id?`                                         | `{ "type": "pagination_prev" }` |
-| `set_arg`              | `arg`, `value`                                        | `{ "type": "set_arg", "arg": "category", "value": "tools" }` |
-| `set_arg_cycle_next`   | `arg`, `list`                                         | `{ "type": "set_arg_cycle_next", "arg": "sort", "list": "price,name" }` |
-| `set_arg_cycle_prev`   | `arg`, `list`                                         | `{ "type": "set_arg_cycle_prev", "arg": "sort", "list": "price,name" }` |
-| `open_dialog`          | `dialog_id`, `context?`, `clear_context?`             | `{ "type": "open_dialog", "dialog_id": "confirm" }` |
-| `close_dialog`         | —                                                     | `{ "type": "close_dialog" }` |
+Combining: `if (has_permission(vip) and has_money(100)) or has_permission(admin):`.
+`not`: `if not has_permission(banned):`.
 
-`open_dialog.dialog_id` must reference an **existing** dialog — call `list_dialogs` first.
-If the pack has no dialogs, do not emit `open_dialog` (you cannot create dialogs).
+> **Do NOT write free comparisons** like `balance >= 100` or `score > 0` — they parse to an
+> `expression` condition that has **no server-side evaluator yet** and is **rejected**. Gate on
+> money with `has_money(100)`, or compare a PAPI placeholder with `%placeholder% == "value"`.
 
-> The only schema construct **NOT** in the importable subset is the `expression` condition
-> (no server-side DSL evaluator yet) — it is rejected here. When a source file needs something
-> outside the tables above, **say so in chat** (and optionally record it in the menu's `notes`)
-> rather than inventing a type.
+### ALLOWED actions
+
+Use **only** these verbs (also valid in command bodies and dialog buttons):
+
+| Verb | DSL form |
+|------|----------|
+| `run_command`   | `run_command "spawn" as player`  (or `as console`; `as` is required) |
+| `open_menu`     | `open_menu shop` · `open_menu shop clear` · `open_menu shop with page="1"` |
+| `close_menu`    | `close_menu` |
+| `send_message`  | `send_message "<green>Done!</green>"` · `send_message @shop.bought` |
+| `broadcast`     | `broadcast "<gold>%player_name% won!</gold>"` |
+| `show_title`    | `show_title "<gold>Welcome</gold>"` · `show_title "<gold>Hi</gold>" "<gray>sub</gray>" fadeIn=10 stay=40 fadeOut=10` |
+| `give_item`     | `give_item DIAMOND 1` |
+| `take_item`     | `take_item PAPER 1` |
+| `take_money`    | `take_money 100` |
+| `give_money`    | `give_money 50` |
+| `give_xp`       | `give_xp 10` |
+| `give_level`    | `give_level 1` |
+| `play_sound`    | `play_sound ENTITY_PLAYER_LEVELUP` · `play_sound ENTITY_PLAYER_LEVELUP vol=1 pitch=1.2` |
+| `teleport`      | `teleport spawn 0.5 64 0.5` · `teleport spawn 0.5 64 0.5 yaw=90 pitch=0` |
+| `paginate`      | `paginate next` · `paginate prev` · `paginate next grid` (optional element id) |
+| `set`           | `set category = tools`  (→ set an arg) |
+| `cycle`         | `cycle next sort in "price,name"` · `cycle prev sort in "price,name"` |
+| `open_dialog`   | `open_dialog confirm` (dialog must exist — call `list_dialogs` first) |
+| `close_dialog`  | `close_dialog` |
+
+If the pack has no dialogs, do not emit `open_dialog` (you cannot create dialogs). Do **not**
+emit `run_actions` — it requires a data-source binding you cannot author here, and is rejected.
+
+> When a source file needs something outside these tables, **say so in chat** (and optionally
+> record it in the menu's `notes`) rather than inventing a verb or a free comparison.
 
 ## Runtime caveats — tell the user when relevant
 
@@ -261,20 +269,7 @@ A 27-slot shop with a buy button (slot 13) gated by money:
               ],
               "click": {
                 "left": {
-                  "steps": [
-                    { "kind": "if",
-                      "cases": [
-                        { "conditions": [{ "type": "has_money", "amount": 100 }],
-                          "steps": [
-                            { "kind": "action", "action": { "type": "take_money", "amount": 100 } },
-                            { "kind": "action", "action": { "type": "give_item", "material": "DIAMOND", "count": 1 } },
-                            { "kind": "action", "action": { "type": "send_message", "text": "<green>You bought a diamond!</green>" } }
-                          ] }
-                      ],
-                      "else": [
-                        { "kind": "action", "action": { "type": "send_message", "text": "<red>Not enough money.</red>" } }
-                      ] }
-                  ]
+                  "steps": "if has_money(100):\n  take_money 100\n  give_item DIAMOND 1\n  send_message \"<green>You bought a diamond!</green>\"\nelse:\n  send_message \"<red>Not enough money.</red>\""
                 }
               }
             },
