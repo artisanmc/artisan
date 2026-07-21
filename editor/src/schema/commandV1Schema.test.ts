@@ -13,9 +13,8 @@ describe("command/v1 schema shape", () => {
     expect((schema as any).required).not.toContain("actions");
   });
 
-  it("steps items reference menu/v1 Step (if-support)", () => {
-    const ref = (schema as any).properties.steps.items.$ref as string;
-    expect(ref).toBe("https://docs.artisanmc.net/schema/menu/v1.json#/$defs/Step");
+  it("steps is an Action DSL string (Phase 2 of ADR action-dsl)", () => {
+    expect((schema as any).properties.steps.type).toBe("string");
   });
 
   it("keeps requirements/fallback as flat Action arrays", () => {
@@ -24,11 +23,11 @@ describe("command/v1 schema shape", () => {
     expect(props.fallback.items.$ref).toContain("#/$defs/Action");
   });
 
-  it("all examples use steps, not actions", () => {
+  it("all examples use a steps DSL string, not flat actions", () => {
     for (const ex of [pay, profile, heal] as any[]) {
-      expect(Array.isArray(ex.steps)).toBe(true);
+      expect(typeof ex.steps).toBe("string");
+      expect(ex.steps.length).toBeGreaterThan(0);
       expect(ex.actions).toBeUndefined();
-      expect(ex.steps[0].kind).toBe("action");
     }
   });
 });

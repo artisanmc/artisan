@@ -81,17 +81,10 @@ class BundleCompilerTest {
     }
 
     @Test fun `compile parses canonical click steps into a step tree`() {
-        val clickYaml = ClickHandlerYaml(steps = listOf(
-            mapOf(
-                "kind" to "if",
-                "cases" to listOf(mapOf(
-                    "conditions" to listOf(mapOf("type" to "has_money", "amount" to 100)),
-                    "steps" to listOf(mapOf("kind" to "action", "action" to mapOf("type" to "take_money", "amount" to 100.0))),
-                )),
-                "else" to listOf(mapOf("kind" to "action", "action" to mapOf("type" to "send_message", "text" to "no"))),
-            ),
-            mapOf("kind" to "action", "action" to mapOf("type" to "close_menu")),
-        ))
+        // steps is an Action DSL string since Phase 2 (ADR action-dsl).
+        val clickYaml = ClickHandlerYaml(
+            steps = "if has_money(100):\n  take_money 100\nelse:\n  send_message \"no\"\nclose_menu",
+        )
         val m = menu(element("btn", "13", appearance("STONE", mapOf("left" to clickYaml))))
         val result = BundleCompiler.compile(m, emptyMap())
         val clickHandler = result.compiledAppearances["btn"]!!.first().clicks[ClickType.LEFT]
@@ -105,9 +98,8 @@ class BundleCompilerTest {
     }
 
     @Test fun `compile drops the appearance when a step contains an unknown action`() {
-        val clickYaml = ClickHandlerYaml(steps = listOf(
-            mapOf("kind" to "action", "action" to mapOf("type" to "does_not_exist")),
-        ))
+        // An unknown verb makes the DSL parse throw → the appearance is dropped.
+        val clickYaml = ClickHandlerYaml(steps = "does_not_exist")
         val m = menu(element("btn", "0", appearance("STONE", mapOf("left" to clickYaml)), appearance("DIRT")))
         val result = BundleCompiler.compile(m, emptyMap())
         assertEquals(1, result.compiledAppearances["btn"]?.size)

@@ -1,13 +1,21 @@
 import { parse as parseYaml } from "yaml";
+// Action DSL codec (Phase 2 of ADR action-dsl): click-handler / command / dialog
+// steps travel as a DSL STRING. We reuse the editor's pure parser directly — its
+// only `@/…` imports are `import type` (erased at runtime), so there is no alias
+// breakage (unlike domainSteps.ts, which runtime-imports `@/lib/i18n`). Keeping
+// ONE TS parser avoids a hand-mirrored divergence the way the shared conformance
+// fixtures avoid a TS↔Kotlin one.
+import { parseActionDsl } from "../../../editor/src/lib/actionDsl/parser";
+import type { DslAction, DslStep, DslText } from "../../../editor/src/lib/actionDsl/ast";
 
 // This module mirrors the editor's YAML→domain converters so that a project
 // seeded on disk (e.g. an add-on bootstrap) imports faithfully into editorJson.
 // Reference implementations (source of truth for the domain shapes):
 //   editor/src/schema/menuV1ToDomain.ts   (menu wire → domain)
-//   editor/src/schema/actionV1ToDomain.ts (steps/actions/conditions)
+//   editor/src/schema/actionV1ToDomain.ts (steps DSL string + conditions)
 //   editor/src/features/export/transform.ts (domain → wire, the inverse)
-// Do NOT import editor code here (alias breakage) — keep the logic mirrored.
-// Conformance is locked by editor/src/schema/projectImportRoundTrip.test.ts.
+// Conditions/menu sub-shapes are mirrored by hand; action-chain steps reuse the
+// shared pure codec (above). Locked by editor/src/schema/projectImportRoundTrip.test.ts.
 
 // ─── per-import i18n context ─────────────────────────────────────────────────
 
@@ -108,128 +116,58 @@ function importIfArray(
   return { conds, joins: new Array(Math.max(0, conds.length - 1)).fill("and") };
 }
 
-// ─── actions/steps (mirror of actionV1ToDomain) ──────────────────────────────
+// ─── action-chain steps (Action DSL string → domain Step[]) ──────────────────
+// Click handlers, command bodies and dialog buttons carry a DSL STRING since
+// Phase 2. The shared pure codec parses it to `DslStep[]`; here we only bridge
+// DSL text (`@key` ref vs `"literal"`) to the i18n Key site. Non-text DslActions
+// are already domain-shaped (ast.ts derives them from the domain Action union).
 
-function importAction(ctx: I18nCtx, a: Json): unknown | null {
+function dslTextToLText(ctx: I18nCtx, t: DslText): { key: string } {
+  return "ref" in t ? ref(ctx, t.ref) : text(ctx, t.lit);
+}
+
+function dslActionToDomain(ctx: I18nCtx, a: DslAction): unknown {
   switch (a.type) {
-    case "open_menu":
-      return {
-        type: "open_menu",
-        menuId: a.menu_id,
-        ...(a.clear_context ? { clearContext: true } : {}),
-        ...(a.context ? { context: a.context } : {}),
-      };
-    case "close_menu":
-      return { type: "close_menu" };
-    case "run_command":
-      return { type: "run_command", command: a.command, as: a.as ?? "player" };
     case "send_message":
-      return { type: "send_message", text: text(ctx, a.text) };
+      return { type: "send_message", text: dslTextToLText(ctx, a.text) };
+    case "broadcast":
+      return { type: "broadcast", text: dslTextToLText(ctx, a.text) };
     case "show_title":
       return {
         type: "show_title",
-        title: text(ctx, a.title),
-        ...(a.subtitle !== undefined ? { subtitle: text(ctx, a.subtitle) } : {}),
-        ...(a.fade_in !== undefined ? { fadeIn: a.fade_in } : {}),
+        title: dslTextToLText(ctx, a.title),
+        ...(a.subtitle ? { subtitle: dslTextToLText(ctx, a.subtitle) } : {}),
+        ...(a.fadeIn !== undefined ? { fadeIn: a.fadeIn } : {}),
         ...(a.stay !== undefined ? { stay: a.stay } : {}),
-        ...(a.fade_out !== undefined ? { fadeOut: a.fade_out } : {}),
+        ...(a.fadeOut !== undefined ? { fadeOut: a.fadeOut } : {}),
       };
-    case "give_item":
-      return { type: "give_item", material: a.material, count: a.count };
-    case "take_item":
-      return { type: "take_item", material: a.material, count: a.count ?? 1 };
-    case "take_money":
-      return { type: "take_money", amount: a.amount };
-    case "give_money":
-      return { type: "give_money", amount: a.amount };
-    case "give_xp":
-      return { type: "give_xp", amount: a.amount };
-    case "give_level":
-      return { type: "give_level", amount: a.amount };
-    case "broadcast":
-      return { type: "broadcast", text: text(ctx, a.text) };
-    case "play_sound":
-      return {
-        type: "play_sound",
-        sound: a.sound,
-        ...(a.volume !== undefined ? { volume: a.volume } : {}),
-        ...(a.pitch !== undefined ? { pitch: a.pitch } : {}),
-      };
-    case "teleport": {
-      if (typeof a.world !== "string" || a.world === "") {
-        ctx.unsupported.push("action: teleport (missing world)");
-        return null;
-      }
-      return {
-        type: "teleport",
-        world: a.world,
-        x: a.x ?? 0,
-        y: a.y ?? 0,
-        z: a.z ?? 0,
-        ...(a.yaw !== undefined ? { yaw: a.yaw } : {}),
-        ...(a.pitch !== undefined ? { pitch: a.pitch } : {}),
-      };
-    }
-    case "pagination_next":
-      return { type: "paginate", direction: "next", ...(a.element_id ? { targetElementId: a.element_id } : {}) };
-    case "pagination_prev":
-      return { type: "paginate", direction: "prev", ...(a.element_id ? { targetElementId: a.element_id } : {}) };
-    case "set_arg":
-      return { type: "set_arg", arg: a.arg, value: a.value };
-    case "set_arg_cycle_next":
-      return { type: "set_arg_cycle_next", arg: a.arg, list: a.list };
-    case "set_arg_cycle_prev":
-      return { type: "set_arg_cycle_prev", arg: a.arg, list: a.list };
-    case "open_dialog":
-      return {
-        type: "open_dialog",
-        dialogId: a.dialog_id,
-        ...(a.clear_context ? { clearContext: true } : {}),
-        ...(a.context ? { context: a.context } : {}),
-      };
-    case "close_dialog":
-      return { type: "close_dialog" };
     default:
-      ctx.unsupported.push(`action: ${a.type}`);
-      return null;
+      return a;
   }
 }
 
-function importStep(ctx: I18nCtx, s: Json): unknown | null {
-  if (s.kind === "action") {
-    const act = importAction(ctx, s.action as Json);
-    return act ? { kind: "action", action: act } : null;
-  }
-  if (s.kind === "if") {
-    return {
-      kind: "if",
-      cases: ((s.cases as Json[]) ?? []).map((c) => ({
-        conditions: ((c.conditions as Json[]) ?? []).map((x) => importCondition(ctx, x)).filter(Boolean),
-        ...(c.joins ? { joins: c.joins } : {}),
-        steps: ((c.steps as Json[]) ?? []).map((x) => importStep(ctx, x)).filter(Boolean),
-      })),
-      ...(s.else ? { else: ((s.else as Json[]) ?? []).map((x) => importStep(ctx, x)).filter(Boolean) } : {}),
-    };
-  }
-  ctx.unsupported.push(`step kind: ${s.kind}`);
-  return null;
+function dslStepToDomain(ctx: I18nCtx, s: DslStep): unknown {
+  if (s.kind === "action") return { kind: "action", action: dslActionToDomain(ctx, s.action) };
+  return {
+    kind: "if",
+    cases: s.cases.map((c) => ({
+      conditions: c.conditions,
+      ...(c.joins ? { joins: c.joins } : {}),
+      steps: c.steps.map((x) => dslStepToDomain(ctx, x)),
+    })),
+    ...(s.else ? { else: s.else.map((x) => dslStepToDomain(ctx, x)) } : {}),
+  };
 }
 
+/** Action DSL string → domain Step[] (empty/blank/unparseable → []). */
 function importSteps(ctx: I18nCtx, steps: unknown): unknown[] {
-  if (!Array.isArray(steps)) return [];
-  return steps.map((s) => importStep(ctx, s as Json)).filter(Boolean) as unknown[];
-}
-
-// ─── flat actions → steps (dialog buttons use `actions:` not `steps:`) ────────
-
-function actionsToSteps(ctx: I18nCtx, actions: unknown): unknown[] {
-  if (!Array.isArray(actions)) return [];
-  return actions
-    .map((a) => {
-      const act = importAction(ctx, a as Json);
-      return act ? { kind: "action", action: act } : null;
-    })
-    .filter(Boolean) as unknown[];
+  if (typeof steps !== "string" || steps.trim() === "") return [];
+  try {
+    return parseActionDsl(steps).map((s) => dslStepToDomain(ctx, s));
+  } catch (e) {
+    ctx.unsupported.push(`steps: ${(e as Error).message}`);
+    return [];
+  }
 }
 
 // ─── menu sub-shapes (mirror of menuV1ToDomain) ──────────────────────────────
@@ -405,7 +343,8 @@ function importDialogButton(ctx: I18nCtx, b: Json): unknown {
   return {
     id: b.id,
     label: text(ctx, b.label),
-    steps: actionsToSteps(ctx, b.actions),
+    // dialog/v1 button `actions` is a DSL string since Phase 2 (if-branches OK).
+    steps: importSteps(ctx, b.actions),
   };
 }
 
@@ -427,7 +366,7 @@ interface CommandYaml {
   permission?: string;
   description?: string;
   arguments?: Array<{ name: string; type?: string; required?: boolean; default?: string }>;
-  steps?: unknown[];
+  steps?: unknown;
 }
 
 interface MenuYaml {

@@ -5,7 +5,6 @@ import type {
   I18nKey,
   LText,
   ProjectId,
-  Step as DomainStep,
 } from "@/domain/types";
 import { newI18nKey } from "@/lib/i18n";
 import { makeStepConverter } from "./actionV1ToDomain";
@@ -43,9 +42,14 @@ export function commandV1ToDomain(
     return { key };
   }
 
-  const { step } = makeStepConverter({ text, ref, pushUnsupported: (s) => unsupported.push(s) });
+  const { steps: parseSteps } = makeStepConverter({
+    text,
+    ref,
+    pushUnsupported: (s) => unsupported.push(s),
+  });
 
-  const steps = ((src.steps as Json[]) ?? []).map(step).filter(Boolean) as DomainStep[];
+  // command/v1 `steps` is an Action DSL string (Phase 2 of ADR action-dsl).
+  const steps = parseSteps(src.steps);
 
   const args: CommandArg[] = ((src.arguments as Json[]) ?? []).map((a) => {
     let type = a.type as string;

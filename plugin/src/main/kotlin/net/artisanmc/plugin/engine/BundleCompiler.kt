@@ -1,5 +1,6 @@
 package net.artisanmc.plugin.engine
 
+import net.artisanmc.plugin.actiondsl.compileActionDsl
 import net.artisanmc.plugin.model.AppearanceYaml
 import net.artisanmc.plugin.model.BundleMenu
 import net.artisanmc.plugin.model.MenuYaml
@@ -43,9 +44,10 @@ object BundleCompiler {
             val clicks = app.click.mapNotNull { (key, handlerYaml) ->
                 val clickType = ClickType.fromYamlKey(key) ?: return@mapNotNull null
                 val requirements = handlerYaml.requirements.map { ConditionParser.parse(it) }
-                // Canonical wire (`steps:`) compiles to a Step tree; the flat
+                // Canonical wire (`steps:`) is an Action DSL string (Phase 2, ADR
+                // action-dsl) → parsed + mapped to the engine Step tree. The flat
                 // `actions:`/`fallback:` keys are the legacy wire and stay as-is.
-                val steps        = StepParser.parseAll(handlerYaml.steps)
+                val steps        = compileActionDsl(handlerYaml.steps)
                 val actions      = handlerYaml.actions.map { ActionParser.parse(it) }
                 val fallback     = handlerYaml.fallback.map { ActionParser.parse(it) }
                 val cooldown     = handlerYaml.cooldown?.let { cy ->

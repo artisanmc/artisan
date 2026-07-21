@@ -8,7 +8,6 @@ import type {
   Element as DomainElement,
   Layer as DomainLayer,
   Menu as DomainMenu,
-  Step as DomainStep,
   I18nKey,
   InventoryType,
   LText,
@@ -58,8 +57,8 @@ export function menuV1ToDomain(
     return { key };
   }
 
-  // ── shared wire→domain step converter (conditions/actions/steps) ──────────
-  const { step, ifArray } = makeStepConverter({
+  // ── shared wire→domain converter (appearance conditions + DSL steps) ──────
+  const { steps: parseSteps, ifArray } = makeStepConverter({
     text,
     ref,
     pushUnsupported: (s) => unsupported.push(s),
@@ -71,8 +70,8 @@ export function menuV1ToDomain(
     for (const ct of CLICK_TYPES) {
       const handler = click[ct] as Json | undefined;
       if (!handler) continue;
-      const steps = (handler.steps as Json[]).map(step).filter(Boolean) as DomainStep[];
-      out[ct] = { steps } satisfies ClickHandler;
+      // Click-handler `steps` is an Action DSL string (menu/v1 Phase 2).
+      out[ct] = { steps: parseSteps(handler.steps) } satisfies ClickHandler;
     }
     return Object.keys(out).length > 0 ? out : undefined;
   }
