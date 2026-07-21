@@ -1144,6 +1144,8 @@ function actionSummaryArgs(action: Action, getText: (lt: LText | undefined) => s
       return action.dialogId + (action.clearContext ? " (clear)" : "");
     case "close_dialog":
       return "";
+    case "run_actions":
+      return action.actions;
   }
 }
 

@@ -7,6 +7,38 @@ definition wins (or this file gets updated in the same change).
 Terms are listed alphabetically. Each entry is a 1-3 sentence canonical
 definition followed by examples and explicit non-examples where helpful.
 
+## Action chain
+
+An ordered sequence of **Steps** — each Step a leaf **action** (`give_item`,
+`send_message`, `open_menu`…) or an `if` / `else if` / `else` branch over typed
+**conditions** — that runs when something triggers it: an **Element**'s click, a
+**Command** invocation, or a data-source `actions` field. `Step[]` in the domain.
+Its canonical text serialization is the **Action DSL**.
+
+A chain may **invoke** another chain stored on a **Data source** row/config
+(`actions` field) via the `run_actions <expr>` action — the called chain runs
+inline with the resolved-from row/config as its self-scope. Cf. ADR `action-dsl`.
+
+Non-examples:
+- A single **action** (`open_menu`) is not an Action chain — it is one leaf Step
+  within one.
+- A **condition** (`has_permission(vip)`) is not a Step — it gates an `if` branch
+  inside a chain.
+
+## Action DSL
+
+The compact, indentation-based text language that is the canonical serialization
+of an **Action chain** — one statement per action, `if …:` / `else if …:` /
+`else:` blocks, `and`/`or`/`not` over typed condition atoms, `"literal"` or
+`@key` for text. It is the on-disk and wire form (hand-writable in a data-source
+`actions` field's YAML), not merely an editor view. Cf. ADR `action-dsl`.
+
+Non-examples:
+- The verbose structured tree (`{kind:"if", cases:[…]}`) is the *old* wire form
+  the Action DSL replaces, not the Action DSL.
+- The **expression** embedded in a condition or `{…}` (`balance >= 100`) is a
+  sub-language *inside* the Action DSL, not a separate DSL.
+
 ## Bundle
 
 The **deployment artifact** of a **Project**: its content compiled to the on-disk

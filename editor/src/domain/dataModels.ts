@@ -82,6 +82,7 @@ export function defaultValueForModelType(
     case "item":
     case "minimessage":
     case "minimessage_multiline":
+    case "actions":
       return "";
     case "ltext":
       return { key: "" };
@@ -124,6 +125,7 @@ export function modelFieldTypeToFieldType(
     case "item":
     case "minimessage":
     case "minimessage_multiline":
+    case "actions":
       return { kind: "string" };
     case "number":
     case "integer":
@@ -358,6 +360,7 @@ const STRING_LIKE_KINDS: ReadonlySet<ModelFieldType["kind"]> = new Set([
   "item",
   "minimessage",
   "minimessage_multiline",
+  "actions",
 ]);
 
 /** Best-effort scalar coercion for retype; falls back to the new default. */

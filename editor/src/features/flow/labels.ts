@@ -43,6 +43,8 @@ export function actionTypeLabel(type: Action["type"]): string {
       return "dialog";
     case "close_dialog":
       return "close_dlg";
+    case "run_actions":
+      return "run";
   }
 }
 
