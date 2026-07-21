@@ -1157,7 +1157,7 @@ function generateDataSourceId(): DataSourceId {
   return `ds_${Math.random().toString(36).slice(2, 10)}` as DataSourceId;
 }
 
-/** Mint every sentinel ({key:""}) ltext across the pack's Project sources. */
+/** Mint sentinels and canonicalize every ltext across the pack's Project sources. */
 function mintSourceLTexts(pack: Project): void {
   for (const ds of pack.dataSources ?? []) {
     mintLTexts(pack, visitDataSourceLTexts(pack, ds), pack.defaultLang);
@@ -1244,7 +1244,13 @@ export const useAccountStore = create<AccountState>()(
           dialogs: p.dialogs ?? [],
           menus: p.menus.map((m) => ({ ...m, title: migrateTitle(m.title) })),
         }));
-        set({ account: { ...account, projects: migratedProjects } });
+        const migratedAccount = produce(
+          { ...account, projects: migratedProjects },
+          (draft) => {
+            for (const pack of draft.projects) mintSourceLTexts(pack);
+          },
+        );
+        set({ account: migratedAccount });
       },
       createProject: ({ id: rawId }) => {
         const id = rawId as ProjectId;
@@ -3653,7 +3659,10 @@ export const useAccountStore = create<AccountState>()(
             const pack = draft.account.projects.find((p) => p.id === projectId);
             const m = pack?.dataModels?.find((x) => x.id === modelId);
             // Placements pinned on the old key dangle — never rewritten (ADR).
-            if (m) m.keyField = keyField;
+            if (m && pack) {
+              m.keyField = keyField;
+              mintSourceLTexts(pack);
+            }
           }),
         ),
       addSourceRow: ({ projectId, sourceId }) =>
@@ -3685,6 +3694,7 @@ export const useAccountStore = create<AccountState>()(
             if (row === undefined) return;
             releaseValueLTexts(pack, row, { kind: "object", fields: sourceRootFields(pack, ds) });
             ds.rows.splice(index, 1);
+            rekeyDataSource(pack, ds);
           }),
         ),
       setSourceValue: ({ projectId, sourceId, row, path, value }) => {
@@ -3751,6 +3761,7 @@ export const useAccountStore = create<AccountState>()(
             if (!Array.isArray(list) || list[index] === undefined) return;
             if (listType?.kind === "list") releaseValueLTexts(pack, list[index], listType.of);
             list.splice(index, 1);
+            rekeyDataSource(pack, ds);
           }),
         ),
       deleteFromProject: ({ projectId: pId, nodeIds }) => {

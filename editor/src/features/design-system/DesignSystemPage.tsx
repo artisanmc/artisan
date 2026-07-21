@@ -24,8 +24,6 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { FormField } from "@/components/ui/form-field";
 import { HBar } from "@/components/ui/h-bar";
 import { Input } from "@/components/ui/input";
-import { StatCard } from "@/components/ui/stat-card";
-import { TBody, TD, TH, THead, TR, Table } from "@/components/ui/table";
 import {
   Sheet,
   SheetBody,
@@ -34,13 +32,15 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { StatCard } from "@/components/ui/stat-card";
+import { TBody, TD, TH, THead, TR, Table } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { WorkspaceView } from "@/components/ui/workspace-view";
 import { CanvasToolbar } from "@/features/canvas/CanvasToolbar";
+import { useUiStore } from "@/state/uiStore";
 import { Inbox, LayoutGrid, Pencil, Plus, Search, Sparkles, TerminalSquare } from "lucide-react";
 import { useState } from "react";
-import { WorkspaceOverlay } from "@/components/ui/workspace-overlay";
 import { useTranslation } from "react-i18next";
-import { useUiStore } from "@/state/uiStore";
 
 /**
  * Living style guide rendered at /admin/design. Every token, utility class
@@ -165,7 +165,9 @@ export function DesignSystemPage() {
             <span className="mono text-[11px] text-[var(--text-faint)]">
               .display / --font-display
             </span>
-            <span className="display text-[28px] text-[var(--text)]">Artisan — Menus & Projects</span>
+            <span className="display text-[28px] text-[var(--text)]">
+              Artisan — Menus & Projects
+            </span>
           </div>
           <div className="flex flex-col gap-1">
             <span className="mono text-[11px] text-[var(--text-faint)]">--font-body</span>
@@ -366,7 +368,7 @@ export function DesignSystemPage() {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
-            <WorkspaceOverlaySpecimen />
+            <WorkspaceViewSpecimen />
             <Sheet>
               <SheetTrigger asChild>
                 <Button variant="outline">{"<Sheet>"}</Button>
@@ -552,21 +554,25 @@ export function DesignSystemPage() {
   );
 }
 
-/** Near-fullscreen overlay for the workspace's secondary views (Translations,
- *  Data sources, History) — canvas stays alive underneath; Esc closes. */
-function WorkspaceOverlaySpecimen() {
-  const [open, setOpen] = useState(false);
+/** In-flow secondary view for the workspace (Translations, Data sources,
+ *  History, Assistant) — REPLACES the canvas in the center region instead of
+ *  floating as a modal. Opaque, keep-alive; Esc / × return to the canvas. Shown
+ *  here inside a relative demo box (it absolutely fills its positioned parent). */
+function WorkspaceViewSpecimen() {
+  const [active, setActive] = useState(false);
   return (
-    <>
-      <Button variant="outline" onClick={() => setOpen(true)}>
-        {"<WorkspaceOverlay>"}
-      </Button>
-      <WorkspaceOverlay open={open} onClose={() => setOpen(false)} title="WorkspaceOverlay">
+    <div className="relative h-56 overflow-hidden rounded-[var(--r-lg)] border border-[var(--border-soft)]">
+      <div className="flex h-full items-center justify-center">
+        <Button variant="outline" onClick={() => setActive(true)}>
+          {"<WorkspaceView>"}
+        </Button>
+      </div>
+      <WorkspaceView active={active} onExit={() => setActive(false)} title="WorkspaceView">
         <p className="text-[13px] text-[var(--text-mut)]">
-          Near-fullscreen working view. wide (défaut) = max-w-5xl, narrow = max-w-3xl ;
-          plein écran sous lg. Échap / backdrop / × ferment.
+          Vue de travail qui remplace le canvas dans la zone centrale (panneau opaque, keep-alive).
+          Le canvas reste monté dessous — jamais display:none. Échap / × reviennent au canvas.
         </p>
-      </WorkspaceOverlay>
-    </>
+      </WorkspaceView>
+    </div>
   );
 }

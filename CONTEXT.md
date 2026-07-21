@@ -100,7 +100,9 @@ modules consume. One notion, two **provenances**:
   neither placeable nor a Set target (though a nested list inside it may still
   be iterated). Localized text (**LText**) and item fields are allowed at any
   depth; each ltext value in a row is a normal **Key site**
-  (`sources.<id>.<rowKey>.<fieldPath>`).
+  (`sources.<id>.<rowKey>.<fieldPath>`). **MiniMessage** fields (single- or
+  multi-line) are plain strings edited with a rendered preview; they export
+  as ordinary strings.
 
 The consumer side is provenance-blind: an Element, Item template, or Placement
 binds a `SourceRef` and never cares who provides the rows.

@@ -23,19 +23,22 @@ import { rekeyProject } from "@/domain/i18nSites";
 import type { Project as ProjectType } from "@/domain/types";
 import type { Project, ProjectId } from "@/domain/types";
 import { transform } from "@/features/export/transform";
+import { WORKSPACE_VIEW_TABS, type WorkspaceViewTab } from "@/features/project/workspaceTabs";
 import { createCommit, getBranchHead } from "@/lib/api/branches";
 import { saveUserProject } from "@/lib/api/userProjects";
+import { cn } from "@/lib/cx";
+import { countMissingForLang } from "@/lib/i18nUsages";
 import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
-import { useServerSnapshotsStore } from "@/state/serverSnapshotsStore";
-import { countMissingForLang } from "@/lib/i18nUsages";
 import { useProjectVersionStore } from "@/state/projectVersionStore";
+import { useServerSnapshotsStore } from "@/state/serverSnapshotsStore";
 import { useUiStore } from "@/state/uiStore";
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 import {
   Database as DatabaseIcon,
   History as HistoryIcon,
   Languages as LanguagesIcon,
+  LayoutDashboard,
   PanelLeftClose,
   PanelLeftOpen,
   Redo2,
@@ -91,8 +94,8 @@ export function ProjectTopBarControls({
   const panelOpen = useUiStore((s) => s.projectPanelOpen);
   const conflicted = useProjectVersionStore((s) => Boolean(s.conflicts[projectId]));
 
-  // The canvas (and its elements panel) is always mounted now — the secondary
-  // views are overlays — so this is a plain open/close toggle.
+  // Toggles the persistent left sidebar (ProjectPanel tree). The canvas stays
+  // mounted regardless of the active view, so this is a plain open/close toggle.
   const onElementsClick = () => {
     useUiStore.getState().toggleProjectPanel();
   };
@@ -104,11 +107,12 @@ export function ProjectTopBarControls({
         onClick={onElementsClick}
         aria-label={t("projectPanel.openPanel")}
         aria-pressed={panelOpen}
-        className="hidden shrink-0 items-center gap-1.5 rounded-[10px] px-2.5 py-1.5 text-[12px] text-[var(--text-mut)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)] lg:inline-flex"
+        className="hidden size-8 shrink-0 items-center justify-center rounded-[10px] text-[var(--text-mut)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)] lg:inline-flex"
+        title={t("projectPanel.openPanel")}
       >
         {panelOpen ? <PanelLeftClose className="size-4" /> : <PanelLeftOpen className="size-4" />}
-        <span>{t("projectPanel.openPanel")}</span>
       </button>
+      <WorkspaceViewNav pack={pack} />
       <div className="flex min-w-0 flex-1 items-center gap-2.5 truncate px-1 font-mono text-[13px] text-[var(--text)]">
         {/* Save-health dot: green = saves flowing; red = the last save was
             rejected (409 version conflict — another session took the lead).
@@ -129,7 +133,6 @@ export function ProjectTopBarControls({
       />
       <LangSwitcher pack={pack} />
       <UndoRedoButtons />
-      <WorkspaceViewButtons pack={pack} />
       <SearchButton />
       <DeployButtons pack={pack} projectId={projectId} networkId={networkId ?? null} />
       <TopBarKebabMenu
@@ -158,55 +161,90 @@ export function ProjectTopBarControls({
  * existence of the new code in the i18n map.
  */
 /**
- * Icon-only topbar entries for the workspace's secondary views. Each opens an
- * overlay ABOVE the canvas (`?tab=` stays the source of truth: deep links and
- * back-button keep working; Esc closes). The missing-translations badge rides
- * on the Languages icon.
+ * Segmented view switcher on the LEFT of the topbar. Each entry navigates via
+ * `?tab=` (deep links / back-button keep working) and the active one is
+ * highlighted — Canvas (`overview`) is first so returning to the board is one
+ * click. Selecting a secondary view REPLACES the canvas in the center region
+ * (see WorkspaceView); it no longer floats as a modal. The missing-translations
+ * badge rides on the Translations entry. Order (and thus the 1-5 hotbar digit
+ * shortcut) comes from WORKSPACE_VIEW_TABS — see useWorkspaceTabShortcuts.
  */
-function WorkspaceViewButtons({ pack }: { pack: Project }) {
+const TAB_META: Record<WorkspaceViewTab, { labelKey: string; Icon: typeof LanguagesIcon }> = {
+  overview: { labelKey: "project.tabs.canvas", Icon: LayoutDashboard },
+  translations: { labelKey: "project.tabs.translations", Icon: LanguagesIcon },
+  "data-sources": { labelKey: "project.tabs.dataSources", Icon: DatabaseIcon },
+  history: { labelKey: "project.tabs.history", Icon: HistoryIcon },
+  assistant: { labelKey: "assistant.title", Icon: Sparkles },
+};
+
+function WorkspaceViewNav({ pack }: { pack: Project }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const activeLang = useUiStore((s) => s.activeLang);
   const missing = countMissingForLang(pack, activeLang);
-  const open = (tab: "translations" | "data-sources" | "history" | "assistant") =>
+  const search = useSearch({ strict: false }) as { tab?: WorkspaceViewTab };
+  const active: WorkspaceViewTab = search.tab ?? "overview";
+  // `overview` clears the param (canvas is the default view); the rest set it.
+  const go = (tab: WorkspaceViewTab) =>
     navigate({
       to: ".",
-      search: (prev) => ({ ...(prev as object), tab }) as never,
+      search: (prev) =>
+        ({ ...(prev as object), tab: tab === "overview" ? undefined : tab }) as never,
     });
-  const views: { tab: "translations" | "data-sources" | "history" | "assistant"; label: string; Icon: typeof LanguagesIcon; badge: number }[] = [
-    {
-      tab: "translations",
-      label: t("project.tabs.translations"),
-      Icon: LanguagesIcon,
-      badge: missing,
-    },
-    { tab: "data-sources", label: t("project.tabs.dataSources"), Icon: DatabaseIcon, badge: 0 },
-    { tab: "history", label: t("project.tabs.history"), Icon: HistoryIcon, badge: 0 },
-    { tab: "assistant", label: t("assistant.title"), Icon: Sparkles, badge: 0 },
-  ];
+  const views = WORKSPACE_VIEW_TABS.map((tab, i) => ({
+    tab,
+    label: t(TAB_META[tab].labelKey),
+    Icon: TAB_META[tab].Icon,
+    badge: tab === "translations" ? missing : 0,
+    hotkey: i + 1,
+  }));
   return (
-    <div className="flex items-center gap-0.5">
-      {views.map((v) => (
-        <button
-          key={v.tab}
-          type="button"
-          title={v.label}
-          aria-label={v.label}
-          data-testid={`open-view-${v.tab}`}
-          onClick={() => open(v.tab)}
-          className="relative flex h-8 w-8 items-center justify-center rounded-[10px] text-[var(--text-mut)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
-        >
-          <v.Icon className="size-4" />
-          {v.badge > 0 ? (
-            <span
-              title={t("project.tabs.missingTranslations", { count: v.badge })}
-              className="absolute -right-0.5 -top-0.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-[var(--warning)] px-0.5 font-mono text-[8px] text-[#2A140C]"
+    <div className="flex shrink-0 items-center gap-0.5 rounded-[12px] bg-[var(--surface)] p-0.5">
+      {views.map((v) => {
+        const isActive = active === v.tab;
+        return (
+          <button
+            key={v.tab}
+            type="button"
+            // Tooltip carries the hotbar digit (1-5) for discoverability.
+            title={`${v.label} (${v.hotkey})`}
+            aria-label={v.label}
+            aria-current={isActive ? "page" : undefined}
+            data-testid={`open-view-${v.tab}`}
+            onClick={() => go(v.tab)}
+            className={cn(
+              "relative flex h-8 items-center gap-1.5 rounded-[10px] px-2 text-[12px] transition-colors",
+              isActive
+                ? "bg-[var(--surface-raised)] text-[var(--text)] shadow-[var(--shadow-sm)]"
+                : "text-[var(--text-mut)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]",
+            )}
+          >
+            <v.Icon className="size-4 shrink-0" />
+            <span className="hidden lg:inline">{v.label}</span>
+            {v.badge > 0 ? (
+              <span
+                title={t("project.tabs.missingTranslations", { count: v.badge })}
+                className="flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-[var(--warning)] px-0.5 font-mono text-[8px] text-[#2A140C]"
+              >
+                {v.badge}
+              </span>
+            ) : null}
+            {/* Hotbar-digit key hint (1-5), mirroring the search button's ⌘K
+                pill. Hidden on the icon-only compact nav (the tooltip carries it
+                there). Brightens on the active tab. */}
+            <kbd
+              className={cn(
+                "ml-0.5 hidden rounded-[5px] border px-1 font-mono text-[9px] leading-[1.6] lg:inline-block",
+                isActive
+                  ? "border-[var(--border-strong)] text-[var(--text-mut)]"
+                  : "border-[var(--border)] text-[var(--text-faint)]",
+              )}
             >
-              {v.badge}
-            </span>
-          ) : null}
-        </button>
-      ))}
+              {v.hotkey}
+            </kbd>
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -338,7 +376,6 @@ function UndoRedoButtons() {
     </div>
   );
 }
-
 
 const SHORTCUT_MOD =
   typeof navigator !== "undefined" && /mac/i.test(navigator.platform || "") ? "⌘" : "Ctrl+";

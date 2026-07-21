@@ -72,8 +72,15 @@ function makeProject(): Project {
         fields: [
           { name: "currency", type: { kind: "string" } },
           { name: "motd", type: { kind: "ltext" } },
+          { name: "broadcast", type: { kind: "minimessage" } },
+          { name: "rules", type: { kind: "minimessage_multiline" } },
         ],
-        value: { currency: "coins", motd: { key: "sources.settings.motd" } },
+        value: {
+          currency: "coins",
+          motd: { key: "sources.settings.motd" },
+          broadcast: "<gold>Hello",
+          rules: "<red>Rule 1\nRule 2",
+        },
       },
     ],
     i18nKeys: {
@@ -135,7 +142,23 @@ describe("data/v1 export", () => {
     expect(settings.shape).toBe("config");
     expect(settings.key_field).toBeUndefined();
     expect(settings.rows).toBeUndefined();
-    expect(settings.value).toEqual({ currency: "coins", motd: "sources.settings.motd" });
+    expect(settings.value).toEqual({
+      currency: "coins",
+      motd: "sources.settings.motd",
+      broadcast: "<gold>Hello",
+      rules: "<red>Rule 1\nRule 2",
+    });
+  });
+
+  it("exports minimessage fields as plain strings — data/v1 stays unchanged", () => {
+    const files = transform(makeProject());
+    const settings = parse(files[`${BASE}/data/settings.yaml`]!);
+    expect(settings.fields).toEqual([
+      { name: "currency", kind: "string" },
+      { name: "motd", kind: "ltext" },
+      { name: "broadcast", kind: "string" },
+      { name: "rules", kind: "string" },
+    ]);
   });
 
   it("includes source ltext keys in the lang files", () => {
