@@ -143,4 +143,33 @@ class ConditionEvaluatorTest {
     @Test fun `evaluateAll returns true for empty list`() {
         assertTrue(eval.evaluateAll(emptyList<Condition>(), ctx(player())))
     }
+
+    // ── expression (leaf evaluator, ADR action-dsl §6) ──────────────────────
+
+    @Test fun `expression numeric comparison against resolved args`() {
+        val p = player()
+        val c = ExecutionContext(p, args = mapOf("balance" to 150))
+        assertTrue(eval.evaluate(Condition.Expression("balance >= 100"), c))
+        assertFalse(eval.evaluate(Condition.Expression("balance >= 200"), c))
+    }
+
+    @Test fun `expression arithmetic then compare`() {
+        val p = player()
+        val c = ExecutionContext(p, args = mapOf("gold" to 300, "silver" to 250))
+        assertTrue(eval.evaluate(Condition.Expression("gold + silver > 500"), c))
+    }
+
+    @Test fun `expression bare truthy over nested path`() {
+        val p = player()
+        val c = ExecutionContext(p, args = mapOf("item" to mapOf("vip" to true)))
+        assertTrue(eval.evaluate(Condition.Expression("item.vip"), c))
+    }
+
+    @Test fun `expression missing path is false`() {
+        assertFalse(eval.evaluate(Condition.Expression("is_vip"), ctx(player())))
+    }
+
+    @Test fun `expression unparseable is false`() {
+        assertFalse(eval.evaluate(Condition.Expression("balance >< 5"), ctx(player())))
+    }
 }
