@@ -33,7 +33,16 @@ class ProjectReader(private val projectsRoot: File, private val logger: Logger? 
 
     fun readAll(): List<ProjectBundle> =
         projectsRoot.listFiles { f -> f.isDirectory }
-            ?.mapNotNull { readProject(it) }
+            ?.mapNotNull { dir ->
+                // Tolerant per project: a broken manifest/lang never nukes the
+                // whole reload (which would fail plugin enable + cascade to
+                // add-ons that `depend: Artisan`).
+                runCatching { readProject(dir) }.getOrElse { e ->
+                    if (e is IllegalArgumentException) throw e // schema-version rejection stays loud
+                    logger?.warning("[Artisan] skipping project ${dir.name}: ${e.message}")
+                    null
+                }
+            }
             ?: emptyList()
 
     private fun readProject(projectDir: File): ProjectBundle? {
@@ -47,25 +56,46 @@ class ProjectReader(private val projectsRoot: File, private val logger: Logger? 
             else emptyMap()
         }
 
+        // Tolerant per file (like data sources below): a single unparseable
+        // menu/command/dialog — e.g. a stale-format file mid-migration — logs +
+        // skips instead of failing the whole reload and the plugin enable.
         val menus = manifest.files.menus.mapNotNull { menuId ->
             val f = File(projectDir, "menus/$menuId.yaml").takeIf { it.exists() } ?: return@mapNotNull null
-            val menuYaml = mapper.readValue(f, MenuYaml::class.java)
-            requireSchema(f, menuYaml.schema, "menu/v1")
-            BundleCompiler.compile(menuYaml, langMaps, logger, defaultLang = manifest.defaultLang)
+            runCatching {
+                val menuYaml = mapper.readValue(f, MenuYaml::class.java)
+                requireSchema(f, menuYaml.schema, "menu/v1")
+                BundleCompiler.compile(menuYaml, langMaps, logger, defaultLang = manifest.defaultLang)
+            }.getOrElse { e ->
+                if (e is IllegalArgumentException) throw e // schema-version rejection stays loud
+                logger?.warning("[Artisan] skipping menu ${f.name}: ${e.message}")
+                null
+            }
         }
 
         val commands = manifest.files.commands.mapNotNull { cmdId ->
             val f = File(projectDir, "commands/$cmdId.yaml").takeIf { it.exists() } ?: return@mapNotNull null
-            val cmdYaml = mapper.readValue(f, CommandYaml::class.java)
-            requireSchema(f, cmdYaml.schema, "command/v1")
-            cmdYaml
+            runCatching {
+                val cmdYaml = mapper.readValue(f, CommandYaml::class.java)
+                requireSchema(f, cmdYaml.schema, "command/v1")
+                cmdYaml
+            }.getOrElse { e ->
+                if (e is IllegalArgumentException) throw e // schema-version rejection stays loud
+                logger?.warning("[Artisan] skipping command ${f.name}: ${e.message}")
+                null
+            }
         }
 
         val dialogs = manifest.files.dialogs.mapNotNull { dialogId ->
             val f = File(projectDir, "dialogs/$dialogId.yaml").takeIf { it.exists() } ?: return@mapNotNull null
-            val dialogYaml = mapper.readValue(f, DialogYaml::class.java)
-            requireSchema(f, dialogYaml.schema, "dialog/v1")
-            BundleDialog(dialogYaml, langMaps, defaultLang = manifest.defaultLang)
+            runCatching {
+                val dialogYaml = mapper.readValue(f, DialogYaml::class.java)
+                requireSchema(f, dialogYaml.schema, "dialog/v1")
+                BundleDialog(dialogYaml, langMaps, defaultLang = manifest.defaultLang)
+            }.getOrElse { e ->
+                if (e is IllegalArgumentException) throw e // schema-version rejection stays loud
+                logger?.warning("[Artisan] skipping dialog ${f.name}: ${e.message}")
+                null
+            }
         }
 
         // Project sources (data/v1) — scanned, not manifest-listed. Tolerant per
