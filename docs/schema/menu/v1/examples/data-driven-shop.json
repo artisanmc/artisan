@@ -60,10 +60,7 @@
               "enchanted": true,
               "click": {
                 "left": {
-                  "actions": [
-                    { "type": "run_command", "command": "cs buy {shop.id}", "as": "player" },
-                    { "type": "play_sound", "sound": "entity.experience_orb.pickup" }
-                  ]
+                  "steps": "run_command \"cs buy {shop.id}\" as player\nplay_sound entity.experience_orb.pickup"
                 }
               }
             },
@@ -77,9 +74,7 @@
               ],
               "click": {
                 "left": {
-                  "actions": [
-                    { "type": "run_command", "command": "cs buy {shop.id}", "as": "player" }
-                  ]
+                  "steps": "run_command \"cs buy {shop.id}\" as player"
                 }
               }
             }
