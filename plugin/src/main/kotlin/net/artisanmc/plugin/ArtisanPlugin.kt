@@ -71,14 +71,17 @@ open class ArtisanPlugin : JavaPlugin() {
                 actions = object : net.artisanmc.modules.api.ModuleActionsApi {
                     override fun execute(
                         player: org.bukkit.entity.Player,
-                        steps: List<Map<String, Any>>,
+                        actions: String,
                         args: Map<String, Any>,
                     ) {
+                        if (actions.isBlank()) return
                         val run = Runnable {
                             val parsed = try {
-                                net.artisanmc.plugin.engine.StepParser.parseAll(steps)
+                                net.artisanmc.plugin.actiondsl.dslToEngineSteps(
+                                    net.artisanmc.plugin.actiondsl.parseActionDsl(actions),
+                                )
                             } catch (e: Exception) {
-                                plugin.logger.warning("[Artisan] module actions skipped — malformed steps: ${e.message}")
+                                plugin.logger.warning("[Artisan] module actions skipped — malformed DSL: ${e.message}")
                                 return@Runnable
                             }
                             if (!plugin::executor.isInitialized) {

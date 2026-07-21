@@ -2,12 +2,7 @@ import { describe, expect, it } from "vitest";
 import { parseShopYaml, serializeShopYaml } from "./shopYaml";
 import type { BoutiqueState } from "./state";
 
-const BUY_STEPS = [
-  {
-    kind: "action",
-    action: { type: "run_command", command: "give {player} diamond_sword 1", as: "console" },
-  },
-];
+const BUY_DSL = 'run_command "give {player} diamond_sword 1" as console';
 
 const STATE: BoutiqueState = {
   wholeShopDiscount: 5,
@@ -15,7 +10,7 @@ const STATE: BoutiqueState = {
     id: "weapons", name: "Armes", icon: "DIAMOND_SWORD", discount: 10,
     items: [{
       id: "diamond_sword", name: "Épée", icon: "DIAMOND_SWORD", price: 100,
-      discount: 5, lore: ["Tranchante"], actions: BUY_STEPS,
+      discount: 5, lore: ["Tranchante"], actions: BUY_DSL,
     }],
   }],
 };
@@ -48,16 +43,12 @@ describe("shopYaml", () => {
       '        buy_commands: ["give %player% diamond_sword 1", "broadcast %player% a acheté"]',
     ].join("\n");
     const state = parseShopYaml(yaml)!;
-    expect(state.categories[0]!.items[0]!.actions).toEqual([
-      {
-        kind: "action",
-        action: { type: "run_command", command: "give {player} diamond_sword 1", as: "console" },
-      },
-      {
-        kind: "action",
-        action: { type: "run_command", command: "broadcast {player} a acheté", as: "console" },
-      },
-    ]);
+    expect(state.categories[0]!.items[0]!.actions).toEqual(
+      [
+        'run_command "give {player} diamond_sword 1" as console',
+        'run_command "broadcast {player} a acheté" as console',
+      ].join("\n"),
+    );
   });
 
   it("parse returns null on wrong schema or invalid yaml", () => {

@@ -4,17 +4,20 @@ import { stepsFromWire, stepsToWire } from "./literalSteps";
 
 const lt = (s: string) => ({ key: s as I18nKey });
 
-describe("literalSteps (module-data steps, literal text — no i18n)", () => {
-  it("round-trips run_command + send_message with literal text", () => {
+describe("literalSteps (module-data steps, Action DSL string wire, literal text)", () => {
+  it("round-trips run_command + send_message through the DSL string", () => {
     const steps: Step[] = [
       { kind: "action", action: { type: "run_command", command: "give {player} diamond", as: "console" } },
       { kind: "action", action: { type: "send_message", text: lt("§aMerci pour ton achat !") } },
     ];
     const wire = stepsToWire(steps);
-    expect(wire).toEqual([
-      { kind: "action", action: { type: "run_command", command: "give {player} diamond", as: "console" } },
-      { kind: "action", action: { type: "send_message", text: "§aMerci pour ton achat !" } },
-    ]);
+    expect(typeof wire).toBe("string");
+    expect(wire).toBe(
+      [
+        'run_command "give {player} diamond" as console',
+        'send_message "§aMerci pour ton achat !"',
+      ].join("\n"),
+    );
     expect(stepsFromWire(wire)).toEqual(steps);
   });
 
@@ -36,12 +39,15 @@ describe("literalSteps (module-data steps, literal text — no i18n)", () => {
       },
     ];
     const wire = stepsToWire(steps);
+    expect(typeof wire).toBe("string");
     expect(stepsFromWire(wire)).toEqual(steps);
   });
 
-  it("stepsFromWire tolerates garbage (null, non-array, unknown types)", () => {
+  it("stepsFromWire tolerates garbage (null, non-string, empty, unparseable)", () => {
     expect(stepsFromWire(null)).toEqual([]);
-    expect(stepsFromWire("nope")).toEqual([]);
-    expect(stepsFromWire([{ kind: "action", action: { type: "warp_drive" } }])).toEqual([]);
+    expect(stepsFromWire([])).toEqual([]);
+    expect(stepsFromWire("")).toEqual([]);
+    expect(stepsFromWire("   ")).toEqual([]);
+    expect(stepsFromWire("this is not @@ valid dsl :::")).toEqual([]);
   });
 });

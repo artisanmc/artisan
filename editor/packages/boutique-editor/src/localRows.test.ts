@@ -19,7 +19,7 @@ const project = {
               price: 100,
               discount: 5,
               lore: ["Tranchante", "Rare"],
-              actions: [],
+              actions: "",
             },
           ],
         },

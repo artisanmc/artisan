@@ -1,13 +1,13 @@
 import { parse, stringify } from "yaml";
 import type { BoutiqueCategory, BoutiqueItem, BoutiqueState } from "./state";
 
-/** Mechanical legacy migration: one console `run_command` step per command,
- *  `%player%` → `{player}` (the step engine's arg placeholder). */
-export function migrateBuyCommands(commands: string[]): unknown[] {
-  return commands.map((cmd) => ({
-    kind: "action",
-    action: { type: "run_command", command: cmd.replace(/%player%/g, "{player}"), as: "console" },
-  }));
+/** Mechanical legacy migration: one console `run_command "…" as console` DSL line
+ *  per command, `%player%` → `{player}` (the step engine's arg placeholder),
+ *  joined by newlines. Empty list → empty string. */
+export function migrateBuyCommands(commands: string[]): string {
+  return commands
+    .map((cmd) => `run_command ${JSON.stringify(cmd.replace(/%player%/g, "{player}"))} as console`)
+    .join("\n");
 }
 
 export function serializeShopYaml(state: BoutiqueState): string {
@@ -38,7 +38,7 @@ export function parseShopYaml(content: string): BoutiqueState | null {
         id: String(it.id ?? ""), name: String(it.name ?? ""), icon: String(it.icon ?? "BARRIER"),
         price: Number(it.price ?? 0), discount: Number(it.discount ?? 0),
         lore: (Array.isArray(it.lore) ? it.lore : []).map(String),
-        actions: Array.isArray(it.actions)
+        actions: typeof it.actions === "string"
           ? it.actions
           : migrateBuyCommands(Array.isArray(it.buy_commands) ? it.buy_commands.map(String) : []),
       };
