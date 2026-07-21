@@ -290,9 +290,10 @@ private class CondParser(private val toks: List<Token>, private val line: Int) {
                 if (v == "day" || v == "night") {
                     DslCondition.TimeIs(TimeRange.Named(v))
                 } else {
-                    val raw = argVals.joinToString("") { it.value }
-                    val mm = Regex("^(\\d+)-(\\d+)$").find(v.replace(Regex("\\s"), ""))
-                        ?: Regex("^(\\d+)-(\\d+)$").find(raw)
+                    // A tick window lexes as `num - num`; reassemble from the RAW
+                    // arg tokens (`args`, which keeps the `-`) — `argVals` dropped it.
+                    val raw = args.joinToString("") { it.value }
+                    val mm = Regex("^(\\d+)-(\\d+)$").find(raw)
                         ?: throw DslParseError("time_is expects day|night|<from>-<to>", line)
                     DslCondition.TimeIs(
                         TimeRange.Ticks(mm.groupValues[1].toInt(), mm.groupValues[2].toInt()),
