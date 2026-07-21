@@ -515,9 +515,12 @@ export type FieldType =
 /**
  * Recursive **declared** field type for Project-source content. Unlike the
  * inferred {@link FieldType} (kept for module-reported schemas), this is what
- * the admin authors in the Data model form. Two extra leaves:
+ * the admin authors in the Data model form. Extra leaves:
  *  - `ltext` — a localizable string; the stored value is an {@link LText}
  *    (key into `Project.i18nKeys`), a normal Key site.
+ *  - `minimessage` / `minimessage_multiline` — plain strings holding
+ *    MiniMessage markup; editor-only editing affordance (rendered facade,
+ *    raw source on focus), **exported as `string`** — data/v1 never sees it.
  *  - `item`  — the material value-space (`"DIAMOND"`, `item:<id>`, custom ref).
  * `model` references another {@link DataModel} by id (no cycles — guarded at
  * edit time by `wouldCreateModelCycle`).
@@ -529,6 +532,8 @@ export type ModelFieldType =
   | { kind: "integer" }
   | { kind: "boolean" }
   | { kind: "ltext" }
+  | { kind: "minimessage" }
+  | { kind: "minimessage_multiline" }
   | { kind: "item" }
   | { kind: "list"; of: ModelFieldType }
   | { kind: "object"; fields: ModelField[] }

@@ -1,6 +1,6 @@
-import { SplitPane } from "@/components/SplitPane";
-import { ProjectTopBarControls } from "@/components/ProjectTopBarControls";
 import { ProjectConflictBanner } from "@/components/ProjectConflictBanner";
+import { ProjectTopBarControls } from "@/components/ProjectTopBarControls";
+import { SplitPane } from "@/components/SplitPane";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   Sheet,
@@ -10,6 +10,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { WorkspaceView } from "@/components/ui/workspace-view";
 import type { ElementId, ItemTemplateId, MenuId, ProjectId } from "@/domain/types";
 import {
   exportProjectToFile,
@@ -17,37 +18,38 @@ import {
   pickProjectFileForImport,
 } from "@/features/account/projectFileIo";
 import { AssistantBody } from "@/features/assistant/AssistantBody";
-import { SearchPalette } from "@/features/search/SearchPalette";
-import { useGlobalSearchShortcut } from "@/features/search/useGlobalSearchShortcut";
 import { EditorPane } from "@/features/canvas/EditorPane";
+import { FloatingEditorPane } from "@/features/canvas/FloatingEditorPane";
 import { LIBRARY_DRAG_PREFIX } from "@/features/canvas/Library";
 import { Stage } from "@/features/canvas/Stage";
-import { tryStageDrop, tryStageSlotHit } from "@/features/canvas/stageDropTarget";
+import { OPEN_ELEMENT_EVENT } from "@/features/canvas/canvasEvents";
 import {
   PLACEMENT_ROW_DRAG_PREFIX,
+  type PlacementRowDragData,
   TEMPLATE_BLOCK_DRAG_PREFIX,
   TEMPLATE_GROUP_DRAG_PREFIX,
   TEMPLATE_ROW_DRAG_PREFIX,
-  type PlacementRowDragData,
   type TemplateBlockDragData,
   type TemplateGroupDragData,
   type TemplateRowDragData,
   pinPlacementRow,
   pinTemplateRowFromLibrary,
 } from "@/features/canvas/placementDrop";
+import { tryStageDrop, tryStageSlotHit } from "@/features/canvas/stageDropTarget";
 import { getTextureUrl } from "@/features/canvas/textureStore";
 import { DataSourcesPanelContent } from "@/features/data/DataSourcesPanel";
 import { runExportZip } from "@/features/export/runExportZip";
 import { STATE_DROP_PREFIX } from "@/features/flow/FlowCanvas";
 import { PatternsGallery } from "@/features/help/PatternsGallery";
-import { useProjectLoader } from "@/features/project/useProjectLoader";
-import { DeleteProjectDialog } from "@/features/sync/DeleteProjectDialog";
-import { WorkspaceOverlay } from "@/components/ui/workspace-overlay";
-import { TranslationPanelContent } from "@/features/translations/TranslationPanel";
 import { HistoryTab } from "@/features/project/HistoryTab";
 import { ProjectPanel } from "@/features/project/ProjectPanel";
+import { useProjectLoader } from "@/features/project/useProjectLoader";
+import { useWorkspaceTabShortcuts } from "@/features/project/useWorkspaceTabShortcuts";
+import { SearchPalette } from "@/features/search/SearchPalette";
+import { useGlobalSearchShortcut } from "@/features/search/useGlobalSearchShortcut";
+import { DeleteProjectDialog } from "@/features/sync/DeleteProjectDialog";
+import { TranslationPanelContent } from "@/features/translations/TranslationPanel";
 import { deleteUserProject } from "@/lib/api/userProjects";
-import { OPEN_ELEMENT_EVENT } from "@/features/canvas/canvasEvents";
 import { useIsDesktop } from "@/lib/useMediaQuery";
 import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
@@ -80,9 +82,7 @@ type ProjectSearch = {
   tab?: "overview" | "translations" | "data-sources" | "history" | "assistant";
 };
 
-export const Route = createFileRoute(
-  "/networks/$networkId/servers/$serverId/projects/$projectId",
-)({
+export const Route = createFileRoute("/networks/$networkId/servers/$serverId/projects/$projectId")({
   component: ProjectCanvasPage,
   validateSearch: (search: Record<string, unknown>): ProjectSearch => {
     const t = search.tab;
@@ -93,11 +93,7 @@ export const Route = createFileRoute(
 });
 
 export function ProjectCanvasPage() {
-  const {
-    networkId,
-    serverId,
-    projectId: projectId,
-  } = useParams({
+  const { networkId, serverId, projectId } = useParams({
     from: "/networks/$networkId/servers/$serverId/projects/$projectId",
   });
   const pId = projectId as ProjectId;
@@ -105,7 +101,7 @@ export function ProjectCanvasPage() {
   const authLoading = useAuthStore((s) => s.isLoading);
   const navigate = useNavigate();
   const { tab } = Route.useSearch();
-  const closeOverlay = () =>
+  const exitToCanvas = () =>
     navigate({ to: ".", search: (prev) => ({ ...(prev as object), tab: undefined }) });
   const flowCanvasHeight = useUiStore((s) => s.flowCanvasHeight);
   const setFlowCanvasHeight = useUiStore((s) => s.setFlowCanvasHeight);
@@ -121,6 +117,7 @@ export function ProjectCanvasPage() {
   const childMatches = useChildMatches();
 
   useGlobalSearchShortcut();
+  useWorkspaceTabShortcuts();
 
   // networkId comes directly from the URL param — no lazy fetch needed.
 
@@ -231,7 +228,10 @@ export function ProjectCanvasPage() {
       id.startsWith(TEMPLATE_GROUP_DRAG_PREFIX)
     ) {
       const start = e.activatorEvent as PointerEvent;
-      const hit = tryStageSlotHit((start.clientX ?? 0) + e.delta.x, (start.clientY ?? 0) + e.delta.y);
+      const hit = tryStageSlotHit(
+        (start.clientX ?? 0) + e.delta.x,
+        (start.clientY ?? 0) + e.delta.y,
+      );
       if (!hit) return;
       const data = e.active.data.current as
         | (TemplateRowDragData & TemplateGroupDragData & TemplateBlockDragData)
@@ -317,138 +317,127 @@ export function ProjectCanvasPage() {
     setActiveDragMaterial(null);
   };
 
-  const tabContent = (
-    // `h-full` (not just `flex-1`) so it fills both its flex parent (assistant
-    // closed) and the SplitPane's block wrapper (assistant open) — otherwise the
-    // content collapses to its own height and the surface shows through below.
-    <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-      {childMatches.length > 0 ? (
-        // Detail (element) view nests in the persistent shell: same panel column
-        // as overview, only the center swaps to <Outlet/>. Mutually exclusive with
-        // the tab blocks below — never render both.
-        isDesktop ? (
-          <div className="flex h-full min-h-0 w-full">
-            {projectPanelOpen && (
-              <div className="h-full w-[240px] shrink-0 min-w-0 overflow-hidden border-r border-[var(--border-soft)]">
-                <ProjectPanel projectId={pId} />
-              </div>
-            )}
-            <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
-              <Outlet />
-            </div>
-          </div>
-        ) : (
-          <Outlet />
-        )
-      ) : (
-        <>
-      {(
-        <div className="min-h-0 flex-1">
-          {isDesktop ? (
-            // 3 zones: fixed-width ProjectPanel (left) | Stage | EditorPane.
-            // SplitPane's sized pane is always the right one, so the panel is
-            // a plain fixed-width column; only the Stage|Editor divider resizes.
-            <div className="flex h-full min-h-0 w-full">
-              {projectPanelOpen && (
-                <div className="h-full w-[240px] shrink-0 min-w-0 overflow-hidden border-r border-[var(--border-soft)]">
-                  <ProjectPanel projectId={pId} />
-                </div>
-              )}
-              <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
-                <SplitPane
-                  orientation="horizontal"
-                  primary={<Stage projectId={pId} />}
-                  secondary={<EditorPane projectId={pId} />}
-                  secondarySize={editorPaneWidth}
-                  onSecondarySizeChange={setEditorPaneWidth}
-                  minSecondary={280}
-                  minPrimary={400}
-                />
-              </div>
-            </div>
-          ) : (
-            // Mobile: the ProjectPanel lives in a left drawer (the 3-zone
-            // desktop column doesn't fit). A tappable trigger row sits above
-            // the vertical Stage|Editor split.
-            <div className="flex h-full flex-col">
-              <div className="flex h-10 shrink-0 items-center border-b border-[var(--border-soft)] px-2">
-                <Sheet>
-                  <SheetTrigger className="btn btn-ghost btn-sm inline-flex items-center gap-1.5">
-                    <PanelLeft className="size-4" /> {t("projectPanel.openPanel")}
-                  </SheetTrigger>
-                  <SheetContent side="left" className="w-[280px] max-w-[85%] p-0">
-                    <SheetHeader>
-                      <SheetTitle>{t("projectPanel.openPanel")}</SheetTitle>
-                    </SheetHeader>
-                    <SheetBody className="p-0">
-                      <ProjectPanel projectId={pId} />
-                    </SheetBody>
-                  </SheetContent>
-                </Sheet>
-              </div>
-              <div className="min-h-0 flex-1">
-                <SplitPane
-                  orientation="vertical"
-                  primary={<Stage projectId={pId} />}
-                  secondary={<EditorPane projectId={pId} />}
-                  secondarySize={flowCanvasHeight}
-                  onSecondarySizeChange={setFlowCanvasHeight}
-                  minSecondary={120}
-                  minPrimary={200}
-                />
-              </div>
-            </div>
-          )}
+  // The switchable center: the document detail (Outlet) when a child route is
+  // active, otherwise the canvas board (Stage | EditorPane). It stays MOUNTED
+  // under the secondary views — those cover it opaquely (never display:none) so
+  // Konva keeps its measured size.
+  const centerContent =
+    childMatches.length > 0 ? (
+      <Outlet />
+    ) : isDesktop ? (
+      // Canvas fills the whole region; the editor pane floats over it (right)
+      // as a glass card so the canvas shows behind + to its left.
+      <>
+        <div className="absolute inset-0">
+          <Stage projectId={pId} />
         </div>
-      )}
-      {/* Secondary views: overlays ABOVE the always-mounted canvas — closing
-          (Esc / backdrop / ×) is a return, not a navigation. `?tab=` stays the
-          source of truth so deep links and back-button keep working. */}
-      {pack && (
-        <WorkspaceOverlay
-          open={tab === "translations"}
-          onClose={closeOverlay}
-          title={t("project.tabs.translations")}
-        >
-          <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">
-            <TranslationPanelContent projectId={pId} />
-          </div>
-        </WorkspaceOverlay>
-      )}
-      {pack && (
-        <WorkspaceOverlay
-          open={tab === "data-sources"}
-          onClose={closeOverlay}
-          title={t("project.tabs.dataSources")}
-        >
-          <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">
-            <DataSourcesPanelContent projectId={pId} />
-          </div>
-        </WorkspaceOverlay>
-      )}
-      {pack && networkId && (
-        <WorkspaceOverlay
-          open={tab === "history"}
-          onClose={closeOverlay}
+        <FloatingEditorPane
+          projectId={pId}
+          width={editorPaneWidth}
+          onWidthChange={setEditorPaneWidth}
+        />
+      </>
+    ) : (
+      <SplitPane
+        orientation="vertical"
+        primary={<Stage projectId={pId} />}
+        secondary={<EditorPane projectId={pId} />}
+        secondarySize={flowCanvasHeight}
+        onSecondarySizeChange={setFlowCanvasHeight}
+        minSecondary={120}
+        minPrimary={200}
+      />
+    );
+
+  // Secondary views REPLACE the canvas in the center region (?tab=): each is an
+  // opaque, keep-alive panel absolutely covering `centerContent`. The topbar's
+  // segmented nav shows which is active; Esc / × return to the canvas.
+  const secondaryViews = (
+    <>
+      <WorkspaceView
+        active={tab === "translations"}
+        onExit={exitToCanvas}
+        title={t("project.tabs.translations")}
+      >
+        <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">
+          <TranslationPanelContent projectId={pId} />
+        </div>
+      </WorkspaceView>
+      <WorkspaceView
+        active={tab === "data-sources"}
+        onExit={exitToCanvas}
+        title={t("project.tabs.dataSources")}
+      >
+        <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">
+          <DataSourcesPanelContent projectId={pId} />
+        </div>
+      </WorkspaceView>
+      {networkId && (
+        <WorkspaceView
+          active={tab === "history"}
+          onExit={exitToCanvas}
           title={t("project.tabs.history")}
-          size="narrow"
         >
-          <div className="card min-h-0 flex-1 overflow-auto p-6 md:p-8">
+          <div className="mx-auto min-h-0 w-full max-w-3xl flex-1 overflow-auto">
             <HistoryTab pack={pack} networkId={networkId} />
           </div>
-        </WorkspaceOverlay>
+        </WorkspaceView>
       )}
-      {pack && (
-        <WorkspaceOverlay
-          open={tab === "assistant"}
-          onClose={closeOverlay}
-          title={t("assistant.title")}
-          size="narrow"
-        >
+      <WorkspaceView
+        active={tab === "assistant"}
+        onExit={exitToCanvas}
+        title={t("assistant.title")}
+      >
+        <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col">
           <AssistantBody projectId={pId} />
-        </WorkspaceOverlay>
-      )}
-        </>
+        </div>
+      </WorkspaceView>
+    </>
+  );
+
+  const tabContent = (
+    // `h-full` (not just `flex-1`) so it fills the content frame — otherwise the
+    // content collapses to its own height and the surface shows through below.
+    <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+      {isDesktop ? (
+        // Persistent left column (ProjectPanel tree) | switchable center. The
+        // sidebar stays put across every view; only the center swaps between the
+        // canvas, a document detail, and the secondary views.
+        <div className="flex h-full min-h-0 w-full">
+          {projectPanelOpen && (
+            <div className="h-full w-[240px] shrink-0 min-w-0 overflow-hidden border-r border-[var(--border-soft)]">
+              <ProjectPanel projectId={pId} />
+            </div>
+          )}
+          <div className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
+            {centerContent}
+            {secondaryViews}
+          </div>
+        </div>
+      ) : (
+        // Mobile: the ProjectPanel lives in a left drawer (the desktop column
+        // doesn't fit). A tappable trigger row sits above the switchable center.
+        <div className="flex h-full flex-col">
+          <div className="flex h-10 shrink-0 items-center border-b border-[var(--border-soft)] px-2">
+            <Sheet>
+              <SheetTrigger className="btn btn-ghost btn-sm inline-flex items-center gap-1.5">
+                <PanelLeft className="size-4" /> {t("projectPanel.openPanel")}
+              </SheetTrigger>
+              <SheetContent side="left" className="w-[280px] max-w-[85%] p-0">
+                <SheetHeader>
+                  <SheetTitle>{t("projectPanel.openPanel")}</SheetTitle>
+                </SheetHeader>
+                <SheetBody className="p-0">
+                  <ProjectPanel projectId={pId} />
+                </SheetBody>
+              </SheetContent>
+            </Sheet>
+          </div>
+          <div className="relative min-h-0 flex-1 overflow-hidden">
+            {centerContent}
+            {secondaryViews}
+          </div>
+        </div>
       )}
     </div>
   );
@@ -483,10 +472,11 @@ export function ProjectCanvasPage() {
 
       <ProjectConflictBanner projectId={pId} />
 
-      {/* The assistant now opens in the same WorkspaceOverlay as the other
-          secondary views (?tab=assistant) — no docked pane, no drawer. The
-          content area keeps the concave top-left corner + hairline so the
-          sidebar and topbar read as one continuous L-shaped frame. */}
+      {/* The secondary views (translations / data sources / history / assistant)
+          replace the canvas in the center region via WorkspaceView (?tab=) — no
+          modal, no docked pane. The content area keeps the concave top-left
+          corner + hairline so the sidebar and topbar read as one continuous
+          L-shaped frame. */}
       <div className="min-h-0 flex-1 overflow-hidden lg:rounded-tl-[var(--r-lg)] lg:border-t lg:border-l lg:border-[var(--border-soft)]">
         {tabContent}
       </div>
@@ -545,7 +535,6 @@ export function ProjectCanvasPage() {
         />
       )}
 
-      
       {/* Global search palette — fixed overlay, inert when searchOpen=false. */}
       <SearchPalette projectId={pId} />
     </DndContext>

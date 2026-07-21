@@ -80,6 +80,8 @@ export function defaultValueForModelType(
   switch (type.kind) {
     case "string":
     case "item":
+    case "minimessage":
+    case "minimessage_multiline":
       return "";
     case "ltext":
       return { key: "" };
@@ -120,6 +122,8 @@ export function modelFieldTypeToFieldType(
     case "string":
     case "ltext":
     case "item":
+    case "minimessage":
+    case "minimessage_multiline":
       return { kind: "string" };
     case "number":
     case "integer":
@@ -348,6 +352,14 @@ function applyEditToFields(fields: ModelField[], edit: FieldEdit): void {
   }
 }
 
+/** Kinds whose stored value is a plain string — interchangeable on retype. */
+const STRING_LIKE_KINDS: ReadonlySet<ModelFieldType["kind"]> = new Set([
+  "string",
+  "item",
+  "minimessage",
+  "minimessage_multiline",
+]);
+
 /** Best-effort scalar coercion for retype; falls back to the new default. */
 function coerceForRetype(
   pack: Project,
@@ -357,15 +369,15 @@ function coerceForRetype(
 ): unknown {
   const models = pack.dataModels ?? [];
   if (oldType.kind === newType.kind) return value;
-  if (oldType.kind === "ltext" && (newType.kind === "string" || newType.kind === "item")) {
+  if (oldType.kind === "ltext" && STRING_LIKE_KINDS.has(newType.kind)) {
     const s = isLTextNode(value) ? getText(pack, value, pack.defaultLang) : "";
     if (isLTextNode(value)) deleteLText(pack, value);
     return s;
   }
-  if (newType.kind === "ltext" && (oldType.kind === "string" || oldType.kind === "item")) {
+  if (newType.kind === "ltext" && STRING_LIKE_KINDS.has(oldType.kind)) {
     return createLText(pack, typeof value === "string" ? value : "", pack.defaultLang);
   }
-  if ((oldType.kind === "string" || oldType.kind === "item") && (newType.kind === "string" || newType.kind === "item")) {
+  if (STRING_LIKE_KINDS.has(oldType.kind) && STRING_LIKE_KINDS.has(newType.kind)) {
     return typeof value === "string" ? value : "";
   }
   if (oldType.kind === "number" && newType.kind === "integer") {
@@ -374,10 +386,16 @@ function coerceForRetype(
   if (oldType.kind === "integer" && newType.kind === "number") {
     return typeof value === "number" ? value : 0;
   }
-  if ((oldType.kind === "number" || oldType.kind === "integer") && newType.kind === "string") {
+  if (
+    (oldType.kind === "number" || oldType.kind === "integer") &&
+    STRING_LIKE_KINDS.has(newType.kind)
+  ) {
     return typeof value === "number" ? String(value) : "";
   }
-  if (oldType.kind === "string" && (newType.kind === "number" || newType.kind === "integer")) {
+  if (
+    STRING_LIKE_KINDS.has(oldType.kind) &&
+    (newType.kind === "number" || newType.kind === "integer")
+  ) {
     const n = Number(value);
     return Number.isFinite(n) ? (newType.kind === "integer" ? Math.round(n) : n) : 0;
   }
@@ -458,7 +476,8 @@ function migrateInstanceTyped(
       if (oldFieldType) releaseValueLTexts(pack, obj[edit.name], oldFieldType);
       delete obj[edit.name];
     } else if (edit.op === "retype") {
-      if (oldFieldType) obj[edit.name] = coerceForRetype(pack, obj[edit.name], oldFieldType, edit.newType);
+      if (oldFieldType)
+        obj[edit.name] = coerceForRetype(pack, obj[edit.name], oldFieldType, edit.newType);
     }
   }
 }

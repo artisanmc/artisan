@@ -5,7 +5,7 @@ import { useState } from "react";
 
 /**
  * AssistantBody — switches between the conversation LIST and a single CHAT.
- * Hosted by the shared WorkspaceOverlay (`?tab=assistant`). Opens on the
+ * Hosted by the shared WorkspaceView (`?tab=assistant`). Opens on the
  * list so the user can resume a past
  * conversation or start a new one.
  *

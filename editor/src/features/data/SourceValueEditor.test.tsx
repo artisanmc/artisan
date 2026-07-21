@@ -28,6 +28,8 @@ function makeProject(): Project {
           { name: "id", type: { kind: "string" } },
           { name: "name", type: { kind: "ltext" } },
           { name: "price", type: { kind: "number" } },
+          { name: "tagline", type: { kind: "minimessage" } },
+          { name: "rules", type: { kind: "minimessage_multiline" } },
         ],
       },
     ],
@@ -37,7 +39,15 @@ function makeProject(): Project {
         name: "ranks",
         shape: "table",
         modelId: "m_rank" as never,
-        rows: [{ id: "vip", name: { key: "sources.ranks.vip.name" }, price: 9.99 }],
+        rows: [
+          {
+            id: "vip",
+            name: { key: "sources.ranks.vip.name" },
+            price: 9.99,
+            tagline: "<gold>Best</gold> rank",
+            rules: "<red>No refund</red>\nBe nice",
+          },
+        ],
       },
     ],
     i18nKeys: { ["sources.ranks.vip.name" as never]: { en: "VIP" } } as Project["i18nKeys"],
@@ -146,6 +156,35 @@ describe("SourceRowsTable", () => {
     expect(pack().i18nKeys["sources.ranks.vip.name" as never]).toEqual({ en: "V.I.P." });
   });
 
+  it("renders a scrollable sheet: overflow wrapper + non-squeezable table", () => {
+    render(<SourceRowsTable projectId={PID} pack={pack()} source={tableSource()} />);
+    const sheet = screen.getByTestId("source-rows-sheet");
+    expect(sheet.className).toContain("overflow-auto");
+    const table = sheet.querySelector("table")!;
+    expect(table.className).toContain("min-w-max");
+  });
+
+  it("minimessage cell shows a rendered facade, edits raw markup on click", () => {
+    render(<SourceRowsTable projectId={PID} pack={pack()} source={tableSource()} />);
+    // At rest: rendered facade — tags consumed, no raw markup in an input.
+    // (accessible name concatenates spans without inter-element spaces)
+    const facade = screen.getByRole("button", { name: /Best\s*rank/ });
+    expect(facade.textContent).not.toContain("<gold>");
+    fireEvent.click(facade);
+    const editor = screen.getByDisplayValue("<gold>Best</gold> rank");
+    fireEvent.change(editor, { target: { value: "<red>Worst</red>" } });
+    expect(tableSource().rows[0]!.tagline).toBe("<red>Worst</red>");
+  });
+
+  it("minimessage_multiline cell edits in a textarea", () => {
+    render(<SourceRowsTable projectId={PID} pack={pack()} source={tableSource()} />);
+    fireEvent.click(screen.getByRole("button", { name: /No refund/ }));
+    const editor = screen.getByDisplayValue(/No refund/) as HTMLTextAreaElement;
+    expect(editor.tagName).toBe("TEXTAREA");
+    fireEvent.change(editor, { target: { value: "line1\nline2" } });
+    expect(tableSource().rows[0]!.rules).toBe("line1\nline2");
+  });
+
   it("adds a row with minted ltexts and removes it releasing them", () => {
     const view = render(<SourceRowsTable projectId={PID} pack={pack()} source={tableSource()} />);
     fireEvent.click(screen.getByText("+ Row"));
@@ -164,16 +203,51 @@ describe("SourceRowsTable", () => {
 });
 
 describe("ModelFieldsEditor", () => {
-  it("adds a declared field through editSourceField (rows migrate)", () => {
+  it("hides the add-field draft behind a button — no phantom 'already added' row", () => {
     render(<ModelFieldsEditor projectId={PID} pack={pack()} source={tableSource()} />);
+    expect(screen.queryByPlaceholderText("Nom du champ")).toBeNull();
+    fireEvent.click(screen.getByText("Ajouter un champ"));
+    // Draft opens, focused, ready to type.
+    expect(screen.getByPlaceholderText("Nom du champ")).toHaveFocus();
+  });
+
+  it("Escape closes the draft without adding anything", () => {
+    render(<ModelFieldsEditor projectId={PID} pack={pack()} source={tableSource()} />);
+    const fieldCount = pack().dataModels![0]!.fields.length;
+    fireEvent.click(screen.getByText("Ajouter un champ"));
+    fireEvent.change(screen.getByPlaceholderText("Nom du champ"), { target: { value: "icon" } });
+    fireEvent.keyDown(screen.getByPlaceholderText("Nom du champ"), { key: "Escape" });
+    expect(screen.queryByPlaceholderText("Nom du champ")).toBeNull();
+    expect(pack().dataModels![0]!.fields).toHaveLength(fieldCount);
+  });
+
+  it("adds a declared field through editSourceField (rows migrate), draft stays open for multi-add", () => {
+    render(<ModelFieldsEditor projectId={PID} pack={pack()} source={tableSource()} />);
+    fireEvent.click(screen.getByText("Ajouter un champ"));
     fireEvent.change(screen.getByPlaceholderText("Nom du champ"), { target: { value: "icon" } });
     const selects = screen.getAllByRole("combobox");
     // Last kind-select is the add-row's.
     fireEvent.change(selects[selects.length - 1]!, { target: { value: "item" } });
-    fireEvent.click(screen.getByText("Ajouter un champ"));
+    fireEvent.click(screen.getByLabelText("Ajouter"));
     const model = pack().dataModels![0]!;
     expect(model.fields.some((f) => f.name === "icon" && f.type.kind === "item")).toBe(true);
     expect(tableSource().rows[0]!.icon).toBe("");
+    // Multi-add: draft stays open, name cleared for the next field.
+    expect(screen.getByPlaceholderText("Nom du champ")).toHaveValue("");
+  });
+
+  it("adds a minimessage_multiline field (rows seed an empty string)", () => {
+    render(<ModelFieldsEditor projectId={PID} pack={pack()} source={tableSource()} />);
+    fireEvent.click(screen.getByText("Ajouter un champ"));
+    fireEvent.change(screen.getByPlaceholderText("Nom du champ"), { target: { value: "lore" } });
+    const selects = screen.getAllByRole("combobox");
+    fireEvent.change(selects[selects.length - 1]!, { target: { value: "minimessage_multiline" } });
+    fireEvent.click(screen.getByLabelText("Ajouter"));
+    const model = pack().dataModels![0]!;
+    expect(
+      model.fields.some((f) => f.name === "lore" && f.type.kind === "minimessage_multiline"),
+    ).toBe(true);
+    expect(tableSource().rows[0]!.lore).toBe("");
   });
 
   it("renames a field on blur and migrates the row data", () => {

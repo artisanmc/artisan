@@ -73,6 +73,10 @@ describe("defaultValueForModelType", () => {
     expect(defaultValueForModelType({ kind: "item" })).toBe("");
     expect(defaultValueForModelType({ kind: "list", of: { kind: "string" } })).toEqual([]);
   });
+  it("seeds minimessage kinds as empty strings", () => {
+    expect(defaultValueForModelType({ kind: "minimessage" })).toBe("");
+    expect(defaultValueForModelType({ kind: "minimessage_multiline" })).toBe("");
+  });
   it("recurses objects and resolves model refs via the models list", () => {
     const v = defaultValueForModelType({ kind: "model", ref: RANK.id }, [RANK]) as Record<string, unknown>;
     expect(v.id).toBe("");
@@ -93,6 +97,14 @@ describe("modelFieldTypeToFieldType", () => {
         { name: "price", type: { kind: "number" } },
         { name: "perks", type: { kind: "list", of: { kind: "string" } } },
       ],
+    });
+  });
+  it("maps minimessage kinds to string", () => {
+    expect(modelFieldTypeToFieldType({ kind: "minimessage" })).toEqual({ kind: "string" });
+    expect(modelFieldTypeToFieldType({ kind: "minimessage_multiline" })).toEqual({ kind: "string" });
+    expect(modelFieldTypeToFieldType({ kind: "list", of: { kind: "minimessage" } })).toEqual({
+      kind: "list",
+      of: { kind: "string" },
     });
   });
   it("survives a (theoretically impossible) model cycle without recursing forever", () => {
@@ -296,6 +308,55 @@ describe("applyFieldEdit", () => {
     });
     expect(rows(pack)[0]!.name).toBe("VIP");
     expect(pack.i18nKeys["lt_vip" as never]).toBeUndefined();
+  });
+
+  it("retype ltext→minimessage keeps the defaultLang text and releases the key", () => {
+    const pack = migPack();
+    applyFieldEdit(pack, { kind: "model", modelId: model(pack).id }, {
+      op: "retype",
+      path: [],
+      name: "name",
+      newType: { kind: "minimessage" },
+    });
+    expect(rows(pack)[0]!.name).toBe("VIP");
+    expect(pack.i18nKeys["lt_vip" as never]).toBeUndefined();
+  });
+
+  it("retype minimessage→ltext mints an LText from the raw markup", () => {
+    const pack = migPack();
+    applyFieldEdit(pack, { kind: "model", modelId: model(pack).id }, {
+      op: "retype",
+      path: [],
+      name: "id",
+      newType: { kind: "minimessage" },
+    });
+    expect(rows(pack)[0]!.id).toBe("vip");
+    applyFieldEdit(pack, { kind: "model", modelId: model(pack).id }, {
+      op: "retype",
+      path: [],
+      name: "id",
+      newType: { kind: "ltext" },
+    });
+    const v = rows(pack)[0]!.id as { key: string };
+    expect(pack.i18nKeys[v.key as never]).toEqual({ en: "vip" });
+  });
+
+  it("retype minimessage→number parses, number→minimessage stringifies", () => {
+    const pack = migPack();
+    applyFieldEdit(pack, { kind: "model", modelId: model(pack).id }, {
+      op: "retype",
+      path: [],
+      name: "price",
+      newType: { kind: "minimessage" },
+    });
+    expect(rows(pack)[0]!.price).toBe("9.99");
+    applyFieldEdit(pack, { kind: "model", modelId: model(pack).id }, {
+      op: "retype",
+      path: [],
+      name: "price",
+      newType: { kind: "number" },
+    });
+    expect(rows(pack)[0]!.price).toBe(9.99);
   });
 
   it("retype incompatible resets to the new type's default and releases lost ltexts", () => {
