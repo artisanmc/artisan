@@ -18,9 +18,9 @@ vocabulary listed in the VOCAB block; anything else is rejected.
   "permission": "artisan.cmd.pay",
   "description": "Send money to another player.",
   "arguments": [ /* typed positional args */ ],
-  "requirements": [ /* Condition[] checked before running */ ],
-  "steps": [ /* >= 1 Step — same shape as menu click handlers */ ],
-  "fallback": [ /* flat Action[] run if requirements fail */ ],
+  "requirements": [ /* Condition[] (structured) checked before running */ ],
+  "steps": "<Action DSL string> — same DSL as menu click handlers",
+  "fallback": [ /* flat structured Action[] run if requirements fail */ ],
   "cooldown": { /* optional */ }
 }
 ```
@@ -35,28 +35,26 @@ Required: `schema` (always the literal `"command/v1"`), `id`, `name`, `steps` (�
 Optional: `aliases`, `permission`, `description`, `arguments`, `requirements`, `fallback`,
 `cooldown`, `notes` (internal admin notes, never shown to players).
 
-## Steps — identical to menu click handlers
+## Steps — an Action DSL string (identical to menu click handlers)
 
-`steps` are the **same Step objects** used in menu click handlers. A `Step` is one of:
+`steps` is a **STRING** written in the **Action DSL** — the exact same syntax used by menu click
+handlers (see the **Action DSL reference** in the `menu/v1` guide for the full grammar). One
+action per line; `if` / `else if` / `else` blocks open with `:` and a two-space indent:
 
-```json
-{ "kind": "action", "action": { "type": "run_command", "command": "spawn" } }
+```
+if has_permission(artisan.vip):
+  give_item DIAMOND 1
+  send_message "<green>Here's your VIP reward.</green>"
+else:
+  send_message "<red>VIP only.</red>"
 ```
 
-```json
-{
-  "kind": "if",
-  "cases": [
-    { "conditions": [ /* Condition[] */ ], "joins": ["and"], "steps": [ /* Step[] */ ] }
-  ],
-  "else": [ /* Step[] */ ]
-}
-```
-
-`if` steps nest; `cases` are tried in order, `else` runs if none match. The allowed action and
-condition `type` values are exactly the VOCAB subset (e.g. `run_command`, `send_message`,
-`take_money`, `give_item`, `open_menu`, `open_dialog`, …; conditions like `has_money`,
-`has_permission`, `placeholder_equals`, …). Anything outside that subset is rejected.
+- Text is always quoted (`"literal"`, may hold `%papi%` / `{placeholders}`) or `@key` for a
+  translatable message. `run_command` needs an `as player` / `as console` suffix.
+- The allowed verbs and conditions are exactly the VOCAB subset (`run_command`, `send_message`,
+  `take_money`, `give_item`, `open_menu`, `open_dialog`, …; conditions `has_money`,
+  `has_permission`, `%ph% == "v"`, …). Anything outside it — an unknown verb, `run_actions`, or a
+  free comparison like `balance >= 100` — is rejected.
 
 ## Optional fields
 
@@ -90,10 +88,10 @@ condition `type` values are exactly the VOCAB subset (e.g. `run_command`, `send_
 ### Argument placeholders
 
 Resolved argument values are available inside any text/command string as `%args_<name>%` (and also
-as `{name}` per the runtime). Example — given an arg named `amount`:
+as `{name}` per the runtime). Example — given an arg named `amount`, one DSL step line:
 
-```json
-{ "kind": "action", "action": { "type": "send_message", "text": "<green>Sent %args_amount% coins.</green>" } }
+```
+send_message "<green>Sent %args_amount% coins.</green>"
 ```
 
 ## Worked example — a `pay` command
@@ -114,14 +112,7 @@ as `{name}` per the runtime). Example — given an arg named `amount`:
   "requirements": [
     { "type": "has_money", "amount": 1 }
   ],
-  "steps": [
-    { "kind": "action", "action": { "type": "take_money", "amount": 1 } },
-    { "kind": "action", "action": { "type": "run_command",
-        "command": "eco give %args_target% %args_amount%", "as": "console" } },
-    { "kind": "action", "action": { "type": "send_message",
-        "text": "<green>You sent %args_amount% coins to %args_target%.</green>" } },
-    { "kind": "action", "action": { "type": "play_sound", "sound": "ENTITY_EXPERIENCE_ORB_PICKUP" } }
-  ],
+  "steps": "take_money 1\nrun_command \"eco give %args_target% %args_amount%\" as console\nsend_message \"<green>You sent %args_amount% coins to %args_target%.</green>\"\nplay_sound ENTITY_EXPERIENCE_ORB_PICKUP",
   "fallback": [
     { "type": "send_message", "text": "<red>You don't have enough money.</red>" }
   ],

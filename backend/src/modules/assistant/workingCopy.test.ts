@@ -3,10 +3,10 @@ import { WorkingCopy } from "./workingCopy";
 
 describe("WorkingCopy commands", () => {
   test("upsert/get/delete/list commands", () => {
-    const wc = new WorkingCopy([], {}, [], [{ schema: "command/v1", id: "heal", name: "heal", steps: [] }]);
+    const wc = new WorkingCopy([], {}, [], [{ schema: "command/v1", id: "heal", name: "heal", steps: "close_menu" }]);
     expect(wc.listCommands()).toEqual([{ id: "heal", name: "heal" }]);
     expect((wc.getCommand("heal") as any).name).toBe("heal");
-    wc.upsertCommand({ schema: "command/v1", id: "heal", name: "heal2", steps: [] });
+    wc.upsertCommand({ schema: "command/v1", id: "heal", name: "heal2", steps: "close_menu" });
     expect((wc.getCommand("heal") as any).name).toBe("heal2");
     expect(wc.deleteCommand("heal")).toBe(true);
     expect(wc.getCommand("heal")).toBeUndefined();
