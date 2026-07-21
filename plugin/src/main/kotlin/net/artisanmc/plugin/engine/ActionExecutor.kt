@@ -1,6 +1,8 @@
 package net.artisanmc.plugin.engine
 
 import net.artisanmc.modules.api.CommandRegistry
+import net.artisanmc.plugin.actiondsl.dslToEngineSteps
+import net.artisanmc.plugin.actiondsl.parseActionDsl
 import net.artisanmc.plugin.provider.MenuProvider
 import net.artisanmc.plugin.render.LenientText
 import net.kyori.adventure.text.minimessage.MiniMessage
@@ -174,6 +176,7 @@ class ActionExecutor(
             }
             is Action.PaginationNext -> return paginate(ctx, action.elementId, +1)
             is Action.PaginationPrev -> return paginate(ctx, action.elementId, -1)
+            is Action.RunActions -> return runActions(action, ctx)
             is Action.SetArg -> return applyArg(ctx, action.arg, resolveText(action.value, ctx))
             is Action.SetArgCycleNext -> return cycleArg(ctx, action.arg, action.list, forward = true)
             is Action.SetArgCyclePrev -> return cycleArg(ctx, action.arg, action.list, forward = false)
@@ -232,6 +235,52 @@ class ActionExecutor(
         return applyArg(ctx, arg, next)
     }
 
+    /**
+     * `run_actions <expr>` (ADR action-dsl §run_actions) : résout la valeur DSL
+     * portée par une source (ex. `item.on_buy`), la parse via le codec Kotlin, la
+     * mappe vers l'engine et l'exécute EN PLACE avec l'objet source auto-bindé
+     * comme racine locale (`self` + champs bare). Tolérant : valeur absente / vide
+     * / non-parsable = no-op + un WARN. Profondeur d'appels bornée à 16 (anti-cycle).
+     * Retourne le contexte APPELANT — les self-bindings ne fuient pas dans la suite.
+     */
+    private fun runActions(action: Action.RunActions, ctx: ExecutionContext): ExecutionContext {
+        if (ctx.runActionsDepth >= MAX_RUN_ACTIONS_DEPTH) {
+            Bukkit.getLogger().warning(
+                "[Artisan] run_actions depth limit ($MAX_RUN_ACTIONS_DEPTH) reached at '${action.actions}' — skipping",
+            )
+            return ctx
+        }
+        val raw = ArgResolver.lookupValue(action.actions, ctx.resolvedArgs)
+        if (raw !is String || raw.isBlank()) {
+            Bukkit.getLogger().warning("[Artisan] run_actions '${action.actions}' resolved to no action chain — skipping")
+            return ctx
+        }
+        val dslSteps = runCatching { parseActionDsl(raw) }.getOrElse {
+            Bukkit.getLogger().warning("[Artisan] run_actions '${action.actions}' failed to parse: ${it.message}")
+            return ctx
+        }
+        val steps = dslToEngineSteps(dslSteps)
+
+        // Self-binding : l'objet dont l'expression tire sa valeur (la ligne / le
+        // config object) devient racine locale — la chaîne adresse ses champs bare
+        // (`{price}`) et via `{self.price}`. Le contexte appelant reste au-dessus.
+        val base = action.actions.substringBefore('.')
+        val baseVal = ArgResolver.lookupValue(base, ctx.resolvedArgs)
+        val newArgs: Map<String, Any> = when {
+            baseVal is Map<*, *> -> {
+                val rowMap = baseVal.entries
+                    .filter { it.key is String && it.value != null }
+                    .associate { (it.key as String) to (it.value as Any) }
+                ctx.args + rowMap + ("self" to baseVal)
+            }
+            baseVal != null -> ctx.args + ("self" to baseVal)
+            else -> ctx.args
+        }
+
+        executeSteps(steps, ctx.copy(args = newArgs, runActionsDepth = ctx.runActionsDepth + 1))
+        return ctx
+    }
+
     /** Avance/recule la page des éléments ciblés (clamp aux bornes) puis re-rend le menu courant. */
     private fun paginate(ctx: ExecutionContext, elementId: String?, delta: Int): ExecutionContext {
         val session = sessions.get(ctx.player) ?: return ctx
@@ -246,5 +295,10 @@ class ActionExecutor(
         val newCtx = ctx.copy(pagination = pagination)
         menuProvider.openMenu(ctx.player, session.menuId, newCtx.lang, newCtx)
         return newCtx
+    }
+
+    companion object {
+        /** Garde anti-cycle de `run_actions` (miroir du précédent i18n). */
+        private const val MAX_RUN_ACTIONS_DEPTH = 16
     }
 }

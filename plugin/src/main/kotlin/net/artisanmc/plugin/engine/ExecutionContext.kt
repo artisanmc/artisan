@@ -14,6 +14,8 @@ data class ExecutionContext(
     val pagination: Map<String, Int> = emptyMap(),
     /** Snapshot du dernier rendu (clamps + pageCount). Lu par les conditions pagination_at_*. */
     val pageInfo: Map<String, PageInfo> = emptyMap(),
+    /** Profondeur d'appels `run_actions` imbriqués — garde anti-cycle (max 16). */
+    val runActionsDepth: Int = 0,
 ) {
     /**
      * Args + built-ins implicites : `player` = joueur courant (jamais écrasé

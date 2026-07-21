@@ -64,6 +64,7 @@ object ActionParser {
             "set_arg"            -> Action.SetArg(str(raw, "arg"), str(raw, "value"))
             "set_arg_cycle_next" -> Action.SetArgCycleNext(str(raw, "arg"), str(raw, "list"))
             "set_arg_cycle_prev" -> Action.SetArgCyclePrev(str(raw, "arg"), str(raw, "list"))
+            "run_actions"        -> Action.RunActions(str(raw, "actions"))
             else             -> throw IllegalArgumentException("Unknown action type: $type")
         }
     }
