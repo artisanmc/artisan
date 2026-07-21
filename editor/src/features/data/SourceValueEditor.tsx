@@ -10,6 +10,7 @@ import type {
   Project,
 } from "@/domain/types";
 import { MaterialRefField } from "@/features/canvas/MaterialRefField";
+import { ActionFieldEditor } from "@/features/data/ActionFieldEditor";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { cx } from "@/lib/cx";
 import { getText } from "@/lib/i18n";
@@ -88,7 +89,9 @@ function RowKeyEditor({ projectId, sourceId, row, fieldName, type, value }: RowK
         onKeyDown={(event) => {
           if (event.key === "Enter") event.currentTarget.blur();
         }}
-        className={type === "string" ? "h-7 min-w-24 px-2 text-[12px]" : "h-7 w-24 px-2 text-[12px]"}
+        className={
+          type === "string" ? "h-7 min-w-24 px-2 text-[12px]" : "h-7 w-24 px-2 text-[12px]"
+        }
         aria-label={fieldName}
         aria-invalid={error !== null}
         aria-describedby={error ? errorId : undefined}
@@ -102,7 +105,9 @@ function RowKeyEditor({ projectId, sourceId, row, fieldName, type, value }: RowK
   );
 }
 
-function isRowKeyType(type: ModelFieldType): type is Extract<ModelFieldType, { kind: "string" | "number" | "integer" }> {
+function isRowKeyType(
+  type: ModelFieldType,
+): type is Extract<ModelFieldType, { kind: "string" | "number" | "integer" }> {
   return type.kind === "string" || type.kind === "number" || type.kind === "integer";
 }
 
@@ -169,6 +174,14 @@ export function ValueEditor({
     case "item":
       return (
         <MaterialRefField
+          projectId={projectId}
+          value={typeof value === "string" ? value : ""}
+          onChange={set}
+        />
+      );
+    case "actions":
+      return (
+        <ActionFieldEditor
           projectId={projectId}
           value={typeof value === "string" ? value : ""}
           onChange={set}

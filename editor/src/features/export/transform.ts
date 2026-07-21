@@ -704,6 +704,10 @@ function serializeDataFieldType(
     case "minimessage":
     case "minimessage_multiline":
       return { kind: "string" };
+    // actions keep their own kind: the value is an Action DSL string the plugin
+    // will parse+execute (Action chain). Cf. ADR `action-dsl`.
+    case "actions":
+      return { kind: "actions" };
     case "object":
       return { kind: "object", fields: type.fields.map((f) => serializeDataField(f, models, visited)) };
     case "model": {

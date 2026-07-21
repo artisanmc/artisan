@@ -372,7 +372,14 @@ export type Action =
       context?: Record<string, string>;
       clearContext?: boolean;
     }
-  | { type: "close_dialog" };
+  | { type: "close_dialog" }
+  /**
+   * Invoke an Action chain stored on a Data source `actions` field. `actions`
+   * is an Expression resolving to the chain (a table row's field or a config
+   * value); it runs inline with the resolved-from object as self-scope, depth
+   * capped at 16. Cf. ADR `action-dsl`.
+   */
+  | { type: "run_actions"; actions: string };
 
 export type Condition =
   | { type: "has_permission"; perm: string }
@@ -522,6 +529,9 @@ export type FieldType =
  *    MiniMessage markup; editor-only editing affordance (rendered facade,
  *    raw source on focus), **exported as `string`** — data/v1 never sees it.
  *  - `item`  — the material value-space (`"DIAMOND"`, `item:<id>`, custom ref).
+ *  - `actions` — an Action chain, stored as an **Action DSL** string (the
+ *    hand-writable text serialization of `Step[]`); exported verbatim. Cf. ADR
+ *    `action-dsl`.
  * `model` references another {@link DataModel} by id (no cycles — guarded at
  * edit time by `wouldCreateModelCycle`).
  * Cf. ADR `project-sources-and-data-models` + CONTEXT.md "Data model".
@@ -535,6 +545,7 @@ export type ModelFieldType =
   | { kind: "minimessage" }
   | { kind: "minimessage_multiline" }
   | { kind: "item" }
+  | { kind: "actions" }
   | { kind: "list"; of: ModelFieldType }
   | { kind: "object"; fields: ModelField[] }
   | { kind: "model"; ref: DataModelId };
