@@ -40,13 +40,7 @@
               "lore": ["§7Prix: §a500$", "", "§eClique pour acheter"],
               "click": {
                 "left": {
-                  "requirements": [{ "type": "has_money", "amount": 500 }],
-                  "actions": [
-                    { "type": "take_money", "amount": 500 },
-                    { "type": "run_command", "command": "lp user %player_name% parent set vip", "as": "console" },
-                    { "type": "send_message", "text": "§aRank VIP débloqué !" }
-                  ],
-                  "fallback": [{ "type": "send_message", "text": "§cPas assez d'argent." }]
+                  "steps": "if has_money(500):\n  take_money 500\n  run_command \"lp user %player_name% parent set vip\" as console\n  send_message \"§aRank VIP débloqué !\"\nelse:\n  send_message \"§cPas assez d'argent.\""
                 }
               }
             }
@@ -63,12 +57,7 @@
               "lore": ["§7Prix: §a200$"],
               "click": {
                 "left": {
-                  "requirements": [{ "type": "has_money", "amount": 200 }],
-                  "actions": [
-                    { "type": "take_money", "amount": 200 },
-                    { "type": "give_item", "material": "DIAMOND_SWORD", "count": 1 }
-                  ],
-                  "fallback": [{ "type": "send_message", "text": "§cPas assez d'argent." }]
+                  "steps": "if has_money(200):\n  take_money 200\n  give_item DIAMOND_SWORD 1\nelse:\n  send_message \"§cPas assez d'argent.\""
                 }
               }
             }
@@ -81,7 +70,7 @@
             {
               "material": "BARRIER",
               "title": "§cFermer",
-              "click": { "left": { "actions": [{ "type": "close_menu" }] } }
+              "click": { "left": { "steps": "close_menu" } }
             }
           ]
         }

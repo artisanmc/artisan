@@ -5,9 +5,7 @@
   "size": 27,
   "permission": "menu.shop.open",
   "background": { "asset": "shop_bg.png" },
-  "open_actions": [
-    { "type": "play_sound", "sound": "block.chest.open", "volume": 0.5, "pitch": 1 }
-  ],
+  "open_actions": "play_sound block.chest.open vol=0.5 pitch=1",
   "layers": [
     {
       "id": "items",
@@ -23,20 +21,7 @@
               "lore": ["§7Prix: §a200$", "", "§eClique pour acheter"],
               "click": {
                 "left": {
-                  "requirements": [{ "type": "has_money", "amount": 200 }],
-                  "actions": [
-                    { "type": "take_money", "amount": 200 },
-                    { "type": "give_item", "material": "DIAMOND_SWORD", "count": 1 },
-                    { "type": "send_message", "text": "§aÉpée achetée !" },
-                    { "type": "play_sound", "sound": "entity.experience_orb.pickup", "volume": 1, "pitch": 1 }
-                  ],
-                  "fallback": [{ "type": "send_message", "text": "§cTu n'as pas assez d'argent." }],
-                  "cooldown": {
-                    "id": "shop_diamond_sword",
-                    "duration_seconds": 5,
-                    "scope": "player",
-                    "message": "§7Attends %time_left%s avant de racheter."
-                  }
+                  "steps": "if has_money(200):\n  take_money 200\n  give_item DIAMOND_SWORD 1\n  send_message \"§aÉpée achetée !\"\n  play_sound entity.experience_orb.pickup vol=1 pitch=1\nelse:\n  send_message \"§cTu n'as pas assez d'argent.\""
                 }
               }
             }
@@ -67,14 +52,7 @@
               "lore": ["§7Prix: §a500$", "", "§eClique pour acheter"],
               "click": {
                 "left": {
-                  "requirements": [{ "type": "has_money", "amount": 500 }],
-                  "actions": [
-                    { "type": "take_money", "amount": 500 },
-                    { "type": "run_command", "command": "lp user %player_name% parent set vip", "as": "console" },
-                    { "type": "send_message", "text": "§aRank VIP débloqué !" },
-                    { "type": "broadcast", "text": "§e%player_name% §7vient de débloquer le rank §6VIP §7!" }
-                  ],
-                  "fallback": [{ "type": "send_message", "text": "§cPas assez d'argent." }]
+                  "steps": "if has_money(500):\n  take_money 500\n  run_command \"lp user %player_name% parent set vip\" as console\n  send_message \"§aRank VIP débloqué !\"\n  broadcast \"§e%player_name% §7vient de débloquer le rank §6VIP §7!\"\nelse:\n  send_message \"§cPas assez d'argent.\""
                 }
               }
             }
@@ -88,7 +66,7 @@
             {
               "material": "BARRIER",
               "title": "§cFermer",
-              "click": { "left": { "actions": [{ "type": "close_menu" }] } }
+              "click": { "left": { "steps": "close_menu" } }
             }
           ]
         }
