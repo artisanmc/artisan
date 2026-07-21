@@ -1,0 +1,293 @@
+[
+  {
+    "name": "broadcast literal",
+    "dsl": "broadcast \"test\"",
+    "canonicalDsl": "broadcast \"test\"",
+    "ast": [{ "kind": "action", "action": { "type": "broadcast", "text": { "lit": "test" } } }]
+  },
+  {
+    "name": "broadcast i18n key",
+    "dsl": "broadcast @shop.vip_purchased",
+    "canonicalDsl": "broadcast @shop.vip_purchased",
+    "ast": [
+      {
+        "kind": "action",
+        "action": { "type": "broadcast", "text": { "ref": "shop.vip_purchased" } }
+      }
+    ]
+  },
+  {
+    "name": "sequence of actions",
+    "dsl": "give_item DIAMOND 5\ntake_money 100",
+    "canonicalDsl": "give_item DIAMOND 5\ntake_money 100",
+    "ast": [
+      { "kind": "action", "action": { "type": "give_item", "material": "DIAMOND", "count": 5 } },
+      { "kind": "action", "action": { "type": "take_money", "amount": 100 } }
+    ]
+  },
+  {
+    "name": "run_command as console",
+    "dsl": "run_command \"lp user {player} parent add vip\" as console",
+    "canonicalDsl": "run_command \"lp user {player} parent add vip\" as console",
+    "ast": [
+      {
+        "kind": "action",
+        "action": {
+          "type": "run_command",
+          "command": "lp user {player} parent add vip",
+          "as": "console"
+        }
+      }
+    ]
+  },
+  {
+    "name": "play_sound with options",
+    "dsl": "play_sound ENTITY_PLAYER_LEVELUP vol=1 pitch=1.2",
+    "canonicalDsl": "play_sound ENTITY_PLAYER_LEVELUP vol=1 pitch=1.2",
+    "ast": [
+      {
+        "kind": "action",
+        "action": {
+          "type": "play_sound",
+          "sound": "ENTITY_PLAYER_LEVELUP",
+          "volume": 1,
+          "pitch": 1.2
+        }
+      }
+    ]
+  },
+  {
+    "name": "teleport with yaw",
+    "dsl": "teleport nether 0 64 0 yaw=90",
+    "canonicalDsl": "teleport nether 0 64 0 yaw=90",
+    "ast": [
+      {
+        "kind": "action",
+        "action": { "type": "teleport", "world": "nether", "x": 0, "y": 64, "z": 0, "yaw": 90 }
+      }
+    ]
+  },
+  {
+    "name": "show_title with subtitle keys",
+    "dsl": "show_title @quest.done_title @quest.done_sub",
+    "canonicalDsl": "show_title @quest.done_title @quest.done_sub",
+    "ast": [
+      {
+        "kind": "action",
+        "action": {
+          "type": "show_title",
+          "title": { "ref": "quest.done_title" },
+          "subtitle": { "ref": "quest.done_sub" }
+        }
+      }
+    ]
+  },
+  {
+    "name": "open_menu clear with context",
+    "dsl": "open_menu shop_main clear with category=\"armor\"",
+    "canonicalDsl": "open_menu shop_main clear with category=\"armor\"",
+    "ast": [
+      {
+        "kind": "action",
+        "action": {
+          "type": "open_menu",
+          "menuId": "shop_main",
+          "clearContext": true,
+          "context": { "category": "armor" }
+        }
+      }
+    ]
+  },
+  {
+    "name": "close_menu",
+    "dsl": "close_menu",
+    "canonicalDsl": "close_menu",
+    "ast": [{ "kind": "action", "action": { "type": "close_menu" } }]
+  },
+  {
+    "name": "paginate next",
+    "dsl": "paginate next",
+    "canonicalDsl": "paginate next",
+    "ast": [{ "kind": "action", "action": { "type": "paginate", "direction": "next" } }]
+  },
+  {
+    "name": "set_arg expression",
+    "dsl": "set page = page + 1",
+    "canonicalDsl": "set page = page + 1",
+    "ast": [
+      { "kind": "action", "action": { "type": "set_arg", "arg": "page", "value": "page + 1" } }
+    ]
+  },
+  {
+    "name": "cycle next",
+    "dsl": "cycle category in categories",
+    "canonicalDsl": "cycle category in categories",
+    "ast": [
+      {
+        "kind": "action",
+        "action": { "type": "set_arg_cycle_next", "arg": "category", "list": "categories" }
+      }
+    ]
+  },
+  {
+    "name": "cycle prev",
+    "dsl": "cycle prev category in categories",
+    "canonicalDsl": "cycle prev category in categories",
+    "ast": [
+      {
+        "kind": "action",
+        "action": { "type": "set_arg_cycle_prev", "arg": "category", "list": "categories" }
+      }
+    ]
+  },
+  {
+    "name": "run_actions from a scope field",
+    "dsl": "run_actions item.on_buy",
+    "canonicalDsl": "run_actions item.on_buy",
+    "ast": [
+      { "kind": "action", "action": { "type": "run_actions", "actions": "item.on_buy" } }
+    ]
+  },
+  {
+    "name": "if else",
+    "dsl": "if has_permission(vip):\n  give_money 100\nelse:\n  send_message \"denied\"",
+    "canonicalDsl": "if has_permission(vip):\n  give_money 100\nelse:\n  send_message \"denied\"",
+    "ast": [
+      {
+        "kind": "if",
+        "cases": [
+          {
+            "conditions": [{ "type": "has_permission", "perm": "vip" }],
+            "steps": [{ "kind": "action", "action": { "type": "give_money", "amount": 100 } }]
+          }
+        ],
+        "else": [
+          { "kind": "action", "action": { "type": "send_message", "text": { "lit": "denied" } } }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "else if chain with and",
+    "dsl": "if has_permission(vip) and random_chance(0.5):\n  broadcast \"a\"\nelse if cooldown_passed(daily):\n  broadcast \"b\"",
+    "canonicalDsl": "if has_permission(vip) and random_chance(0.5):\n  broadcast \"a\"\nelse if cooldown_passed(daily):\n  broadcast \"b\"",
+    "ast": [
+      {
+        "kind": "if",
+        "cases": [
+          {
+            "conditions": [
+              { "type": "has_permission", "perm": "vip" },
+              { "type": "random_chance", "probability": 0.5 }
+            ],
+            "joins": ["and"],
+            "steps": [
+              { "kind": "action", "action": { "type": "broadcast", "text": { "lit": "a" } } }
+            ]
+          },
+          {
+            "conditions": [{ "type": "cooldown_passed", "cooldown_id": "daily" }],
+            "steps": [
+              { "kind": "action", "action": { "type": "broadcast", "text": { "lit": "b" } } }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "grouped conditions",
+    "dsl": "if has_permission(a) and (has_permission(b) or has_permission(c)):\n  broadcast \"x\"",
+    "canonicalDsl": "if has_permission(a) and (has_permission(b) or has_permission(c)):\n  broadcast \"x\"",
+    "ast": [
+      {
+        "kind": "if",
+        "cases": [
+          {
+            "conditions": [
+              { "type": "has_permission", "perm": "a" },
+              {
+                "type": "or",
+                "of": [
+                  { "type": "has_permission", "perm": "b" },
+                  { "type": "has_permission", "perm": "c" }
+                ]
+              }
+            ],
+            "joins": ["and"],
+            "steps": [
+              { "kind": "action", "action": { "type": "broadcast", "text": { "lit": "x" } } }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "expression fallback",
+    "dsl": "if balance >= 100:\n  take_money 100",
+    "canonicalDsl": "if balance >= 100:\n  take_money 100",
+    "ast": [
+      {
+        "kind": "if",
+        "cases": [
+          {
+            "conditions": [{ "type": "expression", "expr": "balance >= 100" }],
+            "steps": [{ "kind": "action", "action": { "type": "take_money", "amount": 100 } }]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "placeholder_equals",
+    "dsl": "if %vault_eco_balance% == \"0\":\n  send_message \"broke\"",
+    "canonicalDsl": "if %vault_eco_balance% == \"0\":\n  send_message \"broke\"",
+    "ast": [
+      {
+        "kind": "if",
+        "cases": [
+          {
+            "conditions": [
+              { "type": "placeholder_equals", "placeholder": "%vault_eco_balance%", "value": "0" }
+            ],
+            "steps": [
+              { "kind": "action", "action": { "type": "send_message", "text": { "lit": "broke" } } }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "nested if with not",
+    "dsl": "if has_permission(vip):\n  if not has_money(100):\n    send_message \"poor\"",
+    "canonicalDsl": "if has_permission(vip):\n  if not has_money(100):\n    send_message \"poor\"",
+    "ast": [
+      {
+        "kind": "if",
+        "cases": [
+          {
+            "conditions": [{ "type": "has_permission", "perm": "vip" }],
+            "steps": [
+              {
+                "kind": "if",
+                "cases": [
+                  {
+                    "conditions": [{ "type": "not", "of": { "type": "has_money", "amount": 100 } }],
+                    "steps": [
+                      {
+                        "kind": "action",
+                        "action": { "type": "send_message", "text": { "lit": "poor" } }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+]
