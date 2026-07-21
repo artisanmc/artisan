@@ -26,10 +26,7 @@
               "lore": ["§7{{questx:quest_name}}", "§ePrix: §a{{questx:quest_price}}$"],
               "click": {
                 "left": {
-                  "use_component_default": true,
-                  "then_actions": [
-                    { "type": "play_sound", "sound": "ui.button.click", "volume": 0.5, "pitch": 1 }
-                  ]
+                  "steps": "play_sound ui.button.click vol=0.5 pitch=1"
                 }
               }
             }
@@ -48,7 +45,7 @@
             {
               "asset": "arrow_left.png",
               "title": "§7Page précédente",
-              "click": { "left": { "actions": [{ "type": "pagination_prev" }] } }
+              "click": { "left": { "steps": "paginate prev" } }
             }
           ]
         },
@@ -65,7 +62,7 @@
             {
               "asset": "arrow_right.png",
               "title": "§7Page suivante",
-              "click": { "left": { "actions": [{ "type": "pagination_next" }] } }
+              "click": { "left": { "steps": "paginate next" } }
             }
           ]
         },
@@ -76,7 +73,7 @@
             {
               "material": "BARRIER",
               "title": "§cFermer",
-              "click": { "left": { "actions": [{ "type": "close_menu" }] } }
+              "click": { "left": { "steps": "close_menu" } }
             }
           ]
         }
