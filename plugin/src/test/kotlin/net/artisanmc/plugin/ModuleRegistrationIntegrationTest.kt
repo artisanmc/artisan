@@ -120,7 +120,7 @@ class ModuleRegistrationIntegrationTest {
             server.start()
 
             provider = SyncedMenuProvider(
-                projectsDir      = packsDir,
+                roots            = net.artisanmc.plugin.project.ProjectRoots(packsDir),
                 serverKey        = "sk_modreg_test",
                 wsUrl            = server.url("/ws/plugin").toString(),
                 logger           = null,

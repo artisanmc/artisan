@@ -95,7 +95,7 @@ class FullSyncIntegrationTest {
                 server.start()
 
                 val provider = SyncedMenuProvider(
-                    projectsDir = packsDir,
+                    roots = net.artisanmc.plugin.project.ProjectRoots(packsDir),
                     serverKey = "sk_test",
                     wsUrl     = server.url("/ws/plugin").toString(),
                     logger    = null,
@@ -156,7 +156,7 @@ class FullSyncIntegrationTest {
                 server.start()
 
                 val provider = SyncedMenuProvider(
-                    projectsDir = packsDir,
+                    roots = net.artisanmc.plugin.project.ProjectRoots(packsDir),
                     serverKey = "sk_test",
                     wsUrl     = server.url("/ws/plugin").toString(),
                     logger    = makeLogger(logs),
@@ -212,7 +212,7 @@ class FullSyncIntegrationTest {
                 server.start()
 
                 val provider = SyncedMenuProvider(
-                    projectsDir = packsDir,
+                    roots = net.artisanmc.plugin.project.ProjectRoots(packsDir),
                     serverKey = "sk_test",
                     wsUrl     = server.url("/ws/plugin").toString(),
                     logger    = makeLogger(logs),
@@ -274,7 +274,7 @@ class FullSyncIntegrationTest {
                 server.start()
 
                 val provider = SyncedMenuProvider(
-                    projectsDir = packsDir,
+                    roots = net.artisanmc.plugin.project.ProjectRoots(packsDir),
                     serverKey = "sk_auto_test",
                     wsUrl = server.url("/ws/plugin").toString(),
                     logger = null,
@@ -324,7 +324,7 @@ class FullSyncIntegrationTest {
                 server.start()
 
                 val provider = SyncedMenuProvider(
-                    projectsDir = packsDir,
+                    roots = net.artisanmc.plugin.project.ProjectRoots(packsDir),
                     serverKey = "sk_proto_test",
                     wsUrl = server.url("/ws/plugin").toString(),
                     logger = null,
@@ -364,7 +364,7 @@ class FullSyncIntegrationTest {
         val logs = Collections.synchronizedList(mutableListOf<String>())
         val sent = mutableListOf<Map<String, Any>>()
         val provider = net.artisanmc.plugin.provider.SyncedMenuProvider(
-            projectsDir = packsDir,
+            roots = net.artisanmc.plugin.project.ProjectRoots(packsDir),
             serverKey = "",  // skip WsClient.connect
             wsUrl = "ws://noop",
             logger = makeLogger(logs),

@@ -44,16 +44,19 @@ object BundleHasher {
         return hashFiles(rel)
     }
 
-    fun hashAll(projectsDir: File): String {
-        val projectDirs = projectsDir.listFiles { f -> f.isDirectory && !f.name.startsWith(".") }
-            ?.sortedBy { it.name } ?: return ""
-        if (projectDirs.isEmpty()) return ""
+    fun hashAll(roots: net.artisanmc.plugin.project.ProjectRoots): String {
+        val projects = roots.all()
+        if (projects.isEmpty()) return ""
         val sb = StringBuilder()
-        projectDirs.forEach { projectDir ->
-            sb.append(projectDir.name).append(':').append(hash(projectDir)).append('\n')
+        projects.forEach { (projectId, projectDir) ->
+            sb.append(projectId).append(':').append(hash(projectDir)).append('\n')
         }
         return sha256(sb.toString())
     }
+
+    /** Test convenience — production passes the shared [net.artisanmc.plugin.project.ProjectRoots]. */
+    fun hashAll(projectsDir: File): String =
+        hashAll(net.artisanmc.plugin.project.ProjectRoots(projectsDir))
 
     private fun sha256(input: String): String {
         val bytes = MessageDigest.getInstance("SHA-256").digest(input.toByteArray(Charsets.UTF_8))

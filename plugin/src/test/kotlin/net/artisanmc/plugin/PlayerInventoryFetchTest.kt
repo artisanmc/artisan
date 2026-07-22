@@ -25,7 +25,7 @@ class PlayerInventoryFetchTest {
     private fun provider(sink: MutableList<Map<String, Any?>>, latch: CountDownLatch): SyncedMenuProvider {
         val dir = Files.createTempDirectory("artisan_inv_").toFile()
         val p = SyncedMenuProvider(
-            projectsDir = dir, serverKey = "", wsUrl = "", logger = null,
+            roots = net.artisanmc.plugin.project.ProjectRoots(dir), serverKey = "", wsUrl = "", logger = null,
             runOnMainThread = { task -> task() },
         )
         p.load()

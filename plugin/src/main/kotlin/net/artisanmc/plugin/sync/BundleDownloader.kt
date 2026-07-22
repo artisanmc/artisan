@@ -9,9 +9,13 @@ import java.util.logging.Logger
 
 class BundleDownloader(
     private val httpClient: OkHttpClient,
-    private val projectsDir: File,
+    private val roots: net.artisanmc.plugin.project.ProjectRoots,
     private val logger: Logger? = null,
 ) {
+    /** Test convenience — production passes the shared [net.artisanmc.plugin.project.ProjectRoots]. */
+    constructor(httpClient: OkHttpClient, projectsDir: File, logger: Logger? = null)
+        : this(httpClient, net.artisanmc.plugin.project.ProjectRoots(projectsDir), logger)
+
     private val mapper = ObjectMapper()
 
     fun download(url: String, serverKey: String, projectId: String) {
@@ -43,7 +47,7 @@ class BundleDownloader(
         val backendHash = parsed["hash"] as? String ?: ""
 
         val prefix = "plugins/Artisan/projects/$projectId/"
-        val projectDir = File(projectsDir, projectId)
+        val projectDir = roots.dirFor(projectId)
         projectDir.mkdirs()
 
         // 1) Build expected rel-paths and write incoming files

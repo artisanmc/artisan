@@ -25,7 +25,7 @@ class DataSourceFetchHandlerTest {
     private fun provider(registry: DataSourceRegistry?, sink: MutableList<Map<String, Any?>>, latch: CountDownLatch): SyncedMenuProvider {
         val dir = Files.createTempDirectory("artisan_dsf_").toFile()
         val p = SyncedMenuProvider(
-            projectsDir = dir, serverKey = "", wsUrl = "", logger = null,
+            roots = net.artisanmc.plugin.project.ProjectRoots(dir), serverKey = "", wsUrl = "", logger = null,
             dataSources = registry,
             runOnMainThread = { task -> mainThreadRuns++; task() },
         )
@@ -194,7 +194,7 @@ class DataSourceFetchHandlerTest {
         val sink = java.util.Collections.synchronizedList(mutableListOf<Map<String, Any?>>())
         val latch = CountDownLatch(1)
         val p = SyncedMenuProvider(
-            projectsDir = dir, serverKey = "", wsUrl = "", logger = null,
+            roots = net.artisanmc.plugin.project.ProjectRoots(dir), serverKey = "", wsUrl = "", logger = null,
             dataSources = registry,
             runOnMainThread = { throw IllegalStateException("plugin disabled") },
         )
