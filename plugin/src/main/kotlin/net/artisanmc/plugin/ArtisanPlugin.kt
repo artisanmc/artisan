@@ -119,11 +119,11 @@ open class ArtisanPlugin : JavaPlugin() {
         api = buildApi(this)
         server.servicesManager.register(ArtisanAPI::class.java, api, this, org.bukkit.plugin.ServicePriority.Normal)
         val cfg = PluginConfig.from(config)
-        val projectsDir = File(dataFolder, "projects").also { it.mkdirs() }
+        projectRoots.coreRoot.mkdirs()
 
         langManager = LangManager.fromPlugin(this, cfg.language, cfg.perPlayerLanguage)
 
-        capturedItems = net.artisanmc.plugin.items.CapturedItemStore(projectsDir, logger)
+        capturedItems = net.artisanmc.plugin.items.CapturedItemStore(projectRoots, logger)
         capturedItems.reload()
         val softDeps = SoftDepRegistry(this, capturedItems)
         cooldowns = CooldownStore()
@@ -133,7 +133,7 @@ open class ArtisanPlugin : JavaPlugin() {
 
         commandRegistrar = CommandRegistrar(this, langManager)
         menuProvider = SyncedMenuProvider(
-            projectsDir      = projectsDir,
+            roots            = projectRoots,
             serverKey        = cfg.serverKey,
             wsUrl            = cfg.wsUrl,
             logger           = logger,
@@ -293,15 +293,15 @@ open class ArtisanPlugin : JavaPlugin() {
     fun reinit(cfg: PluginConfig) {
         langManager = LangManager.fromPlugin(this, cfg.language, cfg.perPlayerLanguage)
         menuProvider.unload()
-        val projectsDir = File(dataFolder, "projects").also { it.mkdirs() }
+        projectRoots.coreRoot.mkdirs()
 
-        capturedItems = net.artisanmc.plugin.items.CapturedItemStore(projectsDir, logger)
+        capturedItems = net.artisanmc.plugin.items.CapturedItemStore(projectRoots, logger)
         capturedItems.reload()
         val softDeps = SoftDepRegistry(this, capturedItems)
         val evaluator = ConditionEvaluator(softDeps, cooldowns)
 
         menuProvider = SyncedMenuProvider(
-            projectsDir      = projectsDir,
+            roots            = projectRoots,
             serverKey        = cfg.serverKey,
             wsUrl            = cfg.wsUrl,
             logger           = logger,

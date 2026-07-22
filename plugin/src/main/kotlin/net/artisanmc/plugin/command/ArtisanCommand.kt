@@ -37,9 +37,7 @@ class ArtisanCommand(
             args.size == 2 && args[0].equals("sync", ignoreCase = true) ->
                 listOf("status", "reject").filter { it.startsWith(args[1].lowercase()) }
             args.size == 2 && args[0].equals("pushLocal", ignoreCase = true) -> {
-                val projectsDir = java.io.File(plugin.dataFolder, "projects")
-                val projectIds = projectsDir.listFiles { f -> f.isDirectory && !f.name.startsWith(".") }
-                    ?.map { it.name } ?: emptyList()
+                val projectIds = plugin.projectRoots.all().keys
                 (projectIds + "--all").filter { it.startsWith(args[1]) }
             }
             else -> emptyList()
@@ -178,23 +176,14 @@ class ArtisanCommand(
             sender.sendMessage("Usage: /artisan pushLocal <project_id|--all>")
             return
         }
-        val projectsDir = java.io.File(plugin.dataFolder, "projects")
-        if (!projectsDir.exists()) {
-            sender.sendMessage("No packs directory found.")
-            return
-        }
-        val projectIds = if (target == "--all") {
-            projectsDir.listFiles { f -> f.isDirectory && !f.name.startsWith(".") }
-                ?.map { it.name } ?: emptyList()
-        } else {
-            listOf(target)
-        }
+        val roots = plugin.projectRoots
+        val projectIds = if (target == "--all") roots.all().keys.toList() else listOf(target)
         if (projectIds.isEmpty()) {
             sender.sendMessage("No packs found to push.")
             return
         }
         for (projectId in projectIds) {
-            val dir = java.io.File(projectsDir, projectId)
+            val dir = roots.dirFor(projectId)
             if (!dir.isDirectory) {
                 sender.sendMessage("Pack '$projectId' not found on disk; skipping.")
                 continue

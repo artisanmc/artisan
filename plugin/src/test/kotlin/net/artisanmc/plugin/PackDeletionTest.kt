@@ -20,7 +20,7 @@ class PackDeletionTest {
         File(packDir, "menus/m.yaml").writeText("id: m\n")
 
         val provider = SyncedMenuProvider(
-            projectsDir = packsDir,
+            roots = net.artisanmc.plugin.project.ProjectRoots(packsDir),
             serverKey = "",  // skip WsClient.connect
             wsUrl = "ws://unused",
             logger = null,
