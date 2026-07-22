@@ -24,6 +24,9 @@ export interface ProjectSummary {
   serverKeyId: string;
   /** Menus + commands + dialogs count, for the document-count indicator. */
   documentCount?: number;
+  /** Owning Add-on module id (`manifest.module`) — groups the project under
+   *  "Installed modules" in the sidebar instead of the flat list. */
+  ownerModule?: string;
 }
 
 export async function listNetworks(): Promise<NetworkSummary[]> {

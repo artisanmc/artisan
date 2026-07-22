@@ -840,6 +840,9 @@ export function transform(pack: Project): Record<string, string> {
   const manifest: Record<string, unknown> = {
     schema: "manifest/v1",
     project_id: pack.id,
+    // Round-trip the Add-on owner id (ADR addon-owned-project-roots) so it survives
+    // an editor save — the backend re-derives `ownerModule` from it.
+    ...(pack.ownerModule ? { module: pack.ownerModule } : {}),
     default_lang: pack.defaultLang,
     languages: langs,
     files: {
