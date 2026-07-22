@@ -19,7 +19,7 @@ class ProjectContentReaderTest {
         File(projectsDir, "proj1/.artisan-sync.yaml").writeText("syncedHash: \"\"")
         File(projectsDir, ".artisan-trash").mkdirs()
         File(projectsDir, "proj2").mkdirs()
-        reader = ProjectContentReader(projectsDir)
+        reader = ProjectContentReader(ProjectRoots(projectsDir))
     }
 
     @AfterTest fun teardown() { projectsDir.deleteRecursively() }

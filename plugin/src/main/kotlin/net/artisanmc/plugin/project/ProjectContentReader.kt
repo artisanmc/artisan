@@ -3,13 +3,9 @@ package net.artisanmc.plugin.project
 import net.artisanmc.modules.api.ProjectContentApi
 import java.io.File
 
-class ProjectContentReader(private val projectsDir: File) : ProjectContentApi {
+class ProjectContentReader(private val roots: ProjectRoots) : ProjectContentApi {
 
-    override fun projectIds(): List<String> =
-        projectsDir.listFiles()
-            ?.filter { it.isDirectory && !it.name.startsWith(".") }
-            ?.map { it.name }
-            ?: emptyList()
+    override fun projectIds(): List<String> = roots.all().keys.toList()
 
     override fun list(projectId: String, dir: String): List<String> {
         val root = resolve(projectId, dir) ?: return emptyList()
@@ -39,7 +35,7 @@ class ProjectContentReader(private val projectsDir: File) : ProjectContentApi {
         if (projectId.contains("..") || projectId.contains('/') || projectId.contains('\\')) return null
         if (relPath.split('/', '\\').any { it == ".." || it.startsWith(".artisan") }) return null
         return runCatching {
-            val projectRoot = File(projectsDir, projectId).canonicalFile
+            val projectRoot = roots.dirFor(projectId).canonicalFile
             val target = File(projectRoot, relPath).canonicalFile
             val inside = target == projectRoot ||
                 target.path.startsWith(projectRoot.path + File.separator)
