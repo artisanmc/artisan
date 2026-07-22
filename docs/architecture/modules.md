@@ -848,6 +848,18 @@ curl -sN -X POST localhost:3001/api/v1/assistant/conversations/$CID/messages \
 
 ## 15. Module boutique (V1.5 — shipped)
 
+> **Direction cible (ADR `addon-projects-and-data-model-catalogs`, accepté 2026-07-22 — pas encore implémenté).**
+> Les deux écarts assumés ci-dessous (catalogue en `boutique/shop.yaml`+`boutique/v1` avec éditeur ad-hoc ; project `boutique_shop` noyé dans le `projectsDir` du core) sont **redressés** par cet ADR. Cible :
+> - **Catalogue = Project Data models** (Tables `categories`/`items`, consommées via `pack:`) — on retire `boutique/v1`, `shop.yaml`, le sérialiseur backend dupliqué et `@artisan/boutique-editor` ; édition via l'onglet Data générique (`<SchemaForm>`).
+> - **Un project Add-on dédié par serveur** ; consommation server-global via `pack:` (`ProjectDataResolver` balaie tous les bundles) — le scoping n'est qu'un fait d'authoring.
+> - **Project root addon-owned** : le working-copy vit dans `plugins/Boutique/`, pas le `projectsDir` du core → nouvelle capacité core `projectId → root` (les Add-ons enregistrent leur root à l'`onEnable`).
+> - **Éditeur** : le project apparaît sous « Modules installés » (presence-gated).
+> - **`boutique:buy` reste** une module command mais lit le Data model ; `additem` insère une **row de Data model**.
+> - **Intégrité** : champs Add-on-owned **verrouillés** (non-supprimables/renommables/retypables), `required`+`default`, contraintes de valeur minimales (number min/max) — l'éditeur empêche l'édit cassant en amont ; le plugin dégrade proprement en défense en profondeur.
+> - **Option B** : champ item = material ref, display inliné par la data source, stack exact dans `items/` pour le give.
+>
+> La description ci-dessous reste celle du **code actuellement livré** (shop.yaml/boutique/v1) jusqu'à ce que le chantier soit implémenté. Migration des `boutique_shop` prod = épopée séparée (shops prod non-resettables).
+
 Repo séparé (`Boutique`, branche `feat/artisan-addon`, plugin Paper 1.21.4 / Java 21, dépend d'`artisan-core-api`). Premier Add-on tiers réel, POC du pattern modulaire — avec des écarts assumés vs la spec ci-dessus (§3.3.2, §5) documentés ici.
 
 - **Data sources** : `boutique:categories` (`{id, name, icon}`) et `boutique:items` (`{id, name, icon, category, price, final_price, lore}`), enregistrées via `ArtisanAPI.dataSources.register(...)` (§4.1). Le catalogue est lu depuis `boutique/shop.yaml` (schema `boutique/v1`) via `ArtisanAPI.project` — pas de DB dédiée côté plugin.

@@ -104,6 +104,17 @@ synchronously (add/rename/retype/drop fields); *consumers* of a changed field
 non-hermetic contract. Data models are editor-side only: at export they are
 denormalized into each source file — the Bundle and the plugin never see them.
 
+**Field contracts.** A field may carry properties beyond its kind: `required`
+(every row must hold it) and `default` (seed for new rows), available to any field,
+plus a lean per-kind set of value **constraints** (number `min`/`max` to start),
+validated inline at row-edit time. A field may additionally be **Add-on-owned** —
+**locked** (non-removable, non-renamable, non-retypable) — when it belongs to an
+**Add-on**'s catalog contract: the editor *prevents* the breaking structural edit up
+front (an authoring guard-rail, not a runtime hermetic check) so the Add-on's plugin
+never loses a field it depends on, e.g. a shop's `price`. `locked` is Add-on-only
+(an admin locking a field against themselves is meaningless); `required`/`default`/
+constraints are general. Decided in ADR `addon-projects-and-data-model-catalogs`.
+
 Non-examples:
 - An **Item template** is not a Data model — the model defines the *shape* of a
   row's data; the template defines how a row *renders and behaves* in a Menu.
@@ -335,6 +346,14 @@ Two families, split by **distribution**:
 
 Whether an Add-on is free or paid is an **orthogonal** property — not part of what
 makes something a Module.
+
+An Add-on that ships default content owns a **dedicated Project** (one per Server):
+its working-copy lives in the **Add-on's own plugin dir**, not the core
+`projectsDir`, and the editor surfaces it under an **Installed modules** section
+rather than the flat project list. Its catalog is authored as ordinary **Project
+sources** (**Data model** Tables consumed via `pack:`), not a bespoke schema —
+so a menu in any Project can consume it while authoring stays centralised in the
+one Add-on Project (decided in ADR `addon-projects-and-data-model-catalogs`).
 
 Non-examples:
 - A **plugin JAR** is not a Module — it is the *vehicle* that delivers one. An
