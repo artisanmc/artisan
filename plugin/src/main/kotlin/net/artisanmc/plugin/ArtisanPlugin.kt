@@ -28,6 +28,9 @@ open class ArtisanPlugin : JavaPlugin() {
         private set
     lateinit var langManager: LangManager
     lateinit var capturedItems: net.artisanmc.plugin.items.CapturedItemStore
+    /** projectId -> working-copy root, unioning the core projects dir with Add-on-owned roots. */
+    lateinit var projectRoots: net.artisanmc.plugin.project.ProjectRoots
+        private set
     /** Late-bound WS sender for module messages (api.messages) — set once the provider exists. */
     @Volatile var moduleMessageSender: ((Map<String, Any>) -> Unit)? = null
         private set
@@ -43,6 +46,7 @@ open class ArtisanPlugin : JavaPlugin() {
         fun buildApi(plugin: ArtisanPlugin): ArtisanAPI {
             val registry = ModuleRegistry()
             val nexoForCapture = net.artisanmc.plugin.engine.NexoItemRenderer.tryInit()
+            plugin.projectRoots = net.artisanmc.plugin.project.ProjectRoots(File(plugin.dataFolder, "projects"))
             val api = ArtisanAPI(
                 plugin = plugin,
                 dataSources = DataSourceRegistry(),
@@ -51,7 +55,7 @@ open class ArtisanPlugin : JavaPlugin() {
                 schemas = SchemaRegistry(),
                 modules = registry,
                 coreVersion = plugin.description.version,
-                project = net.artisanmc.plugin.project.ProjectContentReader(File(plugin.dataFolder, "projects")),
+                project = net.artisanmc.plugin.project.ProjectContentReader(plugin.projectRoots),
                 items = object : net.artisanmc.modules.api.ItemStackApi {
                     override fun serialize(stack: org.bukkit.inventory.ItemStack): String =
                         net.artisanmc.plugin.items.ItemDescriptor.serialize(stack)
