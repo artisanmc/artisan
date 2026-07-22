@@ -56,6 +56,7 @@ open class ArtisanPlugin : JavaPlugin() {
                 modules = registry,
                 coreVersion = plugin.description.version,
                 project = net.artisanmc.plugin.project.ProjectContentReader(plugin.projectRoots),
+                projectRoots = plugin.projectRoots,
                 items = object : net.artisanmc.modules.api.ItemStackApi {
                     override fun serialize(stack: org.bukkit.inventory.ItemStack): String =
                         net.artisanmc.plugin.items.ItemDescriptor.serialize(stack)

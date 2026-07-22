@@ -9,6 +9,9 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Added — Add-on-owned project roots (`ArtisanAPI.projectRoots`)
+- New `@Stable` API surface: `ArtisanAPI.projectRoots: ProjectRootRegistry` with `register(projectId, dir)`. An Add-on may host its Project in its **own plugin dir** (e.g. `plugins/Boutique/`) instead of the core `plugins/Artisan/projects/`; call `register` once in `onEnable(api)`. The core resolves every `projectId → dir` through a shared `ProjectRoots` registry — read, hash (`hashAll` aggregate keyed by projectId), bundle download + delete-sweep, move-to-trash (`.artisan-trash/` beside the project), and hot-reload all operate per registered root; discovery unions the core scan with registered roots (registered wins on collision). Additive — binary-safe for existing modules; behaviour is unchanged until an Add-on registers a root (ADR `addon-owned-project-roots`).
+
 ### Added — Project sources with declared schemas (Data models, `data/v1`)
 - Manual project data sources (`pack:<id>`) are now first-class deployable content: the admin declares a **Data model** (recursive field schema incl. `ltext` localized text and `item` material refs), edits rows through a schema-driven form (the YAML pane is gone), and the bundle ships `data/<source_id>.yaml` (new schema `docs/schema/data/v1`, models inlined). The plugin loads them (`ProjectReader` → `BundleDataSource`) and resolves the reserved `pack:` namespace at the renderer fetch seam, localizing ltext fields with the viewer's language at bind time. Two shapes: **table** (rows — iterable/placeable/set-able) and **config** (a single object bound whole for `{settings.x}` interpolation). Legacy schemaless sources are reset on load (accepted, cf. ADR `project-sources-and-data-models`).
 

@@ -11,6 +11,7 @@ import org.bukkit.plugin.java.JavaPlugin
  * - the [events] bus for hot-reload propagation
  * - the [schemas] registry for versioned data migrations
  * - the [modules] runtime registry for dynamic module registration
+ * - the [projectRoots] registry for Add-on-owned project directories
  *
  * Modules MUST go through this facade — direct access to the plugin internals
  * is allowed only inside the module's own package.
@@ -28,6 +29,7 @@ class ArtisanAPI(
     @Stable val modules: ModuleRegistry,
     @Stable val coreVersion: String,
     @Stable val project: ProjectContentApi,
+    @Stable val projectRoots: ProjectRootRegistry = ProjectRootRegistry.NOOP,
     @net.artisanmc.modules.api.annotations.Beta val items: ItemStackApi = ItemStackApi.NOOP,
     @net.artisanmc.modules.api.annotations.Beta val messages: ModuleMessagesApi = ModuleMessagesApi.NOOP,
     @net.artisanmc.modules.api.annotations.Beta val actions: ModuleActionsApi = ModuleActionsApi.NOOP,
