@@ -9,7 +9,13 @@ import net.artisanmc.plugin.model.*
 import java.io.File
 import java.util.logging.Logger
 
-class ProjectReader(private val projectsRoot: File, private val logger: Logger? = null) {
+class ProjectReader(
+    private val roots: net.artisanmc.plugin.project.ProjectRoots,
+    private val logger: Logger? = null,
+) {
+    /** Test convenience — production passes the shared [net.artisanmc.plugin.project.ProjectRoots]. */
+    constructor(projectsRoot: File, logger: Logger? = null)
+        : this(net.artisanmc.plugin.project.ProjectRoots(projectsRoot), logger)
 
     private val mapper = ObjectMapper(YAMLFactory()).registerKotlinModule()
 
@@ -32,18 +38,16 @@ class ProjectReader(private val projectsRoot: File, private val logger: Logger? 
     }
 
     fun readAll(): List<ProjectBundle> =
-        projectsRoot.listFiles { f -> f.isDirectory }
-            ?.mapNotNull { dir ->
-                // Tolerant per project: a broken manifest/lang never nukes the
-                // whole reload (which would fail plugin enable + cascade to
-                // add-ons that `depend: Artisan`).
-                runCatching { readProject(dir) }.getOrElse { e ->
-                    if (e is IllegalArgumentException) throw e // schema-version rejection stays loud
-                    logger?.warning("[Artisan] skipping project ${dir.name}: ${e.message}")
-                    null
-                }
+        roots.all().values.mapNotNull { dir ->
+            // Tolerant per project: a broken manifest/lang never nukes the
+            // whole reload (which would fail plugin enable + cascade to
+            // add-ons that `depend: Artisan`).
+            runCatching { readProject(dir) }.getOrElse { e ->
+                if (e is IllegalArgumentException) throw e // schema-version rejection stays loud
+                logger?.warning("[Artisan] skipping project ${dir.name}: ${e.message}")
+                null
             }
-            ?: emptyList()
+        }
 
     private fun readProject(projectDir: File): ProjectBundle? {
         val manifestFile = File(projectDir, "manifest.yaml").takeIf { it.exists() } ?: return null

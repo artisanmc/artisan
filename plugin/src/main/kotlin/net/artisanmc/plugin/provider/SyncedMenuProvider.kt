@@ -48,7 +48,7 @@ fun detectSyncAction(diskHash: String, syncedHash: String, backendHash: String):
 }
 
 class SyncedMenuProvider(
-    private val projectsDir: File,
+    private val roots: net.artisanmc.plugin.project.ProjectRoots,
     private val serverKey: String,
     private val wsUrl: String,
     private val logger: Logger?,
@@ -133,7 +133,7 @@ class SyncedMenuProvider(
     override fun load() {
         reloadFromDisk()
         if (serverKey.isNotEmpty()) {
-            val currentHash = BundleHasher.hashAll(projectsDir)
+            val currentHash = BundleHasher.hashAll(roots)
             val mcVersion = try {
                 org.bukkit.Bukkit.getServer().minecraftVersion
             } catch (e: Exception) {
@@ -243,7 +243,7 @@ class SyncedMenuProvider(
     }
 
     private fun reloadFromDisk() {
-        val loaded = ProjectReader(projectsDir, logger).readAll()
+        val loaded = ProjectReader(roots, logger).readAll()
         bundles = loaded
         val freshMenus = ConcurrentHashMap<String, BundleMenu>()
         val freshDialogs = ConcurrentHashMap<String, BundleDialog>()
@@ -294,15 +294,14 @@ class SyncedMenuProvider(
                 if (deletedProjectIdsNode != null && deletedProjectIdsNode.isArray) {
                     deletedProjectIdsNode.forEach { idNode ->
                         val projectId = idNode.asText()
-                        if (File(projectsDir, projectId).exists()) {
+                        if (roots.dirFor(projectId).exists()) {
                             logger?.info("hello_ack: reconciling deletion of $projectId")
                             handleProjectDeletion(projectId)
                         }
                     }
                 }
 
-                projectsDir.listFiles { f -> f.isDirectory && !f.name.startsWith(".") }?.forEach { projectDir ->
-                    val projectId = projectDir.name
+                roots.all().forEach { (projectId, projectDir) ->
                     val backendHash = projectHashes[projectId] ?: run {
                             logger?.fine("Project $projectId not found in backend project_hashes — treating as local-only, no sync")
                             return@forEach
@@ -344,7 +343,7 @@ class SyncedMenuProvider(
                 try {
                     httpClient.dispatcher.executorService.execute {
                         try {
-                            val downloader = BundleDownloader(httpClient, projectsDir, logger)
+                            val downloader = BundleDownloader(httpClient, roots, logger)
                             downloader.download(url = url, serverKey = serverKey, projectId = projectId)
                             reloadFromDisk()
                             draftMenus.clear()
@@ -529,7 +528,7 @@ class SyncedMenuProvider(
         }
         menus = freshMenus
         dialogs = freshDialogs
-        net.artisanmc.plugin.sync.ProjectDeleter(projectsDir, logger).delete(projectId)
+        net.artisanmc.plugin.sync.ProjectDeleter(roots, logger).delete(projectId)
         onReload?.invoke()
     }
 

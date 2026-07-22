@@ -16,16 +16,20 @@ import java.util.logging.Logger
  * No-op if the project dir does not exist.
  */
 class ProjectDeleter(
-    private val projectsDir: File,
+    private val roots: net.artisanmc.plugin.project.ProjectRoots,
     private val logger: Logger? = null,
 ) {
+    /** Test convenience — production passes the shared [net.artisanmc.plugin.project.ProjectRoots]. */
+    constructor(projectsDir: File, logger: Logger? = null)
+        : this(net.artisanmc.plugin.project.ProjectRoots(projectsDir), logger)
+
     private val tsFormat = DateTimeFormatter.ofPattern("yyyyMMddHHmmss").withZone(ZoneOffset.UTC)
 
     fun delete(projectId: String) {
-        val projectDir = File(projectsDir, projectId)
+        val projectDir = roots.dirFor(projectId)
         if (!projectDir.exists()) return
 
-        val trash = File(projectsDir, ".artisan-trash").also { it.mkdirs() }
+        val trash = roots.trashDirFor(projectId).also { it.mkdirs() }
         val timestamp = tsFormat.format(Instant.now())
         val target = File(trash, "$projectId-$timestamp")
         val ok = projectDir.renameTo(target)

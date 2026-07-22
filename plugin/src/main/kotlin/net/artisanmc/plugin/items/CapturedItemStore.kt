@@ -21,22 +21,26 @@ import java.util.logging.Logger
  * out clones so callers can't corrupt the store.
  */
 class CapturedItemStore(
-    private val projectsDir: File,
+    private val roots: net.artisanmc.plugin.project.ProjectRoots,
     private val logger: Logger?,
 ) {
+    /** Test convenience — production passes the shared [net.artisanmc.plugin.project.ProjectRoots]. */
+    constructor(projectsDir: File, logger: Logger?)
+        : this(net.artisanmc.plugin.project.ProjectRoots(projectsDir), logger)
+
     @Volatile
     private var stacks: Map<String, ItemStack> = emptyMap()
 
     fun reload() {
         val fresh = HashMap<String, ItemStack>()
-        projectsDir.listFiles { f -> f.isDirectory && !f.name.startsWith(".") }?.forEach { projectDir ->
+        roots.all().forEach { (projectId, projectDir) ->
             val itemsDir = File(projectDir, "items")
             itemsDir.listFiles { f -> f.isFile && (f.extension == "yml" || f.extension == "yaml") }
                 ?.forEach { file ->
                     val id = file.nameWithoutExtension
                     val stack = deserialize(file.readText())
                     if (stack != null) fresh[id] = stack
-                    else logger?.warning("[Artisan] captured item '$id' (${projectDir.name}) failed to deserialize — skipped")
+                    else logger?.warning("[Artisan] captured item '$id' ($projectId) failed to deserialize — skipped")
                 }
         }
         stacks = fresh
