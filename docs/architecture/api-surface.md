@@ -51,6 +51,7 @@ val api = server.servicesManager.getRegistration(ArtisanAPI::class.java)?.provid
 | `coreVersion` | `String` | 1.1.0 |
 | `isCompatibleWith(minVersion: String)` | `Boolean` | 1.1.0 |
 | `project` | `ProjectContentApi` | 1.2.0 |
+| `projectRoots` | `ProjectRootRegistry` | 1.5.0 |
 
 ### `net.artisanmc.modules.api.ModuleRegistry`
 
@@ -197,6 +198,14 @@ Read-only project content on disk (`plugins/Artisan/projects/`). The `.artisan*`
 | `list(projectId: String, dir: String)` | `List<String>` | 1.2.0 |
 | `read(projectId: String, relPath: String)` | `String?` | 1.2.0 |
 | `hasContent(dir: String)` | `Boolean` | 1.2.0 |
+
+### `net.artisanmc.modules.api.ProjectRootRegistry`
+
+Lets an Add-on host its Project in its **own plugin dir** instead of the core `plugins/Artisan/projects/` (ADR `addon-owned-project-roots`). Call once from `onEnable(api)`.
+
+| Member | Type | Since |
+|---|---|---|
+| `register(projectId: String, dir: File)` | `Unit` | 1.5.0 |
 
 ## Beta APIs (may change)
 

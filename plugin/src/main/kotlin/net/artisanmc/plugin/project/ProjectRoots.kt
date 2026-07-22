@@ -15,12 +15,12 @@ import java.util.concurrent.ConcurrentHashMap
  * here so the core's read/hash/download-sweep/trash/hot-reload operate per root.
  * On a `projectId` collision across roots, the registered Add-on root wins.
  */
-class ProjectRoots(val coreRoot: File) {
+class ProjectRoots(val coreRoot: File) : net.artisanmc.modules.api.ProjectRootRegistry {
 
     /** projectId -> project dir, for Add-on-owned projects registered at onEnable. */
     private val registered = ConcurrentHashMap<String, File>()
 
-    fun register(projectId: String, dir: File) {
+    override fun register(projectId: String, dir: File) {
         registered[projectId] = dir
     }
 
