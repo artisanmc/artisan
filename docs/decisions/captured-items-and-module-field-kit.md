@@ -60,6 +60,12 @@ per-item icon overrides at the set/menu layer (re-affirms the no-override rule o
   writes project files directly (the FTP/local_push hazard on edited projects);
   a concurrently-editing editor surfaces the existing version-conflict banner.
 
+  > **Superseded (2026-07-22, ADR `addon-projects-and-data-model-catalogs`):** the
+  > catalog target changes from `moduleData.boutique` / `boutique/shop.yaml` to a
+  > **Project Data model** Table row (`data/<id>.yaml`). The mutation stays
+  > backend-owned and the "plugin never writes project files" invariant is
+  > unchanged — only the shape of what it writes moves onto generic Data models.
+
 ### 4. Minecraft field kit for module forms
 
 `<SchemaForm>` already routes custom widgets by `format`. The host ships a
