@@ -67,6 +67,18 @@ function countProjectDocuments(editorJson: string | null): number {
 	}
 }
 
+/** Owning Add-on module id of a project (from `manifest.module`, carried on the
+ *  editor state), or undefined — drives the sidebar "Installed modules" grouping. */
+function ownerModuleOf(editorJson: string | null): string | undefined {
+	if (!editorJson) return undefined;
+	try {
+		const m = (JSON.parse(editorJson) as { ownerModule?: unknown }).ownerModule;
+		return typeof m === "string" && m ? m : undefined;
+	} catch {
+		return undefined;
+	}
+}
+
 /** Parsed declared schema of a server data source — [] on null/corrupt JSON (informational, never load-bearing). */
 function parseSchemaJson(raw: string | null): { name: string; type: string; description?: string | null }[] {
 	if (!raw) return [];
@@ -149,6 +161,7 @@ userNetworksRouter.get("/:id", async (c: Context<{ Variables: Vars }>) => {
 	const projectsWithCounts = projectsList.map((p) => ({
 		...p,
 		documentCount: countProjectDocuments(p.editorJson),
+		ownerModule: ownerModuleOf(p.editorJson),
 	}));
 	const skList = await db
 		.select()

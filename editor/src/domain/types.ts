@@ -133,6 +133,12 @@ export interface Project {
    * unrecognized project dirs; modules normalize that on first read.
    */
   moduleData?: Record<string, unknown>;
+  /**
+   * Owning Add-on module id (from `manifest.module`) when this is an Add-on's
+   * dedicated project — drives the sidebar "Installed modules" grouping and is
+   * round-tripped through the manifest (ADR `addon-owned-project-roots`).
+   */
+  ownerModule?: string;
 }
 
 /** Container shape of a menu. Absent in stored data = "chest" (back-compat). */

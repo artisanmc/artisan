@@ -352,6 +352,7 @@ function importDialogButton(ctx: I18nCtx, b: Json): unknown {
 
 interface ManifestYaml {
   project_id?: string;
+  module?: string;
   default_lang?: string;
   languages?: string[];
   files?: { menus?: string[]; commands?: string[]; dialogs?: string[] };
@@ -630,6 +631,11 @@ export function importProjectFromFiles(projectId: string, files: Record<string, 
     canvasLayout: parseEditorLayout(manifest.editor_layout),
     canvasEdges: parseEditorEdges(manifest.editor_edges),
   };
+  // Add-on-owned project: manifest `module:` id → carried on the editor state so
+  // the sidebar groups it under "Installed modules" (ADR addon-owned-project-roots).
+  if (typeof manifest.module === "string" && manifest.module) {
+    project.ownerModule = manifest.module;
+  }
 
   const capturedItems = readCapturedItems(files, projectId);
   if (capturedItems.length > 0) project.capturedItems = capturedItems;
