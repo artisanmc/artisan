@@ -9,6 +9,9 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Added — Add-on project ownership signal + "Installed modules" sidebar grouping
+- The project `manifest.yaml` gains an optional `module: <id>` field naming the owning Add-on. `projectImport` carries it onto the editor state as `ownerModule`, and `GET /api/v1/networks/:id` now returns `ownerModule` on each project. The editor sidebar renders Add-on-owned projects under the **Installed modules** section instead of the flat project list, and round-trips `manifest.module` on export so it survives editor saves (ADR `addon-owned-project-roots`). The boutique bootstrap manifest declares `module: boutique`.
+
 ### Added — Add-on-owned project roots (`ArtisanAPI.projectRoots`)
 - New `@Stable` API surface: `ArtisanAPI.projectRoots: ProjectRootRegistry` with `register(projectId, dir)`. An Add-on may host its Project in its **own plugin dir** (e.g. `plugins/Boutique/`) instead of the core `plugins/Artisan/projects/`; call `register` once in `onEnable(api)`. The core resolves every `projectId → dir` through a shared `ProjectRoots` registry — read, hash (`hashAll` aggregate keyed by projectId), bundle download + delete-sweep, move-to-trash (`.artisan-trash/` beside the project), and hot-reload all operate per registered root; discovery unions the core scan with registered roots (registered wins on collision). Additive — binary-safe for existing modules; behaviour is unchanged until an Add-on registers a root (ADR `addon-owned-project-roots`).
 

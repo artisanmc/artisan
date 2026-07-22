@@ -43,6 +43,17 @@ describe("transform", () => {
     expect(manifest.files.commands).toContain("heal");
   });
 
+  it("round-trips manifest.module for Add-on-owned projects", () => {
+    const owned = parse(
+      transform(makeProject({ ownerModule: "boutique" }))["plugins/Artisan/projects/p_test/manifest.yaml"]!,
+    );
+    expect(owned.module).toBe("boutique");
+    const plain = parse(
+      transform(makeProject())["plugins/Artisan/projects/p_test/manifest.yaml"]!,
+    );
+    expect(plain.module).toBeUndefined();
+  });
+
   it("emits editor_layout in manifest with menu/command/dialog positions", () => {
     const pack = makeProject({
       menus: [

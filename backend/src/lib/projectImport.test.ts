@@ -67,6 +67,28 @@ describe("importProjectFromFiles — canvasLayout", () => {
   });
 });
 
+describe("importProjectFromFiles — ownerModule (Add-on-owned project)", () => {
+  test("manifest `module:` → project.ownerModule", () => {
+    const files = {
+      [`${base}/manifest.yaml`]: [
+        "schema: manifest/v1",
+        `project_id: ${PACK_ID}`,
+        "module: boutique",
+        "default_lang: en",
+        "files: { menus: [shop], commands: [], dialogs: [] }",
+      ].join("\n"),
+      [`${base}/menus/shop.yaml`]: "id: shop\nsize: 27\n",
+    };
+    const project = importProjectFromFiles(PACK_ID, files) as { ownerModule?: string };
+    expect(project.ownerModule).toBe("boutique");
+  });
+
+  test("no `module:` → ownerModule undefined", () => {
+    const project = importProjectFromFiles(PACK_ID, manifestWith(null)) as { ownerModule?: string };
+    expect(project.ownerModule).toBeUndefined();
+  });
+});
+
 describe("round-trip mirror — backend parses what the editor emits", () => {
   test("manifest with the editor's block-style shape yields matching canvasLayout", () => {
     // Mirror of editor/src/features/export/transform.test.ts:

@@ -197,6 +197,10 @@ export function ProjectSidebar() {
   }
   const remaining = [...idToProject.values()].sort((a, b) => a.id.localeCompare(b.id));
   const finalList = [...ordered, ...remaining];
+  // Add-on-owned projects surface under "Installed modules", not the flat list
+  // (ADR addon-owned-project-roots).
+  const flatProjects = finalList.filter((p) => !p.ownerModule);
+  const ownedProjects = finalList.filter((p) => p.ownerModule);
 
   // Element count per pack: prefer the live count from a fully-loaded pack in
   // the account store (updates as the user edits), else the summary's
@@ -210,7 +214,7 @@ export function ProjectSidebar() {
   const onDragEnd = (e: DragEndEvent) => {
     const { active, over } = e;
     if (!over || active.id === over.id) return;
-    const ids = finalList.map((p) => p.id);
+    const ids = flatProjects.map((p) => p.id);
     const oldIndex = ids.indexOf(active.id as string);
     const newIndex = ids.indexOf(over.id as string);
     if (oldIndex === -1 || newIndex === -1) return;
@@ -269,11 +273,11 @@ export function ProjectSidebar() {
               modifiers={[restrictToVerticalAxis]}
             >
               <SortableContext
-                items={finalList.map((p) => p.id)}
+                items={flatProjects.map((p) => p.id)}
                 strategy={verticalListSortingStrategy}
               >
                 <ul className="flex flex-col">
-                  {finalList.map((w) => (
+                  {flatProjects.map((w) => (
                     <SortableProjectItem
                       key={w.id}
                       id={w.id}
@@ -310,12 +314,22 @@ export function ProjectSidebar() {
           <div className="px-2 pt-0.5 pb-2 text-[9.5px] font-bold uppercase tracking-[.14em] text-[var(--text-faint)]">
             {t("sidebar.installedModules")}
           </div>
-          {moduleNav.length === 0 ? (
+          {moduleNav.length === 0 && ownedProjects.length === 0 ? (
             <div className="rounded-[14px] border border-dashed border-[var(--border)] px-3 py-3 text-center text-[11px] text-[var(--text-faint)]">
               {t("sidebar.noModules")}
             </div>
           ) : (
             <ul className="flex flex-col">
+              {ownedProjects.map((w) => (
+                <OwnedProjectItem
+                  key={w.id}
+                  id={w.id}
+                  name={w.name}
+                  count={countFor(w)}
+                  networkId={w.networkId || activeNetworkId}
+                  serverId={w.serverKeyId || activeServerId}
+                />
+              ))}
               {moduleNav.map((m) => (
                 <li key={m.id}>
                   {/* TODO(P2): render m.sidebar.icon once modules ship real icons */}
@@ -336,6 +350,58 @@ export function ProjectSidebar() {
 
       <UserMenu />
     </nav>
+  );
+}
+
+/** Add-on-owned project link under "Installed modules" — like a project item but
+ *  not reorderable (its placement is the module's, not the user's). */
+function OwnedProjectItem({
+  id,
+  name,
+  count,
+  networkId,
+  serverId,
+}: {
+  id: string;
+  name: string;
+  count: number | null;
+  networkId: string | null;
+  serverId: string | null;
+}) {
+  const { t } = useTranslation();
+  const params = useParams({ strict: false }) as { projectId?: string };
+  const isActiveProject = params.projectId === id;
+  const linkTo =
+    networkId && serverId
+      ? "/networks/$networkId/servers/$serverId/projects/$projectId"
+      : "/project/$projectId";
+  const linkParams =
+    networkId && serverId ? { networkId, serverId, projectId: id } : { projectId: id };
+  return (
+    <li className="flex flex-col">
+      <Link
+        to={linkTo as any}
+        params={linkParams as any}
+        onClick={() => useSidebarStore.getState().close()}
+        className={
+          isActiveProject
+            ? "flex items-center gap-2.5 rounded-[10px] px-2.5 py-2 text-[13px] font-semibold text-white transition-colors [&_svg]:text-[var(--brand)]"
+            : "flex items-center gap-2.5 rounded-[10px] px-2.5 py-2 text-[13px] font-medium text-[var(--text-mut)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+        }
+      >
+        <LayoutGrid className="size-[15px] shrink-0 text-[var(--text-faint)]" />
+        <span className="truncate flex-1">{name}</span>
+        {count != null && (
+          <span
+            title={t("serverDetail.documentCount", { count })}
+            aria-label={t("serverDetail.documentCount", { count })}
+            className="shrink-0 rounded-full bg-[var(--surface-raised)] px-1.5 text-[10px] font-medium tabular-nums text-[var(--text-faint)]"
+          >
+            {count}
+          </span>
+        )}
+      </Link>
+    </li>
   );
 }
 
