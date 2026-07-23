@@ -67,7 +67,24 @@ object MenuRenderer {
                 if (projectData != null && projectData.canResolve(ref)) projectData.resolve(ref, lang)
                 else dataSources?.fetch(ref, player, params)
             }
-        val boundCtx = ctx.copy(args = ContextBinder.bind(menu.yaml, ctx.args, fetch, Bukkit.getLogger()))
+        val boundArgs = ContextBinder.bind(menu.yaml, ctx.args, fetch, Bukkit.getLogger())
+
+        // Direct-ref sugar: `iterates.source` / `places.source` may name a data
+        // source ref (`ns:id` / `pack:id`) directly instead of a declared input.
+        // Resolve each distinct unresolved ref once and expose the list under
+        // its own key; a dangling ref simply yields nothing (non-hermetic).
+        val directArgs: Map<String, Any> =
+            if (fetch == null) emptyMap()
+            else menu.yaml.allElements
+                .flatMap { listOfNotNull(it.iterates?.source, it.places?.source) }
+                .filter { it.contains(':') && it !in boundArgs }
+                .distinct()
+                .mapNotNull { ref ->
+                    (runCatching { fetch(ref, emptyMap()) }.getOrNull() as? List<*>)
+                        ?.let { ref to it as Any }
+                }
+                .toMap()
+        val boundCtx = ctx.copy(args = boundArgs + directArgs)
 
         // Pré-calcul des fenêtres de pagination de chaque élément itérant.
         val pageInfo = mutableMapOf<String, PageInfo>()

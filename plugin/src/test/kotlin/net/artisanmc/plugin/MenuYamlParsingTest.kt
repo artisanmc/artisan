@@ -67,6 +67,24 @@ class MenuYamlParsingTest {
     }
 
     @Test
+    fun `canonical inputs key binds to contextInputs (context_inputs legacy alias)`() {
+        val menu = mapper.readValue<MenuYaml>(
+            """
+            schema: menu/v1
+            id: shop
+            size: 27
+            inputs:
+              - name: items
+                type: list
+                source: { ref: "boutique:items" }
+            elements: []
+            """.trimIndent(),
+        )
+        assertEquals(1, menu.contextInputs.size)
+        assertEquals("boutique:items", menu.contextInputs[0].source["ref"])
+    }
+
+    @Test
     fun `positions accepts bare int, bare range, and list forms`() {
         val menu = mapper.readValue<MenuYaml>(
             """

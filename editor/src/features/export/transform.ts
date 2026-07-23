@@ -480,7 +480,8 @@ export function serializeMenuToV1(
   if (menu.permission) out.permission = menu.permission;
   if (menu.notes) out.notes = menu.notes;
   if (menu.contextInputs && menu.contextInputs.length > 0) {
-    out.context_inputs = menu.contextInputs.map((ci) => {
+    // Canonical field name: `inputs` (`context_inputs` is the legacy spelling).
+    out.inputs = menu.contextInputs.map((ci) => {
       if (ci.kind === "primitive") {
         const c: Record<string, unknown> = { name: ci.name, type: ci.type };
         if (ci.rowOf !== undefined) c.row_of = ci.rowOf;

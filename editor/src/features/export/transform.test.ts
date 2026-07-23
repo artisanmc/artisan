@@ -669,7 +669,7 @@ describe("transform", () => {
     });
     const files = transform(pack);
     const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop_category.yaml"]!);
-    expect(menu.context_inputs).toEqual([
+    expect(menu.inputs).toEqual([
       { name: "cat", type: "object", row_of: "boutique:categories" },
     ]);
   });

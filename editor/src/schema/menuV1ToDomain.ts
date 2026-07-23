@@ -231,7 +231,10 @@ export function menuV1ToDomain(
       ? [titleLayer(src.title as unknown as Json)]
       : ((src.title as Json[]) ?? []).map(titleLayer)
   ).filter(Boolean) as MenuTitleLayer[];
-  const contextInputs = (src.context_inputs as Json[] | undefined)?.map(contextInput);
+  // Canonical `inputs`; legacy `context_inputs` still read.
+  const contextInputs = ((src.inputs ?? src.context_inputs) as Json[] | undefined)?.map(
+    contextInput,
+  );
   const menu: DomainMenu = {
     id: src.id as MenuId,
     projectId: opts.projectId,
