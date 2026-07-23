@@ -45,6 +45,12 @@ data class AssetEntry(
 class AssetCatalog(
     private val httpClient: OkHttpClient = OkHttpClient(),
     private val mapper: ObjectMapper = ObjectMapper(),
+    /** Optional on-disk cache of the last successfully downloaded index. When
+     *  set, [update] persists the raw JSON here (atomic .tmp + rename) and
+     *  [loadFromDisk] restores it at boot — custom title glyphs keep rendering
+     *  with the backend down or gone (offline completeness, ADR
+     *  files-first-source-of-truth #7). */
+    private val cacheFile: java.io.File? = null,
 ) {
     private val state = AtomicReference<Map<String, AssetEntry>>(emptyMap())
     private val encoderRef = AtomicReference(OffsetEncoder.EMPTY)
@@ -84,6 +90,7 @@ class AssetCatalog(
                             val (assets, encoder) = parse(json)
                             state.set(assets)
                             encoderRef.set(encoder)
+                            persistToDisk(json)
                             return
                         }
                         entry = zip.nextEntry
@@ -92,6 +99,40 @@ class AssetCatalog(
             }
         } catch (_: Throwable) {
             // Swallow: preserve previous state on any failure.
+        }
+    }
+
+    /**
+     * Restores the catalog from [cacheFile] (the last successfully downloaded
+     * index). No-op when no cache file is configured or none exists yet; any
+     * parse error leaves the current state intact. Call at boot, before any
+     * network — a later [update] simply refreshes.
+     */
+    fun loadFromDisk() {
+        val f = cacheFile ?: return
+        try {
+            if (!f.isFile) return
+            val (assets, encoder) = parse(f.readText(Charsets.UTF_8))
+            state.set(assets)
+            encoderRef.set(encoder)
+        } catch (_: Throwable) {
+            // Swallow: preserve previous (empty) state on any failure.
+        }
+    }
+
+    /** Atomic write (.tmp + rename) of the raw index JSON to [cacheFile]. */
+    private fun persistToDisk(json: String) {
+        val f = cacheFile ?: return
+        try {
+            f.parentFile?.mkdirs()
+            val tmp = java.io.File(f.parentFile, f.name + ".tmp")
+            tmp.writeText(json, Charsets.UTF_8)
+            if (!tmp.renameTo(f)) {
+                f.delete()
+                tmp.renameTo(f)
+            }
+        } catch (_: Throwable) {
+            // Cache write failure must never break the in-memory update.
         }
     }
 

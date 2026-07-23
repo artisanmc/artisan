@@ -26,6 +26,47 @@ class AssetCatalogTest {
         return baos.toByteArray()
     }
 
+    private val INDEX_JSON = """
+        {
+          "version": 1,
+          "assets": {
+            "asset_cache1": { "name": "coin", "type": "glyph", "codepoint": 57344, "ascent": 8, "height": 9 }
+          }
+        }
+    """.trimIndent()
+
+    @Test
+    fun `update persists the index to the cache file`(@org.junit.jupiter.api.io.TempDir tmp: java.nio.file.Path) {
+        MockWebServer().use { server ->
+            server.start()
+            val zipBytes = makeZip(mapOf("assets/artisan/asset-index.json" to INDEX_JSON.toByteArray()))
+            server.enqueue(MockResponse().setBody(Buffer().apply { write(zipBytes) }))
+            val cache = tmp.resolve("asset-index.json").toFile()
+            val catalog = AssetCatalog(cacheFile = cache)
+            catalog.update(server.url("/pack.zip").toString(), "hash")
+            assertEquals(1, catalog.size())
+            kotlin.test.assertTrue(cache.exists())
+            kotlin.test.assertTrue(cache.readText().contains("asset_cache1"))
+        }
+    }
+
+    @Test
+    fun `loadFromDisk restores the catalog without any network`(@org.junit.jupiter.api.io.TempDir tmp: java.nio.file.Path) {
+        val cache = tmp.resolve("asset-index.json").toFile()
+        cache.writeText(INDEX_JSON)
+        val catalog = AssetCatalog(cacheFile = cache)
+        catalog.loadFromDisk()
+        assertEquals(1, catalog.size())
+        assertNotNull(catalog.lookup("asset_cache1"))
+    }
+
+    @Test
+    fun `loadFromDisk with no cache file leaves the catalog empty`(@org.junit.jupiter.api.io.TempDir tmp: java.nio.file.Path) {
+        val catalog = AssetCatalog(cacheFile = tmp.resolve("missing.json").toFile())
+        catalog.loadFromDisk()
+        assertEquals(0, catalog.size())
+    }
+
     @Test
     fun `initial state is empty`() {
         val catalog = AssetCatalog()
