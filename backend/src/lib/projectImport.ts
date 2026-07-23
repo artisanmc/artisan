@@ -675,6 +675,24 @@ export function importProjectFromFiles(projectId: string, files: Record<string, 
       }];
     });
 
+  // Data models: models/<id>.yaml (model/v1), fields verbatim — the editor's
+  // lossless store (data/<id>.yaml stays denormalized for the runtime).
+  const mdlPrefix = `plugins/Artisan/projects/${projectId}/models/`;
+  const dataModels = Object.keys(files)
+    .filter((k) => k.startsWith(mdlPrefix) && k.endsWith(".yaml"))
+    .sort()
+    .flatMap((k) => {
+      const y = tryParse<Json>(files[k]!);
+      if (!y) return [];
+      const id = (y.id as string) ?? k.slice(mdlPrefix.length, -".yaml".length);
+      return [{
+        id,
+        name: (y.name as string) ?? id,
+        keyField: (y.key_field as string) ?? "id",
+        fields: (y.fields as Json[]) ?? [],
+      }];
+    });
+
   const menus = menuIds.map((menuId) => {
     const y = tryParse<MenuYaml>(getFile(files, projectId, `menus/${menuId}.yaml`)) ?? {};
     const inventoryType =
@@ -723,6 +741,7 @@ export function importProjectFromFiles(projectId: string, files: Record<string, 
     templates: [],
     assets: [],
     dataSources: [],
+    ...(dataModels.length > 0 ? { dataModels } : {}),
     dialogs,
     ...(itemTemplates.length > 0 ? { itemTemplates } : {}),
     importedConnectors: [],

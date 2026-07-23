@@ -132,6 +132,29 @@ describe("importProjectFromFiles — item templates (templates/<id>.yaml)", () =
   });
 });
 
+describe("importProjectFromFiles — data models (models/<id>.yaml)", () => {
+  const base = `plugins/Artisan/projects/${PACK_ID}`;
+  test("reads models verbatim into dataModels (refs preserved)", () => {
+    const files = {
+      [`${base}/manifest.yaml`]: "schema: manifest/v1\nproject_id: p_test\nfiles:\n  menus: []\n",
+      [`${base}/models/m_rank.yaml`]:
+        "schema: model/v1\nid: m_rank\nname: rank\nkey_field: id\nfields:\n  - name: id\n    type: { kind: string }\n  - name: featured\n    type: { kind: model, ref: m_other }\n",
+    };
+    const project = importProjectFromFiles(PACK_ID, files) as { dataModels?: Array<Record<string, unknown>> };
+    expect(project.dataModels).toEqual([
+      {
+        id: "m_rank",
+        name: "rank",
+        keyField: "id",
+        fields: [
+          { name: "id", type: { kind: "string" } },
+          { name: "featured", type: { kind: "model", ref: "m_other" } },
+        ],
+      },
+    ]);
+  });
+});
+
 describe("round-trip mirror — backend parses what the editor emits", () => {
   test("manifest with the editor's block-style shape yields matching canvasLayout", () => {
     // Mirror of editor/src/features/export/transform.test.ts:

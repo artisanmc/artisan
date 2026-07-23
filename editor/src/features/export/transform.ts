@@ -879,6 +879,15 @@ export function transform(pack: Project): Record<string, string> {
   for (const tpl of pack.itemTemplates ?? []) {
     files[`${base}/templates/${tpl.id}.yaml`] = stringify(serializeTemplate(tpl, pack), yamlOpts);
   }
+  // Data models: models/<id>.yaml (model/v1), fields VERBATIM (cross-model refs
+  // preserved) — the lossless editor store. data/<id>.yaml stays denormalized
+  // and self-contained for the runtime; the plugin ignores models/ entirely.
+  for (const m of pack.dataModels ?? []) {
+    files[`${base}/models/${m.id}.yaml`] = stringify(
+      { schema: "model/v1", id: m.id, name: m.name, key_field: m.keyField, fields: m.fields },
+      yamlOpts,
+    );
+  }
   // Editor presentation state (board layout/edges) lives in the hash-excluded
   // `.artisan/editor.yaml` — NOT in the manifest — so cosmetic board moves no
   // longer change the bundle hash and redeploy the server (ADR
