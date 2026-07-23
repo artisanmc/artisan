@@ -96,6 +96,34 @@ class ResourcePackManagerTest {
     }
 
     @Test
+    fun `onUpdate persists pack info and loadFromDisk restores it after a restart`(
+        @org.junit.jupiter.api.io.TempDir tmp: java.nio.file.Path,
+    ) {
+        val cache = tmp.resolve("resource-pack.json").toFile()
+        val mgr = ResourcePackManager(plugin, config(), logger = plugin.logger, cacheFile = cache)
+        mgr.onUpdate(ResourcePackInfo.from("http://player", "http://internal", SAMPLE_HASH, "<gold>x</gold>"))
+        assertTrue(cache.exists())
+
+        // Fresh manager (simulated restart, backend down) restores the info.
+        val mgr2 = ResourcePackManager(plugin, config(), logger = plugin.logger, cacheFile = cache)
+        mgr2.loadFromDisk()
+        assertEquals("http://player", mgr2.currentPackInfo?.url)
+        assertEquals("http://internal", mgr2.currentPackInfo?.downloadUrl)
+        assertEquals(SAMPLE_HASH, mgr2.currentPackInfo?.hash)
+    }
+
+    @Test
+    fun `onUpdate with null deletes the cache file`(
+        @org.junit.jupiter.api.io.TempDir tmp: java.nio.file.Path,
+    ) {
+        val cache = tmp.resolve("resource-pack.json").toFile()
+        val mgr = ResourcePackManager(plugin, config(), logger = plugin.logger, cacheFile = cache)
+        mgr.onUpdate(ResourcePackInfo.from("http://x", SAMPLE_HASH, "<gold>x</gold>"))
+        mgr.onUpdate(null)
+        assertFalse(cache.exists())
+    }
+
+    @Test
     fun `onUpdate with null clears the state`() {
         val mgr = ResourcePackManager(plugin, config(), logger = plugin.logger)
         mgr.onUpdate(ResourcePackInfo.from("http://x", SAMPLE_HASH, "<gold>x</gold>"))

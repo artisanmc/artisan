@@ -17,11 +17,55 @@ open class ResourcePackManager(
     private val logger: Logger? = null,
     private val assetCatalog: AssetCatalog? = null,
     private val delegator: ResourcePackDelegator? = null,
+    /** Optional on-disk cache of the last applied pack info ({url, download_url,
+     *  hash} JSON). When set, [onUpdate] persists here and [loadFromDisk]
+     *  restores at boot — push mode keeps working across a restart during a
+     *  backend outage (previously `currentPackInfo` was only ever set from
+     *  `hello_ack`, so a backend-down boot pushed nothing). */
+    private val cacheFile: java.io.File? = null,
 ) : Listener {
 
     @Volatile
     var currentPackInfo: ResourcePackInfo? = null
         private set
+
+    /** Restores [currentPackInfo] from [cacheFile]. No-op without a cache file
+     *  or cached entry; any parse error leaves the state null. Call at boot. */
+    fun loadFromDisk() {
+        val f = cacheFile ?: return
+        try {
+            if (!f.isFile) return
+            val node = com.fasterxml.jackson.databind.ObjectMapper().readTree(f)
+            val url = node["url"]?.asText() ?: return
+            val hash = node["hash"]?.asText() ?: return
+            val downloadUrl = node["download_url"]?.asText() ?: url
+            currentPackInfo = ResourcePackInfo.from(url, downloadUrl, hash, config.prompt)
+        } catch (_: Throwable) {
+            // Swallow: a corrupt cache must never break boot.
+        }
+    }
+
+    private fun persistToDisk(info: ResourcePackInfo?) {
+        val f = cacheFile ?: return
+        try {
+            if (info == null) {
+                f.delete()
+                return
+            }
+            f.parentFile?.mkdirs()
+            val json = com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(
+                mapOf("url" to info.url, "download_url" to info.downloadUrl, "hash" to info.hash),
+            )
+            val tmp = java.io.File(f.parentFile, f.name + ".tmp")
+            tmp.writeText(json, Charsets.UTF_8)
+            if (!tmp.renameTo(f)) {
+                f.delete()
+                tmp.renameTo(f)
+            }
+        } catch (_: Throwable) {
+            // Cache write failure must never break the update.
+        }
+    }
 
     /**
      * UUID of the most recently pushed Artisan pack. Used to remove the old layer from each
@@ -61,6 +105,7 @@ open class ResourcePackManager(
     fun onUpdate(info: ResourcePackInfo?) {
         val oldInfo = currentPackInfo
         currentPackInfo = info
+        persistToDisk(info)
         if (info == null) {
             // In delegate mode there's nothing on player packs to clean up
             // (we never added). Skip the per-player removal loop.
