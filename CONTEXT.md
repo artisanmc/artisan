@@ -41,12 +41,15 @@ Non-examples:
 
 ## Bundle
 
-The **deployment artifact** of a **Project**: its content compiled to the on-disk
-file tree the plugin downloads and hot-reloads (`projects/<id>/` — manifest, menus,
-dialogs, lang, assets), identified by a **hash** and republished on every edit.
-The backend announces a new Bundle (`bundle_available`), the plugin fetches it
-(`BundleDownloader`), writes it to disk, and atomically reloads. It is the *live*
-representation of a deployed Project, kept in continuous sync.
+The **deployed materialization** of a **Project**: its canonical file tree, as
+placed on a server (`projects/<id>/` — manifest, menus, dialogs, lang, assets),
+identified by a **hash** and republished on every edit. The backend announces a
+new Bundle (`bundle_available`), the plugin fetches it (`BundleDownloader`),
+writes it to disk, and atomically reloads. It is the *live* copy of a deployed
+Project, kept in continuous sync — not a compiled projection: the files it
+contains *are* the Project's native form (cf. ADR
+`files-first-source-of-truth`), so editing them in place is editing the
+Project.
 
 Non-examples:
 - An **export** is not a Bundle. An export is a one-shot, portable snapshot of a
@@ -419,8 +422,13 @@ Non-examples:
 ## Project
 
 The editable, versioned, deployable collection of GUI content for one server —
-its **Menus**, **Commands**, **Dialogs**, translations, and assets — authored in
-the web editor and deployed to the server as a **Bundle**. A Project belongs to
+its **Menus**, **Commands**, **Dialogs**, translations, and assets — deployed to
+the server as a **Bundle**. A Project's **canonical form is a tree of
+human-readable files** (its Documents, translations, sources, templates, models,
+assets, and editor metadata); every editing surface — the web editor, a text
+editor over the server's files, an AI agent — edits that file form, and the web
+editor is a *client* of it, not the master copy (cf. ADR
+`files-first-source-of-truth`). A Project belongs to
 **exactly one Server**; a Server holds **one or more** Projects. The Project is
 the granular unit of organisation *and* of **portability**: a server's content is
 split into Projects so each can be exported, shared, and imported independently.
