@@ -45,6 +45,73 @@ class ProjectReaderTest {
         return root
     }
 
+    private fun writeTemplatePack(): File {
+        val root = java.nio.file.Files.createTempDirectory("artisan_tpl_").toFile()
+        val packDir = File(root, "p_tpl").apply { mkdirs() }
+        File(packDir, "manifest.yaml").writeText("""
+            schema: manifest/v1
+            project_id: p_tpl
+            default_lang: en
+            languages: [en]
+            files:
+              menus: [shop]
+              templates: [tpl_view]
+        """.trimIndent())
+        File(packDir, "templates").mkdirs()
+        File(packDir, "templates/tpl_view.yaml").writeText("""
+            schema: template/v1
+            id: tpl_view
+            source: "boutique:items"
+            alias: row
+            key_field: id
+            appearances:
+              - material: "{row.icon}"
+                title: "Item {row.name}"
+        """.trimIndent())
+        File(packDir, "menus").mkdirs()
+        File(packDir, "menus/shop.yaml").writeText("""
+            schema: menu/v1
+            id: shop
+            title: []
+            size: 54
+            elements:
+              - id: grid
+                positions: 10-43
+                iterates: { source: "boutique:items", template: tpl_view }
+              - id: pins
+                positions: 0
+                places:
+                  source: "boutique:items"
+                  template: tpl_view
+                  placements: [{ key: sword, page: 0, position: 10 }]
+        """.trimIndent())
+        return root
+    }
+
+    @Test
+    fun `template refs resolve into effective elements at load`() {
+        val bundle = ProjectReader(writeTemplatePack()).readAll().single()
+        val menu = bundle.menus.single()
+        val grid = menu.yaml.allElements.first { it.id == "grid" }
+        val pins = menu.yaml.allElements.first { it.id == "pins" }
+        // Template appearances injected + compiled; alias/key_field from the template.
+        assertEquals("row", grid.iterates?.alias)
+        assertEquals(1, grid.appearances.size)
+        assertEquals("{row.icon}", grid.appearances[0].material)
+        assertNotNull(menu.compiledAppearances["grid"])
+        assertEquals("row", pins.places?.alias)
+        assertEquals("id", pins.places?.keyField)
+    }
+
+    @Test
+    fun `dangling template ref keeps local fields (non-hermetic)`() {
+        val root = writeTemplatePack()
+        File(root, "p_tpl/templates/tpl_view.yaml").delete()
+        val bundle = ProjectReader(root).readAll().single()
+        val grid = bundle.menus.single().yaml.allElements.first { it.id == "grid" }
+        assertEquals(0, grid.appearances.size)
+    }
+
     @Test
     fun `reads manifest and resolves menu title for default lang`() {
         val projectsRoot = writeTempPack()

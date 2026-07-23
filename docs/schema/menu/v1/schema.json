@@ -273,8 +273,7 @@
       "additionalProperties": false,
       "required": [
         "id",
-        "positions",
-        "appearances"
+        "positions"
       ],
       "properties": {
         "id": {
@@ -319,7 +318,7 @@
           "items": {
             "$ref": "#/$defs/Appearance"
           },
-          "description": "Apparences évaluées dans l'ordre. Première dont `if` matche gagne. Aucune match → fall-through au layer suivant."
+          "description": "Apparences conditionnelles (première dont le `if` passe gagne). Absentes quand l'élément est lié à un template (`iterates.template` / `places.template`) — elles vivent alors dans templates/<id>.yaml."
         },
         "iterates": {
           "$ref": "#/$defs/Iterates",
@@ -345,6 +344,9 @@
           "type": "string",
           "maxLength": 1024,
           "description": "Notes internes de l'admin (jamais rendues aux joueurs)."
+        },
+        "places": {
+          "$ref": "#/$defs/Places"
         }
       }
     },
@@ -448,20 +450,22 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "source",
-        "alias"
+        "source"
       ],
       "description": "Iteration : pour chaque item du contextInput `source` (type \"list\"), le moteur évalue les appearances de l'Element avec l'item courant exposé sous `alias`. Les champs accèdent aux propriétés de l'item via {alias.field}.",
       "properties": {
         "source": {
           "type": "string",
-          "pattern": "^[a-z][a-z0-9_]{0,63}$",
           "description": "Nom d'un input du menu OU ref de source directe (`ns:id` / `pack:id`) — sucre canonique, résolue au rendu ; ref pendante = liste vide (non-hermétique)."
         },
         "alias": {
           "type": "string",
           "pattern": "^[a-z][a-z0-9_]{0,63}$",
           "description": "Nom local de l'item courant dans la scope de l'Element. Exposé comme {alias} et {alias.field}."
+        },
+        "template": {
+          "type": "string",
+          "description": "Ref d'un Item template (templates/<id>.yaml). Quand présent : alias + appearances viennent du template (résolus au load par le plugin) — pas de champs locaux."
         }
       }
     },
@@ -1665,6 +1669,58 @@
           }
         }
       ]
+    },
+    "Places": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "placements"
+      ],
+      "description": "Mode placement : épingle des rows d'une source STATIQUE (matchées par key_field) à des page+slot explicites. Mutuellement exclusif avec iterates.",
+      "properties": {
+        "source": {
+          "type": "string",
+          "description": "Nom d'un input du menu OU ref de source directe (`ns:id` / `pack:id`)."
+        },
+        "alias": {
+          "type": "string",
+          "description": "Alias local du row. Absent quand `template` est présent (l'alias du template gagne)."
+        },
+        "key_field": {
+          "type": "string",
+          "description": "Row key de la source. Absent quand `template` est présent."
+        },
+        "template": {
+          "type": "string",
+          "description": "Ref d'un Item template — alias/key_field/appearances viennent du template."
+        },
+        "placements": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "key",
+              "page",
+              "position"
+            ],
+            "properties": {
+              "key": {
+                "type": "string"
+              },
+              "page": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "position": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          }
+        }
+      }
     }
   }
 }

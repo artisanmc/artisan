@@ -199,12 +199,33 @@ export function menuV1ToDomain(
     return String(v ?? "");
   }
 
+  /** Wire iterates/places: `template` ref → domain `templateId`; alias/keyField
+   *  live on the template when bound (empty locally). */
+  function iteratesOf(it: Json): DomainElement["iterates"] {
+    return {
+      source: it.source,
+      alias: it.alias ?? "",
+      ...(it.template ? { templateId: it.template } : {}),
+    };
+  }
+  function placesOf(pl: Json): DomainElement["places"] {
+    return {
+      source: pl.source,
+      alias: pl.alias ?? "",
+      keyField: pl.key_field ?? pl.keyField ?? "",
+      ...(pl.template ? { templateId: pl.template } : {}),
+      placements: (pl.placements as Json[]) ?? [],
+    };
+  }
+
   function element(el: Json): DomainElement {
     return {
       id: el.id,
       positions: positionsSpec(el.positions),
-      appearances: (el.appearances as Json[]).map(appearance),
-      ...(el.iterates ? { iterates: el.iterates } : {}),
+      // Template-bound elements carry no appearances on the wire.
+      appearances: ((el.appearances as Json[]) ?? []).map(appearance),
+      ...(el.iterates ? { iterates: iteratesOf(el.iterates) } : {}),
+      ...(el.places ? { places: placesOf(el.places) } : {}),
       ...(el.tags ? { tags: el.tags } : {}),
     };
   }

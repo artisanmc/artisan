@@ -307,12 +307,33 @@ function positionsSpec(v: unknown): string {
   return String(v ?? "");
 }
 
+/** Wire iterates/places: `template` ref → domain `templateId`; alias/keyField
+ *  live on the template when bound (empty locally). Mirror of menuV1ToDomain. */
+function importIterates(it: Json): Json {
+  return {
+    source: it.source,
+    alias: it.alias ?? "",
+    ...(it.template ? { templateId: it.template } : {}),
+  };
+}
+function importPlaces(pl: Json): Json {
+  return {
+    source: pl.source,
+    alias: pl.alias ?? "",
+    keyField: pl.key_field ?? pl.keyField ?? "",
+    ...(pl.template ? { templateId: pl.template } : {}),
+    placements: (pl.placements as Json[]) ?? [],
+  };
+}
+
 function importElement(ctx: I18nCtx, el: Json): Json {
   return {
     id: el.id,
     positions: positionsSpec(el.positions),
+    // Template-bound elements carry no appearances on the wire.
     appearances: ((el.appearances as Json[]) ?? []).map((a) => importAppearance(ctx, a)),
-    ...(el.iterates ? { iterates: el.iterates } : {}),
+    ...(el.iterates ? { iterates: importIterates(el.iterates) } : {}),
+    ...(el.places ? { places: importPlaces(el.places) } : {}),
     ...(el.tags ? { tags: el.tags } : {}),
   };
 }
@@ -632,6 +653,28 @@ export function importProjectFromFiles(projectId: string, files: Record<string, 
     };
   });
 
+  // Item templates: templates/<id>.yaml (template/v1). Scanned from the file
+  // keys (not just the manifest list) so a hand-added file still imports.
+  const tplPrefix = `plugins/Artisan/projects/${projectId}/templates/`;
+  const itemTemplates = Object.keys(files)
+    .filter((k) => k.startsWith(tplPrefix) && k.endsWith(".yaml"))
+    .sort()
+    .flatMap((k) => {
+      const y = tryParse<Json>(files[k]!);
+      if (!y) return [];
+      const id = (y.id as string) ?? k.slice(tplPrefix.length, -".yaml".length);
+      return [{
+        id,
+        projectId,
+        name: (y.name as string) ?? id,
+        sourceRef: y.source ?? "",
+        alias: y.alias ?? "",
+        ...(y.key_field ? { keyField: y.key_field } : {}),
+        ...(y.group_by ? { groupBy: y.group_by } : {}),
+        appearances: ((y.appearances as Json[]) ?? []).map((a) => importAppearance(ctx, a)),
+      }];
+    });
+
   const menus = menuIds.map((menuId) => {
     const y = tryParse<MenuYaml>(getFile(files, projectId, `menus/${menuId}.yaml`)) ?? {};
     const inventoryType =
@@ -681,6 +724,7 @@ export function importProjectFromFiles(projectId: string, files: Record<string, 
     assets: [],
     dataSources: [],
     dialogs,
+    ...(itemTemplates.length > 0 ? { itemTemplates } : {}),
     importedConnectors: [],
     i18nKeys: ctx.i18nKeys,
     defaultLang,

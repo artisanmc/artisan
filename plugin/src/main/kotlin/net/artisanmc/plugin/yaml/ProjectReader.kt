@@ -60,6 +60,23 @@ class ProjectReader(
             else emptyMap()
         }
 
+        // Item templates (template/v1) — scanned like data sources so a
+        // hand-added file loads without a manifest edit. Tolerant per file.
+        val templates: Map<String, TemplateYaml> = File(projectDir, "templates")
+            .listFiles { f -> f.isFile && f.name.endsWith(".yaml") }
+            ?.sortedBy { it.name }
+            ?.mapNotNull { f ->
+                runCatching {
+                    val t = mapper.readValue(f, TemplateYaml::class.java)
+                    requireSchema(f, t.schema, "template/v1")
+                    if (t.id.isEmpty()) t.copy(id = f.nameWithoutExtension) else t
+                }.getOrElse { e ->
+                    logger?.warning("[Artisan] skipping template ${f.name}: ${e.message}")
+                    null
+                }
+            }
+            ?.associateBy { it.id } ?: emptyMap()
+
         // Tolerant per file (like data sources below): a single unparseable
         // menu/command/dialog — e.g. a stale-format file mid-migration — logs +
         // skips instead of failing the whole reload and the plugin enable.
@@ -68,7 +85,10 @@ class ProjectReader(
             runCatching {
                 val menuYaml = mapper.readValue(f, MenuYaml::class.java)
                 requireSchema(f, menuYaml.schema, "menu/v1")
-                BundleCompiler.compile(menuYaml, langMaps, logger, defaultLang = manifest.defaultLang)
+                BundleCompiler.compile(
+                    resolveTemplates(menuYaml, templates),
+                    langMaps, logger, defaultLang = manifest.defaultLang,
+                )
             }.getOrElse { e ->
                 if (e is IllegalArgumentException) throw e // schema-version rejection stays loud
                 logger?.warning("[Artisan] skipping menu ${f.name}: ${e.message}")
@@ -122,5 +142,35 @@ class ProjectReader(
             manifest.projectId, manifest.defaultLang, manifest.languages,
             menus, commands, dialogs, dataSources,
         )
+    }
+
+    /**
+     * Resolves `iterates.template` / `places.template` refs into EFFECTIVE
+     * elements: the template's appearances/alias/key_field are injected so the
+     * compiler and renderer stay template-unaware. A dangling ref keeps the
+     * element's local fields (non-hermetic — typically renders nothing).
+     * Also normalizes to the flat `elements` form (stacking order preserved).
+     */
+    private fun resolveTemplates(yaml: MenuYaml, templates: Map<String, TemplateYaml>): MenuYaml {
+        if (templates.isEmpty()) return yaml
+        val resolved = yaml.allElements.map { el ->
+            val ref = el.iterates?.template ?: el.places?.template ?: return@map el
+            val tpl = templates[ref] ?: return@map el
+            el.copy(
+                appearances = if (el.appearances.isEmpty()) tpl.appearances else el.appearances,
+                iterates = el.iterates?.let {
+                    if (it.template != null) it.copy(alias = tpl.alias.ifEmpty { it.alias }) else it
+                },
+                places = el.places?.let {
+                    if (it.template != null) {
+                        it.copy(
+                            alias = tpl.alias.ifEmpty { it.alias },
+                            keyField = tpl.keyField.ifEmpty { it.keyField },
+                        )
+                    } else it
+                },
+            )
+        }
+        return yaml.copy(elements = resolved, layers = emptyList())
     }
 }
