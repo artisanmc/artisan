@@ -413,8 +413,7 @@ function OwnedProjectItem({
             : "flex items-center gap-2.5 rounded-[10px] px-2.5 py-2 text-[13px] font-medium text-[var(--text-mut)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
         }
       >
-        <LayoutGrid className="size-[15px] shrink-0 text-[var(--text-faint)]" />
-        <span className="truncate flex-1">{name}</span>
+        <span className="truncate flex-1" title={name}>{t("sidebar.editor")}</span>
         {count != null && (
           <span
             title={t("serverDetail.documentCount", { count })}
