@@ -853,17 +853,21 @@ export function transform(pack: Project): Record<string, string> {
       dialogs: pack.dialogs.map((d) => d.id),
     },
   };
-  if (Object.keys(editorLayout).length > 0) {
-    manifest.editor_layout = editorLayout;
-  }
+  // Editor presentation state (board layout/edges) lives in the hash-excluded
+  // `.artisan/editor.yaml` — NOT in the manifest — so cosmetic board moves no
+  // longer change the bundle hash and redeploy the server (ADR
+  // files-first-source-of-truth #3).
   const editorEdges = Object.fromEntries(
     Object.entries(pack.canvasEdges ?? {}).filter(([edgeId, v]) => {
       const [src, tgt] = edgeId.split("->") as [string, string];
       return liveIds.has(src) && liveIds.has(tgt) && (v.from || v.to);
     }),
   );
-  if (Object.keys(editorEdges).length > 0) {
-    manifest.editor_edges = editorEdges;
+  const editorState: Record<string, unknown> = { schema: "editor-state/v1" };
+  if (Object.keys(editorLayout).length > 0) editorState.layout = editorLayout;
+  if (Object.keys(editorEdges).length > 0) editorState.edges = editorEdges;
+  if (Object.keys(editorState).length > 1) {
+    files[`${base}/.artisan/editor.yaml`] = stringify(editorState, yamlOpts);
   }
   for (const [rel, content] of Object.entries(collectModuleExportFiles(pack))) {
     files[`${base}/${rel}`] = content;

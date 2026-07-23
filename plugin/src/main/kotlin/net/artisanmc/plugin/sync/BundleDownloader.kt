@@ -64,9 +64,9 @@ class BundleDownloader(
         // 2) Sweep: delete local files NOT in the bundle, preserving .artisan* metadata
         projectDir.walkTopDown()
             .filter { it.isFile }
-            .filter { !it.name.startsWith(".artisan") }
             .forEach { f ->
                 val relPath = f.relativeTo(projectDir).path.replace('\\', '/')
+                if (BundleHasher.isArtisanMeta(relPath)) return@forEach
                 if (relPath !in expectedRelPaths) {
                     if (!f.delete()) {
                         logger?.warning("Sweep: failed to delete $f (locked or permission denied)")

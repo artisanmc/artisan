@@ -41,9 +41,9 @@ class BundleHashConformanceTest {
         fx.files.mapKeys { (rel, _) -> "plugins/Artisan/projects/${fx.packId}/$rel" }
 
     @Test
-    fun `hashFiles matches the cross-language vector (relPath-keyed)`() {
+    fun `hashRelative matches the cross-language vector (relPath-keyed, artisan-meta excluded)`() {
         val fx = loadFixture()
-        assertEquals(fx.expectedHash, BundleHasher.hashFiles(fx.files))
+        assertEquals(fx.expectedHash, BundleHasher.hashRelative(fx.files))
     }
 
     @Test

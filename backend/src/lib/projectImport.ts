@@ -375,6 +375,21 @@ interface ManifestYaml {
   editor_edges?: Record<string, unknown>;
 }
 
+/** `.artisan/editor.yaml` — hash-excluded editor presentation state (canonical
+ *  home since ADR files-first-source-of-truth #3); the manifest
+ *  `editor_layout`/`editor_edges` fields are the legacy location. */
+interface EditorStateYaml {
+  layout?: Record<string, unknown>;
+  edges?: Record<string, unknown>;
+}
+
+function readEditorState(files: Record<string, string>, projectId: string): EditorStateYaml {
+  const es = tryParse<EditorStateYaml>(getFile(files, projectId, ".artisan/editor.yaml"));
+  if (es) return es;
+  const m = tryParse<ManifestYaml>(getFile(files, projectId, "manifest.yaml")) ?? {};
+  return { layout: m.editor_layout, edges: m.editor_edges };
+}
+
 interface CommandYaml {
   id?: string;
   name?: string;
@@ -451,8 +466,7 @@ export function readEditorLayoutFromFiles(
   files: Record<string, string>,
   projectId: string,
 ): Record<string, { x: number; y: number }> {
-  const m = tryParse<ManifestYaml>(getFile(files, projectId, "manifest.yaml")) ?? {};
-  return parseEditorLayout(m.editor_layout);
+  return parseEditorLayout(readEditorState(files, projectId).layout);
 }
 
 /** The owning Add-on module id declared in `manifest.module`, or undefined. */
@@ -500,8 +514,7 @@ export function readEditorEdgesFromFiles(
   files: Record<string, string>,
   projectId: string,
 ): Record<string, { from?: EdgeAnchorJson; to?: EdgeAnchorJson }> {
-  const m = tryParse<ManifestYaml>(getFile(files, projectId, "manifest.yaml")) ?? {};
-  return parseEditorEdges(m.editor_edges);
+  return parseEditorEdges(readEditorState(files, projectId).edges);
 }
 
 // ─── lang files ───────────────────────────────────────────────────────────────
@@ -671,8 +684,8 @@ export function importProjectFromFiles(projectId: string, files: Record<string, 
     importedConnectors: [],
     i18nKeys: ctx.i18nKeys,
     defaultLang,
-    canvasLayout: parseEditorLayout(manifest.editor_layout),
-    canvasEdges: parseEditorEdges(manifest.editor_edges),
+    canvasLayout: parseEditorLayout(readEditorState(files, projectId).layout),
+    canvasEdges: parseEditorEdges(readEditorState(files, projectId).edges),
   };
   // Add-on-owned project: manifest `module:` id → carried on the editor state so
   // the sidebar groups it under "Installed modules" (ADR addon-owned-project-roots).

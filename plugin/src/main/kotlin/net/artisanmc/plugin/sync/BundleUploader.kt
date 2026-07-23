@@ -17,10 +17,12 @@ object ProjectFilesReader {
     fun readRelative(projectDir: File): Map<String, String> {
         val out = mutableMapOf<String, String>()
         projectDir.walkTopDown()
-            .filter { it.isFile && !it.name.startsWith(".artisan") }
+            .filter { it.isFile }
             .forEach { file ->
                 val rel = file.relativeTo(projectDir).path.replace('\\', '/')
-                out[rel] = file.readText(Charsets.UTF_8)
+                // `.artisan*` first segment = sync/editor metadata: out of the
+                // hash and never uploaded (the backend preserves its copies).
+                if (!BundleHasher.isArtisanMeta(rel)) out[rel] = file.readText(Charsets.UTF_8)
             }
         return out
     }

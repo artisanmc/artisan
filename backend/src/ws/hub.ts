@@ -479,6 +479,16 @@ export async function handlePluginMessage(
     if (!project) {
       project = await createProject({ networkId: sk.networkId, serverKeyId: serverId, name: projectId, id: projectId });
     }
+    // The plugin never uploads `.artisan/*` metadata (hash-excluded editor
+    // state, e.g. `.artisan/editor.yaml`) — preserve the backend's copies so a
+    // disk push doesn't strip the board layout from the stored file tree.
+    if (project.filesJson) {
+      const prev = JSON.parse(project.filesJson) as Record<string, string>;
+      const metaPrefix = `plugins/Artisan/projects/${projectId}/.artisan`;
+      for (const [k, v] of Object.entries(prev)) {
+        if (k.startsWith(metaPrefix) && !(k in files)) files[k] = v;
+      }
+    }
     const patch: { hash: string; filesJson: string; editorJson?: string } = {
       hash, filesJson: JSON.stringify(files),
     };
