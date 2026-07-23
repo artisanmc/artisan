@@ -24,6 +24,15 @@ router.post("/:projectId", async (c) => {
   if (!project) {
     project = await createProject({ networkId: sk.networkId, serverKeyId: sk.id, name: projectId, id: projectId });
   }
+  // The plugin never uploads `.artisan/*` metadata (hash-excluded editor
+  // state) — preserve the backend's copies across a plugin upload.
+  if (project.filesJson) {
+    const prev = JSON.parse(project.filesJson) as Record<string, string>;
+    const metaPrefix = `plugins/Artisan/projects/${projectId}/.artisan`;
+    for (const [k, v] of Object.entries(prev)) {
+      if (k.startsWith(metaPrefix) && !(k in body.files)) body.files[k] = v;
+    }
+  }
   await upsertProjectContent(projectId, { hash, filesJson: JSON.stringify(body.files) });
   return c.json({ ok: true, hash });
 });
