@@ -40,6 +40,11 @@ services:
       # The assistant module imports the canonical schema from docs/ at runtime
       # (single source of truth); mount it so the relative import resolves to /docs.
       - ./docs:/docs
+      # Several backend files import shared codecs from editor/src at runtime
+      # (e.g. projectImport → editor/src/lib/actionDsl/parser; @/-aliased imports
+      # in those files are type-only and erased). Mount editor/ so ../../../editor
+      # resolves to /editor.
+      - ./editor:/editor
     ports:
       - "3001:3001"
     environment:
