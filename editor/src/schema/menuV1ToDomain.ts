@@ -218,7 +218,17 @@ export function menuV1ToDomain(
     title,
     rows,
     ...(inventoryType !== "chest" ? { inventoryType } : {}),
-    layers: (src.layers as Json[]).map(layer),
+    // Canonical form: flat top-level `elements` (order = stacking) → one
+    // default layer. Legacy `layers` wrapping is still read as-is.
+    layers: Array.isArray(src.layers)
+      ? (src.layers as Json[]).map(layer)
+      : [
+          {
+            id: "l1" as DomainLayer["id"],
+            name: "default",
+            elements: ((src.elements as Json[]) ?? []).map(element),
+          },
+        ],
     ...(src.permission ? { permission: src.permission } : {}),
     ...(typeof src.notes === "string" && src.notes ? { notes: src.notes } : {}),
     ...(contextInputs && contextInputs.length > 0 ? { contextInputs } : {}),

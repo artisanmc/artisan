@@ -67,6 +67,28 @@ class MenuYamlParsingTest {
     }
 
     @Test
+    fun `flat top-level elements parse (canonical form, no layers)`() {
+        val menu = mapper.readValue<MenuYaml>(
+            """
+            schema: menu/v1
+            id: flat
+            size: 9
+            elements:
+              - id: a
+                positions: "0"
+                appearances:
+                  - material: STONE
+              - id: b
+                positions: "0"
+                appearances:
+                  - material: DIRT
+            """.trimIndent(),
+        )
+        assertTrue(menu.layers.isEmpty())
+        assertEquals(listOf("a", "b"), menu.allElements.map { it.id })
+    }
+
+    @Test
     fun `click handler as bare DSL string parses (canonical collapsed form)`() {
         val menu = mapper.readValue<MenuYaml>(
             """

@@ -185,13 +185,13 @@ describe("projectImport round-trip (Boutique bootstrap → import → transform)
 
     // Steps re-export as Action DSL strings (Phase 2). Targets + context tails
     // survive the structured→domain→DSL round-trip.
-    const mainGrid = out["menus/shop_main.yaml"]!.layers[0].elements[0];
+    const mainGrid = out["menus/shop_main.yaml"]!.elements[0];
     expect(mainGrid.iterates).toEqual({ source: "cats", alias: "cat" });
     expect(mainGrid.appearances[0].click.left).toBe(
       'open_menu shop_category with category="{cat.id}" category_name="{cat.name}"',
     );
 
-    const catLayers = out["menus/shop_category.yaml"]!.layers[0].elements;
+    const catLayers = out["menus/shop_category.yaml"]!.elements;
     expect(catLayers[0].appearances[0].click.left).toBe(
       'open_dialog confirm_purchase with item_id="{item.id}" item_name="{item.name}" item_price="{item.final_price}"',
     );
@@ -216,7 +216,7 @@ describe("projectImport round-trip (Boutique bootstrap → import → transform)
     const fr = out["lang/fr.yaml"]!;
     // Literal titles get minted keys; the fr lang file must resolve them back
     // to the original literal (placeholders intact).
-    const title = out["menus/shop_main.yaml"]!.layers[0].elements[0].appearances[0].title as string;
+    const title = out["menus/shop_main.yaml"]!.elements[0].appearances[0].title as string;
     const key = /^\{i18n:(.+)\}$/.exec(title)?.[1];
     expect(key).toBeDefined();
     expect(fr[key!]).toBe("{cat.name}");

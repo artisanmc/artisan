@@ -384,6 +384,9 @@ interface MenuYaml {
   permission?: string;
   notes?: string;
   context_inputs?: Json[];
+  /** Canonical flat element list. */
+  elements?: Json[];
+  /** Legacy layers wrapping. */
   layers?: unknown[];
 }
 
@@ -619,9 +622,17 @@ export function importProjectFromFiles(projectId: string, files: Record<string, 
       title: importTitle(ctx, y.title, `menus.${menuId}.title`),
       rows: rows as 1 | 2 | 3 | 4 | 5 | 6,
       ...(inventoryType !== "chest" ? { inventoryType } : {}),
+      // Canonical form: flat top-level `elements` → one default layer.
+      // Legacy `layers` wrapping still read as-is.
       layers: Array.isArray(y.layers)
         ? y.layers.map((l) => importLayer(ctx, l as Json))
-        : [{ id: "layer_default", name: "Default", elements: [] }],
+        : [
+            {
+              id: "layer_default",
+              name: "Default",
+              elements: ((y.elements as Json[]) ?? []).map((el) => importElement(ctx, el)),
+            },
+          ],
       ...(y.permission ? { permission: y.permission } : {}),
       ...(typeof y.notes === "string" && y.notes ? { notes: y.notes } : {}),
       ...(contextInputs.length > 0 ? { contextInputs } : {}),
