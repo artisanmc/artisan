@@ -25,6 +25,11 @@ const makeProject = (overrides: Partial<Project> = {}): Project =>
     ...overrides,
   }) as Project;
 
+const parseEditorState = (files: Record<string, string>) => {
+  const raw = files["plugins/Artisan/projects/p_test/.artisan/editor.yaml"];
+  return raw === undefined ? undefined : parse(raw);
+};
+
 describe("transform", () => {
   it("emits manifest.yaml with menu and command ids", () => {
     const pack = makeProject({
@@ -54,7 +59,7 @@ describe("transform", () => {
     expect(plain.module).toBeUndefined();
   });
 
-  it("emits editor_layout in manifest with menu/command/dialog positions", () => {
+  it("emits board layout in .artisan/editor.yaml with menu/command/dialog positions", () => {
     const pack = makeProject({
       menus: [
         { id: menuId("shop"), projectId: projectId("p_test"), rows: 3, title: [], layers: [] },
@@ -73,14 +78,14 @@ describe("transform", () => {
     });
     const files = transform(pack);
     const manifest = parse(files["plugins/Artisan/projects/p_test/manifest.yaml"]!);
-    expect(manifest.editor_layout).toEqual({
+    expect(parseEditorState(files)?.layout).toEqual({
       shop:    { x: 40,  y: 40 },
       heal:    { x: 260, y: 40 },
       confirm: { x: 480, y: 40 },
     });
   });
 
-  it("omits editor_layout when canvasLayout is empty", () => {
+  it("omits .artisan/editor.yaml when canvasLayout is empty", () => {
     const pack = makeProject({
       menus: [
         { id: menuId("shop"), projectId: projectId("p_test"), rows: 3, title: [], layers: [] },
@@ -89,7 +94,7 @@ describe("transform", () => {
     });
     const files = transform(pack);
     const manifest = parse(files["plugins/Artisan/projects/p_test/manifest.yaml"]!);
-    expect(manifest.editor_layout).toBeUndefined();
+    expect(parseEditorState(files)).toBeUndefined();
   });
 
   it("serializes an element in placement mode with key_field (no per-placement overrides)", () => {
@@ -298,7 +303,7 @@ describe("transform", () => {
     });
   });
 
-  it("filters orphaned ids from editor_layout (id no longer in pack)", () => {
+  it("filters orphaned ids from the board layout (id no longer in pack)", () => {
     const pack = makeProject({
       menus: [
         { id: menuId("shop"), projectId: projectId("p_test"), rows: 3, title: [], layers: [] },
@@ -311,10 +316,10 @@ describe("transform", () => {
     });
     const files = transform(pack);
     const manifest = parse(files["plugins/Artisan/projects/p_test/manifest.yaml"]!);
-    expect(manifest.editor_layout).toEqual({ shop: { x: 40, y: 40 } });
+    expect(parseEditorState(files)?.layout).toEqual({ shop: { x: 40, y: 40 } });
   });
 
-  it("emits editor_layout in block-style YAML the backend round-trip test parses", () => {
+  it("emits the board layout in block-style YAML the backend round-trip test parses", () => {
     const pack = makeProject({
       menus: [
         { id: menuId("shop"), projectId: projectId("p_test"), rows: 3, title: [], layers: [] },
@@ -327,13 +332,14 @@ describe("transform", () => {
     // default with our yamlOpts). The backend mirror test below asserts the
     // same block-style shape is parseable. If you change to flow style here,
     // update the backend mirror fixture too.
-    expect(manifestYaml).toContain("editor_layout:");
-    expect(manifestYaml).toContain("shop:");
-    expect(manifestYaml).toMatch(/x:\s*123/);
-    expect(manifestYaml).toMatch(/y:\s*456/);
+    const editorYaml = files["plugins/Artisan/projects/p_test/.artisan/editor.yaml"]!;
+    expect(editorYaml).toContain("layout:");
+    expect(editorYaml).toContain("shop:");
+    expect(editorYaml).toMatch(/x:\s*123/);
+    expect(editorYaml).toMatch(/y:\s*456/);
   });
 
-  it("emits editor_edges in manifest with live-edge overrides", () => {
+  it("emits board edges in .artisan/editor.yaml with live-edge overrides", () => {
     const pack = makeProject({
       menus: [
         { id: menuId("shop"), projectId: projectId("p_test"), rows: 3, title: [], layers: [] },
@@ -345,21 +351,21 @@ describe("transform", () => {
     });
     const files = transform(pack);
     const manifest = parse(files["plugins/Artisan/projects/p_test/manifest.yaml"]!);
-    expect(manifest.editor_edges).toEqual({
+    expect(parseEditorState(files)?.edges).toEqual({
       "home->shop": { from: { side: "top", t: 0.25 }, to: { side: "left", t: 0.5 } },
     });
   });
 
-  it("omits editor_edges when canvasEdges is empty or absent", () => {
+  it("omits board edges when canvasEdges is empty or absent", () => {
     const pack = makeProject({
       menus: [{ id: menuId("shop"), projectId: projectId("p_test"), rows: 3, title: [], layers: [] }],
     });
     const files = transform(pack);
     const manifest = parse(files["plugins/Artisan/projects/p_test/manifest.yaml"]!);
-    expect(manifest.editor_edges).toBeUndefined();
+    expect(parseEditorState(files)?.edges).toBeUndefined();
   });
 
-  it("filters editor_edges whose source or target is no longer in the pack", () => {
+  it("filters board edges whose source or target is no longer in the pack", () => {
     const pack = makeProject({
       menus: [
         { id: menuId("shop"), projectId: projectId("p_test"), rows: 3, title: [], layers: [] },
@@ -373,7 +379,7 @@ describe("transform", () => {
     });
     const files = transform(pack);
     const manifest = parse(files["plugins/Artisan/projects/p_test/manifest.yaml"]!);
-    expect(manifest.editor_edges).toEqual({
+    expect(parseEditorState(files)?.edges).toEqual({
       "home->shop": { from: { side: "right", t: 0.5 } },
     });
   });

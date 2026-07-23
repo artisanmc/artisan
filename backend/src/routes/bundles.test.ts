@@ -52,6 +52,34 @@ describe("bundle upload/download", () => {
     expect(res.status).toBe(401);
   });
 
+  test("POST preserves .artisan/* metadata absent from the upload (hash-excluded editor state)", async () => {
+    const app = buildApp();
+    const { key } = await seedServerKey("meta-preserve");
+
+    const metaPath = "plugins/Artisan/projects/p_test/.artisan/editor.yaml";
+    const withMeta = { ...PACK_FILES, [metaPath]: "schema: editor-state/v1\nlayout:\n  shop: { x: 1, y: 2 }\n" };
+    const first = await app.request("/api/v1/bundles/p_test", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+      body: JSON.stringify({ files: withMeta }),
+    });
+    expect(first.status).toBe(200);
+
+    // Plugin re-upload: never carries .artisan/* — the stored copy must survive.
+    const second = await app.request("/api/v1/bundles/p_test", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+      body: JSON.stringify({ files: PACK_FILES }),
+    });
+    expect(second.status).toBe(200);
+    // The hash excludes .artisan/* on both uploads → identical.
+    expect((await second.json() as { hash: string }).hash).toBe((await first.json() as { hash: string }).hash);
+
+    const row = (await db.select().from(projects).where(eq(projects.id, "p_test")))[0]!;
+    const stored = JSON.parse(row.filesJson!) as Record<string, string>;
+    expect(stored[metaPath]).toContain("layout:");
+  });
+
   test("POST writes WIP; GET serves main branch head (initial empty commit)", async () => {
     const app = buildApp();
     const { key } = await seedServerKey("bundle-test");

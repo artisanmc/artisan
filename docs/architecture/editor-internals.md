@@ -145,8 +145,13 @@ Les overrides sont des pins exacts : jamais écartés par la séparation auto �
 manuelles peuvent se superposer ; seules les ancres auto cèdent le gap minimal.
 Actions store : `setEdgeAnchor` / `clearEdgeAnchor` (double-clic poignée = reset) ;
 pruning sur `deleteFromProject`, rekey sur rename d'id (`setMenuId`/`setCommandId`/`setDialogId`).
-Persistance : `editor_edges` dans `manifest.yaml` (miroir d'`editor_layout`),
-round-trip backend dans `projectImport.ts`.
+Persistance : `edges` + `layout` dans **`.artisan/editor.yaml`** (fichier
+d'état éditeur hash-exclu — un déplacement de carte ne redéploie plus le
+serveur ; ADR `files-first-source-of-truth` #3). Legacy : `editor_layout` /
+`editor_edges` dans `manifest.yaml`, toujours lus en fallback par
+`projectImport.ts`. Le plugin n'uploade jamais `.artisan/*` ; le backend
+préserve ses copies aux deux points d'ingestion (`local_push`, `POST
+/bundles`).
 
 ## Planche curée + panneau + vue individuelle (depuis 2026-06-13)
 

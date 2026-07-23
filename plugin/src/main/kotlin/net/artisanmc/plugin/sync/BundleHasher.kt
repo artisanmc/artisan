@@ -28,6 +28,10 @@ object BundleHasher {
         return sha256(sb.toString())
     }
 
+    /** Hash a relPath-keyed map, skipping `.artisan*` metadata entries. */
+    fun hashRelative(relFiles: Map<String, String>): String =
+        hashFiles(relFiles.filterKeys { !isArtisanMeta(it) })
+
     /** Hash a project directory (relPath-keyed, skips `.artisan*` metadata). */
     fun hash(projectDir: File): String = hashFiles(ProjectFilesReader.readRelative(projectDir))
 
@@ -41,8 +45,15 @@ object BundleHasher {
         val rel = files.entries
             .filter { it.key.startsWith(prefix) }
             .associate { it.key.removePrefix(prefix) to it.value }
+            .filterKeys { !isArtisanMeta(it) }
         return hashFiles(rel)
     }
+
+    /** relPaths whose first segment starts with `.artisan` are sync/editor
+     *  metadata — excluded from the hash and from uploads (mirrored in the
+     *  backend's hashUtils; locked by pack-hash-conformance.json). */
+    fun isArtisanMeta(relPath: String): Boolean =
+        relPath.substringBefore('/').startsWith(".artisan")
 
     fun hashAll(roots: net.artisanmc.plugin.project.ProjectRoots): String {
         val projects = roots.all()
