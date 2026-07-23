@@ -431,6 +431,15 @@ export function readEditorLayoutFromFiles(
   return parseEditorLayout(m.editor_layout);
 }
 
+/** The owning Add-on module id declared in `manifest.module`, or undefined. */
+export function readOwnerModuleFromFiles(
+  files: Record<string, string>,
+  projectId: string,
+): string | undefined {
+  const m = tryParse<ManifestYaml>(getFile(files, projectId, "manifest.yaml")) ?? {};
+  return typeof m.module === "string" && m.module ? m.module : undefined;
+}
+
 // ─── editor edges ─────────────────────────────────────────────────────────────
 
 const ANCHOR_SIDES = new Set(["top", "right", "bottom", "left"]);
