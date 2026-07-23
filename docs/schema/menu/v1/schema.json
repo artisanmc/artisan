@@ -276,9 +276,35 @@
           "description": "Identifiant stable de l'Element, unique au sein du menu."
         },
         "positions": {
-          "type": "string",
-          "pattern": "^\\d+(-\\d+)?$",
-          "description": "Position(s) Minecraft occupée(s). \"15\" ou range \"10-43\"."
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Position unique — forme canonique pour un seul slot (pas de quotes)."
+            },
+            {
+              "type": "string",
+              "pattern": "^\\d+(-\\d+)?(,\\d+(-\\d+)?)*$",
+              "description": "Range \"10-43\" ou liste séparée par virgules \"0,8,18-20\"."
+            },
+            {
+              "type": "array",
+              "items": {
+                "oneOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^\\d+(-\\d+)?$"
+                  }
+                ]
+              },
+              "description": "Liste YAML de positions et/ou ranges."
+            }
+          ],
+          "description": "Position(s) Minecraft occupée(s) : int nu, range/liste string, ou liste YAML."
         },
         "appearances": {
           "type": "array",

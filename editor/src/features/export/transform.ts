@@ -220,7 +220,9 @@ function serializeElement(el: Element, pack: Project): Record<string, unknown> {
   const appearances = tpl ? tpl.appearances : el.appearances;
   const out: Record<string, unknown> = {
     id: el.id,
-    positions: el.positions,
+    // A single numeric position emits as a bare int (no YAML quoting trap);
+    // ranges/comma lists stay strings.
+    positions: /^\d+$/.test(el.positions) ? Number(el.positions) : el.positions,
     appearances: appearances.map((a) => serializeAppearance(a, pack)),
   };
   if (el.iterates) {
