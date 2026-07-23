@@ -1,5 +1,6 @@
 package net.artisanmc.plugin.model
 
+import com.fasterxml.jackson.annotation.JsonAlias
 import com.fasterxml.jackson.annotation.JsonCreator
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonProperty
@@ -74,7 +75,10 @@ data class MenuYaml(
     val size: Int = 27,
     @JsonProperty("inventory_type") val inventoryType: String = "chest",
     val permission: String? = null,
-    @JsonProperty("context_inputs") val contextInputs: List<ContextInputYaml> = emptyList(),
+    // Canonical wire name: `inputs`; `context_inputs` is the legacy spelling.
+    @JsonProperty("inputs")
+    @JsonAlias("context_inputs")
+    val contextInputs: List<ContextInputYaml> = emptyList(),
     /** Canonical form: flat element list, document order = stacking order
      *  (later wins per slot). */
     val elements: List<ElementYaml> = emptyList(),

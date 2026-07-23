@@ -154,6 +154,20 @@
       "type": "string",
       "description": "Permission requise pour ouvrir le menu. Si absente, ouvert à tous."
     },
+    "inputs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/ContextInput"
+      },
+      "description": "Forme canonique (optionnelle) : slots nommées exposées par le menu — signature de paramètres (primitifs alimentés par les arguments de Command), shaping partagé (filter/sort/limit) et typage éditeur. Un élément peut aussi itérer une ref de source directement (iterates.source: \"ns:id\") sans la déclarer ici."
+    },
+    "context_inputs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/ContextInput"
+      },
+      "description": "Forme legacy de `inputs` — toujours acceptée en lecture ; l'export émet `inputs`."
+    },
     "notes": {
       "type": "string",
       "maxLength": 2048,
@@ -162,13 +176,6 @@
     "background": {
       "$ref": "#/$defs/Appearance",
       "description": "Apparence par défaut des positions Minecraft non couvertes par un Element visible."
-    },
-    "context_inputs": {
-      "type": "array",
-      "items": {
-        "$ref": "#/$defs/ContextInput"
-      },
-      "description": "Slots nommées exposées par le menu. Peuplées à l'ouverture par auto-binding par nom (cf. §15.4) ou par un ConnectorBinding (cf. §14). Référencées via {name} dans tout champ texte."
     },
     "open_requirements": {
       "type": "array",
@@ -449,7 +456,7 @@
         "source": {
           "type": "string",
           "pattern": "^[a-z][a-z0-9_]{0,63}$",
-          "description": "Nom d'un contextInput de type \"list\" déclaré sur le menu."
+          "description": "Nom d'un input du menu OU ref de source directe (`ns:id` / `pack:id`) — sucre canonique, résolue au rendu ; ref pendante = liste vide (non-hermétique)."
         },
         "alias": {
           "type": "string",

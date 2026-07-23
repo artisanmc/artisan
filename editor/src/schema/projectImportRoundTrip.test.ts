@@ -161,12 +161,12 @@ describe("projectImport round-trip (Boutique bootstrap → import → transform)
     expect(out["menus/shop_category.yaml"]!.title).toBe("{i18n:boutique.shop_category.title}");
   });
 
-  it("preserves every context_input (name/type/source ref + filter)", () => {
+  it("preserves every input (name/type/source ref + filter) under the canonical `inputs` key", () => {
     const { out } = roundTrip();
-    expect(out["menus/shop_main.yaml"]!.context_inputs).toEqual([
+    expect(out["menus/shop_main.yaml"]!.inputs).toEqual([
       { name: "cats", type: "list", source: { ref: "boutique:categories" } },
     ]);
-    expect(out["menus/shop_category.yaml"]!.context_inputs).toEqual([
+    expect(out["menus/shop_category.yaml"]!.inputs).toEqual([
       { name: "category", type: "string" },
       { name: "category_name", type: "string", default: "" },
       {

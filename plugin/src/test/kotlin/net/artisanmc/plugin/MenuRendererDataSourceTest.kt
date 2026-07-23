@@ -63,6 +63,43 @@ class MenuRendererDataSourceTest {
         assertNull(inv.getItem(11)) // apple filtrée (category != weapons)
     }
 
+    private fun directRefMenu(): MenuYaml = mapper.readValue(
+        """
+        schema: menu/v1
+        id: shop
+        title: []
+        size: 27
+        elements:
+          - id: grid
+            positions: 10-12
+            iterates: { source: "boutique:items", alias: item }
+            appearances:
+              - material: "{item.material}"
+                title: "{item.name}"
+        """.trimIndent(),
+    )
+
+    @Test fun `iterates source accepts a direct data source ref (no declared input)`() {
+        val p = player()
+        val registry = DataSourceRegistry()
+        registry.register(DataSourceDeclaration(
+            ref = "boutique:items",
+            fetcher = { _, _ -> listOf(
+                mapOf("id" to "sword", "name" to "Sword", "material" to "DIAMOND_SWORD"),
+            ) },
+        ))
+        val menu = BundleCompiler.compile(directRefMenu(), emptyMap())
+        MenuRenderer.open(p, menu, "en", ExecutionContext(p), dataSources = registry)
+        assertEquals(Material.DIAMOND_SWORD, p.openInventory.topInventory.getItem(10)?.type)
+    }
+
+    @Test fun `direct ref that resolves nothing renders empty (non-hermetic)`() {
+        val p = player()
+        val menu = BundleCompiler.compile(directRefMenu(), emptyMap())
+        MenuRenderer.open(p, menu, "en", ExecutionContext(p), dataSources = DataSourceRegistry())
+        assertNull(p.openInventory.topInventory.getItem(10))
+    }
+
     @Test fun `unknown ref renders an empty grid without throwing`() {
         val p = player()
         val menu = BundleCompiler.compile(shopMenu(), emptyMap())
