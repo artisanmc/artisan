@@ -491,13 +491,17 @@ export async function handlePluginMessage(
       // Propagate the manifest's Add-on owner id onto the existing editor state
       // (without clobbering the rest) so the sidebar groups it under "Installed
       // modules" after an upgrade — an existing project isn't a stub, so the
-      // import branch above never runs (ADR addon-owned-project-roots).
+      // import branch above never runs (ADR addon-owned-project-roots). ADD-ONLY:
+      // a push whose manifest lacks `module` must never strip an existing owner
+      // (the plugin re-downloads the backend's manifest, which may momentarily
+      // lag the ownership signal).
       const owner = readOwnerModuleFromFiles(files, projectId);
-      const editor = JSON.parse(project.editorJson) as Record<string, unknown>;
-      if (owner ? editor.ownerModule !== owner : editor.ownerModule !== undefined) {
-        if (owner) editor.ownerModule = owner;
-        else delete editor.ownerModule;
-        patch.editorJson = JSON.stringify(editor);
+      if (owner) {
+        const editor = JSON.parse(project.editorJson) as Record<string, unknown>;
+        if (editor.ownerModule !== owner) {
+          editor.ownerModule = owner;
+          patch.editorJson = JSON.stringify(editor);
+        }
       }
     }
     await upsertProjectContent(projectId, patch);
