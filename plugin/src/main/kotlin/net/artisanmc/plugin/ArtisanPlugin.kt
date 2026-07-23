@@ -130,7 +130,13 @@ open class ArtisanPlugin : JavaPlugin() {
         cooldowns = CooldownStore()
         sessions = MenuSessionStore()
         val evaluator = ConditionEvaluator(softDeps, cooldowns)
-        assetCatalog = net.artisanmc.plugin.resourcepack.AssetCatalog()
+        // Disk-cached asset index: glyph/font titles keep rendering with the
+        // backend down or gone (offline completeness — the catalog was
+        // previously HTTP-only and booted empty offline).
+        assetCatalog = net.artisanmc.plugin.resourcepack.AssetCatalog(
+            cacheFile = java.io.File(dataFolder, "cache/asset-index.json"),
+        )
+        assetCatalog.loadFromDisk()
 
         commandRegistrar = CommandRegistrar(this, langManager)
         menuProvider = SyncedMenuProvider(
