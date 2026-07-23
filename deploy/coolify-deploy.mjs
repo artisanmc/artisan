@@ -128,8 +128,8 @@ const isMainModule = process.argv[1]
   && import.meta.url === pathToFileURL(process.argv[1]).href;
 
 if (isMainModule) {
-  deployProduction({ fetchImpl: fetch, sleep: defaultSleep }, process.env).catch(() => {
-    console.error("Production deployment failed.");
+  deployProduction({ fetchImpl: fetch, sleep: defaultSleep }, process.env).catch((error) => {
+    console.error("Production deployment failed:", error?.message ?? error);
     process.exitCode = 1;
   });
 }
