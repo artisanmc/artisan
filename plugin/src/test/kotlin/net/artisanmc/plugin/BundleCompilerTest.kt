@@ -26,6 +26,19 @@ class BundleCompilerTest {
         assertTrue(result.slotToElement.isEmpty())
     }
 
+    @Test fun `compile accepts flat elements — later element wins the slot`() {
+        val m = MenuYaml(
+            id = "flat", size = 27,
+            elements = listOf(
+                element("under", "13", appearance("STONE")),
+                element("over", "13", appearance("DIRT")),
+            ),
+        )
+        val result = BundleCompiler.compile(m, emptyMap())
+        assertEquals("over", result.slotToElement[13])
+        assertTrue("under" in result.compiledAppearances)
+    }
+
     @Test fun `compile populates slotToElement for single slot`() {
         val m = menu(element("btn", "13", appearance()))
         val result = BundleCompiler.compile(m, emptyMap())

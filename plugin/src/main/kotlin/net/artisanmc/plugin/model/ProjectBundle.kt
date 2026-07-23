@@ -75,8 +75,15 @@ data class MenuYaml(
     @JsonProperty("inventory_type") val inventoryType: String = "chest",
     val permission: String? = null,
     @JsonProperty("context_inputs") val contextInputs: List<ContextInputYaml> = emptyList(),
+    /** Canonical form: flat element list, document order = stacking order
+     *  (later wins per slot). */
+    val elements: List<ElementYaml> = emptyList(),
+    /** Legacy form: layers wrapping (id/name carry no runtime behavior). */
     val layers: List<LayerYaml> = emptyList(),
-)
+) {
+    /** Every element in stacking order, whichever wire form carried them. */
+    val allElements: List<ElementYaml> get() = layers.flatMap { it.elements } + elements
+}
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class LayerYaml(

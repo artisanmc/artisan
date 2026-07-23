@@ -71,7 +71,7 @@ object MenuRenderer {
 
         // Pré-calcul des fenêtres de pagination de chaque élément itérant.
         val pageInfo = mutableMapOf<String, PageInfo>()
-        for (layer in menu.yaml.layers) for (element in layer.elements) {
+        for (element in menu.yaml.allElements) {
             val iter = element.iterates
             val places = element.places
             val pageCount = when {
@@ -136,65 +136,63 @@ object MenuRenderer {
         val activeClicks = mutableMapOf<Int, Map<ClickType, ClickHandler>>()
         val slotArgs = mutableMapOf<Int, Map<String, Any>>()
 
-        for (layer in menu.yaml.layers) {
-            for (element in layer.elements) {
-                val compiledList = menu.compiledAppearances[element.id] ?: emptyList()
-                val slots = parsePositions(element.positions, menu.yaml.size)
+        for (element in menu.yaml.allElements) {
+            val compiledList = menu.compiledAppearances[element.id] ?: emptyList()
+            val slots = parsePositions(element.positions, menu.yaml.size)
 
-                // Placement mode: pin explicit rows (matched by key_field) to
-                // hand-authored page+slot. Rows not placed are omitted; a placement
-                // whose key is absent from the source (removed while offline) dangles
-                // and its slot is simply left empty.
-                val places = element.places
-                if (places != null) {
-                    val list = sourceList(renderCtx.args, places.source)
-                    val byKey = list.filterIsInstance<Map<*, *>>()
-                        .associateBy { it[places.keyField]?.toString() }
-                    val info = renderCtx.pageInfo[element.id] ?: PageInfo(0, 1)
-                    for (placement in places.placements) {
-                        if (placement.page != info.page) continue
-                        if (placement.position !in 0 until menu.yaml.size) continue
-                        val row = byKey[placement.key] ?: continue
-                        val itemArgs = mapOf(places.alias to row)
-                        val itemCtx = renderCtx.copy(args = renderCtx.args + itemArgs)
-                        val chosen = compiledList.firstOrNull { evaluator.evaluateAll(it.conditions, itemCtx) }
-                            ?: continue
-                        inv.setItem(placement.position, buildItem(chosen.yaml, langMap, itemCtx, evaluator.deps))
-                        if (chosen.clicks.isNotEmpty()) {
-                            activeClicks[placement.position] = chosen.clicks
-                            slotArgs[placement.position] = itemArgs
-                        }
-                    }
-                    continue
-                }
-
-                val iter = element.iterates
-                if (iter == null) {
-                    val chosen = compiledList.firstOrNull { ca ->
-                        evaluator.evaluateAll(ca.conditions, renderCtx)
-                    } ?: continue
-                    val item = buildItem(chosen.yaml, langMap, renderCtx, evaluator.deps)
-                    for (slot in slots) {
-                        inv.setItem(slot, item)
-                        if (chosen.clicks.isNotEmpty()) activeClicks[slot] = chosen.clicks
-                    }
-                    continue
-                }
-                // Élément itérant : une entrée de la liste par slot, fenêtrée par page.
-                val list = sourceList(renderCtx.args, iter.source)
+            // Placement mode: pin explicit rows (matched by key_field) to
+            // hand-authored page+slot. Rows not placed are omitted; a placement
+            // whose key is absent from the source (removed while offline) dangles
+            // and its slot is simply left empty.
+            val places = element.places
+            if (places != null) {
+                val list = sourceList(renderCtx.args, places.source)
+                val byKey = list.filterIsInstance<Map<*, *>>()
+                    .associateBy { it[places.keyField]?.toString() }
                 val info = renderCtx.pageInfo[element.id] ?: PageInfo(0, 1)
-                val window = list.drop(info.page * slots.size).take(slots.size)
-                window.forEachIndexed { i, entry ->
-                    val slot = slots[i]
-                    val itemArgs = mapOf(iter.alias to (entry ?: ""))
+                for (placement in places.placements) {
+                    if (placement.page != info.page) continue
+                    if (placement.position !in 0 until menu.yaml.size) continue
+                    val row = byKey[placement.key] ?: continue
+                    val itemArgs = mapOf(places.alias to row)
                     val itemCtx = renderCtx.copy(args = renderCtx.args + itemArgs)
                     val chosen = compiledList.firstOrNull { evaluator.evaluateAll(it.conditions, itemCtx) }
-                        ?: return@forEachIndexed
-                    inv.setItem(slot, buildItem(chosen.yaml, langMap, itemCtx, evaluator.deps))
+                        ?: continue
+                    inv.setItem(placement.position, buildItem(chosen.yaml, langMap, itemCtx, evaluator.deps))
                     if (chosen.clicks.isNotEmpty()) {
-                        activeClicks[slot] = chosen.clicks
-                        slotArgs[slot] = itemArgs
+                        activeClicks[placement.position] = chosen.clicks
+                        slotArgs[placement.position] = itemArgs
                     }
+                }
+                continue
+            }
+
+            val iter = element.iterates
+            if (iter == null) {
+                val chosen = compiledList.firstOrNull { ca ->
+                    evaluator.evaluateAll(ca.conditions, renderCtx)
+                } ?: continue
+                val item = buildItem(chosen.yaml, langMap, renderCtx, evaluator.deps)
+                for (slot in slots) {
+                    inv.setItem(slot, item)
+                    if (chosen.clicks.isNotEmpty()) activeClicks[slot] = chosen.clicks
+                }
+                continue
+            }
+            // Élément itérant : une entrée de la liste par slot, fenêtrée par page.
+            val list = sourceList(renderCtx.args, iter.source)
+            val info = renderCtx.pageInfo[element.id] ?: PageInfo(0, 1)
+            val window = list.drop(info.page * slots.size).take(slots.size)
+            window.forEachIndexed { i, entry ->
+                val slot = slots[i]
+                val itemArgs = mapOf(iter.alias to (entry ?: ""))
+                val itemCtx = renderCtx.copy(args = renderCtx.args + itemArgs)
+                val chosen = compiledList.firstOrNull { evaluator.evaluateAll(it.conditions, itemCtx) }
+                    ?: return@forEachIndexed
+                inv.setItem(slot, buildItem(chosen.yaml, langMap, itemCtx, evaluator.deps))
+                if (chosen.clicks.isNotEmpty()) {
+                    activeClicks[slot] = chosen.clicks
+                    slotArgs[slot] = itemArgs
                 }
             }
         }
