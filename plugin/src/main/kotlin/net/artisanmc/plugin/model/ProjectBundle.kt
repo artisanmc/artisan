@@ -21,6 +21,7 @@ data class ManifestFiles(
     val menus: List<String> = emptyList(),
     val commands: List<String> = emptyList(),
     val dialogs: List<String> = emptyList(),
+    val templates: List<String> = emptyList(),
 )
 
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -33,7 +34,13 @@ data class ContextInputYaml(
 )
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-data class IteratesYaml(val source: String = "", val alias: String = "")
+data class IteratesYaml(
+    val source: String = "",
+    val alias: String = "",
+    /** Item template ref (templates/<id>.yaml) — alias + appearances come from
+     *  the template, resolved at load by [net.artisanmc.plugin.yaml.ProjectReader]. */
+    val template: String? = null,
+)
 
 /**
  * Placement mode — the hand-authored alternative to [IteratesYaml] pagination.
@@ -46,7 +53,27 @@ data class PlacesYaml(
     val source: String = "",
     val alias: String = "",
     @JsonProperty("key_field") val keyField: String = "",
+    /** Item template ref — alias/key_field/appearances come from the template. */
+    val template: String? = null,
     val placements: List<PlacementYaml> = emptyList(),
+)
+
+/**
+ * `templates/<id>.yaml` (template/v1) — a named view over one data source: THE
+ * row template (appearances + click), referenced by elements via
+ * `iterates.template` / `places.template` and resolved into effective elements
+ * at load ([net.artisanmc.plugin.yaml.ProjectReader]). Hand-editing a template
+ * file + reload propagates to every consuming menu.
+ */
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class TemplateYaml(
+    val schema: String = "",
+    val id: String = "",
+    val name: String = "",
+    val source: String = "",
+    val alias: String = "",
+    @JsonProperty("key_field") val keyField: String = "",
+    val appearances: List<AppearanceYaml> = emptyList(),
 )
 
 @JsonIgnoreProperties(ignoreUnknown = true)

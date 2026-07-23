@@ -220,8 +220,11 @@ states on row fields (never per-item overrides). A source may have **several**
 Item templates (two Menus can render the same model differently), but within one
 Menu every bound row of a source renders through a **single** template. Elements
 consume a template in either mode — **pagination** or **placement** — via
-`templateId`; at export the template's appearances are inlined into each bound
-element, so `menu/v1` and the plugin are unaware templates exist. For a **static**
+`templateId`; on disk the template is its own file (`templates/<id>.yaml`) and
+bound elements carry a **reference** (`template: <id>`), resolved by the plugin
+at load — hand-editing a template file propagates to every consuming menu (ADR
+`files-first-source-of-truth`; the pre-2026-07-23 export inlined appearances
+into each element instead). For a **static**
 source the template also materializes the rows as draggable tiles in the editor's
 library (organized by its `groupBy` field — pure library arrangement, no runtime
 effect); for a **dynamic** source it materializes as a single draggable

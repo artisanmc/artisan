@@ -482,8 +482,9 @@ export interface CapturedItem {
  * renders as a menu slot — appearances (material/title/lore/count) **and click
  * behaviour** — with per-row variation via conditional appearance states (never
  * per-item overrides). Consumed by elements through `iterates.templateId` /
- * `places.templateId`; **inlined at export**, so menu/v1 and the plugin never see
- * templates. N templates per source; one template per (menu, source).
+ * `places.templateId`; on disk it is `templates/<id>.yaml` and bound elements
+ * carry a `template:` REF — resolved by the plugin at load (never inlined).
+ * N templates per source; one template per (menu, source).
  * Cf. ADR `item-templates-and-data-library` + CONTEXT.md "Item template".
  */
 export interface ItemTemplate {
