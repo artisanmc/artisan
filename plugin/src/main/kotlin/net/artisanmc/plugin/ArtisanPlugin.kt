@@ -204,7 +204,11 @@ open class ArtisanPlugin : JavaPlugin() {
             logger = logger,
             assetCatalog = assetCatalog,
             delegator = delegator,
+            cacheFile = java.io.File(dataFolder, "cache/resource-pack.json"),
         )
+        // Restore the last applied pack info so push mode survives a restart
+        // during a backend outage (a later hello_ack simply refreshes).
+        resourcePackManager.loadFromDisk()
         syncedProvider?.setResourcePackManager(resourcePackManager)
         server.pluginManager.registerEvents(resourcePackManager, this)
         menuProvider.load()
@@ -368,7 +372,9 @@ open class ArtisanPlugin : JavaPlugin() {
             logger = logger,
             assetCatalog = assetCatalog,
             delegator = delegatorReinit,
+            cacheFile = java.io.File(dataFolder, "cache/resource-pack.json"),
         )
+        resourcePackManagerReinit.loadFromDisk()
         syncedProviderReinit?.setResourcePackManager(resourcePackManagerReinit)
         server.pluginManager.registerEvents(resourcePackManagerReinit, this)
         menuProvider.load()
