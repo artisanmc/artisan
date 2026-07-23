@@ -195,8 +195,18 @@ describe("validateCommandV1", () => {
     expect(r.errors.join("\n")).toMatch(/vocabulary/i);
   });
 
-  it("rejects a structurally invalid command (missing name)", () => {
+  it("accepts a command without name (defaults to id at load)", () => {
     const r = validateCommandV1({ schema: "command/v1", id: "c", steps: "close_menu" });
+    expect(r.valid).toBe(true);
+  });
+
+  it("accepts the canonical `actions` field", () => {
+    const r = validateCommandV1({ schema: "command/v1", id: "c", actions: "close_menu" });
+    expect(r.valid).toBe(true);
+  });
+
+  it("rejects a structurally invalid command (no actions nor steps)", () => {
+    const r = validateCommandV1({ schema: "command/v1", id: "c" });
     expect(r.valid).toBe(false);
   });
 

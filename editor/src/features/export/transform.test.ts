@@ -460,7 +460,7 @@ describe("transform", () => {
     expect(app.title).toBe("{i18n:menus.shop.elements.btn.default.title}");
     expect(app.lore).toEqual(["{i18n:menus.shop.elements.btn.default.lore}"]);
     // Click steps are an Action DSL string; menu text is a Key site → `@key`.
-    expect(app.click.left.steps).toBe(
+    expect(app.click.left).toBe(
       "send_message @menus.shop.elements.btn.default.click.left.message",
     );
   });
@@ -552,7 +552,7 @@ describe("transform", () => {
     });
     const files = transform(pack);
     const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
-    const steps = menu.layers[0].elements[0].appearances[0].click.left.steps;
+    const steps = menu.layers[0].elements[0].appearances[0].click.left;
     expect(steps).toBe(
       "show_title @menus.shop.elements.btn.default.click.left.show_title " +
         "@menus.shop.elements.btn.default.click.left.show_subtitle fadeIn=5 stay=40 fadeOut=15",
@@ -605,7 +605,7 @@ describe("transform", () => {
     });
     const files = transform(pack);
     const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
-    const steps = menu.layers[0].elements[0].appearances[0].click.left.steps;
+    const steps = menu.layers[0].elements[0].appearances[0].click.left;
     // No subtitle / timings → DSL carries only the title ref.
     expect(steps).toBe("show_title @menus.shop.elements.btn.default.click.left.show_title");
   });
@@ -651,7 +651,7 @@ describe("transform", () => {
     });
     const files = transform(pack);
     const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
-    const steps = menu.layers[0].elements[0].appearances[0].click.left.steps;
+    const steps = menu.layers[0].elements[0].appearances[0].click.left;
     // DSL: bare menu id + `clear` modifier (no snake_case wire fields).
     expect(steps).toBe("open_menu profile clear");
     expect(steps).not.toContain("menuId");
@@ -691,9 +691,9 @@ describe("transform", () => {
     });
     const files = transform(pack);
     const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
-    const steps = menu.layers[0].elements[0].appearances[0].click.left.steps;
-    // DSL emits `paginate <direction> [elementId]`, one per line.
-    expect(steps).toBe("paginate next\npaginate prev grid");
+    // Canonical collapsed form: the handler IS the DSL string, one action per line.
+    const dsl = menu.layers[0].elements[0].appearances[0].click.left;
+    expect(dsl).toBe("paginate next\npaginate prev grid");
   });
 
   it("emits a command yaml", () => {
@@ -713,9 +713,23 @@ describe("transform", () => {
     const cmd = parse(files["plugins/Artisan/projects/p_test/commands/heal.yaml"]!);
     expect(cmd.schema).toBe("command/v1");
     expect(cmd.id).toBe("heal");
-    expect(cmd.name).toBe("heal");
+    // `name` is omitted when it equals `id`; action chain is the `actions` field.
+    expect(cmd.name).toBeUndefined();
+    expect("actions" in cmd).toBe(true);
+    expect(cmd.steps).toBeUndefined();
     expect(cmd.aliases).toEqual(["h"]);
     expect(cmd.arguments[0].name).toBe("target");
+  });
+
+  it("emits command name only when it differs from id", () => {
+    const pack = makeProject({
+      commands: [
+        { id: commandId("boutique_open"), projectId: projectId("p_test"), name: "boutique", arguments: [], steps: [] },
+      ],
+    });
+    const files = transform(pack);
+    const cmd = parse(files["plugins/Artisan/projects/p_test/commands/boutique_open.yaml"]!);
+    expect(cmd.name).toBe("boutique");
   });
 
   it("emits one lang file per language with only referenced keys", () => {
@@ -1456,7 +1470,7 @@ describe("transform — appearance conditions", () => {
 });
 
 describe("packToCommandV1 / packToDialogV1", () => {
-  it("serializes a command to command/v1 with steps", () => {
+  it("serializes a command to command/v1 with actions", () => {
     const pack = makeProject({
       commands: [
         {
@@ -1467,9 +1481,9 @@ describe("packToCommandV1 / packToDialogV1", () => {
       ],
     });
     const [cmd] = packToCommandV1(pack);
-    expect(cmd).toMatchObject({ schema: "command/v1", id: "heal", name: "heal" });
-    // steps is now an Action DSL string.
-    expect((cmd as any).steps).toBe("close_menu");
+    expect(cmd).toMatchObject({ schema: "command/v1", id: "heal" });
+    // The action chain is the `actions` Action DSL string; name omitted (== id).
+    expect((cmd as any).actions).toBe("close_menu");
     expect((cmd as any).arguments[0]).toEqual({ name: "n", type: "integer", required: true });
   });
 

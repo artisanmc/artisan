@@ -22,6 +22,23 @@ class CommandCompilerTest {
         assertIs<Action.SendMessage>(result.handler.actions[0])
     }
 
+    @Test fun `actions as DSL string compiles like steps`() {
+        val yaml = CommandYaml(id = "boutique", actions = "close_menu")
+        val result = CommandCompiler.compile(yaml)
+        assertNotNull(result)
+        assertEquals(1, result.handler.steps.size)
+    }
+
+    @Test fun `name defaults to id when absent`() {
+        val yaml = CommandYaml(id = "boutique", actions = "close_menu")
+        assertEquals("boutique", CommandCompiler.compile(yaml)?.name)
+    }
+
+    @Test fun `explicit name wins over id`() {
+        val yaml = CommandYaml(id = "boutique_open", name = "boutique", actions = "close_menu")
+        assertEquals("boutique", CommandCompiler.compile(yaml)?.name)
+    }
+
     @Test fun `compile command with aliases`() {
         val yaml = CommandYaml(name = "shop", aliases = listOf("store", "buy"))
         val result = CommandCompiler.compile(yaml)

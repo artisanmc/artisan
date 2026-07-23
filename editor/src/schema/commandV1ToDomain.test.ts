@@ -49,6 +49,23 @@ describe("commandV1ToDomain", () => {
     expect(i18nKeys[a.action.text.key]).toEqual({ en: "ok" });
   });
 
+  it("reads the canonical `actions` field and defaults name to id", () => {
+    const { command } = commandV1ToDomain(
+      { schema: "command/v1", id: "boutique", actions: "close_menu" },
+      opts,
+    );
+    expect(command.name).toBe("boutique");
+    expect(command.steps).toEqual([{ kind: "action", action: { type: "close_menu" } }]);
+  });
+
+  it("prefers `actions` over legacy `steps` when both are present", () => {
+    const { command } = commandV1ToDomain(
+      { schema: "command/v1", id: "c", actions: "close_menu", steps: 'send_message "old"' },
+      opts,
+    );
+    expect(command.steps).toEqual([{ kind: "action", action: { type: "close_menu" } }]);
+  });
+
   it("flags requirements/fallback/cooldown and unsupported arg types", () => {
     const { command, unsupported } = commandV1ToDomain(
       {

@@ -68,10 +68,12 @@ export function menuV1ToDomain(
     if (!click || typeof click !== "object") return undefined;
     const out: ClickMap = {};
     for (const ct of CLICK_TYPES) {
-      const handler = click[ct] as Json | undefined;
+      const handler = click[ct] as Json | string | undefined;
       if (!handler) continue;
-      // Click-handler `steps` is an Action DSL string (menu/v1 Phase 2).
-      out[ct] = { steps: parseSteps(handler.steps) } satisfies ClickHandler;
+      // Canonical collapsed form: the handler IS the Action DSL string.
+      // Legacy object form `{steps: "<dsl>"}` is still accepted.
+      const dsl = typeof handler === "string" ? handler : handler.steps;
+      out[ct] = { steps: parseSteps(dsl) } satisfies ClickHandler;
     }
     return Object.keys(out).length > 0 ? out : undefined;
   }

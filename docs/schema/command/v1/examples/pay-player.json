@@ -1,7 +1,6 @@
 {
   "schema": "command/v1",
   "id": "pay",
-  "name": "pay",
   "permission": "artisan.cmd.pay",
   "description": "Transfère de l'argent à un autre joueur.",
   "arguments": [
@@ -19,11 +18,21 @@
     }
   ],
   "requirements": [
-    { "type": "has_money", "amount": 1 }
+    {
+      "type": "has_money",
+      "amount": 1
+    }
   ],
-  "steps": "take_money 1\nrun_command \"eco give %args_target% %args_amount%\" as console\nsend_message \"§aVous avez envoyé %args_amount% pièces à %args_target%.\"\nplay_sound entity.experience_orb.pickup",
   "fallback": [
-    { "type": "send_message", "text": "§cVous n'avez pas assez d'argent." }
+    {
+      "type": "send_message",
+      "text": "§cVous n'avez pas assez d'argent."
+    }
   ],
-  "cooldown": { "id": "pay_cmd", "duration_seconds": 5, "scope": "player" }
+  "cooldown": {
+    "id": "pay_cmd",
+    "duration_seconds": 5,
+    "scope": "player"
+  },
+  "actions": "take_money 1\nrun_command \"eco give %args_target% %args_amount%\" as console\nsend_message \"§aVous avez envoyé %args_amount% pièces à %args_target%.\"\nplay_sound entity.experience_orb.pickup"
 }

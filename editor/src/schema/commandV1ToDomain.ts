@@ -48,8 +48,9 @@ export function commandV1ToDomain(
     pushUnsupported: (s) => unsupported.push(s),
   });
 
-  // command/v1 `steps` is an Action DSL string (Phase 2 of ADR action-dsl).
-  const steps = parseSteps(src.steps);
+  // command/v1 action chain is an Action DSL string (Phase 2 of ADR action-dsl).
+  // Canonical field is `actions`; `steps` is the legacy spelling still accepted.
+  const steps = parseSteps(src.actions ?? src.steps);
 
   const args: CommandArg[] = ((src.arguments as Json[]) ?? []).map((a) => {
     let type = a.type as string;
@@ -73,7 +74,7 @@ export function commandV1ToDomain(
   const command: DomainCommand = {
     id: src.id as CommandId,
     projectId: opts.projectId,
-    name: src.name,
+    name: src.name ?? src.id,
     arguments: args,
     steps,
     ...(Array.isArray(src.aliases) && src.aliases.length > 0 ? { aliases: src.aliases } : {}),
