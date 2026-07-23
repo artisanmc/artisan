@@ -18,7 +18,6 @@ import type {
   DialogInput,
   Element,
   I18nKey,
-  Layer,
   ItemTemplate,
   Menu,
   MenuTitleLayer,
@@ -247,12 +246,11 @@ function serializeElement(el: Element, pack: Project): Record<string, unknown> {
 
 // ─── layer serialization ─────────────────────────────────────────────────────
 
-function serializeLayer(layer: Layer, pack: Project): Record<string, unknown> {
-  return {
-    id: layer.id,
-    name: layer.name,
-    elements: layer.elements.map((el) => serializeElement(el, pack)),
-  };
+/** Canonical wire is a flat `elements` list (document order = stacking order,
+ *  later wins per slot) — editor layers flatten at export; the legacy `layers`
+ *  wrapping is import-only. */
+function serializeElements(menu: Menu, pack: Project): Record<string, unknown>[] {
+  return menu.layers.flatMap((l) => l.elements).map((el) => serializeElement(el, pack));
 }
 
 // ─── title layer serialization ───────────────────────────────────────────────
@@ -475,7 +473,7 @@ export function serializeMenuToV1(
     id: menu.id,
     title: menu.title.map(serializeTitleLayer),
     size: slotCount(type, menu.rows),
-    layers: menu.layers.map((l) => serializeLayer(l, pack)),
+    elements: serializeElements(menu, pack),
   };
   if (type !== "chest") out.inventory_type = type;
   if (menu.permission) out.permission = menu.permission;

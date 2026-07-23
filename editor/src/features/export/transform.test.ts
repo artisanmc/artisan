@@ -121,7 +121,7 @@ describe("transform", () => {
     });
     const files = transform(pack);
     const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
-    const el = menu.layers[0].elements[0];
+    const el = menu.elements[0];
     expect(el.iterates).toBeUndefined();
     expect(el.places).toEqual({
       source: "items", alias: "item", key_field: "id",
@@ -188,7 +188,7 @@ describe("transform", () => {
         },
       ]);
       const files = transform(pack);
-      const el = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!).layers[0].elements[0];
+      const el = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!).elements[0];
       // Template wins over the element's stale local fields.
       expect(el.places).toEqual({
         source: "items", alias: "row", key_field: "id",
@@ -208,7 +208,7 @@ describe("transform", () => {
         },
       ]);
       const files = transform(pack);
-      const el = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!).layers[0].elements[0];
+      const el = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!).elements[0];
       expect(el.iterates).toEqual({ source: "items", alias: "row" });
       expect(el.appearances).toEqual([
         { material: "{row.icon}", count: 1, title: "{i18n:k_tpl}" },
@@ -243,7 +243,7 @@ describe("transform", () => {
         },
       ]);
       const files = transform(pack);
-      const el = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!).layers[0].elements[0];
+      const el = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!).elements[0];
       expect(el.places).toEqual({
         source: "items", alias: "item", key_field: "id",
         placements: [{ key: "sword", page: 0, position: 10 }],
@@ -456,7 +456,7 @@ describe("transform", () => {
     });
     const files = transform(pack);
     const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
-    const app = menu.layers[0].elements[0].appearances[0];
+    const app = menu.elements[0].appearances[0];
     expect(app.title).toBe("{i18n:menus.shop.elements.btn.default.title}");
     expect(app.lore).toEqual(["{i18n:menus.shop.elements.btn.default.lore}"]);
     // Click steps are an Action DSL string; menu text is a Key site → `@key`.
@@ -496,7 +496,7 @@ describe("transform", () => {
     });
     const files = transform(pack);
     const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
-    const app = menu.layers[0].elements[0].appearances[0];
+    const app = menu.elements[0].appearances[0];
     expect(app.material).toBe("PLAYER_HEAD");
     expect(app.head).toBe("basehead:eyJ0ZXh0dXJlcyI6e319");
   });
@@ -552,7 +552,7 @@ describe("transform", () => {
     });
     const files = transform(pack);
     const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
-    const steps = menu.layers[0].elements[0].appearances[0].click.left;
+    const steps = menu.elements[0].appearances[0].click.left;
     expect(steps).toBe(
       "show_title @menus.shop.elements.btn.default.click.left.show_title " +
         "@menus.shop.elements.btn.default.click.left.show_subtitle fadeIn=5 stay=40 fadeOut=15",
@@ -605,7 +605,7 @@ describe("transform", () => {
     });
     const files = transform(pack);
     const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
-    const steps = menu.layers[0].elements[0].appearances[0].click.left;
+    const steps = menu.elements[0].appearances[0].click.left;
     // No subtitle / timings → DSL carries only the title ref.
     expect(steps).toBe("show_title @menus.shop.elements.btn.default.click.left.show_title");
   });
@@ -651,7 +651,7 @@ describe("transform", () => {
     });
     const files = transform(pack);
     const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
-    const steps = menu.layers[0].elements[0].appearances[0].click.left;
+    const steps = menu.elements[0].appearances[0].click.left;
     // DSL: bare menu id + `clear` modifier (no snake_case wire fields).
     expect(steps).toBe("open_menu profile clear");
     expect(steps).not.toContain("menuId");
@@ -692,7 +692,7 @@ describe("transform", () => {
     const files = transform(pack);
     const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
     // Canonical collapsed form: the handler IS the DSL string, one action per line.
-    const dsl = menu.layers[0].elements[0].appearances[0].click.left;
+    const dsl = menu.elements[0].appearances[0].click.left;
     expect(dsl).toBe("paginate next\npaginate prev grid");
   });
 
@@ -1425,7 +1425,7 @@ describe("transform — appearance conditions", () => {
 
   const getApp = (files: Record<string, string>) => {
     const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
-    return menu.layers[0].elements[0].appearances[0];
+    return menu.elements[0].appearances[0];
   };
 
   it("single condition is written as a one-element array", () => {

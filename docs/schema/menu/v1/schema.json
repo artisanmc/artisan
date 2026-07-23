@@ -5,7 +5,8 @@
   "description": "Format intermédiaire d'un menu Artisan. Source de vérité unique pour un menu.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema", "id", "title", "size", "layers"],
+  "required": ["schema", "id", "title", "size"],
+  "anyOf": [{ "required": ["elements"] }, { "required": ["layers"] }],
   "allOf": [
     {
       "if": { "required": ["inventory_type"], "properties": { "inventory_type": { "const": "hopper" } } },
@@ -77,11 +78,16 @@
       "type": "string",
       "description": "Action DSL exécutée à la fermeture du menu (cf. ADR action-dsl)."
     },
+    "elements": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Element" },
+      "description": "Forme canonique : liste plate des éléments du menu. L'ordre du document = ordre d'empilement ; en cas de collision de slot, le dernier gagne."
+    },
     "layers": {
       "type": "array",
       "minItems": 1,
       "items": { "$ref": "#/$defs/Layer" },
-      "description": "Liste des layers du menu, ordonnés bottom → top."
+      "description": "Forme legacy : enveloppe layers (id/name sans comportement runtime). Toujours acceptée en lecture ; l'export émet `elements` à plat."
     },
     "metadata": {
       "type": "object",

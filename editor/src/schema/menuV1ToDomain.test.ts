@@ -120,6 +120,24 @@ describe("menuV1ToDomain — actions + steps (Action DSL)", () => {
     });
   });
 
+  it("accepts flat top-level `elements` (canonical form, no layers)", () => {
+    const r = menuV1ToDomain(
+      {
+        schema: "menu/v1",
+        id: "shop",
+        title: [],
+        size: 27,
+        elements: [
+          { id: "a", positions: "0", appearances: [{ material: "STONE" }] },
+          { id: "b", positions: "1", appearances: [{ material: "DIRT" }] },
+        ],
+      },
+      opts,
+    );
+    expect(r.menu.layers).toHaveLength(1);
+    expect(r.menu.layers[0]!.elements.map((e) => e.id)).toEqual(["a", "b"]);
+  });
+
   it("accepts a click handler as a bare DSL string (canonical collapsed form)", () => {
     const menu = menuWithClick("left", "close_menu");
     const el = (menu.layers as any[])[0].elements[0];

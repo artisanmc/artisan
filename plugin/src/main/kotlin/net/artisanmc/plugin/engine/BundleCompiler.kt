@@ -17,16 +17,14 @@ object BundleCompiler {
         val compiledAppearances = mutableMapOf<String, List<CompiledAppearance>>()
         val slotToElement = mutableMapOf<Int, String>()
 
-        for (layer in yaml.layers) {
-            for (element in layer.elements) {
-                val slots = parsePositions(element.positions, yaml.size)
-                slots.forEach { slot -> slotToElement[slot] = element.id }
+        for (element in yaml.allElements) {
+            val slots = parsePositions(element.positions, yaml.size)
+            slots.forEach { slot -> slotToElement[slot] = element.id }
 
-                val compiled = element.appearances.mapNotNull { app ->
-                    compileAppearance(app, yaml.id, element.id, logger)
-                }
-                if (compiled.isNotEmpty()) compiledAppearances[element.id] = compiled
+            val compiled = element.appearances.mapNotNull { app ->
+                compileAppearance(app, yaml.id, element.id, logger)
             }
+            if (compiled.isNotEmpty()) compiledAppearances[element.id] = compiled
         }
 
         return BundleMenu(yaml, langMaps, compiledAppearances, slotToElement, defaultLang = defaultLang)
