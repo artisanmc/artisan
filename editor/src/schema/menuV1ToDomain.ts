@@ -107,7 +107,15 @@ export function menuV1ToDomain(
   }
 
   // ── title layers (inverse of serializeTitleLayer) ─────────────────────────
+  /** Layer `value`: canonical string form (`"{i18n:key}"` or literal) or the
+   *  legacy `{key}` object form. */
+  function layerValue(v: unknown): LText {
+    return typeof v === "string" ? text(v) : ref((v as Json)?.key ?? "");
+  }
+
   function titleLayer(l: Json): MenuTitleLayer | null {
+    // A bare string entry is a plain text layer (canonical sugar).
+    if (typeof l === "string") return { kind: "plain", value: text(l) };
     switch (l.kind) {
       case "background":
         return { kind: "background", assetId: l.asset_id as AssetId };
@@ -116,7 +124,7 @@ export function menuV1ToDomain(
       case "text": {
         const out: MenuTitleLayer = {
           kind: "text",
-          value: ref(l.value.key),
+          value: layerValue(l.value),
           x: l.x,
           y: l.y,
         };
@@ -126,14 +134,14 @@ export function menuV1ToDomain(
         return out;
       }
       case "plain": {
-        const out: MenuTitleLayer = { kind: "plain", value: ref(l.value.key) };
+        const out: MenuTitleLayer = { kind: "plain", value: layerValue(l.value) };
         if (l.color !== undefined) out.color = l.color;
         return out;
       }
       case "textarea": {
         const out: MenuTitleLayer = {
           kind: "textarea",
-          value: ref(l.value.key),
+          value: layerValue(l.value),
           x: l.x,
           y: l.y,
           width: l.width,
@@ -210,7 +218,12 @@ export function menuV1ToDomain(
   const rows = (
     inventoryType === "chest" ? src.size / 9 : (INVENTORY_TYPES[inventoryType].rows ?? 1)
   ) as 1 | 2 | 3 | 4 | 5 | 6;
-  const title = ((src.title as Json[]) ?? []).map(titleLayer).filter(Boolean) as MenuTitleLayer[];
+  // Canonical sugar: a bare-string title is one plain text layer.
+  const title = (
+    typeof src.title === "string"
+      ? [titleLayer(src.title as unknown as Json)]
+      : ((src.title as Json[]) ?? []).map(titleLayer)
+  ).filter(Boolean) as MenuTitleLayer[];
   const contextInputs = (src.context_inputs as Json[] | undefined)?.map(contextInput);
   const menu: DomainMenu = {
     id: src.id as MenuId,

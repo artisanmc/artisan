@@ -30,7 +30,14 @@ object MenuTitleParser {
             MenuTitleLayer.Plain(value = literalToLText(node))
         )
         is Map<*, *> -> listOfNotNull(parseLayer(node as Map<String, Any?>))
-        is List<*> -> node.mapNotNull { (it as? Map<String, Any?>)?.let(::parseLayer) }
+        is List<*> -> node.mapNotNull { entry ->
+            when (entry) {
+                // Canonical sugar: a bare string entry is a plain text layer.
+                is String -> if (entry.isEmpty()) null else MenuTitleLayer.Plain(value = literalToLText(entry))
+                is Map<*, *> -> parseLayer(entry as Map<String, Any?>)
+                else -> null
+            }
+        }
         else -> emptyList()
     }
 
@@ -90,6 +97,9 @@ object MenuTitleParser {
     }
 
     private fun parseLText(v: Any?): LText = when (v) {
+        // Canonical string form: "{i18n:key}" ref or inline literal.
+        is String -> literalToLText(v)
+        // Legacy {key} object form.
         is Map<*, *> -> LText(key = v["key"] as? String ?: "")
         else -> LText(key = "")
     }

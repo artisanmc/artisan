@@ -156,12 +156,9 @@ function roundTrip(): { project: Project; out: Record<string, Json>; rawOut: Rec
 describe("projectImport round-trip (Boutique bootstrap → import → transform)", () => {
   it("preserves title layer i18n keys", () => {
     const { out } = roundTrip();
-    expect(out["menus/shop_main.yaml"]!.title).toEqual([
-      { kind: "plain", value: { key: "boutique.shop_main.title" } },
-    ]);
-    expect(out["menus/shop_category.yaml"]!.title).toEqual([
-      { kind: "plain", value: { key: "boutique.shop_category.title" } },
-    ]);
+    // Single plain layers re-export as the canonical bare-string sugar.
+    expect(out["menus/shop_main.yaml"]!.title).toBe("{i18n:boutique.shop_main.title}");
+    expect(out["menus/shop_category.yaml"]!.title).toBe("{i18n:boutique.shop_category.title}");
   });
 
   it("preserves every context_input (name/type/source ref + filter)", () => {

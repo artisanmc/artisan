@@ -400,7 +400,7 @@ describe("transform", () => {
     expect(menu.title).toHaveLength(1);
     expect(menu.title[0]).toEqual({
       kind: "text",
-      value: { key: "menus.shop.title" },
+      value: "{i18n:menus.shop.title}",
       x: 8,
       y: 5,
     });
@@ -888,11 +888,10 @@ describe("transform — title layers", () => {
       ],
     });
 
-  it("emits a plain-only title as a one-layer array (no legacy string shortcut)", () => {
+  it("emits a plain-only title as a bare string (canonical sugar)", () => {
     const files = transform(menuWithTitle([{ kind: "plain", value: { key: "k_plain" as I18nKey } }]));
     const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
-    expect(Array.isArray(menu.title)).toBe(true);
-    expect(menu.title).toEqual([{ kind: "plain", value: { key: "k_plain" } }]);
+    expect(menu.title).toBe("{i18n:k_plain}");
   });
 
   it("serializes a background layer to { kind, asset_id }", () => {
@@ -925,7 +924,7 @@ describe("transform — title layers", () => {
     );
     const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
     expect(menu.title).toEqual([
-      { kind: "text", value: { key: "k_text" }, x: 8, y: 5 },
+      { kind: "text", value: "{i18n:k_text}", x: 8, y: 5 },
     ]);
     expect(menu.title[0]).not.toHaveProperty("color");
     expect(menu.title[0]).not.toHaveProperty("font_asset_id");
@@ -947,7 +946,7 @@ describe("transform — title layers", () => {
     const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
     expect(menu.title[0]).toEqual({
       kind: "text",
-      value: { key: "k_text" },
+      value: "{i18n:k_text}",
       x: 8,
       y: 5,
       color: "#FFAA00",
@@ -979,7 +978,7 @@ describe("transform — title layers", () => {
     expect(menu.title).toEqual([
       { kind: "background", asset_id: "asset_bg" },
       { kind: "glyph", asset_id: "asset_g1", x: 10, y: 2 },
-      { kind: "text", value: { key: "k_title" }, x: 8, y: 5, color: "#FFAA00" },
+      { kind: "text", value: "{i18n:k_title}", x: 8, y: 5, color: "#FFAA00" },
     ]);
   });
 
@@ -1004,7 +1003,7 @@ describe("transform — title layers", () => {
     expect(yaml).toContain("asset_id: asset_a1b2c3");
     expect(yaml).toContain("kind: glyph");
     expect(yaml).toContain("kind: text");
-    expect(yaml).toContain("key: k_xyz");
+    expect(yaml).toContain("value: \"{i18n:k_xyz}\"");
     expect(yaml).toContain("color");
     expect(yaml).toContain("#FFAA00");
 
@@ -1012,7 +1011,7 @@ describe("transform — title layers", () => {
     expect(parsed.title).toEqual([
       { kind: "background", asset_id: "asset_a1b2c3" },
       { kind: "glyph", asset_id: "asset_d4e5f6", x: 32, y: 4 },
-      { kind: "text", value: { key: "k_xyz" }, x: 8, y: 5, color: "#FFAA00" },
+      { kind: "text", value: "{i18n:k_xyz}", x: 8, y: 5, color: "#FFAA00" },
     ]);
   });
 });
@@ -1050,7 +1049,7 @@ describe("transform — textarea title layer", () => {
     expect(menu.title).toHaveLength(1);
     expect(menu.title[0]).toEqual({
       kind: "textarea",
-      value: { key: "k_ta" },
+      value: "{i18n:k_ta}",
       x: 12,
       y: 8,
       width: 120,
@@ -1120,7 +1119,7 @@ describe("parseTitleNode — textarea", () => {
     const result = parseTitleNode([
       {
         kind: "textarea",
-        value: { key: "k_ta" },
+        value: "{i18n:k_ta}",
         x: 12,
         y: 8,
         width: 120,
@@ -1147,7 +1146,7 @@ describe("parseTitleNode — textarea", () => {
     const result = parseTitleNode([
       {
         kind: "textarea",
-        value: { key: "k_ta" },
+        value: "{i18n:k_ta}",
         x: 0,
         y: 0,
       },
@@ -1160,7 +1159,7 @@ describe("parseTitleNode — textarea", () => {
     const result = parseTitleNode([
       {
         kind: "textarea",
-        value: { key: "k_ta" },
+        value: "{i18n:k_ta}",
         x: 0,
         y: 0,
         width: 168,
@@ -1190,7 +1189,7 @@ describe("parseTitleNode — textarea", () => {
     const result = parseTitleNode([
       {
         kind: "textarea",
-        value: { key: "k_ta" },
+        value: "{i18n:k_ta}",
         x: 0,
         y: 0,
         width: 168,
@@ -1206,7 +1205,7 @@ describe("parseTitleNode — textarea", () => {
     const result = parseTitleNode([
       {
         kind: "textarea",
-        value: { key: "k_ta" },
+        value: "{i18n:k_ta}",
         x: 0,
         y: 0,
         width: 168,
@@ -1289,7 +1288,7 @@ describe("parseTitleNode — legacy reader", () => {
       { kind: "glyph", asset_id: "asset_g1", x: 10, y: 2 },
       {
         kind: "text",
-        value: { key: "k_title" },
+        value: "{i18n:k_title}",
         x: 8,
         y: 5,
         color: "#FFAA00",
