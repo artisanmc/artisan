@@ -858,6 +858,7 @@ export default {
     myProjects: "My Projects",
     installedModules: "Installed modules",
     noModules: "No module installed.",
+    configuration: "Configuration",
     newProject: "+ New project",
     setupHint: "Create a Network or run <1>{{cmd}}</1> on your server to start.",
     networkLabel: "Network",
