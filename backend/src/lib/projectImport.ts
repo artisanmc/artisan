@@ -175,28 +175,35 @@ function importSteps(ctx: I18nCtx, steps: unknown): unknown[] {
 const TEXT_SIZES = [8, 12, 16, 20, 24, 32];
 const CLICK_TYPES = ["left", "right", "shift_left", "shift_right", "middle"];
 
+/** Layer `value`: canonical string form (`"{i18n:key}"` or literal) or legacy `{key}`. */
+function importLayerValue(ctx: I18nCtx, v: unknown): unknown {
+  return typeof v === "string" ? text(ctx, v) : ref(ctx, (v as Json)?.key ?? "");
+}
+
 function importTitleLayer(ctx: I18nCtx, l: Json): unknown | null {
+  // A bare string entry is a plain text layer (canonical sugar).
+  if (typeof l === "string") return { kind: "plain", value: text(ctx, l) };
   switch (l.kind) {
     case "background":
       return { kind: "background", assetId: l.asset_id };
     case "glyph":
       return { kind: "glyph", assetId: l.asset_id, x: l.x, y: l.y };
     case "text": {
-      const out: Json = { kind: "text", value: ref(ctx, l.value?.key ?? ""), x: l.x, y: l.y };
+      const out: Json = { kind: "text", value: importLayerValue(ctx, l.value), x: l.x, y: l.y };
       if (l.color !== undefined) out.color = l.color;
       if (l.font_asset_id !== undefined) out.fontAssetId = l.font_asset_id;
       if (l.size !== undefined && TEXT_SIZES.includes(l.size)) out.size = l.size;
       return out;
     }
     case "plain": {
-      const out: Json = { kind: "plain", value: ref(ctx, l.value?.key ?? "") };
+      const out: Json = { kind: "plain", value: importLayerValue(ctx, l.value) };
       if (l.color !== undefined) out.color = l.color;
       return out;
     }
     case "textarea": {
       const out: Json = {
         kind: "textarea",
-        value: ref(ctx, l.value?.key ?? ""),
+        value: importLayerValue(ctx, l.value),
         x: l.x,
         y: l.y,
         width: l.width,

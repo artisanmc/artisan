@@ -24,6 +24,31 @@ class MenuTitleParserTest {
         assertNull(plain.color)
     }
 
+    @Test fun `layer value accepts the canonical string form`() {
+        val result = MenuTitleParser.parse(
+            listOf(mapOf("kind" to "text", "value" to "{i18n:menus.shop.title}", "x" to 8, "y" to 5)),
+        )
+        val text = result.single() as MenuTitleLayer.Text
+        assertEquals(LText("menus.shop.title"), text.value)
+    }
+
+    @Test fun `layer value accepts an inline literal string`() {
+        val result = MenuTitleParser.parse(listOf(mapOf("kind" to "plain", "value" to "Boutique")))
+        assertEquals(LText("Boutique"), (result.single() as MenuTitleLayer.Plain).value)
+    }
+
+    @Test fun `bare string entries in a layer list are plain layers`() {
+        val result = MenuTitleParser.parse(
+            listOf(
+                "{i18n:menus.shop.line1}",
+                mapOf("kind" to "glyph", "asset_id" to "a", "x" to 0, "y" to 0),
+            ),
+        )
+        assertEquals(2, result.size)
+        assertEquals(LText("menus.shop.line1"), (result[0] as MenuTitleLayer.Plain).value)
+        assertIs<MenuTitleLayer.Glyph>(result[1])
+    }
+
     @Test fun `legacy i18n-wrapped string unwraps the bare key into a plain layer`() {
         val result = MenuTitleParser.parse("{i18n:menu.shop.title}")
         val plain = result.single() as MenuTitleLayer.Plain

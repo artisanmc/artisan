@@ -5,20 +5,93 @@
   "description": "Format intermédiaire d'un menu Artisan. Source de vérité unique pour un menu.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema", "id", "title", "size"],
-  "anyOf": [{ "required": ["elements"] }, { "required": ["layers"] }],
+  "required": [
+    "schema",
+    "id",
+    "title",
+    "size"
+  ],
+  "anyOf": [
+    {
+      "required": [
+        "elements"
+      ]
+    },
+    {
+      "required": [
+        "layers"
+      ]
+    }
+  ],
   "allOf": [
     {
-      "if": { "required": ["inventory_type"], "properties": { "inventory_type": { "const": "hopper" } } },
-      "then": { "properties": { "size": { "const": 5 } } }
+      "if": {
+        "required": [
+          "inventory_type"
+        ],
+        "properties": {
+          "inventory_type": {
+            "const": "hopper"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "size": {
+            "const": 5
+          }
+        }
+      }
     },
     {
-      "if": { "required": ["inventory_type"], "properties": { "inventory_type": { "const": "dropper" } } },
-      "then": { "properties": { "size": { "const": 9 } } }
+      "if": {
+        "required": [
+          "inventory_type"
+        ],
+        "properties": {
+          "inventory_type": {
+            "const": "dropper"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "size": {
+            "const": 9
+          }
+        }
+      }
     },
     {
-      "if": { "not": { "required": ["inventory_type"], "properties": { "inventory_type": { "enum": ["hopper", "dropper"] } } } },
-      "then": { "properties": { "size": { "enum": [9, 18, 27, 36, 45, 54] } } }
+      "if": {
+        "not": {
+          "required": [
+            "inventory_type"
+          ],
+          "properties": {
+            "inventory_type": {
+              "enum": [
+                "hopper",
+                "dropper"
+              ]
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "size": {
+            "enum": [
+              9,
+              18,
+              27,
+              36,
+              45,
+              54
+            ]
+          }
+        }
+      }
     }
   ],
   "properties": {
@@ -32,18 +105,48 @@
       "description": "Identifiant stable du menu, utilisé en /menu open <id>. Lowercase + underscore."
     },
     "title": {
-      "type": "array",
-      "items": { "$ref": "#/$defs/MenuTitleLayer" },
-      "description": "Couches de titre, ordonnées. Vide = pas de titre. Format pixel-perfect (offsets, fonts) documenté dans editor-internals.md."
+      "oneOf": [
+        {
+          "type": "string",
+          "description": "Forme canonique sucre : titre = une seule couche plain ('{i18n:key}' ou littéral)."
+        },
+        {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "type": "string",
+                "description": "Entrée string = couche plain."
+              },
+              {
+                "$ref": "#/$defs/MenuTitleLayer"
+              }
+            ]
+          },
+          "description": "Couches de titre, ordonnées. Vide = pas de titre. Format pixel-perfect (offsets, fonts) documenté dans editor-internals.md."
+        }
+      ]
     },
     "size": {
       "type": "integer",
-      "enum": [5, 9, 18, 27, 36, 45, 54],
+      "enum": [
+        5,
+        9,
+        18,
+        27,
+        36,
+        45,
+        54
+      ],
       "description": "Taille de l'inventaire en nombre de positions. chest = multiple de 9 (max 54) ; hopper = 5 ; dropper = 9. Validation croisée avec inventory_type."
     },
     "inventory_type": {
       "type": "string",
-      "enum": ["chest", "hopper", "dropper"],
+      "enum": [
+        "chest",
+        "hopper",
+        "dropper"
+      ],
       "default": "chest",
       "description": "Type de conteneur. Absent = chest (rétro-compatible). chest = grille 9×rows ; hopper = 5×1 ; dropper = 3×3."
     },
@@ -62,12 +165,16 @@
     },
     "context_inputs": {
       "type": "array",
-      "items": { "$ref": "#/$defs/ContextInput" },
+      "items": {
+        "$ref": "#/$defs/ContextInput"
+      },
       "description": "Slots nommées exposées par le menu. Peuplées à l'ouverture par auto-binding par nom (cf. §15.4) ou par un ConnectorBinding (cf. §14). Référencées via {name} dans tout champ texte."
     },
     "open_requirements": {
       "type": "array",
-      "items": { "$ref": "#/$defs/Condition" },
+      "items": {
+        "$ref": "#/$defs/Condition"
+      },
       "description": "Conditions à valider à l'ouverture. Si une échoue, le menu ne s'ouvre pas."
     },
     "open_actions": {
@@ -80,13 +187,17 @@
     },
     "elements": {
       "type": "array",
-      "items": { "$ref": "#/$defs/Element" },
+      "items": {
+        "$ref": "#/$defs/Element"
+      },
       "description": "Forme canonique : liste plate des éléments du menu. L'ordre du document = ordre d'empilement ; en cas de collision de slot, le dernier gagne."
     },
     "layers": {
       "type": "array",
       "minItems": 1,
-      "items": { "$ref": "#/$defs/Layer" },
+      "items": {
+        "$ref": "#/$defs/Layer"
+      },
       "description": "Forme legacy : enveloppe layers (id/name sans comportement runtime). Toujours acceptée en lecture ; l'export émet `elements` à plat."
     },
     "metadata": {
@@ -96,12 +207,22 @@
       "properties": {
         "uses_plugins": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "description": "Liste des plugins tiers référencés via component_ref ou ContextInput.source. Calculée automatiquement."
         },
-        "created_at": { "type": "string", "format": "date-time" },
-        "updated_at": { "type": "string", "format": "date-time" },
-        "author": { "type": "string" }
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "author": {
+          "type": "string"
+        }
       }
     }
   },
@@ -109,7 +230,11 @@
     "Layer": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "name", "elements"],
+      "required": [
+        "id",
+        "name",
+        "elements"
+      ],
       "properties": {
         "id": {
           "type": "string",
@@ -129,7 +254,9 @@
         },
         "elements": {
           "type": "array",
-          "items": { "$ref": "#/$defs/Element" },
+          "items": {
+            "$ref": "#/$defs/Element"
+          },
           "description": "Elements contenus dans ce layer. Last-placed-wins en cas de chevauchement."
         }
       }
@@ -137,7 +264,11 @@
     "Element": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "positions", "appearances"],
+      "required": [
+        "id",
+        "positions",
+        "appearances"
+      ],
       "properties": {
         "id": {
           "type": "string",
@@ -152,7 +283,9 @@
         "appearances": {
           "type": "array",
           "minItems": 1,
-          "items": { "$ref": "#/$defs/Appearance" },
+          "items": {
+            "$ref": "#/$defs/Appearance"
+          },
           "description": "Apparences évaluées dans l'ordre. Première dont `if` matche gagne. Aucune match → fall-through au layer suivant."
         },
         "iterates": {
@@ -161,13 +294,19 @@
         },
         "template_ref": {
           "oneOf": [
-            { "type": "null" },
-            { "$ref": "#/$defs/TemplateRef" }
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/TemplateRef"
+            }
           ]
         },
         "tags": {
           "type": "array",
-          "items": { "type": "string" }
+          "items": {
+            "type": "string"
+          }
         },
         "notes": {
           "type": "string",
@@ -179,7 +318,10 @@
     "ContextInput": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["name", "type"],
+      "required": [
+        "name",
+        "type"
+      ],
       "description": "Slot nommée et typée exposée par le menu. Peuplée à l'ouverture par auto-binding par nom (depuis l'appelant : args de commande, contextInputs de l'appelant, alias d'iteration courant — cf. §15.4) ou via un ConnectorBinding attaché.",
       "properties": {
         "name": {
@@ -189,7 +331,15 @@
         },
         "type": {
           "type": "string",
-          "enum": ["player", "string", "integer", "number", "boolean", "list", "object"]
+          "enum": [
+            "player",
+            "string",
+            "integer",
+            "number",
+            "boolean",
+            "list",
+            "object"
+          ]
         },
         "row_of": {
           "type": "string",
@@ -208,7 +358,9 @@
     "ConnectorBinding": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["ref"],
+      "required": [
+        "ref"
+      ],
       "description": "Référence (côté consommateur) vers une data source (homemade Artisan ou registered par un plugin tiers en V2). Attaché à un ContextInput via `source`. Le plugin appelle la data source au render et obtient une liste/objet typé qui peuple la slot.",
       "properties": {
         "ref": {
@@ -218,21 +370,37 @@
         },
         "params": {
           "type": "object",
-          "additionalProperties": { "type": "string" },
+          "additionalProperties": {
+            "type": "string"
+          },
           "description": "Paramètres passés à la data source (varient par data source). Supportent {name} pour interpoler les autres contextInputs du menu."
         },
         "filter": {
           "type": "object",
-          "additionalProperties": { "type": "string" },
+          "additionalProperties": {
+            "type": "string"
+          },
           "description": "Filtres appliqués sur les champs de la data. Supportent {name} pour interpoler les autres contextInputs. Ex: { \"category\": \"{category}\" } ne garde que les items dont category == valeur de l'input \"category\"."
         },
         "sort": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["by"],
+          "required": [
+            "by"
+          ],
           "properties": {
-            "by": { "type": "string", "description": "Nom du champ de tri." },
-            "direction": { "type": "string", "enum": ["asc", "desc"], "default": "asc" }
+            "by": {
+              "type": "string",
+              "description": "Nom du champ de tri."
+            },
+            "direction": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "default": "asc"
+            }
           }
         },
         "limit": {
@@ -246,7 +414,10 @@
     "Iterates": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["source", "alias"],
+      "required": [
+        "source",
+        "alias"
+      ],
       "description": "Iteration : pour chaque item du contextInput `source` (type \"list\"), le moteur évalue les appearances de l'Element avec l'item courant exposé sous `alias`. Les champs accèdent aux propriétés de l'item via {alias.field}.",
       "properties": {
         "source": {
@@ -269,25 +440,56 @@
         "if": {
           "type": "array",
           "minItems": 1,
-          "items": { "$ref": "#/$defs/Condition" },
+          "items": {
+            "$ref": "#/$defs/Condition"
+          },
           "description": "Conditions ANDées. Si absent, matche toujours (fallback)."
         },
-        "asset": { "type": "string" },
-        "material": { "type": "string", "description": "Material vanilla (DIAMOND), ou un placeholder : {input_name} pour un contextInput, {alias.field} dans un Element qui itère." },
-        "head": { "type": "string", "description": "Tête custom quand material = PLAYER_HEAD : hdb:<id> (HeadDatabase), basehead:<base64>, ou playerhead:<pseudo> (placeholders résolus au rendu). Ignoré pour tout autre material." },
-        "count": { "type": "integer", "minimum": 1, "maximum": 64, "default": 1 },
-        "title": { "type": "string" },
-        "lore": { "type": "array", "items": { "type": "string" } },
-        "enchanted": { "type": "boolean", "default": false },
-        "custom_model_data": { "type": "string" },
+        "asset": {
+          "type": "string"
+        },
+        "material": {
+          "type": "string",
+          "description": "Material vanilla (DIAMOND), ou un placeholder : {input_name} pour un contextInput, {alias.field} dans un Element qui itère."
+        },
+        "head": {
+          "type": "string",
+          "description": "Tête custom quand material = PLAYER_HEAD : hdb:<id> (HeadDatabase), basehead:<base64>, ou playerhead:<pseudo> (placeholders résolus au rendu). Ignoré pour tout autre material."
+        },
+        "count": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 64,
+          "default": 1
+        },
+        "title": {
+          "type": "string"
+        },
+        "lore": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "enchanted": {
+          "type": "boolean",
+          "default": false
+        },
+        "custom_model_data": {
+          "type": "string"
+        },
         "component_ref": {
           "type": "string",
           "pattern": "^[a-z][a-z0-9_]*:[a-z][a-z0-9_]*$"
         },
         "click": {
           "oneOf": [
-            { "$ref": "#/$defs/ClickMap" },
-            { "type": "null" }
+            {
+              "$ref": "#/$defs/ClickMap"
+            },
+            {
+              "type": "null"
+            }
           ]
         },
         "notes": {
@@ -301,11 +503,21 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "left":        { "$ref": "#/$defs/ClickHandler" },
-        "right":       { "$ref": "#/$defs/ClickHandler" },
-        "shift_left":  { "$ref": "#/$defs/ClickHandler" },
-        "shift_right": { "$ref": "#/$defs/ClickHandler" },
-        "middle":      { "$ref": "#/$defs/ClickHandler" }
+        "left": {
+          "$ref": "#/$defs/ClickHandler"
+        },
+        "right": {
+          "$ref": "#/$defs/ClickHandler"
+        },
+        "shift_left": {
+          "$ref": "#/$defs/ClickHandler"
+        },
+        "shift_right": {
+          "$ref": "#/$defs/ClickHandler"
+        },
+        "middle": {
+          "$ref": "#/$defs/ClickHandler"
+        }
       }
     },
     "ClickHandler": {
@@ -317,7 +529,9 @@
         {
           "type": "object",
           "additionalProperties": false,
-          "required": ["steps"],
+          "required": [
+            "steps"
+          ],
           "properties": {
             "steps": {
               "type": "string",
@@ -332,113 +546,1091 @@
         {
           "type": "object",
           "additionalProperties": false,
-          "required": ["kind", "action"],
+          "required": [
+            "kind",
+            "action"
+          ],
           "properties": {
-            "kind": { "const": "action" },
-            "action": { "$ref": "#/$defs/Action" }
+            "kind": {
+              "const": "action"
+            },
+            "action": {
+              "$ref": "#/$defs/Action"
+            }
           }
         },
         {
           "type": "object",
           "additionalProperties": false,
-          "required": ["kind", "cases"],
+          "required": [
+            "kind",
+            "cases"
+          ],
           "properties": {
-            "kind": { "const": "if" },
+            "kind": {
+              "const": "if"
+            },
             "cases": {
               "type": "array",
               "minItems": 1,
               "items": {
                 "type": "object",
                 "additionalProperties": false,
-                "required": ["conditions", "steps"],
+                "required": [
+                  "conditions",
+                  "steps"
+                ],
                 "properties": {
-                  "conditions": { "type": "array", "items": { "$ref": "#/$defs/Condition" } },
-                  "joins": { "type": "array", "items": { "type": "string", "enum": ["and", "or"] } },
-                  "steps": { "type": "array", "items": { "$ref": "#/$defs/Step" } }
+                  "conditions": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/Condition"
+                    }
+                  },
+                  "joins": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "and",
+                        "or"
+                      ]
+                    }
+                  },
+                  "steps": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/Step"
+                    }
+                  }
                 }
               }
             },
-            "else": { "type": "array", "items": { "$ref": "#/$defs/Step" } }
+            "else": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Step"
+              }
+            }
           }
         }
       ]
     },
     "LText": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["key"],
-      "properties": { "key": { "type": "string" } },
-      "description": "Référence i18n. La valeur résolue vit dans lang/<lang>.yaml. (Note: les title-layers utilisent cette forme {key} ; les autres champs texte utilisent la string {i18n:key} — harmonisation future.)"
+      "oneOf": [
+        {
+          "type": "string",
+          "description": "Forme canonique : '{i18n:key}' (référence) ou littéral inline (politique hybride). Une seule forme string pour tous les champs texte."
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "key"
+          ],
+          "properties": {
+            "key": {
+              "type": "string"
+            }
+          },
+          "description": "Forme legacy {key} — acceptée en lecture ; l'export émet la forme string."
+        }
+      ]
     },
     "MenuTitleLayer": {
       "oneOf": [
-        { "type": "object", "additionalProperties": false, "required": ["kind", "asset_id"], "properties": { "kind": { "const": "background" }, "asset_id": { "type": "string" } } },
-        { "type": "object", "additionalProperties": false, "required": ["kind", "asset_id", "x", "y"], "properties": { "kind": { "const": "glyph" }, "asset_id": { "type": "string" }, "x": { "type": "integer" }, "y": { "type": "integer" } } },
-        { "type": "object", "additionalProperties": false, "required": ["kind", "value", "x", "y"], "properties": { "kind": { "const": "text" }, "value": { "$ref": "#/$defs/LText" }, "x": { "type": "integer" }, "y": { "type": "integer" }, "color": { "type": "string" }, "font_asset_id": { "type": "string" }, "size": { "type": "integer", "enum": [8, 12, 16, 20, 24, 32] } } },
-        { "type": "object", "additionalProperties": false, "required": ["kind", "value"], "properties": { "kind": { "const": "plain" }, "value": { "$ref": "#/$defs/LText" }, "color": { "type": "string" } } },
-        { "type": "object", "additionalProperties": false, "required": ["kind", "value", "x", "y", "width", "line_height", "alignment"], "properties": { "kind": { "const": "textarea" }, "value": { "$ref": "#/$defs/LText" }, "x": { "type": "integer" }, "y": { "type": "integer" }, "width": { "type": "integer" }, "line_height": { "type": "integer" }, "alignment": { "type": "string", "enum": ["left", "center", "right"] }, "font_asset_id": { "type": "string" }, "size": { "type": "integer", "enum": [8, 12, 16, 20, 24, 32] } } },
-        { "type": "object", "additionalProperties": false, "required": ["kind", "provider", "glyph_name", "x", "y"], "properties": { "kind": { "const": "external_glyph" }, "provider": { "type": "string", "enum": ["oraxen", "nexo", "itemsadder"] }, "glyph_name": { "type": "string" }, "x": { "type": "integer" }, "y": { "type": "integer" } } }
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "asset_id"
+          ],
+          "properties": {
+            "kind": {
+              "const": "background"
+            },
+            "asset_id": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "asset_id",
+            "x",
+            "y"
+          ],
+          "properties": {
+            "kind": {
+              "const": "glyph"
+            },
+            "asset_id": {
+              "type": "string"
+            },
+            "x": {
+              "type": "integer"
+            },
+            "y": {
+              "type": "integer"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "value",
+            "x",
+            "y"
+          ],
+          "properties": {
+            "kind": {
+              "const": "text"
+            },
+            "value": {
+              "$ref": "#/$defs/LText"
+            },
+            "x": {
+              "type": "integer"
+            },
+            "y": {
+              "type": "integer"
+            },
+            "color": {
+              "type": "string"
+            },
+            "font_asset_id": {
+              "type": "string"
+            },
+            "size": {
+              "type": "integer",
+              "enum": [
+                8,
+                12,
+                16,
+                20,
+                24,
+                32
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "value"
+          ],
+          "properties": {
+            "kind": {
+              "const": "plain"
+            },
+            "value": {
+              "$ref": "#/$defs/LText"
+            },
+            "color": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "value",
+            "x",
+            "y",
+            "width",
+            "line_height",
+            "alignment"
+          ],
+          "properties": {
+            "kind": {
+              "const": "textarea"
+            },
+            "value": {
+              "$ref": "#/$defs/LText"
+            },
+            "x": {
+              "type": "integer"
+            },
+            "y": {
+              "type": "integer"
+            },
+            "width": {
+              "type": "integer"
+            },
+            "line_height": {
+              "type": "integer"
+            },
+            "alignment": {
+              "type": "string",
+              "enum": [
+                "left",
+                "center",
+                "right"
+              ]
+            },
+            "font_asset_id": {
+              "type": "string"
+            },
+            "size": {
+              "type": "integer",
+              "enum": [
+                8,
+                12,
+                16,
+                20,
+                24,
+                32
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "provider",
+            "glyph_name",
+            "x",
+            "y"
+          ],
+          "properties": {
+            "kind": {
+              "const": "external_glyph"
+            },
+            "provider": {
+              "type": "string",
+              "enum": [
+                "oraxen",
+                "nexo",
+                "itemsadder"
+              ]
+            },
+            "glyph_name": {
+              "type": "string"
+            },
+            "x": {
+              "type": "integer"
+            },
+            "y": {
+              "type": "integer"
+            }
+          }
+        }
       ]
     },
     "TemplateRef": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id"],
+      "required": [
+        "id"
+      ],
       "properties": {
-        "id":        { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
-        "vars":      { "type": "object", "additionalProperties": true },
-        "overrides": { "type": "object", "additionalProperties": true }
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$"
+        },
+        "vars": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "overrides": {
+          "type": "object",
+          "additionalProperties": true
+        }
       }
     },
     "Action": {
       "type": "object",
-      "required": ["type"],
+      "required": [
+        "type"
+      ],
       "oneOf": [
-        { "additionalProperties": false, "required": ["type", "command"], "properties": { "type": { "const": "run_command" }, "command": { "type": "string" }, "as": { "type": "string", "enum": ["player", "console"], "default": "player" } } },
-        { "additionalProperties": false, "required": ["type", "menu_id"], "properties": { "type": { "const": "open_menu" }, "menu_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" }, "close_current": { "type": "boolean", "default": true }, "context": { "type": "object", "additionalProperties": { "type": "string" }, "description": "Override explicite de l'auto-binding par nom (cf. §15.4). Chaque entrée peuple un contextInput du menu cible ; les valeurs supportent {name} pour interpoler la scope courante." }, "clear_context": { "type": "boolean", "default": false, "description": "Désactive l'auto-binding par nom (l'override `context` reste actif)." } } },
-        { "additionalProperties": false, "required": ["type"],            "properties": { "type": { "const": "close_menu" } } },
-        { "additionalProperties": false, "required": ["type", "material", "count"], "properties": { "type": { "const": "give_item" }, "material": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]*$" }, "count": { "type": "integer", "minimum": 1, "maximum": 64 }, "nbt": { "type": "string" }, "name": { "type": "string" }, "lore": { "type": "array", "items": { "type": "string" } } } },
-        { "additionalProperties": false, "required": ["type", "material", "count"], "properties": { "type": { "const": "take_item" }, "material": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]*$" }, "count": { "type": "integer", "minimum": 1, "maximum": 64 }, "nbt": { "type": "string" } } },
-        { "additionalProperties": false, "required": ["type", "amount"], "properties": { "type": { "const": "give_money" }, "amount": { "type": "number", "exclusiveMinimum": 0 }, "currency": { "type": "string" } } },
-        { "additionalProperties": false, "required": ["type", "amount"], "properties": { "type": { "const": "take_money" }, "amount": { "type": "number", "exclusiveMinimum": 0 }, "currency": { "type": "string" } } },
-        { "additionalProperties": false, "required": ["type", "amount"], "properties": { "type": { "const": "give_xp" }, "amount": { "type": "integer", "minimum": 1 } } },
-        { "additionalProperties": false, "required": ["type", "amount"], "properties": { "type": { "const": "give_level" }, "amount": { "type": "integer", "minimum": 1 } } },
-        { "additionalProperties": false, "required": ["type", "text"], "properties": { "type": { "const": "send_message" }, "text": { "type": "string" } } },
-        { "additionalProperties": false, "required": ["type", "text"], "properties": { "type": { "const": "broadcast" }, "text": { "type": "string" } } },
-        { "additionalProperties": false, "required": ["type", "sound"], "properties": { "type": { "const": "play_sound" }, "sound": { "type": "string" }, "volume": { "type": "number", "minimum": 0, "maximum": 1, "default": 1 }, "pitch": { "type": "number", "minimum": 0, "maximum": 2, "default": 1 } } },
-        { "additionalProperties": false, "required": ["type"], "properties": { "type": { "const": "teleport" }, "world": { "type": "string" }, "x": { "type": "number" }, "y": { "type": "number" }, "z": { "type": "number" }, "yaw": { "type": "number" }, "pitch": { "type": "number" } } },
-        { "additionalProperties": false, "required": ["type"], "properties": { "type": { "const": "pagination_next" }, "element_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$" } } },
-        { "additionalProperties": false, "required": ["type"], "properties": { "type": { "const": "pagination_prev" }, "element_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$" } } },
-        { "additionalProperties": false, "required": ["type", "title"], "properties": { "type": { "const": "show_title" }, "title": { "type": "string" }, "subtitle": { "type": "string" }, "fade_in": { "type": "integer", "minimum": 0 }, "stay": { "type": "integer", "minimum": 0 }, "fade_out": { "type": "integer", "minimum": 0 } } },
-        { "additionalProperties": false, "required": ["type", "dialog_id"], "properties": { "type": { "const": "open_dialog" }, "dialog_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" }, "context": { "type": "object", "additionalProperties": { "type": "string" } }, "clear_context": { "type": "boolean", "default": false } } },
-        { "additionalProperties": false, "required": ["type"], "properties": { "type": { "const": "close_dialog" } } },
-        { "additionalProperties": false, "required": ["type", "arg", "value"], "properties": { "type": { "const": "set_arg" }, "arg": { "type": "string" }, "value": { "type": "string" } } },
-        { "additionalProperties": false, "required": ["type", "arg", "list"], "properties": { "type": { "const": "set_arg_cycle_next" }, "arg": { "type": "string" }, "list": { "type": "string" } } },
-        { "additionalProperties": false, "required": ["type", "arg", "list"], "properties": { "type": { "const": "set_arg_cycle_prev" }, "arg": { "type": "string" }, "list": { "type": "string" } } }
+        {
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "command"
+          ],
+          "properties": {
+            "type": {
+              "const": "run_command"
+            },
+            "command": {
+              "type": "string"
+            },
+            "as": {
+              "type": "string",
+              "enum": [
+                "player",
+                "console"
+              ],
+              "default": "player"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "menu_id"
+          ],
+          "properties": {
+            "type": {
+              "const": "open_menu"
+            },
+            "menu_id": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]*$"
+            },
+            "close_current": {
+              "type": "boolean",
+              "default": true
+            },
+            "context": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              },
+              "description": "Override explicite de l'auto-binding par nom (cf. §15.4). Chaque entrée peuple un contextInput du menu cible ; les valeurs supportent {name} pour interpoler la scope courante."
+            },
+            "clear_context": {
+              "type": "boolean",
+              "default": false,
+              "description": "Désactive l'auto-binding par nom (l'override `context` reste actif)."
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "const": "close_menu"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "material",
+            "count"
+          ],
+          "properties": {
+            "type": {
+              "const": "give_item"
+            },
+            "material": {
+              "type": "string",
+              "pattern": "^[A-Z][A-Z0-9_]*$"
+            },
+            "count": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 64
+            },
+            "nbt": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "lore": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "material",
+            "count"
+          ],
+          "properties": {
+            "type": {
+              "const": "take_item"
+            },
+            "material": {
+              "type": "string",
+              "pattern": "^[A-Z][A-Z0-9_]*$"
+            },
+            "count": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 64
+            },
+            "nbt": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "amount"
+          ],
+          "properties": {
+            "type": {
+              "const": "give_money"
+            },
+            "amount": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "currency": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "amount"
+          ],
+          "properties": {
+            "type": {
+              "const": "take_money"
+            },
+            "amount": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "currency": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "amount"
+          ],
+          "properties": {
+            "type": {
+              "const": "give_xp"
+            },
+            "amount": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "amount"
+          ],
+          "properties": {
+            "type": {
+              "const": "give_level"
+            },
+            "amount": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "text"
+          ],
+          "properties": {
+            "type": {
+              "const": "send_message"
+            },
+            "text": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "text"
+          ],
+          "properties": {
+            "type": {
+              "const": "broadcast"
+            },
+            "text": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "sound"
+          ],
+          "properties": {
+            "type": {
+              "const": "play_sound"
+            },
+            "sound": {
+              "type": "string"
+            },
+            "volume": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "default": 1
+            },
+            "pitch": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 2,
+              "default": 1
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "const": "teleport"
+            },
+            "world": {
+              "type": "string"
+            },
+            "x": {
+              "type": "number"
+            },
+            "y": {
+              "type": "number"
+            },
+            "z": {
+              "type": "number"
+            },
+            "yaw": {
+              "type": "number"
+            },
+            "pitch": {
+              "type": "number"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "const": "pagination_next"
+            },
+            "element_id": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]{0,63}$"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "const": "pagination_prev"
+            },
+            "element_id": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]{0,63}$"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "title"
+          ],
+          "properties": {
+            "type": {
+              "const": "show_title"
+            },
+            "title": {
+              "type": "string"
+            },
+            "subtitle": {
+              "type": "string"
+            },
+            "fade_in": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "stay": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "fade_out": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "dialog_id"
+          ],
+          "properties": {
+            "type": {
+              "const": "open_dialog"
+            },
+            "dialog_id": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]*$"
+            },
+            "context": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "clear_context": {
+              "type": "boolean",
+              "default": false
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "const": "close_dialog"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "arg",
+            "value"
+          ],
+          "properties": {
+            "type": {
+              "const": "set_arg"
+            },
+            "arg": {
+              "type": "string"
+            },
+            "value": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "arg",
+            "list"
+          ],
+          "properties": {
+            "type": {
+              "const": "set_arg_cycle_next"
+            },
+            "arg": {
+              "type": "string"
+            },
+            "list": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "arg",
+            "list"
+          ],
+          "properties": {
+            "type": {
+              "const": "set_arg_cycle_prev"
+            },
+            "arg": {
+              "type": "string"
+            },
+            "list": {
+              "type": "string"
+            }
+          }
+        }
       ]
     },
     "Condition": {
       "type": "object",
-      "required": ["type"],
+      "required": [
+        "type"
+      ],
       "oneOf": [
-        { "additionalProperties": false, "required": ["type", "perm"], "properties": { "type": { "const": "has_permission" }, "perm": { "type": "string" } } },
-        { "additionalProperties": false, "required": ["type", "amount"], "properties": { "type": { "const": "has_money" }, "amount": { "type": "number", "exclusiveMinimum": 0 }, "currency": { "type": "string" } } },
-        { "additionalProperties": false, "required": ["type", "material", "count"], "properties": { "type": { "const": "has_item" }, "material": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]*$" }, "count": { "type": "integer", "minimum": 1 }, "nbt": { "type": "string" } } },
-        { "additionalProperties": false, "required": ["type", "amount"], "properties": { "type": { "const": "has_xp" }, "amount": { "type": "integer", "minimum": 1 } } },
-        { "additionalProperties": false, "required": ["type", "level"], "properties": { "type": { "const": "has_level" }, "level": { "type": "integer", "minimum": 1 } } },
-        { "additionalProperties": false, "required": ["type", "placeholder", "value"], "properties": { "type": { "const": "placeholder_equals" }, "placeholder": { "type": "string", "description": "PAPI (%vault_eco_balance%), contextInput ({category}), ou champ d'iteration ({alias.field})." }, "value": { "type": "string" } } },
-        { "additionalProperties": false, "required": ["type", "placeholder", "regex"], "properties": { "type": { "const": "placeholder_match" }, "placeholder": { "type": "string" }, "regex": { "type": "string" } } },
-        { "additionalProperties": false, "required": ["type", "cooldown_id"], "properties": { "type": { "const": "cooldown_passed" }, "cooldown_id": { "type": "string" } } },
-        { "additionalProperties": false, "required": ["type", "world"], "properties": { "type": { "const": "world_is" }, "world": { "type": "string" } } },
-        { "additionalProperties": false, "required": ["type", "range"], "properties": { "type": { "const": "time_is" }, "range": { "oneOf": [ { "type": "string", "enum": ["day", "night"] }, { "type": "object", "additionalProperties": false, "required": ["from_ticks", "to_ticks"], "properties": { "from_ticks": { "type": "integer", "minimum": 0, "maximum": 24000 }, "to_ticks": { "type": "integer", "minimum": 0, "maximum": 24000 } } } ] } } },
-        { "additionalProperties": false, "required": ["type", "probability"], "properties": { "type": { "const": "random_chance" }, "probability": { "type": "number", "minimum": 0, "maximum": 1 } } },
-        { "additionalProperties": false, "required": ["type", "region"], "properties": { "type": { "const": "player_in_region" }, "region": { "type": "string" } } },
-        { "additionalProperties": false, "required": ["type"], "properties": { "type": { "const": "pagination_at_first" }, "element_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$" } } },
-        { "additionalProperties": false, "required": ["type"], "properties": { "type": { "const": "pagination_at_last" }, "element_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$" } } },
-        { "additionalProperties": false, "required": ["type", "of"], "properties": { "type": { "const": "not" }, "of": { "$ref": "#/$defs/Condition" } } },
-        { "additionalProperties": false, "required": ["type", "of"], "properties": { "type": { "const": "and" }, "of": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/Condition" } } } },
-        { "additionalProperties": false, "required": ["type", "of"], "properties": { "type": { "const": "or" }, "of": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/Condition" } } } },
-        { "additionalProperties": false, "required": ["type", "expr"], "properties": { "type": { "const": "expression" }, "expr": { "type": "string" } } }
+        {
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "perm"
+          ],
+          "properties": {
+            "type": {
+              "const": "has_permission"
+            },
+            "perm": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "amount"
+          ],
+          "properties": {
+            "type": {
+              "const": "has_money"
+            },
+            "amount": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "currency": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "material",
+            "count"
+          ],
+          "properties": {
+            "type": {
+              "const": "has_item"
+            },
+            "material": {
+              "type": "string",
+              "pattern": "^[A-Z][A-Z0-9_]*$"
+            },
+            "count": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "nbt": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "amount"
+          ],
+          "properties": {
+            "type": {
+              "const": "has_xp"
+            },
+            "amount": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "level"
+          ],
+          "properties": {
+            "type": {
+              "const": "has_level"
+            },
+            "level": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "placeholder",
+            "value"
+          ],
+          "properties": {
+            "type": {
+              "const": "placeholder_equals"
+            },
+            "placeholder": {
+              "type": "string",
+              "description": "PAPI (%vault_eco_balance%), contextInput ({category}), ou champ d'iteration ({alias.field})."
+            },
+            "value": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "placeholder",
+            "regex"
+          ],
+          "properties": {
+            "type": {
+              "const": "placeholder_match"
+            },
+            "placeholder": {
+              "type": "string"
+            },
+            "regex": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "cooldown_id"
+          ],
+          "properties": {
+            "type": {
+              "const": "cooldown_passed"
+            },
+            "cooldown_id": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "world"
+          ],
+          "properties": {
+            "type": {
+              "const": "world_is"
+            },
+            "world": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "range"
+          ],
+          "properties": {
+            "type": {
+              "const": "time_is"
+            },
+            "range": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "day",
+                    "night"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "from_ticks",
+                    "to_ticks"
+                  ],
+                  "properties": {
+                    "from_ticks": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 24000
+                    },
+                    "to_ticks": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 24000
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "probability"
+          ],
+          "properties": {
+            "type": {
+              "const": "random_chance"
+            },
+            "probability": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "region"
+          ],
+          "properties": {
+            "type": {
+              "const": "player_in_region"
+            },
+            "region": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "const": "pagination_at_first"
+            },
+            "element_id": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]{0,63}$"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "const": "pagination_at_last"
+            },
+            "element_id": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]{0,63}$"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "of"
+          ],
+          "properties": {
+            "type": {
+              "const": "not"
+            },
+            "of": {
+              "$ref": "#/$defs/Condition"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "of"
+          ],
+          "properties": {
+            "type": {
+              "const": "and"
+            },
+            "of": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/Condition"
+              }
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "of"
+          ],
+          "properties": {
+            "type": {
+              "const": "or"
+            },
+            "of": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/Condition"
+              }
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "expr"
+          ],
+          "properties": {
+            "type": {
+              "const": "expression"
+            },
+            "expr": {
+              "type": "string"
+            }
+          }
+        }
       ]
     }
   }

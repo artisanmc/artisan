@@ -255,7 +255,7 @@ function serializeElements(menu: Menu, pack: Project): Record<string, unknown>[]
 
 // ─── title layer serialization ───────────────────────────────────────────────
 
-function serializeTitleLayer(layer: MenuTitleLayer): Record<string, unknown> {
+function serializeTitleLayer(layer: MenuTitleLayer): Record<string, unknown> | string {
   if (layer.kind === "background") {
     return { kind: "background", asset_id: layer.assetId };
   }
@@ -265,7 +265,9 @@ function serializeTitleLayer(layer: MenuTitleLayer): Record<string, unknown> {
   if (layer.kind === "text") {
     const out: Record<string, unknown> = {
       kind: "text",
-      value: { key: layer.value.key },
+      // LText values serialize to the single string form (`{i18n:key}`),
+      // matching appearances/actions — the `{key}` object form is import-only.
+      value: i18nRef(layer.value.key),
       x: layer.x,
       y: layer.y,
     };
@@ -275,17 +277,14 @@ function serializeTitleLayer(layer: MenuTitleLayer): Record<string, unknown> {
     return out;
   }
   if (layer.kind === "plain") {
-    // Plain (vanilla) layers serialize to a { kind, value } map like every
-    // other layer; the title is always emitted as a layer array (canonical
-    // menu/v1 — no legacy plain-only string shortcut).
-    const out: Record<string, unknown> = { kind: "plain", value: { key: layer.value.key } };
-    if (layer.color !== undefined) out.color = layer.color;
-    return out;
+    // Canonical sugar: an uncolored plain layer is just its string.
+    if (layer.color === undefined) return i18nRef(layer.value.key);
+    return { kind: "plain", value: i18nRef(layer.value.key), color: layer.color };
   }
   if (layer.kind === "textarea") {
     const out: Record<string, unknown> = {
       kind: "textarea",
-      value: { key: layer.value.key },
+      value: i18nRef(layer.value.key),
       x: layer.x,
       y: layer.y,
       width: layer.width,
@@ -333,8 +332,9 @@ const LEGACY_TEXT_Y = 5;
 export function parseTitleNode(node: unknown): MenuTitleLayer[] {
   if (node === null || node === undefined) return [];
   if (typeof node === "string") {
-    // Legacy string format → plain vanilla layer (no resource pack needed).
-    return [{ kind: "plain", value: { key: node as I18nKey } }];
+    // Canonical sugar (and legacy string format) → one plain vanilla layer.
+    const key = titleValueKey(node);
+    return key === null ? [] : [{ kind: "plain", value: { key } }];
   }
   if (Array.isArray(node)) {
     const out: MenuTitleLayer[] = [];
@@ -351,7 +351,25 @@ export function parseTitleNode(node: unknown): MenuTitleLayer[] {
   return [];
 }
 
+function titleValueKey(value: unknown): I18nKey | null {
+  // Canonical string form: "{i18n:key}" (or a raw key for legacy string titles).
+  if (typeof value === "string") {
+    const m = /^\{i18n:(.+)\}$/.exec(value);
+    return (m ? m[1]! : value) as I18nKey;
+  }
+  // Legacy {key} object form.
+  if (value && typeof value === "object" && typeof (value as { key?: unknown }).key === "string") {
+    return (value as { key: string }).key as I18nKey;
+  }
+  return null;
+}
+
 function parseTitleLayer(node: unknown): MenuTitleLayer | null {
+  // A bare string entry is a plain text layer (canonical sugar).
+  if (typeof node === "string") {
+    const key = titleValueKey(node);
+    return key === null ? null : { kind: "plain", value: { key } };
+  }
   if (!node || typeof node !== "object") return null;
   const m = node as Record<string, unknown>;
   switch (m.kind) {
@@ -367,15 +385,7 @@ function parseTitleLayer(node: unknown): MenuTitleLayer | null {
         y: typeof m.y === "number" ? m.y : 0,
       };
     case "text": {
-      const value = m.value;
-      let key: I18nKey | undefined;
-      if (
-        value &&
-        typeof value === "object" &&
-        typeof (value as { key?: unknown }).key === "string"
-      ) {
-        key = (value as { key: string }).key as I18nKey;
-      }
+      const key = titleValueKey(m.value);
       if (!key) return null;
       const out: MenuTitleLayer = {
         kind: "text",
@@ -391,30 +401,14 @@ function parseTitleLayer(node: unknown): MenuTitleLayer | null {
       return out;
     }
     case "plain": {
-      const value = m.value;
-      let key: I18nKey | undefined;
-      if (
-        value &&
-        typeof value === "object" &&
-        typeof (value as { key?: unknown }).key === "string"
-      ) {
-        key = (value as { key: string }).key as I18nKey;
-      }
+      const key = titleValueKey(m.value);
       if (!key) return null;
       const out: MenuTitleLayer = { kind: "plain", value: { key } };
       if (typeof m.color === "string") out.color = m.color;
       return out;
     }
     case "textarea": {
-      const value = m.value;
-      let key: I18nKey | undefined;
-      if (
-        value &&
-        typeof value === "object" &&
-        typeof (value as { key?: unknown }).key === "string"
-      ) {
-        key = (value as { key: string }).key as I18nKey;
-      }
+      const key = titleValueKey(m.value);
       if (!key) return null;
       const rawAlign = typeof m.alignment === "string" ? m.alignment : "left";
       const alignment: "left" | "center" | "right" =
@@ -471,7 +465,12 @@ export function serializeMenuToV1(
   const out: Record<string, unknown> = {
     schema: "menu/v1",
     id: menu.id,
-    title: menu.title.map(serializeTitleLayer),
+    // Canonical sugar: a title that is exactly one uncolored plain layer
+    // serializes to a bare string.
+    title:
+      menu.title.length === 1 && menu.title[0]!.kind === "plain" && menu.title[0]!.color === undefined
+        ? serializeTitleLayer(menu.title[0]!)
+        : menu.title.map(serializeTitleLayer),
     size: slotCount(type, menu.rows),
     elements: serializeElements(menu, pack),
   };
