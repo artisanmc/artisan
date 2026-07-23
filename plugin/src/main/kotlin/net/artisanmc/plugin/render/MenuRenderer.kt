@@ -76,7 +76,7 @@ object MenuRenderer {
             val places = element.places
             val pageCount = when {
                 iter != null -> {
-                    val slots = parsePositions(element.positions, menu.yaml.size)
+                    val slots = parsePositions(element.positionsSpec, menu.yaml.size)
                     val list = sourceList(boundCtx.args, iter.source)
                     val pageSize = slots.size.coerceAtLeast(1)
                     ((list.size + pageSize - 1) / pageSize).coerceAtLeast(1)
@@ -138,7 +138,7 @@ object MenuRenderer {
 
         for (element in menu.yaml.allElements) {
             val compiledList = menu.compiledAppearances[element.id] ?: emptyList()
-            val slots = parsePositions(element.positions, menu.yaml.size)
+            val slots = parsePositions(element.positionsSpec, menu.yaml.size)
 
             // Placement mode: pin explicit rows (matched by key_field) to
             // hand-authored page+slot. Rows not placed are omitted; a placement

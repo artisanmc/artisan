@@ -67,6 +67,28 @@ class MenuYamlParsingTest {
     }
 
     @Test
+    fun `positions accepts bare int, bare range, and list forms`() {
+        val menu = mapper.readValue<MenuYaml>(
+            """
+            schema: menu/v1
+            id: pos
+            size: 27
+            elements:
+              - id: a
+                positions: 26
+                appearances: [{ material: STONE }]
+              - id: b
+                positions: 11-14
+                appearances: [{ material: STONE }]
+              - id: c
+                positions: [0, 8, 18-20]
+                appearances: [{ material: STONE }]
+            """.trimIndent(),
+        )
+        assertEquals(listOf("26", "11-14", "0,8,18-20"), menu.allElements.map { it.positionsSpec })
+    }
+
+    @Test
     fun `flat top-level elements parse (canonical form, no layers)`() {
         val menu = mapper.readValue<MenuYaml>(
             """

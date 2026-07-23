@@ -301,10 +301,16 @@ function importAppearance(ctx: I18nCtx, a: Json): Json {
   return out;
 }
 
+/** Wire positions: bare int, range/comma string, or list of both → comma-joined string. */
+function positionsSpec(v: unknown): string {
+  if (Array.isArray(v)) return v.map(String).join(",");
+  return String(v ?? "");
+}
+
 function importElement(ctx: I18nCtx, el: Json): Json {
   return {
     id: el.id,
-    positions: el.positions,
+    positions: positionsSpec(el.positions),
     appearances: ((el.appearances as Json[]) ?? []).map((a) => importAppearance(ctx, a)),
     ...(el.iterates ? { iterates: el.iterates } : {}),
     ...(el.tags ? { tags: el.tags } : {}),

@@ -120,6 +120,25 @@ describe("menuV1ToDomain — actions + steps (Action DSL)", () => {
     });
   });
 
+  it("normalizes positions: bare int, bare range, and list forms", () => {
+    const r = menuV1ToDomain(
+      {
+        schema: "menu/v1",
+        id: "shop",
+        title: [],
+        size: 27,
+        elements: [
+          { id: "a", positions: 26, appearances: [{ material: "STONE" }] },
+          { id: "b", positions: "11-14", appearances: [{ material: "STONE" }] },
+          { id: "c", positions: [0, 8, "18-20"], appearances: [{ material: "STONE" }] },
+        ],
+      },
+      opts,
+    );
+    const els = r.menu.layers[0]!.elements;
+    expect(els.map((e) => e.positions)).toEqual(["26", "11-14", "0,8,18-20"]);
+  });
+
   it("accepts a bare-string title (sugar for one plain layer)", () => {
     const r = menuV1ToDomain(
       { schema: "menu/v1", id: "shop", title: "{i18n:menus.shop.title}", size: 27, elements: [] },
