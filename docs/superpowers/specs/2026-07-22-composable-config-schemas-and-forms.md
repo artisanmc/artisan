@@ -4,6 +4,22 @@
 Raw material for a future grill-with-docs session. Narrowed out of ADR
 `addon-owned-project-roots` (which kept only the disk-placement slice).
 
+> **Vision upgrade (2026-07-23)** — this track is no longer a boutique/quests
+> side-quest: it is the **centerpiece of the "Artisan as a configuration
+> framework" vision**. Artisan = the standard that solves config
+> standardization for Minecraft plugins (menus, i18n, actions, data) + a web
+> editor on top; the goal is that **any plugin can migrate to the standard**.
+> Adoption is **by declaration, never by code**: a third-party plugin declares
+> schemas / data sources / commands / its own project root and gets the editor
+> for free — it never ships code that runs in Artisan's editor or backend.
+> This *reopens* third-party support (dropped 2026-06-17), which died because
+> it required third-party *code* in the SaaS; declaration-based adoption
+> removes that blocker. Enabler chain: files-first canonical format (ADR
+> `files-first-source-of-truth`) → composable schemas (this track) → form
+> generator → any plugin's config. The hard questions (schema contract
+> stability, expression sandboxing, standard versioning, hosting of
+> third-party-owned projects) belong to this track's future grill.
+
 ## Why (the missing primitive)
 
 Two Add-ons force the same gap:
