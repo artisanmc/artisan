@@ -303,15 +303,23 @@
       }
     },
     "ClickHandler": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["steps"],
-      "properties": {
-        "steps": {
+      "oneOf": [
+        {
           "type": "string",
-          "description": "Chaîne Action DSL (actions + branches if/else-if/else). Cf. ADR action-dsl. Remplace l'ancien arbre structuré {kind, action|cases} — menu/v1 modifié en place (menu/v1 pas encore en prod)."
+          "description": "Forme canonique : le handler EST la chaîne Action DSL (actions + branches if/else-if/else). Cf. ADR action-dsl et le spec menu-format-ergonomics."
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["steps"],
+          "properties": {
+            "steps": {
+              "type": "string",
+              "description": "Forme legacy enveloppée — chaîne Action DSL dans un objet {steps}. Toujours acceptée en lecture ; l'export émet la forme string."
+            }
+          }
         }
-      }
+      ]
     },
     "Step": {
       "oneOf": [

@@ -9,15 +9,17 @@ object CommandCompiler {
 
     fun compile(yaml: CommandYaml, logger: Logger? = null): CompiledCommand? = runCatching {
         val requirements = yaml.requirements.map { ConditionParser.parse(it) }
-        // Canonical wire (`steps:`) is an Action DSL string (Phase 2, ADR
-        // action-dsl); flat `actions:`/`fallback:` are the legacy wire, kept as-is.
-        val steps        = compileActionDsl(yaml.steps)
-        val actions      = yaml.actions.map { ActionParser.parse(it) }
+        // Canonical wire (`actions:`) is an Action DSL string (`steps:` is the
+        // legacy spelling); a flat action-map list in `actions:` is the pre-DSL
+        // legacy wire, kept as-is.
+        val steps        = compileActionDsl(yaml.dsl)
+        val actions      = yaml.legacyActions.map { ActionParser.parse(it) }
         val fallback     = yaml.fallback.map { ActionParser.parse(it) }
         val cooldown     = yaml.cooldown?.let { cy -> Cooldown(cy.id, cy.duration, cy.scope, cy.message) }
         val argDefs      = ArgDefParser.parseAll(yaml.arguments)
         CompiledCommand(
-            name        = yaml.name,
+            // The in-game trigger defaults to the document id when `name` is absent.
+            name        = yaml.name.ifEmpty { yaml.id },
             aliases     = yaml.aliases,
             permission  = yaml.permission,
             description = yaml.description ?: "",

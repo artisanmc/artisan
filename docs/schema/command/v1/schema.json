@@ -5,7 +5,8 @@
   "description": "Format intermédiaire d'une commande Artisan. Une commande est une entité de premier ordre (au même niveau que les Menus dans le workspace) qui exécute une séquence d'actions et peut accepter des arguments typés. Les arguments résolus sont propagés comme placeholders aux menus ouverts depuis la commande.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema", "id", "name", "steps"],
+  "required": ["schema", "id"],
+  "anyOf": [{ "required": ["actions"] }, { "required": ["steps"] }],
   "properties": {
     "schema": {
       "const": "command/v1",
@@ -19,7 +20,7 @@
     "name": {
       "type": "string",
       "pattern": "^[a-z][a-z0-9_-]{0,31}$",
-      "description": "Nom de la commande tel que tapé en jeu, sans le slash. Lowercase + chiffres + _ -. Doit être unique sur le serveur (Artisan détecte les conflits avec les commandes existantes)."
+      "description": "Nom de la commande tel que tapé en jeu, sans le slash. Optionnel : défaute sur `id` quand absent (l'export ne l'écrit que s'il diffère). Lowercase + chiffres + _ -. Doit être unique sur le serveur."
     },
     "aliases": {
       "type": "array",
@@ -51,10 +52,13 @@
       "items": { "$ref": "https://docs.artisanmc.net/schema/menu/v1.json#/$defs/Condition" },
       "description": "Conditions ANDées évaluées avant exécution. Si une échoue, le fallback (s'il existe) est exécuté à la place des actions."
     },
+    "actions": {
+      "type": "string",
+      "description": "Forme canonique — chaîne Action DSL exécutée quand la commande est appelée (actions + branches if, comme les click-handlers de menu). Cf. ADR action-dsl. Les arguments résolus sont disponibles via les placeholders %args_<name>% et {arg}."
+    },
     "steps": {
       "type": "string",
-      "minLength": 1,
-      "description": "Chaîne Action DSL exécutée quand la commande est appelée (actions + branches if, comme les click-handlers de menu). Cf. ADR action-dsl. Les arguments résolus sont disponibles via les placeholders %args_<name>% et {arg}."
+      "description": "Forme legacy de `actions` — toujours acceptée en lecture ; l'export émet `actions`."
     },
     "fallback": {
       "type": "array",

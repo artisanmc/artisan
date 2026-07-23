@@ -1,5 +1,6 @@
 package net.artisanmc.plugin.model
 
+import com.fasterxml.jackson.annotation.JsonCreator
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonProperty
 import net.artisanmc.plugin.engine.CompiledAppearance
@@ -111,10 +112,18 @@ data class ClickHandlerYaml(
     val actions:      List<Map<String, Any>> = emptyList(),
     val fallback:     List<Map<String, Any>> = emptyList(),
     val cooldown:     CooldownYaml? = null,
-    /** Canonical wire since Phase 2 (ADR action-dsl): an Action DSL string
-     *  (actions + if/else). Compiled to a Step tree by [BundleCompiler]. */
+    /** The Action DSL string (actions + if/else), compiled to a Step tree by
+     *  [BundleCompiler]. Canonical wire is the collapsed form (the handler IS
+     *  the DSL string — see [fromDsl]); `{steps: "<dsl>"}` is the legacy wrap. */
     val steps:        String = "",
-)
+) {
+    companion object {
+        /** Canonical collapsed form: `click.left: "<dsl>"` binds the scalar here. */
+        @JvmStatic
+        @JsonCreator(mode = JsonCreator.Mode.DELEGATING)
+        fun fromDsl(dsl: String): ClickHandlerYaml = ClickHandlerYaml(steps = dsl)
+    }
+}
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class CooldownYaml(
@@ -194,12 +203,23 @@ data class CommandYaml(
     val description: String? = null,
     val arguments: List<Map<String, Any>> = emptyList(),
     val requirements: List<Map<String, Any>> = emptyList(),
-    val actions:      List<Map<String, Any>> = emptyList(),
+    /** Canonical form: an Action DSL string. Legacy form: a flat action-map
+     *  list (the pre-DSL wire). Disambiguated by runtime type — see [dsl] and
+     *  [legacyActions]. */
+    val actions:      Any? = null,
     val fallback:     List<Map<String, Any>> = emptyList(),
     val cooldown:     CooldownYaml? = null,
-    /** Action DSL string (Phase 2) — compiled to a Step tree by [net.artisanmc.plugin.command.CommandCompiler]. */
+    /** Legacy spelling of the Action DSL string (`actions` is canonical). */
     val steps:        String = "",
-)
+) {
+    /** The Action DSL string: canonical `actions` (string form) or legacy `steps`. */
+    val dsl: String get() = (actions as? String) ?: steps
+
+    /** The legacy flat action-map list (old `actions:` wire), when present. */
+    @Suppress("UNCHECKED_CAST")
+    val legacyActions: List<Map<String, Any>>
+        get() = (actions as? List<Map<String, Any>>) ?: emptyList()
+}
 
 /**
  * One declared field of a `data/v1` Project source. The editor denormalizes its

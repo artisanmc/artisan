@@ -120,6 +120,14 @@ describe("menuV1ToDomain — actions + steps (Action DSL)", () => {
     });
   });
 
+  it("accepts a click handler as a bare DSL string (canonical collapsed form)", () => {
+    const menu = menuWithClick("left", "close_menu");
+    const el = (menu.layers as any[])[0].elements[0];
+    el.appearances[0].click = { left: "close_menu" };
+    const r = menuV1ToDomain(menu, opts);
+    expect(clickAction(r)).toEqual({ type: "close_menu" });
+  });
+
   it("open_menu without clear/context omits those keys", () => {
     const r = menuV1ToDomain(menuWithClick("left", "open_menu target"), opts);
     expect(clickAction(r)).toEqual({ type: "open_menu", menuId: "target" });

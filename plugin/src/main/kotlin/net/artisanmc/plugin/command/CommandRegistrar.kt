@@ -24,8 +24,8 @@ class CommandRegistrar(private val plugin: JavaPlugin, private val lang: LangMan
         for (bundle in bundles) {
             logger.info("[ART-DEBUG] Bundle ${bundle.projectId}: ${bundle.commands.size} commands: ${bundle.commands.map { it.name }}")
             for (cmdYaml in bundle.commands) {
-                val name = cmdYaml.name.lowercase()
-                logger.info("[ART-DEBUG] Processing command '$name' actions=${cmdYaml.actions.size} steps.len=${cmdYaml.steps.length}")
+                val name = cmdYaml.name.ifEmpty { cmdYaml.id }.lowercase()
+                logger.info("[ART-DEBUG] Processing command '$name' actions=${cmdYaml.legacyActions.size} dsl.len=${cmdYaml.dsl.length}")
 
                 if (name in seen) {
                     logger.warning("Command '$name' defined in multiple packs — only first registration kept.")
