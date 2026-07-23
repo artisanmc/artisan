@@ -871,6 +871,7 @@ const fr: typeof en = {
     installedModules: "Modules installés",
     noModules: "Aucun module installé.",
     configuration: "Configuration",
+    editor: "Éditeur",
     newProject: "+ Nouveau projet",
     setupHint: "Crée un Network ou lance <1>{{cmd}}</1> sur ton serveur pour commencer.",
     networkLabel: "Network",

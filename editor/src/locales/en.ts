@@ -859,6 +859,7 @@ export default {
     installedModules: "Installed modules",
     noModules: "No module installed.",
     configuration: "Configuration",
+    editor: "Editor",
     newProject: "+ New project",
     setupHint: "Create a Network or run <1>{{cmd}}</1> on your server to start.",
     networkLabel: "Network",
