@@ -201,6 +201,21 @@ export function ProjectSidebar() {
   // (ADR addon-owned-project-roots).
   const flatProjects = finalList.filter((p) => !p.ownerModule);
   const ownedProjects = finalList.filter((p) => p.ownerModule);
+  // "Installed modules" is grouped BY module: each installed module (one with a
+  // screen and/or an owned project) is a header, with its project(s) (the canvas)
+  // and its configuration screen nested underneath.
+  const moduleGroupIds = Array.from(
+    new Set<string>([
+      ...moduleNav.map((m) => m.id),
+      ...ownedProjects.map((p) => p.ownerModule).filter((x): x is string => !!x),
+    ]),
+  );
+  const moduleGroups = moduleGroupIds.map((id) => ({
+    id,
+    label: moduleNav.find((m) => m.id === id)?.sidebar.label ?? id,
+    projects: ownedProjects.filter((p) => p.ownerModule === id),
+    hasScreen: moduleNav.some((m) => m.id === id),
+  }));
 
   // Element count per pack: prefer the live count from a fully-loaded pack in
   // the account store (updates as the user edits), else the summary's
@@ -314,33 +329,42 @@ export function ProjectSidebar() {
           <div className="px-2 pt-0.5 pb-2 text-[9.5px] font-bold uppercase tracking-[.14em] text-[var(--text-faint)]">
             {t("sidebar.installedModules")}
           </div>
-          {moduleNav.length === 0 && ownedProjects.length === 0 ? (
+          {moduleGroups.length === 0 ? (
             <div className="rounded-[14px] border border-dashed border-[var(--border)] px-3 py-3 text-center text-[11px] text-[var(--text-faint)]">
               {t("sidebar.noModules")}
             </div>
           ) : (
-            <ul className="flex flex-col">
-              {ownedProjects.map((w) => (
-                <OwnedProjectItem
-                  key={w.id}
-                  id={w.id}
-                  name={w.name}
-                  count={countFor(w)}
-                  networkId={w.networkId || activeNetworkId}
-                  serverId={w.serverKeyId || activeServerId}
-                />
-              ))}
-              {moduleNav.map((m) => (
-                <li key={m.id}>
-                  {/* TODO(P2): render m.sidebar.icon once modules ship real icons */}
-                  <Link
-                    to="/m/$moduleId"
-                    params={{ moduleId: m.id }}
-                    onClick={() => useSidebarStore.getState().close()}
-                    className="flex items-center gap-2.5 rounded-[10px] px-2.5 py-2 text-[13px] font-medium text-[var(--text-mut)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
-                  >
-                    <span className="truncate flex-1">{m.sidebar.label}</span>
-                  </Link>
+            <ul className="flex flex-col gap-1.5">
+              {moduleGroups.map((g) => (
+                <li key={g.id} className="flex flex-col">
+                  {/* TODO(P2): render the module's icon once modules ship real icons */}
+                  <div className="px-2.5 pt-0.5 pb-1 text-[12px] font-semibold text-[var(--text)]">
+                    {g.label}
+                  </div>
+                  <ul className="ml-3 flex flex-col border-l border-[var(--border)] pl-1">
+                    {g.projects.map((w) => (
+                      <OwnedProjectItem
+                        key={w.id}
+                        id={w.id}
+                        name={w.name}
+                        count={countFor(w)}
+                        networkId={w.networkId || activeNetworkId}
+                        serverId={w.serverKeyId || activeServerId}
+                      />
+                    ))}
+                    {g.hasScreen && (
+                      <li>
+                        <Link
+                          to="/m/$moduleId"
+                          params={{ moduleId: g.id }}
+                          onClick={() => useSidebarStore.getState().close()}
+                          className="flex items-center gap-2.5 rounded-[10px] px-2.5 py-2 text-[13px] font-medium text-[var(--text-mut)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+                        >
+                          <span className="truncate flex-1">{t("sidebar.configuration")}</span>
+                        </Link>
+                      </li>
+                    )}
+                  </ul>
                 </li>
               ))}
             </ul>
