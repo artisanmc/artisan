@@ -120,6 +120,45 @@ describe("menuV1ToDomain — actions + steps (Action DSL)", () => {
     });
   });
 
+  it("accepts a bare-string title (sugar for one plain layer)", () => {
+    const r = menuV1ToDomain(
+      { schema: "menu/v1", id: "shop", title: "{i18n:menus.shop.title}", size: 27, elements: [] },
+      opts,
+    );
+    expect(r.menu.title).toEqual([{ kind: "plain", value: { key: "menus.shop.title" } }]);
+  });
+
+  it("accepts a literal bare-string title (mints a key)", () => {
+    const r = menuV1ToDomain(
+      { schema: "menu/v1", id: "shop", title: "Boutique", size: 27, elements: [] },
+      opts,
+    );
+    const layer = r.menu.title[0]!;
+    expect(layer.kind).toBe("plain");
+    const key = (layer as { value: { key: string } }).value.key;
+    expect(r.i18nKeys[key]).toEqual({ en: "Boutique" });
+  });
+
+  it("accepts string entries and string `value` inside a title layer array", () => {
+    const r = menuV1ToDomain(
+      {
+        schema: "menu/v1",
+        id: "shop",
+        title: [
+          "{i18n:menus.shop.line1}",
+          { kind: "text", value: "{i18n:menus.shop.line2}", x: 8, y: 5 },
+        ],
+        size: 27,
+        elements: [],
+      },
+      opts,
+    );
+    expect(r.menu.title).toEqual([
+      { kind: "plain", value: { key: "menus.shop.line1" } },
+      { kind: "text", value: { key: "menus.shop.line2" }, x: 8, y: 5 },
+    ]);
+  });
+
   it("accepts flat top-level `elements` (canonical form, no layers)", () => {
     const r = menuV1ToDomain(
       {

@@ -21,9 +21,9 @@ describe("validateMenuV1", () => {
     expect(r.errors.join(" ")).toMatch(/size/);
   });
 
-  it("rejects a string title (legacy form is no longer canonical)", () => {
-    const bad = { ...(canonicalButton as object), title: "Shop" };
-    expect(validateMenuV1(bad).valid).toBe(false);
+  it("accepts a string title (canonical sugar for one plain layer)", () => {
+    const sweet = { ...(canonicalButton as object), title: "Shop" };
+    expect(validateMenuV1(sweet).valid).toBe(true);
   });
 
   it("rejects a click with flat actions instead of steps", () => {
