@@ -1,8 +1,9 @@
 # Menu format ergonomics — hand-editability pass on menu/v1
 
-**Status:** candidates list — owner-validated directions (2026-07-23), **NOT yet
-implemented**; each item is small and can be grilled/finalized inline during the
-files-first epic. Enabled by ADR `files-first-source-of-truth` (files are the
+**Status:** **IMPLEMENTED (2026-07-23)** — all six items shipped the same day in
+five slices (commits `feat(format): …`), tolerant readers on all three layers,
+canonical writers in the editor, schemas + examples migrated, suites green.
+Item 5 (template refs) remains with the files-first epic (P2). Enabled by ADR `files-first-source-of-truth` (files are the
 primary editing surface; `menu/v1` is mutable in place until real prod use —
 dated dispensation, decision #5).
 
