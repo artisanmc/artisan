@@ -67,6 +67,32 @@ class MenuYamlParsingTest {
     }
 
     @Test
+    fun `click handler as bare DSL string parses (canonical collapsed form)`() {
+        val menu = mapper.readValue<MenuYaml>(
+            """
+            schema: menu/v1
+            id: shop
+            size: 9
+            layers:
+              - id: l
+                name: L
+                elements:
+                  - id: e
+                    positions: "0"
+                    appearances:
+                      - material: STONE
+                        click:
+                          left: close_menu
+                          right:
+                            steps: "open_menu other"
+            """.trimIndent(),
+        )
+        val click = menu.layers[0].elements[0].appearances[0].click
+        assertEquals("close_menu", click["left"]?.steps)
+        assertEquals("open_menu other", click["right"]?.steps)
+    }
+
+    @Test
     fun `menus without these fields still parse (back-compat)`() {
         val menu = mapper.readValue<MenuYaml>(
             """

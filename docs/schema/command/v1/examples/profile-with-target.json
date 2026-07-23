@@ -1,8 +1,10 @@
 {
   "schema": "command/v1",
   "id": "profile",
-  "name": "profile",
-  "aliases": ["p", "stats"],
+  "aliases": [
+    "p",
+    "stats"
+  ],
   "permission": "artisan.cmd.profile",
   "description": "Affiche le profil d'un joueur.",
   "notes": "Si aucun joueur passé, affiche le profil de l'auteur de la commande grâce au default %player_name%.",
@@ -15,5 +17,5 @@
       "description": "Le joueur à inspecter. Par défaut, vous-même."
     }
   ],
-  "steps": "open_menu profile_menu"
+  "actions": "open_menu profile_menu"
 }

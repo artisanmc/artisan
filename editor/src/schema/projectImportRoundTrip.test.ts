@@ -187,17 +187,17 @@ describe("projectImport round-trip (Boutique bootstrap → import → transform)
     // survive the structured→domain→DSL round-trip.
     const mainGrid = out["menus/shop_main.yaml"]!.layers[0].elements[0];
     expect(mainGrid.iterates).toEqual({ source: "cats", alias: "cat" });
-    expect(mainGrid.appearances[0].click.left.steps).toBe(
+    expect(mainGrid.appearances[0].click.left).toBe(
       'open_menu shop_category with category="{cat.id}" category_name="{cat.name}"',
     );
 
     const catLayers = out["menus/shop_category.yaml"]!.layers[0].elements;
-    expect(catLayers[0].appearances[0].click.left.steps).toBe(
+    expect(catLayers[0].appearances[0].click.left).toBe(
       'open_dialog confirm_purchase with item_id="{item.id}" item_name="{item.name}" item_price="{item.final_price}"',
     );
-    expect(catLayers[1].appearances[0].click.left.steps).toBe("open_menu shop_main");
+    expect(catLayers[1].appearances[0].click.left).toBe("open_menu shop_main");
 
-    expect(out["commands/boutique.yaml"]!.steps).toBe("open_menu shop_main");
+    expect(out["commands/boutique.yaml"]!.actions).toBe("open_menu shop_main");
 
     const buttons = out["dialogs/confirm_purchase.yaml"]!.buttons;
     expect(buttons[0].actions).toBe('run_command "boutique:buy {item_id}" as player');

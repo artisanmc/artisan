@@ -190,9 +190,9 @@ function serializeAppearance(app: Appearance, pack: Project): Record<string, unk
     const clickOut: Record<string, unknown> = {};
     for (const [clickType, handler] of Object.entries(app.click)) {
       if (!handler) continue;
-      // Click-handler steps serialize to an Action DSL string (ADR action-dsl,
-      // Phase 2); menu action text is a Key site → `@key`, else a "literal".
-      clickOut[clickType] = { steps: stepsToDsl(handler.steps, pack) };
+      // Canonical collapsed form: the handler IS the Action DSL string (ADR
+      // action-dsl); menu action text is a Key site → `@key`, else a "literal".
+      clickOut[clickType] = stepsToDsl(handler.steps, pack);
     }
     if (Object.keys(clickOut).length > 0) out.click = clickOut;
   }
@@ -512,9 +512,11 @@ export function serializeCommand(cmd: Command, pack: Project): Record<string, un
   const out: Record<string, unknown> = {
     schema: "command/v1",
     id: cmd.id,
-    name: cmd.name,
-    // command steps serialize to an Action DSL string (ADR action-dsl Phase 2).
-    steps: stepsToDsl(cmd.steps, pack),
+    // `name` (the in-game trigger) is only written when it differs from `id`.
+    ...(cmd.name !== cmd.id ? { name: cmd.name } : {}),
+    // The command's action chain serializes to an Action DSL string (ADR
+    // action-dsl). Canonical field: `actions` (`steps` is the legacy spelling).
+    actions: stepsToDsl(cmd.steps, pack),
   };
   if (cmd.aliases && cmd.aliases.length > 0) out.aliases = cmd.aliases;
   if (cmd.permission) out.permission = cmd.permission;

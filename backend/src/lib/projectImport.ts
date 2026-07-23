@@ -267,9 +267,11 @@ function importClickMap(ctx: I18nCtx, click: Json | undefined): Json | undefined
   if (!click || typeof click !== "object") return undefined;
   const out: Json = {};
   for (const ct of CLICK_TYPES) {
-    const handler = click[ct] as Json | undefined;
+    const handler = click[ct] as Json | string | undefined;
     if (!handler) continue;
-    out[ct] = { steps: importSteps(ctx, handler.steps) };
+    // Canonical collapsed form: the handler IS the DSL string; legacy {steps}.
+    const dsl = typeof handler === "string" ? handler : handler.steps;
+    out[ct] = { steps: importSteps(ctx, dsl) };
   }
   return Object.keys(out).length > 0 ? out : undefined;
 }
@@ -367,6 +369,9 @@ interface CommandYaml {
   permission?: string;
   description?: string;
   arguments?: Array<{ name: string; type?: string; required?: boolean; default?: string }>;
+  /** Canonical Action DSL string. */
+  actions?: unknown;
+  /** Legacy spelling of `actions`. */
   steps?: unknown;
 }
 
@@ -577,7 +582,8 @@ export function importProjectFromFiles(projectId: string, files: Record<string, 
         required: a.required ?? false,
         ...(a.default !== undefined ? { default: a.default } : {}),
       })),
-      steps: importSteps(ctx, y.steps),
+      // Canonical field is `actions`; `steps` is the legacy spelling.
+      steps: importSteps(ctx, y.actions ?? y.steps),
     };
   });
 
