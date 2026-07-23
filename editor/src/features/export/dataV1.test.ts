@@ -172,6 +172,27 @@ describe("data/v1 export", () => {
     expect(settings.value.on_join).toBe('broadcast "hi"\ngive_item DIAMOND 1');
   });
 
+  it("emits models/<id>.yaml verbatim (model refs preserved — lossless)", () => {
+    const files = transform(makeProject());
+    const rank = parse(files[`plugins/Artisan/projects/${PID}/models/m_rank.yaml`]!);
+    expect(rank).toEqual({
+      schema: "model/v1",
+      id: "m_rank",
+      name: "rank",
+      key_field: "id",
+      fields: [
+        { name: "id", type: { kind: "string" } },
+        { name: "name", type: { kind: "ltext" } },
+        { name: "icon", type: { kind: "item" } },
+        { name: "perks", type: { kind: "list", of: { kind: "ltext" } } },
+      ],
+    });
+    // Cross-model refs stay refs — models/ is the editor's lossless store;
+    // data/<id>.yaml stays denormalized for the runtime.
+    const cat = parse(files[`plugins/Artisan/projects/${PID}/models/m_cat.yaml`]!);
+    expect(cat.fields[1]).toEqual({ name: "featured", type: { kind: "model", ref: "m_rank" } });
+  });
+
   it("includes source ltext keys in the lang files", () => {
     const files = transform(makeProject());
     const en = parse(files[`${BASE}/lang/en.yaml`]!);
