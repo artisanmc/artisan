@@ -396,6 +396,9 @@ interface MenuYaml {
   inventory_type?: string;
   permission?: string;
   notes?: string;
+  /** Canonical input list. */
+  inputs?: Json[];
+  /** Legacy spelling of `inputs`. */
   context_inputs?: Json[];
   /** Canonical flat element list. */
   elements?: Json[];
@@ -626,8 +629,9 @@ export function importProjectFromFiles(projectId: string, files: Record<string, 
           ? 3
           : 1
         : (y.rows ?? (y.size ? Math.max(1, Math.min(6, Math.round(y.size / 9))) : 3));
-    const contextInputs = Array.isArray(y.context_inputs)
-      ? y.context_inputs.map(importContextInput)
+    const inputsNode = y.inputs ?? y.context_inputs;
+    const contextInputs = Array.isArray(inputsNode)
+      ? inputsNode.map(importContextInput)
       : [];
     return {
       id: y.id ?? menuId,

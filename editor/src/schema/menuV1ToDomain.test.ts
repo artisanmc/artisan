@@ -120,6 +120,23 @@ describe("menuV1ToDomain — actions + steps (Action DSL)", () => {
     });
   });
 
+  it("reads the canonical `inputs` field (legacy `context_inputs` alias)", () => {
+    const r = menuV1ToDomain(
+      {
+        schema: "menu/v1",
+        id: "shop",
+        title: [],
+        size: 27,
+        inputs: [{ name: "items", type: "list", source: { ref: "boutique:items" } }],
+        elements: [],
+      },
+      opts,
+    );
+    expect(r.menu.contextInputs).toEqual([
+      { kind: "sourceRef", name: "items", ref: "boutique:items" },
+    ]);
+  });
+
   it("normalizes positions: bare int, bare range, and list forms", () => {
     const r = menuV1ToDomain(
       {
