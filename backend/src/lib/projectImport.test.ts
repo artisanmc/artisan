@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { importProjectFromFiles, readEditorEdgesFromFiles, readEditorLayoutFromFiles } from "./projectImport";
+import { importProjectFromFiles, readEditorEdgesFromFiles, readEditorLayoutFromFiles, readOwnerModuleFromFiles } from "./projectImport";
 
 const PACK_ID = "p_layout";
 const base = `plugins/Artisan/projects/${PACK_ID}`;
@@ -86,6 +86,14 @@ describe("importProjectFromFiles — ownerModule (Add-on-owned project)", () => 
   test("no `module:` → ownerModule undefined", () => {
     const project = importProjectFromFiles(PACK_ID, manifestWith(null)) as { ownerModule?: string };
     expect(project.ownerModule).toBeUndefined();
+  });
+
+  test("readOwnerModuleFromFiles reads manifest.module", () => {
+    const files = {
+      [`${base}/manifest.yaml`]: `schema: manifest/v1\nproject_id: ${PACK_ID}\nmodule: boutique\n`,
+    };
+    expect(readOwnerModuleFromFiles(files, PACK_ID)).toBe("boutique");
+    expect(readOwnerModuleFromFiles(manifestWith(null), PACK_ID)).toBeUndefined();
   });
 });
 

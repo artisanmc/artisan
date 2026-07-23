@@ -3,7 +3,7 @@ import { db } from "../db/index";
 import { ensureAssets, assetsDone } from "../lib/mcAssets";
 import { networks, projectBranches, projectCommits, projects, serverKeyHelloes, serverKeys, serverModules, serverDataSources } from "../db/schema";
 import { createProject, getProject, upsertProjectContent } from "../lib/projectStorage";
-import { importProjectFromFiles, isEmptyStub } from "../lib/projectImport";
+import { importProjectFromFiles, isEmptyStub, readOwnerModuleFromFiles } from "../lib/projectImport";
 import { getBranch, advanceBranchHead } from "../lib/branchStorage";
 import { createCommit } from "../lib/commitStorage";
 import { computeAllPacksHash } from "../lib/hashUtils";
@@ -487,6 +487,18 @@ export async function handlePluginMessage(
     // les fichiers pour qu'il soit éditable — jamais quand un vrai état existe.
     if (isEmptyStub(project.editorJson)) {
       patch.editorJson = JSON.stringify(importProjectFromFiles(projectId, files));
+    } else if (project.editorJson) {
+      // Propagate the manifest's Add-on owner id onto the existing editor state
+      // (without clobbering the rest) so the sidebar groups it under "Installed
+      // modules" after an upgrade — an existing project isn't a stub, so the
+      // import branch above never runs (ADR addon-owned-project-roots).
+      const owner = readOwnerModuleFromFiles(files, projectId);
+      const editor = JSON.parse(project.editorJson) as Record<string, unknown>;
+      if (owner ? editor.ownerModule !== owner : editor.ownerModule !== undefined) {
+        if (owner) editor.ownerModule = owner;
+        else delete editor.ownerModule;
+        patch.editorJson = JSON.stringify(editor);
+      }
     }
     await upsertProjectContent(projectId, patch);
     // local_push = commit sur main + advance head, comme le deploy : le plugin
