@@ -95,11 +95,21 @@ data class LayerYaml(
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class ElementYaml(
     val id: String = "",
-    val positions: String = "",
+    /** Bare int, range/comma string ("11-14", "0,8,18-20"), or a YAML list of
+     *  both — normalized by [positionsSpec]. */
+    val positions: Any? = null,
     val iterates: IteratesYaml? = null,
     val places: PlacesYaml? = null,
     val appearances: List<AppearanceYaml> = emptyList(),
-)
+) {
+    /** Comma-joined spec string, whichever wire form carried the positions. */
+    val positionsSpec: String
+        get() = when (positions) {
+            null -> ""
+            is List<*> -> positions.joinToString(",") { it.toString() }
+            else -> positions.toString()
+        }
+}
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class AppearanceYaml(

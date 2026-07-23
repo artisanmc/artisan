@@ -18,7 +18,7 @@ object BundleCompiler {
         val slotToElement = mutableMapOf<Int, String>()
 
         for (element in yaml.allElements) {
-            val slots = parsePositions(element.positions, yaml.size)
+            val slots = parsePositions(element.positionsSpec, yaml.size)
             slots.forEach { slot -> slotToElement[slot] = element.id }
 
             val compiled = element.appearances.mapNotNull { app ->
