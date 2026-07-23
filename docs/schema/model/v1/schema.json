@@ -1,0 +1,131 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://docs.artisanmc.net/schema/model/v1.json",
+  "title": "Artisan Data model",
+  "description": "Shape nommée de données (schéma de champs récursif déclaré par l'admin) à laquelle le contenu des Project sources se conforme. Store lossless côté éditeur : les data/<id>.yaml restent dénormalisés et self-contained pour le runtime — le plugin ignore models/ entièrement.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "id",
+    "key_field",
+    "fields"
+  ],
+  "properties": {
+    "schema": {
+      "const": "model/v1"
+    },
+    "id": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "key_field": {
+      "type": "string",
+      "description": "Champ scalaire top-level servant de Row key."
+    },
+    "fields": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Field"
+      }
+    }
+  },
+  "$defs": {
+    "Field": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "type"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/$defs/FieldType"
+        }
+      }
+    },
+    "FieldType": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "enum": [
+                "string",
+                "number",
+                "integer",
+                "boolean",
+                "ltext",
+                "minimessage",
+                "minimessage_multiline",
+                "item",
+                "actions"
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "of"
+          ],
+          "properties": {
+            "kind": {
+              "const": "list"
+            },
+            "of": {
+              "$ref": "#/$defs/FieldType"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "fields"
+          ],
+          "properties": {
+            "kind": {
+              "const": "object"
+            },
+            "fields": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Field"
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "ref"
+          ],
+          "properties": {
+            "kind": {
+              "const": "model"
+            },
+            "ref": {
+              "type": "string",
+              "description": "Id d'un autre Data model (models/<ref>.yaml). Pas de cycles."
+            }
+          }
+        }
+      ]
+    }
+  }
+}
