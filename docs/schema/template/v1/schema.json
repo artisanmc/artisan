@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://docs.artisanmc.net/schema/template/v1.json",
+  "title": "Artisan Item template",
+  "description": "Vue nommée sur une data source : comment un row rend comme slot de menu (appearances + click), consommée par les éléments via iterates.template / places.template. Une vérité unique — jamais inlinée dans les menus (résolue au load par le plugin).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "id",
+    "source",
+    "alias",
+    "appearances"
+  ],
+  "properties": {
+    "schema": {
+      "const": "template/v1"
+    },
+    "id": {
+      "type": "string",
+      "description": "Identifiant stable du template (nom de fichier templates/<id>.yaml)."
+    },
+    "name": {
+      "type": "string",
+      "description": "Nom d'affichage dans l'éditeur."
+    },
+    "source": {
+      "type": "string",
+      "description": "Ref de la data source rendue (ex. boutique:items)."
+    },
+    "alias": {
+      "type": "string",
+      "description": "Alias du row dans les appearances ({alias.field})."
+    },
+    "key_field": {
+      "type": "string",
+      "description": "Row key de la source (requis pour le placement)."
+    },
+    "group_by": {
+      "type": "string",
+      "description": "Champ de regroupement dans la library éditeur — zéro effet runtime."
+    },
+    "appearances": {
+      "type": "array",
+      "items": {
+        "$ref": "https://docs.artisanmc.net/schema/menu/v1.json#/$defs/Appearance"
+      },
+      "description": "LE template de row. Les états conditionnels (`if` sur champs du row) expriment la variation."
+    }
+  }
+}

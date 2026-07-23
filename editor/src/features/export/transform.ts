@@ -216,25 +216,31 @@ function boundTemplate(el: Element, pack: Project): ItemTemplate | null {
  * `templateId` falls back to the element's local fields (non-hermetic).
  */
 function serializeElement(el: Element, pack: Project): Record<string, unknown> {
+  // Template-bound elements emit a `template` REF — appearances/alias/key_field
+  // live in templates/<id>.yaml only (one truth; the plugin resolves the ref at
+  // load, so hand-editing a template propagates to every consuming menu). A
+  // dangling templateId falls back to the element's local fields (non-hermetic).
   const tpl = boundTemplate(el, pack);
-  const appearances = tpl ? tpl.appearances : el.appearances;
   const out: Record<string, unknown> = {
     id: el.id,
     // A single numeric position emits as a bare int (no YAML quoting trap);
     // ranges/comma lists stay strings.
     positions: /^\d+$/.test(el.positions) ? Number(el.positions) : el.positions,
-    appearances: appearances.map((a) => serializeAppearance(a, pack)),
+    ...(tpl ? {} : { appearances: el.appearances.map((a) => serializeAppearance(a, pack)) }),
   };
   if (el.iterates) {
-    out.iterates = { source: el.iterates.source, alias: tpl?.alias ?? el.iterates.alias };
+    out.iterates = tpl
+      ? { source: el.iterates.source, template: tpl.id }
+      : { source: el.iterates.source, alias: el.iterates.alias };
   }
   if (el.places) {
     // `key_field` is snake_case on the wire (plugin PlacesYaml); cachedDisplay is
     // editor-only (offline render fallback) and never exported to the bundle.
     out.places = {
       source: el.places.source,
-      alias: tpl?.alias ?? el.places.alias,
-      key_field: tpl?.keyField ?? el.places.keyField,
+      ...(tpl
+        ? { template: tpl.id }
+        : { alias: el.places.alias, key_field: el.places.keyField }),
       placements: el.places.placements.map((p) => ({
         key: p.key,
         page: p.page,
@@ -244,6 +250,20 @@ function serializeElement(el: Element, pack: Project): Record<string, unknown> {
   }
   if (el.tags && el.tags.length > 0) out.tags = el.tags;
   return out;
+}
+
+/** One Item template → `templates/<id>.yaml` (`template/v1`). */
+function serializeTemplate(tpl: ItemTemplate, pack: Project): Record<string, unknown> {
+  return {
+    schema: "template/v1",
+    id: tpl.id,
+    name: tpl.name,
+    source: tpl.sourceRef,
+    alias: tpl.alias,
+    ...(tpl.keyField ? { key_field: tpl.keyField } : {}),
+    ...(tpl.groupBy ? { group_by: tpl.groupBy } : {}),
+    appearances: tpl.appearances.map((a) => serializeAppearance(a, pack)),
+  };
 }
 
 // ─── layer serialization ─────────────────────────────────────────────────────
@@ -851,8 +871,14 @@ export function transform(pack: Project): Record<string, string> {
       menus: pack.menus.map((m) => m.id),
       commands: pack.commands.map((c) => c.id),
       dialogs: pack.dialogs.map((d) => d.id),
+      ...((pack.itemTemplates ?? []).length > 0
+        ? { templates: (pack.itemTemplates ?? []).map((t) => t.id) }
+        : {}),
     },
   };
+  for (const tpl of pack.itemTemplates ?? []) {
+    files[`${base}/templates/${tpl.id}.yaml`] = stringify(serializeTemplate(tpl, pack), yamlOpts);
+  }
   // Editor presentation state (board layout/edges) lives in the hash-excluded
   // `.artisan/editor.yaml` — NOT in the manifest — so cosmetic board moves no
   // longer change the bundle hash and redeploy the server (ADR

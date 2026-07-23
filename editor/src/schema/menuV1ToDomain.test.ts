@@ -120,6 +120,32 @@ describe("menuV1ToDomain — actions + steps (Action DSL)", () => {
     });
   });
 
+  it("reads template refs on iterates/places (appearances live in templates/)", () => {
+    const r = menuV1ToDomain(
+      {
+        schema: "menu/v1",
+        id: "shop",
+        title: [],
+        size: 54,
+        elements: [
+          { id: "grid", positions: "10-43", iterates: { source: "boutique:items", template: "tpl_a" } },
+          {
+            id: "pins",
+            positions: 0,
+            places: { source: "boutique:items", template: "tpl_a", placements: [{ key: "sword", page: 0, position: 10 }] },
+          },
+        ],
+      },
+      opts,
+    );
+    const [grid, pins] = r.menu.layers[0]!.elements;
+    expect(grid!.appearances).toEqual([]);
+    // Wire `template` → domain `templateId`; alias/keyField come from the
+    // template at render/export time (empty locally).
+    expect(grid!.iterates).toEqual({ source: "boutique:items", alias: "", templateId: "tpl_a" });
+    expect(pins!.places).toMatchObject({ source: "boutique:items", templateId: "tpl_a" });
+  });
+
   it("reads the canonical `inputs` field (legacy `context_inputs` alias)", () => {
     const r = menuV1ToDomain(
       {

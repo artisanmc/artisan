@@ -97,6 +97,41 @@ describe("importProjectFromFiles — ownerModule (Add-on-owned project)", () => 
   });
 });
 
+describe("importProjectFromFiles — item templates (templates/<id>.yaml)", () => {
+  const base = `plugins/Artisan/projects/${PACK_ID}`;
+  const files = {
+    [`${base}/manifest.yaml`]:
+      "schema: manifest/v1\nproject_id: p_test\nfiles:\n  menus: [shop]\n  templates: [tpl_view]\n",
+    [`${base}/templates/tpl_view.yaml`]:
+      'schema: template/v1\nid: tpl_view\nname: Vue\nsource: "boutique:items"\nalias: row\nkey_field: id\ngroup_by: category\nappearances:\n  - material: "{row.icon}"\n    title: "Item {row.name}"\n',
+    [`${base}/menus/shop.yaml`]:
+      'schema: menu/v1\nid: shop\ntitle: []\nsize: 54\nelements:\n  - id: grid\n    positions: 10-43\n    iterates: { source: "boutique:items", template: tpl_view }\n  - id: pins\n    positions: 0\n    places:\n      source: "boutique:items"\n      template: tpl_view\n      placements: [{ key: sword, page: 0, position: 10 }]\n',
+  };
+
+  test("reads templates into itemTemplates and maps element refs to templateId", () => {
+    const project = importProjectFromFiles(PACK_ID, files) as {
+      itemTemplates?: Array<Record<string, unknown>>;
+      menus: Array<{ layers: Array<{ elements: Array<Record<string, any>> }> }>;
+    };
+    expect(project.itemTemplates).toHaveLength(1);
+    const tpl = project.itemTemplates![0]!;
+    expect(tpl).toMatchObject({
+      id: "tpl_view",
+      name: "Vue",
+      sourceRef: "boutique:items",
+      alias: "row",
+      keyField: "id",
+      groupBy: "category",
+    });
+    expect(Array.isArray(tpl.appearances)).toBe(true);
+
+    const [grid, pins] = project.menus[0]!.layers[0]!.elements;
+    expect(grid!.iterates).toMatchObject({ source: "boutique:items", templateId: "tpl_view" });
+    expect(pins!.places).toMatchObject({ source: "boutique:items", templateId: "tpl_view" });
+    expect(pins!.places.placements).toEqual([{ key: "sword", page: 0, position: 10 }]);
+  });
+});
+
 describe("round-trip mirror — backend parses what the editor emits", () => {
   test("manifest with the editor's block-style shape yields matching canvasLayout", () => {
     // Mirror of editor/src/features/export/transform.test.ts:

@@ -181,7 +181,7 @@ describe("transform", () => {
         ],
       });
 
-    it("places bound to a template inlines its appearances, alias and key_field", () => {
+    it("places bound to a template emits a template ref, no inlined fields", () => {
       const pack = templatePack([
         {
           id: elementId("grid"), positions: "",
@@ -194,17 +194,15 @@ describe("transform", () => {
       ]);
       const files = transform(pack);
       const el = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!).elements[0];
-      // Template wins over the element's stale local fields.
+      // The template is referenced, never inlined — one truth in templates/.
       expect(el.places).toEqual({
-        source: "items", alias: "row", key_field: "id",
+        source: "items", template: TPL_ID,
         placements: [{ key: "sword", page: 0, position: 10 }],
       });
-      expect(el.appearances).toEqual([
-        { material: "{row.icon}", count: 1, title: "{i18n:k_tpl}" },
-      ]);
+      expect(el.appearances).toBeUndefined();
     });
 
-    it("iterates bound to a template inlines its appearances and alias", () => {
+    it("iterates bound to a template emits a template ref, no inlined fields", () => {
       const pack = templatePack([
         {
           id: elementId("grid"), positions: "10-43",
@@ -214,13 +212,35 @@ describe("transform", () => {
       ]);
       const files = transform(pack);
       const el = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!).elements[0];
-      expect(el.iterates).toEqual({ source: "items", alias: "row" });
-      expect(el.appearances).toEqual([
-        { material: "{row.icon}", count: 1, title: "{i18n:k_tpl}" },
-      ]);
+      expect(el.iterates).toEqual({ source: "items", template: TPL_ID });
+      expect(el.appearances).toBeUndefined();
     });
 
-    it("collects the inlined template's i18n keys into the lang files", () => {
+    it("emits templates/<id>.yaml with source, alias, key_field and appearances", () => {
+      const pack = templatePack([
+        {
+          id: elementId("grid"), positions: "10-43",
+          appearances: [],
+          iterates: { source: "items", alias: "stale", templateId: TPL_ID },
+        },
+      ]);
+      const files = transform(pack);
+      const tpl = parse(files[`plugins/Artisan/projects/p_test/templates/${TPL_ID}.yaml`]!);
+      expect(tpl).toEqual({
+        schema: "template/v1",
+        id: TPL_ID,
+        name: "Vue boutique",
+        source: "boutique:items",
+        alias: "row",
+        key_field: "id",
+        group_by: "category",
+        appearances: [{ material: "{row.icon}", count: 1, title: "{i18n:k_tpl}" }],
+      });
+      const manifest = parse(files["plugins/Artisan/projects/p_test/manifest.yaml"]!);
+      expect(manifest.files.templates).toEqual([TPL_ID]);
+    });
+
+    it("collects the template's i18n keys into the lang files", () => {
       const pack = templatePack([
         {
           id: elementId("grid"), positions: "10-43",
