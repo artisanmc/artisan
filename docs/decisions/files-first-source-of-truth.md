@@ -1,6 +1,12 @@
 # Files-first — the Project's file tree is the single source of truth
 
-**Status:** accepted (2026-07-23) — design locked, nothing implemented yet
+**Status:** accepted (2026-07-23) — implementation in progress: P0 format
+ergonomics + P1 (`.artisan/editor.yaml`, offline assets) + P2 (template/model
+files) shipped 2026-07-23; **P3a shipped 2026-07-24** (decision 2 done —
+`editorJson` demolished, the backend stores only the file tree; the editor
+parses/serializes it via `projectFromFiles`/`transform`, locked by a
+fixed-point round-trip test). Remaining: P3b watcher/auto-push (decision 6),
+P3c divergence resolution.
 
 ## Context
 

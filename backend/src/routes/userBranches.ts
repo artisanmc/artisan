@@ -84,10 +84,8 @@ userBranchesRouter.get("/:id/projects/:projectId/branches/:branch/head", async (
   const commit = await getCommit(branch.headCommitId);
   if (!commit) return c.json({ error: "commit_not_found" }, 404);
 
-  // editorJson may be null on an empty-initial commit (auto-created at project
-  // creation). Return an empty object so the client can still call
-  // `replaceProject` without crashing — same shape it would have stored.
-  const editor = commit.editorJson ? JSON.parse(commit.editorJson) : {};
+  // Files-first: a commit's content IS its file tree — the client parses it
+  // (projectFromFiles) to restore the editor state.
   const files = commit.filesJson ? JSON.parse(commit.filesJson) : {};
 
   return c.json({
@@ -97,13 +95,12 @@ userBranchesRouter.get("/:id/projects/:projectId/branches/:branch/head", async (
       message: commit.message,
       createdAt: commit.createdAt,
     },
-    editor,
     files,
   });
 });
 
 // GET /:id/projects/:projectId/commits/:commitId/content — used by the History
-// tab Restore action to fetch any past commit's editor + files JSON.
+// tab Restore action to fetch any past commit's files.
 userBranchesRouter.get("/:id/projects/:projectId/commits/:commitId/content", async (c) => {
   const networkId = c.req.param("id");
   const projectId = c.req.param("projectId");
@@ -116,11 +113,9 @@ userBranchesRouter.get("/:id/projects/:projectId/commits/:commitId/content", asy
     return c.json({ error: "commit_not_found" }, 404);
   }
 
-  const editor = commit.editorJson ? JSON.parse(commit.editorJson) : {};
   const files = commit.filesJson ? JSON.parse(commit.filesJson) : {};
   return c.json({
     commit: { id: commit.id, contentHash: commit.contentHash, message: commit.message, createdAt: commit.createdAt },
-    editor,
     files,
   });
 });
@@ -179,13 +174,11 @@ userBranchesRouter.post("/:id/projects/:projectId/commits", async (c) => {
   if (!project) return c.json({ error: "pack_not_found" }, 404);
 
   const files = JSON.parse(project.filesJson) as Record<string, string>;
-  const editor = project.editorJson ? JSON.parse(project.editorJson) : null;
 
   const commit = await createCommit({
     projectId,
     parentId: branch.headCommitId,
     files,
-    editor,
     authorUserId: getUserId(c),
     message,
   });

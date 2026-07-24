@@ -40,15 +40,15 @@ export async function listCommits(networkId: string, projectId: string, branch: 
 }
 
 /**
- * Fetches the editor + files content of a branch's HEAD commit. Used by the
+ * Fetches the file content of a branch's HEAD commit. Used by the
  * Revert / Discard action in user-auth mode to restore the last committed
- * (deployed) state, replacing the editor's WIP.
+ * (deployed) state, replacing the editor's WIP (parsed via projectFromFiles).
  */
 export async function getBranchHead(
   networkId: string,
   projectId: string,
   branch: string,
-): Promise<{ commit: { id: string; contentHash: string; message: string; createdAt: string }; editor: Record<string, unknown>; files: Record<string, string> } | null> {
+): Promise<{ commit: { id: string; contentHash: string; message: string; createdAt: string }; files: Record<string, string> } | null> {
   const res = await fetch(
     `${API_URL}/api/v1/networks/${networkId}/projects/${projectId}/branches/${encodeURIComponent(branch)}/head`,
     { credentials: "include" },
@@ -83,14 +83,15 @@ export async function promoteBranch(networkId: string, projectId: string, src: s
 }
 
 /**
- * Fetches the editor + files content of a specific commit by id. Used by the
- * History tab Restore action to roll back the editor's WIP to any past commit.
+ * Fetches the file content of a specific commit by id. Used by the History
+ * tab Restore action to roll back the editor's WIP to any past commit
+ * (parsed via projectFromFiles).
  */
 export async function getCommitContent(
   networkId: string,
   projectId: string,
   commitId: string,
-): Promise<{ commit: { id: string; contentHash: string; message: string; createdAt: string }; editor: Record<string, unknown>; files: Record<string, string> } | null> {
+): Promise<{ commit: { id: string; contentHash: string; message: string; createdAt: string }; files: Record<string, string> } | null> {
   const res = await fetch(
     `${API_URL}/api/v1/networks/${networkId}/projects/${projectId}/commits/${commitId}/content`,
     { credentials: "include" },

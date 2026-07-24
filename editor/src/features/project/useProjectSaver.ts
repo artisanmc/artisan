@@ -10,7 +10,6 @@ export function useProjectSaver(): (pack: Project, files: Record<string, string>
     await saveUserProject(pack.id, {
       hash: "", // recomputed server-side
       files,
-      editor: pack,
     });
   };
 }

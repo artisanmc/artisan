@@ -21,7 +21,7 @@ COPY backend ./
 # Must land at /docs to match the relative imports from backend/src.
 COPY docs /docs
 # ... and the editor sources the backend imports at runtime (Action DSL codec:
-# projectImport.ts + assistant/validate.ts reach ../../../editor/src/lib/actionDsl).
+# assistant/validate.ts reaches ../../../../editor/src/lib/actionDsl).
 # Must land at /editor to match those relative imports — mirrors the dev
 # docker-compose ./editor:/editor mount.
 COPY editor/src /editor/src

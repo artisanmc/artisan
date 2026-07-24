@@ -36,6 +36,67 @@ export interface ImportResult {
   unsupported: string[];
 }
 
+/** i18n bridge shared by the wire→domain converters (same contract as makeStepConverter). */
+export interface I18nBridge {
+  text: (raw: string | undefined) => LText;
+  ref: (key: string) => LText;
+  pushUnsupported: (s: string) => void;
+}
+
+/**
+ * Standalone appearance converter (wire appearance → domain), shared by
+ * menuV1ToDomain and the template/v1 import path of projectFromFiles.
+ */
+export function makeAppearanceConverter(bridge: I18nBridge): {
+  appearance: (a: Json) => DomainAppearance;
+} {
+  const { text } = bridge;
+  const { steps: parseSteps, ifArray } = makeStepConverter(bridge);
+
+  function clickMap(click: Json | undefined): ClickMap | undefined {
+    if (!click || typeof click !== "object") return undefined;
+    const out: ClickMap = {};
+    for (const ct of CLICK_TYPES) {
+      const handler = click[ct] as Json | string | undefined;
+      if (!handler) continue;
+      // Canonical collapsed form: the handler IS the Action DSL string.
+      // Legacy object form `{steps: "<dsl>"}` is still accepted.
+      const dsl = typeof handler === "string" ? handler : handler.steps;
+      out[ct] = { steps: parseSteps(dsl) } satisfies ClickHandler;
+    }
+    return Object.keys(out).length > 0 ? out : undefined;
+  }
+
+  // menu/v1 lore is `string[]`; domain lore is a single LText (lines joined by
+  // `\n`). A single `{i18n:}` line references that key; otherwise the literal
+  // lines are joined and allocated a fresh key.
+  function loreText(lore: unknown): LText | undefined {
+    if (!Array.isArray(lore) || lore.length === 0) return undefined;
+    if (lore.length === 1) return text(String(lore[0]));
+    return text(lore.map(String).join("\n"));
+  }
+
+  function appearance(a: Json): DomainAppearance {
+    const out: DomainAppearance = {};
+    const ifa = ifArray(a.if);
+    if (ifa) {
+      out.if = ifa.conds;
+      if (ifa.joins.length > 0) out.ifJoins = ifa.joins;
+    }
+    if (a.material) out.material = a.material;
+    if (a.head) out.head = a.head;
+    if (a.count !== undefined) out.count = a.count;
+    if (a.title !== undefined) out.title = text(a.title);
+    const lore = loreText(a.lore);
+    if (lore !== undefined) out.lore = lore;
+    const click = clickMap(a.click);
+    if (click) out.click = click;
+    return out;
+  }
+
+  return { appearance };
+}
+
 export function menuV1ToDomain(
   src: Json,
   opts: { projectId: ProjectId; lang: string; translations?: Record<string, Record<string, string>> },
@@ -58,53 +119,11 @@ export function menuV1ToDomain(
   }
 
   // ── shared wire→domain converter (appearance conditions + DSL steps) ──────
-  const { steps: parseSteps, ifArray } = makeStepConverter({
+  const { appearance } = makeAppearanceConverter({
     text,
     ref,
     pushUnsupported: (s) => unsupported.push(s),
   });
-
-  function clickMap(click: Json | undefined): ClickMap | undefined {
-    if (!click || typeof click !== "object") return undefined;
-    const out: ClickMap = {};
-    for (const ct of CLICK_TYPES) {
-      const handler = click[ct] as Json | string | undefined;
-      if (!handler) continue;
-      // Canonical collapsed form: the handler IS the Action DSL string.
-      // Legacy object form `{steps: "<dsl>"}` is still accepted.
-      const dsl = typeof handler === "string" ? handler : handler.steps;
-      out[ct] = { steps: parseSteps(dsl) } satisfies ClickHandler;
-    }
-    return Object.keys(out).length > 0 ? out : undefined;
-  }
-
-  // ── appearance / element / layer / menu ───────────────────────────────────
-  function appearance(a: Json): DomainAppearance {
-    const out: DomainAppearance = {};
-    const ifa = ifArray(a.if);
-    if (ifa) {
-      out.if = ifa.conds;
-      if (ifa.joins.length > 0) out.ifJoins = ifa.joins;
-    }
-    if (a.material) out.material = a.material;
-    if (a.head) out.head = a.head;
-    if (a.count !== undefined) out.count = a.count;
-    if (a.title !== undefined) out.title = text(a.title);
-    const lore = loreText(a.lore);
-    if (lore !== undefined) out.lore = lore;
-    const click = clickMap(a.click);
-    if (click) out.click = click;
-    return out;
-  }
-
-  // menu/v1 lore is `string[]`; domain lore is a single LText (lines joined by
-  // `\n`). A single `{i18n:}` line references that key; otherwise the literal
-  // lines are joined and allocated a fresh key.
-  function loreText(lore: unknown): LText | undefined {
-    if (!Array.isArray(lore) || lore.length === 0) return undefined;
-    if (lore.length === 1) return text(String(lore[0]));
-    return text(lore.map(String).join("\n"));
-  }
 
   // ── title layers (inverse of serializeTitleLayer) ─────────────────────────
   /** Layer `value`: canonical string form (`"{i18n:key}"` or literal) or the

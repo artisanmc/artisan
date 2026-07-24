@@ -1,13 +1,13 @@
-// Conformance test: the BACKEND importer (backend/src/lib/projectImport.ts,
-// imported here via relative path — it only depends on `yaml`) must produce a
-// Project the editor can re-export without corrupting the seeded content.
-// Fixtures are the ACTUAL Boutique add-on bootstrap files
+// Conformance test: importing HAND-WRITTEN project files (legacy spellings:
+// `{key}` title objects, `context_inputs`, `layers` wrapping, `{steps}` click
+// objects) must produce a Project the editor can re-export without corrupting
+// the seeded content. Fixtures are the ACTUAL Boutique add-on bootstrap files
 // (Boutique/src/main/resources/bootstrap/), inlined verbatim.
-import type { Project } from "@/domain/types";
+import type { Project, ProjectId } from "@/domain/types";
 import { transform } from "@/features/export/transform";
 import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
-import { importProjectFromFiles } from "../../../backend/src/lib/projectImport";
+import { projectFromFiles } from "./projectFromFiles";
 
 const PROJECT_ID = "boutique_shop";
 const base = `plugins/Artisan/projects/${PROJECT_ID}`;
@@ -144,7 +144,7 @@ const bootstrapFiles: Record<string, string> = {
 type Json = Record<string, any>;
 
 function roundTrip(): { project: Project; out: Record<string, Json>; rawOut: Record<string, string> } {
-  const project = importProjectFromFiles(PROJECT_ID, bootstrapFiles) as unknown as Project;
+  const project = projectFromFiles(PROJECT_ID as ProjectId, bootstrapFiles);
   const rawOut = transform(project);
   const out: Record<string, Json> = {};
   for (const [path, content] of Object.entries(rawOut)) {
