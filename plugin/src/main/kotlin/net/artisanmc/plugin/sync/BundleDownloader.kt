@@ -50,15 +50,30 @@ class BundleDownloader(
         val projectDir = roots.dirFor(projectId)
         projectDir.mkdirs()
 
-        // 1) Build expected rel-paths and write incoming files
+        // 1) Build expected rel-paths and write incoming files. Writes are
+        // ATOMIC (tmp + rename): a reader (or the disk watcher) never sees a
+        // half-written YAML. Unchanged files are skipped entirely — an echo of
+        // our own local_push re-downloads identical content without touching disk.
         val expectedRelPaths = mutableSetOf<String>()
         for ((path, content) in files) {
             val relPath = if (path.startsWith(prefix)) path.removePrefix(prefix) else continue
             val target = File(projectDir, relPath)
             if (!target.canonicalPath.startsWith(projectDir.canonicalPath + File.separator)) continue
-            target.parentFile?.mkdirs()
-            target.writeText(content, Charsets.UTF_8)
             expectedRelPaths.add(relPath.replace('\\', '/'))
+            if (target.isFile && runCatching { target.readText(Charsets.UTF_8) }.getOrNull() == content) continue
+            target.parentFile?.mkdirs()
+            val tmp = File(target.parentFile, target.name + ".artisan-tmp")
+            tmp.writeText(content, Charsets.UTF_8)
+            try {
+                java.nio.file.Files.move(
+                    tmp.toPath(), target.toPath(),
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING,
+                    java.nio.file.StandardCopyOption.ATOMIC_MOVE,
+                )
+            } catch (_: Exception) {
+                // ATOMIC_MOVE unsupported on this FS — plain replace as fallback.
+                java.nio.file.Files.move(tmp.toPath(), target.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+            }
         }
 
         // 2) Sweep: delete local files NOT in the bundle, preserving .artisan* metadata
