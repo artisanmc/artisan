@@ -70,9 +70,10 @@ class HelloAckAutoPushTest {
     }
 
     @Test
-    fun `CONFLICT at hello_ack does NOT auto-push (P3c territory)`() {
+    fun `CONFLICT at hello_ack does NOT auto-push but reports sync_divergence`() {
         val packsRoot = Files.createTempDirectory("artisan_autopush_").toFile()
         val dir = writeProject(packsRoot, "p_conf")
+        val diskHash = BundleHasher.hash(dir)
         // Disk changed AND backend changed since last sync.
         SyncMetadata.recordSync(dir, syncedHash = "h_old", backendHash = "h_old")
 
@@ -85,7 +86,11 @@ class HelloAckAutoPushTest {
 
         handleMessage(provider, """{"type":"hello_ack","session_id":"s","project_hashes":{"p_conf":"h_backend_v2"}}""")
 
-        Thread.sleep(300)
+        // P3c: the divergence is REPORTED (with the disk files) so the editor
+        // can offer per-file resolution — never pushed, never overwritten.
+        val div = awaitSend(sent) { it.contains("\"sync_divergence\"") && it.contains("p_conf") }
+        assertTrue(div.contains(diskHash), "sync_divergence must carry the disk hash")
+        assertTrue(div.contains("menus/m.yaml"), "sync_divergence must carry the disk files")
         assertEquals(emptyList(), sent.filter { it.contains("\"local_push\"") }, "conflict must not auto-push")
     }
 }

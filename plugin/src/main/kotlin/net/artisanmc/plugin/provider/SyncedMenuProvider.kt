@@ -284,8 +284,9 @@ class SyncedMenuProvider(
                 SyncAction.CONFLICT -> {
                     logger?.warning(
                         "[Artisan] '$projectId' changed on disk but the backend also moved since last sync — " +
-                        "hot-reloaded locally, NOT pushed. Use /artisan pushLocal $projectId to force local."
+                        "hot-reloaded locally, NOT pushed; divergence reported to the editor for resolution."
                     )
+                    send(LocalPushSender.buildDivergenceMessage(projectId, projectDir, meta.syncedHash))
                 }
             }
         }
@@ -384,13 +385,16 @@ class SyncedMenuProvider(
                         }
                         SyncAction.CONFLICT -> {
                             // True divergence (disk AND web both moved since last sync): no
-                            // overwrite in either direction. Until the divergence-resolution
-                            // flow ships (P3c), we hold local files and WARN; the next
-                            // bundle_available would still apply the backend state.
+                            // overwrite in either direction — report the disk state so the
+                            // editor can offer per-file resolution (P3c). Re-sent at every
+                            // hello_ack until resolved (self-healing if the backend restarts).
                             logger?.warning(
                                 "[Artisan] Local pack '$projectId' diverged from backend (both changed). " +
-                                "Not auto-pushing. Use /artisan pushLocal $projectId to force local, or redeploy from the editor to force web."
+                                "Not auto-pushing — divergence reported to the editor for resolution."
                             )
+                            httpClient.dispatcher.executorService.execute {
+                                send(LocalPushSender.buildDivergenceMessage(projectId, projectDir, meta.syncedHash))
+                            }
                         }
                     }
                 }

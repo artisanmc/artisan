@@ -461,6 +461,28 @@ export async function handlePluginMessage(
     return { reply: null };
   }
 
+  // ── sync_divergence: disk AND web both moved — plugin reports its disk tree ─
+  // (files-first P3c). Stored IN MEMORY only: the plugin re-reports at every
+  // hello_ack while unresolved, so a backend restart self-heals on reconnect.
+  if (msg.type === "sync_divergence") {
+    const serverId = connToServerId.get(connId);
+    if (!serverId) return { reply: null };
+    const raw = msg as Record<string, unknown>;
+    const projectId = raw.project_id as string | undefined;
+    const files = raw.files as Record<string, string> | undefined;
+    const diskHash = raw.disk_hash as string | undefined;
+    if (!projectId || !files || typeof diskHash !== "string") return { reply: null };
+    pendingDivergences.set(projectId, { files, diskHash, at: new Date().toISOString() });
+    // Nudge open editor tabs on this server key — they refetch the project
+    // (GET includes the divergence detail) and show the resolution banner.
+    const payload = JSON.stringify({ type: "sync_divergence", project_id: projectId, disk_hash: diskHash });
+    for (const [sessionId, sIds] of editorTokenToServers) {
+      if (!sIds.has(serverId)) continue;
+      editorSenders.get(sessionId)?.(payload);
+    }
+    return { reply: null };
+  }
+
   // ── local_push: plugin pushes local project files to backend (/artisan pushLocal) ─
   if (msg.type === "local_push") {
     const serverId = connToServerId.get(connId);
@@ -511,6 +533,8 @@ export async function handlePluginMessage(
     } else {
       await pushBundleAvailable(projectId, "main", hash);
     }
+    // A manual pushLocal is a "force disk" resolution — clear any pending divergence.
+    clearPendingDivergence(projectId, serverId);
     return { reply: null };
   }
 
@@ -581,6 +605,32 @@ export async function handlePluginMessage(
     `(protocol_version=${(msg as any).protocol_version ?? "?"}). Ignoring.`,
   );
   return { reply: null };
+}
+
+// ── pending sync divergences (files-first P3c) ──────────────────────────────
+// projectId → the plugin-reported disk tree. Memory-only by design: the plugin
+// re-reports at every hello_ack while unresolved (self-healing across backend
+// restarts); resolution (or a manual pushLocal) clears it.
+
+export interface PendingDivergence {
+  files: Record<string, string>;
+  diskHash: string;
+  at: string;
+}
+const pendingDivergences = new Map<string, PendingDivergence>();
+
+export function getPendingDivergence(projectId: string): PendingDivergence | undefined {
+  return pendingDivergences.get(projectId);
+}
+
+/** Drop a pending divergence and tell open editor tabs the banner can go. */
+export function clearPendingDivergence(projectId: string, serverKeyId?: string): void {
+  if (!pendingDivergences.delete(projectId)) return;
+  const payload = JSON.stringify({ type: "divergence_resolved", project_id: projectId });
+  for (const [sessionId, sIds] of editorTokenToServers) {
+    if (serverKeyId && !sIds.has(serverKeyId)) continue;
+    editorSenders.get(sessionId)?.(payload);
+  }
 }
 
 export async function pushBundleAvailable(

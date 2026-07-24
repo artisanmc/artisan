@@ -4,6 +4,7 @@ import { useAccountStore } from "@/state/accountStore";
 import { loadUserProject } from "@/lib/api/userProjects";
 import { normalizeDataSources } from "@/domain/dataModels";
 import { projectFromFiles } from "@/schema/projectFromFiles";
+import { useDivergenceStore } from "@/state/divergenceStore";
 import type { Account, Project, ProjectId } from "@/domain/types";
 
 export interface ProjectLoadResult {
@@ -33,6 +34,8 @@ export function useProjectLoader(projectId: string): ProjectLoadResult {
           name: res.project.name,
           serverKeyId: res.project.serverKeyId ?? res.serverKeyId ?? undefined,
         });
+        // Files-first P3c: surface a pending disk↔web divergence to the banner.
+        useDivergenceStore.getState().set(projectId, res.divergence);
         // Accepted reset (ADR project-sources-and-data-models): legacy
         // schemaless sources are dropped at the load boundary, never migrated.
         normalizeDataSources(loaded);

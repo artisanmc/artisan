@@ -307,3 +307,95 @@ describe("userProjectsRouter — DELETE /:projectId", () => {
     expect(row?.deletedAt).toBeNull();
   });
 });
+
+// ─── files-first P3c: divergence report + per-file resolution ────────────────
+
+describe("userProjectsRouter — divergence", () => {
+  beforeEach(clearAll);
+
+  async function seedDivergence(packId: string, skId: string) {
+    const { registerConn, connToServerId, handlePluginMessage } = await import("../ws/hub");
+    const connId = `conn-div-${packId}`;
+    registerConn(connId, () => {});
+    connToServerId.set(connId, skId);
+    const base = `plugins/Artisan/projects/${packId}`;
+    await handlePluginMessage(connId, JSON.stringify({
+      type: "sync_divergence",
+      project_id: packId,
+      files: {
+        [`${base}/menus/m.yaml`]: "id: m\ntitle: DISK\n",
+        [`${base}/menus/disk_only.yaml`]: "id: disk_only\n",
+      },
+      disk_hash: "h_disk",
+      synced_hash: "h_old",
+    }));
+    return base;
+  }
+
+  test("GET includes the per-file divergence detail while pending", async () => {
+    const { sessionId, packId, skId } = await seedUserWithPack("u1");
+    const base = `plugins/Artisan/projects/${packId}`;
+    await upsertProjectContent(packId, {
+      filesJson: JSON.stringify({ [`${base}/menus/m.yaml`]: "id: m\ntitle: WEB\n" }),
+    });
+    await seedDivergence(packId, skId);
+
+    const app = makeApp();
+    const res = await app.request(`/api/v1/user/projects/${packId}`, {
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
+    });
+    const body = await res.json();
+    expect(body.divergence).toBeDefined();
+    expect(body.divergence.disk_hash).toBe("h_disk");
+    expect(body.divergence.files).toEqual([
+      { path: "menus/disk_only.yaml", disk: "id: disk_only\n", web: null },
+      { path: "menus/m.yaml", disk: "id: m\ntitle: DISK\n", web: "id: m\ntitle: WEB\n" },
+    ]);
+  });
+
+  test("resolve-divergence applies per-file choices, commits, clears the report", async () => {
+    const { sessionId, packId, skId } = await seedUserWithPack("u1");
+    const base = `plugins/Artisan/projects/${packId}`;
+    await upsertProjectContent(packId, {
+      filesJson: JSON.stringify({ [`${base}/menus/m.yaml`]: "id: m\ntitle: WEB\n" }),
+    });
+    await seedDivergence(packId, skId);
+
+    const app = makeApp();
+    const res = await app.request(`/api/v1/user/projects/${packId}/resolve-divergence`, {
+      method: "POST",
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ choices: { "menus/m.yaml": "disk", "menus/disk_only.yaml": "web" } }),
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.ok).toBe(true);
+
+    const updated = await getProject(packId);
+    const files = JSON.parse(updated!.filesJson);
+    expect(files[`${base}/menus/m.yaml`]).toBe("id: m\ntitle: DISK\n"); // disk chosen
+    expect(files[`${base}/menus/disk_only.yaml`]).toBeUndefined();      // web chosen (absent)
+
+    // Committed on main + head advanced.
+    const { getBranch } = await import("../lib/branchStorage");
+    const { getCommit } = await import("../lib/commitStorage");
+    const branch = await getBranch(packId, "main");
+    const head = await getCommit(branch!.headCommitId);
+    expect(head!.message).toBe("Resolve disk/web divergence");
+
+    // Cleared: GET no longer reports it.
+    const { getPendingDivergence } = await import("../ws/hub");
+    expect(getPendingDivergence(packId)).toBeUndefined();
+  });
+
+  test("resolve-divergence 404 when nothing is pending", async () => {
+    const { sessionId, packId } = await seedUserWithPack("u1");
+    const app = makeApp();
+    const res = await app.request(`/api/v1/user/projects/${packId}/resolve-divergence`, {
+      method: "POST",
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ choices: {} }),
+    });
+    expect(res.status).toBe(404);
+  });
+});

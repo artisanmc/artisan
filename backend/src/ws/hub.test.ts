@@ -732,6 +732,42 @@ describe("local_push", () => {
   });
 });
 
+describe("sync_divergence (files-first P3c)", () => {
+  test("stores the plugin-reported disk tree; local_push clears it", async () => {
+    const { id: keyId, key, networkId } = await seedServerKey();
+    await seedBoundPack(networkId, keyId, "p_sync_div", "h_web")
+    const connId = "conn-sync-div";
+    registerConn(connId, () => {});
+    await handlePluginMessage(connId, JSON.stringify({
+      type: "hello", server_key: key, plugin_version: "1.0", minecraft_version: "1.21", current_bundle_hash: "",
+    }));
+
+    const base = "plugins/Artisan/projects/p_sync_div";
+    await handlePluginMessage(connId, JSON.stringify({
+      type: "sync_divergence",
+      project_id: "p_sync_div",
+      files: { [`${base}/menus/m.yaml`]: "id: m\ntitle: DISK\n" },
+      disk_hash: "h_disk",
+      synced_hash: "h_old",
+    }));
+
+    const { getPendingDivergence } = await import("./hub");
+    const pending = getPendingDivergence("p_sync_div");
+    expect(pending).toBeDefined();
+    expect(pending!.diskHash).toBe("h_disk");
+    expect(pending!.files[`${base}/menus/m.yaml`]).toContain("DISK");
+
+    // A manual pushLocal = force-disk resolution → the report is cleared.
+    await handlePluginMessage(connId, JSON.stringify({
+      type: "local_push",
+      project_id: "p_sync_div",
+      files: { [`${base}/menus/m.yaml`]: "id: m\ntitle: DISK\n" },
+      hash: "h_disk",
+    }));
+    expect(getPendingDivergence("p_sync_div")).toBeUndefined();
+  });
+});
+
 describe("protocol_version + unknown message types", () => {
   test("handlePluginMessage logs and ignores unknown message types", async () => {
     const connId = "conn-unknown-type";

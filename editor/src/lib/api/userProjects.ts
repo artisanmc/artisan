@@ -2,12 +2,27 @@ import { useProjectVersionStore, VersionConflictError } from "@/state/projectVer
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
 
+/** One file of a pending disk↔web divergence (files-first P3c). */
+export interface DivergentFile {
+  path: string;
+  disk: string | null;
+  web: string | null;
+}
+
+export interface ProjectDivergence {
+  disk_hash: string;
+  at: string;
+  files: DivergentFile[];
+}
+
 export interface UserProjectLoadResult {
   project: { id: string; name: string; hash: string; version?: number; serverKeyId?: string };
   networkId: string;
   serverKeyId: string;
   /** The canonical Project representation — parsed client-side via projectFromFiles. */
   files: Record<string, string>;
+  /** Pending disk↔web divergence awaiting per-file resolution, if any. */
+  divergence?: ProjectDivergence;
 }
 
 export async function loadUserProject(projectId: string): Promise<UserProjectLoadResult> {
@@ -48,6 +63,24 @@ export async function saveUserProject(
   if (!res.ok) throw new Error(`saveUserProject failed: ${res.status}`);
   const data = (await res.json()) as { version?: number };
   if (typeof data.version === "number") store.setVersion(projectId, data.version);
+}
+
+/**
+ * POST /api/v1/user/projects/:projectId/resolve-divergence — apply per-file
+ * choices ("disk" | "web") to a pending divergence. The backend merges,
+ * commits, re-broadcasts the bundle and clears the report.
+ */
+export async function resolveDivergence(
+  projectId: string,
+  choices: Record<string, "disk" | "web">,
+): Promise<void> {
+  const res = await fetch(`${API_URL}/api/v1/user/projects/${projectId}/resolve-divergence`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ choices }),
+  });
+  if (!res.ok) throw new Error(`resolveDivergence failed: ${res.status}`);
 }
 
 /** DELETE /api/v1/user/projects/:projectId. */
