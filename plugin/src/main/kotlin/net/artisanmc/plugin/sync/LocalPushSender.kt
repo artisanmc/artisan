@@ -19,4 +19,21 @@ object LocalPushSender {
             "hash" to BundleHasher.hashCanonical(files, projectId),
         )
     }
+
+    /**
+     * Builds a `sync_divergence` message (ADR files-first #6, P3c): disk AND
+     * web both moved since the last sync — the plugin reports its disk state
+     * (same file payload as a push) so the editor can offer per-file
+     * resolution. Nothing is pushed or overwritten until the admin decides.
+     */
+    fun buildDivergenceMessage(projectId: String, projectDir: File, syncedHash: String): Map<String, Any> {
+        val files = ProjectFilesReader.read(projectDir, projectId)
+        return mapOf(
+            "type" to "sync_divergence",
+            "project_id" to projectId,
+            "files" to files,
+            "disk_hash" to BundleHasher.hashCanonical(files, projectId),
+            "synced_hash" to syncedHash,
+        )
+    }
 }

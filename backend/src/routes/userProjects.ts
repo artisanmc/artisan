@@ -5,8 +5,12 @@ import { join } from "node:path";
 import { eq } from "drizzle-orm";
 import { db } from "../db";
 import { projects as projectsTable } from "../db/schema";
-import { broadcastDraftUpdate, getMcVersion, pushProjectDeleted } from "../ws/hub";
+import { broadcastDraftUpdate, clearPendingDivergence, getMcVersion, getPendingDivergence, pushBundleAvailable, pushProjectDeleted } from "../ws/hub";
+import { advanceBranchHead, getBranch } from "../lib/branchStorage";
+import { createCommit } from "../lib/commitStorage";
 import { customItemsCacheDir, readCustomItems } from "../lib/customItems";
+import { diffDivergence, mergeDivergence } from "../lib/divergence";
+import { computeBundleHash } from "../lib/hashUtils";
 import { getProject, softDeleteProject, upsertProjectContent } from "../lib/projectStorage";
 import { getNetworkOfProject, requireMember } from "../lib/membershipGuard";
 import type { AuthUser } from "../middleware/userAuth";
@@ -102,14 +106,87 @@ userProjectsRouter.get("/:projectId", async (c: Context<{ Variables: Vars }>) =>
   const project = await getProject(projectId);
   if (project === null) return c.json({ error: "not_found" }, 404);
 
+  const webFiles = JSON.parse(project.filesJson) as Record<string, string>;
+  const pending = getPendingDivergence(projectId);
   return c.json({
     project,
     networkId,
     serverKeyId: project.serverKeyId,
     // Files-first: the file tree IS the Project — the editor parses it
     // client-side (projectFromFiles). No editor JSON is stored anymore.
-    files: JSON.parse(project.filesJson),
+    files: webFiles,
+    // Files-first P3c: pending disk↔web divergence, per-file detail for the
+    // resolution banner. Absent when the trees agree.
+    ...(pending
+      ? {
+          divergence: {
+            disk_hash: pending.diskHash,
+            at: pending.at,
+            files: diffDivergence(webFiles, pending.files, projectId),
+          },
+        }
+      : {}),
   });
+});
+
+// POST /api/user/projects/:projectId/resolve-divergence — apply per-file
+// choices ("disk" | "web", default web) to a pending divergence: the merged
+// tree becomes the new WIP + a commit on main, the plugin re-syncs via
+// bundle_available, and the pending report is cleared.
+userProjectsRouter.post("/:projectId/resolve-divergence", async (c: Context<{ Variables: Vars }>) => {
+  const userId = getUserId(c);
+  if (!userId) return c.json({ error: "unauthorized" }, 401);
+
+  const projectId = c.req.param("projectId");
+  const networkId = await getNetworkOfProject(projectId);
+  if (networkId === null) return c.json({ error: "not_found" }, 404);
+  try {
+    await requireMember(userId, networkId);
+  } catch {
+    return c.json({ error: "forbidden" }, 403);
+  }
+
+  const pending = getPendingDivergence(projectId);
+  if (!pending) return c.json({ error: "no_divergence" }, 404);
+  const project = await getProject(projectId);
+  if (!project) return c.json({ error: "not_found" }, 404);
+
+  let body: { choices?: Record<string, "disk" | "web"> };
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: "invalid_body" }, 400);
+  }
+  const choices = body.choices ?? {};
+
+  const webFiles = JSON.parse(project.filesJson) as Record<string, string>;
+  const merged = mergeDivergence(webFiles, pending.files, projectId, choices);
+  const hash = await computeBundleHash(merged, projectId);
+
+  // Unconditioned write (like local_push): the version bump invalidates other
+  // open tabs through the existing optimistic-lock banner.
+  const version = await upsertProjectContent(projectId, {
+    hash,
+    filesJson: JSON.stringify(merged),
+  });
+
+  const branch = await getBranch(projectId, "main");
+  let contentHash = hash;
+  if (branch) {
+    const commit = await createCommit({
+      projectId,
+      parentId: branch.headCommitId,
+      files: merged,
+      authorUserId: userId,
+      message: "Resolve disk/web divergence",
+    });
+    await advanceBranchHead(projectId, "main", commit.id);
+    contentHash = commit.contentHash;
+  }
+  await pushBundleAvailable(projectId, "main", contentHash);
+  clearPendingDivergence(projectId, project.serverKeyId);
+
+  return c.json({ ok: true, version, hash });
 });
 
 // GET /api/user/projects/:projectId/items — vanilla item bundle for the project's MC version

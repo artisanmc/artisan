@@ -1,3 +1,4 @@
+import { DivergenceBanner } from "@/components/DivergenceBanner";
 import { ProjectConflictBanner } from "@/components/ProjectConflictBanner";
 import { ProjectTopBarControls } from "@/components/ProjectTopBarControls";
 import { SplitPane } from "@/components/SplitPane";
@@ -471,6 +472,7 @@ export function ProjectCanvasPage() {
       )}
 
       <ProjectConflictBanner projectId={pId} />
+      <DivergenceBanner projectId={pId} />
 
       {/* The secondary views (translations / data sources / history / assistant)
           replace the canvas in the center region via WorkspaceView (?tab=) — no

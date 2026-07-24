@@ -9,6 +9,9 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Added — files-first P3c: per-file divergence resolution (no overwrite in either direction)
+- When disk AND web both moved since the last sync, the plugin reports its disk tree (`sync_divergence` WS message, re-sent at every `hello_ack` while unresolved — the backend keeps it in memory only, self-healing across restarts) instead of pushing or being overwritten. The editor shows a resolution banner listing every differing file (modified / disk-only / web-only) with a per-side choice (default: keep the server file) plus keep-all shortcuts; `POST /api/v1/user/projects/:projectId/resolve-divergence` merges the chosen sides, commits on main, re-broadcasts `bundle_available` (the plugin re-syncs) and clears the report. A manual `/artisan pushLocal` also clears it (force-disk). The project GET carries the per-file detail while pending.
+
 ### Added — files-first P3b: disk watcher + auto-push (disk edits are never overwritten)
 - The plugin watches every project root (recursive, debounced 1.5s, active even offline): a hand/agent edit on disk hot-reloads menus immediately and auto-pushes (`local_push`) when the backend hasn't moved — `/artisan pushLocal` becomes a manual fallback. The same rule applies at `hello_ack`: a LOCAL_ONLY divergence is auto-pushed instead of being overwritten by the next `bundle_available` (the historical data-loss trap). A true divergence (disk AND web both moved) hot-reloads locally, is held unpushed, and logs one WARN (resolution flow = P3c).
 - Self-write suppression: bundle downloads and move-to-trash are invisible to the watcher (suppression window + grace); `.artisan*` paths never trigger it. `BundleDownloader` now writes atomically (tmp + rename) and skips files whose content is unchanged.

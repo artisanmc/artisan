@@ -85,7 +85,8 @@ class WatcherAutoPushIntegrationTest {
         File(dir, "menus/m.yaml").writeText("schema: menu/v1\nid: m\ntitle: \"Diverged\"\nsize: 27\nelements: []\n")
 
         await { p.findMenu("m")?.resolveTitle("en")?.contains("Diverged") == true }
-        Thread.sleep(400)
+        // P3c: the divergence is reported for editor-side resolution, never pushed.
+        await { sent.any { it.contains("\"sync_divergence\"") && it.contains("p_div") } }
         assertEquals(emptyList(), sent.filter { it.contains("\"local_push\"") })
         p.unload()
     }
