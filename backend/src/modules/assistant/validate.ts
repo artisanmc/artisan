@@ -6,9 +6,9 @@ import schema from "../../../../docs/schema/menu/v1/schema.json";
 import { validateMenuLayout } from "../../../../docs/schema/menu/v1/types";
 // Action DSL codec (Phase 2 of ADR action-dsl): click-handler / command steps /
 // dialog button actions travel as a DSL STRING. We reuse the editor's pure
-// parser directly — its only `@/…` imports are `import type` (erased at runtime,
-// like projectImport.ts does) — so one TS parser validates the same string the
-// plugin will later execute, with no hand-mirrored divergence.
+// parser directly — its only `@/…` imports are `import type` (erased at
+// runtime) — so one TS parser validates the same string the plugin will later
+// execute, with no hand-mirrored divergence.
 import { parseActionDsl } from "../../../../editor/src/lib/actionDsl/parser";
 import type { DslStep } from "../../../../editor/src/lib/actionDsl/ast";
 import { SUPPORTED_ACTIONS, SUPPORTED_CONDITIONS } from "./grounding";

@@ -26,6 +26,7 @@ import { transform } from "@/features/export/transform";
 import { WORKSPACE_VIEW_TABS, type WorkspaceViewTab } from "@/features/project/workspaceTabs";
 import { createCommit, getBranchHead } from "@/lib/api/branches";
 import { saveUserProject } from "@/lib/api/userProjects";
+import { projectFromFiles } from "@/schema/projectFromFiles";
 import { cn } from "@/lib/cx";
 import { countMissingForLang } from "@/lib/i18nUsages";
 import { useAccountStore } from "@/state/accountStore";
@@ -443,7 +444,7 @@ function DeployButtons({
       // Persist the freshly-rekey'd WIP, then commit. The commit endpoint
       // broadcasts bundle_available, so any plugin bound to this pack picks
       // up the new content via the WS hub.
-      await saveUserProject(pack.id, { hash: "", files, editor: pack });
+      await saveUserProject(pack.id, { hash: "", files });
       await createCommit(networkId, projectId, "main", "Deploy");
       // The server's data just changed — drop cached data-source snapshots so
       // the library/canvas refetch fresh rows on next render.
@@ -464,7 +465,7 @@ function DeployButtons({
     if (reverting) return;
     setReverting(true);
     try {
-      // Pull the branch HEAD commit's editor state. If the WIP matches the
+      // Pull the branch HEAD commit's files. If the WIP matches the
       // HEAD already (no edits since the last commit), there's nothing to
       // restore.
       const head = await getBranchHead(networkId, projectId, "main");
@@ -472,14 +473,12 @@ function DeployButtons({
         toast.info(t("deploy.revertNothing"));
         return;
       }
-      // The backend returns `editor` as the raw EditorState JSON the
-      // commit captured. Merge with the current pack's identity fields
-      // (id, name) so replaceProject receives a fully-typed Project object.
-      const restored = {
-        ...(head.editor as Partial<ProjectType>),
-        id: pack.id,
+      // Files are the canonical commit content — parse them back into a
+      // fully-typed Project, keeping the current identity fields.
+      const restored: ProjectType = projectFromFiles(pack.id, head.files, {
         name: pack.name,
-      } as ProjectType;
+        serverKeyId: pack.serverKeyId,
+      });
       replaceProject(restored);
       toast.success(t("deploy.reverted"));
     } catch (e) {

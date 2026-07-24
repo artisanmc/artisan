@@ -9,6 +9,12 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Changed — files-first P3a: `editorJson` demolished, the file tree is the only stored Project representation
+- **REST contract**: `GET /api/v1/user/projects/:projectId` no longer returns `editor` (the client parses `files` via the new editor-side importer `projectFromFiles`); `PUT` no longer accepts `editor`. `GET .../branches/:branch/head` and `GET .../commits/:commitId/content` return `{ commit, files }` only (Revert/Restore parse files client-side). `GET /api/v1/networks/:id` derives `documentCount`/`ownerModule` from the stored file tree.
+- **DB (migration 0025, forward-only)**: `projects.editor_json`, `projects.deployed_editor_json` (dead column) and `project_commits.editor_json` dropped. Commit content IS its file tree.
+- **data/v1 (additive)**: sources gain `name` (display name) and, for tables, `model` (lossless back-ref to `models/<id>.yaml`) — both plugin-ignored. Captured-item `name`/`display` metadata moves to the hash-excluded `.artisan/editor.yaml` (`items:` section). Lang files are now emitted key-sorted (deterministic exports).
+- **Backend**: `lib/projectImport.ts` (hand-mirrored files→editorJson converter) deleted — replaced by the editor's `projectFromFiles` (fixed-point round-trip test) + a minimal `lib/projectFiles.ts` (`readOwnerModuleFromFiles`). `local_push` stores the pushed tree verbatim (no editor derivation); the boutique `additem` mutation is files-only and now writes correctly-prefixed paths (previously hash-excluded by mistake).
+
 ### Added — Add-on project ownership signal + "Installed modules" sidebar grouping
 - The project `manifest.yaml` gains an optional `module: <id>` field naming the owning Add-on. `projectImport` carries it onto the editor state as `ownerModule`, and `GET /api/v1/networks/:id` now returns `ownerModule` on each project. The editor sidebar renders Add-on-owned projects under the **Installed modules** section instead of the flat project list, and round-trips `manifest.module` on export so it survives editor saves (ADR `addon-owned-project-roots`). The boutique bootstrap manifest declares `module: boutique`.
 
@@ -104,7 +110,7 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 - `ArtisanAPI.project` (`ProjectContentApi`, since 1.2.0): read-only access to project files for modules — Add-ons store their content (e.g. `shop/items.yaml`) as standard project resources synced by the existing bundle pipeline.
 - Menus resolve `context_inputs[].source` (ConnectorBinding) through the `DataSourceRegistry` at render time — modules can now feed menu iteration via `api.dataSources.register(...)` (menu/v1 §14, "Phase B").
 - run_command actions route namespaced commands ("boutique:buy {id}") to CommandRegistry handlers (modules.md §4.2 bridge); unknown refs fall back to Bukkit.
-- local_push seeds editorJson from pushed files on never-edited stubs (plugin-bootstrapped content becomes editable; module dirs land in Project.moduleData).
+- local_push made plugin-bootstrapped content editable on never-edited stubs (module dirs land in Project.moduleData; the editorJson seeding mechanism was superseded by the files-first P3a entry above).
 - `@artisan/boutique-editor` — presence-gated frontend module for the Boutique Add-on (separate repo), mounted at `/m/boutique`. Reads/writes `Project.moduleData.boutique`, normalizes backend-seeded `__files` into a structured catalog, and derives `exportFiles()` → `boutique/shop.yaml` (modules.md §15).
 
 ### Fixed

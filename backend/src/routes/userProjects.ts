@@ -106,8 +106,9 @@ userProjectsRouter.get("/:projectId", async (c: Context<{ Variables: Vars }>) =>
     project,
     networkId,
     serverKeyId: project.serverKeyId,
+    // Files-first: the file tree IS the Project — the editor parses it
+    // client-side (projectFromFiles). No editor JSON is stored anymore.
     files: JSON.parse(project.filesJson),
-    editor: project.editorJson ? JSON.parse(project.editorJson) : null,
   });
 });
 
@@ -173,7 +174,7 @@ userProjectsRouter.put("/:projectId", async (c: Context<{ Variables: Vars }>) =>
     return c.json({ error: "forbidden" }, 403);
   }
 
-  const body = await c.req.json<{ hash: string; files: Record<string, string>; editor: unknown; baseVersion?: number }>();
+  const body = await c.req.json<{ hash: string; files: Record<string, string>; baseVersion?: number }>();
   if (typeof body.baseVersion !== "number") {
     return c.json({ error: "missing_base_version" }, 400);
   }
@@ -183,7 +184,6 @@ userProjectsRouter.put("/:projectId", async (c: Context<{ Variables: Vars }>) =>
     {
       hash: body.hash,
       filesJson: JSON.stringify(body.files),
-      editorJson: body.editor ? JSON.stringify(body.editor) : null,
     },
     { expectedVersion: body.baseVersion },
   );

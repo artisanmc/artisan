@@ -89,6 +89,7 @@ literals in module data (no LText) for v1.
 - **Server-side registry instead of project entity** (`/artisan additem` writing
   plugin-side): rejected for authored content — not versioned with the project,
   needs the server online, and plugin-side writes to edited projects break the
-  editorJson source of truth.
+  single source of truth (editorJson at the time; the file tree since ADR
+  `files-first-source-of-truth` — the boutique mutation now patches files).
 - **Compiling actions to command strings**: rejected — conditions/messages have
   no faithful command encoding; expose the real engine to modules instead.

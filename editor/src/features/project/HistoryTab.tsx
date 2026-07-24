@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import type { Project } from "@/domain/types";
 import { listCommits, getCommitContent, type Commit } from "@/lib/api/branches";
+import { projectFromFiles } from "@/schema/projectFromFiles";
 import { useAccountStore } from "@/state/accountStore";
 
 interface Props { pack: Project; networkId: string; }
@@ -61,7 +62,11 @@ export function HistoryTab({ pack, networkId }: Props) {
         toast.error(t("historyTab.restoreFailed"));
         return;
       }
-      const restored = { ...(head.editor as Partial<Project>), id: pack.id, name: pack.name } as Project;
+      // Files are the canonical commit content — parse them back into a Project.
+      const restored: Project = projectFromFiles(pack.id, head.files, {
+        name: pack.name,
+        serverKeyId: pack.serverKeyId,
+      });
       replaceProject(restored);
       toast.success(t("historyTab.restored"));
     } catch {

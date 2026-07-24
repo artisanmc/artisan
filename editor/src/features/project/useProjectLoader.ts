@@ -3,33 +3,8 @@ import { useAuthStore } from "@/state/authStore";
 import { useAccountStore } from "@/state/accountStore";
 import { loadUserProject } from "@/lib/api/userProjects";
 import { normalizeDataSources } from "@/domain/dataModels";
+import { projectFromFiles } from "@/schema/projectFromFiles";
 import type { Account, Project, ProjectId } from "@/domain/types";
-
-/**
- * A fresh pack created via POST /api/v1/networks/:id/projects has editorJson=null
- * server-side, so loadUserProject returns editor=null. The editor expects a
- * valid Project shape — fall back to this empty default so the canvas renders
- * an empty workspace instead of crashing into a black screen.
- */
-function emptyProject(id: string, name: string): Project {
-  const now = new Date().toISOString();
-  return {
-    id: id as ProjectId,
-    name,
-    source: "user_created",
-    createdAt: now,
-    updatedAt: now,
-    menus: [],
-    commands: [],
-    templates: [],
-    assets: [],
-    dataSources: [],
-    i18nKeys: {},
-    defaultLang: "en",
-    dialogs: [],
-    canvasLayout: {},
-  };
-}
 
 export interface ProjectLoadResult {
   pack: Project | null;
@@ -51,9 +26,13 @@ export function useProjectLoader(projectId: string): ProjectLoadResult {
     }
     loadUserProject(projectId)
       .then((res) => {
-        // loadUserProject returns { project, files, editor, networkId }; editor is the full Project JSON.
-        // Fresh projects have editor=null server-side — fall back to an empty Project shape.
-        const loaded = (res.editor as Project | null) ?? emptyProject(res.project.id, res.project.name);
+        // Files-first (ADR files-first-source-of-truth): the file tree IS the
+        // Project — parse it client-side. A fresh project has files={} and
+        // parses to an empty workspace.
+        const loaded: Project = projectFromFiles(res.project.id as ProjectId, res.files, {
+          name: res.project.name,
+          serverKeyId: res.project.serverKeyId ?? res.serverKeyId ?? undefined,
+        });
         // Accepted reset (ADR project-sources-and-data-models): legacy
         // schemaless sources are dropped at the load boundary, never migrated.
         normalizeDataSources(loaded);

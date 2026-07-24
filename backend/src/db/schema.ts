@@ -288,9 +288,9 @@ export const projects = pgTable(
 		// content write (editor save, plugin push, deploy); editor PUTs must
 		// present the version they loaded or get a 409.
 		version: integer("version").notNull().default(0),
+		// Files-first (ADR files-first-source-of-truth): the file tree is the ONLY
+		// stored Project representation — the editor parses/serializes it client-side.
 		filesJson: text("files_json").notNull().default("{}"),
-		editorJson: text("editor_json"),
-		deployedEditorJson: text("deployed_editor_json"),
 		deletedAt: timestamp("deleted_at"),
 		createdAt: timestamp("created_at").notNull(),
 		updatedAt: timestamp("updated_at").notNull(),
@@ -314,7 +314,6 @@ export const projectCommits = pgTable(
 		parentId2: text("parent_id_2"),
 		contentHash: text("content_hash").notNull(),
 		filesJson: text("files_json").notNull(),
-		editorJson: text("editor_json"),
 		authorUserId: text("author_user_id"),
 		message: text("message").notNull().default(""),
 		createdAt: timestamp("created_at").notNull(),

@@ -27,7 +27,6 @@ export interface CreateCommitInput {
   projectId: string;
   parentId: string | null;
   files: Record<string, string>;
-  editor: unknown | null;
   authorUserId: string | null;
   message: string;
 }
@@ -44,7 +43,6 @@ export async function createCommit(input: CreateCommitInput): Promise<Commit> {
 
   const id = "cmt_" + crypto.randomUUID().replace(/-/g, "").slice(0, 12);
   const filesJson = JSON.stringify(input.files);
-  const editorJson = input.editor ? JSON.stringify(input.editor) : null;
   const now = new Date();
   await db.insert(projectCommits).values({
     id,
@@ -52,7 +50,6 @@ export async function createCommit(input: CreateCommitInput): Promise<Commit> {
     parentId: input.parentId,
     contentHash,
     filesJson,
-    editorJson,
     authorUserId: input.authorUserId,
     message: input.message,
     createdAt: now,

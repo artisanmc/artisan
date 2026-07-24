@@ -53,7 +53,7 @@ describe("projectStorage", () => {
 
   it("upsertProjectContent updates hash + filesJson", async () => {
     const p = await createProject({ networkId, serverKeyId: skId, name: "main" });
-    await upsertProjectContent(p.id, { hash: "abc", filesJson: '{"a.yaml":"x"}', editorJson: '{"id":"main"}' });
+    await upsertProjectContent(p.id, { hash: "abc", filesJson: '{"a.yaml":"x"}' });
     const updated = await getProject(p.id);
     expect(updated?.hash).toBe("abc");
     expect(updated?.filesJson).toBe('{"a.yaml":"x"}');
