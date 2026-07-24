@@ -214,7 +214,11 @@ export function menuV1ToDomain(
       alias: pl.alias ?? "",
       keyField: pl.key_field ?? pl.keyField ?? "",
       ...(pl.template ? { templateId: pl.template } : {}),
-      placements: (pl.placements as Json[]) ?? [],
+      placements: ((pl.placements as Json[]) ?? []).map((p) => ({
+        key: String(p.key),
+        page: p.page ?? 0,
+        position: p.position ?? 0,
+      })),
     };
   }
 
