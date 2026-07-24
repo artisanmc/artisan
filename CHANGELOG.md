@@ -9,6 +9,10 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Added — files-first P3b: disk watcher + auto-push (disk edits are never overwritten)
+- The plugin watches every project root (recursive, debounced 1.5s, active even offline): a hand/agent edit on disk hot-reloads menus immediately and auto-pushes (`local_push`) when the backend hasn't moved — `/artisan pushLocal` becomes a manual fallback. The same rule applies at `hello_ack`: a LOCAL_ONLY divergence is auto-pushed instead of being overwritten by the next `bundle_available` (the historical data-loss trap). A true divergence (disk AND web both moved) hot-reloads locally, is held unpushed, and logs one WARN (resolution flow = P3c).
+- Self-write suppression: bundle downloads and move-to-trash are invisible to the watcher (suppression window + grace); `.artisan*` paths never trigger it. `BundleDownloader` now writes atomically (tmp + rename) and skips files whose content is unchanged.
+
 ### Changed — files-first P3a: `editorJson` demolished, the file tree is the only stored Project representation
 - **REST contract**: `GET /api/v1/user/projects/:projectId` no longer returns `editor` (the client parses `files` via the new editor-side importer `projectFromFiles`); `PUT` no longer accepts `editor`. `GET .../branches/:branch/head` and `GET .../commits/:commitId/content` return `{ commit, files }` only (Revert/Restore parse files client-side). `GET /api/v1/networks/:id` derives `documentCount`/`ownerModule` from the stored file tree.
 - **DB (migration 0025, forward-only)**: `projects.editor_json`, `projects.deployed_editor_json` (dead column) and `project_commits.editor_json` dropped. Commit content IS its file tree.

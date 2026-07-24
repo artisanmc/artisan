@@ -189,4 +189,32 @@ class BundleDownloaderTest {
             assertTrue(!outsideTarget.exists(), "Le fichier en dehors du packDir doit être bloqué")
         }
     }
+
+    @Test
+    fun `unchanged files are not rewritten and no tmp files linger (atomic writes)`() {
+        MockWebServer().use { server ->
+            server.start()
+            val packId = "p_atomic"
+            val files = makeBundle(packId)
+            val body = mapper.writeValueAsString(mapOf("files" to files, "hash" to "h1"))
+            server.enqueue(MockResponse().setBody(body).setHeader("Content-Type", "application/json"))
+            server.enqueue(MockResponse().setBody(body).setHeader("Content-Type", "application/json"))
+
+            val packsDir = Files.createTempDirectory("artisan_atomic_").toFile()
+            val downloader = BundleDownloader(OkHttpClient(), packsDir)
+            val url = server.url("/api/v1/bundles/$packId").toString()
+            downloader.download(url = url, serverKey = "sk", projectId = packId)
+
+            val manifest = File(packsDir, "$packId/manifest.yaml")
+            val stampBefore = manifest.lastModified()
+            Thread.sleep(50)
+            // Second download of identical content: files must be left untouched
+            // (an echo of our own local_push must not churn the disk/watcher).
+            downloader.download(url = url, serverKey = "sk", projectId = packId)
+            assertEquals(stampBefore, manifest.lastModified(), "identical content must not be rewritten")
+
+            val tmps = File(packsDir, packId).walkTopDown().filter { it.name.endsWith(".artisan-tmp") }.toList()
+            assertEquals(emptyList(), tmps, "no .artisan-tmp staging files may remain after a download")
+        }
+    }
 }
