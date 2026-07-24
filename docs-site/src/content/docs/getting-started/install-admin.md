@@ -78,7 +78,7 @@ From the web editor, click your network name in the top bar, then **Members**. A
 | `/artisan sync reject` | Reload menus from disk and reconnect to the backend. |
 | `/artisan editor` | Print the deep-link to this server's editor page + network name if linked (requires `artisan.editor` permission), otherwise print the editor home URL to add the server. |
 | `/artisan link <code>` | Redeem a link code from the editor: writes the `server_key` to `config.yml` and connects. On an already-linked server it rotates the key in place. Codes are single-use and expire after 10 minutes. |
-| `/artisan pushLocal <id\|--all>` | Manually push local on-disk project changes to the backend. Rarely needed: disk edits are detected and pushed automatically (debounced file watcher); use this only to force the disk side after a real divergence (both disk and web edited since the last sync). |
+| `/artisan pushLocal <id\|--all>` | Manually push local on-disk project changes to the backend. Rarely needed: disk edits are detected and pushed automatically (debounced file watcher). When both the disk and the web editor changed since the last sync, nothing is overwritten: the editor shows a resolution banner where you pick, per file, which side to keep — `pushLocal` remains the "force the disk side" shortcut. |
 
 ## 6. Billing administration (super-admins)
 

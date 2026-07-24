@@ -7,8 +7,12 @@ files) shipped 2026-07-23; **P3a shipped 2026-07-24** (decision 2 done —
 parses/serializes it via `projectFromFiles`/`transform`, locked by a
 fixed-point round-trip test); **P3b shipped 2026-07-24** (decision 6 partial —
 debounced watcher + auto-push on LOCAL_ONLY, self-write suppression, atomic
-downloads; true divergence is held unpushed with a WARN). Remaining: P3c
-divergence resolution (the no-overwrite-either-way flow).
+downloads); **P3c shipped 2026-07-24** (decision 6 complete — true divergence
+is reported via `sync_divergence`, held unpushed and unoverwritten, and
+resolved per file from the editor banner; note: the "existing merge engine"
+this ADR referenced was removed 2026-06-17, so resolution is per-file
+disk/web selection, not 3-way — cf. `no-branch-conflict-resolution.md`).
+The files-first epic's storage/sync decisions (2, 3, 6, 7) are all live.
 
 ## Context
 
