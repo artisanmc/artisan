@@ -45,7 +45,6 @@ async function seedUserWithPack(userId: string) {
   await upsertProjectContent(pack.id, {
     hash: "h1",
     filesJson: '{"menus/m.yaml":"id: m"}',
-    editorJson: `{"id":"${pack.id}","menus":[]}`,
   });
   return { userId, sessionId: session.id, networkId: network.id, packId: pack.id, skId };
 }
@@ -71,7 +70,8 @@ describe("userProjectsRouter — GET", () => {
     expect(body.project.id).toBe(packId);
     expect(body.project.hash).toBe("h1");
     expect(body.files).toEqual({ "menus/m.yaml": "id: m" });
-    expect(body.editor).toEqual({ id: packId, menus: [] });
+    // Files-first: no editor JSON on the wire — the client parses `files`.
+    expect(body.editor).toBeUndefined();
   });
 
   test("GET /:projectId 403 — non-member gets forbidden", async () => {
@@ -145,7 +145,7 @@ describe("userProjectsRouter — PUT", () => {
     const res = await app.request(`/api/v1/user/projects/${packId}`, {
       method: "PUT",
       headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ hash: "h2", files: {}, editor: null, baseVersion: 1 }),
+      body: JSON.stringify({ hash: "h2", files: {}, baseVersion: 1 }),
     });
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -159,7 +159,7 @@ describe("userProjectsRouter — PUT", () => {
     const ok = await app.request(`/api/v1/user/projects/${packId}`, {
       method: "PUT",
       headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ hash: "h2", files: { "menus/m.yaml": "id: m2" }, editor: null, baseVersion: 1 }),
+      body: JSON.stringify({ hash: "h2", files: { "menus/m.yaml": "id: m2" }, baseVersion: 1 }),
     });
     expect(ok.status).toBe(200);
 
@@ -167,7 +167,7 @@ describe("userProjectsRouter — PUT", () => {
     const res = await app.request(`/api/v1/user/projects/${packId}`, {
       method: "PUT",
       headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ hash: "h_stale", files: { "menus/m.yaml": "id: stale" }, editor: null, baseVersion: 1 }),
+      body: JSON.stringify({ hash: "h_stale", files: { "menus/m.yaml": "id: stale" }, baseVersion: 1 }),
     });
     expect(res.status).toBe(409);
     const body = await res.json();
@@ -185,7 +185,7 @@ describe("userProjectsRouter — PUT", () => {
     const res = await app.request(`/api/v1/user/projects/${packId}`, {
       method: "PUT",
       headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ hash: "h2", files: {}, editor: null }),
+      body: JSON.stringify({ hash: "h2", files: {} }),
     });
     expect(res.status).toBe(400);
     const body = await res.json();
@@ -206,7 +206,7 @@ describe("userProjectsRouter — PUT", () => {
         Cookie: `artisan_user_session=${sess2.id}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ hash: "h99", files: {}, editor: null }),
+      body: JSON.stringify({ hash: "h99", files: {} }),
     });
     expect(res.status).toBe(403);
   });

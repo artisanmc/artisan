@@ -26,9 +26,17 @@
       "pattern": "^[a-z][a-z0-9_]{0,63}$",
       "description": "Identifiant stable de la source. Référencée par les menus via `pack:<id>`."
     },
+    "name": {
+      "type": "string",
+      "description": "Nom d'affichage de la source dans l'éditeur. Ignoré par le plugin."
+    },
     "shape": {
       "enum": ["table", "config"],
       "description": "table = liste de rows (itérable, plaçable) ; config = objet unique consommé par interpolation."
+    },
+    "model": {
+      "type": "string",
+      "description": "Back-ref lossless vers models/<id>.yaml (table uniquement) : le Data model qui type cette source côté éditeur. `fields` reste la vue aplatie runtime ; le plugin ignore ce champ. Cf. ADR files-first-source-of-truth."
     },
     "key_field": {
       "type": "string",

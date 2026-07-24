@@ -18,5 +18,5 @@ export async function persistProject(pack: Project, hasUser: boolean): Promise<v
   const cloned = structuredClone(pack);
   rekeyProject(cloned);
   const files = transform(cloned);
-  await saveUserProject(pack.id, { hash: "", files, editor: pack });
+  await saveUserProject(pack.id, { hash: "", files });
 }

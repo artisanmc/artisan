@@ -239,11 +239,15 @@ describe("userNetworksRouter", () => {
     });
     const { createProject, upsertProjectContent } = await import("../lib/projectStorage");
     const pack = await createProject({ networkId: network.id, serverKeyId: "sk_count", name: "pc" });
+    // Files-first: documentCount is derived from the stored file tree.
+    const base = `plugins/Artisan/projects/${pack.id}`;
     await upsertProjectContent(pack.id, {
-      editorJson: JSON.stringify({
-        menus: [{ id: "m1" }, { id: "m2" }],
-        commands: [{ id: "c1" }],
-        dialogs: [{ id: "d1" }],
+      filesJson: JSON.stringify({
+        [`${base}/menus/m1.yaml`]: "id: m1",
+        [`${base}/menus/m2.yaml`]: "id: m2",
+        [`${base}/commands/c1.yaml`]: "id: c1",
+        [`${base}/dialogs/d1.yaml`]: "id: d1",
+        [`${base}/manifest.yaml`]: "schema: manifest/v1",
       }),
     });
 

@@ -685,7 +685,10 @@ function serializeLang(
   // value. Otherwise a freshly-created menu with no title typed yet yields a
   // missing key in the YAML, and the plugin falls back to printing the raw
   // key (`menus.foo.title`) to chat instead of nothing.
-  for (const key of referencedKeys) {
+  // Byte-order sort: lang files must be deterministic regardless of key
+  // collection order (files-first fixed point — import then re-export may
+  // visit documents in a different order).
+  for (const key of Array.from(referencedKeys).sort()) {
     const entry = pack.i18nKeys[key as keyof typeof pack.i18nKeys];
     const val = entry?.[lang];
     if (val !== undefined) {
@@ -788,7 +791,12 @@ export function serializeDataSource(pack: Project, ds: DataSource): Record<strin
     return {
       schema: "data/v1",
       id: ds.id,
+      name: ds.name,
       shape: "table",
+      // Lossless back-ref to models/<id>.yaml (plugin-ignored): `fields` below
+      // stays the flattened runtime view, but the editor re-imports the source
+      // typed by its Data model (ADR files-first-source-of-truth).
+      model: ds.modelId,
       key_field: model?.keyField ?? "id",
       fields: fields.map((f) => serializeDataField(f, models, visited)),
       rows: ds.rows.map((r) =>
@@ -799,6 +807,7 @@ export function serializeDataSource(pack: Project, ds: DataSource): Record<strin
   return {
     schema: "data/v1",
     id: ds.id,
+    name: ds.name,
     shape: "config",
     fields: ds.fields.map((f) => serializeDataField(f, models, new Set())),
     value: serializeDataValue(ds.value, { kind: "object", fields: ds.fields }, models, new Set()),
@@ -901,6 +910,14 @@ export function transform(pack: Project): Record<string, string> {
   const editorState: Record<string, unknown> = { schema: "editor-state/v1" };
   if (Object.keys(editorLayout).length > 0) editorState.layout = editorLayout;
   if (Object.keys(editorEdges).length > 0) editorState.edges = editorEdges;
+  // Captured item label + display descriptor: editor-only metadata that the
+  // verbatim items/<id>.yml stack cannot carry (enchanted/headTexture aren't
+  // derivable from the stack) — persisted here, hash-excluded.
+  if ((pack.capturedItems ?? []).length > 0) {
+    editorState.items = Object.fromEntries(
+      (pack.capturedItems ?? []).map((ci) => [ci.id, { name: ci.name, display: ci.display }]),
+    );
+  }
   if (Object.keys(editorState).length > 1) {
     files[`${base}/.artisan/editor.yaml`] = stringify(editorState, yamlOpts);
   }

@@ -6,8 +6,8 @@ export interface UserProjectLoadResult {
   project: { id: string; name: string; hash: string; version?: number; serverKeyId?: string };
   networkId: string;
   serverKeyId: string;
+  /** The canonical Project representation — parsed client-side via projectFromFiles. */
   files: Record<string, string>;
-  editor: unknown;
 }
 
 export async function loadUserProject(projectId: string): Promise<UserProjectLoadResult> {
@@ -30,7 +30,7 @@ export async function getNetworkOfProject(projectId: string): Promise<string | n
 
 export async function saveUserProject(
   projectId: string,
-  body: { hash: string; files: Record<string, string>; editor: unknown },
+  body: { hash: string; files: Record<string, string> },
 ): Promise<void> {
   const store = useProjectVersionStore.getState();
   const baseVersion = store.versions[projectId] ?? 0;

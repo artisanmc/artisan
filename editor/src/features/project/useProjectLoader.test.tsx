@@ -17,7 +17,6 @@ describe("useProjectLoader", () => {
       networkId: "net_1",
       serverKeyId: "sk_1",
       files: {},
-      editor: { id: "p1", menus: [] },
     } as never);
     const { result } = renderHook(() => useProjectLoader("p1"));
     await waitFor(() => expect(result.current.pack).not.toBeNull());

@@ -7,34 +7,6 @@ import { allocProjectSlug } from "./slugAlloc";
 
 export type Project = typeof projects.$inferSelect;
 
-/**
- * Initial editor JSON shape for a freshly created project. Mirrors the editor's
- * `Project` TypeScript type — every collection field is empty so the editor can
- * render an empty project without crashing. Without this default, the editor
- * used to get `editor: null` from GET /api/v1/user/projects/:projectId and render a
- * black screen.
- */
-function defaultEditorJson(id: string, name: string, now: Date): string {
-	const iso = now.toISOString();
-	return JSON.stringify({
-		id,
-		name,
-		source: "user_created",
-		createdAt: iso,
-		updatedAt: iso,
-		menus: [],
-		commands: [],
-		templates: [],
-		assets: [],
-		dataSources: [],
-		importedConnectors: [],
-		i18nKeys: {},
-		defaultLang: "en",
-		dialogs: [],
-		canvasLayout: {},
-	});
-}
-
 export async function createProject(input: {
 	networkId: string;
 	serverKeyId: string; // required: the server_key that owns this project
@@ -46,7 +18,6 @@ export async function createProject(input: {
 		input.id ?? "pack_" + crypto.randomUUID().replace(/-/g, "").slice(0, 12);
 	const now = new Date();
 	const slug = await allocProjectSlug(input.serverKeyId, input.name);
-	const initialEditor = defaultEditorJson(id, input.name, now);
 	// Idempotent sur l'id : deux chemins concurrents (hello stub-create, setup,
 	// local_push, POST /bundles) peuvent tenter de créer le même project — le
 	// perdant récupère l'existant au lieu de faire crasher le process sur un
@@ -60,8 +31,6 @@ export async function createProject(input: {
 		description: input.description ?? null,
 		hash: "",
 		filesJson: "{}",
-		editorJson: initialEditor,
-		deployedEditorJson: null,
 		deletedAt: null,
 		createdAt: now,
 		updatedAt: now,
@@ -69,14 +38,13 @@ export async function createProject(input: {
 	if (inserted.length === 0) {
 		return (await getProject(id))!;
 	}
-	// Phase 2: auto-create main branch with an initial empty commit carrying
-	// the same default editor shape, so any plugin downloading the bundle gets
-	// valid JSON instead of null.
+	// Phase 2: auto-create main branch with an initial empty commit (empty file
+	// tree — hashes to the "" sentinel, keeping the plugin's auto-push branch
+	// reachable for fresh stubs).
 	const root = await createCommit({
 		projectId: id,
 		parentId: null,
 		files: {},
-		editor: JSON.parse(initialEditor),
 		authorUserId: null,
 		message: "Initial commit",
 	});
@@ -101,8 +69,6 @@ export async function upsertProjectContent(
 	patch: {
 		hash?: string;
 		filesJson?: string;
-		editorJson?: string | null;
-		deployedEditorJson?: string | null;
 	},
 	opts?: { expectedVersion?: number },
 ): Promise<number | null> {

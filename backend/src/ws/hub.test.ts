@@ -66,14 +66,12 @@ async function seedBoundPack(
   packId: string,
   hash: string,
   files: Record<string, string> = {},
-  editor: Record<string, unknown> = {},
   deleted = false,
 ): Promise<void> {
   await createProject({ networkId, serverKeyId, name: packId, id: packId });
   await upsertProjectContent(packId, {
     hash,
     filesJson: JSON.stringify(files),
-    editorJson: JSON.stringify(editor),
   });
   if (deleted) await softDeleteProject(packId);
 }
@@ -403,7 +401,6 @@ describe("handlePluginMessage", () => {
       projectId: "p_c2",
       parentId: branch!.headCommitId,
       files,
-      editor: null,
       authorUserId: null,
       message: "C2 test commit",
     });
@@ -428,7 +425,7 @@ describe("handlePluginMessage", () => {
   test("hello_ack includes soft-deleted pack ids", async () => {
     const { id: keyId, key, networkId } = await seedServerKey();
     await seedBoundPack(networkId, keyId, "alive", "ha");
-    await seedBoundPack(networkId, keyId, "dead", "hd", {}, {}, true);
+    await seedBoundPack(networkId, keyId, "dead", "hd", {}, true);
 
     // project_hashes uses branch head commit contentHash. Both projects start with empty-files initial commit.
     const emptyHash = computeContentHash({});
@@ -664,7 +661,7 @@ describe("local_push", () => {
     expect(result.reply).toBeNull();
   });
 
-  test("local_push on an empty stub builds editorJson from files (incl. moduleData)", async () => {
+  test("local_push stores the pushed file tree and commits it (files-first)", async () => {
     const { key } = await seedServerKey();
     const connId = "conn-local-push-stub";
     registerConn(connId, () => {});
@@ -688,14 +685,16 @@ describe("local_push", () => {
 
     const pack = await getProject("p_stub");
     expect(pack).not.toBeNull();
-    expect(pack!.editorJson).not.toBeNull();
-    const editor = JSON.parse(pack!.editorJson!) as {
-      moduleData?: Record<string, { __files: Record<string, string> }>;
-    };
-    expect(editor.moduleData?.boutique.__files["shop.yaml"]).toContain("boutique/v1");
+    expect(pack!.hash).toBe("hash-stub");
+    const stored = JSON.parse(pack!.filesJson) as Record<string, string>;
+    expect(stored[`${base}/boutique/shop.yaml`]).toContain("boutique/v1");
+    // local_push = commit on main + head advanced (deploy convention).
+    const branch = await getBranch("p_stub", "main");
+    const head = (await db.select().from(projectCommits).where(eq(projectCommits.id, branch!.headCommitId)))[0];
+    expect(head.message).toBe("local_push");
   });
 
-  test("local_push on a real editor project does NOT overwrite editorJson", async () => {
+  test("local_push replaces the stored file tree of an existing project", async () => {
     const { id: keyId, key, networkId } = await seedServerKey();
     const connId = "conn-local-push-real";
     registerConn(connId, () => {});
@@ -704,14 +703,6 @@ describe("local_push", () => {
       type: "hello", server_key: key, plugin_version: "1.0", minecraft_version: "1.21", current_bundle_hash: "",
     }));
 
-    const realEditorJson = JSON.stringify({
-      id: "p_real",
-      name: "p_real",
-      source: "user_created",
-      menus: [{ id: "shop", title: { key: "menus.shop.title" }, rows: 3, layers: [] }],
-      commands: [],
-      dialogs: [],
-    });
     await db.insert(projects).values({
       id: "p_real",
       networkId,
@@ -719,9 +710,7 @@ describe("local_push", () => {
       name: "p_real",
       slug: "p-real",
       hash: "",
-      filesJson: "{}",
-      editorJson: realEditorJson,
-      deployedEditorJson: null,
+      filesJson: JSON.stringify({ "plugins/Artisan/projects/p_real/menus/old.yaml": "id: old\n" }),
       deletedAt: null,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -736,7 +725,10 @@ describe("local_push", () => {
     expect(result.reply).toBeNull();
 
     const pack = await getProject("p_real");
-    expect(pack!.editorJson).toBe(realEditorJson);
+    expect(pack!.hash).toBe("hash-real");
+    const stored = JSON.parse(pack!.filesJson) as Record<string, string>;
+    expect(stored["menus/shop.yaml"]).toContain("id: shop");
+    expect(stored["plugins/Artisan/projects/p_real/menus/old.yaml"]).toBeUndefined();
   });
 });
 
@@ -951,24 +943,25 @@ describe("requestPlayerInventory", () => {
 describe("boutique_additem", () => {
   test("mutates the boutique project (captured item + shop item), patches bundle files, commits and replies ok", async () => {
     const { id: keyId, networkId } = await seedServerKey();
-    const editor = {
-      id: "boutique_shop", name: "boutique_shop",
-      menus: [], commands: [], dialogs: [], templates: [], assets: [],
-      dataSources: [], i18nKeys: {}, defaultLang: "en", canvasLayout: {},
-      moduleData: {
-        boutique: {
-          wholeShopDiscount: 0,
-          categories: [
-            { id: "weapons", name: "Armes", icon: "DIAMOND_SWORD", discount: 0, items: [] },
-          ],
-        },
-      },
-    };
+    const base = "plugins/Artisan/projects/boutique_shop";
+    const shopYaml = [
+      "schema: boutique/v1",
+      "whole_shop_discount: 0",
+      "categories:",
+      "  - id: weapons",
+      "    name: Armes",
+      "    icon: DIAMOND_SWORD",
+      "    discount: 0",
+      "    items: []",
+      "",
+    ].join("\n");
     await createProject({ networkId, serverKeyId: keyId, name: "boutique_shop", id: "boutique_shop" });
     await upsertProjectContent("boutique_shop", {
       hash: "h0",
-      filesJson: JSON.stringify({ "manifest.yaml": "schema: manifest/v1\n" }),
-      editorJson: JSON.stringify(editor),
+      filesJson: JSON.stringify({
+        [`${base}/manifest.yaml`]: "schema: manifest/v1\nmodule: boutique\n",
+        [`${base}/boutique/shop.yaml`]: shopYaml,
+      }),
     });
 
     registerConn("conn-add", () => {});
@@ -986,23 +979,22 @@ describe("boutique_additem", () => {
       expect(reply.ok).toBe(true);
 
       const project = await getProject("boutique_shop");
-      const ed = JSON.parse(project!.editorJson!);
-      // Captured item created…
-      expect(ed.capturedItems).toHaveLength(1);
-      const ci = ed.capturedItems[0];
-      expect(ci.display.material).toBe("nexo:arcanist_key");
-      expect(ci.stackYaml).toContain("PAPER");
+      const files = JSON.parse(project!.filesJson) as Record<string, string>;
+      // Captured item created: verbatim stack file + editor metadata in the
+      // hash-excluded .artisan/editor.yaml (files-first).
+      const ciPath = Object.keys(files).find((k) => k.startsWith(`${base}/items/`));
+      expect(ciPath).toBeDefined();
+      const ciId = ciPath!.slice(`${base}/items/`.length).replace(/\.yml$/, "");
+      expect(files[ciPath!]).toContain("PAPER");
+      const { parse: parseYaml } = await import("yaml");
+      const editorState = parseYaml(files[`${base}/.artisan/editor.yaml`]!) as {
+        items?: Record<string, { name?: string; display?: { material?: string } }>;
+      };
+      expect(editorState.items?.[ciId]?.name).toBe("1 clé Luxury");
+      expect(editorState.items?.[ciId]?.display?.material).toBe("nexo:arcanist_key");
       // …and the shop item references it (matched category by name, case-insensitive).
-      const cat = ed.moduleData.boutique.categories[0];
-      expect(cat.items).toHaveLength(1);
-      expect(cat.items[0]).toMatchObject({
-        id: "cle_luxury", name: "1 clé Luxury", icon: `item:${ci.id}`, price: 500,
-      });
-      // Bundle files patched surgically.
-      const files = JSON.parse(project!.filesJson);
-      expect(files["boutique/shop.yaml"]).toContain("cle_luxury");
-      expect(files["boutique/shop.yaml"]).toContain(`item:${ci.id}`);
-      expect(files[`items/${ci.id}.yml`]).toContain("PAPER");
+      expect(files[`${base}/boutique/shop.yaml`]).toContain("cle_luxury");
+      expect(files[`${base}/boutique/shop.yaml`]).toContain(`item:${ciId}`);
       // Branch advanced past the initial commit.
       const branch = await getBranch("boutique_shop", "main");
       const head = (await db.select().from(projectCommits).where(eq(projectCommits.id, branch!.headCommitId)))[0];

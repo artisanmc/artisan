@@ -93,7 +93,7 @@ describe("userBranchesRouter — GET branches + commits", () => {
     expect(res.status).toBe(403);
   });
 
-  test("GET /branches/:branch/head returns the head commit's editor + files (Revert payload)", async () => {
+  test("GET /branches/:branch/head returns the head commit's files (Revert payload)", async () => {
     const { sessionId, networkId, packId } = await seedUserWithPack();
     const app = makeApp();
     const res = await app.request(
@@ -104,7 +104,8 @@ describe("userBranchesRouter — GET branches + commits", () => {
     const body = await res.json();
     expect(body.commit?.id).toBeDefined();
     expect(body.commit?.message).toBe("Initial commit");
-    expect(typeof body.editor).toBe("object");
+    // Files-first: no editor JSON on the wire — the client parses `files`.
+    expect(body.editor).toBeUndefined();
     expect(typeof body.files).toBe("object");
   });
 
@@ -157,7 +158,7 @@ describe("userBranchesRouter — GET /commits/:commitId/content", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.commit?.id).toBe(commitId);
-    expect(typeof body.editor).toBe("object");
+    expect(body.editor).toBeUndefined();
     expect(typeof body.files).toBe("object");
   });
 
@@ -236,7 +237,6 @@ describe("userBranchesRouter — POST /commits", () => {
 
     await db.update(projects).set({
       filesJson: JSON.stringify({ "menus/m.yaml": "id: m" }),
-      editorJson: JSON.stringify({ id: packId, menus: [{ id: "m" }] }),
     }).where(eq(projects.id, packId));
 
     const app = makeApp();

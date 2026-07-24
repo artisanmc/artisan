@@ -14,7 +14,6 @@ describe("userProjects API client", () => {
         JSON.stringify({
           project: { id: "p1", hash: "h1" },
           files: { "a.yaml": "x" },
-          editor: { id: "p1", menus: [] },
         }),
         { status: 200 }
       )
@@ -31,7 +30,6 @@ describe("userProjects API client", () => {
     await saveUserProject("p1", {
       hash: "h2",
       files: { a: "y" },
-      editor: { id: "p1", menus: [] },
     });
     const call = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(call[0]).toContain("/api/v1/user/projects/p1");
@@ -45,7 +43,6 @@ describe("userProjects API client", () => {
         JSON.stringify({
           project: { id: "p1", hash: "h1", version: 4 },
           files: {},
-          editor: null,
         }),
         { status: 200 }
       )
@@ -58,7 +55,7 @@ describe("userProjects API client", () => {
     useProjectVersionStore.getState().markConflict("p1");
     global.fetch = vi.fn(async () =>
       new Response(
-        JSON.stringify({ project: { id: "p1", hash: "h1", version: 6 }, files: {}, editor: null }),
+        JSON.stringify({ project: { id: "p1", hash: "h1", version: 6 }, files: {} }),
         { status: 200 }
       )
     );
@@ -72,7 +69,7 @@ describe("userProjects API client", () => {
     global.fetch = vi.fn(async () =>
       new Response(JSON.stringify({ ok: true, version: 5 }), { status: 200 })
     );
-    await saveUserProject("p1", { hash: "", files: {}, editor: null });
+    await saveUserProject("p1", { hash: "", files: {} });
     const call = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(JSON.parse(call[1].body as string).baseVersion).toBe(4);
     expect(useProjectVersionStore.getState().versions["p1"]).toBe(5);
@@ -84,7 +81,7 @@ describe("userProjects API client", () => {
       new Response(JSON.stringify({ error: "version_conflict", currentVersion: 7 }), { status: 409 })
     );
     await expect(
-      saveUserProject("p1", { hash: "", files: {}, editor: null })
+      saveUserProject("p1", { hash: "", files: {} })
     ).rejects.toBeInstanceOf(VersionConflictError);
     expect(useProjectVersionStore.getState().conflicts["p1"]).toBe(true);
     // version is NOT advanced — the local state is still based on 4

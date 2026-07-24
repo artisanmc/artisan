@@ -1,0 +1,477 @@
+// Full-project files → domain importer — the exact inverse of
+// `features/export/transform.ts` (ADR files-first-source-of-truth: the file
+// tree is the canonical, lossless Project representation; the editor parses it
+// on open and serializes back on save). Locked by projectFromFiles.test.ts
+// (fixed-point round-trip) — any new file form added to transform() MUST gain
+// its inverse here in the same commit.
+import type {
+  CapturedItem,
+  DataModel,
+  DataModelId,
+  DataSource,
+  DataSourceId,
+  EdgeAnchor,
+  I18nKey,
+  ItemTemplate,
+  ItemTemplateId,
+  LText,
+  ModelField,
+  ModelFieldType,
+  Project,
+  ProjectId,
+} from "@/domain/types";
+import { newI18nKey } from "@/lib/i18n";
+import { parse as parseYaml } from "yaml";
+import { commandV1ToDomain } from "./commandV1ToDomain";
+import { dialogV1ToDomain } from "./dialogV1ToDomain";
+import { makeAppearanceConverter, menuV1ToDomain } from "./menuV1ToDomain";
+
+// biome-ignore lint/suspicious/noExplicitAny: untyped wire objects — fields read by snake name
+type Json = Record<string, any>;
+
+interface ManifestYaml {
+  project_id?: string;
+  module?: string;
+  default_lang?: string;
+  languages?: string[];
+  files?: { menus?: string[]; commands?: string[]; dialogs?: string[] };
+  /** Legacy home of the board state (pre `.artisan/editor.yaml`). */
+  editor_layout?: Record<string, unknown>;
+  editor_edges?: Record<string, unknown>;
+}
+
+/** `.artisan/editor.yaml` — hash-excluded editor metadata. */
+interface EditorStateYaml {
+  layout?: Record<string, unknown>;
+  edges?: Record<string, unknown>;
+  /** Captured item label + display descriptor, keyed by item id. */
+  items?: Record<string, { name?: string; display?: Record<string, unknown> }>;
+}
+
+// ─── helpers ─────────────────────────────────────────────────────────────────
+
+function baseOf(projectId: string): string {
+  return `plugins/Artisan/projects/${projectId}/`;
+}
+
+function getFile(files: Record<string, string>, projectId: string, rel: string): string | null {
+  return files[`${baseOf(projectId)}${rel}`] ?? null;
+}
+
+/** Strips the canonical `plugins/Artisan/projects/<id>/` prefix, if present. */
+function relativeToProject(path: string, projectId: string): string {
+  const prefix = baseOf(projectId);
+  return path.startsWith(prefix) ? path.slice(prefix.length) : path;
+}
+
+function tryParse<T>(text: string | null): T | null {
+  if (!text) return null;
+  try {
+    return parseYaml(text) as T;
+  } catch {
+    return null;
+  }
+}
+
+/** Scan `<dir>/<id>.yaml` entries, sorted by path (deterministic). */
+function scanDir(
+  files: Record<string, string>,
+  projectId: string,
+  dir: string,
+): { id: string; parsed: Json }[] {
+  const prefix = `${baseOf(projectId)}${dir}/`;
+  return Object.keys(files)
+    .filter((k) => k.startsWith(prefix) && k.endsWith(".yaml"))
+    .sort()
+    .flatMap((k) => {
+      const parsed = tryParse<Json>(files[k]!);
+      if (!parsed) return [];
+      const id = (parsed.id as string) ?? k.slice(prefix.length, -".yaml".length);
+      return [{ id, parsed }];
+    });
+}
+
+// ─── board state (layout / edges) ────────────────────────────────────────────
+
+function parseEditorLayout(raw: unknown): Record<string, { x: number; y: number }> {
+  if (!raw || typeof raw !== "object") return {};
+  const out: Record<string, { x: number; y: number }> = {};
+  for (const [id, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (!v || typeof v !== "object") continue;
+    const { x, y } = v as { x?: unknown; y?: unknown };
+    if (typeof x !== "number" || typeof y !== "number") continue;
+    if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+    out[id] = { x, y };
+  }
+  return out;
+}
+
+const ANCHOR_SIDES = new Set(["top", "right", "bottom", "left"]);
+
+function parseAnchor(raw: unknown): EdgeAnchor | null {
+  if (!raw || typeof raw !== "object") return null;
+  const { side, t } = raw as { side?: unknown; t?: unknown };
+  if (typeof side !== "string" || !ANCHOR_SIDES.has(side)) return null;
+  if (typeof t !== "number" || !Number.isFinite(t)) return null;
+  return { side: side as EdgeAnchor["side"], t: Math.min(1, Math.max(0, t)) };
+}
+
+function parseEditorEdges(raw: unknown): Record<string, { from?: EdgeAnchor; to?: EdgeAnchor }> {
+  if (!raw || typeof raw !== "object") return {};
+  const out: Record<string, { from?: EdgeAnchor; to?: EdgeAnchor }> = {};
+  for (const [id, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (!v || typeof v !== "object") continue;
+    const from = parseAnchor((v as { from?: unknown }).from);
+    const to = parseAnchor((v as { to?: unknown }).to);
+    if (!from && !to) continue;
+    out[id] = { ...(from ? { from } : {}), ...(to ? { to } : {}) };
+  }
+  return out;
+}
+
+// ─── lang files ──────────────────────────────────────────────────────────────
+
+/** lang/<lang>.yaml flat maps → key → { lang: value }. */
+function readTranslations(
+  files: Record<string, string>,
+  projectId: string,
+): Record<string, Record<string, string>> {
+  const out: Record<string, Record<string, string>> = {};
+  for (const [path, content] of Object.entries(files)) {
+    const rel = relativeToProject(path, projectId);
+    const m = /^lang\/([A-Za-z0-9_-]+)\.ya?ml$/.exec(rel);
+    if (!m) continue;
+    const lang = m[1]!;
+    const parsed = tryParse<Record<string, unknown>>(content);
+    if (!parsed || typeof parsed !== "object") continue;
+    for (const [key, value] of Object.entries(parsed)) {
+      if (typeof value !== "string") continue;
+      (out[key] ??= {})[lang] = value;
+    }
+  }
+  return out;
+}
+
+// ─── captured items ──────────────────────────────────────────────────────────
+
+/**
+ * items/<id>.yml → CapturedItem. The file is the runtime truth (verbatim
+ * `stackYaml`); name + display come from `.artisan/editor.yaml` `items:` when
+ * present (the lossless editor channel — enchanted/headTexture aren't
+ * derivable from the stack). Fallback for hand-added files: a generic
+ * derivation from vanilla components, overridable by a root `display:` block
+ * (used by module migrators). Byte-order sort keeps output deterministic.
+ */
+function readCapturedItems(
+  files: Record<string, string>,
+  projectId: string,
+  itemsMeta: NonNullable<EditorStateYaml["items"]>,
+): CapturedItem[] {
+  const out: CapturedItem[] = [];
+  for (const [path, content] of Object.entries(files)) {
+    const rel = relativeToProject(path, projectId);
+    if (!rel.startsWith("items/") || rel.indexOf("/", "items/".length) !== -1) continue;
+    const id = rel.slice("items/".length).replace(/\.ya?ml$/, "");
+    if (!id) continue;
+    const root = tryParse<Record<string, unknown>>(content);
+    if (!root || typeof root !== "object") continue;
+    const stack = (root.item ?? root) as Record<string, unknown>; // `==:`-root tolerated
+    if (!stack || typeof stack !== "object") continue;
+    const display: CapturedItem["display"] = {};
+    const vanillaId = typeof stack.id === "string" ? stack.id : "";
+    if (vanillaId) display.material = vanillaId.replace(/^minecraft:/, "").toUpperCase();
+    const components = (stack.components ?? {}) as Record<string, unknown>;
+    const nexo = /"nexo:id"\s*:\s*"([^"]+)"/.exec(String(components["minecraft:custom_data"] ?? ""));
+    if (nexo) display.material = `nexo:${nexo[1]}`;
+    const count = typeof stack.count === "number" ? stack.count : 1;
+    if (count > 1) display.count = count;
+    const nameMatch = /text\s*:\s*"([^"]*)"/.exec(String(components["minecraft:item_name"] ?? ""));
+    if (nameMatch?.[1]) display.name = nameMatch[1];
+    if (root.display && typeof root.display === "object") Object.assign(display, root.display);
+    const meta = itemsMeta[id];
+    out.push({
+      id: id as CapturedItem["id"],
+      name: meta?.name ?? (typeof display.name === "string" ? display.name : id),
+      stackYaml: content,
+      display: (meta?.display as CapturedItem["display"]) ?? display,
+    });
+  }
+  return out.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+}
+
+// ─── data sources (data/v1 → domain, typed by Data models) ───────────────────
+
+/** data/v1 flattened field → ModelFieldType (used when no model back-ref exists). */
+function fieldTypeOfWire(f: Json): ModelFieldType {
+  switch (f.kind) {
+    case "list":
+      return { kind: "list", of: fieldTypeOfWire(f.of ?? { kind: "string" }) };
+    case "object":
+      return { kind: "object", fields: ((f.fields as Json[]) ?? []).map(fieldOfWire) };
+    case "number":
+    case "integer":
+    case "boolean":
+    case "ltext":
+    case "item":
+    case "actions":
+      return { kind: f.kind };
+    default:
+      return { kind: "string" };
+  }
+}
+
+function fieldOfWire(f: Json): ModelField {
+  return { name: f.name, type: fieldTypeOfWire(f) };
+}
+
+/**
+ * Inverse of serializeDataValue: re-wrap wire values into domain values guided
+ * by the declared field type — ltext key strings become LText nodes (pulling
+ * their translations back into i18nKeys via `ref`).
+ */
+function importDataValue(
+  value: unknown,
+  type: ModelFieldType,
+  models: DataModel[],
+  visited: Set<DataModelId>,
+  ref: (key: string) => LText,
+): unknown {
+  switch (type.kind) {
+    case "ltext":
+      return ref(typeof value === "string" ? value : "");
+    case "list":
+      return Array.isArray(value)
+        ? value.map((el) => importDataValue(el, type.of, models, visited, ref))
+        : [];
+    case "object": {
+      const obj =
+        typeof value === "object" && value !== null && !Array.isArray(value)
+          ? (value as Record<string, unknown>)
+          : {};
+      const out: Record<string, unknown> = {};
+      for (const f of type.fields) out[f.name] = importDataValue(obj[f.name], f.type, models, visited, ref);
+      return out;
+    }
+    case "model": {
+      const model = visited.has(type.ref) ? undefined : models.find((m) => m.id === type.ref);
+      if (!model) return {};
+      const next = new Set(visited).add(type.ref);
+      return importDataValue(value, { kind: "object", fields: model.fields }, models, next, ref);
+    }
+    default:
+      return value;
+  }
+}
+
+// ─── public API ──────────────────────────────────────────────────────────────
+
+/** Module dirs must be sane slugs — rejects hostile keys like `__proto__`. */
+const MODULE_DIR_RE = /^[a-z][a-z0-9_-]*$/;
+
+/** Dirs and files owned by the core importer — everything else under a slug
+ *  dir belongs to a module (`moduleData[ns].__files`). */
+const CORE_PREFIXES = [
+  "menus/",
+  "commands/",
+  "dialogs/",
+  "lang/",
+  "items/",
+  "templates/",
+  "models/",
+  "data/",
+];
+const CORE_FILES = new Set(["manifest.yaml", "meta.yaml"]);
+
+export interface ProjectFromFilesMeta {
+  name?: string;
+  description?: string;
+  source?: Project["source"];
+  serverKeyId?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+/**
+ * Parse a Project's canonical file tree into the domain shape. `meta` carries
+ * the DB-owned fields (name, timestamps) that never live in files.
+ */
+export function projectFromFiles(
+  projectId: ProjectId,
+  files: Record<string, string>,
+  meta: ProjectFromFilesMeta = {},
+): Project {
+  const manifest = tryParse<ManifestYaml>(getFile(files, projectId, "manifest.yaml")) ?? {};
+  const defaultLang = manifest.default_lang ?? "en";
+  const now = new Date().toISOString();
+
+  const translations = readTranslations(files, projectId);
+  const i18nKeys: Record<string, Record<string, string>> = {};
+  // Seed every disk translation so keys referenced via `{i18n:...}` (and any
+  // extra keys the admin keeps in lang files) survive the import.
+  for (const [key, langs] of Object.entries(translations)) i18nKeys[key] = { ...langs };
+  const unsupported: string[] = [];
+
+  const convertOpts = { projectId, lang: defaultLang, translations };
+
+  const menus = (manifest.files?.menus ?? []).flatMap((menuId) => {
+    const y = tryParse<Json>(getFile(files, projectId, `menus/${menuId}.yaml`));
+    if (!y) return [];
+    const r = menuV1ToDomain({ id: menuId, ...y }, convertOpts);
+    Object.assign(i18nKeys, r.i18nKeys);
+    unsupported.push(...r.unsupported);
+    return [r.menu];
+  });
+
+  const commands = (manifest.files?.commands ?? []).flatMap((cmdId) => {
+    const y = tryParse<Json>(getFile(files, projectId, `commands/${cmdId}.yaml`));
+    if (!y) return [];
+    const r = commandV1ToDomain({ id: cmdId, ...y }, convertOpts);
+    Object.assign(i18nKeys, r.i18nKeys);
+    unsupported.push(...r.unsupported);
+    return [r.command];
+  });
+
+  const dialogs = (manifest.files?.dialogs ?? []).flatMap((dlgId) => {
+    const y = tryParse<Json>(getFile(files, projectId, `dialogs/${dlgId}.yaml`));
+    if (!y) return [];
+    const r = dialogV1ToDomain({ id: dlgId, ...y }, convertOpts);
+    Object.assign(i18nKeys, r.i18nKeys);
+    unsupported.push(...r.unsupported);
+    return [r.dialog];
+  });
+
+  // Shared i18n bridge for the file kinds without a per-document converter
+  // (templates, data sources).
+  function ref(key: string): LText {
+    const tr = translations[key];
+    if (tr) i18nKeys[key] = { ...tr };
+    return { key: key as I18nKey };
+  }
+  function text(raw: string | undefined): LText {
+    const m = typeof raw === "string" ? /^\{i18n:(.+)\}$/.exec(raw) : null;
+    if (m) return ref(m[1]!);
+    const key = newI18nKey();
+    i18nKeys[key] = { [defaultLang]: raw ?? "" };
+    return { key };
+  }
+  const { appearance } = makeAppearanceConverter({
+    text,
+    ref,
+    pushUnsupported: (s) => unsupported.push(s),
+  });
+
+  // Item templates: templates/<id>.yaml (template/v1). Scanned from file keys
+  // (not a manifest list) so a hand-added file still imports.
+  const itemTemplates: ItemTemplate[] = scanDir(files, projectId, "templates").map(({ id, parsed: y }) => ({
+    id: id as ItemTemplateId,
+    projectId,
+    name: (y.name as string) ?? id,
+    sourceRef: y.source ?? "",
+    alias: y.alias ?? "",
+    ...(y.key_field ? { keyField: y.key_field } : {}),
+    ...(y.group_by ? { groupBy: y.group_by } : {}),
+    appearances: ((y.appearances as Json[]) ?? []).map(appearance),
+  }));
+
+  // Data models: models/<id>.yaml (model/v1), fields verbatim — the lossless
+  // typing store (data/<id>.yaml stays denormalized for the runtime).
+  const dataModels: DataModel[] = scanDir(files, projectId, "models").map(({ id, parsed: y }) => ({
+    id: id as DataModelId,
+    name: (y.name as string) ?? id,
+    keyField: (y.key_field as string) ?? "id",
+    fields: ((y.fields as ModelField[]) ?? []) as ModelField[],
+  }));
+
+  // Project sources: data/<id>.yaml (data/v1). Table sources are re-typed by
+  // their Data model via the `model:` back-ref; a hand-written file without
+  // one gets a model synthesized from its flattened fields (canonicalized on
+  // the next export, same spirit as literal-text key minting).
+  const dataSources: DataSource[] = scanDir(files, projectId, "data").map(({ id, parsed: y }) => {
+    const name = (y.name as string) ?? id;
+    if (y.shape === "config") {
+      const fields = ((y.fields as Json[]) ?? []).map(fieldOfWire);
+      const value = importDataValue(
+        y.value ?? {},
+        { kind: "object", fields },
+        dataModels,
+        new Set(),
+        ref,
+      ) as Record<string, unknown>;
+      return { id: id as DataSourceId, name, shape: "config", fields, value };
+    }
+    let model = dataModels.find((m) => m.id === y.model);
+    if (!model) {
+      model = {
+        id: `mdl_${id}` as DataModelId,
+        name,
+        keyField: (y.key_field as string) ?? "id",
+        fields: ((y.fields as Json[]) ?? []).map(fieldOfWire),
+      };
+      dataModels.push(model);
+    }
+    const modelId = model.id;
+    const rowType: ModelFieldType = { kind: "object", fields: model.fields };
+    const rows = ((y.rows as Json[]) ?? []).map(
+      (r) =>
+        importDataValue(r, rowType, dataModels, new Set([modelId]), ref) as Record<string, unknown>,
+    );
+    return { id: id as DataSourceId, name, shape: "table", modelId, rows };
+  });
+
+  const editorState = tryParse<EditorStateYaml>(getFile(files, projectId, ".artisan/editor.yaml")) ?? {
+    layout: manifest.editor_layout,
+    edges: manifest.editor_edges,
+  };
+
+  const capturedItems = readCapturedItems(files, projectId, editorState.items ?? {});
+
+  // Unclaimed slug dirs → moduleData[ns].__files (modules normalize on first
+  // read; unregistered namespaces re-export verbatim). Null-prototype
+  // accumulator: hostile dir names can't clobber Object.prototype.
+  const moduleData: Record<string, { __files: Record<string, string> }> = Object.create(null);
+  for (const [path, content] of Object.entries(files)) {
+    const rel = relativeToProject(path, projectId);
+    if (CORE_FILES.has(rel) || CORE_PREFIXES.some((p) => rel.startsWith(p))) continue;
+    const slash = rel.indexOf("/");
+    if (slash <= 0) continue; // top-level unknown files (and .artisan/*): ignored
+    const dir = rel.slice(0, slash);
+    if (!MODULE_DIR_RE.test(dir) || dir in Object.prototype) continue;
+    (moduleData[dir] ??= { __files: {} }).__files[rel.slice(slash + 1)] = content;
+  }
+
+  const project: Project = {
+    id: projectId,
+    name: meta.name ?? projectId,
+    ...(meta.description ? { description: meta.description } : {}),
+    // `source` is cosmetic (badge) and DB/file-less — default to the common case.
+    source: meta.source ?? "user_created",
+    ...(meta.serverKeyId ? { serverKeyId: meta.serverKeyId } : {}),
+    createdAt: meta.createdAt ?? now,
+    updatedAt: meta.updatedAt ?? now,
+    menus,
+    commands,
+    templates: [],
+    ...(itemTemplates.length > 0 ? { itemTemplates } : {}),
+    ...(capturedItems.length > 0 ? { capturedItems } : {}),
+    assets: [],
+    dataSources,
+    ...(dataModels.length > 0 ? { dataModels } : {}),
+    i18nKeys: i18nKeys as Project["i18nKeys"],
+    defaultLang,
+    dialogs,
+    canvasLayout: parseEditorLayout(editorState.layout),
+    ...(Object.keys(parseEditorEdges(editorState.edges)).length > 0
+      ? { canvasEdges: parseEditorEdges(editorState.edges) }
+      : {}),
+    ...(Object.keys(moduleData).length > 0 ? { moduleData: { ...moduleData } } : {}),
+    ...(typeof manifest.module === "string" && manifest.module
+      ? { ownerModule: manifest.module }
+      : {}),
+  };
+
+  if (unsupported.length > 0) {
+    console.warn(`[projectFromFiles] ${projectId}: dropped unsupported constructs: ${unsupported.join(", ")}`);
+  }
+
+  return project;
+}

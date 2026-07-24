@@ -3,7 +3,6 @@ import { db } from "../db/index";
 import { ensureAssets, assetsDone } from "../lib/mcAssets";
 import { networks, projectBranches, projectCommits, projects, serverKeyHelloes, serverKeys, serverModules, serverDataSources } from "../db/schema";
 import { createProject, getProject, upsertProjectContent } from "../lib/projectStorage";
-import { importProjectFromFiles, isEmptyStub, readOwnerModuleFromFiles } from "../lib/projectImport";
 import { getBranch, advanceBranchHead } from "../lib/branchStorage";
 import { createCommit } from "../lib/commitStorage";
 import { computeAllPacksHash } from "../lib/hashUtils";
@@ -489,32 +488,10 @@ export async function handlePluginMessage(
         if (k.startsWith(metaPrefix) && !(k in files)) files[k] = v;
       }
     }
-    const patch: { hash: string; filesJson: string; editorJson?: string } = {
-      hash, filesJson: JSON.stringify(files),
-    };
-    // Contenu poussé par le plugin (bootstrap Add-on / scénario FTP) : si le
-    // project n'a jamais été édité (stub), construire l'état éditeur depuis
-    // les fichiers pour qu'il soit éditable — jamais quand un vrai état existe.
-    if (isEmptyStub(project.editorJson)) {
-      patch.editorJson = JSON.stringify(importProjectFromFiles(projectId, files));
-    } else if (project.editorJson) {
-      // Propagate the manifest's Add-on owner id onto the existing editor state
-      // (without clobbering the rest) so the sidebar groups it under "Installed
-      // modules" after an upgrade — an existing project isn't a stub, so the
-      // import branch above never runs (ADR addon-owned-project-roots). ADD-ONLY:
-      // a push whose manifest lacks `module` must never strip an existing owner
-      // (the plugin re-downloads the backend's manifest, which may momentarily
-      // lag the ownership signal).
-      const owner = readOwnerModuleFromFiles(files, projectId);
-      if (owner) {
-        const editor = JSON.parse(project.editorJson) as Record<string, unknown>;
-        if (editor.ownerModule !== owner) {
-          editor.ownerModule = owner;
-          patch.editorJson = JSON.stringify(editor);
-        }
-      }
-    }
-    await upsertProjectContent(projectId, patch);
+    // Files-first: the pushed file tree IS the new project content — no editor
+    // JSON to derive or patch (the editor parses files client-side; ownerModule
+    // lives in the manifest and is re-read on every load).
+    await upsertProjectContent(projectId, { hash, filesJson: JSON.stringify(files) });
     // local_push = commit sur main + advance head, comme le deploy : le plugin
     // télécharge les bundles via branche → head commit. Sans commit, le download
     // servirait le commit initial vide et le sweep détruirait le contenu local
@@ -522,12 +499,10 @@ export async function handlePluginMessage(
     // bundle_available porte le contentHash du commit.
     const mainBranch = await getBranch(projectId, "main");
     if (mainBranch) {
-      const editorJson = patch.editorJson ?? project.editorJson;
       const commit = await createCommit({
         projectId,
         parentId: mainBranch.headCommitId,
         files,
-        editor: editorJson ? JSON.parse(editorJson) : null,
         authorUserId: null,
         message: "local_push",
       });
@@ -541,8 +516,8 @@ export async function handlePluginMessage(
 
   // ── boutique_additem: /boutique additem — backend-module mutation ─────────
   // ADR captured-items-and-module-field-kit §3: the plugin never writes project
-  // files; the boutique backend module mutates editorJson + patches the bundle
-  // files + commits, then we broadcast so the server hot-reloads.
+  // files; the boutique backend module patches the project's file tree +
+  // commits, then we broadcast so the server hot-reloads.
   if (msg.type === "boutique_additem") {
     const serverId = connToServerId.get(connId);
     if (!serverId) return { reply: null };

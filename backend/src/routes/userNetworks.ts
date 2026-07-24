@@ -33,6 +33,7 @@ import { accessRequestEmail, inviteEmail } from "../lib/mail/templates";
 import { requireCapability, requireMember, withNetworkMemberLock } from "../lib/membershipGuard";
 import { addMembership } from "../lib/membershipManager";
 import { createNetwork } from "../lib/networkManager";
+import { readOwnerModuleFromFiles } from "../lib/projectFiles";
 import { createProject, listProjectsForNetwork } from "../lib/projectStorage";
 import { slugify } from "../lib/slug";
 import { allocServerSlug } from "../lib/slugAlloc";
@@ -45,37 +46,21 @@ const EDITOR_URL = process.env.EDITOR_URL ?? "http://localhost:5173";
 type Vars = { user: AuthUser | null };
 
 /**
- * Number of authorable documents (menus + commands + dialogs) inside a
- * project's editor JSON. Surfaced in the network detail so the sidebar +
- * project list can show a count indicator without loading the full project.
- * Returns 0 on missing/corrupt JSON — the count is informational, never
- * load-bearing.
+ * Number of authorable documents (menus + commands + dialogs) in a project's
+ * file tree (files-first: the tree is the only stored representation).
+ * Surfaced in the network detail so the sidebar + project list can show a
+ * count indicator without loading the full project. Returns 0 on
+ * missing/corrupt JSON — the count is informational, never load-bearing.
  */
-function countProjectDocuments(editorJson: string | null): number {
-	if (!editorJson) return 0;
+function countProjectDocuments(filesJson: string | null): number {
+	if (!filesJson) return 0;
 	try {
-		const e = JSON.parse(editorJson) as {
-			menus?: unknown[];
-			commands?: unknown[];
-			dialogs?: unknown[];
-		};
-		return (
-			(e.menus?.length ?? 0) + (e.commands?.length ?? 0) + (e.dialogs?.length ?? 0)
-		);
+		const files = JSON.parse(filesJson) as Record<string, string>;
+		return Object.keys(files).filter((path) =>
+			/\/(menus|commands|dialogs)\/[^/]+\.ya?ml$/.test(path),
+		).length;
 	} catch {
 		return 0;
-	}
-}
-
-/** Owning Add-on module id of a project (from `manifest.module`, carried on the
- *  editor state), or undefined — drives the sidebar "Installed modules" grouping. */
-function ownerModuleOf(editorJson: string | null): string | undefined {
-	if (!editorJson) return undefined;
-	try {
-		const m = (JSON.parse(editorJson) as { ownerModule?: unknown }).ownerModule;
-		return typeof m === "string" && m ? m : undefined;
-	} catch {
-		return undefined;
 	}
 }
 
@@ -158,11 +143,19 @@ userNetworksRouter.get("/:id", async (c: Context<{ Variables: Vars }>) => {
 		return c.json({ error: "forbidden" }, 403);
 	}
 	const projectsList = await listProjectsForNetwork(network.id);
-	const projectsWithCounts = projectsList.map((p) => ({
-		...p,
-		documentCount: countProjectDocuments(p.editorJson),
-		ownerModule: ownerModuleOf(p.editorJson),
-	}));
+	const projectsWithCounts = projectsList.map((p) => {
+		let files: Record<string, string> = {};
+		try {
+			files = JSON.parse(p.filesJson) as Record<string, string>;
+		} catch {
+			/* informational only */
+		}
+		return {
+			...p,
+			documentCount: countProjectDocuments(p.filesJson),
+			ownerModule: readOwnerModuleFromFiles(files, p.id),
+		};
+	});
 	const skList = await db
 		.select()
 		.from(serverKeys)
