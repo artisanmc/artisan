@@ -131,7 +131,12 @@ export function buildResourcePackZip(
     }
   }
 
-  const zipBytes = zipSync(files, { level: 0 });
+  // Fixed mtime: zip entry headers embed a DOS timestamp (2s resolution) that
+  // defaults to "now" — two identical rebuilds straddling a window produced
+  // different bytes, so the same content hashed differently and clients
+  // re-downloaded an unchanged pack (flaked CI's determinism test, blocked the
+  // 2026-07-24 deploy). Any constant works; content changes still change the hash.
+  const zipBytes = zipSync(files, { level: 0, mtime: new Date("2020-01-01T00:00:00Z") });
   const hash = createHash("sha1").update(zipBytes).digest("hex");
   return { zipBytes, hash };
 }
