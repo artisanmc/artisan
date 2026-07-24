@@ -102,10 +102,12 @@ class FullSyncIntegrationTest {
                 )
                 provider.load()
 
-                // Poll until files appear on disk (async download on OkHttp dispatcher thread)
+                // Poll until the sync COMPLETES (metadata is written last, after
+                // files + sweep) — async download on the OkHttp dispatcher thread.
                 val manifest = File(packsDir, "$packId/manifest.yaml")
+                val syncMeta = File(packsDir, "$packId/.artisan-sync.yaml")
                 val deadline = System.currentTimeMillis() + 5_000
-                while (!manifest.exists() && System.currentTimeMillis() < deadline) Thread.sleep(100)
+                while (!(manifest.exists() && syncMeta.exists()) && System.currentTimeMillis() < deadline) Thread.sleep(100)
 
                 assertTrue(manifest.exists(), "manifest.yaml should be written by BundleDownloader")
                 assertTrue(File(packsDir, "$packId/menus/shop.yaml").exists())
@@ -166,9 +168,10 @@ class FullSyncIntegrationTest {
                 assertTrue(ackLatch.await(5, TimeUnit.SECONDS), "Mock server did not receive hello within 5s")
                 Thread.sleep(200) // let the client process hello_ack
 
+                // Files-first P3b: LOCAL_ONLY is auto-pushed (silent + one WARN).
                 assertTrue(
-                    logs.any { it.contains("differs from backend") && it.contains("LOCAL_ONLY") },
-                    "Expected LOCAL_ONLY divergence WARN log. Got: $logs",
+                    logs.any { it.contains("changed on disk") && it.contains("auto-pushing") },
+                    "Expected LOCAL_ONLY auto-push WARN log. Got: $logs",
                 )
                 provider.unload()
             }
@@ -222,9 +225,10 @@ class FullSyncIntegrationTest {
                 assertTrue(ackLatch.await(5, TimeUnit.SECONDS), "Mock server did not receive hello within 5s")
                 Thread.sleep(200)
 
+                // Files-first P3b: a true divergence is held (no overwrite, no push) until P3c.
                 assertTrue(
-                    logs.any { it.contains("CONFLICT") },
-                    "Expected CONFLICT warning in logs. Got: $logs",
+                    logs.any { it.contains("diverged from backend") && it.contains("Not auto-pushing") },
+                    "Expected divergence hold warning in logs. Got: $logs",
                 )
                 provider.unload()
             }
@@ -381,14 +385,15 @@ class FullSyncIntegrationTest {
 
         Thread.sleep(300)  // settle any background dispatcher
 
-        // Plan 1C: no WS emission anymore — only a WARN log.
+        // The legacy pack_divergence_detected emission stays dead (backend no-ops it).
         kotlin.test.assertNull(
             sent.firstOrNull { it["type"] == "pack_divergence_detected" },
-            "Plan 1C plugin must NOT send pack_divergence_detected",
+            "plugin must NOT send pack_divergence_detected",
         )
+        // Files-first P3b: this scenario is LOCAL_ONLY -> auto-pushed with one WARN.
         kotlin.test.assertTrue(
-            logs.any { it.contains("p_local") && it.contains("differs from backend") },
-            "Expected WARN log mentioning the divergence. Got: $logs",
+            logs.any { it.contains("p_local") && it.contains("auto-pushing") },
+            "Expected auto-push WARN log. Got: $logs",
         )
     }
 }

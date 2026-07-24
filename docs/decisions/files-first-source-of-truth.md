@@ -5,8 +5,10 @@ ergonomics + P1 (`.artisan/editor.yaml`, offline assets) + P2 (template/model
 files) shipped 2026-07-23; **P3a shipped 2026-07-24** (decision 2 done —
 `editorJson` demolished, the backend stores only the file tree; the editor
 parses/serializes it via `projectFromFiles`/`transform`, locked by a
-fixed-point round-trip test). Remaining: P3b watcher/auto-push (decision 6),
-P3c divergence resolution.
+fixed-point round-trip test); **P3b shipped 2026-07-24** (decision 6 partial —
+debounced watcher + auto-push on LOCAL_ONLY, self-write suppression, atomic
+downloads; true divergence is held unpushed with a WARN). Remaining: P3c
+divergence resolution (the no-overwrite-either-way flow).
 
 ## Context
 

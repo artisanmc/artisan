@@ -55,7 +55,7 @@ cd plugin
 **Commandes plugin** — `/artisan` subcommands:
 - `/artisan menu <projectId> <menuId>` — open menu editor session
 - `/artisan reload` — reload all projects from disk
-- `/artisan pushLocal <projectId>` — push local project changes to backend (for FTP scenario: admin edits YAML on disk → push before reconnecting, else backend overwrites on next sync)
+- `/artisan pushLocal <projectId>` — **fallback manuel** : depuis P3b (watcher files-first), les éditions disque sont détectées et auto-pushées automatiquement (watcher débouncé + check au `hello_ack`). Utile seulement pour forcer le côté disque lors d'une vraie divergence (les deux côtés ont bougé — le plugin ne pushe pas seul dans ce cas).
 - `/artisan editor` — **purement informatif**, accounts-only (aucune session/trust en jeu). Linké + connecté → imprime le deep-link `server_url` + le nom du network (`hello_ack`). Linké mais pas encore connecté → « connecting, retry shortly ». Pas linké → imprime l'URL home de l'éditeur (dérivée de `ws_url`) pour aller créer le serveur.
 - `/artisan link <code>` — **editor-first linking** (cf. ADR `editor-first-server-linking`). Le code est minté par l'éditeur quand on ajoute un serveur ; la commande le redeem via `POST /api/v1/link/:code/redeem` (dérive la base HTTP de `ws_url`), écrit le `server_key` dans `config.yml` (`ConfigWriter.writeServerKey`), reinit + connecte. Sur un serveur **déjà lié** → **écrase** la clé (rotation / bascule), WARN log, pas de refus. `/artisan setup` (+ `SetupClient` WS pairing) a été supprimé le 2026-07-15.
 
@@ -200,6 +200,8 @@ Détail des couches de tokens : `docs/architecture/editor-internals.md` (section
 **OkHttp thread** — `SyncedMenuProvider.handleMessage` est appelé sur le thread WS callback d'OkHttp. Le download de bundle est dispatché sur `httpClient.dispatcher.executorService`. Ne jamais faire de I/O bloquant dans le callback WS directement.
 
 **Reload atomique** — `reloadFromDisk()` construit un nouveau `ConcurrentHashMap` entier, puis l'assigne à `@Volatile var menus`. Ne jamais modifier le map en place.
+
+**Watcher disque + auto-push (P3b, 2026-07-24)** — `ProjectWatcher` (WatchService récursif par project root, debounce 1,5 s, toujours actif y compris offline) : une édition disque hot-reload localement puis auto-pushe (`local_push`) si `detectSyncAction` = LOCAL_ONLY ; CONFLICT (les deux côtés ont bougé) = hot-reload SANS push, un WARN (résolution = P3c). Même logique au `hello_ack` (plus d'écrasement backend silencieux — le WARN « backend will overwrite » est mort). **Invariant anti-boucle** : toute écriture disque du plugin lui-même (download de bundle, move-to-trash) est encadrée par `watcher.beginSuppress(projectId)` / `endSuppress(projectId, grace)` — oublier la suppression = boucle push/download infinie. `BundleDownloader` écrit en atomique (`.artisan-tmp` + rename) et **skippe les fichiers au contenu identique** (l'écho de son propre push ne touche pas le disque). Les chemins premier segment `.artisan*` sont invisibles au watcher (miroir de l'exclusion hash).
 
 **Verrou optimiste (plus de freeze de conflit)** — la table `project_conflicts` n'existe plus (accounts-only cutover) : `pushBundleAvailable` (hub.ts) broadcast `bundle_available` sans condition dès qu'un commit est publié. La protection contre l'écrasement concurrent est le verrou optimiste sur `PUT /api/v1/user/projects/:projectId` (`baseVersion` requis, `409 version_conflict` + `currentVersion` sinon) — cf. `entities.md` § Concurrence optimiste.
 

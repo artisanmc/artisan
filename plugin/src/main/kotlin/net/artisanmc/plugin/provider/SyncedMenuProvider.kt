@@ -68,6 +68,8 @@ class SyncedMenuProvider(
      * API). Default = synchronous, for tests; ArtisanPlugin injects the scheduler.
      */
     private val runOnMainThread: (() -> Unit) -> Unit = { it() },
+    /** Disk-watcher quiet period — long enough to absorb a multi-file agent burst. */
+    private val watchDebounceMs: Long = 1500,
 ) : MenuProvider {
     companion object {
         internal const val MAX_PREVIEW_ROWS = 50
@@ -132,6 +134,7 @@ class SyncedMenuProvider(
 
     override fun load() {
         reloadFromDisk()
+        startWatcher()
         if (serverKey.isNotEmpty()) {
             val currentHash = BundleHasher.hashAll(roots)
             val mcVersion = try {
@@ -163,6 +166,8 @@ class SyncedMenuProvider(
     }
 
     override fun unload() {
+        watcher?.stop()
+        watcher = null
         wsClient?.disconnect()
         httpClient.dispatcher.cancelAll()
         httpClient.connectionPool.evictAll()
@@ -240,6 +245,50 @@ class SyncedMenuProvider(
         val msg = LocalPushSender.buildPushMessage(projectId, projectDir)
         send(msg)
         return msg["hash"] as? String
+    }
+
+    @Volatile private var watcher: net.artisanmc.plugin.sync.ProjectWatcher? = null
+
+    /**
+     * Debounced disk watcher (ADR files-first-source-of-truth #6): hand/agent
+     * edits hot-reload immediately and auto-push when connected. Internal so
+     * tests can start it without load()'s WS side effects.
+     */
+    internal fun startWatcher() {
+        if (watcher != null) return
+        watcher = net.artisanmc.plugin.sync.ProjectWatcher(
+            roots,
+            debounceMs = watchDebounceMs,
+            logger = logger,
+            onProjectsChanged = ::onWatchedChange,
+        ).also { it.start() }
+    }
+
+    /** Runs on the watcher's flush thread — same off-main pattern as bundle_available. */
+    private fun onWatchedChange(projectIds: Set<String>) {
+        reloadFromDisk()
+        draftMenus.clear()
+        onReload?.invoke()
+        if (serverKey.isEmpty()) return
+        projectIds.forEach { projectId ->
+            val projectDir = roots.dirFor(projectId)
+            if (!projectDir.exists()) return@forEach
+            val diskHash = BundleHasher.hash(projectDir)
+            val meta = SyncMetadata.read(projectDir)
+            when (detectSyncAction(diskHash, meta.syncedHash, meta.backendHash)) {
+                SyncAction.IN_SYNC, SyncAction.AUTO_SYNC -> {}
+                SyncAction.LOCAL_ONLY -> {
+                    logger?.warning("[Artisan] '$projectId' changed on disk — hot-reloaded, auto-pushing.")
+                    pushLocalProject(projectId, projectDir)
+                }
+                SyncAction.CONFLICT -> {
+                    logger?.warning(
+                        "[Artisan] '$projectId' changed on disk but the backend also moved since last sync — " +
+                        "hot-reloaded locally, NOT pushed. Use /artisan pushLocal $projectId to force local."
+                    )
+                }
+            }
+        }
     }
 
     private fun reloadFromDisk() {
@@ -322,14 +371,25 @@ class SyncedMenuProvider(
                     when (action) {
                         SyncAction.IN_SYNC    -> logger?.fine("Pack $projectId is in sync")
                         SyncAction.AUTO_SYNC  -> logger?.fine("Pack $projectId: backend is newer — sync will be applied via bundle_available")
-                        SyncAction.LOCAL_ONLY, SyncAction.CONFLICT -> {
-                            // Plan 1C: backend = source of truth. Local divergence will be overwritten
-                            // by the next bundle_available. We log a single WARN line for post-mortem
-                            // tracing — no UI, no prompt, no delay. Admins who edited via FTP must use
-                            // `/artisan pushLocal <project_id>` to upload local changes before reconnecting.
+                        SyncAction.LOCAL_ONLY -> {
+                            // Files-first (ADR files-first-source-of-truth #6): the disk is the
+                            // primary editing surface — local-only changes are AUTO-PUSHED,
+                            // silent + one WARN for post-mortem tracing (house "no theater" rule).
                             logger?.warning(
-                                "[Artisan] Local pack '$projectId' differs from backend (action=$action). " +
-                                "Backend version will overwrite local. Use /artisan pushLocal $projectId if local edits were intentional."
+                                "[Artisan] Local pack '$projectId' changed on disk (backend unchanged) — auto-pushing local content."
+                            )
+                            httpClient.dispatcher.executorService.execute {
+                                pushLocalProject(projectId, projectDir)
+                            }
+                        }
+                        SyncAction.CONFLICT -> {
+                            // True divergence (disk AND web both moved since last sync): no
+                            // overwrite in either direction. Until the divergence-resolution
+                            // flow ships (P3c), we hold local files and WARN; the next
+                            // bundle_available would still apply the backend state.
+                            logger?.warning(
+                                "[Artisan] Local pack '$projectId' diverged from backend (both changed). " +
+                                "Not auto-pushing. Use /artisan pushLocal $projectId to force local, or redeploy from the editor to force web."
                             )
                         }
                     }
@@ -342,6 +402,9 @@ class SyncedMenuProvider(
                 if (downloadsInFlight.putIfAbsent(projectId, true) != null) return
                 try {
                     httpClient.dispatcher.executorService.execute {
+                        // Self-write suppression: the download's disk writes must not
+                        // loop back through the watcher as a local edit.
+                        watcher?.beginSuppress(projectId)
                         try {
                             val downloader = BundleDownloader(httpClient, roots, logger)
                             downloader.download(url = url, serverKey = serverKey, projectId = projectId)
@@ -350,6 +413,7 @@ class SyncedMenuProvider(
                             logger?.info("[ART-DEBUG] bundle_available: triggering onReload for pack=$projectId")
                             onReload?.invoke()
                         } finally {
+                            watcher?.endSuppress(projectId)
                             downloadsInFlight.remove(projectId)
                         }
                     }
@@ -528,7 +592,13 @@ class SyncedMenuProvider(
         }
         menus = freshMenus
         dialogs = freshDialogs
-        net.artisanmc.plugin.sync.ProjectDeleter(roots, logger).delete(projectId)
+        // The move-to-trash is a self-write — keep it out of the watcher.
+        watcher?.beginSuppress(projectId)
+        try {
+            net.artisanmc.plugin.sync.ProjectDeleter(roots, logger).delete(projectId)
+        } finally {
+            watcher?.endSuppress(projectId)
+        }
         onReload?.invoke()
     }
 
