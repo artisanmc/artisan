@@ -1,8 +1,18 @@
 # Composable config schemas + schema-driven forms for Add-ons
 
-**Status:** exploration — design track, **NOT yet grilled/locked** (2026-07-22).
-Raw material for a future grill-with-docs session. Narrowed out of ADR
-`addon-owned-project-roots` (which kept only the disk-placement slice).
+**Status:** **GRILLED & LOCKED (2026-07-25)** → ADR
+`docs/decisions/composable-data-models.md` (8 decisions: one type system —
+Data model enriched with map/enum/union, two provenances; Tables gain per-row
+file granularity (no "document" shape); inline schema = runtime contract
+(plugin stays model-blind, data/v1 mutated in place); declaration via
+Presence, wire = model/v1; declarative versioned migrations, never code;
+actions/conditions kinds core-only (namespaced command bridge for the rest);
+form derives from the model — closed hint + validation vocabularies,
+asymmetric enforcement; one-shot plugin-side migrators, MSQuests reader
+autonomous). CONTEXT.md updated (Data model / Data source). Build sequence in
+the ADR. This document remains as raw material/background. Originally narrowed
+out of ADR `addon-owned-project-roots` (which kept only the disk-placement
+slice).
 
 > **Vision upgrade (2026-07-23)** — this track is no longer a boutique/quests
 > side-quest: it is the **centerpiece of the "Artisan as a configuration
