@@ -9,6 +9,10 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Changed — deterministic exports + live divergence banner
+- `transform()` no longer emits `meta.yaml` (nothing consumed it and its `exported_at` timestamp made every export a different byte tree — saves no longer dirty the hash for nothing; the files→domain→files round-trip is now a total fixed point).
+- The divergence banner is now live: the editor connects the `/ws/editor` channel (one-shot ticket) from the project view and reacts to the hub's `sync_divergence` / `divergence_resolved` nudges — the banner appears and clears without reloading the tab.
+
 ### Added — files-first P3c: per-file divergence resolution (no overwrite in either direction)
 - When disk AND web both moved since the last sync, the plugin reports its disk tree (`sync_divergence` WS message, re-sent at every `hello_ack` while unresolved — the backend keeps it in memory only, self-healing across restarts) instead of pushing or being overwritten. The editor shows a resolution banner listing every differing file (modified / disk-only / web-only) with a per-side choice (default: keep the server file) plus keep-all shortcuts; `POST /api/v1/user/projects/:projectId/resolve-divergence` merges the chosen sides, commits on main, re-broadcasts `bundle_available` (the plugin re-syncs) and clears the report. A manual `/artisan pushLocal` also clears it (force-disk). The project GET carries the per-file detail while pending.
 

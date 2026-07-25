@@ -800,12 +800,12 @@ describe("transform", () => {
     expect(manifest.languages).toContain("fr");
   });
 
-  it("emits meta.yaml with project_id", () => {
+  it("emits no meta.yaml — the export is a pure function of the Project (no timestamps)", () => {
     const pack = makeProject();
     const files = transform(pack);
-    const meta = parse(files["plugins/Artisan/projects/p_test/meta.yaml"]!);
-    expect(meta.project_id).toBe("p_test");
-    expect(typeof meta.exported_at).toBe("string");
+    expect(files["plugins/Artisan/projects/p_test/meta.yaml"]).toBeUndefined();
+    // Determinism: two exports of the same Project are byte-identical.
+    expect(transform(pack)).toEqual(files);
   });
 });
 

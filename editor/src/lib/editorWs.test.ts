@@ -60,4 +60,21 @@ describe("EditorWs.connectAsUser", () => {
     expect(() => socket.onmessage?.({ data: JSON.stringify({ type: "unknown_type" }) })).not.toThrow();
     expect(onDraftUpdate).not.toHaveBeenCalled();
   });
+
+  it("dispatches sync_divergence and divergence_resolved to the handlers object", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ticket: "wst_y" }) }),
+    );
+    const onSyncDivergence = vi.fn();
+    const onDivergenceResolved = vi.fn();
+    await EditorWs.connectAsUser("http://localhost:3001", { onSyncDivergence, onDivergenceResolved });
+    const socket = FakeWebSocket.instances[0];
+
+    socket.onmessage?.({ data: JSON.stringify({ type: "sync_divergence", project_id: "p1", disk_hash: "h" }) });
+    expect(onSyncDivergence).toHaveBeenCalledWith("p1");
+
+    socket.onmessage?.({ data: JSON.stringify({ type: "divergence_resolved", project_id: "p1" }) });
+    expect(onDivergenceResolved).toHaveBeenCalledWith("p1");
+  });
 });

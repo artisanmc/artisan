@@ -1,10 +1,13 @@
 import { Button } from "@/components/ui/button";
-import { resolveDivergence } from "@/lib/api/userProjects";
+import { loadUserProject, resolveDivergence } from "@/lib/api/userProjects";
+import { EditorWs } from "@/lib/editorWs";
 import { cn } from "@/lib/cx";
 import { useDivergenceStore } from "@/state/divergenceStore";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+
+const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
 
 /**
  * Files-first P3c (ADR files-first-source-of-truth #6): shown when the plugin
@@ -18,6 +21,35 @@ export function DivergenceBanner({ projectId }: { projectId: string }) {
   const divergence = useDivergenceStore((s) => s.byProject[projectId]);
   const [choices, setChoices] = useState<Record<string, "disk" | "web">>({});
   const [resolving, setResolving] = useState(false);
+
+  // Live nudges: the hub broadcasts sync_divergence / divergence_resolved to
+  // editor connections — refetch the per-file detail (it travels on the GET)
+  // so the banner appears/disappears without a manual reload. Best-effort:
+  // a failed WS connect just means the banner waits for the next load.
+  useEffect(() => {
+    let ws: EditorWs | null = null;
+    let disposed = false;
+    EditorWs.connectAsUser(API_URL, {
+      onSyncDivergence: (pid) => {
+        if (pid !== projectId) return;
+        loadUserProject(projectId)
+          .then((res) => useDivergenceStore.getState().set(projectId, res.divergence))
+          .catch(() => {});
+      },
+      onDivergenceResolved: (pid) => {
+        if (pid === projectId) useDivergenceStore.getState().clear(projectId);
+      },
+    })
+      .then((conn) => {
+        if (disposed) conn.disconnect();
+        else ws = conn;
+      })
+      .catch(() => {});
+    return () => {
+      disposed = true;
+      ws?.disconnect();
+    };
+  }, [projectId]);
 
   const files = useMemo(() => divergence?.files ?? [], [divergence]);
   if (!divergence || files.length === 0) return null;
