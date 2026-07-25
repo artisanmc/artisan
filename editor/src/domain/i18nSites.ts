@@ -300,6 +300,21 @@ function* visitModelValueLTexts(
       yield* visitModelValueLTexts(value, { kind: "object", fields: model.fields }, base, models, next);
       return;
     }
+    case "map": {
+      if (typeof value !== "object" || value === null || Array.isArray(value)) return;
+      for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+        yield* visitModelValueLTexts(v, type.of, `${base}.${k.toLowerCase()}`, models, visited);
+      }
+      return;
+    }
+    case "union": {
+      if (typeof value !== "object" || value === null || Array.isArray(value)) return;
+      const obj = value as Record<string, unknown>;
+      const variant = type.variants.find((v) => v.name === obj[type.tag]);
+      if (!variant) return;
+      yield* visitModelValueLTexts(value, { kind: "object", fields: variant.fields }, base, models, visited);
+      return;
+    }
     default:
       return;
   }

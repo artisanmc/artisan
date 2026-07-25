@@ -274,3 +274,137 @@ describe("ModelFieldsEditor", () => {
     expect(pack().dataModels![0]!.keyField).toBe("id");
   });
 });
+
+// ─── stable row identity (model-ref "items mixed across rows" regression) ────
+// Index keys made React reuse a stateful child (RowKeyEditor draft) for a
+// DIFFERENT row after a mid-list delete. Keys are now identity-derived from
+// the Row key value.
+describe("SourceRowsTable — stable row keys", () => {
+  it("keeps a row's in-progress key draft bound to the SAME row when the row above is deleted", () => {
+    useAccountStore.setState((s) => {
+      const p = s.account.projects[0]!;
+      const ds = p.dataSources[0] as { rows: Record<string, unknown>[] };
+      ds.rows = [
+        { id: "alpha", name: { key: "k_a" }, price: 1, tagline: "", rules: "" },
+        { id: "beta", name: { key: "k_b" }, price: 2, tagline: "", rules: "" },
+      ];
+      return s;
+    });
+    const { rerender } = render(
+      <SourceRowsTable projectId={PID} pack={pack()} source={tableSource()} />,
+    );
+
+    // Start typing a new key on the SECOND row (beta) without committing.
+    const keyInputs = screen.getAllByDisplayValue(/alpha|beta/);
+    const betaInput = keyInputs.find((el) => (el as HTMLInputElement).value === "beta")!;
+    fireEvent.change(betaInput, { target: { value: "beta-renamed" } });
+    expect((betaInput as HTMLInputElement).value).toBe("beta-renamed");
+
+    // Delete the FIRST row (alpha) from the store (as the ✕ button would).
+    useAccountStore.setState((s) => {
+      const p = s.account.projects[0]!;
+      const ds = p.dataSources[0] as { rows: Record<string, unknown>[] };
+      ds.rows = ds.rows.filter((r) => r.id !== "alpha");
+      return s;
+    });
+    rerender(<SourceRowsTable projectId={PID} pack={pack()} source={tableSource()} />);
+
+    // The surviving row must still be BETA's instance: its uncommitted draft
+    // ("beta-renamed") stays bound to it — with index keys, beta slid into
+    // alpha's slot and the draft was lost/mismatched.
+    expect(screen.queryByDisplayValue("alpha")).toBeNull();
+    expect(screen.getByDisplayValue("beta-renamed")).toBeTruthy();
+  });
+});
+
+// ─── composable kinds widgets (map / enum / union) ───────────────────────────
+
+describe("ValueEditor — map / enum / union widgets", () => {
+  function seedComposable() {
+    useAccountStore.setState((s) => {
+      const p = s.account.projects[0]!;
+      p.dataModels = [
+        {
+          id: "m_q" as never,
+          name: "quest",
+          keyField: "id",
+          fields: [
+            { name: "id", type: { kind: "string" } },
+            { name: "strategy", type: { kind: "enum", values: ["sequential", "random"] } },
+            {
+              name: "act",
+              type: {
+                kind: "union",
+                tag: "type",
+                variants: [
+                  { name: "message", fields: [{ name: "text", type: { kind: "string" } }] },
+                  { name: "command", fields: [{ name: "run", type: { kind: "string" } }] },
+                ],
+              },
+            },
+            { name: "prices", type: { kind: "map", of: { kind: "number" } } },
+          ],
+        },
+      ] as never;
+      p.dataSources = [
+        {
+          id: "quests" as never,
+          name: "quests",
+          shape: "table",
+          modelId: "m_q" as never,
+          rows: [
+            {
+              id: "daily",
+              strategy: "sequential",
+              act: { type: "message", text: "hello" },
+              prices: { gold: 5 },
+            },
+          ],
+        },
+      ] as never;
+      return s;
+    });
+  }
+
+  it("enum renders a closed select and commits the chosen value", () => {
+    seedComposable();
+    render(<SourceRowsTable projectId={PID} pack={pack()} source={tableSource()} />);
+    const select = screen.getByRole("combobox", { name: "strategy" });
+    fireEvent.change(select, { target: { value: "random" } });
+    expect((pack().dataSources[0] as { rows: Record<string, unknown>[] }).rows[0]!.strategy).toBe("random");
+  });
+
+  it("union renders the active variant's fields; switching variants rebuilds the value", () => {
+    seedComposable();
+    render(<SourceRowsTable projectId={PID} pack={pack()} source={tableSource()} />);
+    // Active variant "message" shows its `text` field.
+    expect(screen.getByDisplayValue("hello")).toBeInTheDocument();
+    const tagSelect = screen.getByRole("combobox", { name: "type" });
+    fireEvent.change(tagSelect, { target: { value: "command" } });
+    const act = (pack().dataSources[0] as { rows: Record<string, unknown>[] }).rows[0]!
+      .act as Record<string, unknown>;
+    expect(act.type).toBe("command");
+    expect(act.run).toBe("");
+    expect(act.text).toBeUndefined();
+  });
+
+  it("map lists entries, adds with a fresh key, removes an entry", () => {
+    seedComposable();
+    const view = render(<SourceRowsTable projectId={PID} pack={pack()} source={tableSource()} />);
+    expect(screen.getByText("gold")).toBeInTheDocument();
+    // Add an entry.
+    fireEvent.change(screen.getByPlaceholderText(/key|clé/), { target: { value: "gems" } });
+    fireEvent.click(screen.getByRole("button", { name: /add entry|ajouter une entrée/i }));
+    let prices = (pack().dataSources[0] as { rows: Record<string, unknown>[] }).rows[0]!
+      .prices as Record<string, unknown>;
+    expect(prices.gems).toBe(0);
+    // Re-render from the fresh store (the app re-renders via its store
+    // subscription; here pack travels by prop), then remove the original entry.
+    view.rerender(<SourceRowsTable projectId={PID} pack={pack()} source={tableSource()} />);
+    fireEvent.click(screen.getByRole("button", { name: /remove entry gold|supprimer l'entrée gold/i }));
+    prices = (pack().dataSources[0] as { rows: Record<string, unknown>[] }).rows[0]!
+      .prices as Record<string, unknown>;
+    expect(prices.gold).toBeUndefined();
+    expect(prices.gems).toBe(0);
+  });
+});

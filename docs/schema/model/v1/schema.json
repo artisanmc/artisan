@@ -124,6 +124,84 @@
               "description": "Id d'un autre Data model (models/<ref>.yaml). Pas de cycles."
             }
           }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "of"
+          ],
+          "properties": {
+            "kind": {
+              "const": "map"
+            },
+            "of": {
+              "$ref": "#/$defs/FieldType",
+              "description": "Dictionnaire clé string → valeur de ce type (ADR composable-data-models)."
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "values"
+          ],
+          "properties": {
+            "kind": {
+              "const": "enum"
+            },
+            "values": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Ensemble fermé ; la valeur stockée est une string. Fermeture vérifiée à l'édition seulement (contrat non-hermétique)."
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "tag",
+            "variants"
+          ],
+          "properties": {
+            "kind": {
+              "const": "union"
+            },
+            "tag": {
+              "type": "string",
+              "description": "Nom du champ discriminant porté par la valeur."
+            },
+            "variants": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "name",
+                  "fields"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "fields": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/Field"
+                    }
+                  }
+                }
+              },
+              "description": "Variantes de DONNÉES uniquement — les comportements passent par les kinds core actions/conditions (ADR composable-data-models)."
+            }
+          }
         }
       ]
     }

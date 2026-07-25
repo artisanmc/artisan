@@ -9,7 +9,14 @@
   "allOf": [
     {
       "if": { "properties": { "shape": { "const": "table" } } },
-      "then": { "required": ["key_field", "rows"], "not": { "required": ["value"] } }
+      "then": { "required": ["key_field"], "not": { "required": ["value"] } }
+    },
+    {
+      "if": {
+        "properties": { "shape": { "const": "table" } },
+        "not": { "properties": { "granularity": { "const": "row" } }, "required": ["granularity"] }
+      },
+      "then": { "required": ["rows"] }
     },
     {
       "if": { "properties": { "shape": { "const": "config" } } },
@@ -42,6 +49,15 @@
       "type": "string",
       "description": "Row key (table uniquement) : champ scalaire top-level identifiant chaque row de façon stable. Ancre des Placements."
     },
+    "granularity": {
+      "const": "row",
+      "description": "Granularité par-row (ADR composable-data-models §2) : ce document est le `_source.yaml` d'un dossier `data/<id>/` — les rows vivent dans un fichier par Row key à côté, `rows:` absent ici."
+    },
+    "order": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Ordre des fichiers de rows (granularité par-row). Un fichier ajouté à la main hors de cette liste est appendé (tri byte)."
+    },
     "fields": {
       "type": "array",
       "items": { "$ref": "#/$defs/Field" },
@@ -65,15 +81,35 @@
       "properties": {
         "name": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$" },
         "kind": {
-          "enum": ["string", "number", "integer", "boolean", "ltext", "item", "actions", "list", "object"],
-          "description": "ltext = clé i18n (résolue au bind selon la langue du joueur) ; item = espace de valeurs material (`DIAMOND` | `item:<id>` | ref custom) ; actions = Action chain sérialisée en Action DSL (string, parsée+exécutée par le plugin, cf. ADR action-dsl). `model` n'existe pas ici : inliné en `object` à l'export."
+          "enum": ["string", "number", "integer", "boolean", "ltext", "item", "actions", "list", "object", "map", "enum", "union"],
+          "description": "ltext = clé i18n (résolue au bind selon la langue du joueur) ; item = espace de valeurs material (`DIAMOND` | `item:<id>` | ref custom) ; actions = Action chain sérialisée en Action DSL (string, parsée+exécutée par le plugin, cf. ADR action-dsl) ; map = dictionnaire clé→valeur ; enum = string d'un ensemble fermé ; union = variante discriminée par `tag` (ADR composable-data-models). `model` n'existe pas ici : inliné à l'export — le fichier reste self-contained."
         },
-        "of": { "$ref": "#/$defs/FieldType", "description": "Type des éléments (kind=list uniquement)." },
+        "of": { "$ref": "#/$defs/FieldType", "description": "Type des éléments (kind=list) ou des valeurs (kind=map)." },
         "fields": {
           "type": "array",
           "items": { "$ref": "#/$defs/Field" },
           "description": "Champs imbriqués (kind=object uniquement)."
+        },
+        "values": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Valeurs admises (kind=enum uniquement)."
+        },
+        "tag": { "type": "string", "description": "Champ discriminant (kind=union uniquement)." },
+        "variants": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Variant" },
+          "description": "Variantes de données (kind=union uniquement)."
         }
+      }
+    },
+    "Variant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "fields"],
+      "properties": {
+        "name": { "type": "string" },
+        "fields": { "type": "array", "items": { "$ref": "#/$defs/Field" } }
       }
     },
     "FieldType": {
@@ -81,9 +117,12 @@
       "additionalProperties": false,
       "required": ["kind"],
       "properties": {
-        "kind": { "enum": ["string", "number", "integer", "boolean", "ltext", "item", "actions", "list", "object"] },
+        "kind": { "enum": ["string", "number", "integer", "boolean", "ltext", "item", "actions", "list", "object", "map", "enum", "union"] },
         "of": { "$ref": "#/$defs/FieldType" },
-        "fields": { "type": "array", "items": { "$ref": "#/$defs/Field" } }
+        "fields": { "type": "array", "items": { "$ref": "#/$defs/Field" } },
+        "values": { "type": "array", "items": { "type": "string" } },
+        "tag": { "type": "string" },
+        "variants": { "type": "array", "items": { "$ref": "#/$defs/Variant" } }
       }
     }
   }

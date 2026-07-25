@@ -31,6 +31,8 @@ function fixture(): Project {
       "menus.m1.title": { en: "Shop", fr: "Boutique" },
       k_row_title: { en: "Grid row" },
       k_sword_name: { en: "Sword", fr: "Épée" },
+      k_onbuy_text: { en: "Bought!" },
+      k_weekly_name: { en: "Weekly" },
       k_motd: { en: "Welcome", fr: "Bienvenue" },
       k_tpl_title: { en: "{item.name}" },
       "dialogs.d1.title": { en: "Confirm" },
@@ -122,6 +124,19 @@ function fixture(): Project {
           { name: "desc", type: { kind: "minimessage" } },
           { name: "price", type: { kind: "number" } },
           { name: "tags", type: { kind: "list", of: { kind: "string" } } },
+          { name: "rarity", type: { kind: "enum", values: ["common", "epic"] } },
+          {
+            name: "on_buy",
+            type: {
+              kind: "union",
+              tag: "type",
+              variants: [
+                { name: "message", fields: [{ name: "text", type: { kind: "ltext" } }] },
+                { name: "command", fields: [{ name: "run", type: { kind: "string" } }] },
+              ],
+            },
+          },
+          { name: "prices", type: { kind: "map", of: { kind: "number" } } },
         ],
       },
     ],
@@ -138,6 +153,28 @@ function fixture(): Project {
             desc: "<b>sharp</b>",
             price: 100,
             tags: ["melee"],
+            rarity: "epic",
+            on_buy: { type: "message", text: { key: "k_onbuy_text" } },
+            prices: { gold: 100, gems: 3 },
+          },
+        ],
+      },
+      {
+        id: "ds_cats" as DataSourceId,
+        name: "Categories",
+        shape: "table",
+        modelId: "mdl1" as DataModelId,
+        granularity: "row",
+        rows: [
+          {
+            id: "weekly",
+            name: { key: "k_weekly_name" },
+            desc: "",
+            price: 0,
+            tags: [],
+            rarity: "common",
+            on_buy: { type: "command", run: "say weekly" },
+            prices: {},
           },
         ],
       },
@@ -177,7 +214,16 @@ describe("projectFromFiles (files → domain, inverse of transform)", () => {
     expect(table.name).toBe("Shop items");
     expect(table.modelId).toBe("mdl1");
     expect(table.rows).toEqual([
-      { id: "sword", name: { key: "k_sword_name" }, desc: "<b>sharp</b>", price: 100, tags: ["melee"] },
+      {
+        id: "sword",
+        name: { key: "k_sword_name" },
+        desc: "<b>sharp</b>",
+        price: 100,
+        tags: ["melee"],
+        rarity: "epic",
+        on_buy: { type: "message", text: { key: "k_onbuy_text" } },
+        prices: { gold: 100, gems: 3 },
+      },
     ]);
     // ltext row values pull their translations back into i18nKeys.
     expect(p2.i18nKeys.k_sword_name).toEqual({ en: "Sword", fr: "Épée" });
@@ -219,6 +265,24 @@ describe("projectFromFiles (files → domain, inverse of transform)", () => {
     expect(p2.moduleData).toEqual({
       shopmod: { __files: { "shop.yaml": "schema: shopmod/v1\nitems: []\n" } },
     });
+  });
+
+  it("imports per-row Tables (granularity kept, rows ordered, hand-added file appended)", () => {
+    const p2 = projectFromFiles(PID, transform(fixture()), { name: "Round Trip" });
+    const cats = p2.dataSources.find((d) => d.id === ("ds_cats" as DataSourceId));
+    if (cats?.shape !== "table") throw new Error("expected table shape");
+    expect(cats.granularity).toBe("row");
+    expect(cats.rows.map((r) => r.id)).toEqual(["weekly"]);
+
+    // A row file dropped in by hand (FTP/agent), absent from _source.yaml's
+    // order, is still imported — appended after the declared order.
+    const files = transform(fixture());
+    files[`${base}/data/ds_cats/handmade.yaml`] =
+      "id: handmade\nname: sources.categories.handmade.name\ndesc: ''\nprice: 1\ntags: []\nrarity: common\non_buy: { type: command, run: say hi }\nprices: {}\n";
+    const p3 = projectFromFiles(PID, files, { name: "Round Trip" });
+    const cats3 = p3.dataSources.find((d) => d.id === ("ds_cats" as DataSourceId));
+    if (cats3?.shape !== "table") throw new Error("expected table shape");
+    expect(cats3.rows.map((r) => r.id)).toEqual(["weekly", "handmade"]);
   });
 
   it("derives captured item display from the stack when no .artisan meta exists (hand-added file)", () => {

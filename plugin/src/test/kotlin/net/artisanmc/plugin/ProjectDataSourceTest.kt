@@ -152,4 +152,126 @@ class ProjectDataSourceTest {
         val value = resolver.resolve("pack:settings", "en") as Map<String, Any?>
         assertEquals("coins", value["currency"])
     }
+
+    @Test
+    fun `per-row granularity dir aggregates row files in declared order, hand-added appended`() {
+        val root = java.nio.file.Files.createTempDirectory("artisan_data_pr_").toFile()
+        val dir = File(root, "p_pr").apply { mkdirs() }
+        File(dir, "manifest.yaml").writeText(
+            """
+            schema: manifest/v1
+            project_id: p_pr
+            default_lang: en
+            languages: [en]
+            files:
+              menus: []
+              commands: []
+            """.trimIndent(),
+        )
+        val srcDir = File(dir, "data/cats").apply { mkdirs() }
+        File(srcDir, "_source.yaml").writeText(
+            """
+            schema: data/v1
+            id: cats
+            shape: table
+            key_field: id
+            granularity: row
+            order: [weekly, daily]
+            fields:
+              - name: id
+                kind: string
+              - name: label
+                kind: string
+            """.trimIndent(),
+        )
+        File(srcDir, "daily.yaml").writeText("id: daily\nlabel: D\n")
+        File(srcDir, "weekly.yaml").writeText("id: weekly\nlabel: W\n")
+        File(srcDir, "handmade.yaml").writeText("id: handmade\nlabel: H\n")
+
+        val bundle = ProjectReader(root).readAll().single()
+        val cats = bundle.dataSources.first { it.id == "cats" }
+        @Suppress("UNCHECKED_CAST")
+        val rows = cats.resolved("en") as List<Map<String, Any?>>
+        assertEquals(listOf("weekly", "daily", "handmade"), rows.map { it["id"] })
+    }
+
+    // ── composable kinds: map / enum / union (ADR composable-data-models) ──
+
+    @Test
+    fun `ltext inside map values and union variants localizes at resolve`() {
+        val root = java.nio.file.Files.createTempDirectory("artisan_data_ck_").toFile()
+        val dir = File(root, "p_ck").apply { mkdirs() }
+        File(dir, "manifest.yaml").writeText(
+            """
+            schema: manifest/v1
+            project_id: p_ck
+            default_lang: en
+            languages: [en]
+            files:
+              menus: []
+              commands: []
+            """.trimIndent(),
+        )
+        File(dir, "lang").mkdirs()
+        File(dir, "lang/en.yaml").writeText(
+            "sources.quests.daily.tiers.gold.act.text: Well done!\n",
+        )
+        File(dir, "data").mkdirs()
+        File(dir, "data/quests.yaml").writeText(
+            """
+            schema: data/v1
+            id: quests
+            shape: table
+            key_field: id
+            fields:
+              - name: id
+                kind: string
+              - name: strategy
+                kind: enum
+                values: [sequential, random]
+              - name: tiers
+                kind: map
+                of:
+                  kind: object
+                  fields:
+                    - name: act
+                      kind: union
+                      tag: type
+                      variants:
+                        - name: message
+                          fields:
+                            - name: text
+                              kind: ltext
+                        - name: command
+                          fields:
+                            - name: run
+                              kind: string
+            rows:
+              - id: daily
+                strategy: sequential
+                tiers:
+                  gold:
+                    act: { type: message, text: sources.quests.daily.tiers.gold.act.text }
+                  silver:
+                    act: { type: command, run: say hi }
+            """.trimIndent(),
+        )
+        val bundle = ProjectReader(root).readAll().single()
+        val quests = bundle.dataSources.first { it.id == "quests" }
+        @Suppress("UNCHECKED_CAST")
+        val row = (quests.resolved("en") as List<Map<String, Any?>>).single()
+        // enum passes through verbatim.
+        assertEquals("sequential", row["strategy"])
+        @Suppress("UNCHECKED_CAST")
+        val tiers = row["tiers"] as Map<String, Map<String, Any?>>
+        @Suppress("UNCHECKED_CAST")
+        val goldAct = tiers["gold"]!!["act"] as Map<String, Any?>
+        // ltext inside the active union variant, inside a map value → localized.
+        assertEquals("Well done!", goldAct["text"])
+        assertEquals("message", goldAct["type"])
+        @Suppress("UNCHECKED_CAST")
+        val silverAct = tiers["silver"]!!["act"] as Map<String, Any?>
+        // Other variant untouched (no ltext fields).
+        assertEquals("say hi", silverAct["run"])
+    }
 }

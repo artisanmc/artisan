@@ -862,6 +862,12 @@ interface AccountState {
   editSourceField: (args: { projectId: ProjectId; target: FieldEditTarget; edit: FieldEdit }) => void;
   renameDataModel: (args: { projectId: ProjectId; modelId: DataModelId; newName: string }) => void;
   setModelKeyField: (args: { projectId: ProjectId; modelId: DataModelId; keyField: string }) => void;
+  /** Table file granularity: one source file, or one file per row (ADR composable-data-models §2). */
+  setSourceGranularity: (args: {
+    projectId: ProjectId;
+    sourceId: DataSourceId;
+    granularity: "row" | null;
+  }) => void;
   addSourceRow: (args: { projectId: ProjectId; sourceId: DataSourceId }) => void;
   removeSourceRow: (args: { projectId: ProjectId; sourceId: DataSourceId; index: number }) => void;
   /** Set a scalar/item cell. `row: null` targets a config source's value object. */
@@ -884,6 +890,18 @@ interface AccountState {
     row: number | null;
     path: (string | number)[];
     index: number;
+  }) => void;
+  /**
+   * Replace the whole value at a path, releasing the old value's ltext keys
+   * first (typed via sourceTypeAtPath) and minting the new ones. Used by the
+   * union variant switch and map entry add/remove (ADR composable-data-models).
+   */
+  replaceSourceValueTyped: (args: {
+    projectId: ProjectId;
+    sourceId: DataSourceId;
+    row: number | null;
+    path: (string | number)[];
+    value: unknown;
   }) => void;
 }
 
@@ -3697,6 +3715,16 @@ export const useAccountStore = create<AccountState>()(
             rekeyDataSource(pack, ds);
           }),
         ),
+      setSourceGranularity: ({ projectId, sourceId, granularity }) =>
+        set((state) =>
+          produce(state, (draft) => {
+            const pack = draft.account.projects.find((p) => p.id === projectId);
+            const ds = pack?.dataSources.find((d) => d.id === sourceId);
+            if (!ds || ds.shape !== "table") return;
+            if (granularity === "row") ds.granularity = "row";
+            else delete ds.granularity;
+          }),
+        ),
       setSourceValue: ({ projectId, sourceId, row, path, value }) => {
         let nextValue = value;
         if (row !== null && path.length === 1) {
@@ -3761,6 +3789,24 @@ export const useAccountStore = create<AccountState>()(
             if (!Array.isArray(list) || list[index] === undefined) return;
             if (listType?.kind === "list") releaseValueLTexts(pack, list[index], listType.of);
             list.splice(index, 1);
+            rekeyDataSource(pack, ds);
+          }),
+        ),
+      replaceSourceValueTyped: ({ projectId, sourceId, row, path, value }) =>
+        set((state) =>
+          produce(state, (draft) => {
+            const pack = draft.account.projects.find((p) => p.id === projectId);
+            if (!pack) return;
+            const ds = pack.dataSources.find((d) => d.id === sourceId);
+            if (!ds) return;
+            const type = sourceTypeAtPath(pack, ds, path);
+            const container = sourceValueContainer(ds, row, path.slice(0, -1));
+            const last = path[path.length - 1];
+            if (container === undefined || last === undefined) return;
+            const old = (container as Record<string | number, unknown>)[last];
+            if (type) releaseValueLTexts(pack, old, type);
+            (container as Record<string | number, unknown>)[last] = value;
+            mintSourceLTexts(pack);
             rekeyDataSource(pack, ds);
           }),
         ),
