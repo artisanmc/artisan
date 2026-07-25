@@ -2,13 +2,16 @@ import { RevealField } from "@/components/RevealField";
 import { Input } from "@/components/ui/input";
 import { defaultValueForModelType, sourceRootFields } from "@/domain/dataModels";
 import type {
+  Condition,
   DataModel,
   DataModelId,
   DataSource,
   LText,
+  ModelField,
   ModelFieldType,
   Project,
 } from "@/domain/types";
+import { ConditionListEditor } from "@/features/canvas/properties/ConditionListEditor";
 import { MaterialRefField } from "@/features/canvas/MaterialRefField";
 import { ActionFieldEditor } from "@/features/data/ActionFieldEditor";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
@@ -34,7 +37,7 @@ function resolveObjectFields(
   type: ModelFieldType,
   models: DataModel[],
   visited: Set<DataModelId> = new Set(),
-): { name: string; type: ModelFieldType }[] | null {
+): ModelField[] | null {
   if (type.kind === "object") return type.fields;
   if (type.kind === "model") {
     if (visited.has(type.ref)) return null;
@@ -73,6 +76,15 @@ function listItemIdentity(el: unknown, of: ModelFieldType, models: DataModel[]):
     if (m) return obj[m.keyField];
   }
   return obj.id;
+}
+
+/** Regex test that never throws on an invalid declared pattern. */
+function safeRegexTest(pattern: string, s: string): boolean {
+  try {
+    return new RegExp(pattern).test(s);
+  } catch {
+    return true; // broken declaration — don't punish the value
+  }
 }
 
 /** Key input + add button for a map entry (kind=map values). */
@@ -184,6 +196,7 @@ export function ValueEditor({
   type,
   value,
   pack,
+  field,
 }: {
   projectId: Project["id"];
   sourceId: DataSource["id"];
@@ -192,6 +205,8 @@ export function ValueEditor({
   type: ModelFieldType;
   value: unknown;
   pack: Project;
+  /** The declaring field, when editing a named field — carries hints + validation (§7). */
+  field?: ModelField;
 }) {
   const { t } = useTranslation();
   const setSourceValue = useAccountStore((s) => s.setSourceValue);
@@ -205,29 +220,73 @@ export function ValueEditor({
   const replaceTyped = (v: unknown) =>
     replaceSourceValueTyped({ projectId, sourceId, row, path, value: v });
 
+  // §7 `locked`: the Add-on manages this value itself — truly read-only in the
+  // form (hand edits stay possible on disk and are surfaced, never reverted).
+  if (field?.locked) {
+    return (
+      <code
+        className="rounded bg-[var(--surface-raised-2)] px-2 py-1 text-[11px] text-[var(--text-mut)]"
+        title={t("dataSources.lockedHint")}
+        data-testid={`locked-${path.join(".")}`}
+      >
+        {typeof value === "string" || typeof value === "number" ? String(value) : "…"}
+      </code>
+    );
+  }
+
   switch (type.kind) {
-    case "string":
+    case "string": {
+      const s = typeof value === "string" ? value : "";
+      // §7 asymmetric validation: signaled live (aria-invalid), never blocking
+      // a value that already exists on disk.
+      const patternBad = field?.pattern ? !safeRegexTest(field.pattern, s) : false;
+      const requiredBad = field?.required === true && s.trim() === "";
       return (
         <Input
-          value={typeof value === "string" ? value : ""}
+          value={s}
           onChange={(e) => set(e.target.value)}
           className="h-7 min-w-24 px-2 text-[12px]"
           aria-label={String(path[path.length - 1])}
+          aria-invalid={patternBad || requiredBad}
         />
       );
+    }
     case "number":
-    case "integer":
+    case "integer": {
+      const n0 = typeof value === "number" ? value : 0;
+      const outOfBounds =
+        (field?.min !== undefined && n0 < field.min) || (field?.max !== undefined && n0 > field.max);
       return (
         <Input
           type="number"
-          value={typeof value === "number" ? value : 0}
+          value={n0}
+          min={field?.min}
+          max={field?.max}
           onChange={(e) => {
-            const n = Number(e.target.value);
-            set(Number.isFinite(n) ? (type.kind === "integer" ? Math.round(n) : n) : 0);
+            let n = Number(e.target.value);
+            if (!Number.isFinite(n)) n = 0;
+            if (type.kind === "integer") n = Math.round(n);
+            // §7 min/max: blocking by construction — the form clamps at commit.
+            if (field?.min !== undefined && n < field.min) n = field.min;
+            if (field?.max !== undefined && n > field.max) n = field.max;
+            set(n);
           }}
           className="h-7 w-24 px-2 text-[12px]"
           aria-label={String(path[path.length - 1])}
+          aria-invalid={outOfBounds}
         />
+      );
+    }
+    case "conditions":
+      // Core condition vocabulary (§6) — the appearance `if` editor, reused.
+      return (
+        <div className="min-w-64" data-testid={`conditions-${path.join(".")}`}>
+          <ConditionListEditor
+            label={field?.label ?? String(path[path.length - 1])}
+            conditions={Array.isArray(value) ? (value as Condition[]) : []}
+            onChange={(next) => set(next)}
+          />
+        </div>
       );
     case "boolean":
       return (
@@ -421,7 +480,9 @@ export function ValueEditor({
             <div className="ml-1 flex flex-col gap-1">
               {active.fields.map((f) => (
                 <div key={f.name} className="flex items-start gap-1.5">
-                  <span className="mt-1.5 min-w-16 text-[11px] text-[var(--text-mut)]">{f.name}</span>
+                  <span className="mt-1.5 min-w-16 text-[11px] text-[var(--text-mut)]" title={f.help}>
+                    {f.label ?? f.name}
+                  </span>
                   <ValueEditor
                     projectId={projectId}
                     sourceId={sourceId}
@@ -430,6 +491,7 @@ export function ValueEditor({
                     type={f.type}
                     value={obj[f.name]}
                     pack={pack}
+                    field={f}
                   />
                 </div>
               ))}
@@ -448,20 +510,30 @@ export function ValueEditor({
           : {};
       return (
         <div className="flex flex-col gap-1 rounded border border-[var(--border-soft)] p-2">
-          {fields.map((f) => (
-            <div key={f.name} className="flex items-center gap-2">
-              <span className="w-24 shrink-0 truncate font-mono text-[10px] text-[var(--text-faint)]">
-                {f.name}
-              </span>
-              <ValueEditor
-                projectId={projectId}
-                sourceId={sourceId}
-                row={row}
-                path={[...path, f.name]}
-                type={f.type}
-                value={obj[f.name]}
-                pack={pack}
-              />
+          {fields.map((f, i) => (
+            <div key={f.name} className="flex flex-col gap-1">
+              {/* §7 `section` hint: header when it changes from the previous field. */}
+              {f.section && f.section !== fields[i - 1]?.section ? (
+                <span className="eyebrow mt-1">{f.section}</span>
+              ) : null}
+              <div className="flex items-center gap-2">
+                <span
+                  className="w-24 shrink-0 truncate font-mono text-[10px] text-[var(--text-faint)]"
+                  title={f.help}
+                >
+                  {f.label ?? f.name}
+                </span>
+                <ValueEditor
+                  projectId={projectId}
+                  sourceId={sourceId}
+                  row={row}
+                  path={[...path, f.name]}
+                  type={f.type}
+                  value={obj[f.name]}
+                  pack={pack}
+                  field={f}
+                />
+              </div>
             </div>
           ))}
         </div>
@@ -492,6 +564,21 @@ export function SourceRowsTable({
   const model = (pack.dataModels ?? []).find((candidate) => candidate.id === source.modelId);
   const rowKeys = stableKeys(source.rows.map((row) => row[model?.keyField ?? "id"]));
 
+  // §7 master-detail hint: row list beside the selected row's form (the
+  // boutique catalog pattern) instead of the spreadsheet.
+  if (model?.masterDetail) {
+    return (
+      <MasterDetailTable
+        projectId={projectId}
+        pack={pack}
+        source={source}
+        fields={fields}
+        keyField={model.keyField}
+        rowKeys={rowKeys}
+      />
+    );
+  }
+
   return (
     <div className="flex min-h-0 flex-col gap-2" data-testid="source-rows-table">
       {source.rows.length === 0 ? (
@@ -507,12 +594,13 @@ export function SourceRowsTable({
                 {fields.map((f, i) => (
                   <th
                     key={f.name}
+                    title={f.help}
                     className={cx(
                       "sticky top-0 z-10 whitespace-nowrap bg-[var(--surface-raised)] px-2 py-1 font-mono text-[10px] uppercase text-[var(--text-faint)]",
                       i === 0 && "left-0 z-20",
                     )}
                   >
-                    {f.name}
+                    {f.label ?? f.name}
                   </th>
                 ))}
                 <th className="sticky top-0 right-0 z-20 w-8 bg-[var(--surface-raised)]" />
@@ -547,6 +635,7 @@ export function SourceRowsTable({
                           type={f.type}
                           value={r[f.name]}
                           pack={pack}
+                          field={f}
                         />
                       )}
                     </td>
@@ -574,6 +663,95 @@ export function SourceRowsTable({
       >
         {t("dataSources.addRow")}
       </button>
+    </div>
+  );
+}
+
+/**
+ * §7 master-detail presentation of a Table: the row list (master, Row key
+ * labels) beside the selected row's full form (detail). Same store actions as
+ * the spreadsheet — presentation only.
+ */
+function MasterDetailTable({
+  projectId,
+  pack,
+  source,
+  fields,
+  keyField,
+  rowKeys,
+}: {
+  projectId: Project["id"];
+  pack: Project;
+  source: DataSource & { shape: "table" };
+  fields: ModelField[];
+  keyField: string;
+  rowKeys: string[];
+}) {
+  const { t } = useTranslation();
+  const addSourceRow = useAccountStore((s) => s.addSourceRow);
+  const removeSourceRow = useAccountStore((s) => s.removeSourceRow);
+  const [selectedKey, setSelectedKey] = useState<string | null>(rowKeys[0] ?? null);
+  const selected = selectedKey !== null ? rowKeys.indexOf(selectedKey) : -1;
+  const row = selected >= 0 ? source.rows[selected] : undefined;
+
+  return (
+    <div className="flex min-h-0 gap-3" data-testid="source-master-detail">
+      <div className="flex w-44 shrink-0 flex-col gap-1">
+        <ul className="flex max-h-[26rem] flex-col gap-0.5 overflow-y-auto">
+          {source.rows.map((r, i) => (
+            <li key={rowKeys[i]}>
+              <button
+                type="button"
+                onClick={() => setSelectedKey(rowKeys[i] ?? null)}
+                className={cx(
+                  "w-full truncate rounded px-2 py-1 text-left text-[12px]",
+                  i === selected
+                    ? "bg-[var(--surface-raised-2)] text-[var(--text)]"
+                    : "text-[var(--text-mut)] hover:bg-[var(--surface-raised)]",
+                )}
+                aria-current={i === selected}
+              >
+                {String(r[keyField] ?? `#${i + 1}`)}
+              </button>
+            </li>
+          ))}
+        </ul>
+        <button
+          type="button"
+          onClick={() => addSourceRow({ projectId, sourceId: source.id })}
+          className="btn-ghost h-7 self-start whitespace-nowrap rounded px-2 text-[11px]"
+        >
+          {t("dataSources.addRow")}
+        </button>
+      </div>
+      {row !== undefined && selected >= 0 ? (
+        <div className="min-w-0 flex-1">
+          <div className="mb-1 flex items-center justify-end">
+            <button
+              type="button"
+              onClick={() => {
+                removeSourceRow({ projectId, sourceId: source.id, index: selected });
+                setSelectedKey(null);
+              }}
+              className="rounded px-1.5 py-0.5 text-[10px] text-[var(--text-faint)] hover:bg-[var(--surface-raised-2)] hover:text-rose-300"
+              aria-label={t("dataSources.removeRow")}
+            >
+              ✕ {t("dataSources.removeRow")}
+            </button>
+          </div>
+          <ValueEditor
+            projectId={projectId}
+            sourceId={source.id}
+            row={selected}
+            path={[]}
+            type={{ kind: "object", fields }}
+            value={row}
+            pack={pack}
+          />
+        </div>
+      ) : (
+        <p className="text-[11px] text-[var(--text-faint)]">{t("dataSources.noRows")}</p>
+      )}
     </div>
   );
 }

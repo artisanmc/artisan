@@ -35,6 +35,10 @@
       "type": "integer",
       "description": "Version monotone d'un model DÉCLARÉ par un Add-on (ADR composable-data-models §4/§5). Absent pour un model project-authored."
     },
+    "master_detail": {
+      "type": "boolean",
+      "description": "Hint de présentation (§7) : la Table de ce model se rend en master-detail (liste des rows + form de la row sélectionnée) au lieu du tableur. Le pattern catalogue boutique."
+    },
     "migrations": {
       "type": "array",
       "items": {
@@ -70,7 +74,16 @@
         },
         "type": {
           "$ref": "#/$defs/FieldType"
-        }
+        },
+        "label": { "type": "string", "description": "Hint de présentation : libellé affiché dans le form généré (fallback : le nom du champ)." },
+        "help": { "type": "string", "description": "Hint : texte d'aide (tooltip)." },
+        "section": { "type": "string", "description": "Hint : en-tête de section sous laquelle le champ est groupé." },
+        "required": { "type": "boolean", "description": "Validation (asymétrique : bloquante dans le form, signalée-jamais-bloquante en hand-edit)." },
+        "default": { "description": "Valeur de pré-remplissage des instances fraîches ET valeur du pas de migration set_default." },
+        "min": { "type": "number", "description": "Borne basse (kinds number/integer)." },
+        "max": { "type": "number", "description": "Borne haute (kinds number/integer)." },
+        "pattern": { "type": "string", "description": "Regex que la valeur string doit matcher." },
+        "locked": { "type": "boolean", "description": "L'Add-on gère cette valeur lui-même — read-only dans le form (le FTP reste possible, signalé)." }
       }
     },
     "FieldType": {
@@ -92,7 +105,7 @@
                 "minimessage",
                 "minimessage_multiline",
                 "item",
-                "actions"
+                "actions", "conditions"
               ]
             }
           }

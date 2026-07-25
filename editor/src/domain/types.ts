@@ -566,7 +566,14 @@ export type ModelFieldType =
    * name>` plus that variant's fields. Data variants only — behavioural
    * vocabulary stays on the core `actions`/`conditions` kinds.
    */
-  | { kind: "union"; tag: string; variants: UnionVariant[] };
+  | { kind: "union"; tag: string; variants: UnionVariant[] }
+  /**
+   * Core condition vocabulary (ADR composable-data-models §6): the value is
+   * the wire-shaped Condition[] the menu engine evaluates — a Module never
+   * declares its own condition variants. Exported verbatim; the runtime side
+   * treats it as opaque until evaluated through the core engine.
+   */
+  | { kind: "conditions" };
 
 export interface UnionVariant {
   /** The tag value selecting this variant. */
@@ -577,6 +584,26 @@ export interface UnionVariant {
 export interface ModelField {
   name: string;
   type: ModelFieldType;
+  // ── presentation hints (ADR composable-data-models §7) — closed set, part
+  // of the declaration (same owner as the shape), invisible to the runtime.
+  /** Display label in the generated form (fallback: the field name). */
+  label?: string;
+  /** Help text shown as a tooltip. */
+  help?: string;
+  /** Section header the field is grouped under. */
+  section?: string;
+  // ── validation vocabulary (§7) — asymmetric enforcement: blocking inside
+  // the generated form, surfaced-never-blocking for hand-edited files.
+  required?: boolean;
+  /** Prefill for fresh instances AND the `set_default` migration value. */
+  default?: unknown;
+  /** Numeric bounds (number/integer kinds). */
+  min?: number;
+  max?: number;
+  /** Regex the string value must match (string-like kinds). */
+  pattern?: string;
+  /** The Add-on manages this value itself — read-only in the form. */
+  locked?: boolean;
 }
 
 /**
@@ -603,6 +630,12 @@ export interface DataModel {
   version?: number;
   /** Declarative migration steps shipped with the declaration (§5). */
   migrations?: import("./modelMigrations").ModelMigration[];
+  /**
+   * Presentation hint (§7): render this model's Table as master-detail — a
+   * row list (master) beside the selected row's form (detail) — instead of
+   * the spreadsheet. The boutique catalog pattern.
+   */
+  masterDetail?: boolean;
 }
 
 /**
