@@ -941,14 +941,9 @@ export function transform(pack: Project): Record<string, string> {
 
   files[`${base}/manifest.yaml`] = stringify(manifest, yamlOpts);
 
-  files[`${base}/meta.yaml`] = stringify(
-    {
-      project_id: pack.id,
-      exported_at: new Date().toISOString(),
-      editor_version: "1.0.0",
-    },
-    yamlOpts,
-  );
+  // No meta.yaml: nothing consumed it, and its `exported_at` timestamp made
+  // every export a different byte tree (dirty hash on every save — removed
+  // 2026-07-25). transform() is now a pure function of the Project.
 
   return files;
 }

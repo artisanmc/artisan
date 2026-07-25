@@ -2,7 +2,7 @@
 // canonical, lossless Project representation. This suite locks the editor-side
 // full-project importer `projectFromFiles` as the exact inverse of
 // `transform()` — domain → files → domain → files must be a fixed point
-// (meta.yaml excluded: it carries an export timestamp).
+// (total — the export is a pure function of the Project, no timestamps).
 import type {
   DataModelId,
   DataSourceId,
@@ -161,18 +161,11 @@ function fixture(): Project {
   return p as unknown as Project;
 }
 
-/** transform() minus the timestamped meta.yaml. */
-function stableFiles(p: Project): Record<string, string> {
-  const files = transform(p);
-  delete files[`${base}/meta.yaml`];
-  return files;
-}
-
 describe("projectFromFiles (files → domain, inverse of transform)", () => {
   it("is a fixed point: domain → files → domain → files", () => {
-    const files1 = stableFiles(fixture());
+    const files1 = transform(fixture());
     const p2 = projectFromFiles(PID, transform(fixture()), { name: "Round Trip" });
-    const files2 = stableFiles(p2);
+    const files2 = transform(p2);
     expect(files2).toEqual(files1);
   });
 

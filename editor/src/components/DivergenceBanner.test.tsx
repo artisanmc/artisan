@@ -4,7 +4,21 @@ import { DivergenceBanner } from "./DivergenceBanner";
 import { useDivergenceStore } from "@/state/divergenceStore";
 import * as api from "@/lib/api/userProjects";
 
-vi.mock("@/lib/api/userProjects", () => ({ resolveDivergence: vi.fn().mockResolvedValue(undefined) }));
+vi.mock("@/lib/api/userProjects", () => ({
+  resolveDivergence: vi.fn().mockResolvedValue(undefined),
+  loadUserProject: vi.fn().mockResolvedValue({ files: {} }),
+}));
+
+// Live WS wiring: capture the handlers so tests can fire hub nudges.
+const wsHandlers: { current: import("@/lib/editorWs").EditorWsHandlers | null } = { current: null };
+vi.mock("@/lib/editorWs", () => ({
+  EditorWs: {
+    connectAsUser: vi.fn(async (_url: string, handlers: import("@/lib/editorWs").EditorWsHandlers) => {
+      wsHandlers.current = handlers;
+      return { disconnect: vi.fn() };
+    }),
+  },
+}));
 
 const PID = "p_banner";
 
@@ -53,6 +67,31 @@ describe("DivergenceBanner", () => {
     });
     // Store cleared after success.
     expect(useDivergenceStore.getState().byProject[PID]).toBeUndefined();
+  });
+
+  it("live nudge: divergence_resolved clears the banner; sync_divergence refetches the detail", async () => {
+    seedDivergence();
+    render(<DivergenceBanner projectId={PID} />);
+    await vi.waitFor(() => expect(wsHandlers.current).not.toBeNull());
+
+    // Resolution elsewhere (other tab / manual pushLocal) → banner goes away.
+    wsHandlers.current!.onDivergenceResolved?.(PID);
+    expect(useDivergenceStore.getState().byProject[PID]).toBeUndefined();
+
+    // A fresh report → the per-file detail is refetched via the project GET.
+    (api.loadUserProject as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      files: {},
+      divergence: {
+        disk_hash: "h2",
+        at: "2026-07-25T00:00:00.000Z",
+        files: [{ path: "menus/b.yaml", disk: "id: b\n", web: null }],
+      },
+    });
+    wsHandlers.current!.onSyncDivergence?.(PID);
+    await vi.waitFor(() =>
+      expect(useDivergenceStore.getState().byProject[PID]?.disk_hash).toBe("h2"),
+    );
+    expect(screen.getByText("menus/b.yaml")).toBeInTheDocument();
   });
 
   it("'keep all web' flips every choice", async () => {
