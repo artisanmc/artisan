@@ -95,17 +95,49 @@ Non-examples:
 
 ## Data model
 
-A project-level, **named shape of data**: an admin-declared, recursive field
-schema (field name + kind — text, localized text, number, boolean, item, list,
-object — nestable to any depth) that **Project source** content conforms to.
+A **named shape of data**: a recursive field schema (field name + kind — text,
+localized text, number, boolean, item, list, object, **map** (key → value
+dictionary), **enum** (closed value set), **discriminated union** (variant
+chosen by a type tag) — nestable to any depth) that **Project source** content
+conforms to. The `actions` and
+`conditions` kinds always mean **Artisan's core engine vocabulary** (Action
+chains, core conditions) — a Module never declares its own behavioural
+variants; module-specific behaviour goes through the namespaced command
+bridge. Unions are for **data** variants only. There is **one** type system:
+the schema an Add-on declares and the schema an admin authors are the same
+notion, differing only by **provenance** (mirroring Data source):
+
+- **Module-declared** — namespace-qualified, arrives by declaration from a
+  **Module** (reported at **Presence**, like data sources — never authored in
+  the editor); its shape is read-only for the admin (the Add-on owns it).
+  Declared models are **versioned**; their declaration ships **declarative
+  migration steps** (a closed vocabulary of data transforms — never code) that
+  the editor applies to conforming content; an evolution the vocabulary cannot
+  express leaves the affected values **dangling** in the form (non-hermetic
+  contract), never silently rewritten. Model evolution is edit-time only:
+  source files carry their schema inline, so the runtime always reads data and
+  schema that agree.
+- **Project-authored** — created by the admin as content of a Project (the
+  existing case).
+
 Every **Table** source is a table *of* one Data model (creating a Table
 auto-creates its model); a **Config** source may type its object fields with
 one; a Data model may reference others (no cycles). The model also declares the
 **Row key** field. Editing a model migrates the rows the editor owns
 synchronously (add/rename/retype/drop fields); *consumers* of a changed field
 (interpolations, Placements) are never rewritten — they dangle, per the
-non-hermetic contract. Data models are editor-side only: at export they are
-denormalized into each source file — the Bundle and the plugin never see them.
+non-hermetic contract. The generated form derives entirely from the model; a field may carry a
+small **closed set of presentation hints** (label, help, widget override,
+section, master-detail) and a **closed validation vocabulary** (`required`,
+`default`, `min`/`max`, `pattern`, `locked`) — both live in the model
+declaration itself (same owner as the shape) and are invisible to the
+runtime. Validation is **asymmetric**: blocking inside the generated form
+(`locked` = read-only there), never blocking for hand-edited files — an
+invalid or locked-but-changed value is *surfaced*, the runtime stays
+tolerant. On disk a
+project-authored model is `models/<id>.yaml` (lossless store); source files
+stay denormalized and self-contained for the runtime — the plugin never
+resolves model identity.
 
 Non-examples:
 - An **Item template** is not a Data model — the model defines the *shape* of a
@@ -133,7 +165,12 @@ modules consume. One notion, two **provenances**:
   **Data model**, with a **Row key**, iterable/placeable/set-able — or
   **Config** — a single object consumed by interpolation (settings, constants),
   neither placeable nor a Set target (though a nested list inside it may still
-  be iterated). Localized text (**LText**) and item fields are allowed at any
+  be iterated). A Table additionally chooses its **file granularity**: the
+  whole table in one source file, or **one file per row** (named by the Row
+  key). Granularity is serialization only — consumers, iteration, and
+  Placements are blind to it. There is no third shape: a deeply structured
+  per-file config (a quests category, a shop category) is a row of a Table
+  whose model nests the depth. Localized text (**LText**) and item fields are allowed at any
   depth; each ltext value in a row is a normal **Key site**
   (`sources.<id>.<rowKey>.<fieldPath>`). **MiniMessage** fields (single- or
   multi-line) are plain strings edited with a rendered preview; they export
