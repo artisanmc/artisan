@@ -915,6 +915,26 @@ describe("GET /:networkId/servers/:serverId/modules & /data-sources", () => {
     });
   });
 
+  test("GET …/models returns declared model/v1 documents verbatim, sorted", async () => {
+    const { app, headers, network } = await setup();
+    const { serverDeclaredModels } = await import("../db/schema");
+    const doc = {
+      schema: "model/v1", id: "boutique:category", name: "Category", key_field: "id",
+      version: 1, fields: [{ name: "id", type: { kind: "string" } }],
+    };
+    await db.insert(serverDeclaredModels).values({
+      serverKeyId: "sk_pres", modelId: "boutique:category",
+      documentJson: JSON.stringify(doc), reportedAt: new Date(),
+    });
+
+    const res = await app.request(
+      `/api/v1/networks/${network.id}/servers/sk_pres/models`,
+      { headers },
+    );
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ models: [doc] });
+  });
+
   test("403 for a non-member, 404 for a server outside the network", async () => {
     const { app, network } = await setup();
     const stranger = await seedUser(`u_stranger_${Math.random().toString(36).slice(2, 8)}`);

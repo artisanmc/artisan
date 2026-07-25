@@ -732,6 +732,42 @@ describe("local_push", () => {
   });
 });
 
+describe("declared_models presence (composable-data-models §4)", () => {
+  test("hello persists model/v1 documents verbatim; modules_changed prunes", async () => {
+    const { key, id: keyId } = await seedServerKey();
+    const connId = "conn-declared-models";
+    registerConn(connId, () => {});
+
+    const catDoc = {
+      schema: "model/v1", id: "boutique:category", name: "Category", key_field: "id",
+      version: 2,
+      migrations: [{ from: 1, to: 2, steps: [{ op: "rename_field", from: "label", to: "name" }] }],
+      fields: [{ name: "id", type: { kind: "string" } }],
+    };
+    await handlePluginMessage(connId, JSON.stringify({
+      type: "hello", server_key: key, plugin_version: "1.0", minecraft_version: "1.21",
+      current_bundle_hash: "",
+      declared_models: [catDoc, { schema: "model/v1", id: "not-namespaced" }],
+    }));
+    await new Promise((r) => setTimeout(r, 150)); // fire-and-forget persist
+
+    const { serverDeclaredModels } = await import("../db/schema");
+    let rows = await db.select().from(serverDeclaredModels).where(eq(serverDeclaredModels.serverKeyId, keyId));
+    // Non-namespaced ids are dropped; the valid document is stored verbatim.
+    expect(rows.map((r) => r.modelId)).toEqual(["boutique:category"]);
+    expect(JSON.parse(rows[0]!.documentJson)).toEqual(catDoc);
+
+    // modules_changed re-report without the model → pruned.
+    await handlePluginMessage(connId, JSON.stringify({
+      type: "modules_changed", server_key: key, installed_modules: [], data_sources: [],
+      declared_models: [],
+    }));
+    await new Promise((r) => setTimeout(r, 150));
+    rows = await db.select().from(serverDeclaredModels).where(eq(serverDeclaredModels.serverKeyId, keyId));
+    expect(rows).toEqual([]);
+  });
+});
+
 describe("sync_divergence (files-first P3c)", () => {
   test("stores the plugin-reported disk tree; local_push clears it", async () => {
     const { id: keyId, key, networkId } = await seedServerKey();

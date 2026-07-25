@@ -594,6 +594,8 @@ const fr: typeof en = {
     removeField: "Supprimer le champ {{name}}",
     listOf: "de",
     mapOf: "de",
+    declaredModel: "déclaré par l'add-on",
+    declaredModelHint: "Cette shape est déclarée par l'add-on installé et évolue avec lui - les valeurs restent éditables, pas la shape.",
     mapKeyPlaceholder: "clé",
     addMapEntry: "Ajouter une entrée",
     removeMapEntry: "Supprimer l'entrée {{key}}",

@@ -33,6 +33,8 @@ class ArtisanAPI(
     @net.artisanmc.modules.api.annotations.Beta val items: ItemStackApi = ItemStackApi.NOOP,
     @net.artisanmc.modules.api.annotations.Beta val messages: ModuleMessagesApi = ModuleMessagesApi.NOOP,
     @net.artisanmc.modules.api.annotations.Beta val actions: ModuleActionsApi = ModuleActionsApi.NOOP,
+    /** Module-declared Data models — model/v1 passthrough to Presence (ADR composable-data-models). */
+    @net.artisanmc.modules.api.annotations.Beta val models: ModelRegistry = ModelRegistry(),
 ) {
     /**
      * Returns true if this core version satisfies the module's declared minimum

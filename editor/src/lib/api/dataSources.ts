@@ -118,3 +118,24 @@ export async function previewDataSource(
     return { ok: false, error: "network_error", message: null };
   }
 }
+
+/**
+ * Module-declared Data models reported at Presence (ADR composable-data-models
+ * §4): model/v1 documents, verbatim. [] on any failure.
+ */
+export async function fetchServerDeclaredModels(
+  networkId: string,
+  serverId: string,
+): Promise<Record<string, unknown>[]> {
+  try {
+    const res = await fetch(
+      `${API_URL}/api/v1/networks/${networkId}/servers/${serverId}/models`,
+      { credentials: "include" },
+    );
+    if (!res.ok) return [];
+    const data = (await res.json()) as { models?: Record<string, unknown>[] };
+    return data.models ?? [];
+  } catch {
+    return [];
+  }
+}

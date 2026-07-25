@@ -593,6 +593,16 @@ export interface DataModel {
   fields: ModelField[];
   /** Name of the top-level scalar field acting as Row key. */
   keyField: string;
+  /**
+   * "module" = declared by an Add-on at Presence (namespaced id, shape
+   * read-only for the admin, never emitted to models/). Absent =
+   * project-authored (ADR composable-data-models §1/§4).
+   */
+  provenance?: "module";
+  /** Monotonic declaration version (module-declared models). */
+  version?: number;
+  /** Declarative migration steps shipped with the declaration (§5). */
+  migrations?: import("./modelMigrations").ModelMigration[];
 }
 
 /**
@@ -618,6 +628,12 @@ export type DataSource =
        * by the Row key. Serialization only — consumers are blind to it.
        */
       granularity?: "row";
+      /**
+       * Declared-model version this table's rows were last written under
+       * (round-tripped as `model_version` in data/v1). The loader applies the
+       * declaration's migration chain when it lags the declared version.
+       */
+      modelVersion?: number;
       rows: Record<string, unknown>[];
     }
   | {

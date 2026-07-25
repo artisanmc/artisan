@@ -158,6 +158,7 @@ open class ArtisanPlugin : JavaPlugin() {
             installedModules = { api.modules.active().map { mapOf("id" to it.id, "version" to description.version) } },
             dataSources = api.dataSources,
             dataSourcesReport = { net.artisanmc.plugin.ws.DataSourceReport.build(api.dataSources) },
+            declaredModelsReport = { api.models.declared().map { it.document } },
             runOnMainThread = { task -> server.scheduler.runTask(this@ArtisanPlugin, Runnable { task() }) },
         )
         moduleMessageSender = { m -> (menuProvider as? SyncedMenuProvider)?.sendModuleMessage(m) }
@@ -330,6 +331,7 @@ open class ArtisanPlugin : JavaPlugin() {
             installedModules = { api.modules.active().map { mapOf("id" to it.id, "version" to description.version) } },
             dataSources = api.dataSources,
             dataSourcesReport = { net.artisanmc.plugin.ws.DataSourceReport.build(api.dataSources) },
+            declaredModelsReport = { api.models.declared().map { it.document } },
             runOnMainThread = { task -> server.scheduler.runTask(this@ArtisanPlugin, Runnable { task() }) },
         )
         moduleMessageSender = { m -> (menuProvider as? SyncedMenuProvider)?.sendModuleMessage(m) }
