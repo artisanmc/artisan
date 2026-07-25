@@ -32,10 +32,14 @@ function* modelRefs(type: ModelFieldType): Generator<DataModelId> {
       yield type.ref;
       break;
     case "list":
+    case "map":
       yield* modelRefs(type.of);
       break;
     case "object":
       for (const f of type.fields) yield* modelRefs(f.type);
+      break;
+    case "union":
+      for (const v of type.variants) for (const f of v.fields) yield* modelRefs(f.type);
       break;
     default:
       break;
@@ -105,6 +109,17 @@ export function defaultValueForModelType(
       const next = new Set(visited).add(type.ref);
       return defaultValueForModelType({ kind: "object", fields: model.fields }, models, next);
     }
+    case "map":
+      return {};
+    case "enum":
+      return type.values[0] ?? "";
+    case "union": {
+      const first = type.variants[0];
+      if (!first) return {};
+      const obj: Record<string, unknown> = { [type.tag]: first.name };
+      for (const f of first.fields) obj[f.name] = defaultValueForModelType(f.type, models, visited);
+      return obj;
+    }
   }
 }
 
@@ -147,6 +162,28 @@ export function modelFieldTypeToFieldType(
       if (!model) return { kind: "object", fields: [] };
       const next = new Set(visited).add(type.ref);
       return modelFieldTypeToFieldType({ kind: "object", fields: model.fields }, models, next);
+    }
+    // Legacy inferred vocabulary has no map/enum/union — project pragmatically:
+    // enum interpolates as a string; a map's keys are unknown at design time;
+    // a union exposes its tag plus the union of all variants' fields (the
+    // placeholder catalog stays useful without variant narrowing).
+    case "enum":
+      return { kind: "string" };
+    case "map":
+      return { kind: "object", fields: [] };
+    case "union": {
+      const seen = new Set<string>();
+      const fields: { name: string; type: FieldType }[] = [
+        { name: type.tag, type: { kind: "string" } },
+      ];
+      for (const v of type.variants) {
+        for (const f of v.fields) {
+          if (seen.has(f.name)) continue;
+          seen.add(f.name);
+          fields.push({ name: f.name, type: modelFieldTypeToFieldType(f.type, models, visited) });
+        }
+      }
+      return { kind: "object", fields };
     }
   }
 }
@@ -234,6 +271,19 @@ export function sourceTypeAtPath(
     if (typeof seg === "number") {
       if (type.kind !== "list") return undefined;
       type = type.of;
+    } else if (type.kind === "map") {
+      // Any string segment keys into the map's value type.
+      type = type.of;
+    } else if (type.kind === "union") {
+      // Variant-blind: the tag is a string; a field name resolves through the
+      // first variant declaring it (callers editing values know the active
+      // variant, but the path alone doesn't carry it).
+      if (seg === type.tag) return { kind: "string" };
+      const vf: ModelField | undefined = type.variants
+        .flatMap((v) => v.fields)
+        .find((x) => x.name === seg);
+      if (!vf) return undefined;
+      type = vf.type;
     } else {
       if (type.kind !== "object") return undefined;
       const f: ModelField | undefined = type.fields.find((x) => x.name === seg);
@@ -302,6 +352,20 @@ export function releaseValueLTexts(
       if (!model) return;
       const next = new Set(visited).add(type.ref);
       releaseValueLTexts(pack, value, { kind: "object", fields: model.fields }, next);
+      return;
+    }
+    case "map":
+      if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+        for (const v of Object.values(value as Record<string, unknown>)) {
+          releaseValueLTexts(pack, v, type.of, visited);
+        }
+      }
+      return;
+    case "union": {
+      if (typeof value !== "object" || value === null || Array.isArray(value)) return;
+      const obj = value as Record<string, unknown>;
+      const variant = type.variants.find((v) => v.name === obj[type.tag]);
+      if (variant) releaseValueLTexts(pack, value, { kind: "object", fields: variant.fields }, visited);
       return;
     }
     default:
@@ -514,6 +578,18 @@ function forEachModelInstance(
         if (!model) return;
         const next = new Set(visited).add(type.ref);
         walk({ kind: "object", fields: model.fields }, value, next);
+        return;
+      }
+      case "map":
+        if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+          for (const v of Object.values(value as Record<string, unknown>)) walk(type.of, v, visited);
+        }
+        return;
+      case "union": {
+        if (typeof value !== "object" || value === null || Array.isArray(value)) return;
+        const obj = value as Record<string, unknown>;
+        const variant = type.variants.find((v) => v.name === obj[type.tag]);
+        if (variant) walk({ kind: "object", fields: variant.fields }, value, visited);
         return;
       }
       default:

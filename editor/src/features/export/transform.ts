@@ -734,6 +734,21 @@ function serializeDataFieldType(
       const next = new Set(visited).add(type.ref);
       return { kind: "object", fields: model.fields.map((f) => serializeDataField(f, models, next)) };
     }
+    // Composable kinds (ADR composable-data-models) — denormalized INLINE so
+    // the data file stays self-contained for the model-blind runtime.
+    case "map":
+      return { kind: "map", of: serializeDataFieldType(type.of, models, visited) };
+    case "enum":
+      return { kind: "enum", values: type.values };
+    case "union":
+      return {
+        kind: "union",
+        tag: type.tag,
+        variants: type.variants.map((v) => ({
+          name: v.name,
+          fields: v.fields.map((f) => serializeDataField(f, models, visited)),
+        })),
+      };
     default:
       return { kind: type.kind };
   }
@@ -777,6 +792,31 @@ function serializeDataValue(
       const next = new Set(visited).add(type.ref);
       return serializeDataValue(value, { kind: "object", fields: model.fields }, models, next);
     }
+    case "map": {
+      const obj =
+        typeof value === "object" && value !== null && !Array.isArray(value)
+          ? (value as Record<string, unknown>)
+          : {};
+      const out: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(obj)) out[k] = serializeDataValue(v, type.of, models, visited);
+      return out;
+    }
+    // enum values are plain strings — closedness is enforced at edit time only
+    // (non-hermetic contract).
+    case "enum":
+      return value;
+    case "union": {
+      const obj =
+        typeof value === "object" && value !== null && !Array.isArray(value)
+          ? (value as Record<string, unknown>)
+          : {};
+      const tagValue = obj[type.tag];
+      const variant = type.variants.find((v) => v.name === tagValue);
+      if (!variant) return { [type.tag]: tagValue };
+      const out: Record<string, unknown> = { [type.tag]: tagValue };
+      for (const f of variant.fields) out[f.name] = serializeDataValue(obj[f.name], f.type, models, visited);
+      return out;
+    }
     default:
       return value;
   }
@@ -814,6 +854,55 @@ export function serializeDataSource(pack: Project, ds: DataSource): Record<strin
   };
 }
 
+/** Row-file name for a per-row Table: the Row key value, slugified; empty or
+ *  duplicate keys fall back to `row_<n>` (positional), like i18n row keys. */
+export function rowFileName(rows: Record<string, unknown>[], keyField: string, i: number): string {
+  const raw = rows[i]?.[keyField];
+  const slug =
+    typeof raw === "string" || typeof raw === "number"
+      ? String(raw).trim().toLowerCase().replace(/[^a-z0-9_-]+/g, "_")
+      : "";
+  if (slug === "" || slug.startsWith("_")) return `row_${i + 1}`;
+  const dup = rows.some(
+    (r, j) => j !== i && String(r[keyField] ?? "").trim().toLowerCase().replace(/[^a-z0-9_-]+/g, "_") === slug,
+  );
+  return dup ? `row_${i + 1}` : slug;
+}
+
+/**
+ * Per-row granularity (ADR composable-data-models §2): `data/<id>/_source.yaml`
+ * carries the source meta (fields, model back-ref, row order); each row lives
+ * in its own `data/<id>/<rowKey>.yaml`, hand-editable in isolation.
+ */
+function serializeDataSourcePerRow(
+  pack: Project,
+  ds: Extract<DataSource, { shape: "table" }>,
+  base: string,
+  files: Record<string, string>,
+  yamlOpts: { lineWidth: number },
+): void {
+  const doc = serializeDataSource(pack, ds) as Record<string, unknown> & {
+    rows: unknown[];
+    key_field: string;
+  };
+  const names = ds.rows.map((_, i) => rowFileName(ds.rows, doc.key_field, i));
+  const meta: Record<string, unknown> = {
+    schema: doc.schema,
+    id: doc.id,
+    name: doc.name,
+    shape: doc.shape,
+    model: doc.model,
+    key_field: doc.key_field,
+    granularity: "row",
+    order: names,
+    fields: doc.fields,
+  };
+  files[`${base}/data/${ds.id}/_source.yaml`] = stringify(meta, yamlOpts);
+  doc.rows.forEach((row, i) => {
+    files[`${base}/data/${ds.id}/${names[i]}.yaml`] = stringify(row, yamlOpts);
+  });
+}
+
 // ─── public API ──────────────────────────────────────────────────────────────
 
 /**
@@ -847,7 +936,11 @@ export function transform(pack: Project): Record<string, string> {
   }
 
   for (const ds of pack.dataSources ?? []) {
-    files[`${base}/data/${ds.id}.yaml`] = stringify(serializeDataSource(pack, ds), yamlOpts);
+    if (ds.shape === "table" && ds.granularity === "row") {
+      serializeDataSourcePerRow(pack, ds, base, files, yamlOpts);
+    } else {
+      files[`${base}/data/${ds.id}.yaml`] = stringify(serializeDataSource(pack, ds), yamlOpts);
+    }
   }
 
   const langs = listLanguages(pack);
