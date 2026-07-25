@@ -1,6 +1,6 @@
 import { RevealField } from "@/components/RevealField";
 import { Input } from "@/components/ui/input";
-import { sourceRootFields } from "@/domain/dataModels";
+import { defaultValueForModelType, sourceRootFields } from "@/domain/dataModels";
 import type {
   DataModel,
   DataModelId,
@@ -45,6 +45,67 @@ function resolveObjectFields(
   return null;
 }
 
+/**
+ * Stable React keys for row/list rendering: identity-derived (the row's key
+ * value, an item's `id`-ish field), deduped with `#n`, falling back to the
+ * position for empty identities. Index keys made React reuse stateful child
+ * instances (RowKeyEditor drafts, minimessage facades) for a DIFFERENT datum
+ * after a mid-list delete — the "items mixed across categories" model-ref bug.
+ */
+function stableKeys(identities: unknown[]): string[] {
+  const seen = new Map<string, number>();
+  return identities.map((raw, i) => {
+    const id =
+      typeof raw === "string" || typeof raw === "number" ? String(raw).trim() : "";
+    if (id === "") return `@${i}`;
+    const n = (seen.get(id) ?? 0) + 1;
+    seen.set(id, n);
+    return n === 1 ? id : `${id}#${n}`;
+  });
+}
+
+/** Identity of a list element: its resolved model's key field, else `id`. */
+function listItemIdentity(el: unknown, of: ModelFieldType, models: DataModel[]): unknown {
+  if (typeof el !== "object" || el === null || Array.isArray(el)) return undefined;
+  const obj = el as Record<string, unknown>;
+  if (of.kind === "model") {
+    const m = models.find((x) => x.id === of.ref);
+    if (m) return obj[m.keyField];
+  }
+  return obj.id;
+}
+
+/** Key input + add button for a map entry (kind=map values). */
+function MapEntryAdder({ existing, onAdd }: { existing: string[]; onAdd: (key: string) => void }) {
+  const { t } = useTranslation();
+  const [draft, setDraft] = useState("");
+  const commit = () => {
+    const k = draft.trim();
+    if (k === "" || existing.includes(k)) return;
+    onAdd(k);
+    setDraft("");
+  };
+  return (
+    <div className="flex items-center gap-1">
+      <Input
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onKeyDown={(e) => e.key === "Enter" && commit()}
+        placeholder={t("dataSources.mapKeyPlaceholder")}
+        className="h-6 w-28 px-2 font-mono text-[11px]"
+      />
+      <button
+        type="button"
+        onClick={commit}
+        className="btn-ghost h-6 rounded px-2 text-[10px]"
+        aria-label={t("dataSources.addMapEntry")}
+      >
+        {t("dataSources.addMapEntry")}
+      </button>
+    </div>
+  );
+}
+
 interface RowKeyEditorProps {
   projectId: Project["id"];
   sourceId: DataSource["id"];
@@ -61,10 +122,14 @@ function RowKeyEditor({ projectId, sourceId, row, fieldName, type, value }: RowK
   const [error, setError] = useState<"required" | "duplicate" | null>(null);
   const errorId = `row-key-error-${sourceId}-${row}`;
 
+  // Reset on IDENTITY change (value/source/field), not on position: rows are
+  // rendered with identity-derived React keys, so after a mid-list delete the
+  // same instance keeps its row datum while its `row` index prop shifts — an
+  // in-progress draft must survive that shift.
   useEffect(() => {
     setDraft(String(value ?? ""));
     setError(null);
-  }, [value, sourceId, row, fieldName]);
+  }, [value, sourceId, fieldName]);
 
   const commit = () => {
     const result = setSourceValue({ projectId, sourceId, row, path: [fieldName], value: draft });
@@ -133,9 +198,12 @@ export function ValueEditor({
   const setI18nValue = useAccountStore((s) => s.setI18nValue);
   const addSourceListItem = useAccountStore((s) => s.addSourceListItem);
   const removeSourceListItem = useAccountStore((s) => s.removeSourceListItem);
+  const replaceSourceValueTyped = useAccountStore((s) => s.replaceSourceValueTyped);
   const activeLang = useUiStore((s) => s.activeLang);
   const models = pack.dataModels ?? [];
   const set = (v: unknown) => setSourceValue({ projectId, sourceId, row, path, value: v });
+  const replaceTyped = (v: unknown) =>
+    replaceSourceValueTyped({ projectId, sourceId, row, path, value: v });
 
   switch (type.kind) {
     case "string":
@@ -225,10 +293,11 @@ export function ValueEditor({
     }
     case "list": {
       const items = Array.isArray(value) ? value : [];
+      const itemKeys = stableKeys(items.map((el) => listItemIdentity(el, type.of, models)));
       return (
         <div className="flex flex-col gap-1" data-testid={`list-${path.join(".")}`}>
           {items.map((el, i) => (
-            <div key={i} className="flex items-start gap-1">
+            <div key={itemKeys[i]} className="flex items-start gap-1">
               <ValueEditor
                 projectId={projectId}
                 sourceId={sourceId}
@@ -255,6 +324,117 @@ export function ValueEditor({
           >
             {t("dataSources.addItem")}
           </button>
+        </div>
+      );
+    }
+    case "enum":
+      return (
+        <select
+          value={typeof value === "string" ? value : (type.values[0] ?? "")}
+          onChange={(e) => set(e.target.value)}
+          className="input h-7 w-auto px-1 text-[12px]"
+          aria-label={String(path[path.length - 1])}
+        >
+          {type.values.map((v) => (
+            <option key={v} value={v}>
+              {v}
+            </option>
+          ))}
+        </select>
+      );
+    case "map": {
+      const obj =
+        typeof value === "object" && value !== null && !Array.isArray(value)
+          ? (value as Record<string, unknown>)
+          : {};
+      const entries = Object.entries(obj);
+      return (
+        <div className="flex flex-col gap-1" data-testid={`map-${path.join(".")}`}>
+          {entries.map(([k]) => (
+            <div key={k} className="flex items-start gap-1.5">
+              <code className="mt-1.5 min-w-16 text-[11px] text-[var(--text-mut)]">{k}</code>
+              <ValueEditor
+                projectId={projectId}
+                sourceId={sourceId}
+                row={row}
+                path={[...path, k]}
+                type={type.of}
+                value={obj[k]}
+                pack={pack}
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const next = { ...obj };
+                  delete next[k];
+                  replaceTyped(next);
+                }}
+                className="mt-1 rounded px-1 text-[10px] text-[var(--text-faint)] hover:text-rose-300"
+                aria-label={t("dataSources.removeMapEntry", { key: k })}
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+          <MapEntryAdder
+            existing={Object.keys(obj)}
+            onAdd={(k) =>
+              set({ ...obj, [k]: defaultValueForModelType(type.of, models) })
+            }
+          />
+        </div>
+      );
+    }
+    case "union": {
+      const obj =
+        typeof value === "object" && value !== null && !Array.isArray(value)
+          ? (value as Record<string, unknown>)
+          : {};
+      const active = type.variants.find((v) => v.name === obj[type.tag]) ?? type.variants[0];
+      return (
+        <div
+          className="flex flex-col gap-1 rounded border border-[var(--border-soft)] p-1.5"
+          data-testid={`union-${path.join(".")}`}
+        >
+          <select
+            value={active?.name ?? ""}
+            onChange={(e) => {
+              const variant = type.variants.find((v) => v.name === e.target.value);
+              if (!variant || variant.name === active?.name) return;
+              // Switching variants rebuilds the value from the new variant's
+              // defaults — the old variant's ltext keys are released (typed).
+              const fresh: Record<string, unknown> = { [type.tag]: variant.name };
+              for (const f of variant.fields)
+                fresh[f.name] = defaultValueForModelType(f.type, models);
+              replaceTyped(fresh);
+            }}
+            className="input h-7 w-auto self-start px-1 font-mono text-[11px]"
+            aria-label={type.tag}
+          >
+            {type.variants.map((v) => (
+              <option key={v.name} value={v.name}>
+                {v.name}
+              </option>
+            ))}
+          </select>
+          {active ? (
+            <div className="ml-1 flex flex-col gap-1">
+              {active.fields.map((f) => (
+                <div key={f.name} className="flex items-start gap-1.5">
+                  <span className="mt-1.5 min-w-16 text-[11px] text-[var(--text-mut)]">{f.name}</span>
+                  <ValueEditor
+                    projectId={projectId}
+                    sourceId={sourceId}
+                    row={row}
+                    path={[...path, f.name]}
+                    type={f.type}
+                    value={obj[f.name]}
+                    pack={pack}
+                  />
+                </div>
+              ))}
+            </div>
+          ) : null}
         </div>
       );
     }
@@ -310,6 +490,7 @@ export function SourceRowsTable({
   const removeSourceRow = useAccountStore((s) => s.removeSourceRow);
   const fields = sourceRootFields(pack, source);
   const model = (pack.dataModels ?? []).find((candidate) => candidate.id === source.modelId);
+  const rowKeys = stableKeys(source.rows.map((row) => row[model?.keyField ?? "id"]));
 
   return (
     <div className="flex min-h-0 flex-col gap-2" data-testid="source-rows-table">
@@ -339,7 +520,7 @@ export function SourceRowsTable({
             </thead>
             <tbody>
               {source.rows.map((r, i) => (
-                <tr key={i} className="border-t border-[var(--border-soft)] align-top">
+                <tr key={rowKeys[i]} className="border-t border-[var(--border-soft)] align-top">
                   {fields.map((f, fi) => (
                     <td
                       key={f.name}

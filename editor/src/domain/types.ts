@@ -555,7 +555,24 @@ export type ModelFieldType =
   | { kind: "actions" }
   | { kind: "list"; of: ModelFieldType }
   | { kind: "object"; fields: ModelField[] }
-  | { kind: "model"; ref: DataModelId };
+  | { kind: "model"; ref: DataModelId }
+  // Composable kinds (ADR composable-data-models):
+  /** Dictionary — string key → value of `of`. */
+  | { kind: "map"; of: ModelFieldType }
+  /** Closed value set; the stored value is one of `values` (a plain string). */
+  | { kind: "enum"; values: string[] }
+  /**
+   * Discriminated union: the value is an object carrying `[tag]: <variant
+   * name>` plus that variant's fields. Data variants only — behavioural
+   * vocabulary stays on the core `actions`/`conditions` kinds.
+   */
+  | { kind: "union"; tag: string; variants: UnionVariant[] };
+
+export interface UnionVariant {
+  /** The tag value selecting this variant. */
+  name: string;
+  fields: ModelField[];
+}
 
 export interface ModelField {
   name: string;
@@ -594,6 +611,13 @@ export type DataSource =
       name: string;
       shape: "table";
       modelId: DataModelId;
+      /**
+       * File granularity (ADR composable-data-models §2): absent = the whole
+       * table in one `data/<id>.yaml`; `"row"` = a `data/<id>/` directory with
+       * `_source.yaml` (meta + fields + row order) and one file per row named
+       * by the Row key. Serialization only — consumers are blind to it.
+       */
+      granularity?: "row";
       rows: Record<string, unknown>[];
     }
   | {

@@ -9,6 +9,11 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Added — composable Data models, slice 1: map/enum/union kinds + per-row file granularity (ADR `composable-data-models`)
+- Data models gain three kinds: **map** (string key → typed value), **enum** (closed string set, edit-time enforcement only), **discriminated union** (`tag` + data variants). Full stack: editor domain/forms (shape editor incl. a compact union editor; value widgets — enum select, map entry add/remove, variant switch with typed ltext release), `model/v1` + `data/v1` schemas, inline denormalization in data files (self-contained: the plugin walks value+schema, localizes ltext at any depth inside maps/active variants, stays model-blind), i18n key-site visitor, migration/default/cycle-guard helpers.
+- Tables gain a **file granularity** choice: one `data/<id>.yaml`, or a `data/<id>/` directory (`_source.yaml` meta + one file per row named by the Row key) — hand-adding a row file works (appended after the declared `order`). Serialization only; consumers/iteration/Placements unchanged.
+- Fixed the "items mixed across categories" generic-Table bug: rows and list items are now rendered with identity-derived React keys (Row key based) instead of positional indexes, and the row-key editor no longer resets its draft on position shifts.
+
 ### Changed — deterministic exports + live divergence banner
 - `transform()` no longer emits `meta.yaml` (nothing consumed it and its `exported_at` timestamp made every export a different byte tree — saves no longer dirty the hash for nothing; the files→domain→files round-trip is now a total fixed point).
 - The divergence banner is now live: the editor connects the `/ws/editor` channel (one-shot ticket) from the project view and reacts to the hub's `sync_divergence` / `divergence_resolved` nudges — the banner appears and clears without reloading the tab.

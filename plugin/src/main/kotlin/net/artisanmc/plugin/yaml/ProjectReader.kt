@@ -124,7 +124,8 @@ class ProjectReader(
 
         // Project sources (data/v1) — scanned, not manifest-listed. Tolerant per
         // file: a bad source logs + skips, never blocks the project load.
-        val dataSources = File(projectDir, "data")
+        val dataDir = File(projectDir, "data")
+        val singleFileSources = dataDir
             .listFiles { f -> f.isFile && f.name.endsWith(".yaml") }
             ?.sortedBy { it.name }
             ?.mapNotNull { f ->
@@ -137,6 +138,36 @@ class ProjectReader(
                     null
                 }
             } ?: emptyList()
+        // Per-row granularity (ADR composable-data-models §2): data/<id>/ holds
+        // _source.yaml (meta + fields + row order) and one file per row.
+        val perRowSources = dataDir
+            .listFiles { f -> f.isDirectory && File(f, "_source.yaml").isFile }
+            ?.sortedBy { it.name }
+            ?.mapNotNull { dir ->
+                runCatching {
+                    val meta = mapper.readValue(File(dir, "_source.yaml"), DataSourceYaml::class.java)
+                    requireSchema(File(dir, "_source.yaml"), meta.schema, "data/v1")
+                    val onDisk = dir.listFiles { f -> f.isFile && f.name.endsWith(".yaml") && f.name != "_source.yaml" }
+                        ?.associateBy { it.name.removeSuffix(".yaml") } ?: emptyMap()
+                    // Declared order first, then hand-added files (byte-sorted).
+                    val names = meta.order.filter { it in onDisk } +
+                        onDisk.keys.filterNot { it in meta.order }.sorted()
+                    val rows = names.mapNotNull { n ->
+                        runCatching {
+                            @Suppress("UNCHECKED_CAST")
+                            mapper.readValue(onDisk[n]!!, Map::class.java) as Map<String, Any?>
+                        }.getOrElse { e ->
+                            logger?.warning("[Artisan] skipping row ${dir.name}/$n: ${e.message}")
+                            null
+                        }
+                    }
+                    BundleDataSource(meta.copy(rows = rows), langMaps, manifest.defaultLang)
+                }.getOrElse { e ->
+                    logger?.warning("[Artisan] skipping data source dir ${dir.name}: ${e.message}")
+                    null
+                }
+            } ?: emptyList()
+        val dataSources = singleFileSources + perRowSources
 
         return ProjectBundle(
             manifest.projectId, manifest.defaultLang, manifest.languages,

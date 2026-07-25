@@ -208,6 +208,19 @@ function fieldTypeOfWire(f: Json): ModelFieldType {
       return { kind: "list", of: fieldTypeOfWire(f.of ?? { kind: "string" }) };
     case "object":
       return { kind: "object", fields: ((f.fields as Json[]) ?? []).map(fieldOfWire) };
+    case "map":
+      return { kind: "map", of: fieldTypeOfWire(f.of ?? { kind: "string" }) };
+    case "enum":
+      return { kind: "enum", values: Array.isArray(f.values) ? f.values.map(String) : [] };
+    case "union":
+      return {
+        kind: "union",
+        tag: typeof f.tag === "string" ? f.tag : "type",
+        variants: ((f.variants as Json[]) ?? []).map((v) => ({
+          name: String(v.name ?? ""),
+          fields: ((v.fields as Json[]) ?? []).map(fieldOfWire),
+        })),
+      };
     case "number":
     case "integer":
     case "boolean":
@@ -257,6 +270,28 @@ function importDataValue(
       if (!model) return {};
       const next = new Set(visited).add(type.ref);
       return importDataValue(value, { kind: "object", fields: model.fields }, models, next, ref);
+    }
+    case "map": {
+      const obj =
+        typeof value === "object" && value !== null && !Array.isArray(value)
+          ? (value as Record<string, unknown>)
+          : {};
+      const out: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(obj)) out[k] = importDataValue(v, type.of, models, visited, ref);
+      return out;
+    }
+    case "enum":
+      return value;
+    case "union": {
+      const obj =
+        typeof value === "object" && value !== null && !Array.isArray(value)
+          ? (value as Record<string, unknown>)
+          : {};
+      const variant = type.variants.find((v) => v.name === obj[type.tag]);
+      if (!variant) return { [type.tag]: obj[type.tag] };
+      const out: Record<string, unknown> = { [type.tag]: obj[type.tag] };
+      for (const f of variant.fields) out[f.name] = importDataValue(obj[f.name], f.type, models, visited, ref);
+      return out;
     }
     default:
       return value;
@@ -382,11 +417,53 @@ export function projectFromFiles(
     fields: ((y.fields as ModelField[]) ?? []) as ModelField[],
   }));
 
-  // Project sources: data/<id>.yaml (data/v1). Table sources are re-typed by
-  // their Data model via the `model:` back-ref; a hand-written file without
-  // one gets a model synthesized from its flattened fields (canonicalized on
-  // the next export, same spirit as literal-text key minting).
-  const dataSources: DataSource[] = scanDir(files, projectId, "data").map(({ id, parsed: y }) => {
+  // Project sources: data/<id>.yaml (data/v1) or, per-row granularity, a
+  // data/<id>/ directory with _source.yaml + one file per row (ADR
+  // composable-data-models §2). Table sources are re-typed by their Data model
+  // via the `model:` back-ref; a hand-written file without one gets a model
+  // synthesized from its flattened fields (canonicalized on the next export,
+  // same spirit as literal-text key minting).
+  const dataPrefix = `${baseOf(projectId)}data/`;
+  // Top-level files only — nested paths belong to per-row source dirs below.
+  const topLevelDataSources = Object.keys(files)
+    .filter(
+      (k) =>
+        k.startsWith(dataPrefix) &&
+        k.endsWith(".yaml") &&
+        !k.slice(dataPrefix.length).includes("/"),
+    )
+    .sort()
+    .flatMap((k) => {
+      const parsed = tryParse<Json>(files[k]!);
+      if (!parsed) return [];
+      const id = (parsed.id as string) ?? k.slice(dataPrefix.length, -".yaml".length);
+      return [{ id, parsed }];
+    });
+  const perRowSourceDirs = Object.keys(files)
+    .filter((k) => k.startsWith(dataPrefix) && k.endsWith("/_source.yaml"))
+    .map((k) => k.slice(dataPrefix.length, -"/_source.yaml".length))
+    .filter((dir) => !dir.includes("/"))
+    .sort();
+  const perRowParsed = perRowSourceDirs.flatMap((dir) => {
+    const meta = tryParse<Json>(files[`${dataPrefix}${dir}/_source.yaml`] ?? null);
+    if (!meta) return [];
+    const rowPrefix = `${dataPrefix}${dir}/`;
+    const onDisk = Object.keys(files)
+      .filter((k) => k.startsWith(rowPrefix) && k.endsWith(".yaml") && !k.endsWith("/_source.yaml"))
+      .map((k) => k.slice(rowPrefix.length, -".yaml".length))
+      .filter((n) => !n.includes("/"));
+    const order: string[] = Array.isArray(meta.order) ? meta.order.map(String) : [];
+    // Declared order first, then hand-added files not in the order (byte-sorted).
+    const names = [...order.filter((n) => onDisk.includes(n)), ...onDisk.filter((n) => !order.includes(n)).sort()];
+    const rows = names.flatMap((n) => {
+      const row = tryParse<Json>(files[`${rowPrefix}${n}.yaml`] ?? null);
+      return row ? [row] : [];
+    });
+    return [{ id: (meta.id as string) ?? dir, parsed: { ...meta, rows, granularity: "row" } as Json }];
+  });
+  const dataSources: DataSource[] = [...topLevelDataSources, ...perRowParsed]
+    .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+    .map(({ id, parsed: y }) => {
     const name = (y.name as string) ?? id;
     if (y.shape === "config") {
       const fields = ((y.fields as Json[]) ?? []).map(fieldOfWire);
@@ -415,7 +492,14 @@ export function projectFromFiles(
       (r) =>
         importDataValue(r, rowType, dataModels, new Set([modelId]), ref) as Record<string, unknown>,
     );
-    return { id: id as DataSourceId, name, shape: "table", modelId, rows };
+    return {
+      id: id as DataSourceId,
+      name,
+      shape: "table",
+      modelId,
+      ...(y.granularity === "row" ? { granularity: "row" as const } : {}),
+      rows,
+    };
   });
 
   const editorState = tryParse<EditorStateYaml>(getFile(files, projectId, ".artisan/editor.yaml")) ?? {
