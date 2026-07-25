@@ -85,7 +85,7 @@
       "properties": {
         "name": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$" },
         "kind": {
-          "enum": ["string", "number", "integer", "boolean", "ltext", "item", "actions", "list", "object", "map", "enum", "union"],
+          "enum": ["string", "number", "integer", "boolean", "ltext", "item", "actions", "conditions", "list", "object", "map", "enum", "union"],
           "description": "ltext = clé i18n (résolue au bind selon la langue du joueur) ; item = espace de valeurs material (`DIAMOND` | `item:<id>` | ref custom) ; actions = Action chain sérialisée en Action DSL (string, parsée+exécutée par le plugin, cf. ADR action-dsl) ; map = dictionnaire clé→valeur ; enum = string d'un ensemble fermé ; union = variante discriminée par `tag` (ADR composable-data-models). `model` n'existe pas ici : inliné à l'export — le fichier reste self-contained."
         },
         "of": { "$ref": "#/$defs/FieldType", "description": "Type des éléments (kind=list) ou des valeurs (kind=map)." },
@@ -121,7 +121,7 @@
       "additionalProperties": false,
       "required": ["kind"],
       "properties": {
-        "kind": { "enum": ["string", "number", "integer", "boolean", "ltext", "item", "actions", "list", "object", "map", "enum", "union"] },
+        "kind": { "enum": ["string", "number", "integer", "boolean", "ltext", "item", "actions", "conditions", "list", "object", "map", "enum", "union"] },
         "of": { "$ref": "#/$defs/FieldType" },
         "fields": { "type": "array", "items": { "$ref": "#/$defs/Field" } },
         "values": { "type": "array", "items": { "type": "string" } },

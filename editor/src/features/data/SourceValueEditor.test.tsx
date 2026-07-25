@@ -408,3 +408,77 @@ describe("ValueEditor — map / enum / union widgets", () => {
     expect(prices.gems).toBe(0);
   });
 });
+
+// ─── slice 3: hints, asymmetric validation, master-detail, conditions ────────
+
+describe("form generator — hints + validation (§7)", () => {
+  function seedHinted(masterDetail = false) {
+    useAccountStore.setState((s) => {
+      const p = s.account.projects[0]!;
+      p.dataModels = [
+        {
+          id: "m_h" as never,
+          name: "hinted",
+          keyField: "id",
+          ...(masterDetail ? { masterDetail: true } : {}),
+          fields: [
+            { name: "id", type: { kind: "string" } },
+            { name: "price", type: { kind: "number" }, label: "Price (coins)", help: "Base price", min: 0, max: 100 },
+            { name: "icon", type: { kind: "string" }, locked: true },
+            { name: "gate", type: { kind: "conditions" }, label: "Visibility" },
+          ],
+        },
+      ] as never;
+      p.dataSources = [
+        {
+          id: "hinted" as never,
+          name: "hinted",
+          shape: "table",
+          modelId: "m_h" as never,
+          rows: [
+            { id: "a", price: 250, icon: "item:ci_locked", gate: [] },
+            { id: "b", price: 5, icon: "item:ci_other", gate: [] },
+          ],
+        },
+      ] as never;
+      return s;
+    });
+  }
+
+  it("shows the label hint, clamps min/max on commit, flags an out-of-bounds stored value", () => {
+    seedHinted();
+    render(<SourceRowsTable projectId={PID} pack={pack()} source={tableSource()} />);
+    expect(screen.getAllByText("Price (coins)").length).toBeGreaterThan(0);
+    // Stored 250 > max 100 (hand-edit scenario): surfaced, not rewritten.
+    const priceA = screen.getByDisplayValue("250");
+    expect(priceA).toHaveAttribute("aria-invalid", "true");
+    expect((pack().dataSources[0] as { rows: Record<string, unknown>[] }).rows[0]!.price).toBe(250);
+    // Committing through the form clamps (blocking by construction).
+    fireEvent.change(priceA, { target: { value: "999" } });
+    expect((pack().dataSources[0] as { rows: Record<string, unknown>[] }).rows[0]!.price).toBe(100);
+  });
+
+  it("locked fields render read-only (no input)", () => {
+    seedHinted();
+    render(<SourceRowsTable projectId={PID} pack={pack()} source={tableSource()} />);
+    expect(screen.getAllByTestId("locked-icon").length).toBe(2); // one per row
+    expect(screen.queryByDisplayValue("item:ci_locked")).toBeNull();
+  });
+
+  it("conditions kind renders the core condition editor", () => {
+    seedHinted();
+    render(<SourceRowsTable projectId={PID} pack={pack()} source={tableSource()} />);
+    expect(screen.getAllByTestId("conditions-gate").length).toBe(2);
+  });
+
+  it("master_detail renders the row list + selected row form instead of the spreadsheet", () => {
+    seedHinted(true);
+    render(<SourceRowsTable projectId={PID} pack={pack()} source={tableSource()} />);
+    const md = screen.getByTestId("source-master-detail");
+    expect(md).toBeTruthy();
+    expect(screen.queryByTestId("source-rows-sheet")).toBeNull();
+    // Master list shows both row keys; first selected by default.
+    fireEvent.click(screen.getByRole("button", { name: "b" }));
+    expect(screen.getByDisplayValue("5")).toBeTruthy();
+  });
+});

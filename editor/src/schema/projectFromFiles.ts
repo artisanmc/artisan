@@ -227,6 +227,7 @@ function fieldTypeOfWire(f: Json): ModelFieldType {
     case "ltext":
     case "item":
     case "actions":
+    case "conditions":
       return { kind: f.kind };
     default:
       return { kind: "string" };
@@ -414,6 +415,7 @@ export function projectFromFiles(
     id: id as DataModelId,
     name: (y.name as string) ?? id,
     keyField: (y.key_field as string) ?? "id",
+    ...(y.master_detail === true ? { masterDetail: true } : {}),
     fields: ((y.fields as ModelField[]) ?? []) as ModelField[],
   }));
 

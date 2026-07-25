@@ -32,6 +32,7 @@ const SCALAR_KINDS = [
   "boolean",
   "item",
   "actions",
+  "conditions",
 ] as const;
 type KindChoice = (typeof SCALAR_KINDS)[number] | "list" | "object" | "model" | "map" | "enum" | "union";
 
