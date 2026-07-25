@@ -837,6 +837,9 @@ export function serializeDataSource(pack: Project, ds: DataSource): Record<strin
       // stays the flattened runtime view, but the editor re-imports the source
       // typed by its Data model (ADR files-first-source-of-truth).
       model: ds.modelId,
+      // Declared-model version the rows conform to (module-declared models
+      // only) — read back at import to run pending migrations.
+      ...(model?.version !== undefined ? { model_version: model.version } : {}),
       key_field: model?.keyField ?? "id",
       fields: fields.map((f) => serializeDataField(f, models, visited)),
       rows: ds.rows.map((r) =>
@@ -892,6 +895,9 @@ function serializeDataSourcePerRow(
     name: doc.name,
     shape: doc.shape,
     model: doc.model,
+    ...((doc as Record<string, unknown>).model_version !== undefined
+      ? { model_version: (doc as Record<string, unknown>).model_version }
+      : {}),
     key_field: doc.key_field,
     granularity: "row",
     order: names,
@@ -984,7 +990,10 @@ export function transform(pack: Project): Record<string, string> {
   // Data models: models/<id>.yaml (model/v1), fields VERBATIM (cross-model refs
   // preserved) — the lossless editor store. data/<id>.yaml stays denormalized
   // and self-contained for the runtime; the plugin ignores models/ entirely.
+  // Module-DECLARED models are NOT project content — their truth is the
+  // declaration (Presence), never a project file (ADR composable-data-models §4).
   for (const m of pack.dataModels ?? []) {
+    if (m.provenance === "module") continue;
     files[`${base}/models/${m.id}.yaml`] = stringify(
       { schema: "model/v1", id: m.id, name: m.name, key_field: m.keyField, fields: m.fields },
       yamlOpts,

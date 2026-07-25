@@ -581,6 +581,38 @@ export function ModelFieldsEditor({
     .filter((f) => f.type.kind === "string" || f.type.kind === "number" || f.type.kind === "integer")
     .map((f) => f.name);
 
+  // Module-declared model: the Add-on owns the shape — read-only for the admin
+  // (ADR composable-data-models §4). Values stay editable through the row form.
+  if (model?.provenance === "module") {
+    return (
+      <div className="flex flex-col gap-1.5" data-testid="model-fields-readonly">
+        <div className="flex items-center gap-2">
+          <span className="eyebrow">{t("dataSources.modelName")}</span>
+          <code className="font-mono text-[12px] text-[var(--text)]">{model.name}</code>
+          <span className="badge text-[9px]" title={t("dataSources.declaredModelHint")}>
+            {t("dataSources.declaredModel")}
+          </span>
+          {model.version !== undefined ? (
+            <span className="text-[10px] text-[var(--text-faint)]">v{model.version}</span>
+          ) : null}
+        </div>
+        <ul className="flex flex-col gap-0.5">
+          {fields.map((f) => (
+            <li key={f.name} className="flex items-center gap-2 text-[12px]">
+              <code className="min-w-32 font-mono text-[var(--text)]">{f.name}</code>
+              <span className="text-[11px] text-[var(--text-mut)]">
+                {t(`dataSources.kind.${f.type.kind}`)}
+              </span>
+              {f.name === model.keyField ? (
+                <span className="badge text-[9px]">{t("dataSources.keyField")}</span>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-2" data-testid="model-fields-editor">
       {model ? (

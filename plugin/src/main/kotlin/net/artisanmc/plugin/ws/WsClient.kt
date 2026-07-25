@@ -15,6 +15,7 @@ class WsClient(
     private val customItemsHash: String = "",
     private val installedModules: () -> List<Map<String, String>> = { emptyList() },
     private val dataSources: () -> List<Map<String, Any?>> = { emptyList() },
+    private val declaredModels: () -> List<Map<String, Any?>> = { emptyList() },
     private val onMessage: (String) -> Unit,
     private val logger: Logger? = null,
 ) {
@@ -60,6 +61,9 @@ class WsClient(
                 "custom_items_hash" to customItemsHash.ifEmpty { null },
                 "installed_modules" to installedModules(),
                 "data_sources" to dataSources(),
+                // Module-declared Data models (ADR composable-data-models §4):
+                // model/v1 documents passed through verbatim.
+                "declared_models" to declaredModels(),
             )
             ws.send(mapper.writeValueAsString(hello))
         }

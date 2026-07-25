@@ -106,6 +106,10 @@ Fire-and-forget module messages over the plugin ↔ backend WS (`api.messages.se
 
 `api.actions.execute(player, steps, args)` — runs a canonical step tree (the wire shape of the editor's `actions` field kit widget: `[{kind: "action", action: {...}}, {kind: "if", ...}]`, literal text) through the core `StepParser`/`ActionExecutor`. Main-thread (dispatched if needed); `args` become `{name}` placeholder bindings (`player` is implicit); malformed steps are skipped with a WARN. Used by the boutique to run an item's purchase actions after payment. Since 1.4.0.
 
+### `net.artisanmc.modules.api.ModelRegistry` (`@Beta`)
+
+`api.models.declare(document)` — declares a Data model as a `model/v1` document (a plain `Map`, verbatim: `schema`, namespaced `id` (`ns:model`), `name`, `key_field`, `fields`, optional monotonic `version` + declarative `migrations`). Pure passthrough: nothing is interpreted plugin-side — the documents are reported at Presence (`hello.declared_models` / `modules_changed`) and consumed by the editor, which renders the schema-driven form and treats the shape as read-only for the admin (ADR `composable-data-models` §4/§5). Duplicate id or non-namespaced id throws at declare time. `has(id)`, `declared()` (sorted). Since 1.5.0.
+
 ### `net.artisanmc.modules.api.Stability`
 
 Declared (not inferred) axis of a data source. `STATIC` = a stable, enumerable key-set (`fetcher(null)` returns the authoritative rows, each identified by `keyField`) — placeable in a menu's placement mode. `DYNAMIC` (default) = runtime/player-dependent, unbounded — pagination only.

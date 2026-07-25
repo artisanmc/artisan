@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { useAuthStore } from "@/state/authStore";
 import { useAccountStore } from "@/state/accountStore";
 import { loadUserProject } from "@/lib/api/userProjects";
-import { normalizeDataSources } from "@/domain/dataModels";
+import { injectDeclaredModels, normalizeDataSources } from "@/domain/dataModels";
+import { fetchServerDeclaredModels } from "@/lib/api/dataSources";
 import { projectFromFiles } from "@/schema/projectFromFiles";
 import { useDivergenceStore } from "@/state/divergenceStore";
 import type { Account, Project, ProjectId } from "@/domain/types";
@@ -26,7 +27,7 @@ export function useProjectLoader(projectId: string): ProjectLoadResult {
       return;
     }
     loadUserProject(projectId)
-      .then((res) => {
+      .then(async (res) => {
         // Files-first (ADR files-first-source-of-truth): the file tree IS the
         // Project — parse it client-side. A fresh project has files={} and
         // parses to an empty workspace.
@@ -34,6 +35,14 @@ export function useProjectLoader(projectId: string): ProjectLoadResult {
           name: res.project.name,
           serverKeyId: res.project.serverKeyId ?? res.serverKeyId ?? undefined,
         });
+        // Module-declared models (ADR composable-data-models §4/§5): inject
+        // the bound server's declarations (read-only shapes) and run pending
+        // declarative migrations; the result materializes at the next save.
+        const serverId = res.project.serverKeyId ?? res.serverKeyId;
+        if (serverId && res.networkId) {
+          const docs = await fetchServerDeclaredModels(res.networkId, serverId);
+          injectDeclaredModels(loaded, docs);
+        }
         // Files-first P3c: surface a pending disk↔web divergence to the banner.
         useDivergenceStore.getState().set(projectId, res.divergence);
         // Accepted reset (ADR project-sources-and-data-models): legacy

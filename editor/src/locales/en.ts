@@ -583,6 +583,8 @@ export default {
     removeField: "Remove field {{name}}",
     listOf: "of",
     mapOf: "of",
+    declaredModel: "declared by add-on",
+    declaredModelHint: "This shape is declared by the installed add-on and updates with it - values stay editable, the shape does not.",
     mapKeyPlaceholder: "key",
     addMapEntry: "Add entry",
     removeMapEntry: "Remove entry {{key}}",

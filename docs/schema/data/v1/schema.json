@@ -43,7 +43,11 @@
     },
     "model": {
       "type": "string",
-      "description": "Back-ref lossless vers models/<id>.yaml (table uniquement) : le Data model qui type cette source côté éditeur. `fields` reste la vue aplatie runtime ; le plugin ignore ce champ. Cf. ADR files-first-source-of-truth."
+      "description": "Back-ref lossless vers models/<id>.yaml (table uniquement) : le Data model qui type cette source côté éditeur. Un id namespacé (ns:model) référence un model DÉCLARÉ par un Add-on (Presence). `fields` reste la vue aplatie runtime ; le plugin ignore ce champ. Cf. ADR files-first-source-of-truth + composable-data-models."
+    },
+    "model_version": {
+      "type": "integer",
+      "description": "Version du model déclaré sous laquelle les rows ont été écrites (ADR composable-data-models §5) — l'éditeur applique la chaîne de migrations déclaratives quand elle retarde sur la déclaration. Ignoré par le plugin."
     },
     "key_field": {
       "type": "string",
