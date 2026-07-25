@@ -805,6 +805,10 @@ function serializeDataValue(
     // (non-hermetic contract).
     case "enum":
       return value;
+    // Core condition vocabulary (§6): serialize through the single condition
+    // codec so composites and camelCase domain fields hit the wire shape.
+    case "conditions":
+      return Array.isArray(value) ? (value as Condition[]).map(serializeCondition) : [];
     case "union": {
       const obj =
         typeof value === "object" && value !== null && !Array.isArray(value)
@@ -995,7 +999,14 @@ export function transform(pack: Project): Record<string, string> {
   for (const m of pack.dataModels ?? []) {
     if (m.provenance === "module") continue;
     files[`${base}/models/${m.id}.yaml`] = stringify(
-      { schema: "model/v1", id: m.id, name: m.name, key_field: m.keyField, fields: m.fields },
+      {
+        schema: "model/v1",
+        id: m.id,
+        name: m.name,
+        key_field: m.keyField,
+        ...(m.masterDetail ? { master_detail: true } : {}),
+        fields: m.fields,
+      },
       yamlOpts,
     );
   }

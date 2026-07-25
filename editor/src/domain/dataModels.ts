@@ -100,7 +100,10 @@ export function defaultValueForModelType(
       return [];
     case "object": {
       const obj: Record<string, unknown> = {};
-      for (const f of type.fields) obj[f.name] = defaultValueForModelType(f.type, models, visited);
+      // A field's declared `default` (§7) wins over the kind default — it
+      // doubles as the migration `set_default` value.
+      for (const f of type.fields)
+        obj[f.name] = f.default !== undefined ? f.default : defaultValueForModelType(f.type, models, visited);
       return obj;
     }
     case "model": {
@@ -118,9 +121,13 @@ export function defaultValueForModelType(
       const first = type.variants[0];
       if (!first) return {};
       const obj: Record<string, unknown> = { [type.tag]: first.name };
-      for (const f of first.fields) obj[f.name] = defaultValueForModelType(f.type, models, visited);
+      for (const f of first.fields)
+        obj[f.name] = f.default !== undefined ? f.default : defaultValueForModelType(f.type, models, visited);
       return obj;
     }
+    // The wire-shaped Condition[] the core engine evaluates — empty chain.
+    case "conditions":
+      return [];
   }
 }
 
@@ -164,6 +171,8 @@ export function modelFieldTypeToFieldType(
       const next = new Set(visited).add(type.ref);
       return modelFieldTypeToFieldType({ kind: "object", fields: model.fields }, models, next);
     }
+    case "conditions":
+      return { kind: "list", of: { kind: "object", fields: [] } };
     // Legacy inferred vocabulary has no map/enum/union — project pragmatically:
     // enum interpolates as a string; a map's keys are unknown at design time;
     // a union exposes its tag plus the union of all variants' fields (the
@@ -655,6 +664,7 @@ export function declaredModelToDomain(doc: Record<string, unknown>): DataModel |
     provenance: "module",
     ...(typeof doc.version === "number" ? { version: doc.version } : {}),
     ...(Array.isArray(doc.migrations) ? { migrations: doc.migrations as ModelMigration[] } : {}),
+    ...(doc.master_detail === true ? { masterDetail: true } : {}),
   };
 }
 
