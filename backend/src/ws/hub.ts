@@ -1,7 +1,7 @@
 import { and, eq, isNotNull, isNull, notInArray } from "drizzle-orm";
 import { db } from "../db/index";
 import { ensureAssets, assetsDone } from "../lib/mcAssets";
-import { networks, projectBranches, projectCommits, projects, serverKeyHelloes, serverKeys, serverModules, serverDataSources } from "../db/schema";
+import { networks, projectBranches, projectCommits, projects, serverKeyHelloes, serverKeys, serverModules, serverDataSources, serverDeclaredModels } from "../db/schema";
 import { createProject, getProject, upsertProjectContent } from "../lib/projectStorage";
 import { getBranch, advanceBranchHead } from "../lib/branchStorage";
 import { createCommit } from "../lib/commitStorage";
@@ -284,6 +284,41 @@ export async function persistServerDataSources(
     );
 }
 
+/**
+ * Same semantics as persistServerDataSources, for module-declared Data models
+ * (ADR composable-data-models §4): model/v1 documents stored verbatim, keyed
+ * by (serverKeyId, model id), pruned to the report.
+ */
+export async function persistServerDeclaredModels(
+  serverKeyId: string,
+  reported: Record<string, unknown>[],
+): Promise<void> {
+  const now = new Date();
+  const valid = reported.filter((d) => typeof d.id === "string" && (d.id as string).includes(":"));
+  for (const doc of valid) {
+    await db
+      .insert(serverDeclaredModels)
+      .values({
+        serverKeyId,
+        modelId: doc.id as string,
+        documentJson: JSON.stringify(doc),
+        reportedAt: now,
+      })
+      .onConflictDoUpdate({
+        target: [serverDeclaredModels.serverKeyId, serverDeclaredModels.modelId],
+        set: { documentJson: JSON.stringify(doc), reportedAt: now },
+      });
+  }
+  const keepIds = valid.map((d) => d.id as string);
+  await db
+    .delete(serverDeclaredModels)
+    .where(
+      keepIds.length > 0
+        ? and(eq(serverDeclaredModels.serverKeyId, serverKeyId), notInArray(serverDeclaredModels.modelId, keepIds))
+        : eq(serverDeclaredModels.serverKeyId, serverKeyId),
+    );
+}
+
 async function handleCustomItemsHash(serverKeyId: string, incomingHash: string | undefined): Promise<void> {
   if (!incomingHash) return;
   const cacheDir = customItemsCacheDir(serverKeyId);
@@ -339,6 +374,7 @@ export async function handlePluginMessage(
     }).catch(() => {});
     persistServerModules(keyId, hello.installed_modules ?? []).catch(() => {});
     persistServerDataSources(keyId, hello.data_sources ?? []).catch(() => {});
+    persistServerDeclaredModels(keyId, (hello as Record<string, unknown>).declared_models as Record<string, unknown>[] ?? []).catch(() => {});
     handleCustomItemsHash(keyId, (hello as HelloMessage & { custom_items_hash?: string }).custom_items_hash).catch(() => {});
     if (!assetsDone(hello.minecraft_version)) {
       ensureAssets(hello.minecraft_version).catch((err) =>
@@ -453,6 +489,7 @@ export async function handlePluginMessage(
     const m = msg as ModulesChangedMessage;
     persistServerModules(serverId, m.installed_modules ?? []).catch(() => {});
     persistServerDataSources(serverId, m.data_sources ?? []).catch(() => {});
+    persistServerDeclaredModels(serverId, (m as unknown as Record<string, unknown>).declared_models as Record<string, unknown>[] ?? []).catch(() => {});
     return { reply: null };
   }
 

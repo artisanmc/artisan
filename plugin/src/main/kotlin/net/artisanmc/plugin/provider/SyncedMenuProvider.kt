@@ -63,6 +63,8 @@ class SyncedMenuProvider(
     private val installedModules: () -> List<Map<String, String>> = { emptyList() },
     private val dataSources: net.artisanmc.modules.api.DataSourceRegistry? = null,
     private val dataSourcesReport: () -> List<Map<String, Any?>> = { emptyList() },
+    /** Module-declared model/v1 documents, reported verbatim at Presence. */
+    private val declaredModelsReport: () -> List<Map<String, Any?>> = { emptyList() },
     /**
      * Dispatches a task onto the Bukkit main thread (fetchers touch the Bukkit
      * API). Default = synchronous, for tests; ArtisanPlugin injects the scheduler.
@@ -157,6 +159,7 @@ class SyncedMenuProvider(
                 customItemsHash   = "",
                 installedModules  = installedModules,
                 dataSources       = dataSourcesReport,
+                declaredModels    = declaredModelsReport,
                 onMessage         = ::handleMessage,
                 logger            = logger,
             )
@@ -234,6 +237,7 @@ class SyncedMenuProvider(
             "server_key" to serverKey,
             "installed_modules" to modules,
             "data_sources" to dataSourcesReport(),
+            "declared_models" to declaredModelsReport(),
         ))
     }
 

@@ -30,6 +30,30 @@
       "items": {
         "$ref": "#/$defs/Field"
       }
+    },
+    "version": {
+      "type": "integer",
+      "description": "Version monotone d'un model DÉCLARÉ par un Add-on (ADR composable-data-models §4/§5). Absent pour un model project-authored."
+    },
+    "migrations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["from", "to", "steps"],
+        "properties": {
+          "from": { "type": "integer" },
+          "to": { "type": "integer" },
+          "steps": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "description": "Pas déclaratif (vocabulaire fermé — jamais de code) : rename_field {from,to,path?}, set_default {field,value,path?}, rename_enum_value {field,from,to,path?}, rename_variant {field,tag?,from,to,path?}. Op inconnue = ignorée (dangle)."
+            }
+          }
+        }
+      },
+      "description": "Chaîne de migrations déclaratives embarquée dans la déclaration, appliquée côté éditeur (ADR composable-data-models §5)."
     }
   },
   "$defs": {

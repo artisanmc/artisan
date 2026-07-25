@@ -476,6 +476,28 @@ export function projectFromFiles(
       ) as Record<string, unknown>;
       return { id: id as DataSourceId, name, shape: "config", fields, value };
     }
+    // Module-declared model ref (namespaced): the shape's truth arrives via
+    // Presence, never from project files — keep the ref as-is and type the
+    // rows from the file's own flattened fields (self-contained). The loader
+    // injects the declared model and runs pending migrations afterwards.
+    if (typeof y.model === "string" && y.model.includes(":") && !dataModels.some((m) => m.id === y.model)) {
+      const rowType: ModelFieldType = {
+        kind: "object",
+        fields: ((y.fields as Json[]) ?? []).map(fieldOfWire),
+      };
+      const rows = ((y.rows as Json[]) ?? []).map(
+        (r) => importDataValue(r, rowType, dataModels, new Set(), ref) as Record<string, unknown>,
+      );
+      return {
+        id: id as DataSourceId,
+        name,
+        shape: "table",
+        modelId: y.model as DataModelId,
+        ...(y.granularity === "row" ? { granularity: "row" as const } : {}),
+        ...(typeof y.model_version === "number" ? { modelVersion: y.model_version } : {}),
+        rows,
+      };
+    }
     let model = dataModels.find((m) => m.id === y.model);
     if (!model) {
       model = {
@@ -498,6 +520,7 @@ export function projectFromFiles(
       shape: "table",
       modelId,
       ...(y.granularity === "row" ? { granularity: "row" as const } : {}),
+      ...(typeof y.model_version === "number" ? { modelVersion: y.model_version } : {}),
       rows,
     };
   });

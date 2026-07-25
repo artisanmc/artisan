@@ -1,4 +1,5 @@
 import { createLText, deleteLText, getText } from "@/lib/i18n";
+import { applyModelMigrations, type ModelMigration } from "./modelMigrations";
 import type {
   DataModel,
   DataModelId,
@@ -638,4 +639,58 @@ export function applyFieldEdit(pack: Project, target: FieldEditTarget, edit: Fie
     if (ds?.shape === "config") migrateInstanceTyped(pack, ds.value, edit, oldFieldType);
   }
   applyEditToFields(ownerFields, edit);
+}
+
+// ─── module-declared models (ADR composable-data-models §4/§5) ───────────────
+
+/** model/v1 document (as reported at Presence) → DataModel, provenance "module". */
+export function declaredModelToDomain(doc: Record<string, unknown>): DataModel | null {
+  const id = typeof doc.id === "string" ? doc.id : "";
+  if (!id.includes(":")) return null;
+  return {
+    id: id as DataModelId,
+    name: typeof doc.name === "string" ? doc.name : id,
+    keyField: typeof doc.key_field === "string" ? doc.key_field : "id",
+    fields: Array.isArray(doc.fields) ? (doc.fields as ModelField[]) : [],
+    provenance: "module",
+    ...(typeof doc.version === "number" ? { version: doc.version } : {}),
+    ...(Array.isArray(doc.migrations) ? { migrations: doc.migrations as ModelMigration[] } : {}),
+  };
+}
+
+/**
+ * Inject the server's declared models into a loaded pack (replacing stale
+ * copies of the same id) and run pending declarative migrations on every
+ * table whose `modelVersion` lags its declaration. Mutates `pack`; returns
+ * whether any migration ran (the caller persists on the next save).
+ */
+export function injectDeclaredModels(
+  pack: Project,
+  docs: Record<string, unknown>[],
+): boolean {
+  const declared = docs
+    .map(declaredModelToDomain)
+    .filter((m): m is DataModel => m !== null);
+  if (declared.length === 0 && !(pack.dataModels ?? []).some((m) => m.provenance === "module")) {
+    return false;
+  }
+  const declaredIds = new Set(declared.map((m) => m.id));
+  pack.dataModels = [
+    ...(pack.dataModels ?? []).filter((m) => !declaredIds.has(m.id) && m.provenance !== "module"),
+    ...declared,
+  ];
+  let migrated = false;
+  for (const ds of pack.dataSources ?? []) {
+    if (ds.shape !== "table") continue;
+    const model = declared.find((m) => m.id === ds.modelId);
+    if (!model || model.version === undefined || !model.migrations) continue;
+    const from = ds.modelVersion ?? 1;
+    if (from >= model.version) continue;
+    const { applied, toVersion } = applyModelMigrations(ds.rows, from, model.migrations);
+    if (applied) {
+      ds.modelVersion = toVersion;
+      migrated = true;
+    }
+  }
+  return migrated;
 }

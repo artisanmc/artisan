@@ -10,6 +10,7 @@ import {
 	networkInvites,
 	networks,
 	serverDataSources,
+	serverDeclaredModels,
 	serverKeyHelloes,
 	serverKeys,
 	serverModules,
@@ -730,6 +731,48 @@ userNetworksRouter.get(
 				stability: r.stability,
 				key_field: r.keyField,
 			})),
+		});
+	},
+);
+
+// GET /api/networks/:networkId/servers/:serverId/models — member access.
+// Module-declared Data models reported at Presence (ADR composable-data-models
+// §4): model/v1 documents, verbatim.
+userNetworksRouter.get(
+	"/:networkId/servers/:serverId/models",
+	async (c: Context<{ Variables: Vars }>) => {
+		const userId = getUserId(c);
+		if (!userId) return c.json({ error: "unauthorized" }, 401);
+		const networkId = c.req.param("networkId");
+		const serverId = c.req.param("serverId");
+		try {
+			await requireMember(userId, networkId);
+		} catch {
+			return c.json({ error: "forbidden" }, 403);
+		}
+		const sk = await db
+			.select()
+			.from(serverKeys)
+			.where(
+				and(eq(serverKeys.id, serverId), eq(serverKeys.networkId, networkId)),
+			);
+		if (sk.length === 0) return c.json({ error: "not_found" }, 404);
+
+		const rows = await db
+			.select()
+			.from(serverDeclaredModels)
+			.where(eq(serverDeclaredModels.serverKeyId, sk[0].id));
+		return c.json({
+			models: rows
+				.map((r) => {
+					try {
+						return JSON.parse(r.documentJson) as Record<string, unknown>;
+					} catch {
+						return null;
+					}
+				})
+				.filter((d): d is Record<string, unknown> => d !== null)
+				.sort((a, b) => (String(a.id) < String(b.id) ? -1 : 1)),
 		});
 	},
 );

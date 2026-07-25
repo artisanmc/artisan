@@ -44,10 +44,12 @@ class ModuleRegistry {
             _active.add(module)
         }
         boundApi.dataSources.currentOwner = module.id
+        boundApi.models.currentOwner = module.id
         try {
             module.onEnable(boundApi)
         } finally {
             boundApi.dataSources.currentOwner = null
+            boundApi.models.currentOwner = null
         }
         onChange?.invoke()
     }

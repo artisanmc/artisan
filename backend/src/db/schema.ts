@@ -122,6 +122,23 @@ export const serverDataSources = pgTable(
 	(t) => [primaryKey({ columns: [t.serverKeyId, t.ref] })],
 );
 
+// Module-declared Data models reported at Presence (ADR composable-data-models
+// §4): model/v1 documents stored verbatim per server key, mirroring
+// server_data_sources (upsert at hello/modules_changed, pruned to the report).
+export const serverDeclaredModels = pgTable(
+	"server_declared_models",
+	{
+		serverKeyId: text("server_key_id")
+			.notNull()
+			.references(() => serverKeys.id, { onDelete: "cascade" }),
+		modelId: text("model_id").notNull(),
+		// The model/v1 document verbatim (may carry version + migrations).
+		documentJson: text("document_json").notNull(),
+		reportedAt: timestamp("reported_at").notNull(),
+	},
+	(t) => [primaryKey({ columns: [t.serverKeyId, t.modelId] })],
+);
+
 export const linkCodes = pgTable("link_codes", {
 	code: text("code").primaryKey(),
 	createdAt: timestamp("created_at").notNull(),
