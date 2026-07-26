@@ -282,8 +282,8 @@ describe("visitDataSourceLTexts", () => {
     pack.dataModels = [RANK_MODEL as never];
     pack.dataSources = [
       {
-        id: "ds_vjjhb260" as never,
-        name: "ranks",
+        id: "ranks" as never,
+        name: "Grades VIP",
         shape: "table",
         modelId: "m_rank" as never,
         rows: [
@@ -297,8 +297,8 @@ describe("visitDataSourceLTexts", () => {
         ],
       },
       {
-        id: "ds_q8k3m1pz" as never,
-        name: "settings",
+        id: "settings" as never,
+        name: "Réglages",
         shape: "config",
         fields: [{ name: "motd", type: { kind: "ltext" } }],
         value: { motd: lt("lt_s1") },
@@ -343,7 +343,8 @@ describe("visitDataSourceLTexts", () => {
     pack.dataModels![0]!.fields.push({ name: "Lore", type: { kind: "ltext" } });
     const source = pack.dataSources[0]!;
     if (source.shape !== "table") throw new Error("expected table");
-    source.name = "Grades";
+    // Addresses key on the source ID (ADR bare-data-files ④) — lowercase it.
+    (source as { id: string }).id = "Grades";
     source.rows = [{ id: "VIP", name: lt("lt_n1"), perks: [], meta: {}, Lore: lt("lt_lore") }];
 
     const sites = [...visitDataSourceLTexts(pack, source)];

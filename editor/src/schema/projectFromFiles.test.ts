@@ -163,7 +163,7 @@ function fixture(): Project {
             price: 100,
             tags: ["melee"],
             rarity: "epic",
-            on_buy: { type: "message", text: { key: "k_onbuy_text" } },
+            on_buy: { type: "message", text: { key: "sources.ds_items.sword.on_buy.text" } },
             prices: { gold: 100, gems: 3 },
             gate: [{ type: "has_permission", perm: "shop.see" }],
             slot_id: "s_1",
@@ -226,22 +226,26 @@ describe("projectFromFiles (files → domain, inverse of transform)", () => {
     if (table?.shape !== "table") throw new Error("expected table shape");
     expect(table.name).toBe("Shop items");
     expect(table.modelId).toBe("mdl1");
+    // ltext node keys are canonicalized to their key-site address at import
+    // (ADR bare-data-files ④ — the literal in the file + lang/ entries at the
+    // address reconnect here).
     expect(table.rows).toEqual([
       {
         id: "sword",
-        name: { key: "k_sword_name" },
+        name: { key: "sources.ds_items.sword.name" },
         desc: "<b>sharp</b>",
         price: 100,
         tags: ["melee"],
         rarity: "epic",
-        on_buy: { type: "message", text: { key: "k_onbuy_text" } },
+        on_buy: { type: "message", text: { key: "sources.ds_items.sword.on_buy.text" } },
         prices: { gold: 100, gems: 3 },
         gate: [{ type: "has_permission", perm: "shop.see" }],
         slot_id: "s_1",
       },
     ]);
-    // ltext row values pull their translations back into i18nKeys.
-    expect(p2.i18nKeys.k_sword_name).toEqual({ en: "Sword", fr: "Épée" });
+    // ltext row values pull their translations back into i18nKeys (under the
+    // canonical address).
+    expect(p2.i18nKeys["sources.ds_items.sword.name" as never]).toEqual({ en: "Sword", fr: "Épée" });
   });
 
   it("reconstructs config sources with LText values", () => {
@@ -249,7 +253,7 @@ describe("projectFromFiles (files → domain, inverse of transform)", () => {
     const cfg = p2.dataSources.find((d) => d.id === ("ds_cfg" as DataSourceId));
     if (cfg?.shape !== "config") throw new Error("expected config shape");
     expect(cfg.name).toBe("Settings");
-    expect(cfg.value).toEqual({ motd: { key: "k_motd" }, discount: 5 });
+    expect(cfg.value).toEqual({ motd: { key: "sources.ds_cfg.motd" }, discount: 5 });
     expect(cfg.fields).toEqual([
       { name: "motd", type: { kind: "ltext" } },
       { name: "discount", type: { kind: "number" } },
@@ -258,7 +262,11 @@ describe("projectFromFiles (files → domain, inverse of transform)", () => {
 
   it("preserves data models verbatim (minimessage kind survives via models/)", () => {
     const p2 = projectFromFiles(PID, transform(fixture()), { name: "Round Trip" });
-    expect(p2.dataModels).toEqual(fixture().dataModels);
+    // The config source's beside-doc also imports as a model (ADR
+    // bare-data-files) — the fixture's models must survive verbatim among them.
+    for (const m of fixture().dataModels ?? []) {
+      expect(p2.dataModels).toContainEqual(m);
+    }
   });
 
   it("preserves captured item name + display through .artisan/editor.yaml", () => {
