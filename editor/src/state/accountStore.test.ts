@@ -268,6 +268,69 @@ describe("accountStore", () => {
       });
     });
 
+    describe("createMenuSet (set d'items au niveau du menu — sans template)", () => {
+      const SCHEMA = [{ name: "id" }, { name: "name" }, { name: "icon" }, { name: "price" }];
+      const setupMenu = () => {
+        const mId = useAccountStore.getState().createMenu({ projectId: PERSONAL, id: "m_set" });
+        useAccountStore.setState((state) =>
+          produce(state, (draft) => {
+            const menu = draft.account.projects
+              .find((p) => p.id === PERSONAL)!
+              .menus.find((m) => m.id === mId)!;
+            menu.contextInputs = [{ kind: "sourceRef", name: "items", ref: "boutique:items" as never }];
+          }),
+        );
+        return mId;
+      };
+
+      it("paginated mode: creates a self-contained iterating element with seeded appearances", () => {
+        const mId = setupMenu();
+        const r = useAccountStore.getState().createMenuSet({
+          projectId: PERSONAL, menuId: mId, inputName: "items",
+          mode: "iterates", keyField: "id", schema: SCHEMA,
+        });
+        expect(r.ok).toBe(true);
+        const pack = getPack();
+        const menu = pack.menus.find((m) => m.id === mId)!;
+        const el = menu.layers.flatMap((l) => l.elements).find((e) => e.iterates)!;
+        expect(el.iterates).toEqual({ source: "items", alias: "item" }); // NO templateId
+        expect(el.positions).not.toBe("");
+        // Seeded from the schema heuristics: icon → material, name → title, price → lore.
+        expect(el.appearances[0]!.material).toBe("{item.icon}");
+        const titleKey = el.appearances[0]!.title!.key;
+        expect(pack.i18nKeys[titleKey as never]).toEqual({ en: "{item.name}" });
+        const loreKey = el.appearances[0]!.lore!.key;
+        expect(pack.i18nKeys[loreKey as never]).toEqual({ en: "{item.price}" });
+      });
+
+      it("placement mode: creates an empty-placements element keyed on keyField", () => {
+        const mId = setupMenu();
+        const r = useAccountStore.getState().createMenuSet({
+          projectId: PERSONAL, menuId: mId, inputName: "items",
+          mode: "places", keyField: "id", schema: SCHEMA,
+        });
+        expect(r.ok).toBe(true);
+        const el = getPack().menus.find((m) => m.id === mId)!
+          .layers.flatMap((l) => l.elements).find((e) => e.places)!;
+        expect(el.places).toEqual({ source: "items", alias: "item", keyField: "id", placements: [] });
+        expect(el.positions).toBe("");
+        expect(el.appearances[0]!.material).toBe("{item.icon}");
+      });
+
+      it("refuses a second set on the same menu list", () => {
+        const mId = setupMenu();
+        useAccountStore.getState().createMenuSet({
+          projectId: PERSONAL, menuId: mId, inputName: "items",
+          mode: "iterates", keyField: "id", schema: SCHEMA,
+        });
+        const r2 = useAccountStore.getState().createMenuSet({
+          projectId: PERSONAL, menuId: mId, inputName: "items",
+          mode: "places", keyField: "id", schema: SCHEMA,
+        });
+        expect(r2).toEqual({ ok: false, reason: "already_exists" });
+      });
+    });
+
     describe("pinItemTemplateRow / dropItemTemplateBlock", () => {
       const setup = () => {
         useAccountStore.getState().addItemTemplate({ projectId: PERSONAL, template: baseTemplate() });

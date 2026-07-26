@@ -192,6 +192,13 @@ export default {
     menuData: "Menu data",
     menuDataNoFilters: "No filter — full source.",
     menuDataLocalHint: "Project data — see the Data tab.",
+    setNone: "No item set for this list.",
+    setCreatePaginate: "Paginate",
+    setCreatePlace: "Place 1 by 1",
+    setPaginated: "Paginated — slots {{positions}}.",
+    setPlacedCount: "{{count}} placed.",
+    setPanelHint: "Drag an item onto a menu slot. Switch the preview context to place the others.",
+    setNoRows: "No rows to place in the current preview context.",
     testArgHint: "filter uses {{token}} — test value:",
   },
   actionEditor: {

@@ -474,6 +474,23 @@ interface AccountState {
     elementId: ElementId;
     templateId: ItemTemplateId;
   }) => { ok: true } | { ok: false; reason: "conflict"; conflictName: string };
+  /**
+   * Create THE set d'items of one menu list (Données du menu) — a
+   * SELF-CONTAINED element (no Item template): appearances seeded from the
+   * source's schema heuristics (icon/name/price), i18n minted canonically.
+   * `iterates` auto-fills a slot range; `places` starts empty and is fed by
+   * the contextual placement panel. One set per (menu, list).
+   */
+  createMenuSet: (input: {
+    projectId: ProjectId;
+    menuId: MenuId;
+    inputName: string;
+    mode: "iterates" | "places";
+    keyField?: string;
+    alias?: string;
+    schema: { name: string }[];
+    positions?: string;
+  }) => { ok: true; elementId: string } | { ok: false; reason: "not_found" | "already_exists" };
   pinItemTemplateRow: (input: {
     projectId: ProjectId;
     menuId: MenuId;
@@ -2559,6 +2576,54 @@ export const useAccountStore = create<AccountState>()(
                 return;
               }
             }
+          }),
+        );
+        return result;
+      },
+      createMenuSet: ({ projectId: pId, menuId: mId, inputName, mode, keyField, alias: aliasIn, schema, positions }) => {
+        let result: ReturnType<AccountState["createMenuSet"]> = { ok: false, reason: "not_found" };
+        set(
+          produce((draft: AccountState) => {
+            const pack = draft.account.projects.find((p) => p.id === pId);
+            const menu = pack?.menus.find((m) => m.id === mId);
+            const input = menu?.contextInputs?.find((c) => c.kind === "sourceRef" && c.name === inputName);
+            if (!pack || !menu || !input) return;
+            const consumed = menu.layers
+              .flatMap((l) => l.elements)
+              .some((e) => e.iterates?.source === inputName || e.places?.source === inputName);
+            if (consumed) {
+              result = { ok: false, reason: "already_exists" };
+              return;
+            }
+            const alias = aliasIn ?? "item";
+            const has = (names: string[]) => names.find((n) => schema.some((f) => f.name === n));
+            const iconField = has(["icon", "material"]);
+            const nameField = has(["name", "title", "label"]) ?? keyField ?? schema[0]?.name;
+            const loreField = has(["final_price", "price", "description", "lore"]);
+
+            const elId = newElementId();
+            // Canonical element key sites from the start — no later rekey churn.
+            const titleKey = `menus.${mId}.elements.${elId}.default.title` as I18nKey;
+            const loreKey = `menus.${mId}.elements.${elId}.default.lore` as I18nKey;
+            pack.i18nKeys[titleKey] = { [pack.defaultLang]: nameField ? `{${alias}.${nameField}}` : "" };
+            if (loreField) pack.i18nKeys[loreKey] = { [pack.defaultLang]: `{${alias}.${loreField}}` };
+
+            if (menu.layers.length === 0) menu.layers.push({ id: newLayerId(), name: "default", elements: [] });
+            menu.layers[0]!.elements.push({
+              id: elId,
+              positions: mode === "iterates" ? (positions ?? defaultIterateRange(menu)) : "",
+              appearances: [
+                {
+                  material: iconField ? `{${alias}.${iconField}}` : "CHEST",
+                  title: { key: titleKey },
+                  ...(loreField ? { lore: { key: loreKey } } : {}),
+                },
+              ],
+              ...(mode === "iterates"
+                ? { iterates: { source: inputName, alias } }
+                : { places: { source: inputName, alias, keyField: keyField ?? "id", placements: [] } }),
+            });
+            result = { ok: true, elementId: elId };
           }),
         );
         return result;

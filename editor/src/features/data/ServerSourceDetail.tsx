@@ -11,13 +11,12 @@ import { getNetworkServersStatus } from "@/lib/api/networks";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { ItemTemplatesSection } from "./ItemTemplatesSection";
 
 interface ServerSourceDetailProps {
   networkId: string;
   serverId: string;
   source: ServerDataSource;
-  /** When provided, the "Sets d'items" section (Item templates) is shown. */
+  /** Kept for call-site compat; sets d'items now live at the MENU level. */
   projectId?: ProjectId;
 }
 
@@ -27,7 +26,7 @@ type PreviewState =
   | { kind: "done"; result: PreviewResult };
 
 /** Detail view of one server data source: schema table, copyable ref, live preview. */
-export function ServerSourceDetail({ networkId, serverId, source, projectId }: ServerSourceDetailProps) {
+export function ServerSourceDetail({ networkId, serverId, source }: ServerSourceDetailProps) {
   const { t } = useTranslation();
   const [preview, setPreview] = useState<PreviewState>({ kind: "idle" });
   const [online, setOnline] = useState<boolean | null>(null);
@@ -157,7 +156,6 @@ export function ServerSourceDetail({ networkId, serverId, source, projectId }: S
         ) : null}
       </section>
 
-      {projectId ? <ItemTemplatesSection projectId={projectId} source={source} /> : null}
     </div>
   );
 }

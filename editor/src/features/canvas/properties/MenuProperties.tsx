@@ -168,7 +168,7 @@ export function MenuProperties({ projectId, menu }: MenuPropertiesProps) {
       ) : null}
       <ContextInputsEditor projectId={projectId} menu={menu} />
       <PreviewContextSection menu={menu} projectId={projectId} />
-      <MenuDataSection menu={menu} />
+      <MenuDataSection projectId={projectId} menu={menu} />
     </div>
   );
 }
