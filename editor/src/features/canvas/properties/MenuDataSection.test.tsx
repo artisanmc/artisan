@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MenuDataSection, extractArgTokens } from "./MenuDataSection";
+import { useAccountStore } from "@/state/accountStore";
 import { useServerDataSourcesStore } from "@/state/serverDataSourcesStore";
 import { useNetworksStore } from "@/state/networksStore";
 import { useServersStore } from "@/state/serversStore";
@@ -54,7 +55,7 @@ describe("MenuDataSection", () => {
   });
 
   it("renders one card per sourceRef input with ref, module badge and filter summary", () => {
-    render(<MenuDataSection menu={menu} />);
+    render(<MenuDataSection projectId={"p1" as never} menu={menu} />);
     expect(screen.getByText("quests:list")).toBeInTheDocument();
     expect(screen.getByText("quests")).toBeInTheDocument();
     expect(screen.getByText(/group = \{group\}/)).toBeInTheDocument();
@@ -62,7 +63,7 @@ describe("MenuDataSection", () => {
 
   it("previews with the menu's filters and the typed test-arg values", async () => {
     previewDataSource.mockResolvedValue({ ok: true, rows: [{ id: "q1" }], truncated: false });
-    render(<MenuDataSection menu={menu} />);
+    render(<MenuDataSection projectId={"p1" as never} menu={menu} />);
     fireEvent.change(screen.getByTestId("test-arg-group"), { target: { value: "daily" } });
     fireEvent.click(screen.getByTestId("menu-data-preview"));
     await waitFor(() => expect(screen.getByText("q1")).toBeInTheDocument());
@@ -76,8 +77,35 @@ describe("MenuDataSection", () => {
     });
   });
 
+  it("creates the menu-level item set from the list card (paginated)", () => {
+    useAccountStore.setState((s) => ({
+      ...s,
+      account: {
+        ...s.account,
+        projects: [
+          {
+            id: "p1", name: "P", source: "user_created", createdAt: "", updatedAt: "",
+            defaultLang: "en", i18nKeys: {}, menus: [structuredClone(menu)],
+            commands: [], dialogs: [], dataSources: [], dataModels: [],
+            canvasLayout: {}, canvasEdges: {},
+          } as never,
+        ],
+      },
+    }));
+    render(<MenuDataSection projectId={"p1" as never} menu={menu} />);
+    fireEvent.click(screen.getByText("Paginer"));
+    const created = useAccountStore
+      .getState()
+      .account.projects.find((p) => p.id === ("p1" as never))!
+      .menus[0]!.layers.flatMap((l) => l.elements)
+      .find((e) => e.iterates?.source === "quests");
+    expect(created).toBeDefined();
+    expect(created!.iterates).toEqual({ source: "quests", alias: "item" });
+    expect(created!.appearances[0]).toBeDefined();
+  });
+
   it("returns null when the menu consumes no source", () => {
-    const { container } = render(<MenuDataSection menu={{ ...menu, contextInputs: [] } as Menu} />);
+    const { container } = render(<MenuDataSection projectId={"p1" as never} menu={{ ...menu, contextInputs: [] } as Menu} />);
     expect(container.firstChild).toBeNull();
   });
 });

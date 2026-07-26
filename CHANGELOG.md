@@ -9,6 +9,11 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Changed — le set d'items vit au niveau du MENU (révision de l'ADR item-templates)
+- La création d'un set se fait depuis « Données du menu » (panneau d'édition du menu), par liste : **Paginer** (élément itérant auto-seedé depuis le schéma — icône/nom/prix — plage de slots par défaut) ou **Placer 1 à 1**. L'élément créé est auto-suffisant (appearances locales, aucun Item template).
+- Mode placement : nouveau **panneau de rows contextuel** — les items proposés sont ceux du contexte d'aperçu courant (« Preview as… », ex. la catégorie boutique sélectionnée), rendus via l'appearance de l'élément, glissables sur les slots du canvas (plomberie `row:` existante). On change de catégorie, on continue de placer.
+- La section « Sets d'items » disparaît du détail de source (Data tab + sources serveur) — plus aucune création côté données. La Library reste la gestion des Item templates (partage de rendu entre menus, optionnel).
+
 ### Changed — fichiers de données NUS : le schéma vit à côté, jamais dedans (ADR `bare-data-files`)
 - Un fichier `data/` peut être **pur valeurs** : mapping YAML = source objet (interpolation), liste = table (id ← filename, `key_field` défaut `id`). Le schéma se résout par précédence inline (legacy, lu à vie) > déclaration JAR > `models/<sourceId>.yaml` (doc complet du model possédé — identité dans le doc — ou ref une-ligne `model:`) > untyped (valeurs littérales, jamais d'erreur). `_source.yaml` devient optionnel (absent → rows triées par filename ; minimal = `name`/`model`/`order`). L'export n'écrit plus **jamais** de `fields:` inline ni de `shape:` (alias legacy lu).
 - **ltext hybride** : sur disque, une valeur ltext est le **littéral de la langue par défaut** ; les autres langues vivent dans `lang/` sous l'adresse key-site canonique, désormais keyée sur l'**id** de la source (renommer une source ne re-adresse plus ses clés). Le plugin résout au walk : clé explicite > adresse > littéral. Serveur mono-langue = zéro clé, zéro `lang/` pour les données.

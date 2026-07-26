@@ -3,7 +3,6 @@ import type { DataSource, ProjectId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ItemTemplatesSection, packSourceToTemplatable } from "./ItemTemplatesSection";
 import { ModelFieldsEditor } from "./ModelFieldsEditor";
 import { ConfigValueForm, SourceRowsTable } from "./SourceValueEditor";
 
@@ -113,15 +112,8 @@ export function DataSourceEditor({ projectId, source }: DataSourceEditorProps) {
           )}
         </section>
 
-        {/* Item sets over PROJECT data — same tooling as server sources. */}
-        {source.shape === "table" ? (
-          <section className="border-t border-[var(--border-soft)] pt-2">
-            <ItemTemplatesSection
-              projectId={projectId}
-              source={packSourceToTemplatable(pack, source)}
-            />
-          </section>
-        ) : null}
+        {/* Sets d'items live at the MENU level now ("Données du menu") —
+            no data-level creation surface (user feedback 2026-07-26). */}
       </div>
     </div>
   );
