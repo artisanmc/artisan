@@ -31,6 +31,10 @@ substrate: files are the canonical, hand-editable truth.
    a "document" shape (concept overlap + glossary collision with Document).
 
 3. **Runtime stays model-blind; inline schema is the runtime contract.**
+   > **Révisé par l'ADR `bare-data-files` (2026-07-26)** : le contrat runtime
+   > devient « schéma sur le même disque ou dans le même JAR », plus « inline
+   > dans le fichier » — le plugin résout la déclaration JAR ou `models/` au
+   > load ; l'inline reste lu à vie mais n'est plus écrit.
    `data/v1` gains the new kinds in its **inline, denormalized** `fields`
    vocabulary (variants inlined under their tag); the plugin walks value +
    inline schema together (ltext localization inside unions/maps included) and

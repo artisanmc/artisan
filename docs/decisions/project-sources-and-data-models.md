@@ -35,6 +35,9 @@ monolingual hole (per-item literal `name`/`lore`).
    target). **Config** = a single object for interpolation (settings/constants),
    not placeable, not a Set target; nested lists inside it remain iterable via the
    existing dotted-path support.
+   > **Supersédé par l'ADR `bare-data-files` (2026-07-26)** : les shapes sont
+   > unifiés — une source est une valeur typée ; ce qui était Table/Config se
+   > dérive du kind racine (liste de model vs objet). `shape:` = alias legacy.
 
 4. **Model edits: data migrated, references dangled.** Editing a model rewrites the
    rows the editor owns synchronously (add/rename/retype/drop, with coercion
