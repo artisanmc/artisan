@@ -388,6 +388,36 @@ describe("userProjectsRouter — divergence", () => {
     expect(getPendingDivergence(packId)).toBeUndefined();
   });
 
+  test("resolve-divergence broadcasts a FORCED bundle_available (plugin must download over its local changes)", async () => {
+    const { sessionId, packId, skId } = await seedUserWithPack("u1");
+    const base = `plugins/Artisan/projects/${packId}`;
+    await upsertProjectContent(packId, {
+      filesJson: JSON.stringify({ [`${base}/menus/m.yaml`]: "id: m\ntitle: WEB\n" }),
+    });
+    await seedDivergence(packId, skId);
+
+    const { registerConn, connToServerId, connSenders } = await import("../ws/hub");
+    const sent: string[] = [];
+    registerConn("conn-resolve", (msg) => sent.push(msg));
+    connToServerId.set("conn-resolve", skId);
+    try {
+      const app = makeApp();
+      const res = await app.request(`/api/v1/user/projects/${packId}/resolve-divergence`, {
+        method: "POST",
+        headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ choices: { "menus/m.yaml": "disk" } }),
+      });
+      expect(res.status).toBe(200);
+
+      const bundle = sent.map((s) => JSON.parse(s)).find((m) => m.type === "bundle_available");
+      expect(bundle).toBeDefined();
+      expect(bundle.force).toBe(true);
+    } finally {
+      connToServerId.delete("conn-resolve");
+      connSenders.delete("conn-resolve");
+    }
+  });
+
   test("resolve-divergence 404 when nothing is pending", async () => {
     const { sessionId, packId } = await seedUserWithPack("u1");
     const app = makeApp();

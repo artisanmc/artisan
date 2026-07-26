@@ -54,6 +54,8 @@ export interface BundleAvailableMessage {
   url: string;
   hash: string;
   signature: string;
+  /** Download even over local disk changes — divergence resolution only. */
+  force?: boolean;
 }
 
 export interface DraftUpdateMessage {
