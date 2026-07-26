@@ -183,7 +183,7 @@ userProjectsRouter.post("/:projectId/resolve-divergence", async (c: Context<{ Va
     await advanceBranchHead(projectId, "main", commit.id);
     contentHash = commit.contentHash;
   }
-  await pushBundleAvailable(projectId, "main", contentHash);
+  await pushBundleAvailable(projectId, "main", contentHash, { force: true });
   clearPendingDivergence(projectId, project.serverKeyId);
 
   return c.json({ ok: true, version, hash });

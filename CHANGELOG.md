@@ -9,6 +9,9 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Fixed — `bundle_available` ne peut plus écraser des changements disque locaux
+- Le handler `bundle_available` du plugin passe désormais le même gate `detectSyncAction` que le check du `hello_ack` avant de télécharger : LOCAL_ONLY → auto-push au lieu du download, CONFLICT → `sync_divergence`. Régression réelle : un project migré sur disque au boot (migrator one-shot boutique) était balayé par le `bundle_available` de connexion. Le backend n'outrepasse le gate qu'avec `force: true`, émis uniquement par `resolve-divergence` (l'arbre mergé est l'intention explicite).
+
 ### Changed — composable Data models, slice 4: la Boutique adopte les models déclarés (ADR §8)
 - Le catalogue boutique n'est plus `boutique/shop.yaml` : c'est la Table `data/categories/` (granularité `row`, model déclaré `boutique:category` master-detail + items `boutique:item`, textes = clés ltext dans `lang/`) + le Config `data/shop_settings.yaml`. L'Add-on déclare ses models via `ArtisanAPI.models.declare(...)` à l'`onEnable` ; un migrator one-shot convertit un `shop.yaml` pré-existant au boot (archivé hors project) et le reader legacy couvre l'intervalle.
 - `/boutiqueadmin additem` (backend) détecte le format cible : sur une Table déclarée il upserte la row de catégorie (création avec clé `sources.categories.<cat>.name` si absente) et l'item (clé de nom mintée par position, icône `item:<ci>` capturée, `lang/<default_lang>.yaml` réécrit) ; le chemin `shop.yaml` reste en fallback pré-migration.

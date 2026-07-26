@@ -674,6 +674,9 @@ export async function pushBundleAvailable(
   projectId: string,
   branchName: string,
   contentHash: string,
+  // force: the plugin downloads even over local disk changes — reserved for
+  // divergence resolution, where the merged tree is the explicit intent.
+  opts?: { force?: boolean },
 ): Promise<void> {
   // Find the server_key that owns this project (1:1 via projects.serverKeyId).
   const targets = await db
@@ -689,6 +692,7 @@ export async function pushBundleAvailable(
     url,
     hash: contentHash,
     signature: "",
+    ...(opts?.force ? { force: true } : {}),
   } satisfies BundleAvailableMessage);
 
   const targetSet = new Set(targets.map((t) => t.serverKeyId));
