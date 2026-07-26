@@ -161,17 +161,20 @@ modules consume. One notion, two **provenances**:
   Project* (it lives in the Project, deploys with its **Bundle**, and is
   exported/imported with it). Always **static**: its rows are hand-written, so
   the design-time set is by definition the authoritative set. A Project source
-  declares one of two **shapes**: **Table** — a list of rows conforming to a
-  **Data model**, with a **Row key**, iterable/placeable/set-able — or
-  **Config** — a single object consumed by interpolation (settings, constants),
-  neither placeable nor a Set target (though a nested list inside it may still
-  be iterated). A Table additionally chooses its **file granularity**: the
-  whole table in one source file, or **one file per row** (named by the Row
-  key). Granularity is serialization only — consumers, iteration, and
-  Placements are blind to it. There is no third shape: a deeply structured
-  per-file config (a quests category, a shop category) is a row of a Table
-  whose model nests the depth. Localized text (**LText**) and item fields are allowed at any
-  depth; each ltext value in a row is a normal **Key site**
+  is **one typed value** (ADR `bare-data-files`): a root **object** is consumed
+  by interpolation (settings, constants); a root **list of a Data model** is
+  iterable, placeable, and set-able, with a **Row key** (`key_field`, default
+  `id`). What used to be the Table/Config shape split is now derived from the
+  root kind — there is no stored shape. A root list additionally chooses its
+  **file granularity**: the whole list in one source file, or **one file per
+  row** (named by the Row key). Granularity is serialization only — consumers,
+  iteration, and Placements are blind to it. A deeply structured per-file
+  config (a quests category, a shop category) is a row of a root list whose
+  model nests the depth. The source's **schema lives beside the data, never in
+  it**: JAR declaration for add-on sources, `models/<id>.yaml` for
+  project-authored ones (inline `fields:` is a legacy form, read forever,
+  never written). On disk an **LText** value is the default language's literal
+  text; other languages live in `lang/` under the **Key site** address
   (`sources.<id>.<rowKey>.<fieldPath>`). **MiniMessage** fields (single- or
   multi-line) are plain strings edited with a rendered preview; they export
   as ordinary strings.

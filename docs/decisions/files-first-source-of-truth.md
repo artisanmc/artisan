@@ -63,6 +63,9 @@ editing path.
      one truth inside the same tree.
    - **Data models** → `models/<id>.yaml`, **ignored by the plugin** (sources
      stay denormalized and self-contained for runtime; models only type them).
+     > **Révoqué par l'ADR `bare-data-files` (2026-07-26)** : le plugin lit
+     > `models/` au load pour typer les sources project-authored nues (même
+     > mouvement que la résolution des templates P2a, toujours offline).
    - **Editor presentation state** (board layout/edges) moves out of
      `manifest.yaml` into **`.artisan/editor.yaml`** — hash-excluded (the
      `.artisan` prefix filter already exists), so cosmetic board moves no longer
