@@ -1077,6 +1077,55 @@ describe("boutique_additem", () => {
     }
   });
 
+  test("declared-model Table format: upserts the item row + mints its name key (ADR §8)", async () => {
+    const { id: keyId, networkId } = await seedServerKey();
+    const base = "plugins/Artisan/projects/boutique_shop2";
+    await createProject({ networkId, serverKeyId: keyId, name: "boutique_shop2", id: "boutique_shop2" });
+    await upsertProjectContent("boutique_shop2", {
+      hash: "h0",
+      filesJson: JSON.stringify({
+        [`${base}/manifest.yaml`]: "schema: manifest/v1\nmodule: boutique\ndefault_lang: fr\n",
+        [`${base}/data/categories/_source.yaml`]:
+          "schema: data/v1\nid: categories\nshape: table\nmodel: boutique:category\nmodel_version: 1\nkey_field: id\ngranularity: row\norder: [armes]\nfields: []\n",
+        [`${base}/data/categories/armes.yaml`]:
+          "id: armes\nname: sources.categories.armes.name\nicon: DIAMOND_SWORD\ndiscount: 0\nitems: []\n",
+        [`${base}/lang/fr.yaml`]: "sources.categories.armes.name: Armes\n",
+      }),
+    });
+
+    registerConn("conn-add-dt", () => {});
+    connToServerId.set("conn-add-dt", keyId);
+    try {
+      const res = await handlePluginMessage("conn-add-dt", JSON.stringify({
+        type: "boutique_additem", request_id: "r9",
+        item_id: "cle_luxury", price: 500, category: "armes",
+        stack_yaml: "item:\n  ==: org.bukkit.inventory.ItemStack\n  type: PAPER\n",
+        display: { material: "nexo:arcanist_key", name: "1 clé Luxury" },
+      }));
+      const reply = JSON.parse(res.reply!);
+      expect(reply.ok).toBe(true);
+
+      const project = await getProject("boutique_shop2");
+      const files = JSON.parse(project!.filesJson) as Record<string, string>;
+      const { parse: parseYaml } = await import("yaml");
+      const row = parseYaml(files[`${base}/data/categories/armes.yaml`]!) as {
+        items: { id: string; name: string; icon: string; price: number }[];
+      };
+      expect(row.items).toHaveLength(1);
+      expect(row.items[0]!.id).toBe("cle_luxury");
+      // Name is an ltext KEY (key-site convention), minted into lang/fr.yaml.
+      expect(row.items[0]!.name).toBe("sources.categories.armes.items.name");
+      expect(row.items[0]!.icon).toMatch(/^item:ci_/);
+      const fr = parseYaml(files[`${base}/lang/fr.yaml`]!) as Record<string, string>;
+      expect(fr["sources.categories.armes.items.name"]).toBe("1 clé Luxury");
+      // Legacy shop.yaml was NOT created.
+      expect(files[`${base}/boutique/shop.yaml`]).toBeUndefined();
+    } finally {
+      connToServerId.delete("conn-add-dt");
+      connSenders.delete("conn-add-dt");
+    }
+  });
+
   test("replies no_boutique_project when no project on the key holds boutique data", async () => {
     const { id: keyId } = await seedServerKey();
     registerConn("conn-add2", () => {});

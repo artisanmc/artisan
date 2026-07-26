@@ -9,6 +9,11 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Changed — composable Data models, slice 4: la Boutique adopte les models déclarés (ADR §8)
+- Le catalogue boutique n'est plus `boutique/shop.yaml` : c'est la Table `data/categories/` (granularité `row`, model déclaré `boutique:category` master-detail + items `boutique:item`, textes = clés ltext dans `lang/`) + le Config `data/shop_settings.yaml`. L'Add-on déclare ses models via `ArtisanAPI.models.declare(...)` à l'`onEnable` ; un migrator one-shot convertit un `shop.yaml` pré-existant au boot (archivé hors project) et le reader legacy couvre l'intervalle.
+- `/boutiqueadmin additem` (backend) détecte le format cible : sur une Table déclarée il upserte la row de catégorie (création avec clé `sources.categories.<cat>.name` si absente) et l'item (clé de nom mintée par position, icône `item:<ci>` capturée, `lang/<default_lang>.yaml` réécrit) ; le chemin `shop.yaml` reste en fallback pré-migration.
+- L'écran boutique de l'éditeur renvoie vers le form généré (source « Catégories », onglet Sources) quand le project est migré ; le form bespoke ne sert plus que le legacy.
+
 ### Added — composable Data models, slice 3: form generator hints, asymmetric validation, master-detail, `conditions` kind (ADR §6/§7)
 - Model fields carry the closed presentation-hint set (`label`, `help`, `section`) and validation vocabulary (`required`, `default`, `min`/`max`, `pattern`, `locked`) — part of the model declaration, invisible to the runtime. The generated form applies them: labels/tooltips/section headers everywhere (table headers, object/config forms, union variant forms), `default` prefills fresh instances (and doubles as the migration `set_default` value), min/max clamp at commit, enum stays a closed select, `locked` renders read-only. Enforcement is **asymmetric**: a hand-edited value that violates a rule is *surfaced* (`aria-invalid`), never rewritten.
 - `master_detail` model hint: the Table renders as a row list beside the selected row's full form (the boutique catalog pattern) instead of the spreadsheet.

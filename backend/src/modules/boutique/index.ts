@@ -108,38 +108,12 @@ function parseShopYaml(raw: string | undefined): {
   }
 }
 
-export async function applyBoutiqueAdditem(
-  serverKeyId: string,
+/** Captured-item files + `.artisan/editor.yaml` items metadata (shared by both formats). */
+function writeCapturedItem(
+  files: Record<string, string>,
+  base: string,
   payload: BoutiqueAdditemPayload,
-): Promise<BoutiqueAdditemResult> {
-  if (!payload.item_id || !Number.isFinite(payload.price) || !payload.stack_yaml) {
-    return { ok: false, error: "invalid_input" };
-  }
-
-  // The project that owns the boutique data on this server key — files-first:
-  // recognized by its `boutique/` dir in the stored file tree.
-  const rows = await db
-    .select()
-    .from(projects)
-    .where(and(eq(projects.serverKeyId, serverKeyId), isNull(projects.deletedAt)));
-  let target: (typeof rows)[number] | undefined;
-  let files: Record<string, string> = {};
-  for (const row of rows) {
-    const parsed = (() => {
-      try { return JSON.parse(row.filesJson) as Record<string, string>; } catch { return null; }
-    })();
-    if (parsed && `plugins/Artisan/projects/${row.id}/boutique/shop.yaml` in parsed) {
-      target = row;
-      files = parsed;
-      break;
-    }
-  }
-  if (!target) return { ok: false, error: "no_boutique_project" };
-  const base = `plugins/Artisan/projects/${target.id}`;
-
-  // 1. Captured item (project entity behind the `item:<id>` icon ref): the
-  //    verbatim stack file + its editor metadata (name/display) in the
-  //    hash-excluded `.artisan/editor.yaml` `items:` section.
+): string {
   const ciId = `ci_${crypto.randomUUID().replaceAll("-", "").slice(0, 10)}`;
   const display: Record<string, unknown> = {};
   if (payload.display.material) display.material = payload.display.material;
@@ -157,6 +131,169 @@ export async function applyBoutiqueAdditem(
   const itemsMeta = (editorState.items ??= {}) as Record<string, unknown>;
   itemsMeta[ciId] = { name: payload.display.name ?? payload.item_id, display };
   files[editorStatePath] = stringify(editorState, { lineWidth: 0 });
+  return ciId;
+}
+
+/** Persist the mutated tree + commit on main (shared by both formats). */
+async function persistAndCommit(
+  target: { id: string },
+  files: Record<string, string>,
+  itemId: string,
+): Promise<BoutiqueAdditemResult> {
+  const hash = await computeBundleHash(files, target.id);
+  await upsertProjectContent(target.id, { hash, filesJson: JSON.stringify(files) });
+  const branch = await getBranch(target.id, "main");
+  let contentHash = hash;
+  if (branch) {
+    const commit = await createCommit({
+      projectId: target.id,
+      parentId: branch.headCommitId,
+      files,
+      authorUserId: null,
+      message: `additem ${itemId} (/boutique additem)`,
+    });
+    await advanceBranchHead(target.id, "main", commit.id);
+    contentHash = commit.contentHash;
+  }
+  return { ok: true, projectId: target.id, contentHash };
+}
+
+/**
+ * Upsert into the declared-model Table (ADR composable-data-models §8):
+ * `data/categories/<cat>.yaml` rows carry ltext KEYS for name — the literal is
+ * minted into `lang/<defaultLang>.yaml` following the key-site convention.
+ */
+async function applyToDeclaredTable(
+  target: { id: string },
+  files: Record<string, string>,
+  base: string,
+  payload: BoutiqueAdditemPayload,
+): Promise<BoutiqueAdditemResult> {
+  const ciId = writeCapturedItem(files, base, payload);
+
+  const metaPath = `${base}/data/categories/_source.yaml`;
+  const meta = (() => {
+    try { return (parse(files[metaPath] ?? "") as Record<string, unknown>) ?? {}; }
+    catch { return {} as Record<string, unknown>; }
+  })();
+  const order: string[] = Array.isArray(meta.order) ? meta.order.map(String) : [];
+
+  // Default lang + its translation map (for name-based category matching and
+  // for minting the new item's name literal).
+  const manifest = (() => {
+    try { return (parse(files[`${base}/manifest.yaml`] ?? "") as Record<string, unknown>) ?? {}; }
+    catch { return {} as Record<string, unknown>; }
+  })();
+  const lang = typeof manifest.default_lang === "string" && manifest.default_lang ? manifest.default_lang : "fr";
+  const langPath = `${base}/lang/${lang}.yaml`;
+  const translations = (() => {
+    try { return (parse(files[langPath] ?? "") as Record<string, unknown>) ?? {}; }
+    catch { return {} as Record<string, unknown>; }
+  })();
+
+  // Find the target category row file: by id, else by resolved name.
+  const wanted = payload.category?.trim().toLowerCase();
+  let rowKey: string | undefined;
+  let row: Record<string, unknown> | undefined;
+  for (const key of order) {
+    const parsed = (() => {
+      try { return (parse(files[`${base}/data/categories/${key}.yaml`] ?? "") as Record<string, unknown>) ?? null; }
+      catch { return null; }
+    })();
+    if (!parsed) continue;
+    const resolvedName = String(translations[String(parsed.name)] ?? "").toLowerCase();
+    if (!wanted || String(parsed.id).toLowerCase() === wanted || resolvedName === wanted) {
+      rowKey = key;
+      row = parsed;
+      break;
+    }
+  }
+  if (!row || !rowKey) {
+    // New category (or empty table): create the row + its name key.
+    rowKey = (wanted || "divers").replace(/[^a-z0-9_-]+/g, "_");
+    const nameKey = `sources.categories.${rowKey}.name`;
+    translations[nameKey] = payload.category?.trim() || "Divers";
+    row = { id: rowKey, name: nameKey, icon: "CHEST", discount: 0, items: [] };
+    if (!order.includes(rowKey)) order.push(rowKey);
+    meta.order = order;
+    files[metaPath] = stringify(meta, { lineWidth: 0 });
+  }
+
+  const items: Record<string, unknown>[] = Array.isArray(row.items)
+    ? (row.items as Record<string, unknown>[])
+    : [];
+  row.items = items;
+  const existing = items.find((i) => i.id === payload.item_id);
+  if (existing) {
+    if (payload.display.name) translations[String(existing.name)] = payload.display.name;
+    existing.icon = `item:${ciId}`;
+    existing.price = payload.price;
+  } else {
+    // Key-site convention: items / items_2 / items_3 … by position.
+    const idx = items.length;
+    const itemBase = `sources.categories.${rowKey}.items${idx === 0 ? "" : `_${idx + 1}`}`;
+    translations[`${itemBase}.name`] = payload.display.name ?? payload.item_id;
+    items.push({
+      id: payload.item_id,
+      name: `${itemBase}.name`,
+      icon: `item:${ciId}`,
+      price: payload.price,
+      discount: 0,
+      lore: [],
+      actions: "",
+    });
+  }
+  files[`${base}/data/categories/${rowKey}.yaml`] = stringify(row, { lineWidth: 0 });
+  files[langPath] = stringify(translations, { lineWidth: 0 });
+
+  return persistAndCommit(target, files, payload.item_id);
+}
+
+export async function applyBoutiqueAdditem(
+  serverKeyId: string,
+  payload: BoutiqueAdditemPayload,
+): Promise<BoutiqueAdditemResult> {
+  if (!payload.item_id || !Number.isFinite(payload.price) || !payload.stack_yaml) {
+    return { ok: false, error: "invalid_input" };
+  }
+
+  // The project that owns the boutique data on this server key — files-first:
+  // recognized by the declared-model Table (data/categories/, the migrated /
+  // bootstrapped format, ADR composable-data-models §8) or the legacy
+  // boutique/shop.yaml during the transition.
+  const rows = await db
+    .select()
+    .from(projects)
+    .where(and(eq(projects.serverKeyId, serverKeyId), isNull(projects.deletedAt)));
+  let target: (typeof rows)[number] | undefined;
+  let files: Record<string, string> = {};
+  let declaredTable = false;
+  for (const row of rows) {
+    const parsed = (() => {
+      try { return JSON.parse(row.filesJson) as Record<string, string>; } catch { return null; }
+    })();
+    if (!parsed) continue;
+    const p = `plugins/Artisan/projects/${row.id}`;
+    if (`${p}/data/categories/_source.yaml` in parsed) {
+      target = row;
+      files = parsed;
+      declaredTable = true;
+      break;
+    }
+    if (`${p}/boutique/shop.yaml` in parsed) {
+      target = row;
+      files = parsed;
+      break;
+    }
+  }
+  if (!target) return { ok: false, error: "no_boutique_project" };
+  const base = `plugins/Artisan/projects/${target.id}`;
+  if (declaredTable) {
+    return applyToDeclaredTable(target, files, base, payload);
+  }
+
+  // 1. Captured item (project entity behind the `item:<id>` icon ref).
+  const ciId = writeCapturedItem(files, base, payload);
 
   // 2. Shop item, upserted by id in the target category.
   const shop = parseShopYaml(files[`${base}/boutique/shop.yaml`]);
@@ -187,25 +324,6 @@ export async function applyBoutiqueAdditem(
   }
   files[`${base}/boutique/shop.yaml`] = serializeShopYaml(shop);
 
-  const hash = await computeBundleHash(files, target.id);
-
   // 3. Persist (version bump → concurrent editors hit the conflict guard) + commit.
-  await upsertProjectContent(target.id, {
-    hash,
-    filesJson: JSON.stringify(files),
-  });
-  const branch = await getBranch(target.id, "main");
-  let contentHash = hash;
-  if (branch) {
-    const commit = await createCommit({
-      projectId: target.id,
-      parentId: branch.headCommitId,
-      files,
-      authorUserId: null,
-      message: `additem ${payload.item_id} (/boutique additem)`,
-    });
-    await advanceBranchHead(target.id, "main", commit.id);
-    contentHash = commit.contentHash;
-  }
-  return { ok: true, projectId: target.id, contentHash };
+  return persistAndCommit(target, files, payload.item_id);
 }
