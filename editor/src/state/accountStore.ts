@@ -2586,7 +2586,10 @@ export const useAccountStore = create<AccountState>()(
           produce((draft: AccountState) => {
             const pack = draft.account.projects.find((p) => p.id === pId);
             const menu = pack?.menus.find((m) => m.id === mId);
-            const input = menu?.contextInputs?.find((c) => c.kind === "sourceRef" && c.name === inputName);
+            // `inputName` may be a DOTTED PATH into an object param (e.g.
+            // `category.items`) — the guard checks the ROOT input exists.
+            const rootName = inputName.split(".")[0]!;
+            const input = menu?.contextInputs?.find((c) => c.name === rootName);
             if (!pack || !menu || !input) return;
             const consumed = menu.layers
               .flatMap((l) => l.elements)
