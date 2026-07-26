@@ -1077,7 +1077,7 @@ describe("boutique_additem", () => {
     }
   });
 
-  test("declared-model Table format: upserts the item row + mints its name key (ADR §8)", async () => {
+  test("declared-model Table format: upserts the item row with LITERAL name (bare form)", async () => {
     const { id: keyId, networkId } = await seedServerKey();
     const base = "plugins/Artisan/projects/boutique_shop2";
     await createProject({ networkId, serverKeyId: keyId, name: "boutique_shop2", id: "boutique_shop2" });
@@ -1113,11 +1113,12 @@ describe("boutique_additem", () => {
       };
       expect(row.items).toHaveLength(1);
       expect(row.items[0]!.id).toBe("cle_luxury");
-      // Name is an ltext KEY (key-site convention), minted into lang/fr.yaml.
-      expect(row.items[0]!.name).toBe("sources.categories.armes.items.name");
+      // Bare form (ADR bare-data-files ④): the name is the literal text —
+      // no key minted, lang/ untouched.
+      expect(row.items[0]!.name).toBe("1 clé Luxury");
       expect(row.items[0]!.icon).toMatch(/^item:ci_/);
       const fr = parseYaml(files[`${base}/lang/fr.yaml`]!) as Record<string, string>;
-      expect(fr["sources.categories.armes.items.name"]).toBe("1 clé Luxury");
+      expect(fr["sources.categories.armes.items.name"]).toBeUndefined();
       // Legacy shop.yaml was NOT created.
       expect(files[`${base}/boutique/shop.yaml`]).toBeUndefined();
     } finally {
