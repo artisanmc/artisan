@@ -12,7 +12,8 @@ export const PLACEMENT_ROW_DRAG_PREFIX = "row:";
 
 /** `data.current` shape carried by a palette-row draggable. */
 export interface PlacementRowDragData {
-  placementRow: { menuId: string; elementId: string; key: string };
+  /** `material` = resolved preview material — feeds the shared drag overlay. */
+  placementRow: { menuId: string; elementId: string; key: string; material?: string };
 }
 
 /** @dnd-kit id prefixes for library Item-template draggables (row / group / whole-set block). */
