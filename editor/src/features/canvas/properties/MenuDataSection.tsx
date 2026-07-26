@@ -52,7 +52,78 @@ export function MenuDataSection({ projectId, menu }: { projectId: ProjectId; men
       {sourceInputs.map((input) => (
         <MenuSourceCard key={`${input.name}:${input.ref}`} projectId={projectId} menu={menu} input={input} />
       ))}
+      <NestedListCards projectId={projectId} menu={menu} />
     </div>
+  );
+}
+
+/**
+ * Lists nested inside OBJECT params (e.g. `category.items` when the menu
+ * receives a `category` row) are menu data too — one card each, with the same
+ * Set d'items block. Field schema resolves from the object's `rowOf` source:
+ * pack model when local, else the SIBLING server source named after the list
+ * field (`boutique:categories` + `items` -> `boutique:items`).
+ */
+function NestedListCards({ projectId, menu }: { projectId: ProjectId; menu: Menu }) {
+  const pack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  const serverSources = useServerDataSourcesStore((s) => s.sources);
+  if (!pack) return null;
+  const objectInputs = (menu.contextInputs ?? []).filter(
+    (i): i is Extract<ContextInput, { kind: "primitive" }> =>
+      i.kind === "primitive" && i.type === "object" && !!i.rowOf,
+  );
+  const lists = objectInputs.flatMap((input) => {
+    const ref = String(input.rowOf);
+    if (ref.startsWith("pack:")) {
+      const ds = pack.dataSources?.find((d) => `pack:${d.id}` === ref);
+      const model =
+        ds?.shape === "table" ? (pack.dataModels ?? []).find((m) => m.id === ds.modelId) : undefined;
+      return (model?.fields ?? [])
+        .filter((f) => f.type.kind === "list")
+        .map((f) => {
+          const of = (f.type as Extract<typeof f.type, { kind: "list" }>).of;
+          const elModel =
+            of.kind === "model" ? (pack.dataModels ?? []).find((m) => m.id === of.ref) : undefined;
+          const fields = elModel?.fields ?? (of.kind === "object" ? of.fields : []);
+          return {
+            path: `${input.name}.${f.name}`,
+            schema: fields.map((x) => ({ name: x.name })),
+            keyField: elModel?.keyField ?? "id",
+          };
+        });
+    }
+    const src = serverSources.find((s) => s.ref === ref);
+    const ns = ref.split(":")[0];
+    return (src?.schema ?? [])
+      .filter((f) => f.type === "list")
+      .map((f) => {
+        const sibling = serverSources.find((s) => s.ref === `${ns}:${f.name}`);
+        return {
+          path: `${input.name}.${f.name}`,
+          schema: (sibling?.schema ?? []).map((x) => ({ name: x.name })),
+          keyField: sibling?.keyField ?? "id",
+        };
+      });
+  });
+  if (lists.length === 0) return null;
+  return (
+    <>
+      {lists.map((l) => (
+        <div
+          key={l.path}
+          className="flex flex-col gap-1.5 rounded border border-[var(--border-soft)] bg-[var(--surface-raised)]/40 p-1.5"
+        >
+          <span className="truncate font-mono text-xs">{l.path}</span>
+          <MenuSetBlockCore
+            projectId={projectId}
+            menu={menu}
+            listName={l.path}
+            schema={l.schema}
+            keyField={l.keyField}
+          />
+        </div>
+      ))}
+    </>
   );
 }
 
@@ -97,13 +168,9 @@ function MenuSetBlock({
   menu: Menu;
   input: SourceRefInput;
 }) {
-  const { t } = useTranslation();
-  const createMenuSet = useAccountStore((s) => s.createMenuSet);
-  const deleteElement = useAccountStore((s) => s.deleteElement);
   const pack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
   const serverSource = useServerDataSourcesStore((s) => s.sources.find((x) => x.ref === input.ref));
   if (!pack) return null;
-  const el = findSetElement(menu, input.name);
 
   // Schema + Row key: pack: sources from the project, server sources from presence.
   const packDs = input.ref.startsWith("pack:")
@@ -115,16 +182,42 @@ function MenuSetBlock({
     ? (packDs.shape === "table" ? (packModel?.fields ?? []) : packDs.fields).map((f) => ({ name: f.name }))
     : (serverSource?.schema ?? []).map((f) => ({ name: f.name }));
   const keyField = packModel?.keyField ?? serverSource?.keyField ?? "id";
+  return (
+    <MenuSetBlockCore projectId={projectId} menu={menu} listName={input.name} schema={schema} keyField={keyField} />
+  );
+}
+
+/** The Set d'items block for ONE menu list — `listName` may be a plain input
+ *  name or a dotted path into an object param (`category.items`). */
+function MenuSetBlockCore({
+  projectId,
+  menu,
+  listName,
+  schema,
+  keyField,
+}: {
+  projectId: ProjectId;
+  menu: Menu;
+  listName: string;
+  schema: { name: string }[];
+  keyField: string;
+}) {
+  const { t } = useTranslation();
+  const createMenuSet = useAccountStore((s) => s.createMenuSet);
+  const deleteElement = useAccountStore((s) => s.deleteElement);
+  const pack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  if (!pack) return null;
+  const el = findSetElement(menu, listName);
 
   if (!el) {
     return (
-      <div className="flex items-center gap-1.5" data-testid={`menu-set-${input.name}`}>
+      <div className="flex items-center gap-1.5" data-testid={`menu-set-${listName}`}>
         <span className="text-[10px] text-[var(--text-mut)]">{t("menuProperties.setPlaceLead")}</span>
         <Button
           variant="secondary"
           size="sm"
           onClick={() =>
-            createMenuSet({ projectId, menuId: menu.id, inputName: input.name, mode: "places", keyField, schema })
+            createMenuSet({ projectId, menuId: menu.id, inputName: listName, mode: "places", keyField, schema })
           }
         >
           {t("menuProperties.setCreatePlace")}
@@ -133,7 +226,7 @@ function MenuSetBlock({
           variant="secondary"
           size="sm"
           onClick={() =>
-            createMenuSet({ projectId, menuId: menu.id, inputName: input.name, mode: "iterates", keyField, schema })
+            createMenuSet({ projectId, menuId: menu.id, inputName: listName, mode: "iterates", keyField, schema })
           }
         >
           {t("menuProperties.setCreatePaginate")}
@@ -150,7 +243,7 @@ function MenuSetBlock({
   };
   if (el.iterates) {
     return (
-      <div className="flex items-center gap-1.5" data-testid={`menu-set-${input.name}`}>
+      <div className="flex items-center gap-1.5" data-testid={`menu-set-${listName}`}>
         <span className="text-[10px] text-[var(--text-mut)]">
           {t("menuProperties.setPaginated", { positions: el.positions || "—" })}
         </span>

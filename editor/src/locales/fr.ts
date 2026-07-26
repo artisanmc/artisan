@@ -299,6 +299,7 @@ const fr: typeof en = {
     positionsLabelOther: "positions ({{count}} slots)",
     iteration: "itération",
     iterationEnable: "+ Itérer sur une liste de contexte",
+    iterationViaMenuData: "Les sets d'items se créent dans « Données du menu » (panneau du menu).",
     iterationDisable: "Arrêter l'itération",
     iterationForEach: "pour chaque",
     iterationIn: "dans",
