@@ -291,6 +291,7 @@ export default {
     positionsLabelOther: "positions ({{count}} slots)",
     iteration: "iteration",
     iterationEnable: "+ Iterate over context list",
+    iterationViaMenuData: "Item sets are created in \"Menu data\" (menu panel).",
     iterationDisable: "Stop iterating",
     iterationForEach: "for each",
     iterationIn: "in",

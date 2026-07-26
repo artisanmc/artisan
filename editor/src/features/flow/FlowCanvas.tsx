@@ -321,15 +321,6 @@ function IterationField({
     });
     if (!res.ok) toast.error(t("flow.iterationSetConflict", { name: res.conflictName }));
   };
-  const enableManual = () => {
-    const firstSourceRef = (menu.contextInputs ?? []).find((c) => c.kind === "sourceRef");
-    setElementIterates({
-      projectId,
-      menuId: menu.id,
-      elementId: element.id,
-      iterates: { source: firstSourceRef?.name ?? "", alias: "item" },
-    });
-  };
   const disable = () => {
     setElementIterates({ projectId, menuId: menu.id, elementId: element.id, iterates: undefined });
   };
@@ -375,14 +366,9 @@ function IterationField({
             {setPicker("")}
           </div>
         ) : null}
-        <button
-          type="button"
-          onClick={enableManual}
-          className="self-start rounded border border-[var(--border)] border-dashed px-2 py-1 text-[10px] text-[var(--text-faint)] hover:border-[var(--border-strong)] hover:text-[var(--text)]"
-          title={t("flow.iterateBindHint")}
-        >
-          {templates.length > 0 ? t("flow.iterationEnableManual") : t("flow.iterationEnable")}
-        </button>
+        {/* Manual iteration moved to the MENU level (Données du menu — Set
+            d'items, incl. nested context lists like category.items). */}
+        <span className="text-[10px] text-[var(--text-faint)]">{t("flow.iterationViaMenuData")}</span>
       </div>
     );
   }
