@@ -4,7 +4,7 @@ import { ensureAssets, assetsDone } from "../lib/mcAssets";
 import { networks, projectBranches, projectCommits, projects, serverKeyHelloes, serverKeys, serverModules, serverDataSources, serverDeclaredModels } from "../db/schema";
 import { createProject, getProject, upsertProjectContent } from "../lib/projectStorage";
 import { getBranch, advanceBranchHead } from "../lib/branchStorage";
-import { createCommit } from "../lib/commitStorage";
+import { createCommit, computeContentHash } from "../lib/commitStorage";
 import { computeAllPacksHash } from "../lib/hashUtils";
 import { customItemsCacheDir, readCustomItemsHash, processBundle } from "../lib/customItems";
 import { applyBoutiqueAdditem, type BoutiqueAdditemPayload } from "../modules/boutique/index";
@@ -405,11 +405,17 @@ export async function handlePluginMessage(
         eq(projectBranches.projectId, b.projectId), eq(projectBranches.name, b.branchName),
       ));
       if (branch.length === 0) continue;
-      const cmt = await db.select({ contentHash: projectCommits.contentHash })
+      const cmt = await db.select({ filesJson: projectCommits.filesJson })
         .from(projectCommits)
         .where(eq(projectCommits.id, branch[0].headCommitId));
       if (cmt.length === 0) continue;
-      projectHashesMap[b.projectId] = cmt[0].contentHash;
+      // Recompute canonically from the head's files rather than trusting the
+      // stored contentHash: commits created before the canonicalization fix
+      // (full-path keys, `.artisan*` included) carry legacy hashes — this
+      // self-heals them without a backfill.
+      projectHashesMap[b.projectId] = computeContentHash(
+        JSON.parse(cmt[0].filesJson) as Record<string, string>, b.projectId,
+      );
     }
 
     // Create minimal stubs for projects the plugin has on disk but the backend doesn't know about.

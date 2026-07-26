@@ -350,7 +350,7 @@ describe("handlePluginMessage", () => {
 
     // project_hashes reflect the main branch head commit contentHash (not WIP projects.hash).
     // createProject auto-creates main branch with an initial empty-files commit.
-    const emptyHash = computeContentHash({});
+    const emptyHash = computeContentHash({}, "any");
 
     const connId = "conn-hashes";
     registerConn(connId, () => {});
@@ -428,7 +428,7 @@ describe("handlePluginMessage", () => {
     await seedBoundPack(networkId, keyId, "dead", "hd", {}, true);
 
     // project_hashes uses branch head commit contentHash. Both projects start with empty-files initial commit.
-    const emptyHash = computeContentHash({});
+    const emptyHash = computeContentHash({}, "any");
 
     const connId = "conn-deleted";
     registerConn(connId, () => {});

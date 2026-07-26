@@ -26,8 +26,8 @@ async function seedSetup() {
 describe("commitStorage", () => {
   it("computeContentHash is deterministic across calls", () => {
     const files = { "a.yaml": "x", "b.yaml": "y" };
-    const h1 = computeContentHash(files);
-    const h2 = computeContentHash({ "b.yaml": "y", "a.yaml": "x" });  // different key order
+    const h1 = computeContentHash(files, "p1");
+    const h2 = computeContentHash({ "b.yaml": "y", "a.yaml": "x" }, "p1");  // different key order
     expect(h1).toBe(h2);
     expect(h1).toMatch(/^[0-9a-f]{64}$/);
   });
@@ -35,7 +35,37 @@ describe("commitStorage", () => {
   it("computeContentHash returns '' for empty files (empty-content sentinel)", () => {
     // Invariant: "" = no content, consistent with BundleHasher/computeBundleHash.
     // The plugin's auto-push relies on an empty backend project hashing to "".
-    expect(computeContentHash({})).toBe("");
+    expect(computeContentHash({}, "p1")).toBe("");
+  });
+
+  it("computeContentHash matches the canonical pack hash (single house hash — CLAUDE.md invariant)", async () => {
+    // The commit contentHash IS the same canonical hash the plugin (BundleHasher)
+    // and computeBundleHash produce: relPath-keyed, byte-order sorted, `.artisan*`
+    // first-segment excluded. Divergence here made hello_ack.project_hashes never
+    // match the plugin's disk hash — detectSyncAction could never see LOCAL_ONLY.
+    const { readFileSync, existsSync } = await import("node:fs");
+    const { join, dirname } = await import("node:path");
+    let dir = process.cwd();
+    while (!existsSync(join(dir, "testdata", "pack-hash-conformance.json"))) {
+      const parent = dirname(dir);
+      if (parent === dir) throw new Error("conformance fixture not found");
+      dir = parent;
+    }
+    const vector = JSON.parse(readFileSync(join(dir, "testdata", "pack-hash-conformance.json"), "utf8"));
+    // Keys as stored in a commit's filesJson (full plugin-disk paths).
+    const prefixed: Record<string, string> = {};
+    for (const [k, v] of Object.entries(vector.files as Record<string, string>)) {
+      prefixed[`plugins/Artisan/projects/${vector.packId}/${k}`] = v;
+    }
+    expect(computeContentHash(prefixed, vector.packId)).toBe(vector.expectedHash);
+    // Already-relative keys hash identically (tolerated input shape).
+    expect(computeContentHash(vector.files, vector.packId)).toBe(vector.expectedHash);
+  });
+
+  it("computeContentHash excludes .artisan* metadata (hash-exclusion invariant)", () => {
+    const base = { "manifest.yaml": "id: p\n" };
+    const withMeta = { ...base, ".artisan-sync.yaml": "x\n", ".artisan/editor.yaml": "y\n" };
+    expect(computeContentHash(withMeta, "p1")).toBe(computeContentHash(base, "p1"));
   });
 
   it("createCommit inserts with cmt_ id and computed contentHash", async () => {

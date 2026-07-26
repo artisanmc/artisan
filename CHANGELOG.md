@@ -9,6 +9,9 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Fixed — le contentHash des commits rejoint le hash canonique unique (auto-push réparé)
+- `commitStorage.computeContentHash` hashait les clés complètes (`plugins/Artisan/projects/<id>/…`) en incluant `.artisan*`, alors que le plugin (`BundleHasher`) et `computeBundleHash` hashent des relPaths en excluant `.artisan*` : `hello_ack.project_hashes` ne matchait donc jamais le hash disque du plugin — `detectSyncAction` ne pouvait jamais classer IN_SYNC/LOCAL_ONLY et l'auto-push files-first était inopérant en conditions réelles. Le contentHash utilise désormais la canonicalisation maison (vecteur de conformance asservi) et le `hello_ack` recalcule depuis le filesJson du head pour self-heal les commits legacy sans backfill.
+
 ### Fixed — `bundle_available` ne peut plus écraser des changements disque locaux
 - Le handler `bundle_available` du plugin passe désormais le même gate `detectSyncAction` que le check du `hello_ack` avant de télécharger : LOCAL_ONLY → auto-push au lieu du download, CONFLICT → `sync_divergence`. Régression réelle : un project migré sur disque au boot (migrator one-shot boutique) était balayé par le `bundle_available` de connexion. Le backend n'outrepasse le gate qu'avec `force: true`, émis uniquement par `resolve-divergence` (l'arbre mergé est l'intention explicite).
 
