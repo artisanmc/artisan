@@ -407,6 +407,39 @@ class SyncedMenuProvider(
             "bundle_available" -> {
                 val projectId = node["project_id"]?.asText() ?: return
                 val url    = node["url"]?.asText()     ?: return
+                // Same gate as hello_ack (ADR files-first #6): never overwrite
+                // local-only disk changes. `force: true` (divergence resolution,
+                // manual pushLocal) bypasses — the merged tree IS the intent.
+                if (node["force"]?.asBoolean() != true) {
+                    val bundleHash = node["hash"]?.asText() ?: ""
+                    val projectDir = roots.dirFor(projectId)
+                    if (projectDir.exists()) {
+                        val diskHash = BundleHasher.hash(projectDir)
+                        val meta = SyncMetadata.read(projectDir)
+                        when (detectSyncAction(diskHash, meta.syncedHash, bundleHash)) {
+                            SyncAction.IN_SYNC -> { /* echo of our own state — still download to refresh SyncMetadata */ }
+                            SyncAction.AUTO_SYNC -> {}
+                            SyncAction.LOCAL_ONLY -> {
+                                logger?.warning(
+                                    "[Artisan] bundle_available for '$projectId' ignored — disk has local-only changes; auto-pushing instead."
+                                )
+                                httpClient.dispatcher.executorService.execute {
+                                    pushLocalProject(projectId, projectDir)
+                                }
+                                return
+                            }
+                            SyncAction.CONFLICT -> {
+                                logger?.warning(
+                                    "[Artisan] bundle_available for '$projectId' ignored — disk and backend both changed; divergence reported."
+                                )
+                                httpClient.dispatcher.executorService.execute {
+                                    send(LocalPushSender.buildDivergenceMessage(projectId, projectDir, meta.syncedHash))
+                                }
+                                return
+                            }
+                        }
+                    }
+                }
                 if (downloadsInFlight.putIfAbsent(projectId, true) != null) return
                 try {
                     httpClient.dispatcher.executorService.execute {
