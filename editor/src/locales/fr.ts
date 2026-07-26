@@ -199,6 +199,13 @@ const fr: typeof en = {
     menuData: "Données du menu",
     menuDataNoFilters: "Aucun filtre — source complète.",
     menuDataLocalHint: "Données du projet — voir l'onglet Data.",
+    setNone: "Aucun set d'items pour cette liste.",
+    setCreatePaginate: "Paginer",
+    setCreatePlace: "Placer 1 à 1",
+    setPaginated: "Paginé — slots {{positions}}.",
+    setPlacedCount: "{{count}} placé(s).",
+    setPanelHint: "Glisse un item sur un slot du menu. Change de contexte dans « Aperçu comme… » pour placer les autres.",
+    setNoRows: "Aucune donnée à placer dans le contexte d'aperçu courant.",
     testArgHint: "filtre sur {{token}} — valeur d'essai :",
   },
   actionEditor: {

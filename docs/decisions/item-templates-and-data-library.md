@@ -1,6 +1,15 @@
 # Item templates + data library authoring
 
 **Status:** accepted (2026-07-16)
+
+> **Révisé le 2026-07-26 (feedback utilisateur)** : le « set d'items » vit au
+> **niveau du menu**, pas des données. La création se fait depuis « Données du
+> menu » (`createMenuSet`) et produit un élément **auto-suffisant** (appearances
+> seedées, AUCUN Item template) ; le mode placement s'assiste du **contexte
+> d'aperçu** (panneau de rows contextuel — on navigue de catégorie en catégorie
+> et on place). La section « Sets d'items » du détail de source est supprimée ;
+> les Item templates restent un mécanisme optionnel de PARTAGE de rendu entre
+> menus (Library), plus jamais un prérequis ni un objet auto-créé.
 **Amends:** `data-source-stability-and-placement.md` (drops per-placement display
 overrides; moves template ownership off the Element)
 
