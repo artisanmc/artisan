@@ -200,6 +200,8 @@ const fr: typeof en = {
     menuDataNoFilters: "Aucun filtre — source complète.",
     menuDataLocalHint: "Données du projet — voir l'onglet Data.",
     setPlaceLead: "Placer :",
+    setDelete: "Supprimer le set",
+    setDeleteConfirm: "Supprimer ce set et ses {{count}} placement(s) ? Tu pourras recréer un set paginé ou placé.",
     setUnplaceHint: "Retirer « {{title}} » du menu (le set est conservé).",
     setCreatePaginate: "Paginer",
     setCreatePlace: "1 à 1",

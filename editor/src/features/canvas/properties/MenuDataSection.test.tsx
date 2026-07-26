@@ -88,6 +88,34 @@ describe("MenuDataSection", () => {
     expect(created!.appearances[0]).toBeDefined();
   });
 
+  it("deleting the set returns to the paginate/place choice", () => {
+    useAccountStore.setState((s) => ({
+      ...s,
+      account: {
+        ...s.account,
+        projects: [
+          {
+            id: "p1", name: "P", source: "user_created", createdAt: "", updatedAt: "",
+            defaultLang: "en", i18nKeys: {}, menus: [structuredClone(menu)],
+            commands: [], dialogs: [], dataSources: [], dataModels: [],
+            canvasLayout: {}, canvasEdges: {},
+          } as never,
+        ],
+      },
+    }));
+    const { rerender } = render(<MenuDataSection projectId={"p1" as never} menu={menu} />);
+    fireEvent.click(screen.getByText("Paginer"));
+    const menuAfter = () =>
+      useAccountStore.getState().account.projects.find((p) => p.id === ("p1" as never))!.menus[0]!;
+    rerender(<MenuDataSection projectId={"p1" as never} menu={menuAfter() as never} />);
+    fireEvent.click(screen.getByText(/Supprimer le set/));
+    expect(
+      menuAfter().layers.flatMap((l) => l.elements).find((e) => e.iterates?.source === "quests"),
+    ).toBeUndefined();
+    rerender(<MenuDataSection projectId={"p1" as never} menu={menuAfter() as never} />);
+    expect(screen.getByText("Paginer")).toBeInTheDocument();
+  });
+
   it("returns null when the menu consumes no source", () => {
     const { container } = render(<MenuDataSection projectId={"p1" as never} menu={{ ...menu, contextInputs: [] } as Menu} />);
     expect(container.firstChild).toBeNull();
