@@ -211,6 +211,12 @@ export function ProjectCanvasPage() {
       setActiveDragMaterial(material || "CHEST");
       return;
     }
+    if (id.startsWith(PLACEMENT_ROW_DRAG_PREFIX)) {
+      const material = (e.active.data.current as PlacementRowDragData | undefined)?.placementRow
+        ?.material;
+      setActiveDragMaterial(material || "CHEST");
+      return;
+    }
     if (id.startsWith(TEMPLATE_BLOCK_DRAG_PREFIX) || id.startsWith(TEMPLATE_GROUP_DRAG_PREFIX)) {
       setActiveDragMaterial("CHEST");
     }

@@ -1,19 +1,14 @@
 import { Badge } from "@/components/ui/badge";
-import { DataTable } from "@/components/ui/data-table";
-import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { resolveDisplayRef } from "@/domain/capturedItems";
 import type { ContextInput, Element, Menu, Project, ProjectId } from "@/domain/types";
-import { previewDataSource, type PreviewResult } from "@/lib/api/dataSources";
 import { getText } from "@/lib/i18n";
 import { lookupPath } from "@/lib/placeholders";
 import { useAccountStore } from "@/state/accountStore";
-import { useNetworksStore } from "@/state/networksStore";
 import { useServerDataSourcesStore } from "@/state/serverDataSourcesStore";
 import { useServerSnapshotsStore } from "@/state/serverSnapshotsStore";
-import { useServersStore } from "@/state/serversStore";
 import { useUiStore } from "@/state/uiStore";
 import { useDraggable } from "@dnd-kit/core";
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { headPreviewUrl } from "../headTexture";
 import { buildPreviewScope, renderPreview } from "../menuPreviewScope";
@@ -61,41 +56,9 @@ export function MenuDataSection({ projectId, menu }: { projectId: ProjectId; men
   );
 }
 
-type PreviewState = { kind: "idle" } | { kind: "loading" } | { kind: "done"; result: PreviewResult };
-
 function MenuSourceCard({ projectId, menu, input }: { projectId: ProjectId; menu: Menu; input: SourceRefInput }) {
   const { t } = useTranslation();
-  const networkId = useNetworksStore((s) => s.activeId);
-  const serverId = useServersStore((s) => s.activeServerId);
   const serverSource = useServerDataSourcesStore((s) => s.sources.find((x) => x.ref === input.ref));
-  const argTokens = extractArgTokens(input);
-  const [testArgs, setTestArgs] = useState<Record<string, string>>({});
-  const [preview, setPreview] = useState<PreviewState>({ kind: "idle" });
-  const isLocal = input.ref.startsWith("pack:");
-
-  const runPreview = async () => {
-    if (!networkId || !serverId) return;
-    setPreview({ kind: "loading" });
-    const result = await previewDataSource(networkId, serverId, {
-      ref: input.ref,
-      params: input.params,
-      filter: input.filter,
-      sort: input.sort,
-      limit: input.limit,
-      args: testArgs,
-    });
-    setPreview({ kind: "done", result });
-  };
-
-  const errorLabel = (error: string, message: string | null): string => {
-    switch (error) {
-      case "server_offline": return t("dataSources.errServerOffline");
-      case "fetch_timeout": return t("dataSources.errTimeout");
-      case "unknown_source": return t("dataSources.errUnknownSource");
-      case "player_required": return t("dataSources.errPlayerRequired");
-      default: return t("dataSources.errFetchError", { message: message ?? "?" });
-    }
-  };
 
   return (
     <div className="flex flex-col gap-1.5 rounded border border-[var(--border-soft)] bg-[var(--surface-raised)]/40 p-1.5">
@@ -105,51 +68,6 @@ function MenuSourceCard({ projectId, menu, input }: { projectId: ProjectId; menu
       </div>
       <div className="text-[10px] text-[var(--text-mut)]">{summarizeShaping(input, t)}</div>
       <MenuSetBlock projectId={projectId} menu={menu} input={input} />
-      {isLocal ? (
-        <div className="text-[10px] text-[var(--text-faint)]">{t("menuProperties.menuDataLocalHint")}</div>
-      ) : (
-        <>
-          {argTokens.length > 0 ? (
-            <div className="flex flex-col gap-1">
-              {argTokens.map((token) => (
-                <label key={token} className="flex items-center gap-1.5 text-[10px] text-[var(--text-mut)]">
-                  <span className="font-mono">{t("menuProperties.testArgHint", { token: `{${token}}` })}</span>
-                  <Input
-                    data-testid={`test-arg-${token}`}
-                    value={testArgs[token] ?? ""}
-                    onChange={(e) => setTestArgs((prev) => ({ ...prev, [token]: e.target.value }))}
-                    className="h-6 w-24! shrink-0 px-2 py-0 font-mono text-[10px]"
-                  />
-                </label>
-              ))}
-            </div>
-          ) : null}
-          <div>
-            <button
-              type="button"
-              data-testid="menu-data-preview"
-              disabled={preview.kind === "loading"}
-              onClick={runPreview}
-              className="rounded border border-[var(--brand)]/60 bg-[var(--brand-soft)] px-2 py-1 text-[10px] text-[var(--brand)] hover:bg-[var(--brand)]/20 disabled:opacity-50"
-            >
-              {preview.kind === "loading" ? t("dataSources.previewLoading") : t("dataSources.preview")}
-            </button>
-          </div>
-          {preview.kind === "done" && preview.result.ok ? (
-            <DataTable
-              rows={preview.result.rows}
-              truncated={preview.result.truncated}
-              truncatedLabel={t("dataSources.previewTruncated")}
-              emptyLabel={t("dataSources.previewEmpty")}
-            />
-          ) : null}
-          {preview.kind === "done" && !preview.result.ok ? (
-            <div className="rounded border border-[var(--warning)]/50 bg-[var(--warning-soft)] px-2 py-1 text-[10px] text-[var(--warning)]">
-              {errorLabel(preview.result.error, preview.result.message)}
-            </div>
-          ) : null}
-        </>
-      )}
     </div>
   );
 }
@@ -200,25 +118,25 @@ function MenuSetBlock({
   if (!el) {
     return (
       <div className="flex items-center gap-1.5" data-testid={`menu-set-${input.name}`}>
-        <span className="text-[10px] text-[var(--text-faint)]">{t("menuProperties.setNone")}</span>
-        <button
-          type="button"
-          className="btn-ghost h-6 rounded px-2 text-[10px]"
-          onClick={() =>
-            createMenuSet({ projectId, menuId: menu.id, inputName: input.name, mode: "iterates", keyField, schema })
-          }
-        >
-          {t("menuProperties.setCreatePaginate")}
-        </button>
-        <button
-          type="button"
-          className="btn-ghost h-6 rounded px-2 text-[10px]"
+        <span className="text-[10px] text-[var(--text-mut)]">{t("menuProperties.setPlaceLead")}</span>
+        <Button
+          variant="secondary"
+          size="sm"
           onClick={() =>
             createMenuSet({ projectId, menuId: menu.id, inputName: input.name, mode: "places", keyField, schema })
           }
         >
           {t("menuProperties.setCreatePlace")}
-        </button>
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() =>
+            createMenuSet({ projectId, menuId: menu.id, inputName: input.name, mode: "iterates", keyField, schema })
+          }
+        >
+          {t("menuProperties.setCreatePaginate")}
+        </Button>
       </div>
     );
   }
@@ -229,7 +147,7 @@ function MenuSetBlock({
       </div>
     );
   }
-  return <PlacementRowsPanel menu={menu} element={el} pack={pack} />;
+  return <PlacementRowsPanel projectId={projectId} menu={menu} element={el} pack={pack} />;
 }
 
 /**
@@ -239,10 +157,12 @@ function MenuSetBlock({
  * preview context ("Preview as…") reloads the list — place, switch, place.
  */
 function PlacementRowsPanel({
+  projectId,
   menu,
   element,
   pack,
 }: {
+  projectId: ProjectId;
   menu: Menu;
   element: Element;
   pack: Project;
@@ -270,6 +190,7 @@ function PlacementRowsPanel({
               return (
                 <PlaceableRowTile
                   key={key}
+                  projectId={projectId}
                   pack={pack}
                   menu={menu}
                   element={element}
@@ -290,8 +211,11 @@ function PlacementRowsPanel({
   );
 }
 
-/** One draggable row tile rendered through the element's own appearance. */
+/** One row tile rendered through the element's own appearance: draggable when
+ *  free, click-to-UNPLACE when already placed (removes just that placement,
+ *  never the set). */
 function PlaceableRowTile({
+  projectId,
   pack,
   menu,
   element,
@@ -300,6 +224,7 @@ function PlaceableRowTile({
   placed,
   activeLang,
 }: {
+  projectId: ProjectId;
   pack: Project;
   menu: Menu;
   element: Element;
@@ -308,6 +233,8 @@ function PlaceableRowTile({
   placed: boolean;
   activeLang: string;
 }) {
+  const { t } = useTranslation();
+  const removeElementPlacement = useAccountStore((s) => s.removeElementPlacement);
   const app = element.appearances[0];
   const alias = element.places?.alias ?? "item";
   const ctx = { [alias]: row };
@@ -319,13 +246,47 @@ function PlaceableRowTile({
   const materialUrl = useTextureUrl(material);
   const textureUrl = headPreviewUrl(display.head) ?? materialUrl;
   const data: PlacementRowDragData = {
-    placementRow: { menuId: menu.id, elementId: element.id, key: rowKey },
+    placementRow: { menuId: menu.id, elementId: element.id, key: rowKey, material },
   };
+  // Hook order: useDraggable runs unconditionally; listeners only bind when free.
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `${PLACEMENT_ROW_DRAG_PREFIX}${element.id}:${rowKey}`,
     data,
+    disabled: placed,
   });
 
+  const icon = textureUrl ? (
+    <img
+      src={textureUrl}
+      alt={title}
+      draggable={false}
+      className="h-3/4 w-3/4 object-contain"
+      style={{ imageRendering: "pixelated" }}
+    />
+  ) : (
+    <span className="px-0.5 text-[8px] text-[var(--text-mut)]">
+      {material.slice(0, 6) || rowKey.slice(0, 6)}
+    </span>
+  );
+
+  if (placed) {
+    return (
+      <button
+        type="button"
+        title={t("menuProperties.setUnplaceHint", { title })}
+        onClick={() =>
+          removeElementPlacement({ projectId, menuId: menu.id, elementId: element.id, key: rowKey })
+        }
+        className="group relative flex h-12 w-12 shrink-0 select-none items-center justify-center rounded-[8px] border border-[var(--border)] bg-[var(--surface-inset)] opacity-65 hover:border-rose-400/70 hover:opacity-90"
+      >
+        {icon}
+        <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--brand)] text-[9px] text-white group-hover:bg-rose-500">
+          <span className="group-hover:hidden">✓</span>
+          <span className="hidden group-hover:inline">✕</span>
+        </span>
+      </button>
+    );
+  }
   return (
     <button
       ref={setNodeRef}
@@ -334,26 +295,9 @@ function PlaceableRowTile({
       {...listeners}
       {...attributes}
       className="relative flex h-12 w-12 shrink-0 touch-none cursor-grab select-none items-center justify-center rounded-[8px] border border-[var(--border)] bg-[var(--surface-inset)] hover:border-[var(--border-strong)] active:cursor-grabbing"
-      style={{ opacity: isDragging ? 0.4 : placed ? 0.65 : 1 }}
+      style={{ opacity: isDragging ? 0.4 : 1 }}
     >
-      {textureUrl ? (
-        <img
-          src={textureUrl}
-          alt={title}
-          draggable={false}
-          className="h-3/4 w-3/4 object-contain"
-          style={{ imageRendering: "pixelated" }}
-        />
-      ) : (
-        <span className="px-0.5 text-[8px] text-[var(--text-mut)]">
-          {material.slice(0, 6) || rowKey.slice(0, 6)}
-        </span>
-      )}
-      {placed ? (
-        <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--brand)] text-[9px] text-white">
-          ✓
-        </span>
-      ) : null}
+      {icon}
     </button>
   );
 }

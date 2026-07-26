@@ -61,22 +61,6 @@ describe("MenuDataSection", () => {
     expect(screen.getByText(/group = \{group\}/)).toBeInTheDocument();
   });
 
-  it("previews with the menu's filters and the typed test-arg values", async () => {
-    previewDataSource.mockResolvedValue({ ok: true, rows: [{ id: "q1" }], truncated: false });
-    render(<MenuDataSection projectId={"p1" as never} menu={menu} />);
-    fireEvent.change(screen.getByTestId("test-arg-group"), { target: { value: "daily" } });
-    fireEvent.click(screen.getByTestId("menu-data-preview"));
-    await waitFor(() => expect(screen.getByText("q1")).toBeInTheDocument());
-    expect(previewDataSource).toHaveBeenCalledWith("n1", "sk1", {
-      ref: "quests:list",
-      params: undefined,
-      filter: { group: "{group}" },
-      sort: { by: "order", direction: "asc" },
-      limit: 10,
-      args: { group: "daily" },
-    });
-  });
-
   it("creates the menu-level item set from the list card (paginated)", () => {
     useAccountStore.setState((s) => ({
       ...s,
