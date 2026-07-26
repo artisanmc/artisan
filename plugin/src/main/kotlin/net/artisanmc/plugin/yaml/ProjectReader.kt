@@ -254,7 +254,7 @@ class ProjectReader(
         fun fieldsOf(doc: Map<String, Any?>?): List<DataFieldYaml>? {
             val raw = doc?.get("fields") as? List<*> ?: return null
             return runCatching {
-                raw.map { mapper.convertValue(it, DataFieldYaml::class.java) }
+                raw.map { mapper.convertValue(flattenField(it), DataFieldYaml::class.java) }
             }.getOrNull()
         }
         fun lookup(ref: String): Map<String, Any?>? =
@@ -265,6 +265,42 @@ class ProjectReader(
         fieldsOf(own)?.takeIf { it.isNotEmpty() }?.let { return it }
         val ref = own["model"] as? String ?: return emptyList()
         return fieldsOf(lookup(ref)) ?: emptyList()
+    }
+
+    /**
+     * model/v1 fields come in two shapes: FLATTENED (`{name, kind, of…}` —
+     * data/v1 inline vocabulary, add-on declarations) and the editor's
+     * VERBATIM form (`{name, type: {kind, of…}}`). Normalize to flattened so
+     * one DataFieldYaml binding reads both.
+     */
+    private fun flattenField(f: Any?): Any? {
+        if (f !is Map<*, *>) return f
+        val ty = f["type"] as? Map<*, *>
+        val m: MutableMap<Any?, Any?> = if (ty != null) {
+            flattenType(ty).also { it["name"] = f["name"] }
+        } else {
+            HashMap<Any?, Any?>(f).also { out ->
+                (f["of"] as? Map<*, *>)?.let { out["of"] = flattenField(it) }
+                (f["fields"] as? List<*>)?.let { out["fields"] = it.map(::flattenField) }
+                (f["variants"] as? List<*>)?.let { vs -> out["variants"] = vs.map(::flattenVariant) }
+            }
+        }
+        return m
+    }
+
+    private fun flattenType(t: Map<*, *>): MutableMap<Any?, Any?> {
+        val m = HashMap<Any?, Any?>(t)
+        (t["of"] as? Map<*, *>)?.let { m["of"] = flattenField(it) }
+        (t["fields"] as? List<*>)?.let { m["fields"] = it.map(::flattenField) }
+        (t["variants"] as? List<*>)?.let { vs -> m["variants"] = vs.map(::flattenVariant) }
+        return m
+    }
+
+    private fun flattenVariant(v: Any?): Any? {
+        if (v !is Map<*, *>) return v
+        return HashMap<Any?, Any?>(v).also { out ->
+            (v["fields"] as? List<*>)?.let { out["fields"] = it.map(::flattenField) }
+        }
     }
 
     /** models/<id>.yaml docs, keyed by BOTH the file id and the doc's `id:` (ns refs). */

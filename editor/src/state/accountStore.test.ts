@@ -1451,7 +1451,8 @@ describe("accountStore", () => {
       const rows = (useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!
         .dataSources[0] as { rows: Record<string, unknown>[] }).rows;
       expect(rows.map((row) => row.id)).toEqual(["row_1", "row_2"]);
-      expect((rows[1]!.lore as { key: string }).key).toBe("sources.grades.row_2.lore");
+      // Addresses key on the source ID (ADR bare-data-files ④).
+      expect((rows[1]!.lore as { key: string }).key).toBe(`sources.${source.id.toLowerCase()}.row_2.lore`);
     });
 
     it("reuses the first available numeric Row key", () => {
@@ -1563,7 +1564,8 @@ describe("accountStore", () => {
         edit: { op: "add", path: [], field: { name: "lore", type: { kind: "ltext" } } },
       });
       useAccountStore.getState().addSourceRow({ projectId: PERSONAL, sourceId: source.id });
-      const oldKey = "sources.grades.row_1.lore";
+      const prefix = `sources.${source.id.toLowerCase()}`;
+      const oldKey = `${prefix}.row_1.lore`;
       useAccountStore.setState((state) =>
         produce(state, (draft) => {
           const pack = draft.account.projects.find((p) => p.id === PERSONAL)!;
@@ -1583,8 +1585,8 @@ describe("accountStore", () => {
       const row = (pack.dataSources[0] as { rows: Record<string, unknown>[] }).rows[0]!;
       expect(result).toEqual({ ok: true });
       expect(row.id).toBe("elite");
-      expect((row.lore as { key: string }).key).toBe("sources.grades.elite.lore");
-      expect(pack.i18nKeys["sources.grades.elite.lore" as never]).toEqual({
+      expect((row.lore as { key: string }).key).toBe(`${prefix}.elite.lore`);
+      expect(pack.i18nKeys[`${prefix}.elite.lore` as never]).toEqual({
         en: "VIP lore",
         fr: "Description VIP",
       });
@@ -1608,8 +1610,9 @@ describe("accountStore", () => {
 
       let pack = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
       let row = (pack.dataSources[0] as { rows: Record<string, unknown>[] }).rows[0]!;
+      const prefix = `sources.${source.id.toLowerCase()}`;
       const oldKey = (row.lore as { key: string }).key;
-      expect(oldKey).toBe("sources.grades.row_1.lore");
+      expect(oldKey).toBe(`${prefix}.row_1.lore`);
       useAccountStore.setState((state) =>
         produce(state, (draft) => {
           const current = draft.account.projects.find((p) => p.id === PERSONAL)!;
@@ -1627,15 +1630,15 @@ describe("accountStore", () => {
 
       pack = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
       row = (pack.dataSources[0] as { rows: Record<string, unknown>[] }).rows[0]!;
-      expect((row.lore as { key: string }).key).toBe("sources.grades.vip.lore");
-      expect(pack.i18nKeys["sources.grades.vip.lore" as never]).toEqual({
+      expect((row.lore as { key: string }).key).toBe(`${prefix}.vip.lore`);
+      expect(pack.i18nKeys[`${prefix}.vip.lore` as never]).toEqual({
         en: "VIP lore",
         fr: "Description VIP",
       });
       expect(pack.i18nKeys[oldKey as never]).toBeUndefined();
     });
 
-    it("rekeys source translations when the source is renamed", () => {
+    it("renaming a source does NOT re-address its keys (id-based addresses — ADR bare-data-files ④)", () => {
       useAccountStore.getState().addProjectDataSource({ projectId: PERSONAL });
       const source = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!
         .dataSources[0]!;
@@ -1662,12 +1665,12 @@ describe("accountStore", () => {
 
       pack = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
       const renamedRow = (pack.dataSources[0] as { rows: Record<string, unknown>[] }).rows[0]!;
-      expect((renamedRow.lore as { key: string }).key).toBe("sources.grades.row_1.lore");
-      expect(pack.i18nKeys["sources.grades.row_1.lore" as never]).toEqual({
+      // The address keys on the source ID — a display rename moves nothing.
+      expect((renamedRow.lore as { key: string }).key).toBe(oldKey);
+      expect(pack.i18nKeys[oldKey as never]).toEqual({
         en: "Lore",
         fr: "Description",
       });
-      expect(pack.i18nKeys[oldKey as never]).toBeUndefined();
     });
 
     it("stores lowercase source names and rejects normalized duplicates", () => {
@@ -1725,8 +1728,9 @@ describe("accountStore", () => {
 
       const pack = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
       const row = (pack.dataSources[0] as { rows: Record<string, unknown>[] }).rows[0]!;
-      expect((row.lore as { key: string }).key).toBe("sources.grades.row_1.lore");
-      expect(pack.i18nKeys["sources.grades.row_1.lore" as never]).toEqual({
+      const canonical = `sources.${source.id.toLowerCase()}.row_1.lore`;
+      expect((row.lore as { key: string }).key).toBe(canonical);
+      expect(pack.i18nKeys[canonical as never]).toEqual({
         en: "Lore",
         fr: "Description",
       });

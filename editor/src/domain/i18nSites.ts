@@ -14,7 +14,6 @@ import {
   showTitleKeyAt,
   stateLabel,
 } from "@/lib/i18nKeys";
-import { normalizeDataSourceName } from "./dataModels";
 import { walkActions } from "./stepPath";
 import type {
   Appearance,
@@ -329,7 +328,10 @@ function* visitModelValueLTexts(
  */
 export function* visitDataSourceLTexts(pack: Project, ds: DataSource): Generator<LTextSite> {
   const models = pack.dataModels ?? [];
-  const sourceKey = normalizeDataSourceName(ds.name) || String(ds.id).toLowerCase();
+  // Addressed by ID, not display name (ADR bare-data-files ④: "l'adresse ne
+  // change pas") — renaming a source must not re-address every key, and the
+  // plugin derives the same address from the file name at resolve time.
+  const sourceKey = String(ds.id).toLowerCase();
   if (ds.shape === "table") {
     const model = models.find((m) => m.id === ds.modelId);
     if (!model) return;
@@ -377,6 +379,100 @@ export function* visitProjectLTexts(pack: Project): Generator<LTextSite> {
   for (const tpl of pack.itemTemplates ?? []) yield* visitItemTemplateLTexts(tpl);
   for (const dlg of pack.dialogs ?? []) yield* visitDialogLTexts(dlg);
   for (const ds of pack.dataSources ?? []) yield* visitDataSourceLTexts(pack, ds);
+}
+
+/**
+ * Adopt BARE values into LText nodes (ADR bare-data-files ④) — used when a
+ * source's model becomes known AFTER its rows were imported untyped (declared
+ * models arrive via Presence): every plain string at an ltext site becomes an
+ * LText node — a string matching a known i18n key resolves as that key
+ * (legacy form); anything else is the DEFAULT language's literal, stored
+ * under the site's canonical address (other languages already live there
+ * from lang/ files). Idempotent; typed values pass through untouched.
+ */
+export function adoptBareLTexts(pack: Project, ds: DataSource): void {
+  const models = pack.dataModels ?? [];
+  const sourceKey = String(ds.id).toLowerCase();
+  const adopt = (
+    value: unknown,
+    type: ModelFieldType,
+    base: string,
+    visited: Set<DataModelId>,
+  ): unknown => {
+    switch (type.kind) {
+      case "ltext": {
+        if (isLTextNode(value)) return value;
+        const s = typeof value === "string" ? value : "";
+        if (s !== "" && pack.i18nKeys[s as I18nKey]) return { key: s as I18nKey };
+        const a = base as I18nKey;
+        pack.i18nKeys[a] = { ...(pack.i18nKeys[a] ?? {}), [pack.defaultLang]: s };
+        return { key: a };
+      }
+      case "list":
+        return Array.isArray(value)
+          ? value.map((el, i) => adopt(el, type.of, i === 0 ? base : `${base}_${i + 1}`, visited))
+          : value;
+      case "object": {
+        if (typeof value !== "object" || value === null || Array.isArray(value)) return value;
+        const obj = { ...(value as Record<string, unknown>) };
+        for (const f of type.fields) {
+          if (f.name in obj) {
+            obj[f.name] = adopt(obj[f.name], f.type, `${base}.${f.name.toLowerCase()}`, visited);
+          }
+        }
+        return obj;
+      }
+      case "model": {
+        if (visited.has(type.ref)) return value;
+        const model = models.find((m) => m.id === type.ref);
+        if (!model) return value;
+        return adopt(value, { kind: "object", fields: model.fields }, base, new Set(visited).add(type.ref));
+      }
+      case "map": {
+        if (typeof value !== "object" || value === null || Array.isArray(value)) return value;
+        const obj = { ...(value as Record<string, unknown>) };
+        for (const [k, v] of Object.entries(obj)) obj[k] = adopt(v, type.of, `${base}.${k.toLowerCase()}`, visited);
+        return obj;
+      }
+      case "union": {
+        if (typeof value !== "object" || value === null || Array.isArray(value)) return value;
+        const obj = value as Record<string, unknown>;
+        const variant = type.variants.find((v) => v.name === obj[type.tag]);
+        if (!variant) return value;
+        return adopt(value, { kind: "object", fields: variant.fields }, base, visited);
+      }
+      default:
+        return value;
+    }
+  };
+  if (ds.shape === "table") {
+    const model = models.find((m) => m.id === ds.modelId);
+    if (!model) return;
+    const rowKeyCounts = new Map<string, number>();
+    for (const row of ds.rows) {
+      const raw = row[model.keyField];
+      const v = typeof raw === "string" || typeof raw === "number" ? String(raw).trim().toLowerCase() : "";
+      if (v !== "") rowKeyCounts.set(v, (rowKeyCounts.get(v) ?? 0) + 1);
+    }
+    for (let i = 0; i < ds.rows.length; i++) {
+      const raw = ds.rows[i]![model.keyField];
+      const keyVal = typeof raw === "string" || typeof raw === "number" ? String(raw).trim().toLowerCase() : "";
+      const rowKey = keyVal !== "" && rowKeyCounts.get(keyVal) === 1 ? keyVal : `row_${i + 1}`;
+      ds.rows[i] = adopt(
+        ds.rows[i],
+        { kind: "object", fields: model.fields },
+        `sources.${sourceKey}.${rowKey}`,
+        new Set([model.id]),
+      ) as Record<string, unknown>;
+    }
+  } else {
+    ds.value = adopt(
+      ds.value,
+      { kind: "object", fields: ds.fields },
+      `sources.${sourceKey}`,
+      new Set(),
+    ) as Record<string, unknown>;
+  }
 }
 
 // ── Rekey: assign every site its canonical key ───────────────────────────────

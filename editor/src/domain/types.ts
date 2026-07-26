@@ -668,6 +668,12 @@ export type DataSource =
        */
       modelVersion?: number;
       rows: Record<string, unknown>[];
+      /**
+       * Hand-written leading comment block of the data file (ADR
+       * bare-data-files ⑦) — captured at import, re-emitted verbatim before
+       * the generated hint block.
+       */
+      headerComment?: string;
     }
   | {
       id: DataSourceId;
@@ -675,6 +681,8 @@ export type DataSource =
       shape: "config";
       fields: ModelField[];
       value: Record<string, unknown>;
+      /** Hand-written leading comment block (ADR bare-data-files ⑦). */
+      headerComment?: string;
     };
 
 /**
