@@ -1,5 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { resolveDisplayRef } from "@/domain/capturedItems";
 import type { ContextInput, Element, Menu, Project, ProjectId } from "@/domain/types";
 import { getText } from "@/lib/i18n";
@@ -9,6 +10,7 @@ import { useServerDataSourcesStore } from "@/state/serverDataSourcesStore";
 import { useServerSnapshotsStore } from "@/state/serverSnapshotsStore";
 import { useUiStore } from "@/state/uiStore";
 import { useDraggable } from "@dnd-kit/core";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { headPreviewUrl } from "../headTexture";
 import { buildPreviewScope, renderPreview } from "../menuPreviewScope";
@@ -65,8 +67,13 @@ export function MenuDataSection({ projectId, menu }: { projectId: ProjectId; men
  * field (`boutique:categories` + `items` -> `boutique:items`).
  */
 function NestedListCards({ projectId, menu }: { projectId: ProjectId; menu: Menu }) {
+  const { t } = useTranslation();
   const pack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
   const serverSources = useServerDataSourcesStore((s) => s.sources);
+  // Hand-typed paths (freedom over guessing — `category.meta.items`): local
+  // until a set is created on them, then the ELEMENT keeps them alive.
+  const [manualPaths, setManualPaths] = useState<string[]>([]);
+  const [draftPath, setDraftPath] = useState("");
   if (!pack) return null;
   const objectInputs = (menu.contextInputs ?? []).filter(
     (i): i is Extract<ContextInput, { kind: "primitive" }> =>
@@ -78,26 +85,49 @@ function NestedListCards({ projectId, menu }: { projectId: ProjectId; menu: Menu
       const ds = pack.dataSources?.find((d) => `pack:${d.id}` === ref);
       const model =
         ds?.shape === "table" ? (pack.dataModels ?? []).find((m) => m.id === ds.modelId) : undefined;
-      return (model?.fields ?? [])
-        .filter((f) => f.type.kind === "list")
-        .map((f) => {
-          const of = (f.type as Extract<typeof f.type, { kind: "list" }>).of;
-          const elModel =
-            of.kind === "model" ? (pack.dataModels ?? []).find((m) => m.id === of.ref) : undefined;
-          const fields = elModel?.fields ?? (of.kind === "object" ? of.fields : []);
-          return {
-            path: `${input.name}.${f.name}`,
-            schema: fields.map((x) => ({ name: x.name })),
-            keyField: elModel?.keyField ?? "id",
-          };
-        });
+      // Recursive walk: lists at ANY depth inside the object's row model
+      // (`category.meta.items`), through nested objects and model refs
+      // (cycle-guarded). Lists inside lists are not addressable (no index).
+      const out: { path: string; schema: { name: string }[]; keyField: string }[] = [];
+      const models = pack.dataModels ?? [];
+      const walk = (
+        fields: { name: string; type: import("@/domain/types").ModelFieldType }[],
+        base: string,
+        visited: Set<string>,
+      ): void => {
+        for (const f of fields) {
+          const ty = f.type;
+          if (ty.kind === "list") {
+            const of = ty.of;
+            const elModel = of.kind === "model" ? models.find((m) => m.id === of.ref) : undefined;
+            const elFields = elModel?.fields ?? (of.kind === "object" ? of.fields : []);
+            out.push({
+              path: `${base}.${f.name}`,
+              schema: elFields.map((x) => ({ name: x.name })),
+              keyField: elModel?.keyField ?? "id",
+            });
+          } else if (ty.kind === "object") {
+            walk(ty.fields, `${base}.${f.name}`, visited);
+          } else if (ty.kind === "model") {
+            const m = models.find((x) => x.id === ty.ref);
+            if (m && !visited.has(String(m.id))) {
+              walk(m.fields, `${base}.${f.name}`, new Set(visited).add(String(m.id)));
+            }
+          }
+        }
+      };
+      walk(model?.fields ?? [], input.name, new Set(model ? [String(model.id)] : []));
+      return out;
     }
+    // Server schemas are FLAT — but dotted field names ("meta.items") work
+    // naturally: the path concatenates and the runtime resolves any depth.
     const src = serverSources.find((s) => s.ref === ref);
     const ns = ref.split(":")[0];
     return (src?.schema ?? [])
       .filter((f) => f.type === "list")
       .map((f) => {
-        const sibling = serverSources.find((s) => s.ref === `${ns}:${f.name}`);
+        const tail = f.name.split(".").pop()!;
+        const sibling = serverSources.find((s) => s.ref === `${ns}:${tail}`);
         return {
           path: `${input.name}.${f.name}`,
           schema: (sibling?.schema ?? []).map((x) => ({ name: x.name })),
@@ -105,7 +135,27 @@ function NestedListCards({ projectId, menu }: { projectId: ProjectId; menu: Menu
         };
       });
   });
-  if (lists.length === 0) return null;
+  // Paths already consumed by a set element (survives reloads) + hand-typed
+  // drafts, minus the auto-detected ones.
+  const known = new Set(lists.map((l) => l.path));
+  const inputNames = new Set((menu.contextInputs ?? []).map((c) => c.name));
+  const elementPaths = menu.layers
+    .flatMap((l) => l.elements)
+    .flatMap((e) => [e.iterates?.source, e.places?.source])
+    .filter((s): s is string => !!s && s.includes(".") && !known.has(s));
+  const extraPaths = [...new Set([...elementPaths, ...manualPaths.filter((m) => !known.has(m))])];
+  const rootOk = (path: string) => inputNames.has(path.split(".")[0]!);
+
+  const addDraft = () => {
+    const path = draftPath.trim();
+    if (path === "" || !path.includes(".") || !rootOk(path) || known.has(path) || extraPaths.includes(path)) {
+      return;
+    }
+    setManualPaths((prev) => [...prev, path]);
+    setDraftPath("");
+  };
+
+  if (lists.length === 0 && extraPaths.length === 0 && objectInputs.length === 0) return null;
   return (
     <>
       {lists.map((l) => (
@@ -123,6 +173,30 @@ function NestedListCards({ projectId, menu }: { projectId: ProjectId; menu: Menu
           />
         </div>
       ))}
+      {extraPaths.map((path) => (
+        <div
+          key={path}
+          className="flex flex-col gap-1.5 rounded border border-[var(--border-soft)] bg-[var(--surface-raised)]/40 p-1.5"
+        >
+          <span className="truncate font-mono text-xs">{path}</span>
+          <MenuSetBlockCore projectId={projectId} menu={menu} listName={path} schema={[]} keyField="id" />
+        </div>
+      ))}
+      {objectInputs.length > 0 ? (
+        <div className="flex items-center gap-1.5">
+          <Input
+            value={draftPath}
+            onChange={(e) => setDraftPath(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && addDraft()}
+            placeholder={t("menuProperties.setAddPathPlaceholder")}
+            className="h-6 flex-1 px-2 font-mono text-[10px]"
+            aria-label={t("menuProperties.setAddPath")}
+          />
+          <Button variant="secondary" size="sm" onClick={addDraft}>
+            {t("menuProperties.setAddPath")}
+          </Button>
+        </div>
+      ) : null}
     </>
   );
 }
