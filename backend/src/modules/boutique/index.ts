@@ -159,9 +159,12 @@ async function persistAndCommit(
 }
 
 /**
- * Upsert into the declared-model Table (ADR composable-data-models §8):
- * `data/categories/<cat>.yaml` rows carry ltext KEYS for name — the literal is
- * minted into `lang/<defaultLang>.yaml` following the key-site convention.
+ * Upsert into the declared-model Table (ADR composable-data-models §8, BARE
+ * form per ADR bare-data-files ④): `data/categories/<cat>.yaml` rows carry the
+ * default language's LITERAL text for name — no key minting, lang/ untouched.
+ * Rows written by the pre-bare migrator may still carry keys: category
+ * matching resolves them through lang/ (tolerance), and an update on such an
+ * item rewrites the key's translation in place.
  */
 async function applyToDeclaredTable(
   target: { id: string },
@@ -190,6 +193,7 @@ async function applyToDeclaredTable(
     try { return (parse(files[langPath] ?? "") as Record<string, unknown>) ?? {}; }
     catch { return {} as Record<string, unknown>; }
   })();
+  let langDirty = false;
 
   // Find the target category row file: by id, else by resolved name.
   const wanted = payload.category?.trim().toLowerCase();
@@ -201,7 +205,9 @@ async function applyToDeclaredTable(
       catch { return null; }
     })();
     if (!parsed) continue;
-    const resolvedName = String(translations[String(parsed.name)] ?? "").toLowerCase();
+    // Bare form: name IS the literal; legacy rows carry a key — resolve it.
+    const rawName = String(parsed.name ?? "");
+    const resolvedName = String(translations[rawName] ?? rawName).toLowerCase();
     if (!wanted || String(parsed.id).toLowerCase() === wanted || resolvedName === wanted) {
       rowKey = key;
       row = parsed;
@@ -209,11 +215,9 @@ async function applyToDeclaredTable(
     }
   }
   if (!row || !rowKey) {
-    // New category (or empty table): create the row + its name key.
+    // New category (or empty table): the name is the literal text.
     rowKey = (wanted || "divers").replace(/[^a-z0-9_-]+/g, "_");
-    const nameKey = `sources.categories.${rowKey}.name`;
-    translations[nameKey] = payload.category?.trim() || "Divers";
-    row = { id: rowKey, name: nameKey, icon: "CHEST", discount: 0, items: [] };
+    row = { id: rowKey, name: payload.category?.trim() || "Divers", icon: "CHEST", discount: 0, items: [] };
     if (!order.includes(rowKey)) order.push(rowKey);
     meta.order = order;
     files[metaPath] = stringify(meta, { lineWidth: 0 });
@@ -225,17 +229,22 @@ async function applyToDeclaredTable(
   row.items = items;
   const existing = items.find((i) => i.id === payload.item_id);
   if (existing) {
-    if (payload.display.name) translations[String(existing.name)] = payload.display.name;
+    if (payload.display.name) {
+      // Legacy row whose name is a lang KEY: update the translation in place;
+      // bare row: overwrite the literal.
+      if (typeof existing.name === "string" && translations[existing.name] !== undefined) {
+        translations[existing.name] = payload.display.name;
+        langDirty = true;
+      } else {
+        existing.name = payload.display.name;
+      }
+    }
     existing.icon = `item:${ciId}`;
     existing.price = payload.price;
   } else {
-    // Key-site convention: items / items_2 / items_3 … by position.
-    const idx = items.length;
-    const itemBase = `sources.categories.${rowKey}.items${idx === 0 ? "" : `_${idx + 1}`}`;
-    translations[`${itemBase}.name`] = payload.display.name ?? payload.item_id;
     items.push({
       id: payload.item_id,
-      name: `${itemBase}.name`,
+      name: payload.display.name ?? payload.item_id,
       icon: `item:${ciId}`,
       price: payload.price,
       discount: 0,
@@ -244,7 +253,7 @@ async function applyToDeclaredTable(
     });
   }
   files[`${base}/data/categories/${rowKey}.yaml`] = stringify(row, { lineWidth: 0 });
-  files[langPath] = stringify(translations, { lineWidth: 0 });
+  if (langDirty) files[langPath] = stringify(translations, { lineWidth: 0 });
 
   return persistAndCommit(target, files, payload.item_id);
 }
