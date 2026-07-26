@@ -327,7 +327,7 @@ export function ValueEditor({
           entries={[]}
           multiline={multiline}
           rows={multiline ? 3 : undefined}
-          className={multiline ? "min-w-48 text-[12px]" : "h-7 min-w-24 px-2 text-[12px]"}
+          className={multiline ? "w-full min-w-48 text-[12px]" : "h-7 w-full min-w-24 px-2 text-[12px]"}
           placeholder={String(path[path.length - 1])}
           facade={<MiniMessageInline source={text} className="font-mono text-xs" />}
         />
@@ -344,7 +344,7 @@ export function ValueEditor({
           onChange={(e) =>
             setI18nValue({ projectId, lt: value, lang: activeLang, value: e.target.value })
           }
-          className="h-7 min-w-24 px-2 text-[12px]"
+          className="h-7 w-full min-w-24 px-2 text-[12px]"
           aria-label={String(path[path.length - 1])}
           data-lang={activeLang}
         />
@@ -354,18 +354,20 @@ export function ValueEditor({
       const items = Array.isArray(value) ? value : [];
       const itemKeys = stableKeys(items.map((el) => listItemIdentity(el, type.of, models)));
       return (
-        <div className="flex flex-col gap-1" data-testid={`list-${path.join(".")}`}>
+        <div className="flex w-full flex-col gap-1" data-testid={`list-${path.join(".")}`}>
           {items.map((el, i) => (
-            <div key={itemKeys[i]} className="flex items-start gap-1">
-              <ValueEditor
-                projectId={projectId}
-                sourceId={sourceId}
-                row={row}
-                path={[...path, i]}
-                type={type.of}
-                value={el}
-                pack={pack}
-              />
+            <div key={itemKeys[i]} className="flex w-full items-start gap-1">
+              <div className="min-w-0 flex-1">
+                <ValueEditor
+                  projectId={projectId}
+                  sourceId={sourceId}
+                  row={row}
+                  path={[...path, i]}
+                  type={type.of}
+                  value={el}
+                  pack={pack}
+                />
+              </div>
               <button
                 type="button"
                 onClick={() => removeSourceListItem({ projectId, sourceId, row, path, index: i })}
@@ -509,30 +511,32 @@ export function ValueEditor({
           ? (value as Record<string, unknown>)
           : {};
       return (
-        <div className="flex flex-col gap-1 rounded border border-[var(--border-soft)] p-2">
+        <div className="flex w-full flex-col gap-1 rounded border border-[var(--border-soft)] p-2">
           {fields.map((f, i) => (
             <div key={f.name} className="flex flex-col gap-1">
               {/* §7 `section` hint: header when it changes from the previous field. */}
               {f.section && f.section !== fields[i - 1]?.section ? (
                 <span className="eyebrow mt-1">{f.section}</span>
               ) : null}
-              <div className="flex items-center gap-2">
+              <div className="flex w-full items-center gap-2">
                 <span
                   className="w-24 shrink-0 truncate font-mono text-[10px] text-[var(--text-faint)]"
                   title={f.help}
                 >
                   {f.label ?? f.name}
                 </span>
-                <ValueEditor
-                  projectId={projectId}
-                  sourceId={sourceId}
-                  row={row}
-                  path={[...path, f.name]}
-                  type={f.type}
-                  value={obj[f.name]}
-                  pack={pack}
-                  field={f}
-                />
+                <div className="min-w-0 flex-1">
+                  <ValueEditor
+                    projectId={projectId}
+                    sourceId={sourceId}
+                    row={row}
+                    path={[...path, f.name]}
+                    type={f.type}
+                    value={obj[f.name]}
+                    pack={pack}
+                    field={f}
+                  />
+                </div>
               </div>
             </div>
           ))}
