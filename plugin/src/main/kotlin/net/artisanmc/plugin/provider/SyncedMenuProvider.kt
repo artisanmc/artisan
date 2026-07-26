@@ -297,7 +297,13 @@ class SyncedMenuProvider(
     }
 
     private fun reloadFromDisk() {
-        val loaded = ProjectReader(roots, logger).readAll()
+        // Declared model docs feed the reader so BARE data files resolve their
+        // schema from the JAR declaration (ADR bare-data-files ①).
+        val loaded = ProjectReader(roots, logger, {
+            declaredModelsReport().mapNotNull { doc ->
+                (doc["id"] as? String)?.let { it to doc }
+            }.toMap()
+        }).readAll()
         bundles = loaded
         val freshMenus = ConcurrentHashMap<String, BundleMenu>()
         val freshDialogs = ConcurrentHashMap<String, BundleDialog>()

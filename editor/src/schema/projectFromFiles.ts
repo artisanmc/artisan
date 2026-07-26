@@ -262,6 +262,10 @@ function importDataValue(
         typeof value === "object" && value !== null && !Array.isArray(value)
           ? (value as Record<string, unknown>)
           : {};
+      // Untyped object (bare file, no schema anywhere — ADR bare-data-files):
+      // preserve the value VERBATIM instead of projecting onto zero fields
+      // (which would silently drop everything).
+      if (type.fields.length === 0) return obj;
       const out: Record<string, unknown> = {};
       for (const f of type.fields) out[f.name] = importDataValue(obj[f.name], f.type, models, visited, ref);
       return out;
@@ -390,6 +394,12 @@ export function projectFromFiles(
     i18nKeys[key] = { [defaultLang]: raw ?? "" };
     return { key };
   }
+  // Tolerant ltext import for data sources (ADR bare-data-files ④): a value
+  // matching a known translation key resolves as that key; anything else is
+  // the DEFAULT LANGUAGE'S literal text (minted key).
+  function ltData(raw: string): LText {
+    return translations[raw] ? ref(raw) : text(raw);
+  }
   const { appearance } = makeAppearanceConverter({
     text,
     ref,
@@ -410,14 +420,24 @@ export function projectFromFiles(
   }));
 
   // Data models: models/<id>.yaml (model/v1), fields verbatim — the lossless
-  // typing store (data/<id>.yaml stays denormalized for the runtime).
-  const dataModels: DataModel[] = scanDir(files, projectId, "models").map(({ id, parsed: y }) => ({
-    id: id as DataModelId,
-    name: (y.name as string) ?? id,
-    keyField: (y.key_field as string) ?? "id",
-    ...(y.master_detail === true ? { masterDetail: true } : {}),
-    fields: ((y.fields as ModelField[]) ?? []) as ModelField[],
-  }));
+  // typing store. A models/ file that is ONLY a `model:` ref (ADR
+  // bare-data-files ⑤: one-line link from a bare source to a declared model)
+  // never becomes a Data model itself — it's recorded as a source → model ref.
+  const modelRefs: Record<string, string> = {};
+  const dataModels: DataModel[] = scanDir(files, projectId, "models").flatMap(({ id, parsed: y }) => {
+    const fields = ((y.fields as ModelField[]) ?? []) as ModelField[];
+    if (fields.length === 0 && typeof y.model === "string") {
+      modelRefs[id] = y.model;
+      return [];
+    }
+    return [{
+      id: id as DataModelId,
+      name: (y.name as string) ?? id,
+      keyField: (y.key_field as string) ?? "id",
+      ...(y.master_detail === true ? { masterDetail: true } : {}),
+      fields,
+    }];
+  });
 
   // Project sources: data/<id>.yaml (data/v1) or, per-row granularity, a
   // data/<id>/ directory with _source.yaml + one file per row (ADR
@@ -426,6 +446,11 @@ export function projectFromFiles(
   // synthesized from its flattened fields (canonicalized on the next export,
   // same spirit as literal-text key minting).
   const dataPrefix = `${baseOf(projectId)}data/`;
+  // A bare source's model resolves beside the data (ADR bare-data-files ①):
+  // models/<sourceId>.yaml own fields, or its one-line `model:` ref (kept
+  // namespaced for post-load declared-model injection).
+  const modelForBareSource = (sourceId: string): string | undefined =>
+    modelRefs[sourceId] ?? (dataModels.some((m) => String(m.id) === sourceId) ? sourceId : undefined);
   // Top-level files only — nested paths belong to per-row source dirs below.
   const topLevelDataSources = Object.keys(files)
     .filter(
@@ -436,19 +461,37 @@ export function projectFromFiles(
     )
     .sort()
     .flatMap((k) => {
-      const parsed = tryParse<Json>(files[k]!);
-      if (!parsed) return [];
-      const id = (parsed.id as string) ?? k.slice(dataPrefix.length, -".yaml".length);
+      const fileId = k.slice(dataPrefix.length, -".yaml".length);
+      const raw = tryParse<unknown>(files[k]!);
+      if (!raw) return [];
+      // Bare list = table, bare mapping (no data/* header) = object source
+      // (ADR bare-data-files ②/③) — values only, schema resolved beside.
+      if (Array.isArray(raw)) {
+        return [{ id: fileId, parsed: { shape: "table", model: modelForBareSource(fileId), rows: raw } as Json }];
+      }
+      const parsed = raw as Json;
+      if (typeof parsed !== "object") return [];
+      if (!String(parsed.schema ?? "").startsWith("data/")) {
+        return [{ id: fileId, parsed: { shape: "config", model: modelForBareSource(fileId), value: parsed } as Json }];
+      }
+      const id = (parsed.id as string) ?? fileId;
       return [{ id, parsed }];
     });
-  const perRowSourceDirs = Object.keys(files)
-    .filter((k) => k.startsWith(dataPrefix) && k.endsWith("/_source.yaml"))
-    .map((k) => k.slice(dataPrefix.length, -"/_source.yaml".length))
-    .filter((dir) => !dir.includes("/"))
-    .sort();
+  // Per-row dirs: any data/<dir>/ holding row files — `_source.yaml` is
+  // OPTIONAL (absent → all files, byte-sorted; present → legacy full meta or
+  // minimal `model:` + `order:`).
+  const perRowSourceDirs = [...new Set(
+    Object.keys(files)
+      .filter((k) => k.startsWith(dataPrefix) && k.endsWith(".yaml") && k.slice(dataPrefix.length).includes("/"))
+      .map((k) => k.slice(dataPrefix.length).split("/", 1)[0]!),
+  )].sort();
   const perRowParsed = perRowSourceDirs.flatMap((dir) => {
-    const meta = tryParse<Json>(files[`${dataPrefix}${dir}/_source.yaml`] ?? null);
-    if (!meta) return [];
+    const rawMeta = tryParse<Json>(files[`${dataPrefix}${dir}/_source.yaml`] ?? null)
+      ?? ({} as Json);
+    // Order-only (or absent) meta: resolve the model beside the data.
+    const meta = rawMeta.model == null && rawMeta.fields == null
+      ? ({ ...rawMeta, model: modelForBareSource(dir) } as Json)
+      : rawMeta;
     const rowPrefix = `${dataPrefix}${dir}/`;
     const onDisk = Object.keys(files)
       .filter((k) => k.startsWith(rowPrefix) && k.endsWith(".yaml") && !k.endsWith("/_source.yaml"))
@@ -468,13 +511,16 @@ export function projectFromFiles(
     .map(({ id, parsed: y }) => {
     const name = (y.name as string) ?? id;
     if (y.shape === "config") {
-      const fields = ((y.fields as Json[]) ?? []).map(fieldOfWire);
+      // Fields: inline (legacy) or the beside-the-data model's (bare form).
+      const fields = y.fields != null
+        ? ((y.fields as Json[]) ?? []).map(fieldOfWire)
+        : (dataModels.find((m) => m.id === y.model)?.fields ?? []);
       const value = importDataValue(
         y.value ?? {},
         { kind: "object", fields },
         dataModels,
         new Set(),
-        ref,
+        ltData,
       ) as Record<string, unknown>;
       return { id: id as DataSourceId, name, shape: "config", fields, value };
     }
@@ -488,7 +534,7 @@ export function projectFromFiles(
         fields: ((y.fields as Json[]) ?? []).map(fieldOfWire),
       };
       const rows = ((y.rows as Json[]) ?? []).map(
-        (r) => importDataValue(r, rowType, dataModels, new Set(), ref) as Record<string, unknown>,
+        (r) => importDataValue(r, rowType, dataModels, new Set(), ltData) as Record<string, unknown>,
       );
       return {
         id: id as DataSourceId,
@@ -514,7 +560,7 @@ export function projectFromFiles(
     const rowType: ModelFieldType = { kind: "object", fields: model.fields };
     const rows = ((y.rows as Json[]) ?? []).map(
       (r) =>
-        importDataValue(r, rowType, dataModels, new Set([modelId]), ref) as Record<string, unknown>,
+        importDataValue(r, rowType, dataModels, new Set([modelId]), ltData) as Record<string, unknown>,
     );
     return {
       id: id as DataSourceId,
