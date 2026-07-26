@@ -18,7 +18,7 @@ import type {
 } from "@/domain/types";
 import { slotCount } from "@/features/canvas/inventoryTypes";
 import { LayersPanel } from "@/features/canvas/title/composer/LayersPanel";
-import { MenuDataSection } from "./MenuDataSection";
+import { MenuSetBlock, ObjectParamLists } from "./MenuDataSection";
 import { PreviewContextSection } from "./PreviewContextSection";
 import { SourceShapingEditor } from "./SourceShapingEditor";
 import { sourceFieldType } from "@/domain/dataModels";
@@ -167,8 +167,6 @@ export function MenuProperties({ projectId, menu }: MenuPropertiesProps) {
         </div>
       ) : null}
       <ContextInputsEditor projectId={projectId} menu={menu} />
-      <PreviewContextSection menu={menu} projectId={projectId} />
-      <MenuDataSection projectId={projectId} menu={menu} />
     </div>
   );
 }
@@ -255,11 +253,12 @@ function ContextInputsEditor({ projectId, menu }: { projectId: ProjectId; menu: 
   return (
     <div className="flex flex-col gap-1.5">
       <div className="font-mono text-[10px] text-[var(--text-faint)] uppercase tracking-wide">
-        {t("menuProperties.contextInputs")}
+        {t("menuProperties.dataSection")}
       </div>
       <p className="text-[10px] text-[var(--text-faint)]">
         {t("menuProperties.contextInputsHint", { tag: "{name}" })}
       </p>
+      <PreviewContextSection menu={menu} projectId={projectId} />
       {inputs.length === 0 ? (
         <div className="rounded border border-[var(--border-soft)] border-dashed bg-[var(--surface-raised)]/40 px-2 py-2 text-[11px] text-[var(--text-faint)]">
           {t("menuProperties.contextInputsEmpty")}
@@ -278,20 +277,30 @@ function ContextInputsEditor({ projectId, menu }: { projectId: ProjectId; menu: 
               }
             >
               {input.kind === "primitive" ? (
-                <PrimitiveInputRow
-                  input={input}
-                  onChange={(patch) => update(i, patch)}
-                  onRemove={() => removeInput({ projectId, menuId: menu.id, index: i })}
-                  isInvalid={isInvalid}
-                />
+                <>
+                  <PrimitiveInputRow
+                    input={input}
+                    onChange={(patch) => update(i, patch)}
+                    onRemove={() => removeInput({ projectId, menuId: menu.id, index: i })}
+                    isInvalid={isInvalid}
+                  />
+                  {/* Unified Données section: an object param exposes its
+                      nested lists (sets) right inside its card. */}
+                  {input.type === "object" && input.rowOf ? (
+                    <ObjectParamLists projectId={projectId} menu={menu} input={input} />
+                  ) : null}
+                </>
               ) : (
-                <SourceRefInputRow
-                  projectId={projectId}
-                  menu={menu}
-                  input={input}
-                  onChange={(patch) => update(i, patch)}
-                  onRemove={() => removeInput({ projectId, menuId: menu.id, index: i })}
-                />
+                <>
+                  <SourceRefInputRow
+                    projectId={projectId}
+                    menu={menu}
+                    input={input}
+                    onChange={(patch) => update(i, patch)}
+                    onRemove={() => removeInput({ projectId, menuId: menu.id, index: i })}
+                  />
+                  {input.ref ? <MenuSetBlock projectId={projectId} menu={menu} input={input} /> : null}
+                </>
               )}
               {isInvalid ? (
                 <div className="text-[10px] text-[var(--danger)]">

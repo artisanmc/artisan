@@ -190,7 +190,7 @@ const fr: typeof en = {
     sortAsc: "asc",
     sortDesc: "desc",
     limitLabel: "limite",
-    previewContext: "Contexte d'aperçu",
+    previewContext: "Aperçu",
     previewContextHint:
       "Choisis avec quelle valeur le canvas prévisualise ce menu paramétré — les filtres s'appliquent aux vraies lignes.",
     previewContextAll: "(tout — non filtré)",
@@ -199,6 +199,7 @@ const fr: typeof en = {
     menuData: "Données du menu",
     menuDataNoFilters: "Aucun filtre — source complète.",
     menuDataLocalHint: "Données du projet — voir l'onglet Data.",
+    dataSection: "Données",
     setPlaceLead: "Placer :",
     setAddPath: "Ajouter une liste",
     setAddPathPlaceholder: "chemin, ex. category.meta.items",

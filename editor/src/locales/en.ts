@@ -183,7 +183,7 @@ export default {
     sortAsc: "asc",
     sortDesc: "desc",
     limitLabel: "limit",
-    previewContext: "Preview context",
+    previewContext: "Preview",
     previewContextHint:
       "Pick which value the canvas previews this parameterized menu with — filters apply to the real rows.",
     previewContextAll: "(all — unfiltered)",
@@ -192,6 +192,7 @@ export default {
     menuData: "Menu data",
     menuDataNoFilters: "No filter — full source.",
     menuDataLocalHint: "Project data — see the Data tab.",
+    dataSection: "Data",
     setPlaceLead: "Place:",
     setAddPath: "Add a list",
     setAddPathPlaceholder: "path, e.g. category.meta.items",

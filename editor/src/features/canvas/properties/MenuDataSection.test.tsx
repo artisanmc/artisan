@@ -1,17 +1,13 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { MenuDataSection, extractArgTokens } from "./MenuDataSection";
+// Unified « Données » section (2026-07-26): the set d'items block lives inside
+// each list card of the menu panel. This suite covers the exported pieces —
+// extractArgTokens (used by PreviewContextSection) and MenuSetBlock (create /
+// delete a menu-level set).
+import { fireEvent, render, screen } from "@testing-library/react";
+import { beforeEach, describe, expect, it } from "vitest";
+import { extractArgTokens, MenuSetBlock } from "./MenuDataSection";
 import { useAccountStore } from "@/state/accountStore";
 import { useServerDataSourcesStore } from "@/state/serverDataSourcesStore";
-import { useNetworksStore } from "@/state/networksStore";
-import { useServersStore } from "@/state/serversStore";
 import type { ContextInput, Menu, SourceRef } from "@/domain/types";
-
-const previewDataSource = vi.fn();
-vi.mock("@/lib/api/dataSources", async () => {
-  const actual = await vi.importActual<object>("@/lib/api/dataSources");
-  return { ...actual, previewDataSource: (...a: unknown[]) => previewDataSource(...a) };
-});
 
 const sourceInput: Extract<ContextInput, { kind: "sourceRef" }> = {
   kind: "sourceRef",
@@ -42,26 +38,13 @@ describe("extractArgTokens", () => {
   });
 });
 
-describe("MenuDataSection", () => {
+describe("MenuSetBlock", () => {
   beforeEach(() => {
-    previewDataSource.mockReset();
-    useNetworksStore.setState({ activeId: "n1" } as never);
-    useServersStore.setState({ activeServerId: "sk1" } as never);
     useServerDataSourcesStore.setState({
       sources: [{ ref: "quests:list", moduleId: "quests", schema: [], schemaHint: null }],
       status: "ready",
       loadedKey: "u:n1/sk1",
-    });
-  });
-
-  it("renders one card per sourceRef input with ref, module badge and filter summary", () => {
-    render(<MenuDataSection projectId={"p1" as never} menu={menu} />);
-    expect(screen.getByText("quests:list")).toBeInTheDocument();
-    expect(screen.getByText("quests")).toBeInTheDocument();
-    expect(screen.getByText(/group = \{group\}/)).toBeInTheDocument();
-  });
-
-  it("creates the menu-level item set from the list card (paginated)", () => {
+    } as never);
     useAccountStore.setState((s) => ({
       ...s,
       account: {
@@ -76,12 +59,16 @@ describe("MenuDataSection", () => {
         ],
       },
     }));
-    render(<MenuDataSection projectId={"p1" as never} menu={menu} />);
+  });
+
+  const menuNow = () =>
+    useAccountStore.getState().account.projects.find((p) => p.id === ("p1" as never))!.menus[0]!;
+
+  it("creates the menu-level item set (paginated) from the choice buttons", () => {
+    render(<MenuSetBlock projectId={"p1" as never} menu={menu} input={sourceInput} />);
     fireEvent.click(screen.getByText("Paginer"));
-    const created = useAccountStore
-      .getState()
-      .account.projects.find((p) => p.id === ("p1" as never))!
-      .menus[0]!.layers.flatMap((l) => l.elements)
+    const created = menuNow()
+      .layers.flatMap((l) => l.elements)
       .find((e) => e.iterates?.source === "quests");
     expect(created).toBeDefined();
     expect(created!.iterates).toEqual({ source: "quests", alias: "item" });
@@ -89,35 +76,16 @@ describe("MenuDataSection", () => {
   });
 
   it("deleting the set returns to the paginate/place choice", () => {
-    useAccountStore.setState((s) => ({
-      ...s,
-      account: {
-        ...s.account,
-        projects: [
-          {
-            id: "p1", name: "P", source: "user_created", createdAt: "", updatedAt: "",
-            defaultLang: "en", i18nKeys: {}, menus: [structuredClone(menu)],
-            commands: [], dialogs: [], dataSources: [], dataModels: [],
-            canvasLayout: {}, canvasEdges: {},
-          } as never,
-        ],
-      },
-    }));
-    const { rerender } = render(<MenuDataSection projectId={"p1" as never} menu={menu} />);
+    const { rerender } = render(
+      <MenuSetBlock projectId={"p1" as never} menu={menu} input={sourceInput} />,
+    );
     fireEvent.click(screen.getByText("Paginer"));
-    const menuAfter = () =>
-      useAccountStore.getState().account.projects.find((p) => p.id === ("p1" as never))!.menus[0]!;
-    rerender(<MenuDataSection projectId={"p1" as never} menu={menuAfter() as never} />);
+    rerender(<MenuSetBlock projectId={"p1" as never} menu={menuNow() as never} input={sourceInput} />);
     fireEvent.click(screen.getByText(/Supprimer le set/));
     expect(
-      menuAfter().layers.flatMap((l) => l.elements).find((e) => e.iterates?.source === "quests"),
+      menuNow().layers.flatMap((l) => l.elements).find((e) => e.iterates?.source === "quests"),
     ).toBeUndefined();
-    rerender(<MenuDataSection projectId={"p1" as never} menu={menuAfter() as never} />);
+    rerender(<MenuSetBlock projectId={"p1" as never} menu={menuNow() as never} input={sourceInput} />);
     expect(screen.getByText("Paginer")).toBeInTheDocument();
-  });
-
-  it("returns null when the menu consumes no source", () => {
-    const { container } = render(<MenuDataSection projectId={"p1" as never} menu={{ ...menu, contextInputs: [] } as Menu} />);
-    expect(container.firstChild).toBeNull();
   });
 });
