@@ -193,6 +193,8 @@ export default {
     menuDataNoFilters: "No filter — full source.",
     menuDataLocalHint: "Project data — see the Data tab.",
     setPlaceLead: "Place:",
+    setAddPath: "Add a list",
+    setAddPathPlaceholder: "path, e.g. category.meta.items",
     setDelete: "Delete set",
     setDeleteConfirm: "Delete this set and its {{count}} placement(s)? You can recreate a paginated or placed set after.",
     setUnplaceHint: "Remove \"{{title}}\" from the menu (the set is kept).",
