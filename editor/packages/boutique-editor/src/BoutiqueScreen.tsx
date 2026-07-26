@@ -55,6 +55,28 @@ export function BoutiqueScreen() {
     );
   }
 
+  // Migrated catalog (ADR composable-data-models §8): the data lives in the
+  // declared-model Table `categories` — edited through the GENERATED
+  // master-detail form in the project's Sources view. This bespoke screen only
+  // serves not-yet-migrated projects (legacy moduleData/shop.yaml).
+  const migrated = (project.dataSources ?? []).some(
+    (ds) => ds.shape === "table" && String(ds.modelId) === "boutique:category",
+  );
+  if (migrated) {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center gap-2 p-8 text-center">
+        <p className="text-[14px] font-medium text-[var(--text)]">
+          Le catalogue est géré par le modèle déclaré de la Boutique.
+        </p>
+        <p className="max-w-md text-[13px] text-[var(--text-mut)]">
+          Édite les catégories et articles depuis la source « Catégories » du project
+          (onglet Sources) — le formulaire est généré depuis le modèle de l'add-on
+          (master-detail, textes localisés, icônes gérées par /boutiqueadmin additem).
+        </p>
+      </div>
+    );
+  }
+
   const state = readBoutiqueState(project);
   const selectedCategory = state.categories.find((c) => c.id === selectedCategoryId) ?? state.categories[0] ?? null;
 
