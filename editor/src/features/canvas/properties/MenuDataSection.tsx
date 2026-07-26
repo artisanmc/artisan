@@ -1,4 +1,3 @@
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { resolveDisplayRef } from "@/domain/capturedItems";
@@ -31,54 +30,29 @@ export function extractArgTokens(input: SourceRefInput): string[] {
   return [...tokens].sort();
 }
 
-function summarizeShaping(input: SourceRefInput, t: (k: string) => string): string {
-  const parts: string[] = [];
-  for (const [k, v] of Object.entries(input.filter ?? {})) parts.push(`${k} = ${v}`);
-  if (input.sort?.by) parts.push(`${t("menuProperties.sortLabel")} ${input.sort.by} ${input.sort.direction ?? "asc"}`);
-  if (input.limit != null) parts.push(`${t("menuProperties.limitLabel")} ${input.limit}`);
-  return parts.length > 0 ? parts.join(" · ") : t("menuProperties.menuDataNoFilters");
-}
-
-/** "Données du menu": one card per consumed source, live preview with the menu's filters. */
-export function MenuDataSection({ projectId, menu }: { projectId: ProjectId; menu: Menu }) {
-  const { t } = useTranslation();
-  const sourceInputs = (menu.contextInputs ?? []).filter(
-    (i): i is SourceRefInput => i.kind === "sourceRef" && !!i.ref,
-  );
-  if (sourceInputs.length === 0) return null;
-  return (
-    <div className="flex flex-col gap-1.5" data-testid="menu-data-section">
-      <div className="font-mono text-[10px] uppercase tracking-wide text-[var(--text-faint)]">
-        {t("menuProperties.menuData")}
-      </div>
-      {sourceInputs.map((input) => (
-        <MenuSourceCard key={`${input.name}:${input.ref}`} projectId={projectId} menu={menu} input={input} />
-      ))}
-      <NestedListCards projectId={projectId} menu={menu} />
-    </div>
-  );
-}
-
 /**
- * Lists nested inside OBJECT params (e.g. `category.items` when the menu
- * receives a `category` row) are menu data too — one card each, with the same
- * Set d'items block. Field schema resolves from the object's `rowOf` source:
- * pack model when local, else the SIBLING server source named after the list
- * field (`boutique:categories` + `items` -> `boutique:items`).
+ * The lists of ONE object param (`category` -> `category.items`), rendered
+ * inside its card in the unified Données section: auto-detected top-level
+ * lists + hand-typed dotted paths (freedom over guessing).
  */
-function NestedListCards({ projectId, menu }: { projectId: ProjectId; menu: Menu }) {
+export function ObjectParamLists({
+  projectId,
+  menu,
+  input,
+}: {
+  projectId: ProjectId;
+  menu: Menu;
+  input: Extract<ContextInput, { kind: "primitive" }>;
+}) {
   const { t } = useTranslation();
   const pack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
   const serverSources = useServerDataSourcesStore((s) => s.sources);
-  // Hand-typed paths (freedom over guessing — `category.meta.items`): local
-  // until a set is created on them, then the ELEMENT keeps them alive.
+  // Hand-typed paths: local until a set is created on them, then the ELEMENT
+  // keeps them alive.
   const [manualPaths, setManualPaths] = useState<string[]>([]);
   const [draftPath, setDraftPath] = useState("");
-  if (!pack) return null;
-  const objectInputs = (menu.contextInputs ?? []).filter(
-    (i): i is Extract<ContextInput, { kind: "primitive" }> =>
-      i.kind === "primitive" && i.type === "object" && !!i.rowOf,
-  );
+  if (!pack || input.type !== "object" || !input.rowOf) return null;
+  const objectInputs = [input];
   const lists = objectInputs.flatMap((input) => {
     const ref = String(input.rowOf);
     if (ref.startsWith("pack:")) {
@@ -138,13 +112,15 @@ function NestedListCards({ projectId, menu }: { projectId: ProjectId; menu: Menu
   // Paths already consumed by a set element (survives reloads) + hand-typed
   // drafts, minus the auto-detected ones.
   const known = new Set(lists.map((l) => l.path));
-  const inputNames = new Set((menu.contextInputs ?? []).map((c) => c.name));
   const elementPaths = menu.layers
     .flatMap((l) => l.elements)
     .flatMap((e) => [e.iterates?.source, e.places?.source])
-    .filter((s): s is string => !!s && s.includes(".") && !known.has(s));
+    .filter(
+      (s): s is string =>
+        !!s && s.includes(".") && s.split(".")[0] === input.name && !known.has(s),
+    );
   const extraPaths = [...new Set([...elementPaths, ...manualPaths.filter((m) => !known.has(m))])];
-  const rootOk = (path: string) => inputNames.has(path.split(".")[0]!);
+  const rootOk = (path: string) => path.split(".")[0] === input.name;
 
   const addDraft = () => {
     const path = draftPath.trim();
@@ -155,7 +131,6 @@ function NestedListCards({ projectId, menu }: { projectId: ProjectId; menu: Menu
     setDraftPath("");
   };
 
-  if (lists.length === 0 && extraPaths.length === 0 && objectInputs.length === 0) return null;
   return (
     <>
       {lists.map((l) => (
@@ -201,22 +176,6 @@ function NestedListCards({ projectId, menu }: { projectId: ProjectId; menu: Menu
   );
 }
 
-function MenuSourceCard({ projectId, menu, input }: { projectId: ProjectId; menu: Menu; input: SourceRefInput }) {
-  const { t } = useTranslation();
-  const serverSource = useServerDataSourcesStore((s) => s.sources.find((x) => x.ref === input.ref));
-
-  return (
-    <div className="flex flex-col gap-1.5 rounded border border-[var(--border-soft)] bg-[var(--surface-raised)]/40 p-1.5">
-      <div className="flex items-center gap-1.5">
-        <span className="truncate font-mono text-xs">{input.ref}</span>
-        {serverSource?.moduleId ? <Badge className="ml-auto">{serverSource.moduleId}</Badge> : null}
-      </div>
-      <div className="text-[10px] text-[var(--text-mut)]">{summarizeShaping(input, t)}</div>
-      <MenuSetBlock projectId={projectId} menu={menu} input={input} />
-    </div>
-  );
-}
-
 // ─── Set d'items du menu (ADR item-templates… révisé : le set vit au MENU) ───
 
 /** The element consuming this menu list, either mode. */
@@ -233,7 +192,7 @@ function findSetElement(menu: Menu, inputName: string): Element | undefined {
  * selected in "Preview as…"), so the admin navigates category by category and
  * places items. The created element is SELF-CONTAINED (no Item template).
  */
-function MenuSetBlock({
+export function MenuSetBlock({
   projectId,
   menu,
   input,
