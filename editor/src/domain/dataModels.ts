@@ -1,4 +1,5 @@
 import { createLText, deleteLText, getText } from "@/lib/i18n";
+import { adoptBareLTexts } from "./i18nSites";
 import { applyModelMigrations, type ModelMigration } from "./modelMigrations";
 import type {
   DataModel,
@@ -693,7 +694,12 @@ export function injectDeclaredModels(
   for (const ds of pack.dataSources ?? []) {
     if (ds.shape !== "table") continue;
     const model = declared.find((m) => m.id === ds.modelId);
-    if (!model || model.version === undefined || !model.migrations) continue;
+    if (!model) continue;
+    // BARE rows were imported untyped (the declaration wasn't known yet) —
+    // adopt their literal strings into LText nodes now that the model is
+    // (ADR bare-data-files ④). Idempotent on already-typed rows.
+    adoptBareLTexts(pack, ds);
+    if (model.version === undefined || !model.migrations) continue;
     const from = ds.modelVersion ?? 1;
     if (from >= model.version) continue;
     const { applied, toVersion } = applyModelMigrations(ds.rows, from, model.migrations);

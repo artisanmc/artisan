@@ -666,11 +666,9 @@ function collectReferencedKeys(pack: Project): Set<string> {
       for (const action of walkActions(btn.steps)) addActionKeys(action, keys);
     }
   }
-  // Project-source ltext values — the plugin resolves them at bind time
-  // against the same lang files.
-  for (const ds of pack.dataSources ?? []) {
-    for (const site of visitDataSourceLTexts(pack, ds)) keys.add(site.lText.key);
-  }
+  // NOTE: data-source ltext values are NOT collected here anymore (ADR
+  // bare-data-files ④): their default text is inlined in the data file and
+  // their other languages are emitted by ADDRESS via dataSourceI18n().
   return keys;
 }
 
@@ -678,27 +676,36 @@ function serializeLang(
   pack: Project,
   lang: string,
   referencedKeys: Set<string>,
+  // Data-source entries, already re-addressed to canonical key sites (ADR
+  // bare-data-files ④) — empty for the default language (inlined in data/).
+  dataEntries: Record<string, string> = {},
 ): Record<string, string> {
-  const out: Record<string, string> = {};
+  const entries: Array<[string, string]> = [];
   // Iterate `referencedKeys` (not `pack.i18nKeys`) so we always emit *every*
   // key the runtime will look up — even ones that have never been assigned a
   // value. Otherwise a freshly-created menu with no title typed yet yields a
   // missing key in the YAML, and the plugin falls back to printing the raw
   // key (`menus.foo.title`) to chat instead of nothing.
-  // Byte-order sort: lang files must be deterministic regardless of key
-  // collection order (files-first fixed point — import then re-export may
-  // visit documents in a different order).
-  for (const key of Array.from(referencedKeys).sort()) {
+  for (const key of referencedKeys) {
     const entry = pack.i18nKeys[key as keyof typeof pack.i18nKeys];
     const val = entry?.[lang];
     if (val !== undefined) {
-      out[key] = val;
+      entries.push([key, val]);
     } else if (lang === pack.defaultLang) {
       // Always seed the defaultLang file with an empty string so the runtime
       // resolves the key to "" rather than echoing the raw key.
-      out[key] = "";
+      entries.push([key, ""]);
     }
   }
+  for (const [k, v] of Object.entries(dataEntries)) {
+    if (!referencedKeys.has(k)) entries.push([k, v]);
+  }
+  // Byte-order sort: lang files must be deterministic regardless of key
+  // collection order (files-first fixed point — import then re-export may
+  // visit documents in a different order).
+  entries.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+  const out: Record<string, string> = {};
+  for (const [k, v] of entries) out[k] = v;
   return out;
 }
 
@@ -762,20 +769,30 @@ function serializeDataField(
   return { name: field.name, ...serializeDataFieldType(field.type, models, visited) };
 }
 
+/** ltext inlining context (ADR bare-data-files ④): a value serializes as the
+ *  DEFAULT language's literal text; other languages travel in lang/ under the
+ *  canonical key-site address. */
+interface DataI18nCtx {
+  defaultLang: string;
+  keys: Record<string, Record<string, string> | undefined>;
+}
+
 function serializeDataValue(
   value: unknown,
   type: ModelFieldType,
   models: DataModel[],
   visited: Set<DataModelId>,
+  i18n: DataI18nCtx,
 ): unknown {
   switch (type.kind) {
-    case "ltext":
-      return typeof value === "object" && value !== null && "key" in value
-        ? String((value as { key: unknown }).key)
-        : "";
+    case "ltext": {
+      if (typeof value !== "object" || value === null || !("key" in value)) return "";
+      const key = String((value as { key: unknown }).key);
+      return i18n.keys[key]?.[i18n.defaultLang] ?? "";
+    }
     case "list":
       return Array.isArray(value)
-        ? value.map((el) => serializeDataValue(el, type.of, models, visited))
+        ? value.map((el) => serializeDataValue(el, type.of, models, visited, i18n))
         : [];
     case "object": {
       const obj =
@@ -783,14 +800,14 @@ function serializeDataValue(
           ? (value as Record<string, unknown>)
           : {};
       const out: Record<string, unknown> = {};
-      for (const f of type.fields) out[f.name] = serializeDataValue(obj[f.name], f.type, models, visited);
+      for (const f of type.fields) out[f.name] = serializeDataValue(obj[f.name], f.type, models, visited, i18n);
       return out;
     }
     case "model": {
       const model = visited.has(type.ref) ? undefined : models.find((m) => m.id === type.ref);
       if (!model) return {};
       const next = new Set(visited).add(type.ref);
-      return serializeDataValue(value, { kind: "object", fields: model.fields }, models, next);
+      return serializeDataValue(value, { kind: "object", fields: model.fields }, models, next, i18n);
     }
     case "map": {
       const obj =
@@ -798,7 +815,7 @@ function serializeDataValue(
           ? (value as Record<string, unknown>)
           : {};
       const out: Record<string, unknown> = {};
-      for (const [k, v] of Object.entries(obj)) out[k] = serializeDataValue(v, type.of, models, visited);
+      for (const [k, v] of Object.entries(obj)) out[k] = serializeDataValue(v, type.of, models, visited, i18n);
       return out;
     }
     // enum values are plain strings — closedness is enforced at edit time only
@@ -818,7 +835,7 @@ function serializeDataValue(
       const variant = type.variants.find((v) => v.name === tagValue);
       if (!variant) return { [type.tag]: tagValue };
       const out: Record<string, unknown> = { [type.tag]: tagValue };
-      for (const f of variant.fields) out[f.name] = serializeDataValue(obj[f.name], f.type, models, visited);
+      for (const f of variant.fields) out[f.name] = serializeDataValue(obj[f.name], f.type, models, visited, i18n);
       return out;
     }
     default:
@@ -826,39 +843,63 @@ function serializeDataValue(
   }
 }
 
-export function serializeDataSource(pack: Project, ds: DataSource): Record<string, unknown> {
-  const models = pack.dataModels ?? [];
-  if (ds.shape === "table") {
-    const model = models.find((m) => m.id === ds.modelId);
-    const fields = model?.fields ?? [];
-    const visited = new Set<DataModelId>(model ? [model.id] : []);
-    return {
-      schema: "data/v1",
-      id: ds.id,
-      name: ds.name,
-      shape: "table",
-      // Lossless back-ref to models/<id>.yaml (plugin-ignored): `fields` below
-      // stays the flattened runtime view, but the editor re-imports the source
-      // typed by its Data model (ADR files-first-source-of-truth).
-      model: ds.modelId,
-      // Declared-model version the rows conform to (module-declared models
-      // only) — read back at import to run pending migrations.
-      ...(model?.version !== undefined ? { model_version: model.version } : {}),
-      key_field: model?.keyField ?? "id",
-      fields: fields.map((f) => serializeDataField(f, models, visited)),
-      rows: ds.rows.map((r) =>
-        serializeDataValue(r, { kind: "object", fields }, models, new Set(model ? [model.id] : [])),
-      ),
-    };
+// ─── bare data emission (ADR bare-data-files) ────────────────────────────────
+
+/** Non-default translations of every data-source ltext site, re-addressed to
+ *  the canonical key-site path, plus the set of node keys those sites hold
+ *  (excluded from lang/ — the default text is inlined in the data file). */
+function dataSourceI18n(pack: Project): {
+  nodeKeys: Set<string>;
+  byLang: Record<string, Record<string, string>>;
+} {
+  const nodeKeys = new Set<string>();
+  const byLang: Record<string, Record<string, string>> = {};
+  for (const ds of pack.dataSources ?? []) {
+    for (const site of visitDataSourceLTexts(pack, ds)) {
+      const k = site.lText.key as string;
+      nodeKeys.add(k);
+      const entry = pack.i18nKeys[k as I18nKey];
+      if (!entry) continue;
+      for (const [lang, val] of Object.entries(entry)) {
+        if (lang === pack.defaultLang) continue;
+        (byLang[lang] ??= {})[site.path] = val;
+      }
+    }
   }
-  return {
-    schema: "data/v1",
-    id: ds.id,
-    name: ds.name,
-    shape: "config",
-    fields: ds.fields.map((f) => serializeDataField(f, models, new Set())),
-    value: serializeDataValue(ds.value, { kind: "object", fields: ds.fields }, models, new Set()),
+  return { nodeKeys, byLang };
+}
+
+/** Generated header block from the model's presentation hints (⑦): recomputed
+ *  at every export, stripped back out at import (marker line `# ──`). */
+function generatedHeader(name: string, fields: ModelField[]): string {
+  const hints = fields.filter((f) => typeof f.help === "string" && f.help !== "");
+  if (hints.length === 0) return "";
+  return [
+    `# ── ${name} — géré par Artisan (éditable à la main)`,
+    ...hints.map((f) => `# ${f.name}: ${f.help}`),
+  ].join("\n") + "\n";
+}
+
+function dataFileHeader(ds: DataSource, name: string, fields: ModelField[]): string {
+  const hand = ds.headerComment ? `${ds.headerComment}\n` : "";
+  return hand + generatedHeader(name, fields);
+}
+
+/** Model ids referenced by a `model`-kind field anywhere (shared — never
+ *  emitted at a source's filename). */
+function modelKindRefs(models: DataModel[]): Set<string> {
+  const out = new Set<string>();
+  const walk = (ty: ModelFieldType): void => {
+    switch (ty.kind) {
+      case "model": out.add(String(ty.ref)); return;
+      case "list": case "map": walk(ty.of); return;
+      case "object": ty.fields.forEach((f) => walk(f.type)); return;
+      case "union": ty.variants.forEach((v) => v.fields.forEach((f) => walk(f.type))); return;
+      default: return;
+    }
   };
+  for (const m of models) m.fields.forEach((f) => walk(f.type));
+  return out;
 }
 
 /** Row-file name for a per-row Table: the Row key value, slugified; empty or
@@ -877,40 +918,108 @@ export function rowFileName(rows: Record<string, unknown>[], keyField: string, i
 }
 
 /**
- * Per-row granularity (ADR composable-data-models §2): `data/<id>/_source.yaml`
- * carries the source meta (fields, model back-ref, row order); each row lives
- * in its own `data/<id>/<rowKey>.yaml`, hand-editable in isolation.
+ * Emit every Project source in the BARE form (ADR bare-data-files): data files
+ * are pure values (ltext = default-language literal), the schema lives beside
+ * them — models/<sourceId>.yaml (owned model doc, or a one-line `model:` ref)
+ * or a minimal per-row `_source.yaml` (`name?`/`model`/`model_version?`/
+ * `order`). Returns the model ids whose doc was emitted at a source filename
+ * (or intentionally not at all) so the generic models/ loop skips them.
  */
-function serializeDataSourcePerRow(
+function emitDataSources(
   pack: Project,
-  ds: Extract<DataSource, { shape: "table" }>,
   base: string,
   files: Record<string, string>,
   yamlOpts: { lineWidth: number },
-): void {
-  const doc = serializeDataSource(pack, ds) as Record<string, unknown> & {
-    rows: unknown[];
-    key_field: string;
+): Set<string> {
+  const models = pack.dataModels ?? [];
+  const i18n: DataI18nCtx = {
+    defaultLang: pack.defaultLang,
+    keys: pack.i18nKeys as unknown as DataI18nCtx["keys"],
   };
-  const names = ds.rows.map((_, i) => rowFileName(ds.rows, doc.key_field, i));
-  const meta: Record<string, unknown> = {
-    schema: doc.schema,
-    id: doc.id,
-    name: doc.name,
-    shape: doc.shape,
-    model: doc.model,
-    ...((doc as Record<string, unknown>).model_version !== undefined
-      ? { model_version: (doc as Record<string, unknown>).model_version }
-      : {}),
-    key_field: doc.key_field,
-    granularity: "row",
-    order: names,
-    fields: doc.fields,
-  };
-  files[`${base}/data/${ds.id}/_source.yaml`] = stringify(meta, yamlOpts);
-  doc.rows.forEach((row, i) => {
-    files[`${base}/data/${ds.id}/${names[i]}.yaml`] = stringify(row, yamlOpts);
-  });
+  const kindRefs = modelKindRefs(models);
+  const tableUse = new Map<string, number>();
+  for (const ds of pack.dataSources ?? []) {
+    if (ds.shape === "table") tableUse.set(String(ds.modelId), (tableUse.get(String(ds.modelId)) ?? 0) + 1);
+  }
+  const claimed = new Set<string>();
+
+  for (const ds of pack.dataSources ?? []) {
+    if (ds.shape === "config") {
+      const value = serializeDataValue(ds.value, { kind: "object", fields: ds.fields }, models, new Set(), i18n);
+      files[`${base}/data/${ds.id}.yaml`] =
+        dataFileHeader(ds, ds.name, ds.fields) + stringify(value, yamlOpts);
+      if (ds.fields.length > 0) {
+        files[`${base}/models/${ds.id}.yaml`] = stringify(
+          { schema: "model/v1", id: ds.id, name: ds.name, fields: ds.fields },
+          yamlOpts,
+        );
+        claimed.add(String(ds.id));
+      }
+      continue;
+    }
+
+    const model = models.find((m) => m.id === ds.modelId);
+    const fields = model?.fields ?? [];
+    const rowsOut = ds.rows.map((r) =>
+      serializeDataValue(r, { kind: "object", fields }, models, new Set(model ? [model.id] : []), i18n),
+    );
+    const header = dataFileHeader(ds, ds.name, fields);
+    const declared = !model || model.provenance === "module";
+    const owned =
+      !!model && !declared && (tableUse.get(String(model.id)) ?? 0) === 1 && !kindRefs.has(String(model.id));
+    const link: Record<string, unknown> = {
+      ...(ds.name !== String(ds.id) ? { name: ds.name } : {}),
+      model: String(ds.modelId),
+      ...(model?.version !== undefined ? { model_version: model.version } : {}),
+    };
+
+    if (ds.granularity === "row") {
+      const names = ds.rows.map((_, i) => rowFileName(ds.rows, model?.keyField ?? "id", i));
+      files[`${base}/data/${ds.id}/_source.yaml`] = header + stringify({ ...link, order: names }, yamlOpts);
+      rowsOut.forEach((row, i) => {
+        files[`${base}/data/${ds.id}/${names[i]}.yaml`] = stringify(row, yamlOpts);
+      });
+      if (owned && fields.length > 0) {
+        files[`${base}/models/${ds.id}.yaml`] = stringify(
+          {
+            schema: "model/v1",
+            id: model!.id,
+            name: model!.name,
+            key_field: model!.keyField,
+            ...(model!.masterDetail ? { master_detail: true } : {}),
+            fields: model!.fields,
+          },
+          yamlOpts,
+        );
+        claimed.add(String(model!.id));
+      } else if (owned) {
+        claimed.add(String(model!.id)); // untyped synthesized — no doc at all
+      }
+      continue;
+    }
+
+    files[`${base}/data/${ds.id}.yaml`] = header + stringify(rowsOut, yamlOpts);
+    if (owned && fields.length > 0) {
+      files[`${base}/models/${ds.id}.yaml`] = stringify(
+        {
+          schema: "model/v1",
+          id: model!.id,
+          name: model!.name,
+          key_field: model!.keyField,
+          ...(model!.masterDetail ? { master_detail: true } : {}),
+          fields: model!.fields,
+        },
+        yamlOpts,
+      );
+      claimed.add(String(model!.id));
+    } else if (owned) {
+      claimed.add(String(model!.id)); // untyped synthesized — no doc at all
+    } else {
+      // Declared or shared model: one-line(ish) ref beside the data.
+      files[`${base}/models/${ds.id}.yaml`] = stringify(link, yamlOpts);
+    }
+  }
+  return claimed;
 }
 
 // ─── public API ──────────────────────────────────────────────────────────────
@@ -945,19 +1054,14 @@ export function transform(pack: Project): Record<string, string> {
     files[`${base}/items/${item.id}.yml`] = item.stackYaml;
   }
 
-  for (const ds of pack.dataSources ?? []) {
-    if (ds.shape === "table" && ds.granularity === "row") {
-      serializeDataSourcePerRow(pack, ds, base, files, yamlOpts);
-    } else {
-      files[`${base}/data/${ds.id}.yaml`] = stringify(serializeDataSource(pack, ds), yamlOpts);
-    }
-  }
+  const claimedModelIds = emitDataSources(pack, base, files, yamlOpts);
 
   const langs = listLanguages(pack);
   const referencedKeys = collectReferencedKeys(pack);
+  const dsI18n = dataSourceI18n(pack);
   for (const lang of langs) {
     files[`${base}/lang/${lang}.yaml`] = stringify(
-      serializeLang(pack, lang, referencedKeys),
+      serializeLang(pack, lang, referencedKeys, lang === pack.defaultLang ? {} : (dsI18n.byLang[lang] ?? {})),
       yamlOpts,
     );
   }
@@ -998,6 +1102,9 @@ export function transform(pack: Project): Record<string, string> {
   // declaration (Presence), never a project file (ADR composable-data-models §4).
   for (const m of pack.dataModels ?? []) {
     if (m.provenance === "module") continue;
+    // Owned by a source (doc emitted at models/<sourceId>.yaml, or an untyped
+    // synthesized model with nothing to say) — ADR bare-data-files ⑤.
+    if (claimedModelIds.has(String(m.id))) continue;
     files[`${base}/models/${m.id}.yaml`] = stringify(
       {
         schema: "model/v1",

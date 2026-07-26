@@ -173,6 +173,91 @@ class BareDataFilesReaderTest {
     }
 
     @Test
+    fun `editor-verbatim model doc shape (name plus type) is flattened and types the source`() {
+        val dir = writeProject(langFr = "sources.ranks.vip.name: V.I.P.\n")
+        File(dir, "models").mkdirs()
+        // The editor emits model/v1 fields VERBATIM: `{name, type: {kind}}`.
+        File(dir, "models/ranks.yaml").writeText(
+            """
+            schema: model/v1
+            id: ranks
+            fields:
+              - name: id
+                type: { kind: string }
+              - name: name
+                type: { kind: ltext }
+              - name: perks
+                type:
+                  kind: list
+                  of: { kind: ltext }
+            """.trimIndent(),
+        )
+        File(dir, "data/ranks.yaml").writeText(
+            """
+            - id: vip
+              name: sources.ranks.vip.name
+              perks: ["Voler"]
+            """.trimIndent(),
+        )
+
+        val src = read(dir).dataSources.single()
+        @Suppress("UNCHECKED_CAST")
+        val fr = src.resolved("fr") as List<Map<String, Any?>>
+        assertEquals("V.I.P.", fr[0]["name"])
+        assertEquals(listOf("Voler"), fr[0]["perks"])
+    }
+
+    @Test
+    fun `literal ltext resolves other languages BY ADDRESS (canonical key site)`() {
+        // ADR bare-data-files ④: the data file inlines the default language's
+        // literal; other languages live in lang/ under
+        // sources.<sourceId>.<rowKey>.<fieldPath> — the runtime derives the
+        // address during the walk.
+        val dir = writeProject(
+            langFr = "sources.categories.armes.name: Armes FR\nsources.categories.armes.items.name: Épée\n",
+        )
+        File(dir, "models").mkdirs()
+        File(dir, "models/categories.yaml").writeText(
+            """
+            schema: model/v1
+            id: categories
+            fields:
+              - name: id
+                kind: string
+              - name: name
+                kind: ltext
+              - name: items
+                kind: list
+                of:
+                  kind: object
+                  fields:
+                    - name: name
+                      kind: ltext
+            """.trimIndent(),
+        )
+        File(dir, "data/categories.yaml").writeText(
+            """
+            - id: armes
+              name: "Weapons"
+              items:
+                - name: "Sword"
+            """.trimIndent(),
+        )
+
+        val src = read(dir).dataSources.single()
+        @Suppress("UNCHECKED_CAST")
+        val fr = src.resolved("fr") as List<Map<String, Any?>>
+        assertEquals("Armes FR", fr[0]["name"])
+        @Suppress("UNCHECKED_CAST")
+        val items = fr[0]["items"] as List<Map<String, Any?>>
+        assertEquals("Épée", items[0]["name"])
+        // Default language keeps the literal.
+        @Suppress("UNCHECKED_CAST")
+        val en = src.resolved("en") as List<Map<String, Any?>>
+        assertEquals("Weapons", en[0]["name"])
+    }
+
+    @Test
     fun `a mapping with an unrelated schema-like key stays a bare object`() {
         val dir = writeProject()
         // "schema" here is USER DATA (not `data/v1`) — grill Q2: only the exact
