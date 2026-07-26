@@ -99,6 +99,7 @@ function MenuSetBlock({
 }) {
   const { t } = useTranslation();
   const createMenuSet = useAccountStore((s) => s.createMenuSet);
+  const deleteElement = useAccountStore((s) => s.deleteElement);
   const pack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
   const serverSource = useServerDataSourcesStore((s) => s.sources.find((x) => x.ref === input.ref));
   if (!pack) return null;
@@ -140,14 +141,32 @@ function MenuSetBlock({
       </div>
     );
   }
+  const deleteSet = () => {
+    const placedCount = el.places?.placements.length ?? 0;
+    if (placedCount > 0 && !window.confirm(t("menuProperties.setDeleteConfirm", { count: placedCount }))) {
+      return;
+    }
+    deleteElement({ projectId, menuId: menu.id, elementId: el.id as never });
+  };
   if (el.iterates) {
     return (
-      <div className="text-[10px] text-[var(--text-mut)]" data-testid={`menu-set-${input.name}`}>
-        {t("menuProperties.setPaginated", { positions: el.positions || "—" })}
+      <div className="flex items-center gap-1.5" data-testid={`menu-set-${input.name}`}>
+        <span className="text-[10px] text-[var(--text-mut)]">
+          {t("menuProperties.setPaginated", { positions: el.positions || "—" })}
+        </span>
+        <button
+          type="button"
+          onClick={deleteSet}
+          className="ml-auto rounded px-1.5 py-0.5 text-[10px] text-[var(--text-faint)] hover:bg-[var(--surface-raised-2)] hover:text-rose-300"
+        >
+          ✕ {t("menuProperties.setDelete")}
+        </button>
       </div>
     );
   }
-  return <PlacementRowsPanel projectId={projectId} menu={menu} element={el} pack={pack} />;
+  return (
+    <PlacementRowsPanel projectId={projectId} menu={menu} element={el} pack={pack} onDelete={deleteSet} />
+  );
 }
 
 /**
@@ -161,11 +180,13 @@ function PlacementRowsPanel({
   menu,
   element,
   pack,
+  onDelete,
 }: {
   projectId: ProjectId;
   menu: Menu;
   element: Element;
   pack: Project;
+  onDelete: () => void;
 }) {
   const { t } = useTranslation();
   const snapshots = useServerSnapshotsStore((s) => s.rowsByRef);
@@ -179,8 +200,17 @@ function PlacementRowsPanel({
 
   return (
     <div className="flex flex-col gap-1" data-testid={`menu-set-${places.source}`}>
-      <div className="text-[10px] text-[var(--text-mut)]">
-        {t("menuProperties.setPlacedCount", { count: places.placements.length })}
+      <div className="flex items-center gap-1.5">
+        <span className="text-[10px] text-[var(--text-mut)]">
+          {t("menuProperties.setPlacedCount", { count: places.placements.length })}
+        </span>
+        <button
+          type="button"
+          onClick={onDelete}
+          className="ml-auto rounded px-1.5 py-0.5 text-[10px] text-[var(--text-faint)] hover:bg-[var(--surface-raised-2)] hover:text-rose-300"
+        >
+          ✕ {t("menuProperties.setDelete")}
+        </button>
       </div>
       {Array.isArray(rows) && rows.length > 0 ? (
         <>
