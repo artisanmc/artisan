@@ -9,6 +9,13 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Changed — fichiers de données NUS : le schéma vit à côté, jamais dedans (ADR `bare-data-files`)
+- Un fichier `data/` peut être **pur valeurs** : mapping YAML = source objet (interpolation), liste = table (id ← filename, `key_field` défaut `id`). Le schéma se résout par précédence inline (legacy, lu à vie) > déclaration JAR > `models/<sourceId>.yaml` (doc complet du model possédé — identité dans le doc — ou ref une-ligne `model:`) > untyped (valeurs littérales, jamais d'erreur). `_source.yaml` devient optionnel (absent → rows triées par filename ; minimal = `name`/`model`/`order`). L'export n'écrit plus **jamais** de `fields:` inline ni de `shape:` (alias legacy lu).
+- **ltext hybride** : sur disque, une valeur ltext est le **littéral de la langue par défaut** ; les autres langues vivent dans `lang/` sous l'adresse key-site canonique, désormais keyée sur l'**id** de la source (renommer une source ne re-adresse plus ses clés). Le plugin résout au walk : clé explicite > adresse > littéral. Serveur mono-langue = zéro clé, zéro `lang/` pour les données.
+- **Commentaires** : les hints `help` du model sont projetés en commentaires YAML générés à chaque export (marqueur `# ──`), et un bloc d'en-tête écrit main est capturé/ré-émis verbatim.
+- La distinction Table/Config est **dérivée du kind racine** au niveau fichier ; le domaine éditeur conserve sa représentation interne (pur refactor différé, aucun delta observable).
+- `/boutiqueadmin additem` écrit des littéraux (plus de minting) ; les rows legacy à clés restent résolues par tolérance.
+
 ### Fixed — le contentHash des commits rejoint le hash canonique unique (auto-push réparé)
 - `commitStorage.computeContentHash` hashait les clés complètes (`plugins/Artisan/projects/<id>/…`) en incluant `.artisan*`, alors que le plugin (`BundleHasher`) et `computeBundleHash` hashent des relPaths en excluant `.artisan*` : `hello_ack.project_hashes` ne matchait donc jamais le hash disque du plugin — `detectSyncAction` ne pouvait jamais classer IN_SYNC/LOCAL_ONLY et l'auto-push files-first était inopérant en conditions réelles. Le contentHash utilise désormais la canonicalisation maison (vecteur de conformance asservi) et le `hello_ack` recalcule depuis le filesJson du head pour self-heal les commits legacy sans backfill.
 
