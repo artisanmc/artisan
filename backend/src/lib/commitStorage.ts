@@ -9,17 +9,23 @@ export type Commit = typeof projectCommits.$inferSelect;
  * Deterministic content hash: SHA-256 of `(key\nvalue\n)*` over sorted keys.
  * Matches the plugin's LocalPushSender.computeHash() so client & server agree.
  */
-export function computeContentHash(files: Record<string, string>): string {
-  // Empty-content sentinel: "" means "no content", consistent with
-  // BundleHasher.hash() (plugin) and hashUtils.computeBundleHash() (backend).
-  // A freshly-created project stub (empty initial commit) must hash to "" so
-  // the plugin's auto-push path (backendHash.isEmpty()) fires instead of
-  // mistaking the stub for divergent content and overwriting local files.
-  if (Object.keys(files).length === 0) return "";
+export function computeContentHash(files: Record<string, string>, projectId: string): string {
+  // ONE house hash (CLAUDE.md § Invariants): the commit contentHash is the
+  // SAME canonical pack hash as BundleHasher (plugin) and computeBundleHash
+  // (backend) — relPath-keyed, native byte-order sort, `.artisan*` first
+  // segment excluded. It used to hash full disk paths incl. `.artisan*`,
+  // which made hello_ack.project_hashes never match the plugin's disk hash:
+  // detectSyncAction could never see IN_SYNC/LOCAL_ONLY (no auto-push).
+  // Empty-content sentinel: "" means "no content" — a freshly-created stub
+  // must hash to "" so the plugin's backendHash.isEmpty() auto-push fires.
+  const prefix = `plugins/Artisan/projects/${projectId}/`;
+  const entries = Object.entries(files)
+    .map(([k, v]) => [k.startsWith(prefix) ? k.slice(prefix.length) : k, v] as const)
+    .filter(([k]) => !k.split("/", 1)[0]!.startsWith(".artisan"))
+    .sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+  if (entries.length === 0) return "";
   const sb: string[] = [];
-  for (const key of Object.keys(files).sort()) {
-    sb.push(key, "\n", files[key], "\n");
-  }
+  for (const [k, v] of entries) sb.push(k, "\n", v, "\n");
   return createHash("sha256").update(sb.join("")).digest("hex");
 }
 
@@ -32,7 +38,7 @@ export interface CreateCommitInput {
 }
 
 export async function createCommit(input: CreateCommitInput): Promise<Commit> {
-  const contentHash = computeContentHash(input.files);
+  const contentHash = computeContentHash(input.files, input.projectId);
 
   // Dedup: if a commit with this (projectId, contentHash) already exists, return it.
   const existing = await db.select().from(projectCommits).where(and(
