@@ -310,6 +310,11 @@ data class DataSourceYaml(
     val value: Map<String, Any?> = emptyMap(),
     /** Row-file order for per-row granularity dirs (ADR composable-data-models §2). */
     val order: List<String> = emptyList(),
+    /**
+     * Model ref (`ns:id` or a models/ file id) — schema resolved at load per
+     * ADR bare-data-files ① when `fields` is absent.
+     */
+    val model: String? = null,
 )
 
 /**

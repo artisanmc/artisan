@@ -12,10 +12,21 @@ import java.util.logging.Logger
 class ProjectReader(
     private val roots: net.artisanmc.plugin.project.ProjectRoots,
     private val logger: Logger? = null,
+    /**
+     * JAR-declared model documents (`ns:id` → model/v1 doc), supplied by the
+     * ModelRegistry — resolved at load to type BARE data files (ADR
+     * bare-data-files ①). Empty when no add-on declared anything (or at the
+     * very first boot load, before add-ons enable — bare sources then read
+     * untyped, i.e. every value literal, and get typed at the next reload).
+     */
+    private val declaredModels: () -> Map<String, Map<String, Any?>> = { emptyMap() },
 ) {
     /** Test convenience — production passes the shared [net.artisanmc.plugin.project.ProjectRoots]. */
-    constructor(projectsRoot: File, logger: Logger? = null)
-        : this(net.artisanmc.plugin.project.ProjectRoots(projectsRoot), logger)
+    constructor(
+        projectsRoot: File,
+        logger: Logger? = null,
+        declaredModels: () -> Map<String, Map<String, Any?>> = { emptyMap() },
+    ) : this(net.artisanmc.plugin.project.ProjectRoots(projectsRoot), logger, declaredModels)
 
     private val mapper = ObjectMapper(YAMLFactory()).registerKotlinModule()
 
@@ -122,31 +133,49 @@ class ProjectReader(
             }
         }
 
-        // Project sources (data/v1) — scanned, not manifest-listed. Tolerant per
-        // file: a bad source logs + skips, never blocks the project load.
+        // Project sources — scanned, not manifest-listed. Tolerant per file: a
+        // bad source logs + skips, never blocks the project load. Two accepted
+        // forms (ADR bare-data-files): the legacy inline `schema: data/v1`
+        // document, or a BARE file (mapping = object source, list = table)
+        // whose schema resolves from models/<id>.yaml or a JAR declaration.
         val dataDir = File(projectDir, "data")
+        val projectModels = readProjectModels(projectDir)
         val singleFileSources = dataDir
             .listFiles { f -> f.isFile && f.name.endsWith(".yaml") }
             ?.sortedBy { it.name }
             ?.mapNotNull { f ->
                 runCatching {
-                    val dsYaml = mapper.readValue(f, DataSourceYaml::class.java)
-                    requireSchema(f, dsYaml.schema, "data/v1")
+                    val sourceId = f.name.removeSuffix(".yaml")
+                    val dsYaml = readSourceDocument(f, sourceId, projectModels)
                     BundleDataSource(dsYaml, langMaps, manifest.defaultLang)
                 }.getOrElse { e ->
                     logger?.warning("[Artisan] skipping data source ${f.name}: ${e.message}")
                     null
                 }
             } ?: emptyList()
-        // Per-row granularity (ADR composable-data-models §2): data/<id>/ holds
-        // _source.yaml (meta + fields + row order) and one file per row.
+        // Per-row granularity: data/<id>/ holds one file per row. `_source.yaml`
+        // is OPTIONAL (ADR bare-data-files ③): absent → all files sorted by
+        // name; present → its `order:` first (it may be the legacy full meta,
+        // or minimal `model:` + `order:`).
         val perRowSources = dataDir
-            .listFiles { f -> f.isDirectory && File(f, "_source.yaml").isFile }
+            .listFiles { f -> f.isDirectory }
             ?.sortedBy { it.name }
             ?.mapNotNull { dir ->
                 runCatching {
-                    val meta = mapper.readValue(File(dir, "_source.yaml"), DataSourceYaml::class.java)
-                    requireSchema(File(dir, "_source.yaml"), meta.schema, "data/v1")
+                    val sourceId = dir.name
+                    // `_source.yaml` is always META (legacy full form, or minimal
+                    // `model:` + `order:`) — never bare values.
+                    val metaFile = File(dir, "_source.yaml")
+                    val meta = if (metaFile.isFile) {
+                        val m = mapper.readValue(metaFile, DataSourceYaml::class.java)
+                        requireSchema(metaFile, m.schema, "data/v1")
+                        m.copy(
+                            id = m.id.ifEmpty { sourceId },
+                            fields = m.fields.ifEmpty { resolveFields(sourceId, m.model, projectModels) },
+                        )
+                    } else {
+                        DataSourceYaml(id = sourceId, fields = resolveFields(sourceId, null, projectModels))
+                    }
                     val onDisk = dir.listFiles { f -> f.isFile && f.name.endsWith(".yaml") && f.name != "_source.yaml" }
                         ?.associateBy { it.name.removeSuffix(".yaml") } ?: emptyMap()
                     // Declared order first, then hand-added files (byte-sorted).
@@ -161,7 +190,7 @@ class ProjectReader(
                             null
                         }
                     }
-                    BundleDataSource(meta.copy(rows = rows), langMaps, manifest.defaultLang)
+                    BundleDataSource(meta.copy(shape = "table", rows = rows), langMaps, manifest.defaultLang)
                 }.getOrElse { e ->
                     logger?.warning("[Artisan] skipping data source dir ${dir.name}: ${e.message}")
                     null
@@ -173,6 +202,87 @@ class ProjectReader(
             manifest.projectId, manifest.defaultLang, manifest.languages,
             menus, commands, dialogs, dataSources,
         )
+    }
+
+    /**
+     * Parses ONE data source file (single-file source or `_source.yaml`).
+     * Exactly `schema: data/v1` (or a loud-rejected other version) selects the
+     * legacy inline form; any other root — mapping or list — is BARE values
+     * (ADR bare-data-files ②/③): id from filename, schema resolved beside.
+     */
+    private fun readSourceDocument(
+        f: File,
+        sourceId: String,
+        projectModels: Map<String, Map<String, Any?>>,
+    ): DataSourceYaml {
+        val raw = mapper.readValue(f, Any::class.java)
+        if (raw is Map<*, *> && (raw["schema"] as? String)?.startsWith("data/") == true) {
+            val dsYaml = mapper.readValue(f, DataSourceYaml::class.java)
+            requireSchema(f, dsYaml.schema, "data/v1")
+            val fields = dsYaml.fields.ifEmpty { resolveFields(sourceId, dsYaml.model, projectModels) }
+            return dsYaml.copy(id = dsYaml.id.ifEmpty { sourceId }, fields = fields)
+        }
+        return when (raw) {
+            is List<*> -> DataSourceYaml(
+                id = sourceId, shape = "table",
+                fields = resolveFields(sourceId, null, projectModels),
+                rows = raw.mapNotNull { r ->
+                    @Suppress("UNCHECKED_CAST")
+                    (r as? Map<String, Any?>)
+                },
+            )
+            is Map<*, *> -> DataSourceYaml(
+                id = sourceId, shape = "config",
+                fields = resolveFields(sourceId, null, projectModels),
+                value = raw.entries.associate { it.key.toString() to it.value },
+            )
+            else -> throw IllegalArgumentException("data source ${f.name}: root must be a mapping or a list")
+        }
+    }
+
+    /**
+     * Schema precedence for a source without inline `fields` (ADR
+     * bare-data-files ①): explicit `model:` ref > `models/<sourceId>.yaml`
+     * (its own fields, or its `model:` ref, one hop) > untyped (empty —
+     * every value literal, never an error).
+     */
+    private fun resolveFields(
+        sourceId: String,
+        modelRef: String?,
+        projectModels: Map<String, Map<String, Any?>>,
+    ): List<DataFieldYaml> {
+        fun fieldsOf(doc: Map<String, Any?>?): List<DataFieldYaml>? {
+            val raw = doc?.get("fields") as? List<*> ?: return null
+            return runCatching {
+                raw.map { mapper.convertValue(it, DataFieldYaml::class.java) }
+            }.getOrNull()
+        }
+        fun lookup(ref: String): Map<String, Any?>? =
+            declaredModels()[ref] ?: projectModels[ref]
+
+        if (modelRef != null) return fieldsOf(lookup(modelRef)) ?: emptyList()
+        val own = projectModels[sourceId] ?: return emptyList()
+        fieldsOf(own)?.takeIf { it.isNotEmpty() }?.let { return it }
+        val ref = own["model"] as? String ?: return emptyList()
+        return fieldsOf(lookup(ref)) ?: emptyList()
+    }
+
+    /** models/<id>.yaml docs, keyed by BOTH the file id and the doc's `id:` (ns refs). */
+    private fun readProjectModels(projectDir: File): Map<String, Map<String, Any?>> {
+        val out = mutableMapOf<String, Map<String, Any?>>()
+        File(projectDir, "models").listFiles { f -> f.isFile && f.name.endsWith(".yaml") }
+            ?.sortedBy { it.name }
+            ?.forEach { f ->
+                runCatching {
+                    @Suppress("UNCHECKED_CAST")
+                    val doc = mapper.readValue(f, Map::class.java) as Map<String, Any?>
+                    out[f.name.removeSuffix(".yaml")] = doc
+                    (doc["id"] as? String)?.let { out.putIfAbsent(it, doc) }
+                }.getOrElse { e ->
+                    logger?.warning("[Artisan] skipping model ${f.name}: ${e.message}")
+                }
+            }
+        return out
     }
 
     /**
