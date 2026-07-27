@@ -160,6 +160,57 @@ describe("diffScratchForWrite", () => {
     });
   });
 
+  // ADR yaml-assisted-editing: a Config file may be typed by a MODULE-DECLARED
+  // model (the schema arrives via Presence, never from the project files) — the
+  // beside file is then a one-line ref, not a schema copy.
+  describe("config source typed by a declared model", () => {
+    const settings: ServerEditorScreen = {
+      id: "boutique:settings",
+      moduleId: "boutique",
+      label: "Réglages",
+      table: "data/shop_settings",
+      projectId: "boutique",
+    };
+    const declared = {
+      schema: "model/v1",
+      id: "boutique:shop_settings",
+      name: "Réglages boutique",
+      fields: [
+        { name: "whole_shop_discount", type: { kind: "integer" }, label: "Remise globale", min: 0, max: 100 },
+      ],
+    };
+    const files = [
+      { path: "data/shop_settings.yaml", content: "whole_shop_discount: 10\n" },
+      { path: "models/shop_settings.yaml", content: "model: boutique:shop_settings\n" },
+    ];
+
+    it("resolves its fields from the declaration", () => {
+      const pack = buildScratchProject(settings, files, [declared]);
+      const src = pack.dataSources.find((d) => d.id === ("shop_settings" as DataSourceId));
+      if (src?.shape !== "config") throw new Error("expected config shape");
+      expect(src.fields.map((f) => f.name)).toEqual(["whole_shop_discount"]);
+      expect(src.fields[0]!.label).toBe("Remise globale");
+      expect(src.value.whole_shop_discount).toBe(10);
+    });
+
+    it("keeps the beside file a one-line ref — a declared schema is never copied to disk", () => {
+      const pack = buildScratchProject(settings, files, [declared]);
+      const src = pack.dataSources.find((d) => d.id === ("shop_settings" as DataSourceId));
+      if (src?.shape !== "config") throw new Error("expected config shape");
+      src.value.whole_shop_discount = 20;
+
+      const diff = diffScratchForWrite(pack, settings, files);
+      const beside = diff.files.find((f) => f.path === "models/shop_settings.yaml");
+      // Either untouched (identical) or rewritten as the same one-line ref —
+      // never expanded into a copy of the declaration.
+      if (beside) {
+        expect(beside.content).toContain("model: boutique:shop_settings");
+        expect(beside.content).not.toContain("whole_shop_discount");
+      }
+      expect(diff.files.some((f) => f.path === "data/shop_settings.yaml" && f.content.includes("20"))).toBe(true);
+    });
+  });
+
   it("never emits files outside the screen's table", () => {
     const pack = buildScratchProject(screen, files, [model]);
     const src = pack.dataSources.find((d) => d.id === ("categories" as DataSourceId));
