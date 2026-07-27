@@ -1827,5 +1827,21 @@ const fr: typeof en = {
     ctxDialogBody: "dialog · {{owner}}",
     ctxDialogButton: "bouton · {{owner}}",
   },
+  screens: {
+    loading: "Lecture des fichiers du serveur…",
+    offline: "Serveur hors ligne",
+    offlineHint: "Cet écran édite les fichiers du serveur en direct — reconnecte le serveur pour éditer.",
+    retry: "Réessayer",
+    reload: "Recharger",
+    save: "Enregistrer",
+    saving: "Enregistrement…",
+    saved: "Enregistré",
+    error: "Le serveur n'a pas pu traiter cet écran.",
+    emptyTable: "Aucune donnée pour cet écran.",
+    notFound: "Écran de configuration inconnu.",
+    moduleFallback: "Module",
+    managedByModule: "Géré par le module {{module}}",
+    openScreen: "Ouvrir son écran",
+  },
 };
 export default fr;

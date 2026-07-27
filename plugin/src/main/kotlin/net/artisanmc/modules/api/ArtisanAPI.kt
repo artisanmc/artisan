@@ -35,6 +35,8 @@ class ArtisanAPI(
     @net.artisanmc.modules.api.annotations.Beta val actions: ModuleActionsApi = ModuleActionsApi.NOOP,
     /** Module-declared Data models — model/v1 passthrough to Presence (ADR composable-data-models). */
     @net.artisanmc.modules.api.annotations.Beta val models: ModelRegistry = ModelRegistry(),
+    /** Module-declared Config screens — reported at Presence (ADR module-config-screens). */
+    @net.artisanmc.modules.api.annotations.Beta val screens: EditorScreenRegistry = EditorScreenRegistry(),
 ) {
     /**
      * Returns true if this core version satisfies the module's declared minimum

@@ -1,8 +1,11 @@
 # Config screens de module — surfaces séparées, édition live
 
 **Statut :** accepté (2026-07-27) — design verrouillé (session grill-with-docs),
-rien d'implémenté. Complète l'ADR `composable-data-models` (dont il révise la
-localisation du formulaire généré).
+**cercle ① implémenté le 2026-07-27** (déclaration presence `editor_screens`,
+table `server_editor_screens` + relais WS `config_read`/`config_write` sans
+stockage, écrans éditeur générés + fallback « Données », panneau Données du
+canvas réduit au binding, Boutique déclarant ses deux écrans). Complète l'ADR
+`composable-data-models` (dont il révise la localisation du formulaire généré).
 
 ## Contexte
 

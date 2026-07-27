@@ -2,6 +2,7 @@ import { AdminSidebar } from "@/components/AdminSidebar";
 import { ProjectSidebar } from "@/components/ProjectSidebar";
 import type { Project } from "@/domain/types";
 import { persistProject } from "@/features/project/persistProject";
+import { isScreenScratchId } from "@/features/screens/screenScratch";
 import { EditorWs } from "@/lib/editorWs";
 import { useProjectVersionStore } from "@/state/projectVersionStore";
 import { useAccountStore } from "@/state/accountStore";
@@ -10,6 +11,7 @@ import { useNetworksStore } from "@/state/networksStore";
 import { useServersStore } from "@/state/serversStore";
 import { useModulesStore } from "@/state/modulesStore";
 import { useServerDataSourcesStore } from "@/state/serverDataSourcesStore";
+import { useServerScreensStore } from "@/state/serverScreensStore";
 import { useSidebarStore } from "@/state/sidebarStore";
 import { PostHogProvider } from "@posthog/react";
 import { Outlet, createRootRoute, useRouterState } from "@tanstack/react-router";
@@ -57,6 +59,7 @@ function RootLayoutInner() {
     if (!user || !activeNetworkId || !activeServerId) return;
     useModulesStore.getState().integrate({ networkId: activeNetworkId, serverId: activeServerId });
     useServerDataSourcesStore.getState().load({ networkId: activeNetworkId, serverId: activeServerId });
+    useServerScreensStore.getState().load({ networkId: activeNetworkId, serverId: activeServerId });
 
     let cancelled = false;
     let ws: EditorWs | null = null;
@@ -158,6 +161,9 @@ export function useProjectAutoSave() {
         const currentUser = useAuthStore.getState().currentUser;
         if (!currentUser) return;
         for (const [, pack] of toSave) {
+          // Config-screen scratch copies save over the WS live channel, never
+          // through the backend project store (ADR module-config-screens).
+          if (isScreenScratchId(pack.id)) continue;
           // A conflicted project must not keep re-pushing stale state over the
           // newer server version — the conflict banner asks for a reload.
           if (useProjectVersionStore.getState().conflicts[pack.id]) continue;

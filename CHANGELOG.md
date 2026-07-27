@@ -9,6 +9,12 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Added — Config screens de module : le module déclare ses écrans, le core les génère (ADR `module-config-screens`)
+- **Plugin** : nouvelle API `@Beta` `api.screens.declare(id, label, table, projectId)` (`EditorScreenRegistry`) — déclaration pure, reportée à la présence dans `hello.editor_screens` / `modules_changed` (id namespacé obligatoire, chemin de table validé : pas d'absolu, pas de `..`, pas de `.artisan*`). Nouveaux handlers WS `config_read` / `config_write` : lecture des fichiers d'une Table (cap 1 MiB) et écriture disque encadrée par `beginSuppress`/`endSuppress` + hot-reload + auto-push LOCAL_ONLY par le sync normal.
+- **Backend** : table `server_editor_screens` (migration 0027, upsert + prune miroir `server_declared_models`), `GET …/servers/:sid/screens`, et relais **sans stockage** `POST …/servers/:sid/config/read` (timeout 5 s) / `…/config/write` (timeout 10 s).
+- **Éditeur** : entrées sidebar sous le module (« Éditeur » + un écran par déclaration ; fallback « Données » auto-généré quand le module déclare des models sans écran), page de Config screen live (formulaire core, grisée serveur hors ligne). Le panneau Données du canvas redevient une pure surface de binding : les Tables à model module-déclaré n'y sont plus éditables, remplacées par un lien « Géré par le module X ».
+- **Boutique** : déclare `boutique:catalog` et `boutique:settings`.
+
 ### Changed — le set d'items vit au niveau du MENU (révision de l'ADR item-templates)
 - La création d'un set se fait depuis « Données du menu » (panneau d'édition du menu), par liste : **Paginer** (élément itérant auto-seedé depuis le schéma — icône/nom/prix — plage de slots par défaut) ou **Placer 1 à 1**. L'élément créé est auto-suffisant (appearances locales, aucun Item template).
 - Mode placement : nouveau **panneau de rows contextuel** — les items proposés sont ceux du contexte d'aperçu courant (« Preview as… », ex. la catégorie boutique sélectionnée), rendus via l'appearance de l'élément, glissables sur les slots du canvas (plomberie `row:` existante). On change de catégorie, on continue de placer.

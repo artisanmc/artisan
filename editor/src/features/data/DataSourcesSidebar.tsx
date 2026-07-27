@@ -1,5 +1,10 @@
-import type { DataSourceId, Project } from "@/domain/types";
+import type { DataSource, DataSourceId, Project } from "@/domain/types";
+import { resolveScreen } from "@/features/screens/screenList";
 import { useAccountStore } from "@/state/accountStore";
+import { useNetworksStore } from "@/state/networksStore";
+import { useServersStore } from "@/state/serversStore";
+import { useServerScreensStore } from "@/state/serverScreensStore";
+import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { ServerSourcesSection } from "./ServerSourcesSection";
 
@@ -20,6 +25,20 @@ export function DataSourcesSidebar({
 }: DataSourcesSidebarProps) {
   const { t } = useTranslation();
   const addProjectDataSource = useAccountStore((s) => s.addProjectDataSource);
+  const declaredScreens = useServerScreensStore((s) => s.screens);
+  const networkId = useNetworksStore((s) => s.activeId);
+  const serverId = useServersStore((s) => s.activeServerId);
+  const localProjects = useAccountStore((s) => s.account.projects);
+
+  // Module-declared-model Tables are edited in the module's Config screen, not
+  // here (ADR module-config-screens) — the panel keeps a pointer, not a form.
+  const isModuleManaged = (d: DataSource) => {
+    const modelId = d.shape === "table" ? d.modelId : undefined;
+    const model = modelId ? (pack.dataModels ?? []).find((m) => m.id === modelId) : undefined;
+    return model?.provenance === "module" ? model.id.split(":")[0] : null;
+  };
+  const ownSources = (pack.dataSources ?? []).filter((d) => !isModuleManaged(d));
+  const managedSources = (pack.dataSources ?? []).filter((d) => isModuleManaged(d));
 
   return (
     <div className="flex flex-1 flex-col gap-4 p-3">
@@ -28,7 +47,7 @@ export function DataSourcesSidebar({
           {t("dataSources.sectionProject")}
         </div>
         <ul className="flex flex-col gap-1">
-          {(pack.dataSources ?? []).map((d) => (
+          {ownSources.map((d) => (
             <li key={d.id}>
               <button
                 type="button"
@@ -50,6 +69,45 @@ export function DataSourcesSidebar({
             </li>
           ))}
         </ul>
+        {managedSources.length > 0 && (
+          <ul className="mt-2 flex flex-col gap-1" data-testid="module-managed-sources">
+            {managedSources.map((d) => {
+              const moduleId = isModuleManaged(d);
+              if (!moduleId) return null;
+              const declared = declaredScreens.find(
+                (s) => s.projectId === pack.id && s.table === `data/${d.id}`,
+              );
+              const target =
+                declared ?? resolveScreen(`${moduleId}:__auto__${pack.id}__${d.id}`, [], localProjects);
+              return (
+                <li
+                  key={d.id}
+                  className="rounded border border-dashed border-[var(--border)] px-2 py-1.5 text-[11px] text-[var(--text-faint)]"
+                >
+                  <div className="flex items-center gap-1">
+                    <span>🔒</span>
+                    <span className="truncate">{d.name}</span>
+                  </div>
+                  <div className="mt-0.5">
+                    {t("screens.managedByModule", { module: moduleId })}
+                    {networkId && serverId && target && (
+                      <>
+                        {" — "}
+                        <Link
+                          to="/networks/$networkId/servers/$serverId/screens/$screenId"
+                          params={{ networkId, serverId, screenId: target.id }}
+                          className="underline hover:text-[var(--text)]"
+                        >
+                          {t("screens.openScreen")}
+                        </Link>
+                      </>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
         <div className="mt-2 flex gap-1">
           <button
             type="button"

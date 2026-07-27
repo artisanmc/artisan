@@ -73,6 +73,15 @@ class WsClientTest {
             dataSources = {
                 listOf(mapOf("ref" to "shop:items", "schema_hint" to "id, name, price"))
             },
+            editorScreens = {
+                listOf(mapOf(
+                    "id" to "boutique:catalog",
+                    "module_id" to "boutique",
+                    "label" to "Catalogue",
+                    "table" to "data/categories",
+                    "project_id" to "boutique",
+                ))
+            },
             onMessage = {},
         )
         client.connect()
@@ -87,6 +96,12 @@ class WsClientTest {
         val ds = parsed["data_sources"] as List<Map<String, Any?>>
         assertEquals("shop:items", ds.single()["ref"])
         assertEquals("id, name, price", ds.single()["schema_hint"])
+
+        @Suppress("UNCHECKED_CAST")
+        val screens = parsed["editor_screens"] as List<Map<String, Any?>>
+        assertEquals("boutique:catalog", screens.single()["id"])
+        assertEquals("data/categories", screens.single()["table"])
+        assertEquals("boutique", screens.single()["project_id"])
 
         client.disconnect()
         server.shutdown()

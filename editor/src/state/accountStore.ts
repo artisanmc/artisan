@@ -318,6 +318,8 @@ interface AccountState {
     enabled: boolean;
   }) => void;
   removeProject: (projectId: ProjectId) => void;
+  /** Insert/replace a Config-screen scratch working copy (never persisted — ADR module-config-screens). */
+  upsertScratchProject: (pack: Project) => void;
   reorderProjects: (newOrder: ProjectId[]) => void;
   moveMenuToProject: (input: { menuId: MenuId; fromProjectId: ProjectId; toProjectId: ProjectId }) => void;
   setCanvasPosition: (input: { projectId: ProjectId; nodeId: string; x: number; y: number }) => void;
@@ -1976,6 +1978,16 @@ export const useAccountStore = create<AccountState>()(
           produce((draft: AccountState) => {
             draft.account.projects = draft.account.projects.filter((p) => p.id !== projectId);
             draft.account.projectOrder = draft.account.projectOrder.filter((id) => id !== projectId);
+          }),
+        );
+        clearTemporal();
+      },
+      upsertScratchProject: (pack) => {
+        set(
+          produce((draft: AccountState) => {
+            const idx = draft.account.projects.findIndex((p) => p.id === pack.id);
+            if (idx === -1) draft.account.projects.push(pack);
+            else draft.account.projects[idx] = pack;
           }),
         );
         clearTemporal();

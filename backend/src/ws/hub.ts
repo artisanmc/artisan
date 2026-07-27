@@ -1,7 +1,7 @@
 import { and, eq, isNotNull, isNull, notInArray } from "drizzle-orm";
 import { db } from "../db/index";
 import { ensureAssets, assetsDone } from "../lib/mcAssets";
-import { networks, projectBranches, projectCommits, projects, serverKeyHelloes, serverKeys, serverModules, serverDataSources, serverDeclaredModels } from "../db/schema";
+import { networks, projectBranches, projectCommits, projects, serverKeyHelloes, serverKeys, serverModules, serverDataSources, serverDeclaredModels, serverEditorScreens } from "../db/schema";
 import { createProject, getProject, upsertProjectContent } from "../lib/projectStorage";
 import { getBranch, advanceBranchHead } from "../lib/branchStorage";
 import { createCommit, computeContentHash } from "../lib/commitStorage";
@@ -14,6 +14,10 @@ import type {
   CustomItemsBundleMessage,
   CustomItemsChangedMessage,
   CustomItemsRequestMessage,
+  ConfigReadMessage,
+  ConfigReadResultMessage,
+  ConfigWriteMessage,
+  ConfigWriteResultMessage,
   DataSourceFetchMessage,
   DataSourceFetchResultMessage,
   PlayerInventoryFetchMessage,
@@ -172,6 +176,93 @@ export function requestPlayerInventory(
   });
 }
 
+// ── Config screens live channel: same correlated request/response pattern ───
+// (ADR module-config-screens — the editor reads/writes table files through us;
+// nothing is stored backend-side, we are a pure relay.)
+export const CONFIG_WRITE_TIMEOUT_MS = 10_000;
+
+export type ConfigReadOutcome =
+  | { kind: "result"; result: ConfigReadResultMessage }
+  | { kind: "offline" }
+  | { kind: "timeout" };
+
+export type ConfigWriteOutcome =
+  | { kind: "result"; result: ConfigWriteResultMessage }
+  | { kind: "offline" }
+  | { kind: "timeout" };
+
+const pendingConfigReads = new Map<string, (outcome: ConfigReadOutcome) => void>();
+const pendingConfigWrites = new Map<string, (outcome: ConfigWriteOutcome) => void>();
+
+function firstPluginSender(serverKeyId: string): ((msg: string) => void) | undefined {
+  for (const [cId, sId] of connToServerId) {
+    if (sId === serverKeyId) {
+      const send = connSenders.get(cId);
+      if (send) return send;
+    }
+  }
+  return undefined;
+}
+
+/** Read the files of a Config-screen table live from the plugin's disk. */
+export function requestConfigRead(
+  serverKeyId: string,
+  req: { projectId: string; table: string },
+  timeoutMs: number = DATA_SOURCE_FETCH_TIMEOUT_MS,
+): Promise<ConfigReadOutcome> {
+  const send = firstPluginSender(serverKeyId);
+  if (!send) return Promise.resolve({ kind: "offline" });
+  const requestId = crypto.randomUUID();
+  const msg: ConfigReadMessage = {
+    type: "config_read",
+    request_id: requestId,
+    project_id: req.projectId,
+    table: req.table,
+  };
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      pendingConfigReads.delete(requestId);
+      resolve({ kind: "timeout" });
+    }, timeoutMs);
+    pendingConfigReads.set(requestId, (outcome) => {
+      clearTimeout(timer);
+      pendingConfigReads.delete(requestId);
+      resolve(outcome);
+    });
+    send(JSON.stringify(msg));
+  });
+}
+
+/** Write Config-screen files to the plugin's disk (it hot-reloads + auto-pushes). */
+export function requestConfigWrite(
+  serverKeyId: string,
+  req: { projectId: string; files: { path: string; content: string }[]; deletes?: string[] },
+  timeoutMs: number = CONFIG_WRITE_TIMEOUT_MS,
+): Promise<ConfigWriteOutcome> {
+  const send = firstPluginSender(serverKeyId);
+  if (!send) return Promise.resolve({ kind: "offline" });
+  const requestId = crypto.randomUUID();
+  const msg: ConfigWriteMessage = {
+    type: "config_write",
+    request_id: requestId,
+    project_id: req.projectId,
+    files: req.files,
+    deletes: req.deletes ?? [],
+  };
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      pendingConfigWrites.delete(requestId);
+      resolve({ kind: "timeout" });
+    }, timeoutMs);
+    pendingConfigWrites.set(requestId, (outcome) => {
+      clearTimeout(timer);
+      pendingConfigWrites.delete(requestId);
+      resolve(outcome);
+    });
+    send(JSON.stringify(msg));
+  });
+}
+
 /**
  * Drop authentication for every live plugin connection bound to this server_key,
  * and clear any active editor sessions tied to it. The underlying WS sockets
@@ -319,6 +410,45 @@ export async function persistServerDeclaredModels(
     );
 }
 
+/**
+ * Same semantics, for module-declared Config screens (ADR module-config-screens):
+ * wire objects stored verbatim, keyed by (serverKeyId, screen id), pruned to the report.
+ */
+export async function persistServerEditorScreens(
+  serverKeyId: string,
+  reported: Record<string, unknown>[],
+): Promise<void> {
+  const now = new Date();
+  const valid = reported.filter(
+    (s) =>
+      typeof s.id === "string" && (s.id as string).includes(":") &&
+      typeof s.label === "string" && typeof s.table === "string" &&
+      typeof s.project_id === "string",
+  );
+  for (const screen of valid) {
+    await db
+      .insert(serverEditorScreens)
+      .values({
+        serverKeyId,
+        screenId: screen.id as string,
+        screenJson: JSON.stringify(screen),
+        reportedAt: now,
+      })
+      .onConflictDoUpdate({
+        target: [serverEditorScreens.serverKeyId, serverEditorScreens.screenId],
+        set: { screenJson: JSON.stringify(screen), reportedAt: now },
+      });
+  }
+  const keepIds = valid.map((s) => s.id as string);
+  await db
+    .delete(serverEditorScreens)
+    .where(
+      keepIds.length > 0
+        ? and(eq(serverEditorScreens.serverKeyId, serverKeyId), notInArray(serverEditorScreens.screenId, keepIds))
+        : eq(serverEditorScreens.serverKeyId, serverKeyId),
+    );
+}
+
 async function handleCustomItemsHash(serverKeyId: string, incomingHash: string | undefined): Promise<void> {
   if (!incomingHash) return;
   const cacheDir = customItemsCacheDir(serverKeyId);
@@ -375,6 +505,7 @@ export async function handlePluginMessage(
     persistServerModules(keyId, hello.installed_modules ?? []).catch(() => {});
     persistServerDataSources(keyId, hello.data_sources ?? []).catch(() => {});
     persistServerDeclaredModels(keyId, (hello as Record<string, unknown>).declared_models as Record<string, unknown>[] ?? []).catch(() => {});
+    persistServerEditorScreens(keyId, (hello as Record<string, unknown>).editor_screens as Record<string, unknown>[] ?? []).catch(() => {});
     handleCustomItemsHash(keyId, (hello as HelloMessage & { custom_items_hash?: string }).custom_items_hash).catch(() => {});
     if (!assetsDone(hello.minecraft_version)) {
       ensureAssets(hello.minecraft_version).catch((err) =>
@@ -496,6 +627,7 @@ export async function handlePluginMessage(
     persistServerModules(serverId, m.installed_modules ?? []).catch(() => {});
     persistServerDataSources(serverId, m.data_sources ?? []).catch(() => {});
     persistServerDeclaredModels(serverId, (m as unknown as Record<string, unknown>).declared_models as Record<string, unknown>[] ?? []).catch(() => {});
+    persistServerEditorScreens(serverId, (m as unknown as Record<string, unknown>).editor_screens as Record<string, unknown>[] ?? []).catch(() => {});
     return { reply: null };
   }
 
@@ -639,6 +771,22 @@ export async function handlePluginMessage(
     if (!serverId) return { reply: null };
     const result = msg as PlayerInventoryResultMessage;
     pendingInventoryFetches.get(result.request_id)?.({ kind: "result", result });
+    return { reply: null };
+  }
+
+  // ── config_read_result / config_write_result: Config screens live channel ──
+  if (msg.type === "config_read_result") {
+    const serverId = connToServerId.get(connId);
+    if (!serverId) return { reply: null };
+    const result = msg as ConfigReadResultMessage;
+    pendingConfigReads.get(result.request_id)?.({ kind: "result", result });
+    return { reply: null };
+  }
+  if (msg.type === "config_write_result") {
+    const serverId = connToServerId.get(connId);
+    if (!serverId) return { reply: null };
+    const result = msg as ConfigWriteResultMessage;
+    pendingConfigWrites.get(result.request_id)?.({ kind: "result", result });
     return { reply: null };
   }
 
