@@ -681,6 +681,13 @@ export type DataSource =
       shape: "config";
       fields: ModelField[];
       value: Record<string, unknown>;
+      /**
+       * Module-declared model this config is typed by (ADR
+       * `yaml-assisted-editing`). The schema arrives via Presence, so `fields`
+       * is empty until injection; on disk the beside file holds a one-line
+       * `model:` ref, never a copy of the declaration.
+       */
+      modelId?: DataModelId;
       /** Hand-written leading comment block (ADR bare-data-files ⑦). */
       headerComment?: string;
     };

@@ -692,6 +692,16 @@ export function injectDeclaredModels(
   ];
   let migrated = false;
   for (const ds of pack.dataSources ?? []) {
+    // A Config typed by a declared model carries only the ref on disk (ADR
+    // yaml-assisted-editing) — fill its fields from the declaration, then
+    // adopt its bare literals like any row.
+    if (ds.shape === "config") {
+      const model = ds.modelId ? declared.find((m) => m.id === ds.modelId) : undefined;
+      if (!model || ds.fields.length > 0) continue;
+      ds.fields = model.fields;
+      adoptBareLTexts(pack, ds);
+      continue;
+    }
     if (ds.shape !== "table") continue;
     const model = declared.find((m) => m.id === ds.modelId);
     if (!model) continue;
