@@ -34,6 +34,14 @@ de binding).
 
 2. **Écrans générés par le core, déclarés par le module — jamais codés.** Le
    module déclare ses écrans via le canal presence (comme models et sources) :
+   > **Révisé par l'ADR `yaml-assisted-editing` (2026-07-27)** : « une Table/
+   > Config **à model déclaré** » n'est plus un prérequis. Le schéma devient une
+   > amélioration progressive — un écran peut éditer un fichier **sans schéma**
+   > (champs littéraux déduits des valeurs), et tout écran offre deux modes sur
+   > le même fichier (formulaire + YAML brut). Le prérequis « édition YAML
+   > préservante » du §4 pour le cercle ③ est **contourné** plutôt que payé :
+   > l'onglet YAML écrit verbatim sur un fichier étranger, et le formulaire y
+   > est en lecture seule.
 
    ```yaml
    editor_screens:
