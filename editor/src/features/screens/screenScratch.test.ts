@@ -80,6 +80,86 @@ describe("diffScratchForWrite", () => {
     expect(diff.deletes).toEqual(["data/categories/weapons.yaml"]);
   });
 
+  // A project-authored Config source carries its schema in `models/<id>.yaml`
+  // beside the data file. Saving the screen must carry it along — filtering it
+  // out silently stripped the schema from disk, leaving an untyped file (and
+  // an empty form on the next open).
+  describe("project-authored config source with a beside model", () => {
+    const settings: ServerEditorScreen = {
+      id: "boutique:settings",
+      moduleId: "boutique",
+      label: "Réglages",
+      table: "data/shop_settings",
+      projectId: "boutique",
+    };
+    const settingsFiles = [
+      { path: "data/shop_settings.yaml", content: "whole_shop_discount: 5\n" },
+      {
+        path: "models/shop_settings.yaml",
+        content:
+          "schema: model/v1\nid: shop_settings\nname: shop_settings\nfields:\n  - name: whole_shop_discount\n    type:\n      kind: integer\n",
+      },
+    ];
+
+    it("types the config source from the beside model", () => {
+      const pack = buildScratchProject(settings, settingsFiles, []);
+      const src = pack.dataSources.find((d) => d.id === ("shop_settings" as DataSourceId));
+      if (src?.shape !== "config") throw new Error("expected config shape");
+      expect(src.fields.map((f) => f.name)).toEqual(["whole_shop_discount"]);
+      expect(src.value.whole_shop_discount).toBe(5);
+    });
+
+    // The real regression: the file on disk carried its schema INLINE (legacy
+    // form). The canonical writer emits values-only + `models/<id>.yaml`, so a
+    // save that keeps only the data file destroys the schema.
+    it("emits the beside model when saving a legacy inline-schema file", () => {
+      const legacy = [
+        {
+          path: "data/shop_settings.yaml",
+          content:
+            "schema: data/v1\nid: shop_settings\nshape: config\nfields:\n  - name: whole_shop_discount\n    kind: integer\nvalue:\n  whole_shop_discount: 5\n",
+        },
+      ];
+      const pack = buildScratchProject(settings, legacy, []);
+      const src = pack.dataSources.find((d) => d.id === ("shop_settings" as DataSourceId));
+      if (src?.shape !== "config") throw new Error("expected config shape");
+      expect(src.fields.map((f) => f.name)).toEqual(["whole_shop_discount"]);
+      src.value.whole_shop_discount = 10;
+
+      const diff = diffScratchForWrite(pack, settings, legacy);
+      const written = new Map(diff.files.map((f) => [f.path, f.content]));
+      expect(written.has("models/shop_settings.yaml")).toBe(true);
+
+      // Re-reading exactly what is now on disk keeps the source typed.
+      const after = new Map(legacy.map((f) => [f.path, f.content]));
+      for (const [p, c] of written) after.set(p, c);
+      for (const p of diff.deletes) after.delete(p);
+      const reread = buildScratchProject(settings, [...after].map(([path, content]) => ({ path, content })), []);
+      const src2 = reread.dataSources.find((d) => d.id === ("shop_settings" as DataSourceId));
+      if (src2?.shape !== "config") throw new Error("expected config shape");
+      expect(src2.fields.map((f) => f.name)).toEqual(["whole_shop_discount"]);
+      expect(src2.value.whole_shop_discount).toBe(10);
+    });
+
+    it("rewrites the beside model along with the data file, and never deletes it", () => {
+      const pack = buildScratchProject(settings, settingsFiles, []);
+      const src = pack.dataSources.find((d) => d.id === ("shop_settings" as DataSourceId));
+      if (src?.shape !== "config") throw new Error("expected config shape");
+      src.value.whole_shop_discount = 10;
+
+      const diff = diffScratchForWrite(pack, settings, settingsFiles);
+      expect(diff.files.some((f) => f.path === "data/shop_settings.yaml" && f.content.includes("10"))).toBe(true);
+      expect(diff.deletes).toEqual([]);
+      // The schema survives the round-trip: re-reading the written set keeps it typed.
+      const after = new Map(settingsFiles.map((f) => [f.path, f.content]));
+      for (const f of diff.files) after.set(f.path, f.content);
+      const reread = buildScratchProject(settings, [...after].map(([path, content]) => ({ path, content })), []);
+      const src2 = reread.dataSources.find((d) => d.id === ("shop_settings" as DataSourceId));
+      if (src2?.shape !== "config") throw new Error("expected config shape");
+      expect(src2.fields.map((f) => f.name)).toEqual(["whole_shop_discount"]);
+    });
+  });
+
   it("never emits files outside the screen's table", () => {
     const pack = buildScratchProject(screen, files, [model]);
     const src = pack.dataSources.find((d) => d.id === ("categories" as DataSourceId));

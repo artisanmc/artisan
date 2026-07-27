@@ -788,6 +788,12 @@ export function ConfigValueForm({
   pack: Project;
   source: DataSource & { shape: "config" };
 }) {
+  // A bare file with no schema beside it (ADR bare-data-files: untyped =
+  // literal values, never an error) still gets a form, inferred from what is
+  // stored. Display only — `source.fields` stays empty, so the writer keeps
+  // emitting a values-only file and never invents a schema on disk.
+  const fields = source.fields.length > 0 ? source.fields : literalFields(source.value);
+
   return (
     <div data-testid="config-value-form">
       <ValueEditor
@@ -795,10 +801,28 @@ export function ConfigValueForm({
         sourceId={source.id}
         row={null}
         path={[]}
-        type={{ kind: "object", fields: source.fields }}
+        type={{ kind: "object", fields }}
         value={source.value}
         pack={pack}
       />
     </div>
   );
+}
+
+/** Fields inferred from stored values, for a source whose schema is absent. */
+function literalFields(value: Record<string, unknown>): ModelField[] {
+  return Object.entries(value ?? {}).map(([name, v]) => ({
+    name,
+    type: literalType(v),
+  }));
+}
+
+function literalType(v: unknown): ModelFieldType {
+  if (typeof v === "number") return { kind: Number.isInteger(v) ? "integer" : "number" };
+  if (typeof v === "boolean") return { kind: "boolean" };
+  if (Array.isArray(v)) return { kind: "list", of: literalType(v[0]) };
+  if (v !== null && typeof v === "object") {
+    return { kind: "object", fields: literalFields(v as Record<string, unknown>) };
+  }
+  return { kind: "string" };
 }

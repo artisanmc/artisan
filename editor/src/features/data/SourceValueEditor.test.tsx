@@ -4,7 +4,7 @@ import type { Project, ProjectId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
 import { useUiStore } from "@/state/uiStore";
 import { ModelFieldsEditor } from "./ModelFieldsEditor";
-import { SourceRowsTable } from "./SourceValueEditor";
+import { ConfigValueForm, SourceRowsTable } from "./SourceValueEditor";
 
 const PID = "p1" as ProjectId;
 
@@ -498,5 +498,45 @@ describe("form generator — hints + validation (§7)", () => {
     // The detail form is still the same row (price 5), now keyed "bb".
     expect(screen.getByDisplayValue("5")).toBeTruthy();
     expect(screen.getByRole("button", { name: "bb" })).toHaveAttribute("aria-current", "true");
+  });
+});
+
+// ─── untyped config source (ADR bare-data-files: never a dead end) ───────────
+
+describe("ConfigValueForm — schemaless file", () => {
+  function seedUntyped() {
+    useAccountStore.setState((s) => {
+      const p = s.account.projects[0]!;
+      p.dataModels = [];
+      p.dataSources = [
+        {
+          id: "shop_settings" as never,
+          name: "shop_settings",
+          shape: "config",
+          fields: [],
+          value: { whole_shop_discount: 10, label: "Soldes" },
+        },
+      ] as never;
+      return s;
+    });
+  }
+
+  // A bare data file with no schema beside it must still be editable from its
+  // literal values — an empty form is a dead end for the admin.
+  it("renders one input per stored key when the source carries no fields", () => {
+    seedUntyped();
+    const source = pack().dataSources[0] as never;
+    render(<ConfigValueForm projectId={PID} pack={pack()} source={source} />);
+    expect(screen.getByDisplayValue("10")).toBeTruthy();
+    expect(screen.getByDisplayValue("Soldes")).toBeTruthy();
+  });
+
+  it("edits write back through the store", () => {
+    seedUntyped();
+    const source = pack().dataSources[0] as never;
+    render(<ConfigValueForm projectId={PID} pack={pack()} source={source} />);
+    fireEvent.change(screen.getByDisplayValue("10"), { target: { value: "25" } });
+    const v = (pack().dataSources[0] as { value: Record<string, unknown> }).value;
+    expect(v.whole_shop_discount).toBe(25);
   });
 });
