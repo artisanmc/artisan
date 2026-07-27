@@ -28,7 +28,7 @@ import type {
 } from "@/domain/types";
 import { slotCount } from "@/features/canvas/inventoryTypes";
 import { listLanguages } from "@/lib/i18nUsages";
-import { stringify } from "yaml";
+import { Document as YamlDocument, stringify } from "yaml";
 
 const i18nRef = (key: string): string => `{i18n:${key}}`;
 
@@ -872,12 +872,65 @@ function dataSourceI18n(pack: Project): {
 /** Generated header block from the model's presentation hints (⑦): recomputed
  *  at every export, stripped back out at import (marker line `# ──`). */
 function generatedHeader(name: string, fields: ModelField[]): string {
-  const hints = fields.filter((f) => typeof f.help === "string" && f.help !== "");
-  if (hints.length === 0) return "";
+  if (!hasAnyHelp(fields)) return "";
+  // The hints themselves now sit above the key they document (ADR
+  // yaml-assisted-editing ⑥) — the header only says what the file does to
+  // comments, because it overwrites them and must not pretend otherwise.
   return [
-    `# ── ${name} — géré par Artisan (éditable à la main)`,
-    ...hints.map((f) => `# ${f.name}: ${f.help}`),
+    `# ── ${name} — géré par Artisan (les valeurs sont éditables à la main)`,
+    "# Les commentaires sont générés depuis le schéma : un commentaire ajouté",
+    "# ailleurs qu'en tête de fichier est écrasé au prochain enregistrement.",
   ].join("\n") + "\n";
+}
+
+function hasAnyHelp(fields: ModelField[]): boolean {
+  return fields.some((f) => (typeof f.help === "string" && f.help !== "") || hasAnyHelp(childFields(f.type)));
+}
+
+function childFields(type: ModelFieldType): ModelField[] {
+  switch (type.kind) {
+    case "object": return type.fields;
+    case "list": case "map": return childFields(type.of);
+    case "union": return type.variants.flatMap((v) => v.fields);
+    default: return [];
+  }
+}
+
+/**
+ * Serialize with each field's `help` as a comment directly above its key, at
+ * any depth (ADR yaml-assisted-editing ⑥). Comments carry no data: they are
+ * regenerated at every write and ignored at import.
+ */
+function stringifyWithHints(
+  value: unknown,
+  fields: ModelField[],
+  yamlOpts: { lineWidth: number },
+): string {
+  const doc = new YamlDocument(value);
+  annotate(doc.contents, fields);
+  return doc.toString(yamlOpts);
+}
+
+function annotate(node: unknown, fields: ModelField[]): void {
+  if (!isMap(node)) return;
+  for (const field of fields) {
+    const pair = node.items.find((p: { key?: unknown }) => scalarKey(p.key) === field.name);
+    if (!pair) continue;
+    if (typeof field.help === "string" && field.help !== "") {
+      // `commentBefore` renders as `# <text>` above the key, indented with it.
+      pair.key.commentBefore = ` ${field.help}`;
+    }
+    annotate(pair.value, childFields(field.type));
+  }
+}
+
+function isMap(node: unknown): node is { items: { key: { commentBefore?: string }; value: unknown }[] } {
+  return !!node && typeof node === "object" && Array.isArray((node as { items?: unknown }).items);
+}
+
+function scalarKey(key: unknown): string | null {
+  if (key && typeof key === "object" && "value" in key) return String((key as { value: unknown }).value);
+  return typeof key === "string" ? key : null;
 }
 
 function dataFileHeader(ds: DataSource, name: string, fields: ModelField[]): string {
@@ -953,7 +1006,7 @@ function emitDataSources(
           ? ds.value
           : serializeDataValue(ds.value, { kind: "object", fields: ds.fields }, models, new Set(), i18n);
       files[`${base}/data/${ds.id}.yaml`] =
-        dataFileHeader(ds, ds.name, ds.fields) + stringify(value, yamlOpts);
+        dataFileHeader(ds, ds.name, ds.fields) + stringifyWithHints(value, ds.fields, yamlOpts);
       if (ds.fields.length > 0) {
         files[`${base}/models/${ds.id}.yaml`] = stringify(
           { schema: "model/v1", id: ds.id, name: ds.name, fields: ds.fields },
@@ -990,7 +1043,9 @@ function emitDataSources(
       const names = ds.rows.map((_, i) => rowFileName(ds.rows, model?.keyField ?? "id", i));
       files[`${base}/data/${ds.id}/_source.yaml`] = header + stringify({ ...link, order: names }, yamlOpts);
       rowsOut.forEach((row, i) => {
-        files[`${base}/data/${ds.id}/${names[i]}.yaml`] = stringify(row, yamlOpts);
+        // Each row file is a standalone file someone may open over SSH — it
+        // carries the schema's hints like any other (ADR yaml-assisted-editing ⑥).
+        files[`${base}/data/${ds.id}/${names[i]}.yaml`] = stringifyWithHints(row, fields, yamlOpts);
       });
       if (owned && fields.length > 0) {
         files[`${base}/models/${ds.id}.yaml`] = stringify(
