@@ -16,6 +16,7 @@ class WsClient(
     private val installedModules: () -> List<Map<String, String>> = { emptyList() },
     private val dataSources: () -> List<Map<String, Any?>> = { emptyList() },
     private val declaredModels: () -> List<Map<String, Any?>> = { emptyList() },
+    private val editorScreens: () -> List<Map<String, Any?>> = { emptyList() },
     private val onMessage: (String) -> Unit,
     private val logger: Logger? = null,
 ) {
@@ -64,6 +65,8 @@ class WsClient(
                 // Module-declared Data models (ADR composable-data-models §4):
                 // model/v1 documents passed through verbatim.
                 "declared_models" to declaredModels(),
+                // Module-declared Config screens (ADR module-config-screens).
+                "editor_screens" to editorScreens(),
             )
             ws.send(mapper.writeValueAsString(hello))
         }

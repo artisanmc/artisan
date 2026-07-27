@@ -45,11 +45,13 @@ class ModuleRegistry {
         }
         boundApi.dataSources.currentOwner = module.id
         boundApi.models.currentOwner = module.id
+        boundApi.screens.currentOwner = module.id
         try {
             module.onEnable(boundApi)
         } finally {
             boundApi.dataSources.currentOwner = null
             boundApi.models.currentOwner = null
+            boundApi.screens.currentOwner = null
         }
         onChange?.invoke()
     }

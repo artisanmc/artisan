@@ -11,6 +11,7 @@ import {
 	networks,
 	serverDataSources,
 	serverDeclaredModels,
+	serverEditorScreens,
 	serverKeyHelloes,
 	serverKeys,
 	serverModules,
@@ -39,7 +40,7 @@ import { createProject, listProjectsForNetwork } from "../lib/projectStorage";
 import { slugify } from "../lib/slug";
 import { allocServerSlug } from "../lib/slugAlloc";
 import type { AuthUser } from "../middleware/userAuth";
-import { disconnectServerKey, getInstanceCount, requestDataSourceFetch, requestPlayerInventory } from "../ws/hub";
+import { disconnectServerKey, getInstanceCount, requestConfigRead, requestConfigWrite, requestDataSourceFetch, requestPlayerInventory } from "../ws/hub";
 import { handleResourcePackRebuild } from "./resourcePack";
 
 const EDITOR_URL = process.env.EDITOR_URL ?? "http://localhost:5173";
@@ -774,6 +775,158 @@ userNetworksRouter.get(
 				.filter((d): d is Record<string, unknown> => d !== null)
 				.sort((a, b) => (String(a.id) < String(b.id) ? -1 : 1)),
 		});
+	},
+);
+
+// GET /api/networks/:networkId/servers/:serverId/screens — member access.
+// Module-declared Config screens reported at Presence (ADR module-config-screens):
+// wire objects verbatim ({id, module_id, label, table, project_id}).
+userNetworksRouter.get(
+	"/:networkId/servers/:serverId/screens",
+	async (c: Context<{ Variables: Vars }>) => {
+		const userId = getUserId(c);
+		if (!userId) return c.json({ error: "unauthorized" }, 401);
+		const networkId = c.req.param("networkId");
+		const serverId = c.req.param("serverId");
+		try {
+			await requireMember(userId, networkId);
+		} catch {
+			return c.json({ error: "forbidden" }, 403);
+		}
+		const sk = await db
+			.select()
+			.from(serverKeys)
+			.where(
+				and(eq(serverKeys.id, serverId), eq(serverKeys.networkId, networkId)),
+			);
+		if (sk.length === 0) return c.json({ error: "not_found" }, 404);
+
+		const rows = await db
+			.select()
+			.from(serverEditorScreens)
+			.where(eq(serverEditorScreens.serverKeyId, sk[0].id));
+		return c.json({
+			screens: rows
+				.map((r) => {
+					try {
+						return JSON.parse(r.screenJson) as Record<string, unknown>;
+					} catch {
+						return null;
+					}
+				})
+				.filter((s): s is Record<string, unknown> => s !== null)
+				.sort((a, b) => (String(a.id) < String(b.id) ? -1 : 1)),
+		});
+	},
+);
+
+// POST /api/networks/:networkId/servers/:serverId/config/read — member access.
+// Config screens live channel (ADR module-config-screens): read a table's files
+// from the plugin's disk over the WS relay. Body: {project_id, table}.
+userNetworksRouter.post(
+	"/:networkId/servers/:serverId/config/read",
+	async (c: Context<{ Variables: Vars }>) => {
+		const userId = getUserId(c);
+		if (!userId) return c.json({ error: "unauthorized" }, 401);
+		const networkId = c.req.param("networkId");
+		const serverId = c.req.param("serverId");
+		try {
+			await requireMember(userId, networkId);
+		} catch {
+			return c.json({ error: "forbidden" }, 403);
+		}
+		const sk = await db
+			.select()
+			.from(serverKeys)
+			.where(
+				and(eq(serverKeys.id, serverId), eq(serverKeys.networkId, networkId)),
+			);
+		if (sk.length === 0) return c.json({ error: "not_found" }, 404);
+
+		const body = (await c.req.json().catch(() => null)) as {
+			project_id?: unknown;
+			table?: unknown;
+		} | null;
+		if (!body || typeof body.project_id !== "string" || body.project_id.length === 0 ||
+			typeof body.table !== "string" || body.table.length === 0) {
+			return c.json({ error: "invalid_input" }, 422);
+		}
+
+		const outcome = await requestConfigRead(sk[0].id, {
+			projectId: body.project_id,
+			table: body.table,
+		});
+		if (outcome.kind === "offline") return c.json({ error: "server_offline" }, 503);
+		if (outcome.kind === "timeout") return c.json({ error: "fetch_timeout" }, 504);
+		const r = outcome.result;
+		if (!r.ok) {
+			const error = r.error ?? "read_error";
+			const status = error === "unknown_project" ? 404 : error === "invalid_path" ? 422 : 502;
+			return c.json({ error, message: r.message ?? null }, status);
+		}
+		return c.json({ files: r.files ?? [] });
+	},
+);
+
+// POST /api/networks/:networkId/servers/:serverId/config/write — member access.
+// Config screens live channel: write a table's files to the plugin's disk (it
+// hot-reloads and auto-pushes through the normal sync loop). Body:
+// {project_id, files: [{path, content}], deletes?: [path]}.
+userNetworksRouter.post(
+	"/:networkId/servers/:serverId/config/write",
+	async (c: Context<{ Variables: Vars }>) => {
+		const userId = getUserId(c);
+		if (!userId) return c.json({ error: "unauthorized" }, 401);
+		const networkId = c.req.param("networkId");
+		const serverId = c.req.param("serverId");
+		try {
+			await requireMember(userId, networkId);
+		} catch {
+			return c.json({ error: "forbidden" }, 403);
+		}
+		const sk = await db
+			.select()
+			.from(serverKeys)
+			.where(
+				and(eq(serverKeys.id, serverId), eq(serverKeys.networkId, networkId)),
+			);
+		if (sk.length === 0) return c.json({ error: "not_found" }, 404);
+
+		const body = (await c.req.json().catch(() => null)) as {
+			project_id?: unknown;
+			files?: unknown;
+			deletes?: unknown;
+		} | null;
+		const files = Array.isArray(body?.files)
+			? (body.files as unknown[]).filter(
+					(f): f is { path: string; content: string } =>
+						typeof f === "object" && f !== null &&
+						typeof (f as Record<string, unknown>).path === "string" &&
+						typeof (f as Record<string, unknown>).content === "string",
+				)
+			: null;
+		const deletes = Array.isArray(body?.deletes)
+			? (body.deletes as unknown[]).filter((d): d is string => typeof d === "string")
+			: [];
+		if (!body || typeof body.project_id !== "string" || body.project_id.length === 0 ||
+			files === null || (files.length === 0 && deletes.length === 0)) {
+			return c.json({ error: "invalid_input" }, 422);
+		}
+
+		const outcome = await requestConfigWrite(sk[0].id, {
+			projectId: body.project_id,
+			files,
+			deletes,
+		});
+		if (outcome.kind === "offline") return c.json({ error: "server_offline" }, 503);
+		if (outcome.kind === "timeout") return c.json({ error: "fetch_timeout" }, 504);
+		const r = outcome.result;
+		if (!r.ok) {
+			const error = r.error ?? "write_error";
+			const status = error === "unknown_project" ? 404 : error === "invalid_path" ? 422 : 502;
+			return c.json({ error, message: r.message ?? null }, status);
+		}
+		return c.json({ ok: true });
 	},
 );
 

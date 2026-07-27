@@ -65,6 +65,8 @@ class SyncedMenuProvider(
     private val dataSourcesReport: () -> List<Map<String, Any?>> = { emptyList() },
     /** Module-declared model/v1 documents, reported verbatim at Presence. */
     private val declaredModelsReport: () -> List<Map<String, Any?>> = { emptyList() },
+    /** Module-declared Config screens, reported at Presence (ADR module-config-screens). */
+    private val editorScreensReport: () -> List<Map<String, Any?>> = { emptyList() },
     /**
      * Dispatches a task onto the Bukkit main thread (fetchers touch the Bukkit
      * API). Default = synchronous, for tests; ArtisanPlugin injects the scheduler.
@@ -76,6 +78,20 @@ class SyncedMenuProvider(
     companion object {
         internal const val MAX_PREVIEW_ROWS = 50
         internal const val MAX_PREVIEW_BYTES = 256 * 1024
+        internal const val MAX_CONFIG_BYTES = 1024 * 1024
+
+        /** Traversal guard for relay-provided relative paths (mirror of ProjectContentReader.resolve). */
+        internal fun isSafeRelPath(p: String): Boolean {
+            if (p.isBlank()) return false
+            val norm = p.replace('\\', '/')
+            if (norm.startsWith("/") || norm.contains("..") || norm.contains(":")) return false
+            return !norm.substringBefore('/').startsWith(".artisan")
+        }
+
+        /** projectId feeds ProjectRoots.dirFor — must be a bare directory name. */
+        internal fun isSafeProjectId(id: String): Boolean =
+            id.isNotBlank() && !id.contains('/') && !id.contains('\\') &&
+                !id.contains("..") && !id.contains(':') && !id.startsWith(".")
     }
 
     @Volatile private var menus = ConcurrentHashMap<String, BundleMenu>()
@@ -160,6 +176,7 @@ class SyncedMenuProvider(
                 installedModules  = installedModules,
                 dataSources       = dataSourcesReport,
                 declaredModels    = declaredModelsReport,
+                editorScreens     = editorScreensReport,
                 onMessage         = ::handleMessage,
                 logger            = logger,
             )
@@ -238,6 +255,7 @@ class SyncedMenuProvider(
             "installed_modules" to modules,
             "data_sources" to dataSourcesReport(),
             "declared_models" to declaredModelsReport(),
+            "editor_screens" to editorScreensReport(),
         ))
     }
 
@@ -588,6 +606,150 @@ class SyncedMenuProvider(
                 } catch (e: Throwable) {
                     logger?.log(java.util.logging.Level.WARNING, "[Artisan] data source preview '$ref' scheduling failed", e)
                     reply(mapOf("ok" to false, "error" to "fetch_error", "message" to describeError(e)))
+                }
+            }
+
+            // Config screens live channel (ADR module-config-screens): the editor
+            // reads/writes a table's files through the backend relay. A write is a
+            // plain disk edit from sync's point of view — suppressed against the
+            // watcher, then pushed through the exact onWatchedChange logic.
+            "config_read" -> {
+                val requestId = node["request_id"]?.asText() ?: return
+                val projectId = node["project_id"]?.asText() ?: return
+                val table = node["table"]?.asText() ?: return
+                fun reply(payload: Map<String, Any?>) {
+                    val base = mapOf("type" to "config_read_result", "request_id" to requestId)
+                    try {
+                        httpClient.dispatcher.executorService.execute {
+                            @Suppress("UNCHECKED_CAST")
+                            send((base + payload) as Map<String, Any>)
+                        }
+                    } catch (_: java.util.concurrent.RejectedExecutionException) {
+                        logger?.warning("config_read_result dropped — plugin is stopping")
+                    }
+                }
+                if (!isSafeProjectId(projectId) || !isSafeRelPath(table)) {
+                    reply(mapOf("ok" to false, "error" to "invalid_path"))
+                    return
+                }
+                try {
+                    httpClient.dispatcher.executorService.execute {
+                        try {
+                            val projectDir = roots.dirFor(projectId)
+                            if (!projectDir.isDirectory) {
+                                reply(mapOf("ok" to false, "error" to "unknown_project"))
+                                return@execute
+                            }
+                            val target = java.io.File(projectDir, table)
+                            val files = mutableListOf<Map<String, String>>()
+                            if (target.isDirectory) {
+                                target.listFiles()?.sortedBy { it.name }?.forEach { f ->
+                                    if (f.isFile && !f.name.startsWith(".") &&
+                                        (f.name.endsWith(".yaml") || f.name.endsWith(".yml"))
+                                    ) {
+                                        files.add(mapOf("path" to "$table/${f.name}", "content" to f.readText()))
+                                    }
+                                }
+                            } else {
+                                for (rel in listOf("$table.yaml", "$table.yml")) {
+                                    val f = java.io.File(projectDir, rel)
+                                    if (f.isFile) {
+                                        files.add(mapOf("path" to rel, "content" to f.readText()))
+                                        break
+                                    }
+                                }
+                            }
+                            val totalBytes = files.sumOf { it["content"]!!.toByteArray().size }
+                            if (totalBytes > MAX_CONFIG_BYTES) {
+                                reply(mapOf("ok" to false, "error" to "too_large"))
+                            } else {
+                                reply(mapOf("ok" to true, "files" to files))
+                            }
+                        } catch (e: Throwable) {
+                            logger?.log(java.util.logging.Level.WARNING, "[Artisan] config_read '$projectId/$table' failed", e)
+                            reply(mapOf("ok" to false, "error" to "read_error", "message" to describeError(e)))
+                        }
+                    }
+                } catch (_: java.util.concurrent.RejectedExecutionException) {
+                    logger?.warning("config_read dropped — plugin is stopping")
+                }
+            }
+
+            "config_write" -> {
+                val requestId = node["request_id"]?.asText() ?: return
+                val projectId = node["project_id"]?.asText() ?: return
+                fun reply(payload: Map<String, Any?>) {
+                    val base = mapOf("type" to "config_write_result", "request_id" to requestId)
+                    try {
+                        httpClient.dispatcher.executorService.execute {
+                            @Suppress("UNCHECKED_CAST")
+                            send((base + payload) as Map<String, Any>)
+                        }
+                    } catch (_: java.util.concurrent.RejectedExecutionException) {
+                        logger?.warning("config_write_result dropped — plugin is stopping")
+                    }
+                }
+                val writes = node["files"]?.takeIf { it.isArray }?.mapNotNull { f ->
+                    val path = f["path"]?.asText() ?: return@mapNotNull null
+                    val content = f["content"]?.asText() ?: return@mapNotNull null
+                    path to content
+                } ?: emptyList()
+                val deletes = node["deletes"]?.takeIf { it.isArray }?.mapNotNull { it.asText() } ?: emptyList()
+                if (!isSafeProjectId(projectId) ||
+                    writes.any { !isSafeRelPath(it.first) } || deletes.any { !isSafeRelPath(it) }
+                ) {
+                    reply(mapOf("ok" to false, "error" to "invalid_path"))
+                    return
+                }
+                try {
+                    httpClient.dispatcher.executorService.execute {
+                        val projectDir = roots.dirFor(projectId)
+                        if (!projectDir.isDirectory) {
+                            reply(mapOf("ok" to false, "error" to "unknown_project"))
+                            return@execute
+                        }
+                        try {
+                            watcher?.beginSuppress(projectId)
+                            try {
+                                writes.forEach { (path, content) ->
+                                    val target = java.io.File(projectDir, path)
+                                    if (target.isFile && target.readText() == content) return@forEach
+                                    target.parentFile?.mkdirs()
+                                    val tmp = java.io.File(target.parentFile, target.name + ".artisan-tmp")
+                                    tmp.writeText(content)
+                                    java.nio.file.Files.move(
+                                        tmp.toPath(), target.toPath(),
+                                        java.nio.file.StandardCopyOption.REPLACE_EXISTING,
+                                    )
+                                }
+                                deletes.forEach { path ->
+                                    val target = java.io.File(projectDir, path)
+                                    if (target.isFile) target.delete()
+                                }
+                                reloadFromDisk()
+                                draftMenus.clear()
+                                onReload?.invoke()
+                            } finally {
+                                watcher?.endSuppress(projectId)
+                            }
+                            if (serverKey.isNotEmpty()) {
+                                val diskHash = BundleHasher.hash(projectDir)
+                                val meta = SyncMetadata.read(projectDir)
+                                when (detectSyncAction(diskHash, meta.syncedHash, meta.backendHash)) {
+                                    SyncAction.IN_SYNC, SyncAction.AUTO_SYNC -> {}
+                                    SyncAction.LOCAL_ONLY -> pushLocalProject(projectId, projectDir)
+                                    SyncAction.CONFLICT ->
+                                        send(LocalPushSender.buildDivergenceMessage(projectId, projectDir, meta.syncedHash))
+                                }
+                            }
+                            reply(mapOf("ok" to true))
+                        } catch (e: Throwable) {
+                            logger?.log(java.util.logging.Level.WARNING, "[Artisan] config_write '$projectId' failed", e)
+                            reply(mapOf("ok" to false, "error" to "write_error", "message" to describeError(e)))
+                        }
+                    }
+                } catch (_: java.util.concurrent.RejectedExecutionException) {
+                    logger?.warning("config_write dropped — plugin is stopping")
                 }
             }
 
