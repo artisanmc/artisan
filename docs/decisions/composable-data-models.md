@@ -72,7 +72,13 @@ substrate: files are the canonical, hand-editable truth.
    additively later — e.g. a future core `boss_bar` action).
 
 7. **Form generation derives from the model; hints and validation are part of
-   it.** No separate ui-schema artifact: fields carry a closed set of
+   it.**
+   > **Révisé par l'ADR `module-config-screens` (2026-07-27)** : le formulaire
+   > généré pour un model *module-déclaré* vit dans les **Config screens** du
+   > module (entrées sidebar déclarées via presence, édition live par WS),
+   > plus dans le panneau Données du canvas — celui-ci redevient une pure
+   > surface de binding. Le form generator lui-même (hints, master-detail,
+   > validation) reste tel que décrit ici. No separate ui-schema artifact: fields carry a closed set of
    presentation hints (label, help, widget, section, **master-detail**) and a
    closed validation vocabulary (`required`, `default`, `min`/`max`,
    `pattern`, `locked`). Enforcement is **asymmetric**: blocking inside the
