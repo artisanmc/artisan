@@ -1824,6 +1824,7 @@ export default {
     notFound: "Unknown config screen.",
     moduleFallback: "Module",
     managedByModule: "Managed by the {{module}} module",
+    editorEntry: "Editor",
     openScreen: "Open its screen",
   },
 };

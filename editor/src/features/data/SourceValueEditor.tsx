@@ -19,7 +19,7 @@ import { cx } from "@/lib/cx";
 import { getText } from "@/lib/i18n";
 import { useAccountStore } from "@/state/accountStore";
 import { useUiStore } from "@/state/uiStore";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 /**
@@ -245,7 +245,9 @@ export function ValueEditor({
         <Input
           value={s}
           onChange={(e) => set(e.target.value)}
-          className="h-7 min-w-24 px-2 text-[12px]"
+          // Capped: on a full-width Config screen an uncapped text input
+          // stretches across the whole page.
+          className="h-7 min-w-24 max-w-md px-2 text-[12px]"
           aria-label={String(path[path.length - 1])}
           aria-invalid={patternBad || requiredBad}
         />
@@ -520,7 +522,9 @@ export function ValueEditor({
               ) : null}
               <div className="flex w-full items-center gap-2">
                 <span
-                  className="w-24 shrink-0 truncate font-mono text-[10px] text-[var(--text-faint)]"
+                  // No truncation: field names are the contract with the file
+                  // on disk. Grows to fit, wraps past the cap.
+                  className="min-w-24 max-w-44 shrink-0 break-words font-mono text-[10px] text-[var(--text-faint)]"
                   title={f.help}
                 >
                   {f.label ?? f.name}
@@ -695,7 +699,21 @@ function MasterDetailTable({
   const addSourceRow = useAccountStore((s) => s.addSourceRow);
   const removeSourceRow = useAccountStore((s) => s.removeSourceRow);
   const [selectedKey, setSelectedKey] = useState<string | null>(rowKeys[0] ?? null);
-  const selected = selectedKey !== null ? rowKeys.indexOf(selectedKey) : -1;
+  // Selection is by Row key (identity, not position — a row must never inherit
+  // its neighbour's form state). But editing the key field IS a rename: the
+  // identity moved while the row stayed put, so the selection follows the
+  // position it was last seen at instead of collapsing to "no row".
+  const lastIndex = useRef(0);
+  let selected = selectedKey !== null ? rowKeys.indexOf(selectedKey) : -1;
+  if (selected < 0 && selectedKey !== null && lastIndex.current < rowKeys.length) {
+    selected = lastIndex.current;
+  }
+  useEffect(() => {
+    if (selected < 0) return;
+    lastIndex.current = selected;
+    const key = rowKeys[selected];
+    if (key !== undefined && key !== selectedKey) setSelectedKey(key);
+  }, [selected, rowKeys, selectedKey]);
   const row = selected >= 0 ? source.rows[selected] : undefined;
 
   return (

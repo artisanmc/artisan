@@ -13,10 +13,15 @@ import { useTextureStore } from "./textureStore";
  * Items are resolved via `/api/v1/user/projects/{projectId}/items`, which
  * picks a representative server_key binding and falls back to the newest
  * available items.json if no MC version is known yet.
+ *
+ * `projectId` overrides the last active project — a module Config screen edits
+ * a project without opening its canvas, and its item pickers still need the
+ * library (ADR `module-config-screens`).
  */
-export function useTextureInit() {
+export function useTextureInit(projectId?: string) {
   const currentUser = useAuthStore((s) => s.currentUser);
-  const lastActiveProjectId = useUiStore((s) => s.lastActiveProjectId);
+  const lastActive = useUiStore((s) => s.lastActiveProjectId);
+  const lastActiveProjectId = projectId ?? lastActive;
   const setData = useTextureStore((s) => s.setData);
   const setCustomData = useTextureStore((s) => s.setCustomData);
   const setRendered = useTextureStore((s) => s.setRendered);
