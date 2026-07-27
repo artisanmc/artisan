@@ -945,7 +945,13 @@ function emitDataSources(
 
   for (const ds of pack.dataSources ?? []) {
     if (ds.shape === "config") {
-      const value = serializeDataValue(ds.value, { kind: "object", fields: ds.fields }, models, new Set(), i18n);
+      // Schemaless source (bare file, no model beside it): field-driven
+      // serialization would drop every key and empty the file. Untyped values
+      // travel verbatim (ADR bare-data-files ③).
+      const value =
+        ds.fields.length === 0
+          ? ds.value
+          : serializeDataValue(ds.value, { kind: "object", fields: ds.fields }, models, new Set(), i18n);
       files[`${base}/data/${ds.id}.yaml`] =
         dataFileHeader(ds, ds.name, ds.fields) + stringify(value, yamlOpts);
       if (ds.fields.length > 0) {
@@ -960,9 +966,16 @@ function emitDataSources(
 
     const model = models.find((m) => m.id === ds.modelId);
     const fields = model?.fields ?? [];
-    const rowsOut = ds.rows.map((r) =>
-      serializeDataValue(r, { kind: "object", fields }, models, new Set(model ? [model.id] : []), i18n),
-    );
+    // No resolvable schema (a module-declared model the Presence hasn't
+    // delivered, a removed module…): the rows are the user's data — emit them
+    // verbatim rather than serializing them against an empty field list, which
+    // would blank every row.
+    const rowsOut =
+      fields.length === 0
+        ? ds.rows
+        : ds.rows.map((r) =>
+            serializeDataValue(r, { kind: "object", fields }, models, new Set(model ? [model.id] : []), i18n),
+          );
     const header = dataFileHeader(ds, ds.name, fields);
     const declared = !model || model.provenance === "module";
     const owned =
