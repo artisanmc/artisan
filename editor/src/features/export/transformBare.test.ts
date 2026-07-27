@@ -248,3 +248,70 @@ describe("bare export (ADR bare-data-files T2)", () => {
     expect(files2).toEqual(files1);
   });
 });
+
+// A schemaless source (bare file with no model beside it — ADR bare-data-files
+// ③ "untyped = literal values, never an error") must round-trip verbatim.
+// Field-driven serialization used to drop every key, emptying the file to `{}`.
+describe("schemaless config source", () => {
+  it("emits its stored values verbatim and invents no schema file", () => {
+    const pack = {
+      ...basePack(),
+      dataSources: [
+        {
+          id: "shop_settings" as DataSourceId,
+          name: "shop_settings",
+          shape: "config",
+          fields: [],
+          value: { whole_shop_discount: 10, nested: { a: true }, list: [1, 2] },
+        },
+      ],
+    } as never;
+    const files = transform(pack);
+    const out = parse(files[`${base}/data/shop_settings.yaml`]!);
+    expect(out).toEqual({ whole_shop_discount: 10, nested: { a: true }, list: [1, 2] });
+    expect(files[`${base}/models/shop_settings.yaml`]).toBeUndefined();
+  });
+
+  it("survives a full re-import round-trip", () => {
+    const pack = {
+      ...basePack(),
+      dataSources: [
+        {
+          id: "shop_settings" as DataSourceId,
+          name: "shop_settings",
+          shape: "config",
+          fields: [],
+          value: { whole_shop_discount: 10 },
+        },
+      ],
+    } as never;
+    const back = projectFromFiles(PID, transform(pack));
+    const src = back.dataSources.find((d) => d.id === ("shop_settings" as DataSourceId));
+    if (src?.shape !== "config") throw new Error("expected config shape");
+    expect(src.value).toEqual({ whole_shop_discount: 10 });
+  });
+});
+
+// Same trap for a table whose declared model is momentarily unavailable (server
+// offline, module removed): serializing rows against an empty field list used
+// to blank every row. The rows are the user's data — they travel verbatim.
+describe("table whose declared model is missing", () => {
+  it("keeps its rows verbatim instead of emptying them", () => {
+    const pack = {
+      ...basePack(),
+      dataModels: [],
+      dataSources: [
+        {
+          id: "categories" as DataSourceId,
+          name: "Catégories",
+          shape: "table",
+          modelId: "boutique:category" as DataModelId,
+          rows: [{ id: "weapons", name: "Armes", discount: 5 }],
+        },
+      ],
+    } as never;
+    const files = transform(pack);
+    const written = files[`${base}/data/categories.yaml`]!;
+    expect(parse(written)).toEqual([{ id: "weapons", name: "Armes", discount: 5 }]);
+  });
+});
