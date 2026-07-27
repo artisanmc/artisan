@@ -295,6 +295,7 @@ export default {
     iteration: "iteration",
     iterationEnable: "+ Iterate over context list",
     iterationViaMenuData: "Item sets are created in \"Menu data\" (menu panel).",
+    iterationManagedHint: "— fields via {{example}}, managed in \"Data\".",
     iterationDisable: "Stop iterating",
     iterationForEach: "for each",
     iterationIn: "in",

@@ -303,6 +303,7 @@ const fr: typeof en = {
     iteration: "itération",
     iterationEnable: "+ Itérer sur une liste de contexte",
     iterationViaMenuData: "Les sets d'items se créent dans « Données du menu » (panneau du menu).",
+    iterationManagedHint: "— champs via {{example}}, géré dans « Données ».",
     iterationDisable: "Arrêter l'itération",
     iterationForEach: "pour chaque",
     iterationIn: "dans",
