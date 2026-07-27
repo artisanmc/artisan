@@ -72,6 +72,13 @@ est capturé au parse et ré-émis verbatim. L'aide écrite une fois dans le mod
 sert le form (tooltip) et le fichier (commentaire). **Défer** : préservation
 de commentaires arbitraires au milieu des fichiers (AST comment-aware
 généralisé).
+> **Précisé et durci par l'ADR `yaml-assisted-editing` (2026-07-27)** : le
+> défer devient un **refus** — les commentaires écrits main ne sont jamais
+> préservés (le patch chirurgical a été examiné puis rejeté), et l'en-tête
+> généré doit le **dire**. Le placement « au-dessus du champ » décrit ici doit
+> être appliqué tel quel : le code les regroupait en bloc d'en-tête. Côté
+> formulaire, l'aide cesse d'être une infobulle et devient visible sous le
+> champ, le nom technique restant affiché à côté du libellé.
 
 ## Conséquences
 

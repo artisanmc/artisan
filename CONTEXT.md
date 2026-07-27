@@ -96,12 +96,16 @@ Non-examples:
 ## Config screen
 
 A **module-declared editing surface**: a named entry under the **Module** in the
-editor's sidebar whose generated form edits one of the module's declared-model
-Tables/Configs, **live against the connected Server** (greyed out while the
-Server is offline). Declared as data alongside the module's models and data
-sources — never coded; a module may declare several (e.g. one per data type),
-and a module that declares models without declaring screens gets a default
-"Données" screen. Cf. ADR `module-config-screens`.
+editor's sidebar that edits one of the module's files, **live against the
+connected Server** (greyed out while the Server is offline). Declared as data
+alongside the module's models and data sources — never coded; a module may
+declare several (e.g. one per data type), and a module that declares models
+without declaring screens gets a default "Données" screen. A screen offers two
+modes over the same file — a generated **form** and the **raw YAML** — and a
+declared schema is **optional**: without one the file is still editable, its
+keys shown as literal fields (cf. ADR `yaml-assisted-editing`; the schema buys
+labels, descriptions and constraints, it is not an entry fee).
+Cf. ADR `module-config-screens`.
 
 Non-examples:
 - The canvas **Data panel** is not a Config screen — it is the *binding*
@@ -525,6 +529,26 @@ Non-examples:
   A Row key identifies a data row, not a translation slot.
 - A slot **position** is not a Row key — position is *where* a Placement sits; the
   Row key is *which* row it pins.
+
+## Root
+
+A directory a **Module** declares as editable from the editor. Its *kind*
+decides what the files inside are worth, and the Module chooses by deciding
+where to put them (cf. ADR `yaml-assisted-editing`):
+
+- A **project root** holds a **Project** — its files are versioned, survive the
+  server, can be edited while the server is offline, and carry translations in
+  their own `lang/`. It may live inside the Module's own plugin directory, so
+  "versioned" never means "moved into Artisan's folder".
+- A **plain root** is any other declared directory (typically a plugin's own
+  config): editable live against the Server, with no history, no offline
+  editing, and no translations of ours — its content is consumed by its owner,
+  so its wording is its owner's business.
+
+Non-examples:
+- A **Project** is not a root — it is what a project root *contains*.
+- An arbitrary server path is not a root: a root is **declared** by a Module
+  that accepts the consequences (knowing when to reload, owning the files).
 
 ## Server
 
