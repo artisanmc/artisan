@@ -768,6 +768,105 @@ describe("declared_models presence (composable-data-models §4)", () => {
   });
 });
 
+describe("editor_screens presence (module-config-screens)", () => {
+  test("hello persists declared screens verbatim; modules_changed prunes", async () => {
+    const { key, id: keyId } = await seedServerKey();
+    const connId = "conn-editor-screens";
+    registerConn(connId, () => {});
+
+    const catalogScreen = {
+      id: "boutique:catalog", module_id: "boutique", label: "Catalogue",
+      table: "data/categories", project_id: "boutique",
+    };
+    await handlePluginMessage(connId, JSON.stringify({
+      type: "hello", server_key: key, plugin_version: "1.0", minecraft_version: "1.21",
+      current_bundle_hash: "",
+      editor_screens: [
+        catalogScreen,
+        { id: "not-namespaced", label: "X", table: "data/x", project_id: "p" },
+        { id: "quests:missing-fields" },
+      ],
+    }));
+    await new Promise((r) => setTimeout(r, 150)); // fire-and-forget persist
+
+    const { serverEditorScreens } = await import("../db/schema");
+    let rows = await db.select().from(serverEditorScreens).where(eq(serverEditorScreens.serverKeyId, keyId));
+    expect(rows.map((r) => r.screenId)).toEqual(["boutique:catalog"]);
+    expect(JSON.parse(rows[0]!.screenJson)).toEqual(catalogScreen);
+
+    await handlePluginMessage(connId, JSON.stringify({
+      type: "modules_changed", server_key: key, installed_modules: [], data_sources: [],
+      editor_screens: [],
+    }));
+    await new Promise((r) => setTimeout(r, 150));
+    rows = await db.select().from(serverEditorScreens).where(eq(serverEditorScreens.serverKeyId, keyId));
+    expect(rows).toEqual([]);
+  });
+});
+
+describe("config read/write relay (module-config-screens)", () => {
+  test("requestConfigRead resolves offline when no plugin conn is bound", async () => {
+    const { requestConfigRead } = await import("./hub");
+    const outcome = await requestConfigRead("sk-not-connected", { projectId: "boutique", table: "data/categories" });
+    expect(outcome).toEqual({ kind: "offline" });
+  });
+
+  test("read and write round-trip through the plugin conn, correlated by request_id", async () => {
+    const { requestConfigRead, requestConfigWrite, connToServerId, connSenders } = await import("./hub");
+    const sent: Record<string, unknown>[] = [];
+    const connId = "conn-config-relay";
+    registerConn(connId, (raw) => sent.push(JSON.parse(raw)));
+    connToServerId.set(connId, "sk-config-live");
+    try {
+      const pRead = requestConfigRead("sk-config-live", { projectId: "boutique", table: "data/categories" });
+      const pWrite = requestConfigWrite("sk-config-live", {
+        projectId: "boutique",
+        files: [{ path: "data/categories/weapons.yaml", content: "name: Armes\n" }],
+        deletes: ["data/categories/old.yaml"],
+      });
+      expect(sent.map((m) => m.type)).toEqual(["config_read", "config_write"]);
+      expect(sent[0]!.project_id).toBe("boutique");
+      expect(sent[0]!.table).toBe("data/categories");
+      expect(sent[1]!.deletes).toEqual(["data/categories/old.yaml"]);
+
+      // Answer out of order — correlation is by request_id, not arrival order.
+      await handlePluginMessage(connId, JSON.stringify({
+        type: "config_write_result", request_id: sent[1]!.request_id, ok: true,
+      }));
+      await handlePluginMessage(connId, JSON.stringify({
+        type: "config_read_result", request_id: sent[0]!.request_id, ok: true,
+        files: [{ path: "data/categories/_source.yaml", content: "name: Catégories\n" }],
+      }));
+
+      const read = await pRead;
+      const write = await pWrite;
+      expect(read.kind).toBe("result");
+      if (read.kind === "result") {
+        expect(read.result.files).toEqual([{ path: "data/categories/_source.yaml", content: "name: Catégories\n" }]);
+      }
+      expect(write.kind).toBe("result");
+      if (write.kind === "result") expect(write.result.ok).toBe(true);
+    } finally {
+      connToServerId.delete(connId);
+      connSenders.delete(connId);
+    }
+  });
+
+  test("read times out when the plugin never answers", async () => {
+    const { requestConfigRead, connToServerId, connSenders } = await import("./hub");
+    const connId = "conn-config-timeout";
+    registerConn(connId, () => {});
+    connToServerId.set(connId, "sk-config-mute");
+    try {
+      const outcome = await requestConfigRead("sk-config-mute", { projectId: "p", table: "data/x" }, 20);
+      expect(outcome).toEqual({ kind: "timeout" });
+    } finally {
+      connToServerId.delete(connId);
+      connSenders.delete(connId);
+    }
+  });
+});
+
 describe("sync_divergence (files-first P3c)", () => {
   test("stores the plugin-reported disk tree; local_push clears it", async () => {
     const { id: keyId, key, networkId } = await seedServerKey();

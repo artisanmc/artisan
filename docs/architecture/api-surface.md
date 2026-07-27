@@ -110,6 +110,10 @@ Fire-and-forget module messages over the plugin ↔ backend WS (`api.messages.se
 
 `api.models.declare(document)` — declares a Data model as a `model/v1` document (a plain `Map`, verbatim: `schema`, namespaced `id` (`ns:model`), `name`, `key_field`, `fields`, optional monotonic `version` + declarative `migrations`). Pure passthrough: nothing is interpreted plugin-side — the documents are reported at Presence (`hello.declared_models` / `modules_changed`) and consumed by the editor, which renders the schema-driven form and treats the shape as read-only for the admin (ADR `composable-data-models` §4/§5). Duplicate id or non-namespaced id throws at declare time. `has(id)`, `declared()` (sorted). Since 1.5.0.
 
+### `net.artisanmc.modules.api.EditorScreenRegistry` (`@Beta`)
+
+`api.screens.declare(id, label, table, projectId)` — declares a **Config screen**: a named entry in the editor's sidebar under the module, whose core-generated form edits one declared-model Table/Config of the module's owned Project, live over the WS relay (ADR `module-config-screens` §2/§3). `id` must be namespaced (`boutique:catalog`); `table` is a Project-relative path (`data/categories`) — absolute paths, `..` and a first segment starting with `.artisan` are rejected at declare time, as is a duplicate id. Pure passthrough: nothing is interpreted plugin-side — the declarations are reported at Presence (`hello.editor_screens` / `modules_changed`) and the editor mounts the entries. A module that declares models + owns a Project but no screen gets a fallback "Données" screen synthesized by the editor. `declared()` (sorted by id). Since 1.6.0.
+
 ### `net.artisanmc.modules.api.Stability`
 
 Declared (not inferred) axis of a data source. `STATIC` = a stable, enumerable key-set (`fetcher(null)` returns the authoritative rows, each identified by `keyField`) — placeable in a menu's placement mode. `DYNAMIC` (default) = runtime/player-dependent, unbounded — pagination only.

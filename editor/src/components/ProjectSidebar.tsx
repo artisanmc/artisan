@@ -21,6 +21,9 @@ const restrictToVerticalAxis: Modifier = ({ transform }) => ({ ...transform, x: 
 import { getModule } from "@artisan/editor-sdk";
 import { selectModuleNavEntries } from "@/distribution/moduleNav";
 import type { ProjectId } from "@/domain/types";
+import { fallbackScreensFor } from "@/features/screens/screenList";
+import type { ServerEditorScreen } from "@/lib/api/configScreens";
+import { useServerScreensStore } from "@/state/serverScreensStore";
 import { type ProjectSummary, getNetwork, listNetworks } from "@/lib/api/networks";
 import { displayServerLabel } from "@/lib/serverLabel";
 import { useAccountStore } from "@/state/accountStore";
@@ -44,6 +47,7 @@ export function ProjectSidebar() {
   const reorderProjects = useAccountStore((s) => s.reorderProjects);
   const mountedModuleIds = useModulesStore((s) => s.mountedIds);
   const moduleNav = selectModuleNavEntries(mountedModuleIds);
+  const serverScreens = useServerScreensStore((s) => s.screens);
   // distance: 5 — small movement before drag activates.
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
   const [serverProjects, setServerProjects] = useState<ProjectSummary[]>([]);
@@ -211,14 +215,25 @@ export function ProjectSidebar() {
       ...ownedProjects.map((p) => p.ownerModule).filter((x): x is string => !!x),
     ]),
   );
-  const moduleGroups = moduleGroupIds.map((id) => ({
-    id,
-    // moduleNav only lists modules WITH a screen — fall back to the
-    // registered module's displayName for screenless ones (boutique).
-    label: moduleNav.find((m) => m.id === id)?.sidebar.label ?? getModule(id)?.displayName ?? id,
-    projects: ownedProjects.filter((p) => p.ownerModule === id),
-    hasScreen: moduleNav.some((m) => m.id === id),
-  }));
+  const moduleGroups = moduleGroupIds.map((id) => {
+    const projects = ownedProjects.filter((p) => p.ownerModule === id);
+    // Config screens (ADR module-config-screens): declared by the module at
+    // Presence; a module with models + a project but no declaration gets
+    // fallback screens synthesized from its declared-model tables.
+    const declared = serverScreens.filter((s) => s.moduleId === id);
+    const screens = declared.length > 0
+      ? declared
+      : fallbackScreensFor(id, projects.map((p) => p.id), localProjects);
+    return {
+      id,
+      // moduleNav only lists modules WITH a screen — fall back to the
+      // registered module's displayName for screenless ones (boutique).
+      label: moduleNav.find((m) => m.id === id)?.sidebar.label ?? getModule(id)?.displayName ?? id,
+      projects,
+      hasScreen: moduleNav.some((m) => m.id === id),
+      screens,
+    };
+  });
 
   // Element count per pack: prefer the live count from a fully-loaded pack in
   // the account store (updates as the user edits), else the summary's
@@ -339,7 +354,7 @@ export function ProjectSidebar() {
           ) : (
             <ul className="flex flex-col gap-1.5">
               {moduleGroups.map((g) =>
-                !g.hasScreen && g.projects.length === 1 ? (
+                !g.hasScreen && g.projects.length === 1 && g.screens.length === 0 ? (
                   // One project, no screen (boutique) → a SINGLE entry named
                   // after the module that opens the editor directly.
                   <OwnedProjectItem
@@ -367,6 +382,14 @@ export function ProjectSidebar() {
                           serverId={w.serverKeyId || activeServerId}
                         />
                       ))}
+                      {g.screens.map((s) => (
+                        <ScreenItem
+                          key={s.id}
+                          screen={s}
+                          networkId={activeNetworkId}
+                          serverId={activeServerId}
+                        />
+                      ))}
                       {g.hasScreen && (
                         <li>
                           <Link
@@ -390,6 +413,37 @@ export function ProjectSidebar() {
 
       <UserMenu />
     </nav>
+  );
+}
+
+/** Module Config screen link under "Installed modules" (ADR module-config-screens). */
+function ScreenItem({
+  screen,
+  networkId,
+  serverId,
+}: {
+  screen: ServerEditorScreen;
+  networkId: string | null;
+  serverId: string | null;
+}) {
+  const params = useParams({ strict: false }) as { screenId?: string };
+  const isActive = params.screenId === screen.id;
+  if (!networkId || !serverId) return null;
+  return (
+    <li>
+      <Link
+        to="/networks/$networkId/servers/$serverId/screens/$screenId"
+        params={{ networkId, serverId, screenId: screen.id }}
+        onClick={() => useSidebarStore.getState().close()}
+        className={
+          isActive
+            ? "flex items-center gap-2.5 rounded-[10px] px-2.5 py-2 text-[13px] font-semibold text-white transition-colors"
+            : "flex items-center gap-2.5 rounded-[10px] px-2.5 py-2 text-[13px] font-medium text-[var(--text-mut)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+        }
+      >
+        <span className="truncate flex-1" title={screen.label}>{screen.label}</span>
+      </Link>
+    </li>
   );
 }
 

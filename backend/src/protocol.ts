@@ -178,6 +178,44 @@ export interface PlayerInventoryResultMessage {
   message?: string;
 }
 
+// Backend → plugin: read the files of a Config-screen table, live from disk
+// (ADR module-config-screens). Correlated like data_source_fetch; 5 s timeout.
+export interface ConfigReadMessage {
+  type: "config_read";
+  request_id: string;
+  project_id: string;
+  table: string;
+}
+
+// Plugin → backend: reply to ConfigReadMessage.
+export interface ConfigReadResultMessage {
+  type: "config_read_result";
+  request_id: string;
+  ok: boolean;
+  files?: { path: string; content: string }[];
+  error?: "invalid_path" | "unknown_project" | "too_large" | "read_error";
+  message?: string;
+}
+
+// Backend → plugin: write Config-screen files to disk (plugin hot-reloads and
+// auto-pushes the change through the normal sync loop). 10 s timeout.
+export interface ConfigWriteMessage {
+  type: "config_write";
+  request_id: string;
+  project_id: string;
+  files: { path: string; content: string }[];
+  deletes?: string[];
+}
+
+// Plugin → backend: reply to ConfigWriteMessage.
+export interface ConfigWriteResultMessage {
+  type: "config_write_result";
+  request_id: string;
+  ok: boolean;
+  error?: "invalid_path" | "unknown_project" | "write_error";
+  message?: string;
+}
+
 // Plugin → backend: module message from `/boutique additem` — the boutique
 // backend module applies the mutation (ADR captured-items-and-module-field-kit
 // §3). Fire-and-forget plugin-side; the reply is informational.
@@ -207,6 +245,8 @@ export type PluginToServerMessage =
   | ModulesChangedMessage
   | DataSourceFetchResultMessage
   | PlayerInventoryResultMessage
+  | ConfigReadResultMessage
+  | ConfigWriteResultMessage
   | BoutiqueAdditemMessage;
 
 export interface ResourcePackUpdatedMessage {
@@ -224,4 +264,6 @@ export type ServerToPluginMessage =
   | ResourcePackUpdatedMessage
   | ProjectDeletedMessage
   | DataSourceFetchMessage
-  | PlayerInventoryFetchMessage;
+  | PlayerInventoryFetchMessage
+  | ConfigReadMessage
+  | ConfigWriteMessage;

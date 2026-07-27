@@ -139,6 +139,22 @@ export const serverDeclaredModels = pgTable(
 	(t) => [primaryKey({ columns: [t.serverKeyId, t.modelId] })],
 );
 
+// Module-declared Config screens reported at Presence (ADR module-config-screens):
+// wire objects stored verbatim per server key, mirroring server_declared_models.
+export const serverEditorScreens = pgTable(
+	"server_editor_screens",
+	{
+		serverKeyId: text("server_key_id")
+			.notNull()
+			.references(() => serverKeys.id, { onDelete: "cascade" }),
+		screenId: text("screen_id").notNull(),
+		// The declared screen verbatim ({id, module_id, label, table, project_id}).
+		screenJson: text("screen_json").notNull(),
+		reportedAt: timestamp("reported_at").notNull(),
+	},
+	(t) => [primaryKey({ columns: [t.serverKeyId, t.screenId] })],
+);
+
 export const linkCodes = pgTable("link_codes", {
 	code: text("code").primaryKey(),
 	createdAt: timestamp("created_at").notNull(),
