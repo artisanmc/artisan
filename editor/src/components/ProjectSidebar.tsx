@@ -376,7 +376,11 @@ export function ProjectSidebar() {
                         <OwnedProjectItem
                           key={w.id}
                           id={w.id}
-                          name={w.name}
+                          // Under a module group the canvas entry is "Éditeur"
+                          // (ADR module-config-screens §2) — the group header
+                          // already carries the module's name. Only a module
+                          // owning several projects needs their real names.
+                          name={g.projects.length === 1 ? t("screens.editorEntry") : w.name}
                           count={countFor(w)}
                           networkId={w.networkId || activeNetworkId}
                           serverId={w.serverKeyId || activeServerId}

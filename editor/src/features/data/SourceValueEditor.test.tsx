@@ -481,4 +481,22 @@ describe("form generator — hints + validation (§7)", () => {
     fireEvent.click(screen.getByRole("button", { name: "b" }));
     expect(screen.getByDisplayValue("5")).toBeTruthy();
   });
+
+  // Renaming the Row key must not drop the selection: identity moved, the row
+  // didn't. Before the fix the detail pane fell back to "no rows" and the user
+  // had to re-click the row in the master list.
+  it("keeps the selected row when its Row key is renamed", () => {
+    seedHinted(true);
+    const { rerender } = render(
+      <SourceRowsTable projectId={PID} pack={pack()} source={tableSource()} />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "b" }));
+    fireEvent.change(screen.getByLabelText("id"), { target: { value: "bb" } });
+    // The store drives the re-render in the app; mirror that here.
+    rerender(<SourceRowsTable projectId={PID} pack={pack()} source={tableSource()} />);
+
+    // The detail form is still the same row (price 5), now keyed "bb".
+    expect(screen.getByDisplayValue("5")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "bb" })).toHaveAttribute("aria-current", "true");
+  });
 });

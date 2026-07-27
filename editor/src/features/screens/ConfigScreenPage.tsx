@@ -7,6 +7,7 @@ import {
   configRead,
   configWrite,
 } from "@/lib/api/configScreens";
+import { useTextureInit } from "@/features/canvas/useTextureInit";
 import { fetchServerDeclaredModels } from "@/lib/api/dataSources";
 import { useAccountStore } from "@/state/accountStore";
 import { useServerScreensStore } from "@/state/serverScreensStore";
@@ -45,6 +46,11 @@ export function ConfigScreenPage({
   const scratch = useAccountStore((s) =>
     scratchId ? s.account.projects.find((p) => p.id === scratchId) : undefined,
   );
+
+  // The screen edits a module-owned project without opening its canvas — load
+  // its item library so the `item` field pickers resolve (they read the
+  // texture store, which only EditorPane used to fill).
+  useTextureInit(screen?.projectId);
 
   const [phase, setPhase] = useState<Phase>("loading");
   const [errorCode, setErrorCode] = useState<ConfigErrorCode | null>(null);

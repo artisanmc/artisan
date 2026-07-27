@@ -1841,6 +1841,7 @@ const fr: typeof en = {
     notFound: "Écran de configuration inconnu.",
     moduleFallback: "Module",
     managedByModule: "Géré par le module {{module}}",
+    editorEntry: "Éditeur",
     openScreen: "Ouvrir son écran",
   },
 };
