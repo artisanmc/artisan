@@ -93,6 +93,23 @@ Non-examples:
 - A raw Bukkit command from another plugin is not an Artisan Command unless a
   Module bridges it into the `CommandRegistry`.
 
+## Config screen
+
+A **module-declared editing surface**: a named entry under the **Module** in the
+editor's sidebar whose generated form edits one of the module's declared-model
+Tables/Configs, **live against the connected Server** (greyed out while the
+Server is offline). Declared as data alongside the module's models and data
+sources — never coded; a module may declare several (e.g. one per data type),
+and a module that declares models without declaring screens gets a default
+"Données" screen. Cf. ADR `module-config-screens`.
+
+Non-examples:
+- The canvas **Data panel** is not a Config screen — it is the *binding*
+  surface (project-authored sources + the server-sources directory); module
+  data is edited in Config screens, not there.
+- A custom editor route a module ships as code is not a Config screen — Config
+  screens are core-generated from declarations.
+
 ## Data model
 
 A **named shape of data**: a recursive field schema (field name + kind — text,
@@ -387,10 +404,10 @@ its working-copy lives in the **Add-on's own plugin dir**, not the core
 `projectsDir`, and the editor surfaces it under an **Installed modules** section
 rather than the flat project list (ADR `addon-owned-project-roots`). Consumption
 stays server-global — a menu in *any* Project can consume the Add-on's **data
-source** — while its default content is centralised in that one Project. *How* an
-Add-on's richer config is authored (a composable-schema, form-generating editor that
-reuses core kinds like the **Action DSL**) is a separate, not-yet-locked design track
-(`docs/superpowers/specs/2026-07-22-composable-config-schemas-and-forms.md`).
+source** — while its default content is centralised in that one Project. An
+Add-on's richer config is authored through its **Config screens** — declared,
+core-generated forms over its declared **Data models**, edited live against the
+Server (ADRs `composable-data-models`, `module-config-screens`).
 
 Non-examples:
 - A **plugin JAR** is not a Module — it is the *vehicle* that delivers one. An
