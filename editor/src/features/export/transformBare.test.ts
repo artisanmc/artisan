@@ -169,7 +169,9 @@ describe("bare export (ADR bare-data-files T2)", () => {
     };
     const files = transform(pack as never);
     const dataFile = files[`${base}/data/settings.yaml`]!;
-    expect(dataFile).toContain("# discount: Remise globale en % (0-100)");
+    // The hint sits above the key it documents (ADR yaml-assisted-editing ⑥ —
+    // was a flat list in the header block until 2026-07-27).
+    expect(dataFile).toContain("# Remise globale en % (0-100)\ndiscount: 0");
 
     // Hand-written header (leading comment lines before the generated block)
     // is captured at import and re-emitted verbatim.
@@ -179,7 +181,7 @@ describe("bare export (ADR bare-data-files T2)", () => {
     const files2 = transform(p2);
     expect(files2[`${base}/data/settings.yaml`]!.startsWith("# ma note perso\n")).toBe(true);
     // The generated block is not duplicated.
-    const occurrences = files2[`${base}/data/settings.yaml`]!.split("# discount:").length - 1;
+    const occurrences = files2[`${base}/data/settings.yaml`]!.split("# ──").length - 1;
     expect(occurrences).toBe(1);
   });
 
@@ -313,5 +315,75 @@ describe("table whose declared model is missing", () => {
     const files = transform(pack);
     const written = files[`${base}/data/categories.yaml`]!;
     expect(parse(written)).toEqual([{ id: "weapons", name: "Armes", discount: 5 }]);
+  });
+});
+
+// ADR yaml-assisted-editing ⑥/⑨: the schema's help lands as a comment ABOVE the
+// key it documents (bare-data-files ⑦ as written), and the generated header is
+// honest about hand-written comments being overwritten.
+describe("schema hints become per-key comments", () => {
+  const model = {
+    id: "mdl_settings" as DataModelId,
+    name: "Réglages",
+    keyField: "id",
+    fields: [
+      {
+        name: "whole_shop_discount",
+        type: { kind: "integer" },
+        label: "Remise globale",
+        help: "Remise appliquée à toute la boutique (0 à 100).",
+      },
+      {
+        name: "placeholders",
+        type: {
+          kind: "object",
+          fields: [
+            { name: "price_display", type: { kind: "string" }, help: "Placeholder disponible : %price%." },
+          ],
+        },
+      },
+    ],
+  };
+
+  function packWith(value: Record<string, unknown>) {
+    return {
+      ...basePack(),
+      dataModels: [model],
+      dataSources: [
+        {
+          id: "shop_settings" as DataSourceId,
+          name: "Réglages",
+          shape: "config",
+          fields: model.fields,
+          value,
+        },
+      ],
+    } as never;
+  }
+
+  it("puts each help line directly above its key, at any depth", () => {
+    const files = transform(packWith({ whole_shop_discount: 10, placeholders: { price_display: "%price% tokens" } }));
+    const out = files[`${base}/data/shop_settings.yaml`]!;
+    const lines = out.split("\n");
+    const at = (key: string) => lines.findIndex((l) => l.trimStart().startsWith(key));
+
+    expect(lines[at("whole_shop_discount:") - 1]).toContain("Remise appliquée à toute la boutique");
+    expect(lines[at("price_display:") - 1]).toContain("%price%");
+    // The old shape — a flat list of hints in the header — is gone.
+    expect(out).not.toMatch(/^# whole_shop_discount: /m);
+  });
+
+  it("states that hand-written comments are overwritten", () => {
+    const out = transform(packWith({ whole_shop_discount: 10 }))[`${base}/data/shop_settings.yaml`]!;
+    expect(out).toMatch(/^# ──/m);
+    expect(out.toLowerCase()).toContain("écras");
+  });
+
+  it("still round-trips: comments carry no data", () => {
+    const value = { whole_shop_discount: 10, placeholders: { price_display: "%price% tokens" } };
+    const back = projectFromFiles(PID, transform(packWith(value)));
+    const src = back.dataSources.find((d) => d.id === ("shop_settings" as DataSourceId));
+    if (src?.shape !== "config") throw new Error("expected config shape");
+    expect(src.value).toEqual(value);
   });
 });

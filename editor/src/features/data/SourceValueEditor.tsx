@@ -520,14 +520,19 @@ export function ValueEditor({
               {f.section && f.section !== fields[i - 1]?.section ? (
                 <span className="eyebrow mt-1">{f.section}</span>
               ) : null}
-              <div className="flex w-full items-center gap-2">
-                <span
-                  // No truncation: field names are the contract with the file
-                  // on disk. Grows to fit, wraps past the cap.
-                  className="min-w-24 max-w-44 shrink-0 break-words font-mono text-[10px] text-[var(--text-faint)]"
-                  title={f.help}
-                >
-                  {f.label ?? f.name}
+              <div className="flex w-full items-start gap-2">
+                {/* No truncation: field names are the contract with the file on
+                    disk. A label never REPLACES the key — the key is what you
+                    look for over SSH (ADR yaml-assisted-editing ⑨). */}
+                <span className="min-w-24 max-w-44 shrink-0 break-words">
+                  {f.label ? (
+                    <>
+                      <span className="block text-[11px] text-[var(--text-mut)]">{f.label}</span>
+                      <span className="block font-mono text-[9px] text-[var(--text-faint)]">{f.name}</span>
+                    </>
+                  ) : (
+                    <span className="block font-mono text-[10px] text-[var(--text-faint)]">{f.name}</span>
+                  )}
                 </span>
                 <div className="min-w-0 flex-1">
                   <ValueEditor
@@ -540,6 +545,11 @@ export function ValueEditor({
                     pack={pack}
                     field={f}
                   />
+                  {/* Visible, not a tooltip: the explanation is why a config
+                      file feels more helpful than a form. */}
+                  {f.help ? (
+                    <p className="mt-0.5 text-[10px] leading-snug text-[var(--text-faint)]">{f.help}</p>
+                  ) : null}
                 </div>
               </div>
             </div>
