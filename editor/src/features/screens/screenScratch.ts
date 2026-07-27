@@ -12,6 +12,11 @@ import { projectFromFiles } from "@/schema/projectFromFiles";
  */
 const SCRATCH_PREFIX = "__screen__";
 
+/** Path of the schema file living beside a screen's table (`data/x` → `models/x`). */
+export function besideModelPath(table: string): string {
+  return `models/${table.split("/").pop() ?? ""}`;
+}
+
 export function screenScratchId(screenId: string): ProjectId {
   return `${SCRATCH_PREFIX}${screenId.replace(":", "_")}` as ProjectId;
 }
@@ -57,12 +62,17 @@ export function diffScratchForWrite(
   const tablePrefix = `${screen.table}/`;
   const tableFile = (p: string) =>
     p === `${screen.table}.yaml` || p === `${screen.table}.yml` || p.startsWith(tablePrefix);
+  // A project-authored source keeps its schema in `models/<id>.yaml` beside the
+  // data file (the canonical writer emits values-only). It travels with the
+  // table: dropping it would strip the schema from disk on the first save.
+  const sourceId = screen.table.split("/").pop() ?? "";
+  const besideModel = (p: string) => p === `models/${sourceId}.yaml`;
 
   const current = new Map<string, string>();
   for (const [full, content] of Object.entries(emitted)) {
     if (!full.startsWith(base)) continue;
     const rel = full.slice(base.length);
-    if (tableFile(rel)) current.set(rel, content);
+    if (tableFile(rel) || besideModel(rel)) current.set(rel, content);
   }
 
   const originalByPath = new Map(original.map((f) => [f.path, f.content]));
