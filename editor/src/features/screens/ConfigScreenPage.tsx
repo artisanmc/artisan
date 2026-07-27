@@ -8,6 +8,8 @@ import {
   configWrite,
 } from "@/lib/api/configScreens";
 import { useTextureInit } from "@/features/canvas/useTextureInit";
+import { cx } from "@/lib/cx";
+import { YamlFileEditor, yamlErrorsOf } from "./YamlFileEditor";
 import { fetchServerDeclaredModels } from "@/lib/api/dataSources";
 import { useAccountStore } from "@/state/accountStore";
 import { useServerScreensStore } from "@/state/serverScreensStore";
@@ -61,6 +63,12 @@ export function ConfigScreenPage({
   const [errorCode, setErrorCode] = useState<ConfigErrorCode | null>(null);
   const [original, setOriginal] = useState<ConfigFile[]>([]);
   const [saving, setSaving] = useState(false);
+  // Two modes over the SAME file (ADR yaml-assisted-editing ⑦). `draft` holds
+  // the text being typed; it is null while the form is the surface being used.
+  const [mode, setMode] = useState<"form" | "yaml">("form");
+  const [draft, setDraft] = useState<ConfigFile[] | null>(null);
+  const [selectedFile, setSelectedFile] = useState("");
+  const [declaredModels, setDeclaredModels] = useState<Record<string, unknown>[]>([]);
 
   const load = useCallback(async () => {
     if (!screen) return;
@@ -84,7 +92,10 @@ export function ConfigScreenPage({
     const files = [...res.files, ...(beside.ok ? beside.files : [])];
     const pack = buildScratchProject(screen, files, models);
     useAccountStore.getState().upsertScratchProject(pack);
+    setDeclaredModels(models);
     setOriginal(files);
+    setDraft(null);
+    setMode("form");
     setPhase("ready");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [networkId, serverId, screen?.id, screen?.projectId, screen?.table]);
@@ -101,11 +112,39 @@ export function ConfigScreenPage({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scratchId]);
 
+  // Text mode owns the truth while it is being typed; the form's serialization
+  // takes over as soon as the text is valid and adopted back into the scratch.
+  const yamlErrors = useMemo(() => (draft ? yamlErrorsOf(draft) : []), [draft]);
+
   const diff = useMemo(() => {
-    if (!screen || !scratch || phase !== "ready") return null;
+    if (!screen || phase !== "ready") return null;
+    if (draft) {
+      // Canonicalisation immédiate: the typed text is parsed into the domain
+      // and re-emitted by the writer — unless it does not parse, in which case
+      // the text itself is what we save (it is the admin's file).
+      if (yamlErrors.length > 0) {
+        const changed = draft.filter(
+          (f) => original.find((o) => o.path === f.path)?.content !== f.content,
+        );
+        return { files: changed, deletes: [] };
+      }
+      const rebuilt = buildScratchProject(screen, draft, declaredModels);
+      return diffScratchForWrite(rebuilt, screen, original);
+    }
+    if (!scratch) return null;
     return diffScratchForWrite(scratch, screen, original);
-  }, [screen, scratch, original, phase]);
+  }, [screen, scratch, original, phase, draft, yamlErrors, declaredModels]);
   const dirty = (diff?.files.length ?? 0) > 0 || (diff?.deletes.length ?? 0) > 0;
+
+  /** The files as they stand right now — baseline plus unsaved form edits. */
+  const currentFiles = useCallback((): ConfigFile[] => {
+    const map = new Map(original.map((f) => [f.path, f.content]));
+    if (!draft) {
+      for (const f of diff?.files ?? []) map.set(f.path, f.content);
+      for (const p of diff?.deletes ?? []) map.delete(p);
+    }
+    return [...map].map(([path, content]) => ({ path, content }));
+  }, [original, draft, diff]);
 
   const save = useCallback(async () => {
     if (!screen || !scratch || !diff || !dirty) return;
@@ -152,6 +191,35 @@ export function ConfigScreenPage({
         </div>
         {phase === "ready" && (
           <>
+            <div className="flex gap-1">
+              <button
+                type="button"
+                // Invalid YAML can't produce a form — the text tab keeps it fixable
+                // (ADR yaml-assisted-editing ⑦).
+                disabled={yamlErrors.length > 0}
+                onClick={() => {
+                  if (draft && yamlErrors.length === 0 && screen) {
+                    const rebuilt = buildScratchProject(screen, draft, declaredModels);
+                    useAccountStore.getState().upsertScratchProject(rebuilt);
+                    setDraft(null);
+                  }
+                  setMode("form");
+                }}
+                className={cx("chip h-7 px-3 text-[11px]", mode === "form" && "is-active")}
+              >
+                {t("screens.modeForm")}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!draft) setDraft(currentFiles());
+                  setMode("yaml");
+                }}
+                className={cx("chip h-7 px-3 text-[11px]", mode === "yaml" && "is-active")}
+              >
+                {t("screens.modeYaml")}
+              </button>
+            </div>
             <Button variant="ghost" size="sm" onClick={() => void load()} disabled={saving}>
               {t("screens.reload")}
             </Button>
@@ -182,7 +250,21 @@ export function ConfigScreenPage({
         />
       )}
 
-      {phase === "ready" && scratch && (
+      {phase === "ready" && mode === "yaml" && (
+        <YamlFileEditor
+          files={draft ?? currentFiles()}
+          errors={yamlErrors}
+          selected={selectedFile || (draft ?? currentFiles())[0]?.path || ""}
+          onSelect={setSelectedFile}
+          onChange={(path, content) =>
+            setDraft((prev) =>
+              (prev ?? currentFiles()).map((f) => (f.path === path ? { ...f, content } : f)),
+            )
+          }
+        />
+      )}
+
+      {phase === "ready" && mode === "form" && scratch && (
         source ? (
           source.shape === "table" ? (
             <SourceRowsTable projectId={scratch.id} pack={scratch} source={source} />
