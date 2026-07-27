@@ -578,6 +578,12 @@ export function projectFromFiles(
         name,
         shape: "config",
         fields,
+        // Namespaced ref the project files can't resolve: the model is
+        // module-declared and arrives via Presence — keep the ref so
+        // `injectDeclaredModels` can type this source after the load.
+        ...(typeof y.model === "string" && fields.length === 0
+          ? { modelId: y.model as DataModelId }
+          : {}),
         value,
         ...(typeof y.header_comment === "string" && y.header_comment !== ""
           ? { headerComment: y.header_comment }

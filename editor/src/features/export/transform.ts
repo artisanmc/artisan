@@ -1007,7 +1007,15 @@ function emitDataSources(
           : serializeDataValue(ds.value, { kind: "object", fields: ds.fields }, models, new Set(), i18n);
       files[`${base}/data/${ds.id}.yaml`] =
         dataFileHeader(ds, ds.name, ds.fields) + stringifyWithHints(value, ds.fields, yamlOpts);
-      if (ds.fields.length > 0) {
+      // A module-declared schema lives in the module's JAR and arrives via
+      // Presence — the beside file is a one-line ref, never a copy (ADR
+      // yaml-assisted-editing). Only a project-authored schema is written out.
+      const declaredModel =
+        ds.modelId && models.find((m) => m.id === ds.modelId)?.provenance === "module";
+      if (declaredModel) {
+        files[`${base}/models/${ds.id}.yaml`] = stringify({ model: String(ds.modelId) }, yamlOpts);
+        claimed.add(String(ds.id));
+      } else if (ds.fields.length > 0) {
         files[`${base}/models/${ds.id}.yaml`] = stringify(
           { schema: "model/v1", id: ds.id, name: ds.name, fields: ds.fields },
           yamlOpts,
