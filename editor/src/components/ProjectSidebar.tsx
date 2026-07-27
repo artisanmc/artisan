@@ -18,6 +18,7 @@ import { useTranslation } from "react-i18next";
 
 /** Restrict translation to the vertical axis so the workspace card can't be dragged sideways. */
 const restrictToVerticalAxis: Modifier = ({ transform }) => ({ ...transform, x: 0 });
+import { getModule } from "@artisan/editor-sdk";
 import { selectModuleNavEntries } from "@/distribution/moduleNav";
 import type { ProjectId } from "@/domain/types";
 import { type ProjectSummary, getNetwork, listNetworks } from "@/lib/api/networks";
@@ -212,7 +213,9 @@ export function ProjectSidebar() {
   );
   const moduleGroups = moduleGroupIds.map((id) => ({
     id,
-    label: moduleNav.find((m) => m.id === id)?.sidebar.label ?? id,
+    // moduleNav only lists modules WITH a screen — fall back to the
+    // registered module's displayName for screenless ones (boutique).
+    label: moduleNav.find((m) => m.id === id)?.sidebar.label ?? getModule(id)?.displayName ?? id,
     projects: ownedProjects.filter((p) => p.ownerModule === id),
     hasScreen: moduleNav.some((m) => m.id === id),
   }));
@@ -335,38 +338,51 @@ export function ProjectSidebar() {
             </div>
           ) : (
             <ul className="flex flex-col gap-1.5">
-              {moduleGroups.map((g) => (
-                <li key={g.id} className="flex flex-col">
-                  {/* TODO(P2): render the module's icon once modules ship real icons */}
-                  <div className="px-2.5 pt-0.5 pb-1 text-[12px] font-semibold text-[var(--text)]">
-                    {g.label}
-                  </div>
-                  <ul className="ml-3 flex flex-col border-l border-[var(--border)] pl-1">
-                    {g.projects.map((w) => (
-                      <OwnedProjectItem
-                        key={w.id}
-                        id={w.id}
-                        name={w.name}
-                        count={countFor(w)}
-                        networkId={w.networkId || activeNetworkId}
-                        serverId={w.serverKeyId || activeServerId}
-                      />
-                    ))}
-                    {g.hasScreen && (
-                      <li>
-                        <Link
-                          to="/m/$moduleId"
-                          params={{ moduleId: g.id }}
-                          onClick={() => useSidebarStore.getState().close()}
-                          className="flex items-center gap-2.5 rounded-[10px] px-2.5 py-2 text-[13px] font-medium text-[var(--text-mut)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
-                        >
-                          <span className="truncate flex-1">{t("sidebar.configuration")}</span>
-                        </Link>
-                      </li>
-                    )}
-                  </ul>
-                </li>
-              ))}
+              {moduleGroups.map((g) =>
+                !g.hasScreen && g.projects.length === 1 ? (
+                  // One project, no screen (boutique) → a SINGLE entry named
+                  // after the module that opens the editor directly.
+                  <OwnedProjectItem
+                    key={g.id}
+                    id={g.projects[0]!.id}
+                    name={g.label}
+                    count={countFor(g.projects[0]!)}
+                    networkId={g.projects[0]!.networkId || activeNetworkId}
+                    serverId={g.projects[0]!.serverKeyId || activeServerId}
+                  />
+                ) : (
+                  <li key={g.id} className="flex flex-col">
+                    {/* TODO(P2): render the module's icon once modules ship real icons */}
+                    <div className="px-2.5 pt-0.5 pb-1 text-[12px] font-semibold text-[var(--text)]">
+                      {g.label}
+                    </div>
+                    <ul className="ml-3 flex flex-col border-l border-[var(--border)] pl-1">
+                      {g.projects.map((w) => (
+                        <OwnedProjectItem
+                          key={w.id}
+                          id={w.id}
+                          name={w.name}
+                          count={countFor(w)}
+                          networkId={w.networkId || activeNetworkId}
+                          serverId={w.serverKeyId || activeServerId}
+                        />
+                      ))}
+                      {g.hasScreen && (
+                        <li>
+                          <Link
+                            to="/m/$moduleId"
+                            params={{ moduleId: g.id }}
+                            onClick={() => useSidebarStore.getState().close()}
+                            className="flex items-center gap-2.5 rounded-[10px] px-2.5 py-2 text-[13px] font-medium text-[var(--text-mut)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+                          >
+                            <span className="truncate flex-1">{t("sidebar.configuration")}</span>
+                          </Link>
+                        </li>
+                      )}
+                    </ul>
+                  </li>
+                ),
+              )}
             </ul>
           )}
         </div>

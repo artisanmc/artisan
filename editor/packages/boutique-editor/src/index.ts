@@ -1,5 +1,4 @@
 import type { FrontendModule } from "@artisan/editor-sdk";
-import { BoutiqueScreen } from "./BoutiqueScreen";
 import { boutiqueLocalRows } from "./localRows";
 import { exportBoutiqueFiles } from "./state";
 
@@ -12,7 +11,10 @@ const boutiqueModule: FrontendModule = {
   displayName: "Boutique",
   schemaVersion: "boutique/v1",
   sidebar: { icon: () => null, label: "Boutique", to: "/m/boutique" },
-  routes: [{ path: "/", component: BoutiqueScreen }],
+  // No configuration screen anymore: the catalog is edited through the
+  // GENERATED Sources form (declared models) and item sets live at the MENU
+  // level — the bespoke BoutiqueScreen died with them (2026-07-27).
+  routes: [],
   exportFiles: exportBoutiqueFiles,
   localPreviewRows: boutiqueLocalRows,
 };
