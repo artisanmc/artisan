@@ -14,7 +14,12 @@ import { useServerScreensStore } from "@/state/serverScreensStore";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { resolveScreen } from "./screenList";
-import { buildScratchProject, diffScratchForWrite, screenScratchId } from "./screenScratch";
+import {
+  besideModelPath,
+  buildScratchProject,
+  diffScratchForWrite,
+  screenScratchId,
+} from "./screenScratch";
 
 type Phase = "loading" | "offline" | "error" | "ready";
 
@@ -60,18 +65,26 @@ export function ConfigScreenPage({
   const load = useCallback(async () => {
     if (!screen) return;
     setPhase("loading");
-    const [models, res] = await Promise.all([
+    // A project-authored source keeps its schema in `models/<id>.yaml` beside
+    // the data file — read it too, or the form opens untyped. Absent (a
+    // module-declared table types itself from the declaration) is not an error.
+    const [models, res, beside] = await Promise.all([
       fetchServerDeclaredModels(networkId, serverId),
       configRead(networkId, serverId, { projectId: screen.projectId, table: screen.table }),
+      configRead(networkId, serverId, {
+        projectId: screen.projectId,
+        table: besideModelPath(screen.table),
+      }),
     ]);
     if (!res.ok) {
       setErrorCode(res.error);
       setPhase(res.error === "server_offline" ? "offline" : "error");
       return;
     }
-    const pack = buildScratchProject(screen, res.files, models);
+    const files = [...res.files, ...(beside.ok ? beside.files : [])];
+    const pack = buildScratchProject(screen, files, models);
     useAccountStore.getState().upsertScratchProject(pack);
-    setOriginal(res.files);
+    setOriginal(files);
     setPhase("ready");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [networkId, serverId, screen?.id, screen?.projectId, screen?.table]);
