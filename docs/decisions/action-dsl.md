@@ -62,6 +62,14 @@ no-ops). The plugin reads only structured maps.
    domain: `@key` ↔ registered key, `"..."` ↔ unregistered literal (the
    `literalSteps` trick). Action text is **always quoted** (never a bare word) to
    remove text-vs-identifier ambiguity.
+   > **Révisé par l'ADR `yaml-assisted-editing` (2026-07-27)** : les actions de
+   > **data source** ne sont plus littérales-only — elles peuvent porter `@clé`,
+   > *parce que* ces sources sont consommées par le runtime d'Artisan et vivent
+   > donc dans une racine de project (« l'i18n suit le consommateur »). La
+   > plomberie existe déjà (`DslText.Ref` → `{i18n:clé}` →
+   > `ActionExecutor.resolveText`) ; manque le passage du `langMap` du project à
+   > `api.actions.execute`, qui construit un `ExecutionContext` sans langue. La
+   > clé reste **explicite**, jamais dérivée d'une position dans la chaîne.
 
 5. **Argument grammar.** Bare words for identifiers / enums / materials / sounds /
    worlds / numbers; positional args first, then `key=value` for optionals
