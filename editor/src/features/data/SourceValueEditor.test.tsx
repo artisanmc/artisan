@@ -540,3 +540,44 @@ describe("ConfigValueForm — schemaless file", () => {
     expect(v.whole_shop_discount).toBe(25);
   });
 });
+
+// ─── ADR yaml-assisted-editing ⑨: hints are visible, the key stays visible ───
+
+describe("field hints in the form", () => {
+  function seedHinted() {
+    useAccountStore.setState((s) => {
+      const p = s.account.projects[0]!;
+      p.dataModels = [];
+      p.dataSources = [
+        {
+          id: "shop_settings" as never,
+          name: "shop_settings",
+          shape: "config",
+          fields: [
+            {
+              name: "whole_shop_discount",
+              type: { kind: "integer" },
+              label: "Remise globale",
+              help: "Remise appliquée à toute la boutique (0 à 100).",
+            },
+          ],
+          value: { whole_shop_discount: 10 },
+        },
+      ] as never;
+      return s;
+    });
+  }
+
+  it("shows the description as text, not only as a tooltip", () => {
+    seedHinted();
+    render(<ConfigValueForm projectId={PID} pack={pack()} source={pack().dataSources[0] as never} />);
+    expect(screen.getByText(/Remise appliquée à toute la boutique/)).toBeInTheDocument();
+  });
+
+  it("shows the label AND the technical key — the key is what the file uses", () => {
+    seedHinted();
+    render(<ConfigValueForm projectId={PID} pack={pack()} source={pack().dataSources[0] as never} />);
+    expect(screen.getByText("Remise globale")).toBeInTheDocument();
+    expect(screen.getByText("whole_shop_discount")).toBeInTheDocument();
+  });
+});
