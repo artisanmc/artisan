@@ -19,16 +19,16 @@ export function SoloMenuStage({ projectId, menuId }: { projectId: ProjectId; men
   const menu = pack?.menus.find((m) => m.id === menuId);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ w: 0, h: 0 });
-  // Restaurée en revenant sur ce document : on ne re-cadre que la première fois.
-  const viewKey = `${projectId}:${menuId}`;
-  const saved = useUiStore.getState().documentViewports[viewKey];
+  // Le cadrage est partagé par tous les documents : passer d'un menu à un
+  // autre garde la vue là où l'utilisateur l'a mise.
+  const saved = useUiStore.getState().documentViewport;
   const setDocumentViewport = useUiStore((s) => s.setDocumentViewport);
   const { viewport, setViewport, onWheel, onTouchMove, onTouchEnd } = usePanZoom(
     saved ?? { x: 0, y: 0, scale: 1 },
   );
   // The view is fitted on open, but never fights the user afterwards: once
   // they have panned or zoomed, it stays where they put it.
-  const touchedRef = useRef(saved !== undefined);
+  const touchedRef = useRef(saved !== null);
 
   useEffect(() => {
     if (!wrapperRef.current) return;
@@ -39,17 +39,12 @@ export function SoloMenuStage({ projectId, menuId }: { projectId: ProjectId; men
     return () => ro.disconnect();
   }, []);
 
-  // Another menu is another subject — fit it again, unless we have been there.
-  useEffect(() => {
-    touchedRef.current = useUiStore.getState().documentViewports[viewKey] !== undefined;
-  }, [viewKey]);
-
-  // Persist whatever the user is looking at, so leaving and coming back lands
-  // on the same spot.
+  // Persist whatever the user is looking at — for every document, not just
+  // this one.
   useEffect(() => {
     if (!touchedRef.current) return;
-    setDocumentViewport(viewKey, viewport);
-  }, [viewKey, viewport, setDocumentViewport]);
+    setDocumentViewport(viewport);
+  }, [viewport, setDocumentViewport]);
 
   const boxW = menu ? menuBoxSize(menu.inventoryType ?? "chest", menu.rows).width : 0;
   const boxH = menu ? menuBoxSize(menu.inventoryType ?? "chest", menu.rows).height : 0;
@@ -83,6 +78,15 @@ export function SoloMenuStage({ projectId, menuId }: { projectId: ProjectId; men
           onTouchMove(e);
         }}
         onTouchEnd={onTouchEnd}
+        onDblClick={(e) => {
+          // Échappatoire : un double-clic sur le fond recadre sur le document.
+          if (e.target !== e.target.getStage()) return;
+          touchedRef.current = false;
+          const fitted = fitViewport(size, { width: boxW, height: boxH });
+          setViewport(fitted);
+          setDocumentViewport(fitted);
+          touchedRef.current = true;
+        }}
         onDragEnd={(e) => {
           const stage = e.target.getStage();
           // Only a stage drag is a pan — dragging an item must not move the view.
