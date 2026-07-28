@@ -180,6 +180,14 @@ interface UiState {
    */
   canvasViewports: Record<string, ViewportState>;
   setCanvasViewport: (projectId: ProjectId, viewport: ViewportState) => void;
+  /**
+   * Pan/zoom de la vue individuelle d'un document, indexé par
+   * `projectId:documentId`. **Persisté** : on revient exactement où on était,
+   * navigation ET rechargement compris — contrairement à `canvasViewports`,
+   * qui reste session-only.
+   */
+  documentViewports: Record<string, ViewportState>;
+  setDocumentViewport: (key: string, viewport: ViewportState) => void;
 }
 
 export const useUiStore = create<UiState>()(
@@ -341,6 +349,9 @@ export const useUiStore = create<UiState>()(
       canvasMode: "hand",
       setCanvasMode: (m) => set({ canvasMode: m }),
       canvasViewports: {},
+      documentViewports: {},
+      setDocumentViewport: (key, viewport) =>
+        set((st) => ({ documentViewports: { ...st.documentViewports, [key]: viewport } })),
       setCanvasViewport: (projectId, viewport) =>
         set((s) => ({ canvasViewports: { ...s.canvasViewports, [projectId]: viewport } })),
     }),
@@ -372,6 +383,9 @@ export const useUiStore = create<UiState>()(
         editorTab: state.editorTab,
         projectPanelOpen: state.projectPanelOpen,
         canvasMode: state.canvasMode,
+        // Persisté (contrairement à canvasViewports) : on ne veut pas re-cadrer
+        // la vue d'un document à chaque rechargement de page.
+        documentViewports: state.documentViewports,
       }),
       // Coerce legacy persisted tab values ("code", "props") to "edit" — the
       // 3-tab structure was replaced by 2 tabs (Edit + Library). Also push

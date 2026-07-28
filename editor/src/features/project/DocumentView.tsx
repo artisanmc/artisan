@@ -19,7 +19,15 @@ export function DocumentView({ projectId, documentId }: { projectId: ProjectId; 
   const { t } = useTranslation();
   const navigate = useNavigate();
   const params = useParams({ strict: false }) as { networkId?: string; serverId?: string };
-  const pack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  // L'URL peut désigner le project par son slug : l'id reste l'identité, mais
+  // la vue doit reconnaître les deux formes (ADR yaml-assisted-editing n'a rien
+  // à voir ici — c'est le passage des URLs aux slugs).
+  const pack = useAccountStore((s) =>
+    s.account.projects.find((p) => p.id === projectId || p.slug === projectId),
+  );
+  // Tout ce qui est en dessous cherche le project par ID : le slug de l'URL
+  // s'arrête ici.
+  const pId = (pack?.id ?? projectId) as ProjectId;
   const activeLang = useUiStore((s) => s.activeLang);
   const editorPaneWidth = useUiStore((s) => s.editorPaneWidth);
   const setEditorPaneWidth = useUiStore((s) => s.setEditorPaneWidth);
@@ -110,10 +118,10 @@ export function DocumentView({ projectId, documentId }: { projectId: ProjectId; 
           // Stage full-bleed, edit pane floating over it — the board's layout.
           <>
             <div className="absolute inset-0">
-              <SoloMenuStage projectId={projectId} menuId={documentId as unknown as MenuId} />
+              <SoloMenuStage projectId={pId} menuId={documentId as unknown as MenuId} />
             </div>
             <FloatingEditorPane
-              projectId={projectId}
+              projectId={pId}
               width={editorPaneWidth}
               onWidthChange={setEditorPaneWidth}
             />
@@ -121,8 +129,8 @@ export function DocumentView({ projectId, documentId }: { projectId: ProjectId; 
         ) : (
           <SplitPane
             orientation="vertical"
-            primary={<SoloMenuStage projectId={projectId} menuId={documentId as unknown as MenuId} />}
-            secondary={<EditorPane projectId={projectId} />}
+            primary={<SoloMenuStage projectId={pId} menuId={documentId as unknown as MenuId} />}
+            secondary={<EditorPane projectId={pId} />}
             secondarySize={editorPaneWidth}
             onSecondarySizeChange={setEditorPaneWidth}
             minSecondary={280}
@@ -134,7 +142,7 @@ export function DocumentView({ projectId, documentId }: { projectId: ProjectId; 
         // with room at the top so the bubble never covers its first line.
         <div className="h-full overflow-auto">
           <div className="mx-auto w-full max-w-3xl pt-16">
-            <FlowCanvas projectId={projectId} />
+            <FlowCanvas projectId={pId} />
           </div>
         </div>
       )}
