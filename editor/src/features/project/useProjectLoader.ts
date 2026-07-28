@@ -14,7 +14,7 @@ export interface ProjectLoadResult {
   error: string | null;
 }
 
-export function useProjectLoader(projectId: string): ProjectLoadResult {
+export function useProjectLoader(projectId: string, serverRef?: string | null): ProjectLoadResult {
   const user = useAuthStore((s) => s.currentUser);
   const [pack, setProject] = useState<Project | null>(null);
   const [networkId, setNetworkId] = useState<string | null>(null);
@@ -26,7 +26,7 @@ export function useProjectLoader(projectId: string): ProjectLoadResult {
       setError("Not authenticated");
       return;
     }
-    loadUserProject(projectId)
+    loadUserProject(projectId, serverRef)
       .then(async (res) => {
         // Files-first (ADR files-first-source-of-truth): the file tree IS the
         // Project — parse it client-side. A fresh project has files={} and
@@ -72,7 +72,7 @@ export function useProjectLoader(projectId: string): ProjectLoadResult {
         });
       })
       .catch((e) => setError((e as Error).message));
-  }, [projectId, user]);
+  }, [projectId, serverRef, user]);
 
   return { pack, networkId, error };
 }

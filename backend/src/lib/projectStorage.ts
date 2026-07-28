@@ -1,6 +1,6 @@
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, eq, isNull, or, sql } from "drizzle-orm";
 import { db } from "../db/index";
-import { projects } from "../db/schema";
+import { projects, serverKeys } from "../db/schema";
 import { createBranch } from "./branchStorage";
 import { createCommit } from "./commitStorage";
 import { allocProjectSlug } from "./slugAlloc";
@@ -50,6 +50,39 @@ export async function createProject(input: {
 	});
 	await createBranch(id, "main", root.id);
 	return (await getProject(id))!;
+}
+
+/**
+ * Résout une référence de project (id **ou** slug) vers son id.
+ *
+ * Le slug n'est unique QUE par serveur (`projects_serverkey_slug_uniq`) — il
+ * n'est donc résoluble qu'avec le serveur en portée, que l'URL de l'éditeur
+ * porte déjà. Sans `serverRef`, la référence est traitée comme un id (comportement
+ * historique). Un `serverRef` ambigu (slug porté par plusieurs serveurs, les
+ * slugs de serveur n'étant uniques que par network) ne résout rien plutôt que de
+ * risquer le mauvais project.
+ */
+export async function resolveProjectRef(
+	ref: string,
+	serverRef?: string | null,
+): Promise<string | null> {
+	if (!serverRef) return ref;
+	const keys = await db
+		.select({ id: serverKeys.id })
+		.from(serverKeys)
+		.where(or(eq(serverKeys.id, serverRef), eq(serverKeys.slug, serverRef)));
+	if (keys.length !== 1) return null;
+	const rows = await db
+		.select({ id: projects.id })
+		.from(projects)
+		.where(
+			and(
+				eq(projects.serverKeyId, keys[0]!.id),
+				or(eq(projects.id, ref), eq(projects.slug, ref)),
+				isNull(projects.deletedAt),
+			),
+		);
+	return rows[0]?.id ?? null;
 }
 
 export async function getProject(id: string): Promise<Project | null> {

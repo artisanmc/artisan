@@ -321,6 +321,7 @@ export function ProjectSidebar() {
                     <SortableProjectItem
                       key={w.id}
                       id={w.id}
+                      slug={w.slug}
                       name={w.name}
                       count={countFor(w)}
                       networkId={urlNetworkId(networks, w.networkId) || netParam}
@@ -367,6 +368,7 @@ export function ProjectSidebar() {
                   <OwnedProjectItem
                     key={g.id}
                     id={g.projects[0]!.id}
+                    slug={g.projects[0]!.slug}
                     name={g.label}
                     count={countFor(g.projects[0]!)}
                     networkId={urlNetworkId(networks, g.projects[0]!.networkId) || netParam}
@@ -383,6 +385,7 @@ export function ProjectSidebar() {
                         <OwnedProjectItem
                           key={w.id}
                           id={w.id}
+                          slug={w.slug}
                           // Under a module group the canvas entry is "Éditeur"
                           // (ADR module-config-screens §2) — the group header
                           // already carries the module's name. Only a module
@@ -462,12 +465,15 @@ function ScreenItem({
  *  not reorderable (its placement is the module's, not the user's). */
 function OwnedProjectItem({
   id,
+  slug,
   name,
   count,
   networkId,
   serverId,
 }: {
   id: string;
+  /** URL form: project slugs are unique per server, so the link can carry one. */
+  slug?: string;
   name: string;
   count: number | null;
   networkId: string | null;
@@ -475,13 +481,15 @@ function OwnedProjectItem({
 }) {
   const { t } = useTranslation();
   const params = useParams({ strict: false }) as { projectId?: string };
-  const isActiveProject = params.projectId === id;
+  const isActiveProject = params.projectId === id || (!!slug && params.projectId === slug);
   const linkTo =
     networkId && serverId
       ? "/networks/$networkId/servers/$serverId/projects/$projectId"
       : "/project/$projectId";
   const linkParams =
-    networkId && serverId ? { networkId, serverId, projectId: id } : { projectId: id };
+    networkId && serverId
+      ? { networkId, serverId, projectId: slug || id }
+      : { projectId: slug || id };
   return (
     <li className="flex flex-col">
       <Link
@@ -511,12 +519,15 @@ function OwnedProjectItem({
 
 function SortableProjectItem({
   id,
+  slug,
   name,
   count,
   networkId,
   serverId,
 }: {
   id: string;
+  /** URL form: project slugs are unique per server, so the link can carry one. */
+  slug?: string;
   name: string;
   count: number | null;
   networkId: string | null;
@@ -538,7 +549,7 @@ function SortableProjectItem({
     opacity: isDragging ? 0.5 : 1,
   };
   const params = useParams({ strict: false }) as { projectId?: string };
-  const isActiveProject = params.projectId === id;
+  const isActiveProject = params.projectId === id || (!!slug && params.projectId === slug);
 
   // Build link target — prefer new URL when we have network+server context.
   const linkTo =
@@ -546,7 +557,9 @@ function SortableProjectItem({
       ? "/networks/$networkId/servers/$serverId/projects/$projectId"
       : "/project/$projectId";
   const linkParams =
-    networkId && serverId ? { networkId, serverId, projectId: id } : { projectId: id };
+    networkId && serverId
+      ? { networkId, serverId, projectId: slug || id }
+      : { projectId: slug || id };
 
   return (
     <li ref={setNodeRef} style={style} className="flex flex-col">
