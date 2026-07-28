@@ -37,6 +37,7 @@ import { addMembership } from "../lib/membershipManager";
 import { createNetwork } from "../lib/networkManager";
 import { readOwnerModuleFromFiles } from "../lib/projectFiles";
 import { createProject, listProjectsForNetwork } from "../lib/projectStorage";
+import { resolveNetworkForMember } from "../lib/refs";
 import { slugify } from "../lib/slug";
 import { allocServerSlug } from "../lib/slugAlloc";
 import type { AuthUser } from "../middleware/userAuth";
@@ -650,26 +651,6 @@ userNetworksRouter.get(
 		return c.json({ servers, online, total: servers.length });
 	},
 );
-
-/**
- * Résout un `:id` de network (id **ou** slug) et vérifie l'appartenance.
- * Renvoie null si inconnu ou non-membre — les deux se répondent en 403 pour
- * ne pas révéler l'existence d'un network dont on n'est pas membre.
- */
-async function resolveNetworkForMember(userId: string, ref: string): Promise<string | null> {
-	const rows = await db
-		.select({ id: networks.id })
-		.from(networks)
-		.where(or(eq(networks.id, ref), eq(networks.slug, ref)));
-	const id = rows[0]?.id;
-	if (!id) return null;
-	try {
-		await requireMember(userId, id);
-	} catch {
-		return null;
-	}
-	return id;
-}
 
 /**
  * Résout `:networkId` et `:serverId` qui peuvent être des **id ou des slugs** —
