@@ -81,3 +81,38 @@ describe("DocumentView", () => {
     expect(useSelectionStore.getState().focusedSlot).toBe(13);
   });
 });
+
+// La topbar pleine largeur est remplacée par une bulle flottante au même
+// endroit, et le panneau d'édition reprend la carte flottante du canvas.
+describe("DocumentView — chrome flottant", () => {
+  function setDesktop(matches: boolean) {
+    window.matchMedia = ((query: string) => ({
+      matches,
+      media: query,
+      onchange: null,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+    })) as unknown as typeof window.matchMedia;
+  }
+
+  it("le retour vit dans une bulle flottante, pas dans une barre qui prend la largeur", () => {
+    render(<DocumentView projectId={PID} documentId={"m1" as any} />);
+    const bubble = screen.getByTestId("document-view-bubble");
+    expect(bubble.className).toContain("absolute");
+    expect(bubble.className).toContain("backdrop-blur");
+    // Aucune <header> en flux qui réserverait de la hauteur.
+    expect(document.querySelector("header")).toBeNull();
+  });
+
+  it("en desktop, le panneau d'édition flotte au-dessus de la scène", () => {
+    setDesktop(true);
+    render(<DocumentView projectId={PID} documentId={"m1" as any} />);
+    const pane = document.querySelector('[role="separator"][aria-orientation="vertical"]');
+    expect(pane).not.toBeNull();
+    expect(pane!.closest("div.absolute")).not.toBeNull();
+    setDesktop(false);
+  });
+});
