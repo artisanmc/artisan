@@ -97,7 +97,12 @@ export function ProjectCanvasPage() {
   const { networkId, serverId, projectId } = useParams({
     from: "/networks/$networkId/servers/$serverId/projects/$projectId",
   });
-  const pId = projectId as ProjectId;
+  // L'URL peut porter le slug du project : le serveur, déjà dans l'URL, en est
+  // la portée (un slug n'est unique que par serveur). La réponse donne l'id
+  // réel, seul utilisé en aval — store, sélections, sauvegardes.
+  const { pack: userProject } = useProjectLoader(projectId, serverId);
+  const pack = userProject;
+  const pId = (pack?.id ?? projectId) as ProjectId;
   const currentUser = useAuthStore((s) => s.currentUser);
   const authLoading = useAuthStore((s) => s.isLoading);
   const navigate = useNavigate();
@@ -109,8 +114,6 @@ export function ProjectCanvasPage() {
   const editorPaneWidth = useUiStore((s) => s.editorPaneWidth);
   const setEditorPaneWidth = useUiStore((s) => s.setEditorPaneWidth);
   const projectPanelOpen = useUiStore((s) => s.projectPanelOpen);
-  const { pack: userProject } = useProjectLoader(pId);
-  const pack = userProject;
   const isDesktop = useIsDesktop();
   const { t } = useTranslation();
   // Hooks must come before any conditional return — keep here, near the other
