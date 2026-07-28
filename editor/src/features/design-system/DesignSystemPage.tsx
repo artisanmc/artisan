@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { DataTable } from "@/components/ui/data-table";
+import { YamlCodeEditor } from "@/components/ui/yaml-code-editor";
 import {
   Dialog,
   DialogContent,
@@ -93,6 +94,14 @@ const BTN_CLASSES = [
   "btn btn-danger",
   "btn btn-discord",
 ];
+const SAMPLE_YAML = `# Réglages boutique — géré par Artisan
+# Remise appliquée à toute la boutique (0 à 100).
+whole_shop_discount: 10
+placeholders:
+  # Placeholder disponible : %price%.
+  price_display: "%price% tokens"
+`;
+
 const BADGE_VARIANTS = ["amber", "sage", "terra", "brick"] as const;
 const BADGE_CLASSES = ["badge-amber", "badge-sage", "badge-terra", "badge-brick"];
 
@@ -499,6 +508,22 @@ export function DesignSystemPage() {
       </Section>
 
       {/* ── Data viz ──────────────────────────────────────────────────── */}
+      <Section id="codeEditor" title={t("adminDesign.sections.codeEditor")}>
+        <div className="card flex flex-col gap-2 p-5">
+          <span className="mono text-[11px] text-[var(--text-faint)]">{"<YamlCodeEditor>"}</span>
+          <p className="text-[11px] text-[var(--text-faint)]">
+            {t("adminDesign.codeEditorHint")}
+          </p>
+          <div className="h-48 overflow-auto rounded border border-[var(--border-soft)] bg-[var(--surface)]">
+            <YamlCodeEditor
+              value={SAMPLE_YAML}
+              ariaLabel="YamlCodeEditor"
+              onChange={() => {}}
+            />
+          </div>
+        </div>
+      </Section>
+
       <Section id="dataViz" title={t("adminDesign.sections.dataViz")}>
         <div className="card flex flex-col gap-6 p-5">
           <div className="flex flex-col gap-2">

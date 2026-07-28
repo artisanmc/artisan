@@ -1279,8 +1279,10 @@ const fr: typeof en = {
       appComponents: "Composants partagés de l'app",
       searchPalette: "Palette de recherche (Cmd+K)",
       canvasToolbar: "Toolbar canvas (sélecteur de mode)",
+      codeEditor: "Éditeur de code YAML",
       dataViz: "Data viz",
     },
+    codeEditorHint: "Coloration syntaxique, numéros de ligne, pliage ; Entrée conserve l'indentation.",
     groups: {
       surfaces: "Surfaces",
       text: "Texte",
