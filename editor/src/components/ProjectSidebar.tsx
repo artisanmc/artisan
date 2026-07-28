@@ -30,6 +30,7 @@ import { useAccountStore } from "@/state/accountStore";
 import { useModulesStore } from "@/state/modulesStore";
 import { useNetworksStore } from "@/state/networksStore";
 import { useServersStore } from "@/state/serversStore";
+import { urlNetworkId, urlServerId } from "@/lib/urlIds";
 import { useSidebarStore } from "@/state/sidebarStore";
 import { CSS } from "@dnd-kit/utilities";
 import { ArrowRight, GripVertical, LayoutGrid } from "lucide-react";
@@ -93,6 +94,10 @@ export function ProjectSidebar() {
       )?.serverId ?? rawServerParam)
     : null;
 
+  // URL-facing forms: links carry slugs, everything else stays id-based.
+  const netParam = urlNetworkId(networks, activeNetworkId);
+  const srvParam = urlServerId(allServerEntries, activeNetworkId, activeServerId);
+
   // Persist the URL-driven selection so param-less routes keep it. Only store
   // resolved ids (never raw slugs) — the entry lookup guarantees that.
   useEffect(() => {
@@ -153,6 +158,8 @@ export function ProjectSidebar() {
           })),
         );
         setAllServerEntries(entries);
+        // Share the slugs so every surface can build slug-based links.
+        useServersStore.getState().setServers(entries);
         // Update projects from the active network result
         const activeResult = results.find((r) => r.network.id === activeNetworkId);
         if (activeResult) {
@@ -285,7 +292,7 @@ export function ProjectSidebar() {
       {activeNetworkId && activeNetworkName && (
         <Link
           to="/networks/$networkId"
-          params={{ networkId: activeNetworkId }}
+          params={{ networkId: netParam! }}
           onClick={() => useSidebarStore.getState().close()}
           className="-mt-2 flex items-center justify-between gap-2 rounded-[10px] px-2.5 py-1.5 text-[11.5px] text-[var(--text-faint)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
         >
@@ -316,15 +323,15 @@ export function ProjectSidebar() {
                       id={w.id}
                       name={w.name}
                       count={countFor(w)}
-                      networkId={w.networkId || activeNetworkId}
-                      serverId={w.serverKeyId || activeServerId}
+                      networkId={urlNetworkId(networks, w.networkId) || netParam}
+                      serverId={urlServerId(allServerEntries, w.networkId, w.serverKeyId) || srvParam}
                     />
                   ))}
                 </ul>
               </SortableContext>
             </DndContext>
             <NewProjectDialog
-              networkId={activeNetworkId}
+              networkId={netParam}
               serverKeyId={activeServerId}
               onCreated={() => setRefetchToken((n) => n + 1)}
               trigger={
@@ -362,8 +369,8 @@ export function ProjectSidebar() {
                     id={g.projects[0]!.id}
                     name={g.label}
                     count={countFor(g.projects[0]!)}
-                    networkId={g.projects[0]!.networkId || activeNetworkId}
-                    serverId={g.projects[0]!.serverKeyId || activeServerId}
+                    networkId={urlNetworkId(networks, g.projects[0]!.networkId) || netParam}
+                    serverId={urlServerId(allServerEntries, g.projects[0]!.networkId, g.projects[0]!.serverKeyId) || srvParam}
                   />
                 ) : (
                   <li key={g.id} className="flex flex-col">
@@ -382,16 +389,16 @@ export function ProjectSidebar() {
                           // owning several projects needs their real names.
                           name={g.projects.length === 1 ? t("screens.editorEntry") : w.name}
                           count={countFor(w)}
-                          networkId={w.networkId || activeNetworkId}
-                          serverId={w.serverKeyId || activeServerId}
+                          networkId={urlNetworkId(networks, w.networkId) || netParam}
+                          serverId={urlServerId(allServerEntries, w.networkId, w.serverKeyId) || srvParam}
                         />
                       ))}
                       {g.screens.map((s) => (
                         <ScreenItem
                           key={s.id}
                           screen={s}
-                          networkId={activeNetworkId}
-                          serverId={activeServerId}
+                          networkId={netParam}
+                          serverId={srvParam}
                         />
                       ))}
                       {g.hasScreen && (
