@@ -33,6 +33,7 @@ export function useProjectLoader(projectId: string, serverRef?: string | null): 
         // parses to an empty workspace.
         const loaded: Project = projectFromFiles(res.project.id as ProjectId, res.files, {
           name: res.project.name,
+          slug: res.project.slug ?? undefined,
           serverKeyId: res.project.serverKeyId ?? res.serverKeyId ?? undefined,
         });
         // Module-declared models (ADR composable-data-models §4/§5): inject
