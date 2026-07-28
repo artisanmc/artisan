@@ -25,12 +25,23 @@ export interface UserProjectLoadResult {
   divergence?: ProjectDivergence;
 }
 
-export async function loadUserProject(projectId: string): Promise<UserProjectLoadResult> {
-  const res = await fetch(`${API_URL}/api/v1/user/projects/${projectId}`, { credentials: "include" });
+/**
+ * `projectRef` may be the project's id **or** its slug; a slug only resolves
+ * with `serverRef` (id or slug of the owning server) since project slugs are
+ * unique per server. The response always carries the real id.
+ */
+export async function loadUserProject(
+  projectRef: string,
+  serverRef?: string | null,
+): Promise<UserProjectLoadResult> {
+  const qs = serverRef ? `?server=${encodeURIComponent(serverRef)}` : "";
+  const res = await fetch(`${API_URL}/api/v1/user/projects/${projectRef}${qs}`, {
+    credentials: "include",
+  });
   if (!res.ok) throw new Error(`loadUserProject failed: ${res.status}`);
   const data = (await res.json()) as UserProjectLoadResult;
-  // Fresh load: record the version and lift any stale conflict flag.
-  useProjectVersionStore.getState().setVersions({ [projectId]: data.project.version ?? 0 });
+  // Keyed by the REAL id — the ref may have been a slug.
+  useProjectVersionStore.getState().setVersions({ [data.project.id]: data.project.version ?? 0 });
   return data;
 }
 

@@ -11,7 +11,7 @@ import { createCommit } from "../lib/commitStorage";
 import { customItemsCacheDir, readCustomItems } from "../lib/customItems";
 import { diffDivergence, mergeDivergence } from "../lib/divergence";
 import { computeBundleHash } from "../lib/hashUtils";
-import { getProject, softDeleteProject, upsertProjectContent } from "../lib/projectStorage";
+import { getProject, resolveProjectRef, softDeleteProject, upsertProjectContent } from "../lib/projectStorage";
 import { getNetworkOfProject, requireMember } from "../lib/membershipGuard";
 import type { AuthUser } from "../middleware/userAuth";
 
@@ -92,7 +92,10 @@ userProjectsRouter.get("/:projectId", async (c: Context<{ Variables: Vars }>) =>
   const userId = getUserId(c);
   if (!userId) return c.json({ error: "unauthorized" }, 401);
 
-  const projectId = c.req.param("projectId");
+  // L'URL de l'éditeur porte le serveur : il sert de portée pour résoudre un
+  // slug de project (unique par serveur seulement).
+  const projectId = await resolveProjectRef(c.req.param("projectId"), c.req.query("server"));
+  if (projectId === null) return c.json({ error: "not_found" }, 404);
 
   const networkId = await getNetworkOfProject(projectId);
   if (networkId === null) return c.json({ error: "not_found" }, 404);

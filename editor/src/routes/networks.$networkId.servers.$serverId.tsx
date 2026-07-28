@@ -87,7 +87,7 @@ export default function ServerDetailPage() {
                 <li key={w.id}>
                   <Link
                     to="/networks/$networkId/servers/$serverId/projects/$projectId"
-                    params={{ networkId, serverId, projectId: w.id }}
+                    params={{ networkId, serverId, projectId: w.slug || w.id }}
                     className="card flex items-center justify-between p-4 hover:bg-[var(--surface-hover)]"
                   >
                     <span className="text-[14px] font-medium text-[var(--text)]">{w.name}</span>

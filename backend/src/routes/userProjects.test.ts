@@ -429,3 +429,63 @@ describe("userProjectsRouter — divergence", () => {
     expect(res.status).toBe(404);
   });
 });
+
+// Le slug de project est unique PAR SERVEUR (uniqueIndex serverKeyId+slug), pas
+// globalement : la résolution n'est donc possible qu'avec le serveur en portée,
+// que l'URL de l'éditeur porte déjà (/networks/:n/servers/:s/projects/:p).
+describe("userProjectsRouter — GET par slug", () => {
+  beforeEach(clearAll);
+
+  test("résout le slug quand le serveur est fourni", async () => {
+    const { sessionId, packId, skId } = await seedUserWithPack("u1");
+    const pack = (await getProject(packId))!;
+    const app = makeApp();
+    const res = await app.request(`/api/v1/user/projects/${pack.slug}?server=${skId}`, {
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
+    });
+    expect(res.status).toBe(200);
+    expect((await res.json()).project.id).toBe(packId);
+  });
+
+  test("l'id continue de marcher, avec ou sans serveur", async () => {
+    const { sessionId, packId, skId } = await seedUserWithPack("u1");
+    const app = makeApp();
+    for (const url of [
+      `/api/v1/user/projects/${packId}`,
+      `/api/v1/user/projects/${packId}?server=${skId}`,
+    ]) {
+      const res = await app.request(url, { headers: { Cookie: `artisan_user_session=${sessionId}` } });
+      expect(res.status).toBe(200);
+      expect((await res.json()).project.id).toBe(packId);
+    }
+  });
+
+  // Le piège que la portée serveur évite : deux serveurs peuvent porter le même
+  // slug de project, un lookup global tomberait sur celui d'un autre serveur.
+  test("ne traverse jamais la frontière du serveur", async () => {
+    const { sessionId, packId, skId, networkId } = await seedUserWithPack("u1");
+    const mine = (await getProject(packId))!;
+    const { id: otherSk, hash: otherHash } = await generateServerKey();
+    await db.insert(serverKeys).values({
+      id: otherSk, hash: otherHash, label: null, networkId, createdAt: new Date(),
+    });
+    const other = await createProject({ networkId, serverKeyId: otherSk, name: "p" });
+    expect(other.slug).toBe(mine.slug); // même slug, serveur différent
+
+    const app = makeApp();
+    const res = await app.request(`/api/v1/user/projects/${mine.slug}?server=${otherSk}`, {
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
+    });
+    expect(res.status).toBe(200);
+    expect((await res.json()).project.id).toBe(other.id);
+  });
+
+  test("slug inconnu sur ce serveur → 404", async () => {
+    const { sessionId, skId } = await seedUserWithPack("u1");
+    const app = makeApp();
+    const res = await app.request(`/api/v1/user/projects/nexistepas?server=${skId}`, {
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
+    });
+    expect(res.status).toBe(404);
+  });
+});
