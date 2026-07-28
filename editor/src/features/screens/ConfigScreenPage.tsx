@@ -69,6 +69,10 @@ export function ConfigScreenPage({
   const [draft, setDraft] = useState<ConfigFile[] | null>(null);
   const [selectedFile, setSelectedFile] = useState("");
   const [declaredModels, setDeclaredModels] = useState<Record<string, unknown>[]>([]);
+  // What the writer would emit for the freshly-loaded file, before anyone
+  // touched anything. A legacy file re-canonicalizes on the way out, and that
+  // rewrite must not be mistaken for an edit: opening a screen changes nothing.
+  const [baselineEmit, setBaselineEmit] = useState<Map<string, string>>(new Map());
 
   const load = useCallback(async () => {
     if (!screen) return;
@@ -93,6 +97,9 @@ export function ConfigScreenPage({
     const pack = buildScratchProject(screen, files, models);
     useAccountStore.getState().upsertScratchProject(pack);
     setDeclaredModels(models);
+    setBaselineEmit(
+      new Map(diffScratchForWrite(pack, screen, files).files.map((f) => [f.path, f.content])),
+    );
     setOriginal(files);
     setDraft(null);
     setMode("form");
@@ -134,17 +141,23 @@ export function ConfigScreenPage({
     if (!scratch) return null;
     return diffScratchForWrite(scratch, screen, original);
   }, [screen, scratch, original, phase, draft, yamlErrors, declaredModels]);
-  const dirty = (diff?.files.length ?? 0) > 0 || (diff?.deletes.length ?? 0) > 0;
+  /** Emissions that differ from the load-time ones — i.e. what the admin changed. */
+  const editedFiles = useMemo(
+    () => (diff?.files ?? []).filter((f) => baselineEmit.get(f.path) !== f.content),
+    [diff, baselineEmit],
+  );
+  const dirty = editedFiles.length > 0 || (diff?.deletes.length ?? 0) > 0;
 
-  /** The files as they stand right now — baseline plus unsaved form edits. */
+  /** The files as they stand right now: what is on disk, plus the admin's own
+   *  unsaved edits — never a rewrite nobody asked for. */
   const currentFiles = useCallback((): ConfigFile[] => {
     const map = new Map(original.map((f) => [f.path, f.content]));
     if (!draft) {
-      for (const f of diff?.files ?? []) map.set(f.path, f.content);
+      for (const f of editedFiles) map.set(f.path, f.content);
       for (const p of diff?.deletes ?? []) map.delete(p);
     }
     return [...map].map(([path, content]) => ({ path, content }));
-  }, [original, draft, diff]);
+  }, [original, draft, diff, editedFiles]);
 
   const save = useCallback(async () => {
     if (!screen || !scratch || !diff || !dirty) return;
