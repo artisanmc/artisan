@@ -9,6 +9,8 @@ import { useUiStore } from "@/state/uiStore";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SplitPane } from "@/components/SplitPane";
 import { EditorPane } from "@/features/canvas/EditorPane";
+import { FloatingEditorPane } from "@/features/canvas/FloatingEditorPane";
+import { useIsDesktop } from "@/lib/useMediaQuery";
 import { FlowCanvas } from "@/features/flow/FlowCanvas";
 import { SoloMenuStage } from "./SoloMenuStage";
 import { documentLabel } from "./useProjectDocuments";
@@ -21,6 +23,7 @@ export function DocumentView({ projectId, documentId }: { projectId: ProjectId; 
   const activeLang = useUiStore((s) => s.activeLang);
   const editorPaneWidth = useUiStore((s) => s.editorPaneWidth);
   const setEditorPaneWidth = useUiStore((s) => s.setEditorPaneWidth);
+  const isDesktop = useIsDesktop();
   const eid = documentId as string;
   const menu = pack?.menus.find((m) => m.id === eid);
   const command = pack?.commands.find((c) => c.id === eid);
@@ -65,8 +68,14 @@ export function DocumentView({ projectId, documentId }: { projectId: ProjectId; 
     return () => window.removeEventListener("keydown", onKey);
   }, [back]);
 
+  // Floating bubble instead of a full-width bar: same place, but the stage
+  // spans the whole region underneath — same language as the canvas toolbar
+  // and the floating editor pane.
   const header = (
-    <header className="flex h-[52px] shrink-0 items-center gap-3 px-4">
+    <div
+      data-testid="document-view-bubble"
+      className="absolute top-3 left-3 z-20 flex max-w-[min(28rem,calc(100%-1.5rem))] items-center gap-2 rounded-[12px] border border-[var(--border)] bg-[var(--surface-raised)]/95 py-1 pr-3 pl-1 shadow-[var(--shadow-lg)] backdrop-blur"
+    >
       <button
         type="button"
         onClick={back}
@@ -77,15 +86,17 @@ export function DocumentView({ projectId, documentId }: { projectId: ProjectId; 
           Esc
         </kbd>
       </button>
-      <span className="truncate text-[14px] font-medium text-[var(--text)]">{pack ? documentLabel(pack, documentId as string, activeLang) : documentId}</span>
-    </header>
+      <span className="truncate text-[13px] font-medium text-[var(--text)]">
+        {pack ? documentLabel(pack, documentId as string, activeLang) : documentId}
+      </span>
+    </div>
   );
 
   if (!pack || (!menu && !command && !dialog)) {
     return (
-      <div className="flex h-full flex-col">
+      <div className="absolute inset-0">
         {header}
-        <div className="flex flex-1 items-center justify-center">
+        <div className="flex h-full items-center justify-center">
           <EmptyState title={t("documentView.notFound")} />
         </div>
       </div>
@@ -93,25 +104,41 @@ export function DocumentView({ projectId, documentId }: { projectId: ProjectId; 
   }
 
   return (
-    <div className="flex h-full flex-col">
-      {header}
-      <div className="min-h-0 flex-1">
-        {menu ? (
+    <div className="absolute inset-0">
+      {menu ? (
+        isDesktop ? (
+          // Stage full-bleed, edit pane floating over it — the board's layout.
+          <>
+            <div className="absolute inset-0">
+              <SoloMenuStage projectId={projectId} menuId={documentId as unknown as MenuId} />
+            </div>
+            <FloatingEditorPane
+              projectId={projectId}
+              width={editorPaneWidth}
+              onWidthChange={setEditorPaneWidth}
+            />
+          </>
+        ) : (
           <SplitPane
-            orientation="horizontal"
+            orientation="vertical"
             primary={<SoloMenuStage projectId={projectId} menuId={documentId as unknown as MenuId} />}
             secondary={<EditorPane projectId={projectId} />}
             secondarySize={editorPaneWidth}
             onSecondarySizeChange={setEditorPaneWidth}
             minSecondary={280}
-            minPrimary={400}
+            minPrimary={200}
           />
-        ) : (
-          <div className="mx-auto h-full w-full max-w-3xl overflow-auto">
+        )
+      ) : (
+        // Commands / dialogs have no stage: the pseudocode column stays centred,
+        // with room at the top so the bubble never covers its first line.
+        <div className="h-full overflow-auto">
+          <div className="mx-auto w-full max-w-3xl pt-16">
             <FlowCanvas projectId={projectId} />
           </div>
-        )}
-      </div>
+        </div>
+      )}
+      {header}
     </div>
   );
 }
