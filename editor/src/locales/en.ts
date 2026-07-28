@@ -1265,8 +1265,10 @@ export default {
       appComponents: "Shared app components",
       searchPalette: "Search palette (Cmd+K)",
       canvasToolbar: "Canvas toolbar (mode switcher)",
+      codeEditor: "YAML code editor",
       dataViz: "Data viz",
     },
+    codeEditorHint: "Syntax highlighting, line numbers, folding; Enter keeps the indentation.",
     groups: {
       surfaces: "Surfaces",
       text: "Text",

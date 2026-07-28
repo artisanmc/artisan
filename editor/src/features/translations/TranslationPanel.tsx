@@ -10,8 +10,7 @@ import {
 } from "@/lib/i18nUsages";
 import { useAccountStore } from "@/state/accountStore";
 import { useUiStore } from "@/state/uiStore";
-import { yaml as yamlLang } from "@codemirror/lang-yaml";
-import CodeMirror, { EditorView } from "@uiw/react-codemirror";
+import { YamlCodeEditor } from "@/components/ui/yaml-code-editor";
 import { AlertCircle, ArrowDown, Check, Copy as CopyIcon, Plus, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -60,23 +59,6 @@ function MMLines({ text, className }: { text: string; className?: string }) {
   );
 }
 
-const CM_THEME = EditorView.theme({
-  "&": { background: "transparent", fontSize: "12px" },
-  ".cm-content": { padding: "8px 0", fontFamily: "ui-monospace, monospace" },
-  ".cm-line": { padding: "0 12px" },
-  ".cm-gutters": {
-    background: "#18181b",
-    border: "none",
-    color: "#52525b",
-    minWidth: "32px",
-  },
-  ".cm-activeLineGutter": { background: "#27272a" },
-  ".cm-activeLine": { background: "#27272a40" },
-  ".cm-cursor": { borderLeftColor: "#a1a1aa" },
-  ".cm-selectionBackground": { background: "#3f3f4660 !important" },
-  "&.cm-focused .cm-selectionBackground": { background: "#3f3f4680 !important" },
-  ".cm-foldPlaceholder": { background: "#3f3f46", border: "none", color: "#a1a1aa" },
-});
 
 /**
  * Inner content of the Translation panel — all hooks + UI, no Sheet chrome.
@@ -634,24 +616,13 @@ function YamlBody({
               : "min-h-0 flex-1 overflow-auto bg-[var(--surface)]"
           }
         >
-          <CodeMirror
+          <YamlCodeEditor
             value={draft}
-            extensions={[yamlLang(), CM_THEME]}
+            ariaLabel={t("translations.yamlTitle")}
             onChange={(val) => {
               setDraft(val);
               if (error) setError(null);
             }}
-            theme="dark"
-            basicSetup={{
-              lineNumbers: true,
-              foldGutter: true,
-              autocompletion: false,
-              highlightActiveLine: true,
-              indentOnInput: true,
-              bracketMatching: true,
-            }}
-            className="bg-[var(--surface)] text-[var(--text)]"
-            style={{ height: "100%" }}
           />
         </div>
         {error ? (
