@@ -6,7 +6,7 @@ import { db } from "../db/index";
 import { projects, projectCommits } from "../db/schema";
 import { listBranchesForProject, getBranch, createBranch, advanceBranchHead, isAncestor } from "../lib/branchStorage";
 import { listCommitsByProject, createCommit, getCommit } from "../lib/commitStorage";
-import { requireMember } from "../lib/membershipGuard";
+import { resolveNetworkForMember, resolveProjectInNetwork } from "../lib/refs";
 import { getProject } from "../lib/projectStorage";
 import { pushBundleAvailable } from "../ws/hub";
 import type { AuthUser } from "../middleware/userAuth";
@@ -17,18 +17,23 @@ function getUserId(c: Context<{ Variables: Vars }>): string | null {
   return c.get("user")?.id ?? null;
 }
 
+/**
+ * Les paramètres d'URL peuvent être des **id ou des slugs** (l'éditeur émet des
+ * slugs) : on résout ici, et les handlers utilisent les ids renvoyés — jamais
+ * le paramètre brut, sinon le commit viserait une chaîne de slug.
+ */
 async function checkAccess(
   c: Context<{ Variables: Vars }>,
-  networkId: string,
-  projectId: string,
-): Promise<{ ok: true } | { ok: false; status: 401 | 403 | 404 }> {
+  networkRef: string,
+  projectRef: string,
+): Promise<{ ok: true; networkId: string; projectId: string } | { ok: false; status: 401 | 403 | 404 }> {
   const userId = getUserId(c);
   if (!userId) return { ok: false, status: 401 };
-  try { await requireMember(userId, networkId); }
-  catch { return { ok: false, status: 403 }; }
-  const projectRows = await db.select({ networkId: projects.networkId }).from(projects).where(eq(projects.id, projectId));
-  if (projectRows.length === 0 || projectRows[0].networkId !== networkId) return { ok: false, status: 404 };
-  return { ok: true };
+  const networkId = await resolveNetworkForMember(userId, networkRef);
+  if (!networkId) return { ok: false, status: 403 };
+  const projectId = await resolveProjectInNetwork(projectRef, networkId);
+  if (!projectId) return { ok: false, status: 404 };
+  return { ok: true, networkId, projectId };
 }
 
 const BRANCH_NAME_RE = /^[a-zA-Z0-9_\-./]+$/;
@@ -41,7 +46,7 @@ export const userBranchesRouter = new Hono<{ Variables: Vars }>();
 userBranchesRouter.get("/:id/projects/:projectId/branches", async (c) => {
   const access = await checkAccess(c, c.req.param("id"), c.req.param("projectId"));
   if (!access.ok) return c.json({ error: "denied" }, access.status);
-  const list = await listBranchesForProject(c.req.param("projectId"));
+  const list = await listBranchesForProject(access.projectId);
   const headIds = Array.from(new Set(list.map((b) => b.headCommitId)));
   const heads = headIds.length > 0
     ? await db
@@ -72,11 +77,10 @@ userBranchesRouter.get("/:id/projects/:projectId/branches", async (c) => {
 // of a branch. Used by the editor's "Revert / Discard" action in user-auth
 // mode to restore the last committed (deployed) state, replacing the WIP.
 userBranchesRouter.get("/:id/projects/:projectId/branches/:branch/head", async (c) => {
-  const networkId = c.req.param("id");
-  const projectId = c.req.param("projectId");
   const branchName = c.req.param("branch");
-  const access = await checkAccess(c, networkId, projectId);
+  const access = await checkAccess(c, c.req.param("id"), c.req.param("projectId"));
   if (!access.ok) return c.json({ error: "denied" }, access.status);
+  const projectId = access.projectId;
 
   const branch = await getBranch(projectId, branchName);
   if (!branch) return c.json({ error: "branch_not_found" }, 404);
@@ -102,11 +106,10 @@ userBranchesRouter.get("/:id/projects/:projectId/branches/:branch/head", async (
 // GET /:id/projects/:projectId/commits/:commitId/content — used by the History
 // tab Restore action to fetch any past commit's files.
 userBranchesRouter.get("/:id/projects/:projectId/commits/:commitId/content", async (c) => {
-  const networkId = c.req.param("id");
-  const projectId = c.req.param("projectId");
   const commitId = c.req.param("commitId");
-  const access = await checkAccess(c, networkId, projectId);
+  const access = await checkAccess(c, c.req.param("id"), c.req.param("projectId"));
   if (!access.ok) return c.json({ error: "denied" }, access.status);
+  const projectId = access.projectId;
 
   const commit = await getCommit(commitId);
   if (!commit || commit.projectId !== projectId) {
@@ -127,7 +130,7 @@ userBranchesRouter.get("/:id/projects/:projectId/commits", async (c) => {
   // `branch` filter accepted but ignored for MVP — commits exist in a pool, branches are pointers.
   const _branch = c.req.query("branch");
   const limit = Math.min(parseInt(c.req.query("limit") ?? "50", 10), 200);
-  const list = await listCommitsByProject(c.req.param("projectId"), limit);
+  const list = await listCommitsByProject(access.projectId, limit);
   return c.json({ commits: list });
 });
 
@@ -135,7 +138,7 @@ userBranchesRouter.get("/:id/projects/:projectId/commits", async (c) => {
 userBranchesRouter.post("/:id/projects/:projectId/branches", async (c) => {
   const access = await checkAccess(c, c.req.param("id"), c.req.param("projectId"));
   if (!access.ok) return c.json({ error: "denied" }, access.status);
-  const projectId = c.req.param("projectId");
+  const projectId = access.projectId;
 
   let body: { name?: unknown; from?: unknown };
   try { body = await c.req.json(); } catch { return c.json({ error: "invalid_body" }, 400); }
@@ -160,7 +163,7 @@ userBranchesRouter.post("/:id/projects/:projectId/branches", async (c) => {
 userBranchesRouter.post("/:id/projects/:projectId/commits", async (c) => {
   const access = await checkAccess(c, c.req.param("id"), c.req.param("projectId"));
   if (!access.ok) return c.json({ error: "denied" }, access.status);
-  const projectId = c.req.param("projectId");
+  const projectId = access.projectId;
 
   let body: { branch?: unknown; message?: unknown };
   try { body = await c.req.json(); } catch { return c.json({ error: "invalid_body" }, 400); }
@@ -194,7 +197,7 @@ userBranchesRouter.post("/:id/projects/:projectId/commits", async (c) => {
 userBranchesRouter.post("/:id/projects/:projectId/branches/:src/promote/:dst", async (c) => {
   const access = await checkAccess(c, c.req.param("id"), c.req.param("projectId"));
   if (!access.ok) return c.json({ error: "denied" }, access.status);
-  const projectId = c.req.param("projectId");
+  const projectId = access.projectId;
   const srcName = c.req.param("src");
   const dstName = c.req.param("dst");
   if (srcName === dstName) return c.json({ error: "same_branch" }, 400);

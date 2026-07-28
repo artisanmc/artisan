@@ -344,3 +344,50 @@ describe("userBranchesRouter — POST /branches/:src/promote/:dst", () => {
     expect(body.error).toMatch(/not_fast_forward/);
   });
 });
+
+// L'éditeur adresse network et project par leur slug depuis 2026-07-28 : les
+// routes de branches/commits doivent suivre, sinon « Déployer » et « Annuler »
+// répondent 403 (network) ou 404 (project).
+describe("userBranchesRouter — id ou slug", () => {
+  beforeEach(clearAll);
+
+  test("liste les branches avec les slugs", async () => {
+    const { sessionId, networkId, packId } = await seedUserWithPack();
+    const net = (await db.select().from(networks).where(eq(networks.id, networkId)))[0]!;
+    const pack = (await db.select().from(projects).where(eq(projects.id, packId)))[0]!;
+    const app = makeApp();
+    const res = await app.request(`/api/v1/networks/${net.slug}/projects/${pack.slug}/branches`, {
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
+    });
+    expect(res.status).toBe(200);
+    expect((await res.json()).branches).toHaveLength(1);
+  });
+
+  test("crée un commit avec les slugs — c'est le geste « Déployer »", async () => {
+    const { sessionId, networkId, packId } = await seedUserWithPack();
+    const net = (await db.select().from(networks).where(eq(networks.id, networkId)))[0]!;
+    const pack = (await db.select().from(projects).where(eq(projects.id, packId)))[0]!;
+    const app = makeApp();
+    const res = await app.request(`/api/v1/networks/${net.slug}/projects/${pack.slug}/commits`, {
+      method: "POST",
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ branch: "main", message: "Deploy" }),
+    });
+    expect(res.status).toBe(201);
+    // Le commit doit viser le VRAI project, pas la chaîne de slug. (Le contenu
+    // n'ayant pas bougé, createCommit dédoublonne et rend le commit initial —
+    // ce qui compte ici est sa cible.)
+    const { commit } = await res.json();
+    expect(commit.projectId).toBe(packId);
+  });
+
+  test("un project d'un autre network reste inaccessible", async () => {
+    const { sessionId, packId } = await seedUserWithPack("u_a");
+    const other = await createNetwork("Autre");
+    const app = makeApp();
+    const res = await app.request(`/api/v1/networks/${other.slug}/projects/${packId}/branches`, {
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
+    });
+    expect([403, 404]).toContain(res.status);
+  });
+});
