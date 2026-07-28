@@ -6,6 +6,7 @@ import { memberships, networks, projects, serverKeys, networkTransfers } from ".
 import { and, eq } from "drizzle-orm";
 import { findSession } from "../lib/sessionManager";
 import { requireCapability } from "../lib/membershipGuard";
+import { resolveNetworkRef } from "../lib/refs";
 import { createTransfer, getTransfer } from "../lib/networkTransferStorage";
 
 const EDITOR_URL = process.env.EDITOR_URL ?? "http://localhost:5173";
@@ -24,7 +25,9 @@ async function getAuthedUserId(c: any): Promise<string | null> {
 networkTransfersRouter.post("/:id/transfer/init", async (c) => {
   const userId = await getAuthedUserId(c);
   if (!userId) return c.json({ error: "unauthorized" }, 401);
-  const networkId = c.req.param("id");
+  // Le paramètre peut être un slug (les URLs de l'éditeur en portent).
+  const networkId = await resolveNetworkRef(c.req.param("id"));
+  if (!networkId) return c.json({ error: "forbidden" }, 403);
   try {
     await requireCapability(userId, networkId, "transfer_network");
   } catch {
