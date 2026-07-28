@@ -333,6 +333,75 @@ class SyncedMenuProvider(
         dialogs = freshDialogs
     }
 
+
+    /**
+     * Dernier `project_hashes` reçu au hello_ack. Null tant qu'aucun n'est
+     * arrivé : sans référence backend, il n'y a rien à comparer.
+     */
+    @Volatile private var lastProjectHashes: Map<String, String>? = null
+
+    /**
+     * Rejoue le contrôle de synchro du hello_ack. Nécessaire parce qu'un module
+     * peut écrire des fichiers de project à son activation — donc APRÈS le
+     * hello_ack, le contrôle étant déjà passé. Le watcher rattrape sur un FS
+     * natif, mais pas sur un bind mount Docker (inotify muet) : sans ce rappel,
+     * le fichier reste local et finit balayé par le sweep du prochain bundle.
+     */
+    fun recheckLocalChanges() {
+        val hashes = lastProjectHashes ?: return
+        checkLocalChangesAgainst(hashes)
+    }
+
+    private fun checkLocalChangesAgainst(projectHashes: Map<String, String>) {
+        roots.all().forEach { (projectId, projectDir) ->
+            val backendHash = projectHashes[projectId] ?: run {
+                logger?.fine("Project $projectId not found in backend project_hashes — treating as local-only, no sync")
+                return@forEach
+            }
+            val diskHash = BundleHasher.hash(projectDir)
+
+            // Backend has an empty stub — auto-push local files via WS local_push
+            if (backendHash.isEmpty() && diskHash.isNotEmpty()) {
+                logger?.info("Pack $projectId: backend reports empty — auto-pushing local content")
+                httpClient.dispatcher.executorService.execute {
+                    pushLocalProject(projectId, projectDir)
+                }
+                return@forEach
+            }
+
+            val meta = SyncMetadata.read(projectDir)
+            val action = detectSyncAction(diskHash, meta.syncedHash, backendHash)
+            when (action) {
+                SyncAction.IN_SYNC    -> logger?.fine("Pack $projectId is in sync")
+                SyncAction.AUTO_SYNC  -> logger?.fine("Pack $projectId: backend is newer — sync will be applied via bundle_available")
+                SyncAction.LOCAL_ONLY -> {
+                    // Files-first (ADR files-first-source-of-truth #6): the disk is the
+                    // primary editing surface — local-only changes are AUTO-PUSHED,
+                    // silent + one WARN for post-mortem tracing (house "no theater" rule).
+                    logger?.warning(
+                        "[Artisan] Local pack '$projectId' changed on disk (backend unchanged) — auto-pushing local content."
+                    )
+                    httpClient.dispatcher.executorService.execute {
+                        pushLocalProject(projectId, projectDir)
+                    }
+                }
+                SyncAction.CONFLICT -> {
+                    // True divergence (disk AND web both moved since last sync): no
+                    // overwrite in either direction — report the disk state so the
+                    // editor can offer per-file resolution (P3c). Re-sent at every
+                    // hello_ack until resolved (self-healing if the backend restarts).
+                    logger?.warning(
+                        "[Artisan] Local pack '$projectId' diverged from backend (both changed). " +
+                        "Not auto-pushing — divergence reported to the editor for resolution."
+                    )
+                    httpClient.dispatcher.executorService.execute {
+                        send(LocalPushSender.buildDivergenceMessage(projectId, projectDir, meta.syncedHash))
+                    }
+                }
+            }
+        }
+    }
+
     private fun handleMessage(raw: String) {
         val node = runCatching { jsonMapper.readTree(raw) }.getOrNull() ?: return
         when (node["type"]?.asText()) {
@@ -379,53 +448,8 @@ class SyncedMenuProvider(
                     }
                 }
 
-                roots.all().forEach { (projectId, projectDir) ->
-                    val backendHash = projectHashes[projectId] ?: run {
-                            logger?.fine("Project $projectId not found in backend project_hashes — treating as local-only, no sync")
-                            return@forEach
-                        }
-                    val diskHash = BundleHasher.hash(projectDir)
-
-                    // Backend has an empty stub — auto-push local files via WS local_push
-                    if (backendHash.isEmpty() && diskHash.isNotEmpty()) {
-                        logger?.info("Pack $projectId: backend reports empty — auto-pushing local content")
-                        httpClient.dispatcher.executorService.execute {
-                            pushLocalProject(projectId, projectDir)
-                        }
-                        return@forEach
-                    }
-
-                    val meta = SyncMetadata.read(projectDir)
-                    val action = detectSyncAction(diskHash, meta.syncedHash, backendHash)
-                    when (action) {
-                        SyncAction.IN_SYNC    -> logger?.fine("Pack $projectId is in sync")
-                        SyncAction.AUTO_SYNC  -> logger?.fine("Pack $projectId: backend is newer — sync will be applied via bundle_available")
-                        SyncAction.LOCAL_ONLY -> {
-                            // Files-first (ADR files-first-source-of-truth #6): the disk is the
-                            // primary editing surface — local-only changes are AUTO-PUSHED,
-                            // silent + one WARN for post-mortem tracing (house "no theater" rule).
-                            logger?.warning(
-                                "[Artisan] Local pack '$projectId' changed on disk (backend unchanged) — auto-pushing local content."
-                            )
-                            httpClient.dispatcher.executorService.execute {
-                                pushLocalProject(projectId, projectDir)
-                            }
-                        }
-                        SyncAction.CONFLICT -> {
-                            // True divergence (disk AND web both moved since last sync): no
-                            // overwrite in either direction — report the disk state so the
-                            // editor can offer per-file resolution (P3c). Re-sent at every
-                            // hello_ack until resolved (self-healing if the backend restarts).
-                            logger?.warning(
-                                "[Artisan] Local pack '$projectId' diverged from backend (both changed). " +
-                                "Not auto-pushing — divergence reported to the editor for resolution."
-                            )
-                            httpClient.dispatcher.executorService.execute {
-                                send(LocalPushSender.buildDivergenceMessage(projectId, projectDir, meta.syncedHash))
-                            }
-                        }
-                    }
-                }
+                lastProjectHashes = projectHashes
+                checkLocalChangesAgainst(projectHashes)
             }
 
             "bundle_available" -> {
