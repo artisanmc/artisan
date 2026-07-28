@@ -1,6 +1,6 @@
 import type { Asset } from "@/domain/asset";
 import { assetPreviewUrl } from "@/domain/asset";
-import type { InventoryType, MenuId, MenuTitleLayer, ProjectId } from "@/domain/types";
+import type { MenuId, MenuTitleLayer, ProjectId } from "@/domain/types";
 import { useAssetStore } from "@/features/assets/assetStore";
 import { getText } from "@/lib/i18n";
 import { buildPreviewScope, renderPreview } from "@/features/canvas/menuPreviewScope";
@@ -11,7 +11,7 @@ import type Konva from "konva";
 import { useCallback, useMemo } from "react";
 import { Group, Image as KonvaImage, Rect, Text } from "react-konva";
 import useImage from "use-image";
-import { MC_TITLE_H, menuBoxSize } from "../../menuLayout";
+import { MC_TITLE_H } from "../../menuLayout";
 import { McFontText } from "../McFontText";
 import { VanillaMcText, vanillaTextWidth } from "../VanillaMcText";
 import { WidthResizeHandle } from "./WidthResizeHandle";
@@ -623,18 +623,3 @@ function LayerNode({
   );
 }
 
-/**
- * Stage height (in pixels) needed to display this menu's title. When a
- * background layer is present we return the full chest height so the user
- * sees where the background glyph extends (it spills below the title bar
- * via negative-ascent push). Otherwise just the title bar strip.
- */
-export function titleRenderHeight(
-  menu: { rows: number; inventoryType?: InventoryType; title: MenuTitleLayer[] },
-  scale: number,
-): number {
-  const hasBackground = menu.title.some((l) => l.kind === "background");
-  if (!hasBackground) return MC_TITLE_H * scale;
-  // Full GUI box height for the type, re-expressed at the requested scale.
-  return menuBoxSize(menu.inventoryType ?? "chest", menu.rows).height * (scale / 2);
-}

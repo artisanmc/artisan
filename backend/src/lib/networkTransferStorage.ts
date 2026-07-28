@@ -36,12 +36,3 @@ export async function getTransfer(token: string): Promise<NetworkTransfer | null
   return rows.length > 0 ? rows[0] : null;
 }
 
-export async function consumeTransfer(token: string, userId: string): Promise<NetworkTransfer | null> {
-  const now = new Date();
-  const updated = await db
-    .update(networkTransfers)
-    .set({ consumedAt: now, consumedByUserId: userId })
-    .where(and(eq(networkTransfers.token, token), isNull(networkTransfers.consumedAt)))
-    .returning();
-  return updated.length > 0 ? updated[0] : null;
-}

@@ -1,22 +1,3 @@
-import type { Project } from "@/domain/types";
-import { buildPreviewScope } from "@/features/canvas/menuPreviewScope";
-
-/**
- * Render a sample value at `path` against the menu's preview scope. Returns
- * null when the path isn't resolvable or yields an unrenderable value.
- */
-export function sampleForPath(
-  pack: Project,
-  menuId: string,
-  path: string,
-): string | null {
-  const menu = pack.menus.find((m) => m.id === menuId);
-  if (!menu) return null;
-  const scope = buildPreviewScope(menu, pack);
-  const value = walkPath(scope, path);
-  return renderSample(value);
-}
-
 export function walkPath(obj: unknown, path: string): unknown {
   let cur: unknown = obj;
   for (const part of path.split(".")) {
