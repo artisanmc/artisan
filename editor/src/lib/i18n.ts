@@ -80,6 +80,3 @@ export function deleteLText(pack: Project, lt: LText | undefined): void {
  * GC every key referenced by the given LText array (e.g. an entire
  * `appearance.lore` array, or all titles/lores in a deleted appearance).
  */
-export function deleteLTexts(pack: Project, lts: ReadonlyArray<LText | undefined>): void {
-  for (const lt of lts) deleteLText(pack, lt);
-}

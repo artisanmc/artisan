@@ -2385,8 +2385,3 @@ export const CHAR_ADVANCES: Readonly<Record<number, number>> = {
   0xFFFD: 8,
 };
 
-/** Convenience: look up the advance for a JS string of length 1. Falls back to 1. */
-export function charAdvance(ch: string): number {
-  const cp = ch.codePointAt(0);
-  return cp !== undefined ? (CHAR_ADVANCES[cp] ?? 1) : 1;
-}

@@ -36,12 +36,6 @@ export function resolveParent(root: Step[], frames: StepFrame[]): Step[] | null 
   return list;
 }
 
-export function getStep(root: Step[], path: StepPath): Step | null {
-  const parent = resolveParent(root, path.frames);
-  if (!parent) return null;
-  return parent[path.index] ?? null;
-}
-
 /**
  * Walk to the parent step list inside an immer draft, ensuring
  * `if-step.else` exists when the path requires it. Returns the live
@@ -64,11 +58,6 @@ export function resolveParentMut(root: Step[], frames: StepFrame[]): Step[] | nu
   return list;
 }
 
-/** Wrap a flat Action list as a sequence of action-steps. */
-export function actionsAsSteps(actions: Action[]): Step[] {
-  return actions.map((action) => ({ kind: "action", action }));
-}
-
 /**
  * Walk a Step tree depth-first and emit every Action. Used by helpers that
  * need to inspect every action in a chain (edge derivation, hermeticity
@@ -85,19 +74,3 @@ export function* walkActions(steps: Step[]): Generator<Action> {
   }
 }
 
-export function pathsEqual(a: StepPath, b: StepPath): boolean {
-  if (a.index !== b.index) return false;
-  if (a.frames.length !== b.frames.length) return false;
-  for (let i = 0; i < a.frames.length; i++) {
-    const fa = a.frames[i]!;
-    const fb = b.frames[i]!;
-    if (fa.stepIndex !== fb.stepIndex) return false;
-    if (fa.descend === "else") {
-      if (fb.descend !== "else") return false;
-    } else {
-      if (fb.descend === "else") return false;
-      if (fa.descend.case !== fb.descend.case) return false;
-    }
-  }
-  return true;
-}
