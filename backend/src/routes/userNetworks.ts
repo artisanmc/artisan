@@ -375,12 +375,8 @@ userNetworksRouter.post(
 		const userId = getUserId(c);
 		if (!userId) return c.json({ error: "unauthorized" }, 401);
 
-		const networkId = c.req.param("id");
-		try {
-			await requireMember(userId, networkId);
-		} catch {
-			return c.json({ error: "forbidden" }, 403);
-		}
+		const networkId = await resolveNetworkForMember(userId, c.req.param("id"));
+		if (!networkId) return c.json({ error: "forbidden" }, 403);
 
 		const body = await c.req.json<{
 			name?: string;
@@ -582,13 +578,9 @@ userNetworksRouter.get(
 	async (c: Context<{ Variables: Vars }>) => {
 		const userId = getUserId(c);
 		if (!userId) return c.json({ error: "unauthorized" }, 401);
-		const networkId = c.req.param("id");
+		const networkId = await resolveNetworkForMember(userId, c.req.param("id"));
+		if (!networkId) return c.json({ error: "forbidden" }, 403);
 		const keyId = c.req.param("keyId");
-		try {
-			await requireMember(userId, networkId);
-		} catch {
-			return c.json({ error: "forbidden" }, 403);
-		}
 		const sk = await db
 			.select()
 			.from(serverKeys)
@@ -609,13 +601,9 @@ userNetworksRouter.get(
 	async (c: Context<{ Variables: Vars }>) => {
 		const userId = getUserId(c);
 		if (!userId) return c.json({ error: "unauthorized" }, 401);
-		const networkId = c.req.param("id");
+		const networkId = await resolveNetworkForMember(userId, c.req.param("id"));
+		if (!networkId) return c.json({ error: "forbidden" }, 403);
 		const current = c.req.query("current") ?? null;
-		try {
-			await requireMember(userId, networkId);
-		} catch {
-			return c.json({ error: "forbidden" }, 403);
-		}
 
 		const keys = await db
 			.select()
@@ -663,6 +651,63 @@ userNetworksRouter.get(
 	},
 );
 
+/**
+ * Résout un `:id` de network (id **ou** slug) et vérifie l'appartenance.
+ * Renvoie null si inconnu ou non-membre — les deux se répondent en 403 pour
+ * ne pas révéler l'existence d'un network dont on n'est pas membre.
+ */
+async function resolveNetworkForMember(userId: string, ref: string): Promise<string | null> {
+	const rows = await db
+		.select({ id: networks.id })
+		.from(networks)
+		.where(or(eq(networks.id, ref), eq(networks.slug, ref)));
+	const id = rows[0]?.id;
+	if (!id) return null;
+	try {
+		await requireMember(userId, id);
+	} catch {
+		return null;
+	}
+	return id;
+}
+
+/**
+ * Résout `:networkId` et `:serverId` qui peuvent être des **id ou des slugs** —
+ * les URLs de l'éditeur portent les slugs. Le serveur est résolu SCOPÉ au
+ * network (les slugs de serveur ne sont uniques que par network), donc jamais
+ * celui d'un autre réseau.
+ *
+ * Renvoie null quand le network est inconnu ou que l'appelant n'en est pas
+ * membre ; `serverKeyId` null quand le serveur n'existe pas dans ce network.
+ */
+async function resolveNetworkServer(
+	userId: string,
+	networkRef: string,
+	serverRef: string,
+): Promise<{ networkId: string; serverKeyId: string | null } | null> {
+	const nets = await db
+		.select({ id: networks.id })
+		.from(networks)
+		.where(or(eq(networks.id, networkRef), eq(networks.slug, networkRef)));
+	const networkId = nets[0]?.id;
+	if (!networkId) return null;
+	try {
+		await requireMember(userId, networkId);
+	} catch {
+		return null;
+	}
+	const sk = await db
+		.select({ id: serverKeys.id })
+		.from(serverKeys)
+		.where(
+			and(
+				eq(serverKeys.networkId, networkId),
+				or(eq(serverKeys.id, serverRef), eq(serverKeys.slug, serverRef)),
+			),
+		);
+	return { networkId, serverKeyId: sk[0]?.id ?? null };
+}
+
 // GET /api/networks/:networkId/servers/:serverId/modules — member access.
 // User-scoped twin of GET /api/v1/editor-session/:token/modules — same
 // response shape, cookie auth instead of the session token (Task 1 of the
@@ -672,20 +717,15 @@ userNetworksRouter.get(
 	async (c: Context<{ Variables: Vars }>) => {
 		const userId = getUserId(c);
 		if (!userId) return c.json({ error: "unauthorized" }, 401);
-		const networkId = c.req.param("networkId");
-		const serverId = c.req.param("serverId");
-		try {
-			await requireMember(userId, networkId);
-		} catch {
-			return c.json({ error: "forbidden" }, 403);
-		}
-		const sk = await db
-			.select()
-			.from(serverKeys)
-			.where(
-				and(eq(serverKeys.id, serverId), eq(serverKeys.networkId, networkId)),
-			);
-		if (sk.length === 0) return c.json({ error: "not_found" }, 404);
+		const resolved = await resolveNetworkServer(
+			userId,
+			c.req.param("networkId"),
+			c.req.param("serverId"),
+		);
+		if (!resolved) return c.json({ error: "forbidden" }, 403);
+		const networkId = resolved.networkId;
+		if (!resolved.serverKeyId) return c.json({ error: "not_found" }, 404);
+		const sk = [{ id: resolved.serverKeyId }];
 
 		const rows = await db
 			.select()
@@ -704,20 +744,15 @@ userNetworksRouter.get(
 	async (c: Context<{ Variables: Vars }>) => {
 		const userId = getUserId(c);
 		if (!userId) return c.json({ error: "unauthorized" }, 401);
-		const networkId = c.req.param("networkId");
-		const serverId = c.req.param("serverId");
-		try {
-			await requireMember(userId, networkId);
-		} catch {
-			return c.json({ error: "forbidden" }, 403);
-		}
-		const sk = await db
-			.select()
-			.from(serverKeys)
-			.where(
-				and(eq(serverKeys.id, serverId), eq(serverKeys.networkId, networkId)),
-			);
-		if (sk.length === 0) return c.json({ error: "not_found" }, 404);
+		const resolved = await resolveNetworkServer(
+			userId,
+			c.req.param("networkId"),
+			c.req.param("serverId"),
+		);
+		if (!resolved) return c.json({ error: "forbidden" }, 403);
+		const networkId = resolved.networkId;
+		if (!resolved.serverKeyId) return c.json({ error: "not_found" }, 404);
+		const sk = [{ id: resolved.serverKeyId }];
 
 		const rows = await db
 			.select()
@@ -744,20 +779,15 @@ userNetworksRouter.get(
 	async (c: Context<{ Variables: Vars }>) => {
 		const userId = getUserId(c);
 		if (!userId) return c.json({ error: "unauthorized" }, 401);
-		const networkId = c.req.param("networkId");
-		const serverId = c.req.param("serverId");
-		try {
-			await requireMember(userId, networkId);
-		} catch {
-			return c.json({ error: "forbidden" }, 403);
-		}
-		const sk = await db
-			.select()
-			.from(serverKeys)
-			.where(
-				and(eq(serverKeys.id, serverId), eq(serverKeys.networkId, networkId)),
-			);
-		if (sk.length === 0) return c.json({ error: "not_found" }, 404);
+		const resolved = await resolveNetworkServer(
+			userId,
+			c.req.param("networkId"),
+			c.req.param("serverId"),
+		);
+		if (!resolved) return c.json({ error: "forbidden" }, 403);
+		const networkId = resolved.networkId;
+		if (!resolved.serverKeyId) return c.json({ error: "not_found" }, 404);
+		const sk = [{ id: resolved.serverKeyId }];
 
 		const rows = await db
 			.select()
@@ -786,20 +816,15 @@ userNetworksRouter.get(
 	async (c: Context<{ Variables: Vars }>) => {
 		const userId = getUserId(c);
 		if (!userId) return c.json({ error: "unauthorized" }, 401);
-		const networkId = c.req.param("networkId");
-		const serverId = c.req.param("serverId");
-		try {
-			await requireMember(userId, networkId);
-		} catch {
-			return c.json({ error: "forbidden" }, 403);
-		}
-		const sk = await db
-			.select()
-			.from(serverKeys)
-			.where(
-				and(eq(serverKeys.id, serverId), eq(serverKeys.networkId, networkId)),
-			);
-		if (sk.length === 0) return c.json({ error: "not_found" }, 404);
+		const resolved = await resolveNetworkServer(
+			userId,
+			c.req.param("networkId"),
+			c.req.param("serverId"),
+		);
+		if (!resolved) return c.json({ error: "forbidden" }, 403);
+		const networkId = resolved.networkId;
+		if (!resolved.serverKeyId) return c.json({ error: "not_found" }, 404);
+		const sk = [{ id: resolved.serverKeyId }];
 
 		const rows = await db
 			.select()
@@ -828,20 +853,15 @@ userNetworksRouter.post(
 	async (c: Context<{ Variables: Vars }>) => {
 		const userId = getUserId(c);
 		if (!userId) return c.json({ error: "unauthorized" }, 401);
-		const networkId = c.req.param("networkId");
-		const serverId = c.req.param("serverId");
-		try {
-			await requireMember(userId, networkId);
-		} catch {
-			return c.json({ error: "forbidden" }, 403);
-		}
-		const sk = await db
-			.select()
-			.from(serverKeys)
-			.where(
-				and(eq(serverKeys.id, serverId), eq(serverKeys.networkId, networkId)),
-			);
-		if (sk.length === 0) return c.json({ error: "not_found" }, 404);
+		const resolved = await resolveNetworkServer(
+			userId,
+			c.req.param("networkId"),
+			c.req.param("serverId"),
+		);
+		if (!resolved) return c.json({ error: "forbidden" }, 403);
+		const networkId = resolved.networkId;
+		if (!resolved.serverKeyId) return c.json({ error: "not_found" }, 404);
+		const sk = [{ id: resolved.serverKeyId }];
 
 		const body = (await c.req.json().catch(() => null)) as {
 			project_id?: unknown;
@@ -877,20 +897,15 @@ userNetworksRouter.post(
 	async (c: Context<{ Variables: Vars }>) => {
 		const userId = getUserId(c);
 		if (!userId) return c.json({ error: "unauthorized" }, 401);
-		const networkId = c.req.param("networkId");
-		const serverId = c.req.param("serverId");
-		try {
-			await requireMember(userId, networkId);
-		} catch {
-			return c.json({ error: "forbidden" }, 403);
-		}
-		const sk = await db
-			.select()
-			.from(serverKeys)
-			.where(
-				and(eq(serverKeys.id, serverId), eq(serverKeys.networkId, networkId)),
-			);
-		if (sk.length === 0) return c.json({ error: "not_found" }, 404);
+		const resolved = await resolveNetworkServer(
+			userId,
+			c.req.param("networkId"),
+			c.req.param("serverId"),
+		);
+		if (!resolved) return c.json({ error: "forbidden" }, 403);
+		const networkId = resolved.networkId;
+		if (!resolved.serverKeyId) return c.json({ error: "not_found" }, 404);
+		const sk = [{ id: resolved.serverKeyId }];
 
 		const body = (await c.req.json().catch(() => null)) as {
 			project_id?: unknown;
@@ -939,20 +954,15 @@ userNetworksRouter.post(
 	async (c: Context<{ Variables: Vars }>) => {
 		const userId = getUserId(c);
 		if (!userId) return c.json({ error: "unauthorized" }, 401);
-		const networkId = c.req.param("networkId");
-		const serverId = c.req.param("serverId");
-		try {
-			await requireMember(userId, networkId);
-		} catch {
-			return c.json({ error: "forbidden" }, 403);
-		}
-		const sk = await db
-			.select()
-			.from(serverKeys)
-			.where(
-				and(eq(serverKeys.id, serverId), eq(serverKeys.networkId, networkId)),
-			);
-		if (sk.length === 0) return c.json({ error: "not_found" }, 404);
+		const resolved = await resolveNetworkServer(
+			userId,
+			c.req.param("networkId"),
+			c.req.param("serverId"),
+		);
+		if (!resolved) return c.json({ error: "forbidden" }, 403);
+		const networkId = resolved.networkId;
+		if (!resolved.serverKeyId) return c.json({ error: "not_found" }, 404);
+		const sk = [{ id: resolved.serverKeyId }];
 
 		const body = (await c.req.json().catch(() => null)) as {
 			ref?: unknown;
@@ -995,20 +1005,15 @@ userNetworksRouter.get(
 	async (c: Context<{ Variables: Vars }>) => {
 		const userId = getUserId(c);
 		if (!userId) return c.json({ error: "unauthorized" }, 401);
-		const networkId = c.req.param("networkId");
-		const serverId = c.req.param("serverId");
-		try {
-			await requireMember(userId, networkId);
-		} catch {
-			return c.json({ error: "forbidden" }, 403);
-		}
-		const sk = await db
-			.select()
-			.from(serverKeys)
-			.where(
-				and(eq(serverKeys.id, serverId), eq(serverKeys.networkId, networkId)),
-			);
-		if (sk.length === 0) return c.json({ error: "not_found" }, 404);
+		const resolved = await resolveNetworkServer(
+			userId,
+			c.req.param("networkId"),
+			c.req.param("serverId"),
+		);
+		if (!resolved) return c.json({ error: "forbidden" }, 403);
+		const networkId = resolved.networkId;
+		if (!resolved.serverKeyId) return c.json({ error: "not_found" }, 404);
+		const sk = [{ id: resolved.serverKeyId }];
 
 		const player = c.req.query("player")?.trim();
 		if (!player) return c.json({ error: "invalid_input" }, 422);
@@ -1035,20 +1040,15 @@ userNetworksRouter.post(
 	async (c: Context<{ Variables: Vars }>) => {
 		const userId = getUserId(c);
 		if (!userId) return c.json({ error: "unauthorized" }, 401);
-		const networkId = c.req.param("networkId");
-		const serverId = c.req.param("serverId");
-		try {
-			await requireMember(userId, networkId);
-		} catch {
-			return c.json({ error: "forbidden" }, 403);
-		}
-		const sk = await db
-			.select()
-			.from(serverKeys)
-			.where(
-				and(eq(serverKeys.id, serverId), eq(serverKeys.networkId, networkId)),
-			);
-		if (sk.length === 0) return c.json({ error: "not_found" }, 404);
+		const resolved = await resolveNetworkServer(
+			userId,
+			c.req.param("networkId"),
+			c.req.param("serverId"),
+		);
+		if (!resolved) return c.json({ error: "forbidden" }, 403);
+		const networkId = resolved.networkId;
+		if (!resolved.serverKeyId) return c.json({ error: "not_found" }, 404);
+		const sk = [{ id: resolved.serverKeyId }];
 
 		return handleResourcePackRebuild(c, sk[0].id);
 	},
@@ -1100,12 +1100,8 @@ userNetworksRouter.get(
 	async (c: Context<{ Variables: Vars }>) => {
 		const userId = getUserId(c);
 		if (!userId) return c.json({ error: "unauthorized" }, 401);
-		const networkId = c.req.param("id");
-		try {
-			await requireMember(userId, networkId);
-		} catch {
-			return c.json({ error: "forbidden" }, 403);
-		}
+		const networkId = await resolveNetworkForMember(userId, c.req.param("id"));
+		if (!networkId) return c.json({ error: "forbidden" }, 403);
 
 		const rows = await db
 			.select({
