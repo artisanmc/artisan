@@ -90,6 +90,12 @@ export interface EdgeAnchor {
 
 export interface Project {
   id: ProjectId;
+  /**
+   * Forme URL du project (unique par serveur). Présent dès qu'il vient du
+   * backend ; absent pour un project purement local. L'id reste l'identité —
+   * le slug ne sert qu'à reconnaître un project désigné par une URL.
+   */
+  slug?: string;
   name: string;
   description?: string;
   source: ProjectSource;

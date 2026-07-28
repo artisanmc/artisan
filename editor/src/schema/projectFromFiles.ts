@@ -338,6 +338,8 @@ const CORE_FILES = new Set(["manifest.yaml", "meta.yaml"]);
 
 export interface ProjectFromFilesMeta {
   name?: string;
+  /** Forme URL (DB-owned, jamais dans les fichiers). */
+  slug?: string;
   description?: string;
   source?: Project["source"];
   serverKeyId?: string;
@@ -690,6 +692,7 @@ export function projectFromFiles(
   const project: Project = {
     id: projectId,
     name: meta.name ?? projectId,
+    ...(meta.slug ? { slug: meta.slug } : {}),
     ...(meta.description ? { description: meta.description } : {}),
     // `source` is cosmetic (badge) and DB/file-less — default to the common case.
     source: meta.source ?? "user_created",
