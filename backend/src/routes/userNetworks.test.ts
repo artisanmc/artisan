@@ -1880,3 +1880,87 @@ describe("GET …/player-inventory", () => {
     }
   });
 });
+
+// Les URLs de l'éditeur portent désormais les slugs (network ET serveur) : les
+// routes serveur-scopées doivent accepter les deux formes, sinon tout l'écran
+// tombe en 403/404 — ce qui est arrivé aux Config screens.
+describe("routes serveur-scopées — id ou slug", () => {
+  beforeEach(clearAll);
+
+  async function setup() {
+    const { sessionId } = await seedUser(`u_slug_${Math.random().toString(36).slice(2, 8)}`);
+    const app = makeApp();
+    const headers = { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" };
+    const { network } = await (await app.request("/api/v1/networks", {
+      method: "POST", headers, body: JSON.stringify({ name: "Mon Réseau" }),
+    })).json();
+    await db.insert(serverKeys).values({
+      id: "sk_slug", hash: "h_slug", networkId: network.id, createdAt: new Date(),
+      label: "Survie", slug: "survie",
+    });
+    return { app, headers, network };
+  }
+
+  test("les quatre combinaisons id/slug répondent 200", async () => {
+    const { app, headers, network } = await setup();
+    for (const n of [network.id, network.slug]) {
+      for (const s of ["sk_slug", "survie"]) {
+        const res = await app.request(`/api/v1/networks/${n}/servers/${s}/data-sources`, { headers });
+        expect(`${n}/${s} → ${res.status}`).toBe(`${n}/${s} → 200`);
+      }
+    }
+  });
+
+  test("screens et modules acceptent aussi les slugs", async () => {
+    const { app, headers, network } = await setup();
+    for (const path of ["screens", "modules"]) {
+      const res = await app.request(`/api/v1/networks/${network.slug}/servers/survie/${path}`, { headers });
+      expect(`${path} → ${res.status}`).toBe(`${path} → 200`);
+    }
+  });
+
+  // Les slugs de serveur ne sont uniques QUE par network : la résolution reste
+  // scopée, sinon on servirait le serveur d'un autre réseau.
+  test("un slug de serveur ne traverse pas la frontière du network", async () => {
+    const { app, headers } = await setup();
+    const { network: other } = await (await app.request("/api/v1/networks", {
+      method: "POST", headers, body: JSON.stringify({ name: "Autre" }),
+    })).json();
+    const res = await app.request(`/api/v1/networks/${other.slug}/servers/survie/data-sources`, { headers });
+    expect(res.status).toBe(404);
+  });
+});
+
+// Le network aussi est adressé par slug depuis la page réseau et le compte.
+describe("routes network-scopées — id ou slug", () => {
+  beforeEach(clearAll);
+
+  test("members et servers-status acceptent le slug", async () => {
+    const { sessionId } = await seedUser("u_nslug");
+    const app = makeApp();
+    const headers = { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" };
+    const { network } = await (await app.request("/api/v1/networks", {
+      method: "POST", headers, body: JSON.stringify({ name: "Réseau Slug" }),
+    })).json();
+
+    for (const path of ["members", "servers-status"]) {
+      const res = await app.request(`/api/v1/networks/${network.slug}/${path}`, { headers });
+      expect(`${path} → ${res.status}`).toBe(`${path} → 200`);
+    }
+  });
+
+  test("un non-membre reste en 403, slug ou pas", async () => {
+    const { sessionId } = await seedUser("u_owner2");
+    const app = makeApp();
+    const headers = { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" };
+    const { network } = await (await app.request("/api/v1/networks", {
+      method: "POST", headers, body: JSON.stringify({ name: "Privé" }),
+    })).json();
+
+    const { sessionId: other } = await seedUser("u_outsider");
+    const res = await app.request(`/api/v1/networks/${network.slug}/members`, {
+      headers: { Cookie: `artisan_user_session=${other}` },
+    });
+    expect(res.status).toBe(403);
+  });
+});
