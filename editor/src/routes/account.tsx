@@ -72,7 +72,7 @@ export function AccountPage() {
                 <li key={n.id}>
                   <Link
                     to="/networks/$networkId"
-                    params={{ networkId: n.id }}
+                    params={{ networkId: n.slug ?? n.id }}
                     className="card flex items-center justify-between gap-3 p-4 transition-colors hover:border-[var(--brand-line)]"
                   >
                     <span className="text-[14px] font-semibold text-[var(--text)]">{n.name}</span>
