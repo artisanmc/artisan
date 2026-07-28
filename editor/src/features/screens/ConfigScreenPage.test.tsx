@@ -102,3 +102,52 @@ describe("ConfigScreenPage — form and YAML over the same file", () => {
     expect(written.files[0]!.content).toContain("[unclosed");
   });
 });
+
+// Opening a screen must not show a rewrite as if it were the file: a legacy
+// file (verbose data/v1 form) is displayed AS IT IS ON DISK. The canonical
+// rewrite happens when the admin actually saves, not when they look.
+describe("ConfigScreenPage — the YAML tab shows the file, not a pending rewrite", () => {
+  const LEGACY = [
+    "schema: data/v1",
+    "id: shop_settings",
+    "shape: config",
+    "fields:",
+    "  - name: whole_shop_discount",
+    "    kind: integer",
+    "value:",
+    "  whole_shop_discount: 10",
+    "",
+  ].join("\n");
+
+  beforeEach(() => {
+    configRead.mockImplementation(async (_n: string, _s: string, req: { table: string }) =>
+      req.table === "data/shop_settings"
+        ? { ok: true, files: [{ path: "data/shop_settings.yaml", content: LEGACY }] }
+        : { ok: true, files: [] },
+    );
+  });
+
+  it("displays the on-disk content, legacy shape included", async () => {
+    renderPage();
+    await waitFor(() => expect(screen.getByTestId("config-value-form")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: /YAML/i }));
+    const shown = (screen.getByLabelText("data/shop_settings.yaml") as HTMLTextAreaElement).value;
+    expect(shown).toBe(LEGACY);
+  });
+
+  it("is not dirty on open — looking at a file changes nothing", async () => {
+    renderPage();
+    await waitFor(() => expect(screen.getByTestId("config-value-form")).toBeTruthy());
+    expect(screen.getByRole("button", { name: /Enregistré|Enregistrer/ })).toBeDisabled();
+  });
+
+  it("shows the canonical rewrite once the admin actually edits", async () => {
+    renderPage();
+    await waitFor(() => expect(screen.getByTestId("config-value-form")).toBeTruthy());
+    fireEvent.change(screen.getByDisplayValue("10"), { target: { value: "30" } });
+    fireEvent.click(screen.getByRole("button", { name: /YAML/i }));
+    const shown = (screen.getByLabelText("data/shop_settings.yaml") as HTMLTextAreaElement).value;
+    expect(shown).toContain("30");
+    expect(shown).not.toContain("shape: config");
+  });
+});
