@@ -181,13 +181,14 @@ interface UiState {
   canvasViewports: Record<string, ViewportState>;
   setCanvasViewport: (projectId: ProjectId, viewport: ViewportState) => void;
   /**
-   * Pan/zoom de la vue individuelle d'un document, indexé par
-   * `projectId:documentId`. **Persisté** : on revient exactement où on était,
-   * navigation ET rechargement compris — contrairement à `canvasViewports`,
-   * qui reste session-only.
+   * Pan/zoom de la vue individuelle, **partagé par tous les documents** et
+   * persisté : le cadrage suit l'utilisateur quand il passe d'un menu à un
+   * autre, au lieu de repartir du cadrage par défaut à chaque ouverture.
+   * `null` = jamais réglé, la vue s'ajuste alors au document.
+   * (`canvasViewports`, la planche, reste par project et session-only.)
    */
-  documentViewports: Record<string, ViewportState>;
-  setDocumentViewport: (key: string, viewport: ViewportState) => void;
+  documentViewport: ViewportState | null;
+  setDocumentViewport: (viewport: ViewportState | null) => void;
 }
 
 export const useUiStore = create<UiState>()(
@@ -349,9 +350,8 @@ export const useUiStore = create<UiState>()(
       canvasMode: "hand",
       setCanvasMode: (m) => set({ canvasMode: m }),
       canvasViewports: {},
-      documentViewports: {},
-      setDocumentViewport: (key, viewport) =>
-        set((st) => ({ documentViewports: { ...st.documentViewports, [key]: viewport } })),
+      documentViewport: null,
+      setDocumentViewport: (viewport) => set({ documentViewport: viewport }),
       setCanvasViewport: (projectId, viewport) =>
         set((s) => ({ canvasViewports: { ...s.canvasViewports, [projectId]: viewport } })),
     }),
@@ -383,9 +383,9 @@ export const useUiStore = create<UiState>()(
         editorTab: state.editorTab,
         projectPanelOpen: state.projectPanelOpen,
         canvasMode: state.canvasMode,
-        // Persisté (contrairement à canvasViewports) : on ne veut pas re-cadrer
-        // la vue d'un document à chaque rechargement de page.
-        documentViewports: state.documentViewports,
+        // Persisté (contrairement à canvasViewports) : le cadrage de la vue
+        // individuelle suit l'utilisateur, page à page et après rechargement.
+        documentViewport: state.documentViewport,
       }),
       // Coerce legacy persisted tab values ("code", "props") to "edit" — the
       // 3-tab structure was replaced by 2 tabs (Edit + Library). Also push
