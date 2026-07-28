@@ -9,6 +9,13 @@ vi.mock("@/lib/api/configScreens", async (orig) => {
 });
 vi.mock("@/lib/api/dataSources", () => ({ fetchServerDeclaredModels: vi.fn(async () => []) }));
 vi.mock("@/features/canvas/useTextureInit", () => ({ useTextureInit: () => {} }));
+// The page is what's under test, not CodeMirror: a textarea stands in for the
+// shared YAML editor so edits can be simulated.
+vi.mock("@/components/ui/yaml-code-editor", () => ({
+  YamlCodeEditor: ({ value, onChange, ariaLabel }: { value: string; onChange: (v: string) => void; ariaLabel: string }) => (
+    <textarea aria-label={ariaLabel} value={value} onChange={(e) => onChange(e.target.value)} />
+  ),
+}));
 
 import { useServerScreensStore } from "@/state/serverScreensStore";
 import { ConfigScreenPage } from "./ConfigScreenPage";

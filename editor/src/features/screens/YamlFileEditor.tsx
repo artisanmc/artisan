@@ -1,4 +1,5 @@
 import { parse } from "yaml";
+import { YamlCodeEditor } from "@/components/ui/yaml-code-editor";
 import { useTranslation } from "react-i18next";
 import type { ConfigFile } from "@/lib/api/configScreens";
 
@@ -68,13 +69,13 @@ export function YamlFileEditor({
           ))}
         </select>
       )}
-      <textarea
-        className="input min-h-64 flex-1 resize-y whitespace-pre px-2 py-1.5 font-mono text-[12px] leading-relaxed"
-        value={current.content}
-        spellCheck={false}
-        aria-label={current.path}
-        onChange={(e) => onChange(current.path, e.target.value)}
-      />
+      <div className="min-h-64 flex-1 overflow-auto rounded border border-[var(--border-soft)] bg-[var(--surface)]">
+        <YamlCodeEditor
+          value={current.content}
+          ariaLabel={current.path}
+          onChange={(next) => onChange(current.path, next)}
+        />
+      </div>
       {error && (
         <p className="text-[11px] text-rose-300" role="alert">
           {error.line !== null ? `${t("screens.yamlErrorLine", { line: error.line })} — ` : ""}
