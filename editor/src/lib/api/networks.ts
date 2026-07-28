@@ -251,18 +251,6 @@ export async function deleteServerKey(networkId: string, keyId: string): Promise
   if (!res.ok) throw new Error(`Server key delete failed (${res.status})`);
 }
 
-export async function rotateServerKey(
-  networkId: string,
-  keyId: string,
-): Promise<{ id: string; key: string; label: string | null }> {
-  const res = await fetch(`${API_URL}/api/v1/networks/${networkId}/server-keys/${keyId}/rotate`, {
-    method: "POST",
-    credentials: "include",
-  });
-  if (!res.ok) throw new Error(`Server key rotate failed (${res.status})`);
-  return res.json();
-}
-
 export async function getServerStatus(
   networkId: string,
   serverId: string,

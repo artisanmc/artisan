@@ -88,12 +88,6 @@ export function countMissingPerLang(pack: Project): Record<string, number> {
   return out;
 }
 
-export function totalMissing(pack: Project): number {
-  let sum = 0;
-  for (const v of Object.values(countMissingPerLang(pack))) sum += v;
-  return sum;
-}
-
 /**
  * Count keys whose value for `lang` is missing or empty — exactly the
  * "missing" headline the Translations panel shows for the active language

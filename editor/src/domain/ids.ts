@@ -33,9 +33,7 @@ export const newMenuId = () => menuId(`m_${next()}_${Date.now().toString(36)}`);
 export const newElementId = () => elementId(`el_${next()}_${Date.now().toString(36)}`);
 export const newLayerId = () => layerId(`l_${next()}_${Date.now().toString(36)}`);
 export const newCommandId = () => commandId(`c_${next()}_${Date.now().toString(36)}`);
-export const newAssetId = () => assetId(`a_${next()}_${Date.now().toString(36)}`);
 export const dialogId = (s: string): DialogId => s as DialogId;
-export const newDialogId = () => dialogId(`d_${next()}_${Date.now().toString(36)}`);
 export const newItemTemplateId = () =>
   itemTemplateId(`itpl_${next()}_${Date.now().toString(36)}`);
 export const newCapturedItemId = () =>

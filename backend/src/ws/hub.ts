@@ -9,6 +9,7 @@ import { computeAllPacksHash } from "../lib/hashUtils";
 import { customItemsCacheDir, readCustomItemsHash, processBundle } from "../lib/customItems";
 import { applyBoutiqueAdditem, type BoutiqueAdditemPayload } from "../modules/boutique/index";
 import { currentPackInfo } from "../lib/resourcePack";
+import { invalidateCustomBundle } from "../routes/modelBundle";
 import type {
   BundleAvailableMessage,
   CustomItemsBundleMessage,
@@ -750,6 +751,9 @@ export async function handlePluginMessage(
     const cacheDir = customItemsCacheDir(serverId);
     try {
       await processBundle(cacheDir, bundle.hash, bundle.data);
+      // Sans ça le backend continue de servir les anciens modèles jusqu'au
+      // redémarrage : le cache est keyé sur le seul serverKeyId.
+      invalidateCustomBundle(serverId);
     } catch (err) {
       console.error(`[custom-items] Failed to process bundle for server ${serverId}:`, err);
     }
@@ -887,17 +891,6 @@ export function broadcastDraftUpdate(
       menu_id: menuId,
       menu_yaml: menuYaml,
     }));
-  }
-}
-
-export function pushModuleEvent(
-  serverKeyId: string,
-  event: { kind: "config_reload"; module_id: string } | { kind: "data_reload"; data_source_ref: string },
-): void {
-  const payload = JSON.stringify({ type: "module_event", payload: event });
-  for (const [sessionId, send] of editorSenders) {
-    if (!editorTokenToServers.get(sessionId)?.has(serverKeyId)) continue;
-    send(payload);
   }
 }
 

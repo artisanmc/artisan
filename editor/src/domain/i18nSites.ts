@@ -494,11 +494,6 @@ export function rekeyCommand(pack: Project, command: Command): void {
   rekey(pack, visitCommandLTexts(command));
 }
 
-/** Canonicalize one dialog's LText keys. */
-export function rekeyDialog(pack: Project, dialog: Dialog): void {
-  rekey(pack, visitDialogLTexts(dialog));
-}
-
 /** Canonicalize every LText key owned by one Project data source. */
 export function rekeyDataSource(pack: Project, dataSource: DataSource): void {
   rekey(pack, visitDataSourceLTexts(pack, dataSource));

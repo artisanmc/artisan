@@ -27,7 +27,3 @@ export function lookupPath(obj: unknown, path: string): unknown {
   return current;
 }
 
-/** True if any `{...}` substring remains after a single resolve pass. */
-export function hasUnresolvedPlaceholders(s: string): boolean {
-  return /\{[^{}]+\}/.test(s);
-}

@@ -26,7 +26,6 @@ import { INVENTORY_TYPES, slotMcXY } from "./inventoryTypes";
  * `TEX_*` is canvas pixels (MC pixel × TEX_SCALE).
  */
 
-export const TEX_URL = vanillaChestTextureUrl;
 export const TEX_SCALE = 2;
 
 export const MC_W = 176;
