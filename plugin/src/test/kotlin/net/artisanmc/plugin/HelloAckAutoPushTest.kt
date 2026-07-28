@@ -93,4 +93,62 @@ class HelloAckAutoPushTest {
         assertTrue(div.contains("menus/m.yaml"), "sync_divergence must carry the disk files")
         assertEquals(emptyList(), sent.filter { it.contains("\"local_push\"") }, "conflict must not auto-push")
     }
+
+    /**
+     * Un module qui écrit des fichiers de project à son activation le fait
+     * APRÈS le hello_ack (les modules s'activent après le core) : le contrôle
+     * de synchro est déjà passé. Sur un serveur Linux le watcher rattraperait ;
+     * sur un bind mount Docker, non — et le fichier finit balayé par le sweep
+     * du prochain bundle. `recheckLocalChanges()` rejoue le contrôle une fois
+     * les modules chargés.
+     */
+    @Test
+    fun `recheckLocalChanges auto-pushes a file written after hello_ack`() {
+        val packsRoot = Files.createTempDirectory("artisan_recheck_").toFile()
+        val dir = writeProject(packsRoot, "p_mod")
+        SyncMetadata.recordSync(dir, syncedHash = BundleHasher.hash(dir), backendHash = BundleHasher.hash(dir))
+
+        val provider = SyncedMenuProvider(
+            net.artisanmc.plugin.project.ProjectRoots(packsRoot),
+            serverKey = "sk", wsUrl = "ws://x", logger = null,
+        )
+        val sent = CopyOnWriteArrayList<String>()
+        provider.setSendForTesting { sent.add(it) }
+
+        // Le backend est d'accord avec le disque : rien à pousser à ce stade.
+        handleMessage(
+            provider,
+            """{"type":"hello_ack","session_id":"s","project_hashes":{"p_mod":"${BundleHasher.hash(dir)}"}}""",
+        )
+        Thread.sleep(200)
+        assertEquals(emptyList(), sent.filter { it.contains("\"local_push\"") }, "rien à pousser au hello_ack")
+
+        // Le module écrit son fichier maintenant.
+        File(dir, "models").mkdirs()
+        File(dir, "models/shop_settings.yaml").writeText("model: boutique:shop_settings\n")
+        val afterWrite = BundleHasher.hash(dir)
+
+        provider.recheckLocalChanges()
+
+        val push = awaitSend(sent) { it.contains("\"local_push\"") && it.contains("p_mod") }
+        assertTrue(push.contains(afterWrite), "local_push doit porter le hash du disque APRÈS l'écriture du module")
+    }
+
+    /** Sans hello_ack (pas encore connecté), il n'y a rien à comparer : no-op. */
+    @Test
+    fun `recheckLocalChanges is a no-op before any hello_ack`() {
+        val packsRoot = Files.createTempDirectory("artisan_recheck_").toFile()
+        writeProject(packsRoot, "p_never")
+        val provider = SyncedMenuProvider(
+            net.artisanmc.plugin.project.ProjectRoots(packsRoot),
+            serverKey = "sk", wsUrl = "ws://x", logger = null,
+        )
+        val sent = CopyOnWriteArrayList<String>()
+        provider.setSendForTesting { sent.add(it) }
+
+        provider.recheckLocalChanges()
+
+        Thread.sleep(200)
+        assertEquals(emptyList(), sent, "aucun message avant le premier hello_ack")
+    }
 }
