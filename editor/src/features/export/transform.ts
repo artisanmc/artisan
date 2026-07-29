@@ -1208,9 +1208,12 @@ export function transform(pack: Project): Record<string, string> {
   const editorState: Record<string, unknown> = { schema: "editor-state/v1" };
   if (Object.keys(editorLayout).length > 0) editorState.layout = editorLayout;
   if (Object.keys(editorEdges).length > 0) editorState.edges = editorEdges;
-  // Captured item label + display descriptor: editor-only metadata that the
-  // verbatim items/<id>.yml stack cannot carry (enchanted/headTexture aren't
-  // derivable from the stack) — persisted here, hash-excluded.
+  // Captured item label + display descriptor: editor-only metadata, persisted
+  // here and hash-excluded. The descriptor IS derivable from the stack now
+  // (projectFromFiles falls back to parseCapturedStack), but it is still
+  // written: it records what the capture panel showed, including a material
+  // enriched by the plugin's custom-item reverse lookup. The user-given `name`
+  // has no equivalent in the stack at all.
   if ((pack.capturedItems ?? []).length > 0) {
     editorState.items = Object.fromEntries(
       (pack.capturedItems ?? []).map((ci) => [ci.id, { name: ci.name, display: ci.display }]),
