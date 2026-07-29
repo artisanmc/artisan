@@ -2,6 +2,7 @@ import { collectModuleExportFiles, getModule } from "@artisan/editor-sdk";
 import { stepsToDsl } from "@/lib/actionDsl";
 import { getTitleTextLayers } from "@/domain/menuTitle";
 import { walkActions } from "@/domain/stepPath";
+import { writeAdvanced } from "@/domain/itemAdvanced";
 import { visitDataSourceLTexts } from "@/domain/i18nSites";
 import type {
   Action,
@@ -195,6 +196,7 @@ function serializeAppearance(app: Appearance, pack: Project): Record<string, unk
     }
     if (Object.keys(clickOut).length > 0) out.click = clickOut;
   }
+  writeAdvanced(app, out);
   return out;
 }
 

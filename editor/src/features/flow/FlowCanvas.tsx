@@ -1,6 +1,7 @@
 import { PlaceholderInput } from "@/components/PlaceholderInput";
 import { RevealField } from "@/components/RevealField";
 import { usePlaceholderEntries } from "@/components/usePlaceholderEntries";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getFirstTitleText } from "@/domain/menuTitle";
 import type { Appearance, I18nKey, ItemTemplateId } from "@/domain/types";
@@ -18,7 +19,9 @@ import type {
   ProjectId,
 } from "@/domain/types";
 import { MaterialPicker } from "@/features/canvas/MaterialPicker";
-import { resolveDisplayRef } from "@/domain/capturedItems";
+import { CAPTURED_ITEM_REF_PREFIX, resolveDisplayRef } from "@/domain/capturedItems";
+import { capturedStackDetails } from "@/domain/capturedStack";
+import { AdvancedItemSection } from "./AdvancedItemSection";
 import { headPreviewUrl } from "@/features/canvas/headTexture";
 import { useTextureUrl } from "@/features/canvas/textureStore";
 import { buildHeadValue, type HeadSource, headSourceOf, headValueOf } from "./headField";
@@ -50,6 +53,7 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { Wand2 } from "lucide-react";
 import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -577,6 +581,7 @@ function StateCard({
   };
   const setSub = useFlowSelectionStore((s) => s.set);
   const setAppearanceField = useAccountStore((s) => s.setAppearanceField);
+  const setAppearanceAdvanced = useAccountStore((s) => s.setAppearanceAdvanced);
   const setAppearanceTitle = useAccountStore((s) => s.setAppearanceTitle);
   const setAppearanceLore = useAccountStore((s) => s.setAppearanceLore);
   const setAppearanceConditions = useAccountStore((s) => s.setAppearanceConditions);
@@ -663,6 +668,41 @@ function StateCard({
       lang: activeLang,
       value,
     });
+
+  // A captured-item ref is opaque: the stack holds enchants, a name, a tint,
+  // but none of it is editable while the appearance just points at `item:<id>`.
+  // Extracting explodes the stack into real fields — at the cost of the link.
+  const capturedItem = material.startsWith(CAPTURED_ITEM_REF_PREFIX)
+    ? pack?.capturedItems?.find(
+        (c) => String(c.id) === material.slice(CAPTURED_ITEM_REF_PREFIX.length),
+      )
+    : undefined;
+  const capturedDetails = capturedItem ? capturedStackDetails(capturedItem.stackYaml) : undefined;
+
+  const extractCapturedDetails = () => {
+    if (!capturedDetails) return;
+    if (!window.confirm(t("flow.advanced.extractConfirm", { name: capturedItem?.name ?? "" })))
+      return;
+    setSub({ kind: "state", stateIndex });
+    update("material", capturedDetails.material ?? material);
+    if (capturedDetails.headTexture) update("head", `basehead:${capturedDetails.headTexture}`);
+    if (capturedDetails.count !== undefined) update("count", capturedDetails.count);
+    if (capturedDetails.name) updateTitle(capturedDetails.name);
+    if (capturedDetails.lore?.length) updateLore(capturedDetails.lore.join("\n"));
+    setAppearanceAdvanced({
+      projectId,
+      ...target,
+      appearanceIndex: stateIndex,
+      patch: {
+        enchants: capturedDetails.enchants,
+        enchanted: capturedDetails.enchanted,
+        customModelData: capturedDetails.customModelData,
+        unbreakable: capturedDetails.unbreakable,
+        hide: capturedDetails.hide,
+        color: capturedDetails.color,
+      },
+    });
+  };
 
   // Collapsed state — tooltip-style summary. Click anywhere to focus and
   // expand. Mirrors the in-canvas hover tooltip layout (icon left, MM-
@@ -792,6 +832,20 @@ function StateCard({
               className="h-8 flex-1 px-2 py-0 font-mono text-xs"
             />
           </div>
+
+          {/* Captured item — offer to explode the ref into editable fields */}
+          {capturedDetails ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={extractCapturedDetails}
+              className="h-7 justify-start px-1 text-xs"
+              title={t("flow.advanced.extractHint")}
+            >
+              <Wand2 size={12} className="mr-1" />
+              {t("flow.advanced.extract")}
+            </Button>
+          ) : null}
 
           {/* Custom head — only meaningful when the material is a player_head */}
           {material.toLowerCase() === "player_head" ? (
@@ -943,6 +997,16 @@ function StateCard({
               }
             />
           </div>
+
+          {/* Advanced details — enchants, glint, CMD, unbreakable, hide, tint, NBT */}
+          <AdvancedItemSection
+            appearance={appearance}
+            material={display.material}
+            onFocus={() => setSub({ kind: "state", stateIndex })}
+            onChange={(patch) =>
+              setAppearanceAdvanced({ projectId, ...target, appearanceIndex: stateIndex, patch })
+            }
+          />
 
           {/* Click handlers — nested inside the focused state so the
           ownership is obvious (these handlers belong to *this* state). */}

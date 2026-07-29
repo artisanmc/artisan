@@ -1,3 +1,4 @@
+import { resolveDisplayRef } from "@/domain/capturedItems";
 import type { ElementId, Menu, ProjectId } from "@/domain/types";
 import { getText } from "@/lib/i18n";
 import { lookupPath } from "@/lib/placeholders";
@@ -17,7 +18,6 @@ import { Group, Image as KonvaImage, Rect } from "react-konva";
 import { toast } from "sonner";
 import useImage from "use-image";
 import { PaginationControls } from "./PaginationControls";
-import { useNodeAlignment } from "./useNodeAlignment";
 import { SlotItem } from "./SlotItem";
 import { dispatchOpenElement } from "./canvasEvents";
 import { INVENTORY_TYPES, slotCount } from "./inventoryTypes";
@@ -35,7 +35,6 @@ import {
   topPieceCrop,
   usesSingleBackground,
 } from "./menuLayout";
-import { resolveDisplayRef } from "@/domain/capturedItems";
 import { buildPreviewScope, renderPreview } from "./menuPreviewScope";
 import {
   matchPlacementRow,
@@ -47,6 +46,7 @@ import { pinPlacementRow } from "./placementDrop";
 import { TitleRender } from "./title/composer/TitleRender";
 import { useMenuClick } from "./useMenuClick";
 import { useMenuDrag } from "./useMenuDrag";
+import { useNodeAlignment } from "./useNodeAlignment";
 import { useSlotDrag } from "./useSlotDrag";
 
 interface MenuGroupProps {
@@ -223,6 +223,8 @@ export function MenuGroup({ projectId, menu, position, layout, solo = false }: M
       head?: string;
       title?: string;
       count?: number;
+      /** Draws the glint marker — real enchantments, or the bare glint flag. */
+      enchanted?: boolean;
       elementId: string;
       multiPos: boolean;
     }
@@ -231,6 +233,8 @@ export function MenuGroup({ projectId, menu, position, layout, solo = false }: M
     for (const el of layer.elements) {
       const appearance = pack ? resolveAppearance0(pack, el) : el.appearances[0];
       if (!appearance) continue;
+      const enchanted =
+        appearance.enchanted === true || (appearance.enchants?.length ?? 0) > 0 || undefined;
 
       if (el.iterates) {
         const positions = parsePositions(el.positions);
@@ -275,6 +279,7 @@ export function MenuGroup({ projectId, menu, position, layout, solo = false }: M
                 ? renderPreview(titleRaw, enhancedCtx, pack, activeLang)
                 : titleRaw || undefined,
             count: appearance.count,
+            enchanted,
             elementId: el.id,
             multiPos: false,
           });
@@ -297,6 +302,7 @@ export function MenuGroup({ projectId, menu, position, layout, solo = false }: M
                 ? renderPreview(titleRaw, itemCtx, pack, activeLang)
                 : titleRaw || undefined,
             count: appearance.count,
+            enchanted,
             elementId: el.id,
             multiPos: false,
           });
@@ -351,6 +357,7 @@ export function MenuGroup({ projectId, menu, position, layout, solo = false }: M
             ? renderPreview(titleRaw, enhancedCtx, pack, activeLang)
             : titleRaw || undefined,
         count: appearance.count,
+        enchanted,
         elementId: el.id,
         multiPos: elSlots.length > 1,
       };
@@ -629,6 +636,7 @@ export function MenuGroup({ projectId, menu, position, layout, solo = false }: M
                       innerX={innerX}
                       innerY={innerY}
                       count={el?.count}
+                      enchanted={el?.enchanted || d.enchanted}
                     />
                   );
                 })()

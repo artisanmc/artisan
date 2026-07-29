@@ -9,6 +9,12 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Added — détails avancés d'item (enchantements, couleur, NBT…)
+- **`menu/v1`** : sept champs additifs optionnels sur `Appearance` — `enchants` (map `{id: level}`), `enchanted` (effet brillant seul), `custom_model_data`, `unbreakable`, `hide` (sections de tooltip masquées), `color` (`#rrggbb`), `nbt` (SNBT brut). `enchanted` et `custom_model_data` étaient déclarés depuis P1.0 mais jamais appliqués : ils le sont désormais.
+- **Plugin** : `net.artisanmc.plugin.render.ItemDetails` applique ces champs dans `MenuRenderer.buildItem`. Lecture tolérante des ids d'enchantement (`sharpness` / `minecraft:sharpness` / legacy `DAMAGE_ALL`), niveaux au-delà du max vanilla autorisés, id inconnu ignoré avec un WARN. Le `nbt` passe en dernier via `Bukkit.getUnsafe().modifyItemStack` — best-effort, un SNBT refusé est loggé sans blanchir l'item.
+- **Éditeur** : section « Paramètres avancés » repliable dans le formulaire d'item (nouveau composant de design system `Collapsible`, spécimen sur `/admin/design`). Les items enchantés portent un marqueur violet sur le canvas et listent leurs enchantements dans le tooltip.
+- **Éditeur** : bouton « Extraire les détails » sur une apparence référençant un item capturé — parse l'ItemStack sérialisé (formes legacy Bukkit **et** components Paper) et éclate la ref `item:<id>` en champs éditables. Le lien vers l'item capturé est perdu, d'où la confirmation.
+
 ### Added — l'éditeur comme éditeur de YAML assisté (ADR `yaml-assisted-editing`)
 - **Onglet YAML** sur les écrans de config de module ET dans le panneau Données du canvas : même fichier, deux modes, canonicalisation à l'enregistrement. Un YAML invalide n'est pas appliqué au domaine mais reste éditable (et, sur un écran de config, enregistrable — c'est le fichier de l'admin).
 - **Le schéma explique les champs** : `label`/`help` deviennent un texte visible sous le champ (fini l'infobulle, le nom technique reste affiché) et un commentaire au-dessus de chaque clé du fichier ; l'en-tête généré dit franchement que les commentaires écrits main sont écrasés.

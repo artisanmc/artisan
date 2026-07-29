@@ -47,4 +47,24 @@ describe("resolveDisplayRef", () => {
   it("dangling item: ref degrades to the bare ref (non-hermetic)", () => {
     expect(resolveDisplayRef(pack([]), "item:ghost")).toEqual({ material: "item:ghost" });
   });
+
+  it("falls back to the serialized stack when the descriptor is empty", () => {
+    // Older captures (and module-written items) carry no display descriptor.
+    const bare: CapturedItem = {
+      id: "ci_bare" as CapturedItem["id"],
+      name: "Épée",
+      stackYaml: `item:
+  id: minecraft:diamond_sword
+  components:
+    minecraft:enchantments:
+      levels:
+        minecraft:sharpness: 5
+`,
+      display: {},
+    };
+    expect(resolveDisplayRef(pack([bare]), "item:ci_bare")).toEqual({
+      material: "DIAMOND_SWORD",
+      enchanted: true,
+    });
+  });
 });
