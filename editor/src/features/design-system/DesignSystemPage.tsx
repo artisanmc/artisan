@@ -3,8 +3,8 @@ import { ThemeSwitcher } from "@/components/ThemeSwitcher";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Collapsible } from "@/components/ui/collapsible";
 import { DataTable } from "@/components/ui/data-table";
-import { YamlCodeEditor } from "@/components/ui/yaml-code-editor";
 import {
   Dialog,
   DialogContent,
@@ -37,6 +37,7 @@ import { StatCard } from "@/components/ui/stat-card";
 import { TBody, TD, TH, THead, TR, Table } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WorkspaceView } from "@/components/ui/workspace-view";
+import { YamlCodeEditor } from "@/components/ui/yaml-code-editor";
 import { CanvasToolbar } from "@/features/canvas/CanvasToolbar";
 import { useUiStore } from "@/state/uiStore";
 import { Inbox, LayoutGrid, Pencil, Plus, Search, Sparkles, TerminalSquare } from "lucide-react";
@@ -357,6 +358,19 @@ export function DesignSystemPage() {
               </TabsContent>
             </Tabs>
           </div>
+          <div className="flex flex-col gap-2">
+            <span className="mono text-[11px] text-[var(--text-faint)]">{"<Collapsible>"}</span>
+            <div className="max-w-md">
+              <Collapsible title="Paramètres avancés" meta={<Badge variant="sage">3</Badge>}>
+                <p className="text-[13px] text-[var(--text-mut)]">
+                  Contenu démonté tant que la section est repliée.
+                </p>
+              </Collapsible>
+              <Collapsible title="Section ouverte par défaut" defaultOpen>
+                <p className="text-[13px] text-[var(--text-mut)]">defaultOpen</p>
+              </Collapsible>
+            </div>
+          </div>
           <div className="flex flex-wrap items-center gap-3">
             <Dialog>
               <DialogTrigger asChild>
@@ -511,15 +525,9 @@ export function DesignSystemPage() {
       <Section id="codeEditor" title={t("adminDesign.sections.codeEditor")}>
         <div className="card flex flex-col gap-2 p-5">
           <span className="mono text-[11px] text-[var(--text-faint)]">{"<YamlCodeEditor>"}</span>
-          <p className="text-[11px] text-[var(--text-faint)]">
-            {t("adminDesign.codeEditorHint")}
-          </p>
+          <p className="text-[11px] text-[var(--text-faint)]">{t("adminDesign.codeEditorHint")}</p>
           <div className="h-48 overflow-auto rounded border border-[var(--border-soft)] bg-[var(--surface)]">
-            <YamlCodeEditor
-              value={SAMPLE_YAML}
-              ariaLabel="YamlCodeEditor"
-              onChange={() => {}}
-            />
+            <YamlCodeEditor value={SAMPLE_YAML} ariaLabel="YamlCodeEditor" onChange={() => {}} />
           </div>
         </div>
       </Section>

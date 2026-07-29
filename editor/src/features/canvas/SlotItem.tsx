@@ -1,8 +1,8 @@
 import { Image as KonvaImage, Rect, Text } from "react-konva";
 import useImage from "use-image";
 import { headPreviewUrl } from "./headTexture";
-import { useTextureUrl } from "./textureStore";
 import { TEX_SCALE, TEX_SLOT_INNER } from "./menuLayout";
+import { useTextureUrl } from "./textureStore";
 
 export interface SlotItemProps {
   material: string;
@@ -10,6 +10,8 @@ export interface SlotItemProps {
   innerY: number;
   count?: number;
   head?: string;
+  /** Item is enchanted (or forces the glint) — draws the enchantment marker. */
+  enchanted?: boolean;
 }
 
 /**
@@ -20,8 +22,13 @@ export interface SlotItemProps {
  *
  * Stack count (when > 1) is drawn bottom-right with a dark drop shadow,
  * matching the vanilla MC tooltip look.
+ *
+ * Enchanted items get a violet corner sparkle rather than a replica of the
+ * vanilla glint shader: tinting only the sprite's opaque pixels would need a
+ * cached Konva filter per slot, which a 54-slot menu can't afford. The marker
+ * is unambiguous at this size, which is what the canvas needs.
  */
-export function SlotItem({ material, innerX, innerY, count, head }: SlotItemProps) {
+export function SlotItem({ material, innerX, innerY, count, head, enchanted }: SlotItemProps) {
   const materialUrl = useTextureUrl(material);
   const url = headPreviewUrl(head) ?? materialUrl;
   const [image] = useImage(url ?? "");
@@ -64,6 +71,36 @@ export function SlotItem({ material, innerX, innerY, count, head }: SlotItemProp
           verticalAlign="middle"
           listening={false}
         />
+      )}
+      {enchanted && (
+        <>
+          {/* Soft violet halo around the item well… */}
+          <Rect
+            x={innerX}
+            y={innerY}
+            width={TEX_SLOT_INNER}
+            height={TEX_SLOT_INNER}
+            stroke="#c77dff"
+            strokeWidth={TEX_SCALE * 0.5}
+            opacity={0.55}
+            cornerRadius={2}
+            listening={false}
+            perfectDrawEnabled={false}
+          />
+          {/* …plus a sparkle top-left, away from the bottom-right stack count. */}
+          <Text
+            x={innerX}
+            y={innerY}
+            text="✦"
+            fontSize={6 * TEX_SCALE}
+            fill="#e0aaff"
+            shadowColor="#2b0b3a"
+            shadowBlur={0}
+            shadowOffsetX={TEX_SCALE * 0.5}
+            shadowOffsetY={TEX_SCALE * 0.5}
+            listening={false}
+          />
+        </>
       )}
       {showCount && (
         <>

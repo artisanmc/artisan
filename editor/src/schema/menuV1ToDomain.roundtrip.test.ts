@@ -94,6 +94,14 @@ function buildProject(): Project {
       count: 1,
       title: lt(pack, "VIP Button"),
       lore: lt(pack, "Costs money"),
+      enchants: [
+        { id: "sharpness", level: 5 },
+        { id: "unbreaking", level: 3 },
+      ],
+      customModelData: "42",
+      unbreakable: true,
+      hide: ["attributes", "enchants"],
+      nbt: "{Foo:1b}",
       click: {
         left: {
           steps: [
@@ -300,6 +308,22 @@ describe("menuV1ToDomain — round-trip oracle", () => {
     expect(iapp.ifJoins).toEqual(oapp.ifJoins);
     expect(iapp.material).toBe("DIAMOND");
     expect(iapp.count).toBe(1);
+  });
+
+  it("round-trips the advanced item details", () => {
+    const oapp = original.layers[0]!.elements[0]!.appearances[0]!;
+    const iapp = imported.layers[0]!.elements[0]!.appearances[0]!;
+    expect(iapp.enchants).toEqual(oapp.enchants);
+    expect(iapp.customModelData).toBe("42");
+    expect(iapp.unbreakable).toBe(true);
+    expect(iapp.hide).toEqual(["attributes", "enchants"]);
+    expect(iapp.nbt).toBe("{Foo:1b}");
+  });
+
+  it("writes enchants as a hand-writable id → level map", () => {
+    const app = (wire.elements as Record<string, unknown>[])[0]!;
+    const appearances = app.appearances as Record<string, unknown>[];
+    expect(appearances[0]!.enchants).toEqual({ sharpness: 5, unbreaking: 3 });
   });
 
   it("round-trips click step-trees including if-case + else", () => {

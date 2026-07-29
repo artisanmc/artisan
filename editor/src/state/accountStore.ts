@@ -28,6 +28,7 @@ import {
   wouldTypeCreateModelCycle,
 } from "@/domain/dataModels";
 import { nextAvailableSourceRowKey, validateSourceRowKey } from "@/domain/dataSourceRowKeys";
+import type { AdvancedFields } from "@/domain/itemAdvanced";
 import { migrateTitle } from "@/domain/migrateTitle";
 import { type StepFrame, type StepPath, resolveParentMut, walkActions } from "@/domain/stepPath";
 import type {
@@ -544,6 +545,18 @@ interface AccountState {
       appearanceIndex?: number;
       field: "count" | "material" | "head";
       value: string | number;
+    } & AppearanceTarget,
+  ) => void;
+  /**
+   * Patch the advanced detail fields of an appearance (enchants, glint, custom
+   * model data, unbreakable, hide flags, tint, raw NBT). A key set to
+   * `undefined` clears that field; keys absent from the patch are left alone.
+   */
+  setAppearanceAdvanced: (
+    input: {
+      projectId: ProjectId;
+      appearanceIndex?: number;
+      patch: AdvancedFields;
     } & AppearanceTarget,
   ) => void;
   /** Update an appearance title for the given language. Allocates the LText on first write. */
@@ -2835,6 +2848,22 @@ export const useAccountStore = create<AccountState>()(
             } else if (field === "head") {
               if (typeof value !== "string") return;
               appearance.head = value || undefined;
+            }
+            pack.updatedAt = new Date().toISOString();
+          }),
+        ),
+      setAppearanceAdvanced: (input) =>
+        set(
+          produce((draft: AccountState) => {
+            const { projectId: pId, appearanceIndex = 0, patch } = input;
+            const pack = draft.account.projects.find((p) => p.id === pId);
+            if (!pack) return;
+            const appearance = findAppearanceOwner(pack, input)?.appearances[appearanceIndex];
+            if (!appearance) return;
+            for (const [key, value] of Object.entries(patch)) {
+              // An explicit `undefined` clears the field rather than storing a hole.
+              if (value === undefined) delete (appearance as Record<string, unknown>)[key];
+              else (appearance as Record<string, unknown>)[key] = value;
             }
             pack.updatedAt = new Date().toISOString();
           }),
