@@ -4,6 +4,17 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DataSourceEditor } from "./DataSourceEditor";
 
+// Le sujet est l'éditeur de source, pas CodeMirror : un textarea tient sa place.
+vi.mock("@/components/ui/yaml-code-editor", () => ({
+  YamlCodeEditor: ({
+    value,
+    onChange,
+    ariaLabel,
+  }: { value: string; onChange: (v: string) => void; ariaLabel: string }) => (
+    <textarea aria-label={ariaLabel} value={value} onChange={(e) => onChange(e.target.value)} />
+  ),
+}));
+
 const PID = "p1" as ProjectId;
 
 function makeProject(sourceNames = ["settings"]): Project {
@@ -79,5 +90,43 @@ describe("DataSourceEditor", () => {
 
     expect(screen.getByText("Une source porte déjà ce nom.")).toBeInTheDocument();
     expect(pack().dataSources[0]!.name).toBe("settings");
+  });
+
+  // ── bascule Formulaire ↔ YAML ────────────────────────────────────────────
+
+  it("montre le YAML de la source", () => {
+    render(<DataSourceEditor projectId={PID} source={pack().dataSources[0]!} />);
+    fireEvent.click(screen.getByRole("button", { name: "YAML" }));
+    expect((screen.getByLabelText("data/ds_1.yaml") as HTMLTextAreaElement).value).toContain("coins");
+  });
+
+  /**
+   * Le défaut signalé : après un aller-retour sur l'onglet YAML, une édition
+   * faite dans le FORMULAIRE était écrasée par un brouillon périmé au retour
+   * sur YAML. L'onglet doit toujours refléter l'état courant.
+   */
+  it("relit l'état courant à chaque ouverture de l'onglet YAML", () => {
+    const view = render(<DataSourceEditor projectId={PID} source={pack().dataSources[0]!} />);
+    fireEvent.click(screen.getByRole("button", { name: "YAML" }));
+    fireEvent.click(screen.getByRole("button", { name: "Formulaire" }));
+
+    useAccountStore.getState().setSourceValue({
+      projectId: PID, sourceId: "ds_1" as never, row: null, path: ["currency"], value: "jetons",
+    });
+    view.rerender(<DataSourceEditor projectId={PID} source={pack().dataSources[0]!} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "YAML" }));
+    const shown = (screen.getByLabelText("data/ds_1.yaml") as HTMLTextAreaElement).value;
+    expect(shown).toContain("jetons");
+    expect(shown).not.toContain("coins");
+  });
+
+  it("un aller-retour sans rien toucher ne modifie pas la source", () => {
+    render(<DataSourceEditor projectId={PID} source={pack().dataSources[0]!} />);
+    fireEvent.click(screen.getByRole("button", { name: "YAML" }));
+    fireEvent.click(screen.getByRole("button", { name: "Formulaire" }));
+    const s = pack().dataSources[0]!;
+    if (s.shape !== "config") throw new Error("config attendu");
+    expect(s.value).toEqual({ currency: "coins" });
   });
 });

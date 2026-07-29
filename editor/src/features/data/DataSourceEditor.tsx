@@ -41,6 +41,12 @@ export function DataSourceEditor({ projectId, source }: DataSourceEditorProps) {
     setNameError(null);
   }, [source.name]);
 
+  // Une autre source est un autre fichier : ni brouillon ni mode hérités.
+  useEffect(() => {
+    setDraft(null);
+    setMode("form");
+  }, [source.id]);
+
   if (!pack) return null;
 
   const yamlErrors = draft ? yamlErrorsOf(draft) : [];
@@ -106,8 +112,15 @@ export function DataSourceEditor({ projectId, source }: DataSourceEditorProps) {
               key={m}
               type="button"
               onClick={() => {
-                if (m === "form" && draft) applyDraft();
-                if (m === "yaml" && !draft) setDraft(sourceYamlFiles(pack, source));
+                // Le brouillon ne survit JAMAIS à un changement d'onglet : le
+                // garder ferait réapparaître un texte périmé et écraserait les
+                // éditions faites entre-temps dans le formulaire.
+                if (m === "form") {
+                  applyDraft();
+                  setDraft(null);
+                } else {
+                  setDraft(sourceYamlFiles(pack, source));
+                }
                 setMode(m);
               }}
               className={cx("chip h-7 px-3 text-[11px]", mode === m && "is-active")}
