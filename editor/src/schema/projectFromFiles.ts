@@ -20,6 +20,7 @@ import type {
   Project,
   ProjectId,
 } from "@/domain/types";
+import { parseCapturedStack } from "@/domain/capturedStack";
 import { visitDataSourceLTexts } from "@/domain/i18nSites";
 import { newI18nKey } from "@/lib/i18n";
 import { parse as parseYaml } from "yaml";
@@ -171,10 +172,15 @@ function readTranslations(
 /**
  * items/<id>.yml → CapturedItem. The file is the runtime truth (verbatim
  * `stackYaml`); name + display come from `.artisan/editor.yaml` `items:` when
- * present (the lossless editor channel — enchanted/headTexture aren't
- * derivable from the stack). Fallback for hand-added files: a generic
- * derivation from vanilla components, overridable by a root `display:` block
- * (used by module migrators). Byte-order sort keeps output deterministic.
+ * present. That channel stays authoritative because it records what the
+ * capture panel actually showed — notably a material enriched by the plugin's
+ * custom-item reverse lookup, which the stack alone may not express.
+ *
+ * Without it (hand-added file, module-written item), the descriptor is derived
+ * from the serialized stack by `parseCapturedStack`, which understands the
+ * legacy Bukkit form, nested Paper components and the JSON/SNBT-encoded ones.
+ * A root `display:` block still overrides the derivation (module migrators).
+ * Byte-order sort keeps output deterministic.
  */
 function readCapturedItems(
   files: Record<string, string>,
@@ -189,18 +195,14 @@ function readCapturedItems(
     if (!id) continue;
     const root = tryParse<Record<string, unknown>>(content);
     if (!root || typeof root !== "object") continue;
-    const stack = (root.item ?? root) as Record<string, unknown>; // `==:`-root tolerated
-    if (!stack || typeof stack !== "object") continue;
+    const stack = parseCapturedStack(content);
     const display: CapturedItem["display"] = {};
-    const vanillaId = typeof stack.id === "string" ? stack.id : "";
-    if (vanillaId) display.material = vanillaId.replace(/^minecraft:/, "").toUpperCase();
-    const components = (stack.components ?? {}) as Record<string, unknown>;
-    const nexo = /"nexo:id"\s*:\s*"([^"]+)"/.exec(String(components["minecraft:custom_data"] ?? ""));
-    if (nexo) display.material = `nexo:${nexo[1]}`;
-    const count = typeof stack.count === "number" ? stack.count : 1;
-    if (count > 1) display.count = count;
-    const nameMatch = /text\s*:\s*"([^"]*)"/.exec(String(components["minecraft:item_name"] ?? ""));
-    if (nameMatch?.[1]) display.name = nameMatch[1];
+    if (stack.material) display.material = stack.material;
+    if (stack.count !== undefined) display.count = stack.count;
+    if (stack.name) display.name = stack.name;
+    if (stack.headTexture) display.headTexture = stack.headTexture;
+    // Real enchantments glint just as the explicit override does.
+    if (stack.enchanted || (stack.enchants?.length ?? 0) > 0) display.enchanted = true;
     if (root.display && typeof root.display === "object") Object.assign(display, root.display);
     const meta = itemsMeta[id];
     out.push({
