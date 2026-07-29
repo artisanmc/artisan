@@ -324,4 +324,67 @@ describe("projectFromFiles (files → domain, inverse of transform)", () => {
       },
     ]);
   });
+
+  /** Hand-added files go through the same reader as the capture panel — the
+   *  serialized stack is the ground truth, not a set of regexes over it. */
+  function handAdded(stackYaml: string) {
+    const files: Record<string, string> = {
+      [`${base}/manifest.yaml`]:
+        "schema: manifest/v1\nproject_id: p_roundtrip\ndefault_lang: en\nlanguages: [en]\nfiles:\n  menus: []\n  commands: []\n  dialogs: []\n",
+      [`${base}/items/ci_hand.yml`]: stackYaml,
+    };
+    return projectFromFiles(PID, files, { name: "X" }).capturedItems?.[0];
+  }
+
+  it("derives the glint from a hand-added enchanted stack", () => {
+    // The real Paper shape: components encoded as a JSON string.
+    const ci = handAdded(`item:
+  ==: org.bukkit.inventory.ItemStack
+  DataVersion: 4671
+  id: minecraft:diamond_sword
+  count: 1
+  components:
+    minecraft:enchantments: '{"minecraft:bane_of_arthropods":1}'
+`);
+    expect(ci?.display).toEqual({ material: "DIAMOND_SWORD", enchanted: true });
+  });
+
+  it("derives the head texture of a hand-added player head", () => {
+    const ci = handAdded(`item:
+  id: minecraft:player_head
+  components:
+    minecraft:profile: '{"properties":[{"name":"textures","value":"eyJ0ZXh0In0="}]}'
+`);
+    expect(ci?.display).toEqual({ material: "PLAYER_HEAD", headTexture: "eyJ0ZXh0In0=" });
+  });
+
+  it("reads a legacy Bukkit stack, name included", () => {
+    const ci = handAdded(`item:
+  ==: org.bukkit.inventory.ItemStack
+  type: DIAMOND_SWORD
+  amount: 3
+  meta:
+    display-name: '{"text":"Épée du roi"}'
+    enchants:
+      DAMAGE_ALL: 5
+`);
+    expect(ci?.display).toEqual({
+      material: "DIAMOND_SWORD",
+      count: 3,
+      name: "Épée du roi",
+      enchanted: true,
+    });
+    expect(ci?.name).toBe("Épée du roi");
+  });
+
+  it("keeps the .artisan meta authoritative over the derived descriptor", () => {
+    // The editor channel records what the capture panel showed; it wins so a
+    // plugin-enriched material (nexo reverse-lookup) isn't downgraded on import.
+    const files = transform(fixture());
+    const p2 = projectFromFiles(PID, files, { name: "Round Trip" });
+    expect(p2.capturedItems?.[0]?.display).toEqual({
+      material: "nexo:arcanist_key",
+      enchanted: true,
+    });
+  });
 });
