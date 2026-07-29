@@ -1,7 +1,11 @@
 # L'éditeur comme éditeur de YAML assisté — le schéma est une option, pas un péage
 
-**Statut :** accepté (2026-07-27) — design verrouillé (session grill-with-docs),
-rien d'implémenté. Révise `module-config-screens` §2, `bare-data-files` ⑦ et
+**Statut :** accepté (2026-07-27) — **implémenté (2026-07-28/29)** : hints
+visibles + commentaires par clé (⑥⑨), Config typée par model déclaré, onglet
+YAML sur les écrans de config **et** dans le panneau Données (⑦⑧), `@clé` dans
+les actions de data source (④, plugin + contrat éditeur verrouillé par test).
+Restent non faits : l'onglet YAML sur les documents du canvas (⑧, suite
+annoncée) et les cercles ②③ (fichiers de plugins tiers). Révise `module-config-screens` §2, `bare-data-files` ⑦ et
 `action-dsl` (texte des actions de data source) ; livre partiellement le
 « code mode » déféré par `files-first-source-of-truth`.
 

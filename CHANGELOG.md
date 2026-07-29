@@ -9,6 +9,13 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Added — l'éditeur comme éditeur de YAML assisté (ADR `yaml-assisted-editing`)
+- **Onglet YAML** sur les écrans de config de module ET dans le panneau Données du canvas : même fichier, deux modes, canonicalisation à l'enregistrement. Un YAML invalide n'est pas appliqué au domaine mais reste éditable (et, sur un écran de config, enregistrable — c'est le fichier de l'admin).
+- **Le schéma explique les champs** : `label`/`help` deviennent un texte visible sous le champ (fini l'infobulle, le nom technique reste affiché) et un commentaire au-dessus de chaque clé du fichier ; l'en-tête généré dit franchement que les commentaires écrits main sont écrasés.
+- **Le schéma devient optionnel** : un fichier sans model déclaré est éditable (champs littéraux déduits des valeurs) au lieu d'un formulaire vide, et sans schéma résoluble les valeurs/rows voyagent **verbatim** (un enregistrement ne peut plus les réduire à `{}` / `[{}]`).
+- **`api.actions.execute(..., projectId?)`** : une action portée par une source de données peut référencer `@clé`, résolue dans les `lang/` du project (le `langMap` manquait à l'exécution ; la clé ressortait `{i18n:...}` brute).
+- Une **Config typée par un model déclaré** est reconnue comme telle : plus éditable ni supprimable depuis le panneau Données.
+
 ### Added — Config screens de module : le module déclare ses écrans, le core les génère (ADR `module-config-screens`)
 - **Plugin** : nouvelle API `@Beta` `api.screens.declare(id, label, table, projectId)` (`EditorScreenRegistry`) — déclaration pure, reportée à la présence dans `hello.editor_screens` / `modules_changed` (id namespacé obligatoire, chemin de table validé : pas d'absolu, pas de `..`, pas de `.artisan*`). Nouveaux handlers WS `config_read` / `config_write` : lecture des fichiers d'une Table (cap 1 MiB) et écriture disque encadrée par `beginSuppress`/`endSuppress` + hot-reload + auto-push LOCAL_ONLY par le sync normal.
 - **Backend** : table `server_editor_screens` (migration 0027, upsert + prune miroir `server_declared_models`), `GET …/servers/:sid/screens`, et relais **sans stockage** `POST …/servers/:sid/config/read` (timeout 5 s) / `…/config/write` (timeout 10 s).
