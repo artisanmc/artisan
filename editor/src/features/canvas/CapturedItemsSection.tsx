@@ -2,10 +2,7 @@ import { Input } from "@/components/ui/input";
 import { resolveDisplayRef } from "@/domain/capturedItems";
 import { newCapturedItemId } from "@/domain/ids";
 import type { CapturedItem, ProjectId } from "@/domain/types";
-import {
-  type InventorySlotPayload,
-  fetchPlayerInventory,
-} from "@/lib/api/playerInventory";
+import { type InventorySlotPayload, fetchPlayerInventory } from "@/lib/api/playerInventory";
 import { useAccountStore } from "@/state/accountStore";
 import { useNetworksStore } from "@/state/networksStore";
 import { useServersStore } from "@/state/serversStore";
@@ -125,7 +122,9 @@ export function CapturedItemsSection({
       ) : null}
       {state.kind === "done" ? (
         state.slots.length === 0 ? (
-          <p className="text-[10px] text-[var(--text-faint)]">{t("capturedItems.inventoryEmpty")}</p>
+          <p className="text-[10px] text-[var(--text-faint)]">
+            {t("capturedItems.inventoryEmpty")}
+          </p>
         ) : (
           <>
             <p className="text-[10px] text-[var(--text-faint)]">{t("capturedItems.captureHint")}</p>
@@ -177,8 +176,8 @@ function CapturedTile({
         {...(onPick ? {} : attributes)}
         className={
           armed
-            ? "flex h-12 w-12 shrink-0 touch-none cursor-grab select-none items-center justify-center rounded-[8px] border border-[var(--brand)] bg-[var(--brand-soft)] ring-1 ring-[var(--brand)] active:cursor-grabbing"
-            : "flex h-12 w-12 shrink-0 touch-none cursor-grab select-none items-center justify-center rounded-[8px] border border-[var(--border)] bg-[var(--surface-inset)] hover:border-[var(--border-strong)] active:cursor-grabbing"
+            ? "relative flex h-12 w-12 shrink-0 touch-none cursor-grab select-none items-center justify-center rounded-[8px] border border-[var(--brand)] bg-[var(--brand-soft)] ring-1 ring-[var(--brand)] active:cursor-grabbing"
+            : "relative flex h-12 w-12 shrink-0 touch-none cursor-grab select-none items-center justify-center rounded-[8px] border border-[var(--border)] bg-[var(--surface-inset)] hover:border-[var(--border-strong)] active:cursor-grabbing"
         }
         style={{ opacity: isDragging ? 0.4 : 1 }}
       >
@@ -195,6 +194,14 @@ function CapturedTile({
             {(display.material ?? "?").slice(0, 6)}
           </span>
         )}
+        {display.enchanted ? (
+          <span
+            aria-hidden
+            className="pointer-events-none absolute top-0 left-0.5 text-[9px] text-[#c77dff] drop-shadow"
+          >
+            ✦
+          </span>
+        ) : null}
       </button>
       <button
         type="button"

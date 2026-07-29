@@ -16,6 +16,7 @@ import type {
   ProjectId,
   TextSize,
 } from "@/domain/types";
+import { readAdvanced } from "@/domain/itemAdvanced";
 import { INVENTORY_TYPES } from "@/features/canvas/inventoryTypes";
 import { newI18nKey } from "@/lib/i18n";
 import { makeStepConverter } from "./actionV1ToDomain";
@@ -91,6 +92,7 @@ export function makeAppearanceConverter(bridge: I18nBridge): {
     if (lore !== undefined) out.lore = lore;
     const click = clickMap(a.click);
     if (click) out.click = click;
+    Object.assign(out, readAdvanced(a as Record<string, unknown>));
     return out;
   }
 

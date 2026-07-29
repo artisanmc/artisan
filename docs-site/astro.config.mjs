@@ -18,6 +18,7 @@ export default defineConfig({
           items: [
             { label: 'Overview', slug: 'editor' },
             { label: 'Custom heads', slug: 'editor/custom-heads' },
+            { label: 'Advanced item parameters', slug: 'editor/item-details' },
           ],
         },
         {

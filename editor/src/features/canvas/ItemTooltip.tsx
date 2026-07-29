@@ -1,3 +1,6 @@
+import { CAPTURED_ITEM_REF_PREFIX } from "@/domain/capturedItems";
+import { capturedStackDetails } from "@/domain/capturedStack";
+import { formatEnchant } from "@/domain/itemAdvanced";
 import type { Element, Menu, ProjectId } from "@/domain/types";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { getText } from "@/lib/i18n";
@@ -163,6 +166,17 @@ export function ItemTooltip({ projectId }: ItemTooltipProps) {
     }
   }
 
+  // Enchantments of the appearance itself, or of the captured stack it points at.
+  const captured = appearance.material?.startsWith(CAPTURED_ITEM_REF_PREFIX)
+    ? pack.capturedItems?.find(
+        (c) => String(c.id) === appearance.material!.slice(CAPTURED_ITEM_REF_PREFIX.length),
+      )
+    : undefined;
+  const enchants =
+    appearance.enchants ??
+    (captured ? capturedStackDetails(captured.stackYaml).enchants : undefined) ??
+    [];
+
   const titleSource = (cachedName ?? getText(pack, appearance.title, activeLang)).trim();
   const rawTitle = titleSource || humanize(appearance.material ?? "");
   const title = renderPreview(rawTitle, ctx, pack, activeLang);
@@ -177,6 +191,19 @@ export function ItemTooltip({ projectId }: ItemTooltipProps) {
     <div className="pointer-events-none fixed z-50" style={{ left: x + 14, top: y + 14 }}>
       <div className="min-w-[120px] max-w-xs rounded-sm border border-purple-900 bg-zinc-950/95 px-2 py-1 shadow-lg">
         <MiniMessageInline source={title} className="block font-mono text-white text-xs" />
+        {/* Enchantments sit between the name and the lore, as in the vanilla tooltip. */}
+        {enchants.length > 0 && (
+          <div className="mt-0.5 flex flex-col gap-0">
+            {enchants.map((ench) => (
+              <span
+                key={`${ench.id}-${ench.level}`}
+                className="block font-mono text-[10px] text-zinc-400"
+              >
+                {formatEnchant(ench)}
+              </span>
+            ))}
+          </div>
+        )}
         {lore.length > 0 && (
           <div className="mt-0.5 flex flex-col gap-0">
             {/* Default lore color: white. Vanilla actually defaults to dark_purple

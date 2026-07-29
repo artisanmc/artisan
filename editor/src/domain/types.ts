@@ -9,6 +9,10 @@
  *   from the prior proto is dropped.
  */
 
+import type { ItemEnchant, ItemHideFlag } from "./itemAdvanced";
+
+export type { ItemEnchant, ItemHideFlag };
+
 export type AccountId = string & { __brand: "AccountId" };
 export type ProjectId = string & { __brand: "ProjectId" };
 export type MenuId = string & { __brand: "MenuId" };
@@ -272,6 +276,18 @@ export interface Appearance {
   title?: LText;
   lore?: LText | null;
   click?: ClickMap;
+  // ── advanced details (see domain/itemAdvanced.ts for the wire form) ───────
+  enchants?: ItemEnchant[];
+  /** Glint with no real enchantment. Redundant — and dropped — when `enchants` is set. */
+  enchanted?: boolean;
+  customModelData?: string;
+  unbreakable?: boolean;
+  /** Tooltip sections hidden from the player. */
+  hide?: ItemHideFlag[];
+  /** `#rrggbb` tint — leather armor, potions, firework stars. */
+  color?: string;
+  /** Raw SNBT escape hatch, applied last by the plugin. */
+  nbt?: string;
 }
 
 export type ClickType = "left" | "right" | "shift_left" | "shift_right" | "middle";
