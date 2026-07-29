@@ -15,16 +15,30 @@ import org.bukkit.entity.Player
  * (`player` is always bound implicitly). A malformed / empty / unparseable
  * string is skipped with a WARN log — a module's bad data must not break the
  * transaction flow.
+ *
+ * `projectId` met le project en portée pour l'i18n : une action peut alors
+ * porter `@clé`, résolue dans les `lang/` de ce project (ADR
+ * `yaml-assisted-editing` ④). Sans lui, les textes restent littéraux.
  */
 @Beta
 interface ModuleActionsApi {
-    fun execute(player: Player, actions: String, args: Map<String, Any> = emptyMap())
+    fun execute(
+        player: Player,
+        actions: String,
+        args: Map<String, Any> = emptyMap(),
+        projectId: String? = null,
+    )
 
     companion object {
         /** Inert default (tests / partial wiring). */
         @JvmField
         val NOOP: ModuleActionsApi = object : ModuleActionsApi {
-            override fun execute(player: Player, actions: String, args: Map<String, Any>) {}
+            override fun execute(
+                player: Player,
+                actions: String,
+                args: Map<String, Any>,
+                projectId: String?,
+            ) {}
         }
     }
 }

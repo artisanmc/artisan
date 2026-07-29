@@ -414,7 +414,18 @@ data class ProjectBundle(
     val commands: List<CommandYaml>,
     val dialogs: List<BundleDialog>,
     val dataSources: List<BundleDataSource> = emptyList(),
-)
+    /**
+     * Traductions du project (`lang/<code>.yaml`). Portées ici en plus des
+     * copies par menu/dialog : une action de data source exécutée par un module
+     * n'a ni menu ni dialog en contexte, mais doit pouvoir résoudre `@clé`
+     * (ADR yaml-assisted-editing ④ — l'i18n suit le consommateur).
+     */
+    val langMaps: Map<String, Map<String, String>> = emptyMap(),
+) {
+    /** Même chaîne de repli déterministe que [BundleMenu.langMapWithFallback]. */
+    fun langMapWithFallback(lang: String): Map<String, String> =
+        langMaps[defaultLang].orEmpty() + langMaps[lang].orEmpty()
+}
 
 /** One menu with its compiled appearances, per-language translation maps, and slot mapping. */
 data class BundleMenu(
