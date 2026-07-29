@@ -508,12 +508,68 @@
             "type": "string"
           }
         },
+        "enchants": {
+          "description": "Enchantements appliqués à l'item. Forme canonique : map id → niveau ({ sharpness: 5 }). Les ids courts (sharpness), namespacés (minecraft:sharpness) et legacy Bukkit (DAMAGE_ALL) sont acceptés en lecture ; un id inconnu du serveur est ignoré avec un WARN. Les niveaux au-delà du max vanilla sont autorisés.",
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["id"],
+                "properties": {
+                  "id": { "type": "string" },
+                  "level": { "type": "integer", "minimum": 1, "default": 1 }
+                }
+              }
+            }
+          ]
+        },
         "enchanted": {
           "type": "boolean",
-          "default": false
+          "default": false,
+          "description": "Effet brillant sans enchantement réel. Redondant quand `enchants` est présent (les vrais enchantements brillent déjà)."
         },
         "custom_model_data": {
           "type": "string"
+        },
+        "unbreakable": {
+          "type": "boolean",
+          "default": false,
+          "description": "Item incassable (la durabilité ne descend pas)."
+        },
+        "hide": {
+          "type": "array",
+          "description": "Sections du tooltip masquées au joueur (ItemFlag Bukkit, orthographe courte).",
+          "items": {
+            "type": "string",
+            "enum": [
+              "enchants",
+              "attributes",
+              "unbreakable",
+              "destroys",
+              "placed_on",
+              "additional",
+              "dye",
+              "armor_trim",
+              "stored_enchants"
+            ]
+          }
+        },
+        "color": {
+          "type": "string",
+          "pattern": "^#[0-9a-fA-F]{6}$",
+          "description": "Teinte #rrggbb — armure de cuir, potion, étoile de feu d'artifice. Ignorée sur tout autre material."
+        },
+        "nbt": {
+          "type": "string",
+          "description": "SNBT brut appliqué en dernier, après tous les autres champs (échappatoire). Best-effort : une erreur de parse est loggée en WARN et l'item est rendu sans."
         },
         "component_ref": {
           "type": "string",

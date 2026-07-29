@@ -81,6 +81,35 @@ Champs ajoutés après le gel P1.0 du schéma, alignés à la main sur les trois
 
 Les trois préfixes reconnus par `HeadRef` (plugin) : `hdb:<id>`, `basehead:<base64>`, `playerhead:<name>` (placeholder-aware, ex. `%player%`). Une valeur brute `eyJ…` sans préfixe est tolérée comme `basehead`. Le champ n'est honoré que quand `material` vaut `PLAYER_HEAD`.
 
+### Détails avancés d'item (2026-07-29)
+
+Sept champs **additifs optionnels** sur `Appearance`, tous appliqués par `net.artisanmc.plugin.render.ItemDetails` :
+
+| Champ wire | Domaine éditeur | Plugin (`AppearanceYaml`) |
+|---|---|---|
+| `enchants` (map `{id: level}`, liste `[{id, level}]` en lecture) | `enchants?: ItemEnchant[]` | `val enchants: Any?` |
+| `enchanted` (bool) | `enchanted?: boolean` | `val enchanted: Boolean` |
+| `custom_model_data` (string) | `customModelData?: string` | `val customModelData: String?` |
+| `unbreakable` (bool) | `unbreakable?: boolean` | `val unbreakable: Boolean` |
+| `hide` (enum[]) | `hide?: ItemHideFlag[]` | `val hide: List<String>` |
+| `color` (`#rrggbb`) | `color?: string` | `val color: String?` |
+| `nbt` (SNBT) | `nbt?: string` | `val nbt: String?` |
+
+`enchanted` et `custom_model_data` étaient déclarés dans le schéma depuis P1.0 mais **morts** (ni portés par `AppearanceYaml`, ni appliqués par `MenuRenderer.buildItem`) — cette tranche les implémente enfin plutôt que d'introduire des noms concurrents.
+
+Conventions partagées entre l'éditeur (`editor/src/domain/itemAdvanced.ts`) et le plugin (`ItemDetails.kt`), qui se **mirroitent** — changer l'un impose de changer l'autre :
+
+- **Ids d'enchantement tolérants en lecture** : `sharpness`, `minecraft:sharpness`, `SHARPNESS`, legacy Bukkit `DAMAGE_ALL`. La forme canonique écrite est toujours l'id court en map. Un id inconnu du serveur est **ignoré avec un WARN** (jamais une erreur de menu).
+- **Niveaux au-delà du max vanilla autorisés** (`ignoreLevelRestriction`) — les serveurs en usent ; l'UI se contente d'avertir.
+- **`enchanted` est omis à l'écriture quand `enchants` est non-vide** : de vrais enchantements brillent déjà, le flag ne porte son sens que seul.
+- **`hide`** : orthographe courte (`attributes`) canonique, spelling Bukkit (`HIDE_ATTRIBUTES`) et l'ancien `HIDE_POTION_EFFECTS` → `additional` acceptés en lecture.
+- **`nbt`** : appliqué **en dernier**, après tout le reste, via `Bukkit.getUnsafe().modifyItemStack` (API dépréciée — seule voie sur 1.21.4). Best-effort : un SNBT refusé est loggé en WARN et l'item est rendu sans, jamais blanchi.
+- **`color`** : n'a d'effet que sur `LeatherArmorMeta` / `PotionMeta` ; sur tout autre material c'est silencieusement sans objet (pas une erreur). L'éditeur n'affiche le champ que pour les materials teintables (`isColorable`).
+
+Resté dans **`menu/v1`** : purement additif et optionnel, donc non-breaking (cf. `versioning.md`).
+
+**Extraction d'items capturés** — `editor/src/domain/capturedStack.ts` lit ces mêmes détails depuis le `stackYaml` d'un item capturé (l'ItemStack Bukkit sérialisé verbatim). Il gère les **deux formes** de sérialisation qui circulent : legacy Bukkit (`type`/`amount`/`meta{enchants, ItemFlags, custom-model-data, color}`) et Paper moderne (`id`/`count`/`components{minecraft:enchantments, …}`, avec ou sans l'enveloppe `levels` supprimée en 1.21.5). Aucun aller-retour plugin n'est nécessaire : tout est déjà dans le YAML. Le parse est mémoïsé (`capturedStackDetails`) car `resolveDisplayRef` l'appelle par slot rendu.
+
 ### `inventory_type` (Chest / Hopper / Dropper)
 
 Champ **additif optionnel** au niveau menu (`menu/v1`) : `inventory_type ∈ {chest, hopper, dropper}`, **défaut `chest`**. **Absent ⇒ chest** → full back-compat : tous les menus existants restent des coffres sans migration de données.
