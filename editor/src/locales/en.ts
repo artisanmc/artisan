@@ -584,6 +584,7 @@ export default {
     schemaType: "Type",
     schemaDescription: "Description",
     noSchema: "No declared schema.",
+    applyYaml: "Apply",
     shapeTable: "Table",
     shapeConfig: "Config",
     addTable: "+ Table",
