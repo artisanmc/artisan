@@ -244,8 +244,10 @@ object MenuRenderer {
                 resolveText(raw, langMap, ctx, papi).split("\n").map { parse(it) }
             })
         }
+        ItemDetails.applyToMeta(app, meta)
         item.itemMeta = meta
-        return item
+        // Raw NBT goes last: it may hand back a different stack.
+        return ItemDetails.applyNbt(app, item)
     }
 
     private fun resolveText(raw: String, langMap: Map<String, String>, ctx: ExecutionContext, papi: PapiProvider?): String {

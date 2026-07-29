@@ -163,8 +163,28 @@ export interface Appearance {
   count?: number;
   title?: string;
   lore?: string[];
+  /** Map id → niveau ({ sharpness: 5 }) ; la forme liste est lue mais jamais écrite. */
+  enchants?: Record<string, number> | { id: string; level?: number }[];
+  /** Effet brillant sans enchantement réel. Redondant quand `enchants` est présent. */
   enchanted?: boolean;
   custom_model_data?: string;
+  unbreakable?: boolean;
+  /** Sections du tooltip masquées (ItemFlag Bukkit, orthographe courte). */
+  hide?: (
+    | "enchants"
+    | "attributes"
+    | "unbreakable"
+    | "destroys"
+    | "placed_on"
+    | "additional"
+    | "dye"
+    | "armor_trim"
+    | "stored_enchants"
+  )[];
+  /** Teinte #rrggbb — cuir / potion / étoile de feu d'artifice. */
+  color?: string;
+  /** SNBT brut appliqué en dernier (échappatoire, best-effort). */
+  nbt?: string;
   component_ref?: string;
   click?: ClickMap | null;
   /** Notes internes de l'admin (jamais rendues aux joueurs). */
