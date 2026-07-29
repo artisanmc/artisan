@@ -152,6 +152,20 @@ data class AppearanceYaml(
     val click: Map<String, ClickHandlerYaml> = emptyMap(),
     @JsonProperty("if")
     val conditions: Any? = null,
+    // ── advanced details, all applied by [net.artisanmc.plugin.render.ItemDetails] ──
+    /** Map `{id: level}` (canonical) or list `[{id, level}]`. Loose ids tolerated. */
+    val enchants: Any? = null,
+    /** Glint with no real enchantment. */
+    val enchanted: Boolean = false,
+    @JsonProperty("custom_model_data")
+    val customModelData: String? = null,
+    val unbreakable: Boolean = false,
+    /** Hidden tooltip sections (short or Bukkit ItemFlag spelling). */
+    val hide: List<String> = emptyList(),
+    /** `#rrggbb` tint — leather armor / potion. Ignored elsewhere. */
+    val color: String? = null,
+    /** Raw SNBT, applied last. Best-effort. */
+    val nbt: String? = null,
 )
 
 @JsonIgnoreProperties(ignoreUnknown = true)
