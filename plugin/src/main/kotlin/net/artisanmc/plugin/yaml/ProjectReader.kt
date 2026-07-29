@@ -200,7 +200,7 @@ class ProjectReader(
 
         return ProjectBundle(
             manifest.projectId, manifest.defaultLang, manifest.languages,
-            menus, commands, dialogs, dataSources,
+            menus, commands, dialogs, dataSources, langMaps,
         )
     }
 

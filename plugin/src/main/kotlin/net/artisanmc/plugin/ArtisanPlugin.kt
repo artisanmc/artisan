@@ -78,6 +78,7 @@ open class ArtisanPlugin : JavaPlugin() {
                         player: org.bukkit.entity.Player,
                         actions: String,
                         args: Map<String, Any>,
+                        projectId: String?,
                     ) {
                         if (actions.isBlank()) return
                         val run = Runnable {
@@ -93,9 +94,24 @@ open class ArtisanPlugin : JavaPlugin() {
                                 plugin.logger.warning("[Artisan] module actions dropped — engine not initialized")
                                 return@Runnable
                             }
+                            // Portée i18n du project : sans elle une action
+                            // portant `@clé` afficherait « {i18n:clé} » brut.
+                            val lang =
+                                if (plugin::langManager.isInitialized) plugin.langManager.playerLang(player)
+                                else "en"
+                            val bundles =
+                                if (plugin::menuProvider.isInitialized) plugin.menuProvider.allBundles()
+                                else emptyList()
+                            val langMap =
+                                net.artisanmc.plugin.provider.projectLangMap(bundles, projectId, lang)
                             plugin.executor.executeSteps(
                                 parsed,
-                                net.artisanmc.plugin.engine.ExecutionContext(player = player, args = args),
+                                net.artisanmc.plugin.engine.ExecutionContext(
+                                    player = player,
+                                    args = args,
+                                    lang = lang,
+                                    langMap = langMap,
+                                ),
                             )
                         }
                         if (org.bukkit.Bukkit.isPrimaryThread()) run.run()
