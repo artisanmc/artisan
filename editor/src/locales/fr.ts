@@ -595,6 +595,7 @@ const fr: typeof en = {
     schemaType: "Type",
     schemaDescription: "Description",
     noSchema: "Pas de schéma déclaré.",
+    applyYaml: "Appliquer",
     shapeTable: "Table",
     shapeConfig: "Config",
     addTable: "+ Table",
