@@ -149,6 +149,35 @@ class ProjectReaderTest {
     }
 
     @Test
+    fun `a broken lang file degrades to empty translations, the project still loads`() {
+        val projectsRoot = writeTempPack()
+        // Unterminated flow sequence — a plausible hand-edit typo.
+        File(projectsRoot, "p_test/lang/en.yaml").writeText("menus: [oops\n")
+
+        val bundles = ProjectReader(projectsRoot).readAll()
+
+        assertEquals(1, bundles.size, "the project must load despite the unreadable lang file")
+        val bundle = bundles.first()
+        assertEquals(1, bundle.menus.size)
+        // No translation available → the raw tag, same as an absent lang file.
+        assertEquals("{i18n:menus.m_shop.title}", bundle.menus.first().resolveTitle("en"))
+        // The OTHER language is untouched.
+        assertEquals("Boutique", bundle.menus.first().resolveTitle("fr"))
+    }
+
+    @Test
+    fun `a lang file whose root is not a mapping degrades the same way`() {
+        val projectsRoot = writeTempPack()
+        File(projectsRoot, "p_test/lang/en.yaml").writeText("- a\n- b\n")
+
+        val bundle = ProjectReader(projectsRoot).readAll().first()
+
+        assertEquals(1, bundle.menus.size)
+        assertEquals("{i18n:menus.m_shop.title}", bundle.menus.first().resolveTitle("en"))
+        assertEquals("Boutique", bundle.menus.first().resolveTitle("fr"))
+    }
+
+    @Test
     fun `resolveTitle returns raw tag when lang file absent`() {
         val projectsRoot = writeTempPack()
         val bundle = ProjectReader(projectsRoot).readAll().first()
