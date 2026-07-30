@@ -5,6 +5,7 @@
 // relocked on the bare forms.
 import type { Project, ProjectId } from "@/domain/types";
 import { parse } from "yaml";
+import { flattenLangTree } from "@/lib/langTree";
 import { describe, expect, it } from "vitest";
 import { transform } from "./transform";
 
@@ -160,10 +161,10 @@ describe("bare data export", () => {
 
   it("default-language file drops data-only keys; other languages keep the canonical address", () => {
     const files = transform(makeProject());
-    const en = parse(files[`${BASE}/lang/en.yaml`]!) as Record<string, string> | null;
+    const en = flattenLangTree(parse(files[`${BASE}/lang/en.yaml`]!));
     expect(en?.["sources.ranks.vip.name"]).toBeUndefined();
     expect(en?.["sources.settings.motd"]).toBeUndefined();
-    const fr = parse(files[`${BASE}/lang/fr.yaml`]!) as Record<string, string>;
+    const fr = flattenLangTree(parse(files[`${BASE}/lang/fr.yaml`]!));
     expect(fr["sources.ranks.vip.name"]).toBe("V.I.P.");
   });
 });
@@ -263,7 +264,7 @@ describe("bare export — map / enum / union kinds", () => {
     expect(doc.fields[2]).toEqual({ name: "tiers", type: { kind: "map", of: { kind: "model", ref: "m_action" } } });
     // m_action is model-kind-referenced → its own doc.
     expect(parse(files[`${B}/models/m_action.yaml`]!).id).toBe("m_action");
-    const fr = parse(files[`${B}/lang/fr.yaml`]!) as Record<string, string>;
+    const fr = flattenLangTree(parse(files[`${B}/lang/fr.yaml`]!));
     expect(fr["sources.quests.daily.tiers.gold.act.text"]).toBe("Bravo !");
   });
 });

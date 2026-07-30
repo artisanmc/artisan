@@ -6,6 +6,7 @@ import { advanceBranchHead, getBranch } from "../../lib/branchStorage";
 import { createCommit } from "../../lib/commitStorage";
 import { computeBundleHash } from "../../lib/hashUtils";
 import { upsertProjectContent } from "../../lib/projectStorage";
+import { flattenLangTree, nestLangTree } from "../../../../editor/src/lib/langTree";
 
 /**
  * Backend boutique module — applies the `/boutique additem` in-game mutation to
@@ -189,9 +190,11 @@ async function applyToDeclaredTable(
   })();
   const lang = typeof manifest.default_lang === "string" && manifest.default_lang ? manifest.default_lang : "fr";
   const langPath = `${base}/lang/${lang}.yaml`;
+  // Lang files are YAML trees on disk — flatten to dotted keys for the lookups
+  // below, re-nest on write (`nestLangTree`) so the file shape stays canonical.
   const translations = (() => {
-    try { return (parse(files[langPath] ?? "") as Record<string, unknown>) ?? {}; }
-    catch { return {} as Record<string, unknown>; }
+    try { return flattenLangTree(parse(files[langPath] ?? "")); }
+    catch { return {} as Record<string, string>; }
   })();
   let langDirty = false;
 
@@ -253,7 +256,7 @@ async function applyToDeclaredTable(
     });
   }
   files[`${base}/data/categories/${rowKey}.yaml`] = stringify(row, { lineWidth: 0 });
-  if (langDirty) files[langPath] = stringify(translations, { lineWidth: 0 });
+  if (langDirty) files[langPath] = stringify(nestLangTree(translations), { lineWidth: 0 });
 
   return persistAndCommit(target, files, payload.item_id);
 }

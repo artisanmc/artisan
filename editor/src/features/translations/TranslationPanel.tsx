@@ -15,7 +15,9 @@ import { AlertCircle, ArrowDown, Check, Copy as CopyIcon, Plus, Trash2 } from "l
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
+import { flattenLangTree } from "@/lib/langTree";
+import { parse as parseYaml } from "yaml";
+import { countListLeaves, serializeRows } from "./translationsYaml";
 
 interface TranslationPanelProps {
   projectId: ProjectId;
@@ -260,9 +262,11 @@ export function TranslationPanelContent({ projectId }: { projectId: ProjectId })
  *
  *   - Visual: per-row UI with MiniMessage preview, missing entries
  *     highlighted, edits saved on every keystroke (`setI18nValue`).
- *   - YAML: a single textarea matching the runtime plugin's
- *     `lang/<code>.yml` shape — copy/paste roundtrip for AI / external
- *     translator workflows.
+ *   - YAML: a single textarea holding the same tree as `lang/<code>.yaml` on
+ *     disk (`translationsYaml.ts`), annotated with per-entry comments —
+ *     copy/paste roundtrip for AI / external translator workflows. Apply reads
+ *     it back through `flattenLangTree`, so it also swallows a lang file pasted
+ *     verbatim, or the legacy flat form.
  *
  * Visual is the default because it's the discoverable / "what's still
  * missing" view; YAML is for the bulk / copy-paste use case.
@@ -576,16 +580,16 @@ function YamlBody({
       setError(t("translations.yamlExpectedObject"));
       return;
     }
+    // Tolerant paste: a flat worklist (what Copy emits) OR a nested tree
+    // straight out of a `lang/<code>.yaml` file on disk. Only list values are
+    // unusable — they're reported as skipped.
+    const flat = flattenLangTree(parsed);
     let applied = 0;
-    let skipped = 0;
-    for (const [key, value] of Object.entries(parsed)) {
-      if (typeof value !== "string") {
-        skipped++;
-        continue;
-      }
+    for (const [key, value] of Object.entries(flat)) {
       setI18nValue({ projectId, lt: { key: key as I18nKey }, lang: activeLang, value });
       applied++;
     }
+    const skipped = countListLeaves(parsed);
     setError(null);
     toast.success(
       skipped > 0
@@ -653,26 +657,3 @@ function YamlBody({
   );
 }
 
-function serializeRows(
-  rows: ReadonlyArray<TranslationRow>,
-  defaultLang: string,
-  activeLang: string,
-  includeContext: boolean,
-  texts: { header: string; subtitle: string },
-): string {
-  const lines: string[] = [];
-  lines.push(texts.header);
-  lines.push(texts.subtitle);
-  lines.push("");
-  const sameLang = defaultLang === activeLang;
-  for (const row of rows) {
-    if (includeContext) lines.push(`# ${row.context}`);
-    if (!sameLang && row.source) {
-      const sourceFlat = row.source.replace(/\n/g, "\\n");
-      lines.push(`# ${defaultLang}: ${sourceFlat}`);
-    }
-    const entry = stringifyYaml({ [row.key]: row.target }, { lineWidth: 0 }).trimEnd();
-    lines.push(entry);
-  }
-  return `${lines.join("\n")}\n`;
-}

@@ -5,6 +5,7 @@
 // with the T1 tolerant importer.
 import type { DataModelId, DataSourceId, ProjectId } from "@/domain/types";
 import { parse } from "yaml";
+import { flattenLangTree } from "@/lib/langTree";
 import { describe, expect, it } from "vitest";
 import { adoptBareLTexts } from "@/domain/i18nSites";
 import { projectFromFiles } from "@/schema/projectFromFiles";
@@ -79,9 +80,9 @@ describe("bare export (ADR bare-data-files T2)", () => {
     expect(row).toEqual({ id: "armes", name: "Armes" });
     // Default lang file no longer carries data-only keys; other langs keep
     // them under the canonical key-site address.
-    const fr = parse(files[`${base}/lang/fr.yaml`]!) as Record<string, string>;
+    const fr = flattenLangTree(parse(files[`${base}/lang/fr.yaml`]!));
     expect(fr["sources.categories.armes.name"]).toBeUndefined();
-    const en = parse(files[`${base}/lang/en.yaml`]!) as Record<string, string>;
+    const en = flattenLangTree(parse(files[`${base}/lang/en.yaml`]!));
     expect(en["sources.categories.armes.name"]).toBe("Weapons");
     // Declared models never emitted.
     expect(Object.keys(files).filter((k) => k.includes("/models/"))).toEqual([]);

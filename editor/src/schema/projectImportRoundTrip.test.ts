@@ -5,6 +5,7 @@
 // (Boutique/src/main/resources/bootstrap/), inlined verbatim.
 import type { Project, ProjectId } from "@/domain/types";
 import { transform } from "@/features/export/transform";
+import { flattenLangTree } from "@/lib/langTree";
 import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
 import { projectFromFiles } from "./projectFromFiles";
@@ -148,7 +149,12 @@ function roundTrip(): { project: Project; out: Record<string, Json>; rawOut: Rec
   const rawOut = transform(project);
   const out: Record<string, Json> = {};
   for (const [path, content] of Object.entries(rawOut)) {
-    if (path.endsWith(".yaml")) out[path.slice(base.length + 1)] = parse(content) as Json;
+    if (!path.endsWith(".yaml")) continue;
+    const rel = path.slice(base.length + 1);
+    // lang files are emitted as YAML trees — flatten them back to dotted keys
+    // so the assertions below read domain addresses, not file shape (the shape
+    // itself is locked by the `nested tree` test).
+    out[rel] = /^lang\//.test(rel) ? flattenLangTree(parse(content)) : (parse(content) as Json);
   }
   return { project, out, rawOut };
 }
@@ -206,6 +212,14 @@ describe("projectImport round-trip (Boutique bootstrap → import → transform)
     const fr = out["lang/fr.yaml"]!;
     expect(fr["boutique.shop_main.title"]).toBe("Boutique");
     expect(fr["boutique.shop_category.title"]).toBe("Boutique — {category_name}");
+  });
+
+  it("re-emits lang/fr.yaml as a nested tree, not one dotted key per line", () => {
+    const { rawOut } = roundTrip();
+    const raw = rawOut[`${base}/lang/fr.yaml`]!;
+    expect(raw).toMatch(/^boutique:\n/);
+    expect(raw).not.toMatch(/^boutique\./m);
+    expect((parse(raw) as Json).boutique.shop_main.title).toBe("Boutique");
   });
 
   it("keeps literal appearance text resolvable through the default lang file", () => {

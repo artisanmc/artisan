@@ -60,8 +60,8 @@ export default {
     yamlExpectedObject: "Expected a YAML object mapping keys to strings.",
     yamlApplied: "Applied {{count}} translations",
     yamlAppliedSkipped: "Applied {{count}} translations ({{skipped}} non-string entries skipped)",
-    yamlHeader: "# Translations: {{from}} → {{to}}",
-    yamlHeaderSubtitle: "# Edit values, then click Apply. Comments are stripped on parse.",
+    yamlHeader: "Translations: {{from}} → {{to}}",
+    yamlHeaderSubtitle: "Edit values, then click Apply. Comments are stripped on parse.",
   },
   editorLangSwitcher: {
     title: "Editor language",
