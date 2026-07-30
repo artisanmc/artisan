@@ -10,7 +10,6 @@ import { useTranslation } from "react-i18next";
 
 interface TopBarKebabMenuProps {
   onImport: () => void;
-  onExport: () => void;
   onExportZip: () => void;
   onOpenPatterns: () => void;
   onDelete: () => void;
@@ -18,7 +17,6 @@ interface TopBarKebabMenuProps {
 
 export function TopBarKebabMenu({
   onImport,
-  onExport,
   onExportZip,
   onOpenPatterns,
   onDelete,
@@ -35,7 +33,6 @@ export function TopBarKebabMenu({
       <DropdownMenuContent align="end">
         <DropdownMenuItem onSelect={onExportZip}>{t("topbar.exportZip")}</DropdownMenuItem>
         <DropdownMenuItem onSelect={onImport}>{t("topbar.import")}</DropdownMenuItem>
-        <DropdownMenuItem onSelect={onExport}>{t("topbar.export")}</DropdownMenuItem>
         <DropdownMenuItem onSelect={onOpenPatterns}>{t("patterns.title")}</DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
