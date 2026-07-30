@@ -51,7 +51,7 @@ class BundleDownloader(
         projectDir.mkdirs()
 
         // 1) Build expected rel-paths and write incoming files. Writes are
-        // ATOMIC (tmp + rename): a reader (or the disk watcher) never sees a
+        // ATOMIC (tmp + rename): a reader (or the disk scan) never sees a
         // half-written YAML. Unchanged files are skipped entirely — an echo of
         // our own local_push re-downloads identical content without touching disk.
         val expectedRelPaths = mutableSetOf<String>()
