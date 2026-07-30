@@ -6,7 +6,6 @@ import { TopBarKebabMenu } from "./TopBarKebabMenu";
 describe("TopBarKebabMenu", () => {
   const baseProps = {
     onImport: vi.fn(),
-    onExport: vi.fn(),
     onExportZip: vi.fn(),
     onOpenPatterns: vi.fn(),
     onDelete: vi.fn(),
@@ -21,9 +20,8 @@ describe("TopBarKebabMenu", () => {
     const user = userEvent.setup();
     render(<TopBarKebabMenu {...baseProps} />);
     await user.click(screen.getByLabelText(/More actions|Plus d'actions|topbar\.more/i));
-    expect(screen.getByText(/Exporter vers le serveur|Export to server|topbar\.exportZip/i)).toBeInTheDocument();
+    expect(screen.getByText(/Exporter le projet|Export project|topbar\.exportZip/i)).toBeInTheDocument();
     expect(screen.getByText(/Importer un projet|Import a project|topbar\.import/i)).toBeInTheDocument();
-    expect(screen.getByText(/Exporter le projet|Export project|^topbar\.export$/i)).toBeInTheDocument();
     expect(screen.getByText(/Patterns|Aide-mémoire|Cheat sheet|patterns\.title/i)).toBeInTheDocument();
     expect(screen.getByText(/Supprimer|Delete|topbar\.deleteProject/i)).toBeInTheDocument();
   });

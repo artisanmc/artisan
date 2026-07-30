@@ -2,7 +2,6 @@ import { DivergenceBanner } from "@/components/DivergenceBanner";
 import { ProjectConflictBanner } from "@/components/ProjectConflictBanner";
 import { ProjectTopBarControls } from "@/components/ProjectTopBarControls";
 import { SplitPane } from "@/components/SplitPane";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   Sheet,
   SheetBody,
@@ -13,11 +12,7 @@ import {
 } from "@/components/ui/sheet";
 import { WorkspaceView } from "@/components/ui/workspace-view";
 import type { ElementId, ItemTemplateId, MenuId, ProjectId } from "@/domain/types";
-import {
-  exportProjectToFile,
-  importProjectFromFile,
-  pickProjectFileForImport,
-} from "@/features/account/projectFileIo";
+import { pickProjectZipForImport, runImportZip } from "@/features/export/runImportZip";
 import { AssistantBody } from "@/features/assistant/AssistantBody";
 import { EditorPane } from "@/features/canvas/EditorPane";
 import { FloatingEditorPane } from "@/features/canvas/FloatingEditorPane";
@@ -127,22 +122,20 @@ export function ProjectCanvasPage() {
 
   const [patternsOpen, setPatternsOpen] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [exportErrorsOpen, setExportErrorsOpen] = useState(false);
-  const [exportErrors, setExportErrors] = useState<string[]>([]);
 
   const importProjectAction = useAccountStore((s) => s.importProject);
   const setSelection = useSelectionStore((s) => s.set);
   const handleImport = () => {
-    pickProjectFileForImport((file) => {
-      importProjectFromFile(file, importProjectAction as (input: { pack: unknown }) => string)
+    pickProjectZipForImport((file) => {
+      runImportZip(file, importProjectAction as (input: { pack: unknown }) => string)
         .then(({ newId, name }) => {
           setSelection([newId as ElementId]);
           toast.success(t("toast.importedProject", { name }));
         })
         .catch((e: Error) => {
-          toast.error(
-            e.message === "file_read_failed" ? t("toast.fileReadFailed") : t("toast.importFailed"),
-          );
+          if (e.message === "not_a_zip") return toast.error(t("toast.importNotZip"));
+          if (e.message === "no_manifest") return toast.error(t("toast.importNoManifest"));
+          toast.error(t("toast.importFailed"));
         });
     });
   };
@@ -459,15 +452,14 @@ export function ProjectCanvasPage() {
           pack={pack}
           projectId={pId}
           onImport={handleImport}
-          onExport={() => exportProjectToFile(pack)}
           onExportZip={async () => {
-            const res = await runExportZip(pack);
+            const res = await runExportZip(pack, !!currentUser);
             if (!res.ok) {
-              setExportErrors(res.errors);
-              setExportErrorsOpen(true);
+              toast.error(
+                res.error === "not_signed_in" ? t("export.needsAccount") : t("export.failed"),
+              );
               return;
             }
-            for (const w of res.warnings) toast.warning(w);
             toast.success(t("export.success"));
           }}
           onOpenPatterns={() => setPatternsOpen(true)}
@@ -506,26 +498,6 @@ export function ProjectCanvasPage() {
 
         <PatternsGallery open={patternsOpen} onOpenChange={setPatternsOpen} />
 
-        <Dialog open={exportErrorsOpen} onOpenChange={setExportErrorsOpen}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>{t("export.errorTitle")}</DialogTitle>
-            </DialogHeader>
-            <p className="mb-3 text-[13px] text-[var(--text-mut)]">{t("export.errorSubtitle")}</p>
-            <ul className="space-y-1 text-[13px] text-[var(--danger)]">
-              {exportErrors.map((err, i) => (
-                // biome-ignore lint/suspicious/noArrayIndexKey: error list is stable within a render
-                <li key={i} className="flex gap-2">
-                  <span className="shrink-0">•</span>
-                  <span>{err}</span>
-                </li>
-              ))}
-            </ul>
-            <p className="mt-4 text-[12px] text-[var(--text-faint)]">
-              {t("export.overwriteWarning")}
-            </p>
-          </DialogContent>
-        </Dialog>
       </div>
 
       <LibraryDragOverlay />

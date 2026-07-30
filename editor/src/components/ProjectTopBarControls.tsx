@@ -26,9 +26,9 @@ import { transform } from "@/features/export/transform";
 import { WORKSPACE_VIEW_TABS, type WorkspaceViewTab } from "@/features/project/workspaceTabs";
 import { createCommit, getBranchHead } from "@/lib/api/branches";
 import { saveUserProject } from "@/lib/api/userProjects";
-import { projectFromFiles } from "@/schema/projectFromFiles";
 import { cn } from "@/lib/cx";
 import { countMissingForLang } from "@/lib/i18nUsages";
+import { projectFromFiles } from "@/schema/projectFromFiles";
 import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
 import { useProjectVersionStore } from "@/state/projectVersionStore";
@@ -65,7 +65,6 @@ export interface ProjectTopBarControlsProps {
 
   // Kebab menu handlers (route-specific implementations).
   onImport?: () => void;
-  onExport?: () => void;
   onExportZip?: () => void | Promise<void>;
   onOpenPatterns?: () => void;
   onDelete?: () => void;
@@ -84,7 +83,6 @@ export function ProjectTopBarControls({
   projectId,
   projectName,
   onImport,
-  onExport,
   onExportZip,
   onOpenPatterns,
   onDelete,
@@ -138,7 +136,6 @@ export function ProjectTopBarControls({
       <DeployButtons pack={pack} projectId={projectId} networkId={networkId ?? null} />
       <TopBarKebabMenu
         onImport={onImport ?? (() => {})}
-        onExport={onExport ?? (() => {})}
         onExportZip={onExportZip ?? (() => {})}
         onOpenPatterns={onOpenPatterns ?? (() => {})}
         onDelete={onDelete ?? (() => {})}
