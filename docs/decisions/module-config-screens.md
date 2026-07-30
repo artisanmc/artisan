@@ -65,9 +65,38 @@ de binding).
    reload) ; grisé « serveur hors ligne » sinon. Le backend **relaie sans
    stocker** — pas de copie backend spécifique à ces écrans. Pour un projet
    add-on Artisan, l'écriture WS-directe ne contourne pas le sync : elle atterrit
-   sur disque comme une édition manuelle et le watcher/auto-push P3b la propage
+   sur disque comme une édition manuelle et le scan/auto-push P3b la propage
    normalement — aucune nouvelle surface de conflit. *Rejeté :* éditer une
    copie backend relue à la reconnexion (théâtre de disponibilité).
+
+   > **Révisé le 2026-07-30 — le write est journalisé.** « Relaie sans stocker »
+   > laissait les config de module hors historique, alors que les menus du même
+   > project y sont : le même écran, la même UI, tantôt versionné tantôt
+   > volatil, sans que rien ne le signale. C'est exactement le « je m'attendais
+   > à un historique et il n'y en a pas » qu'on voulait éviter.
+   >
+   > La règle devient : **une racine gérée est une racine versionnée.** Après
+   > l'ack du plugin, le backend applique le même patch à l'arbre stocké du
+   > project et commite (`journalProjectFiles`, `lib/projectJournal.ts` — une
+   > seule implémentation, partagée avec les mutations in-game type
+   > `/boutique additem`), puis broadcast `bundle_available`. Ce broadcast n'est
+   > pas décoratif : il fait rafraîchir `.artisan-sync.yaml` au plugin, sans quoi
+   > son scan suivant verrait LOCAL_ONLY et repousserait le même contenu.
+   >
+   > Trois garde-fous : on journalise **après** l'ack, jamais avant (l'historique
+   > ne raconte pas une écriture qui n'a pas atterri) ; un `project_id` qui n'est
+   > pas un project Artisan ne journalise rien et **n'est pas créé** (inventer un
+   > project transformerait le dossier d'un plugin tiers en project Artisan dans
+   > le dos de l'admin) — la réponse porte `journaled: false` ; et une
+   > réécriture identique ne crée pas d'entrée (`createCommit` dédoublonne par
+   > hash de contenu).
+   >
+   > Ce qui **ne** change **pas** : la lecture reste live, l'écran reste grisé
+   > hors ligne, l'écriture passe toujours par le plugin. Ce qui rend la
+   > révision possible est que la détection disque est devenue fiable (spec
+   > `2026-07-30-poll-first-disk-sync-design`) : le jugement « théâtre de
+   > disponibilité » valait quand une copie backend n'aurait pas été
+   > resynchronisée de façon garantie.
 
 4. **Trajectoire « brancher Artisan sur l'existant » — trois cercles.**
    ① add-ons Artisan (fichiers possédés, writers canoniques) — **seul cercle

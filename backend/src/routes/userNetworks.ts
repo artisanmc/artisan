@@ -41,7 +41,9 @@ import { resolveNetworkForMember } from "../lib/refs";
 import { slugify } from "../lib/slug";
 import { allocServerSlug } from "../lib/slugAlloc";
 import type { AuthUser } from "../middleware/userAuth";
-import { disconnectServerKey, getInstanceCount, requestConfigRead, requestConfigWrite, requestDataSourceFetch, requestPlayerInventory } from "../ws/hub";
+import { disconnectServerKey, getInstanceCount, pushBundleAvailable, requestConfigRead, requestConfigWrite, requestDataSourceFetch, requestPlayerInventory } from "../ws/hub";
+import { applyConfigPatch, journalProjectFiles } from "../lib/projectJournal";
+import { getProject } from "../lib/projectStorage";
 import { handleResourcePackRebuild } from "./resourcePack";
 
 const EDITOR_URL = process.env.EDITOR_URL ?? "http://localhost:5173";
@@ -922,7 +924,32 @@ userNetworksRouter.post(
 			const status = error === "unknown_project" ? 404 : error === "invalid_path" ? 422 : 502;
 			return c.json({ error, message: r.message ?? null }, status);
 		}
-		return c.json({ ok: true });
+
+		// Journal the write the plugin just applied to disk (ADR
+		// module-config-screens §3, revised 2026-07-30): a managed root is a
+		// versioned root — a Config-screen edit belongs in the history like any
+		// other project edit. Only after the plugin acked, so history never
+		// claims a write that never landed. A root that is not an Artisan
+		// project journals nothing and stays a live-only surface.
+		const project = await getProject(body.project_id);
+		let journaled = false;
+		if (project) {
+			const prev = JSON.parse(project.filesJson) as Record<string, string>;
+			const next = applyConfigPatch(prev, body.project_id, files, deletes);
+			const paths = [...files.map((f) => f.path), ...deletes];
+			const res = await journalProjectFiles(body.project_id, next, {
+				message: `config: ${paths.slice(0, 3).join(", ")}${paths.length > 3 ? `, +${paths.length - 3}` : ""}`,
+				authorUserId: userId,
+			});
+			if (res.ok) {
+				journaled = true;
+				// Closes the sync loop: the plugin refreshes `.artisan-sync.yaml`
+				// against this commit, so its next scan reads IN_SYNC instead of
+				// LOCAL_ONLY and does not push the same content back.
+				await pushBundleAvailable(body.project_id, "main", res.contentHash);
+			}
+		}
+		return c.json({ ok: true, journaled });
 	},
 );
 

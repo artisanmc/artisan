@@ -9,6 +9,30 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Changed — les écritures des Config screens de module sont journalisées
+- **Une racine gérée est une racine versionnée.** Une écriture depuis un écran de config de module part dans l'historique du project comme n'importe quelle autre édition : arbre stocké mis à jour, commit sur `main` (auteur = l'utilisateur connecté), `bundle_available`. Avant, le backend « relayait sans stocker » : le même écran, avec la même UI, éditait tantôt un fichier versionné tantôt un fichier volatil, sans que rien ne le signale.
+- Le broadcast `bundle_available` n'est pas décoratif : il fait rafraîchir `.artisan-sync.yaml` au plugin, sans quoi son scan suivant verrait LOCAL_ONLY et repousserait le même contenu.
+- **Garde-fous** : la journalisation a lieu **après** l'ack du plugin (l'historique ne raconte jamais une écriture qui n'a pas atterri sur le disque) ; un `project_id` qui n'est pas un project Artisan ne journalise rien et **n'est pas créé** — la réponse porte alors `journaled: false` ; une réécriture identique n'ajoute pas d'entrée (`createCommit` dédoublonne par hash de contenu).
+- `POST …/config/write` répond désormais `{ok:true, journaled:boolean}`.
+- **Une seule implémentation** de « persiste l'arbre + commit + avance main » : `lib/projectJournal.ts`, partagée avec les mutations in-game (`/boutique additem`), qui portait jusqu'ici sa propre copie de la séquence.
+- Inchangé : la lecture reste live, l'écran reste grisé hors ligne, l'écriture passe toujours par le plugin.
+
+### Changed — l'export/import de project est un zip de l'arbre serveur, plus un JSON
+- **L'export télécharge l'arbre de fichiers tel que le serveur le stocke**, zippé — plus une régénération depuis le domaine en mémoire. L'archive porte donc ce que le domaine ne modélise pas (`.artisan/editor.yaml`, les fichiers propres d'une racine Add-on), et se dézippe telle quelle par-dessus `plugins/Artisan/projects/`.
+- **Un export n'est plus conditionné à la validation.** Un project invalide s'exportait en échec ; récupérer ses fichiers ne doit pas dépendre de leur validité — c'est la promesse anti-lock-in. La modale « Impossible d'exporter » disparaît avec elle.
+- L'auto-save en attente est flushé avant l'export, sinon l'archive retardait de la fenêtre de debounce.
+- **L'import accepte un zip** : le nôtre, ou un dossier de project zippé directement depuis le serveur. Les chemins sont re-routés sur `plugins/Artisan/projects/<id>/` quelle que soit la forme reçue (manifest à la racine, dossier de project, emballage supplémentaire) ; l'id vient du `project_id` du manifest, sinon du nom du dossier.
+- **Supprimé** : l'export et l'import JSON (`.artisan.json`). Ils sérialisaient le domaine en mémoire — une seconde représentation du project à côté de l'arbre de fichiers, exactement ce que la démolition d'`editorJson` (P3a) avait retiré du backend.
+- L'export requiert le réseau (pas de repli sur une régénération locale, qui produirait une archive *presque* fidèle sans le dire) : hors ligne, un message le dit.
+
+### Changed — la détection des éditions disque devient un scan de contenu (spec `2026-07-30-poll-first-disk-sync-design`)
+- **`ProjectWatcher` (inotify) supprimé, remplacé par `SyncScanner`** (tick périodique, 3 s par défaut). Règle de conception : **aucun chemin de correction ne dépend d'un événement du système de fichiers.** Le watcher rendait la correction tributaire d'événements OS jamais délivrés sur bind mount Docker Desktop, NFS ou SMB — le comportement différait entre dev et prod, et les « filets » (check au `hello_ack`, `/artisan pushLocal`) portaient en réalité la correction.
+- **Fix — une édition disque pouvait être perdue silencieusement** : une édition concurrente d'une écriture du plugin était retirée du set des projets sales par la fenêtre de suppression, puis effacée au flush. Pas retardée, perdue, jusqu'au prochain `hello_ack`. La fenêtre de suppression n'existe plus : `BundleDownloader` enregistre le hash qu'il vient d'écrire, donc le tick suivant résout IN_SYNC — « est-ce moi qui ai écrit ça ? » est une question de contenu, pas de timing.
+- **Fix — un arbre en cours d'upload (FTP, `unzip`) ne pouvait plus être poussé du tout** : le debounce se replanifiait à chaque écriture et n'atteignait jamais sa période de silence. Remplacé par une quiescence bornée (2 ticks consécutifs identiques), qui évite aussi de committer un arbre à moitié écrit.
+- Tick : court-circuit `stat` (rien n'est lu si la signature n'a pas bougé), puis vrai hash de contenu un tick sur 10 pour couvrir les FS à granularité mtime grossière.
+- La fenêtre d'écho entre un `local_push` et le `bundle_available` qui l'acquitte est fermée par un dédoublonnage **en mémoire** (`lastPushedHash`), vidé au `hello_ack` et après chaque download : un push perdu en vol est reposté, jamais oublié.
+- Les tests de sync pilotent les ticks à la main — plus aucune dépendance à inotify ni aux `sleep`, donc ils se comportent identiquement sur toutes les plateformes.
+
 ### Changed — les fichiers `lang/` sont des arborescences YAML
 - **Format disque** : `lang/<code>.yaml` s'écrit désormais en arbre (`menus:` → `<menu_id>:` → `elements:` → …) au lieu d'une clé pointée complète par ligne. Chaque `.` de la clé devient un niveau ; le runtime adresse toujours par clé pointée (`menus.shop.title`), c'est uniquement la forme du fichier qui change.
 - **Lecture tolérante** aux trois formes (arbre, plat legacy, mélange des deux) côté plugin (`LangFlattener`), import éditeur (`projectFromFiles`) et mutation module (`applyBoutiqueAdditem`) — aucun fichier existant à migrer, le premier enregistrement éditeur renest le fichier. Codec verrouillé cross-langage par `testdata/lang-tree-conformance.json`.
