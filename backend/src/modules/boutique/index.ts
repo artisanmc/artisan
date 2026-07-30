@@ -2,10 +2,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import { parse, stringify } from "yaml";
 import { db } from "../../db/index";
 import { projects } from "../../db/schema";
-import { advanceBranchHead, getBranch } from "../../lib/branchStorage";
-import { createCommit } from "../../lib/commitStorage";
-import { computeBundleHash } from "../../lib/hashUtils";
-import { upsertProjectContent } from "../../lib/projectStorage";
+import { journalProjectFiles } from "../../lib/projectJournal";
 import { flattenLangTree, nestLangTree } from "../../../../editor/src/lib/langTree";
 
 /**
@@ -141,22 +138,12 @@ async function persistAndCommit(
   files: Record<string, string>,
   itemId: string,
 ): Promise<BoutiqueAdditemResult> {
-  const hash = await computeBundleHash(files, target.id);
-  await upsertProjectContent(target.id, { hash, filesJson: JSON.stringify(files) });
-  const branch = await getBranch(target.id, "main");
-  let contentHash = hash;
-  if (branch) {
-    const commit = await createCommit({
-      projectId: target.id,
-      parentId: branch.headCommitId,
-      files,
-      authorUserId: null,
-      message: `additem ${itemId} (/boutique additem)`,
-    });
-    await advanceBranchHead(target.id, "main", commit.id);
-    contentHash = commit.contentHash;
-  }
-  return { ok: true, projectId: target.id, contentHash };
+  const res = await journalProjectFiles(target.id, files, {
+    message: `additem ${itemId} (/boutique additem)`,
+  });
+  // `target` was resolved from the DB just above, so `not_a_project` is unreachable.
+  if (!res.ok) return { ok: false, error: "no_boutique_project" };
+  return { ok: true, projectId: target.id, contentHash: res.contentHash };
 }
 
 /**
