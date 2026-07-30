@@ -265,7 +265,7 @@ Cf. `docs/superpowers/specs/2026-05-27-workspace-shell-and-settings-design.md`.
 - **Source picker (`SourcePickerOptions`, `MenuProperties.tsx`)** — liste désormais les data sources live du serveur connecté (`useServerDataSourcesStore`, endpoint `GET /api/v1/networks/:networkId/servers/:serverId/data-sources`, cookie auth, section "On this server"), en plus des project data ; les refs restent librement saisissables (invariant hermétique). Le flow « import de connecteurs » YAML a été retiré le 2026-07-17 (mort — remplacé par les sources reportées serveur).
 - **`SourceShapingEditor` (`properties/SourceShapingEditor.tsx`)** — éditeur visuel monté sous chaque `SourceRefInputRow` : filtre égalité (`filter: Record<field, value>`, valeur littérale ou `{arg}`), tri mono-clé (`sort.by`/`direction`), `limit`. Aucun changement runtime — édite les mêmes champs opaques `ContextInput.sourceRef` (round-trip YAML inchangé). Autocomplétion via `<datalist>` : champs depuis `serverSource.schema` (fallback saisie libre si `[]`), valeurs `{arg}` depuis les `contextInputs` de type `primitive` du menu.
 - **`MenuDataSection` (`properties/MenuDataSection.tsx`)** — section « Données du menu » sous `ContextInputsEditor` : une carte par `sourceRef` consommé (ref, badge module, résumé des filtres actifs). Preview live via `previewDataSource` (`POST …/data-sources/preview`) avec les filtres du menu + un formulaire de valeurs d'essai pour chaque token `{arg}` détecté (`extractArgTokens`). Refs `pack:*` (project data) : pas de preview serveur, juste un hint renvoyant vers l'onglet Data.
-- **Top bar** (`ProjectTopBarControls.tsx`) — de gauche à droite : toggle sidebar (icône), **`WorkspaceViewNav`** (switcher segmenté des vues : Canvas / Traductions / Sources / Historique / Assistant, item actif surligné via `--surface-raised`, badge « traductions manquantes » sur l'entrée Traductions ; l'entrée Canvas clear le `?tab`), project name, `LangSwitcher` (contenu project), `UndoRedoButtons`, `SearchButton`, `DeployButtons`, `TopBarKebabMenu ⋮` (Import / Export JSON / Patterns / ─── / Delete project). Le nav lit l'onglet actif via `useSearch({ strict: false })`. **Raccourcis hotbar** : les touches physiques 1-5 (Minecraft-style, `useWorkspaceTabShortcuts` monté dans la route) switchent les vues dans l'ordre de `WORKSPACE_VIEW_TABS` (`features/project/workspaceTabs.ts`, source unique consommée aussi par le nav) — via `e.code` (`Digit`/`Numpad`) donc AZERTY-safe sans Maj ; ignorés si focus dans un champ / modificateur tenu / palette de recherche ouverte. Chaque entrée du nav affiche un badge `<kbd>` avec son chiffre.
+- **Top bar** (`ProjectTopBarControls.tsx`) — de gauche à droite : toggle sidebar (icône), **`WorkspaceViewNav`** (switcher segmenté des vues : Canvas / Traductions / Sources / Historique / Assistant, item actif surligné via `--surface-raised`, badge « traductions manquantes » sur l'entrée Traductions ; l'entrée Canvas clear le `?tab`), project name, `LangSwitcher` (contenu project), `UndoRedoButtons`, `SearchButton`, `DeployButtons`, `TopBarKebabMenu ⋮` (Exporter le projet (.zip) / Importer un projet (.zip) / Patterns / ─── / Delete project). Le nav lit l'onglet actif via `useSearch({ strict: false })`. **Raccourcis hotbar** : les touches physiques 1-5 (Minecraft-style, `useWorkspaceTabShortcuts` monté dans la route) switchent les vues dans l'ordre de `WORKSPACE_VIEW_TABS` (`features/project/workspaceTabs.ts`, source unique consommée aussi par le nav) — via `e.code` (`Digit`/`Numpad`) donc AZERTY-safe sans Maj ; ignorés si focus dans un champ / modificateur tenu / palette de recherche ouverte. Chaque entrée du nav affiche un badge `<kbd>` avec son chiffre.
 - **Pane properties droit — carte flottante (desktop)** : depuis 2026-07-20 le `EditorPane` n'est plus une colonne dockée. Le `Stage` est full-bleed (`absolute inset-0`) et `FloatingEditorPane` (`features/canvas/FloatingEditorPane.tsx`) flotte par-dessus, ancré à droite (`absolute top/right/bottom-3`, `z-20`) : carte arrondie, `--surface-raised/80` + `backdrop-blur-xl` + `--shadow-lg`, donc le canvas se voit derrière + à gauche. Poignée de resize sur le **bord gauche** (bord droit ancré, `width = paneRight - cursorX`, persistée dans `uiStore.editorPaneWidth`). `EditorPane` est redevenu un conteneur simple (le wrapper porte la surface). **Mobile (<lg)** : inchangé — `SplitPane` vertical Stage/Editor.
 - **`/settings`** — sidebar de sections (V1 = Apparence, héberge `EditorLangSwitcher`) + main content.
 - **`/admin`** — console super-admin. `routes/admin.tsx` est un **layout route** (gate admin + `<Outlet/>`) avec pages enfants `admin.index.tsx` (IA, `AssistantConfigForm`) et `admin.design.tsx` (`DesignSystemPage`). Pas d'onglets : sur `/admin*` (et user admin), `__root.tsx` remplace la `ProjectSidebar` par **`AdminSidebar`** (`components/AdminSidebar.tsx`) — même shell (brand top, `UserMenu` bottom, drawer mobile conservé), nav de sections IA / Design system + lien « Retour à l'éditeur » (→ `/networks`). **Gate côté composant** via `authStore` (mirror de `account.tsx`) : retourne `null` tant que `isLoading`, puis « admins only » si `!currentUser.isAdmin` (le `isAdmin` vient du `/me`). Le backend reste de toute façon gardé `requireAdmin` sur `/api/v1/admin/*`. Le client API (`lib/api/adminConfig.ts`) est en **cookie** (`credentials:"include"`). L'entrée « Console admin » sur `/account` n'apparaît que pour les admins. Clé API **write-only** : le GET ne renvoie jamais la clé (`keySet: boolean`), le champ vide laisse la clé inchangée.
@@ -302,6 +302,31 @@ Kind de champ `actions` (`ModelFieldType`) : une **Action chain** (`Step[]`) sto
 - **UI** (`features/data/ActionFieldEditor.tsx`) — deux modes sur la **même** chaîne DSL : **Visuel** (`ControlledStepsEditor` pseudocode via l'adaptateur) et **Code** (textarea DSL brut = la forme disque). Erreur de parse → fallback textarea. Câblé dans `SourceValueEditor` (`case "actions"`).
 - **Export** — `serializeDataFieldType` émet `kind: "actions"` (le plugin le parsera+exécutera) ; `serializeDataValue` passe la chaîne verbatim. Schéma `data/v1` : `actions` dans l'enum des kinds.
 - **Différé** : parseur + évaluateur de feuille Kotlin (contre les mêmes fixtures), exécution runtime, litéraux de liste `[...]`, montants dynamiques, queue avancée du DSL d'expressions.
+
+## Export / import de project (.zip)
+
+**Export** (`features/export/runExportZip.ts`) — l'archive est l'arbre de fichiers
+**tel que le backend le stocke**, pas une régénération depuis le domaine : flush de
+l'auto-save (`persistProject`), `GET /api/v1/user/projects/:id` → `files`, `buildZip`
+verbatim. Deux conséquences voulues : l'archive porte ce que le domaine ne modélise
+pas (`.artisan/editor.yaml`, les fichiers propres d'une racine Add-on), et **aucune
+validation ne peut bloquer la sortie des fichiers** — récupérer sa config ne dépend
+pas de sa validité (promesse anti-lock-in, ADR `files-first-source-of-truth`).
+Réseau requis : sans backend joignable l'export échoue, il n'y a pas de repli sur
+`transform()` (un repli produirait une archive *presque* fidèle sans le dire).
+
+**Import** (`features/export/runImportZip.ts`) — `zip → files → projectFromFiles`,
+sans format intermédiaire. `normalizeProjectFiles` (`projectZip.ts`) re-route les
+entrées sur `plugins/Artisan/projects/<id>/` quelle que soit la forme reçue : notre
+export, un dossier de project zippé directement depuis le serveur, un `manifest.yaml`
+à la racine, ou l'un des trois emballé dans un dossier supplémentaire. La racine est
+le dossier du `manifest.yaml` le **moins profond** ; l'id vient du `project_id` du
+manifest, sinon du nom de dossier. Erreurs typées `not_a_zip` / `no_manifest`.
+
+> L'export/import JSON (`projectFileIo.ts`, `.artisan.json`) a été supprimé le
+> 2026-07-30 : il sérialisait le domaine en mémoire, une seconde représentation du
+> project à côté de l'arbre de fichiers — exactement ce que `editorJson` avait déjà
+> coûté (P3a).
 
 ## Import `menu/v1 → domain` (inverse de l'export)
 

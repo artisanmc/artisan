@@ -1,38 +1,42 @@
-import { rekeyProject } from "@/domain/i18nSites";
 import type { Project } from "@/domain/types";
+import { persistProject } from "@/features/project/persistProject";
+import { loadUserProject } from "@/lib/api/userProjects";
 import { buildZip } from "./buildZip";
-import { transform } from "./transform";
-import { validate } from "./validate";
 
 export interface ExportZipResult {
   ok: boolean;
-  errors: string[];
-  warnings: string[];
+  /** Set when the export could not be produced. */
+  error?: "not_signed_in" | "transport";
 }
 
 /**
- * Validates the pack, transforms to YAML files, bundles into a .zip and
- * triggers a browser download. Returns validation errors/warnings so the
- * caller can surface them (validation failures abort the download).
+ * Download the project's file tree **exactly as the server stores it**, zipped.
+ *
+ * The archive is the disk truth (files-first), not a regeneration from the
+ * in-memory domain: it therefore carries what the domain does not model — the
+ * `.artisan/editor.yaml` board state, and an Add-on root's own files. And it is
+ * never gated on validation: getting your files out must not depend on their
+ * being valid, which is the whole anti-lock-in promise.
+ *
+ * The pending auto-save is flushed first, otherwise the archive would lag the
+ * editor by the debounce window.
  */
-export async function runExportZip(pack: Project): Promise<ExportZipResult> {
-  const exportProject = structuredClone(pack);
-  rekeyProject(exportProject);
-
-  const result = validate(exportProject);
-  if (!result.valid) {
-    return { ok: false, errors: result.errors, warnings: result.warnings };
+export async function runExportZip(pack: Project, hasUser: boolean): Promise<ExportZipResult> {
+  if (!hasUser) return { ok: false, error: "not_signed_in" };
+  try {
+    await persistProject(pack, hasUser);
+    const { files } = await loadUserProject(pack.id);
+    const blob = await buildZip(files);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${pack.id}.zip`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "transport" };
   }
-
-  const files = transform(exportProject);
-  const blob = await buildZip(files);
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `${pack.id}.zip`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-  return { ok: true, errors: [], warnings: result.warnings };
 }
