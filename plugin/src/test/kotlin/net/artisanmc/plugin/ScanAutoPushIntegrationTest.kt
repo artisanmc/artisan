@@ -13,12 +13,12 @@ import kotlin.test.assertTrue
 import kotlin.test.fail
 
 /**
- * Provider-level wiring of the disk watcher (ADR files-first #6): an on-disk
- * edit hot-reloads the in-memory menus AND auto-pushes via local_push when the
- * backend hasn't moved (LOCAL_ONLY); a divergence (CONFLICT) hot-reloads but
- * never pushes.
+ * Provider-level wiring of the disk scanner (spec
+ * `2026-07-30-poll-first-disk-sync-design`): an on-disk edit hot-reloads the
+ * in-memory menus AND auto-pushes via local_push when the backend hasn't moved
+ * (LOCAL_ONLY); a divergence (CONFLICT) hot-reloads but never pushes.
  */
-class WatcherAutoPushIntegrationTest {
+class ScanAutoPushIntegrationTest {
 
     private fun writeProject(packsRoot: File, id: String, title: String): File {
         val dir = File(packsRoot, id).apply { mkdirs() }
@@ -32,13 +32,12 @@ class WatcherAutoPushIntegrationTest {
         SyncedMenuProvider(
             net.artisanmc.plugin.project.ProjectRoots(packsRoot),
             serverKey = serverKey, wsUrl = "ws://unused", logger = null,
-            watchDebounceMs = 200,
+            scanIntervalMs = 60,
         ).also {
             val reload = it.javaClass.getDeclaredMethod("reloadFromDisk")
             reload.isAccessible = true
             reload.invoke(it)
-            it.startWatcher()
-            Thread.sleep(150)
+            it.startScanner()
         }
 
     private fun await(timeoutMs: Long = 5000, check: () -> Boolean) {

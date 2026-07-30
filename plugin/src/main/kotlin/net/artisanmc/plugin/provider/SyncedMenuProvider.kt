@@ -72,8 +72,8 @@ class SyncedMenuProvider(
      * API). Default = synchronous, for tests; ArtisanPlugin injects the scheduler.
      */
     private val runOnMainThread: (() -> Unit) -> Unit = { it() },
-    /** Disk-watcher quiet period — long enough to absorb a multi-file agent burst. */
-    private val watchDebounceMs: Long = 1500,
+    /** Disk scan period — quiescence over two ticks absorbs a multi-file agent burst. */
+    private val scanIntervalMs: Long = 3000,
 ) : MenuProvider {
     companion object {
         internal const val MAX_PREVIEW_ROWS = 50
@@ -152,7 +152,7 @@ class SyncedMenuProvider(
 
     override fun load() {
         reloadFromDisk()
-        startWatcher()
+        startScanner()
         if (serverKey.isNotEmpty()) {
             val currentHash = BundleHasher.hashAll(roots)
             val mcVersion = try {
@@ -186,8 +186,8 @@ class SyncedMenuProvider(
     }
 
     override fun unload() {
-        watcher?.stop()
-        watcher = null
+        scanner?.stop()
+        scanner = null
         wsClient?.disconnect()
         httpClient.dispatcher.cancelAll()
         httpClient.connectionPool.evictAll()
@@ -269,25 +269,45 @@ class SyncedMenuProvider(
         return msg["hash"] as? String
     }
 
-    @Volatile private var watcher: net.artisanmc.plugin.sync.ProjectWatcher? = null
+    /**
+     * Disk hash of the last automatic push, per project. In memory only, on
+     * purpose: it closes the echo window between a `local_push` and the
+     * `bundle_available` that acknowledges it (several triggers can observe the
+     * same LOCAL_ONLY tree — a config_write and the scan a tick later), without
+     * ever claiming on disk that something was synced when it may not have
+     * landed. Cleared on reconnect and after a download, so a push lost in
+     * flight is retried rather than forgotten.
+     */
+    private val lastPushedHash = ConcurrentHashMap<String, String>()
+
+    /** Automatic (non-forced) push of a LOCAL_ONLY tree, at most once per disk hash. */
+    private fun autoPush(projectId: String, projectDir: java.io.File, diskHash: String) {
+        if (lastPushedHash[projectId] == diskHash) return
+        lastPushedHash[projectId] = diskHash
+        pushLocalProject(projectId, projectDir)
+    }
+
+    @Volatile private var scanner: net.artisanmc.plugin.sync.SyncScanner? = null
 
     /**
-     * Debounced disk watcher (ADR files-first-source-of-truth #6): hand/agent
-     * edits hot-reload immediately and auto-push when connected. Internal so
-     * tests can start it without load()'s WS side effects.
+     * Poll-first disk sync (spec `2026-07-30-poll-first-disk-sync-design`,
+     * revising ADR files-first-source-of-truth #6): hand/agent edits hot-reload
+     * and auto-push when connected. Content-based, so it behaves identically on
+     * Docker bind mounts, NFS and native filesystems. Internal so tests can
+     * start it without load()'s WS side effects.
      */
-    internal fun startWatcher() {
-        if (watcher != null) return
-        watcher = net.artisanmc.plugin.sync.ProjectWatcher(
+    internal fun startScanner() {
+        if (scanner != null) return
+        scanner = net.artisanmc.plugin.sync.SyncScanner(
             roots,
-            debounceMs = watchDebounceMs,
+            intervalMs = scanIntervalMs,
             logger = logger,
-            onProjectsChanged = ::onWatchedChange,
+            onProjectsChanged = ::onScanChanged,
         ).also { it.start() }
     }
 
-    /** Runs on the watcher's flush thread — same off-main pattern as bundle_available. */
-    private fun onWatchedChange(projectIds: Set<String>) {
+    /** Runs on the scanner's tick thread — same off-main pattern as bundle_available. */
+    private fun onScanChanged(projectIds: Set<String>) {
         reloadFromDisk()
         draftMenus.clear()
         onReload?.invoke()
@@ -301,7 +321,7 @@ class SyncedMenuProvider(
                 SyncAction.IN_SYNC, SyncAction.AUTO_SYNC -> {}
                 SyncAction.LOCAL_ONLY -> {
                     logger?.warning("[Artisan] '$projectId' changed on disk — hot-reloaded, auto-pushing.")
-                    pushLocalProject(projectId, projectDir)
+                    autoPush(projectId, projectDir, diskHash)
                 }
                 SyncAction.CONFLICT -> {
                     logger?.warning(
@@ -343,9 +363,8 @@ class SyncedMenuProvider(
     /**
      * Rejoue le contrôle de synchro du hello_ack. Nécessaire parce qu'un module
      * peut écrire des fichiers de project à son activation — donc APRÈS le
-     * hello_ack, le contrôle étant déjà passé. Le watcher rattrape sur un FS
-     * natif, mais pas sur un bind mount Docker (inotify muet) : sans ce rappel,
-     * le fichier reste local et finit balayé par le sweep du prochain bundle.
+     * hello_ack, le contrôle étant déjà passé. Le scan périodique rattraperait
+     * au tick suivant ; ce rappel évite simplement d'attendre.
      */
     fun recheckLocalChanges() {
         val hashes = lastProjectHashes ?: return
@@ -364,7 +383,7 @@ class SyncedMenuProvider(
             if (backendHash.isEmpty() && diskHash.isNotEmpty()) {
                 logger?.info("Pack $projectId: backend reports empty — auto-pushing local content")
                 httpClient.dispatcher.executorService.execute {
-                    pushLocalProject(projectId, projectDir)
+                    autoPush(projectId, projectDir, diskHash)
                 }
                 return@forEach
             }
@@ -382,7 +401,7 @@ class SyncedMenuProvider(
                         "[Artisan] Local pack '$projectId' changed on disk (backend unchanged) — auto-pushing local content."
                     )
                     httpClient.dispatcher.executorService.execute {
-                        pushLocalProject(projectId, projectDir)
+                        autoPush(projectId, projectDir, diskHash)
                     }
                 }
                 SyncAction.CONFLICT -> {
@@ -408,6 +427,9 @@ class SyncedMenuProvider(
             "hello_ack" -> {
                 val sessionId = node["session_id"]?.asText()
                 logger?.info("Connected to Artisan backend (session=$sessionId)")
+                // Fresh connection: re-arm auto-push, so anything lost in flight on
+                // the previous session is pushed again rather than forgotten.
+                lastPushedHash.clear()
 
                 apiUrl = node["bundle_url"]?.asText() ?: node["api_url"]?.asText()
                 editorUrl = node["server_url"]?.asText() ?: node["editor_url"]?.asText() ?: editorUrl
@@ -472,7 +494,7 @@ class SyncedMenuProvider(
                                     "[Artisan] bundle_available for '$projectId' ignored — disk has local-only changes; auto-pushing instead."
                                 )
                                 httpClient.dispatcher.executorService.execute {
-                                    pushLocalProject(projectId, projectDir)
+                                    autoPush(projectId, projectDir, diskHash)
                                 }
                                 return
                             }
@@ -491,9 +513,9 @@ class SyncedMenuProvider(
                 if (downloadsInFlight.putIfAbsent(projectId, true) != null) return
                 try {
                     httpClient.dispatcher.executorService.execute {
-                        // Self-write suppression: the download's disk writes must not
-                        // loop back through the watcher as a local edit.
-                        watcher?.beginSuppress(projectId)
+                        // No self-write suppression needed: the downloader records the
+                        // hash it just wrote, so the next scan resolves to IN_SYNC and
+                        // nothing is pushed back. Content, not timing.
                         try {
                             val downloader = BundleDownloader(httpClient, roots, logger)
                             downloader.download(url = url, serverKey = serverKey, projectId = projectId)
@@ -502,7 +524,7 @@ class SyncedMenuProvider(
                             logger?.info("[ART-DEBUG] bundle_available: triggering onReload for pack=$projectId")
                             onReload?.invoke()
                         } finally {
-                            watcher?.endSuppress(projectId)
+                            lastPushedHash.remove(projectId)
                             downloadsInFlight.remove(projectId)
                         }
                     }
@@ -635,8 +657,9 @@ class SyncedMenuProvider(
 
             // Config screens live channel (ADR module-config-screens): the editor
             // reads/writes a table's files through the backend relay. A write is a
-            // plain disk edit from sync's point of view — suppressed against the
-            // watcher, then pushed through the exact onWatchedChange logic.
+            // plain disk edit from sync's point of view — pushed here through the
+            // exact onScanChanged logic, and de-duplicated against the scan that
+            // will observe the same tree a tick later.
             "config_read" -> {
                 val requestId = node["request_id"]?.asText() ?: return
                 val projectId = node["project_id"]?.asText() ?: return
@@ -733,35 +756,30 @@ class SyncedMenuProvider(
                             return@execute
                         }
                         try {
-                            watcher?.beginSuppress(projectId)
-                            try {
-                                writes.forEach { (path, content) ->
-                                    val target = java.io.File(projectDir, path)
-                                    if (target.isFile && target.readText() == content) return@forEach
-                                    target.parentFile?.mkdirs()
-                                    val tmp = java.io.File(target.parentFile, target.name + ".artisan-tmp")
-                                    tmp.writeText(content)
-                                    java.nio.file.Files.move(
-                                        tmp.toPath(), target.toPath(),
-                                        java.nio.file.StandardCopyOption.REPLACE_EXISTING,
-                                    )
-                                }
-                                deletes.forEach { path ->
-                                    val target = java.io.File(projectDir, path)
-                                    if (target.isFile) target.delete()
-                                }
-                                reloadFromDisk()
-                                draftMenus.clear()
-                                onReload?.invoke()
-                            } finally {
-                                watcher?.endSuppress(projectId)
+                            writes.forEach { (path, content) ->
+                                val target = java.io.File(projectDir, path)
+                                if (target.isFile && target.readText() == content) return@forEach
+                                target.parentFile?.mkdirs()
+                                val tmp = java.io.File(target.parentFile, target.name + ".artisan-tmp")
+                                tmp.writeText(content)
+                                java.nio.file.Files.move(
+                                    tmp.toPath(), target.toPath(),
+                                    java.nio.file.StandardCopyOption.REPLACE_EXISTING,
+                                )
                             }
+                            deletes.forEach { path ->
+                                val target = java.io.File(projectDir, path)
+                                if (target.isFile) target.delete()
+                            }
+                            reloadFromDisk()
+                            draftMenus.clear()
+                            onReload?.invoke()
                             if (serverKey.isNotEmpty()) {
                                 val diskHash = BundleHasher.hash(projectDir)
                                 val meta = SyncMetadata.read(projectDir)
                                 when (detectSyncAction(diskHash, meta.syncedHash, meta.backendHash)) {
                                     SyncAction.IN_SYNC, SyncAction.AUTO_SYNC -> {}
-                                    SyncAction.LOCAL_ONLY -> pushLocalProject(projectId, projectDir)
+                                    SyncAction.LOCAL_ONLY -> autoPush(projectId, projectDir, diskHash)
                                     SyncAction.CONFLICT ->
                                         send(LocalPushSender.buildDivergenceMessage(projectId, projectDir, meta.syncedHash))
                                 }
@@ -825,13 +843,10 @@ class SyncedMenuProvider(
         }
         menus = freshMenus
         dialogs = freshDialogs
-        // The move-to-trash is a self-write — keep it out of the watcher.
-        watcher?.beginSuppress(projectId)
-        try {
-            net.artisanmc.plugin.sync.ProjectDeleter(roots, logger).delete(projectId)
-        } finally {
-            watcher?.endSuppress(projectId)
-        }
+        // The move-to-trash needs no suppression: the project root disappears, so
+        // the scanner simply drops its state instead of seeing an edit.
+        net.artisanmc.plugin.sync.ProjectDeleter(roots, logger).delete(projectId)
+        lastPushedHash.remove(projectId)
         onReload?.invoke()
     }
 
