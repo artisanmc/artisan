@@ -80,6 +80,20 @@ editing path.
    inline `translations:` block — would require plugin-side positional key
    derivation, a fragile cross-language lockstep invariant.
 
+   **Amendement 2026-07-30 — les fichiers `lang/` sont des arborescences.** Un
+   fichier de langue s'écrit en arbre (chaque `.` de la clé = un niveau) et non
+   une clé pointée complète par ligne : c'est la forme lisible/éditable à la
+   main, cohérente avec « les fichiers sont la vérité ». L'adressage runtime
+   reste la clé pointée — le codec `nestLangTree`/`flattenLangTree`
+   (`editor/src/lib/langTree.ts`, miroir Kotlin `LangFlattener`, vecteur
+   `testdata/lang-tree-conformance.json`) est purement une forme de fichier.
+   Lecture tolérante aux trois formes (arbre / plat legacy / mélange) : rien à
+   migrer, le premier enregistrement renest. Cas limite assumé : `a.b` et
+   `a.b.c` ne peuvent pas coexister dans l'arbre — la clé bloquée reste pointée
+   à la racine (jamais perdue), l'ordre byte décide laquelle niche.
+   *Rejeté :* aplatir plus court (2-3 niveaux puis clés pointées) — deux règles
+   à retenir au lieu d'une.
+
 5. **`menu/v1` evolves in place.** The "never mutate a shipped schema version"
    discipline applies from real production use, which has not started; the
    owner explicitly waives it here (dated dispensation). Local Docker files are

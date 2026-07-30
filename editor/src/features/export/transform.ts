@@ -29,6 +29,7 @@ import type {
 } from "@/domain/types";
 import { slotCount } from "@/features/canvas/inventoryTypes";
 import { listLanguages } from "@/lib/i18nUsages";
+import { nestLangTree } from "@/lib/langTree";
 import { Document as YamlDocument, stringify } from "yaml";
 
 const i18nRef = (key: string): string => `{i18n:${key}}`;
@@ -1138,8 +1139,12 @@ export function transform(pack: Project): Record<string, string> {
   const referencedKeys = collectReferencedKeys(pack);
   const dsI18n = dataSourceI18n(pack);
   for (const lang of langs) {
+    // Written as a YAML tree, not one dotted key per line — `nestLangTree`
+    // re-sorts every level in byte order so the file stays deterministic.
     files[`${base}/lang/${lang}.yaml`] = stringify(
-      serializeLang(pack, lang, referencedKeys, lang === pack.defaultLang ? {} : (dsI18n.byLang[lang] ?? {})),
+      nestLangTree(
+        serializeLang(pack, lang, referencedKeys, lang === pack.defaultLang ? {} : (dsI18n.byLang[lang] ?? {})),
+      ),
       yamlOpts,
     );
   }

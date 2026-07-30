@@ -1,0 +1,91 @@
+{
+  "version": 1,
+  "description": "Cross-language conformance for project lang/<lang>.yaml nesting. `cases` are bidirectional: nest(flat) == nested AND flatten(nested) == flat. `readOnlyCases` lock reader tolerance only (hand-written shapes the writer never emits). Asserted by editor/src/lib/langTree.test.ts and plugin LangFlattenerTest.kt — change the algorithm, update both.",
+  "cases": [
+    {
+      "name": "simple",
+      "flat": {
+        "menus.shop_main.title": "Boutique",
+        "menus.shop_main.elements.back.default.title": "<gray>Retour"
+      },
+      "nested": {
+        "menus": {
+          "shop_main": {
+            "elements": { "back": { "default": { "title": "<gray>Retour" } } },
+            "title": "Boutique"
+          }
+        }
+      }
+    },
+    {
+      "name": "empty-and-multiline-values",
+      "flat": {
+        "menus.menu_test.title": "",
+        "menus.shop_category.elements.pagination.default.lore": "{item.lore}\n<yellow>Prix : {item.final_price} tokens"
+      },
+      "nested": {
+        "menus": {
+          "menu_test": { "title": "" },
+          "shop_category": {
+            "elements": {
+              "pagination": {
+                "default": { "lore": "{item.lore}\n<yellow>Prix : {item.final_price} tokens" }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "colon-in-segment",
+      "flat": { "menus.shop_category.elements.item:ci_c6dfed4bf1_1.default.lore": "zzza" },
+      "nested": {
+        "menus": {
+          "shop_category": { "elements": { "item:ci_c6dfed4bf1_1": { "default": { "lore": "zzza" } } } }
+        }
+      }
+    },
+    {
+      "name": "numeric-segments",
+      "flat": { "data.categories.1.name": "", "data.categories.10.name": "Blocs" },
+      "nested": { "data": { "categories": { "1": { "name": "" }, "10": { "name": "Blocs" } } } }
+    },
+    {
+      "name": "leaf-branch-collision-falls-back-to-flat-key",
+      "flat": { "a.b": "leaf", "a.b.c": "deeper" },
+      "nested": { "a": { "b": "leaf" }, "a.b.c": "deeper" }
+    },
+    {
+      "name": "empty",
+      "flat": {},
+      "nested": {}
+    }
+  ],
+  "readOnlyCases": [
+    {
+      "name": "already-flat-stays-readable",
+      "tree": { "menus.shop_main.title": "Boutique" },
+      "flat": { "menus.shop_main.title": "Boutique" }
+    },
+    {
+      "name": "mixed-nesting-and-dotted-keys",
+      "tree": { "menus": { "shop_main.title": "Boutique" }, "other.k": "v" },
+      "flat": { "menus.shop_main.title": "Boutique", "other.k": "v" }
+    },
+    {
+      "name": "non-string-scalars-coerce",
+      "tree": { "a": { "n": 42, "b": true, "f": 1.5 } },
+      "flat": { "a.n": "42", "a.b": "true", "a.f": "1.5" }
+    },
+    {
+      "name": "null-value-is-empty-string",
+      "tree": { "a": { "b": null } },
+      "flat": { "a.b": "" }
+    },
+    {
+      "name": "lists-and-empty-maps-are-dropped",
+      "tree": { "a": { "list": ["x", "y"], "empty": {} }, "keep": "yes" },
+      "flat": { "keep": "yes" }
+    }
+  ]
+}

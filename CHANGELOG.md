@@ -9,6 +9,13 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Changed — les fichiers `lang/` sont des arborescences YAML
+- **Format disque** : `lang/<code>.yaml` s'écrit désormais en arbre (`menus:` → `<menu_id>:` → `elements:` → …) au lieu d'une clé pointée complète par ligne. Chaque `.` de la clé devient un niveau ; le runtime adresse toujours par clé pointée (`menus.shop.title`), c'est uniquement la forme du fichier qui change.
+- **Lecture tolérante** aux trois formes (arbre, plat legacy, mélange des deux) côté plugin (`LangFlattener`), import éditeur (`projectFromFiles`) et mutation module (`applyBoutiqueAdditem`) — aucun fichier existant à migrer, le premier enregistrement éditeur renest le fichier. Codec verrouillé cross-langage par `testdata/lang-tree-conformance.json`.
+- Une clé bloquée par une feuille (`a.b` **et** `a.b.c` ne peuvent pas coexister en arbre) reste une clé pointée à la racine plutôt que d'être perdue. Valeurs non-string coercées (`1.21` est une traduction, pas un flottant), `null` = sentinelle `""`.
+- **Vue YAML du panneau Traductions** : même arborescence que le fichier disque (commentaires portés par les feuilles), et « Appliquer » accepte aussi un `lang/` collé verbatim. Le commentaire de contexte n'est plus émis quand il répète la clé mot pour mot — depuis que les clés ltext sont des adresses canoniques, c'était le cas partout sauf pour les sets d'items (`set « Armes » · title`) et les clés orphelines (`(unused)`).
+- ⚠️ Un **vieux JAR** de plugin ne lit pas l'arbre : redéployer le plugin en même temps que le premier enregistrement éditeur (mêmes précautions que l'exclusion `.artisan*`).
+
 ### Added — détails avancés d'item (enchantements, couleur, NBT…)
 - **`menu/v1`** : sept champs additifs optionnels sur `Appearance` — `enchants` (map `{id: level}`), `enchanted` (effet brillant seul), `custom_model_data`, `unbreakable`, `hide` (sections de tooltip masquées), `color` (`#rrggbb`), `nbt` (SNBT brut). `enchanted` et `custom_model_data` étaient déclarés depuis P1.0 mais jamais appliqués : ils le sont désormais.
 - **Plugin** : `net.artisanmc.plugin.render.ItemDetails` applique ces champs dans `MenuRenderer.buildItem`. Lecture tolérante des ids d'enchantement (`sharpness` / `minecraft:sharpness` / legacy `DAMAGE_ALL`), niveaux au-delà du max vanilla autorisés, id inconnu ignoré avec un WARN. Le `nbt` passe en dernier via `Bukkit.getUnsafe().modifyItemStack` — best-effort, un SNBT refusé est loggé sans blanchir l'item.
