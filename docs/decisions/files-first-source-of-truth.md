@@ -6,7 +6,7 @@ files) shipped 2026-07-23; **P3a shipped 2026-07-24** (decision 2 done —
 `editorJson` demolished, the backend stores only the file tree; the editor
 parses/serializes it via `projectFromFiles`/`transform`, locked by a
 fixed-point round-trip test); **P3b shipped 2026-07-24** (decision 6 partial —
-debounced watcher + auto-push on LOCAL_ONLY, self-write suppression, atomic
+periodic content scan + auto-push on LOCAL_ONLY, atomic
 downloads); **P3c shipped 2026-07-24** (decision 6 complete — true divergence
 is reported via `sync_divergence`, held unpushed and unoverwritten, and
 resolved per file from the editor banner; note: the "existing merge engine"
@@ -100,8 +100,7 @@ editing path.
    migrated if cheap, reset otherwise. *Rejected:* forking `menu/v2` now.
 
 6. **Disk edits are detected and never lost.** The plugin detects disk changes
-   itself (debounced watcher, or at minimum `syncedHash`-vs-disk comparison at
-   boot/reload/reconnect), hot-reloads locally for instant in-game feedback, and
+   itself, hot-reloads locally for instant in-game feedback, and
    **auto-pushes** (`local_push`) — silent + WARN, no prompts (house
    "no theater" rule). `/artisan pushLocal` remains as manual fallback. On true
    divergence (disk *and* web both moved since `syncedHash`), **no overwrite in
@@ -109,8 +108,20 @@ editing path.
    through the existing merge engine in the editor UI. *Rejected:* backend-wins
    (status quo — the data-loss trap) and disk-wins (same defect mirrored).
    Implementation cautions carried over from the 2026-07-05 audit: reload
-   thread-safety and non-atomic download become more critical with a watcher;
-   debounce must absorb multi-file agent bursts.
+   thread-safety and non-atomic download become more critical with background
+   detection; a multi-file agent burst must coalesce into one push.
+
+   > **Revised 2026-07-30** (spec `2026-07-30-poll-first-disk-sync-design`):
+   > detection is **poll-first**, not event-first. The original debounced
+   > inotify watcher made correctness depend on OS events that are never
+   > delivered on Docker bind mounts, NFS or SMB — so dev and prod behaved
+   > differently — and its self-write suppression window silently dropped edits
+   > that landed while the plugin was writing. The binding rule is now: **no
+   > correctness path depends on a filesystem event.** `SyncScanner` compares
+   > content on a timer (`stat` short-circuit, quiescence before dispatch, a
+   > periodic deep content hash); self-writes need no suppression because
+   > `BundleDownloader` records the hash it wrote. An FS-event fast path may
+   > come back later as a pure latency optimisation, never as the mechanism.
 
 7. **Offline assets — fill, document, assume:**
    - **Fill:** `AssetCatalog` gains a disk path — persist the asset index (or
@@ -133,11 +144,11 @@ would destroy the trust anchor the audit shows is nearly already delivered.
 - **This is an epic, not a patch.** It touches the editor's serialization
   boundary (round-trip `serialize*` / `*ToDomain` becomes the tested heart of
   the product), backend storage (`editorJson` demotion), and the plugin
-  (template resolution, watcher/auto-push, `AssetCatalog` disk load,
+  (template resolution, scan/auto-push, `AssetCatalog` disk load,
   `currentPackInfo` persistence). Nothing is implemented as of this ADR.
 - The deferred "code mode" editor feature becomes trivial once files are
   canonical (show/edit the file, apply via the same parse path).
-- **Interacts with `addon-owned-project-roots`:** watchers, sync, and hash rules
+- **Interacts with `addon-owned-project-roots`:** scanning, sync, and hash rules
   apply per registered root; an Add-on's owned Project gets the same files-first
   treatment in its own plugin dir.
 - **Partially supersedes `editor-state-model.md` (2026-04-29):** "the backend is
