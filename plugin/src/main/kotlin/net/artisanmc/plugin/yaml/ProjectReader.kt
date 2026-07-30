@@ -67,11 +67,22 @@ class ProjectReader(
 
         // Lang files are YAML trees; `LangFlattener` folds them back to the
         // dotted keys the runtime looks up (and still reads the legacy flat form).
+        // Tolerant PER FILE, like menus/dialogs/data sources below: an unreadable
+        // lang file degrades to no translations for that language (raw `{i18n:…}`
+        // tags in game) instead of dropping the whole project — a hand-edit typo
+        // in one lang file used to cost every menu, command and dialog of the
+        // project, since this read sits above them all.
         val langMaps: Map<String, Map<String, String>> = manifest.languages.associateWith { lang ->
             val langFile = File(projectDir, "lang/$lang.yaml")
-            if (langFile.exists()) {
+            if (!langFile.exists()) return@associateWith emptyMap()
+            runCatching {
                 LangFlattener.flatten(mapper.readValue(langFile, object : TypeReference<Map<String, Any?>>() {}))
-            } else emptyMap()
+            }.getOrElse { e ->
+                logger?.warning(
+                    "[Artisan] skipping lang/$lang.yaml of project ${projectDir.name}: ${e.message}"
+                )
+                emptyMap()
+            }
         }
 
         // Item templates (template/v1) — scanned like data sources so a
