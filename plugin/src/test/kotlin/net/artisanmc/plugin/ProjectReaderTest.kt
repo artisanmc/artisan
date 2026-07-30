@@ -135,6 +135,20 @@ class ProjectReaderTest {
     }
 
     @Test
+    fun `resolves a title from a NESTED lang file (canonical on-disk form)`() {
+        val projectsRoot = writeTempPack()
+        File(projectsRoot, "p_test/lang/en.yaml").writeText(
+            """
+            menus:
+              m_shop:
+                title: Shop
+            """.trimIndent(),
+        )
+        val bundle = ProjectReader(projectsRoot).readAll().first()
+        assertEquals("Shop", bundle.menus.first().resolveTitle("en"))
+    }
+
+    @Test
     fun `resolveTitle returns raw tag when lang file absent`() {
         val projectsRoot = writeTempPack()
         val bundle = ProjectReader(projectsRoot).readAll().first()

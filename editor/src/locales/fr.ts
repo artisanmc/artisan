@@ -64,9 +64,9 @@ const fr: typeof en = {
     yamlApplied: "{{count}} traductions appliquées",
     yamlAppliedSkipped:
       "{{count}} traductions appliquées ({{skipped}} entrées non-string ignorées)",
-    yamlHeader: "# Traductions : {{from}} → {{to}}",
+    yamlHeader: "Traductions : {{from}} → {{to}}",
     yamlHeaderSubtitle:
-      "# Modifiez les valeurs puis cliquez sur Appliquer. Les commentaires sont ignorés à l'analyse.",
+      "Modifiez les valeurs puis cliquez sur Appliquer. Les commentaires sont ignorés à l'analyse.",
   },
   editorLangSwitcher: {
     title: "Langue de l'éditeur",

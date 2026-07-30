@@ -223,13 +223,15 @@ plugins/Artisan/projects/
     manifest.yaml
     menus/<menu_id>.yaml
     dialogs/<dialog_id>.yaml
-    lang/<lang>.yaml
+    lang/<lang>.yaml               ← arborescence YAML : chaque `.` de la clé = un niveau (`menus:` → `<menu_id>:` → `elements:` → …)
     items/<captured_item_id>.yml   ← ItemStacks capturés (refs material `item:<id>`), YAML Bukkit verbatim
     data/<source_id>.yaml          ← Project sources (schema data/v1, refs `pack:<id>`) — Data models inlinés, valeurs ltext = clés i18n résolues au bind, valeurs item = refs material
     .artisan-sync.yaml   ← SyncMetadata (syncedHash, backendHash, syncedAt)
 ```
 
 `.artisan-sync.yaml` est exclu du hash (préfixe `.artisan` filtré dans `BundleHasher`).
+
+Les fichiers `lang/` sont des **arborescences**, le runtime adresse par clé pointée : le codec est `editor/src/lib/langTree.ts` (`nestLangTree` à l'écriture, seul writer) et son miroir de lecture `plugin/…/yaml/LangFlattener.kt`, verrouillés par le vecteur partagé `testdata/lang-tree-conformance.json`. Les trois readers (plugin, import éditeur, mutation module) acceptent arbre / plat legacy / mélange — rien à migrer. Une clé bloquée par une feuille (`a.b` et `a.b.c`) reste pointée à la racine plutôt que perdue.
 
 Le champ `title` d'un menu est un `MenuTitleLayer[]` (background / glyph / text / textarea / external_glyph) — format YAML + pipeline de rendu pixel-perfect (pixel offsets, fonts custom) documentés dans `docs/architecture/editor-internals.md`.
 

@@ -65,10 +65,13 @@ class ProjectReader(
         val manifest = mapper.readValue(manifestFile, ManifestYaml::class.java)
         requireSchema(manifestFile, manifest.schema, "manifest/v1")
 
+        // Lang files are YAML trees; `LangFlattener` folds them back to the
+        // dotted keys the runtime looks up (and still reads the legacy flat form).
         val langMaps: Map<String, Map<String, String>> = manifest.languages.associateWith { lang ->
             val langFile = File(projectDir, "lang/$lang.yaml")
-            if (langFile.exists()) mapper.readValue(langFile, object : TypeReference<Map<String, String>>() {})
-            else emptyMap()
+            if (langFile.exists()) {
+                LangFlattener.flatten(mapper.readValue(langFile, object : TypeReference<Map<String, Any?>>() {}))
+            } else emptyMap()
         }
 
         // Item templates (template/v1) — scanned like data sources so a

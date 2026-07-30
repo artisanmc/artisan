@@ -23,6 +23,7 @@ import type {
 import { parseCapturedStack } from "@/domain/capturedStack";
 import { visitDataSourceLTexts } from "@/domain/i18nSites";
 import { newI18nKey } from "@/lib/i18n";
+import { flattenLangTree } from "@/lib/langTree";
 import { parse as parseYaml } from "yaml";
 import { commandV1ToDomain } from "./commandV1ToDomain";
 import { dialogV1ToDomain } from "./dialogV1ToDomain";
@@ -146,7 +147,7 @@ function parseEditorEdges(raw: unknown): Record<string, { from?: EdgeAnchor; to?
 
 // ─── lang files ──────────────────────────────────────────────────────────────
 
-/** lang/<lang>.yaml flat maps → key → { lang: value }. */
+/** lang/<lang>.yaml trees (or legacy flat maps) → key → { lang: value }. */
 function readTranslations(
   files: Record<string, string>,
   projectId: string,
@@ -159,8 +160,7 @@ function readTranslations(
     const lang = m[1]!;
     const parsed = tryParse<Record<string, unknown>>(content);
     if (!parsed || typeof parsed !== "object") continue;
-    for (const [key, value] of Object.entries(parsed)) {
-      if (typeof value !== "string") continue;
+    for (const [key, value] of Object.entries(flattenLangTree(parsed))) {
       (out[key] ??= {})[lang] = value;
     }
   }

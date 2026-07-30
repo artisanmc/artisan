@@ -1,5 +1,6 @@
 import { commandId, dialogId, elementId, layerId, menuId, projectId } from "@/domain/ids";
 import type { Appearance, AssetId, Condition, Dialog, Element, I18nKey, ItemTemplateId, Project } from "@/domain/types";
+import { flattenLangTree } from "@/lib/langTree";
 import { parse } from "yaml";
 import { describe, expect, it, afterEach } from "vitest";
 import { registerModule } from "@artisan/editor-sdk";
@@ -777,8 +778,8 @@ describe("transform", () => {
       ],
     });
     const files = transform(pack);
-    const en = parse(files["plugins/Artisan/projects/p_test/lang/en.yaml"]!);
-    const fr = parse(files["plugins/Artisan/projects/p_test/lang/fr.yaml"]!);
+    const en = flattenLangTree(parse(files["plugins/Artisan/projects/p_test/lang/en.yaml"]!));
+    const fr = flattenLangTree(parse(files["plugins/Artisan/projects/p_test/lang/fr.yaml"]!));
     expect(en["menus.shop.title"]).toBe("Shop");
     expect(fr["menus.shop.title"]).toBe("Boutique");
     expect(en["lt_orphan"]).toBeUndefined();
