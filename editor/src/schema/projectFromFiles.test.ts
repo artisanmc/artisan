@@ -6,7 +6,6 @@
 import type {
   DataModelId,
   DataSourceId,
-  ItemTemplateId,
   MenuId,
   Project,
   ProjectId,
@@ -64,8 +63,8 @@ function fixture(): Project {
               {
                 id: "tplbound",
                 positions: "20",
-                appearances: [],
-                iterates: { source: "items", alias: "", templateId: "tpl1" as ItemTemplateId },
+                appearances: [{ material: "{item.icon}", title: { key: "k_tpl_title" } }],
+                iterates: { source: "items", alias: "item" },
               },
             ],
           },
@@ -90,18 +89,6 @@ function fixture(): Project {
         body: [],
         inputs: [],
         buttons: [{ id: "ok", label: { key: "k_btn_ok" }, steps: [] }],
-      },
-    ],
-    templates: [],
-    itemTemplates: [
-      {
-        id: "tpl1" as ItemTemplateId,
-        projectId: PID,
-        name: "Item tile",
-        sourceRef: "pack:ds_items",
-        alias: "item",
-        keyField: "id",
-        appearances: [{ material: "{item.icon}", title: { key: "k_tpl_title" } }],
       },
     ],
     capturedItems: [
@@ -274,13 +261,13 @@ describe("projectFromFiles (files → domain, inverse of transform)", () => {
     expect(p2.capturedItems).toEqual(fixture().capturedItems);
   });
 
-  it("restores board state and template bindings", () => {
+  it("restores board state and the element's own iteration binding", () => {
     const p2 = projectFromFiles(PID, transform(fixture()), { name: "Round Trip" });
     expect(p2.canvasLayout).toEqual({ m1: { x: 40, y: 80 } });
     expect(p2.canvasEdges).toEqual({ "m1->d1": { from: { side: "right", t: 0.5 } } });
     const el = p2.menus[0]!.layers.flatMap((l) => l.elements).find((e) => e.id === "tplbound")!;
-    expect(el.iterates).toEqual({ source: "items", alias: "", templateId: "tpl1" });
-    expect(p2.itemTemplates).toEqual(fixture().itemTemplates);
+    expect(el.iterates).toEqual({ source: "items", alias: "item" });
+    expect(el.appearances[0]!.material).toBe("{item.icon}");
   });
 
   it("re-emits unclaimed module files verbatim via moduleData.__files", () => {

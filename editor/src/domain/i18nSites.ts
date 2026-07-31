@@ -23,13 +23,11 @@ import type {
   DataSource,
   Dialog,
   I18nKey,
-  ItemTemplate,
   LText,
   Menu,
   ModelFieldType,
   Project,
   Step,
-  Template,
 } from "./types";
 
 /**
@@ -191,22 +189,6 @@ export function* visitMenuLTexts(menu: Menu): Generator<LTextSite> {
 /** Yield every site of a command's step tree. */
 export function* visitCommandLTexts(command: Command): Generator<LTextSite> {
   yield* visitStepLTexts(command.steps, commandKeyPrefix(command.id));
-}
-
-/** Yield every site of a template's appearances. */
-export function* visitTemplateLTexts(template: Template): Generator<LTextSite> {
-  for (let i = 0; i < template.appearances.length; i++) {
-    const base = `templates.${template.id}.${stateLabel(i)}`;
-    yield* visitAppearanceLTexts(template.appearances[i]!, base);
-  }
-}
-
-/** Yield every site of an Item template's appearances (title/lore/click LTexts). */
-export function* visitItemTemplateLTexts(tpl: ItemTemplate): Generator<LTextSite> {
-  for (let i = 0; i < tpl.appearances.length; i++) {
-    const base = `item_templates.${tpl.id}.${stateLabel(i)}`;
-    yield* visitAppearanceLTexts(tpl.appearances[i]!, base);
-  }
 }
 
 /** Yield every site of a dialog — title, body, input/option/button labels, button steps. */
@@ -371,12 +353,10 @@ export function* visitDataSourceLTexts(pack: Project, ds: DataSource): Generator
   }
 }
 
-/** Yield every key site in a pack: menus, commands, templates, item templates, dialogs, sources. */
+/** Yield every key site in a pack: menus, commands, dialogs, sources. */
 export function* visitProjectLTexts(pack: Project): Generator<LTextSite> {
   for (const menu of pack.menus ?? []) yield* visitMenuLTexts(menu);
   for (const cmd of pack.commands ?? []) yield* visitCommandLTexts(cmd);
-  for (const tpl of pack.templates ?? []) yield* visitTemplateLTexts(tpl);
-  for (const tpl of pack.itemTemplates ?? []) yield* visitItemTemplateLTexts(tpl);
   for (const dlg of pack.dialogs ?? []) yield* visitDialogLTexts(dlg);
   for (const ds of pack.dataSources ?? []) yield* visitDataSourceLTexts(pack, ds);
 }

@@ -30,7 +30,6 @@ const stubPack = (): Project =>
     name: "P",
     menus: [],
     commands: [],
-    templates: [],
     assets: [],
     dataSources: [],
     dataModels: [RANK],
@@ -182,7 +181,6 @@ describe("applyFieldEdit", () => {
       name: "P",
       menus: [],
       commands: [],
-      templates: [],
       assets: [],
       dataModels: [rank, cat],
       dataSources: [

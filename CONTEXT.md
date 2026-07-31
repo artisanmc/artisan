@@ -161,14 +161,14 @@ stay denormalized and self-contained for the runtime — the plugin never
 resolves model identity.
 
 Non-examples:
-- An **Item template** is not a Data model — the model defines the *shape* of a
-  row's data; the template defines how a row *renders and behaves* in a Menu.
+- An **Item set** is not a Data model — the model defines the *shape* of a
+  row's data; the set defines how a row *renders and behaves* in a Menu.
 - A Minecraft item model (`items.json`) and an AI model are unrelated — hence
   the qualified name.
 
 ## Data source
 
-A named, typed **provider** of data that menu slots, **Item templates**, and other
+A named, typed **provider** of data that menu slots, **Item sets**, and other
 modules consume. One notion, two **provenances**:
 
 - **Module-contributed** — keyed `namespace:source_id` (e.g. `shop:items`,
@@ -200,8 +200,8 @@ modules consume. One notion, two **provenances**:
   multi-line) are plain strings edited with a rendered preview; they export
   as ordinary strings.
 
-The consumer side is provenance-blind: an Element, Item template, or Placement
-binds a `SourceRef` and never cares who provides the rows.
+The consumer side is provenance-blind: an Element, Item set, or Placement binds a
+`SourceRef` and never cares who provides the rows.
 
 Examples:
 - The shop add-on registers `shop:items`; a menu's iterable slot pulls from it.
@@ -272,33 +272,30 @@ Non-examples:
 - A slot **position** (an index like `13`) is not an Element; it's *where* an
   Element sits. One Element may span several positions.
 
-## Item template
+## Item set
 
-A project-level, **named view over one Data source**: how one row of that source
-renders as a menu slot — appearances (material/icon, title, lore, count) **and
-click behaviour**, with per-row variation expressed through conditional appearance
-states on row fields (never per-item overrides). A source may have **several**
-Item templates (two Menus can render the same model differently), but within one
-Menu every bound row of a source renders through a **single** template. Elements
-consume a template in either mode — **pagination** or **placement** — via
-`templateId`; on disk the template is its own file (`templates/<id>.yaml`) and
-bound elements carry a **reference** (`template: <id>`), resolved by the plugin
-at load — hand-editing a template file propagates to every consuming menu (ADR
-`files-first-source-of-truth`; the pre-2026-07-23 export inlined appearances
-into each element instead). For a **static**
-source the template also materializes the rows as draggable tiles in the editor's
-library (organized by its `groupBy` field — pure library arrangement, no runtime
-effect); for a **dynamic** source it materializes as a single draggable
-"paginated block".
+How the rows of one Data source render as menu slots — appearances (material/icon,
+title, lore, count) **and** click behaviour, with per-row variation expressed
+through conditional appearance states on row fields (never per-item overrides).
+
+An item set is **not an entity**: it is an Element carrying `iterates` (pagination)
+or `places` (hand-pinned rows) plus its own `appearances`. It therefore belongs to
+the Menu that renders it — two Menus showing the same source each own their look,
+and editing one cannot silently change the other. Created from « Données du menu »
+(`createMenuSet`), which seeds the appearances from the source's schema.
 
 Non-examples:
-- The legacy `Project.templates` / `Element.templateRef` machinery is not an Item
-  template — that is an older, unexported editor concept.
-- A **Connector binding** (`{ref, filter, sort, limit}`) is not an Item template —
-  the binding selects *which rows*; the template defines *how a row looks and
-  behaves*.
-- An Item template is not a Document — it cannot be opened as a Menu; it only
-  renders inside Menus that consume it.
+- The removed **Item template** (`ItemTemplate`, `templates/<id>.yaml`,
+  `template/v1`, `iterates.template`) is not an item set — it was a project-level
+  entity SHARED across menus, dropped on 2026-07-31 (ADR
+  `item-templates-and-data-library`). A legacy file on disk is inlined into its
+  consuming elements at import and never written again.
+- The legacy `Project.templates` / `Element.templateRef` machinery is not an item
+  set — that was an older, never-exported editor concept, also removed.
+- A **Connector binding** (`{ref, filter, sort, limit}`) is not an item set — the
+  binding selects *which rows*; the set defines *how a row looks and behaves*.
+- An item set is not a Document — it cannot be opened as a Menu; it only renders
+  inside the Menu that owns it.
 
 ## Key site
 
@@ -444,9 +441,8 @@ decides exactly which row sits where — and, in a multi-page layout, on which p
 Paging reuses the same in-menu navigation as pagination mode; only the page/slot
 assignment is hand-authored rather than computed. A Placement pins **position
 only**: everything about how the row looks *and behaves* (material, title, lore,
-click chains) comes from the **Item template** the Element is bound to — there is
-**no per-placement override**; per-row variation is a conditional state of the
-template. Available only on **static** sources (a **dynamic** source has no stable
+click chains) comes from the Element's own **appearances** — there is **no
+per-placement override**; per-row variation is a conditional appearance state. Available only on **static** sources (a **dynamic** source has no stable
 design-time set to place against).
 
 Non-examples:
@@ -455,9 +451,9 @@ Non-examples:
 - A Placement's `cachedDisplay` (the row's last-known name/icon/lore, kept so the
   slot still renders offline) is not the source of truth — the live source wins
   when reachable; the cache is a render fallback bounded to placed rows.
-- A "special-looking" placed row is **not** an override — it's a conditional state
-  of the Item template, or, if genuinely bespoke, a normal hand-placed Element
-  instead of a Placement.
+- A "special-looking" placed row is **not** an override — it's a conditional
+  appearance state of the Element, or, if genuinely bespoke, a normal hand-placed
+  Element instead of a Placement.
 
 ## Presence
 

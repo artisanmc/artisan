@@ -19,7 +19,7 @@ beforeEach(() => {
   useAccountStore.setState({ account: { id: "a" as any, projectOrder: [PID], projects: [{
     id: PID, name: "p", source: "user_created", createdAt: "", updatedAt: "",
     menus: [{ id: "m1", projectId: PID, title: [], rows: 3, layers: [] } as any],
-    commands: [], dialogs: [], templates: [], assets: [], dataSources: [], importedConnectors: [],
+    commands: [], dialogs: [], assets: [], dataSources: [], importedConnectors: [],
     i18nKeys: {}, defaultLang: "en", canvasLayout: {},
   } as Project] } } as any);
 });

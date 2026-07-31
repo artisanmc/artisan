@@ -41,7 +41,6 @@ function makeProject(): Project {
       } as never,
     ],
     commands: [],
-    templates: [],
     assets: [],
     dataSources: [],
     importedConnectors: [],

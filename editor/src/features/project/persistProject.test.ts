@@ -15,7 +15,6 @@ function emptyProject(): Project {
     updatedAt: "",
     menus: [],
     commands: [],
-    templates: [],
     assets: [],
     dataSources: [],
     importedConnectors: [],

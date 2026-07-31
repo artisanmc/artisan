@@ -28,7 +28,6 @@ function buildProject(): Project {
     updatedAt: "2026-06-11T00:00:00.000Z",
     menus: [],
     commands: [],
-    templates: [],
     assets: [],
     dataSources: [],
     importedConnectors: [],

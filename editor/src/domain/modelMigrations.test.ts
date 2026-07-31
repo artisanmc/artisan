@@ -113,7 +113,7 @@ describe("injectDeclaredModels", () => {
       source: "user_created",
       createdAt: "",
       updatedAt: "",
-      menus: [], commands: [], templates: [], assets: [], dialogs: [],
+      menus: [], commands: [], assets: [], dialogs: [],
       i18nKeys: {}, defaultLang: "en", canvasLayout: {},
       dataModels: [
         { id: "mdl_local", name: "local", keyField: "id", fields: [] },

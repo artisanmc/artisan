@@ -19,7 +19,6 @@ import type {
   DialogInput,
   Element,
   I18nKey,
-  ItemTemplate,
   Menu,
   MenuTitleLayer,
   ModelField,
@@ -203,47 +202,29 @@ function serializeAppearance(app: Appearance, pack: Project): Record<string, unk
 
 // ─── element serialization ───────────────────────────────────────────────────
 
-/** Resolve an element's bound Item template, or null (unbound / dangling ref). */
-function boundTemplate(el: Element, pack: Project): ItemTemplate | null {
-  const tplId = el.places?.templateId ?? el.iterates?.templateId;
-  if (!tplId) return null;
-  return (pack.itemTemplates ?? []).find((t) => t.id === tplId) ?? null;
-}
-
 /**
- * Serialize an element. When bound to an Item template, the template is
- * **inlined**: its appearances replace the element's, and its alias (and
- * `keyField` for placement mode) win over the element's local fields — so
- * `menu/v1` and the plugin never see templates, and editing a template
- * propagates to every consuming menu at the next deploy. A dangling
- * `templateId` falls back to the element's local fields (non-hermetic).
+ * Serialize an element. A set is self-contained: how its rows look and behave
+ * lives on the element that renders them, in the menu it belongs to — there is
+ * no project-level template to resolve.
  */
 function serializeElement(el: Element, pack: Project): Record<string, unknown> {
-  // Template-bound elements emit a `template` REF — appearances/alias/key_field
-  // live in templates/<id>.yaml only (one truth; the plugin resolves the ref at
-  // load, so hand-editing a template propagates to every consuming menu). A
-  // dangling templateId falls back to the element's local fields (non-hermetic).
-  const tpl = boundTemplate(el, pack);
   const out: Record<string, unknown> = {
     id: el.id,
     // A single numeric position emits as a bare int (no YAML quoting trap);
     // ranges/comma lists stay strings.
     positions: /^\d+$/.test(el.positions) ? Number(el.positions) : el.positions,
-    ...(tpl ? {} : { appearances: el.appearances.map((a) => serializeAppearance(a, pack)) }),
+    appearances: el.appearances.map((a) => serializeAppearance(a, pack)),
   };
   if (el.iterates) {
-    out.iterates = tpl
-      ? { source: el.iterates.source, template: tpl.id }
-      : { source: el.iterates.source, alias: el.iterates.alias };
+    out.iterates = { source: el.iterates.source, alias: el.iterates.alias };
   }
   if (el.places) {
     // `key_field` is snake_case on the wire (plugin PlacesYaml); cachedDisplay is
     // editor-only (offline render fallback) and never exported to the bundle.
     out.places = {
       source: el.places.source,
-      ...(tpl
-        ? { template: tpl.id }
-        : { alias: el.places.alias, key_field: el.places.keyField }),
+      alias: el.places.alias,
+      key_field: el.places.keyField,
       placements: el.places.placements.map((p) => ({
         key: p.key,
         page: p.page,
@@ -253,20 +234,6 @@ function serializeElement(el: Element, pack: Project): Record<string, unknown> {
   }
   if (el.tags && el.tags.length > 0) out.tags = el.tags;
   return out;
-}
-
-/** One Item template → `templates/<id>.yaml` (`template/v1`). */
-function serializeTemplate(tpl: ItemTemplate, pack: Project): Record<string, unknown> {
-  return {
-    schema: "template/v1",
-    id: tpl.id,
-    name: tpl.name,
-    source: tpl.sourceRef,
-    alias: tpl.alias,
-    ...(tpl.keyField ? { key_field: tpl.keyField } : {}),
-    ...(tpl.groupBy ? { group_by: tpl.groupBy } : {}),
-    appearances: tpl.appearances.map((a) => serializeAppearance(a, pack)),
-  };
 }
 
 // ─── layer serialization ─────────────────────────────────────────────────────
@@ -632,12 +599,7 @@ function collectReferencedKeys(pack: Project): Set<string> {
     for (const lt of getTitleTextLayers(menu)) keys.add(lt.key);
     for (const layer of menu.layers) {
       for (const el of layer.elements) {
-        // Template-bound elements export the template's appearances (inlined
-        // by serializeElement) — collect THOSE keys, not the element's locals,
-        // else the lang files miss every item_templates.* key the menu
-        // references and the plugin echoes raw keys in-game.
-        const apps = boundTemplate(el, pack)?.appearances ?? el.appearances;
-        for (const app of apps) {
+        for (const app of el.appearances) {
           if (app.title) keys.add(app.title.key);
           if (app.lore) keys.add(app.lore.key);
           if (app.click) {
@@ -1170,14 +1132,8 @@ export function transform(pack: Project): Record<string, string> {
       menus: pack.menus.map((m) => m.id),
       commands: pack.commands.map((c) => c.id),
       dialogs: pack.dialogs.map((d) => d.id),
-      ...((pack.itemTemplates ?? []).length > 0
-        ? { templates: (pack.itemTemplates ?? []).map((t) => t.id) }
-        : {}),
     },
   };
-  for (const tpl of pack.itemTemplates ?? []) {
-    files[`${base}/templates/${tpl.id}.yaml`] = stringify(serializeTemplate(tpl, pack), yamlOpts);
-  }
   // Data models: models/<id>.yaml (model/v1), fields VERBATIM (cross-model refs
   // preserved) — the lossless editor store. data/<id>.yaml stays denormalized
   // and self-contained for the runtime; the plugin ignores models/ entirely.

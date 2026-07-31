@@ -49,7 +49,6 @@ function makeProject(): Project {
       },
     ],
     commands: [],
-    templates: [],
     assets: [],
     dataSources: [],
     importedConnectors: [],

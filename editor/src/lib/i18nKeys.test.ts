@@ -93,7 +93,6 @@ const makeProject = (overrides: Partial<Project> = {}): Project =>
     menus: [],
     commands: [],
     assets: [],
-    templates: [],
     canvasLayout: {},
     ...overrides,
   }) as Project;

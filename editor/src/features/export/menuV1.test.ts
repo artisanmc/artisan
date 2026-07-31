@@ -33,7 +33,6 @@ function pack(): Project {
     commands: [],
     dialogs: [],
     assets: [],
-    templates: [],
     dataSources: [],
     importedConnectors: [],
     canvasLayout: {},

@@ -13,7 +13,7 @@ import { useServerSnapshotsStore } from "@/state/serverSnapshotsStore";
 import { useUiStore } from "@/state/uiStore";
 import { useMemo } from "react";
 import { buildPreviewScope, renderPreview } from "./menuPreviewScope";
-import { matchPlacementRow, placementTotalPages, resolveAppearance0 } from "./placement";
+import { matchPlacementRow, placementTotalPages } from "./placement";
 
 interface ItemTooltipProps {
   projectId: ProjectId;
@@ -82,7 +82,7 @@ export function ItemTooltip({ projectId }: ItemTooltipProps) {
   const found = useMemo(() => findElementAndMenu(pack, elementId), [pack, elementId]);
   if (!found || !pack) return null;
   const { element, menu } = found;
-  const appearance = resolveAppearance0(pack, element);
+  const appearance = element.appearances[0];
   if (!appearance) return null;
 
   // Build a preview scope from contextInputs — primitives are coerced to their

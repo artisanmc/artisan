@@ -28,7 +28,6 @@ function basePack(): Record<string, unknown> {
     menus: [],
     commands: [],
     dialogs: [],
-    itemTemplates: [],
     dataModels: [],
     dataSources: [],
     canvasLayout: {},

@@ -22,7 +22,6 @@ function pack(canvasLayout: Record<string, { x: number; y: number }>): Project {
     ],
     commands: [],
     dialogs: [],
-    templates: [],
     assets: [],
     dataSources: [],
     importedConnectors: [],

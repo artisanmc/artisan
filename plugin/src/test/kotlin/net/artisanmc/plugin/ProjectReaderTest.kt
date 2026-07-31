@@ -45,6 +45,13 @@ class ProjectReaderTest {
         return root
     }
 
+    /**
+     * A LEGACY tree: item sets used to live in project-level `templates/<id>.yaml`
+     * that elements bound to by ref. That model is gone — a set now lives on the
+     * element that renders it. The editor migrates any such file away on import
+     * and never writes one again, but a server whose disk still holds one must
+     * keep working until it is re-saved, so the reader stays compatible.
+     */
     private fun writeTemplatePack(): File {
         val root = java.nio.file.Files.createTempDirectory("artisan_tpl_").toFile()
         val packDir = File(root, "p_tpl").apply { mkdirs() }
@@ -89,7 +96,7 @@ class ProjectReaderTest {
     }
 
     @Test
-    fun `template refs resolve into effective elements at load`() {
+    fun `legacy template refs still resolve into effective elements at load`() {
         val bundle = ProjectReader(writeTemplatePack()).readAll().single()
         val menu = bundle.menus.single()
         val grid = menu.yaml.allElements.first { it.id == "grid" }
@@ -104,7 +111,7 @@ class ProjectReaderTest {
     }
 
     @Test
-    fun `dangling template ref keeps local fields (non-hermetic)`() {
+    fun `dangling legacy template ref keeps local fields (non-hermetic)`() {
         val root = writeTemplatePack()
         File(root, "p_tpl/templates/tpl_view.yaml").delete()
         val bundle = ProjectReader(root).readAll().single()

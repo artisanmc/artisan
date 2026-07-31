@@ -5,7 +5,7 @@ import { autoLayout, gridArrange } from "./autoLayout";
 function makeProject(over: Partial<Project> = {}): Project {
   return {
     id: "p1" as Project["id"], name: "p", source: "user_created", createdAt: "", updatedAt: "",
-    menus: [], commands: [], templates: [], assets: [], dataSources: [], importedConnectors: [],
+    menus: [], commands: [], assets: [], dataSources: [], importedConnectors: [],
     i18nKeys: {}, defaultLang: "en", dialogs: [], canvasLayout: {}, ...over,
   } as Project;
 }

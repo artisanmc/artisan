@@ -14,7 +14,6 @@ import type {
   DialogId,
   ElementId,
   IfCase,
-  ItemTemplateId,
   LText,
   MenuId,
   ProjectId,
@@ -134,25 +133,16 @@ interface ElementClickHandlersPseudocodeProps {
   /** Menu context — placeholders and action defaults resolve against it. */
   menuId: MenuId;
   elementId: ElementId;
-  /** When set, mutations target this Item template's state instead of the
-   *  element (the element only provides menu context). */
-  templateId?: ItemTemplateId;
   stateIndex: number;
   click: { [k in ClickType]?: ClickHandler } | undefined;
 }
 
-/** Mutation target: the template when bound, the element otherwise. */
-const targetOf = (
-  menuId: MenuId,
-  elementId: ElementId,
-  templateId?: ItemTemplateId,
-): AppearanceTarget => (templateId ? { templateId } : { menuId, elementId });
+const targetOf = (menuId: MenuId, elementId: ElementId): AppearanceTarget => ({ menuId, elementId });
 
 export function ElementClickHandlersPseudocode({
   projectId,
   menuId,
   elementId,
-  templateId,
   stateIndex,
   click,
 }: ElementClickHandlersPseudocodeProps) {
@@ -161,7 +151,7 @@ export function ElementClickHandlersPseudocode({
   const unpopulated = CLICK_TYPE_ORDER.filter((ct) => !click?.[ct]);
   const addHandler = useAccountStore((s) => s.addElementClickHandler);
   const removeHandler = useAccountStore((s) => s.removeElementClickHandler);
-  const target = targetOf(menuId, elementId, templateId);
+  const target = targetOf(menuId, elementId);
 
   return (
     <div className="flex flex-col gap-2">
@@ -190,7 +180,6 @@ export function ElementClickHandlersPseudocode({
               projectId={projectId}
               menuId={menuId}
               elementId={elementId}
-              templateId={templateId}
               stateIndex={stateIndex}
               clickType={clickType}
               steps={click![clickType]!.steps}
@@ -242,7 +231,6 @@ interface ElementStepTreeProps {
   projectId: ProjectId;
   menuId: MenuId;
   elementId: ElementId;
-  templateId?: ItemTemplateId;
   stateIndex: number;
   clickType: ClickType;
   steps: Step[];
@@ -251,7 +239,7 @@ interface ElementStepTreeProps {
 }
 
 function ElementStepTree(props: ElementStepTreeProps) {
-  const { projectId, menuId, elementId, templateId, stateIndex, clickType, steps, frames, indent } =
+  const { projectId, menuId, elementId, stateIndex, clickType, steps, frames, indent } =
     props;
   const addElementStep = useAccountStore((s) => s.addElementStep);
   const moveElementStep = useAccountStore((s) => s.moveElementStep);
@@ -261,7 +249,7 @@ function ElementStepTree(props: ElementStepTreeProps) {
   const activeLang = useUiStore((s) => s.activeLang);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
   const ids = useStepIds(steps);
-  const target = targetOf(menuId, elementId, templateId);
+  const target = targetOf(menuId, elementId);
 
   const handleAdd = (newStep: Step) => {
     addElementStep({
@@ -309,7 +297,6 @@ function ElementStepTree(props: ElementStepTreeProps) {
                 projectId={projectId}
                 menuId={menuId}
                 elementId={elementId}
-                templateId={templateId}
                 stateIndex={stateIndex}
                 clickType={clickType}
                 frames={frames}
@@ -330,7 +317,6 @@ function ElementStepLine({
   projectId,
   menuId,
   elementId,
-  templateId,
   stateIndex,
   clickType,
   frames,
@@ -341,7 +327,6 @@ function ElementStepLine({
   projectId: ProjectId;
   menuId: MenuId;
   elementId: ElementId;
-  templateId?: ItemTemplateId;
   stateIndex: number;
   clickType: ClickType;
   frames: StepFrame[];
@@ -355,7 +340,7 @@ function ElementStepLine({
   const setIfCaseJoin = useAccountStore((s) => s.setIfCaseJoin);
   const toggleIfElse = useAccountStore((s) => s.toggleIfElse);
   const activeLang = useUiStore((s) => s.activeLang);
-  const target = targetOf(menuId, elementId, templateId);
+  const target = targetOf(menuId, elementId);
 
   const onRemove = () =>
     removeElementStep({
@@ -401,7 +386,6 @@ function ElementStepLine({
           projectId={projectId}
           menuId={menuId}
           elementId={elementId}
-          templateId={templateId}
           stateIndex={stateIndex}
           clickType={clickType}
           steps={caseSteps}

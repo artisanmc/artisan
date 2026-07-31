@@ -17,7 +17,6 @@ function makeProject(): Project {
     updatedAt: "",
     menus: [],
     commands: [],
-    templates: [],
     assets: [],
     dataModels: [
       {

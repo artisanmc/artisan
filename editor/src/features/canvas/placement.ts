@@ -22,21 +22,6 @@ export interface PlacementSlotInfo {
   dangling: boolean;
 }
 
-/**
- * First appearance of an element for canvas preview, resolving its bound Item
- * template when set (template-bound elements carry empty local appearances).
- * Mirrors the export-time inlining (`transform.ts` boundTemplate) — dangling
- * templateId falls back to the local appearance.
- */
-export function resolveAppearance0(pack: Project, el: Element): Appearance | undefined {
-  const tplId = el.places?.templateId ?? el.iterates?.templateId;
-  if (tplId) {
-    const tpl = (pack.itemTemplates ?? []).find((t) => t.id === tplId);
-    if (tpl?.appearances[0]) return tpl.appearances[0];
-  }
-  return el.appearances[0];
-}
-
 /** Pages a placement layout spans = max(page)+1 (1-indexed count), min 1. */
 export function placementTotalPages(placements: Placement[]): number {
   let max = 0;

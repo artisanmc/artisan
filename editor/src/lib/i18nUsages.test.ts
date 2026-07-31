@@ -15,7 +15,6 @@ function pack(overrides: Partial<Project>): Project {
     defaultLang: "en",
     menus: [],
     commands: [],
-    templates: [],
     assets: [],
     dataSources: [],
     importedConnectors: [],
@@ -27,25 +26,6 @@ function pack(overrides: Partial<Project>): Project {
 }
 
 describe("findKeyUsages", () => {
-  it("records item template appearance titles (not flagged unused)", () => {
-    const p = pack({
-      itemTemplates: [
-        {
-          id: "tpl1" as never,
-          projectId: "p1" as never,
-          name: "Vue boutique",
-          sourceRef: "boutique:items",
-          alias: "item",
-          keyField: "id",
-          appearances: [{ material: "{item.icon}", title: { key: k("lt_tpl_title") } }],
-        },
-      ],
-      i18nKeys: { [k("lt_tpl_title")]: { en: "{item.name}" } },
-    });
-    expect(findKeyUsages(p).get(k("lt_tpl_title"))).toBe("item_templates.tpl1.default.title");
-    expect(findUnusedI18nKeys(p)).toEqual([]);
-  });
-
   it("records menu title text layers", () => {
     const p = pack({
       menus: [

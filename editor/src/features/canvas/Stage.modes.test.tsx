@@ -22,7 +22,7 @@ vi.mock("./Edges", () => ({ Edges: () => <div /> }));
 const PID = "p1" as ProjectId;
 function pack(): Project {
   return { id: PID, name: "p", source: "user_created", createdAt: "", updatedAt: "",
-    menus: [], commands: [], dialogs: [], templates: [], assets: [], dataSources: [], importedConnectors: [],
+    menus: [], commands: [], dialogs: [], assets: [], dataSources: [], importedConnectors: [],
     i18nKeys: {}, defaultLang: "en", canvasLayout: {} } as Project;
 }
 describe("Stage — modes", () => {
