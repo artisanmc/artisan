@@ -1,7 +1,7 @@
 import type { ClickType, DialogId, ElementId, MenuId } from "@/domain/types";
 
 /**
- * Locates a text field within the pack so the catalog knows which
+ * Locates a text field within the project so the catalog knows which
  * placeholders are in scope. Tied to the domain entity layout (menu →
  * element → action; dialog → dialog-action).
  */

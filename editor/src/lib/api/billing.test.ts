@@ -1,14 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { getBillingBalance, getPacks, startPackCheckout } from "./billing";
+import { getBillingBalance, getProjects, startPackCheckout } from "./billing";
 
 const okJson = (body: unknown) => Promise.resolve({ ok: true, json: async () => body } as Response);
 
 afterEach(() => vi.restoreAllMocks());
 
 describe("billing client", () => {
-  it("getPacks unwraps { packs }", async () => {
-    const f = vi.spyOn(globalThis, "fetch").mockReturnValue(okJson({ packs: [{ id: "p1" }] }) as never);
-    expect(await getPacks()).toEqual([{ id: "p1" }]);
+  it("getProjects unwraps { projects }", async () => {
+    const f = vi.spyOn(globalThis, "fetch").mockReturnValue(okJson({ projects: [{ id: "p1" }] }) as never);
+    expect(await getProjects()).toEqual([{ id: "p1" }]);
     expect(f.mock.calls[0][1]).toMatchObject({ credentials: "include" });
   });
   it("getBillingBalance sends networkId + returns breakdown", async () => {

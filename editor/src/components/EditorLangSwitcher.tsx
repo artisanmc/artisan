@@ -7,7 +7,7 @@ const LABELS: Record<SupportedLang, string> = {
 };
 
 /**
- * Switches the editor's UI language (not the pack content language).
+ * Switches the editor's UI language (not the project content language).
  * Rendered as a regular labelled select-style dropdown — the current value
  * is visible in the trigger, no need to open the menu to know the current
  * language.

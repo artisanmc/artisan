@@ -245,7 +245,7 @@ data class DialogYaml(
 data class BundleDialog(
     val yaml: DialogYaml,
     val langMaps: Map<String, Map<String, String>>,
-    /** Fallback language used when the player's locale isn't shipped by the pack. See [BundleMenu.defaultLang]. */
+    /** Fallback language used when the player's locale isn't shipped by the project. See [BundleMenu.defaultLang]. */
     val defaultLang: String = "en",
 ) {
     val id: String get() = yaml.id
@@ -453,7 +453,7 @@ data class BundleMenu(
      */
     val title: List<MenuTitleLayer> = MenuTitleParser.parse(yaml.title),
     /**
-     * Fallback language declared in the parent pack's manifest. Used when the
+     * Fallback language declared in the parent project's manifest. Used when the
      * player's client locale isn't in `langMaps` so we still resolve the i18n
      * keys to *some* translation instead of leaking `{i18n:foo}` to chat.
      */
@@ -463,7 +463,7 @@ data class BundleMenu(
 
     /**
      * Lang map with deterministic PER-KEY fallback chain — requested lang →
-     * pack default → empty. The editor only writes a key into a non-default
+     * project default → empty. The editor only writes a key into a non-default
      * lang file when the user translated it, so the default map fills the
      * requested lang's gaps; a whole-map fallback would leak raw i18n keys
      * in-game for every untranslated key.

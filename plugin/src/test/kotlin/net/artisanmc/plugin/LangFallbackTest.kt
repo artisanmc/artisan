@@ -8,7 +8,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
 /**
- * The i18n fallback chain is PER-KEY: requested lang → pack default → "".
+ * The i18n fallback chain is PER-KEY: requested lang → project default → "".
  * The editor only writes a key into a non-default lang file when the user
  * translated it, so a partially-translated language must fill its gaps from
  * the default map — a whole-map `?:` fallback leaks raw keys in-game for

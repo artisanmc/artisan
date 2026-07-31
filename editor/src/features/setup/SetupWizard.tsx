@@ -60,7 +60,7 @@ export function SetupWizard() {
   async function handleNext() {
     if (!canNext(step, state)) return;
     if (step === totalSteps) {
-      // Final step: exit the wizard. The new network/pack/server_key were
+      // Final step: exit the wizard. The new network/project/server_key were
       // created via API but the cached `networksStore` was populated when the
       // user landed on the wizard, so the sidebar wouldn't show the new ones
       // until a hard reload. Refetch now, then navigate — no reload needed.

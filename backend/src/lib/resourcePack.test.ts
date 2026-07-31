@@ -125,14 +125,14 @@ describe("rebuildResourcePack", () => {
     expect(info!.url.endsWith(`/api/v1/resource-pack/${serverKeyId}/${hash}.zip`)).toBe(true);
   });
 
-  test("multi-pack: server_key bound to 2 projects with colliding codepoints → asset-index has distinct final codepoints", async () => {
-    // The seedSetup fixture already created `projectId` (pack A) for serverKeyId.
-    // Add a second bound pack B with a glyph that collides at the same codepoint.
+  test("multi-project: server_key bound to 2 projects with colliding codepoints → asset-index has distinct final codepoints", async () => {
+    // The seedSetup fixture already created `projectId` (project A) for serverKeyId.
+    // Add a second bound project B with a glyph that collides at the same codepoint.
     const skRow = (await db.select().from(serverKeys).where(eq(serverKeys.id, serverKeyId)))[0]!;
-    const packB = await createProject({ networkId: skRow.networkId, serverKeyId, name: "pb" });
+    const projectB = await createProject({ networkId: skRow.networkId, serverKeyId, name: "pb" });
 
     const glyphAId = await seedGlyph(projectId, "alpha", 0xE000);
-    const glyphBId = await seedGlyph(packB.id, "beta", 0xE000);
+    const glyphBId = await seedGlyph(projectB.id, "beta", 0xE000);
 
     const { hash } = await rebuildResourcePack(serverKeyId);
     expect(hash).toMatch(/^[0-9a-f]{40}$/);
@@ -147,7 +147,7 @@ describe("rebuildResourcePack", () => {
       assets: Record<string, { codepoint?: number }>;
     };
 
-    // First pack (oldest createdAt) keeps 0xE000; second pack gets remapped to 0xE001.
+    // First project (oldest createdAt) keeps 0xE000; second project gets remapped to 0xE001.
     expect(index.assets[glyphAId].codepoint).toBe(0xE000);
     expect(index.assets[glyphBId].codepoint).toBe(0xE001);
   });

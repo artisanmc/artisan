@@ -13,20 +13,20 @@ import java.nio.file.Files
 import java.nio.file.Path
 
 /**
- * Cross-language conformance: the plugin's canonical pack hash MUST equal the
- * vector in `testdata/pack-hash-conformance.json`, which the backend asserts too
+ * Cross-language conformance: the plugin's canonical project hash MUST equal the
+ * vector in `testdata/project-hash-conformance.json`, which the backend asserts too
  * (`hashUtils.test.ts`). This is the single source of truth for the byte-order /
  * keying invariant — see CLAUDE.md § Invariants critiques. If this fails, the
- * plugin and backend hashes have drifted and packs will resync in a loop.
+ * plugin and backend hashes have drifted and projects will resync in a loop.
  */
 class BundleHashConformanceTest {
 
-    private data class Fixture(val packId: String, val files: Map<String, String>, val expectedHash: String)
+    private data class Fixture(val projectId: String, val files: Map<String, String>, val expectedHash: String)
 
     private fun loadFixture(): Fixture {
         var dir: File? = File(System.getProperty("user.dir")).absoluteFile
         while (dir != null) {
-            val f = File(dir, "testdata/pack-hash-conformance.json")
+            val f = File(dir, "testdata/project-hash-conformance.json")
             if (f.exists()) {
                 val mapper = ObjectMapper().registerKotlinModule()
                     .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
@@ -38,7 +38,7 @@ class BundleHashConformanceTest {
     }
 
     private fun canonical(fx: Fixture): Map<String, String> =
-        fx.files.mapKeys { (rel, _) -> "plugins/Artisan/projects/${fx.packId}/$rel" }
+        fx.files.mapKeys { (rel, _) -> "plugins/Artisan/projects/${fx.projectId}/$rel" }
 
     @Test
     fun `hashRelative matches the cross-language vector (relPath-keyed, artisan-meta excluded)`() {
@@ -47,35 +47,35 @@ class BundleHashConformanceTest {
     }
 
     @Test
-    fun `hashCanonical matches the vector after stripping the pack prefix`() {
+    fun `hashCanonical matches the vector after stripping the project prefix`() {
         val fx = loadFixture()
-        assertEquals(fx.expectedHash, BundleHasher.hashCanonical(canonical(fx), fx.packId))
+        assertEquals(fx.expectedHash, BundleHasher.hashCanonical(canonical(fx), fx.projectId))
     }
 
     @Test
     fun `local_push hash matches the vector (was full-path-keyed, now relPath)`(@TempDir tmp: Path) {
         val fx = loadFixture()
-        val packDir = tmp.resolve(fx.packId)
+        val projectDir = tmp.resolve(fx.projectId)
         for ((rel, content) in fx.files) {
-            val target = packDir.resolve(rel)
+            val target = projectDir.resolve(rel)
             Files.createDirectories(target.parent)
             Files.writeString(target, content)
         }
-        val msg = LocalPushSender.buildPushMessage(fx.packId, packDir.toFile())
+        val msg = LocalPushSender.buildPushMessage(fx.projectId, projectDir.toFile())
         assertEquals(fx.expectedHash, msg["hash"] as String)
     }
 
     @Test
     fun `disk hash and local_push hash agree for the same files`(@TempDir tmp: Path) {
         val fx = loadFixture()
-        val packDir = tmp.resolve(fx.packId)
+        val projectDir = tmp.resolve(fx.projectId)
         for ((rel, content) in fx.files) {
-            val target = packDir.resolve(rel)
+            val target = projectDir.resolve(rel)
             Files.createDirectories(target.parent)
             Files.writeString(target, content)
         }
-        val diskHash = BundleHasher.hash(packDir.toFile())
-        val pushHash = LocalPushSender.buildPushMessage(fx.packId, packDir.toFile())["hash"] as String
+        val diskHash = BundleHasher.hash(projectDir.toFile())
+        val pushHash = LocalPushSender.buildPushMessage(fx.projectId, projectDir.toFile())["hash"] as String
         assertEquals(diskHash, pushHash)
     }
 }

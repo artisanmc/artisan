@@ -36,7 +36,7 @@ vi.mock("@/state/accountStore", () => ({
 }));
 vi.mock("@/features/project/useProjectLoader", () => ({
   useProjectLoader: () => ({
-    pack: {
+    project: {
       id: "p1",
       name: "Hub",
       defaultLang: "en",
@@ -73,7 +73,7 @@ vi.mock("@/lib/useMediaQuery", () => ({ useIsDesktop: () => true }));
 import { ServerProjectPage } from "./networks.$networkId.servers.$serverId.projects.$projectId";
 
 describe("ServerProjectPage", () => {
-  it("renders the top bar for the loaded pack", () => {
+  it("renders the top bar for the loaded project", () => {
     render(<ServerProjectPage />);
     expect(screen.getByTestId("topbar")).toBeInTheDocument();
   });

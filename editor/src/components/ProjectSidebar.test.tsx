@@ -83,7 +83,7 @@ describe("ProjectSidebar", () => {
     expect(items[1]).toHaveTextContent("Menu principal");
   });
 
-  it("shows an element-count badge from the pack summary", async () => {
+  it("shows an element-count badge from the project summary", async () => {
     vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
       network: { id: "net_1", name: "Mon Network", tier: "free" },
       projects: [

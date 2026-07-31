@@ -1,5 +1,5 @@
 /**
- * Module-level registry so the top-level DndContext (in the pack route)
+ * Module-level registry so the top-level DndContext (in the project route)
  * can hand a Library drop off to the Stage's hit-test + place logic
  * without prop-drilling. Stage registers its handler on mount, route
  * calls it from `onDragEnd`. Single-tenant: only one Stage at a time.

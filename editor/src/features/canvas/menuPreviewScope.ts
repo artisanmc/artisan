@@ -16,22 +16,22 @@ export type SourceSnapshots = Record<string, unknown[]>;
  *
  * Module data may live in a **sibling project** (the plugin merges module
  * files across ALL projects of the server at runtime — cf. BoutiqueModule
- * .reloadRepo), so after the current pack we probe the account's other
+ * .reloadRepo), so after the current project we probe the account's other
  * projects. Null when no module owns the ref or no project holds local data.
  */
 export function moduleLocalRows(
-  pack: Project,
+  project: Project,
   ref: SourceRef | string,
 ): Record<string, unknown>[] | null {
   const r = String(ref);
   for (const mod of listModules()) {
     const fn = mod.localPreviewRows;
     if (!fn) continue;
-    const own = fn(pack, r);
+    const own = fn(project, r);
     if (own) return own;
     // Lazy import avoided: accountStore never imports this module (no cycle).
     for (const sibling of useAccountStore.getState().account.projects) {
-      if (sibling.id === pack.id) continue;
+      if (sibling.id === project.id) continue;
       const rows = fn(sibling, r);
       if (rows) return rows;
     }
@@ -40,7 +40,7 @@ export function moduleLocalRows(
 }
 
 /**
- * Resolve a SourceRef against a pack:
+ * Resolve a SourceRef against a project:
  *  - "pack:<id>" → Project source: table → its rows, config → its object
  *  - "<plugin>:<source>" → module-local rows (authoring state, live while
  *    editing) → live snapshot (if cached)
@@ -52,18 +52,18 @@ export function moduleLocalRows(
  */
 export function resolveSourceRef(
   ref: SourceRef,
-  pack: Project,
+  project: Project,
   snapshots?: SourceSnapshots,
 ): unknown {
   const r = String(ref);
   if (r === "" || !r.includes(":")) return undefined;
   if (r.startsWith("pack:")) {
     const id = r.slice("pack:".length);
-    const ds = pack.dataSources.find((d) => d.id === (id as Project["dataSources"][number]["id"]));
+    const ds = project.dataSources.find((d) => d.id === (id as Project["dataSources"][number]["id"]));
     if (!ds) return undefined;
     return ds.shape === "table" ? ds.rows : ds.value;
   }
-  const local = moduleLocalRows(pack, r);
+  const local = moduleLocalRows(project, r);
   if (local) return local;
   return snapshots?.[r];
 }
@@ -96,7 +96,7 @@ export function makeSamplePlayer(name: string = SAMPLE_PLAYER_NAME): Record<stri
  */
 export function buildPreviewScope(
   menu: Menu,
-  pack: Project,
+  project: Project,
   snapshots?: SourceSnapshots,
   /** Per-menu preview context (the canvas "preview as…" selector): overrides
    *  primitive input values, feeds `{arg}` interpolation in source filters,
@@ -127,7 +127,7 @@ export function buildPreviewScope(
   }
   for (const input of menu.contextInputs ?? []) {
     if (input.kind === "primitive") continue;
-    const rows = resolveSourceRef(input.ref, pack, snapshots);
+    const rows = resolveSourceRef(input.ref, project, snapshots);
     scope[input.name] = Array.isArray(rows)
       ? applyShaping(rows, input, { ...scope, ...(previewArgs ?? {}) })
       : rows;
@@ -202,19 +202,19 @@ const previewCache = new AstCache(256);
 export function renderPreview(
   template: string,
   ctx: Record<string, unknown>,
-  pack: Project,
+  project: Project,
   activeLang: string,
 ): string {
   const scope = new Scope(ctx);
   return renderTemplate(template, {
     scope,
     cache: previewCache,
-    projectId: pack.id,
+    projectId: project.id,
     projectVersion: 0,
     i18nLookup: (key) => {
-      const entry = pack.i18nKeys[key as I18nKey];
+      const entry = project.i18nKeys[key as I18nKey];
       if (!entry) return undefined;
-      return entry[activeLang] ?? entry[pack.defaultLang] ?? undefined;
+      return entry[activeLang] ?? entry[project.defaultLang] ?? undefined;
     },
   });
 }

@@ -459,14 +459,14 @@ function SourceRefInputRow({
   onRemove: () => void;
 }) {
   const { t } = useTranslation();
-  const pack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
   const serverSources = useServerDataSourcesStore((s) => s.sources);
 
   const refLabel = (() => {
     if (!input.ref) return null;
     if (input.ref.startsWith("pack:")) {
       const id = input.ref.slice("pack:".length);
-      return (pack?.dataSources ?? []).find((d) => d.id === id)?.name ?? input.ref;
+      return (project?.dataSources ?? []).find((d) => d.id === id)?.name ?? input.ref;
     }
     return input.ref;
   })();
@@ -494,7 +494,7 @@ function SourceRefInputRow({
             align="start"
             className="border-[var(--border)] bg-[var(--surface-raised)] text-[var(--text)]"
           >
-            {pack ? <SourcePickerOptions pack={pack} onPick={(ref) => onChange({ ref })} /> : null}
+            {project ? <SourcePickerOptions project={project} onPick={(ref) => onChange({ ref })} /> : null}
           </DropdownMenuContent>
         </DropdownMenu>
         <button
@@ -520,14 +520,14 @@ function SourceRefInputRow({
 }
 
 function SourcePickerOptions({
-  pack,
+  project,
   onPick,
 }: {
-  pack: Project;
+  project: Project;
   onPick: (ref: SourceRef) => void;
 }) {
   const { t } = useTranslation();
-  const hasProjectData = (pack.dataSources ?? []).length > 0;
+  const hasProjectData = (project.dataSources ?? []).length > 0;
   const serverSources = useServerDataSourcesStore((s) => s.sources);
   const liveSources = serverSources;
   return (
@@ -537,17 +537,17 @@ function SourcePickerOptions({
           <DropdownMenuLabel className="text-[9px] uppercase text-[var(--text-faint)]">
             {t("menuProperties.refSectionProjectData")}
           </DropdownMenuLabel>
-          {(pack.dataSources ?? []).map((d) => (
+          {(project.dataSources ?? []).map((d) => (
             <DropdownMenuItem
               key={d.id}
               onSelect={() => onPick(`pack:${d.id}` as SourceRef)}
-              title={summarizeFieldType(sourceFieldType(pack, d))}
+              title={summarizeFieldType(sourceFieldType(project, d))}
               className="cursor-pointer text-[11px] focus:bg-[var(--surface-raised-2)]"
             >
               <span className="mr-1">{d.shape === "table" ? "🗂" : "📦"}</span>
               <span className="font-mono">{d.name}</span>
               <span className="ml-auto text-[9px] text-[var(--text-faint)]">
-                {summarizeFieldType(sourceFieldType(pack, d))}
+                {summarizeFieldType(sourceFieldType(project, d))}
               </span>
             </DropdownMenuItem>
           ))}

@@ -14,9 +14,9 @@ export interface UseTitleLayerDragHandlers {
 
 function findMenu(menuId: MenuId): { projectId: ProjectId; layer: MenuTitleLayer[] } | null {
   const projects = useAccountStore.getState().account.projects;
-  for (const pack of projects) {
-    const menu = pack.menus.find((m) => m.id === menuId);
-    if (menu) return { projectId: pack.id, layer: menu.title };
+  for (const project of projects) {
+    const menu = project.menus.find((m) => m.id === menuId);
+    if (menu) return { projectId: project.id, layer: menu.title };
   }
   return null;
 }

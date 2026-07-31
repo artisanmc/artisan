@@ -224,7 +224,7 @@ function OpenMenuEditor({
           onChange={(e) => onChange({ ...action, menuId: e.target.value as MenuId })}
           className="w-full rounded border border-[var(--border-soft)] bg-[var(--surface-raised)] px-2 py-1 font-mono text-xs text-[var(--text)]"
         >
-          {/* Allow keeping a value that no longer exists in the pack so the
+          {/* Allow keeping a value that no longer exists in the project so the
               user can see the dangling ref instead of silently flipping to the
               first menu. */}
           {menus.some((m) => m.id === action.menuId) ? null : (
@@ -538,7 +538,7 @@ function SendMessageEditor({
     () =>
       menuId && elementId && clickType
         ? ({ kind: "action" as const, menuId, elementId, clickType })
-        // "" → no pack scope → usePlaceholderEntries returns [] (graceful degradation)
+        // "" → no project scope → usePlaceholderEntries returns [] (graceful degradation)
         : ({ kind: "menu" as const, menuId: "" as MenuId }),
     [menuId, elementId, clickType],
   );
@@ -602,7 +602,7 @@ function ShowTitleEditor({
     () =>
       menuId && elementId && clickType
         ? ({ kind: "action" as const, menuId, elementId, clickType })
-        // "" → no pack scope → usePlaceholderEntries returns [] (graceful degradation)
+        // "" → no project scope → usePlaceholderEntries returns [] (graceful degradation)
         : ({ kind: "menu" as const, menuId: "" as MenuId }),
     [menuId, elementId, clickType],
   );
@@ -970,20 +970,20 @@ function PaginateEditor({
   action: Extract<Action, { type: "paginate" }>;
   onChange: (a: Action) => void;
 }) {
-  // List every iterating element across the pack so the user can target
+  // List every iterating element across the project so the user can target
   // a specific pager. "All iterables" is the default — fits the common
   // "single list per menu" case.
   //
-  // The pack ref itself is stable thanks to immer — selecting it from
+  // The project ref itself is stable thanks to immer — selecting it from
   // the store doesn't allocate. Derive `targets` via useMemo so we don't
   // hand zustand a fresh array on every render (that'd loop the identity
   // check, same trap as ItemTooltip's findElementAndMenu).
-  const pack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
   const getText = useGetText(projectId);
   const targets = useMemo(() => {
-    if (!pack) return [];
+    if (!project) return [];
     const out: { id: ElementId; menuTitle: string; alias: string; source: string }[] = [];
-    for (const m of pack.menus) {
+    for (const m of project.menus) {
       for (const layer of m.layers) {
         for (const el of layer.elements) {
           if (el.iterates) {
@@ -998,7 +998,7 @@ function PaginateEditor({
       }
     }
     return out;
-  }, [pack, getText]);
+  }, [project, getText]);
 
   const { t } = useTranslation();
   return (

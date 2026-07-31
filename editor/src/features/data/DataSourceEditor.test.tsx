@@ -44,7 +44,7 @@ function makeProject(sourceNames = ["settings"]): Project {
   } as unknown as Project;
 }
 
-const pack = () => useAccountStore.getState().account.projects[0]!;
+const project = () => useAccountStore.getState().account.projects[0]!;
 
 beforeEach(() => {
   useAccountStore.setState({
@@ -59,17 +59,17 @@ afterEach(() => {
 describe("DataSourceEditor", () => {
   it("asks for confirmation before deleting a data source", () => {
     const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
-    render(<DataSourceEditor projectId={PID} source={pack().dataSources[0]!} />);
+    render(<DataSourceEditor projectId={PID} source={project().dataSources[0]!} />);
     fireEvent.click(screen.getByText("Supprimer"));
     expect(confirmSpy).toHaveBeenCalledOnce();
-    expect(pack().dataSources).toHaveLength(1);
+    expect(project().dataSources).toHaveLength(1);
   });
 
   it("deletes the data source when confirmed", () => {
     vi.spyOn(window, "confirm").mockReturnValue(true);
-    render(<DataSourceEditor projectId={PID} source={pack().dataSources[0]!} />);
+    render(<DataSourceEditor projectId={PID} source={project().dataSources[0]!} />);
     fireEvent.click(screen.getByText("Supprimer"));
-    expect(pack().dataSources).toHaveLength(0);
+    expect(project().dataSources).toHaveLength(0);
   });
 
   it("lowercases the name input and reports a duplicate without renaming", () => {
@@ -80,7 +80,7 @@ describe("DataSourceEditor", () => {
         projectOrder: [PID],
       },
     } as never);
-    render(<DataSourceEditor projectId={PID} source={pack().dataSources[0]!} />);
+    render(<DataSourceEditor projectId={PID} source={project().dataSources[0]!} />);
     const input = screen.getByRole("textbox", { name: "Nom de la source" });
 
     fireEvent.change(input, { target: { value: "GRADES" } });
@@ -88,13 +88,13 @@ describe("DataSourceEditor", () => {
     fireEvent.blur(input);
 
     expect(screen.getByText("Une source porte déjà ce nom.")).toBeInTheDocument();
-    expect(pack().dataSources[0]!.name).toBe("settings");
+    expect(project().dataSources[0]!.name).toBe("settings");
   });
 
   // ── bascule Formulaire ↔ YAML ────────────────────────────────────────────
 
   it("montre le YAML de la source", () => {
-    render(<DataSourceEditor projectId={PID} source={pack().dataSources[0]!} />);
+    render(<DataSourceEditor projectId={PID} source={project().dataSources[0]!} />);
     fireEvent.click(screen.getByRole("button", { name: "YAML" }));
     expect((screen.getByLabelText("data/ds_1.yaml") as HTMLTextAreaElement).value).toContain("coins");
   });
@@ -105,14 +105,14 @@ describe("DataSourceEditor", () => {
    * sur YAML. L'onglet doit toujours refléter l'état courant.
    */
   it("relit l'état courant à chaque ouverture de l'onglet YAML", () => {
-    const view = render(<DataSourceEditor projectId={PID} source={pack().dataSources[0]!} />);
+    const view = render(<DataSourceEditor projectId={PID} source={project().dataSources[0]!} />);
     fireEvent.click(screen.getByRole("button", { name: "YAML" }));
     fireEvent.click(screen.getByRole("button", { name: "Formulaire" }));
 
     useAccountStore.getState().setSourceValue({
       projectId: PID, sourceId: "ds_1" as never, row: null, path: ["currency"], value: "jetons",
     });
-    view.rerender(<DataSourceEditor projectId={PID} source={pack().dataSources[0]!} />);
+    view.rerender(<DataSourceEditor projectId={PID} source={project().dataSources[0]!} />);
 
     fireEvent.click(screen.getByRole("button", { name: "YAML" }));
     const shown = (screen.getByLabelText("data/ds_1.yaml") as HTMLTextAreaElement).value;
@@ -121,10 +121,10 @@ describe("DataSourceEditor", () => {
   });
 
   it("un aller-retour sans rien toucher ne modifie pas la source", () => {
-    render(<DataSourceEditor projectId={PID} source={pack().dataSources[0]!} />);
+    render(<DataSourceEditor projectId={PID} source={project().dataSources[0]!} />);
     fireEvent.click(screen.getByRole("button", { name: "YAML" }));
     fireEvent.click(screen.getByRole("button", { name: "Formulaire" }));
-    const s = pack().dataSources[0]!;
+    const s = project().dataSources[0]!;
     if (s.shape !== "config") throw new Error("config attendu");
     expect(s.value).toEqual({ currency: "coins" });
   });

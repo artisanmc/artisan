@@ -19,16 +19,16 @@ export function computeAndApplyAlignment(
     align.clear();
     return;
   }
-  const pack = useAccountStore.getState().account.projects.find((p) => p.id === projectId);
-  if (!pack) return;
-  const layout = pack.canvasLayout as Record<string, { x: number; y: number }>;
-  const selfBox = nodeBox(pack, selfId, layout);
+  const project = useAccountStore.getState().account.projects.find((p) => p.id === projectId);
+  if (!project) return;
+  const layout = project.canvasLayout as Record<string, { x: number; y: number }>;
+  const selfBox = nodeBox(project, selfId, layout);
   if (!selfBox) return;
   const dragged: Box = { x: node.x(), y: node.y(), width: selfBox.width, height: selfBox.height };
   const others: Box[] = [];
   for (const id of Object.keys(layout)) {
     if (id === selfId) continue;
-    const b = nodeBox(pack, id, layout);
+    const b = nodeBox(project, id, layout);
     if (b) others.push(b);
   }
   const res = alignmentGuides(dragged, others, THRESHOLD);

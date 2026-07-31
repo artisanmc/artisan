@@ -2,14 +2,14 @@ import type { Viewport, WrapperRect } from "./title/composer/screenToCanvasCoord
 
 /**
  * Module-level registry that lets components outside the `<Stage>` subtree
- * (e.g. the always-on `LayersPanel` in the 3rd column of the pack route)
+ * (e.g. the always-on `LayersPanel` in the 3rd column of the project route)
  * read the current canvas viewport + wrapper rect on demand.
  *
  * Mirrors the `stageDropTarget` pattern: `Stage` registers a getter on
  * mount, callers (`LayersPanel.onPlace`'s drag branch) invoke it from
  * outside the React tree to convert screen → canvas coords.
  *
- * Single-tenant: only one `Stage` is mounted at a time per pack route.
+ * Single-tenant: only one `Stage` is mounted at a time per project route.
  * Cleared on unmount so subsequent mounts don't read stale geometry.
  */
 export interface StageGeometry {

@@ -272,14 +272,14 @@ function VariantFieldAdder({ existing, onAdd }: { existing: string[]; onAdd: (na
 function FieldRow({
   projectId,
   target,
-  pack,
+  project,
   path,
   field,
   isKeyField,
 }: {
   projectId: Project["id"];
   target: FieldEditTarget;
-  pack: Project;
+  project: Project;
   path: string[];
   field: ModelField;
   isKeyField: boolean;
@@ -287,7 +287,7 @@ function FieldRow({
   const { t } = useTranslation();
   const editSourceField = useAccountStore((s) => s.editSourceField);
   const [name, setName] = useState(field.name);
-  const models = pack.dataModels ?? [];
+  const models = project.dataModels ?? [];
 
   const kindLabel = (k: KindChoice) => t(`dataSources.kind.${k}`);
   const commitRename = () => {
@@ -440,7 +440,7 @@ function FieldRow({
           <FieldList
             projectId={projectId}
             target={target}
-            pack={pack}
+            project={project}
             path={nestedPath}
             fields={nestedFields}
             keyField={null}
@@ -457,14 +457,14 @@ function FieldRow({
 function FieldList({
   projectId,
   target,
-  pack,
+  project,
   path,
   fields,
   keyField,
 }: {
   projectId: Project["id"];
   target: FieldEditTarget;
-  pack: Project;
+  project: Project;
   path: string[];
   fields: ModelField[];
   keyField: string | null;
@@ -476,7 +476,7 @@ function FieldList({
   const [draftOpen, setDraftOpen] = useState(false);
   const [newName, setNewName] = useState("");
   const [newKind, setNewKind] = useState<KindChoice>("string");
-  const models = pack.dataModels ?? [];
+  const models = project.dataModels ?? [];
 
   const addField = () => {
     const clean = newName.trim();
@@ -501,7 +501,7 @@ function FieldList({
             key={f.name}
             projectId={projectId}
             target={target}
-            pack={pack}
+            project={project}
             path={path}
             field={f}
             isKeyField={keyField === f.name}
@@ -559,24 +559,24 @@ function FieldList({
 
 export function ModelFieldsEditor({
   projectId,
-  pack,
+  project,
   source,
 }: {
   projectId: Project["id"];
-  pack: Project;
+  project: Project;
   source: Project["dataSources"][number];
 }) {
   const { t } = useTranslation();
   const renameDataModel = useAccountStore((s) => s.renameDataModel);
   const setModelKeyField = useAccountStore((s) => s.setModelKeyField);
   const setSourceGranularity = useAccountStore((s) => s.setSourceGranularity);
-  const models = pack.dataModels ?? [];
+  const models = project.dataModels ?? [];
   const model = source.shape === "table" ? models.find((m) => m.id === source.modelId) : null;
   const target: FieldEditTarget =
     source.shape === "table"
       ? { kind: "model", modelId: source.modelId }
       : { kind: "config", sourceId: source.id };
-  const fields = sourceRootFields(pack, source);
+  const fields = sourceRootFields(project, source);
   // Row-key candidates: top-level scalar fields.
   const keyCandidates = fields
     .filter((f) => f.type.kind === "string" || f.type.kind === "number" || f.type.kind === "integer")
@@ -666,7 +666,7 @@ export function ModelFieldsEditor({
       <FieldList
         projectId={projectId}
         target={target}
-        pack={pack}
+        project={project}
         path={[]}
         fields={fields}
         keyField={model?.keyField ?? null}

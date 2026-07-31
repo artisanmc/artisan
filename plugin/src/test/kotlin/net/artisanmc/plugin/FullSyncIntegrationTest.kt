@@ -40,12 +40,12 @@ class FullSyncIntegrationTest {
         return log
     }
 
-    private fun packFiles(packId: String) = mapOf(
-        "plugins/Artisan/projects/$packId/manifest.yaml" to "schema: manifest/v1\nproject_id: $packId\n",
-        "plugins/Artisan/projects/$packId/menus/shop.yaml" to "id: shop\nsize: 27\n",
+    private fun projectFiles(projectId: String) = mapOf(
+        "plugins/Artisan/projects/$projectId/manifest.yaml" to "schema: manifest/v1\nproject_id: $projectId\n",
+        "plugins/Artisan/projects/$projectId/menus/shop.yaml" to "id: shop\nsize: 27\n",
     )
 
-    private fun helloAck(server: MockWebServer, packId: String, backendHash: String, needsSync: Boolean = true) =
+    private fun helloAck(server: MockWebServer, projectId: String, backendHash: String, needsSync: Boolean = true) =
         mapper.writeValueAsString(mapOf(
             "type"                to "hello_ack",
             "session_id"          to "s_integ",
@@ -54,14 +54,14 @@ class FullSyncIntegrationTest {
             "needs_sync"          to needsSync,
             "latest_bundle_hash"  to backendHash,
             "api_url"             to server.url("/api").toString(),
-            "project_hashes"      to mapOf(packId to backendHash),
+            "project_hashes"      to mapOf(projectId to backendHash),
         ))
 
-    private fun bundleAvailable(server: MockWebServer, packId: String, backendHash: String) =
+    private fun bundleAvailable(server: MockWebServer, projectId: String, backendHash: String) =
         mapper.writeValueAsString(mapOf(
             "type"      to "bundle_available",
-            "project_id" to packId,
-            "url"       to server.url("/api/v1/bundles/$packId").toString(),
+            "project_id" to projectId,
+            "url"       to server.url("/api/v1/bundles/$projectId").toString(),
             "hash"      to backendHash,
             "signature" to "",
         ))
@@ -72,9 +72,9 @@ class FullSyncIntegrationTest {
     fun `bundle_available triggers download — files written to disk and SyncMetadata updated`() {
         MockBukkit.mock()
         try {
-            val packId = "p_dl_integ"
+            val projectId = "p_dl_integ"
             val backendHash = "deadbeef001"
-            val files = packFiles(packId)
+            val files = projectFiles(projectId)
             val packsDir = Files.createTempDirectory("artisan_integ_dl_").toFile()
 
             MockWebServer().use { server ->
@@ -82,8 +82,8 @@ class FullSyncIntegrationTest {
                     override fun onMessage(ws: WebSocket, text: String) {
                         val node = mapper.readTree(text)
                         if (node["type"]?.asText() == "hello") {
-                            ws.send(helloAck(server, packId, backendHash))
-                            ws.send(bundleAvailable(server, packId, backendHash))
+                            ws.send(helloAck(server, projectId, backendHash))
+                            ws.send(bundleAvailable(server, projectId, backendHash))
                         }
                     }
                 }))
@@ -104,16 +104,16 @@ class FullSyncIntegrationTest {
 
                 // Poll until the sync COMPLETES (metadata is written last, after
                 // files + sweep) — async download on the OkHttp dispatcher thread.
-                val manifest = File(packsDir, "$packId/manifest.yaml")
-                val syncMeta = File(packsDir, "$packId/.artisan-sync.yaml")
+                val manifest = File(packsDir, "$projectId/manifest.yaml")
+                val syncMeta = File(packsDir, "$projectId/.artisan-sync.yaml")
                 val deadline = System.currentTimeMillis() + 5_000
                 while (!(manifest.exists() && syncMeta.exists()) && System.currentTimeMillis() < deadline) Thread.sleep(100)
 
                 assertTrue(manifest.exists(), "manifest.yaml should be written by BundleDownloader")
-                assertTrue(File(packsDir, "$packId/menus/shop.yaml").exists())
-                assertEquals("schema: manifest/v1\nproject_id: $packId\n", manifest.readText())
+                assertTrue(File(packsDir, "$projectId/menus/shop.yaml").exists())
+                assertEquals("schema: manifest/v1\nproject_id: $projectId\n", manifest.readText())
 
-                val meta = SyncMetadata.read(File(packsDir, packId))
+                val meta = SyncMetadata.read(File(packsDir, projectId))
                 assertEquals(backendHash, meta.backendHash)
                 assertNotEquals("", meta.syncedHash, "syncedHash must be set after sync")
 
@@ -128,18 +128,18 @@ class FullSyncIntegrationTest {
     fun `LOCAL_ONLY detected when local files edited but backend unchanged`() {
         MockBukkit.mock()
         try {
-            val packId = "p_local_integ"
+            val projectId = "p_local_integ"
             val packsDir = Files.createTempDirectory("artisan_integ_local_").toFile()
 
             // Simulate a previous successful sync
-            val packDir = File(packsDir, packId).apply { mkdirs() }
-            File(packDir, "manifest.yaml").writeText("schema: manifest/v1\nproject_id: $packId\n")
-            val syncedHash = BundleHasher.hash(packDir)
-            SyncMetadata.recordSync(packDir, syncedHash = syncedHash, backendHash = syncedHash)
+            val projectDir = File(packsDir, projectId).apply { mkdirs() }
+            File(projectDir, "manifest.yaml").writeText("schema: manifest/v1\nproject_id: $projectId\n")
+            val syncedHash = BundleHasher.hash(projectDir)
+            SyncMetadata.recordSync(projectDir, syncedHash = syncedHash, backendHash = syncedHash)
 
             // Local edit — disk hash now differs from syncedHash
-            File(packDir, "manifest.yaml").appendText("\n# local edit\n")
-            assertNotEquals(syncedHash, BundleHasher.hash(packDir))
+            File(projectDir, "manifest.yaml").appendText("\n# local edit\n")
+            assertNotEquals(syncedHash, BundleHasher.hash(projectDir))
 
             val logs = Collections.synchronizedList(mutableListOf<String>())
             val ackLatch = CountDownLatch(1)
@@ -150,7 +150,7 @@ class FullSyncIntegrationTest {
                         val node = mapper.readTree(text)
                         if (node["type"]?.asText() == "hello") {
                             // Backend hash = syncedHash (backend didn't change)
-                            ws.send(helloAck(server, packId, syncedHash, needsSync = false))
+                            ws.send(helloAck(server, projectId, syncedHash, needsSync = false))
                             ackLatch.countDown()
                         }
                     }
@@ -184,17 +184,17 @@ class FullSyncIntegrationTest {
     fun `CONFLICT detected when both local files and backend changed since last sync`() {
         MockBukkit.mock()
         try {
-            val packId = "p_conflict_integ"
+            val projectId = "p_conflict_integ"
             val packsDir = Files.createTempDirectory("artisan_integ_conflict_").toFile()
 
             // Simulate a previous sync
-            val packDir = File(packsDir, packId).apply { mkdirs() }
-            File(packDir, "manifest.yaml").writeText("schema: manifest/v1\nproject_id: $packId\n")
-            val syncedHash = BundleHasher.hash(packDir)
-            SyncMetadata.recordSync(packDir, syncedHash = syncedHash, backendHash = syncedHash)
+            val projectDir = File(packsDir, projectId).apply { mkdirs() }
+            File(projectDir, "manifest.yaml").writeText("schema: manifest/v1\nproject_id: $projectId\n")
+            val syncedHash = BundleHasher.hash(projectDir)
+            SyncMetadata.recordSync(projectDir, syncedHash = syncedHash, backendHash = syncedHash)
 
             // Local edit
-            File(packDir, "manifest.yaml").appendText("\n# local edit\n")
+            File(projectDir, "manifest.yaml").appendText("\n# local edit\n")
 
             // Backend also changed independently
             val newBackendHash = "new_backend_hash_conflict_xyz"
@@ -207,7 +207,7 @@ class FullSyncIntegrationTest {
                     override fun onMessage(ws: WebSocket, text: String) {
                         val node = mapper.readTree(text)
                         if (node["type"]?.asText() == "hello") {
-                            ws.send(helloAck(server, packId, newBackendHash, needsSync = true))
+                            ws.send(helloAck(server, projectId, newBackendHash, needsSync = true))
                             ackLatch.countDown()
                         }
                     }
@@ -238,15 +238,15 @@ class FullSyncIntegrationTest {
     }
 
     @Test
-    fun `auto-push at hello when disk pack non-empty and backend reports empty hash`() {
+    fun `auto-push at hello when disk project non-empty and backend reports empty hash`() {
         MockBukkit.mock()
         try {
-            val packId = "p_auto_push"
+            val projectId = "p_auto_push"
             val packsDir = Files.createTempDirectory("artisan_auto_").toFile()
-            val packDir = File(packsDir, packId).apply { mkdirs() }
-            File(packDir, "manifest.yaml").writeText("schema: manifest/v1\nproject_id: $packId\n")
-            File(packDir, "menus").mkdirs()
-            File(packDir, "menus/m.yaml").writeText("id: m\nsize: 27\n")
+            val projectDir = File(packsDir, projectId).apply { mkdirs() }
+            File(projectDir, "manifest.yaml").writeText("schema: manifest/v1\nproject_id: $projectId\n")
+            File(projectDir, "menus").mkdirs()
+            File(projectDir, "menus/m.yaml").writeText("id: m\nsize: 27\n")
 
             val received = Collections.synchronizedList(mutableListOf<Map<String, Any>>())
             val helloLatch = CountDownLatch(1)
@@ -258,12 +258,12 @@ class FullSyncIntegrationTest {
                         val type = node["type"]?.asText()
                         when (type) {
                             "hello" -> {
-                                // Reply with hello_ack reporting empty backend hash for the local pack
+                                // Reply with hello_ack reporting empty backend hash for the local project
                                 ws.send(mapper.writeValueAsString(mapOf(
                                     "type" to "hello_ack",
                                     "session_id" to "sess_test",
                                     "needs_sync" to false,
-                                    "project_hashes" to mapOf(packId to ""),
+                                    "project_hashes" to mapOf(projectId to ""),
                                     "deleted_project_ids" to emptyList<String>(),
                                 )))
                                 helloLatch.countDown()
@@ -291,7 +291,7 @@ class FullSyncIntegrationTest {
 
                 val push = received.firstOrNull { it["type"] == "local_push" }
                 assertNotNull(push, "Expected an auto-pushed local_push message. Received: $received")
-                assertEquals(packId, push!!["project_id"])
+                assertEquals(projectId, push!!["project_id"])
 
                 provider.unload()
             }
@@ -356,13 +356,13 @@ class FullSyncIntegrationTest {
     @Test
     fun `plugin logs WARN on divergence and never sends pack_divergence_detected (Plan 1C)`() {
         val packsDir = Files.createTempDirectory("artisan_div_").toFile()
-        val packDir = File(packsDir, "p_local").also { it.mkdirs() }
-        File(packDir, "menus").mkdirs()
-        File(packDir, "menus/m.yaml").writeText("id: m\n")
+        val projectDir = File(packsDir, "p_local").also { it.mkdirs() }
+        File(projectDir, "menus").mkdirs()
+        File(projectDir, "menus/m.yaml").writeText("id: m\n")
 
         // Seed SyncMetadata avec "old_synced_hash" pour que detectSyncAction == LOCAL_ONLY
         // (disk diverges from synced; backend matches synced)
-        net.artisanmc.plugin.sync.SyncMetadata.recordSync(packDir,
+        net.artisanmc.plugin.sync.SyncMetadata.recordSync(projectDir,
             syncedHash = "old_synced_hash", backendHash = "old_synced_hash")
 
         val logs = Collections.synchronizedList(mutableListOf<String>())

@@ -70,16 +70,16 @@ export const menuBoxSize = (type: InventoryType, rows: number) => {
  * Shared by Edges.tsx (box map) and GhostChips.tsx (chip anchor) to keep sizing in sync.
  */
 export function nodeBox(
-  pack: Project,
+  project: Project,
   id: string,
   layout: Record<string, { x: number; y: number }>,
 ): Box | null {
   const pos = layout[id];
   if (!pos) return null;
-  const menu = pack.menus.find((m) => m.id === id);
+  const menu = project.menus.find((m) => m.id === id);
   if (menu) return { ...pos, ...menuBoxSize(menu.inventoryType ?? "chest", menu.rows) };
-  if (pack.commands.some((c) => c.id === id)) return { ...pos, ...COMMAND_BOX };
-  if ((pack.dialogs ?? []).some((d) => d.id === id)) return { ...pos, ...DIALOG_BOX };
+  if (project.commands.some((c) => c.id === id)) return { ...pos, ...COMMAND_BOX };
+  if ((project.dialogs ?? []).some((d) => d.id === id)) return { ...pos, ...DIALOG_BOX };
   return null;
 }
 

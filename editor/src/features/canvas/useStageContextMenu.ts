@@ -9,11 +9,11 @@ import type { ViewportState } from "./usePanZoom";
 const emptyTarget: ContextMenuTarget = { kind: "entity", selectedIds: [] };
 
 const slotIsFilled = (
-  pack: ReturnType<typeof useAccountStore.getState>["account"]["projects"][number],
+  project: ReturnType<typeof useAccountStore.getState>["account"]["projects"][number],
   menuId: string,
   position: number,
 ): boolean => {
-  const menu = pack.menus.find((m) => m.id === menuId);
+  const menu = project.menus.find((m) => m.id === menuId);
   if (!menu) return false;
   const positionStr = String(position);
   return menu.layers.some((l) =>
@@ -22,7 +22,7 @@ const slotIsFilled = (
 };
 
 interface UseStageContextMenuArgs {
-  pack: ReturnType<typeof useAccountStore.getState>["account"]["projects"][number] | undefined;
+  project: ReturnType<typeof useAccountStore.getState>["account"]["projects"][number] | undefined;
   layout: Record<string, { x: number; y: number }>;
   viewport: ViewportState;
   wrapperRef: RefObject<HTMLDivElement | null>;
@@ -30,7 +30,7 @@ interface UseStageContextMenuArgs {
 }
 
 export function useStageContextMenu({
-  pack,
+  project,
   layout,
   viewport,
   wrapperRef,
@@ -50,7 +50,7 @@ export function useStageContextMenu({
    */
   const openContextMenuAt = useCallback(
     (clientX: number, clientY: number, konvaTarget?: Konva.Node) => {
-      if (!pack) return;
+      if (!project) return;
       const wrapper = wrapperRef.current;
       const stage = stageRef.current;
       if (!wrapper || !stage) return;
@@ -60,7 +60,7 @@ export function useStageContextMenu({
 
       // Slot path: manual hit-test in world coords (slots have listening=false
       // so Konva's own target won't surface them).
-      const slotHit = hitTestSlot(pack, layout, world.x, world.y);
+      const slotHit = hitTestSlot(project, layout, world.x, world.y);
       if (slotHit) {
         setCtxMenu({
           open: true,
@@ -70,7 +70,7 @@ export function useStageContextMenu({
             kind: "slot",
             menuId: slotHit.menuId,
             position: slotHit.position,
-            filled: slotIsFilled(pack, slotHit.menuId, slotHit.position),
+            filled: slotIsFilled(project, slotHit.menuId, slotHit.position),
           },
         });
         return;
@@ -106,7 +106,7 @@ export function useStageContextMenu({
         target: { kind: "entity", selectedIds: effectiveSelection },
       });
     },
-    [pack, layout, viewport, wrapperRef, stageRef],
+    [project, layout, viewport, wrapperRef, stageRef],
   );
 
   const onStageContextMenu = useCallback(

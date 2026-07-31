@@ -22,22 +22,22 @@ export interface AttachPlacement {
  * Steps:
  *  1. Convert the client-space cursor into canvas coords using the live
  *     stage geometry (wrapper rect + viewport pan/scale).
- *  2. Build a `MenuBounds` for every menu in the pack from
- *     `autoLayout(pack)` + `menuBoxSize(type, rows)`.
+ *  2. Build a `MenuBounds` for every menu in the project from
+ *     `autoLayout(project)` + `menuBoxSize(type, rows)`.
  *  3. Pick the nearest with `findNearestMenu`.
  *  4. Translate the cursor into layer-local MC pixels by subtracting the
  *     menu origin and dividing by `TEX_SCALE`.
  */
 export function attachLayerAtCursor(
-  pack: Project,
+  project: Project,
   geometry: StageGeometry,
   cursor: Cursor,
 ): AttachPlacement | null {
   const canvas = screenToCanvasCoords(cursor, geometry.wrapperRect, geometry.viewport);
 
-  const layout = autoLayout(pack);
+  const layout = autoLayout(project);
   const bounds: MenuBounds[] = [];
-  for (const menu of pack.menus) {
+  for (const menu of project.menus) {
     const pos = layout[menu.id];
     if (!pos) continue;
     const box = menuBoxSize(menu.inventoryType ?? "chest", menu.rows);

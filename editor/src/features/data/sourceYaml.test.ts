@@ -4,7 +4,7 @@ import { applySourceYaml, sourceYamlFiles } from "./sourceYaml";
 
 const PID = "p_yaml" as ProjectId;
 
-function pack(): Project {
+function project(): Project {
   return {
     id: PID,
     name: "P",
@@ -36,20 +36,20 @@ const source = (p: Project, id: string) => p.dataSources.find((d) => String(d.id
 
 describe("sourceYamlFiles", () => {
   it("ne rend que les fichiers de la source demandée", () => {
-    const p = pack();
+    const p = project();
     const files = sourceYamlFiles(p, source(p, "ranks"));
     expect(files.map((f) => f.path)).toContain("data/ranks.yaml");
     expect(files.every((f) => f.path.includes("ranks"))).toBe(true);
   });
 
   it("inclut le schéma beside d'une source project-authored", () => {
-    const p = pack();
+    const p = project();
     const paths = sourceYamlFiles(p, source(p, "ranks")).map((f) => f.path);
     expect(paths).toContain("models/ranks.yaml");
   });
 
   it("montre le contenu que le writer écrirait", () => {
-    const p = pack();
+    const p = project();
     const data = sourceYamlFiles(p, source(p, "ranks")).find((f) => f.path === "data/ranks.yaml")!;
     expect(data.content).toContain("vip");
     // Table en fichier unique = liste de lignes : les aides du schéma ne sont
@@ -61,7 +61,7 @@ describe("sourceYamlFiles", () => {
 
 describe("applySourceYaml", () => {
   it("réinjecte une valeur éditée à la main", () => {
-    const p = pack();
+    const p = project();
     const files = sourceYamlFiles(p, source(p, "settings"));
     const edited = files.map((f) =>
       f.path === "data/settings.yaml" ? { ...f, content: 'motd: "bonjour"\n' } : f,
@@ -74,7 +74,7 @@ describe("applySourceYaml", () => {
 
   // Une édition de source ne doit pas devenir une réécriture du project.
   it("ne touche ni aux menus ni à la mise en page", () => {
-    const p = pack();
+    const p = project();
     p.menus = [{ id: "m1", projectId: PID, title: [], rows: 3, layers: [] } as never];
     p.canvasLayout = { m1: { x: 42, y: 7 } } as never;
     const next = applySourceYaml(p, sourceYamlFiles(p, source(p, "settings")))!;
@@ -83,7 +83,7 @@ describe("applySourceYaml", () => {
   });
 
   it("est un point fixe quand rien n'est édité", () => {
-    const p = pack();
+    const p = project();
     const next = applySourceYaml(p, sourceYamlFiles(p, source(p, "ranks")))!;
     expect(next.dataSources.map((d) => String(d.id)).sort()).toEqual(["ranks", "settings"]);
     const ranks = next.dataSources.find((d) => String(d.id) === "ranks")!;

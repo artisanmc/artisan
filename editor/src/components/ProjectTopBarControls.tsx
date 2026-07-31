@@ -4,7 +4,7 @@ import { TopBarKebabMenu } from "@/components/TopBarKebabMenu";
  * ProjectTopBarControls
  *
  * Top-bar control strip for the project route. Encapsulates:
- *   - LangSwitcher  (content language for the pack)
+ *   - LangSwitcher  (content language for the project)
  *   - UndoRedoButtons
  *   - DeployButtons  (Deploy + Revert)
  *   - TopBarKebabMenu  (Import / Export / Patterns / Delete)
@@ -57,10 +57,10 @@ import { useStore } from "zustand";
 // ---------------------------------------------------------------------------
 
 export interface ProjectTopBarControlsProps {
-  pack: Project;
+  project: Project;
   projectId: ProjectId;
 
-  /** Display name shown in the left of the top bar. Defaults to `pack.name`. */
+  /** Display name shown in the left of the top bar. Defaults to `project.name`. */
   projectName?: string;
 
   // Kebab menu handlers (route-specific implementations).
@@ -74,12 +74,12 @@ export interface ProjectTopBarControlsProps {
 
 /**
  * Full top-bar header area for the project route. Renders a single
- * 52px row with the pack name dot + name on the left and controls on the right.
+ * 52px row with the project name dot + name on the left and controls on the right.
  *
  * Branch / history navigation lives in the History tab (HistoryTab component).
  */
 export function ProjectTopBarControls({
-  pack,
+  project,
   projectId,
   projectName,
   onImport,
@@ -88,7 +88,7 @@ export function ProjectTopBarControls({
   onDelete,
   networkId,
 }: ProjectTopBarControlsProps) {
-  const displayName = projectName ?? pack.name;
+  const displayName = projectName ?? project.name;
   const { t } = useTranslation();
   const panelOpen = useUiStore((s) => s.projectPanelOpen);
   const conflicted = useProjectVersionStore((s) => Boolean(s.conflicts[projectId]));
@@ -111,7 +111,7 @@ export function ProjectTopBarControls({
       >
         {panelOpen ? <PanelLeftClose className="size-4" /> : <PanelLeftOpen className="size-4" />}
       </button>
-      <WorkspaceViewNav pack={pack} />
+      <WorkspaceViewNav project={project} />
       <div className="flex min-w-0 flex-1 items-center gap-2.5 truncate px-1 font-mono text-[13px] text-[var(--text)]">
         {/* Save-health dot: green = saves flowing; red = the last save was
             rejected (409 version conflict — another session took the lead).
@@ -128,12 +128,12 @@ export function ProjectTopBarControls({
       </div>
       <LinkedServersDropdown
         networkId={networkId}
-        currentServerKeyId={pack.serverKeyId ?? undefined}
+        currentServerKeyId={project.serverKeyId ?? undefined}
       />
-      <LangSwitcher pack={pack} />
+      <LangSwitcher project={project} />
       <UndoRedoButtons />
       <SearchButton />
-      <DeployButtons pack={pack} projectId={projectId} networkId={networkId ?? null} />
+      <DeployButtons project={project} projectId={projectId} networkId={networkId ?? null} />
       <TopBarKebabMenu
         onImport={onImport ?? (() => {})}
         onExportZip={onExportZip ?? (() => {})}
@@ -151,10 +151,10 @@ export function ProjectTopBarControls({
 /**
  * Top-bar language switcher. Lets the user flip the active language for
  * the editor — every text input and canvas preview re-resolves through
- * the new language, with empty fields falling back to `pack.defaultLang`.
+ * the new language, with empty fields falling back to `project.defaultLang`.
  *
  * The list of languages is derived from whatever appears across
- * `pack.i18nKeys[*]` plus `defaultLang`; "Add language…" prompts for a
+ * `project.i18nKeys[*]` plus `defaultLang`; "Add language…" prompts for a
  * code, switches the active language, and `addLanguage` records the
  * existence of the new code in the i18n map.
  */
@@ -175,11 +175,11 @@ const TAB_META: Record<WorkspaceViewTab, { labelKey: string; Icon: typeof Langua
   assistant: { labelKey: "assistant.title", Icon: Sparkles },
 };
 
-function WorkspaceViewNav({ pack }: { pack: Project }) {
+function WorkspaceViewNav({ project }: { project: Project }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const activeLang = useUiStore((s) => s.activeLang);
-  const missing = countMissingForLang(pack, activeLang);
+  const missing = countMissingForLang(project, activeLang);
   const search = useSearch({ strict: false }) as { tab?: WorkspaceViewTab };
   const active: WorkspaceViewTab = search.tab ?? "overview";
   // `overview` clears the param (canvas is the default view); the rest set it.
@@ -247,7 +247,7 @@ function WorkspaceViewNav({ pack }: { pack: Project }) {
   );
 }
 
-function LangSwitcher({ pack }: { pack: Project }) {
+function LangSwitcher({ project }: { project: Project }) {
   const activeLang = useUiStore((s) => s.activeLang);
   const setActiveLang = useUiStore((s) => s.setActiveLang);
   const addLanguage = useAccountStore((s) => s.addLanguage);
@@ -257,8 +257,8 @@ function LangSwitcher({ pack }: { pack: Project }) {
 
   // Collect every language mentioned in the i18n map, plus defaultLang
   // (which might be the only one before any keys exist).
-  const langs = new Set<string>([pack.defaultLang]);
-  for (const entry of Object.values(pack.i18nKeys)) {
+  const langs = new Set<string>([project.defaultLang]);
+  for (const entry of Object.values(project.i18nKeys)) {
     if (!entry) continue;
     for (const code of Object.keys(entry)) langs.add(code);
   }
@@ -269,18 +269,18 @@ function LangSwitcher({ pack }: { pack: Project }) {
     if (!code) return;
     const trimmed = code.trim().toLowerCase();
     if (!trimmed) return;
-    addLanguage({ projectId: pack.id, lang: trimmed });
+    addLanguage({ projectId: project.id, lang: trimmed });
     setActiveLang(trimmed);
   };
 
   const onRemove = (lang: string) => {
-    if (lang === pack.defaultLang) {
+    if (lang === project.defaultLang) {
       toast.error(t("langSwitcher.cannotRemoveDefault"));
       return;
     }
     if (!window.confirm(t("langSwitcher.confirmRemove", { lang }))) return;
-    removeLanguage({ projectId: pack.id, lang });
-    if (activeLang === lang) setActiveLang(pack.defaultLang);
+    removeLanguage({ projectId: project.id, lang });
+    if (activeLang === lang) setActiveLang(project.defaultLang);
   };
 
   return (
@@ -307,24 +307,24 @@ function LangSwitcher({ pack }: { pack: Project }) {
             >
               {lang}
             </span>
-            {lang === pack.defaultLang ? (
+            {lang === project.defaultLang ? (
               <span className="badge">{t("langSwitcher.default")}</span>
             ) : null}
             <span className="ml-auto flex items-center gap-1">
-              {lang !== pack.defaultLang ? (
+              {lang !== project.defaultLang ? (
                 <button
                   type="button"
                   title={t("langSwitcher.makeDefault")}
                   onClick={(e) => {
                     e.stopPropagation();
-                    setProjectDefaultLang({ projectId: pack.id, lang });
+                    setProjectDefaultLang({ projectId: project.id, lang });
                   }}
                   className="rounded px-1 text-[11px] text-[var(--text-faint)] hover:text-[var(--warning)]"
                 >
                   ★
                 </button>
               ) : null}
-              {lang !== pack.defaultLang ? (
+              {lang !== project.defaultLang ? (
                 <button
                   type="button"
                   title={t("langSwitcher.removeLanguage")}
@@ -401,11 +401,11 @@ function SearchButton() {
 }
 
 function DeployButtons({
-  pack,
+  project,
   projectId,
   networkId,
 }: {
-  pack: Project;
+  project: Project;
   projectId: string;
   networkId: string | null;
 }) {
@@ -434,14 +434,14 @@ function DeployButtons({
     if (deploying) return;
     setDeploying(true);
     try {
-      const cloned = structuredClone(pack);
+      const cloned = structuredClone(project);
       rekeyProject(cloned);
       const files = transform(cloned);
 
       // Persist the freshly-rekey'd WIP, then commit. The commit endpoint
-      // broadcasts bundle_available, so any plugin bound to this pack picks
+      // broadcasts bundle_available, so any plugin bound to this project picks
       // up the new content via the WS hub.
-      await saveUserProject(pack.id, { hash: "", files });
+      await saveUserProject(project.id, { hash: "", files });
       await createCommit(networkId, projectId, "main", "Deploy");
       // The server's data just changed — drop cached data-source snapshots so
       // the library/canvas refetch fresh rows on next render.
@@ -472,9 +472,9 @@ function DeployButtons({
       }
       // Files are the canonical commit content — parse them back into a
       // fully-typed Project, keeping the current identity fields.
-      const restored: ProjectType = projectFromFiles(pack.id, head.files, {
-        name: pack.name,
-        serverKeyId: pack.serverKeyId,
+      const restored: ProjectType = projectFromFiles(project.id, head.files, {
+        name: project.name,
+        serverKeyId: project.serverKeyId,
       });
       replaceProject(restored);
       toast.success(t("deploy.reverted"));

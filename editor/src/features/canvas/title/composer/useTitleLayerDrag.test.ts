@@ -47,8 +47,8 @@ const seedMenuTitle = (layers: MenuTitleLayer[]) => {
 };
 
 const getTitle = (): MenuTitleLayer[] => {
-  const pack = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
-  return pack.menus.find((m) => m.id === M_ID)!.title;
+  const project = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
+  return project.menus.find((m) => m.id === M_ID)!.title;
 };
 
 describe("useTitleLayerDrag", () => {

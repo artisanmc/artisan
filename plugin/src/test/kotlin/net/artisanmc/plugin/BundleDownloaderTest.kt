@@ -17,32 +17,32 @@ class BundleDownloaderTest {
 
     private val mapper = ObjectMapper()
 
-    private fun makeBundle(packId: String): Map<String, String> = mapOf(
-        "plugins/Artisan/projects/$packId/manifest.yaml" to "schema: manifest/v1\nproject_id: $packId\n",
-        "plugins/Artisan/projects/$packId/menus/shop.yaml" to "id: shop\nsize: 27\n",
+    private fun makeBundle(projectId: String): Map<String, String> = mapOf(
+        "plugins/Artisan/projects/$projectId/manifest.yaml" to "schema: manifest/v1\nproject_id: $projectId\n",
+        "plugins/Artisan/projects/$projectId/menus/shop.yaml" to "id: shop\nsize: 27\n",
     )
 
     @Test
-    fun `download writes YAML files to pack dir under packsDir`() {
+    fun `download writes YAML files to project dir under packsDir`() {
         MockWebServer().use { server ->
             server.start()
-            val packId = "p_dl_test"
-            val files = makeBundle(packId)
+            val projectId = "p_dl_test"
+            val files = makeBundle(projectId)
             val responseBody = mapper.writeValueAsString(mapOf("files" to files, "hash" to "abc123"))
             server.enqueue(MockResponse().setBody(responseBody).setHeader("Content-Type", "application/json"))
 
             val packsDir = Files.createTempDirectory("artisan_dl_").toFile()
             val downloader = BundleDownloader(OkHttpClient(), packsDir)
             downloader.download(
-                url       = server.url("/api/v1/bundles/$packId").toString(),
+                url       = server.url("/api/v1/bundles/$projectId").toString(),
                 serverKey = "sk_test",
-                projectId = packId,
+                projectId = projectId,
             )
 
-            assertTrue(File(packsDir, "$packId/manifest.yaml").exists())
-            assertTrue(File(packsDir, "$packId/menus/shop.yaml").exists())
-            assertEquals("schema: manifest/v1\nproject_id: $packId\n",
-                File(packsDir, "$packId/manifest.yaml").readText())
+            assertTrue(File(packsDir, "$projectId/manifest.yaml").exists())
+            assertTrue(File(packsDir, "$projectId/menus/shop.yaml").exists())
+            assertEquals("schema: manifest/v1\nproject_id: $projectId\n",
+                File(packsDir, "$projectId/manifest.yaml").readText())
         }
     }
 
@@ -50,8 +50,8 @@ class BundleDownloaderTest {
     fun `download updates SyncMetadata after writing`() {
         MockWebServer().use { server ->
             server.start()
-            val packId = "p_meta_test"
-            val files = makeBundle(packId)
+            val projectId = "p_meta_test"
+            val files = makeBundle(projectId)
             val backendHash = "deadeef123"
             server.enqueue(
                 MockResponse()
@@ -62,13 +62,13 @@ class BundleDownloaderTest {
             val packsDir = Files.createTempDirectory("artisan_meta_").toFile()
             val downloader = BundleDownloader(OkHttpClient(), packsDir)
             downloader.download(
-                url       = server.url("/api/v1/bundles/$packId").toString(),
+                url       = server.url("/api/v1/bundles/$projectId").toString(),
                 serverKey = "sk_test",
-                projectId = packId,
+                projectId = projectId,
             )
 
-            val meta = SyncMetadata.read(File(packsDir, packId))
-            val diskHash = BundleHasher.hash(File(packsDir, packId))
+            val meta = SyncMetadata.read(File(packsDir, projectId))
+            val diskHash = BundleHasher.hash(File(packsDir, projectId))
             assertEquals(diskHash, meta.syncedHash)
             assertEquals(backendHash, meta.backendHash)
         }
@@ -78,18 +78,18 @@ class BundleDownloaderTest {
     fun `download removes local files not present in bundle`() {
         MockWebServer().use { server ->
             server.start()
-            val packId = "p_sweep_test"
+            val projectId = "p_sweep_test"
             val packsDir = Files.createTempDirectory("artisan_sweep_").toFile()
-            val packDir = File(packsDir, packId).also { it.mkdirs() }
+            val projectDir = File(packsDir, projectId).also { it.mkdirs() }
 
             // Seed: deux menus sur disque
-            File(packDir, "menus").mkdirs()
-            File(packDir, "menus/keep.yaml").writeText("id: keep\nsize: 27\n")
-            File(packDir, "menus/stale.yaml").writeText("id: stale\nsize: 9\n")
+            File(projectDir, "menus").mkdirs()
+            File(projectDir, "menus/keep.yaml").writeText("id: keep\nsize: 27\n")
+            File(projectDir, "menus/stale.yaml").writeText("id: stale\nsize: 9\n")
 
             // Bundle backend : seulement keep.yaml (stale.yaml a été supprimé dans l'éditeur)
             val files = mapOf(
-                "plugins/Artisan/projects/$packId/menus/keep.yaml" to "id: keep\nsize: 27\n"
+                "plugins/Artisan/projects/$projectId/menus/keep.yaml" to "id: keep\nsize: 27\n"
             )
             server.enqueue(
                 MockResponse()
@@ -99,12 +99,12 @@ class BundleDownloaderTest {
 
             val downloader = BundleDownloader(OkHttpClient(), packsDir)
             downloader.download(
-                url = server.url("/api/v1/bundles/$packId").toString(),
-                serverKey = "sk", projectId = packId,
+                url = server.url("/api/v1/bundles/$projectId").toString(),
+                serverKey = "sk", projectId = projectId,
             )
 
-            assertTrue(File(packDir, "menus/keep.yaml").exists(), "keep.yaml doit être conservé")
-            assertTrue(!File(packDir, "menus/stale.yaml").exists(), "stale.yaml doit être supprimé")
+            assertTrue(File(projectDir, "menus/keep.yaml").exists(), "keep.yaml doit être conservé")
+            assertTrue(!File(projectDir, "menus/stale.yaml").exists(), "stale.yaml doit être supprimé")
         }
     }
 
@@ -112,12 +112,12 @@ class BundleDownloaderTest {
     fun `sweep preserves dotartisan metadata files`() {
         MockWebServer().use { server ->
             server.start()
-            val packId = "p_meta_preserve"
+            val projectId = "p_meta_preserve"
             val packsDir = Files.createTempDirectory("artisan_meta_preserve_").toFile()
-            val packDir = File(packsDir, packId).also { it.mkdirs() }
-            File(packDir, ".artisan-sync.yaml").writeText("syncedHash: prev\nbackendHash: prev\n")
-            File(packDir, "menus").mkdirs()
-            File(packDir, "menus/old.yaml").writeText("id: old\n")
+            val projectDir = File(packsDir, projectId).also { it.mkdirs() }
+            File(projectDir, ".artisan-sync.yaml").writeText("syncedHash: prev\nbackendHash: prev\n")
+            File(projectDir, "menus").mkdirs()
+            File(projectDir, "menus/old.yaml").writeText("id: old\n")
 
             // Bundle vide (admin a tout supprimé)
             server.enqueue(
@@ -127,10 +127,10 @@ class BundleDownloaderTest {
             )
 
             val downloader = BundleDownloader(OkHttpClient(), packsDir)
-            downloader.download(server.url("/api/v1/bundles/$packId").toString(), "sk", packId)
+            downloader.download(server.url("/api/v1/bundles/$projectId").toString(), "sk", projectId)
 
-            assertTrue(File(packDir, ".artisan-sync.yaml").exists(), "métadonnée préservée")
-            assertTrue(!File(packDir, "menus/old.yaml").exists(), "fichier sweepé")
+            assertTrue(File(projectDir, ".artisan-sync.yaml").exists(), "métadonnée préservée")
+            assertTrue(!File(projectDir, "menus/old.yaml").exists(), "fichier sweepé")
         }
     }
 
@@ -138,17 +138,17 @@ class BundleDownloaderTest {
     fun `sweep removes directories that become empty`() {
         MockWebServer().use { server ->
             server.start()
-            val packId = "p_dir_cleanup"
+            val projectId = "p_dir_cleanup"
             val packsDir = Files.createTempDirectory("artisan_dir_").toFile()
-            val packDir = File(packsDir, packId).also { it.mkdirs() }
-            File(packDir, "dialogs").mkdirs()
-            File(packDir, "dialogs/d1.yaml").writeText("id: d1\n")
-            File(packDir, "menus").mkdirs()
-            File(packDir, "menus/m1.yaml").writeText("id: m1\n")
+            val projectDir = File(packsDir, projectId).also { it.mkdirs() }
+            File(projectDir, "dialogs").mkdirs()
+            File(projectDir, "dialogs/d1.yaml").writeText("id: d1\n")
+            File(projectDir, "menus").mkdirs()
+            File(projectDir, "menus/m1.yaml").writeText("id: m1\n")
 
             // Bundle ne garde que menus/m1.yaml — dialogs/ doit disparaitre
             val files = mapOf(
-                "plugins/Artisan/projects/$packId/menus/m1.yaml" to "id: m1\n"
+                "plugins/Artisan/projects/$projectId/menus/m1.yaml" to "id: m1\n"
             )
             server.enqueue(
                 MockResponse()
@@ -157,11 +157,11 @@ class BundleDownloaderTest {
             )
 
             val downloader = BundleDownloader(OkHttpClient(), packsDir)
-            downloader.download(server.url("/api/v1/bundles/$packId").toString(), "sk", packId)
+            downloader.download(server.url("/api/v1/bundles/$projectId").toString(), "sk", projectId)
 
-            assertTrue(!File(packDir, "dialogs").exists(), "dialogs/ doit être supprimé (vide après sweep)")
-            assertTrue(File(packDir, "menus/m1.yaml").exists(), "menus/m1.yaml conservé")
-            assertTrue(File(packDir, "menus").exists(), "menus/ conservé (contient m1)")
+            assertTrue(!File(projectDir, "dialogs").exists(), "dialogs/ doit être supprimé (vide après sweep)")
+            assertTrue(File(projectDir, "menus/m1.yaml").exists(), "menus/m1.yaml conservé")
+            assertTrue(File(projectDir, "menus").exists(), "menus/ conservé (contient m1)")
         }
     }
 
@@ -169,13 +169,13 @@ class BundleDownloaderTest {
     fun `download rejects path traversal in file keys`() {
         MockWebServer().use { server ->
             server.start()
-            val packId = "p_traversal"
+            val projectId = "p_traversal"
             val packsDir = Files.createTempDirectory("artisan_trav_").toFile()
-            // Fichier hors du packDir — ne doit JAMAIS être écrit
+            // Fichier hors du projectDir — ne doit JAMAIS être écrit
             val outsideTarget = File(packsDir, "outside.txt")
 
             val files = mapOf(
-                "plugins/Artisan/projects/$packId/../outside.txt" to "pwned"
+                "plugins/Artisan/projects/$projectId/../outside.txt" to "pwned"
             )
             server.enqueue(
                 MockResponse()
@@ -184,9 +184,9 @@ class BundleDownloaderTest {
             )
 
             val downloader = BundleDownloader(OkHttpClient(), packsDir)
-            downloader.download(server.url("/api/v1/bundles/$packId").toString(), "sk", packId)
+            downloader.download(server.url("/api/v1/bundles/$projectId").toString(), "sk", projectId)
 
-            assertTrue(!outsideTarget.exists(), "Le fichier en dehors du packDir doit être bloqué")
+            assertTrue(!outsideTarget.exists(), "Le fichier en dehors du projectDir doit être bloqué")
         }
     }
 
@@ -194,26 +194,26 @@ class BundleDownloaderTest {
     fun `unchanged files are not rewritten and no tmp files linger (atomic writes)`() {
         MockWebServer().use { server ->
             server.start()
-            val packId = "p_atomic"
-            val files = makeBundle(packId)
+            val projectId = "p_atomic"
+            val files = makeBundle(projectId)
             val body = mapper.writeValueAsString(mapOf("files" to files, "hash" to "h1"))
             server.enqueue(MockResponse().setBody(body).setHeader("Content-Type", "application/json"))
             server.enqueue(MockResponse().setBody(body).setHeader("Content-Type", "application/json"))
 
             val packsDir = Files.createTempDirectory("artisan_atomic_").toFile()
             val downloader = BundleDownloader(OkHttpClient(), packsDir)
-            val url = server.url("/api/v1/bundles/$packId").toString()
-            downloader.download(url = url, serverKey = "sk", projectId = packId)
+            val url = server.url("/api/v1/bundles/$projectId").toString()
+            downloader.download(url = url, serverKey = "sk", projectId = projectId)
 
-            val manifest = File(packsDir, "$packId/manifest.yaml")
+            val manifest = File(packsDir, "$projectId/manifest.yaml")
             val stampBefore = manifest.lastModified()
             Thread.sleep(50)
             // Second download of identical content: files must be left untouched
             // (an echo of our own local_push must not churn the disk/watcher).
-            downloader.download(url = url, serverKey = "sk", projectId = packId)
+            downloader.download(url = url, serverKey = "sk", projectId = projectId)
             assertEquals(stampBefore, manifest.lastModified(), "identical content must not be rewritten")
 
-            val tmps = File(packsDir, packId).walkTopDown().filter { it.name.endsWith(".artisan-tmp") }.toList()
+            val tmps = File(packsDir, projectId).walkTopDown().filter { it.name.endsWith(".artisan-tmp") }.toList()
             assertEquals(emptyList(), tmps, "no .artisan-tmp staging files may remain after a download")
         }
     }

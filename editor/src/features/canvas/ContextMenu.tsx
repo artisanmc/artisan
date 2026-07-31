@@ -126,7 +126,7 @@ export function ContextMenu({
               <DropdownMenuSubTrigger
                 disabled={state.target.selectedIds.length === 0 || otherProjects.length === 0}
               >
-                Move to pack
+                Move to project
               </DropdownMenuSubTrigger>
               <DropdownMenuSubContent>
                 {otherProjects.map((p) => (

@@ -19,10 +19,10 @@ export interface DisplayRef {
  * the bare ref string (non-hermetic — the runtime ignores, the editor shows a
  * letter tile).
  */
-export function resolveDisplayRef(pack: Project, ref: string): DisplayRef {
+export function resolveDisplayRef(project: Project, ref: string): DisplayRef {
   if (!ref.startsWith(CAPTURED_ITEM_REF_PREFIX)) return { material: ref };
   const id = ref.slice(CAPTURED_ITEM_REF_PREFIX.length);
-  const item = (pack.capturedItems ?? []).find((c) => String(c.id) === id);
+  const item = (project.capturedItems ?? []).find((c) => String(c.id) === id);
   if (!item) return { material: ref };
   // The descriptor is what the plugin derived at capture time; the serialized
   // stack is the ground truth and fills whatever the descriptor didn't carry

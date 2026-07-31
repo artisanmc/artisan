@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
 import { transform } from "./transform";
 
-// A pack exercising: plain + text title layers, multi-appearance element with
+// A project exercising: plain + text title layers, multi-appearance element with
 // AND and OR `if`, click step-tree with an if-case, and a spread of actions.
 function goldenProject(): Project {
   return {

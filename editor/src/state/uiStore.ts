@@ -11,7 +11,7 @@ export type EditorTab = "edit" | "library" | "assets";
 /**
  * Best-effort detection of the user's preferred language from the
  * browser. Returns just the primary subtag (e.g. "en" from "en-US")
- * because pack lang codes are short. Falls back to "en" off-platform.
+ * because project lang codes are short. Falls back to "en" off-platform.
  */
 function detectInitialLang(): string {
   if (typeof navigator !== "undefined" && navigator.language) {
@@ -35,13 +35,13 @@ export interface DraggingNewLayer {
 }
 
 interface UiState {
-  /** Last pack the user opened. The index route reads this to redirect. */
+  /** Last project the user opened. The index route reads this to redirect. */
   lastActiveProjectId: ProjectId | null;
   setLastActiveProjectId: (id: ProjectId | null) => void;
   /**
    * Last workspace tab the user viewed (overview / translations /
    * data-sources / history). Persisted so a page reload — which bounces
-   * through /session — can return to the same tab, not just the same pack.
+   * through /session — can return to the same tab, not just the same project.
    */
   lastActiveTab: string | null;
   setLastActiveTab: (tab: string | null) => void;
@@ -56,7 +56,7 @@ interface UiState {
   /**
    * Display language of the editor itself (UI labels, buttons, error
    * messages). Distinct from `activeLang`: a French user translating
-   * their pack into English keeps the editor in French. The setter
+   * their project into English keeps the editor in French. The setter
    * also updates the i18next instance so visible text re-renders.
    */
   editorLang: SupportedLang;
@@ -93,7 +93,7 @@ interface UiState {
   armedPlacement: { menuId: string; elementId: string; key: string } | null;
   setArmedPlacement: (p: { menuId: string; elementId: string; key: string } | null) => void;
   /**
-   * v3 title composer — id of the menu currently selected in the pack canvas.
+   * v3 title composer — id of the menu currently selected in the project canvas.
    * Drives the contents of the 3rd-column LayersPanel. Distinct from the
    * `lastSelectedMenuId` "sticky" mirror below.
    */

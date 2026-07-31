@@ -15,7 +15,7 @@ import java.util.zip.ZipInputStream
  * @param height    Pixel height used by the font glyph (defaults to 0 when absent).
  * @param width     Pixel width of the source PNG. Used by [net.artisanmc.plugin.render.TitleCompiler]
  *                  to advance the cursor past an image layer. 0 when absent
- *                  (legacy v1 packs) — TitleCompiler falls back to a default.
+ *                  (legacy v1 projects) — TitleCompiler falls back to a default.
  * @param namespace Font namespace (e.g. `artisan:my_font`) for font-type assets;
  *                  null for non-font types (glyph, texture, etc.).
  */
@@ -33,7 +33,7 @@ data class AssetEntry(
 }
 
 /**
- * Maintains an in-memory map of asset id → [AssetEntry] sourced from the pack zip,
+ * Maintains an in-memory map of asset id → [AssetEntry] sourced from the project zip,
  * plus an [OffsetEncoder] derived from the index's `offsets` table (schema v2+).
  *
  * Thread-safe: [update] downloads the zip on the calling thread, parses
@@ -62,22 +62,22 @@ class AssetCatalog(
     fun size(): Int = state.get().size
 
     /**
-     * Returns the [OffsetEncoder] built from the pack's `offsets` field.
+     * Returns the [OffsetEncoder] built from the project's `offsets` field.
      * Returns [OffsetEncoder.EMPTY] before any successful [update].
      */
     fun offsetEncoder(): OffsetEncoder = encoderRef.get()
 
     /**
-     * Downloads the pack at [packUrl], extracts `assets/artisan/asset-index.json`,
+     * Downloads the project at [projectUrl], extracts `assets/artisan/asset-index.json`,
      * parses it, and atomically swaps the in-memory map. On any failure (non-2xx,
      * missing entry, parse error, IOException) the previous state is preserved.
      *
-     * @param packUrl       URL of the resource-pack .zip
-     * @param expectedHash  expected SHA-1 of the pack (currently informational; reserved for future integrity checks)
+     * @param projectUrl       URL of the resource-pack .zip
+     * @param expectedHash  expected SHA-1 of the project (currently informational; reserved for future integrity checks)
      */
     @Suppress("UNUSED_PARAMETER")
-    fun update(packUrl: String, expectedHash: String) {
-        val req = Request.Builder().url(packUrl).build()
+    fun update(projectUrl: String, expectedHash: String) {
+        val req = Request.Builder().url(projectUrl).build()
         try {
             httpClient.newCall(req).execute().use { resp ->
                 if (!resp.isSuccessful) return

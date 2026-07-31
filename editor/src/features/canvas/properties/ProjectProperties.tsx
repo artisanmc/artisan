@@ -9,7 +9,7 @@ import { useTranslation } from "react-i18next";
 import { PropertyField } from "./PropertyField";
 
 interface ProjectPropertiesProps {
-  pack: Project;
+  project: Project;
 }
 
 const sourceLabelKey = (
@@ -24,7 +24,7 @@ const sourceColor = (source: Project["source"]) =>
       ? "bg-[var(--warning-soft)] text-[var(--warning)]"
       : "bg-[var(--success-soft)] text-[var(--success)]";
 
-export function ProjectProperties({ pack }: ProjectPropertiesProps) {
+export function ProjectProperties({ project }: ProjectPropertiesProps) {
   const setProjectField = useAccountStore((s) => s.setProjectField);
   const { t } = useTranslation();
   const [menuDialogOpen, setMenuDialogOpen] = useState(false);
@@ -37,54 +37,54 @@ export function ProjectProperties({ pack }: ProjectPropertiesProps) {
         <div>
           <div className="mb-1 text-[10px] uppercase text-[var(--text-faint)]">{t("projectProperties.id")}</div>
           <div className="flex items-center gap-2">
-            <span className="font-mono text-xs text-[var(--text-mut)]">{pack.id}</span>
-            <span className={`rounded px-1.5 py-0.5 text-[10px] ${sourceColor(pack.source)}`}>
-              {t(`projectProperties.${sourceLabelKey(pack.source)}`)}
+            <span className="font-mono text-xs text-[var(--text-mut)]">{project.id}</span>
+            <span className={`rounded px-1.5 py-0.5 text-[10px] ${sourceColor(project.source)}`}>
+              {t(`projectProperties.${sourceLabelKey(project.source)}`)}
             </span>
           </div>
         </div>
         <PropertyField
           label={t("projectProperties.name")}
-          value={pack.name}
-          onChange={(v) => setProjectField({ projectId: pack.id, field: "name", value: v })}
+          value={project.name}
+          onChange={(v) => setProjectField({ projectId: project.id, field: "name", value: v })}
         />
         <PropertyField
           label={t("projectProperties.description")}
-          value={pack.description ?? ""}
+          value={project.description ?? ""}
           placeholder={t("projectProperties.descriptionPlaceholder")}
           multiline
-          onChange={(v) => setProjectField({ projectId: pack.id, field: "description", value: v })}
+          onChange={(v) => setProjectField({ projectId: project.id, field: "description", value: v })}
         />
       </div>
 
       <ContentsSection
         icon={<LayoutGrid className="h-3.5 w-3.5" />}
         label={t("projectProperties.menusLabel")}
-        count={pack.menus.length}
+        count={project.menus.length}
         emptyHint={t("projectProperties.menusEmpty")}
         onCreate={() => setMenuDialogOpen(true)}
         createLabel={t("projectProperties.newMenu")}
       />
-      <NewMenuDialog projectId={pack.id} open={menuDialogOpen} onOpenChange={setMenuDialogOpen} />
+      <NewMenuDialog projectId={project.id} open={menuDialogOpen} onOpenChange={setMenuDialogOpen} />
       <ContentsSection
         icon={<Terminal className="h-3.5 w-3.5" />}
         label={t("projectProperties.commandsLabel")}
-        count={pack.commands.length}
+        count={project.commands.length}
         emptyHint={t("projectProperties.commandsEmpty")}
         onCreate={() => setCommandDialogOpen(true)}
         createLabel={t("projectProperties.newCommand")}
       />
       <NewCommandDialog
-        projectId={pack.id}
+        projectId={project.id}
         open={commandDialogOpen}
         onOpenChange={setCommandDialogOpen}
       />
 
       <div className="text-[10px] text-[var(--text-faint)]">
         {t("projectProperties.countAssets", {
-          assets: pack.assets.length,
+          assets: project.assets.length,
           assetsPlural: t(
-            pack.assets.length === 1 ? "projectProperties.assetOne" : "projectProperties.assetOther",
+            project.assets.length === 1 ? "projectProperties.assetOne" : "projectProperties.assetOther",
           ),
         })}
       </div>
@@ -101,8 +101,8 @@ export function ProjectProperties({ pack }: ProjectPropertiesProps) {
       </div>
 
       <DeleteProjectDialog
-        projectId={pack.id}
-        projectName={pack.name}
+        projectId={project.id}
+        projectName={project.name}
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}
       />

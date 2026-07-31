@@ -4,7 +4,7 @@ import { projects } from "../db/schema";
 
 /** relPaths whose first segment starts with `.artisan` are sync/editor
  *  metadata — excluded from the hash (mirrored in the plugin's
- *  ProjectFilesReader/BundleHasher; locked by pack-hash-conformance.json). */
+ *  ProjectFilesReader/BundleHasher; locked by project-hash-conformance.json). */
 function isArtisanMeta(relPath: string): boolean {
   return relPath.split("/", 1)[0]!.startsWith(".artisan");
 }

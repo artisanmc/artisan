@@ -62,7 +62,7 @@ class BundleUploader(
 
         httpClient.newCall(request).execute().use { response ->
             if (response.isSuccessful) {
-                logger?.info("Uploaded local pack $projectId to backend (${files.size} files)")
+                logger?.info("Uploaded local project $projectId to backend (${files.size} files)")
             } else {
                 logger?.warning("Bundle upload failed for $projectId: HTTP ${response.code}")
             }

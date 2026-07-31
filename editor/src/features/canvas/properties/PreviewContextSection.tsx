@@ -19,19 +19,19 @@ type SourceRefInput = Extract<ContextInput, { kind: "sourceRef" }>;
  */
 export function PreviewContextSection({ menu, projectId }: { menu: Menu; projectId: ProjectId }) {
   const { t } = useTranslation();
-  const pack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
   const snapshots = useServerSnapshotsStore((s) => s.rowsByRef);
   const menuPreviewArgs = useUiStore((s) => s.menuPreviewArgs);
   const setMenuPreviewArg = useUiStore((s) => s.setMenuPreviewArg);
   const activeLang = useUiStore((s) => s.activeLang);
-  if (!pack) return null;
+  if (!project) return null;
   const previewArgs = menuPreviewArgs[menu.id] ?? {};
 
   // The richest option: real call sites. Each candidate carries EVERY context
   // arg interpolated from ONE caller row (category_id AND category_name
   // together) — the menu itself only declares how args are used, never where
   // their values come from; only callers know that.
-  const callContexts = findPreviewCallContexts(menu, pack, snapshots, activeLang);
+  const callContexts = findPreviewCallContexts(menu, project, snapshots, activeLang);
   const selectedCallIdx = callContexts.findIndex((c) =>
     Object.entries(c.args).every(
       ([k, v]) => JSON.stringify(previewArgs[k] ?? "") === JSON.stringify(v),
@@ -52,7 +52,7 @@ export function PreviewContextSection({ menu, projectId }: { menu: Menu; project
   for (const input of sourceInputs) {
     const tokens = extractArgTokens(input);
     if (tokens.length === 0) continue;
-    const rows = resolveSourceRef(input.ref, pack, snapshots);
+    const rows = resolveSourceRef(input.ref, project, snapshots);
     for (const [field, template] of Object.entries(input.filter ?? {})) {
       for (const token of tokens) {
         if (!template.includes(`{${token}}`)) continue;
@@ -147,7 +147,7 @@ export function PreviewContextSection({ menu, projectId }: { menu: Menu; project
         </label>
       ))}
       {rowInputs.map((input) => {
-        const rows = resolveSourceRef(input.rowOf!, pack, snapshots);
+        const rows = resolveSourceRef(input.rowOf!, project, snapshots);
         const list = Array.isArray(rows) ? (rows as Record<string, unknown>[]) : [];
         const current = previewArgs[input.name];
         const selectedIdx = list.findIndex(

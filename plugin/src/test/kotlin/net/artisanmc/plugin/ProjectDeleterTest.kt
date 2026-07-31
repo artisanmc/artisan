@@ -11,16 +11,16 @@ import kotlin.test.assertTrue
 class ProjectDeleterTest {
 
     @Test
-    fun `moves pack dir into artisan-trash with timestamp suffix`() {
+    fun `moves project dir into artisan-trash with timestamp suffix`() {
         val packsDir = Files.createTempDirectory("artisan_del_").toFile()
-        val packDir = File(packsDir, "p_test").also { it.mkdirs() }
-        File(packDir, "menus").mkdirs()
-        File(packDir, "menus/m1.yaml").writeText("id: m1\n")
+        val projectDir = File(packsDir, "p_test").also { it.mkdirs() }
+        File(projectDir, "menus").mkdirs()
+        File(projectDir, "menus/m1.yaml").writeText("id: m1\n")
 
         val deleter = ProjectDeleter(packsDir)
         deleter.delete("p_test")
 
-        assertFalse(packDir.exists(), "Original packDir doit disparaître")
+        assertFalse(projectDir.exists(), "Original projectDir doit disparaître")
         val trash = File(packsDir, ".artisan-trash")
         assertTrue(trash.exists() && trash.isDirectory, "Trash directory créé")
         val trashEntries = trash.listFiles() ?: emptyArray()
@@ -31,7 +31,7 @@ class ProjectDeleterTest {
     }
 
     @Test
-    fun `noop when pack does not exist`() {
+    fun `noop when project does not exist`() {
         val packsDir = Files.createTempDirectory("artisan_del_").toFile()
         val deleter = ProjectDeleter(packsDir)
         deleter.delete("nonexistent") // ne doit pas lever
@@ -40,7 +40,7 @@ class ProjectDeleterTest {
     }
 
     @Test
-    fun `unique timestamp suffix when deleting twice with same packId`() {
+    fun `unique timestamp suffix when deleting twice with same projectId`() {
         val packsDir = Files.createTempDirectory("artisan_del_").toFile()
         val deleter = ProjectDeleter(packsDir)
 

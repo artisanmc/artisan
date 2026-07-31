@@ -5,7 +5,7 @@ import { useUiStore } from "@/state/uiStore";
 import { useCallback } from "react";
 
 /**
- * React bridge for `getText`. Subscribes to the pack ref (immer keeps it
+ * React bridge for `getText`. Subscribes to the project ref (immer keeps it
  * stable across unrelated edits) and the active language so the value
  * re-renders when either changes.
  *
@@ -14,18 +14,18 @@ import { useCallback } from "react";
  * subscription per call.
  */
 export function useText(projectId: ProjectId, lt: LText | undefined): string {
-  const pack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
   const activeLang = useUiStore((s) => s.activeLang);
-  if (!pack || !lt) return "";
-  return getText(pack, lt, activeLang);
+  if (!project || !lt) return "";
+  return getText(project, lt, activeLang);
 }
 
 export function useGetText(projectId: ProjectId): (lt: LText | undefined) => string {
-  const pack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
   const activeLang = useUiStore((s) => s.activeLang);
   return useCallback(
-    (lt) => (pack && lt ? getText(pack, lt, activeLang) : ""),
-    [pack, activeLang],
+    (lt) => (project && lt ? getText(project, lt, activeLang) : ""),
+    [project, activeLang],
   );
 }
 
@@ -38,12 +38,12 @@ export function useTextEdit(
   projectId: ProjectId,
   lt: LText | undefined,
 ): { value: string; lang: string; isFallback: boolean } {
-  const pack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
   const activeLang = useUiStore((s) => s.activeLang);
-  if (!pack || !lt) return { value: "", lang: activeLang, isFallback: false };
-  const entry = pack.i18nKeys[lt.key];
+  if (!project || !lt) return { value: "", lang: activeLang, isFallback: false };
+  const entry = project.i18nKeys[lt.key];
   const direct = entry?.[activeLang];
   if (direct !== undefined) return { value: direct, lang: activeLang, isFallback: false };
-  const fallback = entry?.[pack.defaultLang] ?? "";
+  const fallback = entry?.[project.defaultLang] ?? "";
   return { value: fallback, lang: activeLang, isFallback: fallback !== "" };
 }

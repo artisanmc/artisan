@@ -4,7 +4,7 @@ package net.artisanmc.plugin.render
  * Encodes pixel offsets into a string of "space-font" characters compatible
  * with the `space` provider in the `artisan:default` font.
  *
- * The codepoint → advance mapping is loaded from the resource pack's
+ * The codepoint → advance mapping is loaded from the resource project's
  * `asset-index.json` (`offsets` field, schema version 2). Backend writes
  * powers of two in both signs (±1, ±2, ..., ±256), so a greedy decomposition
  * by descending magnitude reaches any offset in `[-511, +511]` exactly.

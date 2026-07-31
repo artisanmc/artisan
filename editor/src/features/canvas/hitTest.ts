@@ -8,7 +8,7 @@ export interface SlotHit {
 }
 
 /**
- * Manual hit-testing in pack-canvas (world) coordinates: given a point in the
+ * Manual hit-testing in project-canvas (world) coordinates: given a point in the
  * same coordinate system as the menu Group `position` props, find which slot of
  * which menu sits under it. Player-inventory slots aren't returned — they
  * aren't editable in the editor.
@@ -21,12 +21,12 @@ export interface SlotHit {
  * INVENTORY_TYPES so hopper/dropper hit correctly, not just chest.
  */
 export function hitTestSlot(
-  pack: Project,
+  project: Project,
   layout: Record<string, { x: number; y: number }>,
   worldX: number,
   worldY: number,
 ): SlotHit | null {
-  for (const menu of pack.menus) {
+  for (const menu of project.menus) {
     const pos = layout[menu.id];
     if (!pos) continue;
     const type = menu.inventoryType ?? "chest";

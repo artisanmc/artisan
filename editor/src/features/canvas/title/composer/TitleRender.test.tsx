@@ -313,20 +313,20 @@ function makeProject(layers: MenuTitleLayer[]): Project {
 }
 
 function seedProject(layers: MenuTitleLayer[]): Menu {
-  const pack = makeProject(layers);
+  const project = makeProject(layers);
   useAccountStore.setState((state) => ({
     account: {
       ...state.account,
-      projects: [pack],
+      projects: [project],
       projectOrder: [PACK_ID],
     },
   }));
-  return pack.menus[0]!;
+  return project.menus[0]!;
 }
 
 function getTitle(): MenuTitleLayer[] {
-  const pack = useAccountStore.getState().account.projects.find((p) => p.id === PACK_ID)!;
-  return pack.menus.find((m) => m.id === MENU_ID)!.title;
+  const project = useAccountStore.getState().account.projects.find((p) => p.id === PACK_ID)!;
+  return project.menus.find((m) => m.id === MENU_ID)!.title;
 }
 
 beforeEach(() => {
@@ -859,17 +859,17 @@ describe("TitleRender", () => {
 describe("TitleRender — textarea layer", () => {
   it("renders N VanillaMcText children for N \\n-separated lines (3 lines)", () => {
     // The textarea's value resolves to "Line1\nLine2\nLine3" via the i18n key.
-    const pack = makeProject([]);
+    const project = makeProject([]);
     useAccountStore.setState((state) => ({
       account: {
         ...state.account,
         projects: [
           {
-            ...pack,
+            ...project,
             i18nKeys: { lt_multiline: { en: "Line1\nLine2\nLine3" } },
             menus: [
               {
-                ...(pack.menus[0]!),
+                ...(project.menus[0]!),
                 title: [
                   {
                     kind: "textarea",
@@ -898,17 +898,17 @@ describe("TitleRender — textarea layer", () => {
 
   it("lines are stacked at y + i * lineHeight * scale", () => {
     // lineHeight=10, scale=2 → lines at y=0, 20, 40 (relative to group)
-    const pack = makeProject([]);
+    const project = makeProject([]);
     useAccountStore.setState((state) => ({
       account: {
         ...state.account,
         projects: [
           {
-            ...pack,
+            ...project,
             i18nKeys: { lt_ml2: { en: "A\nB\nC" } },
             menus: [
               {
-                ...(pack.menus[0]!),
+                ...(project.menus[0]!),
                 title: [
                   {
                     kind: "textarea",
@@ -936,17 +936,17 @@ describe("TitleRender — textarea layer", () => {
 
   it("center alignment: line x = -(lineWidth / 2) * scale", () => {
     // vanillaTextWidth mock: text.length * 6. "Hi" → 12px, center x = -6 * scale.
-    const pack = makeProject([]);
+    const project = makeProject([]);
     useAccountStore.setState((state) => ({
       account: {
         ...state.account,
         projects: [
           {
-            ...pack,
+            ...project,
             i18nKeys: { lt_center: { en: "Hi" } },
             menus: [
               {
-                ...(pack.menus[0]!),
+                ...(project.menus[0]!),
                 title: [
                   {
                     kind: "textarea",
@@ -973,17 +973,17 @@ describe("TitleRender — textarea layer", () => {
 
   it("right alignment: line x = -lineWidth * scale", () => {
     // "Hi" → 12px, right x = -12 * scale.
-    const pack = makeProject([]);
+    const project = makeProject([]);
     useAccountStore.setState((state) => ({
       account: {
         ...state.account,
         projects: [
           {
-            ...pack,
+            ...project,
             i18nKeys: { lt_right: { en: "Hi" } },
             menus: [
               {
-                ...(pack.menus[0]!),
+                ...(project.menus[0]!),
                 title: [
                   {
                     kind: "textarea",
@@ -1009,17 +1009,17 @@ describe("TitleRender — textarea layer", () => {
   });
 
   it("single-line textarea renders exactly one VanillaMcText", () => {
-    const pack = makeProject([]);
+    const project = makeProject([]);
     useAccountStore.setState((state) => ({
       account: {
         ...state.account,
         projects: [
           {
-            ...pack,
+            ...project,
             i18nKeys: { lt_single: { en: "Hello" } },
             menus: [
               {
-                ...(pack.menus[0]!),
+                ...(project.menus[0]!),
                 title: [
                   {
                     kind: "textarea",
@@ -1045,17 +1045,17 @@ describe("TitleRender — textarea layer", () => {
   });
 
   it("textarea group is positioned at layer.x * scale, layer.y * scale", () => {
-    const pack = makeProject([]);
+    const project = makeProject([]);
     useAccountStore.setState((state) => ({
       account: {
         ...state.account,
         projects: [
           {
-            ...pack,
+            ...project,
             i18nKeys: { lt_pos: { en: "X" } },
             menus: [
               {
-                ...(pack.menus[0]!),
+                ...(project.menus[0]!),
                 title: [
                   {
                     kind: "textarea",

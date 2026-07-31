@@ -152,7 +152,7 @@ describe("findLCA", () => {
 
   it("throws when no common ancestor (synthetic disconnected commits)", async () => {
     const { projectId } = await seedSetup();
-    // Orphan commit with no parent (different pack would make more sense but this is enough)
+    // Orphan commit with no parent (different project would make more sense but this is enough)
     const orphan1 = await createCommit({
       projectId, parentId: null, files: { "o1": "" }, editor: null,
       authorUserId: null, message: "orphan1",

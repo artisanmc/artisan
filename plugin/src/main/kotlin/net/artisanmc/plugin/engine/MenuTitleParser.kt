@@ -25,7 +25,7 @@ object MenuTitleParser {
     @Suppress("UNCHECKED_CAST")
     fun parse(node: Any?): List<MenuTitleLayer> = when (node) {
         null -> emptyList()
-        // Legacy bare-string format → plain vanilla layer (no resource pack needed).
+        // Legacy bare-string format → plain vanilla layer (no resource project needed).
         is String -> if (node.isEmpty()) emptyList() else listOf(
             MenuTitleLayer.Plain(value = literalToLText(node))
         )

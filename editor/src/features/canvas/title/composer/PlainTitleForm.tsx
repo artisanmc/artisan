@@ -18,8 +18,8 @@ interface PlainTitleFormProps {
  */
 export function PlainTitleForm({ projectId, menuId }: PlainTitleFormProps) {
   const { t } = useTranslation();
-  const pack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
-  const menu = pack?.menus.find((m) => m.id === menuId);
+  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  const menu = project?.menus.find((m) => m.id === menuId);
   const setI18nValue = useAccountStore((s) => s.setI18nValue);
   const placeholderLocation = useMemo(
     () => ({ kind: "menu" as const, menuId }),
@@ -35,7 +35,7 @@ export function PlainTitleForm({ projectId, menuId }: PlainTitleFormProps) {
   return (
     <div className="flex flex-col gap-3 text-xs text-zinc-300">
       <div className="rounded border border-zinc-700 bg-zinc-900/60 px-2.5 py-2 text-[10px] text-zinc-400 leading-snug">
-        Titre vanilla — aucun resource pack requis. MiniMessage supporté (
+        Titre vanilla — aucun resource project requis. MiniMessage supporté (
         <code className="text-zinc-300">{"<gold>"}</code>,{" "}
         <code className="text-zinc-300">{"<bold>"}</code>, etc.).
       </div>

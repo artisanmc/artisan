@@ -34,11 +34,11 @@ export function ProjectPanel({ projectId }: { projectId: ProjectId }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const params = useParams({ strict: false }) as { networkId?: string; serverId?: string };
-  const pack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
   const activeLang = useUiStore((s) => s.activeLang);
-  if (!pack) return null;
+  if (!project) return null;
 
-  const groups = buildProjectDocuments(pack, activeLang);
+  const groups = buildProjectDocuments(project, activeLang);
   const empty = groups.every((g) => g.items.length === 0);
 
   const openElement = (id: string) =>

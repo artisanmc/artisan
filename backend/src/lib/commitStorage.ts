@@ -11,7 +11,7 @@ export type Commit = typeof projectCommits.$inferSelect;
  */
 export function computeContentHash(files: Record<string, string>, projectId: string): string {
   // ONE house hash (CLAUDE.md § Invariants): the commit contentHash is the
-  // SAME canonical pack hash as BundleHasher (plugin) and computeBundleHash
+  // SAME canonical project hash as BundleHasher (plugin) and computeBundleHash
   // (backend) — relPath-keyed, native byte-order sort, `.artisan*` first
   // segment excluded. It used to hash full disk paths incl. `.artisan*`,
   // which made hello_ack.project_hashes never match the plugin's disk hash:

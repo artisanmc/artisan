@@ -29,10 +29,10 @@ sealed class MenuTitleLayer {
     ) : MenuTitleLayer()
 
     /**
-     * A plain vanilla text layer — no resource pack required.
+     * A plain vanilla text layer — no resource project required.
      * Emitted as raw MiniMessage without any custom font wrapper, so the
      * vanilla MC font renders it exactly as the client expects. Servers that
-     * don't distribute a resource pack should use this instead of [Text].
+     * don't distribute a resource project should use this instead of [Text].
      */
     data class Plain(val value: LText, val color: String? = null) : MenuTitleLayer()
 

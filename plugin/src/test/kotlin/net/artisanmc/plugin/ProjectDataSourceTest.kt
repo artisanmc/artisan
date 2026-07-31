@@ -132,7 +132,7 @@ class ProjectDataSourceTest {
     }
 
     @Test
-    fun `resolver serves pack refs from the bundle list and null otherwise`() {
+    fun `resolver serves project refs from the bundle list and null otherwise`() {
         val bundle = ProjectReader(writeTempProject()).readAll().single()
         val resolver = ProjectDataResolver { listOf(bundle) }
         assertTrue(resolver.canResolve("pack:ranks"))

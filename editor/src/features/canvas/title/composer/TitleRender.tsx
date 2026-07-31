@@ -150,8 +150,8 @@ interface TitleRenderProps {
  *  - external_glyph → dashed amber placeholder until SP5
  */
 export function TitleRender({ projectId, menuId, scale }: TitleRenderProps) {
-  const pack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
-  const menu = pack?.menus.find((m) => m.id === menuId);
+  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  const menu = project?.menus.find((m) => m.id === menuId);
   const activeLang = useUiStore((s) => s.activeLang);
   const assets = useAssetStore((s) => s.assets);
   const selectedLayerKey = useUiStore((s) => s.selectedLayerKey);
@@ -163,8 +163,8 @@ export function TitleRender({ projectId, menuId, scale }: TitleRenderProps) {
   const snapshots = useServerSnapshotsStore((s) => s.rowsByRef);
   const menuPreviewArgs = useUiStore((s) => s.menuPreviewArgs);
   const previewCtx = useMemo(
-    () => (pack && menu ? buildPreviewScope(menu, pack, snapshots, menuPreviewArgs[menuId]) : {}),
-    [pack, menu, snapshots, menuPreviewArgs, menuId],
+    () => (project && menu ? buildPreviewScope(menu, project, snapshots, menuPreviewArgs[menuId]) : {}),
+    [project, menu, snapshots, menuPreviewArgs, menuId],
   );
 
   const onBackdropClick = useCallback(
@@ -180,7 +180,7 @@ export function TitleRender({ projectId, menuId, scale }: TitleRenderProps) {
     [menuId, setSelectedLayerKey, setSelectedMenuId],
   );
 
-  if (!pack || !menu) return null;
+  if (!project || !menu) return null;
 
   return (
     <>
@@ -214,7 +214,7 @@ export function TitleRender({ projectId, menuId, scale }: TitleRenderProps) {
             : undefined;
         const text =
           layer.kind === "text" || layer.kind === "plain" || layer.kind === "textarea"
-            ? renderPreview(getText(pack, layer.value, activeLang), previewCtx, pack, activeLang)
+            ? renderPreview(getText(project, layer.value, activeLang), previewCtx, project, activeLang)
             : "";
         const selected = selectedLayerKey?.menuId === menuId && selectedLayerKey?.index === idx;
 
@@ -348,7 +348,7 @@ function LayerNode({
       });
       // Y is controlled by asset/font ascent for glyphs and custom-font text.
       // Plain text and external_glyph use the dragged Y (free positioning via
-      // Y-specific ascii fonts in the resource pack).
+      // Y-specific ascii fonts in the resource project).
       const finalY =
         layer.kind === "text" && fontRefAscent != null
           ? GLYPH_Y_BASE - fontRefAscent

@@ -105,7 +105,7 @@ export async function deleteUserProject(projectId: string): Promise<void> {
 
 // User-auth-mode item bundle endpoints. The vanilla bundle falls back to the
 // newest available items.json file when no MC version is known for any of the
-// pack's bindings (e.g., server hasn't connected yet) so the Library panel
+// project's bindings (e.g., server hasn't connected yet) so the Library panel
 // always populates.
 import type { LibraryData, CustomItemsData } from "@/domain/library";
 

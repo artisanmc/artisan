@@ -57,11 +57,11 @@ export function resolvePlacementSlot(opts: {
    *  "offline" (cache fallback) from "row removed" (dangling). */
   rowsAvailable: boolean;
   baseCtx: Record<string, unknown>;
-  pack: Project;
+  project: Project;
   activeLang: string;
   elementId: string;
 }): PlacementSlotInfo {
-  const { places, appearance, placement, row, rowsAvailable, baseCtx, pack, activeLang, elementId } =
+  const { places, appearance, placement, row, rowsAvailable, baseCtx, project, activeLang, elementId } =
     opts;
   const ctx = row ? { ...baseCtx, [places.alias]: row } : baseCtx;
   // multiPos: a placement element spans several authored slots, so slot clicks
@@ -72,11 +72,11 @@ export function resolvePlacementSlot(opts: {
 
   if (row) {
     info.material = appearance.material
-      ? renderPreview(appearance.material, ctx, pack, activeLang)
+      ? renderPreview(appearance.material, ctx, project, activeLang)
       : undefined;
     info.head = appearance.head;
-    const titleRaw = getText(pack, appearance.title, activeLang);
-    info.title = titleRaw ? renderPreview(titleRaw, ctx, pack, activeLang) : undefined;
+    const titleRaw = getText(project, appearance.title, activeLang);
+    info.title = titleRaw ? renderPreview(titleRaw, ctx, project, activeLang) : undefined;
     info.count = appearance.count;
   } else if (!rowsAvailable && placement.cachedDisplay) {
     info.material = placement.cachedDisplay.material || undefined;
@@ -98,16 +98,16 @@ export function capturePlacementCache(opts: {
   appearance: Appearance;
   row: Record<string, unknown>;
   baseCtx: Record<string, unknown>;
-  pack: Project;
+  project: Project;
   activeLang: string;
 }): { name?: string; material?: string; lore?: string[] } {
-  const { places, appearance, row, baseCtx, pack, activeLang } = opts;
+  const { places, appearance, row, baseCtx, project, activeLang } = opts;
   const ctx = { ...baseCtx, [places.alias]: row };
   const out: { name?: string; material?: string; lore?: string[] } = {};
-  if (appearance.material) out.material = renderPreview(appearance.material, ctx, pack, activeLang);
-  const titleRaw = getText(pack, appearance.title, activeLang);
-  if (titleRaw) out.name = renderPreview(titleRaw, ctx, pack, activeLang);
-  const loreRaw = appearance.lore ? getText(pack, appearance.lore, activeLang) : "";
-  if (loreRaw) out.lore = loreRaw.split("\n").map((l) => renderPreview(l, ctx, pack, activeLang));
+  if (appearance.material) out.material = renderPreview(appearance.material, ctx, project, activeLang);
+  const titleRaw = getText(project, appearance.title, activeLang);
+  if (titleRaw) out.name = renderPreview(titleRaw, ctx, project, activeLang);
+  const loreRaw = appearance.lore ? getText(project, appearance.lore, activeLang) : "";
+  if (loreRaw) out.lore = loreRaw.split("\n").map((l) => renderPreview(l, ctx, project, activeLang));
   return out;
 }

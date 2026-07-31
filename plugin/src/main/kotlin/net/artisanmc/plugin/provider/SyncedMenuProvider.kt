@@ -35,10 +35,10 @@ import java.util.logging.Logger
 enum class SyncAction { IN_SYNC, AUTO_SYNC, LOCAL_ONLY, CONFLICT }
 
 /**
- * Determines the sync action for a pack given three hashes.
+ * Determines the sync action for a project given three hashes.
  * "" (empty string) is the canonical sentinel for "no content / never synced".
  * BundleHasher.hash() returns "" for empty directories; SyncMetadata defaults syncedHash to "".
- * When all three are "", the pack is considered IN_SYNC (both sides have nothing — correct).
+ * When all three are "", the project is considered IN_SYNC (both sides have nothing — correct).
  */
 fun detectSyncAction(diskHash: String, syncedHash: String, backendHash: String): SyncAction {
     if (diskHash == backendHash) return SyncAction.IN_SYNC
@@ -381,7 +381,7 @@ class SyncedMenuProvider(
 
             // Backend has an empty stub — auto-push local files via WS local_push
             if (backendHash.isEmpty() && diskHash.isNotEmpty()) {
-                logger?.info("Pack $projectId: backend reports empty — auto-pushing local content")
+                logger?.info("Project $projectId: backend reports empty — auto-pushing local content")
                 httpClient.dispatcher.executorService.execute {
                     autoPush(projectId, projectDir, diskHash)
                 }
@@ -391,14 +391,14 @@ class SyncedMenuProvider(
             val meta = SyncMetadata.read(projectDir)
             val action = detectSyncAction(diskHash, meta.syncedHash, backendHash)
             when (action) {
-                SyncAction.IN_SYNC    -> logger?.fine("Pack $projectId is in sync")
-                SyncAction.AUTO_SYNC  -> logger?.fine("Pack $projectId: backend is newer — sync will be applied via bundle_available")
+                SyncAction.IN_SYNC    -> logger?.fine("Project $projectId is in sync")
+                SyncAction.AUTO_SYNC  -> logger?.fine("Project $projectId: backend is newer — sync will be applied via bundle_available")
                 SyncAction.LOCAL_ONLY -> {
                     // Files-first (ADR files-first-source-of-truth #6): the disk is the
                     // primary editing surface — local-only changes are AUTO-PUSHED,
                     // silent + one WARN for post-mortem tracing (house "no theater" rule).
                     logger?.warning(
-                        "[Artisan] Local pack '$projectId' changed on disk (backend unchanged) — auto-pushing local content."
+                        "[Artisan] Local project '$projectId' changed on disk (backend unchanged) — auto-pushing local content."
                     )
                     httpClient.dispatcher.executorService.execute {
                         autoPush(projectId, projectDir, diskHash)
@@ -410,7 +410,7 @@ class SyncedMenuProvider(
                     // editor can offer per-file resolution (P3c). Re-sent at every
                     // hello_ack until resolved (self-healing if the backend restarts).
                     logger?.warning(
-                        "[Artisan] Local pack '$projectId' diverged from backend (both changed). " +
+                        "[Artisan] Local project '$projectId' diverged from backend (both changed). " +
                         "Not auto-pushing — divergence reported to the editor for resolution."
                     )
                     httpClient.dispatcher.executorService.execute {
@@ -521,7 +521,7 @@ class SyncedMenuProvider(
                             downloader.download(url = url, serverKey = serverKey, projectId = projectId)
                             reloadFromDisk()
                             draftMenus.clear()
-                            logger?.info("[ART-DEBUG] bundle_available: triggering onReload for pack=$projectId")
+                            logger?.info("[ART-DEBUG] bundle_available: triggering onReload for project=$projectId")
                             onReload?.invoke()
                         } finally {
                             lastPushedHash.remove(projectId)
@@ -851,7 +851,7 @@ class SyncedMenuProvider(
     }
 
     /**
-     * Resolve the plugin-side download URL for a resource pack.
+     * Resolve the plugin-side download URL for a resource project.
      *
      * The backend sends the player-facing URL in `resource_pack.url` (built from
      * `RESOURCE_PACK_BASE_URL`), which is what the player's MC client needs. In a
@@ -859,7 +859,7 @@ class SyncedMenuProvider(
      * inside the `minecraft` container resolves to the minecraft container itself,
      * not the backend.
      *
-     * To let the plugin download the same pack (for [net.artisanmc.plugin.resourcepack.AssetCatalog]),
+     * To let the plugin download the same project (for [net.artisanmc.plugin.resourcepack.AssetCatalog]),
      * we rebuild the URL using [apiUrl] (Docker-internal backend address from
      * `bundle_url` / `api_url` in `hello_ack`) plus the path of the original URL.
      *

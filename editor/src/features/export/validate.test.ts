@@ -21,7 +21,7 @@ const makeProject = (overrides: Partial<Project> = {}): Project =>
   }) as Project;
 
 describe("validate", () => {
-  it("returns valid for an empty pack", () => {
+  it("returns valid for an empty project", () => {
     const result = validate(makeProject());
     expect(result.valid).toBe(true);
     expect(result.errors).toHaveLength(0);
@@ -29,7 +29,7 @@ describe("validate", () => {
   });
 
   it("errors when a referenced key has no entry at all", () => {
-    const pack = makeProject({
+    const project = makeProject({
       menus: [
         {
           id: menuId("shop"),
@@ -40,13 +40,13 @@ describe("validate", () => {
         },
       ],
     });
-    const result = validate(pack);
+    const result = validate(project);
     expect(result.valid).toBe(false);
     expect(result.errors.some((e) => e.includes("menus.shop.title"))).toBe(true);
   });
 
   it("errors when a referenced key has an empty default-lang value", () => {
-    const pack = makeProject({
+    const project = makeProject({
       i18nKeys: { "menus.shop.title": { en: "  " } } as Project["i18nKeys"],
       menus: [
         {
@@ -58,22 +58,22 @@ describe("validate", () => {
         },
       ],
     });
-    const result = validate(pack);
+    const result = validate(project);
     expect(result.valid).toBe(false);
     expect(result.errors.some((e) => e.includes("menus.shop.title"))).toBe(true);
   });
 
   it("errors on stale undefined entry in i18nKeys", () => {
-    const pack = makeProject({
+    const project = makeProject({
       i18nKeys: { stale_key: undefined } as unknown as Project["i18nKeys"],
     });
-    const result = validate(pack);
+    const result = validate(project);
     expect(result.valid).toBe(false);
     expect(result.errors.some((e) => e.includes("stale_key"))).toBe(true);
   });
 
   it("warns when non-default language is missing a translation", () => {
-    const pack = makeProject({
+    const project = makeProject({
       defaultLang: "en",
       i18nKeys: {
         "menus.shop.title": { en: "Shop", fr: "" },
@@ -88,13 +88,13 @@ describe("validate", () => {
         },
       ],
     });
-    const result = validate(pack);
+    const result = validate(project);
     expect(result.valid).toBe(true);
     expect(result.warnings.some((w) => w.includes("fr"))).toBe(true);
   });
 
   it("validates send_message keys in element click handlers", () => {
-    const pack = makeProject({
+    const project = makeProject({
       menus: [
         {
           id: menuId("shop"),
@@ -138,7 +138,7 @@ describe("validate", () => {
         "menus.shop.title": { en: "Shop" },
       } as Project["i18nKeys"],
     });
-    const result = validate(pack);
+    const result = validate(project);
     expect(result.valid).toBe(false);
     expect(
       result.errors.some((e) => e.includes("menus.shop.elements.btn.default.click.left.message")),
@@ -146,7 +146,7 @@ describe("validate", () => {
   });
 
   it("validates show_title title and subtitle keys in element click handlers", () => {
-    const pack = makeProject({
+    const project = makeProject({
       menus: [
         {
           id: menuId("shop"),
@@ -193,7 +193,7 @@ describe("validate", () => {
         "menus.shop.title": { en: "Shop" },
       } as Project["i18nKeys"],
     });
-    const result = validate(pack);
+    const result = validate(project);
     expect(result.valid).toBe(false);
     expect(
       result.errors.some((e) =>
@@ -208,7 +208,7 @@ describe("validate", () => {
   });
 
   it("validates send_message keys in command steps", () => {
-    const pack = makeProject({
+    const project = makeProject({
       commands: [
         {
           id: commandId("heal"),
@@ -224,13 +224,13 @@ describe("validate", () => {
         },
       ],
     });
-    const result = validate(pack);
+    const result = validate(project);
     expect(result.valid).toBe(false);
     expect(result.errors.some((e) => e.includes("commands.heal.message"))).toBe(true);
   });
 
   it("returns valid when all referenced keys have default-lang values", () => {
-    const pack = makeProject({
+    const project = makeProject({
       i18nKeys: {
         "menus.shop.title": { en: "Shop" },
         "menus.shop.elements.btn.default.title": { en: "Buy" },
@@ -259,13 +259,13 @@ describe("validate", () => {
         },
       ],
     });
-    const result = validate(pack);
+    const result = validate(project);
     expect(result.valid).toBe(true);
     expect(result.errors).toHaveLength(0);
   });
 
   it("validates dialog title keys (previously skipped entirely)", () => {
-    const pack = makeProject({
+    const project = makeProject({
       dialogs: [
         {
           id: "confirm",
@@ -278,13 +278,13 @@ describe("validate", () => {
         },
       ] as unknown as Project["dialogs"],
     });
-    const result = validate(pack);
+    const result = validate(project);
     expect(result.valid).toBe(false);
     expect(result.errors.some((e) => e.includes("dialogs.confirm.title"))).toBe(true);
   });
 
   it("collects each entry of legacy array-shaped lore without crashing", () => {
-    const pack = makeProject({
+    const project = makeProject({
       i18nKeys: { "menus.shop.title": { en: "Shop" } } as Project["i18nKeys"],
       menus: [
         {
@@ -309,7 +309,7 @@ describe("validate", () => {
         },
       ] as unknown as Project["menus"],
     });
-    const result = validate(pack);
+    const result = validate(project);
     expect(result.valid).toBe(false);
     expect(result.errors.some((e) => e.includes("lt_l0"))).toBe(true);
     expect(result.errors.some((e) => e.includes("lt_l1"))).toBe(true);

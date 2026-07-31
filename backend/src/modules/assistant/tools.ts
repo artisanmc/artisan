@@ -37,7 +37,7 @@ interface ToolSpec {
 const REGISTRY: ToolSpec[] = [
   {
     name: "list_menus",
-    description: "List menus in the current pack (id, title, size).",
+    description: "List menus in the current project (id, title, size).",
     parameters: { type: "object", properties: {}, additionalProperties: false },
     handler: (_input, wc) => ({ ok: true, content: JSON.stringify(wc.list()) }),
   },
@@ -84,13 +84,13 @@ const REGISTRY: ToolSpec[] = [
   },
   {
     name: "list_dialogs",
-    description: "List the pack's dialogs (id, title). open_dialog's dialog_id MUST be one of these ids — never invent one.",
+    description: "List the project's dialogs (id, title). open_dialog's dialog_id MUST be one of these ids — never invent one.",
     parameters: { type: "object", properties: {}, additionalProperties: false },
     handler: (_input, wc) => ({ ok: true, content: JSON.stringify(wc.listDialogs()) }),
   },
   {
     name: "list_commands",
-    description: "List commands in the current pack (id, name).",
+    description: "List commands in the current project (id, name).",
     parameters: { type: "object", properties: {}, additionalProperties: false },
     handler: (_input, wc) => ({ ok: true, content: JSON.stringify(wc.listCommands()) }),
   },
@@ -126,7 +126,7 @@ const REGISTRY: ToolSpec[] = [
   },
   {
     name: "get_translations",
-    description: 'Read the pack\'s i18n translation values (key → { lang: text }). Menus/dialogs reference text as {i18n:<key>} — this is how you see the actual text behind those refs. Optional filters: `keys` (exact key list) and/or `prefix` (e.g. "item_templates."). No args = everything.',
+    description: 'Read the project\'s i18n translation values (key → { lang: text }). Menus/dialogs reference text as {i18n:<key>} — this is how you see the actual text behind those refs. Optional filters: `keys` (exact key list) and/or `prefix` (e.g. "item_templates."). No args = everything.',
     parameters: { type: "object", properties: { keys: { type: "array", items: { type: "string" } }, prefix: { type: "string" } }, additionalProperties: false },
     handler: (input, wc) => ({ ok: true, content: JSON.stringify(wc.getTranslations(input.keys, input.prefix)) }),
   },

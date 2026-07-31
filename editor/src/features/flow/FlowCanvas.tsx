@@ -70,7 +70,7 @@ const looksLikeMiniMessage = (s: string): boolean => s.includes("<");
 
 /**
  * Unified editor for the current selection. Routes by kind:
- *   Project            → pack-level fields (description, source).
+ *   Project            → project-level fields (description, source).
  *   Menu            → title / permission / rows / background.
  *   Element         → identity + per-state cards (with all state-level
  *                     fields embedded) + click handlers for the focused state.
@@ -85,7 +85,7 @@ export function FlowCanvas({ projectId }: FlowCanvasProps) {
   const { t } = useTranslation();
   const ids = useSelectionStore((s) => s.ids);
   const selectionMenuId = useSelectionStore((s) => s.menuId);
-  const pack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
   const setSub = useFlowSelectionStore((s) => s.set);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: ids change is the trigger
@@ -93,20 +93,20 @@ export function FlowCanvas({ projectId }: FlowCanvasProps) {
     setSub(null);
   }, [setSub, [...ids].sort().join(",")]);
 
-  if (!pack) return <EmptyHint label={t("projectNotFound")} />;
+  if (!project) return <EmptyHint label={t("projectNotFound")} />;
   if (ids.size > 1) {
     return <EmptyHint label="Multi-edit not supported in v1. Select one item." />;
   }
   if (ids.size === 0) {
     return (
       <div className="h-full overflow-y-auto p-3">
-        <ProjectProperties pack={pack} />
+        <ProjectProperties project={project} />
       </div>
     );
   }
 
   const id = [...ids][0]!;
-  const command = pack.commands.find((c) => c.id === id);
+  const command = project.commands.find((c) => c.id === id);
   if (command)
     return (
       <div className="h-full overflow-hidden">
@@ -114,7 +114,7 @@ export function FlowCanvas({ projectId }: FlowCanvasProps) {
       </div>
     );
 
-  const dialog = pack.dialogs.find((d) => d.id === id);
+  const dialog = project.dialogs.find((d) => d.id === id);
   if (dialog)
     return (
       <div className="h-full overflow-hidden">
@@ -126,8 +126,8 @@ export function FlowCanvas({ projectId }: FlowCanvasProps) {
   // the selection was made in, so a shared id (e.g. `grid` in two menus) edits
   // the right one rather than the first match.
   const menusForElement = selectionMenuId
-    ? pack.menus.filter((m) => m.id === selectionMenuId)
-    : pack.menus;
+    ? project.menus.filter((m) => m.id === selectionMenuId)
+    : project.menus;
   for (const menu of menusForElement) {
     for (const layer of menu.layers) {
       const el = layer.elements.find((e) => e.id === id);
@@ -140,7 +140,7 @@ export function FlowCanvas({ projectId }: FlowCanvasProps) {
     }
   }
 
-  const menu = pack.menus.find((m) => m.id === id);
+  const menu = project.menus.find((m) => m.id === id);
   if (menu) {
     return (
       <div className="h-full overflow-y-auto p-3">
@@ -178,13 +178,13 @@ function ElementEditor({
   const focusedStateIndex =
     sub && (sub.kind === "state" || sub.kind === "step") ? (sub.stateIndex ?? 0) : 0;
 
-  const headerPack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  const headerProject = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
   const appearances = element.appearances;
   const focusedState = appearances[focusedStateIndex] ?? appearances[0];
   const headerMaterial = focusedState?.material ?? "";
   // Captured-item refs (`item:<id>`) expand to their display descriptor.
-  const headerDisplay = headerPack
-    ? resolveDisplayRef(headerPack, headerMaterial)
+  const headerDisplay = headerProject
+    ? resolveDisplayRef(headerProject, headerMaterial)
     : { material: headerMaterial };
   const headerMaterialUrl = useTextureUrl(headerDisplay.material);
   const headerTextureUrl = headPreviewUrl(headerDisplay.head) ?? headerMaterialUrl;
@@ -364,7 +364,7 @@ export const STATE_DROP_PREFIX = "state:";
 
 /**
  * Build a stable drop target id for a state card's material icon. Format:
- * `state:{menuId}:{elementId}:{stateIndex}`. The pack route's onDragEnd
+ * `state:{menuId}:{elementId}:{stateIndex}`. The project route's onDragEnd
  * checks for this prefix to dispatch a Library drop into the right state.
  */
 export function stateDropId(menuId: MenuId, elementId: ElementId, stateIndex: number): string {
@@ -567,13 +567,13 @@ function StateCard({
   const removeAppearance = useAccountStore((s) => s.removeAppearance);
   const activeLang = useUiStore((s) => s.activeLang);
   const getText = useGetText(projectId);
-  const pack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
   const target = { menuId: menu.id, elementId: element.id };
 
   const isDefault = stateIndex === 0;
   const material = appearance.material ?? "";
   // Captured-item refs (`item:<id>`) expand to their display descriptor.
-  const display = pack ? resolveDisplayRef(pack, material) : { material };
+  const display = project ? resolveDisplayRef(project, material) : { material };
   const materialUrl = useTextureUrl(display.material);
   const textureUrl = headPreviewUrl(appearance.head ?? display.head) ?? materialUrl;
   const title = getText(appearance.title);
@@ -585,7 +585,7 @@ function StateCard({
   // lang has no value — but typing writes the ACTIVE lang. Surface it in the
   // label so "I replaced the text" edits don't silently land in another lang.
   const inActiveLang = (lt: { key: I18nKey } | undefined) =>
-    lt && pack ? pack.i18nKeys[lt.key]?.[activeLang] !== undefined : false;
+    lt && project ? project.i18nKeys[lt.key]?.[activeLang] !== undefined : false;
   const titleIsFallback = Boolean(appearance.title && title !== "" && !inActiveLang(appearance.title));
   const loreIsFallback = Boolean(appearance.lore && loreText !== "" && !inActiveLang(appearance.lore));
 
@@ -614,13 +614,13 @@ function StateCard({
   // expressions like {rank.price > 1 ? "★" : ""} resolve with real data.
   const previewArgs = useUiStore((s) => s.menuPreviewArgs[menu.id]);
   const lorePreviewCtx = useMemo(() => {
-    if (!pack) return {};
-    const base = buildPreviewScope(menu, pack, undefined, previewArgs);
+    if (!project) return {};
+    const base = buildPreviewScope(menu, project, undefined, previewArgs);
     if (!element.iterates) return base;
     const list = lookupPath(base, element.iterates.source);
     if (!Array.isArray(list) || list.length === 0) return base;
     return { ...base, [element.iterates.alias]: list[0] };
-  }, [pack, menu, element.iterates, previewArgs]);
+  }, [project, menu, element.iterates, previewArgs]);
 
   const update = (field: "material" | "count" | "head", value: string | number) =>
     setAppearanceField({
@@ -651,7 +651,7 @@ function StateCard({
   // but none of it is editable while the appearance just points at `item:<id>`.
   // Extracting explodes the stack into real fields — at the cost of the link.
   const capturedItem = material.startsWith(CAPTURED_ITEM_REF_PREFIX)
-    ? pack?.capturedItems?.find(
+    ? project?.capturedItems?.find(
         (c) => String(c.id) === material.slice(CAPTURED_ITEM_REF_PREFIX.length),
       )
     : undefined;
@@ -851,7 +851,7 @@ function StateCard({
                 className="h-8 px-2 py-0 text-xs"
                 facade={
                   <MiniMessageInline
-                    source={pack ? renderPreview(title, lorePreviewCtx, pack, activeLang) : title}
+                    source={project ? renderPreview(title, lorePreviewCtx, project, activeLang) : title}
                     className="font-mono text-xs"
                   />
                 }
@@ -913,13 +913,13 @@ function StateCard({
               placeholder={t("flow.lorePlaceholder")}
               className="min-h-0 px-2 py-1 text-xs"
               facade={
-                pack ? (
+                project ? (
                   <span className="flex flex-col gap-0.5">
                     {lore.map((line, i) => (
                       <MiniMessageInline
                         // biome-ignore lint/suspicious/noArrayIndexKey: lines are stable per render
                         key={i}
-                        source={renderPreview(line, lorePreviewCtx, pack, activeLang)}
+                        source={renderPreview(line, lorePreviewCtx, project, activeLang)}
                         className="font-mono text-xs"
                       />
                     ))}
@@ -929,7 +929,7 @@ function StateCard({
                 )
               }
               preview={
-                lore.length > 0 && pack ? (
+                lore.length > 0 && project ? (
                   <div className="mt-1 flex flex-col gap-0.5 rounded border border-[var(--border-soft)] bg-[var(--surface-inset)] px-2 py-1">
                     <span className="text-[9px] text-[var(--text-faint)] uppercase">
                       {t("menuProperties.preview")}
@@ -938,7 +938,7 @@ function StateCard({
                       <MiniMessageInline
                         // biome-ignore lint/suspicious/noArrayIndexKey: lines are stable per render
                         key={i}
-                        source={renderPreview(line, lorePreviewCtx, pack, activeLang)}
+                        source={renderPreview(line, lorePreviewCtx, project, activeLang)}
                         className="font-mono text-xs"
                       />
                     ))}

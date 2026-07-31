@@ -26,21 +26,21 @@ import { validateMenuV1 } from "./validateMenuV1";
  *    condition with `ifJoins` all "and". We keep AND-joins in the fixture so
  *    the structure round-trips exactly.
  *  - Only domain-subset actions/conditions appear, so `unsupported` stays empty.
- *  - `translations` is fed `pack.i18nKeys` so the export's `{i18n:}` refs
+ *  - `translations` is fed `project.i18nKeys` so the export's `{i18n:}` refs
  *    re-resolve to the same keys + values.
  */
 
 const PACK = projectId("p_rt");
 const LANG = "en";
 
-function lt(pack: Project, value: string): { key: I18nKey } {
-  const key = `lt_${Object.keys(pack.i18nKeys).length}` as I18nKey;
-  pack.i18nKeys[key] = { en: value };
+function lt(project: Project, value: string): { key: I18nKey } {
+  const key = `lt_${Object.keys(project.i18nKeys).length}` as I18nKey;
+  project.i18nKeys[key] = { en: value };
   return { key };
 }
 
 function buildProject(): Project {
-  const pack: Project = {
+  const project: Project = {
     id: PACK,
     name: "Round-trip",
     source: "user_created",
@@ -62,7 +62,7 @@ function buildProject(): Project {
     { kind: "glyph", assetId: assetId("g"), x: 4, y: 6 },
     {
       kind: "text",
-      value: lt(pack, "Shop Title"),
+      value: lt(project, "Shop Title"),
       x: 8,
       y: 5,
       color: "#ffffff",
@@ -71,7 +71,7 @@ function buildProject(): Project {
     },
     {
       kind: "textarea",
-      value: lt(pack, "Line A\nLine B"),
+      value: lt(project, "Line A\nLine B"),
       x: 0,
       y: 20,
       width: 168,
@@ -91,8 +91,8 @@ function buildProject(): Project {
       ifJoins: ["and"],
       material: "DIAMOND",
       count: 1,
-      title: lt(pack, "VIP Button"),
-      lore: lt(pack, "Costs money"),
+      title: lt(project, "VIP Button"),
+      lore: lt(project, "Costs money"),
       enchants: [
         { id: "sharpness", level: 5 },
         { id: "unbreaking", level: 3 },
@@ -113,7 +113,7 @@ function buildProject(): Project {
                     { kind: "action", action: { type: "take_money", amount: 100 } },
                     {
                       kind: "action",
-                      action: { type: "send_message", text: lt(pack, "Purchased!") },
+                      action: { type: "send_message", text: lt(project, "Purchased!") },
                     },
                   ],
                 },
@@ -132,8 +132,8 @@ function buildProject(): Project {
               kind: "action",
               action: {
                 type: "show_title",
-                title: lt(pack, "Hi"),
-                subtitle: lt(pack, "There"),
+                title: lt(project, "Hi"),
+                subtitle: lt(project, "There"),
                 fadeIn: 5,
                 stay: 20,
                 fadeOut: 5,
@@ -146,7 +146,7 @@ function buildProject(): Project {
     {
       material: "PLAYER_HEAD",
       head: "playerhead:%player%",
-      title: lt(pack, "Fallback"),
+      title: lt(project, "Fallback"),
     },
   ];
 
@@ -162,8 +162,8 @@ function buildProject(): Project {
         { type: "pagination_at_first", elementId: "grid" },
       ],
       material: "PAPER",
-      title: lt(pack, "{item.name}"),
-      lore: lt(pack, "Multi\nLine\nLore"),
+      title: lt(project, "{item.name}"),
+      lore: lt(project, "Multi\nLine\nLore"),
       click: {
         left: {
           steps: [
@@ -174,7 +174,7 @@ function buildProject(): Project {
             { kind: "action", action: { type: "set_arg", arg: "page", value: "2" } },
             { kind: "action", action: { type: "run_command", command: "say hi", as: "console" } },
             { kind: "action", action: { type: "open_dialog", dialogId: dialogId("confirm") } },
-            { kind: "action", action: { type: "broadcast", text: lt(pack, "Big news!") } },
+            { kind: "action", action: { type: "broadcast", text: lt(project, "Big news!") } },
             { kind: "action", action: { type: "play_sound", sound: "ENTITY_PLAYER_LEVELUP", volume: 0.5, pitch: 1.5 } },
             { kind: "action", action: { type: "give_money", amount: 50 } },
             { kind: "action", action: { type: "give_xp", amount: 5 } },
@@ -213,11 +213,11 @@ function buildProject(): Project {
     ],
   };
 
-  pack.menus.push(menu);
-  return pack;
+  project.menus.push(menu);
+  return project;
 }
 
-/** Resolve an LText key against the import result's keys, then the pack's. */
+/** Resolve an LText key against the import result's keys, then the project's. */
 function resolve(
   importedKeys: Record<string, Record<string, string>>,
   projectKeys: Record<string, Record<string, string>>,
@@ -227,15 +227,15 @@ function resolve(
 }
 
 describe("menuV1ToDomain — round-trip oracle", () => {
-  const pack = buildProject();
-  const original = pack.menus[0]!;
-  const files = transform(pack);
+  const project = buildProject();
+  const original = project.menus[0]!;
+  const files = transform(project);
   const menuYaml = files[`plugins/Artisan/projects/${PACK}/menus/shop.yaml`]!;
   const wire = parse(menuYaml) as Record<string, unknown>;
   const result = menuV1ToDomain(wire, {
     projectId: PACK,
     lang: LANG,
-    translations: pack.i18nKeys as Record<string, Record<string, string>>,
+    translations: project.i18nKeys as Record<string, Record<string, string>>,
   });
   const imported = result.menu;
 
@@ -353,7 +353,7 @@ describe("menuV1ToDomain — round-trip oracle", () => {
 
   it("resolves every imported LText to the original literal value", () => {
     // Walk the imported menu's text-bearing fields and assert each resolves to
-    // the same string the original pack stored under that domain key.
+    // the same string the original project stored under that domain key.
     const pairs: Array<[string, string]> = [];
 
     function collectTitle(layers: MenuTitleLayer[], srcLayers: MenuTitleLayer[]) {
@@ -363,12 +363,12 @@ describe("menuV1ToDomain — round-trip oracle", () => {
         if ("value" in l && "value" in s) {
           const want = resolve(
             {},
-            pack.i18nKeys as Record<string, Record<string, string>>,
+            project.i18nKeys as Record<string, Record<string, string>>,
             s.value.key,
           )!;
           const got = resolve(
             result.i18nKeys,
-            pack.i18nKeys as Record<string, Record<string, string>>,
+            project.i18nKeys as Record<string, Record<string, string>>,
             l.value.key,
           )!;
           pairs.push([got, want]);
@@ -382,20 +382,20 @@ describe("menuV1ToDomain — round-trip oracle", () => {
         pairs.push([
           resolve(
             result.i18nKeys,
-            pack.i18nKeys as Record<string, Record<string, string>>,
+            project.i18nKeys as Record<string, Record<string, string>>,
             iapp.title.key,
           )!,
-          resolve({}, pack.i18nKeys as Record<string, Record<string, string>>, oapp.title.key)!,
+          resolve({}, project.i18nKeys as Record<string, Record<string, string>>, oapp.title.key)!,
         ]);
       }
       if (iapp.lore && oapp.lore) {
         pairs.push([
           resolve(
             result.i18nKeys,
-            pack.i18nKeys as Record<string, Record<string, string>>,
+            project.i18nKeys as Record<string, Record<string, string>>,
             iapp.lore.key,
           )!,
-          resolve({}, pack.i18nKeys as Record<string, Record<string, string>>, oapp.lore.key)!,
+          resolve({}, project.i18nKeys as Record<string, Record<string, string>>, oapp.lore.key)!,
         ]);
       }
     }
@@ -419,7 +419,7 @@ describe("menuV1ToDomain — round-trip oracle", () => {
 });
 
 describe("serializeMenuToV1 inventory_type", () => {
-  const pack = {
+  const project = {
     id: "p",
     i18nKeys: {},
     defaultLang: "en",
@@ -432,7 +432,7 @@ describe("serializeMenuToV1 inventory_type", () => {
   it("omits inventory_type for chest and uses size = rows*9", () => {
     // biome-ignore lint/suspicious/noExplicitAny: minimal fixture for serializer
     const menu = { id: "m", projectId: "p", title: [], rows: 3, layers: [] } as any;
-    const out = serializeMenuToV1(menu, pack);
+    const out = serializeMenuToV1(menu, project);
     expect(out.inventory_type).toBeUndefined();
     expect(out.size).toBe(27);
   });
@@ -446,7 +446,7 @@ describe("serializeMenuToV1 inventory_type", () => {
       layers: [],
       // biome-ignore lint/suspicious/noExplicitAny: minimal fixture for serializer
     } as any;
-    const out = serializeMenuToV1(menu, pack);
+    const out = serializeMenuToV1(menu, project);
     expect(out.inventory_type).toBe("hopper");
     expect(out.size).toBe(5);
   });
@@ -460,14 +460,14 @@ describe("serializeMenuToV1 inventory_type", () => {
       layers: [],
       // biome-ignore lint/suspicious/noExplicitAny: minimal fixture for serializer
     } as any;
-    const out = serializeMenuToV1(menu, pack);
+    const out = serializeMenuToV1(menu, project);
     expect(out.inventory_type).toBe("dropper");
     expect(out.size).toBe(9);
   });
 });
 
 describe("inventory_type round-trip (domain -> v1 -> domain)", () => {
-  const pack = {
+  const project = {
     id: "p",
     i18nKeys: {},
     defaultLang: "en",
@@ -491,7 +491,7 @@ describe("inventory_type round-trip (domain -> v1 -> domain)", () => {
         layers: [{ id: "l", name: "L", elements: [] }],
         // biome-ignore lint/suspicious/noExplicitAny: minimal fixture for round-trip
       } as any;
-      const v1 = serializeMenuToV1(menu, pack);
+      const v1 = serializeMenuToV1(menu, project);
       expect(v1.size).toBe(size);
       // biome-ignore lint/suspicious/noExplicitAny: wire object re-fed to importer
       const back = menuV1ToDomain(v1 as any, { projectId: projectId("p"), lang: "en" }).menu;

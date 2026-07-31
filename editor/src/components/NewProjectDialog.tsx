@@ -14,7 +14,7 @@ import { createProject } from "@/lib/api/networks";
 interface NewProjectDialogProps {
   /** Network the new workspace will be created in. When null, the trigger is disabled. */
   networkId: string | null;
-  /** Server key to associate the new pack with (forwarded to the backend). */
+  /** Server key to associate the new project with (forwarded to the backend). */
   serverKeyId?: string | null;
   /** Called with the new workspace id after a successful create. */
   onCreated?: (id: string) => void;
@@ -40,10 +40,10 @@ export function NewProjectDialog({ networkId, serverKeyId, onCreated, trigger }:
     setSubmitting(true);
     setError(null);
     try {
-      const pack = await createProject(networkId, serverKeyId ?? "", trimmed);
+      const project = await createProject(networkId, serverKeyId ?? "", trimmed);
       setName("");
       setOpen(false);
-      onCreated?.(pack.id);
+      onCreated?.(project.id);
     } catch (e) {
       setError(e instanceof Error ? e.message : "create_failed");
     } finally {

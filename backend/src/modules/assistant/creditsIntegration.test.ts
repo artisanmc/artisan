@@ -53,7 +53,7 @@ function throwingProvider(): LlmProvider {
 
 async function openConversation(): Promise<string> {
 	const created = await app.request("/api/v1/assistant/conversations", {
-		method: "POST", headers: auth(), body: JSON.stringify({ packId: PROJECT_ID }),
+		method: "POST", headers: auth(), body: JSON.stringify({ projectId: PROJECT_ID }),
 	});
 	return (await created.json()).conversationId;
 }
@@ -178,7 +178,7 @@ describe("assistant credits integration", () => {
 
 	it("unknown project at conversation creation → 404 project_not_found", async () => {
 		const created = await app.request("/api/v1/assistant/conversations", {
-			method: "POST", headers: auth(), body: JSON.stringify({ packId: "ghost_project" }),
+			method: "POST", headers: auth(), body: JSON.stringify({ projectId: "ghost_project" }),
 		});
 		expect(created.status).toBe(404);
 		expect((await created.json()).error).toBe("project_not_found");
@@ -195,7 +195,7 @@ describe("assistant credits integration", () => {
 			const res = await app.request("/api/v1/assistant/conversations", {
 				method: "POST",
 				headers: { Cookie: `artisan_user_session=${outsiderSession}`, "Content-Type": "application/json" },
-				body: JSON.stringify({ packId: PROJECT_ID }),
+				body: JSON.stringify({ projectId: PROJECT_ID }),
 			});
 			expect(res.status).toBe(403);
 			expect((await res.json()).error).toBe("forbidden");
@@ -215,7 +215,7 @@ describe("assistant credits integration", () => {
 		}).onConflictDoNothing();
 		try {
 			const res = await app.request("/api/v1/assistant/conversations", {
-				method: "POST", headers: auth(), body: JSON.stringify({ packId: "proj_credits_other" }),
+				method: "POST", headers: auth(), body: JSON.stringify({ projectId: "proj_credits_other" }),
 			});
 			expect(res.status).toBe(403);
 		} finally {

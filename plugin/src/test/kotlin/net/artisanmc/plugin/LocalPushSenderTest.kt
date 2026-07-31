@@ -11,13 +11,13 @@ import java.nio.file.Path
 class LocalPushSenderTest {
 
     @Test
-    fun `buildPushMessage reads all files under a pack dir`(@TempDir tmp: Path) {
-        val packDir = tmp.resolve("p_test")
-        Files.createDirectories(packDir.resolve("menus"))
-        Files.writeString(packDir.resolve("manifest.yaml"), "schema: manifest/v1\n")
-        Files.writeString(packDir.resolve("menus/shop.yaml"), "id: shop\n")
+    fun `buildPushMessage reads all files under a project dir`(@TempDir tmp: Path) {
+        val projectDir = tmp.resolve("p_test")
+        Files.createDirectories(projectDir.resolve("menus"))
+        Files.writeString(projectDir.resolve("manifest.yaml"), "schema: manifest/v1\n")
+        Files.writeString(projectDir.resolve("menus/shop.yaml"), "id: shop\n")
 
-        val msg = LocalPushSender.buildPushMessage("p_test", packDir.toFile())
+        val msg = LocalPushSender.buildPushMessage("p_test", projectDir.toFile())
         assertEquals("local_push", msg["type"])
         assertEquals("p_test", msg["project_id"])
         @Suppress("UNCHECKED_CAST")
@@ -30,12 +30,12 @@ class LocalPushSenderTest {
 
     @Test
     fun `buildPushMessage skips artisan sync metadata files`(@TempDir tmp: Path) {
-        val packDir = tmp.resolve("p_meta")
-        Files.createDirectories(packDir)
-        Files.writeString(packDir.resolve("manifest.yaml"), "schema: manifest/v1\n")
-        Files.writeString(packDir.resolve(".artisan-sync.yaml"), "syncedHash: abc123\n")
+        val projectDir = tmp.resolve("p_meta")
+        Files.createDirectories(projectDir)
+        Files.writeString(projectDir.resolve("manifest.yaml"), "schema: manifest/v1\n")
+        Files.writeString(projectDir.resolve(".artisan-sync.yaml"), "syncedHash: abc123\n")
 
-        val msg = LocalPushSender.buildPushMessage("p_meta", packDir.toFile())
+        val msg = LocalPushSender.buildPushMessage("p_meta", projectDir.toFile())
         @Suppress("UNCHECKED_CAST")
         val files = msg["files"] as Map<String, String>
         assertEquals(1, files.size)
@@ -44,23 +44,23 @@ class LocalPushSenderTest {
 
     @Test
     fun `buildPushMessage hash is deterministic`(@TempDir tmp: Path) {
-        val packDir = tmp.resolve("p_det")
-        Files.createDirectories(packDir.resolve("menus"))
-        Files.writeString(packDir.resolve("manifest.yaml"), "schema: manifest/v1\n")
-        Files.writeString(packDir.resolve("menus/a.yaml"), "id: a\n")
+        val projectDir = tmp.resolve("p_det")
+        Files.createDirectories(projectDir.resolve("menus"))
+        Files.writeString(projectDir.resolve("manifest.yaml"), "schema: manifest/v1\n")
+        Files.writeString(projectDir.resolve("menus/a.yaml"), "id: a\n")
 
-        val hash1 = (LocalPushSender.buildPushMessage("p_det", packDir.toFile())["hash"] as String)
-        val hash2 = (LocalPushSender.buildPushMessage("p_det", packDir.toFile())["hash"] as String)
+        val hash1 = (LocalPushSender.buildPushMessage("p_det", projectDir.toFile())["hash"] as String)
+        val hash2 = (LocalPushSender.buildPushMessage("p_det", projectDir.toFile())["hash"] as String)
         assertEquals(hash1, hash2)
     }
 
     @Test
     fun `buildPushMessage paths use forward slashes`(@TempDir tmp: Path) {
-        val packDir = tmp.resolve("p_slash")
-        Files.createDirectories(packDir.resolve("menus"))
-        Files.writeString(packDir.resolve("menus/shop.yaml"), "id: shop\n")
+        val projectDir = tmp.resolve("p_slash")
+        Files.createDirectories(projectDir.resolve("menus"))
+        Files.writeString(projectDir.resolve("menus/shop.yaml"), "id: shop\n")
 
-        val msg = LocalPushSender.buildPushMessage("p_slash", packDir.toFile())
+        val msg = LocalPushSender.buildPushMessage("p_slash", projectDir.toFile())
         @Suppress("UNCHECKED_CAST")
         val files = msg["files"] as Map<String, String>
         assertTrue(files.keys.all { '\\' !in it }, "All paths must use forward slashes")

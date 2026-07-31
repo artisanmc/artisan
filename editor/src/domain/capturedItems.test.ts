@@ -21,31 +21,31 @@ const HEAD: CapturedItem = {
   display: { material: "PLAYER_HEAD", headTexture: "eyJ0ZXh0dXJlcyI6…" },
 };
 
-function pack(items: CapturedItem[]): Project {
+function project(items: CapturedItem[]): Project {
   return { capturedItems: items } as Project;
 }
 
 describe("resolveDisplayRef", () => {
   it("resolves an item: ref to its captured display (material/head/glint)", () => {
-    expect(resolveDisplayRef(pack([CAPTURED]), "item:ci_key")).toEqual({
+    expect(resolveDisplayRef(project([CAPTURED]), "item:ci_key")).toEqual({
       material: "nexo:arcanist_key",
       enchanted: true,
     });
-    expect(resolveDisplayRef(pack([HEAD]), "item:ci_grade")).toEqual({
+    expect(resolveDisplayRef(project([HEAD]), "item:ci_grade")).toEqual({
       material: "PLAYER_HEAD",
       head: "basehead:eyJ0ZXh0dXJlcyI6…",
     });
   });
 
   it("passes non-item refs through untouched (vanilla, nexo:, placeholders)", () => {
-    const p = pack([CAPTURED]);
+    const p = project([CAPTURED]);
     expect(resolveDisplayRef(p, "DIAMOND_SWORD")).toEqual({ material: "DIAMOND_SWORD" });
     expect(resolveDisplayRef(p, "nexo:arcanist_key")).toEqual({ material: "nexo:arcanist_key" });
     expect(resolveDisplayRef(p, "{item.icon}")).toEqual({ material: "{item.icon}" });
   });
 
   it("dangling item: ref degrades to the bare ref (non-hermetic)", () => {
-    expect(resolveDisplayRef(pack([]), "item:ghost")).toEqual({ material: "item:ghost" });
+    expect(resolveDisplayRef(project([]), "item:ghost")).toEqual({ material: "item:ghost" });
   });
 
   it("falls back to the serialized stack when the descriptor is empty", () => {
@@ -62,7 +62,7 @@ describe("resolveDisplayRef", () => {
 `,
       display: {},
     };
-    expect(resolveDisplayRef(pack([bare]), "item:ci_bare")).toEqual({
+    expect(resolveDisplayRef(project([bare]), "item:ci_bare")).toEqual({
       material: "DIAMOND_SWORD",
       enchanted: true,
     });

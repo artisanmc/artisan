@@ -7,10 +7,10 @@ import { useUiStore } from "@/state/uiStore";
 import { getTextureUrl } from "./textureStore";
 
 interface EdgeTooltipProps {
-  pack: Project;
+  project: Project;
 }
 
-export function EdgeTooltip({ pack }: EdgeTooltipProps) {
+export function EdgeTooltip({ project }: EdgeTooltipProps) {
   const edge = useEdgeHoverStore((s) => s.edge);
   const x = useEdgeHoverStore((s) => s.x);
   const y = useEdgeHoverStore((s) => s.y);
@@ -19,24 +19,24 @@ export function EdgeTooltip({ pack }: EdgeTooltipProps) {
   if (!edge) return null;
 
   const nodeName = (id: string): string => {
-    const menu = pack.menus.find((m) => m.id === id);
+    const menu = project.menus.find((m) => m.id === id);
     if (menu) {
       const lt = getFirstTitleText(menu);
-      return (lt ? getText(pack, lt, activeLang) : "") || id;
+      return (lt ? getText(project, lt, activeLang) : "") || id;
     }
-    const cmd = pack.commands.find((c) => c.id === id);
+    const cmd = project.commands.find((c) => c.id === id);
     if (cmd) return `/${cmd.name}`;
-    const dialog = (pack.dialogs ?? []).find((d) => d.id === id);
+    const dialog = (project.dialogs ?? []).find((d) => d.id === id);
     if (dialog) return `[dialog] ${id}`;
     return id;
   };
 
   const elementLabel = (elementId: string): string => {
-    for (const menu of pack.menus) {
+    for (const menu of project.menus) {
       for (const layer of menu.layers) {
         const el = layer.elements.find((e) => e.id === elementId);
         if (el) {
-          const title = getText(pack, el.appearances[0]?.title, activeLang);
+          const title = getText(project, el.appearances[0]?.title, activeLang);
           return title || elementId;
         }
       }
@@ -75,7 +75,7 @@ export function EdgeTooltip({ pack }: EdgeTooltipProps) {
             // biome-ignore lint/suspicious/noArrayIndexKey: stable per tooltip render
             <div key={i} className="flex items-center gap-1.5">
               <span className="font-mono text-xs text-[var(--text-mut)]">
-                /{pack.commands.find((c) => c.id === trigger.commandId)?.name ?? trigger.commandId}
+                /{project.commands.find((c) => c.id === trigger.commandId)?.name ?? trigger.commandId}
               </span>
             </div>
           ),

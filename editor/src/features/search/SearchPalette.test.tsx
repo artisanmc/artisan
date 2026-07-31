@@ -14,7 +14,7 @@ vi.mock("@tanstack/react-router", () => ({
 import { SearchPalette } from "./SearchPalette";
 
 const PID = "p1" as ProjectId;
-function pack(): Project {
+function project(): Project {
   return {
     id: PID, name: "p", source: "user_created", createdAt: "", updatedAt: "",
     menus: [{ id: "m_shop", projectId: PID, title: [{ kind: "plain", value: { key: "k" } }], rows: 3,
@@ -28,7 +28,7 @@ function pack(): Project {
 describe("SearchPalette", () => {
   beforeEach(() => {
     navigate.mockClear();
-    useAccountStore.setState({ account: { id: "a" as any, projects: [pack()], projectOrder: [PID] } } as any);
+    useAccountStore.setState({ account: { id: "a" as any, projects: [project()], projectOrder: [PID] } } as any);
     useUiStore.setState({ searchOpen: true, activeLang: "en" } as any);
     useSelectionStore.getState().clear();
   });

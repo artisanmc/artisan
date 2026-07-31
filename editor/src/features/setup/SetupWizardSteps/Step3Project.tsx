@@ -22,7 +22,7 @@ export function Step3Project({ state, setState }: Props) {
     if (!state.networkId) return;
     networksApi
       .getNetwork(state.networkId)
-      // A pack belongs to exactly one server_key (1:N). Scope the list to the
+      // A project belongs to exactly one server_key (1:N). Scope the list to the
       // server set up in step 2 — never offer workspaces owned by other servers.
       .then((detail) => setProjects(detail.projects.filter((p) => p.serverKeyId === state.serverKeyId)))
       .catch(console.error);

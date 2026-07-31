@@ -10,7 +10,7 @@ import { nodeBox } from "./menuLayout";
 import { offBoardLinks } from "./offBoardLinks";
 
 interface GhostChipsProps {
-  pack: Project;
+  project: Project;
   layout: Record<string, { x: number; y: number }>;
   projectId: ProjectId;
 }
@@ -22,9 +22,9 @@ const CHIP_GAP = 4; // vertical gap between stacked chips of the same source
 // If that font/size changes, re-tune this.
 const CHAR_W = 6.2;
 
-export function GhostChips({ pack, layout, projectId }: GhostChipsProps) {
+export function GhostChips({ project, layout, projectId }: GhostChipsProps) {
   const activeLang = useUiStore((s) => s.activeLang);
-  const links = useMemo(() => offBoardLinks(deriveEdges(pack), layout), [pack, layout]);
+  const links = useMemo(() => offBoardLinks(deriveEdges(project), layout), [project, layout]);
 
   // Index of each link within its source group — used to stagger overlapping chips.
   const indexBySource = useMemo(() => {
@@ -39,11 +39,11 @@ export function GhostChips({ pack, layout, projectId }: GhostChipsProps) {
   return (
     <>
       {links.map(({ source, target }, idx) => {
-        const box = nodeBox(pack, source, layout);
+        const box = nodeBox(project, source, layout);
         if (!box) return null;
 
         const i = indexBySource[idx] ?? 0;
-        const label = `→ ${documentLabel(pack, target, activeLang)}`;
+        const label = `→ ${documentLabel(project, target, activeLang)}`;
         const width = Math.max(48, label.length * CHAR_W + CHIP_PAD * 2);
         // Ancre : coin haut-droit de la source, décalé verticalement par chip.
         const x = box.x + box.width + 8;

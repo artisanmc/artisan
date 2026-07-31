@@ -23,14 +23,14 @@ interface ItemTooltipProps {
  * Walk the menu tree to locate `id`'s element + its parent menu. NOT a
  * zustand selector — wrapping this in `useAccountStore(...)` would return
  * a fresh object every call and trigger an infinite re-render loop. Call
- * it from `useMemo` against a stable pack ref instead.
+ * it from `useMemo` against a stable project ref instead.
  */
 const findElementAndMenu = (
-  pack: ReturnType<typeof useAccountStore.getState>["account"]["projects"][number] | undefined,
+  project: ReturnType<typeof useAccountStore.getState>["account"]["projects"][number] | undefined,
   id: string | null,
 ): { element: Element; menu: Menu } | null => {
-  if (!pack || !id) return null;
-  for (const m of pack.menus) {
+  if (!project || !id) return null;
+  for (const m of project.menus) {
     for (const layer of m.layers) {
       for (const el of layer.elements) {
         if (el.id === id) return { element: el, menu: m };
@@ -66,11 +66,11 @@ export function ItemTooltip({ projectId }: ItemTooltipProps) {
   // Subscribe so the tooltip re-renders when the user flips the page
   // while a slot is hovered.
   const pageByElement = usePaginationStore((s) => s.pageByElement);
-  // Subscribe to the pack ref (stable across irrelevant store changes
+  // Subscribe to the project ref (stable across irrelevant store changes
   // thanks to immer) and derive the {element, menu} pair via useMemo so
   // the tooltip doesn't allocate a new object on every render — a fresh
   // selector return value would loop zustand's identity check.
-  const pack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
   const activeLang = useUiStore((s) => s.activeLang);
   // Live-server snapshots for real-data resolution. MUST stay above the early
   // returns below — a hook called conditionally throws "rendered more hooks
@@ -79,16 +79,16 @@ export function ItemTooltip({ projectId }: ItemTooltipProps) {
   // Whole map (stable identity) — menu.id is only known after the early
   // returns, and hooks must not run after them.
   const menuPreviewArgs = useUiStore((s) => s.menuPreviewArgs);
-  const found = useMemo(() => findElementAndMenu(pack, elementId), [pack, elementId]);
-  if (!found || !pack) return null;
+  const found = useMemo(() => findElementAndMenu(project, elementId), [project, elementId]);
+  if (!found || !project) return null;
   const { element, menu } = found;
   const appearance = element.appearances[0];
   if (!appearance) return null;
 
   // Build a preview scope from contextInputs — primitives are coerced to their
   // declared type; sourceRefs resolve against a live snapshot (server sources)
-  // with pack.dataSources as the project-data path.
-  const sampleCtx = buildPreviewScope(menu, pack, snapshots, menuPreviewArgs[menu.id]);
+  // with project.dataSources as the project-data path.
+  const sampleCtx = buildPreviewScope(menu, project, snapshots, menuPreviewArgs[menu.id]);
 
   // Mirror MenuGroup's pagination context so `{pagination.page}` and
   // friends resolve consistently in tooltips. Walk every iterating
@@ -168,7 +168,7 @@ export function ItemTooltip({ projectId }: ItemTooltipProps) {
 
   // Enchantments of the appearance itself, or of the captured stack it points at.
   const captured = appearance.material?.startsWith(CAPTURED_ITEM_REF_PREFIX)
-    ? pack.capturedItems?.find(
+    ? project.capturedItems?.find(
         (c) => String(c.id) === appearance.material!.slice(CAPTURED_ITEM_REF_PREFIX.length),
       )
     : undefined;
@@ -177,14 +177,14 @@ export function ItemTooltip({ projectId }: ItemTooltipProps) {
     (captured ? capturedStackDetails(captured.stackYaml).enchants : undefined) ??
     [];
 
-  const titleSource = (cachedName ?? getText(pack, appearance.title, activeLang)).trim();
+  const titleSource = (cachedName ?? getText(project, appearance.title, activeLang)).trim();
   const rawTitle = titleSource || humanize(appearance.material ?? "");
-  const title = renderPreview(rawTitle, ctx, pack, activeLang);
-  const loreRaw = appearance.lore ? getText(pack, appearance.lore, activeLang) : "";
+  const title = renderPreview(rawTitle, ctx, project, activeLang);
+  const loreRaw = appearance.lore ? getText(project, appearance.lore, activeLang) : "";
   const lore = cachedLore
     ? cachedLore
     : loreRaw
-      ? loreRaw.split("\n").map((line) => renderPreview(line, ctx, pack, activeLang))
+      ? loreRaw.split("\n").map((line) => renderPreview(line, ctx, project, activeLang))
       : [];
 
   return (
