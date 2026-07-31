@@ -10,7 +10,6 @@ import {
   visitDataSourceLTexts,
   visitDialogLTexts,
   visitElementLTexts,
-  visitItemTemplateLTexts,
   visitMenuLTexts,
   visitStepLTexts,
 } from "@/domain/i18nSites";
@@ -55,8 +54,6 @@ import type {
   CapturedItemId,
   I18nKey,
   InventoryType,
-  ItemTemplate,
-  ItemTemplateId,
   LText,
   Layer,
   Menu,
@@ -81,9 +78,6 @@ import {
   dialogTitleKey,
   elementLoreKey,
   elementTitleKey,
-  itemTemplateClickPrefix,
-  itemTemplateLoreKey,
-  itemTemplateTitleKey,
   menuTitleKey,
 } from "@/lib/i18nKeys";
 import { migrateProjectToI18n } from "@/lib/i18nMigration";
@@ -105,15 +99,11 @@ import { create } from "zustand";
 type MenuRows = 1 | 2 | 3 | 4 | 5 | 6;
 
 /**
- * Where an appearance lives — a menu element (menuId+elementId) or an Item
- * template state (templateId). The appearance/click/step reducers accept
- * either, so the same editing UI (state cards, pseudocode click editor)
- * mutates elements and templates alike. i18n keys mint under the matching
- * canonical prefix (`menus.…` vs `item_templates.…`).
+ * Where an appearance lives — always a menu element. Kept as a named type
+ * because the appearance/click/step reducers and the editing UI (state cards,
+ * pseudocode click editor) all address appearances through it.
  */
-export type AppearanceTarget =
-  | { menuId: MenuId; elementId: ElementId; templateId?: undefined }
-  | { templateId: ItemTemplateId; menuId?: undefined; elementId?: undefined };
+export type AppearanceTarget = { menuId: MenuId; elementId: ElementId };
 
 export type SourceValueUpdateResult =
   | { ok: true }
@@ -431,52 +421,9 @@ interface AccountState {
     elementId: ElementId;
     key: string;
   }) => void;
-  /**
-   * Item templates — named per-source row views (ADR `item-templates-and-data-library`).
-   * `addItemTemplate` mints canonical i18n entries for sentinel (`key === ""`) LTexts
-   * in the appearances; `removeItemTemplate` releases them (no "(unused)" leaks).
-   */
-  addItemTemplate: (input: {
-    projectId: ProjectId;
-    template: ItemTemplate;
-    /** Seed i18n entries (all languages) merged into `pack.i18nKeys` before minting. */
-    i18n?: Record<I18nKey, Record<string, string>>;
-  }) => void;
-  updateItemTemplate: (input: {
-    projectId: ProjectId;
-    templateId: ItemTemplateId;
-    patch: Partial<Pick<ItemTemplate, "name" | "alias" | "keyField" | "groupBy">>;
-  }) => void;
-  /** Replace a template's appearance states: mints new sentinels, GCs dropped keys. */
-  setItemTemplateAppearances: (input: {
-    projectId: ProjectId;
-    templateId: ItemTemplateId;
-    appearances: Appearance[];
-  }) => void;
-  removeItemTemplate: (input: { projectId: ProjectId; templateId: ItemTemplateId }) => void;
   /** Captured items — upsert by id (a re-capture replaces the entry). */
   addCapturedItem: (input: { projectId: ProjectId; item: CapturedItem }) => void;
   removeCapturedItem: (input: { projectId: ProjectId; itemId: CapturedItemId }) => void;
-  /**
-   * Pin one row of an Item template onto a menu slot (library drag / tap). Ensures
-   * the menu has a contextInput for the template's source and a bound placement
-   * element (created on first drop), then upserts the placement by key. Enforces
-   * one template per (menu, source): a second template of the same source is
-   * rejected with `{ok:false, reason:"conflict"}`.
-   */
-  /**
-   * Bind an EXISTING element to an Item template for pagination: ensures the
-   * menu consumes the template's source (contextInput auto-created from the
-   * ref tail) and sets `iterates` (source, template alias, templateId) —
-   * clearing `places` (XOR). Refuses when another template of the same
-   * source is already bound in the menu.
-   */
-  bindElementToTemplate: (input: {
-    projectId: ProjectId;
-    menuId: MenuId;
-    elementId: ElementId;
-    templateId: ItemTemplateId;
-  }) => { ok: true } | { ok: false; reason: "conflict"; conflictName: string };
   /**
    * Create THE set d'items of one menu list (Données du menu) — a
    * SELF-CONTAINED element (no Item template): appearances seeded from the
@@ -494,26 +441,6 @@ interface AccountState {
     schema: { name: string }[];
     positions?: string;
   }) => { ok: true; elementId: string } | { ok: false; reason: "not_found" | "already_exists" };
-  pinItemTemplateRow: (input: {
-    projectId: ProjectId;
-    menuId: MenuId;
-    templateId: ItemTemplateId;
-    key: string;
-    position: number;
-    page?: number;
-    cachedDisplay?: { name?: string; material?: string; lore?: string[] };
-  }) => { ok: true } | { ok: false; reason: "conflict"; conflictName: string };
-  /**
-   * Drop a whole template (or one of its `groupBy` groups) onto a menu →
-   * paginated bound element (auto slot range). A group drop gets a dedicated
-   * literal-filtered contextInput + its own element.
-   */
-  dropItemTemplateBlock: (input: {
-    projectId: ProjectId;
-    menuId: MenuId;
-    templateId: ItemTemplateId;
-    group?: { field: string; value: string };
-  }) => { ok: true } | { ok: false; reason: "conflict"; conflictName: string };
   /**
    * Rename a menu's id. Rejects if newId already exists in the pack.
    * Atomically rewrites all `open_menu` refs in the pack and the
@@ -942,17 +869,13 @@ interface AccountState {
  * draft and return live references so callers can splice in place.
  */
 /**
- * Resolve an AppearanceTarget to its owner (`{ appearances }` — a menu
- * element or an Item template) inside the given pack draft. Null when the
- * target doesn't exist.
+ * Resolve an AppearanceTarget to its owning element inside the given pack
+ * draft. Null when the target doesn't exist.
  */
 function findAppearanceOwner(
   pack: Project,
   target: AppearanceTarget,
 ): { appearances: Appearance[] } | null {
-  if (target.templateId) {
-    return pack.itemTemplates?.find((t) => t.id === target.templateId) ?? null;
-  }
   const menu = pack.menus.find((m) => m.id === target.menuId);
   if (!menu) return null;
   for (const layer of menu.layers) {
@@ -976,23 +899,16 @@ function findElementHandler(
   return owner?.appearances[appearanceIndex]?.click?.[clickType] ?? null;
 }
 
-/** Canonical i18n key/prefix for an appearance site, per target kind. */
+/** Canonical i18n key/prefix for an appearance site. */
 const appearanceTitleKeyFor = (target: AppearanceTarget, appIdx: number) =>
-  target.templateId
-    ? itemTemplateTitleKey(target.templateId, appIdx)
-    : elementTitleKey(target.menuId as string, target.elementId as string, appIdx);
+  elementTitleKey(target.menuId as string, target.elementId as string, appIdx);
 const appearanceLoreKeyFor = (target: AppearanceTarget, appIdx: number) =>
-  target.templateId
-    ? itemTemplateLoreKey(target.templateId, appIdx)
-    : elementLoreKey(target.menuId as string, target.elementId as string, appIdx);
+  elementLoreKey(target.menuId as string, target.elementId as string, appIdx);
 const appearanceClickPrefixFor = (
   target: AppearanceTarget,
   appIdx: number,
   clickType: ClickType,
-) =>
-  target.templateId
-    ? itemTemplateClickPrefix(target.templateId, appIdx, clickType)
-    : clickHandlerKeyPrefix(target.menuId as string, target.elementId as string, appIdx, clickType);
+) => clickHandlerKeyPrefix(target.menuId as string, target.elementId as string, appIdx, clickType);
 
 function findCommand(draft: AccountState, projectId: ProjectId, commandId: CommandId) {
   const pack = draft.account.projects.find((p) => p.id === projectId);
@@ -1034,110 +950,11 @@ function gcDialogLTexts(pack: Project, dialog: Dialog): void {
   releaseLTexts(pack, visitDialogLTexts(dialog));
 }
 
-/** Name of another Item template of the same source already bound in this menu, or null. */
-function findTemplateConflict(pack: Project, menu: Menu, tpl: ItemTemplate): string | null {
-  for (const layer of menu.layers) {
-    for (const el of layer.elements) {
-      const boundId = el.places?.templateId ?? el.iterates?.templateId;
-      if (!boundId || boundId === tpl.id) continue;
-      const other = pack.itemTemplates?.find((t) => t.id === boundId);
-      if (other && other.sourceRef === tpl.sourceRef) return other.name;
-    }
-  }
-  return null;
-}
-
 /** Auto slot range for a dropped paginated block: skip the first/last menu row when roomy. */
 function defaultIterateRange(menu: Menu): string {
   const total = slotCount(menu.inventoryType ?? "chest", menu.rows);
   if (total <= 18) return `0-${total - 1}`;
   return `9-${total - 10}`;
-}
-
-/**
- * Find (or create) the menu's element bound to `tpl` in the given mode, ensuring
- * a contextInput for the template's source exists (named from the ref tail). A
- * `group` drop gets its own **literal-filtered** input (`items_weapons` with
- * `filter: {category: "weapons"}`) and its own element — several groups of the
- * same template coexist in one menu. Created elements are template-bound: empty
- * local appearances, template wins. Immer-draft helper for pinItemTemplateRow /
- * dropItemTemplateBlock.
- */
-/** Find-or-create the menu's sourceRef contextInput consuming a template's
- *  source (optionally group-filtered). Shared by new-element drops and
- *  existing-element binding. */
-function ensureSourceInput(
-  menu: Menu,
-  tpl: ItemTemplate,
-  group?: { field: string; value: string },
-): ContextInput {
-  if (!menu.contextInputs) menu.contextInputs = [];
-  const matchesInput = (c: ContextInput) =>
-    c.kind === "sourceRef" &&
-    String(c.ref) === tpl.sourceRef &&
-    (group
-      ? c.filter?.[group.field] === group.value && Object.keys(c.filter ?? {}).length === 1
-      : !c.filter || Object.keys(c.filter).length === 0);
-  let input = menu.contextInputs.find(matchesInput);
-  if (!input) {
-    const tail = tpl.sourceRef.split(":").pop() || tpl.alias;
-    const baseName = group ? `${tail}_${group.value.replace(/[^a-zA-Z0-9_]/g, "_")}` : tail;
-    const used = new Set(menu.contextInputs.map((c) => c.name));
-    let name = baseName;
-    let n = 2;
-    while (used.has(name)) name = `${baseName}${n++}`;
-    input = {
-      kind: "sourceRef",
-      name,
-      ref: tpl.sourceRef as SourceRef,
-      ...(group ? { filter: { [group.field]: group.value } } : {}),
-    };
-    menu.contextInputs.push(input);
-  }
-  return input;
-}
-
-function ensureBoundElement(
-  menu: Menu,
-  tpl: ItemTemplate,
-  mode: "places" | "iterates",
-  group?: { field: string; value: string },
-): Element {
-  const input = ensureSourceInput(menu, tpl, group);
-  for (const layer of menu.layers) {
-    for (const el of layer.elements) {
-      if (mode === "places" && el.places?.templateId === tpl.id && el.places.source === input.name)
-        return el;
-      if (
-        mode === "iterates" &&
-        el.iterates?.templateId === tpl.id &&
-        el.iterates.source === input.name
-      )
-        return el;
-    }
-  }
-  if (menu.layers.length === 0) {
-    menu.layers.push({ id: newLayerId(), name: "Main", elements: [] });
-  }
-  const el: Element = {
-    id: newElementId(),
-    positions: mode === "iterates" ? defaultIterateRange(menu) : "",
-    appearances: [],
-    ...(mode === "places"
-      ? {
-          places: {
-            source: input.name,
-            alias: tpl.alias,
-            keyField: tpl.keyField ?? "",
-            templateId: tpl.id,
-            placements: [],
-          },
-        }
-      : { iterates: { source: input.name, alias: tpl.alias, templateId: tpl.id } }),
-  };
-  const layer = menu.layers[0]!;
-  layer.elements.push(el);
-  return layer.elements[layer.elements.length - 1]!;
 }
 
 /** i18n keys held by the text-bearing title layers (text/plain/textarea) in a set. */
@@ -1314,7 +1131,6 @@ export const useAccountStore = create<AccountState>()(
               updatedAt: new Date().toISOString(),
               menus: [],
               commands: [],
-              templates: [],
               assets: [],
               dataSources: [],
               dialogs: [],
@@ -1351,7 +1167,6 @@ export const useAccountStore = create<AccountState>()(
               // Retag children so their projectId matches the new pack id.
               menus: incoming.menus.map((m) => ({ ...m, projectId: id })),
               commands: incoming.commands.map((c) => ({ ...c, projectId: id })),
-              templates: (incoming.templates ?? []).map((t) => ({ ...t, projectId: id })),
               assets: (incoming.assets ?? []).map((a) => ({ ...a, projectId: id })),
               dialogs: (incoming.dialogs ?? []).map((d) => ({ ...d, projectId: id })),
               i18nKeys: incoming.i18nKeys ?? {},
@@ -2499,64 +2314,6 @@ export const useAccountStore = create<AccountState>()(
             }
           }),
         ),
-      addItemTemplate: ({ projectId: pId, template, i18n }) =>
-        set(
-          produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            if (!pack) return;
-            if (!pack.itemTemplates) pack.itemTemplates = [];
-            pack.itemTemplates.push(template);
-            const tpl = pack.itemTemplates[pack.itemTemplates.length - 1]!;
-            // Merge seed values first (createLTextAt in mint no-ops on existing
-            // entries), then mint canonical entries for any remaining sentinels.
-            for (const [key, entry] of Object.entries(i18n ?? {})) {
-              pack.i18nKeys[key as I18nKey] = { ...entry };
-            }
-            mintLTexts(pack, visitItemTemplateLTexts(tpl), pack.defaultLang);
-            pack.updatedAt = new Date().toISOString();
-          }),
-        ),
-      updateItemTemplate: ({ projectId: pId, templateId, patch }) =>
-        set(
-          produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            const tpl = pack?.itemTemplates?.find((t) => t.id === templateId);
-            if (!pack || !tpl) return;
-            Object.assign(tpl, patch);
-            pack.updatedAt = new Date().toISOString();
-          }),
-        ),
-      setItemTemplateAppearances: ({ projectId: pId, templateId, appearances }) =>
-        set(
-          produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            const tpl = pack?.itemTemplates?.find((t) => t.id === templateId);
-            if (!pack || !tpl) return;
-            const oldKeys = new Set(
-              [...visitItemTemplateLTexts(tpl)].map((s) => s.lText.key).filter(Boolean),
-            );
-            tpl.appearances = appearances;
-            mintLTexts(pack, visitItemTemplateLTexts(tpl), pack.defaultLang);
-            // GC keys the new appearance set no longer references.
-            const newKeys = new Set([...visitItemTemplateLTexts(tpl)].map((s) => s.lText.key));
-            for (const key of oldKeys) {
-              if (!newKeys.has(key)) deleteLText(pack, { key });
-            }
-            pack.updatedAt = new Date().toISOString();
-          }),
-        ),
-      removeItemTemplate: ({ projectId: pId, templateId }) =>
-        set(
-          produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            if (!pack?.itemTemplates) return;
-            const tpl = pack.itemTemplates.find((t) => t.id === templateId);
-            if (!tpl) return;
-            releaseLTexts(pack, visitItemTemplateLTexts(tpl));
-            pack.itemTemplates = pack.itemTemplates.filter((t) => t.id !== templateId);
-            pack.updatedAt = new Date().toISOString();
-          }),
-        ),
       addCapturedItem: ({ projectId: pId, item }) =>
         set(
           produce((draft: AccountState) => {
@@ -2578,33 +2335,6 @@ export const useAccountStore = create<AccountState>()(
             pack.updatedAt = new Date().toISOString();
           }),
         ),
-      bindElementToTemplate: ({ projectId: pId, menuId: mId, elementId, templateId }) => {
-        let result: ReturnType<AccountState["bindElementToTemplate"]> = { ok: true };
-        set(
-          produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            const menu = pack?.menus.find((m) => m.id === mId);
-            const tpl = pack?.itemTemplates?.find((t) => t.id === templateId);
-            if (!pack || !menu || !tpl) return;
-            const conflict = findTemplateConflict(pack, menu, tpl);
-            if (conflict) {
-              result = { ok: false, reason: "conflict", conflictName: conflict };
-              return;
-            }
-            for (const layer of menu.layers) {
-              for (const el of layer.elements) {
-                if (el.id !== elementId) continue;
-                const input = ensureSourceInput(menu, tpl);
-                el.iterates = { source: input.name, alias: tpl.alias, templateId: tpl.id };
-                el.places = undefined;
-                pack.updatedAt = new Date().toISOString();
-                return;
-              }
-            }
-          }),
-        );
-        return result;
-      },
       createMenuSet: ({ projectId: pId, menuId: mId, inputName, mode, keyField, alias: aliasIn, schema, positions }) => {
         let result: ReturnType<AccountState["createMenuSet"]> = { ok: false, reason: "not_found" };
         set(
@@ -2652,53 +2382,6 @@ export const useAccountStore = create<AccountState>()(
                 : { places: { source: inputName, alias, keyField: keyField ?? "id", placements: [] } }),
             });
             result = { ok: true, elementId: elId };
-          }),
-        );
-        return result;
-      },
-      pinItemTemplateRow: ({ projectId: pId, menuId: mId, templateId, key, position, page = 0, cachedDisplay }) => {
-        let result: ReturnType<AccountState["pinItemTemplateRow"]> = { ok: true };
-        set(
-          produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            const menu = pack?.menus.find((m) => m.id === mId);
-            const tpl = pack?.itemTemplates?.find((t) => t.id === templateId);
-            if (!pack || !menu || !tpl) return;
-            const conflict = findTemplateConflict(pack, menu, tpl);
-            if (conflict) {
-              result = { ok: false, reason: "conflict", conflictName: conflict };
-              return;
-            }
-            const el = ensureBoundElement(menu, tpl, "places");
-            if (!el.places) return;
-            const placement: Placement = { key, page, position };
-            if (cachedDisplay && Object.keys(cachedDisplay).length > 0) {
-              placement.cachedDisplay = cachedDisplay;
-            }
-            const list = el.places.placements;
-            const i = list.findIndex((p) => p.key === key);
-            if (i >= 0) list[i] = placement;
-            else list.push(placement);
-            pack.updatedAt = new Date().toISOString();
-          }),
-        );
-        return result;
-      },
-      dropItemTemplateBlock: ({ projectId: pId, menuId: mId, templateId, group }) => {
-        let result: ReturnType<AccountState["dropItemTemplateBlock"]> = { ok: true };
-        set(
-          produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            const menu = pack?.menus.find((m) => m.id === mId);
-            const tpl = pack?.itemTemplates?.find((t) => t.id === templateId);
-            if (!pack || !menu || !tpl) return;
-            const conflict = findTemplateConflict(pack, menu, tpl);
-            if (conflict) {
-              result = { ok: false, reason: "conflict", conflictName: conflict };
-              return;
-            }
-            ensureBoundElement(menu, tpl, "iterates", group);
-            pack.updatedAt = new Date().toISOString();
           }),
         );
         return result;

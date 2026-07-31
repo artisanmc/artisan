@@ -28,7 +28,6 @@ function packFor(kind: "string" | "number" | "integer"): Project {
     name: "Project",
     menus: [],
     commands: [],
-    templates: [],
     assets: [],
     dataSources: [],
     dataModels: [model],

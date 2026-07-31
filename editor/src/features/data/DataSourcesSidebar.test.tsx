@@ -13,7 +13,7 @@ function pack(): Project {
     source: "user_created",
     createdAt: "",
     updatedAt: "",
-    menus: [], commands: [], dialogs: [], templates: [], assets: [],
+    menus: [], commands: [], dialogs: [], assets: [],
     i18nKeys: {}, defaultLang: "fr", canvasLayout: {},
     dataModels: [
       { id: "boutique:category", name: "Catégorie", keyField: "id", fields: [], provenance: "module" },

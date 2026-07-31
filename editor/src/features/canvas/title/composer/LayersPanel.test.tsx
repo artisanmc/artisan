@@ -76,7 +76,6 @@ function seedProject(
             { id: OTHER_MENU_ID, projectId: PACK_ID, title: [], rows: 3, layers: [] },
           ],
           commands: [],
-          templates: [],
           assets: [],
           dataSources: [],
           importedConnectors: [],

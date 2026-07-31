@@ -8,7 +8,6 @@ import { type EditorTab, useUiStore } from "@/state/uiStore";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CapturedItemsSection } from "./CapturedItemsSection";
-import { ItemSetsLibrary } from "./ItemSetsLibrary";
 import { Library } from "./Library";
 import { useTextureInit } from "./useTextureInit";
 
@@ -58,17 +57,16 @@ export function EditorPane({ projectId }: EditorPaneProps) {
 
 /**
  * The Library tab's own sub-tabs: Items (vanilla + custom materials),
- * Capturés (captured items + inventory mirror), Sets (item-set tiles).
+ * Capturés (captured items + inventory mirror).
  * Local state — no persistence needed, the drag/arm gestures are identical
- * across the three panes.
+ * across both panes.
  */
 function LibrarySubTabs({ projectId }: { projectId: ProjectId }) {
   const { t } = useTranslation();
-  const [sub, setSub] = useState<"items" | "captured" | "sets">("items");
+  const [sub, setSub] = useState<"items" | "captured">("items");
   const chips: { key: typeof sub; label: string }[] = [
     { key: "items", label: t("editorPane.subItems") },
     { key: "captured", label: t("editorPane.subCaptured") },
-    { key: "sets", label: t("editorPane.tabSets") },
   ];
   return (
     <div className="flex h-full min-h-0 flex-col gap-2.5">
@@ -88,7 +86,6 @@ function LibrarySubTabs({ projectId }: { projectId: ProjectId }) {
       <div className="min-h-0 flex-1 overflow-y-auto">
         {sub === "items" ? <Library /> : null}
         {sub === "captured" ? <CapturedItemsSection projectId={projectId} /> : null}
-        {sub === "sets" ? <ItemSetsLibrary projectId={projectId} /> : null}
       </div>
     </div>
   );

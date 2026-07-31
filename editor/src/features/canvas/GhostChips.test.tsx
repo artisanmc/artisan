@@ -31,7 +31,7 @@ function pack(): Project {
       { id: "shop", projectId: PID, title: [], rows: 3, layers: [] } as any,
       { id: "bank", projectId: PID, title: [], rows: 3, layers: [] } as any,
     ],
-    commands: [], templates: [], assets: [], dataSources: [], importedConnectors: [],
+    commands: [], assets: [], dataSources: [], importedConnectors: [],
     i18nKeys: {}, defaultLang: "en", dialogs: [], canvasLayout: { m1: { x: 0, y: 0 } } as any,
   } as Project;
 }

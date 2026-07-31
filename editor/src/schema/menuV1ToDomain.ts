@@ -220,14 +220,15 @@ export function menuV1ToDomain(
     return String(v ?? "");
   }
 
-  /** Wire iterates/places: `template` ref → domain `templateId`; alias/keyField
-   *  live on the template when bound (empty locally). */
+  /** Wire iterates/places → domain. `template` is a LEGACY ref to the removed
+   *  project-level Item template: it is carried through UNTYPED so
+   *  `projectFromFiles` can inline it, and never survives onto a saved element. */
   function iteratesOf(it: Json): DomainElement["iterates"] {
     return {
       source: it.source,
       alias: it.alias ?? "",
       ...(it.template ? { templateId: it.template } : {}),
-    };
+    } as DomainElement["iterates"];
   }
   function placesOf(pl: Json): DomainElement["places"] {
     return {
@@ -240,7 +241,7 @@ export function menuV1ToDomain(
         page: p.page ?? 0,
         position: p.position ?? 0,
       })),
-    };
+    } as DomainElement["places"];
   }
 
   function element(el: Json): DomainElement {

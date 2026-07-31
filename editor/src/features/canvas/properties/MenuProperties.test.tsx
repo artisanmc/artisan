@@ -39,7 +39,6 @@ function seedProject() {
             },
           ],
           commands: [],
-          templates: [],
           assets: [],
           dataSources: [],
           importedConnectors: [],

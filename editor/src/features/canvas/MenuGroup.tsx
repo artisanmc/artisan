@@ -39,7 +39,6 @@ import { buildPreviewScope, renderPreview } from "./menuPreviewScope";
 import {
   matchPlacementRow,
   placementTotalPages,
-  resolveAppearance0,
   resolvePlacementSlot,
 } from "./placement";
 import { pinPlacementRow } from "./placementDrop";
@@ -185,7 +184,7 @@ export function MenuGroup({ projectId, menu, position, layout, solo = false }: M
   let firstIterable: { page: number; totalPages: number } | null = null;
   for (const layer of menu.layers) {
     for (const el of layer.elements) {
-      const appearance = pack ? resolveAppearance0(pack, el) : el.appearances[0];
+      const appearance = el.appearances[0];
       if (!appearance) continue;
       let source: string;
       let totalPages: number;
@@ -231,7 +230,7 @@ export function MenuGroup({ projectId, menu, position, layout, solo = false }: M
   >();
   for (const layer of menu.layers) {
     for (const el of layer.elements) {
-      const appearance = pack ? resolveAppearance0(pack, el) : el.appearances[0];
+      const appearance = el.appearances[0];
       if (!appearance) continue;
       const enchanted =
         appearance.enchanted === true || (appearance.enchants?.length ?? 0) > 0 || undefined;

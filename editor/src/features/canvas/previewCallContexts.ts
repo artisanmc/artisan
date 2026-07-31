@@ -59,10 +59,8 @@ export function findPreviewCallContexts(
     const scope = buildPreviewScope(caller, pack, snapshots);
     for (const layer of caller.layers) {
       for (const el of layer.elements) {
-        const tplId = el.places?.templateId ?? el.iterates?.templateId;
-        const tpl = tplId ? (pack.itemTemplates ?? []).find((t) => t.id === tplId) : undefined;
-        const appearances = tpl ? tpl.appearances : el.appearances;
-        const alias = tpl?.alias ?? el.iterates?.alias ?? el.places?.alias;
+        const appearances = el.appearances;
+        const alias = el.iterates?.alias ?? el.places?.alias;
         const source = el.iterates?.source ?? el.places?.source;
         const rows = source ? lookupPath(scope, source) : undefined;
         for (const app of appearances) {

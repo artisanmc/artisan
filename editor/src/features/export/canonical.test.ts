@@ -100,7 +100,6 @@ function goldenProject(): Project {
     commands: [],
     dialogs: [],
     assets: [],
-    templates: [],
     dataSources: [],
     importedConnectors: [],
     canvasLayout: {},

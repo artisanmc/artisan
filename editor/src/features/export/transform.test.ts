@@ -1,5 +1,5 @@
 import { commandId, dialogId, elementId, layerId, menuId, projectId } from "@/domain/ids";
-import type { Appearance, AssetId, Condition, Dialog, Element, I18nKey, ItemTemplateId, Project } from "@/domain/types";
+import type { Appearance, AssetId, Condition, Dialog, Element, I18nKey, Project } from "@/domain/types";
 import { flattenLangTree } from "@/lib/langTree";
 import { parse } from "yaml";
 import { describe, expect, it, afterEach } from "vitest";
@@ -21,7 +21,6 @@ const makeProject = (overrides: Partial<Project> = {}): Project =>
     commands: [],
     dialogs: [],
     assets: [],
-    templates: [],
     canvasLayout: {},
     ...overrides,
   }) as Project;
@@ -156,127 +155,6 @@ describe("transform", () => {
     );
   });
 
-  describe("item template inlining", () => {
-    const TPL_ID = "tpl_shop" as ItemTemplateId;
-    const templatePack = (elements: Element[]) =>
-      makeProject({
-        i18nKeys: { ["k_tpl" as I18nKey]: { en: "{row.name}" } },
-        itemTemplates: [
-          {
-            id: TPL_ID,
-            projectId: projectId("p_test"),
-            name: "Vue boutique",
-            sourceRef: "boutique:items",
-            alias: "row",
-            keyField: "id",
-            groupBy: "category",
-            appearances: [{ material: "{row.icon}", count: 1, title: { key: "k_tpl" as I18nKey } }],
-          },
-        ],
-        menus: [
-          {
-            id: menuId("shop"), projectId: projectId("p_test"), rows: 6, title: [],
-            contextInputs: [{ kind: "sourceRef", name: "items", ref: "boutique:items" as never }],
-            layers: [{ id: layerId("main"), name: "Main", elements }],
-          },
-        ],
-      });
-
-    it("places bound to a template emits a template ref, no inlined fields", () => {
-      const pack = templatePack([
-        {
-          id: elementId("grid"), positions: "",
-          appearances: [], // template-bound: no local appearances
-          places: {
-            source: "items", alias: "stale", keyField: "stale_key", templateId: TPL_ID,
-            placements: [{ key: "sword", page: 0, position: 10 }],
-          },
-        },
-      ]);
-      const files = transform(pack);
-      const el = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!).elements[0];
-      // The template is referenced, never inlined — one truth in templates/.
-      expect(el.places).toEqual({
-        source: "items", template: TPL_ID,
-        placements: [{ key: "sword", page: 0, position: 10 }],
-      });
-      expect(el.appearances).toBeUndefined();
-    });
-
-    it("iterates bound to a template emits a template ref, no inlined fields", () => {
-      const pack = templatePack([
-        {
-          id: elementId("grid"), positions: "10-43",
-          appearances: [],
-          iterates: { source: "items", alias: "stale", templateId: TPL_ID },
-        },
-      ]);
-      const files = transform(pack);
-      const el = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!).elements[0];
-      expect(el.iterates).toEqual({ source: "items", template: TPL_ID });
-      expect(el.appearances).toBeUndefined();
-    });
-
-    it("emits templates/<id>.yaml with source, alias, key_field and appearances", () => {
-      const pack = templatePack([
-        {
-          id: elementId("grid"), positions: "10-43",
-          appearances: [],
-          iterates: { source: "items", alias: "stale", templateId: TPL_ID },
-        },
-      ]);
-      const files = transform(pack);
-      const tpl = parse(files[`plugins/Artisan/projects/p_test/templates/${TPL_ID}.yaml`]!);
-      expect(tpl).toEqual({
-        schema: "template/v1",
-        id: TPL_ID,
-        name: "Vue boutique",
-        source: "boutique:items",
-        alias: "row",
-        key_field: "id",
-        group_by: "category",
-        appearances: [{ material: "{row.icon}", count: 1, title: "{i18n:k_tpl}" }],
-      });
-      const manifest = parse(files["plugins/Artisan/projects/p_test/manifest.yaml"]!);
-      expect(manifest.files.templates).toEqual([TPL_ID]);
-    });
-
-    it("collects the template's i18n keys into the lang files", () => {
-      const pack = templatePack([
-        {
-          id: elementId("grid"), positions: "10-43",
-          appearances: [],
-          iterates: { source: "items", alias: "stale", templateId: TPL_ID },
-        },
-      ]);
-      const files = transform(pack);
-      const lang = parse(files["plugins/Artisan/projects/p_test/lang/en.yaml"]!);
-      // The exported menu references {i18n:k_tpl} — the lang file must carry
-      // it, else the plugin echoes the raw key in-game.
-      expect(lang.k_tpl).toBe("{row.name}");
-    });
-
-    it("dangling templateId falls back to the element's local fields (non-hermetic)", () => {
-      const pack = templatePack([
-        {
-          id: elementId("grid"), positions: "",
-          appearances: [{ material: "{item.icon}", title: { key: "k" as I18nKey } }],
-          places: {
-            source: "items", alias: "item", keyField: "id",
-            templateId: "tpl_ghost" as ItemTemplateId,
-            placements: [{ key: "sword", page: 0, position: 10 }],
-          },
-        },
-      ]);
-      const files = transform(pack);
-      const el = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!).elements[0];
-      expect(el.places).toEqual({
-        source: "items", alias: "item", key_field: "id",
-        placements: [{ key: "sword", page: 0, position: 10 }],
-      });
-      expect(el.appearances[0].material).toBe("{item.icon}");
-    });
-  });
 
   describe("module-contributed export files", () => {
     afterEach(() => clearRegistry());

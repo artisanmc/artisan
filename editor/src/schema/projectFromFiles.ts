@@ -5,6 +5,7 @@
 // (fixed-point round-trip) — any new file form added to transform() MUST gain
 // its inverse here in the same commit.
 import type {
+  Appearance,
   CapturedItem,
   DataModel,
   DataModelId,
@@ -12,16 +13,15 @@ import type {
   DataSourceId,
   EdgeAnchor,
   I18nKey,
-  ItemTemplate,
-  ItemTemplateId,
   LText,
+  Menu,
   ModelField,
   ModelFieldType,
   Project,
   ProjectId,
 } from "@/domain/types";
 import { parseCapturedStack } from "@/domain/capturedStack";
-import { visitDataSourceLTexts } from "@/domain/i18nSites";
+import { visitDataSourceLTexts, visitElementLTexts } from "@/domain/i18nSites";
 import { newI18nKey } from "@/lib/i18n";
 import { flattenLangTree } from "@/lib/langTree";
 import { parse as parseYaml } from "yaml";
@@ -338,6 +338,58 @@ const CORE_PREFIXES = [
 ];
 const CORE_FILES = new Set(["manifest.yaml", "meta.yaml"]);
 
+interface LegacyTemplate {
+  alias: string;
+  keyField: string;
+  appearances: Appearance[];
+}
+
+/** An element binding as it arrives from a legacy menu file, before migration. */
+type LegacyBinding = { alias: string; templateId?: string };
+
+/**
+ * Inline every legacy `templates/` ref into the element that carried it, then
+ * re-address the inlined text to that element.
+ *
+ * Two elements may share one template. Cloning per element keeps their LText
+ * nodes distinct, and the i18n entry is DUPLICATED (not moved) onto each
+ * element's canonical key — moving it would strip the text off the second
+ * element. The dead `item_templates.*` namespace goes once every menu is done.
+ */
+function inlineLegacyTemplates(
+  menus: Menu[],
+  templates: Map<string, LegacyTemplate>,
+  i18nKeys: Record<string, Record<string, string>>,
+): void {
+  for (const menu of menus) {
+    for (const el of menu.layers.flatMap((l) => l.elements)) {
+      // `templateId` is off the domain type — menuV1ToDomain carries the legacy
+      // wire ref through untyped, purely so this pass can consume it.
+      const binding = (el.iterates ?? el.places) as LegacyBinding | undefined;
+      const tplId = binding?.templateId;
+      if (!binding || !tplId) continue;
+      delete binding.templateId;
+      // Dangling ref: the element keeps its (empty) local fields — non-hermetic
+      // by design, it just renders nothing.
+      const tpl = templates.get(tplId);
+      if (!tpl) continue;
+      if (el.appearances.length === 0) el.appearances = structuredClone(tpl.appearances);
+      if (!binding.alias) binding.alias = tpl.alias;
+      if (el.places && !el.places.keyField) el.places.keyField = tpl.keyField;
+      // THIS element's sites only — a hand-authored key on an element that was
+      // never template-bound must keep the address its lang file already uses.
+      for (const site of visitElementLTexts(menu.id, el)) {
+        const value = i18nKeys[site.lText.key];
+        if (value) i18nKeys[site.key] = { ...value };
+        site.lText.key = site.key;
+      }
+    }
+  }
+  for (const key of Object.keys(i18nKeys)) {
+    if (key.startsWith("item_templates.")) delete i18nKeys[key];
+  }
+}
+
 export interface ProjectFromFilesMeta {
   name?: string;
   /** Forme URL (DB-owned, jamais dans les fichiers). */
@@ -424,18 +476,23 @@ export function projectFromFiles(
     pushUnsupported: (s) => unsupported.push(s),
   });
 
-  // Item templates: templates/<id>.yaml (template/v1). Scanned from file keys
-  // (not a manifest list) so a hand-added file still imports.
-  const itemTemplates: ItemTemplate[] = scanDir(files, projectId, "templates").map(({ id, parsed: y }) => ({
-    id: id as ItemTemplateId,
-    projectId,
-    name: (y.name as string) ?? id,
-    sourceRef: y.source ?? "",
-    alias: y.alias ?? "",
-    ...(y.key_field ? { keyField: y.key_field } : {}),
-    ...(y.group_by ? { groupBy: y.group_by } : {}),
-    appearances: ((y.appearances as Json[]) ?? []).map(appearance),
-  }));
+  // ── Legacy templates/ migration (one-way) ──────────────────────────────────
+  // Item templates used to be a PROJECT-level shared view that elements bound
+  // to by ref. A set now lives on the element that renders it, so a legacy
+  // `templates/<id>.yaml` still on disk is read here and inlined below — never
+  // written back. `name` and `group_by` are dropped: they only ever fed the
+  // (removed) project-level Sets library and had zero runtime effect.
+  const legacyTemplates = new Map<string, LegacyTemplate>(
+    scanDir(files, projectId, "templates").map(({ id, parsed: y }) => [
+      id,
+      {
+        alias: (y.alias as string) ?? "",
+        keyField: (y.key_field as string) ?? "",
+        appearances: ((y.appearances as Json[]) ?? []).map(appearance),
+      },
+    ]),
+  );
+  inlineLegacyTemplates(menus, legacyTemplates, i18nKeys);
 
   // Data models: models/<id>.yaml (model/v1), fields verbatim — the lossless
   // typing store. A models/ file that is ONLY a `model:` ref (ADR
@@ -703,8 +760,6 @@ export function projectFromFiles(
     updatedAt: meta.updatedAt ?? now,
     menus,
     commands,
-    templates: [],
-    ...(itemTemplates.length > 0 ? { itemTemplates } : {}),
     ...(capturedItems.length > 0 ? { capturedItems } : {}),
     assets: [],
     dataSources,

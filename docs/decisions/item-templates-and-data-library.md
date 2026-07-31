@@ -1,15 +1,32 @@
 # Item templates + data library authoring
 
-**Status:** accepted (2026-07-16)
+**Status:** superseded in part (2026-07-31)
 
 > **Révisé le 2026-07-26 (feedback utilisateur)** : le « set d'items » vit au
 > **niveau du menu**, pas des données. La création se fait depuis « Données du
 > menu » (`createMenuSet`) et produit un élément **auto-suffisant** (appearances
 > seedées, AUCUN Item template) ; le mode placement s'assiste du **contexte
 > d'aperçu** (panneau de rows contextuel — on navigue de catégorie en catégorie
-> et on place). La section « Sets d'items » du détail de source est supprimée ;
-> les Item templates restent un mécanisme optionnel de PARTAGE de rendu entre
-> menus (Library), plus jamais un prérequis ni un objet auto-créé.
+> et on place). La section « Sets d'items » du détail de source est supprimée.
+>
+> **Révisé le 2026-07-31 — l'Item template est SUPPRIMÉ.** La révision ci-dessus
+> laissait cohabiter deux modèles : l'élément auto-suffisant (nouveau chemin de
+> création) et l'Item template project-level (partage de rendu entre menus, via
+> la bibliothèque « Sets » et les refs `iterates.template` / `places.template`).
+> Cette cohabitation est levée : **une apparence appartient au menu où elle est
+> rendue, jamais à une entité partagée.** Concrètement — `ItemTemplate`,
+> `Project.itemTemplates`, `templateId`, le dossier `templates/` et le schéma
+> `template/v1` n'existent plus ; l'onglet « Sets » et l'éditeur de template
+> sont supprimés ; `createMenuSet` est le seul chemin de création. Un
+> `templates/` legacy encore sur disque est **inliné à l'import** dans les
+> éléments qui le référençaient (clés i18n `item_templates.*` dupliquées puis
+> ré-adressées en `menus.<m>.elements.<el>.*`, cf. `templateMigration.test.ts`)
+> et n'est jamais réécrit ; le plugin garde la lecture de ces fichiers en
+> compat le temps que les serveurs déployés soient re-sauvegardés.
+>
+> Ce qui est perdu volontairement : la vue « quelles rows de ma source ne sont
+> placées nulle part » qu'offrait la bibliothèque project-level, et la
+> réutilisation d'un même rendu dans plusieurs menus (à refaire par menu).
 **Amends:** `data-source-stability-and-placement.md` (drops per-placement display
 overrides; moves template ownership off the Element)
 

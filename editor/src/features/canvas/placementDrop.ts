@@ -1,11 +1,11 @@
-import type { ElementId, ItemTemplateId, MenuId, Placement, ProjectId } from "@/domain/types";
+import type { ElementId, MenuId, Placement, ProjectId } from "@/domain/types";
 import { lookupPath } from "@/lib/placeholders";
 import { useAccountStore } from "@/state/accountStore";
 import { usePaginationStore } from "@/state/paginationStore";
 import { useServerSnapshotsStore } from "@/state/serverSnapshotsStore";
 import { useUiStore } from "@/state/uiStore";
-import { buildPreviewScope, resolveSourceRef } from "./menuPreviewScope";
-import { capturePlacementCache, matchPlacementRow, resolveAppearance0 } from "./placement";
+import { buildPreviewScope } from "./menuPreviewScope";
+import { capturePlacementCache, matchPlacementRow } from "./placement";
 
 /** @dnd-kit id prefix for a draggable palette row. Payload rides in `data`. */
 export const PLACEMENT_ROW_DRAG_PREFIX = "row:";
@@ -14,23 +14,6 @@ export const PLACEMENT_ROW_DRAG_PREFIX = "row:";
 export interface PlacementRowDragData {
   /** `material` = resolved preview material — feeds the shared drag overlay. */
   placementRow: { menuId: string; elementId: string; key: string; material?: string };
-}
-
-/** @dnd-kit id prefixes for library Item-template draggables (row / group / whole-set block). */
-export const TEMPLATE_ROW_DRAG_PREFIX = "tplrow:";
-export const TEMPLATE_GROUP_DRAG_PREFIX = "tplgroup:";
-export const TEMPLATE_BLOCK_DRAG_PREFIX = "tplblock:";
-
-export interface TemplateRowDragData {
-  /** `material` = resolved preview material — feeds the shared drag overlay. */
-  templateRow: { templateId: string; key: string; material?: string };
-}
-/** A `groupBy` group header drop → paginated element with a LITERAL filter. */
-export interface TemplateGroupDragData {
-  templateGroup: { templateId: string; field: string; value: string };
-}
-export interface TemplateBlockDragData {
-  templateBlock: { templateId: string };
 }
 
 /**
@@ -53,7 +36,7 @@ export function pinPlacementRow(opts: {
   const menu = pack?.menus.find((m) => m.id === menuId);
   const el = menu?.layers.flatMap((l) => l.elements).find((e) => e.id === elementId);
   if (!pack || !menu || !el?.places) return;
-  const appearance = resolveAppearance0(pack, el);
+  const appearance = el.appearances[0];
 
   const page = usePaginationStore.getState().pageByElement[elementId] ?? 0;
   const snapshots = useServerSnapshotsStore.getState().rowsByRef;
@@ -72,44 +55,3 @@ export function pinPlacementRow(opts: {
   account.setElementPlacement({ projectId, menuId, elementId, placement });
 }
 
-/**
- * Library-tile drop: pin one row of an Item template onto a menu slot. Captures
- * the offline `cachedDisplay` from the live snapshot + template appearance, then
- * delegates to the store (which auto-creates the contextInput + bound element on
- * first drop and enforces one-set-per-(menu, source)). Returns the store result
- * so the caller can toast a conflict.
- */
-export function pinTemplateRowFromLibrary(opts: {
-  projectId: ProjectId;
-  menuId: MenuId;
-  templateId: ItemTemplateId;
-  key: string;
-  position: number;
-}): ReturnType<ReturnType<typeof useAccountStore.getState>["pinItemTemplateRow"]> {
-  const { projectId, menuId, templateId, key, position } = opts;
-  const account = useAccountStore.getState();
-  const pack = account.account.projects.find((p) => p.id === projectId);
-  const tpl = pack?.itemTemplates?.find((t) => t.id === templateId);
-  if (!pack || !tpl) return { ok: true };
-  const snap = useServerSnapshotsStore.getState().rowsByRef[tpl.sourceRef];
-  const rows = resolveSourceRef(
-    tpl.sourceRef as never,
-    pack,
-    snap ? { [tpl.sourceRef]: snap } : undefined,
-  ) as Record<string, unknown>[] | undefined;
-  const row = matchPlacementRow(rows, tpl.keyField ?? "", key);
-  const appearance = tpl.appearances[0];
-  const activeLang = useUiStore.getState().activeLang;
-  const cachedDisplay =
-    row && appearance
-      ? capturePlacementCache({
-          places: { source: "", alias: tpl.alias, keyField: tpl.keyField ?? "", placements: [] },
-          appearance,
-          row,
-          baseCtx: {},
-          pack,
-          activeLang,
-        })
-      : undefined;
-  return account.pinItemTemplateRow({ projectId, menuId, templateId, key, position, cachedDisplay });
-}

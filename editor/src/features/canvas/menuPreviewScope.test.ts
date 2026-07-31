@@ -13,7 +13,6 @@ const stubProject = (overrides: Partial<Project> = {}): Project =>
     updatedAt: "",
     menus: [],
     commands: [],
-    templates: [],
     assets: [],
     dataSources: [],
     importedConnectors: [],

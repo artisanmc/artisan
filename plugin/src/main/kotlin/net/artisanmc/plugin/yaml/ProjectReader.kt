@@ -85,8 +85,11 @@ class ProjectReader(
             }
         }
 
-        // Item templates (template/v1) — scanned like data sources so a
-        // hand-added file loads without a manifest edit. Tolerant per file.
+        // LEGACY item templates (template/v1). Item sets are no longer a
+        // project-level shared entity — a set lives on the element that renders
+        // it, and the editor inlines any `templates/` file away on import. This
+        // read stays so a server whose disk still holds one keeps working until
+        // the project is re-saved; nothing writes these files anymore.
         val templates: Map<String, TemplateYaml> = File(projectDir, "templates")
             .listFiles { f -> f.isFile && f.name.endsWith(".yaml") }
             ?.sortedBy { it.name }
@@ -336,10 +339,11 @@ class ProjectReader(
     }
 
     /**
-     * Resolves `iterates.template` / `places.template` refs into EFFECTIVE
-     * elements: the template's appearances/alias/key_field are injected so the
-     * compiler and renderer stay template-unaware. A dangling ref keeps the
-     * element's local fields (non-hermetic — typically renders nothing).
+     * Resolves LEGACY `iterates.template` / `places.template` refs into
+     * EFFECTIVE elements: the template's appearances/alias/key_field are
+     * injected so the compiler and renderer stay template-unaware. A dangling
+     * ref keeps the element's local fields (non-hermetic — renders nothing).
+     * Migration shim: current projects carry their appearances on the element.
      * Also normalizes to the flat `elements` form (stacking order preserved).
      */
     private fun resolveTemplates(yaml: MenuYaml, templates: Map<String, TemplateYaml>): MenuYaml {

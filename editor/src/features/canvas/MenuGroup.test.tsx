@@ -75,7 +75,6 @@ function makeProject(): Project {
       } as Menu,
     ],
     commands: [],
-    templates: [],
     assets: [],
     dataSources: [],
     importedConnectors: [],

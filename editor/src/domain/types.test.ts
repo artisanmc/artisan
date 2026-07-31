@@ -34,7 +34,6 @@ describe("domain types — compile-time shape", () => {
       updatedAt: new Date().toISOString(),
       menus: [],
       commands: [],
-      templates: [],
       assets: [],
       dataSources: [],
       dialogs: [],

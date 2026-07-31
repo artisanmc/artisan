@@ -16,7 +16,7 @@ function pack(): Project {
     dialogs: [{ id: "d_confirm", projectId: PID, title: { key: "k_dtitle" }, canCloseWithEscape: true,
       body: [{ type: "text", text: { key: "k_dbody" } }], inputs: [],
       buttons: [{ id: "btn_ok", label: { key: "k_btn" }, steps: [] }] } as any],
-    templates: [], assets: [], dataSources: [], importedConnectors: [],
+    assets: [], dataSources: [], importedConnectors: [],
     i18nKeys: {
       k_title: { en: "Shop" }, k_buytitle: { en: "Buy now" }, k_buylore: { en: "Costs 10 coins" },
       k_dtitle: { en: "Confirm" }, k_dbody: { en: "Are you sure?" }, k_btn: { en: "OK" },

@@ -9,6 +9,14 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Removed — l'Item template project-level disparaît : un set d'items appartient à son menu
+- **Une apparence appartient au menu où elle est rendue.** L'`ItemTemplate` était une entité *project-level* partagée : plusieurs menus pouvaient lier le même rendu par ref (`iterates.template` / `places.template`), et l'éditer changeait tous les menus consommateurs à la fois. Supprimé — l'élément porte ses propres `appearances`, comme le faisait déjà `createMenuSet` depuis le 2026-07-26. Les deux modèles cohabitaient depuis, sans que rien ne dise lequel faisait foi.
+- **Supprimé** : `ItemTemplate` / `Project.itemTemplates` / `templateId`, le dossier `templates/` et le schéma `template/v1`, l'onglet « Sets » de la Library, `ItemTemplateEditor` / `ItemTemplatesSection`, le drag depuis la bibliothèque (`tplrow:` / `tplgroup:` / `tplblock:`) et les actions de store associées. Les morts `Project.templates` / `Element.templateRef`, jamais peuplés ni exportés, partent avec.
+- **`menu/v1` est muté, pas versionné** : `iterates.template`, `places.template` et `template_ref` sont retirés du schéma. Le plugin lit toujours les refs legacy, donc aucun arbre sur disque ne casse.
+- **Migration à l'import, sans perte de traduction** : un `templates/<id>.yaml` encore sur disque est inliné dans les éléments qui le référençaient — clone par élément, entrées i18n **dupliquées** (pas déplacées) puis ré-adressées `item_templates.<t>.*` → `menus.<m>.elements.<el>.*`. Sans la duplication, deux éléments partageant un template auraient vu le premier voler la traduction du second. Verrouillé par `templateMigration.test.ts`.
+- Le plugin garde `ProjectReader.resolveTemplates` en lecture de compat le temps que les serveurs déployés soient re-sauvegardés ; plus rien n'écrit ces fichiers.
+- **Perdu volontairement** : la vue « quelles rows de ma source ne sont placées nulle part » qu'offrait la bibliothèque, et la réutilisation d'un rendu entre menus (à refaire par menu).
+
 ### Added — le masquage d'une racine de project par un Add-on est signalé
 - Quand un Add-on enregistre une racine pour `<id>` alors que `plugins/Artisan/projects/<id>/` existe déjà, la copie core devient invisible (plus lue, plus hashée, plus synchronisée, plus scannée). `ProjectRoots.register` émet désormais un WARN nommant les deux chemins.
 - Ce n'était pas un déchet inerte : le jour où l'Add-on échoue à démarrer, plus personne n'enregistre la racine, `all()` réexpose l'arbre périmé comme project vivant, et la bannière de divergence — **dont le défaut est « disque »** — propose de le pousser par-dessus le vrai. Constaté sur le serveur de dev : un `boutique_shop` figé au 2026-07-25 avec un `.artisan-sync.yaml` déjà divergent, masqué par `plugins/Boutique/editor/`.

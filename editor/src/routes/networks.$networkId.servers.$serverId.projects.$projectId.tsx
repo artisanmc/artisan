@@ -11,7 +11,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { WorkspaceView } from "@/components/ui/workspace-view";
-import type { ElementId, ItemTemplateId, MenuId, ProjectId } from "@/domain/types";
+import type { ElementId, MenuId, ProjectId } from "@/domain/types";
 import { pickProjectZipForImport, runImportZip } from "@/features/export/runImportZip";
 import { AssistantBody } from "@/features/assistant/AssistantBody";
 import { EditorPane } from "@/features/canvas/EditorPane";
@@ -22,14 +22,7 @@ import { OPEN_ELEMENT_EVENT } from "@/features/canvas/canvasEvents";
 import {
   PLACEMENT_ROW_DRAG_PREFIX,
   type PlacementRowDragData,
-  TEMPLATE_BLOCK_DRAG_PREFIX,
-  TEMPLATE_GROUP_DRAG_PREFIX,
-  TEMPLATE_ROW_DRAG_PREFIX,
-  type TemplateBlockDragData,
-  type TemplateGroupDragData,
-  type TemplateRowDragData,
   pinPlacementRow,
-  pinTemplateRowFromLibrary,
 } from "@/features/canvas/placementDrop";
 import { tryStageDrop, tryStageSlotHit } from "@/features/canvas/stageDropTarget";
 import { getTextureUrl } from "@/features/canvas/textureStore";
@@ -199,73 +192,17 @@ export function ProjectCanvasPage() {
       setActiveDragMaterial(id.slice(LIBRARY_DRAG_PREFIX.length));
       return;
     }
-    // Item-set drags reuse the same overlay: the tile's resolved material (row
-    // tiles) or a chest (block tiles) follows the cursor.
-    if (id.startsWith(TEMPLATE_ROW_DRAG_PREFIX)) {
-      const material = (e.active.data.current as TemplateRowDragData | undefined)?.templateRow
-        ?.material;
-      setActiveDragMaterial(material || "CHEST");
-      return;
-    }
     if (id.startsWith(PLACEMENT_ROW_DRAG_PREFIX)) {
       const material = (e.active.data.current as PlacementRowDragData | undefined)?.placementRow
         ?.material;
       setActiveDragMaterial(material || "CHEST");
       return;
     }
-    if (id.startsWith(TEMPLATE_BLOCK_DRAG_PREFIX) || id.startsWith(TEMPLATE_GROUP_DRAG_PREFIX)) {
-      setActiveDragMaterial("CHEST");
-    }
   };
 
   const onDragEnd = (e: DragEndEvent) => {
     setActiveDragMaterial(null);
     const id = String(e.active.id);
-
-    // Library item-set drops. A row tile pins one row (placement mode, element
-    // auto-created + one-set-per-(menu,source) enforced by the store); the block
-    // tile drops a whole paginated grid bound to the template.
-    if (
-      id.startsWith(TEMPLATE_ROW_DRAG_PREFIX) ||
-      id.startsWith(TEMPLATE_BLOCK_DRAG_PREFIX) ||
-      id.startsWith(TEMPLATE_GROUP_DRAG_PREFIX)
-    ) {
-      const start = e.activatorEvent as PointerEvent;
-      const hit = tryStageSlotHit(
-        (start.clientX ?? 0) + e.delta.x,
-        (start.clientY ?? 0) + e.delta.y,
-      );
-      if (!hit) return;
-      const data = e.active.data.current as
-        | (TemplateRowDragData & TemplateGroupDragData & TemplateBlockDragData)
-        | undefined;
-      const result = data?.templateRow
-        ? pinTemplateRowFromLibrary({
-            projectId: pId,
-            menuId: hit.menuId as MenuId,
-            templateId: data.templateRow.templateId as ItemTemplateId,
-            key: data.templateRow.key,
-            position: hit.position,
-          })
-        : data?.templateGroup
-          ? useAccountStore.getState().dropItemTemplateBlock({
-              projectId: pId,
-              menuId: hit.menuId as MenuId,
-              templateId: data.templateGroup.templateId as ItemTemplateId,
-              group: { field: data.templateGroup.field, value: data.templateGroup.value },
-            })
-          : data?.templateBlock
-            ? useAccountStore.getState().dropItemTemplateBlock({
-                projectId: pId,
-                menuId: hit.menuId as MenuId,
-                templateId: data.templateBlock.templateId as ItemTemplateId,
-              })
-            : { ok: true as const };
-      if (!result.ok) {
-        toast.error(t("itemTemplates.conflictToast", { name: result.conflictName }));
-      }
-      return;
-    }
 
     // Placement-mode row drop: pin the dragged static-source row onto the slot
     // under the release point (must land on the row's own menu).
