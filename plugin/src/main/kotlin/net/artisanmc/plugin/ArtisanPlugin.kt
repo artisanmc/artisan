@@ -46,7 +46,7 @@ open class ArtisanPlugin : JavaPlugin() {
         fun buildApi(plugin: ArtisanPlugin): ArtisanAPI {
             val registry = ModuleRegistry()
             val nexoForCapture = net.artisanmc.plugin.engine.NexoItemRenderer.tryInit()
-            plugin.projectRoots = net.artisanmc.plugin.project.ProjectRoots(File(plugin.dataFolder, "projects"))
+            plugin.projectRoots = net.artisanmc.plugin.project.ProjectRoots(File(plugin.dataFolder, "projects"), plugin.logger)
             val api = ArtisanAPI(
                 plugin = plugin,
                 dataSources = DataSourceRegistry(),

@@ -9,6 +9,11 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Added — le masquage d'une racine de project par un Add-on est signalé
+- Quand un Add-on enregistre une racine pour `<id>` alors que `plugins/Artisan/projects/<id>/` existe déjà, la copie core devient invisible (plus lue, plus hashée, plus synchronisée, plus scannée). `ProjectRoots.register` émet désormais un WARN nommant les deux chemins.
+- Ce n'était pas un déchet inerte : le jour où l'Add-on échoue à démarrer, plus personne n'enregistre la racine, `all()` réexpose l'arbre périmé comme project vivant, et la bannière de divergence — **dont le défaut est « disque »** — propose de le pousser par-dessus le vrai. Constaté sur le serveur de dev : un `boutique_shop` figé au 2026-07-25 avec un `.artisan-sync.yaml` déjà divergent, masqué par `plugins/Boutique/editor/`.
+- Un log, pas un refus : l'Add-on a le droit de posséder sa racine ; c'est la copie orpheline qui doit disparaître, et seul l'admin peut en décider.
+
 ### Changed — les écritures des Config screens de module sont journalisées
 - **Une racine gérée est une racine versionnée.** Une écriture depuis un écran de config de module part dans l'historique du project comme n'importe quelle autre édition : arbre stocké mis à jour, commit sur `main` (auteur = l'utilisateur connecté), `bundle_available`. Avant, le backend « relayait sans stocker » : le même écran, avec la même UI, éditait tantôt un fichier versionné tantôt un fichier volatil, sans que rien ne le signale.
 - Le broadcast `bundle_available` n'est pas décoratif : il fait rafraîchir `.artisan-sync.yaml` au plugin, sans quoi son scan suivant verrait LOCAL_ONLY et repousserait le même contenu.
