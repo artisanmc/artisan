@@ -21,8 +21,8 @@ object BundleCompiler {
             val slots = parsePositions(element.positionsSpec, yaml.size)
             slots.forEach { slot -> slotToElement[slot] = element.id }
 
-            val compiled = element.appearances.mapNotNull { app ->
-                compileAppearance(app, yaml.id, element.id, logger)
+            val compiled = element.appearances.mapIndexedNotNull { i, app ->
+                compileAppearance(app, yaml.id, element.id, i, logger)
             }
             if (compiled.isNotEmpty()) compiledAppearances[element.id] = compiled
         }
@@ -30,7 +30,21 @@ object BundleCompiler {
         return BundleMenu(yaml, langMaps, compiledAppearances, slotToElement, defaultLang = defaultLang)
     }
 
-    private fun compileAppearance(app: AppearanceYaml, menuId: String, elementId: String, logger: Logger?): CompiledAppearance? =
+    /**
+     * Appearance state label, mirror of the editor's `stateLabel` (i18nKeys.ts):
+     * the first state is `default`, the rest are `state1`, `state2`… The two
+     * sides must agree exactly — the address is how a literal in the menu file
+     * finds its translation in `lang/<lang>.yaml`.
+     */
+    fun stateLabel(index: Int): String = if (index == 0) "default" else "state$index"
+
+    private fun compileAppearance(
+        app: AppearanceYaml,
+        menuId: String,
+        elementId: String,
+        appIndex: Int,
+        logger: Logger?,
+    ): CompiledAppearance? =
         runCatching {
             @Suppress("UNCHECKED_CAST")
             val conditions = when (val raw = app.conditions) {
@@ -39,13 +53,15 @@ object BundleCompiler {
                 else         -> emptyList()
             }
 
+            val base = "menus.$menuId.elements.$elementId.${stateLabel(appIndex)}"
             val clicks = app.click.mapNotNull { (key, handlerYaml) ->
                 val clickType = ClickType.fromYamlKey(key) ?: return@mapNotNull null
                 val requirements = handlerYaml.requirements.map { ConditionParser.parse(it) }
                 // Canonical wire (`steps:`) is an Action DSL string (Phase 2, ADR
                 // action-dsl) → parsed + mapped to the engine Step tree. The flat
                 // `actions:`/`fallback:` keys are the legacy wire and stay as-is.
-                val steps        = compileActionDsl(handlerYaml.steps)
+                // Addresses key on the WIRE click key, like the editor's visitor.
+                val steps        = assignI18nAddresses(compileActionDsl(handlerYaml.steps), "$base.click.$key")
                 val actions      = handlerYaml.actions.map { ActionParser.parse(it) }
                 val fallback     = handlerYaml.fallback.map { ActionParser.parse(it) }
                 val cooldown     = handlerYaml.cooldown?.let { cy ->
@@ -54,7 +70,7 @@ object BundleCompiler {
                 clickType to ClickHandler(requirements, actions, fallback, cooldown, steps)
             }.toMap()
 
-            CompiledAppearance(conditions, clicks, app)
+            CompiledAppearance(conditions, clicks, app, base)
         }.getOrElse { e ->
             logger?.warning("Failed to compile appearance in menu=$menuId element=$elementId: ${e.message}")
             null

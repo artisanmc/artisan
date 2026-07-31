@@ -1,6 +1,7 @@
 package net.artisanmc.plugin.command
 
 import net.artisanmc.plugin.actiondsl.compileActionDsl
+import net.artisanmc.plugin.engine.assignI18nAddresses
 import net.artisanmc.plugin.engine.*
 import net.artisanmc.plugin.model.CommandYaml
 import java.util.logging.Logger
@@ -12,7 +13,7 @@ object CommandCompiler {
         // Canonical wire (`actions:`) is an Action DSL string (`steps:` is the
         // legacy spelling); a flat action-map list in `actions:` is the pre-DSL
         // legacy wire, kept as-is.
-        val steps        = compileActionDsl(yaml.dsl)
+        val steps        = assignI18nAddresses(compileActionDsl(yaml.dsl), "commands.${yaml.id}")
         val actions      = yaml.legacyActions.map { ActionParser.parse(it) }
         val fallback     = yaml.fallback.map { ActionParser.parse(it) }
         val cooldown     = yaml.cooldown?.let { cy -> Cooldown(cy.id, cy.duration, cy.scope, cy.message) }

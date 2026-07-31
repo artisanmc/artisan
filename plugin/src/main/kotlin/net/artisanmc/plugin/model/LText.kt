@@ -11,4 +11,19 @@ package net.artisanmc.plugin.model
  * the key against the active language map with the same fallback semantics as the
  * legacy `BundleMenu.resolveTitle(lang)`.
  */
-data class LText(val key: String)
+data class LText(
+    val key: String,
+    /**
+     * True when `key` holds LITERAL text rather than an i18n key. The two
+     * resolve differently: an unresolved ref renders empty (never echo a raw
+     * key at a player), while a literal simply renders itself.
+     */
+    val literal: Boolean = false,
+    /**
+     * Canonical i18n ADDRESS of this title layer (`menus.<id>.title`, then
+     * `_2`, `_3`…) — inline mode looks the literal up here to translate it.
+     * Stamped by [net.artisanmc.plugin.engine.MenuTitleParser], which knows the
+     * owning menu; mirror of the editor's `visitMenuTitleLTexts`.
+     */
+    val address: String? = null,
+)

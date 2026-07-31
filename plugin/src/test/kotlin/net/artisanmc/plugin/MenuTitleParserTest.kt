@@ -20,7 +20,7 @@ class MenuTitleParserTest {
         assertEquals(1, result.size)
         val plain = result.single()
         assertIs<MenuTitleLayer.Plain>(plain)
-        assertEquals(LText("Shop"), plain.value)
+        assertEquals(LText("Shop", literal = true), plain.value)
         assertNull(plain.color)
     }
 
@@ -34,7 +34,7 @@ class MenuTitleParserTest {
 
     @Test fun `layer value accepts an inline literal string`() {
         val result = MenuTitleParser.parse(listOf(mapOf("kind" to "plain", "value" to "Boutique")))
-        assertEquals(LText("Boutique"), (result.single() as MenuTitleLayer.Plain).value)
+        assertEquals(LText("Boutique", literal = true), (result.single() as MenuTitleLayer.Plain).value)
     }
 
     @Test fun `bare string entries in a layer list are plain layers`() {
@@ -161,10 +161,11 @@ class MenuTitleParserTest {
             size = 27,
         )
         val bundle = net.artisanmc.plugin.engine.BundleCompiler.compile(yaml, emptyMap())
-        assertEquals(MenuTitleParser.parse("{i18n:menu.shop.title}"), bundle.title)
+        assertEquals(MenuTitleParser.parse("{i18n:menu.shop.title}", "m"), bundle.title)
         assertEquals(1, bundle.title.size)
         val plain = bundle.title.single() as MenuTitleLayer.Plain
-        assertEquals(LText("menu.shop.title"), plain.value)
+        // The menu id yields the canonical address; the key itself is unchanged.
+        assertEquals(LText("menu.shop.title", address = "menus.m.title"), plain.value)
     }
 
     @Test fun `textarea kind parses all fields`() {

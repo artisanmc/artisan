@@ -77,11 +77,17 @@ class ActionExecutor(
     fun resolveArgs(text: String, ctx: ExecutionContext): String =
         ArgResolver.resolve(text, ctx.resolvedArgs)
 
-    fun resolveText(text: String, ctx: ExecutionContext): String {
+    /**
+     * Explicit `{i18n:key}` ref wins; otherwise the literal is looked up at its
+     * canonical ADDRESS (inline mode — the literal is the default language, the
+     * other languages sit at `address` in `lang/<lang>.yaml`); otherwise the
+     * literal stands as written.
+     */
+    fun resolveText(text: String, ctx: ExecutionContext, address: String? = null): String {
         var resolved = if (text.startsWith("{i18n:")) {
             val key = text.removePrefix("{i18n:").removeSuffix("}")
             ctx.langMap[key] ?: text
-        } else text
+        } else address?.let { ctx.langMap[it] } ?: text
         resolved = resolveArgs(resolved, ctx)
         deps.papi?.let { resolved = it.resolve(ctx.player, resolved) }
         return resolved
@@ -165,8 +171,8 @@ class ActionExecutor(
             is Action.TakeMoney -> deps.vault?.withdraw(player, action.amount)
             is Action.GiveXp    -> player.giveExp(action.amount)
             is Action.GiveLevel -> player.giveExpLevels(action.amount)
-            is Action.SendMessage  -> player.sendMessage(LenientText.parse(resolveText(action.text, ctx)))
-            is Action.Broadcast    -> Bukkit.getServer().broadcast(LenientText.parse(resolveText(action.text, ctx)))
+            is Action.SendMessage  -> player.sendMessage(LenientText.parse(resolveText(action.text, ctx, action.i18n)))
+            is Action.Broadcast    -> Bukkit.getServer().broadcast(LenientText.parse(resolveText(action.text, ctx, action.i18n)))
             is Action.PlaySound    -> runCatching {
                 player.playSound(player.location, Sound.valueOf(action.sound.uppercase()), action.volume, action.pitch)
             }
@@ -181,8 +187,8 @@ class ActionExecutor(
             is Action.SetArgCycleNext -> return cycleArg(ctx, action.arg, action.list, forward = true)
             is Action.SetArgCyclePrev -> return cycleArg(ctx, action.arg, action.list, forward = false)
             is Action.ShowTitle -> {
-                val titleComponent    = LenientText.parse(resolveText(action.title, ctx))
-                val subtitleComponent = action.subtitle?.let { LenientText.parse(resolveText(it, ctx)) }
+                val titleComponent    = LenientText.parse(resolveText(action.title, ctx, action.i18nTitle))
+                val subtitleComponent = action.subtitle?.let { LenientText.parse(resolveText(it, ctx, action.i18nSubtitle)) }
                                             ?: net.kyori.adventure.text.Component.empty()
                 val times = Title.Times.times(
                     Duration.ofMillis(action.fadeIn  * 50L),  // 1 tick = 50ms

@@ -24,17 +24,44 @@ internal data class ResolvedDialogTexts(
  */
 internal object DialogTextResolver {
 
-    fun resolveAll(dialog: BundleDialog, langMap: Map<String, String>, ctx: ExecutionContext): ResolvedDialogTexts =
-        ResolvedDialogTexts(
-            title = resolve(dialog.yaml.title, langMap, ctx),
-            bodyTexts = dialog.yaml.body.map { b -> b.text?.takeIf { b.type == "text" }?.let { resolve(it, langMap, ctx) } },
-            inputLabels = dialog.yaml.inputs.map { resolve(it.label, langMap, ctx) },
-            inputOptionLabels = dialog.yaml.inputs.map { input -> input.options.map { resolve(it.label, langMap, ctx) } },
-            buttonLabels = dialog.yaml.buttons.map { resolve(it.label, langMap, ctx) },
+    fun resolveAll(dialog: BundleDialog, langMap: Map<String, String>, ctx: ExecutionContext): ResolvedDialogTexts {
+        // Canonical i18n addresses, mirror of the editor's visitDialogLTexts:
+        // body by INDEX, inputs/options/buttons by ID (stable under reordering).
+        val d = "dialogs.${dialog.yaml.id}"
+        return ResolvedDialogTexts(
+            title = resolve(dialog.yaml.title, langMap, ctx, "$d.title"),
+            bodyTexts = dialog.yaml.body.mapIndexed { i, b ->
+                b.text?.takeIf { b.type == "text" }?.let { resolve(it, langMap, ctx, "$d.body.$i.text") }
+            },
+            inputLabels = dialog.yaml.inputs.map {
+                resolve(it.label, langMap, ctx, "$d.inputs.${it.id}.label")
+            },
+            inputOptionLabels = dialog.yaml.inputs.map { input ->
+                input.options.map {
+                    resolve(it.label, langMap, ctx, "$d.inputs.${input.id}.options.${it.value}.label")
+                }
+            },
+            buttonLabels = dialog.yaml.buttons.map {
+                resolve(it.label, langMap, ctx, "$d.buttons.${it.id}.label")
+            },
         )
+    }
 
-    fun resolve(raw: String, langMap: Map<String, String>, ctx: ExecutionContext): String {
-        val text = if (raw.startsWith("{i18n:")) langMap[raw.removePrefix("{i18n:").removeSuffix("}")] ?: raw else raw
+    /**
+     * Explicit `{i18n:key}` ref wins; otherwise the literal is looked up at its
+     * canonical ADDRESS (inline mode); otherwise it stands as written.
+     */
+    fun resolve(
+        raw: String,
+        langMap: Map<String, String>,
+        ctx: ExecutionContext,
+        address: String? = null,
+    ): String {
+        val text = if (raw.startsWith("{i18n:")) {
+            langMap[raw.removePrefix("{i18n:").removeSuffix("}")] ?: raw
+        } else {
+            address?.let { langMap[it] } ?: raw
+        }
         return ArgResolver.resolve(text, ctx.resolvedArgs)
     }
 }

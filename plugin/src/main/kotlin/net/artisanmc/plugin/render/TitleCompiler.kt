@@ -449,6 +449,15 @@ object TitleCompiler {
     // Legacy § codes are converted to MiniMessage tags at the resolution choke
     // point — the compiled title string embeds user text inside MM machinery
     // (font wrapper, offsets), where a raw § would make the final deserialize throw.
-    private fun resolveLText(value: LText, langMap: Map<String, String>): String =
-        LenientText.legacyToMini(langMap[value.key] ?: "")
+    /**
+     * A ref resolves through its key and renders EMPTY when missing — never echo
+     * a raw key at a player. A literal (inline mode) resolves through its
+     * canonical address and falls back to the literal text itself.
+     */
+    private fun resolveLText(value: LText, langMap: Map<String, String>): String {
+        val resolved =
+            if (value.literal) value.address?.let { langMap[it] } ?: value.key
+            else langMap[value.key] ?: ""
+        return LenientText.legacyToMini(resolved)
+    }
 }
