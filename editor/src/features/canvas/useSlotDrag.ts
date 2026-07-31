@@ -26,7 +26,7 @@ interface UseSlotDragArgs {
   projectId: ProjectId;
   menuId: MenuId;
   position: { x: number; y: number };
-  /** Full pack-canvas layout — needed by the slot drag-out handler to
+  /** Full project-canvas layout — needed by the slot drag-out handler to
    *  resolve which menu (if any) the cursor was over on dragend. */
   layout: Record<string, { x: number; y: number }>;
   /** The menu's layer stack, used to inspect element positions during drag-start. */
@@ -179,9 +179,9 @@ export function useSlotDrag(args: UseSlotDragArgs) {
       const worldX = position.x + localX + TEX_SLOT_STRIDE / 2;
       const worldY = position.y + localY + TEX_SLOT_STRIDE / 2;
       const account = useAccountStore.getState().account;
-      const pack = account.projects.find((p) => p.id === projectId);
-      if (!pack) return;
-      const hit = hitTestSlot(pack, layout, worldX, worldY);
+      const project = account.projects.find((p) => p.id === projectId);
+      if (!project) return;
+      const hit = hitTestSlot(project, layout, worldX, worldY);
       const altKey = (e.evt as MouseEvent).altKey;
 
       // Selection-drag: shift the whole selection by the grid delta resolved

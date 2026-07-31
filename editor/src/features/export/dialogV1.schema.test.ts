@@ -13,14 +13,14 @@ import { transform } from "./transform";
 
 const PACK = projectId("p_dialog");
 
-function lt(pack: Project, value: string): { key: I18nKey } {
-  const key = `lt_${Object.keys(pack.i18nKeys).length}` as I18nKey;
-  pack.i18nKeys[key] = { en: value };
+function lt(project: Project, value: string): { key: I18nKey } {
+  const key = `lt_${Object.keys(project.i18nKeys).length}` as I18nKey;
+  project.i18nKeys[key] = { en: value };
   return { key };
 }
 
 function buildProject(): Project {
-  const pack: Project = {
+  const project: Project = {
     id: PACK,
     name: "Dialog fixture",
     source: "user_created",
@@ -40,23 +40,23 @@ function buildProject(): Project {
   const dialog: Dialog = {
     id: dialogId("confirm_purchase"),
     projectId: PACK,
-    title: lt(pack, "Confirm purchase"),
+    title: lt(project, "Confirm purchase"),
     canCloseWithEscape: false,
     body: [
-      { type: "text", text: lt(pack, "Are you sure?") },
+      { type: "text", text: lt(project, "Are you sure?") },
       { type: "item", material: "DIAMOND", count: 1 },
     ],
     inputs: [
-      { type: "text", id: "note", label: lt(pack, "Note"), default: "", maxLength: 32 },
-      { type: "bool", id: "gift", label: lt(pack, "Gift wrap"), default: false },
-      { type: "number_range", id: "qty", label: lt(pack, "Quantity"), min: 1, max: 64, default: 1 },
+      { type: "text", id: "note", label: lt(project, "Note"), default: "", maxLength: 32 },
+      { type: "bool", id: "gift", label: lt(project, "Gift wrap"), default: false },
+      { type: "number_range", id: "qty", label: lt(project, "Quantity"), min: 1, max: 64, default: 1 },
       {
         type: "single_option",
         id: "currency",
-        label: lt(pack, "Currency"),
+        label: lt(project, "Currency"),
         options: [
-          { value: "coins", label: lt(pack, "Coins") },
-          { value: "gems", label: lt(pack, "Gems") },
+          { value: "coins", label: lt(project, "Coins") },
+          { value: "gems", label: lt(project, "Gems") },
         ],
         default: "coins",
       },
@@ -64,7 +64,7 @@ function buildProject(): Project {
     buttons: [
       {
         id: "buy",
-        label: lt(pack, "Buy"),
+        label: lt(project, "Buy"),
         steps: [
           { kind: "action", action: { type: "take_money", amount: 100 } },
           { kind: "action", action: { type: "close_dialog" } },
@@ -72,19 +72,19 @@ function buildProject(): Project {
       },
       {
         id: "cancel",
-        label: lt(pack, "Cancel"),
+        label: lt(project, "Cancel"),
         steps: [{ kind: "action", action: { type: "open_menu", menuId: menuId("shop") } }],
       },
     ],
   };
-  pack.dialogs.push(dialog);
-  return pack;
+  project.dialogs.push(dialog);
+  return project;
 }
 
 describe("dialog/v1 schema fixture", () => {
   it("the editor's exported dialog YAML validates against docs/schema/dialog/v1", () => {
-    const pack = buildProject();
-    const files = transform(pack);
+    const project = buildProject();
+    const files = transform(project);
     const yaml = files[`plugins/Artisan/projects/${PACK}/dialogs/confirm_purchase.yaml`];
     expect(yaml).toBeTruthy();
     const wire = parse(yaml!) as Record<string, unknown>;

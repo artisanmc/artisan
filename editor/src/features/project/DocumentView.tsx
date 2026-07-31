@@ -22,20 +22,20 @@ export function DocumentView({ projectId, documentId }: { projectId: ProjectId; 
   // L'URL peut désigner le project par son slug : l'id reste l'identité, mais
   // la vue doit reconnaître les deux formes (ADR yaml-assisted-editing n'a rien
   // à voir ici — c'est le passage des URLs aux slugs).
-  const pack = useAccountStore((s) =>
+  const project = useAccountStore((s) =>
     s.account.projects.find((p) => p.id === projectId || p.slug === projectId),
   );
   // Tout ce qui est en dessous cherche le project par ID : le slug de l'URL
   // s'arrête ici.
-  const pId = (pack?.id ?? projectId) as ProjectId;
+  const pId = (project?.id ?? projectId) as ProjectId;
   const activeLang = useUiStore((s) => s.activeLang);
   const editorPaneWidth = useUiStore((s) => s.editorPaneWidth);
   const setEditorPaneWidth = useUiStore((s) => s.setEditorPaneWidth);
   const isDesktop = useIsDesktop();
   const eid = documentId as string;
-  const menu = pack?.menus.find((m) => m.id === eid);
-  const command = pack?.commands.find((c) => c.id === eid);
-  const dialog = pack?.dialogs.find((d) => d.id === eid);
+  const menu = project?.menus.find((m) => m.id === eid);
+  const command = project?.commands.find((c) => c.id === eid);
+  const dialog = project?.dialogs.find((d) => d.id === eid);
 
   useEffect(() => {
     // Par défaut, sélectionne l'élément (menu/commande/dialog) lui-même. Mais si une
@@ -95,12 +95,12 @@ export function DocumentView({ projectId, documentId }: { projectId: ProjectId; 
         </kbd>
       </button>
       <span className="truncate text-[13px] font-medium text-[var(--text)]">
-        {pack ? documentLabel(pack, documentId as string, activeLang) : documentId}
+        {project ? documentLabel(project, documentId as string, activeLang) : documentId}
       </span>
     </div>
   );
 
-  if (!pack || (!menu && !command && !dialog)) {
+  if (!project || (!menu && !command && !dialog)) {
     return (
       <div className="absolute inset-0">
         {header}

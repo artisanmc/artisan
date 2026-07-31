@@ -18,7 +18,7 @@ beforeEach(() => {
 
 describe("Step3Project", () => {
   it("lists only projects bound to the current server_key, not the whole network", async () => {
-    // A pack belongs to exactly one server_key (projects.serverKeyId, 1:N). The
+    // A project belongs to exactly one server_key (projects.serverKeyId, 1:N). The
     // wizard fetches the whole network, so it must filter to the step-2 server
     // — otherwise it offers workspaces owned by OTHER servers (the old M:N fossil).
     vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
@@ -44,7 +44,7 @@ describe("Step3Project", () => {
     expect(screen.queryByText("Other Server Project")).toBeNull();
   });
 
-  it("creates a new pack using the already-known serverKeyId and selects it", async () => {
+  it("creates a new project using the already-known serverKeyId and selects it", async () => {
     vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
       network: { id: "n1", name: "Survival", tier: "free" },
       projects: [],

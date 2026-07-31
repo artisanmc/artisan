@@ -26,7 +26,7 @@ class BundleDownloader(
 
         val responseBody = httpClient.newCall(request).execute().use { response ->
             if (!response.isSuccessful) {
-                logger?.warning("Bundle download failed: HTTP ${response.code} for pack $projectId")
+                logger?.warning("Bundle download failed: HTTP ${response.code} for project $projectId")
                 return
             }
             response.body?.string() ?: return
@@ -35,13 +35,13 @@ class BundleDownloader(
         val parsed = runCatching {
             mapper.readValue(responseBody, object : TypeReference<Map<String, Any>>() {})
         }.getOrNull() ?: run {
-            logger?.warning("Bundle download: failed to parse response for pack $projectId")
+            logger?.warning("Bundle download: failed to parse response for project $projectId")
             return
         }
 
         @Suppress("UNCHECKED_CAST")
         val files = parsed["files"] as? Map<String, String> ?: run {
-            logger?.warning("Bundle download: missing 'files' in response for pack $projectId")
+            logger?.warning("Bundle download: missing 'files' in response for project $projectId")
             return
         }
         val backendHash = parsed["hash"] as? String ?: ""
@@ -100,6 +100,6 @@ class BundleDownloader(
             }
 
         SyncMetadata.recordSync(projectDir, syncedHash = BundleHasher.hash(projectDir), backendHash = backendHash)
-        logger?.info("Bundle synced for pack $projectId (${expectedRelPaths.size} files, swept)")
+        logger?.info("Bundle synced for project $projectId (${expectedRelPaths.size} files, swept)")
     }
 }

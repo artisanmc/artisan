@@ -29,13 +29,13 @@ router.get("/custom/:serverKeyId/*", async (c) => {
   });
 });
 
-router.get("/asset/:packId/:assetId", async (c) => {
-  const packId = c.req.param("packId");
+router.get("/asset/:projectId/:assetId", async (c) => {
+  const projectId = c.req.param("projectId");
   const assetId = c.req.param("assetId");
-  if (!/^[a-zA-Z0-9_-]+$/.test(packId) || !/^asset_[a-zA-Z0-9]+$/.test(assetId)) {
+  if (!/^[a-zA-Z0-9_-]+$/.test(projectId) || !/^asset_[a-zA-Z0-9]+$/.test(assetId)) {
     return c.newResponse(null, 400);
   }
-  const filePath = assetPath(packId, assetId);
+  const filePath = assetPath(projectId, assetId);
   if (!existsSync(filePath)) return c.newResponse(null, 404);
   return new Response(Bun.file(filePath), {
     headers: { "Content-Type": "image/png", "Cache-Control": "no-cache" },

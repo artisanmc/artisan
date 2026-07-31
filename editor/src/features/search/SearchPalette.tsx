@@ -23,13 +23,13 @@ export function SearchPalette({ projectId }: { projectId: ProjectId }) {
   const open = useUiStore((s) => s.searchOpen);
   const setOpen = useUiStore((s) => s.setSearchOpen);
   const activeLang = useUiStore((s) => s.activeLang);
-  const pack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
   const [q, setQ] = useState("");
   const [active, setActive] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const activeRowRef = useRef<HTMLButtonElement>(null);
 
-  const index = useMemo(() => (pack ? buildSearchIndex(pack, activeLang) : []), [pack, activeLang]);
+  const index = useMemo(() => (project ? buildSearchIndex(project, activeLang) : []), [project, activeLang]);
   const results = useMemo(() => groupResultsForDisplay(searchQuery(index, q)), [index, q]);
 
   useEffect(() => {
@@ -46,7 +46,7 @@ export function SearchPalette({ projectId }: { projectId: ProjectId }) {
 
   const choose = (entry: SearchEntry | undefined) => {
     if (!entry) return;
-    // projectId (URL) == projectId (domain) dans le modèle actuel : un pack par workspace.
+    // projectId (URL) == projectId (domain) dans le modèle actuel : un project par workspace.
     navigate({
       to: "/networks/$networkId/servers/$serverId/projects/$projectId/document/$documentId",
       params: {

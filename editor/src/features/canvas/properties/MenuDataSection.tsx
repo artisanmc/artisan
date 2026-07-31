@@ -45,25 +45,25 @@ export function ObjectParamLists({
   input: Extract<ContextInput, { kind: "primitive" }>;
 }) {
   const { t } = useTranslation();
-  const pack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
   const serverSources = useServerDataSourcesStore((s) => s.sources);
   // Hand-typed paths: local until a set is created on them, then the ELEMENT
   // keeps them alive.
   const [manualPaths, setManualPaths] = useState<string[]>([]);
   const [draftPath, setDraftPath] = useState("");
-  if (!pack || input.type !== "object" || !input.rowOf) return null;
+  if (!project || input.type !== "object" || !input.rowOf) return null;
   const objectInputs = [input];
   const lists = objectInputs.flatMap((input) => {
     const ref = String(input.rowOf);
     if (ref.startsWith("pack:")) {
-      const ds = pack.dataSources?.find((d) => `pack:${d.id}` === ref);
+      const ds = project.dataSources?.find((d) => `pack:${d.id}` === ref);
       const model =
-        ds?.shape === "table" ? (pack.dataModels ?? []).find((m) => m.id === ds.modelId) : undefined;
+        ds?.shape === "table" ? (project.dataModels ?? []).find((m) => m.id === ds.modelId) : undefined;
       // Recursive walk: lists at ANY depth inside the object's row model
       // (`category.meta.items`), through nested objects and model refs
       // (cycle-guarded). Lists inside lists are not addressable (no index).
       const out: { path: string; schema: { name: string }[]; keyField: string }[] = [];
-      const models = pack.dataModels ?? [];
+      const models = project.dataModels ?? [];
       const walk = (
         fields: { name: string; type: import("@/domain/types").ModelFieldType }[],
         base: string,
@@ -201,20 +201,20 @@ export function MenuSetBlock({
   menu: Menu;
   input: SourceRefInput;
 }) {
-  const pack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
   const serverSource = useServerDataSourcesStore((s) => s.sources.find((x) => x.ref === input.ref));
-  if (!pack) return null;
+  if (!project) return null;
 
-  // Schema + Row key: pack: sources from the project, server sources from presence.
-  const packDs = input.ref.startsWith("pack:")
-    ? pack.dataSources?.find((d) => `pack:${d.id}` === input.ref)
+  // Schema + Row key: project: sources from the project, server sources from presence.
+  const projectDs = input.ref.startsWith("pack:")
+    ? project.dataSources?.find((d) => `pack:${d.id}` === input.ref)
     : undefined;
-  const packModel =
-    packDs?.shape === "table" ? (pack.dataModels ?? []).find((m) => m.id === packDs.modelId) : undefined;
-  const schema: { name: string }[] = packDs
-    ? (packDs.shape === "table" ? (packModel?.fields ?? []) : packDs.fields).map((f) => ({ name: f.name }))
+  const projectModel =
+    projectDs?.shape === "table" ? (project.dataModels ?? []).find((m) => m.id === projectDs.modelId) : undefined;
+  const schema: { name: string }[] = projectDs
+    ? (projectDs.shape === "table" ? (projectModel?.fields ?? []) : projectDs.fields).map((f) => ({ name: f.name }))
     : (serverSource?.schema ?? []).map((f) => ({ name: f.name }));
-  const keyField = packModel?.keyField ?? serverSource?.keyField ?? "id";
+  const keyField = projectModel?.keyField ?? serverSource?.keyField ?? "id";
   return (
     <MenuSetBlockCore projectId={projectId} menu={menu} listName={input.name} schema={schema} keyField={keyField} />
   );
@@ -238,8 +238,8 @@ function MenuSetBlockCore({
   const { t } = useTranslation();
   const createMenuSet = useAccountStore((s) => s.createMenuSet);
   const deleteElement = useAccountStore((s) => s.deleteElement);
-  const pack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
-  if (!pack) return null;
+  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  if (!project) return null;
   const el = findSetElement(menu, listName);
 
   if (!el) {
@@ -291,7 +291,7 @@ function MenuSetBlockCore({
     );
   }
   return (
-    <PlacementRowsPanel projectId={projectId} menu={menu} element={el} pack={pack} onDelete={deleteSet} />
+    <PlacementRowsPanel projectId={projectId} menu={menu} element={el} project={project} onDelete={deleteSet} />
   );
 }
 
@@ -305,13 +305,13 @@ function PlacementRowsPanel({
   projectId,
   menu,
   element,
-  pack,
+  project,
   onDelete,
 }: {
   projectId: ProjectId;
   menu: Menu;
   element: Element;
-  pack: Project;
+  project: Project;
   onDelete: () => void;
 }) {
   const { t } = useTranslation();
@@ -320,7 +320,7 @@ function PlacementRowsPanel({
   const activeLang = useUiStore((s) => s.activeLang);
   const places = element.places;
   if (!places) return null;
-  const baseCtx = buildPreviewScope(menu, pack, snapshots, menuPreviewArgs[menu.id]);
+  const baseCtx = buildPreviewScope(menu, project, snapshots, menuPreviewArgs[menu.id]);
   const rows = (lookupPath(baseCtx, places.source) ?? []) as Record<string, unknown>[];
   const placedKeys = new Set(places.placements.map((p) => p.key));
 
@@ -347,7 +347,7 @@ function PlacementRowsPanel({
                 <PlaceableRowTile
                   key={key}
                   projectId={projectId}
-                  pack={pack}
+                  project={project}
                   menu={menu}
                   element={element}
                   row={row}
@@ -372,7 +372,7 @@ function PlacementRowsPanel({
  *  never the set). */
 function PlaceableRowTile({
   projectId,
-  pack,
+  project,
   menu,
   element,
   row,
@@ -381,7 +381,7 @@ function PlaceableRowTile({
   activeLang,
 }: {
   projectId: ProjectId;
-  pack: Project;
+  project: Project;
   menu: Menu;
   element: Element;
   row: Record<string, unknown>;
@@ -394,11 +394,11 @@ function PlaceableRowTile({
   const app = element.appearances[0];
   const alias = element.places?.alias ?? "item";
   const ctx = { [alias]: row };
-  const rawMaterial = app?.material ? renderPreview(app.material, ctx, pack, activeLang) : "";
-  const display = resolveDisplayRef(pack, rawMaterial);
+  const rawMaterial = app?.material ? renderPreview(app.material, ctx, project, activeLang) : "";
+  const display = resolveDisplayRef(project, rawMaterial);
   const material = display.material;
-  const titleRaw = app?.title ? getText(pack, app.title, activeLang) : "";
-  const title = titleRaw ? renderPreview(titleRaw, ctx, pack, activeLang) : rowKey;
+  const titleRaw = app?.title ? getText(project, app.title, activeLang) : "";
+  const title = titleRaw ? renderPreview(titleRaw, ctx, project, activeLang) : rowKey;
   const materialUrl = useTextureUrl(material);
   const textureUrl = headPreviewUrl(display.head) ?? materialUrl;
   const data: PlacementRowDragData = {

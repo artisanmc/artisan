@@ -57,7 +57,7 @@ export function ProjectSidebar() {
 
   // Active network + server: URL params first, then persisted selection.
   // Since the slug routes (phase 4a), URL params may carry slugs instead of
-  // ids — resolve them to real ids here so all downstream matching (pack
+  // ids — resolve them to real ids here so all downstream matching (project
   // filtering, link building) stays id-based.
   // Routes without params (settings, credits…) fall back to the persisted
   // selection (stores) so navigating there doesn't silently "deselect" the
@@ -242,7 +242,7 @@ export function ProjectSidebar() {
     };
   });
 
-  // Element count per pack: prefer the live count from a fully-loaded pack in
+  // Element count per project: prefer the live count from a fully-loaded project in
   // the account store (updates as the user edits), else the summary's
   // backend-computed documentCount. Null when neither is available.
   const liveCount = new Map(

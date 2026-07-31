@@ -8,7 +8,7 @@ import { useTranslation } from "react-i18next";
 /**
  * AssistantConversations — the list view of a workspace's saved AI
  * conversations (newest first). "New conversation" starts a fresh chat;
- * clicking an item resumes it. Scoped per pack (the backend filters by
+ * clicking an item resumes it. Scoped per project (the backend filters by
  * `ownerKey` + `projectId`). Rendered by `AssistantBody`.
  */
 export function AssistantConversations({

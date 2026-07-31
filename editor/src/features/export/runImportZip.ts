@@ -16,13 +16,13 @@ export interface ImportProjectResult {
  */
 export async function runImportZip(
   file: Blob,
-  importProjectAction: (input: { pack: unknown }) => string,
+  importProjectAction: (input: { project: unknown }) => string,
 ): Promise<ImportProjectResult> {
   const entries = await readProjectZip(file);
   const { projectId, files } = normalizeProjectFiles(entries);
-  const pack = projectFromFiles(projectId as ProjectId, files);
-  const newId = importProjectAction({ pack });
-  return { newId, name: pack.name };
+  const project = projectFromFiles(projectId as ProjectId, files);
+  const newId = importProjectAction({ project });
+  return { newId, name: project.name };
 }
 
 /** Opens the OS file picker restricted to zip archives. */

@@ -19,13 +19,13 @@ describe("useProjectLoader", () => {
       files: {},
     } as never);
     const { result } = renderHook(() => useProjectLoader("p1"));
-    await waitFor(() => expect(result.current.pack).not.toBeNull());
+    await waitFor(() => expect(result.current.project).not.toBeNull());
     expect(result.current.error).toBeNull();
   });
 
   it("sets error when no user is signed in", async () => {
     const { result } = renderHook(() => useProjectLoader("p1"));
     await waitFor(() => expect(result.current.error).toBe("Not authenticated"));
-    expect(result.current.pack).toBeNull();
+    expect(result.current.project).toBeNull();
   });
 });

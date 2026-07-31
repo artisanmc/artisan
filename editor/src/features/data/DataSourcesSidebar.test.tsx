@@ -6,7 +6,7 @@ import { DataSourcesSidebar } from "./DataSourcesSidebar";
 // The server-sources directory fetches; it is not what these tests are about.
 vi.mock("./ServerSourcesSection", () => ({ ServerSourcesSection: () => null }));
 
-function pack(): Project {
+function project(): Project {
   return {
     id: "boutique_shop",
     name: "Boutique",
@@ -32,7 +32,7 @@ function pack(): Project {
 function renderSidebar() {
   return render(
     <DataSourcesSidebar
-      pack={pack()}
+      project={project()}
       selectedId={null}
       onSelect={() => {}}
       selectedServerRef={null}

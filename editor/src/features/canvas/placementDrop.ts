@@ -32,21 +32,21 @@ export function pinPlacementRow(opts: {
 }): void {
   const { projectId, menuId, elementId, key, position } = opts;
   const account = useAccountStore.getState();
-  const pack = account.account.projects.find((p) => p.id === projectId);
-  const menu = pack?.menus.find((m) => m.id === menuId);
+  const project = account.account.projects.find((p) => p.id === projectId);
+  const menu = project?.menus.find((m) => m.id === menuId);
   const el = menu?.layers.flatMap((l) => l.elements).find((e) => e.id === elementId);
-  if (!pack || !menu || !el?.places) return;
+  if (!project || !menu || !el?.places) return;
   const appearance = el.appearances[0];
 
   const page = usePaginationStore.getState().pageByElement[elementId] ?? 0;
   const snapshots = useServerSnapshotsStore.getState().rowsByRef;
   const activeLang = useUiStore.getState().activeLang;
-  const baseCtx = buildPreviewScope(menu, pack, snapshots, useUiStore.getState().menuPreviewArgs[menu.id]);
+  const baseCtx = buildPreviewScope(menu, project, snapshots, useUiStore.getState().menuPreviewArgs[menu.id]);
   const rows = lookupPath(baseCtx, el.places.source);
   const row = matchPlacementRow(rows, el.places.keyField, key);
   const cachedDisplay =
     row && appearance
-      ? capturePlacementCache({ places: el.places, appearance, row, baseCtx, pack, activeLang })
+      ? capturePlacementCache({ places: el.places, appearance, row, baseCtx, project, activeLang })
       : undefined;
 
   const placement: Placement = { key, page, position };

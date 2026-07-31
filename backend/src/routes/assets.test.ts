@@ -84,9 +84,9 @@ const PNG_8x8 = new Uint8Array([
 
 /**
  * Creates a full fixture: user → session → network → membership → serverKey → project.
- * Returns a Cookie header value and the packId for use in URL paths.
+ * Returns a Cookie header value and the projectId for use in URL paths.
  */
-async function seedSession(): Promise<{ cookie: string; packId: string }> {
+async function seedSession(): Promise<{ cookie: string; projectId: string }> {
   const userId = "usr_" + crypto.randomUUID().replace(/-/g, "").slice(0, 12);
   await db.insert(users).values({
     id: userId, email: `${userId}@a.b`, name: userId, passwordHash: null, avatarUrl: null,
@@ -97,8 +97,8 @@ async function seedSession(): Promise<{ cookie: string; packId: string }> {
   await addMembership(userId, network.id, "owner");
   const { id: serverKeyId, hash } = await generateServerKey();
   await db.insert(serverKeys).values({ id: serverKeyId, hash, label: null, networkId: network.id, createdAt: new Date() });
-  const project = await createProject({ networkId: network.id, serverKeyId, name: "test-pack" });
-  return { cookie: `artisan_user_session=${session.id}`, packId: project.id };
+  const project = await createProject({ networkId: network.id, serverKeyId, name: "test-project" });
+  return { cookie: `artisan_user_session=${session.id}`, projectId: project.id };
 }
 
 // ─── Form builders ────────────────────────────────────────────────────────────
@@ -143,8 +143,8 @@ function uploadFontForm(opts: { name?: string; zip?: Uint8Array }): FormData {
 
 describe("POST /api/v1/user/projects/:projectId/assets", () => {
   test("creates a texture asset", async () => {
-    const { cookie, packId } = await seedSession();
-    const res = await app.request(`/api/v1/user/projects/${packId}/assets`, {
+    const { cookie, projectId } = await seedSession();
+    const res = await app.request(`/api/v1/user/projects/${projectId}/assets`, {
       method: "POST",
       headers: { Cookie: cookie },
       body: uploadForm({ type: "texture", name: "bg_one" }),
@@ -153,7 +153,7 @@ describe("POST /api/v1/user/projects/:projectId/assets", () => {
     const body = await res.json();
     expect(body.asset.type).toBe("texture");
     expect(body.asset.name).toBe("bg_one");
-    expect(body.asset.projectId).toBe(packId);
+    expect(body.asset.projectId).toBe(projectId);
     expect(body.asset.width).toBe(1);
     expect(body.asset.height).toBe(1);
     expect(body.asset.codepoint).toBeNull();
@@ -161,8 +161,8 @@ describe("POST /api/v1/user/projects/:projectId/assets", () => {
   });
 
   test("creates a glyph asset and allocates a codepoint", async () => {
-    const { cookie, packId } = await seedSession();
-    const res = await app.request(`/api/v1/user/projects/${packId}/assets`, {
+    const { cookie, projectId } = await seedSession();
+    const res = await app.request(`/api/v1/user/projects/${projectId}/assets`, {
       method: "POST",
       headers: { Cookie: cookie },
       body: uploadForm({ type: "glyph", name: "icon_one", ascent: "7" }),
@@ -174,9 +174,9 @@ describe("POST /api/v1/user/projects/:projectId/assets", () => {
     expect(body.asset.ascent).toBe(7);
   });
 
-  test("dedups on contentHash within the same pack", async () => {
-    const { cookie, packId } = await seedSession();
-    const r1 = await app.request(`/api/v1/user/projects/${packId}/assets`, {
+  test("dedups on contentHash within the same project", async () => {
+    const { cookie, projectId } = await seedSession();
+    const r1 = await app.request(`/api/v1/user/projects/${projectId}/assets`, {
       method: "POST",
       headers: { Cookie: cookie },
       body: uploadForm({ type: "texture", name: "first" }),
@@ -184,7 +184,7 @@ describe("POST /api/v1/user/projects/:projectId/assets", () => {
     expect(r1.status).toBe(201);
     const a1 = (await r1.json()).asset;
 
-    const r2 = await app.request(`/api/v1/user/projects/${packId}/assets`, {
+    const r2 = await app.request(`/api/v1/user/projects/${projectId}/assets`, {
       method: "POST",
       headers: { Cookie: cookie },
       body: uploadForm({ type: "texture", name: "second" }),  // same bytes
@@ -195,8 +195,8 @@ describe("POST /api/v1/user/projects/:projectId/assets", () => {
   });
 
   test("rejects duplicate name within the same type", async () => {
-    const { cookie, packId } = await seedSession();
-    await app.request(`/api/v1/user/projects/${packId}/assets`, {
+    const { cookie, projectId } = await seedSession();
+    await app.request(`/api/v1/user/projects/${projectId}/assets`, {
       method: "POST",
       headers: { Cookie: cookie },
       body: uploadForm({ type: "texture", name: "dup" }),
@@ -205,7 +205,7 @@ describe("POST /api/v1/user/projects/:projectId/assets", () => {
     // contentHash — that bypasses the dedup path and forces the name check.
     const distinctBytes = PNG_1x1.slice();
     distinctBytes[distinctBytes.length - 5] ^= 0x01;
-    const res = await app.request(`/api/v1/user/projects/${packId}/assets`, {
+    const res = await app.request(`/api/v1/user/projects/${projectId}/assets`, {
       method: "POST",
       headers: { Cookie: cookie },
       body: uploadForm({ type: "texture", name: "dup", png: distinctBytes }),
@@ -214,8 +214,8 @@ describe("POST /api/v1/user/projects/:projectId/assets", () => {
   });
 
   test("rejects invalid name pattern", async () => {
-    const { cookie, packId } = await seedSession();
-    const res = await app.request(`/api/v1/user/projects/${packId}/assets`, {
+    const { cookie, projectId } = await seedSession();
+    const res = await app.request(`/api/v1/user/projects/${projectId}/assets`, {
       method: "POST",
       headers: { Cookie: cookie },
       body: uploadForm({ name: "Bad Name!" }),
@@ -224,8 +224,8 @@ describe("POST /api/v1/user/projects/:projectId/assets", () => {
   });
 
   test("rejects non-PNG file", async () => {
-    const { cookie, packId } = await seedSession();
-    const res = await app.request(`/api/v1/user/projects/${packId}/assets`, {
+    const { cookie, projectId } = await seedSession();
+    const res = await app.request(`/api/v1/user/projects/${projectId}/assets`, {
       method: "POST",
       headers: { Cookie: cookie },
       body: uploadForm({ png: new Uint8Array([0xFF, 0xD8, 0xFF]) }),  // JPEG bytes
@@ -234,8 +234,8 @@ describe("POST /api/v1/user/projects/:projectId/assets", () => {
   });
 
   test("401 when unauthenticated (no cookie)", async () => {
-    const { packId } = await seedSession();
-    const res = await app.request(`/api/v1/user/projects/${packId}/assets`, {
+    const { projectId } = await seedSession();
+    const res = await app.request(`/api/v1/user/projects/${projectId}/assets`, {
       method: "POST",
       body: uploadForm({ name: "x" }),
     });
@@ -253,15 +253,15 @@ describe("POST /api/v1/user/projects/:projectId/assets", () => {
   });
 
   test("dedup is scoped by type — same bytes can be uploaded as glyph and texture", async () => {
-    const { cookie, packId } = await seedSession();
-    const r1 = await app.request(`/api/v1/user/projects/${packId}/assets`, {
+    const { cookie, projectId } = await seedSession();
+    const r1 = await app.request(`/api/v1/user/projects/${projectId}/assets`, {
       method: "POST", headers: { Cookie: cookie }, body: uploadForm({ type: "texture", name: "shared_a" }),
     });
     expect(r1.status).toBe(201);
     const a = (await r1.json()).asset;
     expect(a.type).toBe("texture");
 
-    const r2 = await app.request(`/api/v1/user/projects/${packId}/assets`, {
+    const r2 = await app.request(`/api/v1/user/projects/${projectId}/assets`, {
       method: "POST", headers: { Cookie: cookie }, body: uploadForm({ type: "glyph", name: "shared_b" }),
     });
     expect(r2.status).toBe(201);  // new row, not dedup
@@ -273,12 +273,12 @@ describe("POST /api/v1/user/projects/:projectId/assets", () => {
 });
 
 describe("GET /api/v1/user/projects/:projectId/assets", () => {
-  test("lists assets scoped to pack", async () => {
-    const { cookie, packId } = await seedSession();
-    await app.request(`/api/v1/user/projects/${packId}/assets`, {
+  test("lists assets scoped to project", async () => {
+    const { cookie, projectId } = await seedSession();
+    await app.request(`/api/v1/user/projects/${projectId}/assets`, {
       method: "POST", headers: { Cookie: cookie }, body: uploadForm({ name: "list_one" }),
     });
-    const res = await app.request(`/api/v1/user/projects/${packId}/assets`, { headers: { Cookie: cookie } });
+    const res = await app.request(`/api/v1/user/projects/${projectId}/assets`, { headers: { Cookie: cookie } });
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(Array.isArray(body.assets)).toBe(true);
@@ -286,21 +286,21 @@ describe("GET /api/v1/user/projects/:projectId/assets", () => {
   });
 
   test("filters by type", async () => {
-    const { cookie, packId } = await seedSession();
-    await app.request(`/api/v1/user/projects/${packId}/assets`, {
+    const { cookie, projectId } = await seedSession();
+    await app.request(`/api/v1/user/projects/${projectId}/assets`, {
       method: "POST", headers: { Cookie: cookie }, body: uploadForm({ type: "texture", name: "tex_a" }),
     });
-    const res = await app.request(`/api/v1/user/projects/${packId}/assets?type=texture`, { headers: { Cookie: cookie } });
+    const res = await app.request(`/api/v1/user/projects/${projectId}/assets?type=texture`, { headers: { Cookie: cookie } });
     const body = await res.json();
     expect(body.assets.every((a: any) => a.type === "texture")).toBe(true);
   });
 
   test("filters by search", async () => {
-    const { cookie, packId } = await seedSession();
-    await app.request(`/api/v1/user/projects/${packId}/assets`, {
+    const { cookie, projectId } = await seedSession();
+    await app.request(`/api/v1/user/projects/${projectId}/assets`, {
       method: "POST", headers: { Cookie: cookie }, body: uploadForm({ name: "needle_one" }),
     });
-    const res = await app.request(`/api/v1/user/projects/${packId}/assets?search=needle`, { headers: { Cookie: cookie } });
+    const res = await app.request(`/api/v1/user/projects/${projectId}/assets?search=needle`, { headers: { Cookie: cookie } });
     const body = await res.json();
     expect(body.assets.length).toBeGreaterThan(0);
     expect(body.assets.every((a: any) => a.name.includes("needle"))).toBe(true);
@@ -315,46 +315,46 @@ describe("GET /api/v1/user/projects/:projectId/assets", () => {
 
 describe("GET /api/v1/user/projects/:projectId/assets/:id", () => {
   test("returns asset by id", async () => {
-    const { cookie, packId } = await seedSession();
-    const post = await app.request(`/api/v1/user/projects/${packId}/assets`, {
+    const { cookie, projectId } = await seedSession();
+    const post = await app.request(`/api/v1/user/projects/${projectId}/assets`, {
       method: "POST", headers: { Cookie: cookie }, body: uploadForm({ name: "detail_one" }),
     });
     const created = (await post.json()).asset;
 
-    const res = await app.request(`/api/v1/user/projects/${packId}/assets/${created.id}`, { headers: { Cookie: cookie } });
+    const res = await app.request(`/api/v1/user/projects/${projectId}/assets/${created.id}`, { headers: { Cookie: cookie } });
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.asset.id).toBe(created.id);
   });
 
   test("404 for unknown id", async () => {
-    const { cookie, packId } = await seedSession();
-    const res = await app.request(`/api/v1/user/projects/${packId}/assets/asset_does_not_exist`, { headers: { Cookie: cookie } });
+    const { cookie, projectId } = await seedSession();
+    const res = await app.request(`/api/v1/user/projects/${projectId}/assets/asset_does_not_exist`, { headers: { Cookie: cookie } });
     expect(res.status).toBe(404);
   });
 
-  test("403 for asset belonging to another user's pack", async () => {
+  test("403 for asset belonging to another user's project", async () => {
     const sessA = await seedSession();
     const sessB = await seedSession();
-    const post = await app.request(`/api/v1/user/projects/${sessA.packId}/assets`, {
+    const post = await app.request(`/api/v1/user/projects/${sessA.projectId}/assets`, {
       method: "POST", headers: { Cookie: sessA.cookie }, body: uploadForm({ name: "x_a" }),
     });
     const a = (await post.json()).asset;
     // sessB is authenticated but has no membership on sessA's network — forbidden.
-    const res = await app.request(`/api/v1/user/projects/${sessA.packId}/assets/${a.id}`, { headers: { Cookie: sessB.cookie } });
+    const res = await app.request(`/api/v1/user/projects/${sessA.projectId}/assets/${a.id}`, { headers: { Cookie: sessB.cookie } });
     expect(res.status).toBe(403);
   });
 });
 
 describe("PATCH /api/v1/user/projects/:projectId/assets/:id", () => {
   test("renames an asset", async () => {
-    const { cookie, packId } = await seedSession();
-    const post = await app.request(`/api/v1/user/projects/${packId}/assets`, {
+    const { cookie, projectId } = await seedSession();
+    const post = await app.request(`/api/v1/user/projects/${projectId}/assets`, {
       method: "POST", headers: { Cookie: cookie }, body: uploadForm({ name: "old_name" }),
     });
     const a = (await post.json()).asset;
 
-    const res = await app.request(`/api/v1/user/projects/${packId}/assets/${a.id}`, {
+    const res = await app.request(`/api/v1/user/projects/${projectId}/assets/${a.id}`, {
       method: "PATCH",
       headers: { Cookie: cookie, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "new_name" }),
@@ -365,13 +365,13 @@ describe("PATCH /api/v1/user/projects/:projectId/assets/:id", () => {
   });
 
   test("updates glyph ascent", async () => {
-    const { cookie, packId } = await seedSession();
-    const post = await app.request(`/api/v1/user/projects/${packId}/assets`, {
+    const { cookie, projectId } = await seedSession();
+    const post = await app.request(`/api/v1/user/projects/${projectId}/assets`, {
       method: "POST", headers: { Cookie: cookie }, body: uploadForm({ type: "glyph", name: "g_ascent", ascent: "7" }),
     });
     const a = (await post.json()).asset;
 
-    const res = await app.request(`/api/v1/user/projects/${packId}/assets/${a.id}`, {
+    const res = await app.request(`/api/v1/user/projects/${projectId}/assets/${a.id}`, {
       method: "PATCH",
       headers: { Cookie: cookie, "Content-Type": "application/json" },
       body: JSON.stringify({ ascent: 9 }),
@@ -382,13 +382,13 @@ describe("PATCH /api/v1/user/projects/:projectId/assets/:id", () => {
   });
 
   test("updates glyph height", async () => {
-    const { cookie, packId } = await seedSession();
-    const post = await app.request(`/api/v1/user/projects/${packId}/assets`, {
+    const { cookie, projectId } = await seedSession();
+    const post = await app.request(`/api/v1/user/projects/${projectId}/assets`, {
       method: "POST", headers: { Cookie: cookie }, body: uploadForm({ type: "glyph", name: "g_height", ascent: "7" }),
     });
     const a = (await post.json()).asset;
 
-    const res = await app.request(`/api/v1/user/projects/${packId}/assets/${a.id}`, {
+    const res = await app.request(`/api/v1/user/projects/${projectId}/assets/${a.id}`, {
       method: "PATCH",
       headers: { Cookie: cookie, "Content-Type": "application/json" },
       body: JSON.stringify({ height: 16 }),
@@ -402,15 +402,15 @@ describe("PATCH /api/v1/user/projects/:projectId/assets/:id", () => {
     // The test PNG is 1×1. After PATCH height=16, the MC-rendered advance
     // is 1 × (16/1) = 16 px. Width must track this so TitleCompiler's
     // estimateBodyWidth stays accurate when the height is changed.
-    const { cookie, packId } = await seedSession();
-    const post = await app.request(`/api/v1/user/projects/${packId}/assets`, {
+    const { cookie, projectId } = await seedSession();
+    const post = await app.request(`/api/v1/user/projects/${projectId}/assets`, {
       method: "POST", headers: { Cookie: cookie }, body: uploadForm({ type: "glyph", name: "g_w_scale", ascent: "7" }),
     });
     const a = (await post.json()).asset;
     expect(a.width).toBe(1);  // initial: 1×1 PNG
     expect(a.height).toBe(1);
 
-    const res = await app.request(`/api/v1/user/projects/${packId}/assets/${a.id}`, {
+    const res = await app.request(`/api/v1/user/projects/${projectId}/assets/${a.id}`, {
       method: "PATCH",
       headers: { Cookie: cookie, "Content-Type": "application/json" },
       body: JSON.stringify({ height: 16 }),
@@ -421,7 +421,7 @@ describe("PATCH /api/v1/user/projects/:projectId/assets/:id", () => {
     expect(body.asset.width).toBe(16);  // scaled: 1 × (16/1) = 16
 
     // Second patch: height 16 → 8. Width should halve.
-    const res2 = await app.request(`/api/v1/user/projects/${packId}/assets/${a.id}`, {
+    const res2 = await app.request(`/api/v1/user/projects/${projectId}/assets/${a.id}`, {
       method: "PATCH",
       headers: { Cookie: cookie, "Content-Type": "application/json" },
       body: JSON.stringify({ height: 8 }),
@@ -433,13 +433,13 @@ describe("PATCH /api/v1/user/projects/:projectId/assets/:id", () => {
   });
 
   test("rejects height patch on a font asset", async () => {
-    const { cookie, packId } = await seedSession();
-    const post = await app.request(`/api/v1/user/projects/${packId}/assets`, {
+    const { cookie, projectId } = await seedSession();
+    const post = await app.request(`/api/v1/user/projects/${projectId}/assets`, {
       method: "POST", headers: { Cookie: cookie }, body: uploadFontForm({ name: "fnt_height" }),
     });
     const a = (await post.json()).asset;
 
-    const res = await app.request(`/api/v1/user/projects/${packId}/assets/${a.id}`, {
+    const res = await app.request(`/api/v1/user/projects/${projectId}/assets/${a.id}`, {
       method: "PATCH",
       headers: { Cookie: cookie, "Content-Type": "application/json" },
       body: JSON.stringify({ height: 16 }),
@@ -448,12 +448,12 @@ describe("PATCH /api/v1/user/projects/:projectId/assets/:id", () => {
   });
 
   test("rejects height = 0", async () => {
-    const { cookie, packId } = await seedSession();
-    const post = await app.request(`/api/v1/user/projects/${packId}/assets`, {
+    const { cookie, projectId } = await seedSession();
+    const post = await app.request(`/api/v1/user/projects/${projectId}/assets`, {
       method: "POST", headers: { Cookie: cookie }, body: uploadForm({ type: "glyph", name: "g_h0", ascent: "7" }),
     });
     const a = (await post.json()).asset;
-    const res = await app.request(`/api/v1/user/projects/${packId}/assets/${a.id}`, {
+    const res = await app.request(`/api/v1/user/projects/${projectId}/assets/${a.id}`, {
       method: "PATCH",
       headers: { Cookie: cookie, "Content-Type": "application/json" },
       body: JSON.stringify({ height: 0 }),
@@ -462,12 +462,12 @@ describe("PATCH /api/v1/user/projects/:projectId/assets/:id", () => {
   });
 
   test("rejects height = 257 (above max)", async () => {
-    const { cookie, packId } = await seedSession();
-    const post = await app.request(`/api/v1/user/projects/${packId}/assets`, {
+    const { cookie, projectId } = await seedSession();
+    const post = await app.request(`/api/v1/user/projects/${projectId}/assets`, {
       method: "POST", headers: { Cookie: cookie }, body: uploadForm({ type: "glyph", name: "g_h257", ascent: "7" }),
     });
     const a = (await post.json()).asset;
-    const res = await app.request(`/api/v1/user/projects/${packId}/assets/${a.id}`, {
+    const res = await app.request(`/api/v1/user/projects/${projectId}/assets/${a.id}`, {
       method: "PATCH",
       headers: { Cookie: cookie, "Content-Type": "application/json" },
       body: JSON.stringify({ height: 257 }),
@@ -476,13 +476,13 @@ describe("PATCH /api/v1/user/projects/:projectId/assets/:id", () => {
   });
 
   test("applies height + name together in a single PATCH", async () => {
-    const { cookie, packId } = await seedSession();
-    const post = await app.request(`/api/v1/user/projects/${packId}/assets`, {
+    const { cookie, projectId } = await seedSession();
+    const post = await app.request(`/api/v1/user/projects/${projectId}/assets`, {
       method: "POST", headers: { Cookie: cookie }, body: uploadForm({ type: "glyph", name: "g_both", ascent: "7" }),
     });
     const a = (await post.json()).asset;
 
-    const res = await app.request(`/api/v1/user/projects/${packId}/assets/${a.id}`, {
+    const res = await app.request(`/api/v1/user/projects/${projectId}/assets/${a.id}`, {
       method: "PATCH",
       headers: { Cookie: cookie, "Content-Type": "application/json" },
       body: JSON.stringify({ height: 32, name: "g_both_renamed" }),
@@ -494,12 +494,12 @@ describe("PATCH /api/v1/user/projects/:projectId/assets/:id", () => {
   });
 
   test("rejects rename to invalid pattern", async () => {
-    const { cookie, packId } = await seedSession();
-    const post = await app.request(`/api/v1/user/projects/${packId}/assets`, {
+    const { cookie, projectId } = await seedSession();
+    const post = await app.request(`/api/v1/user/projects/${projectId}/assets`, {
       method: "POST", headers: { Cookie: cookie }, body: uploadForm({ name: "ok" }),
     });
     const a = (await post.json()).asset;
-    const res = await app.request(`/api/v1/user/projects/${packId}/assets/${a.id}`, {
+    const res = await app.request(`/api/v1/user/projects/${projectId}/assets/${a.id}`, {
       method: "PATCH",
       headers: { Cookie: cookie, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "BAD NAME" }),
@@ -508,19 +508,19 @@ describe("PATCH /api/v1/user/projects/:projectId/assets/:id", () => {
   });
 
   test("rejects rename to a colliding name", async () => {
-    const { cookie, packId } = await seedSession();
-    await app.request(`/api/v1/user/projects/${packId}/assets`, {
+    const { cookie, projectId } = await seedSession();
+    await app.request(`/api/v1/user/projects/${projectId}/assets`, {
       method: "POST", headers: { Cookie: cookie }, body: uploadForm({ name: "a_one" }),
     });
     // Need a different content for a second row — flip a byte in the PNG.
     const png2 = PNG_1x1.slice();
     png2[png2.length - 5] ^= 0x01;
-    const post2 = await app.request(`/api/v1/user/projects/${packId}/assets`, {
+    const post2 = await app.request(`/api/v1/user/projects/${projectId}/assets`, {
       method: "POST", headers: { Cookie: cookie }, body: uploadForm({ name: "a_two", png: png2 }),
     });
     const second = (await post2.json()).asset;
 
-    const res = await app.request(`/api/v1/user/projects/${packId}/assets/${second.id}`, {
+    const res = await app.request(`/api/v1/user/projects/${projectId}/assets/${second.id}`, {
       method: "PATCH",
       headers: { Cookie: cookie, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "a_one" }),
@@ -528,14 +528,14 @@ describe("PATCH /api/v1/user/projects/:projectId/assets/:id", () => {
     expect(res.status).toBe(409);
   });
 
-  test("403 when patching an asset from another user's pack", async () => {
+  test("403 when patching an asset from another user's project", async () => {
     const sessA = await seedSession();
     const sessB = await seedSession();
-    const post = await app.request(`/api/v1/user/projects/${sessA.packId}/assets`, {
+    const post = await app.request(`/api/v1/user/projects/${sessA.projectId}/assets`, {
       method: "POST", headers: { Cookie: sessA.cookie }, body: uploadForm({ name: "cross_patch" }),
     });
     const a = (await post.json()).asset;
-    const res = await app.request(`/api/v1/user/projects/${sessA.packId}/assets/${a.id}`, {
+    const res = await app.request(`/api/v1/user/projects/${sessA.projectId}/assets/${a.id}`, {
       method: "PATCH",
       headers: { Cookie: sessB.cookie, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "renamed" }),
@@ -546,33 +546,33 @@ describe("PATCH /api/v1/user/projects/:projectId/assets/:id", () => {
 
 describe("DELETE /api/v1/user/projects/:projectId/assets/:id", () => {
   test("deletes an asset", async () => {
-    const { cookie, packId } = await seedSession();
-    const post = await app.request(`/api/v1/user/projects/${packId}/assets`, {
+    const { cookie, projectId } = await seedSession();
+    const post = await app.request(`/api/v1/user/projects/${projectId}/assets`, {
       method: "POST", headers: { Cookie: cookie }, body: uploadForm({ name: "to_delete" }),
     });
     const a = (await post.json()).asset;
 
-    const res = await app.request(`/api/v1/user/projects/${packId}/assets/${a.id}`, { method: "DELETE", headers: { Cookie: cookie } });
+    const res = await app.request(`/api/v1/user/projects/${projectId}/assets/${a.id}`, { method: "DELETE", headers: { Cookie: cookie } });
     expect(res.status).toBe(204);
 
-    const check = await app.request(`/api/v1/user/projects/${packId}/assets/${a.id}`, { headers: { Cookie: cookie } });
+    const check = await app.request(`/api/v1/user/projects/${projectId}/assets/${a.id}`, { headers: { Cookie: cookie } });
     expect(check.status).toBe(404);
   });
 
   test("404 for unknown id", async () => {
-    const { cookie, packId } = await seedSession();
-    const res = await app.request(`/api/v1/user/projects/${packId}/assets/asset_xxx`, { method: "DELETE", headers: { Cookie: cookie } });
+    const { cookie, projectId } = await seedSession();
+    const res = await app.request(`/api/v1/user/projects/${projectId}/assets/asset_xxx`, { method: "DELETE", headers: { Cookie: cookie } });
     expect(res.status).toBe(404);
   });
 
-  test("403 when deleting an asset from another user's pack", async () => {
+  test("403 when deleting an asset from another user's project", async () => {
     const sessA = await seedSession();
     const sessB = await seedSession();
-    const post = await app.request(`/api/v1/user/projects/${sessA.packId}/assets`, {
+    const post = await app.request(`/api/v1/user/projects/${sessA.projectId}/assets`, {
       method: "POST", headers: { Cookie: sessA.cookie }, body: uploadForm({ name: "cross_delete" }),
     });
     const a = (await post.json()).asset;
-    const res = await app.request(`/api/v1/user/projects/${sessA.packId}/assets/${a.id}`, {
+    const res = await app.request(`/api/v1/user/projects/${sessA.projectId}/assets/${a.id}`, {
       method: "DELETE",
       headers: { Cookie: sessB.cookie },
     });
@@ -582,8 +582,8 @@ describe("DELETE /api/v1/user/projects/:projectId/assets/:id", () => {
 
 describe("POST /api/v1/user/projects/:projectId/assets type=font", () => {
   test("creates a font asset from a valid MCFonts zip", async () => {
-    const { cookie, packId } = await seedSession();
-    const res = await app.request(`/api/v1/user/projects/${packId}/assets`, {
+    const { cookie, projectId } = await seedSession();
+    const res = await app.request(`/api/v1/user/projects/${projectId}/assets`, {
       method: "POST",
       headers: { Cookie: cookie },
       body: uploadFontForm({ name: "myfont" }),
@@ -592,7 +592,7 @@ describe("POST /api/v1/user/projects/:projectId/assets type=font", () => {
     const body = await res.json();
     expect(body.asset.type).toBe("font");
     expect(body.asset.name).toBe("myfont");
-    expect(body.asset.projectId).toBe(packId);
+    expect(body.asset.projectId).toBe(projectId);
     expect(body.asset.codepoint).toBeNull();
     expect(body.asset.ascent).toBeNull();
     expect(body.asset.contentHash).toMatch(/^[0-9a-f]{40}$/);
@@ -602,15 +602,15 @@ describe("POST /api/v1/user/projects/:projectId/assets type=font", () => {
     expect(body.warnings).toEqual([]);
 
     // Verify glyph PNGs are on disk via readFontGlyph.
-    const aBytes = await readFontGlyph(packId, body.asset.id, "glyphs/a.png");
+    const aBytes = await readFontGlyph(projectId, body.asset.id, "glyphs/a.png");
     expect(aBytes).not.toBeNull();
     expect(aBytes!.length).toBe(PNG_8x8.length);
   });
 
   test("rejects a zip missing font.json with 400", async () => {
-    const { cookie, packId } = await seedSession();
+    const { cookie, projectId } = await seedSession();
     const zip = buildFontZip({ omitFontJson: true });
-    const res = await app.request(`/api/v1/user/projects/${packId}/assets`, {
+    const res = await app.request(`/api/v1/user/projects/${projectId}/assets`, {
       method: "POST",
       headers: { Cookie: cookie },
       body: uploadFontForm({ name: "no_json", zip }),
@@ -621,13 +621,13 @@ describe("POST /api/v1/user/projects/:projectId/assets type=font", () => {
   });
 
   test("rejects a zip with no usable glyphs (empty glyphMap) with 400", async () => {
-    const { cookie, packId } = await seedSession();
+    const { cookie, projectId } = await seedSession();
     // Only a reference provider — gets skipped, glyphMap stays empty.
     const zip = buildFontZip({
       providers: [{ type: "reference", id: "minecraft:include/space" }],
       glyphs: {},
     });
-    const res = await app.request(`/api/v1/user/projects/${packId}/assets`, {
+    const res = await app.request(`/api/v1/user/projects/${projectId}/assets`, {
       method: "POST",
       headers: { Cookie: cookie },
       body: uploadFontForm({ name: "empty_font", zip }),
@@ -638,8 +638,8 @@ describe("POST /api/v1/user/projects/:projectId/assets type=font", () => {
   });
 
   test("rejects duplicate name within type=font with 409", async () => {
-    const { cookie, packId } = await seedSession();
-    const r1 = await app.request(`/api/v1/user/projects/${packId}/assets`, {
+    const { cookie, projectId } = await seedSession();
+    const r1 = await app.request(`/api/v1/user/projects/${projectId}/assets`, {
       method: "POST", headers: { Cookie: cookie }, body: uploadFontForm({ name: "dup_font" }),
     });
     expect(r1.status).toBe(201);
@@ -651,23 +651,23 @@ describe("POST /api/v1/user/projects/:projectId/assets type=font", () => {
       ],
       glyphs: { "glyphs/c.png": PNG_8x8 },
     });
-    const r2 = await app.request(`/api/v1/user/projects/${packId}/assets`, {
+    const r2 = await app.request(`/api/v1/user/projects/${projectId}/assets`, {
       method: "POST", headers: { Cookie: cookie }, body: uploadFontForm({ name: "dup_font", zip: distinct }),
     });
     expect(r2.status).toBe(409);
   });
 
   test("dedups on contentHash within type=font", async () => {
-    const { cookie, packId } = await seedSession();
+    const { cookie, projectId } = await seedSession();
     const zip = buildFontZip({});
-    const r1 = await app.request(`/api/v1/user/projects/${packId}/assets`, {
+    const r1 = await app.request(`/api/v1/user/projects/${projectId}/assets`, {
       method: "POST", headers: { Cookie: cookie }, body: uploadFontForm({ name: "first_font", zip }),
     });
     expect(r1.status).toBe(201);
     const a1 = (await r1.json()).asset;
 
     // Same bytes (same zip) → dedup hit, returns the same id with status 200.
-    const r2 = await app.request(`/api/v1/user/projects/${packId}/assets`, {
+    const r2 = await app.request(`/api/v1/user/projects/${projectId}/assets`, {
       method: "POST", headers: { Cookie: cookie }, body: uploadFontForm({ name: "second_font", zip }),
     });
     expect(r2.status).toBe(200);
@@ -676,14 +676,14 @@ describe("POST /api/v1/user/projects/:projectId/assets type=font", () => {
   });
 
   test("rejects font zip over 5 MB with 400", async () => {
-    const { cookie, packId } = await seedSession();
+    const { cookie, projectId } = await seedSession();
     // 6 MB blob — content is irrelevant; size check fires before parse.
     const big = new Uint8Array(6 * 1024 * 1024);
     const fd = new FormData();
     fd.set("type", "font");
     fd.set("name", "huge_font");
     fd.set("file", new Blob([big.buffer as ArrayBuffer], { type: "application/zip" }), "font.zip");
-    const res = await app.request(`/api/v1/user/projects/${packId}/assets`, {
+    const res = await app.request(`/api/v1/user/projects/${projectId}/assets`, {
       method: "POST", headers: { Cookie: cookie }, body: fd,
     });
     expect(res.status).toBe(400);
@@ -694,43 +694,43 @@ describe("POST /api/v1/user/projects/:projectId/assets type=font", () => {
 
 describe("DELETE /api/v1/user/projects/:projectId/assets/:id (font)", () => {
   test("removes the font directory from disk", async () => {
-    const { cookie, packId } = await seedSession();
-    const post = await app.request(`/api/v1/user/projects/${packId}/assets`, {
+    const { cookie, projectId } = await seedSession();
+    const post = await app.request(`/api/v1/user/projects/${projectId}/assets`, {
       method: "POST",
       headers: { Cookie: cookie },
       body: uploadFontForm({ name: "to_delete_font" }),
     });
     expect(post.status).toBe(201);
     const created = (await post.json()).asset;
-    const { dir } = fontDirPaths(packId, created.id);
+    const { dir } = fontDirPaths(projectId, created.id);
     expect(existsSync(dir)).toBe(true);
 
-    const del = await app.request(`/api/v1/user/projects/${packId}/assets/${created.id}`, {
+    const del = await app.request(`/api/v1/user/projects/${projectId}/assets/${created.id}`, {
       method: "DELETE",
       headers: { Cookie: cookie },
     });
     expect(del.status).toBe(204);
 
     expect(existsSync(dir)).toBe(false);
-    const stillThere = await readFontGlyph(packId, created.id, "glyphs/a.png");
+    const stillThere = await readFontGlyph(projectId, created.id, "glyphs/a.png");
     expect(stillThere).toBeNull();
 
     // And the DB row is gone too.
-    const check = await app.request(`/api/v1/user/projects/${packId}/assets/${created.id}`, { headers: { Cookie: cookie } });
+    const check = await app.request(`/api/v1/user/projects/${projectId}/assets/${created.id}`, { headers: { Cookie: cookie } });
     expect(check.status).toBe(404);
   });
 });
 
 describe("POST /api/v1/user/projects/:projectId/assets/:id/duplicate", () => {
   test("duplicates a glyph asset: returns new id + new codepoint", async () => {
-    const { cookie, packId } = await seedSession();
-    const post = await app.request(`/api/v1/user/projects/${packId}/assets`, {
+    const { cookie, projectId } = await seedSession();
+    const post = await app.request(`/api/v1/user/projects/${projectId}/assets`, {
       method: "POST", headers: { Cookie: cookie }, body: uploadForm({ type: "glyph", name: "dup_glyph", ascent: "7" }),
     });
     expect(post.status).toBe(201);
     const original = (await post.json()).asset;
 
-    const res = await app.request(`/api/v1/user/projects/${packId}/assets/${original.id}/duplicate`, {
+    const res = await app.request(`/api/v1/user/projects/${projectId}/assets/${original.id}/duplicate`, {
       method: "POST",
       headers: { Cookie: cookie },
     });
@@ -746,12 +746,12 @@ describe("POST /api/v1/user/projects/:projectId/assets/:id/duplicate", () => {
   });
 
   test("rejects duplicating a texture (only glyphs allowed) with 400", async () => {
-    const { cookie, packId } = await seedSession();
-    const post = await app.request(`/api/v1/user/projects/${packId}/assets`, {
+    const { cookie, projectId } = await seedSession();
+    const post = await app.request(`/api/v1/user/projects/${projectId}/assets`, {
       method: "POST", headers: { Cookie: cookie }, body: uploadForm({ type: "texture", name: "no_dup_tex" }),
     });
     const a = (await post.json()).asset;
-    const res = await app.request(`/api/v1/user/projects/${packId}/assets/${a.id}/duplicate`, {
+    const res = await app.request(`/api/v1/user/projects/${projectId}/assets/${a.id}/duplicate`, {
       method: "POST",
       headers: { Cookie: cookie },
     });
@@ -759,12 +759,12 @@ describe("POST /api/v1/user/projects/:projectId/assets/:id/duplicate", () => {
   });
 
   test("rejects duplicating a font asset with 400", async () => {
-    const { cookie, packId } = await seedSession();
-    const post = await app.request(`/api/v1/user/projects/${packId}/assets`, {
+    const { cookie, projectId } = await seedSession();
+    const post = await app.request(`/api/v1/user/projects/${projectId}/assets`, {
       method: "POST", headers: { Cookie: cookie }, body: uploadFontForm({ name: "no_dup_font" }),
     });
     const a = (await post.json()).asset;
-    const res = await app.request(`/api/v1/user/projects/${packId}/assets/${a.id}/duplicate`, {
+    const res = await app.request(`/api/v1/user/projects/${projectId}/assets/${a.id}/duplicate`, {
       method: "POST",
       headers: { Cookie: cookie },
     });
@@ -772,22 +772,22 @@ describe("POST /api/v1/user/projects/:projectId/assets/:id/duplicate", () => {
   });
 
   test("404 on non-existent id", async () => {
-    const { cookie, packId } = await seedSession();
-    const res = await app.request(`/api/v1/user/projects/${packId}/assets/asset_does_not_exist/duplicate`, {
+    const { cookie, projectId } = await seedSession();
+    const res = await app.request(`/api/v1/user/projects/${projectId}/assets/asset_does_not_exist/duplicate`, {
       method: "POST",
       headers: { Cookie: cookie },
     });
     expect(res.status).toBe(404);
   });
 
-  test("403 when source belongs to another user's pack", async () => {
+  test("403 when source belongs to another user's project", async () => {
     const sessA = await seedSession();
     const sessB = await seedSession();
-    const post = await app.request(`/api/v1/user/projects/${sessA.packId}/assets`, {
+    const post = await app.request(`/api/v1/user/projects/${sessA.projectId}/assets`, {
       method: "POST", headers: { Cookie: sessA.cookie }, body: uploadForm({ type: "glyph", name: "cross_dup", ascent: "7" }),
     });
     const a = (await post.json()).asset;
-    const res = await app.request(`/api/v1/user/projects/${sessA.packId}/assets/${a.id}/duplicate`, {
+    const res = await app.request(`/api/v1/user/projects/${sessA.projectId}/assets/${a.id}/duplicate`, {
       method: "POST",
       headers: { Cookie: sessB.cookie },
     });
@@ -795,13 +795,13 @@ describe("POST /api/v1/user/projects/:projectId/assets/:id/duplicate", () => {
   });
 
   test("both source and copy exist in DB after duplicate", async () => {
-    const { cookie, packId } = await seedSession();
-    const post = await app.request(`/api/v1/user/projects/${packId}/assets`, {
+    const { cookie, projectId } = await seedSession();
+    const post = await app.request(`/api/v1/user/projects/${projectId}/assets`, {
       method: "POST", headers: { Cookie: cookie }, body: uploadForm({ type: "glyph", name: "both_exist", ascent: "7" }),
     });
     const original = (await post.json()).asset;
 
-    const dup = await app.request(`/api/v1/user/projects/${packId}/assets/${original.id}/duplicate`, {
+    const dup = await app.request(`/api/v1/user/projects/${projectId}/assets/${original.id}/duplicate`, {
       method: "POST",
       headers: { Cookie: cookie },
     });
@@ -811,44 +811,44 @@ describe("POST /api/v1/user/projects/:projectId/assets/:id/duplicate", () => {
     const copyRow = await db.select().from(assets).where(eq(assets.id, copy.id));
     expect(srcRow.length).toBe(1);
     expect(copyRow.length).toBe(1);
-    expect(srcRow[0].projectId).toBe(packId);
-    expect(copyRow[0].projectId).toBe(packId);
+    expect(srcRow[0].projectId).toBe(projectId);
+    expect(copyRow[0].projectId).toBe(projectId);
   });
 
   test("copy PNG file exists on disk at expected path", async () => {
-    const { cookie, packId } = await seedSession();
-    const post = await app.request(`/api/v1/user/projects/${packId}/assets`, {
+    const { cookie, projectId } = await seedSession();
+    const post = await app.request(`/api/v1/user/projects/${projectId}/assets`, {
       method: "POST", headers: { Cookie: cookie }, body: uploadForm({ type: "glyph", name: "png_on_disk", ascent: "7" }),
     });
     const original = (await post.json()).asset;
 
-    const dup = await app.request(`/api/v1/user/projects/${packId}/assets/${original.id}/duplicate`, {
+    const dup = await app.request(`/api/v1/user/projects/${projectId}/assets/${original.id}/duplicate`, {
       method: "POST",
       headers: { Cookie: cookie },
     });
     const copy = (await dup.json()).asset;
 
     const { assetPath } = await import("../lib/assetStorage");
-    expect(existsSync(assetPath(packId, copy.id))).toBe(true);
-    expect(existsSync(assetPath(packId, original.id))).toBe(true);
+    expect(existsSync(assetPath(projectId, copy.id))).toBe(true);
+    expect(existsSync(assetPath(projectId, original.id))).toBe(true);
   });
 
   test("dedupes copy name when '<name>_copy' already exists", async () => {
-    const { cookie, packId } = await seedSession();
+    const { cookie, projectId } = await seedSession();
     // Original
-    const post = await app.request(`/api/v1/user/projects/${packId}/assets`, {
+    const post = await app.request(`/api/v1/user/projects/${projectId}/assets`, {
       method: "POST", headers: { Cookie: cookie }, body: uploadForm({ type: "glyph", name: "name_clash", ascent: "7" }),
     });
     const original = (await post.json()).asset;
     // First duplicate → "name_clash_copy"
-    const dup1 = await app.request(`/api/v1/user/projects/${packId}/assets/${original.id}/duplicate`, {
+    const dup1 = await app.request(`/api/v1/user/projects/${projectId}/assets/${original.id}/duplicate`, {
       method: "POST",
       headers: { Cookie: cookie },
     });
     expect(dup1.status).toBe(200);
     expect((await dup1.json()).asset.name).toBe("name_clash_copy");
     // Second duplicate of original → "name_clash_copy2"
-    const dup2 = await app.request(`/api/v1/user/projects/${packId}/assets/${original.id}/duplicate`, {
+    const dup2 = await app.request(`/api/v1/user/projects/${projectId}/assets/${original.id}/duplicate`, {
       method: "POST",
       headers: { Cookie: cookie },
     });

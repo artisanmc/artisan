@@ -45,7 +45,7 @@ const PNG_1x1 = new Uint8Array([
   0x42, 0x60, 0x82,
 ]);
 
-async function seedSession(): Promise<{ packId: string }> {
+async function seedSession(): Promise<{ projectId: string }> {
   const networkId = crypto.randomUUID();
   await db.insert(networks).values({
     id: networkId,
@@ -63,30 +63,30 @@ async function seedSession(): Promise<{ packId: string }> {
     createdAt: new Date(),
   });
 
-  const packId = "pack_" + crypto.randomUUID().replace(/-/g, "").slice(0, 12);
+  const projectId = "pack_" + crypto.randomUUID().replace(/-/g, "").slice(0, 12);
   await db.insert(projects).values({
-    id: packId,
+    id: projectId,
     networkId,
     serverKeyId,
-    name: "test-pack",
+    name: "test-project",
     hash: "",
     filesJson: "{}",
     createdAt: now,
     updatedAt: now,
   });
 
-  return { packId };
+  return { projectId };
 }
 
-describe("GET /api/v1/textures/asset/:packId/:assetId", () => {
+describe("GET /api/v1/textures/asset/:projectId/:assetId", () => {
   test("serves the PNG by id", async () => {
-    const { packId } = await seedSession();
+    const { projectId } = await seedSession();
     // Directly insert an asset to avoid going through POST
     const assetId = "asset_" + crypto.randomUUID().replace(/-/g, "").slice(0, 12);
     const now = new Date();
     await db.insert(assets).values({
       id: assetId,
-      projectId: packId,
+      projectId: projectId,
       type: "texture",
       name: "tex_serve",
       width: 1,
@@ -100,9 +100,9 @@ describe("GET /api/v1/textures/asset/:packId/:assetId", () => {
     });
     // Write the PNG to disk
     const { writeAssetFile } = await import("../lib/assetStorage");
-    await writeAssetFile(packId, assetId, PNG_1x1);
+    await writeAssetFile(projectId, assetId, PNG_1x1);
 
-    const res = await app.request(`/api/v1/textures/asset/${packId}/${assetId}`);
+    const res = await app.request(`/api/v1/textures/asset/${projectId}/${assetId}`);
     expect(res.status).toBe(200);
     expect(res.headers.get("Content-Type")).toBe("image/png");
     const bytes = new Uint8Array(await res.arrayBuffer());
@@ -115,17 +115,17 @@ describe("GET /api/v1/textures/asset/:packId/:assetId", () => {
   });
 
   test("rejects path traversal attempts", async () => {
-    const res = await app.request(`/api/v1/textures/asset/pack/..%2F..%2Fetc%2Fpasswd`);
+    const res = await app.request(`/api/v1/textures/asset/project/..%2F..%2Fetc%2Fpasswd`);
     expect([400, 404]).toContain(res.status);
   });
 });
 
 describe("GET /api/v1/textures/asset-font/:assetId/*", () => {
-  const createdAssetIds: Array<{ packId: string; assetId: string }> = [];
+  const createdAssetIds: Array<{ projectId: string; assetId: string }> = [];
 
   afterEach(async () => {
-    for (const { packId, assetId } of createdAssetIds) {
-      await deleteFontAssets(packId, assetId);
+    for (const { projectId, assetId } of createdAssetIds) {
+      await deleteFontAssets(projectId, assetId);
       await db.delete(assets).where(eq(assets.id, assetId));
     }
     createdAssetIds.length = 0;
@@ -134,15 +134,15 @@ describe("GET /api/v1/textures/asset-font/:assetId/*", () => {
   async function seedFontAsset(opts: {
     glyphs: Map<string, Uint8Array>;
     type?: string;
-  }): Promise<{ packId: string; assetId: string }> {
-    const { packId } = await seedSession();
+  }): Promise<{ projectId: string; assetId: string }> {
+    const { projectId } = await seedSession();
     const assetId = "asset_" + crypto.randomUUID().replace(/-/g, "").slice(0, 12);
     const fontJson = new TextEncoder().encode('{"providers":[]}');
-    await writeFontAssets(packId, assetId, fontJson, opts.glyphs);
+    await writeFontAssets(projectId, assetId, fontJson, opts.glyphs);
     const now = new Date();
     await db.insert(assets).values({
       id: assetId,
-      projectId: packId,
+      projectId: projectId,
       type: opts.type ?? "font",
       name: "font_" + assetId.slice(6, 12),
       width: 8,
@@ -156,8 +156,8 @@ describe("GET /api/v1/textures/asset-font/:assetId/*", () => {
       createdAt: now,
       updatedAt: now,
     });
-    createdAssetIds.push({ packId, assetId });
-    return { packId, assetId };
+    createdAssetIds.push({ projectId, assetId });
+    return { projectId, assetId };
   }
 
   test("serves a font glyph PNG by asset id + relative path", async () => {

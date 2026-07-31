@@ -4,7 +4,7 @@ import { COMMAND_BOX, menuBoxSize } from "@/features/canvas/menuLayout";
 import { useTranslation } from "react-i18next";
 
 interface ProjectMiniPreviewProps {
-  pack: Project;
+  project: Project;
 }
 
 const VIEW_W = 200;
@@ -12,22 +12,22 @@ const VIEW_H = 100;
 const PADDING = 6;
 
 /**
- * Cheap SVG snapshot of a pack's canvas: each menu/command is a filled rect at
+ * Cheap SVG snapshot of a project's canvas: each menu/command is a filled rect at
  * its canvasLayout position, scaled uniformly to fit the viewBox. No edges, no
  * text, no interactivity — just visual recognition. Reads the same autoLayout
  * fallback as the live canvas so projects the user hasn't manually positioned
  * still render.
  */
-export function ProjectMiniPreview({ pack }: ProjectMiniPreviewProps) {
+export function ProjectMiniPreview({ project }: ProjectMiniPreviewProps) {
   const { t } = useTranslation();
-  const layout = autoLayout(pack);
+  const layout = autoLayout(project);
   const boxes = [
-    ...(pack.menus ?? []).map((m) => ({
+    ...(project.menus ?? []).map((m) => ({
       pos: layout[m.id] ?? { x: 0, y: 0 },
       size: menuBoxSize(m.inventoryType ?? "chest", m.rows),
       kind: "menu" as const,
     })),
-    ...(pack.commands ?? []).map((c) => ({
+    ...(project.commands ?? []).map((c) => ({
       pos: layout[c.id] ?? { x: 0, y: 0 },
       size: COMMAND_BOX,
       kind: "command" as const,
@@ -64,7 +64,7 @@ export function ProjectMiniPreview({ pack }: ProjectMiniPreviewProps) {
       className="h-full w-full"
       preserveAspectRatio="xMidYMid meet"
       role="img"
-      aria-label={`Preview of ${pack.name}`}
+      aria-label={`Preview of ${project.name}`}
     >
       {boxes.map((b, i) => (
         <rect

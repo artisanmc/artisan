@@ -39,7 +39,7 @@ class ResourcePackManagerTest {
     private val OTHER_HASH = "f".repeat(40)
 
     /**
-     * Records every [addPack]/[removePack] call so tests can assert the exact sequence
+     * Records every [addProject]/[removeProject] call so tests can assert the exact sequence
      * of Bukkit API interactions. MockBukkit's [Player.addResourcePack] and
      * [Player.removeResourcePack] throw `UnimplementedOperationException`, so we override
      * the [ResourcePackManager] test seams instead of exercising the real player API.
@@ -57,11 +57,11 @@ class ResourcePackManagerTest {
 
         val calls = mutableListOf<Call>()
 
-        override fun addPack(player: Player, info: ResourcePackInfo) {
+        override fun addProject(player: Player, info: ResourcePackInfo) {
             calls += Call.Add(player.name, info.uuid, info.url, info.hash)
         }
 
-        override fun removePack(player: Player, uuid: UUID) {
+        override fun removeProject(player: Player, uuid: UUID) {
             calls += Call.Remove(player.name, uuid)
         }
     }
@@ -82,7 +82,7 @@ class ResourcePackManagerTest {
     }
 
     @Test
-    fun `manager starts with no current pack`() {
+    fun `manager starts with no current project`() {
         val mgr = ResourcePackManager(plugin, config(), logger = plugin.logger)
         assertNull(mgr.currentPackInfo)
     }
@@ -96,7 +96,7 @@ class ResourcePackManagerTest {
     }
 
     @Test
-    fun `onUpdate persists pack info and loadFromDisk restores it after a restart`(
+    fun `onUpdate persists project info and loadFromDisk restores it after a restart`(
         @org.junit.jupiter.api.io.TempDir tmp: java.nio.file.Path,
     ) {
         val cache = tmp.resolve("resource-pack.json").toFile()
@@ -159,7 +159,7 @@ class ResourcePackManagerTest {
     }
 
     @Test
-    fun `first push calls addPack and does NOT call removePack`() {
+    fun `first push calls addProject and does NOT call removeProject`() {
         val mgr = RecordingManager(plugin, config(), logger = plugin.logger)
         val player = server.addPlayer("alice")
         mgr.onUpdate(ResourcePackInfo.from("http://x", SAMPLE_HASH, "<gold>x</gold>"))
@@ -169,11 +169,11 @@ class ResourcePackManagerTest {
         assertEquals(1, adds.size)
         assertEquals("alice", adds[0].playerName)
         assertEquals(SAMPLE_HASH, adds[0].hash)
-        assertTrue(removes.isEmpty(), "first push must not call removePack (no previous Artisan pack)")
+        assertTrue(removes.isEmpty(), "first push must not call removeProject (no previous Artisan project)")
     }
 
     @Test
-    fun `second push after onUpdate removes the previous pack and then adds the new one`() {
+    fun `second push after onUpdate removes the previous project and then adds the new one`() {
         val mgr = RecordingManager(plugin, config(), logger = plugin.logger)
         val player = server.addPlayer("alice")
 
@@ -197,7 +197,7 @@ class ResourcePackManagerTest {
     }
 
     @Test
-    fun `onUpdate(null) removes the pack for all online players and clears previousUuid`() {
+    fun `onUpdate(null) removes the project for all online players and clears previousUuid`() {
         val mgr = RecordingManager(plugin, config(), logger = plugin.logger)
         val alice = server.addPlayer("alice")
         val bob = server.addPlayer("bob")
@@ -214,7 +214,7 @@ class ResourcePackManagerTest {
         val removes = mgr.calls.filterIsInstance<RecordingManager.Call.Remove>()
         val adds = mgr.calls.filterIsInstance<RecordingManager.Call.Add>()
         assertEquals(2, removes.size, "expected one remove per online player")
-        assertTrue(adds.isEmpty(), "no add calls expected when clearing the pack")
+        assertTrue(adds.isEmpty(), "no add calls expected when clearing the project")
         assertEquals(setOf("alice", "bob"), removes.map { it.playerName }.toSet())
         for (r in removes) assertEquals(info.uuid, r.uuid)
 
@@ -230,7 +230,7 @@ class ResourcePackManagerTest {
     }
 
     @Test
-    fun `same UUID push does not call removePack`() {
+    fun `same UUID push does not call removeProject`() {
         // If the hash hasn't changed, the UUID is stable. We shouldn't churn the player's
         // stack by remove+add of the same UUID.
         val mgr = RecordingManager(plugin, config(), logger = plugin.logger)
@@ -252,24 +252,24 @@ class ResourcePackManagerTest {
     fun `applyFromBackend with dual URLs stores both on the info`() {
         val mgr = ResourcePackManager(plugin, config(enabled = false), logger = plugin.logger)
         mgr.applyFromBackend(
-            playerUrl = "http://localhost:3001/pack.zip",
-            downloadUrl = "http://backend:3001/pack.zip",
+            playerUrl = "http://localhost:3001/project.zip",
+            downloadUrl = "http://backend:3001/project.zip",
             hash = SAMPLE_HASH,
         )
         val info = mgr.currentPackInfo
         assertNotNull(info)
-        assertEquals("http://localhost:3001/pack.zip", info.url)
-        assertEquals("http://backend:3001/pack.zip", info.downloadUrl)
+        assertEquals("http://localhost:3001/project.zip", info.url)
+        assertEquals("http://backend:3001/project.zip", info.downloadUrl)
     }
 
     @Test
     fun `single-URL applyFromBackend defaults downloadUrl to url`() {
         val mgr = ResourcePackManager(plugin, config(enabled = false), logger = plugin.logger)
-        mgr.applyFromBackend(url = "http://x/pack.zip", hash = SAMPLE_HASH)
+        mgr.applyFromBackend(url = "http://x/project.zip", hash = SAMPLE_HASH)
         val info = mgr.currentPackInfo
         assertNotNull(info)
-        assertEquals("http://x/pack.zip", info.url)
-        assertEquals("http://x/pack.zip", info.downloadUrl)
+        assertEquals("http://x/project.zip", info.url)
+        assertEquals("http://x/project.zip", info.downloadUrl)
     }
 
     @Test
@@ -285,7 +285,7 @@ class ResourcePackManagerTest {
             assetCatalog = AssetCatalog(),
         )
         mgr.applyFromBackend(
-            playerUrl = "http://player-only.example/pack.zip",
+            playerUrl = "http://player-only.example/project.zip",
             downloadUrl = "http://backend:3001/api/v1/resource-pack/aa.zip",
             hash = SAMPLE_HASH,
         )
@@ -295,7 +295,7 @@ class ResourcePackManagerTest {
         // ResourcePackManager.updateCatalogAsync). The player URL is what
         // pushToPlayer sends via addResourcePack.
         assertEquals("http://backend:3001/api/v1/resource-pack/aa.zip", info.downloadUrl)
-        assertEquals("http://player-only.example/pack.zip", info.url)
+        assertEquals("http://player-only.example/project.zip", info.url)
     }
 
     /**

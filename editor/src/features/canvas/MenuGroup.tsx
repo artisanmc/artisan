@@ -52,7 +52,7 @@ interface MenuGroupProps {
   projectId: ProjectId;
   menu: Menu;
   position: { x: number; y: number };
-  /** Full pack-canvas layout — needed by the slot drag-out handler to
+  /** Full project-canvas layout — needed by the slot drag-out handler to
    *  resolve which menu (if any) the cursor was over on dragend. */
   layout: Record<string, { x: number; y: number }>;
   /** Solo mode: render at origin, non-draggable, no menu-level drag/select
@@ -137,13 +137,13 @@ export function MenuGroup({ projectId, menu, position, layout, solo = false }: M
     return map;
   }, [menu.layers]);
 
-  // Active language + pack ref so we can resolve `LText` refs (menu
+  // Active language + project ref so we can resolve `LText` refs (menu
   // title, appearance titles, lore lines) into the actually-displayed
   // string. Project ref is stable thanks to immer; the resolver reads
-  // `pack.i18nKeys[lt.key][activeLang]` with fallback to defaultLang.
+  // `project.i18nKeys[lt.key][activeLang]` with fallback to defaultLang.
   // For `iterates` elements, positions are unrolled against the preview
   // scope; each position i binds the i-th item with placeholder resolution.
-  const pack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
   // Live-server snapshots (cached via preview) so the canvas renders REAL rows
   // for module sources, not just the static connector sample. Loaded below.
   const snapshots = useServerSnapshotsStore((s) => s.rowsByRef);
@@ -160,9 +160,9 @@ export function MenuGroup({ projectId, menu, position, layout, solo = false }: M
   }, [menu.contextInputs, networkId, serverId, loadSnapshot]);
   // Build a preview scope from contextInputs — primitives are coerced to their
   // declared type; sourceRefs resolve against a live snapshot (server sources)
-  // with pack.dataSources as the project-data path.
+  // with project.dataSources as the project-data path.
   const previewArgs = useUiStore((s) => s.menuPreviewArgs[menu.id]);
-  const sampleCtx = pack ? buildPreviewScope(menu, pack, snapshots, previewArgs) : {};
+  const sampleCtx = project ? buildPreviewScope(menu, project, snapshots, previewArgs) : {};
   const activeLang = useUiStore((s) => s.activeLang);
   // Per-element page index for iteration overflow. Shared via
   // paginationStore so the ItemTooltip (which renders outside MenuGroup)
@@ -265,17 +265,17 @@ export function MenuGroup({ projectId, menu, position, layout, solo = false }: M
         // sees the button shape they're configuring even when the data
         // list is empty.
         if (items.length === 0) {
-          const titleRaw = pack ? getText(pack, appearance.title, activeLang) : "";
+          const titleRaw = project ? getText(project, appearance.title, activeLang) : "";
           elementsByPosition.set(positions[0]!, {
             material: appearance.material
-              ? pack
-                ? renderPreview(appearance.material, enhancedCtx, pack, activeLang)
+              ? project
+                ? renderPreview(appearance.material, enhancedCtx, project, activeLang)
                 : appearance.material
               : undefined,
             head: appearance.head,
             title:
-              titleRaw && pack
-                ? renderPreview(titleRaw, enhancedCtx, pack, activeLang)
+              titleRaw && project
+                ? renderPreview(titleRaw, enhancedCtx, project, activeLang)
                 : titleRaw || undefined,
             count: appearance.count,
             enchanted,
@@ -288,17 +288,17 @@ export function MenuGroup({ projectId, menu, position, layout, solo = false }: M
         for (let i = 0; i < perPage && offset + i < items.length; i++) {
           const item = items[offset + i];
           const itemCtx = { ...enhancedCtx, [el.iterates.alias]: item };
-          const titleRaw = pack ? getText(pack, appearance.title, activeLang) : "";
+          const titleRaw = project ? getText(project, appearance.title, activeLang) : "";
           elementsByPosition.set(positions[i]!, {
             material: appearance.material
-              ? pack
-                ? renderPreview(appearance.material, itemCtx, pack, activeLang)
+              ? project
+                ? renderPreview(appearance.material, itemCtx, project, activeLang)
                 : appearance.material
               : undefined,
             head: appearance.head,
             title:
-              titleRaw && pack
-                ? renderPreview(titleRaw, itemCtx, pack, activeLang)
+              titleRaw && project
+                ? renderPreview(titleRaw, itemCtx, project, activeLang)
                 : titleRaw || undefined,
             count: appearance.count,
             enchanted,
@@ -309,7 +309,7 @@ export function MenuGroup({ projectId, menu, position, layout, solo = false }: M
         continue;
       }
 
-      if (el.places && pack) {
+      if (el.places && project) {
         // Placement mode: pin specific rows of a static source to hand-authored
         // page+slots. Rows are matched by keyField; the live snapshot wins, then
         // the placement's cachedDisplay, else the slot renders empty (dangling).
@@ -330,7 +330,7 @@ export function MenuGroup({ projectId, menu, position, layout, solo = false }: M
             row,
             rowsAvailable,
             baseCtx: enhancedCtx,
-            pack,
+            project,
             activeLang,
             elementId: el.id,
           });
@@ -343,17 +343,17 @@ export function MenuGroup({ projectId, menu, position, layout, solo = false }: M
       // includes phantom entries so no-material slots render as dashed
       // placeholders). Placeholders resolved against enhancedCtx.
       const elSlots = fannedSlotsByElement.get(el.id as string) ?? [];
-      const titleRaw = pack ? getText(pack, appearance.title, activeLang) : "";
+      const titleRaw = project ? getText(project, appearance.title, activeLang) : "";
       const info = {
         material: appearance.material
-          ? pack
-            ? renderPreview(appearance.material, enhancedCtx, pack, activeLang)
+          ? project
+            ? renderPreview(appearance.material, enhancedCtx, project, activeLang)
             : appearance.material
           : undefined,
         head: appearance.head,
         title:
-          titleRaw && pack
-            ? renderPreview(titleRaw, enhancedCtx, pack, activeLang)
+          titleRaw && project
+            ? renderPreview(titleRaw, enhancedCtx, project, activeLang)
             : titleRaw || undefined,
         count: appearance.count,
         enchanted,
@@ -625,8 +625,8 @@ export function MenuGroup({ projectId, menu, position, layout, solo = false }: M
               ? (() => {
                   // `item:<id>` refs expand to the captured display (custom
                   // material / head texture); other refs pass through.
-                  const d = pack
-                    ? resolveDisplayRef(pack, el?.material ?? "")
+                  const d = project
+                    ? resolveDisplayRef(project, el?.material ?? "")
                     : { material: el?.material ?? "" };
                   return (
                     <SlotItem

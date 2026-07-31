@@ -16,7 +16,7 @@ describe("AstCache", () => {
     expect(a).not.toBe(b);
   });
 
-  it("re-parses on different pack id", () => {
+  it("re-parses on different project id", () => {
     const cache = new AstCache(10);
     const a = cache.get("p1", 1, "x + 1");
     const b = cache.get("p2", 1, "x + 1");

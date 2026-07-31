@@ -9,7 +9,7 @@ import {
   readFontGlyph,
 } from "./fontStorage";
 
-const TEST_PACK = "test-pack-fontstorage";
+const TEST_PACK = "test-project-fontstorage";
 
 beforeEach(async () => {
   // Wipe any font dirs we might have created.

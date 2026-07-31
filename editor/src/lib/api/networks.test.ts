@@ -103,13 +103,13 @@ describe("networks API client", () => {
       async () =>
         new Response(
           JSON.stringify({
-            project: { id: "p_new", name: "new-pack", hash: "h_new" },
+            project: { id: "p_new", name: "new-project", hash: "h_new" },
           }),
           { status: 201 },
         ),
     );
-    const result = await createProject("n1", "sk1", "new-pack");
-    expect(result.name).toBe("new-pack");
+    const result = await createProject("n1", "sk1", "new-project");
+    expect(result.name).toBe("new-project");
     expect(fetch).toHaveBeenCalledWith(
       expect.stringMatching(/\/api\/v1\/networks\/n1\/projects$/),
       expect.objectContaining({ method: "POST" }),

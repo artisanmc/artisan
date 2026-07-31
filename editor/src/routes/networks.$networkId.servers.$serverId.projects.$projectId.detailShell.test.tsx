@@ -39,7 +39,7 @@ vi.mock("@/state/accountStore", () => ({
 }));
 vi.mock("@/features/project/useProjectLoader", () => ({
   useProjectLoader: () => ({
-    pack: {
+    project: {
       id: "p1",
       name: "Hub",
       defaultLang: "en",

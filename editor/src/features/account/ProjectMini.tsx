@@ -8,7 +8,7 @@ import { useTranslation } from "react-i18next";
 import { ProjectMiniPreview } from "./ProjectMiniPreview";
 
 interface ProjectMiniProps {
-  pack: Project;
+  project: Project;
   active: boolean;
 }
 
@@ -22,9 +22,9 @@ const sourceColor = (source: Project["source"]) =>
       ? "bg-[var(--warning-soft)] text-[var(--warning)]"
       : "bg-[var(--success-soft)] text-[var(--success)]";
 
-export function ProjectMini({ pack, active }: ProjectMiniProps) {
+export function ProjectMini({ project, active }: ProjectMiniProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: pack.id,
+    id: project.id,
   });
   const { t } = useTranslation();
   const style: CSSProperties = {
@@ -37,8 +37,8 @@ export function ProjectMini({ pack, active }: ProjectMiniProps) {
     <div
       ref={setNodeRef}
       style={style}
-      data-pack-id={pack.id}
-      data-pack-mini="true"
+      data-project-id={project.id}
+      data-project-mini="true"
       className={cx(
         "group rounded-md border bg-[var(--surface)]/60 p-2 transition-colors",
         active
@@ -48,22 +48,22 @@ export function ProjectMini({ pack, active }: ProjectMiniProps) {
     >
       <Link
         to="/project/$projectId"
-        params={{ projectId: pack.id as ProjectId }}
+        params={{ projectId: project.id as ProjectId }}
         className="flex flex-col gap-1.5"
       >
         <div className="flex items-center justify-between gap-2">
-          <span className="truncate font-mono text-xs">{pack.name}</span>
-          <span className={cx("rounded px-1 py-0.5 text-[9px]", sourceColor(pack.source))}>
-            {t(`projectMini.${sourceLabelKey(pack.source)}`)}
+          <span className="truncate font-mono text-xs">{project.name}</span>
+          <span className={cx("rounded px-1 py-0.5 text-[9px]", sourceColor(project.source))}>
+            {t(`projectMini.${sourceLabelKey(project.source)}`)}
           </span>
         </div>
         <div className="h-16 overflow-hidden rounded border border-[var(--border-soft)] bg-[var(--color-bg)]">
-          <ProjectMiniPreview pack={pack} />
+          <ProjectMiniPreview project={project} />
         </div>
         <div className="text-[10px] text-[var(--text-faint)]">
           {t("projectMini.countMenusCommands", {
-            menus: pack.menus.length,
-            commands: pack.commands.length,
+            menus: project.menus.length,
+            commands: project.commands.length,
           })}
         </div>
       </Link>

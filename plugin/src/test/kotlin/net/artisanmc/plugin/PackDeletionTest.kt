@@ -13,11 +13,11 @@ class PackDeletionTest {
     private val mapper = ObjectMapper()
 
     @Test
-    fun `project_deleted runtime message moves pack dir to artisan-trash`() {
+    fun `project_deleted runtime message moves project dir to artisan-trash`() {
         val packsDir = Files.createTempDirectory("artisan_pd_").toFile()
-        val packDir = File(packsDir, "p_kill").also { it.mkdirs() }
-        File(packDir, "menus").mkdirs()
-        File(packDir, "menus/m.yaml").writeText("id: m\n")
+        val projectDir = File(packsDir, "p_kill").also { it.mkdirs() }
+        File(projectDir, "menus").mkdirs()
+        File(projectDir, "menus/m.yaml").writeText("id: m\n")
 
         val provider = SyncedMenuProvider(
             roots = net.artisanmc.plugin.project.ProjectRoots(packsDir),
@@ -31,7 +31,7 @@ class PackDeletionTest {
             mapper.writeValueAsString(mapOf("type" to "project_deleted", "project_id" to "p_kill"))
         )
 
-        assertFalse(packDir.exists(), "packDir doit avoir été déplacé")
+        assertFalse(projectDir.exists(), "projectDir doit avoir été déplacé")
         val trash = File(packsDir, ".artisan-trash")
         assertTrue(trash.exists(), "trash créé")
         assertTrue(trash.listFiles()!!.any { it.name.startsWith("p_kill-") }, "fichier trash présent")

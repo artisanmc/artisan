@@ -18,7 +18,7 @@ import java.io.File
  *   - print(parse(canonicalDsl)) == canonicalDsl  (idempotent)
  *
  * The fixture file is located by walking up from the working dir, mirroring
- * `BundleHashConformanceTest`'s discovery of `pack-hash-conformance.json`.
+ * `BundleHashConformanceTest`'s discovery of `project-hash-conformance.json`.
  */
 class ActionDslConformanceTest {
 

@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { deriveEdges } from "./deriveEdges";
 
 describe("deriveEdges", () => {
-  it("emits an edge for each open_menu action found in the pack", () => {
+  it("emits an edge for each open_menu action found in the project", () => {
     const personal = mockAccount().projects.find((p) => p.id === projectId("p_personal"))!;
     const edges = deriveEdges(personal);
     expect(edges).toHaveLength(1);

@@ -106,7 +106,7 @@ import { injectDeclaredModels } from "./dataModels";
 import type { Project } from "./types";
 
 describe("injectDeclaredModels", () => {
-  function packWith(modelVersion: number | undefined): Project {
+  function projectWith(modelVersion: number | undefined): Project {
     return {
       id: "p",
       name: "p",
@@ -140,38 +140,38 @@ describe("injectDeclaredModels", () => {
   };
 
   it("replaces stale declared copies, keeps local models, runs pending migrations", () => {
-    const pack = packWith(1);
-    const migrated = injectDeclaredModels(pack, [doc]);
+    const project = projectWith(1);
+    const migrated = injectDeclaredModels(project, [doc]);
     expect(migrated).toBe(true);
-    const ids = (pack.dataModels ?? []).map((m) => m.id);
+    const ids = (project.dataModels ?? []).map((m) => m.id);
     expect(ids).toContain("mdl_local");
-    const injected = (pack.dataModels ?? []).find((m) => m.id === "boutique:category")!;
+    const injected = (project.dataModels ?? []).find((m) => m.id === "boutique:category")!;
     expect(injected.name).toBe("Category");
     expect(injected.provenance).toBe("module");
     expect(injected.version).toBe(2);
-    const cats = pack.dataSources[0] as { rows: Record<string, unknown>[]; modelVersion?: number };
+    const cats = project.dataSources[0] as { rows: Record<string, unknown>[]; modelVersion?: number };
     expect(cats.rows[0]).toEqual({ id: "c1", name: "Armes" });
     expect(cats.modelVersion).toBe(2);
   });
 
   it("data without a recorded version is treated as v1", () => {
-    const pack = packWith(undefined);
-    injectDeclaredModels(pack, [doc]);
-    const cats = pack.dataSources[0] as { rows: Record<string, unknown>[] };
+    const project = projectWith(undefined);
+    injectDeclaredModels(project, [doc]);
+    const cats = project.dataSources[0] as { rows: Record<string, unknown>[] };
     expect(cats.rows[0]).toEqual({ id: "c1", name: "Armes" });
   });
 
   it("up-to-date data is untouched", () => {
-    const pack = packWith(2);
-    const migrated = injectDeclaredModels(pack, [doc]);
+    const project = projectWith(2);
+    const migrated = injectDeclaredModels(project, [doc]);
     expect(migrated).toBe(false);
-    const cats = pack.dataSources[0] as { rows: Record<string, unknown>[] };
+    const cats = project.dataSources[0] as { rows: Record<string, unknown>[] };
     expect(cats.rows[0]).toEqual({ id: "c1", label: "Armes" });
   });
 
   it("a declaration that disappeared removes its stale injected copy", () => {
-    const pack = packWith(2);
-    injectDeclaredModels(pack, []);
-    expect((pack.dataModels ?? []).map((m) => m.id)).toEqual(["mdl_local"]);
+    const project = projectWith(2);
+    injectDeclaredModels(project, []);
+    expect((project.dataModels ?? []).map((m) => m.id)).toEqual(["mdl_local"]);
   });
 });

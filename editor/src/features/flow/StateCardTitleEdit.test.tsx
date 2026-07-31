@@ -82,11 +82,11 @@ describe("state card title editing reaches the store", () => {
     const input = screen.getByDisplayValue("§7Retour");
     fireEvent.change(input, { target: { value: "<gray>Retour" } });
 
-    const pack = useAccountStore.getState().account.projects.find((p) => p.id === PACK_ID)!;
-    const el = pack.menus[0]!.layers[0]!.elements[0]!;
+    const project = useAccountStore.getState().account.projects.find((p) => p.id === PACK_ID)!;
+    const el = project.menus[0]!.layers[0]!.elements[0]!;
     // The displayed "§7Retour" was the fr FALLBACK; typing writes en. This is
     // by design (the label says which language) — fr stays untouched.
-    expect(pack.i18nKeys[el.appearances[0]!.title!.key]).toEqual({
+    expect(project.i18nKeys[el.appearances[0]!.title!.key]).toEqual({
       fr: "§7Retour",
       en: "<gray>Retour",
     });
@@ -103,9 +103,9 @@ describe("state card title editing reaches the store", () => {
     fireEvent.change(screen.getByDisplayValue("§7Retour"), {
       target: { value: "<gray>Retour" },
     });
-    const pack = useAccountStore.getState().account.projects.find((p) => p.id === PACK_ID)!;
-    const el = pack.menus[0]!.layers[0]!.elements[0]!;
-    expect(pack.i18nKeys[el.appearances[0]!.title!.key]).toEqual({ fr: "<gray>Retour" });
+    const project = useAccountStore.getState().account.projects.find((p) => p.id === PACK_ID)!;
+    const el = project.menus[0]!.layers[0]!.elements[0]!;
+    expect(project.i18nKeys[el.appearances[0]!.title!.key]).toEqual({ fr: "<gray>Retour" });
   });
 
   it("shows the fallback variant of the title label when the active lang has no value", () => {

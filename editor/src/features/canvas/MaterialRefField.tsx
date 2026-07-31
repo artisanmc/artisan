@@ -27,8 +27,8 @@ export function MaterialRefField({
   className?: string;
 }) {
   const { t } = useTranslation();
-  const pack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
-  const display = pack ? resolveDisplayRef(pack, value) : { material: value };
+  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  const display = project ? resolveDisplayRef(project, value) : { material: value };
   const materialUrl = useTextureUrl(display.material);
   const textureUrl = headPreviewUrl(display.head) ?? materialUrl;
 

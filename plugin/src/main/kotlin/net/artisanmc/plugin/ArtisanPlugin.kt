@@ -224,7 +224,7 @@ open class ArtisanPlugin : JavaPlugin() {
             delegator = delegator,
             cacheFile = java.io.File(dataFolder, "cache/resource-pack.json"),
         )
-        // Restore the last applied pack info so push mode survives a restart
+        // Restore the last applied project info so push mode survives a restart
         // during a backend outage (a later hello_ack simply refreshes).
         resourcePackManager.loadFromDisk()
         syncedProvider?.setResourcePackManager(resourcePackManager)

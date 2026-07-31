@@ -7,7 +7,7 @@ import { buildPreviewScope, renderPreview, resolveSourceRef } from "./menuPrevie
 const stubProject = (overrides: Partial<Project> = {}): Project =>
   ({
     id: "p1" as Project["id"],
-    name: "Test pack",
+    name: "Test project",
     source: "user_created",
     createdAt: "",
     updatedAt: "",
@@ -47,18 +47,18 @@ describe("resolveSourceRef — module-local rows (authoring-time)", () => {
 
   it("module-local rows win over the server snapshot (live editing feedback)", () => {
     registerLocalRowsModule([{ id: "sword", name: "Local edit" }]);
-    const pack = stubProject();
+    const project = stubProject();
     const snapshots = { "boutique:items": [{ id: "sword", name: "Stale server row" }] };
-    expect(resolveSourceRef("boutique:items" as SourceRef, pack, snapshots)).toEqual([
+    expect(resolveSourceRef("boutique:items" as SourceRef, project, snapshots)).toEqual([
       { id: "sword", name: "Local edit" },
     ]);
   });
 
   it("falls back to the snapshot when the module returns null (no local data)", () => {
     registerLocalRowsModule(null);
-    const pack = stubProject();
+    const project = stubProject();
     const snapshots = { "boutique:items": [{ id: "sword", name: "Server row" }] };
-    expect(resolveSourceRef("boutique:items" as SourceRef, pack, snapshots)).toEqual([
+    expect(resolveSourceRef("boutique:items" as SourceRef, project, snapshots)).toEqual([
       { id: "sword", name: "Server row" },
     ]);
   });
@@ -102,14 +102,14 @@ describe("resolveSourceRef", () => {
       modelId: "m_cat" as never,
       rows: [{ id: "weapon" }, { id: "armor" }],
     };
-    const pack = stubProject({ dataSources: [ds] });
-    expect(resolveSourceRef("pack:categories" as SourceRef, pack)).toEqual([
+    const project = stubProject({ dataSources: [ds] });
+    expect(resolveSourceRef("pack:categories" as SourceRef, project)).toEqual([
       { id: "weapon" },
       { id: "armor" },
     ]);
   });
 
-  it("returns undefined for unknown pack ref", () => {
+  it("returns undefined for unknown project ref", () => {
     expect(resolveSourceRef("pack:missing" as SourceRef, stubProject())).toBeUndefined();
   });
 
@@ -137,9 +137,9 @@ describe("resolveSourceRef", () => {
       modelId: "m_cat" as never,
       rows: [{ id: "weapon" }],
     };
-    const pack = stubProject({ dataSources: [ds] });
+    const project = stubProject({ dataSources: [ds] });
     const snapshots = { "pack:categories": [{ id: "hijack" }] };
-    expect(resolveSourceRef("pack:categories" as SourceRef, pack, snapshots)).toEqual([
+    expect(resolveSourceRef("pack:categories" as SourceRef, project, snapshots)).toEqual([
       { id: "weapon" },
     ]);
   });
@@ -198,11 +198,11 @@ describe("buildPreviewScope", () => {
       modelId: "m_cat" as never,
       rows: [{ id: "weapon" }, { id: "armor" }],
     };
-    const pack = stubProject({ dataSources: [ds] });
+    const project = stubProject({ dataSources: [ds] });
     const menu = stubMenu([
       { kind: "sourceRef", name: "categories", ref: "pack:categories" as SourceRef },
     ]);
-    expect(buildPreviewScope(menu, pack).categories).toEqual([{ id: "weapon" }, { id: "armor" }]);
+    expect(buildPreviewScope(menu, project).categories).toEqual([{ id: "weapon" }, { id: "armor" }]);
   });
 
   it("falls back to undefined for unresolvable sourceRef inputs", () => {
@@ -219,7 +219,7 @@ describe("buildPreviewScope — sourceRef shaping + preview args", () => {
     { id: "bow", name: "Arc", category: "weapons", price: 50 },
     { id: "bread", name: "Pain", category: "food", price: 5 },
   ];
-  const packWithSource = () =>
+  const projectWithSource = () =>
     stubProject({
       dataSources: [
         { id: "items" as DataSourceId, name: "items", shape: "table", modelId: "m_items", rows: ROWS },
@@ -237,12 +237,12 @@ describe("buildPreviewScope — sourceRef shaping + preview args", () => {
     ]);
 
   it("leaves the source unfiltered while the filter's arg has no value", () => {
-    const scope = buildPreviewScope(menuWithFilter(), packWithSource());
+    const scope = buildPreviewScope(menuWithFilter(), projectWithSource());
     expect((scope.items as unknown[]).length).toBe(3);
   });
 
   it("applies the filter when previewArgs provide the arg value", () => {
-    const scope = buildPreviewScope(menuWithFilter(), packWithSource(), undefined, {
+    const scope = buildPreviewScope(menuWithFilter(), projectWithSource(), undefined, {
       category_id: "food",
     });
     expect(scope.items).toEqual([ROWS[2]]);
@@ -260,7 +260,7 @@ describe("buildPreviewScope — sourceRef shaping + preview args", () => {
         limit: 2,
       },
     ]);
-    const scope = buildPreviewScope(menu, packWithSource());
+    const scope = buildPreviewScope(menu, projectWithSource());
     expect((scope.items as { id: string }[]).map((r) => r.id)).toEqual(["sword", "bow"]);
   });
 
@@ -273,32 +273,32 @@ describe("buildPreviewScope — sourceRef shaping + preview args", () => {
         filter: { category: "weapons" },
       },
     ]);
-    const scope = buildPreviewScope(menu, packWithSource());
+    const scope = buildPreviewScope(menu, projectWithSource());
     expect((scope.items as { id: string }[]).map((r) => r.id)).toEqual(["sword", "bow"]);
   });
 });
 
 describe("renderPreview with the builtin player", () => {
   it("renders player subfields", () => {
-    const pack = stubProject();
+    const project = stubProject();
     const menu = stubMenu();
-    const ctx = buildPreviewScope(menu, pack);
-    expect(renderPreview("{player.name} in {player.world}", ctx, pack, "en")).toBe(
+    const ctx = buildPreviewScope(menu, project);
+    expect(renderPreview("{player.name} in {player.world}", ctx, project, "en")).toBe(
       "Steve in world",
     );
   });
 
   it("renders bare {player} as the name, not [object Object]", () => {
-    const pack = stubProject();
-    const ctx = buildPreviewScope(stubMenu(), pack);
-    expect(renderPreview("{player}", ctx, pack, "en")).toBe("Steve");
+    const project = stubProject();
+    const ctx = buildPreviewScope(stubMenu(), project);
+    expect(renderPreview("{player}", ctx, project, "en")).toBe("Steve");
   });
 
   it("renders subfields of a player-typed contextInput", () => {
-    const pack = stubProject();
+    const project = stubProject();
     const menu = stubMenu([{ kind: "primitive", name: "target", type: "player" }]);
-    const ctx = buildPreviewScope(menu, pack);
-    expect(renderPreview("{target.name}", ctx, pack, "en")).toBe("Steve");
-    expect(renderPreview("{target}", ctx, pack, "en")).toBe("Steve");
+    const ctx = buildPreviewScope(menu, project);
+    expect(renderPreview("{target.name}", ctx, project, "en")).toBe("Steve");
+    expect(renderPreview("{target}", ctx, project, "en")).toBe("Steve");
   });
 });

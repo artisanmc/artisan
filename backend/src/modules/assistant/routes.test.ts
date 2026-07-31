@@ -150,9 +150,9 @@ describe("assistant routes", () => {
 		expect(res.status).toBe(401);
 	});
 
-	it("accepts the projectId wire name (pack→project rename) on create and list", async () => {
-		// The editor sends { projectId } since the wire flip — packId is the
-		// legacy alias. Reading only packId made every create 404 and the
+	it("accepts the projectId wire name (project→project rename) on create and list", async () => {
+		// The editor sends { projectId } since the wire flip — projectId is the
+		// legacy alias. Reading only projectId made every create 404 and the
 		// assistant UI show "Interrompu" on the very first message.
 		const created = await app.request("/api/v1/assistant/conversations", {
 			method: "POST",
@@ -176,7 +176,7 @@ describe("assistant routes", () => {
 		const created = await app.request("/api/v1/assistant/conversations", {
 			method: "POST",
 			headers: cookieHeader(),
-			body: JSON.stringify({ packId: PACK_ID }),
+			body: JSON.stringify({ projectId: PACK_ID }),
 		});
 		expect(created.status).toBe(200);
 		const { conversationId } = await created.json();
@@ -200,7 +200,7 @@ describe("assistant routes", () => {
 		const created = await app.request("/api/v1/assistant/conversations", {
 			method: "POST",
 			headers: cookieHeader(),
-			body: JSON.stringify({ packId: PACK_ID }),
+			body: JSON.stringify({ projectId: PACK_ID }),
 		});
 		const { conversationId } = await created.json();
 		const sent = await app.request(
@@ -216,7 +216,7 @@ describe("assistant routes", () => {
 
 		// Listed for the workspace, titled from the first user message.
 		const listed = await app.request(
-			`/api/v1/assistant/conversations?packId=${PACK_ID}`,
+			`/api/v1/assistant/conversations?projectId=${PACK_ID}`,
 			{
 				headers: cookieHeader(),
 			},
@@ -263,7 +263,7 @@ describe("assistant routes", () => {
 			const created = await app.request("/api/v1/assistant/conversations", {
 				method: "POST",
 				headers: cookieHeader(),
-				body: JSON.stringify({ packId: PACK_ID }),
+				body: JSON.stringify({ projectId: PACK_ID }),
 			});
 			const { conversationId } = await created.json();
 			const res = await app.request(
@@ -316,7 +316,7 @@ describe("assistant routes", () => {
 		const created = await app.request("/api/v1/assistant/conversations", {
 			method: "POST",
 			headers: cookieHeader(),
-			body: JSON.stringify({ packId: PACK_ID }),
+			body: JSON.stringify({ projectId: PACK_ID }),
 		});
 		const { conversationId } = await created.json();
 		const res = await app.request(
@@ -334,7 +334,7 @@ describe("assistant routes", () => {
 		await res.text();
 
 		const listed = await app.request(
-			`/api/v1/assistant/conversations?packId=${PACK_ID}`,
+			`/api/v1/assistant/conversations?projectId=${PACK_ID}`,
 			{ headers: cookieHeader() },
 		);
 		const { conversations } = await listed.json();
@@ -370,7 +370,7 @@ describe("assistant routes", () => {
 			const created = await app.request("/api/v1/assistant/conversations", {
 				method: "POST",
 				headers: cookieHeader(),
-				body: JSON.stringify({ packId: PACK_ID }),
+				body: JSON.stringify({ projectId: PACK_ID }),
 			});
 			const { conversationId } = await created.json();
 			const res = await app.request(
@@ -402,7 +402,7 @@ describe("assistant routes", () => {
 		const created = await app.request("/api/v1/assistant/conversations", {
 			method: "POST",
 			headers: cookieHeader(),
-			body: JSON.stringify({ packId: PACK_ID }),
+			body: JSON.stringify({ projectId: PACK_ID }),
 		});
 		const { conversationId } = await created.json();
 
@@ -461,7 +461,7 @@ describe("assistant routes", () => {
 		const created = await app.request("/api/v1/assistant/conversations", {
 			method: "POST",
 			headers: cookieHeader(),
-			body: JSON.stringify({ packId: PACK_ID }),
+			body: JSON.stringify({ projectId: PACK_ID }),
 		});
 		const { conversationId } = await created.json();
 

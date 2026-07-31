@@ -17,22 +17,22 @@ export function visibleEdges(edges: Edge[], layout: Record<string, { x: number; 
 }
 
 interface EdgesProps {
-  pack: Project;
+  project: Project;
   layout: Record<string, { x: number; y: number }>;
 }
 
-function deriveHighlightSet(pack: Project, ids: ReadonlySet<string>): Set<string> {
+function deriveHighlightSet(project: Project, ids: ReadonlySet<string>): Set<string> {
   const out = new Set<string>();
   for (const id of ids) {
     if (
-      pack.menus.some((m) => m.id === id) ||
-      pack.commands.some((c) => c.id === id) ||
-      (pack.dialogs ?? []).some((d) => d.id === id)
+      project.menus.some((m) => m.id === id) ||
+      project.commands.some((c) => c.id === id) ||
+      (project.dialogs ?? []).some((d) => d.id === id)
     ) {
       out.add(id);
       continue;
     }
-    for (const m of pack.menus) {
+    for (const m of project.menus) {
       if (m.layers.some((l) => l.elements.some((el) => el.id === id))) {
         out.add(m.id);
         break;
@@ -42,9 +42,9 @@ function deriveHighlightSet(pack: Project, ids: ReadonlySet<string>): Set<string
   return out;
 }
 
-export function Edges({ pack, layout }: EdgesProps) {
+export function Edges({ project, layout }: EdgesProps) {
   const selectedIds = useSelectionStore((s) => s.ids);
-  const highlightSet = useMemo(() => deriveHighlightSet(pack, selectedIds), [pack, selectedIds]);
+  const highlightSet = useMemo(() => deriveHighlightSet(project, selectedIds), [project, selectedIds]);
   const hoveredEdgeId = useEdgeHoverStore((s) => s.edge?.id ?? null);
   const setHover = useEdgeHoverStore((s) => s.set);
   const moveHover = useEdgeHoverStore((s) => s.move);
@@ -59,20 +59,20 @@ export function Edges({ pack, layout }: EdgesProps) {
 
   const boxes = useMemo(() => {
     const out: Record<string, Box> = {};
-    for (const m of pack.menus) {
-      const box = nodeBox(pack, m.id, layout);
+    for (const m of project.menus) {
+      const box = nodeBox(project, m.id, layout);
       if (box) out[m.id] = box;
     }
-    for (const c of pack.commands) {
-      const box = nodeBox(pack, c.id, layout);
+    for (const c of project.commands) {
+      const box = nodeBox(project, c.id, layout);
       if (box) out[c.id] = box;
     }
-    for (const d of pack.dialogs ?? []) {
-      const box = nodeBox(pack, d.id, layout);
+    for (const d of project.dialogs ?? []) {
+      const box = nodeBox(project, d.id, layout);
       if (box) out[d.id] = box;
     }
     return out;
-  }, [pack, layout]);
+  }, [project, layout]);
 
   // Live preview while a handle is dragged — committed to the store on drag end.
   const [dragOverride, setDragOverride] = useState<{
@@ -82,7 +82,7 @@ export function Edges({ pack, layout }: EdgesProps) {
   } | null>(null);
 
   const overrides = useMemo(() => {
-    const base = pack.canvasEdges ?? {};
+    const base = project.canvasEdges ?? {};
     if (!dragOverride) return base;
     return {
       ...base,
@@ -91,11 +91,11 @@ export function Edges({ pack, layout }: EdgesProps) {
         [dragOverride.end]: dragOverride.anchor,
       },
     };
-  }, [pack.canvasEdges, dragOverride]);
+  }, [project.canvasEdges, dragOverride]);
 
   const routed = useMemo(
-    () => routeEdges({ edges: visibleEdges(deriveEdges(pack), layout), boxes, overrides }),
-    [pack, layout, boxes, overrides],
+    () => routeEdges({ edges: visibleEdges(deriveEdges(project), layout), boxes, overrides }),
+    [project, layout, boxes, overrides],
   );
 
   const selectEdge = (id: string) => {
@@ -151,7 +151,7 @@ export function Edges({ pack, layout }: EdgesProps) {
           if (!box) return null;
           const pt = end === "from" ? selectedRouted.from : selectedRouted.to;
           const reset = () =>
-            useAccountStore.getState().clearEdgeAnchor({ projectId: pack.id, edgeId: edge.id, end });
+            useAccountStore.getState().clearEdgeAnchor({ projectId: project.id, edgeId: edge.id, end });
           return (
             <Circle
               key={`${edge.id}:${end}`}
@@ -170,7 +170,7 @@ export function Edges({ pack, layout }: EdgesProps) {
               onDragEnd={() => {
                 if (dragOverride) {
                   useAccountStore.getState().setEdgeAnchor({
-                    projectId: pack.id,
+                    projectId: project.id,
                     edgeId: dragOverride.edgeId,
                     end: dragOverride.end,
                     anchor: dragOverride.anchor,

@@ -25,7 +25,7 @@ export function DataSourceEditor({ projectId, source }: DataSourceEditorProps) {
   const { t } = useTranslation();
   const renameDataSource = useAccountStore((s) => s.renameProjectDataSource);
   const removeDataSource = useAccountStore((s) => s.removeProjectDataSource);
-  const pack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
   const [schemaOpen, setSchemaOpen] = useState(true);
   // Deux modes sur le MÊME fichier (ADR yaml-assisted-editing ⑦/⑧) : le
   // panneau Données et l'écran de config parlent le même langage.
@@ -47,7 +47,7 @@ export function DataSourceEditor({ projectId, source }: DataSourceEditorProps) {
     setMode("form");
   }, [source.id]);
 
-  if (!pack) return null;
+  if (!project) return null;
 
   const yamlErrors = draft ? yamlErrorsOf(draft) : [];
 
@@ -57,7 +57,7 @@ export function DataSourceEditor({ projectId, source }: DataSourceEditorProps) {
    */
   const applyDraft = () => {
     if (!draft || yamlErrors.length > 0) return;
-    const next = applySourceYaml(pack, draft);
+    const next = applySourceYaml(project, draft);
     if (!next) return;
     replaceProject(next);
     // Canonicalisation immédiate : le texte réaffiché est celui que le writer
@@ -119,7 +119,7 @@ export function DataSourceEditor({ projectId, source }: DataSourceEditorProps) {
                   applyDraft();
                   setDraft(null);
                 } else {
-                  setDraft(sourceYamlFiles(pack, source));
+                  setDraft(sourceYamlFiles(project, source));
                 }
                 setMode(m);
               }}
@@ -198,7 +198,7 @@ export function DataSourceEditor({ projectId, source }: DataSourceEditorProps) {
             {t("dataSources.schemaTitle")}
           </button>
           {schemaOpen ? (
-            <ModelFieldsEditor projectId={projectId} pack={pack} source={source} />
+            <ModelFieldsEditor projectId={projectId} project={project} source={source} />
           ) : null}
         </section>
 
@@ -207,9 +207,9 @@ export function DataSourceEditor({ projectId, source }: DataSourceEditorProps) {
             {source.shape === "table" ? t("dataSources.rowsTitle") : t("dataSources.valuesTitle")}
           </div>
           {source.shape === "table" ? (
-            <SourceRowsTable projectId={projectId} pack={pack} source={source} />
+            <SourceRowsTable projectId={projectId} project={project} source={source} />
           ) : (
-            <ConfigValueForm projectId={projectId} pack={pack} source={source} />
+            <ConfigValueForm projectId={projectId} project={project} source={source} />
           )}
         </section>
 

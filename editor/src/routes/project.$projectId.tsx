@@ -7,14 +7,14 @@ export const Route = createFileRoute("/project/$projectId")({
   component: ProjectRedirect,
 });
 
-// Legacy redirect: old /workspace/$id and /pack/$id URLs map to the new server-scoped URL.
+// Legacy redirect: old /workspace/$id and /project/$id URLs map to the new server-scoped URL.
 function ProjectRedirect() {
   const { projectId } = useParams({ from: "/project/$projectId" });
   const { t } = useTranslation();
   const [dest, setDest] = useState<{ networkId: string; serverId: string } | null>(null);
 
   useEffect(() => {
-    // Fetch the pack to discover its network + server.
+    // Fetch the project to discover its network + server.
     loadUserProject(projectId)
       .then((res) => {
         if (res.networkId && res.serverKeyId) {

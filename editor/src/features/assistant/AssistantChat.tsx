@@ -2,7 +2,7 @@ import type { ProjectId } from "@/domain/types";
 import { ModelSelector } from "@/features/assistant/ModelSelector";
 import { OutOfCreditsNotice } from "@/features/assistant/OutOfCreditsNotice";
 import { CreditIndicator } from "@/features/billing/CreditIndicator";
-import { packToCommandV1, packToDialogV1, packToMenuV1 } from "@/features/export/transform";
+import { projectToCommandV1, projectToDialogV1, projectToMenuV1 } from "@/features/export/transform";
 import { persistProject } from "@/features/project/persistProject";
 import { getBalance } from "@/lib/api/aiUser";
 import type { BalanceBreakdown } from "@/lib/api/billing";
@@ -84,7 +84,7 @@ function messagesToEntries(messages: ConversationMessage[]): Entry[] {
  * The SSE loop (`streamAssistant`) renders streamed text incrementally and
  * applies engine events live to the canvas: `menu_written` → `applyAssistantMenu`,
  * `menu_deleted` → `deleteFromProject`. Each message re-seeds the backend working
- * copy with `packToMenuV1(pack)` + `attachments`. Auth: a logged-in user
+ * copy with `projectToMenuV1(project)` + `attachments`. Auth: a logged-in user
  * (cookie); see `lib/api/assistant.ts`.
  */
 export function AssistantChat({
@@ -164,14 +164,14 @@ export function AssistantChat({
     setActivity(null);
     setTurnError(null);
     try {
-      const pack = useAccountStore.getState().account.projects.find((p) => p.id === projectId);
-      const lang = pack?.defaultLang ?? "en";
-      const menus = pack ? packToMenuV1(pack) : [];
-      const commands = pack ? packToCommandV1(pack) : [];
-      const dialogs = pack ? packToDialogV1(pack) : [];
+      const project = useAccountStore.getState().account.projects.find((p) => p.id === projectId);
+      const lang = project?.defaultLang ?? "en";
+      const menus = project ? projectToMenuV1(project) : [];
+      const commands = project ? projectToCommandV1(project) : [];
+      const dialogs = project ? projectToDialogV1(project) : [];
       // Translation values behind the {i18n:<key>} refs — without them the
       // model can see the refs but never the actual text.
-      const translations = pack ? pack.i18nKeys : {};
+      const translations = project ? project.i18nKeys : {};
       if (!convId.current) {
         convId.current = await openConversation({ projectId });
       }

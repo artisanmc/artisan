@@ -14,7 +14,7 @@ type Json = Record<string, any>;
 
 export interface CommandImportResult {
   command: DomainCommand;
-  /** i18n keys allocated for literal text (to merge into pack.i18nKeys by the caller). */
+  /** i18n keys allocated for literal text (to merge into project.i18nKeys by the caller). */
   i18nKeys: Record<string, Record<string, string>>;
   /** command/v1 constructs without a domain equivalent. */
   unsupported: string[];

@@ -124,7 +124,7 @@ describe("LayerEditForm — empty state", () => {
     expect(screen.getByText(/sélectionne un élément/i)).toBeTruthy();
   });
 
-  it("renders empty state when the menu doesn't exist on the pack", () => {
+  it("renders empty state when the menu doesn't exist on the project", () => {
     seedProject([{ kind: "text", value: { key: K("g") }, x: 0, y: 0 }]);
     useUiStore.setState(
       { selectedLayerKey: { menuId: "ghost" as MenuId, index: 0 } } as any,

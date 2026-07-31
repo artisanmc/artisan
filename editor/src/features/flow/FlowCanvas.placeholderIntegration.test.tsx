@@ -2,7 +2,7 @@
  * Integration smoke test: catalog → hook → PlaceholderInput.
  *
  * Mounts a thin wrapper that wires usePlaceholderEntries → PlaceholderInput
- * with a real-shaped pack seeded in the accountStore. Validates that a
+ * with a real-shaped project seeded in the accountStore. Validates that a
  * primitive contextInput named "player" survives the full pipeline and
  * surfaces in the autocomplete popup when the user types "{".
  */
@@ -15,7 +15,7 @@ import type { FieldLocation } from "@/lib/placeholderCatalog";
 import { useAccountStore } from "@/state/accountStore";
 import type { Account, ElementId, MenuId, Project, ProjectId } from "@/domain/types";
 
-// ── Minimal pack fixture ──────────────────────────────────────────────────────
+// ── Minimal project fixture ──────────────────────────────────────────────────────
 
 const PACK_ID = "p_smoke" as ProjectId;
 const MENU_ID = "m_smoke" as MenuId;

@@ -195,7 +195,7 @@ export function ValueEditor({
   path,
   type,
   value,
-  pack,
+  project,
   field,
 }: {
   projectId: Project["id"];
@@ -204,7 +204,7 @@ export function ValueEditor({
   path: (string | number)[];
   type: ModelFieldType;
   value: unknown;
-  pack: Project;
+  project: Project;
   /** The declaring field, when editing a named field — carries hints + validation (§7). */
   field?: ModelField;
 }) {
@@ -215,7 +215,7 @@ export function ValueEditor({
   const removeSourceListItem = useAccountStore((s) => s.removeSourceListItem);
   const replaceSourceValueTyped = useAccountStore((s) => s.replaceSourceValueTyped);
   const activeLang = useUiStore((s) => s.activeLang);
-  const models = pack.dataModels ?? [];
+  const models = project.dataModels ?? [];
   const set = (v: unknown) => setSourceValue({ projectId, sourceId, row, path, value: v });
   const replaceTyped = (v: unknown) =>
     replaceSourceValueTyped({ projectId, sourceId, row, path, value: v });
@@ -342,7 +342,7 @@ export function ValueEditor({
         return <span className="text-[10px] text-[var(--text-faint)]">—</span>;
       return (
         <Input
-          value={getText(pack, value, activeLang)}
+          value={getText(project, value, activeLang)}
           onChange={(e) =>
             setI18nValue({ projectId, lt: value, lang: activeLang, value: e.target.value })
           }
@@ -367,7 +367,7 @@ export function ValueEditor({
                   path={[...path, i]}
                   type={type.of}
                   value={el}
-                  pack={pack}
+                  project={project}
                 />
               </div>
               <button
@@ -423,7 +423,7 @@ export function ValueEditor({
                 path={[...path, k]}
                 type={type.of}
                 value={obj[k]}
-                pack={pack}
+                project={project}
               />
               <button
                 type="button"
@@ -494,7 +494,7 @@ export function ValueEditor({
                     path={[...path, f.name]}
                     type={f.type}
                     value={obj[f.name]}
-                    pack={pack}
+                    project={project}
                     field={f}
                   />
                 </div>
@@ -542,7 +542,7 @@ export function ValueEditor({
                     path={[...path, f.name]}
                     type={f.type}
                     value={obj[f.name]}
-                    pack={pack}
+                    project={project}
                     field={f}
                   />
                   {/* Visible, not a tooltip: the explanation is why a config
@@ -568,18 +568,18 @@ export function ValueEditor({
  */
 export function SourceRowsTable({
   projectId,
-  pack,
+  project,
   source,
 }: {
   projectId: Project["id"];
-  pack: Project;
+  project: Project;
   source: DataSource & { shape: "table" };
 }) {
   const { t } = useTranslation();
   const addSourceRow = useAccountStore((s) => s.addSourceRow);
   const removeSourceRow = useAccountStore((s) => s.removeSourceRow);
-  const fields = sourceRootFields(pack, source);
-  const model = (pack.dataModels ?? []).find((candidate) => candidate.id === source.modelId);
+  const fields = sourceRootFields(project, source);
+  const model = (project.dataModels ?? []).find((candidate) => candidate.id === source.modelId);
   const rowKeys = stableKeys(source.rows.map((row) => row[model?.keyField ?? "id"]));
 
   // §7 master-detail hint: row list beside the selected row's form (the
@@ -588,7 +588,7 @@ export function SourceRowsTable({
     return (
       <MasterDetailTable
         projectId={projectId}
-        pack={pack}
+        project={project}
         source={source}
         fields={fields}
         keyField={model.keyField}
@@ -652,7 +652,7 @@ export function SourceRowsTable({
                           path={[f.name]}
                           type={f.type}
                           value={r[f.name]}
-                          pack={pack}
+                          project={project}
                           field={f}
                         />
                       )}
@@ -692,14 +692,14 @@ export function SourceRowsTable({
  */
 function MasterDetailTable({
   projectId,
-  pack,
+  project,
   source,
   fields,
   keyField,
   rowKeys,
 }: {
   projectId: Project["id"];
-  pack: Project;
+  project: Project;
   source: DataSource & { shape: "table" };
   fields: ModelField[];
   keyField: string;
@@ -778,7 +778,7 @@ function MasterDetailTable({
             path={[]}
             type={{ kind: "object", fields }}
             value={row}
-            pack={pack}
+            project={project}
           />
         </div>
       ) : (
@@ -791,11 +791,11 @@ function MasterDetailTable({
 /** Form of a Config source: its single value object. */
 export function ConfigValueForm({
   projectId,
-  pack,
+  project,
   source,
 }: {
   projectId: Project["id"];
-  pack: Project;
+  project: Project;
   source: DataSource & { shape: "config" };
 }) {
   // A bare file with no schema beside it (ADR bare-data-files: untyped =
@@ -813,7 +813,7 @@ export function ConfigValueForm({
         path={[]}
         type={{ kind: "object", fields }}
         value={source.value}
-        pack={pack}
+        project={project}
       />
     </div>
   );

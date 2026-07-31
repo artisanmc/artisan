@@ -48,11 +48,11 @@ interface StageProps {
 
 export function Stage({ projectId }: StageProps) {
   const { t } = useTranslation();
-  const pack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
   const wrapperRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<Konva.Stage>(null);
   const [size, setSize] = useState({ w: 0, h: 0 });
-  // Restore the saved pan/zoom for this pack so leaving the board (single
+  // Restore the saved pan/zoom for this project so leaving the board (single
   // element view) and returning lands on the same spot + zoom. Read once at
   // mount (non-reactive); persisted back via the effect below.
   const { viewport, setViewport, onWheel, onTouchMove, onTouchEnd } = usePanZoom(
@@ -117,17 +117,17 @@ export function Stage({ projectId }: StageProps) {
     return () => ro.disconnect();
   }, []);
 
-  // Persist pan/zoom per pack so it survives leaving/returning to the board.
+  // Persist pan/zoom per project so it survives leaving/returning to the board.
   useEffect(() => {
     useUiStore.getState().setCanvasViewport(projectId, viewport);
   }, [projectId, viewport]);
 
-  const layout = useMemo(() => (pack ? autoLayout(pack) : {}), [pack]);
+  const layout = useMemo(() => (project ? autoLayout(project) : {}), [project]);
 
   const marquee = useMarqueeSelection({
     stageRef,
     viewport,
-    pack,
+    project,
     layout,
     active: canvasMode === "select" && !spaceHeld && !altHeld,
   });
@@ -144,12 +144,12 @@ export function Stage({ projectId }: StageProps) {
   const onStageClick = useCallback(
     (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
       const armed = useUiStore.getState().armedMaterial;
-      if (armed && pack) {
+      if (armed && project) {
         const stage = e.target.getStage();
         const pointer = stage?.getPointerPosition();
         if (pointer) {
           const world = screenToWorld(pointer, viewport);
-          const hit = hitTestSlot(pack, layout, world.x, world.y);
+          const hit = hitTestSlot(project, layout, world.x, world.y);
           if (hit) {
             try {
               useAccountStore.getState().setSlotMaterial({
@@ -175,7 +175,7 @@ export function Stage({ projectId }: StageProps) {
         useUiStore.getState().setSelectedLayerKey(null);
       }
     },
-    [pack, layout, viewport, projectId, marquee.shouldConsumeClick],
+    [project, layout, viewport, projectId, marquee.shouldConsumeClick],
   );
 
   const [pendingMenuPos, setPendingMenuPos] = useState<{ x: number; y: number } | null>(null);
@@ -183,7 +183,7 @@ export function Stage({ projectId }: StageProps) {
   const [pendingDialogPos, setPendingDialogPos] = useState<{ x: number; y: number } | null>(null);
 
   const { ctxMenu, openContextMenuAt, onStageContextMenu, closeCtxMenu } = useStageContextMenu({
-    pack,
+    project,
     layout,
     viewport,
     wrapperRef,
@@ -200,14 +200,14 @@ export function Stage({ projectId }: StageProps) {
     onTouchEnd,
   });
 
-  // Cross-platform Library drop: the top-level DndContext (in the pack
+  // Cross-platform Library drop: the top-level DndContext (in the project
   // route) calls this with the release coords + material. We hit-test the
   // slot and place. Returns true if placed, so the route can decide
   // whether to do anything else.
   useEffect(() => {
     setStageDropTarget((clientX, clientY, material) => {
       const wrapper = wrapperRef.current;
-      if (!wrapper || !pack) return false;
+      if (!wrapper || !project) return false;
       const rect = wrapper.getBoundingClientRect();
       if (
         clientX < rect.left ||
@@ -219,7 +219,7 @@ export function Stage({ projectId }: StageProps) {
       }
       const stagePoint = { x: clientX - rect.left, y: clientY - rect.top };
       const world = screenToWorld(stagePoint, viewport);
-      const hit = hitTestSlot(pack, layout, world.x, world.y);
+      const hit = hitTestSlot(project, layout, world.x, world.y);
       if (!hit) return false;
       try {
         useAccountStore.getState().setSlotMaterial({
@@ -235,24 +235,24 @@ export function Stage({ projectId }: StageProps) {
       }
     });
     return () => setStageDropTarget(null);
-  }, [pack, layout, viewport, projectId]);
+  }, [project, layout, viewport, projectId]);
 
   // Placement-mode row drops: resolve release coords to a menu/slot (the route's
   // onDragEnd pins the row). Same wrapper-rect → world → hit-test as above.
   useEffect(() => {
     setStageSlotHitTest((clientX, clientY) => {
       const wrapper = wrapperRef.current;
-      if (!wrapper || !pack) return null;
+      if (!wrapper || !project) return null;
       const rect = wrapper.getBoundingClientRect();
       if (clientX < rect.left || clientX > rect.right || clientY < rect.top || clientY > rect.bottom) {
         return null;
       }
       const stagePoint = { x: clientX - rect.left, y: clientY - rect.top };
       const world = screenToWorld(stagePoint, viewport);
-      return hitTestSlot(pack, layout, world.x, world.y);
+      return hitTestSlot(project, layout, world.x, world.y);
     });
     return () => setStageSlotHitTest(null);
-  }, [pack, layout, viewport]);
+  }, [project, layout, viewport]);
 
   // Expose the live wrapper rect + viewport so the 3rd-column LayersPanel can
   // convert drag-end client coords into canvas coords (cursor-based new-layer
@@ -291,7 +291,7 @@ export function Stage({ projectId }: StageProps) {
     useHoverStore.getState().setElement(null);
   }, []);
 
-  if (!pack) return <div className="p-8 text-[var(--text-mut)]">Project not found.</div>;
+  if (!project) return <div className="p-8 text-[var(--text-mut)]">Project not found.</div>;
 
   const entityIds = ctxMenu.target.kind === "entity" ? ctxMenu.target.selectedIds : [];
 
@@ -344,7 +344,7 @@ export function Stage({ projectId }: StageProps) {
                 >
                   {t("canvas.newDialog")}
                 </button>
-                {pack.menus.length + pack.commands.length + pack.dialogs.length > 0 && (
+                {project.menus.length + project.commands.length + project.dialogs.length > 0 && (
                   <button
                     type="button"
                     className="btn btn-ghost btn-sm"
@@ -398,10 +398,10 @@ export function Stage({ projectId }: StageProps) {
         }}
       >
         <Layer name="edges">
-          <Edges pack={pack} layout={layout} />
+          <Edges project={project} layout={layout} />
         </Layer>
         <Layer name="menus" imageSmoothingEnabled={false}>
-          {pack.menus.filter((menu) => layout[menu.id]).map((menu) => (
+          {project.menus.filter((menu) => layout[menu.id]).map((menu) => (
             <MenuGroup
               key={menu.id}
               projectId={projectId}
@@ -414,7 +414,7 @@ export function Stage({ projectId }: StageProps) {
         {/* Commands and dialogs render above the menus layer so they always
             take click priority, even after a menu calls moveToTop() during drag. */}
         <Layer name="commands" imageSmoothingEnabled={false}>
-          {pack.commands.filter((command) => layout[command.id]).map((command) => (
+          {project.commands.filter((command) => layout[command.id]).map((command) => (
             <CommandGroup
               key={command.id}
               projectId={projectId}
@@ -422,7 +422,7 @@ export function Stage({ projectId }: StageProps) {
               position={layout[command.id]!}
             />
           ))}
-          {pack.dialogs.filter((dialog) => layout[dialog.id]).map((dialog) => (
+          {project.dialogs.filter((dialog) => layout[dialog.id]).map((dialog) => (
             <DialogGroup
               key={dialog.id}
               projectId={projectId}
@@ -430,7 +430,7 @@ export function Stage({ projectId }: StageProps) {
               position={layout[dialog.id]!}
             />
           ))}
-          <GhostChips pack={pack} layout={layout} projectId={projectId} />
+          <GhostChips project={project} layout={layout} projectId={projectId} />
         </Layer>
         <Layer name="overlay">
           <Selection stageRef={stageRef} />
@@ -439,7 +439,7 @@ export function Stage({ projectId }: StageProps) {
         </Layer>
       </KonvaStage>
       <ItemTooltip projectId={projectId} />
-      <EdgeTooltip pack={pack} />
+      <EdgeTooltip project={project} />
       <ContextMenu
         projectId={projectId}
         state={ctxMenu}

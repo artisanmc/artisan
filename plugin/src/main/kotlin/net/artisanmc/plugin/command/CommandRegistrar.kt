@@ -28,7 +28,7 @@ class CommandRegistrar(private val plugin: JavaPlugin, private val lang: LangMan
                 logger.info("[ART-DEBUG] Processing command '$name' actions=${cmdYaml.legacyActions.size} dsl.len=${cmdYaml.dsl.length}")
 
                 if (name in seen) {
-                    logger.warning("Command '$name' defined in multiple packs — only first registration kept.")
+                    logger.warning("Command '$name' defined in multiple projects — only first registration kept.")
                     continue
                 }
 
@@ -50,8 +50,8 @@ class CommandRegistrar(private val plugin: JavaPlugin, private val lang: LangMan
                         logger.warning("Alias '/$alias' for command '/$name' conflicts with an existing command — alias may not work.")
                     }
                 }
-                val packCommand = PackCommand(compiled, executor, lang)
-                commandMap.register(namespace, packCommand)
+                val projectCommand = PackCommand(compiled, executor, lang)
+                commandMap.register(namespace, projectCommand)
                 registered += name
                 seen += name
                 compiled.aliases.forEach { alias ->

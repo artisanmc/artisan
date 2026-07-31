@@ -6,7 +6,7 @@ export interface Branch {
   headCommitId: string;
   /**
    * content_hash of the head commit. Used by the editor to detect a divergence
-   * between the live WIP buffer (`pack.hash`) and the branch HEAD — i.e. is
+   * between the live WIP buffer (`project.hash`) and the branch HEAD — i.e. is
    * there anything to commit. "" when the head commit row isn't readable
    * (shouldn't happen in practice).
    */

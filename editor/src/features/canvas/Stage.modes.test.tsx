@@ -20,13 +20,13 @@ vi.mock("./title/composer/TitleRender", () => ({ TitleRender: () => <div /> }));
 vi.mock("./Edges", () => ({ Edges: () => <div /> }));
 
 const PID = "p1" as ProjectId;
-function pack(): Project {
+function project(): Project {
   return { id: PID, name: "p", source: "user_created", createdAt: "", updatedAt: "",
     menus: [], commands: [], dialogs: [], assets: [], dataSources: [], importedConnectors: [],
     i18nKeys: {}, defaultLang: "en", canvasLayout: {} } as Project;
 }
 describe("Stage — modes", () => {
-  beforeEach(() => useAccountStore.setState({ account: { id: "a" as any, projects: [pack()], projectOrder: [PID] } } as any));
+  beforeEach(() => useAccountStore.setState({ account: { id: "a" as any, projects: [project()], projectOrder: [PID] } } as any));
   it("hand mode → stage draggable", () => {
     useUiStore.setState({ canvasMode: "hand" } as any);
     render(<Stage projectId={PID} />);
@@ -54,7 +54,7 @@ function menu(id: string): Menu {
 }
 function projectWithMenus(): Project {
   return {
-    ...pack(),
+    ...project(),
     menus: [menu("m1"), menu("m2")],
     canvasLayout: { m1: { x: 0, y: 0 }, m2: { x: 1000, y: 1000 } },
   } as Project;
@@ -80,7 +80,7 @@ describe("useMarqueeSelection — selection logic", () => {
       useMarqueeSelection({
         stageRef,
         viewport: { x: 0, y: 0, scale: 1 },
-        pack: pk,
+        project: pk,
         layout: pk.canvasLayout,
         active: true,
       }),

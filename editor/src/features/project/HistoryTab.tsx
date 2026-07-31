@@ -6,7 +6,7 @@ import { listCommits, getCommitContent, type Commit } from "@/lib/api/branches";
 import { projectFromFiles } from "@/schema/projectFromFiles";
 import { useAccountStore } from "@/state/accountStore";
 
-interface Props { pack: Project; networkId: string; }
+interface Props { project: Project; networkId: string; }
 
 /**
  * Order commits newest-first (HEAD → root). We walk parent links from the tip
@@ -38,17 +38,17 @@ function orderHeadFirst(commits: Commit[]): Commit[] {
   return ordered;
 }
 
-export function HistoryTab({ pack, networkId }: Props) {
+export function HistoryTab({ project, networkId }: Props) {
   const { t, i18n } = useTranslation();
   const [commits, setCommits] = useState<Commit[] | null>(null);
   const [restoring, setRestoring] = useState<string | null>(null);
   const replaceProject = useAccountStore((s) => s.replaceProject);
 
   useEffect(() => {
-    listCommits(networkId, pack.id, "main")
+    listCommits(networkId, project.id, "main")
       .then((list) => setCommits(orderHeadFirst(list)))
       .catch(() => setCommits([]));
-  }, [networkId, pack.id]);
+  }, [networkId, project.id]);
 
   const fmt = (iso: string) => {
     try { return new Date(iso).toLocaleString(i18n.language); } catch { return iso; }
@@ -57,15 +57,15 @@ export function HistoryTab({ pack, networkId }: Props) {
   const handleRestore = async (commitId: string) => {
     setRestoring(commitId);
     try {
-      const head = await getCommitContent(networkId, pack.id, commitId);
+      const head = await getCommitContent(networkId, project.id, commitId);
       if (!head) {
         toast.error(t("historyTab.restoreFailed"));
         return;
       }
       // Files are the canonical commit content — parse them back into a Project.
-      const restored: Project = projectFromFiles(pack.id, head.files, {
-        name: pack.name,
-        serverKeyId: pack.serverKeyId,
+      const restored: Project = projectFromFiles(project.id, head.files, {
+        name: project.name,
+        serverKeyId: project.serverKeyId,
       });
       replaceProject(restored);
       toast.success(t("historyTab.restored"));

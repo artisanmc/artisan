@@ -10,7 +10,7 @@ import { useTranslation } from "react-i18next";
 import { ServerSourcesSection } from "./ServerSourcesSection";
 
 interface DataSourcesSidebarProps {
-  pack: Project;
+  project: Project;
   selectedId: DataSourceId | null;
   onSelect: (id: DataSourceId | null) => void;
   selectedServerRef: string | null;
@@ -18,7 +18,7 @@ interface DataSourcesSidebarProps {
 }
 
 export function DataSourcesSidebar({
-  pack,
+  project,
   selectedId,
   onSelect,
   selectedServerRef,
@@ -39,11 +39,11 @@ export function DataSourcesSidebar({
   // Table (categories).
   const isModuleManaged = (d: DataSource) => {
     const modelId = d.modelId;
-    const model = modelId ? (pack.dataModels ?? []).find((m) => m.id === modelId) : undefined;
+    const model = modelId ? (project.dataModels ?? []).find((m) => m.id === modelId) : undefined;
     return model?.provenance === "module" ? model.id.split(":")[0] : null;
   };
-  const ownSources = (pack.dataSources ?? []).filter((d) => !isModuleManaged(d));
-  const managedSources = (pack.dataSources ?? []).filter((d) => isModuleManaged(d));
+  const ownSources = (project.dataSources ?? []).filter((d) => !isModuleManaged(d));
+  const managedSources = (project.dataSources ?? []).filter((d) => isModuleManaged(d));
 
   return (
     <div className="flex flex-1 flex-col gap-4 p-3">
@@ -80,10 +80,10 @@ export function DataSourcesSidebar({
               const moduleId = isModuleManaged(d);
               if (!moduleId) return null;
               const declared = declaredScreens.find(
-                (s) => s.projectId === pack.id && s.table === `data/${d.id}`,
+                (s) => s.projectId === project.id && s.table === `data/${d.id}`,
               );
               const target =
-                declared ?? resolveScreen(`${moduleId}:__auto__${pack.id}__${d.id}`, [], localProjects);
+                declared ?? resolveScreen(`${moduleId}:__auto__${project.id}__${d.id}`, [], localProjects);
               return (
                 <li
                   key={d.id}
@@ -116,14 +116,14 @@ export function DataSourcesSidebar({
         <div className="mt-2 flex gap-1">
           <button
             type="button"
-            onClick={() => addProjectDataSource({ projectId: pack.id, shape: "table" })}
+            onClick={() => addProjectDataSource({ projectId: project.id, shape: "table" })}
             className="flex-1 rounded border border-dashed border-[var(--border)] px-2 py-1 text-[11px] text-[var(--text-mut)] hover:border-[var(--border-strong)] hover:text-[var(--text)]"
           >
             {t("dataSources.addTable")}
           </button>
           <button
             type="button"
-            onClick={() => addProjectDataSource({ projectId: pack.id, shape: "config" })}
+            onClick={() => addProjectDataSource({ projectId: project.id, shape: "config" })}
             className="flex-1 rounded border border-dashed border-[var(--border)] px-2 py-1 text-[11px] text-[var(--text-mut)] hover:border-[var(--border-strong)] hover:text-[var(--text)]"
           >
             {t("dataSources.addConfig")}

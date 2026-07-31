@@ -3,7 +3,7 @@ import type { Action, DialogId, I18nKey, MenuId } from "@/domain/types";
 /**
  * Sensible-empty Action seed for "+ Add action" pickers. Open-menu picks
  * the first menu the caller passes (so the user immediately has a valid
- * dangling-ref-free action) but falls back to a placeholder if the pack
+ * dangling-ref-free action) but falls back to a placeholder if the project
  * has no menus yet.
  *
  * For `send_message` we emit an empty-key LText sentinel; the store

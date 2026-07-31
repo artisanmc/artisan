@@ -1,4 +1,4 @@
-// backend/src/routes/userPacks.test.ts
+// backend/src/routes/userProjects.test.ts
 import { beforeEach, describe, expect, test } from "bun:test";
 import { Hono } from "hono";
 import { db } from "../db/index";
@@ -26,7 +26,7 @@ async function clearAll() {
   await db.delete(users);
 }
 
-async function seedUserWithPack(userId: string) {
+async function seedUserWithProject(userId: string) {
   await db.insert(users).values({
     id: userId,
     email: `${userId}@a.b`,
@@ -41,12 +41,12 @@ async function seedUserWithPack(userId: string) {
   await addMembership(userId, network.id, "owner");
   const { id: skId, hash: skHash } = await generateServerKey();
   await db.insert(serverKeys).values({ id: skId, hash: skHash, label: null, networkId: network.id, createdAt: new Date() });
-  const pack = await createProject({ networkId: network.id, serverKeyId: skId, name: "p" });
-  await upsertProjectContent(pack.id, {
+  const project = await createProject({ networkId: network.id, serverKeyId: skId, name: "p" });
+  await upsertProjectContent(project.id, {
     hash: "h1",
     filesJson: '{"menus/m.yaml":"id: m"}',
   });
-  return { userId, sessionId: session.id, networkId: network.id, packId: pack.id, skId };
+  return { userId, sessionId: session.id, networkId: network.id, projectId: project.id, skId };
 }
 
 function makeApp() {
@@ -59,15 +59,15 @@ function makeApp() {
 describe("userProjectsRouter — GET", () => {
   beforeEach(clearAll);
 
-  test("GET /:projectId 200 — member gets pack content", async () => {
-    const { sessionId, packId } = await seedUserWithPack("u1");
+  test("GET /:projectId 200 — member gets project content", async () => {
+    const { sessionId, projectId } = await seedUserWithProject("u1");
     const app = makeApp();
-    const res = await app.request(`/api/v1/user/projects/${packId}`, {
+    const res = await app.request(`/api/v1/user/projects/${projectId}`, {
       headers: { Cookie: `artisan_user_session=${sessionId}` },
     });
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body.project.id).toBe(packId);
+    expect(body.project.id).toBe(projectId);
     expect(body.project.hash).toBe("h1");
     expect(body.files).toEqual({ "menus/m.yaml": "id: m" });
     // Files-first: no editor JSON on the wire — the client parses `files`.
@@ -75,21 +75,21 @@ describe("userProjectsRouter — GET", () => {
   });
 
   test("GET /:projectId 403 — non-member gets forbidden", async () => {
-    const { packId } = await seedUserWithPack("u1");
+    const { projectId } = await seedUserWithProject("u1");
     await db.insert(users).values({
       id: "u2", email: "u2@a.b", name: "u2", passwordHash: null, avatarUrl: null,
       createdAt: new Date(), updatedAt: new Date(),
     });
     const sess2 = await createSession("u2");
     const app = makeApp();
-    const res = await app.request(`/api/v1/user/projects/${packId}`, {
+    const res = await app.request(`/api/v1/user/projects/${projectId}`, {
       headers: { Cookie: `artisan_user_session=${sess2.id}` },
     });
     expect(res.status).toBe(403);
   });
 
-  test("GET /:projectId 404 — pack does not exist", async () => {
-    const { sessionId } = await seedUserWithPack("u1");
+  test("GET /:projectId 404 — project does not exist", async () => {
+    const { sessionId } = await seedUserWithProject("u1");
     const app = makeApp();
     const res = await app.request("/api/v1/user/projects/pack_nonexistent", {
       headers: { Cookie: `artisan_user_session=${sessionId}` },
@@ -101,10 +101,10 @@ describe("userProjectsRouter — GET", () => {
 describe("userProjectsRouter — PUT", () => {
   beforeEach(clearAll);
 
-  test("PUT /:projectId 200 — member updates pack content", async () => {
-    const { sessionId, packId } = await seedUserWithPack("u1");
+  test("PUT /:projectId 200 — member updates project content", async () => {
+    const { sessionId, projectId } = await seedUserWithProject("u1");
     const app = makeApp();
-    const res = await app.request(`/api/v1/user/projects/${packId}`, {
+    const res = await app.request(`/api/v1/user/projects/${projectId}`, {
       method: "PUT",
       headers: {
         Cookie: `artisan_user_session=${sessionId}`,
@@ -113,7 +113,7 @@ describe("userProjectsRouter — PUT", () => {
       body: JSON.stringify({
         hash: "h2",
         files: { "menus/m.yaml": "id: m\ntitle: Hello" },
-        editor: { id: packId, menus: [{ id: "m" }] },
+        editor: { id: projectId, menus: [{ id: "m" }] },
         baseVersion: 1,
       }),
     });
@@ -123,26 +123,26 @@ describe("userProjectsRouter — PUT", () => {
 
     // Verify DB updated
     const { getProject } = await import("../lib/projectStorage");
-    const updated = await getProject(packId);
+    const updated = await getProject(projectId);
     expect(updated?.hash).toBe("h2");
     expect(JSON.parse(updated?.filesJson ?? "{}")).toEqual({ "menus/m.yaml": "id: m\ntitle: Hello" });
   });
 
   test("GET /:projectId returns project version", async () => {
-    const { sessionId, packId } = await seedUserWithPack("u1");
+    const { sessionId, projectId } = await seedUserWithProject("u1");
     const app = makeApp();
-    const res = await app.request(`/api/v1/user/projects/${packId}`, {
+    const res = await app.request(`/api/v1/user/projects/${projectId}`, {
       headers: { Cookie: `artisan_user_session=${sessionId}` },
     });
     const body = await res.json();
-    // seedUserWithPack does one upsert after createProject → version 1
+    // seedUserWithProject does one upsert after createProject → version 1
     expect(body.project.version).toBe(1);
   });
 
   test("PUT /:projectId 200 — matching baseVersion saves and returns new version", async () => {
-    const { sessionId, packId } = await seedUserWithPack("u1");
+    const { sessionId, projectId } = await seedUserWithProject("u1");
     const app = makeApp();
-    const res = await app.request(`/api/v1/user/projects/${packId}`, {
+    const res = await app.request(`/api/v1/user/projects/${projectId}`, {
       method: "PUT",
       headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ hash: "h2", files: {}, baseVersion: 1 }),
@@ -153,10 +153,10 @@ describe("userProjectsRouter — PUT", () => {
   });
 
   test("PUT /:projectId 409 — stale baseVersion is rejected without overwriting", async () => {
-    const { sessionId, packId } = await seedUserWithPack("u1");
+    const { sessionId, projectId } = await seedUserWithProject("u1");
     const app = makeApp();
     // concurrent writer bumps the version
-    const ok = await app.request(`/api/v1/user/projects/${packId}`, {
+    const ok = await app.request(`/api/v1/user/projects/${projectId}`, {
       method: "PUT",
       headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ hash: "h2", files: { "menus/m.yaml": "id: m2" }, baseVersion: 1 }),
@@ -164,7 +164,7 @@ describe("userProjectsRouter — PUT", () => {
     expect(ok.status).toBe(200);
 
     // stale tab still holds baseVersion 1
-    const res = await app.request(`/api/v1/user/projects/${packId}`, {
+    const res = await app.request(`/api/v1/user/projects/${projectId}`, {
       method: "PUT",
       headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ hash: "h_stale", files: { "menus/m.yaml": "id: stale" }, baseVersion: 1 }),
@@ -175,14 +175,14 @@ describe("userProjectsRouter — PUT", () => {
     expect(body.currentVersion).toBe(2);
 
     const { getProject } = await import("../lib/projectStorage");
-    const row = await getProject(packId);
+    const row = await getProject(projectId);
     expect(row?.hash).toBe("h2");
   });
 
   test("PUT /:projectId 400 — missing baseVersion is rejected", async () => {
-    const { sessionId, packId } = await seedUserWithPack("u1");
+    const { sessionId, projectId } = await seedUserWithProject("u1");
     const app = makeApp();
-    const res = await app.request(`/api/v1/user/projects/${packId}`, {
+    const res = await app.request(`/api/v1/user/projects/${projectId}`, {
       method: "PUT",
       headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ hash: "h2", files: {} }),
@@ -193,14 +193,14 @@ describe("userProjectsRouter — PUT", () => {
   });
 
   test("PUT /:projectId 403 — non-member cannot write", async () => {
-    const { packId } = await seedUserWithPack("u1");
+    const { projectId } = await seedUserWithProject("u1");
     await db.insert(users).values({
       id: "u2", email: "u2@a.b", name: "u2", passwordHash: null, avatarUrl: null,
       createdAt: new Date(), updatedAt: new Date(),
     });
     const sess2 = await createSession("u2");
     const app = makeApp();
-    const res = await app.request(`/api/v1/user/projects/${packId}`, {
+    const res = await app.request(`/api/v1/user/projects/${projectId}`, {
       method: "PUT",
       headers: {
         Cookie: `artisan_user_session=${sess2.id}`,
@@ -216,13 +216,13 @@ describe("userProjectsRouter — POST /:projectId/draft", () => {
   beforeEach(clearAll);
 
   test("200 for member and broadcasts draft_update to other editor connections", async () => {
-    const { sessionId, packId, skId } = await seedUserWithPack("u1");
+    const { sessionId, projectId, skId } = await seedUserWithProject("u1");
     const app = makeApp();
 
     const receivedByOther: string[] = [];
     registerEditorConn("other-editor-conn", skId, (msg) => receivedByOther.push(msg));
 
-    const res = await app.request(`/api/v1/user/projects/${packId}/draft`, {
+    const res = await app.request(`/api/v1/user/projects/${projectId}/draft`, {
       method: "POST",
       headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ menu_id: "shop_main", menu_yaml: "title: Shop\n" }),
@@ -238,14 +238,14 @@ describe("userProjectsRouter — POST /:projectId/draft", () => {
   });
 
   test("403 — non-member cannot broadcast draft", async () => {
-    const { packId } = await seedUserWithPack("u1");
+    const { projectId } = await seedUserWithProject("u1");
     await db.insert(users).values({
       id: "u2", email: "u2@a.b", name: "u2", passwordHash: null, avatarUrl: null,
       createdAt: new Date(), updatedAt: new Date(),
     });
     const sess2 = await createSession("u2");
     const app = makeApp();
-    const res = await app.request(`/api/v1/user/projects/${packId}/draft`, {
+    const res = await app.request(`/api/v1/user/projects/${projectId}/draft`, {
       method: "POST",
       headers: { Cookie: `artisan_user_session=${sess2.id}`, "Content-Type": "application/json" },
       body: JSON.stringify({ menu_id: "shop_main", menu_yaml: "title: Shop\n" }),
@@ -258,10 +258,10 @@ describe("userProjectsRouter — DELETE /:projectId", () => {
   beforeEach(clearAll);
 
   test("200 — member soft-deletes project (row kept, deletedAt set)", async () => {
-    const { sessionId, packId } = await seedUserWithPack("u1");
+    const { sessionId, projectId } = await seedUserWithProject("u1");
     const app = makeApp();
 
-    const res = await app.request(`/api/v1/user/projects/${packId}`, {
+    const res = await app.request(`/api/v1/user/projects/${projectId}`, {
       method: "DELETE",
       headers: { Cookie: `artisan_user_session=${sessionId}` },
     });
@@ -269,20 +269,20 @@ describe("userProjectsRouter — DELETE /:projectId", () => {
     const body = await res.json();
     expect(body.deleted).toBe(true);
 
-    const row = await getProject(packId);
+    const row = await getProject(projectId);
     expect(row).not.toBeNull(); // softDeleteProject keeps the row
     expect(row?.deletedAt).not.toBeNull();
   });
 
   test("200 — DELETE is idempotent-guarded: second call 404s (already deleted)", async () => {
-    const { sessionId, packId } = await seedUserWithPack("u1");
+    const { sessionId, projectId } = await seedUserWithProject("u1");
     const app = makeApp();
 
-    await app.request(`/api/v1/user/projects/${packId}`, {
+    await app.request(`/api/v1/user/projects/${projectId}`, {
       method: "DELETE",
       headers: { Cookie: `artisan_user_session=${sessionId}` },
     });
-    const res2 = await app.request(`/api/v1/user/projects/${packId}`, {
+    const res2 = await app.request(`/api/v1/user/projects/${projectId}`, {
       method: "DELETE",
       headers: { Cookie: `artisan_user_session=${sessionId}` },
     });
@@ -290,20 +290,20 @@ describe("userProjectsRouter — DELETE /:projectId", () => {
   });
 
   test("403 — non-member cannot delete", async () => {
-    const { packId } = await seedUserWithPack("u1");
+    const { projectId } = await seedUserWithProject("u1");
     await db.insert(users).values({
       id: "u2", email: "u2@a.b", name: "u2", passwordHash: null, avatarUrl: null,
       createdAt: new Date(), updatedAt: new Date(),
     });
     const sess2 = await createSession("u2");
     const app = makeApp();
-    const res = await app.request(`/api/v1/user/projects/${packId}`, {
+    const res = await app.request(`/api/v1/user/projects/${projectId}`, {
       method: "DELETE",
       headers: { Cookie: `artisan_user_session=${sess2.id}` },
     });
     expect(res.status).toBe(403);
 
-    const row = await getProject(packId);
+    const row = await getProject(projectId);
     expect(row?.deletedAt).toBeNull();
   });
 });
@@ -313,15 +313,15 @@ describe("userProjectsRouter — DELETE /:projectId", () => {
 describe("userProjectsRouter — divergence", () => {
   beforeEach(clearAll);
 
-  async function seedDivergence(packId: string, skId: string) {
+  async function seedDivergence(projectId: string, skId: string) {
     const { registerConn, connToServerId, handlePluginMessage } = await import("../ws/hub");
-    const connId = `conn-div-${packId}`;
+    const connId = `conn-div-${projectId}`;
     registerConn(connId, () => {});
     connToServerId.set(connId, skId);
-    const base = `plugins/Artisan/projects/${packId}`;
+    const base = `plugins/Artisan/projects/${projectId}`;
     await handlePluginMessage(connId, JSON.stringify({
       type: "sync_divergence",
-      project_id: packId,
+      project_id: projectId,
       files: {
         [`${base}/menus/m.yaml`]: "id: m\ntitle: DISK\n",
         [`${base}/menus/disk_only.yaml`]: "id: disk_only\n",
@@ -333,15 +333,15 @@ describe("userProjectsRouter — divergence", () => {
   }
 
   test("GET includes the per-file divergence detail while pending", async () => {
-    const { sessionId, packId, skId } = await seedUserWithPack("u1");
-    const base = `plugins/Artisan/projects/${packId}`;
-    await upsertProjectContent(packId, {
+    const { sessionId, projectId, skId } = await seedUserWithProject("u1");
+    const base = `plugins/Artisan/projects/${projectId}`;
+    await upsertProjectContent(projectId, {
       filesJson: JSON.stringify({ [`${base}/menus/m.yaml`]: "id: m\ntitle: WEB\n" }),
     });
-    await seedDivergence(packId, skId);
+    await seedDivergence(projectId, skId);
 
     const app = makeApp();
-    const res = await app.request(`/api/v1/user/projects/${packId}`, {
+    const res = await app.request(`/api/v1/user/projects/${projectId}`, {
       headers: { Cookie: `artisan_user_session=${sessionId}` },
     });
     const body = await res.json();
@@ -354,15 +354,15 @@ describe("userProjectsRouter — divergence", () => {
   });
 
   test("resolve-divergence applies per-file choices, commits, clears the report", async () => {
-    const { sessionId, packId, skId } = await seedUserWithPack("u1");
-    const base = `plugins/Artisan/projects/${packId}`;
-    await upsertProjectContent(packId, {
+    const { sessionId, projectId, skId } = await seedUserWithProject("u1");
+    const base = `plugins/Artisan/projects/${projectId}`;
+    await upsertProjectContent(projectId, {
       filesJson: JSON.stringify({ [`${base}/menus/m.yaml`]: "id: m\ntitle: WEB\n" }),
     });
-    await seedDivergence(packId, skId);
+    await seedDivergence(projectId, skId);
 
     const app = makeApp();
-    const res = await app.request(`/api/v1/user/projects/${packId}/resolve-divergence`, {
+    const res = await app.request(`/api/v1/user/projects/${projectId}/resolve-divergence`, {
       method: "POST",
       headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ choices: { "menus/m.yaml": "disk", "menus/disk_only.yaml": "web" } }),
@@ -371,7 +371,7 @@ describe("userProjectsRouter — divergence", () => {
     const body = await res.json();
     expect(body.ok).toBe(true);
 
-    const updated = await getProject(packId);
+    const updated = await getProject(projectId);
     const files = JSON.parse(updated!.filesJson);
     expect(files[`${base}/menus/m.yaml`]).toBe("id: m\ntitle: DISK\n"); // disk chosen
     expect(files[`${base}/menus/disk_only.yaml`]).toBeUndefined();      // web chosen (absent)
@@ -379,22 +379,22 @@ describe("userProjectsRouter — divergence", () => {
     // Committed on main + head advanced.
     const { getBranch } = await import("../lib/branchStorage");
     const { getCommit } = await import("../lib/commitStorage");
-    const branch = await getBranch(packId, "main");
+    const branch = await getBranch(projectId, "main");
     const head = await getCommit(branch!.headCommitId);
     expect(head!.message).toBe("Resolve disk/web divergence");
 
     // Cleared: GET no longer reports it.
     const { getPendingDivergence } = await import("../ws/hub");
-    expect(getPendingDivergence(packId)).toBeUndefined();
+    expect(getPendingDivergence(projectId)).toBeUndefined();
   });
 
   test("resolve-divergence broadcasts a FORCED bundle_available (plugin must download over its local changes)", async () => {
-    const { sessionId, packId, skId } = await seedUserWithPack("u1");
-    const base = `plugins/Artisan/projects/${packId}`;
-    await upsertProjectContent(packId, {
+    const { sessionId, projectId, skId } = await seedUserWithProject("u1");
+    const base = `plugins/Artisan/projects/${projectId}`;
+    await upsertProjectContent(projectId, {
       filesJson: JSON.stringify({ [`${base}/menus/m.yaml`]: "id: m\ntitle: WEB\n" }),
     });
-    await seedDivergence(packId, skId);
+    await seedDivergence(projectId, skId);
 
     const { registerConn, connToServerId, connSenders } = await import("../ws/hub");
     const sent: string[] = [];
@@ -402,7 +402,7 @@ describe("userProjectsRouter — divergence", () => {
     connToServerId.set("conn-resolve", skId);
     try {
       const app = makeApp();
-      const res = await app.request(`/api/v1/user/projects/${packId}/resolve-divergence`, {
+      const res = await app.request(`/api/v1/user/projects/${projectId}/resolve-divergence`, {
         method: "POST",
         headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
         body: JSON.stringify({ choices: { "menus/m.yaml": "disk" } }),
@@ -419,9 +419,9 @@ describe("userProjectsRouter — divergence", () => {
   });
 
   test("resolve-divergence 404 when nothing is pending", async () => {
-    const { sessionId, packId } = await seedUserWithPack("u1");
+    const { sessionId, projectId } = await seedUserWithProject("u1");
     const app = makeApp();
-    const res = await app.request(`/api/v1/user/projects/${packId}/resolve-divergence`, {
+    const res = await app.request(`/api/v1/user/projects/${projectId}/resolve-divergence`, {
       method: "POST",
       headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ choices: {} }),
@@ -437,34 +437,34 @@ describe("userProjectsRouter — GET par slug", () => {
   beforeEach(clearAll);
 
   test("résout le slug quand le serveur est fourni", async () => {
-    const { sessionId, packId, skId } = await seedUserWithPack("u1");
-    const pack = (await getProject(packId))!;
+    const { sessionId, projectId, skId } = await seedUserWithProject("u1");
+    const project = (await getProject(projectId))!;
     const app = makeApp();
-    const res = await app.request(`/api/v1/user/projects/${pack.slug}?server=${skId}`, {
+    const res = await app.request(`/api/v1/user/projects/${project.slug}?server=${skId}`, {
       headers: { Cookie: `artisan_user_session=${sessionId}` },
     });
     expect(res.status).toBe(200);
-    expect((await res.json()).project.id).toBe(packId);
+    expect((await res.json()).project.id).toBe(projectId);
   });
 
   test("l'id continue de marcher, avec ou sans serveur", async () => {
-    const { sessionId, packId, skId } = await seedUserWithPack("u1");
+    const { sessionId, projectId, skId } = await seedUserWithProject("u1");
     const app = makeApp();
     for (const url of [
-      `/api/v1/user/projects/${packId}`,
-      `/api/v1/user/projects/${packId}?server=${skId}`,
+      `/api/v1/user/projects/${projectId}`,
+      `/api/v1/user/projects/${projectId}?server=${skId}`,
     ]) {
       const res = await app.request(url, { headers: { Cookie: `artisan_user_session=${sessionId}` } });
       expect(res.status).toBe(200);
-      expect((await res.json()).project.id).toBe(packId);
+      expect((await res.json()).project.id).toBe(projectId);
     }
   });
 
   // Le piège que la portée serveur évite : deux serveurs peuvent porter le même
   // slug de project, un lookup global tomberait sur celui d'un autre serveur.
   test("ne traverse jamais la frontière du serveur", async () => {
-    const { sessionId, packId, skId, networkId } = await seedUserWithPack("u1");
-    const mine = (await getProject(packId))!;
+    const { sessionId, projectId, skId, networkId } = await seedUserWithProject("u1");
+    const mine = (await getProject(projectId))!;
     const { id: otherSk, hash: otherHash } = await generateServerKey();
     await db.insert(serverKeys).values({
       id: otherSk, hash: otherHash, label: null, networkId, createdAt: new Date(),
@@ -481,7 +481,7 @@ describe("userProjectsRouter — GET par slug", () => {
   });
 
   test("slug inconnu sur ce serveur → 404", async () => {
-    const { sessionId, skId } = await seedUserWithPack("u1");
+    const { sessionId, skId } = await seedUserWithProject("u1");
     const app = makeApp();
     const res = await app.request(`/api/v1/user/projects/nexistepas?server=${skId}`, {
       headers: { Cookie: `artisan_user_session=${sessionId}` },

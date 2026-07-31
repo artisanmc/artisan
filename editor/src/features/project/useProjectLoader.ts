@@ -9,14 +9,14 @@ import { useDivergenceStore } from "@/state/divergenceStore";
 import type { Account, Project, ProjectId } from "@/domain/types";
 
 export interface ProjectLoadResult {
-  pack: Project | null;
+  project: Project | null;
   networkId: string | null;
   error: string | null;
 }
 
 export function useProjectLoader(projectId: string, serverRef?: string | null): ProjectLoadResult {
   const user = useAuthStore((s) => s.currentUser);
-  const [pack, setProject] = useState<Project | null>(null);
+  const [project, setProject] = useState<Project | null>(null);
   const [networkId, setNetworkId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -55,7 +55,7 @@ export function useProjectLoader(projectId: string, serverRef?: string | null): 
         // ProjectProperties, …) that read from useAccountStore.account.projects
         // can find it. We MUST preserve the existing projects array + projectOrder
         // — overwriting them clobbered the sidebar's sort, which made every
-        // workspace click yank the visited pack to position 0.
+        // workspace click yank the visited project to position 0.
         const current = useAccountStore.getState().account;
         const idx = current.projects.findIndex((p) => p.id === loaded.id);
         const nextProjects =
@@ -75,5 +75,5 @@ export function useProjectLoader(projectId: string, serverRef?: string | null): 
       .catch((e) => setError((e as Error).message));
   }, [projectId, serverRef, user]);
 
-  return { pack, networkId, error };
+  return { project, networkId, error };
 }

@@ -31,7 +31,7 @@ type Json = Record<string, any>;
 
 export interface ImportResult {
   menu: DomainMenu;
-  /** i18n keys allocated for literal text (to merge into pack.i18nKeys by the caller). */
+  /** i18n keys allocated for literal text (to merge into project.i18nKeys by the caller). */
   i18nKeys: Record<string, Record<string, string>>;
   /** menu/v1 constructs without a domain equivalent (the domain is a subset of the plugin vocab). */
   unsupported: string[];

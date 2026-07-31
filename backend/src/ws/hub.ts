@@ -632,11 +632,6 @@ export async function handlePluginMessage(
     return { reply: null };
   }
 
-  // ── pack_divergence_detected: no-op (Plan 1C: backend-as-truth) ──────────
-  if (msg.type === "pack_divergence_detected") {
-    return { reply: null };
-  }
-
   // ── sync_divergence: disk AND web both moved — plugin reports its disk tree ─
   // (files-first P3c). Stored IN MEMORY only: the plugin re-reports at every
   // hello_ack while unresolved, so a backend restart self-heals on reconnect.

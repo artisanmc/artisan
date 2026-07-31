@@ -5,9 +5,9 @@ import { autoLayout } from "./autoLayout";
 import { hitTestSlot, screenToWorld } from "./hitTest";
 import { TEX_FIRST_SLOT_X, TEX_SLOT_STRIDE, TEX_TITLE_H } from "./menuLayout";
 
-/** Build a one-menu pack of the given inventory type at layout origin {0,0}. */
+/** Build a one-menu project of the given inventory type at layout origin {0,0}. */
 function singleMenuProject(inventoryType: InventoryType): {
-  pack: Project;
+  project: Project;
   layout: Record<string, { x: number; y: number }>;
   menuId: MenuId;
 } {
@@ -19,8 +19,8 @@ function singleMenuProject(inventoryType: InventoryType): {
     inventoryType,
     layers: [],
   } as unknown as Menu;
-  const pack = { menus: [menu], commands: [], dialogs: [] } as unknown as Project;
-  return { pack, layout: { [id]: { x: 0, y: 0 } }, menuId: id };
+  const project = { menus: [menu], commands: [], dialogs: [] } as unknown as Project;
+  return { project, layout: { [id]: { x: 0, y: 0 } }, menuId: id };
 }
 
 describe("hitTestSlot", () => {
@@ -61,31 +61,31 @@ describe("hitTestSlot", () => {
   });
 
   it("hits a chest menu at layout origin (slot 0 and slot 9)", () => {
-    const { pack, layout: lay, menuId } = singleMenuProject("chest");
+    const { project, layout: lay, menuId } = singleMenuProject("chest");
     // slot 0 center MC (7+8,17+8)=(15,25) → canvas ×2 = (30,50)
-    expect(hitTestSlot(pack, lay, 30, 50)).toEqual({ menuId, position: 0 });
+    expect(hitTestSlot(project, lay, 30, 50)).toEqual({ menuId, position: 0 });
     // slot 9 (second row, col 0) center MC (15, 43) → (30, 86)
-    expect(hitTestSlot(pack, lay, 30, 86)).toEqual({ menuId, position: 9 });
+    expect(hitTestSlot(project, lay, 30, 86)).toEqual({ menuId, position: 9 });
   });
 
   it("hits a hopper menu (5 cols, 1 row, origin 44,20)", () => {
-    const { pack, layout: lay, menuId } = singleMenuProject("hopper");
+    const { project, layout: lay, menuId } = singleMenuProject("hopper");
     // slot 0 center MC (44+8,20+8)=(52,28) → ×2 = (104,56)
-    expect(hitTestSlot(pack, lay, 104, 56)).toEqual({ menuId, position: 0 });
+    expect(hitTestSlot(project, lay, 104, 56)).toEqual({ menuId, position: 0 });
     // slot 4 center MC (44+4*18+8,28)=(124,28) → (248,56)
-    expect(hitTestSlot(pack, lay, 248, 56)).toEqual({ menuId, position: 4 });
+    expect(hitTestSlot(project, lay, 248, 56)).toEqual({ menuId, position: 4 });
     // a point in the title bar above the slot row → no hit
-    expect(hitTestSlot(pack, lay, 104, 10)).toBeNull();
+    expect(hitTestSlot(project, lay, 104, 10)).toBeNull();
   });
 
   it("hits a dropper menu (3 cols, 3 rows, origin 62,17)", () => {
-    const { pack, layout: lay, menuId } = singleMenuProject("dropper");
+    const { project, layout: lay, menuId } = singleMenuProject("dropper");
     // slot 0 center MC (62+8,17+8)=(70,25) → (140,50)
-    expect(hitTestSlot(pack, lay, 140, 50)).toEqual({ menuId, position: 0 });
+    expect(hitTestSlot(project, lay, 140, 50)).toEqual({ menuId, position: 0 });
     // slot 4 (center of 3×3) MC (62+18+8,17+18+8)=(88,43) → (176,86)
-    expect(hitTestSlot(pack, lay, 176, 86)).toEqual({ menuId, position: 4 });
+    expect(hitTestSlot(project, lay, 176, 86)).toEqual({ menuId, position: 4 });
     // slot 8 (bottom-right) MC (62+36+8,17+36+8)=(106,61) → (212,122)
-    expect(hitTestSlot(pack, lay, 212, 122)).toEqual({ menuId, position: 8 });
+    expect(hitTestSlot(project, lay, 212, 122)).toEqual({ menuId, position: 8 });
   });
 });
 

@@ -5,7 +5,7 @@ import type { I18nKey, Project } from "@/domain/types";
 import { useEdgeHoverStore } from "@/state/edgeHoverStore";
 import { EdgeTooltip } from "./EdgeTooltip";
 
-const pack = {
+const project = {
   id: "p1",
   name: "p",
   source: "user_created",
@@ -61,7 +61,7 @@ describe("EdgeTooltip", () => {
   });
 
   it("renders element titles as MiniMessage instead of raw markup", () => {
-    render(<EdgeTooltip pack={pack} />);
+    render(<EdgeTooltip project={project} />);
     expect(screen.queryByText(/<red>/)).not.toBeInTheDocument();
     const segment = screen.getByText("Épée");
     expect(segment).toBeInTheDocument();

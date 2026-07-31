@@ -52,13 +52,13 @@ export function buildAssistantRouter(): Hono {
 	});
 
 	// List a workspace's conversations (newest first), without message bodies.
-	// `projectId` is the wire name since the pack→project rename; `packId` is
+	// `projectId` is the wire name since the project→project rename; `projectId` is
 	// the legacy alias kept for old clients.
 	r.get("/conversations", async (c) => {
-		const packId = c.req.query("projectId") ?? c.req.query("packId") ?? "";
+		const projectId = c.req.query("projectId") ?? c.req.query("projectId") ?? "";
 		const conversations = await listConversations(
 			c.get("ownerKey") as string,
-			packId,
+			projectId,
 		);
 		return c.json({ conversations });
 	});
@@ -68,16 +68,16 @@ export function buildAssistantRouter(): Hono {
 		const body = await c.req
 			.json()
 			.catch(() => ({}) as Record<string, unknown>);
-		const packId =
+		const projectId =
 			typeof (body as any).projectId === "string"
 				? (body as any).projectId
-				: typeof (body as any).packId === "string"
-					? (body as any).packId
+				: typeof (body as any).projectId === "string"
+					? (body as any).projectId
 					: "";
-		const access = await resolveProjectAccess(c.get("ownerKey") as string, packId);
+		const access = await resolveProjectAccess(c.get("ownerKey") as string, projectId);
 		if (!access.ok)
 			return c.json({ error: access.error }, access.error === "project_not_found" ? 404 : 403);
-		const id = await createConversation(c.get("ownerKey") as string, packId);
+		const id = await createConversation(c.get("ownerKey") as string, projectId);
 		return c.json({ conversationId: id });
 	});
 
@@ -88,7 +88,7 @@ export function buildAssistantRouter(): Hono {
 			return c.json({ error: "Not found" }, 404);
 		return c.json({
 			id: conv.id,
-			packId: conv.projectId,
+			projectId: conv.projectId,
 			title: conv.title,
 			messages: conv.messages,
 			updatedAt: conv.updatedAt,
@@ -152,7 +152,7 @@ export function buildAssistantRouter(): Hono {
 			(body as any).translations && typeof (body as any).translations === "object"
 				? ((body as any).translations as Record<string, Record<string, string>>)
 				: {};
-		// Working copy is rebuilt from the live pack on every turn (last-writer-wins).
+		// Working copy is rebuilt from the live project on every turn (last-writer-wins).
 		const wc = new WorkingCopy(menus, attachments, dialogs, commands, translations);
 		const text =
 			typeof (body as any).text === "string" ? (body as any).text : "";

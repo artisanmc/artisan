@@ -23,8 +23,8 @@ export function normalizeDataSourceName(name: string): string {
   return name.trim().toLowerCase();
 }
 
-export function findDataModel(pack: Project, id: DataModelId): DataModel | undefined {
-  return (pack.dataModels ?? []).find((m) => m.id === id);
+export function findDataModel(project: Project, id: DataModelId): DataModel | undefined {
+  return (project.dataModels ?? []).find((m) => m.id === id);
 }
 
 /** Model ids referenced (at any depth) by a field type. */
@@ -200,8 +200,8 @@ export function modelFieldTypeToFieldType(
 }
 
 /** Legacy `FieldType` of a source: table → list of its model's shape; config → object. */
-export function sourceFieldType(pack: Project, ds: DataSource): FieldType {
-  const models = pack.dataModels ?? [];
+export function sourceFieldType(project: Project, ds: DataSource): FieldType {
+  const models = project.dataModels ?? [];
   if (ds.shape === "table") {
     return {
       kind: "list",
@@ -212,28 +212,28 @@ export function sourceFieldType(pack: Project, ds: DataSource): FieldType {
 }
 
 /** `FieldType` of a table source (list of object). See {@link sourceFieldType}. */
-export function tableRowType(pack: Project, ds: DataSource & { shape: "table" }): FieldType {
-  return sourceFieldType(pack, ds);
+export function tableRowType(project: Project, ds: DataSource & { shape: "table" }): FieldType {
+  return sourceFieldType(project, ds);
 }
 
 /**
- * Is a Data model still referenced by anything in the pack — a table source's
+ * Is a Data model still referenced by anything in the project — a table source's
  * `modelId`, a config source's fields, or another model's fields? Used by the
  * delete guard and by auto-model GC when its table is removed.
  */
 export function isDataModelReferenced(
-  pack: Project,
+  project: Project,
   id: DataModelId,
   ignoreSourceId?: DataSource["id"],
 ): boolean {
   const refsInFields = (fields: DataModel["fields"]): boolean =>
     fields.some((f) => [...modelRefs(f.type)].includes(id));
-  for (const ds of pack.dataSources ?? []) {
+  for (const ds of project.dataSources ?? []) {
     if (ds.id === ignoreSourceId) continue;
     if (ds.shape === "table" && ds.modelId === id) return true;
     if (ds.shape === "config" && refsInFields(ds.fields)) return true;
   }
-  for (const m of pack.dataModels ?? []) {
+  for (const m of project.dataModels ?? []) {
     if (m.id !== id && refsInFields(m.fields)) return true;
   }
   return false;
@@ -252,9 +252,9 @@ export function wouldTypeCreateModelCycle(
 }
 
 /** Root declared fields of a source: table → its model's, config → its own. */
-export function sourceRootFields(pack: Project, ds: DataSource): ModelField[] {
+export function sourceRootFields(project: Project, ds: DataSource): ModelField[] {
   if (ds.shape === "table") {
-    return (pack.dataModels ?? []).find((m) => m.id === ds.modelId)?.fields ?? [];
+    return (project.dataModels ?? []).find((m) => m.id === ds.modelId)?.fields ?? [];
   }
   return ds.fields;
 }
@@ -264,12 +264,12 @@ export function sourceRootFields(pack: Project, ds: DataSource): ModelField[] {
  * String segments name object/model fields; numeric segments index lists.
  */
 export function sourceTypeAtPath(
-  pack: Project,
+  project: Project,
   ds: DataSource,
   path: (string | number)[],
 ): ModelFieldType | undefined {
-  const models = pack.dataModels ?? [];
-  let type: ModelFieldType = { kind: "object", fields: sourceRootFields(pack, ds) };
+  const models = project.dataModels ?? [];
+  let type: ModelFieldType = { kind: "object", fields: sourceRootFields(project, ds) };
   const visited = new Set<DataModelId>();
   for (const seg of path) {
     while (type.kind === "model") {
@@ -310,11 +310,11 @@ export function sourceTypeAtPath(
  * are dropped on load, never migrated. Also seeds `dataModels` on older
  * stored projects. Idempotent; run at the project-load boundary.
  */
-export function normalizeDataSources(pack: Project): void {
-  pack.dataSources = (pack.dataSources ?? []).filter(
+export function normalizeDataSources(project: Project): void {
+  project.dataSources = (project.dataSources ?? []).filter(
     (d) => (d as { shape?: string }).shape === "table" || (d as { shape?: string }).shape === "config",
   );
-  if (!pack.dataModels) pack.dataModels = [];
+  if (!project.dataModels) project.dataModels = [];
 }
 
 // ── Field edits: schema change + synchronous value migration ─────────────────
@@ -339,36 +339,36 @@ function isLTextNode(v: unknown): v is LText {
 
 /** Release every i18n key held by a value of the given declared type. */
 export function releaseValueLTexts(
-  pack: Project,
+  project: Project,
   value: unknown,
   type: ModelFieldType,
   visited: Set<DataModelId> = new Set(),
 ): void {
   switch (type.kind) {
     case "ltext":
-      if (isLTextNode(value)) deleteLText(pack, value);
+      if (isLTextNode(value)) deleteLText(project, value);
       return;
     case "list":
-      if (Array.isArray(value)) for (const el of value) releaseValueLTexts(pack, el, type.of, visited);
+      if (Array.isArray(value)) for (const el of value) releaseValueLTexts(project, el, type.of, visited);
       return;
     case "object":
       if (typeof value === "object" && value !== null && !Array.isArray(value)) {
         const obj = value as Record<string, unknown>;
-        for (const f of type.fields) releaseValueLTexts(pack, obj[f.name], f.type, visited);
+        for (const f of type.fields) releaseValueLTexts(project, obj[f.name], f.type, visited);
       }
       return;
     case "model": {
       if (visited.has(type.ref)) return;
-      const model = (pack.dataModels ?? []).find((m) => m.id === type.ref);
+      const model = (project.dataModels ?? []).find((m) => m.id === type.ref);
       if (!model) return;
       const next = new Set(visited).add(type.ref);
-      releaseValueLTexts(pack, value, { kind: "object", fields: model.fields }, next);
+      releaseValueLTexts(project, value, { kind: "object", fields: model.fields }, next);
       return;
     }
     case "map":
       if (typeof value === "object" && value !== null && !Array.isArray(value)) {
         for (const v of Object.values(value as Record<string, unknown>)) {
-          releaseValueLTexts(pack, v, type.of, visited);
+          releaseValueLTexts(project, v, type.of, visited);
         }
       }
       return;
@@ -376,7 +376,7 @@ export function releaseValueLTexts(
       if (typeof value !== "object" || value === null || Array.isArray(value)) return;
       const obj = value as Record<string, unknown>;
       const variant = type.variants.find((v) => v.name === obj[type.tag]);
-      if (variant) releaseValueLTexts(pack, value, { kind: "object", fields: variant.fields }, visited);
+      if (variant) releaseValueLTexts(project, value, { kind: "object", fields: variant.fields }, visited);
       return;
     }
     default:
@@ -440,20 +440,20 @@ const STRING_LIKE_KINDS: ReadonlySet<ModelFieldType["kind"]> = new Set([
 
 /** Best-effort scalar coercion for retype; falls back to the new default. */
 function coerceForRetype(
-  pack: Project,
+  project: Project,
   value: unknown,
   oldType: ModelFieldType,
   newType: ModelFieldType,
 ): unknown {
-  const models = pack.dataModels ?? [];
+  const models = project.dataModels ?? [];
   if (oldType.kind === newType.kind) return value;
   if (oldType.kind === "ltext" && STRING_LIKE_KINDS.has(newType.kind)) {
-    const s = isLTextNode(value) ? getText(pack, value, pack.defaultLang) : "";
-    if (isLTextNode(value)) deleteLText(pack, value);
+    const s = isLTextNode(value) ? getText(project, value, project.defaultLang) : "";
+    if (isLTextNode(value)) deleteLText(project, value);
     return s;
   }
   if (newType.kind === "ltext" && STRING_LIKE_KINDS.has(oldType.kind)) {
-    return createLText(pack, typeof value === "string" ? value : "", pack.defaultLang);
+    return createLText(project, typeof value === "string" ? value : "", project.defaultLang);
   }
   if (STRING_LIKE_KINDS.has(oldType.kind) && STRING_LIKE_KINDS.has(newType.kind)) {
     return typeof value === "string" ? value : "";
@@ -477,12 +477,12 @@ function coerceForRetype(
     const n = Number(value);
     return Number.isFinite(n) ? (newType.kind === "integer" ? Math.round(n) : n) : 0;
   }
-  releaseValueLTexts(pack, value, oldType);
+  releaseValueLTexts(project, value, oldType);
   return defaultValueForModelType(newType, models);
 }
 
 /** Apply the value half of an edit to one instance object of the edited list. */
-function migrateInstance(pack: Project, instance: unknown, edit: FieldEdit): void {
+function migrateInstance(project: Project, instance: unknown, edit: FieldEdit): void {
   // Walk down edit.path; arrays fan out (list-of-object segments).
   const targets: unknown[] = [instance];
   for (const seg of edit.path) {
@@ -498,7 +498,7 @@ function migrateInstance(pack: Project, instance: unknown, edit: FieldEdit): voi
     targets.length = 0;
     targets.push(...next);
   }
-  const models = pack.dataModels ?? [];
+  const models = project.dataModels ?? [];
   for (const t of targets) {
     if (typeof t !== "object" || t === null || Array.isArray(t)) continue;
     const obj = t as Record<string, unknown>;
@@ -524,13 +524,13 @@ function migrateInstance(pack: Project, instance: unknown, edit: FieldEdit): voi
 
 /** remove/retype need the pre-edit field type — resolved by the caller. */
 function migrateInstanceTyped(
-  pack: Project,
+  project: Project,
   instance: unknown,
   edit: FieldEdit,
   oldFieldType: ModelFieldType | undefined,
 ): void {
   if (edit.op === "add" || edit.op === "rename") {
-    migrateInstance(pack, instance, edit);
+    migrateInstance(project, instance, edit);
     return;
   }
   const targets: unknown[] = [instance];
@@ -551,26 +551,26 @@ function migrateInstanceTyped(
     if (typeof t !== "object" || t === null || Array.isArray(t)) continue;
     const obj = t as Record<string, unknown>;
     if (edit.op === "remove") {
-      if (oldFieldType) releaseValueLTexts(pack, obj[edit.name], oldFieldType);
+      if (oldFieldType) releaseValueLTexts(project, obj[edit.name], oldFieldType);
       delete obj[edit.name];
     } else if (edit.op === "retype") {
       if (oldFieldType)
-        obj[edit.name] = coerceForRetype(pack, obj[edit.name], oldFieldType, edit.newType);
+        obj[edit.name] = coerceForRetype(project, obj[edit.name], oldFieldType, edit.newType);
     }
   }
 }
 
 /**
- * Visit every value instance governed by `modelId` across the pack — table
+ * Visit every value instance governed by `modelId` across the project — table
  * rows of that model plus every nested occurrence reached through model refs
  * in the declared types of other sources. Cycle-defensive.
  */
 function forEachModelInstance(
-  pack: Project,
+  project: Project,
   modelId: DataModelId,
   visit: (instance: unknown) => void,
 ): void {
-  const models = pack.dataModels ?? [];
+  const models = project.dataModels ?? [];
   const walk = (type: ModelFieldType, value: unknown, visited: Set<DataModelId>): void => {
     switch (type.kind) {
       case "list":
@@ -607,7 +607,7 @@ function forEachModelInstance(
         return;
     }
   };
-  for (const ds of pack.dataSources ?? []) {
+  for (const ds of project.dataSources ?? []) {
     if (ds.shape === "table") {
       for (const row of ds.rows) walk({ kind: "model", ref: ds.modelId }, row, new Set());
     } else {
@@ -621,12 +621,12 @@ function forEachModelInstance(
  * editor owns (all instances across tables, nested model refs, config
  * objects), with ltext release/coercion. Immer-safe (call inside a producer).
  */
-export function applyFieldEdit(pack: Project, target: FieldEditTarget, edit: FieldEdit): void {
+export function applyFieldEdit(project: Project, target: FieldEditTarget, edit: FieldEdit): void {
   const ownerFields =
     target.kind === "model"
-      ? (pack.dataModels ?? []).find((m) => m.id === target.modelId)?.fields
+      ? (project.dataModels ?? []).find((m) => m.id === target.modelId)?.fields
       : (() => {
-          const ds = (pack.dataSources ?? []).find((d) => d.id === target.sourceId);
+          const ds = (project.dataSources ?? []).find((d) => d.id === target.sourceId);
           return ds?.shape === "config" ? ds.fields : undefined;
         })();
   if (!ownerFields) return;
@@ -641,12 +641,12 @@ export function applyFieldEdit(pack: Project, target: FieldEditTarget, edit: Fie
 
   // Values first (walkers rely on the pre-edit schema), then the schema.
   if (target.kind === "model") {
-    forEachModelInstance(pack, target.modelId, (instance) =>
-      migrateInstanceTyped(pack, instance, edit, oldFieldType),
+    forEachModelInstance(project, target.modelId, (instance) =>
+      migrateInstanceTyped(project, instance, edit, oldFieldType),
     );
   } else {
-    const ds = (pack.dataSources ?? []).find((d) => d.id === target.sourceId);
-    if (ds?.shape === "config") migrateInstanceTyped(pack, ds.value, edit, oldFieldType);
+    const ds = (project.dataSources ?? []).find((d) => d.id === target.sourceId);
+    if (ds?.shape === "config") migrateInstanceTyped(project, ds.value, edit, oldFieldType);
   }
   applyEditToFields(ownerFields, edit);
 }
@@ -670,28 +670,28 @@ export function declaredModelToDomain(doc: Record<string, unknown>): DataModel |
 }
 
 /**
- * Inject the server's declared models into a loaded pack (replacing stale
+ * Inject the server's declared models into a loaded project (replacing stale
  * copies of the same id) and run pending declarative migrations on every
- * table whose `modelVersion` lags its declaration. Mutates `pack`; returns
+ * table whose `modelVersion` lags its declaration. Mutates `project`; returns
  * whether any migration ran (the caller persists on the next save).
  */
 export function injectDeclaredModels(
-  pack: Project,
+  project: Project,
   docs: Record<string, unknown>[],
 ): boolean {
   const declared = docs
     .map(declaredModelToDomain)
     .filter((m): m is DataModel => m !== null);
-  if (declared.length === 0 && !(pack.dataModels ?? []).some((m) => m.provenance === "module")) {
+  if (declared.length === 0 && !(project.dataModels ?? []).some((m) => m.provenance === "module")) {
     return false;
   }
   const declaredIds = new Set(declared.map((m) => m.id));
-  pack.dataModels = [
-    ...(pack.dataModels ?? []).filter((m) => !declaredIds.has(m.id) && m.provenance !== "module"),
+  project.dataModels = [
+    ...(project.dataModels ?? []).filter((m) => !declaredIds.has(m.id) && m.provenance !== "module"),
     ...declared,
   ];
   let migrated = false;
-  for (const ds of pack.dataSources ?? []) {
+  for (const ds of project.dataSources ?? []) {
     // A Config typed by a declared model carries only the ref on disk (ADR
     // yaml-assisted-editing) — fill its fields from the declaration, then
     // adopt its bare literals like any row.
@@ -699,7 +699,7 @@ export function injectDeclaredModels(
       const model = ds.modelId ? declared.find((m) => m.id === ds.modelId) : undefined;
       if (!model || ds.fields.length > 0) continue;
       ds.fields = model.fields;
-      adoptBareLTexts(pack, ds);
+      adoptBareLTexts(project, ds);
       continue;
     }
     if (ds.shape !== "table") continue;
@@ -708,7 +708,7 @@ export function injectDeclaredModels(
     // BARE rows were imported untyped (the declaration wasn't known yet) —
     // adopt their literal strings into LText nodes now that the model is
     // (ADR bare-data-files ④). Idempotent on already-typed rows.
-    adoptBareLTexts(pack, ds);
+    adoptBareLTexts(project, ds);
     if (model.version === undefined || !model.migrations) continue;
     const from = ds.modelVersion ?? 1;
     if (from >= model.version) continue;

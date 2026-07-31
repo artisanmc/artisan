@@ -5,7 +5,7 @@ import net.artisanmc.modules.api.ArtisanModule
 
 /**
  * First Artisan module — encapsulates the existing menu rendering pipeline:
- * - SyncedMenuProvider (WS sync, pack loading)
+ * - SyncedMenuProvider (WS sync, project loading)
  * - MenuListener (Bukkit InventoryClickEvent)
  * - TitleCompiler, AssetCatalog
  *

@@ -9,7 +9,7 @@ beforeAll(async () => {
 });
 
 describe("DeleteProjectDialog", () => {
-  it("disables confirm button until pack name is typed exactly", async () => {
+  it("disables confirm button until project name is typed exactly", async () => {
     const onConfirm = vi.fn();
     const onCancel = vi.fn();
     render(<DeleteProjectDialog projectName="my_pack" onConfirm={onConfirm} onCancel={onCancel} />);

@@ -21,7 +21,7 @@ vi.mock("@/lib/api/billing", () => ({
     subscriptionQuota: 1000,
     periodEnd: "2999-01-01T00:00:00Z",
   })),
-  getPacks: vi.fn(async () => [
+  getProjects: vi.fn(async () => [
     {
       id: "pk1",
       name: "Starter",
@@ -93,7 +93,7 @@ describe("CreditsPage", () => {
     expect(screen.getByText(/Choisis un réseau/)).toBeTruthy();
   });
 
-  it("renders packs and starts checkout on Buy (redirects to Stripe url)", async () => {
+  it("renders projects and starts checkout on Buy (redirects to Stripe url)", async () => {
     signedIn();
     const assign = vi.fn();
     Object.defineProperty(window, "location", { value: { assign, href: "" }, writable: true });

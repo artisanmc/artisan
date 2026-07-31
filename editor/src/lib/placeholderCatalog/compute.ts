@@ -22,7 +22,7 @@ const ORDER: Record<PlaceholderOrigin, number> = {
 };
 
 /**
- * Walk the pack and the requested location to produce a flat list of
+ * Walk the project and the requested location to produce a flat list of
  * placeholder entries the user can insert in this field. Pure — no
  * side effects, safe to call from useMemo.
  */
@@ -31,7 +31,7 @@ const ORDER: Record<PlaceholderOrigin, number> = {
 export type RowModelSchemas = Record<string, { name: string; type: string }[]>;
 
 export function compute(
-  pack: Project,
+  project: Project,
   location: FieldLocation,
   rowSchemas?: RowModelSchemas,
 ): PlaceholderEntry[] {
@@ -39,10 +39,10 @@ export function compute(
     case "menu":
     case "element":
     case "action": {
-      const menu = pack.menus.find((m) => m.id === location.menuId);
+      const menu = project.menus.find((m) => m.id === location.menuId);
       if (!menu) return [];
       // Build the preview scope once; thread it through all helpers.
-      const scope = buildPreviewScope(menu, pack);
+      const scope = buildPreviewScope(menu, project);
       const out: PlaceholderEntry[] = [];
       // Builtin implicit {player} = the viewing player, unless the menu
       // declares a contextInput named `player` (caller arg wins, like the
@@ -50,11 +50,11 @@ export function compute(
       if (!(menu.contextInputs ?? []).some((i) => i.name === "player")) {
         out.push(...builtinPlayerEntries());
       }
-      collectMenuContextInputs(menu, pack, scope, out, rowSchemas);
+      collectMenuContextInputs(menu, project, scope, out, rowSchemas);
       if (location.kind === "element" || location.kind === "action") {
         const element = findElement(menu, location.elementId);
         if (element?.iterates) {
-          collectIterationLeaves(element.iterates.source, element.iterates.alias, pack, menu, scope, out);
+          collectIterationLeaves(element.iterates.source, element.iterates.alias, project, menu, scope, out);
           collectPagination(out);
         }
       }
@@ -91,7 +91,7 @@ function playerSubfieldEntries(base: string, nameSample: string | null): Placeho
 
 function collectMenuContextInputs(
   menu: Menu,
-  pack: Project,
+  project: Project,
   scope: ReturnType<typeof buildPreviewScope>,
   out: PlaceholderEntry[],
   rowSchemas?: RowModelSchemas,
@@ -112,7 +112,7 @@ function collectMenuContextInputs(
       // Row-model input (`rowOf`): expose the source's fields as subpaths —
       // {cat.name}, {cat.id}… typed from the declared schema.
       if (input.type === "object" && input.rowOf) {
-        for (const f of rowSchemaFields(String(input.rowOf), pack, rowSchemas)) {
+        for (const f of rowSchemaFields(String(input.rowOf), project, rowSchemas)) {
           const path = `${input.name}.${f.name}`;
           out.push({
             path,
@@ -125,7 +125,7 @@ function collectMenuContextInputs(
       continue;
     }
     // sourceRef
-    const resolvedType = typeOfSourceRef(input.ref, pack);
+    const resolvedType = typeOfSourceRef(input.ref, project);
     if (!resolvedType) {
       // Server refs (`namespace:source`) legitimately have no design-time
       // FieldType — their schema lives in the server report, and iteration
@@ -185,16 +185,16 @@ function primitiveContextInputTypeToPlaceholderType(t: string): PlaceholderType 
   }
 }
 
-/** Declared field schema of a source ref: server report first, then pack data. */
+/** Declared field schema of a source ref: server report first, then project data. */
 function rowSchemaFields(
   ref: string,
-  pack: Project,
+  project: Project,
   rowSchemas?: RowModelSchemas,
 ): { name: string; type: string }[] {
   const server = rowSchemas?.[ref];
   if (server && server.length > 0) return server;
   if (ref.startsWith("pack:")) {
-    const t = typeOfSourceRef(ref, pack);
+    const t = typeOfSourceRef(ref, project);
     const row = t?.kind === "list" ? t.of : t;
     if (row?.kind === "object") {
       return row.fields.map((f) => ({ name: f.name, type: f.type.kind }));
@@ -217,11 +217,11 @@ function fieldKindToPlaceholderType(kind: string): PlaceholderType {
   }
 }
 
-function typeOfSourceRef(ref: string, pack: Project): FieldType | null {
+function typeOfSourceRef(ref: string, project: Project): FieldType | null {
   if (ref.startsWith("pack:")) {
     const id = ref.slice("pack:".length);
-    const ds = pack.dataSources.find((d) => d.id === id);
-    return ds ? sourceFieldType(pack, ds) : null;
+    const ds = project.dataSources.find((d) => d.id === id);
+    return ds ? sourceFieldType(project, ds) : null;
   }
   // Server refs: no design-time FieldType — the schema comes from the server
   // report (serverDataSourcesStore), not the project. Unknown here.
@@ -249,7 +249,7 @@ function findElement(menu: Menu, elementId: string) {
 function collectIterationLeaves(
   sourcePath: string,
   alias: string,
-  pack: Project,
+  project: Project,
   menu: Menu,
   scope: ReturnType<typeof buildPreviewScope>,
   out: PlaceholderEntry[],
@@ -258,7 +258,7 @@ function collectIterationLeaves(
     (i) => i.kind === "sourceRef" && i.name === sourcePath,
   );
   if (!sourceInput || sourceInput.kind !== "sourceRef") return;
-  const type = typeOfSourceRef(sourceInput.ref, pack);
+  const type = typeOfSourceRef(sourceInput.ref, project);
   if (!type || type.kind !== "list") return;
   const itemType = type.of;
   if (itemType.kind === "object") {

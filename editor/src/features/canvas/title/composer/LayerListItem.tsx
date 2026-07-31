@@ -43,11 +43,11 @@ export function LayerListItem({ projectId, menuId, index, layer }: LayerListItem
 
   const removeLayer = useAccountStore((s) => s.removeMenuTitleLayer);
   const applyLayerDeleted = useUiStore((s) => s.applyLayerDeleted);
-  const pack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
   const activeLang = useUiStore((s) => s.activeLang);
   const assets = useAssetStore((s) => s.assets);
 
-  const name = deriveAutoName(layer, assets, pack, activeLang);
+  const name = deriveAutoName(layer, assets, project, activeLang);
 
   const onRowClick = () => {
     setSelectedLayerKey({ menuId, index });
@@ -150,24 +150,24 @@ export function LayerListItem({ projectId, menuId, index, layer }: LayerListItem
 function deriveAutoName(
   layer: MenuTitleLayer,
   assets: Asset[],
-  pack: ReturnType<typeof useAccountStore.getState>["account"]["projects"][number] | undefined,
+  project: ReturnType<typeof useAccountStore.getState>["account"]["projects"][number] | undefined,
   activeLang: string,
 ): string {
   if (layer.kind === "background" || layer.kind === "glyph") {
     return `Image • ${resolveAssetName(layer.assetId, assets)}`;
   }
   if (layer.kind === "text") {
-    const raw = pack ? getText(pack, layer.value, activeLang) : "";
+    const raw = project ? getText(project, layer.value, activeLang) : "";
     const display = raw && raw.length > 0 ? raw : layer.value.key;
     return `Texte • ${truncate(display, 20)}`;
   }
   if (layer.kind === "plain") {
-    const raw = pack ? getText(pack, layer.value, activeLang) : "";
+    const raw = project ? getText(project, layer.value, activeLang) : "";
     const display = raw && raw.length > 0 ? raw : layer.value.key;
     return `Titre vanilla • ${truncate(display, 20)}`;
   }
   if (layer.kind === "textarea") {
-    const raw = pack ? getText(pack, layer.value, activeLang) : "";
+    const raw = project ? getText(project, layer.value, activeLang) : "";
     const firstLine = (raw && raw.split("\n")[0]) || layer.value.key;
     const hasMore = raw && raw.includes("\n");
     const suffix = hasMore ? "…" : "";

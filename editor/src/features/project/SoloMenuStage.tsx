@@ -15,8 +15,8 @@ import { fitViewport } from "./soloViewport";
  * Konva picks the deepest draggable so moving an item still wins.
  */
 export function SoloMenuStage({ projectId, menuId }: { projectId: ProjectId; menuId: MenuId }) {
-  const pack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
-  const menu = pack?.menus.find((m) => m.id === menuId);
+  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  const menu = project?.menus.find((m) => m.id === menuId);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ w: 0, h: 0 });
   // Le cadrage est partagé par tous les documents : passer d'un menu à un

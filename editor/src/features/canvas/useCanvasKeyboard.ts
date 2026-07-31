@@ -16,7 +16,7 @@ import {
 } from "./clipboard";
 
 /**
- * Locate an element by id within a pack and return enough context
+ * Locate an element by id within a project and return enough context
  * (the owning menu) to call element-scoped actions on it.
  */
 const findElement = (
@@ -25,9 +25,9 @@ const findElement = (
   scopeMenuId?: string | null,
 ): { menuId: MenuId; element: Element } | null => {
   const account = useAccountStore.getState().account;
-  const pack = account.projects.find((p) => p.id === projectId);
-  if (!pack) return null;
-  for (const menu of pack.menus) {
+  const project = account.projects.find((p) => p.id === projectId);
+  if (!project) return null;
+  for (const menu of project.menus) {
     // Element ids collide across menus — honour the selection's owning menu.
     if (scopeMenuId && menu.id !== scopeMenuId) continue;
     for (const layer of menu.layers) {
@@ -47,12 +47,12 @@ const isEditableTarget = (target: EventTarget | null) => {
 
 const findSelectedEntities = (projectId: ProjectId, ids: string[], scopeMenuId?: string | null) => {
   const account = useAccountStore.getState().account;
-  const pack = account.projects.find((p) => p.id === projectId);
-  if (!pack)
+  const project = account.projects.find((p) => p.id === projectId);
+  if (!project)
     return { menus: [] as Menu[], commands: [] as Command[], elements: [] as ElementCopy[] };
   const idSet = new Set(ids);
   const elements: ElementCopy[] = [];
-  for (const menu of pack.menus) {
+  for (const menu of project.menus) {
     // Scope element matching to the selection's menu so a shared id (e.g.
     // `grid` in two menus) doesn't copy/duplicate both.
     if (scopeMenuId && menu.id !== scopeMenuId) continue;
@@ -63,8 +63,8 @@ const findSelectedEntities = (projectId: ProjectId, ids: string[], scopeMenuId?:
     }
   }
   return {
-    menus: pack.menus.filter((m) => idSet.has(m.id)),
-    commands: pack.commands.filter((c) => idSet.has(c.id)),
+    menus: project.menus.filter((m) => idSet.has(m.id)),
+    commands: project.commands.filter((c) => idSet.has(c.id)),
     elements,
   };
 };
@@ -73,26 +73,26 @@ const findSelectedEntities = (projectId: ProjectId, ids: string[], scopeMenuId?:
  * Pick the menu we should drop pasted elements into. Priority:
  *   1. A menu that is currently selected
  *   2. The menu that owns the currently selected element
- *   3. The clipboard's source menu (if it still exists in this pack)
- *   4. The first menu in the pack
+ *   3. The clipboard's source menu (if it still exists in this project)
+ *   4. The first menu in the project
  */
 const resolveTargetMenu = (projectId: ProjectId, elements: ElementCopy[]): MenuId | null => {
   const account = useAccountStore.getState().account;
-  const pack = account.projects.find((p) => p.id === projectId);
-  if (!pack) return null;
+  const project = account.projects.find((p) => p.id === projectId);
+  if (!project) return null;
   const sel = [...useSelectionStore.getState().ids];
   for (const id of sel) {
-    if (pack.menus.some((m) => m.id === id)) return id as MenuId;
+    if (project.menus.some((m) => m.id === id)) return id as MenuId;
   }
   for (const id of sel) {
-    for (const m of pack.menus) {
+    for (const m of project.menus) {
       if (m.layers.some((l) => l.elements.some((el) => el.id === id))) return m.id;
     }
   }
   for (const ec of elements) {
-    if (pack.menus.some((m) => m.id === ec.sourceMenuId)) return ec.sourceMenuId;
+    if (project.menus.some((m) => m.id === ec.sourceMenuId)) return ec.sourceMenuId;
   }
-  return pack.menus[0]?.id ?? null;
+  return project.menus[0]?.id ?? null;
 };
 
 /**
@@ -127,8 +127,8 @@ const placeElements = (
   onError?: (m: string) => void,
 ) => {
   const account = useAccountStore.getState().account;
-  const pack = account.projects.find((p) => p.id === projectId);
-  const menu = pack?.menus.find((m) => m.id === menuId);
+  const project = account.projects.find((p) => p.id === projectId);
+  const menu = project?.menus.find((m) => m.id === menuId);
   if (!menu) {
     onError?.("Target menu not found");
     return;

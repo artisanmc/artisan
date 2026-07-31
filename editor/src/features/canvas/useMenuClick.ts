@@ -32,9 +32,9 @@ export function useMenuClick({ projectId, menu, layout }: UseMenuClickArgs) {
             y: (pointer.y - stage.y()) / stage.scaleY(),
           };
           const account = useAccountStore.getState().account;
-          const pack = account.projects.find((p) => p.id === projectId);
-          if (pack) {
-            const hit = hitTestSlot(pack, layout, world.x, world.y);
+          const project = account.projects.find((p) => p.id === projectId);
+          if (project) {
+            const hit = hitTestSlot(project, layout, world.x, world.y);
             if (hit && hit.menuId === menu.id) {
               try {
                 useAccountStore.getState().setSlotMaterial({

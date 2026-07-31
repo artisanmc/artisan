@@ -76,7 +76,7 @@ const normalize = (p: ClipboardPayload): ClipboardPayload => ({
  * pointed at one of the original menu ids are also rewritten so internal
  * references stay intact after the paste. open_menu actions targeting
  * something OUTSIDE the rewrite set are left as-is — they may end up
- * dangling in the destination pack, which the runtime handles by
+ * dangling in the destination project, which the runtime handles by
  * no-op'ing on missing targets.
  */
 export function rewriteIds(input: {

@@ -17,7 +17,7 @@ const PNG_1x1 = new Uint8Array([
 function row(over: Partial<{ id: string; type: string; name: string; codepoint: number | null; ascent: number | null; height: number; fontMeta: unknown }>) {
   return {
     id: over.id ?? "asset_g1",
-    packId: "pack_test",
+    projectId: "pack_test",
     type: over.type ?? "glyph",
     name: over.name ?? "coin",
     width: 8,
@@ -58,9 +58,9 @@ describe("buildResourcePackZip", () => {
     const entries = unzipSync(zipBytes);
     expect(entries["pack.mcmeta"]).toBeDefined();
     const meta = JSON.parse(strFromU8(entries["pack.mcmeta"]));
-    expect(meta.pack.pack_format).toBe(64);
-    expect(meta.pack.supported_formats).toEqual({ min_inclusive: 22, max_inclusive: 200 });
-    expect(typeof meta.pack.description).toBe("string");
+    expect(meta.project.pack_format).toBe(64);
+    expect(meta.project.supported_formats).toEqual({ min_inclusive: 22, max_inclusive: 200 });
+    expect(typeof meta.project.description).toBe("string");
   });
 
   test("includes font/default.json with providers", () => {
@@ -350,7 +350,7 @@ describe("buildResourcePackZip", () => {
   });
 });
 
-describe("resource pack — text_y matrix with size dimension", () => {
+describe("resource project — text_y matrix with size dimension", () => {
   test("emits text_y{Y}_h{H}.json only for Y >= minYForSize(H) (skips invalid ascent>height combos)", () => {
     const { zipBytes } = buildResourcePackZip([], new Map(), new Map());
     const entries = unzipSync(zipBytes);

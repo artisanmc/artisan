@@ -149,7 +149,7 @@ function serializeAction(action: Action, textOf: StepTextOf = i18nRef): unknown 
 
 // ─── step tree serialization ─────────────────────────────────────────────────
 
-function serializeStep(step: Step, pack: Project, textOf: StepTextOf = i18nRef): unknown {
+function serializeStep(step: Step, project: Project, textOf: StepTextOf = i18nRef): unknown {
   if (step.kind === "action") {
     return { kind: "action", action: serializeAction(step.action, textOf) };
   }
@@ -158,11 +158,11 @@ function serializeStep(step: Step, pack: Project, textOf: StepTextOf = i18nRef):
     cases: step.cases.map((c) => ({
       conditions: c.conditions.map(serializeCondition),
       ...(c.joins ? { joins: c.joins } : {}),
-      steps: c.steps.map((s) => serializeStep(s, pack, textOf)),
+      steps: c.steps.map((s) => serializeStep(s, project, textOf)),
     })),
   };
   if (step.else) {
-    out.else = step.else.map((s) => serializeStep(s, pack, textOf));
+    out.else = step.else.map((s) => serializeStep(s, project, textOf));
   }
   return out;
 }
@@ -178,7 +178,7 @@ export function serializeStepsLiteral(steps: Step[]): unknown[] {
 
 // ─── appearance serialization ────────────────────────────────────────────────
 
-function serializeAppearance(app: Appearance, pack: Project): Record<string, unknown> {
+function serializeAppearance(app: Appearance, project: Project): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   if (app.if && app.if.length > 0) out.if = serializeIfArray(app.if, app.ifJoins);
   if (app.material) out.material = app.material;
@@ -192,7 +192,7 @@ function serializeAppearance(app: Appearance, pack: Project): Record<string, unk
       if (!handler) continue;
       // Canonical collapsed form: the handler IS the Action DSL string (ADR
       // action-dsl); menu action text is a Key site → `@key`, else a "literal".
-      clickOut[clickType] = stepsToDsl(handler.steps, pack);
+      clickOut[clickType] = stepsToDsl(handler.steps, project);
     }
     if (Object.keys(clickOut).length > 0) out.click = clickOut;
   }
@@ -207,13 +207,13 @@ function serializeAppearance(app: Appearance, pack: Project): Record<string, unk
  * lives on the element that renders them, in the menu it belongs to — there is
  * no project-level template to resolve.
  */
-function serializeElement(el: Element, pack: Project): Record<string, unknown> {
+function serializeElement(el: Element, project: Project): Record<string, unknown> {
   const out: Record<string, unknown> = {
     id: el.id,
     // A single numeric position emits as a bare int (no YAML quoting trap);
     // ranges/comma lists stay strings.
     positions: /^\d+$/.test(el.positions) ? Number(el.positions) : el.positions,
-    appearances: el.appearances.map((a) => serializeAppearance(a, pack)),
+    appearances: el.appearances.map((a) => serializeAppearance(a, project)),
   };
   if (el.iterates) {
     out.iterates = { source: el.iterates.source, alias: el.iterates.alias };
@@ -241,8 +241,8 @@ function serializeElement(el: Element, pack: Project): Record<string, unknown> {
 /** Canonical wire is a flat `elements` list (document order = stacking order,
  *  later wins per slot) — editor layers flatten at export; the legacy `layers`
  *  wrapping is import-only. */
-function serializeElements(menu: Menu, pack: Project): Record<string, unknown>[] {
-  return menu.layers.flatMap((l) => l.elements).map((el) => serializeElement(el, pack));
+function serializeElements(menu: Menu, project: Project): Record<string, unknown>[] {
+  return menu.layers.flatMap((l) => l.elements).map((el) => serializeElement(el, project));
 }
 
 // ─── title layer serialization ───────────────────────────────────────────────
@@ -446,12 +446,12 @@ function parseTitleLayer(node: unknown): MenuTitleLayer | null {
 /**
  * Serialize a single Menu into a canonical `menu/v1` object (snake_case,
  * `{i18n:key}` refs, title-as-layer-array). This is the public seed used by
- * the AI assistant (`packToMenuV1`) *and* the internal file exporter
+ * the AI assistant (`projectToMenuV1`) *and* the internal file exporter
  * (`transform()`), so the wire shape stays single-sourced.
  */
 export function serializeMenuToV1(
   menu: Menu,
-  pack: Project,
+  project: Project,
 ): { id: string } & Record<string, unknown> {
   const type = menu.inventoryType ?? "chest";
   const out: Record<string, unknown> = {
@@ -464,7 +464,7 @@ export function serializeMenuToV1(
         ? serializeTitleLayer(menu.title[0]!)
         : menu.title.map(serializeTitleLayer),
     size: slotCount(type, menu.rows),
-    elements: serializeElements(menu, pack),
+    elements: serializeElements(menu, project),
   };
   if (type !== "chest") out.inventory_type = type;
   if (menu.permission) out.permission = menu.permission;
@@ -491,14 +491,14 @@ export function serializeMenuToV1(
   return out as { id: string } & Record<string, unknown>;
 }
 
-/** Serialize every menu in a pack to canonical `menu/v1` objects (one per menu). */
-export function packToMenuV1(pack: Project): ({ id: string } & Record<string, unknown>)[] {
-  return pack.menus.map((m) => serializeMenuToV1(m, pack));
+/** Serialize every menu in a project to canonical `menu/v1` objects (one per menu). */
+export function projectToMenuV1(project: Project): ({ id: string } & Record<string, unknown>)[] {
+  return project.menus.map((m) => serializeMenuToV1(m, project));
 }
 
 // ─── command serialization ───────────────────────────────────────────────────
 
-export function serializeCommand(cmd: Command, pack: Project): Record<string, unknown> {
+export function serializeCommand(cmd: Command, project: Project): Record<string, unknown> {
   const out: Record<string, unknown> = {
     schema: "command/v1",
     id: cmd.id,
@@ -506,7 +506,7 @@ export function serializeCommand(cmd: Command, pack: Project): Record<string, un
     ...(cmd.name !== cmd.id ? { name: cmd.name } : {}),
     // The command's action chain serializes to an Action DSL string (ADR
     // action-dsl). Canonical field: `actions` (`steps` is the legacy spelling).
-    actions: stepsToDsl(cmd.steps, pack),
+    actions: stepsToDsl(cmd.steps, project),
   };
   if (cmd.aliases && cmd.aliases.length > 0) out.aliases = cmd.aliases;
   if (cmd.permission) out.permission = cmd.permission;
@@ -522,9 +522,9 @@ export function serializeCommand(cmd: Command, pack: Project): Record<string, un
   return out;
 }
 
-/** Serialize every command in a pack to canonical command/v1 objects. */
-export function packToCommandV1(pack: Project): Record<string, unknown>[] {
-  return pack.commands.map((c) => serializeCommand(c, pack));
+/** Serialize every command in a project to canonical command/v1 objects. */
+export function projectToCommandV1(project: Project): Record<string, unknown>[] {
+  return project.commands.map((c) => serializeCommand(c, project));
 }
 
 // ─── dialog serialization ────────────────────────────────────────────────────
@@ -556,16 +556,16 @@ function serializeDialogInput(input: DialogInput): Record<string, unknown> {
   return out;
 }
 
-function serializeDialogButton(btn: DialogButton, pack: Project): Record<string, unknown> {
+function serializeDialogButton(btn: DialogButton, project: Project): Record<string, unknown> {
   const out: Record<string, unknown> = { id: btn.id, label: i18nRef(btn.label.key) };
   // dialog/v1 button actions serialize to an Action DSL string (ADR action-dsl
   // Phase 2). Unlike the old flat-action wire, if-branches now round-trip.
-  const dsl = stepsToDsl(btn.steps, pack);
+  const dsl = stepsToDsl(btn.steps, project);
   if (dsl !== "") out.actions = dsl;
   return out;
 }
 
-export function serializeDialog(dialog: Dialog, pack: Project): Record<string, unknown> {
+export function serializeDialog(dialog: Dialog, project: Project): Record<string, unknown> {
   const out: Record<string, unknown> = {
     schema: "dialog/v1",
     id: dialog.id,
@@ -574,13 +574,13 @@ export function serializeDialog(dialog: Dialog, pack: Project): Record<string, u
   if (!dialog.canCloseWithEscape) out.can_close_with_escape = false;
   if (dialog.body.length > 0) out.body = dialog.body.map(serializeDialogBody);
   if (dialog.inputs.length > 0) out.inputs = dialog.inputs.map(serializeDialogInput);
-  out.buttons = dialog.buttons.map((b) => serializeDialogButton(b, pack));
+  out.buttons = dialog.buttons.map((b) => serializeDialogButton(b, project));
   return out;
 }
 
-/** Serialize every dialog in a pack to canonical dialog/v1 objects. */
-export function packToDialogV1(pack: Project): Record<string, unknown>[] {
-  return pack.dialogs.map((d) => serializeDialog(d, pack));
+/** Serialize every dialog in a project to canonical dialog/v1 objects. */
+export function projectToDialogV1(project: Project): Record<string, unknown>[] {
+  return project.dialogs.map((d) => serializeDialog(d, project));
 }
 
 // ─── translations serialization ──────────────────────────────────────────────
@@ -593,9 +593,9 @@ function addActionKeys(action: Action, keys: Set<string>): void {
   }
 }
 
-function collectReferencedKeys(pack: Project): Set<string> {
+function collectReferencedKeys(project: Project): Set<string> {
   const keys = new Set<string>();
-  for (const menu of pack.menus) {
+  for (const menu of project.menus) {
     for (const lt of getTitleTextLayers(menu)) keys.add(lt.key);
     for (const layer of menu.layers) {
       for (const el of layer.elements) {
@@ -612,10 +612,10 @@ function collectReferencedKeys(pack: Project): Set<string> {
       }
     }
   }
-  for (const cmd of pack.commands) {
+  for (const cmd of project.commands) {
     for (const action of walkActions(cmd.steps)) addActionKeys(action, keys);
   }
-  for (const dialog of pack.dialogs) {
+  for (const dialog of project.dialogs) {
     if (dialog.title) keys.add(dialog.title.key);
     for (const body of dialog.body) {
       if (body.type === "text") keys.add(body.text.key);
@@ -638,7 +638,7 @@ function collectReferencedKeys(pack: Project): Set<string> {
 }
 
 function serializeLang(
-  pack: Project,
+  project: Project,
   lang: string,
   referencedKeys: Set<string>,
   // Data-source entries, already re-addressed to canonical key sites (ADR
@@ -646,17 +646,17 @@ function serializeLang(
   dataEntries: Record<string, string> = {},
 ): Record<string, string> {
   const entries: Array<[string, string]> = [];
-  // Iterate `referencedKeys` (not `pack.i18nKeys`) so we always emit *every*
+  // Iterate `referencedKeys` (not `project.i18nKeys`) so we always emit *every*
   // key the runtime will look up — even ones that have never been assigned a
   // value. Otherwise a freshly-created menu with no title typed yet yields a
   // missing key in the YAML, and the plugin falls back to printing the raw
   // key (`menus.foo.title`) to chat instead of nothing.
   for (const key of referencedKeys) {
-    const entry = pack.i18nKeys[key as keyof typeof pack.i18nKeys];
+    const entry = project.i18nKeys[key as keyof typeof project.i18nKeys];
     const val = entry?.[lang];
     if (val !== undefined) {
       entries.push([key, val]);
-    } else if (lang === pack.defaultLang) {
+    } else if (lang === project.defaultLang) {
       // Always seed the defaultLang file with an empty string so the runtime
       // resolves the key to "" rather than echoing the raw key.
       entries.push([key, ""]);
@@ -813,20 +813,20 @@ function serializeDataValue(
 /** Non-default translations of every data-source ltext site, re-addressed to
  *  the canonical key-site path, plus the set of node keys those sites hold
  *  (excluded from lang/ — the default text is inlined in the data file). */
-function dataSourceI18n(pack: Project): {
+function dataSourceI18n(project: Project): {
   nodeKeys: Set<string>;
   byLang: Record<string, Record<string, string>>;
 } {
   const nodeKeys = new Set<string>();
   const byLang: Record<string, Record<string, string>> = {};
-  for (const ds of pack.dataSources ?? []) {
-    for (const site of visitDataSourceLTexts(pack, ds)) {
+  for (const ds of project.dataSources ?? []) {
+    for (const site of visitDataSourceLTexts(project, ds)) {
       const k = site.lText.key as string;
       nodeKeys.add(k);
-      const entry = pack.i18nKeys[k as I18nKey];
+      const entry = project.i18nKeys[k as I18nKey];
       if (!entry) continue;
       for (const [lang, val] of Object.entries(entry)) {
-        if (lang === pack.defaultLang) continue;
+        if (lang === project.defaultLang) continue;
         (byLang[lang] ??= {})[site.path] = val;
       }
     }
@@ -944,24 +944,24 @@ export function rowFileName(rows: Record<string, unknown>[], keyField: string, i
  * (or intentionally not at all) so the generic models/ loop skips them.
  */
 function emitDataSources(
-  pack: Project,
+  project: Project,
   base: string,
   files: Record<string, string>,
   yamlOpts: { lineWidth: number },
 ): Set<string> {
-  const models = pack.dataModels ?? [];
+  const models = project.dataModels ?? [];
   const i18n: DataI18nCtx = {
-    defaultLang: pack.defaultLang,
-    keys: pack.i18nKeys as unknown as DataI18nCtx["keys"],
+    defaultLang: project.defaultLang,
+    keys: project.i18nKeys as unknown as DataI18nCtx["keys"],
   };
   const kindRefs = modelKindRefs(models);
   const tableUse = new Map<string, number>();
-  for (const ds of pack.dataSources ?? []) {
+  for (const ds of project.dataSources ?? []) {
     if (ds.shape === "table") tableUse.set(String(ds.modelId), (tableUse.get(String(ds.modelId)) ?? 0) + 1);
   }
   const claimed = new Set<string>();
 
-  for (const ds of pack.dataSources ?? []) {
+  for (const ds of project.dataSources ?? []) {
     if (ds.shape === "config") {
       // Schemaless source (bare file, no model beside it): field-driven
       // serialization would drop every key and empty the file. Untyped values
@@ -1069,69 +1069,69 @@ function emitDataSources(
  * Transform a Project into a flat map of filename → YAML string.
  * Keys use the server-side path (e.g. "plugins/Artisan/menus/shop_main.yaml").
  */
-export function transform(pack: Project): Record<string, string> {
+export function transform(project: Project): Record<string, string> {
   const files: Record<string, string> = {};
 
   const yamlOpts = { lineWidth: 0 };
 
-  const base = `plugins/Artisan/projects/${pack.id}`;
+  const base = `plugins/Artisan/projects/${project.id}`;
 
-  for (const menu of pack.menus) {
-    files[`${base}/menus/${menu.id}.yaml`] = stringify(serializeMenuToV1(menu, pack), yamlOpts);
+  for (const menu of project.menus) {
+    files[`${base}/menus/${menu.id}.yaml`] = stringify(serializeMenuToV1(menu, project), yamlOpts);
   }
 
-  for (const cmd of pack.commands) {
-    files[`${base}/commands/${cmd.id}.yaml`] = stringify(serializeCommand(cmd, pack), yamlOpts);
+  for (const cmd of project.commands) {
+    files[`${base}/commands/${cmd.id}.yaml`] = stringify(serializeCommand(cmd, project), yamlOpts);
   }
 
-  for (const dialog of pack.dialogs) {
-    files[`${base}/dialogs/${dialog.id}.yaml`] = stringify(serializeDialog(dialog, pack), yamlOpts);
+  for (const dialog of project.dialogs) {
+    files[`${base}/dialogs/${dialog.id}.yaml`] = stringify(serializeDialog(dialog, project), yamlOpts);
   }
 
   // Captured items: the opaque serialized stack is the runtime truth — emit it
   // VERBATIM (never parse/re-stringify), one file per item. The plugin
   // deserializes these to resolve `item:<id>` material refs with exact NBT.
-  for (const item of pack.capturedItems ?? []) {
+  for (const item of project.capturedItems ?? []) {
     files[`${base}/items/${item.id}.yml`] = item.stackYaml;
   }
 
-  const claimedModelIds = emitDataSources(pack, base, files, yamlOpts);
+  const claimedModelIds = emitDataSources(project, base, files, yamlOpts);
 
-  const langs = listLanguages(pack);
-  const referencedKeys = collectReferencedKeys(pack);
-  const dsI18n = dataSourceI18n(pack);
+  const langs = listLanguages(project);
+  const referencedKeys = collectReferencedKeys(project);
+  const dsI18n = dataSourceI18n(project);
   for (const lang of langs) {
     // Written as a YAML tree, not one dotted key per line — `nestLangTree`
     // re-sorts every level in byte order so the file stays deterministic.
     files[`${base}/lang/${lang}.yaml`] = stringify(
       nestLangTree(
-        serializeLang(pack, lang, referencedKeys, lang === pack.defaultLang ? {} : (dsI18n.byLang[lang] ?? {})),
+        serializeLang(project, lang, referencedKeys, lang === project.defaultLang ? {} : (dsI18n.byLang[lang] ?? {})),
       ),
       yamlOpts,
     );
   }
 
   const liveIds = new Set<string>([
-    ...pack.menus.map((m) => m.id as string),
-    ...pack.commands.map((c) => c.id as string),
-    ...pack.dialogs.map((d) => d.id as string),
+    ...project.menus.map((m) => m.id as string),
+    ...project.commands.map((c) => c.id as string),
+    ...project.dialogs.map((d) => d.id as string),
   ]);
   const editorLayout = Object.fromEntries(
-    Object.entries(pack.canvasLayout).filter(([id]) => liveIds.has(id)),
+    Object.entries(project.canvasLayout).filter(([id]) => liveIds.has(id)),
   );
 
   const manifest: Record<string, unknown> = {
     schema: "manifest/v1",
-    project_id: pack.id,
+    project_id: project.id,
     // Round-trip the Add-on owner id (ADR addon-owned-project-roots) so it survives
     // an editor save — the backend re-derives `ownerModule` from it.
-    ...(pack.ownerModule ? { module: pack.ownerModule } : {}),
-    default_lang: pack.defaultLang,
+    ...(project.ownerModule ? { module: project.ownerModule } : {}),
+    default_lang: project.defaultLang,
     languages: langs,
     files: {
-      menus: pack.menus.map((m) => m.id),
-      commands: pack.commands.map((c) => c.id),
-      dialogs: pack.dialogs.map((d) => d.id),
+      menus: project.menus.map((m) => m.id),
+      commands: project.commands.map((c) => c.id),
+      dialogs: project.dialogs.map((d) => d.id),
     },
   };
   // Data models: models/<id>.yaml (model/v1), fields VERBATIM (cross-model refs
@@ -1139,7 +1139,7 @@ export function transform(pack: Project): Record<string, string> {
   // and self-contained for the runtime; the plugin ignores models/ entirely.
   // Module-DECLARED models are NOT project content — their truth is the
   // declaration (Presence), never a project file (ADR composable-data-models §4).
-  for (const m of pack.dataModels ?? []) {
+  for (const m of project.dataModels ?? []) {
     if (m.provenance === "module") continue;
     // Owned by a source (doc emitted at models/<sourceId>.yaml, or an untyped
     // synthesized model with nothing to say) — ADR bare-data-files ⑤.
@@ -1161,7 +1161,7 @@ export function transform(pack: Project): Record<string, string> {
   // longer change the bundle hash and redeploy the server (ADR
   // files-first-source-of-truth #3).
   const editorEdges = Object.fromEntries(
-    Object.entries(pack.canvasEdges ?? {}).filter(([edgeId, v]) => {
+    Object.entries(project.canvasEdges ?? {}).filter(([edgeId, v]) => {
       const [src, tgt] = edgeId.split("->") as [string, string];
       return liveIds.has(src) && liveIds.has(tgt) && (v.from || v.to);
     }),
@@ -1175,15 +1175,15 @@ export function transform(pack: Project): Record<string, string> {
   // written: it records what the capture panel showed, including a material
   // enriched by the plugin's custom-item reverse lookup. The user-given `name`
   // has no equivalent in the stack at all.
-  if ((pack.capturedItems ?? []).length > 0) {
+  if ((project.capturedItems ?? []).length > 0) {
     editorState.items = Object.fromEntries(
-      (pack.capturedItems ?? []).map((ci) => [ci.id, { name: ci.name, display: ci.display }]),
+      (project.capturedItems ?? []).map((ci) => [ci.id, { name: ci.name, display: ci.display }]),
     );
   }
   if (Object.keys(editorState).length > 1) {
     files[`${base}/.artisan/editor.yaml`] = stringify(editorState, yamlOpts);
   }
-  for (const [rel, content] of Object.entries(collectModuleExportFiles(pack))) {
+  for (const [rel, content] of Object.entries(collectModuleExportFiles(project))) {
     files[`${base}/${rel}`] = content;
   }
 
@@ -1192,7 +1192,7 @@ export function transform(pack: Project): Record<string, string> {
   // the deploy. Re-emit their raw `__files` verbatim. Namespaces already
   // normalized by a module (no `__files`) have nothing faithful to emit —
   // documented limitation. Registered modules keep authority via exportFiles.
-  for (const [ns, data] of Object.entries(pack.moduleData ?? {})) {
+  for (const [ns, data] of Object.entries(project.moduleData ?? {})) {
     if (getModule(ns)) continue;
     const rawFiles = (data as { __files?: Record<string, string> } | null)?.__files;
     if (!rawFiles || typeof rawFiles !== "object") continue;

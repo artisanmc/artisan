@@ -145,10 +145,10 @@ export function useProjectAutoSave() {
     const unsubscribe = useAccountStore.subscribe((state, prev) => {
       if (state.account === prev.account) return;
       // Find changed projects
-      for (const pack of state.account.projects) {
-        const prevProject = prev.account.projects.find((p) => p.id === pack.id);
-        if (prevProject !== pack) {
-          pendingRef.current.set(pack.id, pack);
+      for (const project of state.account.projects) {
+        const prevProject = prev.account.projects.find((p) => p.id === project.id);
+        if (prevProject !== project) {
+          pendingRef.current.set(project.id, project);
         }
       }
       // Debounce save
@@ -160,16 +160,16 @@ export function useProjectAutoSave() {
         // change and the debounce firing.
         const currentUser = useAuthStore.getState().currentUser;
         if (!currentUser) return;
-        for (const [, pack] of toSave) {
+        for (const [, project] of toSave) {
           // Config-screen scratch copies save over the WS live channel, never
           // through the backend project store (ADR module-config-screens).
-          if (isScreenScratchId(pack.id)) continue;
+          if (isScreenScratchId(project.id)) continue;
           // A conflicted project must not keep re-pushing stale state over the
           // newer server version — the conflict banner asks for a reload.
-          if (useProjectVersionStore.getState().conflicts[pack.id]) continue;
+          if (useProjectVersionStore.getState().conflicts[project.id]) continue;
           // Version conflicts are surfaced via the store (banner); other save
           // errors are still swallowed — the user sees a stale "saving" indicator.
-          await persistProject(pack, true).catch(() => {});
+          await persistProject(project, true).catch(() => {});
         }
       }, 2000);
     });

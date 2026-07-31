@@ -58,8 +58,8 @@ async function createKey(label: string): Promise<string> {
   return ((await res.json()) as { key: string }).key;
 }
 
-async function uploadBundle(key: string, packId: string, files: Record<string, string>): Promise<string> {
-  const res = await app.request(`/api/v1/bundles/${packId}`, {
+async function uploadBundle(key: string, projectId: string, files: Record<string, string>): Promise<string> {
+  const res = await app.request(`/api/v1/bundles/${projectId}`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
     body: JSON.stringify({ files }),
@@ -70,17 +70,17 @@ async function uploadBundle(key: string, packId: string, files: Record<string, s
 // Commit content onto the project's main branch and advance the head, so the branch
 // head carries real (non-empty) content — the state in which the backend pushes a
 // bundle_available. POST /bundles only writes WIP; sync serves the committed head.
-async function commitToMain(packId: string, files: Record<string, string>): Promise<string> {
-  const branch = await getBranch(packId, "main");
+async function commitToMain(projectId: string, files: Record<string, string>): Promise<string> {
+  const branch = await getBranch(projectId, "main");
   const cmt = await createCommit({
-    projectId: packId,
+    projectId: projectId,
     parentId: branch!.headCommitId,
     files,
     editor: null,
     authorUserId: null,
     message: "integration content",
   });
-  await advanceBranchHead(packId, "main", cmt.id);
+  await advanceBranchHead(projectId, "main", cmt.id);
   return cmt.contentHash;
 }
 
@@ -173,7 +173,7 @@ describe("full-stack integration: WS handshake + bundle sync", () => {
 
   test("GET /api/v1/bundles/:projectId serves branch head commit content (not WIP)", async () => {
     const key = await createKey("integ-download");
-    // Use a unique pack id to avoid collision with other tests that also uploaded p_shop
+    // Use a unique project id to avoid collision with other tests that also uploaded p_shop
     const uniquePackId = "p_dl_" + crypto.randomUUID().replace(/-/g, "").slice(0, 8);
     // POST writes WIP only — GET serves the main branch head commit (initial empty commit).
     await uploadBundle(key, uniquePackId, {

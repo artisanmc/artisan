@@ -88,9 +88,9 @@ export function ProjectCanvasPage() {
   // L'URL peut porter le slug du project : le serveur, déjà dans l'URL, en est
   // la portée (un slug n'est unique que par serveur). La réponse donne l'id
   // réel, seul utilisé en aval — store, sélections, sauvegardes.
-  const { pack: userProject } = useProjectLoader(projectId, serverId);
-  const pack = userProject;
-  const pId = (pack?.id ?? projectId) as ProjectId;
+  const { project: userProject } = useProjectLoader(projectId, serverId);
+  const project = userProject;
+  const pId = (project?.id ?? projectId) as ProjectId;
   const currentUser = useAuthStore((s) => s.currentUser);
   const authLoading = useAuthStore((s) => s.isLoading);
   const navigate = useNavigate();
@@ -120,7 +120,7 @@ export function ProjectCanvasPage() {
   const setSelection = useSelectionStore((s) => s.set);
   const handleImport = () => {
     pickProjectZipForImport((file) => {
-      runImportZip(file, importProjectAction as (input: { pack: unknown }) => string)
+      runImportZip(file, importProjectAction as (input: { project: unknown }) => string)
         .then(({ newId, name }) => {
           setSelection([newId as ElementId]);
           toast.success(t("toast.importedProject", { name }));
@@ -141,11 +141,11 @@ export function ProjectCanvasPage() {
   useEffect(() => {
     const ui = useUiStore.getState();
     if (ui.lastActiveProjectId !== pId) ui.setLastActiveProjectId(pId);
-    // Persist the tab too so a reload restores the exact view, not just the pack.
+    // Persist the tab too so a reload restores the exact view, not just the project.
     if (ui.lastActiveTab !== tab) ui.setLastActiveTab(tab ?? null);
   }, [pId, tab]);
 
-  // Navigate away if the currently-viewed pack is deleted from the server.
+  // Navigate away if the currently-viewed project is deleted from the server.
   useEffect(() => {
     function onProjectDeleted(e: Event) {
       const ev = e as CustomEvent<{ projectId: string }>;
@@ -183,8 +183,8 @@ export function ProjectCanvasPage() {
         search={{ next: window.location.pathname + window.location.search }}
       />
     );
-  // Still loading the pack via the user-mode loader — render nothing while fetch is in flight.
-  if (!pack) return null;
+  // Still loading the project via the user-mode loader — render nothing while fetch is in flight.
+  if (!project) return null;
 
   const onDragStart = (e: DragStartEvent) => {
     const id = String(e.active.id);
@@ -319,7 +319,7 @@ export function ProjectCanvasPage() {
           title={t("project.tabs.history")}
         >
           <div className="mx-auto min-h-0 w-full max-w-3xl flex-1 overflow-auto">
-            <HistoryTab pack={pack} networkId={networkId} />
+            <HistoryTab project={project} networkId={networkId} />
           </div>
         </WorkspaceView>
       )}
@@ -384,13 +384,13 @@ export function ProjectCanvasPage() {
 
   const mainContent = (
     <main className="flex h-full min-h-0 min-w-0 flex-1 flex-col">
-      {pack ? (
+      {project ? (
         <ProjectTopBarControls
-          pack={pack}
+          project={project}
           projectId={pId}
           onImport={handleImport}
           onExportZip={async () => {
-            const res = await runExportZip(pack, !!currentUser);
+            const res = await runExportZip(project, !!currentUser);
             if (!res.ok) {
               toast.error(
                 res.error === "not_signed_in" ? t("export.needsAccount") : t("export.failed"),
@@ -439,9 +439,9 @@ export function ProjectCanvasPage() {
 
       <LibraryDragOverlay />
 
-      {showDeleteDialog && pack && (
+      {showDeleteDialog && project && (
         <DeleteProjectDialog
-          projectName={pack.name}
+          projectName={project.name}
           onCancel={() => setShowDeleteDialog(false)}
           onConfirm={async () => {
             try {

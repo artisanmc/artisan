@@ -46,12 +46,12 @@ class ResourcePackInfoTest {
     @Test
     fun `dual-URL from() stores both player and download URLs`() {
         val info = ResourcePackInfo.from(
-            url = "http://localhost:3001/pack.zip",
-            downloadUrl = "http://backend:3001/pack.zip",
+            url = "http://localhost:3001/project.zip",
+            downloadUrl = "http://backend:3001/project.zip",
             hash = "f".repeat(40),
             promptMini = "",
         )
-        assertEquals("http://localhost:3001/pack.zip", info.url)
-        assertEquals("http://backend:3001/pack.zip", info.downloadUrl)
+        assertEquals("http://localhost:3001/project.zip", info.url)
+        assertEquals("http://backend:3001/project.zip", info.downloadUrl)
     }
 }

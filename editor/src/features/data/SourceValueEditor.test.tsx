@@ -56,8 +56,8 @@ function makeProject(): Project {
   } as unknown as Project;
 }
 
-const pack = () => useAccountStore.getState().account.projects[0]!;
-const tableSource = () => pack().dataSources[0] as Extract<Project["dataSources"][number], { shape: "table" }>;
+const project = () => useAccountStore.getState().account.projects[0]!;
+const tableSource = () => project().dataSources[0] as Extract<Project["dataSources"][number], { shape: "table" }>;
 
 beforeEach(() => {
   useAccountStore.setState({
@@ -68,7 +68,7 @@ beforeEach(() => {
 
 describe("SourceRowsTable", () => {
   it("renders one column per declared field and the row's values", () => {
-    render(<SourceRowsTable projectId={PID} pack={pack()} source={tableSource()} />);
+    render(<SourceRowsTable projectId={PID} project={project()} source={tableSource()} />);
     expect(screen.getByText("id")).toBeInTheDocument();
     expect(screen.getByText("name")).toBeInTheDocument();
     expect(screen.getByDisplayValue("vip")).toBeInTheDocument();
@@ -77,13 +77,13 @@ describe("SourceRowsTable", () => {
   });
 
   it("edits a string cell through setSourceValue", () => {
-    const view = render(<SourceRowsTable projectId={PID} pack={pack()} source={tableSource()} />);
+    const view = render(<SourceRowsTable projectId={PID} project={project()} source={tableSource()} />);
     const input = screen.getByDisplayValue("vip");
     fireEvent.change(input, { target: { value: "gold" } });
     expect(tableSource().rows[0]!.id).toBe("vip");
     fireEvent.blur(input);
     expect(tableSource().rows[0]!.id).toBe("gold");
-    view.rerender(<SourceRowsTable projectId={PID} pack={pack()} source={tableSource()} />);
+    view.rerender(<SourceRowsTable projectId={PID} project={project()} source={tableSource()} />);
     expect(screen.getByDisplayValue("gold")).toBeInTheDocument();
   });
 
@@ -92,7 +92,7 @@ describe("SourceRowsTable", () => {
     useAccountStore
       .getState()
       .setSourceValue({ projectId: PID, sourceId: "ranks" as never, row: 1, path: ["id"], value: "member" });
-    render(<SourceRowsTable projectId={PID} pack={pack()} source={tableSource()} />);
+    render(<SourceRowsTable projectId={PID} project={project()} source={tableSource()} />);
 
     const input = screen.getByDisplayValue("member");
     fireEvent.change(input, { target: { value: " VIP " } });
@@ -109,7 +109,7 @@ describe("SourceRowsTable", () => {
     useAccountStore
       .getState()
       .setSourceValue({ projectId: PID, sourceId: "ranks" as never, row: 1, path: ["id"], value: "member" });
-    const view = render(<SourceRowsTable projectId={PID} pack={pack()} source={tableSource()} />);
+    const view = render(<SourceRowsTable projectId={PID} project={project()} source={tableSource()} />);
 
     const input = screen.getByDisplayValue("vip");
     fireEvent.change(input, { target: { value: " member " } });
@@ -117,7 +117,7 @@ describe("SourceRowsTable", () => {
     expect(screen.getByText("Une ligne porte déjà cet ID.")).toBeInTheDocument();
 
     fireEvent.click(screen.getAllByLabelText("Supprimer la row")[0]!);
-    view.rerender(<SourceRowsTable projectId={PID} pack={pack()} source={tableSource()} />);
+    view.rerender(<SourceRowsTable projectId={PID} project={project()} source={tableSource()} />);
 
     const reusedInput = screen.getByDisplayValue("member");
     expect(reusedInput).toHaveAttribute("aria-invalid", "false");
@@ -125,7 +125,7 @@ describe("SourceRowsTable", () => {
   });
 
   it("shows a required Row key error without changing the stored value", () => {
-    render(<SourceRowsTable projectId={PID} pack={pack()} source={tableSource()} />);
+    render(<SourceRowsTable projectId={PID} project={project()} source={tableSource()} />);
     const input = screen.getByDisplayValue("vip");
     fireEvent.change(input, { target: { value: "   " } });
     fireEvent.blur(input);
@@ -136,27 +136,27 @@ describe("SourceRowsTable", () => {
   });
 
   it("commits a Row key on Enter", () => {
-    const view = render(<SourceRowsTable projectId={PID} pack={pack()} source={tableSource()} />);
+    const view = render(<SourceRowsTable projectId={PID} project={project()} source={tableSource()} />);
     const input = screen.getByDisplayValue("vip");
     input.focus();
     fireEvent.change(input, { target: { value: " ELITE " } });
     fireEvent.keyDown(input, { key: "Enter" });
 
     expect(tableSource().rows[0]!.id).toBe("elite");
-    view.rerender(<SourceRowsTable projectId={PID} pack={pack()} source={tableSource()} />);
+    view.rerender(<SourceRowsTable projectId={PID} project={project()} source={tableSource()} />);
     expect(screen.getByDisplayValue("elite")).toBeInTheDocument();
     expect(screen.queryByText("Une ligne porte déjà cet ID.")).toBeNull();
     expect(screen.queryByText("L’ID de la ligne est obligatoire.")).toBeNull();
   });
 
   it("edits an ltext cell through the i18n write path (active language)", () => {
-    render(<SourceRowsTable projectId={PID} pack={pack()} source={tableSource()} />);
+    render(<SourceRowsTable projectId={PID} project={project()} source={tableSource()} />);
     fireEvent.change(screen.getByDisplayValue("VIP"), { target: { value: "V.I.P." } });
-    expect(pack().i18nKeys["sources.ranks.vip.name" as never]).toEqual({ en: "V.I.P." });
+    expect(project().i18nKeys["sources.ranks.vip.name" as never]).toEqual({ en: "V.I.P." });
   });
 
   it("renders a scrollable sheet: overflow wrapper + non-squeezable table", () => {
-    render(<SourceRowsTable projectId={PID} pack={pack()} source={tableSource()} />);
+    render(<SourceRowsTable projectId={PID} project={project()} source={tableSource()} />);
     const sheet = screen.getByTestId("source-rows-sheet");
     expect(sheet.className).toContain("overflow-auto");
     const table = sheet.querySelector("table")!;
@@ -164,7 +164,7 @@ describe("SourceRowsTable", () => {
   });
 
   it("minimessage cell shows a rendered facade, edits raw markup on click", () => {
-    render(<SourceRowsTable projectId={PID} pack={pack()} source={tableSource()} />);
+    render(<SourceRowsTable projectId={PID} project={project()} source={tableSource()} />);
     // At rest: rendered facade — tags consumed, no raw markup in an input.
     // (accessible name concatenates spans without inter-element spaces)
     const facade = screen.getByRole("button", { name: /Best\s*rank/ });
@@ -176,7 +176,7 @@ describe("SourceRowsTable", () => {
   });
 
   it("minimessage_multiline cell edits in a textarea", () => {
-    render(<SourceRowsTable projectId={PID} pack={pack()} source={tableSource()} />);
+    render(<SourceRowsTable projectId={PID} project={project()} source={tableSource()} />);
     fireEvent.click(screen.getByRole("button", { name: /No refund/ }));
     const editor = screen.getByDisplayValue(/No refund/) as HTMLTextAreaElement;
     expect(editor.tagName).toBe("TEXTAREA");
@@ -185,25 +185,25 @@ describe("SourceRowsTable", () => {
   });
 
   it("adds a row with minted ltexts and removes it releasing them", () => {
-    const view = render(<SourceRowsTable projectId={PID} pack={pack()} source={tableSource()} />);
+    const view = render(<SourceRowsTable projectId={PID} project={project()} source={tableSource()} />);
     fireEvent.click(screen.getByText("+ Row"));
     expect(tableSource().rows).toHaveLength(2);
     const minted = tableSource().rows[1]!.name as { key: string };
     expect(tableSource().rows[1]!.id).toBe("row_1");
     expect(minted.key).toBe("sources.ranks.row_1.name");
-    expect(pack().i18nKeys[minted.key as never]).toBeDefined();
+    expect(project().i18nKeys[minted.key as never]).toBeDefined();
 
-    view.rerender(<SourceRowsTable projectId={PID} pack={pack()} source={tableSource()} />);
+    view.rerender(<SourceRowsTable projectId={PID} project={project()} source={tableSource()} />);
     const removeButtons = screen.getAllByLabelText("Supprimer la row");
     fireEvent.click(removeButtons[1]!);
     expect(tableSource().rows).toHaveLength(1);
-    expect(pack().i18nKeys[minted.key as never]).toBeUndefined();
+    expect(project().i18nKeys[minted.key as never]).toBeUndefined();
   });
 });
 
 describe("ModelFieldsEditor", () => {
   it("hides the add-field draft behind a button — no phantom 'already added' row", () => {
-    render(<ModelFieldsEditor projectId={PID} pack={pack()} source={tableSource()} />);
+    render(<ModelFieldsEditor projectId={PID} project={project()} source={tableSource()} />);
     expect(screen.queryByPlaceholderText("Nom du champ")).toBeNull();
     fireEvent.click(screen.getByText("Ajouter un champ"));
     // Draft opens, focused, ready to type.
@@ -211,24 +211,24 @@ describe("ModelFieldsEditor", () => {
   });
 
   it("Escape closes the draft without adding anything", () => {
-    render(<ModelFieldsEditor projectId={PID} pack={pack()} source={tableSource()} />);
-    const fieldCount = pack().dataModels![0]!.fields.length;
+    render(<ModelFieldsEditor projectId={PID} project={project()} source={tableSource()} />);
+    const fieldCount = project().dataModels![0]!.fields.length;
     fireEvent.click(screen.getByText("Ajouter un champ"));
     fireEvent.change(screen.getByPlaceholderText("Nom du champ"), { target: { value: "icon" } });
     fireEvent.keyDown(screen.getByPlaceholderText("Nom du champ"), { key: "Escape" });
     expect(screen.queryByPlaceholderText("Nom du champ")).toBeNull();
-    expect(pack().dataModels![0]!.fields).toHaveLength(fieldCount);
+    expect(project().dataModels![0]!.fields).toHaveLength(fieldCount);
   });
 
   it("adds a declared field through editSourceField (rows migrate), draft stays open for multi-add", () => {
-    render(<ModelFieldsEditor projectId={PID} pack={pack()} source={tableSource()} />);
+    render(<ModelFieldsEditor projectId={PID} project={project()} source={tableSource()} />);
     fireEvent.click(screen.getByText("Ajouter un champ"));
     fireEvent.change(screen.getByPlaceholderText("Nom du champ"), { target: { value: "icon" } });
     const selects = screen.getAllByRole("combobox");
     // Last kind-select is the add-row's.
     fireEvent.change(selects[selects.length - 1]!, { target: { value: "item" } });
     fireEvent.click(screen.getByLabelText("Ajouter"));
-    const model = pack().dataModels![0]!;
+    const model = project().dataModels![0]!;
     expect(model.fields.some((f) => f.name === "icon" && f.type.kind === "item")).toBe(true);
     expect(tableSource().rows[0]!.icon).toBe("");
     // Multi-add: draft stays open, name cleared for the next field.
@@ -236,13 +236,13 @@ describe("ModelFieldsEditor", () => {
   });
 
   it("adds a minimessage_multiline field (rows seed an empty string)", () => {
-    render(<ModelFieldsEditor projectId={PID} pack={pack()} source={tableSource()} />);
+    render(<ModelFieldsEditor projectId={PID} project={project()} source={tableSource()} />);
     fireEvent.click(screen.getByText("Ajouter un champ"));
     fireEvent.change(screen.getByPlaceholderText("Nom du champ"), { target: { value: "lore" } });
     const selects = screen.getAllByRole("combobox");
     fireEvent.change(selects[selects.length - 1]!, { target: { value: "minimessage_multiline" } });
     fireEvent.click(screen.getByLabelText("Ajouter"));
-    const model = pack().dataModels![0]!;
+    const model = project().dataModels![0]!;
     expect(
       model.fields.some((f) => f.name === "lore" && f.type.kind === "minimessage_multiline"),
     ).toBe(true);
@@ -250,27 +250,27 @@ describe("ModelFieldsEditor", () => {
   });
 
   it("renames a field on blur and migrates the row data", () => {
-    render(<ModelFieldsEditor projectId={PID} pack={pack()} source={tableSource()} />);
+    render(<ModelFieldsEditor projectId={PID} project={project()} source={tableSource()} />);
     const priceInput = screen.getByDisplayValue("price");
     fireEvent.change(priceInput, { target: { value: "cost" } });
     fireEvent.blur(priceInput);
-    expect(pack().dataModels![0]!.fields.some((f) => f.name === "cost")).toBe(true);
+    expect(project().dataModels![0]!.fields.some((f) => f.name === "cost")).toBe(true);
     expect(tableSource().rows[0]!.cost).toBe(9.99);
     expect(tableSource().rows[0]!.price).toBeUndefined();
   });
 
   it("removes a field and releases its translations", () => {
-    render(<ModelFieldsEditor projectId={PID} pack={pack()} source={tableSource()} />);
+    render(<ModelFieldsEditor projectId={PID} project={project()} source={tableSource()} />);
     fireEvent.click(screen.getByLabelText("Supprimer le champ name"));
-    expect(pack().dataModels![0]!.fields.some((f) => f.name === "name")).toBe(false);
-    expect(pack().i18nKeys["sources.ranks.vip.name" as never]).toBeUndefined();
+    expect(project().dataModels![0]!.fields.some((f) => f.name === "name")).toBe(false);
+    expect(project().i18nKeys["sources.ranks.vip.name" as never]).toBeUndefined();
   });
 
   it("changes the Row key via the selector", () => {
-    render(<ModelFieldsEditor projectId={PID} pack={pack()} source={tableSource()} />);
+    render(<ModelFieldsEditor projectId={PID} project={project()} source={tableSource()} />);
     const keySelect = screen.getByLabelText("Clé");
     fireEvent.change(keySelect, { target: { value: "id" } });
-    expect(pack().dataModels![0]!.keyField).toBe("id");
+    expect(project().dataModels![0]!.keyField).toBe("id");
   });
 });
 
@@ -290,7 +290,7 @@ describe("SourceRowsTable — stable row keys", () => {
       return s;
     });
     const { rerender } = render(
-      <SourceRowsTable projectId={PID} pack={pack()} source={tableSource()} />,
+      <SourceRowsTable projectId={PID} project={project()} source={tableSource()} />,
     );
 
     // Start typing a new key on the SECOND row (beta) without committing.
@@ -306,7 +306,7 @@ describe("SourceRowsTable — stable row keys", () => {
       ds.rows = ds.rows.filter((r) => r.id !== "alpha");
       return s;
     });
-    rerender(<SourceRowsTable projectId={PID} pack={pack()} source={tableSource()} />);
+    rerender(<SourceRowsTable projectId={PID} project={project()} source={tableSource()} />);
 
     // The surviving row must still be BETA's instance: its uncommitted draft
     // ("beta-renamed") stays bound to it — with index keys, beta slid into
@@ -367,20 +367,20 @@ describe("ValueEditor — map / enum / union widgets", () => {
 
   it("enum renders a closed select and commits the chosen value", () => {
     seedComposable();
-    render(<SourceRowsTable projectId={PID} pack={pack()} source={tableSource()} />);
+    render(<SourceRowsTable projectId={PID} project={project()} source={tableSource()} />);
     const select = screen.getByRole("combobox", { name: "strategy" });
     fireEvent.change(select, { target: { value: "random" } });
-    expect((pack().dataSources[0] as { rows: Record<string, unknown>[] }).rows[0]!.strategy).toBe("random");
+    expect((project().dataSources[0] as { rows: Record<string, unknown>[] }).rows[0]!.strategy).toBe("random");
   });
 
   it("union renders the active variant's fields; switching variants rebuilds the value", () => {
     seedComposable();
-    render(<SourceRowsTable projectId={PID} pack={pack()} source={tableSource()} />);
+    render(<SourceRowsTable projectId={PID} project={project()} source={tableSource()} />);
     // Active variant "message" shows its `text` field.
     expect(screen.getByDisplayValue("hello")).toBeInTheDocument();
     const tagSelect = screen.getByRole("combobox", { name: "type" });
     fireEvent.change(tagSelect, { target: { value: "command" } });
-    const act = (pack().dataSources[0] as { rows: Record<string, unknown>[] }).rows[0]!
+    const act = (project().dataSources[0] as { rows: Record<string, unknown>[] }).rows[0]!
       .act as Record<string, unknown>;
     expect(act.type).toBe("command");
     expect(act.run).toBe("");
@@ -389,19 +389,19 @@ describe("ValueEditor — map / enum / union widgets", () => {
 
   it("map lists entries, adds with a fresh key, removes an entry", () => {
     seedComposable();
-    const view = render(<SourceRowsTable projectId={PID} pack={pack()} source={tableSource()} />);
+    const view = render(<SourceRowsTable projectId={PID} project={project()} source={tableSource()} />);
     expect(screen.getByText("gold")).toBeInTheDocument();
     // Add an entry.
     fireEvent.change(screen.getByPlaceholderText(/key|clé/), { target: { value: "gems" } });
     fireEvent.click(screen.getByRole("button", { name: /add entry|ajouter une entrée/i }));
-    let prices = (pack().dataSources[0] as { rows: Record<string, unknown>[] }).rows[0]!
+    let prices = (project().dataSources[0] as { rows: Record<string, unknown>[] }).rows[0]!
       .prices as Record<string, unknown>;
     expect(prices.gems).toBe(0);
     // Re-render from the fresh store (the app re-renders via its store
-    // subscription; here pack travels by prop), then remove the original entry.
-    view.rerender(<SourceRowsTable projectId={PID} pack={pack()} source={tableSource()} />);
+    // subscription; here project travels by prop), then remove the original entry.
+    view.rerender(<SourceRowsTable projectId={PID} project={project()} source={tableSource()} />);
     fireEvent.click(screen.getByRole("button", { name: /remove entry gold|supprimer l'entrée gold/i }));
-    prices = (pack().dataSources[0] as { rows: Record<string, unknown>[] }).rows[0]!
+    prices = (project().dataSources[0] as { rows: Record<string, unknown>[] }).rows[0]!
       .prices as Record<string, unknown>;
     expect(prices.gold).toBeUndefined();
     expect(prices.gems).toBe(0);
@@ -446,33 +446,33 @@ describe("form generator — hints + validation (§7)", () => {
 
   it("shows the label hint, clamps min/max on commit, flags an out-of-bounds stored value", () => {
     seedHinted();
-    render(<SourceRowsTable projectId={PID} pack={pack()} source={tableSource()} />);
+    render(<SourceRowsTable projectId={PID} project={project()} source={tableSource()} />);
     expect(screen.getAllByText("Price (coins)").length).toBeGreaterThan(0);
     // Stored 250 > max 100 (hand-edit scenario): surfaced, not rewritten.
     const priceA = screen.getByDisplayValue("250");
     expect(priceA).toHaveAttribute("aria-invalid", "true");
-    expect((pack().dataSources[0] as { rows: Record<string, unknown>[] }).rows[0]!.price).toBe(250);
+    expect((project().dataSources[0] as { rows: Record<string, unknown>[] }).rows[0]!.price).toBe(250);
     // Committing through the form clamps (blocking by construction).
     fireEvent.change(priceA, { target: { value: "999" } });
-    expect((pack().dataSources[0] as { rows: Record<string, unknown>[] }).rows[0]!.price).toBe(100);
+    expect((project().dataSources[0] as { rows: Record<string, unknown>[] }).rows[0]!.price).toBe(100);
   });
 
   it("locked fields render read-only (no input)", () => {
     seedHinted();
-    render(<SourceRowsTable projectId={PID} pack={pack()} source={tableSource()} />);
+    render(<SourceRowsTable projectId={PID} project={project()} source={tableSource()} />);
     expect(screen.getAllByTestId("locked-icon").length).toBe(2); // one per row
     expect(screen.queryByDisplayValue("item:ci_locked")).toBeNull();
   });
 
   it("conditions kind renders the core condition editor", () => {
     seedHinted();
-    render(<SourceRowsTable projectId={PID} pack={pack()} source={tableSource()} />);
+    render(<SourceRowsTable projectId={PID} project={project()} source={tableSource()} />);
     expect(screen.getAllByTestId("conditions-gate").length).toBe(2);
   });
 
   it("master_detail renders the row list + selected row form instead of the spreadsheet", () => {
     seedHinted(true);
-    render(<SourceRowsTable projectId={PID} pack={pack()} source={tableSource()} />);
+    render(<SourceRowsTable projectId={PID} project={project()} source={tableSource()} />);
     const md = screen.getByTestId("source-master-detail");
     expect(md).toBeTruthy();
     expect(screen.queryByTestId("source-rows-sheet")).toBeNull();
@@ -487,12 +487,12 @@ describe("form generator — hints + validation (§7)", () => {
   it("keeps the selected row when its Row key is renamed", () => {
     seedHinted(true);
     const { rerender } = render(
-      <SourceRowsTable projectId={PID} pack={pack()} source={tableSource()} />,
+      <SourceRowsTable projectId={PID} project={project()} source={tableSource()} />,
     );
     fireEvent.click(screen.getByRole("button", { name: "b" }));
     fireEvent.change(screen.getByLabelText("id"), { target: { value: "bb" } });
     // The store drives the re-render in the app; mirror that here.
-    rerender(<SourceRowsTable projectId={PID} pack={pack()} source={tableSource()} />);
+    rerender(<SourceRowsTable projectId={PID} project={project()} source={tableSource()} />);
 
     // The detail form is still the same row (price 5), now keyed "bb".
     expect(screen.getByDisplayValue("5")).toBeTruthy();
@@ -524,18 +524,18 @@ describe("ConfigValueForm — schemaless file", () => {
   // literal values — an empty form is a dead end for the admin.
   it("renders one input per stored key when the source carries no fields", () => {
     seedUntyped();
-    const source = pack().dataSources[0] as never;
-    render(<ConfigValueForm projectId={PID} pack={pack()} source={source} />);
+    const source = project().dataSources[0] as never;
+    render(<ConfigValueForm projectId={PID} project={project()} source={source} />);
     expect(screen.getByDisplayValue("10")).toBeTruthy();
     expect(screen.getByDisplayValue("Soldes")).toBeTruthy();
   });
 
   it("edits write back through the store", () => {
     seedUntyped();
-    const source = pack().dataSources[0] as never;
-    render(<ConfigValueForm projectId={PID} pack={pack()} source={source} />);
+    const source = project().dataSources[0] as never;
+    render(<ConfigValueForm projectId={PID} project={project()} source={source} />);
     fireEvent.change(screen.getByDisplayValue("10"), { target: { value: "25" } });
-    const v = (pack().dataSources[0] as { value: Record<string, unknown> }).value;
+    const v = (project().dataSources[0] as { value: Record<string, unknown> }).value;
     expect(v.whole_shop_discount).toBe(25);
   });
 });
@@ -569,13 +569,13 @@ describe("field hints in the form", () => {
 
   it("shows the description as text, not only as a tooltip", () => {
     seedHinted();
-    render(<ConfigValueForm projectId={PID} pack={pack()} source={pack().dataSources[0] as never} />);
+    render(<ConfigValueForm projectId={PID} project={project()} source={project().dataSources[0] as never} />);
     expect(screen.getByText(/Remise appliquée à toute la boutique/)).toBeInTheDocument();
   });
 
   it("shows the label AND the technical key — the key is what the file uses", () => {
     seedHinted();
-    render(<ConfigValueForm projectId={PID} pack={pack()} source={pack().dataSources[0] as never} />);
+    render(<ConfigValueForm projectId={PID} project={project()} source={project().dataSources[0] as never} />);
     expect(screen.getByText("Remise globale")).toBeInTheDocument();
     expect(screen.getByText("whole_shop_discount")).toBeInTheDocument();
   });

@@ -4,10 +4,10 @@ import { existsSync } from "fs";
 import { rm } from "fs/promises";
 import { assetPath, writeAssetFile, deleteAssetFile, assetRoot } from "./assetStorage";
 
-describe("assetStorage (pack-scoped)", () => {
+describe("assetStorage (project-scoped)", () => {
   afterAll(async () => { await rm(join(assetRoot(), "pack_test_d1"), { recursive: true, force: true }); });
 
-  it("assetPath produces data/assets/{packId}/{assetId}.png", () => {
+  it("assetPath produces data/assets/{projectId}/{assetId}.png", () => {
     const p = assetPath("pack_test_d1", "asset_x");
     expect(p.endsWith(join("assets", "pack_test_d1", "asset_x.png"))).toBe(true);
   });

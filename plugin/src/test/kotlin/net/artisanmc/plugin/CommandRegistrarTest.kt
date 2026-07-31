@@ -67,7 +67,7 @@ class CommandRegistrarTest {
         // No exception = pass
     }
 
-    @Test fun `duplicate command names across packs uses first registered`() {
+    @Test fun `duplicate command names across projects uses first registered`() {
         val registrar = CommandRegistrar(plugin.value, lang)
         val b1 = bundle(cmdYaml("shared"))
         val b2 = bundle(cmdYaml("shared"))

@@ -114,12 +114,12 @@ interface AccountState {
   setAccount: (account: Account) => void;
   createProject: (input: { id: string }) => ProjectId;
   /**
-   * Import a pack object as a *new* pack: assigns a fresh ProjectId, marks
+   * Import a project object as a *new* project: assigns a fresh ProjectId, marks
    * source=imported, retags every contained menu/command with the new
    * projectId. Throws on malformed input.
    */
-  importProject: (input: { pack: Project }) => ProjectId;
-  replaceProject: (pack: Project) => void;
+  importProject: (input: { project: Project }) => ProjectId;
+  replaceProject: (project: Project) => void;
   /**
    * Write a module's namespace in Project.moduleData, replacing its prior
    * value wholesale. Other modules' namespaces are preserved.
@@ -127,7 +127,7 @@ interface AccountState {
   setModuleData: (projectId: ProjectId, moduleId: string, data: unknown) => void;
   /**
    * Apply an AI-generated menu/v1: convert to domain, insert/replace in the
-   * pack, merge i18n. Returns the constructs dropped during conversion (no
+   * project, merge i18n. Returns the constructs dropped during conversion (no
    * domain equivalent) so the caller can warn instead of losing them silently.
    */
   applyAssistantMenu: (input: {
@@ -310,7 +310,7 @@ interface AccountState {
   }) => void;
   removeProject: (projectId: ProjectId) => void;
   /** Insert/replace a Config-screen scratch working copy (never persisted — ADR module-config-screens). */
-  upsertScratchProject: (pack: Project) => void;
+  upsertScratchProject: (project: Project) => void;
   reorderProjects: (newOrder: ProjectId[]) => void;
   moveMenuToProject: (input: { menuId: MenuId; fromProjectId: ProjectId; toProjectId: ProjectId }) => void;
   setCanvasPosition: (input: { projectId: ProjectId; nodeId: string; x: number; y: number }) => void;
@@ -442,13 +442,13 @@ interface AccountState {
     positions?: string;
   }) => { ok: true; elementId: string } | { ok: false; reason: "not_found" | "already_exists" };
   /**
-   * Rename a menu's id. Rejects if newId already exists in the pack.
-   * Atomically rewrites all `open_menu` refs in the pack and the
-   * canvasLayout key. Cross-pack refs to this menu (which we don't track)
+   * Rename a menu's id. Rejects if newId already exists in the project.
+   * Atomically rewrites all `open_menu` refs in the project and the
+   * canvasLayout key. Cross-project refs to this menu (which we don't track)
    * become dangling — runtime handles.
    */
   setMenuId: (input: { projectId: ProjectId; oldId: MenuId; newId: MenuId }) => void;
-  /** Rename a command's id. Rejects if newId already exists in the pack. */
+  /** Rename a command's id. Rejects if newId already exists in the project. */
   setCommandId: (input: { projectId: ProjectId; oldId: CommandId; newId: CommandId }) => void;
   /** Rename an element's id. Rejects if newId already exists in the same menu. */
   setElementId: (input: {
@@ -511,17 +511,17 @@ interface AccountState {
    * based step mutators handle structure; this handles content.
    */
   setI18nValue: (input: { projectId: ProjectId; lt: LText; lang: string; value: string }) => void;
-  /** Add a new language to the pack (clones empty entries from defaultLang for every existing key). */
+  /** Add a new language to the project (clones empty entries from defaultLang for every existing key). */
   addLanguage: (input: { projectId: ProjectId; lang: string }) => void;
   /** Remove a language and all its translations. No-op on `defaultLang`. */
   removeLanguage: (input: { projectId: ProjectId; lang: string }) => void;
   /**
-   * Drop every i18n key that's no longer referenced anywhere in the pack
+   * Drop every i18n key that's no longer referenced anywhere in the project
    * (stale leftovers from deleted elements / re-imports). Returns nothing;
    * undoable. See {@link findUnusedI18nKeys}.
    */
   removeUnusedI18nKeys: (input: { projectId: ProjectId }) => void;
-  /** Change the pack's default language (the fallback when a key has no entry in the active lang). */
+  /** Change the project's default language (the fallback when a key has no entry in the active lang). */
   setProjectDefaultLang: (input: { projectId: ProjectId; lang: string }) => void;
   /** Replace the element's positions string (e.g. "0-8,17,26"). */
   setElementPositions: (input: {
@@ -803,7 +803,7 @@ interface AccountState {
     dCol: number;
     dRow: number;
   }) => void;
-  /** Paste already-cloned-and-id-rewritten entities into a pack at an offset. */
+  /** Paste already-cloned-and-id-rewritten entities into a project at an offset. */
   pasteEntities: (input: {
     projectId: ProjectId;
     menus: Menu[];
@@ -869,14 +869,14 @@ interface AccountState {
  * draft and return live references so callers can splice in place.
  */
 /**
- * Resolve an AppearanceTarget to its owning element inside the given pack
+ * Resolve an AppearanceTarget to its owning element inside the given project
  * draft. Null when the target doesn't exist.
  */
 function findAppearanceOwner(
-  pack: Project,
+  project: Project,
   target: AppearanceTarget,
 ): { appearances: Appearance[] } | null {
-  const menu = pack.menus.find((m) => m.id === target.menuId);
+  const menu = project.menus.find((m) => m.id === target.menuId);
   if (!menu) return null;
   for (const layer of menu.layers) {
     for (const el of layer.elements) {
@@ -893,9 +893,9 @@ function findElementHandler(
   appearanceIndex: number,
   clickType: ClickType,
 ) {
-  const pack = draft.account.projects.find((p) => p.id === projectId);
-  if (!pack) return null;
-  const owner = findAppearanceOwner(pack, target);
+  const project = draft.account.projects.find((p) => p.id === projectId);
+  if (!project) return null;
+  const owner = findAppearanceOwner(project, target);
   return owner?.appearances[appearanceIndex]?.click?.[clickType] ?? null;
 }
 
@@ -911,43 +911,43 @@ const appearanceClickPrefixFor = (
 ) => clickHandlerKeyPrefix(target.menuId as string, target.elementId as string, appIdx, clickType);
 
 function findCommand(draft: AccountState, projectId: ProjectId, commandId: CommandId) {
-  const pack = draft.account.projects.find((p) => p.id === projectId);
-  if (!pack) return null;
-  return pack.commands.find((c) => c.id === commandId) ?? null;
+  const project = draft.account.projects.find((p) => p.id === projectId);
+  if (!project) return null;
+  return project.commands.find((c) => c.id === commandId) ?? null;
 }
 
 function touch(draft: AccountState, projectId: ProjectId) {
-  const pack = draft.account.projects.find((p) => p.id === projectId);
-  if (pack) pack.updatedAt = new Date().toISOString();
+  const project = draft.account.projects.find((p) => p.id === projectId);
+  if (project) project.updatedAt = new Date().toISOString();
 }
 
 /**
- * Per-mutation i18n key lifecycle, folded over the single pack traversal in
+ * Per-mutation i18n key lifecycle, folded over the single project traversal in
  * `@/domain/i18nSites`. `allocStepLTexts` mints canonical keys for any step
  * action still holding the unallocated sentinel (`key === ""`); the `gc*`
  * family releases the keys of a removed subtree. Signatures are preserved so
  * the mutation call sites stay put — only the traversal moved out.
  */
-function allocStepLTexts(pack: Project, steps: Step[], lang: string, keyPrefix: string): void {
-  mintLTexts(pack, visitStepLTexts(steps, keyPrefix), lang);
+function allocStepLTexts(project: Project, steps: Step[], lang: string, keyPrefix: string): void {
+  mintLTexts(project, visitStepLTexts(steps, keyPrefix), lang);
 }
-function gcStepLTexts(pack: Project, steps: Step[]): void {
-  releaseLTexts(pack, visitStepLTexts(steps, ""));
+function gcStepLTexts(project: Project, steps: Step[]): void {
+  releaseLTexts(project, visitStepLTexts(steps, ""));
 }
-function gcAppearanceLTexts(pack: Project, appearance: Appearance): void {
-  releaseLTexts(pack, visitAppearanceLTexts(appearance, ""));
+function gcAppearanceLTexts(project: Project, appearance: Appearance): void {
+  releaseLTexts(project, visitAppearanceLTexts(appearance, ""));
 }
-function gcElementLTexts(pack: Project, element: Element): void {
-  releaseLTexts(pack, visitElementLTexts("", element));
+function gcElementLTexts(project: Project, element: Element): void {
+  releaseLTexts(project, visitElementLTexts("", element));
 }
-function gcMenuLTexts(pack: Project, menu: Menu): void {
-  releaseLTexts(pack, visitMenuLTexts(menu));
+function gcMenuLTexts(project: Project, menu: Menu): void {
+  releaseLTexts(project, visitMenuLTexts(menu));
 }
-function gcCommandLTexts(pack: Project, command: Command): void {
-  releaseLTexts(pack, visitCommandLTexts(command));
+function gcCommandLTexts(project: Project, command: Command): void {
+  releaseLTexts(project, visitCommandLTexts(command));
 }
-function gcDialogLTexts(pack: Project, dialog: Dialog): void {
-  releaseLTexts(pack, visitDialogLTexts(dialog));
+function gcDialogLTexts(project: Project, dialog: Dialog): void {
+  releaseLTexts(project, visitDialogLTexts(dialog));
 }
 
 /** Auto slot range for a dropped paginated block: skip the first/last menu row when roomy. */
@@ -1024,11 +1024,11 @@ function generateDataSourceId(): DataSourceId {
   return `ds_${Math.random().toString(36).slice(2, 10)}` as DataSourceId;
 }
 
-/** Mint sentinels and canonicalize every ltext across the pack's Project sources. */
-function mintSourceLTexts(pack: Project): void {
-  for (const ds of pack.dataSources ?? []) {
-    mintLTexts(pack, visitDataSourceLTexts(pack, ds), pack.defaultLang);
-    rekeyDataSource(pack, ds);
+/** Mint sentinels and canonicalize every ltext across the project's Project sources. */
+function mintSourceLTexts(project: Project): void {
+  for (const ds of project.dataSources ?? []) {
+    mintLTexts(project, visitDataSourceLTexts(project, ds), project.defaultLang);
+    rekeyDataSource(project, ds);
   }
 }
 
@@ -1047,11 +1047,11 @@ function sourceValueContainer(
   return current;
 }
 
-function nextElementIdForMaterial(pack: Project, material: string | undefined): ElementId {
+function nextElementIdForMaterial(project: Project, material: string | undefined): ElementId {
   const base = (material ?? "button").toLowerCase();
   const prefix = `${base}_`;
   let max = 0;
-  for (const menu of pack.menus) {
+  for (const menu of project.menus) {
     for (const layer of menu.layers) {
       for (const el of layer.elements) {
         if (el.id.startsWith(prefix)) {
@@ -1094,7 +1094,7 @@ function validateArgOrder(args: CommandArg[]): void {
  * `partialize` keeps the diff narrow.
  *
  * Account-level mutations (createProject, reorderProjects) clear the temporal
- * stack themselves so they don't tangle with pack-internal edits in the
+ * stack themselves so they don't tangle with project-internal edits in the
  * undo history. Project-internal mutations (slot material, field edits, canvas
  * position, deleteFromProject, moveMenuToProject) are undoable.
  */
@@ -1114,7 +1114,7 @@ export const useAccountStore = create<AccountState>()(
         const migratedAccount = produce(
           { ...account, projects: migratedProjects },
           (draft) => {
-            for (const pack of draft.projects) mintSourceLTexts(pack);
+            for (const project of draft.projects) mintSourceLTexts(project);
           },
         );
         set({ account: migratedAccount });
@@ -1144,15 +1144,15 @@ export const useAccountStore = create<AccountState>()(
         clearTemporal();
         return id;
       },
-      importProject: ({ pack: incoming }) => {
+      importProject: ({ project: incoming }) => {
         // Light shape check — the input came from a user-supplied file so
         // we don't fully trust it, but we don't deep-validate either.
         if (!incoming || typeof incoming !== "object") {
-          throw new Error("invalid pack: not an object");
+          throw new Error("invalid project: not an object");
         }
-        if (typeof incoming.name !== "string") throw new Error("invalid pack: missing name");
-        if (!Array.isArray(incoming.menus)) throw new Error("invalid pack: missing menus");
-        if (!Array.isArray(incoming.commands)) throw new Error("invalid pack: missing commands");
+        if (typeof incoming.name !== "string") throw new Error("invalid project: missing name");
+        if (!Array.isArray(incoming.menus)) throw new Error("invalid project: missing menus");
+        if (!Array.isArray(incoming.commands)) throw new Error("invalid project: missing commands");
 
         const id = newProjectId();
         set(
@@ -1164,7 +1164,7 @@ export const useAccountStore = create<AccountState>()(
               source: "imported" as const,
               createdAt: new Date().toISOString(),
               updatedAt: new Date().toISOString(),
-              // Retag children so their projectId matches the new pack id.
+              // Retag children so their projectId matches the new project id.
               menus: incoming.menus.map((m) => ({ ...m, projectId: id })),
               commands: incoming.commands.map((c) => ({ ...c, projectId: id })),
               assets: (incoming.assets ?? []).map((a) => ({ ...a, projectId: id })),
@@ -1173,7 +1173,7 @@ export const useAccountStore = create<AccountState>()(
               defaultLang: incoming.defaultLang ?? "en",
               canvasLayout: incoming.canvasLayout ?? {},
             };
-            // Imported pack may use the legacy plain-string shape — migrate
+            // Imported project may use the legacy plain-string shape — migrate
             // in place so it lines up with the current LText-based domain.
             migrateProjectToI18n(next, next.defaultLang);
             // Migrate menu titles from LText to MenuTitleLayer[].
@@ -1187,15 +1187,15 @@ export const useAccountStore = create<AccountState>()(
         clearTemporal();
         return id;
       },
-      replaceProject: (pack) => {
+      replaceProject: (project) => {
         clearTemporal();
         set(
           produce((draft: AccountState) => {
-            const idx = draft.account.projects.findIndex((p) => p.id === pack.id);
+            const idx = draft.account.projects.findIndex((p) => p.id === project.id);
             if (idx !== -1) {
               draft.account.projects[idx] = {
-                ...pack,
-                menus: pack.menus.map((m) => ({ ...m, title: migrateTitle(m.title) })),
+                ...project,
+                menus: project.menus.map((m) => ({ ...m, title: migrateTitle(m.title) })),
               };
             }
           }),
@@ -1204,10 +1204,10 @@ export const useAccountStore = create<AccountState>()(
       setModuleData: (projectId, moduleId, data) => {
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === projectId);
-            if (!pack) return;
-            pack.moduleData = { ...(pack.moduleData ?? {}), [moduleId]: data };
-            pack.updatedAt = new Date().toISOString();
+            const project = draft.account.projects.find((p) => p.id === projectId);
+            if (!project) return;
+            project.moduleData = { ...(project.moduleData ?? {}), [moduleId]: data };
+            project.updatedAt = new Date().toISOString();
           }),
         );
       },
@@ -1215,8 +1215,8 @@ export const useAccountStore = create<AccountState>()(
         let unsupported: string[] = [];
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            if (!pack) return;
+            const project = draft.account.projects.find((p) => p.id === pId);
+            if (!project) return;
             const converted = menuV1ToDomain(menuV1, { projectId: pId, lang });
             const { menu, i18nKeys } = converted;
             unsupported = converted.unsupported;
@@ -1224,15 +1224,15 @@ export const useAccountStore = create<AccountState>()(
             // this as a safety net so the domain Menu always carries the id.
             menu.projectId = pId;
             for (const [key, langs] of Object.entries(i18nKeys)) {
-              pack.i18nKeys[key as I18nKey] = {
-                ...(pack.i18nKeys[key as I18nKey] ?? {}),
+              project.i18nKeys[key as I18nKey] = {
+                ...(project.i18nKeys[key as I18nKey] ?? {}),
                 ...langs,
               };
             }
-            const idx = pack.menus.findIndex((m) => m.id === menu.id);
-            if (idx >= 0) pack.menus[idx] = menu;
-            else pack.menus.push(menu);
-            pack.updatedAt = new Date().toISOString();
+            const idx = project.menus.findIndex((m) => m.id === menu.id);
+            if (idx >= 0) project.menus[idx] = menu;
+            else project.menus.push(menu);
+            project.updatedAt = new Date().toISOString();
           }),
         );
         return unsupported;
@@ -1240,23 +1240,23 @@ export const useAccountStore = create<AccountState>()(
       applyAssistantTranslations: ({ projectId: pId, entries }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            if (!pack) return;
+            const project = draft.account.projects.find((p) => p.id === pId);
+            if (!project) return;
             for (const [key, langs] of Object.entries(entries)) {
-              pack.i18nKeys[key as I18nKey] = {
-                ...(pack.i18nKeys[key as I18nKey] ?? {}),
+              project.i18nKeys[key as I18nKey] = {
+                ...(project.i18nKeys[key as I18nKey] ?? {}),
                 ...langs,
               };
             }
-            pack.updatedAt = new Date().toISOString();
+            project.updatedAt = new Date().toISOString();
           }),
         ),
       applyAssistantCommand: ({ projectId: pId, commandV1, lang }) => {
         let unsupported: string[] = [];
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            if (!pack) return;
+            const project = draft.account.projects.find((p) => p.id === pId);
+            if (!project) return;
             const {
               command,
               i18nKeys,
@@ -1265,15 +1265,15 @@ export const useAccountStore = create<AccountState>()(
             unsupported = u;
             command.projectId = pId;
             for (const [key, langs] of Object.entries(i18nKeys)) {
-              pack.i18nKeys[key as I18nKey] = {
-                ...(pack.i18nKeys[key as I18nKey] ?? {}),
+              project.i18nKeys[key as I18nKey] = {
+                ...(project.i18nKeys[key as I18nKey] ?? {}),
                 ...langs,
               };
             }
-            const idx = pack.commands.findIndex((c) => c.id === command.id);
-            if (idx >= 0) pack.commands[idx] = command;
-            else pack.commands.push(command);
-            pack.updatedAt = new Date().toISOString();
+            const idx = project.commands.findIndex((c) => c.id === command.id);
+            if (idx >= 0) project.commands[idx] = command;
+            else project.commands.push(command);
+            project.updatedAt = new Date().toISOString();
           }),
         );
         return unsupported;
@@ -1282,8 +1282,8 @@ export const useAccountStore = create<AccountState>()(
         let unsupported: string[] = [];
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            if (!pack) return;
+            const project = draft.account.projects.find((p) => p.id === pId);
+            if (!project) return;
             const {
               dialog,
               i18nKeys,
@@ -1292,15 +1292,15 @@ export const useAccountStore = create<AccountState>()(
             unsupported = u;
             dialog.projectId = pId;
             for (const [key, langs] of Object.entries(i18nKeys)) {
-              pack.i18nKeys[key as I18nKey] = {
-                ...(pack.i18nKeys[key as I18nKey] ?? {}),
+              project.i18nKeys[key as I18nKey] = {
+                ...(project.i18nKeys[key as I18nKey] ?? {}),
                 ...langs,
               };
             }
-            const idx = pack.dialogs.findIndex((d) => d.id === dialog.id);
-            if (idx >= 0) pack.dialogs[idx] = dialog;
-            else pack.dialogs.push(dialog);
-            pack.updatedAt = new Date().toISOString();
+            const idx = project.dialogs.findIndex((d) => d.id === dialog.id);
+            if (idx >= 0) project.dialogs[idx] = dialog;
+            else project.dialogs.push(dialog);
+            project.updatedAt = new Date().toISOString();
           }),
         );
         return unsupported;
@@ -1309,13 +1309,13 @@ export const useAccountStore = create<AccountState>()(
         const id = rawId as MenuId;
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            if (!pack) return;
-            pack.menus.push({
+            const project = draft.account.projects.find((p) => p.id === pId);
+            if (!project) return;
+            project.menus.push({
               id,
               projectId: pId,
               // Default to a single Plain (vanilla) title layer. Vanilla mode
-              // works without a resource pack and matches what new users expect
+              // works without a resource project and matches what new users expect
               // ("type a title, see a title"). The empty `key` is rekeyed to
               // `menus.{id}.title` at deploy time by rekeyProject.
               title: [{ kind: "plain", value: { key: "" as I18nKey } }],
@@ -1323,9 +1323,9 @@ export const useAccountStore = create<AccountState>()(
               layers: [{ id: newLayerId(), name: "default", elements: [] }],
             });
             if (position) {
-              (pack.canvasLayout as Record<string, { x: number; y: number }>)[id] = position;
+              (project.canvasLayout as Record<string, { x: number; y: number }>)[id] = position;
             }
-            pack.updatedAt = new Date().toISOString();
+            project.updatedAt = new Date().toISOString();
           }),
         );
         return id;
@@ -1334,9 +1334,9 @@ export const useAccountStore = create<AccountState>()(
         const id = explicitId ? commandId(explicitId) : newCommandId();
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            if (!pack) return;
-            pack.commands.push({
+            const project = draft.account.projects.find((p) => p.id === pId);
+            if (!project) return;
+            project.commands.push({
               id,
               projectId: pId,
               name: name ?? "newcmd",
@@ -1344,9 +1344,9 @@ export const useAccountStore = create<AccountState>()(
               steps: [],
             });
             if (position) {
-              (pack.canvasLayout as Record<string, { x: number; y: number }>)[id] = position;
+              (project.canvasLayout as Record<string, { x: number; y: number }>)[id] = position;
             }
-            pack.updatedAt = new Date().toISOString();
+            project.updatedAt = new Date().toISOString();
           }),
         );
         return id;
@@ -1357,11 +1357,11 @@ export const useAccountStore = create<AccountState>()(
         const btnLabelKey = dialogButtonLabelKey(id, "btn_confirm");
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            if (!pack) return;
-            pack.i18nKeys[titleKey] = { [pack.defaultLang]: "" };
-            pack.i18nKeys[btnLabelKey] = { [pack.defaultLang]: "Confirm" };
-            pack.dialogs.push({
+            const project = draft.account.projects.find((p) => p.id === pId);
+            if (!project) return;
+            project.i18nKeys[titleKey] = { [project.defaultLang]: "" };
+            project.i18nKeys[btnLabelKey] = { [project.defaultLang]: "Confirm" };
+            project.dialogs.push({
               id: dId,
               projectId: pId,
               title: { key: titleKey },
@@ -1371,9 +1371,9 @@ export const useAccountStore = create<AccountState>()(
               buttons: [{ id: "btn_confirm", label: { key: btnLabelKey }, steps: [] }],
             });
             if (position) {
-              (pack.canvasLayout as Record<string, { x: number; y: number }>)[id] = position;
+              (project.canvasLayout as Record<string, { x: number; y: number }>)[id] = position;
             }
-            pack.updatedAt = new Date().toISOString();
+            project.updatedAt = new Date().toISOString();
           }),
         );
         return dId;
@@ -1381,20 +1381,20 @@ export const useAccountStore = create<AccountState>()(
       setDialogTitle: ({ projectId: pId, dialogId: dId, lang, value }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            if (!pack) return;
-            const dialog = pack.dialogs.find((d) => d.id === dId);
+            const project = draft.account.projects.find((p) => p.id === pId);
+            if (!project) return;
+            const dialog = project.dialogs.find((d) => d.id === dId);
             if (!dialog) return;
-            if (!pack.i18nKeys[dialog.title.key]) pack.i18nKeys[dialog.title.key] = {};
-            pack.i18nKeys[dialog.title.key]![lang] = value;
+            if (!project.i18nKeys[dialog.title.key]) project.i18nKeys[dialog.title.key] = {};
+            project.i18nKeys[dialog.title.key]![lang] = value;
             touch(draft, pId);
           }),
         ),
       setDialogField: ({ projectId: pId, dialogId: dId, field, value }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            const dialog = pack?.dialogs.find((d) => d.id === dId);
+            const project = draft.account.projects.find((p) => p.id === pId);
+            const dialog = project?.dialogs.find((d) => d.id === dId);
             if (!dialog) return;
             if (field === "canCloseWithEscape") dialog.canCloseWithEscape = value;
             touch(draft, pId);
@@ -1404,9 +1404,9 @@ export const useAccountStore = create<AccountState>()(
         if (oldId === newId) return;
         if (!newId) throw new Error("dialog id cannot be empty");
         const state = get();
-        const pack = state.account.projects.find((p) => p.id === pId);
-        if (!pack) throw new Error("pack not found");
-        if (pack.dialogs.some((d) => d.id === newId))
+        const project = state.account.projects.find((p) => p.id === pId);
+        if (!project) throw new Error("project not found");
+        if (project.dialogs.some((d) => d.id === newId))
           throw new Error(`dialog id "${newId}" already exists`);
         const next = produce(state.account, (draft) => {
           const p = draft.projects.find((p) => p.id === pId)!;
@@ -1435,12 +1435,12 @@ export const useAccountStore = create<AccountState>()(
       addDialogBody: ({ projectId: pId, dialogId: dId, body }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            const dialog = pack?.dialogs.find((d) => d.id === dId);
+            const project = draft.account.projects.find((p) => p.id === pId);
+            const dialog = project?.dialogs.find((d) => d.id === dId);
             if (!dialog) return;
             if (body.type === "text") {
               const key = dialogBodyTextKey(dId, dialog.body.length);
-              pack!.i18nKeys[key] = { [pack!.defaultLang]: "" };
+              project!.i18nKeys[key] = { [project!.defaultLang]: "" };
               dialog.body.push({ type: "text", text: { key } });
             } else {
               dialog.body.push(body);
@@ -1451,11 +1451,11 @@ export const useAccountStore = create<AccountState>()(
       removeDialogBody: ({ projectId: pId, dialogId: dId, index }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            const dialog = pack?.dialogs.find((d) => d.id === dId);
+            const project = draft.account.projects.find((p) => p.id === pId);
+            const dialog = project?.dialogs.find((d) => d.id === dId);
             if (!dialog) return;
             const body = dialog.body[index];
-            if (body?.type === "text") delete pack!.i18nKeys[body.text.key];
+            if (body?.type === "text") delete project!.i18nKeys[body.text.key];
             dialog.body.splice(index, 1);
             touch(draft, pId);
           }),
@@ -1463,20 +1463,20 @@ export const useAccountStore = create<AccountState>()(
       setDialogBodyText: ({ projectId: pId, dialogId: dId, index, lang, value }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            const dialog = pack?.dialogs.find((d) => d.id === dId);
+            const project = draft.account.projects.find((p) => p.id === pId);
+            const dialog = project?.dialogs.find((d) => d.id === dId);
             const body = dialog?.body[index];
             if (!body || body.type !== "text") return;
-            if (!pack!.i18nKeys[body.text.key]) pack!.i18nKeys[body.text.key] = {};
-            pack!.i18nKeys[body.text.key]![lang] = value;
+            if (!project!.i18nKeys[body.text.key]) project!.i18nKeys[body.text.key] = {};
+            project!.i18nKeys[body.text.key]![lang] = value;
             touch(draft, pId);
           }),
         ),
       setDialogBodyMaterial: ({ projectId: pId, dialogId: dId, index, material, count }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            const dialog = pack?.dialogs.find((d) => d.id === dId);
+            const project = draft.account.projects.find((p) => p.id === pId);
+            const dialog = project?.dialogs.find((d) => d.id === dId);
             const body = dialog?.body[index];
             if (!body || body.type !== "item") return;
             body.material = material;
@@ -1487,12 +1487,12 @@ export const useAccountStore = create<AccountState>()(
       addDialogInput: ({ projectId: pId, dialogId: dId, inputType }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            const dialog = pack?.dialogs.find((d) => d.id === dId);
+            const project = draft.account.projects.find((p) => p.id === pId);
+            const dialog = project?.dialogs.find((d) => d.id === dId);
             if (!dialog) return;
             const inputId = `input_${dialog.inputs.length}`;
             const labelKey = dialogInputLabelKey(dId, inputId);
-            pack!.i18nKeys[labelKey] = { [pack!.defaultLang]: "" };
+            project!.i18nKeys[labelKey] = { [project!.defaultLang]: "" };
             let newInput: DialogInput;
             if (inputType === "text") {
               newInput = {
@@ -1534,14 +1534,14 @@ export const useAccountStore = create<AccountState>()(
       removeDialogInput: ({ projectId: pId, dialogId: dId, index }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            const dialog = pack?.dialogs.find((d) => d.id === dId);
+            const project = draft.account.projects.find((p) => p.id === pId);
+            const dialog = project?.dialogs.find((d) => d.id === dId);
             if (!dialog) return;
             const input = dialog.inputs[index];
             if (input) {
-              delete pack!.i18nKeys[input.label.key];
+              delete project!.i18nKeys[input.label.key];
               if (input.type === "single_option") {
-                for (const opt of input.options) delete pack!.i18nKeys[opt.label.key];
+                for (const opt of input.options) delete project!.i18nKeys[opt.label.key];
               }
               dialog.inputs.splice(index, 1);
             }
@@ -1551,8 +1551,8 @@ export const useAccountStore = create<AccountState>()(
       setDialogInput: ({ projectId: pId, dialogId: dId, index, patch }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            const dialog = pack?.dialogs.find((d) => d.id === dId);
+            const project = draft.account.projects.find((p) => p.id === pId);
+            const dialog = project?.dialogs.find((d) => d.id === dId);
             if (!dialog?.inputs[index]) return;
             Object.assign(dialog.inputs[index]!, patch);
             touch(draft, pId);
@@ -1561,12 +1561,12 @@ export const useAccountStore = create<AccountState>()(
       addDialogButton: ({ projectId: pId, dialogId: dId }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            const dialog = pack?.dialogs.find((d) => d.id === dId);
+            const project = draft.account.projects.find((p) => p.id === pId);
+            const dialog = project?.dialogs.find((d) => d.id === dId);
             if (!dialog) return;
             const btnId = `btn_${dialog.buttons.length}`;
             const labelKey = dialogButtonLabelKey(dId, btnId);
-            pack!.i18nKeys[labelKey] = { [pack!.defaultLang]: "" };
+            project!.i18nKeys[labelKey] = { [project!.defaultLang]: "" };
             dialog.buttons.push({ id: btnId, label: { key: labelKey }, steps: [] });
             touch(draft, pId);
           }),
@@ -1574,18 +1574,18 @@ export const useAccountStore = create<AccountState>()(
       removeDialogButton: ({ projectId: pId, dialogId: dId, buttonIndex }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            const dialog = pack?.dialogs.find((d) => d.id === dId);
+            const project = draft.account.projects.find((p) => p.id === pId);
+            const dialog = project?.dialogs.find((d) => d.id === dId);
             if (!dialog) return;
             const btn = dialog.buttons[buttonIndex];
             if (btn) {
-              delete pack!.i18nKeys[btn.label.key];
+              delete project!.i18nKeys[btn.label.key];
               for (const action of walkActions(btn.steps)) {
                 if (action.type === "send_message" || action.type === "broadcast")
-                  delete pack!.i18nKeys[action.text.key];
+                  delete project!.i18nKeys[action.text.key];
                 else if (action.type === "show_title") {
-                  delete pack!.i18nKeys[action.title.key];
-                  if (action.subtitle) delete pack!.i18nKeys[action.subtitle.key];
+                  delete project!.i18nKeys[action.title.key];
+                  if (action.subtitle) delete project!.i18nKeys[action.subtitle.key];
                 }
               }
               dialog.buttons.splice(buttonIndex, 1);
@@ -1596,12 +1596,12 @@ export const useAccountStore = create<AccountState>()(
       setDialogButtonLabel: ({ projectId: pId, dialogId: dId, buttonIndex, lang, value }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            const dialog = pack?.dialogs.find((d) => d.id === dId);
+            const project = draft.account.projects.find((p) => p.id === pId);
+            const dialog = project?.dialogs.find((d) => d.id === dId);
             const btn = dialog?.buttons[buttonIndex];
             if (!btn) return;
-            if (!pack!.i18nKeys[btn.label.key]) pack!.i18nKeys[btn.label.key] = {};
-            pack!.i18nKeys[btn.label.key]![lang] = value;
+            if (!project!.i18nKeys[btn.label.key]) project!.i18nKeys[btn.label.key] = {};
+            project!.i18nKeys[btn.label.key]![lang] = value;
             touch(draft, pId);
           }),
         ),
@@ -1616,15 +1616,15 @@ export const useAccountStore = create<AccountState>()(
       }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            const dialog = pack?.dialogs.find((d) => d.id === dId);
+            const project = draft.account.projects.find((p) => p.id === pId);
+            const dialog = project?.dialogs.find((d) => d.id === dId);
             const btn = dialog?.buttons[buttonIndex];
-            if (!pack || !btn) return;
+            if (!project || !btn) return;
             const parent = resolveParentMut(btn.steps, frames);
             if (!parent) return;
             const at = index < 0 || index > parent.length ? parent.length : index;
             parent.splice(at, 0, step);
-            allocStepLTexts(pack, btn.steps, lang, dialogButtonKeyPrefix(dId, btn.id));
+            allocStepLTexts(project, btn.steps, lang, dialogButtonKeyPrefix(dId, btn.id));
             touch(draft, pId);
           }),
         ),
@@ -1638,8 +1638,8 @@ export const useAccountStore = create<AccountState>()(
       }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            const dialog = pack?.dialogs.find((d) => d.id === dId);
+            const project = draft.account.projects.find((p) => p.id === pId);
+            const dialog = project?.dialogs.find((d) => d.id === dId);
             const btn = dialog?.buttons[buttonIndex];
             if (!btn) return;
             const parent = resolveParentMut(btn.steps, frames);
@@ -1654,28 +1654,28 @@ export const useAccountStore = create<AccountState>()(
       setDialogButtonStep: ({ projectId: pId, dialogId: dId, buttonIndex, path, step, lang }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            const dialog = pack?.dialogs.find((d) => d.id === dId);
+            const project = draft.account.projects.find((p) => p.id === pId);
+            const dialog = project?.dialogs.find((d) => d.id === dId);
             const btn = dialog?.buttons[buttonIndex];
-            if (!pack || !btn) return;
+            if (!project || !btn) return;
             const parent = resolveParentMut(btn.steps, path.frames);
             if (!parent || path.index < 0 || path.index >= parent.length) return;
-            gcStepLTexts(pack, [parent[path.index]!]);
+            gcStepLTexts(project, [parent[path.index]!]);
             parent[path.index] = step;
-            allocStepLTexts(pack, btn.steps, lang, dialogButtonKeyPrefix(dId, btn.id));
+            allocStepLTexts(project, btn.steps, lang, dialogButtonKeyPrefix(dId, btn.id));
             touch(draft, pId);
           }),
         ),
       removeDialogButtonStep: ({ projectId: pId, dialogId: dId, buttonIndex, path }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            const dialog = pack?.dialogs.find((d) => d.id === dId);
+            const project = draft.account.projects.find((p) => p.id === pId);
+            const dialog = project?.dialogs.find((d) => d.id === dId);
             const btn = dialog?.buttons[buttonIndex];
-            if (!pack || !btn) return;
+            if (!project || !btn) return;
             const parent = resolveParentMut(btn.steps, path.frames);
             if (!parent || path.index < 0 || path.index >= parent.length) return;
-            gcStepLTexts(pack, [parent[path.index]!]);
+            gcStepLTexts(project, [parent[path.index]!]);
             parent.splice(path.index, 1);
             touch(draft, pId);
           }),
@@ -1683,8 +1683,8 @@ export const useAccountStore = create<AccountState>()(
       addDialogButtonIfCase: ({ projectId: pId, dialogId: dId, buttonIndex, frames, ifStepIndex }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            const dialog = pack?.dialogs.find((d) => d.id === dId);
+            const project = draft.account.projects.find((p) => p.id === pId);
+            const dialog = project?.dialogs.find((d) => d.id === dId);
             const btn = dialog?.buttons[buttonIndex];
             if (!btn) return;
             const parent = resolveParentMut(btn.steps, frames);
@@ -1704,16 +1704,16 @@ export const useAccountStore = create<AccountState>()(
       }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            const dialog = pack?.dialogs.find((d) => d.id === dId);
+            const project = draft.account.projects.find((p) => p.id === pId);
+            const dialog = project?.dialogs.find((d) => d.id === dId);
             const btn = dialog?.buttons[buttonIndex];
-            if (!pack || !btn) return;
+            if (!project || !btn) return;
             const parent = resolveParentMut(btn.steps, frames);
             const ifStep = parent?.[ifStepIndex];
             if (!ifStep || ifStep.kind !== "if") return;
             if (caseIndex < 0 || caseIndex >= ifStep.cases.length) return;
             if (ifStep.cases.length > 1) {
-              gcStepLTexts(pack, ifStep.cases[caseIndex]!.steps);
+              gcStepLTexts(project, ifStep.cases[caseIndex]!.steps);
               ifStep.cases.splice(caseIndex, 1);
             }
             touch(draft, pId);
@@ -1731,8 +1731,8 @@ export const useAccountStore = create<AccountState>()(
       }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            const dialog = pack?.dialogs.find((d) => d.id === dId);
+            const project = draft.account.projects.find((p) => p.id === pId);
+            const dialog = project?.dialogs.find((d) => d.id === dId);
             const btn = dialog?.buttons[buttonIndex];
             if (!btn) return;
             const parent = resolveParentMut(btn.steps, frames);
@@ -1758,8 +1758,8 @@ export const useAccountStore = create<AccountState>()(
       }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            const dialog = pack?.dialogs.find((d) => d.id === dId);
+            const project = draft.account.projects.find((p) => p.id === pId);
+            const dialog = project?.dialogs.find((d) => d.id === dId);
             const btn = dialog?.buttons[buttonIndex];
             if (!btn) return;
             const parent = resolveParentMut(btn.steps, frames);
@@ -1783,10 +1783,10 @@ export const useAccountStore = create<AccountState>()(
       }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            const dialog = pack?.dialogs.find((d) => d.id === dId);
+            const project = draft.account.projects.find((p) => p.id === pId);
+            const dialog = project?.dialogs.find((d) => d.id === dId);
             const btn = dialog?.buttons[buttonIndex];
-            if (!pack || !btn) return;
+            if (!project || !btn) return;
             const parent = resolveParentMut(btn.steps, frames);
             const ifStep = parent?.[ifStepIndex];
             if (!ifStep || ifStep.kind !== "if") return;
@@ -1794,7 +1794,7 @@ export const useAccountStore = create<AccountState>()(
               if (!ifStep.else) ifStep.else = [];
             } else {
               if (ifStep.else) {
-                gcStepLTexts(pack, ifStep.else);
+                gcStepLTexts(project, ifStep.else);
                 ifStep.else = undefined;
               }
             }
@@ -1810,12 +1810,12 @@ export const useAccountStore = create<AccountState>()(
         );
         clearTemporal();
       },
-      upsertScratchProject: (pack) => {
+      upsertScratchProject: (project) => {
         set(
           produce((draft: AccountState) => {
-            const idx = draft.account.projects.findIndex((p) => p.id === pack.id);
-            if (idx === -1) draft.account.projects.push(pack);
-            else draft.account.projects[idx] = pack;
+            const idx = draft.account.projects.findIndex((p) => p.id === project.id);
+            if (idx === -1) draft.account.projects.push(project);
+            else draft.account.projects[idx] = project;
           }),
         );
         clearTemporal();
@@ -1832,9 +1832,9 @@ export const useAccountStore = create<AccountState>()(
         const next = produce(get().account, (draft) => {
           const from = draft.projects.find((p) => p.id === fromProjectId);
           const to = draft.projects.find((p) => p.id === toProjectId);
-          if (!from || !to) throw new Error("pack not found");
+          if (!from || !to) throw new Error("project not found");
           const idx = from.menus.findIndex((m) => m.id === mId);
-          if (idx === -1) throw new Error("menu not found in source pack");
+          if (idx === -1) throw new Error("menu not found in source project");
           const [moved] = from.menus.splice(idx, 1);
           if (!moved) return;
           moved.projectId = toProjectId;
@@ -1845,9 +1845,9 @@ export const useAccountStore = create<AccountState>()(
       setCanvasPosition: ({ projectId: pId, nodeId, x, y }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            if (!pack) return;
-            (pack.canvasLayout as Record<string, { x: number; y: number }>)[nodeId] = { x, y };
+            const project = draft.account.projects.find((p) => p.id === pId);
+            if (!project) return;
+            (project.canvasLayout as Record<string, { x: number; y: number }>)[nodeId] = { x, y };
           }),
         ),
       // Board-membership entry point: puts an element ON the board at (x,y).
@@ -1856,127 +1856,127 @@ export const useAccountStore = create<AccountState>()(
       addToBoard: ({ projectId: pId, nodeId, x, y }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            if (!pack) return;
-            (pack.canvasLayout as Record<string, { x: number; y: number }>)[nodeId] = { x, y };
+            const project = draft.account.projects.find((p) => p.id === pId);
+            if (!project) return;
+            (project.canvasLayout as Record<string, { x: number; y: number }>)[nodeId] = { x, y };
           }),
         ),
       removeFromBoard: ({ projectId: pId, nodeId }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            if (!pack) return;
-            delete (pack.canvasLayout as Record<string, { x: number; y: number }>)[nodeId];
+            const project = draft.account.projects.find((p) => p.id === pId);
+            if (!project) return;
+            delete (project.canvasLayout as Record<string, { x: number; y: number }>)[nodeId];
           }),
         ),
       arrangeAllOnBoard: ({ projectId: pId }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            if (!pack) return;
-            const grid = gridArrange(current(pack));
-            pack.canvasLayout = grid as typeof pack.canvasLayout;
+            const project = draft.account.projects.find((p) => p.id === pId);
+            if (!project) return;
+            const grid = gridArrange(current(project));
+            project.canvasLayout = grid as typeof project.canvasLayout;
           }),
         ),
       setEdgeAnchor: ({ projectId: pId, edgeId, end, anchor }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            if (!pack) return;
-            pack.canvasEdges ??= {};
-            pack.canvasEdges[edgeId] = { ...pack.canvasEdges[edgeId], [end]: anchor };
+            const project = draft.account.projects.find((p) => p.id === pId);
+            if (!project) return;
+            project.canvasEdges ??= {};
+            project.canvasEdges[edgeId] = { ...project.canvasEdges[edgeId], [end]: anchor };
           }),
         ),
       clearEdgeAnchor: ({ projectId: pId, edgeId, end }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            const entry = pack?.canvasEdges?.[edgeId];
-            if (!pack || !entry) return;
+            const project = draft.account.projects.find((p) => p.id === pId);
+            const entry = project?.canvasEdges?.[edgeId];
+            if (!project || !entry) return;
             delete entry[end];
-            if (!entry.from && !entry.to) delete pack.canvasEdges![edgeId];
+            if (!entry.from && !entry.to) delete project.canvasEdges![edgeId];
           }),
         ),
       setProjectField: ({ projectId: pId, field, value }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            if (!pack) return;
-            if (field === "name") pack.name = value;
-            else if (field === "description") pack.description = value || undefined;
-            pack.updatedAt = new Date().toISOString();
+            const project = draft.account.projects.find((p) => p.id === pId);
+            if (!project) return;
+            if (field === "name") project.name = value;
+            else if (field === "description") project.description = value || undefined;
+            project.updatedAt = new Date().toISOString();
           }),
         ),
       setI18nValue: ({ projectId: pId, lt, lang, value }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            if (!pack) return;
-            setLText(pack, lt, lang, value);
-            pack.updatedAt = new Date().toISOString();
+            const project = draft.account.projects.find((p) => p.id === pId);
+            if (!project) return;
+            setLText(project, lt, lang, value);
+            project.updatedAt = new Date().toISOString();
           }),
         ),
       addLanguage: ({ projectId: pId, lang }) => {
         if (!lang) throw new Error("language code cannot be empty");
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            if (!pack) return;
+            const project = draft.account.projects.find((p) => p.id === pId);
+            if (!project) return;
             // Idempotent: re-adding an existing lang is a no-op. We
             // don't seed empty entries for every key — fallback to
             // defaultLang at read time covers untranslated keys. Just
             // touch one entry so future enumeration code can spot the
-            // language. (If the pack has no keys at all, the language
+            // language. (If the project has no keys at all, the language
             // doesn't need recording anywhere.)
-            for (const entry of Object.values(pack.i18nKeys)) {
+            for (const entry of Object.values(project.i18nKeys)) {
               if (!entry) continue;
               if (!(lang in entry)) entry[lang] = "";
               break;
             }
-            pack.updatedAt = new Date().toISOString();
+            project.updatedAt = new Date().toISOString();
           }),
         );
       },
       removeLanguage: ({ projectId: pId, lang }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            if (!pack) return;
-            if (lang === pack.defaultLang) return; // refuse to drop the default
-            for (const entry of Object.values(pack.i18nKeys)) {
+            const project = draft.account.projects.find((p) => p.id === pId);
+            if (!project) return;
+            if (lang === project.defaultLang) return; // refuse to drop the default
+            for (const entry of Object.values(project.i18nKeys)) {
               if (entry) delete entry[lang];
             }
-            pack.updatedAt = new Date().toISOString();
+            project.updatedAt = new Date().toISOString();
           }),
         ),
       removeUnusedI18nKeys: ({ projectId: pId }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            if (!pack) return;
+            const project = draft.account.projects.find((p) => p.id === pId);
+            if (!project) return;
             // Walk a plain snapshot (`current`) rather than the immer draft —
             // findKeyUsages only reads, and the proxy walk is needless overhead.
-            const unused = findUnusedI18nKeys(current(pack));
+            const unused = findUnusedI18nKeys(current(project));
             if (unused.length === 0) return;
-            for (const key of unused) delete pack.i18nKeys[key];
-            pack.updatedAt = new Date().toISOString();
+            for (const key of unused) delete project.i18nKeys[key];
+            project.updatedAt = new Date().toISOString();
           }),
         ),
       setProjectDefaultLang: ({ projectId: pId, lang }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            if (!pack) return;
+            const project = draft.account.projects.find((p) => p.id === pId);
+            if (!project) return;
             if (!lang) return;
-            pack.defaultLang = lang;
-            pack.updatedAt = new Date().toISOString();
+            project.defaultLang = lang;
+            project.updatedAt = new Date().toISOString();
           }),
         ),
       setMenuField: ({ projectId: pId, menuId: mId, field, value }) => {
         const next = produce(get().account, (draft) => {
-          const pack = draft.projects.find((p) => p.id === pId);
-          if (!pack) return;
-          const menu = pack.menus.find((m) => m.id === mId);
+          const project = draft.projects.find((p) => p.id === pId);
+          if (!project) return;
+          const menu = project.menus.find((m) => m.id === mId);
           if (!menu) return;
           if (field === "permission") {
             if (typeof value !== "string") return;
@@ -2000,16 +2000,16 @@ export const useAccountStore = create<AccountState>()(
             // undefined for chest so "absent = chest" everywhere.
             menu.inventoryType = value === "chest" ? undefined : (value as InventoryType);
           }
-          pack.updatedAt = new Date().toISOString();
+          project.updatedAt = new Date().toISOString();
         });
         set({ account: next });
       },
       setMenuTitle: ({ projectId: pId, menuId: mId, lang, value }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            if (!pack) return;
-            const menu = pack.menus.find((m) => m.id === mId);
+            const project = draft.account.projects.find((p) => p.id === pId);
+            if (!project) return;
+            const menu = project.menus.find((m) => m.id === mId);
             if (!menu) return;
             // menu.title is MenuTitleLayer[]. Write into the first text-bearing
             // layer (plain, text, or textarea) if present; otherwise prepend a
@@ -2022,24 +2022,24 @@ export const useAccountStore = create<AccountState>()(
             ) {
               // Empty-key sentinel from createMenu default: allocate a canonical key.
               if (first.value.key === "") {
-                const newLText = createLTextAt(pack, menuTitleKey(mId), value, lang);
+                const newLText = createLTextAt(project, menuTitleKey(mId), value, lang);
                 first.value = newLText;
               } else {
-                setLText(pack, first.value, lang, value);
+                setLText(project, first.value, lang, value);
               }
             } else {
-              const newLText = createLTextAt(pack, menuTitleKey(mId), value, lang);
+              const newLText = createLTextAt(project, menuTitleKey(mId), value, lang);
               menu.title.unshift({ kind: "text", value: newLText, x: 8, y: 5 });
             }
-            pack.updatedAt = new Date().toISOString();
+            project.updatedAt = new Date().toISOString();
           }),
         ),
       setMenuTitleLayers: ({ projectId: pId, menuId: mId, layers }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            if (!pack) return;
-            const menu = pack.menus.find((m) => m.id === mId);
+            const project = draft.account.projects.find((p) => p.id === pId);
+            if (!project) return;
+            const menu = project.menus.find((m) => m.id === mId);
             if (!menu) return;
             // Release the i18n keys of text-bearing layers that the new layer
             // set drops, so switching title modes (composé ↔ vanilla) doesn't
@@ -2047,115 +2047,115 @@ export const useAccountStore = create<AccountState>()(
             // migrated title) are preserved.
             const keptKeys = titleLayerKeys(layers);
             for (const key of titleLayerKeys(menu.title)) {
-              if (!keptKeys.has(key)) deleteLText(pack, { key });
+              if (!keptKeys.has(key)) deleteLText(project, { key });
             }
             menu.title = layers;
-            pack.updatedAt = new Date().toISOString();
+            project.updatedAt = new Date().toISOString();
           }),
         ),
       updateMenuTitleLayer: ({ projectId: pId, menuId: mId, index, patch }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            if (!pack) return;
-            const menu = pack.menus.find((m) => m.id === mId);
+            const project = draft.account.projects.find((p) => p.id === pId);
+            if (!project) return;
+            const menu = project.menus.find((m) => m.id === mId);
             if (!menu) return;
             const layer = menu.title[index];
             if (!layer) return;
             menu.title[index] = { ...layer, ...patch } as MenuTitleLayer;
-            pack.updatedAt = new Date().toISOString();
+            project.updatedAt = new Date().toISOString();
           }),
         ),
       addMenuTitleLayer: ({ projectId: pId, menuId: mId, layer }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            if (!pack) return;
-            const menu = pack.menus.find((m) => m.id === mId);
+            const project = draft.account.projects.find((p) => p.id === pId);
+            if (!project) return;
+            const menu = project.menus.find((m) => m.id === mId);
             if (!menu) return;
             menu.title.push(layer);
-            pack.updatedAt = new Date().toISOString();
+            project.updatedAt = new Date().toISOString();
           }),
         ),
       removeMenuTitleLayer: ({ projectId: pId, menuId: mId, index }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            if (!pack) return;
-            const menu = pack.menus.find((m) => m.id === mId);
+            const project = draft.account.projects.find((p) => p.id === pId);
+            if (!project) return;
+            const menu = project.menus.find((m) => m.id === mId);
             if (!menu) return;
             const [removed] = menu.title.splice(index, 1);
             // GC the removed layer's i18n key (text-bearing layers only) so a
             // deleted title layer doesn't leave an orphaned "(unused)" key.
             if (removed) {
-              for (const key of titleLayerKeys([removed])) deleteLText(pack, { key });
+              for (const key of titleLayerKeys([removed])) deleteLText(project, { key });
             }
-            pack.updatedAt = new Date().toISOString();
+            project.updatedAt = new Date().toISOString();
           }),
         ),
       reorderMenuTitleLayers: ({ projectId: pId, menuId: mId, fromIndex, toIndex }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            if (!pack) return;
-            const menu = pack.menus.find((m) => m.id === mId);
+            const project = draft.account.projects.find((p) => p.id === pId);
+            if (!project) return;
+            const menu = project.menus.find((m) => m.id === mId);
             if (!menu) return;
             const [moved] = menu.title.splice(fromIndex, 1);
             if (moved) menu.title.splice(toIndex, 0, moved);
-            pack.updatedAt = new Date().toISOString();
+            project.updatedAt = new Date().toISOString();
           }),
         ),
       setCommandField: ({ projectId: pId, commandId: cId, field, value }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            if (!pack) return;
-            const cmd = pack.commands.find((c) => c.id === cId);
+            const project = draft.account.projects.find((p) => p.id === pId);
+            if (!project) return;
+            const cmd = project.commands.find((c) => c.id === cId);
             if (!cmd) return;
             if (field === "name") cmd.name = value;
             else if (field === "permission") cmd.permission = value || undefined;
             else if (field === "description") cmd.description = value || undefined;
-            pack.updatedAt = new Date().toISOString();
+            project.updatedAt = new Date().toISOString();
           }),
         ),
       setCommandAliases: ({ projectId: pId, commandId: cId, aliases }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            if (!pack) return;
-            const cmd = pack.commands.find((c) => c.id === cId);
+            const project = draft.account.projects.find((p) => p.id === pId);
+            if (!project) return;
+            const cmd = project.commands.find((c) => c.id === cId);
             if (!cmd) return;
             cmd.aliases = aliases.length > 0 ? aliases : undefined;
-            pack.updatedAt = new Date().toISOString();
+            project.updatedAt = new Date().toISOString();
           }),
         ),
       updateCommand: ({ projectId: pId, command }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            if (!pack) return;
-            const idx = pack.commands.findIndex((c) => c.id === command.id);
+            const project = draft.account.projects.find((p) => p.id === pId);
+            if (!project) return;
+            const idx = project.commands.findIndex((c) => c.id === command.id);
             if (idx === -1) return;
-            pack.commands[idx] = command;
-            pack.updatedAt = new Date().toISOString();
+            project.commands[idx] = command;
+            project.updatedAt = new Date().toISOString();
           }),
         ),
       updateDialog: ({ projectId: pId, dialog }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            if (!pack) return;
-            const idx = pack.dialogs.findIndex((d) => d.id === dialog.id);
+            const project = draft.account.projects.find((p) => p.id === pId);
+            if (!project) return;
+            const idx = project.dialogs.findIndex((d) => d.id === dialog.id);
             if (idx === -1) return;
-            pack.dialogs[idx] = dialog;
-            pack.updatedAt = new Date().toISOString();
+            project.dialogs[idx] = dialog;
+            project.updatedAt = new Date().toISOString();
           }),
         ),
       addCommandArg: ({ projectId: pId, commandId: cId, arg }) => {
         const next = produce(get().account, (draft) => {
-          const pack = draft.projects.find((p) => p.id === pId);
-          if (!pack) return;
-          const cmd = pack.commands.find((c) => c.id === cId);
+          const project = draft.projects.find((p) => p.id === pId);
+          if (!project) return;
+          const cmd = project.commands.find((c) => c.id === cId);
           if (!cmd) return;
           const used = new Set(cmd.arguments.map((a) => a.name));
           const defaultName = (() => {
@@ -2167,41 +2167,41 @@ export const useAccountStore = create<AccountState>()(
           const newArg = arg ?? { name: defaultName, type: "string" as const, required: true };
           validateArgOrder([...cmd.arguments, newArg]);
           cmd.arguments.push(newArg);
-          pack.updatedAt = new Date().toISOString();
+          project.updatedAt = new Date().toISOString();
         });
         set({ account: next });
       },
       setCommandArg: ({ projectId: pId, commandId: cId, index, arg }) => {
         const next = produce(get().account, (draft) => {
-          const pack = draft.projects.find((p) => p.id === pId);
-          if (!pack) return;
-          const cmd = pack.commands.find((c) => c.id === cId);
+          const project = draft.projects.find((p) => p.id === pId);
+          if (!project) return;
+          const cmd = project.commands.find((c) => c.id === cId);
           if (!cmd || index < 0 || index >= cmd.arguments.length) return;
           const newArgs = [...cmd.arguments];
           newArgs[index] = arg;
           validateArgOrder(newArgs);
           cmd.arguments[index] = arg;
-          pack.updatedAt = new Date().toISOString();
+          project.updatedAt = new Date().toISOString();
         });
         set({ account: next });
       },
       removeCommandArg: ({ projectId: pId, commandId: cId, index }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            if (!pack) return;
-            const cmd = pack.commands.find((c) => c.id === cId);
+            const project = draft.account.projects.find((p) => p.id === pId);
+            if (!project) return;
+            const cmd = project.commands.find((c) => c.id === cId);
             if (!cmd || index < 0 || index >= cmd.arguments.length) return;
             cmd.arguments.splice(index, 1);
-            pack.updatedAt = new Date().toISOString();
+            project.updatedAt = new Date().toISOString();
           }),
         ),
       addMenuContextInput: ({ projectId: pId, menuId: mId, kind }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            if (!pack) return;
-            const menu = pack.menus.find((m) => m.id === mId);
+            const project = draft.account.projects.find((p) => p.id === pId);
+            if (!project) return;
+            const menu = project.menus.find((m) => m.id === mId);
             if (!menu) return;
             if (!menu.contextInputs) menu.contextInputs = [];
             const used = new Set(menu.contextInputs.map((c) => c.name));
@@ -2216,47 +2216,47 @@ export const useAccountStore = create<AccountState>()(
                 ? { kind: "sourceRef", name: defaultName, ref: "" as SourceRef }
                 : { kind: "primitive", name: defaultName, type: "string" };
             menu.contextInputs.push(newInput);
-            pack.updatedAt = new Date().toISOString();
+            project.updatedAt = new Date().toISOString();
           }),
         ),
       setMenuContextInput: ({ projectId: pId, menuId: mId, index, input }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            if (!pack) return;
-            const menu = pack.menus.find((m) => m.id === mId);
+            const project = draft.account.projects.find((p) => p.id === pId);
+            if (!project) return;
+            const menu = project.menus.find((m) => m.id === mId);
             if (!menu?.contextInputs) return;
             if (index < 0 || index >= menu.contextInputs.length) return;
             menu.contextInputs[index] = input;
-            pack.updatedAt = new Date().toISOString();
+            project.updatedAt = new Date().toISOString();
           }),
         ),
       removeMenuContextInput: ({ projectId: pId, menuId: mId, index }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            if (!pack) return;
-            const menu = pack.menus.find((m) => m.id === mId);
+            const project = draft.account.projects.find((p) => p.id === pId);
+            if (!project) return;
+            const menu = project.menus.find((m) => m.id === mId);
             if (!menu?.contextInputs) return;
             if (index < 0 || index >= menu.contextInputs.length) return;
             menu.contextInputs.splice(index, 1);
             if (menu.contextInputs.length === 0) menu.contextInputs = undefined;
-            pack.updatedAt = new Date().toISOString();
+            project.updatedAt = new Date().toISOString();
           }),
         ),
       setElementIterates: ({ projectId: pId, menuId: mId, elementId: eId, iterates }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            if (!pack) return;
-            const menu = pack.menus.find((m) => m.id === mId);
+            const project = draft.account.projects.find((p) => p.id === pId);
+            if (!project) return;
+            const menu = project.menus.find((m) => m.id === mId);
             if (!menu) return;
             for (const layer of menu.layers) {
               const el = layer.elements.find((e) => e.id === eId);
               if (el) {
                 el.iterates = iterates;
                 if (iterates) el.places = undefined; // XOR: iterates and places are exclusive
-                pack.updatedAt = new Date().toISOString();
+                project.updatedAt = new Date().toISOString();
                 return;
               }
             }
@@ -2265,15 +2265,15 @@ export const useAccountStore = create<AccountState>()(
       setElementPlaces: ({ projectId: pId, menuId: mId, elementId: eId, places }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            const menu = pack?.menus.find((m) => m.id === mId);
-            if (!pack || !menu) return;
+            const project = draft.account.projects.find((p) => p.id === pId);
+            const menu = project?.menus.find((m) => m.id === mId);
+            if (!project || !menu) return;
             for (const layer of menu.layers) {
               const el = layer.elements.find((e) => e.id === eId);
               if (el) {
                 el.places = places;
                 if (places) el.iterates = undefined; // XOR: exclusive with iteration
-                pack.updatedAt = new Date().toISOString();
+                project.updatedAt = new Date().toISOString();
                 return;
               }
             }
@@ -2282,9 +2282,9 @@ export const useAccountStore = create<AccountState>()(
       setElementPlacement: ({ projectId: pId, menuId: mId, elementId: eId, placement }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            const menu = pack?.menus.find((m) => m.id === mId);
-            if (!pack || !menu) return;
+            const project = draft.account.projects.find((p) => p.id === pId);
+            const menu = project?.menus.find((m) => m.id === mId);
+            if (!project || !menu) return;
             for (const layer of menu.layers) {
               const el = layer.elements.find((e) => e.id === eId);
               if (el?.places) {
@@ -2292,7 +2292,7 @@ export const useAccountStore = create<AccountState>()(
                 const i = list.findIndex((p) => p.key === placement.key);
                 if (i >= 0) list[i] = placement;
                 else list.push(placement);
-                pack.updatedAt = new Date().toISOString();
+                project.updatedAt = new Date().toISOString();
                 return;
               }
             }
@@ -2301,14 +2301,14 @@ export const useAccountStore = create<AccountState>()(
       removeElementPlacement: ({ projectId: pId, menuId: mId, elementId: eId, key }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            const menu = pack?.menus.find((m) => m.id === mId);
-            if (!pack || !menu) return;
+            const project = draft.account.projects.find((p) => p.id === pId);
+            const menu = project?.menus.find((m) => m.id === mId);
+            if (!project || !menu) return;
             for (const layer of menu.layers) {
               const el = layer.elements.find((e) => e.id === eId);
               if (el?.places) {
                 el.places.placements = el.places.placements.filter((p) => p.key !== key);
-                pack.updatedAt = new Date().toISOString();
+                project.updatedAt = new Date().toISOString();
                 return;
               }
             }
@@ -2317,35 +2317,35 @@ export const useAccountStore = create<AccountState>()(
       addCapturedItem: ({ projectId: pId, item }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            if (!pack) return;
-            if (!pack.capturedItems) pack.capturedItems = [];
-            const i = pack.capturedItems.findIndex((c) => c.id === item.id);
-            if (i >= 0) pack.capturedItems[i] = item;
-            else pack.capturedItems.push(item);
-            pack.updatedAt = new Date().toISOString();
+            const project = draft.account.projects.find((p) => p.id === pId);
+            if (!project) return;
+            if (!project.capturedItems) project.capturedItems = [];
+            const i = project.capturedItems.findIndex((c) => c.id === item.id);
+            if (i >= 0) project.capturedItems[i] = item;
+            else project.capturedItems.push(item);
+            project.updatedAt = new Date().toISOString();
           }),
         ),
       removeCapturedItem: ({ projectId: pId, itemId }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            if (!pack?.capturedItems) return;
-            pack.capturedItems = pack.capturedItems.filter((c) => c.id !== itemId);
-            pack.updatedAt = new Date().toISOString();
+            const project = draft.account.projects.find((p) => p.id === pId);
+            if (!project?.capturedItems) return;
+            project.capturedItems = project.capturedItems.filter((c) => c.id !== itemId);
+            project.updatedAt = new Date().toISOString();
           }),
         ),
       createMenuSet: ({ projectId: pId, menuId: mId, inputName, mode, keyField, alias: aliasIn, schema, positions }) => {
         let result: ReturnType<AccountState["createMenuSet"]> = { ok: false, reason: "not_found" };
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            const menu = pack?.menus.find((m) => m.id === mId);
+            const project = draft.account.projects.find((p) => p.id === pId);
+            const menu = project?.menus.find((m) => m.id === mId);
             // `inputName` may be a DOTTED PATH into an object param (e.g.
             // `category.items`) — the guard checks the ROOT input exists.
             const rootName = inputName.split(".")[0]!;
             const input = menu?.contextInputs?.find((c) => c.name === rootName);
-            if (!pack || !menu || !input) return;
+            if (!project || !menu || !input) return;
             const consumed = menu.layers
               .flatMap((l) => l.elements)
               .some((e) => e.iterates?.source === inputName || e.places?.source === inputName);
@@ -2363,8 +2363,8 @@ export const useAccountStore = create<AccountState>()(
             // Canonical element key sites from the start — no later rekey churn.
             const titleKey = `menus.${mId}.elements.${elId}.default.title` as I18nKey;
             const loreKey = `menus.${mId}.elements.${elId}.default.lore` as I18nKey;
-            pack.i18nKeys[titleKey] = { [pack.defaultLang]: nameField ? `{${alias}.${nameField}}` : "" };
-            if (loreField) pack.i18nKeys[loreKey] = { [pack.defaultLang]: `{${alias}.${loreField}}` };
+            project.i18nKeys[titleKey] = { [project.defaultLang]: nameField ? `{${alias}.${nameField}}` : "" };
+            if (loreField) project.i18nKeys[loreKey] = { [project.defaultLang]: `{${alias}.${loreField}}` };
 
             if (menu.layers.length === 0) menu.layers.push({ id: newLayerId(), name: "default", elements: [] });
             menu.layers[0]!.elements.push({
@@ -2391,22 +2391,22 @@ export const useAccountStore = create<AccountState>()(
         if (!newId) throw new Error("menu id cannot be empty");
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            if (!pack) return;
-            if (pack.menus.some((m) => m.id === newId)) {
-              throw new Error(`menu id "${newId}" already exists in pack`);
+            const project = draft.account.projects.find((p) => p.id === pId);
+            if (!project) return;
+            if (project.menus.some((m) => m.id === newId)) {
+              throw new Error(`menu id "${newId}" already exists in project`);
             }
-            const menu = pack.menus.find((m) => m.id === oldId);
+            const menu = project.menus.find((m) => m.id === oldId);
             if (!menu) return;
             menu.id = newId;
-            // Rewrite open_menu refs across the entire pack — both
+            // Rewrite open_menu refs across the entire project — both
             // element click handlers and command step trees.
             const rewrite = (action: Action) => {
               if (action.type === "open_menu" && action.menuId === oldId) {
                 action.menuId = newId;
               }
             };
-            for (const m of pack.menus) {
+            for (const m of project.menus) {
               for (const layer of m.layers) {
                 for (const el of layer.elements) {
                   for (const appearance of el.appearances) {
@@ -2419,17 +2419,17 @@ export const useAccountStore = create<AccountState>()(
                 }
               }
             }
-            for (const cmd of pack.commands) {
+            for (const cmd of project.commands) {
               for (const a of walkActions(cmd.steps)) rewrite(a);
             }
-            const layout = pack.canvasLayout as Record<string, { x: number; y: number }>;
+            const layout = project.canvasLayout as Record<string, { x: number; y: number }>;
             if (oldId in layout) {
               layout[newId] = layout[oldId]!;
               delete layout[oldId];
             }
-            rewriteCanvasEdgeIds(pack, oldId as string, newId as string);
-            rekeyMenu(pack, menu);
-            pack.updatedAt = new Date().toISOString();
+            rewriteCanvasEdgeIds(project, oldId as string, newId as string);
+            rekeyMenu(project, menu);
+            project.updatedAt = new Date().toISOString();
           }),
         );
       },
@@ -2438,22 +2438,22 @@ export const useAccountStore = create<AccountState>()(
         if (!newId) throw new Error("command id cannot be empty");
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            if (!pack) return;
-            if (pack.commands.some((c) => c.id === newId)) {
-              throw new Error(`command id "${newId}" already exists in pack`);
+            const project = draft.account.projects.find((p) => p.id === pId);
+            if (!project) return;
+            if (project.commands.some((c) => c.id === newId)) {
+              throw new Error(`command id "${newId}" already exists in project`);
             }
-            const cmd = pack.commands.find((c) => c.id === oldId);
+            const cmd = project.commands.find((c) => c.id === oldId);
             if (!cmd) return;
             cmd.id = newId;
-            const layout = pack.canvasLayout as Record<string, { x: number; y: number }>;
+            const layout = project.canvasLayout as Record<string, { x: number; y: number }>;
             if (oldId in layout) {
               layout[newId] = layout[oldId]!;
               delete layout[oldId];
             }
-            rewriteCanvasEdgeIds(pack, oldId as string, newId as string);
-            rekeyCommand(pack, cmd);
-            pack.updatedAt = new Date().toISOString();
+            rewriteCanvasEdgeIds(project, oldId as string, newId as string);
+            rekeyCommand(project, cmd);
+            project.updatedAt = new Date().toISOString();
           }),
         );
       },
@@ -2462,9 +2462,9 @@ export const useAccountStore = create<AccountState>()(
         if (!newId) throw new Error("element id cannot be empty");
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            if (!pack) return;
-            const menu = pack.menus.find((m) => m.id === mId);
+            const project = draft.account.projects.find((p) => p.id === pId);
+            if (!project) return;
+            const menu = project.menus.find((m) => m.id === mId);
             if (!menu) return;
             const allElements = menu.layers.flatMap((l) => l.elements);
             if (allElements.some((el) => el.id === newId)) {
@@ -2474,8 +2474,8 @@ export const useAccountStore = create<AccountState>()(
               const el = layer.elements.find((e) => e.id === oldId);
               if (el) {
                 el.id = newId;
-                rekeyMenu(pack, menu);
-                pack.updatedAt = new Date().toISOString();
+                rekeyMenu(project, menu);
+                project.updatedAt = new Date().toISOString();
                 return;
               }
             }
@@ -2485,9 +2485,9 @@ export const useAccountStore = create<AccountState>()(
       setSlotMaterial: ({ projectId: pId, menuId: mId, position, material }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            if (!pack) return;
-            const menu = pack.menus.find((m) => m.id === mId);
+            const project = draft.account.projects.find((p) => p.id === pId);
+            if (!project) return;
+            const menu = project.menus.find((m) => m.id === mId);
             if (!menu) return;
             // Find the element that currently owns this position (single OR
             // multi-pos), update its material — preserves title/lore/count.
@@ -2496,7 +2496,7 @@ export const useAccountStore = create<AccountState>()(
                 if (!positionsContains(el.positions, position)) continue;
                 const appearance = el.appearances[0];
                 if (appearance) appearance.material = material;
-                pack.updatedAt = new Date().toISOString();
+                project.updatedAt = new Date().toISOString();
                 return;
               }
             }
@@ -2506,20 +2506,20 @@ export const useAccountStore = create<AccountState>()(
               menu.layers.push(firstLayer);
             }
             firstLayer.elements.push({
-              id: nextElementIdForMaterial(pack, material),
+              id: nextElementIdForMaterial(project, material),
               positions: String(position),
               appearances: [{ material }],
             });
-            pack.updatedAt = new Date().toISOString();
+            project.updatedAt = new Date().toISOString();
           }),
         ),
       setAppearanceField: (input) =>
         set(
           produce((draft: AccountState) => {
             const { projectId: pId, appearanceIndex = 0, field, value } = input;
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            if (!pack) return;
-            const appearance = findAppearanceOwner(pack, input)?.appearances[appearanceIndex];
+            const project = draft.account.projects.find((p) => p.id === pId);
+            if (!project) return;
+            const appearance = findAppearanceOwner(project, input)?.appearances[appearanceIndex];
             if (!appearance) return;
             if (field === "count") {
               const n = typeof value === "number" ? value : Number(value);
@@ -2532,32 +2532,32 @@ export const useAccountStore = create<AccountState>()(
               if (typeof value !== "string") return;
               appearance.head = value || undefined;
             }
-            pack.updatedAt = new Date().toISOString();
+            project.updatedAt = new Date().toISOString();
           }),
         ),
       setAppearanceAdvanced: (input) =>
         set(
           produce((draft: AccountState) => {
             const { projectId: pId, appearanceIndex = 0, patch } = input;
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            if (!pack) return;
-            const appearance = findAppearanceOwner(pack, input)?.appearances[appearanceIndex];
+            const project = draft.account.projects.find((p) => p.id === pId);
+            if (!project) return;
+            const appearance = findAppearanceOwner(project, input)?.appearances[appearanceIndex];
             if (!appearance) return;
             for (const [key, value] of Object.entries(patch)) {
               // An explicit `undefined` clears the field rather than storing a hole.
               if (value === undefined) delete (appearance as Record<string, unknown>)[key];
               else (appearance as Record<string, unknown>)[key] = value;
             }
-            pack.updatedAt = new Date().toISOString();
+            project.updatedAt = new Date().toISOString();
           }),
         ),
       setAppearanceTitle: (input) =>
         set(
           produce((draft: AccountState) => {
             const { projectId: pId, appearanceIndex = 0, lang, value } = input;
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            if (!pack) return;
-            const appearance = findAppearanceOwner(pack, input)?.appearances[appearanceIndex];
+            const project = draft.account.projects.find((p) => p.id === pId);
+            if (!project) return;
+            const appearance = findAppearanceOwner(project, input)?.appearances[appearanceIndex];
             if (!appearance) return;
             // Lazy-allocate: brand-new appearances start with no title
             // LText, so the first edit creates one. If the user clears
@@ -2565,27 +2565,27 @@ export const useAccountStore = create<AccountState>()(
             // or translate it later) but write "" into the active lang.
             if (!appearance.title)
               appearance.title = createLTextAt(
-                pack,
+                project,
                 appearanceTitleKeyFor(input, appearanceIndex),
                 value,
                 lang,
               );
-            else setLText(pack, appearance.title, lang, value);
-            pack.updatedAt = new Date().toISOString();
+            else setLText(project, appearance.title, lang, value);
+            project.updatedAt = new Date().toISOString();
           }),
         ),
       setElementPositions: ({ projectId: pId, menuId: mId, elementId, positions }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            if (!pack) return;
-            const menu = pack.menus.find((m) => m.id === mId);
+            const project = draft.account.projects.find((p) => p.id === pId);
+            if (!project) return;
+            const menu = project.menus.find((m) => m.id === mId);
             if (!menu) return;
             for (const layer of menu.layers) {
               for (const el of layer.elements) {
                 if (el.id !== elementId) continue;
                 el.positions = positions;
-                pack.updatedAt = new Date().toISOString();
+                project.updatedAt = new Date().toISOString();
                 return;
               }
             }
@@ -2594,9 +2594,9 @@ export const useAccountStore = create<AccountState>()(
       moveElementPosition: ({ projectId: pId, menuId: mId, elementId, fromPosition, toPosition }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            if (!pack) return;
-            const menu = pack.menus.find((m) => m.id === mId);
+            const project = draft.account.projects.find((p) => p.id === pId);
+            if (!project) return;
+            const menu = project.menus.find((m) => m.id === mId);
             if (!menu) return;
             // First, strip toPosition from any element that owns it.
             for (const layer of menu.layers) {
@@ -2613,7 +2613,7 @@ export const useAccountStore = create<AccountState>()(
               for (const el of layer.elements) {
                 if (el.id !== elementId) continue;
                 el.positions = addPosition(removePosition(el.positions, fromPosition), toPosition);
-                pack.updatedAt = new Date().toISOString();
+                project.updatedAt = new Date().toISOString();
                 return;
               }
             }
@@ -2622,9 +2622,9 @@ export const useAccountStore = create<AccountState>()(
       addElementPosition: ({ projectId: pId, menuId: mId, elementId, position }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            if (!pack) return;
-            const menu = pack.menus.find((m) => m.id === mId);
+            const project = draft.account.projects.find((p) => p.id === pId);
+            if (!project) return;
+            const menu = project.menus.find((m) => m.id === mId);
             if (!menu) return;
             for (const layer of menu.layers) {
               for (const otherEl of layer.elements) {
@@ -2639,7 +2639,7 @@ export const useAccountStore = create<AccountState>()(
               for (const el of layer.elements) {
                 if (el.id !== elementId) continue;
                 el.positions = addPosition(el.positions, position);
-                pack.updatedAt = new Date().toISOString();
+                project.updatedAt = new Date().toISOString();
                 return;
               }
             }
@@ -2648,16 +2648,16 @@ export const useAccountStore = create<AccountState>()(
       deleteElement: ({ projectId: pId, menuId: mId, elementId }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            if (!pack) return;
-            const menu = pack.menus.find((m) => m.id === mId);
+            const project = draft.account.projects.find((p) => p.id === pId);
+            if (!project) return;
+            const menu = project.menus.find((m) => m.id === mId);
             if (!menu) return;
             for (const layer of menu.layers) {
               const idx = layer.elements.findIndex((el) => el.id === elementId);
               if (idx !== -1) {
-                gcElementLTexts(pack, layer.elements[idx]!);
+                gcElementLTexts(project, layer.elements[idx]!);
                 layer.elements.splice(idx, 1);
-                pack.updatedAt = new Date().toISOString();
+                project.updatedAt = new Date().toISOString();
                 return;
               }
             }
@@ -2667,16 +2667,16 @@ export const useAccountStore = create<AccountState>()(
         set(
           produce((draft: AccountState) => {
             const { projectId: pId, appearanceIndex, clickType, path, step, lang } = input;
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            if (!pack) return;
+            const project = draft.account.projects.find((p) => p.id === pId);
+            if (!project) return;
             const handler = findElementHandler(draft, pId, input, appearanceIndex, clickType);
             if (!handler) return;
             const parent = resolveParentMut(handler.steps, path.frames);
             if (!parent || path.index < 0 || path.index >= parent.length) return;
-            gcStepLTexts(pack, [parent[path.index]!]);
+            gcStepLTexts(project, [parent[path.index]!]);
             parent[path.index] = step;
             allocStepLTexts(
-              pack,
+              project,
               handler.steps,
               lang,
               appearanceClickPrefixFor(input, appearanceIndex, clickType),
@@ -2688,8 +2688,8 @@ export const useAccountStore = create<AccountState>()(
         set(
           produce((draft: AccountState) => {
             const { projectId: pId, appearanceIndex, clickType, frames, index, step, lang } = input;
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            if (!pack) return;
+            const project = draft.account.projects.find((p) => p.id === pId);
+            if (!project) return;
             const handler = findElementHandler(draft, pId, input, appearanceIndex, clickType);
             if (!handler) return;
             const parent = resolveParentMut(handler.steps, frames);
@@ -2697,7 +2697,7 @@ export const useAccountStore = create<AccountState>()(
             const at = index < 0 || index > parent.length ? parent.length : index;
             parent.splice(at, 0, step);
             allocStepLTexts(
-              pack,
+              project,
               handler.steps,
               lang,
               appearanceClickPrefixFor(input, appearanceIndex, clickType),
@@ -2709,13 +2709,13 @@ export const useAccountStore = create<AccountState>()(
         set(
           produce((draft: AccountState) => {
             const { projectId: pId, appearanceIndex, clickType, path } = input;
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            if (!pack) return;
+            const project = draft.account.projects.find((p) => p.id === pId);
+            if (!project) return;
             const handler = findElementHandler(draft, pId, input, appearanceIndex, clickType);
             if (!handler) return;
             const parent = resolveParentMut(handler.steps, path.frames);
             if (!parent || path.index < 0 || path.index >= parent.length) return;
-            gcStepLTexts(pack, [parent[path.index]!]);
+            gcStepLTexts(project, [parent[path.index]!]);
             parent.splice(path.index, 1);
             touch(draft, pId);
           }),
@@ -2753,15 +2753,15 @@ export const useAccountStore = create<AccountState>()(
           produce((draft: AccountState) => {
             const { projectId: pId, appearanceIndex, clickType, frames, ifStepIndex, caseIndex } =
               input;
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            if (!pack) return;
+            const project = draft.account.projects.find((p) => p.id === pId);
+            if (!project) return;
             const handler = findElementHandler(draft, pId, input, appearanceIndex, clickType);
             if (!handler) return;
             const parent = resolveParentMut(handler.steps, frames);
             const ifStep = parent?.[ifStepIndex];
             if (!ifStep || ifStep.kind !== "if") return;
             if (caseIndex < 0 || caseIndex >= ifStep.cases.length) return;
-            gcStepLTexts(pack, ifStep.cases[caseIndex]!.steps);
+            gcStepLTexts(project, ifStep.cases[caseIndex]!.steps);
             ifStep.cases.splice(caseIndex, 1);
             touch(draft, pId);
           }),
@@ -2822,8 +2822,8 @@ export const useAccountStore = create<AccountState>()(
           produce((draft: AccountState) => {
             const { projectId: pId, appearanceIndex, clickType, frames, ifStepIndex, enabled } =
               input;
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            if (!pack) return;
+            const project = draft.account.projects.find((p) => p.id === pId);
+            if (!project) return;
             const handler = findElementHandler(draft, pId, input, appearanceIndex, clickType);
             if (!handler) return;
             const parent = resolveParentMut(handler.steps, frames);
@@ -2832,7 +2832,7 @@ export const useAccountStore = create<AccountState>()(
             if (enabled) {
               if (!ifStep.else) ifStep.else = [];
             } else {
-              if (ifStep.else) gcStepLTexts(pack, ifStep.else);
+              if (ifStep.else) gcStepLTexts(project, ifStep.else);
               ifStep.else = undefined;
             }
             touch(draft, pId);
@@ -2842,14 +2842,14 @@ export const useAccountStore = create<AccountState>()(
         set(
           produce((draft: AccountState) => {
             const { projectId: pId, appearanceIndex, clickType } = input;
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            if (!pack) return;
-            const appearance = findAppearanceOwner(pack, input)?.appearances[appearanceIndex];
+            const project = draft.account.projects.find((p) => p.id === pId);
+            if (!project) return;
+            const appearance = findAppearanceOwner(project, input)?.appearances[appearanceIndex];
             if (!appearance) return;
             if (!appearance.click) appearance.click = {};
             if (!appearance.click[clickType]) {
               appearance.click[clickType] = { steps: [] };
-              pack.updatedAt = new Date().toISOString();
+              project.updatedAt = new Date().toISOString();
             }
           }),
         ),
@@ -2857,52 +2857,52 @@ export const useAccountStore = create<AccountState>()(
         set(
           produce((draft: AccountState) => {
             const { projectId: pId, appearanceIndex, clickType } = input;
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            if (!pack) return;
-            const appearance = findAppearanceOwner(pack, input)?.appearances[appearanceIndex];
+            const project = draft.account.projects.find((p) => p.id === pId);
+            if (!project) return;
+            const appearance = findAppearanceOwner(project, input)?.appearances[appearanceIndex];
             if (!appearance?.click) return;
             const handler = appearance.click[clickType];
-            if (handler) gcStepLTexts(pack, handler.steps);
+            if (handler) gcStepLTexts(project, handler.steps);
             delete appearance.click[clickType];
-            pack.updatedAt = new Date().toISOString();
+            project.updatedAt = new Date().toISOString();
           }),
         ),
       addAppearance: (input) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === input.projectId);
-            if (!pack) return;
-            const owner = findAppearanceOwner(pack, input);
+            const project = draft.account.projects.find((p) => p.id === input.projectId);
+            if (!project) return;
+            const owner = findAppearanceOwner(project, input);
             if (!owner) return;
             // Seed with a placeholder permission condition so the new
             // state is clearly conditional and doesn't shadow the
             // default state (which is the one with no `if`).
             owner.appearances.push({ if: [{ type: "has_permission", perm: "" }] });
-            pack.updatedAt = new Date().toISOString();
+            project.updatedAt = new Date().toISOString();
           }),
         ),
       removeAppearance: (input) =>
         set(
           produce((draft: AccountState) => {
             const { projectId: pId, appearanceIndex } = input;
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            if (!pack) return;
-            const owner = findAppearanceOwner(pack, input);
+            const project = draft.account.projects.find((p) => p.id === pId);
+            if (!project) return;
+            const owner = findAppearanceOwner(project, input);
             if (!owner) return;
             if (owner.appearances.length <= 1) return; // keep at least one
             if (appearanceIndex < 0 || appearanceIndex >= owner.appearances.length) return;
-            gcAppearanceLTexts(pack, owner.appearances[appearanceIndex]!);
+            gcAppearanceLTexts(project, owner.appearances[appearanceIndex]!);
             owner.appearances.splice(appearanceIndex, 1);
-            pack.updatedAt = new Date().toISOString();
+            project.updatedAt = new Date().toISOString();
           }),
         ),
       moveAppearance: (input) =>
         set(
           produce((draft: AccountState) => {
             const { projectId: pId, fromIndex, toIndex } = input;
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            if (!pack) return;
-            const owner = findAppearanceOwner(pack, input);
+            const project = draft.account.projects.find((p) => p.id === pId);
+            if (!project) return;
+            const owner = findAppearanceOwner(project, input);
             if (!owner) return;
             if (
               fromIndex < 0 ||
@@ -2913,16 +2913,16 @@ export const useAccountStore = create<AccountState>()(
               return;
             const [moved] = owner.appearances.splice(fromIndex, 1);
             if (moved) owner.appearances.splice(toIndex, 0, moved);
-            pack.updatedAt = new Date().toISOString();
+            project.updatedAt = new Date().toISOString();
           }),
         ),
       setAppearanceConditions: (input) =>
         set(
           produce((draft: AccountState) => {
             const { projectId: pId, appearanceIndex, conditions } = input;
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            if (!pack) return;
-            const appearance = findAppearanceOwner(pack, input)?.appearances[appearanceIndex];
+            const project = draft.account.projects.find((p) => p.id === pId);
+            if (!project) return;
+            const appearance = findAppearanceOwner(project, input)?.appearances[appearanceIndex];
             if (!appearance) return;
             appearance.if = conditions.length > 0 ? conditions : undefined;
             // Trim joins past the new conditions length so the array
@@ -2932,65 +2932,65 @@ export const useAccountStore = create<AccountState>()(
               if (maxJoins === 0) appearance.ifJoins = undefined;
               else if (appearance.ifJoins.length > maxJoins) appearance.ifJoins.length = maxJoins;
             }
-            pack.updatedAt = new Date().toISOString();
+            project.updatedAt = new Date().toISOString();
           }),
         ),
       setAppearanceJoin: (input) =>
         set(
           produce((draft: AccountState) => {
             const { projectId: pId, appearanceIndex, joinIndex, op } = input;
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            if (!pack) return;
-            const appearance = findAppearanceOwner(pack, input)?.appearances[appearanceIndex];
+            const project = draft.account.projects.find((p) => p.id === pId);
+            if (!project) return;
+            const appearance = findAppearanceOwner(project, input)?.appearances[appearanceIndex];
             if (!appearance) return;
             const max = Math.max(0, (appearance.if?.length ?? 0) - 1);
             if (joinIndex < 0 || joinIndex >= max) return;
             if (!appearance.ifJoins) appearance.ifJoins = Array(max).fill("and");
             while (appearance.ifJoins.length < max) appearance.ifJoins.push("and");
             appearance.ifJoins[joinIndex] = op;
-            pack.updatedAt = new Date().toISOString();
+            project.updatedAt = new Date().toISOString();
           }),
         ),
       setCommandStep: ({ projectId: pId, commandId: cId, path, step, lang }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            if (!pack) return;
+            const project = draft.account.projects.find((p) => p.id === pId);
+            if (!project) return;
             const cmd = findCommand(draft, pId, cId);
             if (!cmd) return;
             const parent = resolveParentMut(cmd.steps, path.frames);
             if (!parent || path.index < 0 || path.index >= parent.length) return;
-            gcStepLTexts(pack, [parent[path.index]!]);
+            gcStepLTexts(project, [parent[path.index]!]);
             parent[path.index] = step;
-            allocStepLTexts(pack, cmd.steps, lang, commandKeyPrefix(cId));
+            allocStepLTexts(project, cmd.steps, lang, commandKeyPrefix(cId));
             touch(draft, pId);
           }),
         ),
       addCommandStep: ({ projectId: pId, commandId: cId, frames, index, step, lang }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            if (!pack) return;
+            const project = draft.account.projects.find((p) => p.id === pId);
+            if (!project) return;
             const cmd = findCommand(draft, pId, cId);
             if (!cmd) return;
             const parent = resolveParentMut(cmd.steps, frames);
             if (!parent) return;
             const at = index < 0 || index > parent.length ? parent.length : index;
             parent.splice(at, 0, step);
-            allocStepLTexts(pack, cmd.steps, lang, commandKeyPrefix(cId));
+            allocStepLTexts(project, cmd.steps, lang, commandKeyPrefix(cId));
             touch(draft, pId);
           }),
         ),
       removeCommandStep: ({ projectId: pId, commandId: cId, path }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            if (!pack) return;
+            const project = draft.account.projects.find((p) => p.id === pId);
+            if (!project) return;
             const cmd = findCommand(draft, pId, cId);
             if (!cmd) return;
             const parent = resolveParentMut(cmd.steps, path.frames);
             if (!parent || path.index < 0 || path.index >= parent.length) return;
-            gcStepLTexts(pack, [parent[path.index]!]);
+            gcStepLTexts(project, [parent[path.index]!]);
             parent.splice(path.index, 1);
             touch(draft, pId);
           }),
@@ -3024,15 +3024,15 @@ export const useAccountStore = create<AccountState>()(
       removeCommandIfCase: ({ projectId: pId, commandId: cId, frames, ifStepIndex, caseIndex }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            if (!pack) return;
+            const project = draft.account.projects.find((p) => p.id === pId);
+            if (!project) return;
             const cmd = findCommand(draft, pId, cId);
             if (!cmd) return;
             const parent = resolveParentMut(cmd.steps, frames);
             const ifStep = parent?.[ifStepIndex];
             if (!ifStep || ifStep.kind !== "if") return;
             if (caseIndex < 0 || caseIndex >= ifStep.cases.length) return;
-            gcStepLTexts(pack, ifStep.cases[caseIndex]!.steps);
+            gcStepLTexts(project, ifStep.cases[caseIndex]!.steps);
             ifStep.cases.splice(caseIndex, 1);
             touch(draft, pId);
           }),
@@ -3087,8 +3087,8 @@ export const useAccountStore = create<AccountState>()(
       toggleCommandIfElse: ({ projectId: pId, commandId: cId, frames, ifStepIndex, enabled }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            if (!pack) return;
+            const project = draft.account.projects.find((p) => p.id === pId);
+            if (!project) return;
             const cmd = findCommand(draft, pId, cId);
             if (!cmd) return;
             const parent = resolveParentMut(cmd.steps, frames);
@@ -3097,7 +3097,7 @@ export const useAccountStore = create<AccountState>()(
             if (enabled) {
               if (!ifStep.else) ifStep.else = [];
             } else {
-              if (ifStep.else) gcStepLTexts(pack, ifStep.else);
+              if (ifStep.else) gcStepLTexts(project, ifStep.else);
               ifStep.else = undefined;
             }
             touch(draft, pId);
@@ -3106,9 +3106,9 @@ export const useAccountStore = create<AccountState>()(
       addElement: ({ projectId: pId, menuId: mId, element }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            if (!pack) return;
-            const menu = pack.menus.find((m) => m.id === mId);
+            const project = draft.account.projects.find((p) => p.id === pId);
+            if (!project) return;
+            const menu = project.menus.find((m) => m.id === mId);
             if (!menu) return;
             const newPositions = parsePositions(element.positions);
             for (const layer of menu.layers) {
@@ -3131,7 +3131,7 @@ export const useAccountStore = create<AccountState>()(
             // raw nanoid would surface in YAML files and breaks the visual
             // grouping admins rely on (`diamond_sword_1`, `_2`, …).
             const materialForId = element.appearances[0]?.material ?? undefined;
-            const renumberedId = nextElementIdForMaterial(pack, materialForId);
+            const renumberedId = nextElementIdForMaterial(project, materialForId);
             // Clone LText keys so the added element never shares keys with its source.
             // Without this, rekeyProject at deploy time would delete the shared key,
             // breaking the original element's translations.
@@ -3142,14 +3142,14 @@ export const useAccountStore = create<AccountState>()(
               appearances: element.appearances.map((a) => {
                 const cloned = { ...a };
                 if (a.title) {
-                  const src = pack.i18nKeys[a.title.key];
-                  cloned.title = createLText(pack, "", pack.defaultLang);
-                  if (src) pack.i18nKeys[cloned.title.key] = { ...src };
+                  const src = project.i18nKeys[a.title.key];
+                  cloned.title = createLText(project, "", project.defaultLang);
+                  if (src) project.i18nKeys[cloned.title.key] = { ...src };
                 }
                 if (a.lore) {
-                  const src = pack.i18nKeys[a.lore.key];
-                  cloned.lore = createLText(pack, "", pack.defaultLang);
-                  if (src) pack.i18nKeys[cloned.lore.key] = { ...src };
+                  const src = project.i18nKeys[a.lore.key];
+                  cloned.lore = createLText(project, "", project.defaultLang);
+                  if (src) project.i18nKeys[cloned.lore.key] = { ...src };
                 }
                 if (a.click) {
                   const click = { ...a.click };
@@ -3157,17 +3157,17 @@ export const useAccountStore = create<AccountState>()(
                     if (!handler) continue;
                     for (const action of walkActions(handler.steps)) {
                       if (action.type === "send_message" || action.type === "broadcast") {
-                        const src = pack.i18nKeys[action.text.key];
-                        action.text = createLText(pack, "", pack.defaultLang);
-                        if (src) pack.i18nKeys[action.text.key] = { ...src };
+                        const src = project.i18nKeys[action.text.key];
+                        action.text = createLText(project, "", project.defaultLang);
+                        if (src) project.i18nKeys[action.text.key] = { ...src };
                       } else if (action.type === "show_title") {
-                        const srcT = pack.i18nKeys[action.title.key];
-                        action.title = createLText(pack, "", pack.defaultLang);
-                        if (srcT) pack.i18nKeys[action.title.key] = { ...srcT };
+                        const srcT = project.i18nKeys[action.title.key];
+                        action.title = createLText(project, "", project.defaultLang);
+                        if (srcT) project.i18nKeys[action.title.key] = { ...srcT };
                         if (action.subtitle) {
-                          const srcS = pack.i18nKeys[action.subtitle.key];
-                          action.subtitle = createLText(pack, "", pack.defaultLang);
-                          if (srcS) pack.i18nKeys[action.subtitle.key] = { ...srcS };
+                          const srcS = project.i18nKeys[action.subtitle.key];
+                          action.subtitle = createLText(project, "", project.defaultLang);
+                          if (srcS) project.i18nKeys[action.subtitle.key] = { ...srcS };
                         }
                       }
                     }
@@ -3178,14 +3178,14 @@ export const useAccountStore = create<AccountState>()(
               }),
             };
             firstLayer.elements.push(elementToAdd);
-            pack.updatedAt = new Date().toISOString();
+            project.updatedAt = new Date().toISOString();
           }),
         ),
       moveSelectionByDelta: ({ projectId: pId, menuId: mId, elementIds, dCol, dRow }) => {
         const next = produce(get().account, (draft) => {
-          const pack = draft.projects.find((p) => p.id === pId);
-          if (!pack) return;
-          const menu = pack.menus.find((m) => m.id === mId);
+          const project = draft.projects.find((p) => p.id === pId);
+          if (!project) return;
+          const menu = project.menus.find((m) => m.id === mId);
           if (!menu) return;
           const targetSet = new Set(elementIds);
           // Grid is type-dependent: chest 9×rows, hopper 5×1, dropper 3×3.
@@ -3228,7 +3228,7 @@ export const useAccountStore = create<AccountState>()(
               if (plan) el.positions = formatPositions(plan);
             }
           }
-          pack.updatedAt = new Date().toISOString();
+          project.updatedAt = new Date().toISOString();
         });
         set({ account: next });
       },
@@ -3236,29 +3236,29 @@ export const useAccountStore = create<AccountState>()(
         set(
           produce((draft: AccountState) => {
             const { projectId: pId, appearanceIndex = 0, lang, value } = input;
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            if (!pack) return;
-            const appearance = findAppearanceOwner(pack, input)?.appearances[appearanceIndex];
+            const project = draft.account.projects.find((p) => p.id === pId);
+            if (!project) return;
+            const appearance = findAppearanceOwner(project, input)?.appearances[appearanceIndex];
             if (!appearance) return;
             if (!appearance.lore) {
               appearance.lore = value
-                ? createLTextAt(pack, appearanceLoreKeyFor(input, appearanceIndex), value, lang)
+                ? createLTextAt(project, appearanceLoreKeyFor(input, appearanceIndex), value, lang)
                 : undefined;
             } else if (value) {
-              setLText(pack, appearance.lore, lang, value);
+              setLText(project, appearance.lore, lang, value);
             } else {
-              deleteLText(pack, appearance.lore);
+              deleteLText(project, appearance.lore);
               appearance.lore = undefined;
             }
-            pack.updatedAt = new Date().toISOString();
+            project.updatedAt = new Date().toISOString();
           }),
         ),
       clearSlot: ({ projectId: pId, menuId: mId, position }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
-            if (!pack) return;
-            const menu = pack.menus.find((m) => m.id === mId);
+            const project = draft.account.projects.find((p) => p.id === pId);
+            if (!project) return;
+            const menu = project.menus.find((m) => m.id === mId);
             if (!menu) return;
             for (const layer of menu.layers) {
               const idx = layer.elements.findIndex((el) =>
@@ -3269,51 +3269,51 @@ export const useAccountStore = create<AccountState>()(
               const remaining = removePosition(el.positions, position);
               if (remaining === "") {
                 // Last position — drop the element entirely.
-                gcElementLTexts(pack, el);
+                gcElementLTexts(project, el);
                 layer.elements.splice(idx, 1);
               } else {
                 el.positions = remaining;
               }
-              pack.updatedAt = new Date().toISOString();
+              project.updatedAt = new Date().toISOString();
               return;
             }
           }),
         ),
       pasteEntities: ({ projectId: pId, menus, commands, offset }) => {
         const next = produce(get().account, (draft) => {
-          const pack = draft.projects.find((p) => p.id === pId);
-          if (!pack) return;
+          const project = draft.projects.find((p) => p.id === pId);
+          if (!project) return;
           // Clone every LText held by the pasted entities under fresh
           // keys, copying the value map from the source. Otherwise the
           // copies would share keys with the originals — editing one
           // would silently alter the other.
           const cloneAppearanceLTexts = (a: Appearance) => {
             if (a.title) {
-              const src = pack.i18nKeys[a.title.key];
-              a.title = createLText(pack, "", pack.defaultLang);
-              if (src) pack.i18nKeys[a.title.key] = { ...src };
+              const src = project.i18nKeys[a.title.key];
+              a.title = createLText(project, "", project.defaultLang);
+              if (src) project.i18nKeys[a.title.key] = { ...src };
             }
             if (a.lore) {
-              const src = pack.i18nKeys[a.lore.key];
-              a.lore = createLText(pack, "", pack.defaultLang);
-              if (src) pack.i18nKeys[a.lore.key] = { ...src };
+              const src = project.i18nKeys[a.lore.key];
+              a.lore = createLText(project, "", project.defaultLang);
+              if (src) project.i18nKeys[a.lore.key] = { ...src };
             }
             if (a.click) {
               for (const handler of Object.values(a.click)) {
                 if (!handler) continue;
                 for (const action of walkActions(handler.steps)) {
                   if (action.type === "send_message" || action.type === "broadcast") {
-                    const src = pack.i18nKeys[action.text.key];
-                    action.text = createLText(pack, "", pack.defaultLang);
-                    if (src) pack.i18nKeys[action.text.key] = { ...src };
+                    const src = project.i18nKeys[action.text.key];
+                    action.text = createLText(project, "", project.defaultLang);
+                    if (src) project.i18nKeys[action.text.key] = { ...src };
                   } else if (action.type === "show_title") {
-                    const srcT = pack.i18nKeys[action.title.key];
-                    action.title = createLText(pack, "", pack.defaultLang);
-                    if (srcT) pack.i18nKeys[action.title.key] = { ...srcT };
+                    const srcT = project.i18nKeys[action.title.key];
+                    action.title = createLText(project, "", project.defaultLang);
+                    if (srcT) project.i18nKeys[action.title.key] = { ...srcT };
                     if (action.subtitle) {
-                      const srcS = pack.i18nKeys[action.subtitle.key];
-                      action.subtitle = createLText(pack, "", pack.defaultLang);
-                      if (srcS) pack.i18nKeys[action.subtitle.key] = { ...srcS };
+                      const srcS = project.i18nKeys[action.subtitle.key];
+                      action.subtitle = createLText(project, "", project.defaultLang);
+                      if (srcS) project.i18nKeys[action.subtitle.key] = { ...srcS };
                     }
                   }
                 }
@@ -3326,9 +3326,9 @@ export const useAccountStore = create<AccountState>()(
             // value map so the pasted copy doesn't share keys with the original.
             stamped.title = stamped.title.map((titleLayer) => {
               if (titleLayer.kind !== "text") return titleLayer;
-              const src = pack.i18nKeys[titleLayer.value.key];
-              const cloned = createLText(pack, "", pack.defaultLang);
-              if (src) pack.i18nKeys[cloned.key] = { ...src };
+              const src = project.i18nKeys[titleLayer.value.key];
+              const cloned = createLText(project, "", project.defaultLang);
+              if (src) project.i18nKeys[cloned.key] = { ...src };
               return { ...titleLayer, value: cloned };
             });
             for (const layer of stamped.layers) {
@@ -3336,9 +3336,9 @@ export const useAccountStore = create<AccountState>()(
                 for (const a of el.appearances) cloneAppearanceLTexts(a);
               }
             }
-            pack.menus.push(stamped);
-            rekeyMenu(pack, stamped);
-            (pack.canvasLayout as Record<string, { x: number; y: number }>)[stamped.id] = {
+            project.menus.push(stamped);
+            rekeyMenu(project, stamped);
+            (project.canvasLayout as Record<string, { x: number; y: number }>)[stamped.id] = {
               x: offset.x,
               y: offset.y,
             };
@@ -3349,23 +3349,23 @@ export const useAccountStore = create<AccountState>()(
             const stamped: Command = { ...c, projectId: pId };
             for (const action of walkActions(stamped.steps)) {
               if (action.type === "send_message" || action.type === "broadcast") {
-                const src = pack.i18nKeys[action.text.key];
-                action.text = createLText(pack, "", pack.defaultLang);
-                if (src) pack.i18nKeys[action.text.key] = { ...src };
+                const src = project.i18nKeys[action.text.key];
+                action.text = createLText(project, "", project.defaultLang);
+                if (src) project.i18nKeys[action.text.key] = { ...src };
               } else if (action.type === "show_title") {
-                const srcT = pack.i18nKeys[action.title.key];
-                action.title = createLText(pack, "", pack.defaultLang);
-                if (srcT) pack.i18nKeys[action.title.key] = { ...srcT };
+                const srcT = project.i18nKeys[action.title.key];
+                action.title = createLText(project, "", project.defaultLang);
+                if (srcT) project.i18nKeys[action.title.key] = { ...srcT };
                 if (action.subtitle) {
-                  const srcS = pack.i18nKeys[action.subtitle.key];
-                  action.subtitle = createLText(pack, "", pack.defaultLang);
-                  if (srcS) pack.i18nKeys[action.subtitle.key] = { ...srcS };
+                  const srcS = project.i18nKeys[action.subtitle.key];
+                  action.subtitle = createLText(project, "", project.defaultLang);
+                  if (srcS) project.i18nKeys[action.subtitle.key] = { ...srcS };
                 }
               }
             }
-            pack.commands.push(stamped);
-            rekeyCommand(pack, stamped);
-            (pack.canvasLayout as Record<string, { x: number; y: number }>)[stamped.id] = {
+            project.commands.push(stamped);
+            rekeyCommand(project, stamped);
+            (project.canvasLayout as Record<string, { x: number; y: number }>)[stamped.id] = {
               x: offset.x,
               y: offset.y,
             };
@@ -3378,50 +3378,50 @@ export const useAccountStore = create<AccountState>()(
       addProjectDataSource: ({ projectId, shape = "table" }) =>
         set((state) =>
           produce(state, (draft) => {
-            const pack = draft.account.projects.find((p) => p.id === projectId);
-            if (!pack) return;
-            if (!pack.dataSources) pack.dataSources = [];
-            if (!pack.dataModels) pack.dataModels = [];
+            const project = draft.account.projects.find((p) => p.id === projectId);
+            if (!project) return;
+            if (!project.dataSources) project.dataSources = [];
+            if (!project.dataModels) project.dataModels = [];
             const id = generateDataSourceId();
-            const name = nextAvailableName(pack.dataSources, "new_source");
+            const name = nextAvailableName(project.dataSources, "new_source");
             if (shape === "config") {
-              pack.dataSources.push({ id, name, shape: "config", fields: [], value: {} });
+              project.dataSources.push({ id, name, shape: "config", fields: [], value: {} });
               return;
             }
             // A Table is a table OF a Data model — auto-created with it (ADR
             // project-sources-and-data-models), seeded with its Row key field.
             const modelId = newDataModelId();
-            pack.dataModels.push({
+            project.dataModels.push({
               id: modelId,
               name,
               keyField: "id",
               fields: [{ name: "id", type: { kind: "string" } }],
             });
-            pack.dataSources.push({ id, name, shape: "table", modelId, rows: [] });
+            project.dataSources.push({ id, name, shape: "table", modelId, rows: [] });
           }),
         ),
       removeProjectDataSource: ({ projectId, id }) =>
         set((state) =>
           produce(state, (draft) => {
-            const pack = draft.account.projects.find((p) => p.id === projectId);
-            if (!pack) return;
-            const ds = pack.dataSources.find((d) => d.id === id);
+            const project = draft.account.projects.find((p) => p.id === projectId);
+            if (!project) return;
+            const ds = project.dataSources.find((d) => d.id === id);
             if (!ds) return;
-            releaseLTexts(pack, visitDataSourceLTexts(pack, ds));
-            pack.dataSources = pack.dataSources.filter((d) => d.id !== id);
+            releaseLTexts(project, visitDataSourceLTexts(project, ds));
+            project.dataSources = project.dataSources.filter((d) => d.id !== id);
             // GC the auto-created model when nothing else references it.
-            if (ds.shape === "table" && !isDataModelReferenced(pack, ds.modelId)) {
-              pack.dataModels = (pack.dataModels ?? []).filter((m) => m.id !== ds.modelId);
+            if (ds.shape === "table" && !isDataModelReferenced(project, ds.modelId)) {
+              project.dataModels = (project.dataModels ?? []).filter((m) => m.id !== ds.modelId);
             }
           }),
         ),
       renameProjectDataSource: ({ projectId, id, newName }) => {
         const normalizedName = normalizeDataSourceName(newName);
-        const pack = get().account.projects.find((p) => p.id === projectId);
+        const project = get().account.projects.find((p) => p.id === projectId);
         if (
-          !pack ||
+          !project ||
           normalizedName === "" ||
-          pack.dataSources.some(
+          project.dataSources.some(
             (source) =>
               source.id !== id && normalizeDataSourceName(source.name) === normalizedName,
           )
@@ -3432,11 +3432,11 @@ export const useAccountStore = create<AccountState>()(
         let renamed = false;
         set((state) =>
           produce(state, (draft) => {
-            const draftPack = draft.account.projects.find((p) => p.id === projectId);
-            const dataSource = draftPack?.dataSources.find((source) => source.id === id);
-            if (!draftPack || !dataSource) return;
+            const draftProject = draft.account.projects.find((p) => p.id === projectId);
+            const dataSource = draftProject?.dataSources.find((source) => source.id === id);
+            if (!draftProject || !dataSource) return;
             dataSource.name = normalizedName;
-            rekeyDataSource(draftPack, dataSource);
+            rekeyDataSource(draftProject, dataSource);
             renamed = true;
           }),
         );
@@ -3445,73 +3445,73 @@ export const useAccountStore = create<AccountState>()(
       editSourceField: ({ projectId, target, edit }) =>
         set((state) =>
           produce(state, (draft) => {
-            const pack = draft.account.projects.find((p) => p.id === projectId);
-            if (!pack) return;
+            const project = draft.account.projects.find((p) => p.id === projectId);
+            if (!project) return;
             if (target.kind === "model" && (edit.op === "add" || edit.op === "retype")) {
               const t = edit.op === "add" ? edit.field.type : edit.newType;
-              if (wouldTypeCreateModelCycle(pack.dataModels ?? [], target.modelId, t)) return;
+              if (wouldTypeCreateModelCycle(project.dataModels ?? [], target.modelId, t)) return;
             }
-            applyFieldEdit(pack, target, edit);
-            mintSourceLTexts(pack);
+            applyFieldEdit(project, target, edit);
+            mintSourceLTexts(project);
           }),
         ),
       renameDataModel: ({ projectId, modelId, newName }) =>
         set((state) =>
           produce(state, (draft) => {
-            const pack = draft.account.projects.find((p) => p.id === projectId);
-            const m = pack?.dataModels?.find((x) => x.id === modelId);
+            const project = draft.account.projects.find((p) => p.id === projectId);
+            const m = project?.dataModels?.find((x) => x.id === modelId);
             if (m) m.name = newName;
           }),
         ),
       setModelKeyField: ({ projectId, modelId, keyField }) =>
         set((state) =>
           produce(state, (draft) => {
-            const pack = draft.account.projects.find((p) => p.id === projectId);
-            const m = pack?.dataModels?.find((x) => x.id === modelId);
+            const project = draft.account.projects.find((p) => p.id === projectId);
+            const m = project?.dataModels?.find((x) => x.id === modelId);
             // Placements pinned on the old key dangle — never rewritten (ADR).
-            if (m && pack) {
+            if (m && project) {
               m.keyField = keyField;
-              mintSourceLTexts(pack);
+              mintSourceLTexts(project);
             }
           }),
         ),
       addSourceRow: ({ projectId, sourceId }) =>
         set((state) =>
           produce(state, (draft) => {
-            const pack = draft.account.projects.find((p) => p.id === projectId);
-            if (!pack) return;
-            const ds = pack.dataSources.find((d) => d.id === sourceId);
+            const project = draft.account.projects.find((p) => p.id === projectId);
+            if (!project) return;
+            const ds = project.dataSources.find((d) => d.id === sourceId);
             if (ds?.shape !== "table") return;
-            const model = pack.dataModels?.find((dataModel) => dataModel.id === ds.modelId);
+            const model = project.dataModels?.find((dataModel) => dataModel.id === ds.modelId);
             if (!model) return;
             const row = defaultValueForModelType(
-              { kind: "object", fields: sourceRootFields(pack, ds) },
-              pack.dataModels ?? [],
+              { kind: "object", fields: sourceRootFields(project, ds) },
+              project.dataModels ?? [],
             ) as Record<string, unknown>;
-            row[model.keyField] = nextAvailableSourceRowKey(pack, ds);
+            row[model.keyField] = nextAvailableSourceRowKey(project, ds);
             ds.rows.push(row);
-            mintSourceLTexts(pack);
+            mintSourceLTexts(project);
           }),
         ),
       removeSourceRow: ({ projectId, sourceId, index }) =>
         set((state) =>
           produce(state, (draft) => {
-            const pack = draft.account.projects.find((p) => p.id === projectId);
-            if (!pack) return;
-            const ds = pack.dataSources.find((d) => d.id === sourceId);
+            const project = draft.account.projects.find((p) => p.id === projectId);
+            if (!project) return;
+            const ds = project.dataSources.find((d) => d.id === sourceId);
             if (ds?.shape !== "table") return;
             const row = ds.rows[index];
             if (row === undefined) return;
-            releaseValueLTexts(pack, row, { kind: "object", fields: sourceRootFields(pack, ds) });
+            releaseValueLTexts(project, row, { kind: "object", fields: sourceRootFields(project, ds) });
             ds.rows.splice(index, 1);
-            rekeyDataSource(pack, ds);
+            rekeyDataSource(project, ds);
           }),
         ),
       setSourceGranularity: ({ projectId, sourceId, granularity }) =>
         set((state) =>
           produce(state, (draft) => {
-            const pack = draft.account.projects.find((p) => p.id === projectId);
-            const ds = pack?.dataSources.find((d) => d.id === sourceId);
+            const project = draft.account.projects.find((p) => p.id === projectId);
+            const ds = project?.dataSources.find((d) => d.id === sourceId);
             if (!ds || ds.shape !== "table") return;
             if (granularity === "row") ds.granularity = "row";
             else delete ds.granularity;
@@ -3520,15 +3520,15 @@ export const useAccountStore = create<AccountState>()(
       setSourceValue: ({ projectId, sourceId, row, path, value }) => {
         let nextValue = value;
         if (row !== null && path.length === 1) {
-          const pack = get().account.projects.find((p) => p.id === projectId);
-          const ds = pack?.dataSources.find((d) => d.id === sourceId);
+          const project = get().account.projects.find((p) => p.id === projectId);
+          const ds = project?.dataSources.find((d) => d.id === sourceId);
           const model =
             ds?.shape === "table"
-              ? pack?.dataModels?.find((dataModel) => dataModel.id === ds.modelId)
+              ? project?.dataModels?.find((dataModel) => dataModel.id === ds.modelId)
               : undefined;
           const container = ds ? sourceValueContainer(ds, row, []) : undefined;
           if (ds?.shape === "table" && model && path[0] === model.keyField && container !== undefined) {
-            const validation = validateSourceRowKey(pack!, ds, row, value);
+            const validation = validateSourceRowKey(project!, ds, row, value);
             if (!validation.ok) {
               return {
                 ok: false,
@@ -3541,15 +3541,15 @@ export const useAccountStore = create<AccountState>()(
         }
         set((state) =>
           produce(state, (draft) => {
-            const pack = draft.account.projects.find((p) => p.id === projectId);
-            if (!pack) return;
-            const ds = pack.dataSources.find((d) => d.id === sourceId);
+            const project = draft.account.projects.find((p) => p.id === projectId);
+            if (!project) return;
+            const ds = project.dataSources.find((d) => d.id === sourceId);
             if (!ds) return;
             const container = sourceValueContainer(ds, row, path.slice(0, -1));
             const last = path[path.length - 1];
             if (container === undefined || last === undefined) return;
             (container as Record<string | number, unknown>)[last] = nextValue;
-            rekeyDataSource(pack, ds);
+            rekeyDataSource(project, ds);
           }),
         );
         return { ok: true };
@@ -3557,75 +3557,75 @@ export const useAccountStore = create<AccountState>()(
       addSourceListItem: ({ projectId, sourceId, row, path }) =>
         set((state) =>
           produce(state, (draft) => {
-            const pack = draft.account.projects.find((p) => p.id === projectId);
-            if (!pack) return;
-            const ds = pack.dataSources.find((d) => d.id === sourceId);
+            const project = draft.account.projects.find((p) => p.id === projectId);
+            if (!project) return;
+            const ds = project.dataSources.find((d) => d.id === sourceId);
             if (!ds) return;
-            const listType = sourceTypeAtPath(pack, ds, path);
+            const listType = sourceTypeAtPath(project, ds, path);
             if (listType?.kind !== "list") return;
             const list = sourceValueContainer(ds, row, path);
             if (!Array.isArray(list)) return;
-            list.push(defaultValueForModelType(listType.of, pack.dataModels ?? []));
-            mintSourceLTexts(pack);
+            list.push(defaultValueForModelType(listType.of, project.dataModels ?? []));
+            mintSourceLTexts(project);
           }),
         ),
       removeSourceListItem: ({ projectId, sourceId, row, path, index }) =>
         set((state) =>
           produce(state, (draft) => {
-            const pack = draft.account.projects.find((p) => p.id === projectId);
-            if (!pack) return;
-            const ds = pack.dataSources.find((d) => d.id === sourceId);
+            const project = draft.account.projects.find((p) => p.id === projectId);
+            if (!project) return;
+            const ds = project.dataSources.find((d) => d.id === sourceId);
             if (!ds) return;
-            const listType = sourceTypeAtPath(pack, ds, path);
+            const listType = sourceTypeAtPath(project, ds, path);
             const list = sourceValueContainer(ds, row, path);
             if (!Array.isArray(list) || list[index] === undefined) return;
-            if (listType?.kind === "list") releaseValueLTexts(pack, list[index], listType.of);
+            if (listType?.kind === "list") releaseValueLTexts(project, list[index], listType.of);
             list.splice(index, 1);
-            rekeyDataSource(pack, ds);
+            rekeyDataSource(project, ds);
           }),
         ),
       replaceSourceValueTyped: ({ projectId, sourceId, row, path, value }) =>
         set((state) =>
           produce(state, (draft) => {
-            const pack = draft.account.projects.find((p) => p.id === projectId);
-            if (!pack) return;
-            const ds = pack.dataSources.find((d) => d.id === sourceId);
+            const project = draft.account.projects.find((p) => p.id === projectId);
+            if (!project) return;
+            const ds = project.dataSources.find((d) => d.id === sourceId);
             if (!ds) return;
-            const type = sourceTypeAtPath(pack, ds, path);
+            const type = sourceTypeAtPath(project, ds, path);
             const container = sourceValueContainer(ds, row, path.slice(0, -1));
             const last = path[path.length - 1];
             if (container === undefined || last === undefined) return;
             const old = (container as Record<string | number, unknown>)[last];
-            if (type) releaseValueLTexts(pack, old, type);
+            if (type) releaseValueLTexts(project, old, type);
             (container as Record<string | number, unknown>)[last] = value;
-            mintSourceLTexts(pack);
-            rekeyDataSource(pack, ds);
+            mintSourceLTexts(project);
+            rekeyDataSource(project, ds);
           }),
         ),
       deleteFromProject: ({ projectId: pId, nodeIds }) => {
         const ids = new Set(nodeIds);
         const next = produce(get().account, (draft) => {
-          const pack = draft.projects.find((p) => p.id === pId);
-          if (!pack) return;
-          for (const m of pack.menus) {
-            if (ids.has(m.id)) gcMenuLTexts(pack, m);
+          const project = draft.projects.find((p) => p.id === pId);
+          if (!project) return;
+          for (const m of project.menus) {
+            if (ids.has(m.id)) gcMenuLTexts(project, m);
           }
-          for (const c of pack.commands) {
-            if (ids.has(c.id)) gcCommandLTexts(pack, c);
+          for (const c of project.commands) {
+            if (ids.has(c.id)) gcCommandLTexts(project, c);
           }
-          for (const d of pack.dialogs) {
-            if (ids.has(d.id)) gcDialogLTexts(pack, d);
+          for (const d of project.dialogs) {
+            if (ids.has(d.id)) gcDialogLTexts(project, d);
           }
-          pack.menus = pack.menus.filter((m) => !ids.has(m.id));
-          pack.commands = pack.commands.filter((c) => !ids.has(c.id));
-          pack.dialogs = pack.dialogs.filter((d) => !ids.has(d.id));
+          project.menus = project.menus.filter((m) => !ids.has(m.id));
+          project.commands = project.commands.filter((c) => !ids.has(c.id));
+          project.dialogs = project.dialogs.filter((d) => !ids.has(d.id));
           for (const id of ids) {
-            delete (pack.canvasLayout as Record<string, { x: number; y: number }>)[id];
+            delete (project.canvasLayout as Record<string, { x: number; y: number }>)[id];
           }
-          if (pack.canvasEdges) {
-            for (const key of Object.keys(pack.canvasEdges)) {
+          if (project.canvasEdges) {
+            for (const key of Object.keys(project.canvasEdges)) {
               const [src, tgt] = key.split("->") as [string, string];
-              if (ids.has(src) || ids.has(tgt)) delete pack.canvasEdges[key];
+              if (ids.has(src) || ids.has(tgt)) delete project.canvasEdges[key];
             }
           }
         });
@@ -3645,14 +3645,14 @@ export const useAccountStore = create<AccountState>()(
 );
 
 /** Rekey canvasEdges entries when a node id changes ("a->b" keys embed node ids). */
-function rewriteCanvasEdgeIds(pack: Project, oldId: string, newId: string) {
-  if (!pack.canvasEdges) return;
-  for (const key of Object.keys(pack.canvasEdges)) {
+function rewriteCanvasEdgeIds(project: Project, oldId: string, newId: string) {
+  if (!project.canvasEdges) return;
+  for (const key of Object.keys(project.canvasEdges)) {
     const [src, tgt] = key.split("->") as [string, string];
     if (src !== oldId && tgt !== oldId) continue;
     const newKey = `${src === oldId ? newId : src}->${tgt === oldId ? newId : tgt}`;
-    pack.canvasEdges[newKey] = pack.canvasEdges[key]!;
-    delete pack.canvasEdges[key];
+    project.canvasEdges[newKey] = project.canvasEdges[key]!;
+    delete project.canvasEdges[key];
   }
 }
 
@@ -3738,9 +3738,9 @@ const migrateV3ToV4 = (persisted: unknown): unknown => {
     appearance.lore = { key: newKey };
   };
 
-  for (const pack of account.projects ?? []) {
-    const i18nKeys = pack.i18nKeys ?? {};
-    for (const menu of pack.menus ?? []) {
+  for (const project of account.projects ?? []) {
+    const i18nKeys = project.i18nKeys ?? {};
+    for (const menu of project.menus ?? []) {
       for (const layer of menu.layers ?? []) {
         for (const el of layer.elements ?? []) {
           for (const appearance of el.appearances ?? []) {
@@ -3749,7 +3749,7 @@ const migrateV3ToV4 = (persisted: unknown): unknown => {
         }
       }
     }
-    for (const tpl of pack.templates ?? []) {
+    for (const tpl of project.templates ?? []) {
       for (const appearance of tpl.appearances ?? []) {
         migrateAppearance(appearance, i18nKeys);
       }
@@ -3761,7 +3761,7 @@ const migrateV3ToV4 = (persisted: unknown): unknown => {
 /**
  * v4 → v5: convert opaque `lt_xxx` i18n keys to semantic dotted-path keys
  * (e.g. `menus.shop_main.title`). Uses `rekeyProject` from `@/domain/i18nSites`
- * to canonicalize every LText key in each pack.
+ * to canonicalize every LText key in each project.
  */
 // biome-ignore lint/suspicious/noExplicitAny: legacy shape — migration only
 // @ts-ignore — kept as dead code; was used by persist middleware
@@ -3770,14 +3770,14 @@ const migrateV4ToV5 = (persisted: unknown): unknown => {
   // biome-ignore lint/suspicious/noExplicitAny: legacy shape
   const account = (persisted as any).account;
   if (!account) return persisted;
-  for (const pack of account.projects ?? []) rekeyProject(pack);
+  for (const project of account.projects ?? []) rekeyProject(project);
   return persisted;
 };
 
 /**
  * v2 → v3: lift every plain user-facing string (menu/appearance titles,
  * lore lines, send_message text) into an `LText` ref, populating
- * `pack.i18nKeys[key][pack.defaultLang]` with the original value. The
+ * `project.i18nKeys[key][project.defaultLang]` with the original value. The
  * actual walker lives in `lib/i18nMigration` so it can be reused for
  * imported projects at runtime.
  */
@@ -3787,8 +3787,8 @@ const migrateV2ToV3 = (persisted: unknown): unknown => {
   // biome-ignore lint/suspicious/noExplicitAny: legacy shape
   const account = (persisted as any).account;
   if (!account) return persisted;
-  for (const pack of account.projects ?? []) {
-    migrateProjectToI18n(pack, pack.defaultLang ?? "en");
+  for (const project of account.projects ?? []) {
+    migrateProjectToI18n(project, project.defaultLang ?? "en");
   }
   return persisted;
 };
@@ -3799,8 +3799,8 @@ const migrateV1ToV2 = (persisted: unknown): unknown => {
   // biome-ignore lint/suspicious/noExplicitAny: legacy v1 shape — we don't model it in TS
   const account = (persisted as any).account;
   if (!account) return persisted;
-  for (const pack of account.projects ?? []) {
-    for (const menu of pack.menus ?? []) {
+  for (const project of account.projects ?? []) {
+    for (const menu of project.menus ?? []) {
       for (const layer of menu.layers ?? []) {
         for (const el of layer.elements ?? []) {
           for (const appearance of el.appearances ?? []) {
@@ -3816,7 +3816,7 @@ const migrateV1ToV2 = (persisted: unknown): unknown => {
         }
       }
     }
-    for (const cmd of pack.commands ?? []) {
+    for (const cmd of project.commands ?? []) {
       const v1 = cmd as V1Command;
       if (Array.isArray(v1.actions)) {
         cmd.steps = wrapV1Actions(v1.actions);

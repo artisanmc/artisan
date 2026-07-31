@@ -13,7 +13,7 @@ export interface Edge {
   triggers: EdgeTrigger[];
 }
 
-export function deriveEdges(pack: Project): Edge[] {
+export function deriveEdges(project: Project): Edge[] {
   const edgeMap = new Map<string, Edge>();
   const triggerSeen = new Map<string, Set<string>>();
 
@@ -39,7 +39,7 @@ export function deriveEdges(pack: Project): Edge[] {
     }
   };
 
-  for (const menu of pack.menus) {
+  for (const menu of project.menus) {
     for (const layer of menu.layers) {
       for (const el of layer.elements) {
         for (const appearance of el.appearances) {
@@ -70,7 +70,7 @@ export function deriveEdges(pack: Project): Edge[] {
     }
   }
 
-  for (const cmd of pack.commands) {
+  for (const cmd of project.commands) {
     for (const action of walkActions(cmd.steps)) {
       if (action.type === "open_menu") {
         addTrigger(cmd.id, action.menuId, { kind: "command", commandId: cmd.id });
@@ -80,7 +80,7 @@ export function deriveEdges(pack: Project): Edge[] {
     }
   }
 
-  for (const dialog of pack.dialogs ?? []) {
+  for (const dialog of project.dialogs ?? []) {
     for (const btn of dialog.buttons) {
       for (const action of walkActions(btn.steps)) {
         if (action.type === "open_menu") {
