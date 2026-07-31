@@ -1,7 +1,7 @@
 import { CODEPOINT_MIN, CODEPOINT_MAX } from "./codepointAllocator";
 
 export interface GlyphContribution {
-  packId: string;
+  projectId: string;
   glyphs: { assetId: string; codepoint: number }[];
 }
 

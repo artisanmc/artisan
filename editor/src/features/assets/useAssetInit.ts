@@ -5,7 +5,7 @@ import { useAuthStore } from "@/state/authStore";
 import { useAssetStore } from "./assetStore";
 
 /**
- * Loads the active pack's assets into the asset store as soon as a
+ * Loads the active project's assets into the asset store as soon as a
  * signed-in user AND a projectId are available. Must be called from a
  * component that is always mounted while the editor is open (e.g.
  * EditorPane), NOT from AssetsTab which is conditionally rendered per tab —
@@ -22,8 +22,8 @@ export function useAssetInit(projectId: ProjectId | null) {
 
   useEffect(() => {
     if (!projectId || !user) {
-      // Clear assets when switching away from any pack to avoid showing
-      // another pack's assets on a transitional render.
+      // Clear assets when switching away from any project to avoid showing
+      // another project's assets on a transitional render.
       setAssets([]);
       return;
     }

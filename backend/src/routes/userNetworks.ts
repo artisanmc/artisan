@@ -129,7 +129,7 @@ userNetworksRouter.post("/", async (c: Context<{ Variables: Vars }>) => {
 	return c.json({ network }, 201);
 });
 
-// GET /api/networks/:id — detail with packs + serverKeys
+// GET /api/networks/:id — detail with projects + serverKeys
 userNetworksRouter.get("/:id", async (c: Context<{ Variables: Vars }>) => {
 	const userId = getUserId(c);
 	if (!userId) return c.json({ error: "unauthorized" }, 401);

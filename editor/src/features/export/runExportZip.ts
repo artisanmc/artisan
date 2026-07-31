@@ -21,16 +21,16 @@ export interface ExportZipResult {
  * The pending auto-save is flushed first, otherwise the archive would lag the
  * editor by the debounce window.
  */
-export async function runExportZip(pack: Project, hasUser: boolean): Promise<ExportZipResult> {
+export async function runExportZip(project: Project, hasUser: boolean): Promise<ExportZipResult> {
   if (!hasUser) return { ok: false, error: "not_signed_in" };
   try {
-    await persistProject(pack, hasUser);
-    const { files } = await loadUserProject(pack.id);
+    await persistProject(project, hasUser);
+    const { files } = await loadUserProject(project.id);
     const blob = await buildZip(files);
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${pack.id}.zip`;
+    a.download = `${project.id}.zip`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

@@ -49,7 +49,7 @@ object TitleCompiler {
      */
     internal const val TITLE_LABEL_X = 8
 
-    /** Fallback width for an image asset whose `width` is unknown (legacy v1 pack). */
+    /** Fallback width for an image asset whose `width` is unknown (legacy v1 project). */
     private const val FALLBACK_IMAGE_WIDTH = 16
 
     /** Width estimate for an external-provider glyph (since we can't introspect it). */
@@ -190,7 +190,7 @@ object TitleCompiler {
         interpolate: (String) -> String = { it },
     ): Component {
         if (layers.isEmpty()) return Component.empty()
-        // Plain (vanilla) mode: no resource pack, no font wrapper, no shadow suppression.
+        // Plain (vanilla) mode: no resource project, no font wrapper, no shadow suppression.
         // Emit raw MiniMessage and let MC render with its default font and shadow.
         if (layers.all { it is MenuTitleLayer.Plain }) {
             val sb = StringBuilder()
@@ -290,7 +290,7 @@ object TitleCompiler {
                         startX + estimateBodyWidth(layer, langMap, lookupAsset, interpolate),
                     )
                 }
-                // Y-specific font: resource pack includes text_y{Y}.json for Y in
+                // Y-specific font: resource project includes text_y{Y}.json for Y in
                 // [TEXT_Y_MIN, TEXT_Y_MAX], each using minecraft:font/ascii.png with
                 // ascent = 13 - Y so the glyph top lands at the desired chest-relative
                 // Y pixel. Clamp out-of-range Y to the nearest valid value — without

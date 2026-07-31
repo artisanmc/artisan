@@ -7,8 +7,8 @@ export type SourceRowKeyValidation =
   | { ok: true; value: string | number }
   | { ok: false; reason: "required" | "duplicate" };
 
-function rowKeyKind(pack: Project, source: TableSource): { field: string; kind: RowKeyKind } {
-  const model = pack.dataModels?.find(({ id }) => id === source.modelId);
+function rowKeyKind(project: Project, source: TableSource): { field: string; kind: RowKeyKind } {
+  const model = project.dataModels?.find(({ id }) => id === source.modelId);
   if (!model) {
     throw new Error(`Data source ${source.id} references a missing data model.`);
   }
@@ -43,12 +43,12 @@ function normalizeNumeric(value: unknown, kind: "number" | "integer"): number | 
 }
 
 export function validateSourceRowKey(
-  pack: Project,
+  project: Project,
   source: TableSource,
   rowIndex: number,
   candidate: unknown,
 ): SourceRowKeyValidation {
-  const { field, kind } = rowKeyKind(pack, source);
+  const { field, kind } = rowKeyKind(project, source);
   const value = kind === "string"
     ? normalizeString(candidate)
     : normalizeNumeric(candidate, kind);
@@ -70,11 +70,11 @@ export function validateSourceRowKey(
   return duplicate ? { ok: false, reason: "duplicate" } : { ok: true, value };
 }
 
-export function nextAvailableSourceRowKey(pack: Project, source: TableSource): string | number {
-  const { kind } = rowKeyKind(pack, source);
+export function nextAvailableSourceRowKey(project: Project, source: TableSource): string | number {
+  const { kind } = rowKeyKind(project, source);
   for (let index = 1; ; index += 1) {
     const candidate = kind === "string" ? `row_${index}` : index;
-    if (validateSourceRowKey(pack, source, -1, candidate).ok) {
+    if (validateSourceRowKey(project, source, -1, candidate).ok) {
       return candidate;
     }
   }

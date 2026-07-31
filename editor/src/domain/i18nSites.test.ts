@@ -20,7 +20,7 @@ import {
 
 const lt = (key: string) => ({ key: key as I18nKey });
 
-/** A pack exercising every key-site kind, indexed messages, multi-title, and a dialog. */
+/** A project exercising every key-site kind, indexed messages, multi-title, and a dialog. */
 function makeFixture(): Project {
   return {
     id: "p" as Project["id"],
@@ -210,12 +210,12 @@ describe("visitProjectLTexts", () => {
     expect(byNode.get("lt_cm" as I18nKey)).toBe(`${commandKeyPrefix("give")}.message`);
   });
 
-  it("yields live nodes — reassigning site.lText.key mutates the pack", () => {
-    const pack = makeFixture();
-    for (const s of visitMenuLTexts(pack.menus[0]!)) {
+  it("yields live nodes — reassigning site.lText.key mutates the project", () => {
+    const project = makeFixture();
+    for (const s of visitMenuLTexts(project.menus[0]!)) {
       if (s.lText.key === ("lt_m0" as I18nKey)) s.lText.key = "claimed" as I18nKey;
     }
-    const handler = pack.menus[0]!.layers[0]!.elements[0]!.appearances[0]!.click!.left!;
+    const handler = project.menus[0]!.layers[0]!.elements[0]!.appearances[0]!.click!.left!;
     const firstAction = handler.steps[0]!;
     expect(firstAction.kind).toBe("action");
     if (firstAction.kind === "action" && firstAction.action.type === "send_message") {
@@ -230,10 +230,10 @@ describe("visitProjectLTexts", () => {
 
 describe("findKeyUsages parity (guards the step-2 refold)", () => {
   it("the visitor reproduces findKeyUsages' key→path map exactly", () => {
-    const pack = makeFixture();
+    const project = makeFixture();
     const fromVisitor = new Map<string, string>();
-    for (const s of visitProjectLTexts(pack)) fromVisitor.set(s.lText.key, s.path);
-    expect(fromVisitor).toEqual(findKeyUsages(pack));
+    for (const s of visitProjectLTexts(project)) fromVisitor.set(s.lText.key, s.path);
+    expect(fromVisitor).toEqual(findKeyUsages(project));
   });
 });
 
@@ -266,10 +266,10 @@ describe("visitDataSourceLTexts", () => {
     ],
   };
 
-  function packWithSources(): Project {
-    const pack = makeFixture();
-    pack.dataModels = [RANK_MODEL as never];
-    pack.dataSources = [
+  function projectWithSources(): Project {
+    const project = makeFixture();
+    project.dataModels = [RANK_MODEL as never];
+    project.dataSources = [
       {
         id: "ranks" as never,
         name: "Grades VIP",
@@ -293,11 +293,11 @@ describe("visitDataSourceLTexts", () => {
         value: { motd: lt("lt_s1") },
       },
     ] as never;
-    return pack;
+    return project;
   }
 
   it("yields row-key-derived canonical keys for table sources", () => {
-    const sites = [...visitDataSourceLTexts(packWithSources(), packWithSources().dataSources[0]!)];
+    const sites = [...visitDataSourceLTexts(projectWithSources(), projectWithSources().dataSources[0]!)];
     const byLive = new Map(sites.map((s) => [s.lText.key, s.key]));
     expect(byLive.get("lt_n1" as I18nKey)).toBe("sources.ranks.vip.name");
     expect(byLive.get("lt_p1" as I18nKey)).toBe("sources.ranks.vip.perks");
@@ -306,67 +306,67 @@ describe("visitDataSourceLTexts", () => {
   });
 
   it("falls back to a positional row key when the key value is empty", () => {
-    const pack = packWithSources();
-    const sites = [...visitDataSourceLTexts(pack, pack.dataSources[0]!)];
+    const project = projectWithSources();
+    const sites = [...visitDataSourceLTexts(project, project.dataSources[0]!)];
     const byLive = new Map(sites.map((s) => [s.lText.key, s.key]));
     expect(byLive.get("lt_n2" as I18nKey)).toBe("sources.ranks.row_2.name");
   });
 
   it("falls back to positional row keys when authored row keys are duplicated", () => {
-    const pack = packWithSources();
-    const source = pack.dataSources[0]!;
+    const project = projectWithSources();
+    const source = project.dataSources[0]!;
     if (source.shape !== "table") throw new Error("expected table");
     source.rows = [
       { id: "vip", name: lt("lt_n1"), perks: [], meta: { label: lt("lt_m1") } },
       { id: "vip", name: lt("lt_n2"), perks: [], meta: { label: lt("lt_m2") } },
     ];
 
-    const sites = [...visitDataSourceLTexts(pack, source)];
+    const sites = [...visitDataSourceLTexts(project, source)];
     const byLive = new Map(sites.map((s) => [s.lText.key, s.key]));
     expect(byLive.get("lt_n1" as I18nKey)).toBe("sources.ranks.row_1.name");
     expect(byLive.get("lt_n2" as I18nKey)).toBe("sources.ranks.row_2.name");
   });
 
   it("lowercases source, row, and field path segments", () => {
-    const pack = packWithSources();
-    pack.dataModels![0]!.fields.push({ name: "Lore", type: { kind: "ltext" } });
-    const source = pack.dataSources[0]!;
+    const project = projectWithSources();
+    project.dataModels![0]!.fields.push({ name: "Lore", type: { kind: "ltext" } });
+    const source = project.dataSources[0]!;
     if (source.shape !== "table") throw new Error("expected table");
     // Addresses key on the source ID (ADR bare-data-files ④) — lowercase it.
     (source as { id: string }).id = "Grades";
     source.rows = [{ id: "VIP", name: lt("lt_n1"), perks: [], meta: {}, Lore: lt("lt_lore") }];
 
-    const sites = [...visitDataSourceLTexts(pack, source)];
+    const sites = [...visitDataSourceLTexts(project, source)];
     const lore = sites.find((site) => site.lText.key === ("lt_lore" as I18nKey));
     expect(lore?.key).toBe("sources.grades.vip.lore");
   });
 
   it("treats Row keys that differ only by case as duplicates", () => {
-    const pack = packWithSources();
-    const source = pack.dataSources[0]!;
+    const project = projectWithSources();
+    const source = project.dataSources[0]!;
     if (source.shape !== "table") throw new Error("expected table");
     source.rows = [
       { id: "VIP", name: lt("lt_n1"), perks: [], meta: {} },
       { id: "vip", name: lt("lt_n2"), perks: [], meta: {} },
     ];
 
-    const sites = [...visitDataSourceLTexts(pack, source)];
+    const sites = [...visitDataSourceLTexts(project, source)];
     const byLive = new Map(sites.map((site) => [site.lText.key, site.key]));
     expect(byLive.get("lt_n1" as I18nKey)).toBe("sources.ranks.row_1.name");
     expect(byLive.get("lt_n2" as I18nKey)).toBe("sources.ranks.row_2.name");
   });
 
   it("yields config sites without a row segment", () => {
-    const pack = packWithSources();
-    const sites = [...visitDataSourceLTexts(pack, pack.dataSources[1]!)];
+    const project = projectWithSources();
+    const sites = [...visitDataSourceLTexts(project, project.dataSources[1]!)];
     expect(sites).toHaveLength(1);
     expect(sites[0]!.key).toBe("sources.settings.motd");
     expect(sites[0]!.kind).toBe("sourceField");
   });
 
   it("resolves nested model refs and skips non-LText values defensively", () => {
-    const pack = packWithSources();
-    pack.dataModels!.push({
+    const project = projectWithSources();
+    project.dataModels!.push({
       id: "m_cat" as never,
       name: "cat",
       keyField: "id",
@@ -375,20 +375,20 @@ describe("visitDataSourceLTexts", () => {
         { name: "rank", type: { kind: "model", ref: "m_rank" as never } },
       ],
     });
-    pack.dataSources.push({
+    project.dataSources.push({
       id: "cats" as never,
       name: "cats",
       shape: "table",
       modelId: "m_cat" as never,
       rows: [{ id: "c1", rank: { name: lt("lt_r1"), perks: "not-a-list", meta: null } }],
     } as never);
-    const sites = [...visitDataSourceLTexts(pack, pack.dataSources[2]!)];
+    const sites = [...visitDataSourceLTexts(project, project.dataSources[2]!)];
     expect(sites.map((s) => s.key)).toEqual(["sources.cats.c1.rank.name"]);
   });
 
   it("is folded into visitProjectLTexts", () => {
-    const pack = packWithSources();
-    const keys = [...visitProjectLTexts(pack)].map((s) => String(s.key));
+    const project = projectWithSources();
+    const keys = [...visitProjectLTexts(project)].map((s) => String(s.key));
     expect(keys).toContain("sources.ranks.vip.name");
     expect(keys).toContain("sources.settings.motd");
   });

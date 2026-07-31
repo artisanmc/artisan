@@ -60,20 +60,20 @@ async function seedServerKey(): Promise<{ id: string; key: string; hash: string;
   return { id, key, hash, networkId: net.id };
 }
 
-async function seedBoundPack(
+async function seedBoundProject(
   networkId: string,
   serverKeyId: string,
-  packId: string,
+  projectId: string,
   hash: string,
   files: Record<string, string> = {},
   deleted = false,
 ): Promise<void> {
-  await createProject({ networkId, serverKeyId, name: packId, id: packId });
-  await upsertProjectContent(packId, {
+  await createProject({ networkId, serverKeyId, name: projectId, id: projectId });
+  await upsertProjectContent(projectId, {
     hash,
     filesJson: JSON.stringify(files),
   });
-  if (deleted) await softDeleteProject(packId);
+  if (deleted) await softDeleteProject(projectId);
 }
 
 beforeEach(clearAll);
@@ -345,8 +345,8 @@ describe("handlePluginMessage", () => {
 
   test("hello_ack contains project_hashes from branch → commit content hash", async () => {
     const { id: keyId, key, networkId } = await seedServerKey();
-    await seedBoundPack(networkId, keyId, "pa", "ha");
-    await seedBoundPack(networkId, keyId, "pb", "hb");
+    await seedBoundProject(networkId, keyId, "pa", "ha");
+    await seedBoundProject(networkId, keyId, "pb", "hb");
 
     // project_hashes reflect the main branch head commit contentHash (not WIP projects.hash).
     // createProject auto-creates main branch with an initial empty-files commit.
@@ -390,9 +390,9 @@ describe("handlePluginMessage", () => {
     void keyId;
   });
 
-  test("hello_ack.project_hashes uses branch head commit contentHash (not WIP pack.hash)", async () => {
+  test("hello_ack.project_hashes uses branch head commit contentHash (not WIP project.hash)", async () => {
     const { id: keyId, key, networkId } = await seedServerKey();
-    await seedBoundPack(networkId, keyId, "p_c2", "wip-hash");
+    await seedBoundProject(networkId, keyId, "p_c2", "wip-hash");
 
     // Advance main branch head by creating a second commit with concrete files.
     const files = { "menus/shop.yaml": "id: shop\nsize: 27\n" };
@@ -422,10 +422,10 @@ describe("handlePluginMessage", () => {
     expect(ack.project_hashes["p_c2"]).not.toBe("wip-hash");
   });
 
-  test("hello_ack includes soft-deleted pack ids", async () => {
+  test("hello_ack includes soft-deleted project ids", async () => {
     const { id: keyId, key, networkId } = await seedServerKey();
-    await seedBoundPack(networkId, keyId, "alive", "ha");
-    await seedBoundPack(networkId, keyId, "dead", "hd", {}, true);
+    await seedBoundProject(networkId, keyId, "alive", "ha");
+    await seedBoundProject(networkId, keyId, "dead", "hd", {}, true);
 
     // project_hashes uses branch head commit contentHash. Both projects start with empty-files initial commit.
     const emptyHash = computeContentHash({}, "any");
@@ -442,7 +442,7 @@ describe("handlePluginMessage", () => {
     const result = await handlePluginMessage(connId, JSON.stringify(hello));
     const ack = JSON.parse(result.reply!) as HelloAckMessage;
     // In the 1:1 model, deleted projects are excluded from project_hashes (only non-deleted projects included).
-    // Deleted pack still appears in deleted_project_ids so the plugin can trash it.
+    // Deleted project still appears in deleted_project_ids so the plugin can trash it.
     expect(ack.project_hashes).toEqual({ alive: emptyHash });
     expect(ack.deleted_project_ids).toEqual(["dead"]);
   });
@@ -512,7 +512,7 @@ describe("getMcVersion", () => {
 });
 
 describe("resource_pack in hello_ack", () => {
-  test("hello_ack includes resource_pack: null when no pack has been built", async () => {
+  test("hello_ack includes resource_pack: null when no project has been built", async () => {
     const { key } = await seedServerKey();
 
     const connId = "conn-rp-null";
@@ -531,10 +531,10 @@ describe("resource_pack in hello_ack", () => {
     expect(ack.resource_pack).toBeNull();
   });
 
-  test("hello_ack includes { url, hash } after a pack was built", async () => {
+  test("hello_ack includes { url, hash } after a project was built", async () => {
     const { id: keyId, key } = await seedServerKey();
 
-    const packInfo = await rebuildResourcePack(keyId);
+    const projectInfo = await rebuildResourcePack(keyId);
 
     const connId = "conn-rp-built";
     registerConn(connId, () => {});
@@ -550,8 +550,8 @@ describe("resource_pack in hello_ack", () => {
     const ack = JSON.parse(result.reply!) as HelloAckMessage;
     expect(ack.type).toBe("hello_ack");
     expect(ack.resource_pack).not.toBeNull();
-    expect(ack.resource_pack!.hash).toBe(packInfo.hash);
-    expect(ack.resource_pack!.url).toContain(packInfo.hash);
+    expect(ack.resource_pack!.hash).toBe(projectInfo.hash);
+    expect(ack.resource_pack!.url).toContain(projectInfo.hash);
   });
 });
 
@@ -570,12 +570,12 @@ describe("pushResourcePackUpdated", () => {
     connToServerId.set(connA, serverKeyA);
     connToServerId.set(connB, serverKeyB);
 
-    pushResourcePackUpdated(serverKeyA, "http://example.com/pack.zip", "abc123");
+    pushResourcePackUpdated(serverKeyA, "http://example.com/project.zip", "abc123");
 
     expect(receivedA.length).toBe(1);
     const msg = JSON.parse(receivedA[0]) as { type: string; url: string; hash: string };
     expect(msg.type).toBe("resource_pack_updated");
-    expect(msg.url).toBe("http://example.com/pack.zip");
+    expect(msg.url).toBe("http://example.com/project.zip");
     expect(msg.hash).toBe("abc123");
 
     expect(receivedB.length).toBe(0);
@@ -588,7 +588,7 @@ describe("pushResourcePackUpdated", () => {
 });
 
 describe("local_push", () => {
-  test("creates pack + binding if missing, upserts content, broadcasts bundle_available", async () => {
+  test("creates project + binding if missing, upserts content, broadcasts bundle_available", async () => {
     const { id: keyId, key, networkId } = await seedServerKey();
     const connId = "conn-local-push";
     const received: string[] = [];
@@ -607,13 +607,13 @@ describe("local_push", () => {
     }));
     expect(result.reply).toBeNull();
 
-    const pack = await getProject("p_pushed");
-    expect(pack).not.toBeNull();
-    expect(pack!.networkId).toBe(networkId);
-    expect(pack!.hash).toBe("abc123");
+    const project = await getProject("p_pushed");
+    expect(project).not.toBeNull();
+    expect(project!.networkId).toBe(networkId);
+    expect(project!.hash).toBe("abc123");
 
-    // Verify pack is owned by the server_key (1:1 model)
-    expect(pack!.serverKeyId).toBe(keyId);
+    // Verify project is owned by the server_key (1:1 model)
+    expect(project!.serverKeyId).toBe(keyId);
 
     // bundle_available should have been broadcast (received after the hello_ack push)
     const bundleMsg = received.map((m) => JSON.parse(m) as { type: string }).find((m) => m.type === "bundle_available");
@@ -683,10 +683,10 @@ describe("local_push", () => {
     }));
     expect(result.reply).toBeNull();
 
-    const pack = await getProject("p_stub");
-    expect(pack).not.toBeNull();
-    expect(pack!.hash).toBe("hash-stub");
-    const stored = JSON.parse(pack!.filesJson) as Record<string, string>;
+    const project = await getProject("p_stub");
+    expect(project).not.toBeNull();
+    expect(project!.hash).toBe("hash-stub");
+    const stored = JSON.parse(project!.filesJson) as Record<string, string>;
     expect(stored[`${base}/boutique/shop.yaml`]).toContain("boutique/v1");
     // local_push = commit on main + head advanced (deploy convention).
     const branch = await getBranch("p_stub", "main");
@@ -724,9 +724,9 @@ describe("local_push", () => {
     }));
     expect(result.reply).toBeNull();
 
-    const pack = await getProject("p_real");
-    expect(pack!.hash).toBe("hash-real");
-    const stored = JSON.parse(pack!.filesJson) as Record<string, string>;
+    const project = await getProject("p_real");
+    expect(project!.hash).toBe("hash-real");
+    const stored = JSON.parse(project!.filesJson) as Record<string, string>;
     expect(stored["menus/shop.yaml"]).toContain("id: shop");
     expect(stored["plugins/Artisan/projects/p_real/menus/old.yaml"]).toBeUndefined();
   });
@@ -870,7 +870,7 @@ describe("config read/write relay (module-config-screens)", () => {
 describe("sync_divergence (files-first P3c)", () => {
   test("stores the plugin-reported disk tree; local_push clears it", async () => {
     const { id: keyId, key, networkId } = await seedServerKey();
-    await seedBoundPack(networkId, keyId, "p_sync_div", "h_web")
+    await seedBoundProject(networkId, keyId, "p_sync_div", "h_web")
     const connId = "conn-sync-div";
     registerConn(connId, () => {});
     await handlePluginMessage(connId, JSON.stringify({

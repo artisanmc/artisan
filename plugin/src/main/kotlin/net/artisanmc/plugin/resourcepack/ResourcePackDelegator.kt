@@ -10,7 +10,7 @@ import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
 /**
- * Writes the `assets/artisan/` subtree of the Artisan resource pack into a
+ * Writes the `assets/artisan/` subtree of the Artisan resource project into a
  * target owned by a host plugin (Oraxen / Nexo / ItemsAdder / etc.). Used when
  * the admin sets `resource-pack.delegate-to-dir` in `config.yml`.
  *
@@ -18,14 +18,14 @@ import java.util.zip.ZipOutputStream
  *
  *  - `*.zip` → a single zip file at that path. Inside, the layout is the
  *    standard MC resource-pack tree (assets/artisan/...) plus a minimal
- *    `pack.mcmeta`. **Use this with Nexo's `pack/external_packs/`**: Nexo's
+ *    `pack.mcmeta`. **Use this with Nexo's `project/external_packs/`**: Nexo's
  *    directory scanner skips `.png` files for non-vanilla namespaces, but
  *    its zip-merger pulls every entry, so wrapping our content in a zip
  *    sidesteps the limitation entirely.
  *
  *  - any other path → a directory. We write under `<targetDir>/assets/artisan/`
  *    and own only that subtree (wipe before each extraction). Works for hosts
- *    whose pack-build merges arbitrary directories.
+ *    whose project-build merges arbitrary directories.
  *
  * In both modes the host plugin still owns its own `pack.mcmeta` (in the
  * directory case we never write at the root; in the zip case our internal
@@ -74,8 +74,8 @@ open class ResourcePackDelegator(
         targetDir.parentFile?.mkdirs()
         val tmp = File(targetDir.parentFile, "${targetDir.name}.tmp")
         ZipOutputStream(FileOutputStream(tmp)).use { zos ->
-            // pack.mcmeta first — required by some host pack-mergers to
-            // recognize the zip as a valid resource pack.
+            // pack.mcmeta first — required by some host project-mergers to
+            // recognize the zip as a valid resource project.
             zos.putNextEntry(ZipEntry("pack.mcmeta"))
             zos.write(PACK_MCMETA_JSON.toByteArray(Charsets.UTF_8))
             zos.closeEntry()
@@ -105,7 +105,7 @@ open class ResourcePackDelegator(
             tmp.copyTo(targetDir, overwrite = true)
             tmp.delete()
         }
-        logger?.info("[delegate] wrote Artisan pack zip to ${targetDir.absolutePath}")
+        logger?.info("[delegate] wrote Artisan project zip to ${targetDir.absolutePath}")
     }
 
     /**
@@ -141,7 +141,7 @@ open class ResourcePackDelegator(
                 zis.closeEntry()
             }
         }
-        logger?.info("[delegate] extracted Artisan pack into ${artisanRoot.absolutePath}")
+        logger?.info("[delegate] extracted Artisan project into ${artisanRoot.absolutePath}")
     }
 
     private fun acceptEntry(name: String): Boolean =
@@ -154,8 +154,8 @@ open class ResourcePackDelegator(
     companion object {
         // Minimal valid pack.mcmeta. pack_format 22 = 1.20.5+ (where the
         // `space` font provider is supported). Host plugins that re-zip
-        // external packs need this at the root to recognize the zip.
+        // external projects need this at the root to recognize the zip.
         private const val PACK_MCMETA_JSON =
-            "{\"pack\":{\"pack_format\":22,\"description\":\"Artisan (delegated)\"}}"
+            "{\"project\":{\"pack_format\":22,\"description\":\"Artisan (delegated)\"}}"
     }
 }

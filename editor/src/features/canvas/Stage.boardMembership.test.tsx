@@ -16,7 +16,7 @@ vi.mock("./title/composer/TitleRender", () => ({ TitleRender: () => <div /> }));
 vi.mock("./Edges", () => ({ Edges: () => <div data-testid="edges" /> }));
 
 const PID = "p1" as ProjectId;
-function pack(): Project {
+function project(): Project {
   return {
     id: PID, name: "p", source: "user_created", createdAt: "", updatedAt: "",
     menus: [{ id: "m1", projectId: PID, title: [], rows: 3, layers: [] } as any,
@@ -28,7 +28,7 @@ function pack(): Project {
 
 describe("Stage — board membership", () => {
   beforeEach(() => {
-    useAccountStore.setState({ account: { id: "a" as any, projects: [pack()], projectOrder: [PID] } } as any);
+    useAccountStore.setState({ account: { id: "a" as any, projects: [project()], projectOrder: [PID] } } as any);
   });
   it("ne rend QUE les éléments présents dans canvasLayout", () => {
     render(<Stage projectId={PID} />);

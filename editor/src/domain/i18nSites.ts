@@ -31,7 +31,7 @@ import type {
 } from "./types";
 
 /**
- * Single traversal of every localizable-text **key site** in a pack tree.
+ * Single traversal of every localizable-text **key site** in a project tree.
  *
  * A key site is one slot holding an {@link LText} — a menu title layer, an
  * appearance's title/lore, a `send_message`/`show_title` action, a dialog
@@ -134,8 +134,8 @@ export function* visitAppearanceLTexts(appearance: Appearance, base: string): Ge
     };
   }
   if (appearance.lore) {
-    // `lore` is a single LText in the current shape, but legacy-migrated packs
-    // can carry an array. Tolerate both so those packs don't read as "(unused)".
+    // `lore` is a single LText in the current shape, but legacy-migrated projects
+    // can carry an array. Tolerate both so those projects don't read as "(unused)".
     const loreRefs = Array.isArray(appearance.lore) ? appearance.lore : [appearance.lore];
     for (const lt of loreRefs) {
       if (lt)
@@ -308,8 +308,8 @@ function* visitModelValueLTexts(
  * (positional) until the admin resolves them. Cf. ADR
  * `project-sources-and-data-models`.
  */
-export function* visitDataSourceLTexts(pack: Project, ds: DataSource): Generator<LTextSite> {
-  const models = pack.dataModels ?? [];
+export function* visitDataSourceLTexts(project: Project, ds: DataSource): Generator<LTextSite> {
+  const models = project.dataModels ?? [];
   // Addressed by ID, not display name (ADR bare-data-files ④: "l'adresse ne
   // change pas") — renaming a source must not re-address every key, and the
   // plugin derives the same address from the file name at resolve time.
@@ -353,12 +353,12 @@ export function* visitDataSourceLTexts(pack: Project, ds: DataSource): Generator
   }
 }
 
-/** Yield every key site in a pack: menus, commands, dialogs, sources. */
-export function* visitProjectLTexts(pack: Project): Generator<LTextSite> {
-  for (const menu of pack.menus ?? []) yield* visitMenuLTexts(menu);
-  for (const cmd of pack.commands ?? []) yield* visitCommandLTexts(cmd);
-  for (const dlg of pack.dialogs ?? []) yield* visitDialogLTexts(dlg);
-  for (const ds of pack.dataSources ?? []) yield* visitDataSourceLTexts(pack, ds);
+/** Yield every key site in a project: menus, commands, dialogs, sources. */
+export function* visitProjectLTexts(project: Project): Generator<LTextSite> {
+  for (const menu of project.menus ?? []) yield* visitMenuLTexts(menu);
+  for (const cmd of project.commands ?? []) yield* visitCommandLTexts(cmd);
+  for (const dlg of project.dialogs ?? []) yield* visitDialogLTexts(dlg);
+  for (const ds of project.dataSources ?? []) yield* visitDataSourceLTexts(project, ds);
 }
 
 /**
@@ -370,8 +370,8 @@ export function* visitProjectLTexts(pack: Project): Generator<LTextSite> {
  * under the site's canonical address (other languages already live there
  * from lang/ files). Idempotent; typed values pass through untouched.
  */
-export function adoptBareLTexts(pack: Project, ds: DataSource): void {
-  const models = pack.dataModels ?? [];
+export function adoptBareLTexts(project: Project, ds: DataSource): void {
+  const models = project.dataModels ?? [];
   const sourceKey = String(ds.id).toLowerCase();
   const adopt = (
     value: unknown,
@@ -383,9 +383,9 @@ export function adoptBareLTexts(pack: Project, ds: DataSource): void {
       case "ltext": {
         if (isLTextNode(value)) return value;
         const s = typeof value === "string" ? value : "";
-        if (s !== "" && pack.i18nKeys[s as I18nKey]) return { key: s as I18nKey };
+        if (s !== "" && project.i18nKeys[s as I18nKey]) return { key: s as I18nKey };
         const a = base as I18nKey;
-        pack.i18nKeys[a] = { ...(pack.i18nKeys[a] ?? {}), [pack.defaultLang]: s };
+        project.i18nKeys[a] = { ...(project.i18nKeys[a] ?? {}), [project.defaultLang]: s };
         return { key: a };
       }
       case "list":
@@ -460,32 +460,32 @@ export function adoptBareLTexts(pack: Project, ds: DataSource): void {
 // traversal above; idempotent (moveLTextKey no-ops when already correct). Safe
 // inside an immer producer.
 
-function rekey(pack: Project, sites: Iterable<LTextSite>): void {
-  for (const site of sites) moveLTextKey(pack, site.lText, site.key);
+function rekey(project: Project, sites: Iterable<LTextSite>): void {
+  for (const site of sites) moveLTextKey(project, site.lText, site.key);
 }
 
 /** Canonicalize one menu's LText keys (title layers + every element). */
-export function rekeyMenu(pack: Project, menu: Menu): void {
-  rekey(pack, visitMenuLTexts(menu));
+export function rekeyMenu(project: Project, menu: Menu): void {
+  rekey(project, visitMenuLTexts(menu));
 }
 
 /** Canonicalize one command's LText keys. */
-export function rekeyCommand(pack: Project, command: Command): void {
-  rekey(pack, visitCommandLTexts(command));
+export function rekeyCommand(project: Project, command: Command): void {
+  rekey(project, visitCommandLTexts(command));
 }
 
 /** Canonicalize every LText key owned by one Project data source. */
-export function rekeyDataSource(pack: Project, dataSource: DataSource): void {
-  rekey(pack, visitDataSourceLTexts(pack, dataSource));
+export function rekeyDataSource(project: Project, dataSource: DataSource): void {
+  rekey(project, visitDataSourceLTexts(project, dataSource));
 }
 
 /**
- * Canonicalize every LText key in the pack — menus, commands, templates, and
+ * Canonicalize every LText key in the project — menus, commands, templates, and
  * dialogs. The single deploy-time canonicalizer; replaces the per-entity
  * `for (menu) … for (cmd) …` loops at the export/persist/deploy seams.
  */
-export function rekeyProject(pack: Project): void {
-  rekey(pack, visitProjectLTexts(pack));
+export function rekeyProject(project: Project): void {
+  rekey(project, visitProjectLTexts(project));
 }
 
 // ── Mint / release: per-mutation key lifecycle ───────────────────────────────
@@ -498,10 +498,10 @@ export function rekeyProject(pack: Project): void {
  * `allocStepLTexts`. Non-sentinel sites (already-keyed titles/lore/labels) are
  * skipped, so it is safe to run over a whole subtree, not just step actions.
  */
-export function mintLTexts(pack: Project, sites: Iterable<LTextSite>, lang: string): void {
+export function mintLTexts(project: Project, sites: Iterable<LTextSite>, lang: string): void {
   for (const site of sites) {
     if (site.lText.key === ("" as I18nKey)) {
-      createLTextAt(pack, site.key, "", lang);
+      createLTextAt(project, site.key, "", lang);
       site.lText.key = site.key;
     }
   }
@@ -509,10 +509,10 @@ export function mintLTexts(pack: Project, sites: Iterable<LTextSite>, lang: stri
 
 /**
  * Drop the i18n entry of every site's node. Use when removing a subtree so the
- * pack's lang map doesn't leak orphans. Mirrors the old `gc*LTexts` family;
+ * project's lang map doesn't leak orphans. Mirrors the old `gc*LTexts` family;
  * `release` ignores each site's canonical `key`, so callers walking a subtree
  * for deletion may pass any key prefix.
  */
-export function releaseLTexts(pack: Project, sites: Iterable<LTextSite>): void {
-  for (const site of sites) deleteLText(pack, site.lText);
+export function releaseLTexts(project: Project, sites: Iterable<LTextSite>): void {
+  for (const site of sites) deleteLText(project, site.lText);
 }

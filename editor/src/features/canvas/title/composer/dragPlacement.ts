@@ -3,7 +3,7 @@ import { TEX_TITLE_H } from "../../menuLayout";
 /**
  * Height of the title bar in canvas px — the same unit used by `MenuBounds.w/h`.
  * Mirrors `TEX_TITLE_H` (MC_TITLE_H × TEX_SCALE) from `menuLayout` so the
- * placement math matches what the user sees on the pack canvas.
+ * placement math matches what the user sees on the project canvas.
  */
 const TITLE_BAR_HEIGHT = TEX_TITLE_H;
 

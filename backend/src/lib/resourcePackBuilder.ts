@@ -11,10 +11,10 @@ export interface BuildResult {
 }
 
 const PACK_MCMETA = {
-  pack: {
+  project: {
     pack_format: 64,
     supported_formats: { min_inclusive: 22, max_inclusive: 200 },
-    description: "Artisan pack",
+    description: "Artisan project",
   },
 };
 
@@ -59,7 +59,7 @@ export function buildResourcePackZip(
   const files: Record<string, Uint8Array> = {};
 
   files["pack.mcmeta"] = strToU8(JSON.stringify(PACK_MCMETA, null, 2));
-  files["pack.png"] = PACK_PNG_FALLBACK;
+  files["project.png"] = PACK_PNG_FALLBACK;
 
   const fontJson = buildDefaultFontJson(remapped);
   files["assets/artisan/font/default.json"] = strToU8(JSON.stringify(fontJson, null, 2));
@@ -134,7 +134,7 @@ export function buildResourcePackZip(
   // Fixed mtime: zip entry headers embed a DOS timestamp (2s resolution) that
   // defaults to "now" — two identical rebuilds straddling a window produced
   // different bytes, so the same content hashed differently and clients
-  // re-downloaded an unchanged pack (flaked CI's determinism test, blocked the
+  // re-downloaded an unchanged project (flaked CI's determinism test, blocked the
   // 2026-07-24 deploy). Any constant works; content changes still change the hash.
   const zipBytes = zipSync(files, { level: 0, mtime: new Date("2020-01-01T00:00:00Z") });
   const hash = createHash("sha1").update(zipBytes).digest("hex");

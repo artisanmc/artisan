@@ -6,7 +6,7 @@ import { createNetwork } from "./networkManager";
 import { createProject } from "./projectStorage";
 import { generateServerKey } from "./auth";
 
-async function seedPack(): Promise<string> {
+async function seedProject(): Promise<string> {
   const net = await createNetwork("N");
   const { id: skId, hash: skHash } = await generateServerKey();
   await db.insert(serverKeys).values({ id: skId, hash: skHash, label: null, networkId: net.id, createdAt: new Date() });
@@ -56,26 +56,26 @@ describe("allocateCodepoint", () => {
   });
 
   test("returns CODEPOINT_MIN when no glyphs exist", async () => {
-    const pk = await seedPack();
+    const pk = await seedProject();
     expect(await allocateCodepoint(pk)).toBe(CODEPOINT_MIN);
   });
 
   test("returns next after highest used", async () => {
-    const pk = await seedPack();
+    const pk = await seedProject();
     await seedGlyph(pk, CODEPOINT_MIN);
     await seedGlyph(pk, CODEPOINT_MIN + 2);
     expect(await allocateCodepoint(pk)).toBe(CODEPOINT_MIN + 3);
   });
 
   test("ignores other projects' codepoints", async () => {
-    const pk1 = await seedPack();
-    const pk2 = await seedPack();
+    const pk1 = await seedProject();
+    const pk2 = await seedProject();
     await seedGlyph(pk1, CODEPOINT_MIN + 50);
     expect(await allocateCodepoint(pk2)).toBe(CODEPOINT_MIN);
   });
 
   test("throws when range exhausted", async () => {
-    const pk = await seedPack();
+    const pk = await seedProject();
     await seedGlyph(pk, CODEPOINT_MAX);
     try {
       await allocateCodepoint(pk);
@@ -86,13 +86,13 @@ describe("allocateCodepoint", () => {
   });
 
   test("ignores texture rows with NULL codepoint", async () => {
-    const pk = await seedPack();
+    const pk = await seedProject();
     await seedTexture(pk);
     expect(await allocateCodepoint(pk)).toBe(CODEPOINT_MIN);
   });
 
   test("never allocates into the U+F800..U+F8FF reserved range (space-offset codepoints)", async () => {
-    const pk = await seedPack();
+    const pk = await seedProject();
     await seedGlyph(pk, CODEPOINT_MAX - 1);
     const next = await allocateCodepoint(pk);
     expect(next).toBe(CODEPOINT_MAX);

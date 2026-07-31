@@ -12,7 +12,7 @@ vi.mock("@tanstack/react-router", () => ({
 import { ProjectPanel } from "./ProjectPanel";
 
 const PID = "p1" as ProjectId;
-function pack(): Project {
+function project(): Project {
   return {
     id: PID,
     name: "p",
@@ -38,7 +38,7 @@ describe("ProjectPanel", () => {
   beforeEach(() => {
     navigate.mockClear();
     useAccountStore.setState({
-      account: { id: "a" as any, projects: [pack()], projectOrder: [PID] },
+      account: { id: "a" as any, projects: [project()], projectOrder: [PID] },
     } as any);
   });
 
@@ -73,7 +73,7 @@ describe("ProjectPanel", () => {
     expect("c1" in p.canvasLayout).toBe(true);
   });
 
-  it("le toggle 'retirer du canvas' retire l'élément de la planche sans le supprimer du pack", () => {
+  it("le toggle 'retirer du canvas' retire l'élément de la planche sans le supprimer du project", () => {
     render(<ProjectPanel projectId={PID} />);
     fireEvent.click(screen.getByTitle(REMOVE));
     const p = useAccountStore.getState().account.projects.find((x) => x.id === PID)!;

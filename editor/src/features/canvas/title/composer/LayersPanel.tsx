@@ -18,7 +18,7 @@ interface LayersPanelProps {
   /**
    * The menu whose title layers this panel edits. Provided by the parent
    * (typically `MenuProperties`) — required, no fallback. If the menu id is
-   * not in the pack, the component renders nothing.
+   * not in the project, the component renders nothing.
    */
   menuId: MenuId;
   /** Optional class for the outer container — parent controls width / borders. */
@@ -52,8 +52,8 @@ export function LayersPanel({ projectId, menuId, className }: LayersPanelProps) 
   const setSelectedLayerKey = useUiStore((s) => s.setSelectedLayerKey);
   const setSelectedMenuId = useUiStore((s) => s.setSelectedMenuId);
 
-  const pack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
-  const menu = pack?.menus.find((m) => m.id === menuId);
+  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  const menu = project?.menus.find((m) => m.id === menuId);
 
   const addMenuTitleLayer = useAccountStore((s) => s.addMenuTitleLayer);
   const setMenuTitleLayers = useAccountStore((s) => s.setMenuTitleLayers);
@@ -140,16 +140,16 @@ export function LayersPanel({ projectId, menuId, className }: LayersPanelProps) 
     kind: "image" | "text" | "textarea",
     cursor: { x: number; y: number } | null,
   ) => {
-    // Drag-end branch — try cursor-driven attach first. If the pack canvas
+    // Drag-end branch — try cursor-driven attach first. If the project canvas
     // has a menu within range we use its id + the cursor-derived layer
     // coords; otherwise we fall through to the default placement on
     // the current `menuId` (from props).
-    if (cursor !== null && pack) {
+    if (cursor !== null && project) {
       const geometry = getStageGeometry();
       if (geometry) {
-        const placement = attachLayerAtCursor(pack, geometry, cursor);
+        const placement = attachLayerAtCursor(project, geometry, cursor);
         if (placement) {
-          const targetMenu = pack.menus.find((m) => m.id === placement.menuId);
+          const targetMenu = project.menus.find((m) => m.id === placement.menuId);
           if (targetMenu) {
             const newIndex = targetMenu.title.length;
             const layer = buildLayer(kind, { x: placement.x, y: placement.y });
@@ -208,7 +208,7 @@ export function LayersPanel({ projectId, menuId, className }: LayersPanelProps) 
     applyLayerMoved(menuId, fromIndex, toIndex);
   };
 
-  // Defensive: if the menuId doesn't resolve in the pack (e.g. a stale
+  // Defensive: if the menuId doesn't resolve in the project (e.g. a stale
   // selection that's being torn down), render nothing rather than a broken
   // body. The parent shouldn't ever pass an invalid id in practice.
   if (!menu) return null;

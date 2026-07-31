@@ -7,7 +7,7 @@ import type { PlaceholderEntry } from "@/lib/placeholderCatalog";
 export interface PlaceholderInputProps {
   value: string;
   onChange: (v: string) => void;
-  /** Pre-computed entries — the caller passes `compute(pack, location)`. */
+  /** Pre-computed entries — the caller passes `compute(project, location)`. */
   entries: PlaceholderEntry[];
   multiline?: boolean;
   placeholder?: string;
@@ -23,7 +23,7 @@ export interface PlaceholderInputProps {
 
 /**
  * Text input with `{`-triggered placeholder autocomplete. The caller owns
- * the pack→entries computation (via the PlaceholderCatalog) so this stays
+ * the project→entries computation (via the PlaceholderCatalog) so this stays
  * domain-agnostic and reusable.
  */
 export function PlaceholderInput({

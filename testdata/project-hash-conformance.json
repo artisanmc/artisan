@@ -1,0 +1,12 @@
+{
+  "_comment": "Cross-language conformance vector for the canonical project hash. The hash is computed over the relPath-keyed file map: entries sorted by relPath (native byte order), each emitted as `<relPath>\\n<content>\\n`, concatenated, SHA-256, lowercase hex. Empty map => \"\". Asserted by BundleHasherTest/BundleHashConformanceTest (plugin, Kotlin) AND hashUtils.test.ts (backend, TS). If you change the hash algorithm you MUST update both implementations and regenerate expectedHash. See CLAUDE.md § Invariants critiques. ADDITIONALLY: any relPath whose FIRST SEGMENT starts with `.artisan` (e.g. `.artisan-sync.yaml`, `.artisan/editor.yaml`) is METADATA — excluded from the hash by BOTH implementations; the entries below must not change expectedHash.",
+  "projectId": "p_demo",
+  "files": {
+    "manifest.yaml": "id: p_demo\nname: Demo\n",
+    "menus/shop.yaml": "title: Shop\nrows: 6\n",
+    "lang/en.yaml": "shop.title: Shop\n",
+    ".artisan-sync.yaml": "syncedHash: whatever\n",
+    ".artisan/editor.yaml": "layout:\n  shop: { x: 40, y: 40 }\n"
+  },
+  "expectedHash": "36e3ff5d7f2ac11ec821895fe164d2d7b1b3c6e58091886631ca500461904470"
+}

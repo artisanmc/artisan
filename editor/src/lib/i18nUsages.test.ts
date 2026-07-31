@@ -4,8 +4,8 @@ import { buildTranslationRows, findKeyUsages, findUnusedI18nKeys } from "./i18nU
 
 const k = (s: string): I18nKey => s as I18nKey;
 
-/** Minimal pack scaffold; callers override the bits they exercise. */
-function pack(overrides: Partial<Project>): Project {
+/** Minimal project scaffold; callers override the bits they exercise. */
+function project(overrides: Partial<Project>): Project {
   return {
     id: "p1" as Project["id"],
     name: "P",
@@ -27,7 +27,7 @@ function pack(overrides: Partial<Project>): Project {
 
 describe("findKeyUsages", () => {
   it("records menu title text layers", () => {
-    const p = pack({
+    const p = project({
       menus: [
         {
           id: "m1" as never,
@@ -42,7 +42,7 @@ describe("findKeyUsages", () => {
   });
 
   it("records element title and a single-LText lore", () => {
-    const p = pack({
+    const p = project({
       menus: [
         {
           id: "m1" as never,
@@ -76,7 +76,7 @@ describe("findKeyUsages", () => {
   });
 
   it("records lore stored as an array of LText (legacy-migrated shape)", () => {
-    const p = pack({
+    const p = project({
       menus: [
         {
           id: "m1" as never,
@@ -106,7 +106,7 @@ describe("findKeyUsages", () => {
   });
 
   it("records show_title title + subtitle inside click handlers", () => {
-    const p = pack({
+    const p = project({
       menus: [
         {
           id: "m1" as never,
@@ -154,7 +154,7 @@ describe("findKeyUsages", () => {
 
 describe("findKeyUsages — dialogs", () => {
   it("records dialog title, body text, input/option/button labels, and button step actions", () => {
-    const p = pack({
+    const p = project({
       dialogs: [
         {
           id: "d1" as never,
@@ -203,7 +203,7 @@ describe("findKeyUsages — dialogs", () => {
 
 describe("buildTranslationRows", () => {
   it("marks keys with no usage as (unused) and used keys with their context", () => {
-    const p = pack({
+    const p = project({
       menus: [
         {
           id: "m1" as never,
@@ -226,7 +226,7 @@ describe("buildTranslationRows", () => {
   });
 
   it("sorts (unused) rows after used rows so real translations lead", () => {
-    const p = pack({
+    const p = project({
       menus: [
         {
           id: "m1" as never,
@@ -247,8 +247,8 @@ describe("buildTranslationRows", () => {
 });
 
 describe("findUnusedI18nKeys", () => {
-  it("returns only the keys not referenced anywhere in the pack", () => {
-    const p = pack({
+  it("returns only the keys not referenced anywhere in the project", () => {
+    const p = project({
       menus: [
         {
           id: "m1" as never,

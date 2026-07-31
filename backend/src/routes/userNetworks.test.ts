@@ -134,7 +134,7 @@ describe("userNetworksRouter", () => {
     });
     const { network } = await create.json();
 
-    // Seed a server_key first (required by createProject), then seed a pack
+    // Seed a server_key first (required by createProject), then seed a project
     await db.insert(serverKeys).values({
       id: "sk_test_a3",
       hash: "hash_a3",
@@ -155,7 +155,7 @@ describe("userNetworksRouter", () => {
     expect(body.projects[0].name).toBe("p1");
     expect(body.projects[0]).toHaveProperty("networkId");
     expect(body.projects[0]).toHaveProperty("serverKeyId");
-    // Fresh pack has no menus/commands/dialogs yet.
+    // Fresh project has no menus/commands/dialogs yet.
     expect(body.projects[0].documentCount).toBe(0);
     expect(body.serverKeys).toHaveLength(1);
     expect(body.serverKeys[0].id).toBe("sk_test_a3");
@@ -219,7 +219,7 @@ describe("userNetworksRouter", () => {
     expect(res.status).toBe(403);
   });
 
-  test("GET /api/v1/networks/:id reports documentCount from the pack editor JSON", async () => {
+  test("GET /api/v1/networks/:id reports documentCount from the project editor JSON", async () => {
     const { sessionId } = await seedUser();
     const app = makeApp();
 
@@ -238,10 +238,10 @@ describe("userNetworksRouter", () => {
       label: null,
     });
     const { createProject, upsertProjectContent } = await import("../lib/projectStorage");
-    const pack = await createProject({ networkId: network.id, serverKeyId: "sk_count", name: "pc" });
+    const project = await createProject({ networkId: network.id, serverKeyId: "sk_count", name: "pc" });
     // Files-first: documentCount is derived from the stored file tree.
-    const base = `plugins/Artisan/projects/${pack.id}`;
-    await upsertProjectContent(pack.id, {
+    const base = `plugins/Artisan/projects/${project.id}`;
+    await upsertProjectContent(project.id, {
       filesJson: JSON.stringify({
         [`${base}/menus/m1.yaml`]: "id: m1",
         [`${base}/menus/m2.yaml`]: "id: m2",
@@ -384,7 +384,7 @@ describe("userNetworksRouter", () => {
       body: JSON.stringify({ name: "N" }),
     })).json();
 
-    // Create a server_key for the pack to own
+    // Create a server_key for the project to own
     const skRes = await app.request(`/api/v1/networks/${network.id}/server-keys`, {
       method: "POST",
       headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
@@ -395,11 +395,11 @@ describe("userNetworksRouter", () => {
     const res = await app.request(`/api/v1/networks/${network.id}/projects`, {
       method: "POST",
       headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ name: "my-pack", description: "desc", serverKeyId: skId }),
+      body: JSON.stringify({ name: "my-project", description: "desc", serverKeyId: skId }),
     });
     expect(res.status).toBe(201);
     const body = await res.json();
-    expect(body.project.name).toBe("my-pack");
+    expect(body.project.name).toBe("my-project");
     expect(body.project.description).toBe("desc");
     expect(body.project.networkId).toBe(network.id);
   });
@@ -693,13 +693,13 @@ describe("POST /api/v1/networks/:id/server-keys/:keyId/rotate", () => {
     const { id: skId, key: oldKey } = await skRes.json();
     const oldHash = await sha256(oldKey);
 
-    // Create a pack owned by this server_key to verify ownership survives rotation.
-    const packRes = await app.request(`/api/v1/networks/${network.id}/projects`, {
+    // Create a project owned by this server_key to verify ownership survives rotation.
+    const projectRes = await app.request(`/api/v1/networks/${network.id}/projects`, {
       method: "POST",
       headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ name: "rot-pack", serverKeyId: skId }),
+      body: JSON.stringify({ name: "rot-project", serverKeyId: skId }),
     });
-    const { project: pack } = await packRes.json();
+    const { project: project } = await projectRes.json();
 
     const rotateRes = await app.request(`/api/v1/networks/${network.id}/server-keys/${skId}/rotate`, {
       method: "POST",
@@ -718,9 +718,9 @@ describe("POST /api/v1/networks/:id/server-keys/:keyId/rotate", () => {
     expect(row.hash).toBe(newHash);
     expect(row.hash).not.toBe(oldHash);
 
-    // Pack still owned by same server_key after rotation
+    // Project still owned by same server_key after rotation
     const packsAfter = await db.select().from(projects).where(eq(projects.serverKeyId, skId));
-    expect(packsAfter.length).toBeGreaterThanOrEqual(0); // pack ownership unchanged by rotation
+    expect(packsAfter.length).toBeGreaterThanOrEqual(0); // project ownership unchanged by rotation
   });
 
   test("non-owner returns 403", async () => {
@@ -791,15 +791,15 @@ describe("DELETE /api/v1/networks/:id/server-keys/:keyId", () => {
     });
     const { id: skId } = await skRes.json();
 
-    // Create a pack owned by this server_key
-    const packRes = await app.request(`/api/v1/networks/${network.id}/projects`, {
+    // Create a project owned by this server_key
+    const projectRes = await app.request(`/api/v1/networks/${network.id}/projects`, {
       method: "POST",
       headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ name: "c4-pack", serverKeyId: skId }),
+      body: JSON.stringify({ name: "c4-project", serverKeyId: skId }),
     });
-    const { project: pack } = await packRes.json();
+    const { project: project } = await projectRes.json();
 
-    // Verify pack exists and is owned by the server_key
+    // Verify project exists and is owned by the server_key
     const packsBefore = await db.select().from(projects).where(eq(projects.serverKeyId, skId));
     expect(packsBefore).toHaveLength(1);
 
@@ -814,8 +814,8 @@ describe("DELETE /api/v1/networks/:id/server-keys/:keyId", () => {
     const skRows = await db.select().from(serverKeys).where(eq(serverKeys.id, skId));
     expect(skRows).toHaveLength(0);
 
-    // Packs cascade-deleted (projects.serverKeyId ON DELETE CASCADE)
-    const packsAfter = await db.select().from(projects).where(eq(projects.id, pack.id));
+    // Projects cascade-deleted (projects.serverKeyId ON DELETE CASCADE)
+    const packsAfter = await db.select().from(projects).where(eq(projects.id, project.id));
     expect(packsAfter).toHaveLength(0);
   });
 

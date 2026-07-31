@@ -65,7 +65,7 @@ describe("membershipGuard", () => {
     await requireMember("u1", net.id, "admin");
   });
 
-  it("getNetworkOfProject returns the pack's network", async () => {
+  it("getNetworkOfProject returns the project's network", async () => {
     await seedUser("u1");
     const net = await createNetwork("N");
     const { id: skId, hash: skHash } = await generateServerKey();
@@ -74,7 +74,7 @@ describe("membershipGuard", () => {
     expect(await getNetworkOfProject(p.id)).toBe(net.id);
   });
 
-  it("getNetworkOfProject returns null when pack not found", async () => {
+  it("getNetworkOfProject returns null when project not found", async () => {
     expect(await getNetworkOfProject("pack_nope")).toBeNull();
   });
 });

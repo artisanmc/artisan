@@ -77,7 +77,7 @@ export async function handleAssetCreate(c: any, ctx: AssetCtx) {
 
   const contentHash = createHash("sha1").update(bytes).digest("hex");
 
-  // Dedup: same (packId, type, contentHash) → return existing row.
+  // Dedup: same (projectId, type, contentHash) → return existing row.
   // Scoped by type so the same bytes can be uploaded as both a texture and a glyph.
   const existing = await db.select().from(assets).where(and(
     eq(assets.projectId, projectId),
@@ -124,8 +124,8 @@ export async function handleAssetCreate(c: any, ctx: AssetCtx) {
 
   try {
     if (type === "font" && parsedFont) {
-      // Re-serialize font.json with canonical pack-namespaced file paths so the
-      // resource pack zip emits valid references: artisan:font/<name>/<basename>.
+      // Re-serialize font.json with canonical project-namespaced file paths so the
+      // resource project zip emits valid references: artisan:font/<name>/<basename>.
       const providers = parsedFont.glyphMap.map((g) => ({
         type: "bitmap",
         file: `artisan:font/${name}/${g.texture}`,

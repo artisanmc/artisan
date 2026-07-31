@@ -179,20 +179,20 @@ class ArtisanCommand(
         val roots = plugin.projectRoots
         val projectIds = if (target == "--all") roots.all().keys.toList() else listOf(target)
         if (projectIds.isEmpty()) {
-            sender.sendMessage("No packs found to push.")
+            sender.sendMessage("No projects found to push.")
             return
         }
         for (projectId in projectIds) {
             val dir = roots.dirFor(projectId)
             if (!dir.isDirectory) {
-                sender.sendMessage("Pack '$projectId' not found on disk; skipping.")
+                sender.sendMessage("Project '$projectId' not found on disk; skipping.")
                 continue
             }
             val hash = plugin.menuProvider.pushLocalProject(projectId, dir)
             if (hash != null) {
-                sender.sendMessage("Pushed pack '$projectId' to backend (hash=${hash.take(8)}…).")
+                sender.sendMessage("Pushed project '$projectId' to backend (hash=${hash.take(8)}…).")
             } else {
-                sender.sendMessage("Pack '$projectId': not connected to backend — push skipped.")
+                sender.sendMessage("Project '$projectId': not connected to backend — push skipped.")
             }
         }
     }

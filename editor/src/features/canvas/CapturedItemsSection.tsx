@@ -33,7 +33,7 @@ export function CapturedItemsSection({
   onPick?: (ref: string) => void;
 }) {
   const { t } = useTranslation();
-  const pack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
   const addCapturedItem = useAccountStore((s) => s.addCapturedItem);
   const removeCapturedItem = useAccountStore((s) => s.removeCapturedItem);
   const networkId = useNetworksStore((s) => s.activeId);
@@ -47,8 +47,8 @@ export function CapturedItemsSection({
     | { kind: "error"; code: string }
   >({ kind: "idle" });
 
-  if (!pack) return null;
-  const captured = pack.capturedItems ?? [];
+  if (!project) return null;
+  const captured = project.capturedItems ?? [];
 
   const load = async () => {
     if (!networkId || !serverId || !player.trim()) return;
@@ -153,11 +153,11 @@ function CapturedTile({
   onPick?: (ref: string) => void;
   onRemove: () => void;
 }) {
-  const pack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
   const setArmedMaterial = useUiStore((s) => s.setArmedMaterial);
   const armed = useUiStore((s) => s.armedMaterial === `item:${item.id}`);
   const ref = `item:${item.id}`;
-  const display = pack ? resolveDisplayRef(pack, ref) : { material: ref };
+  const display = project ? resolveDisplayRef(project, ref) : { material: ref };
   const materialUrl = useTextureUrl(display.material);
   const textureUrl = headPreviewUrl(display.head) ?? materialUrl;
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({

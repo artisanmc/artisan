@@ -179,7 +179,7 @@ describe("uiStore — canvasViewports", () => {
     expect(useUiStore.getState().canvasViewports).toEqual({});
   });
 
-  it("setCanvasViewport stocke par pack et roundtrip", () => {
+  it("setCanvasViewport stocke par project et roundtrip", () => {
     useUiStore.getState().setCanvasViewport("p1" as ProjectId, { x: 10, y: 20, scale: 2 });
     expect(useUiStore.getState().canvasViewports.p1).toEqual({ x: 10, y: 20, scale: 2 });
   });

@@ -37,8 +37,8 @@ interface LayerEditFormProps {
  */
 export function LayerEditForm({ projectId }: LayerEditFormProps) {
   const selectedKey = useUiStore((s) => s.selectedLayerKey);
-  const pack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
-  const menu = pack?.menus.find((m) => m.id === selectedKey?.menuId);
+  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  const menu = project?.menus.find((m) => m.id === selectedKey?.menuId);
   const layer =
     selectedKey && menu && selectedKey.index >= 0 && selectedKey.index < menu.title.length
       ? menu.title[selectedKey.index]
@@ -474,7 +474,7 @@ function PlainLayerForm({ projectId, menuId, layer }: PlainLayerFormProps) {
   return (
     <div className="flex flex-col gap-3 text-xs text-zinc-300">
       <div className="rounded border border-zinc-700 bg-zinc-900/60 px-2.5 py-2 text-[10px] text-zinc-400 leading-snug">
-        Titre vanilla — aucun resource pack requis. Le texte s'affiche avec la police MC par défaut.
+        Titre vanilla — aucun resource project requis. Le texte s'affiche avec la police MC par défaut.
         MiniMessage supporté (<code className="text-zinc-300">{"<gold>"}</code>,{" "}
         <code className="text-zinc-300">{"<bold>"}</code>, etc.).
       </div>

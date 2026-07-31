@@ -174,7 +174,7 @@ userBranchesRouter.post("/:id/projects/:projectId/commits", async (c) => {
   if (!branch) return c.json({ error: "branch_not_found" }, 404);
 
   const project = await getProject(projectId);
-  if (!project) return c.json({ error: "pack_not_found" }, 404);
+  if (!project) return c.json({ error: "project_not_found" }, 404);
 
   const files = JSON.parse(project.filesJson) as Record<string, string>;
 

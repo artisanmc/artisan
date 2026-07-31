@@ -24,12 +24,12 @@ export function NewMenuDialog({ projectId, open, position, onOpenChange }: NewMe
   const { t } = useTranslation();
 
   const existingIdsStr = useAccountStore((s) => {
-    const pack = s.account.projects.find((p) => p.id === projectId);
-    if (!pack) return "";
+    const project = s.account.projects.find((p) => p.id === projectId);
+    if (!project) return "";
     return [
-      ...pack.menus.map((m) => m.id),
-      ...pack.commands.map((c) => c.id),
-      ...pack.dialogs.map((d) => d.id),
+      ...project.menus.map((m) => m.id),
+      ...project.commands.map((c) => c.id),
+      ...project.dialogs.map((d) => d.id),
     ].join(",");
   });
   const existingIds = new Set(existingIdsStr ? existingIdsStr.split(",") : []);

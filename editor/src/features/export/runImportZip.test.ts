@@ -6,13 +6,13 @@ const MANIFEST =
   "schema: manifest/v1\nproject_id: shop\ndefault_lang: en\nlanguages: [en]\nfiles:\n  menus: [m]\n  commands: []\n";
 const MENU = 'schema: menu/v1\nid: m\ntitle: "Shop"\nsize: 27\nelements: []\n';
 
-type ImportFn = (input: { pack: unknown }) => string;
+type ImportFn = (input: { project: unknown }) => string;
 
 /** The Project handed to the store on the first (and only) import call. */
-function firstPack(fn: ReturnType<typeof vi.fn<ImportFn>>): { menus: unknown[] } {
+function firstProject(fn: ReturnType<typeof vi.fn<ImportFn>>): { menus: unknown[] } {
   const call = fn.mock.calls[0];
   if (!call) throw new Error("importProject was never called");
-  return call[0].pack as { menus: unknown[] };
+  return call[0].project as { menus: unknown[] };
 }
 
 describe("runImportZip", () => {
@@ -27,8 +27,8 @@ describe("runImportZip", () => {
 
     expect(res.newId).toBe("p_new");
     expect(importProject).toHaveBeenCalledTimes(1);
-    const pack = firstPack(importProject);
-    expect(pack.menus).toHaveLength(1);
+    const project = firstProject(importProject);
+    expect(project.menus).toHaveLength(1);
   });
 
   it("accepts a project directory zipped straight off the server", async () => {
@@ -40,8 +40,8 @@ describe("runImportZip", () => {
 
     await runImportZip(blob, importProject);
 
-    const pack = firstPack(importProject);
-    expect(pack.menus).toHaveLength(1);
+    const project = firstProject(importProject);
+    expect(project.menus).toHaveLength(1);
   });
 
   it("reports a legacy JSON export as not_a_zip rather than failing obscurely", async () => {

@@ -30,7 +30,7 @@ resourcePackPublicRouter.get("/:serverKeyId/:hashFile", async (c) => {
 });
 
 /**
- * Shared handler — rebuild the resource pack for `serverKeyId` and broadcast
+ * Shared handler — rebuild the resource project for `serverKeyId` and broadcast
  * the update. Called from the user-scoped route (cookie + membership, see
  * userNetworks.ts).
  */

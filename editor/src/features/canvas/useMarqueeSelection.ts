@@ -9,7 +9,7 @@ import { useSelectionStore } from "@/state/selectionStore";
 interface Args {
   stageRef: React.RefObject<Konva.Stage | null>;
   viewport: { x: number; y: number; scale: number };
-  pack: Project | undefined;
+  project: Project | undefined;
   layout: Record<string, { x: number; y: number }>;
   active: boolean;
 }
@@ -20,7 +20,7 @@ export interface MarqueeRectState {
   height: number;
 }
 
-export function useMarqueeSelection({ stageRef, viewport, pack, layout, active }: Args) {
+export function useMarqueeSelection({ stageRef, viewport, project, layout, active }: Args) {
   const [rect, setRect] = useState<MarqueeRectState | null>(null);
   const [start, setStart] = useState<{ x: number; y: number } | null>(null);
   const draggedRef = useRef(false);
@@ -58,9 +58,9 @@ export function useMarqueeSelection({ stageRef, viewport, pack, layout, active }
         return;
       }
       const boxes: Record<string, MarqueeRectState> = {};
-      if (pack) {
+      if (project) {
         for (const id of Object.keys(layout)) {
-          const b = nodeBox(pack, id, layout);
+          const b = nodeBox(project, id, layout);
           if (b) boxes[id] = b;
         }
       }
@@ -73,7 +73,7 @@ export function useMarqueeSelection({ stageRef, viewport, pack, layout, active }
       setRect(null);
       setStart(null);
     },
-    [active, rect, start, pack, layout],
+    [active, rect, start, project, layout],
   );
 
   // Bug 2: if the mouse is released outside the canvas, Konva's onMouseUp

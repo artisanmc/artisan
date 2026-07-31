@@ -79,14 +79,14 @@ describe("executeTool", () => {
     expect(miss.ok).toBe(false);
   });
 
-  it("list_dialogs returns the pack's dialogs (id + title)", () => {
+  it("list_dialogs returns the project's dialogs (id + title)", () => {
     const wc = new WorkingCopy([], {}, [{ id: "confirm", title: "Confirm purchase" }]);
     const r = executeTool("list_dialogs", {}, wc);
     expect(r.ok).toBe(true);
     expect(JSON.parse(r.content)).toEqual([{ id: "confirm", title: "Confirm purchase" }]);
   });
 
-  it("list_dialogs returns an empty list when the pack has no dialogs", () => {
+  it("list_dialogs returns an empty list when the project has no dialogs", () => {
     const r = executeTool("list_dialogs", {}, new WorkingCopy());
     expect(r.ok).toBe(true);
     expect(JSON.parse(r.content)).toEqual([]);

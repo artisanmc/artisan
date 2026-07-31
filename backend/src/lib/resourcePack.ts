@@ -49,7 +49,7 @@ export async function rebuildResourcePack(serverKeyId: string): Promise<PackInfo
   for (const p of boundProjects) {
     const rows = await db.select().from(assets).where(eq(assets.projectId, p.id));
     contribs.push({
-      packId: p.id,
+      projectId: p.id,
       glyphs: rows
         .filter((a) => a.type === "glyph" && a.codepoint !== null)
         .map((a) => ({ assetId: a.id, codepoint: a.codepoint! })),

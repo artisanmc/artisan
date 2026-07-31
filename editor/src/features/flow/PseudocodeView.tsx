@@ -1149,7 +1149,7 @@ function summarizeConditions(
 
 // ────────────────────────────────────────────────────────────────────────────
 // Dialog button step pseudocode — mirrors CommandStepPseudocode but scoped
-// to a dialog button's `steps` (`pack.dialogs[d].buttons[b].steps`).
+// to a dialog button's `steps` (`project.dialogs[d].buttons[b].steps`).
 // ────────────────────────────────────────────────────────────────────────────
 
 interface DialogButtonStepPseudocodeProps {

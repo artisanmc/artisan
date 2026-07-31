@@ -23,7 +23,7 @@ vi.mock("./deriveEdges", () => ({
 }));
 
 const PID = "p1" as ProjectId;
-function pack(): Project {
+function project(): Project {
   return {
     id: PID, name: "p", source: "user_created", createdAt: "", updatedAt: "",
     menus: [
@@ -40,13 +40,13 @@ describe("GhostChips", () => {
   beforeEach(() => {
     mockEdges = [{ id: "m1->shop", source: "m1", target: "shop", triggers: [] }];
     useAccountStore.setState({
-      account: { id: "a" as any, projects: [pack()], projectOrder: [PID] },
+      account: { id: "a" as any, projects: [project()], projectOrder: [PID] },
     } as any);
   });
 
   it("rend un chip pour une cible hors-planche depuis un nœud sur la planche", () => {
     const layout = { m1: { x: 0, y: 0 } };
-    render(<GhostChips pack={pack()} layout={layout} projectId={PID} />);
+    render(<GhostChips project={project()} layout={layout} projectId={PID} />);
     expect(screen.getByTestId("konva-group").getAttribute("data-name")).toBe(
       "ghostchip:m1->shop",
     );
@@ -55,7 +55,7 @@ describe("GhostChips", () => {
   it("le clic sur le chip ajoute la cible à la planche", () => {
     const spy = vi.spyOn(useAccountStore.getState(), "addToBoard");
     const layout = { m1: { x: 0, y: 0 } };
-    render(<GhostChips pack={pack()} layout={layout} projectId={PID} />);
+    render(<GhostChips project={project()} layout={layout} projectId={PID} />);
     fireEvent.click(screen.getByTestId("konva-group"));
     expect(spy).toHaveBeenCalledWith(
       expect.objectContaining({ projectId: PID, nodeId: "shop" }),
@@ -68,7 +68,7 @@ describe("GhostChips", () => {
       { id: "m1->bank", source: "m1", target: "bank", triggers: [] },
     ];
     const layout = { m1: { x: 0, y: 0 } };
-    render(<GhostChips pack={pack()} layout={layout} projectId={PID} />);
+    render(<GhostChips project={project()} layout={layout} projectId={PID} />);
     const names = screen
       .getAllByTestId("konva-group")
       .map((g) => g.getAttribute("data-name"));

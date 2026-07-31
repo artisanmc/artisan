@@ -176,7 +176,7 @@ const dailyQuestsProject = (): Project => {
   return {
     id: pId,
     name: "Daily Quests",
-    description: "Imported pack from @creator-x",
+    description: "Imported project from @creator-x",
     source: "imported",
     sourceProjectId: projectId("p_remote_daily"),
     sourceVersion: "2.1.0",

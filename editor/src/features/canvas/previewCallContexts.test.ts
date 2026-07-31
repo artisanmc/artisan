@@ -14,7 +14,7 @@ const CATS = [
   { id: "food", name: "Nourriture" },
 ];
 
-const pack = (): Project =>
+const project = (): Project =>
   ({
     id: "p1",
     name: "p",
@@ -87,7 +87,7 @@ const pack = (): Project =>
 
 describe("findPreviewCallContexts", () => {
   it("yields one coherent candidate per caller row, all args interpolated together", () => {
-    const p = pack();
+    const p = project();
     const target = p.menus.find((m) => m.id === "shop_category") as Menu;
     const contexts = findPreviewCallContexts(target, p, undefined, "fr");
     expect(contexts).toEqual([
@@ -105,7 +105,7 @@ describe("findPreviewCallContexts", () => {
   });
 
   it("whole-token context values pass the raw caller row object", () => {
-    const p = pack();
+    const p = project();
     // Rewrite the caller's context to the whole-model style: cat: "{cat}".
     const el = p.menus[0]!.layers[0]!.elements[0]!;
     const action = el.appearances[0]!.click!.left!.steps[0]! as {
@@ -123,7 +123,7 @@ describe("findPreviewCallContexts", () => {
   });
 
   it("returns nothing for a menu no one opens with context", () => {
-    const p = pack();
+    const p = project();
     const target = p.menus.find((m) => m.id === "shop_main") as Menu;
     expect(findPreviewCallContexts(target, p, undefined, "fr")).toEqual([]);
   });

@@ -54,7 +54,7 @@ describe("Edges", () => {
   });
 
   it("renders one arrow per edge with distinct anchors for A->B / B->A", () => {
-    render(<Edges pack={getProject()} layout={layout} />);
+    render(<Edges project={getProject()} layout={layout} />);
     const arrows = screen.getAllByTestId("konva-arrow");
     expect(arrows).toHaveLength(2);
     const p1 = JSON.parse(arrows[0]!.getAttribute("data-points")!) as number[];
@@ -65,7 +65,7 @@ describe("Edges", () => {
 
   it("click selects the edge, clears node selection, shows two handles", () => {
     useSelectionStore.getState().set(["m_about"]);
-    render(<Edges pack={getProject()} layout={layout} />);
+    render(<Edges project={getProject()} layout={layout} />);
     fireEvent.click(screen.getAllByTestId("konva-arrow")[0]!);
     expect(useEdgeSelectionStore.getState().edgeId).toBe("m_shop_main->m_profile");
     expect(useSelectionStore.getState().ids.size).toBe(0);
@@ -79,7 +79,7 @@ describe("Edges", () => {
       end: "from",
       anchor: { side: "top", t: 0.2 },
     });
-    render(<Edges pack={getProject()} layout={layout} />);
+    render(<Edges project={getProject()} layout={layout} />);
     fireEvent.click(screen.getAllByTestId("konva-arrow")[0]!);
     fireEvent.doubleClick(screen.getAllByTestId("konva-circle")[0]!);
     expect(getProject().canvasEdges?.["m_shop_main->m_profile"]).toBeUndefined();

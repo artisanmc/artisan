@@ -94,11 +94,11 @@ export function ConfigScreenPage({
       return;
     }
     const files = [...res.files, ...(beside.ok ? beside.files : [])];
-    const pack = buildScratchProject(screen, files, models);
-    useAccountStore.getState().upsertScratchProject(pack);
+    const project = buildScratchProject(screen, files, models);
+    useAccountStore.getState().upsertScratchProject(project);
     setDeclaredModels(models);
     setBaselineEmit(
-      new Map(diffScratchForWrite(pack, screen, files).files.map((f) => [f.path, f.content])),
+      new Map(diffScratchForWrite(project, screen, files).files.map((f) => [f.path, f.content])),
     );
     setOriginal(files);
     setDraft(null);
@@ -280,9 +280,9 @@ export function ConfigScreenPage({
       {phase === "ready" && mode === "form" && scratch && (
         source ? (
           source.shape === "table" ? (
-            <SourceRowsTable projectId={scratch.id} pack={scratch} source={source} />
+            <SourceRowsTable projectId={scratch.id} project={scratch} source={source} />
           ) : (
-            <ConfigValueForm projectId={scratch.id} pack={scratch} source={source} />
+            <ConfigValueForm projectId={scratch.id} project={scratch} source={source} />
           )
         ) : (
           <EmptyState title={t("screens.emptyTable")} hint={screen.table} />

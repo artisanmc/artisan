@@ -13,8 +13,8 @@ vi.mock("@tanstack/react-router", async () => {
 });
 
 describe("ProjectTopBarControls", () => {
-  it("renders the lang switcher, undo/redo, and deploy when a pack is provided", () => {
-    const pack = {
+  it("renders the lang switcher, undo/redo, and deploy when a project is provided", () => {
+    const project = {
       id: "p1",
       name: "Test",
       defaultLang: "en",
@@ -24,7 +24,7 @@ describe("ProjectTopBarControls", () => {
       dialogs: [],
       assets: [],
     } as any;
-    render(<ProjectTopBarControls pack={pack} projectId={"p1" as any} />);
+    render(<ProjectTopBarControls project={project} projectId={"p1" as any} />);
     // Make assertions broad — we just want to confirm the trio is in the DOM.
     // Titles may be in English or French depending on test locale.
     // Use getAllByTitle to handle the case where "Annuler" also matches the Revert button.
@@ -34,7 +34,7 @@ describe("ProjectTopBarControls", () => {
   });
 
   it("renders the workspace view buttons with a missing-translations badge", () => {
-    const pack = {
+    const project = {
       id: "p1",
       name: "Test",
       defaultLang: "en",
@@ -46,7 +46,7 @@ describe("ProjectTopBarControls", () => {
       dialogs: [],
       assets: [],
     } as any;
-    render(<ProjectTopBarControls pack={pack} projectId={"p1" as any} />);
+    render(<ProjectTopBarControls project={project} projectId={"p1" as any} />);
     expect(screen.getByTestId("open-view-translations")).toBeInTheDocument();
     expect(screen.getByTestId("open-view-data-sources")).toBeInTheDocument();
     expect(screen.getByTestId("open-view-history")).toBeInTheDocument();

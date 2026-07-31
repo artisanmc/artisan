@@ -4,14 +4,14 @@ import java.io.File
 import java.security.MessageDigest
 
 /**
- * THE canonical pack hash — one algorithm, one home. Computed over a relPath-keyed
+ * THE canonical project hash — one algorithm, one home. Computed over a relPath-keyed
  * file map: keys sorted by native byte order (Kotlin `String` compare, NEVER
  * locale-aware), each entry emitted as `<relPath>\n<content>\n`, concatenated,
  * SHA-256 lowercase hex. Empty map => "" (universal "no content" sentinel).
  *
  * This MUST stay byte-identical to the backend's `hashUtils.computeBundleHash`.
  * The two implementations live in different languages, so the invariant is guarded
- * by a shared vector: `testdata/pack-hash-conformance.json`, asserted by
+ * by a shared vector: `testdata/project-hash-conformance.json`, asserted by
  * `BundleHashConformanceTest` (plugin) AND `hashUtils.test.ts` (backend). Disk sync,
  * `local_push`, and bundle upload all route through here — no second copy. See
  * CLAUDE.md § Invariants critiques.
@@ -51,7 +51,7 @@ object BundleHasher {
 
     /** relPaths whose first segment starts with `.artisan` are sync/editor
      *  metadata — excluded from the hash and from uploads (mirrored in the
-     *  backend's hashUtils; locked by pack-hash-conformance.json). */
+     *  backend's hashUtils; locked by project-hash-conformance.json). */
     fun isArtisanMeta(relPath: String): Boolean =
         relPath.substringBefore('/').startsWith(".artisan")
 

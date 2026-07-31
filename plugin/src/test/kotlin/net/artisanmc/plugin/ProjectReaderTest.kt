@@ -9,11 +9,11 @@ import org.junit.jupiter.api.assertThrows
 
 class ProjectReaderTest {
 
-    private fun writeTempPack(): File {
+    private fun writeTempProject(): File {
         val root = java.nio.file.Files.createTempDirectory("artisan_packs_").toFile()
-        val packDir = File(root, "p_test").apply { mkdirs() }
+        val projectDir = File(root, "p_test").apply { mkdirs() }
 
-        File(packDir, "manifest.yaml").writeText("""
+        File(projectDir, "manifest.yaml").writeText("""
             schema: manifest/v1
             project_id: p_test
             default_lang: en
@@ -26,8 +26,8 @@ class ProjectReaderTest {
               commands: []
         """.trimIndent())
 
-        File(packDir, "menus").mkdirs()
-        File(packDir, "menus/m_shop.yaml").writeText("""
+        File(projectDir, "menus").mkdirs()
+        File(projectDir, "menus/m_shop.yaml").writeText("""
             schema: menu/v1
             id: m_shop
             title: "{i18n:menus.m_shop.title}"
@@ -38,9 +38,9 @@ class ProjectReaderTest {
                 elements: []
         """.trimIndent())
 
-        File(packDir, "lang").mkdirs()
-        File(packDir, "lang/en.yaml").writeText("menus.m_shop.title: Shop\n")
-        File(packDir, "lang/fr.yaml").writeText("menus.m_shop.title: Boutique\n")
+        File(projectDir, "lang").mkdirs()
+        File(projectDir, "lang/en.yaml").writeText("menus.m_shop.title: Shop\n")
+        File(projectDir, "lang/fr.yaml").writeText("menus.m_shop.title: Boutique\n")
 
         return root
     }
@@ -52,10 +52,10 @@ class ProjectReaderTest {
      * and never writes one again, but a server whose disk still holds one must
      * keep working until it is re-saved, so the reader stays compatible.
      */
-    private fun writeTemplatePack(): File {
+    private fun writeTemplateProject(): File {
         val root = java.nio.file.Files.createTempDirectory("artisan_tpl_").toFile()
-        val packDir = File(root, "p_tpl").apply { mkdirs() }
-        File(packDir, "manifest.yaml").writeText("""
+        val projectDir = File(root, "p_tpl").apply { mkdirs() }
+        File(projectDir, "manifest.yaml").writeText("""
             schema: manifest/v1
             project_id: p_tpl
             default_lang: en
@@ -64,8 +64,8 @@ class ProjectReaderTest {
               menus: [shop]
               templates: [tpl_view]
         """.trimIndent())
-        File(packDir, "templates").mkdirs()
-        File(packDir, "templates/tpl_view.yaml").writeText("""
+        File(projectDir, "templates").mkdirs()
+        File(projectDir, "templates/tpl_view.yaml").writeText("""
             schema: template/v1
             id: tpl_view
             source: "boutique:items"
@@ -75,8 +75,8 @@ class ProjectReaderTest {
               - material: "{row.icon}"
                 title: "Item {row.name}"
         """.trimIndent())
-        File(packDir, "menus").mkdirs()
-        File(packDir, "menus/shop.yaml").writeText("""
+        File(projectDir, "menus").mkdirs()
+        File(projectDir, "menus/shop.yaml").writeText("""
             schema: menu/v1
             id: shop
             title: []
@@ -97,7 +97,7 @@ class ProjectReaderTest {
 
     @Test
     fun `legacy template refs still resolve into effective elements at load`() {
-        val bundle = ProjectReader(writeTemplatePack()).readAll().single()
+        val bundle = ProjectReader(writeTemplateProject()).readAll().single()
         val menu = bundle.menus.single()
         val grid = menu.yaml.allElements.first { it.id == "grid" }
         val pins = menu.yaml.allElements.first { it.id == "pins" }
@@ -112,7 +112,7 @@ class ProjectReaderTest {
 
     @Test
     fun `dangling legacy template ref keeps local fields (non-hermetic)`() {
-        val root = writeTemplatePack()
+        val root = writeTemplateProject()
         File(root, "p_tpl/templates/tpl_view.yaml").delete()
         val bundle = ProjectReader(root).readAll().single()
         val grid = bundle.menus.single().yaml.allElements.first { it.id == "grid" }
@@ -121,7 +121,7 @@ class ProjectReaderTest {
 
     @Test
     fun `reads manifest and resolves menu title for default lang`() {
-        val projectsRoot = writeTempPack()
+        val projectsRoot = writeTempProject()
         val bundles = ProjectReader(projectsRoot).readAll()
 
         assertEquals(1, bundles.size)
@@ -136,14 +136,14 @@ class ProjectReaderTest {
 
     @Test
     fun `resolveTitle for non-default lang`() {
-        val projectsRoot = writeTempPack()
+        val projectsRoot = writeTempProject()
         val bundle = ProjectReader(projectsRoot).readAll().first()
         assertEquals("Boutique", bundle.menus.first().resolveTitle("fr"))
     }
 
     @Test
     fun `resolves a title from a NESTED lang file (canonical on-disk form)`() {
-        val projectsRoot = writeTempPack()
+        val projectsRoot = writeTempProject()
         File(projectsRoot, "p_test/lang/en.yaml").writeText(
             """
             menus:
@@ -157,7 +157,7 @@ class ProjectReaderTest {
 
     @Test
     fun `a broken lang file degrades to empty translations, the project still loads`() {
-        val projectsRoot = writeTempPack()
+        val projectsRoot = writeTempProject()
         // Unterminated flow sequence — a plausible hand-edit typo.
         File(projectsRoot, "p_test/lang/en.yaml").writeText("menus: [oops\n")
 
@@ -174,7 +174,7 @@ class ProjectReaderTest {
 
     @Test
     fun `a lang file whose root is not a mapping degrades the same way`() {
-        val projectsRoot = writeTempPack()
+        val projectsRoot = writeTempProject()
         File(projectsRoot, "p_test/lang/en.yaml").writeText("- a\n- b\n")
 
         val bundle = ProjectReader(projectsRoot).readAll().first()
@@ -186,7 +186,7 @@ class ProjectReaderTest {
 
     @Test
     fun `resolveTitle returns raw tag when lang file absent`() {
-        val projectsRoot = writeTempPack()
+        val projectsRoot = writeTempProject()
         val bundle = ProjectReader(projectsRoot).readAll().first()
         assertEquals("{i18n:menus.m_shop.title}", bundle.menus.first().resolveTitle("de"))
     }
@@ -194,9 +194,9 @@ class ProjectReaderTest {
     @Test
     fun `reads dialogs from manifest`() {
         val root = java.nio.file.Files.createTempDirectory("artisan_dial_").toFile()
-        val packDir = File(root, "p_dial").apply { mkdirs() }
+        val projectDir = File(root, "p_dial").apply { mkdirs() }
 
-        File(packDir, "manifest.yaml").writeText("""
+        File(projectDir, "manifest.yaml").writeText("""
             schema: manifest/v1
             project_id: p_dial
             default_lang: en
@@ -209,8 +209,8 @@ class ProjectReaderTest {
                 - d_test
         """.trimIndent())
 
-        File(packDir, "dialogs").mkdirs()
-        File(packDir, "dialogs/d_test.yaml").writeText("""
+        File(projectDir, "dialogs").mkdirs()
+        File(projectDir, "dialogs/d_test.yaml").writeText("""
             schema: dialog/v1
             id: d_test
             title: Test Dialog
@@ -220,8 +220,8 @@ class ProjectReaderTest {
                 actions: close_dialog
         """.trimIndent())
 
-        File(packDir, "lang").mkdirs()
-        File(packDir, "lang/en.yaml").writeText("{}\n")
+        File(projectDir, "lang").mkdirs()
+        File(projectDir, "lang/en.yaml").writeText("{}\n")
 
         val bundles = ProjectReader(root).readAll()
         assertEquals(1, bundles.size)
@@ -234,8 +234,8 @@ class ProjectReaderTest {
     @Test
     fun `accepts menu YAML with explicit schema field menu_v1`() {
         val root = java.nio.file.Files.createTempDirectory("artisan_schema_ok_").toFile()
-        val packDir = File(root, "test_pack").apply { mkdirs() }
-        File(packDir, "manifest.yaml").writeText("""
+        val projectDir = File(root, "test_pack").apply { mkdirs() }
+        File(projectDir, "manifest.yaml").writeText("""
             schema: "manifest/v1"
             project_id: test_pack
             default_lang: en
@@ -245,26 +245,26 @@ class ProjectReaderTest {
               commands: []
               dialogs: []
         """.trimIndent())
-        File(packDir, "menus").mkdirs()
-        File(packDir, "menus/test.yaml").writeText("""
+        File(projectDir, "menus").mkdirs()
+        File(projectDir, "menus/test.yaml").writeText("""
             schema: "menu/v1"
             id: test
             size: 27
             layers: []
         """.trimIndent())
-        File(packDir, "lang").mkdirs()
-        File(packDir, "lang/en.yaml").writeText("{}")
+        File(projectDir, "lang").mkdirs()
+        File(projectDir, "lang/en.yaml").writeText("{}")
 
-        val packs = ProjectReader(root).readAll()
-        assertEquals(1, packs.size)
-        assertEquals("test_pack", packs[0].projectId)
+        val projects = ProjectReader(root).readAll()
+        assertEquals(1, projects.size)
+        assertEquals("test_pack", projects[0].projectId)
     }
 
     @Test
     fun `accepts menu YAML without schema field for backward compat`() {
         val root = java.nio.file.Files.createTempDirectory("artisan_schema_legacy_").toFile()
-        val packDir = File(root, "legacy_pack").apply { mkdirs() }
-        File(packDir, "manifest.yaml").writeText("""
+        val projectDir = File(root, "legacy_pack").apply { mkdirs() }
+        File(projectDir, "manifest.yaml").writeText("""
             project_id: legacy_pack
             default_lang: en
             languages: ["en"]
@@ -273,25 +273,25 @@ class ProjectReaderTest {
               commands: []
               dialogs: []
         """.trimIndent())
-        File(packDir, "menus").mkdirs()
-        File(packDir, "menus/legacy.yaml").writeText("""
+        File(projectDir, "menus").mkdirs()
+        File(projectDir, "menus/legacy.yaml").writeText("""
             id: legacy
             size: 27
             layers: []
         """.trimIndent())
-        File(packDir, "lang").mkdirs()
-        File(packDir, "lang/en.yaml").writeText("{}")
+        File(projectDir, "lang").mkdirs()
+        File(projectDir, "lang/en.yaml").writeText("{}")
 
-        val packs = ProjectReader(root).readAll()
-        assertEquals(1, packs.size)
-        assertEquals("legacy_pack", packs[0].projectId)
+        val projects = ProjectReader(root).readAll()
+        assertEquals(1, projects.size)
+        assertEquals("legacy_pack", projects[0].projectId)
     }
 
     @Test
     fun `rejects menu YAML with unsupported schema version`() {
         val root = java.nio.file.Files.createTempDirectory("artisan_schema_bad_").toFile()
-        val packDir = File(root, "future_pack").apply { mkdirs() }
-        File(packDir, "manifest.yaml").writeText("""
+        val projectDir = File(root, "future_pack").apply { mkdirs() }
+        File(projectDir, "manifest.yaml").writeText("""
             project_id: future_pack
             default_lang: en
             languages: ["en"]
@@ -300,15 +300,15 @@ class ProjectReaderTest {
               commands: []
               dialogs: []
         """.trimIndent())
-        File(packDir, "menus").mkdirs()
-        File(packDir, "menus/future.yaml").writeText("""
+        File(projectDir, "menus").mkdirs()
+        File(projectDir, "menus/future.yaml").writeText("""
             schema: "menu/v99"
             id: future
             size: 27
             layers: []
         """.trimIndent())
-        File(packDir, "lang").mkdirs()
-        File(packDir, "lang/en.yaml").writeText("{}")
+        File(projectDir, "lang").mkdirs()
+        File(projectDir, "lang/en.yaml").writeText("{}")
 
         assertThrows<IllegalArgumentException> {
             ProjectReader(root).readAll()
@@ -318,9 +318,9 @@ class ProjectReaderTest {
     @Test
     fun `missing dialog file is skipped gracefully`() {
         val root = java.nio.file.Files.createTempDirectory("artisan_dial_skip_").toFile()
-        val packDir = File(root, "p_skip").apply { mkdirs() }
+        val projectDir = File(root, "p_skip").apply { mkdirs() }
 
-        File(packDir, "manifest.yaml").writeText("""
+        File(projectDir, "manifest.yaml").writeText("""
             schema: manifest/v1
             project_id: p_skip
             default_lang: en
@@ -332,8 +332,8 @@ class ProjectReaderTest {
                 - d_ghost
         """.trimIndent())
 
-        File(packDir, "lang").mkdirs()
-        File(packDir, "lang/en.yaml").writeText("{}\n")
+        File(projectDir, "lang").mkdirs()
+        File(projectDir, "lang/en.yaml").writeText("{}\n")
 
         val bundles = ProjectReader(root).readAll()
         assertEquals(0, bundles.first().dialogs.size)
@@ -342,8 +342,8 @@ class ProjectReaderTest {
     @Test
     fun `an unparseable menu is skipped, the rest of the project still loads`() {
         val root = java.nio.file.Files.createTempDirectory("artisan_tol_").toFile()
-        val packDir = File(root, "p_tol").apply { mkdirs() }
-        File(packDir, "manifest.yaml").writeText("""
+        val projectDir = File(root, "p_tol").apply { mkdirs() }
+        File(projectDir, "manifest.yaml").writeText("""
             schema: manifest/v1
             project_id: p_tol
             default_lang: en
@@ -354,8 +354,8 @@ class ProjectReaderTest {
                 - m_bad
               commands: []
         """.trimIndent())
-        File(packDir, "menus").mkdirs()
-        File(packDir, "menus/m_ok.yaml").writeText("""
+        File(projectDir, "menus").mkdirs()
+        File(projectDir, "menus/m_ok.yaml").writeText("""
             schema: menu/v1
             id: m_ok
             title: "Shop"
@@ -368,15 +368,15 @@ class ProjectReaderTest {
         // Malformed content (here a String where `size` expects an Int; stands in
         // for e.g. a stale pre-Action-DSL menu whose steps are still an array).
         // A parse error must skip THIS file, not fail the whole reload + enable.
-        File(packDir, "menus/m_bad.yaml").writeText("""
+        File(projectDir, "menus/m_bad.yaml").writeText("""
             schema: menu/v1
             id: m_bad
             title: "Bad"
             size: "not-a-number"
             layers: []
         """.trimIndent())
-        File(packDir, "lang").mkdirs()
-        File(packDir, "lang/en.yaml").writeText("{}\n")
+        File(projectDir, "lang").mkdirs()
+        File(projectDir, "lang/en.yaml").writeText("{}\n")
 
         val bundles = ProjectReader(root).readAll()
         assertEquals(1, bundles.size)

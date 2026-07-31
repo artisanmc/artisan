@@ -110,23 +110,23 @@ describe("bundle upload/download", () => {
     const app = buildApp();
     const { key, id: skId, networkId } = await seedServerKey("c3-test");
 
-    // Create pack via DB helper (binding now implicit via serverKeyId column)
-    const pack = await createProject({ networkId, serverKeyId: skId, name: "c3-pack", id: "p_c3" });
+    // Create project via DB helper (binding now implicit via serverKeyId column)
+    const project = await createProject({ networkId, serverKeyId: skId, name: "c3-project", id: "p_c3" });
 
     // Add a second commit with concrete files and advance main head
     const files = { "menus/shop.yaml": "id: shop\nsize: 27\n" };
-    const branch = await getBranch(pack.id, "main");
+    const branch = await getBranch(project.id, "main");
     const commit2 = await createCommit({
-      projectId: pack.id,
+      projectId: project.id,
       parentId: branch!.headCommitId,
       files,
       editor: null,
       authorUserId: null,
       message: "C3 test commit",
     });
-    await advanceBranchHead(pack.id, "main", commit2.id);
+    await advanceBranchHead(project.id, "main", commit2.id);
 
-    const res = await app.request(`/api/v1/bundles/${pack.id}`, {
+    const res = await app.request(`/api/v1/bundles/${project.id}`, {
       headers: { "Authorization": `Bearer ${key}` },
     });
     expect(res.status).toBe(200);
@@ -136,7 +136,7 @@ describe("bundle upload/download", () => {
     expect(body.files).toEqual(files);
   });
 
-  test("GET returns 404 Not bound when server key has no binding for pack", async () => {
+  test("GET returns 404 Not bound when server key has no binding for project", async () => {
     const app = buildApp();
     const { key } = await seedServerKey("no-bind-test");
 
@@ -148,11 +148,11 @@ describe("bundle upload/download", () => {
     expect(body.error).toBe("Not bound");
   });
 
-  test("second POST by same server key reuses existing pack (no duplicate binding)", async () => {
+  test("second POST by same server key reuses existing project (no duplicate binding)", async () => {
     const app = buildApp();
     const { key, id: serverKeyId } = await seedServerKey("reuse-test");
 
-    // First push — creates pack + binding
+    // First push — creates project + binding
     const res1 = await app.request("/api/v1/bundles/p_reuse", {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
@@ -160,7 +160,7 @@ describe("bundle upload/download", () => {
     });
     expect(res1.status).toBe(200);
 
-    // Second push — pack already exists, should update content not fail
+    // Second push — project already exists, should update content not fail
     const updatedFiles = {
       "plugins/Artisan/projects/p_reuse/manifest.yaml": "schema: manifest/v1\nproject_id: p_reuse\n",
       "plugins/Artisan/projects/p_reuse/menus/shop.yaml": "id: shop\nsize: 54\n",
@@ -172,9 +172,9 @@ describe("bundle upload/download", () => {
     });
     expect(res2.status).toBe(200);
 
-    // Only one pack row should exist (no duplicate created on second POST)
-    const packRows = await db.select().from(projects).where(eq(projects.id, "p_reuse"));
-    expect(packRows.length).toBe(1);
+    // Only one project row should exist (no duplicate created on second POST)
+    const projectRows = await db.select().from(projects).where(eq(projects.id, "p_reuse"));
+    expect(projectRows.length).toBe(1);
 
     // GET serves branch head commit (initial empty commit) — NOT the WIP files from POST.
     const getRes = await app.request("/api/v1/bundles/p_reuse", {

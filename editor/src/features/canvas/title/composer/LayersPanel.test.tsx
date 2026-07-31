@@ -134,7 +134,7 @@ describe("LayersPanel — body", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders nothing when the menuId doesn't resolve in the pack", () => {
+  it("renders nothing when the menuId doesn't resolve in the project", () => {
     const { container } = render(
       <LayersPanel projectId={PACK_ID} menuId={"missing_menu" as MenuId} />,
     );
@@ -185,8 +185,8 @@ describe("LayersPanel — AddLayerControls wiring", () => {
 
     fireEvent.click(screen.getByTestId("add-layer-text"));
 
-    const pack = useAccountStore.getState().account.projects[0]!;
-    const title = pack.menus[0]!.title;
+    const project = useAccountStore.getState().account.projects[0]!;
+    const title = project.menus[0]!.title;
     expect(title).toHaveLength(1);
     expect(title[0]!.kind).toBe("text");
     // Selection moved to the new layer
@@ -195,7 +195,7 @@ describe("LayersPanel — AddLayerControls wiring", () => {
     // exists yet in i18nKeys for that key (empty value).
     const lt = (title[0] as Extract<MenuTitleLayer, { kind: "text" }>).value;
     expect(typeof lt.key).toBe("string");
-    expect(pack.i18nKeys[lt.key]).toBeUndefined();
+    expect(project.i18nKeys[lt.key]).toBeUndefined();
   });
 });
 
@@ -268,9 +268,9 @@ describe("LayersPanel — cross-menu drag-to-attach", () => {
     dispatchWindowPointer("pointermove", 220, 50);
     dispatchWindowPointer("pointerup", 220, 50);
 
-    const pack = useAccountStore.getState().account.projects[0]!;
-    const targetMenu = pack.menus.find((m) => m.id === MENU_ID)!;
-    const otherMenu = pack.menus.find((m) => m.id === OTHER_MENU_ID)!;
+    const project = useAccountStore.getState().account.projects[0]!;
+    const targetMenu = project.menus.find((m) => m.id === MENU_ID)!;
+    const otherMenu = project.menus.find((m) => m.id === OTHER_MENU_ID)!;
     expect(targetMenu.title).toHaveLength(1);
     expect(otherMenu.title).toHaveLength(0);
 
@@ -301,8 +301,8 @@ describe("LayersPanel — cross-menu drag-to-attach", () => {
     dispatchWindowPointer("pointermove", 9000, 9000);
     dispatchWindowPointer("pointerup", 9000, 9000);
 
-    const pack = useAccountStore.getState().account.projects[0]!;
-    const targetMenu = pack.menus.find((m) => m.id === MENU_ID)!;
+    const project = useAccountStore.getState().account.projects[0]!;
+    const targetMenu = project.menus.find((m) => m.id === MENU_ID)!;
     // Fallback path → MENU_ID gets the new layer at default (0, 0) coords
     // (image kind default).
     expect(targetMenu.title).toHaveLength(1);
@@ -322,8 +322,8 @@ describe("LayersPanel — cross-menu drag-to-attach", () => {
     dispatchWindowPointer("pointermove", 220, 50);
     dispatchWindowPointer("pointerup", 220, 50);
 
-    const pack = useAccountStore.getState().account.projects[0]!;
-    const targetMenu = pack.menus.find((m) => m.id === MENU_ID)!;
+    const project = useAccountStore.getState().account.projects[0]!;
+    const targetMenu = project.menus.find((m) => m.id === MENU_ID)!;
     expect(targetMenu.title).toHaveLength(1);
     const layer = targetMenu.title[0]!;
     expect(layer.kind).toBe("text");

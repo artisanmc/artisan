@@ -99,7 +99,7 @@ const makeProject = (overrides: Partial<Project> = {}): Project =>
 
 describe("rekeyMenu", () => {
   it("renames menu title key to semantic key", () => {
-    const pack = makeProject({ i18nKeys: { lt_abc: { en: "Shop" } } as Project["i18nKeys"] });
+    const project = makeProject({ i18nKeys: { lt_abc: { en: "Shop" } } as Project["i18nKeys"] });
     const titleLayer: MenuTitleLayer = {
       kind: "text",
       value: { key: "lt_abc" as I18nKey },
@@ -108,23 +108,23 @@ describe("rekeyMenu", () => {
     };
     const menu: Menu = {
       id: menuId("shop_main"),
-      projectId: pack.id,
+      projectId: project.id,
       rows: 3,
       title: [titleLayer],
       layers: [],
     };
 
-    rekeyMenu(pack, menu);
+    rekeyMenu(project, menu);
 
     const first = menu.title[0];
     expect(first?.kind).toBe("text");
     if (first?.kind === "text") expect(first.value.key).toBe("menus.shop_main.title");
-    expect(pack.i18nKeys["menus.shop_main.title" as I18nKey]).toEqual({ en: "Shop" });
-    expect(pack.i18nKeys["lt_abc" as I18nKey]).toBeUndefined();
+    expect(project.i18nKeys["menus.shop_main.title" as I18nKey]).toEqual({ en: "Shop" });
+    expect(project.i18nKeys["lt_abc" as I18nKey]).toBeUndefined();
   });
 
   it("renames element title and lore keys", () => {
-    const pack = makeProject({
+    const project = makeProject({
       i18nKeys: {
         lt_title: { en: "Buy" },
         lt_lore: { en: "Click to buy" },
@@ -132,7 +132,7 @@ describe("rekeyMenu", () => {
     });
     const menu: Menu = {
       id: menuId("shop"),
-      projectId: pack.id,
+      projectId: project.id,
       rows: 3,
       title: [],
       layers: [
@@ -155,41 +155,41 @@ describe("rekeyMenu", () => {
       ],
     };
 
-    rekeyMenu(pack, menu);
+    rekeyMenu(project, menu);
 
     const el = menu.layers[0]!.elements[0]!;
     const app = el.appearances[0]!;
     expect(app.title?.key).toBe("menus.shop.elements.btn_buy.default.title");
     expect(app.lore?.key).toBe("menus.shop.elements.btn_buy.default.lore");
-    expect(pack.i18nKeys["lt_title" as I18nKey]).toBeUndefined();
-    expect(pack.i18nKeys["lt_lore" as I18nKey]).toBeUndefined();
+    expect(project.i18nKeys["lt_title" as I18nKey]).toBeUndefined();
+    expect(project.i18nKeys["lt_lore" as I18nKey]).toBeUndefined();
   });
 
   it("is idempotent when key is already semantic", () => {
     const semanticKey = "menus.shop_main.title" as I18nKey;
-    const pack = makeProject({ i18nKeys: { [semanticKey]: { en: "Shop" } } as Project["i18nKeys"] });
+    const project = makeProject({ i18nKeys: { [semanticKey]: { en: "Shop" } } as Project["i18nKeys"] });
     const titleLayer: MenuTitleLayer = { kind: "text", value: { key: semanticKey }, x: 8, y: 5 };
     const menu: Menu = {
       id: menuId("shop_main"),
-      projectId: pack.id,
+      projectId: project.id,
       rows: 3,
       title: [titleLayer],
       layers: [],
     };
 
-    rekeyMenu(pack, menu);
+    rekeyMenu(project, menu);
 
     const first = menu.title[0];
     expect(first?.kind).toBe("text");
     if (first?.kind === "text") expect(first.value.key).toBe(semanticKey);
-    expect(pack.i18nKeys[semanticKey]).toEqual({ en: "Shop" });
+    expect(project.i18nKeys[semanticKey]).toEqual({ en: "Shop" });
   });
 
   it("renames send_message keys in click handlers", () => {
-    const pack = makeProject({ i18nKeys: { lt_msg: { en: "Hello!" } } as Project["i18nKeys"] });
+    const project = makeProject({ i18nKeys: { lt_msg: { en: "Hello!" } } as Project["i18nKeys"] });
     const menu: Menu = {
       id: menuId("shop"),
-      projectId: pack.id,
+      projectId: project.id,
       rows: 3,
       title: [],
       layers: [
@@ -220,22 +220,22 @@ describe("rekeyMenu", () => {
       ],
     };
 
-    rekeyMenu(pack, menu);
+    rekeyMenu(project, menu);
 
     const action = menu.layers[0]!.elements[0]!.appearances[0]!.click!.left!.steps[0]!;
     if (action.kind !== "action" || action.action.type !== "send_message")
       throw new Error("unexpected");
     expect(action.action.text.key).toBe("menus.shop.elements.btn.default.click.left.message");
-    expect(pack.i18nKeys["lt_msg" as I18nKey]).toBeUndefined();
+    expect(project.i18nKeys["lt_msg" as I18nKey]).toBeUndefined();
   });
 });
 
 describe("rekeyCommand", () => {
   it("renames send_message keys to semantic command prefix", () => {
-    const pack = makeProject({ i18nKeys: { lt_msg: { en: "Healed!" } } as Project["i18nKeys"] });
+    const project = makeProject({ i18nKeys: { lt_msg: { en: "Healed!" } } as Project["i18nKeys"] });
     const cmd: Command = {
       id: commandId("heal"),
-      projectId: pack.id,
+      projectId: project.id,
       name: "heal",
       arguments: [],
       steps: [
@@ -243,17 +243,17 @@ describe("rekeyCommand", () => {
       ],
     };
 
-    rekeyCommand(pack, cmd);
+    rekeyCommand(project, cmd);
 
     const action = cmd.steps[0]!;
     if (action.kind !== "action" || action.action.type !== "send_message") throw new Error();
     expect(action.action.text.key).toBe("commands.heal.message");
-    expect(pack.i18nKeys["commands.heal.message" as I18nKey]).toEqual({ en: "Healed!" });
-    expect(pack.i18nKeys["lt_msg" as I18nKey]).toBeUndefined();
+    expect(project.i18nKeys["commands.heal.message" as I18nKey]).toEqual({ en: "Healed!" });
+    expect(project.i18nKeys["lt_msg" as I18nKey]).toBeUndefined();
   });
 
   it("disambiguates multiple send_message steps with counter suffix", () => {
-    const pack = makeProject({
+    const project = makeProject({
       i18nKeys: {
         lt_1: { en: "First" },
         lt_2: { en: "Second" },
@@ -261,7 +261,7 @@ describe("rekeyCommand", () => {
     });
     const cmd: Command = {
       id: commandId("greet"),
-      projectId: pack.id,
+      projectId: project.id,
       name: "greet",
       arguments: [],
       steps: [
@@ -270,7 +270,7 @@ describe("rekeyCommand", () => {
       ],
     };
 
-    rekeyCommand(pack, cmd);
+    rekeyCommand(project, cmd);
 
     const a0 = cmd.steps[0]!;
     const a1 = cmd.steps[1]!;
@@ -278,12 +278,12 @@ describe("rekeyCommand", () => {
     if (a1.kind !== "action" || a1.action.type !== "send_message") throw new Error();
     expect(a0.action.text.key).toBe("commands.greet.message");
     expect(a1.action.text.key).toBe("commands.greet.message_1");
-    expect(pack.i18nKeys["commands.greet.message" as I18nKey]).toEqual({ en: "First" });
-    expect(pack.i18nKeys["commands.greet.message_1" as I18nKey]).toEqual({ en: "Second" });
+    expect(project.i18nKeys["commands.greet.message" as I18nKey]).toEqual({ en: "First" });
+    expect(project.i18nKeys["commands.greet.message_1" as I18nKey]).toEqual({ en: "Second" });
   });
 
   it("rekeyCommand assigns canonical show_title and show_subtitle keys", () => {
-    const pack = makeProject({
+    const project = makeProject({
       i18nKeys: {
         "stale.title": { en: "Welcome" },
         "stale.subtitle": { en: "to the shop" },
@@ -291,7 +291,7 @@ describe("rekeyCommand", () => {
     });
     const cmd: Command = {
       id: commandId("heal"),
-      projectId: pack.id,
+      projectId: project.id,
       name: "heal",
       arguments: [],
       steps: [
@@ -306,20 +306,20 @@ describe("rekeyCommand", () => {
       ],
     };
 
-    rekeyCommand(pack, cmd);
+    rekeyCommand(project, cmd);
 
     const a0 = cmd.steps[0]!;
     if (a0.kind !== "action" || a0.action.type !== "show_title") throw new Error();
     expect(a0.action.title.key).toBe("commands.heal.show_title");
     expect(a0.action.subtitle!.key).toBe("commands.heal.show_subtitle");
-    expect(pack.i18nKeys["commands.heal.show_title" as I18nKey]).toEqual({ en: "Welcome" });
-    expect(pack.i18nKeys["commands.heal.show_subtitle" as I18nKey]).toEqual({ en: "to the shop" });
-    expect(pack.i18nKeys["stale.title" as I18nKey]).toBeUndefined();
-    expect(pack.i18nKeys["stale.subtitle" as I18nKey]).toBeUndefined();
+    expect(project.i18nKeys["commands.heal.show_title" as I18nKey]).toEqual({ en: "Welcome" });
+    expect(project.i18nKeys["commands.heal.show_subtitle" as I18nKey]).toEqual({ en: "to the shop" });
+    expect(project.i18nKeys["stale.title" as I18nKey]).toBeUndefined();
+    expect(project.i18nKeys["stale.subtitle" as I18nKey]).toBeUndefined();
   });
 
   it("rekeyCommand counts show_title and send_message independently", () => {
-    const pack = makeProject({
+    const project = makeProject({
       i18nKeys: {
         lt_m1: { en: "M1" },
         lt_t1: { en: "T1" },
@@ -329,7 +329,7 @@ describe("rekeyCommand", () => {
     });
     const cmd: Command = {
       id: commandId("x"),
-      projectId: pack.id,
+      projectId: project.id,
       name: "x",
       arguments: [],
       steps: [
@@ -340,7 +340,7 @@ describe("rekeyCommand", () => {
       ],
     };
 
-    rekeyCommand(pack, cmd);
+    rekeyCommand(project, cmd);
 
     const a0 = cmd.steps[0]!;
     const a1 = cmd.steps[1]!;

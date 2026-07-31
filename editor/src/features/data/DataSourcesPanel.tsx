@@ -27,20 +27,20 @@ type DataPanelSelection =
  */
 export function DataSourcesPanelContent({ projectId }: { projectId: ProjectId }) {
   const { t } = useTranslation();
-  const pack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
   const [selection, setSelection] = useState<DataPanelSelection>(null);
   const activeNetworkId = useNetworksStore((s) => s.activeId);
   const activeServerId = useServersStore((s) => s.activeServerId);
   const serverSources = useServerDataSourcesStore((s) => s.sources);
 
   const selected =
-    pack && selection?.kind === "project"
-      ? (pack.dataSources ?? []).find((d) => d.id === selection.id)
+    project && selection?.kind === "project"
+      ? (project.dataSources ?? []).find((d) => d.id === selection.id)
       : null;
   const selectedServerSource =
     selection?.kind === "server" ? serverSources.find((s) => s.ref === selection.ref) : null;
 
-  if (!pack) {
+  if (!project) {
     return (
       <div className="card flex min-h-0 flex-1 items-center justify-center p-6">
         <p className="text-[var(--text-mut)]">{t("dataSources.projectNotFound")}</p>
@@ -53,7 +53,7 @@ export function DataSourcesPanelContent({ projectId }: { projectId: ProjectId })
       {/* Left card — sources list */}
       <div className="card flex shrink-0 flex-col overflow-hidden lg:w-[224px]">
         <DataSourcesSidebar
-          pack={pack}
+          project={project}
           selectedId={selection?.kind === "project" ? selection.id : null}
           onSelect={(id) => setSelection(id ? { kind: "project", id } : null)}
           selectedServerRef={selection?.kind === "server" ? selection.ref : null}

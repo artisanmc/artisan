@@ -67,7 +67,7 @@ function MMLines({ text, className }: { text: string; className?: string }) {
  * Used both by the modal wrapper (`TranslationPanel`) and the inline workspace tab.
  */
 export function TranslationPanelContent({ projectId }: { projectId: ProjectId }) {
-  const pack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
   const activeLang = useUiStore((s) => s.activeLang);
   const setActiveLang = useUiStore((s) => s.setActiveLang);
   const addLanguage = useAccountStore((s) => s.addLanguage);
@@ -76,23 +76,23 @@ export function TranslationPanelContent({ projectId }: { projectId: ProjectId })
   const { t } = useTranslation();
 
   const rows = useMemo(
-    () => (pack ? buildTranslationRows(pack, activeLang) : []),
-    [pack, activeLang],
+    () => (project ? buildTranslationRows(project, activeLang) : []),
+    [project, activeLang],
   );
   // Per-language missing counts power both the in-panel tabs and the
-  // header copy. Recomputed whenever the pack ref shifts (immer keeps
+  // header copy. Recomputed whenever the project ref shifts (immer keeps
   // it stable across unrelated edits).
   const missingByLang = useMemo(
-    () => (pack ? countMissingPerLang(pack) : {}),
-    [pack],
+    () => (project ? countMissingPerLang(project) : {}),
+    [project],
   );
-  const langs = useMemo(() => (pack ? listLanguages(pack) : []), [pack]);
+  const langs = useMemo(() => (project ? listLanguages(project) : []), [project]);
 
   const [mode, setMode] = useState<Mode>("visual");
   const [filter, setFilter] = useState<Filter>("missing");
 
-  if (!pack) return null;
-  const isOnDefault = activeLang === pack.defaultLang;
+  if (!project) return null;
+  const isOnDefault = activeLang === project.defaultLang;
 
   const stats = {
     total: rows.length,
@@ -124,7 +124,7 @@ export function TranslationPanelContent({ projectId }: { projectId: ProjectId })
       >
         {langs.map((lang) => {
           const isActive = lang === activeLang;
-          const isDefault = lang === pack.defaultLang;
+          const isDefault = lang === project.defaultLang;
           const count = missingByLang[lang] ?? 0;
           return (
             <button
@@ -235,7 +235,7 @@ export function TranslationPanelContent({ projectId }: { projectId: ProjectId })
           {mode === "visual" ? (
             <VisualBody
               activeLang={activeLang}
-              defaultLang={pack.defaultLang}
+              defaultLang={project.defaultLang}
               allRows={rows}
               filter={filter}
               onChange={(key, value) =>
@@ -246,7 +246,7 @@ export function TranslationPanelContent({ projectId }: { projectId: ProjectId })
             <YamlBody
               projectId={projectId}
               activeLang={activeLang}
-              pack={pack}
+              project={project}
               rows={rows}
               modeKey={mode}
             />
@@ -512,13 +512,13 @@ function VisualRow({
 function YamlBody({
   projectId,
   activeLang,
-  pack,
+  project,
   rows,
   modeKey,
 }: {
   projectId: ProjectId;
   activeLang: string;
-  pack: { id: ProjectId; defaultLang: string };
+  project: { id: ProjectId; defaultLang: string };
   rows: ReadonlyArray<TranslationRow>;
   modeKey: Mode;
 }) {
@@ -535,9 +535,9 @@ function YamlBody({
 
   const reseed = () => {
     setDraft(
-      serializeRows(rows, pack.defaultLang, activeLang, includeContext, {
+      serializeRows(rows, project.defaultLang, activeLang, includeContext, {
         header: t("translations.yamlHeader", {
-          from: pack.defaultLang,
+          from: project.defaultLang,
           to: activeLang,
         }),
         subtitle: t("translations.yamlHeaderSubtitle"),

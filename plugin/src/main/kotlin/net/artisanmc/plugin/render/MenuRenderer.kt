@@ -52,7 +52,7 @@ object MenuRenderer {
         dataSources: DataSourceRegistry? = null,
         projectData: ProjectDataResolver? = null,
     ): MenuSession {
-        // Deterministic fallback chain: requested lang → pack defaultLang → empty.
+        // Deterministic fallback chain: requested lang → project defaultLang → empty.
         // Previously fell back to `langMaps.values.firstOrNull()` which is map-
         // iteration-order dependent (non-deterministic across loads).
         val langMap = menu.langMapWithFallback(lang)

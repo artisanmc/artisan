@@ -2,7 +2,7 @@
  * Pure helper that converts a screen-space (client) point — typically the
  * end of a drag gesture started in the LayersPanel — into the canvas
  * coordinate system used by `MenuBounds` (i.e. the same space as
- * `pack.canvasLayout[menuId]` + `menuBoxSize`).
+ * `project.canvasLayout[menuId]` + `menuBoxSize`).
  *
  * Two stages:
  *  1. Client → stage-local: subtract the Stage wrapper's top-left

@@ -5,8 +5,8 @@ import { initReactI18next } from "react-i18next";
 
 /**
  * Editor UI internationalization. Distinct from `uiStore.activeLang`,
- * which drives the *pack content* translation slot the user is
- * editing — a French user translating their pack into English keeps
+ * which drives the *project content* translation slot the user is
+ * editing — a French user translating their project into English keeps
  * the editor in French, so we track the editor's display language
  * separately under `uiStore.editorLang`.
  *

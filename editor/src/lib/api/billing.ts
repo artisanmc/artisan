@@ -65,9 +65,9 @@ export async function getBillingBalance(networkId: string): Promise<BalanceBreak
   return getJson<BalanceBreakdown>(`/api/v1/billing/balance?networkId=${encodeURIComponent(networkId)}`);
 }
 
-export async function getPacks(): Promise<PackDto[]> {
-  const r = await getJson<{ packs: PackDto[] }>(`/api/v1/billing/packs`);
-  return r?.packs ?? [];
+export async function getProjects(): Promise<PackDto[]> {
+  const r = await getJson<{ projects: PackDto[] }>(`/api/v1/billing/projects`);
+  return r?.projects ?? [];
 }
 
 export async function getPlans(): Promise<PlanDto[]> {
@@ -86,8 +86,8 @@ export async function getPurchases(networkId: string): Promise<PurchaseDto[]> {
   return r?.purchases ?? [];
 }
 
-export async function startPackCheckout(networkId: string, packId: string): Promise<string | null> {
-  return postForUrl(`/api/v1/billing/checkout/pack`, { networkId, packId });
+export async function startPackCheckout(networkId: string, projectId: string): Promise<string | null> {
+  return postForUrl(`/api/v1/billing/checkout/project`, { networkId, projectId });
 }
 
 export async function startSubscriptionCheckout(networkId: string, planId: string): Promise<string | null> {

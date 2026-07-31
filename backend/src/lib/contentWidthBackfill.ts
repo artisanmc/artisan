@@ -9,7 +9,7 @@ import { pushResourcePackUpdated } from "../ws/hub";
 
 /**
  * One-time migration: compute `contentWidth` for assets uploaded before the
- * column existed, then rebuild the resource packs so the plugin receives the
+ * column existed, then rebuild the resource projects so the plugin receives the
  * corrected width values in asset-index.json.
  *
  * Runs at backend startup. Safe to call multiple times — only processes rows
@@ -48,13 +48,13 @@ export async function backfillContentWidths(): Promise<void> {
         .where(eq(projects.id, projectId));
       if (project?.serverKeyId) serverKeyIds.add(project.serverKeyId);
     }
-    console.log(`[backfill] contentWidth set for ${updated} asset(s) — rebuilding ${serverKeyIds.size} resource pack(s)`);
+    console.log(`[backfill] contentWidth set for ${updated} asset(s) — rebuilding ${serverKeyIds.size} resource project(s)`);
     for (const skId of serverKeyIds) {
       try {
-        const packInfo = await rebuildResourcePack(skId);
-        pushResourcePackUpdated(skId, packInfo.url, packInfo.hash);
+        const projectInfo = await rebuildResourcePack(skId);
+        pushResourcePackUpdated(skId, projectInfo.url, projectInfo.hash);
       } catch (err) {
-        console.error(`[backfill] failed to rebuild pack for ${skId}:`, err);
+        console.error(`[backfill] failed to rebuild project for ${skId}:`, err);
       }
     }
   }

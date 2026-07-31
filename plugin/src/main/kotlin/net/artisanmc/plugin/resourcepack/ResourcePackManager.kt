@@ -17,7 +17,7 @@ open class ResourcePackManager(
     private val logger: Logger? = null,
     private val assetCatalog: AssetCatalog? = null,
     private val delegator: ResourcePackDelegator? = null,
-    /** Optional on-disk cache of the last applied pack info ({url, download_url,
+    /** Optional on-disk cache of the last applied project info ({url, download_url,
      *  hash} JSON). When set, [onUpdate] persists here and [loadFromDisk]
      *  restores at boot — push mode keeps working across a restart during a
      *  backend outage (previously `currentPackInfo` was only ever set from
@@ -68,13 +68,13 @@ open class ResourcePackManager(
     }
 
     /**
-     * UUID of the most recently pushed Artisan pack. Used to remove the old layer from each
-     * player's resource pack stack when a new one is pushed, so we don't accumulate orphaned
-     * Artisan packs over time (each rebuild produces a new UUID because it's derived from
-     * the pack hash).
+     * UUID of the most recently pushed Artisan project. Used to remove the old layer from each
+     * player's resource project stack when a new one is pushed, so we don't accumulate orphaned
+     * Artisan projects over time (each rebuild produces a new UUID because it's derived from
+     * the project hash).
      *
-     * Singleton — we assume every online player is on the same Artisan pack at any moment,
-     * which is currently true: the backend serves one resource pack per server_key and all
+     * Singleton — we assume every online player is on the same Artisan project at any moment,
+     * which is currently true: the backend serves one resource project per server_key and all
      * online players share that server_key.
      */
     @Volatile
@@ -83,7 +83,7 @@ open class ResourcePackManager(
     /**
      * Build and apply a [ResourcePackInfo] from a backend-supplied URL + hash.
      *
-     * @param url  External URL used to push the pack to the player.
+     * @param url  External URL used to push the project to the player.
      * @param hash 40-char hex SHA-1.
      */
     fun applyFromBackend(url: String, hash: String) {
@@ -94,7 +94,7 @@ open class ResourcePackManager(
      * Build and apply a [ResourcePackInfo] with split URLs.
      *
      * @param playerUrl   External URL the player's client uses (sent via `addResourcePack`).
-     * @param downloadUrl Plugin-side URL the plugin uses to download the pack itself (for
+     * @param downloadUrl Plugin-side URL the plugin uses to download the project itself (for
      *                    [AssetCatalog]). In Docker, this should be the internal backend URL.
      * @param hash        40-char hex SHA-1.
      */
@@ -107,7 +107,7 @@ open class ResourcePackManager(
         currentPackInfo = info
         persistToDisk(info)
         if (info == null) {
-            // In delegate mode there's nothing on player packs to clean up
+            // In delegate mode there's nothing on player projects to clean up
             // (we never added). Skip the per-player removal loop.
             if (delegator == null) {
                 oldInfo?.let { old ->
@@ -141,7 +141,7 @@ open class ResourcePackManager(
             if (reloadCmd != null) {
                 // Bukkit's command dispatch isn't thread-safe — schedule the
                 // host's reload command on the main thread. Without this, the
-                // host plugin keeps serving its old pack (which doesn't yet
+                // host plugin keeps serving its old project (which doesn't yet
                 // contain our `assets/artisan/`) until the admin manually
                 // runs the reload command. Players who joined before the
                 // extraction completed would see missing-glyph placeholders
@@ -151,7 +151,7 @@ open class ResourcePackManager(
                     plugin.server.dispatchCommand(plugin.server.consoleSender, reloadCmd)
                 }
             } else {
-                logger?.info("[delegate] pack updated — reload the host RP plugin to apply (set resource-pack.delegate-reload-command to automate)")
+                logger?.info("[delegate] project updated — reload the host RP plugin to apply (set resource-pack.delegate-reload-command to automate)")
             }
         }
     }
@@ -200,17 +200,17 @@ open class ResourcePackManager(
 
     fun pushToPlayer(player: Player) {
         if (!config.enabled) {
-            logger?.info("[resource-pack] pushToPlayer: pack disabled for ${player.name}")
+            logger?.info("[resource-pack] pushToPlayer: project disabled for ${player.name}")
             return
         }
         val info = currentPackInfo
         if (info == null) {
-            logger?.warning("[resource-pack] pushToPlayer: no pack info available for ${player.name} (currentPackInfo is null)")
+            logger?.warning("[resource-pack] pushToPlayer: no project info available for ${player.name} (currentPackInfo is null)")
             return
         }
-        // Remove previous Artisan pack from this player's stack (no-op if not present).
+        // Remove previous Artisan project from this player's stack (no-op if not present).
         // We use addResourcePack (additive) instead of setResourcePack (which replaces all
-        // packs on the client), so other RP plugins like Nexo/Oraxen/ItemsAdder coexist.
+        // projects on the client), so other RP plugins like Nexo/Oraxen/ItemsAdder coexist.
         // But because our UUID changes on every rebuild (it's derived from the hash), we
         // must explicitly remove the previous Artisan UUID to avoid orphan accumulation.
         previousUuid?.let { prev ->
@@ -219,8 +219,8 @@ open class ResourcePackManager(
             }
         }
         try {
-            logger?.info("[resource-pack] pushing pack to ${player.name}: ${info.url} hash=${info.hash}")
-            addPack(player, info)
+            logger?.info("[resource-pack] pushing project to ${player.name}: ${info.url} hash=${info.hash}")
+            addProject(player, info)
         } catch (t: Throwable) {
             logger?.warning("[resource-pack] addResourcePack failed for ${player.name}: ${t.message}")
         }
@@ -228,7 +228,7 @@ open class ResourcePackManager(
 
     private fun removePackSafe(player: Player, uuid: UUID) {
         try {
-            removePack(player, uuid)
+            removeProject(player, uuid)
         } catch (t: Throwable) {
             logger?.warning("[resource-pack] removeResourcePack failed for ${player.name}: ${t.message}")
         }
@@ -239,7 +239,7 @@ open class ResourcePackManager(
      * underlying [Player.addResourcePack] (which throws `UnimplementedOperationException`
      * under MockBukkit).
      */
-    protected open fun addPack(player: Player, info: ResourcePackInfo) {
+    protected open fun addProject(player: Player, info: ResourcePackInfo) {
         // Paper's additive addResourcePack takes a plain-text prompt (the Component overload
         // only exists on the deprecated setResourcePack form). Serialize the prompt component
         // to a legacy §-coded string so colors/formatting still survive in the prompt dialog.
@@ -247,8 +247,8 @@ open class ResourcePackManager(
         player.addResourcePack(info.uuid, info.url, info.sha1Bytes, promptText, false)
     }
 
-    /** Test seam — see [addPack]. */
-    protected open fun removePack(player: Player, uuid: UUID) {
+    /** Test seam — see [addProject]. */
+    protected open fun removeProject(player: Player, uuid: UUID) {
         player.removeResourcePack(uuid)
     }
 

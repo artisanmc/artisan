@@ -31,11 +31,11 @@ describe("applyAssistantMenu", () => {
   });
   it("imports the generated menu and merges i18n (literal text becomes resolvable)", () => {
     useAccountStore.getState().applyAssistantMenu({ projectId: projectId("p"), menuV1, lang: "en" });
-    const pack = useAccountStore.getState().account.projects.find((p) => p.id === projectId("p"))!;
-    const menu = pack.menus.find((m) => m.id === "shop")!;
+    const project = useAccountStore.getState().account.projects.find((p) => p.id === projectId("p"))!;
+    const menu = project.menus.find((m) => m.id === "shop")!;
     expect(menu).toBeTruthy();
     const app = menu.layers[0].elements[0].appearances[0];
-    expect(getText(pack, app.title, "en")).toBe("<gold>Buy</gold>");
+    expect(getText(project, app.title, "en")).toBe("<gold>Buy</gold>");
   });
   it("returns the unsupported constructs dropped during conversion", () => {
     const withExotics = {
@@ -81,8 +81,8 @@ describe("applyAssistantMenu", () => {
     useAccountStore
       .getState()
       .applyAssistantMenu({ projectId: projectId("p"), menuV1: { ...menuV1, size: 54 }, lang: "en" });
-    const pack = useAccountStore.getState().account.projects.find((p) => p.id === projectId("p"))!;
-    expect(pack.menus.filter((m) => m.id === "shop")).toHaveLength(1);
-    expect(pack.menus.find((m) => m.id === "shop")!.rows).toBe(6);
+    const project = useAccountStore.getState().account.projects.find((p) => p.id === projectId("p"))!;
+    expect(project.menus.filter((m) => m.id === "shop")).toHaveLength(1);
+    expect(project.menus.find((m) => m.id === "shop")!.rows).toBe(6);
   });
 });

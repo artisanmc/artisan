@@ -11,7 +11,7 @@ import {
   type PurchaseDto,
   type SubscriptionDto,
   getBillingBalance,
-  getPacks,
+  getProjects,
   getPlans,
   getPurchases,
   getSubscription,
@@ -48,7 +48,7 @@ export function CreditsPage() {
   const search = useSearch({ strict: false }) as { checkout?: string };
 
   const [balance, setBalance] = useState<BalanceBreakdown | null>(null);
-  const [packs, setPacks] = useState<PackDto[]>([]);
+  const [projects, setProjects] = useState<PackDto[]>([]);
   const [plans, setPlans] = useState<PlanDto[]>([]);
   const [subscription, setSubscription] = useState<SubscriptionDto | null>(null);
   const [purchases, setPurchases] = useState<PurchaseDto[]>([]);
@@ -60,14 +60,14 @@ export function CreditsPage() {
     (async () => {
       const [b, pk, pl, sub, pur] = await Promise.all([
         getBillingBalance(activeId),
-        getPacks(),
+        getProjects(),
         getPlans(),
         getSubscription(activeId),
         getPurchases(activeId),
       ]);
       if (cancelled) return;
       setBalance(b);
-      setPacks(pk);
+      setProjects(pk);
       setPlans(pl);
       setSubscription(sub);
       setPurchases(pur);
@@ -111,8 +111,8 @@ export function CreditsPage() {
     return <EmptyState title={t("billing.page.pickNetwork")} />;
   }
 
-  async function buyPack(packId: string) {
-    const url = await startPackCheckout(activeId as string, packId);
+  async function buyProject(projectId: string) {
+    const url = await startPackCheckout(activeId as string, projectId);
     if (url) window.location.assign(url);
     else setBanner("error");
   }
@@ -159,26 +159,26 @@ export function CreditsPage() {
       <section className="flex flex-col gap-3">
         <h2 className="eyebrow">{t("billing.page.packsHeading")}</h2>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {packs.map((pack) => (
-            <Card key={pack.id}>
+          {projects.map((project) => (
+            <Card key={project.id}>
               <CardHeader>
-                <CardTitle>{pack.name}</CardTitle>
+                <CardTitle>{project.name}</CardTitle>
                 <div className="flex items-center gap-2 text-[13px] text-[var(--text-mut)]">
-                  <span>{formatMoney(pack.priceCents, pack.currency, i18n.language)}</span>
-                  {pack.bonusPct > 0 && (
-                    <Badge variant="sage">{t("billing.page.bonus", { pct: pack.bonusPct })}</Badge>
+                  <span>{formatMoney(project.priceCents, project.currency, i18n.language)}</span>
+                  {project.bonusPct > 0 && (
+                    <Badge variant="sage">{t("billing.page.bonus", { pct: project.bonusPct })}</Badge>
                   )}
                 </div>
               </CardHeader>
               <CardContent>
                 <p className="text-[13px] text-[var(--text)]">
                   {t("billing.page.creditsFor", {
-                    credits: formatCredits(pack.credits, i18n.language),
+                    credits: formatCredits(project.credits, i18n.language),
                   })}
                 </p>
               </CardContent>
               <CardFooter>
-                <Button variant="primary" onClick={() => buyPack(pack.id)}>
+                <Button variant="primary" onClick={() => buyProject(project.id)}>
                   {t("billing.page.buy")}
                 </Button>
               </CardFooter>

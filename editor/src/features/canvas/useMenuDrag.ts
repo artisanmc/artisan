@@ -25,7 +25,7 @@ export function useMenuDrag({ projectId, menuId, position }: UseMenuDragArgs) {
       useAlignmentStore.getState().clear();
       // TouchEvent has no clientX/Y — those live on changedTouches[0]. Without
       // this branching the rect-check below short-circuits to "all conditions
-      // false" on touch, and the first pack-mini in the DOM (often hidden
+      // false" on touch, and the first project-mini in the DOM (often hidden
       // ones from the desktop sidebar) receives the menu by accident.
       const evt = e.evt as unknown as MouseEvent & TouchEvent;
       let cx: number;
@@ -37,18 +37,18 @@ export function useMenuDrag({ projectId, menuId, position }: UseMenuDragArgs) {
         cx = evt.changedTouches[0].clientX;
         cy = evt.changedTouches[0].clientY;
       } else {
-        // No pointer info — just persist the new position in this pack.
+        // No pointer info — just persist the new position in this project.
         setCanvasPosition({ projectId, nodeId: menuId, x: e.target.x(), y: e.target.y() });
         return;
       }
 
-      const minis = document.querySelectorAll<HTMLElement>("[data-pack-mini='true']");
+      const minis = document.querySelectorAll<HTMLElement>("[data-project-mini='true']");
       for (const m of minis) {
         const rect = m.getBoundingClientRect();
         // Skip elements that are display:none / detached (zero rect).
         if (rect.width === 0 && rect.height === 0) continue;
         if (cx < rect.left || cx > rect.right || cy < rect.top || cy > rect.bottom) continue;
-        const targetProjectId = m.getAttribute("data-pack-id") as ProjectId | null;
+        const targetProjectId = m.getAttribute("data-project-id") as ProjectId | null;
         if (!targetProjectId || targetProjectId === projectId) continue;
         e.target.position({ x: position.x, y: position.y });
         try {

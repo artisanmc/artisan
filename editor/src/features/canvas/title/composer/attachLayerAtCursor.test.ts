@@ -9,7 +9,7 @@ const PACK_ID = "p1" as ProjectId;
 const MENU_A = "menu_a" as MenuId;
 const MENU_B = "menu_b" as MenuId;
 
-function pack(canvasLayout: Record<string, { x: number; y: number }>): Project {
+function project(canvasLayout: Record<string, { x: number; y: number }>): Project {
   return {
     id: PACK_ID,
     name: "p",
@@ -43,7 +43,7 @@ describe("attachLayerAtCursor", () => {
     // Menu A's origin is (40, 40) — its title-bar center sits at
     // (40 + 352/2, 40 + 34/2) = (216, 57). Cursor at (220, 50) → local
     // canvas (180, 10) → MC px (90, 5).
-    const p = pack({
+    const p = project({
       [MENU_A]: { x: 40, y: 40 },
       [MENU_B]: { x: 800, y: 40 },
     });
@@ -55,7 +55,7 @@ describe("attachLayerAtCursor", () => {
   });
 
   it("picks menu B when the cursor is far closer to its title-bar center", () => {
-    const p = pack({
+    const p = project({
       [MENU_A]: { x: 40, y: 40 },
       [MENU_B]: { x: 600, y: 40 },
     });
@@ -67,7 +67,7 @@ describe("attachLayerAtCursor", () => {
   });
 
   it("returns null when the cursor is farther than the threshold from every menu", () => {
-    const p = pack({
+    const p = project({
       [MENU_A]: { x: 0, y: 0 },
       [MENU_B]: { x: 0, y: 0 },
     });
@@ -78,7 +78,7 @@ describe("attachLayerAtCursor", () => {
   });
 
   it("respects the viewport transform (pan + scale)", () => {
-    const p = pack({
+    const p = project({
       [MENU_A]: { x: 0, y: 0 },
       [MENU_B]: { x: 600, y: 0 },
     });
@@ -97,7 +97,7 @@ describe("attachLayerAtCursor", () => {
 
   it("ignores menus without an entry in canvasLayout (auto-layout fills them in)", () => {
     // No canvas layout — autoLayout assigns positions by index.
-    const p = pack({});
+    const p = project({});
     const out = attachLayerAtCursor(p, geometry, { x: 5000, y: 5000 });
     // Far outside any auto-laid menu → null.
     expect(out).toBeNull();

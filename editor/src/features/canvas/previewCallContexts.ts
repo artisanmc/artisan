@@ -38,7 +38,7 @@ function pickLabel(args: Record<string, unknown>, from: string): string {
 
 /**
  * Enumerate the concrete contexts a menu can be opened WITH, by walking the
- * pack's other menus for `open_menu` actions targeting it: each caller row
+ * project's other menus for `open_menu` actions targeting it: each caller row
  * (iteration/placement alias binding — template alias wins, mirroring the
  * export inlining) yields one candidate with EVERY context arg interpolated
  * together. This is what makes the preview selector coherent: picking
@@ -48,15 +48,15 @@ function pickLabel(args: Record<string, unknown>, from: string): string {
  */
 export function findPreviewCallContexts(
   target: Menu,
-  pack: Project,
+  project: Project,
   snapshots: SourceSnapshots | undefined,
   activeLang: string,
 ): PreviewCallContext[] {
   const out: PreviewCallContext[] = [];
   const seen = new Set<string>();
-  for (const caller of pack.menus) {
+  for (const caller of project.menus) {
     if (caller.id === target.id) continue;
-    const scope = buildPreviewScope(caller, pack, snapshots);
+    const scope = buildPreviewScope(caller, project, snapshots);
     for (const layer of caller.layers) {
       for (const el of layer.elements) {
         const appearances = el.appearances;
@@ -84,7 +84,7 @@ export function findPreviewCallContexts(
                   args[k] =
                     raw !== undefined && raw !== null
                       ? raw
-                      : renderPreview(template, rowScope, pack, activeLang);
+                      : renderPreview(template, rowScope, project, activeLang);
                 }
                 const key = JSON.stringify(args);
                 if (seen.has(key)) continue;

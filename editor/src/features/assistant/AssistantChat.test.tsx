@@ -69,7 +69,7 @@ describe("AssistantChat", () => {
     expect(screen.getByRole("textbox")).toBeTruthy();
   });
 
-  it("streams assistant text and applies a written menu to the pack", async () => {
+  it("streams assistant text and applies a written menu to the project", async () => {
     setup();
     render(<AssistantChat projectId={projectId("p")} />);
 
@@ -82,10 +82,10 @@ describe("AssistantChat", () => {
       expect(screen.getByTestId("assistant-transcript").textContent).toMatch(/Voici le menu\./),
     );
 
-    // (b) the written menu is actually applied to the pack.
+    // (b) the written menu is actually applied to the project.
     await waitFor(() => {
-      const pack = useAccountStore.getState().account.projects.find((p) => p.id === projectId("p"));
-      expect(pack?.menus.find((m) => m.id === "shop")).toBeTruthy();
+      const project = useAccountStore.getState().account.projects.find((p) => p.id === projectId("p"));
+      expect(project?.menus.find((m) => m.id === "shop")).toBeTruthy();
     });
 
     expect(screen.getByText(/(modifié|updated)\s*:?\s*shop/i)).toBeTruthy();

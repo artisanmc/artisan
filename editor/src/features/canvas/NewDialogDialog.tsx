@@ -24,12 +24,12 @@ export function NewDialogDialog({ projectId, open, position, onOpenChange }: New
   const { t } = useTranslation();
 
   const existingIdsStr = useAccountStore((s) => {
-    const pack = s.account.projects.find((p) => p.id === projectId);
-    if (!pack) return "";
+    const project = s.account.projects.find((p) => p.id === projectId);
+    if (!project) return "";
     return [
-      ...pack.dialogs.map((d) => d.id),
-      ...pack.menus.map((m) => m.id),
-      ...pack.commands.map((c) => c.id),
+      ...project.dialogs.map((d) => d.id),
+      ...project.menus.map((m) => m.id),
+      ...project.commands.map((c) => c.id),
     ].join(",");
   });
   const existingIds = new Set(existingIdsStr ? existingIdsStr.split(",") : []);

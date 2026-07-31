@@ -29,7 +29,7 @@ async function clearAll() {
   await db.delete(users);
 }
 
-async function seedUserWithPack(userId = "u1") {
+async function seedUserWithProject(userId = "u1") {
   await db.insert(users).values({
     id: userId, email: `${userId}@a.b`, name: userId, passwordHash: null, avatarUrl: null,
     createdAt: new Date(), updatedAt: new Date(),
@@ -39,8 +39,8 @@ async function seedUserWithPack(userId = "u1") {
   await addMembership(userId, net.id, "owner");
   const { id: skId, hash: skHash } = await generateServerKey();
   await db.insert(serverKeys).values({ id: skId, hash: skHash, label: null, networkId: net.id, createdAt: new Date() });
-  const pack = await createProject({ networkId: net.id, serverKeyId: skId, name: "p" });
-  return { userId, sessionId: sess.id, networkId: net.id, packId: pack.id };
+  const project = await createProject({ networkId: net.id, serverKeyId: skId, name: "p" });
+  return { userId, sessionId: sess.id, networkId: net.id, projectId: project.id };
 }
 
 function makeApp() {
@@ -56,9 +56,9 @@ describe("userBranchesRouter — GET branches + commits", () => {
   beforeEach(clearAll);
 
   test("GET /:netId/projects/:projectId/branches returns main after createProject", async () => {
-    const { sessionId, networkId, packId } = await seedUserWithPack();
+    const { sessionId, networkId, projectId } = await seedUserWithProject();
     const app = makeApp();
-    const res = await app.request(`/api/v1/networks/${networkId}/projects/${packId}/branches`, {
+    const res = await app.request(`/api/v1/networks/${networkId}/projects/${projectId}/branches`, {
       headers: { Cookie: `artisan_user_session=${sessionId}` },
     });
     expect(res.status).toBe(200);
@@ -68,9 +68,9 @@ describe("userBranchesRouter — GET branches + commits", () => {
   });
 
   test("GET /:netId/projects/:projectId/commits?branch=main returns the initial commit", async () => {
-    const { sessionId, networkId, packId } = await seedUserWithPack();
+    const { sessionId, networkId, projectId } = await seedUserWithProject();
     const app = makeApp();
-    const res = await app.request(`/api/v1/networks/${networkId}/projects/${packId}/commits?branch=main`, {
+    const res = await app.request(`/api/v1/networks/${networkId}/projects/${projectId}/commits?branch=main`, {
       headers: { Cookie: `artisan_user_session=${sessionId}` },
     });
     expect(res.status).toBe(200);
@@ -80,24 +80,24 @@ describe("userBranchesRouter — GET branches + commits", () => {
   });
 
   test("GET branches 403 when not member", async () => {
-    const { networkId, packId } = await seedUserWithPack("uA");
+    const { networkId, projectId } = await seedUserWithProject("uA");
     await db.insert(users).values({
       id: "uB", email: "uB@a.b", name: "uB", passwordHash: null, avatarUrl: null,
       createdAt: new Date(), updatedAt: new Date(),
     });
     const sessB = (await createSession("uB")).id;
     const app = makeApp();
-    const res = await app.request(`/api/v1/networks/${networkId}/projects/${packId}/branches`, {
+    const res = await app.request(`/api/v1/networks/${networkId}/projects/${projectId}/branches`, {
       headers: { Cookie: `artisan_user_session=${sessB}` },
     });
     expect(res.status).toBe(403);
   });
 
   test("GET /branches/:branch/head returns the head commit's files (Revert payload)", async () => {
-    const { sessionId, networkId, packId } = await seedUserWithPack();
+    const { sessionId, networkId, projectId } = await seedUserWithProject();
     const app = makeApp();
     const res = await app.request(
-      `/api/v1/networks/${networkId}/projects/${packId}/branches/main/head`,
+      `/api/v1/networks/${networkId}/projects/${projectId}/branches/main/head`,
       { headers: { Cookie: `artisan_user_session=${sessionId}` } },
     );
     expect(res.status).toBe(200);
@@ -110,10 +110,10 @@ describe("userBranchesRouter — GET branches + commits", () => {
   });
 
   test("GET /branches/:branch/head returns 404 when branch unknown", async () => {
-    const { sessionId, networkId, packId } = await seedUserWithPack();
+    const { sessionId, networkId, projectId } = await seedUserWithProject();
     const app = makeApp();
     const res = await app.request(
-      `/api/v1/networks/${networkId}/projects/${packId}/branches/does-not-exist/head`,
+      `/api/v1/networks/${networkId}/projects/${projectId}/branches/does-not-exist/head`,
       { headers: { Cookie: `artisan_user_session=${sessionId}` } },
     );
     expect(res.status).toBe(404);
@@ -121,7 +121,7 @@ describe("userBranchesRouter — GET branches + commits", () => {
   });
 
   test("GET /branches/:branch/head returns 403 when not member", async () => {
-    const { networkId, packId } = await seedUserWithPack("uA");
+    const { networkId, projectId } = await seedUserWithProject("uA");
     await db.insert(users).values({
       id: "uB2", email: "uB2@a.b", name: "uB2", passwordHash: null, avatarUrl: null,
       createdAt: new Date(), updatedAt: new Date(),
@@ -129,7 +129,7 @@ describe("userBranchesRouter — GET branches + commits", () => {
     const sessB = (await createSession("uB2")).id;
     const app = makeApp();
     const res = await app.request(
-      `/api/v1/networks/${networkId}/projects/${packId}/branches/main/head`,
+      `/api/v1/networks/${networkId}/projects/${projectId}/branches/main/head`,
       { headers: { Cookie: `artisan_user_session=${sessB}` } },
     );
     expect(res.status).toBe(403);
@@ -142,17 +142,17 @@ describe("userBranchesRouter — GET /commits/:commitId/content", () => {
   beforeEach(clearAll);
 
   test("GET /commits/:commitId/content returns content for a known commit", async () => {
-    const { sessionId, networkId, packId } = await seedUserWithPack();
+    const { sessionId, networkId, projectId } = await seedUserWithProject();
     const app = makeApp();
     // Get the initial commit's id via the branches list
-    const branchRes = await app.request(`/api/v1/networks/${networkId}/projects/${packId}/branches`, {
+    const branchRes = await app.request(`/api/v1/networks/${networkId}/projects/${projectId}/branches`, {
       headers: { Cookie: `artisan_user_session=${sessionId}` },
     });
     const { branches } = await branchRes.json();
     const commitId = branches[0].headCommitId;
 
     const res = await app.request(
-      `/api/v1/networks/${networkId}/projects/${packId}/commits/${commitId}/content`,
+      `/api/v1/networks/${networkId}/projects/${projectId}/commits/${commitId}/content`,
       { headers: { Cookie: `artisan_user_session=${sessionId}` } },
     );
     expect(res.status).toBe(200);
@@ -162,11 +162,11 @@ describe("userBranchesRouter — GET /commits/:commitId/content", () => {
     expect(typeof body.files).toBe("object");
   });
 
-  test("GET /commits/:commitId/content returns 404 when commit doesn't belong to pack", async () => {
-    const { sessionId, networkId, packId } = await seedUserWithPack();
+  test("GET /commits/:commitId/content returns 404 when commit doesn't belong to project", async () => {
+    const { sessionId, networkId, projectId } = await seedUserWithProject();
     const app = makeApp();
     const res = await app.request(
-      `/api/v1/networks/${networkId}/projects/${packId}/commits/does-not-exist/content`,
+      `/api/v1/networks/${networkId}/projects/${projectId}/commits/does-not-exist/content`,
       { headers: { Cookie: `artisan_user_session=${sessionId}` } },
     );
     expect(res.status).toBe(404);
@@ -179,9 +179,9 @@ describe("userBranchesRouter — POST /branches", () => {
   beforeEach(clearAll);
 
   test("POST /branches creates a new branch from an existing branch", async () => {
-    const { sessionId, networkId, packId } = await seedUserWithPack();
+    const { sessionId, networkId, projectId } = await seedUserWithProject();
     const app = makeApp();
-    const res = await app.request(`/api/v1/networks/${networkId}/projects/${packId}/branches`, {
+    const res = await app.request(`/api/v1/networks/${networkId}/projects/${projectId}/branches`, {
       method: "POST",
       headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "dev", from: "main" }),
@@ -190,7 +190,7 @@ describe("userBranchesRouter — POST /branches", () => {
     const body = await res.json();
     expect(body.branch.name).toBe("dev");
     // dev should point to the same head commit as main initially
-    const branchesRes = await app.request(`/api/v1/networks/${networkId}/projects/${packId}/branches`, {
+    const branchesRes = await app.request(`/api/v1/networks/${networkId}/projects/${projectId}/branches`, {
       headers: { Cookie: `artisan_user_session=${sessionId}` },
     });
     const { branches } = await branchesRes.json();
@@ -200,9 +200,9 @@ describe("userBranchesRouter — POST /branches", () => {
   });
 
   test("POST /branches 422 when name missing or invalid", async () => {
-    const { sessionId, networkId, packId } = await seedUserWithPack();
+    const { sessionId, networkId, projectId } = await seedUserWithProject();
     const app = makeApp();
-    const res = await app.request(`/api/v1/networks/${networkId}/projects/${packId}/branches`, {
+    const res = await app.request(`/api/v1/networks/${networkId}/projects/${projectId}/branches`, {
       method: "POST",
       headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "", from: "main" }),
@@ -211,14 +211,14 @@ describe("userBranchesRouter — POST /branches", () => {
   });
 
   test("POST /branches 409 when name already exists", async () => {
-    const { sessionId, networkId, packId } = await seedUserWithPack();
+    const { sessionId, networkId, projectId } = await seedUserWithProject();
     const app = makeApp();
-    await app.request(`/api/v1/networks/${networkId}/projects/${packId}/branches`, {
+    await app.request(`/api/v1/networks/${networkId}/projects/${projectId}/branches`, {
       method: "POST",
       headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "dev", from: "main" }),
     });
-    const res = await app.request(`/api/v1/networks/${networkId}/projects/${packId}/branches`, {
+    const res = await app.request(`/api/v1/networks/${networkId}/projects/${projectId}/branches`, {
       method: "POST",
       headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "dev", from: "main" }),
@@ -233,14 +233,14 @@ describe("userBranchesRouter — POST /commits", () => {
   beforeEach(clearAll);
 
   test("POST /commits creates commit from current WIP and advances branch head", async () => {
-    const { sessionId, networkId, packId, userId } = await seedUserWithPack();
+    const { sessionId, networkId, projectId, userId } = await seedUserWithProject();
 
     await db.update(projects).set({
       filesJson: JSON.stringify({ "menus/m.yaml": "id: m" }),
-    }).where(eq(projects.id, packId));
+    }).where(eq(projects.id, projectId));
 
     const app = makeApp();
-    const res = await app.request(`/api/v1/networks/${networkId}/projects/${packId}/commits`, {
+    const res = await app.request(`/api/v1/networks/${networkId}/projects/${projectId}/commits`, {
       method: "POST",
       headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ branch: "main", message: "first real commit" }),
@@ -250,7 +250,7 @@ describe("userBranchesRouter — POST /commits", () => {
     expect(body.commit.message).toBe("first real commit");
 
     // Branch head must now point to the new commit
-    const branch = await (await import("../lib/branchStorage")).getBranch(packId, "main");
+    const branch = await (await import("../lib/branchStorage")).getBranch(projectId, "main");
     expect(branch!.headCommitId).toBe(body.commit.id);
 
     // Author is the logged-in user
@@ -258,9 +258,9 @@ describe("userBranchesRouter — POST /commits", () => {
   });
 
   test("POST /commits 404 when branch does not exist", async () => {
-    const { sessionId, networkId, packId } = await seedUserWithPack();
+    const { sessionId, networkId, projectId } = await seedUserWithProject();
     const app = makeApp();
-    const res = await app.request(`/api/v1/networks/${networkId}/projects/${packId}/commits`, {
+    const res = await app.request(`/api/v1/networks/${networkId}/projects/${projectId}/commits`, {
       method: "POST",
       headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ branch: "ghost", message: "x" }),
@@ -275,11 +275,11 @@ describe("userBranchesRouter — POST /branches/:src/promote/:dst", () => {
   beforeEach(clearAll);
 
   test("POST /branches/:src/promote/:dst advances dst to src.head when FF", async () => {
-    const { sessionId, networkId, packId } = await seedUserWithPack();
+    const { sessionId, networkId, projectId } = await seedUserWithProject();
     const app = makeApp();
 
     // Create dev branch (= main head)
-    await app.request(`/api/v1/networks/${networkId}/projects/${packId}/branches`, {
+    await app.request(`/api/v1/networks/${networkId}/projects/${projectId}/branches`, {
       method: "POST",
       headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "dev", from: "main" }),
@@ -288,15 +288,15 @@ describe("userBranchesRouter — POST /branches/:src/promote/:dst", () => {
     // Update WIP + commit on dev (so dev.head > main.head in parent chain)
     await db.update(projects).set({
       filesJson: JSON.stringify({ "menus/m.yaml": "id: m\n" }),
-    }).where(eq(projects.id, packId));
-    await app.request(`/api/v1/networks/${networkId}/projects/${packId}/commits`, {
+    }).where(eq(projects.id, projectId));
+    await app.request(`/api/v1/networks/${networkId}/projects/${projectId}/commits`, {
       method: "POST",
       headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ branch: "dev", message: "dev work" }),
     });
 
     // Promote dev → main
-    const promoteRes = await app.request(`/api/v1/networks/${networkId}/projects/${packId}/branches/dev/promote/main`, {
+    const promoteRes = await app.request(`/api/v1/networks/${networkId}/projects/${projectId}/branches/dev/promote/main`, {
       method: "POST",
       headers: { Cookie: `artisan_user_session=${sessionId}` },
     });
@@ -304,38 +304,38 @@ describe("userBranchesRouter — POST /branches/:src/promote/:dst", () => {
 
     // main.head should now equal dev.head
     const { getBranch } = await import("../lib/branchStorage");
-    const main = await getBranch(packId, "main");
-    const dev = await getBranch(packId, "dev");
+    const main = await getBranch(projectId, "main");
+    const dev = await getBranch(projectId, "dev");
     expect(main!.headCommitId).toBe(dev!.headCommitId);
   });
 
   test("POST /branches/.../promote/... 409 when dst has diverged (not fast-forward)", async () => {
-    const { sessionId, networkId, packId } = await seedUserWithPack();
+    const { sessionId, networkId, projectId } = await seedUserWithProject();
     const app = makeApp();
-    await app.request(`/api/v1/networks/${networkId}/projects/${packId}/branches`, {
+    await app.request(`/api/v1/networks/${networkId}/projects/${projectId}/branches`, {
       method: "POST",
       headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "dev", from: "main" }),
     });
 
     // Commit on dev
-    await db.update(projects).set({ filesJson: JSON.stringify({ "f": "dev" }) }).where(eq(projects.id, packId));
-    await app.request(`/api/v1/networks/${networkId}/projects/${packId}/commits`, {
+    await db.update(projects).set({ filesJson: JSON.stringify({ "f": "dev" }) }).where(eq(projects.id, projectId));
+    await app.request(`/api/v1/networks/${networkId}/projects/${projectId}/commits`, {
       method: "POST",
       headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ branch: "dev", message: "dev1" }),
     });
 
     // Commit on main (separately)
-    await db.update(projects).set({ filesJson: JSON.stringify({ "f": "main" }) }).where(eq(projects.id, packId));
-    await app.request(`/api/v1/networks/${networkId}/projects/${packId}/commits`, {
+    await db.update(projects).set({ filesJson: JSON.stringify({ "f": "main" }) }).where(eq(projects.id, projectId));
+    await app.request(`/api/v1/networks/${networkId}/projects/${projectId}/commits`, {
       method: "POST",
       headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ branch: "main", message: "main1" }),
     });
 
     // Now promote dev → main : not FF
-    const res = await app.request(`/api/v1/networks/${networkId}/projects/${packId}/branches/dev/promote/main`, {
+    const res = await app.request(`/api/v1/networks/${networkId}/projects/${projectId}/branches/dev/promote/main`, {
       method: "POST",
       headers: { Cookie: `artisan_user_session=${sessionId}` },
     });
@@ -352,11 +352,11 @@ describe("userBranchesRouter — id ou slug", () => {
   beforeEach(clearAll);
 
   test("liste les branches avec les slugs", async () => {
-    const { sessionId, networkId, packId } = await seedUserWithPack();
+    const { sessionId, networkId, projectId } = await seedUserWithProject();
     const net = (await db.select().from(networks).where(eq(networks.id, networkId)))[0]!;
-    const pack = (await db.select().from(projects).where(eq(projects.id, packId)))[0]!;
+    const project = (await db.select().from(projects).where(eq(projects.id, projectId)))[0]!;
     const app = makeApp();
-    const res = await app.request(`/api/v1/networks/${net.slug}/projects/${pack.slug}/branches`, {
+    const res = await app.request(`/api/v1/networks/${net.slug}/projects/${project.slug}/branches`, {
       headers: { Cookie: `artisan_user_session=${sessionId}` },
     });
     expect(res.status).toBe(200);
@@ -364,11 +364,11 @@ describe("userBranchesRouter — id ou slug", () => {
   });
 
   test("crée un commit avec les slugs — c'est le geste « Déployer »", async () => {
-    const { sessionId, networkId, packId } = await seedUserWithPack();
+    const { sessionId, networkId, projectId } = await seedUserWithProject();
     const net = (await db.select().from(networks).where(eq(networks.id, networkId)))[0]!;
-    const pack = (await db.select().from(projects).where(eq(projects.id, packId)))[0]!;
+    const project = (await db.select().from(projects).where(eq(projects.id, projectId)))[0]!;
     const app = makeApp();
-    const res = await app.request(`/api/v1/networks/${net.slug}/projects/${pack.slug}/commits`, {
+    const res = await app.request(`/api/v1/networks/${net.slug}/projects/${project.slug}/commits`, {
       method: "POST",
       headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ branch: "main", message: "Deploy" }),
@@ -378,14 +378,14 @@ describe("userBranchesRouter — id ou slug", () => {
     // n'ayant pas bougé, createCommit dédoublonne et rend le commit initial —
     // ce qui compte ici est sa cible.)
     const { commit } = await res.json();
-    expect(commit.projectId).toBe(packId);
+    expect(commit.projectId).toBe(projectId);
   });
 
   test("un project d'un autre network reste inaccessible", async () => {
-    const { sessionId, packId } = await seedUserWithPack("u_a");
+    const { sessionId, projectId } = await seedUserWithProject("u_a");
     const other = await createNetwork("Autre");
     const app = makeApp();
-    const res = await app.request(`/api/v1/networks/${other.slug}/projects/${packId}/branches`, {
+    const res = await app.request(`/api/v1/networks/${other.slug}/projects/${projectId}/branches`, {
       headers: { Cookie: `artisan_user_session=${sessionId}` },
     });
     expect([403, 404]).toContain(res.status);

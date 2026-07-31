@@ -38,12 +38,12 @@ describe("screenScratchId", () => {
 
 describe("buildScratchProject", () => {
   it("parses the table files into a project source with the declared model injected", () => {
-    const pack = buildScratchProject(screen, files, [model]);
-    const src = pack.dataSources.find((d) => d.id === ("categories" as DataSourceId));
+    const project = buildScratchProject(screen, files, [model]);
+    const src = project.dataSources.find((d) => d.id === ("categories" as DataSourceId));
     expect(src).toBeDefined();
     if (src?.shape !== "table") throw new Error("expected table shape");
     expect(src.rows.map((r) => r.id)).toEqual(["weapons"]);
-    const injected = (pack.dataModels ?? []).find((m) => m.id === "boutique:category");
+    const injected = (project.dataModels ?? []).find((m) => m.id === "boutique:category");
     expect(injected?.provenance).toBe("module");
   });
 });
@@ -65,18 +65,18 @@ describe("diffScratchForWrite", () => {
   });
 
   it("an edited row rewrites only its file; a removed row deletes its file", () => {
-    const pack = buildScratchProject(screen, files, [model]);
-    const src = pack.dataSources.find((d) => d.id === ("categories" as DataSourceId));
+    const project = buildScratchProject(screen, files, [model]);
+    const src = project.dataSources.find((d) => d.id === ("categories" as DataSourceId));
     if (src?.shape !== "table") throw new Error("expected table shape");
     src.rows[0]!.name = "Armures";
 
-    let diff = diffScratchForWrite(pack, screen, files);
+    let diff = diffScratchForWrite(project, screen, files);
     expect(diff.deletes).toEqual([]);
     expect(diff.files.some((f) => f.path === "data/categories/weapons.yaml" && f.content.includes("Armures"))).toBe(true);
     expect(diff.files.every((f) => f.path.startsWith("data/categories/"))).toBe(true);
 
     src.rows.splice(0, 1);
-    diff = diffScratchForWrite(pack, screen, files);
+    diff = diffScratchForWrite(project, screen, files);
     expect(diff.deletes).toEqual(["data/categories/weapons.yaml"]);
   });
 
@@ -102,8 +102,8 @@ describe("diffScratchForWrite", () => {
     ];
 
     it("types the config source from the beside model", () => {
-      const pack = buildScratchProject(settings, settingsFiles, []);
-      const src = pack.dataSources.find((d) => d.id === ("shop_settings" as DataSourceId));
+      const project = buildScratchProject(settings, settingsFiles, []);
+      const src = project.dataSources.find((d) => d.id === ("shop_settings" as DataSourceId));
       if (src?.shape !== "config") throw new Error("expected config shape");
       expect(src.fields.map((f) => f.name)).toEqual(["whole_shop_discount"]);
       expect(src.value.whole_shop_discount).toBe(5);
@@ -120,13 +120,13 @@ describe("diffScratchForWrite", () => {
             "schema: data/v1\nid: shop_settings\nshape: config\nfields:\n  - name: whole_shop_discount\n    kind: integer\nvalue:\n  whole_shop_discount: 5\n",
         },
       ];
-      const pack = buildScratchProject(settings, legacy, []);
-      const src = pack.dataSources.find((d) => d.id === ("shop_settings" as DataSourceId));
+      const project = buildScratchProject(settings, legacy, []);
+      const src = project.dataSources.find((d) => d.id === ("shop_settings" as DataSourceId));
       if (src?.shape !== "config") throw new Error("expected config shape");
       expect(src.fields.map((f) => f.name)).toEqual(["whole_shop_discount"]);
       src.value.whole_shop_discount = 10;
 
-      const diff = diffScratchForWrite(pack, settings, legacy);
+      const diff = diffScratchForWrite(project, settings, legacy);
       const written = new Map(diff.files.map((f) => [f.path, f.content]));
       expect(written.has("models/shop_settings.yaml")).toBe(true);
 
@@ -142,12 +142,12 @@ describe("diffScratchForWrite", () => {
     });
 
     it("rewrites the beside model along with the data file, and never deletes it", () => {
-      const pack = buildScratchProject(settings, settingsFiles, []);
-      const src = pack.dataSources.find((d) => d.id === ("shop_settings" as DataSourceId));
+      const project = buildScratchProject(settings, settingsFiles, []);
+      const src = project.dataSources.find((d) => d.id === ("shop_settings" as DataSourceId));
       if (src?.shape !== "config") throw new Error("expected config shape");
       src.value.whole_shop_discount = 10;
 
-      const diff = diffScratchForWrite(pack, settings, settingsFiles);
+      const diff = diffScratchForWrite(project, settings, settingsFiles);
       expect(diff.files.some((f) => f.path === "data/shop_settings.yaml" && f.content.includes("10"))).toBe(true);
       expect(diff.deletes).toEqual([]);
       // The schema survives the round-trip: re-reading the written set keeps it typed.
@@ -185,8 +185,8 @@ describe("diffScratchForWrite", () => {
     ];
 
     it("resolves its fields from the declaration", () => {
-      const pack = buildScratchProject(settings, files, [declared]);
-      const src = pack.dataSources.find((d) => d.id === ("shop_settings" as DataSourceId));
+      const project = buildScratchProject(settings, files, [declared]);
+      const src = project.dataSources.find((d) => d.id === ("shop_settings" as DataSourceId));
       if (src?.shape !== "config") throw new Error("expected config shape");
       expect(src.fields.map((f) => f.name)).toEqual(["whole_shop_discount"]);
       expect(src.fields[0]!.label).toBe("Remise globale");
@@ -194,12 +194,12 @@ describe("diffScratchForWrite", () => {
     });
 
     it("keeps the beside file a one-line ref — a declared schema is never copied to disk", () => {
-      const pack = buildScratchProject(settings, files, [declared]);
-      const src = pack.dataSources.find((d) => d.id === ("shop_settings" as DataSourceId));
+      const project = buildScratchProject(settings, files, [declared]);
+      const src = project.dataSources.find((d) => d.id === ("shop_settings" as DataSourceId));
       if (src?.shape !== "config") throw new Error("expected config shape");
       src.value.whole_shop_discount = 20;
 
-      const diff = diffScratchForWrite(pack, settings, files);
+      const diff = diffScratchForWrite(project, settings, files);
       const beside = diff.files.find((f) => f.path === "models/shop_settings.yaml");
       // Either untouched (identical) or rewritten as the same one-line ref —
       // never expanded into a copy of the declaration.
@@ -212,11 +212,11 @@ describe("diffScratchForWrite", () => {
   });
 
   it("never emits files outside the screen's table", () => {
-    const pack = buildScratchProject(screen, files, [model]);
-    const src = pack.dataSources.find((d) => d.id === ("categories" as DataSourceId));
+    const project = buildScratchProject(screen, files, [model]);
+    const src = project.dataSources.find((d) => d.id === ("categories" as DataSourceId));
     if (src?.shape !== "table") throw new Error("expected table shape");
     src.rows[0]!.name = "Armures";
-    const diff = diffScratchForWrite(pack, screen, files);
+    const diff = diffScratchForWrite(project, screen, files);
     for (const f of diff.files) expect(f.path.startsWith("data/categories")).toBe(true);
   });
 });

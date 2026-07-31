@@ -8,41 +8,41 @@ export interface ValidationResult {
   warnings: string[];
 }
 
-export function validate(pack: Project): ValidationResult {
+export function validate(project: Project): ValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
 
-  // Collect all LText keys referenced in the pack — one traversal covering
+  // Collect all LText keys referenced in the project — one traversal covering
   // menus, commands, templates, and dialogs (see @/domain/i18nSites).
   const referencedKeys = new Set<string>();
-  for (const site of visitProjectLTexts(pack)) referencedKeys.add(site.lText.key);
+  for (const site of visitProjectLTexts(project)) referencedKeys.add(site.lText.key);
 
   // 1. Every referenced key must have a non-empty value in defaultLang
   for (const key of referencedKeys) {
-    const entry = pack.i18nKeys[key as I18nKey];
+    const entry = project.i18nKeys[key as I18nKey];
     if (!entry) {
       errors.push(`Key "${key}" is referenced but has no translations (missing entirely).`);
       continue;
     }
-    const val = entry[pack.defaultLang];
+    const val = entry[project.defaultLang];
     if (!val || val.trim() === "") {
-      errors.push(`Key "${key}" has no ${pack.defaultLang} (default language) value.`);
+      errors.push(`Key "${key}" has no ${project.defaultLang} (default language) value.`);
     }
   }
 
   // 2. No stale undefined entry in i18nKeys
-  for (const [key, entry] of Object.entries(pack.i18nKeys)) {
+  for (const [key, entry] of Object.entries(project.i18nKeys)) {
     if (!entry) {
       errors.push(`Key "${key}" has an undefined entry — stale migration artifact.`);
     }
   }
 
   // 3. Warn on non-default languages with missing translations
-  const langs = listLanguages(pack).filter((l) => l !== pack.defaultLang);
+  const langs = listLanguages(project).filter((l) => l !== project.defaultLang);
   for (const lang of langs) {
     let missingCount = 0;
     for (const key of referencedKeys) {
-      const entry = pack.i18nKeys[key as I18nKey];
+      const entry = project.i18nKeys[key as I18nKey];
       const val = entry?.[lang];
       if (!val || val.trim() === "") missingCount++;
     }

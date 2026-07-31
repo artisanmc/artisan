@@ -7,8 +7,8 @@ import {
   resolvePlacementSlot,
 } from "./placement";
 
-// Minimal pack whose i18nKeys back a couple of title/lore templates.
-function makePack(): Project {
+// Minimal project whose i18nKeys back a couple of title/lore templates.
+function makeProject(): Project {
   return {
     id: "p1" as Project["id"],
     name: "p",
@@ -76,7 +76,7 @@ describe("matchPlacementRow", () => {
 });
 
 describe("resolvePlacementSlot", () => {
-  const pack = makePack();
+  const project = makeProject();
   const baseCtx = {};
 
   it("resolves material + title against the bound row (alias binding)", () => {
@@ -89,7 +89,7 @@ describe("resolvePlacementSlot", () => {
       row,
       rowsAvailable: true,
       baseCtx,
-      pack,
+      project,
       activeLang: "en",
       elementId: "E1",
     });
@@ -113,7 +113,7 @@ describe("resolvePlacementSlot", () => {
       row: undefined,
       rowsAvailable: false, // offline / no snapshot — the cache may render
       baseCtx,
-      pack,
+      project,
       activeLang: "en",
       elementId: "E1",
     });
@@ -136,7 +136,7 @@ describe("resolvePlacementSlot", () => {
       row: undefined,
       rowsAvailable: true, // live rows resolved, key simply gone
       baseCtx,
-      pack,
+      project,
       activeLang: "en",
       elementId: "E1",
     });
@@ -153,7 +153,7 @@ describe("resolvePlacementSlot", () => {
       row: undefined,
       rowsAvailable: false,
       baseCtx,
-      pack,
+      project,
       activeLang: "en",
       elementId: "E1",
     });
@@ -173,7 +173,7 @@ describe("resolvePlacementSlot", () => {
       row,
       rowsAvailable: true,
       baseCtx,
-      pack,
+      project,
       activeLang: "en",
       elementId: "E1",
     });
@@ -183,7 +183,7 @@ describe("resolvePlacementSlot", () => {
 });
 
 describe("capturePlacementCache", () => {
-  const pack = makePack();
+  const project = makeProject();
   it("snapshots the live-resolved name/material/lore for offline fallback", () => {
     const row = { id: "sword", material: "DIAMOND_SWORD", name: "Sword", price: 10 };
     const cache = capturePlacementCache({
@@ -191,7 +191,7 @@ describe("capturePlacementCache", () => {
       appearance: APP({ lore: { key: "lore1" } as Appearance["lore"] }),
       row,
       baseCtx: {},
-      pack,
+      project,
       activeLang: "en",
     });
     expect(cache.name).toBe("Sword");

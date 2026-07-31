@@ -42,9 +42,9 @@ export function buildScratchProject(
       `schema: manifest/v1\nproject_id: ${id}\ndefault_lang: en\nlanguages: [en]\nfiles:\n  menus: []\n  commands: []\n`,
   };
   for (const f of files) fileMap[`${base}/${f.path}`] = f.content;
-  const pack = projectFromFiles(id, fileMap, { name: screen.label });
-  injectDeclaredModels(pack, declaredModels);
-  return pack;
+  const project = projectFromFiles(id, fileMap, { name: screen.label });
+  injectDeclaredModels(project, declaredModels);
+  return project;
 }
 
 /**
@@ -53,12 +53,12 @@ export function buildScratchProject(
  * (originally present, no longer emitted — e.g. a removed per-row file).
  */
 export function diffScratchForWrite(
-  pack: Project,
+  project: Project,
   screen: ServerEditorScreen,
   original: ConfigFile[],
 ): { files: ConfigFile[]; deletes: string[] } {
-  const base = `plugins/Artisan/projects/${pack.id}/`;
-  const emitted = transform(pack);
+  const base = `plugins/Artisan/projects/${project.id}/`;
+  const emitted = transform(project);
   const tablePrefix = `${screen.table}/`;
   const tableFile = (p: string) =>
     p === `${screen.table}.yaml` || p === `${screen.table}.yml` || p.startsWith(tablePrefix);

@@ -297,7 +297,7 @@ describe("POST /api/v1/user/projects/:projectId/assets/:id/duplicate", () => {
   });
 });
 
-// ─── Resource pack rebuild (user-scoped twin) ──────────────────────────────
+// ─── Resource project rebuild (user-scoped twin) ──────────────────────────────
 
 describe("POST /api/v1/networks/:networkId/servers/:serverId/resource-pack/rebuild", () => {
   beforeEach(clearAll);
@@ -311,7 +311,7 @@ describe("POST /api/v1/networks/:networkId/servers/:serverId/resource-pack/rebui
     return app;
   }
 
-  test("200 for a member — rebuilds and returns pack info", async () => {
+  test("200 for a member — rebuilds and returns project info", async () => {
     const { sessionId, networkId, serverKeyId } = await seedUserWithProject("u1");
     const app = makeRebuildApp();
     const res = await app.request(`/api/v1/networks/${networkId}/servers/${serverKeyId}/resource-pack/rebuild`, {

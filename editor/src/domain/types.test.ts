@@ -26,7 +26,7 @@ describe("domain types — compile-time shape", () => {
   });
 
   it("a Project carries i18n keys scoped to itself", () => {
-    const pack: Project = {
+    const project: Project = {
       id: "p_1" as Project["id"],
       name: "Personal",
       source: "user_created",
@@ -42,7 +42,7 @@ describe("domain types — compile-time shape", () => {
       defaultLang: "en",
       canvasLayout: {},
     };
-    expect(pack.defaultLang).toBe("en");
+    expect(project.defaultLang).toBe("en");
   });
 });
 

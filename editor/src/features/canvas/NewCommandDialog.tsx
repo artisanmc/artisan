@@ -36,12 +36,12 @@ export function NewCommandDialog({ projectId, open, position, onOpenChange }: Ne
   const { t } = useTranslation();
 
   const existingIdsStr = useAccountStore((s) => {
-    const pack = s.account.projects.find((p) => p.id === projectId);
-    if (!pack) return "";
+    const project = s.account.projects.find((p) => p.id === projectId);
+    if (!project) return "";
     return [
-      ...pack.commands.map((c) => c.id),
-      ...pack.menus.map((m) => m.id),
-      ...pack.dialogs.map((d) => d.id),
+      ...project.commands.map((c) => c.id),
+      ...project.menus.map((m) => m.id),
+      ...project.dialogs.map((d) => d.id),
     ].join(",");
   });
   const existingIds = new Set(existingIdsStr ? existingIdsStr.split(",") : []);

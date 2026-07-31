@@ -9,7 +9,7 @@ import kotlin.test.assertNotEquals
 
 class BundleHasherTest {
 
-    private fun makePack(dir: File) {
+    private fun makeProject(dir: File) {
         File(dir, "manifest.yaml").writeText("schema: manifest/v1\nproject_id: p_test\n")
         File(dir, "menus").mkdirs()
         File(dir, "menus/shop.yaml").writeText("id: shop\nsize: 27\n")
@@ -19,14 +19,14 @@ class BundleHasherTest {
 
     @Test
     fun `same directory content produces same hash`() {
-        val dir1 = Files.createTempDirectory("bh1_").toFile().also { makePack(it) }
-        val dir2 = Files.createTempDirectory("bh2_").toFile().also { makePack(it) }
+        val dir1 = Files.createTempDirectory("bh1_").toFile().also { makeProject(it) }
+        val dir2 = Files.createTempDirectory("bh2_").toFile().also { makeProject(it) }
         assertEquals(BundleHasher.hash(dir1), BundleHasher.hash(dir2))
     }
 
     @Test
     fun `changed file content changes hash`() {
-        val dir = Files.createTempDirectory("bh3_").toFile().also { makePack(it) }
+        val dir = Files.createTempDirectory("bh3_").toFile().also { makeProject(it) }
         val before = BundleHasher.hash(dir)
         File(dir, "menus/shop.yaml").writeText("id: shop\nsize: 54\n")
         assertNotEquals(before, BundleHasher.hash(dir))
@@ -34,7 +34,7 @@ class BundleHasherTest {
 
     @Test
     fun `added file changes hash`() {
-        val dir = Files.createTempDirectory("bh4_").toFile().also { makePack(it) }
+        val dir = Files.createTempDirectory("bh4_").toFile().also { makeProject(it) }
         val before = BundleHasher.hash(dir)
         File(dir, "menus/extra.yaml").writeText("id: extra\n")
         assertNotEquals(before, BundleHasher.hash(dir))
@@ -42,24 +42,24 @@ class BundleHasherTest {
 
     @Test
     fun `dot-artisan files are excluded from hash`() {
-        val dir = Files.createTempDirectory("bh5_").toFile().also { makePack(it) }
+        val dir = Files.createTempDirectory("bh5_").toFile().also { makeProject(it) }
         val before = BundleHasher.hash(dir)
         File(dir, ".artisan-sync.yaml").writeText("synced_hash: abc\n")
         assertEquals(before, BundleHasher.hash(dir))
     }
 
     @Test
-    fun `hashAll over two packs is deterministic`() {
+    fun `hashAll over two projects is deterministic`() {
         val packsDir = Files.createTempDirectory("bh6_").toFile()
-        makePack(File(packsDir, "p_a").apply { mkdirs() })
-        makePack(File(packsDir, "p_b").apply { mkdirs() })
+        makeProject(File(packsDir, "p_a").apply { mkdirs() })
+        makeProject(File(packsDir, "p_b").apply { mkdirs() })
         val h1 = BundleHasher.hashAll(packsDir)
         val h2 = BundleHasher.hashAll(packsDir)
         assertEquals(h1, h2)
     }
 
     @Test
-    fun `hashAll returns empty string when no packs`() {
+    fun `hashAll returns empty string when no projects`() {
         val empty = Files.createTempDirectory("bh7_").toFile()
         assertEquals("", BundleHasher.hashAll(empty))
     }

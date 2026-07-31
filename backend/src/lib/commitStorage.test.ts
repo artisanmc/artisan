@@ -38,7 +38,7 @@ describe("commitStorage", () => {
     expect(computeContentHash({}, "p1")).toBe("");
   });
 
-  it("computeContentHash matches the canonical pack hash (single house hash — CLAUDE.md invariant)", async () => {
+  it("computeContentHash matches the canonical project hash (single house hash — CLAUDE.md invariant)", async () => {
     // The commit contentHash IS the same canonical hash the plugin (BundleHasher)
     // and computeBundleHash produce: relPath-keyed, byte-order sorted, `.artisan*`
     // first-segment excluded. Divergence here made hello_ack.project_hashes never
@@ -46,20 +46,20 @@ describe("commitStorage", () => {
     const { readFileSync, existsSync } = await import("node:fs");
     const { join, dirname } = await import("node:path");
     let dir = process.cwd();
-    while (!existsSync(join(dir, "testdata", "pack-hash-conformance.json"))) {
+    while (!existsSync(join(dir, "testdata", "project-hash-conformance.json"))) {
       const parent = dirname(dir);
       if (parent === dir) throw new Error("conformance fixture not found");
       dir = parent;
     }
-    const vector = JSON.parse(readFileSync(join(dir, "testdata", "pack-hash-conformance.json"), "utf8"));
+    const vector = JSON.parse(readFileSync(join(dir, "testdata", "project-hash-conformance.json"), "utf8"));
     // Keys as stored in a commit's filesJson (full plugin-disk paths).
     const prefixed: Record<string, string> = {};
     for (const [k, v] of Object.entries(vector.files as Record<string, string>)) {
-      prefixed[`plugins/Artisan/projects/${vector.packId}/${k}`] = v;
+      prefixed[`plugins/Artisan/projects/${vector.projectId}/${k}`] = v;
     }
-    expect(computeContentHash(prefixed, vector.packId)).toBe(vector.expectedHash);
+    expect(computeContentHash(prefixed, vector.projectId)).toBe(vector.expectedHash);
     // Already-relative keys hash identically (tolerated input shape).
-    expect(computeContentHash(vector.files, vector.packId)).toBe(vector.expectedHash);
+    expect(computeContentHash(vector.files, vector.projectId)).toBe(vector.expectedHash);
   });
 
   it("computeContentHash excludes .artisan* metadata (hash-exclusion invariant)", () => {

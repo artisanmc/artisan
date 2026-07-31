@@ -3,7 +3,7 @@ import type { Project, ProjectId } from "@/domain/types";
 import { buildSearchIndex, groupResultsForDisplay, searchQuery } from "./searchIndex";
 
 const PID = "p1" as ProjectId;
-function pack(): Project {
+function project(): Project {
   return {
     id: PID, name: "p", source: "user_created", createdAt: "", updatedAt: "",
     menus: [{
@@ -27,19 +27,19 @@ function pack(): Project {
 
 describe("buildSearchIndex", () => {
   it("indexe menus, commandes, dialogs (niveau élément)", () => {
-    const idx = buildSearchIndex(pack(), "en");
+    const idx = buildSearchIndex(project(), "en");
     expect(idx.find((e) => e.group === "menu" && e.label === "Shop")?.target.openId).toBe("m_shop");
     expect(idx.find((e) => e.group === "command" && e.label === "/heal")?.target.openId).toBe("c_heal");
     expect(idx.find((e) => e.group === "dialog" && e.label === "Confirm")?.target.openId).toBe("d_confirm");
   });
   it("indexe les items de menu avec cible = menu + slot", () => {
-    const idx = buildSearchIndex(pack(), "en");
+    const idx = buildSearchIndex(project(), "en");
     const item = idx.find((e) => e.group === "content" && e.label === "DIAMOND");
     expect(item?.target).toEqual({ openId: "m_shop", selectId: "el_buy", focusedSlot: 13 });
     expect(item?.context).toEqual({ key: "search.ctxInMenu", owner: "Shop" });
   });
   it("indexe les textes (titre/lore d'item, corps + bouton de dialog)", () => {
-    const idx = buildSearchIndex(pack(), "en");
+    const idx = buildSearchIndex(project(), "en");
     expect(idx.some((e) => e.label === "Buy now" && e.target.selectId === "el_buy")).toBe(true);
     expect(idx.some((e) => e.label === "Costs 10 coins" && e.target.selectId === "el_buy")).toBe(true);
     expect(idx.some((e) => e.label === "Are you sure?" && e.target.openId === "d_confirm")).toBe(true);
@@ -49,22 +49,22 @@ describe("buildSearchIndex", () => {
 
 describe("searchQuery", () => {
   it("filtre par sous-chaîne insensible à la casse", () => {
-    const idx = buildSearchIndex(pack(), "en");
+    const idx = buildSearchIndex(project(), "en");
     const r = searchQuery(idx, "diam");
     expect(r.some((e) => e.label === "DIAMOND")).toBe(true);
     expect(r.every((e) => e.haystack.includes("diam"))).toBe(true);
   });
   it("chercher le nom du menu propriétaire surface ses items", () => {
-    const r = searchQuery(buildSearchIndex(pack(), "en"), "shop");
+    const r = searchQuery(buildSearchIndex(project(), "en"), "shop");
     expect(r.some((e) => e.label === "DIAMOND")).toBe(true); // l'item est trouvé via owner "Shop"
   });
   it("classe élément avant contenu, exact/préfixe avant sous-chaîne", () => {
-    const idx = buildSearchIndex(pack(), "en");
+    const idx = buildSearchIndex(project(), "en");
     const r = searchQuery(idx, "shop");
     expect(r[0]?.group).toBe("menu");
   });
   it("requête vide renvoie []", () => {
-    expect(searchQuery(buildSearchIndex(pack(), "en"), "  ")).toEqual([]);
+    expect(searchQuery(buildSearchIndex(project(), "en"), "  ")).toEqual([]);
   });
 });
 

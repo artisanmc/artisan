@@ -14,7 +14,7 @@ import { transform } from "./transform";
 const PID = "p_bare_out" as ProjectId;
 const base = `plugins/Artisan/projects/${PID}`;
 
-function basePack(): Record<string, unknown> {
+function baseProject(): Record<string, unknown> {
   const now = "2026-07-26T00:00:00.000Z";
   return {
     id: PID,
@@ -37,8 +37,8 @@ function basePack(): Record<string, unknown> {
 
 describe("bare export (ADR bare-data-files T2)", () => {
   it("declared per-row table: minimal _source.yaml, literal ltext rows, no defaultLang key", () => {
-    const pack = {
-      ...basePack(),
+    const project = {
+      ...baseProject(),
       i18nKeys: { "sources.categories.armes.name": { fr: "Armes", en: "Weapons" } },
       dataModels: [
         {
@@ -65,7 +65,7 @@ describe("bare export (ADR bare-data-files T2)", () => {
         },
       ],
     };
-    const files = transform(pack as never);
+    const files = transform(project as never);
 
     const meta = parse(files[`${base}/data/categories/_source.yaml`]!) as Record<string, unknown>;
     expect(meta).toEqual({
@@ -88,8 +88,8 @@ describe("bare export (ADR bare-data-files T2)", () => {
   });
 
   it("single-file table with an OWNED project model: bare list + models/<sourceId>.yaml doc", () => {
-    const pack = {
-      ...basePack(),
+    const project = {
+      ...baseProject(),
       defaultLang: "en",
       i18nKeys: { k_vip: { en: "VIP" } },
       dataModels: [
@@ -113,7 +113,7 @@ describe("bare export (ADR bare-data-files T2)", () => {
         },
       ],
     };
-    const files = transform(pack as never);
+    const files = transform(project as never);
 
     // Data file is a top-level LIST of pure values.
     expect(parse(files[`${base}/data/ranks.yaml`]!)).toEqual([{ id: "vip", name: "VIP" }]);
@@ -126,8 +126,8 @@ describe("bare export (ADR bare-data-files T2)", () => {
   });
 
   it("config: bare mapping + models/<sourceId>.yaml fields doc", () => {
-    const pack = {
-      ...basePack(),
+    const project = {
+      ...baseProject(),
       defaultLang: "en",
       i18nKeys: { k_motd: { en: "Welcome" } },
       dataSources: [
@@ -143,7 +143,7 @@ describe("bare export (ADR bare-data-files T2)", () => {
         },
       ],
     };
-    const files = transform(pack as never);
+    const files = transform(project as never);
 
     expect(parse(files[`${base}/data/settings.yaml`]!)).toEqual({ motd: "Welcome", discount: 5 });
     const doc = parse(files[`${base}/models/settings.yaml`]!) as Record<string, unknown>;
@@ -152,8 +152,8 @@ describe("bare export (ADR bare-data-files T2)", () => {
   });
 
   it("model hints become generated comments; a hand-written header survives the round-trip", () => {
-    const pack = {
-      ...basePack(),
+    const project = {
+      ...baseProject(),
       defaultLang: "en",
       dataSources: [
         {
@@ -167,7 +167,7 @@ describe("bare export (ADR bare-data-files T2)", () => {
         },
       ],
     };
-    const files = transform(pack as never);
+    const files = transform(project as never);
     const dataFile = files[`${base}/data/settings.yaml`]!;
     // The hint sits above the key it documents (ADR yaml-assisted-editing ⑥ —
     // was a flat list in the header block until 2026-07-27).
@@ -186,8 +186,8 @@ describe("bare export (ADR bare-data-files T2)", () => {
   });
 
   it("files → domain → files is a fixed point on the bare forms", () => {
-    const pack = {
-      ...basePack(),
+    const project = {
+      ...baseProject(),
       defaultLang: "fr",
       i18nKeys: { "sources.categories.armes.name": { fr: "Armes", en: "Weapons" } },
       dataModels: [
@@ -238,11 +238,11 @@ describe("bare export (ADR bare-data-files T2)", () => {
         },
       ],
     };
-    const files1 = transform(pack as never);
+    const files1 = transform(project as never);
     // Declared models arrive via Presence, not files — reinject + adopt the
     // bare literals, the way the loader does after injection.
     const p2 = projectFromFiles(PID, files1, { name: "Bare Out" });
-    (p2.dataModels ??= []).push((pack.dataModels as never[])[0]! as never);
+    (p2.dataModels ??= []).push((project.dataModels as never[])[0]! as never);
     const cats = p2.dataSources.find((d) => d.id === ("categories" as DataSourceId));
     if (cats?.shape !== "table") throw new Error("expected table");
     adoptBareLTexts(p2, cats);
@@ -256,8 +256,8 @@ describe("bare export (ADR bare-data-files T2)", () => {
 // Field-driven serialization used to drop every key, emptying the file to `{}`.
 describe("schemaless config source", () => {
   it("emits its stored values verbatim and invents no schema file", () => {
-    const pack = {
-      ...basePack(),
+    const project = {
+      ...baseProject(),
       dataSources: [
         {
           id: "shop_settings" as DataSourceId,
@@ -268,15 +268,15 @@ describe("schemaless config source", () => {
         },
       ],
     } as never;
-    const files = transform(pack);
+    const files = transform(project);
     const out = parse(files[`${base}/data/shop_settings.yaml`]!);
     expect(out).toEqual({ whole_shop_discount: 10, nested: { a: true }, list: [1, 2] });
     expect(files[`${base}/models/shop_settings.yaml`]).toBeUndefined();
   });
 
   it("survives a full re-import round-trip", () => {
-    const pack = {
-      ...basePack(),
+    const project = {
+      ...baseProject(),
       dataSources: [
         {
           id: "shop_settings" as DataSourceId,
@@ -287,7 +287,7 @@ describe("schemaless config source", () => {
         },
       ],
     } as never;
-    const back = projectFromFiles(PID, transform(pack));
+    const back = projectFromFiles(PID, transform(project));
     const src = back.dataSources.find((d) => d.id === ("shop_settings" as DataSourceId));
     if (src?.shape !== "config") throw new Error("expected config shape");
     expect(src.value).toEqual({ whole_shop_discount: 10 });
@@ -299,8 +299,8 @@ describe("schemaless config source", () => {
 // to blank every row. The rows are the user's data — they travel verbatim.
 describe("table whose declared model is missing", () => {
   it("keeps its rows verbatim instead of emptying them", () => {
-    const pack = {
-      ...basePack(),
+    const project = {
+      ...baseProject(),
       dataModels: [],
       dataSources: [
         {
@@ -312,7 +312,7 @@ describe("table whose declared model is missing", () => {
         },
       ],
     } as never;
-    const files = transform(pack);
+    const files = transform(project);
     const written = files[`${base}/data/categories.yaml`]!;
     expect(parse(written)).toEqual([{ id: "weapons", name: "Armes", discount: 5 }]);
   });
@@ -345,9 +345,9 @@ describe("schema hints become per-key comments", () => {
     ],
   };
 
-  function packWith(value: Record<string, unknown>) {
+  function projectWith(value: Record<string, unknown>) {
     return {
-      ...basePack(),
+      ...baseProject(),
       dataModels: [model],
       dataSources: [
         {
@@ -362,7 +362,7 @@ describe("schema hints become per-key comments", () => {
   }
 
   it("puts each help line directly above its key, at any depth", () => {
-    const files = transform(packWith({ whole_shop_discount: 10, placeholders: { price_display: "%price% tokens" } }));
+    const files = transform(projectWith({ whole_shop_discount: 10, placeholders: { price_display: "%price% tokens" } }));
     const out = files[`${base}/data/shop_settings.yaml`]!;
     const lines = out.split("\n");
     const at = (key: string) => lines.findIndex((l) => l.trimStart().startsWith(key));
@@ -374,14 +374,14 @@ describe("schema hints become per-key comments", () => {
   });
 
   it("states that hand-written comments are overwritten", () => {
-    const out = transform(packWith({ whole_shop_discount: 10 }))[`${base}/data/shop_settings.yaml`]!;
+    const out = transform(projectWith({ whole_shop_discount: 10 }))[`${base}/data/shop_settings.yaml`]!;
     expect(out).toMatch(/^# ──/m);
     expect(out.toLowerCase()).toContain("écras");
   });
 
   it("still round-trips: comments carry no data", () => {
     const value = { whole_shop_discount: 10, placeholders: { price_display: "%price% tokens" } };
-    const back = projectFromFiles(PID, transform(packWith(value)));
+    const back = projectFromFiles(PID, transform(projectWith(value)));
     const src = back.dataSources.find((d) => d.id === ("shop_settings" as DataSourceId));
     if (src?.shape !== "config") throw new Error("expected config shape");
     expect(src.value).toEqual(value);
