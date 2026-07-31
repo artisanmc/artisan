@@ -36,4 +36,13 @@ data class CompiledAppearance(
     val conditions: List<Condition>,
     val clicks: Map<ClickType, ClickHandler>,
     val yaml: AppearanceYaml,
+    /**
+     * Canonical i18n ADDRESS of this appearance — `menus.<m>.elements.<el>.<state>`,
+     * mirroring the editor's key-site visitor. Inline mode keeps the default
+     * language's text literally in the menu file and puts the other languages in
+     * `lang/<lang>.yaml` under `<i18nBase>.title` / `.lore`; without this the
+     * literal would be untranslatable. Empty only for appearances compiled
+     * outside a menu.
+     */
+    val i18nBase: String = "",
 )

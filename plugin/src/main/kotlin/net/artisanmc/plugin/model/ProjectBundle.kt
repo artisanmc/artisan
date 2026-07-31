@@ -451,7 +451,7 @@ data class BundleMenu(
      * Parsed title layers. The canonical representation since Task 16 of the title-composer plan.
      * Computed by [MenuTitleParser.parse] at compile time. Task 18's `TitleCompiler` consumes this list.
      */
-    val title: List<MenuTitleLayer> = MenuTitleParser.parse(yaml.title),
+    val title: List<MenuTitleLayer> = MenuTitleParser.parse(yaml.title, yaml.id),
     /**
      * Fallback language declared in the parent project's manifest. Used when the
      * player's client locale isn't in `langMaps` so we still resolve the i18n
