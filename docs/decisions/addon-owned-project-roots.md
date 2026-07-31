@@ -54,3 +54,20 @@ grilled later). This ADR captures only the small, separable, decided slice.
   as generic Data models" and field-contract ideas explored earlier this session are
   **not** adopted here — they move to the deferred track.
 - No prod data migration (the boutique format is untouched).
+
+### Amendement 2026-07-31 — le masquage d'une racine core est signalé
+
+Quand un Add-on enregistre `<id>` alors que `plugins/Artisan/projects/<id>/`
+existe déjà, la racine enregistrée gagne et la copie core devient invisible :
+plus lue, plus hashée, plus synchronisée, plus scannée. Le passage à cet ADR a
+laissé exactement ça sur le serveur de dev — un arbre `boutique_shop` figé au
+2026-07-25, avec un `.artisan-sync.yaml` déjà divergent.
+
+Ce n'est pas un déchet inerte. Le jour où l'Add-on échoue à démarrer, personne
+n'enregistre la racine, `ProjectRoots.all()` réexpose la copie périmée comme
+project vivant, et la bannière de divergence — **dont le défaut est « disque »**
+— propose de la pousser par-dessus la vraie.
+
+`ProjectRoots.register` émet donc un WARN nommant les deux chemins. Un log, pas
+un refus : l'Add-on a le droit de posséder sa racine, c'est la copie orpheline
+qui doit disparaître, et seul l'admin peut en décider.
