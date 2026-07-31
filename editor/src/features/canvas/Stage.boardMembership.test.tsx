@@ -21,7 +21,7 @@ function pack(): Project {
     id: PID, name: "p", source: "user_created", createdAt: "", updatedAt: "",
     menus: [{ id: "m1", projectId: PID, title: [], rows: 3, layers: [] } as any,
             { id: "m2", projectId: PID, title: [], rows: 3, layers: [] } as any],
-    commands: [], templates: [], assets: [], dataSources: [], importedConnectors: [],
+    commands: [], assets: [], dataSources: [], importedConnectors: [],
     i18nKeys: {}, defaultLang: "en", dialogs: [], canvasLayout: { m1: { x: 0, y: 0 } } as any,
   } as Project;
 }

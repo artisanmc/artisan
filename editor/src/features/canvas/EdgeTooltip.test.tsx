@@ -37,7 +37,6 @@ const pack = {
     { id: "m2", projectId: "p1", title: [], rows: 3, layers: [] },
   ],
   commands: [],
-  templates: [],
   assets: [],
   dataSources: [],
   importedConnectors: [],

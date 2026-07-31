@@ -22,7 +22,6 @@ const pack = (): Project =>
     createdAt: "",
     updatedAt: "",
     commands: [],
-    templates: [],
     assets: [],
     importedConnectors: [],
     i18nKeys: {},

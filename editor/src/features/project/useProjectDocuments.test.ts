@@ -10,7 +10,7 @@ function pack(): Project {
     commands: [{ id: "c1", projectId: PID, name: "heal", arguments: [], steps: [] } as any],
     // title is an LText ref — key "k_d1" resolved via i18nKeys below
     dialogs: [{ id: "d1", projectId: PID, title: { key: "k_d1" }, canCloseWithEscape: true, body: [], inputs: [], buttons: [] } as any],
-    templates: [], assets: [], dataSources: [], importedConnectors: [],
+    assets: [], dataSources: [], importedConnectors: [],
     i18nKeys: { k_d1: { en: "Confirm" } } as any,
     defaultLang: "en", canvasLayout: { m1: { x: 0, y: 0 } } as any,
   } as Project;

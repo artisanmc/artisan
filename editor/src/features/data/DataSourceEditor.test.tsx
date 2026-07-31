@@ -26,7 +26,6 @@ function makeProject(sourceNames = ["settings"]): Project {
     updatedAt: "",
     menus: [],
     commands: [],
-    templates: [],
     assets: [],
     dataModels: [],
     dataSources: sourceNames.map((name, index) =>

@@ -20,7 +20,6 @@ function makeProject(): Project {
     updatedAt: "",
     menus: [],
     commands: [],
-    templates: [],
     assets: [],
     dataModels: [
       {
@@ -183,7 +182,6 @@ describe("bare export — map / enum / union kinds", () => {
       updatedAt: "",
       menus: [],
       commands: [],
-      templates: [],
       assets: [],
       dataModels: [
         {
@@ -283,7 +281,6 @@ describe("bare export — per-row file granularity", () => {
       updatedAt: "",
       menus: [],
       commands: [],
-      templates: [],
       assets: [],
       dataModels: [
         {

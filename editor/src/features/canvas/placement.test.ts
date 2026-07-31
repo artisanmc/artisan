@@ -17,7 +17,6 @@ function makePack(): Project {
     updatedAt: "",
     menus: [],
     commands: [],
-    templates: [],
     assets: [],
     dataSources: [],
     importedConnectors: [],

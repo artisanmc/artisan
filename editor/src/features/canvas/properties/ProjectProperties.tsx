@@ -81,13 +81,7 @@ export function ProjectProperties({ pack }: ProjectPropertiesProps) {
       />
 
       <div className="text-[10px] text-[var(--text-faint)]">
-        {t("projectProperties.countTemplatesAssets", {
-          templates: pack.templates.length,
-          templatesPlural: t(
-            pack.templates.length === 1
-              ? "projectProperties.templateOne"
-              : "projectProperties.templateOther",
-          ),
+        {t("projectProperties.countAssets", {
           assets: pack.assets.length,
           assetsPlural: t(
             pack.assets.length === 1 ? "projectProperties.assetOne" : "projectProperties.assetOther",

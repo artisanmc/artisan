@@ -22,7 +22,6 @@ function pack(): Project {
     menus: [{ id: "m1", projectId: PID, title: [], rows: 3, layers: [] } as any],
     commands: [{ id: "c1", projectId: PID, name: "heal", arguments: [], steps: [] } as any],
     dialogs: [],
-    templates: [],
     assets: [],
     dataSources: [],
     importedConnectors: [],

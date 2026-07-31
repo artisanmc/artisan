@@ -11,7 +11,7 @@ function pack(): Project {
     source: "user_created",
     createdAt: "",
     updatedAt: "",
-    menus: [], commands: [], dialogs: [], templates: [], assets: [],
+    menus: [], commands: [], dialogs: [], assets: [],
     i18nKeys: {}, defaultLang: "fr", languages: ["fr"], canvasLayout: {},
     dataModels: [
       {

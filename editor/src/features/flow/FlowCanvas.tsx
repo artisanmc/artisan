@@ -4,7 +4,7 @@ import { usePlaceholderEntries } from "@/components/usePlaceholderEntries";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getFirstTitleText } from "@/domain/menuTitle";
-import type { Appearance, I18nKey, ItemTemplateId } from "@/domain/types";
+import type { Appearance, I18nKey } from "@/domain/types";
 import type {
   Command,
   CommandArg,
@@ -179,14 +179,7 @@ function ElementEditor({
     sub && (sub.kind === "state" || sub.kind === "step") ? (sub.stateIndex ?? 0) : 0;
 
   const headerPack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
-  // Template-bound element: the export inlines the template's appearances, so
-  // the state cards edit the TEMPLATE (shared across menus) — the element's
-  // local appearances are dead weight and editing them would change nothing.
-  const boundTplId = element.places?.templateId ?? element.iterates?.templateId;
-  const boundTpl = boundTplId
-    ? (headerPack?.itemTemplates ?? []).find((t) => t.id === boundTplId)
-    : undefined;
-  const appearances = boundTpl ? boundTpl.appearances : element.appearances;
+  const appearances = element.appearances;
   const focusedState = appearances[focusedStateIndex] ?? appearances[0];
   const headerMaterial = focusedState?.material ?? "";
   // Captured-item refs (`item:<id>`) expand to their display descriptor.
@@ -263,26 +256,15 @@ function ElementEditor({
           </div>
         ) : null}
 
-        {boundTpl ? (
-          <div className="mb-3 rounded border border-[var(--brand-line)] bg-[var(--brand-soft)] px-2.5 py-1.5 text-[11px] text-[var(--brand)]">
-            {t("flow.templateBoundBanner", { name: boundTpl.name })}
-          </div>
-        ) : null}
         <Lane label={t("flow.states")}>
           <SortableStates
             projectId={projectId}
             menu={menu}
             element={element}
-            templateId={boundTpl?.id}
             appearances={appearances}
             focusedStateIndex={focusedStateIndex}
             onAdd={() => {
-              addAppearance({
-                projectId,
-                ...(boundTpl
-                  ? { templateId: boundTpl.id }
-                  : { menuId: menu.id, elementId: element.id }),
-              });
+              addAppearance({ projectId, menuId: menu.id, elementId: element.id });
               setSub({ kind: "state", stateIndex: appearances.length });
             }}
           />
@@ -303,7 +285,6 @@ function SortableStates({
   projectId,
   menu,
   element,
-  templateId,
   appearances,
   focusedStateIndex,
   onAdd,
@@ -312,7 +293,6 @@ function SortableStates({
   menu: Menu;
   element: Element;
   /** Set when the element is template-bound: cards edit the template's states. */
-  templateId?: ItemTemplateId;
   appearances: Appearance[];
   focusedStateIndex: number;
   onAdd: () => void;
@@ -332,7 +312,8 @@ function SortableStates({
 
     moveAppearance({
       projectId,
-      ...(templateId ? { templateId } : { menuId: menu.id, elementId: element.id }),
+      menuId: menu.id,
+      elementId: element.id,
       fromIndex,
       toIndex,
     });
@@ -360,7 +341,6 @@ function SortableStates({
               projectId={projectId}
               menu={menu}
               element={element}
-              templateId={templateId}
               appearance={appearance}
               stateIndex={i}
               stateCount={appearances.length}
@@ -555,7 +535,6 @@ function StateCard({
   projectId,
   menu,
   element,
-  templateId,
   appearance,
   stateIndex,
   stateCount,
@@ -566,7 +545,6 @@ function StateCard({
   menu: Menu;
   element: Element;
   /** Set when the element is template-bound: edits target the template. */
-  templateId?: ItemTemplateId;
   appearance: Appearance;
   stateIndex: number;
   stateCount: number;
@@ -590,7 +568,7 @@ function StateCard({
   const activeLang = useUiStore((s) => s.activeLang);
   const getText = useGetText(projectId);
   const pack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
-  const target = templateId ? { templateId } : { menuId: menu.id, elementId: element.id };
+  const target = { menuId: menu.id, elementId: element.id };
 
   const isDefault = stateIndex === 0;
   const material = appearance.material ?? "";
@@ -1016,7 +994,6 @@ function StateCard({
               projectId={projectId}
               menuId={menu.id}
               elementId={element.id}
-              templateId={templateId}
               stateIndex={stateIndex}
               click={appearance.click}
             />

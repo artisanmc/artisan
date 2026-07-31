@@ -11,7 +11,7 @@ function seed() {
     id: PID, name: "p", source: "user_created", createdAt: "", updatedAt: "",
     menus: [{ id: "m1", projectId: PID, title: [], rows: 3, layers: [] } as any,
             { id: "m2", projectId: PID, title: [], rows: 3, layers: [] } as any],
-    commands: [], dialogs: [], templates: [], assets: [], dataSources: [], importedConnectors: [],
+    commands: [], dialogs: [], assets: [], dataSources: [], importedConnectors: [],
     i18nKeys: {}, defaultLang: "en", canvasLayout: { m1: { x: 100, y: 100 }, m2: { x: 104, y: 600 } } as any,
   } as Project] } } as any);
 }

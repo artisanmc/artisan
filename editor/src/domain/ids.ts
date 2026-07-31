@@ -7,11 +7,9 @@ import type {
   DataSourceId,
   DialogId,
   ElementId,
-  ItemTemplateId,
   LayerId,
   MenuId,
   ProjectId,
-  TemplateId,
 } from "./types";
 
 let counter = 0;
@@ -21,8 +19,6 @@ export const accountId = (s: string): AccountId => s as AccountId;
 export const projectId = (s: string): ProjectId => s as ProjectId;
 export const menuId = (s: string): MenuId => s as MenuId;
 export const commandId = (s: string): CommandId => s as CommandId;
-export const templateId = (s: string): TemplateId => s as TemplateId;
-export const itemTemplateId = (s: string): ItemTemplateId => s as ItemTemplateId;
 export const capturedItemId = (s: string): CapturedItemId => s as CapturedItemId;
 export const assetId = (s: string): AssetId => s as AssetId;
 export const elementId = (s: string): ElementId => s as ElementId;
@@ -34,8 +30,6 @@ export const newElementId = () => elementId(`el_${next()}_${Date.now().toString(
 export const newLayerId = () => layerId(`l_${next()}_${Date.now().toString(36)}`);
 export const newCommandId = () => commandId(`c_${next()}_${Date.now().toString(36)}`);
 export const dialogId = (s: string): DialogId => s as DialogId;
-export const newItemTemplateId = () =>
-  itemTemplateId(`itpl_${next()}_${Date.now().toString(36)}`);
 export const newCapturedItemId = () =>
   capturedItemId(`ci_${next()}_${Date.now().toString(36)}`);
 export const dataSourceId = (s: string): DataSourceId => s as DataSourceId;

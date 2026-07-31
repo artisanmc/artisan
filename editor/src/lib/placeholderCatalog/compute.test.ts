@@ -10,7 +10,6 @@ const emptyProject = (): Project => ({
   updatedAt: "2026-05-30",
   menus: [],
   commands: [],
-  templates: [],
   assets: [],
   dataSources: [],
   importedConnectors: [],

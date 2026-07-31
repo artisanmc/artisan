@@ -31,15 +31,6 @@ function makeFixture(): Project {
     updatedAt: "",
     i18nKeys: {},
     assets: [],
-    templates: [
-      {
-        id: "tpl" as never,
-        projectId: "p" as never,
-        name: "T",
-        variables: [],
-        appearances: [{ title: lt("lt_tt") }],
-      },
-    ],
     dialogs: [
       {
         id: "dlg" as never,
@@ -132,7 +123,7 @@ describe("visitProjectLTexts", () => {
   const sites = [...visitProjectLTexts(makeFixture())];
   const tuple = (s: LTextSite) => [s.lText.key, s.key, s.path, s.kind];
 
-  it("emits every key site, in menus→commands→templates→dialogs order", () => {
+  it("emits every key site, in menus→commands→dialogs order", () => {
     expect(sites.map(tuple)).toEqual([
       // menu title — two text layers: keys title / title_2, paths title[0] / title[1]
       ["lt_t0", "menus.shop.title", "menus.shop.title[0]", "menuTitle"],
@@ -177,8 +168,6 @@ describe("visitProjectLTexts", () => {
       ],
       // command
       ["lt_cm", "commands.give.message", "commands.give.message", "message"],
-      // template appearance
-      ["lt_tt", "templates.tpl.default.title", "templates.tpl.default.title", "appearanceTitle"],
       // dialog
       ["lt_dt", "dialogs.dlg.title", "dialogs.dlg.title", "dialogTitle"],
       ["lt_db", "dialogs.dlg.body.1.text", "dialogs.dlg.body[1]", "dialogBody"],

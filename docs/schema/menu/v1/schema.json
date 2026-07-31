@@ -318,21 +318,11 @@
           "items": {
             "$ref": "#/$defs/Appearance"
           },
-          "description": "Apparences conditionnelles (première dont le `if` passe gagne). Absentes quand l'élément est lié à un template (`iterates.template` / `places.template`) — elles vivent alors dans templates/<id>.yaml."
+          "description": "Apparences conditionnelles (première dont le `if` passe gagne). Auto-suffisantes : un set d'items porte sa vue sur l'élément qui le rend, dans le menu où il vit."
         },
         "iterates": {
           "$ref": "#/$defs/Iterates",
           "description": "Si présent, l'Element devient itératif : pour chaque item du contextInput nommé `source` (de type \"list\"), le moteur évalue les appearances avec l'item courant exposé sous `alias`, accessible via {alias.field}. Mutuellement exclusif avec component_ref."
-        },
-        "template_ref": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "$ref": "#/$defs/TemplateRef"
-            }
-          ]
         },
         "tags": {
           "type": "array",
@@ -462,10 +452,6 @@
           "type": "string",
           "pattern": "^[a-z][a-z0-9_]{0,63}$",
           "description": "Nom local de l'item courant dans la scope de l'Element. Exposé comme {alias} et {alias.field}."
-        },
-        "template": {
-          "type": "string",
-          "description": "Ref d'un Item template (templates/<id>.yaml). Quand présent : alias + appearances viennent du template (résolus au load par le plugin) — pas de champs locaux."
         }
       }
     },
@@ -522,10 +508,18 @@
               "type": "array",
               "items": {
                 "type": "object",
-                "required": ["id"],
+                "required": [
+                  "id"
+                ],
                 "properties": {
-                  "id": { "type": "string" },
-                  "level": { "type": "integer", "minimum": 1, "default": 1 }
+                  "id": {
+                    "type": "string"
+                  },
+                  "level": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 1
+                  }
                 }
               }
             }
@@ -921,27 +915,6 @@
           }
         }
       ]
-    },
-    "TemplateRef": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "id"
-      ],
-      "properties": {
-        "id": {
-          "type": "string",
-          "pattern": "^[a-z][a-z0-9_]*$"
-        },
-        "vars": {
-          "type": "object",
-          "additionalProperties": true
-        },
-        "overrides": {
-          "type": "object",
-          "additionalProperties": true
-        }
-      }
     },
     "Action": {
       "type": "object",
@@ -1741,15 +1714,11 @@
         },
         "alias": {
           "type": "string",
-          "description": "Alias local du row. Absent quand `template` est présent (l'alias du template gagne)."
+          "description": "Alias local du row."
         },
         "key_field": {
           "type": "string",
-          "description": "Row key de la source. Absent quand `template` est présent."
-        },
-        "template": {
-          "type": "string",
-          "description": "Ref d'un Item template — alias/key_field/appearances viennent du template."
+          "description": "Row key de la source."
         },
         "placements": {
           "type": "array",

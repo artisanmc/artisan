@@ -1,7 +1,7 @@
 /**
  * Domain types for the Artisan editor scaffold.
  *
- * - References (open_menu, template_ref, i18n key) may dangle: a target id
+ * - References (open_menu, source ref, i18n key) may dangle: a target id
  *   that doesn't resolve at runtime is a no-op (or the plugin surfaces an
  *   error to the player). The editor doesn't enforce hermeticity — packs
  *   can freely reference each other or have stale ids.
@@ -17,8 +17,6 @@ export type AccountId = string & { __brand: "AccountId" };
 export type ProjectId = string & { __brand: "ProjectId" };
 export type MenuId = string & { __brand: "MenuId" };
 export type CommandId = string & { __brand: "CommandId" };
-export type TemplateId = string & { __brand: "TemplateId" };
-export type ItemTemplateId = string & { __brand: "ItemTemplateId" };
 export type CapturedItemId = string & { __brand: "CapturedItemId" };
 export type AssetId = string & { __brand: "AssetId" };
 export type ElementId = string & { __brand: "ElementId" };
@@ -110,9 +108,6 @@ export interface Project {
   updatedAt: string;
   menus: Menu[];
   commands: Command[];
-  templates: Template[];
-  /** Item templates — named per-source row views (optional: absent on older stored projects = []). */
-  itemTemplates?: ItemTemplate[];
   /** Captured items — serialized game ItemStacks + display descriptors (optional on older projects). */
   capturedItems?: CapturedItem[];
   assets: Asset[];
@@ -216,7 +211,6 @@ export interface Element {
   id: ElementId;
   positions: string;
   appearances: Appearance[];
-  templateRef?: { id: TemplateId; vars: Record<string, string> };
   tags?: string[];
   /**
    * Iteration: when set, this element is rendered once per item of the
@@ -228,16 +222,13 @@ export interface Element {
   iterates?: {
     source: string;
     alias: string;
-    /** Item template this pagination renders through. When set, the template wins
-     *  for alias + appearances (inlined at export); absent = local appearances. */
-    templateId?: ItemTemplateId;
   };
   /**
    * Placement mode (mutually exclusive with `iterates`): instead of auto-filling
    * a slot range in source order, the admin pins specific rows of a **static**
    * data source (matched by `keyField`) to explicit page+slot. Rows not placed are
-   * omitted. How a row looks and behaves comes from the bound Item template
-   * (`templateId`) — a Placement pins position only, no per-item override. Only
+   * omitted. How a row looks and behaves comes from this element's own
+   * `appearances` — a Placement pins position only, no per-item override. Only
    * valid on static sources.
    */
   places?: {
@@ -245,9 +236,6 @@ export interface Element {
     alias: string;
     /** The static source's Row key field — rows are matched to placements by this. */
     keyField: string;
-    /** Item template rows render through. When set, wins for alias/keyField/
-     *  appearances (inlined at export); local fields are the dangling fallback. */
-    templateId?: ItemTemplateId;
     placements: Placement[];
   };
 }
@@ -464,14 +452,6 @@ export interface CommandArg {
   default?: string;
 }
 
-export interface Template {
-  id: TemplateId;
-  projectId: ProjectId;
-  name: string;
-  variables: { name: string; type: string }[];
-  appearances: Appearance[];
-}
-
 /**
  * A full serialized ItemStack captured from the running game (inventory mirror
  * or an in-game command), plus a display descriptor derived generically at
@@ -497,32 +477,6 @@ export interface CapturedItem {
     /** The stack's own display name (item_name/custom_name), plain text. */
     name?: string;
   };
-}
-
-/**
- * Project-level **named view over one data source**: how one row of that source
- * renders as a menu slot — appearances (material/title/lore/count) **and click
- * behaviour** — with per-row variation via conditional appearance states (never
- * per-item overrides). Consumed by elements through `iterates.templateId` /
- * `places.templateId`; on disk it is `templates/<id>.yaml` and bound elements
- * carry a `template:` REF — resolved by the plugin at load (never inlined).
- * N templates per source; one template per (menu, source).
- * Cf. ADR `item-templates-and-data-library` + CONTEXT.md "Item template".
- */
-export interface ItemTemplate {
-  id: ItemTemplateId;
-  projectId: ProjectId;
-  name: string;
-  /** Data source ref this template renders (e.g. "boutique:items"). */
-  sourceRef: string;
-  /** Placeholder alias rows bind to in appearances (e.g. "item" → `{item.name}`). */
-  alias: string;
-  /** Static source's Row key — needed to place; absent for dynamic sources. */
-  keyField?: string;
-  /** Library grouping field (static only). Pure arrangement — zero runtime effect. */
-  groupBy?: string;
-  /** THE row template. Conditional states (`if` on row fields) express variation. */
-  appearances: Appearance[];
 }
 
 export interface Asset {

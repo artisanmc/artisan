@@ -43,7 +43,6 @@ function seedProject(layers: MenuTitleLayer[], i18nKeys: Record<string, Record<s
           updatedAt: "",
           menus: [{ id: MENU_ID, projectId: PACK_ID, title: layers, rows: 3, layers: [] }],
           commands: [],
-          templates: [],
           assets: [],
           dataSources: [],
           importedConnectors: [],

@@ -20,7 +20,7 @@ function pack(): Project {
     menus: [{ id: "m_shop", projectId: PID, title: [{ kind: "plain", value: { key: "k" } }], rows: 3,
       layers: [{ id: "L", name: "d", elements: [{ id: "el_buy", positions: "13", appearances: [{ material: "DIAMOND" }] }] }] } as any],
     commands: [{ id: "c_heal", projectId: PID, name: "heal", arguments: [], steps: [] } as any],
-    dialogs: [], templates: [], assets: [], dataSources: [], importedConnectors: [],
+    dialogs: [], assets: [], dataSources: [], importedConnectors: [],
     i18nKeys: { k: { en: "Shop" } } as any, defaultLang: "en", canvasLayout: {},
   } as Project;
 }
