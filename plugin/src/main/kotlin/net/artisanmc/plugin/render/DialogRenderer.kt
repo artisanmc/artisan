@@ -1,6 +1,7 @@
 package net.artisanmc.plugin.render
 
 import net.artisanmc.plugin.actiondsl.compileActionDsl
+import net.artisanmc.plugin.engine.assignI18nAddresses
 import net.artisanmc.plugin.engine.*
 import net.artisanmc.plugin.model.BundleDialog
 import net.artisanmc.plugin.model.DialogInputYaml
@@ -86,7 +87,12 @@ object DialogRenderer {
             val requirements = btnYaml.requirements.map { ConditionParser.parse(it) }
             // Button `actions` is an Action DSL string (Phase 2, ADR action-dsl)
             // → Step tree; the flat `fallback:` legacy wire stays as-is.
-            val steps        = runCatching { compileActionDsl(btnYaml.actions) }
+            val steps        = runCatching {
+                assignI18nAddresses(
+                    compileActionDsl(btnYaml.actions),
+                    "dialogs.${dialog.yaml.id}.buttons.${btnYaml.id}",
+                )
+            }
                 .getOrElse { e ->
                     org.bukkit.Bukkit.getLogger()
                         .warning("[Artisan] dialog button '${btnYaml.id}' steps skipped — ${e.message}")

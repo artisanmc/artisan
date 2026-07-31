@@ -19,14 +19,17 @@ sealed class Action {
     data class TakeMoney(val amount: Double, val currency: String? = null) : Action()
     data class GiveXp(val amount: Int) : Action()
     data class GiveLevel(val amount: Int) : Action()
-    data class SendMessage(val text: String) : Action()
-    data class Broadcast(val text: String) : Action()
+    /** `i18n` is the canonical ADDRESS of this text (inline mode); see [assignI18nAddresses]. */
+    data class SendMessage(val text: String, val i18n: String? = null) : Action()
+    data class Broadcast(val text: String, val i18n: String? = null) : Action()
     data class ShowTitle(
         val title:    String,
         val subtitle: String? = null,
         val fadeIn:   Int = 10,
         val stay:     Int = 70,
         val fadeOut:  Int = 20,
+        val i18nTitle:    String? = null,
+        val i18nSubtitle: String? = null,
     ) : Action()
     data class PlaySound(val sound: String, val volume: Float = 1f, val pitch: Float = 1f) : Action()
     data class Teleport(

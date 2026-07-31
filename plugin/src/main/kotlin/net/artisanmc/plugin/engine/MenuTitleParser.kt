@@ -23,7 +23,32 @@ object MenuTitleParser {
     private const val DEFAULT_TEXT_Y = 5
 
     @Suppress("UNCHECKED_CAST")
-    fun parse(node: Any?): List<MenuTitleLayer> = when (node) {
+    /**
+     * `menuId` enables inline mode: text-bearing layers get their canonical
+     * address (`menus.<id>.title`, then `_2`, `_3`…), so a literal title can be
+     * translated. Absent (tests, legacy callers) = no address, literals render
+     * as written.
+     */
+    fun parse(node: Any?, menuId: String? = null): List<MenuTitleLayer> =
+        stampAddresses(parseLayers(node), menuId)
+
+    /** First text-bearing layer → `menus.<id>.title`; the next → `_2`, `_3`… */
+    private fun stampAddresses(layers: List<MenuTitleLayer>, menuId: String?): List<MenuTitleLayer> {
+        if (menuId == null) return layers
+        val base = "menus.$menuId.title"
+        var i = 0
+        return layers.map { layer ->
+            val address = { if (i == 0) base else "${base}_${i + 1}" }
+            when (layer) {
+                is MenuTitleLayer.Plain -> layer.copy(value = layer.value.copy(address = address())).also { i++ }
+                is MenuTitleLayer.Text -> layer.copy(value = layer.value.copy(address = address())).also { i++ }
+                is MenuTitleLayer.Textarea -> layer.copy(value = layer.value.copy(address = address())).also { i++ }
+                else -> layer
+            }
+        }
+    }
+
+    private fun parseLayers(node: Any?): List<MenuTitleLayer> = when (node) {
         null -> emptyList()
         // Legacy bare-string format → plain vanilla layer (no resource project needed).
         is String -> if (node.isEmpty()) emptyList() else listOf(
@@ -116,6 +141,6 @@ object MenuTitleParser {
         if (raw.startsWith("{i18n:") && raw.endsWith("}")) {
             return LText(key = raw.removePrefix("{i18n:").removeSuffix("}"))
         }
-        return LText(key = raw)
+        return LText(key = raw, literal = true)
     }
 }

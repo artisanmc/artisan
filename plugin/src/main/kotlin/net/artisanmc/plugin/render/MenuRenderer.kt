@@ -175,7 +175,7 @@ object MenuRenderer {
                     val itemCtx = renderCtx.copy(args = renderCtx.args + itemArgs)
                     val chosen = compiledList.firstOrNull { evaluator.evaluateAll(it.conditions, itemCtx) }
                         ?: continue
-                    inv.setItem(placement.position, buildItem(chosen.yaml, langMap, itemCtx, evaluator.deps))
+                    inv.setItem(placement.position, buildItem(chosen.yaml, langMap, itemCtx, evaluator.deps, chosen.i18nBase))
                     if (chosen.clicks.isNotEmpty()) {
                         activeClicks[placement.position] = chosen.clicks
                         slotArgs[placement.position] = itemArgs
@@ -189,7 +189,7 @@ object MenuRenderer {
                 val chosen = compiledList.firstOrNull { ca ->
                     evaluator.evaluateAll(ca.conditions, renderCtx)
                 } ?: continue
-                val item = buildItem(chosen.yaml, langMap, renderCtx, evaluator.deps)
+                val item = buildItem(chosen.yaml, langMap, renderCtx, evaluator.deps, chosen.i18nBase)
                 for (slot in slots) {
                     inv.setItem(slot, item)
                     if (chosen.clicks.isNotEmpty()) activeClicks[slot] = chosen.clicks
@@ -206,7 +206,7 @@ object MenuRenderer {
                 val itemCtx = renderCtx.copy(args = renderCtx.args + itemArgs)
                 val chosen = compiledList.firstOrNull { evaluator.evaluateAll(it.conditions, itemCtx) }
                     ?: return@forEachIndexed
-                inv.setItem(slot, buildItem(chosen.yaml, langMap, itemCtx, evaluator.deps))
+                inv.setItem(slot, buildItem(chosen.yaml, langMap, itemCtx, evaluator.deps, chosen.i18nBase))
                 if (chosen.clicks.isNotEmpty()) {
                     activeClicks[slot] = chosen.clicks
                     slotArgs[slot] = itemArgs
@@ -223,6 +223,7 @@ object MenuRenderer {
         langMap: Map<String, String>,
         ctx: ExecutionContext,
         deps: SoftDepRegistry,
+        i18nBase: String = "",
     ): ItemStack {
         val papi = deps.papi
         val count = app.count.coerceAtLeast(1)
@@ -238,10 +239,13 @@ object MenuRenderer {
             item = HeadApplier.apply(item, resolveText(app.head, langMap, ctx, papi), deps)
         }
         val meta: ItemMeta = item.itemMeta ?: return item
-        if (app.title != null) meta.displayName(parse(resolveText(app.title, langMap, ctx, papi)))
+        if (app.title != null) {
+            meta.displayName(parse(resolveText(app.title, langMap, ctx, papi, addressOf(i18nBase, "title"))))
+        }
         if (app.lore.isNotEmpty()) {
+            val loreAddress = addressOf(i18nBase, "lore")
             meta.lore(app.lore.flatMap { raw ->
-                resolveText(raw, langMap, ctx, papi).split("\n").map { parse(it) }
+                resolveText(raw, langMap, ctx, papi, loreAddress).split("\n").map { parse(it) }
             })
         }
         ItemDetails.applyToMeta(app, meta)
@@ -250,8 +254,27 @@ object MenuRenderer {
         return ItemDetails.applyNbt(app, item)
     }
 
-    private fun resolveText(raw: String, langMap: Map<String, String>, ctx: ExecutionContext, papi: PapiProvider?): String {
-        var text = if (raw.startsWith("{i18n:")) langMap[raw.removePrefix("{i18n:").removeSuffix("}")] ?: raw else raw
+    private fun addressOf(base: String, leaf: String): String? =
+        if (base.isEmpty()) null else "$base.$leaf"
+
+    /**
+     * Explicit `{i18n:key}` ref wins; otherwise the literal is looked up at its
+     * canonical ADDRESS (inline mode — the literal is the default language, the
+     * other languages sit at `address` in `lang/<lang>.yaml`); otherwise the
+     * literal stands as written.
+     */
+    private fun resolveText(
+        raw: String,
+        langMap: Map<String, String>,
+        ctx: ExecutionContext,
+        papi: PapiProvider?,
+        address: String? = null,
+    ): String {
+        var text = if (raw.startsWith("{i18n:")) {
+            langMap[raw.removePrefix("{i18n:").removeSuffix("}")] ?: raw
+        } else {
+            address?.let { langMap[it] } ?: raw
+        }
         text = ArgResolver.resolve(text, ctx.resolvedArgs)
         if (papi != null) text = papi.resolve(ctx.player, text)
         return text
