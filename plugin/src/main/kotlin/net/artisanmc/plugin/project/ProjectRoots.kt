@@ -15,12 +15,29 @@ import java.util.concurrent.ConcurrentHashMap
  * here so the core's read/hash/download-sweep/trash/hot-reload operate per root.
  * On a `projectId` collision across roots, the registered Add-on root wins.
  */
-class ProjectRoots(val coreRoot: File) : net.artisanmc.modules.api.ProjectRootRegistry {
+class ProjectRoots(
+    val coreRoot: File,
+    private val logger: java.util.logging.Logger? = null,
+) : net.artisanmc.modules.api.ProjectRootRegistry {
 
     /** projectId -> project dir, for Add-on-owned projects registered at onEnable. */
     private val registered = ConcurrentHashMap<String, File>()
 
     override fun register(projectId: String, dir: File) {
+        // A core-root directory of the same id is now shadowed — invisible to
+        // read, hash, sync and the scanner. Silent shadowing is a trap: the copy
+        // still looks like a live project on disk, and the day this Add-on fails
+        // to enable, nothing registers the root, `all()` re-exposes the stale
+        // tree, and the divergence banner (default: disk) offers to push it over
+        // the real one. One WARN for post-mortem — house "no theater" rule.
+        val shadowed = File(coreRoot, projectId)
+        if (shadowed.isDirectory && shadowed.canonicalFile != dir.canonicalFile) {
+            logger?.warning(
+                "[Artisan] Add-on project root '$projectId' -> ${dir.path} shadows the stale copy " +
+                "at ${shadowed.path}, which is no longer read or synced. Delete or move it away: " +
+                "if this Add-on ever fails to load, that copy becomes the live project."
+            )
+        }
         registered[projectId] = dir
     }
 
