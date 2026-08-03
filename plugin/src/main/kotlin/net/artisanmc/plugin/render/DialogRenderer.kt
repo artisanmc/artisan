@@ -1,6 +1,7 @@
 package net.artisanmc.plugin.render
 
 import net.artisanmc.plugin.actiondsl.compileActionDsl
+import net.artisanmc.plugin.engine.I18nAddress
 import net.artisanmc.plugin.engine.assignI18nAddresses
 import net.artisanmc.plugin.engine.*
 import net.artisanmc.plugin.model.BundleDialog
@@ -90,7 +91,7 @@ object DialogRenderer {
             val steps        = runCatching {
                 assignI18nAddresses(
                     compileActionDsl(btnYaml.actions),
-                    "dialogs.${dialog.yaml.id}.buttons.${btnYaml.id}",
+                    I18nAddress.dialogButton(dialog.yaml.id, btnYaml.id),
                 )
             }
                 .getOrElse { e ->
