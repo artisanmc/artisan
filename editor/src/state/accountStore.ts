@@ -516,6 +516,13 @@ interface AccountState {
   /** Remove a language and all its translations. No-op on `defaultLang`. */
   removeLanguage: (input: { projectId: ProjectId; lang: string }) => void;
   /**
+   * Choose how texts are written on disk: `inline` (the document carries the
+   * default language's literal, other languages travel in `lang/` by address)
+   * or `extract` (`{i18n:key}` refs everywhere). Pure file shape — no
+   * translation is touched. Cf. ADR `files-first-source-of-truth` §4.
+   */
+  setProjectI18nMode: (input: { projectId: ProjectId; mode: "extract" | "inline" }) => void;
+  /**
    * Drop every i18n key that's no longer referenced anywhere in the project
    * (stale leftovers from deleted elements / re-imports). Returns nothing;
    * undoable. See {@link findUnusedI18nKeys}.
@@ -1937,6 +1944,18 @@ export const useAccountStore = create<AccountState>()(
           }),
         );
       },
+      setProjectI18nMode: ({ projectId: pId, mode }) =>
+        set(
+          produce((draft: AccountState) => {
+            const project = draft.account.projects.find((p) => p.id === pId);
+            if (!project) return;
+            // `extract` is the default and leaves no marker — on disk as here,
+            // so a project that never touched the toggle stays clean.
+            if (mode === "inline") project.i18nMode = "inline";
+            else delete project.i18nMode;
+            project.updatedAt = new Date().toISOString();
+          }),
+        ),
       removeLanguage: ({ projectId: pId, lang }) =>
         set(
           produce((draft: AccountState) => {

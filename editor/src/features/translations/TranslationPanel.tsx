@@ -73,6 +73,7 @@ export function TranslationPanelContent({ projectId }: { projectId: ProjectId })
   const addLanguage = useAccountStore((s) => s.addLanguage);
   const setI18nValue = useAccountStore((s) => s.setI18nValue);
   const removeUnusedI18nKeys = useAccountStore((s) => s.removeUnusedI18nKeys);
+  const setProjectI18nMode = useAccountStore((s) => s.setProjectI18nMode);
   const { t } = useTranslation();
 
   const rows = useMemo(
@@ -93,6 +94,7 @@ export function TranslationPanelContent({ projectId }: { projectId: ProjectId })
 
   if (!project) return null;
   const isOnDefault = activeLang === project.defaultLang;
+  const isInline = project.i18nMode === "inline";
 
   const stats = {
     total: rows.length,
@@ -104,6 +106,19 @@ export function TranslationPanelContent({ projectId }: { projectId: ProjectId })
   const onRemoveUnused = () => {
     removeUnusedI18nKeys({ projectId });
     toast.success(t("translations.removedUnused", { count: unusedCount }));
+  };
+
+  // Flipping the shape rewrites every menu/command/dialog file at the next
+  // save — visible in the server's file tree and in the bundle hash. Worth one
+  // question; nothing is lost either way, and the trip back is symmetric.
+  const onSetShape = (next: "extract" | "inline") => {
+    if (next === (isInline ? "inline" : "extract")) return;
+    const key =
+      next === "inline"
+        ? "translations.fileShapeConfirmInline"
+        : "translations.fileShapeConfirmExtract";
+    if (!window.confirm(t(key, { lang: project.defaultLang }))) return;
+    setProjectI18nMode({ projectId, mode: next });
   };
 
   const onAddLang = () => {
@@ -183,12 +198,34 @@ export function TranslationPanelContent({ projectId }: { projectId: ProjectId })
               <span className="text-[var(--success)]">· {t("translations.statComplete")}</span>
             )}
           </div>
+          {/* How texts are written on disk — a file shape, not content. */}
+          <div className="ml-auto flex items-center gap-1.5">
+            <span className="font-mono text-[10px] uppercase tracking-wide text-[var(--text-mut)]">
+              {t("translations.fileShape")}
+            </span>
+            <div className="flex overflow-hidden rounded border border-[var(--border)]">
+              <ShapeTab
+                active={!isInline}
+                onClick={() => onSetShape("extract")}
+                title={t("translations.fileShapeExtractHint", { lang: project.defaultLang })}
+              >
+                {t("translations.fileShapeExtract")}
+              </ShapeTab>
+              <ShapeTab
+                active={isInline}
+                onClick={() => onSetShape("inline")}
+                title={t("translations.fileShapeInlineHint", { lang: project.defaultLang })}
+              >
+                {t("translations.fileShapeInline")}
+              </ShapeTab>
+            </div>
+          </div>
           {unusedCount > 0 ? (
             <button
               type="button"
               onClick={onRemoveUnused}
               title={t("translations.removeUnusedHint")}
-              className="ml-auto flex shrink-0 items-center gap-1.5 rounded border border-[var(--border)] px-2 py-1 text-[11px] text-[var(--text-mut)] hover:border-[var(--border-strong)] hover:text-[var(--text)]"
+              className="flex shrink-0 items-center gap-1.5 rounded border border-[var(--border)] px-2 py-1 text-[11px] text-[var(--text-mut)] hover:border-[var(--border-strong)] hover:text-[var(--text)]"
             >
               <Trash2 className="h-3 w-3" />
               {t("translations.removeUnused", { count: unusedCount })}
@@ -281,6 +318,35 @@ export function TranslationPanel({ projectId, open, onOpenChange }: TranslationP
         <TranslationPanelContent projectId={projectId} />
       </SheetContent>
     </Sheet>
+  );
+}
+
+/** Segmented button choosing the on-disk text shape. */
+function ShapeTab({
+  active,
+  onClick,
+  title,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={title}
+      aria-pressed={active}
+      className={
+        active
+          ? "bg-[var(--brand-soft)] px-2 py-0.5 text-[10px] text-[var(--brand)]"
+          : "px-2 py-0.5 text-[10px] text-[var(--text-mut)] hover:bg-[var(--surface-raised-2)] hover:text-[var(--text)]"
+      }
+    >
+      {children}
+    </button>
   );
 }
 
