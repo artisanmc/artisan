@@ -13,6 +13,15 @@ function setCurrentUser(id: string) {
   });
 }
 
+/**
+ * Invite expiry always goes through these two: the component filters expired
+ * invites out, so a "live" fixture dated a few weeks ahead turns into an
+ * invisible one the day it passes — silently, and in CI only. That is exactly
+ * how this spec broke on 2026-08-01.
+ */
+const NOT_EXPIRED = "2099-01-01T00:00:00Z";
+const EXPIRED = "2020-01-01T00:00:00Z";
+
 const owners = [
   { userId: "u1", email: "owner@test.com", displayName: "Owner", role: "owner" as const, createdAt: "2026-01-01T00:00:00Z" },
   { userId: "u2", email: "member@test.com", displayName: "Member", role: "member" as const, createdAt: "2026-01-02T00:00:00Z" },
@@ -77,7 +86,7 @@ describe("MembersSection", () => {
       email: null,
       maxUses: null,
       usedCount: 0,
-      expiresAt: "2026-08-01T00:00:00Z",
+      expiresAt: NOT_EXPIRED,
     });
     Object.assign(navigator, { clipboard: { writeText: vi.fn().mockResolvedValue(undefined) } });
     render(<MembersSection networkId="n1" />);
@@ -100,7 +109,7 @@ describe("MembersSection", () => {
         email: "revoked@test.com",
         maxUses: null,
         usedCount: 0,
-        expiresAt: "2099-01-01T00:00:00Z",
+        expiresAt: NOT_EXPIRED,
         revokedAt: "2026-01-01T00:00:00Z",
       },
       {
@@ -110,7 +119,7 @@ describe("MembersSection", () => {
         email: "expired@test.com",
         maxUses: null,
         usedCount: 0,
-        expiresAt: "2020-01-01T00:00:00Z",
+        expiresAt: EXPIRED,
       },
       {
         id: "inv-valid",
@@ -119,7 +128,7 @@ describe("MembersSection", () => {
         email: "valid@test.com",
         maxUses: null,
         usedCount: 0,
-        expiresAt: "2099-01-01T00:00:00Z",
+        expiresAt: NOT_EXPIRED,
       },
     ]);
     render(<MembersSection networkId="n1" />);
@@ -138,7 +147,7 @@ describe("MembersSection", () => {
         email: "friend@test.com",
         maxUses: 5,
         usedCount: 1,
-        expiresAt: "2026-08-01T00:00:00Z",
+        expiresAt: NOT_EXPIRED,
       },
     ]);
     const revokeSpy = vi.spyOn(membersApi, "revokeInvite").mockResolvedValue(undefined);
