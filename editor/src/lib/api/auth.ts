@@ -42,6 +42,17 @@ export async function login(
   return postJson<{ user: AuthUserDto }>(`${apiUrl}/api/v1/auth/login`, payload);
 }
 
+export async function forgotPassword({ apiUrl }: ApiOptions, payload: { email: string }) {
+  return postJson<void>(`${apiUrl}/api/v1/auth/forgot-password`, payload);
+}
+
+export async function resetPassword(
+  { apiUrl }: ApiOptions,
+  payload: { token: string; password: string },
+) {
+  return postJson<void>(`${apiUrl}/api/v1/auth/reset-password`, payload);
+}
+
 export async function logout({ apiUrl }: ApiOptions) {
   await fetch(`${apiUrl}/api/v1/auth/logout`, { method: "POST", credentials: "include" });
 }

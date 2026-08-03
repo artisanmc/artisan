@@ -5,10 +5,11 @@ import { users } from "../db/schema";
 import { eq } from "drizzle-orm";
 import { hashPassword, verifyPassword } from "../lib/passwordHasher";
 import { normalizeEmail } from "../lib/emailNormalizer";
-import { createSession, destroySession } from "../lib/sessionManager";
+import { createSession, destroySession, destroyUserSessions } from "../lib/sessionManager";
 import { userAuth } from "../middleware/userAuth";
 import { sendSafely } from "../lib/mail/mailer";
-import { welcomeEmail } from "../lib/mail/templates";
+import { passwordResetEmail, welcomeEmail } from "../lib/mail/templates";
+import { consumeResetToken, createResetToken, invalidateUserResetTokens } from "../lib/passwordResetStorage";
 
 const router = new Hono();
 
@@ -90,6 +91,56 @@ router.post("/logout", async (c) => {
   const sessionId = getCookie(c, "artisan_user_session");
   if (sessionId) await destroySession(sessionId);
   deleteCookie(c, "artisan_user_session", { path: "/" });
+  return c.body(null, 204);
+});
+
+// Always 204, whether or not the email matches an account — a differing status
+// or timing-free error body would turn this route into an account enumerator.
+// NOTE (prod-readiness backlog): no rate limiting, same standing gap as
+// POST /invites/accept.
+router.post("/forgot-password", async (c) => {
+  const body = await c.req.json().catch(() => null) as { email?: string } | null;
+  if (!body || !body.email) {
+    return c.json({ error: "invalid_body" }, 400);
+  }
+  const email = normalizeEmail(body.email);
+  const rows = await db.select().from(users).where(eq(users.email, email));
+  const row = rows[0];
+  if (row) {
+    const token = await createResetToken(row.id);
+    const editorUrl = process.env.EDITOR_URL ?? "http://localhost:5173";
+    sendSafely(passwordResetEmail({
+      to: row.email,
+      displayName: row.name,
+      url: `${editorUrl}/reset-password?token=${encodeURIComponent(token)}`,
+      locale: row.editorLanguage === "fr" ? "fr" : "en",
+    }));
+  }
+  return c.body(null, 204);
+});
+
+router.post("/reset-password", async (c) => {
+  const body = await c.req.json().catch(() => null) as
+    | { token?: string; password?: string }
+    | null;
+  if (!body || !body.token || !body.password) {
+    return c.json({ error: "invalid_body" }, 400);
+  }
+  // Validate the password BEFORE consuming — a rejected attempt must leave the
+  // link usable, otherwise a typo forces a whole new email round-trip.
+  if (body.password.length < 8) {
+    return c.json({ error: "weak_password" }, 422);
+  }
+  const userId = await consumeResetToken(body.token);
+  if (!userId) {
+    return c.json({ error: "invalid_token" }, 400);
+  }
+  const passwordHash = await hashPassword(body.password);
+  await db.update(users).set({ passwordHash, updatedAt: new Date() }).where(eq(users.id, userId));
+  // Whoever held a stolen session loses it, and any other outstanding reset
+  // link dies with it.
+  await destroyUserSessions(userId);
+  await invalidateUserResetTokens(userId);
   return c.body(null, 204);
 });
 

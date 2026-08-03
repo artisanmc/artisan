@@ -36,6 +36,14 @@ describe("LoginForm", () => {
     expect(await screen.findByText(/wrong email|incorrect/i)).toBeInTheDocument();
   });
 
+  test("offers a forgot-password link", () => {
+    render(<LoginForm apiUrl="http://x" onSuccess={() => {}} />);
+    expect(screen.getByRole("link", { name: /forgot|oublié/i })).toHaveAttribute(
+      "href",
+      "/forgot-password",
+    );
+  });
+
   test("calls onSuccess on successful login", async () => {
     vi.spyOn(useAuthStore.getState(), "login").mockResolvedValue({ ok: true });
     const onSuccess = vi.fn();
