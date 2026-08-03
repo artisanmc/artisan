@@ -9,6 +9,14 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Added — mot de passe oublié
+- Lien « Mot de passe oublié ? » sur le formulaire de connexion → `/forgot-password` (saisie email) → email avec un lien `/reset-password?token=…` valable 1 h.
+- Deux endpoints publics : `POST /api/v1/auth/forgot-password` (**toujours 204**, email inconnu compris — le statut ne doit pas révéler l'existence d'un compte) et `POST /api/v1/auth/reset-password` (204, `422 weak_password`, `400 invalid_token`).
+- Nouvelle table `password_reset_tokens` (migration 0028) : seul le SHA-256 du token est stocké, consommation atomique donc single-use. Un reset réussi **déconnecte toutes les sessions** du compte et invalide les autres liens en attente.
+- Un mot de passe refusé (trop court) ne brûle pas le lien — la validation passe avant la consommation du token.
+- Un compte Discord-only peut se définir un mot de passe par ce flux (il garde Discord en plus).
+- Pas de rate-limiting sur `forgot-password` : même dette connue que `invites/accept`.
+
 ### Removed — l'Item template project-level disparaît : un set d'items appartient à son menu
 - **Une apparence appartient au menu où elle est rendue.** L'`ItemTemplate` était une entité *project-level* partagée : plusieurs menus pouvaient lier le même rendu par ref (`iterates.template` / `places.template`), et l'éditer changeait tous les menus consommateurs à la fois. Supprimé — l'élément porte ses propres `appearances`, comme le faisait déjà `createMenuSet` depuis le 2026-07-26. Les deux modèles cohabitaient depuis, sans que rien ne dise lequel faisait foi.
 - **Supprimé** : `ItemTemplate` / `Project.itemTemplates` / `templateId`, le dossier `templates/` et le schéma `template/v1`, l'onglet « Sets » de la Library, `ItemTemplateEditor` / `ItemTemplatesSection`, le drag depuis la bibliothèque (`tplrow:` / `tplgroup:` / `tplblock:`) et les actions de store associées. Les morts `Project.templates` / `Element.templateRef`, jamais peuplés ni exportés, partent avec.

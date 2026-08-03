@@ -95,6 +95,48 @@ export function accessRequestEmail(params: {
   };
 }
 
+export function passwordResetEmail(params: {
+  to: string;
+  displayName: string;
+  url: string;
+  locale?: MailLocale;
+}): MailMessage {
+  const { to, displayName, url, locale = "en" } = params;
+  const isEnglish = locale === "en";
+
+  const subject = isEnglish ? "Reset your Artisan password" : "Réinitialiser votre mot de passe Artisan";
+
+  const text = isEnglish
+    ? `Hi ${displayName},\n\nSomeone asked to reset the password of your Artisan account. Open this link within the hour to choose a new one:\n\n${url}\n\nIf that wasn't you, ignore this email — your password stays unchanged.\n\nBest regards,\nThe Artisan Team`
+    : `Bonjour ${displayName},\n\nUne réinitialisation du mot de passe de votre compte Artisan a été demandée. Ouvrez ce lien dans l'heure pour en choisir un nouveau :\n\n${url}\n\nSi vous n'êtes pas à l'origine de cette demande, ignorez cet email — votre mot de passe reste inchangé.\n\nCordialement,\nL'équipe Artisan`;
+
+  const escapedDisplayName = escapeHtml(displayName);
+  const escapedUrl = escapeHtml(url);
+
+  const html = isEnglish
+    ? `<div style="font-family: sans-serif; color: #333; line-height: 1.6;">
+  <p>Hi ${escapedDisplayName},</p>
+  <p>Someone asked to reset the password of your Artisan account. The link below expires in one hour.</p>
+  <p><a href="${escapedUrl}" style="color: #0066cc; text-decoration: none;">Choose a new password</a></p>
+  <p>If that wasn't you, ignore this email — your password stays unchanged.</p>
+  <p>Best regards,<br>The Artisan Team</p>
+</div>`
+    : `<div style="font-family: sans-serif; color: #333; line-height: 1.6;">
+  <p>Bonjour ${escapedDisplayName},</p>
+  <p>Une réinitialisation du mot de passe de votre compte Artisan a été demandée. Le lien ci-dessous expire dans une heure.</p>
+  <p><a href="${escapedUrl}" style="color: #0066cc; text-decoration: none;">Choisir un nouveau mot de passe</a></p>
+  <p>Si vous n'êtes pas à l'origine de cette demande, ignorez cet email — votre mot de passe reste inchangé.</p>
+  <p>Cordialement,<br>L'équipe Artisan</p>
+</div>`;
+
+  return {
+    to,
+    subject,
+    text,
+    html,
+  };
+}
+
 export function inviteEmail(params: {
   to: string;
   networkName: string;

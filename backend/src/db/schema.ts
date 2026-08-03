@@ -251,6 +251,28 @@ export const userSessions = pgTable(
 	(t) => [index("user_sessions_userid_idx").on(t.userId)],
 );
 
+// Password reset: one row per "forgot password" request. Only the SHA-256 of
+// the emailed token is stored — a DB dump never yields a usable reset link.
+// Consumption is atomic (used_at null + not expired) so a token is single-use
+// even under concurrent submits.
+export const passwordResetTokens = pgTable(
+	"password_reset_tokens",
+	{
+		id: text("id").primaryKey(),
+		userId: text("user_id")
+			.notNull()
+			.references(() => users.id, { onDelete: "cascade" }),
+		tokenHash: text("token_hash").notNull(),
+		expiresAt: timestamp("expires_at").notNull(),
+		usedAt: timestamp("used_at"),
+		createdAt: timestamp("created_at").notNull(),
+	},
+	(t) => [
+		uniqueIndex("password_reset_tokens_hash_uniq").on(t.tokenHash),
+		index("password_reset_tokens_userid_idx").on(t.userId),
+	],
+);
+
 export const discordAccounts = pgTable(
 	"discord_accounts",
 	{
