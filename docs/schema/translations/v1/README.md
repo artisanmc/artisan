@@ -49,11 +49,29 @@ Tout champ texte d'un menu (`title`, `lore[]`, `send_message.text`, `broadcast.t
 }
 ```
 
+### Mode `inline` : le littéral EST la référence (depuis 2026-08-03)
+
+Un projet peut aussi s'écrire sans aucune référence : le champ porte le **texte littéral de la langue par défaut**, et les autres langues vivent dans `lang/<code>.yaml` à l'**adresse canonique** du champ — l'adresse que le plugin redérive de la structure du fichier (`menus.shop.elements.buy.default.title`, `commands.give.message`, `dialogs.confirm.buttons.ok.label`…). Il n'y a alors pas de fichier pour la langue par défaut : le document la porte déjà.
+
+```yaml
+# menus/shop.yaml (mode inline)          # lang/fr.yaml
+title: Shop                              menus:
+elements:                                  shop:
+  - id: buy                                  title: Boutique
+    appearances:                             elements:
+      - title: Sword                           buy:
+        click: { left: send_message "Bought!" }   default:
+                                                     title: Épée
+                                                     click: { left: { message: Acheté ! } }
+```
+
+Les deux formes se lisent indifféremment, y compris mélangées dans un même fichier. Le choix est un mode de projet (`.artisan/editor.yaml` → `i18n_mode`), pas une propriété de champ. Le schéma d'adressage est verrouillé cross-langage par `testdata/i18n-address-conformance.json`. Cf. ADR `files-first-source-of-truth` §4.
+
 ## Ordre de résolution à l'exécution
 
 Côté plugin Minecraft, quand un menu s'ouvre ou qu'une commande s'exécute, chaque champ texte est résolu dans cet ordre :
 
-1. **i18n** : `{i18n:key}` → valeur stockée pour la langue active du joueur. Fallback `default_lang` si manquante. Fallback texte vide + log warning si manquante en default aussi.
+1. **i18n** : `{i18n:key}` → valeur stockée pour la langue active du joueur. À défaut de référence explicite, le **littéral est cherché à l'adresse canonique** de son champ (mode `inline`) ; s'il n'y a rien, il vaut tel qu'écrit. Fallback `default_lang` si manquante. Fallback texte vide + log warning si manquante en default aussi.
 2. **PlaceholderAPI** : `%player_name%`, `%vault_eco_balance%`, `%args_target%`, etc. → résolus via PAPI avec le contexte joueur courant.
 3. **MiniMessage parse** : tags `<color>`, `<bold>`, `<gradient>`, etc. → Component Adventure final envoyé au client.
 

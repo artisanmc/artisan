@@ -21,7 +21,11 @@ import type {
   ProjectId,
 } from "@/domain/types";
 import { parseCapturedStack } from "@/domain/capturedStack";
-import { visitDataSourceLTexts, visitElementLTexts } from "@/domain/i18nSites";
+import {
+  adoptAddressedTranslations,
+  visitDataSourceLTexts,
+  visitElementLTexts,
+} from "@/domain/i18nSites";
 import { newI18nKey } from "@/lib/i18n";
 import { flattenLangTree } from "@/lib/langTree";
 import { parse as parseYaml } from "yaml";
@@ -49,6 +53,8 @@ interface EditorStateYaml {
   edges?: Record<string, unknown>;
   /** Captured item label + display descriptor, keyed by item id. */
   items?: Record<string, { name?: string; display?: Record<string, unknown> }>;
+  /** `"inline"` when the documents carry the default language's literal text. */
+  i18n_mode?: string;
 }
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
@@ -766,6 +772,7 @@ export function projectFromFiles(
     ...(dataModels.length > 0 ? { dataModels } : {}),
     i18nKeys: i18nKeys as Project["i18nKeys"],
     defaultLang,
+    ...(editorState.i18n_mode === "inline" ? { i18nMode: "inline" as const } : {}),
     dialogs,
     canvasLayout: parseEditorLayout(editorState.layout),
     ...(Object.keys(parseEditorEdges(editorState.edges)).length > 0
@@ -776,6 +783,12 @@ export function projectFromFiles(
       ? { ownerModule: manifest.module }
       : {}),
   };
+
+  // Menus / commands / dialogs: same reconnection as the data-source block
+  // above, over the whole tree. An inline document's literal was imported as a
+  // minted key; its other languages sit in lang/ at the site's canonical
+  // address, so bring node and address back together.
+  adoptAddressedTranslations(project, translations);
 
   if (unsupported.length > 0) {
     console.warn(`[projectFromFiles] ${projectId}: dropped unsupported constructs: ${unsupported.join(", ")}`);

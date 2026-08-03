@@ -455,6 +455,34 @@ export function adoptBareLTexts(project: Project, ds: DataSource): void {
   }
 }
 
+/**
+ * Reattach the disk translations addressed to each key site — the import half
+ * of inline mode, and the same move the data-source reader already makes (ADR
+ * bare-data-files ④).
+ *
+ * An inline document holds only the default language's literal, so the reader
+ * mints a fresh key for it, and the `lang/<lang>.yaml` entries addressed to
+ * that site would otherwise float free (listed in the Translations panel,
+ * attached to nothing, dropped at the next export). Rekey the node to its
+ * address and merge — the literal read from the document wins for the default
+ * language.
+ *
+ * Skipped for a node whose key is itself a translated disk key (an authored
+ * `{i18n:key}` ref, shared or not): that key is content, not a mint.
+ */
+export function adoptAddressedTranslations(
+  project: Project,
+  disk: Record<string, Record<string, string>>,
+): void {
+  for (const site of visitProjectLTexts(project)) {
+    const key = site.lText.key;
+    if (key === site.key || disk[key]) continue;
+    project.i18nKeys[site.key] = { ...(disk[site.key] ?? {}), ...(project.i18nKeys[key] ?? {}) };
+    delete project.i18nKeys[key];
+    site.lText.key = site.key;
+  }
+}
+
 // ── Rekey: assign every site its canonical key ───────────────────────────────
 // Lazy canonicalization at the deploy/export/persist boundary. Folds over the
 // traversal above; idempotent (moveLTextKey no-ops when already correct). Safe

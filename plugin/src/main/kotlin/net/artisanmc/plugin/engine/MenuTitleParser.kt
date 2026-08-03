@@ -35,10 +35,9 @@ object MenuTitleParser {
     /** First text-bearing layer → `menus.<id>.title`; the next → `_2`, `_3`… */
     private fun stampAddresses(layers: List<MenuTitleLayer>, menuId: String?): List<MenuTitleLayer> {
         if (menuId == null) return layers
-        val base = "menus.$menuId.title"
         var i = 0
         return layers.map { layer ->
-            val address = { if (i == 0) base else "${base}_${i + 1}" }
+            val address = { I18nAddress.menuTitleLayer(menuId, i) }
             when (layer) {
                 is MenuTitleLayer.Plain -> layer.copy(value = layer.value.copy(address = address())).also { i++ }
                 is MenuTitleLayer.Text -> layer.copy(value = layer.value.copy(address = address())).also { i++ }
