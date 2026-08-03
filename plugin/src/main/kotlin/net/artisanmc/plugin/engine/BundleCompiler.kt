@@ -30,13 +30,8 @@ object BundleCompiler {
         return BundleMenu(yaml, langMaps, compiledAppearances, slotToElement, defaultLang = defaultLang)
     }
 
-    /**
-     * Appearance state label, mirror of the editor's `stateLabel` (i18nKeys.ts):
-     * the first state is `default`, the rest are `state1`, `state2`… The two
-     * sides must agree exactly — the address is how a literal in the menu file
-     * finds its translation in `lang/<lang>.yaml`.
-     */
-    fun stateLabel(index: Int): String = if (index == 0) "default" else "state$index"
+    /** @see I18nAddress.state — kept as an alias for existing callers. */
+    fun stateLabel(index: Int): String = I18nAddress.state(index)
 
     private fun compileAppearance(
         app: AppearanceYaml,
@@ -53,7 +48,7 @@ object BundleCompiler {
                 else         -> emptyList()
             }
 
-            val base = "menus.$menuId.elements.$elementId.${stateLabel(appIndex)}"
+            val base = I18nAddress.appearance(menuId, elementId, appIndex)
             val clicks = app.click.mapNotNull { (key, handlerYaml) ->
                 val clickType = ClickType.fromYamlKey(key) ?: return@mapNotNull null
                 val requirements = handlerYaml.requirements.map { ConditionParser.parse(it) }
@@ -61,7 +56,7 @@ object BundleCompiler {
                 // action-dsl) → parsed + mapped to the engine Step tree. The flat
                 // `actions:`/`fallback:` keys are the legacy wire and stay as-is.
                 // Addresses key on the WIRE click key, like the editor's visitor.
-                val steps        = assignI18nAddresses(compileActionDsl(handlerYaml.steps), "$base.click.$key")
+                val steps        = assignI18nAddresses(compileActionDsl(handlerYaml.steps), I18nAddress.clickHandler(base, key))
                 val actions      = handlerYaml.actions.map { ActionParser.parse(it) }
                 val fallback     = handlerYaml.fallback.map { ActionParser.parse(it) }
                 val cooldown     = handlerYaml.cooldown?.let { cy ->

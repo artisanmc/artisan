@@ -1,0 +1,99 @@
+{
+  "note": "Canonical i18n ADDRESSES — the cross-language contract of inline mode. A document holds the default language's literal text; every other language sits in lang/<lang>.yaml at the address of its key site. The editor mints those addresses when it writes the lang files (domain/i18nSites.ts + lib/i18nKeys.ts); the plugin re-derives them from the file structure when it reads them (engine/I18nAddresses.kt, MenuTitleParser, DialogTextResolver). Disagree on one address and a translation lands where the runtime never looks. Owned by: editor/src/features/export/i18nAddressConformance.test.ts + plugin I18nAddressConformanceTest.kt — changing the scheme means updating both and this file.",
+
+  "sites": [
+    { "name": "menu title, first text-bearing layer", "kind": "menu_title", "menu_id": "shop", "layer_index": 0, "address": "menus.shop.title" },
+    { "name": "menu title, second text-bearing layer", "kind": "menu_title", "menu_id": "shop", "layer_index": 1, "address": "menus.shop.title_2" },
+    { "name": "menu title, third text-bearing layer", "kind": "menu_title", "menu_id": "shop", "layer_index": 2, "address": "menus.shop.title_3" },
+
+    { "name": "element appearance, default state", "kind": "appearance", "menu_id": "shop", "element_id": "buy", "appearance_index": 0, "address": "menus.shop.elements.buy.default" },
+    { "name": "element appearance, second state", "kind": "appearance", "menu_id": "shop", "element_id": "buy", "appearance_index": 1, "address": "menus.shop.elements.buy.state1" },
+    { "name": "appearance title", "kind": "appearance_title", "menu_id": "shop", "element_id": "buy", "appearance_index": 0, "address": "menus.shop.elements.buy.default.title" },
+    { "name": "appearance lore", "kind": "appearance_lore", "menu_id": "shop", "element_id": "buy", "appearance_index": 0, "address": "menus.shop.elements.buy.default.lore" },
+    { "name": "click handler prefix, keyed on the wire click key", "kind": "click_prefix", "menu_id": "shop", "element_id": "buy", "appearance_index": 0, "click_type": "left", "address": "menus.shop.elements.buy.default.click.left" },
+
+    { "name": "command action prefix", "kind": "command_prefix", "command_id": "give", "address": "commands.give" },
+
+    { "name": "dialog title", "kind": "dialog_title", "dialog_id": "confirm", "address": "dialogs.confirm.title" },
+    { "name": "dialog body text, addressed by index", "kind": "dialog_body", "dialog_id": "confirm", "body_index": 1, "address": "dialogs.confirm.body.1.text" },
+    { "name": "dialog input label, addressed by id", "kind": "dialog_input_label", "dialog_id": "confirm", "input_id": "qty", "address": "dialogs.confirm.inputs.qty.label" },
+    { "name": "dialog option label, addressed by value", "kind": "dialog_option_label", "dialog_id": "confirm", "input_id": "qty", "option_value": "ten", "address": "dialogs.confirm.inputs.qty.options.ten.label" },
+    { "name": "dialog button label, addressed by id", "kind": "dialog_button_label", "dialog_id": "confirm", "button_id": "ok", "address": "dialogs.confirm.buttons.ok.label" },
+    { "name": "dialog button action prefix", "kind": "dialog_button_prefix", "dialog_id": "confirm", "button_id": "ok", "address": "dialogs.confirm.buttons.ok" }
+  ],
+
+  "menu_titles": [
+    {
+      "name": "only text-bearing layers are counted, and they count from their own position",
+      "menu_id": "shop",
+      "layers": [
+        { "kind": "background", "asset_id": "bg" },
+        { "kind": "text", "value": "Shop", "x": 8, "y": 5 },
+        { "kind": "glyph", "asset_id": "g", "x": 0, "y": 0 },
+        { "kind": "textarea", "value": "Blurb", "x": 0, "y": 20 }
+      ],
+      "addresses": ["menus.shop.title", "menus.shop.title_2"]
+    },
+    {
+      "name": "a lone plain layer (the bare-string sugar) is still the first title",
+      "menu_id": "shop",
+      "layers": [{ "kind": "plain", "value": "Shop" }],
+      "addresses": ["menus.shop.title"]
+    }
+  ],
+
+  "step_addresses": [
+    {
+      "name": "the first message has no suffix, the next ones count from 1",
+      "prefix": "menus.shop.elements.buy.default.click.left",
+      "dsl": "send_message \"a\"\nsend_message \"b\"\nsend_message \"c\"",
+      "addresses": [
+        "menus.shop.elements.buy.default.click.left.message",
+        "menus.shop.elements.buy.default.click.left.message_1",
+        "menus.shop.elements.buy.default.click.left.message_2"
+      ]
+    },
+    {
+      "name": "broadcast shares the message counter",
+      "prefix": "commands.give",
+      "dsl": "send_message \"a\"\nbroadcast \"b\"\nsend_message \"c\"",
+      "addresses": ["commands.give.message", "commands.give.message_1", "commands.give.message_2"]
+    },
+    {
+      "name": "titles and subtitles count independently of messages",
+      "prefix": "commands.give",
+      "dsl": "send_message \"m\"\nshow_title \"t\" \"s\"\nshow_title \"t2\" \"s2\"",
+      "addresses": [
+        "commands.give.message",
+        "commands.give.show_title",
+        "commands.give.show_subtitle",
+        "commands.give.show_title_1",
+        "commands.give.show_subtitle_1"
+      ]
+    },
+    {
+      "name": "a subtitle-less show_title consumes no subtitle counter",
+      "prefix": "p",
+      "dsl": "show_title \"one\"\nshow_title \"two\" \"sub\"",
+      "addresses": ["p.show_title", "p.show_title_1", "p.show_subtitle"]
+    },
+    {
+      "name": "counters run across branches in document order, cases before else",
+      "prefix": "p",
+      "dsl": "if has_permission(vip):\n  send_message \"in-case\"\nelse:\n  send_message \"in-else\"\nsend_message \"after\"",
+      "addresses": ["p.message", "p.message_1", "p.message_2"]
+    },
+    {
+      "name": "nested branches keep one counter per kind for the whole handler",
+      "prefix": "dialogs.confirm.buttons.ok",
+      "dsl": "if has_permission(vip):\n  show_title \"t\" \"s\"\n  if has_money(10):\n    send_message \"deep\"\n  send_message \"shallow\"\nsend_message \"after\"",
+      "addresses": [
+        "dialogs.confirm.buttons.ok.show_title",
+        "dialogs.confirm.buttons.ok.show_subtitle",
+        "dialogs.confirm.buttons.ok.message",
+        "dialogs.confirm.buttons.ok.message_1",
+        "dialogs.confirm.buttons.ok.message_2"
+      ]
+    }
+  ]
+}

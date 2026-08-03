@@ -123,6 +123,15 @@ export interface Project {
   importedConnectors?: ConnectorSpec[];
   i18nKeys: Record<I18nKey, Record<string, string>>;
   defaultLang: string;
+  /**
+   * How texts land on disk (ADR `files-first-source-of-truth` §4). `extract`
+   * (default, and what absent means) keeps `{i18n:key}` refs in the documents
+   * with every language in `lang/`; `inline` writes the default language's
+   * literal where it is read and keeps only the other languages in `lang/`,
+   * addressed by key site. Editor-only choice, persisted in
+   * `.artisan/editor.yaml` — both shapes are valid input for the plugin.
+   */
+  i18nMode?: "extract" | "inline";
   dialogs: Dialog[];
   canvasLayout: Record<MenuId | CommandId | DialogId, { x: number; y: number }>;
   /**

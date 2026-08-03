@@ -40,6 +40,24 @@ const i18nRef = (key: string): string => `{i18n:${key}}`;
  */
 type StepTextOf = (key: string) => string;
 
+/**
+ * How a key site's text lands in a document, per the project's i18n mode:
+ *
+ *  - `extract` (default) — the `{i18n:key}` ref; every language, the default
+ *    one included, lives in `lang/<lang>.yaml`.
+ *  - `inline` — the DEFAULT language's literal text, written where a reader
+ *    expects to read it. The other languages travel in `lang/<lang>.yaml` under
+ *    the site's canonical ADDRESS, which the plugin recomputes from the file
+ *    structure at load (`I18nAddresses.kt`, `MenuTitleParser`,
+ *    `DialogTextResolver`) — the addresses being exactly the canonical keys
+ *    `rekeyProject` assigns just before this runs. Locked cross-language by
+ *    `testdata/i18n-address-conformance.json`.
+ */
+function textSerializer(project: Project): StepTextOf {
+  if (project.i18nMode !== "inline") return i18nRef;
+  return (key) => project.i18nKeys[key as I18nKey]?.[project.defaultLang] ?? "";
+}
+
 // ─── condition serialization ────────────────────────────────────────────────
 // Most conditions are stored snake_case and contain no LText — pass through
 // as-is. Exceptions: composites (recursive) and pagination (camelCase domain).
@@ -184,8 +202,9 @@ function serializeAppearance(app: Appearance, project: Project): Record<string, 
   if (app.material) out.material = app.material;
   if (app.head) out.head = app.head;
   if (app.count !== undefined) out.count = app.count;
-  if (app.title) out.title = i18nRef(app.title.key);
-  if (app.lore) out.lore = [i18nRef(app.lore.key)];
+  const t = textSerializer(project);
+  if (app.title) out.title = t(app.title.key);
+  if (app.lore) out.lore = [t(app.lore.key)];
   if (app.click) {
     const clickOut: Record<string, unknown> = {};
     for (const [clickType, handler] of Object.entries(app.click)) {
@@ -247,7 +266,10 @@ function serializeElements(menu: Menu, project: Project): Record<string, unknown
 
 // ─── title layer serialization ───────────────────────────────────────────────
 
-function serializeTitleLayer(layer: MenuTitleLayer): Record<string, unknown> | string {
+function serializeTitleLayer(
+  layer: MenuTitleLayer,
+  t: StepTextOf,
+): Record<string, unknown> | string {
   if (layer.kind === "background") {
     return { kind: "background", asset_id: layer.assetId };
   }
@@ -259,7 +281,7 @@ function serializeTitleLayer(layer: MenuTitleLayer): Record<string, unknown> | s
       kind: "text",
       // LText values serialize to the single string form (`{i18n:key}`),
       // matching appearances/actions — the `{key}` object form is import-only.
-      value: i18nRef(layer.value.key),
+      value: t(layer.value.key),
       x: layer.x,
       y: layer.y,
     };
@@ -270,13 +292,13 @@ function serializeTitleLayer(layer: MenuTitleLayer): Record<string, unknown> | s
   }
   if (layer.kind === "plain") {
     // Canonical sugar: an uncolored plain layer is just its string.
-    if (layer.color === undefined) return i18nRef(layer.value.key);
-    return { kind: "plain", value: i18nRef(layer.value.key), color: layer.color };
+    if (layer.color === undefined) return t(layer.value.key);
+    return { kind: "plain", value: t(layer.value.key), color: layer.color };
   }
   if (layer.kind === "textarea") {
     const out: Record<string, unknown> = {
       kind: "textarea",
-      value: i18nRef(layer.value.key),
+      value: t(layer.value.key),
       x: layer.x,
       y: layer.y,
       width: layer.width,
@@ -454,6 +476,7 @@ export function serializeMenuToV1(
   project: Project,
 ): { id: string } & Record<string, unknown> {
   const type = menu.inventoryType ?? "chest";
+  const t = textSerializer(project);
   const out: Record<string, unknown> = {
     schema: "menu/v1",
     id: menu.id,
@@ -461,8 +484,8 @@ export function serializeMenuToV1(
     // serializes to a bare string.
     title:
       menu.title.length === 1 && menu.title[0]!.kind === "plain" && menu.title[0]!.color === undefined
-        ? serializeTitleLayer(menu.title[0]!)
-        : menu.title.map(serializeTitleLayer),
+        ? serializeTitleLayer(menu.title[0]!, t)
+        : menu.title.map((l) => serializeTitleLayer(l, t)),
     size: slotCount(type, menu.rows),
     elements: serializeElements(menu, project),
   };
@@ -529,16 +552,16 @@ export function projectToCommandV1(project: Project): Record<string, unknown>[] 
 
 // ─── dialog serialization ────────────────────────────────────────────────────
 
-function serializeDialogBody(body: DialogBody): Record<string, unknown> {
-  if (body.type === "text") return { type: "text", text: i18nRef(body.text.key) };
+function serializeDialogBody(body: DialogBody, t: StepTextOf): Record<string, unknown> {
+  if (body.type === "text") return { type: "text", text: t(body.text.key) };
   return { type: "item", material: body.material, count: body.count };
 }
 
-function serializeDialogInput(input: DialogInput): Record<string, unknown> {
+function serializeDialogInput(input: DialogInput, t: StepTextOf): Record<string, unknown> {
   const out: Record<string, unknown> = {
     id: input.id,
     type: input.type,
-    label: i18nRef(input.label.key),
+    label: t(input.label.key),
   };
   if (input.type === "text") {
     out.default = input.default;
@@ -550,14 +573,18 @@ function serializeDialogInput(input: DialogInput): Record<string, unknown> {
     out.max = input.max;
     out.default = String(input.default);
   } else if (input.type === "single_option") {
-    out.options = input.options.map((opt) => ({ value: opt.value, label: i18nRef(opt.label.key) }));
+    out.options = input.options.map((opt) => ({ value: opt.value, label: t(opt.label.key) }));
     out.default = input.default;
   }
   return out;
 }
 
-function serializeDialogButton(btn: DialogButton, project: Project): Record<string, unknown> {
-  const out: Record<string, unknown> = { id: btn.id, label: i18nRef(btn.label.key) };
+function serializeDialogButton(
+  btn: DialogButton,
+  project: Project,
+  t: StepTextOf,
+): Record<string, unknown> {
+  const out: Record<string, unknown> = { id: btn.id, label: t(btn.label.key) };
   // dialog/v1 button actions serialize to an Action DSL string (ADR action-dsl
   // Phase 2). Unlike the old flat-action wire, if-branches now round-trip.
   const dsl = stepsToDsl(btn.steps, project);
@@ -566,15 +593,16 @@ function serializeDialogButton(btn: DialogButton, project: Project): Record<stri
 }
 
 export function serializeDialog(dialog: Dialog, project: Project): Record<string, unknown> {
+  const t = textSerializer(project);
   const out: Record<string, unknown> = {
     schema: "dialog/v1",
     id: dialog.id,
-    title: i18nRef(dialog.title.key),
+    title: t(dialog.title.key),
   };
   if (!dialog.canCloseWithEscape) out.can_close_with_escape = false;
-  if (dialog.body.length > 0) out.body = dialog.body.map(serializeDialogBody);
-  if (dialog.inputs.length > 0) out.inputs = dialog.inputs.map(serializeDialogInput);
-  out.buttons = dialog.buttons.map((b) => serializeDialogButton(b, project));
+  if (dialog.body.length > 0) out.body = dialog.body.map((b) => serializeDialogBody(b, t));
+  if (dialog.inputs.length > 0) out.inputs = dialog.inputs.map((i) => serializeDialogInput(i, t));
+  out.buttons = dialog.buttons.map((b) => serializeDialogButton(b, project, t));
   return out;
 }
 
@@ -1101,6 +1129,10 @@ export function transform(project: Project): Record<string, string> {
   const referencedKeys = collectReferencedKeys(project);
   const dsI18n = dataSourceI18n(project);
   for (const lang of langs) {
+    // Inline mode: the default language IS the documents — a `lang/<default>`
+    // file would be a second copy of the same truth (same rule data sources
+    // already follow, ADR bare-data-files ④).
+    if (project.i18nMode === "inline" && lang === project.defaultLang) continue;
     // Written as a YAML tree, not one dotted key per line — `nestLangTree`
     // re-sorts every level in byte order so the file stays deterministic.
     files[`${base}/lang/${lang}.yaml`] = stringify(
@@ -1167,6 +1199,11 @@ export function transform(project: Project): Record<string, string> {
     }),
   );
   const editorState: Record<string, unknown> = { schema: "editor-state/v1" };
+  // The i18n mode is a presentation choice about the file shape, not project
+  // content — it rides in the hash-excluded editor state so flipping it back
+  // and forth doesn't churn the bundle hash on its own. Only written when it
+  // departs from the default, so `extract` projects keep a clean tree.
+  if (project.i18nMode === "inline") editorState.i18n_mode = "inline";
   if (Object.keys(editorLayout).length > 0) editorState.layout = editorLayout;
   if (Object.keys(editorEdges).length > 0) editorState.edges = editorEdges;
   // Captured item label + display descriptor: editor-only metadata, persisted

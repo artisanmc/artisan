@@ -125,10 +125,14 @@ export function printFromSteps(steps: Step[], toText: LTextToText = defaultLText
  * Project: a key registered in `project.i18nKeys` serializes as `@key` (a Key-site
  * reference), anything else as a `"literal"` (default-language text). Cf. ADR
  * `action-dsl` Phase 2.
+ *
+ * In `inline` i18n mode there are no `@key` refs at all: every text is the
+ * default language's literal, and the plugin re-derives the canonical address
+ * of each one to look up the other languages.
  */
 export function stepsToDsl(steps: Step[], project: Project): string {
   const toText: LTextToText = (l) =>
-    String(l.key) in project.i18nKeys
+    project.i18nMode !== "inline" && String(l.key) in project.i18nKeys
       ? { ref: String(l.key) }
       : { lit: getText(project, l, project.defaultLang) };
   return printActionDsl(stepsToDslSteps(steps, toText));

@@ -94,6 +94,36 @@ editing path.
    *Rejeté :* aplatir plus court (2-3 niveaux puis clés pointées) — deux règles
    à retenir au lieu d'une.
 
+   **Amendement 2026-08-03 — l'inline est un MODE de projet, adressé par site.**
+   La politique hybride ci-dessus était *par champ* : un texte traduit gardait
+   son `{i18n:key}`, donc un projet multi-langue restait illisible dès qu'on
+   traduisait. Le contrat effectif est désormais *par projet*, deux formes
+   valides en lecture pour le plugin :
+
+   - `extract` (défaut, statu quo) — `{i18n:key}` dans les documents, **toutes**
+     les langues dans `lang/`, la langue par défaut comprise.
+   - `inline` — le document porte le **littéral de la langue par défaut**, là où
+     on le lit ; les **autres** langues vivent dans `lang/<code>.yaml` à
+     l'**adresse canonique** du site de clé, et il n'y a **pas** de fichier
+     `lang/<défaut>.yaml` (ce serait une seconde copie de la même vérité). Un
+     projet mono-langue ⇒ zéro fichier `lang/`, exactement la promesse initiale.
+
+   Ce qui rend le mode possible sans clés dans le fichier : **l'adresse se
+   redérive de la structure**. L'éditeur la mint en écrivant (`domain/i18nSites.ts`,
+   `lib/i18nKeys.ts`), le plugin la recalcule en lisant (`engine/I18nAddresses.kt`,
+   `MenuTitleParser`, `DialogTextResolver`) — deux implémentations verrouillées
+   par le vecteur partagé `testdata/i18n-address-conformance.json`. La résolution
+   runtime est à trois étages : ref `{i18n:key}` explicite → adresse canonique →
+   littéral tel qu'écrit. Les deux modes se lisent donc indifféremment, y compris
+   mélangés dans un même fichier édité à la main.
+
+   Le mode est un choix de **forme de fichier**, pas du contenu : il est persisté
+   dans `.artisan/editor.yaml` (`i18n_mode: inline`, hash-exclu) et seulement
+   quand il s'écarte du défaut. C'est le même mouvement que les fichiers data nus
+   (ADR `bare-data-files` ④), généralisé aux menus / commandes / dialogs.
+   *Rejeté :* inférer le mode du contenu à l'import — un fichier peut être mixte,
+   et « c'est ce que tu as choisi » bat un devin.
+
 5. **`menu/v1` evolves in place.** The "never mutate a shipped schema version"
    discipline applies from real production use, which has not started; the
    owner explicitly waives it here (dated dispensation). Local Docker files are
