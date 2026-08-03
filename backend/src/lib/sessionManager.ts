@@ -49,3 +49,8 @@ export async function touchSession(id: string): Promise<void> {
 export async function destroySession(id: string): Promise<void> {
   await db.delete(userSessions).where(eq(userSessions.id, id));
 }
+
+/** Logs a user out everywhere — used after a password reset. */
+export async function destroyUserSessions(userId: string): Promise<void> {
+  await db.delete(userSessions).where(eq(userSessions.userId, userId));
+}

@@ -43,8 +43,9 @@ User ── Membership ──┐
 
 ## Auth & comptes
 
-- Tables : `users`, `user_sessions`, `discord_accounts`.
+- Tables : `users`, `user_sessions`, `discord_accounts`, `password_reset_tokens`.
 - Cookies : `artisan_user_session` (HttpOnly, 30j → `user_sessions.id`), `artisan_oauth_state` (HttpOnly, 10min, anti-CSRF Discord).
+- **`password_reset_tokens`** (migration 0028) : `(id PK, user_id FK cascade, token_hash UNIQUE, expires_at, used_at, created_at)`. Seul le **SHA-256** du token envoyé par email est stocké — un dump DB ne donne aucun lien utilisable. TTL 1 h. Consommation atomique (`UPDATE … WHERE used_at IS NULL AND expires_at > now() RETURNING`, `lib/passwordResetStorage.ts`) → single-use même sous double soumission. Un reset réussi détruit **toutes** les sessions du user (`destroyUserSessions`) et invalide ses autres tokens en attente. Un compte Discord-only (`password_hash` NULL) peut se **définir** un mot de passe par ce flux. Pas de rate-limiting sur `POST /auth/forgot-password` (même dette que `invites/accept`).
 - **Accounts-only** (accounts-only cutover, Task 7) : la table `editor_sessions` (trust dance anonyme server_key + token URL) a été **DROP**pée (migration `0018_colossal_spectrum.sql`). L'édition est désormais exclusivement authentifiée par compte user — cf. `docs/decisions/accounts-only-editing.md`.
 - **`users.editor_language`** (TEXT nullable) : langue UI préférée. Source de vérité client = `localStorage["i18nextLng"]`. Logged-in : `authStore.hydrate()` lit depuis `GET /me` au boot (backend wins) ; changement via `EditorLangSwitcher` → PATCH fire-and-forget. Anonymous → localStorage only.
 - **`users.is_admin`** (BOOLEAN, default `false` — migration 0006) : flag super-admin plateforme. Amorçage env `ADMIN_BOOTSTRAP_EMAILS` (CSV) dans `userAuth` : un user dont l'email est listé est promu à sa prochaine requête authentifiée (write DB une seule fois, guard `!isAdmin` ; couvre login/signup/Discord). Exposé dans `GET /me`. Garde middleware `requireAdmin()` (403 si non-admin ; à câbler aux routes admin en plan 2).
