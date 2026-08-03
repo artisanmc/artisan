@@ -37,6 +37,17 @@ const fr: typeof en = {
     onDefaultWarning:
       "Vous éditez la langue par défaut ({{lang}}). Passez à une autre langue depuis le menu de langues pour traduire ; cette vue affiche directement les valeurs sources.",
     addLanguage: "Ajouter une langue",
+    fileShape: "Sur le disque",
+    fileShapeInline: "Texte en clair",
+    fileShapeExtract: "Clés",
+    fileShapeInlineHint:
+      "Les fichiers de menu portent le texte {{lang}} tel quel ; les autres langues vivent dans lang/ et aucun lang/{{lang}}.yaml n'est écrit.",
+    fileShapeExtractHint:
+      "Les fichiers de menu portent des références {i18n:clé} ; toutes les langues, {{lang}} comprise, vivent dans lang/.",
+    fileShapeConfirmInline:
+      "Réécrire tous les fichiers de menu, commande et dialog avec le texte {{lang}} en clair, et supprimer lang/{{lang}}.yaml ? Les traductions sont conservées — seule la forme des fichiers change, et le retour est possible.",
+    fileShapeConfirmExtract:
+      "Réécrire tous les fichiers de menu, commande et dialog avec des références {i18n:clé} au lieu du texte en clair ? Les traductions sont conservées — seule la forme des fichiers change.",
     modeVisual: "Visuel",
     modeYaml: "YAML",
     filterMissing: "Manquantes",
