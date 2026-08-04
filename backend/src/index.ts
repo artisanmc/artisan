@@ -1,7 +1,13 @@
 import { app, websocket } from "./app";
+import { seedBundledAssets } from "./lib/assetSeed";
 import { backfillSlugs } from "./lib/backfillSlugs";
 import { backfillContentWidths } from "./lib/contentWidthBackfill";
 import { seedAiCatalogFromLegacy } from "./modules/ai/seed";
+
+// Avant d'ouvrir le port : le volume peut être neuf (icônes 3D + items.json
+// absents = « Bibliothèque indisponible » côté éditeur). Synchrone et rapide,
+// aucune requête ne doit voir l'état intermédiaire.
+seedBundledAssets();
 
 const port = Number(process.env.PORT ?? 3001);
 
