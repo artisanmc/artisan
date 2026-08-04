@@ -197,7 +197,10 @@ userProjectsRouter.get("/:projectId/items", async (c: Context<{ Variables: Vars 
   const userId = getUserId(c);
   if (!userId) return c.json({ error: "unauthorized" }, 401);
 
-  const projectId = c.req.param("projectId");
+  // Même résolution id-ou-slug que `GET /:projectId` — la sidebar navigue en
+  // slug, la bibliothèque doit suivre.
+  const projectId = await resolveProjectRef(c.req.param("projectId"), c.req.query("server"));
+  if (projectId === null) return c.json({ error: "not_found" }, 404);
   const networkId = await getNetworkOfProject(projectId);
   if (networkId === null) return c.json({ error: "not_found" }, 404);
 
@@ -220,7 +223,8 @@ userProjectsRouter.get("/:projectId/custom-items", async (c: Context<{ Variables
   const userId = getUserId(c);
   if (!userId) return c.json({ error: "unauthorized" }, 401);
 
-  const projectId = c.req.param("projectId");
+  const projectId = await resolveProjectRef(c.req.param("projectId"), c.req.query("server"));
+  if (projectId === null) return c.json({ error: "not_found" }, 404);
   const networkId = await getNetworkOfProject(projectId);
   if (networkId === null) return c.json({ error: "not_found" }, 404);
 

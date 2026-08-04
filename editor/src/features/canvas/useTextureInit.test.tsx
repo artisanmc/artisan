@@ -23,7 +23,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   fetchUserItems.mockResolvedValue({ version: "1.21.4", items: ITEMS });
   fetchUserCustomItems.mockResolvedValue({ items: [], serverKeyId: null });
-  useTextureStore.setState({ libraryItems: [] });
+  useTextureStore.setState({ libraryItems: [], libraryError: false });
   useAuthStore.setState({ currentUser: { id: "u1", email: "a@b.c" } as never });
   useUiStore.setState({ lastActiveProjectId: "pack_open" as never });
 });
@@ -41,6 +41,22 @@ describe("useTextureInit", () => {
     renderHook(() => useTextureInit("boutique_shop" as never));
     await waitFor(() => expect(fetchUserItems).toHaveBeenCalledWith("boutique_shop"));
     expect(fetchUserItems).not.toHaveBeenCalledWith("pack_open");
+  });
+
+  // Le premier fetch part parfois avec le slug de l'URL (le project n'est pas
+  // encore chargé) et 404 : la bannière « Bibliothèque indisponible » doit
+  // disparaître dès que le fetch suivant, avec le vrai id, aboutit.
+  it("clears a stale library error once the fetch succeeds", async () => {
+    useTextureStore.setState({ libraryError: true });
+    renderHook(() => useTextureInit());
+    await waitFor(() => expect(useTextureStore.getState().libraryItems).toEqual(ITEMS));
+    expect(useTextureStore.getState().libraryError).toBe(false);
+  });
+
+  it("flags the library as unavailable when the fetch fails", async () => {
+    fetchUserItems.mockRejectedValue(new Error("404"));
+    renderHook(() => useTextureInit());
+    await waitFor(() => expect(useTextureStore.getState().libraryError).toBe(true));
   });
 
   it("does nothing without a project id", () => {

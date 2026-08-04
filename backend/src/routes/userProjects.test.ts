@@ -488,4 +488,41 @@ describe("userProjectsRouter — GET par slug", () => {
     });
     expect(res.status).toBe(404);
   });
+
+  // La sidebar navigue en slug (`projectId: slug || id`) : les sous-routes de la
+  // bibliothèque doivent résoudre la même référence que `GET /:projectId`, sinon
+  // l'éditeur affiche « Bibliothèque indisponible » sur toute URL à slug.
+  test("/items résout le slug quand le serveur est fourni", async () => {
+    const { sessionId, projectId, skId } = await seedUserWithProject("u1");
+    const project = (await getProject(projectId))!;
+    const app = makeApp();
+    const res = await app.request(`/api/v1/user/projects/${project.slug}/items?server=${skId}`, {
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(Array.isArray(body.items)).toBe(true);
+    expect(body.items.length).toBeGreaterThan(0);
+  });
+
+  test("/custom-items résout le slug quand le serveur est fourni", async () => {
+    const { sessionId, projectId, skId } = await seedUserWithProject("u1");
+    const project = (await getProject(projectId))!;
+    const app = makeApp();
+    const res = await app.request(
+      `/api/v1/user/projects/${project.slug}/custom-items?server=${skId}`,
+      { headers: { Cookie: `artisan_user_session=${sessionId}` } },
+    );
+    expect(res.status).toBe(200);
+    expect((await res.json()).serverKeyId).toBe(skId);
+  });
+
+  test("/items par id continue de marcher sans serveur", async () => {
+    const { sessionId, projectId } = await seedUserWithProject("u1");
+    const app = makeApp();
+    const res = await app.request(`/api/v1/user/projects/${projectId}/items`, {
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
+    });
+    expect(res.status).toBe(200);
+  });
 });

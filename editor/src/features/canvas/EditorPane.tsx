@@ -21,7 +21,7 @@ interface EditorPaneProps {
  * uses the raised surface to feel slightly lifted from the canvas.
  */
 export function EditorPane({ projectId }: EditorPaneProps) {
-  useTextureInit();
+  useTextureInit(projectId);
   useAssetInit(projectId);
   const tab = useUiStore((s) => s.editorTab);
   const setTab = useUiStore((s) => s.setEditorTab);
