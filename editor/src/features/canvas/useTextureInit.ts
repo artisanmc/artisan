@@ -35,6 +35,10 @@ export function useTextureInit(projectId?: string) {
 
     Promise.all([fetchUserItems(lastActiveProjectId), fetchUserCustomItems(lastActiveProjectId)])
       .then(async ([vanilla, custom]) => {
+        // Le premier fetch peut partir avec le slug de l'URL, avant que le
+        // project soit chargé : une erreur ne doit pas rester collée une fois
+        // le vrai id résolu.
+        setLibraryError(false);
         setData(vanilla.version, vanilla.items);
         setLibraryItems(vanilla.items);
         setLibraryCustomData(custom);
@@ -51,7 +55,10 @@ export function useTextureInit(projectId?: string) {
           });
         }
       })
-      .catch(() => setLibraryError(true));
+      .catch((err) => {
+        console.warn("[library] items fetch failed", lastActiveProjectId, err);
+        setLibraryError(true);
+      });
   }, [
     currentUser,
     lastActiveProjectId,
