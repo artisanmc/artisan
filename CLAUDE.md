@@ -88,7 +88,12 @@ bun backend/scripts/gen-items.ts [version]    # télécharge assets MC + génèr
 bun backend/scripts/gen-icons.ts [version]    # rend 750 PNGs → data/mc-assets/{version}/textures/icons/
                                                # puis met à jour items.json (remplace model par texture icons/{id})
 # Note : utilise Node.js en sous-processus pour Playwright (workaround Bun+Windows pipe IPC)
+
+# Empaqueter les artefacts non-régénérables côté serveur (icônes + items.json post-rendu)
+bun backend/scripts/pack-icons.ts [version...]  # → backend/assets-seed/icons-<version>.zip (À COMMITTER)
 ```
+
+**Assets et prod** — `backend/data/` est un **volume** en prod, exclu de l'image. Les textures vanilla se retéléchargent seules depuis Mojang (`ensureAssets`), mais les icônes 3D ne se régénèrent **jamais** côté serveur : `gen-icons.ts` consomme le champ `model` d'`items/<version>.json` et le remplace par la texture rendue, donc un run en prod ne verrait plus rien à faire. Elles voyagent dans l'image via `backend/assets-seed/*.zip`, déposées dans le volume au boot par `lib/assetSeed.ts` (jamais d'écrasement : le volume est la vérité). Nouvelle version MC = `gen-items` → `gen-icons` → `pack-icons` → committer l'archive.
 
 ### Editor (React 19 + Vite 6)
 
