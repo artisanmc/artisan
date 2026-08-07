@@ -41,7 +41,7 @@ import { resolveNetworkForMember } from "../lib/refs";
 import { slugify } from "../lib/slug";
 import { allocServerSlug } from "../lib/slugAlloc";
 import type { AuthUser } from "../middleware/userAuth";
-import { disconnectServerKey, getInstanceCount, pushBundleAvailable, requestConfigRead, requestConfigWrite, requestDataSourceFetch, requestPlayerInventory } from "../ws/hub";
+import { disconnectServerKey, getInstanceCount, pushBundleAvailable, requestConfigRead, requestConfigWrite, requestDataSourceFetch, requestOnlinePlayers, requestPlayerInventory } from "../ws/hub";
 import { applyConfigPatch, journalProjectFiles } from "../lib/projectJournal";
 import { getProject } from "../lib/projectStorage";
 import { handleResourcePackRebuild } from "./resourcePack";
@@ -1036,6 +1036,31 @@ userNetworksRouter.get(
 			return c.json({ error, message: r.message ?? null }, status);
 		}
 		return c.json({ slots: r.slots ?? [] });
+	},
+);
+
+// GET /api/networks/:networkId/servers/:serverId/players — member access.
+// Who is connected right now, relayed to the plugin (online_players_fetch /
+// online_players_result, 5 s timeout). Feeds the editor's player pickers so an
+// admin picks from a list instead of typing a name blind.
+userNetworksRouter.get(
+	"/:networkId/servers/:serverId/players",
+	async (c: Context<{ Variables: Vars }>) => {
+		const userId = getUserId(c);
+		if (!userId) return c.json({ error: "unauthorized" }, 401);
+		const resolved = await resolveNetworkServer(
+			userId,
+			c.req.param("networkId"),
+			c.req.param("serverId"),
+		);
+		if (!resolved) return c.json({ error: "forbidden" }, 403);
+		if (!resolved.serverKeyId) return c.json({ error: "not_found" }, 404);
+
+		const outcome = await requestOnlinePlayers(resolved.serverKeyId);
+		// An offline server has no players to list — an empty list, not an error:
+		// the picker degrades to free text and the editor stays usable.
+		if (outcome.kind !== "result") return c.json({ players: [] });
+		return c.json({ players: outcome.result.ok ? (outcome.result.players ?? []) : [] });
 	},
 );
 

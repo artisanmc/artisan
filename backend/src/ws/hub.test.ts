@@ -12,6 +12,7 @@ import {
   connToServerId,
   connSenders,
   requestDataSourceFetch,
+  requestOnlinePlayers,
   requestPlayerInventory,
 } from "./hub";
 import type {
@@ -982,6 +983,72 @@ describe("modules_changed", () => {
     // No rows should have been written (connection was never authenticated)
     const rows = await db.select().from(serverModules);
     expect(rows).toHaveLength(0);
+  });
+});
+
+describe("requestOnlinePlayers", () => {
+  test("resolves offline when no plugin conn is bound to the server key", async () => {
+    expect(await requestOnlinePlayers("sk-not-connected")).toEqual({ kind: "offline" });
+  });
+
+  /**
+   * Regression: this handler returned bare `undefined`, and `app.ts` reads
+   * `result.reply` on it — the backend crashed on the first plugin message after
+   * boot. Every branch of handlePluginMessage must return the `{reply}` shape.
+   */
+  test("handling the result never returns undefined", async () => {
+    registerConn("connOP", () => {});
+    connToServerId.set("connOP", "sk-players");
+    try {
+      const res = await handlePluginMessage(
+        "connOP",
+        JSON.stringify({ type: "online_players_result", request_id: "nobody-waiting", ok: true, players: [] }),
+      );
+      expect(res).toBeDefined();
+      expect(res.reply).toBeNull();
+    } finally {
+      connToServerId.delete("connOP");
+      connSenders.delete("connOP");
+    }
+  });
+
+  test("sends online_players_fetch and resolves on the correlated result", async () => {
+    const sent: { type: string; request_id: string }[] = [];
+    registerConn("connOP2", (raw) => sent.push(JSON.parse(raw)));
+    connToServerId.set("connOP2", "sk-players");
+    try {
+      const pending = requestOnlinePlayers("sk-players");
+      expect(sent).toHaveLength(1);
+      expect(sent[0].type).toBe("online_players_fetch");
+
+      await handlePluginMessage(
+        "connOP2",
+        JSON.stringify({
+          type: "online_players_result",
+          request_id: sent[0].request_id,
+          ok: true,
+          players: ["Alice", "Iban_"],
+        }),
+      );
+
+      const outcome = await pending;
+      expect(outcome.kind).toBe("result");
+      if (outcome.kind === "result") expect(outcome.result.players).toEqual(["Alice", "Iban_"]);
+    } finally {
+      connToServerId.delete("connOP2");
+      connSenders.delete("connOP2");
+    }
+  });
+
+  test("resolves timeout when the plugin never answers", async () => {
+    registerConn("connOP3", () => {});
+    connToServerId.set("connOP3", "sk-silent");
+    try {
+      expect(await requestOnlinePlayers("sk-silent", 20)).toEqual({ kind: "timeout" });
+    } finally {
+      connToServerId.delete("connOP3");
+      connSenders.delete("connOP3");
+    }
   });
 });
 
