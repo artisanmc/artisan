@@ -458,6 +458,10 @@ export interface CommandArg {
   name: string;
   type: "player" | "string" | "integer" | "number" | "boolean";
   required: boolean;
+  /**
+   * Reserved value `"{sender}"` on a `player` argument: omitted → bind whoever
+   * typed the command (the editor's "sender" checkbox).
+   */
   default?: string;
 }
 
