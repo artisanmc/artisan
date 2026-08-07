@@ -15,6 +15,22 @@ Select a source to see:
 
 Previews run without a player context. Sources that require an online player show a "needs an online player" notice instead of rows. If the server is offline, the schema stays visible but live preview is disabled. A timeout usually means the plugin needs an update or the server is unreachable.
 
+## Preview as a player
+
+The canvas renders your menus with **real rows** fetched from the connected server —
+no button to press, it happens as you edit.
+
+Those rows are fetched **without a player**, though, and many sources answer per
+player: a quest list, someone's homes, a balance. Without a player they come back
+empty or neutral, and your menu previews blank even though it is correct in game.
+
+Select the menu and fill **Preview as** in its properties with the name of an online
+player. Every source the menu reads is refetched as them, and the canvas shows what
+that player would actually see — their quests, their progress, their icons.
+
+The choice lasts for the session only: it is a lens for checking your work, not a
+project setting, and it is never saved into your project.
+
 ## Project sources: your own data
 
 Besides server sources, you can author **your own data** directly in the project — perfect for a ranks menu, a kits list, or project-wide settings. In the Data tab's **Project sources** section, create one of two shapes:

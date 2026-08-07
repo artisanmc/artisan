@@ -2,6 +2,7 @@ import { Input } from "@/components/ui/input";
 import { resolveDisplayRef } from "@/domain/capturedItems";
 import { newCapturedItemId } from "@/domain/ids";
 import type { CapturedItem, ProjectId } from "@/domain/types";
+import { PlayerNameInput } from "@/components/PlayerNameInput";
 import { type InventorySlotPayload, fetchPlayerInventory } from "@/lib/api/playerInventory";
 import { useAccountStore } from "@/state/accountStore";
 import { useNetworksStore } from "@/state/networksStore";
@@ -96,13 +97,11 @@ export function CapturedItemsSection({
 
       {/* Inventory mirror */}
       <div className="flex items-center gap-1.5">
-        <Input
+        <PlayerNameInput
           value={player}
+          onChange={setPlayer}
+          onCommit={() => void load()}
           placeholder={t("capturedItems.playerPlaceholder")}
-          onChange={(e) => setPlayer(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") void load();
-          }}
           className="h-7 w-36 px-2 py-0 text-xs"
         />
         <button
