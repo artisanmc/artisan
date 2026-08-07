@@ -190,6 +190,8 @@ export default {
     sortDesc: "desc",
     limitLabel: "limit",
     previewContext: "Preview",
+    previewAsPlayer: "Preview as",
+    previewAsPlayerPlaceholder: "player name (online)",
     previewContextHint:
       "Pick which value the canvas previews this parameterized menu with — filters apply to the real rows.",
     previewContextAll: "(all — unfiltered)",
@@ -646,6 +648,8 @@ export default {
     previewLoading: "Fetching…",
     previewEmpty: "No rows returned.",
     previewTruncated: "Results truncated.",
+    viewTable: "Table",
+    viewYaml: "YAML",
     previewOffline: "Server offline — schema stays available, live preview doesn't.",
     errServerOffline: "Server offline.",
     errTimeout: "No reply from the plugin — update the plugin or check the server connection.",
@@ -1264,6 +1268,8 @@ export default {
       dataViz: "Data viz",
     },
     codeEditorHint: "Syntax highlighting, line numbers, folding; Enter keeps the indentation.",
+    codeEditorReadOnlyHint:
+      "Viewer mode: same highlighting and folding, content cannot be edited. Used to read data-source preview rows.",
     groups: {
       surfaces: "Surfaces",
       text: "Text",

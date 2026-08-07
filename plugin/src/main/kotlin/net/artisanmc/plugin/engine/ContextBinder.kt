@@ -78,8 +78,15 @@ object ContextBinder {
         return result
     }
 
+    /**
+     * A params or filter value is a **Template** like any other authored string, so
+     * `{target.name}` resolves and a Bukkit `Player` renders its name instead of its
+     * `toString()`. This was a private regex — the last surviving copy of the deleted
+     * `ArgResolver` (ADR `expression-parity` §5), and the reason a `player`-typed
+     * command argument could not be forwarded to a data source.
+     */
     private fun interpolate(raw: String, args: Map<String, Any>): String =
-        Regex("\\{([a-z][a-z0-9_]*)}").replace(raw) { m -> args[m.groupValues[1]]?.toString() ?: m.value }
+        net.artisanmc.plugin.expr.renderTemplate(raw, argsScope(args))
 
     internal fun interpolateValues(map: Map<String, Any?>, args: Map<String, Any>): Map<String, Any?> =
         map.mapValues { (_, v) -> if (v is String) interpolate(v, args) else v }

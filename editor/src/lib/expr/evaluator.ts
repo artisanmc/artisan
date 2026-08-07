@@ -1,5 +1,6 @@
 import type { AstNode } from "./ast";
 import { compare, looseEq, toBoolean, toNumber, toStringValue } from "./coercion";
+import { formatDuration } from "./duration";
 import type { Scope } from "./scope";
 
 /**
@@ -43,7 +44,7 @@ export function evaluate(node: AstNode, scope: Scope): unknown {
     case "method": {
       const target = evaluate(node.target, scope);
       const args = node.args.map((a) => evaluate(a, scope));
-      return invokeMethod(target, node.method, args);
+      return invokeMethod(target, node.method, args, scope);
     }
     case "unary": {
       const v = evaluate(node.operand, scope);
@@ -101,7 +102,12 @@ export function evaluate(node: AstNode, scope: Scope): unknown {
   }
 }
 
-function invokeMethod(target: unknown, method: string, args: unknown[]): unknown {
+function invokeMethod(
+  target: unknown,
+  method: string,
+  args: unknown[],
+  scope: Scope,
+): unknown {
   switch (method) {
     case "join": {
       if (!Array.isArray(target)) return "";
@@ -139,6 +145,13 @@ function invokeMethod(target: unknown, method: string, args: unknown[]): unknown
       return target.map((x) =>
         x !== null && typeof x === "object" ? (x as Record<string, unknown>)[field] ?? null : null,
       );
+    }
+    case "until": {
+      // The target is an absolute instant (epoch millis) — rows carry the fact,
+      // the template decides how it reads (ADR `expression-parity` §6).
+      const at = toNumber(target);
+      if (at === null) return "";
+      return formatDuration(at - scope.now(), (key) => scope.translate(key));
     }
     default:
       return null;

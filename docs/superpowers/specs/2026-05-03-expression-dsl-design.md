@@ -1,7 +1,17 @@
 # Expression DSL — Design Spec
 
 **Date** : 2026-05-03
-**Statut** : Design validé, prêt pour implementation plan
+**Statut** : Design validé, **partiellement dépassé** — cf. ADR `expression-parity`
+(2026-08-05). Deux points de ce document ne décrivent plus la cible :
+- « pas de méthodes string » / grammaire strictement fermée → l'implémentation
+  éditeur a adopté un **vocabulaire fermé de méthodes** (`join`, `pluck`,
+  `length`, `first`, `last`, `at`, `contains`), et c'est la forme retenue.
+- Le document ne dit rien du **runtime** : le serveur n'implémente rien de cette
+  grammaire (`ArgResolver`, regex `{name}`/`{alias.field}`). La parité TS ↔ Kotlin
+  est désormais un contrat verrouillé par vecteur de conformance.
+
+Le reste (grammaire, coercions, philosophie tolérante, i18n imbriquée) reste la
+référence.
 **Auteur** : iban (brainstorming session avec Claude)
 
 ## Résumé

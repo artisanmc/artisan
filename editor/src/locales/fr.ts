@@ -197,6 +197,8 @@ const fr: typeof en = {
     sortDesc: "desc",
     limitLabel: "limite",
     previewContext: "Aperçu",
+    previewAsPlayer: "Prévisualiser en tant que",
+    previewAsPlayerPlaceholder: "pseudo (en ligne)",
     previewContextHint:
       "Choisis avec quelle valeur le canvas prévisualise ce menu paramétré — les filtres s'appliquent aux vraies lignes.",
     previewContextAll: "(tout — non filtré)",
@@ -657,6 +659,8 @@ const fr: typeof en = {
     previewLoading: "Chargement…",
     previewEmpty: "Aucune ligne renvoyée.",
     previewTruncated: "Résultats tronqués.",
+    viewTable: "Tableau",
+    viewYaml: "YAML",
     previewOffline: "Serveur hors ligne — le schéma reste visible, la preview live non.",
     errServerOffline: "Serveur hors ligne.",
     errTimeout: "Pas de réponse du plugin — plugin à mettre à jour ou serveur injoignable.",
@@ -1278,6 +1282,8 @@ const fr: typeof en = {
       dataViz: "Data viz",
     },
     codeEditorHint: "Coloration syntaxique, numéros de ligne, pliage ; Entrée conserve l'indentation.",
+    codeEditorReadOnlyHint:
+      "Mode lecture : même coloration et même pliage, contenu non éditable. Sert à lire les lignes de prévisualisation d'une source.",
     groups: {
       surfaces: "Surfaces",
       text: "Texte",

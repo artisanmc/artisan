@@ -144,6 +144,8 @@ export function ServerSourceDetail({ networkId, serverId, source }: ServerSource
             truncated={preview.result.truncated}
             truncatedLabel={t("dataSources.previewTruncated")}
             emptyLabel={t("dataSources.previewEmpty")}
+            tableLabel={t("dataSources.viewTable")}
+            yamlLabel={t("dataSources.viewYaml")}
           />
         ) : null}
         {preview.kind === "done" && !preview.result.ok ? (

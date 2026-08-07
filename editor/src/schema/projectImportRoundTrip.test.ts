@@ -217,7 +217,9 @@ describe("projectImport round-trip (Boutique bootstrap → import → transform)
   it("re-emits lang/fr.yaml as a nested tree, not one dotted key per line", () => {
     const { rawOut } = roundTrip();
     const raw = rawOut[`${base}/lang/fr.yaml`]!;
-    expect(raw).toMatch(/^boutique:\n/);
+    // Nesting is what this asserts, not which top-level key comes first —
+    // `artisan:` (the project's presentation keys) sorts before `boutique:`.
+    expect(raw).toMatch(/^boutique:$/m);
     expect(raw).not.toMatch(/^boutique\./m);
     expect((parse(raw) as Json).boutique.shop_main.title).toBe("Boutique");
   });
