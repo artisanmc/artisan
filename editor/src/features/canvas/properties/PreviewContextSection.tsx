@@ -6,7 +6,7 @@ import { findPreviewCallContexts } from "@/features/canvas/previewCallContexts";
 import { useAccountStore } from "@/state/accountStore";
 import { useServerSnapshotsStore } from "@/state/serverSnapshotsStore";
 import { useUiStore } from "@/state/uiStore";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { extractArgTokens } from "./MenuDataSection";
 

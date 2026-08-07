@@ -1,4 +1,3 @@
-import { Input } from "@/components/ui/input";
 import { resolveDisplayRef } from "@/domain/capturedItems";
 import { newCapturedItemId } from "@/domain/ids";
 import type { CapturedItem, ProjectId } from "@/domain/types";
