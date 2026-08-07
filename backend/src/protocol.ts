@@ -178,6 +178,25 @@ export interface PlayerInventoryResultMessage {
   message?: string;
 }
 
+// Backend → plugin: who is connected right now. Feeds the editor's player
+// pickers (capture panel, canvas "preview as") so an admin chooses from a list
+// instead of typing a name blind. Correlated like data_source_fetch.
+export interface OnlinePlayersFetchMessage {
+  type: "online_players_fetch";
+  request_id: string;
+}
+
+// Plugin → backend: reply to OnlinePlayersFetchMessage — names, case as the
+// server knows them, sorted.
+export interface OnlinePlayersResultMessage {
+  type: "online_players_result";
+  request_id: string;
+  ok: boolean;
+  players?: string[];
+  error?: "fetch_error";
+  message?: string;
+}
+
 // Backend → plugin: read the files of a Config-screen table, live from disk
 // (ADR module-config-screens). Correlated like data_source_fetch; 5 s timeout.
 export interface ConfigReadMessage {
@@ -247,5 +266,6 @@ export type ServerToPluginMessage =
   | ProjectDeletedMessage
   | DataSourceFetchMessage
   | PlayerInventoryFetchMessage
+  | OnlinePlayersFetchMessage
   | ConfigReadMessage
   | ConfigWriteMessage;

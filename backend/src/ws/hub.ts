@@ -21,6 +21,8 @@ import type {
   ConfigWriteResultMessage,
   DataSourceFetchMessage,
   DataSourceFetchResultMessage,
+  OnlinePlayersFetchMessage,
+  OnlinePlayersResultMessage,
   PlayerInventoryFetchMessage,
   PlayerInventoryResultMessage,
   EditorDraftUpdateMessage,
@@ -171,6 +173,45 @@ export function requestPlayerInventory(
     pendingInventoryFetches.set(requestId, (outcome) => {
       clearTimeout(timer);
       pendingInventoryFetches.delete(requestId);
+      resolve(outcome);
+    });
+    send(JSON.stringify(msg));
+  });
+}
+
+// ── online players: same correlated request/response pattern ───────────────
+export type OnlinePlayersOutcome =
+  | { kind: "result"; result: OnlinePlayersResultMessage }
+  | { kind: "offline" }
+  | { kind: "timeout" };
+
+const pendingPlayerListFetches = new Map<string, (outcome: OnlinePlayersOutcome) => void>();
+
+/**
+ * Ask the live plugin bound to `serverKeyId` who is connected. Feeds the
+ * editor's player pickers; same offline/timeout semantics as
+ * {@link requestDataSourceFetch}.
+ */
+export function requestOnlinePlayers(
+  serverKeyId: string,
+  timeoutMs: number = DATA_SOURCE_FETCH_TIMEOUT_MS,
+): Promise<OnlinePlayersOutcome> {
+  let send: ((msg: string) => void) | undefined;
+  for (const [cId, sId] of connToServerId) {
+    if (sId === serverKeyId) { send = connSenders.get(cId); if (send) break; }
+  }
+  if (!send) return Promise.resolve({ kind: "offline" });
+
+  const requestId = crypto.randomUUID();
+  const msg: OnlinePlayersFetchMessage = { type: "online_players_fetch", request_id: requestId };
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      pendingPlayerListFetches.delete(requestId);
+      resolve({ kind: "timeout" });
+    }, timeoutMs);
+    pendingPlayerListFetches.set(requestId, (outcome) => {
+      clearTimeout(timer);
+      pendingPlayerListFetches.delete(requestId);
       resolve(outcome);
     });
     send(JSON.stringify(msg));
@@ -761,6 +802,15 @@ export async function handlePluginMessage(
     if (!serverId) return { reply: null };
     const result = msg as DataSourceFetchResultMessage;
     pendingFetches.get(result.request_id)?.({ kind: "result", result });
+    return { reply: null };
+  }
+
+  // ── online_players_result: resolve a pending player listing ───────────────
+  if (msg.type === "online_players_result") {
+    const serverId = connToServerId.get(connId);
+    if (!serverId) return { reply: null };
+    const result = msg as unknown as OnlinePlayersResultMessage;
+    pendingPlayerListFetches.get(result.request_id)?.({ kind: "result", result });
     return { reply: null };
   }
 
