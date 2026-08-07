@@ -214,9 +214,14 @@ function ElementEditor({
           )}
         </div>
         <div className="min-w-0 flex-1">
-          <div className="font-mono text-xs text-[var(--text)]">{headerTitle || headerMaterial}</div>
-          <div className="text-[10px] text-[var(--text-faint)]">
-            {menuTitle} ·{" "}
+          {/* Item + menu names are MiniMessage: render the styling instead of
+              printing the raw tags. */}
+          <MiniMessageInline
+            source={headerTitle || headerMaterial}
+            className="block truncate font-mono text-xs text-[var(--text)]"
+          />
+          <div className="truncate text-[10px] text-[var(--text-faint)]">
+            <MiniMessageInline source={menuTitle} /> ·{" "}
             {t(appearances.length === 1 ? "flow.headerStateOne" : "flow.headerStateOther", {
               count: appearances.length,
             })}

@@ -23,9 +23,9 @@ export function documentLabel(project: Project, id: string, activeLang: string):
 /** Pure: construit la liste catégorisée des éléments du project (source de vérité du panneau). */
 export function buildProjectDocuments(project: Project, activeLang: string): ProjectDocumentGroup[] {
   const onBoard = (id: string) => id in project.canvasLayout;
-  // Menus are labelled by their id in the panel (their "title" is a visual
-  // MenuTitleLayer[] — decorative, often empty or ambiguous — not a stable
-  // identifier). Commands/dialogs keep their human label.
+  // Menus and dialogs are labelled by their id in the panel (their title is
+  // decorative, often empty or ambiguous — not a stable identifier).
+  // Commands keep their human label (`/name` IS their identifier).
   const menus: ProjectDocumentItem[] = (project.menus ?? []).map((m) => ({
     id: m.id, label: m.id, type: "menu", onBoard: onBoard(m.id),
   }));
@@ -33,7 +33,7 @@ export function buildProjectDocuments(project: Project, activeLang: string): Pro
     id: c.id, label: documentLabel(project, c.id, activeLang), type: "command", onBoard: onBoard(c.id),
   }));
   const dialogs: ProjectDocumentItem[] = (project.dialogs ?? []).map((d) => ({
-    id: d.id, label: documentLabel(project, d.id, activeLang), type: "dialog", onBoard: onBoard(d.id),
+    id: d.id, label: d.id, type: "dialog", onBoard: onBoard(d.id),
   }));
   return [
     { type: "menu", items: menus },

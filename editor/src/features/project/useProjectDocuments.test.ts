@@ -25,8 +25,8 @@ describe("buildProjectDocuments", () => {
     expect(cmds.items[0]).toMatchObject({ id: "c1", label: "/heal", onBoard: false });
     const dlgs = groups.find((g) => g.type === "dialog")!;
     expect(dlgs.items[0]).toMatchObject({ id: "d1", onBoard: false });
-    // dialog label resolves title via i18nKeys, not raw id
-    expect(dlgs.items[0].label).toBe("Confirm");
+    // dialog label is the id, even though the title resolves to "Confirm"
+    expect(dlgs.items[0].label).toBe("d1");
   });
 
   it("menu label is always the id, even when the menu has a title", () => {
@@ -39,10 +39,8 @@ describe("buildProjectDocuments", () => {
     expect(menus.items[0].label).toBe("m1");
   });
 
-  it("dialog label falls back to id when title has no matching key", () => {
+  it("dialog label is always the id, even when the title resolves", () => {
     const p = project();
-    // Remove the i18nKeys entry so getText returns ""
-    (p.i18nKeys as any) = {};
     const groups = buildProjectDocuments(p, "en");
     const dlgs = groups.find((g) => g.type === "dialog")!;
     expect(dlgs.items[0].label).toBe("d1");

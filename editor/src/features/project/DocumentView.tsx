@@ -11,6 +11,7 @@ import { SplitPane } from "@/components/SplitPane";
 import { EditorPane } from "@/features/canvas/EditorPane";
 import { FloatingEditorPane } from "@/features/canvas/FloatingEditorPane";
 import { useIsDesktop } from "@/lib/useMediaQuery";
+import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { FlowCanvas } from "@/features/flow/FlowCanvas";
 import { SoloMenuStage } from "./SoloMenuStage";
 import { documentLabel } from "./useProjectDocuments";
@@ -94,9 +95,12 @@ export function DocumentView({ projectId, documentId }: { projectId: ProjectId; 
           Esc
         </kbd>
       </button>
-      <span className="truncate text-[13px] font-medium text-[var(--text)]">
-        {project ? documentLabel(project, documentId as string, activeLang) : documentId}
-      </span>
+      {/* Le libellé est du MiniMessage (titre de menu/dialogue) : on rend le
+          style plutôt que d'imprimer les balises. */}
+      <MiniMessageInline
+        source={project ? documentLabel(project, documentId as string, activeLang) : documentId}
+        className="truncate text-[13px] font-medium text-[var(--text)]"
+      />
     </div>
   );
 
