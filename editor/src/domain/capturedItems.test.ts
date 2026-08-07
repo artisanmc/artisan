@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { capturedPresentation, resolveDisplayRef } from "./capturedItems";
 import type { CapturedItem, Project } from "./types";
-import { resolveDisplayRef } from "./capturedItems";
 
 const CAPTURED: CapturedItem = {
   id: "ci_key" as CapturedItem["id"],
@@ -66,5 +66,46 @@ describe("resolveDisplayRef", () => {
       material: "DIAMOND_SWORD",
       enchanted: true,
     });
+  });
+});
+
+/**
+ * What a referenced item says about itself. The canvas preview must show it,
+ * because the runtime does: MenuRenderer starts from the resolved stack, so its
+ * name shows when the element declares no title and its lore always shows,
+ * with the element's own lines appended (cf. MenuRendererCapturedLoreTest).
+ */
+describe("capturedPresentation", () => {
+  const NAMED: CapturedItem = {
+    id: "ci_sword" as CapturedItem["id"],
+    name: "Épée du VIP",
+    stackYaml: `item:
+  id: minecraft:diamond_sword
+  components:
+    minecraft:custom_name: '{"text":"Épée du VIP"}'
+    minecraft:lore:
+      - '{"text":"Tranchante"}'
+      - '{"text":"Rare"}'
+`,
+    display: {},
+  };
+
+  it("reads the name and lore the captured stack carries", () => {
+    expect(capturedPresentation(project([NAMED]), "item:ci_sword")).toEqual({
+      name: "Épée du VIP",
+      lore: ["Tranchante", "Rare"],
+    });
+  });
+
+  it("prefers the capture-time descriptor name when it has one", () => {
+    expect(capturedPresentation(project([CAPTURED]), "item:ci_key").name).toBe("1 clé Luxury");
+  });
+
+  it("is empty for a plain material, a dangling ref or a placeholder", () => {
+    const p = project([NAMED]);
+    expect(capturedPresentation(p, "DIAMOND_SWORD")).toEqual({ lore: [] });
+    expect(capturedPresentation(p, "item:ghost")).toEqual({ lore: [] });
+    expect(capturedPresentation(p, "{item.icon}")).toEqual({ lore: [] });
+    expect(capturedPresentation(p, undefined)).toEqual({ lore: [] });
   });
 });

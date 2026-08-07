@@ -46,6 +46,27 @@ all consume it identically — universality lives in the ref system, **never** i
 per-item icon overrides at the set/menu layer (re-affirms the no-override rule of
 `item-templates-and-data-library.md`).
 
+**A ref is additive, not opaque** (2026-08-06). The referenced item keeps what it
+says about itself, and the appearance layers on top of it:
+
+| | Referenced item | Appearance | Result |
+|---|---|---|---|
+| lore | `Tranchante` | `Prix : 500` | `Tranchante` then `Prix : 500` — **appended** |
+| name | `Épée du VIP` | `Offre du jour` | `Offre du jour` — the appearance **wins** |
+| name | `Épée du VIP` | (none) | `Épée du VIP` |
+
+A name can't concatenate, so the element wins there; lore can, and dropping the
+item's own lines is exactly what made a ref feel lossy — a boutique icon lost
+everything the captured item said. `MenuRenderer.buildItem` starts from the
+resolved stack and appends (`MenuRendererCapturedLoreTest`); the canvas preview
+mirrors it through `capturedPresentation` so the editor shows what the player
+sees. This holds for **every** ref whose stack carries a presentation, `nexo:`
+and friends included — the appearance is a layer, not a replacement.
+
+Cutting the link stays a deliberate act: the **Extract details** button on an
+appearance explodes the captured stack into editable fields, which is the only
+way an author gives up following the item.
+
 ### 3. Capture flows
 
 - **Inventory mirror** (editor-initiated): a WS request/response relay (same
