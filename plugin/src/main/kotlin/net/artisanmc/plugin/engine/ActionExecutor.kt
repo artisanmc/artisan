@@ -74,8 +74,7 @@ class ActionExecutor(
         return result
     }
 
-    fun resolveArgs(text: String, ctx: ExecutionContext): String =
-        ArgResolver.resolve(text, ctx.resolvedArgs)
+    fun resolveArgs(text: String, ctx: ExecutionContext): String = ctx.render(text)
 
     /**
      * Explicit `{i18n:key}` ref wins; otherwise the literal is looked up at its
@@ -105,7 +104,7 @@ class ActionExecutor(
     private fun resolveContextValue(template: String, ctx: ExecutionContext): Any {
         val m = WHOLE_PLACEHOLDER.matchEntire(template.trim())
         if (m != null) {
-            ArgResolver.lookupValue(m.groupValues[1], ctx.resolvedArgs)?.let { return it }
+            ctx.exprValue(m.groupValues[1])?.let { return it }
         }
         return resolveText(template, ctx)
     }
@@ -256,7 +255,7 @@ class ActionExecutor(
             )
             return ctx
         }
-        val raw = ArgResolver.lookupValue(action.actions, ctx.resolvedArgs)
+        val raw = ctx.exprValue(action.actions)
         if (raw !is String || raw.isBlank()) {
             Bukkit.getLogger().warning("[Artisan] run_actions '${action.actions}' resolved to no action chain — skipping")
             return ctx
@@ -271,7 +270,7 @@ class ActionExecutor(
         // config object) devient racine locale — la chaîne adresse ses champs bare
         // (`{price}`) et via `{self.price}`. Le contexte appelant reste au-dessus.
         val base = action.actions.substringBefore('.')
-        val baseVal = ArgResolver.lookupValue(base, ctx.resolvedArgs)
+        val baseVal = ctx.exprValue(base)
         val newArgs: Map<String, Any> = when {
             baseVal is Map<*, *> -> {
                 val rowMap = baseVal.entries

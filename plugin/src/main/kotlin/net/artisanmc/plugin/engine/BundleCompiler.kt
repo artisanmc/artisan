@@ -3,6 +3,7 @@ package net.artisanmc.plugin.engine
 import net.artisanmc.plugin.actiondsl.compileActionDsl
 import net.artisanmc.plugin.model.AppearanceYaml
 import net.artisanmc.plugin.model.BundleMenu
+import net.artisanmc.plugin.expr.warmTemplate
 import net.artisanmc.plugin.model.MenuYaml
 import java.util.logging.Logger
 
@@ -65,11 +66,31 @@ object BundleCompiler {
                 clickType to ClickHandler(requirements, actions, fallback, cooldown, steps)
             }.toMap()
 
+            // Parse the appearance's Templates now: the cache is warm before the
+            // first render, and a malformed expression is reported here — with its
+            // menu and element — rather than as a ⚠️ in some player's inventory.
+            warnMalformedTemplates(app, menuId, elementId, logger)
+
             CompiledAppearance(conditions, clicks, app, base)
         }.getOrElse { e ->
             logger?.warning("Failed to compile appearance in menu=$menuId element=$elementId: ${e.message}")
             null
         }
+
+    private fun warnMalformedTemplates(
+        app: AppearanceYaml,
+        menuId: String,
+        elementId: String,
+        logger: Logger?,
+    ) {
+        if (logger == null) return
+        val templates = listOfNotNull(app.material, app.head, app.title) + app.lore
+        for (template in templates) {
+            for (problem in warmTemplate(template)) {
+                logger.warning("[Artisan] menu=$menuId element=$elementId: malformed expression $problem")
+            }
+        }
+    }
 
     private fun parsePositions(positions: String, size: Int): List<Int> =
         positions.split(",").flatMap { part ->

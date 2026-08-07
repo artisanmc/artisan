@@ -1015,7 +1015,9 @@ describe("transform — textarea title layer", () => {
     });
     const files = transform(project);
     const lang = parse(files["plugins/Artisan/projects/p_test/lang/en.yaml"]!);
-    expect(lang).toEqual({ k_ta: "Hello\nWorld" });
+    // Asserted by key: every lang file also carries the project's presentation
+    // keys (`artisan.duration.*`), which are not the subject here.
+    expect(lang.k_ta).toBe("Hello\nWorld");
   });
 });
 

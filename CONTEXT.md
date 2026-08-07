@@ -36,8 +36,9 @@ of an **Action chain** — one statement per action, `if …:` / `else if …:` 
 Non-examples:
 - The verbose structured tree (`{kind:"if", cases:[…]}`) is the *old* wire form
   the Action DSL replaces, not the Action DSL.
-- The **expression** embedded in a condition or `{…}` (`balance >= 100`) is a
-  sub-language *inside* the Action DSL, not a separate DSL.
+- An **Expression** (`balance >= 100`) is a value sub-language the Action DSL
+  *hosts* in its condition atoms — not a separate statement language. It has a
+  second, independent host: the **Template**.
 
 ## Bundle
 
@@ -69,7 +70,9 @@ capture time from vanilla components (base material, head texture, glint, count,
 name — optionally enriched to a recognized custom ref like `nexo:<id>`). It is
 the universal item value: referenced anywhere a material goes through the
 `item:<id>` ref — the editor renders the descriptor, the plugin deserializes the
-exact stack. Cf. ADR `captured-items-and-module-field-kit`.
+exact stack. A ref is **additive**: the item keeps its own name and lore, and
+the referencing appearance layers over it (its title wins, its lore is appended
+under the item's own lines). Cf. ADR `captured-items-and-module-field-kit`.
 
 Non-examples:
 - A **custom item** of the server catalog (Nexo/Oraxen entry reported by
@@ -271,6 +274,25 @@ Non-examples:
 - A **Menu** / **Command** / **Dialog** is a **Document**, not an Element.
 - A slot **position** (an index like `13`) is not an Element; it's *where* an
   Element sits. One Element may span several positions.
+
+## Expression
+
+The closed sub-language that evaluates to a **value**: identifier and dotted path
+lookup, indexing, a **closed method vocabulary** over lists and strings
+(`join`, `pluck`, `length`, `first`, `last`, `at`, `contains`, …), limited
+arithmetic, comparisons, ternary, and `%papi%`. Closed on purpose — no free
+functions, no user-defined variables — so the editor can offer it as a form and
+so every method can be documented, mirrored server-side and locked by a
+conformance vector. Cf. ADR `expression-parity`.
+
+Expressions have exactly **two hosts**: the condition atoms of an **Action chain**
+(via the **Action DSL**), and the expression segments of a **Template**. They are
+not a standalone artifact — an Expression is always embedded in something.
+
+Non-examples:
+- The **Action DSL** is a statement language (one action per line, `if`/`else`
+  blocks). An Expression is one value, and appears *inside* it.
+- The surrounding text of a lore line is a **Template**, not an Expression.
 
 ## Item set
 
@@ -563,3 +585,22 @@ Non-examples:
   secret, same Server.
 - A connected plugin process is a runtime *instance* of the Server, not a separate
   Server (instances may share one key).
+
+## Template
+
+The text form of every player-facing string authored in the editor — an item name,
+a lore line, a menu title. A Template is a sequence of segments: literal text,
+`{i18n:key}` references, and `{`**Expression**`}` segments, rendered in one pass to
+the final string a player sees. Interpolation of a Data source row's fields
+(`{quest.name}`) is the everyday case; a method call
+(`{rewards.pluck("name").join("\n")}`) is the same mechanism.
+
+A Template is rendered **identically by the editor's preview and by the server** —
+that equality is the contract, not an implementation detail, and is what makes the
+preview trustworthy. Cf. ADR `expression-parity`.
+
+Non-examples:
+- MiniMessage markup (`<gold>`) is *styling* applied downstream of Template
+  rendering, not a Template segment.
+- A **Data source** row field carrying `"34/64"` is a plugin pre-formatting its
+  data; the point of Templates is that the menu composes that itself.

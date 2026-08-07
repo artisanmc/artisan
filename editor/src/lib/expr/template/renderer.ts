@@ -3,6 +3,7 @@ import type { AstCache } from "../cache";
 import { toStringValue } from "../coercion";
 import { ParseError } from "../errors";
 import { evaluate } from "../evaluator";
+import { rootIdentifiers } from "../rootIdentifiers";
 import type { Scope } from "../scope";
 import { resolveI18n } from "./i18n";
 import { tokenizeTemplate } from "./tokenizer";
@@ -64,6 +65,13 @@ function evalSegment(expr: string, opts: RenderOptions): string {
       return `⚠️ ${e.message}`;
     }
     return "⚠️ parse failed";
+  }
+  // An unbound root identifier means the author named something that does not
+  // exist — render the source so the mistake is visible in game rather than
+  // silently erasing the text (ADR `expression-parity` §4). A *bound* root with a
+  // missing field is normal (rows may omit fields) and falls through to "".
+  for (const name of rootIdentifiers(ast)) {
+    if (!opts.scope.has(name)) return `{${expr}}`;
   }
   try {
     const v = evaluate(ast, opts.scope);

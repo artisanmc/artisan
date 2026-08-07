@@ -1,0 +1,73 @@
+import { projectId } from "@/domain/ids";
+import type { Project } from "@/domain/types";
+import { DURATION_KEYS } from "@/lib/expr/duration";
+import { flattenLangTree } from "@/lib/langTree";
+import { describe, expect, it } from "vitest";
+import { parse } from "yaml";
+import { transform } from "./transform";
+
+const BASE = "plugins/Artisan/projects/p_test";
+
+const makeProject = (overrides: Partial<Project> = {}): Project =>
+  ({
+    id: projectId("p_test"),
+    name: "Test",
+    description: "",
+    source: "user_created",
+    defaultLang: "en",
+    createdAt: "",
+    updatedAt: "",
+    i18nKeys: {},
+    menus: [],
+    commands: [],
+    dialogs: [],
+    assets: [],
+    canvasLayout: {},
+    ...overrides,
+  }) as Project;
+
+const langOf = (files: Record<string, string>, lang: string) =>
+  flattenLangTree(parse(files[`${BASE}/lang/${lang}.yaml`] ?? ""));
+
+/**
+ * Presentation keys (`artisan.duration.*`) belong to the **project**, not to any
+ * document site — so unlike a menu title they have nowhere to be inlined, and the
+ * lang file is their only home in every i18n mode (ADR `expression-parity` §8).
+ */
+describe("presentation keys in lang files", () => {
+  it("are written out in extract mode with their defaults", () => {
+    const files = transform(makeProject());
+
+    const lang = langOf(files, "en");
+    expect(lang[DURATION_KEYS.hours]).toBe("{n}h");
+    expect(lang[DURATION_KEYS.minutes]).toBe("{n}m");
+    expect(lang[DURATION_KEYS.days]).toBe("{n}d");
+    expect(lang[DURATION_KEYS.seconds]).toBe("{n}s");
+  });
+
+  /** The point of writing them out: an admin opening lang/ discovers they exist. */
+  it("survive inline mode, where the default lang file would otherwise not exist", () => {
+    const files = transform(makeProject({ i18nMode: "inline" }));
+
+    expect(files[`${BASE}/lang/en.yaml`]).toBeDefined();
+    expect(langOf(files, "en")[DURATION_KEYS.hours]).toBe("{n}h");
+  });
+
+  it("carry nothing else in inline mode — site-addressed text stays in its document", () => {
+    const files = transform(makeProject({ i18nMode: "inline" }));
+
+    expect(Object.keys(langOf(files, "en")).sort()).toEqual(Object.values(DURATION_KEYS).sort());
+  });
+
+  it("keep an admin's override instead of the default", () => {
+    const files = transform(
+      makeProject({
+        i18nKeys: { [DURATION_KEYS.hours]: { en: "{n} hours" } } as Project["i18nKeys"],
+      }),
+    );
+
+    expect(langOf(files, "en")[DURATION_KEYS.hours]).toBe("{n} hours");
+    // The untouched ones still land on their defaults.
+    expect(langOf(files, "en")[DURATION_KEYS.minutes]).toBe("{n}m");
+  });
+});

@@ -40,8 +40,10 @@ describe("resolveI18n", () => {
     expect(out).toContain("depth");
   });
 
-  it("inserts empty string for missing key (silent fallback)", () => {
-    expect(resolveI18n("{i18n:nope}", { lookup: () => undefined })).toBe("");
+  // ADR `expression-parity` §4: a missing key keeps its source visible rather
+  // than erasing the text, same rule as an unbound identifier.
+  it("keeps the source visible for a missing key", () => {
+    expect(resolveI18n("{i18n:nope}", { lookup: () => undefined })).toBe("{i18n:nope}");
   });
 
   it("preserves expressions and PAPI tokens around i18n substitutions", () => {

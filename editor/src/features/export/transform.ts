@@ -28,6 +28,7 @@ import type {
 } from "@/domain/types";
 import { slotCount } from "@/features/canvas/inventoryTypes";
 import { listLanguages } from "@/lib/i18nUsages";
+import { DURATION_DEFAULTS, DURATION_KEYS } from "@/lib/expr/duration";
 import { nestLangTree } from "@/lib/langTree";
 import { Document as YamlDocument, stringify } from "yaml";
 
@@ -621,8 +622,27 @@ function addActionKeys(action: Action, keys: Set<string>): void {
   }
 }
 
+/**
+ * Keys that belong to the **project**, not to any document site: presentation
+ * settings an admin may want to override (the `until()` duration units).
+ *
+ * They are why inline mode still emits a default-language lang file. The "no
+ * default lang file in inline mode" rule exists because a site-addressed key
+ * would be a second copy of text that already lives in its document — a siteless
+ * key has no document to live in, so the lang file is its only home.
+ */
+const SITELESS_KEYS: string[] = Object.values(DURATION_KEYS);
+
+/** The default each presentation key is written out with, keyed by the key itself. */
+const DURATION_DEFAULTS_BY_KEY: Record<string, string> = Object.fromEntries(
+  (Object.keys(DURATION_KEYS) as Array<keyof typeof DURATION_KEYS>).map((name) => [
+    DURATION_KEYS[name],
+    DURATION_DEFAULTS[name],
+  ]),
+);
+
 function collectReferencedKeys(project: Project): Set<string> {
-  const keys = new Set<string>();
+  const keys = new Set<string>(SITELESS_KEYS);
   for (const menu of project.menus) {
     for (const lt of getTitleTextLayers(menu)) keys.add(lt.key);
     for (const layer of menu.layers) {
@@ -684,6 +704,10 @@ function serializeLang(
     const val = entry?.[lang];
     if (val !== undefined) {
       entries.push([key, val]);
+    } else if (key in DURATION_DEFAULTS_BY_KEY) {
+      // A presentation key seeds its actual default, not "": the point of writing
+      // it out is that an admin opening lang/ sees what it does and can change it.
+      entries.push([key, DURATION_DEFAULTS_BY_KEY[key]!]);
     } else if (lang === project.defaultLang) {
       // Always seed the defaultLang file with an empty string so the runtime
       // resolves the key to "" rather than echoing the raw key.
@@ -1129,10 +1153,18 @@ export function transform(project: Project): Record<string, string> {
   const referencedKeys = collectReferencedKeys(project);
   const dsI18n = dataSourceI18n(project);
   for (const lang of langs) {
-    // Inline mode: the default language IS the documents — a `lang/<default>`
+    // Inline mode: the default language IS the documents, so a `lang/<default>`
     // file would be a second copy of the same truth (same rule data sources
-    // already follow, ADR bare-data-files ④).
-    if (project.i18nMode === "inline" && lang === project.defaultLang) continue;
+    // already follow, ADR bare-data-files ④) — except for SITELESS keys, which no
+    // document can hold. Those still need a home, so the file is emitted with
+    // them alone.
+    if (project.i18nMode === "inline" && lang === project.defaultLang) {
+      const siteless = serializeLang(project, lang, new Set(SITELESS_KEYS));
+      if (Object.keys(siteless).length > 0) {
+        files[`${base}/lang/${lang}.yaml`] = stringify(nestLangTree(siteless), yamlOpts);
+      }
+      continue;
+    }
     // Written as a YAML tree, not one dotted key per line — `nestLangTree`
     // re-sorts every level in byte order so the file stays deterministic.
     files[`${base}/lang/${lang}.yaml`] = stringify(
