@@ -102,6 +102,10 @@ class DialogTextResolverTest {
             """.trimIndent(),
         )
         val texts = DialogTextResolver.resolveAll(d, d.langMapWithFallback("en"), ctx())
-        assertEquals("{nope} and {player.unknown_field}", texts.title)
+        // ADR `expression-parity` §4, the two halves of the rule: an unbound ROOT
+        // (`nope`) keeps its source so the typo is visible, while a bound root with
+        // a missing FIELD renders empty — rows are allowed to omit fields, and the
+        // rule stays uniform rather than special-casing fixed-shape objects.
+        assertEquals("{nope} and ", texts.title)
     }
 }

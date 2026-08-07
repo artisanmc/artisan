@@ -33,19 +33,28 @@ export function YamlCodeEditor({
   ariaLabel,
   height = "100%",
   autoFocus = false,
+  readOnly = false,
 }: {
   value: string;
-  onChange: (next: string) => void;
+  /** Optional when [readOnly] — a viewer has nothing to report. */
+  onChange?: (next: string) => void;
   /** Names the editor for assistive tech and for tests (usually the file path). */
   ariaLabel: string;
   height?: string;
   autoFocus?: boolean;
+  /**
+   * Viewer mode: same highlighting, gutters and folding, but the content cannot be
+   * edited. Used to read structured data (data-source preview rows) rather than to
+   * author a file. Selection and copy stay available.
+   */
+  readOnly?: boolean;
 }) {
   return (
     <CodeMirror
       value={value}
       extensions={[yamlLang(), YAML_CM_THEME]}
       onChange={onChange}
+      editable={!readOnly}
       theme="dark"
       autoFocus={autoFocus}
       basicSetup={{

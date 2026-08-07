@@ -1,0 +1,742 @@
+[
+  {
+    "name": "literal only",
+    "template": "Welcome!",
+    "scope": {},
+    "expected": "Welcome!"
+  },
+  {
+    "name": "empty template",
+    "template": "",
+    "scope": {},
+    "expected": ""
+  },
+  {
+    "name": "bare identifier",
+    "template": "{name}",
+    "scope": {
+      "name": "Steve"
+    },
+    "expected": "Steve"
+  },
+  {
+    "name": "identifier inside literals",
+    "template": "Hello {name}, welcome",
+    "scope": {
+      "name": "Steve"
+    },
+    "expected": "Hello Steve, welcome"
+  },
+  {
+    "name": "two expressions in one line",
+    "template": "{a} vs {b}",
+    "scope": {
+      "a": "x",
+      "b": "y"
+    },
+    "expected": "x vs y"
+  },
+  {
+    "name": "dotted field",
+    "template": "{item.name}",
+    "scope": {
+      "item": {
+        "name": "Sword"
+      }
+    },
+    "expected": "Sword"
+  },
+  {
+    "name": "nested field",
+    "template": "{a.b.c}",
+    "scope": {
+      "a": {
+        "b": {
+          "c": "deep"
+        }
+      }
+    },
+    "expected": "deep"
+  },
+  {
+    "name": "index into a list",
+    "template": "{tags[0]}",
+    "scope": {
+      "tags": [
+        "pvp",
+        "rare"
+      ]
+    },
+    "expected": "pvp"
+  },
+  {
+    "name": "field of an indexed entry",
+    "template": "{rewards[1].name}",
+    "scope": {
+      "rewards": [
+        {
+          "name": "XP"
+        },
+        {
+          "name": "Money"
+        }
+      ]
+    },
+    "expected": "Money"
+  },
+  {
+    "name": "index out of range renders empty",
+    "template": "{tags[9]}",
+    "scope": {
+      "tags": [
+        "pvp"
+      ]
+    },
+    "expected": ""
+  },
+  {
+    "name": "unbound root identifier renders its source",
+    "template": "{missing}",
+    "scope": {},
+    "expected": "{missing}"
+  },
+  {
+    "name": "unbound root inside literals renders its source",
+    "template": "Price: {missing} coins",
+    "scope": {},
+    "expected": "Price: {missing} coins"
+  },
+  {
+    "name": "unbound root anywhere in the expression renders the whole segment source",
+    "template": "{missing.field + 1}",
+    "scope": {},
+    "expected": "{missing.field + 1}"
+  },
+  {
+    "name": "bound root with a missing field renders empty",
+    "template": "{item.nope}",
+    "scope": {
+      "item": {
+        "name": "Sword"
+      }
+    },
+    "expected": ""
+  },
+  {
+    "name": "bound root with a missing nested field renders empty",
+    "template": "{item.a.b}",
+    "scope": {
+      "item": {
+        "name": "Sword"
+      }
+    },
+    "expected": ""
+  },
+  {
+    "name": "explicit null renders empty",
+    "template": "{item.lore}",
+    "scope": {
+      "item": {
+        "lore": null
+      }
+    },
+    "expected": ""
+  },
+  {
+    "name": "number stringifies without decoration",
+    "template": "{price}",
+    "scope": {
+      "price": 250
+    },
+    "expected": "250"
+  },
+  {
+    "name": "float keeps its decimals",
+    "template": "{ratio}",
+    "scope": {
+      "ratio": 0.5
+    },
+    "expected": "0.5"
+  },
+  {
+    "name": "boolean stringifies as true/false",
+    "template": "{flag}",
+    "scope": {
+      "flag": true
+    },
+    "expected": "true"
+  },
+  {
+    "name": "list stringifies comma-separated",
+    "template": "{tags}",
+    "scope": {
+      "tags": [
+        "pvp",
+        "rare"
+      ]
+    },
+    "expected": "pvp,rare"
+  },
+  {
+    "name": "join with a separator",
+    "template": "{tags.join(\", \")}",
+    "scope": {
+      "tags": [
+        "pvp",
+        "rare"
+      ]
+    },
+    "expected": "pvp, rare"
+  },
+  {
+    "name": "join with no argument concatenates",
+    "template": "{tags.join()}",
+    "scope": {
+      "tags": [
+        "a",
+        "b"
+      ]
+    },
+    "expected": "ab"
+  },
+  {
+    "name": "join on an empty list is empty",
+    "template": "{tags.join(\", \")}",
+    "scope": {
+      "tags": []
+    },
+    "expected": ""
+  },
+  {
+    "name": "join on a non-list is empty",
+    "template": "{name.join(\", \")}",
+    "scope": {
+      "name": "Steve"
+    },
+    "expected": ""
+  },
+  {
+    "name": "join with a newline separator",
+    "template": "{tags.join(\"\\n\")}",
+    "scope": {
+      "tags": [
+        "a",
+        "b"
+      ]
+    },
+    "expected": "a\nb"
+  },
+  {
+    "name": "pluck then join — the lore-block idiom",
+    "template": "{rewards.pluck(\"name\").join(\"\\n\")}",
+    "scope": {
+      "rewards": [
+        {
+          "name": "+150 XP"
+        },
+        {
+          "name": "+500$"
+        }
+      ]
+    },
+    "expected": "+150 XP\n+500$"
+  },
+  {
+    "name": "pluck of a missing field yields empty entries",
+    "template": "{rewards.pluck(\"nope\").join(\",\")}",
+    "scope": {
+      "rewards": [
+        {
+          "name": "a"
+        },
+        {
+          "name": "b"
+        }
+      ]
+    },
+    "expected": ","
+  },
+  {
+    "name": "length of a list",
+    "template": "{rewards.length()}",
+    "scope": {
+      "rewards": [
+        1,
+        2,
+        3
+      ]
+    },
+    "expected": "3"
+  },
+  {
+    "name": "length of a string",
+    "template": "{name.length()}",
+    "scope": {
+      "name": "abcd"
+    },
+    "expected": "4"
+  },
+  {
+    "name": "length of null is zero",
+    "template": "{nothing.length()}",
+    "scope": {
+      "nothing": null
+    },
+    "expected": "0"
+  },
+  {
+    "name": "first entry",
+    "template": "{rewards.first().name}",
+    "scope": {
+      "rewards": [
+        {
+          "name": "XP"
+        },
+        {
+          "name": "Money"
+        }
+      ]
+    },
+    "expected": "XP"
+  },
+  {
+    "name": "last entry",
+    "template": "{rewards.last().name}",
+    "scope": {
+      "rewards": [
+        {
+          "name": "XP"
+        },
+        {
+          "name": "Money"
+        }
+      ]
+    },
+    "expected": "Money"
+  },
+  {
+    "name": "first of an empty list renders empty",
+    "template": "{rewards.first()}",
+    "scope": {
+      "rewards": []
+    },
+    "expected": ""
+  },
+  {
+    "name": "at with an index",
+    "template": "{rewards.at(1)}",
+    "scope": {
+      "rewards": [
+        "a",
+        "b"
+      ]
+    },
+    "expected": "b"
+  },
+  {
+    "name": "at out of range renders empty",
+    "template": "{rewards.at(5)}",
+    "scope": {
+      "rewards": [
+        "a"
+      ]
+    },
+    "expected": ""
+  },
+  {
+    "name": "contains true",
+    "template": "{tags.contains(\"rare\")}",
+    "scope": {
+      "tags": [
+        "pvp",
+        "rare"
+      ]
+    },
+    "expected": "true"
+  },
+  {
+    "name": "contains false",
+    "template": "{tags.contains(\"nope\")}",
+    "scope": {
+      "tags": [
+        "pvp"
+      ]
+    },
+    "expected": "false"
+  },
+  {
+    "name": "unknown method renders empty",
+    "template": "{tags.nope()}",
+    "scope": {
+      "tags": [
+        "a"
+      ]
+    },
+    "expected": ""
+  },
+  {
+    "name": "ternary picks the truthy branch",
+    "template": "{flag ? \"yes\" : \"no\"}",
+    "scope": {
+      "flag": true
+    },
+    "expected": "yes"
+  },
+  {
+    "name": "ternary picks the falsy branch",
+    "template": "{flag ? \"yes\" : \"no\"}",
+    "scope": {
+      "flag": false
+    },
+    "expected": "no"
+  },
+  {
+    "name": "ternary on a material — the locked-icon idiom",
+    "template": "{quest.can_start ? \"EMERALD\" : \"GRAY_DYE\"}",
+    "scope": {
+      "quest": {
+        "can_start": false
+      }
+    },
+    "expected": "GRAY_DYE"
+  },
+  {
+    "name": "zero is falsy",
+    "template": "{n ? \"some\" : \"none\"}",
+    "scope": {
+      "n": 0
+    },
+    "expected": "none"
+  },
+  {
+    "name": "empty string is falsy",
+    "template": "{s ? \"some\" : \"none\"}",
+    "scope": {
+      "s": ""
+    },
+    "expected": "none"
+  },
+  {
+    "name": "null is falsy",
+    "template": "{v ? \"some\" : \"none\"}",
+    "scope": {
+      "v": null
+    },
+    "expected": "none"
+  },
+  {
+    "name": "non-empty list is truthy",
+    "template": "{rewards.length() ? \"Rewards:\" : \"None\"}",
+    "scope": {
+      "rewards": [
+        1
+      ]
+    },
+    "expected": "Rewards:"
+  },
+  {
+    "name": "string equality",
+    "template": "{status == \"COMPLETED\" ? \"done\" : \"open\"}",
+    "scope": {
+      "status": "COMPLETED"
+    },
+    "expected": "done"
+  },
+  {
+    "name": "numeric comparison",
+    "template": "{price >= 100 ? \"pricey\" : \"cheap\"}",
+    "scope": {
+      "price": 150
+    },
+    "expected": "pricey"
+  },
+  {
+    "name": "logical and",
+    "template": "{a && b ? \"both\" : \"not both\"}",
+    "scope": {
+      "a": true,
+      "b": false
+    },
+    "expected": "not both"
+  },
+  {
+    "name": "logical or",
+    "template": "{a || b ? \"any\" : \"none\"}",
+    "scope": {
+      "a": false,
+      "b": true
+    },
+    "expected": "any"
+  },
+  {
+    "name": "logical not",
+    "template": "{!a ? \"no\" : \"yes\"}",
+    "scope": {
+      "a": false
+    },
+    "expected": "no"
+  },
+  {
+    "name": "addition",
+    "template": "{a + b}",
+    "scope": {
+      "a": 2,
+      "b": 3
+    },
+    "expected": "5"
+  },
+  {
+    "name": "subtraction",
+    "template": "{a - b}",
+    "scope": {
+      "a": 5,
+      "b": 3
+    },
+    "expected": "2"
+  },
+  {
+    "name": "negation is written as a subtraction (no prefix minus in the grammar)",
+    "template": "{0 - a}",
+    "scope": {
+      "a": 5
+    },
+    "expected": "-5"
+  },
+  {
+    "name": "parentheses group",
+    "template": "{(a + b) - c}",
+    "scope": {
+      "a": 2,
+      "b": 3,
+      "c": 1
+    },
+    "expected": "4"
+  },
+  {
+    "name": "progress line composed from raw fields",
+    "template": "{o.progress}/{o.target}",
+    "scope": {
+      "o": {
+        "progress": 34,
+        "target": 64
+      }
+    },
+    "expected": "34/64"
+  },
+  {
+    "name": "papi resolved",
+    "template": "%player_name%",
+    "scope": {},
+    "papi": {
+      "player_name": "Steve"
+    },
+    "expected": "Steve"
+  },
+  {
+    "name": "papi unresolved renders its source",
+    "template": "%unknown_thing%",
+    "scope": {},
+    "papi": {},
+    "expected": "%unknown_thing%"
+  },
+  {
+    "name": "papi inside an expression",
+    "template": "{%player_name% == \"Steve\" ? \"hi\" : \"who\"}",
+    "scope": {},
+    "papi": {
+      "player_name": "Steve"
+    },
+    "expected": "hi"
+  },
+  {
+    "name": "i18n segment",
+    "template": "{i18n:shop.title}",
+    "scope": {},
+    "lang": {
+      "shop.title": "Boutique"
+    },
+    "expected": "Boutique"
+  },
+  {
+    "name": "i18n segment mixed with literals",
+    "template": ">> {i18n:shop.title} <<",
+    "scope": {},
+    "lang": {
+      "shop.title": "Boutique"
+    },
+    "expected": ">> Boutique <<"
+  },
+  {
+    "name": "i18n resolves recursively",
+    "template": "{i18n:outer}",
+    "scope": {},
+    "lang": {
+      "outer": "A {i18n:inner} B",
+      "inner": "middle"
+    },
+    "expected": "A middle B"
+  },
+  {
+    "name": "i18n value may itself hold an expression",
+    "template": "{i18n:greeting}",
+    "scope": {
+      "name": "Steve"
+    },
+    "lang": {
+      "greeting": "Hello {name}"
+    },
+    "expected": "Hello Steve"
+  },
+  {
+    "name": "missing i18n key renders its source",
+    "template": "{i18n:nope}",
+    "scope": {},
+    "lang": {},
+    "expected": "{i18n:nope}"
+  },
+  {
+    "name": "unmatched opening brace stays literal",
+    "template": "50% { off",
+    "scope": {},
+    "expected": "50% { off"
+  },
+  {
+    "name": "closing brace inside a string does not end the expression",
+    "template": "{a == \"}\" ? \"yes\" : \"no\"}",
+    "scope": {
+      "a": "}"
+    },
+    "expected": "yes"
+  },
+  {
+    "name": "parentheses inside an expression do not end it",
+    "template": "{tags.join(\", \")}!",
+    "scope": {
+      "tags": [
+        "a",
+        "b"
+      ]
+    },
+    "expected": "a, b!"
+  },
+  {
+    "name": "minimessage markup is left untouched",
+    "template": "<green>{item.name}</green>",
+    "scope": {
+      "item": {
+        "name": "Sword"
+      }
+    },
+    "expected": "<green>Sword</green>"
+  },
+  {
+    "name": "malformed expression marks the segment only",
+    "template": "before {a +} after",
+    "scope": {
+      "a": 1
+    },
+    "expectedPrefix": "before ⚠️"
+  },
+  {
+    "name": "unterminated string leaves the text literal",
+    "template": "{a == \"oops}",
+    "scope": {
+      "a": 1
+    },
+    "expected": "{a == \"oops}"
+  },
+  {
+    "name": "until — hours and minutes",
+    "template": "{at.until()}",
+    "scope": {
+      "at": 1754411520000
+    },
+    "now": 1754400000000,
+    "expected": "3h 12m"
+  },
+  {
+    "name": "until — days and hours",
+    "template": "{at.until()}",
+    "scope": {
+      "at": 1754590800000
+    },
+    "now": 1754400000000,
+    "expected": "2d 5h"
+  },
+  {
+    "name": "until — seconds only",
+    "template": "{at.until()}",
+    "scope": {
+      "at": 1754400045000
+    },
+    "now": 1754400000000,
+    "expected": "45s"
+  },
+  {
+    "name": "until — minutes and seconds",
+    "template": "{at.until()}",
+    "scope": {
+      "at": 1754400304000
+    },
+    "now": 1754400000000,
+    "expected": "5m 4s"
+  },
+  {
+    "name": "until — the next unit is skipped when zero",
+    "template": "{at.until()}",
+    "scope": {
+      "at": 1754572800000
+    },
+    "now": 1754400000000,
+    "expected": "2d"
+  },
+  {
+    "name": "until — a past instant reads zero, not negative",
+    "template": "{at.until()}",
+    "scope": {
+      "at": 1754399940000
+    },
+    "now": 1754400000000,
+    "expected": "0s"
+  },
+  {
+    "name": "until — the exact instant reads zero",
+    "template": "{at.until()}",
+    "scope": {
+      "at": 1754400000000
+    },
+    "now": 1754400000000,
+    "expected": "0s"
+  },
+  {
+    "name": "until — a non-numeric target renders empty",
+    "template": "{at.until()}",
+    "scope": {
+      "at": "soon"
+    },
+    "now": 1754400000000,
+    "expected": ""
+  },
+  {
+    "name": "until — units come from the project translations",
+    "template": "{at.until()}",
+    "scope": {
+      "at": 1754411520000
+    },
+    "now": 1754400000000,
+    "expected": "3 hours 12 minutes",
+    "lang": {
+      "artisan.duration.hours": "{n} hours",
+      "artisan.duration.minutes": "{n} minutes"
+    }
+  },
+  {
+    "name": "until — composes with literals",
+    "template": "Reset in {at.until()}",
+    "scope": {
+      "at": 1754405400000
+    },
+    "now": 1754400000000,
+    "expected": "Reset in 1h 30m"
+  }
+]

@@ -39,7 +39,19 @@ object MenuRenderer {
      * (`category.items` — objet passé entier via `context: { category: "{cat}" }`).
      */
     private fun sourceList(args: Map<String, Any>, source: String): List<*> =
-        (args[source] ?: ArgResolver.lookupValue(source, args)) as? List<*> ?: emptyList<Any>()
+        (args[source] ?: exprListValue(source, args)) as? List<*> ?: emptyList<Any>()
+
+    /**
+     * Dotted path into a context object, evaluated as an Expression. Deliberately
+     * value-level, not text: the iteration needs the List itself, not its rendering.
+     */
+    private fun exprListValue(source: String, args: Map<String, Any>): Any? =
+        runCatching {
+            net.artisanmc.plugin.expr.evaluateExpr(
+                net.artisanmc.plugin.expr.parseExpr(source),
+                net.artisanmc.plugin.expr.ExprScope(args),
+            )
+        }.getOrNull()
 
     fun open(
         player: Player,
@@ -108,15 +120,10 @@ object MenuRenderer {
         }
         val renderCtx = boundCtx.copy(pageInfo = pageInfo)
 
-        // Per-title placeholder interpolation: `{argName}` from the ExecutionContext
-        // args, then `%papi%` via PlaceholderAPI. Same chain as resolveText() applies
-        // to item title/lore.
+        // A menu title is a Template like any other player-facing string — the
+        // renderer resolves `{…}` and `%papi%` in one pass (ADR `expression-parity` §5).
         val papi = evaluator.deps.papi
-        val interpolate: (String) -> String = { raw ->
-            var text = ArgResolver.resolve(raw, renderCtx.resolvedArgs)
-            if (papi != null) text = papi.resolve(player, text)
-            text
-        }
+        val interpolate: (String) -> String = { raw -> renderCtx.render(raw, papi) { k -> langMap[k] } }
         val title = TitleCompiler.compileTitle(
             layers = menu.title,
             lang = lang,
@@ -229,7 +236,7 @@ object MenuRenderer {
         val count = app.count.coerceAtLeast(1)
         // Le material peut être un placeholder ({input} ou {alias.field}) — résolu
         // via le contexte avant le lookup vanilla/custom.
-        val resolvedMaterial = app.material?.let { ArgResolver.resolve(it, ctx.resolvedArgs) }
+        val resolvedMaterial = app.material?.let { ctx.render(it, papi) }
         var item = resolvedMaterial?.let { mat ->
             deps.buildCustomStack(mat, count)
                 ?: runCatching { Material.valueOf(mat.uppercase()) }.getOrNull()
@@ -244,7 +251,12 @@ object MenuRenderer {
         }
         if (app.lore.isNotEmpty()) {
             val loreAddress = addressOf(i18nBase, "lore")
-            meta.lore(app.lore.flatMap { raw ->
+            // The resolved stack may carry its own lore (a captured `item:` ref,
+            // a Nexo/Oraxen item). The element's lines ADD to it rather than
+            // replace it — the referenced item keeps what it says about itself,
+            // the menu appends what IT has to say (a price, a rank…).
+            val base = meta.lore() ?: emptyList()
+            meta.lore(base + app.lore.flatMap { raw ->
                 resolveText(raw, langMap, ctx, papi, loreAddress).split("\n").map { parse(it) }
             })
         }
@@ -275,9 +287,9 @@ object MenuRenderer {
         } else {
             address?.let { langMap[it] } ?: raw
         }
-        text = ArgResolver.resolve(text, ctx.resolvedArgs)
-        if (papi != null) text = papi.resolve(ctx.player, text)
-        return text
+        // The lang map also backs the presentation keys (`artisan.duration.*`), so a
+        // duration reads in the viewer's language like any other string.
+        return ctx.render(text, papi) { key -> langMap[key] }
     }
 
     private fun parsePositions(positions: String, size: Int): List<Int> =

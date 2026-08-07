@@ -33,8 +33,11 @@ class LeafEvalTest {
     }
 
     @Test
-    fun `no papi provider yields null placeholder`() {
-        assertNull(evalLeaf("%anything%", emptyMap(), null))
+    fun `no papi provider yields an empty placeholder`() {
+        // "" and not null: the TS engine is authoritative on coercion (ADR
+        // `expression-parity`), and its Scope returns "" with no resolver. The
+        // boolean outcome — what a condition actually reads — is false either way.
+        assertEquals("", evalLeaf("%anything%", emptyMap(), null))
         assertFalse(toLeafBoolean(evalLeaf("%anything%", emptyMap(), null)))
     }
 

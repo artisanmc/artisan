@@ -97,14 +97,22 @@ describe("transform — inline i18n mode", () => {
     expect(app.click.left).not.toContain("@menus.");
   });
 
-  it("emits no lang file for the default language — the documents carry it", () => {
+  it("emits no site-addressed key for the default language — the documents carry it", () => {
     const files = transform(inlineProject());
-    expect(langFile(files, "en")).toBeUndefined();
+    // The file exists only to hold the project's PRESENTATION keys, which belong
+    // to no document and so have nowhere to be inlined (ADR `expression-parity` §8).
+    // Not one menu/dialog address is in it.
+    const keys = Object.keys(langFile(files, "en") ?? {});
+    expect(keys.every((k) => k.startsWith("artisan."))).toBe(true);
   });
 
   it("emits other languages at the canonical addresses of their key sites", () => {
     const files = transform(inlineProject());
-    expect(langFile(files, "fr")).toEqual({
+    const fr = langFile(files, "fr") ?? {};
+    const sites = Object.fromEntries(
+      Object.entries(fr).filter(([k]) => !k.startsWith("artisan.")),
+    );
+    expect(sites).toEqual({
       "menus.shop.title": "Boutique",
       "menus.shop.elements.btn.default.title": "Épée",
       "menus.shop.elements.btn.default.lore": "Tranchante",

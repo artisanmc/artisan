@@ -1,8 +1,8 @@
 package net.artisanmc.plugin.render
 
-import net.artisanmc.plugin.engine.ArgResolver
 import net.artisanmc.plugin.engine.I18nAddress
 import net.artisanmc.plugin.engine.ExecutionContext
+import net.artisanmc.plugin.engine.render
 import net.artisanmc.plugin.model.BundleDialog
 
 /**
@@ -19,7 +19,7 @@ internal data class ResolvedDialogTexts(
 
 /**
  * Chaîne de résolution texte des dialogs — même ordre que MenuRenderer.resolveText :
- * i18n d'abord, puis args ({player} & co via [ArgResolver]). Séparé de
+ * i18n d'abord, puis le Template ({player} & co). Séparé de
  * [DialogRenderer] pour rester testable sous MockBukkit (l'API dialog Paper
  * 1.21.7 n'existe pas sur le classpath de test paper-api 1.21.1).
  */
@@ -63,6 +63,6 @@ internal object DialogTextResolver {
         } else {
             address?.let { langMap[it] } ?: raw
         }
-        return ArgResolver.resolve(text, ctx.resolvedArgs)
+        return ctx.render(text)
     }
 }

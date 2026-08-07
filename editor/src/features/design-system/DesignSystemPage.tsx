@@ -529,6 +529,15 @@ export function DesignSystemPage() {
           <div className="h-48 overflow-auto rounded border border-[var(--border-soft)] bg-[var(--surface)]">
             <YamlCodeEditor value={SAMPLE_YAML} ariaLabel="YamlCodeEditor" onChange={() => {}} />
           </div>
+          <span className="mono text-[11px] text-[var(--text-faint)]">
+            {"<YamlCodeEditor readOnly>"}
+          </span>
+          <p className="text-[11px] text-[var(--text-faint)]">
+            {t("adminDesign.codeEditorReadOnlyHint")}
+          </p>
+          <div className="h-32 overflow-auto rounded border border-[var(--border-soft)] bg-[var(--surface)]">
+            <YamlCodeEditor value={SAMPLE_YAML} ariaLabel="YamlCodeEditor readOnly" readOnly />
+          </div>
         </div>
       </Section>
 
@@ -572,13 +581,22 @@ export function DesignSystemPage() {
           </div>
           <div className="flex flex-col gap-2">
             <span className="mono text-[11px] text-[var(--text-faint)]">{"<DataTable>"}</span>
+            {/* Nested rows are what the YAML view exists for: `stages` is a blob
+                in a table cell, a foldable tree in YAML. */}
             <DataTable
               rows={[
-                { id: "sword", price: 10, tags: ["pvp"] },
-                { id: "bow", price: 30, tags: null },
+                {
+                  id: "daily:mine_stone",
+                  price: 10,
+                  tags: ["pvp"],
+                  stages: [{ key: "stage_1", objectives: [{ key: "obj_1", target: 64 }] }],
+                },
+                { id: "bow", price: 30, tags: null, stages: [] },
               ]}
               truncated
               truncatedLabel="Results truncated."
+              tableLabel="Table"
+              yamlLabel="YAML"
             />
           </div>
         </div>
