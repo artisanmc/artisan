@@ -54,6 +54,17 @@ interface UiState {
   activeLang: string;
   setActiveLang: (lang: string) => void;
   /**
+   * Whose eyes the canvas previews through. Data sources are fetched with
+   * `player = null` by default, so a per-player source (quests, homes, balance)
+   * has nothing to show; naming an online player makes the preview fetch as
+   * them and the canvas render what they would actually see.
+   *
+   * Session-only on purpose — it is a debugging lens, not a project setting, and
+   * it must not silently persist onto another server where the player is absent.
+   */
+  previewPlayer: string;
+  setPreviewPlayer: (name: string) => void;
+  /**
    * Display language of the editor itself (UI labels, buttons, error
    * messages). Distinct from `activeLang`: a French user translating
    * their project into English keeps the editor in French. The setter
@@ -200,6 +211,8 @@ export const useUiStore = create<UiState>()(
       setLastActiveTab: (tab) => set({ lastActiveTab: tab }),
       activeLang: detectInitialLang(),
       setActiveLang: (lang) => set({ activeLang: lang }),
+      previewPlayer: "",
+      setPreviewPlayer: (name) => set({ previewPlayer: name }),
       editorLang: detectEditorLang(),
       setEditorLang: (lang) => {
         set({ editorLang: lang });

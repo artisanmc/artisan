@@ -1,3 +1,4 @@
+import { PlayerNameInput } from "@/components/PlayerNameInput";
 import { Input } from "@/components/ui/input";
 import type { ContextInput, Menu, ProjectId } from "@/domain/types";
 import { resolveSourceRef } from "@/features/canvas/menuPreviewScope";
@@ -5,6 +6,7 @@ import { findPreviewCallContexts } from "@/features/canvas/previewCallContexts";
 import { useAccountStore } from "@/state/accountStore";
 import { useServerSnapshotsStore } from "@/state/serverSnapshotsStore";
 import { useUiStore } from "@/state/uiStore";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { extractArgTokens } from "./MenuDataSection";
 
@@ -24,6 +26,9 @@ export function PreviewContextSection({ menu, projectId }: { menu: Menu; project
   const menuPreviewArgs = useUiStore((s) => s.menuPreviewArgs);
   const setMenuPreviewArg = useUiStore((s) => s.setMenuPreviewArg);
   const activeLang = useUiStore((s) => s.activeLang);
+  const previewPlayer = useUiStore((s) => s.previewPlayer);
+  const [playerDraft, setPlayerDraft] = useState(previewPlayer);
+  const setPreviewPlayer = useUiStore((s) => s.setPreviewPlayer);
   if (!project) return null;
   const previewArgs = menuPreviewArgs[menu.id] ?? {};
 
@@ -86,11 +91,18 @@ export function PreviewContextSection({ menu, projectId }: { menu: Menu; project
       !candidates.has(i.name) &&
       !rowInputs.includes(i),
   );
+  // A live server source is reason enough to show this section even with no args
+  // to pick: per-player sources are fetched with `player = null` and render empty
+  // until someone is named.
+  const hasServerSource = (menu.contextInputs ?? []).some(
+    (i) => i.kind === "sourceRef" && !String(i.ref).startsWith("pack:"),
+  );
   if (
     candidates.size === 0 &&
     freeInputs.length === 0 &&
     rowInputs.length === 0 &&
-    callContexts.length === 0
+    callContexts.length === 0 &&
+    !hasServerSource
   )
     return null;
 
@@ -100,6 +112,22 @@ export function PreviewContextSection({ menu, projectId }: { menu: Menu; project
         {t("menuProperties.previewContext")}
       </div>
       <p className="text-[10px] text-[var(--text-faint)]">{t("menuProperties.previewContextHint")}</p>
+      {hasServerSource ? (
+        <label className="flex items-center gap-1.5 text-[10px] text-[var(--text-mut)]">
+          <span className="whitespace-nowrap">{t("menuProperties.previewAsPlayer")}</span>
+          {/* Committed on blur / Enter, not on every keystroke: each change refetches
+              every source of the menu from the live server, and "Iban_" typed letter
+              by letter would fire five useless round-trips. */}
+          <PlayerNameInput
+            value={playerDraft}
+            onChange={setPlayerDraft}
+            onCommit={setPreviewPlayer}
+            placeholder={t("menuProperties.previewAsPlayerPlaceholder")}
+            testId="preview-as-player"
+            className="h-6 text-[11px]"
+          />
+        </label>
+      ) : null}
       {callContexts.length > 0 ? (
         <label className="flex items-center gap-1.5 text-[10px] text-[var(--text-mut)]">
           <span>{t("menuProperties.previewContextFrom")}</span>

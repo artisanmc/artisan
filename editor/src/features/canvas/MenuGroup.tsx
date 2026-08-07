@@ -150,14 +150,26 @@ export function MenuGroup({ projectId, menu, position, layout, solo = false }: M
   const loadSnapshot = useServerSnapshotsStore((s) => s.loadSnapshot);
   const networkId = useNetworksStore((s) => s.activeId);
   const serverId = useServersStore((s) => s.activeServerId);
+  // Whose eyes we preview through: a per-player source returns nothing useful
+  // with `player = null`, so pass the chosen player down to the fetcher.
+  const previewPlayer = useUiStore((s) => s.previewPlayer);
   useEffect(() => {
     if (!networkId || !serverId) return;
     for (const input of menu.contextInputs ?? []) {
       if (input.kind === "sourceRef" && !String(input.ref).startsWith("pack:")) {
-        loadSnapshot({ networkId, serverId, ref: String(input.ref) });
+        // The input's own params (`group: daily`) still apply — the preview player
+        // is added to them, it does not replace them.
+        const declared = (input.params ?? {}) as Record<string, string>;
+        const params = previewPlayer ? { ...declared, player: previewPlayer } : declared;
+        loadSnapshot({
+          networkId,
+          serverId,
+          ref: String(input.ref),
+          ...(Object.keys(params).length > 0 ? { params } : {}),
+        });
       }
     }
-  }, [menu.contextInputs, networkId, serverId, loadSnapshot]);
+  }, [menu.contextInputs, networkId, serverId, loadSnapshot, previewPlayer]);
   // Build a preview scope from contextInputs — primitives are coerced to their
   // declared type; sourceRefs resolve against a live snapshot (server sources)
   // with project.dataSources as the project-data path.
