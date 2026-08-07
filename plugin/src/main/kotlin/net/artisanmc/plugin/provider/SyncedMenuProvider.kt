@@ -542,6 +542,40 @@ class SyncedMenuProvider(
                 logger?.info("Draft updated for $menuId")
             }
 
+            // Who is connected right now — the editor needs it to offer a player
+            // picker instead of asking an admin to type a name blind (the capture
+            // panel and the canvas "preview as" both did).
+            "online_players_fetch" -> {
+                val requestId = node["request_id"]?.asText() ?: return
+                fun reply(payload: Map<String, Any?>) {
+                    val base = mapOf("type" to "online_players_result", "request_id" to requestId)
+                    try {
+                        httpClient.dispatcher.executorService.execute {
+                            @Suppress("UNCHECKED_CAST")
+                            send((base + payload) as Map<String, Any>)
+                        }
+                    } catch (_: java.util.concurrent.RejectedExecutionException) {
+                        logger?.warning("online_players_result dropped — plugin is stopping")
+                    }
+                }
+                try {
+                    runOnMainThread {
+                        try {
+                            val names = org.bukkit.Bukkit.getOnlinePlayers()
+                                .map { it.name }
+                                .sortedBy { it.lowercase() }
+                            reply(mapOf("ok" to true, "players" to names))
+                        } catch (e: Throwable) {
+                            logger?.log(java.util.logging.Level.WARNING, "[Artisan] online players listing failed", e)
+                            reply(mapOf("ok" to false, "error" to "fetch_error", "message" to describeError(e)))
+                        }
+                    }
+                } catch (e: Throwable) {
+                    logger?.log(java.util.logging.Level.WARNING, "[Artisan] online players scheduling failed", e)
+                    reply(mapOf("ok" to false, "error" to "fetch_error", "message" to describeError(e)))
+                }
+            }
+
             "player_inventory_fetch" -> {
                 val requestId = node["request_id"]?.asText() ?: return
                 val playerName = node["player"]?.asText() ?: return
@@ -636,6 +670,9 @@ class SyncedMenuProvider(
                                 net.artisanmc.plugin.engine.ContextBinder.interpolateValues(params, args),
                             )
                             val shaped = net.artisanmc.plugin.engine.ContextBinder.shape(rows, source, args)
+                            logger?.fine(
+                                "[Artisan] data source preview '$ref' params=$params -> ${shaped.size} rows",
+                            )
                             val (payloadRows, truncated) = truncateForPreview(shaped)
                             reply(mapOf("ok" to true, "rows" to payloadRows, "truncated" to truncated))
                         } catch (e: net.artisanmc.modules.api.PlayerRequiredException) {
