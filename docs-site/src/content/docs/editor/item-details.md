@@ -42,10 +42,26 @@ there are no enchantments — real ones already glow.
 Raw NBT is best-effort: if the server rejects the snippet, it is logged as a warning and the
 item renders without it — it is never blanked.
 
-## Extracting a captured item
+## What a referenced item brings with it
 
 An element whose material is a captured item (`item:<id>`) renders the exact stack you
-captured in game — including its enchantments and colour — but none of it is editable.
+captured in game — enchantments, colour, **and its own name and lore**.
+
+The element layers on top of it rather than replacing it:
+
+- **Lore adds up.** The item's own lines come first, then the lines you write on the
+  element. A shop icon captured with `Sharp blade` and given `Price: 500` in the menu
+  shows both, in that order.
+- **The title replaces.** Two names can't be shown at once, so the title you write on the
+  element wins. Leave it empty and the captured item's name is used.
+
+This is also how the canvas preview draws it, so what you see when hovering a slot is what
+the player gets.
+
+## Extracting a captured item
+
+The stack's details render faithfully, but none of them are editable while the element
+just points at the item.
 
 The **Extract the details** button turns that reference into real fields: material, count,
 title, lore, enchantments, and every advanced parameter, read straight out of the captured

@@ -1,4 +1,4 @@
-import { CAPTURED_ITEM_REF_PREFIX } from "@/domain/capturedItems";
+import { CAPTURED_ITEM_REF_PREFIX, capturedPresentation } from "@/domain/capturedItems";
 import { capturedStackDetails } from "@/domain/capturedStack";
 import { formatEnchant } from "@/domain/itemAdvanced";
 import type { Element, Menu, ProjectId } from "@/domain/types";
@@ -177,15 +177,19 @@ export function ItemTooltip({ projectId }: ItemTooltipProps) {
     (captured ? capturedStackDetails(captured.stackYaml).enchants : undefined) ??
     [];
 
+  // A referenced item brings its own name and lore. The element's title wins
+  // when it has one, its lore is APPENDED — same order as the runtime.
+  const presentation = capturedPresentation(project, appearance.material);
   const titleSource = (cachedName ?? getText(project, appearance.title, activeLang)).trim();
-  const rawTitle = titleSource || humanize(appearance.material ?? "");
+  const rawTitle = titleSource || presentation.name || humanize(appearance.material ?? "");
   const title = renderPreview(rawTitle, ctx, project, activeLang);
   const loreRaw = appearance.lore ? getText(project, appearance.lore, activeLang) : "";
-  const lore = cachedLore
+  const ownLore = cachedLore
     ? cachedLore
     : loreRaw
       ? loreRaw.split("\n").map((line) => renderPreview(line, ctx, project, activeLang))
       : [];
+  const lore = [...presentation.lore, ...ownLore];
 
   return (
     <div className="pointer-events-none fixed z-50" style={{ left: x + 14, top: y + 14 }}>

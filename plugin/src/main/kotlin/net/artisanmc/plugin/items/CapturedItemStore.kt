@@ -20,7 +20,7 @@ import java.util.logging.Logger
  * swapped into the @Volatile field — never mutated in place. `resolve` hands
  * out clones so callers can't corrupt the store.
  */
-class CapturedItemStore(
+open class CapturedItemStore(
     private val roots: net.artisanmc.plugin.project.ProjectRoots,
     private val logger: Logger?,
 ) {
@@ -46,8 +46,13 @@ class CapturedItemStore(
         stacks = fresh
     }
 
-    /** The exact captured stack (a clone), or null for an unknown id (dangling ref → caller falls back). */
-    fun resolve(id: String): ItemStack? = stacks[id]?.clone()
+    /**
+     * The exact captured stack (a clone), or null for an unknown id (dangling
+     * ref → caller falls back). Open so tests can hand out stacks built in
+     * memory: MockBukkit cannot deserialize a `meta:` block, so a fixture on
+     * disk can never carry a name or lore (cf. CapturedItemStoreTest).
+     */
+    open fun resolve(id: String): ItemStack? = stacks[id]?.clone()
 
     private fun deserialize(text: String): ItemStack? {
         // Canonical: `item:` root key.
