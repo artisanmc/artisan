@@ -23,9 +23,12 @@ object ArgParser {
                     sender.sendMessage(lang.get("arg.missing", sender, "arg" to def.name))
                     return null
                 }
-                val default = when (def) {
+                val default: Any? = when (def) {
                     is ArgDef.StringArg -> def.default
                     is ArgDef.IntArg    -> def.default
+                    // The sender IS the default value — bound as the Player itself, so
+                    // `{target.name}` and `{target.uuid}` read like an explicit one.
+                    is ArgDef.PlayerArg -> if (def.defaultSender) sender as? Player else null
                     else                -> null
                 }
                 if (default != null) result[def.name] = default

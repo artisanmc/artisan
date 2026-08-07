@@ -5,8 +5,22 @@
   "description": "Format intermédiaire d'une commande Artisan. Une commande est une entité de premier ordre (au même niveau que les Menus dans le workspace) qui exécute une séquence d'actions et peut accepter des arguments typés. Les arguments résolus sont propagés comme placeholders aux menus ouverts depuis la commande.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema", "id"],
-  "anyOf": [{ "required": ["actions"] }, { "required": ["steps"] }],
+  "required": [
+    "schema",
+    "id"
+  ],
+  "anyOf": [
+    {
+      "required": [
+        "actions"
+      ]
+    },
+    {
+      "required": [
+        "steps"
+      ]
+    }
+  ],
   "properties": {
     "schema": {
       "const": "command/v1",
@@ -24,7 +38,10 @@
     },
     "aliases": {
       "type": "array",
-      "items": { "type": "string", "pattern": "^[a-z][a-z0-9_-]{0,31}$" },
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9_-]{0,31}$"
+      },
       "uniqueItems": true,
       "description": "Alternatives au nom principal. Toutes pointent vers la même commande."
     },
@@ -44,12 +61,16 @@
     },
     "arguments": {
       "type": "array",
-      "items": { "$ref": "#/$defs/Argument" },
+      "items": {
+        "$ref": "#/$defs/Argument"
+      },
       "description": "Arguments positionnels, ordonnés. Les arguments required doivent précéder les optionnels."
     },
     "requirements": {
       "type": "array",
-      "items": { "$ref": "https://docs.artisanmc.net/schema/menu/v1.json#/$defs/Condition" },
+      "items": {
+        "$ref": "https://docs.artisanmc.net/schema/menu/v1.json#/$defs/Condition"
+      },
       "description": "Conditions ANDées évaluées avant exécution. Si une échoue, le fallback (s'il existe) est exécuté à la place des actions."
     },
     "actions": {
@@ -62,7 +83,9 @@
     },
     "fallback": {
       "type": "array",
-      "items": { "$ref": "https://docs.artisanmc.net/schema/menu/v1.json#/$defs/Action" },
+      "items": {
+        "$ref": "https://docs.artisanmc.net/schema/menu/v1.json#/$defs/Action"
+      },
       "description": "Actions à exécuter si les requirements échouent. Typiquement un send_message expliquant pourquoi."
     },
     "cooldown": {
@@ -76,11 +99,21 @@
       "properties": {
         "uses_plugins": {
           "type": "array",
-          "items": { "type": "string" }
+          "items": {
+            "type": "string"
+          }
         },
-        "created_at": { "type": "string", "format": "date-time" },
-        "updated_at": { "type": "string", "format": "date-time" },
-        "author": { "type": "string" }
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "author": {
+          "type": "string"
+        }
       }
     }
   },
@@ -88,7 +121,10 @@
     "Cooldown": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "duration_seconds"],
+      "required": [
+        "id",
+        "duration_seconds"
+      ],
       "description": "Cooldown entre exécutions. Scope player (par défaut) ou server.",
       "properties": {
         "id": {
@@ -102,7 +138,10 @@
         },
         "scope": {
           "type": "string",
-          "enum": ["player", "server"],
+          "enum": [
+            "player",
+            "server"
+          ],
           "default": "player",
           "description": "player = par joueur ; server = global au serveur."
         },
@@ -115,7 +154,10 @@
     "Argument": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["name", "type"],
+      "required": [
+        "name",
+        "type"
+      ],
       "description": "Un argument positionnel typé. Sa valeur résolue est exposée comme placeholder %args_<name>% (et sous-champs dérivés pour les types complexes).",
       "properties": {
         "name": {
@@ -125,7 +167,16 @@
         },
         "type": {
           "type": "string",
-          "enum": ["player", "online_player", "string", "integer", "number", "boolean", "world", "enum"],
+          "enum": [
+            "player",
+            "online_player",
+            "string",
+            "integer",
+            "number",
+            "boolean",
+            "world",
+            "enum"
+          ],
           "description": "Type de l'argument. Détermine le parser et la tab-completion. player = online ou offline (résolu via UUID). online_player = connecté requis. enum = valeurs fixées par l'admin (cf. champ values)."
         },
         "required": {
@@ -134,11 +185,13 @@
           "description": "Si false, l'argument peut être omis. Les optionnels doivent suivre les required dans la liste."
         },
         "default": {
-          "description": "Valeur par défaut si l'argument est omis. Peut contenir des placeholders (ex: \"%player_name%\" pour cibler le joueur lui-même par défaut). Type doit correspondre au champ type."
+          "description": "Valeur par defaut si l'argument est omis. Pour un argument `player`, la valeur reservee `\"{sender}\"` lie celui qui tape la commande (case a cocher dans l'editeur) : `/cmd [joueur]` = \"le mien par defaut, celui d'un autre si tu le nommes\". Un sender non-joueur (console) n'a personne sur qui retomber, l'argument reste alors absent."
         },
         "values": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "minItems": 1,
           "description": "Valeurs autorisées pour les arguments de type enum. Sert aussi à la tab-completion. Requis si type === \"enum\"."
         },
@@ -150,8 +203,21 @@
       },
       "allOf": [
         {
-          "if": { "properties": { "type": { "const": "enum" } }, "required": ["type"] },
-          "then": { "required": ["values"] }
+          "if": {
+            "properties": {
+              "type": {
+                "const": "enum"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "required": [
+              "values"
+            ]
+          }
         }
       ]
     }
