@@ -392,8 +392,11 @@ export function MenuGroup({ projectId, menu, position, layout, solo = false }: M
       onDragStart={solo ? undefined : onMenuDragStart}
       onDragMove={solo ? undefined : nodeAlign.onDragMove}
       onDragEnd={solo ? undefined : onMenuDragEnd}
-      onClick={solo ? undefined : onClick}
-      onTap={solo ? undefined : onClick}
+      // Selection stays active in solo too: sans ça, un clic sur un élément
+      // condamnait la vue — plus rien ne permettait de re-sélectionner le menu.
+      // Les clics slot font cancelBubble, donc seul le fond remonte ici.
+      onClick={onClick}
+      onTap={onClick}
       onDblClick={solo ? undefined : () => dispatchOpenElement(menu.id)}
       onDblTap={solo ? undefined : () => dispatchOpenElement(menu.id)}
       name={`menu:${menu.id}`}
