@@ -149,4 +149,20 @@ describe("MenuGroup — onClick updates uiStore.selectedMenuId", () => {
     // continues working.
     expect(useSelectionStore.getState().ids.has(MENU_ID)).toBe(true);
   });
+
+  it("solo: clicking the menu re-selects it after an element was selected", () => {
+    const menu = useAccountStore.getState().account.projects[0]!.menus[0]!;
+    useSelectionStore.setState({ ids: new Set(["el1"]), focusedSlot: 3 } as any);
+    render(
+      <MenuGroup projectId={PACK_ID} menu={menu} position={{ x: 0, y: 0 }} layout={{}} solo />,
+    );
+    const outer = screen
+      .getAllByTestId("konva-group")
+      .find((g) => g.getAttribute("data-name") === `menu:${MENU_ID}`)!;
+    fireEvent.click(outer);
+
+    expect(useSelectionStore.getState().ids.has(MENU_ID)).toBe(true);
+    expect(useSelectionStore.getState().ids.has("el1")).toBe(false);
+    expect(useUiStore.getState().selectedMenuId).toBe(MENU_ID);
+  });
 });
