@@ -58,6 +58,18 @@ tasks.test {
 }
 
 tasks.shadowJar {
+    // PAS de `relocate("kotlin", …)` — essayé le 2026-08-08, ça casse le runtime.
+    // kotlin-reflect (tiré par jackson-module-kotlin, qui lit nos data classes)
+    // résout les built-ins par NOM DE CHAÎNE, depuis des fichiers .kotlin_builtins
+    // que le relocateur ne réécrit pas : il cherche `kotlin.jvm.functions.Function2`
+    // qui n'existe alors plus, et CHAQUE project est skippé au load.
+    //
+    // La cause du LinkageError inter-plugins est traitée en amont, à la frontière :
+    // la surface modules.api n'expose plus aucun type kotlin.*, donc un add-on ne
+    // résout plus jamais `kotlin.*` par le lookup global des plugins — c'était le
+    // déclencheur (le loader de Boutique cherchait Function2, absente de son JAR,
+    // et récupérait celle d'un autre plugin Kotlin).
+    // Cf. ApiSurfaceIsJavaFriendlyTest + docs/architecture/api-surface.md.
     relocate("com.fasterxml.jackson", "net.artisanmc.shaded.jackson")
     relocate("okhttp3", "net.artisanmc.shaded.okhttp3")
     relocate("okio", "net.artisanmc.shaded.okio")

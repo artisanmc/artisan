@@ -17,26 +17,26 @@ data class ConfigReloadEvent(val moduleId: String) : ModuleEvent
 
 @Stable
 class ModuleEventBus {
-    private data class Sub(val type: Class<out ModuleEvent>, val handler: (ModuleEvent) -> Unit)
+    private data class Sub(val type: Class<out ModuleEvent>, val handler: ModuleEventHandler)
     private val subs = CopyOnWriteArrayList<Sub>()
 
-    // Note: inline fun subscribe cannot be annotated with @Stable due to Kotlin's restrictions on
-    // annotation targets for inline functions. The function is part of the stable API but the
-    // annotation is omitted here to avoid compilation issues.
-    inline fun <reified T : ModuleEvent> subscribe(noinline handler: (T) -> Unit) {
-        @Suppress("UNCHECKED_CAST")
-        subscribeRaw(T::class.java) { handler(it as T) }
-    }
-
+    /**
+     * S'abonner aux événements de type [type].
+     *
+     * A remplacé l'ancien `inline fun <reified T> subscribe(handler: (T) -> Unit)` :
+     * une fonction inline reified n'est appelable que depuis Kotlin, et sa
+     * signature bytecode exposait un `kotlin.jvm.functions.Function1` sur la
+     * surface publique (cf. [ModuleEventHandler]).
+     */
     @Stable
-    fun subscribeRaw(type: Class<out ModuleEvent>, handler: (ModuleEvent) -> Unit) {
+    fun subscribe(type: Class<out ModuleEvent>, handler: ModuleEventHandler) {
         subs.add(Sub(type, handler))
     }
 
     @Stable
     fun publish(event: ModuleEvent) {
         for (sub in subs) {
-            if (sub.type.isInstance(event)) sub.handler(event)
+            if (sub.type.isInstance(event)) sub.handler.onEvent(event)
         }
     }
 }
