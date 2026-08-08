@@ -26,7 +26,7 @@ class CommandRegistry {
     @Stable
     fun dispatch(name: String, player: Player, args: Map<String, Any?>) {
         val decl = commands[name] ?: throw UnknownCommandException(name)
-        decl.handler(player, args)
+        decl.handler.handle(player, args)
     }
 
     @Stable

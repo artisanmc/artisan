@@ -9,6 +9,20 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Changed — la surface `modules.api` n'expose plus aucun type Kotlin (BREAKING)
+
+- Un add-on qui compile contre `artisan-core-api` ne résout plus jamais `kotlin.*`. Il ne l'embarque pas : son classloader allait donc le chercher **chez les autres plugins** du serveur, et si l'un d'eux embarquait sa propre kotlin-stdlib, le premier appel inter-plugins mourait en `LinkageError: loader constraint violation … kotlin.jvm.functions.Function2` (incident 2026-08-08, add-on Boutique désactivé au boot).
+- Les rappels deviennent des `fun interface` du package api — les appelants Kotlin comme Java passent toujours une lambda :
+  - `DataSourceDeclaration.fetcher` : `(Player?, Map) -> List<Map>` → `DataFetcher`
+  - `CommandDeclaration.handler` : `(Player, Map) -> Unit` → `CommandHandler`
+  - `ModuleEventBus.subscribe(type, handler)` : `ModuleEventHandler`. L'`inline fun <reified T> subscribe` et `subscribeRaw` sont **supprimés** (une fonction inline reified n'est appelable que depuis Kotlin et exposait un `Function1` en bytecode).
+  - `SchemaRegistry.loadToCurrent(…, versionOf)` : `SchemaVersionReader<T>`
+  - `ModuleRegistry.bind(api, onChange)` : `Runnable`
+- `FieldKind` et `Stability` passent en **enums Java** : un enum Kotlin expose un `getEntries()` typé `kotlin.enums.EnumEntries`.
+- Migration add-on : remplacer `return kotlin.Unit.INSTANCE;` par une lambda void, et retirer `kotlin-stdlib` des dépendances de compilation (elle ne reste utile qu'en `test`, pour exécuter le code Kotlin du core).
+- `ApiSurfaceIsJavaFriendlyTest` échoue si un type `kotlin.*` réapparaît dans une signature publique.
+- **Non résolu** : le JAR du plugin embarque toujours la kotlin-stdlib sous ses noms d'origine. `relocate("kotlin", …)` a été essayé et retiré — `kotlin-reflect` (tiré par `jackson-module-kotlin`) résout ses built-ins par nom de chaîne et ne survit pas au renommage : tous les projects étaient skippés au load. Artisan peut donc encore servir `kotlin.*` à un plugin tiers qui en chercherait.
+
 ### Added — mot de passe oublié
 - Lien « Mot de passe oublié ? » sur le formulaire de connexion → `/forgot-password` (saisie email) → email avec un lien `/reset-password?token=…` valable 1 h.
 - Deux endpoints publics : `POST /api/v1/auth/forgot-password` (**toujours 204**, email inconnu compris — le statut ne doit pas révéler l'existence d'un compte) et `POST /api/v1/auth/reset-password` (204, `422 weak_password`, `400 invalid_token`).

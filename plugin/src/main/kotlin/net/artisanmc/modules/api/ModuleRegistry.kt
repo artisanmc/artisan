@@ -19,14 +19,14 @@ class DuplicateModuleException(id: String) : IllegalArgumentException("Module '$
 class ModuleRegistry {
     private val _active: CopyOnWriteArrayList<ArtisanModule> = CopyOnWriteArrayList()
     private var api: ArtisanAPI? = null
-    private var onChange: (() -> Unit)? = null
+    private var onChange: Runnable? = null
 
     /**
      * Bind this registry to the live [ArtisanAPI] and the [onChange] callback that
      * fires whenever the active module list changes. Called once at plugin enable.
      */
     @Internal
-    fun bind(api: ArtisanAPI, onChange: () -> Unit) {
+    fun bind(api: ArtisanAPI, onChange: Runnable) {
         this.api = api
         this.onChange = onChange
     }
@@ -53,7 +53,7 @@ class ModuleRegistry {
             boundApi.models.currentOwner = null
             boundApi.screens.currentOwner = null
         }
-        onChange?.invoke()
+        onChange?.run()
     }
 
     /** Returns an immutable snapshot of currently active modules. */
