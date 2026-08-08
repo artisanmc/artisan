@@ -8,7 +8,7 @@ class ModuleEventBusTest {
     fun `subscribers receive published events of matching type`() {
         val bus = ModuleEventBus()
         val received = mutableListOf<String>()
-        bus.subscribe<DataReloadEvent> { received.add(it.dataSourceRef) }
+        bus.subscribe(DataReloadEvent::class.java) { received.add((it as DataReloadEvent).dataSourceRef) }
 
         bus.publish(DataReloadEvent(dataSourceRef = "shop:items"))
 
@@ -19,7 +19,7 @@ class ModuleEventBusTest {
     fun `subscribers of other event types do not receive`() {
         val bus = ModuleEventBus()
         val received = mutableListOf<String>()
-        bus.subscribe<DataReloadEvent> { received.add(it.dataSourceRef) }
+        bus.subscribe(DataReloadEvent::class.java) { received.add((it as DataReloadEvent).dataSourceRef) }
 
         bus.publish(ConfigReloadEvent(moduleId = "shop"))
 

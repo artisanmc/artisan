@@ -4,23 +4,6 @@ import net.artisanmc.modules.api.annotations.Stable
 import net.artisanmc.modules.api.annotations.Sunset
 import org.bukkit.entity.Player
 
-/** Row-field kinds a data source can declare in its [DataSourceDeclaration.schema]. */
-@Stable
-enum class FieldKind { STRING, NUMBER, INTEGER, BOOLEAN, LIST, OBJECT }
-
-/**
- * Whether a data source's **key-set** (which rows exist) is authorable at design time.
- *
- * - [STATIC]: stable, enumerable, finite set — `fetcher(null)` returns the complete
- *   authoritative rows, each identified by a declared [DataSourceDeclaration.keyField].
- *   Field values may still resolve per-player at runtime. Menu slots may **place**
- *   individual rows (placement mode) or paginate.
- * - [DYNAMIC]: runtime- or player-dependent, unbounded (auction listings, homes). No
- *   authoritative design-time set — pagination only.
- */
-@Stable
-enum class Stability { STATIC, DYNAMIC }
-
 /** One declared row field — drives editor tooling (schema table, filter autocomplete). */
 @Stable
 data class DataSourceField(
@@ -58,7 +41,7 @@ class PlayerRequiredException(message: String? = null) : RuntimeException(messag
 @Stable
 data class DataSourceDeclaration(
     val ref: String,
-    val fetcher: (player: Player?, params: Map<String, Any?>) -> List<Map<String, Any?>>,
+    val fetcher: DataFetcher,
     val schema: List<DataSourceField> = emptyList(),
     @property:Sunset(
         reason = "Superseded by typed schema field declarations",

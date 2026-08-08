@@ -62,7 +62,7 @@ Manages the set of active modules for a running Artisan instance.
 | `register(module: ArtisanModule)` | `@Stable` | `Unit` | Register a module. Throws `DuplicateModuleException` if the id is already registered. Triggers `modules_changed` WS message if the plugin is connected. |
 | `active()` | `@Stable` | `List<ArtisanModule>` | Returns all currently registered modules. |
 | `has(id: String)` | `@Stable` | `Boolean` | Returns true if a module with that id is registered. |
-| `bind(api: ArtisanAPI, onChange: () -> Unit)` | `@Internal` | `Unit` | Used internally by the plugin to be notified on registry changes (triggers `modules_changed`). DO NOT USE from modules. |
+| `bind(api: ArtisanAPI, onChange: Runnable)` | `@Internal` | `Unit` | Used internally by the plugin to be notified on registry changes (triggers `modules_changed`). DO NOT USE from modules. |
 
 Exceptions: `DuplicateModuleException`.
 
@@ -86,13 +86,47 @@ Exceptions: `UnknownDataSourceException`, `DuplicateDataSourceException`, `Playe
 | Member | Type | Stability | Since |
 |---|---|---|---|
 | `ref` | `String` | `@Stable` | 1.0.0 |
-| `fetcher` | `(player: Player?, params: Map<String, Any?>) -> List<Map<String, Any?>>` | `@Stable` | 1.3.0 |
+| `fetcher` | `DataFetcher` | `@Stable` | 1.3.0 (type 1.5.0) |
 | `schema` | `List<DataSourceField>` | `@Stable` | 1.3.0 |
 | `stability` | `Stability` | `@Stable` | 1.4.0 |
 | `keyField` | `String?` | `@Stable` | 1.4.0 |
 | `schemaHint` | `String?` | `@Sunset` | 1.0.0 → 2.0.0 |
 
 Constructing a `Stability.STATIC` declaration without a non-blank `keyField` throws (`require`) — a static source must declare its Row key.
+
+### Aucun type Kotlin ne traverse la frontière (1.5.0)
+
+Une lambda Kotlin se compile en `kotlin.jvm.functions.FunctionN`, et une fonction
+Kotlin sans valeur de retour en `kotlin.Unit`. Tant que ces types apparaissaient
+dans les signatures publiques, un add-on devait résoudre `kotlin.*` — et comme il
+ne l'embarque pas, son classloader allait le chercher chez **les autres plugins**
+du serveur. Le 2026-08-08, ça a donné un `LinkageError` fatal : le loader de
+Boutique récupérait le `Function2` d'un autre plugin Kotlin, celui d'Artisan
+définissait le sien, contrainte de loader violée au premier appel inter-plugins.
+
+La surface n'expose donc plus que des types Java :
+
+| Rappel | Type | Remplace |
+|---|---|---|
+| `DataFetcher` | `fetch(Player?, Map): List<Map>` | `(Player?, Map) -> List<Map>` |
+| `CommandHandler` | `handle(Player, Map)` | `(Player, Map) -> Unit` |
+| `ModuleEventHandler` | `onEvent(ModuleEvent)` | `(ModuleEvent) -> Unit` |
+| `SchemaVersionReader<T>` | `versionOf(T): String` | `(T) -> String` |
+| `ModuleRegistry.bind` | `Runnable` | `() -> Unit` |
+
+Ce sont des `fun interface` : côté Kotlin comme côté Java, on passe toujours une
+lambda. `FieldKind` et `Stability` sont déclarés **en Java** — un enum Kotlin
+expose un `getEntries()` typé `kotlin.enums.EnumEntries`.
+
+L'implémentation, elle, reste en Kotlin : seule la frontière est contrainte, et
+`ApiSurfaceIsJavaFriendlyTest` échoue si un type `kotlin.*` y réapparaît.
+
+**Ce que ça ne fait pas** : le JAR du plugin embarque toujours la kotlin-stdlib
+sous ses noms d'origine. Elle ne peut pas être relocalisée — `kotlin-reflect`
+(tiré par `jackson-module-kotlin`, qui lit les data classes YAML) résout ses
+built-ins par nom de chaîne et ne survit pas au renommage. Artisan reste donc un
+fournisseur possible de `kotlin.*` pour un plugin tiers qui en chercherait ; ce
+qui est corrigé, c'est qu'aucun add-on Artisan n'a plus de raison d'en chercher.
 
 ### `net.artisanmc.modules.api.ItemStackApi` (`@Beta`)
 
@@ -170,8 +204,7 @@ Runtime consumer (since 1.2.0): `run_command` actions whose command matches `nam
 
 | Member | Type | Since |
 |---|---|---|
-| `subscribe<T : ModuleEvent>(handler: (T) -> Unit)` | `Unit` | 1.0.0 |
-| `subscribeRaw(type: Class<out ModuleEvent>, handler: (ModuleEvent) -> Unit)` | `Unit` | 1.0.0 |
+| `subscribe(type: Class<out ModuleEvent>, handler: ModuleEventHandler)` | `Unit` | 1.0.0 (signature 1.5.0) |
 | `publish(event: ModuleEvent)` | `Unit` | 1.0.0 |
 
 Event types: `DataReloadEvent`, `ConfigReloadEvent`. Modules may add their own subclasses of `ModuleEvent`.

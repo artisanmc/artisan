@@ -1,5 +1,6 @@
 package net.artisanmc.modules.api.schemas
 
+import net.artisanmc.modules.api.SchemaVersionReader
 import net.artisanmc.modules.api.annotations.Stable
 import java.util.concurrent.ConcurrentHashMap
 
@@ -35,9 +36,9 @@ class SchemaRegistry<T> {
      * @param versionOf reads the current schema discriminator from a document
      */
     @Stable
-    fun loadToCurrent(data: T, currentVersion: String, versionOf: (T) -> String): T {
+    fun loadToCurrent(data: T, currentVersion: String, versionOf: SchemaVersionReader<T>): T {
         var current = data
-        var version = versionOf(current)
+        var version = versionOf.versionOf(current)
         val visited = mutableSetOf<String>()
 
         while (version != currentVersion) {
@@ -47,7 +48,7 @@ class SchemaRegistry<T> {
             val migration = migrations[version]
                 ?: throw UnsupportedSchemaVersionException(version)
             current = migration.migrate(current)
-            version = versionOf(current)
+            version = versionOf.versionOf(current)
         }
         return current
     }

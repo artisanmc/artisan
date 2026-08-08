@@ -37,7 +37,7 @@ class DataSourceRegistry {
     @Stable
     fun fetch(ref: String, player: Player?, params: Map<String, Any?>): List<Map<String, Any?>> {
         val entry = sources[ref] ?: throw UnknownDataSourceException(ref)
-        return entry.declaration.fetcher(player, params)
+        return entry.declaration.fetcher.fetch(player, params)
     }
 
     @Stable
