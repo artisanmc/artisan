@@ -78,7 +78,7 @@ From the web editor, click your network name in the top bar, then **Members**. A
 | `/artisan sync reject` | Reload menus from disk and reconnect to the backend. |
 | `/artisan editor` | Print the deep-link to this server's editor page + network name if linked (requires `artisan.editor` permission), otherwise print the editor home URL to add the server. |
 | `/artisan link <code>` | Redeem a link code from the editor: writes the `server_key` to `config.yml` and connects. On an already-linked server it rotates the key in place. Codes are single-use and expire after 10 minutes. |
-| `/artisan pushLocal <id\|--all>` | Manually push local on-disk project changes to the backend. Rarely needed: disk edits are detected and pushed automatically (debounced file watcher). When both the disk and the web editor changed since the last sync, nothing is overwritten: the editor shows a resolution banner where you pick, per file, which side to keep — `pushLocal` remains the "force the disk side" shortcut. Note: on Docker Desktop bind mounts (typical local dev), filesystem events don't propagate, so the automatic watcher is inert there — use `pushLocal` or reconnect (the sync check at reconnect auto-pushes local-only changes). Native Linux servers are unaffected. |
+| `/artisan pushLocal <id\|--all>` | Manually push local on-disk project changes to the backend. Rarely needed: the plugin scans your project files every few seconds and pushes disk edits automatically. When both the disk and the web editor changed since the last sync, nothing is overwritten: the editor shows a resolution banner where you pick, per file, which side to keep — `pushLocal` remains the "force the disk side" shortcut. |
 
 ## 6. Billing administration (super-admins)
 
@@ -105,6 +105,13 @@ at login. See _Resource pack distribution_ below.
 
 **Editor link says server is not linked**
 `server_key` or `ws_url` is empty. Complete step 2 first.
+
+**Disk edits don't show up in the editor**
+The plugin waits for a file to stop changing before pushing it, so a slow
+upload is never sent half-written — give it a few seconds. If the web editor
+also changed the same project since the last sync, nothing is pushed on its
+own: open the project in the editor and resolve the banner, or run
+`/artisan pushLocal <id>` to force the disk side.
 
 **`/artisan editor` says "connecting, retry shortly"**
 The server is linked (`server_key` set) but hasn't completed its WebSocket handshake with the backend yet — usually just after a restart or a brief backend outage. Wait a few seconds and run the command again; check `ws_url` reachability if it persists.
