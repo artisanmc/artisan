@@ -2,7 +2,7 @@
 
 > Référence du protocole WebSocket entre le plugin Kotlin et le backend.
 > Source de vérité du code : `backend/src/ws/hub.ts`, `editor/src/lib/ws/pluginBridge.ts`, plugin `WsClient.kt`.
-> Quand tu modifies un message, mets à jour ce fichier (cf. tableau de discipline docs dans `CLAUDE.md`).
+> Quand tu modifies un message, mets à jour ce fichier (cf. `.claude/skills/sync-docs/doc-impact-map.yaml`).
 
 ## Versioning / forward-compat
 
@@ -73,7 +73,7 @@ Côté éditeur (`editor/src/lib/editorWs.ts`), `EditorWs.connectAsUser(apiUrl, 
    └ écrit sur disque → hot-reload menus
 ```
 
-## Invariants liés (détaillés dans `CLAUDE.md` § Invariants critiques)
+## Invariants liés (détaillés dans `invariants.md`)
 
 - **Plus de freeze de conflit** : `pushBundleAvailable` (`hub.ts`) broadcast sans condition (`project_conflicts` n'existe plus). La protection contre l'écrasement concurrent est le verrou optimiste `baseVersion`/`409 version_conflict` sur `PUT /api/v1/user/projects/:projectId`.
 - **Hash byte-order** : `BundleHasher.kt` / `hashUtils.ts` trient par ordre byte natif — jamais `localeCompare`.
