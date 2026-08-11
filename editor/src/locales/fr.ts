@@ -669,6 +669,7 @@ const fr: typeof en = {
     errFetchError: "Le module a échoué : {{message}}",
   },
   canvas: {
+    previewContextNoData: "Données indisponibles — serveur non connecté",
     placementTrayLead: "{{count}} à placer",
     placementTrayLead_other: "{{count}} à placer",
     previewContextBanner: "Vu depuis : {{from}} › {{label}}",
