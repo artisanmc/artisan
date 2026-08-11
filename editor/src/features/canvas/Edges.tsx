@@ -4,12 +4,16 @@ import { useAccountStore } from "@/state/accountStore";
 import { useEdgeHoverStore } from "@/state/edgeHoverStore";
 import { useEdgeSelectionStore } from "@/state/edgeSelectionStore";
 import { useSelectionStore } from "@/state/selectionStore";
+import { useServerSnapshotsStore } from "@/state/serverSnapshotsStore";
+import { useUiStore } from "@/state/uiStore";
 import type Konva from "konva";
 import { useEffect, useMemo, useState } from "react";
 import { Arrow, Circle } from "react-konva";
 import { deriveEdges, type Edge } from "./deriveEdges";
 import { anchorPoint, closestAnchorOnBox, routeEdges, type Box } from "./edgeRouting";
 import { nodeBox } from "./menuLayout";
+import { findPreviewCallContexts } from "./previewCallContexts";
+import { nextCallContext } from "./previewCallNavigation";
 
 /** Ne garde que les edges dont les deux extrémités sont sur la planche. */
 export function visibleEdges(edges: Edge[], layout: Record<string, { x: number; y: number }>): Edge[] {
@@ -44,6 +48,26 @@ function deriveHighlightSet(project: Project, ids: ReadonlySet<string>): Set<str
 
 export function Edges({ project, layout }: EdgesProps) {
   const selectedIds = useSelectionStore((s) => s.ids);
+  const activeLang = useUiStore((s) => s.activeLang);
+  const menuPreviewArgs = useUiStore((s) => s.menuPreviewArgs);
+  const setMenuPreviewArg = useUiStore((s) => s.setMenuPreviewArg);
+  const snapshots = useServerSnapshotsStore((s) => s.rowsByRef);
+
+  /**
+   * Cliquer un lien vers un menu paramétré fait ce que ferait un joueur :
+   * on entre dedans par cet appel. Recliquer avance d'un contexte — c'est la
+   * navigation de catégorie en catégorie, sans passer par un panneau.
+   * Cf. ADR `parameterised-menu-over-menu-per-category`.
+   */
+  const enterEdge = (edge: Edge) => {
+    const target = project.menus.find((m) => m.id === edge.target);
+    if (!target || (target.contextInputs ?? []).length === 0) return;
+    const contexts = findPreviewCallContexts(target, project, snapshots, activeLang);
+    const next = nextCallContext(contexts, menuPreviewArgs[target.id], edge.source);
+    if (!next) return;
+    for (const [k, v] of Object.entries(next.args)) setMenuPreviewArg(target.id, k, v);
+  };
+
   const highlightSet = useMemo(() => deriveHighlightSet(project, selectedIds), [project, selectedIds]);
   const hoveredEdgeId = useEdgeHoverStore((s) => s.edge?.id ?? null);
   const setHover = useEdgeHoverStore((s) => s.set);
@@ -128,10 +152,12 @@ export function Edges({ project, layout }: EdgesProps) {
             onClick={(ev: Konva.KonvaEventObject<MouseEvent>) => {
               ev.cancelBubble = true;
               selectEdge(e.id);
+              enterEdge(e);
             }}
             onTap={(ev: Konva.KonvaEventObject<Event>) => {
               ev.cancelBubble = true;
               selectEdge(e.id);
+              enterEdge(e);
             }}
             onMouseEnter={(ev: Konva.KonvaEventObject<MouseEvent>) =>
               setHover(e, ev.evt.clientX, ev.evt.clientY)
