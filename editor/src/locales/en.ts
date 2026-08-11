@@ -658,6 +658,7 @@ export default {
     errFetchError: "The module failed: {{message}}",
   },
   canvas: {
+    previewContextNoData: "No data — server not connected",
     placementTrayLead: "{{count}} to place",
     placementTrayLead_other: "{{count}} to place",
     previewContextBanner: "Seen from: {{from}} › {{label}}",
