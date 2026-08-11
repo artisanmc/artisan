@@ -42,6 +42,8 @@ import {
   resolvePlacementSlot,
 } from "./placement";
 import { pinPlacementRow } from "./placementDrop";
+import { PlacementTray } from "./PlacementTray";
+import { PreviewContextBanner } from "./PreviewContextBanner";
 import { TitleRender } from "./title/composer/TitleRender";
 import { useMenuClick } from "./useMenuClick";
 import { useMenuDrag } from "./useMenuDrag";
@@ -471,7 +473,20 @@ export function MenuGroup({ projectId, menu, position, layout, solo = false }: M
           backdrop set this menu as the selected one (and clear any layer
           selection belonging to this menu). All wiring lives in TitleRender;
           no overlay Rect needed here. */}
+      <PreviewContextBanner
+        menu={menu}
+        project={project}
+        width={box.width}
+        previewArgs={previewArgs}
+      />
       <TitleRender projectId={projectId} menuId={menu.id} scale={TEX_SCALE} />
+      <PlacementTray
+        menu={menu}
+        project={project}
+        scope={sampleCtx}
+        boxWidth={box.width}
+        boxHeight={box.height}
+      />
       {/* Slot interaction overlays */}
       {Array.from({ length: total }, (_, i) => {
         const { x, y } = slotXY(i, type);

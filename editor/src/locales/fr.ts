@@ -669,6 +669,10 @@ const fr: typeof en = {
     errFetchError: "Le module a échoué : {{message}}",
   },
   canvas: {
+    placementTrayLead: "{{count}} à placer",
+    placementTrayLead_other: "{{count}} à placer",
+    previewContextBanner: "Vu depuis : {{from}} › {{label}}",
+    previewContextPickOne: "Choisir un contexte pour voir cet écran",
     newMenu: "Nouveau menu",
     newCommand: "Nouvelle commande",
     newDialog: "Nouveau dialogue",

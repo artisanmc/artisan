@@ -467,6 +467,15 @@ click chains) comes from the Element's own **appearances** — there is **no
 per-placement override**; per-row variation is a conditional appearance state. Available only on **static** sources (a **dynamic** source has no stable
 design-time set to place against).
 
+On a **parameterised** Menu — one whose source is filtered by an input, so that the
+single document serves many screens — the Element holds the Placements of **every**
+context at once, and a given slot therefore has a different occupant per context.
+This is not a collision: the filter means only the rows of the current context exist
+when the Menu renders, and a Placement whose key matches no row simply leaves its
+slot empty. It does mean the Placements of a parameterised Menu are only legible
+through a **Preview context** — read without one, they look like a pile of
+conflicting pins.
+
 Non-examples:
 - **Pagination mode** is not Placement — pagination auto-lays a whole list into a
   slot range in source order; Placement is hand-authored row-to-slot pinning.
@@ -500,6 +509,26 @@ Non-examples:
 - The **server key** is not Presence — the key is the durable credential; Presence
   is the transient "is it connected, and with what" fact that the key's instances
   report.
+
+## Preview context
+
+The set of **inputs** under which a **Menu** is being looked at in the editor. A
+Menu that declares inputs (a category id, a target player…) renders nothing on its
+own: the same document is one screen per context, so the editor must be told which
+one to show. The candidate contexts are **derived from the Menu's call sites** —
+every `open_menu … with …` that reaches it, i.e. the same fact the board already
+draws as an **edge** — so adding a caller adds a context without anyone declaring
+it. The chosen context drives what the canvas renders, which rows the **Placement**
+tray offers, and nothing else.
+
+Non-examples:
+- A preview context is **not** part of the Menu — nothing about it is stored in the
+  document, and two people editing the same Menu can look at different contexts.
+- **Preview as player** is not a preview context — that picks whose runtime data is
+  resolved (permissions, balances); a preview context picks which *screen* of a
+  parameterised Menu you are on. They compose.
+- A **Call site** is not a preview context — the call site is the authored link
+  (`open_menu … with …`); the preview context is the editor standing in one.
 
 ## Project
 
