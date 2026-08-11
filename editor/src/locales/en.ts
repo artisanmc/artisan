@@ -658,6 +658,10 @@ export default {
     errFetchError: "The module failed: {{message}}",
   },
   canvas: {
+    placementTrayLead: "{{count}} to place",
+    placementTrayLead_other: "{{count}} to place",
+    previewContextBanner: "Seen from: {{from}} › {{label}}",
+    previewContextPickOne: "Pick a context to see this screen",
     newMenu: "New menu",
     newCommand: "New command",
     newDialog: "New dialog",
