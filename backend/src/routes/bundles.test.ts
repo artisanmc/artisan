@@ -256,3 +256,31 @@ describe("project ownership isolation", () => {
     expect(body.files).toEqual(files);
   });
 });
+
+// A commit's contentHash is what the plugin compares against its own disk hash.
+// It must be computed over disk-id-prefixed paths — hashing with the internal
+// row id leaves the prefix unstripped, and the plugin rejects every bundle as
+// divergent (caught against the real plugin, 2026-08-12).
+describe("commit content hash uses the disk id", () => {
+  test("namespaced project hashes identically to the plugin's view of the same tree", async () => {
+    const a = await seedServerKey("hash-a");
+    const b = await seedServerKey("hash-b");
+    const DISK_ID = "boutique_shop";
+
+    await createProject({ networkId: a.networkId, serverKeyId: a.id, name: DISK_ID, id: DISK_ID });
+    const bProject = await ensureProjectForServer({
+      networkId: b.networkId, serverKeyId: b.id, diskId: DISK_ID,
+    });
+    expect(bProject.id).not.toBe(DISK_ID);
+
+    const files = { [`plugins/Artisan/projects/${DISK_ID}/menus/shop.yaml`]: "id: shop" };
+    const branch = await getBranch(bProject.id, "main");
+    const commit = await createCommit({
+      projectId: bProject.id, parentId: branch!.headCommitId, files,
+      authorUserId: null, message: "push",
+    });
+
+    expect(commit.contentHash).toBe(computeContentHash(files, DISK_ID));
+    expect(commit.contentHash).not.toBe(computeContentHash(files, bProject.id));
+  });
+});
