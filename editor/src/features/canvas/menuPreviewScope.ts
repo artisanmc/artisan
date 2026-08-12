@@ -65,7 +65,31 @@ export function resolveSourceRef(
   }
   const local = moduleLocalRows(project, r);
   if (local) return local;
+  const owned = ownedSourceRows(project, r);
+  if (owned) return owned;
   return snapshots?.[r];
+}
+
+/**
+ * Rows a module-owned project supplies for its OWN namespace.
+ *
+ * An Add-on's project declares its owner in the manifest (`module: boutique`,
+ * cf. ADR addon-owned-project-roots) and holds the module's data as ordinary
+ * Project sources (ADR bare-data-files): the boutique catalogue is the `categories`
+ * table source, and the plugin's `boutique:categories` fetcher reads exactly
+ * those files at runtime. So for a project owned by `<ns>`, `<ns>:<id>` and the
+ * project source `<id>` are the same rows — resolving them here is what makes a
+ * canvas preview work OFFLINE, instead of waiting for a live server snapshot.
+ *
+ * Scoped to the owning project on purpose: a foreign project must not answer
+ * for a namespace it does not own.
+ */
+function ownedSourceRows(project: Project, ref: string): unknown[] | null {
+  const [ns, id] = ref.split(":", 2);
+  if (!ns || !id || project.ownerModule !== ns) return null;
+  const ds = project.dataSources.find((d) => String(d.id) === id);
+  if (!ds || ds.shape !== "table") return null;
+  return Array.isArray(ds.rows) ? ds.rows : null;
 }
 
 /** Sample values for the builtin implicit `{player}` (runtime: the viewing player). */
