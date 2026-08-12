@@ -2,7 +2,14 @@ import { and, eq, isNotNull, isNull, notInArray } from "drizzle-orm";
 import { db } from "../db/index";
 import { ensureAssets, assetsDone } from "../lib/mcAssets";
 import { networks, projectBranches, projectCommits, projects, serverKeyHelloes, serverKeys, serverModules, serverDataSources, serverDeclaredModels, serverEditorScreens } from "../db/schema";
-import { createProject, getProject, upsertProjectContent } from "../lib/projectStorage";
+import {
+  createProject,
+  ensureProjectForServer,
+  getProject,
+  getProjectForServer,
+  projectDiskId,
+  upsertProjectContent,
+} from "../lib/projectStorage";
 import { getBranch, advanceBranchHead } from "../lib/branchStorage";
 import { createCommit, computeContentHash } from "../lib/commitStorage";
 import { computeAllPacksHash } from "../lib/hashUtils";
@@ -570,7 +577,14 @@ export async function handlePluginMessage(
 
     // Build project_hashes via branch → commit content hash (Phase 2).
     // Each project's binding branch is always "main" in the 1:1 model.
-    const bindings = boundProjects.map((p) => ({ projectId: p.id, branchName: "main" as const }));
+    // `diskId` is what the plugin knows; `projectId` is the internal row id the
+    // branch/commit tables key on. They differ only when another server already
+    // claimed the disk id (see ensureProjectForServer).
+    const bindings = boundProjects.map((p) => ({
+      projectId: p.id,
+      diskId: projectDiskId(p),
+      branchName: "main" as const,
+    }));
 
     const projectHashesMap: Record<string, string> = {};
     for (const b of bindings) {
@@ -586,13 +600,15 @@ export async function handlePluginMessage(
       // stored contentHash: commits created before the canonicalization fix
       // (full-path keys, `.artisan*` included) carry legacy hashes — this
       // self-heals them without a backfill.
-      projectHashesMap[b.projectId] = computeContentHash(
-        JSON.parse(cmt[0].filesJson) as Record<string, string>, b.projectId,
+      // Keyed by the disk id: `project_hashes` is compared against the plugin's
+      // own on-disk hashes, and the file paths it hashes carry the disk id.
+      projectHashesMap[b.diskId] = computeContentHash(
+        JSON.parse(cmt[0].filesJson) as Record<string, string>, b.diskId,
       );
     }
 
     // Create minimal stubs for projects the plugin has on disk but the backend doesn't know about.
-    const knownProjectIds = new Set(boundProjects.map((p) => p.id));
+    const knownProjectIds = new Set(boundProjects.map((p) => projectDiskId(p)));
     const localProjectIds = hello.local_project_ids ?? [];
     const missingProjectIds = localProjectIds.filter((id) => !knownProjectIds.has(id));
     if (missingProjectIds.length > 0) {
@@ -600,7 +616,10 @@ export async function handlePluginMessage(
       const sk = skRows[0];
       if (sk) {
         for (const pid of missingProjectIds) {
-          await createProject({ networkId: sk.networkId, serverKeyId: keyId, name: pid, id: pid });
+          // Server-scoped: `createProject` is idempotent on the *internal* id, so
+          // a global create here handed this server another tenant's project
+          // instead of making its own (incident 2026-08-12).
+          await ensureProjectForServer({ networkId: sk.networkId, serverKeyId: keyId, diskId: pid });
           // Advertise the fresh (empty) stub in THIS ack so the plugin's
           // backendHash.isEmpty() auto-push fires on the first connect — without
           // it, the stub is missing from project_hashes and the plugin treats the
@@ -643,12 +662,12 @@ export async function handlePluginMessage(
     const push: string[] = [];
     if (needsSync) {
       for (const b of bindings) {
-        const hash = projectHashesMap[b.projectId];
+        const hash = projectHashesMap[b.diskId];
         if (!hash) continue;
         const available: BundleAvailableMessage = {
           type: "bundle_available",
-          project_id: b.projectId,
-          url: `${BUNDLE_BASE_URL}/api/v1/bundles/${b.projectId}?branch=${encodeURIComponent(b.branchName)}`,
+          project_id: b.diskId,
+          url: `${BUNDLE_BASE_URL}/api/v1/bundles/${b.diskId}?branch=${encodeURIComponent(b.branchName)}`,
           hash,
           signature: "",
         };
@@ -684,10 +703,14 @@ export async function handlePluginMessage(
     const files = raw.files as Record<string, string> | undefined;
     const diskHash = raw.disk_hash as string | undefined;
     if (!projectId || !files || typeof diskHash !== "string") return { reply: null };
-    pendingDivergences.set(projectId, { files, diskHash, at: new Date().toISOString() });
+    // The plugin reports its disk id; the map (and the editor that reads it) is
+    // keyed by the internal row id, the only id unique across servers.
+    const divergent = await getProjectForServer(serverId, projectId);
+    if (!divergent) return { reply: null };
+    pendingDivergences.set(divergent.id, { files, diskHash, at: new Date().toISOString() });
     // Nudge open editor tabs on this server key — they refetch the project
     // (GET includes the divergence detail) and show the resolution banner.
-    const payload = JSON.stringify({ type: "sync_divergence", project_id: projectId, disk_hash: diskHash });
+    const payload = JSON.stringify({ type: "sync_divergence", project_id: divergent.id, disk_hash: diskHash });
     for (const [sessionId, sIds] of editorTokenToServers) {
       if (!sIds.has(serverId)) continue;
       editorSenders.get(sessionId)?.(payload);
@@ -708,10 +731,16 @@ export async function handlePluginMessage(
     const sk = (await db.select().from(serverKeys).where(eq(serverKeys.id, serverId)))[0];
     if (!sk) return { reply: null };
 
-    let project = await getProject(projectId);
-    if (!project) {
-      project = await createProject({ networkId: sk.networkId, serverKeyId: serverId, name: projectId, id: projectId });
-    }
+    // `projectId` is the pushing server's DISK id and is NOT globally unique —
+    // every Boutique install bootstraps `boutique_shop`. Resolving it globally
+    // (getProject) made one server's push land in another tenant's project;
+    // combined with createProject's idempotence-on-id, the collision was silent
+    // rather than a duplicate-key error (incident 2026-08-12).
+    const project = await ensureProjectForServer({
+      networkId: sk.networkId,
+      serverKeyId: serverId,
+      diskId: projectId,
+    });
     // The plugin never uploads `.artisan/*` metadata (hash-excluded editor
     // state, e.g. `.artisan/editor.yaml`) — preserve the backend's copies so a
     // disk push doesn't strip the board layout from the stored file tree.
@@ -725,28 +754,28 @@ export async function handlePluginMessage(
     // Files-first: the pushed file tree IS the new project content — no editor
     // JSON to derive or patch (the editor parses files client-side; ownerModule
     // lives in the manifest and is re-read on every load).
-    await upsertProjectContent(projectId, { hash, filesJson: JSON.stringify(files) });
+    await upsertProjectContent(project.id, { hash, filesJson: JSON.stringify(files) });
     // local_push = commit sur main + advance head, comme le deploy : le plugin
     // télécharge les bundles via branche → head commit. Sans commit, le download
     // servirait le commit initial vide et le sweep détruirait le contenu local
     // (trouvé au smoke test Docker 2026-07-09). Même convention que le deploy :
     // bundle_available porte le contentHash du commit.
-    const mainBranch = await getBranch(projectId, "main");
+    const mainBranch = await getBranch(project.id, "main");
     if (mainBranch) {
       const commit = await createCommit({
-        projectId,
+        projectId: project.id,
         parentId: mainBranch.headCommitId,
         files,
         authorUserId: null,
         message: "local_push",
       });
-      await advanceBranchHead(projectId, "main", commit.id);
-      await pushBundleAvailable(projectId, "main", commit.contentHash);
+      await advanceBranchHead(project.id, "main", commit.id);
+      await pushBundleAvailable(project.id, "main", commit.contentHash);
     } else {
-      await pushBundleAvailable(projectId, "main", hash);
+      await pushBundleAvailable(project.id, "main", hash);
     }
     // A manual pushLocal is a "force disk" resolution — clear any pending divergence.
-    clearPendingDivergence(projectId, serverId);
+    clearPendingDivergence(project.id, serverId);
     return { reply: null };
   }
 
@@ -883,15 +912,17 @@ export async function pushBundleAvailable(
 ): Promise<void> {
   // Find the server_key that owns this project (1:1 via projects.serverKeyId).
   const targets = await db
-    .select({ serverKeyId: projects.serverKeyId })
+    .select({ serverKeyId: projects.serverKeyId, id: projects.id, externalId: projects.externalId })
     .from(projects)
     .where(eq(projects.id, projectId));
   if (targets.length === 0) return;
 
-  const url = `${BUNDLE_BASE_URL}/api/v1/bundles/${projectId}?branch=${encodeURIComponent(branchName)}`;
+  // On the wire the plugin only ever knows its own disk id.
+  const diskId = projectDiskId(targets[0]);
+  const url = `${BUNDLE_BASE_URL}/api/v1/bundles/${diskId}?branch=${encodeURIComponent(branchName)}`;
   const payload = JSON.stringify({
     type: "bundle_available",
-    project_id: projectId,
+    project_id: diskId,
     url,
     hash: contentHash,
     signature: "",
@@ -963,16 +994,19 @@ export function pushResourcePackUpdated(serverKeyId: string, url: string, hash: 
 
 export async function pushProjectDeleted(projectId: string): Promise<void> {
   // In the 1:1 model, each project has exactly one owning server_key via projects.serverKeyId
-  const rows = await db.select({ serverKeyId: projects.serverKeyId }).from(projects).where(eq(projects.id, projectId));
+  const rows = await db.select({ serverKeyId: projects.serverKeyId, id: projects.id, externalId: projects.externalId }).from(projects).where(eq(projects.id, projectId));
   const targets = rows.map((r) => r.serverKeyId);
   if (targets.length === 0) return;
+  // Two audiences, two ids: the plugin move-to-trashes a directory named after
+  // its disk id, the editor addresses the internal row.
+  const pluginPayload = JSON.stringify({ type: "project_deleted", project_id: projectDiskId(rows[0]) });
   const payload = JSON.stringify({ type: "project_deleted", project_id: projectId });
   const targetSet = new Set(targets);
   // Push to plugin connections for each server_key bound to this project.
   for (const [connId, sId] of connToServerId) {
     if (!targetSet.has(sId)) continue;
     const send = connSenders.get(connId);
-    if (send) send(payload);
+    if (send) send(pluginPayload);
   }
   // Push to editor connections (so other open tabs close the project view).
   for (const [sessionId, sIds] of editorTokenToServers) {

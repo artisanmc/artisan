@@ -9,6 +9,13 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Fixed — un serveur ne peut plus écrire dans le project d'un autre (SÉCURITÉ)
+
+- Les trois points d'ingestion plugin (`local_push`, stub-create du `hello`, `POST /api/v1/bundles/:projectId`) résolvaient le project par **id seul, globalement**, sans vérifier qu'il appartenait à la clé serveur authentifiée. Comme l'add-on Boutique bootstrappe le même id disque `boutique_shop` sur chaque serveur qui l'installe, la poussée d'un serveur atterrissait dans le project d'un **autre tenant** — networks et clients différents inclus. `createProject` étant idempotent sur l'id (garde anti-crash de 2026-07-09), la collision n'échouait pas : elle écrasait en silence. Atteignable par le flow de liaison normal, sans rien faire d'anormal (incident 2026-08-12).
+- Nouveau `projects.external_id` (migration 0029) : l'id **disque / wire**, unique `(server_key_id, external_id)`. L'`id` reste la clé interne globale des FK. Backfill `external_id = id` — pour toute ligne existante les deux coïncident, donc aucun changement observable sur un déploiement en place.
+- Résolution scopée obligatoire côté serveur : `getProjectForServer` / `ensureProjectForServer`. Deux serveurs sans rapport peuvent désormais détenir chacun leur `boutique_shop`.
+- Les émetteurs vers le plugin (`bundle_available`, `project_deleted`, `project_hashes`, URL de bundle) traduisent l'id interne vers l'id disque : le plugin ne connaît jamais que le sien. `computeAllPacksHash` keye aussi sur l'id disque.
+
 ### Changed — la surface `modules.api` n'expose plus aucun type Kotlin (BREAKING)
 
 - Un add-on qui compile contre `artisan-core-api` ne résout plus jamais `kotlin.*`. Il ne l'embarque pas : son classloader allait donc le chercher **chez les autres plugins** du serveur, et si l'un d'eux embarquait sa propre kotlin-stdlib, le premier appel inter-plugins mourait en `LinkageError: loader constraint violation … kotlin.jvm.functions.Function2` (incident 2026-08-08, add-on Boutique désactivé au boot).

@@ -546,6 +546,15 @@ split into Projects so each can be exported, shared, and imported independently.
 Importing produces a *new* Project on the target server — Projects are copied,
 never live-linked across servers (so "belongs to one Server" always holds).
 
+A Project has **two identifiers, and only one of them is global**. Its *disk id*
+is the directory name the owning server uses, and it is unique **per server**
+only — an Add-on bootstraps the same one everywhere it is installed, so
+`boutique_shop` names a different Project on every server that runs the Boutique
+Add-on. Its *internal id* is unique platform-wide and is what the backend rows
+and the editor URLs address. Treating a disk id as global is what let one
+server overwrite another tenant's Project (2026-08-12); see
+`docs/architecture/entities.md` § `projects.externalId`.
+
 This is the **canonical** domain term, and code/DB/API/UI **now all say `project`**
 (`projects` table, `projectId`, `createProject`, `/projects` routes, `project_id` /
 `project_hashes` WS fields, the `plugins/Artisan/projects/` disk dir, and the

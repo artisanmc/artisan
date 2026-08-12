@@ -204,6 +204,13 @@
       "when": 1785764716610,
       "tag": "0028_fine_mastermind",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1786526897305,
+      "tag": "0029_fluffy_squadron_sinister",
+      "breakpoints": true
     }
   ]
 }

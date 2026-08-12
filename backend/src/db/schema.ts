@@ -335,6 +335,12 @@ export const projects = pgTable(
 			.notNull()
 			.references(() => serverKeys.id, { onDelete: "cascade" }),
 		name: text("name").notNull(),
+		// The id the OWNING SERVER uses on disk and on the wire (the project
+		// directory name). Unique per server key, NOT globally: two unrelated
+		// servers both running the Boutique add-on each hold a `boutique_shop`.
+		// `id` stays the globally-unique internal key every FK points at; only
+		// this column is plugin-facing. Backfilled to `id` for existing rows.
+		externalId: text("external_id"),
 		// URL slug, unique per server key. Nullable during backfill.
 		slug: text("slug"),
 		description: text("description"),
@@ -355,6 +361,7 @@ export const projects = pgTable(
 		index("projects_network_deleted_idx").on(t.networkId, t.deletedAt),
 		index("projects_server_key_idx").on(t.serverKeyId),
 		uniqueIndex("projects_serverkey_slug_uniq").on(t.serverKeyId, t.slug),
+		uniqueIndex("projects_serverkey_external_uniq").on(t.serverKeyId, t.externalId),
 	],
 );
 
