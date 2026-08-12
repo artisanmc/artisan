@@ -1126,7 +1126,9 @@ export function transform(project: Project): Record<string, string> {
 
   const yamlOpts = { lineWidth: 0 };
 
-  const base = `plugins/Artisan/projects/${project.id}`;
+  // Id DISQUE : ces chemins sont écrits tels quels sur le serveur, qui range
+  // le project sous son propre nom de dossier (cf. `Project.diskId`).
+  const base = `plugins/Artisan/projects/${project.diskId ?? project.id}`;
 
   for (const menu of project.menus) {
     files[`${base}/menus/${menu.id}.yaml`] = stringify(serializeMenuToV1(menu, project), yamlOpts);
