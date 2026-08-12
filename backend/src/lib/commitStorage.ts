@@ -1,7 +1,7 @@
 import { and, desc, eq } from "drizzle-orm";
 import { createHash } from "crypto";
 import { db } from "../db/index";
-import { projectCommits } from "../db/schema";
+import { projectCommits, projects } from "../db/schema";
 
 export type Commit = typeof projectCommits.$inferSelect;
 
@@ -38,7 +38,21 @@ export interface CreateCommitInput {
 }
 
 export async function createCommit(input: CreateCommitInput): Promise<Commit> {
-  const contentHash = computeContentHash(input.files, input.projectId);
+  // Hash by the project's DISK id, not its internal row id: `files` keys are
+  // disk paths (`plugins/Artisan/projects/<diskId>/...`), and the prefix must
+  // strip for the hash to match what the plugin computes over the same tree.
+  // Resolved here rather than passed in so no call site can forget it — a
+  // mismatch is invisible until a plugin rejects the bundle as divergent.
+  // (Read inline instead of importing projectStorage: that module imports this
+  // one for the initial commit, and the cycle would be load-order dependent.)
+  const owner = (
+    await db
+      .select({ id: projects.id, externalId: projects.externalId })
+      .from(projects)
+      .where(eq(projects.id, input.projectId))
+  )[0];
+  const hashId = owner?.externalId ?? input.projectId;
+  const contentHash = computeContentHash(input.files, hashId);
 
   // Dedup: if a commit with this (projectId, contentHash) already exists, return it.
   const existing = await db.select().from(projectCommits).where(and(
