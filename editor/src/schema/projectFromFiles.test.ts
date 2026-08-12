@@ -375,3 +375,42 @@ describe("projectFromFiles (files → domain, inverse of transform)", () => {
     });
   });
 });
+
+// A project's disk id (the server's directory name) is unique per server only,
+// so it can differ from the platform-unique internal id. Files always carry the
+// DISK id: reading must not depend on the two matching, and writing must keep
+// emitting the disk id or the plugin would receive a tree under a directory it
+// does not use (incident 2026-08-12).
+describe("disk id ≠ internal id", () => {
+  const DISK = "boutique_shop";
+  const INTERNAL = "proj_58967c930e9e";
+
+  const files = {
+    [`plugins/Artisan/projects/${DISK}/manifest.yaml`]:
+      "schema: manifest/v1\ndefault_lang: fr\nfiles:\n  menus:\n    - shop\n",
+    [`plugins/Artisan/projects/${DISK}/menus/shop.yaml`]:
+      "schema: menu/v1\nid: shop\ntitle: Boutique\nsize: 27\n",
+  };
+
+  it("reads a tree prefixed with the disk id under a different internal id", () => {
+    const project = projectFromFiles(INTERNAL as never, files, {
+      name: "boutique_shop",
+      diskId: DISK,
+    });
+    expect(project.id).toBe(INTERNAL);
+    expect(project.diskId).toBe(DISK);
+    // The menu is found — before the prefix normalisation the tree parsed empty.
+    expect(project.menus.map((m) => m.id)).toEqual(["shop"]);
+  });
+
+  it("writes back under the disk id, not the internal id", () => {
+    const project = projectFromFiles(INTERNAL as never, files, {
+      name: "boutique_shop",
+      diskId: DISK,
+    });
+    const out = transform(project);
+    const keys = Object.keys(out.files ?? out);
+    expect(keys.every((k) => k.startsWith(`plugins/Artisan/projects/${DISK}/`))).toBe(true);
+    expect(keys.some((k) => k.includes(INTERNAL))).toBe(false);
+  });
+});
