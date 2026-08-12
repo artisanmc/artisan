@@ -98,6 +98,15 @@ export interface Project {
    * le slug ne sert qu'à reconnaître un project désigné par une URL.
    */
   slug?: string;
+  /**
+   * L'id que le SERVEUR propriétaire utilise sur disque et sur le fil — le nom
+   * du dossier `plugins/Artisan/projects/<diskId>/`, donc le préfixe de toutes
+   * les clés de `files`. Unique par serveur seulement : un Add-on bootstrappe
+   * le même (`boutique_shop`) sur chaque serveur qui l'installe. Diffère de
+   * `id` (unique plateforme) quand un autre serveur détenait déjà cet id
+   * disque. Absent = identique à `id`.
+   */
+  diskId?: string;
   name: string;
   description?: string;
   source: ProjectSource;

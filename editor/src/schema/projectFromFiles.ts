@@ -67,6 +67,28 @@ function getFile(files: Record<string, string>, projectId: string, rel: string):
   return files[`${baseOf(projectId)}${rel}`] ?? null;
 }
 
+/**
+ * Réécrit le préfixe `plugins/Artisan/projects/<quelconque>/` des clés vers
+ * [projectId]. L'arbre d'un project ne contient que ses propres chemins, donc
+ * réécrire sans regarder QUEL id était là est sûr — et rend la lecture
+ * insensible à un id disque qui diffère de l'id interne.
+ */
+function normalizeProjectPrefix(
+  files: Record<string, string>,
+  projectId: string,
+): Record<string, string> {
+  const want = baseOf(projectId);
+  const re = /^plugins\/Artisan\/projects\/[^/]+\//;
+  let changed = false;
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(files)) {
+    const nk = re.test(k) ? k.replace(re, want) : k;
+    if (nk !== k) changed = true;
+    out[nk] = v;
+  }
+  return changed ? out : files;
+}
+
 /** Strips the canonical `plugins/Artisan/projects/<id>/` prefix, if present. */
 function relativeToProject(path: string, projectId: string): string {
   const prefix = baseOf(projectId);
@@ -398,6 +420,8 @@ function inlineLegacyTemplates(
 
 export interface ProjectFromFilesMeta {
   name?: string;
+  /** Id disque du project (cf. `Project.diskId`). Défaut : l'id interne. */
+  diskId?: string;
   /** Forme URL (DB-owned, jamais dans les fichiers). */
   slug?: string;
   description?: string;
@@ -416,6 +440,11 @@ export function projectFromFiles(
   files: Record<string, string>,
   meta: ProjectFromFilesMeta = {},
 ): Project {
+  // Les clés de `files` sont préfixées par l'id DISQUE du project, qui n'est
+  // pas forcément l'id interne (cf. `Project.diskId`). On réécrit le préfixe
+  // vers l'id interne une fois pour toutes : tout l'aval adresse par
+  // `baseOf(projectId)` et n'a donc pas à connaître cette distinction.
+  files = normalizeProjectPrefix(files, projectId);
   const manifest = tryParse<ManifestYaml>(getFile(files, projectId, "manifest.yaml")) ?? {};
   const defaultLang = manifest.default_lang ?? "en";
   const now = new Date().toISOString();
@@ -757,6 +786,7 @@ export function projectFromFiles(
   const project: Project = {
     id: projectId,
     name: meta.name ?? projectId,
+    ...(meta.diskId && meta.diskId !== projectId ? { diskId: meta.diskId } : {}),
     ...(meta.slug ? { slug: meta.slug } : {}),
     ...(meta.description ? { description: meta.description } : {}),
     // `source` is cosmetic (badge) and DB/file-less — default to the common case.

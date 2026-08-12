@@ -7,7 +7,7 @@ export interface SourceFile {
   content: string;
 }
 
-const base = (project: Project) => `plugins/Artisan/projects/${project.id}/`;
+const base = (project: Project) => `plugins/Artisan/projects/${project.diskId ?? project.id}/`;
 
 /** Les chemins qui appartiennent à cette source : son fichier data (ou son
  *  dossier par-row) et son schéma beside. */

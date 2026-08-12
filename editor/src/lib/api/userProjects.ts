@@ -16,7 +16,16 @@ export interface ProjectDivergence {
 }
 
 export interface UserProjectLoadResult {
-  project: { id: string; name: string; slug?: string | null; hash: string; version?: number; serverKeyId?: string };
+  project: {
+    id: string;
+    name: string;
+    slug?: string | null;
+    /** Id disque du project côté serveur propriétaire (cf. `Project.diskId`). */
+    externalId?: string | null;
+    hash: string;
+    version?: number;
+    serverKeyId?: string;
+  };
   networkId: string;
   serverKeyId: string;
   /** The canonical Project representation — parsed client-side via projectFromFiles. */
