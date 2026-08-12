@@ -1,7 +1,7 @@
 import { advanceBranchHead, getBranch } from "./branchStorage";
 import { createCommit } from "./commitStorage";
 import { computeBundleHash } from "./hashUtils";
-import { getProject, upsertProjectContent } from "./projectStorage";
+import { getProject, projectDiskId, upsertProjectContent } from "./projectStorage";
 
 export type JournalResult =
   | { ok: true; contentHash: string }
@@ -29,7 +29,8 @@ export async function journalProjectFiles(
   const project = await getProject(projectId);
   if (!project) return { ok: false, reason: "not_a_project" };
 
-  const hash = await computeBundleHash(files, projectId);
+  // Les clés de `files` portent l'id DISQUE du project, pas son id interne.
+  const hash = await computeBundleHash(files, projectDiskId(project));
   await upsertProjectContent(projectId, { hash, filesJson: JSON.stringify(files) });
 
   const branch = await getBranch(projectId, "main");
@@ -53,11 +54,14 @@ export async function journalProjectFiles(
  */
 export function applyConfigPatch(
   prev: Record<string, string>,
-  projectId: string,
+  /** Id DISQUE du project (cf. `projectDiskId`) : c'est lui qui préfixe les
+   *  clés stockées. Passer l'id interne re-préfixait tout un arbre déjà
+   *  préfixé (incident 2026-08-12). */
+  diskId: string,
   writes: { path: string; content: string }[],
   deletes: string[],
 ): Record<string, string> {
-  const base = `plugins/Artisan/projects/${projectId}/`;
+  const base = `plugins/Artisan/projects/${diskId}/`;
   const next = { ...prev };
   for (const { path, content } of writes) next[`${base}${path}`] = content;
   for (const path of deletes) delete next[`${base}${path}`];

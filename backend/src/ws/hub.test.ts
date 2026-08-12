@@ -38,7 +38,7 @@ import {
 import { generateServerKey } from "../lib/auth";
 import { rebuildResourcePack } from "../lib/resourcePack";
 import { createNetwork } from "../lib/networkManager";
-import { createProject, upsertProjectContent, softDeleteProject } from "../lib/projectStorage";
+import { createProject, ensureProjectForServer, upsertProjectContent, softDeleteProject } from "../lib/projectStorage";
 import { getProject } from "../lib/projectStorage";
 import { createCommit, computeContentHash } from "../lib/commitStorage";
 import { advanceBranchHead, getBranch } from "../lib/branchStorage";
@@ -1290,6 +1290,65 @@ describe("boutique_additem", () => {
     } finally {
       connToServerId.delete("conn-add-dt");
       connSenders.delete("conn-add-dt");
+    }
+  });
+
+  test("finds the project by its DISK id when the internal id differs", async () => {
+    // Two unrelated servers both run Boutique, so the second one's project got
+    // a generated internal id while its files stay keyed on `boutique_shop3`.
+    // Locating by the internal id found nothing -> no_boutique_project, i.e.
+    // /boutique additem dead on that server (incident 2026-08-12).
+    const other = await seedServerKey();
+    await createProject({
+      networkId: other.networkId, serverKeyId: other.id,
+      name: "boutique_shop3", id: "boutique_shop3",
+    });
+    const { id: keyId, networkId } = await seedServerKey();
+    const project = await ensureProjectForServer({
+      networkId, serverKeyId: keyId, diskId: "boutique_shop3",
+    });
+    expect(project.id).not.toBe("boutique_shop3");
+
+    const base = "plugins/Artisan/projects/boutique_shop3";
+    await upsertProjectContent(project.id, {
+      hash: "h0",
+      filesJson: JSON.stringify({
+        [`${base}/manifest.yaml`]: ["schema: manifest/v1", "module: boutique", "default_lang: fr", ""].join("\n"),
+        [`${base}/data/categories/_source.yaml`]: [
+          "schema: data/v1", "id: categories", "shape: table",
+          "model: boutique:category", "model_version: 1", "key_field: id",
+          "granularity: row", "order: [armes]", "fields: []", "",
+        ].join("\n"),
+        [`${base}/data/categories/armes.yaml`]: [
+          "id: armes", "name: Armes", "icon: DIAMOND_SWORD", "discount: 0", "items: []", "",
+        ].join("\n"),
+      }),
+    });
+
+    registerConn("conn-add-disk", () => {});
+    connToServerId.set("conn-add-disk", keyId);
+    try {
+      const res = await handlePluginMessage("conn-add-disk", JSON.stringify({
+        type: "boutique_additem", request_id: "r10",
+        item_id: "epee", price: 10, category: "armes",
+        stack_yaml: ["item:", "  type: PAPER", ""].join("\n"),
+        display: { material: "DIAMOND_SWORD", name: "Epee" },
+      }));
+      const reply = JSON.parse(res.reply!);
+      expect(reply.ok).toBe(true);
+
+      // Written back under the DISK-id prefix, never the internal one.
+      const after = await getProject(project.id);
+      const files = JSON.parse(after!.filesJson) as Record<string, string>;
+      expect(Object.keys(files).every((k) => k.startsWith(`${base}/`))).toBe(true);
+      const { parse: parseYaml } = await import("yaml");
+      const row = parseYaml(files[`${base}/data/categories/armes.yaml`]!) as {
+        items: { id: string }[];
+      };
+      expect(row.items.map((i) => i.id)).toEqual(["epee"]);
+    } finally {
+      connToServerId.delete("conn-add-disk");
+      connSenders.delete("conn-add-disk");
     }
   });
 

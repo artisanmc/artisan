@@ -5,8 +5,8 @@ import { parse as parseYaml } from "yaml";
 // lives editor-side (editor/src/schema/projectFromFiles.ts) — the backend only
 // needs targeted manifest reads.
 
-function getFile(files: Record<string, string>, projectId: string, rel: string): string | null {
-  return files[`plugins/Artisan/projects/${projectId}/${rel}`] ?? null;
+function getFile(files: Record<string, string>, diskId: string, rel: string): string | null {
+  return files[`plugins/Artisan/projects/${diskId}/${rel}`] ?? null;
 }
 
 function tryParse<T>(text: string | null): T | null {

@@ -9,8 +9,9 @@ function isArtisanMeta(relPath: string): boolean {
   return relPath.split("/", 1)[0]!.startsWith(".artisan");
 }
 
-function relOf(path: string, projectId: string): string {
-  const prefix = `plugins/Artisan/projects/${projectId}/`;
+/** [diskId] : l'id que le serveur propriétaire utilise dans les chemins. */
+function relOf(path: string, diskId: string): string {
+  const prefix = `plugins/Artisan/projects/${diskId}/`;
   return path.startsWith(prefix) ? path.slice(prefix.length) : path;
 }
 
@@ -60,12 +61,12 @@ export function diffDivergence(
 export function mergeDivergence(
   webFiles: Record<string, string>,
   diskFiles: Record<string, string>,
-  projectId: string,
+  diskId: string,
   choices: Record<string, "disk" | "web">,
 ): Record<string, string> {
-  const prefix = `plugins/Artisan/projects/${projectId}/`;
+  const prefix = `plugins/Artisan/projects/${diskId}/`;
   const merged: Record<string, string> = { ...webFiles };
-  for (const f of diffDivergence(webFiles, diskFiles, projectId)) {
+  for (const f of diffDivergence(webFiles, diskFiles, diskId)) {
     if ((choices[f.path] ?? "web") !== "disk") continue;
     const full = prefix + f.path;
     if (f.disk === null) delete merged[full];
