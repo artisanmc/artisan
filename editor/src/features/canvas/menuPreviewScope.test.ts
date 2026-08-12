@@ -335,6 +335,30 @@ describe("resolveSourceRef — a module-owned project answers for its own namesp
     expect(resolveSourceRef("boutique:categories" as SourceRef, project)).toBeUndefined();
   });
 
+  it("resolves ltext fields to text — a consumer expects text, not an LText node", () => {
+    const project = stubProject({
+      ownerModule: "boutique",
+      defaultLang: "fr",
+      i18nKeys: { "sources.categories.premium.name": { fr: "Premium" } },
+      dataSources: [
+        {
+          id: "categories" as DataSourceId,
+          name: "Catégories",
+          shape: "table",
+          rows: [
+            { id: "premium", name: { key: "sources.categories.premium.name" } },
+            // Nested rows carry ltext too (a category's items).
+            { id: "divers", name: "Divers", items: [{ id: "i1", name: { key: "sources.categories.premium.name" } }] },
+          ],
+        } as unknown as DataSource,
+      ],
+    });
+    expect(resolveSourceRef("boutique:categories" as SourceRef, project)).toEqual([
+      { id: "premium", name: "Premium" },
+      { id: "divers", name: "Divers", items: [{ id: "i1", name: "Premium" }] },
+    ]);
+  });
+
   it("still prefers a live snapshot for a source the project does not hold", () => {
     const project = stubProject({ ownerModule: "boutique", dataSources: [table] });
     const snap = [{ id: "x" }];

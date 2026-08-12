@@ -1,10 +1,12 @@
-import type { I18nKey, Menu, Project, SourceRef } from "@/domain/types";
+import type { I18nKey, LText, Menu, Project, SourceRef } from "@/domain/types";
 import { lookupPath } from "@/lib/placeholders";
 import { AstCache } from "@/lib/expr/cache";
 import { Scope } from "@/lib/expr/scope";
 import { renderTemplate } from "@/lib/expr/template/renderer";
 import { listModules } from "@artisan/editor-sdk";
 import { useAccountStore } from "@/state/accountStore";
+import { useUiStore } from "@/state/uiStore";
+import { getText } from "@/lib/i18n";
 
 /** Cached live-server snapshots keyed by ref (see serverSnapshotsStore). */
 export type SourceSnapshots = Record<string, unknown[]>;
@@ -89,7 +91,32 @@ function ownedSourceRows(project: Project, ref: string): unknown[] | null {
   if (!ns || !id || project.ownerModule !== ns) return null;
   const ds = project.dataSources.find((d) => String(d.id) === id);
   if (!ds || ds.shape !== "table") return null;
-  return Array.isArray(ds.rows) ? ds.rows : null;
+  if (!Array.isArray(ds.rows)) return null;
+  // Domain rows hold ltext fields as LText nodes (`{ key }`); a consumer of a
+  // source expects TEXT, the way the plugin's fetcher resolves it at bind time.
+  // Handing the node through rendered `{"key":"sources.…"}` into titles.
+  const lang = useUiStore.getState().activeLang || project.defaultLang;
+  return ds.rows.map((r) => resolveLTexts(r, project, lang));
+}
+
+/** True for an LText node — the domain's `{ key }` reference, nothing else. */
+function isLText(v: unknown): v is { key: string } {
+  return (
+    typeof v === "object" && v !== null && !Array.isArray(v) &&
+    Object.keys(v).length === 1 && typeof (v as { key?: unknown }).key === "string"
+  );
+}
+
+/** Deep-resolve every LText node of a source row to its text in [lang]. */
+function resolveLTexts(value: unknown, project: Project, lang: string): unknown {
+  if (isLText(value)) return getText(project, value as LText, lang);
+  if (Array.isArray(value)) return value.map((v) => resolveLTexts(v, project, lang));
+  if (typeof value === "object" && value !== null) {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value)) out[k] = resolveLTexts(v, project, lang);
+    return out;
+  }
+  return value;
 }
 
 /** Sample values for the builtin implicit `{player}` (runtime: the viewing player). */
