@@ -302,3 +302,42 @@ describe("renderPreview with the builtin player", () => {
     expect(renderPreview("{target}", ctx, project, "en")).toBe("Steve");
   });
 });
+
+// An Add-on's project declares its owner (`manifest.module`) and carries the
+// module's data as ordinary Project sources (ADR bare-data-files). Before this,
+// `boutique:categories` only resolved through the module's dead moduleData path
+// or a live server snapshot — so offline, a placement element found no rows and
+// the canvas drew dashed "dangling" slots labelled after the element id
+// ("Grid"), instead of the seven categories (2026-08-12).
+describe("resolveSourceRef — a module-owned project answers for its own namespace", () => {
+  afterEach(() => clearRegistry());
+
+  const rows = [{ id: "les_cles", name: "Les Clés" }, { id: "premium", name: "Premium" }];
+  const table = {
+    id: "categories" as DataSourceId,
+    name: "Catégories",
+    shape: "table",
+    rows,
+  } as unknown as DataSource;
+
+  it("resolves <owner>:<sourceId> from the project's own table source", () => {
+    const project = stubProject({ ownerModule: "boutique", dataSources: [table] });
+    expect(resolveSourceRef("boutique:categories" as SourceRef, project)).toEqual(rows);
+  });
+
+  it("does not answer for a namespace the project does not own", () => {
+    const project = stubProject({ ownerModule: "quests", dataSources: [table] });
+    expect(resolveSourceRef("boutique:categories" as SourceRef, project)).toBeUndefined();
+  });
+
+  it("does not answer when the project declares no owner", () => {
+    const project = stubProject({ dataSources: [table] });
+    expect(resolveSourceRef("boutique:categories" as SourceRef, project)).toBeUndefined();
+  });
+
+  it("still prefers a live snapshot for a source the project does not hold", () => {
+    const project = stubProject({ ownerModule: "boutique", dataSources: [table] });
+    const snap = [{ id: "x" }];
+    expect(resolveSourceRef("boutique:items" as SourceRef, project, { "boutique:items": snap })).toEqual(snap);
+  });
+});

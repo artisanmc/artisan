@@ -1188,7 +1188,10 @@ export function transform(project: Project): Record<string, string> {
 
   const manifest: Record<string, unknown> = {
     schema: "manifest/v1",
-    project_id: project.id,
+    // Id DISQUE : le manifest est lu par le serveur, qui ne connaît que le nom
+    // de son propre dossier. Y écrire l'id interne le rendait incohérent avec
+    // le chemin qui le contient.
+    project_id: project.diskId ?? project.id,
     // Round-trip the Add-on owner id (ADR addon-owned-project-roots) so it survives
     // an editor save — the backend re-derives `ownerModule` from it.
     ...(project.ownerModule ? { module: project.ownerModule } : {}),
