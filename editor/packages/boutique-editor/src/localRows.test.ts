@@ -65,3 +65,48 @@ describe("boutiqueLocalRows", () => {
     expect(boutiqueLocalRows({}, "boutique:categories")).toBeNull();
   });
 });
+
+// Since bare-data-files the catalogue is a Project source, not moduleData.
+// Reading only moduleData left `boutique:items` unresolvable offline, so a
+// category menu drew dashed slots instead of its items (2026-08-12).
+describe("rows derived from the project's files", () => {
+  const project = {
+    dataSources: [
+      {
+        id: "categories",
+        shape: "table",
+        rows: [
+          {
+            id: "les_cles",
+            name: "Les Clés",
+            icon: "item:ci_les_cles",
+            discount: 10,
+            items: [
+              { id: "cle", name: "Clé", icon: "item:ci_cle", price: 500, discount: 0, lore: ["a", "b"] },
+            ],
+          },
+        ],
+      },
+      { id: "shop_settings", shape: "config", value: { whole_shop_discount: 20 } },
+    ],
+  };
+
+  it("derives categories", () => {
+    expect(boutiqueLocalRows(project, "boutique:categories")).toEqual([
+      { id: "les_cles", name: "Les Clés", icon: "item:ci_les_cles", discount: 10 },
+    ]);
+  });
+
+  it("flattens items and prices them like the plugin", () => {
+    const rows = boutiqueLocalRows(project, "boutique:items")!;
+    expect(rows).toHaveLength(1);
+    // 500 * (1 - (20 whole + 10 category + 0 item)/100) = 350
+    expect(rows[0]).toMatchObject({
+      id: "cle", category: "les_cles", price: 500, final_price: 350, lore: "a\nb",
+    });
+  });
+
+  it("returns null for a project with no catalogue at all", () => {
+    expect(boutiqueLocalRows({ dataSources: [] }, "boutique:items")).toBeNull();
+  });
+});

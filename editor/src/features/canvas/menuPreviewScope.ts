@@ -65,8 +65,10 @@ export function resolveSourceRef(
     if (!ds) return undefined;
     return ds.shape === "table" ? ds.rows : ds.value;
   }
+  // Module rows are derived from the project's own files too, so they carry
+  // domain LText nodes just like a Project source — resolve both the same way.
   const local = moduleLocalRows(project, r);
-  if (local) return local;
+  if (local) return resolveRowTexts(local, project);
   const owned = ownedSourceRows(project, r);
   if (owned) return owned;
   return snapshots?.[r];
@@ -95,8 +97,13 @@ function ownedSourceRows(project: Project, ref: string): unknown[] | null {
   // Domain rows hold ltext fields as LText nodes (`{ key }`); a consumer of a
   // source expects TEXT, the way the plugin's fetcher resolves it at bind time.
   // Handing the node through rendered `{"key":"sources.…"}` into titles.
+  return resolveRowTexts(ds.rows, project);
+}
+
+/** Resolve every LText node of a row list to text in the active language. */
+function resolveRowTexts<T>(rows: T[], project: Project): T[] {
   const lang = useUiStore.getState().activeLang || project.defaultLang;
-  return ds.rows.map((r) => resolveLTexts(r, project, lang));
+  return rows.map((r) => resolveLTexts(r, project, lang) as T);
 }
 
 /** True for an LText node — the domain's `{ key }` reference, nothing else. */
