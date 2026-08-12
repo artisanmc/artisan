@@ -9,7 +9,8 @@ export type Commit = typeof projectCommits.$inferSelect;
  * Deterministic content hash: SHA-256 of `(key\nvalue\n)*` over sorted keys.
  * Matches the plugin's LocalPushSender.computeHash() so client & server agree.
  */
-export function computeContentHash(files: Record<string, string>, projectId: string): string {
+/** [diskId] : id DISQUE du project — le préfixe réel des clés de `files`. */
+export function computeContentHash(files: Record<string, string>, diskId: string): string {
   // ONE house hash (CLAUDE.md § Invariants): the commit contentHash is the
   // SAME canonical project hash as BundleHasher (plugin) and computeBundleHash
   // (backend) — relPath-keyed, native byte-order sort, `.artisan*` first
@@ -18,7 +19,7 @@ export function computeContentHash(files: Record<string, string>, projectId: str
   // detectSyncAction could never see IN_SYNC/LOCAL_ONLY (no auto-push).
   // Empty-content sentinel: "" means "no content" — a freshly-created stub
   // must hash to "" so the plugin's backendHash.isEmpty() auto-push fires.
-  const prefix = `plugins/Artisan/projects/${projectId}/`;
+  const prefix = `plugins/Artisan/projects/${diskId}/`;
   const entries = Object.entries(files)
     .map(([k, v]) => [k.startsWith(prefix) ? k.slice(prefix.length) : k, v] as const)
     .filter(([k]) => !k.split("/", 1)[0]!.startsWith(".artisan"))
