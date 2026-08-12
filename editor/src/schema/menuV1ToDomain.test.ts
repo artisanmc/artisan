@@ -778,3 +778,28 @@ function minimalMenu(p: { appTitle?: string; if?: unknown[] }): Record<string, u
     ],
   };
 }
+
+// `title` has two sugar forms that are not arrays: the bare string, and its
+// i18n twin — an LText ref, which is what a module bootstrap emits when the
+// text lives in a lang file. Mapping over the ref threw and took the editor
+// down with a black page (Boutique menus, 2026-08-12).
+describe("title sugar — non-array forms", () => {
+  const base = { schema: "menu/v1", id: "m", size: 27 };
+
+  it("reads an LText ref title as one plain layer", () => {
+    const { menu } = menuV1ToDomain(
+      { ...base, title: { key: "boutique.shop_main.title" } } as never,
+      { projectId: "p" as never, lang: "fr", translations: {} },
+    );
+    expect(menu.title).toEqual([{ kind: "plain", value: { key: "boutique.shop_main.title" } }]);
+  });
+
+  it("still reads the bare-string form", () => {
+    const { menu } = menuV1ToDomain(
+      { ...base, title: "Boutique" } as never,
+      { projectId: "p" as never, lang: "fr", translations: {} },
+    );
+    expect(menu.title).toHaveLength(1);
+    expect(menu.title[0]!.kind).toBe("plain");
+  });
+});
