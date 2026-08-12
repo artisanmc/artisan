@@ -491,12 +491,6 @@ export function MenuGroup({ projectId, menu, position, layout, solo = false }: M
           backdrop set this menu as the selected one (and clear any layer
           selection belonging to this menu). All wiring lives in TitleRender;
           no overlay Rect needed here. */}
-      <PreviewContextBanner
-        menu={menu}
-        project={project}
-        width={box.width}
-        previewArgs={previewArgs}
-      />
       <TitleRender projectId={projectId} menuId={menu.id} scale={TEX_SCALE} />
       <PlacementTray
         menu={menu}
@@ -835,6 +829,17 @@ export function MenuGroup({ projectId, menu, position, layout, solo = false }: M
           onNext={() => setPage(info.elementId, Math.min(info.totalPages - 1, info.page + 1))}
         />
       ))}
+      {/* DERNIER enfant volontairement : sa liste déroulante s'ouvre par-dessus
+          le haut du menu, et dans Konva l'ordre de rendu EST l'ordre de
+          priorité au clic. Rendu avant les slots, ses premières lignes étaient
+          couvertes par eux — le clic les traversait et sélectionnait l'élément
+          du dessous au lieu de choisir le contexte (2026-08-12). */}
+      <PreviewContextBanner
+        menu={menu}
+        project={project}
+        width={box.width}
+        previewArgs={previewArgs}
+      />
     </Group>
   );
 }
