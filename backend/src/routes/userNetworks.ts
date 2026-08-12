@@ -36,7 +36,7 @@ import { requireCapability, requireMember, withNetworkMemberLock } from "../lib/
 import { addMembership } from "../lib/membershipManager";
 import { createNetwork } from "../lib/networkManager";
 import { readOwnerModuleFromFiles } from "../lib/projectFiles";
-import { createProject, listProjectsForNetwork } from "../lib/projectStorage";
+import { createProject, listProjectsForNetwork, projectDiskId } from "../lib/projectStorage";
 import { resolveNetworkForMember } from "../lib/refs";
 import { slugify } from "../lib/slug";
 import { allocServerSlug } from "../lib/slugAlloc";
@@ -158,7 +158,7 @@ userNetworksRouter.get("/:id", async (c: Context<{ Variables: Vars }>) => {
 		return {
 			...p,
 			documentCount: countProjectDocuments(p.filesJson),
-			ownerModule: readOwnerModuleFromFiles(files, p.id),
+			ownerModule: readOwnerModuleFromFiles(files, projectDiskId(p)),
 		};
 	});
 	const skList = await db
@@ -935,7 +935,7 @@ userNetworksRouter.post(
 		let journaled = false;
 		if (project) {
 			const prev = JSON.parse(project.filesJson) as Record<string, string>;
-			const next = applyConfigPatch(prev, body.project_id, files, deletes);
+			const next = applyConfigPatch(prev, projectDiskId(project), files, deletes);
 			const paths = [...files.map((f) => f.path), ...deletes];
 			const res = await journalProjectFiles(body.project_id, next, {
 				message: `config: ${paths.slice(0, 3).join(", ")}${paths.length > 3 ? `, +${paths.length - 3}` : ""}`,

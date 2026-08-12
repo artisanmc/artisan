@@ -3,6 +3,7 @@ import { parse, stringify } from "yaml";
 import { db } from "../../db/index";
 import { projects } from "../../db/schema";
 import { journalProjectFiles } from "../../lib/projectJournal";
+import { projectDiskId } from "../../lib/projectStorage";
 import { flattenLangTree, nestLangTree } from "../../../../editor/src/lib/langTree";
 
 /**
@@ -272,7 +273,7 @@ export async function applyBoutiqueAdditem(
       try { return JSON.parse(row.filesJson) as Record<string, string>; } catch { return null; }
     })();
     if (!parsed) continue;
-    const p = `plugins/Artisan/projects/${row.id}`;
+    const p = `plugins/Artisan/projects/${projectDiskId(row)}`;
     if (`${p}/data/categories/_source.yaml` in parsed) {
       target = row;
       files = parsed;
@@ -286,7 +287,7 @@ export async function applyBoutiqueAdditem(
     }
   }
   if (!target) return { ok: false, error: "no_boutique_project" };
-  const base = `plugins/Artisan/projects/${target.id}`;
+  const base = `plugins/Artisan/projects/${projectDiskId(target)}`;
   if (declaredTable) {
     return applyToDeclaredTable(target, files, base, payload);
   }

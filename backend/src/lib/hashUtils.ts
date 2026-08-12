@@ -10,8 +10,9 @@ function isArtisanMeta(relPath: string): boolean {
   return relPath.split("/", 1)[0]!.startsWith(".artisan");
 }
 
-export async function computeBundleHash(files: Record<string, string>, projectId: string): Promise<string> {
-  const prefix = `plugins/Artisan/projects/${projectId}/`;
+/** [diskId] : id DISQUE du project — le préfixe réel des clés de `files`. */
+export async function computeBundleHash(files: Record<string, string>, diskId: string): Promise<string> {
+  const prefix = `plugins/Artisan/projects/${diskId}/`;
   const sorted = Object.entries(files)
     .filter(([k]) => k.startsWith(prefix))
     .map(([k, v]) => ({ path: k.slice(prefix.length), content: v }))

@@ -11,7 +11,7 @@ import { createCommit } from "../lib/commitStorage";
 import { customItemsCacheDir, readCustomItems } from "../lib/customItems";
 import { diffDivergence, mergeDivergence } from "../lib/divergence";
 import { computeBundleHash } from "../lib/hashUtils";
-import { getProject, resolveProjectRef, softDeleteProject, upsertProjectContent } from "../lib/projectStorage";
+import { getProject, projectDiskId, resolveProjectRef, softDeleteProject, upsertProjectContent } from "../lib/projectStorage";
 import { getNetworkOfProject, requireMember } from "../lib/membershipGuard";
 import type { AuthUser } from "../middleware/userAuth";
 
@@ -125,7 +125,7 @@ userProjectsRouter.get("/:projectId", async (c: Context<{ Variables: Vars }>) =>
           divergence: {
             disk_hash: pending.diskHash,
             at: pending.at,
-            files: diffDivergence(webFiles, pending.files, projectId),
+            files: diffDivergence(webFiles, pending.files, projectDiskId(project)),
           },
         }
       : {}),
@@ -163,8 +163,8 @@ userProjectsRouter.post("/:projectId/resolve-divergence", async (c: Context<{ Va
   const choices = body.choices ?? {};
 
   const webFiles = JSON.parse(project.filesJson) as Record<string, string>;
-  const merged = mergeDivergence(webFiles, pending.files, projectId, choices);
-  const hash = await computeBundleHash(merged, projectId);
+  const merged = mergeDivergence(webFiles, pending.files, projectDiskId(project), choices);
+  const hash = await computeBundleHash(merged, projectDiskId(project));
 
   // Unconditioned write (like local_push): the version bump invalidates other
   // open tabs through the existing optimistic-lock banner.
