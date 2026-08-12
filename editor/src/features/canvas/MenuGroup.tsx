@@ -1,5 +1,5 @@
 import { resolveDisplayRef } from "@/domain/capturedItems";
-import type { ElementId, Menu, ProjectId } from "@/domain/types";
+import type { ElementId, Menu, Placement, ProjectId } from "@/domain/types";
 import { getText } from "@/lib/i18n";
 import { lookupPath } from "@/lib/placeholders";
 import { parsePositions } from "@/lib/positions";
@@ -37,6 +37,7 @@ import {
 } from "./menuLayout";
 import { buildPreviewScope, renderPreview } from "./menuPreviewScope";
 import {
+  type PlacementSlotInfo,
   matchPlacementRow,
   placementTotalPages,
   resolvePlacementSlot,
@@ -334,6 +335,15 @@ export function MenuGroup({ projectId, menu, position, layout, solo = false }: M
         if (totalPages > 1) overflowing.push({ elementId: el.id, page, totalPages });
         const rows = lookupPath(sampleCtx, places.source);
         const rowsAvailable = Array.isArray(rows);
+        // Two passes: a RESOLVED row always wins its slot over an unresolved
+        // one. When the source is filtered (a category menu shows one
+        // category's items), every other context's placements resolve to
+        // nothing — authored on the same slots on purpose, since only one
+        // context is ever live at runtime. Setting them in authoring order let
+        // a later empty placement erase an earlier real item, so items
+        // "disappeared" as soon as another category reused their slot.
+        const resolved: { placement: Placement; info: PlacementSlotInfo }[] = [];
+        const unresolved: { placement: Placement; info: PlacementSlotInfo }[] = [];
         for (const placement of places.placements) {
           if (placement.page !== page) continue;
           const row = matchPlacementRow(rows, places.keyField, placement.key);
@@ -348,7 +358,15 @@ export function MenuGroup({ projectId, menu, position, layout, solo = false }: M
             activeLang,
             elementId: el.id,
           });
+          (info.dangling ? unresolved : resolved).push({ placement, info });
+        }
+        for (const { placement, info } of resolved) {
           elementsByPosition.set(placement.position, info);
+        }
+        for (const { placement, info } of unresolved) {
+          if (!elementsByPosition.has(placement.position)) {
+            elementsByPosition.set(placement.position, info);
+          }
         }
         continue;
       }
