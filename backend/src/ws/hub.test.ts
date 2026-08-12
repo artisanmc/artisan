@@ -1312,3 +1312,94 @@ describe("boutique_additem", () => {
     }
   });
 });
+
+// Two unrelated servers (different networks, different owners) both run the
+// Boutique add-on, which bootstraps a project whose on-disk id is always
+// `boutique_shop`. Before the ownership guard, the second server's push
+// resolved the project by id ALONE and silently overwrote the first server's
+// content — a cross-tenant write reachable from the normal link flow
+// (incident 2026-08-12).
+describe("project ownership isolation (same on-disk id, unrelated servers)", () => {
+  const DISK_ID = "boutique_shop";
+
+  async function connect(key: string, connId: string, localProjectIds: string[] = []) {
+    const received: string[] = [];
+    registerConn(connId, (msg) => received.push(msg));
+    const res = await handlePluginMessage(connId, JSON.stringify({
+      type: "hello", server_key: key, plugin_version: "1.0", minecraft_version: "1.21",
+      current_bundle_hash: "", local_project_ids: localProjectIds,
+    }));
+    return { received, ack: JSON.parse(res.reply!) as HelloAckMessage };
+  }
+
+  test("local_push from server B never writes into server A's project", async () => {
+    const a = await seedServerKey();
+    const b = await seedServerKey();
+    await seedBoundProject(a.networkId, a.id, DISK_ID, "hash-A", { "menus/a.yaml": "id: a" });
+
+    await connect(b.key, "conn-own-b");
+    await handlePluginMessage("conn-own-b", JSON.stringify({
+      type: "local_push", project_id: DISK_ID,
+      files: { "menus/b.yaml": "id: b" }, hash: "hash-B",
+    }));
+
+    // A's row is untouched: same owner, same content.
+    const aProject = await getProject(DISK_ID);
+    expect(aProject!.serverKeyId).toBe(a.id);
+    expect(aProject!.hash).toBe("hash-A");
+    expect(JSON.parse(aProject!.filesJson)).toEqual({ "menus/a.yaml": "id: a" });
+
+    // B got its OWN project, addressed by the same on-disk id.
+    const bRows = await db.select().from(projects).where(eq(projects.serverKeyId, b.id));
+    expect(bRows.length).toBe(1);
+    expect(bRows[0].externalId).toBe(DISK_ID);
+    expect(bRows[0].hash).toBe("hash-B");
+    expect(bRows[0].networkId).toBe(b.networkId);
+
+    connToServerId.delete("conn-own-b");
+    connSenders.delete("conn-own-b");
+  });
+
+  test("hello stub-create does not adopt another server's project", async () => {
+    const a = await seedServerKey();
+    const b = await seedServerKey();
+    await seedBoundProject(a.networkId, a.id, DISK_ID, "hash-A", { "menus/a.yaml": "id: a" });
+
+    const { ack } = await connect(b.key, "conn-own-stub", [DISK_ID]);
+
+    // The ack advertises the id the plugin knows (its on-disk id), and the row
+    // behind it belongs to B — not A.
+    expect(Object.keys(ack.project_hashes ?? {})).toContain(DISK_ID);
+    const bRows = await db.select().from(projects).where(eq(projects.serverKeyId, b.id));
+    expect(bRows.length).toBe(1);
+    expect(bRows[0].externalId).toBe(DISK_ID);
+
+    const aProject = await getProject(DISK_ID);
+    expect(aProject!.serverKeyId).toBe(a.id);
+
+    connToServerId.delete("conn-own-stub");
+    connSenders.delete("conn-own-stub");
+  });
+
+  test("bundle_available and project_deleted address the plugin by its on-disk id", async () => {
+    const a = await seedServerKey();
+    const b = await seedServerKey();
+    await seedBoundProject(a.networkId, a.id, DISK_ID, "hash-A", { "menus/a.yaml": "id: a" });
+
+    const { received } = await connect(b.key, "conn-own-wire");
+    await handlePluginMessage("conn-own-wire", JSON.stringify({
+      type: "local_push", project_id: DISK_ID,
+      files: { "menus/b.yaml": "id: b" }, hash: "hash-B",
+    }));
+
+    const bundleMsg = received
+      .map((m) => JSON.parse(m) as { type: string; project_id?: string })
+      .find((m) => m.type === "bundle_available");
+    expect(bundleMsg).toBeDefined();
+    // The plugin only knows its disk id — never the backend's internal row id.
+    expect(bundleMsg!.project_id).toBe(DISK_ID);
+
+    connToServerId.delete("conn-own-wire");
+    connSenders.delete("conn-own-wire");
+  });
+});

@@ -13,6 +13,7 @@ export async function createProject(input: {
 	name: string;
 	description?: string | null;
 	id?: string; // optional, default generated
+	externalId?: string | null; // disk/wire id; defaults to the internal id
 }): Promise<Project> {
 	const id =
 		input.id ?? "pack_" + crypto.randomUUID().replace(/-/g, "").slice(0, 12);
@@ -27,6 +28,7 @@ export async function createProject(input: {
 		networkId: input.networkId,
 		serverKeyId: input.serverKeyId,
 		name: input.name,
+		externalId: input.externalId ?? id,
 		slug,
 		description: input.description ?? null,
 		hash: "",
@@ -88,6 +90,69 @@ export async function resolveProjectRef(
 export async function getProject(id: string): Promise<Project | null> {
 	const rows = await db.select().from(projects).where(eq(projects.id, id));
 	return rows[0] ?? null;
+}
+
+/**
+ * The id a project answers to on the wire and on the owning server's disk.
+ *
+ * Rows created before `external_id` existed carry `null` and are addressed by
+ * their internal id, which was the disk id back then — so the fallback is exact,
+ * not a guess.
+ */
+export function projectDiskId(p: Pick<Project, "id" | "externalId">): string {
+	return p.externalId ?? p.id;
+}
+
+/**
+ * Resolve a project by the id its OWNING SERVER uses (disk / wire id).
+ *
+ * Never resolves across server keys: an id like `boutique_shop` is bootstrapped
+ * identically by the Boutique add-on on every server that installs it, so a
+ * global lookup would hand one server another's project — cross-tenant write,
+ * incident 2026-08-12. Callers holding a server key MUST use this, never
+ * `getProject`.
+ */
+export async function getProjectForServer(
+	serverKeyId: string,
+	diskId: string,
+): Promise<Project | null> {
+	const rows = await db
+		.select()
+		.from(projects)
+		.where(
+			and(
+				eq(projects.serverKeyId, serverKeyId),
+				or(eq(projects.externalId, diskId), and(eq(projects.id, diskId), isNull(projects.externalId))),
+			),
+		);
+	return rows[0] ?? null;
+}
+
+/**
+ * Get-or-create the project a server addresses as [diskId].
+ *
+ * The internal id keeps the disk id when it is still globally free (so existing
+ * deployments and single-server setups read identically), and falls back to a
+ * generated id when another server already claimed it.
+ */
+export async function ensureProjectForServer(input: {
+	networkId: string;
+	serverKeyId: string;
+	diskId: string;
+}): Promise<Project> {
+	const existing = await getProjectForServer(input.serverKeyId, input.diskId);
+	if (existing) return existing;
+	const taken = await getProject(input.diskId);
+	const id = taken
+		? "proj_" + crypto.randomUUID().replace(/-/g, "").slice(0, 12)
+		: input.diskId;
+	return await createProject({
+		networkId: input.networkId,
+		serverKeyId: input.serverKeyId,
+		name: input.diskId,
+		id,
+		externalId: input.diskId,
+	});
 }
 
 /**

@@ -1,6 +1,7 @@
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "../db/index";
 import { projects } from "../db/schema";
+import { projectDiskId } from "./projectStorage";
 
 /** relPaths whose first segment starts with `.artisan` are sync/editor
  *  metadata — excluded from the hash (mirrored in the plugin's
@@ -31,8 +32,13 @@ export async function computeAllPacksHash(serverId: string): Promise<string> {
 
   if (boundProjects.length === 0) return "";
 
-  const sorted = [...boundProjects].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
-  const data = sorted.map((p) => `${p.id}:${p.hash}\n`).join("");
+  // Keyed by the DISK id: this hash is compared against the plugin's
+  // current_bundle_hash, which the plugin builds from its own directory names.
+  // Using the internal id would make needs_sync permanently true for a project
+  // whose disk id was already claimed by another server.
+  const withDiskIds = boundProjects.map((p) => ({ diskId: projectDiskId(p), hash: p.hash }));
+  const sorted = withDiskIds.sort((a, b) => (a.diskId < b.diskId ? -1 : a.diskId > b.diskId ? 1 : 0));
+  const data = sorted.map((p) => `${p.diskId}:${p.hash}\n`).join("");
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(data));
   return Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, "0")).join("");
 }

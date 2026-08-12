@@ -6,7 +6,7 @@ import { networks, serverKeys, projects, linkCodes, projectCommits, projectBranc
 import { bundlesRouter } from "./bundles";
 import { generateServerKey } from "../lib/auth";
 import { createNetwork } from "../lib/networkManager";
-import { createProject } from "../lib/projectStorage";
+import { createProject, ensureProjectForServer } from "../lib/projectStorage";
 import { createCommit, computeContentHash } from "../lib/commitStorage";
 import { advanceBranchHead, getBranch } from "../lib/branchStorage";
 
@@ -184,5 +184,75 @@ describe("bundle upload/download", () => {
     const getBody = (await getRes.json()) as { files: Record<string, string>; hash: string };
     // Branch head is still the initial empty commit
     expect(getBody.files).toEqual({});
+  });
+});
+
+// Mirror of the WS local_push guard: two unrelated servers can both hold a
+// project with the same on-disk id (the Boutique add-on always bootstraps
+// `boutique_shop`). A POST authenticated as B must never reach A's row.
+describe("project ownership isolation", () => {
+  const DISK_ID = "boutique_shop";
+
+  test("POST from server B does not overwrite server A's project of the same id", async () => {
+    const app = buildApp();
+    const a = await seedServerKey("owner-a");
+    const b = await seedServerKey("owner-b");
+
+    const aFiles = { [`plugins/Artisan/projects/${DISK_ID}/menus/a.yaml`]: "id: a" };
+    const bFiles = { [`plugins/Artisan/projects/${DISK_ID}/menus/b.yaml`]: "id: b" };
+
+    const first = await app.request(`/api/v1/bundles/${DISK_ID}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${a.key}` },
+      body: JSON.stringify({ files: aFiles }),
+    });
+    expect(first.status).toBe(200);
+
+    const second = await app.request(`/api/v1/bundles/${DISK_ID}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${b.key}` },
+      body: JSON.stringify({ files: bFiles }),
+    });
+    expect(second.status).toBe(200);
+
+    const rowsA = await db.select().from(projects).where(eq(projects.serverKeyId, a.id));
+    const rowsB = await db.select().from(projects).where(eq(projects.serverKeyId, b.id));
+    expect(rowsA.length).toBe(1);
+    expect(rowsB.length).toBe(1);
+    expect(JSON.parse(rowsA[0].filesJson)).toEqual(aFiles);
+    expect(JSON.parse(rowsB[0].filesJson)).toEqual(bFiles);
+    expect(rowsA[0].externalId).toBe(DISK_ID);
+    expect(rowsB[0].externalId).toBe(DISK_ID);
+    expect(rowsA[0].id).not.toBe(rowsB[0].id);
+  });
+
+  test("GET by disk id serves the caller's own project even when the internal id differs", async () => {
+    const app = buildApp();
+    const a = await seedServerKey("dl-a");
+    const b = await seedServerKey("dl-b");
+
+    // A claims the disk id first, so B's row gets a generated internal id.
+    await createProject({ networkId: a.networkId, serverKeyId: a.id, name: DISK_ID, id: DISK_ID });
+    const bProject = await ensureProjectForServer({
+      networkId: b.networkId, serverKeyId: b.id, diskId: DISK_ID,
+    });
+    expect(bProject.id).not.toBe(DISK_ID);
+    expect(bProject.externalId).toBe(DISK_ID);
+
+    const files = { "menus/b.yaml": "id: b" };
+    const branch = await getBranch(bProject.id, "main");
+    const commit = await createCommit({
+      projectId: bProject.id, parentId: branch!.headCommitId, files,
+      authorUserId: null, message: "b commit",
+    });
+    await advanceBranchHead(bProject.id, "main", commit.id);
+
+    // The plugin asks for its disk id and must get ITS files, not A's.
+    const res = await app.request(`/api/v1/bundles/${DISK_ID}`, {
+      headers: { Authorization: `Bearer ${b.key}` },
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { files: Record<string, string> };
+    expect(body.files).toEqual(files);
   });
 });
