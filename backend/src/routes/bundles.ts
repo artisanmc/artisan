@@ -4,7 +4,7 @@ import { db } from "../db/index";
 import { serverKeys, projects, projectBranches, projectCommits } from "../db/schema";
 import { validateServerKeyHeader } from "../lib/auth";
 import { computeBundleHash } from "../lib/hashUtils";
-import { getProject, createProject, upsertProjectContent } from "../lib/projectStorage";
+import { ensureProjectForServer, getProjectForServer, upsertProjectContent } from "../lib/projectStorage";
 
 const router = new Hono();
 
@@ -20,10 +20,15 @@ router.post("/:projectId", async (c) => {
   const sk = (await db.select().from(serverKeys).where(eq(serverKeys.id, serverKeyId)))[0];
   if (!sk) return c.json({ error: "Server key missing" }, 500);
 
-  let project = await getProject(projectId);
-  if (!project) {
-    project = await createProject({ networkId: sk.networkId, serverKeyId: sk.id, name: projectId, id: projectId });
-  }
+  // Scoped to the authenticated server: `projectId` is the caller's DISK id,
+  // which is not globally unique (every Boutique install bootstraps
+  // `boutique_shop`). Resolving it globally let one server overwrite another
+  // tenant's project — incident 2026-08-12.
+  const project = await ensureProjectForServer({
+    networkId: sk.networkId,
+    serverKeyId: sk.id,
+    diskId: projectId,
+  });
   // The plugin never uploads `.artisan/*` metadata (hash-excluded editor
   // state) — preserve the backend's copies across a plugin upload.
   if (project.filesJson) {
@@ -33,7 +38,7 @@ router.post("/:projectId", async (c) => {
       if (k.startsWith(metaPrefix) && !(k in body.files)) body.files[k] = v;
     }
   }
-  await upsertProjectContent(projectId, { hash, filesJson: JSON.stringify(body.files) });
+  await upsertProjectContent(project.id, { hash, filesJson: JSON.stringify(body.files) });
   return c.json({ ok: true, hash });
 });
 
@@ -43,15 +48,12 @@ router.get("/:projectId", async (c) => {
 
   const projectId = c.req.param("projectId");
 
-  // Verify the project belongs to this server_key (1:1 ownership via projects.serverKeyId)
-  const projectRow = (await db.select().from(projects).where(and(
-    eq(projects.id, projectId),
-    eq(projects.serverKeyId, serverKeyId),
-  )))[0];
+  // `projectId` is the caller's disk id, resolved within its own server only.
+  const projectRow = await getProjectForServer(serverKeyId, projectId);
   if (!projectRow) return c.json({ error: "Not bound" }, 404);
 
   const branch = (await db.select().from(projectBranches).where(and(
-    eq(projectBranches.projectId, projectId), eq(projectBranches.name, "main"),
+    eq(projectBranches.projectId, projectRow.id), eq(projectBranches.name, "main"),
   )))[0];
   if (!branch) return c.json({ error: "Branch not found" }, 404);
 
