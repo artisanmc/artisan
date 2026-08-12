@@ -40,26 +40,26 @@ Non-examples:
   *hosts* in its condition atoms — not a separate statement language. It has a
   second, independent host: the **Template**.
 
-## Bundle
+## Bundle — **retired term** (2026-08-12)
 
-The **deployed materialization** of a **Project**: its canonical file tree, as
-placed on a server (`projects/<id>/` — manifest, menus, dialogs, lang, assets),
-identified by a **hash** and republished on every edit. The backend announces a
-new Bundle (`bundle_available`), the plugin fetches it (`BundleDownloader`),
-writes it to disk, and atomically reloads. It is the *live* copy of a deployed
-Project, kept in continuous sync — not a compiled projection: the files it
-contains *are* the Project's native form (cf. ADR
-`files-first-source-of-truth`), so editing them in place is editing the
-Project.
+A Bundle *was* the hash-keyed materialization of a **Project**, announced by the
+backend (`bundle_available`) and downloaded by the plugin. The mechanism no
+longer exists: the backend stores no Project content and never writes to a
+server's disk, so there is nothing to publish, hash, announce, or fetch (ADR
+`server-disk-only-storage`). A Project's files on the server *are* the Project —
+there is no second artifact to name.
 
-Non-examples:
-- An **export** is not a Bundle. An export is a one-shot, portable snapshot of a
-  Project (a zip) made for sharing; importing it creates a **new** Project on the
-  target Server. The Bundle is hash-keyed, plugin-facing, and continuously synced;
-  an export is human-facing, copied once, and never live-linked back.
-- The generated **resource pack** (textures/fonts served to players) is not the
-  Bundle either — it's a separate artifact built from the Project's assets and
-  delivered to the player, not the menu/command content the plugin downloads.
+If you meet the word in code (`/api/v1/bundles`, `computeBundleHash`,
+`BundleDownloader`) it is migration residue, not a domain concept. Say **the
+Project's files** instead.
+
+Still distinct, and still not Bundles:
+- An **export** — a one-shot, portable zip of a Project made for sharing;
+  importing it creates a **new** Project on the target Server, never live-linked
+  back.
+- The generated **resource pack** (textures/fonts served to players) — a build
+  artifact derived from a Project's assets and delivered to the *player*, not the
+  menu/command content the plugin reads.
 
 ## Captured item
 
@@ -182,7 +182,7 @@ modules consume. One notion, two **provenances**:
   Module bridges a third-party plugin (EssentialsX, LuckPerms) into Artisan — by
   contributing data sources, not by being a new kind of thing.
 - **Project source** — keyed `pack:<id>`, authored by the admin as content *of a
-  Project* (it lives in the Project, deploys with its **Bundle**, and is
+  Project* (it lives in the Project's files on the server, and is
   exported/imported with it). Always **static**: its rows are hand-written, so
   the design-time set is by definition the authoritative set. A Project source
   is **one typed value** (ADR `bare-data-files`): a root **object** is consumed
@@ -240,7 +240,7 @@ Non-examples:
 One of the three **Document** kinds: an admin-authored dialog screen
 (`dialogs/<id>.yaml`) — Minecraft's native dialog UI (title, body, inputs,
 buttons), as opposed to the inventory grid of a **Menu**. A standalone document
-with a stable id, deployed in the same **Bundle** as the Project's other Documents.
+with a stable id, living beside the Project's other Documents in its file tree.
 
 Non-examples:
 - A **Menu** is not a Dialog — a Menu is an inventory layout (slots/items); a
@@ -532,14 +532,13 @@ Non-examples:
 
 ## Project
 
-The editable, versioned, deployable collection of GUI content for one server —
-its **Menus**, **Commands**, **Dialogs**, translations, and assets — deployed to
-the server as a **Bundle**. A Project's **canonical form is a tree of
-human-readable files** (its Documents, translations, sources, templates, models,
-assets, and editor metadata); every editing surface — the web editor, a text
-editor over the server's files, an AI agent — edits that file form, and the web
-editor is a *client* of it, not the master copy (cf. ADR
-`files-first-source-of-truth`). A Project belongs to
+The editable collection of GUI content for one server — its **Menus**,
+**Commands**, **Dialogs**, translations, and assets. A Project **is a tree of
+human-readable files on that server**, and nowhere else: there is no copy of it
+in the backend (ADR `server-disk-only-storage`). Every editing surface — the web
+editor, a text editor over the server's files, an AI agent — edits that one tree,
+so the web editor is a *client* of the server's files, not a master copy of them
+(cf. ADR `files-first-source-of-truth`). A Project belongs to
 **exactly one Server**; a Server holds **one or more** Projects. The Project is
 the granular unit of organisation *and* of **portability**: a server's content is
 split into Projects so each can be exported, shared, and imported independently.

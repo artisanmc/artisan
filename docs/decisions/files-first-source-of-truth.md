@@ -14,6 +14,20 @@ this ADR referenced was removed 2026-06-17, so resolution is per-file
 disk/web selection, not 3-way — cf. `no-branch-conflict-resolution.md`).
 The files-first epic's storage/sync decisions (2, 3, 6, 7) are all live.
 
+> **Révisé le 2026-08-12 par l'ADR `server-disk-only-storage` — décisions 2 et
+> 6.** Cet ADR a fait des fichiers la vérité de *forme* tout en laissant le
+> backend en détenir une **copie publiée** (le plugin téléchargeait depuis lui),
+> donc deux écrivains durables — d'où `syncedHash`, `detectSyncAction`,
+> `sync_divergence` et le hash à deux implémentations. Le nouvel ADR fait du
+> disque du serveur le **seul** store : le backend ne stocke plus aucun contenu
+> de Project, le plugin est le seul écrivain, l'éditeur lit et écrit par relais
+> WS sur geste explicite. La décision 2 (« one representation everywhere »)
+> devient « one *location* everywhere » ; la décision 6 (détection de divergence,
+> « no overwrite in either direction ») devient sans objet — il n'y a plus deux
+> côtés à diverger, seulement un compare-and-swap par fichier à l'écriture.
+> Les décisions 3, 4, 5 et 7 (formes de fichiers, i18n, `menu/v1`, assets
+> offline) restent en vigueur.
+
 ## Context
 
 A feature request (a "code mode" showing a Document's YAML beside the visual
