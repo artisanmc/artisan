@@ -272,12 +272,23 @@ export function menuV1ToDomain(
   const rows = (
     inventoryType === "chest" ? src.size / 9 : (INVENTORY_TYPES[inventoryType].rows ?? 1)
   ) as 1 | 2 | 3 | 4 | 5 | 6;
-  // Canonical sugar: a bare-string title is one plain text layer.
-  const title = (
-    typeof src.title === "string"
-      ? [titleLayer(src.title as unknown as Json)]
-      : ((src.title as Json[]) ?? []).map(titleLayer)
-  ).filter(Boolean) as MenuTitleLayer[];
+  // Canonical sugar: a bare-string title is one plain text layer. Its i18n
+  // twin — an LText ref (`title: { key: … }`) — is the same sugar with the
+  // text held in a lang file, and is what a module bootstrap emits. Neither is
+  // an array: mapping over them threw and took the whole editor down with a
+  // black page (Boutique menus, 2026-08-12).
+  const rawTitle = src.title as unknown;
+  const titleEntries: (MenuTitleLayer | null)[] =
+    typeof rawTitle === "string"
+      ? [titleLayer(rawTitle as unknown as Json)]
+      : Array.isArray(rawTitle)
+        ? (rawTitle as Json[]).map(titleLayer)
+        : rawTitle && typeof rawTitle === "object"
+          ? (rawTitle as Json).kind !== undefined
+            ? [titleLayer(rawTitle as Json)]
+            : [{ kind: "plain", value: layerValue(rawTitle) } as MenuTitleLayer]
+          : [];
+  const title = titleEntries.filter(Boolean) as MenuTitleLayer[];
   // Canonical `inputs`; legacy `context_inputs` still read.
   const contextInputs = ((src.inputs ?? src.context_inputs) as Json[] | undefined)?.map(
     contextInput,
