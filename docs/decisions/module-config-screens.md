@@ -119,8 +119,10 @@ de binding).
   un `model: "ns:id"` optionnel sur la déclaration (base = model, `schema` =
   extras calculés) se dessinera mieux après le binding des configs externes
   (qui n'auront souvent pas de source du tout).
-- **Live-only généralisé au canvas** (le serveur comme seul store, éditeur
-  view-only offline) : question ouverte explicitement **non rejetée** — la
-  machinerie de sync a été la première source de bugs du projet, mais démolir
-  édition offline / historique / backup / résolution de divergence change la
-  proposition produit. Grill dédié requis.
+- ~~**Live-only généralisé au canvas**~~ — **tranché le 2026-08-12**, grill tenu,
+  ADR `server-disk-only-storage` : le serveur devient le seul store, le §3
+  ci-dessus est généralisé au canvas. Le propriétaire a renoncé explicitement à
+  l'historique et à l'édition hors-ligne, ce qui a levé le blocage. Conséquence
+  sur cet ADR : la révision du 2026-07-30 (« une racine gérée est une racine
+  versionnée », journalisation backend après ack) **tombe** avec le journal ;
+  l'édition passe d'un write live à un write sur geste explicite.
