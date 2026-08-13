@@ -134,7 +134,7 @@ Captured-item helpers for modules (`api.items`): `serialize(stack)` — canonica
 
 ### `net.artisanmc.modules.api.ModuleMessagesApi` (`@Beta`)
 
-Fire-and-forget module messages over the plugin ↔ backend WS (`api.messages.send(type, payload)`) — routed backend-side by `type` to the module's backend layer (e.g. `boutique_additem`). No-op while disconnected. Since 1.4.0.
+Fire-and-forget module messages over the plugin ↔ backend WS (`api.messages.send(type, payload)`) — routed backend-side by `type` to the module's backend layer. No-op while disconnected. Since 1.4.0. ⚠️ **Ne pas s'en servir pour muter un project** : le contenu vit sur le disque et le module y écrit lui-même (ADR `server-disk-only-storage`). `boutique_additem` en fut l'exemple, et ne l'est plus.
 
 ### `net.artisanmc.modules.api.ModuleActionsApi` (`@Beta`)
 
