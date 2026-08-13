@@ -74,12 +74,18 @@ way an author gives up following the item.
   descriptors + opaque stacks; the editor shows it as a Library panel; dragging
   an item captures it into `Project.capturedItems`.
 - **`/boutique additem <id> <prix> [catégorie]`** (in-game): the plugin captures
-  the held stack (name/lore derived from the stack's own components) and sends a
-  WS mutation; the **backend boutique module applies it to
-  `moduleData.boutique`** (single source of truth respected), commits and
-  broadcasts `bundle_available` — live in game within seconds. The plugin never
-  writes project files directly (the FTP/local_push hazard on edited projects);
-  a concurrently-editing editor surfaces the existing version-conflict banner.
+  the held stack (name/lore derived from the stack's own components) and writes
+  it to its **own project root** — live in game within seconds via the disk scan.
+
+  > **Révisé le 2026-08-13 par l'ADR `server-disk-only-storage`.** Cet ADR
+  > envoyait la mutation au backend, qui la posait dans sa copie du project,
+  > committait et rebroadcastait `bundle_available` — « le plugin n'écrit jamais
+  > les fichiers project directement ». Cette règle protégeait d'un danger qui
+  > n'existe plus : il n'y a plus de copie backend à contredire, donc plus de
+  > divergence à craindre. Le module possède sa racine
+  > (ADR `addon-owned-project-roots`) et y écrit lui-même
+  > (`CapturedItemWriter`, repo Boutique) ; une capture est une édition disque
+  > comme une autre, rechargée à chaud par le scan.
 
 ### 4. Minecraft field kit for module forms
 
