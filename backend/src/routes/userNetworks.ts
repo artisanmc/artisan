@@ -41,7 +41,7 @@ import { resolveNetworkForMember } from "../lib/refs";
 import { slugify } from "../lib/slug";
 import { allocServerSlug } from "../lib/slugAlloc";
 import type { AuthUser } from "../middleware/userAuth";
-import { disconnectServerKey, getInstanceCount, requestConfigRead, requestConfigWrite, requestDataSourceFetch, requestOnlinePlayers, requestPlayerInventory, requestProjectRead, requestProjectWrite } from "../ws/hub";
+import { disconnectServerKey, getInstanceCount, requestConfigRead, requestConfigWrite, requestDataSourceFetch, requestOnlinePlayers, requestPlayerInventory, requestProjectRead, requestProjectWrite, requestProjectHistory } from "../ws/hub";
 import { getProject } from "../lib/projectStorage";
 import { handleResourcePackRebuild } from "./resourcePack";
 
@@ -852,6 +852,40 @@ userNetworksRouter.get(
 			return c.json({ error, message: r.message ?? null }, status);
 		}
 		return c.json({ files: r.files ?? [] });
+	},
+);
+
+// GET /api/networks/:networkId/servers/:serverId/projects/:projectId/history?path=… —
+// member access. Les versions archivées d'UN fichier (corbeille disque du
+// plugin, ADR server-disk-only-storage décision 5), la plus récente d'abord.
+// Restaurer n'a pas de route dédiée : c'est un PUT normal du contenu choisi.
+userNetworksRouter.get(
+	"/:networkId/servers/:serverId/projects/:projectId/history",
+	async (c: Context<{ Variables: Vars }>) => {
+		const userId = getUserId(c);
+		if (!userId) return c.json({ error: "unauthorized" }, 401);
+		const resolved = await resolveNetworkServer(
+			userId,
+			c.req.param("networkId"),
+			c.req.param("serverId"),
+		);
+		if (!resolved) return c.json({ error: "forbidden" }, 403);
+		if (!resolved.serverKeyId) return c.json({ error: "not_found" }, 404);
+
+		const projectId = c.req.param("projectId");
+		const path = c.req.query("path");
+		if (!projectId || !path) return c.json({ error: "invalid_input" }, 422);
+
+		const outcome = await requestProjectHistory(resolved.serverKeyId, { projectId, path });
+		if (outcome.kind === "offline") return c.json({ error: "server_offline" }, 503);
+		if (outcome.kind === "timeout") return c.json({ error: "fetch_timeout" }, 504);
+		const r = outcome.result;
+		if (!r.ok) {
+			const error = r.error ?? "read_error";
+			const status = error === "unknown_project" ? 404 : error === "invalid_path" ? 422 : 502;
+			return c.json({ error, message: r.message ?? null }, status);
+		}
+		return c.json({ versions: r.versions ?? [] });
 	},
 );
 
