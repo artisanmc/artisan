@@ -106,11 +106,11 @@ class ConfigChannelTest {
     }
 
     @Test
-    fun `config_write writes atomically, deletes, and auto-pushes LOCAL_ONLY`() {
+    fun `config_write ecrit atomiquement et supprime, sans rien pousser`() {
         val h = Harness(serverKey = "sk_test")
         val dir = File(h.project("boutique"), "data/categories").also { it.mkdirs() }
         File(dir, "old.yaml").writeText("name: Old\n")
-        h.latch = CountDownLatch(2) // local_push + config_write_result
+        h.latch = CountDownLatch(1) // config_write_result seul
 
         val payload = mapOf(
             "type" to "config_write", "request_id" to "w1", "project_id" to "boutique",
@@ -128,13 +128,13 @@ class ConfigChannelTest {
         assertFalse(File(dir, "old.yaml").exists())
         assertFalse(File(dir, "weapons.yaml.artisan-tmp").exists())
 
+        // Plus de push : le disque est la seule vérité, il n'y a plus de copie
+        // backend à tenir au courant (ADR `server-disk-only-storage`).
         val types = h.sink.map { it["type"] }
-        assertTrue("local_push" in types, "expected auto-push after write, got $types")
+        assertFalse("local_push" in types, "rien ne doit être poussé, got $types")
         val result = h.sink.first { it["type"] == "config_write_result" }
         assertEquals(true, result["ok"])
         assertEquals("w1", result["request_id"])
-        val push = h.sink.first { it["type"] == "local_push" }
-        assertEquals("boutique", push["project_id"])
     }
 
     @Test

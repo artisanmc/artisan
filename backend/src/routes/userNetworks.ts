@@ -41,8 +41,7 @@ import { resolveNetworkForMember } from "../lib/refs";
 import { slugify } from "../lib/slug";
 import { allocServerSlug } from "../lib/slugAlloc";
 import type { AuthUser } from "../middleware/userAuth";
-import { disconnectServerKey, getInstanceCount, pushBundleAvailable, requestConfigRead, requestConfigWrite, requestDataSourceFetch, requestOnlinePlayers, requestPlayerInventory, requestProjectRead, requestProjectWrite } from "../ws/hub";
-import { applyConfigPatch, journalProjectFiles } from "../lib/projectJournal";
+import { disconnectServerKey, getInstanceCount, requestConfigRead, requestConfigWrite, requestDataSourceFetch, requestOnlinePlayers, requestPlayerInventory, requestProjectRead, requestProjectWrite } from "../ws/hub";
 import { getProject } from "../lib/projectStorage";
 import { handleResourcePackRebuild } from "./resourcePack";
 
@@ -148,19 +147,10 @@ userNetworksRouter.get("/:id", async (c: Context<{ Variables: Vars }>) => {
 		return c.json({ error: "forbidden" }, 403);
 	}
 	const projectsList = await listProjectsForNetwork(network.id);
-	const projectsWithCounts = projectsList.map((p) => {
-		let files: Record<string, string> = {};
-		try {
-			files = JSON.parse(p.filesJson) as Record<string, string>;
-		} catch {
-			/* informational only */
-		}
-		return {
-			...p,
-			documentCount: countProjectDocuments(p.filesJson),
-			ownerModule: readOwnerModuleFromFiles(files, projectDiskId(p)),
-		};
-	});
+	// Le compte de Documents et le module propriétaire se lisaient dans la copie
+	// backend, qui n'existe plus. Les recalculer exigerait un aller-retour disque
+	// par Project juste pour peupler une liste — l'éditeur s'en passe.
+	const projectsWithCounts = projectsList;
 	const skList = await db
 		.select()
 		.from(serverKeys)
@@ -1031,31 +1021,12 @@ userNetworksRouter.post(
 			return c.json({ error, message: r.message ?? null }, status);
 		}
 
-		// Journal the write the plugin just applied to disk (ADR
-		// module-config-screens §3, revised 2026-07-30): a managed root is a
-		// versioned root — a Config-screen edit belongs in the history like any
-		// other project edit. Only after the plugin acked, so history never
-		// claims a write that never landed. A root that is not an Artisan
-		// project journals nothing and stays a live-only surface.
-		const project = await getProject(body.project_id);
-		let journaled = false;
-		if (project) {
-			const prev = JSON.parse(project.filesJson) as Record<string, string>;
-			const next = applyConfigPatch(prev, projectDiskId(project), files, deletes);
-			const paths = [...files.map((f) => f.path), ...deletes];
-			const res = await journalProjectFiles(body.project_id, next, {
-				message: `config: ${paths.slice(0, 3).join(", ")}${paths.length > 3 ? `, +${paths.length - 3}` : ""}`,
-				authorUserId: userId,
-			});
-			if (res.ok) {
-				journaled = true;
-				// Closes the sync loop: the plugin refreshes `.artisan-sync.yaml`
-				// against this commit, so its next scan reads IN_SYNC instead of
-				// LOCAL_ONLY and does not push the same content back.
-				await pushBundleAvailable(body.project_id, "main", res.contentHash);
-			}
-		}
-		return c.json({ ok: true, journaled });
+		// La journalisation ajoutée le 2026-07-30 (« une racine gérée est une
+		// racine versionnée ») tombe avec l'historique : le plugin a écrit sur
+		// disque, et le disque est la seule vérité (ADR
+		// `server-disk-only-storage`). Il n'y a plus ni copie à patcher, ni
+		// boucle de sync à refermer.
+		return c.json({ ok: true });
 	},
 );
 

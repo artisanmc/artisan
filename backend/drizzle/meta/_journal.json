@@ -211,6 +211,13 @@
       "when": 1786526897305,
       "tag": "0029_fluffy_squadron_sinister",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1786612702583,
+      "tag": "0030_dusty_giant_man",
+      "breakpoints": true
     }
   ]
 }

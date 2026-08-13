@@ -29,8 +29,6 @@ import {
   serverModules,
   serverDataSources,
   projects,
-  projectBranches,
-  projectCommits,
   networks,
   linkCodes,
   assets,
@@ -38,10 +36,8 @@ import {
 import { generateServerKey } from "../lib/auth";
 import { rebuildResourcePack } from "../lib/resourcePack";
 import { createNetwork } from "../lib/networkManager";
-import { createProject, ensureProjectForServer, upsertProjectContent, softDeleteProject } from "../lib/projectStorage";
+import { createProject, ensureProjectForServer, softDeleteProject } from "../lib/projectStorage";
 import { getProject } from "../lib/projectStorage";
-import { createCommit, computeContentHash } from "../lib/commitStorage";
-import { advanceBranchHead, getBranch } from "../lib/branchStorage";
 
 async function clearAll() {
   await db.delete(assets);
@@ -65,15 +61,9 @@ async function seedBoundProject(
   networkId: string,
   serverKeyId: string,
   projectId: string,
-  hash: string,
-  files: Record<string, string> = {},
   deleted = false,
 ): Promise<void> {
   await createProject({ networkId, serverKeyId, name: projectId, id: projectId });
-  await upsertProjectContent(projectId, {
-    hash,
-    filesJson: JSON.stringify(files),
-  });
   if (deleted) await softDeleteProject(projectId);
 }
 
@@ -344,28 +334,6 @@ describe("handlePluginMessage", () => {
     expect(result.reply).not.toBeNull();
   });
 
-  test("hello_ack contains project_hashes from branch → commit content hash", async () => {
-    const { id: keyId, key, networkId } = await seedServerKey();
-    await seedBoundProject(networkId, keyId, "pa", "ha");
-    await seedBoundProject(networkId, keyId, "pb", "hb");
-
-    // project_hashes reflect the main branch head commit contentHash (not WIP projects.hash).
-    // createProject auto-creates main branch with an initial empty-files commit.
-    const emptyHash = computeContentHash({}, "any");
-
-    const connId = "conn-hashes";
-    registerConn(connId, () => {});
-    const hello: HelloMessage = {
-      type: "hello",
-      server_key: key,
-      plugin_version: "1.0.0",
-      minecraft_version: "1.21.4",
-      current_bundle_hash: "",
-    };
-    const result = await handlePluginMessage(connId, JSON.stringify(hello));
-    const ack = JSON.parse(result.reply!) as HelloAckMessage;
-    expect(ack.project_hashes).toEqual({ pa: emptyHash, pb: emptyHash });
-  });
 
   test("hello creates stubs for unknown local projects and advertises them as '' in the same ack", async () => {
     const { id: keyId, key } = await seedServerKey();
@@ -384,69 +352,15 @@ describe("handlePluginMessage", () => {
     const result = await handlePluginMessage(connId, JSON.stringify(hello));
     const ack = JSON.parse(result.reply!) as HelloAckMessage;
 
-    // Stub must exist AND be advertised in this same ack as "" so the plugin's
-    // backendHash.isEmpty() auto-push fires on the first connect (no restart needed).
+    // Le backend ne stocke plus de contenu, mais il garde l'IDENTITÉ des
+    // Projects : c'est ce qui permet à l'éditeur de les lister et de les router.
+    // Un project présent sur le disque du serveur doit donc exister en base.
     expect(await getProject("plocal")).not.toBeNull();
-    expect(ack.project_hashes["plocal"]).toBe("");
+    void ack;
     void keyId;
   });
 
-  test("hello_ack.project_hashes uses branch head commit contentHash (not WIP project.hash)", async () => {
-    const { id: keyId, key, networkId } = await seedServerKey();
-    await seedBoundProject(networkId, keyId, "p_c2", "wip-hash");
 
-    // Advance main branch head by creating a second commit with concrete files.
-    const files = { "menus/shop.yaml": "id: shop\nsize: 27\n" };
-    const branch = await getBranch("p_c2", "main");
-    const commit2 = await createCommit({
-      projectId: "p_c2",
-      parentId: branch!.headCommitId,
-      files,
-      authorUserId: null,
-      message: "C2 test commit",
-    });
-    await advanceBranchHead("p_c2", "main", commit2.id);
-
-    const connId = "conn-c2-hashes";
-    registerConn(connId, () => {});
-    const hello: HelloMessage = {
-      type: "hello",
-      server_key: key,
-      plugin_version: "1.0.0",
-      minecraft_version: "1.21.4",
-      current_bundle_hash: "",
-    };
-    const result = await handlePluginMessage(connId, JSON.stringify(hello));
-    const ack = JSON.parse(result.reply!) as HelloAckMessage;
-    // Should match commit2's contentHash, NOT "wip-hash"
-    expect(ack.project_hashes["p_c2"]).toBe(commit2.contentHash);
-    expect(ack.project_hashes["p_c2"]).not.toBe("wip-hash");
-  });
-
-  test("hello_ack includes soft-deleted project ids", async () => {
-    const { id: keyId, key, networkId } = await seedServerKey();
-    await seedBoundProject(networkId, keyId, "alive", "ha");
-    await seedBoundProject(networkId, keyId, "dead", "hd", {}, true);
-
-    // project_hashes uses branch head commit contentHash. Both projects start with empty-files initial commit.
-    const emptyHash = computeContentHash({}, "any");
-
-    const connId = "conn-deleted";
-    registerConn(connId, () => {});
-    const hello: HelloMessage = {
-      type: "hello",
-      server_key: key,
-      plugin_version: "1.0.0",
-      minecraft_version: "1.21.4",
-      current_bundle_hash: "",
-    };
-    const result = await handlePluginMessage(connId, JSON.stringify(hello));
-    const ack = JSON.parse(result.reply!) as HelloAckMessage;
-    // In the 1:1 model, deleted projects are excluded from project_hashes (only non-deleted projects included).
-    // Deleted project still appears in deleted_project_ids so the plugin can trash it.
-    expect(ack.project_hashes).toEqual({ alive: emptyHash });
-    expect(ack.deleted_project_ids).toEqual(["dead"]);
-  });
 });
 
 describe("broadcastDraftUpdate", () => {
@@ -588,150 +502,6 @@ describe("pushResourcePackUpdated", () => {
   });
 });
 
-describe("local_push", () => {
-  test("creates project + binding if missing, upserts content, broadcasts bundle_available", async () => {
-    const { id: keyId, key, networkId } = await seedServerKey();
-    const connId = "conn-local-push";
-    const received: string[] = [];
-    registerConn(connId, (msg) => received.push(msg));
-
-    // Authenticate via hello first
-    await handlePluginMessage(connId, JSON.stringify({
-      type: "hello", server_key: key, plugin_version: "1.0", minecraft_version: "1.21", current_bundle_hash: "",
-    }));
-
-    const result = await handlePluginMessage(connId, JSON.stringify({
-      type: "local_push",
-      project_id: "p_pushed",
-      files: { "menus/m.yaml": "id: m" },
-      hash: "abc123",
-    }));
-    expect(result.reply).toBeNull();
-
-    const project = await getProject("p_pushed");
-    expect(project).not.toBeNull();
-    expect(project!.networkId).toBe(networkId);
-    expect(project!.hash).toBe("abc123");
-
-    // Verify project is owned by the server_key (1:1 model)
-    expect(project!.serverKeyId).toBe(keyId);
-
-    // bundle_available should have been broadcast (received after the hello_ack push)
-    const bundleMsg = received.map((m) => JSON.parse(m) as { type: string }).find((m) => m.type === "bundle_available");
-    expect(bundleMsg).toBeDefined();
-  });
-
-  test("local_push commits to main and advances the branch head (bundle download serves the pushed files)", async () => {
-    const { key } = await seedServerKey();
-    const connId = "conn-local-push-commit";
-    const received: string[] = [];
-    registerConn(connId, (msg) => received.push(msg));
-    await handlePluginMessage(connId, JSON.stringify({
-      type: "hello", server_key: key, plugin_version: "1.0", minecraft_version: "1.21", current_bundle_hash: "",
-    }));
-
-    const files = { "manifest.yaml": "schema: manifest/v1", "menus/m.yaml": "id: m" };
-    await handlePluginMessage(connId, JSON.stringify({
-      type: "local_push", project_id: "p_commit", files, hash: "whatever",
-    }));
-
-    // Le plugin télécharge les bundles via branche main → head commit : sans
-    // commit, il recevrait le commit initial vide et le sweep détruirait le
-    // contenu local (trouvé au smoke test Docker 2026-07-09).
-    const branch = (await db.select().from(projectBranches).where(and(
-      eq(projectBranches.projectId, "p_commit"), eq(projectBranches.name, "main"),
-    )))[0];
-    expect(branch).toBeDefined();
-    const head = (await db.select().from(projectCommits).where(eq(projectCommits.id, branch.headCommitId)))[0];
-    expect(JSON.parse(head.filesJson)).toEqual(files);
-    expect(head.contentHash).not.toBe("");
-
-    // Le bundle_available broadcast porte le contentHash du commit (même
-    // convention que le deploy), pas le hash brut envoyé par le plugin.
-    const bundleMsg = received.map((m) => JSON.parse(m) as { type: string; hash?: string })
-      .find((m) => m.type === "bundle_available");
-    expect(bundleMsg?.hash).toBe(head.contentHash);
-  });
-
-  test("local_push unauthenticated → ignored", async () => {
-    const connId = "conn-local-push-unauth";
-    registerConn(connId, () => {});
-    const result = await handlePluginMessage(connId, JSON.stringify({
-      type: "local_push", project_id: "p", files: {}, hash: "h",
-    }));
-    expect(result.reply).toBeNull();
-  });
-
-  test("local_push stores the pushed file tree and commits it (files-first)", async () => {
-    const { key } = await seedServerKey();
-    const connId = "conn-local-push-stub";
-    registerConn(connId, () => {});
-
-    await handlePluginMessage(connId, JSON.stringify({
-      type: "hello", server_key: key, plugin_version: "1.0", minecraft_version: "1.21", current_bundle_hash: "",
-    }));
-
-    const base = "plugins/Artisan/projects/p_stub";
-    const result = await handlePluginMessage(connId, JSON.stringify({
-      type: "local_push",
-      project_id: "p_stub",
-      files: {
-        [`${base}/manifest.yaml`]: "schema: manifest/v1\nproject_id: p_stub\ndefault_lang: en\nfiles:\n  menus: [shop]\n  commands: []\n  dialogs: []\n",
-        [`${base}/menus/shop.yaml`]: "id: shop\nsize: 27\n",
-        [`${base}/boutique/shop.yaml`]: "schema: boutique/v1\ncategories: []\n",
-      },
-      hash: "hash-stub",
-    }));
-    expect(result.reply).toBeNull();
-
-    const project = await getProject("p_stub");
-    expect(project).not.toBeNull();
-    expect(project!.hash).toBe("hash-stub");
-    const stored = JSON.parse(project!.filesJson) as Record<string, string>;
-    expect(stored[`${base}/boutique/shop.yaml`]).toContain("boutique/v1");
-    // local_push = commit on main + head advanced (deploy convention).
-    const branch = await getBranch("p_stub", "main");
-    const head = (await db.select().from(projectCommits).where(eq(projectCommits.id, branch!.headCommitId)))[0];
-    expect(head.message).toBe("local_push");
-  });
-
-  test("local_push replaces the stored file tree of an existing project", async () => {
-    const { id: keyId, key, networkId } = await seedServerKey();
-    const connId = "conn-local-push-real";
-    registerConn(connId, () => {});
-
-    await handlePluginMessage(connId, JSON.stringify({
-      type: "hello", server_key: key, plugin_version: "1.0", minecraft_version: "1.21", current_bundle_hash: "",
-    }));
-
-    await db.insert(projects).values({
-      id: "p_real",
-      networkId,
-      serverKeyId: keyId,
-      name: "p_real",
-      slug: "p-real",
-      hash: "",
-      filesJson: JSON.stringify({ "plugins/Artisan/projects/p_real/menus/old.yaml": "id: old\n" }),
-      deletedAt: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
-
-    const result = await handlePluginMessage(connId, JSON.stringify({
-      type: "local_push",
-      project_id: "p_real",
-      files: { "menus/shop.yaml": "id: shop\nsize: 27\n" },
-      hash: "hash-real",
-    }));
-    expect(result.reply).toBeNull();
-
-    const project = await getProject("p_real");
-    expect(project!.hash).toBe("hash-real");
-    const stored = JSON.parse(project!.filesJson) as Record<string, string>;
-    expect(stored["menus/shop.yaml"]).toContain("id: shop");
-    expect(stored["plugins/Artisan/projects/p_real/menus/old.yaml"]).toBeUndefined();
-  });
-});
 
 describe("declared_models presence (composable-data-models §4)", () => {
   test("hello persists model/v1 documents verbatim; modules_changed prunes", async () => {
@@ -987,41 +757,6 @@ describe("project_write relay (server-disk-only-storage P1)", () => {
   });
 });
 
-describe("sync_divergence (files-first P3c)", () => {
-  test("stores the plugin-reported disk tree; local_push clears it", async () => {
-    const { id: keyId, key, networkId } = await seedServerKey();
-    await seedBoundProject(networkId, keyId, "p_sync_div", "h_web")
-    const connId = "conn-sync-div";
-    registerConn(connId, () => {});
-    await handlePluginMessage(connId, JSON.stringify({
-      type: "hello", server_key: key, plugin_version: "1.0", minecraft_version: "1.21", current_bundle_hash: "",
-    }));
-
-    const base = "plugins/Artisan/projects/p_sync_div";
-    await handlePluginMessage(connId, JSON.stringify({
-      type: "sync_divergence",
-      project_id: "p_sync_div",
-      files: { [`${base}/menus/m.yaml`]: "id: m\ntitle: DISK\n" },
-      disk_hash: "h_disk",
-      synced_hash: "h_old",
-    }));
-
-    const { getPendingDivergence } = await import("./hub");
-    const pending = getPendingDivergence("p_sync_div");
-    expect(pending).toBeDefined();
-    expect(pending!.diskHash).toBe("h_disk");
-    expect(pending!.files[`${base}/menus/m.yaml`]).toContain("DISK");
-
-    // A manual pushLocal = force-disk resolution → the report is cleared.
-    await handlePluginMessage(connId, JSON.stringify({
-      type: "local_push",
-      project_id: "p_sync_div",
-      files: { [`${base}/menus/m.yaml`]: "id: m\ntitle: DISK\n" },
-      hash: "h_disk",
-    }));
-    expect(getPendingDivergence("p_sync_div")).toBeUndefined();
-  });
-});
 
 describe("protocol_version + unknown message types", () => {
   test("handlePluginMessage logs and ignores unknown message types", async () => {
@@ -1297,199 +1032,6 @@ describe("requestPlayerInventory", () => {
   });
 });
 
-describe("boutique_additem", () => {
-  test("mutates the boutique project (captured item + shop item), patches bundle files, commits and replies ok", async () => {
-    const { id: keyId, networkId } = await seedServerKey();
-    const base = "plugins/Artisan/projects/boutique_shop";
-    const shopYaml = [
-      "schema: boutique/v1",
-      "whole_shop_discount: 0",
-      "categories:",
-      "  - id: weapons",
-      "    name: Armes",
-      "    icon: DIAMOND_SWORD",
-      "    discount: 0",
-      "    items: []",
-      "",
-    ].join("\n");
-    await createProject({ networkId, serverKeyId: keyId, name: "boutique_shop", id: "boutique_shop" });
-    await upsertProjectContent("boutique_shop", {
-      hash: "h0",
-      filesJson: JSON.stringify({
-        [`${base}/manifest.yaml`]: "schema: manifest/v1\nmodule: boutique\n",
-        [`${base}/boutique/shop.yaml`]: shopYaml,
-      }),
-    });
-
-    registerConn("conn-add", () => {});
-    connToServerId.set("conn-add", keyId);
-    try {
-      const res = await handlePluginMessage("conn-add", JSON.stringify({
-        type: "boutique_additem", request_id: "r1",
-        item_id: "cle_luxury", price: 500, category: "armes",
-        stack_yaml: "item:\n  ==: org.bukkit.inventory.ItemStack\n  type: PAPER\n",
-        display: { material: "nexo:arcanist_key", enchanted: true, name: "1 clé Luxury" },
-      }));
-      expect(res.reply).not.toBeNull();
-      const reply = JSON.parse(res.reply!);
-      expect(reply.type).toBe("boutique_additem_result");
-      expect(reply.ok).toBe(true);
-
-      const project = await getProject("boutique_shop");
-      const files = JSON.parse(project!.filesJson) as Record<string, string>;
-      // Captured item created: verbatim stack file + editor metadata in the
-      // hash-excluded .artisan/editor.yaml (files-first).
-      const ciPath = Object.keys(files).find((k) => k.startsWith(`${base}/items/`));
-      expect(ciPath).toBeDefined();
-      const ciId = ciPath!.slice(`${base}/items/`.length).replace(/\.yml$/, "");
-      expect(files[ciPath!]).toContain("PAPER");
-      const { parse: parseYaml } = await import("yaml");
-      const editorState = parseYaml(files[`${base}/.artisan/editor.yaml`]!) as {
-        items?: Record<string, { name?: string; display?: { material?: string } }>;
-      };
-      expect(editorState.items?.[ciId]?.name).toBe("1 clé Luxury");
-      expect(editorState.items?.[ciId]?.display?.material).toBe("nexo:arcanist_key");
-      // …and the shop item references it (matched category by name, case-insensitive).
-      expect(files[`${base}/boutique/shop.yaml`]).toContain("cle_luxury");
-      expect(files[`${base}/boutique/shop.yaml`]).toContain(`item:${ciId}`);
-      // Branch advanced past the initial commit.
-      const branch = await getBranch("boutique_shop", "main");
-      const head = (await db.select().from(projectCommits).where(eq(projectCommits.id, branch!.headCommitId)))[0];
-      expect(head.message).toContain("additem cle_luxury");
-    } finally {
-      connToServerId.delete("conn-add");
-      connSenders.delete("conn-add");
-    }
-  });
-
-  test("declared-model Table format: upserts the item row with LITERAL name (bare form)", async () => {
-    const { id: keyId, networkId } = await seedServerKey();
-    const base = "plugins/Artisan/projects/boutique_shop2";
-    await createProject({ networkId, serverKeyId: keyId, name: "boutique_shop2", id: "boutique_shop2" });
-    await upsertProjectContent("boutique_shop2", {
-      hash: "h0",
-      filesJson: JSON.stringify({
-        [`${base}/manifest.yaml`]: "schema: manifest/v1\nmodule: boutique\ndefault_lang: fr\n",
-        [`${base}/data/categories/_source.yaml`]:
-          "schema: data/v1\nid: categories\nshape: table\nmodel: boutique:category\nmodel_version: 1\nkey_field: id\ngranularity: row\norder: [armes]\nfields: []\n",
-        [`${base}/data/categories/armes.yaml`]:
-          "id: armes\nname: sources.categories.armes.name\nicon: DIAMOND_SWORD\ndiscount: 0\nitems: []\n",
-        [`${base}/lang/fr.yaml`]: "sources.categories.armes.name: Armes\n",
-      }),
-    });
-
-    registerConn("conn-add-dt", () => {});
-    connToServerId.set("conn-add-dt", keyId);
-    try {
-      const res = await handlePluginMessage("conn-add-dt", JSON.stringify({
-        type: "boutique_additem", request_id: "r9",
-        item_id: "cle_luxury", price: 500, category: "armes",
-        stack_yaml: "item:\n  ==: org.bukkit.inventory.ItemStack\n  type: PAPER\n",
-        display: { material: "nexo:arcanist_key", name: "1 clé Luxury" },
-      }));
-      const reply = JSON.parse(res.reply!);
-      expect(reply.ok).toBe(true);
-
-      const project = await getProject("boutique_shop2");
-      const files = JSON.parse(project!.filesJson) as Record<string, string>;
-      const { parse: parseYaml } = await import("yaml");
-      const row = parseYaml(files[`${base}/data/categories/armes.yaml`]!) as {
-        items: { id: string; name: string; icon: string; price: number }[];
-      };
-      expect(row.items).toHaveLength(1);
-      expect(row.items[0]!.id).toBe("cle_luxury");
-      // Bare form (ADR bare-data-files ④): the name is the literal text —
-      // no key minted, lang/ untouched.
-      expect(row.items[0]!.name).toBe("1 clé Luxury");
-      expect(row.items[0]!.icon).toMatch(/^item:ci_/);
-      const fr = parseYaml(files[`${base}/lang/fr.yaml`]!) as Record<string, string>;
-      expect(fr["sources.categories.armes.items.name"]).toBeUndefined();
-      // Legacy shop.yaml was NOT created.
-      expect(files[`${base}/boutique/shop.yaml`]).toBeUndefined();
-    } finally {
-      connToServerId.delete("conn-add-dt");
-      connSenders.delete("conn-add-dt");
-    }
-  });
-
-  test("finds the project by its DISK id when the internal id differs", async () => {
-    // Two unrelated servers both run Boutique, so the second one's project got
-    // a generated internal id while its files stay keyed on `boutique_shop3`.
-    // Locating by the internal id found nothing -> no_boutique_project, i.e.
-    // /boutique additem dead on that server (incident 2026-08-12).
-    const other = await seedServerKey();
-    await createProject({
-      networkId: other.networkId, serverKeyId: other.id,
-      name: "boutique_shop3", id: "boutique_shop3",
-    });
-    const { id: keyId, networkId } = await seedServerKey();
-    const project = await ensureProjectForServer({
-      networkId, serverKeyId: keyId, diskId: "boutique_shop3",
-    });
-    expect(project.id).not.toBe("boutique_shop3");
-
-    const base = "plugins/Artisan/projects/boutique_shop3";
-    await upsertProjectContent(project.id, {
-      hash: "h0",
-      filesJson: JSON.stringify({
-        [`${base}/manifest.yaml`]: ["schema: manifest/v1", "module: boutique", "default_lang: fr", ""].join("\n"),
-        [`${base}/data/categories/_source.yaml`]: [
-          "schema: data/v1", "id: categories", "shape: table",
-          "model: boutique:category", "model_version: 1", "key_field: id",
-          "granularity: row", "order: [armes]", "fields: []", "",
-        ].join("\n"),
-        [`${base}/data/categories/armes.yaml`]: [
-          "id: armes", "name: Armes", "icon: DIAMOND_SWORD", "discount: 0", "items: []", "",
-        ].join("\n"),
-      }),
-    });
-
-    registerConn("conn-add-disk", () => {});
-    connToServerId.set("conn-add-disk", keyId);
-    try {
-      const res = await handlePluginMessage("conn-add-disk", JSON.stringify({
-        type: "boutique_additem", request_id: "r10",
-        item_id: "epee", price: 10, category: "armes",
-        stack_yaml: ["item:", "  type: PAPER", ""].join("\n"),
-        display: { material: "DIAMOND_SWORD", name: "Epee" },
-      }));
-      const reply = JSON.parse(res.reply!);
-      expect(reply.ok).toBe(true);
-
-      // Written back under the DISK-id prefix, never the internal one.
-      const after = await getProject(project.id);
-      const files = JSON.parse(after!.filesJson) as Record<string, string>;
-      expect(Object.keys(files).every((k) => k.startsWith(`${base}/`))).toBe(true);
-      const { parse: parseYaml } = await import("yaml");
-      const row = parseYaml(files[`${base}/data/categories/armes.yaml`]!) as {
-        items: { id: string }[];
-      };
-      expect(row.items.map((i) => i.id)).toEqual(["epee"]);
-    } finally {
-      connToServerId.delete("conn-add-disk");
-      connSenders.delete("conn-add-disk");
-    }
-  });
-
-  test("replies no_boutique_project when no project on the key holds boutique data", async () => {
-    const { id: keyId } = await seedServerKey();
-    registerConn("conn-add2", () => {});
-    connToServerId.set("conn-add2", keyId);
-    try {
-      const res = await handlePluginMessage("conn-add2", JSON.stringify({
-        type: "boutique_additem", request_id: "r2",
-        item_id: "x", price: 10,
-        stack_yaml: "item:\n  type: PAPER\n", display: {},
-      }));
-      const reply = JSON.parse(res.reply!);
-      expect(reply.ok).toBe(false);
-      expect(reply.error).toBe("no_boutique_project");
-    } finally {
-      connToServerId.delete("conn-add2");
-      connSenders.delete("conn-add2");
-    }
-  });
-});
 
 // Two unrelated servers (different networks, different owners) both run the
 // Boutique add-on, which bootstraps a project whose on-disk id is always
@@ -1497,87 +1039,3 @@ describe("boutique_additem", () => {
 // resolved the project by id ALONE and silently overwrote the first server's
 // content — a cross-tenant write reachable from the normal link flow
 // (incident 2026-08-12).
-describe("project ownership isolation (same on-disk id, unrelated servers)", () => {
-  const DISK_ID = "boutique_shop";
-
-  async function connect(key: string, connId: string, localProjectIds: string[] = []) {
-    const received: string[] = [];
-    registerConn(connId, (msg) => received.push(msg));
-    const res = await handlePluginMessage(connId, JSON.stringify({
-      type: "hello", server_key: key, plugin_version: "1.0", minecraft_version: "1.21",
-      current_bundle_hash: "", local_project_ids: localProjectIds,
-    }));
-    return { received, ack: JSON.parse(res.reply!) as HelloAckMessage };
-  }
-
-  test("local_push from server B never writes into server A's project", async () => {
-    const a = await seedServerKey();
-    const b = await seedServerKey();
-    await seedBoundProject(a.networkId, a.id, DISK_ID, "hash-A", { "menus/a.yaml": "id: a" });
-
-    await connect(b.key, "conn-own-b");
-    await handlePluginMessage("conn-own-b", JSON.stringify({
-      type: "local_push", project_id: DISK_ID,
-      files: { "menus/b.yaml": "id: b" }, hash: "hash-B",
-    }));
-
-    // A's row is untouched: same owner, same content.
-    const aProject = await getProject(DISK_ID);
-    expect(aProject!.serverKeyId).toBe(a.id);
-    expect(aProject!.hash).toBe("hash-A");
-    expect(JSON.parse(aProject!.filesJson)).toEqual({ "menus/a.yaml": "id: a" });
-
-    // B got its OWN project, addressed by the same on-disk id.
-    const bRows = await db.select().from(projects).where(eq(projects.serverKeyId, b.id));
-    expect(bRows.length).toBe(1);
-    expect(bRows[0].externalId).toBe(DISK_ID);
-    expect(bRows[0].hash).toBe("hash-B");
-    expect(bRows[0].networkId).toBe(b.networkId);
-
-    connToServerId.delete("conn-own-b");
-    connSenders.delete("conn-own-b");
-  });
-
-  test("hello stub-create does not adopt another server's project", async () => {
-    const a = await seedServerKey();
-    const b = await seedServerKey();
-    await seedBoundProject(a.networkId, a.id, DISK_ID, "hash-A", { "menus/a.yaml": "id: a" });
-
-    const { ack } = await connect(b.key, "conn-own-stub", [DISK_ID]);
-
-    // The ack advertises the id the plugin knows (its on-disk id), and the row
-    // behind it belongs to B — not A.
-    expect(Object.keys(ack.project_hashes ?? {})).toContain(DISK_ID);
-    const bRows = await db.select().from(projects).where(eq(projects.serverKeyId, b.id));
-    expect(bRows.length).toBe(1);
-    expect(bRows[0].externalId).toBe(DISK_ID);
-
-    const aProject = await getProject(DISK_ID);
-    expect(aProject!.serverKeyId).toBe(a.id);
-
-    connToServerId.delete("conn-own-stub");
-    connSenders.delete("conn-own-stub");
-  });
-
-  test("bundle_available and project_deleted address the plugin by its on-disk id", async () => {
-    const a = await seedServerKey();
-    const b = await seedServerKey();
-    await seedBoundProject(a.networkId, a.id, DISK_ID, "hash-A", { "menus/a.yaml": "id: a" });
-
-    const { received } = await connect(b.key, "conn-own-wire");
-    await handlePluginMessage("conn-own-wire", JSON.stringify({
-      type: "local_push", project_id: DISK_ID,
-      files: { "menus/b.yaml": "id: b" }, hash: "hash-B",
-    }));
-
-    const bundleMsg = received
-      .map((m) => JSON.parse(m) as { type: string; project_id?: string })
-      .find((m) => m.type === "bundle_available");
-    expect(bundleMsg).toBeDefined();
-    // The plugin only knows its disk id — never the backend's internal row id.
-    expect(bundleMsg!.project_id).toBe(DISK_ID);
-
-    connToServerId.delete("conn-own-wire");
-    connSenders.delete("conn-own-wire");
-  });
-});

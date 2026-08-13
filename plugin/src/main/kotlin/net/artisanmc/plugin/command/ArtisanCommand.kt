@@ -28,7 +28,7 @@ class ArtisanCommand(
         sender: CommandSender, command: Command, label: String, args: Array<out String>
     ): List<String> {
         return when {
-            args.size == 1 -> listOf("menu", "reload", "sync", "link", "editor", "dump-title", "pushLocal")
+            args.size == 1 -> listOf("menu", "reload", "sync", "link", "editor", "dump-title")
                 .filter { it.startsWith(args[0].lowercase()) }
             args.size == 2 && args[0].equals("menu", ignoreCase = true) ->
                 plugin.menuProvider.listMenuIds().filter { it.startsWith(args[1]) }
@@ -36,10 +36,6 @@ class ArtisanCommand(
                 plugin.menuProvider.listMenuIds().filter { it.startsWith(args[1]) }
             args.size == 2 && args[0].equals("sync", ignoreCase = true) ->
                 listOf("status", "reject").filter { it.startsWith(args[1].lowercase()) }
-            args.size == 2 && args[0].equals("pushLocal", ignoreCase = true) -> {
-                val projectIds = plugin.projectRoots.all().keys
-                (projectIds + "--all").filter { it.startsWith(args[1]) }
-            }
             else -> emptyList()
         }
     }
@@ -82,7 +78,6 @@ class ArtisanCommand(
                 }
                 dumpTitle(sender, menuId, args.getOrNull(2))
             }
-            "pushlocal" -> handlePushLocal(sender, args.drop(1))
             else -> sender.sendMessage(lang.get("artisan.usage_main", sender))
         }
         return true
@@ -169,32 +164,6 @@ class ArtisanCommand(
         // Last so chat doesn't truncate the cursor walk.
         plugin.logger.info("[dump-title] full Component.toString (length=${raw.length}):")
         plugin.logger.info("[dump-title] $raw")
-    }
-
-    private fun handlePushLocal(sender: CommandSender, args: List<String>) {
-        val target = args.getOrNull(0) ?: run {
-            sender.sendMessage("Usage: /artisan pushLocal <project_id|--all>")
-            return
-        }
-        val roots = plugin.projectRoots
-        val projectIds = if (target == "--all") roots.all().keys.toList() else listOf(target)
-        if (projectIds.isEmpty()) {
-            sender.sendMessage("No projects found to push.")
-            return
-        }
-        for (projectId in projectIds) {
-            val dir = roots.dirFor(projectId)
-            if (!dir.isDirectory) {
-                sender.sendMessage("Project '$projectId' not found on disk; skipping.")
-                continue
-            }
-            val hash = plugin.menuProvider.pushLocalProject(projectId, dir)
-            if (hash != null) {
-                sender.sendMessage("Pushed project '$projectId' to backend (hash=${hash.take(8)}…).")
-            } else {
-                sender.sendMessage("Project '$projectId': not connected to backend — push skipped.")
-            }
-        }
     }
 
     private fun editor(sender: CommandSender) {

@@ -19,10 +19,7 @@ import net.artisanmc.plugin.model.ProjectBundle
 import net.artisanmc.plugin.render.DialogRenderer
 import net.artisanmc.plugin.render.MenuRenderer
 import net.artisanmc.plugin.resourcepack.AssetEntry
-import net.artisanmc.plugin.sync.BundleDownloader
 import net.artisanmc.plugin.sync.BundleHasher
-import net.artisanmc.plugin.sync.LocalPushSender
-import net.artisanmc.plugin.sync.SyncMetadata
 import net.artisanmc.plugin.ws.WsClient
 import net.artisanmc.plugin.yaml.ProjectReader
 import okhttp3.OkHttpClient
@@ -31,21 +28,6 @@ import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import java.util.logging.Logger
-
-enum class SyncAction { IN_SYNC, AUTO_SYNC, LOCAL_ONLY, CONFLICT }
-
-/**
- * Determines the sync action for a project given three hashes.
- * "" (empty string) is the canonical sentinel for "no content / never synced".
- * BundleHasher.hash() returns "" for empty directories; SyncMetadata defaults syncedHash to "".
- * When all three are "", the project is considered IN_SYNC (both sides have nothing — correct).
- */
-fun detectSyncAction(diskHash: String, syncedHash: String, backendHash: String): SyncAction {
-    if (diskHash == backendHash) return SyncAction.IN_SYNC
-    if (diskHash == syncedHash) return SyncAction.AUTO_SYNC          // backend is newer, no local changes
-    if (backendHash == syncedHash) return SyncAction.LOCAL_ONLY      // local changed, backend unchanged
-    return SyncAction.CONFLICT                                        // both sides changed
-}
 
 class SyncedMenuProvider(
     private val roots: net.artisanmc.plugin.project.ProjectRoots,
@@ -204,7 +186,6 @@ class SyncedMenuProvider(
     private fun describeError(e: Throwable): String =
         e.message?.takeIf { it.isNotBlank() } ?: e.javaClass.simpleName
 
-    private val downloadsInFlight = ConcurrentHashMap<String, Boolean>()
     @Volatile private var apiUrl: String? = null
     @Volatile private var editorUrl: String? = null
     @Volatile private var networkName: String? = null
@@ -221,7 +202,6 @@ class SyncedMenuProvider(
         reloadFromDisk()
         startScanner()
         if (serverKey.isNotEmpty()) {
-            val currentHash = BundleHasher.hashAll(roots)
             val mcVersion = try {
                 org.bukkit.Bukkit.getServer().minecraftVersion
             } catch (e: Exception) {
@@ -237,7 +217,8 @@ class SyncedMenuProvider(
                 url               = wsUrl,
                 serverKey         = serverKey,
                 mcVersion         = mcVersion,
-                currentBundleHash = currentHash,
+                // Le backend ne détient plus de contenu : il n'a rien à comparer.
+                currentBundleHash = "",
                 localProjectIds   = bundles.map { it.projectId },
                 customItemsHash   = "",
                 installedModules  = installedModules,
@@ -330,30 +311,6 @@ class SyncedMenuProvider(
         customItemsManager = manager
     }
 
-    override fun pushLocalProject(projectId: String, projectDir: java.io.File): String? {
-        val msg = LocalPushSender.buildPushMessage(projectId, projectDir)
-        send(msg)
-        return msg["hash"] as? String
-    }
-
-    /**
-     * Disk hash of the last automatic push, per project. In memory only, on
-     * purpose: it closes the echo window between a `local_push` and the
-     * `bundle_available` that acknowledges it (several triggers can observe the
-     * same LOCAL_ONLY tree — a config_write and the scan a tick later), without
-     * ever claiming on disk that something was synced when it may not have
-     * landed. Cleared on reconnect and after a download, so a push lost in
-     * flight is retried rather than forgotten.
-     */
-    private val lastPushedHash = ConcurrentHashMap<String, String>()
-
-    /** Automatic (non-forced) push of a LOCAL_ONLY tree, at most once per disk hash. */
-    private fun autoPush(projectId: String, projectDir: java.io.File, diskHash: String) {
-        if (lastPushedHash[projectId] == diskHash) return
-        lastPushedHash[projectId] = diskHash
-        pushLocalProject(projectId, projectDir)
-    }
-
     @Volatile private var scanner: net.artisanmc.plugin.sync.SyncScanner? = null
 
     /**
@@ -373,32 +330,16 @@ class SyncedMenuProvider(
         ).also { it.start() }
     }
 
-    /** Runs on the scanner's tick thread — same off-main pattern as bundle_available. */
-    private fun onScanChanged(projectIds: Set<String>) {
+    /**
+     * Tick du scanner : une édition à la main ou par un agent est rechargée à
+     * chaud, point. Le scanner ne décide plus de rien (ADR
+     * `server-disk-only-storage`) — il n'y a plus deux côtés à arbitrer, donc
+     * plus de push, plus de divergence, plus de hash à comparer.
+     */
+    private fun onScanChanged(@Suppress("UNUSED_PARAMETER") projectIds: Set<String>) {
         reloadFromDisk()
         draftMenus.clear()
         onReload?.invoke()
-        if (serverKey.isEmpty()) return
-        projectIds.forEach { projectId ->
-            val projectDir = roots.dirFor(projectId)
-            if (!projectDir.exists()) return@forEach
-            val diskHash = BundleHasher.hash(projectDir)
-            val meta = SyncMetadata.read(projectDir)
-            when (detectSyncAction(diskHash, meta.syncedHash, meta.backendHash)) {
-                SyncAction.IN_SYNC, SyncAction.AUTO_SYNC -> {}
-                SyncAction.LOCAL_ONLY -> {
-                    logger?.warning("[Artisan] '$projectId' changed on disk — hot-reloaded, auto-pushing.")
-                    autoPush(projectId, projectDir, diskHash)
-                }
-                SyncAction.CONFLICT -> {
-                    logger?.warning(
-                        "[Artisan] '$projectId' changed on disk but the backend also moved since last sync — " +
-                        "hot-reloaded locally, NOT pushed; divergence reported to the editor for resolution."
-                    )
-                    send(LocalPushSender.buildDivergenceMessage(projectId, projectDir, meta.syncedHash))
-                }
-            }
-        }
     }
 
     private fun reloadFromDisk() {
@@ -421,83 +362,12 @@ class SyncedMenuProvider(
     }
 
 
-    /**
-     * Dernier `project_hashes` reçu au hello_ack. Null tant qu'aucun n'est
-     * arrivé : sans référence backend, il n'y a rien à comparer.
-     */
-    @Volatile private var lastProjectHashes: Map<String, String>? = null
-
-    /**
-     * Rejoue le contrôle de synchro du hello_ack. Nécessaire parce qu'un module
-     * peut écrire des fichiers de project à son activation — donc APRÈS le
-     * hello_ack, le contrôle étant déjà passé. Le scan périodique rattraperait
-     * au tick suivant ; ce rappel évite simplement d'attendre.
-     */
-    fun recheckLocalChanges() {
-        val hashes = lastProjectHashes ?: return
-        checkLocalChangesAgainst(hashes)
-    }
-
-    private fun checkLocalChangesAgainst(projectHashes: Map<String, String>) {
-        roots.all().forEach { (projectId, projectDir) ->
-            val backendHash = projectHashes[projectId] ?: run {
-                logger?.fine("Project $projectId not found in backend project_hashes — treating as local-only, no sync")
-                return@forEach
-            }
-            val diskHash = BundleHasher.hash(projectDir)
-
-            // Backend has an empty stub — auto-push local files via WS local_push
-            if (backendHash.isEmpty() && diskHash.isNotEmpty()) {
-                logger?.info("Project $projectId: backend reports empty — auto-pushing local content")
-                httpClient.dispatcher.executorService.execute {
-                    autoPush(projectId, projectDir, diskHash)
-                }
-                return@forEach
-            }
-
-            val meta = SyncMetadata.read(projectDir)
-            val action = detectSyncAction(diskHash, meta.syncedHash, backendHash)
-            when (action) {
-                SyncAction.IN_SYNC    -> logger?.fine("Project $projectId is in sync")
-                SyncAction.AUTO_SYNC  -> logger?.fine("Project $projectId: backend is newer — sync will be applied via bundle_available")
-                SyncAction.LOCAL_ONLY -> {
-                    // Files-first (ADR files-first-source-of-truth #6): the disk is the
-                    // primary editing surface — local-only changes are AUTO-PUSHED,
-                    // silent + one WARN for post-mortem tracing (house "no theater" rule).
-                    logger?.warning(
-                        "[Artisan] Local project '$projectId' changed on disk (backend unchanged) — auto-pushing local content."
-                    )
-                    httpClient.dispatcher.executorService.execute {
-                        autoPush(projectId, projectDir, diskHash)
-                    }
-                }
-                SyncAction.CONFLICT -> {
-                    // True divergence (disk AND web both moved since last sync): no
-                    // overwrite in either direction — report the disk state so the
-                    // editor can offer per-file resolution (P3c). Re-sent at every
-                    // hello_ack until resolved (self-healing if the backend restarts).
-                    logger?.warning(
-                        "[Artisan] Local project '$projectId' diverged from backend (both changed). " +
-                        "Not auto-pushing — divergence reported to the editor for resolution."
-                    )
-                    httpClient.dispatcher.executorService.execute {
-                        send(LocalPushSender.buildDivergenceMessage(projectId, projectDir, meta.syncedHash))
-                    }
-                }
-            }
-        }
-    }
-
     private fun handleMessage(raw: String) {
         val node = runCatching { jsonMapper.readTree(raw) }.getOrNull() ?: return
         when (node["type"]?.asText()) {
             "hello_ack" -> {
                 val sessionId = node["session_id"]?.asText()
                 logger?.info("Connected to Artisan backend (session=$sessionId)")
-                // Fresh connection: re-arm auto-push, so anything lost in flight on
-                // the previous session is pushed again rather than forgotten.
-                lastPushedHash.clear()
-
                 apiUrl = node["bundle_url"]?.asText() ?: node["api_url"]?.asText()
                 editorUrl = node["server_url"]?.asText() ?: node["editor_url"]?.asText() ?: editorUrl
                 networkName = node["network_name"]?.asText() ?: networkName
@@ -518,87 +388,9 @@ class SyncedMenuProvider(
                     }
                 }
 
-                val projectHashesNode = node["project_hashes"] ?: run {
-                    logger?.warning("Backend did not send project_hashes — sync check skipped (old backend?)")
-                    return
-                }
-                val projectHashes: Map<String, String> = runCatching {
-                    jsonMapper.convertValue(projectHashesNode, object : TypeReference<Map<String, String>>() {})
-                }.getOrDefault(emptyMap())
-
-                val deletedProjectIdsNode = node["deleted_project_ids"]
-                if (deletedProjectIdsNode != null && deletedProjectIdsNode.isArray) {
-                    deletedProjectIdsNode.forEach { idNode ->
-                        val projectId = idNode.asText()
-                        if (roots.dirFor(projectId).exists()) {
-                            logger?.info("hello_ack: reconciling deletion of $projectId")
-                            handleProjectDeletion(projectId)
-                        }
-                    }
-                }
-
-                lastProjectHashes = projectHashes
-                checkLocalChangesAgainst(projectHashes)
-            }
-
-            "bundle_available" -> {
-                val projectId = node["project_id"]?.asText() ?: return
-                val url    = node["url"]?.asText()     ?: return
-                // Same gate as hello_ack (ADR files-first #6): never overwrite
-                // local-only disk changes. `force: true` (divergence resolution,
-                // manual pushLocal) bypasses — the merged tree IS the intent.
-                if (node["force"]?.asBoolean() != true) {
-                    val bundleHash = node["hash"]?.asText() ?: ""
-                    val projectDir = roots.dirFor(projectId)
-                    if (projectDir.exists()) {
-                        val diskHash = BundleHasher.hash(projectDir)
-                        val meta = SyncMetadata.read(projectDir)
-                        when (detectSyncAction(diskHash, meta.syncedHash, bundleHash)) {
-                            SyncAction.IN_SYNC -> { /* echo of our own state — still download to refresh SyncMetadata */ }
-                            SyncAction.AUTO_SYNC -> {}
-                            SyncAction.LOCAL_ONLY -> {
-                                logger?.warning(
-                                    "[Artisan] bundle_available for '$projectId' ignored — disk has local-only changes; auto-pushing instead."
-                                )
-                                httpClient.dispatcher.executorService.execute {
-                                    autoPush(projectId, projectDir, diskHash)
-                                }
-                                return
-                            }
-                            SyncAction.CONFLICT -> {
-                                logger?.warning(
-                                    "[Artisan] bundle_available for '$projectId' ignored — disk and backend both changed; divergence reported."
-                                )
-                                httpClient.dispatcher.executorService.execute {
-                                    send(LocalPushSender.buildDivergenceMessage(projectId, projectDir, meta.syncedHash))
-                                }
-                                return
-                            }
-                        }
-                    }
-                }
-                if (downloadsInFlight.putIfAbsent(projectId, true) != null) return
-                try {
-                    httpClient.dispatcher.executorService.execute {
-                        // No self-write suppression needed: the downloader records the
-                        // hash it just wrote, so the next scan resolves to IN_SYNC and
-                        // nothing is pushed back. Content, not timing.
-                        try {
-                            val downloader = BundleDownloader(httpClient, roots, logger)
-                            downloader.download(url = url, serverKey = serverKey, projectId = projectId)
-                            reloadFromDisk()
-                            draftMenus.clear()
-                            logger?.info("[ART-DEBUG] bundle_available: triggering onReload for project=$projectId")
-                            onReload?.invoke()
-                        } finally {
-                            lastPushedHash.remove(projectId)
-                            downloadsInFlight.remove(projectId)
-                        }
-                    }
-                } catch (_: java.util.concurrent.RejectedExecutionException) {
-                    downloadsInFlight.remove(projectId)
-                    logger?.warning("Bundle download rejected — plugin is stopping")
-                }
+                // Plus de `project_hashes` ni de contrôle de synchro : le backend
+                // ne détient plus de contenu, il n'y a donc rien à comparer au
+                // disque (ADR `server-disk-only-storage`).
             }
 
             "draft_update" -> {
@@ -1031,16 +823,8 @@ class SyncedMenuProvider(
                             reloadFromDisk()
                             draftMenus.clear()
                             onReload?.invoke()
-                            if (serverKey.isNotEmpty()) {
-                                val diskHash = BundleHasher.hash(projectDir)
-                                val meta = SyncMetadata.read(projectDir)
-                                when (detectSyncAction(diskHash, meta.syncedHash, meta.backendHash)) {
-                                    SyncAction.IN_SYNC, SyncAction.AUTO_SYNC -> {}
-                                    SyncAction.LOCAL_ONLY -> autoPush(projectId, projectDir, diskHash)
-                                    SyncAction.CONFLICT ->
-                                        send(LocalPushSender.buildDivergenceMessage(projectId, projectDir, meta.syncedHash))
-                                }
-                            }
+                            // Écrit sur disque et rechargé : c'est tout. Il n'y a
+                            // plus de copie backend à tenir au courant.
                             reply(mapOf("ok" to true))
                         } catch (e: Throwable) {
                             logger?.log(java.util.logging.Level.WARNING, "[Artisan] config_write '$projectId' failed", e)
@@ -1103,7 +887,6 @@ class SyncedMenuProvider(
         // The move-to-trash needs no suppression: the project root disappears, so
         // the scanner simply drops its state instead of seeing an edit.
         net.artisanmc.plugin.sync.ProjectDeleter(roots, logger).delete(projectId)
-        lastPushedHash.remove(projectId)
         onReload?.invoke()
     }
 

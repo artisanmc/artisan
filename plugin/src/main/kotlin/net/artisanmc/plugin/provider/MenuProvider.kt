@@ -22,10 +22,4 @@ interface MenuProvider {
     fun openDialog(player: Player, dialogId: String, lang: String, ctx: ExecutionContext) {}
     /** (editorUrl, networkName) once known from hello_ack; null before the plugin has connected. */
     fun editorInfo(): Pair<String, String>? = null
-    /**
-     * Sends a `local_push` WS message for the given project dir so the backend can
-     * ingest locally-edited files (FTP scenario). No-op when not connected.
-     * Returns the hash included in the message, or null if the project dir was not found.
-     */
-    fun pushLocalProject(projectId: String, projectDir: java.io.File): String? = null
 }

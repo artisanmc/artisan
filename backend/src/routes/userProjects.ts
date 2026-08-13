@@ -5,13 +5,9 @@ import { join } from "node:path";
 import { eq } from "drizzle-orm";
 import { db } from "../db";
 import { projects as projectsTable } from "../db/schema";
-import { broadcastDraftUpdate, clearPendingDivergence, getMcVersion, getPendingDivergence, pushBundleAvailable, pushProjectDeleted } from "../ws/hub";
-import { advanceBranchHead, getBranch } from "../lib/branchStorage";
-import { createCommit } from "../lib/commitStorage";
+import { broadcastDraftUpdate, getMcVersion, pushProjectDeleted } from "../ws/hub";
 import { customItemsCacheDir, readCustomItems } from "../lib/customItems";
-import { diffDivergence, mergeDivergence } from "../lib/divergence";
-import { computeBundleHash } from "../lib/hashUtils";
-import { getProject, projectDiskId, resolveProjectRef, softDeleteProject, upsertProjectContent } from "../lib/projectStorage";
+import { getProject, projectDiskId, resolveProjectRef, softDeleteProject } from "../lib/projectStorage";
 import { getNetworkOfProject, requireMember } from "../lib/membershipGuard";
 import type { AuthUser } from "../middleware/userAuth";
 
@@ -109,87 +105,14 @@ userProjectsRouter.get("/:projectId", async (c: Context<{ Variables: Vars }>) =>
   const project = await getProject(projectId);
   if (project === null) return c.json({ error: "not_found" }, 404);
 
-  const webFiles = JSON.parse(project.filesJson) as Record<string, string>;
-  const pending = getPendingDivergence(projectId);
+  // L'IDENTITÉ seule : nom, slug, serveur propriétaire, network. Le contenu vit
+  // sur le disque du serveur et se lit par `project_read` (ADR
+  // `server-disk-only-storage`).
   return c.json({
     project,
     networkId,
     serverKeyId: project.serverKeyId,
-    // Files-first: the file tree IS the Project — the editor parses it
-    // client-side (projectFromFiles). No editor JSON is stored anymore.
-    files: webFiles,
-    // Files-first P3c: pending disk↔web divergence, per-file detail for the
-    // resolution banner. Absent when the trees agree.
-    ...(pending
-      ? {
-          divergence: {
-            disk_hash: pending.diskHash,
-            at: pending.at,
-            files: diffDivergence(webFiles, pending.files, projectDiskId(project)),
-          },
-        }
-      : {}),
   });
-});
-
-// POST /api/user/projects/:projectId/resolve-divergence — apply per-file
-// choices ("disk" | "web", default web) to a pending divergence: the merged
-// tree becomes the new WIP + a commit on main, the plugin re-syncs via
-// bundle_available, and the pending report is cleared.
-userProjectsRouter.post("/:projectId/resolve-divergence", async (c: Context<{ Variables: Vars }>) => {
-  const userId = getUserId(c);
-  if (!userId) return c.json({ error: "unauthorized" }, 401);
-
-  const projectId = c.req.param("projectId");
-  const networkId = await getNetworkOfProject(projectId);
-  if (networkId === null) return c.json({ error: "not_found" }, 404);
-  try {
-    await requireMember(userId, networkId);
-  } catch {
-    return c.json({ error: "forbidden" }, 403);
-  }
-
-  const pending = getPendingDivergence(projectId);
-  if (!pending) return c.json({ error: "no_divergence" }, 404);
-  const project = await getProject(projectId);
-  if (!project) return c.json({ error: "not_found" }, 404);
-
-  let body: { choices?: Record<string, "disk" | "web"> };
-  try {
-    body = await c.req.json();
-  } catch {
-    return c.json({ error: "invalid_body" }, 400);
-  }
-  const choices = body.choices ?? {};
-
-  const webFiles = JSON.parse(project.filesJson) as Record<string, string>;
-  const merged = mergeDivergence(webFiles, pending.files, projectDiskId(project), choices);
-  const hash = await computeBundleHash(merged, projectDiskId(project));
-
-  // Unconditioned write (like local_push): the version bump invalidates other
-  // open tabs through the existing optimistic-lock banner.
-  const version = await upsertProjectContent(projectId, {
-    hash,
-    filesJson: JSON.stringify(merged),
-  });
-
-  const branch = await getBranch(projectId, "main");
-  let contentHash = hash;
-  if (branch) {
-    const commit = await createCommit({
-      projectId,
-      parentId: branch.headCommitId,
-      files: merged,
-      authorUserId: userId,
-      message: "Resolve disk/web divergence",
-    });
-    await advanceBranchHead(projectId, "main", commit.id);
-    contentHash = commit.contentHash;
-  }
-  await pushBundleAvailable(projectId, "main", contentHash, { force: true });
-  clearPendingDivergence(projectId, project.serverKeyId);
-
-  return c.json({ ok: true, version, hash });
 });
 
 // GET /api/user/projects/:projectId/items — vanilla item bundle for the project's MC version
@@ -240,43 +163,6 @@ userProjectsRouter.get("/:projectId/custom-items", async (c: Context<{ Variables
   const cacheDir = customItemsCacheDir(serverKeyId);
   const items = await readCustomItems(cacheDir);
   return c.json({ serverKeyId, items });
-});
-
-// PUT /api/user/projects/:projectId — write project content + broadcast (member only)
-userProjectsRouter.put("/:projectId", async (c: Context<{ Variables: Vars }>) => {
-  const userId = getUserId(c);
-  if (!userId) return c.json({ error: "unauthorized" }, 401);
-
-  const projectId = c.req.param("projectId");
-
-  const networkId = await getNetworkOfProject(projectId);
-  if (networkId === null) return c.json({ error: "not_found" }, 404);
-
-  try {
-    await requireMember(userId, networkId);
-  } catch {
-    return c.json({ error: "forbidden" }, 403);
-  }
-
-  const body = await c.req.json<{ hash: string; files: Record<string, string>; baseVersion?: number }>();
-  if (typeof body.baseVersion !== "number") {
-    return c.json({ error: "missing_base_version" }, 400);
-  }
-
-  const newVersion = await upsertProjectContent(
-    projectId,
-    {
-      hash: body.hash,
-      filesJson: JSON.stringify(body.files),
-    },
-    { expectedVersion: body.baseVersion },
-  );
-  if (newVersion === null) {
-    const current = await getProject(projectId);
-    return c.json({ error: "version_conflict", currentVersion: current?.version ?? 0 }, 409);
-  }
-
-  return c.json({ ok: true, version: newVersion });
 });
 
 // POST /api/user/projects/:projectId/draft — broadcast a WIP menu edit to other

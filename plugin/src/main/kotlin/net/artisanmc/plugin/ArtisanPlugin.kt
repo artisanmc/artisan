@@ -263,12 +263,11 @@ open class ArtisanPlugin : JavaPlugin() {
             fun on(event: org.bukkit.event.server.ServerLoadEvent) {
                 server.scheduler.runTaskLaterAsynchronously(this@ArtisanPlugin, Runnable {
                     provider.notifyCustomItemsReload()
-                    // Les modules s'activent APRÈS nous et peuvent écrire dans
-                    // leur project (migrations one-shot) : le contrôle de
-                    // synchro du hello_ack est alors déjà passé. On le rejoue
-                    // une fois tous les plugins chargés — sinon le fichier reste
-                    // local et le sweep du prochain bundle l'efface.
-                    provider.recheckLocalChanges()
+                    // Un module qui écrit dans son project à l'activation n'a plus
+                    // rien à rattraper : le disque est la seule vérité, donc son
+                    // fichier est déjà en place (ADR `server-disk-only-storage`).
+                    // Avant, il fallait rejouer le contrôle de synchro du hello_ack,
+                    // sinon le sweep du bundle suivant effaçait le fichier.
                 }, 40L)
             }
         }, this)

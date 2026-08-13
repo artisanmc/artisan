@@ -89,7 +89,7 @@ User ── Membership ──┐
 - **`network_transfers`** : `(token, network_id, initiated_by_user_id, expires_at, consumed_at, consumed_by_user_id, created_at)`. Token partageable 24h pour transférer la propriété d'un Network entier. Memberships swap **clean break** — ancien owner perd l'accès.
 - **Server key deletion** : DELETE server_key (owner-only) → cascade les projects liés (`projects.serverKeyId` FK cascade). Le plugin perd la connexion au prochain hello.
 - **Désaffectation sans transfert** : delete la server_key, re-setup côté plugin → l'auto-push (`local_push` au hello) recharge les projects dans le nouveau network. Pas de mutation cross-account.
-- **Bootstrap auto-push** : au hello, les projects disque inconnus du backend (`disk_hash != "" && backend_hash == ""`) sont auto-pushés via `local_push` (plus de `/artisan pushLocal` manuel pour le first-time setup).
+- **Bootstrap d'identité** : au hello, un project présent sur le disque du serveur mais inconnu du backend y est enregistré — **identité seulement**, aucun contenu (ADR `server-disk-only-storage`).
 
 ## Custom items cache
 

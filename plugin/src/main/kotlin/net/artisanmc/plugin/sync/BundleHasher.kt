@@ -4,21 +4,28 @@ import java.io.File
 import java.security.MessageDigest
 
 /**
- * THE canonical project hash — one algorithm, one home. Computed over a relPath-keyed
- * file map: keys sorted by native byte order (Kotlin `String` compare, NEVER
- * locale-aware), each entry emitted as `<relPath>\n<content>\n`, concatenated,
- * SHA-256 lowercase hex. Empty map => "" (universal "no content" sentinel).
+ * Hachage de contenu — deux usages, tous deux **locaux au plugin**.
  *
- * This MUST stay byte-identical to the backend's `hashUtils.computeBundleHash`.
- * The two implementations live in different languages, so the invariant is guarded
- * by a shared vector: `testdata/project-hash-conformance.json`, asserted by
- * `BundleHashConformanceTest` (plugin) AND `hashUtils.test.ts` (backend). Disk sync,
- * `local_push`, and bundle upload all route through here — no second copy. See
- * CLAUDE.md § Invariants critiques.
+ * - [hash] / [hashFiles] : empreinte d'un arbre de fichiers, utilisée par le
+ *   `SyncScanner` pour repérer qu'un dossier a changé entre deux ticks.
+ * - [hashContent] : empreinte d'un **contenu de fichier**, jeton de
+ *   compare-and-swap de `project_write`. L'éditeur la reproduit en TypeScript
+ *   (`lib/contentHash.ts`) — SHA-256 de l'UTF-8, hex minuscule.
+ *
+ * Le hash d'arbre fut un invariant inter-langage : il devait rester
+ * byte-identique au `computeBundleHash` du backend, sous peine d'inventer des
+ * divergences, et un vecteur partagé le verrouillait. Cette contrainte est
+ * tombée avec le stockage backend (ADR `server-disk-only-storage`) : plus
+ * personne d'autre ne calcule ce hash, donc il n'y a plus rien à accorder.
  */
 object BundleHasher {
 
-    /** Core: hash a relPath-keyed file map. */
+    /**
+     * Hash d'une map relPath → contenu : clés triées en ordre d'octets (`String`
+     * compare de Kotlin, JAMAIS locale-aware), chaque entrée émise en
+     * `<relPath>` + LF + contenu + LF, concaténée, SHA-256 hex minuscule. Map
+     * vide => "" (sentinelle « pas de contenu »).
+     */
     fun hashFiles(relFiles: Map<String, String>): String {
         if (relFiles.isEmpty()) return ""
         val sb = StringBuilder()
@@ -28,55 +35,21 @@ object BundleHasher {
         return sha256(sb.toString())
     }
 
-    /** Hash a relPath-keyed map, skipping `.artisan*` metadata entries. */
-    fun hashRelative(relFiles: Map<String, String>): String =
-        hashFiles(relFiles.filterKeys { !isArtisanMeta(it) })
-
-    /** Hash a project directory (relPath-keyed, skips `.artisan*` metadata). */
+    /** Hash d'un dossier de project (relPath-keyed, `.artisan*` exclus). */
     fun hash(projectDir: File): String = hashFiles(ProjectFilesReader.readRelative(projectDir))
 
     /**
-     * Hash a canonical-path-keyed map (`plugins/Artisan/projects/<projectId>/<rel>`),
-     * mirroring the backend: strip the prefix to relPath, then hash. Keys outside
-     * the prefix are ignored (same filter as the backend).
-     */
-    fun hashCanonical(files: Map<String, String>, projectId: String): String {
-        val prefix = "plugins/Artisan/projects/$projectId/"
-        val rel = files.entries
-            .filter { it.key.startsWith(prefix) }
-            .associate { it.key.removePrefix(prefix) to it.value }
-            .filterKeys { !isArtisanMeta(it) }
-        return hashFiles(rel)
-    }
-
-    /** relPaths whose first segment starts with `.artisan` are sync/editor
-     *  metadata — excluded from the hash and from uploads (mirrored in the
-     *  backend's hashUtils; locked by project-hash-conformance.json). */
-    fun isArtisanMeta(relPath: String): Boolean =
-        relPath.substringBefore('/').startsWith(".artisan")
-
-    fun hashAll(roots: net.artisanmc.plugin.project.ProjectRoots): String {
-        val projects = roots.all()
-        if (projects.isEmpty()) return ""
-        val sb = StringBuilder()
-        projects.forEach { (projectId, projectDir) ->
-            sb.append(projectId).append(':').append(hash(projectDir)).append('\n')
-        }
-        return sha256(sb.toString())
-    }
-
-    /** Test convenience — production passes the shared [net.artisanmc.plugin.project.ProjectRoots]. */
-    fun hashAll(projectsDir: File): String =
-        hashAll(net.artisanmc.plugin.project.ProjectRoots(projectsDir))
-
-    /**
      * Hash d'un **contenu de fichier** seul — le jeton de compare-and-swap de
-     * `project_write` (ADR `server-disk-only-storage`). Rien à voir avec le hash
-     * d'arbre ci-dessus : pas de clé, pas de tri, juste le contenu. Même digest
-     * pour n'avoir qu'une primitive, et trivialement reproductible côté éditeur
-     * (SHA-256 de l'UTF-8, hex minuscule).
+     * `project_write`. Pas de clé, pas de tri, juste le contenu.
      */
     fun hashContent(content: String): String = sha256(content)
+
+    /**
+     * Un premier segment commençant par `.artisan` est une métadonnée (état
+     * éditeur, corbeille) : hors hash, et invisible au scan de contenu.
+     */
+    fun isArtisanMeta(relPath: String): Boolean =
+        relPath.substringBefore('/').startsWith(".artisan")
 
     private fun sha256(input: String): String {
         val bytes = MessageDigest.getInstance("SHA-256").digest(input.toByteArray(Charsets.UTF_8))
