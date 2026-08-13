@@ -48,21 +48,7 @@ class BundleHasherTest {
         assertEquals(before, BundleHasher.hash(dir))
     }
 
-    @Test
-    fun `hashAll over two projects is deterministic`() {
-        val packsDir = Files.createTempDirectory("bh6_").toFile()
-        makeProject(File(packsDir, "p_a").apply { mkdirs() })
-        makeProject(File(packsDir, "p_b").apply { mkdirs() })
-        val h1 = BundleHasher.hashAll(packsDir)
-        val h2 = BundleHasher.hashAll(packsDir)
-        assertEquals(h1, h2)
-    }
 
-    @Test
-    fun `hashAll returns empty string when no projects`() {
-        val empty = Files.createTempDirectory("bh7_").toFile()
-        assertEquals("", BundleHasher.hashAll(empty))
-    }
 
     @Test
     fun `hash of empty directory returns empty string`() {

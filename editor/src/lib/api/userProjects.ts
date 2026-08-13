@@ -1,18 +1,5 @@
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
 
-/** One file of a pending disk↔web divergence (files-first P3c). */
-export interface DivergentFile {
-  path: string;
-  disk: string | null;
-  web: string | null;
-}
-
-export interface ProjectDivergence {
-  disk_hash: string;
-  at: string;
-  files: DivergentFile[];
-}
-
 export interface UserProjectLoadResult {
   project: {
     id: string;
@@ -20,16 +7,10 @@ export interface UserProjectLoadResult {
     slug?: string | null;
     /** Id disque du project côté serveur propriétaire (cf. `Project.diskId`). */
     externalId?: string | null;
-    hash: string;
-    version?: number;
     serverKeyId?: string;
   };
   networkId: string;
   serverKeyId: string;
-  /** The canonical Project representation — parsed client-side via projectFromFiles. */
-  files: Record<string, string>;
-  /** Pending disk↔web divergence awaiting per-file resolution, if any. */
-  divergence?: ProjectDivergence;
 }
 
 /**

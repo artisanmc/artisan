@@ -36,26 +36,11 @@ export interface HelloAckMessage {
   session_id: string;
   server_id: string;
   tier: "free" | "crew" | "network";
-  needs_sync: boolean;
-  latest_bundle_hash: string;
   api_url: string;
-  bundle_url: string;  // plugin-internal URL for bundle downloads/uploads (may differ from api_url in Docker)
   editor_url: string;  // browser-facing editor URL (EDITOR_URL) — informational, shown by /artisan editor
   server_url: string;  // deep link to this server's page in the editor (falls back to editor_url if network/server rows are missing)
   network_name: string;  // display name of the network this server_key belongs to
-  project_hashes: Record<string, string>;  // projectId → latest stored hash on backend
-  deleted_project_ids: string[];
   resource_pack: { url: string; hash: string } | null;
-}
-
-export interface BundleAvailableMessage {
-  type: "bundle_available";
-  project_id: string;
-  url: string;
-  hash: string;
-  signature: string;
-  /** Download even over local disk changes — divergence resolution only. */
-  force?: boolean;
 }
 
 export interface DraftUpdateMessage {
@@ -101,13 +86,6 @@ export interface ProjectDeletedMessage {
   project_id: string;
 }
 
-// Plugin → backend: push local project files to backend (/artisan pushLocal flow)
-export interface LocalPushMessage {
-  type: "local_push";
-  project_id: string;
-  files: Record<string, string>;
-  hash: string;
-}
 
 // Plugin → backend: emitted when a module registers after hello (runtime registration seam)
 export interface ModulesChangedMessage {
@@ -291,13 +269,13 @@ export type PluginToServerMessage =
   | PongMessage
   | CustomItemsChangedMessage
   | CustomItemsBundleMessage
-  | LocalPushMessage
   | ModulesChangedMessage
   | DataSourceFetchResultMessage
   | PlayerInventoryResultMessage
   | ConfigReadResultMessage
   | ConfigWriteResultMessage
-  | BoutiqueAdditemMessage;
+  | ProjectReadResultMessage
+  | ProjectWriteResultMessage;
 
 export interface ResourcePackUpdatedMessage {
   type: "resource_pack_updated";
@@ -307,7 +285,6 @@ export interface ResourcePackUpdatedMessage {
 
 export type ServerToPluginMessage =
   | HelloAckMessage
-  | BundleAvailableMessage
   | DraftUpdateMessage
   | PingMessage
   | CustomItemsRequestMessage

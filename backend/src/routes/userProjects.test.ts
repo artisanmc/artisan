@@ -11,7 +11,7 @@ import { userAuth } from "../middleware/userAuth";
 import { createSession } from "../lib/sessionManager";
 import { createNetwork } from "../lib/networkManager";
 import { addMembership } from "../lib/membershipManager";
-import { createProject, getProject, upsertProjectContent } from "../lib/projectStorage";
+import { createProject, getProject } from "../lib/projectStorage";
 import { generateServerKey } from "../lib/auth";
 import { registerEditorConn } from "../ws/hub";
 
@@ -42,10 +42,6 @@ async function seedUserWithProject(userId: string) {
   const { id: skId, hash: skHash } = await generateServerKey();
   await db.insert(serverKeys).values({ id: skId, hash: skHash, label: null, networkId: network.id, createdAt: new Date() });
   const project = await createProject({ networkId: network.id, serverKeyId: skId, name: "p" });
-  await upsertProjectContent(project.id, {
-    hash: "h1",
-    filesJson: '{"menus/m.yaml":"id: m"}',
-  });
   return { userId, sessionId: session.id, networkId: network.id, projectId: project.id, skId };
 }
 
@@ -68,10 +64,10 @@ describe("userProjectsRouter — GET", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.project.id).toBe(projectId);
-    expect(body.project.hash).toBe("h1");
-    expect(body.files).toEqual({ "menus/m.yaml": "id: m" });
-    // Files-first: no editor JSON on the wire — the client parses `files`.
-    expect(body.editor).toBeUndefined();
+    // Identité seulement : le contenu vit sur le disque du serveur et se lit
+    // par `project_read` (ADR `server-disk-only-storage`).
+    expect(body.serverKeyId).toBeDefined();
+    expect(body.files).toBeUndefined();
   });
 
   test("GET /:projectId 403 — non-member gets forbidden", async () => {
@@ -98,119 +94,6 @@ describe("userProjectsRouter — GET", () => {
   });
 });
 
-describe("userProjectsRouter — PUT", () => {
-  beforeEach(clearAll);
-
-  test("PUT /:projectId 200 — member updates project content", async () => {
-    const { sessionId, projectId } = await seedUserWithProject("u1");
-    const app = makeApp();
-    const res = await app.request(`/api/v1/user/projects/${projectId}`, {
-      method: "PUT",
-      headers: {
-        Cookie: `artisan_user_session=${sessionId}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        hash: "h2",
-        files: { "menus/m.yaml": "id: m\ntitle: Hello" },
-        editor: { id: projectId, menus: [{ id: "m" }] },
-        baseVersion: 1,
-      }),
-    });
-    expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body.ok).toBe(true);
-
-    // Verify DB updated
-    const { getProject } = await import("../lib/projectStorage");
-    const updated = await getProject(projectId);
-    expect(updated?.hash).toBe("h2");
-    expect(JSON.parse(updated?.filesJson ?? "{}")).toEqual({ "menus/m.yaml": "id: m\ntitle: Hello" });
-  });
-
-  test("GET /:projectId returns project version", async () => {
-    const { sessionId, projectId } = await seedUserWithProject("u1");
-    const app = makeApp();
-    const res = await app.request(`/api/v1/user/projects/${projectId}`, {
-      headers: { Cookie: `artisan_user_session=${sessionId}` },
-    });
-    const body = await res.json();
-    // seedUserWithProject does one upsert after createProject → version 1
-    expect(body.project.version).toBe(1);
-  });
-
-  test("PUT /:projectId 200 — matching baseVersion saves and returns new version", async () => {
-    const { sessionId, projectId } = await seedUserWithProject("u1");
-    const app = makeApp();
-    const res = await app.request(`/api/v1/user/projects/${projectId}`, {
-      method: "PUT",
-      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ hash: "h2", files: {}, baseVersion: 1 }),
-    });
-    expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body.version).toBe(2);
-  });
-
-  test("PUT /:projectId 409 — stale baseVersion is rejected without overwriting", async () => {
-    const { sessionId, projectId } = await seedUserWithProject("u1");
-    const app = makeApp();
-    // concurrent writer bumps the version
-    const ok = await app.request(`/api/v1/user/projects/${projectId}`, {
-      method: "PUT",
-      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ hash: "h2", files: { "menus/m.yaml": "id: m2" }, baseVersion: 1 }),
-    });
-    expect(ok.status).toBe(200);
-
-    // stale tab still holds baseVersion 1
-    const res = await app.request(`/api/v1/user/projects/${projectId}`, {
-      method: "PUT",
-      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ hash: "h_stale", files: { "menus/m.yaml": "id: stale" }, baseVersion: 1 }),
-    });
-    expect(res.status).toBe(409);
-    const body = await res.json();
-    expect(body.error).toBe("version_conflict");
-    expect(body.currentVersion).toBe(2);
-
-    const { getProject } = await import("../lib/projectStorage");
-    const row = await getProject(projectId);
-    expect(row?.hash).toBe("h2");
-  });
-
-  test("PUT /:projectId 400 — missing baseVersion is rejected", async () => {
-    const { sessionId, projectId } = await seedUserWithProject("u1");
-    const app = makeApp();
-    const res = await app.request(`/api/v1/user/projects/${projectId}`, {
-      method: "PUT",
-      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ hash: "h2", files: {} }),
-    });
-    expect(res.status).toBe(400);
-    const body = await res.json();
-    expect(body.error).toBe("missing_base_version");
-  });
-
-  test("PUT /:projectId 403 — non-member cannot write", async () => {
-    const { projectId } = await seedUserWithProject("u1");
-    await db.insert(users).values({
-      id: "u2", email: "u2@a.b", name: "u2", passwordHash: null, avatarUrl: null,
-      createdAt: new Date(), updatedAt: new Date(),
-    });
-    const sess2 = await createSession("u2");
-    const app = makeApp();
-    const res = await app.request(`/api/v1/user/projects/${projectId}`, {
-      method: "PUT",
-      headers: {
-        Cookie: `artisan_user_session=${sess2.id}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ hash: "h99", files: {} }),
-    });
-    expect(res.status).toBe(403);
-  });
-});
 
 describe("userProjectsRouter — POST /:projectId/draft", () => {
   beforeEach(clearAll);
@@ -308,127 +191,6 @@ describe("userProjectsRouter — DELETE /:projectId", () => {
   });
 });
 
-// ─── files-first P3c: divergence report + per-file resolution ────────────────
-
-describe("userProjectsRouter — divergence", () => {
-  beforeEach(clearAll);
-
-  async function seedDivergence(projectId: string, skId: string) {
-    const { registerConn, connToServerId, handlePluginMessage } = await import("../ws/hub");
-    const connId = `conn-div-${projectId}`;
-    registerConn(connId, () => {});
-    connToServerId.set(connId, skId);
-    const base = `plugins/Artisan/projects/${projectId}`;
-    await handlePluginMessage(connId, JSON.stringify({
-      type: "sync_divergence",
-      project_id: projectId,
-      files: {
-        [`${base}/menus/m.yaml`]: "id: m\ntitle: DISK\n",
-        [`${base}/menus/disk_only.yaml`]: "id: disk_only\n",
-      },
-      disk_hash: "h_disk",
-      synced_hash: "h_old",
-    }));
-    return base;
-  }
-
-  test("GET includes the per-file divergence detail while pending", async () => {
-    const { sessionId, projectId, skId } = await seedUserWithProject("u1");
-    const base = `plugins/Artisan/projects/${projectId}`;
-    await upsertProjectContent(projectId, {
-      filesJson: JSON.stringify({ [`${base}/menus/m.yaml`]: "id: m\ntitle: WEB\n" }),
-    });
-    await seedDivergence(projectId, skId);
-
-    const app = makeApp();
-    const res = await app.request(`/api/v1/user/projects/${projectId}`, {
-      headers: { Cookie: `artisan_user_session=${sessionId}` },
-    });
-    const body = await res.json();
-    expect(body.divergence).toBeDefined();
-    expect(body.divergence.disk_hash).toBe("h_disk");
-    expect(body.divergence.files).toEqual([
-      { path: "menus/disk_only.yaml", disk: "id: disk_only\n", web: null },
-      { path: "menus/m.yaml", disk: "id: m\ntitle: DISK\n", web: "id: m\ntitle: WEB\n" },
-    ]);
-  });
-
-  test("resolve-divergence applies per-file choices, commits, clears the report", async () => {
-    const { sessionId, projectId, skId } = await seedUserWithProject("u1");
-    const base = `plugins/Artisan/projects/${projectId}`;
-    await upsertProjectContent(projectId, {
-      filesJson: JSON.stringify({ [`${base}/menus/m.yaml`]: "id: m\ntitle: WEB\n" }),
-    });
-    await seedDivergence(projectId, skId);
-
-    const app = makeApp();
-    const res = await app.request(`/api/v1/user/projects/${projectId}/resolve-divergence`, {
-      method: "POST",
-      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ choices: { "menus/m.yaml": "disk", "menus/disk_only.yaml": "web" } }),
-    });
-    expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body.ok).toBe(true);
-
-    const updated = await getProject(projectId);
-    const files = JSON.parse(updated!.filesJson);
-    expect(files[`${base}/menus/m.yaml`]).toBe("id: m\ntitle: DISK\n"); // disk chosen
-    expect(files[`${base}/menus/disk_only.yaml`]).toBeUndefined();      // web chosen (absent)
-
-    // Committed on main + head advanced.
-    const { getBranch } = await import("../lib/branchStorage");
-    const { getCommit } = await import("../lib/commitStorage");
-    const branch = await getBranch(projectId, "main");
-    const head = await getCommit(branch!.headCommitId);
-    expect(head!.message).toBe("Resolve disk/web divergence");
-
-    // Cleared: GET no longer reports it.
-    const { getPendingDivergence } = await import("../ws/hub");
-    expect(getPendingDivergence(projectId)).toBeUndefined();
-  });
-
-  test("resolve-divergence broadcasts a FORCED bundle_available (plugin must download over its local changes)", async () => {
-    const { sessionId, projectId, skId } = await seedUserWithProject("u1");
-    const base = `plugins/Artisan/projects/${projectId}`;
-    await upsertProjectContent(projectId, {
-      filesJson: JSON.stringify({ [`${base}/menus/m.yaml`]: "id: m\ntitle: WEB\n" }),
-    });
-    await seedDivergence(projectId, skId);
-
-    const { registerConn, connToServerId, connSenders } = await import("../ws/hub");
-    const sent: string[] = [];
-    registerConn("conn-resolve", (msg) => sent.push(msg));
-    connToServerId.set("conn-resolve", skId);
-    try {
-      const app = makeApp();
-      const res = await app.request(`/api/v1/user/projects/${projectId}/resolve-divergence`, {
-        method: "POST",
-        headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ choices: { "menus/m.yaml": "disk" } }),
-      });
-      expect(res.status).toBe(200);
-
-      const bundle = sent.map((s) => JSON.parse(s)).find((m) => m.type === "bundle_available");
-      expect(bundle).toBeDefined();
-      expect(bundle.force).toBe(true);
-    } finally {
-      connToServerId.delete("conn-resolve");
-      connSenders.delete("conn-resolve");
-    }
-  });
-
-  test("resolve-divergence 404 when nothing is pending", async () => {
-    const { sessionId, projectId } = await seedUserWithProject("u1");
-    const app = makeApp();
-    const res = await app.request(`/api/v1/user/projects/${projectId}/resolve-divergence`, {
-      method: "POST",
-      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ choices: {} }),
-    });
-    expect(res.status).toBe(404);
-  });
-});
 
 // Le slug de project est unique PAR SERVEUR (uniqueIndex serverKeyId+slug), pas
 // globalement : la résolution n'est donc possible qu'avec le serveur en portée,
