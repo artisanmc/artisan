@@ -71,7 +71,6 @@ export interface ServerStatusEntry {
   id: string;
   label: string | null;
   online: boolean;
-  instanceCount: number;
   lastMcVersion: string | null;
   /** ISO timestamp of the last *accepted* hello; null = never connected. */
   lastSeenAt: string | null;

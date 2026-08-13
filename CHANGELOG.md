@@ -9,6 +9,13 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Changed — une clé serveur = un serveur vivant (BREAKING)
+
+- Au `hello`, le backend évince la connexion précédente liée à la même clé (**dernier arrivé gagne**) et lui envoie `session_replaced` ; le plugin évincé logue un WARN explicite au lieu de se croire connecté indéfiniment.
+- **Pourquoi maintenant** : le multi-instance était toléré parce que le backend détenait le contenu — les N instances téléchargeaient le même bundle. Depuis `server-disk-only-storage`, chacune a **son** disque et rien ne les synchronise : le relais lirait un disque et écrirait l'autre, puis basculerait en silence quand la première tombe. On ne retire pas une capacité, on retire une promesse qui ne tenait plus.
+- **Dernier gagne plutôt que premier gagne** : un serveur qui crashe laisse une connexion morte ; « premier gagne » verrouillerait le vrai serveur dehors jusqu'à expiration du keepalive. Un redémarrage se recolle donc tout seul.
+- `instanceCount` disparaît de `…/servers-status` et du sélecteur de serveurs — il ne peut plus valoir que 0 ou 1, `online` suffit.
+
 ### Added — `project_read` : l'éditeur lit un Project sur le disque du serveur (ADR `server-disk-only-storage`, P0)
 
 - Première brique de l'épopée « disque seul » : le backend cessera de stocker le contenu des Projects, le plugin devient le seul écrivain, et l'éditeur lit et écrit les fichiers du serveur par le relais WS. P0 livre **la lecture** ; l'écriture arrive en P1 avec la corbeille et le compare-and-swap par fichier — un chemin d'écriture sans son filet n'a pas sa place, même non branché à l'UI.
