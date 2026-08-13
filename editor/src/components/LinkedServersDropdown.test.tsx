@@ -74,19 +74,34 @@ describe("ServerRow", () => {
 describe("LinkedServersDropdown", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("renders the online/total count in the trigger badge", async () => {
+  // Le déclencheur parle du serveur qui PORTE le project ouvert : son disque
+  // conditionne tout (ADR `server-disk-only-storage`). L'agrégat réseau pouvait
+  // afficher « 2/3 » pendant que ce serveur-là était justement celui qui manquait.
+  it("annonce l'état du serveur courant, pas l'agrégat du réseau", async () => {
     vi.mocked(api.getNetworkServersStatus).mockResolvedValue({
       online: 2,
       total: 3,
       servers: [
-        entry({ id: "a", online: true, isCurrent: true }),
+        entry({ id: "a", online: false, isCurrent: true }),
         entry({ id: "b", online: true }),
-        entry({ id: "c", online: false }),
+        entry({ id: "c", online: true }),
       ],
     });
     render(<LinkedServersDropdown networkId="net1" currentServerKeyId="a" />);
-    expect(await screen.findByText("2/3")).toBeInTheDocument();
+
+    expect(await screen.findByText(/Offline|Hors ligne/)).toBeInTheDocument();
+    expect(screen.queryByText("2/3")).toBeNull();
     expect(api.getNetworkServersStatus).toHaveBeenCalledWith("net1", "a");
+  });
+
+  it("retombe sur l'agrégat quand aucun serveur courant n'est en portée", async () => {
+    vi.mocked(api.getNetworkServersStatus).mockResolvedValue({
+      online: 2,
+      total: 3,
+      servers: [entry({ id: "b", online: true }), entry({ id: "c", online: true })],
+    });
+    render(<LinkedServersDropdown networkId="net1" />);
+    expect(await screen.findByText("2/3")).toBeInTheDocument();
   });
 
   it("renders nothing without a networkId", () => {
