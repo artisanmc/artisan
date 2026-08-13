@@ -3,7 +3,6 @@ import { ModelSelector } from "@/features/assistant/ModelSelector";
 import { OutOfCreditsNotice } from "@/features/assistant/OutOfCreditsNotice";
 import { CreditIndicator } from "@/features/billing/CreditIndicator";
 import { projectToCommandV1, projectToDialogV1, projectToMenuV1 } from "@/features/export/transform";
-import { persistProject } from "@/features/project/persistProject";
 import { getBalance } from "@/lib/api/aiUser";
 import type { BalanceBreakdown } from "@/lib/api/billing";
 import {
@@ -175,7 +174,6 @@ export function AssistantChat({
       if (!convId.current) {
         convId.current = await openConversation({ projectId });
       }
-      let dirty = false;
       for await (const ev of streamAssistant(convId.current, {
         text,
         menus,
@@ -206,11 +204,9 @@ export function AssistantChat({
             );
           }
           setEntries((e) => [...e, { role: "card", kind: "written", id: String(menu.id) }]);
-          dirty = true;
         } else if (ev.type === "menu_deleted") {
           useAccountStore.getState().deleteFromProject({ projectId, nodeIds: [String(ev.id)] });
           setEntries((e) => [...e, { role: "card", kind: "deleted", id: String(ev.id) }]);
-          dirty = true;
         } else if (ev.type === "command_written") {
           const command = ev.command as Record<string, unknown>;
           const unsupported = useAccountStore
@@ -225,11 +221,9 @@ export function AssistantChat({
             );
           }
           setEntries((e) => [...e, { role: "card", kind: "written", id: String(command.id) }]);
-          dirty = true;
         } else if (ev.type === "command_deleted") {
           useAccountStore.getState().deleteFromProject({ projectId, nodeIds: [String(ev.id)] });
           setEntries((e) => [...e, { role: "card", kind: "deleted", id: String(ev.id) }]);
-          dirty = true;
         } else if (ev.type === "dialog_written") {
           const dialog = ev.dialog as Record<string, unknown>;
           const unsupported = useAccountStore
@@ -244,11 +238,9 @@ export function AssistantChat({
             );
           }
           setEntries((e) => [...e, { role: "card", kind: "written", id: String(dialog.id) }]);
-          dirty = true;
         } else if (ev.type === "dialog_deleted") {
           useAccountStore.getState().deleteFromProject({ projectId, nodeIds: [String(ev.id)] });
           setEntries((e) => [...e, { role: "card", kind: "deleted", id: String(ev.id) }]);
-          dirty = true;
         } else if (ev.type === "translations_written") {
           const entries = ev.entries as Record<string, Record<string, string>>;
           useAccountStore.getState().applyAssistantTranslations({ projectId, entries });
@@ -260,7 +252,6 @@ export function AssistantChat({
               id: t("assistant.translationsCard", { count: Object.keys(entries).length }),
             },
           ]);
-          dirty = true;
         } else if (ev.type === "credits") {
           setBalance((b) =>
             b
@@ -280,12 +271,11 @@ export function AssistantChat({
           setTurnError(msg);
         }
       }
-      // AI writes must be durable immediately: the debounced auto-save would
-      // lose a just-generated menu on a reload within its 2s window.
-      if (dirty) {
-        const updated = useAccountStore.getState().account.projects.find((p) => p.id === projectId);
-        if (updated) await persistProject(updated, !!user).catch(() => {});
-      }
+      // Ce que l'assistant génère atterrit dans l'état de la page, comme une
+      // édition manuelle : rien n'est écrit sur le serveur sans que l'admin
+      // clique sur Enregistrer (ADR `server-disk-only-storage`, décision 3).
+      // Écrire ici serait le seul chemin du produit qui touche le disque sans
+      // geste — et le plus surprenant, puisqu'il n'est pas de l'admin.
     } catch (err) {
       // Keep the friendly line but never swallow the cause — "Interrompu"
       // with an empty console made a wire-shape 404 undiagnosable.

@@ -808,6 +808,7 @@ export default {
     },
   },
   project: {
+    serverOfflineExport: "Server offline — cannot export the files",
     conflict: {
       title: "This project was modified elsewhere.",
       body: "Another tab, teammate or server push saved a newer version. Reload to pick it up — unsaved local changes will be lost.",
@@ -1582,6 +1583,24 @@ export default {
   settingsPage: {
     eyebrowSettings: "Settings",
     appearanceHelp: "Editor appearance and language. Saved to your account.",
+  },
+  save: {
+    save: "Save",
+    saving: "Saving…",
+    saved: "Saved to the server",
+    nothingToSave: "Nothing to save",
+    saveTitle: "Write your changes to the server's disk",
+    cannotSaveTitle: "Unknown server — cannot save",
+    serverOffline: "Server offline — saving is not possible",
+    failed: "Save failed",
+    conflictTitle: "These files changed on the server",
+    conflictBody: "Nothing was written. Pick which version to keep, file by file.",
+    conflictKeepMine: "Keep mine",
+    conflictTakeServer: "Take the server's",
+    conflictDeletedOnDisk: "This file was deleted on the server.",
+    conflictApply: "Apply",
+    conflictAdopted: "Server versions adopted — save again.",
+    cancel: "Cancel",
   },
   deploy: {
     deploy: "Deploy",

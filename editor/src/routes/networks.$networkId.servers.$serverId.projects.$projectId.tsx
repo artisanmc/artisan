@@ -390,10 +390,14 @@ export function ProjectCanvasPage() {
           projectId={pId}
           onImport={handleImport}
           onExportZip={async () => {
-            const res = await runExportZip(project, !!currentUser);
+            const res = await runExportZip(project, !!currentUser, networkId, serverId);
             if (!res.ok) {
               toast.error(
-                res.error === "not_signed_in" ? t("export.needsAccount") : t("export.failed"),
+                res.error === "not_signed_in"
+                  ? t("export.needsAccount")
+                  : res.error === "server_offline"
+                    ? t("project.serverOfflineExport")
+                    : t("export.failed"),
               );
               return;
             }

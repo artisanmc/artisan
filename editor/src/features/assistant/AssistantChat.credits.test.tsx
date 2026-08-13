@@ -7,7 +7,6 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AssistantChat } from "./AssistantChat";
 
-vi.mock("@/features/project/persistProject", () => ({ persistProject: vi.fn(async () => {}) }));
 
 vi.mock("@/lib/api/aiUser", () => ({
   getModels: vi.fn(async () => ({ models: [], defaultModelId: null, preferredModelId: null })),

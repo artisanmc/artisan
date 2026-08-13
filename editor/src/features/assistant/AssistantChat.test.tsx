@@ -1,13 +1,10 @@
 import { projectId } from "@/domain/ids";
-import { persistProject } from "@/features/project/persistProject";
 import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AssistantChat } from "./AssistantChat";
-
-vi.mock("@/features/project/persistProject", () => ({ persistProject: vi.fn(async () => {}) }));
 
 // Scripted SSE: two text chunks (must coalesce into ONE assistant entry),
 // then a written menu, then done.
@@ -90,9 +87,9 @@ describe("AssistantChat", () => {
 
     expect(screen.getByText(/(modifié|updated)\s*:?\s*shop/i)).toBeTruthy();
 
-    // The generated menu is persisted immediately (not only via the debounced
-    // auto-save) so a reload right after can't lose it.
-    await waitFor(() => expect(persistProject).toHaveBeenCalled());
+    // Rien n'est écrit sur le serveur : ce que l'assistant génère vit dans la
+    // page jusqu'à ce que l'admin clique sur Enregistrer (ADR
+    // `server-disk-only-storage`, décision 3).
   });
 
   it("applies a command_written event via applyAssistantCommand", async () => {

@@ -11,7 +11,6 @@ vi.mock("@tanstack/react-router", () => ({
   useNavigate: () => navigate,
 }));
 
-vi.mock("@/features/project/persistProject", () => ({ persistProject: vi.fn(async () => {}) }));
 
 vi.mock("@/lib/api/aiUser", () => ({
   getModels: vi.fn(async () => ({ models: [], defaultModelId: null, preferredModelId: null })),
