@@ -45,6 +45,12 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 - `project_write` accepte `create: true` pour matérialiser le dossier d'un Project neuf (création, import). **Sans ce drapeau un id inconnu reste une erreur** : on ne sème pas un dossier fantôme sur un id mal tapé. L'éditeur ne l'envoie que lorsqu'il n'a aucune base pour ce Project, c'est-à-dire quand il ne l'a jamais lu sur le disque.
 - Cette passe ne touche ni le plugin ni le stockage backend : la boucle de sync actuelle continue de tourner (elle entretient une copie que plus personne ne lit) et tombera d'un bloc en P3b, pour ne jamais laisser la liaison coupée à moitié.
 
+### Added — la corbeille devient consultable (ADR `server-disk-only-storage`, P4)
+
+- `project_history` / `project_history_result` + `GET …/projects/:projectId/history?path=…` : les versions qu'un fichier a traversées, la plus récente d'abord. Un fichier jamais écrasé rend une liste vide, pas une erreur — c'est un état normal, pas un incident.
+- **Restaurer n'a aucun chemin privilégié** : on remet le contenu choisi dans l'éditeur et on enregistre. C'est une écriture comme une autre, donc soumise au même compare-and-swap — une restauration ne peut pas écraser le travail de quelqu'un d'autre dans son dos.
+- Surface UI : `FileHistory`, branché sous l'éditeur YAML par fichier (`YamlFileEditor`) — la seule surface du produit dont la granularité est le fichier, c'est-à-dire celle de la corbeille.
+
 ### Removed — le backend ne stocke plus aucun contenu de Project (ADR `server-disk-only-storage`, P3b) (BREAKING)
 
 L'aboutissement de l'épopée. Ordre imposé — le plugin cesse d'appeler **avant** que le backend

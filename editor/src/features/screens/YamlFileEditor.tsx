@@ -2,6 +2,7 @@ import { parse } from "yaml";
 import { YamlCodeEditor } from "@/components/ui/yaml-code-editor";
 import { useTranslation } from "react-i18next";
 import type { ConfigFile } from "@/lib/api/configScreens";
+import { FileHistory } from "@/features/project/FileHistory";
 
 /** Parse failure of one edited file: the message and, when known, the line. */
 export interface YamlSyntaxError {
@@ -40,12 +41,15 @@ export function YamlFileEditor({
   errors,
   selected,
   onSelect,
+  history,
 }: {
   files: ConfigFile[];
   onChange: (path: string, content: string) => void;
   errors: YamlSyntaxError[];
   selected: string;
   onSelect: (path: string) => void;
+  /** Corbeille du fichier — absente quand le contexte serveur est inconnu. */
+  history?: { networkId: string; serverId: string; diskId: string };
 }) {
   const { t } = useTranslation();
   const current = files.find((f) => f.path === selected) ?? files[0];
@@ -82,6 +86,16 @@ export function YamlFileEditor({
           {error.message}
         </p>
       )}
+      {history ? (
+        <FileHistory
+          key={current.path}
+          networkId={history.networkId}
+          serverId={history.serverId}
+          diskId={history.diskId}
+          path={current.path}
+          onRestore={(content) => onChange(current.path, content)}
+        />
+      ) : null}
     </div>
   );
 }

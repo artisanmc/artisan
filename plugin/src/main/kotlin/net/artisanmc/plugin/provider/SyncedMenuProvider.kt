@@ -602,6 +602,58 @@ class SyncedMenuProvider(
                 }
             }
 
+            "project_history" -> {
+                val requestId = node["request_id"]?.asText() ?: return
+                val projectId = node["project_id"]?.asText() ?: return
+                val path = node["path"]?.asText() ?: return
+                fun reply(payload: Map<String, Any?>) {
+                    val base = mapOf("type" to "project_history_result", "request_id" to requestId)
+                    try {
+                        httpClient.dispatcher.executorService.execute {
+                            @Suppress("UNCHECKED_CAST")
+                            send((base + payload) as Map<String, Any>)
+                        }
+                    } catch (_: java.util.concurrent.RejectedExecutionException) {
+                        logger?.warning("project_history_result dropped — plugin is stopping")
+                    }
+                }
+                // Même garde que l'écriture : on ne lit l'historique que d'un
+                // fichier que l'éditeur aurait le droit d'écrire.
+                if (!isSafeProjectId(projectId) || !isEditorWritablePath(path)) {
+                    reply(mapOf("ok" to false, "error" to "invalid_path"))
+                    return
+                }
+                try {
+                    httpClient.dispatcher.executorService.execute {
+                        try {
+                            val projectDir = roots.dirFor(projectId)
+                            if (!projectDir.isDirectory) {
+                                reply(mapOf("ok" to false, "error" to "unknown_project"))
+                                return@execute
+                            }
+                            val dir = java.io.File(projectDir, ".artisan/history/$path")
+                            // Un fichier jamais écrasé n'a pas d'archive : liste vide,
+                            // pas une erreur — c'est un état normal, pas un incident.
+                            val versions = (dir.listFiles() ?: emptyArray())
+                                .filter { it.isFile }
+                                .sortedByDescending { it.name }
+                                .map {
+                                    mapOf(
+                                        "at" to (it.name.toLongOrNull() ?: 0L),
+                                        "content" to it.readText(Charsets.UTF_8),
+                                    )
+                                }
+                            reply(mapOf("ok" to true, "versions" to versions))
+                        } catch (e: Throwable) {
+                            logger?.log(java.util.logging.Level.WARNING, "[Artisan] project_history '$projectId/$path' failed", e)
+                            reply(mapOf("ok" to false, "error" to "read_error", "message" to describeError(e)))
+                        }
+                    }
+                } catch (_: java.util.concurrent.RejectedExecutionException) {
+                    logger?.warning("project_history dropped — plugin is stopping")
+                }
+            }
+
             "project_write" -> {
                 val requestId = node["request_id"]?.asText() ?: return
                 val projectId = node["project_id"]?.asText() ?: return
