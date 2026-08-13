@@ -218,6 +218,31 @@ export interface ProjectReadResultMessage {
   message?: string;
 }
 
+// Backend → plugin: write a Project's files to the server's disk. The plugin is
+// the only writer (ADR server-disk-only-storage) and enforces both guard-rails:
+// per-file compare-and-swap (`base_hash`, null = "I expect no file here") and
+// the `.artisan/history/` trash. All-or-nothing: one stale file cancels the
+// whole save.
+export interface ProjectWriteMessage {
+  type: "project_write";
+  request_id: string;
+  project_id: string;
+  files: { path: string; content: string; base_hash: string | null }[];
+  deletes?: { path: string; base_hash: string | null }[];
+}
+
+// Plugin → backend: reply to ProjectWriteMessage. On `conflict`, `conflicts`
+// carries each stale path with its current disk content (null = deleted on
+// disk), so the editor can show the diff without a second round-trip.
+export interface ProjectWriteResultMessage {
+  type: "project_write_result";
+  request_id: string;
+  ok: boolean;
+  conflicts?: { path: string; disk: string | null }[];
+  error?: "invalid_path" | "unknown_project" | "conflict" | "write_error";
+  message?: string;
+}
+
 // Backend → plugin: read the files of a Config-screen table, live from disk
 // (ADR module-config-screens). Correlated like data_source_fetch; 5 s timeout.
 export interface ConfigReadMessage {

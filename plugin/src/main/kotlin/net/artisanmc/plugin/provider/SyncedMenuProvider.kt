@@ -99,6 +99,23 @@ class SyncedMenuProvider(
                 rel.startsWith(".artisan/history/")
         }
 
+        /** Profondeur de la corbeille `.artisan/history/<rel>/` — anneau par fichier. */
+        internal const val MAX_HISTORY_VERSIONS = 20
+
+        /**
+         * Garde de chemin pour `project_write`. Distinct de [isSafeRelPath], qui
+         * refuse **tout** `.artisan*` : l'éditeur est propriétaire de
+         * `.artisan/editor.yaml` et doit pouvoir l'écrire. Seuls la corbeille et
+         * l'état de sync lui restent interdits — ce qu'il ne voit pas en lecture,
+         * il ne peut pas l'écrire.
+         */
+        internal fun isEditorWritablePath(p: String): Boolean {
+            if (p.isBlank()) return false
+            val norm = p.replace('\\', '/')
+            if (norm.startsWith("/") || norm.contains("..") || norm.contains(":")) return false
+            return !isEditorInvisible(norm)
+        }
+
         /** Traversal guard for relay-provided relative paths (mirror of ProjectContentReader.resolve). */
         internal fun isSafeRelPath(p: String): Boolean {
             if (p.isBlank()) return false
@@ -153,6 +170,37 @@ class SyncedMenuProvider(
      * failed data-source preview. Falls back to the exception's simple class name
      * when `message` is null/blank (e.g. a bare NPE) so the editor never shows "?".
      */
+    /**
+     * Copie le contenu actuel de [relPath] dans `.artisan/history/<relPath>/<ms>`
+     * avant qu'il soit écrasé ou supprimé, puis purge l'anneau.
+     *
+     * Ce n'est pas de l'historique de version : c'est une corbeille par fichier
+     * (ADR `server-disk-only-storage` décision 5). « Remets ce menu comme il
+     * était » marche ; « remets tout le Project à hier soir » non, et c'est
+     * assumé. Vit sous `.artisan` donc hors hash, hors scan, hors export.
+     * Un échec d'archivage ne bloque pas l'écriture — perdre le filet est
+     * regrettable, perdre l'enregistrement de l'admin le serait plus.
+     */
+    private fun archiveToHistory(projectDir: java.io.File, relPath: String) {
+        val source = java.io.File(projectDir, relPath)
+        if (!source.isFile) return
+        try {
+            val dir = java.io.File(projectDir, ".artisan/history/$relPath")
+            dir.mkdirs()
+            // Nom = millis sur 13 chiffres : l'ordre lexicographique EST l'ordre
+            // chronologique, donc la purge n'a pas à parser de dates.
+            var stamp = System.currentTimeMillis()
+            while (java.io.File(dir, "%013d".format(stamp)).exists()) stamp++
+            java.io.File(dir, "%013d".format(stamp)).writeText(source.readText(Charsets.UTF_8))
+            val versions = dir.listFiles()?.sortedBy { it.name } ?: return
+            if (versions.size > MAX_HISTORY_VERSIONS) {
+                versions.take(versions.size - MAX_HISTORY_VERSIONS).forEach { it.delete() }
+            }
+        } catch (e: Throwable) {
+            logger?.log(java.util.logging.Level.WARNING, "[Artisan] archivage corbeille '$relPath' échoué", e)
+        }
+    }
+
     private fun describeError(e: Throwable): String =
         e.message?.takeIf { it.isNotBlank() } ?: e.javaClass.simpleName
 
@@ -759,6 +807,102 @@ class SyncedMenuProvider(
                     }
                 } catch (_: java.util.concurrent.RejectedExecutionException) {
                     logger?.warning("project_read dropped — plugin is stopping")
+                }
+            }
+
+            "project_write" -> {
+                val requestId = node["request_id"]?.asText() ?: return
+                val projectId = node["project_id"]?.asText() ?: return
+                fun reply(payload: Map<String, Any?>) {
+                    val base = mapOf("type" to "project_write_result", "request_id" to requestId)
+                    try {
+                        httpClient.dispatcher.executorService.execute {
+                            @Suppress("UNCHECKED_CAST")
+                            send((base + payload) as Map<String, Any>)
+                        }
+                    } catch (_: java.util.concurrent.RejectedExecutionException) {
+                        logger?.warning("project_write_result dropped — plugin is stopping")
+                    }
+                }
+                // base_hash absent OU null = « je m'attends à ce que le fichier
+                // n'existe pas » : un fichier neuf et un fichier disparu se
+                // décrivent de la même façon, et la comparaison les distingue.
+                fun baseHashOf(n: com.fasterxml.jackson.databind.JsonNode) =
+                    n["base_hash"]?.takeIf { !it.isNull }?.asText()
+                val writes = node["files"]?.takeIf { it.isArray }?.mapNotNull { f ->
+                    val path = f["path"]?.asText() ?: return@mapNotNull null
+                    val content = f["content"]?.asText() ?: return@mapNotNull null
+                    Triple(path, content, baseHashOf(f))
+                } ?: emptyList()
+                val deletes = node["deletes"]?.takeIf { it.isArray }?.mapNotNull { d ->
+                    val path = d["path"]?.asText() ?: return@mapNotNull null
+                    path to baseHashOf(d)
+                } ?: emptyList()
+                if (!isSafeProjectId(projectId) ||
+                    writes.any { !isEditorWritablePath(it.first) } ||
+                    deletes.any { !isEditorWritablePath(it.first) }
+                ) {
+                    reply(mapOf("ok" to false, "error" to "invalid_path"))
+                    return
+                }
+                try {
+                    httpClient.dispatcher.executorService.execute {
+                        val projectDir = roots.dirFor(projectId)
+                        if (!projectDir.isDirectory) {
+                            reply(mapOf("ok" to false, "error" to "unknown_project"))
+                            return@execute
+                        }
+                        try {
+                            // Passe 1 — vérifier, sans rien toucher. Un seul fichier
+                            // qui a bougé annule l'écriture entière : un enregistrement
+                            // à moitié appliqué laisserait un Project incohérent en
+                            // ligne, et l'éditeur ne saurait plus de quel état repartir.
+                            val conflicts = (writes.map { it.first to it.third } + deletes)
+                                .mapNotNull { (path, expected) ->
+                                    val target = java.io.File(projectDir, path)
+                                    val current = target.takeIf { it.isFile }?.readText(Charsets.UTF_8)
+                                    val actual = current?.let { BundleHasher.hashContent(it) }
+                                    if (actual == expected) null
+                                    else mapOf("path" to path, "disk" to current)
+                                }
+                            if (conflicts.isNotEmpty()) {
+                                // On rend le contenu disque avec le conflit : l'éditeur
+                                // affiche le diff sans second aller-retour.
+                                reply(mapOf("ok" to false, "error" to "conflict", "conflicts" to conflicts))
+                                return@execute
+                            }
+
+                            // Passe 2 — appliquer.
+                            writes.forEach { (path, content, _) ->
+                                val target = java.io.File(projectDir, path)
+                                if (target.isFile && target.readText() == content) return@forEach
+                                archiveToHistory(projectDir, path)
+                                target.parentFile?.mkdirs()
+                                val tmp = java.io.File(target.parentFile, target.name + ".artisan-tmp")
+                                tmp.writeText(content)
+                                java.nio.file.Files.move(
+                                    tmp.toPath(), target.toPath(),
+                                    java.nio.file.StandardCopyOption.REPLACE_EXISTING,
+                                )
+                            }
+                            deletes.forEach { (path, _) ->
+                                val target = java.io.File(projectDir, path)
+                                if (target.isFile) {
+                                    archiveToHistory(projectDir, path)
+                                    target.delete()
+                                }
+                            }
+                            reloadFromDisk()
+                            draftMenus.clear()
+                            onReload?.invoke()
+                            reply(mapOf("ok" to true))
+                        } catch (e: Throwable) {
+                            logger?.log(java.util.logging.Level.WARNING, "[Artisan] project_write '$projectId' failed", e)
+                            reply(mapOf("ok" to false, "error" to "write_error", "message" to describeError(e)))
+                        }
+                    }
+                } catch (_: java.util.concurrent.RejectedExecutionException) {
+                    logger?.warning("project_write dropped — plugin is stopping")
                 }
             }
 

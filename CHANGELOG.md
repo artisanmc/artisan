@@ -18,6 +18,15 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 - `ProjectFilesReader.readAll` extrait de `readRelative` : une seule traversée du dossier, `readRelative` n'en est plus qu'un filtre. `project_read` inclut `.artisan/editor.yaml` (layout du board, `i18n_mode` — l'éditeur en est propriétaire) mais exclut corbeille et métadonnées de sync.
 - Rien n'est retiré à ce stade : la synchro actuelle (`bundle_available`, `local_push`, divergence) tourne inchangée.
 
+### Added — `project_write` : le plugin devient un écrivain sûr (ADR `server-disk-only-storage`, P1)
+
+- Couple WS `project_write` / `project_write_result` + `PUT /api/v1/networks/:networkId/servers/:serverId/projects/:projectId/files`. Le plugin est le seul écrivain, donc les deux garde-fous vivent chez lui.
+- **Compare-and-swap par fichier** : chaque écriture porte le `base_hash` du contenu que l'éditeur avait chargé (`null` = « pas de fichier ici quand j'ai chargé », ce qui couvre d'un seul mécanisme le fichier neuf et le fichier disparu). **Tout ou nothing** : un seul fichier périmé annule l'enregistrement entier — un enregistrement à moitié appliqué laisserait un Project incohérent *en ligne*, et l'éditeur ne saurait plus de quel état repartir. Les conflits remontent avec le **contenu disque attaché**, pour que l'éditeur affiche le diff sans second aller-retour.
+- **Corbeille** `.artisan/history/<rel>/<ms>` : l'ancien contenu est archivé avant tout écrasement ou suppression, en anneau des 20 dernières versions par fichier. Nom = millis sur 13 chiffres, donc l'ordre lexicographique est l'ordre chronologique et la purge n'a pas à parser de dates. Un échec d'archivage n'empêche pas l'écriture — perdre le filet est regrettable, perdre l'enregistrement de l'admin le serait plus. C'est une corbeille **par fichier**, pas un point de restauration du Project (décision 5 de l'ADR).
+- Nouveau garde `isEditorWritablePath`, distinct de `isSafeRelPath` qui refuse tout `.artisan*` : l'éditeur est propriétaire de `.artisan/editor.yaml` et doit pouvoir l'écrire. Règle : ce qu'il ne voit pas en lecture, il ne peut pas l'écrire.
+- `BundleHasher.hashContent` expose le digest existant pour le CAS — une seule primitive de hash dans le plugin, et trivialement reproductible côté éditeur (SHA-256 UTF-8, hex minuscule).
+- Le backend relaie sans arbitrer : il n'a aucune copie avec quoi arbitrer.
+
 ### Fixed — un serveur ne peut plus écrire dans le project d'un autre (SÉCURITÉ)
 
 - Les trois points d'ingestion plugin (`local_push`, stub-create du `hello`, `POST /api/v1/bundles/:projectId`) résolvaient le project par **id seul, globalement**, sans vérifier qu'il appartenait à la clé serveur authentifiée. Comme l'add-on Boutique bootstrappe le même id disque `boutique_shop` sur chaque serveur qui l'installe, la poussée d'un serveur atterrissait dans le project d'un **autre tenant** — networks et clients différents inclus. `createProject` étant idempotent sur l'id (garde anti-crash de 2026-07-09), la collision n'échouait pas : elle écrasait en silence. Atteignable par le flow de liaison normal, sans rien faire d'anormal (incident 2026-08-12).

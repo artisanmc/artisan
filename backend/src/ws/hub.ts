@@ -26,6 +26,8 @@ import type {
   ConfigReadResultMessage,
   ProjectReadMessage,
   ProjectReadResultMessage,
+  ProjectWriteMessage,
+  ProjectWriteResultMessage,
   ConfigWriteMessage,
   ConfigWriteResultMessage,
   DataSourceFetchMessage,
@@ -247,7 +249,13 @@ export type ProjectReadOutcome =
   | { kind: "offline" }
   | { kind: "timeout" };
 
+export type ProjectWriteOutcome =
+  | { kind: "result"; result: ProjectWriteResultMessage }
+  | { kind: "offline" }
+  | { kind: "timeout" };
+
 const pendingProjectReads = new Map<string, (outcome: ProjectReadOutcome) => void>();
+const pendingProjectWrites = new Map<string, (outcome: ProjectWriteOutcome) => void>();
 const pendingConfigReads = new Map<string, (outcome: ConfigReadOutcome) => void>();
 const pendingConfigWrites = new Map<string, (outcome: ConfigWriteOutcome) => void>();
 
@@ -289,6 +297,45 @@ export function requestProjectRead(
     pendingProjectReads.set(requestId, (outcome) => {
       clearTimeout(timer);
       pendingProjectReads.delete(requestId);
+      resolve(outcome);
+    });
+    send(JSON.stringify(msg));
+  });
+}
+
+/**
+ * Write a Project's files to the server's disk through the plugin.
+ *
+ * We relay, we do not store: the plugin owns the compare-and-swap and the trash,
+ * so a stale save comes back as `conflict` with the disk content attached.
+ */
+export function requestProjectWrite(
+  serverKeyId: string,
+  req: {
+    projectId: string;
+    files: { path: string; content: string; base_hash: string | null }[];
+    deletes?: { path: string; base_hash: string | null }[];
+  },
+  timeoutMs: number = CONFIG_WRITE_TIMEOUT_MS,
+): Promise<ProjectWriteOutcome> {
+  const send = firstPluginSender(serverKeyId);
+  if (!send) return Promise.resolve({ kind: "offline" });
+  const requestId = crypto.randomUUID();
+  const msg: ProjectWriteMessage = {
+    type: "project_write",
+    request_id: requestId,
+    project_id: req.projectId,
+    files: req.files,
+    deletes: req.deletes ?? [],
+  };
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      pendingProjectWrites.delete(requestId);
+      resolve({ kind: "timeout" });
+    }, timeoutMs);
+    pendingProjectWrites.set(requestId, (outcome) => {
+      clearTimeout(timer);
+      pendingProjectWrites.delete(requestId);
       resolve(outcome);
     });
     send(JSON.stringify(msg));
@@ -900,6 +947,14 @@ export async function handlePluginMessage(
     if (!serverId) return { reply: null };
     const result = msg as ProjectReadResultMessage;
     pendingProjectReads.get(result.request_id)?.({ kind: "result", result });
+    return { reply: null };
+  }
+
+  if (msg.type === "project_write_result") {
+    const serverId = connToServerId.get(connId);
+    if (!serverId) return { reply: null };
+    const result = msg as ProjectWriteResultMessage;
+    pendingProjectWrites.get(result.request_id)?.({ kind: "result", result });
     return { reply: null };
   }
 

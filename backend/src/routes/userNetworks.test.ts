@@ -1057,6 +1057,41 @@ describe("GET …/projects/:projectId/files (server-disk-only-storage P0)", () =
     );
     expect(res.status).toBe(401);
   });
+
+  test("PUT rejects a malformed body before touching the relay", async () => {
+    const { sessionId } = await seedUser("u_pfiles_put");
+    const app = makeApp();
+    const create = await app.request("/api/v1/networks", {
+      method: "POST",
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "N" }),
+    });
+    const { network } = await create.json();
+    const keyId = crypto.randomUUID();
+    await db.insert(serverKeys).values({ id: keyId, hash: "h-put", networkId: network.id, createdAt: new Date() });
+    const url = `/api/v1/networks/${network.id}/servers/${keyId}/projects/boutique_shop/files`;
+    const headers = { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" };
+
+    // base_hash is mandatory (null is the "expect no file" value) — omitting it
+    // would let a save silently overwrite whatever is on disk.
+    const noHash = await app.request(url, {
+      method: "PUT", headers,
+      body: JSON.stringify({ files: [{ path: "menus/a.yaml", content: "x" }] }),
+    });
+    expect(noHash.status).toBe(422);
+
+    const notArray = await app.request(url, {
+      method: "PUT", headers, body: JSON.stringify({ files: "nope" }),
+    });
+    expect(notArray.status).toBe(422);
+
+    // Well-formed but the server is offline: relayed, then 503.
+    const wellFormed = await app.request(url, {
+      method: "PUT", headers,
+      body: JSON.stringify({ files: [{ path: "menus/a.yaml", content: "x", base_hash: null }] }),
+    });
+    expect(wellFormed.status).toBe(503);
+  });
 });
 
 describe("POST …/data-sources/preview", () => {
