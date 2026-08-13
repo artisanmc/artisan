@@ -819,6 +819,10 @@ const fr: typeof en = {
     },
   },
   project: {
+    offlineTitle: "Serveur hors ligne",
+    offlineBody:
+      "Le contenu de ce project vit sur le disque de son serveur. Tant que le serveur ne répond pas, il n'y a rien à afficher — et surtout pas une copie périmée.",
+    offlineRetry: "Réessayer",
     serverOfflineExport: "Serveur hors ligne — impossible d'exporter les fichiers",
     conflict: {
       title: "Ce project a été modifié ailleurs.",
@@ -914,7 +918,8 @@ const fr: typeof en = {
     count: "{{online}}/{{total}}",
     trigger: "Serveurs liés — {{online}} sur {{total}} en ligne",
     online: "En ligne",
-    instances: "×{{count}}",
+    up: "En ligne",
+    down: "Hors ligne",
     lastSeen: "Vu {{when}}",
     neverConnected: "Jamais connecté",
     current: "courant",

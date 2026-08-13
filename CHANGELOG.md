@@ -9,6 +9,11 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Fixed — serveur hors ligne : la page l'annonce au lieu de rester blanche
+
+- La décision 7 de `server-disk-only-storage` dit « Project inouvrable, **annoncé comme tel** ». Le drapeau `offline` était posé par `useProjectLoader` mais **jamais consommé** : la route faisait `if (!project) return null`, donc un serveur injoignable donnait une page blanche indiscernable d'un chargement sans fin. Écran explicite + bouton Réessayer.
+- **Le badge de la topbar annonce désormais l'état du serveur qui porte le project ouvert**, pas l'agrégat du réseau. « 2/3 en ligne » pouvait s'afficher pendant que ce serveur-là était justement celui qui manquait — or c'est son disque qui conditionne tout. Le détail des autres serveurs du network reste dans le menu déroulant, qui garde son utilité.
+
 ### Changed — une clé serveur = un serveur vivant (BREAKING)
 
 - Au `hello`, le backend évince la connexion précédente liée à la même clé (**dernier arrivé gagne**) et lui envoie `session_replaced` ; le plugin évincé logue un WARN explicite au lieu de se croire connecté indéfiniment.

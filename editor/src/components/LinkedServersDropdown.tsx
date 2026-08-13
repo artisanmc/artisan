@@ -105,6 +105,18 @@ export function LinkedServersDropdown({
   if (!networkId || data === null) return null;
 
   const { online, total } = data;
+  // Ce qui compte sur cette page, c'est l'état du serveur qui PORTE le project
+  // ouvert : son contenu vit sur son disque, donc il conditionne tout (ADR
+  // `server-disk-only-storage`). L'agrégat réseau ne disait rien de ça — « 2/2 »
+  // pouvait s'afficher pendant que TON serveur était le seul à manquer.
+  // Le détail des autres serveurs reste dans le menu déroulant.
+  const current = currentServerKeyId
+    ? data.servers.find((s) => s.id === currentServerKeyId)
+    : undefined;
+  const up = current ? current.online : online > 0;
+  const label = current
+    ? t(current.online ? "linkedServers.up" : "linkedServers.down")
+    : t("linkedServers.count", { online, total });
 
   return (
     <DropdownMenu>
@@ -119,11 +131,11 @@ export function LinkedServersDropdown({
             aria-hidden
             className="h-1.5 w-1.5 rounded-full"
             style={{
-              background: online > 0 ? "var(--success)" : "var(--text-faint)",
-              boxShadow: online > 0 ? "0 0 6px var(--success)" : "none",
+              background: up ? "var(--success)" : "var(--danger)",
+              boxShadow: up ? "0 0 6px var(--success)" : "0 0 6px var(--danger)",
             }}
           />
-          {t("linkedServers.count", { online, total })}
+          {label}
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-[16rem]">

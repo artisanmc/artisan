@@ -808,6 +808,10 @@ export default {
     },
   },
   project: {
+    offlineTitle: "Server offline",
+    offlineBody:
+      "This project's content lives on its server's disk. While the server is unreachable there is nothing to show — and certainly not a stale copy.",
+    offlineRetry: "Retry",
     serverOfflineExport: "Server offline — cannot export the files",
     conflict: {
       title: "This project was modified elsewhere.",
@@ -902,7 +906,8 @@ export default {
     count: "{{online}}/{{total}}",
     trigger: "Linked servers — {{online}} of {{total}} online",
     online: "Online",
-    instances: "×{{count}}",
+    up: "Online",
+    down: "Offline",
     lastSeen: "Last seen {{when}}",
     neverConnected: "Never connected",
     current: "current",

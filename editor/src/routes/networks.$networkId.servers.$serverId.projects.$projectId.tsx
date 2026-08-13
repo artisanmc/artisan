@@ -85,7 +85,7 @@ export function ProjectCanvasPage() {
   // L'URL peut porter le slug du project : le serveur, déjà dans l'URL, en est
   // la portée (un slug n'est unique que par serveur). La réponse donne l'id
   // réel, seul utilisé en aval — store, sélections, sauvegardes.
-  const { project: userProject } = useProjectLoader(projectId, serverId);
+  const { project: userProject, offline } = useProjectLoader(projectId, serverId);
   const project = userProject;
   const pId = (project?.id ?? projectId) as ProjectId;
   const currentUser = useAuthStore((s) => s.currentUser);
@@ -180,6 +180,21 @@ export function ProjectCanvasPage() {
         search={{ next: window.location.pathname + window.location.search }}
       />
     );
+  // Serveur injoignable : le contenu d'un Project vit sur SON disque et nulle
+  // part ailleurs (ADR `server-disk-only-storage`). Il n'y a donc rien à
+  // afficher — et surtout pas une copie périmée. On le dit, au lieu de laisser
+  // une page blanche qu'on prend pour un chargement qui n'aboutit jamais.
+  if (offline) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
+        <p className="text-[15px] text-[var(--text)]">{t("project.offlineTitle")}</p>
+        <p className="max-w-md text-[13px] text-[var(--text-mut)]">{t("project.offlineBody")}</p>
+        <button type="button" className="btn btn-sm" onClick={() => window.location.reload()}>
+          {t("project.offlineRetry")}
+        </button>
+      </div>
+    );
+  }
   // Still loading the project via the user-mode loader — render nothing while fetch is in flight.
   if (!project) return null;
 
