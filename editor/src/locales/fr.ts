@@ -915,6 +915,7 @@ const fr: typeof en = {
   },
   linkedServers: {
     title: "Serveurs liés",
+    serverTitle: "Serveur",
     count: "{{online}}/{{total}}",
     trigger: "Serveurs liés — {{online}} sur {{total}} en ligne",
     online: "En ligne",

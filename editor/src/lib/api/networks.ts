@@ -24,8 +24,13 @@ export interface ProjectSummary {
   serverKeyId: string;
   /** Menus + commands + dialogs count, for the document-count indicator. */
   documentCount?: number;
-  /** Owning Add-on module id (`manifest.module`) — groups the project under
-   *  "Installed modules" in the sidebar instead of the flat list. */
+  /** Id disque du project côté serveur propriétaire — c'est celui qu'un module
+   *  déclare (`externalId`), et il diffère de `id` dès qu'un autre serveur a déjà
+   *  réclamé le même nom. */
+  externalId?: string | null;
+  /** Owning Add-on module id — redérivé des écrans déclarés côté éditeur
+   *  (`ownerModuleOf`) depuis que le backend ne détient plus les fichiers.
+   *  Groupe le project sous "Modules installés" au lieu de la liste plate. */
   ownerModule?: string;
 }
 
