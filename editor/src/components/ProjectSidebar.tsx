@@ -24,6 +24,7 @@ import type { ProjectId } from "@/domain/types";
 import { fallbackScreensFor } from "@/features/screens/screenList";
 import type { ServerEditorScreen } from "@/lib/api/configScreens";
 import { useServerScreensStore } from "@/state/serverScreensStore";
+import { ownerModuleOf } from "@/components/projectOwnership";
 import { type ProjectSummary, getNetwork, listNetworks } from "@/lib/api/networks";
 import { displayServerLabel } from "@/lib/serverLabel";
 import { useAccountStore } from "@/state/accountStore";
@@ -210,9 +211,14 @@ export function ProjectSidebar() {
   const remaining = [...idToProject.values()].sort((a, b) => a.id.localeCompare(b.id));
   const finalList = [...ordered, ...remaining];
   // Add-on-owned projects surface under "Installed modules", not the flat list
-  // (ADR addon-owned-project-roots).
-  const flatProjects = finalList.filter((p) => !p.ownerModule);
-  const ownedProjects = finalList.filter((p) => p.ownerModule);
+  // (ADR addon-owned-project-roots). La propriété se redérive des écrans
+  // déclarés : le backend ne lit plus le `manifest.module` faute de copie du
+  // project (ADR `server-disk-only-storage`) — cf. `ownerModuleOf`.
+  const owned = finalList.map((p) => ({ p, owner: ownerModuleOf(p, serverScreens) }));
+  const flatProjects = owned.filter((e) => !e.owner).map((e) => e.p);
+  const ownedProjects = owned
+    .filter((e) => e.owner)
+    .map((e) => ({ ...e.p, ownerModule: e.owner as string }));
   // "Installed modules" is grouped BY module: each installed module (one with a
   // screen and/or an owned project) is a header, with its project(s) (the canvas)
   // and its configuration screen nested underneath.
