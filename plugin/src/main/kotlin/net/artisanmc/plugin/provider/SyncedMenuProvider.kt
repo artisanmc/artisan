@@ -80,6 +80,25 @@ class SyncedMenuProvider(
         internal const val MAX_PREVIEW_BYTES = 256 * 1024
         internal const val MAX_CONFIG_BYTES = 1024 * 1024
 
+        /**
+         * Garde-fou de `project_read` — l'arbre entier d'un Project sur le fil.
+         * Mesuré le 2026-08-12 sur les deux vrais projects du devstack : 17 et 21
+         * fichiers, 7,9 Ko et 43 Ko. Deux ordres de grandeur de marge, donc pas de
+         * découpage — juste un plafond qui répond `too_large` au lieu de tronquer.
+         */
+        internal const val MAX_PROJECT_BYTES = 8 * 1024 * 1024
+
+        /**
+         * Ce que `project_read` retire de l'arbre disque. L'éditeur a besoin de
+         * `.artisan/editor.yaml` (layout du board, `i18n_mode`) — il n'a rien à
+         * faire de la corbeille ni de l'état de sync.
+         */
+        internal fun isEditorInvisible(rel: String): Boolean {
+            val first = rel.substringBefore('/')
+            return first == ".artisan-trash" || first == ".artisan-sync.yaml" ||
+                rel.startsWith(".artisan/history/")
+        }
+
         /** Traversal guard for relay-provided relative paths (mirror of ProjectContentReader.resolve). */
         internal fun isSafeRelPath(p: String): Boolean {
             if (p.isBlank()) return false
@@ -697,6 +716,52 @@ class SyncedMenuProvider(
             // plain disk edit from sync's point of view — pushed here through the
             // exact onScanChanged logic, and de-duplicated against the scan that
             // will observe the same tree a tick later.
+            "project_read" -> {
+                val requestId = node["request_id"]?.asText() ?: return
+                val projectId = node["project_id"]?.asText() ?: return
+                fun reply(payload: Map<String, Any?>) {
+                    val base = mapOf("type" to "project_read_result", "request_id" to requestId)
+                    try {
+                        httpClient.dispatcher.executorService.execute {
+                            @Suppress("UNCHECKED_CAST")
+                            send((base + payload) as Map<String, Any>)
+                        }
+                    } catch (_: java.util.concurrent.RejectedExecutionException) {
+                        logger?.warning("project_read_result dropped — plugin is stopping")
+                    }
+                }
+                if (!isSafeProjectId(projectId)) {
+                    reply(mapOf("ok" to false, "error" to "invalid_path"))
+                    return
+                }
+                try {
+                    httpClient.dispatcher.executorService.execute {
+                        try {
+                            val projectDir = roots.dirFor(projectId)
+                            if (!projectDir.isDirectory) {
+                                reply(mapOf("ok" to false, "error" to "unknown_project"))
+                                return@execute
+                            }
+                            val files = net.artisanmc.plugin.sync.ProjectFilesReader.readAll(projectDir)
+                                .filterKeys { !isEditorInvisible(it) }
+                                .toSortedMap()
+                                .map { (rel, content) -> mapOf("path" to rel, "content" to content) }
+                            val totalBytes = files.sumOf { it["content"]!!.toByteArray().size }
+                            if (totalBytes > MAX_PROJECT_BYTES) {
+                                reply(mapOf("ok" to false, "error" to "too_large"))
+                            } else {
+                                reply(mapOf("ok" to true, "files" to files))
+                            }
+                        } catch (e: Throwable) {
+                            logger?.log(java.util.logging.Level.WARNING, "[Artisan] project_read '$projectId' failed", e)
+                            reply(mapOf("ok" to false, "error" to "read_error", "message" to describeError(e)))
+                        }
+                    }
+                } catch (_: java.util.concurrent.RejectedExecutionException) {
+                    logger?.warning("project_read dropped — plugin is stopping")
+                }
+            }
+
             "config_read" -> {
                 val requestId = node["request_id"]?.asText() ?: return
                 val projectId = node["project_id"]?.asText() ?: return

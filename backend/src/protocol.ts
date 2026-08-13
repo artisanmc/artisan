@@ -197,6 +197,27 @@ export interface OnlinePlayersResultMessage {
   message?: string;
 }
 
+// Backend → plugin: read a Project's whole file tree, live from the server's
+// disk (ADR server-disk-only-storage). The editor opens a Project through this —
+// the backend stores no Project content. Correlated like data_source_fetch.
+export interface ProjectReadMessage {
+  type: "project_read";
+  request_id: string;
+  project_id: string;
+}
+
+// Plugin → backend: reply to ProjectReadMessage. `files` is the whole tree,
+// rel-path keyed and sorted, `.artisan/editor.yaml` included (the editor owns
+// it) but trash and sync metadata excluded.
+export interface ProjectReadResultMessage {
+  type: "project_read_result";
+  request_id: string;
+  ok: boolean;
+  files?: { path: string; content: string }[];
+  error?: "invalid_path" | "unknown_project" | "too_large" | "read_error";
+  message?: string;
+}
+
 // Backend → plugin: read the files of a Config-screen table, live from disk
 // (ADR module-config-screens). Correlated like data_source_fetch; 5 s timeout.
 export interface ConfigReadMessage {

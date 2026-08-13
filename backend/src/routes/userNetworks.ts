@@ -41,7 +41,7 @@ import { resolveNetworkForMember } from "../lib/refs";
 import { slugify } from "../lib/slug";
 import { allocServerSlug } from "../lib/slugAlloc";
 import type { AuthUser } from "../middleware/userAuth";
-import { disconnectServerKey, getInstanceCount, pushBundleAvailable, requestConfigRead, requestConfigWrite, requestDataSourceFetch, requestOnlinePlayers, requestPlayerInventory } from "../ws/hub";
+import { disconnectServerKey, getInstanceCount, pushBundleAvailable, requestConfigRead, requestConfigWrite, requestDataSourceFetch, requestOnlinePlayers, requestPlayerInventory, requestProjectRead } from "../ws/hub";
 import { applyConfigPatch, journalProjectFiles } from "../lib/projectJournal";
 import { getProject } from "../lib/projectStorage";
 import { handleResourcePackRebuild } from "./resourcePack";
@@ -825,6 +825,43 @@ userNetworksRouter.get(
 				.filter((s): s is Record<string, unknown> => s !== null)
 				.sort((a, b) => (String(a.id) < String(b.id) ? -1 : 1)),
 		});
+	},
+);
+
+// GET /api/networks/:networkId/servers/:serverId/projects/:projectId/files —
+// member access. Reads a Project's whole file tree live from the server's disk
+// (ADR server-disk-only-storage): the Project *is* those files, the backend
+// holds no copy. `projectId` is the id the owning server uses on disk — with no
+// backend row to resolve, that is the only id a Project has here.
+//
+// A server that is offline means the Project cannot be opened at all (decision
+// 7): 503, never a stale fallback.
+userNetworksRouter.get(
+	"/:networkId/servers/:serverId/projects/:projectId/files",
+	async (c: Context<{ Variables: Vars }>) => {
+		const userId = getUserId(c);
+		if (!userId) return c.json({ error: "unauthorized" }, 401);
+		const resolved = await resolveNetworkServer(
+			userId,
+			c.req.param("networkId"),
+			c.req.param("serverId"),
+		);
+		if (!resolved) return c.json({ error: "forbidden" }, 403);
+		if (!resolved.serverKeyId) return c.json({ error: "not_found" }, 404);
+
+		const projectId = c.req.param("projectId");
+		if (!projectId) return c.json({ error: "invalid_input" }, 422);
+
+		const outcome = await requestProjectRead(resolved.serverKeyId, { projectId });
+		if (outcome.kind === "offline") return c.json({ error: "server_offline" }, 503);
+		if (outcome.kind === "timeout") return c.json({ error: "fetch_timeout" }, 504);
+		const r = outcome.result;
+		if (!r.ok) {
+			const error = r.error ?? "read_error";
+			const status = error === "unknown_project" ? 404 : error === "invalid_path" ? 422 : 502;
+			return c.json({ error, message: r.message ?? null }, status);
+		}
+		return c.json({ files: r.files ?? [] });
 	},
 );
 
