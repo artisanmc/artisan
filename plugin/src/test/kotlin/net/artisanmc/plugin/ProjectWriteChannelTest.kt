@@ -214,6 +214,56 @@ class ProjectWriteChannelTest {
     }
 
     @Test
+    fun `project_history rend les versions archivees, la plus recente d'abord`() {
+        val h = Harness()
+        val p = h.project("boutique")
+        val hist = File(p, ".artisan/history/menus/m.yaml").also { it.mkdirs() }
+        File(hist, "1755000000000").writeText("v1")
+        File(hist, "1755000009999").writeText("v2")
+
+        h.provider.handleMessageForTesting(
+            """{"type":"project_history","request_id":"h1","project_id":"boutique","path":"menus/m.yaml"}"""
+        )
+        h.await()
+
+        val msg = h.reply()
+        assertEquals("project_history_result", msg["type"])
+        assertEquals(true, msg["ok"])
+        @Suppress("UNCHECKED_CAST")
+        val versions = msg["versions"] as List<Map<String, Any?>>
+        // La plus récente d'abord : c'est celle qu'on veut restaurer neuf fois sur dix.
+        assertEquals(listOf("v2", "v1"), versions.map { it["content"] })
+        assertEquals(1755000009999L, (versions[0]["at"] as Number).toLong())
+    }
+
+    @Test
+    fun `project_history sur un fichier sans archive rend une liste vide`() {
+        val h = Harness()
+        h.project("boutique")
+        h.provider.handleMessageForTesting(
+            """{"type":"project_history","request_id":"h2","project_id":"boutique","path":"menus/jamais.yaml"}"""
+        )
+        h.await()
+
+        assertEquals(true, h.reply()["ok"])
+        @Suppress("UNCHECKED_CAST")
+        assertTrue((h.reply()["versions"] as List<Map<String, Any?>>).isEmpty())
+    }
+
+    @Test
+    fun `project_history refuse de lire hors de l'arbre du project`() {
+        val h = Harness()
+        h.project("boutique")
+        h.provider.handleMessageForTesting(
+            """{"type":"project_history","request_id":"h3","project_id":"boutique","path":"../../secrets"}"""
+        )
+        h.await()
+
+        assertEquals(false, h.reply()["ok"])
+        assertEquals("invalid_path", h.reply()["error"])
+    }
+
+    @Test
     fun `refuse une traversee de chemin et un project inconnu`() {
         val h = Harness()
         h.project("boutique")

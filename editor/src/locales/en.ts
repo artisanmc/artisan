@@ -1584,6 +1584,16 @@ export default {
     eyebrowSettings: "Settings",
     appearanceHelp: "Editor appearance and language. Saved to your account.",
   },
+  history: {
+    show: "Previous versions",
+    loading: "Loading…",
+    title: "Archived versions",
+    empty: "No archived version — this file has never been overwritten.",
+    restore: "Restore",
+    restoreHint: "Restoring puts the content back in the editor: you still have to save.",
+    serverOffline: "Server offline",
+    failed: "Could not read",
+  },
   save: {
     save: "Save",
     saving: "Saving…",

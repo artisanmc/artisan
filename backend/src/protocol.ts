@@ -224,6 +224,26 @@ export interface ProjectWriteResultMessage {
   message?: string;
 }
 
+// Backend → plugin: list the archived versions of ONE file (corbeille
+// `.artisan/history/`, ADR server-disk-only-storage décision 5). Restaurer n'a
+// pas de message dédié : c'est une écriture normale du contenu choisi.
+export interface ProjectHistoryMessage {
+  type: "project_history";
+  request_id: string;
+  project_id: string;
+  path: string;
+}
+
+// Plugin → backend: reply to ProjectHistoryMessage — newest first.
+export interface ProjectHistoryResultMessage {
+  type: "project_history_result";
+  request_id: string;
+  ok: boolean;
+  versions?: { at: number; content: string }[];
+  error?: "invalid_path" | "unknown_project" | "read_error";
+  message?: string;
+}
+
 // Backend → plugin: read the files of a Config-screen table, live from disk
 // (ADR module-config-screens). Correlated like data_source_fetch; 5 s timeout.
 export interface ConfigReadMessage {
@@ -275,7 +295,8 @@ export type PluginToServerMessage =
   | ConfigReadResultMessage
   | ConfigWriteResultMessage
   | ProjectReadResultMessage
-  | ProjectWriteResultMessage;
+  | ProjectWriteResultMessage
+  | ProjectHistoryResultMessage;
 
 export interface ResourcePackUpdatedMessage {
   type: "resource_pack_updated";

@@ -22,6 +22,8 @@ import type {
   ProjectReadResultMessage,
   ProjectWriteMessage,
   ProjectWriteResultMessage,
+  ProjectHistoryMessage,
+  ProjectHistoryResultMessage,
   ConfigWriteMessage,
   ConfigWriteResultMessage,
   DataSourceFetchMessage,
@@ -246,6 +248,13 @@ export type ProjectWriteOutcome =
 
 const pendingProjectReads = new Map<string, (outcome: ProjectReadOutcome) => void>();
 const pendingProjectWrites = new Map<string, (outcome: ProjectWriteOutcome) => void>();
+
+export type ProjectHistoryOutcome =
+  | { kind: "result"; result: ProjectHistoryResultMessage }
+  | { kind: "offline" }
+  | { kind: "timeout" };
+
+const pendingProjectHistories = new Map<string, (outcome: ProjectHistoryOutcome) => void>();
 const pendingConfigReads = new Map<string, (outcome: ConfigReadOutcome) => void>();
 const pendingConfigWrites = new Map<string, (outcome: ConfigWriteOutcome) => void>();
 
@@ -328,6 +337,35 @@ export function requestProjectWrite(
     pendingProjectWrites.set(requestId, (outcome) => {
       clearTimeout(timer);
       pendingProjectWrites.delete(requestId);
+      resolve(outcome);
+    });
+    send(JSON.stringify(msg));
+  });
+}
+
+/** Les versions archivées d'un fichier (corbeille disque du plugin). */
+export function requestProjectHistory(
+  serverKeyId: string,
+  req: { projectId: string; path: string },
+  timeoutMs: number = DATA_SOURCE_FETCH_TIMEOUT_MS,
+): Promise<ProjectHistoryOutcome> {
+  const send = firstPluginSender(serverKeyId);
+  if (!send) return Promise.resolve({ kind: "offline" });
+  const requestId = crypto.randomUUID();
+  const msg: ProjectHistoryMessage = {
+    type: "project_history",
+    request_id: requestId,
+    project_id: req.projectId,
+    path: req.path,
+  };
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      pendingProjectHistories.delete(requestId);
+      resolve({ kind: "timeout" });
+    }, timeoutMs);
+    pendingProjectHistories.set(requestId, (outcome) => {
+      clearTimeout(timer);
+      pendingProjectHistories.delete(requestId);
       resolve(outcome);
     });
     send(JSON.stringify(msg));
@@ -771,6 +809,14 @@ export async function handlePluginMessage(
     if (!serverId) return { reply: null };
     const result = msg as ProjectReadResultMessage;
     pendingProjectReads.get(result.request_id)?.({ kind: "result", result });
+    return { reply: null };
+  }
+
+  if (msg.type === "project_history_result") {
+    const serverId = connToServerId.get(connId);
+    if (!serverId) return { reply: null };
+    const result = msg as ProjectHistoryResultMessage;
+    pendingProjectHistories.get(result.request_id)?.({ kind: "result", result });
     return { reply: null };
   }
 

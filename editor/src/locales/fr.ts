@@ -1599,6 +1599,16 @@ const fr: typeof en = {
     eyebrowSettings: "Paramètres",
     appearanceHelp: "Apparence et langue de l'éditeur. Sauvegardé sur ton compte.",
   },
+  history: {
+    show: "Versions précédentes",
+    loading: "Chargement…",
+    title: "Versions archivées",
+    empty: "Aucune version archivée — ce fichier n'a jamais été écrasé.",
+    restore: "Restaurer",
+    restoreHint: "Restaurer remet le contenu dans l'éditeur : il faut ensuite enregistrer.",
+    serverOffline: "Serveur hors ligne",
+    failed: "Lecture impossible",
+  },
   save: {
     save: "Enregistrer",
     saving: "Enregistrement…",

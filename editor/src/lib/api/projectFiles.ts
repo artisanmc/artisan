@@ -100,3 +100,42 @@ export async function writeProjectFiles(
     return { ok: false, error: "network_error" };
   }
 }
+
+export interface FileVersion {
+  /** Millis de l'archivage. */
+  at: number;
+  content: string;
+}
+
+export type ProjectHistoryResult =
+  | { ok: true; versions: FileVersion[] }
+  | { ok: false; error: ProjectFilesError };
+
+/**
+ * Les versions archivées d'UN fichier — la corbeille que le plugin écrit avant
+ * chaque écrasement (ADR `server-disk-only-storage` décision 5), la plus récente
+ * d'abord.
+ *
+ * Restaurer n'a pas d'appel dédié : on remet le contenu choisi dans l'éditeur et
+ * on enregistre. C'est une écriture comme une autre, donc elle passe par le même
+ * compare-and-swap — restaurer ne peut pas écraser dans le dos de quelqu'un.
+ */
+export async function readFileHistory(
+  networkId: string,
+  serverId: string,
+  diskId: string,
+  path: string,
+): Promise<ProjectHistoryResult> {
+  try {
+    const url = `${API_URL}/api/v1/networks/${networkId}/servers/${serverId}/projects/${encodeURIComponent(diskId)}/history?path=${encodeURIComponent(path)}`;
+    const res = await fetch(url, { credentials: "include" });
+    const body = (await res.json().catch(() => null)) as {
+      versions?: FileVersion[];
+      error?: string;
+    } | null;
+    if (!res.ok) return { ok: false, error: knownError(body?.error, "read_error") };
+    return { ok: true, versions: body?.versions ?? [] };
+  } catch {
+    return { ok: false, error: "network_error" };
+  }
+}
