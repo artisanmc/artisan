@@ -13,7 +13,7 @@ vi.mock("@tanstack/react-router", async () => {
 });
 
 describe("ProjectTopBarControls", () => {
-  it("renders the lang switcher, undo/redo, and deploy when a project is provided", () => {
+  it("renders the lang switcher, undo/redo, and save when a project is provided", () => {
     const project = {
       id: "p1",
       name: "Test",
@@ -27,10 +27,12 @@ describe("ProjectTopBarControls", () => {
     render(<ProjectTopBarControls project={project} projectId={"p1" as any} />);
     // Make assertions broad — we just want to confirm the trio is in the DOM.
     // Titles may be in English or French depending on test locale.
-    // Use getAllByTitle to handle the case where "Annuler" also matches the Revert button.
     const undoMatches = screen.getAllByTitle(/Undo \(|Annuler \(/i);
     expect(undoMatches.length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByRole("button", { name: /^(Deploy|Déployer|Publier|Publish)/ })).toBeInTheDocument();
+    // Un seul geste depuis la bascule « disque seul » : Enregistrer a remplacé
+    // la paire Déployer / Revenir (ADR `server-disk-only-storage`).
+    expect(screen.getByRole("button", { name: /^(Save|Enregistrer)/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^(Deploy|Déployer)/ })).toBeNull();
   });
 
   it("renders the workspace view buttons with a missing-translations badge", () => {

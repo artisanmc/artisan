@@ -27,6 +27,16 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 - `BundleHasher.hashContent` expose le digest existant pour le CAS — une seule primitive de hash dans le plugin, et trivialement reproductible côté éditeur (SHA-256 UTF-8, hex minuscule).
 - Le backend relaie sans arbitrer : il n'a aucune copie avec quoi arbitrer.
 
+### Changed — l'éditeur lit et écrit le disque du serveur, sur geste explicite (ADR `server-disk-only-storage`, P2) (BREAKING UX)
+
+- **L'auto-save disparaît.** Plus rien n'est écrit sans que l'admin clique sur **Enregistrer**. Les modifications non enregistrées vivent dans la page — fermer l'onglet les perd, comme dans n'importe quel éditeur. Le débounce de 2 s et `persistProject` sont supprimés.
+- **Un seul geste, une seule destination** : le bouton *Enregistrer* remplace la paire *Déployer* / *Revenir*. Il n'y a plus d'artefact intermédiaire à publier, donc plus rien à « déployer » : enregistrer, c'est écrire les fichiers du serveur.
+- **Chargement depuis le disque** : `useProjectLoader` lit l'arbre via `project_read` ; la réponse backend ne sert plus qu'à l'identité (nom, slug, serveur, network). Serveur hors ligne = Project non ouvrable, annoncé comme tel, **jamais un repli sur une copie périmée**.
+- **Enregistrement différentiel** : l'éditeur garde la *base* (contenu chargé, `projectBaselineStore`), compare, et n'envoie que le delta avec le hash de base de chaque entrée. Un fichier que personne n'a touché n'est jamais réécrit, donc ne peut pas entrer en conflit.
+- **Résolution de conflit par fichier** : une modale liste les fichiers qui ont bougé sur le serveur, avec le choix *garder ma version* / *prendre celle du serveur*. Le mécanisme tient en une idée — **adopter le contenu disque comme base** : « garder ma version » ne bouge que la base (donc le ré-enregistrement porte le bon jeton), « prendre celle du serveur » bouge la base *et* l'arbre. Un fichier sans choix explicite bloque l'enregistrement plutôt que d'être tranché en douce.
+- **L'assistant IA n'écrit plus sur le serveur** : ce qu'il génère atterrit dans l'état de la page comme une édition manuelle. C'était le seul chemin qui touchait le disque sans geste — et le plus surprenant, puisqu'il n'était pas de l'admin.
+- **L'export zip lit le disque** au lieu de la copie backend : il reste ce que le serveur exécute réellement, et il embarque toujours ce que le domaine ne modélise pas (`.artisan/editor.yaml`, fichiers d'une racine Add-on).
+
 ### Fixed — un serveur ne peut plus écrire dans le project d'un autre (SÉCURITÉ)
 
 - Les trois points d'ingestion plugin (`local_push`, stub-create du `hello`, `POST /api/v1/bundles/:projectId`) résolvaient le project par **id seul, globalement**, sans vérifier qu'il appartenait à la clé serveur authentifiée. Comme l'add-on Boutique bootstrappe le même id disque `boutique_shop` sur chaque serveur qui l'installe, la poussée d'un serveur atterrissait dans le project d'un **autre tenant** — networks et clients différents inclus. `createProject` étant idempotent sur l'id (garde anti-crash de 2026-07-09), la collision n'échouait pas : elle écrasait en silence. Atteignable par le flow de liaison normal, sans rien faire d'anormal (incident 2026-08-12).
