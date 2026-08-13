@@ -638,6 +638,71 @@ describe("config read/write relay (module-config-screens)", () => {
   });
 });
 
+describe("une clé serveur = un serveur vivant", () => {
+  /**
+   * Le backend relaie vers « la première connexion trouvée » pour une clé. Tant
+   * qu'il détenait le contenu, parler à l'une ou l'autre des instances revenait
+   * au même — elles téléchargeaient toutes le même bundle. Depuis
+   * `server-disk-only-storage`, chacune a SON disque et rien ne les synchronise :
+   * lire A puis écrire B, ou basculer en silence de A vers B quand A tombe, c'est
+   * exactement la divergence que l'épopée a supprimée. On applique donc la règle.
+   */
+  test("un second hello sur la même clé évince le premier (dernier gagne)", async () => {
+    const { key } = await seedServerKey();
+    const { connToServerId, connSenders } = await import("./hub");
+    const firstMsgs: string[] = [];
+    registerConn("conn-evicted", (raw) => firstMsgs.push(raw));
+    registerConn("conn-winner", () => {});
+    const hello = {
+      type: "hello", server_key: key, plugin_version: "1.0",
+      minecraft_version: "1.21", current_bundle_hash: "",
+    };
+    try {
+      await handlePluginMessage("conn-evicted", JSON.stringify(hello));
+      expect(connToServerId.get("conn-evicted")).toBeDefined();
+
+      await handlePluginMessage("conn-winner", JSON.stringify(hello));
+
+      // L'ancienne connexion ne reçoit plus rien : le relais ne peut plus la choisir.
+      expect(connToServerId.get("conn-evicted")).toBeUndefined();
+      expect(connToServerId.get("conn-winner")).toBeDefined();
+      // Et elle est prévenue, pour que le serveur évincé le dise dans ses logs
+      // au lieu de se croire connecté indéfiniment.
+      expect(firstMsgs.some((m) => JSON.parse(m).type === "session_replaced")).toBe(true);
+    } finally {
+      connToServerId.delete("conn-evicted");
+      connToServerId.delete("conn-winner");
+      connSenders.delete("conn-evicted");
+      connSenders.delete("conn-winner");
+    }
+  });
+
+  test("un reconnect après crash récupère la clé au lieu de rester dehors", async () => {
+    const { key } = await seedServerKey();
+    const { connToServerId, connSenders } = await import("./hub");
+    registerConn("conn-dead", () => {});
+    registerConn("conn-restarted", () => {});
+    const hello = {
+      type: "hello", server_key: key, plugin_version: "1.0",
+      minecraft_version: "1.21", current_bundle_hash: "",
+    };
+    try {
+      await handlePluginMessage("conn-dead", JSON.stringify(hello));
+      // « conn-dead » n'a jamais été nettoyée (crash sale, keepalive pas encore expiré).
+      const res = await handlePluginMessage("conn-restarted", JSON.stringify(hello));
+
+      // Le vrai serveur reprend la main — c'est tout l'intérêt de « dernier gagne ».
+      expect(res.reply).not.toBeNull();
+      expect(connToServerId.get("conn-restarted")).toBeDefined();
+    } finally {
+      connToServerId.delete("conn-dead");
+      connToServerId.delete("conn-restarted");
+      connSenders.delete("conn-dead");
+      connSenders.delete("conn-restarted");
+    }
+  });
+});
+
 describe("project_read relay (server-disk-only-storage P0)", () => {
   test("resolves offline when no plugin conn is bound", async () => {
     const { requestProjectRead } = await import("./hub");

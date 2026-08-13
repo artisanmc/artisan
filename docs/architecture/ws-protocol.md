@@ -22,6 +22,7 @@
 | `custom_items_request` | backend → plugin | `{}` — demande le bundle complet |
 | `custom_items_bundle` | plugin → backend | `{ hash, data }` — `data = base64(gzip(zip))` |
 | `declared_models` (champ de `hello` / `modules_changed`) | plugin → backend | Documents `model/v1` déclarés par les modules (`api.models.declare`), verbatim (id namespacé, `version` + `migrations` déclaratives). Persistés dans `server_declared_models` (upsert + prune, miroir `data_sources`), servis à l'éditeur via `GET …/servers/:sid/models` (ADR composable-data-models §4). |
+| `session_replaced` | backend → plugin | `{type, reason}` — un autre serveur vient de se connecter avec **cette** clé ; celui-ci est évincé du relais. Un seul WARN côté plugin, aucun retry : personne ne regarde la console au moment où ça tombe, mais tout le monde la lit après coup. |
 | `project_deleted` | backend → plugin | `{ project_id }` — project supprimé côté éditeur, le plugin move-to-trash |
 | `data_source_fetch` | backend → plugin | `{type, request_id, ref, params, filter, sort, limit, args}` — preview request relayed from `POST …/data-sources/preview`. Corrélé par `request_id`, timeout 5 s côté backend (couvre les vieux plugins qui ignorent le type). `args` = valeurs d'essai pour l'interpolation `{arg}`. |
 | `data_source_fetch_result` | plugin → backend | `{type, request_id, ok, rows?, truncated?, error?, message?}` — réponse du plugin (fetch `player = null` sur le main thread + shaping `ContextBinder`, rows tronquées à 50 / ≤ 256 KB). `error` ∈ `unknown_source` / `player_required` / `fetch_error`. |
@@ -75,6 +76,7 @@ le backend n'est qu'un **relais** (ADR `server-disk-only-storage`).
 
 ## Invariants liés (détaillés dans `invariants.md`)
 
+- **Une clé serveur = UN serveur vivant** : au `hello`, le backend évince la connexion précédente liée à la même clé (dernier arrivé gagne). Le relais choisit « la première connexion trouvée » — avec N instances sur une clé, chacune ayant son propre disque, on lirait l'une et écrirait l'autre, puis on basculerait en silence quand la première tombe.
 - **Un seul écrivain** : le plugin. Le backend relaie et n'arbitre jamais — il n'a aucune copie avec quoi arbitrer. La protection contre l'écrasement concurrent est le **compare-and-swap par fichier** de `project_write` (tout ou rien, conflits rendus avec le contenu disque).
 - **Le hash n'est plus inter-langage** : `BundleHasher` ne sert qu'au plugin (détection de changement + jeton de CAS). Le vecteur de conformance partagé a disparu avec l'implémentation backend.
 - **OkHttp thread** : `SyncedMenuProvider.handleMessage` tourne sur le callback WS d'OkHttp — pas d'I/O bloquant direct.

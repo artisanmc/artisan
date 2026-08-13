@@ -626,13 +626,13 @@ userNetworksRouter.get(
 		const helloById = new Map(lastHelloes.map((h) => [h.serverKeyId, h]));
 
 		const servers = keys.map((k) => {
-			const instanceCount = getInstanceCount(k.id);
+			// Plus de compte d'instances : une clé = un serveur vivant, le backend
+			// évince l'ancienne connexion au hello (ADR `server-disk-only-storage`).
 			const hello = helloById.get(k.id);
 			return {
 				id: k.id,
 				label: k.label,
-				online: instanceCount > 0,
-				instanceCount,
+				online: getInstanceCount(k.id) > 0,
 				lastMcVersion: k.lastMcVersion,
 				lastSeenAt: hello ? hello.helloAt.toISOString() : null,
 				lastSeenIp: hello ? hello.ip : null,

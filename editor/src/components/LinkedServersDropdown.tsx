@@ -52,9 +52,6 @@ export function ServerRow({ s, lang, t }: { s: ServerStatusEntry; lang: string; 
         {s.online ? (
           <>
             {t("linkedServers.online")}
-            {s.instanceCount > 1
-              ? ` ${t("linkedServers.instances", { count: s.instanceCount })}`
-              : ""}
             {s.lastSeenIp ? ` · ${s.lastSeenIp}` : ""}
             {s.lastMcVersion ? ` · ${s.lastMcVersion}` : ""}
           </>
