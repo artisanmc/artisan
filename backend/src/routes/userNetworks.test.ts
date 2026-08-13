@@ -1007,6 +1007,58 @@ describe("GET /:networkId/servers/:serverId/modules & /data-sources", () => {
   });
 });
 
+describe("GET …/projects/:projectId/files (server-disk-only-storage P0)", () => {
+  test("503 server_offline when the owning server is not connected", async () => {
+    const { sessionId } = await seedUser("u_pfiles_offline");
+    const app = makeApp();
+    const create = await app.request("/api/v1/networks", {
+      method: "POST",
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "N" }),
+    });
+    const { network } = await create.json();
+    const keyId = crypto.randomUUID();
+    await db.insert(serverKeys).values({ id: keyId, hash: "h-off", networkId: network.id, createdAt: new Date() });
+
+    const res = await app.request(
+      `/api/v1/networks/${network.id}/servers/${keyId}/projects/boutique_shop/files`,
+      { headers: { Cookie: `artisan_user_session=${sessionId}` } },
+    );
+    // No stale fallback: with no backend copy, an offline server means the
+    // Project simply cannot be opened (ADR decision 7).
+    expect(res.status).toBe(503);
+    expect((await res.json()).error).toBe("server_offline");
+  });
+
+  test("403 for a user outside the network", async () => {
+    const { sessionId } = await seedUser("u_pfiles_owner");
+    const app = makeApp();
+    const create = await app.request("/api/v1/networks", {
+      method: "POST",
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "N" }),
+    });
+    const { network } = await create.json();
+    const keyId = crypto.randomUUID();
+    await db.insert(serverKeys).values({ id: keyId, hash: "h-priv", networkId: network.id, createdAt: new Date() });
+
+    const { sessionId: outsiderSession } = await seedUser("u_pfiles_outsider");
+    const res = await app.request(
+      `/api/v1/networks/${network.id}/servers/${keyId}/projects/boutique_shop/files`,
+      { headers: { Cookie: `artisan_user_session=${outsiderSession}` } },
+    );
+    expect(res.status).toBe(403);
+  });
+
+  test("401 without a session", async () => {
+    const app = makeApp();
+    const res = await app.request(
+      `/api/v1/networks/n1/servers/sk1/projects/boutique_shop/files`,
+    );
+    expect(res.status).toBe(401);
+  });
+});
+
 describe("POST …/data-sources/preview", () => {
   beforeEach(clearAll);
 

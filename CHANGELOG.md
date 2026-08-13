@@ -9,6 +9,15 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Added — `project_read` : l'éditeur lit un Project sur le disque du serveur (ADR `server-disk-only-storage`, P0)
+
+- Première brique de l'épopée « disque seul » : le backend cessera de stocker le contenu des Projects, le plugin devient le seul écrivain, et l'éditeur lit et écrit les fichiers du serveur par le relais WS. P0 livre **la lecture** ; l'écriture arrive en P1 avec la corbeille et le compare-and-swap par fichier — un chemin d'écriture sans son filet n'a pas sa place, même non branché à l'UI.
+- Nouveau couple WS `project_read` / `project_read_result` (`backend/src/protocol.ts`, relais `requestProjectRead` dans `ws/hub.ts`, handler plugin dans `SyncedMenuProvider`). Généralise `config_read`, qui ne portait qu'une Table d'écran de config.
+- Nouvelle route `GET /api/v1/networks/:networkId/servers/:serverId/projects/:projectId/files`. `:projectId` est l'**id disque** : sans ligne backend à résoudre, c'est le seul id qu'un Project possède sur cette route. Serveur hors ligne → 503, jamais un repli périmé (décision 7 de l'ADR).
+- Plafond de 8 MiB avec `too_large` explicite plutôt que troncature. Dimensionné sur mesure réelle : les deux projects du devstack font 17 et 21 fichiers pour 7,9 Ko et 43 Ko — deux ordres de grandeur de marge, donc pas de découpage.
+- `ProjectFilesReader.readAll` extrait de `readRelative` : une seule traversée du dossier, `readRelative` n'en est plus qu'un filtre. `project_read` inclut `.artisan/editor.yaml` (layout du board, `i18n_mode` — l'éditeur en est propriétaire) mais exclut corbeille et métadonnées de sync.
+- Rien n'est retiré à ce stade : la synchro actuelle (`bundle_available`, `local_push`, divergence) tourne inchangée.
+
 ### Fixed — un serveur ne peut plus écrire dans le project d'un autre (SÉCURITÉ)
 
 - Les trois points d'ingestion plugin (`local_push`, stub-create du `hello`, `POST /api/v1/bundles/:projectId`) résolvaient le project par **id seul, globalement**, sans vérifier qu'il appartenait à la clé serveur authentifiée. Comme l'add-on Boutique bootstrappe le même id disque `boutique_shop` sur chaque serveur qui l'installe, la poussée d'un serveur atterrissait dans le project d'un **autre tenant** — networks et clients différents inclus. `createProject` étant idempotent sur l'id (garde anti-crash de 2026-07-09), la collision n'échouait pas : elle écrasait en silence. Atteignable par le flow de liaison normal, sans rien faire d'anormal (incident 2026-08-12).

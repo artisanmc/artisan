@@ -24,6 +24,8 @@ import type {
   CustomItemsRequestMessage,
   ConfigReadMessage,
   ConfigReadResultMessage,
+  ProjectReadMessage,
+  ProjectReadResultMessage,
   ConfigWriteMessage,
   ConfigWriteResultMessage,
   DataSourceFetchMessage,
@@ -240,6 +242,12 @@ export type ConfigWriteOutcome =
   | { kind: "offline" }
   | { kind: "timeout" };
 
+export type ProjectReadOutcome =
+  | { kind: "result"; result: ProjectReadResultMessage }
+  | { kind: "offline" }
+  | { kind: "timeout" };
+
+const pendingProjectReads = new Map<string, (outcome: ProjectReadOutcome) => void>();
 const pendingConfigReads = new Map<string, (outcome: ConfigReadOutcome) => void>();
 const pendingConfigWrites = new Map<string, (outcome: ConfigWriteOutcome) => void>();
 
@@ -251,6 +259,40 @@ function firstPluginSender(serverKeyId: string): ((msg: string) => void) | undef
     }
   }
   return undefined;
+}
+
+/**
+ * Read a Project's whole file tree live from the server's disk.
+ *
+ * The Project *is* those files (ADR `server-disk-only-storage`) — there is no
+ * backend copy to fall back on, so an offline server means the Project cannot be
+ * opened at all, and the caller must say so rather than serve something stale.
+ */
+export function requestProjectRead(
+  serverKeyId: string,
+  req: { projectId: string },
+  timeoutMs: number = DATA_SOURCE_FETCH_TIMEOUT_MS,
+): Promise<ProjectReadOutcome> {
+  const send = firstPluginSender(serverKeyId);
+  if (!send) return Promise.resolve({ kind: "offline" });
+  const requestId = crypto.randomUUID();
+  const msg: ProjectReadMessage = {
+    type: "project_read",
+    request_id: requestId,
+    project_id: req.projectId,
+  };
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      pendingProjectReads.delete(requestId);
+      resolve({ kind: "timeout" });
+    }, timeoutMs);
+    pendingProjectReads.set(requestId, (outcome) => {
+      clearTimeout(timer);
+      pendingProjectReads.delete(requestId);
+      resolve(outcome);
+    });
+    send(JSON.stringify(msg));
+  });
 }
 
 /** Read the files of a Config-screen table live from the plugin's disk. */
@@ -849,6 +891,15 @@ export async function handlePluginMessage(
     if (!serverId) return { reply: null };
     const result = msg as PlayerInventoryResultMessage;
     pendingInventoryFetches.get(result.request_id)?.({ kind: "result", result });
+    return { reply: null };
+  }
+
+  // ── project_read_result: the editor's read of a Project (disk-only store) ──
+  if (msg.type === "project_read_result") {
+    const serverId = connToServerId.get(connId);
+    if (!serverId) return { reply: null };
+    const result = msg as ProjectReadResultMessage;
+    pendingProjectReads.get(result.request_id)?.({ kind: "result", result });
     return { reply: null };
   }
 

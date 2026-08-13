@@ -10,22 +10,29 @@ import java.util.logging.Logger
 
 object ProjectFilesReader {
     /**
-     * The single project-dir walk. relPath-keyed map (forward slashes), excluding
-     * `.artisan*` sync metadata. Both the hash (`BundleHasher`) and the wire forms
-     * (`read`, below) derive from this — no second traversal.
+     * The single project-dir walk. relPath-keyed map (forward slashes), holding
+     * **everything** on disk — `.artisan*` metadata included. Every other reader
+     * derives from this one; no second traversal.
      */
-    fun readRelative(projectDir: File): Map<String, String> {
+    fun readAll(projectDir: File): Map<String, String> {
         val out = mutableMapOf<String, String>()
         projectDir.walkTopDown()
             .filter { it.isFile }
             .forEach { file ->
                 val rel = file.relativeTo(projectDir).path.replace('\\', '/')
-                // `.artisan*` first segment = sync/editor metadata: out of the
-                // hash and never uploaded (the backend preserves its copies).
-                if (!BundleHasher.isArtisanMeta(rel)) out[rel] = file.readText(Charsets.UTF_8)
+                out[rel] = file.readText(Charsets.UTF_8)
             }
         return out
     }
+
+    /**
+     * relPath-keyed map excluding `.artisan*` sync metadata. Both the hash
+     * (`BundleHasher`) and the wire forms (`read`, below) derive from this —
+     * a `.artisan*` first segment is out of the hash and never uploaded (the
+     * backend preserves its copies).
+     */
+    fun readRelative(projectDir: File): Map<String, String> =
+        readAll(projectDir).filterKeys { !BundleHasher.isArtisanMeta(it) }
 
     /**
      * Canonical files map keyed by "plugins/Artisan/projects/<projectId>/<relPath>"
