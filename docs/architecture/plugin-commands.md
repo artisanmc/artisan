@@ -12,7 +12,6 @@ les deux doivent bouger ensemble.
 | `sync reject` | `menuProvider.unload()/load()` — recharge depuis le disque et reconnecte. |
 | `link <code>` | Editor-first linking, cf. ci-dessous. |
 | `editor` | Purement informatif, cf. ci-dessous. |
-| `pushLocal <project_id\|--all>` | Fallback manuel, cf. ci-dessous. |
 | `dump-title <menu_id> [lang]` | **Diagnostic**, non documenté côté user. Compile le titre du menu et imprime chaque étape : le MiniMessage exact émis, les advances d'offset, et le curseur X MC à chaque frontière de layer. À utiliser quand la position en jeu diffère de l'aperçu éditeur. |
 
 ## `link <code>`
@@ -34,10 +33,3 @@ Sur un serveur **déjà lié** → **écrase** la clé (rotation / bascule), WAR
 - Linké mais pas encore connecté → « connecting, retry shortly ».
 - Pas linké → imprime l'URL home de l'éditeur (dérivée de `ws_url`) pour aller créer le serveur.
 
-## `pushLocal <project_id|--all>`
-
-**Fallback manuel.** Depuis P3b (files-first), les éditions disque sont détectées et auto-pushées
-(scan disque périodique + check au `hello_ack`) — cf. `invariants.md` § Scan disque + auto-push.
-
-Utile seulement pour **forcer le côté disque** lors d'une vraie divergence : quand les deux côtés ont
-bougé, le plugin ne pushe pas seul. Un `pushLocal` clear alors la divergence en attente (force-disk).

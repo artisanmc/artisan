@@ -344,14 +344,8 @@ export const projects = pgTable(
 		// URL slug, unique per server key. Nullable during backfill.
 		slug: text("slug"),
 		description: text("description"),
-		hash: text("hash").notNull().default(""),
-		// Optimistic-concurrency counter for draft content. Bumped by every
-		// content write (editor save, plugin push, deploy); editor PUTs must
-		// present the version they loaded or get a 409.
-		version: integer("version").notNull().default(0),
-		// Files-first (ADR files-first-source-of-truth): the file tree is the ONLY
-		// stored Project representation — the editor parses/serializes it client-side.
-		filesJson: text("files_json").notNull().default("{}"),
+		// Le contenu vit sur le disque du serveur et NULLE PART ailleurs (ADR
+		// `server-disk-only-storage`) : cette ligne ne porte plus que l'identité.
 		deletedAt: timestamp("deleted_at"),
 		createdAt: timestamp("created_at").notNull(),
 		updatedAt: timestamp("updated_at").notNull(),
@@ -362,47 +356,6 @@ export const projects = pgTable(
 		index("projects_server_key_idx").on(t.serverKeyId),
 		uniqueIndex("projects_serverkey_slug_uniq").on(t.serverKeyId, t.slug),
 		uniqueIndex("projects_serverkey_external_uniq").on(t.serverKeyId, t.externalId),
-	],
-);
-
-export const projectCommits = pgTable(
-	"project_commits",
-	{
-		id: text("id").primaryKey(),
-		projectId: text("project_id")
-			.notNull()
-			.references(() => projects.id, { onDelete: "cascade" }),
-		parentId: text("parent_id"),
-		parentId2: text("parent_id_2"),
-		contentHash: text("content_hash").notNull(),
-		filesJson: text("files_json").notNull(),
-		authorUserId: text("author_user_id"),
-		message: text("message").notNull().default(""),
-		createdAt: timestamp("created_at").notNull(),
-	},
-	(t) => [
-		index("project_commits_project_idx").on(t.projectId),
-		index("project_commits_project_created_idx").on(t.projectId, t.createdAt),
-		uniqueIndex("project_commits_project_content_uniq").on(t.projectId, t.contentHash),
-	],
-);
-
-export const projectBranches = pgTable(
-	"project_branches",
-	{
-		projectId: text("project_id")
-			.notNull()
-			.references(() => projects.id, { onDelete: "cascade" }),
-		name: text("name").notNull(),
-		headCommitId: text("head_commit_id")
-			.notNull()
-			.references(() => projectCommits.id, { onDelete: "restrict" }),
-		createdAt: timestamp("created_at").notNull(),
-		updatedAt: timestamp("updated_at").notNull(),
-	},
-	(t) => [
-		uniqueIndex("project_branches_uniq").on(t.projectId, t.name),
-		index("project_branches_head_idx").on(t.headCommitId),
 	],
 );
 

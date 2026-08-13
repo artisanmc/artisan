@@ -45,6 +45,18 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 - `project_write` accepte `create: true` pour matérialiser le dossier d'un Project neuf (création, import). **Sans ce drapeau un id inconnu reste une erreur** : on ne sème pas un dossier fantôme sur un id mal tapé. L'éditeur ne l'envoie que lorsqu'il n'a aucune base pour ce Project, c'est-à-dire quand il ne l'a jamais lu sur le disque.
 - Cette passe ne touche ni le plugin ni le stockage backend : la boucle de sync actuelle continue de tourner (elle entretient une copie que plus personne ne lit) et tombera d'un bloc en P3b, pour ne jamais laisser la liaison coupée à moitié.
 
+### Removed — le backend ne stocke plus aucun contenu de Project (ADR `server-disk-only-storage`, P3b) (BREAKING)
+
+L'aboutissement de l'épopée. Ordre imposé — le plugin cesse d'appeler **avant** que le backend
+supprime ses endpoints — pour ne jamais laisser la liaison coupée à moitié.
+
+- **Plugin** : `BundleDownloader`, `LocalPushSender`, `SyncMetadata`, `detectSyncAction`/`SyncAction`, le handler `bundle_available`, le contrôle de synchro du `hello_ack`, l'auto-push et `/artisan pushLocal` ont disparu. `ProjectFilesReader` sort de `BundleUploader` (supprimé) vers son propre fichier. Le `SyncScanner` **reste**, réduit à ce qu'il aurait toujours dû être : un détecteur de changement qui recharge à chaud, sans jamais décider.
+- **Backend** : `projects.files_json`, `projects.hash`, `projects.version`, les tables `project_commits` / `project_branches`, les routes `/api/v1/bundles` et `…/branches`, `commitStorage`, `branchStorage`, `projectJournal`, `divergence`, `hashUtils`, `pushBundleAvailable`, les handlers `local_push` / `sync_divergence` / `boutique_additem`. Migration **0030**.
+- **`hello_ack` maigrit** : plus de `project_hashes`, `needs_sync`, `latest_bundle_hash`, `deleted_project_ids` — le backend n'a plus rien à comparer ni à annoncer. Les `local_project_ids` du `hello` restent utiles : un project présent sur le disque et inconnu du backend y est enregistré, **identité seulement**.
+- **Le hash cesse d'être un invariant inter-langage.** `testdata/project-hash-conformance.json` et son implémentation backend disparaissent : plus personne d'autre ne calcule le hash d'arbre. Il ne reste que deux usages locaux au plugin — la détection de changement du scanner, et `hashContent` pour le compare-and-swap.
+- **`/boutique additem` est cassé et doit être réparé dans le repo de l'Add-on** : la mutation in-game passait par le backend, qui patchait sa copie. Le module doit désormais écrire son fichier sur disque lui-même. Le handler backend est retiré ; le message WS n'a plus de destinataire.
+- **Perte assumée** : le compte de Documents et le module propriétaire affichés dans la liste des projects se lisaient dans la copie backend. Les recalculer exigerait un aller-retour disque par Project juste pour peupler une liste.
+
 ### Fixed — un serveur ne peut plus écrire dans le project d'un autre (SÉCURITÉ)
 
 - Les trois points d'ingestion plugin (`local_push`, stub-create du `hello`, `POST /api/v1/bundles/:projectId`) résolvaient le project par **id seul, globalement**, sans vérifier qu'il appartenait à la clé serveur authentifiée. Comme l'add-on Boutique bootstrappe le même id disque `boutique_shop` sur chaque serveur qui l'installe, la poussée d'un serveur atterrissait dans le project d'un **autre tenant** — networks et clients différents inclus. `createProject` étant idempotent sur l'id (garde anti-crash de 2026-07-09), la collision n'échouait pas : elle écrasait en silence. Atteignable par le flow de liaison normal, sans rien faire d'anormal (incident 2026-08-12).

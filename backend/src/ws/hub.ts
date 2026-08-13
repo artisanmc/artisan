@@ -1,24 +1,18 @@
 import { and, eq, isNotNull, isNull, notInArray } from "drizzle-orm";
 import { db } from "../db/index";
 import { ensureAssets, assetsDone } from "../lib/mcAssets";
-import { networks, projectBranches, projectCommits, projects, serverKeyHelloes, serverKeys, serverModules, serverDataSources, serverDeclaredModels, serverEditorScreens } from "../db/schema";
+import { networks, projects, serverKeyHelloes, serverKeys, serverModules, serverDataSources, serverDeclaredModels, serverEditorScreens } from "../db/schema";
 import {
   createProject,
   ensureProjectForServer,
   getProject,
   getProjectForServer,
   projectDiskId,
-  upsertProjectContent,
 } from "../lib/projectStorage";
-import { getBranch, advanceBranchHead } from "../lib/branchStorage";
-import { createCommit, computeContentHash } from "../lib/commitStorage";
-import { computeAllPacksHash } from "../lib/hashUtils";
 import { customItemsCacheDir, readCustomItemsHash, processBundle } from "../lib/customItems";
-import { applyBoutiqueAdditem, type BoutiqueAdditemPayload } from "../modules/boutique/index";
 import { currentPackInfo } from "../lib/resourcePack";
 import { invalidateCustomBundle } from "../routes/modelBundle";
 import type {
-  BundleAvailableMessage,
   CustomItemsBundleMessage,
   CustomItemsChangedMessage,
   CustomItemsRequestMessage,
@@ -45,10 +39,6 @@ import type {
 } from "../protocol";
 
 const API_BASE_URL = process.env.API_BASE_URL ?? "http://localhost:3001";
-// BUNDLE_BASE_URL is the URL the *plugin* uses to download bundles.
-// In Docker, this should be the internal service URL (e.g. http://backend:3001)
-// while API_BASE_URL remains the browser-accessible URL.
-const BUNDLE_BASE_URL = process.env.BUNDLE_BASE_URL ?? API_BASE_URL;
 const EDITOR_URL = process.env.EDITOR_URL ?? "http://localhost:5173";
 
 // Per-connection send functions (all connections, authenticated or not)
@@ -388,7 +378,6 @@ export function requestConfigWrite(
     project_id: req.projectId,
     files: req.files,
     deletes: req.deletes ?? [],
-    create: req.create ?? false,
   };
   return new Promise((resolve) => {
     const timer = setTimeout(() => {
@@ -654,55 +643,16 @@ export async function handlePluginMessage(
       );
     }
 
-    const latestHash = await computeAllPacksHash(keyId);
-    const needsSync = latestHash !== "" && latestHash !== hello.current_bundle_hash;
-
-    // With 1:1 ownership, "bound projects" = projects owned by this server_key (non-deleted)
+    // Le backend ne détient plus de contenu : il n'y a ni hash à comparer, ni
+    // bundle à annoncer (ADR `server-disk-only-storage`). Il garde en revanche
+    // l'IDENTITÉ des Projects — c'est elle qui permet à l'éditeur de les lister
+    // et de les router — donc un project présent sur le disque du serveur mais
+    // inconnu de la base y est enregistré ici.
     const boundProjects = await db.select().from(projects).where(
       and(eq(projects.serverKeyId, keyId), isNull(projects.deletedAt)),
     );
-    const deletedRows = await db
-      .select({ id: projects.id })
-      .from(projects)
-      .where(and(eq(projects.serverKeyId, keyId), isNotNull(projects.deletedAt)));
-    const deletedProjectIds = deletedRows.map((r) => r.id);
-
-    // Build project_hashes via branch → commit content hash (Phase 2).
-    // Each project's binding branch is always "main" in the 1:1 model.
-    // `diskId` is what the plugin knows; `projectId` is the internal row id the
-    // branch/commit tables key on. They differ only when another server already
-    // claimed the disk id (see ensureProjectForServer).
-    const bindings = boundProjects.map((p) => ({
-      projectId: p.id,
-      diskId: projectDiskId(p),
-      branchName: "main" as const,
-    }));
-
-    const projectHashesMap: Record<string, string> = {};
-    for (const b of bindings) {
-      const branch = await db.select().from(projectBranches).where(and(
-        eq(projectBranches.projectId, b.projectId), eq(projectBranches.name, b.branchName),
-      ));
-      if (branch.length === 0) continue;
-      const cmt = await db.select({ filesJson: projectCommits.filesJson })
-        .from(projectCommits)
-        .where(eq(projectCommits.id, branch[0].headCommitId));
-      if (cmt.length === 0) continue;
-      // Recompute canonically from the head's files rather than trusting the
-      // stored contentHash: commits created before the canonicalization fix
-      // (full-path keys, `.artisan*` included) carry legacy hashes — this
-      // self-heals them without a backfill.
-      // Keyed by the disk id: `project_hashes` is compared against the plugin's
-      // own on-disk hashes, and the file paths it hashes carry the disk id.
-      projectHashesMap[b.diskId] = computeContentHash(
-        JSON.parse(cmt[0].filesJson) as Record<string, string>, b.diskId,
-      );
-    }
-
-    // Create minimal stubs for projects the plugin has on disk but the backend doesn't know about.
     const knownProjectIds = new Set(boundProjects.map((p) => projectDiskId(p)));
-    const localProjectIds = hello.local_project_ids ?? [];
-    const missingProjectIds = localProjectIds.filter((id) => !knownProjectIds.has(id));
+    const missingProjectIds = (hello.local_project_ids ?? []).filter((id) => !knownProjectIds.has(id));
     if (missingProjectIds.length > 0) {
       const skRows = await db.select().from(serverKeys).where(eq(serverKeys.id, keyId));
       const sk = skRows[0];
@@ -712,11 +662,6 @@ export async function handlePluginMessage(
           // a global create here handed this server another tenant's project
           // instead of making its own (incident 2026-08-12).
           await ensureProjectForServer({ networkId: sk.networkId, serverKeyId: keyId, diskId: pid });
-          // Advertise the fresh (empty) stub in THIS ack so the plugin's
-          // backendHash.isEmpty() auto-push fires on the first connect — without
-          // it, the stub is missing from project_hashes and the plugin treats the
-          // project as local-only (no upload) until a later reconnect.
-          projectHashesMap[pid] = "";
         }
       }
     }
@@ -739,35 +684,15 @@ export async function handlePluginMessage(
       session_id: sessionId,
       server_id: keyId,
       tier: "free",
-      needs_sync: needsSync,
-      latest_bundle_hash: latestHash,
       api_url: API_BASE_URL,
-      bundle_url: BUNDLE_BASE_URL,
       editor_url: EDITOR_URL,
       server_url: serverUrl,
       network_name: networkName,
-      project_hashes: projectHashesMap,
-      deleted_project_ids: deletedProjectIds,
       resource_pack: rp,
     };
 
-    const push: string[] = [];
-    if (needsSync) {
-      for (const b of bindings) {
-        const hash = projectHashesMap[b.diskId];
-        if (!hash) continue;
-        const available: BundleAvailableMessage = {
-          type: "bundle_available",
-          project_id: b.diskId,
-          url: `${BUNDLE_BASE_URL}/api/v1/bundles/${b.diskId}?branch=${encodeURIComponent(b.branchName)}`,
-          hash,
-          signature: "",
-        };
-        push.push(JSON.stringify(available));
-      }
-    }
-
-    return { reply: JSON.stringify(ack), sessionId, push };
+    // Plus rien à pousser après l'ack : le backend n'annonce plus de bundle.
+    return { reply: JSON.stringify(ack), sessionId, push: [] };
   }
 
   if (msg.type === "pong") return { reply: null };
@@ -784,112 +709,9 @@ export async function handlePluginMessage(
     return { reply: null };
   }
 
-  // ── sync_divergence: disk AND web both moved — plugin reports its disk tree ─
-  // (files-first P3c). Stored IN MEMORY only: the plugin re-reports at every
-  // hello_ack while unresolved, so a backend restart self-heals on reconnect.
-  if (msg.type === "sync_divergence") {
-    const serverId = connToServerId.get(connId);
-    if (!serverId) return { reply: null };
-    const raw = msg as Record<string, unknown>;
-    const projectId = raw.project_id as string | undefined;
-    const files = raw.files as Record<string, string> | undefined;
-    const diskHash = raw.disk_hash as string | undefined;
-    if (!projectId || !files || typeof diskHash !== "string") return { reply: null };
-    // The plugin reports its disk id; the map (and the editor that reads it) is
-    // keyed by the internal row id, the only id unique across servers.
-    const divergent = await getProjectForServer(serverId, projectId);
-    if (!divergent) return { reply: null };
-    pendingDivergences.set(divergent.id, { files, diskHash, at: new Date().toISOString() });
-    // Nudge open editor tabs on this server key — they refetch the project
-    // (GET includes the divergence detail) and show the resolution banner.
-    const payload = JSON.stringify({ type: "sync_divergence", project_id: divergent.id, disk_hash: diskHash });
-    for (const [sessionId, sIds] of editorTokenToServers) {
-      if (!sIds.has(serverId)) continue;
-      editorSenders.get(sessionId)?.(payload);
-    }
-    return { reply: null };
-  }
-
-  // ── local_push: plugin pushes local project files to backend (/artisan pushLocal) ─
-  if (msg.type === "local_push") {
-    const serverId = connToServerId.get(connId);
-    if (!serverId) return { reply: null };
-    const raw = msg as Record<string, unknown>;
-    const projectId = raw.project_id as string | undefined;
-    const files = raw.files as Record<string, string> | undefined;
-    const hash = raw.hash as string | undefined;
-    if (!projectId || !files || !hash) return { reply: null };
-
-    const sk = (await db.select().from(serverKeys).where(eq(serverKeys.id, serverId)))[0];
-    if (!sk) return { reply: null };
-
-    // `projectId` is the pushing server's DISK id and is NOT globally unique —
-    // every Boutique install bootstraps `boutique_shop`. Resolving it globally
-    // (getProject) made one server's push land in another tenant's project;
-    // combined with createProject's idempotence-on-id, the collision was silent
-    // rather than a duplicate-key error (incident 2026-08-12).
-    const project = await ensureProjectForServer({
-      networkId: sk.networkId,
-      serverKeyId: serverId,
-      diskId: projectId,
-    });
-    // The plugin never uploads `.artisan/*` metadata (hash-excluded editor
-    // state, e.g. `.artisan/editor.yaml`) — preserve the backend's copies so a
-    // disk push doesn't strip the board layout from the stored file tree.
-    if (project.filesJson) {
-      const prev = JSON.parse(project.filesJson) as Record<string, string>;
-      const metaPrefix = `plugins/Artisan/projects/${projectId}/.artisan`;
-      for (const [k, v] of Object.entries(prev)) {
-        if (k.startsWith(metaPrefix) && !(k in files)) files[k] = v;
-      }
-    }
-    // Files-first: the pushed file tree IS the new project content — no editor
-    // JSON to derive or patch (the editor parses files client-side; ownerModule
-    // lives in the manifest and is re-read on every load).
-    await upsertProjectContent(project.id, { hash, filesJson: JSON.stringify(files) });
-    // local_push = commit sur main + advance head, comme le deploy : le plugin
-    // télécharge les bundles via branche → head commit. Sans commit, le download
-    // servirait le commit initial vide et le sweep détruirait le contenu local
-    // (trouvé au smoke test Docker 2026-07-09). Même convention que le deploy :
-    // bundle_available porte le contentHash du commit.
-    const mainBranch = await getBranch(project.id, "main");
-    if (mainBranch) {
-      const commit = await createCommit({
-        projectId: project.id,
-        parentId: mainBranch.headCommitId,
-        files,
-        authorUserId: null,
-        message: "local_push",
-      });
-      await advanceBranchHead(project.id, "main", commit.id);
-      await pushBundleAvailable(project.id, "main", commit.contentHash);
-    } else {
-      await pushBundleAvailable(project.id, "main", hash);
-    }
-    // A manual pushLocal is a "force disk" resolution — clear any pending divergence.
-    clearPendingDivergence(project.id, serverId);
-    return { reply: null };
-  }
-
-  // ── boutique_additem: /boutique additem — backend-module mutation ─────────
-  // ADR captured-items-and-module-field-kit §3: the plugin never writes project
-  // files; the boutique backend module patches the project's file tree +
-  // commits, then we broadcast so the server hot-reloads.
-  if (msg.type === "boutique_additem") {
-    const serverId = connToServerId.get(connId);
-    if (!serverId) return { reply: null };
-    const raw = msg as unknown as { request_id?: string } & BoutiqueAdditemPayload;
-    const result = await applyBoutiqueAdditem(serverId, raw);
-    if (result.ok) await pushBundleAvailable(result.projectId, "main", result.contentHash);
-    return {
-      reply: JSON.stringify({
-        type: "boutique_additem_result",
-        request_id: raw.request_id ?? null,
-        ok: result.ok,
-        ...(result.ok ? {} : { error: result.error }),
-      }),
-    };
-  }
+  // sync_divergence / local_push / boutique_additem ont disparu avec le
+  // stockage backend (ADR `server-disk-only-storage`) : il n'y a plus de copie
+  // à réconcilier, à pousser, ni à patcher. Le plugin écrit son disque lui-même.
 
   // ── custom_items_changed: plugin hot-reload triggered a hash change ───────
   if (msg.type === "custom_items_changed") {
@@ -944,7 +766,6 @@ export async function handlePluginMessage(
     return { reply: null };
   }
 
-  // ── project_read_result: the editor's read of a Project (disk-only store) ──
   if (msg.type === "project_read_result") {
     const serverId = connToServerId.get(connId);
     if (!serverId) return { reply: null };
@@ -983,67 +804,6 @@ export async function handlePluginMessage(
     `(protocol_version=${(msg as any).protocol_version ?? "?"}). Ignoring.`,
   );
   return { reply: null };
-}
-
-// ── pending sync divergences (files-first P3c) ──────────────────────────────
-// projectId → the plugin-reported disk tree. Memory-only by design: the plugin
-// re-reports at every hello_ack while unresolved (self-healing across backend
-// restarts); resolution (or a manual pushLocal) clears it.
-
-export interface PendingDivergence {
-  files: Record<string, string>;
-  diskHash: string;
-  at: string;
-}
-const pendingDivergences = new Map<string, PendingDivergence>();
-
-export function getPendingDivergence(projectId: string): PendingDivergence | undefined {
-  return pendingDivergences.get(projectId);
-}
-
-/** Drop a pending divergence and tell open editor tabs the banner can go. */
-export function clearPendingDivergence(projectId: string, serverKeyId?: string): void {
-  if (!pendingDivergences.delete(projectId)) return;
-  const payload = JSON.stringify({ type: "divergence_resolved", project_id: projectId });
-  for (const [sessionId, sIds] of editorTokenToServers) {
-    if (serverKeyId && !sIds.has(serverKeyId)) continue;
-    editorSenders.get(sessionId)?.(payload);
-  }
-}
-
-export async function pushBundleAvailable(
-  projectId: string,
-  branchName: string,
-  contentHash: string,
-  // force: the plugin downloads even over local disk changes — reserved for
-  // divergence resolution, where the merged tree is the explicit intent.
-  opts?: { force?: boolean },
-): Promise<void> {
-  // Find the server_key that owns this project (1:1 via projects.serverKeyId).
-  const targets = await db
-    .select({ serverKeyId: projects.serverKeyId, id: projects.id, externalId: projects.externalId })
-    .from(projects)
-    .where(eq(projects.id, projectId));
-  if (targets.length === 0) return;
-
-  // On the wire the plugin only ever knows its own disk id.
-  const diskId = projectDiskId(targets[0]);
-  const url = `${BUNDLE_BASE_URL}/api/v1/bundles/${diskId}?branch=${encodeURIComponent(branchName)}`;
-  const payload = JSON.stringify({
-    type: "bundle_available",
-    project_id: diskId,
-    url,
-    hash: contentHash,
-    signature: "",
-    ...(opts?.force ? { force: true } : {}),
-  } satisfies BundleAvailableMessage);
-
-  const targetSet = new Set(targets.map((t) => t.serverKeyId));
-  for (const [connId, sId] of connToServerId) {
-    if (!targetSet.has(sId)) continue;
-    const send = connSenders.get(connId);
-    if (send) send(payload);
-  }
 }
 
 export function broadcastDraftUpdate(

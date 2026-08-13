@@ -1,7 +1,6 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { createBunWebSocket } from "hono/bun";
-import { bundlesRouter } from "./routes/bundles";
 import { linkRouter } from "./routes/link";
 import { serverKeysRouter } from "./routes/serverKeys";
 import { texturesRouter } from "./routes/textures";
@@ -14,7 +13,6 @@ import { userNetworksRouter } from "./routes/userNetworks";
 import { networkTransfersRouter } from "./routes/networkTransfers";
 import { userProjectsRouter } from "./routes/userProjects";
 import { userAssetsRouter } from "./routes/userAssets";
-import { userBranchesRouter } from "./routes/userBranches";
 import { userWsTicketRouter } from "./routes/userWsTicket";
 import { invitesRouter } from "./routes/invites";
 import { userAuth } from "./middleware/userAuth";
@@ -43,7 +41,6 @@ app.use("/api/v1/*", cors({ origin: EDITOR_URL, credentials: true }));
 
 app.get("/health", (c) => c.json({ ok: true, ts: new Date().toISOString() }));
 app.route("/api/v1/server-keys", serverKeysRouter);
-app.route("/api/v1/bundles", bundlesRouter);
 app.route("/api/v1/link", linkRouter);
 app.route("/api/v1/textures", texturesRouter);
 app.route("/api/v1/models", modelsRouter);
@@ -54,7 +51,6 @@ app.route("/api/v1/auth/discord", discordOauthRouter);
 app.use("/api/v1/networks/*", userAuth());
 app.route("/api/v1/networks", networkTransfersRouter);
 app.route("/api/v1/networks", userNetworksRouter);
-app.route("/api/v1/networks", userBranchesRouter);
 // userAuth() never 401s by itself (sets user=null on missing/invalid
 // cookie) — GET /:code stays public, POST /:code/accept checks c.get("user").
 app.use("/api/v1/invites/*", userAuth());
