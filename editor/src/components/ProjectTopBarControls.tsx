@@ -83,6 +83,7 @@ export interface ProjectTopBarControlsProps {
  */
 export function ProjectTopBarControls({
   project,
+  projectId,
   projectName,
   onImport,
   onExportZip,
@@ -123,7 +124,7 @@ export function ProjectTopBarControls({
       <LangSwitcher project={project} />
       <UndoRedoButtons />
       <SearchButton />
-      <SaveControls project={project} networkId={networkId ?? null} />
+      <SaveControls projectId={projectId} networkId={networkId ?? null} />
       <TopBarKebabMenu
         onImport={onImport ?? (() => {})}
         onExportZip={onExportZip ?? (() => {})}
@@ -400,28 +401,33 @@ function SearchButton() {
  * explicite de l'admin.
  */
 function SaveControls({
-  project,
+  projectId,
   networkId,
 }: {
-  project: Project;
+  projectId: ProjectId;
   networkId: string | null;
 }) {
   const { t } = useTranslation();
   const user = useAuthStore((s) => s.currentUser);
   const replaceProject = useAccountStore((s) => s.replaceProject);
+  // Le Project VIVANT, pas la prop : celle-ci vient d'un `useState` figé au
+  // chargement (`useProjectLoader`) alors que toutes les éditions atterrissent
+  // dans `useAccountStore`. Enregistrer la prop écrivait le Project tel qu'il
+  // était à l'ouverture — tout le travail de la session partait en silence.
+  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
   const [saving, setSaving] = useState(false);
   const [conflicts, setConflicts] = useState<ProjectFileConflict[]>([]);
   const [choices, setChoices] = useState<Record<string, ConflictChoice>>({});
 
-  const serverId = project.serverKeyId ?? null;
-  const canSave = Boolean(user && networkId && serverId);
+  const serverId = project?.serverKeyId ?? null;
+  const canSave = Boolean(user && networkId && serverId && project);
 
   /**
    * Enregistrer = écrire les fichiers du serveur. C'est le seul chemin par
    * lequel une édition atteint le disque (ADR `server-disk-only-storage`).
    */
   const runSave = async (): Promise<void> => {
-    if (!networkId || !serverId) {
+    if (!networkId || !serverId || !project) {
       toast.info(t("save.cannotSaveTitle"));
       return;
     }
@@ -452,6 +458,7 @@ function SaveControls({
   };
 
   const applyAndRetry = async () => {
+    if (!project) return;
     const baseline = useProjectBaselineStore.getState().get(project.id) ?? {};
     const outcome = applyResolutions(baseline, conflicts, choices);
     if (outcome.unresolved.length > 0) return; // le bouton est déjà désactivé
