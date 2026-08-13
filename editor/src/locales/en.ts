@@ -811,6 +811,8 @@ export default {
     offlineTitle: "Server offline",
     offlineBody:
       "This project's content lives on its server's disk. While the server is unreachable there is nothing to show — and certainly not a stale copy.",
+    loadFailedTitle: "Could not open this project",
+    loadFailedBody: "Loading failed. The code below says why; if it persists, it is also in the browser console.",
     offlineRetry: "Retry",
     serverOfflineExport: "Server offline — cannot export the files",
     conflict: {
