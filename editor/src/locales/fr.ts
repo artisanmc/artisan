@@ -819,6 +819,7 @@ const fr: typeof en = {
     },
   },
   project: {
+    serverOfflineExport: "Serveur hors ligne — impossible d'exporter les fichiers",
     conflict: {
       title: "Ce project a été modifié ailleurs.",
       body: "Un autre onglet, un coéquipier ou un push serveur a enregistré une version plus récente. Recharge pour la récupérer — les changements locaux non sauvegardés seront perdus.",
@@ -1597,6 +1598,25 @@ const fr: typeof en = {
   settingsPage: {
     eyebrowSettings: "Paramètres",
     appearanceHelp: "Apparence et langue de l'éditeur. Sauvegardé sur ton compte.",
+  },
+  save: {
+    save: "Enregistrer",
+    saving: "Enregistrement…",
+    saved: "Enregistré sur le serveur",
+    nothingToSave: "Rien à enregistrer",
+    saveTitle: "Écrire les modifications sur le disque du serveur",
+    cannotSaveTitle: "Serveur inconnu — impossible d'enregistrer",
+    serverOffline: "Serveur hors ligne — l'enregistrement est impossible",
+    failed: "Échec de l'enregistrement",
+    conflictTitle: "Ces fichiers ont changé sur le serveur",
+    conflictBody:
+      "Rien n'a été écrit. Choisis, pour chaque fichier, la version à garder.",
+    conflictKeepMine: "Garder ma version",
+    conflictTakeServer: "Prendre celle du serveur",
+    conflictDeletedOnDisk: "Ce fichier a été supprimé sur le serveur.",
+    conflictApply: "Appliquer",
+    conflictAdopted: "Versions du serveur reprises — enregistre à nouveau.",
+    cancel: "Annuler",
   },
   deploy: {
     deploy: "Déployer",

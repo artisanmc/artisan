@@ -6,7 +6,7 @@ import { TopBarKebabMenu } from "@/components/TopBarKebabMenu";
  * Top-bar control strip for the project route. Encapsulates:
  *   - LangSwitcher  (content language for the project)
  *   - UndoRedoButtons
- *   - DeployButtons  (Deploy + Revert)
+ *   - SaveControls  (Enregistrer + résolution de conflit)
  *   - TopBarKebabMenu  (Import / Export / Patterns / Delete)
  *
  * History/branch navigation lives in the History tab (HistoryTab component).
@@ -19,20 +19,25 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { rekeyProject } from "@/domain/i18nSites";
-import type { Project as ProjectType } from "@/domain/types";
 import type { Project, ProjectId } from "@/domain/types";
-import { transform } from "@/features/export/transform";
 import { WORKSPACE_VIEW_TABS, type WorkspaceViewTab } from "@/features/project/workspaceTabs";
-import { createCommit, getBranchHead } from "@/lib/api/branches";
-import { saveUserProject } from "@/lib/api/userProjects";
+import { adoptDiskIntoProject, saveProjectToDisk } from "@/features/project/saveProjectToDisk";
+import { applyResolutions, type ConflictChoice } from "@/features/project/resolveConflicts";
+import type { ProjectFileConflict } from "@/lib/api/projectFiles";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/cx";
 import { countMissingForLang } from "@/lib/i18nUsages";
-import { projectFromFiles } from "@/schema/projectFromFiles";
 import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
+import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { useProjectVersionStore } from "@/state/projectVersionStore";
-import { useServerSnapshotsStore } from "@/state/serverSnapshotsStore";
 import { useUiStore } from "@/state/uiStore";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import {
@@ -133,7 +138,7 @@ export function ProjectTopBarControls({
       <LangSwitcher project={project} />
       <UndoRedoButtons />
       <SearchButton />
-      <DeployButtons project={project} projectId={projectId} networkId={networkId ?? null} />
+      <SaveControls project={project} networkId={networkId ?? null} />
       <TopBarKebabMenu
         onImport={onImport ?? (() => {})}
         onExportZip={onExportZip ?? (() => {})}
@@ -400,112 +405,155 @@ function SearchButton() {
   );
 }
 
-function DeployButtons({
+/**
+ * Enregistrer — le seul geste qui écrit sur le disque du serveur (ADR
+ * `server-disk-only-storage`). Remplace la paire Déployer / Revenir : il n'y a
+ * plus qu'une destination, donc plus qu'un geste, et l'historique de projet a
+ * cédé la place à une corbeille par fichier.
+ *
+ * Un conflit ouvre la modale de résolution ; rien n'a été écrit à ce moment-là
+ * (le plugin applique tout ou rien), et aucun fichier n'est tranché sans choix
+ * explicite de l'admin.
+ */
+function SaveControls({
   project,
-  projectId,
   networkId,
 }: {
   project: Project;
-  projectId: string;
   networkId: string | null;
 }) {
   const { t } = useTranslation();
   const user = useAuthStore((s) => s.currentUser);
   const replaceProject = useAccountStore((s) => s.replaceProject);
-  const [deploying, setDeploying] = useState(false);
-  const [reverting, setReverting] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [conflicts, setConflicts] = useState<ProjectFileConflict[]>([]);
+  const [choices, setChoices] = useState<Record<string, ConflictChoice>>({});
 
-  // Deploy: rekey + transform + saveUserProject (guarantees fresh WIP) +
-  // createCommit (snapshots, advances branch, broadcasts bundle_available).
-  // Revert: pulls the branch's HEAD commit content via getBranchHead and
-  // replaces local state.
-  const canDeploy = Boolean(user && networkId);
-  const canRevert = Boolean(user && networkId);
-  const deployDisabledTitle = t("deploy.cannotDeployTitle");
-  const revertDisabledTitle = t("deploy.cannotRevertTitle");
-  const isPublishDisabled = deploying || !canDeploy;
-  const isRevertDisabled = reverting || !canRevert;
+  const serverId = project.serverKeyId ?? null;
+  const canSave = Boolean(user && networkId && serverId);
 
-  const handleDeploy = async () => {
-    if (!canDeploy || !networkId) {
-      toast.info(deployDisabledTitle);
+  /**
+   * Enregistrer = écrire les fichiers du serveur. C'est le seul chemin par
+   * lequel une édition atteint le disque (ADR `server-disk-only-storage`).
+   */
+  const runSave = async (): Promise<void> => {
+    if (!networkId || !serverId) {
+      toast.info(t("save.cannotSaveTitle"));
       return;
     }
-    if (deploying) return;
-    setDeploying(true);
+    setSaving(true);
     try {
-      const cloned = structuredClone(project);
-      rekeyProject(cloned);
-      const files = transform(cloned);
-
-      // Persist the freshly-rekey'd WIP, then commit. The commit endpoint
-      // broadcasts bundle_available, so any plugin bound to this project picks
-      // up the new content via the WS hub.
-      await saveUserProject(project.id, { hash: "", files });
-      await createCommit(networkId, projectId, "main", "Deploy");
-      // The server's data just changed — drop cached data-source snapshots so
-      // the library/canvas refetch fresh rows on next render.
-      useServerSnapshotsStore.getState().clear();
-      toast.success(t("deploy.deployedToast"));
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : t("deploy.deployFailed"));
+      const res = await saveProjectToDisk(project, networkId, serverId);
+      if (res.ok) {
+        toast.success(res.wrote === 0 ? t("save.nothingToSave") : t("save.saved"));
+        setConflicts([]);
+        setChoices({});
+        return;
+      }
+      if (res.error === "conflict") {
+        // Rien n'a été écrit : le plugin applique tout ou rien. On demande à
+        // l'admin de trancher fichier par fichier, jamais à sa place.
+        setConflicts(res.conflicts);
+        setChoices({});
+        return;
+      }
+      toast.error(
+        res.error === "server_offline" || res.error === "network_error"
+          ? t("save.serverOffline")
+          : t("save.failed"),
+      );
     } finally {
-      setDeploying(false);
+      setSaving(false);
     }
   };
 
-  const handleRevert = async () => {
-    if (!canRevert || !networkId) {
-      toast.info(revertDisabledTitle);
-      return;
+  const applyAndRetry = async () => {
+    const baseline = useProjectBaselineStore.getState().get(project.id) ?? {};
+    const outcome = applyResolutions(baseline, conflicts, choices);
+    if (outcome.unresolved.length > 0) return; // le bouton est déjà désactivé
+    useProjectBaselineStore.getState().set(project.id, outcome.nextBaseline);
+    if (
+      Object.keys(outcome.adoptFromDisk).length > 0 ||
+      outcome.removeFromTree.length > 0
+    ) {
+      replaceProject(
+        adoptDiskIntoProject(project, outcome.adoptFromDisk, outcome.removeFromTree),
+      );
     }
-    if (reverting) return;
-    setReverting(true);
-    try {
-      // Pull the branch HEAD commit's files. If the WIP matches the
-      // HEAD already (no edits since the last commit), there's nothing to
-      // restore.
-      const head = await getBranchHead(networkId, projectId, "main");
-      if (!head) {
-        toast.info(t("deploy.revertNothing"));
-        return;
-      }
-      // Files are the canonical commit content — parse them back into a
-      // fully-typed Project, keeping the current identity fields.
-      const restored: ProjectType = projectFromFiles(project.id, head.files, {
-        name: project.name,
-        serverKeyId: project.serverKeyId,
-      });
-      replaceProject(restored);
-      toast.success(t("deploy.reverted"));
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : t("deploy.revertFailed"));
-    } finally {
-      setReverting(false);
+    setConflicts([]);
+    setChoices({});
+    // Le re-parse ci-dessus ne s'est pas encore propagé à cette closure ; le
+    // prochain rendu tient le Project à jour, et l'admin réenregistre. On
+    // relance quand même quand rien n'a été adopté : la base suffit.
+    if (Object.keys(outcome.adoptFromDisk).length === 0 && outcome.removeFromTree.length === 0) {
+      await runSave();
+    } else {
+      toast.info(t("save.conflictAdopted"));
     }
   };
 
   return (
-    <div className="flex items-center gap-1.5">
-      <button
-        type="button"
-        onClick={handleRevert}
-        disabled={isRevertDisabled}
-        title={canRevert ? t("deploy.revertTitle") : revertDisabledTitle}
-        className="btn btn-sm btn-ghost"
-      >
-        {reverting ? t("deploy.reverting") : t("deploy.revert")}
-      </button>
-      <button
-        type="button"
-        onClick={handleDeploy}
-        disabled={isPublishDisabled}
-        title={canDeploy ? t("deploy.deployTitle") : deployDisabledTitle}
-        className="btn btn-sm btn-primary"
-      >
-        {deploying ? t("deploy.deploying") : t("deploy.deploy")}
-      </button>
-    </div>
+    <>
+      <div className="flex items-center gap-1.5">
+        <button
+          type="button"
+          onClick={runSave}
+          disabled={saving || !canSave}
+          title={canSave ? t("save.saveTitle") : t("save.cannotSaveTitle")}
+          className="btn btn-sm btn-primary"
+        >
+          {saving ? t("save.saving") : t("save.save")}
+        </button>
+      </div>
+
+      <Dialog open={conflicts.length > 0} onOpenChange={(open) => !open && setConflicts([])}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{t("save.conflictTitle")}</DialogTitle>
+            <DialogDescription>{t("save.conflictBody")}</DialogDescription>
+          </DialogHeader>
+          <div className="flex max-h-[50vh] flex-col gap-2 overflow-y-auto">
+            {conflicts.map((c) => (
+              <div key={c.path} className="card flex flex-col gap-2 p-3">
+                <code className="text-xs text-[var(--text-mut)]">{c.path}</code>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    className={choices[c.path] === "mine" ? "btn btn-sm btn-primary" : "btn btn-sm btn-ghost"}
+                    onClick={() => setChoices((p) => ({ ...p, [c.path]: "mine" }))}
+                  >
+                    {t("save.conflictKeepMine")}
+                  </button>
+                  <button
+                    type="button"
+                    className={choices[c.path] === "disk" ? "btn btn-sm btn-primary" : "btn btn-sm btn-ghost"}
+                    onClick={() => setChoices((p) => ({ ...p, [c.path]: "disk" }))}
+                  >
+                    {t("save.conflictTakeServer")}
+                  </button>
+                </div>
+                {c.disk === null ? (
+                  <p className="text-xs text-[var(--text-faint)]">{t("save.conflictDeletedOnDisk")}</p>
+                ) : null}
+              </div>
+            ))}
+          </div>
+          <DialogFooter>
+            <button type="button" className="btn btn-sm btn-ghost" onClick={() => setConflicts([])}>
+              {t("save.cancel")}
+            </button>
+            <button
+              type="button"
+              className="btn btn-sm btn-primary"
+              disabled={conflicts.some((c) => !choices[c.path])}
+              onClick={applyAndRetry}
+            >
+              {t("save.conflictApply")}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
