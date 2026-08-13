@@ -37,6 +37,14 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 - **L'assistant IA n'écrit plus sur le serveur** : ce qu'il génère atterrit dans l'état de la page comme une édition manuelle. C'était le seul chemin qui touchait le disque sans geste — et le plus surprenant, puisqu'il n'était pas de l'admin.
 - **L'export zip lit le disque** au lieu de la copie backend : il reste ce que le serveur exécute réellement, et il embarque toujours ce que le domaine ne modélise pas (`.artisan/editor.yaml`, fichiers d'une racine Add-on).
 
+### Removed — l'éditeur ne dépend plus du stockage backend (ADR `server-disk-only-storage`, P3a)
+
+- Supprimés : `HistoryTab`, `HistoryPanel`, `CommitDialog`, `lib/api/branches`, `DivergenceBanner`, `ProjectConflictBanner`, `divergenceStore`, `projectVersionStore`, `bundlePublisher`, `saveUserProject`, `resolveDivergence`, `useProjectSaver` (déjà sans appelant), et l'onglet **Historique** du workspace.
+- `loadUserProject` ne sert plus qu'à l'**identité** d'un Project (nom, slug, serveur propriétaire, network) : son contenu vient du disque.
+- Le point de santé de la topbar disparaît avec le verrou optimiste qu'il signalait — l'écriture est désormais par fichier, et un conflit s'affiche dans sa modale plutôt que dans une pastille.
+- `project_write` accepte `create: true` pour matérialiser le dossier d'un Project neuf (création, import). **Sans ce drapeau un id inconnu reste une erreur** : on ne sème pas un dossier fantôme sur un id mal tapé. L'éditeur ne l'envoie que lorsqu'il n'a aucune base pour ce Project, c'est-à-dire quand il ne l'a jamais lu sur le disque.
+- Cette passe ne touche ni le plugin ni le stockage backend : la boucle de sync actuelle continue de tourner (elle entretient une copie que plus personne ne lit) et tombera d'un bloc en P3b, pour ne jamais laisser la liaison coupée à moitié.
+
 ### Fixed — un serveur ne peut plus écrire dans le project d'un autre (SÉCURITÉ)
 
 - Les trois points d'ingestion plugin (`local_push`, stub-create du `hello`, `POST /api/v1/bundles/:projectId`) résolvaient le project par **id seul, globalement**, sans vérifier qu'il appartenait à la clé serveur authentifiée. Comme l'add-on Boutique bootstrappe le même id disque `boutique_shop` sur chaque serveur qui l'installe, la poussée d'un serveur atterrissait dans le project d'un **autre tenant** — networks et clients différents inclus. `createProject` étant idempotent sur l'id (garde anti-crash de 2026-07-09), la collision n'échouait pas : elle écrasait en silence. Atteignable par le flow de liaison normal, sans rien faire d'anormal (incident 2026-08-12).

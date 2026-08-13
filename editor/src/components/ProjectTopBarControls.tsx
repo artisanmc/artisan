@@ -37,12 +37,10 @@ import { countMissingForLang } from "@/lib/i18nUsages";
 import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
-import { useProjectVersionStore } from "@/state/projectVersionStore";
 import { useUiStore } from "@/state/uiStore";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import {
   Database as DatabaseIcon,
-  History as HistoryIcon,
   Languages as LanguagesIcon,
   LayoutDashboard,
   PanelLeftClose,
@@ -85,7 +83,6 @@ export interface ProjectTopBarControlsProps {
  */
 export function ProjectTopBarControls({
   project,
-  projectId,
   projectName,
   onImport,
   onExportZip,
@@ -96,7 +93,6 @@ export function ProjectTopBarControls({
   const displayName = projectName ?? project.name;
   const { t } = useTranslation();
   const panelOpen = useUiStore((s) => s.projectPanelOpen);
-  const conflicted = useProjectVersionStore((s) => Boolean(s.conflicts[projectId]));
 
   // Toggles the persistent left sidebar (ProjectPanel tree). The canvas stays
   // mounted regardless of the active view, so this is a plain open/close toggle.
@@ -118,17 +114,6 @@ export function ProjectTopBarControls({
       </button>
       <WorkspaceViewNav project={project} />
       <div className="flex min-w-0 flex-1 items-center gap-2.5 truncate px-1 font-mono text-[13px] text-[var(--text)]">
-        {/* Save-health dot: green = saves flowing; red = the last save was
-            rejected (409 version conflict — another session took the lead).
-            Was a hardcoded warning color that meant nothing. */}
-        <span
-          title={conflicted ? t("topbar.saveConflict") : t("topbar.saveHealthy")}
-          className="h-1.5 w-1.5 shrink-0 rounded-full"
-          style={{
-            background: conflicted ? "var(--danger)" : "var(--success)",
-            boxShadow: `0 0 8px ${conflicted ? "var(--danger)" : "var(--success)"}`,
-          }}
-        />
         <span className="truncate">{displayName}</span>
       </div>
       <LinkedServersDropdown
@@ -176,7 +161,6 @@ const TAB_META: Record<WorkspaceViewTab, { labelKey: string; Icon: typeof Langua
   overview: { labelKey: "project.tabs.canvas", Icon: LayoutDashboard },
   translations: { labelKey: "project.tabs.translations", Icon: LanguagesIcon },
   "data-sources": { labelKey: "project.tabs.dataSources", Icon: DatabaseIcon },
-  history: { labelKey: "project.tabs.history", Icon: HistoryIcon },
   assistant: { labelKey: "assistant.title", Icon: Sparkles },
 };
 

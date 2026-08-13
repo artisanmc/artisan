@@ -229,6 +229,9 @@ export interface ProjectWriteMessage {
   project_id: string;
   files: { path: string; content: string; base_hash: string | null }[];
   deletes?: { path: string; base_hash: string | null }[];
+  /** Créer le dossier du Project s'il n'existe pas (création / import). Sans ce
+   *  drapeau un id inconnu reste une erreur, plutôt qu'un dossier fantôme. */
+  create?: boolean;
 }
 
 // Plugin → backend: reply to ProjectWriteMessage. On `conflict`, `conflicts`
