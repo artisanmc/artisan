@@ -1,5 +1,3 @@
-import { useProjectVersionStore, VersionConflictError } from "@/state/projectVersionStore";
-
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
 
 /** One file of a pending disk↔web divergence (files-first P3c). */
@@ -48,10 +46,7 @@ export async function loadUserProject(
     credentials: "include",
   });
   if (!res.ok) throw new Error(`loadUserProject failed: ${res.status}`);
-  const data = (await res.json()) as UserProjectLoadResult;
-  // Keyed by the REAL id — the ref may have been a slug.
-  useProjectVersionStore.getState().setVersions({ [data.project.id]: data.project.version ?? 0 });
-  return data;
+  return (await res.json()) as UserProjectLoadResult;
 }
 
 export async function getNetworkOfProject(projectId: string): Promise<string | null> {
@@ -61,46 +56,6 @@ export async function getNetworkOfProject(projectId: string): Promise<string | n
   } catch {
     return null;
   }
-}
-
-export async function saveUserProject(
-  projectId: string,
-  body: { hash: string; files: Record<string, string> },
-): Promise<void> {
-  const store = useProjectVersionStore.getState();
-  const baseVersion = store.versions[projectId] ?? 0;
-  const res = await fetch(`${API_URL}/api/v1/user/projects/${projectId}`, {
-    method: "PUT",
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ...body, baseVersion }),
-  });
-  if (res.status === 409) {
-    const data = (await res.json()) as { currentVersion?: number };
-    store.markConflict(projectId);
-    throw new VersionConflictError(projectId, data.currentVersion ?? 0);
-  }
-  if (!res.ok) throw new Error(`saveUserProject failed: ${res.status}`);
-  const data = (await res.json()) as { version?: number };
-  if (typeof data.version === "number") store.setVersion(projectId, data.version);
-}
-
-/**
- * POST /api/v1/user/projects/:projectId/resolve-divergence — apply per-file
- * choices ("disk" | "web") to a pending divergence. The backend merges,
- * commits, re-broadcasts the bundle and clears the report.
- */
-export async function resolveDivergence(
-  projectId: string,
-  choices: Record<string, "disk" | "web">,
-): Promise<void> {
-  const res = await fetch(`${API_URL}/api/v1/user/projects/${projectId}/resolve-divergence`, {
-    method: "POST",
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ choices }),
-  });
-  if (!res.ok) throw new Error(`resolveDivergence failed: ${res.status}`);
 }
 
 /** DELETE /api/v1/user/projects/:projectId. */

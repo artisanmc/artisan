@@ -891,6 +891,7 @@ userNetworksRouter.put(
 		const body = (await c.req.json().catch(() => null)) as {
 			files?: unknown;
 			deletes?: unknown;
+			create?: unknown;
 		} | null;
 		const files = Array.isArray(body?.files) ? body.files : null;
 		const deletes = body?.deletes === undefined
@@ -916,6 +917,7 @@ userNetworksRouter.put(
 			projectId,
 			files: files as { path: string; content: string; base_hash: string | null }[],
 			deletes: deletes as { path: string; base_hash: string | null }[],
+			create: body?.create === true,
 		});
 		if (outcome.kind === "offline") return c.json({ error: "server_offline" }, 503);
 		if (outcome.kind === "timeout") return c.json({ error: "fetch_timeout" }, 504);

@@ -1,5 +1,4 @@
 import { create } from "zustand";
-import { publishBundle } from "@/lib/ws/bundlePublisher";
 import { createPluginBridge, type PluginBridge } from "@/lib/ws/pluginBridge";
 import { emitModuleEvent, type ModuleEvent } from "@artisan/editor-sdk";
 
@@ -13,7 +12,6 @@ interface WsState {
   serverKey: string | null;
   connect(url: string, serverKey?: string): void;
   disconnect(): void;
-  publish(projectId: string, files: Record<string, string>): Promise<void>;
 }
 
 export const useWsStore = create<WsState>((set, get) => ({
@@ -53,9 +51,4 @@ export const useWsStore = create<WsState>((set, get) => ({
     set({ bridge: null, connected: false, serverId: null, apiUrl: null, serverKey: null });
   },
 
-  async publish(projectId, files) {
-    const { apiUrl, serverKey } = get();
-    if (!apiUrl || !serverKey) throw new Error("Not connected to backend");
-    await publishBundle({ apiUrl, serverKey, projectId, files });
-  },
 }));

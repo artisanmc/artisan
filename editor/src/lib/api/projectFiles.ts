@@ -78,14 +78,14 @@ export async function writeProjectFiles(
   networkId: string,
   serverId: string,
   diskId: string,
-  plan: { files: PlannedWrite[]; deletes: PlannedDelete[] },
+  plan: { files: PlannedWrite[]; deletes: PlannedDelete[]; create?: boolean },
 ): Promise<ProjectWriteResult> {
   try {
     const res = await fetch(base(networkId, serverId, diskId), {
       method: "PUT",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ files: plan.files, deletes: plan.deletes }),
+      body: JSON.stringify({ files: plan.files, deletes: plan.deletes, create: plan.create === true }),
     });
     if (res.status === 409) {
       const body = (await res.json().catch(() => null)) as { conflicts?: ProjectFileConflict[] } | null;

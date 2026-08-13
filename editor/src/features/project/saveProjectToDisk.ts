@@ -64,13 +64,16 @@ export async function saveProjectToDisk(
   const next = projectTree(project);
 
   const store = useProjectBaselineStore.getState();
-  const baseline = store.get(project.id) ?? {};
+  // Pas de base = ce Project n'a jamais été lu sur le disque, donc il n'y est
+  // pas encore : c'est une création ou un import, et l'écriture doit le dire.
+  const known = store.get(project.id);
+  const baseline = known ?? {};
   const plan = await planWrite(baseline, next);
   // Rien n'a bougé : on s'épargne l'aller-retour, et surtout on n'écrit pas des
   // fichiers identiques (ce qui polluerait la corbeille pour rien).
   if (plan.empty) return { ok: true, wrote: 0 };
 
-  const res = await writeProjectFiles(networkId, serverId, diskId, plan);
+  const res = await writeProjectFiles(networkId, serverId, diskId, { ...plan, create: known === undefined });
   if (!res.ok) {
     // Un conflit n'avance PAS la base : le plugin n'a rien écrit, donc ce qu'on
     // croit savoir du disque reste ce qu'on avait chargé.
