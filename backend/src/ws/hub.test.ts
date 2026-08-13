@@ -944,6 +944,49 @@ describe("project_read relay (server-disk-only-storage P0)", () => {
   });
 });
 
+describe("project_write relay (server-disk-only-storage P1)", () => {
+  test("relays files and deletes, and surfaces a conflict with the disk content", async () => {
+    const { requestProjectWrite, connToServerId, connSenders } = await import("./hub");
+    const sent: Record<string, unknown>[] = [];
+    const connId = "conn-project-write";
+    registerConn(connId, (raw) => sent.push(JSON.parse(raw)));
+    connToServerId.set(connId, "sk-project-write");
+    try {
+      const pending = requestProjectWrite("sk-project-write", {
+        projectId: "boutique",
+        files: [{ path: "menus/a.yaml", content: "title: A\n", base_hash: "h_a" }],
+        deletes: [{ path: "menus/b.yaml", base_hash: "h_b" }],
+      });
+      expect(sent[0]!.type).toBe("project_write");
+      expect(sent[0]!.files).toEqual([{ path: "menus/a.yaml", content: "title: A\n", base_hash: "h_a" }]);
+      expect(sent[0]!.deletes).toEqual([{ path: "menus/b.yaml", base_hash: "h_b" }]);
+
+      await handlePluginMessage(connId, JSON.stringify({
+        type: "project_write_result", request_id: sent[0]!.request_id, ok: false,
+        error: "conflict",
+        conflicts: [{ path: "menus/a.yaml", disk: "title: A depuis le disque\n" }],
+      }));
+
+      const outcome = await pending;
+      expect(outcome.kind).toBe("result");
+      if (outcome.kind === "result") {
+        expect(outcome.result.error).toBe("conflict");
+        // Le contenu disque voyage avec le conflit : pas de second aller-retour.
+        expect(outcome.result.conflicts?.[0]?.disk).toBe("title: A depuis le disque\n");
+      }
+    } finally {
+      connToServerId.delete(connId);
+      connSenders.delete(connId);
+    }
+  });
+
+  test("resolves offline when no plugin conn is bound", async () => {
+    const { requestProjectWrite } = await import("./hub");
+    const outcome = await requestProjectWrite("sk-not-connected", { projectId: "p", files: [] });
+    expect(outcome).toEqual({ kind: "offline" });
+  });
+});
+
 describe("sync_divergence (files-first P3c)", () => {
   test("stores the plugin-reported disk tree; local_push clears it", async () => {
     const { id: keyId, key, networkId } = await seedServerKey();

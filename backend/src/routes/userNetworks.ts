@@ -41,7 +41,7 @@ import { resolveNetworkForMember } from "../lib/refs";
 import { slugify } from "../lib/slug";
 import { allocServerSlug } from "../lib/slugAlloc";
 import type { AuthUser } from "../middleware/userAuth";
-import { disconnectServerKey, getInstanceCount, pushBundleAvailable, requestConfigRead, requestConfigWrite, requestDataSourceFetch, requestOnlinePlayers, requestPlayerInventory, requestProjectRead } from "../ws/hub";
+import { disconnectServerKey, getInstanceCount, pushBundleAvailable, requestConfigRead, requestConfigWrite, requestDataSourceFetch, requestOnlinePlayers, requestPlayerInventory, requestProjectRead, requestProjectWrite } from "../ws/hub";
 import { applyConfigPatch, journalProjectFiles } from "../lib/projectJournal";
 import { getProject } from "../lib/projectStorage";
 import { handleResourcePackRebuild } from "./resourcePack";
@@ -862,6 +862,73 @@ userNetworksRouter.get(
 			return c.json({ error, message: r.message ?? null }, status);
 		}
 		return c.json({ files: r.files ?? [] });
+	},
+);
+
+// PUT /api/networks/:networkId/servers/:serverId/projects/:projectId/files —
+// member access. Writes a Project's files to the server's disk through the
+// plugin (ADR server-disk-only-storage): body
+// `{files:[{path,content,base_hash}], deletes?:[{path,base_hash}]}`.
+//
+// `base_hash` is the SHA-256 of the content the editor loaded (null = "no file
+// there when I loaded"). The plugin refuses the whole save if any of them moved
+// and answers 409 with the disk content attached — we relay that verbatim, we
+// never arbitrate: the backend holds no copy to arbitrate with.
+userNetworksRouter.put(
+	"/:networkId/servers/:serverId/projects/:projectId/files",
+	async (c: Context<{ Variables: Vars }>) => {
+		const userId = getUserId(c);
+		if (!userId) return c.json({ error: "unauthorized" }, 401);
+		const resolved = await resolveNetworkServer(
+			userId,
+			c.req.param("networkId"),
+			c.req.param("serverId"),
+		);
+		if (!resolved) return c.json({ error: "forbidden" }, 403);
+		if (!resolved.serverKeyId) return c.json({ error: "not_found" }, 404);
+
+		const projectId = c.req.param("projectId");
+		const body = (await c.req.json().catch(() => null)) as {
+			files?: unknown;
+			deletes?: unknown;
+		} | null;
+		const files = Array.isArray(body?.files) ? body.files : null;
+		const deletes = body?.deletes === undefined
+			? []
+			: Array.isArray(body.deletes) ? body.deletes : null;
+		if (!projectId || !files || !deletes) return c.json({ error: "invalid_input" }, 422);
+		const validFile = (f: unknown) =>
+			typeof f === "object" && f !== null &&
+			typeof (f as { path?: unknown }).path === "string" &&
+			typeof (f as { content?: unknown }).content === "string" &&
+			((f as { base_hash?: unknown }).base_hash === null ||
+				typeof (f as { base_hash?: unknown }).base_hash === "string");
+		const validDelete = (d: unknown) =>
+			typeof d === "object" && d !== null &&
+			typeof (d as { path?: unknown }).path === "string" &&
+			((d as { base_hash?: unknown }).base_hash === null ||
+				typeof (d as { base_hash?: unknown }).base_hash === "string");
+		if (!files.every(validFile) || !deletes.every(validDelete)) {
+			return c.json({ error: "invalid_input" }, 422);
+		}
+
+		const outcome = await requestProjectWrite(resolved.serverKeyId, {
+			projectId,
+			files: files as { path: string; content: string; base_hash: string | null }[],
+			deletes: deletes as { path: string; base_hash: string | null }[],
+		});
+		if (outcome.kind === "offline") return c.json({ error: "server_offline" }, 503);
+		if (outcome.kind === "timeout") return c.json({ error: "fetch_timeout" }, 504);
+		const r = outcome.result;
+		if (!r.ok) {
+			const error = r.error ?? "write_error";
+			if (error === "conflict") {
+				return c.json({ error, conflicts: r.conflicts ?? [] }, 409);
+			}
+			const status = error === "unknown_project" ? 404 : error === "invalid_path" ? 422 : 502;
+			return c.json({ error, message: r.message ?? null }, status);
+		}
+		return c.json({ ok: true });
 	},
 );
 

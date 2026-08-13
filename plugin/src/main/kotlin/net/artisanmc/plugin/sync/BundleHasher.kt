@@ -69,6 +69,15 @@ object BundleHasher {
     fun hashAll(projectsDir: File): String =
         hashAll(net.artisanmc.plugin.project.ProjectRoots(projectsDir))
 
+    /**
+     * Hash d'un **contenu de fichier** seul — le jeton de compare-and-swap de
+     * `project_write` (ADR `server-disk-only-storage`). Rien à voir avec le hash
+     * d'arbre ci-dessus : pas de clé, pas de tri, juste le contenu. Même digest
+     * pour n'avoir qu'une primitive, et trivialement reproductible côté éditeur
+     * (SHA-256 de l'UTF-8, hex minuscule).
+     */
+    fun hashContent(content: String): String = sha256(content)
+
     private fun sha256(input: String): String {
         val bytes = MessageDigest.getInstance("SHA-256").digest(input.toByteArray(Charsets.UTF_8))
         return bytes.joinToString("") { "%02x".format(it) }
