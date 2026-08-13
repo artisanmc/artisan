@@ -1,5 +1,3 @@
-import { DivergenceBanner } from "@/components/DivergenceBanner";
-import { ProjectConflictBanner } from "@/components/ProjectConflictBanner";
 import { ProjectTopBarControls } from "@/components/ProjectTopBarControls";
 import { SplitPane } from "@/components/SplitPane";
 import {
@@ -30,7 +28,6 @@ import { DataSourcesPanelContent } from "@/features/data/DataSourcesPanel";
 import { runExportZip } from "@/features/export/runExportZip";
 import { STATE_DROP_PREFIX } from "@/features/flow/FlowCanvas";
 import { PatternsGallery } from "@/features/help/PatternsGallery";
-import { HistoryTab } from "@/features/project/HistoryTab";
 import { ProjectPanel } from "@/features/project/ProjectPanel";
 import { useProjectLoader } from "@/features/project/useProjectLoader";
 import { useWorkspaceTabShortcuts } from "@/features/project/useWorkspaceTabShortcuts";
@@ -68,14 +65,14 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 type ProjectSearch = {
-  tab?: "overview" | "translations" | "data-sources" | "history" | "assistant";
+  tab?: "overview" | "translations" | "data-sources" | "assistant";
 };
 
 export const Route = createFileRoute("/networks/$networkId/servers/$serverId/projects/$projectId")({
   component: ProjectCanvasPage,
   validateSearch: (search: Record<string, unknown>): ProjectSearch => {
     const t = search.tab;
-    if (t === "translations" || t === "data-sources" || t === "history" || t === "assistant")
+    if (t === "translations" || t === "data-sources" || t === "assistant")
       return { tab: t };
     return { tab: "overview" };
   },
@@ -312,17 +309,6 @@ export function ProjectCanvasPage() {
           <DataSourcesPanelContent projectId={pId} />
         </div>
       </WorkspaceView>
-      {networkId && (
-        <WorkspaceView
-          active={tab === "history"}
-          onExit={exitToCanvas}
-          title={t("project.tabs.history")}
-        >
-          <div className="mx-auto min-h-0 w-full max-w-3xl flex-1 overflow-auto">
-            <HistoryTab project={project} networkId={networkId} />
-          </div>
-        </WorkspaceView>
-      )}
       <WorkspaceView
         active={tab === "assistant"}
         onExit={exitToCanvas}
@@ -413,8 +399,6 @@ export function ProjectCanvasPage() {
         </div>
       )}
 
-      <ProjectConflictBanner projectId={pId} />
-      <DivergenceBanner projectId={pId} />
 
       {/* The secondary views (translations / data sources / history / assistant)
           replace the canvas in the center region via WorkspaceView (?tab=) — no

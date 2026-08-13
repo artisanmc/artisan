@@ -7,7 +7,6 @@ import { fetchServerDeclaredModels } from "@/lib/api/dataSources";
 import { projectFromFiles } from "@/schema/projectFromFiles";
 import { readProjectFiles } from "@/lib/api/projectFiles";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
-import { useDivergenceStore } from "@/state/divergenceStore";
 import type { Account, Project, ProjectId } from "@/domain/types";
 
 export interface ProjectLoadResult {
@@ -72,8 +71,6 @@ export function useProjectLoader(projectId: string, serverRef?: string | null): 
           const docs = await fetchServerDeclaredModels(res.networkId, serverId);
           injectDeclaredModels(loaded, docs);
         }
-        // Files-first P3c: surface a pending disk↔web divergence to the banner.
-        useDivergenceStore.getState().set(projectId, res.divergence);
         // Accepted reset (ADR project-sources-and-data-models): legacy
         // schemaless sources are dropped at the load boundary, never migrated.
         normalizeDataSources(loaded);

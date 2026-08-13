@@ -51,7 +51,6 @@ describe("ProjectTopBarControls", () => {
     render(<ProjectTopBarControls project={project} projectId={"p1" as any} />);
     expect(screen.getByTestId("open-view-translations")).toBeInTheDocument();
     expect(screen.getByTestId("open-view-data-sources")).toBeInTheDocument();
-    expect(screen.getByTestId("open-view-history")).toBeInTheDocument();
     expect(screen.getByTestId("open-view-translations")).toHaveTextContent("1");
   });
 });

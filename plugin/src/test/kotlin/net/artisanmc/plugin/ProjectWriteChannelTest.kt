@@ -198,6 +198,22 @@ class ProjectWriteChannelTest {
     }
 
     @Test
+    fun `cree le dossier du project quand l'appelant le demande explicitement`() {
+        val h = Harness()
+        // Aucun `project()` : le dossier n'existe pas encore, comme après une
+        // création ou un import dans l'éditeur.
+        h.provider.handleMessageForTesting(
+            """{"type":"project_write","request_id":"w1","project_id":"tout_neuf","create":true,"files":[
+                {"path":"manifest.yaml","content":"id: tout_neuf\n","base_hash":null}
+            ],"deletes":[]}"""
+        )
+        h.await()
+
+        assertEquals(true, h.reply()["ok"])
+        assertEquals("id: tout_neuf\n", h.read(File(h.root, "tout_neuf"), "manifest.yaml"))
+    }
+
+    @Test
     fun `refuse une traversee de chemin et un project inconnu`() {
         val h = Harness()
         h.project("boutique")

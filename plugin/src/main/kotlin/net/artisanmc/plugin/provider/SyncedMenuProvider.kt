@@ -838,6 +838,7 @@ class SyncedMenuProvider(
                     val path = d["path"]?.asText() ?: return@mapNotNull null
                     path to baseHashOf(d)
                 } ?: emptyList()
+                val create = node["create"]?.asBoolean() ?: false
                 if (!isSafeProjectId(projectId) ||
                     writes.any { !isEditorWritablePath(it.first) } ||
                     deletes.any { !isEditorWritablePath(it.first) }
@@ -849,8 +850,18 @@ class SyncedMenuProvider(
                     httpClient.dispatcher.executorService.execute {
                         val projectDir = roots.dirFor(projectId)
                         if (!projectDir.isDirectory) {
-                            reply(mapOf("ok" to false, "error" to "unknown_project"))
-                            return@execute
+                            // Un Project neuf (création, import) n'a pas encore de
+                            // dossier. On le crée uniquement si l'appelant l'a
+                            // demandé : sans ce drapeau, un id mal tapé doit rester
+                            // une erreur, pas semer un dossier fantôme.
+                            if (!create) {
+                                reply(mapOf("ok" to false, "error" to "unknown_project"))
+                                return@execute
+                            }
+                            if (!projectDir.mkdirs()) {
+                                reply(mapOf("ok" to false, "error" to "write_error", "message" to "mkdir failed"))
+                                return@execute
+                            }
                         }
                         try {
                             // Passe 1 — vérifier, sans rien toucher. Un seul fichier
