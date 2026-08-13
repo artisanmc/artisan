@@ -85,7 +85,7 @@ export function ProjectCanvasPage() {
   // L'URL peut porter le slug du project : le serveur, déjà dans l'URL, en est
   // la portée (un slug n'est unique que par serveur). La réponse donne l'id
   // réel, seul utilisé en aval — store, sélections, sauvegardes.
-  const { project: userProject, offline } = useProjectLoader(projectId, serverId);
+  const { project: userProject, offline, error: loadError } = useProjectLoader(projectId, serverId);
   const project = userProject;
   const pId = (project?.id ?? projectId) as ProjectId;
   const currentUser = useAuthStore((s) => s.currentUser);
@@ -184,11 +184,20 @@ export function ProjectCanvasPage() {
   // part ailleurs (ADR `server-disk-only-storage`). Il n'y a donc rien à
   // afficher — et surtout pas une copie périmée. On le dit, au lieu de laisser
   // une page blanche qu'on prend pour un chargement qui n'aboutit jamais.
-  if (offline) {
+  // TOUT échec de chargement doit se voir. Ne traiter que le cas « hors ligne »
+  // laissait les autres (project inconnu, lecture refusée, transport) retomber
+  // sur le `return null` ci-dessous — une page vide qu'on prend pour un
+  // chargement sans fin. C'est la même erreur, à un cas près.
+  if (loadError) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
-        <p className="text-[15px] text-[var(--text)]">{t("project.offlineTitle")}</p>
-        <p className="max-w-md text-[13px] text-[var(--text-mut)]">{t("project.offlineBody")}</p>
+        <p className="text-[15px] text-[var(--text)]">
+          {offline ? t("project.offlineTitle") : t("project.loadFailedTitle")}
+        </p>
+        <p className="max-w-md text-[13px] text-[var(--text-mut)]">
+          {offline ? t("project.offlineBody") : t("project.loadFailedBody")}
+        </p>
+        <code className="text-[11px] text-[var(--text-faint)]">{loadError}</code>
         <button type="button" className="btn btn-sm" onClick={() => window.location.reload()}>
           {t("project.offlineRetry")}
         </button>

@@ -9,6 +9,11 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Fixed — tout échec de chargement d'un Project se voit
+
+- Le correctif précédent ne couvrait que `server_offline` : un `unknown_project`, un `read_error`, un `fetch_timeout` ou un throw du fetch d'identité laissaient `offline` à faux, et la route retombait sur `if (!project) return null` — page vide, indiscernable d'un chargement sans fin. C'était la même erreur, à un cas près. La route affiche désormais un état pour **toute** erreur, avec le code en clair.
+- **Cas rencontré sur devstack** : son serveur tournait un plugin antérieur à l'épopée (11 août), qui ne connaît ni `project_read` ni `project_write` — le relais expirait en `fetch_timeout`, pas en `server_offline`. Un plugin périmé rend donc les Projects de son serveur illisibles ; c'est attendu (le contenu ne vit plus que sur son disque, et lui seul sait le lire), mais ça doit se dire au lieu d'afficher du vide.
+
 ### Fixed — le module Boutique avait disparu de la sidebar
 
 - **Régression P3b.** Le regroupement « Modules installés » se fait sur `ProjectSummary.ownerModule`, que le backend lisait dans le `manifest.module` de sa copie du project. J'ai supprimé ce champ avec la copie, sans voir qu'il portait ce regroupement : le project de l'Add-on retombait dans la liste plate et son groupe disparaissait.
