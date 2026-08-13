@@ -903,6 +903,7 @@ export default {
   },
   linkedServers: {
     title: "Linked servers",
+    serverTitle: "Server",
     count: "{{online}}/{{total}}",
     trigger: "Linked servers — {{online}} of {{total}} online",
     online: "Online",

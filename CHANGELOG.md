@@ -9,6 +9,15 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Fixed — le module Boutique avait disparu de la sidebar
+
+- **Régression P3b.** Le regroupement « Modules installés » se fait sur `ProjectSummary.ownerModule`, que le backend lisait dans le `manifest.module` de sa copie du project. J'ai supprimé ce champ avec la copie, sans voir qu'il portait ce regroupement : le project de l'Add-on retombait dans la liste plate et son groupe disparaissait.
+- La propriété se **redérive côté éditeur des écrans déclarés** (`ownerModuleOf`), qui portent déjà le couple `module_id` → `project_id` : c'est le module lui-même qui l'a annoncé au Presence, donc aucune donnée nouvelle sur le fil et aucun aller-retour disque. Le rapprochement se fait sur l'**id disque** (`externalId`), le seul que le module connaisse.
+
+### Changed — le popover de la topbar montre le serveur courant, pas le parc
+
+- Il listait tous les serveurs du network. Depuis cette page, la seule question qui compte est l'état du serveur qui **porte** le project ouvert — c'est son disque qui conditionne tout. Le popover n'affiche donc plus que celui-là (état, dernière connexion, IP, version MC).
+
 ### Fixed — serveur hors ligne : la page l'annonce au lieu de rester blanche
 
 - La décision 7 de `server-disk-only-storage` dit « Project inouvrable, **annoncé comme tel** ». Le drapeau `offline` était posé par `useProjectLoader` mais **jamais consommé** : la route faisait `if (!project) return null`, donc un serveur injoignable donnait une page blanche indiscernable d'un chargement sans fin. Écran explicite + bouton Réessayer.

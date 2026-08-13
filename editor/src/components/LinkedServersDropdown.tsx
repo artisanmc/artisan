@@ -138,17 +138,19 @@ export function LinkedServersDropdown({
           {label}
         </button>
       </DropdownMenuTrigger>
+      {/* Le project ouvert vit sur le disque d'UN serveur : c'est celui-là, et
+          lui seul, qui a quelque chose à dire ici. Lister tout le parc du network
+          à cet endroit répondait à une question que personne ne se pose depuis
+          cette page (ADR `server-disk-only-storage`). */}
       <DropdownMenuContent align="end" className="min-w-[16rem]">
-        <DropdownMenuLabel>{t("linkedServers.title")}</DropdownMenuLabel>
+        <DropdownMenuLabel>{t("linkedServers.serverTitle")}</DropdownMenuLabel>
         <DropdownMenuSeparator />
-        {total === 0 ? (
+        {current ? (
+          <ServerRow s={current} lang={i18n.language} t={t} />
+        ) : (
           <div className="px-2.5 py-2 text-[12px] text-[var(--text-faint)]">
             {t("linkedServers.empty")}
           </div>
-        ) : (
-          data.servers.map((s) => (
-            <ServerRow key={s.id} s={s} lang={i18n.language} t={t} />
-          ))
         )}
       </DropdownMenuContent>
     </DropdownMenu>
