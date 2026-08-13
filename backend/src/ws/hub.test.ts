@@ -868,6 +868,82 @@ describe("config read/write relay (module-config-screens)", () => {
   });
 });
 
+describe("project_read relay (server-disk-only-storage P0)", () => {
+  test("resolves offline when no plugin conn is bound", async () => {
+    const { requestProjectRead } = await import("./hub");
+    const outcome = await requestProjectRead("sk-not-connected", { projectId: "boutique" });
+    expect(outcome).toEqual({ kind: "offline" });
+  });
+
+  test("round-trips the whole tree through the plugin conn", async () => {
+    const { requestProjectRead, connToServerId, connSenders } = await import("./hub");
+    const sent: Record<string, unknown>[] = [];
+    const connId = "conn-project-read";
+    registerConn(connId, (raw) => sent.push(JSON.parse(raw)));
+    connToServerId.set(connId, "sk-project-live");
+    try {
+      const pending = requestProjectRead("sk-project-live", { projectId: "boutique" });
+      expect(sent.map((m) => m.type)).toEqual(["project_read"]);
+      expect(sent[0]!.project_id).toBe("boutique");
+
+      await handlePluginMessage(connId, JSON.stringify({
+        type: "project_read_result", request_id: sent[0]!.request_id, ok: true,
+        files: [
+          { path: ".artisan/editor.yaml", content: "i18n_mode: inline\n" },
+          { path: "menus/shop_main.yaml", content: "title: Boutique\n" },
+        ],
+      }));
+
+      const outcome = await pending;
+      expect(outcome.kind).toBe("result");
+      if (outcome.kind === "result") {
+        expect(outcome.result.files?.map((f) => f.path)).toEqual([
+          ".artisan/editor.yaml",
+          "menus/shop_main.yaml",
+        ]);
+      }
+    } finally {
+      connToServerId.delete(connId);
+      connSenders.delete(connId);
+    }
+  });
+
+  test("times out when the plugin never answers", async () => {
+    const { requestProjectRead, connToServerId, connSenders } = await import("./hub");
+    const connId = "conn-project-read-mute";
+    registerConn(connId, () => {});
+    connToServerId.set(connId, "sk-project-mute");
+    try {
+      const outcome = await requestProjectRead("sk-project-mute", { projectId: "p" }, 20);
+      expect(outcome).toEqual({ kind: "timeout" });
+    } finally {
+      connToServerId.delete(connId);
+      connSenders.delete(connId);
+    }
+  });
+
+  test("surfaces the plugin's error verbatim", async () => {
+    const { requestProjectRead, connToServerId, connSenders } = await import("./hub");
+    const sent: Record<string, unknown>[] = [];
+    const connId = "conn-project-read-err";
+    registerConn(connId, (raw) => sent.push(JSON.parse(raw)));
+    connToServerId.set(connId, "sk-project-err");
+    try {
+      const pending = requestProjectRead("sk-project-err", { projectId: "jamais_cree" });
+      await handlePluginMessage(connId, JSON.stringify({
+        type: "project_read_result", request_id: sent[0]!.request_id, ok: false,
+        error: "unknown_project",
+      }));
+      const outcome = await pending;
+      expect(outcome.kind).toBe("result");
+      if (outcome.kind === "result") expect(outcome.result.error).toBe("unknown_project");
+    } finally {
+      connToServerId.delete(connId);
+      connSenders.delete(connId);
+    }
+  });
+});
+
 describe("sync_divergence (files-first P3c)", () => {
   test("stores the plugin-reported disk tree; local_push clears it", async () => {
     const { id: keyId, key, networkId } = await seedServerKey();

@@ -1,0 +1,127 @@
+package net.artisanmc.plugin
+
+import com.fasterxml.jackson.databind.ObjectMapper
+import net.artisanmc.plugin.provider.SyncedMenuProvider
+import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Test
+import java.io.File
+import java.nio.file.Files
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+
+/**
+ * `project_read` — l'éditeur lit l'arbre complet d'un Project depuis le disque du
+ * serveur (ADR `server-disk-only-storage`, P0). Généralise `config_read`, qui ne
+ * portait qu'une Table d'écran de config.
+ *
+ * Différence avec le scan de sync (`ProjectFilesReader.readRelative`) : celui-ci
+ * exclut tout `.artisan*`, alors que l'éditeur a besoin de `.artisan/editor.yaml`
+ * (layout du board, `i18n_mode`). Seules la corbeille et les métadonnées de sync
+ * restent hors champ.
+ */
+class ProjectReadChannelTest {
+    private class Harness {
+        val root: File = Files.createTempDirectory("artisan_pread_").toFile()
+        val sink: MutableList<Map<String, Any?>> = java.util.Collections.synchronizedList(mutableListOf())
+        val latch = CountDownLatch(1)
+        val provider = SyncedMenuProvider(
+            roots = net.artisanmc.plugin.project.ProjectRoots(root),
+            serverKey = "", wsUrl = "", logger = null,
+        )
+        init {
+            provider.setSendForTesting { raw ->
+                @Suppress("UNCHECKED_CAST")
+                sink.add(ObjectMapper().readValue(raw, Map::class.java) as Map<String, Any?>)
+                latch.countDown()
+            }
+        }
+        fun await() = assertTrue(latch.await(5, TimeUnit.SECONDS), "no reply within 5s")
+        fun project(id: String): File = File(root, id).also { it.mkdirs() }
+        fun write(project: File, rel: String, content: String) {
+            val f = File(project, rel)
+            f.parentFile.mkdirs()
+            f.writeText(content)
+        }
+        fun read(projectId: String, requestId: String = "r1") {
+            provider.handleMessageForTesting(
+                """{"type":"project_read","request_id":"$requestId","project_id":"$projectId"}"""
+            )
+            await()
+        }
+        @Suppress("UNCHECKED_CAST")
+        fun files(): List<Map<String, String>> = sink.single()["files"] as List<Map<String, String>>
+    }
+
+    @Test
+    fun `project_read renvoie l'arbre complet, chemins relatifs tries`() {
+        val h = Harness()
+        val p = h.project("boutique")
+        h.write(p, "manifest.yaml", "id: boutique\n")
+        h.write(p, "menus/shop_main.yaml", "title: Boutique\n")
+        h.write(p, "lang/fr.yaml", "shop:\n  title: Boutique\n")
+
+        h.read("boutique")
+
+        val msg = h.sink.single()
+        assertEquals("project_read_result", msg["type"])
+        assertEquals("r1", msg["request_id"])
+        assertEquals(true, msg["ok"])
+        assertEquals(
+            listOf("lang/fr.yaml", "manifest.yaml", "menus/shop_main.yaml"),
+            h.files().map { it["path"] },
+        )
+        assertEquals("title: Boutique\n", h.files().single { it["path"] == "menus/shop_main.yaml" }["content"])
+    }
+
+    @Test
+    fun `project_read inclut l'etat editeur mais pas la corbeille ni les metadonnees de sync`() {
+        val h = Harness()
+        val p = h.project("boutique")
+        h.write(p, "manifest.yaml", "id: boutique\n")
+        h.write(p, ".artisan/editor.yaml", "i18n_mode: inline\n")
+        h.write(p, ".artisan/history/menus/shop_main.yaml/1755000000.yaml", "vieille version\n")
+        h.write(p, ".artisan-sync.yaml", "synced_hash: abc\n")
+        h.write(p, ".artisan-trash/menus/supprime.yaml", "supprimé\n")
+
+        h.read("boutique")
+
+        assertEquals(
+            listOf(".artisan/editor.yaml", "manifest.yaml"),
+            h.files().map { it["path"] },
+        )
+    }
+
+    @Test
+    fun `project_read sur un project inconnu repond unknown_project`() {
+        val h = Harness()
+        h.read("jamais_cree")
+
+        val msg = h.sink.single()
+        assertEquals(false, msg["ok"])
+        assertEquals("unknown_project", msg["error"])
+    }
+
+    @Test
+    fun `project_read refuse une traversee de chemin`() {
+        val h = Harness()
+        h.read("../../etc")
+
+        val msg = h.sink.single()
+        assertEquals(false, msg["ok"])
+        assertEquals("invalid_path", msg["error"])
+    }
+
+    @Test
+    fun `project_read refuse un arbre au dela du plafond`() {
+        val h = Harness()
+        val p = h.project("gros")
+        h.write(p, "manifest.yaml", "id: gros\n")
+        h.write(p, "lang/en.yaml", "x".repeat(SyncedMenuProvider.MAX_PROJECT_BYTES + 1))
+
+        h.read("gros")
+
+        val msg = h.sink.single()
+        assertEquals(false, msg["ok"])
+        assertEquals("too_large", msg["error"])
+    }
+}
