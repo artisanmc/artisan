@@ -23,6 +23,24 @@ Corollaire : il n'existe plus de divergence disque↔backend, donc plus de `dete
 de `sync_divergence`, plus de `bundle_available`. Le `SyncScanner` subsiste, mais **uniquement**
 pour recharger à chaud une édition faite à la main ou par un agent : il ne décide plus de rien.
 
+## Une clé serveur = un serveur vivant
+
+Au `hello`, le backend **évince** toute connexion déjà liée à la même clé (dernier arrivé gagne) et
+prévient l'évincé par `session_replaced`.
+
+Ce n'était pas nécessaire tant que le backend détenait le contenu : les N instances téléchargeaient
+le même bundle, donc parler à l'une ou l'autre revenait au même. Depuis `server-disk-only-storage`,
+chacune a **son** disque et rien ne les synchronise — le relais (`firstPluginSender`) ferait lire un
+disque et écrire l'autre, puis basculerait **en silence** quand la première tombe, produisant des
+conflits fantômes sur des fichiers que personne n'a touchés.
+
+**Dernier arrivé gagne, et pas l'inverse** : un serveur qui crashe laisse une connexion morte ;
+« premier gagne » verrouillerait le vrai serveur dehors jusqu'à expiration du keepalive, au pire
+moment. Deux serveurs qui se disputent réellement une clé deviennent visibles (déconnexions en
+boucle) au lieu de diverger en silence.
+
+**Verrouillé par** `hub.test.ts` § « une clé serveur = un serveur vivant ».
+
 ## Compare-and-swap par fichier, tout ou rien
 
 Chaque entrée d'un `project_write` porte le `base_hash` du contenu que l'éditeur avait chargé

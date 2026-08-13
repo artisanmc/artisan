@@ -20,7 +20,6 @@ function entry(over: Partial<ServerStatusEntry>): ServerStatusEntry {
     id: "sk",
     label: "Srv",
     online: false,
-    instanceCount: 0,
     lastMcVersion: null,
     lastSeenAt: null,
     lastSeenIp: null,
@@ -41,10 +40,10 @@ describe("relTime", () => {
 });
 
 describe("ServerRow", () => {
-  it("online row shows IP, version and instance multiplier", () => {
+  it("online row shows IP and version", () => {
     render(
       <ServerRow
-        s={entry({ id: "b", label: "Lobby", online: true, instanceCount: 2, lastMcVersion: "1.21.4", lastSeenIp: "1.2.3.5" })}
+        s={entry({ id: "b", label: "Lobby", online: true, lastMcVersion: "1.21.4", lastSeenIp: "1.2.3.5" })}
         lang="en"
         t={t}
       />,
@@ -52,7 +51,9 @@ describe("ServerRow", () => {
     expect(screen.getByText(/Lobby/)).toBeInTheDocument();
     expect(screen.getByText(/1\.2\.3\.5/)).toBeInTheDocument();
     expect(screen.getByText(/1\.21\.4/)).toBeInTheDocument();
-    expect(screen.getByText(/x2/)).toBeInTheDocument();
+    // Plus de multiplicateur d'instances : une clé = un serveur vivant, le
+    // backend évince l'ancienne connexion (ADR `server-disk-only-storage`).
+    expect(screen.queryByText(/x2/)).toBeNull();
   });
 
   it("offline row with a last hello shows last-seen + last IP", () => {
@@ -78,8 +79,8 @@ describe("LinkedServersDropdown", () => {
       online: 2,
       total: 3,
       servers: [
-        entry({ id: "a", online: true, instanceCount: 1, isCurrent: true }),
-        entry({ id: "b", online: true, instanceCount: 1 }),
+        entry({ id: "a", online: true, isCurrent: true }),
+        entry({ id: "b", online: true }),
         entry({ id: "c", online: false }),
       ],
     });

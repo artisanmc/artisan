@@ -602,6 +602,18 @@ class SyncedMenuProvider(
                 }
             }
 
+            // Une autre instance a réclamé notre clé serveur. Un seul WARN, pas de
+            // prompt ni de retry : personne ne regarde la console au moment où ça
+            // tombe, mais tout le monde la lit après coup pour comprendre pourquoi
+            // l'éditeur ne voyait plus ce serveur.
+            "session_replaced" -> {
+                logger?.warning(
+                    "[Artisan] Un autre serveur s'est connecté avec CETTE clé serveur — " +
+                    "celui-ci est déconnecté de l'éditeur. Une clé = un serveur : " +
+                    "génère une clé par serveur dans l'éditeur."
+                )
+            }
+
             "project_history" -> {
                 val requestId = node["request_id"]?.asText() ?: return
                 val projectId = node["project_id"]?.asText() ?: return

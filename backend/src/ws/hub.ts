@@ -658,6 +658,29 @@ export async function handlePluginMessage(
       return { reply: null };
     }
 
+    // Une clé serveur = UN serveur vivant. Le relais choisit « la première
+    // connexion trouvée » : tant que le backend détenait le contenu, parler à
+    // l'une ou l'autre instance revenait au même — elles téléchargeaient toutes
+    // le même bundle. Depuis `server-disk-only-storage`, chacune a SON disque et
+    // rien ne les synchronise, donc une clé partagée fait lire un disque et
+    // écrire l'autre, puis basculer en silence quand la première tombe.
+    //
+    // Dernier arrivé gagne : un serveur qui crashe laisse une connexion morte,
+    // et « premier gagne » verrouillerait le vrai serveur dehors jusqu'à
+    // expiration du keepalive — au pire moment. Un redémarrage se recolle donc
+    // tout seul, et deux serveurs qui se disputent réellement une clé deviennent
+    // visibles (déconnexions en boucle) au lieu de diverger en silence.
+    for (const [otherConnId, sId] of connToServerId) {
+      if (sId !== keyId || otherConnId === connId) continue;
+      connToServerId.delete(otherConnId);
+      // On le lui dit : sans ça, le serveur évincé se croit connecté
+      // indéfiniment et son admin n'a aucun moyen de comprendre son silence.
+      connSenders.get(otherConnId)?.(JSON.stringify({
+        type: "session_replaced",
+        reason: "another server connected with this server key",
+      }));
+    }
+
     const sessionId = crypto.randomUUID();
     activeSessions.set(sessionId, keyId);
     connToServerId.set(connId, keyId);
