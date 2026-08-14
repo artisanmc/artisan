@@ -9,6 +9,13 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Changed — les Documents se découvrent par scan, le bloc `files:` du manifest disparaît
+
+- `manifest.files.{menus,commands,dialogs}` recopiait à la main le contenu des dossiers du même nom. Vérifié sur un vrai project : 4 menus, 12 commandes, 1 dialog — exactement les fichiers présents, **aucun ordre de chargement, aucune exclusion**. Un index dont le seul effet possible était de se désynchroniser, dans un format censé s'éditer à la main.
+- Les Documents sont désormais découverts par **scan** de `menus/`, `commands/`, `dialogs/` — comme l'étaient déjà les data sources et les models. Tri alphabétique, donc stable d'un chargement à l'autre.
+- Un bloc legacy encore présent est **fusionné, jamais soustrait** : il ne peut plus rendre invisible un fichier bien réel. C'était le piège exact que ce bloc tendait.
+- Le manifest se réduit à ce qui n'est pas déductible : `schema`, `project_id`, `module`, `default_lang`, `languages`.
+
 ### Changed — l'identité d'un Document est le nom de son fichier (BREAKING format)
 
 - Menus, commandes et dialogs tiraient leur id d'un champ `id:` **interne**, alors que le fichier portait déjà ce nom. Deux sources pour une seule vérité — et elles divergent : constaté le 2026-08-14, un `project_id: pack_ac4c8b884658` dans un dossier renommé `projet_test`.
