@@ -232,7 +232,9 @@ describe("menuV1ToDomain — round-trip oracle", () => {
   const files = transform(project);
   const menuYaml = files[`plugins/Artisan/projects/${PACK}/menus/shop.yaml`]!;
   const wire = parse(menuYaml) as Record<string, unknown>;
-  const result = menuV1ToDomain(wire, {
+  // L'identité vient du NOM DE FICHIER : `projectFromFiles` l'injecte, ce test
+  // court-circuite le chargement, il doit donc le faire aussi.
+  const result = menuV1ToDomain({ ...wire, id: "shop" }, {
     projectId: PACK,
     lang: LANG,
     translations: project.i18nKeys as Record<string, Record<string, string>>,

@@ -9,6 +9,14 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Changed — l'identité d'un Document est le nom de son fichier (BREAKING format)
+
+- Menus, commandes et dialogs tiraient leur id d'un champ `id:` **interne**, alors que le fichier portait déjà ce nom. Deux sources pour une seule vérité — et elles divergent : constaté le 2026-08-14, un `project_id: pack_ac4c8b884658` dans un dossier renommé `projet_test`.
+- Le produit y était déjà à moitié : un **template** prend son `nameWithoutExtension` quand son `id` est vide, et **data sources** comme **models** n'ont pas de champ `id` du tout. Ce changement finit la convergence au lieu de l'inventer.
+- **Une seule règle : le fichier gagne.** Un `id:` divergent est ignoré et signalé par un WARN nommant les deux (« retire ce champ, et renomme le fichier si tu voulais l'autre nom »). Deux règles — « le fichier, sauf si un id est présent » — perpétueraient l'ambiguïté qu'on supprime.
+- Le champ n'est plus **écrit** ; il reste **lu** et toléré pour les projects antérieurs. `id` sort des `required` des schémas `menu/v1`, `command/v1` et `dialog/v1`, et y est documenté comme legacy.
+- Les sérialiseurs le conservent en mémoire : l'assistant IA reçoit les Documents sur le fil, où aucun nom de fichier ne peut porter l'identité. Le retrait se fait à l'émission du fichier (`withoutId`).
+
 ### Changed — la liste des Projects se demande au disque, elle ne se mémorise plus
 
 - Un dossier renommé ou supprimé ne se voyait pas dans l'éditeur : la table `projects` était devenue **append-only** (elle apprenait au `hello`, n'oubliait jamais) depuis que `project_hashes` / `deleted_project_ids` avaient disparu. Resynchroniser ce miroir aurait rejoué exactement ce que l'ADR `server-disk-only-storage` a supprimé.
