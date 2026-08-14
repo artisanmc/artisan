@@ -82,6 +82,26 @@ class ProjectReader(
         }
     }
 
+    /**
+     * Les Documents d'un dossier, **découverts par scan**.
+     *
+     * Le bloc `files:` du manifest recopiait à la main le contenu de `menus/`,
+     * `commands/` et `dialogs/` — un index sans ordre de chargement ni exclusion,
+     * dont l'unique effet possible était de se désynchroniser. Les data sources et
+     * les models étaient déjà scannés ; ceci aligne le reste.
+     *
+     * Un bloc legacy encore présent est **fusionné**, jamais soustrait : il ne peut
+     * plus rendre invisible un fichier bien réel. Ordre alphabétique, donc stable
+     * d'un chargement à l'autre.
+     */
+    private fun documentIds(projectDir: File, dir: String, legacy: List<String>): List<String> {
+        val scanned = File(projectDir, dir).listFiles()
+            ?.filter { it.isFile && it.name.endsWith(".yaml") && !it.name.startsWith(".") }
+            ?.map { it.nameWithoutExtension }
+            ?: emptyList()
+        return (scanned + legacy).distinct().sorted()
+    }
+
     fun readAll(): List<ProjectBundle> =
         roots.all().values.mapNotNull { dir ->
             // Tolerant per project: a broken manifest/lang never nukes the
@@ -142,7 +162,7 @@ class ProjectReader(
         // Tolerant per file (like data sources below): a single unparseable
         // menu/command/dialog — e.g. a stale-format file mid-migration — logs +
         // skips instead of failing the whole reload and the plugin enable.
-        val menus = manifest.files.menus.mapNotNull { menuId ->
+        val menus = documentIds(projectDir, "menus", manifest.files.menus).mapNotNull { menuId ->
             val f = File(projectDir, "menus/$menuId.yaml").takeIf { it.exists() } ?: return@mapNotNull null
             runCatching {
                 val menuYaml = withFileId(mapper.readValue(f, MenuYaml::class.java), menuId, f)
@@ -158,7 +178,7 @@ class ProjectReader(
             }
         }
 
-        val commands = manifest.files.commands.mapNotNull { cmdId ->
+        val commands = documentIds(projectDir, "commands", manifest.files.commands).mapNotNull { cmdId ->
             val f = File(projectDir, "commands/$cmdId.yaml").takeIf { it.exists() } ?: return@mapNotNull null
             runCatching {
                 val cmdYaml = withFileId(mapper.readValue(f, CommandYaml::class.java), cmdId, f)
@@ -171,7 +191,7 @@ class ProjectReader(
             }
         }
 
-        val dialogs = manifest.files.dialogs.mapNotNull { dialogId ->
+        val dialogs = documentIds(projectDir, "dialogs", manifest.files.dialogs).mapNotNull { dialogId ->
             val f = File(projectDir, "dialogs/$dialogId.yaml").takeIf { it.exists() } ?: return@mapNotNull null
             runCatching {
                 val dialogYaml = withFileId(mapper.readValue(f, DialogYaml::class.java), dialogId, f)
