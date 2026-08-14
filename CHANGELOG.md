@@ -9,6 +9,14 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Changed — la liste des Projects se demande au disque, elle ne se mémorise plus
+
+- Un dossier renommé ou supprimé ne se voyait pas dans l'éditeur : la table `projects` était devenue **append-only** (elle apprenait au `hello`, n'oubliait jamais) depuis que `project_hashes` / `deleted_project_ids` avaient disparu. Resynchroniser ce miroir aurait rejoué exactement ce que l'ADR `server-disk-only-storage` a supprimé.
+- Nouveau couple WS `project_list` / `project_list_result` + `GET …/servers/:serverId/projects`. **Le nom du dossier EST l'identité** du Project : le renommer le renomme dans l'éditeur, sans réconciliation ni élagage.
+- Les lignes `projects` subsistent, mais changent de rôle : elles n'inventorient plus, elles **ancrent** ce que le backend possède vraiment (assets — FK cascade —, resource pack, conversations d'assistant, autorisation). Une ligne périmée cesse simplement de compter ; rien à supprimer.
+- L'ouverture d'un dossier neuf ou renommé crée son ancrage à la volée — **mais uniquement si le plugin le liste**. Une référence mal tapée reste un 404 : c'est le disque qui décide de ce qui existe, jamais l'URL.
+- Le badge de nombre de Documents ne s'affiche plus que pour les Projects réellement ouverts : le `documentCount` calculé côté backend est mort avec la copie des fichiers.
+
 ### Fixed — tout échec de chargement d'un Project se voit
 
 - Le correctif précédent ne couvrait que `server_offline` : un `unknown_project`, un `read_error`, un `fetch_timeout` ou un throw du fetch d'identité laissaient `offline` à faux, et la route retombait sur `if (!project) return null` — page vide, indiscernable d'un chargement sans fin. C'était la même erreur, à un cas près. La route affiche désormais un état pour **toute** erreur, avec le code en clair.

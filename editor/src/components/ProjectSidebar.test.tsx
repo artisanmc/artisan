@@ -1,6 +1,7 @@
 import * as networksApi from "@/lib/api/networks";
 import { useAccountStore } from "@/state/accountStore";
 import { useNetworksStore } from "@/state/networksStore";
+import { listServerProjects } from "@/lib/api/projectFiles";
 import { useServersStore } from "@/state/serversStore";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -12,6 +13,13 @@ const mockParams = vi.hoisted(() => ({
     serverId?: string;
     projectId?: string;
   },
+}));
+
+// La liste des Projects vient désormais du DISQUE du serveur actif (ADR
+// `server-disk-only-storage`) : le dossier EST l'identité, donc le libellé
+// affiché est son nom de dossier, plus le `name` d'une ligne en base.
+vi.mock("@/lib/api/projectFiles", () => ({
+  listServerProjects: vi.fn(async () => ({ ok: true, projectIds: ["pack_a", "pack_b"] })),
 }));
 
 vi.mock("@tanstack/react-router", async () => {
@@ -53,7 +61,7 @@ describe("ProjectSidebar", () => {
     expect(await screen.findByText(/sidebar\.serverLabel|Serveur|Server/i)).toBeInTheDocument();
   });
 
-  it("lists workspaces returned by getNetwork, sorted alphabetically by id", async () => {
+  it("liste les Projects du disque du serveur actif, triés", async () => {
     vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
       network: { id: "net_1", name: "Mon Network", tier: "free" },
       projects: [
@@ -77,31 +85,13 @@ describe("ProjectSidebar", () => {
       serverKeys: [{ id: "sk_1", label: "Survival" }],
     });
     render(<ProjectSidebar />);
-    const items = await screen.findAllByRole("link", { name: /Menu principal|Lobby/ });
-    // Sort is by id (stable, deterministic), so pack_a comes before pack_b.
-    expect(items[0]).toHaveTextContent("Lobby");
-    expect(items[1]).toHaveTextContent("Menu principal");
+    const items = await screen.findAllByRole("link", { name: /pack_a|pack_b/ });
+    // L'ordre vient du plugin (dossiers triés) : pack_a avant pack_b. Le libellé
+    // est le nom du dossier — c'est lui l'identité désormais.
+    expect(items[0]).toHaveTextContent("pack_a");
+    expect(items[1]).toHaveTextContent("pack_b");
   });
 
-  it("shows an element-count badge from the project summary", async () => {
-    vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
-      network: { id: "net_1", name: "Mon Network", tier: "free" },
-      projects: [
-        {
-          id: "pack_a",
-          name: "Lobby",
-          hash: "h1",
-          networkId: "net_1",
-          serverKeyId: "sk_1",
-          documentCount: 3,
-        },
-      ],
-      serverKeys: [{ id: "sk_1", label: "Survival" }],
-    });
-    render(<ProjectSidebar />);
-    await screen.findByRole("link", { name: /Lobby/ });
-    expect(screen.getByText("3")).toBeInTheDocument();
-  });
 
   it("workspace links use the server-scoped URL pattern", async () => {
     vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
@@ -110,7 +100,7 @@ describe("ProjectSidebar", () => {
       serverKeys: [{ id: "sk_1", label: "Survival" }],
     });
     render(<ProjectSidebar />);
-    const link = await screen.findByRole("link", { name: /Lobby/ });
+    const link = await screen.findByRole("link", { name: /pack_a/ });
     expect(link).toHaveAttribute(
       "href",
       "/networks/$networkId/servers/$serverId/projects/$projectId",
@@ -159,7 +149,7 @@ describe("ProjectSidebar", () => {
       serverKeys: [{ id: "sk_1", label: "Survival", slug: "survival" }],
     });
     render(<ProjectSidebar />);
-    expect(await screen.findByRole("link", { name: /Lobby/ })).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: /pack_a/ })).toBeInTheDocument();
   });
 
   it("shows the active server label in ServerSelector when the URL carries the server slug", async () => {
@@ -194,23 +184,29 @@ describe("ProjectSidebar", () => {
       ],
     });
     render(<ProjectSidebar />);
-    expect(await screen.findByRole("link", { name: /Lobby/ })).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: /pack_a/ })).toBeInTheDocument();
     // Still scoped to the persisted server, not the whole network.
     expect(screen.queryByRole("link", { name: /Shop/ })).not.toBeInTheDocument();
     // The selector still shows the persisted server as active.
     expect(await screen.findByText("Survival")).toBeInTheDocument();
   });
 
-  it("ignores a persisted server that no longer exists (shows the whole network)", async () => {
+  // Un serveur persisté qui n'existe plus ne peut plus « retomber sur tout le
+  // network » : un Project appartient à un serveur et se lit sur SON disque
+  // (ADR `server-disk-only-storage`). Il n'y a donc rien à lister — le sélecteur
+  // de serveur reste là pour en choisir un vrai.
+  it("un serveur persisté disparu ne liste rien plutôt qu'une liste d'un autre serveur", async () => {
     mockParams.current = {};
     useServersStore.setState({ activeServerId: "sk_deleted" } as any);
+    vi.mocked(listServerProjects).mockResolvedValueOnce({ ok: false, error: "forbidden" });
     vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
       network: { id: "net_1", name: "Mon Network", tier: "free" },
       projects: [{ id: "p1", name: "Lobby", hash: "h", networkId: "net_1", serverKeyId: "sk_1" }],
       serverKeys: [{ id: "sk_1", label: "Survival" }],
     });
     render(<ProjectSidebar />);
-    expect(await screen.findByRole("link", { name: /Lobby/ })).toBeInTheDocument();
+    await waitFor(() => expect(listServerProjects).toHaveBeenCalled());
+    expect(screen.queryByRole("link", { name: /pack_a|Lobby/ })).toBeNull();
   });
 
   it("persists the URL server (slug resolved to id) and network into the stores", async () => {

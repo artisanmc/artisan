@@ -175,6 +175,25 @@ export interface OnlinePlayersResultMessage {
   message?: string;
 }
 
+// Backend → plugin: which Projects exist on this server's disk RIGHT NOW.
+// La liste ne se mémorise pas côté backend (ADR server-disk-only-storage) : un
+// dossier renommé ou supprimé doit se voir immédiatement, sans réconciliation.
+export interface ProjectListMessage {
+  type: "project_list";
+  request_id: string;
+}
+
+// Plugin → backend: reply to ProjectListMessage — dir names, sorted. Le nom du
+// dossier EST l'identité du Project.
+export interface ProjectListResultMessage {
+  type: "project_list_result";
+  request_id: string;
+  ok: boolean;
+  project_ids?: string[];
+  error?: "read_error";
+  message?: string;
+}
+
 // Backend → plugin: read a Project's whole file tree, live from the server's
 // disk (ADR server-disk-only-storage). The editor opens a Project through this —
 // the backend stores no Project content. Correlated like data_source_fetch.
@@ -296,7 +315,8 @@ export type PluginToServerMessage =
   | ConfigWriteResultMessage
   | ProjectReadResultMessage
   | ProjectWriteResultMessage
-  | ProjectHistoryResultMessage;
+  | ProjectHistoryResultMessage
+  | ProjectListResultMessage;
 
 export interface ResourcePackUpdatedMessage {
   type: "resource_pack_updated";

@@ -2,18 +2,62 @@
 import { Hono } from "hono";
 import type { Context } from "hono";
 import { join } from "node:path";
-import { eq } from "drizzle-orm";
+import { eq, or } from "drizzle-orm";
 import { db } from "../db";
-import { projects as projectsTable } from "../db/schema";
-import { broadcastDraftUpdate, getMcVersion, pushProjectDeleted } from "../ws/hub";
+import { projects as projectsTable, serverKeys as serverKeysTable } from "../db/schema";
+import { broadcastDraftUpdate, getMcVersion, pushProjectDeleted, requestProjectList } from "../ws/hub";
 import { customItemsCacheDir, readCustomItems } from "../lib/customItems";
-import { getProject, projectDiskId, resolveProjectRef, softDeleteProject } from "../lib/projectStorage";
+import { ensureProjectForServer, getProject, projectDiskId, resolveProjectRef, softDeleteProject } from "../lib/projectStorage";
 import { getNetworkOfProject, requireMember } from "../lib/membershipGuard";
 import type { AuthUser } from "../middleware/userAuth";
 
 type Vars = { user: AuthUser | null };
 
 export const userProjectsRouter = new Hono<{ Variables: Vars }>();
+
+/**
+ * Crée (ou retrouve) la ligne d'ancrage d'un Project que le serveur porte sur son
+ * disque mais que la base ne connaît pas encore.
+ *
+ * Depuis que la liste vient du disque, un dossier neuf ou renommé est visible et
+ * ouvrable avant toute écriture en base. La ligne ne décrit plus « ce qui
+ * existe » — elle sert de point d'accroche aux objets que le backend possède
+ * vraiment (assets, resource pack, conversations d'assistant).
+ *
+ * Renvoie l'id interne, ou null si le serveur est inconnu / hors du network du
+ * membre.
+ */
+async function ensureAnchorForDiskId(
+  userId: string,
+  serverRef: string,
+  diskId: string,
+): Promise<string | null> {
+  const keys = await db
+    .select()
+    .from(serverKeysTable)
+    .where(or(eq(serverKeysTable.id, serverRef), eq(serverKeysTable.slug, serverRef)));
+  if (keys.length !== 1) return null;
+  const sk = keys[0]!;
+  try {
+    await requireMember(userId, sk.networkId);
+  } catch {
+    return null;
+  }
+  // C'est le DISQUE qui décide de ce qui existe : on n'ancre que ce que le
+  // serveur porte réellement. Sans cette vérification, une référence mal tapée
+  // sèmerait une ligne fantôme — le même piège que `create` à l'écriture.
+  // Serveur hors ligne : on n'invente rien, l'appelant répondra 404.
+  const listed = await requestProjectList(sk.id);
+  if (listed.kind !== "result" || !listed.result.ok) return null;
+  if (!(listed.result.project_ids ?? []).includes(diskId)) return null;
+
+  const project = await ensureProjectForServer({
+    networkId: sk.networkId,
+    serverKeyId: sk.id,
+    diskId,
+  });
+  return project.id;
+}
 
 function getUserId(c: Context<{ Variables: Vars }>): string | null {
   return c.get("user")?.id ?? null;
@@ -90,7 +134,19 @@ userProjectsRouter.get("/:projectId", async (c: Context<{ Variables: Vars }>) =>
 
   // L'URL de l'éditeur porte le serveur : il sert de portée pour résoudre un
   // slug de project (unique par serveur seulement).
-  const projectId = await resolveProjectRef(c.req.param("projectId"), c.req.query("server"));
+  const ref = c.req.param("projectId");
+  const serverRef = c.req.query("server");
+  let projectId = await resolveProjectRef(ref, serverRef);
+
+  // Rien en base ? Le project existe peut-être quand même : la liste vient
+  // désormais du DISQUE (ADR `server-disk-only-storage`), donc un dossier créé
+  // ou renommé apparaît dans l'éditeur avant d'avoir la moindre ligne. On crée
+  // son point d'ancrage à la volée — c'est lui qui portera les assets, le
+  // resource pack et les conversations, pas le contenu.
+  if (projectId === null && serverRef) {
+    const anchored = await ensureAnchorForDiskId(userId, serverRef, ref);
+    if (anchored) projectId = anchored;
+  }
   if (projectId === null) return c.json({ error: "not_found" }, 404);
 
   const networkId = await getNetworkOfProject(projectId);

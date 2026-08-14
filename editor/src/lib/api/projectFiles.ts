@@ -139,3 +139,37 @@ export async function readFileHistory(
     return { ok: false, error: "network_error" };
   }
 }
+
+export type ProjectListResult =
+  | { ok: true; projectIds: string[] }
+  | { ok: false; error: ProjectFilesError };
+
+/**
+ * Les Projects présents sur le disque du serveur, **maintenant**.
+ *
+ * Le backend n'en tient plus de liste : elle se périmait au premier dossier
+ * renommé ou supprimé (ADR `server-disk-only-storage`). Le nom du dossier EST
+ * l'identité du Project — le renommer le renomme, immédiatement.
+ *
+ * Serveur hors ligne → erreur, et donc liste vide : ses Projects ne sont de
+ * toute façon pas ouvrables.
+ */
+export async function listServerProjects(
+  networkId: string,
+  serverId: string,
+): Promise<ProjectListResult> {
+  try {
+    const res = await fetch(
+      `${API_URL}/api/v1/networks/${networkId}/servers/${serverId}/projects`,
+      { credentials: "include" },
+    );
+    const body = (await res.json().catch(() => null)) as {
+      project_ids?: string[];
+      error?: string;
+    } | null;
+    if (!res.ok) return { ok: false, error: knownError(body?.error, "read_error") };
+    return { ok: true, projectIds: body?.project_ids ?? [] };
+  } catch {
+    return { ok: false, error: "network_error" };
+  }
+}

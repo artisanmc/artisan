@@ -92,6 +92,33 @@ class ProjectReadChannelTest {
     }
 
     @Test
+    fun `project_list rend les projects presents sur le disque, tries`() {
+        val h = Harness()
+        h.write(h.project("zeta"), "manifest.yaml", "id: zeta\n")
+        h.write(h.project("alpha"), "manifest.yaml", "id: alpha\n")
+
+        h.provider.handleMessageForTesting("""{"type":"project_list","request_id":"l1"}""")
+        h.await()
+
+        val msg = h.sink.single()
+        assertEquals("project_list_result", msg["type"])
+        assertEquals(true, msg["ok"])
+        // Le dossier EST le project : son nom est l'identité, et l'ordre est
+        // déterministe pour que la sidebar ne danse pas d'un tick à l'autre.
+        assertEquals(listOf("alpha", "zeta"), msg["project_ids"])
+    }
+
+    @Test
+    fun `project_list rend une liste vide quand le serveur n'a aucun project`() {
+        val h = Harness()
+        h.provider.handleMessageForTesting("""{"type":"project_list","request_id":"l2"}""")
+        h.await()
+
+        assertEquals(true, h.sink.single()["ok"])
+        assertEquals(emptyList<String>(), h.sink.single()["project_ids"])
+    }
+
+    @Test
     fun `project_read sur un project inconnu repond unknown_project`() {
         val h = Harness()
         h.read("jamais_cree")
