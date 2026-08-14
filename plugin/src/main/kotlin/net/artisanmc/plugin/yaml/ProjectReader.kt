@@ -48,6 +48,40 @@ class ProjectReader(
         )
     }
 
+    /**
+     * Le **nom de fichier est l'identité** d'un Document.
+     *
+     * Le produit y était déjà à moitié : un template prend son `nameWithoutExtension`
+     * quand son `id` est vide, et les data sources comme les models n'ont pas de
+     * champ `id` du tout. Menus, commandes et dialogs gardaient un `id:` interne —
+     * donc deux sources pour une seule vérité, qui finissent par se contredire.
+     *
+     * Une seule règle : le fichier gagne. Un `id:` divergent est ignoré et signalé,
+     * pour qu'un projet legacy le dise au lieu de le subir. Deux règles
+     * (« le fichier, sauf si un id est présent ») perpétueraient l'ambiguïté.
+     */
+    private inline fun <reified T : Any> withFileId(doc: T, fileId: String, file: File): T {
+        val current = when (doc) {
+            is MenuYaml -> doc.id
+            is CommandYaml -> doc.id
+            is DialogYaml -> doc.id
+            else -> ""
+        }
+        if (current.isNotEmpty() && current != fileId) {
+            logger?.warning(
+                "[Artisan] ${file.name} déclare 'id: $current' — ignoré, l'identité est le nom du " +
+                "fichier ('$fileId'). Retire ce champ, et renomme le fichier si tu voulais l'autre nom."
+            )
+        }
+        @Suppress("UNCHECKED_CAST")
+        return when (doc) {
+            is MenuYaml -> doc.copy(id = fileId) as T
+            is CommandYaml -> doc.copy(id = fileId) as T
+            is DialogYaml -> doc.copy(id = fileId) as T
+            else -> doc
+        }
+    }
+
     fun readAll(): List<ProjectBundle> =
         roots.all().values.mapNotNull { dir ->
             // Tolerant per project: a broken manifest/lang never nukes the
@@ -111,7 +145,7 @@ class ProjectReader(
         val menus = manifest.files.menus.mapNotNull { menuId ->
             val f = File(projectDir, "menus/$menuId.yaml").takeIf { it.exists() } ?: return@mapNotNull null
             runCatching {
-                val menuYaml = mapper.readValue(f, MenuYaml::class.java)
+                val menuYaml = withFileId(mapper.readValue(f, MenuYaml::class.java), menuId, f)
                 requireSchema(f, menuYaml.schema, "menu/v1")
                 BundleCompiler.compile(
                     resolveTemplates(menuYaml, templates),
@@ -127,7 +161,7 @@ class ProjectReader(
         val commands = manifest.files.commands.mapNotNull { cmdId ->
             val f = File(projectDir, "commands/$cmdId.yaml").takeIf { it.exists() } ?: return@mapNotNull null
             runCatching {
-                val cmdYaml = mapper.readValue(f, CommandYaml::class.java)
+                val cmdYaml = withFileId(mapper.readValue(f, CommandYaml::class.java), cmdId, f)
                 requireSchema(f, cmdYaml.schema, "command/v1")
                 cmdYaml
             }.getOrElse { e ->
@@ -140,7 +174,7 @@ class ProjectReader(
         val dialogs = manifest.files.dialogs.mapNotNull { dialogId ->
             val f = File(projectDir, "dialogs/$dialogId.yaml").takeIf { it.exists() } ?: return@mapNotNull null
             runCatching {
-                val dialogYaml = mapper.readValue(f, DialogYaml::class.java)
+                val dialogYaml = withFileId(mapper.readValue(f, DialogYaml::class.java), dialogId, f)
                 requireSchema(f, dialogYaml.schema, "dialog/v1")
                 BundleDialog(dialogYaml, langMaps, defaultLang = manifest.defaultLang)
             }.getOrElse { e ->

@@ -9,7 +9,7 @@ describe("command/v1 schema shape", () => {
     const props = (schema as any).properties;
     expect(props.actions.type).toBe("string");
     expect(props.steps.type).toBe("string");
-    expect((schema as any).required).toEqual(["schema", "id"]);
+    expect((schema as any).required).toEqual(["schema"]);
     expect((schema as any).anyOf).toEqual([{ required: ["actions"] }, { required: ["steps"] }]);
   });
 

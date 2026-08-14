@@ -299,7 +299,8 @@ describe("transform", () => {
     const files = transform(project);
     const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
     expect(menu.schema).toBe("menu/v1");
-    expect(menu.id).toBe("shop");
+    // L'identité est le NOM DU FICHIER, plus un champ du document.
+    expect("id" in menu).toBe(false);
     expect(menu.size).toBe(27);
     expect(Array.isArray(menu.title)).toBe(true);
     expect(menu.title).toHaveLength(1);
@@ -617,7 +618,7 @@ describe("transform", () => {
     const files = transform(project);
     const cmd = parse(files["plugins/Artisan/projects/p_test/commands/heal.yaml"]!);
     expect(cmd.schema).toBe("command/v1");
-    expect(cmd.id).toBe("heal");
+    expect("id" in cmd).toBe(false);
     // `name` is omitted when it equals `id`; action chain is the `actions` field.
     expect(cmd.name).toBeUndefined();
     expect("actions" in cmd).toBe(true);
@@ -703,7 +704,7 @@ describe("transform — dialogs", () => {
     expect(files["plugins/Artisan/projects/p_test/dialogs/d_test.yaml"]).toBeDefined();
   });
 
-  it("dialog yaml contains schema, id, title, can_close_with_escape", () => {
+  it("dialog yaml contains schema, title, can_close_with_escape — mais plus d'id", () => {
     const dialog: Dialog = {
       id: dialogId("d_test"),
       projectId: projectId("p_test"),
@@ -716,7 +717,7 @@ describe("transform — dialogs", () => {
     const files = transform(makeProject({ dialogs: [dialog] }));
     const yaml = files["plugins/Artisan/projects/p_test/dialogs/d_test.yaml"]!;
     expect(yaml).toContain("schema: dialog/v1");
-    expect(yaml).toContain("id: d_test");
+    expect(yaml).not.toContain("id: d_test");
     expect(yaml).toContain("can_close_with_escape: false");
     expect(yaml).toContain("{i18n:dialogs.d_test.title}");
   });
