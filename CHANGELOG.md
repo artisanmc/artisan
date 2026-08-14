@@ -9,6 +9,15 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Changed — sémantique de reload : l'éditeur montre ce que le serveur exécute (BREAKING)
+
+- Le plugin garde un **instantané** — les octets bruts lus au dernier chargement — servi par `project_read` et `project_list`. Une édition faite à la main ne s'applique qu'à **`/artisan reload`**, comme pour tout autre plugin Minecraft.
+- **Pourquoi** : l'état précédent payait le coût de la surveillance sans le bénéfice. Le serveur rechargeait tout seul (surprenant), et l'éditeur ne voyait rien avant un rechargement de page (donc pas live non plus). Le pire des deux mondes.
+- **Des octets bruts, pas un modèle** : le compare-and-swap compare des octets. Un modèle re-sérialisé donnerait les mêmes idées et d'autres octets — `base_hash` faux, donc conflits sur des fichiers intacts ou écrasements silencieux.
+- **L'écriture reste en CAS contre le disque**, pas contre l'instantané : c'est ce qui rattrape une édition hors éditeur au moment où on enregistre.
+- **Un Document illisible reste éditable** : l'instantané est pris avant le parsing, donc il y figure. `project_read_result.failed` porte son chemin et la raison, et l'éditeur l'affiche. Avant, un YAML cassé disparaissait en silence **des deux côtés** — le serveur ne l'exécutait pas, l'éditeur ne l'affichait pas, et rien ne l'expliquait.
+- `SyncScanner` et la spec `poll-first-disk-sync` sont retirés. Renoncement assumé : « un agent édite les fichiers et c'est live » devient « …puis `/artisan reload` ».
+
 ### Changed — les Documents se découvrent par scan, le bloc `files:` du manifest disparaît
 
 - `manifest.files.{menus,commands,dialogs}` recopiait à la main le contenu des dossiers du même nom. Vérifié sur un vrai project : 4 menus, 12 commandes, 1 dialog — exactement les fichiers présents, **aucun ordre de chargement, aucune exclusion**. Un index dont le seul effet possible était de se désynchroniser, dans un format censé s'éditer à la main.

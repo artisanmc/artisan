@@ -824,6 +824,7 @@ const fr: typeof en = {
       "Le contenu de ce project vit sur le disque de son serveur. Tant que le serveur ne répond pas, il n'y a rien à afficher — et surtout pas une copie périmée.",
     loadFailedTitle: "Impossible d'ouvrir ce project",
     loadFailedBody: "Le chargement a échoué. Le code ci-dessous dit pourquoi ; s'il persiste, il est aussi dans la console du navigateur.",
+    notLoaded: "Le serveur n'exécute pas {{count}} document(s) — il n'a pas pu les lire. Tu peux les corriger ici, puis /artisan reload.",
     offlineRetry: "Réessayer",
     serverOfflineExport: "Serveur hors ligne — impossible d'exporter les fichiers",
     conflict: {

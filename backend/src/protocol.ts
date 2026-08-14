@@ -211,6 +211,13 @@ export interface ProjectReadResultMessage {
   request_id: string;
   ok: boolean;
   files?: { path: string; content: string }[];
+  /**
+   * Documents que le serveur n'a PAS réussi à charger, avec la raison. Ils
+   * figurent quand même dans `files` (donc réparables depuis l'éditeur) : un
+   * YAML cassé était sauté en silence des deux côtés, sans que rien n'explique
+   * sa disparition.
+   */
+  failed?: { path: string; reason: string }[];
   error?: "invalid_path" | "unknown_project" | "too_large" | "read_error";
   message?: string;
 }

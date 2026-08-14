@@ -20,6 +20,15 @@ class ProjectReader(
      * untyped, i.e. every value literal, and get typed at the next reload).
      */
     private val declaredModels: () -> Map<String, Map<String, Any?>> = { emptyMap() },
+    /**
+     * Appelé pour chaque Document que le serveur n'a **pas** réussi à charger
+     * (`projectId`, chemin relatif, raison).
+     *
+     * Sans ça, un YAML cassé est sauté en silence des deux côtés : le serveur ne
+     * l'exécute pas, l'éditeur ne l'affiche pas, et rien n'explique sa
+     * disparition. Le signal remonte jusqu'à l'éditeur via `project_read`.
+     */
+    private val onSkip: (String, String, String) -> Unit = { _, _, _ -> },
 ) {
     /** Test convenience — production passes the shared [net.artisanmc.plugin.project.ProjectRoots]. */
     constructor(
@@ -174,6 +183,7 @@ class ProjectReader(
             }.getOrElse { e ->
                 if (e is IllegalArgumentException) throw e // schema-version rejection stays loud
                 logger?.warning("[Artisan] skipping menu ${f.name}: ${e.message}")
+                onSkip(projectDir.name, "menus/${f.name}", e.message ?: e::class.simpleName.orEmpty())
                 null
             }
         }
@@ -187,6 +197,7 @@ class ProjectReader(
             }.getOrElse { e ->
                 if (e is IllegalArgumentException) throw e // schema-version rejection stays loud
                 logger?.warning("[Artisan] skipping command ${f.name}: ${e.message}")
+                onSkip(projectDir.name, "commands/${f.name}", e.message ?: e::class.simpleName.orEmpty())
                 null
             }
         }
@@ -200,6 +211,7 @@ class ProjectReader(
             }.getOrElse { e ->
                 if (e is IllegalArgumentException) throw e // schema-version rejection stays loud
                 logger?.warning("[Artisan] skipping dialog ${f.name}: ${e.message}")
+                onSkip(projectDir.name, "dialogs/${f.name}", e.message ?: e::class.simpleName.orEmpty())
                 null
             }
         }

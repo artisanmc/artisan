@@ -43,6 +43,9 @@ class ProjectReadChannelTest {
             f.writeText(content)
         }
         fun read(projectId: String, requestId: String = "r1") {
+            // L'éditeur voit ce que le serveur a CHARGÉ (instantané) : il faut
+            // donc un chargement, comme en vrai au démarrage ou à /artisan reload.
+            provider.load()
             provider.handleMessageForTesting(
                 """{"type":"project_read","request_id":"$requestId","project_id":"$projectId"}"""
             )
@@ -92,11 +95,12 @@ class ProjectReadChannelTest {
     }
 
     @Test
-    fun `project_list rend les projects presents sur le disque, tries`() {
+    fun `project_list rend les projects charges, tries`() {
         val h = Harness()
         h.write(h.project("zeta"), "manifest.yaml", "id: zeta\n")
         h.write(h.project("alpha"), "manifest.yaml", "id: alpha\n")
 
+        h.provider.load()
         h.provider.handleMessageForTesting("""{"type":"project_list","request_id":"l1"}""")
         h.await()
 
@@ -111,6 +115,7 @@ class ProjectReadChannelTest {
     @Test
     fun `project_list rend une liste vide quand le serveur n'a aucun project`() {
         val h = Harness()
+        h.provider.load()
         h.provider.handleMessageForTesting("""{"type":"project_list","request_id":"l2"}""")
         h.await()
 

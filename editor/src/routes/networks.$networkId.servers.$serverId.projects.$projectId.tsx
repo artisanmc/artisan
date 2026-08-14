@@ -85,7 +85,7 @@ export function ProjectCanvasPage() {
   // L'URL peut porter le slug du project : le serveur, déjà dans l'URL, en est
   // la portée (un slug n'est unique que par serveur). La réponse donne l'id
   // réel, seul utilisé en aval — store, sélections, sauvegardes.
-  const { project: userProject, offline, error: loadError } = useProjectLoader(projectId, serverId);
+  const { project: userProject, offline, error: loadError, failed } = useProjectLoader(projectId, serverId);
   const project = userProject;
   const pId = (project?.id ?? projectId) as ProjectId;
   const currentUser = useAuthStore((s) => s.currentUser);
@@ -468,6 +468,17 @@ export function ProjectCanvasPage() {
       )}
 
       {/* Global search palette — fixed overlay, inert when searchOpen=false. */}
+      {failed.length > 0 ? (
+        // Ces Documents existent et s'éditent, mais le serveur ne les exécute
+        // pas. Sans ce bandeau ils disparaissaient simplement de la liste, des
+        // deux côtés, sans que rien n'explique pourquoi.
+        <div className="shrink-0 border-b border-[var(--border)] px-4 py-2 text-[12px] text-[var(--warning-fg,var(--text-mut))]">
+          {t("project.notLoaded", { count: failed.length })}{" "}
+          <span className="font-mono">
+            {failed.map((f) => `${f.path} — ${f.reason}`).join(" · ")}
+          </span>
+        </div>
+      ) : null}
       <SearchPalette projectId={pId} />
     </DndContext>
   );
