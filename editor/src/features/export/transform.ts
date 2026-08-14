@@ -1121,6 +1121,17 @@ function emitDataSources(
  * Transform a Project into a flat map of filename → YAML string.
  * Keys use the server-side path (e.g. "plugins/Artisan/menus/shop_main.yaml").
  */
+/**
+ * Retire le champ `id` avant d'écrire un Document sur disque : le fichier porte
+ * déjà son identité dans son nom (miroir du `withFileId` du plugin). Les
+ * sérialiseurs le gardent parce que l'assistant IA en a besoin sur le fil, où il
+ * n'y a pas de nom de fichier pour le porter.
+ */
+function withoutId<T extends { id: string }>(doc: T): Omit<T, "id"> {
+  const { id: _id, ...rest } = doc;
+  return rest;
+}
+
 export function transform(project: Project): Record<string, string> {
   const files: Record<string, string> = {};
 
@@ -1131,15 +1142,15 @@ export function transform(project: Project): Record<string, string> {
   const base = `plugins/Artisan/projects/${project.diskId ?? project.id}`;
 
   for (const menu of project.menus) {
-    files[`${base}/menus/${menu.id}.yaml`] = stringify(serializeMenuToV1(menu, project), yamlOpts);
+    files[`${base}/menus/${menu.id}.yaml`] = stringify(withoutId(serializeMenuToV1(menu, project)), yamlOpts);
   }
 
   for (const cmd of project.commands) {
-    files[`${base}/commands/${cmd.id}.yaml`] = stringify(serializeCommand(cmd, project), yamlOpts);
+    files[`${base}/commands/${cmd.id}.yaml`] = stringify(withoutId(serializeCommand(cmd, project)), yamlOpts);
   }
 
   for (const dialog of project.dialogs) {
-    files[`${base}/dialogs/${dialog.id}.yaml`] = stringify(serializeDialog(dialog, project), yamlOpts);
+    files[`${base}/dialogs/${dialog.id}.yaml`] = stringify(withoutId(serializeDialog(dialog, project)), yamlOpts);
   }
 
   // Captured items: the opaque serialized stack is the runtime truth — emit it

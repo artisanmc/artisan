@@ -6,8 +6,7 @@
   "type": "object",
   "additionalProperties": false,
   "required": [
-    "schema",
-    "id"
+    "schema"
   ],
   "anyOf": [
     {
@@ -29,7 +28,7 @@
     "id": {
       "type": "string",
       "pattern": "^[a-z][a-z0-9_]{0,63}$",
-      "description": "Identifiant stable de la commande dans le workspace, utilisé pour les références internes (paquets, redirections, etc.)."
+      "description": "LEGACY, ignoré. L'identité d'un Document est le nom de son fichier (le reader force la valeur et signale une divergence). Toléré en lecture pour les projects antérieurs ; plus jamais écrit."
     },
     "name": {
       "type": "string",

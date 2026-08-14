@@ -461,7 +461,7 @@ export function projectFromFiles(
   const menus = (manifest.files?.menus ?? []).flatMap((menuId) => {
     const y = tryParse<Json>(getFile(files, projectId, `menus/${menuId}.yaml`));
     if (!y) return [];
-    const r = menuV1ToDomain({ id: menuId, ...y }, convertOpts);
+    const r = menuV1ToDomain({ ...y, id: menuId }, convertOpts);
     Object.assign(i18nKeys, r.i18nKeys);
     unsupported.push(...r.unsupported);
     return [r.menu];
@@ -470,7 +470,7 @@ export function projectFromFiles(
   const commands = (manifest.files?.commands ?? []).flatMap((cmdId) => {
     const y = tryParse<Json>(getFile(files, projectId, `commands/${cmdId}.yaml`));
     if (!y) return [];
-    const r = commandV1ToDomain({ id: cmdId, ...y }, convertOpts);
+    const r = commandV1ToDomain({ ...y, id: cmdId }, convertOpts);
     Object.assign(i18nKeys, r.i18nKeys);
     unsupported.push(...r.unsupported);
     return [r.command];
@@ -479,7 +479,7 @@ export function projectFromFiles(
   const dialogs = (manifest.files?.dialogs ?? []).flatMap((dlgId) => {
     const y = tryParse<Json>(getFile(files, projectId, `dialogs/${dlgId}.yaml`));
     if (!y) return [];
-    const r = dialogV1ToDomain({ id: dlgId, ...y }, convertOpts);
+    const r = dialogV1ToDomain({ ...y, id: dlgId }, convertOpts);
     Object.assign(i18nKeys, r.i18nKeys);
     unsupported.push(...r.unsupported);
     return [r.dialog];

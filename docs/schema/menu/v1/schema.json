@@ -7,7 +7,6 @@
   "additionalProperties": false,
   "required": [
     "schema",
-    "id",
     "title",
     "size"
   ],
@@ -102,7 +101,7 @@
     "id": {
       "type": "string",
       "pattern": "^[a-z][a-z0-9_]{0,63}$",
-      "description": "Identifiant stable du menu, utilisé en /menu open <id>. Lowercase + underscore."
+      "description": "LEGACY, ignoré. L'identité d'un Document est le nom de son fichier (le reader force la valeur et signale une divergence). Toléré en lecture pour les projects antérieurs ; plus jamais écrit."
     },
     "title": {
       "oneOf": [
