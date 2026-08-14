@@ -105,6 +105,23 @@ commente un menu à la main ?
   (afficher une donnée périmée à côté du texte réel — la dualité qui a produit
   l'incident du jour).
 
+  > **Révisé le 2026-08-14 — l'onglet YAML d'un document Artisan écrit lui aussi
+  > verbatim** (ADR `server-disk-only-storage` ④). La canonicalisation immédiate
+  > depuis cet onglet a été décidée quand l'éditeur web était la surface
+  > principale et le fichier une projection : effacer commentaires et mise en
+  > forme coûtait peu. Depuis, le disque est le **seul** store et l'édition à la
+  > main un chemin de plein droit — un admin a perdu ses commentaires de portage
+  > sur ses propres menus en enregistrant depuis l'éditeur (2026-08-13).
+  >
+  > Ce que tu tapes dans l'onglet YAML est ce qui atterrit. La canonicalisation
+  > ne se déclenche que si l'éditeur **visuel** touche le document, qui le
+  > régénère. Contrepartie assumée : les deux modes ne produisent plus les mêmes
+  > octets pour le même contenu — mais le texte est sous les yeux, donc le
+  > reformatage devient visible au lieu d'être une surprise après coup.
+  >
+  > L'écriture verbatim n'est **pas** une écriture privilégiée : elle passe par le
+  > même compare-and-swap par fichier que le reste.
+
 **⑧ Portée de l'onglet YAML** : écrans de config de module **et** panneau
 Données du canvas — le même fichier édité par deux surfaces ne peut pas avoir
 deux comportements. Les documents du canvas (menus, dialogs, commandes) sont

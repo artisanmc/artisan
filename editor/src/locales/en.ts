@@ -1603,6 +1603,13 @@ export default {
     serverOffline: "Server offline",
     failed: "Could not read",
   },
+  yamlView: {
+    tab: "YAML",
+    visual: "Editor",
+    conflict: "The file changed on the server since you opened it — reload the page to start from its version.",
+    verbatimHint:
+      "What you write is written as-is, comments included. Going through the visual editor regenerates the document and reformats it.",
+  },
   save: {
     save: "Save",
     saving: "Saving…",

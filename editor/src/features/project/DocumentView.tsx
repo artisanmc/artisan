@@ -1,8 +1,9 @@
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 import type { ElementId, MenuId, ProjectId } from "@/domain/types";
+import { DocumentYamlView } from "@/features/project/DocumentYamlView";
 import { useAccountStore } from "@/state/accountStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
@@ -34,9 +35,18 @@ export function DocumentView({ projectId, documentId }: { projectId: ProjectId; 
   const setEditorPaneWidth = useUiStore((s) => s.setEditorPaneWidth);
   const isDesktop = useIsDesktop();
   const eid = documentId as string;
+  const [yamlMode, setYamlMode] = useState(false);
   const menu = project?.menus.find((m) => m.id === eid);
   const command = project?.commands.find((c) => c.id === eid);
   const dialog = project?.dialogs.find((d) => d.id === eid);
+  // Le fichier du Document : son dossier dit sa nature, son nom son identité.
+  const relPath = menu
+    ? `menus/${eid}.yaml`
+    : command
+      ? `commands/${eid}.yaml`
+      : dialog
+        ? `dialogs/${eid}.yaml`
+        : null;
 
   useEffect(() => {
     // Par défaut, sélectionne l'élément (menu/commande/dialog) lui-même. Mais si une
@@ -101,6 +111,16 @@ export function DocumentView({ projectId, documentId }: { projectId: ProjectId; 
         source={project ? documentLabel(project, documentId as string, activeLang) : documentId}
         className="truncate text-[13px] font-medium text-[var(--text)]"
       />
+      {relPath && params.networkId && params.serverId ? (
+        <button
+          type="button"
+          onClick={() => setYamlMode((v) => !v)}
+          className="btn btn-ghost btn-sm shrink-0"
+          title={relPath}
+        >
+          {yamlMode ? t("yamlView.visual") : t("yamlView.tab")}
+        </button>
+      ) : null}
     </div>
   );
 
@@ -111,6 +131,20 @@ export function DocumentView({ projectId, documentId }: { projectId: ProjectId; 
         <div className="flex h-full items-center justify-center">
           <EmptyState title={t("documentView.notFound")} />
         </div>
+      </div>
+    );
+  }
+
+  if (yamlMode && relPath && params.networkId && params.serverId) {
+    return (
+      <div className="absolute inset-0 flex flex-col pt-14">
+        {header}
+        <DocumentYamlView
+          project={project}
+          relPath={relPath}
+          networkId={params.networkId}
+          serverId={params.serverId}
+        />
       </div>
     );
   }

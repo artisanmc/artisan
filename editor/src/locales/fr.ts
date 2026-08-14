@@ -1618,6 +1618,13 @@ const fr: typeof en = {
     serverOffline: "Serveur hors ligne",
     failed: "Lecture impossible",
   },
+  yamlView: {
+    tab: "YAML",
+    visual: "Éditeur",
+    conflict: "Le fichier a changé sur le serveur depuis que tu l'as ouvert — recharge la page pour repartir de sa version.",
+    verbatimHint:
+      "Ce que tu écris est écrit tel quel, commentaires compris. Passer par l'éditeur visuel régénère le document et le reformate.",
+  },
   save: {
     save: "Enregistrer",
     saving: "Enregistrement…",
