@@ -1208,11 +1208,10 @@ export function transform(project: Project): Record<string, string> {
     ...(project.ownerModule ? { module: project.ownerModule } : {}),
     default_lang: project.defaultLang,
     languages: langs,
-    files: {
-      menus: project.menus.map((m) => m.id),
-      commands: project.commands.map((c) => c.id),
-      dialogs: project.dialogs.map((d) => d.id),
-    },
+    // Plus de bloc `files:` : il recopiait le contenu de menus/, commands/ et
+    // dialogs/ sans y ajouter ni ordre de chargement ni exclusion — un index à
+    // tenir à jour à la main dont le seul effet possible était de se
+    // désynchroniser. Les Documents sont découverts par scan, des deux côtés.
   };
   // Data models: models/<id>.yaml (model/v1), fields VERBATIM (cross-model refs
   // preserved) — the lossless editor store. data/<id>.yaml stays denormalized

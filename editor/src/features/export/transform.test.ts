@@ -44,8 +44,11 @@ describe("transform", () => {
     const manifest = parse(files["plugins/Artisan/projects/p_test/manifest.yaml"]!);
     expect(manifest.schema).toBe("manifest/v1");
     expect(manifest.project_id).toBe("p_test");
-    expect(manifest.files.menus).toContain("shop");
-    expect(manifest.files.commands).toContain("heal");
+    // Plus de bloc `files:` : les Documents se découvrent par scan des dossiers,
+    // des deux côtés. Ce qui atteste leur existence, c'est le fichier lui-même.
+    expect(manifest.files).toBeUndefined();
+    expect(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]).toBeDefined();
+    expect(files["plugins/Artisan/projects/p_test/commands/heal.yaml"]).toBeDefined();
   });
 
   it("round-trips manifest.module for Add-on-owned projects", () => {
@@ -722,7 +725,7 @@ describe("transform — dialogs", () => {
     expect(yaml).toContain("{i18n:dialogs.d_test.title}");
   });
 
-  it("manifest includes dialogs list", () => {
+  it("le dialog existe par son fichier, plus par une entrée de manifest", () => {
     const dialog: Dialog = {
       id: dialogId("d_test"),
       projectId: projectId("p_test"),
@@ -734,7 +737,8 @@ describe("transform — dialogs", () => {
     };
     const files = transform(makeProject({ dialogs: [dialog] }));
     const manifest = files["plugins/Artisan/projects/p_test/manifest.yaml"]!;
-    expect(manifest).toContain("d_test");
+    expect(manifest).not.toContain("d_test");
+    expect(files["plugins/Artisan/projects/p_test/dialogs/d_test.yaml"]).toBeDefined();
   });
 
   it("button actions are serialized flat", () => {

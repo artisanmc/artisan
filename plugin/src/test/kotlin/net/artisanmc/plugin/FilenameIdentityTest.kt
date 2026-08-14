@@ -9,16 +9,15 @@ import java.io.File
 import java.nio.file.Path
 
 /**
- * Le **nom de fichier est l'identité** d'un Document.
+ * **La structure de fichiers déclare, le contenu ne se redécrit pas.**
  *
- * Le produit y était déjà à moitié : les templates prennent `nameWithoutExtension`
- * quand leur `id` est vide, les data sources et les models n'ont pas de champ
- * `id` du tout. Menus, commandes et dialogs gardaient un `id:` interne — donc
- * deux sources pour une même vérité, qui finissent par se contredire (constaté
- * le 2026-08-14 : `project_id: pack_ac4c8b884658` dans un dossier `projet_test`).
+ * Deux redondances tombent ensemble :
+ * - l'`id:` interne d'un Document, alors que le fichier porte déjà ce nom ;
+ * - le bloc `files:` du manifest, qui recopiait à la main le contenu des dossiers.
  *
- * Règle unique : le fichier gagne. Un `id:` interne divergent est ignoré, avec un
- * WARN pour que le projet legacy le dise au lieu de le subir.
+ * Le produit y était déjà à moitié : un template prend son `nameWithoutExtension`
+ * quand son `id` est vide, et data sources comme models sont découverts par scan,
+ * sans index ni champ `id`.
  */
 class FilenameIdentityTest {
 
@@ -35,7 +34,7 @@ class FilenameIdentityTest {
     @Test
     fun `l'id d'un menu vient du nom de fichier`(@TempDir tmp: Path) {
         val p = project(tmp)
-        write(p, "manifest.yaml", "schema: manifest/v1\nfiles:\n  menus:\n    - accueil\n")
+        write(p, "manifest.yaml", "schema: manifest/v1\n")
         write(p, "menus/accueil.yaml", "schema: menu/v1\nsize: 27\n")
 
         val bundle = read(p).single()
@@ -45,7 +44,7 @@ class FilenameIdentityTest {
     @Test
     fun `un id interne divergent est ignore au profit du fichier`(@TempDir tmp: Path) {
         val p = project(tmp)
-        write(p, "manifest.yaml", "schema: manifest/v1\nfiles:\n  menus:\n    - accueil\n")
+        write(p, "manifest.yaml", "schema: manifest/v1\n")
         // Projet legacy : le fichier prétend s'appeler autrement.
         write(p, "menus/accueil.yaml", "schema: menu/v1\nid: vieux_nom\nsize: 27\n")
 
@@ -54,10 +53,39 @@ class FilenameIdentityTest {
     }
 
     @Test
+    fun `les documents sont decouverts par scan, sans bloc files`(@TempDir tmp: Path) {
+        val p = project(tmp)
+        // Manifest minimal : plus d'index à tenir à jour à la main.
+        write(p, "manifest.yaml", "schema: manifest/v1\ndefault_lang: fr\n")
+        write(p, "menus/accueil.yaml", "schema: menu/v1\nsize: 27\n")
+        write(p, "menus/boutique.yaml", "schema: menu/v1\nsize: 54\n")
+        write(p, "commands/menu.yaml", "schema: command/v1\nopens: accueil\n")
+        write(p, "dialogs/confirmer.yaml", "schema: dialog/v1\ntitle: T\n")
+
+        val bundle = read(p).single()
+        assertEquals(listOf("accueil", "boutique"), bundle.menus.map { it.id })
+        assertEquals(listOf("menu"), bundle.commands.map { it.id })
+        assertEquals(listOf("confirmer"), bundle.dialogs.map { it.id })
+    }
+
+    @Test
+    fun `un bloc files legacy n'ampute pas ce qui est sur le disque`(@TempDir tmp: Path) {
+        val p = project(tmp)
+        // Le bloc a pris du retard : un fichier ajouté à la main n'y figure pas.
+        // C'est le disque qui fait foi, sinon le fichier serait invisible sans
+        // que rien ne l'explique — le piège que ce bloc tendait.
+        write(p, "manifest.yaml", "schema: manifest/v1\nfiles:\n  menus:\n    - accueil\n")
+        write(p, "menus/accueil.yaml", "schema: menu/v1\nsize: 27\n")
+        write(p, "menus/oublie.yaml", "schema: menu/v1\nsize: 9\n")
+
+        val bundle = read(p).single()
+        assertEquals(listOf("accueil", "oublie"), bundle.menus.map { it.id })
+    }
+
+    @Test
     fun `commandes et dialogs suivent la meme regle`(@TempDir tmp: Path) {
         val p = project(tmp)
-        write(p, "manifest.yaml",
-            "schema: manifest/v1\nfiles:\n  commands:\n    - boutique\n  dialogs:\n    - confirmer\n")
+        write(p, "manifest.yaml", "schema: manifest/v1\n")
         write(p, "commands/boutique.yaml", "schema: command/v1\nid: autre\nopens: x\n")
         write(p, "dialogs/confirmer.yaml", "schema: dialog/v1\nid: autre\ntitle: T\n")
 

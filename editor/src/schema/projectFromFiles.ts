@@ -68,6 +68,30 @@ function getFile(files: Record<string, string>, projectId: string, rel: string):
 }
 
 /**
+ * Les Documents d'un dossier, **découverts par scan** de l'arbre — miroir du
+ * `documentIds` du plugin.
+ *
+ * Le bloc `files:` du manifest recopiait à la main le contenu de `menus/`,
+ * `commands/` et `dialogs/`, sans y ajouter ni ordre ni exclusion. Un bloc
+ * legacy encore présent est fusionné, jamais soustrait : il ne peut plus rendre
+ * invisible un fichier bien réel.
+ */
+function documentIds(
+  files: Record<string, string>,
+  projectId: string,
+  dir: string,
+  legacy: string[] | undefined,
+): string[] {
+  const prefix = `${baseOf(projectId)}${dir}/`;
+  const scanned = Object.keys(files)
+    .filter((k) => k.startsWith(prefix) && k.endsWith(".yaml"))
+    .map((k) => k.slice(prefix.length, -".yaml".length))
+    // Un seul niveau : un sous-dossier n'est pas un Document.
+    .filter((id) => id.length > 0 && !id.includes("/") && !id.startsWith("."));
+  return [...new Set([...scanned, ...(legacy ?? [])])].sort();
+}
+
+/**
  * Réécrit le préfixe `plugins/Artisan/projects/<quelconque>/` des clés vers
  * [projectId]. L'arbre d'un project ne contient que ses propres chemins, donc
  * réécrire sans regarder QUEL id était là est sûr — et rend la lecture
@@ -458,7 +482,7 @@ export function projectFromFiles(
 
   const convertOpts = { projectId, lang: defaultLang, translations };
 
-  const menus = (manifest.files?.menus ?? []).flatMap((menuId) => {
+  const menus = documentIds(files, projectId, "menus", manifest.files?.menus).flatMap((menuId) => {
     const y = tryParse<Json>(getFile(files, projectId, `menus/${menuId}.yaml`));
     if (!y) return [];
     const r = menuV1ToDomain({ ...y, id: menuId }, convertOpts);
@@ -467,7 +491,7 @@ export function projectFromFiles(
     return [r.menu];
   });
 
-  const commands = (manifest.files?.commands ?? []).flatMap((cmdId) => {
+  const commands = documentIds(files, projectId, "commands", manifest.files?.commands).flatMap((cmdId) => {
     const y = tryParse<Json>(getFile(files, projectId, `commands/${cmdId}.yaml`));
     if (!y) return [];
     const r = commandV1ToDomain({ ...y, id: cmdId }, convertOpts);
@@ -476,7 +500,7 @@ export function projectFromFiles(
     return [r.command];
   });
 
-  const dialogs = (manifest.files?.dialogs ?? []).flatMap((dlgId) => {
+  const dialogs = documentIds(files, projectId, "dialogs", manifest.files?.dialogs).flatMap((dlgId) => {
     const y = tryParse<Json>(getFile(files, projectId, `dialogs/${dlgId}.yaml`));
     if (!y) return [];
     const r = dialogV1ToDomain({ ...y, id: dlgId }, convertOpts);
