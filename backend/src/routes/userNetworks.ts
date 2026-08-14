@@ -851,7 +851,7 @@ userNetworksRouter.get(
 			const status = error === "unknown_project" ? 404 : error === "invalid_path" ? 422 : 502;
 			return c.json({ error, message: r.message ?? null }, status);
 		}
-		return c.json({ files: r.files ?? [] });
+		return c.json({ files: r.files ?? [], failed: r.failed ?? [] });
 	},
 );
 
@@ -1025,7 +1025,7 @@ userNetworksRouter.post(
 			const status = error === "unknown_project" ? 404 : error === "invalid_path" ? 422 : 502;
 			return c.json({ error, message: r.message ?? null }, status);
 		}
-		return c.json({ files: r.files ?? [] });
+		return c.json({ files: r.files ?? [], failed: r.failed ?? [] });
 	},
 );
 

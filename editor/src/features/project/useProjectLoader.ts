@@ -5,7 +5,7 @@ import { loadUserProject } from "@/lib/api/userProjects";
 import { injectDeclaredModels, normalizeDataSources } from "@/domain/dataModels";
 import { fetchServerDeclaredModels } from "@/lib/api/dataSources";
 import { projectFromFiles } from "@/schema/projectFromFiles";
-import { readProjectFiles } from "@/lib/api/projectFiles";
+import { readProjectFiles, type FailedDocument } from "@/lib/api/projectFiles";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import type { Account, Project, ProjectId } from "@/domain/types";
 
@@ -15,6 +15,11 @@ export interface ProjectLoadResult {
   error: string | null;
   /** Le serveur propriétaire est injoignable — le Project n'est pas ouvrable. */
   offline: boolean;
+  /**
+   * Documents présents sur le serveur mais que celui-ci n'a **pas** réussi à
+   * charger. Ils s'éditent normalement (leur texte est là) mais ne tournent pas.
+   */
+  failed: FailedDocument[];
 }
 
 export function useProjectLoader(projectId: string, serverRef?: string | null): ProjectLoadResult {
@@ -23,10 +28,12 @@ export function useProjectLoader(projectId: string, serverRef?: string | null): 
   const [networkId, setNetworkId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [offline, setOffline] = useState(false);
+  const [failed, setFailed] = useState<FailedDocument[]>([]);
 
   useEffect(() => {
     setError(null);
     setOffline(false);
+    setFailed([]);
     if (!user) {
       setError("Not authenticated");
       return;
@@ -46,6 +53,7 @@ export function useProjectLoader(projectId: string, serverRef?: string | null): 
           setError(disk.error);
           return;
         }
+        setFailed(disk.failed);
         // La base du compare-and-swap : ce que le disque contenait à l'ouverture.
         useProjectBaselineStore.getState().set(res.project.id, disk.files);
 
@@ -100,5 +108,5 @@ export function useProjectLoader(projectId: string, serverRef?: string | null): 
       .catch((e) => setError((e as Error).message));
   }, [projectId, serverRef, user]);
 
-  return { project, networkId, error, offline };
+  return { project, networkId, error, offline, failed };
 }

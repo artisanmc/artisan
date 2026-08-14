@@ -27,8 +27,14 @@ export interface ProjectFileConflict {
   disk: string | null;
 }
 
+/** Un Document que le serveur n'a pas réussi à charger, et pourquoi. */
+export interface FailedDocument {
+  path: string;
+  reason: string;
+}
+
 export type ProjectReadResult =
-  | { ok: true; files: Record<string, string> }
+  | { ok: true; files: Record<string, string>; failed: FailedDocument[] }
   | { ok: false; error: ProjectFilesError };
 
 export type ProjectWriteResult =
@@ -58,12 +64,13 @@ export async function readProjectFiles(
     const res = await fetch(base(networkId, serverId, diskId), { credentials: "include" });
     const body = (await res.json().catch(() => null)) as {
       files?: { path: string; content: string }[];
+      failed?: FailedDocument[];
       error?: string;
     } | null;
     if (!res.ok) return { ok: false, error: knownError(body?.error, "read_error") };
     const files: Record<string, string> = {};
     for (const f of body?.files ?? []) files[f.path] = f.content;
-    return { ok: true, files };
+    return { ok: true, files, failed: body?.failed ?? [] };
   } catch {
     return { ok: false, error: "network_error" };
   }
