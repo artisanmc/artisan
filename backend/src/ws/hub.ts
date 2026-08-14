@@ -22,6 +22,8 @@ import type {
   ProjectReadResultMessage,
   ProjectWriteMessage,
   ProjectWriteResultMessage,
+  ProjectListMessage,
+  ProjectListResultMessage,
   ProjectHistoryMessage,
   ProjectHistoryResultMessage,
   ConfigWriteMessage,
@@ -255,6 +257,44 @@ export type ProjectHistoryOutcome =
   | { kind: "timeout" };
 
 const pendingProjectHistories = new Map<string, (outcome: ProjectHistoryOutcome) => void>();
+
+export type ProjectListOutcome =
+  | { kind: "result"; result: ProjectListResultMessage }
+  | { kind: "offline" }
+  | { kind: "timeout" };
+
+const pendingProjectLists = new Map<string, (outcome: ProjectListOutcome) => void>();
+
+/**
+ * Les Projects présents sur le disque du serveur, maintenant.
+ *
+ * Le backend n'en tient plus de liste : elle se périme dès qu'un dossier est
+ * renommé ou supprimé, et la resynchroniser rejouerait le miroir qu'on a
+ * supprimé (ADR `server-disk-only-storage`). Les lignes `projects` subsistent,
+ * mais comme **points d'ancrage** de ce que le backend possède vraiment (assets,
+ * resource pack, conversations) — plus comme inventaire.
+ */
+export function requestProjectList(
+  serverKeyId: string,
+  timeoutMs: number = DATA_SOURCE_FETCH_TIMEOUT_MS,
+): Promise<ProjectListOutcome> {
+  const send = firstPluginSender(serverKeyId);
+  if (!send) return Promise.resolve({ kind: "offline" });
+  const requestId = crypto.randomUUID();
+  const msg: ProjectListMessage = { type: "project_list", request_id: requestId };
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      pendingProjectLists.delete(requestId);
+      resolve({ kind: "timeout" });
+    }, timeoutMs);
+    pendingProjectLists.set(requestId, (outcome) => {
+      clearTimeout(timer);
+      pendingProjectLists.delete(requestId);
+      resolve(outcome);
+    });
+    send(JSON.stringify(msg));
+  });
+}
 const pendingConfigReads = new Map<string, (outcome: ConfigReadOutcome) => void>();
 const pendingConfigWrites = new Map<string, (outcome: ConfigWriteOutcome) => void>();
 
@@ -832,6 +872,14 @@ export async function handlePluginMessage(
     if (!serverId) return { reply: null };
     const result = msg as ProjectReadResultMessage;
     pendingProjectReads.get(result.request_id)?.({ kind: "result", result });
+    return { reply: null };
+  }
+
+  if (msg.type === "project_list_result") {
+    const serverId = connToServerId.get(connId);
+    if (!serverId) return { reply: null };
+    const result = msg as ProjectListResultMessage;
+    pendingProjectLists.get(result.request_id)?.({ kind: "result", result });
     return { reply: null };
   }
 

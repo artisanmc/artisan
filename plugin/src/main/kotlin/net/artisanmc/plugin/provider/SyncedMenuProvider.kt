@@ -556,6 +556,37 @@ class SyncedMenuProvider(
             // plain disk edit from sync's point of view — pushed here through the
             // exact onScanChanged logic, and de-duplicated against the scan that
             // will observe the same tree a tick later.
+            // La LISTE des projects se demande, elle ne se mémorise pas côté
+            // backend : le disque est la seule vérité, donc un dossier renommé ou
+            // supprimé doit se voir immédiatement, sans réconciliation ni élagage
+            // (ADR `server-disk-only-storage`). Le nom du dossier EST l'identité.
+            "project_list" -> {
+                val requestId = node["request_id"]?.asText() ?: return
+                fun reply(payload: Map<String, Any?>) {
+                    val base = mapOf("type" to "project_list_result", "request_id" to requestId)
+                    try {
+                        httpClient.dispatcher.executorService.execute {
+                            @Suppress("UNCHECKED_CAST")
+                            send((base + payload) as Map<String, Any>)
+                        }
+                    } catch (_: java.util.concurrent.RejectedExecutionException) {
+                        logger?.warning("project_list_result dropped — plugin is stopping")
+                    }
+                }
+                try {
+                    httpClient.dispatcher.executorService.execute {
+                        try {
+                            reply(mapOf("ok" to true, "project_ids" to roots.all().keys.sorted()))
+                        } catch (e: Throwable) {
+                            logger?.log(java.util.logging.Level.WARNING, "[Artisan] project_list failed", e)
+                            reply(mapOf("ok" to false, "error" to "read_error", "message" to describeError(e)))
+                        }
+                    }
+                } catch (_: java.util.concurrent.RejectedExecutionException) {
+                    logger?.warning("project_list dropped — plugin is stopping")
+                }
+            }
+
             "project_read" -> {
                 val requestId = node["request_id"]?.asText() ?: return
                 val projectId = node["project_id"]?.asText() ?: return

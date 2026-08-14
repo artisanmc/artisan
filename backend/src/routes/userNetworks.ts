@@ -41,7 +41,7 @@ import { resolveNetworkForMember } from "../lib/refs";
 import { slugify } from "../lib/slug";
 import { allocServerSlug } from "../lib/slugAlloc";
 import type { AuthUser } from "../middleware/userAuth";
-import { disconnectServerKey, getInstanceCount, requestConfigRead, requestConfigWrite, requestDataSourceFetch, requestOnlinePlayers, requestPlayerInventory, requestProjectRead, requestProjectWrite, requestProjectHistory } from "../ws/hub";
+import { disconnectServerKey, getInstanceCount, requestConfigRead, requestConfigWrite, requestDataSourceFetch, requestOnlinePlayers, requestPlayerInventory, requestProjectRead, requestProjectWrite, requestProjectHistory, requestProjectList } from "../ws/hub";
 import { getProject } from "../lib/projectStorage";
 import { handleResourcePackRebuild } from "./resourcePack";
 
@@ -852,6 +852,34 @@ userNetworksRouter.get(
 			return c.json({ error, message: r.message ?? null }, status);
 		}
 		return c.json({ files: r.files ?? [] });
+	},
+);
+
+// GET /api/networks/:networkId/servers/:serverId/projects — member access.
+// Les Projects présents sur le disque du serveur, MAINTENANT. Le backend n'en
+// tient plus de liste : elle se périmerait au premier dossier renommé, et la
+// resynchroniser rejouerait le miroir supprimé par l'ADR
+// `server-disk-only-storage`. Serveur hors ligne → 503 et liste vide côté UI :
+// ses Projects ne sont de toute façon pas ouvrables.
+userNetworksRouter.get(
+	"/:networkId/servers/:serverId/projects",
+	async (c: Context<{ Variables: Vars }>) => {
+		const userId = getUserId(c);
+		if (!userId) return c.json({ error: "unauthorized" }, 401);
+		const resolved = await resolveNetworkServer(
+			userId,
+			c.req.param("networkId"),
+			c.req.param("serverId"),
+		);
+		if (!resolved) return c.json({ error: "forbidden" }, 403);
+		if (!resolved.serverKeyId) return c.json({ error: "not_found" }, 404);
+
+		const outcome = await requestProjectList(resolved.serverKeyId);
+		if (outcome.kind === "offline") return c.json({ error: "server_offline" }, 503);
+		if (outcome.kind === "timeout") return c.json({ error: "fetch_timeout" }, 504);
+		const r = outcome.result;
+		if (!r.ok) return c.json({ error: r.error ?? "read_error", message: r.message ?? null }, 502);
+		return c.json({ project_ids: r.project_ids ?? [] });
 	},
 );
 
