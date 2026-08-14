@@ -9,6 +9,13 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Added — la vue YAML d'un Document, en écriture verbatim
+
+- Un bouton **YAML** dans la vue d'un menu, d'une commande ou d'un dialog montre son fichier tel quel et permet de l'éditer. C'est la « code mode » demandée à l'origine — celle dont l'ADR files-first dit qu'elle *« devient triviale une fois les fichiers canoniques »*. Elle l'est devenue : l'éditeur détient déjà les octets exacts et écrit par fichier avec compare-and-swap.
+- **L'écriture est verbatim** : ce que tu tapes est ce qui atterrit, commentaires et mise en forme compris. Cela **révise `yaml-assisted-editing`**, qui canonicalisait même depuis l'onglet YAML et réservait le verbatim aux fichiers étrangers — la règle qui a effacé les commentaires de portage d'un admin sur ses propres menus (2026-08-13). Elle avait été écrite quand le fichier était une projection ; il est désormais le seul store.
+- Contrepartie assumée : les deux modes ne produisent plus les mêmes octets pour le même contenu. Toucher l'éditeur visuel régénère le document et le reformate — mais le texte est sous les yeux, donc c'est visible au lieu d'être une surprise.
+- L'écriture verbatim **n'est pas privilégiée** : même compare-and-swap que le reste. Restaurer, éditer en texte ou éditer visuellement empruntent le même chemin d'écriture — il n'y a pas de seconde façon de perdre des données.
+
 ### Changed — sémantique de reload : l'éditeur montre ce que le serveur exécute (BREAKING)
 
 - Le plugin garde un **instantané** — les octets bruts lus au dernier chargement — servi par `project_read` et `project_list`. Une édition faite à la main ne s'applique qu'à **`/artisan reload`**, comme pour tout autre plugin Minecraft.
