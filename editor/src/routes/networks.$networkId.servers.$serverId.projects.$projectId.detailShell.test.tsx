@@ -39,6 +39,9 @@ vi.mock("@/state/accountStore", () => ({
 }));
 vi.mock("@/features/project/useProjectLoader", () => ({
   useProjectLoader: () => ({
+    // `failed` : Documents que le serveur n'a pas pu charger (ADR
+    // server-disk-only-storage ③). Aucun ici.
+    failed: [],
     project: {
       id: "p1",
       name: "Hub",

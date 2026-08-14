@@ -21,7 +21,11 @@ describe("useProjectLoader", () => {
     } as never);
     const readSpy = vi
       .spyOn(projectFilesApi, "readProjectFiles")
-      .mockResolvedValue({ ok: true, files: { "manifest.yaml": "id: boutique_shop\n" } });
+      .mockResolvedValue({
+        ok: true,
+        files: { "manifest.yaml": "id: boutique_shop\n" },
+        failed: [],
+      });
 
     const { result } = renderHook(() => useProjectLoader("p1"));
 

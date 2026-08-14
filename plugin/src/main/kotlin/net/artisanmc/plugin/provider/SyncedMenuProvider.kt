@@ -54,8 +54,6 @@ class SyncedMenuProvider(
      * API). Default = synchronous, for tests; ArtisanPlugin injects the scheduler.
      */
     private val runOnMainThread: (() -> Unit) -> Unit = { it() },
-    /** Disk scan period — quiescence over two ticks absorbs a multi-file agent burst. */
-    private val scanIntervalMs: Long = 3000,
 ) : MenuProvider {
     companion object {
         internal const val MAX_PREVIEW_ROWS = 50
@@ -111,6 +109,34 @@ class SyncedMenuProvider(
             id.isNotBlank() && !id.contains('/') && !id.contains('\\') &&
                 !id.contains("..") && !id.contains(':') && !id.startsWith(".")
     }
+
+    /**
+     * L'**instantané** : les octets bruts de chaque fichier, tels que lus au
+     * dernier chargement. projectId → (chemin relatif → contenu).
+     *
+     * C'est ce que sert `project_read`, et donc ce que l'éditeur affiche : l'état
+     * que le serveur exécute réellement, pas le disque courant. Une édition à la
+     * main n'apparaît qu'après `/artisan reload` — la sémantique de tous les
+     * autres plugins Minecraft.
+     *
+     * Des **octets bruts**, pas un modèle : le compare-and-swap de l'écriture
+     * compare des octets. Un modèle re-sérialisé donnerait les mêmes idées et
+     * d'autres octets, donc des `base_hash` faux — conflits sur des fichiers que
+     * personne n'a touchés, ou écrasements silencieux. Conséquence gratuite : un
+     * fichier illisible y figure aussi, donc reste réparable depuis l'éditeur.
+     */
+    @Volatile private var snapshot: Map<String, Map<String, String>> = emptyMap()
+
+    /**
+     * Les Documents que le dernier chargement n'a **pas** réussi à compiler :
+     * projectId → (chemin relatif → raison).
+     *
+     * Un YAML cassé était sauté en silence des deux côtés — le serveur ne
+     * l'exécutait pas, l'éditeur ne l'affichait pas, et rien n'expliquait sa
+     * disparition. Il reste dans l'instantané (donc réparable), et cette carte
+     * dit pourquoi il ne tourne pas.
+     */
+    @Volatile private var skipped: Map<String, Map<String, String>> = emptyMap()
 
     @Volatile private var menus = ConcurrentHashMap<String, BundleMenu>()
     @Volatile private var bundles = listOf<ProjectBundle>()
@@ -200,7 +226,6 @@ class SyncedMenuProvider(
 
     override fun load() {
         reloadFromDisk()
-        startScanner()
         if (serverKey.isNotEmpty()) {
             val mcVersion = try {
                 org.bukkit.Bukkit.getServer().minecraftVersion
@@ -234,8 +259,6 @@ class SyncedMenuProvider(
     }
 
     override fun unload() {
-        scanner?.stop()
-        scanner = null
         wsClient?.disconnect()
         httpClient.dispatcher.cancelAll()
         httpClient.connectionPool.evictAll()
@@ -311,45 +334,32 @@ class SyncedMenuProvider(
         customItemsManager = manager
     }
 
-    @Volatile private var scanner: net.artisanmc.plugin.sync.SyncScanner? = null
-
-    /**
-     * Poll-first disk sync (spec `2026-07-30-poll-first-disk-sync-design`,
-     * revising ADR files-first-source-of-truth #6): hand/agent edits hot-reload
-     * and auto-push when connected. Content-based, so it behaves identically on
-     * Docker bind mounts, NFS and native filesystems. Internal so tests can
-     * start it without load()'s WS side effects.
-     */
-    internal fun startScanner() {
-        if (scanner != null) return
-        scanner = net.artisanmc.plugin.sync.SyncScanner(
-            roots,
-            intervalMs = scanIntervalMs,
-            logger = logger,
-            onProjectsChanged = ::onScanChanged,
-        ).also { it.start() }
-    }
-
-    /**
-     * Tick du scanner : une édition à la main ou par un agent est rechargée à
-     * chaud, point. Le scanner ne décide plus de rien (ADR
-     * `server-disk-only-storage`) — il n'y a plus deux côtés à arbitrer, donc
-     * plus de push, plus de divergence, plus de hash à comparer.
-     */
-    private fun onScanChanged(@Suppress("UNUSED_PARAMETER") projectIds: Set<String>) {
-        reloadFromDisk()
-        draftMenus.clear()
-        onReload?.invoke()
-    }
+    // Le SyncScanner a été retiré avec la sémantique de reload : une édition
+    // disque ne s'applique qu'à `/artisan reload`, comme pour tout autre plugin
+    // Minecraft. Surveiller le disque en continu coûtait la surprise (le serveur
+    // changeait sous les pieds de l'admin) sans donner le bénéfice (l'éditeur
+    // n'était live pour autant — il ne voyait rien avant un rechargement de page).
 
     private fun reloadFromDisk() {
         // Declared model docs feed the reader so BARE data files resolve their
         // schema from the JAR declaration (ADR bare-data-files ①).
+        val failures = java.util.concurrent.ConcurrentHashMap<String, MutableMap<String, String>>()
         val loaded = ProjectReader(roots, logger, {
             declaredModelsReport().mapNotNull { doc ->
                 (doc["id"] as? String)?.let { it to doc }
             }.toMap()
+        }, { projectId, rel, reason ->
+            failures.getOrPut(projectId) { java.util.concurrent.ConcurrentHashMap() }[rel] = reason
         }).readAll()
+        skipped = failures
+        // L'instantané se prend AVANT le parsing, sur tous les fichiers : ce qui
+        // n'a pas pu être compilé doit rester lisible et réparable.
+        snapshot = roots.all().mapValues { (_, dir) ->
+            runCatching {
+                net.artisanmc.plugin.sync.ProjectFilesReader.readAll(dir)
+                    .filterKeys { !isEditorInvisible(it) }
+            }.getOrDefault(emptyMap())
+        }
         bundles = loaded
         val freshMenus = ConcurrentHashMap<String, BundleMenu>()
         val freshDialogs = ConcurrentHashMap<String, BundleDialog>()
@@ -576,7 +586,10 @@ class SyncedMenuProvider(
                 try {
                     httpClient.dispatcher.executorService.execute {
                         try {
-                            reply(mapOf("ok" to true, "project_ids" to roots.all().keys.sorted()))
+                            // Même sémantique que `project_read` : ce que le serveur a
+                            // chargé. Sinon on listerait un project qu'on ne peut pas
+                            // ouvrir, ou l'inverse — l'incohérence exacte qu'on retire.
+                            reply(mapOf("ok" to true, "project_ids" to snapshot.keys.sorted()))
                         } catch (e: Throwable) {
                             logger?.log(java.util.logging.Level.WARNING, "[Artisan] project_list failed", e)
                             reply(mapOf("ok" to false, "error" to "read_error", "message" to describeError(e)))
@@ -608,20 +621,22 @@ class SyncedMenuProvider(
                 try {
                     httpClient.dispatcher.executorService.execute {
                         try {
-                            val projectDir = roots.dirFor(projectId)
-                            if (!projectDir.isDirectory) {
+                            // L'instantané, pas le disque : l'éditeur montre ce que
+                            // le serveur a lu. Un project apparu depuis le dernier
+                            // chargement n'existe pas encore de son point de vue.
+                            val tree = snapshot[projectId] ?: run {
                                 reply(mapOf("ok" to false, "error" to "unknown_project"))
                                 return@execute
                             }
-                            val files = net.artisanmc.plugin.sync.ProjectFilesReader.readAll(projectDir)
-                                .filterKeys { !isEditorInvisible(it) }
-                                .toSortedMap()
+                            val files = tree.toSortedMap()
                                 .map { (rel, content) -> mapOf("path" to rel, "content" to content) }
+                            val failed = (skipped[projectId] ?: emptyMap()).toSortedMap()
+                                .map { (rel, reason) -> mapOf("path" to rel, "reason" to reason) }
                             val totalBytes = files.sumOf { it["content"]!!.toByteArray().size }
                             if (totalBytes > MAX_PROJECT_BYTES) {
                                 reply(mapOf("ok" to false, "error" to "too_large"))
                             } else {
-                                reply(mapOf("ok" to true, "files" to files))
+                                reply(mapOf("ok" to true, "files" to files, "failed" to failed))
                             }
                         } catch (e: Throwable) {
                             logger?.log(java.util.logging.Level.WARNING, "[Artisan] project_read '$projectId' failed", e)

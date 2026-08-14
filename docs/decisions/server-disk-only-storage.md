@@ -98,6 +98,37 @@ Deux constats ont débloqué la décision :
    module écrit désormais son fichier sur disque, et l'éditeur le voit à la
    prochaine lecture.
 
+> **Révisé le 2026-08-14 — sémantique de reload (décisions 2 et 7).** `project_read`
+> servait le **disque**, et le `SyncScanner` rechargeait le serveur à chaque
+> changement de fichier. L'état payait le coût de la surveillance sans le
+> bénéfice : le serveur bougeait sous les pieds de l'admin (contrairement à tout
+> autre plugin Minecraft, où une édition ne s'applique qu'au reload) **et**
+> l'éditeur n'était pas live pour autant — il ne voyait rien avant un
+> rechargement de page. Le pire des deux.
+>
+> Le plugin conserve désormais un **instantané** : les octets bruts lus au dernier
+> chargement. `project_read` et `project_list` le servent, donc l'éditeur montre
+> **ce que le serveur exécute**. Une édition à la main ne s'applique qu'à
+> `/artisan reload`. Le `SyncScanner` et la spec `poll-first-disk-sync` sont
+> retirés.
+>
+> Trois précisions qui font tenir le modèle :
+> - **des octets bruts, pas un modèle parsé** — le compare-and-swap compare des
+>   octets ; un modèle re-sérialisé donnerait les mêmes idées et d'autres octets,
+>   donc des `base_hash` faux (conflits sur des fichiers intacts, ou écrasements
+>   silencieux) ;
+> - **l'écriture reste en CAS contre le DISQUE**, pas contre l'instantané : c'est
+>   ce qui rattrape une édition faite hors de l'éditeur, au moment où on
+>   enregistre, via la modale de conflit ;
+> - **un Document illisible figure dans l'instantané** (il est pris avant le
+>   parsing) et remonte dans `project_read_result.failed` avec sa raison. Il
+>   s'édite donc encore — sinon une faute de frappe enfermerait l'admin dehors —
+>   et l'éditeur dit enfin pourquoi il ne tourne pas, au lieu de le faire
+>   disparaître en silence comme le serveur le faisait déjà.
+>
+> *Renoncement assumé :* « un agent édite les fichiers et c'est live » devient
+> « …puis `/artisan reload` ».
+
 ## Ce qui disparaît
 
 `projects.filesJson` · `project_commits` / `project_branches` / `projectJournal`
