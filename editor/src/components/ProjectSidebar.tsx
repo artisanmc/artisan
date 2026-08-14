@@ -24,6 +24,7 @@ import type { ProjectId } from "@/domain/types";
 import { fallbackScreensFor } from "@/features/screens/screenList";
 import type { ServerEditorScreen } from "@/lib/api/configScreens";
 import { useServerScreensStore } from "@/state/serverScreensStore";
+import { listServerProjects } from "@/lib/api/projectFiles";
 import { ownerModuleOf } from "@/components/projectOwnership";
 import { type ProjectSummary, getNetwork, listNetworks } from "@/lib/api/networks";
 import { displayServerLabel } from "@/lib/serverLabel";
@@ -129,11 +130,44 @@ export function ProjectSidebar() {
     }
   }, [storeRefreshToken]);
 
-  // Fetch all server entries across all networks + projects for the active network.
+  /**
+   * Les Projects du serveur actif, lus sur SON disque à chaque rafraîchissement.
+   *
+   * Le backend n'en tient plus de liste : elle se périmait au premier dossier
+   * renommé ou supprimé (ADR `server-disk-only-storage`). Le nom du dossier EST
+   * l'identité — le renommer le renomme dans l'éditeur, sans réconciliation.
+   * Serveur hors ligne → liste vide : ses Projects ne sont pas ouvrables.
+   */
+  useEffect(() => {
+    if (!activeNetworkId || !activeServerId) {
+      setServerProjects([]);
+      return;
+    }
+    let cancelled = false;
+    listServerProjects(activeNetworkId, activeServerId).then((res) => {
+      if (cancelled) return;
+      setServerProjects(
+        res.ok
+          ? res.projectIds.map((id) => ({
+              id,
+              name: id,
+              slug: id,
+              hash: "",
+              networkId: activeNetworkId,
+              serverKeyId: activeServerId,
+            }))
+          : [],
+      );
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeNetworkId, activeServerId, refetchToken, storeRefreshToken]);
+
+  // Fetch all server entries across all networks.
   useEffect(() => {
     if (networks.length === 0) {
       setAllServerEntries([]);
-      setServerProjects([]);
       return;
     }
     let cancelled = false;
@@ -161,19 +195,13 @@ export function ProjectSidebar() {
         setAllServerEntries(entries);
         // Share the slugs so every surface can build slug-based links.
         useServersStore.getState().setServers(entries);
-        // Update projects from the active network result
-        const activeResult = results.find((r) => r.network.id === activeNetworkId);
-        if (activeResult) {
-          setServerProjects(activeResult.projects);
-        } else {
-          setServerProjects([]);
-        }
+        // La liste des Projects ne vient PLUS d'ici : elle se demande au disque
+        // du serveur actif (effet ci-dessous). Les lignes en base ne décrivent
+        // plus ce qui existe — elles ancrent ce que le backend possède
+        // (assets, resource pack, conversations) — ADR `server-disk-only-storage`.
       })
       .catch(() => {
-        if (!cancelled) {
-          setAllServerEntries([]);
-          setServerProjects([]);
-        }
+        if (!cancelled) setAllServerEntries([]);
       });
     return () => {
       cancelled = true;
@@ -248,14 +276,16 @@ export function ProjectSidebar() {
     };
   });
 
-  // Element count per project: prefer the live count from a fully-loaded project in
-  // the account store (updates as the user edits), else the summary's
-  // backend-computed documentCount. Null when neither is available.
+  // Nombre de Documents par Project : uniquement ceux qu'on a réellement ouverts
+  // (compte vivant, il suit les éditions). Le `documentCount` calculé côté
+  // backend est mort avec la copie des fichiers (ADR `server-disk-only-storage`)
+  // — le recalculer coûterait une lecture disque par Project juste pour peupler
+  // une sidebar. Un Project jamais ouvert n'affiche donc pas de badge.
   const liveCount = new Map(
     localProjects.map((p) => [p.id, p.menus.length + p.commands.length + p.dialogs.length]),
   );
   const countFor = (p: ProjectSummary): number | null =>
-    liveCount.get(p.id as ProjectId) ?? p.documentCount ?? null;
+    liveCount.get(p.id as ProjectId) ?? null;
 
   const onDragEnd = (e: DragEndEvent) => {
     const { active, over } = e;

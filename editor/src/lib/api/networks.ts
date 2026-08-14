@@ -22,8 +22,6 @@ export interface ProjectSummary {
   updatedAt?: string;
   networkId: string;
   serverKeyId: string;
-  /** Menus + commands + dialogs count, for the document-count indicator. */
-  documentCount?: number;
   /** Id disque du project côté serveur propriétaire — c'est celui qu'un module
    *  déclare (`externalId`), et il diffère de `id` dès qu'un autre serveur a déjà
    *  réclamé le même nom. */
