@@ -129,6 +129,38 @@ Deux constats ont débloqué la décision :
 > *Renoncement assumé :* « un agent édite les fichiers et c'est live » devient
 > « …puis `/artisan reload` ».
 
+> **Révisé le 2026-08-15 — brouillon persistant (décisions 3 et 7).** La
+> décision 3 excluait tout brouillon persistant, la 7 rendait un Project
+> inouvrable serveur éteint. L'argument d'alors portait surtout sur le **coût** :
+> un brouillon aurait demandé de construire la réconciliation. Elle existe
+> désormais — base, compare-and-swap par fichier, modale de conflit — et le
+> brouillon la réutilise telle quelle, sans machinerie nouvelle.
+>
+> Ce qui a forcé la révision : en retirant l'auto-save (décision 3), on a rendu
+> la perte accidentelle beaucoup plus chère. Avant, fermer un onglet coûtait au
+> pire les 2 s du débounce ; après, une session entière. Ce n'était pas
+> compensé, et il n'y avait même pas de garde `beforeunload`.
+>
+> Le navigateur garde donc, par Project, la **base** et l'**arbre courant**
+> (`projectDraftStore`, ~43 Ko pour le plus gros project mesuré) :
+> - **serveur joignable** — sa version reste la source. Un brouillon avec du
+>   travail non enregistré est **proposé**, jamais appliqué en silence : l'éditeur
+>   montre ce que le serveur exécute, et l'afficher sans le dire recréerait la
+>   confusion que la sémantique de reload a supprimée ;
+> - **serveur injoignable** — le brouillon s'ouvre en édition, badgé avec son
+>   âge, Enregistrer hors de portée ;
+> - **enregistrement** — inchangé : le CAS par fichier fait le reste, et le
+>   brouillon est effacé une fois le travail parti.
+>
+> Un indicateur « non enregistré » permanent accompagne le tout : sans lui, rien
+> ne distingue un Project propre d'un Project modifié.
+>
+> *Limites assumées :* par-appareil, par-utilisateur, mort avec le cache — mais
+> ce n'est plus une régression, puisque sans lui tout est perdu au rechargement.
+> Et la péremption s'accumule : éditer hors ligne plusieurs jours contre une base
+> ancienne peut produire des conflits sur beaucoup de fichiers d'un coup, d'où
+> l'affichage franc de l'âge du brouillon.
+
 ## Ce qui disparaît
 
 `projects.filesJson` · `project_commits` / `project_branches` / `projectJournal`

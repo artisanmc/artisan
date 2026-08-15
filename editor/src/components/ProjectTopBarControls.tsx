@@ -37,6 +37,8 @@ import { countMissingForLang } from "@/lib/i18nUsages";
 import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
+import { isDirty } from "@/features/project/draft";
+import { useProjectDraftStore } from "@/state/projectDraftStore";
 import { useUiStore } from "@/state/uiStore";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import {
@@ -420,6 +422,12 @@ function SaveControls({
   const [choices, setChoices] = useState<Record<string, ConflictChoice>>({});
 
   const serverId = project?.serverKeyId ?? null;
+  // « As-tu du travail non enregistré ? » — lu depuis le brouillon, qui porte
+  // déjà l'arbre sérialisé. Le recalculer ici resérialiserait tout le Project à
+  // CHAQUE rendu de la topbar. Le brouillon a 800 ms de retard : c'est un
+  // indicateur, pas un verrou.
+  const draft = useProjectDraftStore((s) => (project ? s.drafts[project.id] : undefined));
+  const dirty = draft ? isDirty(draft.baseline, draft.tree) : false;
   const canSave = Boolean(user && networkId && serverId && project);
 
   /**
@@ -495,6 +503,14 @@ function SaveControls({
         >
           {saving ? t("save.saving") : t("save.save")}
         </button>
+        {dirty ? (
+          <span
+            className="shrink-0 text-[11px] text-[var(--text-faint)]"
+            title={t("draft.unsaved")}
+          >
+            •&nbsp;{t("draft.unsaved")}
+          </span>
+        ) : null}
       </div>
 
       <Dialog open={conflicts.length > 0} onOpenChange={(open) => !open && setConflicts([])}>
