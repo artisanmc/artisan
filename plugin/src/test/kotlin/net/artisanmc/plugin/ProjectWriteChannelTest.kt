@@ -122,6 +122,29 @@ class ProjectWriteChannelTest {
     }
 
     @Test
+    fun `un conflit rend l'etat reel du dossier, pour voir un renommage`() {
+        val h = Harness()
+        val p = h.project("boutique")
+        // Quelqu'un a renommé a.yaml en renomme.yaml sur le disque. Pour le CAS
+        // c'est une suppression — et sans la liste ci-dessous, « garder ma
+        // version » recréerait a.yaml en laissant renomme.yaml : deux fichiers
+        // pour un seul menu, sans que rien ne le signale.
+        h.write(p, "menus/renomme.yaml", "title: A\n")
+        val base = BundleHasher.hashContent("title: A\n")
+
+        h.send(writeMsg("boutique", """[
+            {"path":"menus/a.yaml","content":"title: A edite\n","base_hash":"$base"}
+        ]"""))
+
+        val msg = h.reply()
+        assertEquals("conflict", msg["error"])
+        @Suppress("UNCHECKED_CAST")
+        val onDisk = msg["disk_files"] as List<String>
+        assertTrue(onDisk.contains("menus/renomme.yaml"), "le fichier apparu doit être visible : $onDisk")
+        assertFalse(onDisk.contains("menus/a.yaml"))
+    }
+
+    @Test
     fun `un base_hash nul veut dire fichier neuf, et entre en conflit s'il existe deja`() {
         val h = Harness()
         val p = h.project("boutique")

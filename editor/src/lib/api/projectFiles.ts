@@ -39,7 +39,13 @@ export type ProjectReadResult =
 
 export type ProjectWriteResult =
   | { ok: true }
-  | { ok: false; error: "conflict"; conflicts: ProjectFileConflict[] }
+  | {
+      ok: false;
+      error: "conflict";
+      conflicts: ProjectFileConflict[];
+      /** L'état réel du dossier — de quoi voir qu'un fichier renommé est apparu. */
+      diskFiles: string[];
+    }
   | { ok: false; error: ProjectFilesError };
 
 function knownError(raw: unknown, fallback: ProjectFilesError): ProjectFilesError {
@@ -95,8 +101,16 @@ export async function writeProjectFiles(
       body: JSON.stringify({ files: plan.files, deletes: plan.deletes, create: plan.create === true }),
     });
     if (res.status === 409) {
-      const body = (await res.json().catch(() => null)) as { conflicts?: ProjectFileConflict[] } | null;
-      return { ok: false, error: "conflict", conflicts: body?.conflicts ?? [] };
+      const body = (await res.json().catch(() => null)) as {
+        conflicts?: ProjectFileConflict[];
+        disk_files?: string[];
+      } | null;
+      return {
+        ok: false,
+        error: "conflict",
+        conflicts: body?.conflicts ?? [],
+        diskFiles: body?.disk_files ?? [],
+      };
     }
     if (!res.ok) {
       const body = (await res.json().catch(() => null)) as { error?: string } | null;

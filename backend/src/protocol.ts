@@ -246,6 +246,12 @@ export interface ProjectWriteResultMessage {
   request_id: string;
   ok: boolean;
   conflicts?: { path: string; disk: string | null }[];
+  /**
+   * L'état RÉEL du dossier au moment du conflit. Un renommage fait à la main
+   * ressemble à une suppression pour le compare-and-swap : sans cette liste,
+   * « garder ma version » recrée l'ancien fichier en laissant le nouveau.
+   */
+  disk_files?: string[];
   error?: "invalid_path" | "unknown_project" | "conflict" | "write_error";
   message?: string;
 }

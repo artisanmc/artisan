@@ -44,7 +44,13 @@ export function adoptDiskIntoProject(
 
 export type SaveToDiskResult =
   | { ok: true; wrote: number }
-  | { ok: false; error: "conflict"; conflicts: ProjectFileConflict[] }
+  | {
+      ok: false;
+      error: "conflict";
+      conflicts: ProjectFileConflict[];
+      /** L'état réel du dossier au moment du conflit — voir un renommage. */
+      diskFiles: string[];
+    }
   | { ok: false; error: ProjectFilesError };
 
 /**

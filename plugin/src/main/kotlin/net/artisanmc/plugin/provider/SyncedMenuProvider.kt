@@ -781,7 +781,22 @@ class SyncedMenuProvider(
                             if (conflicts.isNotEmpty()) {
                                 // On rend le contenu disque avec le conflit : l'éditeur
                                 // affiche le diff sans second aller-retour.
-                                reply(mapOf("ok" to false, "error" to "conflict", "conflicts" to conflicts))
+                                //
+                                // Et l'état RÉEL du dossier avec : un renommage fait à la
+                                // main ressemble à une suppression pour le CAS. Sans cette
+                                // liste, « garder ma version » recréerait l'ancien fichier
+                                // en laissant le nouveau — deux fichiers pour un seul menu,
+                                // sans que rien ne le signale.
+                                val onDisk = net.artisanmc.plugin.sync.ProjectFilesReader
+                                    .readAll(projectDir).keys
+                                    .filter { !isEditorInvisible(it) }
+                                    .sorted()
+                                reply(mapOf(
+                                    "ok" to false,
+                                    "error" to "conflict",
+                                    "conflicts" to conflicts,
+                                    "disk_files" to onDisk,
+                                ))
                                 return@execute
                             }
 
