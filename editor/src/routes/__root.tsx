@@ -1,5 +1,6 @@
 import { AdminSidebar } from "@/components/AdminSidebar";
 import { ProjectSidebar } from "@/components/ProjectSidebar";
+import { useDraftSync } from "@/features/project/useDraftSync";
 import { EditorWs } from "@/lib/editorWs";
 import { useAuthStore } from "@/state/authStore";
 import { useNetworksStore } from "@/state/networksStore";
@@ -35,6 +36,9 @@ export function RootLayout() {
 }
 
 function RootLayoutInner() {
+  // Tient le brouillon du navigateur à jour — rien n'atteint le disque sans le
+  // geste Enregistrer, mais plus rien ne se perd à la fermeture d'un onglet.
+  useDraftSync();
   usePostHogPageView();
   const { i18n } = useTranslation();
   const user = useAuthStore((s) => s.currentUser);
@@ -127,7 +131,9 @@ function usePostHogPageView() {
   }, [pathname]);
 }
 
-// L'auto-save a été retiré avec la bascule « disque seul » (ADR
-// `server-disk-only-storage`, décision 3) : plus rien n'est écrit sans geste
-// explicite. Ce qui n'est pas enregistré vit dans la page, comme dans n'importe
-// quel éditeur — voir `saveProjectToDisk` et le bouton Enregistrer de la topbar.
+// L'auto-save vers le SERVEUR a été retiré avec la bascule « disque seul » (ADR
+// `server-disk-only-storage`) : rien n'atteint le disque sans le geste
+// Enregistrer. Ce qui n'est pas enregistré vit dans le brouillon du navigateur
+// (`useDraftSync` ci-dessus), donc survit à un rechargement — mais n'est pas
+// une vérité pour autant : il est daté, propre à cet appareil, et ne devient
+// réel qu'à l'enregistrement.

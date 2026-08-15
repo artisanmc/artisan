@@ -3,6 +3,7 @@ import type { Project } from "@/domain/types";
 import { transform } from "@/features/export/transform";
 import { writeProjectFiles, type ProjectFileConflict, type ProjectFilesError } from "@/lib/api/projectFiles";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
+import { useProjectDraftStore } from "@/state/projectDraftStore";
 import { projectFromFiles } from "@/schema/projectFromFiles";
 import { planWrite, toRelative } from "./diskSave";
 
@@ -80,5 +81,8 @@ export async function saveProjectToDisk(
     return res;
   }
   store.set(project.id, next);
+  // Le travail est parti sur le serveur : le brouillon n'a plus rien à sauver.
+  // Le laisser ferait proposer « reprendre mon travail » sur du déjà-enregistré.
+  useProjectDraftStore.getState().clear(project.id);
   return { ok: true, wrote: plan.files.length + plan.deletes.length };
 }

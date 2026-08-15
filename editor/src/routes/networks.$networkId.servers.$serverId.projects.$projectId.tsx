@@ -30,6 +30,8 @@ import { STATE_DROP_PREFIX } from "@/features/flow/FlowCanvas";
 import { PatternsGallery } from "@/features/help/PatternsGallery";
 import { ProjectPanel } from "@/features/project/ProjectPanel";
 import { useProjectLoader } from "@/features/project/useProjectLoader";
+import { draftAge } from "@/features/project/draft";
+import { useProjectDraftStore } from "@/state/projectDraftStore";
 import { useWorkspaceTabShortcuts } from "@/features/project/useWorkspaceTabShortcuts";
 import { SearchPalette } from "@/features/search/SearchPalette";
 import { useGlobalSearchShortcut } from "@/features/search/useGlobalSearchShortcut";
@@ -85,7 +87,8 @@ export function ProjectCanvasPage() {
   // L'URL peut porter le slug du project : le serveur, déjà dans l'URL, en est
   // la portée (un slug n'est unique que par serveur). La réponse donne l'id
   // réel, seul utilisé en aval — store, sélections, sauvegardes.
-  const { project: userProject, offline, error: loadError, failed } = useProjectLoader(projectId, serverId);
+  const { project: userProject, offline, error: loadError, failed, pendingDraft, restoreDraft, fromDraft } =
+    useProjectLoader(projectId, serverId);
   const project = userProject;
   const pId = (project?.id ?? projectId) as ProjectId;
   const currentUser = useAuthStore((s) => s.currentUser);
@@ -188,7 +191,10 @@ export function ProjectCanvasPage() {
   // laissait les autres (project inconnu, lecture refusée, transport) retomber
   // sur le `return null` ci-dessous — une page vide qu'on prend pour un
   // chargement sans fin. C'est la même erreur, à un cas près.
-  if (loadError) {
+  // Serveur injoignable mais brouillon ouvert : on édite, on ne bloque pas.
+  // L'état est daté et annoncé (bandeau ci-dessous), pas présenté comme la
+  // vérité — décision 7 révisée.
+  if (loadError && !fromDraft) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
         <p className="text-[15px] text-[var(--text)]">
@@ -468,6 +474,28 @@ export function ProjectCanvasPage() {
       )}
 
       {/* Global search palette — fixed overlay, inert when searchOpen=false. */}
+      {fromDraft ? (
+        <div className="shrink-0 border-b border-[var(--border)] px-4 py-2 text-[12px] text-[var(--warning-fg,var(--text-mut))]">
+          {t("draft.offlineBanner", { hours: draftAge(pendingDraft?.at ?? Date.now()) })}
+        </div>
+      ) : null}
+      {pendingDraft ? (
+        // Proposé, jamais appliqué en silence : l'éditeur montre l'état du
+        // serveur, et l'admin décide de reprendre son travail ou de le jeter.
+        <div className="flex shrink-0 items-center gap-3 border-b border-[var(--border)] px-4 py-2 text-[12px] text-[var(--text-mut)]">
+          <span>{t("draft.pending", { hours: draftAge(pendingDraft.at) })}</span>
+          <button type="button" className="btn btn-sm" onClick={restoreDraft}>
+            {t("draft.restore")}
+          </button>
+          <button
+            type="button"
+            className="btn btn-sm btn-ghost"
+            onClick={() => useProjectDraftStore.getState().clear(pId)}
+          >
+            {t("draft.discard")}
+          </button>
+        </div>
+      ) : null}
       {failed.length > 0 ? (
         // Ces Documents existent et s'éditent, mais le serveur ne les exécute
         // pas. Sans ce bandeau ils disparaissaient simplement de la liste, des
