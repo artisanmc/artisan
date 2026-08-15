@@ -9,6 +9,16 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Added — brouillon persistant dans le navigateur (révise les décisions 3 et 7 de l'ADR)
+
+- Le navigateur garde par Project la **base** et l'**arbre courant** (`projectDraftStore`, localStorage). Le travail non enregistré survit donc à un rechargement de page, à la fermeture d'un onglet, et à un serveur qui tombe en cours de route.
+- **Pourquoi maintenant** : retirer l'auto-save (P2) a rendu la perte accidentelle bien plus chère — d'un débounce de 2 s à une session entière — sans rien mettre à la place, pas même un garde `beforeunload`. Et le brouillon ne demande aucune machinerie nouvelle : base + compare-and-swap + modale de conflit existent déjà, il les réutilise.
+- **Serveur joignable** : sa version reste la source, le brouillon est **proposé** (« reprendre mon travail » / « jeter »), **jamais appliqué en silence**. L'éditeur montre ce que le serveur exécute ; afficher un brouillon sans le dire recréerait la confusion que la sémantique de reload a supprimée.
+- **Serveur injoignable** : le brouillon s'ouvre en édition, badgé avec son âge, Enregistrer hors de portée. Un Project redevient donc consultable serveur éteint — sur un état **daté et annoncé**, jamais présenté comme la vérité.
+- **Indicateur « non enregistré »** permanent en topbar : rien ne distinguait jusqu'ici un Project propre d'un Project modifié. Il est lu depuis le brouillon (qui porte déjà l'arbre sérialisé) plutôt que recalculé à chaque rendu.
+- Le brouillon est effacé dès que le travail est parti sur le serveur.
+- Deux commentaires périmés corrigés au passage : `accountStore` annonçait un `persist` retiré depuis (de quoi conclure à tort que l'état était sauvegardé), et `__root.tsx` affirmait que le non-enregistré « vit dans la page ».
+
 ### Added — la vue YAML d'un Document, en écriture verbatim
 
 - Un bouton **YAML** dans la vue d'un menu, d'une commande ou d'un dialog montre son fichier tel quel et permet de l'éditer. C'est la « code mode » demandée à l'origine — celle dont l'ADR files-first dit qu'elle *« devient triviale une fois les fichiers canoniques »*. Elle l'est devenue : l'éditeur détient déjà les octets exacts et écrit par fichier avec compare-and-swap.

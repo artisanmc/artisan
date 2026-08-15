@@ -1610,6 +1610,14 @@ export default {
     verbatimHint:
       "What you write is written as-is, comments included. Going through the visual editor regenerates the document and reformats it.",
   },
+  draft: {
+    pending: "You have unsaved work on this project, started {{hours}}h ago. The editor is showing the server's state.",
+    restore: "Resume my work",
+    discard: "Discard",
+    offlineBanner:
+      "Server offline — you are editing your local draft, based on the state from {{hours}}h ago. Saving becomes possible when the server is back.",
+    unsaved: "unsaved",
+  },
   save: {
     save: "Save",
     saving: "Saving…",

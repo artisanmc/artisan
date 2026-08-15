@@ -1094,11 +1094,16 @@ function validateArgOrder(args: CommandArg[]): void {
 }
 
 /**
- * Middleware order: temporal(persist(stateCreator)).
+ * Middleware: `temporal(stateCreator)` — undo/redo seulement.
  *
- * `temporal` wraps the persisted state creator so undo/redo replays the
- * `account` slice. Action functions are stable refs, so excluding them via
- * `partialize` keeps the diff narrow.
+ * Ce store n'est **pas** persisté : le contenu d'un Project vient du serveur
+ * (ADR `server-disk-only-storage`), et le travail non enregistré vit dans
+ * `projectDraftStore`, qui est explicitement daté et proposé plutôt qu'appliqué.
+ * Ce commentaire décrivait un `persist` retiré depuis — le genre de phrase qui
+ * fait conclure à tort que l'état est sauvegardé.
+ *
+ * Action functions are stable refs, so excluding them via `partialize` keeps the
+ * temporal diff narrow.
  *
  * Account-level mutations (createProject, reorderProjects) clear the temporal
  * stack themselves so they don't tangle with project-internal edits in the
