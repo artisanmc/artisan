@@ -61,6 +61,7 @@ describe("saveProjectToDisk", () => {
       ok: false,
       error: "conflict",
       conflicts: [{ path: "manifest.yaml", disk: "id: autre\n" }],
+      diskFiles: ["manifest.yaml"],
     });
 
     const res = await saveProjectToDisk(project, "n1", "s1");
@@ -69,6 +70,7 @@ describe("saveProjectToDisk", () => {
       ok: false,
       error: "conflict",
       conflicts: [{ path: "manifest.yaml", disk: "id: autre\n" }],
+      diskFiles: ["manifest.yaml"],
     });
     expect(useProjectBaselineStore.getState().get("p1")).toBeUndefined();
   });

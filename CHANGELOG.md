@@ -9,6 +9,13 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Fixed — un renommage fait à la main ne peut plus dupliquer un Document en silence
+
+- Pour le compare-and-swap, renommer `a.yaml` en `b.yaml` sur le disque **est** une suppression de `a.yaml`. Le conflit remontait donc « supprimé sur le serveur », et *garder ma version* recréait `a.yaml` — en laissant `b.yaml` : **deux fichiers pour un seul menu**, sans que rien ne le signale.
+- La réponse de conflit porte désormais `disk_files`, l'état **réel** du dossier au moment du refus. La modale l'affiche pour les fichiers disparus : le fichier apparu est visible avant qu'on choisisse. Le plugin lit déjà le disque à cet instant précis — c'est le seul endroit où cette lecture a un sens, et elle ne coûte rien.
+- Le message de conflit ne laisse plus croire à une action de l'admin : « ces fichiers ont **changé sur le serveur depuis leur chargement** ». Avec la sémantique de reload, l'éditeur affiche l'instantané mais écrit contre le disque — un conflit peut donc désigner un état qui n'a jamais été à l'écran, et il faut le dire.
+- Corrigé au passage : la route `config/read` renvoyait un champ `failed` qui n'appartient qu'à `project_read` — bavure de la phase ③, attrapée par le typecheck.
+
 ### Added — brouillon persistant dans le navigateur (révise les décisions 3 et 7 de l'ADR)
 
 - Le navigateur garde par Project la **base** et l'**arbre courant** (`projectDraftStore`, localStorage). Le travail non enregistré survit donc à un rechargement de page, à la fermeture d'un onglet, et à un serveur qui tombe en cours de route.

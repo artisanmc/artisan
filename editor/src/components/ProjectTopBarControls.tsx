@@ -419,6 +419,7 @@ function SaveControls({
   const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
   const [saving, setSaving] = useState(false);
   const [conflicts, setConflicts] = useState<ProjectFileConflict[]>([]);
+  const [diskFiles, setDiskFiles] = useState<string[]>([]);
   const [choices, setChoices] = useState<Record<string, ConflictChoice>>({});
 
   const serverId = project?.serverKeyId ?? null;
@@ -452,6 +453,7 @@ function SaveControls({
         // Rien n'a été écrit : le plugin applique tout ou rien. On demande à
         // l'admin de trancher fichier par fichier, jamais à sa place.
         setConflicts(res.conflicts);
+        setDiskFiles(res.diskFiles);
         setChoices({});
         return;
       }
@@ -540,7 +542,24 @@ function SaveControls({
                   </button>
                 </div>
                 {c.disk === null ? (
-                  <p className="text-xs text-[var(--text-faint)]">{t("save.conflictDeletedOnDisk")}</p>
+                  <>
+                    <p className="text-xs text-[var(--text-faint)]">
+                      {t("save.conflictDeletedOnDisk")}
+                    </p>
+                    {/* Un renommage à la main ressemble à une suppression : sans
+                        voir ce que contient le dossier maintenant, « garder ma
+                        version » recrée l'ancien fichier à côté du nouveau. */}
+                    {diskFiles.length > 0 ? (
+                      <p className="text-xs text-[var(--text-faint)]">
+                        {t("save.conflictDiskNow")}{" "}
+                        <span className="font-mono">
+                          {diskFiles
+                            .filter((p) => p.split("/")[0] === c.path.split("/")[0])
+                            .join(" · ") || t("save.conflictDiskEmpty")}
+                        </span>
+                      </p>
+                    ) : null}
+                  </>
                 ) : null}
               </div>
             ))}
