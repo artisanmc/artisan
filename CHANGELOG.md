@@ -12,7 +12,8 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 ### Changed — le brouillon est repris, plus proposé par un bandeau
 
 - Rouvrir un Project **retrouve** le travail non enregistré, comme dans n'importe quel éditeur. Le bandeau « reprendre mon travail / jeter » disparaît : il occupait l'écran en permanence pour dire ce qu'un mot suffit à dire.
-- Ce qui empêche de confondre son brouillon avec l'état du serveur : l'indicateur **« non enregistré »** de la topbar, permanent, et un bouton **Annuler** à côté d'Enregistrer, qui jette le brouillon et repart de l'état du serveur. Le principe (« ne jamais laisser croire qu'on regarde le serveur ») est conservé ; c'est sa présentation qui change.
+- Ce qui empêche de confondre son brouillon avec l'état du serveur, c'est le **bouton Enregistrer lui-même** : actif s'il y a quelque chose à écrire, inactif sinon. À côté, **Annuler** jette le brouillon et repart de l'état du serveur. Le principe (« ne jamais laisser croire qu'on regarde le serveur ») est conservé ; c'est sa présentation qui a fondu — bandeau, puis mention « non enregistré », un bouton mort le dit déjà.
+- La fenêtre d'apaisement du brouillon passe de 800 ms à 200 ms : c'est lui qui répond « y a-t-il du travail ? », donc tout retard s'y traduit par un bouton Enregistrer inactif juste après une frappe.
 - La **base** reste celle du serveur même quand l'arbre vient du brouillon : c'est elle que le compare-and-swap doit présenter, sinon on écraserait sans le savoir ce qui a changé depuis.
 
 ### Fixed — « travail non enregistré » sur un Project qu'on vient d'ouvrir

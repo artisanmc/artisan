@@ -4,6 +4,7 @@ import { ProjectTopBarControls } from "./ProjectTopBarControls";
 import { saveProjectToDisk } from "@/features/project/saveProjectToDisk";
 import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
+import { useProjectDraftStore } from "@/state/projectDraftStore";
 import type { Project, ProjectId } from "@/domain/types";
 
 vi.mock("@/features/project/saveProjectToDisk", async () => {
@@ -52,6 +53,14 @@ describe("ProjectTopBarControls — Enregistrer", () => {
     useAccountStore.setState({
       account: { id: "n1", projects: [live], projectOrder: [live.id] },
     } as never);
+    // Enregistrer ne s'active que s'il y a du travail en cours : c'est le
+    // brouillon qui le dit, donc il faut un brouillon sale pour pouvoir cliquer.
+    useProjectDraftStore.getState().save("p1", {
+      baseline: { "menus/m.yaml": "a\n" },
+      tree: { "menus/m.yaml": "b\n" },
+      initialTree: { "menus/m.yaml": "a\n" },
+      at: 0,
+    });
 
     render(
       <ProjectTopBarControls project={stale} projectId={"p1" as ProjectId} networkId="n1" />,
@@ -61,5 +70,28 @@ describe("ProjectTopBarControls — Enregistrer", () => {
     await waitFor(() => expect(saveProjectToDisk).toHaveBeenCalled());
     const savedProject = vi.mocked(saveProjectToDisk).mock.calls[0]![0];
     expect(savedProject.name).toBe("état après édition");
+  });
+
+  /**
+   * Le bouton porte à lui seul l'état « as-tu du travail en cours ? » : actif
+   * s'il y a quelque chose à écrire, inactif sinon. C'est ce qui a remplacé le
+   * bandeau, puis le petit « non enregistré » à côté — un bouton qui ne fait
+   * rien dit déjà qu'il n'y a rien à faire.
+   */
+  it("est inactif quand rien n'a été modifié depuis le chargement", () => {
+    const p = baseProject("intact");
+    useAccountStore.setState({
+      account: { id: "n1", projects: [p], projectOrder: [p.id] },
+    } as never);
+    const tree = { "menus/m.yaml": "a\n" };
+    useProjectDraftStore.getState().save("p1", {
+      baseline: tree,
+      tree,
+      initialTree: { ...tree },
+      at: 0,
+    });
+
+    render(<ProjectTopBarControls project={p} projectId={"p1" as ProjectId} networkId="n1" />);
+    expect(screen.getByRole("button", { name: /^(Save|Enregistrer)/ })).toBeDisabled();
   });
 });

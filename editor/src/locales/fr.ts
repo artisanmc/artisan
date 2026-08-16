@@ -1626,7 +1626,6 @@ const fr: typeof en = {
       "Ce que tu écris est écrit tel quel, commentaires compris. Passer par l'éditeur visuel régénère le document et le reformate.",
   },
   draft: {
-    unsaved: "non enregistré",
     revert: "Annuler",
     revertTitle: "Jeter les modifications non enregistrées et repartir de l'état du serveur",
   },
