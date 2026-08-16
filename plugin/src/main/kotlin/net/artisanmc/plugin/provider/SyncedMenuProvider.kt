@@ -741,9 +741,19 @@ class SyncedMenuProvider(
                     path to baseHashOf(d)
                 } ?: emptyList()
                 val create = node["create"]?.asBoolean() ?: false
+                // Un renommage porte une INTENTION que l'arbre ne peut pas
+                // reconstituer : sans elle, un fichier disparaît et un autre
+                // apparaît, la corbeille archive une suppression qui n'en est pas
+                // une, et l'historique se retrouve orphelin du nouveau nom.
+                val renames = node["renames"]?.takeIf { it.isArray }?.mapNotNull { r ->
+                    val from = r["from"]?.asText() ?: return@mapNotNull null
+                    val to = r["to"]?.asText() ?: return@mapNotNull null
+                    Triple(from, to, baseHashOf(r))
+                } ?: emptyList()
                 if (!isSafeProjectId(projectId) ||
                     writes.any { !isEditorWritablePath(it.first) } ||
-                    deletes.any { !isEditorWritablePath(it.first) }
+                    deletes.any { !isEditorWritablePath(it.first) } ||
+                    renames.any { !isEditorWritablePath(it.first) || !isEditorWritablePath(it.second) }
                 ) {
                     reply(mapOf("ok" to false, "error" to "invalid_path"))
                     return
@@ -770,7 +780,22 @@ class SyncedMenuProvider(
                             // qui a bougé annule l'écriture entière : un enregistrement
                             // à moitié appliqué laisserait un Project incohérent en
                             // ligne, et l'éditeur ne saurait plus de quel état repartir.
-                            val conflicts = (writes.map { it.first to it.third } + deletes)
+            val renameChecks = renames.flatMap { (from, to, expected) ->
+                                val source = java.io.File(projectDir, from)
+                                val current = source.takeIf { it.isFile }?.readText(Charsets.UTF_8)
+                                val actual = current?.let { BundleHasher.hashContent(it) }
+                                val dest = java.io.File(projectDir, to)
+                                listOfNotNull(
+                                    if (actual == expected) null else mapOf("path" to from, "disk" to current),
+                                    // La destination doit être libre : écraser un fichier
+                                    // existant par un renommage le ferait disparaître sans
+                                    // corbeille ni choix de l'admin.
+                                    if (dest.exists()) {
+                                        mapOf("path" to to, "disk" to dest.takeIf { it.isFile }?.readText(Charsets.UTF_8))
+                                    } else null,
+                                )
+                            }
+                            val conflicts = renameChecks + (writes.map { it.first to it.third } + deletes)
                                 .mapNotNull { (path, expected) ->
                                     val target = java.io.File(projectDir, path)
                                     val current = target.takeIf { it.isFile }?.readText(Charsets.UTF_8)
@@ -800,7 +825,23 @@ class SyncedMenuProvider(
                                 return@execute
                             }
 
-                            // Passe 2 — appliquer.
+                            // Passe 2 — appliquer. Les renommages d'abord : une
+                            // écriture peut viser le nouveau nom (renommer ET
+                            // modifier dans le même enregistrement).
+                            renames.forEach { (from, to, _) ->
+                                val source = java.io.File(projectDir, from)
+                                val dest = java.io.File(projectDir, to)
+                                dest.parentFile?.mkdirs()
+                                java.nio.file.Files.move(source.toPath(), dest.toPath())
+                                // Le passé du Document le suit : sinon renommer
+                                // reviendrait à perdre sa corbeille.
+                                val histFrom = java.io.File(projectDir, ".artisan/history/$from")
+                                if (histFrom.isDirectory) {
+                                    val histTo = java.io.File(projectDir, ".artisan/history/$to")
+                                    histTo.parentFile?.mkdirs()
+                                    if (!histTo.exists()) java.nio.file.Files.move(histFrom.toPath(), histTo.toPath())
+                                }
+                            }
                             writes.forEach { (path, content, _) ->
                                 val target = java.io.File(projectDir, path)
                                 if (target.isFile && target.readText() == content) return@forEach

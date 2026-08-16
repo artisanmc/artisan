@@ -233,6 +233,12 @@ export interface ProjectWriteMessage {
   project_id: string;
   files: { path: string; content: string; base_hash: string | null }[];
   deletes?: { path: string; base_hash: string | null }[];
+  /**
+   * Déplacements déclarés par l'éditeur. L'arbre seul ne distingue pas un
+   * renommage d'un « supprimer + créer » — l'éditeur, lui, le sait, et le dire
+   * préserve la corbeille et l'historique du fichier.
+   */
+  renames?: { from: string; to: string; base_hash: string }[];
   /** Créer le dossier du Project s'il n'existe pas (création / import). Sans ce
    *  drapeau un id inconnu reste une erreur, plutôt qu'un dossier fantôme. */
   create?: boolean;

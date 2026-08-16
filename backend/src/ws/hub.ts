@@ -354,6 +354,7 @@ export function requestProjectWrite(
     projectId: string;
     files: { path: string; content: string; base_hash: string | null }[];
     deletes?: { path: string; base_hash: string | null }[];
+    renames?: { from: string; to: string; base_hash: string }[];
     create?: boolean;
   },
   timeoutMs: number = CONFIG_WRITE_TIMEOUT_MS,
@@ -367,6 +368,7 @@ export function requestProjectWrite(
     project_id: req.projectId,
     files: req.files,
     deletes: req.deletes ?? [],
+    renames: req.renames ?? [],
     create: req.create ?? false,
   };
   return new Promise((resolve) => {

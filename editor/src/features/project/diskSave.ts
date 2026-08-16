@@ -75,3 +75,50 @@ export function toRelative(
   }
   return out;
 }
+
+/**
+ * Transforme un « supprimer l'ancien + créer le nouveau » en **déplacement**,
+ * quand l'éditeur a déclaré un renommage.
+ *
+ * L'arbre seul ne peut pas distinguer les deux, mais l'éditeur, lui, sait. Sans
+ * cette traduction, renommer un Document archive une suppression qui n'en est
+ * pas une et laisse son historique orphelin du nouveau nom.
+ *
+ * Le `base_hash` du déplacement porte sur l'ANCIEN chemin — c'est lui que le
+ * serveur doit retrouver intact. Et si le contenu a aussi changé, l'écriture qui
+ * suit se base sur ce même contenu, puisque le fichier déplacé le porte encore.
+ */
+export async function applyRenames(
+  plan: WritePlan,
+  renames: { from: string; to: string }[],
+  baseline: Record<string, string>,
+): Promise<WritePlan & { renames: { from: string; to: string; base_hash: string }[] }> {
+  const applied: { from: string; to: string; base_hash: string }[] = [];
+  let files = plan.files;
+  let deletes = plan.deletes;
+
+  for (const { from, to } of renames) {
+    const was = baseline[from];
+    // Un renommage dont la source n'est pas dans la base ne décrit rien que le
+    // serveur puisse vérifier : on le laisse retomber en création normale.
+    if (was === undefined) continue;
+    applied.push({ from, to, base_hash: await hashContent(was) });
+    // L'ancien chemin ne se supprime plus : il se déplace.
+    deletes = deletes.filter((d) => d.path !== from);
+    files = files.map((f) =>
+      // Après le déplacement, la destination porte l'ancien contenu : c'est LUI
+      // que le compare-and-swap doit attendre, pas « aucun fichier ».
+      f.path === to ? { ...f, base_hash: applied[applied.length - 1]!.base_hash } : f,
+    );
+    // Contenu inchangé : le déplacement suffit, rien à réécrire.
+    const target = files.find((f) => f.path === to);
+    if (target && target.content === was) files = files.filter((f) => f.path !== to);
+  }
+
+  return {
+    files,
+    deletes,
+    renames: applied,
+    empty: files.length === 0 && deletes.length === 0 && applied.length === 0,
+  };
+}
