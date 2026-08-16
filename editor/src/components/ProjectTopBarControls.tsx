@@ -499,21 +499,25 @@ function SaveControls({
         <button
           type="button"
           onClick={runSave}
-          disabled={saving || !canSave}
-          title={canSave ? t("save.saveTitle") : t("save.cannotSaveTitle")}
+          disabled={saving || !canSave || !dirty}
+          title={
+            !canSave
+              ? t("save.cannotSaveTitle")
+              : dirty
+                ? t("save.saveTitle")
+                : t("save.nothingToSave")
+          }
           className="btn btn-sm btn-primary"
         >
           {saving ? t("save.saving") : t("save.save")}
         </button>
         {dirty ? (
           <>
-            <span className="shrink-0 text-[11px] text-[var(--text-faint)]">
-              •&nbsp;{t("draft.unsaved")}
-            </span>
             {/* Le retour en arrière : jeter le brouillon et repartir de ce que
-                le serveur exécute. C'est ce bouton, avec l'indicateur ci-dessus,
-                qui remplace le bandeau — il n'y a plus d'écran perdu pour dire
-                ce qu'un mot et une sortie de secours suffisent à dire. */}
+                le serveur exécute. Avec l'état du bouton Enregistrer — actif
+                seulement s'il y a quelque chose à enregistrer — c'est tout ce
+                qui reste du bandeau : le bouton dit déjà qu'il y a du travail
+                en cours, un mot de plus à côté ne l'aurait pas dit mieux. */}
             <button
               type="button"
               className="btn btn-sm btn-ghost shrink-0"

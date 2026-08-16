@@ -151,10 +151,10 @@ Deux constats ont débloqué la décision :
 >   *Révisé le 2026-08-16* : il était d'abord **proposé** via un bandeau, au nom
 >   de « jamais en silence ». Le principe tient, mais un bandeau pleine largeur
 >   le payait trop cher — il occupait l'écran en permanence pour dire ce qu'un
->   mot suffit à dire. Ce qui empêche de confondre son brouillon avec l'état du
->   serveur, c'est désormais l'indicateur **« non enregistré »** de la topbar,
->   permanent, et le bouton **Annuler** à côté d'Enregistrer, qui jette le
->   brouillon et repart de ce que le serveur exécute ;
+>   bouton suffit à dire. Ce qui empêche de confondre son brouillon avec l'état
+>   du serveur, c'est désormais **Enregistrer** lui-même : actif s'il y a
+>   quelque chose à écrire, inactif sinon — et le bouton **Annuler** à côté, qui
+>   jette le brouillon et repart de ce que le serveur exécute ;
 > - **serveur injoignable** — le brouillon s'ouvre en édition, badgé avec son
 >   âge, Enregistrer hors de portée ;
 > - **enregistrement** — inchangé : le CAS par fichier fait le reste, et le
