@@ -943,6 +943,7 @@ userNetworksRouter.put(
 		const body = (await c.req.json().catch(() => null)) as {
 			files?: unknown;
 			deletes?: unknown;
+			renames?: unknown;
 			create?: unknown;
 		} | null;
 		const files = Array.isArray(body?.files) ? body.files : null;
@@ -969,6 +970,11 @@ userNetworksRouter.put(
 			projectId,
 			files: files as { path: string; content: string; base_hash: string | null }[],
 			deletes: deletes as { path: string; base_hash: string | null }[],
+			renames: (Array.isArray(body?.renames) ? body.renames : []) as {
+				from: string;
+				to: string;
+				base_hash: string;
+			}[],
 			create: body?.create === true,
 		});
 		if (outcome.kind === "offline") return c.json({ error: "server_offline" }, 503);

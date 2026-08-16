@@ -11,6 +11,12 @@
  * Il reste par-appareil, par-utilisateur, et meurt avec le cache. Ce n'est plus
  * une régression pour autant : sans lui, tout est perdu au rechargement de page.
  */
+/** Un renommage déclaré par l'éditeur, en chemins relatifs. */
+export interface PendingRename {
+  from: string;
+  to: string;
+}
+
 export interface ProjectDraft {
   /** L'arbre tel que le serveur l'avait chargé, rel-keyed. */
   baseline: Record<string, string>;
@@ -18,6 +24,15 @@ export interface ProjectDraft {
   tree: Record<string, string>;
   /** Millis de la prise de la base : l'âge du brouillon, à afficher. */
   at: number;
+  /**
+   * Renommages déclarés depuis le dernier enregistrement.
+   *
+   * Persistés avec le brouillon à dessein : l'arbre porte déjà le nouveau nom,
+   * donc perdre cette liste à un rechargement ferait retomber le renommage en
+   * « suppression + création » — et avec, la corbeille et l'historique du
+   * fichier.
+   */
+  renames?: PendingRename[];
 }
 
 /**
