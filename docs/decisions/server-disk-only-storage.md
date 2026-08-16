@@ -143,10 +143,18 @@ Deux constats ont débloqué la décision :
 >
 > Le navigateur garde donc, par Project, la **base** et l'**arbre courant**
 > (`projectDraftStore`, ~43 Ko pour le plus gros project mesuré) :
-> - **serveur joignable** — sa version reste la source. Un brouillon avec du
->   travail non enregistré est **proposé**, jamais appliqué en silence : l'éditeur
->   montre ce que le serveur exécute, et l'afficher sans le dire recréerait la
->   confusion que la sémantique de reload a supprimée ;
+> - **serveur joignable** — le brouillon est **repris** : on retrouve son travail
+>   en rouvrant, comme dans n'importe quel éditeur. La base reste celle du
+>   serveur (c'est elle que le compare-and-swap présente), seul l'arbre affiché
+>   vient du brouillon.
+>
+>   *Révisé le 2026-08-16* : il était d'abord **proposé** via un bandeau, au nom
+>   de « jamais en silence ». Le principe tient, mais un bandeau pleine largeur
+>   le payait trop cher — il occupait l'écran en permanence pour dire ce qu'un
+>   mot suffit à dire. Ce qui empêche de confondre son brouillon avec l'état du
+>   serveur, c'est désormais l'indicateur **« non enregistré »** de la topbar,
+>   permanent, et le bouton **Annuler** à côté d'Enregistrer, qui jette le
+>   brouillon et repart de ce que le serveur exécute ;
 > - **serveur injoignable** — le brouillon s'ouvre en édition, badgé avec son
 >   âge, Enregistrer hors de portée ;
 > - **enregistrement** — inchangé : le CAS par fichier fait le reste, et le

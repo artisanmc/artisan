@@ -1611,10 +1611,9 @@ export default {
       "What you write is written as-is, comments included. Going through the visual editor regenerates the document and reformats it.",
   },
   draft: {
-    pending: "You have unsaved work on this project, started {{hours}}h ago. The editor is showing the server's state.",
-    restore: "Resume my work",
-    discard: "Discard",
     unsaved: "unsaved",
+    revert: "Revert",
+    revertTitle: "Discard unsaved changes and start again from the server state",
   },
   save: {
     save: "Save",

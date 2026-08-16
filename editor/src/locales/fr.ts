@@ -1626,10 +1626,9 @@ const fr: typeof en = {
       "Ce que tu écris est écrit tel quel, commentaires compris. Passer par l'éditeur visuel régénère le document et le reformate.",
   },
   draft: {
-    pending: "Tu as du travail non enregistré sur ce project, commencé il y a {{hours}} h. L'éditeur affiche l'état du serveur.",
-    restore: "Reprendre mon travail",
-    discard: "Jeter",
     unsaved: "non enregistré",
+    revert: "Annuler",
+    revertTitle: "Jeter les modifications non enregistrées et repartir de l'état du serveur",
   },
   save: {
     save: "Enregistrer",

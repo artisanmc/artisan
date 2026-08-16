@@ -6,9 +6,8 @@ import { injectDeclaredModels, normalizeDataSources } from "@/domain/dataModels"
 import { fetchServerDeclaredModels } from "@/lib/api/dataSources";
 import { projectFromFiles } from "@/schema/projectFromFiles";
 import { readProjectFiles, type FailedDocument } from "@/lib/api/projectFiles";
-import { isDirty, type ProjectDraft } from "@/features/project/draft";
+import { isDirty } from "@/features/project/draft";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
-import { adoptDiskIntoProject } from "@/features/project/saveProjectToDisk";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import type { Account, Project, ProjectId } from "@/domain/types";
 
@@ -23,14 +22,7 @@ export interface ProjectLoadResult {
    * charger. Ils s'éditent normalement (leur texte est là) mais ne tournent pas.
    */
   failed: FailedDocument[];
-  /**
-   * Un brouillon local contient du travail non enregistré, et l'éditeur affiche
-   * l'état du **serveur**. À proposer — jamais à appliquer en silence.
-   */
-  pendingDraft: ProjectDraft | null;
-  /** Remplace l'état affiché par le brouillon. */
-  restoreDraft: () => void;
-  /** Le Project affiché vient du brouillon, faute de serveur joignable. */
+  /** L'état affiché vient d'un brouillon local, pas du serveur. */
   fromDraft: boolean;
 }
 
@@ -91,14 +83,12 @@ export function useProjectLoader(projectId: string, serverRef?: string | null): 
   const [error, setError] = useState<string | null>(null);
   const [offline, setOffline] = useState(false);
   const [failed, setFailed] = useState<FailedDocument[]>([]);
-  const [pendingDraft, setPendingDraft] = useState<ProjectDraft | null>(null);
   const [fromDraft, setFromDraft] = useState(false);
 
   useEffect(() => {
     setError(null);
     setOffline(false);
     setFailed([]);
-    setPendingDraft(null);
     setFromDraft(false);
     if (!user) {
       setError("Not authenticated");
@@ -133,36 +123,27 @@ export function useProjectLoader(projectId: string, serverRef?: string | null): 
           return;
         }
         setFailed(disk.failed);
-        // Un brouillon avec du travail non enregistré ne s'applique JAMAIS en
-        // silence : l'éditeur montre ce que le serveur exécute, et on propose.
-        // L'afficher sans le dire recréerait la confusion que la sémantique de
-        // reload a supprimée.
+        // Un brouillon avec du travail non enregistré est REPRIS : tu retrouves
+        // ton travail en rouvrant, comme dans n'importe quel éditeur. Ce qui
+        // t'évite de le confondre avec l'état du serveur, ce n'est plus un
+        // bandeau mais l'indicateur permanent « non enregistré » de la topbar,
+        // et le bouton Annuler qui y revient d'un clic.
         const draft = useProjectDraftStore.getState().get(res.project.id);
-        if (draft && isDirty(draft.baseline, draft.tree)) setPendingDraft(draft);
-        else if (draft) useProjectDraftStore.getState().clear(res.project.id);
+        const resumable = draft && isDirty(draft.initialTree, draft.tree) ? draft : null;
+        if (draft && !resumable) useProjectDraftStore.getState().clear(res.project.id);
 
         // La base du compare-and-swap : ce que le disque contenait à l'ouverture.
         useProjectBaselineStore.getState().set(res.project.id, disk.files);
 
-        setProject(await buildProject(res, diskId, disk.files));
+        // La base reste celle du SERVEUR : c'est elle que le compare-and-swap
+        // doit présenter, sinon on écraserait sans le savoir ce qui a changé
+        // depuis. Seul l'arbre affiché vient du brouillon.
+        setProject(await buildProject(res, diskId, resumable?.tree ?? disk.files));
         setNetworkId(res.networkId);
+        setFromDraft(resumable !== null);
       })
       .catch((e) => setError((e as Error).message));
   }, [projectId, serverRef, user]);
 
-  const restoreDraft = () => {
-    const draft = pendingDraft;
-    if (!draft || !project) return;
-    // La base reste celle du brouillon : c'est elle que le compare-and-swap doit
-    // présenter au serveur, sinon on écraserait sans le savoir ce qui a changé
-    // depuis que ce travail a commencé.
-    useProjectBaselineStore.getState().set(project.id, draft.baseline);
-    useAccountStore.getState().replaceProject(
-      adoptDiskIntoProject(project, draft.tree, []),
-    );
-    setPendingDraft(null);
-    setFromDraft(true);
-  };
-
-  return { project, networkId, error, offline, failed, pendingDraft, restoreDraft, fromDraft };
+  return { project, networkId, error, offline, failed, fromDraft };
 }
