@@ -91,14 +91,24 @@ export async function writeProjectFiles(
   networkId: string,
   serverId: string,
   diskId: string,
-  plan: { files: PlannedWrite[]; deletes: PlannedDelete[]; create?: boolean },
+  plan: {
+    files: PlannedWrite[];
+    deletes: PlannedDelete[];
+    renames?: { from: string; to: string; base_hash: string }[];
+    create?: boolean;
+  },
 ): Promise<ProjectWriteResult> {
   try {
     const res = await fetch(base(networkId, serverId, diskId), {
       method: "PUT",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ files: plan.files, deletes: plan.deletes, create: plan.create === true }),
+      body: JSON.stringify({
+        files: plan.files,
+        deletes: plan.deletes,
+        renames: plan.renames ?? [],
+        create: plan.create === true,
+      }),
     });
     if (res.status === 409) {
       const body = (await res.json().catch(() => null)) as {

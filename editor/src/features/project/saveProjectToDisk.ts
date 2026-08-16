@@ -5,7 +5,7 @@ import { writeProjectFiles, type ProjectFileConflict, type ProjectFilesError } f
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
 import { projectFromFiles } from "@/schema/projectFromFiles";
-import { planWrite, toRelative } from "./diskSave";
+import { applyRenames, planWrite, toRelative } from "./diskSave";
 
 /** L'arbre rel-keyed que produirait un enregistrement de [project], sans écrire. */
 export function projectTree(project: Project): Record<string, string> {
@@ -75,7 +75,10 @@ export async function saveProjectToDisk(
   // pas encore : c'est une création ou un import, et l'écriture doit le dire.
   const known = store.get(project.id);
   const baseline = known ?? {};
-  const plan = await planWrite(baseline, next);
+  // Les renommages déclarés transforment « supprimer + créer » en déplacement :
+  // seule l'intention de l'éditeur permet de les distinguer.
+  const declared = useProjectDraftStore.getState().pendingRenames[project.id] ?? [];
+  const plan = await applyRenames(await planWrite(baseline, next), declared, baseline);
   // Rien n'a bougé : on s'épargne l'aller-retour, et surtout on n'écrit pas des
   // fichiers identiques (ce qui polluerait la corbeille pour rien).
   if (plan.empty) return { ok: true, wrote: 0 };
@@ -90,5 +93,5 @@ export async function saveProjectToDisk(
   // Le travail est parti sur le serveur : le brouillon n'a plus rien à sauver.
   // Le laisser ferait proposer « reprendre mon travail » sur du déjà-enregistré.
   useProjectDraftStore.getState().clear(project.id);
-  return { ok: true, wrote: plan.files.length + plan.deletes.length };
+  return { ok: true, wrote: plan.files.length + plan.deletes.length + plan.renames.length };
 }

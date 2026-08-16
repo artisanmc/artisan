@@ -95,6 +95,7 @@ import { menuV1ToDomain } from "@/schema/menuV1ToDomain";
 import { current, produce } from "immer";
 import { temporal } from "zundo";
 import { create } from "zustand";
+import { useProjectDraftStore } from "@/state/projectDraftStore";
 
 type MenuRows = 1 | 2 | 3 | 4 | 5 | 6;
 
@@ -1414,6 +1415,13 @@ export const useAccountStore = create<AccountState>()(
         ),
       setDialogId: ({ projectId: pId, oldId, newId }) => {
         if (oldId === newId) return;
+        // Renommer est un DÉPLACEMENT, et seul l'éditeur le sait : l'arbre seul
+        // ne montrerait qu'une disparition et une apparition. Sans cette
+        // intention, la corbeille archive une suppression qui n'en est pas une
+        // et l'historique du fichier devient orphelin de son nouveau nom.
+        useProjectDraftStore
+          .getState()
+          .recordRename(pId, `dialogs/${oldId}.yaml`, `dialogs/${newId}.yaml`);
         if (!newId) throw new Error("dialog id cannot be empty");
         const state = get();
         const project = state.account.projects.find((p) => p.id === pId);
@@ -2412,6 +2420,13 @@ export const useAccountStore = create<AccountState>()(
       },
       setMenuId: ({ projectId: pId, oldId, newId }) => {
         if (oldId === newId) return;
+        // Renommer est un DÉPLACEMENT, et seul l'éditeur le sait : l'arbre seul
+        // ne montrerait qu'une disparition et une apparition. Sans cette
+        // intention, la corbeille archive une suppression qui n'en est pas une
+        // et l'historique du fichier devient orphelin de son nouveau nom.
+        useProjectDraftStore
+          .getState()
+          .recordRename(pId, `menus/${oldId}.yaml`, `menus/${newId}.yaml`);
         if (!newId) throw new Error("menu id cannot be empty");
         set(
           produce((draft: AccountState) => {
@@ -2459,6 +2474,13 @@ export const useAccountStore = create<AccountState>()(
       },
       setCommandId: ({ projectId: pId, oldId, newId }) => {
         if (oldId === newId) return;
+        // Renommer est un DÉPLACEMENT, et seul l'éditeur le sait : l'arbre seul
+        // ne montrerait qu'une disparition et une apparition. Sans cette
+        // intention, la corbeille archive une suppression qui n'en est pas une
+        // et l'historique du fichier devient orphelin de son nouveau nom.
+        useProjectDraftStore
+          .getState()
+          .recordRename(pId, `commands/${oldId}.yaml`, `commands/${newId}.yaml`);
         if (!newId) throw new Error("command id cannot be empty");
         set(
           produce((draft: AccountState) => {

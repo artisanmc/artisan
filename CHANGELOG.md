@@ -9,6 +9,13 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Changed — renommer un Document depuis l'éditeur est un déplacement
+
+- `project_write` accepte `renames: [{from, to, base_hash}]`. L'arbre seul ne distingue pas un renommage d'un « supprimer + créer » : la corbeille archivait donc une suppression qui n'en était pas une, et l'historique du fichier restait orphelin de son nouveau nom. **L'éditeur, lui, sait qu'il a renommé** — il le dit, et le plugin déplace, historique compris.
+- Les trois mutations qui portent l'intention (`setMenuId`, `setCommandId`, `setDialogId`) l'enregistrent. Les renommages sont **chaînés** (a→b puis b→c donne a→c) et **persistés avec le brouillon** : l'arbre porte déjà le nouveau nom, donc perdre l'intention à un rechargement ferait retomber le renommage en suppression+création.
+- Même compare-and-swap que le reste : le `base_hash` porte sur l'**ancien** chemin, et une destination déjà occupée est un conflit — écraser un fichier par un renommage le ferait disparaître sans corbeille ni choix de l'admin. Renommer *et* modifier dans le même enregistrement fonctionne : le déplacement passe d'abord, l'écriture qui suit se base sur le contenu déplacé.
+- **Ce que ça ne règle pas, et ne peut pas régler** : un `mv` fait à la main sur le disque ne laisse aucune trace d'intention. L'éditeur ne peut que constater une disparition et une apparition — d'où l'affichage de `disk_files` dans la modale de conflit, qui rend au moins la situation visible.
+
 ### Fixed — un renommage fait à la main ne peut plus dupliquer un Document en silence
 
 - Pour le compare-and-swap, renommer `a.yaml` en `b.yaml` sur le disque **est** une suppression de `a.yaml`. Le conflit remontait donc « supprimé sur le serveur », et *garder ma version* recréait `a.yaml` — en laissant `b.yaml` : **deux fichiers pour un seul menu**, sans que rien ne le signale.
