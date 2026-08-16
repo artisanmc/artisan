@@ -1629,8 +1629,6 @@ const fr: typeof en = {
     pending: "Tu as du travail non enregistré sur ce project, commencé il y a {{hours}} h. L'éditeur affiche l'état du serveur.",
     restore: "Reprendre mon travail",
     discard: "Jeter",
-    offlineBanner:
-      "Serveur hors ligne — tu édites ton brouillon local, basé sur l'état d'il y a {{hours}} h. Enregistrer sera possible au retour du serveur.",
     unsaved: "non enregistré",
   },
   save: {
