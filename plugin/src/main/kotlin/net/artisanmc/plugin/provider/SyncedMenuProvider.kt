@@ -224,7 +224,22 @@ class SyncedMenuProvider(
 
     private fun rpm(): ResourcePackManager? = resourcePackManager ?: resourcePackManagerRef
 
+    /**
+     * Enregistre une racine d'Add-on et reprend l'instantané.
+     *
+     * Passe aussi par le listener ci-dessous quand l'Add-on appelle
+     * `api.projectRoots.register(...)` lui-même — c'est le chemin réel.
+     */
+    fun registerProjectRoot(projectId: String, dir: File) = roots.register(projectId, dir)
+
     override fun load() {
+        // Un Add-on enregistre sa racine à SON activation, après la nôtre :
+        // l'instantané pris ici ne peut pas la contenir. Sans ce réabonnement,
+        // son Project répondrait `unknown_project` jusqu'au prochain reload.
+        roots.onRegister = { _, _ ->
+            reloadFromDisk()
+            onReload?.invoke()
+        }
         reloadFromDisk()
         if (serverKey.isNotEmpty()) {
             val mcVersion = try {
