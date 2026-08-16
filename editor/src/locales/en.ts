@@ -1614,8 +1614,6 @@ export default {
     pending: "You have unsaved work on this project, started {{hours}}h ago. The editor is showing the server's state.",
     restore: "Resume my work",
     discard: "Discard",
-    offlineBanner:
-      "Server offline — you are editing your local draft, based on the state from {{hours}}h ago. Saving becomes possible when the server is back.",
     unsaved: "unsaved",
   },
   save: {
