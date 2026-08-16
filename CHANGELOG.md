@@ -9,6 +9,12 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Changed — plus de bandeau « serveur hors ligne » en pleine largeur
+
+- Le bandeau répétait une information **déjà présente** : le badge serveur de la topbar affiche « Hors ligne » avec un point rouge. Il coûtait une bande d'écran permanente pour ça.
+- Il promettait en plus quelque chose d'inexact — « Enregistrer sera possible au retour du serveur » — alors que le bouton n'est pas désactivé : il tente, échoue, et le dit clairement au moment du geste (« Serveur hors ligne — l'enregistrement est impossible »). Un retour à l'instant de l'action vaut mieux qu'une barre permanente.
+- Le principe qui l'avait motivé tient toujours : un brouillon ne s'affiche jamais en silence. Il est porté par le badge de la topbar et par le bandeau **actionnable** « reprendre mon travail / jeter », qui lui disparaît dès qu'on a choisi.
+
 ### Fixed — le Project d'un Add-on répondait `unknown_project`
 
 - **Régression de la phase ③.** L'instantané est pris pendant le `load()` d'Artisan ; or un Add-on n'enregistre sa racine qu'à **sa propre** activation — 9 secondes plus tard en conditions réelles (Artisan 12:57:47, Boutique 12:57:56). Le Project de l'Add-on n'était donc jamais dans l'instantané : `project_list` ne le listait pas et `project_read` répondait `unknown_project`, définitivement.

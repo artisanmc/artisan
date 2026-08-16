@@ -474,11 +474,9 @@ export function ProjectCanvasPage() {
       )}
 
       {/* Global search palette — fixed overlay, inert when searchOpen=false. */}
-      {fromDraft ? (
-        <div className="shrink-0 border-b border-[var(--border)] px-4 py-2 text-[12px] text-[var(--warning-fg,var(--text-mut))]">
-          {t("draft.offlineBanner", { hours: draftAge(pendingDraft?.at ?? Date.now()) })}
-        </div>
-      ) : null}
+      {/* Pas de bandeau « hors ligne » : le badge serveur de la topbar l'affiche
+          déjà en rouge, et tenter d'enregistrer le dit explicitement au moment du
+          geste. Une barre pleine largeur répétait une information déjà là. */}
       {pendingDraft ? (
         // Proposé, jamais appliqué en silence : l'éditeur montre l'état du
         // serveur, et l'admin décide de reprendre son travail ou de le jeter.
