@@ -126,8 +126,8 @@ export function useProjectLoader(projectId: string, serverRef?: string | null): 
         // Un brouillon avec du travail non enregistré est REPRIS : tu retrouves
         // ton travail en rouvrant, comme dans n'importe quel éditeur. Ce qui
         // t'évite de le confondre avec l'état du serveur, ce n'est plus un
-        // bandeau mais l'indicateur permanent « non enregistré » de la topbar,
-        // et le bouton Annuler qui y revient d'un clic.
+        // bandeau mais l'état de la topbar : Enregistrer n'est actif que s'il y
+        // a quelque chose à enregistrer, et Annuler y revient d'un clic.
         const draft = useProjectDraftStore.getState().get(res.project.id);
         const resumable = draft && isDirty(draft.initialTree, draft.tree) ? draft : null;
         if (draft && !resumable) useProjectDraftStore.getState().clear(res.project.id);

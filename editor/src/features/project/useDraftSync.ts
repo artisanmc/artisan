@@ -4,8 +4,14 @@ import { useAccountStore } from "@/state/accountStore";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
 
-/** Fenêtre d'apaisement : on ne resérialise pas l'arbre à chaque frappe. */
-const DEBOUNCE_MS = 800;
+/**
+ * Fenêtre d'apaisement : on ne resérialise pas l'arbre à chaque frappe.
+ *
+ * Courte à dessein depuis que le bouton Enregistrer se désactive quand il n'y a
+ * rien à enregistrer : c'est ce brouillon qui répond « y a-t-il du travail ? »,
+ * donc tout retard ici est un bouton mort juste après une frappe.
+ */
+const DEBOUNCE_MS = 200;
 
 /**
  * Tient le brouillon du navigateur à jour à partir de l'état d'édition.

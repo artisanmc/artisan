@@ -1611,7 +1611,6 @@ export default {
       "What you write is written as-is, comments included. Going through the visual editor regenerates the document and reformats it.",
   },
   draft: {
-    unsaved: "unsaved",
     revert: "Revert",
     revertTitle: "Discard unsaved changes and start again from the server state",
   },
