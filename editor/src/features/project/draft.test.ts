@@ -39,14 +39,21 @@ describe("isDirty", () => {
 });
 
 describe("draftAge", () => {
-  it("rend l'âge en heures depuis la prise de la base", () => {
-    const now = new Date("2026-08-15T12:00:00Z").getTime();
-    const at = new Date("2026-08-15T09:00:00Z").getTime();
-    expect(draftAge(at, now)).toBe(3);
+  const now = new Date("2026-08-15T12:00:00Z").getTime();
+
+  it("rend les heures pleines au-delà d'une heure", () => {
+    expect(draftAge(now - 3 * 3_600_000, now)).toEqual({ unit: "hours", value: 3 });
   });
 
-  it("arrondit vers le bas — un brouillon de 59 minutes a zéro heure", () => {
-    const now = new Date("2026-08-15T12:00:00Z").getTime();
-    expect(draftAge(now - 59 * 60_000, now)).toBe(0);
+  it("rend les minutes en deçà — « il y a 0 h » ne veut rien dire", () => {
+    expect(draftAge(now - 12 * 60_000, now)).toEqual({ unit: "minutes", value: 12 });
+  });
+
+  it("un brouillon tout juste pris se dit « à l'instant », pas « 0 minute »", () => {
+    expect(draftAge(now - 20_000, now)).toEqual({ unit: "now", value: 0 });
+  });
+
+  it("les jours au-delà de 48 h : « il y a 73 h » ne se lit pas", () => {
+    expect(draftAge(now - 73 * 3_600_000, now)).toEqual({ unit: "days", value: 3 });
   });
 });

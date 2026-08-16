@@ -35,12 +35,17 @@ export function useDraftSync(): void {
           // réconcilier. On attend la première lecture.
           if (!baseline) continue;
           const previous = drafts.get(project.id);
+          const sameLoad = previous?.baseline === baseline;
+          const tree = projectTree(project);
           drafts.save(project.id, {
             baseline,
-            tree: projectTree(project),
+            tree,
+            // Figé au premier passage suivant un chargement : c'est la référence
+            // de « as-tu modifié quelque chose ? ».
+            initialTree: sameLoad ? (previous?.initialTree ?? tree) : tree,
             // L'âge du brouillon est celui de sa BASE, pas de la dernière frappe :
             // c'est la péremption vis-à-vis du serveur qu'on affiche.
-            at: previous?.baseline === baseline ? previous.at : Date.now(),
+            at: sameLoad ? previous.at : Date.now(),
           });
         }
       }, DEBOUNCE_MS);
