@@ -9,6 +9,12 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Fixed — le Project d'un Add-on répondait `unknown_project`
+
+- **Régression de la phase ③.** L'instantané est pris pendant le `load()` d'Artisan ; or un Add-on n'enregistre sa racine qu'à **sa propre** activation — 9 secondes plus tard en conditions réelles (Artisan 12:57:47, Boutique 12:57:56). Le Project de l'Add-on n'était donc jamais dans l'instantané : `project_list` ne le listait pas et `project_read` répondait `unknown_project`, définitivement.
+- Avant l'instantané, `project_read` résolvait `roots.dirFor()` en direct et une racine tardive fonctionnait. J'avais réintroduit une dépendance à l'ordre de chargement sans la voir — c'est exactement ce que `recheckLocalChanges`, retiré en P3b, couvrait pour l'ancien mécanisme.
+- `ProjectRoots` notifie désormais l'enregistrement d'une racine, et le provider reprend son instantané. Coût assumé : un rechargement par Add-on au démarrage — quelques dizaines de millisecondes sur des arbres de cette taille.
+
 ### Changed — renommer un Document depuis l'éditeur est un déplacement
 
 - `project_write` accepte `renames: [{from, to, base_hash}]`. L'arbre seul ne distingue pas un renommage d'un « supprimer + créer » : la corbeille archivait donc une suppression qui n'en était pas une, et l'historique du fichier restait orphelin de son nouveau nom. **L'éditeur, lui, sait qu'il a renommé** — il le dit, et le plugin déplace, historique compris.

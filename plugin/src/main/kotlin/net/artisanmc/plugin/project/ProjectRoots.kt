@@ -23,6 +23,16 @@ class ProjectRoots(
     /** projectId -> project dir, for Add-on-owned projects registered at onEnable. */
     private val registered = ConcurrentHashMap<String, File>()
 
+    /**
+     * Notifié à chaque racine enregistrée.
+     *
+     * Un Add-on s'active APRÈS le core — 9 s plus tard en conditions réelles — et
+     * n'enregistre sa racine qu'à ce moment. Le lecteur du core doit donc pouvoir
+     * en tenir compte : sans ça, tout ce qui est capturé au chargement (dont
+     * l'instantané servi à l'éditeur) ignore les projects d'Add-on pour de bon.
+     */
+    @Volatile var onRegister: ((String, File) -> Unit)? = null
+
     override fun register(projectId: String, dir: File) {
         // A core-root directory of the same id is now shadowed — invisible to
         // read, hash, sync and the scanner. Silent shadowing is a trap: the copy
@@ -39,6 +49,7 @@ class ProjectRoots(
             )
         }
         registered[projectId] = dir
+        onRegister?.invoke(projectId, dir)
     }
 
     /** The project dir for [projectId]: a registered Add-on root, else `<coreRoot>/<projectId>`. */
