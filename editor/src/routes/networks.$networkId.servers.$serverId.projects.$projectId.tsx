@@ -30,8 +30,6 @@ import { STATE_DROP_PREFIX } from "@/features/flow/FlowCanvas";
 import { PatternsGallery } from "@/features/help/PatternsGallery";
 import { ProjectPanel } from "@/features/project/ProjectPanel";
 import { useProjectLoader } from "@/features/project/useProjectLoader";
-import { draftAge } from "@/features/project/draft";
-import { useProjectDraftStore } from "@/state/projectDraftStore";
 import { useWorkspaceTabShortcuts } from "@/features/project/useWorkspaceTabShortcuts";
 import { SearchPalette } from "@/features/search/SearchPalette";
 import { useGlobalSearchShortcut } from "@/features/search/useGlobalSearchShortcut";
@@ -87,7 +85,7 @@ export function ProjectCanvasPage() {
   // L'URL peut porter le slug du project : le serveur, déjà dans l'URL, en est
   // la portée (un slug n'est unique que par serveur). La réponse donne l'id
   // réel, seul utilisé en aval — store, sélections, sauvegardes.
-  const { project: userProject, offline, error: loadError, failed, pendingDraft, restoreDraft, fromDraft } =
+  const { project: userProject, offline, error: loadError, failed, fromDraft } =
     useProjectLoader(projectId, serverId);
   const project = userProject;
   const pId = (project?.id ?? projectId) as ProjectId;
@@ -477,23 +475,6 @@ export function ProjectCanvasPage() {
       {/* Pas de bandeau « hors ligne » : le badge serveur de la topbar l'affiche
           déjà en rouge, et tenter d'enregistrer le dit explicitement au moment du
           geste. Une barre pleine largeur répétait une information déjà là. */}
-      {pendingDraft ? (
-        // Proposé, jamais appliqué en silence : l'éditeur montre l'état du
-        // serveur, et l'admin décide de reprendre son travail ou de le jeter.
-        <div className="flex shrink-0 items-center gap-3 border-b border-[var(--border)] px-4 py-2 text-[12px] text-[var(--text-mut)]">
-          <span>{t("draft.pending", { hours: draftAge(pendingDraft.at) })}</span>
-          <button type="button" className="btn btn-sm" onClick={restoreDraft}>
-            {t("draft.restore")}
-          </button>
-          <button
-            type="button"
-            className="btn btn-sm btn-ghost"
-            onClick={() => useProjectDraftStore.getState().clear(pId)}
-          >
-            {t("draft.discard")}
-          </button>
-        </div>
-      ) : null}
       {failed.length > 0 ? (
         // Ces Documents existent et s'éditent, mais le serveur ne les exécute
         // pas. Sans ce bandeau ils disparaissaient simplement de la liste, des

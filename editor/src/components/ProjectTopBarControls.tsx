@@ -428,7 +428,7 @@ function SaveControls({
   // CHAQUE rendu de la topbar. Le brouillon a 800 ms de retard : c'est un
   // indicateur, pas un verrou.
   const draft = useProjectDraftStore((s) => (project ? s.drafts[project.id] : undefined));
-  const dirty = draft ? isDirty(draft.baseline, draft.tree) : false;
+  const dirty = draft ? isDirty(draft.initialTree, draft.tree) : false;
   const canSave = Boolean(user && networkId && serverId && project);
 
   /**
@@ -506,12 +506,27 @@ function SaveControls({
           {saving ? t("save.saving") : t("save.save")}
         </button>
         {dirty ? (
-          <span
-            className="shrink-0 text-[11px] text-[var(--text-faint)]"
-            title={t("draft.unsaved")}
-          >
-            •&nbsp;{t("draft.unsaved")}
-          </span>
+          <>
+            <span className="shrink-0 text-[11px] text-[var(--text-faint)]">
+              •&nbsp;{t("draft.unsaved")}
+            </span>
+            {/* Le retour en arrière : jeter le brouillon et repartir de ce que
+                le serveur exécute. C'est ce bouton, avec l'indicateur ci-dessus,
+                qui remplace le bandeau — il n'y a plus d'écran perdu pour dire
+                ce qu'un mot et une sortie de secours suffisent à dire. */}
+            <button
+              type="button"
+              className="btn btn-sm btn-ghost shrink-0"
+              title={t("draft.revertTitle")}
+              onClick={() => {
+                if (!project) return;
+                useProjectDraftStore.getState().clear(project.id);
+                window.location.reload();
+              }}
+            >
+              {t("draft.revert")}
+            </button>
+          </>
         ) : null}
       </div>
 

@@ -9,6 +9,17 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Changed — le brouillon est repris, plus proposé par un bandeau
+
+- Rouvrir un Project **retrouve** le travail non enregistré, comme dans n'importe quel éditeur. Le bandeau « reprendre mon travail / jeter » disparaît : il occupait l'écran en permanence pour dire ce qu'un mot suffit à dire.
+- Ce qui empêche de confondre son brouillon avec l'état du serveur : l'indicateur **« non enregistré »** de la topbar, permanent, et un bouton **Annuler** à côté d'Enregistrer, qui jette le brouillon et repart de l'état du serveur. Le principe (« ne jamais laisser croire qu'on regarde le serveur ») est conservé ; c'est sa présentation qui change.
+- La **base** reste celle du serveur même quand l'arbre vient du brouillon : c'est elle que le compare-and-swap doit présenter, sinon on écraserait sans le savoir ce qui a changé depuis.
+
+### Fixed — « travail non enregistré » sur un Project qu'on vient d'ouvrir
+
+- `isDirty` comparait l'arbre courant aux **octets du serveur**. Or ouvrir un Project applique des transformations — injection des models déclarés, abandon d'une source legacy, mise en forme canonique d'un fichier écrit à la main — qui font légitimement différer les deux **sans que personne n'ait rien touché**. Le brouillon garde désormais l'arbre **tel qu'il était juste après le chargement**, et c'est à lui qu'on compare : « as-tu modifié quelque chose ? » et non « le disque est-il canonique ? ».
+- L'âge d'un brouillon s'affichait en heures pleines, d'où « basé sur l'état d'il y a 0 h » pour dix minutes — une phrase qui ne veut rien dire et donne l'impression d'un compteur cassé. Il se dit maintenant en minutes, heures ou jours selon l'échelle, et « à l'instant » en deçà d'une minute.
+
 ### Changed — plus de bandeau « serveur hors ligne » en pleine largeur
 
 - Le bandeau répétait une information **déjà présente** : le badge serveur de la topbar affiche « Hors ligne » avec un point rouge. Il coûtait une bande d'écran permanente pour ça.
