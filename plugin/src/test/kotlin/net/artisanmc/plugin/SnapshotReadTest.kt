@@ -78,6 +78,23 @@ class SnapshotReadTest {
     }
 
     @Test
+    fun `une racine enregistree par un Add-on APRES le chargement devient lisible`() {
+        val h = Harness()
+        h.provider.load()
+
+        // Un Add-on s'active APRÈS le core — 9 s plus tard en conditions réelles —
+        // et enregistre alors sa racine (ADR `addon-owned-project-roots`).
+        // L'instantané pris au chargement d'Artisan ne peut pas la contenir :
+        // sans rafraîchissement, son Project répond `unknown_project` à jamais.
+        val addonRoot = File(h.root, "../boutique_editor").also { it.mkdirs() }
+        File(addonRoot, "menus/m.yaml").also { it.parentFile.mkdirs() }
+            .writeText("schema: menu/v1\nsize: 27\n")
+        h.provider.registerProjectRoot("boutique_shop", addonRoot)
+
+        assertEquals("schema: menu/v1\nsize: 27\n", h.read("boutique_shop")["menus/m.yaml"])
+    }
+
+    @Test
     fun `l'instantane garde les octets exacts, commentaires compris`() {
         val h = Harness()
         val p = h.project("boutique")
