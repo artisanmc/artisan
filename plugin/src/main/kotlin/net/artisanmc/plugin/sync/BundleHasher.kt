@@ -45,6 +45,13 @@ object BundleHasher {
     fun hashContent(content: String): String = sha256(content)
 
     /**
+     * Même jeton, pour un contenu **binaire** (ADR `assets-on-server-disk`).
+     * SHA-256 des octets bruts : passer par une String les corromprait.
+     */
+    fun hashBytes(bytes: ByteArray): String =
+        MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
+
+    /**
      * Un premier segment commençant par `.artisan` est une métadonnée (état
      * éditeur, corbeille) : hors hash, et invisible au scan de contenu.
      */
