@@ -332,4 +332,33 @@ class MenuTitleParserTest {
         val ta = MenuTitleParser.parse(src).single() as MenuTitleLayer.Textarea
         assertEquals(8, ta.size)
     }
+
+    /**
+     * Refs d'assets par NOM (ADR `assets-on-server-disk`, décision 2).
+     *
+     * `asset: icone_diamant` remplacera `asset_id: ast_9f3c1a` : sur un disque
+     * qu'un humain doit pouvoir lire, un id opaque est une énigme. La lecture
+     * tolérante arrive AVANT que quoi que ce soit n'écrive la forme nouvelle —
+     * la prod doit savoir lire l'après avant d'y être.
+     */
+    @Test
+    fun `un layer accepte la ref par nom comme l'id opaque`() {
+        val byName = MenuTitleParser.parse(
+            listOf(
+                mapOf("kind" to "background", "asset" to "fond_boutique"),
+                mapOf("kind" to "glyph", "asset" to "icone_diamant", "x" to 4, "y" to 6),
+                mapOf("kind" to "text", "value" to "Boutique", "font" to "pixelmix"),
+            )
+        )
+        assertEquals("fond_boutique", (byName[0] as MenuTitleLayer.Background).assetId)
+        assertEquals("icone_diamant", (byName[1] as MenuTitleLayer.Glyph).assetId)
+        assertEquals("pixelmix", (byName[2] as MenuTitleLayer.Text).fontAssetId)
+
+        // L'ancienne forme continue d'être lue : la descente n'a pas encore eu
+        // lieu, et un Project non migré doit rester ouvrable.
+        val byId = MenuTitleParser.parse(
+            listOf(mapOf("kind" to "background", "asset_id" to "ast_9f3c1a"))
+        )
+        assertEquals("ast_9f3c1a", (byId[0] as MenuTitleLayer.Background).assetId)
+    }
 }

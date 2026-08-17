@@ -65,13 +65,24 @@ object MenuTitleParser {
         else -> emptyList()
     }
 
+    /**
+     * Ref d'asset : `asset: <nom>` d'abord, `asset_id: <id opaque>` ensuite.
+     *
+     * Le nom de fichier devient l'identité d'un asset (ADR
+     * `assets-on-server-disk`) — sur un disque qu'un humain doit pouvoir lire,
+     * `ast_9f3c1a` est une énigme. L'ancienne forme reste lue : un Project que
+     * la descente n'a pas encore touché doit rester ouvrable.
+     */
+    private fun assetRef(m: Map<String, Any?>, legacyKey: String, key: String): String? =
+        m[key] as? String ?: m[legacyKey] as? String
+
     private fun parseLayer(m: Map<String, Any?>): MenuTitleLayer? {
         return when (m["kind"]) {
             "background" -> MenuTitleLayer.Background(
-                assetId = m["asset_id"] as? String ?: return null,
+                assetId = assetRef(m, "asset_id", "asset") ?: return null,
             )
             "glyph" -> MenuTitleLayer.Glyph(
-                assetId = m["asset_id"] as? String ?: return null,
+                assetId = assetRef(m, "asset_id", "asset") ?: return null,
                 x = (m["x"] as? Number)?.toInt() ?: 0,
                 y = (m["y"] as? Number)?.toInt() ?: 0,
             )
@@ -79,7 +90,7 @@ object MenuTitleParser {
                 value = parseLText(m["value"]),
                 x = (m["x"] as? Number)?.toInt() ?: 0,
                 y = (m["y"] as? Number)?.toInt() ?: 0,
-                fontAssetId = m["font_asset_id"] as? String,
+                fontAssetId = assetRef(m, "font_asset_id", "font"),
                 color = m["color"] as? String,
                 size = parseSize(m["size"]),
             )
@@ -90,7 +101,7 @@ object MenuTitleParser {
                 width = ((m["width"] as? Number)?.toInt() ?: 168).coerceIn(8, 256),
                 lineHeight = ((m["line_height"] as? Number)?.toInt() ?: 10).coerceIn(1, 32),
                 alignment = parseAlignment(m["alignment"] as? String),
-                fontAssetId = m["font_asset_id"] as? String,
+                fontAssetId = assetRef(m, "font_asset_id", "font"),
                 size = parseSize(m["size"]),
             )
             "external_glyph" -> MenuTitleLayer.ExternalGlyph(

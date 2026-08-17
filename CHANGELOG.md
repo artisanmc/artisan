@@ -9,6 +9,10 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Added — P2 assets : les refs par nom se lisent, des deux côtés
+
+- Plugin et éditeur acceptent `asset: <nom>` (et `font: <nom>`) en plus de `asset_id` / `font_asset_id`. Rien ne l'écrit encore : la lecture tolérante se déploie **avant** la descente, pour qu'un Project non migré reste ouvrable et qu'un Project migré s'ouvre dans une version antérieure de l'éditeur.
+
 ### Added — P1 assets : cache backend clé par contenu
 
 - `GET …/projects/:projectId/asset?path=…&hash=…` sert les octets d'un asset : cache d'abord, serveur ensuite. La réponse est `immutable` — l'URL porte le hash du contenu, elle ne peut donc jamais devenir fausse.
