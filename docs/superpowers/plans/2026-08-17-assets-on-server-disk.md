@@ -67,7 +67,12 @@ Livrable : le pack se construit depuis la vérité.
 
 Livrable : le flux complet, sans backend propriétaire.
 
-## P6 — Suppression
+## P6 — Suppression (BLOQUÉE tant que la descente n'a pas tourné en prod)
+
+Prérequis opérationnel : `POST /api/v1/admin/assets/descend`, rejoué jusqu'à ce
+qu'aucun serveur ne soit plus « sauté ». Supprimer la table avant, c'est perdre
+les assets des serveurs qui n'étaient pas là.
+
 
 - Table `assets`, `codepointAllocator`, `assetStorage`, routes d'upload backend.
 - Migration Drizzle (destructive, forward-only).
