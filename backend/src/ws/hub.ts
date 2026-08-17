@@ -18,6 +18,10 @@ import type {
   CustomItemsRequestMessage,
   ConfigReadMessage,
   ConfigReadResultMessage,
+  AssetReadMessage,
+  AssetReadResultMessage,
+  AssetWriteMessage,
+  AssetWriteResultMessage,
   ProjectReadMessage,
   ProjectReadResultMessage,
   ProjectWriteMessage,
@@ -250,6 +254,85 @@ export type ProjectWriteOutcome =
 
 const pendingProjectReads = new Map<string, (outcome: ProjectReadOutcome) => void>();
 const pendingProjectWrites = new Map<string, (outcome: ProjectWriteOutcome) => void>();
+
+export type AssetReadOutcome =
+  | { kind: "result"; result: AssetReadResultMessage }
+  | { kind: "offline" }
+  | { kind: "timeout" };
+
+export type AssetWriteOutcome =
+  | { kind: "result"; result: AssetWriteResultMessage }
+  | { kind: "offline" }
+  | { kind: "timeout" };
+
+const pendingAssetReads = new Map<string, (outcome: AssetReadOutcome) => void>();
+const pendingAssetWrites = new Map<string, (outcome: AssetWriteOutcome) => void>();
+
+/**
+ * Les octets d'UN asset, à la demande (ADR `assets-on-server-disk`).
+ *
+ * Canal séparé de `project_read` à dessein : l'arbre part entier à chaque
+ * ouverture, en UTF-8. Y verser des binaires en base64 l'enflerait d'un tiers
+ * pour un contenu dont l'éditeur n'a besoin qu'au moment de l'afficher.
+ */
+export function requestAssetRead(
+  serverKeyId: string,
+  req: { projectId: string; path: string },
+  timeoutMs: number = DATA_SOURCE_FETCH_TIMEOUT_MS,
+): Promise<AssetReadOutcome> {
+  const send = firstPluginSender(serverKeyId);
+  if (!send) return Promise.resolve({ kind: "offline" });
+  const requestId = crypto.randomUUID();
+  const msg: AssetReadMessage = {
+    type: "asset_read",
+    request_id: requestId,
+    project_id: req.projectId,
+    path: req.path,
+  };
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      pendingAssetReads.delete(requestId);
+      resolve({ kind: "timeout" });
+    }, timeoutMs);
+    pendingAssetReads.set(requestId, (outcome) => {
+      clearTimeout(timer);
+      pendingAssetReads.delete(requestId);
+      resolve(outcome);
+    });
+    send(JSON.stringify(msg));
+  });
+}
+
+/** Écriture (ou suppression, `contentBase64` null) d'UN asset, CAS sur `baseHash`. */
+export function requestAssetWrite(
+  serverKeyId: string,
+  req: { projectId: string; path: string; contentBase64: string | null; baseHash: string | null },
+  timeoutMs: number = DATA_SOURCE_FETCH_TIMEOUT_MS,
+): Promise<AssetWriteOutcome> {
+  const send = firstPluginSender(serverKeyId);
+  if (!send) return Promise.resolve({ kind: "offline" });
+  const requestId = crypto.randomUUID();
+  const msg: AssetWriteMessage = {
+    type: "asset_write",
+    request_id: requestId,
+    project_id: req.projectId,
+    path: req.path,
+    content_base64: req.contentBase64,
+    base_hash: req.baseHash,
+  };
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      pendingAssetWrites.delete(requestId);
+      resolve({ kind: "timeout" });
+    }, timeoutMs);
+    pendingAssetWrites.set(requestId, (outcome) => {
+      clearTimeout(timer);
+      pendingAssetWrites.delete(requestId);
+      resolve(outcome);
+    });
+    send(JSON.stringify(msg));
+  });
+}
 
 export type ProjectHistoryOutcome =
   | { kind: "result"; result: ProjectHistoryResultMessage }
@@ -874,6 +957,20 @@ export async function handlePluginMessage(
     if (!serverId) return { reply: null };
     const result = msg as ProjectReadResultMessage;
     pendingProjectReads.get(result.request_id)?.({ kind: "result", result });
+    return { reply: null };
+  }
+
+  if (msg.type === "asset_read_result") {
+    if (!connToServerId.get(connId)) return { reply: null };
+    const result = msg as AssetReadResultMessage;
+    pendingAssetReads.get(result.request_id)?.({ kind: "result", result });
+    return { reply: null };
+  }
+
+  if (msg.type === "asset_write_result") {
+    if (!connToServerId.get(connId)) return { reply: null };
+    const result = msg as AssetWriteResultMessage;
+    pendingAssetWrites.get(result.request_id)?.({ kind: "result", result });
     return { reply: null };
   }
 

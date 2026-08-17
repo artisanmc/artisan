@@ -128,6 +128,17 @@ class SyncedMenuProvider(
     @Volatile private var snapshot: Map<String, Map<String, String>> = emptyMap()
 
     /**
+     * L'instantané des **binaires** : projectId → (chemin → empreinte + taille).
+     *
+     * Leur contenu n'y est PAS. Un PNG ne se lit pas en UTF-8 sans se mutiler, et
+     * garder tous les octets en mémoire pour les servir une fois de temps en
+     * temps coûterait cher pour rien. On garde de quoi les **annoncer** ; les
+     * octets se demandent un par un (`asset_read`), lus du disque au moment où on
+     * les demande — ADR `assets-on-server-disk`.
+     */
+    @Volatile private var binarySnapshot: Map<String, Map<String, net.artisanmc.plugin.sync.ProjectFilesReader.BinaryInfo>> = emptyMap()
+
+    /**
      * Les Documents que le dernier chargement n'a **pas** réussi à compiler :
      * projectId → (chemin relatif → raison).
      *
@@ -389,6 +400,12 @@ class SyncedMenuProvider(
         snapshot = roots.all().mapValues { (_, dir) ->
             runCatching {
                 net.artisanmc.plugin.sync.ProjectFilesReader.readAll(dir)
+                    .filterKeys { !isEditorInvisible(it) }
+            }.getOrDefault(emptyMap())
+        }
+        binarySnapshot = roots.all().mapValues { (_, dir) ->
+            runCatching {
+                net.artisanmc.plugin.sync.ProjectFilesReader.binaries(dir)
                     .filterKeys { !isEditorInvisible(it) }
             }.getOrDefault(emptyMap())
         }
@@ -664,11 +681,24 @@ class SyncedMenuProvider(
                                 .map { (rel, content) -> mapOf("path" to rel, "content" to content) }
                             val failed = (skipped[projectId] ?: emptyMap()).toSortedMap()
                                 .map { (rel, reason) -> mapOf("path" to rel, "reason" to reason) }
+                            // Les binaires sont ANNONCÉS, pas portés : l'éditeur
+                            // sait quoi proposer sans télécharger des images dont
+                            // il n'a besoin qu'à l'affichage (ADR
+                            // `assets-on-server-disk`, décision 4).
+                            val binaries = (binarySnapshot[projectId] ?: emptyMap()).toSortedMap()
+                                .map { (rel, info) ->
+                                    mapOf("path" to rel, "hash" to info.hash, "size" to info.size)
+                                }
                             val totalBytes = files.sumOf { it["content"]!!.toByteArray().size }
                             if (totalBytes > MAX_PROJECT_BYTES) {
                                 reply(mapOf("ok" to false, "error" to "too_large"))
                             } else {
-                                reply(mapOf("ok" to true, "files" to files, "failed" to failed))
+                                reply(mapOf(
+                                    "ok" to true,
+                                    "files" to files,
+                                    "failed" to failed,
+                                    "binaries" to binaries,
+                                ))
                             }
                         } catch (e: Throwable) {
                             logger?.log(java.util.logging.Level.WARNING, "[Artisan] project_read '$projectId' failed", e)
@@ -690,6 +720,149 @@ class SyncedMenuProvider(
                     "celui-ci est déconnecté de l'éditeur. Une clé = un serveur : " +
                     "génère une clé par serveur dans l'éditeur."
                 )
+            }
+
+            // Les octets d'UN asset, lus sur le disque au moment de la demande
+            // (ADR `assets-on-server-disk`). L'instantané n'en garde que
+            // l'empreinte : servir des images depuis la mémoire coûterait cher
+            // pour un usage rare, et le hash rendu ici décrit ce qui est rendu.
+            "asset_read" -> {
+                val requestId = node["request_id"]?.asText() ?: return
+                val projectId = node["project_id"]?.asText() ?: return
+                val path = node["path"]?.asText() ?: return
+                fun reply(payload: Map<String, Any?>) {
+                    val base = mapOf("type" to "asset_read_result", "request_id" to requestId)
+                    try {
+                        httpClient.dispatcher.executorService.execute {
+                            @Suppress("UNCHECKED_CAST")
+                            send((base + payload) as Map<String, Any>)
+                        }
+                    } catch (_: java.util.concurrent.RejectedExecutionException) {
+                        logger?.warning("asset_read_result dropped — plugin is stopping")
+                    }
+                }
+                if (!isSafeProjectId(projectId) || !isEditorWritablePath(path) ||
+                    !net.artisanmc.plugin.sync.ProjectFilesReader.isBinary(path)
+                ) {
+                    reply(mapOf("ok" to false, "error" to "invalid_path"))
+                    return
+                }
+                try {
+                    httpClient.dispatcher.executorService.execute {
+                        try {
+                            if (!binarySnapshot.containsKey(projectId)) {
+                                reply(mapOf("ok" to false, "error" to "unknown_project"))
+                                return@execute
+                            }
+                            val file = java.io.File(roots.dirFor(projectId), path)
+                            if (!file.isFile) {
+                                reply(mapOf("ok" to false, "error" to "not_found"))
+                                return@execute
+                            }
+                            val bytes = file.readBytes()
+                            reply(mapOf(
+                                "ok" to true,
+                                "content_base64" to java.util.Base64.getEncoder().encodeToString(bytes),
+                                "hash" to BundleHasher.hashBytes(bytes),
+                            ))
+                        } catch (e: Throwable) {
+                            logger?.log(java.util.logging.Level.WARNING, "[Artisan] asset_read '$projectId/$path' failed", e)
+                            reply(mapOf("ok" to false, "error" to "read_error", "message" to describeError(e)))
+                        }
+                    }
+                } catch (_: java.util.concurrent.RejectedExecutionException) {
+                    logger?.warning("asset_read dropped — plugin is stopping")
+                }
+            }
+
+            // Écriture d'UN asset, même compare-and-swap que `project_write` :
+            // `base_hash` null = « je m'attends à ce que le fichier n'existe pas ».
+            // Sans lui, deux admins qui téléversent le même nom s'écrasent en
+            // silence.
+            "asset_write" -> {
+                val requestId = node["request_id"]?.asText() ?: return
+                val projectId = node["project_id"]?.asText() ?: return
+                val path = node["path"]?.asText() ?: return
+                val contentB64 = node["content_base64"]?.takeIf { !it.isNull }?.asText()
+                val baseHash = node["base_hash"]?.takeIf { !it.isNull }?.asText()
+                fun reply(payload: Map<String, Any?>) {
+                    val base = mapOf("type" to "asset_write_result", "request_id" to requestId)
+                    try {
+                        httpClient.dispatcher.executorService.execute {
+                            @Suppress("UNCHECKED_CAST")
+                            send((base + payload) as Map<String, Any>)
+                        }
+                    } catch (_: java.util.concurrent.RejectedExecutionException) {
+                        logger?.warning("asset_write_result dropped — plugin is stopping")
+                    }
+                }
+                if (!isSafeProjectId(projectId) || !isEditorWritablePath(path) ||
+                    !net.artisanmc.plugin.sync.ProjectFilesReader.isBinary(path)
+                ) {
+                    reply(mapOf("ok" to false, "error" to "invalid_path"))
+                    return
+                }
+                try {
+                    httpClient.dispatcher.executorService.execute {
+                        try {
+                            val projectDir = roots.dirFor(projectId)
+                            if (!projectDir.isDirectory) {
+                                reply(mapOf("ok" to false, "error" to "unknown_project"))
+                                return@execute
+                            }
+                            val target = java.io.File(projectDir, path)
+                            val actual = target.takeIf { it.isFile }
+                                ?.let { BundleHasher.hashBytes(it.readBytes()) }
+                            if (actual != baseHash) {
+                                // On rend l'empreinte disque, pas les octets : à
+                                // ce stade l'éditeur veut savoir QUE ça a bougé.
+                                // Il ira les chercher s'il veut les montrer.
+                                reply(mapOf(
+                                    "ok" to false,
+                                    "error" to "conflict",
+                                    "disk_hash" to actual,
+                                ))
+                                return@execute
+                            }
+                            // `content_base64` absent = suppression. Un fichier
+                            // qu'on retire passe par la corbeille, comme un
+                            // Document : une image supprimée par erreur doit
+                            // pouvoir revenir.
+                            if (contentB64 == null) {
+                                if (target.isFile) {
+                                    archiveToHistory(projectDir, path)
+                                    target.delete()
+                                }
+                            } else {
+                                val bytes = try {
+                                    java.util.Base64.getDecoder().decode(contentB64)
+                                } catch (_: IllegalArgumentException) {
+                                    reply(mapOf("ok" to false, "error" to "invalid_content"))
+                                    return@execute
+                                }
+                                archiveToHistory(projectDir, path)
+                                target.parentFile?.mkdirs()
+                                val tmp = java.io.File(target.parentFile, target.name + ".artisan-tmp")
+                                tmp.writeBytes(bytes)
+                                java.nio.file.Files.move(
+                                    tmp.toPath(), target.toPath(),
+                                    java.nio.file.StandardCopyOption.REPLACE_EXISTING,
+                                )
+                            }
+                            // Écrire, c'est savoir qu'on a écrit : sans reprise,
+                            // l'éditeur téléverserait une image qu'il ne verrait
+                            // pas ensuite (sémantique de reload).
+                            reloadFromDisk()
+                            onReload?.invoke()
+                            reply(mapOf("ok" to true))
+                        } catch (e: Throwable) {
+                            logger?.log(java.util.logging.Level.WARNING, "[Artisan] asset_write '$projectId/$path' failed", e)
+                            reply(mapOf("ok" to false, "error" to "write_error", "message" to describeError(e)))
+                        }
+                    }
+                } catch (_: java.util.concurrent.RejectedExecutionException) {
+                    logger?.warning("asset_write dropped — plugin is stopping")
+                }
             }
 
             "project_history" -> {

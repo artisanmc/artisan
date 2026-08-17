@@ -602,6 +602,59 @@ describe("editor_screens presence (module-config-screens)", () => {
   });
 });
 
+/**
+ * Relais des assets binaires (ADR `assets-on-server-disk`).
+ *
+ * Canal séparé de `project_read` à dessein : l'arbre part entier à chaque
+ * ouverture, en UTF-8. Le backend ne fait que relayer — il ne décode ni ne
+ * réencode le base64, sinon il deviendrait un troisième avis sur des octets
+ * dont le disque est la seule vérité.
+ */
+describe("asset relay (assets-on-server-disk)", () => {
+  test("requestAssetRead resolves offline when no plugin conn is bound", async () => {
+    const { requestAssetRead } = await import("./hub");
+    const outcome = await requestAssetRead("sk-not-connected", {
+      projectId: "boutique", path: "assets/glyphs/d.png",
+    });
+    expect(outcome).toEqual({ kind: "offline" });
+  });
+
+  test("read et write se corrèlent par request_id, base64 relayé verbatim", async () => {
+    const { requestAssetRead, requestAssetWrite, connToServerId, connSenders } = await import("./hub");
+    const sent: Record<string, unknown>[] = [];
+    const connId = "conn-asset-relay";
+    registerConn(connId, (raw) => sent.push(JSON.parse(raw)));
+    connToServerId.set(connId, "sk-asset-live");
+    try {
+      const pRead = requestAssetRead("sk-asset-live", { projectId: "boutique", path: "assets/glyphs/d.png" });
+      const pWrite = requestAssetWrite("sk-asset-live", {
+        projectId: "boutique", path: "assets/textures/f.png",
+        contentBase64: "iVBORw0K", baseHash: null,
+      });
+      expect(sent.map((m) => m.type)).toEqual(["asset_read", "asset_write"]);
+      expect(sent[1]!.content_base64).toBe("iVBORw0K");
+      expect(sent[1]!.base_hash).toBeNull();
+
+      // Réponses dans le désordre : la corrélation est le request_id.
+      await handlePluginMessage(connId, JSON.stringify({
+        type: "asset_write_result", request_id: sent[1]!.request_id, ok: true,
+      }));
+      await handlePluginMessage(connId, JSON.stringify({
+        type: "asset_read_result", request_id: sent[0]!.request_id, ok: true,
+        content_base64: "iVBORw0KGgo=", hash: "abc",
+      }));
+      const read = await pRead;
+      const write = await pWrite;
+      expect(read.kind).toBe("result");
+      expect(read.kind === "result" && read.result.content_base64).toBe("iVBORw0KGgo=");
+      expect(write.kind === "result" && write.result.ok).toBe(true);
+    } finally {
+      connSenders.delete(connId);
+      connToServerId.delete(connId);
+    }
+  });
+});
+
 describe("config read/write relay (module-config-screens)", () => {
   test("requestConfigRead resolves offline when no plugin conn is bound", async () => {
     const { requestConfigRead } = await import("./hub");

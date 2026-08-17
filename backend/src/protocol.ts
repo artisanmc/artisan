@@ -218,7 +218,57 @@ export interface ProjectReadResultMessage {
    * sa disparition.
    */
   failed?: { path: string; reason: string }[];
+  /**
+   * Les assets binaires (textures, glyphes, polices) sont ANNONCÉS, pas portés
+   * (ADR `assets-on-server-disk`). L'arbre part entier à chaque ouverture, en
+   * UTF-8 : y verser des PNG en base64 l'enflerait d'un tiers pour un contenu
+   * dont l'éditeur n'a besoin qu'à l'affichage. Les octets se demandent un par
+   * un par `asset_read`.
+   */
+  binaries?: { path: string; hash: string; size: number }[];
   error?: "invalid_path" | "unknown_project" | "too_large" | "read_error";
+  message?: string;
+}
+
+// Backend → plugin: read ONE binary asset's bytes, by path. Correlated like
+// project_read. Voir `binaries` ci-dessus pour le pourquoi du canal séparé.
+export interface AssetReadMessage {
+  type: "asset_read";
+  request_id: string;
+  project_id: string;
+  path: string;
+}
+
+export interface AssetReadResultMessage {
+  type: "asset_read_result";
+  request_id: string;
+  ok: boolean;
+  /** Octets exacts du fichier. Le hash décrit ce qui est rendu, pas l'instantané. */
+  content_base64?: string;
+  hash?: string;
+  error?: "invalid_path" | "unknown_project" | "not_found" | "read_error";
+  message?: string;
+}
+
+// Backend → plugin: write (or delete) ONE binary asset. Même compare-and-swap
+// que project_write : `base_hash` null = « je m'attends à ce qu'il n'existe
+// pas ». `content_base64` absent = suppression (via la corbeille).
+export interface AssetWriteMessage {
+  type: "asset_write";
+  request_id: string;
+  project_id: string;
+  path: string;
+  content_base64?: string | null;
+  base_hash: string | null;
+}
+
+export interface AssetWriteResultMessage {
+  type: "asset_write_result";
+  request_id: string;
+  ok: boolean;
+  /** Empreinte réellement trouvée sur disque quand le CAS échoue (null = absent). */
+  disk_hash?: string | null;
+  error?: "invalid_path" | "unknown_project" | "conflict" | "invalid_content" | "write_error";
   message?: string;
 }
 
@@ -333,6 +383,8 @@ export type PluginToServerMessage =
   | ConfigReadResultMessage
   | ConfigWriteResultMessage
   | ProjectReadResultMessage
+  | AssetReadResultMessage
+  | AssetWriteResultMessage
   | ProjectWriteResultMessage
   | ProjectHistoryResultMessage
   | ProjectListResultMessage;
