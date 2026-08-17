@@ -14,8 +14,6 @@ interface Server {
 interface Project {
   id: string;
   name: string;
-  /** Menus + commands + dialogs count, for the document-count indicator. */
-  documentCount?: number;
 }
 
 interface Props {
@@ -72,18 +70,11 @@ export function ServerCard({ networkId, server, workspaces, onAction, onCreatePr
             <span className="truncate text-[12.5px] text-[var(--text-mut)] group-hover:text-[var(--text)]">
               📋 {w.name}
             </span>
-            <div className="flex shrink-0 items-center gap-1.5">
-              {w.documentCount != null && (
-                <span
-                  title={t("serverDetail.documentCount", { count: w.documentCount })}
-                  aria-label={t("serverDetail.documentCount", { count: w.documentCount })}
-                  className="rounded-full bg-[var(--surface-raised)] px-1.5 text-[10px] font-medium tabular-nums text-[var(--text-faint)]"
-                >
-                  {w.documentCount}
-                </span>
-              )}
-              <ArrowRight className="size-[13px] text-[var(--text-faint)]" />
-            </div>
+            {/* Plus de compteur de Documents ici : le backend ne détient plus
+                les fichiers (ADR `server-disk-only-storage`) et ne peut donc
+                plus le connaître. La sidebar d'un Project ouvert en affiche un,
+                lui — il se compte sur l'état chargé, donc il est vrai. */}
+            <ArrowRight className="size-[13px] shrink-0 text-[var(--text-faint)]" />
           </Link>
         ))}
         <button

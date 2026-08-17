@@ -90,16 +90,11 @@ export default function ServerDetailPage() {
                     params={{ networkId, serverId, projectId: w.slug || w.id }}
                     className="card flex items-center justify-between p-4 hover:bg-[var(--surface-hover)]"
                   >
+                    {/* Plus de compteur de Documents : le backend ne détient
+                        plus les fichiers (ADR `server-disk-only-storage`), donc
+                        il ne peut plus le connaître sans interroger le disque du
+                        serveur. Un compteur figé de l'ancien monde aurait menti. */}
                     <span className="text-[14px] font-medium text-[var(--text)]">{w.name}</span>
-                    {w.documentCount != null && (
-                      <span
-                        title={t("serverDetail.documentCount", { count: w.documentCount })}
-                        aria-label={t("serverDetail.documentCount", { count: w.documentCount })}
-                        className="shrink-0 rounded-full bg-[var(--surface-raised)] px-2 py-0.5 text-[12px] font-medium tabular-nums text-[var(--text-mut)]"
-                      >
-                        {w.documentCount}
-                      </span>
-                    )}
                   </Link>
                 </li>
               ))}
