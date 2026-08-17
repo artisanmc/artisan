@@ -4,6 +4,7 @@ import type { MenuId, ProjectId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
 import { useUiStore } from "@/state/uiStore";
 import { MenuGroup } from "@/features/canvas/MenuGroup";
+import { ItemTooltip } from "@/features/canvas/ItemTooltip";
 import { menuBoxSize } from "@/features/canvas/menuLayout";
 import { usePanZoom } from "@/features/canvas/usePanZoom";
 import { fitViewport } from "./soloViewport";
@@ -99,6 +100,10 @@ export function SoloMenuStage({ projectId, menuId }: { projectId: ProjectId; men
           <MenuGroup projectId={projectId} menu={menu} position={{ x: 0, y: 0 }} layout={{}} solo />
         </Layer>
       </KonvaStage>
+      {/* Le survol d'un item est du DOM, hors du canvas Konva : sans ce montage,
+          la vue unique ne réagissait pas du tout au survol, alors que le canvas
+          général, lui, montrait l'infobulle (constaté en prod le 2026-08-17). */}
+      <ItemTooltip projectId={projectId} />
     </div>
   );
 }

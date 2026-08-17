@@ -9,6 +9,15 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Fixed — aperçu d'un menu paramétré : le survol montrait le gabarit
+
+- Un menu paramétré réutilise les mêmes slots d'une catégorie à l'autre (la position 20 porte une clé par catégorie, sur la même page — un seul contexte est vivant à l'exécution). Le survol prenait **le premier** placement de la position : dès que l'aperçu montrait une autre catégorie, aucune ligne ne se liait et l'infobulle affichait `{item.name}` / `{item.lore}` tels quels. Il prend maintenant le placement **dont la clé résout dans le contexte courant** — la règle que le canvas appliquait déjà, désormais partagée (`placementAtSlot`).
+- La **vue unique** ne réagissait pas du tout au survol : l'infobulle est du DOM, hors du canvas Konva, et n'était montée que par le canvas général.
+
+### Fixed — un Add-on qui bootstrappe son contenu le déclare
+
+- La Boutique enregistre sa racine **avant** d'y écrire son contenu par défaut : le core reprenait son instantané sur un dossier encore vide, et l'éditeur restait vide jusqu'à un `/artisan reload` tapé à la main. Elle appelle maintenant `api.getProject().reload()` après ses écritures (constaté en prod le 2026-08-17).
+
 ### Added — la descente s'exécute depuis l'admin
 
 - `POST /api/v1/admin/assets/descend[?server=<id>]` : une route plutôt qu'un script, parce que la descente doit s'exécuter là où vivent les connexions WS des plugins — l'instance déployée, pas un poste de dev.

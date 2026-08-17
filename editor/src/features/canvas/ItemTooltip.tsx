@@ -13,7 +13,7 @@ import { useServerSnapshotsStore } from "@/state/serverSnapshotsStore";
 import { useUiStore } from "@/state/uiStore";
 import { useMemo } from "react";
 import { buildPreviewScope, renderPreview } from "./menuPreviewScope";
-import { matchPlacementRow, placementTotalPages } from "./placement";
+import { matchPlacementRow, placementAtSlot, placementTotalPages } from "./placement";
 
 interface ItemTooltipProps {
   projectId: ProjectId;
@@ -150,11 +150,12 @@ export function ItemTooltip({ projectId }: ItemTooltipProps) {
   } else if (element.places && slotPosition != null) {
     const totalPages = placementTotalPages(element.places.placements);
     const page = Math.min(Math.max(0, pageByElement[element.id] ?? 0), totalPages - 1);
-    const placement = element.places.placements.find(
-      (p) => p.position === slotPosition && p.page === page,
-    );
+    // Le placement du contexte COURANT, pas le premier de la liste : plusieurs
+    // catégories se partagent les mêmes slots (cf. `placementAtSlot`).
+    const rowsHere = lookupPath(sampleCtx, element.places.source);
+    const placement = placementAtSlot(element.places, rowsHere, page, slotPosition);
     if (placement) {
-      const rows = lookupPath(sampleCtx, element.places.source);
+      const rows = rowsHere;
       const row = matchPlacementRow(rows, element.places.keyField, placement.key);
       if (row) ctx = { ...enhancedCtx, [element.places.alias]: row };
       else if (!Array.isArray(rows)) {
