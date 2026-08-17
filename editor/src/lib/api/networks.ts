@@ -12,6 +12,9 @@ export interface ServerKeySummary {
   id: string;
   label: string | null;
   slug?: string;
+  /** Un plugin est branché en ce moment. Sans lui, ses Projects ne se listent
+   *  pas — c'est son disque qui les porte (ADR `server-disk-only-storage`). */
+  online?: boolean;
 }
 
 export interface ProjectSummary {

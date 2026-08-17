@@ -121,6 +121,24 @@ describe("userNetworksRouter", () => {
     expect(list.networks.map((n: { name: string }) => n.name).sort()).toEqual(["N1", "N2"]);
   });
 
+  /**
+   * Un faux plugin branché sur [serverKeyId] qui répond aux `project_list` avec
+   * [ids]. Le disque du serveur EST la liste des Projects (ADR
+   * `server-disk-only-storage`) — sans plugin au bout du fil, il n'y a pas de
+   * liste, seulement des lignes d'ancrage qui ne prouvent rien.
+   */
+  function fakePlugin(connId: string, serverKeyId: string, ids: string[]) {
+    registerConn(connId, (raw: string) => {
+      const msg = JSON.parse(raw) as { type: string; request_id: string };
+      if (msg.type !== "project_list") return;
+      void handlePluginMessage(connId, JSON.stringify({
+        type: "project_list_result", request_id: msg.request_id, ok: true, project_ids: ids,
+      }));
+    });
+    connToServerId.set(connId, serverKeyId);
+    return () => { connSenders.delete(connId); connToServerId.delete(connId); };
+  }
+
   // A3 tests
   test("GET /api/v1/networks/:id returns detail with projects + serverKeys", async () => {
     const { sessionId } = await seedUser();
@@ -145,9 +163,11 @@ describe("userNetworksRouter", () => {
     const { createProject } = await import("../lib/projectStorage");
     await createProject({ networkId: network.id, serverKeyId: "sk_test_a3", name: "p1" });
 
+    const stop = fakePlugin("conn-a3", "sk_test_a3", ["p1"]);
     const res = await app.request(`/api/v1/networks/${network.id}`, {
       headers: { Cookie: `artisan_user_session=${sessionId}` },
     });
+    stop();
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.network.id).toBe(network.id);
@@ -155,9 +175,69 @@ describe("userNetworksRouter", () => {
     expect(body.projects[0].name).toBe("p1");
     expect(body.projects[0]).toHaveProperty("networkId");
     expect(body.projects[0]).toHaveProperty("serverKeyId");
-    // Fresh project has no menus/commands/dialogs yet.
     expect(body.serverKeys).toHaveLength(1);
     expect(body.serverKeys[0].id).toBe("sk_test_a3");
+    expect(body.serverKeys[0].online).toBe(true);
+  });
+
+  /**
+   * Le symptôme rapporté le 2026-08-17 : « je vois un projet test dans la liste
+   * du network, mais ça me dit qu'il n'existe pas quand je vais dessus ».
+   *
+   * La liste venait de la table `projects` — des ANCRES (identité, droits,
+   * facturation), pas du contenu. Renommer ou supprimer le dossier sur le
+   * serveur laissait la ligne derrière lui, et l'ancre ne prouve rien : ouvrir
+   * demandait au disque, qui répondait `unknown_project`. Une liste qui promet
+   * des Projects inouvrables est pire que pas de liste.
+   */
+  test("un Project qui n'est plus sur le disque disparaît de la liste", async () => {
+    const { sessionId } = await seedUser();
+    const app = makeApp();
+    const create = await app.request("/api/v1/networks", {
+      method: "POST",
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "N1" }),
+    });
+    const { network } = await create.json();
+    await db.insert(serverKeys).values({
+      id: "sk_gone", hash: "hash_gone", networkId: network.id, createdAt: new Date(), label: null,
+    });
+    const { createProject } = await import("../lib/projectStorage");
+    await createProject({ networkId: network.id, serverKeyId: "sk_gone", name: "test" });
+
+    // Le disque ne porte plus « test » — le dossier a été renommé à la main.
+    const stop = fakePlugin("conn-gone", "sk_gone", ["projet_test"]);
+    const res = await app.request(`/api/v1/networks/${network.id}`, {
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
+    });
+    stop();
+    const body = await res.json();
+    expect(body.projects.map((p: { name: string }) => p.name)).toEqual(["projet_test"]);
+  });
+
+  test("le serveur hors ligne est annoncé, et ses Projects ne sont pas listés", async () => {
+    const { sessionId } = await seedUser();
+    const app = makeApp();
+    const create = await app.request("/api/v1/networks", {
+      method: "POST",
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "N1" }),
+    });
+    const { network } = await create.json();
+    await db.insert(serverKeys).values({
+      id: "sk_off", hash: "hash_off", networkId: network.id, createdAt: new Date(), label: null,
+    });
+    const { createProject } = await import("../lib/projectStorage");
+    await createProject({ networkId: network.id, serverKeyId: "sk_off", name: "p1" });
+
+    // Personne au bout du fil : ses Projects ne sont pas ouvrables, les lister
+    // ne ferait que promettre des pages d'erreur. L'indicateur dit pourquoi.
+    const res = await app.request(`/api/v1/networks/${network.id}`, {
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
+    });
+    const body = await res.json();
+    expect(body.projects).toHaveLength(0);
+    expect(body.serverKeys[0].online).toBe(false);
   });
 
   test("GET /:id/servers-status returns online/total + last accepted hello, ignores rejected", async () => {

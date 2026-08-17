@@ -37,6 +37,8 @@ export function ServerCard({ networkId, server, workspaces, onAction, onCreatePr
         <div className="flex min-w-0 items-center gap-2">
           <span
             className="h-2 w-2 shrink-0 rounded-full"
+            title={server.online ? t("serverCard.online") : t("serverCard.offline")}
+            aria-label={server.online ? t("serverCard.online") : t("serverCard.offline")}
             style={{
               background: server.online ? "var(--success)" : "var(--text-faint)",
               boxShadow: server.online ? "0 0 6px var(--success)" : "none",
@@ -49,8 +51,13 @@ export function ServerCard({ networkId, server, workspaces, onAction, onCreatePr
         <ServerKebabMenu serverId={server.id} onAction={onAction} />
       </div>
 
+      {/* Hors ligne, on ne compte rien : la liste des Projects vient du disque du
+          serveur, et personne n'est au bout du fil. « 0 projet » ferait croire
+          qu'il n'en a pas, alors qu'on ne peut pas savoir. */}
       <p className="text-[11.5px] text-[var(--text-faint)]">
-        {t("serverCard.projectCount", { count: workspaces.length })}
+        {server.online
+          ? t("serverCard.projectCount", { count: workspaces.length })
+          : t("serverCard.offlineProjects")}
         {!server.online && server.lastSeen && (
           <>
             {" · "}
