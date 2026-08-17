@@ -9,6 +9,10 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Fixed — un test backend pariait sur la vitesse de la machine
+
+- `hub.test.ts` attendait les persistances *fire-and-forget* de `hello` / `modules_changed` avec des `setTimeout` fixes (50 / 150 ms). Ça passait en local et pas sur le runner CI, qui a rougi sur `declared_models` alors que le commit poussé ne touchait que le plugin. Les attentes deviennent des **sondages** avec échéance franche : vrai dès que c'est vrai, échec net si ça ne vient pas. La seule attente fixe conservée est celle d'une assertion négative, où sonder ne prouverait rien.
+
 ### Fixed — un Add-on qui écrit son disque peut le déclarer (`api.project.reload()`)
 
 - Depuis la sémantique de reload, l'instantané est pris au chargement : une écriture faite par un Add-on dans **sa propre racine** (`/boutiqueadmin additem`) restait invisible au serveur qui tourne **et** à l'éditeur jusqu'à ce que quelqu'un tape `/artisan reload`. L'admin capturait un item, ne le voyait nulle part, et concluait que la commande était cassée.
