@@ -9,6 +9,12 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Added — P0 assets : le protocole sait transporter un binaire
+
+- `project_read` **annonce** les binaires (`binaries: [{path, hash, size}]`) sans les porter : l'arbre part entier à chaque ouverture et en UTF-8, donc un PNG y serait à la fois mutilé et encombrant. L'éditeur sait quoi proposer sans rien télécharger.
+- `asset_read` / `asset_write` transportent les octets **un par un, par chemin**, en base64. L'écriture porte le même compare-and-swap que `project_write` (`base_hash` null = « je m'attends à ce qu'il n'existe pas ») et passe par la corbeille ; `content_base64` absent = suppression. Après écriture, l'instantané reprend — sinon l'éditeur téléverserait une image qu'il ne verrait pas.
+- `ProjectFilesReader` classe les binaires par extension et ne les lit plus comme du texte ; `BundleHasher.hashBytes` leur donne la même empreinte SHA-256 que les fichiers texte.
+
 ### Decided — les assets descendent sur le disque du serveur (ADR, rien d'implémenté)
 
 - ADR `assets-on-server-disk` : textures, glyphes et polices deviennent des fichiers du Project sous `assets/`, le backend n'en gardant qu'un **cache jetable** clé par contenu. Achève `server-disk-only-storage` en lui retirant son exception « le backend continue de stocker les assets binaires » : une texture de fond n'est pas plus dérivée qu'un `menus/shop.yaml`, et sans elle la promesse « ta config marche sans nous » est fausse dès qu'un menu a un fond.
