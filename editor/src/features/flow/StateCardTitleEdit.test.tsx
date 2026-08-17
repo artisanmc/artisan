@@ -6,13 +6,13 @@
  * (FlowCanvas) for a plain element and asserts the store write.
  */
 import "@/i18n";
-import { fireEvent, render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it } from "vitest";
+import type { Account, ElementId, I18nKey, MenuId, Project, ProjectId } from "@/domain/types";
 import { FlowCanvas } from "@/features/flow/FlowCanvas";
 import { useAccountStore } from "@/state/accountStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
-import type { Account, ElementId, I18nKey, MenuId, Project, ProjectId } from "@/domain/types";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { beforeEach, describe, expect, it } from "vitest";
 
 const PACK_ID = "p_edit" as ProjectId;
 const MENU_ID = "shop_category" as MenuId;
@@ -40,7 +40,8 @@ function makeProject(): Project {
               {
                 id: ELEMENT_ID,
                 positions: "49",
-                appearances: [{ material: "ARROW", title: { key: KEY } }],
+                display: { material: "ARROW", title: { key: KEY } },
+                states: [],
               },
             ],
           },
@@ -86,7 +87,7 @@ describe("state card title editing reaches the store", () => {
     const el = project.menus[0]!.layers[0]!.elements[0]!;
     // The displayed "§7Retour" was the fr FALLBACK; typing writes en. This is
     // by design (the label says which language) — fr stays untouched.
-    expect(project.i18nKeys[el.appearances[0]!.title!.key]).toEqual({
+    expect(project.i18nKeys[el.display!.title!.key]).toEqual({
       fr: "§7Retour",
       en: "<gray>Retour",
     });
@@ -105,7 +106,7 @@ describe("state card title editing reaches the store", () => {
     });
     const project = useAccountStore.getState().account.projects.find((p) => p.id === PACK_ID)!;
     const el = project.menus[0]!.layers[0]!.elements[0]!;
-    expect(project.i18nKeys[el.appearances[0]!.title!.key]).toEqual({ fr: "<gray>Retour" });
+    expect(project.i18nKeys[el.display!.title!.key]).toEqual({ fr: "<gray>Retour" });
   });
 
   it("shows the fallback variant of the title label when the active lang has no value", () => {

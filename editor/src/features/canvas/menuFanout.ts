@@ -26,7 +26,7 @@ export function fanoutElements(layers: Layer[]): SlotEntry[] {
   for (const layer of layers) {
     for (const el of layer.elements) {
       if (el.iterates || el.places) continue;
-      const appearance = el.appearances[0];
+      const appearance = el.display;
       if (!appearance) continue;
       const positions = parsePositions(el.positions);
       for (const pos of positions) {

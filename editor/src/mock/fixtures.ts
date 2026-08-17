@@ -56,19 +56,16 @@ const personalProject = (): Project => {
               {
                 id: elementId("el_btn_profile"),
                 positions: "13",
-                appearances: [
-                  {
-                    material: "PAPER",
-                    title: { key: k("menus.m_shop_main.elements.el_btn_profile.default.title") },
-                    click: {
-                      left: {
-                        steps: [
-                          { kind: "action", action: { type: "open_menu", menuId: profileId } },
-                        ],
-                      },
+                display: {
+                  material: "PAPER",
+                  title: { key: k("menus.m_shop_main.elements.el_btn_profile.default.title") },
+                  click: {
+                    left: {
+                      steps: [{ kind: "action", action: { type: "open_menu", menuId: profileId } }],
                     },
                   },
-                ],
+                },
+                states: [],
               },
             ],
           },
@@ -161,9 +158,7 @@ const shopSystemProject = (): Project => {
         projectId: pId,
         name: "shop",
         arguments: [],
-        steps: [
-          { kind: "action", action: { type: "open_menu", menuId: shopRootId } },
-        ],
+        steps: [{ kind: "action", action: { type: "open_menu", menuId: shopRootId } }],
       },
     ],
   };

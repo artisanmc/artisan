@@ -5,6 +5,7 @@ import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import org.junit.jupiter.api.assertThrows
 
 class ProjectReaderTest {
@@ -103,8 +104,8 @@ class ProjectReaderTest {
         val pins = menu.yaml.allElements.first { it.id == "pins" }
         // Template appearances injected + compiled; alias/key_field from the template.
         assertEquals("row", grid.iterates?.alias)
-        assertEquals(1, grid.appearances.size)
-        assertEquals("{row.icon}", grid.appearances[0].material)
+        assertEquals(0, grid.states.size)
+        assertEquals("{row.icon}", grid.display.material)
         assertNotNull(menu.compiledAppearances["grid"])
         assertEquals("row", pins.places?.alias)
         assertEquals("id", pins.places?.keyField)
@@ -116,7 +117,8 @@ class ProjectReaderTest {
         File(root, "p_tpl/templates/tpl_view.yaml").delete()
         val bundle = ProjectReader(root).readAll().single()
         val grid = bundle.menus.single().yaml.allElements.first { it.id == "grid" }
-        assertEquals(0, grid.appearances.size)
+        assertNull(grid.display.material)
+        assertEquals(0, grid.states.size)
     }
 
     @Test

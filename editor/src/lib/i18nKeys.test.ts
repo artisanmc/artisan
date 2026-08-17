@@ -143,12 +143,11 @@ describe("rekeyMenu", () => {
             {
               id: elementId("btn_buy"),
               positions: "0",
-              appearances: [
-                {
-                  title: { key: "lt_title" as I18nKey },
-                  lore: { key: "lt_lore" as I18nKey },
-                },
-              ],
+              display: {
+                title: { key: "lt_title" as I18nKey },
+                lore: { key: "lt_lore" as I18nKey },
+              },
+              states: [],
             },
           ],
         },
@@ -158,7 +157,7 @@ describe("rekeyMenu", () => {
     rekeyMenu(project, menu);
 
     const el = menu.layers[0]!.elements[0]!;
-    const app = el.appearances[0]!;
+    const app = el.display!;
     expect(app.title?.key).toBe("menus.shop.elements.btn_buy.default.title");
     expect(app.lore?.key).toBe("menus.shop.elements.btn_buy.default.lore");
     expect(project.i18nKeys["lt_title" as I18nKey]).toBeUndefined();
@@ -167,7 +166,9 @@ describe("rekeyMenu", () => {
 
   it("is idempotent when key is already semantic", () => {
     const semanticKey = "menus.shop_main.title" as I18nKey;
-    const project = makeProject({ i18nKeys: { [semanticKey]: { en: "Shop" } } as Project["i18nKeys"] });
+    const project = makeProject({
+      i18nKeys: { [semanticKey]: { en: "Shop" } } as Project["i18nKeys"],
+    });
     const titleLayer: MenuTitleLayer = { kind: "text", value: { key: semanticKey }, x: 8, y: 5 };
     const menu: Menu = {
       id: menuId("shop_main"),
@@ -200,20 +201,19 @@ describe("rekeyMenu", () => {
             {
               id: elementId("btn"),
               positions: "0",
-              appearances: [
-                {
-                  click: {
-                    left: {
-                      steps: [
-                        {
-                          kind: "action",
-                          action: { type: "send_message", text: { key: "lt_msg" as I18nKey } },
-                        },
-                      ],
-                    },
+              display: {
+                click: {
+                  left: {
+                    steps: [
+                      {
+                        kind: "action",
+                        action: { type: "send_message", text: { key: "lt_msg" as I18nKey } },
+                      },
+                    ],
                   },
                 },
-              ],
+              },
+              states: [],
             },
           ],
         },
@@ -222,7 +222,7 @@ describe("rekeyMenu", () => {
 
     rekeyMenu(project, menu);
 
-    const action = menu.layers[0]!.elements[0]!.appearances[0]!.click!.left!.steps[0]!;
+    const action = menu.layers[0]!.elements[0]!.display!.click!.left!.steps[0]!;
     if (action.kind !== "action" || action.action.type !== "send_message")
       throw new Error("unexpected");
     expect(action.action.text.key).toBe("menus.shop.elements.btn.default.click.left.message");
@@ -313,7 +313,9 @@ describe("rekeyCommand", () => {
     expect(a0.action.title.key).toBe("commands.heal.show_title");
     expect(a0.action.subtitle!.key).toBe("commands.heal.show_subtitle");
     expect(project.i18nKeys["commands.heal.show_title" as I18nKey]).toEqual({ en: "Welcome" });
-    expect(project.i18nKeys["commands.heal.show_subtitle" as I18nKey]).toEqual({ en: "to the shop" });
+    expect(project.i18nKeys["commands.heal.show_subtitle" as I18nKey]).toEqual({
+      en: "to the shop",
+    });
     expect(project.i18nKeys["stale.title" as I18nKey]).toBeUndefined();
     expect(project.i18nKeys["stale.subtitle" as I18nKey]).toBeUndefined();
   });

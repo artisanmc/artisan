@@ -14,6 +14,7 @@ import {
   showTitleKeyAt,
   stateLabel,
 } from "@/lib/i18nKeys";
+import { addressedAppearances } from "./element";
 import { walkActions } from "./stepPath";
 import type {
   Appearance,
@@ -22,6 +23,7 @@ import type {
   DataModelId,
   DataSource,
   Dialog,
+  Element,
   I18nKey,
   LText,
   Menu,
@@ -167,14 +169,13 @@ function* visitMenuTitleLTexts(menu: Menu): Generator<LTextSite> {
   }
 }
 
-/** Yield every site of one element across all its appearances. */
-export function* visitElementLTexts(
-  menuId: string,
-  element: { id: string; appearances: Appearance[] },
-): Generator<LTextSite> {
-  for (let i = 0; i < element.appearances.length; i++) {
+/** Yield every site of one element — its display, then each of its states.
+ *  Addressing order, so the display keeps the `default` segment. */
+export function* visitElementLTexts(menuId: string, element: Element): Generator<LTextSite> {
+  const appearances = addressedAppearances(element);
+  for (let i = 0; i < appearances.length; i++) {
     const base = `menus.${menuId}.elements.${element.id}.${stateLabel(i)}`;
-    yield* visitAppearanceLTexts(element.appearances[i]!, base);
+    yield* visitAppearanceLTexts(appearances[i]!, base);
   }
 }
 
@@ -278,7 +279,13 @@ function* visitModelValueLTexts(
       const model = models.find((m) => m.id === type.ref);
       if (!model) return;
       const next = new Set(visited).add(type.ref);
-      yield* visitModelValueLTexts(value, { kind: "object", fields: model.fields }, base, models, next);
+      yield* visitModelValueLTexts(
+        value,
+        { kind: "object", fields: model.fields },
+        base,
+        models,
+        next,
+      );
       return;
     }
     case "map": {
@@ -293,7 +300,13 @@ function* visitModelValueLTexts(
       const obj = value as Record<string, unknown>;
       const variant = type.variants.find((v) => v.name === obj[type.tag]);
       if (!variant) return;
-      yield* visitModelValueLTexts(value, { kind: "object", fields: variant.fields }, base, models, visited);
+      yield* visitModelValueLTexts(
+        value,
+        { kind: "object", fields: variant.fields },
+        base,
+        models,
+        visited,
+      );
       return;
     }
     default:
@@ -321,18 +334,14 @@ export function* visitDataSourceLTexts(project: Project, ds: DataSource): Genera
     for (const row of ds.rows) {
       const raw = row[model.keyField];
       const value =
-        typeof raw === "string" || typeof raw === "number"
-          ? String(raw).trim().toLowerCase()
-          : "";
+        typeof raw === "string" || typeof raw === "number" ? String(raw).trim().toLowerCase() : "";
       if (value !== "") rowKeyCounts.set(value, (rowKeyCounts.get(value) ?? 0) + 1);
     }
     for (let i = 0; i < ds.rows.length; i++) {
       const row = ds.rows[i]!;
       const raw = row[model.keyField];
       const keyVal =
-        typeof raw === "string" || typeof raw === "number"
-          ? String(raw).trim().toLowerCase()
-          : "";
+        typeof raw === "string" || typeof raw === "number" ? String(raw).trim().toLowerCase() : "";
       const rowKey = keyVal !== "" && rowKeyCounts.get(keyVal) === 1 ? keyVal : `row_${i + 1}`;
       yield* visitModelValueLTexts(
         row,
@@ -406,12 +415,18 @@ export function adoptBareLTexts(project: Project, ds: DataSource): void {
         if (visited.has(type.ref)) return value;
         const model = models.find((m) => m.id === type.ref);
         if (!model) return value;
-        return adopt(value, { kind: "object", fields: model.fields }, base, new Set(visited).add(type.ref));
+        return adopt(
+          value,
+          { kind: "object", fields: model.fields },
+          base,
+          new Set(visited).add(type.ref),
+        );
       }
       case "map": {
         if (typeof value !== "object" || value === null || Array.isArray(value)) return value;
         const obj = { ...(value as Record<string, unknown>) };
-        for (const [k, v] of Object.entries(obj)) obj[k] = adopt(v, type.of, `${base}.${k.toLowerCase()}`, visited);
+        for (const [k, v] of Object.entries(obj))
+          obj[k] = adopt(v, type.of, `${base}.${k.toLowerCase()}`, visited);
         return obj;
       }
       case "union": {
@@ -431,12 +446,14 @@ export function adoptBareLTexts(project: Project, ds: DataSource): void {
     const rowKeyCounts = new Map<string, number>();
     for (const row of ds.rows) {
       const raw = row[model.keyField];
-      const v = typeof raw === "string" || typeof raw === "number" ? String(raw).trim().toLowerCase() : "";
+      const v =
+        typeof raw === "string" || typeof raw === "number" ? String(raw).trim().toLowerCase() : "";
       if (v !== "") rowKeyCounts.set(v, (rowKeyCounts.get(v) ?? 0) + 1);
     }
     for (let i = 0; i < ds.rows.length; i++) {
       const raw = ds.rows[i]![model.keyField];
-      const keyVal = typeof raw === "string" || typeof raw === "number" ? String(raw).trim().toLowerCase() : "";
+      const keyVal =
+        typeof raw === "string" || typeof raw === "number" ? String(raw).trim().toLowerCase() : "";
       const rowKey = keyVal !== "" && rowKeyCounts.get(keyVal) === 1 ? keyVal : `row_${i + 1}`;
       ds.rows[i] = adopt(
         ds.rows[i],

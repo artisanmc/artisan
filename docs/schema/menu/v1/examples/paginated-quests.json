@@ -3,7 +3,9 @@
   "id": "my_quests_menu",
   "title": "§6Mes quêtes",
   "size": 54,
-  "background": { "asset": "bg.png" },
+  "background": {
+    "asset": "bg.png"
+  },
   "layers": [
     {
       "id": "default",
@@ -12,73 +14,87 @@
         {
           "id": "header",
           "positions": "4",
-          "appearances": [
-            { "asset": "header.png", "title": "§6QUÊTES" }
-          ]
+          "asset": "header.png",
+          "title": "§6QUÊTES"
         },
         {
           "id": "quests_list",
           "positions": "10-43",
-          "appearances": [
-            {
-              "component_ref": "questx:quest_button",
-              "asset": "quest_btn.png",
-              "lore": ["§7{{questx:quest_name}}", "§ePrix: §a{{questx:quest_price}}$"],
-              "click": {
-                "left": {
-                  "steps": "play_sound ui.button.click vol=0.5 pitch=1"
-                }
-              }
+          "component_ref": "questx:quest_button",
+          "asset": "quest_btn.png",
+          "lore": [
+            "§7{{questx:quest_name}}",
+            "§ePrix: §a{{questx:quest_price}}$"
+          ],
+          "click": {
+            "left": {
+              "steps": "play_sound ui.button.click vol=0.5 pitch=1"
             }
-          ]
+          }
         },
         {
           "id": "btn_prev",
           "positions": "45",
-          "appearances": [
+          "asset": "arrow_left.png",
+          "title": "§7Page précédente",
+          "click": {
+            "left": {
+              "steps": "paginate prev"
+            }
+          },
+          "states": [
             {
-              "if": [{ "type": "pagination_at_first" }],
+              "if": [
+                {
+                  "type": "pagination_at_first"
+                }
+              ],
               "asset": "arrow_left_disabled.png",
               "title": "§8Page précédente",
               "click": null
-            },
-            {
-              "asset": "arrow_left.png",
-              "title": "§7Page précédente",
-              "click": { "left": { "steps": "paginate prev" } }
             }
           ]
         },
         {
           "id": "btn_next",
           "positions": "53",
-          "appearances": [
+          "asset": "arrow_right.png",
+          "title": "§7Page suivante",
+          "click": {
+            "left": {
+              "steps": "paginate next"
+            }
+          },
+          "states": [
             {
-              "if": [{ "type": "pagination_at_last" }],
+              "if": [
+                {
+                  "type": "pagination_at_last"
+                }
+              ],
               "asset": "arrow_right_disabled.png",
               "title": "§8Page suivante",
               "click": null
-            },
-            {
-              "asset": "arrow_right.png",
-              "title": "§7Page suivante",
-              "click": { "left": { "steps": "paginate next" } }
             }
           ]
         },
         {
           "id": "btn_close",
           "positions": "49",
-          "appearances": [
-            {
-              "material": "BARRIER",
-              "title": "§cFermer",
-              "click": { "left": { "steps": "close_menu" } }
+          "material": "BARRIER",
+          "title": "§cFermer",
+          "click": {
+            "left": {
+              "steps": "close_menu"
             }
-          ]
+          }
         }
       ]
     }
   ],
-  "metadata": { "uses_plugins": ["questx"] }
+  "metadata": {
+    "uses_plugins": [
+      "questx"
+    ]
+  }
 }

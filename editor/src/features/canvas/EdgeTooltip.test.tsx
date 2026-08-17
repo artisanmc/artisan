@@ -26,9 +26,8 @@ const project = {
           elements: [
             {
               id: "el1",
-              appearances: [
-                { material: "DIAMOND_SWORD", title: { key: "k_sword" as I18nKey } },
-              ],
+              display: { material: "DIAMOND_SWORD", title: { key: "k_sword" as I18nKey } },
+              states: [],
             },
           ],
         },

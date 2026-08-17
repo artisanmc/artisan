@@ -40,6 +40,29 @@ Non-examples:
   *hosts* in its condition atoms — not a separate statement language. It has a
   second, independent host: the **Template**.
 
+## Appearance
+
+How an **Element** looks and behaves in one situation: material/icon, title, lore,
+count, the advanced item details, and the click **Action chains**. An Element
+carries exactly one **display** — what it looks like when nothing else applies —
+plus an ordered list of **states**, each guarded by an `if`. The first state whose
+guard passes wins; when none does, the display renders. On the wire the display's
+fields sit **directly on the Element** (`material:`, `title:`, `click:` …) and the
+states live under `states:`. Cf. ADR `element-display-and-states`.
+
+A state is a **whole** appearance, never a patch: a field it omits is absent, not
+inherited from the display. Two appearances of the same Element are therefore
+independent — which is what lets a state turn a button into a barrier with no
+title without having to un-say anything.
+
+Non-examples:
+- A state is not an override of the display. There is no merge, no partial
+  application, no field-level inheritance.
+- The retired `appearances: [<complete>, <complete>, …]` list is not an
+  Appearance — it was the flat wire form of the same idea, dropped on 2026-08-17
+  because nothing distinguished the fallback entry from the guarded ones. It is
+  not read any more.
+
 ## Bundle — **retired term** (2026-08-12)
 
 A Bundle *was* the hash-keyed materialization of a **Project**, announced by the
@@ -269,10 +292,14 @@ Non-examples:
 ## Element
 
 A single placed thing inside a **Menu**: a button/item/decoration occupying one
-or more slot positions, with an appearance (material/icon, title, lore) and click
-action chains. A Menu's layers each hold a list of Elements (`menu.layers[]
+or more slot positions, carrying one **display** **Appearance** and any number of
+guarded **states**. A Menu's layers each hold a list of Elements (`menu.layers[]
 .elements[]`, domain type `Element`). The fundamental menu-building block on the
 canvas — "you place Elements in a Menu."
+
+An Element's own keys are few and closed by habit — `id`, `positions`,
+`iterates`, `places`, `states`, `tags` — because everything else at the top level
+of an Element **is** a field of its display Appearance.
 
 Non-examples:
 - A **Menu** / **Command** / **Dialog** is a **Document**, not an Element.
@@ -300,15 +327,17 @@ Non-examples:
 
 ## Item set
 
-How the rows of one Data source render as menu slots — appearances (material/icon,
-title, lore, count) **and** click behaviour, with per-row variation expressed
-through conditional appearance states on row fields (never per-item overrides).
+How the rows of one Data source render as menu slots — the **Appearance**
+(material/icon, title, lore, count) **and** click behaviour, with per-row
+variation expressed through **states** guarded on row fields (never per-item
+overrides).
 
 An item set is **not an entity**: it is an Element carrying `iterates` (pagination)
-or `places` (hand-pinned rows) plus its own `appearances`. It therefore belongs to
-the Menu that renders it — two Menus showing the same source each own their look,
-and editing one cannot silently change the other. Created from « Données du menu »
-(`createMenuSet`), which seeds the appearances from the source's schema.
+or `places` (hand-pinned rows) plus its own display and states. It therefore
+belongs to the Menu that renders it — two Menus showing the same source each own
+their look, and editing one cannot silently change the other. Created from
+« Données du menu » (`createMenuSet`), which seeds the display from the source's
+schema.
 
 Non-examples:
 - The removed **Item template** (`ItemTemplate`, `templates/<id>.yaml`,
@@ -467,8 +496,8 @@ decides exactly which row sits where — and, in a multi-page layout, on which p
 Paging reuses the same in-menu navigation as pagination mode; only the page/slot
 assignment is hand-authored rather than computed. A Placement pins **position
 only**: everything about how the row looks *and behaves* (material, title, lore,
-click chains) comes from the Element's own **appearances** — there is **no
-per-placement override**; per-row variation is a conditional appearance state. Available only on **static** sources (a **dynamic** source has no stable
+click chains) comes from the Element's own **Appearance** — there is **no
+per-placement override**; per-row variation is a guarded **state**. Available only on **static** sources (a **dynamic** source has no stable
 design-time set to place against).
 
 On a **parameterised** Menu — one whose source is filtered by an input, so that the

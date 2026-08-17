@@ -38,8 +38,7 @@ class MenuRendererDottedSourceTest {
               - id: grid
                 positions: "10-12"
                 iterates: { source: category.items, alias: item }
-                appearances:
-                  - material: "{item.material}"
+                material: "{item.material}"
         """.trimIndent(),
     )
 

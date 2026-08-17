@@ -41,15 +41,13 @@ class InlineI18nAddressTest {
         elements:
           - id: buy
             positions: 10
-            appearances:
-              - material: STONE
-                title: "Sword"
-                lore: ["Sharp"]
+            material: STONE
+            title: "Sword"
+            lore: ["Sharp"]
           - id: info
             positions: 11
-            appearances:
-              - material: STONE
-                title: "{i18n:custom.legacy.key}"
+            material: STONE
+            title: "{i18n:custom.legacy.key}"
         """.trimIndent(),
     )
 
@@ -137,9 +135,9 @@ class InlineI18nAddressTest {
             elements:
               - id: buy
                 positions: 10
-                appearances:
-                  - material: STONE
-                    title: "A"
+                material: STONE
+                title: "A"
+                states:
                   - material: DIRT
                     title: "B"
                   - material: SAND
@@ -147,11 +145,14 @@ class InlineI18nAddressTest {
             """.trimIndent(),
         )
         val bases = BundleCompiler.compile(multi, emptyMap()).compiledAppearances["buy"]!!.map { it.i18nBase }
+        // Compiled in RESOLUTION order — states first, the display last as the
+        // fallback — while the ADDRESSES stay display-first (ADR
+        // `element-display-and-states`).
         assertEquals(
             listOf(
-                "menus.shop.elements.buy.default",
                 "menus.shop.elements.buy.state1",
                 "menus.shop.elements.buy.state2",
+                "menus.shop.elements.buy.default",
             ),
             bases,
         )

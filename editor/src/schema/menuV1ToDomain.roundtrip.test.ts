@@ -1,3 +1,4 @@
+import { addressedAppearances } from "@/domain/element";
 import { assetId, dialogId, elementId, layerId, menuId, projectId } from "@/domain/ids";
 import type {
   Appearance,
@@ -175,12 +176,23 @@ function buildProject(): Project {
             { kind: "action", action: { type: "run_command", command: "say hi", as: "console" } },
             { kind: "action", action: { type: "open_dialog", dialogId: dialogId("confirm") } },
             { kind: "action", action: { type: "broadcast", text: lt(project, "Big news!") } },
-            { kind: "action", action: { type: "play_sound", sound: "ENTITY_PLAYER_LEVELUP", volume: 0.5, pitch: 1.5 } },
+            {
+              kind: "action",
+              action: {
+                type: "play_sound",
+                sound: "ENTITY_PLAYER_LEVELUP",
+                volume: 0.5,
+                pitch: 1.5,
+              },
+            },
             { kind: "action", action: { type: "give_money", amount: 50 } },
             { kind: "action", action: { type: "give_xp", amount: 5 } },
             { kind: "action", action: { type: "give_level", amount: 1 } },
             { kind: "action", action: { type: "take_item", material: "PAPER", count: 1 } },
-            { kind: "action", action: { type: "teleport", world: "spawn", x: 0.5, y: 64, z: -3, yaw: 90 } },
+            {
+              kind: "action",
+              action: { type: "teleport", world: "spawn", x: 0.5, y: 64, z: -3, yaw: 90 },
+            },
           ],
         },
       },
@@ -188,11 +200,18 @@ function buildProject(): Project {
   ];
 
   const elements: Element[] = [
-    { id: elementId("button"), positions: "0", appearances: buttonAppearances, tags: ["featured"] },
+    {
+      id: elementId("button"),
+      positions: "0",
+      display: buttonAppearances[1]!,
+      states: [buttonAppearances[0]!],
+      tags: ["featured"],
+    },
     {
       id: elementId("grid"),
       positions: "9-17",
-      appearances: gridAppearances,
+      display: { material: "PAPER", title: lt(project, "{item.name}") },
+      states: [gridAppearances[0]!],
       iterates: { source: "items", alias: "item" },
     },
   ];
@@ -234,11 +253,14 @@ describe("menuV1ToDomain — round-trip oracle", () => {
   const wire = parse(menuYaml) as Record<string, unknown>;
   // L'identité vient du NOM DE FICHIER : `projectFromFiles` l'injecte, ce test
   // court-circuite le chargement, il doit donc le faire aussi.
-  const result = menuV1ToDomain({ ...wire, id: "shop" }, {
-    projectId: PACK,
-    lang: LANG,
-    translations: project.i18nKeys as Record<string, Record<string, string>>,
-  });
+  const result = menuV1ToDomain(
+    { ...wire, id: "shop" },
+    {
+      projectId: PACK,
+      lang: LANG,
+      translations: project.i18nKeys as Record<string, Record<string, string>>,
+    },
+  );
   const imported = result.menu;
 
   it("produces no unsupported constructs", () => {
@@ -303,8 +325,8 @@ describe("menuV1ToDomain — round-trip oracle", () => {
   });
 
   it("round-trips appearance conditions and ifJoins (AND-only)", () => {
-    const oapp = original.layers[0]!.elements[0]!.appearances[0]!;
-    const iapp = imported.layers[0]!.elements[0]!.appearances[0]!;
+    const oapp = original.layers[0]!.elements[0]!.states[0]!;
+    const iapp = imported.layers[0]!.elements[0]!.states[0]!;
     expect(iapp.if).toEqual(oapp.if);
     expect(iapp.ifJoins).toEqual(oapp.ifJoins);
     expect(iapp.material).toBe("DIAMOND");
@@ -312,8 +334,8 @@ describe("menuV1ToDomain — round-trip oracle", () => {
   });
 
   it("round-trips the advanced item details", () => {
-    const oapp = original.layers[0]!.elements[0]!.appearances[0]!;
-    const iapp = imported.layers[0]!.elements[0]!.appearances[0]!;
+    const oapp = original.layers[0]!.elements[0]!.states[0]!;
+    const iapp = imported.layers[0]!.elements[0]!.states[0]!;
     expect(iapp.enchants).toEqual(oapp.enchants);
     expect(iapp.customModelData).toBe("42");
     expect(iapp.unbreakable).toBe(true);
@@ -323,13 +345,13 @@ describe("menuV1ToDomain — round-trip oracle", () => {
 
   it("writes enchants as a hand-writable id → level map", () => {
     const app = (wire.elements as Record<string, unknown>[])[0]!;
-    const appearances = app.appearances as Record<string, unknown>[];
-    expect(appearances[0]!.enchants).toEqual({ sharpness: 5, unbreaking: 3 });
+    const state = (app.states as Record<string, unknown>[])[0]!;
+    expect(state.enchants).toEqual({ sharpness: 5, unbreaking: 3 });
   });
 
   it("round-trips click step-trees including if-case + else", () => {
-    const oclick = original.layers[0]!.elements[0]!.appearances[0]!.click!;
-    const iclick = imported.layers[0]!.elements[0]!.appearances[0]!.click!;
+    const oclick = original.layers[0]!.elements[0]!.states[0]!.click!;
+    const iclick = imported.layers[0]!.elements[0]!.states[0]!.click!;
     // Strip LText keys (they're identity, asserted separately) by comparing the
     // structural skeleton of the left handler's first (if) step.
     const oif = oclick.left!.steps[0]!;
@@ -348,8 +370,8 @@ describe("menuV1ToDomain — round-trip oracle", () => {
   });
 
   it("round-trips the grid pagination / set_arg / run_command / open_dialog actions", () => {
-    const ihandler = imported.layers[0]!.elements[1]!.appearances[0]!.click!.left!;
-    const ohandler = original.layers[0]!.elements[1]!.appearances[0]!.click!.left!;
+    const ihandler = imported.layers[0]!.elements[1]!.states[0]!.click!.left!;
+    const ohandler = original.layers[0]!.elements[1]!.states[0]!.click!.left!;
     expect(ihandler.steps).toEqual(ohandler.steps);
   });
 
@@ -405,8 +427,8 @@ describe("menuV1ToDomain — round-trip oracle", () => {
       const iels = imported.layers[li]!.elements;
       const oels = original.layers[li]!.elements;
       for (let ei = 0; ei < iels.length; ei++) {
-        const iapps = iels[ei]!.appearances;
-        const oapps = oels[ei]!.appearances;
+        const iapps = addressedAppearances(iels[ei]!);
+        const oapps = addressedAppearances(oels[ei]!);
         for (let ai = 0; ai < iapps.length; ai++) {
           collectApp(iapps[ai]!, oapps[ai]!);
         }

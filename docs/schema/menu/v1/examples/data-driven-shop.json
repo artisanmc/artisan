@@ -5,14 +5,22 @@
   "size": 54,
   "permission": "shop.view",
   "contextInputs": [
-    { "name": "category", "type": "string" },
+    {
+      "name": "category",
+      "type": "string"
+    },
     {
       "name": "shops",
       "type": "list",
       "source": {
         "ref": "chestshop:items",
-        "filter": { "category": "{category}" },
-        "sort": { "by": "price", "direction": "asc" },
+        "filter": {
+          "category": "{category}"
+        },
+        "sort": {
+          "by": "price",
+          "direction": "asc"
+        },
         "limit": 28
       }
     }
@@ -25,16 +33,14 @@
         {
           "id": "deco_top",
           "positions": "0-8",
-          "appearances": [
-            { "material": "BLACK_STAINED_GLASS_PANE", "title": " " }
-          ]
+          "material": "BLACK_STAINED_GLASS_PANE",
+          "title": " "
         },
         {
           "id": "deco_bottom",
           "positions": "45-53",
-          "appearances": [
-            { "material": "BLACK_STAINED_GLASS_PANE", "title": " " }
-          ]
+          "material": "BLACK_STAINED_GLASS_PANE",
+          "title": " "
         }
       ]
     },
@@ -45,10 +51,31 @@
         {
           "id": "shop_grid",
           "positions": "10-43",
-          "iterates": { "source": "shops", "alias": "shop" },
-          "appearances": [
+          "material": "{shop.material}",
+          "title": "<white>{shop.name}</white>",
+          "lore": [
+            "<gray>{shop.description}</gray>",
+            "",
+            "<yellow>Prix : {shop.price} pièces</yellow>"
+          ],
+          "click": {
+            "left": {
+              "steps": "run_command \"cs buy {shop.id}\" as player"
+            }
+          },
+          "iterates": {
+            "source": "shops",
+            "alias": "shop"
+          },
+          "states": [
             {
-              "if": [{ "type": "placeholder_equals", "placeholder": "{shop.rarity}", "value": "legendary" }],
+              "if": [
+                {
+                  "type": "placeholder_equals",
+                  "placeholder": "{shop.rarity}",
+                  "value": "legendary"
+                }
+              ],
               "material": "{shop.material}",
               "title": "<gold><bold>{shop.name}</bold></gold>",
               "lore": [
@@ -63,20 +90,6 @@
                   "steps": "run_command \"cs buy {shop.id}\" as player\nplay_sound entity.experience_orb.pickup"
                 }
               }
-            },
-            {
-              "material": "{shop.material}",
-              "title": "<white>{shop.name}</white>",
-              "lore": [
-                "<gray>{shop.description}</gray>",
-                "",
-                "<yellow>Prix : {shop.price} pièces</yellow>"
-              ],
-              "click": {
-                "left": {
-                  "steps": "run_command \"cs buy {shop.id}\" as player"
-                }
-              }
             }
           ]
         }
@@ -84,6 +97,8 @@
     }
   ],
   "metadata": {
-    "uses_plugins": ["chestshop"]
+    "uses_plugins": [
+      "chestshop"
+    ]
   }
 }

@@ -1,3 +1,4 @@
+import { readAdvanced } from "@/domain/itemAdvanced";
 import type {
   AssetId,
   ClickHandler,
@@ -16,7 +17,6 @@ import type {
   ProjectId,
   TextSize,
 } from "@/domain/types";
-import { readAdvanced } from "@/domain/itemAdvanced";
 import { INVENTORY_TYPES } from "@/features/canvas/inventoryTypes";
 import { newI18nKey } from "@/lib/i18n";
 import { makeStepConverter } from "./actionV1ToDomain";
@@ -101,7 +101,11 @@ export function makeAppearanceConverter(bridge: I18nBridge): {
 
 export function menuV1ToDomain(
   src: Json,
-  opts: { projectId: ProjectId; lang: string; translations?: Record<string, Record<string, string>> },
+  opts: {
+    projectId: ProjectId;
+    lang: string;
+    translations?: Record<string, Record<string, string>>;
+  },
 ): ImportResult {
   const i18nKeys: Record<string, Record<string, string>> = {};
   const unsupported: string[] = [];
@@ -248,8 +252,10 @@ export function menuV1ToDomain(
     return {
       id: el.id,
       positions: positionsSpec(el.positions),
-      // Template-bound elements carry no appearances on the wire.
-      appearances: ((el.appearances as Json[]) ?? []).map(appearance),
+      // The display's fields sit flat on the element; `appearance` is
+      // allow-list driven, so the structural keys around them are ignored.
+      display: appearance(el),
+      states: ((el.states as Json[]) ?? []).map(appearance),
       ...(el.iterates ? { iterates: iteratesOf(el.iterates) } : {}),
       ...(el.places ? { places: placesOf(el.places) } : {}),
       ...(el.tags ? { tags: el.tags } : {}),

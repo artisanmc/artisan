@@ -48,9 +48,8 @@ class SyncedMenuProviderTest {
                 elements:
                   - id: el_btn
                     positions: "13"
-                    appearances:
-                      - material: PAPER
-                        title: "{i18n:menus.m_shop.elements.el_btn.default.title}"
+                    material: PAPER
+                    title: "{i18n:menus.m_shop.elements.el_btn.default.title}"
         """.trimIndent())
         File(projectDir, "lang").mkdirs()
         File(projectDir, "lang/en.yaml").writeText("""

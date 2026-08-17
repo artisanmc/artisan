@@ -4,7 +4,9 @@
   "title": "§6Shop principal",
   "size": 27,
   "permission": "menu.shop.open",
-  "background": { "asset": "shop_bg.png" },
+  "background": {
+    "asset": "shop_bg.png"
+  },
   "open_actions": "play_sound block.chest.open vol=0.5 pitch=1",
   "layers": [
     {
@@ -14,61 +16,86 @@
         {
           "id": "btn_diamond_sword",
           "positions": "11",
-          "appearances": [
-            {
-              "material": "DIAMOND_SWORD",
-              "title": "§bÉpée diamant",
-              "lore": ["§7Prix: §a200$", "", "§eClique pour acheter"],
-              "click": {
-                "left": {
-                  "steps": "if has_money(200):\n  take_money 200\n  give_item DIAMOND_SWORD 1\n  send_message \"§aÉpée achetée !\"\n  play_sound entity.experience_orb.pickup vol=1 pitch=1\nelse:\n  send_message \"§cTu n'as pas assez d'argent.\""
-                }
-              }
-            }
+          "material": "DIAMOND_SWORD",
+          "title": "§bÉpée diamant",
+          "lore": [
+            "§7Prix: §a200$",
+            "",
+            "§eClique pour acheter"
           ],
-          "tags": ["shop", "weapons"]
+          "click": {
+            "left": {
+              "steps": "if has_money(200):\n  take_money 200\n  give_item DIAMOND_SWORD 1\n  send_message \"§aÉpée achetée !\"\n  play_sound entity.experience_orb.pickup vol=1 pitch=1\nelse:\n  send_message \"§cTu n'as pas assez d'argent.\""
+            }
+          },
+          "tags": [
+            "shop",
+            "weapons"
+          ]
         },
         {
           "id": "btn_rank_vip",
           "positions": "15",
-          "appearances": [
+          "asset": "rank_vip_button.png",
+          "title": "§6Rank VIP",
+          "lore": [
+            "§7Prix: §a500$",
+            "",
+            "§eClique pour acheter"
+          ],
+          "click": {
+            "left": {
+              "steps": "if has_money(500):\n  take_money 500\n  run_command \"lp user %player_name% parent set vip\" as console\n  send_message \"§aRank VIP débloqué !\"\n  broadcast \"§e%player_name% §7vient de débloquer le rank §6VIP §7!\"\nelse:\n  send_message \"§cPas assez d'argent.\""
+            }
+          },
+          "tags": [
+            "shop",
+            "ranks"
+          ],
+          "states": [
             {
-              "if": [{ "type": "has_permission", "perm": "rank.vip" }],
+              "if": [
+                {
+                  "type": "has_permission",
+                  "perm": "rank.vip"
+                }
+              ],
               "asset": "rank_vip_owned.png",
               "title": "§6Rank VIP",
-              "lore": ["§aDéjà possédé"],
+              "lore": [
+                "§aDéjà possédé"
+              ],
               "click": null
             },
             {
-              "if": [{ "type": "not", "of": { "type": "has_money", "amount": 500 } }],
+              "if": [
+                {
+                  "type": "not",
+                  "of": {
+                    "type": "has_money",
+                    "amount": 500
+                  }
+                }
+              ],
               "asset": "rank_vip_disabled.png",
               "title": "§6Rank VIP",
-              "lore": ["§cIl te manque de l'argent"],
+              "lore": [
+                "§cIl te manque de l'argent"
+              ],
               "click": null
-            },
-            {
-              "asset": "rank_vip_button.png",
-              "title": "§6Rank VIP",
-              "lore": ["§7Prix: §a500$", "", "§eClique pour acheter"],
-              "click": {
-                "left": {
-                  "steps": "if has_money(500):\n  take_money 500\n  run_command \"lp user %player_name% parent set vip\" as console\n  send_message \"§aRank VIP débloqué !\"\n  broadcast \"§e%player_name% §7vient de débloquer le rank §6VIP §7!\"\nelse:\n  send_message \"§cPas assez d'argent.\""
-                }
-              }
             }
-          ],
-          "tags": ["shop", "ranks"]
+          ]
         },
         {
           "id": "btn_close",
           "positions": "22",
-          "appearances": [
-            {
-              "material": "BARRIER",
-              "title": "§cFermer",
-              "click": { "left": { "steps": "close_menu" } }
+          "material": "BARRIER",
+          "title": "§cFermer",
+          "click": {
+            "left": {
+              "steps": "close_menu"
             }
-          ]
+          }
         }
       ]
     }

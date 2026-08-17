@@ -2,8 +2,19 @@
   "schema": "menu/v1",
   "id": "vip",
   "title": [
-    { "kind": "background", "asset_id": "asset_bg1" },
-    { "kind": "text", "value": { "key": "menus.vip.title" }, "x": 8, "y": 5, "color": "#FFAA00" }
+    {
+      "kind": "background",
+      "asset_id": "asset_bg1"
+    },
+    {
+      "kind": "text",
+      "value": {
+        "key": "menus.vip.title"
+      },
+      "x": 8,
+      "y": 5,
+      "color": "#FFAA00"
+    }
   ],
   "size": 54,
   "permission": "artisan.vip",
@@ -15,9 +26,16 @@
         {
           "id": "vip_slot",
           "positions": "0-8",
-          "appearances": [
+          "material": "STONE",
+          "title": "Locked",
+          "states": [
             {
-              "if": [{ "type": "has_permission", "perm": "artisan.vip.gold" }],
+              "if": [
+                {
+                  "type": "has_permission",
+                  "perm": "artisan.vip.gold"
+                }
+              ],
               "material": "GOLD_INGOT",
               "title": "VIP Gold",
               "click": {
@@ -25,8 +43,7 @@
                   "steps": "if has_money(100):\n  take_money 100\nelse:\n  send_message \"Not enough money\""
                 }
               }
-            },
-            { "material": "STONE", "title": "Locked" }
+            }
           ]
         }
       ]

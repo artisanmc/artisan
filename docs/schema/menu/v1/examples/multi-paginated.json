@@ -3,7 +3,9 @@
   "id": "profile_overview",
   "title": "§6Mon profil",
   "size": 54,
-  "background": { "asset": "profile_bg.png" },
+  "background": {
+    "asset": "profile_bg.png"
+  },
   "layers": [
     {
       "id": "default",
@@ -12,114 +14,147 @@
         {
           "id": "header_quests",
           "positions": "1",
-          "appearances": [{ "asset": "header_quests.png", "title": "§6Quêtes en cours" }]
+          "asset": "header_quests.png",
+          "title": "§6Quêtes en cours"
         },
         {
           "id": "quests_list",
           "positions": "9-17",
-          "appearances": [
-            {
-              "component_ref": "questx:quest_button",
-              "asset": "quest_btn.png",
-              "lore": ["§7{{questx:quest_name}}", "§7Avancement : §e{{questx:quest_progress}}"],
-              "click": null
-            }
-          ]
+          "component_ref": "questx:quest_button",
+          "asset": "quest_btn.png",
+          "lore": [
+            "§7{{questx:quest_name}}",
+            "§7Avancement : §e{{questx:quest_progress}}"
+          ],
+          "click": null
         },
         {
           "id": "quests_prev",
           "positions": "0",
-          "appearances": [
+          "asset": "arrow_left.png",
+          "title": "§7Quêtes : page précédente",
+          "click": {
+            "left": {
+              "steps": "paginate prev quests_list"
+            }
+          },
+          "states": [
             {
-              "if": [{ "type": "pagination_at_first", "element_id": "quests_list" }],
+              "if": [
+                {
+                  "type": "pagination_at_first",
+                  "element_id": "quests_list"
+                }
+              ],
               "asset": "arrow_left_disabled.png",
               "click": null
-            },
-            {
-              "asset": "arrow_left.png",
-              "title": "§7Quêtes : page précédente",
-              "click": { "left": { "steps": "paginate prev quests_list" } }
             }
           ]
         },
         {
           "id": "quests_next",
           "positions": "18",
-          "appearances": [
+          "asset": "arrow_right.png",
+          "title": "§7Quêtes : page suivante",
+          "click": {
+            "left": {
+              "steps": "paginate next quests_list"
+            }
+          },
+          "states": [
             {
-              "if": [{ "type": "pagination_at_last", "element_id": "quests_list" }],
+              "if": [
+                {
+                  "type": "pagination_at_last",
+                  "element_id": "quests_list"
+                }
+              ],
               "asset": "arrow_right_disabled.png",
               "click": null
-            },
-            {
-              "asset": "arrow_right.png",
-              "title": "§7Quêtes : page suivante",
-              "click": { "left": { "steps": "paginate next quests_list" } }
             }
           ]
         },
         {
           "id": "header_achievements",
           "positions": "28",
-          "appearances": [{ "asset": "header_achievements.png", "title": "§6Succès débloqués" }]
+          "asset": "header_achievements.png",
+          "title": "§6Succès débloqués"
         },
         {
           "id": "achievements_list",
           "positions": "36-44",
-          "appearances": [
-            {
-              "component_ref": "achievementsplus:achievement_icon",
-              "asset": "achievement_btn.png",
-              "lore": ["§7{{achievementsplus:name}}", "§7Débloqué le §e{{achievementsplus:unlocked_at}}"],
-              "click": null
-            }
-          ]
+          "component_ref": "achievementsplus:achievement_icon",
+          "asset": "achievement_btn.png",
+          "lore": [
+            "§7{{achievementsplus:name}}",
+            "§7Débloqué le §e{{achievementsplus:unlocked_at}}"
+          ],
+          "click": null
         },
         {
           "id": "achievements_prev",
           "positions": "27",
-          "appearances": [
+          "asset": "arrow_left.png",
+          "title": "§7Succès : page précédente",
+          "click": {
+            "left": {
+              "steps": "paginate prev achievements_list"
+            }
+          },
+          "states": [
             {
-              "if": [{ "type": "pagination_at_first", "element_id": "achievements_list" }],
+              "if": [
+                {
+                  "type": "pagination_at_first",
+                  "element_id": "achievements_list"
+                }
+              ],
               "asset": "arrow_left_disabled.png",
               "click": null
-            },
-            {
-              "asset": "arrow_left.png",
-              "title": "§7Succès : page précédente",
-              "click": { "left": { "steps": "paginate prev achievements_list" } }
             }
           ]
         },
         {
           "id": "achievements_next",
           "positions": "45",
-          "appearances": [
+          "asset": "arrow_right.png",
+          "title": "§7Succès : page suivante",
+          "click": {
+            "left": {
+              "steps": "paginate next achievements_list"
+            }
+          },
+          "states": [
             {
-              "if": [{ "type": "pagination_at_last", "element_id": "achievements_list" }],
+              "if": [
+                {
+                  "type": "pagination_at_last",
+                  "element_id": "achievements_list"
+                }
+              ],
               "asset": "arrow_right_disabled.png",
               "click": null
-            },
-            {
-              "asset": "arrow_right.png",
-              "title": "§7Succès : page suivante",
-              "click": { "left": { "steps": "paginate next achievements_list" } }
             }
           ]
         },
         {
           "id": "btn_close",
           "positions": "53",
-          "appearances": [
-            {
-              "material": "BARRIER",
-              "title": "§cFermer",
-              "click": { "left": { "steps": "close_menu" } }
+          "material": "BARRIER",
+          "title": "§cFermer",
+          "click": {
+            "left": {
+              "steps": "close_menu"
             }
-          ]
+          }
         }
       ]
     }
   ],
-  "metadata": { "uses_plugins": ["questx", "achievementsplus"] }
+  "metadata": {
+    "uses_plugins": [
+      "questx",
+      "achievementsplus"
+    ]
+  }
 }

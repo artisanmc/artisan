@@ -22,9 +22,8 @@ Your project lives as YAML files on your server, and you can edit them by hand. 
 title: Shop
 elements:
   - id: buy
-    appearances:
-      - title: Sword
-        lore: Sharp and shiny
+    title: Sword
+    lore: Sharp and shiny
 ```
 
 The other languages live in `lang/fr.yaml`, `lang/de.yaml`… and there is **no file for your default language** — the menu already carries it. A single-language server therefore has no `lang/` folder at all.
@@ -36,8 +35,7 @@ The other languages live in `lang/fr.yaml`, `lang/de.yaml`… and there is **no 
 title: "{i18n:menus.shop.title}"     menus:
 elements:                              shop:
   - id: buy                              title: Shop
-    appearances:
-      - title: "{i18n:menus.shop.elements.buy.default.title}"
+    title: "{i18n:menus.shop.elements.buy.default.title}"
 ```
 
 Both forms work on the server, and you can mix them in the same file — a `{i18n:…}` reference always wins, a plain text is looked up by its position, and failing that it displays as written.

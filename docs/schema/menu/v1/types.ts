@@ -132,24 +132,33 @@ export interface Layer {
 // ELEMENT
 // ============================================================================
 
-export interface Element {
+/**
+ * Un Element : ses clés structurelles, plus — À PLAT — les champs de son
+ * **display**, l'apparence rendue quand aucun état ne s'applique. D'où
+ * l'extension d'`Appearance` : au premier niveau d'un Element, tout ce qui n'est
+ * pas structurel est un champ du display.
+ */
+export interface Element extends Appearance {
   /** Identifiant stable, unique dans le menu (toutes layers confondues). */
   id: string;
   /** "15" pour position unique, "10-43" pour une range. */
   positions: string;
-  /** Apparences évaluées dans l'ordre. Première dont `if` matche gagne. Aucune match → fall-through. */
-  appearances: Appearance[];
+  /**
+   * États gardés, essayés dans l'ordre AVANT le display. Le premier dont le `if`
+   * passe gagne ; si aucun ne passe, le display est rendu. Un état est une
+   * apparence ENTIÈRE, pas un patch : ce qu'il n'écrit pas est absent, jamais
+   * hérité du display (ADR `element-display-and-states`).
+   */
+  states?: Appearance[];
   /**
    * Si présent, l'Element devient itératif : pour chaque item du contextInput nommé `source`
-   * (de type "list"), le moteur évalue les appearances avec l'item courant exposé sous `alias`,
+   * (de type "list"), le moteur évalue ses apparences avec l'item courant exposé sous `alias`,
    * accessible via {alias.field}. La liste source peut venir de l'appelant ou d'une data source —
    * transparent côté Element. Mutuellement exclusif avec component_ref dans une appearance.
    */
   iterates?: { source: string; alias: string };
   template_ref?: TemplateRef | null;
   tags?: string[];
-  /** Notes internes de l'admin (jamais rendues aux joueurs). */
-  notes?: string;
 }
 
 export interface Appearance {
@@ -433,7 +442,7 @@ export function validateMenuLayout(menu: Pick<Menu, "size" | "layers" | "context
 
       // iterates / component_ref mutex + iterates.source résoluble en contextInput de type "list"
       if (el.iterates) {
-        for (const app of el.appearances) {
+        for (const app of [el, ...(el.states ?? [])]) {
           if (app.component_ref) {
             errors.push(`Element "${el.id}" mélange iterates et appearance.component_ref — incompatibles.`);
             break;

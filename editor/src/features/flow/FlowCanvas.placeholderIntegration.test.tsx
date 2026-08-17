@@ -7,13 +7,13 @@
  * surfaces in the autocomplete popup when the user types "{".
  */
 import "@/i18n";
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, beforeEach } from "vitest";
 import { PlaceholderInput } from "@/components/PlaceholderInput";
 import { usePlaceholderEntries } from "@/components/usePlaceholderEntries";
+import type { Account, ElementId, MenuId, Project, ProjectId } from "@/domain/types";
 import type { FieldLocation } from "@/lib/placeholderCatalog";
 import { useAccountStore } from "@/state/accountStore";
-import type { Account, ElementId, MenuId, Project, ProjectId } from "@/domain/types";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { beforeEach, describe, expect, it } from "vitest";
 
 // ── Minimal project fixture ──────────────────────────────────────────────────────
 
@@ -38,14 +38,10 @@ function makeProject(): Project {
           {
             id: "l1" as Project["menus"][number]["layers"][number]["id"],
             name: "default",
-            elements: [
-              { id: ELEMENT_ID, positions: "0", appearances: [] },
-            ],
+            elements: [{ id: ELEMENT_ID, positions: "0", display: {}, states: [] }],
           },
         ],
-        contextInputs: [
-          { kind: "primitive", name: "player", type: "player", default: "Steve" },
-        ],
+        contextInputs: [{ kind: "primitive", name: "player", type: "player", default: "Steve" }],
       },
     ],
     commands: [],
@@ -63,13 +59,7 @@ function makeProject(): Project {
 
 function TitleInput({ location }: { location: FieldLocation }) {
   const entries = usePlaceholderEntries(PACK_ID, location);
-  return (
-    <PlaceholderInput
-      value=""
-      onChange={() => {}}
-      entries={entries}
-    />
-  );
+  return <PlaceholderInput value="" onChange={() => {}} entries={entries} />;
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────

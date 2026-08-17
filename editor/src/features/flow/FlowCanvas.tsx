@@ -1,8 +1,11 @@
 import { PlaceholderInput } from "@/components/PlaceholderInput";
 import { RevealField } from "@/components/RevealField";
-import { usePlaceholderEntries } from "@/components/usePlaceholderEntries";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { usePlaceholderEntries } from "@/components/usePlaceholderEntries";
+import { CAPTURED_ITEM_REF_PREFIX, resolveDisplayRef } from "@/domain/capturedItems";
+import { capturedStackDetails } from "@/domain/capturedStack";
+import { addressedAppearances } from "@/domain/element";
 import { getFirstTitleText } from "@/domain/menuTitle";
 import type { Appearance, I18nKey } from "@/domain/types";
 import type {
@@ -19,22 +22,18 @@ import type {
   ProjectId,
 } from "@/domain/types";
 import { MaterialPicker } from "@/features/canvas/MaterialPicker";
-import { CAPTURED_ITEM_REF_PREFIX, resolveDisplayRef } from "@/domain/capturedItems";
-import { capturedStackDetails } from "@/domain/capturedStack";
-import { AdvancedItemSection } from "./AdvancedItemSection";
 import { headPreviewUrl } from "@/features/canvas/headTexture";
-import { useTextureUrl } from "@/features/canvas/textureStore";
-import { buildHeadValue, type HeadSource, headSourceOf, headValueOf } from "./headField";
+import { buildPreviewScope, renderPreview } from "@/features/canvas/menuPreviewScope";
 import {
   type PlaceholderInfo,
   PlaceholderProvider,
 } from "@/features/canvas/properties/ActionEditor";
+import { AliasesField } from "@/features/canvas/properties/AliasesField";
 import { ConditionListEditor } from "@/features/canvas/properties/ConditionListEditor";
 import { MenuProperties } from "@/features/canvas/properties/MenuProperties";
 import { ProjectProperties } from "@/features/canvas/properties/ProjectProperties";
 import { PropertyField } from "@/features/canvas/properties/PropertyField";
-import { AliasesField } from "@/features/canvas/properties/AliasesField";
-import { buildPreviewScope, renderPreview } from "@/features/canvas/menuPreviewScope";
+import { useTextureUrl } from "@/features/canvas/textureStore";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { lookupPath } from "@/lib/placeholders";
 import { formatPositions, parsePositions } from "@/lib/positions";
@@ -56,11 +55,13 @@ import { CSS } from "@dnd-kit/utilities";
 import { Wand2 } from "lucide-react";
 import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { AdvancedItemSection } from "./AdvancedItemSection";
 import {
   CommandStepPseudocode,
   DialogButtonStepPseudocode,
   ElementClickHandlersPseudocode,
 } from "./PseudocodeView";
+import { type HeadSource, buildHeadValue, headSourceOf, headValueOf } from "./headField";
 
 interface FlowCanvasProps {
   projectId: ProjectId;
@@ -179,7 +180,7 @@ function ElementEditor({
     sub && (sub.kind === "state" || sub.kind === "step") ? (sub.stateIndex ?? 0) : 0;
 
   const headerProject = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
-  const appearances = element.appearances;
+  const appearances = addressedAppearances(element);
   const focusedState = appearances[focusedStateIndex] ?? appearances[0];
   const headerMaterial = focusedState?.material ?? "";
   // Captured-item refs (`item:<id>`) expand to their display descriptor.
@@ -194,6 +195,7 @@ function ElementEditor({
   const { t } = useTranslation();
 
   const addAppearance = useAccountStore((s) => s.addAppearance);
+  const duplicateAppearance = useAccountStore((s) => s.duplicateAppearance);
   const deleteElement = useAccountStore((s) => s.deleteElement);
 
   return (
@@ -210,7 +212,9 @@ function ElementEditor({
               style={{ imageRendering: "pixelated" }}
             />
           ) : (
-            <span className="text-[8px] text-[var(--text-faint)]">{headerMaterial.slice(0, 4)}</span>
+            <span className="text-[8px] text-[var(--text-faint)]">
+              {headerMaterial.slice(0, 4)}
+            </span>
           )}
         </div>
         <div className="min-w-0 flex-1">
@@ -254,9 +258,14 @@ function ElementEditor({
             the element only shows its binding as context for the states. */}
         {element.iterates ? (
           <div className="mb-3 rounded border border-[var(--brand-line)] border-dashed bg-[var(--brand-soft)] px-2.5 py-1.5 text-[11px] text-[var(--brand)]">
-            {t("flow.iterateBound", { source: element.iterates.source, alias: element.iterates.alias || "item" })}
+            {t("flow.iterateBound", {
+              source: element.iterates.source,
+              alias: element.iterates.alias || "item",
+            })}
             <span className="ml-1 text-[10px] opacity-75">
-              {t("flow.iterationManagedHint", { example: `{${element.iterates.alias || "item"}.champ}` })}
+              {t("flow.iterationManagedHint", {
+                example: `{${element.iterates.alias || "item"}.champ}`,
+              })}
             </span>
           </div>
         ) : null}
@@ -270,6 +279,15 @@ function ElementEditor({
             focusedStateIndex={focusedStateIndex}
             onAdd={() => {
               addAppearance({ projectId, menuId: menu.id, elementId: element.id });
+              setSub({ kind: "state", stateIndex: appearances.length });
+            }}
+            onDuplicate={() => {
+              duplicateAppearance({
+                projectId,
+                menuId: menu.id,
+                elementId: element.id,
+                appearanceIndex: focusedStateIndex,
+              });
               setSub({ kind: "state", stateIndex: appearances.length });
             }}
           />
@@ -293,6 +311,7 @@ function SortableStates({
   appearances,
   focusedStateIndex,
   onAdd,
+  onDuplicate,
 }: {
   projectId: ProjectId;
   menu: Menu;
@@ -301,6 +320,7 @@ function SortableStates({
   appearances: Appearance[];
   focusedStateIndex: number;
   onAdd: () => void;
+  onDuplicate: () => void;
 }) {
   const { t } = useTranslation();
   const moveAppearance = useAccountStore((s) => s.moveAppearance);
@@ -352,13 +372,25 @@ function SortableStates({
               focused={focusedStateIndex === i}
             />
           ))}
-          <button
-            type="button"
-            onClick={onAdd}
-            className="self-start rounded border border-[var(--border)] border-dashed px-3 py-1.5 text-xs text-[var(--text-mut)] hover:border-[var(--border-strong)] hover:text-[var(--text)]"
-          >
-            {t("flow.addState")}
-          </button>
+          <div className="flex items-center gap-2 self-start">
+            <button
+              type="button"
+              onClick={onAdd}
+              className="rounded border border-[var(--border)] border-dashed px-3 py-1.5 text-xs text-[var(--text-mut)] hover:border-[var(--border-strong)] hover:text-[var(--text)]"
+            >
+              {t("flow.addState")}
+            </button>
+            {/* A state REPLACES the display, so "add" starts empty on purpose —
+                duplicating is the separate, explicit gesture. */}
+            <button
+              type="button"
+              onClick={onDuplicate}
+              title={t("flow.duplicateStateHint")}
+              className="rounded border border-[var(--border)] border-dashed px-3 py-1.5 text-xs text-[var(--text-mut)] hover:border-[var(--border-strong)] hover:text-[var(--text)]"
+            >
+              {t("flow.duplicateState")}
+            </button>
+          </div>
         </div>
       </SortableContext>
     </DndContext>
@@ -486,7 +518,9 @@ function StateMaterialIcon({
                 style={{ imageRendering: "pixelated" }}
               />
             ) : (
-              <span className="text-[8px] text-[var(--text-faint)]">{material.slice(0, 3) || "—"}</span>
+              <span className="text-[8px] text-[var(--text-faint)]">
+                {material.slice(0, 3) || "—"}
+              </span>
             )}
           </button>
         }
@@ -591,8 +625,12 @@ function StateCard({
   // label so "I replaced the text" edits don't silently land in another lang.
   const inActiveLang = (lt: { key: I18nKey } | undefined) =>
     lt && project ? project.i18nKeys[lt.key]?.[activeLang] !== undefined : false;
-  const titleIsFallback = Boolean(appearance.title && title !== "" && !inActiveLang(appearance.title));
-  const loreIsFallback = Boolean(appearance.lore && loreText !== "" && !inActiveLang(appearance.lore));
+  const titleIsFallback = Boolean(
+    appearance.title && title !== "" && !inActiveLang(appearance.title),
+  );
+  const loreIsFallback = Boolean(
+    appearance.lore && loreText !== "" && !inActiveLang(appearance.lore),
+  );
 
   // Local draft state — decoupled from the store so Enter doesn't jump the
   // cursor. Resets to loreText when element/stateIndex changes or on blur.
@@ -714,7 +752,9 @@ function StateCard({
                 style={{ imageRendering: "pixelated" }}
               />
             ) : (
-              <span className="text-[8px] text-[var(--text-faint)]">{material.slice(0, 3) || "—"}</span>
+              <span className="text-[8px] text-[var(--text-faint)]">
+                {material.slice(0, 3) || "—"}
+              </span>
             )}
           </div>
           <div className="min-w-0 flex-1">
@@ -856,7 +896,9 @@ function StateCard({
                 className="h-8 px-2 py-0 text-xs"
                 facade={
                   <MiniMessageInline
-                    source={project ? renderPreview(title, lorePreviewCtx, project, activeLang) : title}
+                    source={
+                      project ? renderPreview(title, lorePreviewCtx, project, activeLang) : title
+                    }
                     className="font-mono text-xs"
                   />
                 }
@@ -1253,7 +1295,12 @@ function CommandEditor({ projectId, command }: { projectId: ProjectId; command: 
                   value={command.permission ?? ""}
                   placeholder={t("command.permissionPlaceholder")}
                   onChange={(v) =>
-                    setCommandField({ projectId, commandId: command.id, field: "permission", value: v })
+                    setCommandField({
+                      projectId,
+                      commandId: command.id,
+                      field: "permission",
+                      value: v,
+                    })
                   }
                 />
                 <PropertyField
@@ -1262,7 +1309,12 @@ function CommandEditor({ projectId, command }: { projectId: ProjectId; command: 
                   placeholder={t("command.descriptionPlaceholder")}
                   multiline
                   onChange={(v) =>
-                    setCommandField({ projectId, commandId: command.id, field: "description", value: v })
+                    setCommandField({
+                      projectId,
+                      commandId: command.id,
+                      field: "description",
+                      value: v,
+                    })
                   }
                 />
                 <AliasesField
@@ -1363,7 +1415,9 @@ function CommandArgsEditor({ projectId, command }: { projectId: ProjectId; comma
 
   return (
     <div className="flex flex-col gap-2">
-      <p className="text-[10px] text-[var(--text-faint)]">{t("command.argumentsHint", { tag: "{name}" })}</p>
+      <p className="text-[10px] text-[var(--text-faint)]">
+        {t("command.argumentsHint", { tag: "{name}" })}
+      </p>
       {orderError && (
         <div className="rounded border border-[var(--warning)] bg-[var(--warning-soft)] px-2 py-1.5 text-[10px] text-[var(--warning)]">
           {orderError}
@@ -1745,9 +1799,7 @@ function DialogEditor({ projectId, dialog }: { projectId: ProjectId; dialog: Dia
                   />
                   <button
                     type="button"
-                    onClick={() =>
-                      removeDialogInput({ projectId, dialogId: dialog.id, index: i })
-                    }
+                    onClick={() => removeDialogInput({ projectId, dialogId: dialog.id, index: i })}
                     className="flex h-7 w-7 items-center justify-center rounded text-[14px] text-[var(--text-faint)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
                   >
                     ×
@@ -1755,7 +1807,9 @@ function DialogEditor({ projectId, dialog }: { projectId: ProjectId; dialog: Dia
                 </div>
                 {input.type === "number_range" ? (
                   <div className="flex items-center gap-2 pl-0.5">
-                    <span className="font-mono text-[10px] text-[var(--text-faint)]">{t("dialog.inputMin")}</span>
+                    <span className="font-mono text-[10px] text-[var(--text-faint)]">
+                      {t("dialog.inputMin")}
+                    </span>
                     <Input
                       type="number"
                       value={input.min}
@@ -1769,7 +1823,9 @@ function DialogEditor({ projectId, dialog }: { projectId: ProjectId; dialog: Dia
                       }
                       className="h-7 w-20 px-2 py-0 text-xs"
                     />
-                    <span className="font-mono text-[10px] text-[var(--text-faint)]">{t("dialog.inputMax")}</span>
+                    <span className="font-mono text-[10px] text-[var(--text-faint)]">
+                      {t("dialog.inputMax")}
+                    </span>
                     <Input
                       type="number"
                       value={input.max}
@@ -1783,7 +1839,9 @@ function DialogEditor({ projectId, dialog }: { projectId: ProjectId; dialog: Dia
                       }
                       className="h-7 w-20 px-2 py-0 text-xs"
                     />
-                    <span className="font-mono text-[10px] text-[var(--text-faint)]">{t("dialog.inputDefault")}</span>
+                    <span className="font-mono text-[10px] text-[var(--text-faint)]">
+                      {t("dialog.inputDefault")}
+                    </span>
                     <Input
                       type="number"
                       value={input.default}
@@ -1801,7 +1859,9 @@ function DialogEditor({ projectId, dialog }: { projectId: ProjectId; dialog: Dia
                 ) : null}
                 {input.type === "text" ? (
                   <div className="flex items-center gap-2 pl-0.5">
-                    <span className="font-mono text-[10px] text-[var(--text-faint)]">{t("dialog.inputMaxLength")}</span>
+                    <span className="font-mono text-[10px] text-[var(--text-faint)]">
+                      {t("dialog.inputMaxLength")}
+                    </span>
                     <Input
                       type="number"
                       min={1}
@@ -1861,7 +1921,10 @@ function DialogEditor({ projectId, dialog }: { projectId: ProjectId; dialog: Dia
         <Lane label={t("dialog.buttonsLabel")}>
           <div className="flex flex-col gap-3">
             {dialog.buttons.map((btn, btnIndex) => (
-              <div key={btn.id} className="rounded border border-[var(--border-soft)] bg-[var(--surface-raised)] p-2">
+              <div
+                key={btn.id}
+                className="rounded border border-[var(--border-soft)] bg-[var(--surface-raised)] p-2"
+              >
                 <div className="mb-2 flex items-center gap-1.5">
                   <span className="font-mono text-[10px] text-[var(--text-faint)]">{btn.id}</span>
                   <Input

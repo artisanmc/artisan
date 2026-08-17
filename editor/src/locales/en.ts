@@ -205,8 +205,9 @@ export default {
     setAddPath: "Add a list",
     setAddPathPlaceholder: "path, e.g. category.meta.items",
     setDelete: "Delete set",
-    setDeleteConfirm: "Delete this set and its {{count}} placement(s)? You can recreate a paginated or placed set after.",
-    setUnplaceHint: "Remove \"{{title}}\" from the menu (the set is kept).",
+    setDeleteConfirm:
+      "Delete this set and its {{count}} placement(s)? You can recreate a paginated or placed set after.",
+    setUnplaceHint: 'Remove "{{title}}" from the menu (the set is kept).',
     setCreatePaginate: "Paginate",
     setCreatePlace: "1 by 1",
     setPaginated: "Paginated — slots {{positions}}.",
@@ -227,7 +228,8 @@ export default {
     clearContext: "clear context (forget the parent menu's history)",
     closeMenuLabel: "Closes the active menu — no parameters.",
     runActionsLabel: "actions to run",
-    runActionsHint: "An expression pointing at an actions field (e.g. item.on_buy). Runs it inline.",
+    runActionsHint:
+      "An expression pointing at an actions field (e.g. item.on_buy). Runs it inline.",
     command: "command",
     commandPlaceholder: "spawn",
     commandHint: "No leading slash — the runtime adds it.",
@@ -302,8 +304,8 @@ export default {
     positionsLabelOther: "positions ({{count}} slots)",
     iteration: "iteration",
     iterationEnable: "+ Iterate over context list",
-    iterationViaMenuData: "Item sets are created in \"Menu data\" (menu panel).",
-    iterationManagedHint: "— fields via {{example}}, managed in \"Data\".",
+    iterationViaMenuData: 'Item sets are created in "Menu data" (menu panel).',
+    iterationManagedHint: '— fields via {{example}}, managed in "Data".',
     iterationDisable: "Stop iterating",
     iterationForEach: "for each",
     iterationIn: "in",
@@ -328,11 +330,16 @@ export default {
     placementRemove: "Remove this placement",
     iterationSetLabel: "set",
     iterationSetPick: "(pick an item set…)",
-    iterationSetHint: "Appearance and click come from the set (alias {{alias}}, source {{source}}). Edit them in the States below.",
-    iterationSetConflict: 'Another set of the same source ("{{name}}") is already used in this menu.',
+    iterationSetHint:
+      "Appearance and click come from the set (alias {{alias}}, source {{source}}). Edit them in the States below.",
+    iterationSetConflict:
+      'Another set of the same source ("{{name}}") is already used in this menu.',
     iterationEnableManual: "manual iteration (advanced)",
     states: "States",
     addState: "+ Add state",
+    duplicateState: "Duplicate",
+    duplicateStateHint:
+      "Copy the focused state (or the display) into a new one — a state replaces the display, it inherits nothing from it.",
     stateDefault: "default",
     stateN: "state {{index}}",
     editing: "editing",
@@ -394,7 +401,7 @@ export default {
       extract: "Extract the details",
       extractHint: "Turn this captured item into editable fields",
       extractConfirm:
-        "Extract the details of \"{{name}}\" into editable fields?\n\nThe link to the captured item is lost: the slot will no longer follow it if it is re-captured.",
+        'Extract the details of "{{name}}" into editable fields?\n\nThe link to the captured item is lost: the slot will no longer follow it if it is re-captured.',
     },
     clickAdd: "+ Add click",
     clickRemove: "Remove this click handler",
@@ -547,13 +554,14 @@ export default {
   },
   capturedItems: {
     sectionTitle: "Captured items",
-    emptyHint: "No captured item — load a player's inventory below and click an item to capture it.",
+    emptyHint:
+      "No captured item — load a player's inventory below and click an item to capture it.",
     playerPlaceholder: "Player name",
     load: "Load inventory",
     loading: "Loading…",
     captureHint: "Click an item to capture it into the project (usable anywhere as a material).",
     inventoryEmpty: "This player's inventory is empty.",
-    capturedToast: "\"{{name}}\" captured — it's now in your library.",
+    capturedToast: '"{{name}}" captured — it\'s now in your library.',
     err_server_offline: "Server offline — connect the Minecraft server first.",
     err_player_not_found: "Player not found — they must be online on this server.",
     err_fetch_timeout: "The server didn't answer in time.",
@@ -597,7 +605,8 @@ export default {
     mapOf: "of",
     declaredModel: "declared by add-on",
     lockedHint: "Managed by the add-on - edit on disk if you really need to.",
-    declaredModelHint: "This shape is declared by the installed add-on and updates with it - values stay editable, the shape does not.",
+    declaredModelHint:
+      "This shape is declared by the installed add-on and updates with it - values stay editable, the shape does not.",
     mapKeyPlaceholder: "key",
     addMapEntry: "Add entry",
     removeMapEntry: "Remove entry {{key}}",
@@ -640,7 +649,8 @@ export default {
     },
     actionsVisual: "Visual",
     actionsCode: "Code",
-    actionsPlaceholder: "One action per line, e.g.\ngive_item DIAMOND 1\nif has_permission(vip):\n  give_money 100",
+    actionsPlaceholder:
+      "One action per line, e.g.\ngive_item DIAMOND 1\nif has_permission(vip):\n  give_money 100",
     actionsParseFallback: "This chain can't be shown visually — fix it in code below.",
     copyRef: "Copy ref",
     refCopied: "Ref copied.",
@@ -812,8 +822,10 @@ export default {
     offlineBody:
       "This project's content lives on its server's disk. While the server is unreachable there is nothing to show — and certainly not a stale copy.",
     loadFailedTitle: "Could not open this project",
-    loadFailedBody: "Loading failed. The code below says why; if it persists, it is also in the browser console.",
-    notLoaded: "The server is not running {{count}} document(s) — it could not read them. Fix them here, then /artisan reload.",
+    loadFailedBody:
+      "Loading failed. The code below says why; if it persists, it is also in the browser console.",
+    notLoaded:
+      "The server is not running {{count}} document(s) — it could not read them. Fix them here, then /artisan reload.",
     offlineRetry: "Retry",
     serverOfflineExport: "Server offline — cannot export the files",
     conflict: {
@@ -1609,7 +1621,8 @@ export default {
   yamlView: {
     tab: "YAML",
     visual: "Editor",
-    conflict: "The file changed on the server since you opened it — reload the page to start from its version.",
+    conflict:
+      "The file changed on the server since you opened it — reload the page to start from its version.",
     verbatimHint:
       "What you write is written as-is, comments included. Going through the visual editor regenerates the document and reformats it.",
   },
@@ -1627,10 +1640,12 @@ export default {
     serverOffline: "Server offline — saving is not possible",
     failed: "Save failed",
     conflictTitle: "These files changed on the server",
-    conflictBody: "These files changed on the server since they were loaded. Nothing was written. Pick which version to keep, file by file.",
+    conflictBody:
+      "These files changed on the server since they were loaded. Nothing was written. Pick which version to keep, file by file.",
     conflictKeepMine: "Keep mine",
     conflictTakeServer: "Take the server's",
-    conflictDeletedOnDisk: "This file no longer exists on the server — it may have been deleted, or renamed.",
+    conflictDeletedOnDisk:
+      "This file no longer exists on the server — it may have been deleted, or renamed.",
     conflictDiskNow: "The folder now contains:",
     conflictDiskEmpty: "(empty)",
     conflictApply: "Apply",

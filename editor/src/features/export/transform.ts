@@ -1,9 +1,8 @@
-import { collectModuleExportFiles, getModule } from "@artisan/editor-sdk";
-import { stepsToDsl } from "@/lib/actionDsl";
+import { addressedAppearances } from "@/domain/element";
+import { visitDataSourceLTexts } from "@/domain/i18nSites";
+import { writeAdvanced } from "@/domain/itemAdvanced";
 import { getTitleTextLayers } from "@/domain/menuTitle";
 import { walkActions } from "@/domain/stepPath";
-import { writeAdvanced } from "@/domain/itemAdvanced";
-import { visitDataSourceLTexts } from "@/domain/i18nSites";
 import type {
   Action,
   Appearance,
@@ -27,9 +26,11 @@ import type {
   Step,
 } from "@/domain/types";
 import { slotCount } from "@/features/canvas/inventoryTypes";
-import { listLanguages } from "@/lib/i18nUsages";
+import { stepsToDsl } from "@/lib/actionDsl";
 import { DURATION_DEFAULTS, DURATION_KEYS } from "@/lib/expr/duration";
+import { listLanguages } from "@/lib/i18nUsages";
 import { nestLangTree } from "@/lib/langTree";
+import { collectModuleExportFiles, getModule } from "@artisan/editor-sdk";
 import { Document as YamlDocument, stringify } from "yaml";
 
 const i18nRef = (key: string): string => `{i18n:${key}}`;
@@ -233,7 +234,10 @@ function serializeElement(el: Element, project: Project): Record<string, unknown
     // A single numeric position emits as a bare int (no YAML quoting trap);
     // ranges/comma lists stay strings.
     positions: /^\d+$/.test(el.positions) ? Number(el.positions) : el.positions,
-    appearances: el.appearances.map((a) => serializeAppearance(a, project)),
+    // The display is written FLAT on the element (ADR
+    // `element-display-and-states`); `serializeAppearance` only ever emits
+    // appearance keys, which `elementStructuralKeys` keeps disjoint from ours.
+    ...serializeAppearance(el.display, project),
   };
   if (el.iterates) {
     out.iterates = { source: el.iterates.source, alias: el.iterates.alias };
@@ -251,6 +255,9 @@ function serializeElement(el: Element, project: Project): Record<string, unknown
         position: p.position,
       })),
     };
+  }
+  if (el.states.length > 0) {
+    out.states = el.states.map((s) => serializeAppearance(s, project));
   }
   if (el.tags && el.tags.length > 0) out.tags = el.tags;
   return out;
@@ -499,7 +506,9 @@ export function serializeMenuToV1(
     // Canonical sugar: a title that is exactly one uncolored plain layer
     // serializes to a bare string.
     title:
-      menu.title.length === 1 && menu.title[0]!.kind === "plain" && menu.title[0]!.color === undefined
+      menu.title.length === 1 &&
+      menu.title[0]!.kind === "plain" &&
+      menu.title[0]!.color === undefined
         ? serializeTitleLayer(menu.title[0]!, t)
         : menu.title.map((l) => serializeTitleLayer(l, t)),
     size: slotCount(type, menu.rows),
@@ -662,7 +671,7 @@ function collectReferencedKeys(project: Project): Set<string> {
     for (const lt of getTitleTextLayers(menu)) keys.add(lt.key);
     for (const layer of menu.layers) {
       for (const el of layer.elements) {
-        for (const app of el.appearances) {
+        for (const app of addressedAppearances(el)) {
           if (app.title) keys.add(app.title.key);
           if (app.lore) keys.add(app.lore.key);
           if (app.click) {
@@ -766,12 +775,18 @@ function serializeDataFieldType(
     case "actions":
       return { kind: "actions" };
     case "object":
-      return { kind: "object", fields: type.fields.map((f) => serializeDataField(f, models, visited)) };
+      return {
+        kind: "object",
+        fields: type.fields.map((f) => serializeDataField(f, models, visited)),
+      };
     case "model": {
       const model = visited.has(type.ref) ? undefined : models.find((m) => m.id === type.ref);
       if (!model) return { kind: "object", fields: [] };
       const next = new Set(visited).add(type.ref);
-      return { kind: "object", fields: model.fields.map((f) => serializeDataField(f, models, next)) };
+      return {
+        kind: "object",
+        fields: model.fields.map((f) => serializeDataField(f, models, next)),
+      };
     }
     // Composable kinds (ADR composable-data-models) — denormalized INLINE so
     // the data file stays self-contained for the model-blind runtime.
@@ -832,14 +847,21 @@ function serializeDataValue(
           ? (value as Record<string, unknown>)
           : {};
       const out: Record<string, unknown> = {};
-      for (const f of type.fields) out[f.name] = serializeDataValue(obj[f.name], f.type, models, visited, i18n);
+      for (const f of type.fields)
+        out[f.name] = serializeDataValue(obj[f.name], f.type, models, visited, i18n);
       return out;
     }
     case "model": {
       const model = visited.has(type.ref) ? undefined : models.find((m) => m.id === type.ref);
       if (!model) return {};
       const next = new Set(visited).add(type.ref);
-      return serializeDataValue(value, { kind: "object", fields: model.fields }, models, next, i18n);
+      return serializeDataValue(
+        value,
+        { kind: "object", fields: model.fields },
+        models,
+        next,
+        i18n,
+      );
     }
     case "map": {
       const obj =
@@ -847,7 +869,8 @@ function serializeDataValue(
           ? (value as Record<string, unknown>)
           : {};
       const out: Record<string, unknown> = {};
-      for (const [k, v] of Object.entries(obj)) out[k] = serializeDataValue(v, type.of, models, visited, i18n);
+      for (const [k, v] of Object.entries(obj))
+        out[k] = serializeDataValue(v, type.of, models, visited, i18n);
       return out;
     }
     // enum values are plain strings — closedness is enforced at edit time only
@@ -867,7 +890,8 @@ function serializeDataValue(
       const variant = type.variants.find((v) => v.name === tagValue);
       if (!variant) return { [type.tag]: tagValue };
       const out: Record<string, unknown> = { [type.tag]: tagValue };
-      for (const f of variant.fields) out[f.name] = serializeDataValue(obj[f.name], f.type, models, visited, i18n);
+      for (const f of variant.fields)
+        out[f.name] = serializeDataValue(obj[f.name], f.type, models, visited, i18n);
       return out;
     }
     default:
@@ -908,23 +932,32 @@ function generatedHeader(name: string, fields: ModelField[]): string {
   // The hints themselves now sit above the key they document (ADR
   // yaml-assisted-editing ⑥) — the header only says what the file does to
   // comments, because it overwrites them and must not pretend otherwise.
-  return [
-    `# ── ${name} — géré par Artisan (les valeurs sont éditables à la main)`,
-    "# Les commentaires sont générés depuis le schéma : un commentaire ajouté",
-    "# ailleurs qu'en tête de fichier est écrasé au prochain enregistrement.",
-  ].join("\n") + "\n";
+  return (
+    [
+      `# ── ${name} — géré par Artisan (les valeurs sont éditables à la main)`,
+      "# Les commentaires sont générés depuis le schéma : un commentaire ajouté",
+      "# ailleurs qu'en tête de fichier est écrasé au prochain enregistrement.",
+    ].join("\n") + "\n"
+  );
 }
 
 function hasAnyHelp(fields: ModelField[]): boolean {
-  return fields.some((f) => (typeof f.help === "string" && f.help !== "") || hasAnyHelp(childFields(f.type)));
+  return fields.some(
+    (f) => (typeof f.help === "string" && f.help !== "") || hasAnyHelp(childFields(f.type)),
+  );
 }
 
 function childFields(type: ModelFieldType): ModelField[] {
   switch (type.kind) {
-    case "object": return type.fields;
-    case "list": case "map": return childFields(type.of);
-    case "union": return type.variants.flatMap((v) => v.fields);
-    default: return [];
+    case "object":
+      return type.fields;
+    case "list":
+    case "map":
+      return childFields(type.of);
+    case "union":
+      return type.variants.flatMap((v) => v.fields);
+    default:
+      return [];
   }
 }
 
@@ -956,12 +989,15 @@ function annotate(node: unknown, fields: ModelField[]): void {
   }
 }
 
-function isMap(node: unknown): node is { items: { key: { commentBefore?: string }; value: unknown }[] } {
+function isMap(
+  node: unknown,
+): node is { items: { key: { commentBefore?: string }; value: unknown }[] } {
   return !!node && typeof node === "object" && Array.isArray((node as { items?: unknown }).items);
 }
 
 function scalarKey(key: unknown): string | null {
-  if (key && typeof key === "object" && "value" in key) return String((key as { value: unknown }).value);
+  if (key && typeof key === "object" && "value" in key)
+    return String((key as { value: unknown }).value);
   return typeof key === "string" ? key : null;
 }
 
@@ -976,11 +1012,21 @@ function modelKindRefs(models: DataModel[]): Set<string> {
   const out = new Set<string>();
   const walk = (ty: ModelFieldType): void => {
     switch (ty.kind) {
-      case "model": out.add(String(ty.ref)); return;
-      case "list": case "map": walk(ty.of); return;
-      case "object": ty.fields.forEach((f) => walk(f.type)); return;
-      case "union": ty.variants.forEach((v) => v.fields.forEach((f) => walk(f.type))); return;
-      default: return;
+      case "model":
+        out.add(String(ty.ref));
+        return;
+      case "list":
+      case "map":
+        walk(ty.of);
+        return;
+      case "object":
+        ty.fields.forEach((f) => walk(f.type));
+        return;
+      case "union":
+        ty.variants.forEach((v) => v.fields.forEach((f) => walk(f.type)));
+        return;
+      default:
+        return;
     }
   };
   for (const m of models) m.fields.forEach((f) => walk(f.type));
@@ -993,11 +1039,19 @@ export function rowFileName(rows: Record<string, unknown>[], keyField: string, i
   const raw = rows[i]?.[keyField];
   const slug =
     typeof raw === "string" || typeof raw === "number"
-      ? String(raw).trim().toLowerCase().replace(/[^a-z0-9_-]+/g, "_")
+      ? String(raw)
+          .trim()
+          .toLowerCase()
+          .replace(/[^a-z0-9_-]+/g, "_")
       : "";
   if (slug === "" || slug.startsWith("_")) return `row_${i + 1}`;
   const dup = rows.some(
-    (r, j) => j !== i && String(r[keyField] ?? "").trim().toLowerCase().replace(/[^a-z0-9_-]+/g, "_") === slug,
+    (r, j) =>
+      j !== i &&
+      String(r[keyField] ?? "")
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9_-]+/g, "_") === slug,
   );
   return dup ? `row_${i + 1}` : slug;
 }
@@ -1024,7 +1078,8 @@ function emitDataSources(
   const kindRefs = modelKindRefs(models);
   const tableUse = new Map<string, number>();
   for (const ds of project.dataSources ?? []) {
-    if (ds.shape === "table") tableUse.set(String(ds.modelId), (tableUse.get(String(ds.modelId)) ?? 0) + 1);
+    if (ds.shape === "table")
+      tableUse.set(String(ds.modelId), (tableUse.get(String(ds.modelId)) ?? 0) + 1);
   }
   const claimed = new Set<string>();
 
@@ -1036,7 +1091,13 @@ function emitDataSources(
       const value =
         ds.fields.length === 0
           ? ds.value
-          : serializeDataValue(ds.value, { kind: "object", fields: ds.fields }, models, new Set(), i18n);
+          : serializeDataValue(
+              ds.value,
+              { kind: "object", fields: ds.fields },
+              models,
+              new Set(),
+              i18n,
+            );
       files[`${base}/data/${ds.id}.yaml`] =
         dataFileHeader(ds, ds.name, ds.fields) + stringifyWithHints(value, ds.fields, yamlOpts);
       // A module-declared schema lives in the module's JAR and arrives via
@@ -1067,12 +1128,21 @@ function emitDataSources(
       fields.length === 0
         ? ds.rows
         : ds.rows.map((r) =>
-            serializeDataValue(r, { kind: "object", fields }, models, new Set(model ? [model.id] : []), i18n),
+            serializeDataValue(
+              r,
+              { kind: "object", fields },
+              models,
+              new Set(model ? [model.id] : []),
+              i18n,
+            ),
           );
     const header = dataFileHeader(ds, ds.name, fields);
     const declared = !model || model.provenance === "module";
     const owned =
-      !!model && !declared && (tableUse.get(String(model.id)) ?? 0) === 1 && !kindRefs.has(String(model.id));
+      !!model &&
+      !declared &&
+      (tableUse.get(String(model.id)) ?? 0) === 1 &&
+      !kindRefs.has(String(model.id));
     const link: Record<string, unknown> = {
       ...(ds.name !== String(ds.id) ? { name: ds.name } : {}),
       model: String(ds.modelId),
@@ -1081,7 +1151,8 @@ function emitDataSources(
 
     if (ds.granularity === "row") {
       const names = ds.rows.map((_, i) => rowFileName(ds.rows, model?.keyField ?? "id", i));
-      files[`${base}/data/${ds.id}/_source.yaml`] = header + stringify({ ...link, order: names }, yamlOpts);
+      files[`${base}/data/${ds.id}/_source.yaml`] =
+        header + stringify({ ...link, order: names }, yamlOpts);
       rowsOut.forEach((row, i) => {
         // Each row file is a standalone file someone may open over SSH — it
         // carries the schema's hints like any other (ADR yaml-assisted-editing ⑥).
@@ -1157,15 +1228,24 @@ export function transform(project: Project): Record<string, string> {
   const base = `plugins/Artisan/projects/${project.diskId ?? project.id}`;
 
   for (const menu of project.menus) {
-    files[`${base}/menus/${menu.id}.yaml`] = stringify(withoutId(serializeMenuToV1(menu, project)), yamlOpts);
+    files[`${base}/menus/${menu.id}.yaml`] = stringify(
+      withoutId(serializeMenuToV1(menu, project)),
+      yamlOpts,
+    );
   }
 
   for (const cmd of project.commands) {
-    files[`${base}/commands/${cmd.id}.yaml`] = stringify(withoutId(serializeCommand(cmd, project)), yamlOpts);
+    files[`${base}/commands/${cmd.id}.yaml`] = stringify(
+      withoutId(serializeCommand(cmd, project)),
+      yamlOpts,
+    );
   }
 
   for (const dialog of project.dialogs) {
-    files[`${base}/dialogs/${dialog.id}.yaml`] = stringify(withoutId(serializeDialog(dialog, project)), yamlOpts);
+    files[`${base}/dialogs/${dialog.id}.yaml`] = stringify(
+      withoutId(serializeDialog(dialog, project)),
+      yamlOpts,
+    );
   }
 
   // Captured items: the opaque serialized stack is the runtime truth — emit it
@@ -1197,7 +1277,12 @@ export function transform(project: Project): Record<string, string> {
     // re-sorts every level in byte order so the file stays deterministic.
     files[`${base}/lang/${lang}.yaml`] = stringify(
       nestLangTree(
-        serializeLang(project, lang, referencedKeys, lang === project.defaultLang ? {} : (dsI18n.byLang[lang] ?? {})),
+        serializeLang(
+          project,
+          lang,
+          referencedKeys,
+          lang === project.defaultLang ? {} : (dsI18n.byLang[lang] ?? {}),
+        ),
       ),
       yamlOpts,
     );

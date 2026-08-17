@@ -32,8 +32,7 @@ class MenuYamlParsingTest {
                   - id: grid
                     positions: "10-16"
                     iterates: { source: shops, alias: shop }
-                    appearances:
-                      - material: "{shop.material}"
+                    material: "{shop.material}"
         """.trimIndent()
         val menu = mapper.readValue<MenuYaml>(yaml)
         assertEquals(2, menu.contextInputs.size)
@@ -58,12 +57,11 @@ class MenuYamlParsingTest {
                 elements:
                   - id: hd
                     positions: "0"
-                    appearances:
-                      - material: PLAYER_HEAD
-                        head: "hdb:128276"
+                    material: PLAYER_HEAD
+                    head: "hdb:128276"
         """.trimIndent()
         val menu = mapper.readValue<MenuYaml>(yaml)
-        assertEquals("hdb:128276", menu.layers[0].elements[0].appearances[0].head)
+        assertEquals("hdb:128276", menu.layers[0].elements[0].display.head)
     }
 
     @Test
@@ -94,13 +92,13 @@ class MenuYamlParsingTest {
             elements:
               - id: a
                 positions: 26
-                appearances: [{ material: STONE }]
+                material: STONE
               - id: b
                 positions: 11-14
-                appearances: [{ material: STONE }]
+                material: STONE
               - id: c
                 positions: [0, 8, 18-20]
-                appearances: [{ material: STONE }]
+                material: STONE
             """.trimIndent(),
         )
         assertEquals(listOf("26", "11-14", "0,8,18-20"), menu.allElements.map { it.positionsSpec })
@@ -116,12 +114,10 @@ class MenuYamlParsingTest {
             elements:
               - id: a
                 positions: "0"
-                appearances:
-                  - material: STONE
+                material: STONE
               - id: b
                 positions: "0"
-                appearances:
-                  - material: DIRT
+                material: DIRT
             """.trimIndent(),
         )
         assertTrue(menu.layers.isEmpty())
@@ -141,15 +137,14 @@ class MenuYamlParsingTest {
                 elements:
                   - id: e
                     positions: "0"
-                    appearances:
-                      - material: STONE
-                        click:
-                          left: close_menu
-                          right:
-                            steps: "open_menu other"
+                    material: STONE
+                    click:
+                      left: close_menu
+                      right:
+                        steps: "open_menu other"
             """.trimIndent(),
         )
-        val click = menu.layers[0].elements[0].appearances[0].click
+        val click = menu.layers[0].elements[0].display.click
         assertEquals("close_menu", click["left"]?.steps)
         assertEquals("open_menu other", click["right"]?.steps)
     }
@@ -167,8 +162,7 @@ class MenuYamlParsingTest {
                 elements:
                   - id: e
                     positions: "0"
-                    appearances:
-                      - material: STONE
+                    material: STONE
             """.trimIndent(),
         )
         assertTrue(menu.contextInputs.isEmpty())
@@ -190,8 +184,7 @@ class MenuYamlParsingTest {
                 elements:
                   - id: e
                     positions: "0"
-                    appearances:
-                      - material: STONE
+                    material: STONE
             """.trimIndent(),
         )
         assertEquals("hopper", hopper.inventoryType)
@@ -207,8 +200,7 @@ class MenuYamlParsingTest {
                 elements:
                   - id: e
                     positions: "0"
-                    appearances:
-                      - material: STONE
+                    material: STONE
             """.trimIndent(),
         )
         assertEquals("chest", chest.inventoryType)

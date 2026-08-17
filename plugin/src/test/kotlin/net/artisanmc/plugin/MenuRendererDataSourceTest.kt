@@ -40,9 +40,8 @@ class MenuRendererDataSourceTest {
               - id: grid
                 positions: "10-12"
                 iterates: { source: items, alias: item }
-                appearances:
-                  - material: "{item.material}"
-                    title: "{item.name}"
+                material: "{item.material}"
+                title: "{item.name}"
         """.trimIndent(),
     )
 
@@ -73,9 +72,8 @@ class MenuRendererDataSourceTest {
           - id: grid
             positions: 10-12
             iterates: { source: "boutique:items", alias: item }
-            appearances:
-              - material: "{item.material}"
-                title: "{item.name}"
+            material: "{item.material}"
+            title: "{item.name}"
         """.trimIndent(),
     )
 

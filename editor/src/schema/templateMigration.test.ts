@@ -99,8 +99,8 @@ describe("legacy templates/ migration", () => {
     expect(p.itemTemplates ?? []).toEqual([]);
 
     for (const el of [a!, b!]) {
-      expect(el.appearances).toHaveLength(1);
-      expect(el.appearances[0]!.material).toBe("{item.icon}");
+      expect(el.states).toHaveLength(0);
+      expect(el.display!.material).toBe("{item.icon}");
     }
     // alias / key_field lived on the template; they land on the binding.
     expect(a!.iterates?.alias).toBe("item");
@@ -115,8 +115,8 @@ describe("legacy templates/ migration", () => {
     const p = projectFromFiles(PID, legacyFiles());
     const [a, b] = elementsOf(p);
 
-    const keyA = a!.appearances[0]!.title!.key;
-    const keyB = b!.appearances[0]!.title!.key;
+    const keyA = a!.display!.title!.key;
+    const keyB = b!.display!.title!.key;
 
     // Re-addressed to the element that now owns the text...
     expect(keyA).toBe("menus.m1.elements.a.default.title");
@@ -156,7 +156,8 @@ describe("legacy templates/ migration", () => {
     const [a] = elementsOf(p);
 
     // Non-hermetic by design: the element simply has no appearance content.
-    expect(a!.appearances).toEqual([]);
+    expect(a!.display).toEqual({});
+    expect(a!.states).toEqual([]);
     expect(a!.iterates?.source).toBe("items");
   });
 });

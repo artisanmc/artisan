@@ -1,9 +1,9 @@
-import { beforeEach, describe, expect, it } from "vitest";
 import type { ElementId, MenuId, Project, ProjectId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
 import { usePaginationStore } from "@/state/paginationStore";
 import { useServerSnapshotsStore } from "@/state/serverSnapshotsStore";
 import { useUiStore } from "@/state/uiStore";
+import { beforeEach, describe, expect, it } from "vitest";
 import { pinPlacementRow } from "./placementDrop";
 
 const PID = "p1" as ProjectId;
@@ -32,7 +32,8 @@ function makeProject(): Project {
               {
                 id: EID,
                 positions: "0",
-                appearances: [{ material: "{item.material}", count: 1, title: { key: "t" as never } }],
+                display: { material: "{item.material}", count: 1, title: { key: "t" as never } },
+                states: [],
                 places: { source: "shops", alias: "item", keyField: "id", placements: [] },
               },
             ],
@@ -52,9 +53,7 @@ function makeProject(): Project {
 }
 
 function currentPlaces() {
-  const el = useAccountStore
-    .getState()
-    .account.projects[0]!.menus[0]!.layers[0]!.elements[0]!;
+  const el = useAccountStore.getState().account.projects[0]!.menus[0]!.layers[0]!.elements[0]!;
   return el.places!;
 }
 

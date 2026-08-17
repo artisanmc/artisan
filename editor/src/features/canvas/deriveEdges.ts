@@ -1,3 +1,4 @@
+import { addressedAppearances } from "@/domain/element";
 import { walkActions } from "@/domain/stepPath";
 import type { Project } from "@/domain/types";
 
@@ -42,9 +43,9 @@ export function deriveEdges(project: Project): Edge[] {
   for (const menu of project.menus) {
     for (const layer of menu.layers) {
       for (const el of layer.elements) {
-        for (const appearance of el.appearances) {
+        for (const appearance of addressedAppearances(el)) {
           if (!appearance.click) continue;
-          const material = appearance.material ?? el.appearances[0]?.material ?? "";
+          const material = appearance.material ?? el.display.material ?? "";
           for (const [clickType, handler] of Object.entries(appearance.click)) {
             if (!handler) continue;
             for (const action of walkActions(handler.steps)) {

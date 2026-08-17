@@ -1,4 +1,18 @@
 import {
+  type FieldEdit,
+  type FieldEditTarget,
+  applyFieldEdit,
+  defaultValueForModelType,
+  isDataModelReferenced,
+  normalizeDataSourceName,
+  releaseValueLTexts,
+  sourceRootFields,
+  sourceTypeAtPath,
+  wouldTypeCreateModelCycle,
+} from "@/domain/dataModels";
+import { nextAvailableSourceRowKey, validateSourceRowKey } from "@/domain/dataSourceRowKeys";
+import { addressedAppearances, appearanceAt } from "@/domain/element";
+import {
   mintLTexts,
   rekeyCommand,
   rekeyDataSource,
@@ -13,20 +27,14 @@ import {
   visitMenuLTexts,
   visitStepLTexts,
 } from "@/domain/i18nSites";
-import { commandId, newCommandId, newDataModelId, newElementId, newLayerId, newProjectId } from "@/domain/ids";
 import {
-  type FieldEdit,
-  type FieldEditTarget,
-  applyFieldEdit,
-  defaultValueForModelType,
-  isDataModelReferenced,
-  normalizeDataSourceName,
-  releaseValueLTexts,
-  sourceRootFields,
-  sourceTypeAtPath,
-  wouldTypeCreateModelCycle,
-} from "@/domain/dataModels";
-import { nextAvailableSourceRowKey, validateSourceRowKey } from "@/domain/dataSourceRowKeys";
+  commandId,
+  newCommandId,
+  newDataModelId,
+  newElementId,
+  newLayerId,
+  newProjectId,
+} from "@/domain/ids";
 import type { AdvancedFields } from "@/domain/itemAdvanced";
 import { migrateTitle } from "@/domain/migrateTitle";
 import { type StepFrame, type StepPath, resolveParentMut, walkActions } from "@/domain/stepPath";
@@ -34,14 +42,16 @@ import type {
   Account,
   Action,
   Appearance,
+  CapturedItem,
+  CapturedItemId,
   ClickType,
   Command,
   CommandArg,
   CommandId,
   Condition,
   ContextInput,
-  DataSource,
   DataModelId,
+  DataSource,
   DataSourceId,
   Dialog,
   DialogBody,
@@ -50,8 +60,6 @@ import type {
   EdgeAnchor,
   Element,
   ElementId,
-  CapturedItem,
-  CapturedItemId,
   I18nKey,
   InventoryType,
   LText,
@@ -92,10 +100,10 @@ import {
 import { commandV1ToDomain } from "@/schema/commandV1ToDomain";
 import { dialogV1ToDomain } from "@/schema/dialogV1ToDomain";
 import { menuV1ToDomain } from "@/schema/menuV1ToDomain";
+import { useProjectDraftStore } from "@/state/projectDraftStore";
 import { current, produce } from "immer";
 import { temporal } from "zundo";
 import { create } from "zustand";
-import { useProjectDraftStore } from "@/state/projectDraftStore";
 
 type MenuRows = 1 | 2 | 3 | 4 | 5 | 6;
 
@@ -226,7 +234,11 @@ interface AccountState {
     patch: Partial<DialogInput>;
   }) => void;
   addDialogButton: (input: { projectId: ProjectId; dialogId: DialogId }) => void;
-  removeDialogButton: (input: { projectId: ProjectId; dialogId: DialogId; buttonIndex: number }) => void;
+  removeDialogButton: (input: {
+    projectId: ProjectId;
+    dialogId: DialogId;
+    buttonIndex: number;
+  }) => void;
   setDialogButtonLabel: (input: {
     projectId: ProjectId;
     dialogId: DialogId;
@@ -313,8 +325,17 @@ interface AccountState {
   /** Insert/replace a Config-screen scratch working copy (never persisted — ADR module-config-screens). */
   upsertScratchProject: (project: Project) => void;
   reorderProjects: (newOrder: ProjectId[]) => void;
-  moveMenuToProject: (input: { menuId: MenuId; fromProjectId: ProjectId; toProjectId: ProjectId }) => void;
-  setCanvasPosition: (input: { projectId: ProjectId; nodeId: string; x: number; y: number }) => void;
+  moveMenuToProject: (input: {
+    menuId: MenuId;
+    fromProjectId: ProjectId;
+    toProjectId: ProjectId;
+  }) => void;
+  setCanvasPosition: (input: {
+    projectId: ProjectId;
+    nodeId: string;
+    x: number;
+    y: number;
+  }) => void;
   addToBoard: (input: { projectId: ProjectId; nodeId: string; x: number; y: number }) => void;
   removeFromBoard: (input: { projectId: ProjectId; nodeId: string }) => void;
   arrangeAllOnBoard: (input: { projectId: ProjectId }) => void;
@@ -328,7 +349,11 @@ interface AccountState {
   /** Remove an endpoint override; drops the entry when both ends are auto again. */
   clearEdgeAnchor: (input: { projectId: ProjectId; edgeId: string; end: "from" | "to" }) => void;
   deleteFromProject: (input: { projectId: ProjectId; nodeIds: string[] }) => void;
-  setProjectField: (input: { projectId: ProjectId; field: "name" | "description"; value: string }) => void;
+  setProjectField: (input: {
+    projectId: ProjectId;
+    field: "name" | "description";
+    value: string;
+  }) => void;
   setMenuField: (input: {
     projectId: ProjectId;
     menuId: MenuId;
@@ -336,9 +361,18 @@ interface AccountState {
     value: string | MenuRows;
   }) => void;
   /** Update the menu's title in the given language. Writes into the first text layer (or prepends one). */
-  setMenuTitle: (input: { projectId: ProjectId; menuId: MenuId; lang: string; value: string }) => void;
+  setMenuTitle: (input: {
+    projectId: ProjectId;
+    menuId: MenuId;
+    lang: string;
+    value: string;
+  }) => void;
   /** Replace the entire title layer array. */
-  setMenuTitleLayers: (input: { projectId: ProjectId; menuId: MenuId; layers: MenuTitleLayer[] }) => void;
+  setMenuTitleLayers: (input: {
+    projectId: ProjectId;
+    menuId: MenuId;
+    layers: MenuTitleLayer[];
+  }) => void;
   /** Patch a single title layer by index. */
   updateMenuTitleLayer: (input: {
     projectId: ProjectId;
@@ -347,7 +381,11 @@ interface AccountState {
     patch: Partial<MenuTitleLayer>;
   }) => void;
   /** Append a new title layer. */
-  addMenuTitleLayer: (input: { projectId: ProjectId; menuId: MenuId; layer: MenuTitleLayer }) => void;
+  addMenuTitleLayer: (input: {
+    projectId: ProjectId;
+    menuId: MenuId;
+    layer: MenuTitleLayer;
+  }) => void;
   /** Remove the title layer at `index`. */
   removeMenuTitleLayer: (input: { projectId: ProjectId; menuId: MenuId; index: number }) => void;
   /** Move a title layer from `fromIndex` to `toIndex`. */
@@ -363,7 +401,11 @@ interface AccountState {
     field: "name" | "permission" | "description";
     value: string;
   }) => void;
-  setCommandAliases: (input: { projectId: ProjectId; commandId: CommandId; aliases: string[] }) => void;
+  setCommandAliases: (input: {
+    projectId: ProjectId;
+    commandId: CommandId;
+    aliases: string[];
+  }) => void;
   /** Replace an entire command object in place (whole-command update). */
   updateCommand: (input: { projectId: ProjectId; command: Command }) => void;
   /** Replace an entire dialog object in place (whole-dialog update). */
@@ -686,19 +728,32 @@ interface AccountState {
     } & AppearanceTarget,
   ) => void;
   /**
-   * Append a new appearance to an element. Seeds with a placeholder permission
-   * condition so the new state is clearly "conditional" and doesn't shadow the
-   * default state (which has no `if`).
+   * Append an EMPTY state to an element. A state is a whole appearance, not a
+   * patch on the display — starting empty is what makes that visible (the slot
+   * renders a bare stone block until it is filled in). Use
+   * {@link duplicateAppearance} to start from an existing one instead. Seeded
+   * with a placeholder condition so it doesn't match, and so doesn't shadow the
+   * display. Cf. ADR `element-display-and-states`.
    */
   addAppearance: (input: { projectId: ProjectId } & AppearanceTarget) => void;
-  /** Remove the appearance at the given index. The element must keep at least one. */
+  /**
+   * Append a state that copies the appearance at `appearanceIndex` (its LTexts
+   * cloned, so the two never share translation keys).
+   */
+  duplicateAppearance: (
+    input: {
+      projectId: ProjectId;
+      appearanceIndex: number;
+    } & AppearanceTarget,
+  ) => void;
+  /** Remove the state at the given index. Index 0 is the display and never goes. */
   removeAppearance: (
     input: {
       projectId: ProjectId;
       appearanceIndex: number;
     } & AppearanceTarget,
   ) => void;
-  /** Reorder an element's appearances (priority = position in the array). */
+  /** Reorder an element's states (priority = position in the list). */
   moveAppearance: (
     input: {
       projectId: ProjectId;
@@ -826,9 +881,17 @@ interface AccountState {
     newName: string;
   }) => boolean;
   /** One Data-model/config field edit: schema + synchronous value migration (ADR project-sources-and-data-models). */
-  editSourceField: (args: { projectId: ProjectId; target: FieldEditTarget; edit: FieldEdit }) => void;
+  editSourceField: (args: {
+    projectId: ProjectId;
+    target: FieldEditTarget;
+    edit: FieldEdit;
+  }) => void;
   renameDataModel: (args: { projectId: ProjectId; modelId: DataModelId; newName: string }) => void;
-  setModelKeyField: (args: { projectId: ProjectId; modelId: DataModelId; keyField: string }) => void;
+  setModelKeyField: (args: {
+    projectId: ProjectId;
+    modelId: DataModelId;
+    keyField: string;
+  }) => void;
   /** Table file granularity: one source file, or one file per row (ADR composable-data-models §2). */
   setSourceGranularity: (args: {
     projectId: ProjectId;
@@ -880,10 +943,46 @@ interface AccountState {
  * Resolve an AppearanceTarget to its owning element inside the given project
  * draft. Null when the target doesn't exist.
  */
-function findAppearanceOwner(
-  project: Project,
-  target: AppearanceTarget,
-): { appearances: Appearance[] } | null {
+/**
+ * Re-key every LText an appearance holds, copying the source values — so a copy
+ * never shares translation keys with its original (editing one would silently
+ * change the other).
+ */
+function cloneAppearanceLTextsInto(project: Project, a: Appearance): void {
+  if (a.title) {
+    const src = project.i18nKeys[a.title.key];
+    a.title = createLText(project, "", project.defaultLang);
+    if (src) project.i18nKeys[a.title.key] = { ...src };
+  }
+  if (a.lore) {
+    const src = project.i18nKeys[a.lore.key];
+    a.lore = createLText(project, "", project.defaultLang);
+    if (src) project.i18nKeys[a.lore.key] = { ...src };
+  }
+  if (a.click) {
+    for (const handler of Object.values(a.click)) {
+      if (!handler) continue;
+      for (const action of walkActions(handler.steps)) {
+        if (action.type === "send_message" || action.type === "broadcast") {
+          const src = project.i18nKeys[action.text.key];
+          action.text = createLText(project, "", project.defaultLang);
+          if (src) project.i18nKeys[action.text.key] = { ...src };
+        } else if (action.type === "show_title") {
+          const srcT = project.i18nKeys[action.title.key];
+          action.title = createLText(project, "", project.defaultLang);
+          if (srcT) project.i18nKeys[action.title.key] = { ...srcT };
+          if (action.subtitle) {
+            const srcS = project.i18nKeys[action.subtitle.key];
+            action.subtitle = createLText(project, "", project.defaultLang);
+            if (srcS) project.i18nKeys[action.subtitle.key] = { ...srcS };
+          }
+        }
+      }
+    }
+  }
+}
+
+function findAppearanceOwner(project: Project, target: AppearanceTarget): Element | null {
   const menu = project.menus.find((m) => m.id === target.menuId);
   if (!menu) return null;
   for (const layer of menu.layers) {
@@ -892,6 +991,17 @@ function findAppearanceOwner(
     }
   }
   return null;
+}
+
+/** The appearance an {@link AppearanceTarget} + index addresses: 0 is the
+ *  element's display, N is its `states[N - 1]`. */
+function findAddressedAppearance(
+  project: Project,
+  target: AppearanceTarget,
+  index: number,
+): Appearance | undefined {
+  const owner = findAppearanceOwner(project, target);
+  return owner ? appearanceAt(owner, index) : undefined;
 }
 
 function findElementHandler(
@@ -904,7 +1014,7 @@ function findElementHandler(
   const project = draft.account.projects.find((p) => p.id === projectId);
   if (!project) return null;
   const owner = findAppearanceOwner(project, target);
-  return owner?.appearances[appearanceIndex]?.click?.[clickType] ?? null;
+  return (owner ? appearanceAt(owner, appearanceIndex) : undefined)?.click?.[clickType] ?? null;
 }
 
 /** Canonical i18n key/prefix for an appearance site. */
@@ -912,11 +1022,8 @@ const appearanceTitleKeyFor = (target: AppearanceTarget, appIdx: number) =>
   elementTitleKey(target.menuId as string, target.elementId as string, appIdx);
 const appearanceLoreKeyFor = (target: AppearanceTarget, appIdx: number) =>
   elementLoreKey(target.menuId as string, target.elementId as string, appIdx);
-const appearanceClickPrefixFor = (
-  target: AppearanceTarget,
-  appIdx: number,
-  clickType: ClickType,
-) => clickHandlerKeyPrefix(target.menuId as string, target.elementId as string, appIdx, clickType);
+const appearanceClickPrefixFor = (target: AppearanceTarget, appIdx: number, clickType: ClickType) =>
+  clickHandlerKeyPrefix(target.menuId as string, target.elementId as string, appIdx, clickType);
 
 function findCommand(draft: AccountState, projectId: ProjectId, commandId: CommandId) {
   const project = draft.account.projects.find((p) => p.id === projectId);
@@ -1074,7 +1181,8 @@ function nextElementIdForMaterial(project: Project, material: string | undefined
 
 function nextAvailableName(existing: DataSource[], base: string): string {
   const normalizedBase = normalizeDataSourceName(base);
-  if (!existing.some((d) => normalizeDataSourceName(d.name) === normalizedBase)) return normalizedBase;
+  if (!existing.some((d) => normalizeDataSourceName(d.name) === normalizedBase))
+    return normalizedBase;
   for (let n = 2; n < 1000; n++) {
     const candidate = `${normalizedBase}_${n}`;
     if (!existing.some((d) => normalizeDataSourceName(d.name) === candidate)) return candidate;
@@ -1124,12 +1232,9 @@ export const useAccountStore = create<AccountState>()(
           dialogs: p.dialogs ?? [],
           menus: p.menus.map((m) => ({ ...m, title: migrateTitle(m.title) })),
         }));
-        const migratedAccount = produce(
-          { ...account, projects: migratedProjects },
-          (draft) => {
-            for (const project of draft.projects) mintSourceLTexts(project);
-          },
-        );
+        const migratedAccount = produce({ ...account, projects: migratedProjects }, (draft) => {
+          for (const project of draft.projects) mintSourceLTexts(project);
+        });
         set({ account: migratedAccount });
       },
       createProject: ({ id: rawId }) => {
@@ -1700,7 +1805,13 @@ export const useAccountStore = create<AccountState>()(
             touch(draft, pId);
           }),
         ),
-      addDialogButtonIfCase: ({ projectId: pId, dialogId: dId, buttonIndex, frames, ifStepIndex }) =>
+      addDialogButtonIfCase: ({
+        projectId: pId,
+        dialogId: dId,
+        buttonIndex,
+        frames,
+        ifStepIndex,
+      }) =>
         set(
           produce((draft: AccountState) => {
             const project = draft.account.projects.find((p) => p.id === pId);
@@ -1825,7 +1936,9 @@ export const useAccountStore = create<AccountState>()(
         set(
           produce((draft: AccountState) => {
             draft.account.projects = draft.account.projects.filter((p) => p.id !== projectId);
-            draft.account.projectOrder = draft.account.projectOrder.filter((id) => id !== projectId);
+            draft.account.projectOrder = draft.account.projectOrder.filter(
+              (id) => id !== projectId,
+            );
           }),
         );
         clearTemporal();
@@ -2367,7 +2480,16 @@ export const useAccountStore = create<AccountState>()(
             project.updatedAt = new Date().toISOString();
           }),
         ),
-      createMenuSet: ({ projectId: pId, menuId: mId, inputName, mode, keyField, alias: aliasIn, schema, positions }) => {
+      createMenuSet: ({
+        projectId: pId,
+        menuId: mId,
+        inputName,
+        mode,
+        keyField,
+        alias: aliasIn,
+        schema,
+        positions,
+      }) => {
         let result: ReturnType<AccountState["createMenuSet"]> = { ok: false, reason: "not_found" };
         set(
           produce((draft: AccountState) => {
@@ -2395,23 +2517,33 @@ export const useAccountStore = create<AccountState>()(
             // Canonical element key sites from the start — no later rekey churn.
             const titleKey = `menus.${mId}.elements.${elId}.default.title` as I18nKey;
             const loreKey = `menus.${mId}.elements.${elId}.default.lore` as I18nKey;
-            project.i18nKeys[titleKey] = { [project.defaultLang]: nameField ? `{${alias}.${nameField}}` : "" };
-            if (loreField) project.i18nKeys[loreKey] = { [project.defaultLang]: `{${alias}.${loreField}}` };
+            project.i18nKeys[titleKey] = {
+              [project.defaultLang]: nameField ? `{${alias}.${nameField}}` : "",
+            };
+            if (loreField)
+              project.i18nKeys[loreKey] = { [project.defaultLang]: `{${alias}.${loreField}}` };
 
-            if (menu.layers.length === 0) menu.layers.push({ id: newLayerId(), name: "default", elements: [] });
+            if (menu.layers.length === 0)
+              menu.layers.push({ id: newLayerId(), name: "default", elements: [] });
             menu.layers[0]!.elements.push({
               id: elId,
               positions: mode === "iterates" ? (positions ?? defaultIterateRange(menu)) : "",
-              appearances: [
-                {
-                  material: iconField ? `{${alias}.${iconField}}` : "CHEST",
-                  title: { key: titleKey },
-                  ...(loreField ? { lore: { key: loreKey } } : {}),
-                },
-              ],
+              display: {
+                material: iconField ? `{${alias}.${iconField}}` : "CHEST",
+                title: { key: titleKey },
+                ...(loreField ? { lore: { key: loreKey } } : {}),
+              },
+              states: [],
               ...(mode === "iterates"
                 ? { iterates: { source: inputName, alias } }
-                : { places: { source: inputName, alias, keyField: keyField ?? "id", placements: [] } }),
+                : {
+                    places: {
+                      source: inputName,
+                      alias,
+                      keyField: keyField ?? "id",
+                      placements: [],
+                    },
+                  }),
             });
             result = { ok: true, elementId: elId };
           }),
@@ -2448,7 +2580,7 @@ export const useAccountStore = create<AccountState>()(
             for (const m of project.menus) {
               for (const layer of m.layers) {
                 for (const el of layer.elements) {
-                  for (const appearance of el.appearances) {
+                  for (const appearance of addressedAppearances(el)) {
                     if (!appearance.click) continue;
                     for (const handler of Object.values(appearance.click)) {
                       if (!handler) continue;
@@ -2540,7 +2672,7 @@ export const useAccountStore = create<AccountState>()(
             for (const layer of menu.layers) {
               for (const el of layer.elements) {
                 if (!positionsContains(el.positions, position)) continue;
-                const appearance = el.appearances[0];
+                const appearance = el.display;
                 if (appearance) appearance.material = material;
                 project.updatedAt = new Date().toISOString();
                 return;
@@ -2554,7 +2686,8 @@ export const useAccountStore = create<AccountState>()(
             firstLayer.elements.push({
               id: nextElementIdForMaterial(project, material),
               positions: String(position),
-              appearances: [{ material }],
+              display: { material },
+              states: [],
             });
             project.updatedAt = new Date().toISOString();
           }),
@@ -2565,7 +2698,7 @@ export const useAccountStore = create<AccountState>()(
             const { projectId: pId, appearanceIndex = 0, field, value } = input;
             const project = draft.account.projects.find((p) => p.id === pId);
             if (!project) return;
-            const appearance = findAppearanceOwner(project, input)?.appearances[appearanceIndex];
+            const appearance = findAddressedAppearance(project, input, appearanceIndex);
             if (!appearance) return;
             if (field === "count") {
               const n = typeof value === "number" ? value : Number(value);
@@ -2587,7 +2720,7 @@ export const useAccountStore = create<AccountState>()(
             const { projectId: pId, appearanceIndex = 0, patch } = input;
             const project = draft.account.projects.find((p) => p.id === pId);
             if (!project) return;
-            const appearance = findAppearanceOwner(project, input)?.appearances[appearanceIndex];
+            const appearance = findAddressedAppearance(project, input, appearanceIndex);
             if (!appearance) return;
             for (const [key, value] of Object.entries(patch)) {
               // An explicit `undefined` clears the field rather than storing a hole.
@@ -2603,7 +2736,7 @@ export const useAccountStore = create<AccountState>()(
             const { projectId: pId, appearanceIndex = 0, lang, value } = input;
             const project = draft.account.projects.find((p) => p.id === pId);
             if (!project) return;
-            const appearance = findAppearanceOwner(project, input)?.appearances[appearanceIndex];
+            const appearance = findAddressedAppearance(project, input, appearanceIndex);
             if (!appearance) return;
             // Lazy-allocate: brand-new appearances start with no title
             // LText, so the first edit creates one. If the user clears
@@ -2769,7 +2902,14 @@ export const useAccountStore = create<AccountState>()(
       moveElementStep: (input) =>
         set(
           produce((draft: AccountState) => {
-            const { projectId: pId, appearanceIndex, clickType, frames, fromIndex, toIndex } = input;
+            const {
+              projectId: pId,
+              appearanceIndex,
+              clickType,
+              frames,
+              fromIndex,
+              toIndex,
+            } = input;
             const handler = findElementHandler(draft, pId, input, appearanceIndex, clickType);
             if (!handler) return;
             const parent = resolveParentMut(handler.steps, frames);
@@ -2797,8 +2937,14 @@ export const useAccountStore = create<AccountState>()(
       removeIfCase: (input) =>
         set(
           produce((draft: AccountState) => {
-            const { projectId: pId, appearanceIndex, clickType, frames, ifStepIndex, caseIndex } =
-              input;
+            const {
+              projectId: pId,
+              appearanceIndex,
+              clickType,
+              frames,
+              ifStepIndex,
+              caseIndex,
+            } = input;
             const project = draft.account.projects.find((p) => p.id === pId);
             if (!project) return;
             const handler = findElementHandler(draft, pId, input, appearanceIndex, clickType);
@@ -2866,8 +3012,14 @@ export const useAccountStore = create<AccountState>()(
       toggleIfElse: (input) =>
         set(
           produce((draft: AccountState) => {
-            const { projectId: pId, appearanceIndex, clickType, frames, ifStepIndex, enabled } =
-              input;
+            const {
+              projectId: pId,
+              appearanceIndex,
+              clickType,
+              frames,
+              ifStepIndex,
+              enabled,
+            } = input;
             const project = draft.account.projects.find((p) => p.id === pId);
             if (!project) return;
             const handler = findElementHandler(draft, pId, input, appearanceIndex, clickType);
@@ -2890,7 +3042,7 @@ export const useAccountStore = create<AccountState>()(
             const { projectId: pId, appearanceIndex, clickType } = input;
             const project = draft.account.projects.find((p) => p.id === pId);
             if (!project) return;
-            const appearance = findAppearanceOwner(project, input)?.appearances[appearanceIndex];
+            const appearance = findAddressedAppearance(project, input, appearanceIndex);
             if (!appearance) return;
             if (!appearance.click) appearance.click = {};
             if (!appearance.click[clickType]) {
@@ -2905,7 +3057,7 @@ export const useAccountStore = create<AccountState>()(
             const { projectId: pId, appearanceIndex, clickType } = input;
             const project = draft.account.projects.find((p) => p.id === pId);
             if (!project) return;
-            const appearance = findAppearanceOwner(project, input)?.appearances[appearanceIndex];
+            const appearance = findAddressedAppearance(project, input, appearanceIndex);
             if (!appearance?.click) return;
             const handler = appearance.click[clickType];
             if (handler) gcStepLTexts(project, handler.steps);
@@ -2920,10 +3072,32 @@ export const useAccountStore = create<AccountState>()(
             if (!project) return;
             const owner = findAppearanceOwner(project, input);
             if (!owner) return;
-            // Seed with a placeholder permission condition so the new
-            // state is clearly conditional and doesn't shadow the
-            // default state (which is the one with no `if`).
-            owner.appearances.push({ if: [{ type: "has_permission", perm: "" }] });
+            // A new state starts EMPTY — it is a whole appearance, not a patch,
+            // and the bare stone block it renders says so at a glance (ADR
+            // `element-display-and-states`). Duplicating the display is the
+            // separate "duplicate" affordance. The placeholder condition keeps
+            // it from matching, and so from shadowing the display.
+            owner.states.push({ if: [{ type: "has_permission", perm: "" }] });
+            project.updatedAt = new Date().toISOString();
+          }),
+        ),
+      duplicateAppearance: (input) =>
+        set(
+          produce((draft: AccountState) => {
+            const { projectId: pId, appearanceIndex } = input;
+            const project = draft.account.projects.find((p) => p.id === pId);
+            if (!project) return;
+            const owner = findAppearanceOwner(project, input);
+            const source = owner ? appearanceAt(owner, appearanceIndex) : undefined;
+            if (!owner || !source) return;
+            const copy = structuredClone(current(source)) as Appearance;
+            cloneAppearanceLTextsInto(project, copy);
+            // A duplicate of the display would match always and shadow it, so
+            // it carries the same placeholder guard a fresh state gets.
+            if (!copy.if || copy.if.length === 0) {
+              copy.if = [{ type: "has_permission", perm: "" }];
+            }
+            owner.states.push(copy);
             project.updatedAt = new Date().toISOString();
           }),
         ),
@@ -2935,10 +3109,11 @@ export const useAccountStore = create<AccountState>()(
             if (!project) return;
             const owner = findAppearanceOwner(project, input);
             if (!owner) return;
-            if (owner.appearances.length <= 1) return; // keep at least one
-            if (appearanceIndex < 0 || appearanceIndex >= owner.appearances.length) return;
-            gcAppearanceLTexts(project, owner.appearances[appearanceIndex]!);
-            owner.appearances.splice(appearanceIndex, 1);
+            // Index 0 is the display — an Element always has one, so only
+            // states are removable.
+            if (appearanceIndex < 1 || appearanceIndex > owner.states.length) return;
+            gcAppearanceLTexts(project, owner.states[appearanceIndex - 1]!);
+            owner.states.splice(appearanceIndex - 1, 1);
             project.updatedAt = new Date().toISOString();
           }),
         ),
@@ -2950,15 +3125,17 @@ export const useAccountStore = create<AccountState>()(
             if (!project) return;
             const owner = findAppearanceOwner(project, input);
             if (!owner) return;
+            // Only states reorder: the display is neither first nor last in
+            // resolution order, it is the fallback.
             if (
-              fromIndex < 0 ||
-              fromIndex >= owner.appearances.length ||
-              toIndex < 0 ||
-              toIndex >= owner.appearances.length
+              fromIndex < 1 ||
+              fromIndex > owner.states.length ||
+              toIndex < 1 ||
+              toIndex > owner.states.length
             )
               return;
-            const [moved] = owner.appearances.splice(fromIndex, 1);
-            if (moved) owner.appearances.splice(toIndex, 0, moved);
+            const [moved] = owner.states.splice(fromIndex - 1, 1);
+            if (moved) owner.states.splice(toIndex - 1, 0, moved);
             project.updatedAt = new Date().toISOString();
           }),
         ),
@@ -2968,7 +3145,7 @@ export const useAccountStore = create<AccountState>()(
             const { projectId: pId, appearanceIndex, conditions } = input;
             const project = draft.account.projects.find((p) => p.id === pId);
             if (!project) return;
-            const appearance = findAppearanceOwner(project, input)?.appearances[appearanceIndex];
+            const appearance = findAddressedAppearance(project, input, appearanceIndex);
             if (!appearance) return;
             appearance.if = conditions.length > 0 ? conditions : undefined;
             // Trim joins past the new conditions length so the array
@@ -2987,7 +3164,7 @@ export const useAccountStore = create<AccountState>()(
             const { projectId: pId, appearanceIndex, joinIndex, op } = input;
             const project = draft.account.projects.find((p) => p.id === pId);
             if (!project) return;
-            const appearance = findAppearanceOwner(project, input)?.appearances[appearanceIndex];
+            const appearance = findAddressedAppearance(project, input, appearanceIndex);
             if (!appearance) return;
             const max = Math.max(0, (appearance.if?.length ?? 0) - 1);
             if (joinIndex < 0 || joinIndex >= max) return;
@@ -3176,7 +3353,7 @@ export const useAccountStore = create<AccountState>()(
             // doesn't leak the random `el_<n>_<ts>` id from the clipboard. The
             // raw nanoid would surface in YAML files and breaks the visual
             // grouping admins rely on (`diamond_sword_1`, `_2`, …).
-            const materialForId = element.appearances[0]?.material ?? undefined;
+            const materialForId = element.display.material ?? undefined;
             const renumberedId = nextElementIdForMaterial(project, materialForId);
             // Clone LText keys so the added element never shares keys with its source.
             // Without this, rekeyProject at deploy time would delete the shared key,
@@ -3185,43 +3362,49 @@ export const useAccountStore = create<AccountState>()(
               ...element,
               id: renumberedId,
               positions: formatPositions(newPositions),
-              appearances: element.appearances.map((a) => {
-                const cloned = { ...a };
-                if (a.title) {
-                  const src = project.i18nKeys[a.title.key];
-                  cloned.title = createLText(project, "", project.defaultLang);
-                  if (src) project.i18nKeys[cloned.title.key] = { ...src };
-                }
-                if (a.lore) {
-                  const src = project.i18nKeys[a.lore.key];
-                  cloned.lore = createLText(project, "", project.defaultLang);
-                  if (src) project.i18nKeys[cloned.lore.key] = { ...src };
-                }
-                if (a.click) {
-                  const click = { ...a.click };
-                  for (const handler of Object.values(click)) {
-                    if (!handler) continue;
-                    for (const action of walkActions(handler.steps)) {
-                      if (action.type === "send_message" || action.type === "broadcast") {
-                        const src = project.i18nKeys[action.text.key];
-                        action.text = createLText(project, "", project.defaultLang);
-                        if (src) project.i18nKeys[action.text.key] = { ...src };
-                      } else if (action.type === "show_title") {
-                        const srcT = project.i18nKeys[action.title.key];
-                        action.title = createLText(project, "", project.defaultLang);
-                        if (srcT) project.i18nKeys[action.title.key] = { ...srcT };
-                        if (action.subtitle) {
-                          const srcS = project.i18nKeys[action.subtitle.key];
-                          action.subtitle = createLText(project, "", project.defaultLang);
-                          if (srcS) project.i18nKeys[action.subtitle.key] = { ...srcS };
+              ...(() => {
+                const cloneAppearance = (a: Appearance): Appearance => {
+                  const cloned = { ...a };
+                  if (a.title) {
+                    const src = project.i18nKeys[a.title.key];
+                    cloned.title = createLText(project, "", project.defaultLang);
+                    if (src) project.i18nKeys[cloned.title.key] = { ...src };
+                  }
+                  if (a.lore) {
+                    const src = project.i18nKeys[a.lore.key];
+                    cloned.lore = createLText(project, "", project.defaultLang);
+                    if (src) project.i18nKeys[cloned.lore.key] = { ...src };
+                  }
+                  if (a.click) {
+                    const click = { ...a.click };
+                    for (const handler of Object.values(click)) {
+                      if (!handler) continue;
+                      for (const action of walkActions(handler.steps)) {
+                        if (action.type === "send_message" || action.type === "broadcast") {
+                          const src = project.i18nKeys[action.text.key];
+                          action.text = createLText(project, "", project.defaultLang);
+                          if (src) project.i18nKeys[action.text.key] = { ...src };
+                        } else if (action.type === "show_title") {
+                          const srcT = project.i18nKeys[action.title.key];
+                          action.title = createLText(project, "", project.defaultLang);
+                          if (srcT) project.i18nKeys[action.title.key] = { ...srcT };
+                          if (action.subtitle) {
+                            const srcS = project.i18nKeys[action.subtitle.key];
+                            action.subtitle = createLText(project, "", project.defaultLang);
+                            if (srcS) project.i18nKeys[action.subtitle.key] = { ...srcS };
+                          }
                         }
                       }
                     }
+                    cloned.click = click;
                   }
-                  cloned.click = click;
-                }
-                return cloned;
-              }),
+                  return cloned;
+                };
+                return {
+                  display: cloneAppearance(element.display),
+                  states: element.states.map(cloneAppearance),
+                };
+              })(),
             };
             firstLayer.elements.push(elementToAdd);
             project.updatedAt = new Date().toISOString();
@@ -3284,7 +3467,7 @@ export const useAccountStore = create<AccountState>()(
             const { projectId: pId, appearanceIndex = 0, lang, value } = input;
             const project = draft.account.projects.find((p) => p.id === pId);
             if (!project) return;
-            const appearance = findAppearanceOwner(project, input)?.appearances[appearanceIndex];
+            const appearance = findAddressedAppearance(project, input, appearanceIndex);
             if (!appearance) return;
             if (!appearance.lore) {
               appearance.lore = value
@@ -3333,39 +3516,7 @@ export const useAccountStore = create<AccountState>()(
           // keys, copying the value map from the source. Otherwise the
           // copies would share keys with the originals — editing one
           // would silently alter the other.
-          const cloneAppearanceLTexts = (a: Appearance) => {
-            if (a.title) {
-              const src = project.i18nKeys[a.title.key];
-              a.title = createLText(project, "", project.defaultLang);
-              if (src) project.i18nKeys[a.title.key] = { ...src };
-            }
-            if (a.lore) {
-              const src = project.i18nKeys[a.lore.key];
-              a.lore = createLText(project, "", project.defaultLang);
-              if (src) project.i18nKeys[a.lore.key] = { ...src };
-            }
-            if (a.click) {
-              for (const handler of Object.values(a.click)) {
-                if (!handler) continue;
-                for (const action of walkActions(handler.steps)) {
-                  if (action.type === "send_message" || action.type === "broadcast") {
-                    const src = project.i18nKeys[action.text.key];
-                    action.text = createLText(project, "", project.defaultLang);
-                    if (src) project.i18nKeys[action.text.key] = { ...src };
-                  } else if (action.type === "show_title") {
-                    const srcT = project.i18nKeys[action.title.key];
-                    action.title = createLText(project, "", project.defaultLang);
-                    if (srcT) project.i18nKeys[action.title.key] = { ...srcT };
-                    if (action.subtitle) {
-                      const srcS = project.i18nKeys[action.subtitle.key];
-                      action.subtitle = createLText(project, "", project.defaultLang);
-                      if (srcS) project.i18nKeys[action.subtitle.key] = { ...srcS };
-                    }
-                  }
-                }
-              }
-            }
-          };
+          const cloneAppearanceLTexts = (a: Appearance) => cloneAppearanceLTextsInto(project, a);
           for (const m of menus) {
             const stamped: Menu = { ...m, projectId: pId };
             // Clone each text layer's LText under a fresh key, copying the
@@ -3379,7 +3530,7 @@ export const useAccountStore = create<AccountState>()(
             });
             for (const layer of stamped.layers) {
               for (const el of layer.elements) {
-                for (const a of el.appearances) cloneAppearanceLTexts(a);
+                for (const a of addressedAppearances(el)) cloneAppearanceLTexts(a);
               }
             }
             project.menus.push(stamped);
@@ -3468,8 +3619,7 @@ export const useAccountStore = create<AccountState>()(
           !project ||
           normalizedName === "" ||
           project.dataSources.some(
-            (source) =>
-              source.id !== id && normalizeDataSourceName(source.name) === normalizedName,
+            (source) => source.id !== id && normalizeDataSourceName(source.name) === normalizedName,
           )
         ) {
           return false;
@@ -3548,7 +3698,10 @@ export const useAccountStore = create<AccountState>()(
             if (ds?.shape !== "table") return;
             const row = ds.rows[index];
             if (row === undefined) return;
-            releaseValueLTexts(project, row, { kind: "object", fields: sourceRootFields(project, ds) });
+            releaseValueLTexts(project, row, {
+              kind: "object",
+              fields: sourceRootFields(project, ds),
+            });
             ds.rows.splice(index, 1);
             rekeyDataSource(project, ds);
           }),
@@ -3573,13 +3726,17 @@ export const useAccountStore = create<AccountState>()(
               ? project?.dataModels?.find((dataModel) => dataModel.id === ds.modelId)
               : undefined;
           const container = ds ? sourceValueContainer(ds, row, []) : undefined;
-          if (ds?.shape === "table" && model && path[0] === model.keyField && container !== undefined) {
+          if (
+            ds?.shape === "table" &&
+            model &&
+            path[0] === model.keyField &&
+            container !== undefined
+          ) {
             const validation = validateSourceRowKey(project!, ds, row, value);
             if (!validation.ok) {
               return {
                 ok: false,
-                reason:
-                  validation.reason === "required" ? "required_row_key" : "duplicate_row_key",
+                reason: validation.reason === "required" ? "required_row_key" : "duplicate_row_key",
               };
             }
             nextValue = validation.value;
