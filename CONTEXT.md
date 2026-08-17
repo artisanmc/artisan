@@ -260,7 +260,11 @@ Non-examples:
 - An **Element** (a button at a slot *inside* a Menu) is not a Document; it lives
   within one.
 - A Project's translations and assets are not Documents — they are shared
-  resources the Documents reference.
+  resources the Documents reference. They are still **files of the Project**
+  (`lang/`, `assets/`): a glyph or a background is authored content, not a build
+  artifact, so it lives on the server's disk with everything else (ADR
+  `assets-on-server-disk`, decided 2026-08-17, not yet implemented — today they
+  still sit on a backend volume).
 
 ## Element
 
