@@ -1396,6 +1396,9 @@ export default {
   serverCard: {
     projectCount_one: "{{count}} project",
     projectCount_other: "{{count}} projects",
+    online: "Online",
+    offline: "Offline",
+    offlineProjects: "offline — its projects can't be read",
     lastConnected: "last connected {{ago}}",
     newProject: "New project",
   },

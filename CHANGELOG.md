@@ -9,6 +9,15 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Fixed — la page réseau listait des Projects qui n'existent plus
+
+- Sa liste venait de la table `projects`, jamais confrontée au disque. Ces lignes sont des **ancres** (identité, droits, facturation) : elles ne prouvent pas qu'un dossier existe encore. Un dossier renommé ou supprimé sur le serveur laissait la ligne derrière lui, et le lien menait à `unknown_project`. Une liste qui promet des Projects inouvrables est pire que pas de liste.
+- La page interroge désormais le **disque de chaque serveur** (`project_list`, un aller-retour WS par serveur, en parallèle) et n'ancre que ce que le disque porte. C'est la même règle que la page serveur depuis l'ADR `server-disk-only-storage`.
+
+### Added — état en ligne / hors ligne sur la page réseau
+
+- Chaque carte serveur porte son état (le point de couleur était déjà là, mais la page passait `online: false` en dur). Un serveur hors ligne n'affiche plus « 0 projet » — on ne peut pas savoir combien il en a, c'est son disque qui les porte — mais « hors ligne — ses projets ne sont pas lisibles ».
+
 ### Fixed — un test backend pariait sur la vitesse de la machine
 
 - `hub.test.ts` attendait les persistances *fire-and-forget* de `hello` / `modules_changed` avec des `setTimeout` fixes (50 / 150 ms). Ça passait en local et pas sur le runner CI, qui a rougi sur `declared_models` alors que le commit poussé ne touchait que le plugin. Les attentes deviennent des **sondages** avec échéance franche : vrai dès que c'est vrai, échec net si ça ne vient pas. La seule attente fixe conservée est celle d'une assertion négative, où sonder ne prouverait rien.
