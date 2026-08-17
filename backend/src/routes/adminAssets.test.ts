@@ -87,7 +87,13 @@ describe("POST /admin/assets/descend", () => {
     const res = await makeApp().request("/api/v1/admin/assets/descend", { method: "POST" });
     const body = await res.json();
     expect(body.ok).toBe(true);
-    expect(body.skipped).toEqual(["sk_off/boutique"]);
+    // Sauté ET POURQUOI : un serveur éteint se rejoue, une ancre périmée sur un
+    // serveur en ligne ne descendra jamais — et ses assets partiraient avec la
+    // table. Les deux ne se traitent pas pareil, ils ne doivent pas se dire
+    // pareil.
+    expect(body.skipped).toEqual([
+      { project: "sk_off/boutique", reason: "offline", online: false, assetCount: 1 },
+    ]);
     expect(body.descended).toEqual([]);
   });
 });
