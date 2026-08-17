@@ -42,6 +42,33 @@ export function matchPlacementRow(
 }
 
 /**
+ * Le placement qui occupe VRAIMENT un slot dans le contexte d'aperçu courant.
+ *
+ * Un menu paramétré réutilise les mêmes slots d'une catégorie à l'autre : la
+ * position 20 porte la clé d'une catégorie ET celle d'une autre, sur la même
+ * page, parce qu'un seul contexte est vivant à l'exécution. Prendre le premier
+ * venu (`find`) tombe donc à côté dès que l'aperçu montre une autre catégorie —
+ * aucune ligne ne se lie et le gabarit `{item.name}` s'affiche tel quel
+ * (constaté en prod le 2026-08-17).
+ *
+ * La règle est celle que le canvas applique déjà : **une clé qui résout gagne**,
+ * et à défaut on retombe sur la première, pour que le slot dise au moins ce
+ * qu'il devait porter.
+ */
+export function placementAtSlot(
+  places: NonNullable<Element["places"]>,
+  rows: unknown,
+  page: number,
+  position: number,
+): Placement | undefined {
+  const here = places.placements.filter((p) => p.page === page && p.position === position);
+  if (here.length === 0) return undefined;
+  return (
+    here.find((p) => matchPlacementRow(rows, places.keyField, p.key) !== undefined) ?? here[0]
+  );
+}
+
+/**
  * Resolve one placement into a slot info: live row wins; `cachedDisplay` only
  * renders when the SOURCE is unreachable (`rowsAvailable: false` — offline, no
  * snapshot yet); a reachable source whose key is gone is **dangling** — the
