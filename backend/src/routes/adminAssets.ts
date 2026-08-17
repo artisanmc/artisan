@@ -1,10 +1,10 @@
 import { and, eq, isNull } from "drizzle-orm";
 import { Hono } from "hono";
 import { db } from "../db/index";
-import { projects, serverKeys } from "../db/schema";
+import { assets, projects, serverKeys } from "../db/schema";
 import { descendProjectAssets } from "../lib/assetDescent";
 import { projectDiskId } from "../lib/projectStorage";
-import { requestProjectRead } from "../ws/hub";
+import { getInstanceCount, requestProjectRead } from "../ws/hub";
 
 // Mounted on /api/v1/admin (app.ts), behind userAuth() + requireAdmin().
 
@@ -31,7 +31,19 @@ export function buildAdminAssetsRouter(): Hono {
 			.where(only ? eq(serverKeys.id, only) : undefined);
 
 		const descended: string[] = [];
-		const skipped: string[] = [];
+		/**
+		 * Sauté, ET POURQUOI. « Sauté » tout court recouvrait deux cas très
+		 * différents — serveur éteint (on rejoue plus tard) ou dossier
+		 * introuvable sur un serveur en ligne (l'ancre est périmée, et ses
+		 * assets ne descendront jamais). Le second doit se voir : c'est
+		 * exactement ce que la suppression de la table effacerait.
+		 */
+		const skipped: {
+			project: string;
+			reason: string;
+			online: boolean;
+			assetCount: number;
+		}[] = [];
 		const failures: { path: string; reason: string }[] = [];
 
 		for (const key of keys) {
@@ -46,7 +58,18 @@ export function buildAdminAssetsRouter(): Hono {
 				// on saute, sans rien casser ni marquer d'échec.
 				const read = await requestProjectRead(key.id, { projectId: diskId });
 				if (read.kind !== "result" || !read.result.ok) {
-					skipped.push(`${key.id}/${diskId}`);
+					const assetCount = (
+						await db.select().from(assets).where(eq(assets.projectId, project.id))
+					).length;
+					skipped.push({
+						project: `${key.id}/${diskId}`,
+						reason:
+							read.kind === "result"
+								? (read.result.error ?? "read_error")
+								: read.kind,
+						online: getInstanceCount(key.id) > 0,
+						assetCount,
+					});
 					continue;
 				}
 				const knownBinaries = Object.fromEntries(
