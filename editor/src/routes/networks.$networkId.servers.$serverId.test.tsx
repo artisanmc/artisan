@@ -41,7 +41,7 @@ vi.mock("@/lib/api/networks", () => ({
     network: { id: "net_1", name: "Mon Réseau", tier: "free" },
     serverKeys: [{ id: "sk_1", label: "Survival" }],
     projects: [
-      { id: "p1", name: "Hub", hash: "h1", networkId: "net_1", serverKeyId: "sk_1", documentCount: 5 },
+      { id: "p1", name: "Hub", hash: "h1", networkId: "net_1", serverKeyId: "sk_1" },
       { id: "p2", name: "Lobby", hash: "h2", networkId: "net_1", serverKeyId: "sk_2" },
     ],
   }),
@@ -89,10 +89,16 @@ describe("ServerDetailPage", () => {
     expect(screen.queryByText("Lobby")).not.toBeInTheDocument();
   });
 
-  it("shows the element-count indicator for a workspace", async () => {
+  /**
+   * Plus de compteur de Documents ici : le backend ne détient plus les fichiers
+   * (ADR `server-disk-only-storage`), donc il ne peut plus le connaître sans
+   * interroger le disque du serveur. Le test garde la trace de ce qui NE doit
+   * plus apparaître — un compteur ressuscité serait un compteur figé.
+   */
+  it("n'affiche plus de compteur de Documents — le backend ne le connaît plus", async () => {
     render(<ServerDetailPage />);
     await waitFor(() => expect(screen.getByText("Hub")).toBeInTheDocument());
-    expect(screen.getByText("5")).toBeInTheDocument();
+    expect(screen.queryByText("5")).not.toBeInTheDocument();
   });
 
   it("workspace link points to the new URL pattern", async () => {
