@@ -69,6 +69,27 @@ async function seedBoundProject(
 
 beforeEach(clearAll);
 
+/**
+ * Sonde une lecture DB jusqu'à ce qu'elle satisfasse [ok].
+ *
+ * Les persistances déclenchées par `hello` / `modules_changed` sont
+ * fire-and-forget : le test ne peut pas les attendre, seulement observer la DB.
+ * Un `setTimeout` fixe pariait sur la vitesse de la machine — 150 ms passaient
+ * ici et pas sur le runner CI (échec du 2026-08-17 sur `declared_models`, où la
+ * purge n'avait pas encore atterri). On sonde jusqu'à ce que ce soit vrai, avec
+ * une échéance franche pour que l'échec reste un échec.
+ */
+async function until<T>(read: () => Promise<T>, ok: (v: T) => boolean, label: string): Promise<T> {
+  const deadline = Date.now() + 5_000;
+  let last = await read();
+  while (!ok(last) && Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, 20));
+    last = await read();
+  }
+  if (!ok(last)) throw new Error(`timeout en attendant ${label} — dernier état: ${JSON.stringify(last)}`);
+  return last;
+}
+
 describe("persistServerModules (presence)", () => {
   test("upserts the reported set and prunes modules no longer reported", async () => {
     const networkId = crypto.randomUUID();
@@ -266,10 +287,11 @@ describe("handlePluginMessage", () => {
       current_bundle_hash: "",
     };
     await handlePluginMessage("test-conn-audit", JSON.stringify(hello), "203.0.113.42");
-    // The insert is fire-and-forget — wait a tick for it to land.
-    await new Promise((r) => setTimeout(r, 50));
-
-    const rows = await db.select().from(serverKeyHelloes).where(eq(serverKeyHelloes.serverKeyId, keyId));
+    const rows = await until(
+      () => db.select().from(serverKeyHelloes).where(eq(serverKeyHelloes.serverKeyId, keyId)),
+      (r) => r.length === 1,
+      "la ligne d'audit du hello",
+    );
     expect(rows).toHaveLength(1);
     expect(rows[0].ip).toBe("203.0.113.42");
     expect(rows[0].mcVersion).toBe("1.21.4");
@@ -285,6 +307,9 @@ describe("handlePluginMessage", () => {
       current_bundle_hash: "",
     };
     await handlePluginMessage("test-conn-noaudit", JSON.stringify(hello), "198.51.100.7");
+    // Assertion NÉGATIVE : sonder ne prouverait rien (rien n'arrivera jamais).
+    // Une attente fixe est ici l'outil honnête — le risque est un faux succès,
+    // pas un faux échec.
     await new Promise((r) => setTimeout(r, 50));
     const rows = await db.select().from(serverKeyHelloes);
     expect(rows).toHaveLength(0);
@@ -299,9 +324,11 @@ describe("handlePluginMessage", () => {
     };
     const result = await handlePluginMessage("conn-allow-ok", JSON.stringify(hello), "203.0.113.10");
     expect(result.reply).not.toBeNull();
-    await new Promise((r) => setTimeout(r, 50));
-    const rows = await db.select().from(serverKeyHelloes).where(eq(serverKeyHelloes.serverKeyId, keyId));
-    expect(rows).toHaveLength(1);
+    const rows = await until(
+      () => db.select().from(serverKeyHelloes).where(eq(serverKeyHelloes.serverKeyId, keyId)),
+      (r) => r.length === 1,
+      "la ligne d'audit du hello accepté",
+    );
     expect(rows[0].rejectedReason).toBeNull();
   });
 
@@ -316,9 +343,11 @@ describe("handlePluginMessage", () => {
     expect(result.reply).toBeNull();
     // Conn should NOT be authenticated.
     expect(connToServerId.get("conn-allow-bad")).toBeUndefined();
-    await new Promise((r) => setTimeout(r, 50));
-    const rows = await db.select().from(serverKeyHelloes).where(eq(serverKeyHelloes.serverKeyId, keyId));
-    expect(rows).toHaveLength(1);
+    const rows = await until(
+      () => db.select().from(serverKeyHelloes).where(eq(serverKeyHelloes.serverKeyId, keyId)),
+      (r) => r.length === 1,
+      "la ligne d'audit du hello rejeté",
+    );
     expect(rows[0].rejectedReason).toBe("ip_not_allowed");
     expect(rows[0].ip).toBe("198.51.100.99");
   });
@@ -520,10 +549,10 @@ describe("declared_models presence (composable-data-models §4)", () => {
       current_bundle_hash: "",
       declared_models: [catDoc, { schema: "model/v1", id: "not-namespaced" }],
     }));
-    await new Promise((r) => setTimeout(r, 150)); // fire-and-forget persist
-
     const { serverDeclaredModels } = await import("../db/schema");
-    let rows = await db.select().from(serverDeclaredModels).where(eq(serverDeclaredModels.serverKeyId, keyId));
+    const readModels = () =>
+      db.select().from(serverDeclaredModels).where(eq(serverDeclaredModels.serverKeyId, keyId));
+    let rows = await until(readModels, (r) => r.length === 1, "le model déclaré persisté");
     // Non-namespaced ids are dropped; the valid document is stored verbatim.
     expect(rows.map((r) => r.modelId)).toEqual(["boutique:category"]);
     expect(JSON.parse(rows[0]!.documentJson)).toEqual(catDoc);
@@ -533,8 +562,7 @@ describe("declared_models presence (composable-data-models §4)", () => {
       type: "modules_changed", server_key: key, installed_modules: [], data_sources: [],
       declared_models: [],
     }));
-    await new Promise((r) => setTimeout(r, 150));
-    rows = await db.select().from(serverDeclaredModels).where(eq(serverDeclaredModels.serverKeyId, keyId));
+    rows = await until(readModels, (r) => r.length === 0, "la purge des models déclarés");
     expect(rows).toEqual([]);
   });
 });
@@ -558,10 +586,10 @@ describe("editor_screens presence (module-config-screens)", () => {
         { id: "quests:missing-fields" },
       ],
     }));
-    await new Promise((r) => setTimeout(r, 150)); // fire-and-forget persist
-
     const { serverEditorScreens } = await import("../db/schema");
-    let rows = await db.select().from(serverEditorScreens).where(eq(serverEditorScreens.serverKeyId, keyId));
+    const readScreens = () =>
+      db.select().from(serverEditorScreens).where(eq(serverEditorScreens.serverKeyId, keyId));
+    let rows = await until(readScreens, (r) => r.length === 1, "l'écran déclaré persisté");
     expect(rows.map((r) => r.screenId)).toEqual(["boutique:catalog"]);
     expect(JSON.parse(rows[0]!.screenJson)).toEqual(catalogScreen);
 
@@ -569,8 +597,7 @@ describe("editor_screens presence (module-config-screens)", () => {
       type: "modules_changed", server_key: key, installed_modules: [], data_sources: [],
       editor_screens: [],
     }));
-    await new Promise((r) => setTimeout(r, 150));
-    rows = await db.select().from(serverEditorScreens).where(eq(serverEditorScreens.serverKeyId, keyId));
+    rows = await until(readScreens, (r) => r.length === 0, "la purge des écrans déclarés");
     expect(rows).toEqual([]);
   });
 });
@@ -868,8 +895,13 @@ describe("modules_changed", () => {
       current_bundle_hash: "",
       installed_modules: [{ id: "menus", version: "1.0.0" }],
     }));
-    // Fire-and-forget persistServerModules from hello — wait for it
-    await new Promise((r) => setTimeout(r, 50));
+    // La persistance du hello doit avoir atterri AVANT le modules_changed :
+    // sinon elle écraserait le second état et la suite attendrait pour rien.
+    await until(
+      () => db.select().from(serverModules).where(eq(serverModules.serverKeyId, keyId)),
+      (r) => r.length === 1,
+      "les modules du hello",
+    );
 
     // Now a new module registers at runtime and sends modules_changed
     const result = await handlePluginMessage(connId, JSON.stringify({
@@ -882,10 +914,11 @@ describe("modules_changed", () => {
     }));
     expect(result.reply).toBeNull();
 
-    // Wait for the async persistServerModules to land
-    await new Promise((r) => setTimeout(r, 50));
-
-    const rows = await db.select().from(serverModules).where(eq(serverModules.serverKeyId, keyId));
+    const rows = await until(
+      () => db.select().from(serverModules).where(eq(serverModules.serverKeyId, keyId)),
+      (r) => r.length === 2,
+      "les modules persistés",
+    );
     expect(rows.map((r) => r.moduleId).sort()).toEqual(["menus", "quests"]);
     expect(rows.find((r) => r.moduleId === "quests")?.version).toBe("0.1.0");
   });
