@@ -387,18 +387,31 @@ function parseTitleLayer(node: unknown): MenuTitleLayer | null {
   }
   if (!node || typeof node !== "object") return null;
   const m = node as Record<string, unknown>;
+  // Ref d'asset : `asset: <nom>` d'abord, `asset_id: <id opaque>` ensuite. Le
+  // nom de fichier devient l'identité d'un asset (ADR `assets-on-server-disk`)
+  // — l'ancienne forme reste lue tant que la descente n'a pas eu lieu.
+  const assetRef = (key: "asset" | "font"): string | null => {
+    const legacy = key === "asset" ? "asset_id" : "font_asset_id";
+    if (typeof m[key] === "string") return m[key] as string;
+    if (typeof m[legacy] === "string") return m[legacy] as string;
+    return null;
+  };
   switch (m.kind) {
-    case "background":
-      if (typeof m.asset_id !== "string") return null;
-      return { kind: "background", assetId: m.asset_id as AssetId };
-    case "glyph":
-      if (typeof m.asset_id !== "string") return null;
+    case "background": {
+      const ref = assetRef("asset");
+      if (ref === null) return null;
+      return { kind: "background", assetId: ref as AssetId };
+    }
+    case "glyph": {
+      const ref = assetRef("asset");
+      if (ref === null) return null;
       return {
         kind: "glyph",
-        assetId: m.asset_id as AssetId,
+        assetId: ref as AssetId,
         x: typeof m.x === "number" ? m.x : 0,
         y: typeof m.y === "number" ? m.y : 0,
       };
+    }
     case "text": {
       const key = titleValueKey(m.value);
       if (!key) return null;
@@ -409,7 +422,8 @@ function parseTitleLayer(node: unknown): MenuTitleLayer | null {
         y: typeof m.y === "number" ? m.y : LEGACY_TEXT_Y,
       };
       if (typeof m.color === "string") out.color = m.color;
-      if (typeof m.font_asset_id === "string") out.fontAssetId = m.font_asset_id as AssetId;
+      const fontRef = assetRef("font");
+      if (fontRef !== null) out.fontAssetId = fontRef as AssetId;
       if (typeof m.size === "number" && [8, 12, 16, 20, 24, 32].includes(m.size)) {
         out.size = m.size as 8 | 12 | 16 | 20 | 24 | 32;
       }
@@ -441,7 +455,8 @@ function parseTitleLayer(node: unknown): MenuTitleLayer | null {
         lineHeight,
         alignment,
       };
-      if (typeof m.font_asset_id === "string") out.fontAssetId = m.font_asset_id as AssetId;
+      const fontRef = assetRef("font");
+      if (fontRef !== null) out.fontAssetId = fontRef as AssetId;
       if (typeof m.size === "number" && [8, 12, 16, 20, 24, 32].includes(m.size)) {
         out.size = m.size as 8 | 12 | 16 | 20 | 24 | 32;
       }

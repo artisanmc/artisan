@@ -1416,3 +1416,28 @@ describe("projectToCommandV1 / projectToDialogV1", () => {
     expect((dlg as any).buttons[0].actions).toBe("close_dialog");
   });
 });
+
+/**
+ * Refs d'assets par NOM (ADR `assets-on-server-disk`, décision 2).
+ *
+ * `asset: icone_diamant` remplacera `asset_id: ast_9f3c1a` : sur un disque qu'un
+ * humain doit pouvoir lire, un id opaque est une énigme. La lecture tolérante
+ * est déployée AVANT que quoi que ce soit n'écrive la forme nouvelle — la prod
+ * doit savoir lire l'après avant d'y être.
+ */
+describe("refs d'assets — nom et id opaque", () => {
+  it("lit `asset: <nom>` comme `asset_id: <id>`", () => {
+    expect(parseTitleNode([{ kind: "background", asset: "fond_boutique" }])).toEqual([
+      { kind: "background", assetId: "fond_boutique" },
+    ]);
+    expect(parseTitleNode([{ kind: "glyph", asset: "icone_diamant", x: 4, y: 6 }])).toEqual([
+      { kind: "glyph", assetId: "icone_diamant", x: 4, y: 6 },
+    ]);
+  });
+
+  it("lit encore l'ancienne forme opaque", () => {
+    expect(parseTitleNode([{ kind: "background", asset_id: "ast_9f3c1a" }])).toEqual([
+      { kind: "background", assetId: "ast_9f3c1a" },
+    ]);
+  });
+});
