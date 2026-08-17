@@ -1,8 +1,8 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Project, ProjectId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
 import { useSelectionStore } from "@/state/selectionStore";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const navigate = vi.fn();
 vi.mock("@tanstack/react-router", () => ({
@@ -10,8 +10,12 @@ vi.mock("@tanstack/react-router", () => ({
   useParams: () => ({ networkId: "n1", serverId: "s1", projectId: "p1", elementId: "m1" }),
 }));
 vi.mock("./SoloMenuStage", () => ({ SoloMenuStage: () => <div data-testid="solo-menu" /> }));
-vi.mock("@/features/canvas/EditorPane", () => ({ EditorPane: () => <div data-testid="editor-pane" /> }));
-vi.mock("@/features/flow/FlowCanvas", () => ({ FlowCanvas: () => <div data-testid="flow-canvas" /> }));
+vi.mock("@/features/canvas/EditorPane", () => ({
+  EditorPane: () => <div data-testid="editor-pane" />,
+}));
+vi.mock("@/features/flow/FlowCanvas", () => ({
+  FlowCanvas: () => <div data-testid="flow-canvas" />,
+}));
 
 import { DocumentView } from "./DocumentView";
 
@@ -19,14 +23,45 @@ const PID = "p1" as ProjectId;
 beforeEach(() => {
   navigate.mockClear();
   useSelectionStore.getState().clear();
-  useAccountStore.setState({ account: { id: "a" as any, projectOrder: [PID], projects: [{
-    id: PID, name: "p", source: "user_created", createdAt: "", updatedAt: "",
-    menus: [{ id: "m1", projectId: PID, title: [], rows: 3, layers: [
-      { id: "L0", elements: [{ id: "el1", positions: "13", appearances: [{ material: "DIAMOND" }] }] },
-    ] } as any],
-    commands: [{ id: "c1", projectId: PID, name: "heal", arguments: [], steps: [] } as any], dialogs: [], assets: [], dataSources: [], importedConnectors: [],
-    i18nKeys: {}, defaultLang: "en", canvasLayout: {},
-  } as Project] } } as any);
+  useAccountStore.setState({
+    account: {
+      id: "a" as any,
+      projectOrder: [PID],
+      projects: [
+        {
+          id: PID,
+          name: "p",
+          source: "user_created",
+          createdAt: "",
+          updatedAt: "",
+          menus: [
+            {
+              id: "m1",
+              projectId: PID,
+              title: [],
+              rows: 3,
+              layers: [
+                {
+                  id: "L0",
+                  elements: [
+                    { id: "el1", positions: "13", display: { material: "DIAMOND" }, states: [] },
+                  ],
+                },
+              ],
+            } as any,
+          ],
+          commands: [{ id: "c1", projectId: PID, name: "heal", arguments: [], steps: [] } as any],
+          dialogs: [],
+          assets: [],
+          dataSources: [],
+          importedConnectors: [],
+          i18nKeys: {},
+          defaultLang: "en",
+          canvasLayout: {},
+        } as Project,
+      ],
+    },
+  } as any);
 });
 
 describe("DocumentView", () => {
@@ -38,9 +73,11 @@ describe("DocumentView", () => {
   it("le bouton retour navigue vers l'overview", () => {
     render(<DocumentView projectId={PID} documentId={"m1" as any} />);
     fireEvent.click(screen.getByText(/back to canvas|retour au canvas/i));
-    expect(navigate).toHaveBeenCalledWith(expect.objectContaining({
-      to: "/networks/$networkId/servers/$serverId/projects/$projectId",
-    }));
+    expect(navigate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: "/networks/$networkId/servers/$serverId/projects/$projectId",
+      }),
+    );
   });
   it("affiche le badge clavier Esc sur le bouton retour", () => {
     render(<DocumentView projectId={PID} documentId={"m1" as any} />);
@@ -49,9 +86,11 @@ describe("DocumentView", () => {
   it("Echap revient au canvas", () => {
     render(<DocumentView projectId={PID} documentId={"m1" as any} />);
     fireEvent.keyDown(document.body, { key: "Escape" });
-    expect(navigate).toHaveBeenCalledWith(expect.objectContaining({
-      to: "/networks/$networkId/servers/$serverId/projects/$projectId",
-    }));
+    expect(navigate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: "/networks/$networkId/servers/$serverId/projects/$projectId",
+      }),
+    );
   });
   it("Echap dans un champ de saisie ne navigue pas", () => {
     render(<DocumentView projectId={PID} documentId={"m1" as any} />);

@@ -54,24 +54,39 @@ export type TextSize = 8 | 12 | 16 | 20 | 24 | 32;
 export type MenuTitleLayer =
   | { kind: "background"; assetId: AssetId }
   | { kind: "glyph"; assetId: AssetId; x: number; y: number }
-  | { kind: "text"; value: LText; x: number; y: number;
+  | {
+      kind: "text";
+      value: LText;
+      x: number;
+      y: number;
       fontAssetId?: AssetId;
       color?: string;
-      size?: TextSize }
+      size?: TextSize;
+    }
   /** Plain vanilla title — no resource project required. Emitted as a raw
    *  MiniMessage string in YAML (legacy format) so any server can use it. */
   | { kind: "plain"; value: LText; color?: string }
   /** Multi-line text block. `value` resolves to a string containing literal
    *  `\n`s; the runtime splits and renders one line per split at
    *  `(x, y + i * lineHeight)`. Lines share alignment + optional font. */
-  | { kind: "textarea"; value: LText; x: number; y: number;
+  | {
+      kind: "textarea";
+      value: LText;
+      x: number;
+      y: number;
       width: number;
       lineHeight: number;
       alignment: "left" | "center" | "right";
       fontAssetId?: AssetId;
-      size?: TextSize }
-  | { kind: "external_glyph"; provider: "oraxen" | "nexo" | "itemsadder";
-      glyphName: string; x: number; y: number };
+      size?: TextSize;
+    }
+  | {
+      kind: "external_glyph";
+      provider: "oraxen" | "nexo" | "itemsadder";
+      glyphName: string;
+      x: number;
+      y: number;
+    };
 
 export type ProjectSource = "user_created" | "imported" | "forked";
 
@@ -228,7 +243,19 @@ export interface Layer {
 export interface Element {
   id: ElementId;
   positions: string;
-  appearances: Appearance[];
+  /**
+   * What the Element looks like when no state applies — always present. On the
+   * wire its fields sit FLAT on the element (`material:`, `title:`, `click:` …);
+   * the element's own keys are `id`, `positions`, `iterates`, `places`,
+   * `states`, `tags` and nothing else. Cf. ADR `element-display-and-states`.
+   */
+  display: Appearance;
+  /**
+   * Guarded alternatives, tried in order — the first whose `if` passes renders,
+   * and `display` renders when none does. A state is a WHOLE appearance, never
+   * a patch: a field it omits is absent, not inherited from `display`.
+   */
+  states: Appearance[];
   tags?: string[];
   /**
    * Iteration: when set, this element is rendered once per item of the
@@ -246,8 +273,8 @@ export interface Element {
    * a slot range in source order, the admin pins specific rows of a **static**
    * data source (matched by `keyField`) to explicit page+slot. Rows not placed are
    * omitted. How a row looks and behaves comes from this element's own
-   * `appearances` — a Placement pins position only, no per-item override. Only
-   * valid on static sources.
+   * `display`/`states` — a Placement pins position only, no per-item override.
+   * Only valid on static sources.
    */
   places?: {
     source: string;
@@ -374,7 +401,15 @@ export type Action =
   /** Play a sound to the triggering player. `sound` is a Bukkit Sound name. */
   | { type: "play_sound"; sound: string; volume?: number; pitch?: number }
   /** Teleport to coordinates. */
-  | { type: "teleport"; world: string; x: number; y: number; z: number; yaw?: number; pitch?: number }
+  | {
+      type: "teleport";
+      world: string;
+      x: number;
+      y: number;
+      z: number;
+      yaw?: number;
+      pitch?: number;
+    }
   /**
    * Advance pagination of an iterating element. If `targetElementId` is
    * unset the runtime paginates every iterating element in the current

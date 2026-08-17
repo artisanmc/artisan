@@ -48,28 +48,27 @@ const project = (): Project =>
                 id: "grid",
                 positions: "10-11",
                 iterates: { source: "categories", alias: "cat" },
-                appearances: [
-                  {
-                    material: "CHEST",
-                    click: {
-                      left: {
-                        steps: [
-                          {
-                            kind: "action",
-                            action: {
-                              type: "open_menu",
-                              menuId: "shop_category",
-                              context: {
-                                category_id: "{cat.id}",
-                                category_name: "{cat.name}",
-                              },
+                display: {
+                  material: "CHEST",
+                  click: {
+                    left: {
+                      steps: [
+                        {
+                          kind: "action",
+                          action: {
+                            type: "open_menu",
+                            menuId: "shop_category",
+                            context: {
+                              category_id: "{cat.id}",
+                              category_name: "{cat.name}",
                             },
                           },
-                        ],
-                      },
+                        },
+                      ],
                     },
                   },
-                ],
+                },
+                states: [],
               },
             ],
           },
@@ -108,7 +107,7 @@ describe("findPreviewCallContexts", () => {
     const p = project();
     // Rewrite the caller's context to the whole-model style: cat: "{cat}".
     const el = p.menus[0]!.layers[0]!.elements[0]!;
-    const action = el.appearances[0]!.click!.left!.steps[0]! as {
+    const action = el.display!.click!.left!.steps[0]! as {
       action: { context: Record<string, string> };
     };
     action.action.context = { cat: "{cat}" };

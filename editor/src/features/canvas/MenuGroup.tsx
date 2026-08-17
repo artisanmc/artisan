@@ -18,6 +18,8 @@ import { Group, Image as KonvaImage, Rect } from "react-konva";
 import { toast } from "sonner";
 import useImage from "use-image";
 import { PaginationControls } from "./PaginationControls";
+import { PlacementTray } from "./PlacementTray";
+import { PreviewContextBanner } from "./PreviewContextBanner";
 import { SlotItem } from "./SlotItem";
 import { dispatchOpenElement } from "./canvasEvents";
 import { INVENTORY_TYPES, slotCount } from "./inventoryTypes";
@@ -43,8 +45,6 @@ import {
   resolvePlacementSlot,
 } from "./placement";
 import { pinPlacementRow } from "./placementDrop";
-import { PlacementTray } from "./PlacementTray";
-import { PreviewContextBanner } from "./PreviewContextBanner";
 import { TitleRender } from "./title/composer/TitleRender";
 import { useMenuClick } from "./useMenuClick";
 import { useMenuDrag } from "./useMenuDrag";
@@ -199,7 +199,7 @@ export function MenuGroup({ projectId, menu, position, layout, solo = false }: M
   let firstIterable: { page: number; totalPages: number } | null = null;
   for (const layer of menu.layers) {
     for (const el of layer.elements) {
-      const appearance = el.appearances[0];
+      const appearance = el.display;
       if (!appearance) continue;
       let source: string;
       let totalPages: number;
@@ -245,7 +245,7 @@ export function MenuGroup({ projectId, menu, position, layout, solo = false }: M
   >();
   for (const layer of menu.layers) {
     for (const el of layer.elements) {
-      const appearance = el.appearances[0];
+      const appearance = el.display;
       if (!appearance) continue;
       const enchanted =
         appearance.enchanted === true || (appearance.enchants?.length ?? 0) > 0 || undefined;

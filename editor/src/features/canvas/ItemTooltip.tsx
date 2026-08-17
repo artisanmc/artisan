@@ -82,7 +82,7 @@ export function ItemTooltip({ projectId }: ItemTooltipProps) {
   const found = useMemo(() => findElementAndMenu(project, elementId), [project, elementId]);
   if (!found || !project) return null;
   const { element, menu } = found;
-  const appearance = element.appearances[0];
+  const appearance = element.display;
   if (!appearance) return null;
 
   // Build a preview scope from contextInputs — primitives are coerced to their

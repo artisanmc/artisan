@@ -58,11 +58,11 @@ Un projet peut aussi s'écrire sans aucune référence : le champ porte le **tex
 title: Shop                              menus:
 elements:                                  shop:
   - id: buy                                  title: Boutique
-    appearances:                             elements:
-      - title: Sword                           buy:
-        click: { left: send_message "Bought!" }   default:
-                                                     title: Épée
-                                                     click: { left: { message: Acheté ! } }
+    title: Sword                             elements:
+    click: { left: send_message "Bought!" }    buy:
+                                                 default:
+                                                   title: Épée
+                                                   click: { left: { message: Acheté ! } }
 ```
 
 Les deux formes se lisent indifféremment, y compris mélangées dans un même fichier. Le choix est un mode de projet (`.artisan/editor.yaml` → `i18n_mode`), pas une propriété de champ. Le schéma d'adressage est verrouillé cross-langage par `testdata/i18n-address-conformance.json`. Cf. ADR `files-first-source-of-truth` §4.

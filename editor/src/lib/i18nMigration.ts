@@ -39,7 +39,7 @@ export function migrateProjectToI18n(project: any, fallbackDefaultLang: string):
     if (typeof menu.title === "string") menu.title = lift(menu.title);
     for (const layer of menu.layers ?? []) {
       for (const el of layer.elements ?? []) {
-        for (const appearance of el.appearances ?? []) {
+        for (const appearance of [el.display, ...(el.states ?? [])]) {
           if (typeof appearance.title === "string") appearance.title = lift(appearance.title);
           if (Array.isArray(appearance.lore)) {
             appearance.lore = appearance.lore
@@ -79,7 +79,12 @@ function migrateStepsI18n(
 ): void {
   for (const step of steps) {
     if (!step || typeof step !== "object") continue;
-    const s = step as { kind?: string; action?: { type?: string; text?: unknown; title?: unknown; subtitle?: unknown }; cases?: unknown[]; else?: unknown[] };
+    const s = step as {
+      kind?: string;
+      action?: { type?: string; text?: unknown; title?: unknown; subtitle?: unknown };
+      cases?: unknown[];
+      else?: unknown[];
+    };
     if (s.kind === "action" && s.action) {
       const a = s.action as { type?: string; text?: unknown; title?: unknown; subtitle?: unknown };
       if (a.type === "send_message" && typeof a.text === "string") {

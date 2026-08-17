@@ -36,12 +36,17 @@ export function pinPlacementRow(opts: {
   const menu = project?.menus.find((m) => m.id === menuId);
   const el = menu?.layers.flatMap((l) => l.elements).find((e) => e.id === elementId);
   if (!project || !menu || !el?.places) return;
-  const appearance = el.appearances[0];
+  const appearance = el.display;
 
   const page = usePaginationStore.getState().pageByElement[elementId] ?? 0;
   const snapshots = useServerSnapshotsStore.getState().rowsByRef;
   const activeLang = useUiStore.getState().activeLang;
-  const baseCtx = buildPreviewScope(menu, project, snapshots, useUiStore.getState().menuPreviewArgs[menu.id]);
+  const baseCtx = buildPreviewScope(
+    menu,
+    project,
+    snapshots,
+    useUiStore.getState().menuPreviewArgs[menu.id],
+  );
   const rows = lookupPath(baseCtx, el.places.source);
   const row = matchPlacementRow(rows, el.places.keyField, key);
   const cachedDisplay =
@@ -50,8 +55,8 @@ export function pinPlacementRow(opts: {
       : undefined;
 
   const placement: Placement = { key, page, position };
-  if (cachedDisplay && Object.keys(cachedDisplay).length > 0) placement.cachedDisplay = cachedDisplay;
+  if (cachedDisplay && Object.keys(cachedDisplay).length > 0)
+    placement.cachedDisplay = cachedDisplay;
 
   account.setElementPlacement({ projectId, menuId, elementId, placement });
 }
-

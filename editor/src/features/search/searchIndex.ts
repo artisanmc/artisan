@@ -1,6 +1,6 @@
+import { getFirstTitleText } from "@/domain/menuTitle";
 import type { Project } from "@/domain/types";
 import { getText } from "@/lib/i18n";
-import { getFirstTitleText } from "@/domain/menuTitle";
 import { parsePositions } from "@/lib/positions";
 
 export type SearchGroup = "menu" | "command" | "dialog" | "content";
@@ -27,45 +27,110 @@ export function buildSearchIndex(project: Project, activeLang: string): SearchEn
   for (const menu of project.menus ?? []) {
     const lt = getFirstTitleText(menu);
     const menuLabel = (lt ? getText(project, lt, activeLang) : "") || menu.id;
-    out.push(entry({ id: `menu:${menu.id}`, group: "menu", label: menuLabel, target: { openId: menu.id } }));
+    out.push(
+      entry({
+        id: `menu:${menu.id}`,
+        group: "menu",
+        label: menuLabel,
+        target: { openId: menu.id },
+      }),
+    );
 
     for (const layer of menu.layers ?? []) {
       for (const el of layer.elements ?? []) {
-        // apparence primaire seulement (V1) ; les états conditionnels ne sont pas indexés
-        const ap = el.appearances?.[0];
+        // display seulement ; les états conditionnels ne sont pas indexés
+        const ap = el.display;
         if (!ap) continue;
         // première slot de l'élément (ancre de navigation) ; undefined si positions vide
         const slot = parsePositions(el.positions)[0];
         const baseTarget = { openId: menu.id, selectId: el.id, focusedSlot: slot };
         if (ap.material) {
-          out.push(entry({ id: `item:${menu.id}:${el.id}`, group: "content", label: ap.material, context: { key: "search.ctxInMenu", owner: menuLabel }, target: baseTarget }));
+          out.push(
+            entry({
+              id: `item:${menu.id}:${el.id}`,
+              group: "content",
+              label: ap.material,
+              context: { key: "search.ctxInMenu", owner: menuLabel },
+              target: baseTarget,
+            }),
+          );
         }
         const title = getText(project, ap.title, activeLang);
-        if (title) out.push(entry({ id: `itemtitle:${menu.id}:${el.id}`, group: "content", label: title, context: { key: "search.ctxItemTitle", owner: menuLabel }, target: baseTarget }));
+        if (title)
+          out.push(
+            entry({
+              id: `itemtitle:${menu.id}:${el.id}`,
+              group: "content",
+              label: title,
+              context: { key: "search.ctxItemTitle", owner: menuLabel },
+              target: baseTarget,
+            }),
+          );
         const lore = getText(project, ap.lore ?? undefined, activeLang);
-        if (lore) out.push(entry({ id: `itemlore:${menu.id}:${el.id}`, group: "content", label: lore, context: { key: "search.ctxItemLore", owner: menuLabel }, target: baseTarget }));
+        if (lore)
+          out.push(
+            entry({
+              id: `itemlore:${menu.id}:${el.id}`,
+              group: "content",
+              label: lore,
+              context: { key: "search.ctxItemLore", owner: menuLabel },
+              target: baseTarget,
+            }),
+          );
       }
     }
   }
 
   for (const cmd of project.commands ?? []) {
-    out.push(entry({ id: `command:${cmd.id}`, group: "command", label: `/${cmd.name}`, target: { openId: cmd.id } }));
+    out.push(
+      entry({
+        id: `command:${cmd.id}`,
+        group: "command",
+        label: `/${cmd.name}`,
+        target: { openId: cmd.id },
+      }),
+    );
   }
 
   for (const dialog of project.dialogs ?? []) {
     const dlabel = getText(project, dialog.title, activeLang) || dialog.id;
-    out.push(entry({ id: `dialog:${dialog.id}`, group: "dialog", label: dlabel, target: { openId: dialog.id } }));
+    out.push(
+      entry({
+        id: `dialog:${dialog.id}`,
+        group: "dialog",
+        label: dlabel,
+        target: { openId: dialog.id },
+      }),
+    );
     const body = dialog.body ?? [];
     for (let i = 0; i < body.length; i++) {
       const b = body[i];
       if (b && b.type === "text") {
         const text = getText(project, b.text, activeLang);
-        if (text) out.push(entry({ id: `dbody:${dialog.id}:${i}`, group: "content", label: text, context: { key: "search.ctxDialogBody", owner: dlabel }, target: { openId: dialog.id } }));
+        if (text)
+          out.push(
+            entry({
+              id: `dbody:${dialog.id}:${i}`,
+              group: "content",
+              label: text,
+              context: { key: "search.ctxDialogBody", owner: dlabel },
+              target: { openId: dialog.id },
+            }),
+          );
       }
     }
     for (const btn of dialog.buttons ?? []) {
       const text = getText(project, btn.label, activeLang);
-      if (text) out.push(entry({ id: `dbtn:${dialog.id}:${btn.id}`, group: "content", label: text, context: { key: "search.ctxDialogButton", owner: dlabel }, target: { openId: dialog.id } }));
+      if (text)
+        out.push(
+          entry({
+            id: `dbtn:${dialog.id}:${btn.id}`,
+            group: "content",
+            label: text,
+            context: { key: "search.ctxDialogButton", owner: dlabel },
+            target: { openId: dialog.id },
+          }),
+        );
     }
   }
 

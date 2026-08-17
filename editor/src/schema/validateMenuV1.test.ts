@@ -28,13 +28,13 @@ describe("validateMenuV1", () => {
 
   it("rejects a click with flat actions instead of steps", () => {
     const bad = JSON.parse(JSON.stringify(canonicalButton));
-    bad.layers[0].elements[0].appearances[0].click.left = { actions: [] };
+    bad.layers[0].elements[0].click.left = { actions: [] };
     expect(validateMenuV1(bad).valid).toBe(false);
   });
 
   it("accepts an appearance with a custom head", () => {
     const m = structuredClone(canonicalButton) as Record<string, any>;
-    const app = m.layers[0].elements[0].appearances[0];
+    const app = m.layers[0].elements[0];
     app.material = "PLAYER_HEAD";
     app.head = "hdb:128276";
     expect(validateMenuV1(m).valid).toBe(true);
@@ -42,7 +42,7 @@ describe("validateMenuV1", () => {
 
   it("rejects a non-string head", () => {
     const m = structuredClone(canonicalButton) as Record<string, any>;
-    m.layers[0].elements[0].appearances[0].head = 42;
+    m.layers[0].elements[0].head = 42;
     expect(validateMenuV1(m).valid).toBe(false);
   });
 });
@@ -56,7 +56,7 @@ describe("validateMenuV1 inventory_type cross-validation", () => {
       {
         id: "l",
         name: "L",
-        elements: [{ id: "e", positions: "0", appearances: [{ material: "STONE" }] }],
+        elements: [{ id: "e", positions: "0", material: "STONE" }],
       },
     ],
   };

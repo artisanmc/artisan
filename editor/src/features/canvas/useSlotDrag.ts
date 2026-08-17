@@ -103,7 +103,7 @@ export function useSlotDrag(args: UseSlotDragArgs) {
         for (const layer of menuLayers) {
           for (const el of layer.elements) {
             if (!sel.ids.has(el.id)) continue;
-            const appearance = el.appearances[0];
+            const appearance = el.display;
             if (!appearance?.material) continue;
             for (const p of parsePositions(el.positions)) {
               if (p === slotPosition) continue;

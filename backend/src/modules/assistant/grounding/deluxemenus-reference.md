@@ -132,7 +132,7 @@ Use **only** the allowed `menu/v1` vocab (see the authoring guide). Preserve PAP
 | `display_name`                           | appearance `title` (literal MiniMessage) |
 | `lore`                                   | appearance `lore[]` |
 | `amount`                                 | appearance `count` |
-| `priority` (items sharing a slot)        | order the appearances (highest priority first) |
+| `priority` (items sharing a slot)        | order the `states` (first match wins), display last |
 | `[player]` / `[commandevent]`            | `run_command` (`as: "player"`) |
 | `[console]`                              | `run_command` (`as: "console"`) |
 | `[message]` / `[minimessage]`            | `send_message` (`text`) |

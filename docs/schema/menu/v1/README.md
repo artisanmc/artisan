@@ -40,7 +40,8 @@ Menu
                   └── Element
                        ├── id           (stable, unique cross-layer)
                        ├── positions    ("15" ou "10-43")
-                       ├── appearances  : Appearance[]   ← première qui matche gagne
+                       ├── <champs du display>          ← à plat sur l'Element
+                       ├── states ?     : Appearance[]   ← essayés AVANT le display
                        ├── template_ref ?
                        └── tags ?
 ```
@@ -51,8 +52,8 @@ Pour chaque position 0 à `size-1`, le moteur fait :
 
 1. Parcourt les layers de **haut en bas** (`menu.layers` lu en ordre inverse — dernier de la liste = top)
 2. Pour chaque layer, identifie l'Element qui revendique cette position (last-placed-wins en cas d'overlap intra-layer)
-3. Évalue les `appearances` de l'Element dans l'ordre. **Première dont `if` matche** (ou `if` absent = match implicite) **gagne** → render à cette position, terminé pour ce slot
-4. Si aucune appearance ne matche → l'Element n'est pas rendu, **fall-through au layer suivant**
+3. Évalue les `states` de l'Element dans l'ordre. **Le premier dont `if` passe gagne** → render à cette position, terminé pour ce slot
+4. Si aucun état ne passe, le **display** (les champs d'apparence portés à plat par l'Element) est rendu — c'est le repli, il s'applique toujours
 5. Aucun layer ne fournit un Element rendu → render `menu.background` si défini, sinon position vide (AIR)
 
 ## Décisions de design
@@ -66,19 +67,26 @@ Les Layers sont des entités à part entière (`Layer` avec id, name, elements),
 - **Marketplace** (V3) : un créateur peut vendre un project "Layer décoration médiéval"
 - **Mental model** : Photoshop / Figma traitent les layers comme des conteneurs avec enfants
 
-### Appearances unifiées (pas de partial override)
+### Display à plat + states, sans partial override
 
-Plutôt que `default + states[]` avec partial override, un Element a une liste d'`appearances`, chacune complète et auto-suffisante. La première dont `if` matche gagne. Une appearance sans `if` matche toujours et sert de fallback.
+Le cas nominal — un Element, une apparence — s'écrit **sans emballage** : `material`, `title`,
+`lore`, `click` sont des clés de l'Element, comme dans les autres plugins de menu. C'est ce que
+100 % des Elements réels utilisent. Les alternatives conditionnelles vivent sous `states`.
 
-Trade-off : JSON un peu plus verbeux dans les Elements multi-state. Bénéfices :
+Un état **remplace** le display, il ne le complète pas : ce qu'il n'écrit pas est **absent**,
+jamais hérité. Le merge (« le state ne dit que ce qui change ») a été examiné et écarté — il
+demande d'inventer des règles (effacer un lore hérité, fusionner les `click`, redéfinir
+partiellement un `nbt`) sans aucune donnée d'usage pour les informer. Bénéfices du remplacement :
 
-- Sémantique uniforme (pas de "default vs state")
-- Fall-through naturel (pas besoin de flag `hidden`)
-- Chaque appearance est self-contained (pas de "j'hérite de quoi déjà ?")
-- Plus AI-friendly (une IA lit une appearance, elle a tout)
-- Le moteur prend la première qui matche, point
+- Chaque apparence est self-contained (pas de « j'hérite de quoi déjà ? »)
+- Plus AI-friendly (lire un état suffit à savoir ce qui s'affiche)
+- Le moteur prend le premier état qui matche, sinon le display, point
 
-L'éditeur cushionne la verbosité : "+ Ajouter une variante" pré-remplit le formulaire avec une copie de la dernière appearance, l'admin modifie juste les champs qui changent.
+Prix à payer, assumé : un Element multi-états répète les champs communs. L'éditeur ne masque PAS
+ce prix — « Ajouter un état » crée un état **vide**, et le bloc de pierre qu'il affiche
+immédiatement enseigne la sémantique ; « Dupliquer » est le geste explicite d'à côté.
+
+Cf. ADR `element-display-and-states`.
 
 ### Pas de validation d'overlap stricte
 
@@ -147,7 +155,11 @@ Un Element devient itératif en pointant `iterates: { source, alias }` vers une 
       "id": "shop_grid",
       "positions": "10-43",
       "iterates": { "source": "shops", "alias": "shop" },
-      "appearances": [
+      "material": "{shop.material}",
+      "title": "<gold>{shop.name}</gold>",
+      "lore": ["<yellow>Prix : {shop.price} pièces</yellow>"],
+      "click": { "left": { "actions": [{ "type": "run_command", "command": "cs buy {shop.id}" }] } },
+      "states": [
         {
           "if": [{ "type": "placeholder_equals", "placeholder": "{shop.rarity}", "value": "legendary" }],
           "material": "{shop.material}",

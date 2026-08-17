@@ -24,7 +24,7 @@ vi.mock("@/lib/api/assistant", () => ({
           {
             id: "l1",
             name: "default",
-            elements: [{ id: "e1", positions: "0", appearances: [{ material: "STONE" }] }],
+            elements: [{ id: "e1", positions: "0", material: "STONE" }],
           },
         ],
       },
@@ -81,7 +81,9 @@ describe("AssistantChat", () => {
 
     // (b) the written menu is actually applied to the project.
     await waitFor(() => {
-      const project = useAccountStore.getState().account.projects.find((p) => p.id === projectId("p"));
+      const project = useAccountStore
+        .getState()
+        .account.projects.find((p) => p.id === projectId("p"));
       expect(project?.menus.find((m) => m.id === "shop")).toBeTruthy();
     });
 

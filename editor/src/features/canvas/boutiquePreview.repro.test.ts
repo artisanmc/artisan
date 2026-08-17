@@ -1,9 +1,9 @@
-import { describe, expect, it } from "vitest";
 import { projectId } from "@/domain/ids";
+import { getText } from "@/lib/i18n";
 import { projectFromFiles } from "@/schema/projectFromFiles";
+import { describe, expect, it } from "vitest";
 import { buildPreviewScope } from "./menuPreviewScope";
 import { matchPlacementRow, placementAtSlot, resolvePlacementSlot } from "./placement";
-import { getText } from "@/lib/i18n";
 
 /**
  * Reproduction du bug d'aperçu signalé en prod le 2026-08-17 sur la boutique :
@@ -42,12 +42,11 @@ const MENU = [
   "    - key: spawner_a_poule",
   "      page: 0",
   "      position: 21",
-  "  appearances:",
-  "  - material: '{item.icon}'",
-  "    title: '{item.name}'",
-  "    lore:",
-  "    - '{item.lore}'",
-  "    - '{item.price_display}'",
+  "  material: '{item.icon}'",
+  "  title: '{item.name}'",
+  "  lore:",
+  "  - '{item.lore}'",
+  "  - '{item.price_display}'",
   "",
 ].join("\n");
 
@@ -100,23 +99,33 @@ describe("aperçu boutique — placements hors du contexte d'aperçu", () => {
     const scope = buildPreviewScope(menu, project, { "boutique:items": ROWS });
     const element = menu.layers[0]!.elements[0]!;
     const places = element.places!;
-    const appearance = element.appearances[0]!;
+    const appearance = element.display!;
     const rows = scope[places.source] as unknown;
 
     const inContext = resolvePlacementSlot({
-      places, appearance, placement: places.placements[0]!,
+      places,
+      appearance,
+      placement: places.placements[0]!,
       row: matchPlacementRow(rows, places.keyField, "cle_legendaire"),
-      rowsAvailable: Array.isArray(rows), baseCtx: scope, project,
-      activeLang: "fr", elementId: element.id,
+      rowsAvailable: Array.isArray(rows),
+      baseCtx: scope,
+      project,
+      activeLang: "fr",
+      elementId: element.id,
     });
     expect(inContext.title).toBe("Clé légendaire");
 
     // Celui d'une autre catégorie : le slot ne doit pas afficher le gabarit.
     const outOfContext = resolvePlacementSlot({
-      places, appearance, placement: places.placements[1]!,
+      places,
+      appearance,
+      placement: places.placements[1]!,
       row: matchPlacementRow(rows, places.keyField, "spawner_a_poule"),
-      rowsAvailable: Array.isArray(rows), baseCtx: scope, project,
-      activeLang: "fr", elementId: element.id,
+      rowsAvailable: Array.isArray(rows),
+      baseCtx: scope,
+      project,
+      activeLang: "fr",
+      elementId: element.id,
     });
     expect(outOfContext.dangling).toBe(true);
     expect(outOfContext.title ?? "").not.toContain("{item.");
@@ -142,16 +151,22 @@ describe("aperçu boutique — placements hors du contexte d'aperçu", () => {
     expect(placementAtSlot(twoOnOneSlot, rows, 0, 20)?.key).toBe("cle_legendaire");
 
     // Et si c'est l'autre catégorie qui est prévisualisée, c'est l'autre qui gagne.
-    const spawners = buildPreviewScope(menu, project, { "boutique:items": ROWS }, {
-      category: "spawners",
-    });
-    expect(placementAtSlot(twoOnOneSlot, spawners[places.source], 0, 20)?.key)
-      .toBe("spawner_a_poule");
+    const spawners = buildPreviewScope(
+      menu,
+      project,
+      { "boutique:items": ROWS },
+      {
+        category: "spawners",
+      },
+    );
+    expect(placementAtSlot(twoOnOneSlot, spawners[places.source], 0, 20)?.key).toBe(
+      "spawner_a_poule",
+    );
   });
 
   it("le lore de l'apparence est bien lisible (et pas un objet)", () => {
     const { project, menu } = load();
-    const appearance = menu.layers[0]!.elements[0]!.appearances[0]!;
+    const appearance = menu.layers[0]!.elements[0]!.display!;
     // C'est ce que le tooltip lit. Si ça rend "" ou un objet, le survol ment.
     const loreRaw = appearance.lore ? getText(project, appearance.lore, "fr") : "";
     expect(typeof loreRaw).toBe("string");

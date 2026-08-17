@@ -269,7 +269,6 @@
     },
     "Element": {
       "type": "object",
-      "additionalProperties": false,
       "required": [
         "id",
         "positions"
@@ -311,17 +310,9 @@
           ],
           "description": "Position(s) Minecraft occupée(s) : int nu, range/liste string, ou liste YAML."
         },
-        "appearances": {
-          "type": "array",
-          "minItems": 1,
-          "items": {
-            "$ref": "#/$defs/Appearance"
-          },
-          "description": "Apparences conditionnelles (première dont le `if` passe gagne). Auto-suffisantes : un set d'items porte sa vue sur l'élément qui le rend, dans le menu où il vit."
-        },
         "iterates": {
           "$ref": "#/$defs/Iterates",
-          "description": "Si présent, l'Element devient itératif : pour chaque item du contextInput nommé `source` (de type \"list\"), le moteur évalue les appearances avec l'item courant exposé sous `alias`, accessible via {alias.field}. Mutuellement exclusif avec component_ref."
+          "description": "Si présent, l'Element devient itératif : pour chaque item du contextInput nommé `source` (de type \"list\"), le moteur évalue les apparences de l'Element (display + states) avec l'item courant exposé sous `alias`, accessible via {alias.field}. Mutuellement exclusif avec component_ref."
         },
         "tags": {
           "type": "array",
@@ -329,15 +320,24 @@
             "type": "string"
           }
         },
-        "notes": {
-          "type": "string",
-          "maxLength": 1024,
-          "description": "Notes internes de l'admin (jamais rendues aux joueurs)."
-        },
         "places": {
           "$ref": "#/$defs/Places"
+        },
+        "states": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/State"
+          },
+          "description": "États gardés, essayés dans l'ordre AVANT le display (les champs d'apparence portés par l'Element lui-même). Le premier dont le `if` passe gagne ; si aucun ne passe, le display est rendu. Un état est une apparence ENTIÈRE, pas un patch."
         }
-      }
+      },
+      "allOf": [
+        {
+          "$ref": "#/$defs/AppearanceFields"
+        }
+      ],
+      "unevaluatedProperties": false,
+      "description": "Un Element : ses clés structurelles (`id`, `positions`, `iterates`, `places`, `states`, `tags`) plus, À PLAT, les champs de son display."
     },
     "ContextInput": {
       "type": "object",
@@ -441,7 +441,7 @@
       "required": [
         "source"
       ],
-      "description": "Iteration : pour chaque item du contextInput `source` (type \"list\"), le moteur évalue les appearances de l'Element avec l'item courant exposé sous `alias`. Les champs accèdent aux propriétés de l'item via {alias.field}.",
+      "description": "Iteration : pour chaque item du contextInput `source` (type \"list\"), le moteur évalue les apparences de l'Element (display + states) avec l'item courant exposé sous `alias`. Les champs accèdent aux propriétés de l'item via {alias.field}.",
       "properties": {
         "source": {
           "type": "string",
@@ -454,10 +454,8 @@
         }
       }
     },
-    "Appearance": {
+    "AppearanceFields": {
       "type": "object",
-      "additionalProperties": false,
-      "description": "Une apparence complète et auto-suffisante. Le `if` détermine si cette apparence s'active. Si l'Element a `iterates`, les champs peuvent référencer {alias.field} pour accéder aux propriétés de l'item courant.",
       "properties": {
         "if": {
           "type": "array",
@@ -584,6 +582,27 @@
           "description": "Notes internes de l'admin (jamais rendues aux joueurs)."
         }
       }
+    },
+    "Appearance": {
+      "description": "Une apparence complète et auto-suffisante — un ETAT gardé par son `if`. Un state REMPLACE le display, il ne le complète pas : ce qu'il n'écrit pas est absent, jamais hérité (ADR element-display-and-states). Une apparence complète et auto-suffisante. Le `if` détermine si cette apparence s'active. Si l'Element a `iterates`, les champs peuvent référencer {alias.field} pour accéder aux propriétés de l'item courant.",
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/AppearanceFields"
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "State": {
+      "description": "Un état gardé d'un Element : une apparence ENTIÈRE plus son `if`. Sans `if` il matcherait toujours et masquerait le display pour de bon — il est donc obligatoire (ADR element-display-and-states).",
+      "allOf": [
+        {
+          "$ref": "#/$defs/Appearance"
+        }
+      ],
+      "required": [
+        "if"
+      ]
     },
     "ClickMap": {
       "type": "object",

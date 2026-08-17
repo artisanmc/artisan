@@ -9,6 +9,27 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Changed — un Element porte un display à plat et des `states` (BREAKING sur `menu/v1`)
+
+- `appearances:` disparaît. Le cas nominal — un Element, une apparence — s'écrit **sans emballage** :
+  `material`, `title`, `lore`, `click` sont des clés de l'Element, comme dans les autres plugins de
+  menu. Les alternatives conditionnelles vivent sous **`states`**, essayées dans l'ordre AVANT le
+  display, qui est le repli appliqué quand aucune ne passe.
+- **Un état remplace, il n'hérite pas.** Ce qu'un état n'écrit pas est absent, jamais repris du
+  display — la sémantique que le runtime appliquait déjà. Le merge a été examiné et écarté (ADR
+  `element-display-and-states`). Garde-fou : `material` (ou `head`) obligatoire dans un état, en
+  schéma **et** en WARN au load, parce qu'un état incomplet rendait un bloc de pierre en silence.
+- **Aucun shim de lecture** : `appearances` n'est plus lu nulle part et les menus déployés ont été
+  réécrits — le plugin ne tournait que sur le serveur de test. Un fichier resté à l'ancienne forme
+  rend un élément sans apparence.
+- `menu/v1` est muté sur place plutôt que versionné en `v2`, et `versioning.md` dit désormais la
+  règle réellement appliquée : la version change quand un fichier déployé cesserait d'être lisible,
+  pas quand le schéma change de forme.
+- **Les adresses i18n ne bougent pas** (`default` = display, `stateN` = `states[N-1]`) : aucune clé
+  `lang/` n'est réécrite. La compilation, elle, passe en ordre de résolution — états puis display.
+- Éditeur : « Ajouter un état » crée un état **vide** (le bloc de pierre affiché enseigne le
+  remplacement) ; « Dupliquer » est le geste explicite d'à côté.
+
 ### Fixed — aperçu d'un menu paramétré : le survol montrait le gabarit
 
 - Un menu paramétré réutilise les mêmes slots d'une catégorie à l'autre (la position 20 porte une clé par catégorie, sur la même page — un seul contexte est vivant à l'exécution). Le survol prenait **le premier** placement de la position : dès que l'aperçu montrait une autre catégorie, aucune ligne ne se liait et l'infobulle affichait `{item.name}` / `{item.lore}` tels quels. Il prend maintenant le placement **dont la clé résout dans le contexte courant** — la règle que le canvas appliquait déjà, désormais partagée (`placementAtSlot`).

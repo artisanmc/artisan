@@ -44,12 +44,11 @@ layers:
       - id: grid
         positions: "10-43"
         iterates: { source: cats, alias: cat }
-        appearances:
-          - material: "{cat.icon}"
-            title: "{cat.name}"
-            click:
-              left:
-                steps: 'open_menu shop_category with category="{cat.id}" category_name="{cat.name}"'
+        material: "{cat.icon}"
+        title: "{cat.name}"
+        click:
+          left:
+            steps: 'open_menu shop_category with category="{cat.id}" category_name="{cat.name}"'
 `;
 
 const MENU_SHOP_CATEGORY = `schema: menu/v1
@@ -74,23 +73,21 @@ layers:
       - id: grid
         positions: "10-43"
         iterates: { source: items, alias: item }
-        appearances:
-          - material: "{item.icon}"
-            title: "{item.name}"
-            lore:
-              - "{item.lore}"
-              - "§ePrix : {item.final_price} tokens"
-            click:
-              left:
-                steps: 'open_dialog confirm_purchase with item_id="{item.id}" item_name="{item.name}" item_price="{item.final_price}"'
+        material: "{item.icon}"
+        title: "{item.name}"
+        lore:
+          - "{item.lore}"
+          - "§ePrix : {item.final_price} tokens"
+        click:
+          left:
+            steps: 'open_dialog confirm_purchase with item_id="{item.id}" item_name="{item.name}" item_price="{item.final_price}"'
       - id: back
         positions: "49"
-        appearances:
-          - material: ARROW
-            title: "§7Retour"
-            click:
-              left:
-                steps: "open_menu shop_main"
+        material: ARROW
+        title: "§7Retour"
+        click:
+          left:
+            steps: "open_menu shop_main"
 `;
 
 const COMMAND_BOUTIQUE = `schema: command/v1
@@ -144,7 +141,11 @@ const bootstrapFiles: Record<string, string> = {
 // biome-ignore lint/suspicious/noExplicitAny: parsed YAML assertions
 type Json = Record<string, any>;
 
-function roundTrip(): { project: Project; out: Record<string, Json>; rawOut: Record<string, string> } {
+function roundTrip(): {
+  project: Project;
+  out: Record<string, Json>;
+  rawOut: Record<string, string>;
+} {
   const project = projectFromFiles(PROJECT_ID as ProjectId, bootstrapFiles);
   const rawOut = transform(project);
   const out: Record<string, Json> = {};
@@ -190,15 +191,15 @@ describe("projectImport round-trip (Boutique bootstrap → import → transform)
     // survive the structured→domain→DSL round-trip.
     const mainGrid = out["menus/shop_main.yaml"]!.elements[0];
     expect(mainGrid.iterates).toEqual({ source: "cats", alias: "cat" });
-    expect(mainGrid.appearances[0].click.left).toBe(
+    expect(mainGrid.click.left).toBe(
       'open_menu shop_category with category="{cat.id}" category_name="{cat.name}"',
     );
 
     const catLayers = out["menus/shop_category.yaml"]!.elements;
-    expect(catLayers[0].appearances[0].click.left).toBe(
+    expect(catLayers[0].click.left).toBe(
       'open_dialog confirm_purchase with item_id="{item.id}" item_name="{item.name}" item_price="{item.final_price}"',
     );
-    expect(catLayers[1].appearances[0].click.left).toBe("open_menu shop_main");
+    expect(catLayers[1].click.left).toBe("open_menu shop_main");
 
     expect(out["commands/boutique.yaml"]!.actions).toBe("open_menu shop_main");
 
@@ -229,7 +230,7 @@ describe("projectImport round-trip (Boutique bootstrap → import → transform)
     const fr = out["lang/fr.yaml"]!;
     // Literal titles get minted keys; the fr lang file must resolve them back
     // to the original literal (placeholders intact).
-    const title = out["menus/shop_main.yaml"]!.elements[0].appearances[0].title as string;
+    const title = out["menus/shop_main.yaml"]!.elements[0].title as string;
     const key = /^\{i18n:(.+)\}$/.exec(title)?.[1];
     expect(key).toBeDefined();
     expect(fr[key!]).toBe("{cat.name}");

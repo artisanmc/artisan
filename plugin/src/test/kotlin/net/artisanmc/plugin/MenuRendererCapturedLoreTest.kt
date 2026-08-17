@@ -65,12 +65,11 @@ class MenuRendererCapturedLoreTest {
             appendLine("    elements:")
             appendLine("      - id: icon")
             appendLine("        positions: \"0\"")
-            appendLine("        appearances:")
-            appendLine("          - material: \"$material\"")
-            if (title != null) appendLine("            title: \"$title\"")
+            appendLine("        material: \"$material\"")
+            if (title != null) appendLine("        title: \"$title\"")
             if (lore.isNotEmpty()) {
-                appendLine("            lore:")
-                lore.forEach { appendLine("            - \"$it\"") }
+                appendLine("        lore:")
+                lore.forEach { appendLine("        - \"$it\"") }
             }
         },
     )

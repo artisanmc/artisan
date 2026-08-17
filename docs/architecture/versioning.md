@@ -60,6 +60,20 @@ Le `"schema"` field discrimine la version :
 
 **Pour les changements interdits** : tu fais `menu/v2` (nouvelle version).
 
+**Exception files-first — le renommage intra-version.** Les trois interdits de
+renommage/suppression/retypage sont calqués sur des surfaces où le **producteur
+est un tiers**. Pour les schémas de Document, le producteur est notre writer
+canonique et le consommateur lit du disque. La règle réellement appliquée est
+donc : *un renommage ou une suppression de champ est permis dans la version tant
+qu'aucun fichier existant ne cesse d'être lisible* — soit parce que le reader
+reste tolérant à l'ancienne forme, soit parce qu'on sait que ces fichiers
+n'existent pas ailleurs que chez nous. **La version change quand un fichier
+déployé cesserait d'être lisible**, pas quand le schéma change de forme.
+
+Appliqué trois fois sur `menu/v1` : `steps` → `actions`, l'aplatissement
+`layers` → `elements`, et le retrait de `appearances` au profit de
+display + `states` (ADR `element-display-and-states`).
+
 ### 2.3 Migration framework
 
 Quand tu introduis `menu/v2`, tu écris une **migration** v1 → v2 :

@@ -38,12 +38,11 @@ class MenuRendererIterationTest {
               - id: grid
                 positions: "10-12"
                 iterates: { source: shops, alias: shop }
-                appearances:
-                  - material: "{shop.material}"
-                    title: "{shop.name}"
-                    click:
-                      left:
-                        steps: 'run_command "buy {shop.id}" as player'
+                material: "{shop.material}"
+                title: "{shop.name}"
+                click:
+                  left:
+                    steps: 'run_command "buy {shop.id}" as player'
         """.trimIndent(),
     )
 
@@ -146,9 +145,8 @@ class MenuRendererIterationTest {
                 elements:
                   - id: btn
                     positions: "0"
-                    appearances:
-                      - material: STONE
-                        title: "{label}"
+                    material: STONE
+                    title: "{label}"
             """.trimIndent(),
         )
         val menu = BundleCompiler.compile(yaml, emptyMap())
@@ -170,9 +168,8 @@ class MenuRendererIterationTest {
                 elements:
                   - id: btn
                     positions: "0"
-                    appearances:
-                      - material: STONE
-                        title: "Hello {player.name}"
+                    material: STONE
+                    title: "Hello {player.name}"
             """.trimIndent(),
         )
         val menu = BundleCompiler.compile(yaml, emptyMap())

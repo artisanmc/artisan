@@ -1,7 +1,7 @@
-import { useAccountStore } from "@/state/accountStore";
+import type { useAccountStore } from "@/state/accountStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import type Konva from "konva";
-import { useCallback, useState, type RefObject } from "react";
+import { type RefObject, useCallback, useState } from "react";
 import type { ContextMenuState, ContextMenuTarget } from "./ContextMenu";
 import { hitTestSlot, screenToWorld } from "./hitTest";
 import type { ViewportState } from "./usePanZoom";
@@ -17,7 +17,7 @@ const slotIsFilled = (
   if (!menu) return false;
   const positionStr = String(position);
   return menu.layers.some((l) =>
-    l.elements.some((el) => el.positions === positionStr && el.appearances[0]?.material),
+    l.elements.some((el) => el.positions === positionStr && el.display?.material),
   );
 };
 
@@ -117,10 +117,7 @@ export function useStageContextMenu({
     [openContextMenuAt],
   );
 
-  const closeCtxMenu = useCallback(
-    () => setCtxMenu((s) => ({ ...s, open: false })),
-    [],
-  );
+  const closeCtxMenu = useCallback(() => setCtxMenu((s) => ({ ...s, open: false })), []);
 
   return { ctxMenu, openContextMenuAt, onStageContextMenu, closeCtxMenu };
 }

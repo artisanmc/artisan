@@ -116,7 +116,8 @@ export function rewriteIds(input: {
   const remapElement = (el: Element): Element => ({
     ...el,
     id: newElementId(),
-    appearances: el.appearances.map(remapAppearance),
+    display: remapAppearance(el.display),
+    states: el.states.map(remapAppearance),
   });
   const remapLayer = (l: Layer): Layer => ({
     ...l,
