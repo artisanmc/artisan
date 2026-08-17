@@ -9,6 +9,11 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Added — la descente s'exécute depuis l'admin
+
+- `POST /api/v1/admin/assets/descend[?server=<id>]` : une route plutôt qu'un script, parce que la descente doit s'exécuter là où vivent les connexions WS des plugins — l'instance déployée, pas un poste de dev.
+- Idempotente : un serveur hors ligne est **sauté**, pas mis en échec, donc on rejoue jusqu'à ce que tous soient passés. Ce qui résiste est rendu dans la réponse, jamais tu.
+
 ### Changed — les polices sont dépliées sur le disque du serveur
 
 - Question ouverte de l'ADR **tranchée par la mesure** : l'ASCII vanilla fait 95 PNG + son descripteur, 26 Ko. On déplie — `assets/fonts/<nom>/font.yaml` + un fichier par glyphe — plutôt que de poser une boîte noire au milieu d'un dossier éditable à la main.

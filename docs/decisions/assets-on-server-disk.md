@@ -1,9 +1,10 @@
 # Les assets vivent sur le disque du serveur, le backend n'en garde qu'un cache
 
-**Status :** accepted (2026-08-17) — **rien n'est implémenté**. Achève
-`server-disk-only-storage` en lui retirant son exception n°1 (« le backend
-continue de stocker les assets binaires »), et retire à la ligne `projects` la
-dernière chose qui lui pende vraiment.
+**Status :** accepted (2026-08-17) — **implémenté sauf la suppression de la
+table** (P0→P5 + polices dépliées ; P6 attend que la descente ait tourné en
+prod). Achève `server-disk-only-storage` en lui retirant son exception n°1
+(« le backend continue de stocker les assets binaires »), et retire à la ligne
+`projects` la dernière chose qui lui pende vraiment.
 
 ## Contexte
 
