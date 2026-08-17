@@ -9,6 +9,13 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Decided — les assets descendent sur le disque du serveur (ADR, rien d'implémenté)
+
+- ADR `assets-on-server-disk` : textures, glyphes et polices deviennent des fichiers du Project sous `assets/`, le backend n'en gardant qu'un **cache jetable** clé par contenu. Achève `server-disk-only-storage` en lui retirant son exception « le backend continue de stocker les assets binaires » : une texture de fond n'est pas plus dérivée qu'un `menus/shop.yaml`, et sans elle la promesse « ta config marche sans nous » est fausse dès qu'un menu a un fond.
+- Conséquences actées : l'identité d'un asset devient son **nom de fichier** (changement de format cassant, migration prévue) ; les binaires ne voyagent **pas** dans l'arbre de Project (`asset_read`/`asset_write` par chemin) ; les codepoints passent dans les fichiers, la fusion existante tranche et journalise ; la table `assets` disparaît.
+- Bug latent documenté en attendant : les assets pendent à la ligne d'ancrage, donc renommer un dossier de Project sur le disque **orpheline silencieusement ses glyphes**.
+- Plan en 7 phases déployables séparément : `docs/superpowers/plans/2026-08-17-assets-on-server-disk.md`.
+
 ### Fixed — la page réseau listait des Projects qui n'existent plus
 
 - Sa liste venait de la table `projects`, jamais confrontée au disque. Ces lignes sont des **ancres** (identité, droits, facturation) : elles ne prouvent pas qu'un dossier existe encore. Un dossier renommé ou supprimé sur le serveur laissait la ligne derrière lui, et le lien menait à `unknown_project`. Une liste qui promet des Projects inouvrables est pire que pas de liste.

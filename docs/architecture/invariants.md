@@ -18,6 +18,11 @@ slug, serveur propriétaire, network) — de quoi le lister et le router dans l'
   écrivain** — le backend relaie, il n'arbitre jamais (il n'a aucune copie avec quoi arbitrer).
 - **Serveur hors ligne** = Project inouvrable. Pas de repli sur une copie périmée : il n'y en a
   pas, et en inventer une ferait éditer un état qui n'existe nulle part.
+- **Exception en cours de résorption** : les assets binaires (textures, glyphes, polices) vivent
+  encore sur un volume backend. ADR `assets-on-server-disk` (2026-08-17) les ramène sous
+  `assets/` dans le Project, le backend n'en gardant qu'un **cache jetable** clé par contenu.
+  **Rien n'est implémenté** — tant que ça dure, un dossier de Project renommé sur le disque
+  orpheline silencieusement ses glyphes (ils pendent à l'ancienne ligne d'ancrage).
 
 Corollaire : il n'existe plus de divergence disque↔backend, donc plus de `detectSyncAction`, plus
 de `sync_divergence`, plus de `bundle_available`. Le `SyncScanner` subsiste, mais **uniquement**
