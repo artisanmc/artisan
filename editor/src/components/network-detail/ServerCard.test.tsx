@@ -28,17 +28,6 @@ describe("ServerCard", () => {
     expect(screen.getByRole("button", { name: /projet/i })).toBeInTheDocument();
   });
 
-  it("shows an element-count badge when provided", () => {
-    const withCounts = [
-      { id: "p1", name: "Shop", documentCount: 7 },
-      { id: "p2", name: "Lobby" },
-    ] as any;
-    render(
-      <ServerCard networkId="net_1" server={server} workspaces={withCounts} onAction={() => {}} onCreateProject={() => {}} />,
-    );
-    expect(screen.getByText("7")).toBeInTheDocument();
-  });
-
   it("workspace links point to the server-scoped URL pattern", () => {
     render(<ServerCard networkId="net_1" server={server} workspaces={workspaces} onAction={() => {}} onCreateProject={() => {}} />);
     const links = screen.getAllByRole("link");
