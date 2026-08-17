@@ -11,6 +11,9 @@
  * Override the admin URL via ADMIN_DATABASE_URL if your local Postgres uses
  * different credentials (e.g. `postgresql://user:pwd@localhost:5432/postgres`).
  */
+import { tmpdir } from "os";
+import { join } from "path";
+import { rmSync } from "fs";
 import postgres from "postgres";
 import { spawnSync } from "child_process";
 
@@ -48,11 +51,17 @@ function migrateTestDb(): void {
 function runTests(): void {
   console.log(`[test] running bun test --isolate against "${TEST_DB}"`);
   const args = ["test", "--isolate", ...process.argv.slice(2)];
+  // Cache d'assets isolé et NEUF à chaque run : partagé avec le dev, il ferait
+  // passer des tests sur des octets laissés par un run précédent — un cache qui
+  // survit à ce qu'il cache est un test qui ne teste plus rien.
+  const assetCacheDir = join(tmpdir(), `artisan-asset-cache-test-${process.pid}`);
+  rmSync(assetCacheDir, { recursive: true, force: true });
   const r = spawnSync("bun", args, {
-    env: { ...process.env, DATABASE_URL: TEST_URL },
+    env: { ...process.env, DATABASE_URL: TEST_URL, ASSET_CACHE_DIR: assetCacheDir },
     stdio: "inherit",
     shell: process.platform === "win32",
   });
+  rmSync(assetCacheDir, { recursive: true, force: true });
   process.exit(r.status ?? 0);
 }
 
