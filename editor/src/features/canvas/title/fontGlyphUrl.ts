@@ -10,7 +10,13 @@ const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
  *  - the char isn't in this font's glyphMap.
  *
  * The texture path stored in glyphMap[i].texture is used as the trailing
- * segment of the URL. Backend serves it via /api/v1/textures/asset-font/:id/:path*.
+ * segment of the URL. Backend serves it via
+ * /api/v1/textures/asset-font/:projectId/:id/:path*.
+ *
+ * L'URL porte le Project depuis que les polices vivent sur le disque du serveur
+ * (ADR `assets-on-server-disk`) : l'identité d'une police est son NOM de
+ * dossier, unique dans son Project et nulle part ailleurs.
+ *
  * Cache-busting via the asset's contentHash query param so updates invalidate.
  */
 export function fontGlyphUrl(asset: Asset, char: string): string | null {
@@ -20,5 +26,5 @@ export function fontGlyphUrl(asset: Asset, char: string): string | null {
   // Light sanitization to be defensive against malformed glyphMap entries;
   // backend also enforces the path-traversal guard.
   const safePath = entry.texture.replace(/[^a-zA-Z0-9_./-]/g, "");
-  return `${API_URL}/api/v1/textures/asset-font/${asset.id}/${safePath}?h=${asset.contentHash}`;
+  return `${API_URL}/api/v1/textures/asset-font/${asset.projectId}/${asset.id}/${safePath}?h=${asset.contentHash}`;
 }

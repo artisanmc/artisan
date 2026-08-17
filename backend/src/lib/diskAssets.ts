@@ -1,4 +1,6 @@
+import { createHash } from "crypto";
 import { parse } from "yaml";
+import { FONT_DESCRIPTOR, FONT_DIR, fontFromDisk } from "./fontOnDisk";
 import { getCachedAsset, putCachedAsset } from "./assetCache";
 import { requestAssetRead, requestProjectRead } from "../ws/hub";
 import type { AssetRow } from "./resourcePackBuilder";
@@ -26,7 +28,6 @@ export interface DiskAsset {
 const TYPE_BY_DIR: Record<string, string> = {
   "assets/glyphs": "glyph",
   "assets/textures": "texture",
-  "assets/fonts": "font",
 };
 
 function typeOf(path: string): string | null {
@@ -37,6 +38,10 @@ function typeOf(path: string): string | null {
 function nameOf(path: string): string {
   const base = path.slice(path.lastIndexOf("/") + 1);
   return base.replace(/\.[^.]+$/, "");
+}
+
+function sha256(content: string): string {
+  return createHash("sha256").update(content, "utf8").digest("hex");
 }
 
 function num(value: unknown, fallback: number | null): number | null {
@@ -70,6 +75,40 @@ export function diskAssetsFromTree(
   }
 
   const out: DiskAsset[] = [];
+
+  // Une POLICE est un dossier, pas un fichier : `assets/fonts/<nom>/font.yaml`
+  // plus un PNG par glyphe. C'est elle l'asset — sans ça, la bibliothèque
+  // afficherait 95 « glyphes » nommés a, b, c… à côté d'elle.
+  for (const f of files) {
+    if (!f.path.startsWith(`${FONT_DIR}/`) || !f.path.endsWith(`/${FONT_DESCRIPTOR}`)) continue;
+    const dir = f.path.slice(0, -(FONT_DESCRIPTOR.length + 1));
+    const name = dir.slice(dir.lastIndexOf("/") + 1);
+    const meta = fontFromDisk(f.content);
+    if (!meta) continue; // descripteur illisible : on n'invente pas de police
+    const now = new Date();
+    out.push({
+      path: f.path,
+      // Le hash d'une police, c'est celui de son descripteur : c'est lui qui
+      // change quand on ajoute, retire ou déplace un glyphe.
+      hash: sha256(f.content),
+      row: {
+        id: name,
+        projectId: anchorProjectId,
+        type: "font",
+        name,
+        width: 0,
+        height: 0,
+        ascent: null,
+        codepoint: null,
+        contentWidth: null,
+        fontMeta: meta as unknown as AssetRow["fontMeta"],
+        contentHash: sha256(f.content),
+        createdAt: now,
+        updatedAt: now,
+      } as AssetRow,
+    });
+  }
+
   for (const bin of binaries) {
     const type = typeOf(bin.path);
     if (type === null) continue; // hors des dossiers d'assets : pas notre affaire

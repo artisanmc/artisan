@@ -166,10 +166,21 @@ par un drapeau « déjà migré ».
 
 ## Questions ouvertes
 
-- **Les polices importées** sont des zips dépliés (`fontMeta.glyphMap` +
-  N fichiers). Faut-il les déplier sur le disque du serveur (lisible, éditable,
-  beaucoup de fichiers) ou y garder le zip (opaque, mais un seul fichier) ?
-  Penche pour le dépliage : c'est la règle de la maison.
+- ~~**Les polices importées**~~ — **tranché le 2026-08-17 : dépliées.** Mesure
+  qui a décidé : l'ASCII vanilla fait 95 PNG plus son descripteur, **26 Ko en
+  tout**. Garder le zip aurait posé une boîte noire au milieu d'un dossier dont
+  tout le reste s'édite à la main, et il aurait fallu dézipper / corriger /
+  rezipper pour toucher un seul glyphe — pour économiser 96 entrées.
+
+      assets/fonts/<nom>/font.yaml      ← quel caractère, quelle image, ascent
+      assets/fonts/<nom>/<texture>.png  ← un fichier par glyphe
+
+  Conséquences actées : une police est un **dossier**, donc l'asset c'est elle,
+  pas chacun de ses PNG (sinon la bibliothèque afficherait 95 « glyphes »
+  nommés a, b, c…) ; son empreinte est celle de son **descripteur**, qui change
+  dès qu'un glyphe est ajouté, retiré ou déplacé ; la supprimer emporte tous ses
+  fichiers ; et `asset_write` devient **groupé et tout-ou-rien**, une police à
+  moitié posée afficherait des carrés à la place des lettres manquantes.
 - **Les icônes 3D d'items** (`backend/assets-seed/icons-<version>.zip`) ne sont
   pas des assets de Project — elles sont dérivées de la version du jeu et
   partagées par tous. Elles restent au backend. À confirmer qu'aucune n'a été

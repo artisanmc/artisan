@@ -75,11 +75,31 @@ export async function rebuildResourcePack(serverKeyId: string): Promise<PackInfo
       });
       for (const a of fromDisk) {
         allAssets.push(a.row);
-        if (a.row.type !== "glyph" || a.row.codepoint === null) continue;
-        const bytes = await readDiskAssetBytes(serverKeyId, diskId, a);
-        // Un glyphe dont on ne peut pas lire les octets est SAUTÉ, pas fatal :
-        // un pack amputé d'une image vaut mieux qu'un serveur sans pack.
-        if (bytes) glyphPngs.set(a.row.id, bytes);
+        if (a.row.type === "glyph" && a.row.codepoint !== null) {
+          const bytes = await readDiskAssetBytes(serverKeyId, diskId, a);
+          // Un glyphe dont on ne peut pas lire les octets est SAUTÉ, pas fatal :
+          // un pack amputé d'une image vaut mieux qu'un serveur sans pack.
+          if (bytes) glyphPngs.set(a.row.id, bytes);
+          continue;
+        }
+        if (a.row.type !== "font") continue;
+        // Une police est DÉPLIÉE sur le disque : ses glyphes sont des fichiers
+        // frères du descripteur, adressés relativement à son dossier.
+        const meta = a.row.fontMeta as { glyphMap?: { texture: string }[] } | null;
+        const dir = a.path.slice(0, a.path.lastIndexOf("/"));
+        const fontMap = new Map<string, Uint8Array>();
+        for (const g of meta?.glyphMap ?? []) {
+          const bytes = await readDiskAssetBytes(serverKeyId, diskId, {
+            ...a,
+            path: `${dir}/${g.texture}`,
+            // Le hash du descripteur ne décrit pas ce PNG : sans empreinte
+            // propre, on ne cache pas — mieux vaut relire que ranger un octet
+            // sous une clé qui ment.
+            hash: "",
+          });
+          if (bytes) fontMap.set(g.texture, bytes);
+        }
+        if (fontMap.size > 0) fontGlyphPngs.set(a.row.id, fontMap);
       }
       continue;
     }

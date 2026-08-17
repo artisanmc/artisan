@@ -71,21 +71,60 @@ router.get("/asset/:projectId/:assetId", async (c) => {
   });
 });
 
-router.get("/asset-font/:assetId/*", async (c) => {
-  const assetId = c.req.param("assetId");
-  const fullPath = c.req.path;
-  const prefix = `/asset-font/${assetId}/`;
-  const idx = fullPath.indexOf(prefix);
-  const rest = idx >= 0 ? fullPath.slice(idx + prefix.length) : "";
-  if (!rest) return c.newResponse(null, 404);
+/**
+ * Un glyphe d'une police, par son chemin dans le dossier de la police.
+ *
+ * Deux formes derrière une seule route, parce que deux routes Hono se
+ * masqueraient l'une l'autre (`:assetId/*` avale aussi trois segments) :
+ *
+ *   /asset-font/<projectId>/<police>/<chemin>  ← disque du serveur
+ *   /asset-font/<assetId>/<chemin>             ← ancienne, tant que la table existe
+ *
+ * L'URL porte le Project depuis que les polices vivent sur le disque (ADR
+ * `assets-on-server-disk`) : leur identité est un nom de dossier, unique dans
+ * leur Project et nulle part ailleurs. La seconde forme part avec P6.
+ */
+router.get("/asset-font/*", async (c) => {
+  const marker = "/asset-font/";
+  const idx = c.req.path.indexOf(marker);
+  const tail = idx >= 0 ? c.req.path.slice(idx + marker.length) : "";
+  const segments = tail.split("/").filter(Boolean);
+  if (segments.length < 2 || tail.includes("..")) return c.newResponse(null, 404);
 
+  const anchor = (await db.select().from(projects).where(eq(projects.id, segments[0]!)))[0];
+  if (anchor?.serverKeyId && segments.length >= 3) {
+    const assetId = segments[1]!;
+    const rest = segments.slice(2).join("/");
+    const diskId = anchor.externalId ?? anchor.id;
+    const found = await listDiskAssets(anchor.serverKeyId, diskId, anchor.id);
+    const font = found?.find((a) => a.row.type === "font" && a.row.id === assetId);
+    if (font) {
+      const dir = font.path.slice(0, font.path.lastIndexOf("/"));
+      const bytes = await readDiskAssetBytes(anchor.serverKeyId, diskId, {
+        ...font,
+        path: `${dir}/${rest}`,
+        // Le hash du descripteur ne décrit pas ce PNG : on ne range rien sous
+        // une clé qui mentirait.
+        hash: "",
+      });
+      if (bytes) {
+        return new Response(bytes as unknown as BodyInit, {
+          headers: {
+            "Content-Type": "image/png",
+            "Cache-Control": "public, max-age=31536000, immutable",
+          },
+        });
+      }
+    }
+  }
+
+  const assetId = segments[0]!;
+  const rest = segments.slice(1).join("/");
   const rows = await db.select().from(assets).where(eq(assets.id, assetId));
   const row = rows[0];
   if (!row || row.type !== "font") return c.newResponse(null, 404);
-
   const bytes = await readFontGlyph(row.projectId, assetId, rest);
   if (!bytes) return c.newResponse(null, 404);
-
   return new Response(bytes, {
     headers: {
       "Content-Type": "image/png",

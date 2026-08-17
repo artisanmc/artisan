@@ -628,12 +628,13 @@ describe("asset relay (assets-on-server-disk)", () => {
     try {
       const pRead = requestAssetRead("sk-asset-live", { projectId: "boutique", path: "assets/glyphs/d.png" });
       const pWrite = requestAssetWrite("sk-asset-live", {
-        projectId: "boutique", path: "assets/textures/f.png",
-        contentBase64: "iVBORw0K", baseHash: null,
+        projectId: "boutique",
+        files: [{ path: "assets/textures/f.png", contentBase64: "iVBORw0K", baseHash: null }],
       });
       expect(sent.map((m) => m.type)).toEqual(["asset_read", "asset_write"]);
-      expect(sent[1]!.content_base64).toBe("iVBORw0K");
-      expect(sent[1]!.base_hash).toBeNull();
+      const files = sent[1]!.files as { content_base64: string; base_hash: string | null }[];
+      expect(files[0]!.content_base64).toBe("iVBORw0K");
+      expect(files[0]!.base_hash).toBeNull();
 
       // Réponses dans le désordre : la corrélation est le request_id.
       await handlePluginMessage(connId, JSON.stringify({

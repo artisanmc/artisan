@@ -57,17 +57,21 @@ export function fakeHubModule(extra: Record<string, unknown> = {}) {
     },
     requestAssetWrite: async (
       _sk: string,
-      req: { path: string; contentBase64: string | null; baseHash: string | null },
+      req: { files: { path: string; contentBase64: string | null; baseHash: string | null }[] },
     ) => {
-      const current = diskBinary.get(req.path);
-      const actual = current ? hashOf(current) : null;
-      // Le compare-and-swap est la règle du plugin : deux écritures qui
-      // s'ignorent doivent se voir refusées ici comme là-bas.
-      if (actual !== req.baseHash) {
-        return { kind: "result", result: { ok: false, error: "conflict" } };
+      // Tout-ou-rien, comme le plugin : on vérifie TOUT avant d'écrire quoi que
+      // ce soit, sinon une police à moitié posée passerait les tests.
+      for (const f of req.files) {
+        const current = diskBinary.get(f.path);
+        const actual = current ? hashOf(current) : null;
+        if (actual !== f.baseHash) {
+          return { kind: "result", result: { ok: false, error: "conflict" } };
+        }
       }
-      if (req.contentBase64 === null) diskBinary.delete(req.path);
-      else diskBinary.set(req.path, new Uint8Array(Buffer.from(req.contentBase64, "base64")));
+      for (const f of req.files) {
+        if (f.contentBase64 === null) diskBinary.delete(f.path);
+        else diskBinary.set(f.path, new Uint8Array(Buffer.from(f.contentBase64, "base64")));
+      }
       return { kind: "result", result: { ok: true } };
     },
     requestProjectWrite: async (

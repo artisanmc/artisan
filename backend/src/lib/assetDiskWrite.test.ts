@@ -73,7 +73,8 @@ describe("assetDiskWrite", () => {
       // atomiques ensemble, et l'échec entre les deux doit laisser une image
       // sans descripteur (utilisable) plutôt qu'un descripteur sans image
       // (une ligne fantôme dans la bibliothèque).
-      expect(plugin.sent[0]!.path).toBe("assets/glyphs/diamant.png");
+      expect((plugin.sent[0]!.files as { path: string }[])[0]!.path)
+        .toBe("assets/glyphs/diamant.png");
       expect((plugin.sent[1]!.files as { path: string }[])[0]!.path)
         .toBe("assets/glyphs/diamant.yaml");
     } finally {
@@ -111,7 +112,8 @@ describe("assetDiskWrite", () => {
         type: "glyph", name: "diamant", baseHash: "h1", descriptorBaseHash: "h2",
       });
       expect(res.ok).toBe(true);
-      expect(plugin.sent[0]!.content_base64).toBeNull();
+      expect((plugin.sent[0]!.files as { content_base64: string | null }[])[0]!.content_base64)
+        .toBeNull();
       expect((plugin.sent[1]!.deletes as { path: string }[])[0]!.path)
         .toBe("assets/glyphs/diamant.yaml");
     } finally {
