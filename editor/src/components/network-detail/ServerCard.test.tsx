@@ -17,6 +17,19 @@ const workspaces = [
 ] as any;
 
 describe("ServerCard", () => {
+  /**
+   * Serveur hors ligne : le backend ne liste pas ses Projects — c'est SON disque
+   * qui les porte (ADR `server-disk-only-storage`). Afficher « 0 projet » ferait
+   * croire qu'il n'en a pas, alors qu'on ne peut simplement pas savoir. La carte
+   * doit dire lequel des deux.
+   */
+  it("dit qu'un serveur hors ligne est illisible, pas qu'il est vide", () => {
+    const offline = { id: "sk2", label: "Creative", online: false } as any;
+    render(<ServerCard networkId="net_1" server={offline} workspaces={[]} onAction={() => {}} onCreateProject={() => {}} />);
+    expect(screen.getByText(/hors ligne|offline/i)).toBeInTheDocument();
+    expect(screen.queryByText(/^0 projet/i)).not.toBeInTheDocument();
+  });
+
   it("shows label, online dot, workspaces, count, and 'new workspace' CTA", () => {
     render(<ServerCard networkId="net_1" server={server} workspaces={workspaces} onAction={() => {}} onCreateProject={() => {}} />);
     expect(screen.getByText("Survival")).toBeInTheDocument();

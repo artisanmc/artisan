@@ -1411,6 +1411,9 @@ const fr: typeof en = {
   serverCard: {
     projectCount_one: "{{count}} projet",
     projectCount_other: "{{count}} projets",
+    online: "En ligne",
+    offline: "Hors ligne",
+    offlineProjects: "hors ligne — ses projets ne sont pas lisibles",
     lastConnected: "dernière connexion {{ago}}",
     newProject: "Nouveau projet",
   },

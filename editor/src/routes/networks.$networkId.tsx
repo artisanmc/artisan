@@ -221,7 +221,12 @@ export function NetworkDetailPage() {
                 <ServerCard
                   key={sk.id}
                   networkId={detail.network.id}
-                  server={{ id: sk.id, slug: sk.slug ?? sk.id, label: sk.label, online: false }}
+                  server={{
+                    id: sk.id,
+                    slug: sk.slug ?? sk.id,
+                    label: sk.label,
+                    online: sk.online === true,
+                  }}
                   workspaces={packsByServer.get(sk.id) ?? []}
                   onAction={handleAction}
                   onCreateProject={(serverId) => setNewWsForServer(serverId)}

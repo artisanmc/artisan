@@ -36,7 +36,7 @@ import { requireCapability, requireMember, withNetworkMemberLock } from "../lib/
 import { addMembership } from "../lib/membershipManager";
 import { createNetwork } from "../lib/networkManager";
 import { readOwnerModuleFromFiles } from "../lib/projectFiles";
-import { createProject, listProjectsForNetwork, projectDiskId } from "../lib/projectStorage";
+import { createProject, ensureProjectForServer, listProjectsForNetwork, projectDiskId } from "../lib/projectStorage";
 import { resolveNetworkForMember } from "../lib/refs";
 import { slugify } from "../lib/slug";
 import { allocServerSlug } from "../lib/slugAlloc";
@@ -146,16 +146,53 @@ userNetworksRouter.get("/:id", async (c: Context<{ Variables: Vars }>) => {
 	} catch {
 		return c.json({ error: "forbidden" }, 403);
 	}
-	const projectsList = await listProjectsForNetwork(network.id);
-	// Le compte de Documents et le module propriétaire se lisaient dans la copie
-	// backend, qui n'existe plus. Les recalculer exigerait un aller-retour disque
-	// par Project juste pour peupler une liste — l'éditeur s'en passe.
-	const projectsWithCounts = projectsList;
 	const skList = await db
 		.select()
 		.from(serverKeys)
 		.where(eq(serverKeys.networkId, network.id));
-	return c.json({ network, projects: projectsWithCounts, serverKeys: skList });
+
+	// La liste des Projects vient du DISQUE de chaque serveur, pas de la table
+	// `projects` (ADR `server-disk-only-storage`). Cette table porte des ANCRES —
+	// identité, droits, facturation — et une ancre ne prouve pas qu'un dossier
+	// existe encore : renommer ou supprimer le dossier laissait la ligne
+	// derrière lui, et la page promettait un Project qui répondait
+	// `unknown_project` au clic. Une liste qui promet des Projects inouvrables
+	// est pire que pas de liste.
+	//
+	// Un aller-retour WS par serveur, en parallèle. Serveur muet (hors ligne ou
+	// sans réponse) : ses Projects ne sont de toute façon pas ouvrables, on ne
+	// les liste pas et `online` dit pourquoi.
+	const listings = await Promise.all(
+		skList.map(async (sk) => {
+			const outcome = await requestProjectList(sk.id);
+			const ids =
+				outcome.kind === "result" && outcome.result.ok
+					? (outcome.result.project_ids ?? [])
+					: null;
+			return { sk, ids, online: getInstanceCount(sk.id) > 0 };
+		}),
+	);
+
+	// Les ancres ne se créent que pour ce que le disque porte réellement : c'est
+	// ce qui fait qu'un lien de la liste ouvre toujours quelque chose.
+	const anchored = [];
+	for (const { sk, ids } of listings) {
+		for (const diskId of ids ?? []) {
+			anchored.push(
+				await ensureProjectForServer({
+					networkId: network.id,
+					serverKeyId: sk.id,
+					diskId,
+				}),
+			);
+		}
+	}
+
+	return c.json({
+		network,
+		projects: anchored,
+		serverKeys: listings.map(({ sk, online }) => ({ ...sk, online })),
+	});
 });
 
 // PATCH /api/networks/:id — update name and/or slug (member required)
