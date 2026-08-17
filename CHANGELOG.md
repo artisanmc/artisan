@@ -9,6 +9,13 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Added — P1 assets : cache backend clé par contenu
+
+- `GET …/projects/:projectId/asset?path=…&hash=…` sert les octets d'un asset : cache d'abord, serveur ensuite. La réponse est `immutable` — l'URL porte le hash du contenu, elle ne peut donc jamais devenir fausse.
+- Le cache est **jetable** et n'invalide rien : un contenu différent est une autre clé. Un hash inconnu va au serveur, il ne sert **jamais** l'image d'à côté ; serveur injoignable et cache vide répondent « indisponible ».
+- Clé par `(serverKeyId, projectId, chemin, hash)` : le hash suffirait à adresser le contenu, mais on ne veut pas qu'un hash deviné donne accès à l'asset d'un autre tenant.
+- `bun run test` isole le cache dans un dossier temporaire neuf : partagé avec le dev, il faisait passer un test sur les octets d'un run précédent.
+
 ### Added — P0 assets : le protocole sait transporter un binaire
 
 - `project_read` **annonce** les binaires (`binaries: [{path, hash, size}]`) sans les porter : l'arbre part entier à chaque ouverture et en UTF-8, donc un PNG y serait à la fois mutilé et encombrant. L'éditeur sait quoi proposer sans rien télécharger.

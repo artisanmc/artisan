@@ -2092,3 +2092,78 @@ describe("routes network-scopées — id ou slug", () => {
     expect(res.status).toBe(403);
   });
 });
+
+/**
+ * Route de lecture d'un asset (ADR `assets-on-server-disk`, P1).
+ *
+ * Deux garanties : le cache évite un aller-retour serveur pour la même image, et
+ * il ne ment jamais — un hash inconnu du cache va au serveur, il ne sert pas
+ * l'image d'à côté.
+ */
+describe("GET .../projects/:projectId/asset", () => {
+  beforeEach(clearAll);
+  const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0xff, 0x00]);
+
+  async function seedNetworkWithServer(sessionId: string, app: ReturnType<typeof makeApp>, skId: string) {
+    const create = await app.request("/api/v1/networks", {
+      method: "POST",
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "N1" }),
+    });
+    const { network } = await create.json();
+    await db.insert(serverKeys).values({
+      id: skId, hash: `hash_${skId}`, networkId: network.id, createdAt: new Date(),
+      label: null, slug: skId,
+    });
+    return network;
+  }
+
+  test("va chercher les octets au serveur, puis les sert du cache", async () => {
+    const { sessionId } = await seedUser();
+    const app = makeApp();
+    const network = await seedNetworkWithServer(sessionId, app, "sk_asset");
+
+    const asked: Record<string, unknown>[] = [];
+    const connId = "conn-asset-route";
+    registerConn(connId, (raw: string) => {
+      const msg = JSON.parse(raw) as { type: string; request_id: string };
+      if (msg.type !== "asset_read") return;
+      asked.push(msg);
+      void handlePluginMessage(connId, JSON.stringify({
+        type: "asset_read_result", request_id: msg.request_id, ok: true,
+        content_base64: png.toString("base64"), hash: "h1",
+      }));
+    });
+    connToServerId.set(connId, "sk_asset");
+    try {
+      const url = `/api/v1/networks/${network.id}/servers/sk_asset/projects/boutique/asset`
+        + `?path=assets/glyphs/d.png&hash=h1`;
+      const first = await app.request(url, { headers: { Cookie: `artisan_user_session=${sessionId}` } });
+      expect(first.status).toBe(200);
+      expect(first.headers.get("Content-Type")).toBe("image/png");
+      expect(Buffer.from(await first.arrayBuffer()).equals(png)).toBe(true);
+      expect(asked).toHaveLength(1);
+
+      // Deuxième appel : le cache répond, le serveur n'est pas dérangé.
+      const second = await app.request(url, { headers: { Cookie: `artisan_user_session=${sessionId}` } });
+      expect(second.status).toBe(200);
+      expect(Buffer.from(await second.arrayBuffer()).equals(png)).toBe(true);
+      expect(asked).toHaveLength(1);
+    } finally {
+      connSenders.delete(connId);
+      connToServerId.delete(connId);
+    }
+  });
+
+  test("serveur hors ligne et rien en cache : indisponible, pas une vieille image", async () => {
+    const { sessionId } = await seedUser();
+    const app = makeApp();
+    const network = await seedNetworkWithServer(sessionId, app, "sk_asset_off");
+    const res = await app.request(
+      `/api/v1/networks/${network.id}/servers/sk_asset_off/projects/boutique/asset`
+        + `?path=assets/glyphs/d.png&hash=jamais_vu`,
+      { headers: { Cookie: `artisan_user_session=${sessionId}` } },
+    );
+    expect(res.status).toBe(503);
+  });
+});

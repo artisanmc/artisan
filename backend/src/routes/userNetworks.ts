@@ -41,7 +41,8 @@ import { resolveNetworkForMember } from "../lib/refs";
 import { slugify } from "../lib/slug";
 import { allocServerSlug } from "../lib/slugAlloc";
 import type { AuthUser } from "../middleware/userAuth";
-import { disconnectServerKey, getInstanceCount, requestConfigRead, requestConfigWrite, requestDataSourceFetch, requestOnlinePlayers, requestPlayerInventory, requestProjectRead, requestProjectWrite, requestProjectHistory, requestProjectList } from "../ws/hub";
+import { getCachedAsset, putCachedAsset } from "../lib/assetCache";
+import { disconnectServerKey, getInstanceCount, requestAssetRead, requestConfigRead, requestConfigWrite, requestDataSourceFetch, requestOnlinePlayers, requestPlayerInventory, requestProjectRead, requestProjectWrite, requestProjectHistory, requestProjectList } from "../ws/hub";
 import { getProject } from "../lib/projectStorage";
 import { handleResourcePackRebuild } from "./resourcePack";
 
@@ -889,6 +890,69 @@ userNetworksRouter.get(
 			return c.json({ error, message: r.message ?? null }, status);
 		}
 		return c.json({ files: r.files ?? [], failed: r.failed ?? [] });
+	},
+);
+
+// GET /api/networks/:networkId/servers/:serverId/projects/:projectId/asset?path=…&hash=…
+// Les octets d'UN asset (ADR `assets-on-server-disk`). Le `hash` vient de l'arbre
+// (`binaries[]`) : il dit QUEL contenu l'appelant veut, et sert de clé de cache.
+//
+// Cache d'abord, serveur ensuite. Jamais de repli sur un autre hash : servir
+// l'image d'hier parce qu'elle est au même chemin ferait travailler l'admin sur
+// ce qu'il ne voit pas. Cache vide + serveur injoignable = indisponible.
+userNetworksRouter.get(
+	"/:networkId/servers/:serverId/projects/:projectId/asset",
+	async (c: Context<{ Variables: Vars }>) => {
+		const userId = getUserId(c);
+		if (!userId) return c.json({ error: "unauthorized" }, 401);
+		const resolved = await resolveNetworkServer(
+			userId,
+			c.req.param("networkId"),
+			c.req.param("serverId"),
+		);
+		if (!resolved) return c.json({ error: "forbidden" }, 403);
+		if (!resolved.serverKeyId) return c.json({ error: "not_found" }, 404);
+
+		const projectId = c.req.param("projectId");
+		const path = c.req.query("path");
+		const hash = c.req.query("hash");
+		if (!projectId || !path || !hash) return c.json({ error: "invalid_input" }, 422);
+		if (path.includes("..")) return c.json({ error: "invalid_path" }, 422);
+
+		const key = { serverKeyId: resolved.serverKeyId, projectId, path, hash };
+		const serve = (bytes: Uint8Array) =>
+			new Response(bytes as unknown as BodyInit, {
+				headers: {
+					"Content-Type": contentTypeFor(path),
+					// Immuable : l'URL porte le hash du contenu, donc une réponse
+					// donnée ne peut jamais devenir fausse.
+					"Cache-Control": "public, max-age=31536000, immutable",
+				},
+			});
+
+		const cached = await getCachedAsset(key);
+		if (cached) return serve(cached);
+
+		const outcome = await requestAssetRead(resolved.serverKeyId, { projectId, path });
+		if (outcome.kind === "offline") return c.json({ error: "server_offline" }, 503);
+		if (outcome.kind === "timeout") return c.json({ error: "fetch_timeout" }, 504);
+		const r = outcome.result;
+		if (!r.ok || !r.content_base64) {
+			const error = r.error ?? "read_error";
+			const status =
+				error === "unknown_project" || error === "not_found"
+					? 404
+					: error === "invalid_path"
+						? 422
+						: 502;
+			return c.json({ error, message: r.message ?? null }, status);
+		}
+		const bytes = new Uint8Array(Buffer.from(r.content_base64, "base64"));
+		// On ne cache que ce que l'appelant a demandé : si le disque a bougé
+		// entre l'arbre et maintenant, le hash rendu diffère — on sert les
+		// octets frais sans les ranger sous une clé qui mentirait.
+		if ((r.hash ?? hash) === hash) await putCachedAsset(key, bytes);
+		return serve(bytes);
 	},
 );
 
@@ -1775,3 +1839,15 @@ userNetworksRouter.post(
 		return c.json({ status: result.status });
 	},
 );
+
+/** Type MIME d'un asset, déduit de son extension — la seule chose qu'on sait. */
+function contentTypeFor(path: string): string {
+	const ext = path.slice(path.lastIndexOf(".") + 1).toLowerCase();
+	if (ext === "png") return "image/png";
+	if (ext === "jpg" || ext === "jpeg") return "image/jpeg";
+	if (ext === "zip") return "application/zip";
+	if (ext === "ogg") return "audio/ogg";
+	if (ext === "ttf") return "font/ttf";
+	if (ext === "otf") return "font/otf";
+	return "application/octet-stream";
+}
