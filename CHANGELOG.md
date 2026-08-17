@@ -9,6 +9,12 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Changed — P4 assets : le resource pack se construit depuis le disque
+
+- `rebuildResourcePack` lit désormais les assets sur le **disque du serveur** (arbre annoncé + octets par le cache), plus dans la table. Le pack reste construit et hébergé par le backend : c'est un artefact dérivé, servi par URL au client Minecraft, il lui faut un hôte public.
+- Un asset est identifié par son **nom de fichier**, son type par son dossier (`assets/glyphs`, `assets/textures`, `assets/fonts`), et son descripteur frère porte ascent / codepoint / dimensions. Un descripteur illisible ne fait **pas** disparaître l'image — punir l'image pour une faute de frappe punirait la mauvaise chose.
+- **Repli temporaire** sur la table quand un Project n'a rien sur le disque : la descente est une commande qu'on lance, pas un déploiement, et lire le disque seul entre les deux viderait les packs de leurs glyphes. Ce repli part en P6.
+
 ### Added — P3 assets : la descente
 
 - `bun run scripts/descend-assets.ts [serverKeyId]` envoie les octets du volume backend sur le disque des serveurs, écrit le descripteur frère (`ascent`, `codepoint`, dimensions) et réécrit les refs des Documents dans la **même** écriture — à moitié appliquée, elle laisserait des menus pointant vers un asset sans descripteur.
