@@ -9,6 +9,13 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Added — P3 assets : la descente
+
+- `bun run scripts/descend-assets.ts [serverKeyId]` envoie les octets du volume backend sur le disque des serveurs, écrit le descripteur frère (`ascent`, `codepoint`, dimensions) et réécrit les refs des Documents dans la **même** écriture — à moitié appliquée, elle laisserait des menus pointant vers un asset sans descripteur.
+- **Idempotente, pilotée par le hash**, jamais par un drapeau « déjà migré » : un serveur hors ligne au mauvais moment laisse un Project à moitié descendu, et une reprise par curseur repartirait de travers. On rejoue.
+- La réécriture des refs est **textuelle** : reparser pour resérialiser mangerait les commentaires et la mise en forme de l'admin. Les ids sont opaques et uniques, un remplacement ciblé ne peut pas frapper à côté.
+- Rien n'est supprimé côté backend : la table reste jusqu'à P6, ce qui permet de rejouer et de revenir en arrière. Ce qui résiste est **listé**, jamais tu.
+
 ### Added — P2 assets : les refs par nom se lisent, des deux côtés
 
 - Plugin et éditeur acceptent `asset: <nom>` (et `font: <nom>`) en plus de `asset_id` / `font_asset_id`. Rien ne l'écrit encore : la lecture tolérante se déploie **avant** la descente, pour qu'un Project non migré reste ouvrable et qu'un Project migré s'ouvre dans une version antérieure de l'éditeur.
