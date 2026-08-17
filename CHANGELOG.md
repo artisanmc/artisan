@@ -9,6 +9,15 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Changed — P5 assets : téléverser, renommer, supprimer passent par le serveur
+
+- Créer, lister, lire, renommer, dupliquer et supprimer un asset (texture ou glyphe) écrit désormais **sur le disque du serveur** : le backend relaie, le plugin reste le seul écrivain. Les routes de l'éditeur ne changent pas de forme — elles résolvent l'ancre pour trouver le serveur et l'id disque.
+- **Serveur hors ligne = pas d'écriture**, comme pour les menus (503). On ne range pas l'image « en attendant » : elle serait invisible du serveur et l'admin la croirait posée. L'aperçu, lui, survit par le cache.
+- Le **codepoint** proposé est le premier libre lu sur le disque ; la garantie d'unicité SQL disparaît, la fusion au build tranche et journalise.
+- **Deux noms = deux fichiers** : la dédup par `contentHash` n'a plus de sens sur un disque, et rendre le premier asset sous un autre nom mentirait sur ce que contient le dossier.
+- `contentHash` devient le SHA-256 des octets, celui que le disque rapporte — sinon la même image avait deux empreintes selon qu'on venait de la créer ou de la lister, et l'URL d'aperçu changeait sans que rien n'ait bougé.
+- Les **polices** restent sur l'ancien chemin : la forme qu'elles prendront sur le disque (zip gardé ou déplié) est une question ouverte de l'ADR, l'inventer ici la figerait.
+
 ### Changed — P4 assets : le resource pack se construit depuis le disque
 
 - `rebuildResourcePack` lit désormais les assets sur le **disque du serveur** (arbre annoncé + octets par le cache), plus dans la table. Le pack reste construit et hébergé par le backend : c'est un artefact dérivé, servi par URL au client Minecraft, il lui faut un hôte public.

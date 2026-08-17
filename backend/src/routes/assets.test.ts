@@ -9,12 +9,8 @@ mock.module("../lib/resourcePack", () => ({
   rebuildResourcePack: async () => ({ url: "stub://rp", hash: "stubbedHash" }),
   currentPackInfo: async () => null,
 }));
-mock.module("../ws/hub", () => ({
-  pushResourcePackUpdated: () => {},
-  handlePluginMessage: () => {},
-  connSenders: new Map(),
-  connToServerId: new Map(),
-}));
+import { clearFakeDisk, diskBinary, fakeHubModule } from "../test/fakeServerDisk";
+mock.module("../ws/hub", () => fakeHubModule());
 
 import { describe, expect, test, beforeEach } from "bun:test";
 import { Hono } from "hono";
@@ -41,6 +37,7 @@ app.route("/api/v1/user/projects", userAssetsRouter);
 // ─── Cleanup ─────────────────────────────────────────────────────────────────
 
 beforeEach(async () => {
+  clearFakeDisk();
   await db.delete(assets);
   await db.delete(projects);
   await db.delete(linkCodes);
@@ -157,7 +154,9 @@ describe("POST /api/v1/user/projects/:projectId/assets", () => {
     expect(body.asset.width).toBe(1);
     expect(body.asset.height).toBe(1);
     expect(body.asset.codepoint).toBeNull();
-    expect(body.asset.contentHash).toMatch(/^[0-9a-f]{40}$/);
+    // SHA-256 : la même empreinte que celle que le disque rapportera, pour que
+    // créer et lister ne donnent pas deux valeurs pour la même image.
+    expect(body.asset.contentHash).toMatch(/^[0-9a-f]{64}$/);
   });
 
   test("creates a glyph asset and allocates a codepoint", async () => {
@@ -174,24 +173,25 @@ describe("POST /api/v1/user/projects/:projectId/assets", () => {
     expect(body.asset.ascent).toBe(7);
   });
 
-  test("dedups on contentHash within the same project", async () => {
+  test("deux noms, deux fichiers — le contenu ne dédoublonne plus", async () => {
+    // La dédup par `contentHash` était une commodité de base de données. Sur un
+    // disque, deux noms sont deux fichiers : c'est ce que l'admin voit dans son
+    // dossier, et lui rendre le premier asset sous un autre nom mentirait.
     const { cookie, projectId } = await seedSession();
     const r1 = await app.request(`/api/v1/user/projects/${projectId}/assets`, {
-      method: "POST",
-      headers: { Cookie: cookie },
+      method: "POST", headers: { Cookie: cookie },
       body: uploadForm({ type: "texture", name: "first" }),
     });
-    expect(r1.status).toBe(201);
     const a1 = (await r1.json()).asset;
-
     const r2 = await app.request(`/api/v1/user/projects/${projectId}/assets`, {
-      method: "POST",
-      headers: { Cookie: cookie },
-      body: uploadForm({ type: "texture", name: "second" }),  // same bytes
+      method: "POST", headers: { Cookie: cookie },
+      body: uploadForm({ type: "texture", name: "second" }),  // mêmes octets
     });
-    expect(r2.status).toBe(200);   // already exists
+    expect(r2.status).toBe(201);
     const a2 = (await r2.json()).asset;
-    expect(a2.id).toBe(a1.id);     // same row, same id
+    expect(a2.id).not.toBe(a1.id);
+    expect(diskBinary.has("assets/textures/first.png")).toBe(true);
+    expect(diskBinary.has("assets/textures/second.png")).toBe(true);
   });
 
   test("rejects duplicate name within the same type", async () => {
@@ -595,6 +595,10 @@ describe("POST /api/v1/user/projects/:projectId/assets type=font", () => {
     expect(body.asset.projectId).toBe(projectId);
     expect(body.asset.codepoint).toBeNull();
     expect(body.asset.ascent).toBeNull();
+    // SHA-1 : les POLICES sont encore sur l'ancien chemin (volume backend). La
+    // forme qu'elles prendront sur le disque du serveur — zip gardé ou déplié —
+    // est une question ouverte de l'ADR `assets-on-server-disk`, et l'inventer
+    // ici la figerait sans qu'elle ait été tranchée.
     expect(body.asset.contentHash).toMatch(/^[0-9a-f]{40}$/);
     expect(body.asset.fontMeta).toBeTruthy();
     expect(body.asset.fontMeta.namespace).toBe("artisan:myfont");
@@ -794,65 +798,27 @@ describe("POST /api/v1/user/projects/:projectId/assets/:id/duplicate", () => {
     expect(res.status).toBe(403);
   });
 
-  test("both source and copy exist in DB after duplicate", async () => {
+  test("l'original et la copie coexistent sur le disque du serveur", async () => {
     const { cookie, projectId } = await seedSession();
     const post = await app.request(`/api/v1/user/projects/${projectId}/assets`, {
-      method: "POST", headers: { Cookie: cookie }, body: uploadForm({ type: "glyph", name: "both_exist", ascent: "7" }),
+      method: "POST", headers: { Cookie: cookie },
+      body: uploadForm({ type: "glyph", name: "dup_two", ascent: "7" }),
     });
     const original = (await post.json()).asset;
+    const res = await app.request(`/api/v1/user/projects/${projectId}/assets/${original.id}/duplicate`, {
+      method: "POST", headers: { Cookie: cookie },
+    });
+    expect(res.status).toBe(200);
 
-    const dup = await app.request(`/api/v1/user/projects/${projectId}/assets/${original.id}/duplicate`, {
-      method: "POST",
+    // Ce sont deux FICHIERS, chacun avec son descripteur : c'est ce que l'admin
+    // voit en ouvrant son dossier, et c'est la seule vérité depuis P5.
+    expect(diskBinary.has("assets/glyphs/dup_two.png")).toBe(true);
+    expect(diskBinary.has("assets/glyphs/dup_two_copy.png")).toBe(true);
+
+    const list = await app.request(`/api/v1/user/projects/${projectId}/assets`, {
       headers: { Cookie: cookie },
     });
-    const copy = (await dup.json()).asset;
-
-    const srcRow = await db.select().from(assets).where(eq(assets.id, original.id));
-    const copyRow = await db.select().from(assets).where(eq(assets.id, copy.id));
-    expect(srcRow.length).toBe(1);
-    expect(copyRow.length).toBe(1);
-    expect(srcRow[0].projectId).toBe(projectId);
-    expect(copyRow[0].projectId).toBe(projectId);
-  });
-
-  test("copy PNG file exists on disk at expected path", async () => {
-    const { cookie, projectId } = await seedSession();
-    const post = await app.request(`/api/v1/user/projects/${projectId}/assets`, {
-      method: "POST", headers: { Cookie: cookie }, body: uploadForm({ type: "glyph", name: "png_on_disk", ascent: "7" }),
-    });
-    const original = (await post.json()).asset;
-
-    const dup = await app.request(`/api/v1/user/projects/${projectId}/assets/${original.id}/duplicate`, {
-      method: "POST",
-      headers: { Cookie: cookie },
-    });
-    const copy = (await dup.json()).asset;
-
-    const { assetPath } = await import("../lib/assetStorage");
-    expect(existsSync(assetPath(projectId, copy.id))).toBe(true);
-    expect(existsSync(assetPath(projectId, original.id))).toBe(true);
-  });
-
-  test("dedupes copy name when '<name>_copy' already exists", async () => {
-    const { cookie, projectId } = await seedSession();
-    // Original
-    const post = await app.request(`/api/v1/user/projects/${projectId}/assets`, {
-      method: "POST", headers: { Cookie: cookie }, body: uploadForm({ type: "glyph", name: "name_clash", ascent: "7" }),
-    });
-    const original = (await post.json()).asset;
-    // First duplicate → "name_clash_copy"
-    const dup1 = await app.request(`/api/v1/user/projects/${projectId}/assets/${original.id}/duplicate`, {
-      method: "POST",
-      headers: { Cookie: cookie },
-    });
-    expect(dup1.status).toBe(200);
-    expect((await dup1.json()).asset.name).toBe("name_clash_copy");
-    // Second duplicate of original → "name_clash_copy2"
-    const dup2 = await app.request(`/api/v1/user/projects/${projectId}/assets/${original.id}/duplicate`, {
-      method: "POST",
-      headers: { Cookie: cookie },
-    });
-    expect(dup2.status).toBe(200);
-    expect((await dup2.json()).asset.name).toBe("name_clash_copy2");
+    const names = (await list.json()).assets.map((a: { name: string }) => a.name).sort();
+    expect(names).toEqual(["dup_two", "dup_two_copy"]);
   });
 });

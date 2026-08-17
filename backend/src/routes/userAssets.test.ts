@@ -7,12 +7,8 @@ mock.module("../lib/resourcePack", () => ({
   rebuildResourcePack: async () => ({ url: "stub://rp", hash: "stubbedHash" }),
   currentPackInfo: async () => null,
 }));
-mock.module("../ws/hub", () => ({
-  pushResourcePackUpdated: () => {},
-  handlePluginMessage: () => {},
-  connSenders: new Map(),
-  connToServerId: new Map(),
-}));
+import { clearFakeDisk, fakeHubModule } from "../test/fakeServerDisk";
+mock.module("../ws/hub", () => fakeHubModule());
 
 import { beforeEach, describe, expect, test } from "bun:test";
 import { Hono } from "hono";
@@ -41,6 +37,7 @@ function makeApp() {
 // ─── Cleanup ─────────────────────────────────────────────────────────────
 
 async function clearAll() {
+  clearFakeDisk();
   await db.delete(assets);
   await db.delete(projects);
   await db.delete(linkCodes);

@@ -69,14 +69,14 @@ userAssetsRouter.get("/:projectId/assets", async (c: Context<{ Variables: Vars }
   const projectId = c.req.param("projectId");
   const check = await resolveMember(c, projectId);
   if (!check.ok) return check.response;
-  return handleAssetList(c, { projectId });
+  return handleAssetList(c, { projectId, serverKeyId: check.serverKeyId });
 });
 
 userAssetsRouter.get("/:projectId/assets/:id", async (c: Context<{ Variables: Vars }>) => {
   const projectId = c.req.param("projectId");
   const check = await resolveMember(c, projectId);
   if (!check.ok) return check.response;
-  return handleAssetGet(c, { projectId });
+  return handleAssetGet(c, { projectId, serverKeyId: check.serverKeyId });
 });
 
 userAssetsRouter.patch("/:projectId/assets/:id", async (c: Context<{ Variables: Vars }>) => {
