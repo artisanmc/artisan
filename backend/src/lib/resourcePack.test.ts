@@ -15,6 +15,8 @@ import { resourcePackRoot, resourcePackPath } from "./resourcePackStorage";
 import { rebuildResourcePack, currentPackInfo } from "./resourcePack";
 import { createNetwork } from "./networkManager";
 import { createProject } from "./projectStorage";
+import { registerConn, connToServerId, connSenders, handlePluginMessage } from "../ws/hub";
+import { unzipSync } from "fflate";
 import { join } from "path";
 
 const PNG_1x1 = new Uint8Array([
@@ -150,5 +152,66 @@ describe("rebuildResourcePack", () => {
     // First project (oldest createdAt) keeps 0xE000; second project gets remapped to 0xE001.
     expect(index.assets[glyphAId].codepoint).toBe(0xE000);
     expect(index.assets[glyphBId].codepoint).toBe(0xE001);
+  });
+});
+
+/**
+ * La source du pack devient le **disque du serveur** (ADR
+ * `assets-on-server-disk`, P4).
+ *
+ * Le pack reste construit et hébergé ici — il lui faut une URL publique pour le
+ * client Minecraft — mais ses octets viennent du serveur, plus de la table.
+ */
+describe("rebuildResourcePack — source disque", () => {
+  /** Faux plugin servant un Project dont les assets vivent sur son disque. */
+  function fakePlugin(connId: string, serverKeyId: string, glyphHash: string) {
+    registerConn(connId, (raw: string) => {
+      const msg = JSON.parse(raw) as { type: string; request_id: string };
+      if (msg.type === "project_read") {
+        void handlePluginMessage(connId, JSON.stringify({
+          type: "project_read_result", request_id: msg.request_id, ok: true,
+          files: [{
+            path: "assets/glyphs/du_disque.yaml",
+            content: ["ascent: 8", "codepoint: 57345", "width: 1", "height: 1", ""].join("\n"),
+          }],
+          binaries: [{ path: "assets/glyphs/du_disque.png", hash: glyphHash, size: PNG_1x1.length }],
+        }));
+      } else if (msg.type === "asset_read") {
+        void handlePluginMessage(connId, JSON.stringify({
+          type: "asset_read_result", request_id: msg.request_id, ok: true,
+          content_base64: Buffer.from(PNG_1x1).toString("base64"), hash: glyphHash,
+        }));
+      }
+    });
+    connToServerId.set(connId, serverKeyId);
+    return () => { connSenders.delete(connId); connToServerId.delete(connId); };
+  }
+
+  test("les glyphes du disque entrent dans le pack, et la table est ignorée", async () => {
+    const { serverKeyId, projectId } = await seedSetup();
+    // Une ligne en base qui ne doit PAS gagner : le disque décide.
+    await seedGlyph(projectId, "de_la_table", 57344);
+    const stop = fakePlugin("conn-rp-disk", serverKeyId, "hash_du_disque");
+    try {
+      const info = await rebuildResourcePack(serverKeyId);
+      const zip = unzipSync(await Bun.file(resourcePackPath(serverKeyId, info.hash)).bytes());
+      const index = JSON.parse(new TextDecoder().decode(zip["assets/artisan/asset-index.json"]!));
+      const ids = Object.keys(index.assets ?? index);
+      expect(ids).toContain("du_disque");
+      expect(ids).not.toContain("de_la_table");
+    } finally {
+      stop();
+    }
+  });
+
+  test("sans rien sur le disque, la table sert encore de repli (jusqu'en P6)", async () => {
+    // La descente est une commande qu'on lance, pas un déploiement : entre la
+    // bascule et son passage, lire le disque seul viderait les packs.
+    const { serverKeyId, projectId } = await seedSetup();
+    await seedGlyph(projectId, "de_la_table", 57344);
+    const info = await rebuildResourcePack(serverKeyId);
+    const zip = unzipSync(await Bun.file(resourcePackPath(serverKeyId, info.hash)).bytes());
+    const index = JSON.parse(new TextDecoder().decode(zip["assets/artisan/asset-index.json"]!));
+    expect(JSON.stringify(index)).toContain("de_la_table");
   });
 });

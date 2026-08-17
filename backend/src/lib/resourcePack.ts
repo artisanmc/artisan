@@ -6,7 +6,8 @@ import { db } from "../db/index";
 import { assets, projects, serverKeys } from "../db/schema";
 import { assetPath } from "./assetStorage";
 import { fontDirPaths } from "./fontStorage";
-import { buildResourcePackZip, type FontMeta } from "./resourcePackBuilder";
+import { buildResourcePackZip, type AssetRow, type FontMeta } from "./resourcePackBuilder";
+import { listDiskAssets, readDiskAssetBytes } from "./diskAssets";
 import {
   pruneOldResourcePacks,
   resourcePackPath,
@@ -35,6 +36,20 @@ export interface PackInfo {
   hash: string;
 }
 
+/**
+ * Reconstruit le resource pack d'un serveur.
+ *
+ * **La source est le disque du serveur** (ADR `assets-on-server-disk`, P4) : les
+ * assets y sont des fichiers du Project, et le backend n'en garde qu'un cache.
+ * Le pack, lui, reste construit et hébergé ici — c'est un artefact dérivé, servi
+ * par URL au client Minecraft du joueur, il lui faut un hôte public.
+ *
+ * **Repli temporaire sur la table `assets`** tant qu'un Project n'a rien
+ * descendu : la descente (P3) est une commande qu'on lance, pas un déploiement.
+ * Entre la bascule et son passage, lire le disque seul viderait les packs de
+ * leurs glyphes. Ce repli disparaît en P6 avec la table — il ne doit surtout pas
+ * devenir une seconde source permanente.
+ */
 export async function rebuildResourcePack(serverKeyId: string): Promise<PackInfo> {
   // Stable order: oldest project first → its codepoints win in case of collisions.
   const boundProjects = await db.select().from(projects).where(
@@ -42,11 +57,34 @@ export async function rebuildResourcePack(serverKeyId: string): Promise<PackInfo
   );
   boundProjects.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
 
-  // Aggregate assets across all bound projects, capturing per-project glyph
-  // contributions for the codepoint merger.
-  const allAssets: (typeof assets.$inferSelect)[] = [];
+  const allAssets: AssetRow[] = [];
   const contribs: GlyphContribution[] = [];
+  const glyphPngs = new Map<string, Uint8Array>();
+  const fontGlyphPngs = new Map<string, Map<string, Uint8Array>>();
+
   for (const p of boundProjects) {
+    const diskId = p.externalId ?? p.id;
+    const fromDisk = await listDiskAssets(serverKeyId, diskId, p.id);
+
+    if (fromDisk && fromDisk.length > 0) {
+      contribs.push({
+        projectId: p.id,
+        glyphs: fromDisk
+          .filter((a) => a.row.type === "glyph" && a.row.codepoint !== null)
+          .map((a) => ({ assetId: a.row.id, codepoint: a.row.codepoint! })),
+      });
+      for (const a of fromDisk) {
+        allAssets.push(a.row);
+        if (a.row.type !== "glyph" || a.row.codepoint === null) continue;
+        const bytes = await readDiskAssetBytes(serverKeyId, diskId, a);
+        // Un glyphe dont on ne peut pas lire les octets est SAUTÉ, pas fatal :
+        // un pack amputé d'une image vaut mieux qu'un serveur sans pack.
+        if (bytes) glyphPngs.set(a.row.id, bytes);
+      }
+      continue;
+    }
+
+    // ── Repli (à supprimer en P6 avec la table `assets`) ───────────────────
     const rows = await db.select().from(assets).where(eq(assets.projectId, p.id));
     contribs.push({
       projectId: p.id,
@@ -55,32 +93,27 @@ export async function rebuildResourcePack(serverKeyId: string): Promise<PackInfo
         .map((a) => ({ assetId: a.id, codepoint: a.codepoint! })),
     });
     allAssets.push(...rows);
-  }
-  const { finalCodepoints } = mergeCodepoints(contribs);
-
-  // Read PNGs from disk (each asset lives under its project's subdir).
-  const glyphPngs = new Map<string, Uint8Array>();
-  for (const a of allAssets) {
-    if (a.type !== "glyph" || a.codepoint === null) continue;
-    const p = assetPath(a.projectId, a.id);
-    if (!existsSync(p)) continue;
-    glyphPngs.set(a.id, new Uint8Array(await readFile(p)));
-  }
-
-  const fontGlyphPngs = new Map<string, Map<string, Uint8Array>>();
-  for (const a of allAssets) {
-    if (a.type !== "font" || !a.fontMeta) continue;
-    const meta = a.fontMeta as FontMeta | null;
-    const glyphMap = meta && Array.isArray(meta.glyphMap) ? meta.glyphMap : [];
-    const fontMap = new Map<string, Uint8Array>();
-    const { dir } = fontDirPaths(a.projectId, a.id);
-    for (const g of glyphMap) {
-      const filePath = join(dir, g.texture);
-      if (!existsSync(filePath)) continue;
-      fontMap.set(g.texture, new Uint8Array(await readFile(filePath)));
+    for (const a of rows) {
+      if (a.type === "glyph" && a.codepoint !== null) {
+        const path = assetPath(a.projectId, a.id);
+        if (existsSync(path)) glyphPngs.set(a.id, new Uint8Array(await readFile(path)));
+      }
+      if (a.type === "font" && a.fontMeta) {
+        const meta = a.fontMeta as FontMeta | null;
+        const glyphMap = meta && Array.isArray(meta.glyphMap) ? meta.glyphMap : [];
+        const fontMap = new Map<string, Uint8Array>();
+        const { dir } = fontDirPaths(a.projectId, a.id);
+        for (const g of glyphMap) {
+          const filePath = join(dir, g.texture);
+          if (!existsSync(filePath)) continue;
+          fontMap.set(g.texture, new Uint8Array(await readFile(filePath)));
+        }
+        fontGlyphPngs.set(a.id, fontMap);
+      }
     }
-    fontGlyphPngs.set(a.id, fontMap);
   }
+
+  const { finalCodepoints } = mergeCodepoints(contribs);
 
   const { zipBytes, hash } = buildResourcePackZip(
     allAssets,
