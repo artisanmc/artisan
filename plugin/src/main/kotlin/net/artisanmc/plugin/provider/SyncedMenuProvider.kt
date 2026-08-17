@@ -232,6 +232,23 @@ class SyncedMenuProvider(
      */
     fun registerProjectRoot(projectId: String, dir: File) = roots.register(projectId, dir)
 
+    /**
+     * Reprend l'instantané depuis le disque, puis prévient les modules.
+     *
+     * Exposé aux Add-ons via `api.project.reload()` : celui qui écrit dans sa
+     * propre racine (`/boutiqueadmin additem`) est le seul à savoir qu'il a
+     * écrit. Sans cet appel, son écriture reste invisible au serveur qui tourne
+     * ET à l'éditeur jusqu'à un `/artisan reload` tapé à la main — l'admin
+     * capture un item, ne le voit nulle part, et croit la commande cassée.
+     *
+     * Ce n'est PAS un retour de la surveillance disque : c'est une déclaration
+     * explicite, faite par l'auteur de l'écriture, au moment où il l'a faite.
+     */
+    fun refreshFromDisk() {
+        reloadFromDisk()
+        onReload?.invoke()
+    }
+
     override fun load() {
         // Un Add-on enregistre sa racine à SON activation, après la nôtre :
         // l'instantané pris ici ne peut pas la contenir. Sans ce réabonnement,

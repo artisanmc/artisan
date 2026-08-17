@@ -18,6 +18,18 @@ import java.io.File
 open class ArtisanPlugin : JavaPlugin() {
     lateinit var menuProvider: MenuProvider
         private set
+
+    /**
+     * Reprise de l'instantané demandée par un Add-on (`api.project.reload()`).
+     *
+     * Silencieuse avant que le provider n'existe : un module qui écrit pendant
+     * son propre `onEnable` n'a rien à reprendre — le chargement qui suit lira
+     * son disque de toute façon.
+     */
+    fun refreshProjectsFromDisk() {
+        if (!::menuProvider.isInitialized) return
+        (menuProvider as? net.artisanmc.plugin.provider.SyncedMenuProvider)?.refreshFromDisk()
+    }
     private lateinit var artisanCommand: ArtisanCommand
     private lateinit var executor: ActionExecutor
     private lateinit var sessions: MenuSessionStore
@@ -55,7 +67,11 @@ open class ArtisanPlugin : JavaPlugin() {
                 schemas = SchemaRegistry(),
                 modules = registry,
                 coreVersion = plugin.description.version,
-                project = net.artisanmc.plugin.project.ProjectContentReader(plugin.projectRoots),
+                // Le provider naît plus tard (il a besoin de l'API) : la reprise
+                // se résout à l'appel, pas à la construction.
+                project = net.artisanmc.plugin.project.ProjectContentReader(plugin.projectRoots) {
+                    plugin.refreshProjectsFromDisk()
+                },
                 projectRoots = plugin.projectRoots,
                 items = object : net.artisanmc.modules.api.ItemStackApi {
                     override fun serialize(stack: org.bukkit.inventory.ItemStack): String =
