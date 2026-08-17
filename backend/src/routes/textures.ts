@@ -1,11 +1,12 @@
 import { Hono } from "hono";
+import { listDiskAssets, readDiskAssetBytes } from "../lib/diskAssets";
 import { existsSync } from "fs";
 import { join, resolve, sep } from "path";
 import { textureFilePath, assetsDone, ensureAssets } from "../lib/mcAssets";
 import { customItemsCacheDir } from "../lib/customItems";
 import { assetPath } from "../lib/assetStorage";
 import { db } from "../db/index";
-import { assets } from "../db/schema";
+import { assets, projects } from "../db/schema";
 import { eq } from "drizzle-orm";
 import { readFontGlyph } from "../lib/fontStorage";
 
@@ -29,12 +30,40 @@ router.get("/custom/:serverKeyId/*", async (c) => {
   });
 });
 
+/**
+ * Aperçu d'un asset. Le disque du serveur d'abord, le volume backend ensuite
+ * (ADR `assets-on-server-disk`) — ce dernier disparaît en P6 avec la table.
+ *
+ * `assetId` est désormais un NOM de fichier : la vieille garde
+ * `^asset_[a-zA-Z0-9]+$` refuserait tout asset descendu.
+ */
 router.get("/asset/:projectId/:assetId", async (c) => {
   const projectId = c.req.param("projectId");
   const assetId = c.req.param("assetId");
-  if (!/^[a-zA-Z0-9_-]+$/.test(projectId) || !/^asset_[a-zA-Z0-9]+$/.test(assetId)) {
+  if (!/^[a-zA-Z0-9_-]+$/.test(projectId) || !/^[a-zA-Z0-9_.-]+$/.test(assetId)) {
     return c.newResponse(null, 400);
   }
+
+  const anchor = (await db.select().from(projects).where(eq(projects.id, projectId)))[0];
+  if (anchor?.serverKeyId) {
+    const diskId = anchor.externalId ?? anchor.id;
+    const found = await listDiskAssets(anchor.serverKeyId, diskId, anchor.id);
+    const asset = found?.find((a) => a.row.id === assetId);
+    if (asset) {
+      const bytes = await readDiskAssetBytes(anchor.serverKeyId, diskId, asset);
+      if (bytes) {
+        return new Response(bytes as unknown as BodyInit, {
+          headers: {
+            "Content-Type": "image/png",
+            // L'URL porte déjà le hash (`?h=`) : une réponse ne peut pas
+            // devenir fausse sans que l'URL change.
+            "Cache-Control": "public, max-age=31536000, immutable",
+          },
+        });
+      }
+    }
+  }
+
   const filePath = assetPath(projectId, assetId);
   if (!existsSync(filePath)) return c.newResponse(null, 404);
   return new Response(Bun.file(filePath), {
