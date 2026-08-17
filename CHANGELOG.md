@@ -9,6 +9,11 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Fixed — le build éditeur ne compilait plus
+
+- `npm run build` (donc la CI) échouait sur deux restes du monde d'avant : `withoutId` exigeait un `{ id: string }` que les sérialiseurs de commandes et de dialogues ne déclarent plus, et quatre écrans lisaient `documentCount` sur `ProjectSummary`, disparu avec le contenu côté backend.
+- Le compteur de Documents des listes de projects est **retiré** : le backend ne détient plus les fichiers, il ne peut donc plus le connaître sans interroger le disque du serveur, et un compteur figé aurait menti. La sidebar d'un Project ouvert garde le sien — il se compte sur l'état chargé.
+
 ### Changed — le brouillon est repris, plus proposé par un bandeau
 
 - Rouvrir un Project **retrouve** le travail non enregistré, comme dans n'importe quel éditeur. Le bandeau « reprendre mon travail / jeter » disparaît : il occupait l'écran en permanence pour dire ce qu'un mot suffit à dire.

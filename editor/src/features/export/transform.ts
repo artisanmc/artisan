@@ -1127,9 +1127,9 @@ function emitDataSources(
  * sérialiseurs le gardent parce que l'assistant IA en a besoin sur le fil, où il
  * n'y a pas de nom de fichier pour le porter.
  */
-function withoutId<T extends { id: string }>(doc: T): Omit<T, "id"> {
-  const { id: _id, ...rest } = doc;
-  return rest;
+function withoutId<T extends object>(doc: T): Omit<T, "id"> {
+  const { id: _id, ...rest } = doc as T & { id?: unknown };
+  return rest as Omit<T, "id">;
 }
 
 export function transform(project: Project): Record<string, string> {
