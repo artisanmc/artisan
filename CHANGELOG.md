@@ -9,6 +9,11 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Fixed — un Add-on qui écrit son disque peut le déclarer (`api.project.reload()`)
+
+- Depuis la sémantique de reload, l'instantané est pris au chargement : une écriture faite par un Add-on dans **sa propre racine** (`/boutiqueadmin additem`) restait invisible au serveur qui tourne **et** à l'éditeur jusqu'à ce que quelqu'un tape `/artisan reload`. L'admin capturait un item, ne le voyait nulle part, et concluait que la commande était cassée.
+- Nouvelle méthode `@Stable ProjectContentApi.reload()` : reprend l'instantané puis prévient les modules — le même chemin que `/artisan reload`. Ce n'est pas un retour de la surveillance disque : c'est une déclaration explicite, faite par l'auteur de l'écriture, au moment où il l'a faite.
+
 ### Fixed — le build éditeur ne compilait plus
 
 - `npm run build` (donc la CI) échouait sur deux restes du monde d'avant : `withoutId` exigeait un `{ id: string }` que les sérialiseurs de commandes et de dialogues ne déclarent plus, et quatre écrans lisaient `documentCount` sur `ProjectSummary`, disparu avec le contenu côté backend.

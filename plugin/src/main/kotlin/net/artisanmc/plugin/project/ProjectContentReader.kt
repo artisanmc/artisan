@@ -3,7 +3,13 @@ package net.artisanmc.plugin.project
 import net.artisanmc.modules.api.ProjectContentApi
 import java.io.File
 
-class ProjectContentReader(private val roots: ProjectRoots) : ProjectContentApi {
+class ProjectContentReader(
+    private val roots: ProjectRoots,
+    /** Reprise de l'instantané — câblée sur le provider, absente en test. */
+    private val onReloadRequested: () -> Unit = {},
+) : ProjectContentApi {
+
+    override fun reload() = onReloadRequested()
 
     override fun projectIds(): List<String> = roots.all().keys.toList()
 

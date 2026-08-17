@@ -95,6 +95,27 @@ class SnapshotReadTest {
     }
 
     @Test
+    fun `un Add-on qui ecrit son propre disque peut faire reprendre l'instantane`() {
+        val h = Harness()
+        val p = h.project("boutique")
+        h.write(p, "menus/m.yaml", "schema: menu/v1\nsize: 27\n")
+        h.provider.load()
+
+        // Un Add-on écrit dans SA racine — `/boutiqueadmin additem` capture un
+        // article et l'ajoute au catalogue (ADR `addon-owned-project-roots`).
+        // Sans annonce, cette écriture reste invisible au serveur qui tourne ET
+        // à l'éditeur jusqu'à ce que QUELQU'UN tape `/artisan reload` : l'admin
+        // capture un item, ne le voit nulle part, et croit la commande cassée.
+        h.write(p, "items/ci_abc.yml", "type: DIAMOND_SWORD\n")
+        assertNull(h.read("boutique")["items/ci_abc.yml"])
+
+        // Le module le déclare, et l'instantané reprend : c'est le même chemin
+        // que `/artisan reload`, déclenché par celui qui sait qu'il a écrit.
+        h.provider.refreshFromDisk()
+        assertEquals("type: DIAMOND_SWORD\n", h.read("boutique")["items/ci_abc.yml"])
+    }
+
+    @Test
     fun `l'instantane garde les octets exacts, commentaires compris`() {
         val h = Harness()
         val p = h.project("boutique")
