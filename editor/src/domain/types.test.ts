@@ -16,13 +16,15 @@ describe("domain types — compile-time shape", () => {
     expect(a.type).toBe("open_menu");
   });
 
-  it("an Element holds appearances", () => {
+  it("an Element holds a display and its states", () => {
     const el: Element = {
       id: "el_1" as Element["id"],
       positions: "0",
-      appearances: [{ material: "DIAMOND" }],
+      display: { material: "DIAMOND" },
+      states: [],
     };
-    expect(el.appearances).toHaveLength(1);
+    expect(el.display.material).toBe("DIAMOND");
+    expect(el.states).toHaveLength(0);
   });
 
   it("a Project carries i18n keys scoped to itself", () => {

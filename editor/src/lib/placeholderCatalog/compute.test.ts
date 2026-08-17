@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
 import type { DataSourceId, DialogId, ElementId, MenuId, Project, SourceRef } from "@/domain/types";
+import { describe, expect, it, vi } from "vitest";
 import { compute } from "./compute";
 
 const emptyProject = (): Project => ({
@@ -22,7 +22,12 @@ const emptyProject = (): Project => ({
 const BUILTIN_PLAYER = [
   { path: "player", type: "player", sample: "Steve", origin: "context" },
   { path: "player.name", type: "string", sample: "Steve", origin: "context" },
-  { path: "player.uuid", type: "string", sample: "8667ba71-b85a-4004-af54-457a9734eed7", origin: "context" },
+  {
+    path: "player.uuid",
+    type: "string",
+    sample: "8667ba71-b85a-4004-af54-457a9734eed7",
+    origin: "context",
+  },
   { path: "player.world", type: "string", sample: "world", origin: "context" },
 ];
 
@@ -70,7 +75,12 @@ describe("PlaceholderCatalog.compute", () => {
       { path: "active", type: "boolean", sample: "true", origin: "context" },
       { path: "player", type: "player", sample: "Steve", origin: "context" },
       { path: "player.name", type: "string", sample: "Steve", origin: "context" },
-      { path: "player.uuid", type: "string", sample: "8667ba71-b85a-4004-af54-457a9734eed7", origin: "context" },
+      {
+        path: "player.uuid",
+        type: "string",
+        sample: "8667ba71-b85a-4004-af54-457a9734eed7",
+        origin: "context",
+      },
       { path: "player.world", type: "string", sample: "world", origin: "context" },
       { path: "rank", type: "integer", sample: "5", origin: "context" },
     ]);
@@ -85,9 +95,7 @@ describe("PlaceholderCatalog.compute", () => {
       title: [],
       rows: 3,
       layers: [],
-      contextInputs: [
-        { kind: "primitive", name: "target", type: "player", default: "Alex" },
-      ],
+      contextInputs: [{ kind: "primitive", name: "target", type: "player", default: "Alex" }],
     });
     const out = compute(project, { kind: "menu", menuId: "m1" as MenuId });
     // No input named `player` → builtins stay, then target + its subfields.
@@ -95,7 +103,12 @@ describe("PlaceholderCatalog.compute", () => {
       ...BUILTIN_PLAYER,
       { path: "target", type: "player", sample: "Alex", origin: "context" },
       { path: "target.name", type: "string", sample: "Alex", origin: "context" },
-      { path: "target.uuid", type: "string", sample: "8667ba71-b85a-4004-af54-457a9734eed7", origin: "context" },
+      {
+        path: "target.uuid",
+        type: "string",
+        sample: "8667ba71-b85a-4004-af54-457a9734eed7",
+        origin: "context",
+      },
       { path: "target.world", type: "string", sample: "world", origin: "context" },
     ]);
   });
@@ -111,14 +124,10 @@ describe("PlaceholderCatalog.compute", () => {
         {
           id: "l1" as Project["menus"][number]["layers"][number]["id"],
           name: "default",
-          elements: [
-            { id: "e1" as ElementId, positions: "0", appearances: [] },
-          ],
+          elements: [{ id: "e1" as ElementId, positions: "0", display: {}, states: [] }],
         },
       ],
-      contextInputs: [
-        { kind: "primitive", name: "player", type: "player", default: "Steve" },
-      ],
+      contextInputs: [{ kind: "primitive", name: "player", type: "player", default: "Steve" }],
     });
     const out = compute(project, {
       kind: "element",
@@ -147,9 +156,7 @@ describe("PlaceholderCatalog.compute", () => {
       title: [],
       rows: 3,
       layers: [],
-      contextInputs: [
-        { kind: "sourceRef", name: "quest", ref: "pack:ds1" as SourceRef },
-      ],
+      contextInputs: [{ kind: "sourceRef", name: "quest", ref: "pack:ds1" as SourceRef }],
     });
     const out = compute(project, { kind: "menu", menuId: "m1" as MenuId });
     expect(out).toEqual([
@@ -197,7 +204,12 @@ describe("PlaceholderCatalog.compute", () => {
   it("omits list-typed contextInputs at menu scope (only builtins remain)", () => {
     const project = emptyProject();
     project.dataModels = [
-      { id: "m2" as never, name: "quest", keyField: "name", fields: [{ name: "name", type: { kind: "string" } }] },
+      {
+        id: "m2" as never,
+        name: "quest",
+        keyField: "name",
+        fields: [{ name: "name", type: { kind: "string" } }],
+      },
     ];
     project.dataSources.push({
       id: "ds2" as DataSourceId,
@@ -212,9 +224,7 @@ describe("PlaceholderCatalog.compute", () => {
       title: [],
       rows: 3,
       layers: [],
-      contextInputs: [
-        { kind: "sourceRef", name: "quests", ref: "pack:ds2" as SourceRef },
-      ],
+      contextInputs: [{ kind: "sourceRef", name: "quests", ref: "pack:ds2" as SourceRef }],
     });
     const out = compute(project, { kind: "menu", menuId: "m1" as MenuId });
     expect(out).toEqual(BUILTIN_PLAYER);
@@ -254,15 +264,14 @@ describe("PlaceholderCatalog.compute", () => {
             {
               id: "e1" as ElementId,
               positions: "0,1,2",
-              appearances: [],
+              display: {},
+              states: [],
               iterates: { source: "quests", alias: "quest" },
             },
           ],
         },
       ],
-      contextInputs: [
-        { kind: "sourceRef", name: "quests", ref: "pack:ds3" as SourceRef },
-      ],
+      contextInputs: [{ kind: "sourceRef", name: "quests", ref: "pack:ds3" as SourceRef }],
     });
     const out = compute(project, {
       kind: "element",
@@ -289,9 +298,7 @@ describe("PlaceholderCatalog.compute", () => {
         {
           id: "l1" as Project["menus"][number]["layers"][number]["id"],
           name: "default",
-          elements: [
-            { id: "e1" as ElementId, positions: "0", appearances: [] },
-          ],
+          elements: [{ id: "e1" as ElementId, positions: "0", display: {}, states: [] }],
         },
       ],
       contextInputs: [],
@@ -309,7 +316,12 @@ describe("PlaceholderCatalog.compute", () => {
     // Provide a real dataSource so the iteration entries are non-empty and the
     // assertion verifies genuine delegation rather than two empty arrays.
     project.dataModels = [
-      { id: "m_list" as never, name: "row", keyField: "label", fields: [{ name: "label", type: { kind: "string" } }] },
+      {
+        id: "m_list" as never,
+        name: "row",
+        keyField: "label",
+        fields: [{ name: "label", type: { kind: "string" } }],
+      },
     ];
     project.dataSources.push({
       id: "ds_list" as DataSourceId,
@@ -328,13 +340,17 @@ describe("PlaceholderCatalog.compute", () => {
           id: "l1" as Project["menus"][number]["layers"][number]["id"],
           name: "default",
           elements: [
-            { id: "e1" as ElementId, positions: "0", appearances: [], iterates: { source: "list", alias: "item" } },
+            {
+              id: "e1" as ElementId,
+              positions: "0",
+              display: {},
+              states: [],
+              iterates: { source: "list", alias: "item" },
+            },
           ],
         },
       ],
-      contextInputs: [
-        { kind: "sourceRef", name: "list", ref: "pack:ds_list" as SourceRef },
-      ],
+      contextInputs: [{ kind: "sourceRef", name: "list", ref: "pack:ds_list" as SourceRef }],
     });
     const elementOut = compute(project, {
       kind: "element",
@@ -378,9 +394,7 @@ describe("PlaceholderCatalog.compute", () => {
       title: [],
       rows: 3,
       layers: [],
-      contextInputs: [
-        { kind: "sourceRef", name: "ghost", ref: "pack:deleted" as SourceRef },
-      ],
+      contextInputs: [{ kind: "sourceRef", name: "ghost", ref: "pack:deleted" as SourceRef }],
     });
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const out = compute(project, { kind: "menu", menuId: "m1" as MenuId });
@@ -394,7 +408,12 @@ describe("PlaceholderCatalog.compute", () => {
   it("sorts entries by origin (context → iteration → pagination → source) then alpha by path", () => {
     const project = emptyProject();
     project.dataModels = [
-      { id: "m4" as never, name: "quest", keyField: "name", fields: [{ name: "name", type: { kind: "string" } }] },
+      {
+        id: "m4" as never,
+        name: "quest",
+        keyField: "name",
+        fields: [{ name: "name", type: { kind: "string" } }],
+      },
     ];
     project.dataSources.push({
       id: "ds4" as DataSourceId,
@@ -416,7 +435,8 @@ describe("PlaceholderCatalog.compute", () => {
             {
               id: "e1" as ElementId,
               positions: "0",
-              appearances: [],
+              display: {},
+              states: [],
               iterates: { source: "quests", alias: "quest" },
             },
           ],

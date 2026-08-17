@@ -31,8 +31,7 @@ class MenuRendererInventoryTypeTest {
             elements:
               - id: e
                 positions: "0"
-                appearances:
-                  - material: STONE
+                material: STONE
         """.trimIndent(),
     )
 

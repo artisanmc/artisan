@@ -109,25 +109,24 @@ describe("validate", () => {
                 {
                   id: elementId("btn"),
                   positions: "0",
-                  appearances: [
-                    {
-                      click: {
-                        left: {
-                          steps: [
-                            {
-                              kind: "action",
-                              action: {
-                                type: "send_message",
-                                text: {
-                                  key: "menus.shop.elements.btn.default.click.left.message" as I18nKey,
-                                },
+                  display: {
+                    click: {
+                      left: {
+                        steps: [
+                          {
+                            kind: "action",
+                            action: {
+                              type: "send_message",
+                              text: {
+                                key: "menus.shop.elements.btn.default.click.left.message" as I18nKey,
                               },
                             },
-                          ],
-                        },
+                          },
+                        ],
                       },
                     },
-                  ],
+                  },
+                  states: [],
                 },
               ],
             },
@@ -161,28 +160,27 @@ describe("validate", () => {
                 {
                   id: elementId("btn"),
                   positions: "0",
-                  appearances: [
-                    {
-                      click: {
-                        left: {
-                          steps: [
-                            {
-                              kind: "action",
-                              action: {
-                                type: "show_title",
-                                title: {
-                                  key: "menus.shop.elements.btn.default.click.left.show_title" as I18nKey,
-                                },
-                                subtitle: {
-                                  key: "menus.shop.elements.btn.default.click.left.show_subtitle" as I18nKey,
-                                },
+                  display: {
+                    click: {
+                      left: {
+                        steps: [
+                          {
+                            kind: "action",
+                            action: {
+                              type: "show_title",
+                              title: {
+                                key: "menus.shop.elements.btn.default.click.left.show_title" as I18nKey,
+                              },
+                              subtitle: {
+                                key: "menus.shop.elements.btn.default.click.left.show_subtitle" as I18nKey,
                               },
                             },
-                          ],
-                        },
+                          },
+                        ],
                       },
                     },
-                  ],
+                  },
+                  states: [],
                 },
               ],
             },
@@ -249,9 +247,8 @@ describe("validate", () => {
                 {
                   id: elementId("btn"),
                   positions: "0",
-                  appearances: [
-                    { title: { key: "menus.shop.elements.btn.default.title" as I18nKey } },
-                  ],
+                  display: { title: { key: "menus.shop.elements.btn.default.title" as I18nKey } },
+                  states: [],
                 },
               ],
             },
@@ -301,7 +298,8 @@ describe("validate", () => {
                   id: elementId("btn"),
                   positions: "0",
                   // legacy migration artifact: lore as an LText[] rather than a single LText
-                  appearances: [{ lore: [{ key: "lt_l0" }, { key: "lt_l1" }] }],
+                  display: { lore: [{ key: "lt_l0" }, { key: "lt_l1" }] },
+                  states: [],
                 },
               ],
             },

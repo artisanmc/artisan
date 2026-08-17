@@ -12,16 +12,14 @@
         {
           "id": "deco_top_row",
           "positions": "0-8",
-          "appearances": [
-            { "material": "GRAY_STAINED_GLASS_PANE", "title": " " }
-          ]
+          "material": "GRAY_STAINED_GLASS_PANE",
+          "title": " "
         },
         {
           "id": "deco_bottom_row",
           "positions": "18-26",
-          "appearances": [
-            { "material": "GRAY_STAINED_GLASS_PANE", "title": " " }
-          ]
+          "material": "GRAY_STAINED_GLASS_PANE",
+          "title": " "
         }
       ]
     },
@@ -32,47 +30,60 @@
         {
           "id": "btn_buy_vip",
           "positions": "4",
-          "appearances": [
+          "tags": [
+            "shop",
+            "ranks"
+          ],
+          "states": [
             {
-              "if": [{ "type": "not", "of": { "type": "has_permission", "perm": "rank.vip" } }],
+              "if": [
+                {
+                  "type": "not",
+                  "of": {
+                    "type": "has_permission",
+                    "perm": "rank.vip"
+                  }
+                }
+              ],
               "asset": "vip_button.png",
               "title": "§6Acheter VIP",
-              "lore": ["§7Prix: §a500$", "", "§eClique pour acheter"],
+              "lore": [
+                "§7Prix: §a500$",
+                "",
+                "§eClique pour acheter"
+              ],
               "click": {
                 "left": {
                   "steps": "if has_money(500):\n  take_money 500\n  run_command \"lp user %player_name% parent set vip\" as console\n  send_message \"§aRank VIP débloqué !\"\nelse:\n  send_message \"§cPas assez d'argent.\""
                 }
               }
             }
-          ],
-          "tags": ["shop", "ranks"]
+          ]
         },
         {
           "id": "btn_diamond_sword",
           "positions": "13",
-          "appearances": [
-            {
-              "material": "DIAMOND_SWORD",
-              "title": "§bÉpée diamant",
-              "lore": ["§7Prix: §a200$"],
-              "click": {
-                "left": {
-                  "steps": "if has_money(200):\n  take_money 200\n  give_item DIAMOND_SWORD 1\nelse:\n  send_message \"§cPas assez d'argent.\""
-                }
-              }
+          "material": "DIAMOND_SWORD",
+          "title": "§bÉpée diamant",
+          "lore": [
+            "§7Prix: §a200$"
+          ],
+          "click": {
+            "left": {
+              "steps": "if has_money(200):\n  take_money 200\n  give_item DIAMOND_SWORD 1\nelse:\n  send_message \"§cPas assez d'argent.\""
             }
-          ]
+          }
         },
         {
           "id": "btn_close",
           "positions": "22",
-          "appearances": [
-            {
-              "material": "BARRIER",
-              "title": "§cFermer",
-              "click": { "left": { "steps": "close_menu" } }
+          "material": "BARRIER",
+          "title": "§cFermer",
+          "click": {
+            "left": {
+              "steps": "close_menu"
             }
-          ]
+          }
         }
       ]
     }

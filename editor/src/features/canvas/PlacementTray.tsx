@@ -69,7 +69,7 @@ export function PlacementTray({
         elementId: el.id as string,
         keyField: places.keyField,
         rows: left,
-        material: el.appearances?.[0]?.material,
+        material: el.display?.material,
       });
     }
   }
@@ -104,7 +104,9 @@ export function PlacementTray({
             {group.rows.map((row, i) => {
               const key = String(row[group.keyField]);
               const isArmed =
-                armed?.menuId === menu.id && armed.elementId === group.elementId && armed.key === key;
+                armed?.menuId === menu.id &&
+                armed.elementId === group.elementId &&
+                armed.key === key;
               // La tuile porte l'apparence de l'Élément, résolue contre SA ligne :
               // on voit ce qu'on va poser, pas un carré gris.
               const rawMaterial = group.material
@@ -119,15 +121,11 @@ export function PlacementTray({
                   y={16}
                   onClick={(ev: Konva.KonvaEventObject<MouseEvent>) => {
                     ev.cancelBubble = true;
-                    setArmed(
-                      isArmed ? null : { menuId: menu.id, elementId: group.elementId, key },
-                    );
+                    setArmed(isArmed ? null : { menuId: menu.id, elementId: group.elementId, key });
                   }}
                   onTap={(ev: Konva.KonvaEventObject<Event>) => {
                     ev.cancelBubble = true;
-                    setArmed(
-                      isArmed ? null : { menuId: menu.id, elementId: group.elementId, key },
-                    );
+                    setArmed(isArmed ? null : { menuId: menu.id, elementId: group.elementId, key });
                   }}
                 >
                   <Rect

@@ -58,7 +58,9 @@ export function ObjectParamLists({
     if (ref.startsWith("pack:")) {
       const ds = project.dataSources?.find((d) => `pack:${d.id}` === ref);
       const model =
-        ds?.shape === "table" ? (project.dataModels ?? []).find((m) => m.id === ds.modelId) : undefined;
+        ds?.shape === "table"
+          ? (project.dataModels ?? []).find((m) => m.id === ds.modelId)
+          : undefined;
       // Recursive walk: lists at ANY depth inside the object's row model
       // (`category.meta.items`), through nested objects and model refs
       // (cycle-guarded). Lists inside lists are not addressable (no index).
@@ -116,15 +118,20 @@ export function ObjectParamLists({
     .flatMap((l) => l.elements)
     .flatMap((e) => [e.iterates?.source, e.places?.source])
     .filter(
-      (s): s is string =>
-        !!s && s.includes(".") && s.split(".")[0] === input.name && !known.has(s),
+      (s): s is string => !!s && s.includes(".") && s.split(".")[0] === input.name && !known.has(s),
     );
   const extraPaths = [...new Set([...elementPaths, ...manualPaths.filter((m) => !known.has(m))])];
   const rootOk = (path: string) => path.split(".")[0] === input.name;
 
   const addDraft = () => {
     const path = draftPath.trim();
-    if (path === "" || !path.includes(".") || !rootOk(path) || known.has(path) || extraPaths.includes(path)) {
+    if (
+      path === "" ||
+      !path.includes(".") ||
+      !rootOk(path) ||
+      known.has(path) ||
+      extraPaths.includes(path)
+    ) {
       return;
     }
     setManualPaths((prev) => [...prev, path]);
@@ -154,7 +161,13 @@ export function ObjectParamLists({
           className="flex flex-col gap-1.5 rounded border border-[var(--border-soft)] bg-[var(--surface-raised)]/40 p-1.5"
         >
           <span className="truncate font-mono text-xs">{path}</span>
-          <MenuSetBlockCore projectId={projectId} menu={menu} listName={path} schema={[]} keyField="id" />
+          <MenuSetBlockCore
+            projectId={projectId}
+            menu={menu}
+            listName={path}
+            schema={[]}
+            keyField="id"
+          />
         </div>
       ))}
       {objectInputs.length > 0 ? (
@@ -210,13 +223,23 @@ export function MenuSetBlock({
     ? project.dataSources?.find((d) => `pack:${d.id}` === input.ref)
     : undefined;
   const projectModel =
-    projectDs?.shape === "table" ? (project.dataModels ?? []).find((m) => m.id === projectDs.modelId) : undefined;
+    projectDs?.shape === "table"
+      ? (project.dataModels ?? []).find((m) => m.id === projectDs.modelId)
+      : undefined;
   const schema: { name: string }[] = projectDs
-    ? (projectDs.shape === "table" ? (projectModel?.fields ?? []) : projectDs.fields).map((f) => ({ name: f.name }))
+    ? (projectDs.shape === "table" ? (projectModel?.fields ?? []) : projectDs.fields).map((f) => ({
+        name: f.name,
+      }))
     : (serverSource?.schema ?? []).map((f) => ({ name: f.name }));
   const keyField = projectModel?.keyField ?? serverSource?.keyField ?? "id";
   return (
-    <MenuSetBlockCore projectId={projectId} menu={menu} listName={input.name} schema={schema} keyField={keyField} />
+    <MenuSetBlockCore
+      projectId={projectId}
+      menu={menu}
+      listName={input.name}
+      schema={schema}
+      keyField={keyField}
+    />
   );
 }
 
@@ -245,12 +268,21 @@ function MenuSetBlockCore({
   if (!el) {
     return (
       <div className="flex items-center gap-1.5" data-testid={`menu-set-${listName}`}>
-        <span className="text-[10px] text-[var(--text-mut)]">{t("menuProperties.setPlaceLead")}</span>
+        <span className="text-[10px] text-[var(--text-mut)]">
+          {t("menuProperties.setPlaceLead")}
+        </span>
         <Button
           variant="secondary"
           size="sm"
           onClick={() =>
-            createMenuSet({ projectId, menuId: menu.id, inputName: listName, mode: "places", keyField, schema })
+            createMenuSet({
+              projectId,
+              menuId: menu.id,
+              inputName: listName,
+              mode: "places",
+              keyField,
+              schema,
+            })
           }
         >
           {t("menuProperties.setCreatePlace")}
@@ -259,7 +291,14 @@ function MenuSetBlockCore({
           variant="secondary"
           size="sm"
           onClick={() =>
-            createMenuSet({ projectId, menuId: menu.id, inputName: listName, mode: "iterates", keyField, schema })
+            createMenuSet({
+              projectId,
+              menuId: menu.id,
+              inputName: listName,
+              mode: "iterates",
+              keyField,
+              schema,
+            })
           }
         >
           {t("menuProperties.setCreatePaginate")}
@@ -269,7 +308,10 @@ function MenuSetBlockCore({
   }
   const deleteSet = () => {
     const placedCount = el.places?.placements.length ?? 0;
-    if (placedCount > 0 && !window.confirm(t("menuProperties.setDeleteConfirm", { count: placedCount }))) {
+    if (
+      placedCount > 0 &&
+      !window.confirm(t("menuProperties.setDeleteConfirm", { count: placedCount }))
+    ) {
       return;
     }
     deleteElement({ projectId, menuId: menu.id, elementId: el.id as never });
@@ -291,7 +333,13 @@ function MenuSetBlockCore({
     );
   }
   return (
-    <PlacementRowsPanel projectId={projectId} menu={menu} element={el} project={project} onDelete={deleteSet} />
+    <PlacementRowsPanel
+      projectId={projectId}
+      menu={menu}
+      element={el}
+      project={project}
+      onDelete={deleteSet}
+    />
   );
 }
 
@@ -358,7 +406,9 @@ function PlacementRowsPanel({
               );
             })}
           </div>
-          <div className="text-[10px] text-[var(--text-faint)]">{t("menuProperties.setPanelHint")}</div>
+          <div className="text-[10px] text-[var(--text-faint)]">
+            {t("menuProperties.setPanelHint")}
+          </div>
         </>
       ) : (
         <div className="text-[10px] text-[var(--text-faint)]">{t("menuProperties.setNoRows")}</div>
@@ -391,7 +441,7 @@ function PlaceableRowTile({
 }) {
   const { t } = useTranslation();
   const removeElementPlacement = useAccountStore((s) => s.removeElementPlacement);
-  const app = element.appearances[0];
+  const app = element.display;
   const alias = element.places?.alias ?? "item";
   const ctx = { [alias]: row };
   const rawMaterial = app?.material ? renderPreview(app.material, ctx, project, activeLang) : "";

@@ -16,7 +16,8 @@ const menuV1 = {
         {
           id: "e1",
           positions: "13",
-          appearances: [{ material: "DIAMOND", title: "<gold>Buy</gold>" }],
+          material: "DIAMOND",
+          title: "<gold>Buy</gold>",
         },
       ],
     },
@@ -30,11 +31,15 @@ describe("applyAssistantMenu", () => {
     useAccountStore.getState().createProject({ id: "p" });
   });
   it("imports the generated menu and merges i18n (literal text becomes resolvable)", () => {
-    useAccountStore.getState().applyAssistantMenu({ projectId: projectId("p"), menuV1, lang: "en" });
-    const project = useAccountStore.getState().account.projects.find((p) => p.id === projectId("p"))!;
+    useAccountStore
+      .getState()
+      .applyAssistantMenu({ projectId: projectId("p"), menuV1, lang: "en" });
+    const project = useAccountStore
+      .getState()
+      .account.projects.find((p) => p.id === projectId("p"))!;
     const menu = project.menus.find((m) => m.id === "shop")!;
     expect(menu).toBeTruthy();
-    const app = menu.layers[0].elements[0].appearances[0];
+    const app = menu.layers[0].elements[0].display;
     expect(getText(project, app.title, "en")).toBe("<gold>Buy</gold>");
   });
   it("returns the unsupported constructs dropped during conversion", () => {
@@ -48,17 +53,13 @@ describe("applyAssistantMenu", () => {
             {
               id: "e1",
               positions: "13",
-              appearances: [
-                {
-                  if: [{ type: "biome_is", biome: "PLAINS" }],
-                  material: "DIAMOND",
-                  click: {
-                    // Unknown verb in the DSL steps string → recorded as unsupported.
-                    left: { steps: "give_effect SPEED" },
-                  },
-                },
-                { material: "STONE" },
-              ],
+              if: [{ type: "biome_is", biome: "PLAINS" }],
+              material: "DIAMOND",
+              click: {
+                // Unknown verb in the DSL steps string → recorded as unsupported.
+                left: { steps: "give_effect SPEED" },
+              },
+              states: [{ material: "STONE" }],
             },
           ],
         },
@@ -77,11 +78,19 @@ describe("applyAssistantMenu", () => {
     expect(unsupported).toEqual([]);
   });
   it("replaces an existing menu with the same id", () => {
-    useAccountStore.getState().applyAssistantMenu({ projectId: projectId("p"), menuV1, lang: "en" });
     useAccountStore
       .getState()
-      .applyAssistantMenu({ projectId: projectId("p"), menuV1: { ...menuV1, size: 54 }, lang: "en" });
-    const project = useAccountStore.getState().account.projects.find((p) => p.id === projectId("p"))!;
+      .applyAssistantMenu({ projectId: projectId("p"), menuV1, lang: "en" });
+    useAccountStore
+      .getState()
+      .applyAssistantMenu({
+        projectId: projectId("p"),
+        menuV1: { ...menuV1, size: 54 },
+        lang: "en",
+      });
+    const project = useAccountStore
+      .getState()
+      .account.projects.find((p) => p.id === projectId("p"))!;
     expect(project.menus.filter((m) => m.id === "shop")).toHaveLength(1);
     expect(project.menus.find((m) => m.id === "shop")!.rows).toBe(6);
   });

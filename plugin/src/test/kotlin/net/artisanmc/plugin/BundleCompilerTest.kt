@@ -11,8 +11,14 @@ class BundleCompilerTest {
         layers = listOf(LayerYaml(id = "base", elements = elements.toList())),
     )
 
+    /** First appearance = the display, the rest = its guarded states. */
     private fun element(id: String, positions: String, vararg appearances: AppearanceYaml) =
-        ElementYaml(id = id, positions = positions, appearances = appearances.toList())
+        ElementYaml(
+            id = id,
+            positions = positions,
+            display = appearances.firstOrNull() ?: AppearanceYaml(),
+            states = appearances.drop(1),
+        )
 
     private fun appearance(material: String = "STONE", click: Map<String, ClickHandlerYaml> = emptyMap()) =
         AppearanceYaml(material = material, click = click)

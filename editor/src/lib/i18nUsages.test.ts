@@ -57,12 +57,11 @@ describe("findKeyUsages", () => {
                 {
                   id: "e1" as never,
                   positions: "0",
-                  appearances: [
-                    {
-                      title: { key: k("lt_t") },
-                      lore: { key: k("lt_lore") },
-                    },
-                  ],
+                  display: {
+                    title: { key: k("lt_t") },
+                    lore: { key: k("lt_lore") },
+                  },
+                  states: [],
                 },
               ],
             },
@@ -92,7 +91,8 @@ describe("findKeyUsages", () => {
                   id: "e1" as never,
                   positions: "0",
                   // biome-ignore lint/suspicious/noExplicitAny: legacy array-lore shape
-                  appearances: [{ lore: [{ key: k("lt_l0") }, { key: k("lt_l1") }] } as any],
+                  display: { lore: [{ key: k("lt_l0") }, { key: k("lt_l1") }] } as any,
+                  states: [],
                 },
               ],
             },
@@ -121,24 +121,23 @@ describe("findKeyUsages", () => {
                 {
                   id: "e1" as never,
                   positions: "0",
-                  appearances: [
-                    {
-                      click: {
-                        left: {
-                          steps: [
-                            {
-                              kind: "action",
-                              action: {
-                                type: "show_title",
-                                title: { key: k("lt_st_title") },
-                                subtitle: { key: k("lt_st_sub") },
-                              },
+                  display: {
+                    click: {
+                      left: {
+                        steps: [
+                          {
+                            kind: "action",
+                            action: {
+                              type: "show_title",
+                              title: { key: k("lt_st_title") },
+                              subtitle: { key: k("lt_st_sub") },
                             },
-                          ],
-                        },
+                          },
+                        ],
                       },
                     },
-                  ],
+                  },
+                  states: [],
                 },
               ],
             },
@@ -147,8 +146,12 @@ describe("findKeyUsages", () => {
       ],
     });
     const u = findKeyUsages(p);
-    expect(u.get(k("lt_st_title"))).toBe("menus.m1.elements.e1.default.click.left.show_title.title");
-    expect(u.get(k("lt_st_sub"))).toBe("menus.m1.elements.e1.default.click.left.show_title.subtitle");
+    expect(u.get(k("lt_st_title"))).toBe(
+      "menus.m1.elements.e1.default.click.left.show_title.title",
+    );
+    expect(u.get(k("lt_st_sub"))).toBe(
+      "menus.m1.elements.e1.default.click.left.show_title.subtitle",
+    );
   });
 });
 

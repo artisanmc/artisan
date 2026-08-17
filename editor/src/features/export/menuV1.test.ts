@@ -24,7 +24,7 @@ function project(): Project {
             id: layerId("l1"),
             name: "default",
             elements: [
-              { id: elementId("e1"), positions: "0", appearances: [{ material: "STONE" }] },
+              { id: elementId("e1"), positions: "0", display: { material: "STONE" }, states: [] },
             ],
           },
         ],

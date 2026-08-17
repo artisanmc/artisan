@@ -22,9 +22,17 @@ object BundleCompiler {
             val slots = parsePositions(element.positionsSpec, yaml.size)
             slots.forEach { slot -> slotToElement[slot] = element.id }
 
-            val compiled = element.appearances.mapIndexedNotNull { i, app ->
-                compileAppearance(app, yaml.id, element.id, i, logger)
-            }
+            // RESOLUTION order — states first, display last: the renderer takes
+            // the first appearance whose `if` passes, and the display is the
+            // fallback that always does. The i18n index stays the ADDRESSING one
+            // (0 = display = `default`, N = states[N - 1]), so a state's key
+            // sites don't move when another state is inserted before it.
+            // Cf. ADR `element-display-and-states`.
+            val compiled =
+                element.states.mapIndexedNotNull { i, app ->
+                    warnIncompleteState(app, yaml.id, element.id, i, logger)
+                    compileAppearance(app, yaml.id, element.id, i + 1, logger)
+                } + listOfNotNull(compileAppearance(element.display, yaml.id, element.id, 0, logger))
             if (compiled.isNotEmpty()) compiledAppearances[element.id] = compiled
         }
 
@@ -33,6 +41,28 @@ object BundleCompiler {
 
     /** @see I18nAddress.state — kept as an alias for existing callers. */
     fun stateLabel(index: Int): String = I18nAddress.state(index)
+
+    /**
+     * A state is a WHOLE appearance, not a patch on the display — so one that
+     * names no item renders a bare stone block (`MenuRenderer` falls back to
+     * STONE), silently. Written by hand it is almost always a merge that was
+     * expected and didn't happen; one WARN at load makes it findable after the
+     * fact. The render is left alone on purpose: "state ignored" would be a
+     * third rule to remember.
+     */
+    private fun warnIncompleteState(
+        app: AppearanceYaml,
+        menuId: String,
+        elementId: String,
+        stateIndex: Int,
+        logger: Logger?,
+    ) {
+        if (app.material != null || app.head != null) return
+        logger?.warning(
+            "menu=$menuId element=$elementId state${stateIndex + 1} names no material — it will render as STONE. " +
+                "A state replaces the display entirely; it inherits nothing from it.",
+        )
+    }
 
     private fun compileAppearance(
         app: AppearanceYaml,

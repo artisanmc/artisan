@@ -1,7 +1,14 @@
 {
   "schema": "menu/v1",
   "id": "shop",
-  "title": [{ "kind": "plain", "value": { "key": "menus.shop.title" } }],
+  "title": [
+    {
+      "kind": "plain",
+      "value": {
+        "key": "menus.shop.title"
+      }
+    }
+  ],
   "size": 27,
   "layers": [
     {
@@ -11,18 +18,16 @@
         {
           "id": "buy_btn",
           "positions": "13",
-          "appearances": [
-            {
-              "material": "DIAMOND",
-              "title": "{i18n:menus.shop.buy.title}",
-              "lore": ["{i18n:menus.shop.buy.lore}"],
-              "click": {
-                "left": {
-                  "steps": "run_command \"buy diamond\" as player\nsend_message @menus.shop.buy.msg"
-                }
-              }
+          "material": "DIAMOND",
+          "title": "{i18n:menus.shop.buy.title}",
+          "lore": [
+            "{i18n:menus.shop.buy.lore}"
+          ],
+          "click": {
+            "left": {
+              "steps": "run_command \"buy diamond\" as player\nsend_message @menus.shop.buy.msg"
             }
-          ]
+          }
         }
       ]
     }

@@ -409,7 +409,7 @@ class ProjectReader(
      * EFFECTIVE elements: the template's appearances/alias/key_field are
      * injected so the compiler and renderer stay template-unaware. A dangling
      * ref keeps the element's local fields (non-hermetic — renders nothing).
-     * Migration shim: current projects carry their appearances on the element.
+     * Migration shim: current projects carry their own display + states.
      * Also normalizes to the flat `elements` form (stacking order preserved).
      */
     private fun resolveTemplates(yaml: MenuYaml, templates: Map<String, TemplateYaml>): MenuYaml {
@@ -417,8 +417,12 @@ class ProjectReader(
         val resolved = yaml.allElements.map { el ->
             val ref = el.iterates?.template ?: el.places?.template ?: return@map el
             val tpl = templates[ref] ?: return@map el
+            // A legacy template's list is addressed display-first (index 0 is
+            // the `default` state), same order the element's display + states use.
+            val hasOwn = el.display != AppearanceYaml() || el.states.isNotEmpty()
             el.copy(
-                appearances = if (el.appearances.isEmpty()) tpl.appearances else el.appearances,
+                display = if (hasOwn) el.display else tpl.appearances.firstOrNull() ?: AppearanceYaml(),
+                states = if (hasOwn) el.states else tpl.appearances.drop(1),
                 iterates = el.iterates?.let {
                     if (it.template != null) it.copy(alias = tpl.alias.ifEmpty { it.alias }) else it
                 },

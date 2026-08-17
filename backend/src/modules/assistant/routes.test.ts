@@ -30,7 +30,7 @@ const validMenu = {
 			id: "l1",
 			name: "d",
 			elements: [
-				{ id: "e1", positions: "0", appearances: [{ material: "STONE" }] },
+				{ id: "e1", positions: "0", material: "STONE" },
 			],
 		},
 	],

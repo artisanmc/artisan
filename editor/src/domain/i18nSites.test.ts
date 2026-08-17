@@ -87,28 +87,27 @@ function makeFixture(): Project {
               {
                 id: "buy" as never,
                 positions: "0",
-                appearances: [
-                  {
-                    title: lt("lt_bt"),
-                    lore: lt("lt_bl"),
-                    click: {
-                      left: {
-                        steps: [
-                          { kind: "action", action: { type: "send_message", text: lt("lt_m0") } },
-                          { kind: "action", action: { type: "send_message", text: lt("lt_m1") } },
-                          {
-                            kind: "action",
-                            action: {
-                              type: "show_title",
-                              title: lt("lt_st"),
-                              subtitle: lt("lt_ss"),
-                            },
+                display: {
+                  title: lt("lt_bt"),
+                  lore: lt("lt_bl"),
+                  click: {
+                    left: {
+                      steps: [
+                        { kind: "action", action: { type: "send_message", text: lt("lt_m0") } },
+                        { kind: "action", action: { type: "send_message", text: lt("lt_m1") } },
+                        {
+                          kind: "action",
+                          action: {
+                            type: "show_title",
+                            title: lt("lt_st"),
+                            subtitle: lt("lt_ss"),
                           },
-                        ],
-                      },
+                        },
+                      ],
                     },
                   },
-                ],
+                },
+                states: [],
               },
             ],
           },
@@ -215,7 +214,7 @@ describe("visitProjectLTexts", () => {
     for (const s of visitMenuLTexts(project.menus[0]!)) {
       if (s.lText.key === ("lt_m0" as I18nKey)) s.lText.key = "claimed" as I18nKey;
     }
-    const handler = project.menus[0]!.layers[0]!.elements[0]!.appearances[0]!.click!.left!;
+    const handler = project.menus[0]!.layers[0]!.elements[0]!.display!.click!.left!;
     const firstAction = handler.steps[0]!;
     expect(firstAction.kind).toBe("action");
     if (firstAction.kind === "action" && firstAction.action.type === "send_message") {
@@ -262,7 +261,10 @@ describe("visitDataSourceLTexts", () => {
       { name: "id", type: { kind: "string" } },
       { name: "name", type: { kind: "ltext" } },
       { name: "perks", type: { kind: "list", of: { kind: "ltext" } } },
-      { name: "meta", type: { kind: "object", fields: [{ name: "label", type: { kind: "ltext" } }] } },
+      {
+        name: "meta",
+        type: { kind: "object", fields: [{ name: "label", type: { kind: "ltext" } }] },
+      },
     ],
   };
 
@@ -297,7 +299,9 @@ describe("visitDataSourceLTexts", () => {
   }
 
   it("yields row-key-derived canonical keys for table sources", () => {
-    const sites = [...visitDataSourceLTexts(projectWithSources(), projectWithSources().dataSources[0]!)];
+    const sites = [
+      ...visitDataSourceLTexts(projectWithSources(), projectWithSources().dataSources[0]!),
+    ];
     const byLive = new Map(sites.map((s) => [s.lText.key, s.key]));
     expect(byLive.get("lt_n1" as I18nKey)).toBe("sources.ranks.vip.name");
     expect(byLive.get("lt_p1" as I18nKey)).toBe("sources.ranks.vip.perks");

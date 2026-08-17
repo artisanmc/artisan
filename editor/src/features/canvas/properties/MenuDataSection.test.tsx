@@ -1,13 +1,13 @@
+import type { ContextInput, Menu, SourceRef } from "@/domain/types";
+import { useAccountStore } from "@/state/accountStore";
+import { useServerDataSourcesStore } from "@/state/serverDataSourcesStore";
 // Unified « Données » section (2026-07-26): the set d'items block lives inside
 // each list card of the menu panel. This suite covers the exported pieces —
 // extractArgTokens (used by PreviewContextSection) and MenuSetBlock (create /
 // delete a menu-level set).
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
-import { extractArgTokens, MenuSetBlock } from "./MenuDataSection";
-import { useAccountStore } from "@/state/accountStore";
-import { useServerDataSourcesStore } from "@/state/serverDataSourcesStore";
-import type { ContextInput, Menu, SourceRef } from "@/domain/types";
+import { MenuSetBlock, extractArgTokens } from "./MenuDataSection";
 
 const sourceInput: Extract<ContextInput, { kind: "sourceRef" }> = {
   kind: "sourceRef",
@@ -51,10 +51,20 @@ describe("MenuSetBlock", () => {
         ...s.account,
         projects: [
           {
-            id: "p1", name: "P", source: "user_created", createdAt: "", updatedAt: "",
-            defaultLang: "en", i18nKeys: {}, menus: [structuredClone(menu)],
-            commands: [], dialogs: [], dataSources: [], dataModels: [],
-            canvasLayout: {}, canvasEdges: {},
+            id: "p1",
+            name: "P",
+            source: "user_created",
+            createdAt: "",
+            updatedAt: "",
+            defaultLang: "en",
+            i18nKeys: {},
+            menus: [structuredClone(menu)],
+            commands: [],
+            dialogs: [],
+            dataSources: [],
+            dataModels: [],
+            canvasLayout: {},
+            canvasEdges: {},
           } as never,
         ],
       },
@@ -72,7 +82,7 @@ describe("MenuSetBlock", () => {
       .find((e) => e.iterates?.source === "quests");
     expect(created).toBeDefined();
     expect(created!.iterates).toEqual({ source: "quests", alias: "item" });
-    expect(created!.appearances[0]).toBeDefined();
+    expect(created!.display).toBeDefined();
   });
 
   it("deleting the set returns to the paginate/place choice", () => {
@@ -80,12 +90,18 @@ describe("MenuSetBlock", () => {
       <MenuSetBlock projectId={"p1" as never} menu={menu} input={sourceInput} />,
     );
     fireEvent.click(screen.getByText("Paginer"));
-    rerender(<MenuSetBlock projectId={"p1" as never} menu={menuNow() as never} input={sourceInput} />);
+    rerender(
+      <MenuSetBlock projectId={"p1" as never} menu={menuNow() as never} input={sourceInput} />,
+    );
     fireEvent.click(screen.getByText(/Supprimer le set/));
     expect(
-      menuNow().layers.flatMap((l) => l.elements).find((e) => e.iterates?.source === "quests"),
+      menuNow()
+        .layers.flatMap((l) => l.elements)
+        .find((e) => e.iterates?.source === "quests"),
     ).toBeUndefined();
-    rerender(<MenuSetBlock projectId={"p1" as never} menu={menuNow() as never} input={sourceInput} />);
+    rerender(
+      <MenuSetBlock projectId={"p1" as never} menu={menuNow() as never} input={sourceInput} />,
+    );
     expect(screen.getByText("Paginer")).toBeInTheDocument();
   });
 });

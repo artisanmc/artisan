@@ -132,8 +132,10 @@ function collectVocabErrors(menu: Json): string[] {
   }
   (menu.layers ?? []).forEach((layer: Json, li: number) => {
     (layer.elements ?? []).forEach((el: Json, ei: number) => {
-      (el.appearances ?? []).forEach((app: Json, ai: number) =>
-        appearance(app, `/layers/${li}/elements/${ei}/appearances/${ai}`),
+      // The display's fields sit flat on the element; its guarded states follow.
+      appearance(el, `/layers/${li}/elements/${ei}`);
+      (el.states ?? []).forEach((state: Json, si: number) =>
+        appearance(state, `/layers/${li}/elements/${ei}/states/${si}`),
       );
     });
   });

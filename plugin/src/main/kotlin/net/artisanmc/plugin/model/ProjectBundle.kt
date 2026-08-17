@@ -4,6 +4,11 @@ import com.fasterxml.jackson.annotation.JsonAlias
 import com.fasterxml.jackson.annotation.JsonCreator
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonProperty
+import com.fasterxml.jackson.core.JsonParser
+import com.fasterxml.jackson.databind.DeserializationContext
+import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize
+import com.fasterxml.jackson.databind.deser.std.StdDeserializer
 import net.artisanmc.plugin.engine.CompiledAppearance
 import net.artisanmc.plugin.engine.MenuTitleParser
 
@@ -123,7 +128,16 @@ data class LayerYaml(
     val elements: List<ElementYaml> = emptyList(),
 )
 
+/**
+ * One placed thing in a menu. Its **display** appearance is written FLAT on the
+ * element (`material:`, `title:`, `click:` …) and its guarded **states** under
+ * `states:` — cf. ADR `element-display-and-states`. The element's own keys are
+ * exactly [ELEMENT_STRUCTURAL_KEYS]; everything else at this level is a field of
+ * the display, which is why [ElementYamlDeserializer] can hand the whole node to
+ * [AppearanceYaml] and let it ignore what isn't its own.
+ */
 @JsonIgnoreProperties(ignoreUnknown = true)
+@JsonDeserialize(using = ElementYamlDeserializer::class)
 data class ElementYaml(
     val id: String = "",
     /** Bare int, range/comma string ("11-14", "0,8,18-20"), or a YAML list of
@@ -131,7 +145,11 @@ data class ElementYaml(
     val positions: Any? = null,
     val iterates: IteratesYaml? = null,
     val places: PlacesYaml? = null,
-    val appearances: List<AppearanceYaml> = emptyList(),
+    /** Rendered when no state matches — an Element always has one. */
+    val display: AppearanceYaml = AppearanceYaml(),
+    /** Guarded alternatives, tried in order BEFORE the display. Each is a whole
+     *  appearance: what it omits is absent, never inherited from the display. */
+    val states: List<AppearanceYaml> = emptyList(),
 ) {
     /** Comma-joined spec string, whichever wire form carried the positions. */
     val positionsSpec: String
@@ -140,6 +158,49 @@ data class ElementYaml(
             is List<*> -> positions.joinToString(",") { it.toString() }
             else -> positions.toString()
         }
+}
+
+/**
+ * The Element's own keys — everything else at the element level is a display
+ * field. Kept in ONE place and locked against the appearance field set by
+ * `testdata/element-structural-keys.json`, so an appearance field that would
+ * shadow a structural key fails a test instead of silently winning.
+ */
+val ELEMENT_STRUCTURAL_KEYS = setOf("id", "positions", "iterates", "places", "states", "tags")
+
+/**
+ * Reads the flat element form: the structural keys become the element's own
+ * fields, and the whole node is handed to [AppearanceYaml] for the display —
+ * it ignores unknown properties, so the structural keys around it fall away.
+ */
+class ElementYamlDeserializer : StdDeserializer<ElementYaml>(ElementYaml::class.java) {
+    override fun deserialize(p: JsonParser, ctxt: DeserializationContext): ElementYaml {
+        val codec = p.codec
+        val node: JsonNode = codec.readTree(p)
+        if (!node.isObject) return ElementYaml()
+        return ElementYaml(
+            id = node.get("id")?.takeIf { !it.isNull }?.asText() ?: "",
+            positions = node.get("positions")?.let { positionsOf(it) },
+            iterates = node.get("iterates")?.takeIf { it.isObject }?.let {
+                codec.treeToValue(it, IteratesYaml::class.java)
+            },
+            places = node.get("places")?.takeIf { it.isObject }?.let {
+                codec.treeToValue(it, PlacesYaml::class.java)
+            },
+            display = codec.treeToValue(node, AppearanceYaml::class.java),
+            states = node.get("states")?.takeIf { it.isArray }?.map {
+                codec.treeToValue(it, AppearanceYaml::class.java)
+            } ?: emptyList(),
+        )
+    }
+
+    /** `positions` stays untyped (int, string, or list) — [ElementYaml.positionsSpec] normalizes. */
+    private fun positionsOf(node: JsonNode): Any? = when {
+        node.isNull -> null
+        node.isArray -> node.map { if (it.isNumber) it.asInt() else it.asText() }
+        node.isNumber -> node.asInt()
+        else -> node.asText()
+    }
 }
 
 @JsonIgnoreProperties(ignoreUnknown = true)

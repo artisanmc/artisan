@@ -34,9 +34,8 @@ class MenuRendererHeadTest {
             elements:
               - id: hd
                 positions: "0"
-                appearances:
-                  - material: $material
-                    head: "$head"
+                material: $material
+                head: "$head"
         """.trimIndent(),
     )
 

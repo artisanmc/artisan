@@ -42,28 +42,27 @@ const shopMenu = (): Menu =>
           {
             id: elementId("btn"),
             positions: "13",
-            appearances: [
-              {
-                material: "DIAMOND",
-                title: { key: "menus.shop.elements.btn.default.title" as I18nKey },
-                lore: { key: "menus.shop.elements.btn.default.lore" as I18nKey },
-                click: {
-                  left: {
-                    steps: [
-                      {
-                        kind: "action",
-                        action: {
-                          type: "send_message",
-                          text: {
-                            key: "menus.shop.elements.btn.default.click.left.message" as I18nKey,
-                          },
+            display: {
+              material: "DIAMOND",
+              title: { key: "menus.shop.elements.btn.default.title" as I18nKey },
+              lore: { key: "menus.shop.elements.btn.default.lore" as I18nKey },
+              click: {
+                left: {
+                  steps: [
+                    {
+                      kind: "action",
+                      action: {
+                        type: "send_message",
+                        text: {
+                          key: "menus.shop.elements.btn.default.click.left.message" as I18nKey,
                         },
                       },
-                    ],
-                  },
+                    },
+                  ],
                 },
               },
-            ],
+            },
+            states: [],
           },
         ],
       },
@@ -89,7 +88,7 @@ describe("transform — inline i18n mode", () => {
   it("writes the default language's literal text into the menu document", () => {
     const menu = parse(transform(inlineProject())[`${BASE}/menus/shop.yaml`]!);
     expect(menu.title).toEqual([{ kind: "text", value: "Shop", x: 8, y: 5 }]);
-    const app = menu.elements[0].appearances[0];
+    const app = menu.elements[0];
     expect(app.title).toBe("Sword");
     expect(app.lore).toEqual(["Sharp"]);
     // Click handler is an Action DSL string — the text is a quoted literal, not `@key`.
@@ -109,9 +108,7 @@ describe("transform — inline i18n mode", () => {
   it("emits other languages at the canonical addresses of their key sites", () => {
     const files = transform(inlineProject());
     const fr = langFile(files, "fr") ?? {};
-    const sites = Object.fromEntries(
-      Object.entries(fr).filter(([k]) => !k.startsWith("artisan.")),
-    );
+    const sites = Object.fromEntries(Object.entries(fr).filter(([k]) => !k.startsWith("artisan.")));
     expect(sites).toEqual({
       "menus.shop.title": "Boutique",
       "menus.shop.elements.btn.default.title": "Épée",
@@ -123,7 +120,7 @@ describe("transform — inline i18n mode", () => {
   it("inlines an empty string when the default language has no text yet", () => {
     const files = transform(inlineProject({ i18nKeys: {} as Project["i18nKeys"] }));
     const menu = parse(files[`${BASE}/menus/shop.yaml`]!);
-    expect(menu.elements[0].appearances[0].title).toBe("");
+    expect(menu.elements[0].title).toBe("");
   });
 
   it("inlines command and dialog texts too", () => {
@@ -224,9 +221,7 @@ describe("transform — extract i18n mode (default)", () => {
     const files = transform(makeProject({ menus: [shopMenu()], i18nKeys: { ...I18N } }));
     const menu = parse(files[`${BASE}/menus/shop.yaml`]!);
     expect(menu.title[0].value).toBe("{i18n:menus.shop.title}");
-    expect(menu.elements[0].appearances[0].title).toBe(
-      "{i18n:menus.shop.elements.btn.default.title}",
-    );
+    expect(menu.elements[0].title).toBe("{i18n:menus.shop.elements.btn.default.title}");
     expect(langFile(files, "en")).toMatchObject({ "menus.shop.title": "Shop" });
     expect(langFile(files, "fr")).toMatchObject({ "menus.shop.title": "Boutique" });
   });

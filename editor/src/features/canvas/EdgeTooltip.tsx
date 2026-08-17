@@ -1,7 +1,7 @@
 import { getFirstTitleText } from "@/domain/menuTitle";
 import type { Project } from "@/domain/types";
-import { getText } from "@/lib/i18n";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
+import { getText } from "@/lib/i18n";
 import { useEdgeHoverStore } from "@/state/edgeHoverStore";
 import { useUiStore } from "@/state/uiStore";
 import { getTextureUrl } from "./textureStore";
@@ -36,7 +36,7 @@ export function EdgeTooltip({ project }: EdgeTooltipProps) {
       for (const layer of menu.layers) {
         const el = layer.elements.find((e) => e.id === elementId);
         if (el) {
-          const title = getText(project, el.appearances[0]?.title, activeLang);
+          const title = getText(project, el.display?.title, activeLang);
           return title || elementId;
         }
       }
@@ -75,7 +75,9 @@ export function EdgeTooltip({ project }: EdgeTooltipProps) {
             // biome-ignore lint/suspicious/noArrayIndexKey: stable per tooltip render
             <div key={i} className="flex items-center gap-1.5">
               <span className="font-mono text-xs text-[var(--text-mut)]">
-                /{project.commands.find((c) => c.id === trigger.commandId)?.name ?? trigger.commandId}
+                /
+                {project.commands.find((c) => c.id === trigger.commandId)?.name ??
+                  trigger.commandId}
               </span>
             </div>
           ),

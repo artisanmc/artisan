@@ -4,7 +4,8 @@ const fr: typeof en = {
   topbar: {
     projects: "Projects",
     saveHealthy: "Sauvegardes OK",
-    saveConflict: "Sauvegarde rejetée — une autre session a modifié ce projet (recharge pour resynchroniser)",
+    saveConflict:
+      "Sauvegarde rejetée — une autre session a modifié ce projet (recharge pour resynchroniser)",
     translations: "Traductions",
     translationsMissing: "Traductions ({{count}} manquantes)",
     undo: "Annuler ({{mod}}Z)",
@@ -212,13 +213,15 @@ const fr: typeof en = {
     setAddPath: "Ajouter une liste",
     setAddPathPlaceholder: "chemin, ex. category.meta.items",
     setDelete: "Supprimer le set",
-    setDeleteConfirm: "Supprimer ce set et ses {{count}} placement(s) ? Tu pourras recréer un set paginé ou placé.",
+    setDeleteConfirm:
+      "Supprimer ce set et ses {{count}} placement(s) ? Tu pourras recréer un set paginé ou placé.",
     setUnplaceHint: "Retirer « {{title}} » du menu (le set est conservé).",
     setCreatePaginate: "Paginer",
     setCreatePlace: "1 à 1",
     setPaginated: "Paginé — slots {{positions}}.",
     setPlacedCount: "{{count}} placé(s).",
-    setPanelHint: "Glisse un item sur un slot du menu. Change de contexte dans « Aperçu comme… » pour placer les autres.",
+    setPanelHint:
+      "Glisse un item sur un slot du menu. Change de contexte dans « Aperçu comme… » pour placer les autres.",
     setNoRows: "Aucune donnée à placer dans le contexte d'aperçu courant.",
     testArgHint: "filtre sur {{token}} — valeur d'essai :",
   },
@@ -337,11 +340,16 @@ const fr: typeof en = {
     placementRemove: "Retirer ce placement",
     iterationSetLabel: "set",
     iterationSetPick: "(choisir un set d'items…)",
-    iterationSetHint: "L'apparence et le clic viennent du set (alias {{alias}}, source {{source}}). Édite-les dans les États ci-dessous.",
-    iterationSetConflict: "Un autre set de la même source (« {{name}} ») est déjà utilisé dans ce menu.",
+    iterationSetHint:
+      "L'apparence et le clic viennent du set (alias {{alias}}, source {{source}}). Édite-les dans les États ci-dessous.",
+    iterationSetConflict:
+      "Un autre set de la même source (« {{name}} ») est déjà utilisé dans ce menu.",
     iterationEnableManual: "itération manuelle (avancé)",
     states: "États",
     addState: "+ Ajouter un état",
+    duplicateState: "Dupliquer",
+    duplicateStateHint:
+      "Copier l'état affiché (ou le display) dans un nouvel état — un état remplace le display, il n'en hérite rien.",
     stateDefault: "défaut",
     stateN: "état {{index}}",
     editing: "édition",
@@ -541,7 +549,8 @@ const fr: typeof en = {
   export: {
     success: "Exporté — l'archive est l'arbre de fichiers tel qu'il est stocké sur le serveur.",
     failed: "Export échoué",
-    needsAccount: "Connectez-vous pour exporter — l'archive est l'arbre tel qu'il est stocké sur le serveur.",
+    needsAccount:
+      "Connectez-vous pour exporter — l'archive est l'arbre tel qu'il est stocké sur le serveur.",
   },
   toast: {
     titleEditFailed: "édition du titre échouée",
@@ -558,11 +567,13 @@ const fr: typeof en = {
   },
   capturedItems: {
     sectionTitle: "Items capturés",
-    emptyHint: "Aucun item capturé — charge l'inventaire d'un joueur ci-dessous et clique un item pour le capturer.",
+    emptyHint:
+      "Aucun item capturé — charge l'inventaire d'un joueur ci-dessous et clique un item pour le capturer.",
     playerPlaceholder: "Pseudo du joueur",
     load: "Charger l'inventaire",
     loading: "Chargement…",
-    captureHint: "Clique un item pour le capturer dans le projet (utilisable partout comme matériau).",
+    captureHint:
+      "Clique un item pour le capturer dans le projet (utilisable partout comme matériau).",
     inventoryEmpty: "L'inventaire de ce joueur est vide.",
     capturedToast: "« {{name}} » capturé — il est maintenant dans ta librairie.",
     err_server_offline: "Serveur hors ligne — connecte le serveur Minecraft d'abord.",
@@ -598,7 +609,8 @@ const fr: typeof en = {
     addConfig: "+ Config",
     modelName: "Modèle",
     keyField: "Clé",
-    keyFieldHint: "Identifiant stable et unique de chaque row — ancre les placements et les traductions.",
+    keyFieldHint:
+      "Identifiant stable et unique de chaque row — ancre les placements et les traductions.",
     fieldName: "Nom du champ",
     addField: "Ajouter un champ",
     confirmAddField: "Ajouter",
@@ -608,7 +620,8 @@ const fr: typeof en = {
     mapOf: "de",
     declaredModel: "déclaré par l'add-on",
     lockedHint: "Géré par l'add-on - édite sur disque si vraiment nécessaire.",
-    declaredModelHint: "Cette shape est déclarée par l'add-on installé et évolue avec lui - les valeurs restent éditables, pas la shape.",
+    declaredModelHint:
+      "Cette shape est déclarée par l'add-on installé et évolue avec lui - les valeurs restent éditables, pas la shape.",
     mapKeyPlaceholder: "clé",
     addMapEntry: "Ajouter une entrée",
     removeMapEntry: "Supprimer l'entrée {{key}}",
@@ -651,8 +664,10 @@ const fr: typeof en = {
     },
     actionsVisual: "Visuel",
     actionsCode: "Code",
-    actionsPlaceholder: "Une action par ligne, ex.\ngive_item DIAMOND 1\nif has_permission(vip):\n  give_money 100",
-    actionsParseFallback: "Cette chaîne n'est pas affichable visuellement — corrige-la en code ci-dessous.",
+    actionsPlaceholder:
+      "Une action par ligne, ex.\ngive_item DIAMOND 1\nif has_permission(vip):\n  give_money 100",
+    actionsParseFallback:
+      "Cette chaîne n'est pas affichable visuellement — corrige-la en code ci-dessous.",
     copyRef: "Copier la ref",
     refCopied: "Ref copiée.",
     preview: "Prévisualiser",
@@ -823,8 +838,10 @@ const fr: typeof en = {
     offlineBody:
       "Le contenu de ce project vit sur le disque de son serveur. Tant que le serveur ne répond pas, il n'y a rien à afficher — et surtout pas une copie périmée.",
     loadFailedTitle: "Impossible d'ouvrir ce project",
-    loadFailedBody: "Le chargement a échoué. Le code ci-dessous dit pourquoi ; s'il persiste, il est aussi dans la console du navigateur.",
-    notLoaded: "Le serveur n'exécute pas {{count}} document(s) — il n'a pas pu les lire. Tu peux les corriger ici, puis /artisan reload.",
+    loadFailedBody:
+      "Le chargement a échoué. Le code ci-dessous dit pourquoi ; s'il persiste, il est aussi dans la console du navigateur.",
+    notLoaded:
+      "Le serveur n'exécute pas {{count}} document(s) — il n'a pas pu les lire. Tu peux les corriger ici, puis /artisan reload.",
     offlineRetry: "Réessayer",
     serverOfflineExport: "Serveur hors ligne — impossible d'exporter les fichiers",
     conflict: {
@@ -1296,7 +1313,8 @@ const fr: typeof en = {
       codeEditor: "Éditeur de code YAML",
       dataViz: "Data viz",
     },
-    codeEditorHint: "Coloration syntaxique, numéros de ligne, pliage ; Entrée conserve l'indentation.",
+    codeEditorHint:
+      "Coloration syntaxique, numéros de ligne, pliage ; Entrée conserve l'indentation.",
     codeEditorReadOnlyHint:
       "Mode lecture : même coloration et même pliage, contenu non éditable. Sert à lire les lignes de prévisualisation d'une source.",
     groups: {
@@ -1624,7 +1642,8 @@ const fr: typeof en = {
   yamlView: {
     tab: "YAML",
     visual: "Éditeur",
-    conflict: "Le fichier a changé sur le serveur depuis que tu l'as ouvert — recharge la page pour repartir de sa version.",
+    conflict:
+      "Le fichier a changé sur le serveur depuis que tu l'as ouvert — recharge la page pour repartir de sa version.",
     verbatimHint:
       "Ce que tu écris est écrit tel quel, commentaires compris. Passer par l'éditeur visuel régénère le document et le reformate.",
   },
@@ -1646,7 +1665,8 @@ const fr: typeof en = {
       "Ces fichiers ont changé sur le serveur depuis leur chargement. Rien n'a été écrit. Choisis, pour chaque fichier, la version à garder.",
     conflictKeepMine: "Garder ma version",
     conflictTakeServer: "Prendre celle du serveur",
-    conflictDeletedOnDisk: "Ce fichier n'existe plus sur le serveur — il a pu être supprimé, ou renommé.",
+    conflictDeletedOnDisk:
+      "Ce fichier n'existe plus sur le serveur — il a pu être supprimé, ou renommé.",
     conflictDiskNow: "Le dossier contient maintenant :",
     conflictDiskEmpty: "(vide)",
     conflictApply: "Appliquer",
@@ -1914,7 +1934,8 @@ const fr: typeof en = {
   screens: {
     loading: "Lecture des fichiers du serveur…",
     offline: "Serveur hors ligne",
-    offlineHint: "Cet écran édite les fichiers du serveur en direct — reconnecte le serveur pour éditer.",
+    offlineHint:
+      "Cet écran édite les fichiers du serveur en direct — reconnecte le serveur pour éditer.",
     retry: "Réessayer",
     reload: "Recharger",
     save: "Enregistrer",

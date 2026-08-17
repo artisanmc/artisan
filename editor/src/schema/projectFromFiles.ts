@@ -1,3 +1,9 @@
+import { parseCapturedStack } from "@/domain/capturedStack";
+import {
+  adoptAddressedTranslations,
+  visitDataSourceLTexts,
+  visitElementLTexts,
+} from "@/domain/i18nSites";
 // Full-project files → domain importer — the exact inverse of
 // `features/export/transform.ts` (ADR files-first-source-of-truth: the file
 // tree is the canonical, lossless Project representation; the editor parses it
@@ -20,12 +26,6 @@ import type {
   Project,
   ProjectId,
 } from "@/domain/types";
-import { parseCapturedStack } from "@/domain/capturedStack";
-import {
-  adoptAddressedTranslations,
-  visitDataSourceLTexts,
-  visitElementLTexts,
-} from "@/domain/i18nSites";
 import { newI18nKey } from "@/lib/i18n";
 import { flattenLangTree } from "@/lib/langTree";
 import { parse as parseYaml } from "yaml";
@@ -335,7 +335,8 @@ function importDataValue(
       // (which would silently drop everything).
       if (type.fields.length === 0) return obj;
       const out: Record<string, unknown> = {};
-      for (const f of type.fields) out[f.name] = importDataValue(obj[f.name], f.type, models, visited, ref);
+      for (const f of type.fields)
+        out[f.name] = importDataValue(obj[f.name], f.type, models, visited, ref);
       return out;
     }
     case "model": {
@@ -350,7 +351,8 @@ function importDataValue(
           ? (value as Record<string, unknown>)
           : {};
       const out: Record<string, unknown> = {};
-      for (const [k, v] of Object.entries(obj)) out[k] = importDataValue(v, type.of, models, visited, ref);
+      for (const [k, v] of Object.entries(obj))
+        out[k] = importDataValue(v, type.of, models, visited, ref);
       return out;
     }
     case "enum":
@@ -363,7 +365,8 @@ function importDataValue(
       const variant = type.variants.find((v) => v.name === obj[type.tag]);
       if (!variant) return { [type.tag]: obj[type.tag] };
       const out: Record<string, unknown> = { [type.tag]: obj[type.tag] };
-      for (const f of variant.fields) out[f.name] = importDataValue(obj[f.name], f.type, models, visited, ref);
+      for (const f of variant.fields)
+        out[f.name] = importDataValue(obj[f.name], f.type, models, visited, ref);
       return out;
     }
     default:
@@ -425,7 +428,13 @@ function inlineLegacyTemplates(
       // by design, it just renders nothing.
       const tpl = templates.get(tplId);
       if (!tpl) continue;
-      if (el.appearances.length === 0) el.appearances = structuredClone(tpl.appearances);
+      // A legacy template's list is addressed display-first (index 0 = the
+      // `default` state), same as the element's own display + states.
+      if (Object.keys(el.display).length === 0 && el.states.length === 0) {
+        const [first, ...rest] = structuredClone(tpl.appearances);
+        el.display = first ?? {};
+        el.states = rest;
+      }
       if (!binding.alias) binding.alias = tpl.alias;
       if (el.places && !el.places.keyField) el.places.keyField = tpl.keyField;
       // THIS element's sites only — a hand-authored key on an element that was
@@ -491,23 +500,27 @@ export function projectFromFiles(
     return [r.menu];
   });
 
-  const commands = documentIds(files, projectId, "commands", manifest.files?.commands).flatMap((cmdId) => {
-    const y = tryParse<Json>(getFile(files, projectId, `commands/${cmdId}.yaml`));
-    if (!y) return [];
-    const r = commandV1ToDomain({ ...y, id: cmdId }, convertOpts);
-    Object.assign(i18nKeys, r.i18nKeys);
-    unsupported.push(...r.unsupported);
-    return [r.command];
-  });
+  const commands = documentIds(files, projectId, "commands", manifest.files?.commands).flatMap(
+    (cmdId) => {
+      const y = tryParse<Json>(getFile(files, projectId, `commands/${cmdId}.yaml`));
+      if (!y) return [];
+      const r = commandV1ToDomain({ ...y, id: cmdId }, convertOpts);
+      Object.assign(i18nKeys, r.i18nKeys);
+      unsupported.push(...r.unsupported);
+      return [r.command];
+    },
+  );
 
-  const dialogs = documentIds(files, projectId, "dialogs", manifest.files?.dialogs).flatMap((dlgId) => {
-    const y = tryParse<Json>(getFile(files, projectId, `dialogs/${dlgId}.yaml`));
-    if (!y) return [];
-    const r = dialogV1ToDomain({ ...y, id: dlgId }, convertOpts);
-    Object.assign(i18nKeys, r.i18nKeys);
-    unsupported.push(...r.unsupported);
-    return [r.dialog];
-  });
+  const dialogs = documentIds(files, projectId, "dialogs", manifest.files?.dialogs).flatMap(
+    (dlgId) => {
+      const y = tryParse<Json>(getFile(files, projectId, `dialogs/${dlgId}.yaml`));
+      if (!y) return [];
+      const r = dialogV1ToDomain({ ...y, id: dlgId }, convertOpts);
+      Object.assign(i18nKeys, r.i18nKeys);
+      unsupported.push(...r.unsupported);
+      return [r.dialog];
+    },
+  );
 
   // Shared i18n bridge for the file kinds without a per-document converter
   // (templates, data sources).
@@ -562,28 +575,32 @@ export function projectFromFiles(
   // the bare-source schema resolution below.
   const modelRefs: Record<string, { model: string; name?: string; version?: number }> = {};
   const modelFileDoc: Record<string, { docId: string; name?: string }> = {};
-  const dataModels: DataModel[] = scanDir(files, projectId, "models").flatMap(({ id, parsed: y }) => {
-    const fields = ((y.fields as ModelField[]) ?? []) as ModelField[];
-    if (fields.length === 0 && typeof y.model === "string") {
-      modelRefs[id] = {
-        model: y.model,
-        ...(typeof y.name === "string" ? { name: y.name } : {}),
-        ...(typeof y.model_version === "number" ? { version: y.model_version } : {}),
-      };
-      return [];
-    }
-    // Identity lives INSIDE the doc when present (owned model emitted at the
-    // source's filename — ADR bare-data-files ⑤); the filename is the lookup.
-    const docId = (y.id as string) ?? id;
-    modelFileDoc[id] = { docId, ...(typeof y.name === "string" ? { name: y.name } : {}) };
-    return [{
-      id: docId as DataModelId,
-      name: (y.name as string) ?? docId,
-      keyField: (y.key_field as string) ?? "id",
-      ...(y.master_detail === true ? { masterDetail: true } : {}),
-      fields,
-    }];
-  });
+  const dataModels: DataModel[] = scanDir(files, projectId, "models").flatMap(
+    ({ id, parsed: y }) => {
+      const fields = ((y.fields as ModelField[]) ?? []) as ModelField[];
+      if (fields.length === 0 && typeof y.model === "string") {
+        modelRefs[id] = {
+          model: y.model,
+          ...(typeof y.name === "string" ? { name: y.name } : {}),
+          ...(typeof y.model_version === "number" ? { version: y.model_version } : {}),
+        };
+        return [];
+      }
+      // Identity lives INSIDE the doc when present (owned model emitted at the
+      // source's filename — ADR bare-data-files ⑤); the filename is the lookup.
+      const docId = (y.id as string) ?? id;
+      modelFileDoc[id] = { docId, ...(typeof y.name === "string" ? { name: y.name } : {}) };
+      return [
+        {
+          id: docId as DataModelId,
+          name: (y.name as string) ?? docId,
+          keyField: (y.key_field as string) ?? "id",
+          ...(y.master_detail === true ? { masterDetail: true } : {}),
+          fields,
+        },
+      ];
+    },
+  );
 
   // Project sources: data/<id>.yaml (data/v1) or, per-row granularity, a
   // data/<id>/ directory with _source.yaml + one file per row (ADR
@@ -595,9 +612,7 @@ export function projectFromFiles(
   // A bare source's model resolves beside the data (ADR bare-data-files ①):
   // models/<sourceId>.yaml own fields, or its one-line `model:` ref (kept
   // namespaced for post-load declared-model injection).
-  const besideOf = (
-    sourceId: string,
-  ): { model?: string; name?: string; version?: number } => {
+  const besideOf = (sourceId: string): { model?: string; name?: string; version?: number } => {
     const r = modelRefs[sourceId];
     if (r) return r;
     const d = modelFileDoc[sourceId];
@@ -622,22 +637,36 @@ export function projectFromFiles(
       const header = leadingHandComment(files[k]!);
       if (Array.isArray(raw)) {
         const b = besideOf(fileId);
-        return [{ id: fileId, parsed: {
-          shape: "table", model: b.model, name: b.name,
-          ...(b.version !== undefined ? { model_version: b.version } : {}),
-          ...(header ? { header_comment: header } : {}),
-          rows: raw,
-        } as Json }];
+        return [
+          {
+            id: fileId,
+            parsed: {
+              shape: "table",
+              model: b.model,
+              name: b.name,
+              ...(b.version !== undefined ? { model_version: b.version } : {}),
+              ...(header ? { header_comment: header } : {}),
+              rows: raw,
+            } as Json,
+          },
+        ];
       }
       const parsed = raw as Json;
       if (typeof parsed !== "object") return [];
       if (!String(parsed.schema ?? "").startsWith("data/")) {
         const b = besideOf(fileId);
-        return [{ id: fileId, parsed: {
-          shape: "config", model: b.model, name: b.name,
-          ...(header ? { header_comment: header } : {}),
-          value: parsed,
-        } as Json }];
+        return [
+          {
+            id: fileId,
+            parsed: {
+              shape: "config",
+              model: b.model,
+              name: b.name,
+              ...(header ? { header_comment: header } : {}),
+              value: parsed,
+            } as Json,
+          },
+        ];
       }
       const id = (parsed.id as string) ?? fileId;
       return [{ id, parsed }];
@@ -645,11 +674,18 @@ export function projectFromFiles(
   // Per-row dirs: any data/<dir>/ holding row files — `_source.yaml` is
   // OPTIONAL (absent → all files, byte-sorted; present → legacy full meta or
   // minimal `model:` + `order:`).
-  const perRowSourceDirs = [...new Set(
-    Object.keys(files)
-      .filter((k) => k.startsWith(dataPrefix) && k.endsWith(".yaml") && k.slice(dataPrefix.length).includes("/"))
-      .map((k) => k.slice(dataPrefix.length).split("/", 1)[0]!),
-  )].sort();
+  const perRowSourceDirs = [
+    ...new Set(
+      Object.keys(files)
+        .filter(
+          (k) =>
+            k.startsWith(dataPrefix) &&
+            k.endsWith(".yaml") &&
+            k.slice(dataPrefix.length).includes("/"),
+        )
+        .map((k) => k.slice(dataPrefix.length).split("/", 1)[0]!),
+    ),
+  ].sort();
   const perRowParsed = perRowSourceDirs.flatMap((dir) => {
     const metaRawText = files[`${dataPrefix}${dir}/_source.yaml`];
     const rawMeta = tryParse<Json>(metaRawText ?? null) ?? ({} as Json);
@@ -669,64 +705,107 @@ export function projectFromFiles(
       .filter((n) => !n.includes("/"));
     const order: string[] = Array.isArray(meta.order) ? meta.order.map(String) : [];
     // Declared order first, then hand-added files not in the order (byte-sorted).
-    const names = [...order.filter((n) => onDisk.includes(n)), ...onDisk.filter((n) => !order.includes(n)).sort()];
+    const names = [
+      ...order.filter((n) => onDisk.includes(n)),
+      ...onDisk.filter((n) => !order.includes(n)).sort(),
+    ];
     const rows = names.flatMap((n) => {
       const row = tryParse<Json>(files[`${rowPrefix}${n}.yaml`] ?? null);
       return row ? [row] : [];
     });
-    return [{ id: (meta.id as string) ?? dir, parsed: { ...meta, rows, granularity: "row" } as Json }];
+    return [
+      { id: (meta.id as string) ?? dir, parsed: { ...meta, rows, granularity: "row" } as Json },
+    ];
   });
   const dataSources: DataSource[] = [...topLevelDataSources, ...perRowParsed]
     .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
     .map(({ id, parsed: y }) => {
-    const nameFromModel = dataModels.find((m) => String(m.id) === y.model)?.name;
-    const name = (y.name as string) ?? nameFromModel ?? id;
-    if (y.shape === "config") {
-      // Fields: inline (legacy) or the beside-the-data model's (bare form).
-      const fields = y.fields != null
-        ? ((y.fields as Json[]) ?? []).map(fieldOfWire)
-        : (dataModels.find((m) => m.id === y.model)?.fields ?? []);
-      const value = importDataValue(
-        y.value ?? {},
-        { kind: "object", fields },
-        dataModels,
-        new Set(),
-        ltData,
-      ) as Record<string, unknown>;
-      return {
-        id: id as DataSourceId,
-        name,
-        shape: "config",
-        fields,
-        // Namespaced ref the project files can't resolve: the model is
-        // module-declared and arrives via Presence — keep the ref so
-        // `injectDeclaredModels` can type this source after the load.
-        ...(typeof y.model === "string" && fields.length === 0
-          ? { modelId: y.model as DataModelId }
-          : {}),
-        value,
-        ...(typeof y.header_comment === "string" && y.header_comment !== ""
-          ? { headerComment: y.header_comment }
-          : {}),
-      };
-    }
-    // Module-declared model ref (namespaced): the shape's truth arrives via
-    // Presence, never from project files — keep the ref as-is and type the
-    // rows from the file's own flattened fields (self-contained). The loader
-    // injects the declared model and runs pending migrations afterwards.
-    if (typeof y.model === "string" && y.model.includes(":") && !dataModels.some((m) => m.id === y.model)) {
-      const rowType: ModelFieldType = {
-        kind: "object",
-        fields: ((y.fields as Json[]) ?? []).map(fieldOfWire),
-      };
+      const nameFromModel = dataModels.find((m) => String(m.id) === y.model)?.name;
+      const name = (y.name as string) ?? nameFromModel ?? id;
+      if (y.shape === "config") {
+        // Fields: inline (legacy) or the beside-the-data model's (bare form).
+        const fields =
+          y.fields != null
+            ? ((y.fields as Json[]) ?? []).map(fieldOfWire)
+            : (dataModels.find((m) => m.id === y.model)?.fields ?? []);
+        const value = importDataValue(
+          y.value ?? {},
+          { kind: "object", fields },
+          dataModels,
+          new Set(),
+          ltData,
+        ) as Record<string, unknown>;
+        return {
+          id: id as DataSourceId,
+          name,
+          shape: "config",
+          fields,
+          // Namespaced ref the project files can't resolve: the model is
+          // module-declared and arrives via Presence — keep the ref so
+          // `injectDeclaredModels` can type this source after the load.
+          ...(typeof y.model === "string" && fields.length === 0
+            ? { modelId: y.model as DataModelId }
+            : {}),
+          value,
+          ...(typeof y.header_comment === "string" && y.header_comment !== ""
+            ? { headerComment: y.header_comment }
+            : {}),
+        };
+      }
+      // Module-declared model ref (namespaced): the shape's truth arrives via
+      // Presence, never from project files — keep the ref as-is and type the
+      // rows from the file's own flattened fields (self-contained). The loader
+      // injects the declared model and runs pending migrations afterwards.
+      if (
+        typeof y.model === "string" &&
+        y.model.includes(":") &&
+        !dataModels.some((m) => m.id === y.model)
+      ) {
+        const rowType: ModelFieldType = {
+          kind: "object",
+          fields: ((y.fields as Json[]) ?? []).map(fieldOfWire),
+        };
+        const rows = ((y.rows as Json[]) ?? []).map(
+          (r) =>
+            importDataValue(r, rowType, dataModels, new Set(), ltData) as Record<string, unknown>,
+        );
+        return {
+          id: id as DataSourceId,
+          name,
+          shape: "table",
+          modelId: y.model as DataModelId,
+          ...(y.granularity === "row" ? { granularity: "row" as const } : {}),
+          ...(typeof y.model_version === "number" ? { modelVersion: y.model_version } : {}),
+          rows,
+          ...(typeof y.header_comment === "string" && y.header_comment !== ""
+            ? { headerComment: y.header_comment }
+            : {}),
+        };
+      }
+      let model = dataModels.find((m) => m.id === y.model);
+      if (!model) {
+        model = {
+          id: `mdl_${id}` as DataModelId,
+          name,
+          keyField: (y.key_field as string) ?? "id",
+          fields: ((y.fields as Json[]) ?? []).map(fieldOfWire),
+        };
+        dataModels.push(model);
+      }
+      const modelId = model.id;
+      const rowType: ModelFieldType = { kind: "object", fields: model.fields };
       const rows = ((y.rows as Json[]) ?? []).map(
-        (r) => importDataValue(r, rowType, dataModels, new Set(), ltData) as Record<string, unknown>,
+        (r) =>
+          importDataValue(r, rowType, dataModels, new Set([modelId]), ltData) as Record<
+            string,
+            unknown
+          >,
       );
       return {
         id: id as DataSourceId,
         name,
         shape: "table",
-        modelId: y.model as DataModelId,
+        modelId,
         ...(y.granularity === "row" ? { granularity: "row" as const } : {}),
         ...(typeof y.model_version === "number" ? { modelVersion: y.model_version } : {}),
         rows,
@@ -734,36 +813,7 @@ export function projectFromFiles(
           ? { headerComment: y.header_comment }
           : {}),
       };
-    }
-    let model = dataModels.find((m) => m.id === y.model);
-    if (!model) {
-      model = {
-        id: `mdl_${id}` as DataModelId,
-        name,
-        keyField: (y.key_field as string) ?? "id",
-        fields: ((y.fields as Json[]) ?? []).map(fieldOfWire),
-      };
-      dataModels.push(model);
-    }
-    const modelId = model.id;
-    const rowType: ModelFieldType = { kind: "object", fields: model.fields };
-    const rows = ((y.rows as Json[]) ?? []).map(
-      (r) =>
-        importDataValue(r, rowType, dataModels, new Set([modelId]), ltData) as Record<string, unknown>,
-    );
-    return {
-      id: id as DataSourceId,
-      name,
-      shape: "table",
-      modelId,
-      ...(y.granularity === "row" ? { granularity: "row" as const } : {}),
-      ...(typeof y.model_version === "number" ? { modelVersion: y.model_version } : {}),
-      rows,
-      ...(typeof y.header_comment === "string" && y.header_comment !== ""
-        ? { headerComment: y.header_comment }
-        : {}),
-    };
-  });
+    });
 
   // Reconnect data-source ltext nodes to their canonical key-site address
   // (ADR bare-data-files ④): a bare file inlines the default language's
@@ -786,7 +836,9 @@ export function projectFromFiles(
     }
   }
 
-  const editorState = tryParse<EditorStateYaml>(getFile(files, projectId, ".artisan/editor.yaml")) ?? {
+  const editorState = tryParse<EditorStateYaml>(
+    getFile(files, projectId, ".artisan/editor.yaml"),
+  ) ?? {
     layout: manifest.editor_layout,
     edges: manifest.editor_edges,
   };
@@ -845,7 +897,9 @@ export function projectFromFiles(
   adoptAddressedTranslations(project, translations);
 
   if (unsupported.length > 0) {
-    console.warn(`[projectFromFiles] ${projectId}: dropped unsupported constructs: ${unsupported.join(", ")}`);
+    console.warn(
+      `[projectFromFiles] ${projectId}: dropped unsupported constructs: ${unsupported.join(", ")}`,
+    );
   }
 
   return project;

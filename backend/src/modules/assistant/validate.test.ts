@@ -3,7 +3,7 @@ import { validateCommandV1, validateDialogV1, validateMenuV1 } from "./validate"
 
 const good = {
   schema: "menu/v1", id: "shop", title: [{ kind: "plain", value: { key: "k" } }], size: 27,
-  layers: [{ id: "l1", name: "default", elements: [{ id: "e1", positions: "0", appearances: [{ material: "STONE" }] }] }],
+  layers: [{ id: "l1", name: "default", elements: [{ id: "e1", positions: "0", material: "STONE" }] }],
 };
 
 describe("validateMenuV1 (backend gate)", () => {
@@ -19,8 +19,8 @@ describe("validateMenuV1 (backend gate)", () => {
     const r = validateMenuV1({
       ...good,
       layers: [{ id: "l1", name: "d", elements: [
-        { id: "dup", positions: "0", appearances: [{ material: "STONE" }] },
-        { id: "dup", positions: "1", appearances: [{ material: "STONE" }] },
+        { id: "dup", positions: "0", material: "STONE" },
+        { id: "dup", positions: "1", material: "STONE" },
       ] }],
     });
     expect(r.valid).toBe(false);
@@ -29,7 +29,7 @@ describe("validateMenuV1 (backend gate)", () => {
   it("rejects an out-of-bounds position (validateMenuLayout)", () => {
     const r = validateMenuV1({
       ...good,
-      layers: [{ id: "l1", name: "d", elements: [{ id: "e1", positions: "99", appearances: [{ material: "STONE" }] }] }],
+      layers: [{ id: "l1", name: "d", elements: [{ id: "e1", positions: "99", material: "STONE" }] }],
     });
     expect(r.valid).toBe(false);
     expect(r.errors.join(" ")).toMatch(/bounds|out of/i);
@@ -42,18 +42,14 @@ describe("validateMenuV1 (backend gate)", () => {
 describe("validateMenuV1 (vocab subset gate)", () => {
   const withClickSteps = (steps: string) => ({
     ...good,
-    layers: [{ id: "l1", name: "d", elements: [{ id: "e1", positions: "0", appearances: [
-      { material: "STONE", click: { left: { steps } } },
-    ] }] }],
+    layers: [{ id: "l1", name: "d", elements: [{ id: "e1", positions: "0", material: "STONE", click: { left: { steps } } }] }],
   });
 
   it("rejects expression conditions (no server-side evaluator yet)", () => {
     const r = validateMenuV1({
       ...good,
-      layers: [{ id: "l1", name: "d", elements: [{ id: "e1", positions: "0", appearances: [
-        { if: [{ type: "expression", expr: "balance >= 100" }], material: "STONE" },
-        { material: "STONE" },
-      ] }] }],
+      layers: [{ id: "l1", name: "d", elements: [{ id: "e1", positions: "0", if: [{ type: "expression", expr: "balance >= 100" }], material: "STONE",
+ }] }],
     });
     expect(r.valid).toBe(false);
     expect(r.errors.join(" ")).toMatch(/expression/);
@@ -84,9 +80,7 @@ describe("validateMenuV1 (vocab subset gate)", () => {
   it("accepts the extended runtime-OK actions and conditions", () => {
     const r = validateMenuV1({
       ...good,
-      layers: [{ id: "l1", name: "d", elements: [{ id: "e1", positions: "0", appearances: [
-        {
-          if: [
+      layers: [{ id: "l1", name: "d", elements: [{ id: "e1", positions: "0", if: [
             { type: "has_item", material: "DIAMOND", count: 1 },
             { type: "world_is", world: "spawn" },
             { type: "time_is", range: { from_ticks: 0, to_ticks: 6000 } },
@@ -108,9 +102,7 @@ describe("validateMenuV1 (vocab subset gate)", () => {
             "take_item PAPER 1",
             "teleport spawn 0 64 0",
           ].join("\n") } },
-        },
-        { material: "STONE" },
-      ] }] }],
+ }] }],
     });
     expect(r).toEqual({ valid: true, errors: [] });
   });
@@ -134,9 +126,7 @@ describe("validateMenuV1 (vocab subset gate)", () => {
   it("accepts every subset action and condition (set_arg, pagination, dialogs…)", () => {
     const r = validateMenuV1({
       ...good,
-      layers: [{ id: "l1", name: "d", elements: [{ id: "e1", positions: "0", appearances: [
-        {
-          if: [
+      layers: [{ id: "l1", name: "d", elements: [{ id: "e1", positions: "0", if: [
             { type: "not", of: { type: "has_permission", perm: "x" } },
             { type: "or", of: [{ type: "has_money", amount: 1 }, { type: "placeholder_equals", placeholder: "%w%", value: "spawn" }] },
           ],
@@ -158,9 +148,7 @@ describe("validateMenuV1 (vocab subset gate)", () => {
             '  send_message "ok"',
             "  close_menu",
           ].join("\n") } },
-        },
-        { material: "STONE" },
-      ] }] }],
+ }] }],
     });
     expect(r).toEqual({ valid: true, errors: [] });
   });

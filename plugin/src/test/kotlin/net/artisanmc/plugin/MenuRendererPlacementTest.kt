@@ -58,13 +58,12 @@ class MenuRendererPlacementTest {
                   alias: item
                   key_field: id
                   placements: $placements
-                appearances:
-                  - material: "{item.material}"
-                    title: "{item.name}"
-                    lore: ["{item.name}"]
-                    click:
-                      left:
-                        steps: 'run_command "buy {item.id}" as player'
+                material: "{item.material}"
+                title: "{item.name}"
+                lore: ["{item.name}"]
+                click:
+                  left:
+                    steps: 'run_command "buy {item.id}" as player'
         """.trimIndent(),
     )
 

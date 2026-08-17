@@ -1,11 +1,8 @@
+import { addressedAppearances } from "@/domain/element";
 import { walkActions } from "@/domain/stepPath";
 import type { Menu, Project } from "@/domain/types";
 import { lookupPath } from "@/lib/placeholders";
-import {
-  type SourceSnapshots,
-  buildPreviewScope,
-  renderPreview,
-} from "./menuPreviewScope";
+import { type SourceSnapshots, buildPreviewScope, renderPreview } from "./menuPreviewScope";
 
 /** One way of arriving at a parameterized menu: a caller's open_menu action,
  *  interpolated against one of the caller's iteration rows. */
@@ -59,7 +56,7 @@ export function findPreviewCallContexts(
     const scope = buildPreviewScope(caller, project, snapshots);
     for (const layer of caller.layers) {
       for (const el of layer.elements) {
-        const appearances = el.appearances;
+        const appearances = addressedAppearances(el);
         const alias = el.iterates?.alias ?? el.places?.alias;
         const source = el.iterates?.source ?? el.places?.source;
         const rows = source ? lookupPath(scope, source) : undefined;
@@ -72,8 +69,7 @@ export function findPreviewCallContexts(
               if (Object.keys(ctxMap).length === 0) continue;
               const rowList = Array.isArray(rows) && alias ? rows : [undefined];
               for (const row of rowList) {
-                const rowScope =
-                  row !== undefined && alias ? { ...scope, [alias]: row } : scope;
+                const rowScope = row !== undefined && alias ? { ...scope, [alias]: row } : scope;
                 const args: Record<string, unknown> = {};
                 for (const [k, v] of Object.entries(ctxMap)) {
                   const template = String(v);

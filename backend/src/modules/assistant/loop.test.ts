@@ -14,7 +14,7 @@ function scriptedProvider(turns: LlmStreamEvent[][]): LlmProvider {
 }
 const validMenu = {
   schema: "menu/v1", id: "shop", title: [{ kind: "plain", value: { key: "k" } }], size: 27,
-  layers: [{ id: "l1", name: "default", elements: [{ id: "e1", positions: "0", appearances: [{ material: "STONE" }] }] }],
+  layers: [{ id: "l1", name: "default", elements: [{ id: "e1", positions: "0", material: "STONE" }] }],
 };
 async function collect(it: AsyncIterable<any>) { const o: any[] = []; for await (const e of it) o.push(e); return o; }
 

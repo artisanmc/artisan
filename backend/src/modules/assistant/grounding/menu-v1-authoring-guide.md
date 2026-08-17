@@ -37,7 +37,7 @@ they exist in the full schema but are not implemented yet and are rejected here.
 
 ```
 layer   = { "id", "name", "elements": Element[] }
-element = { "id", "positions", "appearances": Appearance[], "iterates"? }
+element = { "id", "positions", ...display fields, "states"? : Appearance[], "iterates"? }
 ```
 
 - **`layer.id`** — slug `^[a-z][a-z0-9_-]{0,63}$`, **unique within the menu**.
@@ -47,20 +47,33 @@ element = { "id", "positions", "appearances": Appearance[], "iterates"? }
 - **`element.positions`** — a single slot `"13"` or an inclusive range `"10-43"`. Pattern
   `^\d+(-\d+)?$`. Every position must be in `[0, size)`.
 
-### Appearances
+### Display + states
 
-An element has an ordered list of appearances. They are evaluated top-to-bottom; the **first**
-whose `if` matches is rendered. An appearance with no `if` always matches (the fallback) and
-should be last.
+An element's **display** is written FLAT on the element — `material`, `title`, `lore`, `click`
+and the advanced item fields sit next to `id` and `positions`. Guarded alternatives go under
+`states`, tried in order; the first whose `if` passes is rendered, and the display is what
+renders when none does.
+
+A state is a **whole** appearance, never a patch: a field it omits is **absent**, not inherited
+from the display. Repeat everything the state needs — a state that names no `material` renders
+a bare stone block.
 
 ```json
 {
-  "if": [ /* Condition[] — ALL must pass (ANDed). Omit = always matches */ ],
+  "id": "buy",
+  "positions": "13",
   "material": "DIAMOND",
   "count": 1,
   "title": "<gold>Buy</gold>",
   "lore": ["<gray>Click to buy</gray>", "<yellow>Price: 100</yellow>"],
-  "click": { /* ClickMap */ }
+  "click": { /* ClickMap */ },
+  "states": [
+    {
+      "if": [ /* Condition[] — ALL must pass (ANDed) */ ],
+      "material": "BARRIER",
+      "title": "<red>Too expensive</red>"
+    }
+  ]
 }
 ```
 
@@ -115,10 +128,9 @@ To repeat an element across a list, add `iterates`:
   "id": "shop_grid",
   "positions": "10-43",
   "iterates": { "source": "shops", "alias": "shop" },
-  "appearances": [
-    { "material": "{shop.material}", "title": "<white>{shop.name}</white>",
-      "lore": ["<yellow>{shop.price}</yellow>"] }
-  ]
+  "material": "{shop.material}",
+  "title": "<white>{shop.name}</white>",
+  "lore": ["<yellow>{shop.price}</yellow>"]
 }
 ```
 
@@ -258,7 +270,10 @@ A 27-slot shop with a buy button (slot 13) gated by money:
         {
           "id": "buy_btn",
           "positions": "13",
-          "appearances": [
+          "material": "GRAY_STAINED_GLASS_PANE",
+          "title": "<red>Buy Diamond</red>",
+          "lore": ["<gray>You need 100 to buy.</gray>"],
+          "states": [
             {
               "if": [{ "type": "has_money", "amount": 100 }],
               "material": "DIAMOND",
@@ -272,11 +287,6 @@ A 27-slot shop with a buy button (slot 13) gated by money:
                   "steps": "if has_money(100):\n  take_money 100\n  give_item DIAMOND 1\n  send_message \"<green>You bought a diamond!</green>\"\nelse:\n  send_message \"<red>Not enough money.</red>\""
                 }
               }
-            },
-            {
-              "material": "GRAY_STAINED_GLASS_PANE",
-              "title": "<red>Buy Diamond</red>",
-              "lore": ["<gray>You need 100 to buy.</gray>"]
             }
           ]
         }

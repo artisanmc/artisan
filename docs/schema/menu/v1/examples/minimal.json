@@ -11,12 +11,10 @@
         {
           "id": "hello",
           "positions": "13",
-          "appearances": [
-            {
-              "material": "DIAMOND",
-              "title": "§bHello world",
-              "lore": ["§7Premier Element servi par Artisan"]
-            }
+          "material": "DIAMOND",
+          "title": "§bHello world",
+          "lore": [
+            "§7Premier Element servi par Artisan"
           ]
         }
       ]

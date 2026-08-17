@@ -1,0 +1,38 @@
+{
+  "_comment": [
+    "Cross-language conformance vector — ADR `element-display-and-states`.",
+    "An Element's display is written FLAT on the element, so its own keys and the",
+    "fields of an Appearance share ONE namespace on the wire. This file is the",
+    "single place that namespace is written down; the editor suite and the plugin",
+    "suite both read it, so adding an appearance field that shadows a structural",
+    "key fails a test instead of silently winning at parse time.",
+    "Anything at the element level that is NOT in `structural` is a display field."
+  ],
+  "structural": [
+    "id",
+    "positions",
+    "iterates",
+    "places",
+    "states",
+    "tags"
+  ],
+  "appearance": [
+    "if",
+    "material",
+    "head",
+    "count",
+    "title",
+    "lore",
+    "click",
+    "enchants",
+    "enchanted",
+    "custom_model_data",
+    "unbreakable",
+    "hide",
+    "color",
+    "nbt",
+    "asset",
+    "component_ref",
+    "notes"
+  ]
+}

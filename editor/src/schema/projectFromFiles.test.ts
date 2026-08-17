@@ -3,13 +3,7 @@
 // full-project importer `projectFromFiles` as the exact inverse of
 // `transform()` — domain → files → domain → files must be a fixed point
 // (total — the export is a pure function of the Project, no timestamps).
-import type {
-  DataModelId,
-  DataSourceId,
-  MenuId,
-  Project,
-  ProjectId,
-} from "@/domain/types";
+import type { DataModelId, DataSourceId, MenuId, Project, ProjectId } from "@/domain/types";
 import { transform } from "@/features/export/transform";
 import { describe, expect, it } from "vitest";
 import { projectFromFiles } from "./projectFromFiles";
@@ -52,18 +46,22 @@ function fixture(): Project {
               {
                 id: "grid",
                 positions: "10-16",
-                appearances: [
-                  {
-                    material: "STONE",
-                    title: { key: "k_row_title" },
-                    click: { left: { steps: [{ kind: "action", action: { type: "open_menu", menuId: "m1" } }] } },
+                display: {
+                  material: "STONE",
+                  title: { key: "k_row_title" },
+                  click: {
+                    left: {
+                      steps: [{ kind: "action", action: { type: "open_menu", menuId: "m1" } }],
+                    },
                   },
-                ],
+                },
+                states: [],
               },
               {
                 id: "tplbound",
                 positions: "20",
-                appearances: [{ material: "{item.icon}", title: { key: "k_tpl_title" } }],
+                display: { material: "{item.icon}", title: { key: "k_tpl_title" } },
+                states: [],
                 iterates: { source: "items", alias: "item" },
               },
             ],
@@ -132,7 +130,13 @@ function fixture(): Project {
             help: "Shown when these pass",
             section: "Display",
           },
-          { name: "slot_id", type: { kind: "string" }, locked: true, required: true, pattern: "^s_" },
+          {
+            name: "slot_id",
+            type: { kind: "string" },
+            locked: true,
+            required: true,
+            pattern: "^s_",
+          },
         ],
       },
     ],
@@ -232,7 +236,10 @@ describe("projectFromFiles (files → domain, inverse of transform)", () => {
     ]);
     // ltext row values pull their translations back into i18nKeys (under the
     // canonical address).
-    expect(p2.i18nKeys["sources.ds_items.sword.name" as never]).toEqual({ en: "Sword", fr: "Épée" });
+    expect(p2.i18nKeys["sources.ds_items.sword.name" as never]).toEqual({
+      en: "Sword",
+      fr: "Épée",
+    });
   });
 
   it("reconstructs config sources with LText values", () => {
@@ -267,7 +274,7 @@ describe("projectFromFiles (files → domain, inverse of transform)", () => {
     expect(p2.canvasEdges).toEqual({ "m1->d1": { from: { side: "right", t: 0.5 } } });
     const el = p2.menus[0]!.layers.flatMap((l) => l.elements).find((e) => e.id === "tplbound")!;
     expect(el.iterates).toEqual({ source: "items", alias: "item" });
-    expect(el.appearances[0]!.material).toBe("{item.icon}");
+    expect(el.display!.material).toBe("{item.icon}");
   });
 
   it("re-emits unclaimed module files verbatim via moduleData.__files", () => {
@@ -297,7 +304,8 @@ describe("projectFromFiles (files → domain, inverse of transform)", () => {
 
   it("derives captured item display from the stack when no .artisan meta exists (hand-added file)", () => {
     const files: Record<string, string> = {
-      [`${base}/manifest.yaml`]: "schema: manifest/v1\nproject_id: p_roundtrip\ndefault_lang: en\nlanguages: [en]\nfiles:\n  menus: []\n  commands: []\n  dialogs: []\n",
+      [`${base}/manifest.yaml`]:
+        "schema: manifest/v1\nproject_id: p_roundtrip\ndefault_lang: en\nlanguages: [en]\nfiles:\n  menus: []\n  commands: []\n  dialogs: []\n",
       [`${base}/items/ci_hand.yml`]:
         "==: org.bukkit.inventory.ItemStack\nid: minecraft:diamond_sword\ncount: 2\n",
     };
