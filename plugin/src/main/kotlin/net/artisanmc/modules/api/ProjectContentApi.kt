@@ -21,4 +21,15 @@ interface ProjectContentApi {
 
     /** True if at least one project has a non-empty `<dir>/` folder (bootstrap check). */
     @Stable fun hasContent(dir: String): Boolean
+
+    /**
+     * Re-read the projects from disk, then notify modules — the same path as
+     * `/artisan reload`.
+     *
+     * Call it right after your module writes its OWN project files. The core
+     * serves a snapshot taken at load (reload semantics), so an unannounced
+     * write stays invisible to the running server AND to the editor until a
+     * human types `/artisan reload`. You are the one who knows you wrote.
+     */
+    @Stable fun reload() {}
 }
