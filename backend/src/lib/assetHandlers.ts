@@ -16,7 +16,9 @@ import { readPngDimensions, readPngContentWidth } from "./pngDimensions";
 import { allocateCodepoint } from "./codepointAllocator";
 import { rebuildResourcePack } from "./resourcePack";
 import { projectDiskId } from "./projectStorage";
-import { assetDiskPath, assetFileName, deleteDiskAsset, descriptorOf, nextFreeCodepoint, readDiskAssets, writeDiskAsset } from "./assetDiskWrite";
+import { assetDiskPath, assetFileName, deleteDiskAsset, deleteDiskFont, descriptorOf, nextFreeCodepoint, readDiskAssets, writeDiskAsset } from "./assetDiskWrite";
+import { fontFilesFor, fontFromDisk } from "./fontOnDisk";
+import { requestAssetWrite, requestProjectWrite } from "../ws/hub";
 import { readDiskAssetBytes } from "./diskAssets";
 import { pushResourcePackUpdated } from "../ws/hub";
 
@@ -90,10 +92,67 @@ export async function handleAssetCreate(c: any, ctx: AssetCtx) {
   const diskContentHash = createHash("sha256").update(bytes).digest("hex");
 
   // ── Disque du serveur (ADR `assets-on-server-disk`, P5) ────────────────────
-  // Textures et glyphes deviennent des fichiers du Project : le backend relaie,
-  // le plugin écrit. Les POLICES restent sur l'ancien chemin — la forme qu'elles
-  // prennent sur le disque (zip gardé ou déplié) est une question ouverte de
-  // l'ADR, et l'inventer ici la figerait sans qu'elle ait été tranchée.
+  // Tout devient fichier du Project : le backend relaie, le plugin écrit.
+  // Une POLICE est DÉPLIÉE — un PNG par glyphe plus son descripteur — parce
+  // qu'une boîte noire au milieu d'un dossier éditable à la main coûterait plus
+  // cher que ses ~96 entrées (mesuré sur l'ASCII vanilla : 26 Ko).
+  if (type === "font" && parsedFont) {
+    const anchor = (await db.select().from(projects).where(eq(projects.id, projectId)))[0];
+    if (!anchor) return c.json({ error: "Not found" }, 404);
+    const diskId = projectDiskId(anchor);
+    const disk = await readDiskAssets(serverKeyId, diskId, projectId);
+    if (!disk) return c.json({ error: "server_offline" }, 503);
+    if (disk.assets.some((a) => a.row.type === "font" && a.row.id === assetFileName(name))) {
+      return c.json({ error: "Asset name already exists" }, 409);
+    }
+
+    const { binaries, descriptor } = fontFilesFor(name, parsedFont);
+    // Les glyphes en UN seul envoi, tout ou rien : une police à moitié posée
+    // afficherait des carrés à la place des lettres manquantes.
+    const written = await requestAssetWrite(serverKeyId, {
+      projectId: diskId,
+      files: binaries.map((b) => ({
+        path: b.path,
+        contentBase64: Buffer.from(b.bytes).toString("base64"),
+        baseHash: null,
+      })),
+    });
+    if (written.kind === "offline") return c.json({ error: "server_offline" }, 503);
+    if (written.kind !== "result" || !written.result.ok) {
+      const err = written.kind === "result" ? written.result.error : "write_error";
+      return c.json({ error: err ?? "write_error" }, err === "conflict" ? 409 : 502);
+    }
+    const desc = await requestProjectWrite(serverKeyId, {
+      projectId: diskId,
+      files: [{ path: descriptor.path, content: descriptor.content, base_hash: null }],
+    });
+    if (desc.kind !== "result" || !desc.result.ok) {
+      return c.json({ error: "write_error" }, 502);
+    }
+
+    const packInfo = await rebuildResourcePack(serverKeyId);
+    pushResourcePackUpdated(serverKeyId, packInfo.url, packInfo.hash);
+    const now = new Date();
+    const body: Record<string, unknown> = {
+      asset: {
+        id: assetFileName(name),
+        projectId,
+        type: "font",
+        name,
+        width: 0,
+        height: 0,
+        ascent: null,
+        codepoint: null,
+        fontMeta: fontFromDisk(descriptor.content),
+        contentHash: createHash("sha256").update(descriptor.content, "utf8").digest("hex"),
+        createdAt: now.toISOString(),
+        updatedAt: now.toISOString(),
+      },
+    };
+    if (parsedFont.warnings.length > 0) body.warnings = parsedFont.warnings;
+    return c.json(body, 201);
+  }
+
   if (type !== "font") {
     const anchor = (await db.select().from(projects).where(eq(projects.id, projectId)))[0];
     if (!anchor) return c.json({ error: "Not found" }, 404);
@@ -594,6 +653,34 @@ export async function handleAssetDelete(c: any, ctx: AssetCtx) {
   const id = c.req.param("id");
 
   const onDisk = await diskLookup(projectId, serverKeyId, id);
+  if (onDisk && onDisk.found.row.type === "font") {
+    // Une police est un DOSSIER : ses glyphes partent avec elle, sinon ils
+    // resteraient orphelins, invisibles et impossibles à retrouver.
+    const dir = onDisk.found.path.slice(0, onDisk.found.path.lastIndexOf("/"));
+    const meta = onDisk.found.row.fontMeta as { glyphMap?: { texture: string }[] } | null;
+    const glyphs: Record<string, string> = {};
+    for (const g of meta?.glyphMap ?? []) {
+      const path = `${dir}/${g.texture}`;
+      // L'empreinte vient des binaires BRUTS : les PNG d'une police ne sont pas
+      // des assets à part entière, ils n'apparaissent pas dans `assets`.
+      const bin = onDisk.disk.binaries.find((b) => b.path === path);
+      if (bin) glyphs[path] = bin.hash;
+    }
+    const removed = await deleteDiskFont(serverKeyId, onDisk.diskId, {
+      dir,
+      glyphs,
+      descriptorPath: onDisk.found.path,
+      descriptorBaseHash: sha256Hex(
+        onDisk.disk.files.find((f) => f.path === onDisk.found.path)?.content ?? "",
+      ),
+    });
+    if (!removed.ok) {
+      return c.json({ error: removed.error ?? "write_error" }, removed.error === "conflict" ? 409 : 502);
+    }
+    const packInfo = await rebuildResourcePack(serverKeyId);
+    pushResourcePackUpdated(serverKeyId, packInfo.url, packInfo.hash);
+    return c.body(null, 204);
+  }
   if (onDisk) {
     const previous = descriptorOf(onDisk.disk.files, onDisk.found.path);
     const removed = await deleteDiskAsset(serverKeyId, onDisk.diskId, {

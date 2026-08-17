@@ -306,7 +306,11 @@ export function requestAssetRead(
 /** Écriture (ou suppression, `contentBase64` null) d'UN asset, CAS sur `baseHash`. */
 export function requestAssetWrite(
   serverKeyId: string,
-  req: { projectId: string; path: string; contentBase64: string | null; baseHash: string | null },
+  req: {
+    projectId: string;
+    /** Groupé et tout-ou-rien : une police dépliée, c'est ~96 fichiers. */
+    files: { path: string; contentBase64: string | null; baseHash: string | null }[];
+  },
   timeoutMs: number = DATA_SOURCE_FETCH_TIMEOUT_MS,
 ): Promise<AssetWriteOutcome> {
   const send = firstPluginSender(serverKeyId);
@@ -316,9 +320,11 @@ export function requestAssetWrite(
     type: "asset_write",
     request_id: requestId,
     project_id: req.projectId,
-    path: req.path,
-    content_base64: req.contentBase64,
-    base_hash: req.baseHash,
+    files: req.files.map((f) => ({
+      path: f.path,
+      content_base64: f.contentBase64,
+      base_hash: f.baseHash,
+    })),
   };
   return new Promise((resolve) => {
     const timer = setTimeout(() => {

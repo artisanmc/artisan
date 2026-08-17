@@ -9,7 +9,7 @@ mock.module("../lib/resourcePack", () => ({
   rebuildResourcePack: async () => ({ url: "stub://rp", hash: "stubbedHash" }),
   currentPackInfo: async () => null,
 }));
-import { clearFakeDisk, diskBinary, fakeHubModule } from "../test/fakeServerDisk";
+import { clearFakeDisk, diskBinary, diskText, fakeHubModule } from "../test/fakeServerDisk";
 mock.module("../ws/hub", () => fakeHubModule());
 
 import { describe, expect, test, beforeEach } from "bun:test";
@@ -595,20 +595,19 @@ describe("POST /api/v1/user/projects/:projectId/assets type=font", () => {
     expect(body.asset.projectId).toBe(projectId);
     expect(body.asset.codepoint).toBeNull();
     expect(body.asset.ascent).toBeNull();
-    // SHA-1 : les POLICES sont encore sur l'ancien chemin (volume backend). La
-    // forme qu'elles prendront sur le disque du serveur — zip gardé ou déplié —
-    // est une question ouverte de l'ADR `assets-on-server-disk`, et l'inventer
-    // ici la figerait sans qu'elle ait été tranchée.
-    expect(body.asset.contentHash).toMatch(/^[0-9a-f]{40}$/);
+    // L'empreinte d'une police, c'est celle de son DESCRIPTEUR (SHA-256) :
+    // c'est lui qui change quand on ajoute, retire ou déplace un glyphe.
+    expect(body.asset.contentHash).toMatch(/^[0-9a-f]{64}$/);
     expect(body.asset.fontMeta).toBeTruthy();
     expect(body.asset.fontMeta.namespace).toBe("artisan:myfont");
     expect(body.asset.fontMeta.glyphMap.length).toBe(2);
-    expect(body.warnings).toEqual([]);
+    expect(body.warnings).toBeUndefined();
 
-    // Verify glyph PNGs are on disk via readFontGlyph.
-    const aBytes = await readFontGlyph(projectId, body.asset.id, "glyphs/a.png");
-    expect(aBytes).not.toBeNull();
-    expect(aBytes!.length).toBe(PNG_8x8.length);
+    // DÉPLIÉE sur le disque du serveur : un fichier par glyphe, plus le
+    // descripteur qui dit quel caractère affiche quelle image.
+    expect(diskBinary.has("assets/fonts/myfont/glyphs/a.png")).toBe(true);
+    expect(diskBinary.get("assets/fonts/myfont/glyphs/a.png")!.length).toBe(PNG_8x8.length);
+    expect(diskText.has("assets/fonts/myfont/font.yaml")).toBe(true);
   });
 
   test("rejects a zip missing font.json with 400", async () => {
@@ -661,22 +660,21 @@ describe("POST /api/v1/user/projects/:projectId/assets type=font", () => {
     expect(r2.status).toBe(409);
   });
 
-  test("dedups on contentHash within type=font", async () => {
+  test("deux noms, deux polices — le contenu ne dédoublonne plus", async () => {
+    // Même raison que pour les images : sur un disque, deux noms sont deux
+    // dossiers. Rendre la première police sous un autre nom mentirait.
     const { cookie, projectId } = await seedSession();
     const zip = buildFontZip({});
     const r1 = await app.request(`/api/v1/user/projects/${projectId}/assets`, {
       method: "POST", headers: { Cookie: cookie }, body: uploadFontForm({ name: "first_font", zip }),
     });
     expect(r1.status).toBe(201);
-    const a1 = (await r1.json()).asset;
-
-    // Same bytes (same zip) → dedup hit, returns the same id with status 200.
     const r2 = await app.request(`/api/v1/user/projects/${projectId}/assets`, {
       method: "POST", headers: { Cookie: cookie }, body: uploadFontForm({ name: "second_font", zip }),
     });
-    expect(r2.status).toBe(200);
-    const a2 = (await r2.json()).asset;
-    expect(a2.id).toBe(a1.id);
+    expect(r2.status).toBe(201);
+    expect(diskText.has("assets/fonts/first_font/font.yaml")).toBe(true);
+    expect(diskText.has("assets/fonts/second_font/font.yaml")).toBe(true);
   });
 
   test("rejects font zip over 5 MB with 400", async () => {
@@ -697,31 +695,26 @@ describe("POST /api/v1/user/projects/:projectId/assets type=font", () => {
 });
 
 describe("DELETE /api/v1/user/projects/:projectId/assets/:id (font)", () => {
-  test("removes the font directory from disk", async () => {
+  test("supprimer une police emporte tous ses glyphes", async () => {
     const { cookie, projectId } = await seedSession();
     const post = await app.request(`/api/v1/user/projects/${projectId}/assets`, {
-      method: "POST",
-      headers: { Cookie: cookie },
+      method: "POST", headers: { Cookie: cookie },
       body: uploadFontForm({ name: "to_delete_font" }),
     });
     expect(post.status).toBe(201);
     const created = (await post.json()).asset;
-    const { dir } = fontDirPaths(projectId, created.id);
-    expect(existsSync(dir)).toBe(true);
+    expect(diskBinary.has("assets/fonts/to_delete_font/glyphs/a.png")).toBe(true);
 
     const del = await app.request(`/api/v1/user/projects/${projectId}/assets/${created.id}`, {
-      method: "DELETE",
-      headers: { Cookie: cookie },
+      method: "DELETE", headers: { Cookie: cookie },
     });
     expect(del.status).toBe(204);
 
-    expect(existsSync(dir)).toBe(false);
-    const stillThere = await readFontGlyph(projectId, created.id, "glyphs/a.png");
-    expect(stillThere).toBeNull();
-
-    // And the DB row is gone too.
-    const check = await app.request(`/api/v1/user/projects/${projectId}/assets/${created.id}`, { headers: { Cookie: cookie } });
-    expect(check.status).toBe(404);
+    // Une police est un DOSSIER : la supprimer à moitié laisserait des PNG
+    // orphelins, invisibles de la bibliothèque et impossibles à retrouver.
+    expect([...diskBinary.keys()].filter((p) => p.startsWith("assets/fonts/to_delete_font/")))
+      .toEqual([]);
+    expect(diskText.has("assets/fonts/to_delete_font/font.yaml")).toBe(false);
   });
 });
 

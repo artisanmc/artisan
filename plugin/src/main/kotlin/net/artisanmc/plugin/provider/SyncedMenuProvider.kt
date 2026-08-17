@@ -779,12 +779,17 @@ class SyncedMenuProvider(
             // `base_hash` null = « je m'attends à ce que le fichier n'existe pas ».
             // Sans lui, deux admins qui téléversent le même nom s'écrasent en
             // silence.
+            // Écriture d'assets binaires, même compare-and-swap que
+            // `project_write` : `base_hash` null = « je m'attends à ce que le
+            // fichier n'existe pas ». Sans lui, deux admins qui téléversent le
+            // même nom s'écrasent en silence.
+            //
+            // GROUPÉE et tout-ou-rien : une police dépliée, c'est ~96 fichiers
+            // (mesuré sur l'ASCII vanilla), et une police à moitié posée serait
+            // pire qu'aucune. La forme à un seul fichier reste lue.
             "asset_write" -> {
                 val requestId = node["request_id"]?.asText() ?: return
                 val projectId = node["project_id"]?.asText() ?: return
-                val path = node["path"]?.asText() ?: return
-                val contentB64 = node["content_base64"]?.takeIf { !it.isNull }?.asText()
-                val baseHash = node["base_hash"]?.takeIf { !it.isNull }?.asText()
                 fun reply(payload: Map<String, Any?>) {
                     val base = mapOf("type" to "asset_write_result", "request_id" to requestId)
                     try {
@@ -796,8 +801,22 @@ class SyncedMenuProvider(
                         logger?.warning("asset_write_result dropped — plugin is stopping")
                     }
                 }
-                if (!isSafeProjectId(projectId) || !isEditorWritablePath(path) ||
-                    !net.artisanmc.plugin.sync.ProjectFilesReader.isBinary(path)
+                fun baseHashOf(n: com.fasterxml.jackson.databind.JsonNode) =
+                    n["base_hash"]?.takeIf { !it.isNull }?.asText()
+                // Triplet (chemin, contenu base64 ou null = suppression, base attendue).
+                val writes: List<Triple<String, String?, String?>> =
+                    node["files"]?.takeIf { it.isArray }?.mapNotNull { f ->
+                        val path = f["path"]?.asText() ?: return@mapNotNull null
+                        Triple(path, f["content_base64"]?.takeIf { !it.isNull }?.asText(), baseHashOf(f))
+                    } ?: listOfNotNull(
+                        node["path"]?.asText()?.let { path ->
+                            Triple(path, node["content_base64"]?.takeIf { !it.isNull }?.asText(), baseHashOf(node))
+                        },
+                    )
+                if (writes.isEmpty() || !isSafeProjectId(projectId) || writes.any {
+                        !isEditorWritablePath(it.first) ||
+                            !net.artisanmc.plugin.sync.ProjectFilesReader.isBinary(it.first)
+                    }
                 ) {
                     reply(mapOf("ok" to false, "error" to "invalid_path"))
                     return
@@ -810,44 +829,57 @@ class SyncedMenuProvider(
                                 reply(mapOf("ok" to false, "error" to "unknown_project"))
                                 return@execute
                             }
-                            val target = java.io.File(projectDir, path)
-                            val actual = target.takeIf { it.isFile }
-                                ?.let { BundleHasher.hashBytes(it.readBytes()) }
-                            if (actual != baseHash) {
-                                // On rend l'empreinte disque, pas les octets : à
-                                // ce stade l'éditeur veut savoir QUE ça a bougé.
-                                // Il ira les chercher s'il veut les montrer.
+
+                            // Passe 1 — vérifier, sans rien toucher.
+                            val conflicts = writes.mapNotNull { (path, _, expected) ->
+                                val target = java.io.File(projectDir, path)
+                                val actual = target.takeIf { it.isFile }
+                                    ?.let { BundleHasher.hashBytes(it.readBytes()) }
+                                if (actual == expected) null else mapOf("path" to path, "disk_hash" to actual)
+                            }
+                            if (conflicts.isNotEmpty()) {
                                 reply(mapOf(
                                     "ok" to false,
                                     "error" to "conflict",
-                                    "disk_hash" to actual,
+                                    "conflicts" to conflicts,
+                                    // Compat : la forme à un fichier attendait ce champ.
+                                    "disk_hash" to conflicts.first()["disk_hash"],
                                 ))
                                 return@execute
                             }
-                            // `content_base64` absent = suppression. Un fichier
-                            // qu'on retire passe par la corbeille, comme un
-                            // Document : une image supprimée par erreur doit
-                            // pouvoir revenir.
-                            if (contentB64 == null) {
-                                if (target.isFile) {
+
+                            // Passe 2 — décoder AVANT d'écrire quoi que ce soit :
+                            // un base64 cassé au milieu du lot laisserait la
+                            // moitié des glyphes posés.
+                            val decoded = try {
+                                writes.map { (path, b64, _) ->
+                                    path to b64?.let { java.util.Base64.getDecoder().decode(it) }
+                                }
+                            } catch (_: IllegalArgumentException) {
+                                reply(mapOf("ok" to false, "error" to "invalid_content"))
+                                return@execute
+                            }
+
+                            decoded.forEach { (path, bytes) ->
+                                val target = java.io.File(projectDir, path)
+                                // `content_base64` absent = suppression. Le fichier
+                                // passe par la corbeille, comme un Document : une
+                                // image supprimée par erreur doit pouvoir revenir.
+                                if (bytes == null) {
+                                    if (target.isFile) {
+                                        archiveToHistory(projectDir, path)
+                                        target.delete()
+                                    }
+                                } else {
                                     archiveToHistory(projectDir, path)
-                                    target.delete()
+                                    target.parentFile?.mkdirs()
+                                    val tmp = java.io.File(target.parentFile, target.name + ".artisan-tmp")
+                                    tmp.writeBytes(bytes)
+                                    java.nio.file.Files.move(
+                                        tmp.toPath(), target.toPath(),
+                                        java.nio.file.StandardCopyOption.REPLACE_EXISTING,
+                                    )
                                 }
-                            } else {
-                                val bytes = try {
-                                    java.util.Base64.getDecoder().decode(contentB64)
-                                } catch (_: IllegalArgumentException) {
-                                    reply(mapOf("ok" to false, "error" to "invalid_content"))
-                                    return@execute
-                                }
-                                archiveToHistory(projectDir, path)
-                                target.parentFile?.mkdirs()
-                                val tmp = java.io.File(target.parentFile, target.name + ".artisan-tmp")
-                                tmp.writeBytes(bytes)
-                                java.nio.file.Files.move(
-                                    tmp.toPath(), target.toPath(),
-                                    java.nio.file.StandardCopyOption.REPLACE_EXISTING,
-                                )
                             }
                             // Écrire, c'est savoir qu'on a écrit : sans reprise,
                             // l'éditeur téléverserait une image qu'il ne verrait
@@ -856,7 +888,7 @@ class SyncedMenuProvider(
                             onReload?.invoke()
                             reply(mapOf("ok" to true))
                         } catch (e: Throwable) {
-                            logger?.log(java.util.logging.Level.WARNING, "[Artisan] asset_write '$projectId/$path' failed", e)
+                            logger?.log(java.util.logging.Level.WARNING, "[Artisan] asset_write '$projectId' failed", e)
                             reply(mapOf("ok" to false, "error" to "write_error", "message" to describeError(e)))
                         }
                     }

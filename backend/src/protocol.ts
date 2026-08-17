@@ -257,9 +257,13 @@ export interface AssetWriteMessage {
   type: "asset_write";
   request_id: string;
   project_id: string;
-  path: string;
-  content_base64?: string | null;
-  base_hash: string | null;
+  /**
+   * Écriture GROUPÉE, tout-ou-rien. Une police dépliée fait ~96 fichiers
+   * (mesuré sur l'ASCII vanilla : 95 PNG + son descripteur, 26 Ko) : les
+   * envoyer un par un ferait autant d'allers-retours et laisserait une police à
+   * moitié posée si l'un échouait.
+   */
+  files: { path: string; content_base64?: string | null; base_hash: string | null }[];
 }
 
 export interface AssetWriteResultMessage {
@@ -268,6 +272,7 @@ export interface AssetWriteResultMessage {
   ok: boolean;
   /** Empreinte réellement trouvée sur disque quand le CAS échoue (null = absent). */
   disk_hash?: string | null;
+  conflicts?: { path: string; disk_hash: string | null }[];
   error?: "invalid_path" | "unknown_project" | "conflict" | "invalid_content" | "write_error";
   message?: string;
 }
