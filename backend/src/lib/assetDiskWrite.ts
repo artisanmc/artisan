@@ -79,13 +79,24 @@ export async function readDiskAssets(
   serverKeyId: string,
   diskProjectId: string,
   anchorProjectId: string,
-): Promise<{ assets: DiskAsset[]; files: { path: string; content: string }[] } | null> {
+): Promise<{
+  assets: DiskAsset[];
+  files: { path: string; content: string }[];
+  /**
+   * Les binaires BRUTS de l'arbre. Distincts de `assets` : les PNG d'une police
+   * dépliée n'y sont pas des assets à part entière (c'est la police, l'asset),
+   * mais ce sont bien des fichiers, et les supprimer demande leur empreinte.
+   */
+  binaries: { path: string; hash: string; size: number }[];
+} | null> {
   const read = await requestProjectRead(serverKeyId, { projectId: diskProjectId });
   if (read.kind !== "result" || !read.result.ok) return null;
   const files = read.result.files ?? [];
+  const binaries = read.result.binaries ?? [];
   return {
-    assets: diskAssetsFromTree(anchorProjectId, files, read.result.binaries ?? []),
+    assets: diskAssetsFromTree(anchorProjectId, files, binaries),
     files,
+    binaries,
   };
 }
 
@@ -106,9 +117,11 @@ export async function writeDiskAsset(
   const path = assetDiskPath(input.type, input.name);
   const write = await requestAssetWrite(serverKeyId, {
     projectId: diskProjectId,
-    path,
-    contentBase64: Buffer.from(input.bytes).toString("base64"),
-    baseHash: input.baseHash,
+    files: [{
+      path,
+      contentBase64: Buffer.from(input.bytes).toString("base64"),
+      baseHash: input.baseHash,
+    }],
   });
   if (write.kind === "offline") return { ok: false, error: "server_offline" };
   if (write.kind !== "result" || !write.result.ok) {
@@ -139,9 +152,7 @@ export async function deleteDiskAsset(
   const path = assetDiskPath(input.type, input.name);
   const write = await requestAssetWrite(serverKeyId, {
     projectId: diskProjectId,
-    path,
-    contentBase64: null,
-    baseHash: input.baseHash,
+    files: [{ path, contentBase64: null, baseHash: input.baseHash }],
   });
   if (write.kind === "offline") return { ok: false, error: "server_offline" };
   if (write.kind !== "result" || !write.result.ok) {
@@ -171,4 +182,50 @@ export function descriptorOf(
   } catch {
     return { content: file.content, parsed: {} };
   }
+}
+
+/**
+ * Supprime une police DÉPLIÉE : tous ses glyphes et son descripteur.
+ *
+ * Une police est un dossier, pas un fichier — la supprimer à moitié laisserait
+ * des PNG orphelins qu'aucun descripteur ne réclame, invisibles de la
+ * bibliothèque et impossibles à retrouver.
+ */
+export async function deleteDiskFont(
+  serverKeyId: string,
+  diskProjectId: string,
+  input: {
+    dir: string;
+    /** chemin → empreinte disque des PNG à retirer. */
+    glyphs: Record<string, string>;
+    descriptorPath: string;
+    descriptorBaseHash: string | null;
+  },
+): Promise<DiskWriteResult> {
+  const paths = Object.keys(input.glyphs);
+  if (paths.length > 0) {
+    const write = await requestAssetWrite(serverKeyId, {
+      projectId: diskProjectId,
+      files: paths.map((path) => ({
+        path,
+        contentBase64: null,
+        baseHash: input.glyphs[path]!,
+      })),
+    });
+    if (write.kind === "offline") return { ok: false, error: "server_offline" };
+    if (write.kind !== "result" || !write.result.ok) {
+      return {
+        ok: false,
+        error: write.kind === "result" && write.result.error === "conflict" ? "conflict" : "write_error",
+      };
+    }
+  }
+  if (input.descriptorBaseHash !== null) {
+    await requestProjectWrite(serverKeyId, {
+      projectId: diskProjectId,
+      files: [],
+      deletes: [{ path: input.descriptorPath, base_hash: input.descriptorBaseHash }],
+    });
+  }
+  return { ok: true, path: input.dir };
 }

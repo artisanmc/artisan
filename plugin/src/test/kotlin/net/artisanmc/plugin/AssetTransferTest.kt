@@ -150,4 +150,50 @@ class AssetTransferTest {
         val binaries = h.read("boutique")["binaries"] as List<Map<String, Any?>>
         assertEquals(listOf("assets/textures/fond.png"), binaries.map { it["path"] })
     }
+
+    /**
+     * Écriture GROUPÉE (ADR `assets-on-server-disk`, polices dépliées).
+     *
+     * Une police importée, c'est ~96 fichiers (mesuré sur l'ASCII vanilla :
+     * 95 PNG + son descripteur, 26 Ko en tout). Les écrire un par un ferait 96
+     * allers-retours et, surtout, laisserait une police à moitié posée si l'un
+     * échouait. Comme `project_write` : tout ou rien.
+     */
+    @Test
+    fun `asset_write ecrit plusieurs binaires en tout ou rien`() {
+        val h = Harness()
+        val p = h.project("boutique")
+        h.write(p, "menus/m.yaml", "schema: menu/v1\n".toByteArray())
+        h.provider.load()
+
+        val b64 = Base64.getEncoder().encodeToString(png)
+        val res = h.send(
+            """{"type":"asset_write","request_id":"r","project_id":"boutique","files":[""" +
+            """{"path":"assets/fonts/pixelmix/a.png","content_base64":"$b64","base_hash":null},""" +
+            """{"path":"assets/fonts/pixelmix/b.png","content_base64":"$b64","base_hash":null}]}"""
+        )
+        assertEquals(true, res["ok"])
+        assertArrayEquals(png, File(p, "assets/fonts/pixelmix/a.png").readBytes())
+        assertArrayEquals(png, File(p, "assets/fonts/pixelmix/b.png").readBytes())
+    }
+
+    @Test
+    fun `un seul fichier perime annule tout le groupe`() {
+        val h = Harness()
+        val p = h.project("boutique")
+        h.write(p, "assets/fonts/pixelmix/b.png", png)
+        h.provider.load()
+
+        val b64 = Base64.getEncoder().encodeToString(png)
+        // Le second prétend que le fichier n'existe pas — il existe.
+        val res = h.send(
+            """{"type":"asset_write","request_id":"r","project_id":"boutique","files":[""" +
+            """{"path":"assets/fonts/pixelmix/a.png","content_base64":"$b64","base_hash":null},""" +
+            """{"path":"assets/fonts/pixelmix/b.png","content_base64":"$b64","base_hash":null}]}"""
+        )
+        assertEquals(false, res["ok"])
+        assertEquals("conflict", res["error"])
+        // RIEN n'a été écrit : une police à moitié posée serait pire qu'aucune.
+        assertFalse(File(p, "assets/fonts/pixelmix/a.png").exists())
+    }
 }

@@ -9,6 +9,13 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Changed — les polices sont dépliées sur le disque du serveur
+
+- Question ouverte de l'ADR **tranchée par la mesure** : l'ASCII vanilla fait 95 PNG + son descripteur, 26 Ko. On déplie — `assets/fonts/<nom>/font.yaml` + un fichier par glyphe — plutôt que de poser une boîte noire au milieu d'un dossier éditable à la main.
+- Une police est un **dossier** : c'est elle l'asset, pas chacun de ses PNG (sinon la bibliothèque afficherait 95 « glyphes » nommés a, b, c…). Son empreinte est celle de son descripteur ; la supprimer emporte tous ses fichiers.
+- `asset_write` devient **groupé et tout-ou-rien** : 96 écritures séparées, c'est 96 allers-retours et le risque d'une police à moitié posée, qui afficherait des carrés à la place des lettres manquantes.
+- L'URL d'aperçu d'un glyphe de police porte désormais le Project (`/asset-font/<projectId>/<police>/<chemin>`) : l'identité d'une police est son nom de dossier, unique dans son Project et nulle part ailleurs.
+
 ### Changed — P5 assets : téléverser, renommer, supprimer passent par le serveur
 
 - Créer, lister, lire, renommer, dupliquer et supprimer un asset (texture ou glyphe) écrit désormais **sur le disque du serveur** : le backend relaie, le plugin reste le seul écrivain. Les routes de l'éditeur ne changent pas de forme — elles résolvent l'ancre pour trouver le serveur et l'id disque.

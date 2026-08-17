@@ -105,9 +105,9 @@ describe("descendProjectAssets", () => {
       expect(report.descended).toEqual(["assets/glyphs/icone-diamant.png"]);
 
       const assetWrite = plugin.writes.find((w) => w.type === "asset_write")!;
-      expect(assetWrite.path).toBe("assets/glyphs/icone-diamant.png");
-      expect(Buffer.from(assetWrite.content_base64 as string, "base64").equals(Buffer.from(png)))
-        .toBe(true);
+      const written = (assetWrite.files as { path: string; content_base64: string }[])[0]!;
+      expect(written.path).toBe("assets/glyphs/icone-diamant.png");
+      expect(Buffer.from(written.content_base64, "base64").equals(Buffer.from(png))).toBe(true);
 
       // Le descripteur frère porte ce que le PNG ne sait pas dire, et la
       // réécriture des refs voyage dans la MÊME écriture : à moitié appliquée,

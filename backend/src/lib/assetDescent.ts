@@ -117,9 +117,11 @@ export async function descendProjectAssets(
 
     const outcome = await requestAssetWrite(serverKeyId, {
       projectId: diskProjectId,
-      path,
-      contentBase64: Buffer.from(bytes).toString("base64"),
-      baseHash: known[path] ?? null,
+      files: [{
+        path,
+        contentBase64: Buffer.from(bytes).toString("base64"),
+        baseHash: known[path] ?? null,
+      }],
     });
     if (outcome.kind !== "result" || !outcome.result.ok) {
       failures.push({
