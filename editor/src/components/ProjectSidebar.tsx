@@ -18,21 +18,18 @@ import { useTranslation } from "react-i18next";
 
 /** Restrict translation to the vertical axis so the workspace card can't be dragged sideways. */
 const restrictToVerticalAxis: Modifier = ({ transform }) => ({ ...transform, x: 0 });
-import { getModule } from "@artisan/editor-sdk";
-import { selectModuleNavEntries } from "@/distribution/moduleNav";
 import type { ProjectId } from "@/domain/types";
-import { fallbackScreensFor } from "@/features/screens/screenList";
+import { buildProjectGroups } from "@/features/projects/projectGroups";
 import type { ServerEditorScreen } from "@/lib/api/configScreens";
-import { useServerScreensStore } from "@/state/serverScreensStore";
-import { listServerProjects } from "@/lib/api/projectFiles";
-import { ownerModuleOf } from "@/components/projectOwnership";
 import { type ProjectSummary, getNetwork, listNetworks } from "@/lib/api/networks";
+import { listServerProjects } from "@/lib/api/projectFiles";
 import { displayServerLabel } from "@/lib/serverLabel";
+import { urlNetworkId, urlServerId } from "@/lib/urlIds";
 import { useAccountStore } from "@/state/accountStore";
 import { useModulesStore } from "@/state/modulesStore";
 import { useNetworksStore } from "@/state/networksStore";
+import { useServerScreensStore } from "@/state/serverScreensStore";
 import { useServersStore } from "@/state/serversStore";
-import { urlNetworkId, urlServerId } from "@/lib/urlIds";
 import { useSidebarStore } from "@/state/sidebarStore";
 import { CSS } from "@dnd-kit/utilities";
 import { ArrowRight, GripVertical, LayoutGrid } from "lucide-react";
@@ -49,7 +46,6 @@ export function ProjectSidebar() {
   const projectOrder = useAccountStore((s) => s.account.projectOrder);
   const reorderProjects = useAccountStore((s) => s.reorderProjects);
   const mountedModuleIds = useModulesStore((s) => s.mountedIds);
-  const moduleNav = selectModuleNavEntries(mountedModuleIds);
   const serverScreens = useServerScreensStore((s) => s.screens);
   // distance: 5 — small movement before drag activates.
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
@@ -239,41 +235,13 @@ export function ProjectSidebar() {
   const remaining = [...idToProject.values()].sort((a, b) => a.id.localeCompare(b.id));
   const finalList = [...ordered, ...remaining];
   // Add-on-owned projects surface under "Installed modules", not the flat list
-  // (ADR addon-owned-project-roots). La propriété se redérive des écrans
-  // déclarés : le backend ne lit plus le `manifest.module` faute de copie du
-  // project (ADR `server-disk-only-storage`) — cf. `ownerModuleOf`.
-  const owned = finalList.map((p) => ({ p, owner: ownerModuleOf(p, serverScreens) }));
-  const flatProjects = owned.filter((e) => !e.owner).map((e) => e.p);
-  const ownedProjects = owned
-    .filter((e) => e.owner)
-    .map((e) => ({ ...e.p, ownerModule: e.owner as string }));
-  // "Installed modules" is grouped BY module: each installed module (one with a
-  // screen and/or an owned project) is a header, with its project(s) (the canvas)
-  // and its configuration screen nested underneath.
-  const moduleGroupIds = Array.from(
-    new Set<string>([
-      ...moduleNav.map((m) => m.id),
-      ...ownedProjects.map((p) => p.ownerModule).filter((x): x is string => !!x),
-    ]),
-  );
-  const moduleGroups = moduleGroupIds.map((id) => {
-    const projects = ownedProjects.filter((p) => p.ownerModule === id);
-    // Config screens (ADR module-config-screens): declared by the module at
-    // Presence; a module with models + a project but no declaration gets
-    // fallback screens synthesized from its declared-model tables.
-    const declared = serverScreens.filter((s) => s.moduleId === id);
-    const screens = declared.length > 0
-      ? declared
-      : fallbackScreensFor(id, projects.map((p) => p.id), localProjects);
-    return {
-      id,
-      // moduleNav only lists modules WITH a screen — fall back to the
-      // registered module's displayName for screenless ones (boutique).
-      label: moduleNav.find((m) => m.id === id)?.sidebar.label ?? getModule(id)?.displayName ?? id,
-      projects,
-      hasScreen: moduleNav.some((m) => m.id === id),
-      screens,
-    };
+  // (ADR addon-owned-project-roots) — même regroupement que la page d'un
+  // serveur, calculé une seule fois dans `buildProjectGroups`.
+  const { flatProjects, moduleGroups } = buildProjectGroups({
+    projects: finalList,
+    screens: serverScreens,
+    mountedModuleIds,
+    localProjects,
   });
 
   // Nombre de Documents par Project : uniquement ceux qu'on a réellement ouverts
@@ -284,8 +252,7 @@ export function ProjectSidebar() {
   const liveCount = new Map(
     localProjects.map((p) => [p.id, p.menus.length + p.commands.length + p.dialogs.length]),
   );
-  const countFor = (p: ProjectSummary): number | null =>
-    liveCount.get(p.id as ProjectId) ?? null;
+  const countFor = (p: ProjectSummary): number | null => liveCount.get(p.id as ProjectId) ?? null;
 
   const onDragEnd = (e: DragEndEvent) => {
     const { active, over } = e;
@@ -361,7 +328,9 @@ export function ProjectSidebar() {
                       name={w.name}
                       count={countFor(w)}
                       networkId={urlNetworkId(networks, w.networkId) || netParam}
-                      serverId={urlServerId(allServerEntries, w.networkId, w.serverKeyId) || srvParam}
+                      serverId={
+                        urlServerId(allServerEntries, w.networkId, w.serverKeyId) || srvParam
+                      }
                     />
                   ))}
                 </ul>
@@ -398,7 +367,7 @@ export function ProjectSidebar() {
           ) : (
             <ul className="flex flex-col gap-1.5">
               {moduleGroups.map((g) =>
-                !g.hasScreen && g.projects.length === 1 && g.screens.length === 0 ? (
+                g.collapsed ? (
                   // One project, no screen (boutique) → a SINGLE entry named
                   // after the module that opens the editor directly.
                   <OwnedProjectItem
@@ -408,7 +377,13 @@ export function ProjectSidebar() {
                     name={g.label}
                     count={countFor(g.projects[0]!)}
                     networkId={urlNetworkId(networks, g.projects[0]!.networkId) || netParam}
-                    serverId={urlServerId(allServerEntries, g.projects[0]!.networkId, g.projects[0]!.serverKeyId) || srvParam}
+                    serverId={
+                      urlServerId(
+                        allServerEntries,
+                        g.projects[0]!.networkId,
+                        g.projects[0]!.serverKeyId,
+                      ) || srvParam
+                    }
                   />
                 ) : (
                   <li key={g.id} className="flex flex-col">
@@ -429,7 +404,9 @@ export function ProjectSidebar() {
                           name={g.projects.length === 1 ? t("screens.editorEntry") : w.name}
                           count={countFor(w)}
                           networkId={urlNetworkId(networks, w.networkId) || netParam}
-                          serverId={urlServerId(allServerEntries, w.networkId, w.serverKeyId) || srvParam}
+                          serverId={
+                            urlServerId(allServerEntries, w.networkId, w.serverKeyId) || srvParam
+                          }
                         />
                       ))}
                       {g.screens.map((s) => (
@@ -491,7 +468,9 @@ function ScreenItem({
             : "flex items-center gap-2.5 rounded-[10px] px-2.5 py-2 text-[13px] font-medium text-[var(--text-mut)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
         }
       >
-        <span className="truncate flex-1" title={screen.label}>{screen.label}</span>
+        <span className="truncate flex-1" title={screen.label}>
+          {screen.label}
+        </span>
       </Link>
     </li>
   );
@@ -538,7 +517,9 @@ function OwnedProjectItem({
             : "flex items-center gap-2.5 rounded-[10px] px-2.5 py-2 text-[13px] font-medium text-[var(--text-mut)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
         }
       >
-        <span className="truncate flex-1" title={name}>{name}</span>
+        <span className="truncate flex-1" title={name}>
+          {name}
+        </span>
         {count != null && (
           <span
             title={t("serverDetail.documentCount", { count })}
@@ -633,9 +614,6 @@ function SortableProjectItem({
           <GripVertical className="size-3.5" />
         </button>
       </div>
-
     </li>
   );
 }
-
-

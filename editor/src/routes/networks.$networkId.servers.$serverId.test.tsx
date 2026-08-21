@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const navigateSpy = vi.hoisted(() => vi.fn());
 
@@ -20,7 +20,8 @@ function setUrl(pathname: string, search = "") {
 }
 
 vi.mock("@tanstack/react-router", async () => {
-  const actual = await vi.importActual<typeof import("@tanstack/react-router")>("@tanstack/react-router");
+  const actual =
+    await vi.importActual<typeof import("@tanstack/react-router")>("@tanstack/react-router");
   return {
     ...actual,
     useChildMatches: () => [],
@@ -39,26 +40,52 @@ vi.mock("@tanstack/react-router", async () => {
 vi.mock("@/lib/api/networks", () => ({
   getNetwork: vi.fn().mockResolvedValue({
     network: { id: "net_1", name: "Mon Réseau", tier: "free" },
-    serverKeys: [{ id: "sk_1", label: "Survival" }],
-    projects: [
-      { id: "p1", name: "Hub", hash: "h1", networkId: "net_1", serverKeyId: "sk_1" },
-      { id: "p2", name: "Lobby", hash: "h2", networkId: "net_1", serverKeyId: "sk_2" },
-    ],
+    serverKeys: [{ id: "sk_1", slug: "primal", label: "Survival" }],
+    projects: [],
   }),
+}));
+
+vi.mock("@/lib/api/projectFiles", () => ({
+  listServerProjects: vi.fn().mockResolvedValue({ ok: true, projectIds: ["Hub", "boutique_shop"] }),
+}));
+
+const screensState = vi.hoisted(() => ({
+  screens: [] as Array<Record<string, unknown>>,
+}));
+vi.mock("@/state/serverScreensStore", () => ({
+  useServerScreensStore: (sel: (s: typeof screensState) => unknown) => sel(screensState),
+}));
+
+const accountState = vi.hoisted(() => ({ account: { projects: [] as unknown[] } }));
+vi.mock("@/state/accountStore", () => ({
+  useAccountStore: (sel: (s: typeof accountState) => unknown) => sel(accountState),
+}));
+
+const modulesState = vi.hoisted(() => ({ mountedIds: [] as string[] }));
+vi.mock("@/state/modulesStore", () => ({
+  useModulesStore: (sel: (s: typeof modulesState) => unknown) => sel(modulesState),
+}));
+
+vi.mock("@artisan/editor-sdk", () => ({
+  getModule: (id: string) =>
+    id === "boutique" ? { id: "boutique", displayName: "Boutique", routes: [] } : undefined,
 }));
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({ t: (k: string) => k }),
 }));
 
-import ServerDetailPage from "./networks.$networkId.servers.$serverId";
 import { getNetwork } from "@/lib/api/networks";
+import { listServerProjects } from "@/lib/api/projectFiles";
+import ServerDetailPage from "./networks.$networkId.servers.$serverId";
 
 describe("ServerDetailPage", () => {
   beforeEach(() => {
     navigateSpy.mockClear();
     authState.currentUser = { id: "u1", name: "Iban" };
     authState.isLoading = false;
+    screensState.screens = [];
+    modulesState.mountedIds = [];
   });
 
   it("redirects anonymous visitors to /login with a next return path", async () => {
@@ -83,17 +110,21 @@ describe("ServerDetailPage", () => {
     await waitFor(() => expect(screen.getByText("Hub")).toBeInTheDocument());
     expect(navigateSpy).not.toHaveBeenCalled();
   });
-  it("shows only workspaces bound to the active server", async () => {
+
+  /**
+   * La liste vient du disque du serveur, comme la sidebar (ADR
+   * `server-disk-only-storage`) — la table des projects ne décrit plus ce qui
+   * existe. Le slug d'URL doit être résolu en id avant l'appel.
+   */
+  it("lit les Projects sur le disque du serveur, par ids résolus", async () => {
     render(<ServerDetailPage />);
-    await waitFor(() => expect(screen.getByText("Hub")).toBeInTheDocument());
-    expect(screen.queryByText("Lobby")).not.toBeInTheDocument();
+    await waitFor(() => expect(listServerProjects).toHaveBeenCalledWith("net_1", "sk_1"));
   });
 
   /**
    * Plus de compteur de Documents ici : le backend ne détient plus les fichiers
    * (ADR `server-disk-only-storage`), donc il ne peut plus le connaître sans
-   * interroger le disque du serveur. Le test garde la trace de ce qui NE doit
-   * plus apparaître — un compteur ressuscité serait un compteur figé.
+   * interroger le disque du serveur.
    */
   it("n'affiche plus de compteur de Documents — le backend ne le connaît plus", async () => {
     render(<ServerDetailPage />);
@@ -107,6 +138,44 @@ describe("ServerDetailPage", () => {
     expect(link).toHaveAttribute(
       "href",
       "/networks/$networkId/servers/$serverId/projects/$projectId",
+    );
+  });
+
+  /** Même regroupement que la sidebar : un project possédé par un Add-on sort
+   *  de la liste plate et apparaît sous le nom du module. */
+  it("affiche un project possédé sous son module, pas dans la liste des projects", async () => {
+    screensState.screens = [
+      {
+        id: "catalogue",
+        moduleId: "boutique",
+        label: "Catalogue",
+        table: "data/catalogue",
+        projectId: "boutique_shop",
+      },
+    ];
+    render(<ServerDetailPage />);
+    await waitFor(() => expect(screen.getByText("Boutique")).toBeInTheDocument());
+    expect(screen.queryByText("boutique_shop")).not.toBeInTheDocument();
+    expect(screen.getByText("Hub")).toBeInTheDocument();
+  });
+
+  it("montre les onglets du module : éditeur puis écrans déclarés", async () => {
+    screensState.screens = [
+      {
+        id: "catalogue",
+        moduleId: "boutique",
+        label: "Catalogue",
+        table: "data/catalogue",
+        projectId: "boutique_shop",
+      },
+    ];
+    render(<ServerDetailPage />);
+    await screen.findByText("Boutique");
+    expect(screen.getByText("screens.editorEntry")).toBeInTheDocument();
+    const link = screen.getByRole("link", { name: "Catalogue" });
+    expect(link).toHaveAttribute(
+      "href",
+      "/networks/$networkId/servers/$serverId/screens/$screenId",
     );
   });
 
