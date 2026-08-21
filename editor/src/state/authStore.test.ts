@@ -113,6 +113,36 @@ describe("authStore.hydrate", () => {
     vi.useRealTimers();
   });
 
+  /**
+   * Un 200 au corps illisible (page d'erreur HTML d'un proxy, réponse tronquée)
+   * n'est pas une réponse non plus. Le laisser remonter en exception laissait
+   * `hydrate` mourir en silence : `isLoading` restait vrai pour toujours, donc
+   * app blanche sans la moindre explication.
+   */
+  test("un /me au corps illisible est traité comme injoignable, pas comme une panne fatale", async () => {
+    vi.useFakeTimers();
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        new Response("<html>502 Bad Gateway</html>", {
+          status: 200,
+          headers: { "Content-Type": "text/html" },
+        }),
+      )
+      .mockResolvedValue(
+        new Response(
+          JSON.stringify({ user: { id: "u1", email: "a@e.com", name: "Alice", avatarUrl: null } }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+      );
+    void useAuthStore.getState().hydrate(API);
+    await vi.advanceTimersByTimeAsync(20_000);
+    expect(fetchSpy.mock.calls.length).toBeGreaterThan(1);
+    expect(useAuthStore.getState().sessionStatus).toBe("signed-in");
+    expect(useAuthStore.getState().isLoading).toBe(false);
+    vi.useRealTimers();
+  });
+
   test("un 401 dit « non connecté », lui, et ne réessaye pas", async () => {
     const fetchSpy = vi
       .spyOn(globalThis, "fetch")

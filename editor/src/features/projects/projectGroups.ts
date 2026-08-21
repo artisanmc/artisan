@@ -8,6 +8,29 @@ import { getModule } from "@artisan/editor-sdk";
 
 export type OwnedProject = ProjectSummary & { ownerModule: string };
 
+/**
+ * Les ids lus sur le disque du serveur, présentés comme des Projects.
+ *
+ * Il n'y a rien d'autre à en dire : le nom du dossier EST l'identité, et le
+ * backend n'en tient plus de fiche (ADR `server-disk-only-storage`). Les
+ * champs qui décrivaient sa copie (`hash`) restent donc vides — une seule
+ * fabrique pour que la sidebar et la page d'un serveur ne divergent pas.
+ */
+export function diskProjectsToSummaries(
+  networkId: string,
+  serverKeyId: string,
+  projectIds: string[],
+): ProjectSummary[] {
+  return projectIds.map((id) => ({
+    id,
+    name: id,
+    slug: id,
+    hash: "",
+    networkId,
+    serverKeyId,
+  }));
+}
+
 /** Une ligne sous un module. `label: null` = l'entrée « Éditeur » générique :
  *  le nom du module est déjà porté par l'en-tête du groupe. */
 export type ModuleGroupEntry =
