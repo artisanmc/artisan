@@ -19,7 +19,7 @@ import { useTranslation } from "react-i18next";
 /** Restrict translation to the vertical axis so the workspace card can't be dragged sideways. */
 const restrictToVerticalAxis: Modifier = ({ transform }) => ({ ...transform, x: 0 });
 import type { ProjectId } from "@/domain/types";
-import { buildProjectGroups } from "@/features/projects/projectGroups";
+import { buildProjectGroups, diskProjectsToSummaries } from "@/features/projects/projectGroups";
 import type { ServerEditorScreen } from "@/lib/api/configScreens";
 import { type ProjectSummary, getNetwork, listNetworks } from "@/lib/api/networks";
 import { listServerProjects } from "@/lib/api/projectFiles";
@@ -143,16 +143,7 @@ export function ProjectSidebar() {
     listServerProjects(activeNetworkId, activeServerId).then((res) => {
       if (cancelled) return;
       setServerProjects(
-        res.ok
-          ? res.projectIds.map((id) => ({
-              id,
-              name: id,
-              slug: id,
-              hash: "",
-              networkId: activeNetworkId,
-              serverKeyId: activeServerId,
-            }))
-          : [],
+        res.ok ? diskProjectsToSummaries(activeNetworkId, activeServerId, res.projectIds) : [],
       );
     });
     return () => {

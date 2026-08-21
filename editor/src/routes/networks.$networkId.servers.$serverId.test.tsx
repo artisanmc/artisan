@@ -19,12 +19,15 @@ function setUrl(pathname: string, search = "") {
   });
 }
 
+const routerState = vi.hoisted(() => ({ childMatches: [] as unknown[] }));
+
 vi.mock("@tanstack/react-router", async () => {
   const actual =
     await vi.importActual<typeof import("@tanstack/react-router")>("@tanstack/react-router");
   return {
     ...actual,
-    useChildMatches: () => [],
+    useChildMatches: () => routerState.childMatches,
+    Outlet: () => <div>child-route</div>,
     useParams: () => ({ networkId: "net_1", serverId: "sk_1" }),
     useNavigate: () => navigateSpy,
     Navigate: () => null,
@@ -88,8 +91,11 @@ describe("ServerDetailPage", () => {
     navigateSpy.mockClear();
     authState.currentUser = { id: "u1", name: "Iban" };
     authState.isLoading = false;
+    routerState.childMatches = [];
     screensState.screens = [];
     screensState.load.mockClear();
+    vi.mocked(listServerProjects).mockClear();
+    vi.mocked(getNetwork).mockClear();
     vi.mocked(listServerProjects).mockResolvedValue({
       ok: true,
       projectIds: ["Hub", "boutique_shop"],
@@ -213,6 +219,37 @@ describe("ServerDetailPage", () => {
     render(<ServerDetailPage />);
     await waitFor(() =>
       expect(screensState.load).toHaveBeenCalledWith({ networkId: "net_1", serverId: "sk_1" }),
+    );
+  });
+
+  /**
+   * Quand une route enfant occupe l'écran (le canvas d'un Project), cette page
+   * n'est qu'un passe-plat : elle ne doit ni lire le disque, ni s'abonner à
+   * l'état d'édition. Sinon chaque frappe dans l'éditeur re-rendait le parent,
+   * donc l'`<Outlet>`, donc tout le canvas.
+   */
+  it("ne lit pas le disque quand une route enfant est affichée", async () => {
+    routerState.childMatches = [{ id: "child" }];
+    render(<ServerDetailPage />);
+    await waitFor(() => expect(getNetwork).toHaveBeenCalled());
+    expect(listServerProjects).not.toHaveBeenCalled();
+  });
+
+  /** Slug de serveur inconnu de ce network : l'URL est périmée, on renvoie au
+   *  network plutôt que de tourner indéfiniment sur « lecture en cours ». */
+  it("renvoie au network quand le serveur n'existe pas", async () => {
+    vi.mocked(getNetwork).mockResolvedValueOnce({
+      network: { id: "net_1", name: "Mon Réseau", tier: "free" },
+      serverKeys: [{ id: "sk_9", slug: "autre", label: "Autre" }],
+      projects: [],
+    } as never);
+    render(<ServerDetailPage />);
+    await waitFor(() =>
+      expect(navigateSpy).toHaveBeenCalledWith({
+        to: "/networks/$networkId",
+        params: { networkId: "net_1" },
+        replace: true,
+      }),
     );
   });
 
