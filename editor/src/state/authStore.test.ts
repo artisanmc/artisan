@@ -27,6 +27,61 @@ describe("authStore.hydrate", () => {
     await useAuthStore.getState().hydrate(API);
     expect(useAuthStore.getState().currentUser).toBeNull();
   });
+
+  /**
+   * Un backend injoignable n'est PAS une déconnexion : `/me` qui répond 502 (ou
+   * ne répond pas) ne dit rien de la session. Répondre « anonyme » renvoyait
+   * l'utilisateur sur /login pendant que la sidebar restait là — l'app se
+   * contredisait elle-même. Tant qu'on ne sait pas, on reste en chargement et
+   * on réessaye.
+   */
+  test("un /me en 502 ne déconnecte pas : réessaye puis charge l'utilisateur", async () => {
+    vi.useFakeTimers();
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(null, { status: 502 }))
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({ user: { id: "u1", email: "a@e.com", name: "Alice", avatarUrl: null } }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+      );
+    const done = useAuthStore.getState().hydrate(API);
+    await vi.waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1));
+    // Encore en chargement : aucune route ne doit rebondir vers /login.
+    expect(useAuthStore.getState().isLoading).toBe(true);
+    expect(useAuthStore.getState().currentUser).toBeNull();
+    await vi.advanceTimersByTimeAsync(60_000);
+    await done;
+    expect(useAuthStore.getState().currentUser?.id).toBe("u1");
+    expect(useAuthStore.getState().isLoading).toBe(false);
+    vi.useRealTimers();
+  });
+
+  test("garde l'utilisateur en place si /me devient injoignable en cours de session", async () => {
+    vi.useFakeTimers();
+    useAuthStore.setState({
+      currentUser: { id: "u1", email: "a@e.com", name: "Alice", avatarUrl: null },
+    });
+    vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("network down"));
+    const done = useAuthStore.getState().hydrate(API);
+    await vi.advanceTimersByTimeAsync(60_000);
+    await done;
+    expect(useAuthStore.getState().currentUser?.id).toBe("u1");
+    expect(useAuthStore.getState().isLoading).toBe(false);
+    vi.useRealTimers();
+  });
+
+  test("abandonne après les réessais : backend vraiment mort → anonyme", async () => {
+    vi.useFakeTimers();
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 502 }));
+    const done = useAuthStore.getState().hydrate(API);
+    await vi.advanceTimersByTimeAsync(60_000);
+    await done;
+    expect(useAuthStore.getState().currentUser).toBeNull();
+    expect(useAuthStore.getState().isLoading).toBe(false);
+    vi.useRealTimers();
+  });
 });
 
 describe("authStore.login", () => {
@@ -101,7 +156,9 @@ describe("authStore — account-scoped state reset on identity switch", () => {
     });
     // Give the (async) subscriber a chance to run, then assert nothing was cleared.
     await new Promise((r) => setTimeout(r, 10));
-    expect(useAccountStore.getState().account.projects.map((p) => p.id)).toContain("pack_pre_login");
+    expect(useAccountStore.getState().account.projects.map((p) => p.id)).toContain(
+      "pack_pre_login",
+    );
   });
 });
 

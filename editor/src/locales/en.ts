@@ -1734,6 +1734,8 @@ export default {
   serverDetail: {
     projects: "Projects",
     noProjects: "No projects on this server yet.",
+    loadingProjects: "Reading the server's files…",
+    projectsUnavailable: "Server unreachable — its projects can’t be listed.",
     documentCount_one: "{{count}} element",
     documentCount_other: "{{count}} elements",
   },
