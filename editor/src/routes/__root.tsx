@@ -1,13 +1,14 @@
 import { AdminSidebar } from "@/components/AdminSidebar";
+import { BackendUnreachable } from "@/components/BackendUnreachable";
 import { ProjectSidebar } from "@/components/ProjectSidebar";
 import { useDraftSync } from "@/features/project/useDraftSync";
 import { EditorWs } from "@/lib/editorWs";
 import { useAuthStore } from "@/state/authStore";
-import { useNetworksStore } from "@/state/networksStore";
-import { useServersStore } from "@/state/serversStore";
 import { useModulesStore } from "@/state/modulesStore";
+import { useNetworksStore } from "@/state/networksStore";
 import { useServerDataSourcesStore } from "@/state/serverDataSourcesStore";
 import { useServerScreensStore } from "@/state/serverScreensStore";
+import { useServersStore } from "@/state/serversStore";
 import { useSidebarStore } from "@/state/sidebarStore";
 import { PostHogProvider } from "@posthog/react";
 import { Outlet, createRootRoute, useRouterState } from "@tanstack/react-router";
@@ -42,6 +43,8 @@ function RootLayoutInner() {
   usePostHogPageView();
   const { i18n } = useTranslation();
   const user = useAuthStore((s) => s.currentUser);
+  const sessionStatus = useAuthStore((s) => s.sessionStatus);
+  const backendUnreachable = useAuthStore((s) => s.backendUnreachable);
   const activeNetworkId = useNetworksStore((s) => s.activeId);
   const activeServerId = useServersStore((s) => s.activeServerId);
   const sidebarOpen = useSidebarStore((s) => s.isOpen);
@@ -56,7 +59,9 @@ function RootLayoutInner() {
   useEffect(() => {
     if (!user || !activeNetworkId || !activeServerId) return;
     useModulesStore.getState().integrate({ networkId: activeNetworkId, serverId: activeServerId });
-    useServerDataSourcesStore.getState().load({ networkId: activeNetworkId, serverId: activeServerId });
+    useServerDataSourcesStore
+      .getState()
+      .load({ networkId: activeNetworkId, serverId: activeServerId });
     useServerScreensStore.getState().load({ networkId: activeNetworkId, serverId: activeServerId });
 
     let cancelled = false;
@@ -84,6 +89,9 @@ function RootLayoutInner() {
       ws?.disconnect();
     };
   }, [user, activeNetworkId, activeServerId]);
+  // Session jamais déterminée + backend muet : on montre le vrai problème au
+  // lieu d'une app à moitié rendue (ou d'un /login que le même backend anime).
+  const sessionUndetermined = sessionStatus === "unknown" && backendUnreachable;
   const showSidebar = !!user;
   // Admin area swaps the workspace sidebar for the admin section nav.
   // Non-admins keep the workspace sidebar (the /admin layout shows "forbidden").
@@ -118,7 +126,7 @@ function RootLayoutInner() {
         </>
       )}
       <main className="flex flex-1 flex-col overflow-hidden">
-        <Outlet />
+        {sessionUndetermined ? <BackendUnreachable /> : <Outlet />}
       </main>
     </div>
   );

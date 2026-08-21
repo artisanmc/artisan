@@ -1700,6 +1700,10 @@ const fr: typeof en = {
   },
   auth: {
     signupTitle: "Créer ton compte",
+    unreachableTitle: "Serveur injoignable",
+    unreachableBody:
+      "Le backend Artisan ne répond pas, impossible de savoir qui tu es. Nouvelle tentative en cours — rien n’est perdu.",
+    retryNow: "Réessayer maintenant",
     loginTitle: "Connexion",
     email: "Email",
     password: "Mot de passe",
