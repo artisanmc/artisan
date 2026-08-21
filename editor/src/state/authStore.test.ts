@@ -5,7 +5,13 @@ import { useAuthStore } from "./authStore";
 const API = "http://x";
 
 beforeEach(() => {
-  useAuthStore.setState({ currentUser: null, isLoading: false, error: null });
+  useAuthStore.setState({
+    currentUser: null,
+    isLoading: false,
+    sessionStatus: "unknown",
+    backendUnreachable: false,
+    error: null,
+  });
   vi.restoreAllMocks();
 });
 
@@ -55,6 +61,8 @@ describe("authStore.hydrate", () => {
     await done;
     expect(useAuthStore.getState().currentUser?.id).toBe("u1");
     expect(useAuthStore.getState().isLoading).toBe(false);
+    expect(useAuthStore.getState().sessionStatus).toBe("signed-in");
+    expect(useAuthStore.getState().backendUnreachable).toBe(false);
     vi.useRealTimers();
   });
 
@@ -63,24 +71,56 @@ describe("authStore.hydrate", () => {
     useAuthStore.setState({
       currentUser: { id: "u1", email: "a@e.com", name: "Alice", avatarUrl: null },
     });
-    vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("network down"));
-    const done = useAuthStore.getState().hydrate(API);
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("network down"));
+    void useAuthStore.getState().hydrate(API);
     await vi.advanceTimersByTimeAsync(60_000);
-    await done;
+    // L'utilisateur connu reste connu, et l'app reste utilisable : on ne bloque
+    // que ceux dont on n'a jamais rien su.
     expect(useAuthStore.getState().currentUser?.id).toBe("u1");
     expect(useAuthStore.getState().isLoading).toBe(false);
+    expect(useAuthStore.getState().backendUnreachable).toBe(true);
+    fetchSpy.mockResolvedValue(
+      new Response(
+        JSON.stringify({ user: { id: "u1", email: "a@e.com", name: "Alice", avatarUrl: null } }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+    await vi.advanceTimersByTimeAsync(20_000);
     vi.useRealTimers();
   });
 
-  test("abandonne après les réessais : backend vraiment mort → anonyme", async () => {
+  /**
+   * Le mode anonyme n'existe plus (accounts-only) : soit on sait qui tu es,
+   * soit tu vas sur /login. Un backend injoignable n'autorise donc AUCUNE
+   * conclusion — surtout pas « déconnecté », puisque /login serait tout aussi
+   * inutilisable. On reste en « inconnu » et on réessaye, indéfiniment.
+   */
+  test("ne conclut jamais à une déconnexion tant que le backend est injoignable", async () => {
     vi.useFakeTimers();
-    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 502 }));
-    const done = useAuthStore.getState().hydrate(API);
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response(null, { status: 502 }));
+    void useAuthStore.getState().hydrate(API);
     await vi.advanceTimersByTimeAsync(60_000);
-    await done;
+    expect(useAuthStore.getState().sessionStatus).toBe("unknown");
     expect(useAuthStore.getState().currentUser).toBeNull();
-    expect(useAuthStore.getState().isLoading).toBe(false);
+    expect(useAuthStore.getState().backendUnreachable).toBe(true);
+    expect(fetchSpy.mock.calls.length).toBeGreaterThan(2);
+    // On rend le backend joignable pour que la boucle de réessai s'arrête.
+    fetchSpy.mockResolvedValue(new Response(null, { status: 401 }));
+    await vi.advanceTimersByTimeAsync(20_000);
+    expect(useAuthStore.getState().sessionStatus).toBe("signed-out");
     vi.useRealTimers();
+  });
+
+  test("un 401 dit « non connecté », lui, et ne réessaye pas", async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response(null, { status: 401 }));
+    await useAuthStore.getState().hydrate(API);
+    expect(useAuthStore.getState().sessionStatus).toBe("signed-out");
+    expect(useAuthStore.getState().backendUnreachable).toBe(false);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
   });
 });
 

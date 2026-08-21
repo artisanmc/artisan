@@ -1679,6 +1679,10 @@ export default {
   },
   auth: {
     signupTitle: "Create your account",
+    unreachableTitle: "Server unreachable",
+    unreachableBody:
+      "The Artisan backend isn’t answering, so we can’t tell who you are. Retrying automatically — nothing has been lost.",
+    retryNow: "Retry now",
     loginTitle: "Sign in",
     email: "Email",
     password: "Password",
