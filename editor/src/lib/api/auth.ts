@@ -35,10 +35,7 @@ export async function signup(
   return postJson<{ user: AuthUserDto }>(`${apiUrl}/api/v1/auth/signup`, payload);
 }
 
-export async function login(
-  { apiUrl }: ApiOptions,
-  payload: { email: string; password: string },
-) {
+export async function login({ apiUrl }: ApiOptions, payload: { email: string; password: string }) {
   return postJson<{ user: AuthUserDto }>(`${apiUrl}/api/v1/auth/login`, payload);
 }
 
@@ -57,10 +54,24 @@ export async function logout({ apiUrl }: ApiOptions) {
   await fetch(`${apiUrl}/api/v1/auth/logout`, { method: "POST", credentials: "include" });
 }
 
+/** Le backend n'a pas répondu — on ne sait RIEN de la session, surtout pas
+ *  qu'elle est finie. À distinguer d'un 401, qui lui dit « anonyme ». */
+export class AuthUnreachableError extends Error {
+  constructor(readonly status?: number) {
+    super(`auth_unreachable${status ? `_${status}` : ""}`);
+    this.name = "AuthUnreachableError";
+  }
+}
+
 export async function getMe({ apiUrl }: ApiOptions): Promise<AuthUserDto | null> {
-  const res = await fetch(`${apiUrl}/api/v1/auth/me`, { credentials: "include" });
+  let res: Response;
+  try {
+    res = await fetch(`${apiUrl}/api/v1/auth/me`, { credentials: "include" });
+  } catch {
+    throw new AuthUnreachableError();
+  }
   if (res.status === 401) return null;
-  if (!res.ok) return null;
+  if (!res.ok) throw new AuthUnreachableError(res.status);
   const data = (await res.json()) as { user: AuthUserDto };
   return data.user;
 }

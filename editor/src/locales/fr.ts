@@ -1803,6 +1803,8 @@ const fr: typeof en = {
   serverDetail: {
     projects: "Projets",
     noProjects: "Aucun projet sur ce serveur.",
+    loadingProjects: "Lecture des fichiers du serveur…",
+    projectsUnavailable: "Serveur injoignable — impossible de lister ses projets.",
     documentCount_one: "{{count}} élément",
     documentCount_other: "{{count}} éléments",
   },
