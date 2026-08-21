@@ -35,6 +35,27 @@ interface AuthState {
 /** Attentes entre deux `/me` tant que le backend est injoignable, puis palier. */
 const AUTH_RETRY_DELAYS = [1_000, 3_000, 6_000, 10_000];
 
+/**
+ * Attend que l'onglet redevienne visible.
+ *
+ * Un onglet caché n'a personne devant lui : continuer à interroger un backend
+ * qui redémarre, depuis chaque onglet ouvert, n'avance rien. Le retour de
+ * l'onglet est de toute façon le moment où la réponse commence à compter.
+ */
+function whenVisible(): Promise<void> {
+  if (typeof document === "undefined" || document.visibilityState !== "hidden") {
+    return Promise.resolve();
+  }
+  return new Promise((resolve) => {
+    const onChange = () => {
+      if (document.visibilityState === "hidden") return;
+      document.removeEventListener("visibilitychange", onChange);
+      resolve();
+    };
+    document.addEventListener("visibilitychange", onChange);
+  });
+}
+
 /** Deux `hydrate()` concurrents (remontage, reconnexion manuelle) : seule la
  *  plus récente a le droit de conclure, sinon deux boucles de réessai se
  *  marchent dessus. */
@@ -78,6 +99,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         }));
         const delay = AUTH_RETRY_DELAYS[Math.min(attempt, AUTH_RETRY_DELAYS.length - 1)]!;
         await new Promise((r) => setTimeout(r, delay));
+        await whenVisible();
       }
     }
     if (generation !== hydrateGeneration) return;

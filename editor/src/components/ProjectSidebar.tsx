@@ -13,7 +13,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { Link, useParams } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 /** Restrict translation to the vertical axis so the workspace card can't be dragged sideways. */
@@ -50,6 +50,13 @@ export function ProjectSidebar() {
   // distance: 5 — small movement before drag activates.
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
   const [serverProjects, setServerProjects] = useState<ProjectSummary[]>([]);
+  // Trois états, comme la page d'un serveur : on lit, on a lu, on n'a pas pu
+  // lire. Une liste vide affirmée pendant la lecture se lit comme un serveur
+  // sans Projects, et le bouton de création invite alors à écrire sur un
+  // disque qu'on ne joint pas.
+  const [projectsStatus, setProjectsStatus] = useState<"loading" | "ready" | "unavailable">(
+    "loading",
+  );
   const [allServerEntries, setAllServerEntries] = useState<ServerEntry[]>([]);
   const [refetchToken, setRefetchToken] = useState(0);
 
@@ -116,6 +123,10 @@ export function ProjectSidebar() {
     }
   }, [urlParams.networkId, urlParams.serverId, activeNetworkId, networks, allServerEntries]);
 
+  // `networks.length` est lu comme condition, pas comme déclencheur : l'ajouter
+  // en dépendance relancerait le fetch au retour de `setNetworks`, en boucle dès
+  // que le refresh token est levé. Seul le bump doit déclencher.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: déclencheur volontairement limité au bump
   useEffect(() => {
     // Refetch on refresh bump too — a network created in the wizard/hub would
     // otherwise never reach the store (only fetched when empty).
@@ -132,19 +143,26 @@ export function ProjectSidebar() {
    * Le backend n'en tient plus de liste : elle se périmait au premier dossier
    * renommé ou supprimé (ADR `server-disk-only-storage`). Le nom du dossier EST
    * l'identité — le renommer le renomme dans l'éditeur, sans réconciliation.
-   * Serveur hors ligne → liste vide : ses Projects ne sont pas ouvrables.
+   * Serveur hors ligne → on le dit (`projectsStatus`) : ses Projects ne sont
+   * pas ouvrables, et rien ne sert d'inviter à en créer un de plus.
    */
+  // `refetchToken` et `storeRefreshToken` ne sont pas lus dans l'effet : ce sont
+  // justement les signaux « relis le disque » (Project créé, changement ailleurs).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: dépendances = signaux de rafraîchissement
   useEffect(() => {
     if (!activeNetworkId || !activeServerId) {
       setServerProjects([]);
+      setProjectsStatus("loading");
       return;
     }
     let cancelled = false;
+    setProjectsStatus("loading");
     listServerProjects(activeNetworkId, activeServerId).then((res) => {
       if (cancelled) return;
       setServerProjects(
         res.ok ? diskProjectsToSummaries(activeNetworkId, activeServerId, res.projectIds) : [],
       );
+      setProjectsStatus(res.ok ? "ready" : "unavailable");
     });
     return () => {
       cancelled = true;
@@ -152,6 +170,9 @@ export function ProjectSidebar() {
   }, [activeNetworkId, activeServerId, refetchToken, storeRefreshToken]);
 
   // Fetch all server entries across all networks.
+  // Mêmes signaux de rafraîchissement que ci-dessus ; `activeNetworkId` re-scope
+  // la liste quand on change de network sans que `networks` bouge.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: dépendances = signaux de rafraîchissement
   useEffect(() => {
     if (networks.length === 0) {
       setAllServerEntries([]);
@@ -301,6 +322,13 @@ export function ProjectSidebar() {
             <div className="px-2 pt-0.5 pb-2 text-[9.5px] font-bold uppercase tracking-[.14em] text-[var(--text-faint)]">
               {t("sidebar.myProjects")}
             </div>
+            {projectsStatus !== "ready" && (
+              <div className="px-2.5 pb-1 text-[11.5px] text-[var(--text-faint)]">
+                {projectsStatus === "loading"
+                  ? t("sidebar.loadingProjects")
+                  : t("sidebar.projectsUnavailable")}
+              </div>
+            )}
             <DndContext
               sensors={sensors}
               onDragEnd={onDragEnd}
@@ -327,19 +355,21 @@ export function ProjectSidebar() {
                 </ul>
               </SortableContext>
             </DndContext>
-            <NewProjectDialog
-              networkId={netParam}
-              serverKeyId={activeServerId}
-              onCreated={() => setRefetchToken((n) => n + 1)}
-              trigger={
-                <button
-                  type="button"
-                  className="mt-1 block w-full cursor-pointer rounded-[10px] px-2.5 py-2 text-left text-[12px] text-[var(--text-mut)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
-                >
-                  {t("sidebar.newProject")}
-                </button>
-              }
-            />
+            {projectsStatus === "ready" && (
+              <NewProjectDialog
+                networkId={netParam}
+                serverKeyId={activeServerId}
+                onCreated={() => setRefetchToken((n) => n + 1)}
+                trigger={
+                  <button
+                    type="button"
+                    className="mt-1 block w-full cursor-pointer rounded-[10px] px-2.5 py-2 text-left text-[12px] text-[var(--text-mut)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+                  >
+                    {t("sidebar.newProject")}
+                  </button>
+                }
+              />
+            )}
           </div>
         ) : (
           <div className="rounded-[14px] border border-dashed border-[var(--border)] px-3 py-3 text-[11.5px] leading-relaxed text-[var(--text-mut)]">
@@ -434,6 +464,42 @@ export function ProjectSidebar() {
   );
 }
 
+/**
+ * Le lien vers un Project, avec la seule décision qui varie : on a le contexte
+ * network+serveur, ou pas. Les deux branches sont écrites en dur pour que le
+ * routeur les type — le `to`/`params` calculé imposait deux `as any`, donc
+ * aucune erreur de route n'était plus détectée ici.
+ */
+function ProjectLink({
+  projectId,
+  networkId,
+  serverId,
+  className,
+  children,
+}: {
+  projectId: string;
+  networkId: string | null;
+  serverId: string | null;
+  className: string;
+  children: ReactNode;
+}) {
+  const close = () => useSidebarStore.getState().close();
+  return networkId && serverId ? (
+    <Link
+      to="/networks/$networkId/servers/$serverId/projects/$projectId"
+      params={{ networkId, serverId, projectId }}
+      onClick={close}
+      className={className}
+    >
+      {children}
+    </Link>
+  ) : (
+    <Link to="/project/$projectId" params={{ projectId }} onClick={close} className={className}>
+      {children}
+    </Link>
+  );
+}
+
 /** Module Config screen link under "Installed modules" (ADR module-config-screens). */
 function ScreenItem({
   screen,
@@ -488,20 +554,12 @@ function OwnedProjectItem({
   const { t } = useTranslation();
   const params = useParams({ strict: false }) as { projectId?: string };
   const isActiveProject = params.projectId === id || (!!slug && params.projectId === slug);
-  const linkTo =
-    networkId && serverId
-      ? "/networks/$networkId/servers/$serverId/projects/$projectId"
-      : "/project/$projectId";
-  const linkParams =
-    networkId && serverId
-      ? { networkId, serverId, projectId: slug || id }
-      : { projectId: slug || id };
   return (
     <li className="flex flex-col">
-      <Link
-        to={linkTo as any}
-        params={linkParams as any}
-        onClick={() => useSidebarStore.getState().close()}
+      <ProjectLink
+        projectId={slug || id}
+        networkId={networkId}
+        serverId={serverId}
         className={
           isActiveProject
             ? "flex items-center gap-2.5 rounded-[10px] px-2.5 py-2 text-[13px] font-semibold text-white transition-colors [&_svg]:text-[var(--brand)]"
@@ -520,7 +578,7 @@ function OwnedProjectItem({
             {count}
           </span>
         )}
-      </Link>
+      </ProjectLink>
     </li>
   );
 }
@@ -559,23 +617,13 @@ function SortableProjectItem({
   const params = useParams({ strict: false }) as { projectId?: string };
   const isActiveProject = params.projectId === id || (!!slug && params.projectId === slug);
 
-  // Build link target — prefer new URL when we have network+server context.
-  const linkTo =
-    networkId && serverId
-      ? "/networks/$networkId/servers/$serverId/projects/$projectId"
-      : "/project/$projectId";
-  const linkParams =
-    networkId && serverId
-      ? { networkId, serverId, projectId: slug || id }
-      : { projectId: slug || id };
-
   return (
     <li ref={setNodeRef} style={style} className="flex flex-col">
       <div className="group flex items-stretch gap-0.5 rounded-[10px] hover:bg-[var(--surface-hover)]">
-        <Link
-          to={linkTo as any}
-          params={linkParams as any}
-          onClick={() => useSidebarStore.getState().close()}
+        <ProjectLink
+          projectId={slug || id}
+          networkId={networkId}
+          serverId={serverId}
           className={
             isActiveProject
               ? "flex flex-1 items-center gap-2.5 rounded-[10px] px-2.5 py-2 text-[13px] font-semibold text-white transition-colors [&_svg]:text-[var(--brand)]"
@@ -593,7 +641,7 @@ function SortableProjectItem({
               {count}
             </span>
           )}
-        </Link>
+        </ProjectLink>
         <button
           type="button"
           aria-label="Reorder project"

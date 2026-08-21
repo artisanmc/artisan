@@ -143,6 +143,41 @@ describe("authStore.hydrate", () => {
     vi.useRealTimers();
   });
 
+  /**
+   * Onglet caché : personne ne regarde, et le backend est peut-être en train de
+   * redémarrer. Marteler toutes les 10 s un serveur à genoux depuis N onglets
+   * ouverts n'aide personne — on attend le retour de l'onglet, qui est de toute
+   * façon le moment où la réponse compte.
+   */
+  test("suspend les réessais quand l'onglet est caché, et reprend à son retour", async () => {
+    vi.useFakeTimers();
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      get: () => "hidden",
+    });
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response(null, { status: 502 }));
+    void useAuthStore.getState().hydrate(API);
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      get: () => "visible",
+    });
+    fetchSpy.mockResolvedValue(
+      new Response(
+        JSON.stringify({ user: { id: "u1", email: "a@e.com", name: "Alice", avatarUrl: null } }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+    document.dispatchEvent(new Event("visibilitychange"));
+    await vi.advanceTimersByTimeAsync(20_000);
+    expect(useAuthStore.getState().sessionStatus).toBe("signed-in");
+    vi.useRealTimers();
+  });
+
   test("un 401 dit « non connecté », lui, et ne réessaye pas", async () => {
     const fetchSpy = vi
       .spyOn(globalThis, "fetch")
