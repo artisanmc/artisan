@@ -950,6 +950,8 @@ const fr: typeof en = {
     settings: "Paramètres",
     brand: "Artisan",
     myProjects: "Mes Projects",
+    loadingProjects: "Lecture en cours…",
+    projectsUnavailable: "Serveur injoignable",
     installedModules: "Modules installés",
     noModules: "Aucun module installé.",
     configuration: "Configuration",

@@ -933,6 +933,8 @@ export default {
     settings: "Settings",
     brand: "Artisan",
     myProjects: "My Projects",
+    loadingProjects: "Reading…",
+    projectsUnavailable: "Server unreachable",
     installedModules: "Installed modules",
     noModules: "No module installed.",
     configuration: "Configuration",
