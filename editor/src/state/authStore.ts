@@ -1,6 +1,12 @@
 import type { Account } from "@/domain/types";
 import type { AuthUserDto } from "@/lib/api/auth";
-import { login as apiLogin, logout as apiLogout, signup as apiSignup, getMe } from "@/lib/api/auth";
+import {
+  AuthUnreachableError,
+  login as apiLogin,
+  logout as apiLogout,
+  signup as apiSignup,
+  getMe,
+} from "@/lib/api/auth";
 import { create } from "zustand";
 
 interface AuthState {
@@ -19,6 +25,9 @@ interface AuthState {
   logout: (apiUrl: string) => Promise<void>;
 }
 
+/** Réessais de `/me` avant de conclure quoi que ce soit sur la session. */
+const AUTH_RETRY_DELAYS = [1_000, 3_000, 6_000];
+
 export const useAuthStore = create<AuthState>((set) => ({
   currentUser: null,
   // Start true: hydrate() has not yet run on first render. Routes that gate on
@@ -29,8 +38,32 @@ export const useAuthStore = create<AuthState>((set) => ({
   error: null,
   async hydrate(apiUrl) {
     set({ isLoading: true });
-    const user = await getMe({ apiUrl });
-    set({ currentUser: user, isLoading: false });
+    // Un backend injoignable (502, cold start, coupure réseau) ne dit RIEN de la
+    // session : le prendre pour une déconnexion renvoyait sur /login un
+    // utilisateur parfaitement connecté. On reste donc en chargement — donc
+    // aucune route ne rebondit — et on réessaye. Après quoi seulement, backend
+    // vraiment mort, on retombe sur « anonyme ».
+    let user: AuthUserDto | null = null;
+    let determined = false;
+    for (let attempt = 0; attempt < AUTH_RETRY_DELAYS.length + 1; attempt++) {
+      try {
+        user = await getMe({ apiUrl });
+        determined = true;
+        break;
+      } catch (e) {
+        if (!(e instanceof AuthUnreachableError)) throw e;
+        const delay = AUTH_RETRY_DELAYS[attempt];
+        if (delay === undefined) break;
+        await new Promise((r) => setTimeout(r, delay));
+      }
+    }
+    if (!determined) {
+      // Session indéterminée : on ne fabrique pas de déconnexion, on garde
+      // l'utilisateur déjà connu (s'il y en a un) et on rend la main.
+      set({ isLoading: false, error: "auth_unreachable" });
+      return;
+    }
+    set({ currentUser: user, isLoading: false, error: null });
     if (user?.editorLanguage) {
       const { default: i18n } = await import("@/i18n");
       await i18n.changeLanguage(user.editorLanguage);

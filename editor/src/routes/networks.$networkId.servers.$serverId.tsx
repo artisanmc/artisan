@@ -34,6 +34,7 @@ export default function ServerDetailPage() {
   const [serverDisplayLabel, setServerDisplayLabel] = useState<string | null>(null);
   const [serverKeyId, setServerKeyId] = useState<string | null>(null);
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
+  const [status, setStatus] = useState<"loading" | "ready" | "unavailable">("loading");
   const [accessDenied, setAccessDenied] = useState(false);
   const childMatches = useChildMatches();
   const serverScreens = useServerScreensStore((s) => s.screens);
@@ -71,29 +72,47 @@ export default function ServerDetailPage() {
   /**
    * Les Projects se lisent sur le disque du serveur, comme dans la sidebar : le
    * backend n'en tient plus de liste (ADR `server-disk-only-storage`), le nom du
-   * dossier EST l'identité. Serveur hors ligne → liste vide.
+   * dossier EST l'identité.
+   *
+   * Trois états, jamais confondus : on lit, on a lu, on n'a pas pu lire. Un
+   * serveur hors ligne n'est pas un serveur sans projects — l'annoncer vide
+   * serait affirmer un vide qu'on n'a pas constaté.
    */
   useEffect(() => {
     if (!serverKeyId) return;
     let cancelled = false;
+    setStatus("loading");
     listServerProjects(networkId, serverKeyId).then((res) => {
       if (cancelled) return;
+      if (!res.ok) {
+        setProjects([]);
+        setStatus("unavailable");
+        return;
+      }
       setProjects(
-        res.ok
-          ? res.projectIds.map((id) => ({
-              id,
-              name: id,
-              slug: id,
-              hash: "",
-              networkId,
-              serverKeyId,
-            }))
-          : [],
+        res.projectIds.map((id) => ({
+          id,
+          name: id,
+          slug: id,
+          hash: "",
+          networkId,
+          serverKeyId,
+        })),
       );
+      setStatus("ready");
     });
     return () => {
       cancelled = true;
     };
+  }, [networkId, serverKeyId]);
+
+  // Les Config screens décident du regroupement : la page les charge pour SON
+  // serveur au lieu d'attendre que la sidebar l'ait fait — sinon un project
+  // possédé s'affiche d'abord à plat puis saute sous son module. L'appel est
+  // idempotent (le store ignore une source déjà chargée).
+  useEffect(() => {
+    if (!serverKeyId) return;
+    useServerScreensStore.getState().load({ networkId, serverId: serverKeyId });
   }, [networkId, serverKeyId]);
 
   // Même découpage que la sidebar — projects ordinaires d'un côté, modules
@@ -125,7 +144,15 @@ export default function ServerDetailPage() {
             <h2 className="eyebrow">{t("serverDetail.projects")}</h2>
             <span className="h-px flex-1 bg-[var(--border-soft)]" />
           </div>
-          {flatProjects.length === 0 ? (
+          {status === "loading" ? (
+            <p className="text-[13px] text-[var(--text-mut)]">
+              {t("serverDetail.loadingProjects")}
+            </p>
+          ) : status === "unavailable" ? (
+            <p className="text-[13px] text-[var(--text-mut)]">
+              {t("serverDetail.projectsUnavailable")}
+            </p>
+          ) : flatProjects.length === 0 ? (
             <p className="text-[13px] text-[var(--text-mut)]">{t("serverDetail.noProjects")}</p>
           ) : (
             <ul className="flex flex-col gap-2">
@@ -153,7 +180,7 @@ export default function ServerDetailPage() {
             <h2 className="eyebrow">{t("sidebar.installedModules")}</h2>
             <span className="h-px flex-1 bg-[var(--border-soft)]" />
           </div>
-          {moduleGroups.length === 0 ? (
+          {status !== "ready" ? null : moduleGroups.length === 0 ? (
             <p className="text-[13px] text-[var(--text-mut)]">{t("sidebar.noModules")}</p>
           ) : (
             <ul className="flex flex-col gap-2">

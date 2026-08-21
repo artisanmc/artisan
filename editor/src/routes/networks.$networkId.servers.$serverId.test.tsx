@@ -51,9 +51,13 @@ vi.mock("@/lib/api/projectFiles", () => ({
 
 const screensState = vi.hoisted(() => ({
   screens: [] as Array<Record<string, unknown>>,
+  load: vi.fn(),
 }));
 vi.mock("@/state/serverScreensStore", () => ({
-  useServerScreensStore: (sel: (s: typeof screensState) => unknown) => sel(screensState),
+  useServerScreensStore: Object.assign(
+    (sel: (s: typeof screensState) => unknown) => sel(screensState),
+    { getState: () => screensState },
+  ),
 }));
 
 const accountState = vi.hoisted(() => ({ account: { projects: [] as unknown[] } }));
@@ -85,6 +89,11 @@ describe("ServerDetailPage", () => {
     authState.currentUser = { id: "u1", name: "Iban" };
     authState.isLoading = false;
     screensState.screens = [];
+    screensState.load.mockClear();
+    vi.mocked(listServerProjects).mockResolvedValue({
+      ok: true,
+      projectIds: ["Hub", "boutique_shop"],
+    });
     modulesState.mountedIds = [];
   });
 
@@ -176,6 +185,34 @@ describe("ServerDetailPage", () => {
     expect(link).toHaveAttribute(
       "href",
       "/networks/$networkId/servers/$serverId/screens/$screenId",
+    );
+  });
+
+  /**
+   * Tant que le disque n'a pas répondu, la page ne prétend rien : afficher
+   * « aucun projet » pendant la lecture, c'est affirmer un vide qu'on n'a pas
+   * constaté — exactement ce qui donnait un serveur « vide » au premier rendu.
+   */
+  it("n'annonce pas un serveur vide tant que la lecture disque n'a pas répondu", async () => {
+    vi.mocked(listServerProjects).mockReturnValue(new Promise(() => {}) as never);
+    render(<ServerDetailPage />);
+    await screen.findByText("serverDetail.loadingProjects");
+    expect(screen.queryByText("serverDetail.noProjects")).not.toBeInTheDocument();
+  });
+
+  it("dit que le serveur est injoignable quand la lecture disque échoue", async () => {
+    vi.mocked(listServerProjects).mockResolvedValue({ ok: false, error: "server_offline" });
+    render(<ServerDetailPage />);
+    await screen.findByText("serverDetail.projectsUnavailable");
+    expect(screen.queryByText("serverDetail.noProjects")).not.toBeInTheDocument();
+  });
+
+  /** Les Config screens décident du regroupement : la page les charge pour SON
+   *  serveur, sinon un project possédé apparaît d'abord à plat puis saute. */
+  it("charge les Config screens de son propre serveur", async () => {
+    render(<ServerDetailPage />);
+    await waitFor(() =>
+      expect(screensState.load).toHaveBeenCalledWith({ networkId: "net_1", serverId: "sk_1" }),
     );
   });
 
