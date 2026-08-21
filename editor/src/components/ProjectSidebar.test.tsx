@@ -1,7 +1,7 @@
 import * as networksApi from "@/lib/api/networks";
+import { listServerProjects } from "@/lib/api/projectFiles";
 import { useAccountStore } from "@/state/accountStore";
 import { useNetworksStore } from "@/state/networksStore";
-import { listServerProjects } from "@/lib/api/projectFiles";
 import { useServersStore } from "@/state/serversStore";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -41,6 +41,12 @@ vi.mock("@tanstack/react-router", async () => {
 describe("ProjectSidebar", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    // `mockResolvedValue` d'un test précédent survivrait sinon : on repose la
+    // réponse disque par défaut avant chacun.
+    vi.mocked(listServerProjects).mockResolvedValue({
+      ok: true,
+      projectIds: ["pack_a", "pack_b"],
+    });
     mockParams.current = { networkId: "net_1", serverId: "sk_1" };
     useNetworksStore.setState({
       networks: [{ id: "net_1", name: "Mon Network", tier: "free" }],
@@ -92,11 +98,12 @@ describe("ProjectSidebar", () => {
     expect(items[1]).toHaveTextContent("pack_b");
   });
 
-
   it("workspace links use the server-scoped URL pattern", async () => {
     vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
       network: { id: "net_1", name: "Mon Network", tier: "free" },
-      projects: [{ id: "pack_a", name: "Lobby", hash: "h1", networkId: "net_1", serverKeyId: "sk_1" }],
+      projects: [
+        { id: "pack_a", name: "Lobby", hash: "h1", networkId: "net_1", serverKeyId: "sk_1" },
+      ],
       serverKeys: [{ id: "sk_1", label: "Survival" }],
     });
     render(<ProjectSidebar />);
@@ -145,7 +152,9 @@ describe("ProjectSidebar", () => {
     } as any);
     vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
       network: { id: "net_1", name: "Mon Network", slug: "mon-network", tier: "free" },
-      projects: [{ id: "pack_a", name: "Lobby", hash: "h1", networkId: "net_1", serverKeyId: "sk_1" }],
+      projects: [
+        { id: "pack_a", name: "Lobby", hash: "h1", networkId: "net_1", serverKeyId: "sk_1" },
+      ],
       serverKeys: [{ id: "sk_1", label: "Survival", slug: "survival" }],
     });
     render(<ProjectSidebar />);
@@ -165,8 +174,6 @@ describe("ProjectSidebar", () => {
     render(<ProjectSidebar />);
     expect(await screen.findByText("Survival")).toBeInTheDocument();
   });
-
-
 
   it("falls back to the persisted server selection on routes without a serverId param", async () => {
     // e.g. /settings or /credits — no networkId/serverId in the URL.
@@ -207,6 +214,49 @@ describe("ProjectSidebar", () => {
     render(<ProjectSidebar />);
     await waitFor(() => expect(listServerProjects).toHaveBeenCalled());
     expect(screen.queryByRole("link", { name: /pack_a|Lobby/ })).toBeNull();
+  });
+
+  /**
+   * Même exigence que la page d'un serveur : une liste vide affirmée pendant la
+   * lecture, ou pour un serveur hors ligne, se lit comme « ce serveur n'a rien »
+   * — et le bouton « Nouveau projet » invite alors à écrire sur un disque
+   * qu'on ne joint pas.
+   */
+  it("dit qu'elle lit plutôt que d'afficher une liste vide", async () => {
+    vi.mocked(listServerProjects).mockReturnValue(new Promise(() => {}) as never);
+    vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
+      network: { id: "net_1", name: "Mon Network", tier: "free" },
+      projects: [],
+      serverKeys: [{ id: "sk_1", label: "Survival" }],
+    });
+    render(<ProjectSidebar />);
+    expect(await screen.findByText("Lecture en cours…")).toBeInTheDocument();
+    expect(screen.queryByText("+ Nouveau projet")).toBeNull();
+  });
+
+  it("dit que le serveur est injoignable, et n'invite plus à y créer un projet", async () => {
+    vi.mocked(listServerProjects).mockResolvedValue({ ok: false, error: "server_offline" });
+    vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
+      network: { id: "net_1", name: "Mon Network", tier: "free" },
+      projects: [],
+      serverKeys: [{ id: "sk_1", label: "Survival" }],
+    });
+    render(<ProjectSidebar />);
+    await waitFor(() => expect(listServerProjects).toHaveBeenCalled());
+    expect(await screen.findByText("Serveur injoignable")).toBeInTheDocument();
+    expect(screen.queryByText("+ Nouveau projet")).toBeNull();
+  });
+
+  it("retrouve le bouton de création quand la lecture a abouti", async () => {
+    vi.mocked(listServerProjects).mockResolvedValue({ ok: true, projectIds: ["pack_a"] });
+    vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
+      network: { id: "net_1", name: "Mon Network", tier: "free" },
+      projects: [],
+      serverKeys: [{ id: "sk_1", label: "Survival" }],
+    });
+    render(<ProjectSidebar />);
+    await waitFor(() => expect(listServerProjects).toHaveBeenCalled());
+    expect(await screen.findByText("+ Nouveau projet")).toBeInTheDocument();
   });
 
   it("persists the URL server (slug resolved to id) and network into the stores", async () => {
