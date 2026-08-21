@@ -72,7 +72,15 @@ export async function getMe({ apiUrl }: ApiOptions): Promise<AuthUserDto | null>
   }
   if (res.status === 401) return null;
   if (!res.ok) throw new AuthUnreachableError(res.status);
-  const data = (await res.json()) as { user: AuthUserDto };
+  // Un 200 au corps illisible (page d'erreur d'un proxy, réponse tronquée) ne
+  // dit rien non plus : c'est un backend injoignable, pas une panne fatale.
+  let data: { user?: AuthUserDto } | null;
+  try {
+    data = (await res.json()) as { user?: AuthUserDto };
+  } catch {
+    throw new AuthUnreachableError(res.status);
+  }
+  if (!data?.user) throw new AuthUnreachableError(res.status);
   return data.user;
 }
 

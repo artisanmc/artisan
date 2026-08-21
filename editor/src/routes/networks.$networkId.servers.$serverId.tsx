@@ -1,5 +1,5 @@
 import { RequestAccessPanel } from "@/components/network-detail/RequestAccessPanel";
-import { buildProjectGroups } from "@/features/projects/projectGroups";
+import { buildProjectGroups, diskProjectsToSummaries } from "@/features/projects/projectGroups";
 import { getNetwork } from "@/lib/api/networks";
 import type { ProjectSummary } from "@/lib/api/networks";
 import { listServerProjects } from "@/lib/api/projectFiles";
@@ -23,8 +23,16 @@ export const Route = createFileRoute("/networks/$networkId/servers/$serverId")({
   component: ServerDetailPage,
 });
 
+/**
+ * Le cadre : qui es-tu, quel serveur, et est-ce bien cette page qu'on regarde.
+ *
+ * Il ne s'abonne à AUCUN état d'édition — quand une route enfant occupe
+ * l'écran, ce composant n'est qu'un passe-plat vers `<Outlet>`, et un parent
+ * qui se re-rend re-rend tout le canvas sous lui. Tout ce qui vit et respire
+ * (lecture disque, projects, modules) est descendu dans `ServerOverview`, qui
+ * n'existe que lorsque la vue d'ensemble est réellement affichée.
+ */
 export default function ServerDetailPage() {
-  const { t } = useTranslation();
   const { networkId, serverId } = useParams({
     from: "/networks/$networkId/servers/$serverId",
   });
@@ -33,13 +41,8 @@ export default function ServerDetailPage() {
   const authLoading = useAuthStore((s) => s.isLoading);
   const [serverDisplayLabel, setServerDisplayLabel] = useState<string | null>(null);
   const [serverKeyId, setServerKeyId] = useState<string | null>(null);
-  const [projects, setProjects] = useState<ProjectSummary[]>([]);
-  const [status, setStatus] = useState<"loading" | "ready" | "unavailable">("loading");
   const [accessDenied, setAccessDenied] = useState(false);
   const childMatches = useChildMatches();
-  const serverScreens = useServerScreensStore((s) => s.screens);
-  const localProjects = useAccountStore((s) => s.account.projects);
-  const mountedModuleIds = useModulesStore((s) => s.mountedIds);
 
   // Anonymous visitor → bounce to login, preserving the current URL (incl.
   // deep-linked child routes) so they land back here after signing in.
@@ -55,8 +58,15 @@ export default function ServerDetailPage() {
       .then((d) => {
         // serverId param is the server slug (old links may still pass the id).
         const sk = d.serverKeys.find((k) => k.slug === serverId || k.id === serverId);
-        setServerDisplayLabel(sk ? displayServerLabel(sk) : null);
-        setServerKeyId(sk?.id ?? null);
+        if (!sk) {
+          // Le network existe, ce serveur non : l'URL est périmée. On renvoie au
+          // network — l'alternative serait d'attendre indéfiniment une lecture
+          // disque qu'on ne peut adresser à personne.
+          navigate({ to: "/networks/$networkId", params: { networkId }, replace: true });
+          return;
+        }
+        setServerDisplayLabel(displayServerLabel(sk));
+        setServerKeyId(sk.id);
       })
       .catch((e: Error & { status?: number }) => {
         // A logged-in user without membership → offer to request access instead
@@ -68,6 +78,39 @@ export default function ServerDetailPage() {
         } else console.error(e);
       });
   }, [networkId, serverId, navigate]);
+
+  if (accessDenied) return <RequestAccessPanel networkIdOrSlug={networkId} />;
+  if (childMatches.length > 0) return <Outlet />;
+
+  return (
+    <ServerOverview
+      networkId={networkId}
+      serverId={serverId}
+      serverKeyId={serverKeyId}
+      label={serverDisplayLabel ?? serverId}
+    />
+  );
+}
+
+function ServerOverview({
+  networkId,
+  serverId,
+  serverKeyId,
+  label,
+}: {
+  networkId: string;
+  /** Forme URL (slug le plus souvent) — celle que portent les liens. */
+  serverId: string;
+  /** Id réel du server_key, `null` tant que le network n'a pas répondu. */
+  serverKeyId: string | null;
+  label: string;
+}) {
+  const { t } = useTranslation();
+  const [projects, setProjects] = useState<ProjectSummary[]>([]);
+  const [status, setStatus] = useState<"loading" | "ready" | "unavailable">("loading");
+  const serverScreens = useServerScreensStore((s) => s.screens);
+  const localProjects = useAccountStore((s) => s.account.projects);
+  const mountedModuleIds = useModulesStore((s) => s.mountedIds);
 
   /**
    * Les Projects se lisent sur le disque du serveur, comme dans la sidebar : le
@@ -89,16 +132,7 @@ export default function ServerDetailPage() {
         setStatus("unavailable");
         return;
       }
-      setProjects(
-        res.projectIds.map((id) => ({
-          id,
-          name: id,
-          slug: id,
-          hash: "",
-          networkId,
-          serverKeyId,
-        })),
-      );
+      setProjects(diskProjectsToSummaries(networkId, serverKeyId, res.projectIds));
       setStatus("ready");
     });
     return () => {
@@ -124,9 +158,6 @@ export default function ServerDetailPage() {
     localProjects,
   });
 
-  if (accessDenied) return <RequestAccessPanel networkIdOrSlug={networkId} />;
-  if (childMatches.length > 0) return <Outlet />;
-
   return (
     <div className="relative h-full overflow-auto">
       <div className="mx-auto flex max-w-4xl flex-col gap-8 px-8 py-12">
@@ -135,7 +166,7 @@ export default function ServerDetailPage() {
             className="display text-[32px] tracking-tight text-[var(--text)]"
             style={{ fontFamily: "var(--font-display)" }}
           >
-            {serverDisplayLabel ?? serverId}
+            {label}
           </h1>
         </header>
 
@@ -175,69 +206,71 @@ export default function ServerDetailPage() {
           )}
         </section>
 
-        <section className="flex flex-col gap-3">
-          <div className="flex items-center gap-3">
-            <h2 className="eyebrow">{t("sidebar.installedModules")}</h2>
-            <span className="h-px flex-1 bg-[var(--border-soft)]" />
-          </div>
-          {status !== "ready" ? null : moduleGroups.length === 0 ? (
-            <p className="text-[13px] text-[var(--text-mut)]">{t("sidebar.noModules")}</p>
-          ) : (
-            <ul className="flex flex-col gap-2">
-              {moduleGroups.map((g) => (
-                <li key={g.id} className="card flex flex-col gap-3 p-4">
-                  {/* TODO(P2): render the module's icon once modules ship real icons */}
-                  <span className="text-[14px] font-semibold text-[var(--text)]">{g.label}</span>
-                  <ul className="flex flex-wrap gap-1.5">
-                    {g.entries.map((e) => {
-                      if (e.kind === "project") {
+        {status === "ready" && (
+          <section className="flex flex-col gap-3">
+            <div className="flex items-center gap-3">
+              <h2 className="eyebrow">{t("sidebar.installedModules")}</h2>
+              <span className="h-px flex-1 bg-[var(--border-soft)]" />
+            </div>
+            {moduleGroups.length === 0 ? (
+              <p className="text-[13px] text-[var(--text-mut)]">{t("sidebar.noModules")}</p>
+            ) : (
+              <ul className="flex flex-col gap-2">
+                {moduleGroups.map((g) => (
+                  <li key={g.id} className="card flex flex-col gap-3 p-4">
+                    {/* TODO(P2): render the module's icon once modules ship real icons */}
+                    <span className="text-[14px] font-semibold text-[var(--text)]">{g.label}</span>
+                    <ul className="flex flex-wrap gap-1.5">
+                      {g.entries.map((e) => {
+                        if (e.kind === "project") {
+                          return (
+                            <li key={`p:${e.project.id}`}>
+                              <Link
+                                to="/networks/$networkId/servers/$serverId/projects/$projectId"
+                                params={{
+                                  networkId,
+                                  serverId,
+                                  projectId: e.project.slug || e.project.id,
+                                }}
+                                className="chip"
+                              >
+                                {e.label ?? t("screens.editorEntry")}
+                              </Link>
+                            </li>
+                          );
+                        }
+                        if (e.kind === "screen") {
+                          return (
+                            <li key={`s:${e.screen.id}`}>
+                              <Link
+                                to="/networks/$networkId/servers/$serverId/screens/$screenId"
+                                params={{ networkId, serverId, screenId: e.screen.id }}
+                                className="chip"
+                              >
+                                {e.screen.label}
+                              </Link>
+                            </li>
+                          );
+                        }
                         return (
-                          <li key={`p:${e.project.id}`}>
+                          <li key={`c:${e.moduleId}`}>
                             <Link
-                              to="/networks/$networkId/servers/$serverId/projects/$projectId"
-                              params={{
-                                networkId,
-                                serverId,
-                                projectId: e.project.slug || e.project.id,
-                              }}
+                              to="/m/$moduleId"
+                              params={{ moduleId: e.moduleId }}
                               className="chip"
                             >
-                              {e.label ?? t("screens.editorEntry")}
+                              {t("sidebar.configuration")}
                             </Link>
                           </li>
                         );
-                      }
-                      if (e.kind === "screen") {
-                        return (
-                          <li key={`s:${e.screen.id}`}>
-                            <Link
-                              to="/networks/$networkId/servers/$serverId/screens/$screenId"
-                              params={{ networkId, serverId, screenId: e.screen.id }}
-                              className="chip"
-                            >
-                              {e.screen.label}
-                            </Link>
-                          </li>
-                        );
-                      }
-                      return (
-                        <li key={`c:${e.moduleId}`}>
-                          <Link
-                            to="/m/$moduleId"
-                            params={{ moduleId: e.moduleId }}
-                            className="chip"
-                          >
-                            {t("sidebar.configuration")}
-                          </Link>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
+                      })}
+                    </ul>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        )}
       </div>
     </div>
   );

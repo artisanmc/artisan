@@ -133,7 +133,12 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
   async logout(apiUrl) {
     await apiLogout({ apiUrl });
-    set({ currentUser: null, sessionStatus: "signed-out", error: null });
+    set({
+      currentUser: null,
+      sessionStatus: "signed-out",
+      backendUnreachable: false,
+      error: null,
+    });
   },
 }));
 
