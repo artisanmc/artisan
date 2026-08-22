@@ -7,12 +7,10 @@ mock.module("../lib/resourcePack", () => ({
 import { clearFakeDisk, diskBinary, diskText, fakeHubModule } from "../test/fakeServerDisk";
 mock.module("../ws/hub", () => fakeHubModule());
 
-import { describe, expect, test, afterEach, beforeEach } from "bun:test";
+import { beforeEach, describe, expect, test } from "bun:test";
 import { Hono } from "hono";
 import { db } from "../db/index";
 import { assets, serverKeys, networks, projects } from "../db/schema";
-import { eq } from "drizzle-orm";
-import { writeFontAssets, deleteFontAssets } from "../lib/fontStorage";
 import { texturesRouter } from "./textures";
 
 // ─── Local app (avoids importing hub/bundles) ────────────────────────────────
@@ -114,43 +112,26 @@ describe("GET /api/v1/textures/asset/:projectId/:assetId", () => {
 });
 
 describe("GET /api/v1/textures/asset-font/:assetId/*", () => {
-  const createdAssetIds: Array<{ projectId: string; assetId: string }> = [];
-
-  afterEach(async () => {
-    for (const { projectId, assetId } of createdAssetIds) {
-      await deleteFontAssets(projectId, assetId);
-      await db.delete(assets).where(eq(assets.id, assetId));
+  /** Pose une police sur le disque : un dossier, son descripteur, ses PNG. */
+  function seedFontOnDisk(name: string, glyphs: Record<string, Uint8Array>) {
+    diskText.set(
+      `assets/fonts/${name}/font.yaml`,
+      [
+        `namespace: artisan:${name}`,
+        "glyphs:",
+        ...Object.keys(glyphs).flatMap((texture) => [
+          `  - char: a`,
+          `    texture: ${texture}`,
+          "    ascent: 8",
+          "    height: 8",
+          "    width: 8",
+        ]),
+        "",
+      ].join("\n"),
+    );
+    for (const [texture, bytes] of Object.entries(glyphs)) {
+      diskBinary.set(`assets/fonts/${name}/${texture}`, bytes);
     }
-    createdAssetIds.length = 0;
-  });
-
-  async function seedFontAsset(opts: {
-    glyphs: Map<string, Uint8Array>;
-    type?: string;
-  }): Promise<{ projectId: string; assetId: string }> {
-    const { projectId } = await seedSession();
-    const assetId = "asset_" + crypto.randomUUID().replace(/-/g, "").slice(0, 12);
-    const fontJson = new TextEncoder().encode('{"providers":[]}');
-    await writeFontAssets(projectId, assetId, fontJson, opts.glyphs);
-    const now = new Date();
-    await db.insert(assets).values({
-      id: assetId,
-      projectId: projectId,
-      type: opts.type ?? "font",
-      name: "font_" + assetId.slice(6, 12),
-      width: 8,
-      height: 8,
-      ascent: null,
-      codepoint: null,
-      fontMeta: opts.type === "font" || opts.type === undefined
-        ? { namespace: "artisan:font_test", glyphMap: [] }
-        : null,
-      contentHash: "0".repeat(40),
-      createdAt: now,
-      updatedAt: now,
-    });
-    createdAssetIds.push({ projectId, assetId });
-    return { projectId, assetId };
   }
 
   test("sert un glyphe de police depuis le dossier de la police, sur le disque", async () => {
@@ -178,43 +159,41 @@ describe("GET /api/v1/textures/asset-font/:assetId/*", () => {
     expect(bytes.length).toBe(PNG_1x1.length);
   });
 
-  test("404 when the asset id is not type=font", async () => {
-    // Seed a non-font asset (type=glyph) with a similarly named id; glyphs still
-    // get written to the font dir but the route should refuse to serve them.
-    const { assetId } = await seedFontAsset({
-      glyphs: new Map([["glyphs/a.png", PNG_1x1]]),
-      type: "glyph",
-    });
+  test("404 quand le nom désigne autre chose qu'une police", async () => {
+    const { projectId } = await seedSession();
+    diskText.set("assets/textures/pasunepolice.yaml", `width: 1
+height: 1
+`);
+    diskBinary.set("assets/textures/pasunepolice.png", PNG_1x1);
 
-    const res = await app.request(`/api/v1/textures/asset-font/${assetId}/glyphs/a.png`);
-    expect(res.status).toBe(404);
-  });
-
-  test("404 for an unknown asset id", async () => {
     const res = await app.request(
-      `/api/v1/textures/asset-font/asset_doesnotexist/glyphs/a.png`,
+      `/api/v1/textures/asset-font/${projectId}/pasunepolice/a.png`,
     );
     expect(res.status).toBe(404);
   });
 
-  test("404 (silent) on path traversal", async () => {
-    const { assetId } = await seedFontAsset({
-      glyphs: new Map([["glyphs/a.png", PNG_1x1]]),
-    });
+  test("404 pour une police inconnue", async () => {
+    const { projectId } = await seedSession();
+    const res = await app.request(`/api/v1/textures/asset-font/${projectId}/absente/a.png`);
+    expect(res.status).toBe(404);
+  });
+
+  test("404 (silencieux) sur une tentative de remontée de chemin", async () => {
+    const { projectId } = await seedSession();
+    seedFontOnDisk("mafonte", { "a.png": PNG_1x1 });
 
     const res = await app.request(
-      `/api/v1/textures/asset-font/${assetId}/../escape.png`,
+      `/api/v1/textures/asset-font/${projectId}/mafonte/../escape.png`,
     );
     expect(res.status).toBe(404);
   });
 
-  test("404 when the font exists but the inner path does not", async () => {
-    const { assetId } = await seedFontAsset({
-      glyphs: new Map([["glyphs/a.png", PNG_1x1]]),
-    });
+  test("404 quand la police existe mais pas le fichier demandé", async () => {
+    const { projectId } = await seedSession();
+    seedFontOnDisk("mafonte", { "a.png": PNG_1x1 });
 
     const res = await app.request(
-      `/api/v1/textures/asset-font/${assetId}/glyphs/missing.png`,
+      `/api/v1/textures/asset-font/${projectId}/mafonte/absent.png`,
     );
     expect(res.status).toBe(404);
   });

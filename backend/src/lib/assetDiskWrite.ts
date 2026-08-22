@@ -1,5 +1,6 @@
 import { parse, stringify } from "yaml";
 import { requestAssetWrite, requestProjectRead, requestProjectWrite } from "../ws/hub";
+import { CODEPOINT_MAX, CODEPOINT_MIN } from "./codepoints";
 import { diskAssetsFromTree, type DiskAsset } from "./diskAssets";
 
 /**
@@ -64,8 +65,8 @@ export function nextFreeCodepoint(existing: DiskAsset[]): number {
   const used = new Set(
     existing.map((a) => a.row.codepoint).filter((c): c is number => c !== null),
   );
-  for (let cp = 0xe000; cp <= 0xf8ff; cp++) if (!used.has(cp)) return cp;
-  throw new Error("no free codepoint left in the private use area");
+  for (let cp = CODEPOINT_MIN; cp <= CODEPOINT_MAX; cp++) if (!used.has(cp)) return cp;
+  throw new Error(`no free codepoint left in U+E000..U+F7FF`);
 }
 
 export interface DiskWriteResult {
