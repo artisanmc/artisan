@@ -8,6 +8,7 @@ import {
   deleteDiskAsset,
 } from "./assetDiskWrite";
 import type { DiskAsset } from "./diskAssets";
+import { CODEPOINT_MAX, CODEPOINT_MIN } from "./codepoints";
 
 /**
  * Écriture d'un asset sur le disque du serveur (ADR `assets-on-server-disk`, P5).
@@ -50,13 +51,29 @@ describe("assetDiskWrite", () => {
     expect(descriptorYaml({ ascent: null, codepoint: null })).toBe("{}\n");
   });
 
+  const used = (cp: number): DiskAsset => ({
+    path: `assets/glyphs/g${cp}.png`,
+    hash: "h",
+    row: { codepoint: cp } as DiskAsset["row"],
+  });
+
   test("le codepoint proposé est le premier libre", () => {
-    const used = (cp: number): DiskAsset => ({
-      path: `assets/glyphs/g${cp}.png`, hash: "h",
-      row: { codepoint: cp } as DiskAsset["row"],
-    });
     expect(nextFreeCodepoint([])).toBe(0xe000);
     expect(nextFreeCodepoint([used(0xe000), used(0xe001)])).toBe(0xe002);
+  });
+
+  /**
+   * U+F800..U+F8FF appartient aux providers `space` (cf. `spaceOffsets.ts`), et
+   * U+F900+ au bloc CJK Compatibility dont la police par défaut a des glyphes.
+   * L'allocateur SQL s'arrêtait à U+F7FF pour cette raison ; son successeur sur
+   * disque montait jusqu'à U+F8FF — il aurait fini par attribuer à un glyphe le
+   * codepoint d'une espace.
+   */
+  test("ne sort pas de la plage réservée aux glyphes", () => {
+    const all: DiskAsset[] = [];
+    for (let cp = CODEPOINT_MIN; cp <= CODEPOINT_MAX; cp++) all.push(used(cp));
+    expect(() => nextFreeCodepoint(all)).toThrow();
+    expect(nextFreeCodepoint(all.slice(0, -1))).toBe(CODEPOINT_MAX);
   });
 
   test("écrit les octets PUIS le descripteur", async () => {
