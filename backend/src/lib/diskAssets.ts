@@ -168,7 +168,11 @@ export async function readDiskAssetBytes(
     path: asset.path,
     hash: asset.hash,
   };
-  const cached = await getCachedAsset(key);
+  // Sans empreinte, pas de cache — et surtout pas d'appel au cache : sa clé
+  // refuse le vide et LÈVE. Les PNG d'une police arrivent précisément ainsi
+  // (le hash du descripteur ne les décrit pas), donc les servir plantait.
+  const cacheable = asset.hash !== "";
+  const cached = cacheable ? await getCachedAsset(key) : null;
   if (cached) return cached;
 
   const outcome = await requestAssetRead(serverKeyId, {
@@ -179,6 +183,8 @@ export async function readDiskAssetBytes(
   const bytes = new Uint8Array(Buffer.from(outcome.result.content_base64, "base64"));
   // On ne range que ce qui correspond à ce qu'on a demandé : si le disque a
   // bougé depuis l'arbre, la clé mentirait.
-  if ((outcome.result.hash ?? asset.hash) === asset.hash) await putCachedAsset(key, bytes);
+  if (cacheable && (outcome.result.hash ?? asset.hash) === asset.hash) {
+    await putCachedAsset(key, bytes);
+  }
   return bytes;
 }

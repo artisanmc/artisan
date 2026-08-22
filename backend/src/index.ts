@@ -1,7 +1,6 @@
 import { app, websocket } from "./app";
 import { seedBundledAssets } from "./lib/assetSeed";
 import { backfillSlugs } from "./lib/backfillSlugs";
-import { backfillContentWidths } from "./lib/contentWidthBackfill";
 import { seedAiCatalogFromLegacy } from "./modules/ai/seed";
 
 // Avant d'ouvrir le port : le volume peut être neuf (icônes 3D + items.json
@@ -24,9 +23,5 @@ export default {
 
 console.log(`Artisan backend on http://localhost:${port}`);
 
-// One-time migration: compute contentWidth for assets uploaded before the column existed.
-backfillContentWidths().catch((err) =>
-	console.error("[backfill] contentWidth failed:", err),
-);
 backfillSlugs().catch((err) => console.error("[backfill] slugs failed:", err));
 seedAiCatalogFromLegacy().catch((err) => console.error("[ai] legacy seed failed:", err));
