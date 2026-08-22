@@ -1,12 +1,8 @@
 import { and, eq, isNull } from "drizzle-orm";
-import { readFile } from "fs/promises";
 import { existsSync } from "fs";
-import { join } from "path";
 import { db } from "../db/index";
-import { assets, projects, serverKeys } from "../db/schema";
-import { assetPath } from "./assetStorage";
-import { fontDirPaths } from "./fontStorage";
-import { buildResourcePackZip, type AssetRow, type FontMeta } from "./resourcePackBuilder";
+import { projects, serverKeys } from "../db/schema";
+import { buildResourcePackZip, type AssetRow } from "./resourcePackBuilder";
 import { listDiskAssets, readDiskAssetBytes } from "./diskAssets";
 import {
   pruneOldResourcePacks,
@@ -44,11 +40,10 @@ export interface PackInfo {
  * Le pack, lui, reste construit et hébergé ici — c'est un artefact dérivé, servi
  * par URL au client Minecraft du joueur, il lui faut un hôte public.
  *
- * **Repli temporaire sur la table `assets`** tant qu'un Project n'a rien
- * descendu : la descente (P3) est une commande qu'on lance, pas un déploiement.
- * Entre la bascule et son passage, lire le disque seul viderait les packs de
- * leurs glyphes. Ce repli disparaît en P6 avec la table — il ne doit surtout pas
- * devenir une seconde source permanente.
+ * **Un Project illisible interrompt la reconstruction** (P6) plutôt que de
+ * publier un pack amputé de tous ses glyphes : le pack part chez les joueurs, et
+ * des carrés à la place des lettres se voient plus qu'un pack en retard d'une
+ * écriture. Le pack précédent tient donc, et la prochaine écriture rejouera.
  */
 export async function rebuildResourcePack(serverKeyId: string): Promise<PackInfo> {
   // Stable order: oldest project first → its codepoints win in case of collisions.
@@ -66,70 +61,49 @@ export async function rebuildResourcePack(serverKeyId: string): Promise<PackInfo
     const diskId = p.externalId ?? p.id;
     const fromDisk = await listDiskAssets(serverKeyId, diskId, p.id);
 
-    if (fromDisk && fromDisk.length > 0) {
-      contribs.push({
-        projectId: p.id,
-        glyphs: fromDisk
-          .filter((a) => a.row.type === "glyph" && a.row.codepoint !== null)
-          .map((a) => ({ assetId: a.row.id, codepoint: a.row.codepoint! })),
-      });
-      for (const a of fromDisk) {
-        allAssets.push(a.row);
-        if (a.row.type === "glyph" && a.row.codepoint !== null) {
-          const bytes = await readDiskAssetBytes(serverKeyId, diskId, a);
-          // Un glyphe dont on ne peut pas lire les octets est SAUTÉ, pas fatal :
-          // un pack amputé d'une image vaut mieux qu'un serveur sans pack.
-          if (bytes) glyphPngs.set(a.row.id, bytes);
-          continue;
-        }
-        if (a.row.type !== "font") continue;
-        // Une police est DÉPLIÉE sur le disque : ses glyphes sont des fichiers
-        // frères du descripteur, adressés relativement à son dossier.
-        const meta = a.row.fontMeta as { glyphMap?: { texture: string }[] } | null;
-        const dir = a.path.slice(0, a.path.lastIndexOf("/"));
-        const fontMap = new Map<string, Uint8Array>();
-        for (const g of meta?.glyphMap ?? []) {
-          const bytes = await readDiskAssetBytes(serverKeyId, diskId, {
-            ...a,
-            path: `${dir}/${g.texture}`,
-            // Le hash du descripteur ne décrit pas ce PNG : sans empreinte
-            // propre, on ne cache pas — mieux vaut relire que ranger un octet
-            // sous une clé qui ment.
-            hash: "",
-          });
-          if (bytes) fontMap.set(g.texture, bytes);
-        }
-        if (fontMap.size > 0) fontGlyphPngs.set(a.row.id, fontMap);
-      }
+    if (!fromDisk) {
+      // Disque muet : on ne sait pas ce que ce Project contient. Publier
+      // maintenant, c'est publier son absence.
+      const current = await currentPackInfo(serverKeyId);
+      if (current) return current;
+      // Aucun pack encore publié : il n'y a rien à préserver, on continue avec
+      // ce qu'on a pu lire.
       continue;
     }
 
-    // ── Repli (à supprimer en P6 avec la table `assets`) ───────────────────
-    const rows = await db.select().from(assets).where(eq(assets.projectId, p.id));
     contribs.push({
       projectId: p.id,
-      glyphs: rows
-        .filter((a) => a.type === "glyph" && a.codepoint !== null)
-        .map((a) => ({ assetId: a.id, codepoint: a.codepoint! })),
+      glyphs: fromDisk
+        .filter((a) => a.row.type === "glyph" && a.row.codepoint !== null)
+        .map((a) => ({ assetId: a.row.id, codepoint: a.row.codepoint! })),
     });
-    allAssets.push(...rows);
-    for (const a of rows) {
-      if (a.type === "glyph" && a.codepoint !== null) {
-        const path = assetPath(a.projectId, a.id);
-        if (existsSync(path)) glyphPngs.set(a.id, new Uint8Array(await readFile(path)));
+    for (const a of fromDisk) {
+      allAssets.push(a.row);
+      if (a.row.type === "glyph" && a.row.codepoint !== null) {
+        const bytes = await readDiskAssetBytes(serverKeyId, diskId, a);
+        // Un glyphe dont on ne peut pas lire les octets est SAUTÉ, pas fatal :
+        // un pack amputé d'une image vaut mieux qu'un serveur sans pack.
+        if (bytes) glyphPngs.set(a.row.id, bytes);
+        continue;
       }
-      if (a.type === "font" && a.fontMeta) {
-        const meta = a.fontMeta as FontMeta | null;
-        const glyphMap = meta && Array.isArray(meta.glyphMap) ? meta.glyphMap : [];
-        const fontMap = new Map<string, Uint8Array>();
-        const { dir } = fontDirPaths(a.projectId, a.id);
-        for (const g of glyphMap) {
-          const filePath = join(dir, g.texture);
-          if (!existsSync(filePath)) continue;
-          fontMap.set(g.texture, new Uint8Array(await readFile(filePath)));
-        }
-        fontGlyphPngs.set(a.id, fontMap);
+      if (a.row.type !== "font") continue;
+      // Une police est DÉPLIÉE sur le disque : ses glyphes sont des fichiers
+      // frères du descripteur, adressés relativement à son dossier.
+      const meta = a.row.fontMeta as { glyphMap?: { texture: string }[] } | null;
+      const dir = a.path.slice(0, a.path.lastIndexOf("/"));
+      const fontMap = new Map<string, Uint8Array>();
+      for (const g of meta?.glyphMap ?? []) {
+        const bytes = await readDiskAssetBytes(serverKeyId, diskId, {
+          ...a,
+          path: `${dir}/${g.texture}`,
+          // Le hash du descripteur ne décrit pas ce PNG : sans empreinte
+          // propre, on ne cache pas — mieux vaut relire que ranger un octet
+          // sous une clé qui ment.
+          hash: "",
+        });
+        if (bytes) fontMap.set(g.texture, bytes);
       }
+      if (fontMap.size > 0) fontGlyphPngs.set(a.row.id, fontMap);
     }
   }
 

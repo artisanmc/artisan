@@ -4,12 +4,8 @@ mock.module("../lib/resourcePack", () => ({
   rebuildResourcePack: async () => ({ url: "stub://rp", hash: "stubbedHash" }),
   currentPackInfo: async () => null,
 }));
-mock.module("../ws/hub", () => ({
-  pushResourcePackUpdated: () => {},
-  handlePluginMessage: () => {},
-  connSenders: new Map(),
-  connToServerId: new Map(),
-}));
+import { clearFakeDisk, diskBinary, diskText, fakeHubModule } from "../test/fakeServerDisk";
+mock.module("../ws/hub", () => fakeHubModule());
 
 import { describe, expect, test, afterEach, beforeEach } from "bun:test";
 import { Hono } from "hono";
@@ -27,6 +23,7 @@ app.route("/api/v1/textures", texturesRouter);
 // ─── Cleanup ─────────────────────────────────────────────────────────────────
 
 beforeEach(async () => {
+  clearFakeDisk();
   await db.delete(assets);
   await db.delete(projects);
   await db.delete(serverKeys);
@@ -79,34 +76,30 @@ async function seedSession(): Promise<{ projectId: string }> {
 }
 
 describe("GET /api/v1/textures/asset/:projectId/:assetId", () => {
-  test("serves the PNG by id", async () => {
+  test("sert le PNG lu sur le disque du serveur", async () => {
     const { projectId } = await seedSession();
-    // Directly insert an asset to avoid going through POST
-    const assetId = "asset_" + crypto.randomUUID().replace(/-/g, "").slice(0, 12);
-    const now = new Date();
-    await db.insert(assets).values({
-      id: assetId,
-      projectId: projectId,
-      type: "texture",
-      name: "tex_serve",
-      width: 1,
-      height: 1,
-      ascent: null,
-      codepoint: null,
-      fontMeta: null,
-      contentHash: "0".repeat(40),
-      createdAt: now,
-      updatedAt: now,
-    });
-    // Write the PNG to disk
-    const { writeAssetFile } = await import("../lib/assetStorage");
-    await writeAssetFile(projectId, assetId, PNG_1x1);
+    diskText.set("assets/textures/tex_serve.yaml", `width: 1\nheight: 1\n`);
+    diskBinary.set("assets/textures/tex_serve.png", PNG_1x1);
 
-    const res = await app.request(`/api/v1/textures/asset/${projectId}/${assetId}`);
+    const res = await app.request(`/api/v1/textures/asset/${projectId}/tex_serve`);
     expect(res.status).toBe(200);
     expect(res.headers.get("Content-Type")).toBe("image/png");
     const bytes = new Uint8Array(await res.arrayBuffer());
     expect(bytes.length).toBe(PNG_1x1.length);
+  });
+
+  /** P6 : le volume backend ne sert plus d'aperçu. Une copie que plus personne
+   *  ne met à jour finirait par montrer autre chose que ce qui est en jeu. */
+  test("404 pour un asset que seule la table connaît", async () => {
+    const { projectId } = await seedSession();
+    const now = new Date();
+    await db.insert(assets).values({
+      id: "asset_orpheline", projectId, type: "texture", name: "orpheline",
+      width: 1, height: 1, ascent: null, codepoint: null, fontMeta: null,
+      contentHash: "0".repeat(40), createdAt: now, updatedAt: now,
+    });
+    const res = await app.request(`/api/v1/textures/asset/${projectId}/asset_orpheline`);
+    expect(res.status).toBe(404);
   });
 
   test("404 for unknown id", async () => {
@@ -160,17 +153,27 @@ describe("GET /api/v1/textures/asset-font/:assetId/*", () => {
     return { projectId, assetId };
   }
 
-  test("serves a font glyph PNG by asset id + relative path", async () => {
-    const { assetId } = await seedFontAsset({
-      glyphs: new Map([["glyphs/a.png", PNG_1x1]]),
-    });
+  test("sert un glyphe de police depuis le dossier de la police, sur le disque", async () => {
+    const { projectId } = await seedSession();
+    diskText.set(
+      "assets/fonts/mafonte/font.yaml",
+      [
+        "namespace: artisan:mafonte",
+        "glyphs:",
+        "  - char: a",
+        "    texture: a.png",
+        "    ascent: 8",
+        "    height: 8",
+        "    width: 8",
+        "",
+      ].join("\n"),
+    );
+    diskBinary.set("assets/fonts/mafonte/a.png", PNG_1x1);
 
-    const res = await app.request(`/api/v1/textures/asset-font/${assetId}/glyphs/a.png`);
+    const res = await app.request(`/api/v1/textures/asset-font/${projectId}/mafonte/a.png`);
     expect(res.status).toBe(200);
     expect(res.headers.get("Content-Type")).toBe("image/png");
-    expect(res.headers.get("Cache-Control")).toBe(
-      "public, max-age=31536000, immutable",
-    );
+    expect(res.headers.get("Cache-Control")).toBe("public, max-age=31536000, immutable");
     const bytes = new Uint8Array(await res.arrayBuffer());
     expect(bytes.length).toBe(PNG_1x1.length);
   });

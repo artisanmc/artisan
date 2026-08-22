@@ -74,12 +74,7 @@ export interface DiskWriteResult {
   path?: string;
 }
 
-/** L'état du disque, tel que le serveur l'a lu. `null` = serveur muet. */
-export async function readDiskAssets(
-  serverKeyId: string,
-  diskProjectId: string,
-  anchorProjectId: string,
-): Promise<{
+export interface DiskAssetsTree {
   assets: DiskAsset[];
   files: { path: string; content: string }[];
   /**
@@ -88,12 +83,34 @@ export async function readDiskAssets(
    * mais ce sont bien des fichiers, et les supprimer demande leur empreinte.
    */
   binaries: { path: string; hash: string; size: number }[];
-} | null> {
+}
+
+/**
+ * L'état du disque, tel que le serveur l'a lu.
+ *
+ * L'échec est **qualifié**, et ça n'est pas cosmétique : tant que la table
+ * servait de repli, « le serveur n'a pas répondu » et « le Project n'a pas cet
+ * asset » pouvaient se confondre sans dommage. Le disque devenu seule source
+ * (P6), les confondre ferait lire un serveur éteint comme une bibliothèque
+ * vide — et un geste de suppression porterait sur ce vide.
+ */
+export type DiskAssetsRead =
+  | ({ ok: true } & DiskAssetsTree)
+  | { ok: false; error: "server_offline" | "read_error" };
+
+export async function readDiskAssets(
+  serverKeyId: string,
+  diskProjectId: string,
+  anchorProjectId: string,
+): Promise<DiskAssetsRead> {
   const read = await requestProjectRead(serverKeyId, { projectId: diskProjectId });
-  if (read.kind !== "result" || !read.result.ok) return null;
+  // Muet ou trop lent : dans les deux cas on ne sait pas, et on le dit.
+  if (read.kind !== "result") return { ok: false, error: "server_offline" };
+  if (!read.result.ok) return { ok: false, error: "read_error" };
   const files = read.result.files ?? [];
   const binaries = read.result.binaries ?? [];
   return {
+    ok: true,
     assets: diskAssetsFromTree(anchorProjectId, files, binaries),
     files,
     binaries,
