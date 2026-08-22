@@ -67,17 +67,49 @@ Livrable : le pack se construit depuis la vérité.
 
 Livrable : le flux complet, sans backend propriétaire.
 
-## P6 — Suppression (BLOQUÉE tant que la descente n'a pas tourné en prod)
+## P6 — Suppression
 
-Prérequis opérationnel : `POST /api/v1/admin/assets/descend`, rejoué jusqu'à ce
-qu'aucun serveur ne soit plus « sauté ». Supprimer la table avant, c'est perdre
-les assets des serveurs qui n'étaient pas là.
+Découpée en quatre, parce que seule la dernière étape est irréversible et qu'il
+n'y a aucune raison de la faire attendre les trois autres.
 
+### P6a — le disque devient la seule source ✅ (2026-08-22)
 
-- Table `assets`, `codepointAllocator`, `assetStorage`, routes d'upload backend.
-- Migration Drizzle (destructive, forward-only).
-- La FK `assets.project_id → projects.id` disparaît : plus rien de substantiel ne
-  pend à l'ancre, ce qui ouvre le débat « faut-il encore une table `projects` ? ».
+Tous les replis sur la table retirés : liste, lecture, édition, duplication,
+suppression, aperçu PNG, glyphe de police, construction du resource pack.
+
+Ce que la table masquait et qu'il a fallu traiter : **un échec de lecture doit
+être qualifié**. `readDiskAssets` rend `server_offline` / `read_error`, et
+`diskLookup` y ajoute `not_found` — sans quoi un serveur éteint se lirait comme
+une bibliothèque vide, et un geste de suppression porterait sur ce vide. Le pack
+ne se reconstruit plus quand un Project est illisible : le précédent tient.
+
+Deux bugs trouvés au passage : servir un glyphe de police depuis le disque
+levait (cache refusant l'empreinte vide, celle de ces PNG), et le bras « table »
+de la création était inatteignable depuis P5.
+
+### P6b — supprimer les magasins backend ✅ (2026-08-22)
+
+`codepointAllocator` et `fontStorage` supprimés ; leurs bornes de codepoints
+déménagent dans `lib/codepoints.ts` (elles décrivent Minecraft, pas un
+stockage). Défaut corrigé : `nextFreeCodepoint` sortait de la plage réservée.
+
+### P6c — la migration (BLOQUÉE : preuve à fournir)
+
+Prérequis : **aucun asset à perdre**. Soit `select count(*) from assets;` = 0 en
+prod, soit un `POST /api/v1/admin/assets/descend` dont le rapport ne montre aucun
+`skipped` avec `assetCount > 0`. La descente reste en place jusque-là — c'est
+l'outil ET la preuve.
+
+- Table `assets`, `assetStorage`, `assetDescent`, route `/admin/assets/descend`.
+- Migration Drizzle (destructive, forward-only). Attention : le backend applique
+  les migrations au boot, donc committer P6c c'est la déclencher au déploiement.
+
+### P6d — question ouverte, à instruire séparément
+
+La FK `assets.project_id → projects.id` disparue, plus rien de substantiel ne
+pend à l'ancre : « faut-il encore une table `projects` ? » Elle ancre encore le
+billing, les conversations et le cache d'assets — à vérifier avant d'en faire un
+chantier.
 
 ## Risques identifiés
 
