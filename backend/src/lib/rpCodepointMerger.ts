@@ -1,4 +1,4 @@
-import { CODEPOINT_MIN, CODEPOINT_MAX } from "./codepointAllocator";
+import { CODEPOINT_MAX, CODEPOINT_MIN } from "./codepoints";
 
 export interface GlyphContribution {
   projectId: string;

@@ -18,7 +18,6 @@ import { eq } from "drizzle-orm";
 import { strToU8, zipSync } from "fflate";
 import { db } from "../db/index";
 import { assets, linkCodes, memberships, networks, projects, serverKeys, userSessions, users } from "../db/schema";
-import { readFontGlyph, fontDirPaths } from "../lib/fontStorage";
 import { existsSync } from "fs";
 import { userAssetsRouter } from "./userAssets";
 import { userAuth } from "../middleware/userAuth";
