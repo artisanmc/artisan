@@ -6,7 +6,7 @@
 import { and, eq } from "drizzle-orm";
 import { createHash } from "crypto";
 import { db } from "../db/index";
-import { assets, projects } from "../db/schema";
+import { projects } from "../db/schema";
 import { parseMcFontsZip, type ParsedMcFont } from "./mcFontsParser";
 import { readPngDimensions, readPngContentWidth } from "./pngDimensions";
 import { rebuildResourcePack } from "./resourcePack";
@@ -25,6 +25,7 @@ import {
 import { fontFilesFor, fontFromDisk } from "./fontOnDisk";
 import { requestAssetWrite, requestProjectWrite } from "../ws/hub";
 import { type DiskAsset, readDiskAssetBytes } from "./diskAssets";
+import type { AssetRow } from "./resourcePackBuilder";
 import { pushResourcePackUpdated } from "../ws/hub";
 
 const NAME_RE = /^[a-z0-9_-]+$/;
@@ -480,7 +481,7 @@ export async function handleAssetDelete(c: any, ctx: AssetCtx) {
 
 }
 
-function serialize(row: typeof assets.$inferSelect) {
+function serialize(row: AssetRow) {
   return {
     id: row.id,
     projectId: row.projectId,

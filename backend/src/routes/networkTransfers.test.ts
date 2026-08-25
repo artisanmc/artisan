@@ -2,14 +2,10 @@
 import { beforeEach, describe, it, expect } from "bun:test";
 import { app } from "../app";
 import { db } from "../db/index";
-import {
-  users, userSessions, networks, memberships, networkTransfers,
-  serverKeys, linkCodes, projects, assets,
-} from "../db/schema";
+import {users, userSessions, networks, memberships, networkTransfers, serverKeys, linkCodes, projects} from "../db/schema";
 import { and, eq } from "drizzle-orm";
 
 async function clearAll() {
-  await db.delete(assets);
   await db.delete(projects);
   await db.delete(linkCodes);
   await db.delete(serverKeys);

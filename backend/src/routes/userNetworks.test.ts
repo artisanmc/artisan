@@ -2,11 +2,7 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { Hono } from "hono";
 import { db } from "../db/index";
-import {
-  memberships, networks, projects, serverKeys, serverKeyHelloes,
-  linkCodes, assets, users, userSessions,
-  serverModules, serverDataSources, networkInvites, networkAccessRequests,
-} from "../db/schema";
+import {memberships, networks, projects, serverKeys, serverKeyHelloes, linkCodes, users, userSessions, serverModules, serverDataSources, networkInvites, networkAccessRequests} from "../db/schema";
 import { userNetworksRouter } from "./userNetworks";
 import { userAuth } from "../middleware/userAuth";
 import { createSession } from "../lib/sessionManager";
@@ -16,7 +12,6 @@ import { __setMailerForTests, type MailMessage } from "../lib/mail/mailer";
 import { registerConn, connToServerId, connSenders, handlePluginMessage } from "../ws/hub";
 
 async function clearAll() {
-  await db.delete(assets);
   await db.delete(projects);
   await db.delete(linkCodes);
   await db.delete(serverKeyHelloes);

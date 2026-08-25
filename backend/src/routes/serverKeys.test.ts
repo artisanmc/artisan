@@ -1,13 +1,9 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { app } from "../app";
 import { db } from "../db/index";
-import {
-  linkCodes, serverKeys, networks,
-  projects, assets,
-} from "../db/schema";
+import {linkCodes, serverKeys, networks, projects} from "../db/schema";
 
 async function clearAll() {
-  await db.delete(assets);
   await db.delete(projects);
   await db.delete(linkCodes);
   await db.delete(serverKeys);

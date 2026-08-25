@@ -23,16 +23,7 @@ import type {
 } from "../protocol";
 import { and, eq } from "drizzle-orm";
 import { db } from "../db/index";
-import {
-  serverKeys,
-  serverKeyHelloes,
-  serverModules,
-  serverDataSources,
-  projects,
-  networks,
-  linkCodes,
-  assets,
-} from "../db/schema";
+import {serverKeys, serverKeyHelloes, serverModules, serverDataSources, projects, networks, linkCodes} from "../db/schema";
 import { generateServerKey } from "../lib/auth";
 import { rebuildResourcePack } from "../lib/resourcePack";
 import { createNetwork } from "../lib/networkManager";
@@ -40,7 +31,6 @@ import { createProject, ensureProjectForServer, softDeleteProject } from "../lib
 import { getProject } from "../lib/projectStorage";
 
 async function clearAll() {
-  await db.delete(assets);
   await db.delete(projects);
   await db.delete(linkCodes);
   await db.delete(serverKeyHelloes);

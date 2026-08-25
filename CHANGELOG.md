@@ -9,6 +9,22 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Removed — la table `assets` et les magasins d'assets du backend
+
+- Le disque du serveur est **la seule source** d'assets : liste, lecture, édition, duplication,
+  suppression, aperçu PNG, glyphe de police et construction du resource pack ne lisent plus que lui
+  (ADR `assets-on-server-disk`, P6). Table `assets`, `assetStorage`, `fontStorage`,
+  `codepointAllocator`, `assetDescent` et `POST /api/v1/admin/assets/descend` supprimés.
+- Un échec de lecture disque est désormais **qualifié** (`server_offline` / `read_error` /
+  `not_found`) : un serveur muet répond 503, il ne se lit plus comme une bibliothèque vide. Le
+  resource pack ne se reconstruit pas quand un Project est illisible — le pack précédent tient
+  plutôt que d'en publier un amputé de ses glyphes.
+- Deux correctifs au passage : servir un glyphe de police depuis le disque levait (cache refusant
+  l'empreinte vide, celle de ces PNG), et l'allocateur de codepoints sur disque sortait de la plage
+  réservée (U+F800+ appartient aux providers `space`).
+- La migration `0031` **ne supprime la table que si elle est vide** ; sinon elle la conserve et
+  journalise un WARNING. Elle n'échoue jamais : l'entrypoint du conteneur boucle sur `db:migrate`.
+
 ### Changed — un Element porte un display à plat et des `states` (BREAKING sur `menu/v1`)
 
 - `appearances:` disparaît. Le cas nominal — un Element, une apparence — s'écrit **sans emballage** :

@@ -17,7 +17,7 @@ import { Hono } from "hono";
 import { eq } from "drizzle-orm";
 import { strToU8, zipSync } from "fflate";
 import { db } from "../db/index";
-import { assets, linkCodes, memberships, networks, projects, serverKeys, userSessions, users } from "../db/schema";
+import {linkCodes, memberships, networks, projects, serverKeys, userSessions, users} from "../db/schema";
 import { existsSync } from "fs";
 import { userAssetsRouter } from "./userAssets";
 import { userAuth } from "../middleware/userAuth";
@@ -37,7 +37,6 @@ app.route("/api/v1/user/projects", userAssetsRouter);
 
 beforeEach(async () => {
   clearFakeDisk();
-  await db.delete(assets);
   await db.delete(projects);
   await db.delete(linkCodes);
   await db.delete(memberships);
