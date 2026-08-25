@@ -359,37 +359,6 @@ export const projects = pgTable(
 	],
 );
 
-export const assets = pgTable(
-	"assets",
-	{
-		id: text("id").primaryKey(),
-		projectId: text("project_id")
-			.notNull()
-			.references(() => projects.id, { onDelete: "cascade" }),
-		type: text("type").notNull(), // "texture" | "glyph" | "font"
-		name: text("name").notNull(),
-		width: integer("width").notNull(),
-		height: integer("height").notNull(),
-		ascent: integer("ascent"),
-		codepoint: integer("codepoint"),
-		contentWidth: integer("content_width"),
-		fontMeta: jsonb("font_meta"),
-		contentHash: text("content_hash").notNull(),
-		createdAt: timestamp("created_at").notNull(),
-		updatedAt: timestamp("updated_at").notNull(),
-	},
-	(t) => [
-		uniqueIndex("assets_project_name_type_uniq").on(t.projectId, t.type, t.name),
-		uniqueIndex("assets_project_codepoint_uniq")
-			.on(t.projectId, t.codepoint)
-			.where(sql`codepoint IS NOT NULL`),
-		index("assets_project_type_idx").on(t.projectId, t.type),
-	],
-);
-
-// Generic platform-wide key/value store for super-admin settings (e.g. the AI
-// assistant provider config). Values are JSON-stringified; secrets within are
-// encrypted via secretBox before being stored.
 export const appSettings = pgTable("app_settings", {
 	key: text("key").primaryKey(),
 	value: text("value").notNull(), // JSON stringifié

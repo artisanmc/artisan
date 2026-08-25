@@ -218,6 +218,13 @@
       "when": 1786612702583,
       "tag": "0030_dusty_giant_man",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1787651056608,
+      "tag": "0031_dizzy_shatterstar",
+      "breakpoints": true
     }
   ]
 }

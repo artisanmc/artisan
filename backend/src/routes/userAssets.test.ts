@@ -13,10 +13,7 @@ mock.module("../ws/hub", () => fakeHubModule());
 import { beforeEach, describe, expect, test } from "bun:test";
 import { Hono } from "hono";
 import { db } from "../db/index";
-import {
-  assets, linkCodes, memberships, networks, projects,
-  serverKeys, userSessions, users,
-} from "../db/schema";
+import {linkCodes, memberships, networks, projects, serverKeys, userSessions, users} from "../db/schema";
 import { userAssetsRouter } from "./userAssets";
 import { userAuth } from "../middleware/userAuth";
 import { createSession } from "../lib/sessionManager";
@@ -38,7 +35,6 @@ function makeApp() {
 
 async function clearAll() {
   clearFakeDisk();
-  await db.delete(assets);
   await db.delete(projects);
   await db.delete(linkCodes);
   await db.delete(serverKeys);
