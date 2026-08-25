@@ -3,14 +3,7 @@ import { eq } from "drizzle-orm";
 import { existsSync } from "fs";
 import { rm } from "fs/promises";
 import { db } from "../db/index";
-import {
-  assets,
-  serverKeys,
-  projects,
-  networks,
-  linkCodes,
-} from "../db/schema";
-import { assetRoot } from "./assetStorage";
+import {serverKeys, projects, networks, linkCodes} from "../db/schema";
 import { createHash } from "crypto";
 import { resourcePackRoot, resourcePackPath } from "./resourcePackStorage";
 import { rebuildResourcePack, currentPackInfo } from "./resourcePack";
@@ -121,7 +114,6 @@ let stopServing: () => void = () => {};
 
 beforeEach(async () => {
   // FK-safe cleanup
-  await db.delete(assets);
   await db.delete(projects);
   await db.delete(linkCodes);
   await db.delete(serverKeys);
@@ -134,7 +126,6 @@ beforeEach(async () => {
 afterEach(async () => {
   stopServing();
   await rm(join(resourcePackRoot(), serverKeyId), { recursive: true, force: true });
-  await rm(join(assetRoot(), projectId), { recursive: true, force: true });
 });
 
 describe("rebuildResourcePack", () => {

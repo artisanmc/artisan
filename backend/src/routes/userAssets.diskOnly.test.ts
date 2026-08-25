@@ -25,7 +25,6 @@ import { beforeEach, describe, expect, test } from "bun:test";
 import { Hono } from "hono";
 import { db } from "../db/index";
 import {
-	assets,
 	linkCodes,
 	memberships,
 	networks,
@@ -51,7 +50,6 @@ function makeApp() {
 
 async function clearAll() {
 	clearFakeDisk();
-	await db.delete(assets);
 	await db.delete(projects);
 	await db.delete(linkCodes);
 	await db.delete(serverKeys);
@@ -87,25 +85,6 @@ async function seed() {
 	return { sessionId: session.id, projectId: project.id };
 }
 
-/** Une ligne d'asset en base — l'ancien monde, celui qui ne doit plus répondre. */
-async function seedTableRow(projectId: string, name = "orpheline") {
-	await db.insert(assets).values({
-		id: "asset_orpheline",
-		projectId,
-		type: "texture",
-		name,
-		width: 1,
-		height: 1,
-		ascent: null,
-		codepoint: null,
-		contentWidth: null,
-		fontMeta: null,
-		contentHash: "deadbeef",
-		createdAt: new Date(),
-		updatedAt: new Date(),
-	});
-}
-
 describe("assets : le disque est la seule source (P6a)", () => {
 	beforeEach(async () => {
 		server.online = true;
@@ -124,7 +103,6 @@ describe("assets : le disque est la seule source (P6a)", () => {
 
 	test("un disque joignable et vide rend une liste vide, même si la table a gardé des lignes", async () => {
 		const { sessionId, projectId } = await seed();
-		await seedTableRow(projectId);
 		const res = await makeApp().request(`/api/v1/user/projects/${projectId}/assets`, {
 			headers: { Cookie: `artisan_user_session=${sessionId}` },
 		});
@@ -134,9 +112,8 @@ describe("assets : le disque est la seule source (P6a)", () => {
 
 	test("lire un asset que seule la table connaît est un 404, pas une résurrection", async () => {
 		const { sessionId, projectId } = await seed();
-		await seedTableRow(projectId);
 		const res = await makeApp().request(
-			`/api/v1/user/projects/${projectId}/assets/asset_orpheline`,
+			`/api/v1/user/projects/${projectId}/assets/absente`,
 			{ headers: { Cookie: `artisan_user_session=${sessionId}` } },
 		);
 		expect(res.status).toBe(404);
@@ -144,22 +121,19 @@ describe("assets : le disque est la seule source (P6a)", () => {
 
 	test("supprimer pendant que le serveur est muet ne supprime rien du tout", async () => {
 		const { sessionId, projectId } = await seed();
-		await seedTableRow(projectId);
 		server.online = false;
 		const res = await makeApp().request(
-			`/api/v1/user/projects/${projectId}/assets/asset_orpheline`,
+			`/api/v1/user/projects/${projectId}/assets/absente`,
 			{ method: "DELETE", headers: { Cookie: `artisan_user_session=${sessionId}` } },
 		);
 		expect(res.status).toBe(503);
-		expect((await db.select().from(assets)).length).toBe(1);
 	});
 
 	test("éditer pendant que le serveur est muet répond hors ligne", async () => {
 		const { sessionId, projectId } = await seed();
-		await seedTableRow(projectId);
 		server.online = false;
 		const res = await makeApp().request(
-			`/api/v1/user/projects/${projectId}/assets/asset_orpheline`,
+			`/api/v1/user/projects/${projectId}/assets/absente`,
 			{
 				method: "PATCH",
 				headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
@@ -171,10 +145,9 @@ describe("assets : le disque est la seule source (P6a)", () => {
 
 	test("dupliquer pendant que le serveur est muet répond hors ligne", async () => {
 		const { sessionId, projectId } = await seed();
-		await seedTableRow(projectId);
 		server.online = false;
 		const res = await makeApp().request(
-			`/api/v1/user/projects/${projectId}/assets/asset_orpheline/duplicate`,
+			`/api/v1/user/projects/${projectId}/assets/absente/duplicate`,
 			{ method: "POST", headers: { Cookie: `artisan_user_session=${sessionId}` } },
 		);
 		expect(res.status).toBe(503);

@@ -2,10 +2,7 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { Hono } from "hono";
 import { db } from "../db/index";
-import {
-  memberships, networks, projects, serverKeys,
-  linkCodes, assets, users, userSessions,
-} from "../db/schema";
+import {memberships, networks, projects, serverKeys, linkCodes, users, userSessions} from "../db/schema";
 import { userProjectsRouter } from "./userProjects";
 import { userAuth } from "../middleware/userAuth";
 import { createSession } from "../lib/sessionManager";
@@ -16,7 +13,6 @@ import { generateServerKey } from "../lib/auth";
 import { registerEditorConn } from "../ws/hub";
 
 async function clearAll() {
-  await db.delete(assets);
   await db.delete(projects);
   await db.delete(linkCodes);
   await db.delete(serverKeys);

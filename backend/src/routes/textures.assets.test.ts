@@ -10,7 +10,7 @@ mock.module("../ws/hub", () => fakeHubModule());
 import { beforeEach, describe, expect, test } from "bun:test";
 import { Hono } from "hono";
 import { db } from "../db/index";
-import { assets, serverKeys, networks, projects } from "../db/schema";
+import {serverKeys, networks, projects} from "../db/schema";
 import { texturesRouter } from "./textures";
 
 // ─── Local app (avoids importing hub/bundles) ────────────────────────────────
@@ -22,7 +22,6 @@ app.route("/api/v1/textures", texturesRouter);
 
 beforeEach(async () => {
   clearFakeDisk();
-  await db.delete(assets);
   await db.delete(projects);
   await db.delete(serverKeys);
   await db.delete(networks);
@@ -86,20 +85,6 @@ describe("GET /api/v1/textures/asset/:projectId/:assetId", () => {
     expect(bytes.length).toBe(PNG_1x1.length);
   });
 
-  /** P6 : le volume backend ne sert plus d'aperçu. Une copie que plus personne
-   *  ne met à jour finirait par montrer autre chose que ce qui est en jeu. */
-  test("404 pour un asset que seule la table connaît", async () => {
-    const { projectId } = await seedSession();
-    const now = new Date();
-    await db.insert(assets).values({
-      id: "asset_orpheline", projectId, type: "texture", name: "orpheline",
-      width: 1, height: 1, ascent: null, codepoint: null, fontMeta: null,
-      contentHash: "0".repeat(40), createdAt: now, updatedAt: now,
-    });
-    const res = await app.request(`/api/v1/textures/asset/${projectId}/asset_orpheline`);
-    expect(res.status).toBe(404);
-  });
-
   test("404 for unknown id", async () => {
     const res = await app.request(`/api/v1/textures/asset/pack_no/asset_no`);
     expect(res.status).toBe(404);
@@ -161,9 +146,7 @@ describe("GET /api/v1/textures/asset-font/:assetId/*", () => {
 
   test("404 quand le nom désigne autre chose qu'une police", async () => {
     const { projectId } = await seedSession();
-    diskText.set("assets/textures/pasunepolice.yaml", `width: 1
-height: 1
-`);
+    diskText.set("assets/textures/pasunepolice.yaml", `width: 1\nheight: 1\n`);
     diskBinary.set("assets/textures/pasunepolice.png", PNG_1x1);
 
     const res = await app.request(

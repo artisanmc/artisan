@@ -93,16 +93,21 @@ de la création était inatteignable depuis P5.
 déménagent dans `lib/codepoints.ts` (elles décrivent Minecraft, pas un
 stockage). Défaut corrigé : `nextFreeCodepoint` sortait de la plage réservée.
 
-### P6c — la migration (BLOQUÉE : preuve à fournir)
+### P6c — la migration ✅ (2026-08-25)
 
-Prérequis : **aucun asset à perdre**. Soit `select count(*) from assets;` = 0 en
-prod, soit un `POST /api/v1/admin/assets/descend` dont le rapport ne montre aucun
-`skipped` avec `assetCount > 0`. La descente reste en place jusque-là — c'est
-l'outil ET la preuve.
+Le prérequis n'est plus une promesse tenue à la main : **il est dans la
+migration**. `0031` compte les lignes, ne supprime que si le compte est nul, et
+sinon conserve la table en journalisant un WARNING. Les deux branches sont
+vérifiées contre un vrai Postgres.
 
-- Table `assets`, `assetStorage`, `assetDescent`, route `/admin/assets/descend`.
-- Migration Drizzle (destructive, forward-only). Attention : le backend applique
-  les migrations au boot, donc committer P6c c'est la déclencher au déploiement.
+Elle **n'échoue jamais**, et c'est structurel : l'entrypoint du conteneur boucle
+(`until bun run db:migrate; do sleep 3; done`), donc une migration qui lève
+empêcherait le backend de démarrer indéfiniment. Perdre la suppression est
+rattrapable ; perdre la prod ne l'est pas.
+
+Supprimés avec la table : `assetStorage`, `assetDescent`, la route
+`/admin/assets/descend`, et `AssetRow` cesse d'être `typeof assets.$inferSelect`
+— la forme décrit un asset, plus une ligne.
 
 ### P6d — question ouverte, à instruire séparément
 

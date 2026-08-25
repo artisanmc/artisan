@@ -286,8 +286,8 @@ Non-examples:
   resources the Documents reference. They are still **files of the Project**
   (`lang/`, `assets/`): a glyph or a background is authored content, not a build
   artifact, so it lives on the server's disk with everything else (ADR
-  `assets-on-server-disk`, decided 2026-08-17, not yet implemented — today they
-  still sit on a backend volume).
+  `assets-on-server-disk`). The backend keeps no copy: no `assets` table, no
+  volume — only a throwaway cache keyed by content hash.
 
 ## Element
 
