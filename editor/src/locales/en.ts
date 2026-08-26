@@ -818,6 +818,7 @@ export default {
     },
   },
   project: {
+    loading: "Reading the server's files…",
     offlineTitle: "Server offline",
     offlineBody:
       "This project's content lives on its server's disk. While the server is unreachable there is nothing to show — and certainly not a stale copy.",

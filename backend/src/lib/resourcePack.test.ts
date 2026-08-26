@@ -5,6 +5,7 @@ import { rm } from "fs/promises";
 import { db } from "../db/index";
 import {serverKeys, projects, networks, linkCodes} from "../db/schema";
 import { createHash } from "crypto";
+import { forgetAllProjectTrees } from "./projectTreeReads";
 import { resourcePackRoot, resourcePackPath } from "./resourcePackStorage";
 import { rebuildResourcePack, currentPackInfo } from "./resourcePack";
 import { createNetwork } from "./networkManager";
@@ -104,6 +105,9 @@ function seedGlyph(diskProjectId: string, name: string, codepoint: number): stri
     ),
   );
   tree.set(`assets/glyphs/${name}.png`, PNG_1x1);
+  // Le disque vient de changer sans passer par nos écritures : ce qu'on avait
+  // mémorisé de son arbre ne vaut plus rien.
+  forgetAllProjectTrees();
   return name;
 }
 

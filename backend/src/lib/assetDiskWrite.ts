@@ -1,5 +1,6 @@
 import { parse, stringify } from "yaml";
-import { requestAssetWrite, requestProjectRead, requestProjectWrite } from "../ws/hub";
+import { requestAssetWrite, requestProjectWrite } from "../ws/hub";
+import { forgetProjectTree, readProjectTree } from "./projectTreeReads";
 import { CODEPOINT_MAX, CODEPOINT_MIN } from "./codepoints";
 import { diskAssetsFromTree, type DiskAsset } from "./diskAssets";
 
@@ -104,7 +105,7 @@ export async function readDiskAssets(
   diskProjectId: string,
   anchorProjectId: string,
 ): Promise<DiskAssetsRead> {
-  const read = await requestProjectRead(serverKeyId, { projectId: diskProjectId });
+  const read = await readProjectTree(serverKeyId, diskProjectId);
   // Muet ou trop lent : dans les deux cas on ne sait pas, et on le dit.
   if (read.kind !== "result") return { ok: false, error: "server_offline" };
   if (!read.result.ok) return { ok: false, error: "read_error" };
@@ -132,6 +133,8 @@ export async function writeDiskAsset(
     descriptorBaseHash: string | null;
   },
 ): Promise<DiskWriteResult> {
+  // Notre propre écriture : l'arbre qu'on connaît est déjà faux.
+  forgetProjectTree(serverKeyId, diskProjectId);
   const path = assetDiskPath(input.type, input.name);
   const write = await requestAssetWrite(serverKeyId, {
     projectId: diskProjectId,
@@ -167,6 +170,8 @@ export async function deleteDiskAsset(
   diskProjectId: string,
   input: { type: string; name: string; baseHash: string; descriptorBaseHash: string | null },
 ): Promise<DiskWriteResult> {
+  // Notre propre écriture : l'arbre qu'on connaît est déjà faux.
+  forgetProjectTree(serverKeyId, diskProjectId);
   const path = assetDiskPath(input.type, input.name);
   const write = await requestAssetWrite(serverKeyId, {
     projectId: diskProjectId,
@@ -220,6 +225,8 @@ export async function deleteDiskFont(
     descriptorBaseHash: string | null;
   },
 ): Promise<DiskWriteResult> {
+  // Notre propre écriture : l'arbre qu'on connaît est déjà faux.
+  forgetProjectTree(serverKeyId, diskProjectId);
   const paths = Object.keys(input.glyphs);
   if (paths.length > 0) {
     const write = await requestAssetWrite(serverKeyId, {

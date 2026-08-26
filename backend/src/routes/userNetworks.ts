@@ -4,6 +4,7 @@ import { and, desc, eq, inArray, isNull, ne, or } from "drizzle-orm";
 import type { Context } from "hono";
 import { Hono } from "hono";
 import { db } from "../db/index";
+import { forgetProjectTree } from "../lib/projectTreeReads";
 import {
 	memberships,
 	networkAccessRequests,
@@ -1067,6 +1068,9 @@ userNetworksRouter.put(
 			return c.json({ error: "invalid_input" }, 422);
 		}
 
+		// Les fichiers du Project changent : ce qu'on savait de son arbre est
+		// périmé (les aperçus d'assets s'en servent).
+		forgetProjectTree(resolved.serverKeyId, projectId);
 		const outcome = await requestProjectWrite(resolved.serverKeyId, {
 			projectId,
 			files: files as { path: string; content: string; base_hash: string | null }[],
