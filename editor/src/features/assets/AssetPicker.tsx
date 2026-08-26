@@ -43,27 +43,30 @@ export function AssetPicker({ open, onClose, typeFilter, onPick, title }: AssetP
 
   // Label only references a single type when one was explicitly requested,
   // otherwise we say "image" — matches the simplified upload UX.
-  const typeLabel =
-    typeFilter && !Array.isArray(typeFilter) ? typeFilter : "image";
+  const typeLabel = typeFilter && !Array.isArray(typeFilter) ? typeFilter : "image";
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) onClose();
+      }}
+    >
       <DialogContent className="flex max-h-[80vh] flex-col gap-3 border-[var(--border-soft)] bg-[var(--surface)] p-3 text-[var(--text)]">
         <DialogHeader>
           <DialogTitle className="text-sm">{title ?? `Pick a ${typeLabel}`}</DialogTitle>
         </DialogHeader>
-        <Input
-          placeholder="Search..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
+        <Input placeholder="Search..." value={search} onChange={(e) => setSearch(e.target.value)} />
         <div className="grid min-h-0 grid-cols-6 gap-1.5 overflow-y-auto pb-2">
           {matches.map((asset) => (
             <button
               key={asset.id}
               type="button"
               title={asset.name}
-              onClick={() => { onPick(asset); onClose(); }}
+              onClick={() => {
+                onPick(asset);
+                onClose();
+              }}
               className={cx(
                 "group relative flex aspect-square cursor-pointer items-center justify-center",
                 "rounded-[8px] border border-[var(--border-soft)] bg-[var(--surface-raised)] hover:border-[var(--brand)] hover:bg-[var(--brand-soft)]",
@@ -75,6 +78,8 @@ export function AssetPicker({ open, onClose, typeFilter, onPick, title }: AssetP
                 draggable={false}
                 className="h-3/4 w-3/4 object-contain"
                 style={{ imageRendering: "pixelated" }}
+                loading="lazy"
+                decoding="async"
               />
             </button>
           ))}

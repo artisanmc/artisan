@@ -1,10 +1,11 @@
-import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const navigate = vi.fn();
 
 vi.mock("@tanstack/react-router", async () => {
-  const actual = await vi.importActual<typeof import("@tanstack/react-router")>("@tanstack/react-router");
+  const actual =
+    await vi.importActual<typeof import("@tanstack/react-router")>("@tanstack/react-router");
   return {
     ...actual,
     useParams: () => ({ networkId: "net_1", serverId: "sk_1", projectId: "p1" }),
@@ -34,8 +35,13 @@ vi.mock("@/state/accountStore", () => ({
       setAppearanceField: vi.fn(),
     }),
 }));
+const loaderState = vi.hoisted(() => ({ loaded: true }));
 vi.mock("@/features/project/useProjectLoader", () => ({
-  useProjectLoader: () => ({
+  useProjectLoader: () =>
+    loaderState.loaded ? loadedProject() : { failed: [], project: null, networkId: "net_1" },
+}));
+function loadedProject() {
+  return {
     // `failed` : Documents que le serveur n'a pas pu charger (ADR
     // server-disk-only-storage ③). Aucun ici.
     failed: [],
@@ -50,9 +56,11 @@ vi.mock("@/features/project/useProjectLoader", () => ({
       assets: [],
     },
     networkId: "net_1",
-  }),
+  };
+}
+vi.mock("@/lib/api/userProjects", () => ({
+  getNetworkOfProject: vi.fn().mockResolvedValue("net_1"),
 }));
-vi.mock("@/lib/api/userProjects", () => ({ getNetworkOfProject: vi.fn().mockResolvedValue("net_1") }));
 vi.mock("@/components/ProjectTopBarControls", () => ({
   ProjectTopBarControls: () => <div data-testid="topbar" />,
 }));
@@ -76,8 +84,24 @@ vi.mock("@/lib/useMediaQuery", () => ({ useIsDesktop: () => true }));
 import { ServerProjectPage } from "./networks.$networkId.servers.$serverId.projects.$projectId";
 
 describe("ServerProjectPage", () => {
+  beforeEach(() => {
+    loaderState.loaded = true;
+  });
+
   it("renders the top bar for the loaded project", () => {
     render(<ServerProjectPage />);
     expect(screen.getByTestId("topbar")).toBeInTheDocument();
+  });
+
+  /**
+   * Le contenu d'un Project se lit sur le disque de SON serveur : ça prend le
+   * temps que ça prend. Ne rien rendre pendant ce temps (`return null`) donnait
+   * une page blanche de plusieurs secondes, qu'on prend pour une panne.
+   */
+  it("annonce la lecture au lieu de laisser une page blanche", () => {
+    loaderState.loaded = false;
+    render(<ServerProjectPage />);
+    expect(screen.getByText("project.loading")).toBeInTheDocument();
+    expect(screen.queryByTestId("topbar")).not.toBeInTheDocument();
   });
 });

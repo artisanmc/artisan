@@ -8,9 +8,9 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { Spinner } from "@/components/ui/spinner";
 import { WorkspaceView } from "@/components/ui/workspace-view";
 import type { ElementId, MenuId, ProjectId } from "@/domain/types";
-import { pickProjectZipForImport, runImportZip } from "@/features/export/runImportZip";
 import { AssistantBody } from "@/features/assistant/AssistantBody";
 import { EditorPane } from "@/features/canvas/EditorPane";
 import { FloatingEditorPane } from "@/features/canvas/FloatingEditorPane";
@@ -26,6 +26,7 @@ import { tryStageDrop, tryStageSlotHit } from "@/features/canvas/stageDropTarget
 import { getTextureUrl } from "@/features/canvas/textureStore";
 import { DataSourcesPanelContent } from "@/features/data/DataSourcesPanel";
 import { runExportZip } from "@/features/export/runExportZip";
+import { pickProjectZipForImport, runImportZip } from "@/features/export/runImportZip";
 import { STATE_DROP_PREFIX } from "@/features/flow/FlowCanvas";
 import { PatternsGallery } from "@/features/help/PatternsGallery";
 import { ProjectPanel } from "@/features/project/ProjectPanel";
@@ -72,8 +73,7 @@ export const Route = createFileRoute("/networks/$networkId/servers/$serverId/pro
   component: ProjectCanvasPage,
   validateSearch: (search: Record<string, unknown>): ProjectSearch => {
     const t = search.tab;
-    if (t === "translations" || t === "data-sources" || t === "assistant")
-      return { tab: t };
+    if (t === "translations" || t === "data-sources" || t === "assistant") return { tab: t };
     return { tab: "overview" };
   },
 });
@@ -85,8 +85,13 @@ export function ProjectCanvasPage() {
   // L'URL peut porter le slug du project : le serveur, déjà dans l'URL, en est
   // la portée (un slug n'est unique que par serveur). La réponse donne l'id
   // réel, seul utilisé en aval — store, sélections, sauvegardes.
-  const { project: userProject, offline, error: loadError, failed, fromDraft } =
-    useProjectLoader(projectId, serverId);
+  const {
+    project: userProject,
+    offline,
+    error: loadError,
+    failed,
+    fromDraft,
+  } = useProjectLoader(projectId, serverId);
   const project = userProject;
   const pId = (project?.id ?? projectId) as ProjectId;
   const currentUser = useAuthStore((s) => s.currentUser);
@@ -208,8 +213,18 @@ export function ProjectCanvasPage() {
       </div>
     );
   }
-  // Still loading the project via the user-mode loader — render nothing while fetch is in flight.
-  if (!project) return null;
+  // La lecture est en vol. Elle passe par le backend PUIS par le plugin, jusqu'au
+  // disque du serveur : ça prend le temps que ça prend, et parfois plusieurs
+  // secondes. Ne rien rendre (l'ancien `return null`) donnait une page blanche
+  // qu'on prend pour une panne — on dit ce qu'on attend, et d'où.
+  if (!project) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center">
+        <Spinner className="size-5 text-[var(--text-faint)]" />
+        <p className="text-[13px] text-[var(--text-mut)]">{t("project.loading")}</p>
+      </div>
+    );
+  }
 
   const onDragStart = (e: DragStartEvent) => {
     const id = String(e.active.id);
@@ -427,7 +442,6 @@ export function ProjectCanvasPage() {
         </div>
       )}
 
-
       {/* The secondary views (translations / data sources / history / assistant)
           replace the canvas in the center region via WorkspaceView (?tab=) — no
           modal, no docked pane. The content area keeps the concave top-left
@@ -450,7 +464,6 @@ export function ProjectCanvasPage() {
         <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">{mainContent}</div>
 
         <PatternsGallery open={patternsOpen} onOpenChange={setPatternsOpen} />
-
       </div>
 
       <LibraryDragOverlay />

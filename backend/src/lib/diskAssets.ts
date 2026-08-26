@@ -2,7 +2,8 @@ import { createHash } from "crypto";
 import { parse } from "yaml";
 import { FONT_DESCRIPTOR, FONT_DIR, fontFromDisk } from "./fontOnDisk";
 import { getCachedAsset, putCachedAsset } from "./assetCache";
-import { requestAssetRead, requestProjectRead } from "../ws/hub";
+import { requestAssetRead } from "../ws/hub";
+import { readProjectTree } from "./projectTreeReads";
 import type { AssetRow } from "./resourcePackBuilder";
 
 /**
@@ -143,7 +144,7 @@ export async function listDiskAssets(
   diskProjectId: string,
   anchorProjectId: string,
 ): Promise<DiskAsset[] | null> {
-  const read = await requestProjectRead(serverKeyId, { projectId: diskProjectId });
+  const read = await readProjectTree(serverKeyId, diskProjectId);
   if (read.kind !== "result" || !read.result.ok) return null;
   return diskAssetsFromTree(
     anchorProjectId,

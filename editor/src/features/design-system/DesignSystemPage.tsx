@@ -33,6 +33,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { Spinner } from "@/components/ui/spinner";
 import { StatCard } from "@/components/ui/stat-card";
 import { TBody, TD, TH, THead, TR, Table } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -325,6 +326,18 @@ export function DesignSystemPage() {
                 </Badge>
               ))}
             </div>
+          </div>
+          <div className="flex flex-col gap-2">
+            <span className="mono text-[11px] text-[var(--text-faint)]">{"<Spinner>"}</span>
+            <div className="flex items-center gap-2">
+              <Spinner />
+              <span className="text-[13px] text-[var(--text-mut)]">
+                Lecture des fichiers du serveur…
+              </span>
+            </div>
+            <p className="text-[11.5px] text-[var(--text-faint)]">
+              Toujours accompagné de ce qu'on attend : un rond qui tourne seul n'informe de rien.
+            </p>
           </div>
           <div className="flex flex-col gap-2">
             <span className="mono text-[11px] text-[var(--text-faint)]">
