@@ -33,7 +33,7 @@ export function AssetDetailPanel({ projectId }: { projectId: ProjectId }) {
       const patch: { name?: string; ascent?: number } = {};
       if (name !== asset.name) patch.name = name;
       if (asset.type === "glyph" && ascent !== String(asset.ascent ?? "")) {
-        const n = parseInt(ascent, 10);
+        const n = Number.parseInt(ascent, 10);
         if (!Number.isFinite(n)) {
           setError("Invalid ascent");
           return;
@@ -66,25 +66,40 @@ export function AssetDetailPanel({ projectId }: { projectId: ProjectId }) {
         alt={asset.name}
         className="h-24 w-24 self-center object-contain"
         style={{ imageRendering: "pixelated" }}
+        decoding="async"
       />
-      <label className="text-xs">Name
+      <label className="text-xs">
+        Name
         <Input value={name} onChange={(e) => setName(e.target.value)} />
       </label>
       <div className="text-xs text-[var(--text-mut)]">
-        Type: <span className="font-mono">{asset.type}</span><br />
-        Dimensions: <span className="font-mono">{asset.width}×{asset.height}</span>
+        Type: <span className="font-mono">{asset.type}</span>
+        <br />
+        Dimensions:{" "}
+        <span className="font-mono">
+          {asset.width}×{asset.height}
+        </span>
         {asset.codepoint !== null && (
-          <><br />Codepoint: <span className="font-mono">U+{asset.codepoint.toString(16).toUpperCase().padStart(4, "0")}</span></>
+          <>
+            <br />
+            Codepoint:{" "}
+            <span className="font-mono">
+              U+{asset.codepoint.toString(16).toUpperCase().padStart(4, "0")}
+            </span>
+          </>
         )}
       </div>
       {asset.type === "glyph" && (
-        <label className="text-xs">Ascent
+        <label className="text-xs">
+          Ascent
           <Input type="number" value={ascent} onChange={(e) => setAscent(e.target.value)} />
         </label>
       )}
       {error && <div className="text-xs text-[var(--danger)]">{error}</div>}
       <div className="flex justify-between">
-        <Button variant="destructive" onClick={onDelete}>Delete</Button>
+        <Button variant="destructive" onClick={onDelete}>
+          Delete
+        </Button>
         <Button onClick={onSave}>Save</Button>
       </div>
     </div>

@@ -1,4 +1,5 @@
 import { createHash } from "crypto";
+import { forgetAllProjectTrees } from "../lib/projectTreeReads";
 
 /**
  * Un disque de serveur simulé, pour les tests qui conduisent les routes d'assets
@@ -16,6 +17,9 @@ export const diskBinary = new Map<string, Uint8Array>();
 export function clearFakeDisk(): void {
   diskText.clear();
   diskBinary.clear();
+  // Ce disque-ci change sans passer par nos écritures relayées : ce qu'on avait
+  // mémorisé de son arbre ne veut plus rien dire.
+  forgetAllProjectTrees();
 }
 
 export function hashOf(content: Uint8Array | string): string {

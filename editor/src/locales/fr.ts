@@ -834,6 +834,7 @@ const fr: typeof en = {
     },
   },
   project: {
+    loading: "Lecture des fichiers du serveur…",
     offlineTitle: "Serveur hors ligne",
     offlineBody:
       "Le contenu de ce project vit sur le disque de son serveur. Tant que le serveur ne répond pas, il n'y a rien à afficher — et surtout pas une copie périmée.",

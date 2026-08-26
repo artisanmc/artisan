@@ -11,6 +11,7 @@ import { parseMcFontsZip, type ParsedMcFont } from "./mcFontsParser";
 import { readPngDimensions, readPngContentWidth } from "./pngDimensions";
 import { rebuildResourcePack } from "./resourcePack";
 import { projectDiskId } from "./projectStorage";
+import { forgetProjectTree } from "./projectTreeReads";
 import {
   assetDiskPath,
   assetFileName,
@@ -136,6 +137,9 @@ export async function handleAssetCreate(c: any, ctx: AssetCtx) {
       return c.json({ error: "write_error" }, 502);
     }
 
+    // La police vient d'être posée : l'arbre qu'on connaît est déjà faux, et
+    // c'est CE geste-ci que l'admin s'attend à voir apparaître.
+    forgetProjectTree(serverKeyId, diskId);
     const packInfo = await rebuildResourcePack(serverKeyId);
     pushResourcePackUpdated(serverKeyId, packInfo.url, packInfo.hash);
     const now = new Date();
