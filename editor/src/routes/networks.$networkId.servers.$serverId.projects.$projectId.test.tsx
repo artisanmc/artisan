@@ -102,6 +102,9 @@ describe("ServerProjectPage", () => {
     loaderState.loaded = false;
     render(<ServerProjectPage />);
     expect(screen.getByText("project.loading")).toBeInTheDocument();
+    // Un squelette à la forme de l'écran, pas un rond dans le vide : la mise en
+    // page ne doit pas sauter quand les données arrivent.
+    expect(screen.getByTestId("project-skeleton")).toBeInTheDocument();
     expect(screen.queryByTestId("topbar")).not.toBeInTheDocument();
   });
 });

@@ -7,11 +7,17 @@ import { AiModelForm } from "./AiModelForm";
 const createMock = vi.fn(async () => ({ ok: true, data: {} }) as { ok: true; data: unknown });
 const updateMock = vi.fn(async () => ({ ok: true, data: {} }) as { ok: true; data: unknown });
 const listProvidersMock = vi.fn(async () => null as Record<string, unknown> | null);
+const getAiSettingsMock = vi.fn(async () => ({
+  creditUsdMicroRate: 10_000,
+  maxCreditsPerTurn: null,
+  pricingMarginPct: 100,
+}));
 
 vi.mock("@/lib/api/adminModels", () => ({
   createModel: (input: unknown) => createMock(input),
   updateModel: (id: string, patch: unknown) => updateMock(id, patch),
   listProviders: () => listProvidersMock(),
+  getAiSettings: () => getAiSettingsMock(),
 }));
 
 const toastErrorMock = vi.fn();
@@ -80,6 +86,33 @@ describe("AiModelForm", () => {
     const patch = updateMock.mock.calls[0][1] as Record<string, unknown>;
     expect(patch.realUsdPerMInput).toBe(3_000_000);
     expect(patch.displayName).toBe("Sonnet 5");
+  });
+
+  it("prefills the credit prices from the real price and the configured margin", async () => {
+    listProvidersMock.mockResolvedValue(null);
+    render(<AiModelForm open onClose={vi.fn()} model={null} onSaved={vi.fn()} />);
+    const creditsIn = screen.getByLabelText(/cr[ée]dits.*(input|entr[ée]e)/i);
+    await waitFor(() => expect(getAiSettingsMock).toHaveBeenCalled());
+
+    await userEvent.type(screen.getByLabelText(/\$.*(input|entr[ée]e)/i), "3");
+
+    // $3 → ×2 margin → $6 → 600 credits at $0.01/credit
+    await waitFor(() => expect(creditsIn).toHaveValue(600));
+  });
+
+  it("stops overwriting a credit price the admin edited, until recomputed", async () => {
+    listProvidersMock.mockResolvedValue(null);
+    render(<AiModelForm open onClose={vi.fn()} model={null} onSaved={vi.fn()} />);
+    const creditsIn = screen.getByLabelText(/cr[ée]dits.*(input|entr[ée]e)/i);
+    await waitFor(() => expect(getAiSettingsMock).toHaveBeenCalled());
+
+    await userEvent.clear(creditsIn);
+    await userEvent.type(creditsIn, "42");
+    await userEvent.type(screen.getByLabelText(/\$.*(input|entr[ée]e)/i), "3");
+    expect(creditsIn).toHaveValue(42);
+
+    await userEvent.click(screen.getByRole("button", { name: /recompute|recalculer/i }));
+    await waitFor(() => expect(creditsIn).toHaveValue(600));
   });
 
   it("shows a toast when the provider key is missing", async () => {

@@ -33,6 +33,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { StatCard } from "@/components/ui/stat-card";
 import { TBody, TD, TH, THead, TR, Table } from "@/components/ui/table";
@@ -326,6 +327,17 @@ export function DesignSystemPage() {
                 </Badge>
               ))}
             </div>
+          </div>
+          <div className="flex flex-col gap-2">
+            <span className="mono text-[11px] text-[var(--text-faint)]">{"<Skeleton>"}</span>
+            <div className="flex max-w-sm flex-col gap-2">
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-20 w-full" />
+            </div>
+            <p className="text-[11.5px] text-[var(--text-faint)]">
+              À la forme de ce qui va s'afficher : la mise en page ne saute pas quand les données
+              arrivent. Pour une attente courte et localisée, préférer {"<Spinner>"}.
+            </p>
           </div>
           <div className="flex flex-col gap-2">
             <span className="mono text-[11px] text-[var(--text-faint)]">{"<Spinner>"}</span>

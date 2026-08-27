@@ -8,9 +8,11 @@ import {
   type AiModelInput,
   type ProviderDto,
   createModel,
+  getAiSettings,
   listProviders,
   updateModel,
 } from "@/lib/api/adminModels";
+import { suggestCreditsPerM } from "./creditPricing";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -48,6 +50,29 @@ export function AiModelForm({
   const [active, setActive] = useState(model?.isActive ?? true);
   const [providers, setProviders] = useState<Record<string, ProviderDto> | null>(null);
   const [busy, setBusy] = useState(false);
+  // Credit prices follow the real price until the admin edits them by hand.
+  const [creditsPinned, setCreditsPinned] = useState(false);
+  const [rate, setRate] = useState<{ creditUsdMicroRate: number; pricingMarginPct: number } | null>(
+    null,
+  );
+
+  const suggest = (usd: string) =>
+    rate ? suggestCreditsPerM(dollarsToMicro(usd), rate.creditUsdMicroRate, rate.pricingMarginPct) : null;
+
+  function applySuggestion(nextUsdIn: string, nextUsdOut: string) {
+    const si = suggest(nextUsdIn);
+    const so = suggest(nextUsdOut);
+    if (si != null) setCreditsIn(String(si));
+    if (so != null) setCreditsOut(String(so));
+  }
+
+  useEffect(() => {
+    getAiSettings()
+      .then((s) => s && setRate(s))
+      .catch((e: unknown) => {
+        console.warn("[admin-ai] settings fetch failed:", e);
+      });
+  }, []);
 
   useEffect(() => {
     listProviders()
@@ -147,11 +172,24 @@ export function AiModelForm({
               <Input value={providerModelId} onChange={(e) => setProviderModelId(e.target.value)} />
             </FormField>
 
-            <FormField label={t("admin.ai.models.form.creditsPerMInput")}>
+            <FormField
+              label={t("admin.ai.models.form.creditsPerMInput")}
+              hint={
+                rate
+                  ? t("admin.ai.models.form.creditsHint", {
+                      rate: rate.creditUsdMicroRate / 1_000_000,
+                      margin: rate.pricingMarginPct,
+                    })
+                  : undefined
+              }
+            >
               <Input
                 type="number"
                 value={creditsIn}
-                onChange={(e) => setCreditsIn(e.target.value)}
+                onChange={(e) => {
+                  setCreditsPinned(true);
+                  setCreditsIn(e.target.value);
+                }}
               />
             </FormField>
 
@@ -159,9 +197,27 @@ export function AiModelForm({
               <Input
                 type="number"
                 value={creditsOut}
-                onChange={(e) => setCreditsOut(e.target.value)}
+                onChange={(e) => {
+                  setCreditsPinned(true);
+                  setCreditsOut(e.target.value);
+                }}
               />
             </FormField>
+
+            {creditsPinned && rate ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="self-start"
+                onClick={() => {
+                  setCreditsPinned(false);
+                  applySuggestion(usdIn, usdOut);
+                }}
+              >
+                {t("admin.ai.models.form.recomputeCredits")}
+              </Button>
+            ) : null}
 
             <FormField
               label={t("admin.ai.models.form.realUsdInput")}
@@ -171,7 +227,10 @@ export function AiModelForm({
                 type="number"
                 step="0.01"
                 value={usdIn}
-                onChange={(e) => setUsdIn(e.target.value)}
+                onChange={(e) => {
+                  setUsdIn(e.target.value);
+                  if (!creditsPinned) applySuggestion(e.target.value, usdOut);
+                }}
               />
             </FormField>
 
@@ -180,7 +239,10 @@ export function AiModelForm({
                 type="number"
                 step="0.01"
                 value={usdOut}
-                onChange={(e) => setUsdOut(e.target.value)}
+                onChange={(e) => {
+                  setUsdOut(e.target.value);
+                  if (!creditsPinned) applySuggestion(usdIn, e.target.value);
+                }}
               />
             </FormField>
 
