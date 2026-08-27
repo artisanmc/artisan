@@ -30,13 +30,13 @@ class ConfigChannelTest {
         }
         /** Attend LA RÉPONSE : les annonces de rechargement voyagent sur le
          *  même fil et peuvent arriver avant elle. */
-        fun await() {
+        fun await(replies: Int = 1) {
             val deadline = System.currentTimeMillis() + 5000
             while (System.currentTimeMillis() < deadline) {
-                if (sink.any { it["type"] != "projects_reloaded" }) return
+                if (sink.count { it["type"] != "projects_reloaded" } >= replies) return
                 Thread.sleep(10)
             }
-            throw AssertionError("no reply within 5s")
+            throw AssertionError("attendait $replies réponse(s), reçu ${sink.size} message(s)")
         }
         /** La réponse attendue, en ignorant les annonces de rechargement qui
          *  voyagent sur le même fil. */
@@ -109,7 +109,7 @@ class ConfigChannelTest {
     fun `config_read guards traversal, artisan namespace and unknown project`() {
         val h = Harness()
         h.project("boutique")
-        h.latch = CountDownLatch(3)
+        // Trois requêtes, trois réponses : attendre la première ne suffit pas.
         h.provider.handleMessageForTesting(
             """{"type":"config_read","request_id":"g1","project_id":"boutique","table":"../outside"}"""
         )
@@ -119,8 +119,8 @@ class ConfigChannelTest {
         h.provider.handleMessageForTesting(
             """{"type":"config_read","request_id":"g3","project_id":"ghost","table":"data/x"}"""
         )
-        h.await()
-        val byId = h.sink.associateBy { it["request_id"] }
+        h.await(replies = 3)
+        val byId = h.sink.filter { it["type"] != "projects_reloaded" }.associateBy { it["request_id"] }
         assertEquals("invalid_path", byId["g1"]!!["error"])
         assertEquals("invalid_path", byId["g2"]!!["error"])
         assertEquals("unknown_project", byId["g3"]!!["error"])

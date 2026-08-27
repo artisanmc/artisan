@@ -37,13 +37,13 @@ class ProjectReadChannelTest {
         }
         /** Attend LA RÉPONSE : les annonces de rechargement voyagent sur le
          *  même fil et peuvent arriver avant elle. */
-        fun await() {
+        fun await(replies: Int = 1) {
             val deadline = System.currentTimeMillis() + 5000
             while (System.currentTimeMillis() < deadline) {
-                if (sink.any { it["type"] != "projects_reloaded" }) return
+                if (sink.count { it["type"] != "projects_reloaded" } >= replies) return
                 Thread.sleep(10)
             }
-            throw AssertionError("no reply within 5s")
+            throw AssertionError("attendait $replies réponse(s), reçu ${sink.size} message(s)")
         }
         /** La réponse attendue, en ignorant les annonces de rechargement qui
          *  voyagent sur le même fil. */
