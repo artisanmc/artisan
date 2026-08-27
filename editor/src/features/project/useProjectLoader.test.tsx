@@ -31,8 +31,9 @@ describe("useProjectLoader", () => {
 
     await waitFor(() => expect(result.current.project).not.toBeNull());
     expect(result.current.error).toBeNull();
-    // Lu sous l'id disque, auprès du serveur propriétaire.
-    expect(readSpy).toHaveBeenCalledWith("net_1", "sk_1", "boutique_shop");
+    // Lu sous l'id disque, auprès du serveur propriétaire. Sans version connue,
+    // aucune empreinte à annoncer : le serveur envoie l'arbre.
+    expect(readSpy).toHaveBeenCalledWith("net_1", "sk_1", "boutique_shop", undefined);
     // Ce qui a été lu devient la base du compare-and-swap.
     expect(useProjectBaselineStore.getState().get("p1")).toEqual({
       "manifest.yaml": "id: boutique_shop\n",
@@ -121,6 +122,47 @@ describe("useProjectLoader", () => {
 
     expect(useProjectCacheStore.getState().get(projectCacheKey("p1"))?.tree).toEqual({
       "manifest.yaml": "id: boutique_shop\n",
+    });
+  });
+
+  /**
+   * Le gain de la revalidation par empreinte : quand rien n'a bougé, le serveur
+   * ne renvoie RIEN, et la version connue reste à l'écran — mais elle cesse
+   * d'être annoncée comme datée, parce qu'elle vient d'être confirmée.
+   */
+  it("annonce l'empreinte détenue et garde sa copie quand le serveur dit « inchangé »", async () => {
+    useAuthStore.setState({ currentUser: { id: "u1", name: "x", email: "x@a.b" } } as never);
+    useProjectCacheStore.getState().put(projectCacheKey("p1"), {
+      identity: {
+        project: { id: "p1", name: "p", hash: "h", externalId: "boutique_shop" },
+        networkId: "net_1",
+        serverKeyId: "sk_1",
+      },
+      diskId: "boutique_shop",
+      tree: { "manifest.yaml": "id: boutique_shop" },
+      hash: "empreinte-connue",
+      fetchedAt: new Date().toISOString(),
+    } as never);
+
+    vi.spyOn(userProjectsApi, "loadUserProject").mockResolvedValue({
+      project: { id: "p1", name: "p", hash: "h", externalId: "boutique_shop" },
+      networkId: "net_1",
+      serverKeyId: "sk_1",
+    } as never);
+    const readSpy = vi
+      .spyOn(projectFilesApi, "readProjectFiles")
+      .mockResolvedValue({ ok: true, unchanged: true, hash: "empreinte-connue" });
+
+    const { result } = renderHook(() => useProjectLoader("p1"));
+
+    await waitFor(() => expect(result.current.project).not.toBeNull());
+    expect(readSpy).toHaveBeenCalledWith("net_1", "sk_1", "boutique_shop", "empreinte-connue");
+    // Revalidé : la copie affichée n'est plus « datée », elle est confirmée.
+    await waitFor(() => expect(result.current.stale).toBe(false));
+    // Ce qui est à l'écran est bien ce que le serveur porte : c'est la base du
+    // compare-and-swap, sinon un enregistrement partirait sur du sable.
+    expect(useProjectBaselineStore.getState().get("p1")).toEqual({
+      "manifest.yaml": "id: boutique_shop",
     });
   });
 

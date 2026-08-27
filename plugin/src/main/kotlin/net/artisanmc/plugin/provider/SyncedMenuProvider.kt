@@ -652,6 +652,9 @@ class SyncedMenuProvider(
             "project_read" -> {
                 val requestId = node["request_id"]?.asText() ?: return
                 val projectId = node["project_id"]?.asText() ?: return
+                // L'empreinte que l'éditeur dit déjà posséder. Égale à la nôtre =
+                // il a déjà tout, on ne transporte rien.
+                val ifHash = node["if_hash"]?.asText()
                 fun reply(payload: Map<String, Any?>) {
                     val base = mapOf("type" to "project_read_result", "request_id" to requestId)
                     try {
@@ -689,12 +692,25 @@ class SyncedMenuProvider(
                                 .map { (rel, info) ->
                                     mapOf("path" to rel, "hash" to info.hash, "size" to info.size)
                                 }
+                            val hash = net.artisanmc.plugin.sync.BundleHasher.snapshotHash(
+                                tree,
+                                (binarySnapshot[projectId] ?: emptyMap()).mapValues { it.value.hash },
+                                skipped[projectId] ?: emptyMap(),
+                            )
+                            if (ifHash != null && ifHash == hash) {
+                                // L'éditeur a déjà exactement ça. Le lui renvoyer
+                                // coûterait l'arbre entier pour l'informer qu'il
+                                // n'a rien appris.
+                                reply(mapOf("ok" to true, "unchanged" to true, "hash" to hash))
+                                return@execute
+                            }
                             val totalBytes = files.sumOf { it["content"]!!.toByteArray().size }
                             if (totalBytes > MAX_PROJECT_BYTES) {
                                 reply(mapOf("ok" to false, "error" to "too_large"))
                             } else {
                                 reply(mapOf(
                                     "ok" to true,
+                                    "hash" to hash,
                                     "files" to files,
                                     "failed" to failed,
                                     "binaries" to binaries,

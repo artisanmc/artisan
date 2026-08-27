@@ -201,6 +201,16 @@ export interface ProjectReadMessage {
   type: "project_read";
   request_id: string;
   project_id: string;
+  /**
+   * L'empreinte que l'appelant dit déjà posséder (celle rendue par un
+   * `project_read_result` précédent). Si elle vaut celle de l'instantané, le
+   * plugin répond `unchanged` sans transporter l'arbre — l'éditeur garde alors
+   * sa dernière version connue au lieu de rapatrier plusieurs secondes de
+   * fichiers pour apprendre qu'ils sont identiques.
+   *
+   * Elle n'est jamais recalculée hors du plugin : on ne fait que la lui rendre.
+   */
+  if_hash?: string | null;
 }
 
 // Plugin → backend: reply to ProjectReadMessage. `files` is the whole tree,
@@ -210,6 +220,10 @@ export interface ProjectReadResultMessage {
   type: "project_read_result";
   request_id: string;
   ok: boolean;
+  /** Empreinte de cet instantané — à rendre plus tard en `if_hash`. */
+  hash?: string;
+  /** L'appelant avait déjà cette empreinte : rien n'est transporté. */
+  unchanged?: boolean;
   files?: { path: string; content: string }[];
   /**
    * Documents que le serveur n'a PAS réussi à charger, avec la raison. Ils

@@ -34,7 +34,18 @@ export interface FailedDocument {
 }
 
 export type ProjectReadResult =
-  | { ok: true; files: Record<string, string>; failed: FailedDocument[] }
+  | {
+      ok: true;
+      unchanged?: false;
+      files: Record<string, string>;
+      failed: FailedDocument[];
+      hash: string | null;
+    }
+  /**
+   * Le serveur porte exactement l'empreinte annoncée : rien n'a été transporté,
+   * et la dernière version connue reste valable — elle vient d'être revalidée.
+   */
+  | { ok: true; unchanged: true; hash: string | null }
   | { ok: false; error: ProjectFilesError };
 
 export type ProjectWriteResult =
@@ -50,8 +61,15 @@ export type ProjectWriteResult =
 
 function knownError(raw: unknown, fallback: ProjectFilesError): ProjectFilesError {
   const codes: ProjectFilesError[] = [
-    "server_offline", "fetch_timeout", "unknown_project", "invalid_path",
-    "invalid_input", "read_error", "write_error", "too_large", "forbidden",
+    "server_offline",
+    "fetch_timeout",
+    "unknown_project",
+    "invalid_path",
+    "invalid_input",
+    "read_error",
+    "write_error",
+    "too_large",
+    "forbidden",
   ];
   return codes.includes(raw as ProjectFilesError) ? (raw as ProjectFilesError) : fallback;
 }
@@ -65,18 +83,30 @@ export async function readProjectFiles(
   networkId: string,
   serverId: string,
   diskId: string,
+  /**
+   * L'empreinte qu'on détient déjà. Le serveur ne renvoie l'arbre que s'il a
+   * changé — sinon il répond `unchanged`, et on garde ce qu'on avait sans avoir
+   * transporté plusieurs secondes de fichiers pour l'apprendre.
+   */
+  ifHash?: string | null,
 ): Promise<ProjectReadResult> {
   try {
-    const res = await fetch(base(networkId, serverId, diskId), { credentials: "include" });
+    const url = ifHash
+      ? `${base(networkId, serverId, diskId)}?if_hash=${encodeURIComponent(ifHash)}`
+      : base(networkId, serverId, diskId);
+    const res = await fetch(url, { credentials: "include" });
     const body = (await res.json().catch(() => null)) as {
       files?: { path: string; content: string }[];
       failed?: FailedDocument[];
+      hash?: string | null;
+      unchanged?: boolean;
       error?: string;
     } | null;
     if (!res.ok) return { ok: false, error: knownError(body?.error, "read_error") };
+    if (body?.unchanged) return { ok: true, unchanged: true, hash: body.hash ?? null };
     const files: Record<string, string> = {};
     for (const f of body?.files ?? []) files[f.path] = f.content;
-    return { ok: true, files, failed: body?.failed ?? [] };
+    return { ok: true, files, failed: body?.failed ?? [], hash: body?.hash ?? null };
   } catch {
     return { ok: false, error: "network_error" };
   }

@@ -406,7 +406,7 @@ function firstPluginSender(serverKeyId: string): ((msg: string) => void) | undef
  */
 export function requestProjectRead(
   serverKeyId: string,
-  req: { projectId: string },
+  req: { projectId: string; ifHash?: string | null },
   timeoutMs: number = DATA_SOURCE_FETCH_TIMEOUT_MS,
 ): Promise<ProjectReadOutcome> {
   const send = firstPluginSender(serverKeyId);
@@ -416,6 +416,7 @@ export function requestProjectRead(
     type: "project_read",
     request_id: requestId,
     project_id: req.projectId,
+    if_hash: req.ifHash ?? null,
   };
   return new Promise((resolve) => {
     const timer = setTimeout(() => {
