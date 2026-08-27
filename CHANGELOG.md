@@ -9,6 +9,15 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Added — le plugin annonce ses rechargements (`projects_reloaded`)
+
+- Nouveau message plugin → backend → éditeurs. Une édition faite à la main sur le disque ne compte
+  qu'au reload du plugin ; l'éditeur n'avait aucun moyen d'apprendre que ce moment était arrivé.
+  L'annonce porte l'empreinte de chaque Project, donc celui qui la détient déjà n'a rien à refaire.
+- L'éditeur relit seulement si l'empreinte diffère, et **jamais tant qu'un brouillon est sale** :
+  du travail non enregistré n'existe nulle part ailleurs, et le remplacer sans rien demander serait
+  faire dans le dos de l'admin ce que le bouton Actualiser lui fait confirmer.
+
 ### Added — `project_read` sait dire « rien n'a bougé » (protocole, rétrocompatible)
 
 - `project_read` accepte `if_hash`, `project_read_result` porte `hash` et `unchanged`. L'éditeur

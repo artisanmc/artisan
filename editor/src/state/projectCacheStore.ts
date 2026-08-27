@@ -32,6 +32,14 @@ export interface CachedProject {
   identity: unknown;
   /** Id du dossier sur le disque du serveur. */
   diskId: string;
+  /**
+   * Le serveur propriétaire, par son id INTERNE.
+   *
+   * La clé d'entrée, elle, porte ce que l'URL présente (un slug, parfois un
+   * id) : elle ne peut donc pas servir à reconnaître un Project annoncé par le
+   * plugin, qui ne connaît que les ids. D'où ce champ.
+   */
+  serverKeyId?: string | null;
   /** L'arbre rel-keyed, tel que le serveur l'a rendu. */
   tree: Record<string, string>;
   /** Documents que le serveur n'avait pas su charger, à réafficher tels quels. */
