@@ -881,7 +881,10 @@ userNetworksRouter.get(
 		const projectId = c.req.param("projectId");
 		if (!projectId) return c.json({ error: "invalid_input" }, 422);
 
-		const outcome = await requestProjectRead(resolved.serverKeyId, { projectId });
+		// L'éditeur peut annoncer l'empreinte qu'il détient déjà : si l'instantané
+		// du serveur porte la même, on ne transporte rien et il garde sa copie.
+		const ifHash = c.req.query("if_hash") ?? null;
+		const outcome = await requestProjectRead(resolved.serverKeyId, { projectId, ifHash });
 		if (outcome.kind === "offline") return c.json({ error: "server_offline" }, 503);
 		if (outcome.kind === "timeout") return c.json({ error: "fetch_timeout" }, 504);
 		const r = outcome.result;
@@ -890,7 +893,8 @@ userNetworksRouter.get(
 			const status = error === "unknown_project" ? 404 : error === "invalid_path" ? 422 : 502;
 			return c.json({ error, message: r.message ?? null }, status);
 		}
-		return c.json({ files: r.files ?? [], failed: r.failed ?? [] });
+		if (r.unchanged) return c.json({ unchanged: true, hash: r.hash ?? null });
+		return c.json({ files: r.files ?? [], failed: r.failed ?? [], hash: r.hash ?? null });
 	},
 );
 

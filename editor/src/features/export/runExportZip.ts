@@ -34,6 +34,12 @@ export async function runExportZip(
     if (!disk.ok) {
       return { ok: false, error: disk.error === "server_offline" ? "server_offline" : "transport" };
     }
+    if (disk.unchanged) {
+      // On n'annonce aucune empreinte ici : le serveur n'a rien à comparer, donc
+      // ce cas n'arrive pas. Plutôt que de forcer la main au compilateur, on
+      // échoue franchement — un zip vide serait pire qu'un export refusé.
+      return { ok: false, error: "transport" };
+    }
     // buildZip attend les chemins canoniques que produisait le store backend.
     const canonical: Record<string, string> = {};
     for (const [rel, content] of Object.entries(disk.files)) {

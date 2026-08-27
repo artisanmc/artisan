@@ -136,7 +136,9 @@ export function useProjectLoader(projectId: string, serverRef?: string | null): 
         // l'identité (nom, slug, serveur propriétaire, network).
         const diskId = res.project.externalId ?? res.project.id;
         const ownerServerId = res.project.serverKeyId ?? res.serverKeyId;
-        const disk = await readProjectFiles(res.networkId, ownerServerId, diskId);
+        // On annonce l'empreinte qu'on détient : si le serveur porte la même, il
+        // ne renvoie rien et notre copie vient d'être revalidée.
+        const disk = await readProjectFiles(res.networkId, ownerServerId, diskId, cached?.hash);
         if (!disk.ok) {
           const unreachable = disk.error === "server_offline" || disk.error === "network_error";
           // Serveur injoignable : on ouvre le brouillon plutôt que de refuser
@@ -168,6 +170,46 @@ export function useProjectLoader(projectId: string, serverRef?: string | null): 
           setError(disk.error);
           return;
         }
+        if (disk.unchanged) {
+          // Revalidé : ce qu'on affiche EST ce que le serveur porte. Rien à
+          // reconstruire, rien à retransporter — seul le drapeau tombe.
+          fresh = true;
+          if (cached) {
+            useProjectBaselineStore.getState().set(res.project.id, cached.tree);
+            useProjectCacheStore.getState().put(cacheKey, {
+              ...cached,
+              hash: disk.hash ?? cached.hash,
+              fetchedAt: new Date().toISOString(),
+            });
+            if (!project) setProject(await buildProject(res, diskId, cached.tree));
+            setNetworkId(res.networkId);
+            setFailed(cached.failed ?? []);
+            setStale(false);
+            return;
+          }
+          // Pas de cache mais un « inchangé » : on ne sait pas de quoi il parle.
+          // On redemande sans empreinte plutôt que d'afficher du vide.
+          const full = await readProjectFiles(res.networkId, ownerServerId, diskId);
+          if (!full.ok || full.unchanged) {
+            setError("read_error");
+            return;
+          }
+          fresh = true;
+          useProjectCacheStore.getState().put(cacheKey, {
+            identity: res,
+            diskId,
+            tree: full.files,
+            failed: full.failed,
+            hash: full.hash ?? null,
+            fetchedAt: new Date().toISOString(),
+          });
+          useProjectBaselineStore.getState().set(res.project.id, full.files);
+          setProject(await buildProject(res, diskId, full.files));
+          setNetworkId(res.networkId);
+          setFailed(full.failed);
+          setStale(false);
+          return;
+        }
         setFailed(disk.failed);
         // Un brouillon avec du travail non enregistré est REPRIS : tu retrouves
         // ton travail en rouvrant, comme dans n'importe quel éditeur. Ce qui
@@ -190,6 +232,7 @@ export function useProjectLoader(projectId: string, serverRef?: string | null): 
           diskId,
           tree: disk.files,
           failed: disk.failed,
+          hash: disk.hash ?? null,
           fetchedAt: new Date().toISOString(),
         });
         setProject(await buildProject(res, diskId, resumable?.tree ?? disk.files));
