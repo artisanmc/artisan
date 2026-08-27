@@ -1,5 +1,14 @@
 import { LinkedServersDropdown } from "@/components/LinkedServersDropdown";
+import { RefreshProjectButton } from "@/components/RefreshProjectButton";
 import { TopBarKebabMenu } from "@/components/TopBarKebabMenu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 /**
  * ProjectTopBarControls
  *
@@ -20,24 +29,16 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { Project, ProjectId } from "@/domain/types";
-import { WORKSPACE_VIEW_TABS, type WorkspaceViewTab } from "@/features/project/workspaceTabs";
+import { isDirty } from "@/features/project/draft";
+import { type ConflictChoice, applyResolutions } from "@/features/project/resolveConflicts";
 import { adoptDiskIntoProject, saveProjectToDisk } from "@/features/project/saveProjectToDisk";
-import { applyResolutions, type ConflictChoice } from "@/features/project/resolveConflicts";
+import { WORKSPACE_VIEW_TABS, type WorkspaceViewTab } from "@/features/project/workspaceTabs";
 import type { ProjectFileConflict } from "@/lib/api/projectFiles";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { cn } from "@/lib/cx";
 import { countMissingForLang } from "@/lib/i18nUsages";
 import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
-import { isDirty } from "@/features/project/draft";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
 import { useUiStore } from "@/state/uiStore";
 import { useNavigate, useSearch } from "@tanstack/react-router";
@@ -126,6 +127,7 @@ export function ProjectTopBarControls({
       <LangSwitcher project={project} />
       <UndoRedoButtons />
       <SearchButton />
+      <RefreshProjectButton projectId={projectId} />
       <SaveControls projectId={projectId} networkId={networkId ?? null} />
       <TopBarKebabMenu
         onImport={onImport ?? (() => {})}
@@ -473,13 +475,8 @@ function SaveControls({
     const outcome = applyResolutions(baseline, conflicts, choices);
     if (outcome.unresolved.length > 0) return; // le bouton est déjà désactivé
     useProjectBaselineStore.getState().set(project.id, outcome.nextBaseline);
-    if (
-      Object.keys(outcome.adoptFromDisk).length > 0 ||
-      outcome.removeFromTree.length > 0
-    ) {
-      replaceProject(
-        adoptDiskIntoProject(project, outcome.adoptFromDisk, outcome.removeFromTree),
-      );
+    if (Object.keys(outcome.adoptFromDisk).length > 0 || outcome.removeFromTree.length > 0) {
+      replaceProject(adoptDiskIntoProject(project, outcome.adoptFromDisk, outcome.removeFromTree));
     }
     setConflicts([]);
     setChoices({});
@@ -547,14 +544,18 @@ function SaveControls({
                 <div className="flex gap-2">
                   <button
                     type="button"
-                    className={choices[c.path] === "mine" ? "btn btn-sm btn-primary" : "btn btn-sm btn-ghost"}
+                    className={
+                      choices[c.path] === "mine" ? "btn btn-sm btn-primary" : "btn btn-sm btn-ghost"
+                    }
                     onClick={() => setChoices((p) => ({ ...p, [c.path]: "mine" }))}
                   >
                     {t("save.conflictKeepMine")}
                   </button>
                   <button
                     type="button"
-                    className={choices[c.path] === "disk" ? "btn btn-sm btn-primary" : "btn btn-sm btn-ghost"}
+                    className={
+                      choices[c.path] === "disk" ? "btn btn-sm btn-primary" : "btn btn-sm btn-ghost"
+                    }
                     onClick={() => setChoices((p) => ({ ...p, [c.path]: "disk" }))}
                   >
                     {t("save.conflictTakeServer")}

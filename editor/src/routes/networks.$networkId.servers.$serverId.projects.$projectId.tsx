@@ -8,7 +8,6 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { Spinner } from "@/components/ui/spinner";
 import { WorkspaceView } from "@/components/ui/workspace-view";
 import type { ElementId, MenuId, ProjectId } from "@/domain/types";
 import { AssistantBody } from "@/features/assistant/AssistantBody";
@@ -29,6 +28,7 @@ import { runExportZip } from "@/features/export/runExportZip";
 import { pickProjectZipForImport, runImportZip } from "@/features/export/runImportZip";
 import { STATE_DROP_PREFIX } from "@/features/flow/FlowCanvas";
 import { PatternsGallery } from "@/features/help/PatternsGallery";
+import { ProjectLoadingSkeleton } from "@/features/project/ProjectLoadingSkeleton";
 import { ProjectPanel } from "@/features/project/ProjectPanel";
 import { useProjectLoader } from "@/features/project/useProjectLoader";
 import { useWorkspaceTabShortcuts } from "@/features/project/useWorkspaceTabShortcuts";
@@ -91,6 +91,7 @@ export function ProjectCanvasPage() {
     error: loadError,
     failed,
     fromDraft,
+    stale,
   } = useProjectLoader(projectId, serverId);
   const project = userProject;
   const pId = (project?.id ?? projectId) as ProjectId;
@@ -218,12 +219,7 @@ export function ProjectCanvasPage() {
   // secondes. Ne rien rendre (l'ancien `return null`) donnait une page blanche
   // qu'on prend pour une panne — on dit ce qu'on attend, et d'où.
   if (!project) {
-    return (
-      <div className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center">
-        <Spinner className="size-5 text-[var(--text-faint)]" />
-        <p className="text-[13px] text-[var(--text-mut)]">{t("project.loading")}</p>
-      </div>
-    );
+    return <ProjectLoadingSkeleton />;
   }
 
   const onDragStart = (e: DragStartEvent) => {
@@ -364,6 +360,15 @@ export function ProjectCanvasPage() {
     </>
   );
 
+  // Ce qui est à l'écran vient de la dernière visite pendant que la lecture du
+  // serveur est en vol. Un état daté ne s'affiche jamais en silence — c'est la
+  // règle des brouillons, et elle vaut pour le cache.
+  const staleBanner = stale ? (
+    <div className="flex items-center justify-center gap-2 border-b border-[var(--border-soft)] bg-[var(--surface-raised)] px-3 py-1 text-[11.5px] text-[var(--text-mut)]">
+      {t(offline ? "project.staleOffline" : "project.staleLoading")}
+    </div>
+  ) : null;
+
   const tabContent = (
     // `h-full` (not just `flex-1`) so it fills the content frame — otherwise the
     // content collapses to its own height and the surface shows through below.
@@ -447,7 +452,8 @@ export function ProjectCanvasPage() {
           modal, no docked pane. The content area keeps the concave top-left
           corner + hairline so the sidebar and topbar read as one continuous
           L-shaped frame. */}
-      <div className="min-h-0 flex-1 overflow-hidden lg:rounded-tl-[var(--r-lg)] lg:border-t lg:border-l lg:border-[var(--border-soft)]">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:rounded-tl-[var(--r-lg)] lg:border-t lg:border-l lg:border-[var(--border-soft)]">
+        {staleBanner}
         {tabContent}
       </div>
     </main>

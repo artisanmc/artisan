@@ -1,5 +1,11 @@
 export default {
   topbar: {
+    refresh: "Refresh from the server",
+    refreshConfirmTitle: "Discard your unsaved work?",
+    refreshConfirmBody:
+      "Refreshing replaces what is on screen with what the server holds. Your unsaved changes are lost — they exist nowhere else.",
+    refreshConfirm: "Refresh and discard",
+    refreshCancel: "Cancel",
     projects: "Projects",
     saveHealthy: "Saves are flowing normally",
     saveConflict: "Save rejected — another session modified this project (reload to resync)",
@@ -818,6 +824,8 @@ export default {
     },
   },
   project: {
+    staleLoading: "Showing your last visit — fetching the server’s version…",
+    staleOffline: "Server unreachable — showing your last visit. Saving is out of reach.",
     loading: "Reading the server's files…",
     offlineTitle: "Server offline",
     offlineBody:
@@ -1056,6 +1064,9 @@ export default {
           providerModelId: "Provider model ID",
           creditsPerMInput: "Credits / 1M input tokens",
           creditsPerMOutput: "Credits / 1M output tokens",
+          creditsHint:
+            "Prefilled from the real price: 1 credit = ${{rate}}, {{margin}}% margin. Edit a field to pin it.",
+          recomputeCredits: "Recompute from the real price",
           realUsdInput: "Real $ / 1M input tokens",
           realUsdOutput: "Real $ / 1M output tokens",
           active: "Active",
@@ -1081,6 +1092,9 @@ export default {
         title: "AI settings",
         creditUsdRate: "Credit → USD rate",
         creditUsdRateHint: "Real $ value of one credit (used for margin and grant pricing).",
+        marginPct: "Applied margin (%)",
+        marginPctHint:
+          "Margin added to the real price when suggesting a model's credit price. 100% = ×2. Suggestion only, never billed directly.",
         maxCreditsPerTurn: "Max credits per turn",
         maxCreditsPerTurnHint:
           "Caps how many credits a single assistant turn can consume. Leave empty for no cap.",

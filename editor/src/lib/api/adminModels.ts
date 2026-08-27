@@ -12,7 +12,11 @@ export interface AiModelDto {
 }
 export type AiModelInput = Omit<AiModelDto, "id" | "isDefault" | "createdAt" | "updatedAt">;
 export interface ProviderDto { label: string; baseUrl: string; keySet: boolean; preset: boolean }
-export interface AiSettingsDto { creditUsdMicroRate: number; maxCreditsPerTurn: number | null }
+export interface AiSettingsDto {
+  creditUsdMicroRate: number;
+  maxCreditsPerTurn: number | null;
+  pricingMarginPct: number;
+}
 export interface ModelTestResult {
   ok: boolean; latencyMs?: number; inputTokens?: number; outputTokens?: number;
   creditsCost?: number; realCostMicroUsd?: number; error?: string;
