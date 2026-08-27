@@ -42,13 +42,13 @@ class ProjectWriteChannelTest {
         }
         /** Attend LA RÉPONSE : les annonces de rechargement voyagent sur le
          *  même fil et peuvent arriver avant elle. */
-        fun await() {
+        fun await(replies: Int = 1) {
             val deadline = System.currentTimeMillis() + 5000
             while (System.currentTimeMillis() < deadline) {
-                if (sink.any { it["type"] != "projects_reloaded" }) return
+                if (sink.count { it["type"] != "projects_reloaded" } >= replies) return
                 Thread.sleep(10)
             }
-            throw AssertionError("no reply within 5s")
+            throw AssertionError("attendait $replies réponse(s), reçu ${sink.size} message(s)")
         }
         fun project(id: String): File = File(root, id).also { it.mkdirs() }
         fun write(project: File, rel: String, content: String) {
