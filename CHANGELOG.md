@@ -9,6 +9,16 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Added — `project_read` sait dire « rien n'a bougé » (protocole, rétrocompatible)
+
+- `project_read` accepte `if_hash`, `project_read_result` porte `hash` et `unchanged`. L'éditeur
+  garde la dernière version connue d'un Project et annonce son empreinte ; si l'instantané du
+  serveur porte la même, l'arbre ne traverse pas le fil. Champs optionnels des deux côtés : un
+  plugin ancien ignore `if_hash` et répond comme avant, un backend ancien ignore `hash`.
+- L'empreinte est calculée par le **plugin seul** (texte + binaires annoncés + documents en échec)
+  et lui est rendue telle quelle : personne d'autre ne la recalcule, donc aucune convention
+  inter-langage à tenir.
+
 ### Removed — la table `assets` et les magasins d'assets du backend
 
 - Le disque du serveur est **la seule source** d'assets : liste, lecture, édition, duplication,

@@ -36,6 +36,12 @@ export interface CachedProject {
   tree: Record<string, string>;
   /** Documents que le serveur n'avait pas su charger, à réafficher tels quels. */
   failed?: FailedDocument[];
+  /**
+   * L'empreinte que le serveur a rendue avec cet arbre. On la lui redonne à la
+   * visite suivante (`if_hash`) : s'il porte la même, il ne renvoie rien.
+   * Calculée par le plugin seul — on ne fait que la conserver.
+   */
+  hash?: string | null;
   /** Quand — un cache sans date ne peut pas s'annoncer daté. */
   fetchedAt: string;
 }

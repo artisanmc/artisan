@@ -35,6 +35,32 @@ object BundleHasher {
         return sha256(sb.toString())
     }
 
+    /**
+     * Empreinte de ce que `project_read` s'apprête à répondre.
+     *
+     * Elle couvre les trois choses que l'éditeur reçoit — le texte, les binaires
+     * annoncés (par leur propre empreinte, pas leurs octets) et les documents que
+     * le serveur n'a pas su charger. Un binaire remplacé ou un YAML redevenu
+     * lisible change donc l'empreinte : sans ça, « rien n'a bougé » mentirait sur
+     * exactement ce que l'éditeur affiche.
+     *
+     * Elle n'est calculée QUE par le plugin, et lui est rendue telle quelle par
+     * l'éditeur : il n'y a aucune convention inter-langage à tenir ici.
+     */
+    fun snapshotHash(
+        files: Map<String, String>,
+        binaryHashes: Map<String, String>,
+        failed: Map<String, String>,
+    ): String {
+        val merged = LinkedHashMap<String, String>(files.size + binaryHashes.size + failed.size)
+        for ((rel, content) in files) merged["f/$rel"] = content
+        for ((rel, hash) in binaryHashes) merged["b/$rel"] = hash
+        for ((rel, reason) in failed) merged["x/$rel"] = reason
+        // Un Project vide a quand même une empreinte : `hashFiles` rend "" sur une
+        // map vide, et "" ne peut pas se comparer à quoi que ce soit.
+        return if (merged.isEmpty()) sha256("vide") else hashFiles(merged)
+    }
+
     /** Hash d'un dossier de project (relPath-keyed, `.artisan*` exclus). */
     fun hash(projectDir: File): String = hashFiles(ProjectFilesReader.readRelative(projectDir))
 
