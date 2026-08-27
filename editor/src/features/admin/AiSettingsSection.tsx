@@ -16,6 +16,7 @@ export function AiSettingsSection() {
   const { t } = useTranslation();
   const [creditUsdRate, setCreditUsdRate] = useState("");
   const [maxCreditsPerTurn, setMaxCreditsPerTurn] = useState("");
+  const [marginPct, setMarginPct] = useState("");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -24,6 +25,7 @@ export function AiSettingsSection() {
         if (!s) return;
         setCreditUsdRate(microToDollars(s.creditUsdMicroRate));
         setMaxCreditsPerTurn(s.maxCreditsPerTurn != null ? String(s.maxCreditsPerTurn) : "");
+        setMarginPct(String(s.pricingMarginPct));
       })
       .catch((e: unknown) => {
         console.warn("[admin-ai] fetch failed:", e);
@@ -35,6 +37,7 @@ export function AiSettingsSection() {
     const patch: Partial<AiSettingsDto> = {
       creditUsdMicroRate: dollarsToMicro(creditUsdRate),
       maxCreditsPerTurn: maxCreditsPerTurn === "" ? null : Number(maxCreditsPerTurn),
+      pricingMarginPct: Math.max(0, Math.round(Number(marginPct) || 0)),
     };
     const r = await putAiSettings(patch);
     setBusy(false);
@@ -64,6 +67,18 @@ export function AiSettingsSection() {
               step="0.0001"
               value={creditUsdRate}
               onChange={(e) => setCreditUsdRate(e.target.value)}
+            />
+          </FormField>
+
+          <FormField
+            label={t("admin.ai.settings.marginPct")}
+            hint={t("admin.ai.settings.marginPctHint")}
+          >
+            <Input
+              type="number"
+              step="1"
+              value={marginPct}
+              onChange={(e) => setMarginPct(e.target.value)}
             />
           </FormField>
 

@@ -3,10 +3,14 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AiSettingsSection } from "./AiSettingsSection";
 
-const getMock = vi.fn(async () => ({ creditUsdMicroRate: 10_000, maxCreditsPerTurn: 500 }));
+const getMock = vi.fn(async () => ({
+  creditUsdMicroRate: 10_000,
+  maxCreditsPerTurn: 500,
+  pricingMarginPct: 100,
+}));
 const putMock = vi.fn(async () => ({
   ok: true,
-  data: { creditUsdMicroRate: 20_000, maxCreditsPerTurn: null },
+  data: { creditUsdMicroRate: 20_000, maxCreditsPerTurn: null, pricingMarginPct: 40 },
 }));
 
 vi.mock("@/lib/api/adminModels", () => ({
@@ -46,10 +50,18 @@ describe("AiSettingsSection", () => {
     await userEvent.clear(rateField);
     await userEvent.type(rateField, "0.02");
 
+    const marginField = screen.getByLabelText(/marge appliquée|applied margin/i);
+    await userEvent.clear(marginField);
+    await userEvent.type(marginField, "40");
+
     await userEvent.click(screen.getByRole("button", { name: /enregistrer|save/i }));
 
     await waitFor(() =>
-      expect(putMock).toHaveBeenCalledWith({ creditUsdMicroRate: 20_000, maxCreditsPerTurn: null }),
+      expect(putMock).toHaveBeenCalledWith({
+        creditUsdMicroRate: 20_000,
+        maxCreditsPerTurn: null,
+        pricingMarginPct: 40,
+      }),
     );
     expect(toastSuccessMock).toHaveBeenCalled();
   });

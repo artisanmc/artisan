@@ -2,6 +2,12 @@ import type en from "./en";
 
 const fr: typeof en = {
   topbar: {
+    refresh: "Actualiser depuis le serveur",
+    refreshConfirmTitle: "Abandonner le travail non enregistré ?",
+    refreshConfirmBody:
+      "Actualiser remplace ce qui est à l'écran par ce que porte le serveur. Tes modifications non enregistrées sont perdues — elles n'existent nulle part ailleurs.",
+    refreshConfirm: "Actualiser et abandonner",
+    refreshCancel: "Annuler",
     projects: "Projects",
     saveHealthy: "Sauvegardes OK",
     saveConflict:
@@ -834,6 +840,9 @@ const fr: typeof en = {
     },
   },
   project: {
+    staleLoading: "Affichage de ta dernière visite — lecture du serveur en cours…",
+    staleOffline:
+      "Serveur injoignable — affichage de ta dernière visite. Enregistrer est hors de portée.",
     loading: "Lecture des fichiers du serveur…",
     offlineTitle: "Serveur hors ligne",
     offlineBody:
@@ -1073,6 +1082,9 @@ const fr: typeof en = {
           providerModelId: "ID modèle du provider",
           creditsPerMInput: "Crédits / 1M tokens en entrée",
           creditsPerMOutput: "Crédits / 1M tokens en sortie",
+          creditsHint:
+            "Pré-rempli depuis le prix réel : 1 crédit = {{rate}} $, marge {{margin}} %. Modifie un champ pour le figer.",
+          recomputeCredits: "Recalculer depuis le prix réel",
           realUsdInput: "Prix réel $ / 1M tokens en entrée",
           realUsdOutput: "Prix réel $ / 1M tokens en sortie",
           active: "Actif",
@@ -1100,6 +1112,9 @@ const fr: typeof en = {
         creditUsdRate: "Taux crédit → USD",
         creditUsdRateHint:
           "Valeur réelle en $ d'un crédit (utilisée pour la marge et le tarif des dons).",
+        marginPct: "Marge appliquée (%)",
+        marginPctHint:
+          "Marge ajoutée au prix réel pour suggérer le tarif en crédits d'un modèle. 100 % = ×2. Suggestion seulement, jamais facturée directement.",
         maxCreditsPerTurn: "Crédits max par tour",
         maxCreditsPerTurnHint:
           "Plafonne le nombre de crédits qu'un tour d'assistant peut consommer. Laisser vide pour ne pas plafonner.",

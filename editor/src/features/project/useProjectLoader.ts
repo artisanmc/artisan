@@ -1,15 +1,16 @@
-import { useEffect, useState } from "react";
-import { useAuthStore } from "@/state/authStore";
-import { useAccountStore } from "@/state/accountStore";
-import { loadUserProject } from "@/lib/api/userProjects";
 import { injectDeclaredModels, normalizeDataSources } from "@/domain/dataModels";
-import { fetchServerDeclaredModels } from "@/lib/api/dataSources";
-import { projectFromFiles } from "@/schema/projectFromFiles";
-import { readProjectFiles, type FailedDocument } from "@/lib/api/projectFiles";
-import { isDirty } from "@/features/project/draft";
-import { useProjectDraftStore } from "@/state/projectDraftStore";
-import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import type { Account, Project, ProjectId } from "@/domain/types";
+import { isDirty } from "@/features/project/draft";
+import { fetchServerDeclaredModels } from "@/lib/api/dataSources";
+import { type FailedDocument, readProjectFiles } from "@/lib/api/projectFiles";
+import { loadUserProject } from "@/lib/api/userProjects";
+import { projectFromFiles } from "@/schema/projectFromFiles";
+import { useAccountStore } from "@/state/accountStore";
+import { useAuthStore } from "@/state/authStore";
+import { useProjectBaselineStore } from "@/state/projectBaselineStore";
+import { projectCacheKey, useProjectCacheStore } from "@/state/projectCacheStore";
+import { useProjectDraftStore } from "@/state/projectDraftStore";
+import { useEffect, useState } from "react";
 
 export interface ProjectLoadResult {
   project: Project | null;
@@ -24,6 +25,12 @@ export interface ProjectLoadResult {
   failed: FailedDocument[];
   /** L'état affiché vient d'un brouillon local, pas du serveur. */
   fromDraft: boolean;
+  /**
+   * L'écran montre la **dernière version connue** (cache) pendant que la
+   * lecture du serveur est en vol. Daté, donc annoncé : le disque du serveur
+   * reste la vérité, et l'affichage ne doit pas prétendre l'être.
+   */
+  stale: boolean;
 }
 
 /**
@@ -68,7 +75,9 @@ async function buildProject(
   useAccountStore.getState().setAccount({
     id: res.networkId as Account["id"],
     projects:
-      idx === -1 ? [...current.projects, loaded] : current.projects.map((p, i) => (i === idx ? loaded : p)),
+      idx === -1
+        ? [...current.projects, loaded]
+        : current.projects.map((p, i) => (i === idx ? loaded : p)),
     projectOrder: current.projectOrder.includes(loadedId)
       ? current.projectOrder
       : [...current.projectOrder, loadedId],
@@ -78,22 +87,48 @@ async function buildProject(
 
 export function useProjectLoader(projectId: string, serverRef?: string | null): ProjectLoadResult {
   const user = useAuthStore((s) => s.currentUser);
+  const reloadToken = useProjectCacheStore((s) => s.reloadToken);
   const [project, setProject] = useState<Project | null>(null);
   const [networkId, setNetworkId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [offline, setOffline] = useState(false);
   const [failed, setFailed] = useState<FailedDocument[]>([]);
   const [fromDraft, setFromDraft] = useState(false);
+  const [stale, setStale] = useState(false);
 
   useEffect(() => {
     setError(null);
     setOffline(false);
     setFailed([]);
     setFromDraft(false);
+    setStale(false);
     if (!user) {
       setError("Not authenticated");
       return;
     }
+    // La dernière version connue s'affiche TOUT DE SUITE, pendant que la vraie
+    // lecture part. Sans elle, l'écran attend un aller-retour jusqu'au disque du
+    // serveur — plusieurs secondes — pour afficher, neuf fois sur dix, la même
+    // chose qu'à la visite précédente.
+    let fresh = false;
+    const cacheKey = projectCacheKey(projectId, serverRef);
+    const cached = useProjectCacheStore.getState().get(cacheKey);
+    if (cached) {
+      buildProject(cached.identity as never, cached.diskId, cached.tree)
+        .then((p) => {
+          // La réponse du serveur a pu arriver entre-temps : elle gagne, toujours.
+          if (fresh) return;
+          setProject(p);
+          setFailed(cached.failed ?? []);
+          setStale(true);
+        })
+        .catch(() => {
+          // Un cache illisible (format d'une version précédente) ne casse rien :
+          // on l'oublie et on attend le serveur, comme avant.
+          useProjectCacheStore.getState().forget(cacheKey);
+        });
+    }
+
     loadUserProject(projectId, serverRef)
       .then(async (res) => {
         // Le contenu vient du DISQUE du serveur, jamais du backend (ADR
@@ -111,10 +146,21 @@ export function useProjectLoader(projectId: string, serverRef?: string | null): 
             ? useProjectDraftStore.getState().get(res.project.id)
             : undefined;
           if (draft) {
+            fresh = true;
             useProjectBaselineStore.getState().set(res.project.id, draft.baseline);
             setProject(await buildProject(res, diskId, draft.tree));
             setNetworkId(res.networkId);
             setFromDraft(true);
+            setOffline(true);
+            return;
+          }
+          fresh = true;
+          if (unreachable && cached) {
+            // Serveur injoignable, mais on sait ce qu'il avait : on le montre,
+            // daté, plutôt qu'un écran d'erreur. Enregistrer reste hors de portée.
+            setProject(await buildProject(cached.identity as never, cached.diskId, cached.tree));
+            setNetworkId(res.networkId);
+            setStale(true);
             setOffline(true);
             return;
           }
@@ -138,12 +184,21 @@ export function useProjectLoader(projectId: string, serverRef?: string | null): 
         // La base reste celle du SERVEUR : c'est elle que le compare-and-swap
         // doit présenter, sinon on écraserait sans le savoir ce qui a changé
         // depuis. Seul l'arbre affiché vient du brouillon.
+        fresh = true;
+        useProjectCacheStore.getState().put(cacheKey, {
+          identity: res,
+          diskId,
+          tree: disk.files,
+          failed: disk.failed,
+          fetchedAt: new Date().toISOString(),
+        });
         setProject(await buildProject(res, diskId, resumable?.tree ?? disk.files));
         setNetworkId(res.networkId);
         setFromDraft(resumable !== null);
+        setStale(false);
       })
       .catch((e) => setError((e as Error).message));
-  }, [projectId, serverRef, user]);
+  }, [projectId, serverRef, user, reloadToken]);
 
-  return { project, networkId, error, offline, failed, fromDraft };
+  return { project, networkId, error, offline, failed, fromDraft, stale };
 }
