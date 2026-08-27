@@ -168,6 +168,8 @@ export function buildAiAdminRouter(): Hono {
 		const patch: Partial<AiSettings> = {};
 		if (typeof body.creditUsdMicroRate === "number" && Number.isInteger(body.creditUsdMicroRate) && body.creditUsdMicroRate >= 0)
 			patch.creditUsdMicroRate = body.creditUsdMicroRate;
+		if (typeof body.pricingMarginPct === "number" && Number.isInteger(body.pricingMarginPct) && body.pricingMarginPct >= 0)
+			patch.pricingMarginPct = body.pricingMarginPct;
 		if (body.maxCreditsPerTurn === null) patch.maxCreditsPerTurn = null;
 		else if (typeof body.maxCreditsPerTurn === "number" && Number.isInteger(body.maxCreditsPerTurn) && body.maxCreditsPerTurn > 0)
 			patch.maxCreditsPerTurn = body.maxCreditsPerTurn;

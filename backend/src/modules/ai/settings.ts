@@ -7,11 +7,15 @@ export interface AiSettings {
 	creditUsdMicroRate: number;
 	/** Hard cap of credits one turn may burn (agentic-loop guard). null = uncapped. */
 	maxCreditsPerTurn: number | null;
+	/** Margin applied to the real provider price when suggesting a model's
+	 *  credit price in the admin form. 100 = ×2. Suggestion only — never billed. */
+	pricingMarginPct: number;
 }
 
 export const DEFAULT_AI_SETTINGS: AiSettings = {
 	creditUsdMicroRate: 10_000,
 	maxCreditsPerTurn: null,
+	pricingMarginPct: 100,
 };
 
 export async function getAiSettings(): Promise<AiSettings> {
