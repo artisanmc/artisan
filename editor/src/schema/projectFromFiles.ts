@@ -560,7 +560,17 @@ export function projectFromFiles(
       {
         alias: (y.alias as string) ?? "",
         keyField: (y.key_field as string) ?? "",
-        appearances: ((y.appearances as Json[]) ?? []).map(appearance),
+        // Deux formes se croisent ici, et il faut lire les deux.
+        //
+        // `appearances:` est celle d'avant le 17 août ; depuis, un template
+        // s'écrit comme un Element — display À PLAT plus `states`. Ne lire que
+        // la première rendait une liste VIDE pour un fichier parfaitement
+        // valide : l'élément héritait d'un display vide, et le menu s'affichait
+        // sans items, sans le moindre message. Un lecteur de migration doit
+        // être tolérant ; c'est l'écrivain qui doit être canonique.
+        appearances: Array.isArray(y.appearances)
+          ? (y.appearances as Json[]).map(appearance)
+          : [appearance(y), ...((y.states as Json[]) ?? []).map(appearance)],
       },
     ]),
   );
