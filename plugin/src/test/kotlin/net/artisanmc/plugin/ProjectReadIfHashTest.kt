@@ -51,7 +51,7 @@ class ProjectReadIfHashTest {
                 """{"type":"project_read","request_id":"r","project_id":"$projectId"$hashField}"""
             )
             assertTrue(latch.await(5, TimeUnit.SECONDS), "no reply within 5s")
-            return sink.single()
+            return sink.single { it["type"] != "projects_reloaded" }
         }
     }
 

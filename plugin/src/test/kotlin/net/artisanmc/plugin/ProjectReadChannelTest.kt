@@ -35,7 +35,28 @@ class ProjectReadChannelTest {
                 latch.countDown()
             }
         }
-        fun await() = assertTrue(latch.await(5, TimeUnit.SECONDS), "no reply within 5s")
+        /** Attend LA RÉPONSE : les annonces de rechargement voyagent sur le
+         *  même fil et peuvent arriver avant elle. */
+        fun await() {
+            val deadline = System.currentTimeMillis() + 5000
+            while (System.currentTimeMillis() < deadline) {
+                if (sink.any { it["type"] != "projects_reloaded" }) return
+                Thread.sleep(10)
+            }
+            throw AssertionError("no reply within 5s")
+        }
+        /** La réponse attendue, en ignorant les annonces de rechargement qui
+         *  voyagent sur le même fil. */
+        fun awaitReply(): Map<String, Any?> {
+            val deadline = System.currentTimeMillis() + 5000
+            while (System.currentTimeMillis() < deadline) {
+                val reply = sink.firstOrNull { it["type"] != "projects_reloaded" }
+                if (reply != null) return reply
+                Thread.sleep(10)
+            }
+            throw AssertionError("no reply within 5s")
+        }
+
         fun project(id: String): File = File(root, id).also { it.mkdirs() }
         fun write(project: File, rel: String, content: String) {
             val f = File(project, rel)
@@ -52,7 +73,7 @@ class ProjectReadChannelTest {
             await()
         }
         @Suppress("UNCHECKED_CAST")
-        fun files(): List<Map<String, String>> = sink.single()["files"] as List<Map<String, String>>
+        fun files(): List<Map<String, String>> = awaitReply()["files"] as List<Map<String, String>>
     }
 
     @Test
@@ -65,7 +86,7 @@ class ProjectReadChannelTest {
 
         h.read("boutique")
 
-        val msg = h.sink.single()
+        val msg = h.awaitReply()
         assertEquals("project_read_result", msg["type"])
         assertEquals("r1", msg["request_id"])
         assertEquals(true, msg["ok"])
@@ -104,7 +125,7 @@ class ProjectReadChannelTest {
         h.provider.handleMessageForTesting("""{"type":"project_list","request_id":"l1"}""")
         h.await()
 
-        val msg = h.sink.single()
+        val msg = h.awaitReply()
         assertEquals("project_list_result", msg["type"])
         assertEquals(true, msg["ok"])
         // Le dossier EST le project : son nom est l'identité, et l'ordre est
@@ -119,8 +140,8 @@ class ProjectReadChannelTest {
         h.provider.handleMessageForTesting("""{"type":"project_list","request_id":"l2"}""")
         h.await()
 
-        assertEquals(true, h.sink.single()["ok"])
-        assertEquals(emptyList<String>(), h.sink.single()["project_ids"])
+        assertEquals(true, h.awaitReply()["ok"])
+        assertEquals(emptyList<String>(), h.awaitReply()["project_ids"])
     }
 
     @Test
@@ -128,7 +149,7 @@ class ProjectReadChannelTest {
         val h = Harness()
         h.read("jamais_cree")
 
-        val msg = h.sink.single()
+        val msg = h.awaitReply()
         assertEquals(false, msg["ok"])
         assertEquals("unknown_project", msg["error"])
     }
@@ -138,7 +159,7 @@ class ProjectReadChannelTest {
         val h = Harness()
         h.read("../../etc")
 
-        val msg = h.sink.single()
+        val msg = h.awaitReply()
         assertEquals(false, msg["ok"])
         assertEquals("invalid_path", msg["error"])
     }
@@ -152,7 +173,7 @@ class ProjectReadChannelTest {
 
         h.read("gros")
 
-        val msg = h.sink.single()
+        val msg = h.awaitReply()
         assertEquals(false, msg["ok"])
         assertEquals("too_large", msg["error"])
     }

@@ -1,6 +1,7 @@
 import { AdminSidebar } from "@/components/AdminSidebar";
 import { BackendUnreachable } from "@/components/BackendUnreachable";
 import { ProjectSidebar } from "@/components/ProjectSidebar";
+import { onProjectsReloaded as onProjectsReloadedInEditor } from "@/features/project/onProjectsReloaded";
 import { useDraftSync } from "@/features/project/useDraftSync";
 import { EditorWs } from "@/lib/editorWs";
 import { useAuthStore } from "@/state/authStore";
@@ -67,10 +68,18 @@ function RootLayoutInner() {
     let cancelled = false;
     let ws: EditorWs | null = null;
     const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
-    EditorWs.connectAsUser(apiUrl, (_projectId, menuId) => {
-      // Capture the current i18n instance's translation at fire time — `t` is
-      // deliberately not a dep below so a language switch doesn't reconnect the WS.
-      toast(i18n.t("sync.draftConflict", { menuId }));
+    EditorWs.connectAsUser(apiUrl, {
+      onDraftUpdate: (_projectId, menuId) => {
+        // Capture the current i18n instance's translation at fire time — `t` is
+        // deliberately not a dep below so a language switch doesn't reconnect the WS.
+        toast(i18n.t("sync.draftConflict", { menuId }));
+      },
+      // Le serveur a rechargé : ce qu'on affiche peut être devenu faux. La
+      // décision de relire (ou de ne rien faire) est prise dans
+      // `onProjectsReloaded` — notamment, elle épargne le travail en cours.
+      onProjectsReloaded: (serverKeyId, projects) => {
+        onProjectsReloadedInEditor(serverKeyId, projects);
+      },
     })
       .then((connected) => {
         if (cancelled) {

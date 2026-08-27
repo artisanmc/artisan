@@ -1,5 +1,6 @@
 import { and, eq, isNotNull, isNull, notInArray } from "drizzle-orm";
 import { db } from "../db/index";
+import { forgetProjectTree } from "../lib/projectTreeReads";
 import { ensureAssets, assetsDone } from "../lib/mcAssets";
 import { networks, projects, serverKeyHelloes, serverKeys, serverModules, serverDataSources, serverDeclaredModels, serverEditorScreens } from "../db/schema";
 import {
@@ -13,6 +14,8 @@ import { customItemsCacheDir, readCustomItemsHash, processBundle } from "../lib/
 import { currentPackInfo } from "../lib/resourcePack";
 import { invalidateCustomBundle } from "../routes/modelBundle";
 import type {
+  EditorProjectsReloadedMessage,
+  ProjectsReloadedMessage,
   CustomItemsBundleMessage,
   CustomItemsChangedMessage,
   CustomItemsRequestMessage,
@@ -907,6 +910,27 @@ export async function handlePluginMessage(
   // à réconcilier, à pousser, ni à patcher. Le plugin écrit son disque lui-même.
 
   // ── custom_items_changed: plugin hot-reload triggered a hash change ───────
+  // ── projects_reloaded: le plugin a relu ses Projects ──────────────────────
+  if (msg.type === "projects_reloaded") {
+    const serverId = connToServerId.get(connId);
+    if (!serverId) return { reply: null };
+    const projects = (msg as ProjectsReloadedMessage).projects ?? [];
+    // Ce qu'on avait mémorisé de ces arbres décrit l'avant-reload.
+    for (const p of projects) forgetProjectTree(serverId, p.id);
+    // Les éditeurs ouverts sur CE serveur peuvent revalider — et avec
+    // l'empreinte, celui qui a déjà cette version n'a rien à faire du tout.
+    const payload = JSON.stringify({
+      type: "projects_reloaded",
+      server_key_id: serverId,
+      projects,
+    } satisfies EditorProjectsReloadedMessage);
+    for (const [sessionId, send] of editorSenders) {
+      if (!editorTokenToServers.get(sessionId)?.has(serverId)) continue;
+      send(payload);
+    }
+    return { reply: null };
+  }
+
   if (msg.type === "custom_items_changed") {
     const serverId = connToServerId.get(connId);
     if (!serverId) return { reply: null };

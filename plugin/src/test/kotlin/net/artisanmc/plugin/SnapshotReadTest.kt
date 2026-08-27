@@ -54,7 +54,7 @@ class SnapshotReadTest {
             )
             assertTrue(latch.await(5, TimeUnit.SECONDS), "no reply within 5s")
             @Suppress("UNCHECKED_CAST")
-            val files = sink.single()["files"] as List<Map<String, String>>
+            val files = sink.single { it["type"] != "projects_reloaded" }["files"] as List<Map<String, String>>
             return files.associate { it["path"]!! to it["content"]!! }
         }
     }

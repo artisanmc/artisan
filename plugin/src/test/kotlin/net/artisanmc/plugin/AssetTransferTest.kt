@@ -48,8 +48,15 @@ class AssetTransferTest {
             latch = CountDownLatch(1)
             sink.clear()
             provider.handleMessageForTesting(json)
-            assertTrue(latch.await(5, TimeUnit.SECONDS), "no reply within 5s")
-            return sink.single()
+            // La réponse, pas la première chose qui passe : les annonces de
+            // rechargement voyagent sur le même fil et peuvent la précéder.
+            val deadline = System.currentTimeMillis() + 5000
+            while (System.currentTimeMillis() < deadline) {
+                val reply = sink.firstOrNull { it["type"] != "projects_reloaded" }
+                if (reply != null) return reply
+                Thread.sleep(10)
+            }
+            throw AssertionError("no reply within 5s")
         }
         fun read(projectId: String): Map<String, Any?> =
             send("""{"type":"project_read","request_id":"r","project_id":"$projectId"}""")

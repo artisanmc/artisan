@@ -49,9 +49,16 @@ class ProjectRenameTest {
         fun historyDir(project: File, rel: String): File = File(project, ".artisan/history/$rel")
         fun send(json: String) {
             provider.handleMessageForTesting(json)
-            assertTrue(latch.await(5, TimeUnit.SECONDS), "no reply within 5s")
+            // On attend LA RÉPONSE : les annonces de rechargement partagent le fil
+            // et peuvent la précéder.
+            val deadline = System.currentTimeMillis() + 5000
+            while (System.currentTimeMillis() < deadline) {
+                if (sink.any { it["type"] != "projects_reloaded" }) return
+                Thread.sleep(10)
+            }
+            throw AssertionError("no reply within 5s")
         }
-        fun reply(): Map<String, Any?> = sink.single()
+        fun reply(): Map<String, Any?> = sink.single { it["type"] != "projects_reloaded" }
     }
 
     private fun renameMsg(from: String, to: String, baseHash: String) =

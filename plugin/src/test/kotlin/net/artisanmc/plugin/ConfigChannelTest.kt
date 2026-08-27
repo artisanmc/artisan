@@ -28,7 +28,28 @@ class ConfigChannelTest {
                 latch.countDown()
             }
         }
-        fun await() = assertTrue(latch.await(5, TimeUnit.SECONDS), "no reply within 5s")
+        /** Attend LA RÉPONSE : les annonces de rechargement voyagent sur le
+         *  même fil et peuvent arriver avant elle. */
+        fun await() {
+            val deadline = System.currentTimeMillis() + 5000
+            while (System.currentTimeMillis() < deadline) {
+                if (sink.any { it["type"] != "projects_reloaded" }) return
+                Thread.sleep(10)
+            }
+            throw AssertionError("no reply within 5s")
+        }
+        /** La réponse attendue, en ignorant les annonces de rechargement qui
+         *  voyagent sur le même fil. */
+        fun awaitReply(): Map<String, Any?> {
+            val deadline = System.currentTimeMillis() + 5000
+            while (System.currentTimeMillis() < deadline) {
+                val reply = sink.firstOrNull { it["type"] != "projects_reloaded" }
+                if (reply != null) return reply
+                Thread.sleep(10)
+            }
+            throw AssertionError("no reply within 5s")
+        }
+
         fun project(id: String): File = File(root, id).also { it.mkdirs() }
     }
 
@@ -46,7 +67,7 @@ class ConfigChannelTest {
         )
         h.await()
 
-        val msg = h.sink.single()
+        val msg = h.awaitReply()
         assertEquals("config_read_result", msg["type"])
         assertEquals("r1", msg["request_id"])
         assertEquals(true, msg["ok"])
@@ -68,7 +89,7 @@ class ConfigChannelTest {
         h.await()
 
         @Suppress("UNCHECKED_CAST")
-        val files = h.sink.single()["files"] as List<Map<String, String>>
+        val files = h.awaitReply()["files"] as List<Map<String, String>>
         assertEquals(listOf("data/shop_settings.yaml"), files.map { it["path"] })
     }
 
@@ -80,8 +101,8 @@ class ConfigChannelTest {
             """{"type":"config_read","request_id":"r3","project_id":"boutique","table":"data/nothing"}"""
         )
         h.await()
-        assertEquals(true, h.sink.single()["ok"])
-        assertEquals(emptyList<Any>(), h.sink.single()["files"])
+        assertEquals(true, h.awaitReply()["ok"])
+        assertEquals(emptyList<Any>(), h.awaitReply()["files"])
     }
 
     @Test
@@ -148,8 +169,11 @@ class ConfigChannelTest {
         h.provider.handleMessageForTesting(mapper.writeValueAsString(payload))
         h.await()
 
-        assertEquals(listOf("config_write_result"), h.sink.map { it["type"] })
-        assertEquals(true, h.sink.single()["ok"])
+        // Ce que ce test garde : rien n'est POUSSÉ vers une copie backend qui
+        // n'existe plus. L'annonce de rechargement, elle, est attendue — elle dit
+        // à l'éditeur d'aller revalider.
+        assertFalse("local_push" in h.sink.map { it["type"] })
+        assertEquals(true, h.awaitReply()["ok"])
         assertEquals("whole_shop_discount: 5\n", File(h.root, "boutique/data/shop_settings.yaml").readText())
     }
 
@@ -167,7 +191,7 @@ class ConfigChannelTest {
         h.provider.handleMessageForTesting(mapper.writeValueAsString(payload))
         h.await()
 
-        assertEquals("invalid_path", h.sink.single()["error"])
+        assertEquals("invalid_path", h.awaitReply()["error"])
         assertFalse(File(projectDir, "data/ok.yaml").exists(), "partial write must not happen")
         assertFalse(File(h.root, "escape.yaml").exists())
     }
@@ -182,6 +206,6 @@ class ConfigChannelTest {
         )
         h.provider.handleMessageForTesting(mapper.writeValueAsString(payload))
         h.await()
-        assertEquals("invalid_path", h.sink.single()["error"])
+        assertEquals("invalid_path", h.awaitReply()["error"])
     }
 }
