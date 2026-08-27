@@ -244,6 +244,27 @@ export interface ProjectReadResultMessage {
   message?: string;
 }
 
+/**
+ * Plugin → backend: le plugin vient de (re)charger ses Projects depuis le disque.
+ *
+ * Une édition faite à la main ne compte qu'au reload — c'est la règle du plugin,
+ * et elle laissait l'éditeur sans moyen d'apprendre que ce moment était arrivé.
+ * L'annonce porte l'empreinte de chaque Project (la même que `project_read`) :
+ * celui qui la détient déjà sait, sans un aller-retour de plus, qu'il n'a rien à
+ * refaire.
+ */
+export interface ProjectsReloadedMessage {
+  type: "projects_reloaded";
+  projects: { id: string; hash: string }[];
+}
+
+/** Backend → éditeurs de ce serveur : relais de l'annonce ci-dessus. */
+export interface EditorProjectsReloadedMessage {
+  type: "projects_reloaded";
+  server_key_id: string;
+  projects: { id: string; hash: string }[];
+}
+
 // Backend → plugin: read ONE binary asset's bytes, by path. Correlated like
 // project_read. Voir `binaries` ci-dessus pour le pourquoi du canal séparé.
 export interface AssetReadMessage {

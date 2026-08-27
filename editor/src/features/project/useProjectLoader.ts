@@ -198,6 +198,7 @@ export function useProjectLoader(projectId: string, serverRef?: string | null): 
           useProjectCacheStore.getState().put(cacheKey, {
             identity: res,
             diskId,
+            serverKeyId: ownerServerId ?? null,
             tree: full.files,
             failed: full.failed,
             hash: full.hash ?? null,
@@ -230,6 +231,7 @@ export function useProjectLoader(projectId: string, serverRef?: string | null): 
         useProjectCacheStore.getState().put(cacheKey, {
           identity: res,
           diskId,
+          serverKeyId: ownerServerId ?? null,
           tree: disk.files,
           failed: disk.failed,
           hash: disk.hash ?? null,

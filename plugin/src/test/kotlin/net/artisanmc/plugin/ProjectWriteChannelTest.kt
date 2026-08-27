@@ -40,7 +40,16 @@ class ProjectWriteChannelTest {
                 latch.countDown()
             }
         }
-        fun await() = assertTrue(latch.await(5, TimeUnit.SECONDS), "no reply within 5s")
+        /** Attend LA RÉPONSE : les annonces de rechargement voyagent sur le
+         *  même fil et peuvent arriver avant elle. */
+        fun await() {
+            val deadline = System.currentTimeMillis() + 5000
+            while (System.currentTimeMillis() < deadline) {
+                if (sink.any { it["type"] != "projects_reloaded" }) return
+                Thread.sleep(10)
+            }
+            throw AssertionError("no reply within 5s")
+        }
         fun project(id: String): File = File(root, id).also { it.mkdirs() }
         fun write(project: File, rel: String, content: String) {
             val f = File(project, rel)
@@ -56,7 +65,7 @@ class ProjectWriteChannelTest {
             provider.handleMessageForTesting(json)
             await()
         }
-        fun reply(): Map<String, Any?> = sink.single()
+        fun reply(): Map<String, Any?> = sink.single { it["type"] != "projects_reloaded" }
     }
 
     private fun writeMsg(projectId: String, files: String, deletes: String = "[]") =

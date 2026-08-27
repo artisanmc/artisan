@@ -418,6 +418,36 @@ class SyncedMenuProvider(
         }
         menus = freshMenus
         dialogs = freshDialogs
+        announceReload()
+    }
+
+    /**
+     * Annonce le rechargement, avec l'empreinte de chaque Project.
+     *
+     * Une édition faite à la main ne compte qu'au reload : c'est notre règle, et
+     * elle a un corollaire que rien ne remplissait — l'éditeur n'avait AUCUN
+     * moyen d'apprendre que ce moment était arrivé. Il gardait sa dernière
+     * version connue jusqu'à ce que quelqu'un pense à actualiser.
+     *
+     * L'empreinte voyage avec l'annonce : celui qui a déjà celle-là sait, sans
+     * un aller-retour de plus, qu'il n'a rien à refaire. C'est la même que celle
+     * de `project_read`, sans quoi chaque reload provoquerait un rapatriement
+     * inutile de l'arbre.
+     */
+    private fun announceReload() {
+        val projects = snapshot.keys.sorted().map { id ->
+            mapOf(
+                "id" to id,
+                "hash" to net.artisanmc.plugin.sync.BundleHasher.snapshotHash(
+                    snapshot[id] ?: emptyMap(),
+                    (binarySnapshot[id] ?: emptyMap()).mapValues { it.value.hash },
+                    skipped[id] ?: emptyMap(),
+                ),
+            )
+        }
+        // Fire-and-forget : sans WS connecté (démarrage, coupure) l'annonce se
+        // perd, et c'est sans conséquence — le prochain `project_read` tranchera.
+        runCatching { send(mapOf("type" to "projects_reloaded", "projects" to projects)) }
     }
 
 
