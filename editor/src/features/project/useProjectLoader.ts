@@ -67,13 +67,29 @@ async function buildProject(
   // Accepted reset (ADR project-sources-and-data-models).
   normalizeDataSources(loaded);
 
-  // Mirror into accountStore so descendants can find it, EN PRÉSERVANT l'ordre
-  // existant — l'écraser remontait le project visité en tête de sidebar.
+  return loaded;
+}
+
+/**
+ * Installe le Project dans le store que lit tout le canvas.
+ *
+ * Séparé de la construction, et ce n'est pas cosmétique : deux constructions
+ * coexistent (la version connue, affichée tout de suite, et celle du serveur),
+ * elles attendent chacune un aller-retour réseau, et rien ne garantit leur
+ * ordre d'arrivée. Quand le miroir vivait DANS la construction, celle du cache
+ * pouvait finir en dernier et écraser la fraîche — l'écran montrait alors la
+ * visite précédente en croyant montrer le serveur.
+ *
+ * Le miroir appartient donc à l'appelant, qui seul sait qui a gagné.
+ */
+function mirrorIntoAccount(loaded: Project, networkId: string): void {
+  // EN PRÉSERVANT l'ordre existant — l'écraser remontait le project visité en
+  // tête de sidebar.
   const current = useAccountStore.getState().account;
   const idx = current.projects.findIndex((p) => p.id === loaded.id);
   const loadedId = loaded.id as ProjectId;
   useAccountStore.getState().setAccount({
-    id: res.networkId as Account["id"],
+    id: networkId as Account["id"],
     projects:
       idx === -1
         ? [...current.projects, loaded]
@@ -82,7 +98,6 @@ async function buildProject(
       ? current.projectOrder
       : [...current.projectOrder, loadedId],
   });
-  return loaded;
 }
 
 export function useProjectLoader(projectId: string, serverRef?: string | null): ProjectLoadResult {
@@ -116,8 +131,11 @@ export function useProjectLoader(projectId: string, serverRef?: string | null): 
     if (cached) {
       buildProject(cached.identity as never, cached.diskId, cached.tree)
         .then((p) => {
-          // La réponse du serveur a pu arriver entre-temps : elle gagne, toujours.
+          // La réponse du serveur a pu arriver entre-temps : elle gagne,
+          // toujours — y compris pour le store que lit le canvas, d'où le
+          // miroir posé ICI et pas dans la construction.
           if (fresh) return;
+          mirrorIntoAccount(p, (cached.identity as { networkId?: string }).networkId ?? "");
           setProject(p);
           setFailed(cached.failed ?? []);
           setStale(true);
@@ -150,7 +168,9 @@ export function useProjectLoader(projectId: string, serverRef?: string | null): 
           if (draft) {
             fresh = true;
             useProjectBaselineStore.getState().set(res.project.id, draft.baseline);
-            setProject(await buildProject(res, diskId, draft.tree));
+            const built = await buildProject(res, diskId, draft.tree);
+            mirrorIntoAccount(built, res.networkId);
+            setProject(built);
             setNetworkId(res.networkId);
             setFromDraft(true);
             setOffline(true);
@@ -160,7 +180,9 @@ export function useProjectLoader(projectId: string, serverRef?: string | null): 
           if (unreachable && cached) {
             // Serveur injoignable, mais on sait ce qu'il avait : on le montre,
             // daté, plutôt qu'un écran d'erreur. Enregistrer reste hors de portée.
-            setProject(await buildProject(cached.identity as never, cached.diskId, cached.tree));
+            const built = await buildProject(cached.identity as never, cached.diskId, cached.tree);
+            mirrorIntoAccount(built, res.networkId);
+            setProject(built);
             setNetworkId(res.networkId);
             setStale(true);
             setOffline(true);
@@ -181,7 +203,9 @@ export function useProjectLoader(projectId: string, serverRef?: string | null): 
               hash: disk.hash ?? cached.hash,
               fetchedAt: new Date().toISOString(),
             });
-            if (!project) setProject(await buildProject(res, diskId, cached.tree));
+            const built = await buildProject(res, diskId, cached.tree);
+            mirrorIntoAccount(built, res.networkId);
+            if (!project) setProject(built);
             setNetworkId(res.networkId);
             setFailed(cached.failed ?? []);
             setStale(false);
@@ -205,7 +229,9 @@ export function useProjectLoader(projectId: string, serverRef?: string | null): 
             fetchedAt: new Date().toISOString(),
           });
           useProjectBaselineStore.getState().set(res.project.id, full.files);
-          setProject(await buildProject(res, diskId, full.files));
+          const built = await buildProject(res, diskId, full.files);
+          mirrorIntoAccount(built, res.networkId);
+          setProject(built);
           setNetworkId(res.networkId);
           setFailed(full.failed);
           setStale(false);
@@ -237,7 +263,9 @@ export function useProjectLoader(projectId: string, serverRef?: string | null): 
           hash: disk.hash ?? null,
           fetchedAt: new Date().toISOString(),
         });
-        setProject(await buildProject(res, diskId, resumable?.tree ?? disk.files));
+        const built = await buildProject(res, diskId, resumable?.tree ?? disk.files);
+        mirrorIntoAccount(built, res.networkId);
+        setProject(built);
         setNetworkId(res.networkId);
         setFromDraft(resumable !== null);
         setStale(false);
