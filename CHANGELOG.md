@@ -16,8 +16,9 @@ See `docs/architecture/versioning.md` for the full versioning rules.
   `element-display-and-states`) reposait sur une prémisse fausse — des menus d'avant vivaient en
   production, et rien ne les avait réécrits (le bootstrap d'un Add-on ne retouche jamais un project
   existant, par conception).
-- La LECTURE tolère donc à nouveau l'ancienne liste (display en tête), côté menus comme côté
-  `templates/`. L'écriture reste canonique : le premier enregistrement remet le fichier à
+- La LECTURE tolère donc à nouveau l'ancienne liste (display en tête) : côté éditeur (menus et
+  `templates/`) **et côté plugin** — sans quoi le menu s'ouvrait sans ses items EN JEU aussi, ce
+  que le correctif éditeur seul ne pouvait pas réparer. L'écriture reste canonique : le premier enregistrement remet le fichier à
   l'endroit. Lecteur tolérant, écrivain canonique.
 
 ### Added — le plugin annonce ses rechargements (`projects_reloaded`)

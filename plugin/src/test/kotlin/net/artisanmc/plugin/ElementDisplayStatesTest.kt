@@ -71,7 +71,14 @@ class ElementDisplayStatesTest {
     }
 
     @Test
-    fun `the retired appearances list is not read`() {
+    /**
+     * Ce test disait l'inverse jusqu'au 2026-08-29 : la liste devait être
+     * IGNORÉE. La décision supposait qu'aucun fichier ancien ne survivrait ;
+     * la production a montré le contraire, et un menu sans ses items ne
+     * ressemble pas à une panne mais à une mauvaise configuration.
+     * Cf. `ElementLegacyAppearancesTest` et l'ADR corrigé.
+     */
+    fun `the legacy appearances list is still read`() {
         val menu = parse(
             """
             schema: menu/v1
@@ -84,7 +91,7 @@ class ElementDisplayStatesTest {
                   - material: GOLD_INGOT
             """,
         )
-        assertNull(menu.allElements.single().display.material)
+        assertEquals("GOLD_INGOT", menu.allElements.single().display.material)
     }
 
     @Test
