@@ -71,10 +71,34 @@ export function makeAppearanceConverter(bridge: I18nBridge): {
   // menu/v1 lore is `string[]`; domain lore is a single LText (lines joined by
   // `\n`). A single `{i18n:}` line references that key; otherwise the literal
   // lines are joined and allocated a fresh key.
+  /**
+   * Une ligne de lore, telle qu'elle peut se présenter sur le fil.
+   *
+   * La forme canonique est une chaîne. Mais des fichiers écrits avant portent du
+   * texte STRUCTURÉ — une référence i18n (`{ key: … }`) ou un calque
+   * (`{ kind: plain, value: … }`, la forme des titres). `String()` les rendait
+   * littéralement « [object Object] », dans l'éditeur comme en jeu : un lore
+   * illisible sur un fichier que rien ne signale.
+   *
+   * Ce qu'on ne sait toujours pas lire finit en JSON plutôt qu'en
+   * « [object Object] » : l'un se diagnostique, l'autre non.
+   */
+  function loreLine(line: unknown): string {
+    if (typeof line === "string") return line;
+    if (line && typeof line === "object") {
+      const o = line as Record<string, unknown>;
+      if (typeof o.key === "string") return `{i18n:${o.key}}`;
+      if ("value" in o) return loreLine(o.value);
+      if (typeof o.text === "string") return o.text;
+    }
+    if (line === null || line === undefined) return "";
+    return JSON.stringify(line);
+  }
+
   function loreText(lore: unknown): LText | undefined {
     if (!Array.isArray(lore) || lore.length === 0) return undefined;
-    if (lore.length === 1) return text(String(lore[0]));
-    return text(lore.map(String).join("\n"));
+    if (lore.length === 1) return text(loreLine(lore[0]));
+    return text(lore.map(loreLine).join("\n"));
   }
 
   function appearance(a: Json): DomainAppearance {
