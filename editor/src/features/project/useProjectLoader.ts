@@ -33,6 +33,10 @@ export interface ProjectLoadResult {
   stale: boolean;
 }
 
+/** Les derniers modèles déclarés rapportés par le serveur — rangés avec la
+ *  version connue pour que la visite suivante n'ait rien à attendre. */
+let lastDeclaredModels: unknown[] | undefined;
+
 /**
  * Construit le Project depuis un arbre rel-keyed et l'installe dans les stores.
  *
@@ -44,6 +48,16 @@ async function buildProject(
   res: Awaited<ReturnType<typeof loadUserProject>>,
   diskId: string,
   tree: Record<string, string>,
+  /**
+   * Les modèles déclarés, quand on les a déjà.
+   *
+   * Sans ça, l'affichage de la version connue attendait un aller-retour REST
+   * avant de rendre le moindre pixel — donc « Lecture des fichiers du
+   * serveur… » à chaque visite, alors que tout était là. Un cache qui attend
+   * le réseau n'est pas un cache. Le passage suivant, celui du serveur, les
+   * rafraîchit de toute façon.
+   */
+  declaredModels?: unknown[],
 ): Promise<Project> {
   // Files-first (ADR files-first-source-of-truth): the file tree IS the Project
   // — parse it client-side. Les chemins sont relatifs au project ;
@@ -60,9 +74,12 @@ async function buildProject(
   });
   // Module-declared models (ADR composable-data-models §4/§5).
   const serverId = res.project.serverKeyId ?? res.serverKeyId;
-  if (serverId && res.networkId) {
+  if (declaredModels) {
+    injectDeclaredModels(loaded, declaredModels as never);
+  } else if (serverId && res.networkId) {
     const docs = await fetchServerDeclaredModels(res.networkId, serverId).catch(() => []);
     injectDeclaredModels(loaded, docs);
+    lastDeclaredModels = docs;
   }
   // Accepted reset (ADR project-sources-and-data-models).
   normalizeDataSources(loaded);
@@ -129,7 +146,12 @@ export function useProjectLoader(projectId: string, serverRef?: string | null): 
     const cacheKey = projectCacheKey(projectId, serverRef);
     const cached = useProjectCacheStore.getState().get(cacheKey);
     if (cached) {
-      buildProject(cached.identity as never, cached.diskId, cached.tree)
+      buildProject(
+        cached.identity as never,
+        cached.diskId,
+        cached.tree,
+        cached.declaredModels ?? [],
+      )
         .then((p) => {
           // La réponse du serveur a pu arriver entre-temps : elle gagne,
           // toujours — y compris pour le store que lit le canvas, d'où le
@@ -226,6 +248,7 @@ export function useProjectLoader(projectId: string, serverRef?: string | null): 
             tree: full.files,
             failed: full.failed,
             hash: full.hash ?? null,
+            declaredModels: lastDeclaredModels,
             fetchedAt: new Date().toISOString(),
           });
           useProjectBaselineStore.getState().set(res.project.id, full.files);
@@ -261,6 +284,7 @@ export function useProjectLoader(projectId: string, serverRef?: string | null): 
           tree: disk.files,
           failed: disk.failed,
           hash: disk.hash ?? null,
+          declaredModels: lastDeclaredModels,
           fetchedAt: new Date().toISOString(),
         });
         const built = await buildProject(res, diskId, resumable?.tree ?? disk.files);
