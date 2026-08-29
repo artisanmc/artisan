@@ -249,13 +249,25 @@ export function menuV1ToDomain(
   }
 
   function element(el: Json): DomainElement {
+    // Forme d'avant le 17 août : une LISTE `appearances`, display en tête.
+    // Le format courant l'emporte s'il est là — la liste n'est qu'un vestige.
+    // On la lit encore parce que des fichiers écrits avant existent en
+    // production : ne plus les reconnaître ne les signalait pas, ça les rendait
+    // vides (items invisibles, template sans contenu). Lecteur tolérant,
+    // écrivain canonique — l'enregistrement suivant remet le fichier à
+    // l'endroit, et `appearances` disparaît de lui-même.
+    const flat = appearance(el);
+    const legacy =
+      Object.keys(flat).length === 0 && Array.isArray(el.appearances)
+        ? (el.appearances as Json[]).map(appearance)
+        : null;
     return {
       id: el.id,
       positions: positionsSpec(el.positions),
       // The display's fields sit flat on the element; `appearance` is
       // allow-list driven, so the structural keys around them are ignored.
-      display: appearance(el),
-      states: ((el.states as Json[]) ?? []).map(appearance),
+      display: legacy ? (legacy[0] ?? {}) : flat,
+      states: legacy ? legacy.slice(1) : ((el.states as Json[]) ?? []).map(appearance),
       ...(el.iterates ? { iterates: iteratesOf(el.iterates) } : {}),
       ...(el.places ? { places: placesOf(el.places) } : {}),
       ...(el.tags ? { tags: el.tags } : {}),
