@@ -1,12 +1,13 @@
-import { useEffect, useRef, useState } from "react";
-import { Stage as KonvaStage, Layer } from "react-konva";
 import type { MenuId, ProjectId } from "@/domain/types";
-import { useAccountStore } from "@/state/accountStore";
-import { useUiStore } from "@/state/uiStore";
-import { MenuGroup } from "@/features/canvas/MenuGroup";
 import { ItemTooltip } from "@/features/canvas/ItemTooltip";
+import { MenuGroup } from "@/features/canvas/MenuGroup";
 import { menuBoxSize } from "@/features/canvas/menuLayout";
 import { usePanZoom } from "@/features/canvas/usePanZoom";
+import { useAccountStore } from "@/state/accountStore";
+import { useHoverStore } from "@/state/hoverStore";
+import { useUiStore } from "@/state/uiStore";
+import { useEffect, useRef, useState } from "react";
+import { Stage as KonvaStage, Layer } from "react-konva";
 import { fitViewport } from "./soloViewport";
 
 /**
@@ -61,7 +62,17 @@ export function SoloMenuStage({ projectId, menuId }: { projectId: ProjectId; men
   if (!menu) return null;
 
   return (
-    <div ref={wrapperRef} className="stage-bg-dots relative h-full w-full">
+    <div
+      ref={wrapperRef}
+      className="stage-bg-dots relative h-full w-full"
+      // L'infobulle est du DOM posé en `fixed` : sans ces coordonnées, elle
+      // s'affichait au coin haut-gauche de l'écran au lieu de suivre le
+      // curseur. Le canvas général les fournissait déjà ; la vue unique, non.
+      onMouseMove={(e) => useHoverStore.getState().setCursor(e.clientX, e.clientY)}
+      // Sortir de la vue d'un geste rapide ne déclenche pas toujours le
+      // `mouseleave` d'un slot Konva : on éteint le survol ici aussi.
+      onMouseLeave={() => useHoverStore.getState().setElement(null)}
+    >
       <KonvaStage
         width={size.w}
         height={size.h}
