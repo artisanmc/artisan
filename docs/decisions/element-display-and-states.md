@@ -69,7 +69,8 @@ rewritten in the canonical form.
 > template sans contenu — ce qui ressemble à une mauvaise configuration, pas à
 > une panne. Dix jours pour que ça se voie.
 >
-> `menuV1ToDomain` et le lecteur de `templates/` acceptent donc encore une liste
+> `menuV1ToDomain`, le lecteur de `templates/` **et le plugin**
+> (`ElementYamlDeserializer`) acceptent donc encore une liste
 > `appearances` (display en tête), quand aucun champ à plat n'est présent. Rien
 > ne change par ailleurs : l'écrivain reste canonique — le premier
 > enregistrement remet le fichier à l'endroit — et un état ne s'hérite toujours

@@ -178,6 +178,21 @@ class ElementYamlDeserializer : StdDeserializer<ElementYaml>(ElementYaml::class.
         val codec = p.codec
         val node: JsonNode = codec.readTree(p)
         if (!node.isObject) return ElementYaml()
+        /*
+         * Forme d'avant l'ADR `element-display-and-states` : une LISTE
+         * `appearances`, display en tête. On la lit encore, faute de quoi ces
+         * fichiers — que rien ne réécrit, le bootstrap d'un Add-on ne retouchant
+         * jamais un project existant — ouvrent un menu SANS ses items, sans une
+         * erreur ni un log.
+         *
+         * Le format courant l'emporte dès qu'un champ à plat est présent : la
+         * liste est un vestige, pas une alternative. L'éditeur réécrit au format
+         * courant au premier enregistrement.
+         */
+        val flat = codec.treeToValue(node, AppearanceYaml::class.java)
+        val legacy = node.get("appearances")
+            ?.takeIf { it.isArray && flat == AppearanceYaml() }
+            ?.map { codec.treeToValue(it, AppearanceYaml::class.java) }
         return ElementYaml(
             id = node.get("id")?.takeIf { !it.isNull }?.asText() ?: "",
             positions = node.get("positions")?.let { positionsOf(it) },
@@ -187,10 +202,11 @@ class ElementYamlDeserializer : StdDeserializer<ElementYaml>(ElementYaml::class.
             places = node.get("places")?.takeIf { it.isObject }?.let {
                 codec.treeToValue(it, PlacesYaml::class.java)
             },
-            display = codec.treeToValue(node, AppearanceYaml::class.java),
-            states = node.get("states")?.takeIf { it.isArray }?.map {
-                codec.treeToValue(it, AppearanceYaml::class.java)
-            } ?: emptyList(),
+            display = legacy?.firstOrNull() ?: codec.treeToValue(node, AppearanceYaml::class.java),
+            states = legacy?.drop(1)
+                ?: node.get("states")?.takeIf { it.isArray }?.map {
+                    codec.treeToValue(it, AppearanceYaml::class.java)
+                } ?: emptyList(),
         )
     }
 
