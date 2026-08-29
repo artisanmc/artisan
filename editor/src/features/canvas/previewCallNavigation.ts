@@ -1,3 +1,4 @@
+import type { Menu } from "@/domain/types";
 import type { PreviewCallContext } from "./previewCallContexts";
 
 /**
@@ -11,6 +12,30 @@ import type { PreviewCallContext } from "./previewCallContexts";
  */
 
 /** L'index du contexte actuellement posé, ou -1. */
+/**
+ * Les arguments RÉELLEMENT en vigueur pour l'aperçu.
+ *
+ * Rien de choisi ne veut pas dire aucun contexte : un input qui porte un
+ * `default` s'applique quand même, et c'est bien cet écran-là que le canvas
+ * rend. Le bandeau lisait les seuls arguments explicites et annonçait donc
+ * « choisis un contexte » au-dessus d'un menu déjà rendu dans un contexte
+ * précis — il décrivait un état que personne ne voyait.
+ *
+ * On ne pose rien dans le store pour autant : le défaut n'est pas un choix de
+ * l'utilisateur, c'est ce qui vaut tant qu'il n'a pas choisi.
+ */
+export function effectivePreviewArgs(
+  menu: Menu,
+  previewArgs: Record<string, unknown> | undefined,
+): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const input of menu.contextInputs ?? []) {
+    if (input.kind !== "primitive") continue;
+    if (input.default !== undefined && input.default !== "") out[input.name] = input.default;
+  }
+  return { ...out, ...(previewArgs ?? {}) };
+}
+
 export function currentCallIndex(
   contexts: PreviewCallContext[],
   previewArgs: Record<string, unknown> | undefined,
