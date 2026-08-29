@@ -42,6 +42,15 @@ export interface CachedProject {
   serverKeyId?: string | null;
   /** L'arbre rel-keyed, tel que le serveur l'a rendu. */
   tree: Record<string, string>;
+  /**
+   * Les modèles déclarés par les modules du serveur, tels qu'ils étaient.
+   *
+   * Ils viennent du serveur, pas des fichiers — mais les ranger ici est ce qui
+   * permet d'afficher la version connue SANS aucun aller-retour. La visite
+   * suivante les rafraîchit ; entre-temps, un modèle d'hier vaut mieux qu'un
+   * écran d'attente.
+   */
+  declaredModels?: unknown[];
   /** Documents que le serveur n'avait pas su charger, à réafficher tels quels. */
   failed?: FailedDocument[];
   /**

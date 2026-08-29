@@ -73,4 +73,35 @@ describe("useProjectLoader — la version fraîche gagne toujours", () => {
     expect(menuIds).toContain("frais");
     expect(menuIds).not.toContain("perime");
   });
+
+  /**
+   * « Lecture des fichiers du serveur… » s'affichait encore à chaque visite,
+   * alors que la version connue était là : la construction depuis le cache
+   * attendait un aller-retour REST (les modèles déclarés du serveur) avant de
+   * rendre quoi que ce soit. Un cache qui attend le réseau n'est pas un cache.
+   */
+  it("affiche la version connue sans attendre le réseau", async () => {
+    useProjectCacheStore.getState().put(projectCacheKey("p1"), {
+      identity: IDENTITY,
+      diskId: "boutique_shop",
+      serverKeyId: "sk_1",
+      tree: { "menus/connu.yaml": menu("connu") },
+      declaredModels: [],
+      hash: "connue",
+      fetchedAt: new Date().toISOString(),
+    } as never);
+
+    vi.spyOn(userProjectsApi, "loadUserProject").mockReturnValue(new Promise(() => {}) as never);
+    vi.spyOn(projectFilesApi, "readProjectFiles").mockReturnValue(new Promise(() => {}) as never);
+    // Le réseau ne répond JAMAIS : si l'écran attend quoi que ce soit, il reste vide.
+    const models = vi
+      .spyOn(dataSourcesApi, "fetchServerDeclaredModels")
+      .mockReturnValue(new Promise(() => {}) as never);
+
+    const { result } = renderHook(() => useProjectLoader("p1"));
+
+    await waitFor(() => expect(result.current.project).not.toBeNull());
+    expect(result.current.stale).toBe(true);
+    expect(models).not.toHaveBeenCalled();
+  });
 });
