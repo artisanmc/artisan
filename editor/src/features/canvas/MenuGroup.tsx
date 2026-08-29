@@ -45,6 +45,7 @@ import {
   resolvePlacementSlot,
 } from "./placement";
 import { pinPlacementRow } from "./placementDrop";
+import { sourceIsContextFiltered } from "./placementScope";
 import { TitleRender } from "./title/composer/TitleRender";
 import { useMenuClick } from "./useMenuClick";
 import { useMenuDrag } from "./useMenuDrag";
@@ -363,9 +364,19 @@ export function MenuGroup({ projectId, menu, position, layout, solo = false }: M
         for (const { placement, info } of resolved) {
           elementsByPosition.set(placement.position, info);
         }
-        for (const { placement, info } of unresolved) {
-          if (!elementsByPosition.has(placement.position)) {
-            elementsByPosition.set(placement.position, info);
+        // Une source filtrée par le contexte ne rend qu'une tranche du tout :
+        // les placements des AUTRES contextes n'y résolvent rien, et ce n'est
+        // pas une anomalie — ils sont posés sur les mêmes slots à dessein. Les
+        // afficher couvrait le menu de cases pointillées, au point de faire
+        // croire à un territoire réservé de mode paginé en plein placement.
+        //
+        // Sans filtre contextuel, la même absence est un vrai trou (ligne
+        // supprimée) et doit se voir.
+        if (!sourceIsContextFiltered(menu, places.source)) {
+          for (const { placement, info } of unresolved) {
+            if (!elementsByPosition.has(placement.position)) {
+              elementsByPosition.set(placement.position, info);
+            }
           }
         }
         continue;

@@ -7,7 +7,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Group, Rect, Text } from "react-konva";
 import { findPreviewCallContexts } from "./previewCallContexts";
-import { currentCallIndex } from "./previewCallNavigation";
+import { currentCallIndex, effectivePreviewArgs } from "./previewCallNavigation";
 import { resolvedContexts } from "./resolvedContexts";
 
 const HEIGHT = 18;
@@ -55,7 +55,8 @@ export function PreviewContextBanner({
   const contexts = resolvedContexts(all);
   const stale = contexts.length === 0;
 
-  const current = currentCallIndex(contexts, previewArgs);
+  // Le défaut d'un input compte : c'est l'écran que le canvas rend déjà.
+  const current = currentCallIndex(contexts, effectivePreviewArgs(menu, previewArgs));
   const active = current >= 0 ? contexts[current] : null;
   const label = stale
     ? t("canvas.previewContextNoData")

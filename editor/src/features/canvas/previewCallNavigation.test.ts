@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { PreviewCallContext } from "./previewCallContexts";
-import { currentCallIndex, nextCallContext } from "./previewCallNavigation";
+import { currentCallIndex, effectivePreviewArgs, nextCallContext } from "./previewCallNavigation";
 
 /**
  * Naviguer d'un contexte à l'autre est le geste d'édition d'un menu paramétré :
@@ -10,8 +10,16 @@ import { currentCallIndex, nextCallContext } from "./previewCallNavigation";
  * fonctions sont la logique derrière l'arête cliquable et le bandeau du canvas.
  */
 const CTX: PreviewCallContext[] = [
-  { from: "shop_main", label: "Les Clés", args: { category: "les_cles", category_name: "Les Clés" } },
-  { from: "shop_main", label: "Les Kits", args: { category: "les_kits", category_name: "Les Kits" } },
+  {
+    from: "shop_main",
+    label: "Les Clés",
+    args: { category: "les_cles", category_name: "Les Clés" },
+  },
+  {
+    from: "shop_main",
+    label: "Les Kits",
+    args: { category: "les_kits", category_name: "Les Kits" },
+  },
   { from: "promo", label: "Promo", args: { category: "les_packs", category_name: "Les Packs" } },
 ];
 
@@ -55,5 +63,35 @@ describe("nextCallContext", () => {
 
   it("rend null sans contexte du tout", () => {
     expect(nextCallContext([], {})).toBeNull();
+  });
+});
+
+/**
+ * Le bandeau annonçait « choisis un contexte » au-dessus d'un menu déjà rendu
+ * dans un contexte précis : il ne lisait que les arguments explicites, alors
+ * qu'un input avec un `default` s'applique de lui-même. Il décrivait un état
+ * que personne ne voyait.
+ */
+describe("effectivePreviewArgs", () => {
+  const menu = {
+    id: "shop_category",
+    contextInputs: [
+      { kind: "primitive", name: "category", type: "string", default: "les_cles" },
+      { kind: "primitive", name: "category_name", type: "string", default: "" },
+      { kind: "sourceRef", name: "items", ref: "boutique:items" },
+    ],
+  } as never;
+
+  it("applique le défaut d'un input quand rien n'a été choisi", () => {
+    expect(effectivePreviewArgs(menu, undefined)).toEqual({ category: "les_cles" });
+  });
+
+  it("un choix explicite l'emporte sur le défaut", () => {
+    expect(effectivePreviewArgs(menu, { category: "kits" })).toEqual({ category: "kits" });
+  });
+
+  /** Un défaut vide n'est pas un contexte : il ne doit pas prétendre en être un. */
+  it("ignore un défaut vide", () => {
+    expect(effectivePreviewArgs(menu, undefined)).not.toHaveProperty("category_name");
   });
 });

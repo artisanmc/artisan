@@ -4,6 +4,7 @@ import { projectFromFiles } from "@/schema/projectFromFiles";
 import { describe, expect, it } from "vitest";
 import { buildPreviewScope } from "./menuPreviewScope";
 import { matchPlacementRow, placementAtSlot, resolvePlacementSlot } from "./placement";
+import { sourceIsContextFiltered } from "./placementScope";
 
 /**
  * Reproduction du bug d'aperçu signalé en prod le 2026-08-17 sur la boutique :
@@ -129,6 +130,21 @@ describe("aperçu boutique — placements hors du contexte d'aperçu", () => {
     });
     expect(outOfContext.dangling).toBe(true);
     expect(outOfContext.title ?? "").not.toContain("{item.");
+  });
+
+  /**
+   * La suite de ce bug, signalée le 2026-08-29 : le menu s'affichait couvert de
+   * cases pointillées, « comme en mode pagination », alors qu'il est en
+   * placement pur. Ce n'était pas un territoire réservé — c'étaient les
+   * placements des AUTRES catégories, pendants, occupant leurs slots.
+   *
+   * Une source filtrée par le contexte ne rend qu'une tranche du tout : une clé
+   * absente n'y prouve rien, donc elle ne doit pas laisser de trace à l'écran.
+   * Sans filtre contextuel, la même absence est un vrai trou et doit se voir.
+   */
+  it("hors contexte, un placement ne laisse pas de case pointillée", () => {
+    const { menu } = load();
+    expect(sourceIsContextFiltered(menu, menu.layers[0]!.elements[0]!.places!.source)).toBe(true);
   });
 
   it("le slot partagé rend le placement DU contexte, pas le premier de la liste", () => {
