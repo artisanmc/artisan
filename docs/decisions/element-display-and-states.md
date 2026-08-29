@@ -59,6 +59,24 @@ a field that is by construction always there.
 server, so there is no third party whose files we would break. Existing menus are
 rewritten in the canonical form.
 
+> **Corrigé le 2026-08-29 : la lecture, elle, tolère l'ancienne liste.**
+>
+> La prémisse ci-dessus — « un seul serveur de test, les fichiers seront
+> réécrits » — était fausse. Des menus écrits avant le changement vivaient en
+> production (bootstrap d'un Add-on, dont le `bootstrapIfAbsent` refuse par
+> conception de retoucher un project existant : rien ne les a jamais réécrits).
+> L'éditeur les rendait alors **vides et sans un message** — items invisibles,
+> template sans contenu — ce qui ressemble à une mauvaise configuration, pas à
+> une panne. Dix jours pour que ça se voie.
+>
+> `menuV1ToDomain` et le lecteur de `templates/` acceptent donc encore une liste
+> `appearances` (display en tête), quand aucun champ à plat n'est présent. Rien
+> ne change par ailleurs : l'écrivain reste canonique — le premier
+> enregistrement remet le fichier à l'endroit — et un état ne s'hérite toujours
+> pas. **Lecteur tolérant, écrivain canonique**, la règle déjà posée par
+> `bare-data-files` ; elle aurait dû s'appliquer ici dès le départ, un chemin de
+> lecture d'ancien format étant exactement ce qu'elle vise.
+
 This mutates `menu/v1` in place. `versioning.md:57-61` forbids renaming a field
 within a version, but that rule is calqued on API surfaces where the producer is
 a third party. Here the writer is ours and no readable file stops being readable.

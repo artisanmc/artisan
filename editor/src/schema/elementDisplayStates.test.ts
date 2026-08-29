@@ -66,12 +66,22 @@ describe("reading — flat display + states", () => {
     expect(state.title).toBeUndefined();
   });
 
-  it("ignores the retired `appearances` list", () => {
+  /**
+   * Ce test disait l'inverse jusqu'au 2026-08-29 : `appearances` devait être
+   * IGNORÉ, sans repli de lecture. La décision reposait sur une prémisse —
+   * `menu/v1` était pré-prod, les fichiers seraient réinitialisés — que la
+   * production a démentie : des menus écrits avant le changement y vivaient
+   * encore, et l'éditeur les rendait vides sans rien dire.
+   *
+   * Ce qui reste intact de la décision d'origine : rien n'est jamais RÉÉCRIT
+   * dans l'ancienne forme, et un état ne s'hérite pas. Seule la lecture cède.
+   */
+  it("lit encore une liste `appearances` héritée, faute de quoi le fichier serait invisible", () => {
     const { menu } = menuV1ToDomain(
       wireMenu({ appearances: [{ material: "GOLD_INGOT" }] }) as never,
       opts,
     );
-    expect(menu.layers[0]!.elements[0]!.display.material).toBeUndefined();
+    expect(menu.layers[0]!.elements[0]!.display.material).toBe("GOLD_INGOT");
   });
 
   it("keeps the structural keys off the display", () => {
@@ -81,6 +91,56 @@ describe("reading — flat display + states", () => {
     expect(el.tags).toEqual(["deco"]);
     expect(el.display).not.toHaveProperty("positions");
     expect(el.display).not.toHaveProperty("tags");
+  });
+});
+
+/**
+ * Les fichiers écrits AVANT le 17 août portent `appearances:` — une liste, le
+ * premier élément faisant office de display. Le changement de format les avait
+ * laissés derrière lui : plus aucun champ reconnu, donc un display vide, des
+ * items invisibles et un template sans contenu. Sans message, et sur des
+ * fichiers parfaitement valides — c'est ce qui a cassé les menus Boutique en
+ * production, dix jours après coup.
+ *
+ * On les lit donc encore. On ne les réécrit jamais : l'écriture reste
+ * canonique, donc le premier enregistrement remet le fichier à l'endroit.
+ */
+describe("reading — le format `appearances:` d'avant reste lisible", () => {
+  it("prend la première appearance comme display, les suivantes comme states", () => {
+    const { menu } = menuV1ToDomain(
+      wireMenu({
+        appearances: [
+          { material: "DIAMOND", title: "Acheter" },
+          { if: [{ type: "has_permission", perm: "vip" }], material: "EMERALD" },
+        ],
+      }) as never,
+      opts,
+    );
+    const el = menu.layers[0]!.elements[0]!;
+    expect(el.display.material).toBe("DIAMOND");
+    expect(el.display.title).toBeDefined();
+    expect(el.states).toHaveLength(1);
+    expect(el.states[0]!.material).toBe("EMERALD");
+  });
+
+  it("réécrit au format courant : le fichier se répare au premier enregistrement", () => {
+    const { menu } = menuV1ToDomain(
+      wireMenu({ appearances: [{ material: "DIAMOND" }] }) as never,
+      opts,
+    );
+    const project = { id: projectId("p"), defaultLang: "en", i18nKeys: {} } as unknown as Project;
+    const out = serializeMenuToV1(menu, project);
+    expect(JSON.stringify(out)).not.toContain("appearances");
+    expect(JSON.stringify(out)).toContain("DIAMOND");
+  });
+
+  it("un display à plat l'emporte sur une liste `appearances` résiduelle", () => {
+    const { menu } = menuV1ToDomain(
+      wireMenu({ material: "ARROW", appearances: [{ material: "DIAMOND" }] }) as never,
+      opts,
+    );
+    // Le format courant fait foi : la liste est un vestige, pas une alternative.
+    expect(menu.layers[0]!.elements[0]!.display.material).toBe("ARROW");
   });
 });
 

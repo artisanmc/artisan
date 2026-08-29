@@ -9,6 +9,17 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Fixed — les menus écrits avant le passage à `display` + `states` redeviennent lisibles
+
+- Un fichier portant encore `appearances:` se lisait en display VIDE depuis le 17 août : items
+  invisibles, template sans contenu, aucun message. La décision « aucun shim » (ADR
+  `element-display-and-states`) reposait sur une prémisse fausse — des menus d'avant vivaient en
+  production, et rien ne les avait réécrits (le bootstrap d'un Add-on ne retouche jamais un project
+  existant, par conception).
+- La LECTURE tolère donc à nouveau l'ancienne liste (display en tête), côté menus comme côté
+  `templates/`. L'écriture reste canonique : le premier enregistrement remet le fichier à
+  l'endroit. Lecteur tolérant, écrivain canonique.
+
 ### Added — le plugin annonce ses rechargements (`projects_reloaded`)
 
 - Nouveau message plugin → backend → éditeurs. Une édition faite à la main sur le disque ne compte
