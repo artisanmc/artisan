@@ -144,6 +144,44 @@ describe("reading — le format `appearances:` d'avant reste lisible", () => {
   });
 });
 
+/**
+ * Les fichiers d'avant portent aussi du texte STRUCTURÉ — `{ kind: plain, value:
+ * { key: … } }`, la forme des calques de titre. Le lecteur de lore les passait à
+ * `String()`, ce qui donne littéralement « [object Object] » dans l'infobulle et
+ * en jeu : un lore illisible, sur un fichier que rien ne signale.
+ */
+describe("reading — du texte structuré dans le lore ne donne jamais [object Object]", () => {
+  it("résout une ligne portant une référence i18n", () => {
+    const { menu } = menuV1ToDomain(
+      wireMenu({ material: "DIAMOND", lore: [{ key: "boutique.item.lore" }] }) as never,
+      opts,
+    );
+    expect(menu.layers[0]!.elements[0]!.display.lore!.key).toBe("boutique.item.lore");
+  });
+
+  it("aplatit un calque `{ kind: plain, value }`", () => {
+    const { menu, i18nKeys } = menuV1ToDomain(
+      wireMenu({
+        material: "DIAMOND",
+        lore: [{ kind: "plain", value: "Une ligne" }, "Une autre"],
+      }) as never,
+      opts,
+    );
+    const lore = menu.layers[0]!.elements[0]!.display.lore!;
+    expect(i18nKeys[lore.key]!.en).toBe("Une ligne\nUne autre");
+  });
+
+  it("un objet inconnu se voit, au lieu de se déguiser en [object Object]", () => {
+    const { menu, i18nKeys } = menuV1ToDomain(
+      wireMenu({ material: "DIAMOND", lore: [{ inattendu: 1 }] }) as never,
+      opts,
+    );
+    const lore = menu.layers[0]!.elements[0]!.display.lore!;
+    expect(i18nKeys[lore.key]!.en).not.toContain("[object Object]");
+    expect(i18nKeys[lore.key]!.en).toContain("inattendu");
+  });
+});
+
 describe("writing — flat display + states", () => {
   function roundTrip(el: Record<string, unknown>): Record<string, unknown> {
     const { menu, i18nKeys } = menuV1ToDomain(wireMenu(el) as never, opts);
