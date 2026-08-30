@@ -38,6 +38,7 @@ import { DeleteProjectDialog } from "@/features/sync/DeleteProjectDialog";
 import { TranslationPanelContent } from "@/features/translations/TranslationPanel";
 import { deleteUserProject } from "@/lib/api/userProjects";
 import { useIsDesktop } from "@/lib/useMediaQuery";
+import { STALE_NOTICE_DELAY_MS, useSettledFlag } from "@/lib/useSettledFlag";
 import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
 import { useSelectionStore } from "@/state/selectionStore";
@@ -93,6 +94,7 @@ export function ProjectCanvasPage() {
     fromDraft,
     stale,
   } = useProjectLoader(projectId, serverId);
+  const staleSettled = useSettledFlag(stale, STALE_NOTICE_DELAY_MS);
   const project = userProject;
   const pId = (project?.id ?? projectId) as ProjectId;
   const currentUser = useAuthStore((s) => s.currentUser);
@@ -363,9 +365,14 @@ export function ProjectCanvasPage() {
   // Ce qui est à l'écran vient de la dernière visite pendant que la lecture du
   // serveur est en vol. Un état daté ne s'affiche jamais en silence — c'est la
   // règle des brouillons, et elle vaut pour le cache.
-  const staleBanner = stale ? (
-    <div className="flex items-center justify-center gap-2 border-b border-[var(--border-soft)] bg-[var(--surface-raised)] px-3 py-1 text-[11.5px] text-[var(--text-mut)]">
-      {t(offline ? "project.staleOffline" : "project.staleLoading")}
+  // Différé : une revalidation qui répond en 300 ms n'a personne à prévenir, et
+  // un bandeau qui clignote coûte plus d'attention qu'il n'en informe. Ce qui
+  // s'attarde, en revanche, se dit — la règle tient là où elle compte.
+  const staleBanner = staleSettled ? (
+    <div className="flex justify-center py-1">
+      <span className="chip h-6 px-2.5 text-[11px]">
+        {t(offline ? "project.staleOffline" : "project.staleLoading")}
+      </span>
     </div>
   ) : null;
 
