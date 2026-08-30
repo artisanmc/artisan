@@ -5,18 +5,27 @@ const configRead = vi.fn();
 const configWrite = vi.fn();
 vi.mock("@/lib/api/configScreens", async (orig) => {
   const real = (await orig()) as Record<string, unknown>;
-  return { ...real, configRead: (...a: unknown[]) => configRead(...a), configWrite: (...a: unknown[]) => configWrite(...a) };
+  return {
+    ...real,
+    configRead: (...a: unknown[]) => configRead(...a),
+    configWrite: (...a: unknown[]) => configWrite(...a),
+  };
 });
 vi.mock("@/lib/api/dataSources", () => ({ fetchServerDeclaredModels: vi.fn(async () => []) }));
 vi.mock("@/features/canvas/useTextureInit", () => ({ useTextureInit: () => {} }));
 // The page is what's under test, not CodeMirror: a textarea stands in for the
 // shared YAML editor so edits can be simulated.
 vi.mock("@/components/ui/yaml-code-editor", () => ({
-  YamlCodeEditor: ({ value, onChange, ariaLabel }: { value: string; onChange: (v: string) => void; ariaLabel: string }) => (
+  YamlCodeEditor: ({
+    value,
+    onChange,
+    ariaLabel,
+  }: { value: string; onChange: (v: string) => void; ariaLabel: string }) => (
     <textarea aria-label={ariaLabel} value={value} onChange={(e) => onChange(e.target.value)} />
   ),
 }));
 
+import { screenCacheKey, useScreenCacheStore } from "@/state/screenCacheStore";
 import { useServerScreensStore } from "@/state/serverScreensStore";
 import { ConfigScreenPage } from "./ConfigScreenPage";
 
@@ -24,6 +33,7 @@ const SETTINGS = "whole_shop_discount: 10\n";
 
 beforeEach(() => {
   vi.clearAllMocks();
+  useScreenCacheStore.setState({ entries: {} } as never);
   configRead.mockImplementation(async (_n: string, _s: string, req: { table: string }) =>
     req.table === "data/shop_settings"
       ? { ok: true, files: [{ path: "data/shop_settings.yaml", content: SETTINGS }] }
@@ -50,6 +60,75 @@ async function ready() {
   await waitFor(() => expect(screen.getByTestId("config-value-form")).toBeTruthy());
 }
 
+/**
+ * Ces écrans lisaient le serveur à CHAQUE ouverture — trois allers-retours — et
+ * restaient vides pendant ce temps, pour un contenu presque toujours identique
+ * à la visite d'avant.
+ *
+ * Ils affichent donc la dernière version connue tout de suite. Mais un écran de
+ * Config édite les fichiers du serveur en direct : tant que la revalidation n'a
+ * pas répondu, ce qui est à l'écran est DATÉ, et enregistrer dessus ferait
+ * partir un compare-and-swap sur une base fausse. On montre, on annonce, on
+ * n'ouvre l'édition qu'après.
+ */
+describe("ConfigScreenPage — dernière version connue", () => {
+  it("affiche le connu sans attendre le serveur, et le dit", async () => {
+    useScreenCacheStore.getState().put(screenCacheKey("n", "s", "boutique:settings"), {
+      files: [{ path: "data/shop_settings.yaml", content: "whole_shop_discount: 42\n" }],
+      models: [],
+      fetchedAt: new Date().toISOString(),
+    });
+    // Le serveur ne répond jamais : si l'écran l'attend, il reste vide.
+    configRead.mockReturnValue(new Promise(() => {}));
+
+    renderPage();
+
+    await waitFor(() => expect(screen.getByDisplayValue("42")).toBeTruthy());
+    expect(screen.getByTestId("screen-stale-banner")).toBeTruthy();
+  });
+
+  it("n'ouvre pas l'enregistrement tant que la copie est datée", async () => {
+    useScreenCacheStore.getState().put(screenCacheKey("n", "s", "boutique:settings"), {
+      files: [{ path: "data/shop_settings.yaml", content: "whole_shop_discount: 42\n" }],
+      models: [],
+      fetchedAt: new Date().toISOString(),
+    });
+    configRead.mockReturnValue(new Promise(() => {}));
+
+    renderPage();
+    await waitFor(() => expect(screen.getByDisplayValue("42")).toBeTruthy());
+
+    // Écrire depuis une base datée, c'est écraser ce qui a changé entre-temps.
+    expect(screen.queryByRole("button", { name: /Enregistr/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Recharger/ })).toBeNull();
+  });
+
+  it("la réponse du serveur remplace le connu et rend la main", async () => {
+    useScreenCacheStore.getState().put(screenCacheKey("n", "s", "boutique:settings"), {
+      files: [{ path: "data/shop_settings.yaml", content: "whole_shop_discount: 42\n" }],
+      models: [],
+      fetchedAt: new Date().toISOString(),
+    });
+
+    renderPage();
+
+    await waitFor(() => expect(screen.getByDisplayValue("10")).toBeTruthy());
+    expect(screen.queryByTestId("screen-stale-banner")).toBeNull();
+    // Revalidé : l'édition s'ouvre.
+    expect(screen.getByRole("button", { name: /Enregistr/ })).toBeTruthy();
+  });
+
+  it("ce que le serveur a rendu devient la version connue", async () => {
+    renderPage();
+    await ready();
+    await waitFor(() =>
+      expect(
+        useScreenCacheStore.getState().get(screenCacheKey("n", "s", "boutique:settings"))?.files,
+      ).toEqual([{ path: "data/shop_settings.yaml", content: SETTINGS }]),
+    );
+  });
+});
+
 describe("ConfigScreenPage — form and YAML over the same file", () => {
   it("shows the generated form by default", async () => {
     renderPage();
@@ -61,8 +140,9 @@ describe("ConfigScreenPage — form and YAML over the same file", () => {
     renderPage();
     await ready();
     fireEvent.click(screen.getByRole("button", { name: /YAML/i }));
-    expect((screen.getByLabelText("data/shop_settings.yaml") as HTMLTextAreaElement).value)
-      .toContain("whole_shop_discount: 10");
+    expect(
+      (screen.getByLabelText("data/shop_settings.yaml") as HTMLTextAreaElement).value,
+    ).toContain("whole_shop_discount: 10");
   });
 
   // ⑦: a text edit is canonicalized on save — it goes through parse → domain →
