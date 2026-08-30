@@ -1932,6 +1932,7 @@ export default {
     ctxDialogButton: "button · {{owner}}",
   },
   screens: {
+    stale: "Showing your last visit — checking with the server…",
     loading: "Reading files from the server…",
     offline: "Server offline",
     offlineHint: "This screen edits the server's files live — reconnect the server to edit.",
