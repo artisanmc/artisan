@@ -10,6 +10,7 @@ import {
 } from "@/lib/api/configScreens";
 import { fetchServerDeclaredModels } from "@/lib/api/dataSources";
 import { cx } from "@/lib/cx";
+import { STALE_NOTICE_DELAY_MS, useSettledFlag } from "@/lib/useSettledFlag";
 import { useAccountStore } from "@/state/accountStore";
 import { screenCacheKey, useScreenCacheStore } from "@/state/screenCacheStore";
 import { useServerScreensStore } from "@/state/serverScreensStore";
@@ -68,6 +69,8 @@ export function ConfigScreenPage({
    * ce qui n'est plus là.
    */
   const [stale, setStale] = useState(false);
+  // Différé : le bandeau ne sert que si l'attente dure. Voir `useSettledFlag`.
+  const staleSettled = useSettledFlag(stale, STALE_NOTICE_DELAY_MS);
   const [errorCode, setErrorCode] = useState<ConfigErrorCode | null>(null);
   const [original, setOriginal] = useState<ConfigFile[]>([]);
   const [saving, setSaving] = useState(false);
@@ -277,12 +280,11 @@ export function ConfigScreenPage({
         )}
       </div>
 
-      {stale && (
-        <div
-          data-testid="screen-stale-banner"
-          className="mb-3 rounded-[var(--r-sm)] bg-[var(--surface-raised)] px-3 py-1.5 text-[11.5px] text-[var(--text-mut)]"
-        >
-          {t("screens.stale")}
+      {staleSettled && (
+        <div className="mb-3 flex">
+          <span data-testid="screen-stale-banner" className="chip h-6 px-2.5 text-[11px]">
+            {t("screens.stale")}
+          </span>
         </div>
       )}
 

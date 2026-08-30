@@ -84,7 +84,12 @@ describe("ConfigScreenPage — dernière version connue", () => {
     renderPage();
 
     await waitFor(() => expect(screen.getByDisplayValue("42")).toBeTruthy());
-    expect(screen.getByTestId("screen-stale-banner")).toBeTruthy();
+    // Le contenu est là tout de suite ; l'avertissement, lui, ne sert que si
+    // l'attente dure — sinon il clignote sans informer personne.
+    expect(screen.queryByTestId("screen-stale-banner")).toBeNull();
+    await waitFor(() => expect(screen.getByTestId("screen-stale-banner")).toBeTruthy(), {
+      timeout: 2000,
+    });
   });
 
   it("n'ouvre pas l'enregistrement tant que la copie est datée", async () => {
