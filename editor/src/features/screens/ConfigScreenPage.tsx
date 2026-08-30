@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { useTextureInit } from "@/features/canvas/useTextureInit";
 import { ConfigValueForm, SourceRowsTable } from "@/features/data/SourceValueEditor";
 import {
   type ConfigErrorCode,
@@ -7,14 +8,14 @@ import {
   configRead,
   configWrite,
 } from "@/lib/api/configScreens";
-import { useTextureInit } from "@/features/canvas/useTextureInit";
-import { cx } from "@/lib/cx";
-import { YamlFileEditor, yamlErrorsOf } from "./YamlFileEditor";
 import { fetchServerDeclaredModels } from "@/lib/api/dataSources";
+import { cx } from "@/lib/cx";
 import { useAccountStore } from "@/state/accountStore";
+import { screenCacheKey, useScreenCacheStore } from "@/state/screenCacheStore";
 import { useServerScreensStore } from "@/state/serverScreensStore";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { YamlFileEditor, yamlErrorsOf } from "./YamlFileEditor";
 import { resolveScreen } from "./screenList";
 import {
   besideModelPath,
@@ -60,6 +61,13 @@ export function ConfigScreenPage({
   useTextureInit(screen?.projectId);
 
   const [phase, setPhase] = useState<Phase>("loading");
+  /**
+   * L'écran montre la dernière version connue pendant que le serveur répond.
+   * Elle est DATÉE : on l'affiche, on le dit, et on n'ouvre pas l'édition —
+   * enregistrer depuis une base périmée ferait partir le compare-and-swap sur
+   * ce qui n'est plus là.
+   */
+  const [stale, setStale] = useState(false);
   const [errorCode, setErrorCode] = useState<ConfigErrorCode | null>(null);
   const [original, setOriginal] = useState<ConfigFile[]>([]);
   const [saving, setSaving] = useState(false);
@@ -76,7 +84,22 @@ export function ConfigScreenPage({
 
   const load = useCallback(async () => {
     if (!screen) return;
-    setPhase("loading");
+    const cacheKey = screenCacheKey(networkId, serverId, screen.id);
+    const known = useScreenCacheStore.getState().get(cacheKey);
+    if (known) {
+      // Rien à attendre : tout ce qu'il faut pour rendre l'écran a été rangé à
+      // la visite précédente, modèles déclarés compris.
+      const fromCache = buildScratchProject(screen, known.files, known.models as never);
+      useAccountStore.getState().upsertScratchProject(fromCache);
+      setDeclaredModels(known.models as never);
+      setOriginal(known.files);
+      setDraft(null);
+      setMode("form");
+      setStale(true);
+      setPhase("ready");
+    } else {
+      setPhase("loading");
+    }
     // A project-authored source keeps its schema in `models/<id>.yaml` beside
     // the data file — read it too, or the form opens untyped. Absent (a
     // module-declared table types itself from the declaration) is not an error.
@@ -90,7 +113,9 @@ export function ConfigScreenPage({
     ]);
     if (!res.ok) {
       setErrorCode(res.error);
-      setPhase(res.error === "server_offline" ? "offline" : "error");
+      // Une copie datée à l'écran vaut mieux qu'un écran d'erreur — mais elle
+      // reste datée, et l'édition reste fermée.
+      if (!known) setPhase(res.error === "server_offline" ? "offline" : "error");
       return;
     }
     const files = [...res.files, ...(beside.ok ? beside.files : [])];
@@ -103,6 +128,12 @@ export function ConfigScreenPage({
     setOriginal(files);
     setDraft(null);
     setMode("form");
+    useScreenCacheStore.getState().put(cacheKey, {
+      files,
+      models,
+      fetchedAt: new Date().toISOString(),
+    });
+    setStale(false);
     setPhase("ready");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [networkId, serverId, screen?.id, screen?.projectId, screen?.table]);
@@ -196,13 +227,16 @@ export function ConfigScreenPage({
   );
 
   return (
-    <main className="card flex min-h-0 flex-1 flex-col overflow-auto p-6 md:p-8" data-testid="config-screen">
+    <main
+      className="card flex min-h-0 flex-1 flex-col overflow-auto p-6 md:p-8"
+      data-testid="config-screen"
+    >
       <div className="mb-4 flex items-center gap-3">
         <div className="min-w-0 flex-1">
           <div className="eyebrow">{screen.moduleId ?? t("screens.moduleFallback")}</div>
           <h1 className="truncate text-lg font-semibold">{screen.label}</h1>
         </div>
-        {phase === "ready" && (
+        {phase === "ready" && !stale && (
           <>
             <div className="flex gap-1">
               <button
@@ -243,8 +277,19 @@ export function ConfigScreenPage({
         )}
       </div>
 
+      {stale && (
+        <div
+          data-testid="screen-stale-banner"
+          className="mb-3 rounded-[var(--r-sm)] bg-[var(--surface-raised)] px-3 py-1.5 text-[11.5px] text-[var(--text-mut)]"
+        >
+          {t("screens.stale")}
+        </div>
+      )}
+
       {phase === "loading" && (
-        <div className="mt-8 text-center text-sm text-[var(--text-faint)]">{t("screens.loading")}</div>
+        <div className="mt-8 text-center text-sm text-[var(--text-faint)]">
+          {t("screens.loading")}
+        </div>
       )}
 
       {phase === "offline" && (
@@ -277,8 +322,10 @@ export function ConfigScreenPage({
         />
       )}
 
-      {phase === "ready" && mode === "form" && scratch && (
-        source ? (
+      {phase === "ready" &&
+        mode === "form" &&
+        scratch &&
+        (source ? (
           source.shape === "table" ? (
             <SourceRowsTable projectId={scratch.id} project={scratch} source={source} />
           ) : (
@@ -286,8 +333,7 @@ export function ConfigScreenPage({
           )
         ) : (
           <EmptyState title={t("screens.emptyTable")} hint={screen.table} />
-        )
-      )}
+        ))}
     </main>
   );
 }

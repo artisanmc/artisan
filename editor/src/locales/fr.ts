@@ -1956,6 +1956,7 @@ const fr: typeof en = {
     ctxDialogButton: "bouton · {{owner}}",
   },
   screens: {
+    stale: "Affichage de ta dernière visite — vérification auprès du serveur…",
     loading: "Lecture des fichiers du serveur…",
     offline: "Serveur hors ligne",
     offlineHint:
