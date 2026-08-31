@@ -75,6 +75,10 @@ export async function* streamAssistant(
     /** i18n key → { lang: value } — the text behind {i18n:<key>} refs
      *  (read via get_translations, edited via write_translations). */
     translations?: Record<string, Record<string, string>>;
+    /** Les sources de données du project — l'assistant n'a aucun autre moyen de
+     *  savoir qu'un `source.ref` existe (celles des modules, le backend les
+     *  ajoute lui-même). */
+    dataSources?: { ref: string; keyField?: string | null; fields?: unknown }[];
     /** Model override for this turn (provider default used when omitted). */
     modelId?: string;
   },

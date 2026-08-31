@@ -175,9 +175,11 @@ Use **only** these. Combine with `and` / `or` / `not` and parentheses.
 Combining: `if (has_permission(vip) and has_money(100)) or has_permission(admin):`.
 `not`: `if not has_permission(banned):`.
 
-> **Do NOT write free comparisons** like `balance >= 100` or `score > 0` — they parse to an
-> `expression` condition that has **no server-side evaluator yet** and is **rejected**. Gate on
-> money with `has_money(100)`, or compare a PAPI placeholder with `%placeholder% == "value"`.
+> Free comparisons like `balance >= 100` or `%score% > 0` parse to an `expression` condition,
+> which the runtime **does** evaluate (ADR `action-dsl` §6). An expression it cannot parse is
+> treated as false and logged with a WARN — it never crashes a menu, but it never fires either.
+> When a dedicated verb exists, prefer it: `has_money(100)` says what it means and cannot be
+> mistyped into silence.
 
 ### ALLOWED actions
 
@@ -213,9 +215,13 @@ emit `run_actions` — it requires a data-source binding you cannot author here,
 
 ## Runtime caveats — tell the user when relevant
 
-- `iterates` + `context_inputs` now render server-side from caller-provided lists (windowed
-  pagination included); what's still missing is the data delivery — connectors and pack data
-  sources (Phase B). Flag in chat when a menu depends on a connector-fed list.
+- `iterates` + `context_inputs` render server-side, from caller-provided lists **and from real
+  data sources**: a module declares its sources at Presence (`boutique:items`,
+  `boutique:categories`…) and the plugin fetches them through `DataSourceRegistry`.
+  `source.ref` / `params` / `filter` / `sort` / `limit` all resolve. **Never tell the user a
+  connector-fed list cannot work, and never assume a `ref` you don't recognise is missing** —
+  you have no tool to list the server's declared sources, so absence of proof is not proof of
+  absence. Ask, or say you cannot see them.
 - Soft dependencies: `has_money`/`take_money`/`give_money` need **Vault**,
   `placeholder_equals`/`placeholder_match` need **PlaceholderAPI**, `player_in_region` needs
   **WorldGuard**. Without the host plugin the condition evaluates to false / the action is a

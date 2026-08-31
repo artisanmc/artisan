@@ -171,6 +171,14 @@ export function AssistantChat({
       // Translation values behind the {i18n:<key>} refs — without them the
       // model can see the refs but never the actual text.
       const translations = project ? project.i18nKeys : {};
+      // Les sources du project, pour que l'assistant cesse de deviner si un
+      // `source.ref` existe. Celles déclarées par les modules du serveur, il les
+      // lit côté backend — l'éditeur n'a pas à les rapatrier pour les renvoyer.
+      const dataSources = (project?.dataSources ?? []).map((ds) => ({
+        ref: `pack:${ds.id}`,
+        keyField: (ds as { keyField?: string }).keyField ?? null,
+        fields: (ds as { schema?: { name: string; type?: string }[] }).schema,
+      }));
       if (!convId.current) {
         convId.current = await openConversation({ projectId });
       }
@@ -181,6 +189,7 @@ export function AssistantChat({
         commands,
         dialogs,
         translations,
+        dataSources,
         modelId: modelId ?? undefined,
       })) {
         if (ev.type === "text") {

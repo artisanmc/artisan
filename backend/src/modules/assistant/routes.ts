@@ -14,10 +14,13 @@ import {
 	listConversations,
 	saveConversation,
 } from "./conversationRepo";
+import { eq } from "drizzle-orm";
+import { db } from "../../db/index";
+import { serverDataSources } from "../../db/schema";
 import { buildSystemPrompt } from "./grounding";
 import { runTurn } from "./loop";
 import type { LlmProvider, LlmUsage } from "./provider/types";
-import { WorkingCopy } from "./workingCopy";
+import { type DataSourceInfo, WorkingCopy } from "./workingCopy";
 
 /** Prefix marking the transient system note that lists a turn's attachments. */
 export const ATTACHMENT_NOTE_PREFIX = "Fichiers joints par l'utilisateur";
@@ -152,8 +155,36 @@ export function buildAssistantRouter(): Hono {
 			(body as any).translations && typeof (body as any).translations === "object"
 				? ((body as any).translations as Record<string, Record<string, string>>)
 				: {};
+		/*
+		 * Les sources visibles depuis ce project : celles que l'éditeur envoie
+		 * (les siennes) et celles qu'un module a déclarées sur le serveur.
+		 *
+		 * Sans elles, l'assistant ne pouvait que deviner devant un
+		 * `source.ref: boutique:items` — et il a effectivement affirmé à un
+		 * utilisateur que ces sources « n'étaient pas encore livrées ».
+		 */
+		const declared = access.serverKeyId
+			? (
+					await db
+						.select()
+						.from(serverDataSources)
+						.where(eq(serverDataSources.serverKeyId, access.serverKeyId))
+				).map((row) => ({
+					ref: row.ref,
+					moduleId: row.moduleId,
+					stability: row.stability,
+					keyField: row.keyField,
+					fields: row.schemaJson ? safeFields(row.schemaJson) : undefined,
+				}))
+			: [];
+		const fromEditor = Array.isArray((body as any).dataSources)
+			? ((body as any).dataSources as DataSourceInfo[])
+			: [];
 		// Working copy is rebuilt from the live project on every turn (last-writer-wins).
-		const wc = new WorkingCopy(menus, attachments, dialogs, commands, translations);
+		const wc = new WorkingCopy(menus, attachments, dialogs, commands, translations, [
+			...fromEditor,
+			...declared,
+		]);
 		const text =
 			typeof (body as any).text === "string" ? (body as any).text : "";
 		// The model can only discover attachments through this note: read_attachment
@@ -233,4 +264,15 @@ export function buildAssistantRouter(): Hono {
 	});
 
 	return r;
+}
+
+/** Le schéma déclaré est du JSON stocké : illisible, on rend « pas de champs »
+ *  plutôt que de faire échouer un tour d'assistant pour une source mal formée. */
+function safeFields(raw: string): { name: string; type?: string }[] | undefined {
+	try {
+		const parsed = JSON.parse(raw);
+		return Array.isArray(parsed) ? parsed : undefined;
+	} catch {
+		return undefined;
+	}
 }

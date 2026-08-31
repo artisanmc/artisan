@@ -13,7 +13,7 @@ describe("TOOL_DEFS", () => {
     expect(names).toEqual([
       "delete_command", "delete_dialog", "delete_menu",
       "get_command", "get_dialog", "get_menu", "get_translations",
-      "list_commands", "list_dialogs", "list_menus",
+      "list_commands", "list_data_sources", "list_dialogs", "list_menus",
       "read_attachment",
       "upsert_command", "upsert_dialog", "upsert_menu",
       "write_translations",
@@ -195,3 +195,45 @@ describe("dialog write tools", () => {
     expect(executeTool("write_translations", { entries: { k: { fr: 42 } } }, wc).ok).toBe(false);
   });
 });
+/**
+ * L'assistant n'avait AUCUN moyen de voir les sources de données — ni celles du
+ * project, ni celles qu'un module déclare à la Presence (`boutique:items`…).
+ * Devant un menu qui référence `boutique:items`, il ne pouvait que deviner : il
+ * a répondu à l'utilisateur que ces sources « ne sont pas encore livrées »,
+ * avec un avertissement, alors qu'elles marchent.
+ *
+ * Deviner est le comportement à supprimer, pas à mieux cadrer : on lui donne de
+ * quoi regarder.
+ */
+describe("list_data_sources", () => {
+  it("rend les sources déclarées, avec leurs champs", () => {
+    const wc = new WorkingCopy([], {}, [], [], {}, [
+      {
+        ref: "boutique:items",
+        moduleId: "boutique",
+        stability: "static",
+        keyField: "id",
+        fields: [
+          { name: "id", type: "string" },
+          { name: "icon", type: "string", description: "Material" },
+        ],
+      },
+    ]);
+
+    const res = executeTool("list_data_sources", {}, wc);
+
+    expect(res.ok).toBe(true);
+    const parsed = JSON.parse(res.content) as { ref: string; fields: { name: string }[] }[];
+    expect(parsed[0]!.ref).toBe("boutique:items");
+    expect(parsed[0]!.fields.map((f) => f.name)).toEqual(["id", "icon"]);
+  });
+
+  /** Aucune source visible ne veut pas dire « aucune source » : la nuance doit
+   *  être dans la réponse, sinon l'assistant recommencera à conclure. */
+  it("dit qu'il ne voit rien, pas qu'il n'y a rien", () => {
+    const res = executeTool("list_data_sources", {}, new WorkingCopy());
+    expect(res.ok).toBe(true);
+    expect(res.content.toLowerCase()).toContain("no data source is visible");
+  });
+});
+
