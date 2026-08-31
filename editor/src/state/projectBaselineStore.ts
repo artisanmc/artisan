@@ -21,10 +21,34 @@ interface ProjectBaselineState {
   clear: (projectId: string) => void;
 }
 
+function sameFiles(a: Record<string, string>, b: Record<string, string>): boolean {
+  const keysA = Object.keys(a);
+  if (keysA.length !== Object.keys(b).length) return false;
+  for (const k of keysA) if (a[k] !== b[k]) return false;
+  return true;
+}
+
 export const useProjectBaselineStore = create<ProjectBaselineState>()((set, get) => ({
   baselines: {},
+  /**
+   * Repose la base — en GARDANT l'objet précédent si le contenu n'a pas bougé.
+   *
+   * L'identité de cet objet est lue comme « est-ce le même chargement ? »
+   * (`useDraftSync`). Un nouvel objet au contenu identique faisait donc croire à
+   * un nouveau chargement : la synchro refigeait `initialTree` sur l'arbre
+   * courant, déclarait le brouillon PROPRE alors qu'il portait du travail non
+   * enregistré, et ce travail était jeté au rechargement suivant.
+   *
+   * Anodin tant que la base ne se reposait qu'à l'ouverture ; systématique
+   * depuis que chaque revalidation la repose. Le contenu décide, pas la
+   * référence.
+   */
   set: (projectId, files) =>
-    set((s) => ({ baselines: { ...s.baselines, [projectId]: files } })),
+    set((s) => {
+      const current = s.baselines[projectId];
+      if (current && sameFiles(current, files)) return s;
+      return { baselines: { ...s.baselines, [projectId]: files } };
+    }),
   get: (projectId) => get().baselines[projectId],
   clear: (projectId) =>
     set((s) => {
