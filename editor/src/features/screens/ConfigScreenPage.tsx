@@ -70,8 +70,13 @@ export function ConfigScreenPage({
    */
   const [stale, setStale] = useState(false);
   // Différé : le bandeau ne sert que si l'attente dure. Voir `useSettledFlag`.
-  const staleSettled = useSettledFlag(stale, STALE_NOTICE_DELAY_MS);
   const [errorCode, setErrorCode] = useState<ConfigErrorCode | null>(null);
+  // Une revalidation en vol se résoudra d'elle-même : on n'en parle que si elle
+  // s'éternise. Un échec, lui, laisse l'écran daté ET l'édition fermée sans
+  // terme — il s'annonce sans attendre, sinon rien n'explique pourquoi on ne
+  // peut plus enregistrer.
+  const revalidating = useSettledFlag(stale && errorCode === null, STALE_NOTICE_DELAY_MS);
+  const staleSettled = (stale && errorCode !== null) || revalidating;
   const [original, setOriginal] = useState<ConfigFile[]>([]);
   const [saving, setSaving] = useState(false);
   // Two modes over the SAME file (ADR yaml-assisted-editing ⑦). `draft` holds
@@ -87,6 +92,7 @@ export function ConfigScreenPage({
 
   const load = useCallback(async () => {
     if (!screen) return;
+    setErrorCode(null);
     const cacheKey = screenCacheKey(networkId, serverId, screen.id);
     const known = useScreenCacheStore.getState().get(cacheKey);
     if (known) {

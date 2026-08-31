@@ -94,7 +94,11 @@ export function ProjectCanvasPage() {
     fromDraft,
     stale,
   } = useProjectLoader(projectId, serverId);
-  const staleSettled = useSettledFlag(stale, STALE_NOTICE_DELAY_MS);
+  // Deux situations, deux urgences. Une revalidation en vol se résoudra d'
+  // elle-même : on ne prévient que si elle s'éternise. Un serveur injoignable,
+  // lui, laisse l'écran daté sans terme — ça, ça se dit tout de suite.
+  const revalidating = useSettledFlag(stale && !offline, STALE_NOTICE_DELAY_MS);
+  const staleSettled = (stale && offline) || revalidating;
   const project = userProject;
   const pId = (project?.id ?? projectId) as ProjectId;
   const currentUser = useAuthStore((s) => s.currentUser);

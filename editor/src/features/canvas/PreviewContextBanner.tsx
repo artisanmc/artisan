@@ -3,7 +3,7 @@ import { useCssVar } from "@/lib/themeColors";
 import { useServerSnapshotsStore } from "@/state/serverSnapshotsStore";
 import { useUiStore } from "@/state/uiStore";
 import type Konva from "konva";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Group, Rect, Text } from "react-konva";
 import { findPreviewCallContexts } from "./previewCallContexts";
@@ -44,19 +44,40 @@ export function PreviewContextBanner({
   const warning = useCssVar("--warning");
   const [open, setOpen] = useState(false);
 
-  // Un menu sans input n'a qu'un écran : rien à choisir, rien à afficher.
-  if (!project || (menu.contextInputs ?? []).length === 0) return null;
-  const all = findPreviewCallContexts(menu, project, snapshots, activeLang);
-  if (all.length === 0) return null;
-
+  const hasInputs = !!project && (menu.contextInputs ?? []).length > 0;
+  const all = hasInputs
+    ? findPreviewCallContexts(menu, project as Project, snapshots, activeLang)
+    : [];
   // Sans données de source (serveur non connecté), les arguments du lien
   // ressortent bruts : `{cat}`. Les proposer donnerait un choix qui ne change
   // rien — mieux vaut dire que les données manquent.
   const contexts = resolvedContexts(all);
-  const stale = contexts.length === 0;
-
   // Le défaut d'un input compte : c'est l'écran que le canvas rend déjà.
   const current = currentCallIndex(contexts, effectivePreviewArgs(menu, previewArgs));
+
+  /**
+   * Rien de choisi ⇒ on prend le premier appel connu.
+   *
+   * L'écran n'était pas « sans contexte » pour autant : les défauts des inputs
+   * s'appliquaient déjà, et le canvas rendait donc une catégorie précise
+   * pendant que le bandeau réclamait un choix. Pire, cet état intermédiaire est
+   * bancal — le filtre valait `les_cles` mais le NOM de la catégorie restait
+   * vide, un écran qui n'existe à aucun appel réel.
+   *
+   * Choisir le premier appel rend l'affichage cohérent avec ce qu'il annonce,
+   * et l'utilisateur reste libre d'en changer.
+   */
+  useEffect(() => {
+    if (current >= 0 || contexts.length === 0) return;
+    const first = contexts[0];
+    if (!first) return;
+    for (const [k, v] of Object.entries(first.args)) setMenuPreviewArg(menu.id, k, v);
+  }, [current, contexts, menu.id, setMenuPreviewArg]);
+
+  // Un menu sans input n'a qu'un écran : rien à choisir, rien à afficher.
+  if (!hasInputs || all.length === 0) return null;
+
+  const stale = contexts.length === 0;
   const active = current >= 0 ? contexts[current] : null;
   const label = stale
     ? t("canvas.previewContextNoData")
