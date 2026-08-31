@@ -62,11 +62,6 @@ Modifier un `docs/schema/*/v1/schema.json` ⇒ dans le même mouvement :
 
 **Restants** (le plugin ne les exécute pas encore — projets séparés) :
 
-- **livraison de données** (Phase B) : `pack.dataSources` non exporté, `ConnectorBinding`
-  (`source.ref`/`params`/`filter`/`sort`/`limit`) non résolu, aucun connecteur
-  `DataSourceRegistry` implémenté — les listes itérées ne peuvent venir que de l'appelant ;
-- évaluation des `expression` (DSL éditeur-only ; une condition `expression` fait dropper
-  l'appearance au chargement plugin — retirée du vocab assistant en attendant) ;
 - `open_requirements` / `open_actions` / `close_actions` / `background` top-level
   (implémentés nulle part : ni domaine éditeur, ni runtime — rejetés par le gate assistant).
 

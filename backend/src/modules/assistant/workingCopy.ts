@@ -3,6 +3,22 @@ export type CommandV1 = Record<string, any>;
 export type DialogV1 = Record<string, any>;
 
 export interface DialogSummary { id: string; title: string }
+
+/**
+ * Une source de données visible depuis ce project — la sienne, ou celle qu'un
+ * module a déclarée à la Presence (`boutique:items`…).
+ *
+ * En lecture seule : l'assistant écrit des menus, il ne déclare pas de sources.
+ * Ce qu'il lui faut, c'est cesser de DEVINER si un `source.ref` existe.
+ */
+export interface DataSourceInfo {
+  ref: string;
+  moduleId?: string | null;
+  /** "static" (placement 1 à 1 possible) ou "dynamic". */
+  stability?: string | null;
+  keyField?: string | null;
+  fields?: { name: string; type?: string; description?: string }[];
+}
 export interface CommandSummary { id: string; name: string }
 
 export class WorkingCopy {
@@ -13,12 +29,18 @@ export class WorkingCopy {
   /** i18n key → { lang: value } — the values behind `{i18n:<key>}` refs. */
   private translations = new Map<string, Record<string, string>>();
 
+  /** Les sources visibles, telles qu'on les a reçues. */
+  listDataSources(): DataSourceInfo[] {
+    return this.dataSources;
+  }
+
   constructor(
     menus: MenuV1[] = [],
     attachments: Record<string, string> = {},
     dialogs: DialogV1[] = [],
     commands: CommandV1[] = [],
     translations: Record<string, Record<string, string>> = {},
+    private readonly dataSources: DataSourceInfo[] = [],
   ) {
     for (const m of menus) if (typeof m?.id === "string") this.menus.set(m.id, m);
     for (const [k, v] of Object.entries(attachments)) this.attachments.set(k, v);
