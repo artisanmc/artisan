@@ -1,11 +1,18 @@
 import { useEffect, useState } from "react";
 
 /**
- * Au-delà de quoi une attente mérite d'être annoncée. Assez long pour que le
- * cas nominal (revalidation en quelques centaines de ms) reste muet, assez
- * court pour qu'un vrai délai ne passe pas pour de l'immobilisme.
+ * Au-delà de quoi une revalidation EN COURS mérite d'être annoncée.
+ *
+ * Généreux à dessein. Une revalidation qui aboutit — même en une seconde et
+ * demie — n'a rien à signaler : le contenu affiché est celui de la visite
+ * précédente, il sera remplacé, et prévenir dans cet intervalle ne fait que
+ * clignoter. Ce qui mérite un avis, c'est l'attente qui s'installe : à ce
+ * moment-là, l'utilisateur se demande à juste titre ce qu'il regarde.
+ *
+ * Le cas VRAIMENT à risque n'est pas celui-ci — c'est l'échec, où l'écran peut
+ * rester daté indéfiniment. Celui-là s'annonce sans délai (cf. les appelants).
  */
-export const STALE_NOTICE_DELAY_MS = 600;
+export const STALE_NOTICE_DELAY_MS = 3_000;
 
 /**
  * Vrai seulement quand [flag] l'est resté [delayMs] d'affilée.

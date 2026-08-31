@@ -33,6 +33,25 @@ export interface ProjectLoadResult {
   stale: boolean;
 }
 
+/**
+ * L'arbre à AFFICHER pour ce Project : le brouillon s'il porte du travail non
+ * enregistré, sinon celui qu'on a sous la main.
+ *
+ * À appeler sur CHAQUE chemin d'affichage, sans exception. Les chemins passant
+ * par la version connue — affichage immédiat, réponse « inchangé », serveur
+ * injoignable — reconstruisaient depuis l'arbre du serveur et faisaient
+ * disparaître le travail en cours à un simple rechargement de page. Un
+ * brouillon n'existe nulle part ailleurs : le perdre, c'est le perdre.
+ */
+function treeToShow(
+  projectId: string,
+  fallback: Record<string, string>,
+): { tree: Record<string, string>; fromDraft: boolean } {
+  const draft = useProjectDraftStore.getState().get(projectId);
+  const resumable = draft && isDirty(draft.initialTree, draft.tree);
+  return resumable ? { tree: draft.tree, fromDraft: true } : { tree: fallback, fromDraft: false };
+}
+
 /** Les derniers modèles déclarés rapportés par le serveur — rangés avec la
  *  version connue pour que la visite suivante n'ait rien à attendre. */
 let lastDeclaredModels: unknown[] | undefined;
@@ -149,7 +168,10 @@ export function useProjectLoader(projectId: string, serverRef?: string | null): 
       buildProject(
         cached.identity as never,
         cached.diskId,
-        cached.tree,
+        treeToShow(
+          ((cached.identity as { project?: { id?: string } }).project?.id ?? "") as string,
+          cached.tree,
+        ).tree,
         cached.declaredModels ?? [],
       )
         .then((p) => {
@@ -202,7 +224,9 @@ export function useProjectLoader(projectId: string, serverRef?: string | null): 
           if (unreachable && cached) {
             // Serveur injoignable, mais on sait ce qu'il avait : on le montre,
             // daté, plutôt qu'un écran d'erreur. Enregistrer reste hors de portée.
-            const built = await buildProject(cached.identity as never, cached.diskId, cached.tree);
+            const shown = treeToShow(res.project.id, cached.tree);
+            const built = await buildProject(cached.identity as never, cached.diskId, shown.tree);
+            setFromDraft(shown.fromDraft);
             mirrorIntoAccount(built, res.networkId);
             setProject(built);
             setNetworkId(res.networkId);
@@ -225,7 +249,9 @@ export function useProjectLoader(projectId: string, serverRef?: string | null): 
               hash: disk.hash ?? cached.hash,
               fetchedAt: new Date().toISOString(),
             });
-            const built = await buildProject(res, diskId, cached.tree);
+            const shown = treeToShow(res.project.id, cached.tree);
+            const built = await buildProject(res, diskId, shown.tree);
+            setFromDraft(shown.fromDraft);
             mirrorIntoAccount(built, res.networkId);
             if (!project) setProject(built);
             setNetworkId(res.networkId);

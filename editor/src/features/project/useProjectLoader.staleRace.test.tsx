@@ -4,6 +4,7 @@ import * as userProjectsApi from "@/lib/api/userProjects";
 import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
 import { projectCacheKey, useProjectCacheStore } from "@/state/projectCacheStore";
+import { useProjectDraftStore } from "@/state/projectDraftStore";
 import { renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useProjectLoader } from "./useProjectLoader";
@@ -29,6 +30,7 @@ describe("useProjectLoader — la version fraîche gagne toujours", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     useProjectCacheStore.setState({ entries: {}, reloadToken: 0 } as never);
+    useProjectDraftStore.setState({ drafts: {} } as never);
     useAccountStore.setState({
       account: { id: "", projects: [], projectOrder: [] },
     } as never);
@@ -103,5 +105,56 @@ describe("useProjectLoader — la version fraîche gagne toujours", () => {
     await waitFor(() => expect(result.current.project).not.toBeNull());
     expect(result.current.stale).toBe(true);
     expect(models).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Le pire cas possible : du travail non enregistré qui disparaît à un simple
+   * rechargement de page.
+   *
+   * Le brouillon persisté porte les éléments ajoutés mais pas encore
+   * enregistrés. Les chemins passant par le cache — affichage immédiat,
+   * réponse « inchangé », serveur injoignable — reconstruisaient depuis
+   * l'arbre du SERVEUR en l'ignorant. Seul le chemin « arbre frais » le
+   * reprenait.
+   */
+  it("un brouillon non enregistré survit à une réponse « inchangé »", async () => {
+    useProjectCacheStore.getState().put(projectCacheKey("p1"), {
+      identity: IDENTITY,
+      diskId: "boutique_shop",
+      serverKeyId: "sk_1",
+      tree: { "menus/serveur.yaml": menu("serveur") },
+      declaredModels: [],
+      hash: "identique",
+      fetchedAt: new Date().toISOString(),
+    } as never);
+    useProjectDraftStore.setState({
+      drafts: {
+        p1: {
+          baseline: { "menus/serveur.yaml": menu("serveur") },
+          initialTree: { "menus/serveur.yaml": menu("serveur") },
+          tree: {
+            "menus/serveur.yaml": menu("serveur"),
+            "menus/en_cours.yaml": menu("en_cours"),
+          },
+        },
+      },
+    } as never);
+
+    vi.spyOn(userProjectsApi, "loadUserProject").mockResolvedValue(IDENTITY as never);
+    vi.spyOn(projectFilesApi, "readProjectFiles").mockResolvedValue({
+      ok: true,
+      unchanged: true,
+      hash: "identique",
+    });
+    vi.spyOn(dataSourcesApi, "fetchServerDeclaredModels").mockResolvedValue([] as never);
+
+    const { result } = renderHook(() => useProjectLoader("p1"));
+
+    await waitFor(() => expect(result.current.project).not.toBeNull());
+    await waitFor(() => expect(result.current.stale).toBe(false));
+
+    const menuIds = (result.current.project?.menus ?? []).map((m) => m.id);
+    expect(menuIds).toContain("en_cours");
+    expect(useProjectDraftStore.getState().drafts.p1).toBeDefined();
   });
 });

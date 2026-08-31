@@ -84,12 +84,29 @@ describe("ConfigScreenPage — dernière version connue", () => {
     renderPage();
 
     await waitFor(() => expect(screen.getByDisplayValue("42")).toBeTruthy());
-    // Le contenu est là tout de suite ; l'avertissement, lui, ne sert que si
-    // l'attente dure — sinon il clignote sans informer personne.
+    // Le contenu est là tout de suite, et RIEN ne clignote : une revalidation
+    // qui aboutit — même en une seconde et demie — n'a rien à signaler.
     expect(screen.queryByTestId("screen-stale-banner")).toBeNull();
-    await waitFor(() => expect(screen.getByTestId("screen-stale-banner")).toBeTruthy(), {
-      timeout: 2000,
+  });
+
+  /**
+   * Le cas qui compte vraiment : la revalidation échoue. L'écran reste daté
+   * sans terme et l'édition reste fermée — sans avis, rien n'expliquerait
+   * pourquoi on ne peut plus enregistrer.
+   */
+  it("un échec de revalidation se dit tout de suite", async () => {
+    useScreenCacheStore.getState().put(screenCacheKey("n", "s", "boutique:settings"), {
+      files: [{ path: "data/shop_settings.yaml", content: "whole_shop_discount: 42\n" }],
+      models: [],
+      fetchedAt: new Date().toISOString(),
     });
+    configRead.mockResolvedValue({ ok: false, error: "server_offline" });
+
+    renderPage();
+
+    await waitFor(() => expect(screen.getByTestId("screen-stale-banner")).toBeTruthy());
+    expect(screen.getByDisplayValue("42")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Enregistr/ })).toBeNull();
   });
 
   it("n'ouvre pas l'enregistrement tant que la copie est datée", async () => {
