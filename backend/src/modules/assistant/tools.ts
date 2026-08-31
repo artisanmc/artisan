@@ -83,6 +83,29 @@ const REGISTRY: ToolSpec[] = [
     },
   },
   {
+    name: "list_data_sources",
+    description:
+      "List the data sources visible for this project: the project's own, plus those a module " +
+      "declares on the server (e.g. boutique:items). Use it before claiming a `source.ref` is " +
+      "missing — an empty list means YOU cannot see them, not that none exist.",
+    parameters: { type: "object", properties: {}, additionalProperties: false },
+    handler: (_input, wc) => {
+      const sources = wc.listDataSources();
+      if (sources.length === 0) {
+        // Le vide se dit, il ne se conclut pas : c'est exactement l'erreur que
+        // cet outil existe pour empêcher.
+        return {
+          ok: true,
+          content:
+            "No data source is visible from here. That does not mean the project has none — " +
+            "a module declares its sources on the server, and this view may be empty because " +
+            "the server is unreachable. Say so rather than concluding they are missing.",
+        };
+      }
+      return { ok: true, content: JSON.stringify(sources) };
+    },
+  },
+  {
     name: "list_dialogs",
     description: "List the project's dialogs (id, title). open_dialog's dialog_id MUST be one of these ids — never invent one.",
     parameters: { type: "object", properties: {}, additionalProperties: false },
