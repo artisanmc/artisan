@@ -9,6 +9,10 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Added — sources d'import serveur pour l'assistant
+
+- Nouveau endpoint read-only `GET /api/v1/networks/:networkId/servers/:serverId/projects/:projectId/import-sources` : un membre peut lister les fichiers autorisés par l'administrateur du serveur pour les joindre à l'assistant, avec contrôle strict du contexte Network → Server → Project. Le backend relaie uniquement les métadonnées du plugin et ne persiste aucun contenu source.
+
 ### Fixed — les menus écrits avant le passage à `display` + `states` redeviennent lisibles
 
 - Un fichier portant encore `appearances:` se lisait en display VIDE depuis le 17 août : items
