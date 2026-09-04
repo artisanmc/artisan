@@ -152,6 +152,7 @@ open class ArtisanPlugin : JavaPlugin() {
         api = buildApi(this)
         server.servicesManager.register(ArtisanAPI::class.java, api, this, org.bukkit.plugin.ServicePriority.Normal)
         val cfg = PluginConfig.from(config)
+        cfg.assistantImportSourceWarnings.forEach { logger.warning("[assistant] $it") }
         projectRoots.coreRoot.mkdirs()
 
         langManager = LangManager.fromPlugin(this, cfg.language, cfg.perPlayerLanguage)
@@ -341,6 +342,7 @@ open class ArtisanPlugin : JavaPlugin() {
     }
 
     fun reinit(cfg: PluginConfig) {
+        cfg.assistantImportSourceWarnings.forEach { logger.warning("[assistant] $it") }
         langManager = LangManager.fromPlugin(this, cfg.language, cfg.perPlayerLanguage)
         menuProvider.unload()
         projectRoots.coreRoot.mkdirs()
