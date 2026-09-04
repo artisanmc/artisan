@@ -1,5 +1,6 @@
 package net.artisanmc.plugin
 
+import net.artisanmc.plugin.assistant.ImportSourceReader
 import net.artisanmc.modules.api.*
 import net.artisanmc.modules.api.schemas.SchemaRegistry
 import net.artisanmc.modules.commands.CommandsModule
@@ -193,6 +194,11 @@ open class ArtisanPlugin : JavaPlugin() {
             dataSourcesReport = { net.artisanmc.plugin.ws.DataSourceReport.build(api.dataSources) },
             declaredModelsReport = { api.models.declared().map { it.document } },
             editorScreensReport = { api.screens.declared().map { it.toWire() } },
+            importSources = ImportSourceReader(
+                serverRoot = java.io.File(".").toPath(),
+                sources = cfg.assistantImportSources,
+                logger = logger,
+            ),
             runOnMainThread = { task -> server.scheduler.runTask(this@ArtisanPlugin, Runnable { task() }) },
         )
         moduleMessageSender = { m -> (menuProvider as? SyncedMenuProvider)?.sendModuleMessage(m) }
@@ -373,6 +379,11 @@ open class ArtisanPlugin : JavaPlugin() {
             dataSourcesReport = { net.artisanmc.plugin.ws.DataSourceReport.build(api.dataSources) },
             declaredModelsReport = { api.models.declared().map { it.document } },
             editorScreensReport = { api.screens.declared().map { it.toWire() } },
+            importSources = ImportSourceReader(
+                serverRoot = java.io.File(".").toPath(),
+                sources = cfg.assistantImportSources,
+                logger = logger,
+            ),
             runOnMainThread = { task -> server.scheduler.runTask(this@ArtisanPlugin, Runnable { task() }) },
         )
         moduleMessageSender = { m -> (menuProvider as? SyncedMenuProvider)?.sendModuleMessage(m) }

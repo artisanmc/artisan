@@ -14,6 +14,8 @@ import {
   requestDataSourceFetch,
   requestOnlinePlayers,
   requestPlayerInventory,
+  requestImportSourcesList,
+  requestImportSourcesRead,
 } from "./hub";
 import type {
   HelloMessage,
@@ -1044,6 +1046,187 @@ describe("requestOnlinePlayers", () => {
     } finally {
       connToServerId.delete("connOP3");
       connSenders.delete("connOP3");
+    }
+  });
+});
+
+describe("assistant import source relay", () => {
+  test("listing resolves offline when no plugin conn is bound", async () => {
+    expect(await requestImportSourcesList("sk-import-offline")).toEqual({ kind: "offline" });
+  });
+
+  test("listing sends the exact payload and resolves its correlated result", async () => {
+    const sent: Record<string, unknown>[] = [];
+    const connId = "conn-import-list";
+    registerConn(connId, (raw) => sent.push(JSON.parse(raw)));
+    connToServerId.set(connId, "sk-import-list");
+    try {
+      const pending = requestImportSourcesList("sk-import-list");
+      expect(sent).toHaveLength(1);
+      expect(sent[0]).toEqual({
+        type: "import_sources_list",
+        request_id: expect.any(String),
+      });
+
+      await handlePluginMessage(connId, JSON.stringify({
+        type: "import_sources_list_result",
+        request_id: sent[0]?.request_id,
+        ok: true,
+        sources: [{
+          id: "zmenu",
+          label: "zMenu",
+          files: [{ path: "shop.yml", size: 12 }],
+        }],
+      }));
+
+      expect(await pending).toEqual({
+        kind: "result",
+        result: {
+          type: "import_sources_list_result",
+          request_id: sent[0]?.request_id,
+          ok: true,
+          sources: [{
+            id: "zmenu",
+            label: "zMenu",
+            files: [{ path: "shop.yml", size: 12 }],
+          }],
+        },
+      });
+    } finally {
+      connToServerId.delete(connId);
+      connSenders.delete(connId);
+    }
+  });
+
+  test("listing surfaces a plugin error verbatim", async () => {
+    const sent: Record<string, unknown>[] = [];
+    const connId = "conn-import-list-error";
+    registerConn(connId, (raw) => sent.push(JSON.parse(raw)));
+    connToServerId.set(connId, "sk-import-list-error");
+    try {
+      const pending = requestImportSourcesList("sk-import-list-error");
+      await handlePluginMessage(connId, JSON.stringify({
+        type: "import_sources_list_result",
+        request_id: sent[0]?.request_id,
+        ok: false,
+        error: "read_error",
+        message: "disk unavailable",
+      }));
+      expect(await pending).toEqual({
+        kind: "result",
+        result: {
+          type: "import_sources_list_result",
+          request_id: sent[0]?.request_id,
+          ok: false,
+          error: "read_error",
+          message: "disk unavailable",
+        },
+      });
+    } finally {
+      connToServerId.delete(connId);
+      connSenders.delete(connId);
+    }
+  });
+
+  test("listing times out when the plugin never answers", async () => {
+    const connId = "conn-import-list-timeout";
+    registerConn(connId, () => {});
+    connToServerId.set(connId, "sk-import-list-timeout");
+    try {
+      expect(await requestImportSourcesList("sk-import-list-timeout", 20)).toEqual({ kind: "timeout" });
+    } finally {
+      connToServerId.delete(connId);
+      connSenders.delete(connId);
+    }
+  });
+
+  test("reading resolves offline when no plugin conn is bound", async () => {
+    expect(await requestImportSourcesRead(
+      "sk-import-read-offline",
+      [{ source_id: "zmenu", paths: ["shop.yml"] }],
+    )).toEqual({ kind: "offline" });
+  });
+
+  test("reading sends exact selections and resolves its correlated files", async () => {
+    const sent: Record<string, unknown>[] = [];
+    const connId = "conn-import-read";
+    registerConn(connId, (raw) => sent.push(JSON.parse(raw)));
+    connToServerId.set(connId, "sk-import-read");
+    try {
+      const selections = [{
+        source_id: "zmenu",
+        paths: ["categories/tools.yml", "shop.yml"],
+      }];
+      const pending = requestImportSourcesRead("sk-import-read", selections);
+      expect(sent).toHaveLength(1);
+      expect(sent[0]).toEqual({
+        type: "import_sources_read",
+        request_id: expect.any(String),
+        selections,
+      });
+
+      await handlePluginMessage(connId, JSON.stringify({
+        type: "import_sources_read_result",
+        request_id: sent[0]?.request_id,
+        ok: true,
+        files: [{ source_id: "zmenu", path: "shop.yml", content: "name: Shop\n" }],
+      }));
+
+      expect(await pending).toEqual({
+        kind: "result",
+        result: {
+          type: "import_sources_read_result",
+          request_id: sent[0]?.request_id,
+          ok: true,
+          files: [{ source_id: "zmenu", path: "shop.yml", content: "name: Shop\n" }],
+        },
+      });
+    } finally {
+      connToServerId.delete(connId);
+      connSenders.delete(connId);
+    }
+  });
+
+  test("reading surfaces a plugin error verbatim", async () => {
+    const sent: Record<string, unknown>[] = [];
+    const connId = "conn-import-read-error";
+    registerConn(connId, (raw) => sent.push(JSON.parse(raw)));
+    connToServerId.set(connId, "sk-import-read-error");
+    try {
+      const pending = requestImportSourcesRead(
+        "sk-import-read-error",
+        [{ source_id: "zmenu", paths: ["missing.yml"] }],
+      );
+      await handlePluginMessage(connId, JSON.stringify({
+        type: "import_sources_read_result",
+        request_id: sent[0]?.request_id,
+        ok: false,
+        error: "not_found",
+        message: "missing.yml",
+      }));
+      expect(await pending).toMatchObject({
+        kind: "result",
+        result: { ok: false, error: "not_found", message: "missing.yml" },
+      });
+    } finally {
+      connToServerId.delete(connId);
+      connSenders.delete(connId);
+    }
+  });
+
+  test("reading times out when the plugin never answers", async () => {
+    const connId = "conn-import-read-timeout";
+    registerConn(connId, () => {});
+    connToServerId.set(connId, "sk-import-read-timeout");
+    try {
+      expect(await requestImportSourcesRead(
+        "sk-import-read-timeout",
+        [{ source_id: "zmenu", paths: ["shop.yml"] }],
+        20,
+      )).toEqual({ kind: "timeout" });
+    } finally {
+      connToServerId.delete(connId);
+      connSenders.delete(connId);
     }
   });
 });
