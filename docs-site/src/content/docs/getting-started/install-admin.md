@@ -120,7 +120,40 @@ The server is linked (`server_key` set) but hasn't completed its WebSocket hands
 `editor.console_only` is set to `true` in `config.yml`. Either change it
 or run the command from the console.
 
-## 8. Resource pack distribution (advanced)
+## 8. Assistant server import sources
+
+The AI assistant can attach text files directly from named, read-only roots on
+the Minecraft server. Only users who can edit the linked Project can request
+their listing and contents. Configure the roots locally in
+`plugins/Artisan/config.yml`:
+
+```yaml
+assistant:
+  import-sources:
+    zmenu:
+      enabled: true
+      label: "zMenu"
+      path: "plugins/zMenu/menus"
+      extensions: [".yml", ".yaml"]
+    deluxe-menus:
+      enabled: true
+      label: "DeluxeMenus"
+      path: "plugins/DeluxeMenus/gui_menus"
+      extensions: [".yml", ".yaml"]
+```
+
+Relative paths start at the Minecraft server root; an absolute path is also
+accepted when the administrator declares it explicitly. Extension matching is
+case-insensitive. Artisan never writes to these roots and rejects hidden path
+segments, directory selections, path traversal, and symbolic links (including
+links in intermediate directories).
+
+Each source listing is limited to 5,000 entries. One assistant turn may read at
+most 200 files, 1 MiB per file, and 8 MiB in total. Files must be valid UTF-8.
+Invalid, missing, or unreadable sources are omitted and produce a warning in the
+server console. Set `enabled: false` to keep a configured source private.
+
+## 9. Resource pack distribution (advanced)
 
 Three modes, controlled by `resource-pack.delegate-to-dir` in `config.yml`.
 
@@ -156,7 +189,7 @@ zip-merger picks them up.
 
 The path is filesystem-absolute or relative to the server root.
 
-## 9. Reference: `config.yml`
+## 10. Reference: `config.yml`
 
 ```yaml
 # Set to connect this server to the Artisan editor backend for live sync.
@@ -176,6 +209,20 @@ per_player_language: false
 editor:
   # Set to true to restrict /artisan editor to console only (no in-game players).
   console_only: false
+
+# Read-only roots that Project members may browse from the AI assistant.
+assistant:
+  import-sources:
+    zmenu:
+      enabled: true
+      label: "zMenu"
+      path: "plugins/zMenu/menus"
+      extensions: [".yml", ".yaml"]
+    deluxe-menus:
+      enabled: true
+      label: "DeluxeMenus"
+      path: "plugins/DeluxeMenus/gui_menus"
+      extensions: [".yml", ".yaml"]
 
 # Resource pack pushed by Artisan (independent from Oraxen/Nexo/ItemsAdder packs;
 # uses the 1.20.3+ pack stack so it coexists with other packs side-by-side).
