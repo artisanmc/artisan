@@ -1,14 +1,113 @@
 package net.artisanmc.plugin
 
 import net.artisanmc.plugin.config.PluginConfig
+import net.artisanmc.plugin.config.ImportSourceConfig
 import net.artisanmc.plugin.config.deriveHttpBaseUrl
 import org.bukkit.configuration.file.YamlConfiguration
+import java.io.InputStreamReader
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class PluginConfigTest {
+    @Test
+    fun `assistant import sources parse named roots`() {
+        val yaml = YamlConfiguration()
+        yaml.loadFromString("""
+            assistant:
+              import-sources:
+                zmenu:
+                  enabled: true
+                  label: "zMenu"
+                  path: "plugins/zMenu/menus"
+                  extensions: ["....YML", "yaml"]
+                deluxe-menus:
+                  enabled: true
+                  label: "DeluxeMenus"
+                  path: "plugins/DeluxeMenus/gui_menus"
+                  extensions: [" yml "]
+                hidden:
+                  enabled: false
+                  label: "Hidden"
+                  path: "plugins/Hidden"
+                  extensions: [".yml"]
+        """.trimIndent())
+
+        assertEquals(
+            listOf(
+                ImportSourceConfig(
+                    id = "deluxe-menus",
+                    label = "DeluxeMenus",
+                    path = "plugins/DeluxeMenus/gui_menus",
+                    extensions = setOf(".yml"),
+                ),
+                ImportSourceConfig(
+                    id = "zmenu",
+                    label = "zMenu",
+                    path = "plugins/zMenu/menus",
+                    extensions = setOf(".yml", ".yaml"),
+                ),
+            ),
+            PluginConfig.from(yaml).assistantImportSources,
+        )
+    }
+
+    @Test
+    fun `unsafe assistant import sources are skipped with one warning each`() {
+        val yaml = YamlConfiguration()
+        yaml.loadFromString("""
+            assistant:
+              import-sources:
+                BadId:
+                  path: "plugins/Escape"
+                  extensions: [".yml"]
+                blank-path:
+                  path: "   "
+                  extensions: [".yml"]
+                no-extensions:
+                  path: "plugins/NoExtensions"
+                  extensions: []
+        """.trimIndent())
+
+        val parsed = PluginConfig.from(yaml)
+
+        assertEquals(emptyList(), parsed.assistantImportSources)
+        assertEquals(3, parsed.assistantImportSourceWarnings.size)
+        assertTrue(parsed.assistantImportSourceWarnings.any { it.contains("BadId") })
+        assertTrue(parsed.assistantImportSourceWarnings.any { it.contains("blank-path") })
+        assertTrue(parsed.assistantImportSourceWarnings.any { it.contains("no-extensions") })
+    }
+
+    @Test
+    fun `absent assistant import source section stays empty`() {
+        val yaml = YamlConfiguration()
+        yaml.loadFromString("server_key: \"\"")
+
+        val parsed = PluginConfig.from(yaml)
+
+        assertEquals(emptyList(), parsed.assistantImportSources)
+        assertEquals(emptyList(), parsed.assistantImportSourceWarnings)
+    }
+
+    @Test
+    fun `legacy user config does not inherit assistant import sources from bundled defaults`() {
+        val defaults = InputStreamReader(
+            requireNotNull(javaClass.classLoader.getResourceAsStream("config.yml")),
+            Charsets.UTF_8,
+        ).use(YamlConfiguration::loadConfiguration)
+        val userConfig = YamlConfiguration().apply {
+            loadFromString("server_key: legacy-server")
+            setDefaults(defaults)
+            options().copyDefaults(true)
+        }
+
+        val parsed = PluginConfig.from(userConfig)
+
+        assertEquals(emptyList(), parsed.assistantImportSources)
+        assertEquals(emptyList(), parsed.assistantImportSourceWarnings)
+    }
+
     @Test
     fun `deriveHttpBaseUrl strips ws path and swaps scheme`() {
         assertEquals("https://editor.artisanmc.net", deriveHttpBaseUrl("wss://editor.artisanmc.net/ws/plugin"))
