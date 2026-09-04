@@ -37,14 +37,27 @@ import { requireCapability, requireMember, withNetworkMemberLock } from "../lib/
 import { addMembership } from "../lib/membershipManager";
 import { createNetwork } from "../lib/networkManager";
 import { readOwnerModuleFromFiles } from "../lib/projectFiles";
-import { createProject, ensureProjectForServer, listProjectsForNetwork, projectDiskId } from "../lib/projectStorage";
+import { createProject, ensureProjectForServer, getProject, listProjectsForNetwork, projectDiskId } from "../lib/projectStorage";
 import { resolveNetworkForMember } from "../lib/refs";
 import { slugify } from "../lib/slug";
 import { allocServerSlug } from "../lib/slugAlloc";
 import type { AuthUser } from "../middleware/userAuth";
 import { getCachedAsset, putCachedAsset } from "../lib/assetCache";
-import { disconnectServerKey, getInstanceCount, requestAssetRead, requestConfigRead, requestConfigWrite, requestDataSourceFetch, requestOnlinePlayers, requestPlayerInventory, requestProjectRead, requestProjectWrite, requestProjectHistory, requestProjectList } from "../ws/hub";
-import { getProject } from "../lib/projectStorage";
+import {
+	disconnectServerKey,
+	getInstanceCount,
+	requestAssetRead,
+	requestConfigRead,
+	requestConfigWrite,
+	requestDataSourceFetch,
+	requestImportSourcesList,
+	requestOnlinePlayers,
+	requestPlayerInventory,
+	requestProjectHistory,
+	requestProjectList,
+	requestProjectRead,
+	requestProjectWrite,
+} from "../ws/hub";
 import { handleResourcePackRebuild } from "./resourcePack";
 
 const EDITOR_URL = process.env.EDITOR_URL ?? "http://localhost:5173";
@@ -82,6 +95,65 @@ function parseSchemaJson(raw: string | null): { name: string; type: string; desc
 }
 
 export const userNetworksRouter = new Hono<{ Variables: Vars }>();
+
+type ImportSourcesListRequest = typeof requestImportSourcesList;
+let importSourcesListRequest: ImportSourcesListRequest = requestImportSourcesList;
+
+export function __setImportSourcesListRequestForTests(
+	request: ImportSourcesListRequest | null,
+): void {
+	importSourcesListRequest = request ?? requestImportSourcesList;
+}
+
+const IMPORT_SOURCE_LIST_ERRORS = new Set(["too_many_entries"]);
+
+interface SafeImportSource {
+	id: string;
+	label: string;
+	files: { path: string; size: number }[];
+	error?: string;
+}
+
+function validateImportSources(raw: unknown): SafeImportSource[] | null {
+	if (!Array.isArray(raw)) return null;
+	const sources: SafeImportSource[] = [];
+	for (const candidate of raw) {
+		if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) return null;
+		const source = candidate as Record<string, unknown>;
+		if (
+			typeof source.id !== "string" ||
+			typeof source.label !== "string" ||
+			!Array.isArray(source.files)
+		) {
+			return null;
+		}
+		const files: { path: string; size: number }[] = [];
+		for (const candidateFile of source.files) {
+			if (!candidateFile || typeof candidateFile !== "object" || Array.isArray(candidateFile)) {
+				return null;
+			}
+			const file = candidateFile as Record<string, unknown>;
+			if (
+				typeof file.path !== "string" ||
+				typeof file.size !== "number" ||
+				!Number.isFinite(file.size) ||
+				file.size < 0
+			) {
+				return null;
+			}
+			files.push({ path: file.path, size: file.size });
+		}
+		if ("error" in source) {
+			if (typeof source.error !== "string" || !IMPORT_SOURCE_LIST_ERRORS.has(source.error)) {
+				return null;
+			}
+			sources.push({ id: source.id, label: source.label, files, error: source.error });
+		} else {
+			sources.push({ id: source.id, label: source.label, files });
+		}
+	}
+	return sources;
+}
 
 // Helper: get authenticated userId or return null
 function getUserId(c: Context<{ Variables: Vars }>): string | null {
@@ -719,6 +791,44 @@ async function resolveNetworkServer(
 		);
 	return { networkId, serverKeyId: sk[0]?.id ?? null };
 }
+
+userNetworksRouter.get(
+	"/:networkId/servers/:serverId/projects/:projectId/import-sources",
+	async (c: Context<{ Variables: Vars }>) => {
+		const userId = getUserId(c);
+		if (!userId) return c.json({ error: "unauthorized" }, 401);
+		const resolved = await resolveNetworkServer(
+			userId,
+			c.req.param("networkId"),
+			c.req.param("serverId"),
+		);
+		if (!resolved) return c.json({ error: "forbidden" }, 403);
+		if (!resolved.serverKeyId) return c.json({ error: "not_found" }, 404);
+
+		const project = await getProject(c.req.param("projectId"));
+		if (
+			!project ||
+			project.networkId !== resolved.networkId ||
+			project.serverKeyId !== resolved.serverKeyId
+		) {
+			return c.json({ error: "not_found" }, 404);
+		}
+
+		const outcome = await importSourcesListRequest(resolved.serverKeyId);
+		if (outcome.kind === "offline") {
+			return c.json({ error: "server_offline" }, 503);
+		}
+		if (outcome.kind === "timeout") {
+			return c.json({ error: "fetch_timeout" }, 504);
+		}
+		if (outcome.result.ok !== true) {
+			return c.json({ error: "read_error" }, 502);
+		}
+		const sources = validateImportSources(outcome.result.sources);
+		if (!sources) return c.json({ error: "read_error" }, 502);
+		return c.json({ sources });
+	},
+);
 
 // GET /api/networks/:networkId/servers/:serverId/modules — member access.
 // User-scoped twin of GET /api/v1/editor-session/:token/modules — same

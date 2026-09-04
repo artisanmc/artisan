@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { Hono } from "hono";
 import { db } from "../db/index";
 import {memberships, networks, projects, serverKeys, serverKeyHelloes, linkCodes, users, userSessions, serverModules, serverDataSources, networkInvites, networkAccessRequests} from "../db/schema";
-import { userNetworksRouter } from "./userNetworks";
+import { __setImportSourcesListRequestForTests, userNetworksRouter } from "./userNetworks";
 import { userAuth } from "../middleware/userAuth";
 import { createSession } from "../lib/sessionManager";
 import { addMembership } from "../lib/membershipManager";
@@ -1225,6 +1225,238 @@ describe("POST …/data-sources/preview", () => {
       body: JSON.stringify({ ref: "boutique:items" }),
     });
     expect(forbidden.status).toBe(403);
+  });
+});
+
+describe("GET …/projects/:projectId/import-sources", () => {
+  beforeEach(clearAll);
+  afterEach(() => __setImportSourcesListRequestForTests(null));
+
+  async function setup() {
+    const { sessionId } = await seedUser();
+    const app = makeApp();
+    const create = await app.request("/api/v1/networks", {
+      method: "POST",
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "N" }),
+    });
+    const { network } = await create.json();
+    const keyId = crypto.randomUUID();
+    await db.insert(serverKeys).values({ id: keyId, hash: "h-import", networkId: network.id, createdAt: new Date() });
+    const { createProject } = await import("../lib/projectStorage");
+    const project = await createProject({ networkId: network.id, serverKeyId: keyId, name: "menus" });
+    const path = `/api/v1/networks/${network.id}/servers/${keyId}/projects/${project.id}/import-sources`;
+    const headers = { Cookie: `artisan_user_session=${sessionId}` };
+    return { app, headers, keyId, network, path, project };
+  }
+
+  test("200 relays the configured source metadata from the owning server", async () => {
+    const { app, headers, keyId, path } = await setup();
+
+    const connId = "conn-import-sources";
+    registerConn(connId, (raw) => {
+      const message = JSON.parse(raw) as { type: string; request_id: string };
+      if (message.type !== "import_sources_list") return;
+      queueMicrotask(() => {
+        void handlePluginMessage(connId, JSON.stringify({
+          type: "import_sources_list_result",
+          request_id: message.request_id,
+          ok: true,
+          sources: [{ id: "zmenu", label: "zMenu", files: [{ path: "shop.yml", size: 12 }] }],
+        }));
+      });
+    });
+    connToServerId.set(connId, keyId);
+
+    try {
+      const res = await app.request(path, { headers });
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual({
+        sources: [{ id: "zmenu", label: "zMenu", files: [{ path: "shop.yml", size: 12 }] }],
+      });
+    } finally {
+      connToServerId.delete(connId);
+      connSenders.delete(connId);
+    }
+  });
+
+  test("503 when the owning server is offline", async () => {
+    const { app, headers, path } = await setup();
+
+    const res = await app.request(path, { headers });
+
+    expect(res.status).toBe(503);
+    expect(await res.json()).toEqual({ error: "server_offline" });
+  });
+
+  test("504 when the connected plugin does not answer", async () => {
+    const { app, headers, path } = await setup();
+    __setImportSourcesListRequestForTests(async () => ({ kind: "timeout" }));
+
+    const res = await app.request(path, { headers });
+
+    expect(res.status).toBe(504);
+    expect(await res.json()).toEqual({ error: "fetch_timeout" });
+  });
+
+  test("502 exposes only read_error, never the plugin error or message", async () => {
+    const { app, headers, keyId, path } = await setup();
+    const connId = "conn-import-error";
+    registerConn(connId, (raw) => {
+      const message = JSON.parse(raw) as { type: string; request_id: string };
+      if (message.type !== "import_sources_list") return;
+      queueMicrotask(() => {
+        void handlePluginMessage(connId, JSON.stringify({
+          type: "import_sources_list_result",
+          request_id: message.request_id,
+          ok: false,
+          error: "private_disk_failure",
+          message: "sensitive path ".repeat(1_000),
+        }));
+      });
+    });
+    connToServerId.set(connId, keyId);
+
+    try {
+      const res = await app.request(path, { headers });
+      expect(res.status).toBe(502);
+      expect(await res.json()).toEqual({ error: "read_error" });
+    } finally {
+      connToServerId.delete(connId);
+      connSenders.delete(connId);
+    }
+  });
+
+  test("502 read_error when a successful plugin result omits sources", async () => {
+    const { app, headers, path } = await setup();
+    __setImportSourcesListRequestForTests(async () => ({
+      kind: "result",
+      result: {
+        type: "import_sources_list_result",
+        request_id: "malformed-list",
+        ok: true,
+      },
+    }));
+
+    const res = await app.request(path, { headers });
+
+    expect(res.status).toBe(502);
+    expect(await res.json()).toEqual({ error: "read_error" });
+  });
+
+  test("502 read_error when the plugin success flag is not boolean true", async () => {
+    const { app, headers, path } = await setup();
+    __setImportSourcesListRequestForTests(async () => ({
+      kind: "result",
+      result: {
+        type: "import_sources_list_result",
+        request_id: "malformed-ok",
+        ok: "true",
+        sources: [],
+      } as never,
+    }));
+
+    const res = await app.request(path, { headers });
+
+    expect(res.status).toBe(502);
+    expect(await res.json()).toEqual({ error: "read_error" });
+  });
+
+  test.each([
+    null,
+    {},
+    [null],
+    [{ id: 1, label: "zMenu", files: [] }],
+    [{ id: "zmenu", label: 1, files: [] }],
+    [{ id: "zmenu", label: "zMenu", files: {} }],
+    [{ id: "zmenu", label: "zMenu", files: [{ path: 1, size: 1 }] }],
+    [{ id: "zmenu", label: "zMenu", files: [{ path: "shop.yml", size: -1 }] }],
+    [{ id: "zmenu", label: "zMenu", files: [{ path: "shop.yml", size: Number.POSITIVE_INFINITY }] }],
+    [{ id: "zmenu", label: "zMenu", files: [], error: null }],
+    [{ id: "zmenu", label: "zMenu", files: [], error: "unknown_error" }],
+    [{ id: "zmenu", label: "zMenu", files: [], error: "x".repeat(1_000) }],
+  ])("502 read_error for malformed successful source metadata %#", async (sources) => {
+    const { app, headers, path } = await setup();
+    __setImportSourcesListRequestForTests(async () => ({
+      kind: "result",
+      result: {
+        type: "import_sources_list_result",
+        request_id: "malformed-source",
+        ok: true,
+        sources: sources as never,
+      },
+    }));
+
+    const res = await app.request(path, { headers });
+
+    expect(res.status).toBe(502);
+    expect(await res.json()).toEqual({ error: "read_error" });
+  });
+
+  test("200 accepts the bounded public source error", async () => {
+    const { app, headers, path } = await setup();
+    __setImportSourcesListRequestForTests(async () => ({
+      kind: "result",
+      result: {
+        type: "import_sources_list_result",
+        request_id: "source-limit",
+        ok: true,
+        sources: [{ id: "zmenu", label: "zMenu", files: [], error: "too_many_entries" }],
+      },
+    }));
+
+    const res = await app.request(path, { headers });
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({
+      sources: [{ id: "zmenu", label: "zMenu", files: [], error: "too_many_entries" }],
+    });
+  });
+
+  test("401 without a session", async () => {
+    const { app, path } = await setup();
+
+    const res = await app.request(path);
+
+    expect(res.status).toBe(401);
+    expect(await res.json()).toEqual({ error: "unauthorized" });
+  });
+
+  test("403 for a user outside the Network", async () => {
+    const { app, path } = await setup();
+    const outsider = await seedUser("import-outsider");
+
+    const res = await app.request(path, {
+      headers: { Cookie: `artisan_user_session=${outsider.sessionId}` },
+    });
+
+    expect(res.status).toBe(403);
+    expect(await res.json()).toEqual({ error: "forbidden" });
+  });
+
+  test("404 when the Project belongs to another Server", async () => {
+    const { app, headers, keyId, network } = await setup();
+    const otherKeyId = crypto.randomUUID();
+    await db.insert(serverKeys).values({
+      id: otherKeyId,
+      hash: "h-import-other",
+      networkId: network.id,
+      createdAt: new Date(),
+    });
+    const { createProject } = await import("../lib/projectStorage");
+    const otherProject = await createProject({
+      networkId: network.id,
+      serverKeyId: otherKeyId,
+      name: "other",
+    });
+
+    const res = await app.request(
+      `/api/v1/networks/${network.id}/servers/${keyId}/projects/${otherProject.id}/import-sources`,
+      { headers },
+    );
+
+    expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({ error: "not_found" });
   });
 });
 
