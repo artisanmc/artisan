@@ -123,6 +123,49 @@ export interface DataSourceFetchResultMessage {
   message?: string;
 }
 
+// Backend → plugin: list the read-only assistant import roots configured by
+// the server administrator. Correlated by request_id; 5 s timeout backend-side.
+export interface ImportSourcesListMessage {
+  type: "import_sources_list";
+  request_id: string;
+}
+
+// Plugin → backend: metadata only. Source-level errors never expose a partial
+// listing for that source.
+export interface ImportSourcesListResultMessage {
+  type: "import_sources_list_result";
+  request_id: string;
+  ok: boolean;
+  sources?: {
+    id: string;
+    label: string;
+    files: { path: string; size: number }[];
+    error?: string | null;
+  }[];
+  error?: string;
+  message?: string;
+}
+
+// Backend → plugin: read the selected files when the user submits the assistant
+// turn, as a preflight before any model call or credit debit. The plugin
+// revalidates every source/path and reads atomically.
+export interface ImportSourcesReadMessage {
+  type: "import_sources_read";
+  request_id: string;
+  selections: { source_id: string; paths: string[] }[];
+}
+
+// Plugin → backend: UTF-8 text content or one atomic failure (never a partial
+// file set), correlated by request_id.
+export interface ImportSourcesReadResultMessage {
+  type: "import_sources_read_result";
+  request_id: string;
+  ok: boolean;
+  files?: { source_id: string; path: string; content: string }[];
+  error?: string;
+  message?: string;
+}
+
 // Backend → plugin: snapshot a player's inventory for the editor's capture
 // panel (ADR captured-items-and-module-field-kit). Correlated like
 // data_source_fetch; same 5 s timeout.
@@ -419,6 +462,8 @@ export type PluginToServerMessage =
   | CustomItemsBundleMessage
   | ModulesChangedMessage
   | DataSourceFetchResultMessage
+  | ImportSourcesListResultMessage
+  | ImportSourcesReadResultMessage
   | PlayerInventoryResultMessage
   | ConfigReadResultMessage
   | ConfigWriteResultMessage
@@ -443,6 +488,8 @@ export type ServerToPluginMessage =
   | ResourcePackUpdatedMessage
   | ProjectDeletedMessage
   | DataSourceFetchMessage
+  | ImportSourcesListMessage
+  | ImportSourcesReadMessage
   | PlayerInventoryFetchMessage
   | OnlinePlayersFetchMessage
   | ConfigReadMessage

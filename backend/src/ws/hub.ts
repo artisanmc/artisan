@@ -37,6 +37,10 @@ import type {
   ConfigWriteResultMessage,
   DataSourceFetchMessage,
   DataSourceFetchResultMessage,
+  ImportSourcesListMessage,
+  ImportSourcesListResultMessage,
+  ImportSourcesReadMessage,
+  ImportSourcesReadResultMessage,
   OnlinePlayersFetchMessage,
   OnlinePlayersResultMessage,
   PlayerInventoryFetchMessage,
@@ -97,6 +101,84 @@ export type DataSourceFetchOutcome =
   | { kind: "timeout" };
 
 const pendingFetches = new Map<string, (outcome: DataSourceFetchOutcome) => void>();
+
+export const IMPORT_SOURCES_LIST_TIMEOUT_MS = 5_000;
+
+export type ImportSourcesListOutcome =
+  | { kind: "result"; result: ImportSourcesListResultMessage }
+  | { kind: "offline" }
+  | { kind: "timeout" };
+
+const pendingImportSourcesLists = new Map<
+  string,
+  (outcome: ImportSourcesListOutcome) => void
+>();
+
+export const IMPORT_SOURCES_READ_TIMEOUT_MS = 10_000;
+
+export type ImportSourcesReadOutcome =
+  | { kind: "result"; result: ImportSourcesReadResultMessage }
+  | { kind: "offline" }
+  | { kind: "timeout" };
+
+const pendingImportSourcesReads = new Map<
+  string,
+  (outcome: ImportSourcesReadOutcome) => void
+>();
+
+export function requestImportSourcesList(
+  serverKeyId: string,
+  timeoutMs: number = IMPORT_SOURCES_LIST_TIMEOUT_MS,
+): Promise<ImportSourcesListOutcome> {
+  const send = firstPluginSender(serverKeyId);
+  if (!send) return Promise.resolve({ kind: "offline" });
+
+  const requestId = crypto.randomUUID();
+  const msg: ImportSourcesListMessage = {
+    type: "import_sources_list",
+    request_id: requestId,
+  };
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      pendingImportSourcesLists.delete(requestId);
+      resolve({ kind: "timeout" });
+    }, timeoutMs);
+    pendingImportSourcesLists.set(requestId, (outcome) => {
+      clearTimeout(timer);
+      pendingImportSourcesLists.delete(requestId);
+      resolve(outcome);
+    });
+    send(JSON.stringify(msg));
+  });
+}
+
+export function requestImportSourcesRead(
+  serverKeyId: string,
+  selections: { source_id: string; paths: string[] }[],
+  timeoutMs: number = IMPORT_SOURCES_READ_TIMEOUT_MS,
+): Promise<ImportSourcesReadOutcome> {
+  const send = firstPluginSender(serverKeyId);
+  if (!send) return Promise.resolve({ kind: "offline" });
+
+  const requestId = crypto.randomUUID();
+  const msg: ImportSourcesReadMessage = {
+    type: "import_sources_read",
+    request_id: requestId,
+    selections,
+  };
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      pendingImportSourcesReads.delete(requestId);
+      resolve({ kind: "timeout" });
+    }, timeoutMs);
+    pendingImportSourcesReads.set(requestId, (outcome) => {
+      clearTimeout(timer);
+      pendingImportSourcesReads.delete(requestId);
+      resolve(outcome);
+    });
+    send(JSON.stringify(msg));
+  });
+}
 
 /**
  * Ask the live plugin bound to `serverKeyId` to fetch + shape a data source.
@@ -962,6 +1044,20 @@ export async function handlePluginMessage(
     if (!serverId) return { reply: null };
     const result = msg as DataSourceFetchResultMessage;
     pendingFetches.get(result.request_id)?.({ kind: "result", result });
+    return { reply: null };
+  }
+
+  if (msg.type === "import_sources_list_result") {
+    if (!connToServerId.get(connId)) return { reply: null };
+    const result = msg as ImportSourcesListResultMessage;
+    pendingImportSourcesLists.get(result.request_id)?.({ kind: "result", result });
+    return { reply: null };
+  }
+
+  if (msg.type === "import_sources_read_result") {
+    if (!connToServerId.get(connId)) return { reply: null };
+    const result = msg as ImportSourcesReadResultMessage;
+    pendingImportSourcesReads.get(result.request_id)?.({ kind: "result", result });
     return { reply: null };
   }
 
