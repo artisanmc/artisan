@@ -5,6 +5,10 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import net.artisanmc.plugin.customitems.CustomItemsManager
+import net.artisanmc.plugin.assistant.ImportReadResult
+import net.artisanmc.plugin.assistant.ImportSelection
+import net.artisanmc.plugin.assistant.ImportSourceAccess
+import net.artisanmc.plugin.assistant.ImportSourceListing
 import net.artisanmc.plugin.engine.ActionExecutor
 import net.artisanmc.plugin.resourcepack.ResourcePackManager
 import net.artisanmc.plugin.engine.BundleCompiler
@@ -49,6 +53,10 @@ class SyncedMenuProvider(
     private val declaredModelsReport: () -> List<Map<String, Any?>> = { emptyList() },
     /** Module-declared Config screens, reported at Presence (ADR module-config-screens). */
     private val editorScreensReport: () -> List<Map<String, Any?>> = { emptyList() },
+    private val importSources: ImportSourceAccess = object : ImportSourceAccess {
+        override fun listAll() = emptyList<ImportSourceListing>()
+        override fun read(selections: List<ImportSelection>) = ImportReadResult.Success(emptyList())
+    },
     /**
      * Dispatches a task onto the Bukkit main thread (fetchers touch the Bukkit
      * API). Default = synchronous, for tests; ArtisanPlugin injects the scheduler.
@@ -488,6 +496,86 @@ class SyncedMenuProvider(
                 val parsed   = runCatching { yamlMapper.readValue(menuYaml, MenuYaml::class.java) }.getOrNull() ?: return
                 draftMenus[menuId] = BundleCompiler.compile(parsed, emptyMap(), logger)
                 logger?.info("Draft updated for $menuId")
+            }
+
+            "import_sources_list" -> {
+                val requestId = node["request_id"]?.asText() ?: return
+                try {
+                    httpClient.dispatcher.executorService.execute {
+                        val base = mapOf("type" to "import_sources_list_result", "request_id" to requestId)
+                        val payload = try {
+                            val sources = importSources.listAll().map { source ->
+                                buildMap<String, Any> {
+                                    put("id", source.id)
+                                    put("label", source.label)
+                                    put("files", source.files.map { file ->
+                                        mapOf("path" to file.path, "size" to file.size)
+                                    })
+                                    source.error?.let { put("error", it) }
+                                }
+                            }
+                            mapOf("ok" to true, "sources" to sources)
+                        } catch (error: Throwable) {
+                            logger?.log(java.util.logging.Level.WARNING, "[Artisan] import source listing failed", error)
+                            mapOf("ok" to false, "error" to "read_error", "message" to describeError(error))
+                        }
+                        @Suppress("UNCHECKED_CAST")
+                        send((base + payload) as Map<String, Any>)
+                    }
+                } catch (_: java.util.concurrent.RejectedExecutionException) {
+                    logger?.warning("import_sources_list dropped — plugin is stopping")
+                }
+            }
+
+            "import_sources_read" -> {
+                val requestId = node["request_id"]?.asText() ?: return
+                try {
+                    httpClient.dispatcher.executorService.execute {
+                        val base = mapOf("type" to "import_sources_read_result", "request_id" to requestId)
+                        val selectionsNode = node["selections"]
+                        val selections = if (selectionsNode?.isArray == true) {
+                            selectionsNode.mapNotNull { selection ->
+                                val sourceId = selection["source_id"]?.takeIf { it.isTextual }?.asText()
+                                    ?: return@mapNotNull null
+                                val pathsNode = selection["paths"]?.takeIf { it.isArray }
+                                    ?: return@mapNotNull null
+                                val paths = pathsNode.mapNotNull { it.takeIf { path -> path.isTextual }?.asText() }
+                                if (paths.size != pathsNode.size()) null else ImportSelection(sourceId, paths)
+                            }.takeIf { it.size == selectionsNode.size() }
+                        } else {
+                            null
+                        }
+                        val payload = try {
+                            when {
+                                selections == null -> mapOf("ok" to false, "error" to "invalid_input")
+                                else -> when (val result = importSources.read(selections)) {
+                                    is ImportReadResult.Success -> mapOf(
+                                        "ok" to true,
+                                        "files" to result.files.map { file ->
+                                            mapOf(
+                                                "source_id" to file.sourceId,
+                                                "path" to file.path,
+                                                "content" to file.content,
+                                            )
+                                        },
+                                    )
+                                    is ImportReadResult.Failure -> buildMap<String, Any> {
+                                        put("ok", false)
+                                        put("error", result.error)
+                                        result.message?.let { put("message", it) }
+                                    }
+                                }
+                            }
+                        } catch (error: Throwable) {
+                            logger?.log(java.util.logging.Level.WARNING, "[Artisan] import source read failed", error)
+                            mapOf("ok" to false, "error" to "read_error", "message" to describeError(error))
+                        }
+                        @Suppress("UNCHECKED_CAST")
+                        send((base + payload) as Map<String, Any>)
+                    }
+                } catch (_: java.util.concurrent.RejectedExecutionException) {
+                    logger?.warning("import_sources_read dropped — plugin is stopping")
+                }
             }
 
             // Who is connected right now — the editor needs it to offer a player
