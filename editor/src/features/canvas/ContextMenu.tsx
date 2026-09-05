@@ -35,6 +35,8 @@ interface ContextMenuProps {
   onDuplicate: () => void;
   onDelete: () => void;
   onMoveTo: (toProjectId: ProjectId) => void;
+  /** Fond du canvas : montrer les paramètres du project dans le panneau. */
+  onOpenProjectSettings: () => void;
   /** Absents en vue focus : créer « ici » suppose une position de planche. */
   onCreateMenuAt?: (world: { x: number; y: number }) => void;
   onCreateCommandAt?: (world: { x: number; y: number }) => void;
@@ -50,6 +52,7 @@ export function ContextMenu({
   onDuplicate,
   onDelete,
   onMoveTo,
+  onOpenProjectSettings,
   onCreateMenuAt,
   onCreateCommandAt,
   onCreateDialogAt,
@@ -102,6 +105,9 @@ export function ContextMenu({
               </DropdownMenuItem>
             )}
             {(onCreateMenuAt || onCreateCommandAt || onCreateDialogAt) && <DropdownMenuSeparator />}
+            <DropdownMenuItem onSelect={onOpenProjectSettings}>
+              {t("projectProperties.title")}
+            </DropdownMenuItem>
             <DropdownMenuItem onSelect={onPaste}>
               Paste
               <span className="ml-auto text-[10px] text-[var(--text-faint)]">⌘V</span>

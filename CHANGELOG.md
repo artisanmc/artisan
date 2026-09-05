@@ -18,8 +18,10 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 - **Bibliothèque** et **Assets** ne s'affichent plus que s'il y a un menu où déposer un item ou un
   glyphe (menu ou élément de menu sélectionné) — plus dans une commande ni un dialogue. L'onglet
   mémorisé est ignoré quand le contexte ne l'offre pas, sans être écrasé.
-- Les **paramètres du projet**, qui ne correspondent à aucune sélection, s'ouvrent depuis une
-  nouvelle ligne racine en tête de l'arbre du projet.
+- Les **paramètres du projet**, qui ne correspondent à aucune sélection, s'ouvrent depuis trois
+  endroits : une nouvelle ligne racine en tête de l'arbre du projet, le **clic droit sur le fond du
+  canvas** (le geste qui désélectionne est celui après lequel on les cherche) et le **menu ⋮** de la
+  barre du haut.
 - Aucun nouveau geste : cliquer un menu le sélectionnait déjà (et le clic droit aussi), ce qui
   affiche ses paramètres. L'affordance existait, elle était invisible tant que le panneau était là
   en permanence.

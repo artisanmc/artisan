@@ -5,6 +5,7 @@ import { TopBarKebabMenu } from "./TopBarKebabMenu";
 
 describe("TopBarKebabMenu", () => {
   const baseProps = {
+    onOpenProjectSettings: vi.fn(),
     onImport: vi.fn(),
     onExportZip: vi.fn(),
     onOpenPatterns: vi.fn(),
@@ -24,6 +25,20 @@ describe("TopBarKebabMenu", () => {
     expect(screen.getByText(/Importer un projet|Import a project|topbar\.import/i)).toBeInTheDocument();
     expect(screen.getByText(/Patterns|Aide-mémoire|Cheat sheet|patterns\.title/i)).toBeInTheDocument();
     expect(screen.getByText(/Supprimer|Delete|topbar\.deleteProject/i)).toBeInTheDocument();
+  });
+
+  /**
+   * Le panneau d'édition n'apparaît plus qu'à la sélection : les paramètres du
+   * projet, qui ne correspondent à aucune sélection, ont besoin de portes
+   * d'entrée explicites — le kebab en est une.
+   */
+  it("expose les paramètres du projet", async () => {
+    const user = userEvent.setup();
+    const onOpenProjectSettings = vi.fn();
+    render(<TopBarKebabMenu {...baseProps} onOpenProjectSettings={onOpenProjectSettings} />);
+    await user.click(screen.getByLabelText(/More actions|Plus d'actions|topbar\.more/i));
+    await user.click(screen.getByText(/Paramètres du projet|Project settings/i));
+    expect(onOpenProjectSettings).toHaveBeenCalled();
   });
 
   it("calls onDelete when Delete item is clicked", async () => {
