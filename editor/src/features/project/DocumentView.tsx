@@ -8,10 +8,7 @@ import { useAccountStore } from "@/state/accountStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
 import { EmptyState } from "@/components/ui/empty-state";
-import { SplitPane } from "@/components/SplitPane";
-import { EditorPane } from "@/features/canvas/EditorPane";
-import { FloatingEditorPane } from "@/features/canvas/FloatingEditorPane";
-import { useIsDesktop } from "@/lib/useMediaQuery";
+import { CanvasWithInspector } from "@/features/project/CanvasWithInspector";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { FlowCanvas } from "@/features/flow/FlowCanvas";
 import { Stage } from "@/features/canvas/Stage";
@@ -33,7 +30,6 @@ export function DocumentView({ projectId, documentId }: { projectId: ProjectId; 
   const activeLang = useUiStore((s) => s.activeLang);
   const editorPaneWidth = useUiStore((s) => s.editorPaneWidth);
   const setEditorPaneWidth = useUiStore((s) => s.setEditorPaneWidth);
-  const isDesktop = useIsDesktop();
   const eid = documentId as string;
   const [yamlMode, setYamlMode] = useState(false);
   const menu = project?.menus.find((m) => m.id === eid);
@@ -152,29 +148,13 @@ export function DocumentView({ projectId, documentId }: { projectId: ProjectId; 
   return (
     <div className="absolute inset-0">
       {menu ? (
-        isDesktop ? (
-          // Stage full-bleed, edit pane floating over it — the board's layout.
-          <>
-            <div className="absolute inset-0">
-              <Stage projectId={pId} focus={documentId} />
-            </div>
-            <FloatingEditorPane
-              projectId={pId}
-              width={editorPaneWidth}
-              onWidthChange={setEditorPaneWidth}
-            />
-          </>
-        ) : (
-          <SplitPane
-            orientation="vertical"
-            primary={<Stage projectId={pId} focus={documentId} />}
-            secondary={<EditorPane projectId={pId} />}
-            secondarySize={editorPaneWidth}
-            onSecondarySizeChange={setEditorPaneWidth}
-            minSecondary={280}
-            minPrimary={200}
-          />
-        )
+        <CanvasWithInspector
+          projectId={pId}
+          canvas={<Stage projectId={pId} focus={documentId} />}
+          mobileSize={editorPaneWidth}
+          onMobileSizeChange={setEditorPaneWidth}
+          minSecondary={280}
+        />
       ) : (
         // Commands / dialogs have no stage: the pseudocode column stays centred,
         // with room at the top so the bubble never covers its first line.

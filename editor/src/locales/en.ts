@@ -512,6 +512,7 @@ export default {
     unavailable: "Library unavailable — server offline",
   },
   projectPanel: {
+    projectSettings: "Project settings",
     menus: "Menus",
     commands: "Commands",
     dialogs: "Dialogs",

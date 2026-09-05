@@ -82,6 +82,15 @@ interface UiState {
   editorTab: EditorTab;
   setEditorTab: (t: EditorTab) => void;
   /**
+   * Le panneau d'édition est l'inspecteur de la sélection : il n'existe que
+   * s'il y a quelque chose à inspecter. Les paramètres du PROJECT, eux, ne
+   * correspondent à aucune sélection — ce drapeau est le « rien de sélectionné,
+   * mais montre-moi quand même le project » posé par la racine de l'arbre.
+   * Éphémère : jamais persisté.
+   */
+  projectSettingsOpen: boolean;
+  setProjectSettingsOpen: (open: boolean) => void;
+  /**
    * Material name currently "armed" from the Library — the next slot tap
    * places it. Touch fallback when drag-and-drop isn't practical.
    */
@@ -238,6 +247,8 @@ export const useUiStore = create<UiState>()(
       setEditorPaneWidth: (w) => set({ editorPaneWidth: w }),
       editorTab: "edit",
       setEditorTab: (t) => set({ editorTab: t }),
+      projectSettingsOpen: false,
+      setProjectSettingsOpen: (open) => set({ projectSettingsOpen: open }),
       armedMaterial: null,
       setArmedMaterial: (m) => set({ armedMaterial: m }),
       menuPreviewArgs: {},
