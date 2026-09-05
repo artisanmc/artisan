@@ -8,7 +8,8 @@ import { AssistantChat } from "./AssistantChat";
 
 // Scripted SSE: two text chunks (must coalesce into ONE assistant entry),
 // then a written menu, then done.
-vi.mock("@/lib/api/assistant", () => ({
+vi.mock("@/lib/api/assistant", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/api/assistant")>()),
   openConversation: vi.fn(async () => "c1"),
   streamAssistant: vi.fn(async function* () {
     yield { type: "text", text: "Voici " };
@@ -44,6 +45,30 @@ vi.mock("@/lib/api/assistant", () => ({
   })),
 }));
 
+vi.mock("@/lib/api/importSources", () => ({
+  listImportSources: vi.fn(async () => ({
+    ok: true,
+    sources: [
+      {
+        id: "zmenu",
+        label: "zMenu",
+        files: [
+          { path: "categories/blocks.yml", size: 20 },
+          { path: "shop.yml", size: 30 },
+        ],
+      },
+    ],
+  })),
+}));
+
+async function attachServerFiles() {
+  await userEvent.click(screen.getByRole("button", { name: /attach files|joindre des fichiers/i }));
+  await userEvent.click(screen.getByRole("menuitem", { name: /serveur|server/i }));
+  await userEvent.click(await screen.findByRole("checkbox", { name: /categories/i }));
+  await userEvent.click(screen.getByRole("checkbox", { name: /shop.yml/i }));
+  await userEvent.click(screen.getByRole("button", { name: /^joindre$|^attach$/i }));
+}
+
 function setup() {
   useAuthStore.setState({ currentUser: { id: "u1", email: "a@b.c" } } as never);
   useAccountStore.getState().setAccount({
@@ -59,6 +84,82 @@ afterEach(() => {
 });
 
 describe("AssistantChat", () => {
+  it("sends local and server attachments together and clears the accepted composer", async () => {
+    setup();
+    render(<AssistantChat projectId={projectId("p")} networkId="n" serverId="s" serverOnline />);
+    await attachServerFiles();
+    fireEvent.drop(screen.getByTestId("assistant-panel"), {
+      dataTransfer: { files: [new File(["name: Local"], "local.yml")] },
+    });
+    await screen.findByText("local.yml");
+    await userEvent.type(screen.getByRole("textbox"), "migre tout");
+    await userEvent.click(screen.getByRole("button", { name: /^(send|envoyer)$/i }));
+    const { streamAssistant } = await import("@/lib/api/assistant");
+    await waitFor(() =>
+      expect(streamAssistant).toHaveBeenCalledWith(
+        "c1",
+        expect.objectContaining({
+          text: "migre tout",
+          attachments: { "local.yml": "name: Local" },
+          serverAttachments: [{ sourceId: "zmenu", paths: ["categories/blocks.yml", "shop.yml"] }],
+        }),
+      ),
+    );
+    expect(screen.getByRole("textbox")).toHaveValue("");
+    expect(screen.queryByTestId("assistant-attachments")).toBeNull();
+    expect(screen.queryByTestId("assistant-server-attachments")).toBeNull();
+  });
+
+  it("preserves both attachment origins and text when preflight fails without adding a bubble", async () => {
+    setup();
+    const { streamAssistant, AssistantRequestError } = await import("@/lib/api/assistant");
+    vi.mocked(streamAssistant).mockImplementationOnce(async function* () {
+      yield await Promise.reject(new AssistantRequestError("not_found", 404, "shop.yml"));
+    });
+    render(<AssistantChat projectId={projectId("p")} networkId="n" serverId="s" serverOnline />);
+    await attachServerFiles();
+    fireEvent.drop(screen.getByTestId("assistant-panel"), {
+      dataTransfer: { files: [new File(["local"], "local.yml")] },
+    });
+    await screen.findByText("local.yml");
+    await userEvent.type(screen.getByRole("textbox"), "migre tout");
+    await userEvent.click(screen.getByRole("button", { name: /^(send|envoyer)$/i }));
+    await screen.findByTestId("assistant-error");
+    expect(screen.getByRole("textbox")).toHaveValue("migre tout");
+    expect(screen.getByText("local.yml")).toBeInTheDocument();
+    expect(screen.getByTestId("assistant-server-attachments")).toHaveTextContent("zMenu");
+    expect(
+      screen.getByTestId("assistant-transcript").querySelector('[data-role="user"]'),
+    ).toBeNull();
+  });
+
+  it("expands and removes a server group and allows attachments-only sends", async () => {
+    setup();
+    render(<AssistantChat projectId={projectId("p")} networkId="n" serverId="s" serverOnline />);
+    await attachServerFiles();
+    expect(screen.getByRole("button", { name: /^(send|envoyer)$/i })).toBeEnabled();
+    await userEvent.click(screen.getByRole("button", { name: /développer zMenu|expand zMenu/i }));
+    expect(screen.getByText("categories/blocks.yml")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: /retirer zMenu|remove zMenu/i }));
+    expect(screen.queryByTestId("assistant-server-attachments")).toBeNull();
+    expect(screen.getByRole("button", { name: /^(send|envoyer)$/i })).toBeDisabled();
+  });
+
+  it("keeps local file selection available when the server is offline", async () => {
+    setup();
+    render(
+      <AssistantChat projectId={projectId("p")} networkId="n" serverId="s" serverOnline={false} />,
+    );
+    const click = vi.spyOn(screen.getByTestId("assistant-file-input"), "click");
+    await userEvent.click(
+      screen.getByRole("button", { name: /attach files|joindre des fichiers/i }),
+    );
+    expect(screen.getByRole("menuitem", { name: /serveur|server/i })).toHaveAttribute(
+      "data-disabled",
+    );
+    await userEvent.click(screen.getByRole("menuitem", { name: /appareil|device/i }));
+    expect(click).toHaveBeenCalledOnce();
+  });
   it("renders the transcript and composer", () => {
     setup();
     render(<AssistantChat projectId={projectId("p")} />);
