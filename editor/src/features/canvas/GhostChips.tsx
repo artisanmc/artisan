@@ -1,7 +1,7 @@
 import type { Project, ProjectId } from "@/domain/types";
+import { documentLabel } from "@/features/project/useProjectDocuments";
 import { useAccountStore } from "@/state/accountStore";
 import { useUiStore } from "@/state/uiStore";
-import { documentLabel } from "@/features/project/useProjectDocuments";
 import type Konva from "konva";
 import { useMemo } from "react";
 import { Group, Rect, Text } from "react-konva";
@@ -13,6 +13,12 @@ interface GhostChipsProps {
   project: Project;
   layout: Record<string, { x: number; y: number }>;
   projectId: ProjectId;
+  /**
+   * Que fait un clic sur la pastille. Par défaut (planche) : poser la cible
+   * sur la planche. En vue focus, où il n'y a pas de planche à peupler, le
+   * clic ouvre la cible — la pastille devient la navigation.
+   */
+  onOpen?: (target: string) => void;
 }
 
 const CHIP_H = 22;
@@ -22,7 +28,7 @@ const CHIP_GAP = 4; // vertical gap between stacked chips of the same source
 // If that font/size changes, re-tune this.
 const CHAR_W = 6.2;
 
-export function GhostChips({ project, layout, projectId }: GhostChipsProps) {
+export function GhostChips({ project, layout, projectId, onOpen }: GhostChipsProps) {
   const activeLang = useUiStore((s) => s.activeLang);
   const links = useMemo(() => offBoardLinks(deriveEdges(project), layout), [project, layout]);
 
@@ -51,6 +57,10 @@ export function GhostChips({ project, layout, projectId }: GhostChipsProps) {
 
         const onAdd = (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
           e.cancelBubble = true;
+          if (onOpen) {
+            onOpen(target);
+            return;
+          }
           useAccountStore.getState().addToBoard({
             projectId,
             nodeId: target,
