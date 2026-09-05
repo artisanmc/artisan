@@ -13,7 +13,28 @@ import { useState } from "react";
  * "new" → "new" — remounts `AssistantChat` with fresh state, and a resumed
  * conversation loads its transcript on mount.
  */
-export function AssistantBody({ projectId }: { projectId: ProjectId }) {
+interface AssistantBodyProps {
+  projectId: ProjectId;
+  networkId?: string;
+  serverId?: string;
+  serverOnline?: boolean;
+}
+
+export function AssistantBody(props: AssistantBodyProps) {
+  return (
+    <AssistantBodyContent
+      key={`${props.networkId}/${props.serverId}/${props.projectId}`}
+      {...props}
+    />
+  );
+}
+
+function AssistantBodyContent({
+  projectId,
+  networkId,
+  serverId,
+  serverOnline = false,
+}: AssistantBodyProps) {
   const [view, setView] = useState<"list" | "chat">("list");
   const [activeConvId, setActiveConvId] = useState<string | null>(null);
   const [nonce, setNonce] = useState(0);
@@ -29,6 +50,9 @@ export function AssistantBody({ projectId }: { projectId: ProjectId }) {
       <AssistantChat
         key={`${activeConvId ?? "new"}-${nonce}`}
         projectId={projectId}
+        networkId={networkId}
+        serverId={serverId}
+        serverOnline={serverOnline}
         conversationId={activeConvId}
         onBack={() => setView("list")}
       />
