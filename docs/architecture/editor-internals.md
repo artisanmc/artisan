@@ -167,7 +167,7 @@ préserve ses copies aux deux points d'ingestion (`local_push`, `POST
 
 ## Planche curée + panneau + vue individuelle (depuis 2026-06-13)
 
-Cf. `docs/superpowers/specs/2026-06-13-workspace-board-curation-design.md` (supersède le focus mode de `2026-06-02`). Le canvas n'est plus un canvas libre qui force tout en grille : c'est une **planche curée**, doublée d'un panneau source-de-vérité et d'une vue individuelle deep-linkable. **Invariant n°1** : un seul rendu/éditeur par type de Document, partagé entre planche et vue individuelle — c'est ce qui supprime la divergence qui avait causé le revert du focus mode.
+Cf. `docs/superpowers/specs/2026-06-13-workspace-board-curation-design.md` (supersède le focus mode de `2026-06-02`). Le canvas n'est plus un canvas libre qui force tout en grille : c'est une **planche curée**, doublée d'un panneau source-de-vérité et d'une vue individuelle deep-linkable. **Invariant n°1** : un seul rendu/éditeur par type de Document, partagé entre planche et vue individuelle — c'est ce qui supprime la divergence qui avait causé le revert du focus mode. **Étendu 2026-09-05 aux *hôtes*** : un seul rendu par type de Document, et autant d'hôtes que de sémantiques distinctes, pas un de plus. La planche et le focus partageaient bien `MenuGroup`, mais avaient deux hôtes de stage pour une sémantique identique — d'où la re-divergence (cf. « Mode focus »).
 
 ### `canvasLayout` = appartenance à la planche
 
@@ -198,15 +198,36 @@ Exemple concret (module boutique, V1.5 — `docs/architecture/modules.md` §15) 
 
 `features/project/DocumentView.tsx`, monté par la route enfant `…/projects/$projectId/document.$documentId.tsx`. La route overview bascule dessus via `useChildMatches()` (`childMatches.length > 0 → <Outlet/>`) — donc rechargement, bouton retour navigateur et lien partageable fonctionnent.
 
-- **Dispatch par type** : menu → `SoloMenuStage` (`features/project/SoloMenuStage.tsx`, hôte d'un `<MenuGroup>` en mode solo) en `primary` d'un `SplitPane` + `EditorPane` en `secondary` ; commande / dialog → `FlowCanvas` centré (`max-w-3xl`).
+- **Dispatch par type** : menu → `<Stage projectId focus={documentId}>` (le **stage de la planche**, cf. « Mode focus » ci-dessous) en `primary` d'un `SplitPane` + `EditorPane` en `secondary` ; commande / dialog → `FlowCanvas` centré (`max-w-3xl`).
 - Sélection posée via `useSelectionStore.set([documentId])` au montage → `FlowCanvas` (clé sur la sélection) et `MenuGroup` éditent par le **même** chemin que la planche. Introuvable → `EmptyState`.
 - **INVARIANT** : `DocumentView` ne réimplémente aucun éditeur — il monte les mêmes renderers que la planche (`MenuGroup` en solo, `FlowCanvas`). Pas de second éditeur (≠ focus mode 2026-06-02, forké puis reverté).
 - **Échap = retour planche** : `DocumentView` pose un listener `keydown` window qui rappelle `back()` sur `Escape`, **sauf** si le focus est dans un `INPUT`/`TEXTAREA`/`contentEditable`, si une modale/menu/liste est ouverte (`[role=dialog|menu|listbox]`), ou si l'événement est déjà `defaultPrevented`. Le bouton « Retour au canvas » affiche un badge clavier `<kbd>Esc</kbd>`.
-- **Mémorisation pan/zoom** : le `Stage` de la planche restaure son `viewport` au montage depuis `uiStore.canvasViewports[projectId]` (lu non-réactivement via `getState()` ; passé en `initial` à `usePanZoom`) et le réécrit à chaque changement via un effet. Indexé par projectId, **session-only** (hors `partialize`) : quitter pour une vue de Document puis revenir garde la position + le zoom ; un reload repart de la vue par défaut.
+- **Mémorisation pan/zoom** : le `Stage` de la planche restaure son `viewport` au montage depuis `uiStore.canvasViewports[projectId]` (lu non-réactivement via `getState()` ; passé en `initial` à `usePanZoom`) et le réécrit à chaque changement via un effet. Indexé par projectId, **session-only** (hors `partialize`) : quitter pour une vue de Document puis revenir garde la position + le zoom ; un reload repart de la vue par défaut. En **mode focus**, le même `Stage` lit/écrit `uiStore.documentViewport` — un cadrage unique partagé par tous les Documents, celui-là **persisté**.
+
+### Mode focus (`<Stage focus={documentId}>`)
+
+Depuis 2026-09-05, la vue individuelle d'un menu n'a plus de stage à elle : elle monte le `Stage` de la planche avec une prop `focus`. `features/project/SoloMenuStage.tsx` est **supprimé** — il ne réimplémentait que ~20 % de la chrome du `Stage`, et la vue document y perdait le dépôt d'items depuis la Bibliothèque (silencieusement : `setStageDropTarget` n'était jamais enregistré), les raccourcis clavier, la sélection, les guides d'alignement et les liens.
+
+Toute la différence tient dans la table `layout` :
+
+```ts
+const layout = focus ? { [focus]: { x: 0, y: 0 } } : autoLayout(project);
+```
+
+- La planche lit l'appartenance réelle (`canvasLayout` via `autoLayout`) ; le focus fabrique une **planche synthétique d'un seul Document** posé à l'origine. Il ne consulte donc jamais `canvasLayout` : **un Document jamais posé sur la planche est pleinement éditable en focus**.
+- Tout ce qui consomme `layout` suit sans le savoir : `Edges` (aucune arête, les deux bouts ne sont jamais tous deux présents), `GhostChips` (tous les liens du Document deviennent des pastilles), `useMarqueeSelection`, `hitTestSlot`, `setStageDropTarget`.
+- `MenuGroup` reçoit `solo` → non déplaçable (aucune position de planche à écrire), pas de double-clic « ouvrir ».
+- Chrome retirée en focus : l'`EmptyState` et les entrées « Créer un menu / une commande / un dialogue **ici** » du `ContextMenu` (les trois `onCreate*At` deviennent optionnelles — elles posent une position de planche). Copier / coller / dupliquer / supprimer restent.
+- Cadrage : `fitViewport` (`features/canvas/focusViewport.ts`, ex-`features/project/soloViewport.ts`) centre le menu à l'ouverture, sans jamais l'agrandir, puis ne se bat plus avec l'utilisateur (`touchedRef`) ; double-clic sur le fond = recadrer.
+- **Changement de comportement assumé** : le fond se comporte comme sur la planche — glisser en mode select fait un marquee (nouveau en focus), le pan passe par l'outil main / Espace / Alt. Avant, en vue document, glisser n'importe où pannait.
+
+**INVARIANT à ne pas casser** : `setStageDropTarget` / `setStageSlotHitTest` / `setStageGeometryProvider` sont des registres globaux **mono-locataire**. Ça tient parce que la route overview fait `childMatches.length > 0 ? <Outlet/> : <Stage/>` — jamais deux `Stage` montés en même temps. Le focus **remplace** la planche, il ne coexiste pas avec elle.
 
 ### Chips fantômes (liens hors-planche)
 
-`features/canvas/GhostChips.tsx` + `offBoardLinks.ts`. Un nœud sur la planche qui référence une cible **absente** de la planche affiche un chip cliquable `→ cible` (clic = `addToBoard`). `offBoardLinks(edges, layout)` retourne les liens (source on-board, cible off-board), dédupliqués. `visibleEdges(edges, layout)` (`Edges.tsx`) ne trace des edges qu'entre nœuds présents. Helper de géométrie partagé `nodeBox(project, id, layout)` (`menuLayout.ts`) utilisé par `Edges` **et** `GhostChips`.
+`features/canvas/GhostChips.tsx` + `offBoardLinks.ts`. Un nœud sur la planche qui référence une cible **absente** de la planche affiche un chip cliquable `→ cible`. `offBoardLinks(edges, layout)` retourne les liens (source on-board, cible off-board), dédupliqués. `visibleEdges(edges, layout)` (`Edges.tsx`) ne trace des edges qu'entre nœuds présents. Helper de géométrie partagé `nodeBox(project, id, layout)` (`menuLayout.ts`) utilisé par `Edges` **et** `GhostChips`.
+
+Le clic dépend du mode, via la prop optionnelle `onOpen` : sur la **planche**, `addToBoard` (poser la cible) ; en **focus**, `dispatchOpenElement(target)` — il n'y a pas de planche à peupler, la pastille devient le moyen de circuler de Document en Document, y compris vers des Documents jamais posés sur la planche.
 
 ### Entrées dans la vue individuelle
 

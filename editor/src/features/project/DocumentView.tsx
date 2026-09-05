@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
-import type { ElementId, MenuId, ProjectId } from "@/domain/types";
+import type { ElementId, ProjectId } from "@/domain/types";
 import { DocumentYamlView } from "@/features/project/DocumentYamlView";
 import { useAccountStore } from "@/state/accountStore";
 import { useSelectionStore } from "@/state/selectionStore";
@@ -14,7 +14,7 @@ import { FloatingEditorPane } from "@/features/canvas/FloatingEditorPane";
 import { useIsDesktop } from "@/lib/useMediaQuery";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { FlowCanvas } from "@/features/flow/FlowCanvas";
-import { SoloMenuStage } from "./SoloMenuStage";
+import { Stage } from "@/features/canvas/Stage";
 import { documentLabel } from "./useProjectDocuments";
 
 export function DocumentView({ projectId, documentId }: { projectId: ProjectId; documentId: ElementId }) {
@@ -156,7 +156,7 @@ export function DocumentView({ projectId, documentId }: { projectId: ProjectId; 
           // Stage full-bleed, edit pane floating over it — the board's layout.
           <>
             <div className="absolute inset-0">
-              <SoloMenuStage projectId={pId} menuId={documentId as unknown as MenuId} />
+              <Stage projectId={pId} focus={documentId} />
             </div>
             <FloatingEditorPane
               projectId={pId}
@@ -167,7 +167,7 @@ export function DocumentView({ projectId, documentId }: { projectId: ProjectId; 
         ) : (
           <SplitPane
             orientation="vertical"
-            primary={<SoloMenuStage projectId={pId} menuId={documentId as unknown as MenuId} />}
+            primary={<Stage projectId={pId} focus={documentId} />}
             secondary={<EditorPane projectId={pId} />}
             secondarySize={editorPaneWidth}
             onSecondarySizeChange={setEditorPaneWidth}
