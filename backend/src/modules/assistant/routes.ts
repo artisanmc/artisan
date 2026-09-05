@@ -20,6 +20,11 @@ import { serverDataSources } from "../../db/schema";
 import { buildSystemPrompt } from "./grounding";
 import { runTurn } from "./loop";
 import type { LlmProvider, LlmUsage } from "./provider/types";
+import {
+	SERVER_ATTACHMENT_PROVIDER_ERROR,
+	redactServerAttachmentToolResults,
+	resolveServerAttachments,
+} from "./serverAttachments";
 import { type DataSourceInfo, WorkingCopy } from "./workingCopy";
 
 /** Prefix marking the transient system note that lists a turn's attachments. */
@@ -105,6 +110,48 @@ export function buildAssistantRouter(): Hono {
 		const conv = await getConversation(c.req.param("id"));
 		if (!conv || conv.ownerKey !== ownerKey)
 			return c.json({ error: "Not found" }, 404);
+		const body = await c.req
+			.json()
+			.catch(() => ({}) as Record<string, unknown>);
+		const menus = Array.isArray((body as any).menus) ? (body as any).menus : [];
+		const attachments =
+			(body as any).attachments && typeof (body as any).attachments === "object"
+				? (body as any).attachments
+				: {};
+		const dialogs = Array.isArray((body as any).dialogs) ? (body as any).dialogs : [];
+		const commands = Array.isArray((body as any).commands) ? (body as any).commands : [];
+		const modelId =
+			typeof (body as any).modelId === "string" ? (body as any).modelId : null;
+
+		// Tenant re-check on every send: guards legacy conversations created
+		// before the creation-time guard existed.
+		const access = await resolveProjectAccess(ownerKey, conv.projectId);
+		if (!access.ok)
+			return c.json({ error: access.error }, access.error === "project_not_found" ? 404 : 403);
+		const networkId = access.networkId;
+		const serverResolved = await resolveServerAttachments(
+			access.serverKeyId,
+			(body as Record<string, unknown>).serverAttachments,
+		);
+		if (!serverResolved.ok) {
+			return c.json({ error: serverResolved.error }, serverResolved.status);
+		}
+		const allAttachments = { ...attachments, ...serverResolved.attachments };
+		const serverAttachmentIds = new Set(Object.keys(serverResolved.attachments));
+
+		const pm = await resolveTurn(modelId);
+		if (!pm)
+			return c.json(
+				{ error: "Assistant disabled: no active model/provider configured." },
+				503,
+			);
+
+		const balance = await getBalance(networkId);
+		if (balance <= 0)
+			return c.json({ error: "insufficient_credits", balance }, 402);
+
+		const settings = await getAiSettings();
+		const actorUserId = ownerKey.slice(5);
 		// Migration: conversations created before per-turn grounding persisted the
 		// grounding system prompt at index 0. Drop it — grounding is now injected
 		// fresh per turn (see runTurn `system`). Guard against eating a legitimate
@@ -118,38 +165,6 @@ export function buildAssistantRouter(): Hono {
 			)
 		)
 			conv.messages.shift();
-		const body = await c.req
-			.json()
-			.catch(() => ({}) as Record<string, unknown>);
-		const menus = Array.isArray((body as any).menus) ? (body as any).menus : [];
-		const attachments =
-			(body as any).attachments && typeof (body as any).attachments === "object"
-				? (body as any).attachments
-				: {};
-		const dialogs = Array.isArray((body as any).dialogs) ? (body as any).dialogs : [];
-		const commands = Array.isArray((body as any).commands) ? (body as any).commands : [];
-		const modelId =
-			typeof (body as any).modelId === "string" ? (body as any).modelId : null;
-		const pm = await resolveTurn(modelId);
-		if (!pm)
-			return c.json(
-				{ error: "Assistant disabled: no active model/provider configured." },
-				503,
-			);
-
-		// Tenant re-check on every send: guards legacy conversations created
-		// before the creation-time guard existed.
-		const access = await resolveProjectAccess(ownerKey, conv.projectId);
-		if (!access.ok)
-			return c.json({ error: access.error }, access.error === "project_not_found" ? 404 : 403);
-		const networkId = access.networkId;
-
-		const balance = await getBalance(networkId);
-		if (balance <= 0)
-			return c.json({ error: "insufficient_credits", balance }, 402);
-
-		const settings = await getAiSettings();
-		const actorUserId = ownerKey.slice(5);
 
 		const translations =
 			(body as any).translations && typeof (body as any).translations === "object"
@@ -181,7 +196,7 @@ export function buildAssistantRouter(): Hono {
 			? ((body as any).dataSources as DataSourceInfo[])
 			: [];
 		// Working copy is rebuilt from the live project on every turn (last-writer-wins).
-		const wc = new WorkingCopy(menus, attachments, dialogs, commands, translations, [
+		const wc = new WorkingCopy(menus, allAttachments, dialogs, commands, translations, [
 			...fromEditor,
 			...declared,
 		]);
@@ -189,7 +204,7 @@ export function buildAssistantRouter(): Hono {
 			typeof (body as any).text === "string" ? (body as any).text : "";
 		// The model can only discover attachments through this note: read_attachment
 		// takes a file_id, but nothing else in the turn says which ids exist.
-		const attachedNames = Object.keys(attachments);
+		const attachedNames = Object.keys(allAttachments);
 		if (attachedNames.length > 0) {
 			conv.messages.push({
 				role: "system",
@@ -252,13 +267,22 @@ export function buildAssistantRouter(): Hono {
 			} catch (e) {
 				const message = e instanceof Error ? e.message : String(e);
 				// Provider failure: log consumed tokens for admin visibility — no debit.
-				await recordErrorTurn({ ...usageInput(), errorMessage: message }).catch((logErr) =>
+				const persistedErrorMessage =
+					serverAttachmentIds.size > 0 ? SERVER_ATTACHMENT_PROVIDER_ERROR : message;
+				await recordErrorTurn({
+					...usageInput(),
+					errorMessage: persistedErrorMessage,
+				}).catch((logErr) =>
 					console.warn("[assistant] failed to record error turn:", logErr),
 				);
 				await stream.writeSSE({ event: "error", data: JSON.stringify({ message }) });
 			} finally {
-				// runTurn mutates conv.messages in place; persist the full transcript.
-				await saveConversation(conv.id, conv.messages, title);
+				// Server file contents are available during the turn but never retained.
+				const persistedMessages = redactServerAttachmentToolResults(
+					conv.messages,
+					serverAttachmentIds,
+				);
+				await saveConversation(conv.id, persistedMessages, title);
 			}
 		});
 	});

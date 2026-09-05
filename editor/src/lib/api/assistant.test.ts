@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { getConversation, listConversations, openConversation, streamAssistant } from "./assistant";
+import {
+  AssistantRequestError,
+  getConversation,
+  listConversations,
+  openConversation,
+  streamAssistant,
+} from "./assistant";
 
 function sseResponse(frames: string[]): Response {
   const text = frames.map((f) => `${f}\n\n`).join("");
@@ -93,6 +99,32 @@ describe("assistant SSE client", () => {
     const events: Array<{ type: string; balance?: number }> = [];
     for await (const e of streamAssistant("conv1", { text: "hi" })) events.push(e);
     expect(events).toEqual([{ type: "insufficient_credits", balance: 0 }]);
+  });
+  it("throws a structured error for server attachment preflight failures", async () => {
+    const fetchMock = vi.fn(
+      async (_input: RequestInfo | URL, _init?: RequestInit) =>
+        new Response(JSON.stringify({ error: "invalid_path" }), {
+          status: 422,
+          headers: { "Content-Type": "application/json" },
+        }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const serverAttachments = [{ sourceId: "zmenu", paths: ["categories/x.yml"] }];
+    const stream = streamAssistant("c1", {
+      text: "migrate",
+      serverAttachments,
+    });
+    await expect(stream.next()).rejects.toMatchObject({
+      name: "AssistantRequestError",
+      code: "invalid_path",
+      status: 422,
+      message: "invalid_path",
+    });
+    const init = fetchMock.mock.calls[0]?.[1];
+    expect(init).toBeDefined();
+    expect(JSON.parse(init?.body as string)).toMatchObject({ serverAttachments });
+    expect(AssistantRequestError).toBeDefined();
   });
   it("getConversation returns the transcript", async () => {
     vi.stubGlobal(
