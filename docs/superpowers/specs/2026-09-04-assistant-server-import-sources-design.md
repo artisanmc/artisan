@@ -175,8 +175,11 @@ les uploads locaux. Le corps d’un tour accepte en plus :
    comme pour un upload local.
 7. Le tour IA démarre seulement après une réponse complète et valide du plugin.
 
-Les contenus ne sont pas ajoutés à une table ou un cache permanent. La politique
-actuelle de persistance des conversations et des pièces jointes reste inchangée.
+Le backend ne crée aucune table, aucun cache ni aucune copie persistante du payload
+brut lu depuis la source. Le résultat brut de `read_attachment` est remplacé par un
+marqueur non sensible avant la sauvegarde du transcript. Les réponses et artefacts
+dérivés produits par le modèle restent soumis à la persistance normale de la
+conversation et du Project ; cette garantie ne cherche pas à les filtrer.
 
 ## Protocole WebSocket
 
@@ -390,7 +393,9 @@ les expirations en `504 fetch_timeout`.
    lu, même avec une requête forgée.
 4. Une erreur sur un seul fichier empêche entièrement le tour et sa facturation.
 5. Un serveur hors ligne ou un ancien plugin n’altère pas l’upload local.
-6. Le backend ne persiste aucune copie des sources importées.
+6. Le backend ne persiste ni copie/cache du payload brut des sources importées, ni
+   résultat brut `read_attachment`. Les réponses et artefacts générés par le modèle
+   conservent la politique de persistance normale de la conversation et du Project.
 
 ## Alternatives rejetées
 

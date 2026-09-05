@@ -4,6 +4,7 @@ import { app } from "../../app";
 import { db } from "../../db/index";
 import {
 	aiModels,
+	aiUsageLog,
 	assistantConversations,
 	memberships,
 	networks,
@@ -15,10 +16,16 @@ import { createNetwork } from "../../lib/networkManager";
 import { createSession } from "../../lib/sessionManager";
 import { generateServerKey } from "../../lib/auth";
 import { saveConversation } from "./conversationRepo";
-import { grantCredits } from "../ai/creditsRepo";
+import { getBalance, grantCredits } from "../ai/creditsRepo";
 import { createModel, setDefaultModel } from "../ai/modelRepo";
 import type { LlmProvider, LlmStreamEvent } from "./provider/types";
 import { ATTACHMENT_NOTE_PREFIX, __setProviderForTests } from "./routes";
+import {
+	cleanupConn,
+	connToServerId,
+	handlePluginMessage,
+	registerConn,
+} from "../../ws/hub";
 
 const validMenu = {
 	schema: "menu/v1",
@@ -65,12 +72,15 @@ function fakeProvider(): LlmProvider {
 const PACK_ID = "pack_test_assistant";
 const USER_ID = "usr_test_assistant";
 let networkId = "";
+let serverKeyId = "";
 let userSessionId = "";
 
 beforeAll(async () => {
 	const network = await createNetwork("assistant-test-network");
 	networkId = network.id;
-	const { id: serverKeyId, hash } = await generateServerKey();
+	const generated = await generateServerKey();
+	serverKeyId = generated.id;
+	const { hash } = generated;
 	await db
 		.insert(serverKeys)
 		.values({ id: serverKeyId, hash, label: "assistant-test", networkId, createdAt: new Date() })
@@ -308,6 +318,273 @@ describe("assistant routes", () => {
 			);
 			expect(notes.length).toBe(1);
 		} finally {
+			__setProviderForTests(fakeProvider());
+		}
+	});
+
+	it("resolves server attachments before exposing them through read_attachment", async () => {
+		const sent: Record<string, unknown>[] = [];
+		const connId = "conn-assistant-server-attachments";
+		const serverContent = "name: Confidential Shop\nsecret-token: NEVER_PERSIST";
+		let serverToolResult: string | null = null;
+		let localToolResult: string | null = null;
+		let turn = 0;
+		registerConn(connId, (raw) => {
+			const message = JSON.parse(raw) as Record<string, unknown>;
+			sent.push(message);
+			if (message.type === "import_sources_read") {
+				void handlePluginMessage(
+					connId,
+					JSON.stringify({
+						type: "import_sources_read_result",
+						request_id: message.request_id,
+						ok: true,
+						files: [
+							{
+								source_id: "zmenu",
+								path: "shop.yml",
+								content: serverContent,
+							},
+						],
+					}),
+				);
+			}
+		});
+		connToServerId.set(connId, serverKeyId);
+		__setProviderForTests({
+			async *streamTurn({ messages }) {
+				if (turn++ === 0) {
+					yield {
+						type: "tool_use",
+						id: "read-server-file",
+						name: "read_attachment",
+						input: { file_id: "server:zmenu/shop.yml" },
+					};
+					yield {
+						type: "tool_use",
+						id: "read-local-file",
+						name: "read_attachment",
+						input: { file_id: "notes.txt" },
+					};
+					yield { type: "done", stopReason: "tool_calls" };
+					return;
+				}
+				const serverToolMessage = messages.find(
+					(message) =>
+						message.role === "tool" &&
+						"toolCallId" in message &&
+						message.toolCallId === "read-server-file",
+				);
+				serverToolResult =
+					serverToolMessage && "content" in serverToolMessage
+						? (serverToolMessage.content as string)
+						: null;
+				const localToolMessage = messages.find(
+					(message) =>
+						message.role === "tool" &&
+						"toolCallId" in message &&
+						message.toolCallId === "read-local-file",
+				);
+				localToolResult =
+					localToolMessage && "content" in localToolMessage
+						? (localToolMessage.content as string)
+						: null;
+				yield { type: "done", stopReason: "end_turn" };
+			},
+		});
+
+		try {
+			const created = await app.request("/api/v1/assistant/conversations", {
+				method: "POST",
+				headers: cookieHeader(),
+				body: JSON.stringify({ projectId: PACK_ID }),
+			});
+			const { conversationId } = await created.json();
+			const res = await app.request(
+				`/api/v1/assistant/conversations/${conversationId}/messages`,
+				{
+					method: "POST",
+					headers: cookieHeader(),
+					body: JSON.stringify({
+						text: "migre ce menu",
+						attachments: { "notes.txt": "local notes" },
+						serverAttachments: [
+							{ sourceId: "zmenu", paths: ["shop.yml"] },
+						],
+					}),
+				},
+			);
+			expect(res.status).toBe(200);
+			await res.text();
+			expect(sent).toHaveLength(1);
+			expect(sent[0]).toMatchObject({
+				type: "import_sources_read",
+				selections: [{ source_id: "zmenu", paths: ["shop.yml"] }],
+			});
+			expect(serverToolResult).toBe(serverContent);
+			expect(localToolResult).toBe("local notes");
+
+			const persisted = await app.request(
+				`/api/v1/assistant/conversations/${conversationId}`,
+				{ headers: cookieHeader() },
+			);
+			const transcript = JSON.stringify((await persisted.json()).messages);
+			expect(transcript).not.toContain("NEVER_PERSIST");
+			expect(transcript).toContain(
+				"[Contenu de la pièce jointe serveur non conservé après ce tour.]",
+			);
+			expect(transcript).toContain("local notes");
+		} finally {
+			cleanupConn(connId);
+			__setProviderForTests(fakeProvider());
+		}
+	});
+
+	it("does not persist provider error details for a turn with server attachments", async () => {
+		const connId = "conn-assistant-server-provider-error";
+		const serverContent = "secret-token: NEVER_PERSIST_PROVIDER_ERROR";
+		let turn = 0;
+		registerConn(connId, (raw) => {
+			const message = JSON.parse(raw) as Record<string, unknown>;
+			if (message.type === "import_sources_read") {
+				void handlePluginMessage(
+					connId,
+					JSON.stringify({
+						type: "import_sources_read_result",
+						request_id: message.request_id,
+						ok: true,
+						files: [
+							{
+								source_id: "zmenu",
+								path: "shop.yml",
+								content: serverContent,
+							},
+						],
+					}),
+				);
+			}
+		});
+		connToServerId.set(connId, serverKeyId);
+		__setProviderForTests({
+			async *streamTurn({ messages }) {
+				if (turn++ === 0) {
+					yield {
+						type: "tool_use",
+						id: "read-server-before-error",
+						name: "read_attachment",
+						input: { file_id: "server:zmenu/shop.yml" },
+					};
+					yield { type: "done", stopReason: "tool_calls" };
+					return;
+				}
+				const toolMessage = messages.find(
+					(message) =>
+						message.role === "tool" &&
+						"toolCallId" in message &&
+						message.toolCallId === "read-server-before-error",
+				);
+				const detail =
+					toolMessage && "content" in toolMessage ? toolMessage.content : "missing";
+				throw new Error(`provider rejected payload: ${detail}`);
+			},
+		});
+
+		try {
+			const created = await app.request("/api/v1/assistant/conversations", {
+				method: "POST",
+				headers: cookieHeader(),
+				body: JSON.stringify({ projectId: PACK_ID }),
+			});
+			const { conversationId } = await created.json();
+			const res = await app.request(
+				`/api/v1/assistant/conversations/${conversationId}/messages`,
+				{
+					method: "POST",
+					headers: cookieHeader(),
+					body: JSON.stringify({
+						text: "migre ce menu",
+						serverAttachments: [
+							{ sourceId: "zmenu", paths: ["shop.yml"] },
+						],
+					}),
+				},
+			);
+			expect(res.status).toBe(200);
+			await res.text();
+
+			const logs = await db
+				.select({ errorMessage: aiUsageLog.errorMessage })
+				.from(aiUsageLog)
+				.where(eq(aiUsageLog.conversationId, conversationId));
+			expect(logs).toHaveLength(1);
+			expect(logs[0].errorMessage).toBe("server_attachment_provider_error");
+			expect(logs[0].errorMessage).not.toContain("NEVER_PERSIST_PROVIDER_ERROR");
+		} finally {
+			cleanupConn(connId);
+			__setProviderForTests(fakeProvider());
+		}
+	});
+
+	it("rejects a failed server attachment preflight before messages, model, or credits", async () => {
+		const connId = "conn-assistant-server-attachment-error";
+		let providerCalls = 0;
+		registerConn(connId, (raw) => {
+			const message = JSON.parse(raw) as Record<string, unknown>;
+			if (message.type === "import_sources_read") {
+				void handlePluginMessage(
+					connId,
+					JSON.stringify({
+						type: "import_sources_read_result",
+						request_id: message.request_id,
+						ok: false,
+						error: "invalid_path",
+						message: "C:\\servers\\private\\plugins\\zMenu\\categories\\x.yml",
+					}),
+				);
+			}
+		});
+		connToServerId.set(connId, serverKeyId);
+		__setProviderForTests({
+			async *streamTurn() {
+				providerCalls++;
+				yield { type: "done", stopReason: "end_turn" };
+			},
+		});
+
+		try {
+			const created = await app.request("/api/v1/assistant/conversations", {
+				method: "POST",
+				headers: cookieHeader(),
+				body: JSON.stringify({ projectId: PACK_ID }),
+			});
+			const { conversationId } = await created.json();
+			const balanceBefore = await getBalance(networkId);
+
+			const res = await app.request(
+				`/api/v1/assistant/conversations/${conversationId}/messages`,
+				{
+					method: "POST",
+					headers: cookieHeader(),
+					body: JSON.stringify({
+						text: "migre ce menu",
+						serverAttachments: [
+							{ sourceId: "zmenu", paths: ["categories/x.yml"] },
+						],
+					}),
+				},
+			);
+
+			expect(res.status).toBe(422);
+			expect(await res.json()).toEqual({ error: "invalid_path" });
+			expect(providerCalls).toBe(0);
+			expect(await getBalance(networkId)).toBe(balanceBefore);
+			const persisted = await app.request(
+				`/api/v1/assistant/conversations/${conversationId}`,
+				{ headers: cookieHeader() },
+			);
+			expect((await persisted.json()).messages).toEqual([]);
+		} finally {
+			cleanupConn(connId);
 			__setProviderForTests(fakeProvider());
 		}
 	});

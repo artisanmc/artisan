@@ -31,7 +31,7 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 ### Added — sources d'import serveur pour l'assistant
 
 - Nouveau endpoint read-only `GET /api/v1/networks/:networkId/servers/:serverId/projects/:projectId/import-sources` : un membre peut lister les fichiers autorisés par l'administrateur du serveur pour les joindre à l'assistant, avec contrôle strict du contexte Network → Server → Project. Le backend relaie uniquement les métadonnées du plugin et ne persiste aucun contenu source.
-- `POST /api/v1/assistant/conversations/:id/messages` accepte désormais `serverAttachments` : le backend lit atomiquement les fichiers sélectionnés via le plugin avant le modèle, le transcript et les crédits, puis les expose au tour sous des ids `server:<sourceId>/<path>` sans en persister le contenu.
+- `POST /api/v1/assistant/conversations/:id/messages` accepte désormais `serverAttachments` : le backend valide et lit atomiquement (32 sources / 200 fichiers maximum) les fichiers sélectionnés via le plugin avant le modèle, le transcript et les crédits, puis les expose au tour sous des ids `server:<sourceId>/<path>`. Le contenu reste visible par le modèle pendant le tour, mais le résultat de lecture est remplacé par un marqueur non sensible avant la persistance du transcript.
 
 ### Fixed — les menus écrits avant le passage à `display` + `states` redeviennent lisibles
 
