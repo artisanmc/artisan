@@ -97,6 +97,7 @@ export default {
     create: "Create",
   },
   projectProperties: {
+    title: "Project settings",
     id: "id",
     name: "name",
     description: "description",
@@ -512,7 +513,6 @@ export default {
     unavailable: "Library unavailable — server offline",
   },
   projectPanel: {
-    projectSettings: "Project settings",
     menus: "Menus",
     commands: "Commands",
     dialogs: "Dialogs",

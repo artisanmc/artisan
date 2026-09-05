@@ -32,6 +32,7 @@ import { NewDialogDialog } from "./NewDialogDialog";
 import { NewMenuDialog } from "./NewMenuDialog";
 import { Selection } from "./Selection";
 import { autoLayout } from "./autoLayout";
+import { openProjectSettings } from "@/features/project/projectSettings";
 import { dispatchOpenElement } from "./canvasEvents";
 import { fitViewport } from "./focusViewport";
 import { hitTestSlot, screenToWorld } from "./hitTest";
@@ -541,6 +542,10 @@ export function Stage({ projectId, focus }: StageProps) {
             toast.error(err instanceof Error ? err.message : "delete failed");
           }
           closeCtxMenu();
+        }}
+        onOpenProjectSettings={() => {
+          closeCtxMenu();
+          openProjectSettings();
         }}
         onMoveTo={(toProjectId) => {
           if (entityIds.length !== 1) return;

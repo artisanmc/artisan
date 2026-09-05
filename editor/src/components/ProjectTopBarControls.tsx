@@ -1,6 +1,7 @@
 import { LinkedServersDropdown } from "@/components/LinkedServersDropdown";
 import { RefreshProjectButton } from "@/components/RefreshProjectButton";
 import { TopBarKebabMenu } from "@/components/TopBarKebabMenu";
+import { openProjectSettings } from "@/features/project/projectSettings";
 import {
   Dialog,
   DialogContent,
@@ -16,7 +17,7 @@ import {
  *   - LangSwitcher  (content language for the project)
  *   - UndoRedoButtons
  *   - SaveControls  (Enregistrer + résolution de conflit)
- *   - TopBarKebabMenu  (Import / Export / Patterns / Delete)
+ *   - TopBarKebabMenu  (Paramètres / Import / Export / Patterns / Delete)
  *
  * History/branch navigation lives in the History tab (HistoryTab component).
  * Route-specific handlers (import, export, etc.) are passed as props.
@@ -130,6 +131,7 @@ export function ProjectTopBarControls({
       <RefreshProjectButton projectId={projectId} />
       <SaveControls projectId={projectId} networkId={networkId ?? null} />
       <TopBarKebabMenu
+        onOpenProjectSettings={openProjectSettings}
         onImport={onImport ?? (() => {})}
         onExportZip={onExportZip ?? (() => {})}
         onOpenPatterns={onOpenPatterns ?? (() => {})}

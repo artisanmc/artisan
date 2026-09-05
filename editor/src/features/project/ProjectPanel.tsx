@@ -7,7 +7,6 @@ import {
 import { EmptyState } from "@/components/ui/empty-state";
 import type { ProjectId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
-import { useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import {
@@ -19,6 +18,7 @@ import {
   TerminalSquare,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { openProjectSettings } from "./projectSettings";
 import { type DocumentType, type ProjectDocumentItem, buildProjectDocuments } from "./useProjectDocuments";
 
 const TYPE_ICON: Record<DocumentType, typeof LayoutGrid> = {
@@ -54,23 +54,13 @@ export function ProjectPanel({ projectId }: { projectId: ProjectId }) {
       },
     });
 
-  /**
-   * Les paramètres du project ne correspondent à aucune sélection : depuis que
-   * le panneau d'édition est l'inspecteur de la sélection, il faut un endroit
-   * explicite pour les demander. La racine de l'arbre est cet endroit.
-   */
-  const openProjectSettings = () => {
-    useSelectionStore.getState().clear();
-    useUiStore.getState().setProjectSettingsOpen(true);
-  };
-
   return (
     <nav className="flex h-full flex-col gap-2 overflow-auto p-2">
       <button
         type="button"
         data-testid="project-settings-row"
         onClick={openProjectSettings}
-        title={t("projectPanel.projectSettings")}
+        title={t("projectProperties.title")}
         className="flex items-center gap-2 rounded-[10px] px-2.5 py-2 text-left text-[13px] font-medium text-[var(--text)] hover:bg-[var(--surface-hover)]"
       >
         <Settings className="size-[15px] shrink-0 text-[var(--text-faint)]" />
