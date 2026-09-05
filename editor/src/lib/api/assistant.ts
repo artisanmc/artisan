@@ -3,6 +3,17 @@ export type AssistantEvent =
   | { type: "insufficient_credits"; balance: number }
   | { type: string; [k: string]: unknown };
 
+export class AssistantRequestError extends Error {
+  constructor(
+    readonly code: string,
+    readonly status: number,
+    message?: string | null,
+  ) {
+    super(message || code);
+    this.name = "AssistantRequestError";
+  }
+}
+
 function apiUrl(): string {
   return (import.meta.env.VITE_API_URL as string | undefined) ?? "http://localhost:3001";
 }
@@ -68,6 +79,7 @@ export async function* streamAssistant(
     text: string;
     menus?: unknown[];
     attachments?: Record<string, string>;
+    serverAttachments?: { sourceId: string; paths: string[] }[];
     /** Full command/v1 objects (for get_command round-trip + editing). */
     commands?: unknown[];
     /** Full dialog/v1 objects (was summaries; now full for get_dialog/editing). */
@@ -96,7 +108,19 @@ export async function* streamAssistant(
     yield { type: "insufficient_credits", balance: json.balance };
     return;
   }
-  if (!res.ok || !res.body) throw new Error(`streamAssistant failed: ${res.status}`);
+  if (!res.ok) {
+    let code = "request_failed";
+    let message: string | null = null;
+    try {
+      const json = (await res.json()) as { error?: unknown; message?: unknown };
+      if (typeof json.error === "string") code = json.error;
+      if (typeof json.message === "string") message = json.message;
+    } catch {
+      // Keep a stable structured fallback when an intermediary returns non-JSON.
+    }
+    throw new AssistantRequestError(code, res.status, message);
+  }
+  if (!res.body) throw new Error(`streamAssistant failed: ${res.status}`);
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buf = "";
