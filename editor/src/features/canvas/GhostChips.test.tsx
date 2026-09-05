@@ -62,6 +62,23 @@ describe("GhostChips", () => {
     );
   });
 
+  /**
+   * En vue focus il n'y a pas de planche à peupler : la pastille sert à
+   * circuler vers le Document cible, qu'il soit posé sur la planche ou non.
+   */
+  it("en focus, le clic ouvre la cible au lieu de la poser sur la planche", () => {
+    // `spyOn` réinstalle le même mock sur le store : sans purge, il porte
+    // encore les appels du test précédent.
+    const spy = vi.spyOn(useAccountStore.getState(), "addToBoard");
+    spy.mockClear();
+    const onOpen = vi.fn();
+    const layout = { m1: { x: 0, y: 0 } };
+    render(<GhostChips project={project()} layout={layout} projectId={PID} onOpen={onOpen} />);
+    fireEvent.click(screen.getByTestId("konva-group"));
+    expect(onOpen).toHaveBeenCalledWith("shop");
+    expect(spy).not.toHaveBeenCalled();
+  });
+
   it("rend deux chips distincts pour deux cibles hors-planche d'une même source", () => {
     mockEdges = [
       { id: "m1->shop", source: "m1", target: "shop", triggers: [] },

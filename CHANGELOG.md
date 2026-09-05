@@ -9,9 +9,29 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Changed — la vue focus d'un menu utilise le canvas de la planche
+
+- La vue individuelle d'un menu montait son propre canvas (`SoloMenuStage`), qui ne réimplémentait
+  qu'une partie de celui de la planche. Elle monte désormais le **même** `Stage`, avec une prop
+  `focus` : la seule différence est la table de layout, synthétique (un Document posé à l'origine)
+  au lieu de l'appartenance à la planche. `SoloMenuStage` est supprimé.
+- Conséquence : un Document **jamais posé sur la planche** est pleinement éditable en focus — le
+  focus ne consulte jamais `canvasLayout`.
+- Les pastilles de liens hors-planche apparaissent en focus et **ouvrent** la cible au lieu de la
+  poser sur la planche : les liens d'un menu redeviennent visibles et navigables.
+- Le fond du canvas se comporte comme sur la planche : glisser en mode select fait un marquee
+  (nouveau en focus), le pan passe par l'outil main / Espace / Alt.
+
+### Fixed — glisser un item depuis la Bibliothèque dans la vue focus ne faisait rien
+
+- La vue focus n'enregistrait aucune cible de dépôt (`setStageDropTarget`) : le glisser-déposer
+  échouait **en silence**. Les raccourcis clavier, la sélection et les guides d'alignement y étaient
+  également absents. Tout revient avec le canvas unifié.
+
 ### Added — sources d'import serveur pour l'assistant
 
 - Nouveau endpoint read-only `GET /api/v1/networks/:networkId/servers/:serverId/projects/:projectId/import-sources` : un membre peut lister les fichiers autorisés par l'administrateur du serveur pour les joindre à l'assistant, avec contrôle strict du contexte Network → Server → Project. Le backend relaie uniquement les métadonnées du plugin et ne persiste aucun contenu source.
+- `POST /api/v1/assistant/conversations/:id/messages` accepte désormais `serverAttachments` : le backend lit atomiquement les fichiers sélectionnés via le plugin avant le modèle, le transcript et les crédits, puis les expose au tour sous des ids `server:<sourceId>/<path>` sans en persister le contenu.
 
 ### Fixed — les menus écrits avant le passage à `display` + `states` redeviennent lisibles
 

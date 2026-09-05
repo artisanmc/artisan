@@ -35,9 +35,10 @@ interface ContextMenuProps {
   onDuplicate: () => void;
   onDelete: () => void;
   onMoveTo: (toProjectId: ProjectId) => void;
-  onCreateMenuAt: (world: { x: number; y: number }) => void;
-  onCreateCommandAt: (world: { x: number; y: number }) => void;
-  onCreateDialogAt: (world: { x: number; y: number }) => void;
+  /** Absents en vue focus : créer « ici » suppose une position de planche. */
+  onCreateMenuAt?: (world: { x: number; y: number }) => void;
+  onCreateCommandAt?: (world: { x: number; y: number }) => void;
+  onCreateDialogAt?: (world: { x: number; y: number }) => void;
 }
 
 export function ContextMenu({
@@ -73,28 +74,34 @@ export function ContextMenu({
           </DropdownMenuItem>
         ) : state.target.kind === "empty" ? (
           <>
-            <DropdownMenuItem
-              onSelect={() => {
-                if (state.target.kind === "empty") onCreateMenuAt(state.target.world);
-              }}
-            >
-              {t("canvas.newMenuHere")}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onSelect={() => {
-                if (state.target.kind === "empty") onCreateCommandAt(state.target.world);
-              }}
-            >
-              {t("canvas.newCommandHere")}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onSelect={() => {
-                if (state.target.kind === "empty") onCreateDialogAt(state.target.world);
-              }}
-            >
-              {t("canvas.newDialogHere")}
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
+            {onCreateMenuAt && (
+              <DropdownMenuItem
+                onSelect={() => {
+                  if (state.target.kind === "empty") onCreateMenuAt(state.target.world);
+                }}
+              >
+                {t("canvas.newMenuHere")}
+              </DropdownMenuItem>
+            )}
+            {onCreateCommandAt && (
+              <DropdownMenuItem
+                onSelect={() => {
+                  if (state.target.kind === "empty") onCreateCommandAt(state.target.world);
+                }}
+              >
+                {t("canvas.newCommandHere")}
+              </DropdownMenuItem>
+            )}
+            {onCreateDialogAt && (
+              <DropdownMenuItem
+                onSelect={() => {
+                  if (state.target.kind === "empty") onCreateDialogAt(state.target.world);
+                }}
+              >
+                {t("canvas.newDialogHere")}
+              </DropdownMenuItem>
+            )}
+            {(onCreateMenuAt || onCreateCommandAt || onCreateDialogAt) && <DropdownMenuSeparator />}
             <DropdownMenuItem onSelect={onPaste}>
               Paste
               <span className="ml-auto text-[10px] text-[var(--text-faint)]">⌘V</span>

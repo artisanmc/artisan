@@ -1,8 +1,8 @@
 import { EmptyState } from "@/components/ui/empty-state";
-import type { MenuId, ProjectId } from "@/domain/types";
+import type { ElementId, MenuId, ProjectId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
-import { useHoverStore } from "@/state/hoverStore";
 import { useEdgeSelectionStore } from "@/state/edgeSelectionStore";
+import { useHoverStore } from "@/state/hoverStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
 import Konva from "konva";
@@ -32,7 +32,10 @@ import { NewDialogDialog } from "./NewDialogDialog";
 import { NewMenuDialog } from "./NewMenuDialog";
 import { Selection } from "./Selection";
 import { autoLayout } from "./autoLayout";
+import { dispatchOpenElement } from "./canvasEvents";
+import { fitViewport } from "./focusViewport";
 import { hitTestSlot, screenToWorld } from "./hitTest";
+import { menuBoxSize } from "./menuLayout";
 import { setStageDropTarget, setStageSlotHitTest } from "./stageDropTarget";
 import { setStageGeometryProvider } from "./stageGeometry";
 import { canvasClipboardActions, useCanvasKeyboard } from "./useCanvasKeyboard";
@@ -44,9 +47,17 @@ import { useStageTouch } from "./useStageTouch";
 
 interface StageProps {
   projectId: ProjectId;
+  /**
+   * Vue focus : le stage ne montre que ce Document, quelle que soit son
+   * appartenance à la planche. Tout le reste de la chrome (arêtes, pastilles,
+   * sélection, dépôt d'items, clavier) est celle de la planche — c'est le point
+   * de la fusion : une seule implémentation, deux cadrages.
+   */
+  focus?: ElementId;
 }
 
-export function Stage({ projectId }: StageProps) {
+export function Stage({ projectId, focus }: StageProps) {
+  const focusMode = focus != null;
   const { t } = useTranslation();
   const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -55,9 +66,21 @@ export function Stage({ projectId }: StageProps) {
   // Restore the saved pan/zoom for this project so leaving the board (single
   // element view) and returning lands on the same spot + zoom. Read once at
   // mount (non-reactive); persisted back via the effect below.
+  // Le focus a son propre cadrage, partagé par tous les Documents (passer de
+  // l'un à l'autre garde la vue là où l'utilisateur l'a mise) et persisté ;
+  // la planche garde le sien, par project et session-only.
+  const savedFocusViewport = useUiStore.getState().documentViewport;
   const { viewport, setViewport, onWheel, onTouchMove, onTouchEnd } = usePanZoom(
-    useUiStore.getState().canvasViewports[projectId],
+    focusMode
+      ? (savedFocusViewport ?? { x: 0, y: 0, scale: 1 })
+      : useUiStore.getState().canvasViewports[projectId],
   );
+  // En focus, la vue est cadrée à l'ouverture puis ne se bat plus avec
+  // l'utilisateur : dès qu'il a navigué, elle reste où il l'a mise.
+  const touchedRef = useRef(!focusMode || savedFocusViewport !== null);
+  const markTouched = useCallback(() => {
+    touchedRef.current = true;
+  }, []);
   const canvasMode = useUiStore((s) => s.canvasMode);
   const [spaceHeld, setSpaceHeld] = useState(false);
   // Alt held = temporary pan (like Space), so you can navigate without leaving
@@ -105,8 +128,9 @@ export function Stage({ projectId }: StageProps) {
   const syncViewportFromStage = useCallback(() => {
     const stage = stageRef.current;
     if (!stage) return;
+    markTouched();
     setViewport({ x: stage.x(), y: stage.y(), scale: stage.scaleX() });
-  }, [setViewport]);
+  }, [setViewport, markTouched]);
 
   useEffect(() => {
     if (!wrapperRef.current) return;
@@ -119,10 +143,38 @@ export function Stage({ projectId }: StageProps) {
 
   // Persist pan/zoom per project so it survives leaving/returning to the board.
   useEffect(() => {
+    if (focusMode) {
+      if (touchedRef.current) useUiStore.getState().setDocumentViewport(viewport);
+      return;
+    }
     useUiStore.getState().setCanvasViewport(projectId, viewport);
-  }, [projectId, viewport]);
+  }, [projectId, viewport, focusMode]);
 
-  const layout = useMemo(() => (project ? autoLayout(project) : {}), [project]);
+  /**
+   * Toute la différence planche / focus tient ici. La planche lit
+   * l'appartenance réelle (`canvasLayout` via `autoLayout`) ; le focus
+   * fabrique une planche synthétique d'un seul Document posé à l'origine.
+   * Tout ce qui suit — arêtes, pastilles hors-planche, marquee, hit-test,
+   * dépôt — consomme cette table et suit sans le savoir.
+   */
+  const layout = useMemo(
+    () => (focus ? { [focus]: { x: 0, y: 0 } } : project ? autoLayout(project) : {}),
+    [project, focus],
+  );
+
+  // Cadrage initial du Document focalisé : centré, réduit seulement s'il ne
+  // tient pas — jamais agrandi.
+  const focusBox = useMemo(() => {
+    if (!focus) return null;
+    // `focus` est un id de Document (l'ombrelle) ; `menu.id` est un MenuId.
+    // Les marques nominales ne se recouvrent pas, la comparaison est textuelle.
+    const menu = project?.menus.find((m) => (m.id as string) === (focus as string));
+    return menu ? menuBoxSize(menu.inventoryType ?? "chest", menu.rows) : null;
+  }, [project, focus]);
+  useEffect(() => {
+    if (touchedRef.current || size.w === 0 || !focusBox) return;
+    setViewport(fitViewport(size, focusBox));
+  }, [size, focusBox, setViewport]);
 
   const marquee = useMarqueeSelection({
     stageRef,
@@ -314,7 +366,7 @@ export function Stage({ projectId }: StageProps) {
       }}
     >
       <div aria-hidden className="stage-bg-glow pointer-events-none absolute inset-0" />
-      {Object.keys(layout).length === 0 && (
+      {!focusMode && Object.keys(layout).length === 0 && (
         // pointer-events-none lets right-click / drag fall through to the Konva
         // stage below (so the create context-menu still works); only the action
         // buttons opt back into pointer events.
@@ -369,8 +421,20 @@ export function Stage({ projectId }: StageProps) {
         scaleX={viewport.scale}
         scaleY={viewport.scale}
         draggable={panMode}
-        onWheel={onWheel}
+        onWheel={(e) => {
+          markTouched();
+          onWheel(e);
+        }}
         onClick={onStageClick}
+        onDblClick={(e) => {
+          // Échappatoire du focus : un double-clic sur le fond recadre.
+          if (!focusBox || e.target !== e.target.getStage()) return;
+          const fitted = fitViewport(size, focusBox);
+          touchedRef.current = false;
+          setViewport(fitted);
+          useUiStore.getState().setDocumentViewport(fitted);
+          touchedRef.current = true;
+        }}
         onTap={onStageClick}
         onMouseDown={marquee.onMouseDown}
         onMouseMove={(e) => {
@@ -380,7 +444,10 @@ export function Stage({ projectId }: StageProps) {
         onMouseUp={marquee.onMouseUp}
         onContextMenu={onStageContextMenu}
         onTouchStart={onStageTouchStart}
-        onTouchMove={onStageTouchMove}
+        onTouchMove={(e) => {
+          markTouched();
+          onStageTouchMove(e);
+        }}
         onTouchEnd={onStageTouchEnd}
         onDragStart={(e) => {
           if (e.target === e.target.getStage()) setStageDragging(true);
@@ -408,6 +475,7 @@ export function Stage({ projectId }: StageProps) {
               menu={menu}
               position={layout[menu.id]!}
               layout={layout}
+              solo={focusMode}
             />
           ))}
         </Layer>
@@ -430,7 +498,15 @@ export function Stage({ projectId }: StageProps) {
               position={layout[dialog.id]!}
             />
           ))}
-          <GhostChips project={project} layout={layout} projectId={projectId} />
+          <GhostChips
+            project={project}
+            layout={layout}
+            projectId={projectId}
+            // En focus, tous les liens du Document sont hors-planche : la
+            // pastille devient le moyen de circuler de Document en Document,
+            // au lieu de peupler une planche qu'on ne regarde pas.
+            onOpen={focusMode ? dispatchOpenElement : undefined}
+          />
         </Layer>
         <Layer name="overlay">
           <Selection stageRef={stageRef} />
@@ -480,18 +556,32 @@ export function Stage({ projectId }: StageProps) {
           }
           closeCtxMenu();
         }}
-        onCreateMenuAt={(world) => {
-          closeCtxMenu();
-          setPendingMenuPos(world);
-        }}
-        onCreateCommandAt={(world) => {
-          setPendingCommandPos(world);
-          closeCtxMenu();
-        }}
-        onCreateDialogAt={(world) => {
-          closeCtxMenu();
-          setPendingDialogPos(world);
-        }}
+        // Créer « ici » pose une position de planche : sans planche, l'entrée
+        // n'a pas de sens et disparaît du menu contextuel.
+        onCreateMenuAt={
+          focusMode
+            ? undefined
+            : (world) => {
+                closeCtxMenu();
+                setPendingMenuPos(world);
+              }
+        }
+        onCreateCommandAt={
+          focusMode
+            ? undefined
+            : (world) => {
+                setPendingCommandPos(world);
+                closeCtxMenu();
+              }
+        }
+        onCreateDialogAt={
+          focusMode
+            ? undefined
+            : (world) => {
+                closeCtxMenu();
+                setPendingDialogPos(world);
+              }
+        }
       />
       <NewMenuDialog
         projectId={projectId}

@@ -9,7 +9,7 @@ vi.mock("@tanstack/react-router", () => ({
   useNavigate: () => navigate,
   useParams: () => ({ networkId: "n1", serverId: "s1", projectId: "p1", elementId: "m1" }),
 }));
-vi.mock("./SoloMenuStage", () => ({ SoloMenuStage: () => <div data-testid="solo-menu" /> }));
+vi.mock("@/features/canvas/Stage", () => ({ Stage: () => <div data-testid="focus-stage" /> }));
 vi.mock("@/features/canvas/EditorPane", () => ({
   EditorPane: () => <div data-testid="editor-pane" />,
 }));
@@ -65,9 +65,9 @@ beforeEach(() => {
 });
 
 describe("DocumentView", () => {
-  it("rend SoloMenuStage + EditorPane pour un menu", () => {
+  it("rend le stage focalisé + EditorPane pour un menu", () => {
     render(<DocumentView projectId={PID} documentId={"m1" as any} />);
-    expect(screen.getByTestId("solo-menu")).toBeInTheDocument();
+    expect(screen.getByTestId("focus-stage")).toBeInTheDocument();
     expect(screen.getByTestId("editor-pane")).toBeInTheDocument();
   });
   it("le bouton retour navigue vers l'overview", () => {

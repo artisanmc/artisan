@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fitViewport } from "./soloViewport";
+import { fitViewport } from "./focusViewport";
 
 const BOX = { width: 352, height: 400 };
 
