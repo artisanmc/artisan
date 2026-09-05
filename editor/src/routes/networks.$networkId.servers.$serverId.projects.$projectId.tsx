@@ -1,5 +1,4 @@
 import { ProjectTopBarControls } from "@/components/ProjectTopBarControls";
-import { SplitPane } from "@/components/SplitPane";
 import {
   Sheet,
   SheetBody,
@@ -11,8 +10,7 @@ import {
 import { WorkspaceView } from "@/components/ui/workspace-view";
 import type { ElementId, MenuId, ProjectId } from "@/domain/types";
 import { AssistantBody } from "@/features/assistant/AssistantBody";
-import { EditorPane } from "@/features/canvas/EditorPane";
-import { FloatingEditorPane } from "@/features/canvas/FloatingEditorPane";
+import { CanvasWithInspector } from "@/features/project/CanvasWithInspector";
 import { LIBRARY_DRAG_PREFIX } from "@/features/canvas/Library";
 import { Stage } from "@/features/canvas/Stage";
 import { OPEN_ELEMENT_EVENT } from "@/features/canvas/canvasEvents";
@@ -109,8 +107,6 @@ export function ProjectCanvasPage() {
     navigate({ to: ".", search: (prev) => ({ ...(prev as object), tab: undefined }) });
   const flowCanvasHeight = useUiStore((s) => s.flowCanvasHeight);
   const setFlowCanvasHeight = useUiStore((s) => s.setFlowCanvasHeight);
-  const editorPaneWidth = useUiStore((s) => s.editorPaneWidth);
-  const setEditorPaneWidth = useUiStore((s) => s.setEditorPaneWidth);
   const projectPanelOpen = useUiStore((s) => s.projectPanelOpen);
   const isDesktop = useIsDesktop();
   const { t } = useTranslation();
@@ -306,28 +302,15 @@ export function ProjectCanvasPage() {
   const centerContent =
     childMatches.length > 0 ? (
       <Outlet />
-    ) : isDesktop ? (
-      // Canvas fills the whole region; the editor pane floats over it (right)
-      // as a glass card so the canvas shows behind + to its left.
-      <>
-        <div className="absolute inset-0">
-          <Stage projectId={pId} />
-        </div>
-        <FloatingEditorPane
-          projectId={pId}
-          width={editorPaneWidth}
-          onWidthChange={setEditorPaneWidth}
-        />
-      </>
     ) : (
-      <SplitPane
-        orientation="vertical"
-        primary={<Stage projectId={pId} />}
-        secondary={<EditorPane projectId={pId} />}
-        secondarySize={flowCanvasHeight}
-        onSecondarySizeChange={setFlowCanvasHeight}
+      // Le canvas occupe toute la région ; l'inspecteur n'apparaît que s'il y a
+      // quelque chose à inspecter (`CanvasWithInspector`).
+      <CanvasWithInspector
+        projectId={pId}
+        canvas={<Stage projectId={pId} />}
+        mobileSize={flowCanvasHeight}
+        onMobileSizeChange={setFlowCanvasHeight}
         minSecondary={120}
-        minPrimary={200}
       />
     );
 
@@ -360,7 +343,7 @@ export function ProjectCanvasPage() {
         title={t("assistant.title")}
       >
         <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col">
-          <AssistantBody projectId={pId} />
+          <AssistantBody projectId={pId} networkId={networkId} serverId={serverId} serverOnline={!offline} />
         </div>
       </WorkspaceView>
     </>

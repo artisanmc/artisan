@@ -32,6 +32,7 @@ import { AliasesField } from "@/features/canvas/properties/AliasesField";
 import { ConditionListEditor } from "@/features/canvas/properties/ConditionListEditor";
 import { MenuProperties } from "@/features/canvas/properties/MenuProperties";
 import { ProjectProperties } from "@/features/canvas/properties/ProjectProperties";
+import { selectionContext } from "@/features/project/selectionContext";
 import { PropertyField } from "@/features/canvas/properties/PropertyField";
 import { useTextureUrl } from "@/features/canvas/textureStore";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
@@ -95,62 +96,57 @@ export function FlowCanvas({ projectId }: FlowCanvasProps) {
   }, [setSub, [...ids].sort().join(",")]);
 
   if (!project) return <EmptyHint label={t("projectNotFound")} />;
-  if (ids.size > 1) {
-    return <EmptyHint label="Multi-edit not supported in v1. Select one item." />;
-  }
-  if (ids.size === 0) {
-    return (
-      <div className="h-full overflow-y-auto p-3">
-        <ProjectProperties project={project} />
-      </div>
-    );
-  }
 
-  const id = [...ids][0]!;
-  const command = project.commands.find((c) => c.id === id);
-  if (command)
-    return (
-      <div className="h-full overflow-hidden">
-        <CommandEditor projectId={projectId} command={command} />
-      </div>
-    );
+  // La nature de la sélection est dérivée UNE fois (`selectionContext`) et
+  // partagée avec le gating des onglets du panneau : deux dispatches séparés
+  // finiraient par ne plus être d'accord.
+  const ctx = selectionContext(project, ids, selectionMenuId);
 
-  const dialog = project.dialogs.find((d) => d.id === id);
-  if (dialog)
-    return (
-      <div className="h-full overflow-hidden">
-        <DialogEditor projectId={projectId} dialog={dialog} />
-      </div>
-    );
-
-  // Element ids are only unique within a menu — scope resolution to the menu
-  // the selection was made in, so a shared id (e.g. `grid` in two menus) edits
-  // the right one rather than the first match.
-  const menusForElement = selectionMenuId
-    ? project.menus.filter((m) => m.id === selectionMenuId)
-    : project.menus;
-  for (const menu of menusForElement) {
-    for (const layer of menu.layers) {
-      const el = layer.elements.find((e) => e.id === id);
-      if (el)
-        return (
-          <div className="h-full overflow-hidden">
-            <ElementEditor projectId={projectId} menu={menu} element={el} />
-          </div>
-        );
+  switch (ctx.kind) {
+    case "multi":
+      return <EmptyHint label="Multi-edit not supported in v1. Select one item." />;
+    case "none":
+      return (
+        <div className="h-full overflow-y-auto p-3">
+          <ProjectProperties project={project} />
+        </div>
+      );
+    case "command": {
+      const command = project.commands.find((c) => c.id === ctx.id)!;
+      return (
+        <div className="h-full overflow-hidden">
+          <CommandEditor projectId={projectId} command={command} />
+        </div>
+      );
     }
+    case "dialog": {
+      const dialog = project.dialogs.find((d) => d.id === ctx.id)!;
+      return (
+        <div className="h-full overflow-hidden">
+          <DialogEditor projectId={projectId} dialog={dialog} />
+        </div>
+      );
+    }
+    case "element": {
+      const menu = project.menus.find((m) => m.id === ctx.menuId)!;
+      const el = menu.layers.flatMap((l) => l.elements).find((e) => e.id === ctx.elementId)!;
+      return (
+        <div className="h-full overflow-hidden">
+          <ElementEditor projectId={projectId} menu={menu} element={el} />
+        </div>
+      );
+    }
+    case "menu": {
+      const menu = project.menus.find((m) => m.id === ctx.menuId)!;
+      return (
+        <div className="h-full overflow-y-auto p-3">
+          <MenuProperties projectId={projectId} menu={menu} />
+        </div>
+      );
+    }
+    default:
+      return <EmptyHint label="Selection has no editor." />;
   }
-
-  const menu = project.menus.find((m) => m.id === id);
-  if (menu) {
-    return (
-      <div className="h-full overflow-y-auto p-3">
-        <MenuProperties projectId={projectId} menu={menu} />
-      </div>
-    );
-  }
-
-  return <EmptyHint label="Selection has no editor." />;
 }
 
 function EmptyHint({ label }: { label: string }) {
