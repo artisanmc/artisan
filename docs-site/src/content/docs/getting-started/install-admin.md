@@ -145,13 +145,15 @@ assistant:
 Relative paths start at the Minecraft server root; an absolute path is also
 accepted when the administrator declares it explicitly. Extension matching is
 case-insensitive. Artisan never writes to these roots and rejects hidden path
-segments, directory selections, path traversal, and symbolic links (including
-links in intermediate directories).
+segments, path traversal, and symbolic links (including links in intermediate
+directories). Selecting a folder in the editor expands it into explicit file
+paths; the plugin accepts only regular files in a read request.
 
 Each source listing is limited to 5,000 entries. One assistant turn may read at
 most 200 files, 1 MiB per file, and 8 MiB in total. Files must be valid UTF-8.
 Invalid, missing, or unreadable sources are omitted and produce a warning in the
 server console. Set `enabled: false` to keep a configured source private.
+Run `/artisan reload` after changing the source configuration.
 
 ## 9. Resource pack distribution (advanced)
 

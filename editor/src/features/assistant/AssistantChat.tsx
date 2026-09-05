@@ -1,16 +1,28 @@
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import type { ProjectId } from "@/domain/types";
 import { ModelSelector } from "@/features/assistant/ModelSelector";
 import { OutOfCreditsNotice } from "@/features/assistant/OutOfCreditsNotice";
 import { CreditIndicator } from "@/features/billing/CreditIndicator";
-import { projectToCommandV1, projectToDialogV1, projectToMenuV1 } from "@/features/export/transform";
-import { getBalance } from "@/lib/api/aiUser";
-import type { BalanceBreakdown } from "@/lib/api/billing";
 import {
+  projectToCommandV1,
+  projectToDialogV1,
+  projectToMenuV1,
+} from "@/features/export/transform";
+import { getBalance } from "@/lib/api/aiUser";
+import {
+  type AssistantEvent,
+  AssistantRequestError,
   type ConversationMessage,
   getConversation,
   openConversation,
   streamAssistant,
 } from "@/lib/api/assistant";
+import type { BalanceBreakdown } from "@/lib/api/billing";
 import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
 import { useNavigate } from "@tanstack/react-router";
@@ -18,6 +30,7 @@ import { ChevronLeft, FileText, Paperclip, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import { type ServerAttachmentGroup, ServerImportSourceDialog } from "./ServerImportSourceDialog";
 
 type Entry =
   | { role: "user" | "assistant"; text: string }
@@ -90,10 +103,16 @@ export function AssistantChat({
   projectId,
   conversationId = null,
   onBack,
+  networkId,
+  serverId,
+  serverOnline = false,
 }: {
   projectId: ProjectId;
   conversationId?: string | null;
   onBack?: () => void;
+  networkId?: string;
+  serverId?: string;
+  serverOnline?: boolean;
 }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -105,6 +124,10 @@ export function AssistantChat({
   const [activity, setActivity] = useState<string | null>(null);
   const [turnError, setTurnError] = useState<string | null>(null);
   const [attachments, setAttachments] = useState<Record<string, string>>({});
+  const [serverGroups, setServerGroups] = useState<ServerAttachmentGroup[]>([]);
+  const [serverDialogOpen, setServerDialogOpen] = useState(false);
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const serverFileCount = serverGroups.reduce((count, group) => count + group.files.length, 0);
   const [modelId, setModelId] = useState<string | null>(null);
   const [balance, setBalance] = useState<BalanceBreakdown | null>(null);
   const [outOfCredits, setOutOfCredits] = useState(false);
@@ -154,11 +177,14 @@ export function AssistantChat({
 
   async function send() {
     const text = input.trim();
-    const attachedNames = Object.keys(attachments);
+    const attachedNames = [
+      ...Object.keys(attachments),
+      ...serverGroups.flatMap((group) =>
+        group.files.map((file) => `server:${group.sourceId}/${file.path}`),
+      ),
+    ];
     if (!user || (!text && attachedNames.length === 0) || busy) return;
-    setInput("");
     const shown = text || t("assistant.sentFiles", { names: attachedNames.join(", ") });
-    setEntries((e) => [...e, { role: "user", text: shown }]);
     setBusy(true);
     setActivity(null);
     setTurnError(null);
@@ -182,16 +208,29 @@ export function AssistantChat({
       if (!convId.current) {
         convId.current = await openConversation({ projectId });
       }
-      for await (const ev of streamAssistant(convId.current, {
+      const stream = streamAssistant(convId.current, {
         text,
         menus,
         attachments,
+        serverAttachments: serverGroups.map((group) => ({
+          sourceId: group.sourceId,
+          paths: group.files.map((file) => file.path).sort(),
+        })),
         commands,
         dialogs,
         translations,
         dataSources,
         modelId: modelId ?? undefined,
-      })) {
+      });
+      const first = await stream.next();
+      if (first.done || first.value.type !== "insufficient_credits") {
+        setInput("");
+        setAttachments({});
+        setServerGroups([]);
+        setExpandedGroups(new Set());
+        setEntries((e) => [...e, { role: "user", text: shown }]);
+      }
+      function handleAssistantEvent(ev: AssistantEvent) {
         if (ev.type === "text") {
           // Once the model starts writing its answer, the streamed text is the
           // live feedback — fall back to the generic thinking label.
@@ -265,7 +304,12 @@ export function AssistantChat({
           setBalance((b) =>
             b
               ? { ...b, total: Number(ev.balance) }
-              : { total: Number(ev.balance), subscription: 0, rollover: 0, topup: Number(ev.balance) },
+              : {
+                  total: Number(ev.balance),
+                  subscription: 0,
+                  rollover: 0,
+                  topup: Number(ev.balance),
+                },
           );
         } else if (ev.type === "insufficient_credits") {
           setOutOfCredits(true);
@@ -280,6 +324,8 @@ export function AssistantChat({
           setTurnError(msg);
         }
       }
+      if (!first.done) handleAssistantEvent(first.value);
+      for await (const event of stream) handleAssistantEvent(event);
       // Ce que l'assistant génère atterrit dans l'état de la page, comme une
       // édition manuelle : rien n'est écrit sur le serveur sans que l'admin
       // clique sur Enregistrer (ADR `server-disk-only-storage`, décision 3).
@@ -289,8 +335,14 @@ export function AssistantChat({
       // Keep the friendly line but never swallow the cause — "Interrompu"
       // with an empty console made a wire-shape 404 undiagnosable.
       console.error("[assistant] turn failed:", err);
-      toast.error(t("assistant.errorGeneric"));
-      setTurnError(t("assistant.interrupted"));
+      const message =
+        err instanceof AssistantRequestError
+          ? t(`assistant.serverFiles.errors.${err.code}`, {
+              defaultValue: t("assistant.serverFiles.errors.read_error"),
+            })
+          : t("assistant.interrupted");
+      toast.error(message);
+      setTurnError(message);
     } finally {
       setBusy(false);
       setActivity(null);
@@ -298,7 +350,7 @@ export function AssistantChat({
   }
 
   async function addFiles(files: File[]) {
-    if (files.length === 0) return;
+    if (files.length === 0 || busy) return;
     const next: Record<string, string> = { ...attachments };
     for (const file of files) next[file.name] = await file.text();
     setAttachments(next);
@@ -399,6 +451,7 @@ export function AssistantChat({
               <button
                 type="button"
                 aria-label={t("assistant.attachRemove", { name })}
+                disabled={busy}
                 onClick={() => removeAttachment(name)}
                 className="rounded-[4px] text-[var(--text-mut)] transition-colors hover:text-[var(--text)]"
               >
@@ -407,6 +460,74 @@ export function AssistantChat({
             </span>
           ))}
         </div>
+      )}
+
+      {serverGroups.length > 0 && (
+        <div
+          data-testid="assistant-server-attachments"
+          className="flex shrink-0 flex-col gap-1.5 px-3 pb-2"
+        >
+          {serverGroups.map((group) => (
+            <div key={group.sourceId}>
+              <span className="chip gap-1.5">
+                <button
+                  type="button"
+                  disabled={busy}
+                  aria-expanded={expandedGroups.has(group.sourceId)}
+                  aria-label={t(
+                    expandedGroups.has(group.sourceId)
+                      ? "assistant.serverFiles.collapse"
+                      : "assistant.serverFiles.expand",
+                    { name: group.label },
+                  )}
+                  onClick={() =>
+                    setExpandedGroups((current) => {
+                      const next = new Set(current);
+                      if (next.has(group.sourceId)) next.delete(group.sourceId);
+                      else next.add(group.sourceId);
+                      return next;
+                    })
+                  }
+                >
+                  {t("assistant.serverFiles.group", {
+                    name: group.label,
+                    count: group.files.length,
+                  })}
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  aria-label={t("assistant.serverFiles.remove", { name: group.label })}
+                  onClick={() =>
+                    setServerGroups((current) =>
+                      current.filter((item) => item.sourceId !== group.sourceId),
+                    )
+                  }
+                >
+                  <X className="size-3" />
+                </button>
+              </span>
+              {expandedGroups.has(group.sourceId) && (
+                <ul className="px-3 py-1 text-xs text-[var(--text-mut)]">
+                  {group.files.map((file) => (
+                    <li key={file.path}>{file.path}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+      {networkId && serverId && (
+        <ServerImportSourceDialog
+          open={serverDialogOpen && serverOnline}
+          onOpenChange={setServerDialogOpen}
+          networkId={networkId}
+          serverId={serverId}
+          projectId={projectId}
+          existingGroups={serverGroups}
+          onAttach={setServerGroups}
+        />
       )}
 
       {outOfCredits && <OutOfCreditsNotice onGetCredits={() => navigate({ to: "/credits" })} />}
@@ -436,16 +557,37 @@ export function AssistantChat({
               e.target.value = "";
             }}
           />
-          <button
-            type="button"
-            aria-label={t("assistant.attachFiles")}
-            title={t("assistant.attachFiles")}
-            onClick={() => fileInputRef.current?.click()}
-            disabled={outOfCredits}
-            className="btn btn-sm btn-ghost btn-icon shrink-0"
-          >
-            <Paperclip className="h-4 w-4" />
-          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                aria-label={t("assistant.attachFiles")}
+                title={t("assistant.attachFiles")}
+                disabled={outOfCredits || busy}
+                className="btn btn-sm btn-ghost btn-icon shrink-0"
+              >
+                <Paperclip className="h-4 w-4" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem onSelect={() => fileInputRef.current?.click()}>
+                {t("assistant.serverFiles.fromDevice")}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                disabled={!serverOnline || !networkId || !serverId}
+                onSelect={() => setServerDialogOpen(true)}
+              >
+                <span>
+                  {t("assistant.serverFiles.fromServer")}
+                  {!serverOnline && (
+                    <span className="block text-xs">
+                      {t("assistant.serverFiles.server_offline")}
+                    </span>
+                  )}
+                </span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -458,12 +600,16 @@ export function AssistantChat({
             placeholder={t("assistant.placeholder")}
             aria-label={t("assistant.title")}
             rows={2}
-            disabled={outOfCredits}
+            disabled={outOfCredits || busy}
             className="min-h-[44px] flex-1 resize-none rounded-[10px] border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2 text-[13px] text-[var(--text)] outline-none focus:border-[var(--border-strong)] disabled:opacity-50"
           />
           <button
             type="button"
-            disabled={outOfCredits || busy || (input.trim().length === 0 && attachmentCount === 0)}
+            disabled={
+              outOfCredits ||
+              busy ||
+              (input.trim().length === 0 && attachmentCount === 0 && serverFileCount === 0)
+            }
             onClick={() => void send()}
             className="btn btn-sm btn-primary shrink-0"
           >
