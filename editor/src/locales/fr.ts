@@ -524,6 +524,7 @@ const fr: typeof en = {
     unavailable: "Bibliothèque indisponible — serveur hors ligne",
   },
   projectPanel: {
+    projectSettings: "Paramètres du projet",
     menus: "Menus",
     commands: "Commandes",
     dialogs: "Dialogs",

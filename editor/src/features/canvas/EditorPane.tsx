@@ -8,6 +8,8 @@ import { type EditorTab, useUiStore } from "@/state/uiStore";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CapturedItemsSection } from "./CapturedItemsSection";
+import { isMenuContext } from "@/features/project/selectionContext";
+import { useInspector } from "@/features/project/useInspector";
 import { Library } from "./Library";
 import { useTextureInit } from "./useTextureInit";
 
@@ -16,16 +18,27 @@ interface EditorPaneProps {
 }
 
 /**
- * Resizable editor pane. Three tabs (Edit / Library / Assets). Tab labels are
- * flat with a sage underline on the active one — the editor pane background
- * uses the raised surface to feel slightly lifted from the canvas.
+ * Resizable editor pane. Tab labels are flat with a sage underline on the
+ * active one — the editor pane background uses the raised surface to feel
+ * slightly lifted from the canvas.
+ *
+ * Les onglets sont CONTEXTUELS : Bibliothèque et Assets n'apparaissent que
+ * s'il y a un menu où déposer un item ou un glyphe (`isMenuContext`). Le
+ * contexte vient de `selectionContext`, la même dérivation que celle dont
+ * `FlowCanvas` se sert pour choisir quoi éditer.
  */
 export function EditorPane({ projectId }: EditorPaneProps) {
   useTextureInit(projectId);
   useAssetInit(projectId);
-  const tab = useUiStore((s) => s.editorTab);
+  const storedTab = useUiStore((s) => s.editorTab);
   const setTab = useUiStore((s) => s.setEditorTab);
   const { t } = useTranslation();
+  const { ctx } = useInspector(projectId);
+  const menuContext = isMenuContext(ctx);
+  // `editorTab` est persisté : l'onglet mémorisé peut ne pas exister dans le
+  // contexte courant. On l'ignore pour l'affichage SANS l'écraser, pour que la
+  // préférence reprenne dès qu'on resélectionne un menu.
+  const tab = menuContext || storedTab === "edit" ? storedTab : "edit";
 
   return (
     // Plain fill — the surrounding container (SplitPane column on mobile, the
@@ -38,18 +51,22 @@ export function EditorPane({ projectId }: EditorPaneProps) {
       >
         <TabsList className="flex h-[48px] shrink-0 items-center justify-start gap-1 px-3">
           <TabsTrigger value="edit">{t("editorPane.tabEdit")}</TabsTrigger>
-          <TabsTrigger value="library">{t("editorPane.tabLibrary")}</TabsTrigger>
-          <TabsTrigger value="assets">{t("editorPane.tabAssets")}</TabsTrigger>
+          {menuContext && <TabsTrigger value="library">{t("editorPane.tabLibrary")}</TabsTrigger>}
+          {menuContext && <TabsTrigger value="assets">{t("editorPane.tabAssets")}</TabsTrigger>}
         </TabsList>
         <TabsContent value="edit" className="min-h-0 flex-1 overflow-hidden">
           <FlowCanvas projectId={projectId} />
         </TabsContent>
-        <TabsContent value="library" className="min-h-0 flex-1 overflow-hidden p-3">
-          <LibrarySubTabs projectId={projectId} />
-        </TabsContent>
-        <TabsContent value="assets" className="h-full m-0 p-0">
-          <AssetsTab projectId={projectId} />
-        </TabsContent>
+        {menuContext && (
+          <TabsContent value="library" className="min-h-0 flex-1 overflow-hidden p-3">
+            <LibrarySubTabs projectId={projectId} />
+          </TabsContent>
+        )}
+        {menuContext && (
+          <TabsContent value="assets" className="h-full m-0 p-0">
+            <AssetsTab projectId={projectId} />
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );

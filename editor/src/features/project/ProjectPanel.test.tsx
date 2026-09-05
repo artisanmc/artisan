@@ -1,5 +1,7 @@
 import type { Project, ProjectId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
+import { useSelectionStore } from "@/state/selectionStore";
+import { useUiStore } from "@/state/uiStore";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -79,5 +81,21 @@ describe("ProjectPanel", () => {
     const p = useAccountStore.getState().account.projects.find((x) => x.id === PID)!;
     expect("m1" in p.canvasLayout).toBe(false);
     expect(p.menus.some((m) => m.id === "m1")).toBe(true);
+  });
+});
+
+/**
+ * Le panneau d'édition n'apparaît plus qu'à la sélection : les paramètres du
+ * project, qui ne correspondent à aucune sélection, ont besoin d'une entrée.
+ */
+describe("ProjectPanel — racine du project", () => {
+  it("la ligne racine ouvre les paramètres du project sans rien sélectionner", () => {
+    useSelectionStore.getState().set(["m1"]);
+    render(<ProjectPanel projectId={PID} />);
+
+    fireEvent.click(screen.getByTestId("project-settings-row"));
+
+    expect(useUiStore.getState().projectSettingsOpen).toBe(true);
+    expect(useSelectionStore.getState().ids.size).toBe(0);
   });
 });
