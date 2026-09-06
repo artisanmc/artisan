@@ -1869,6 +1869,10 @@ export default {
     placeholder: "Describe a menu, or drop a zmenu/DeluxeMenus file…",
     send: "Send",
     thinking: "Thinking",
+    preparingSend: "Preparing your message and waiting for the assistant…",
+    sendingFiles: "Sending files and waiting for the assistant…",
+    attachmentsNotRead:
+      "Attachment reading incomplete ({{read}}/{{total}}). Please retry your request.",
     activity: {
       reading: "Reading file",
       menus: "Scanning menus",

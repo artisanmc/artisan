@@ -26,7 +26,7 @@ import type { BalanceBreakdown } from "@/lib/api/billing";
 import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
 import { useNavigate } from "@tanstack/react-router";
-import { ChevronLeft, FileText, Paperclip, X } from "lucide-react";
+import { ChevronLeft, FileText, LoaderCircle, Paperclip, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -121,6 +121,7 @@ export function AssistantChat({
   const [entries, setEntries] = useState<Entry[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  const [preparingSend, setPreparingSend] = useState(false);
   const [activity, setActivity] = useState<string | null>(null);
   const [turnError, setTurnError] = useState<string | null>(null);
   const [attachments, setAttachments] = useState<Record<string, string>>({});
@@ -186,6 +187,7 @@ export function AssistantChat({
     if (!user || (!text && attachedNames.length === 0) || busy) return;
     const shown = text || t("assistant.sentFiles", { names: attachedNames.join(", ") });
     setBusy(true);
+    setPreparingSend(true);
     setActivity(null);
     setTurnError(null);
     try {
@@ -223,6 +225,7 @@ export function AssistantChat({
         modelId: modelId ?? undefined,
       });
       const first = await stream.next();
+      setPreparingSend(false);
       if (first.done || first.value.type !== "insufficient_credits") {
         setInput("");
         setAttachments({});
@@ -319,7 +322,10 @@ export function AssistantChat({
               : { total: Number(ev.balance), subscription: 0, rollover: 0, topup: 0 },
           );
         } else if (ev.type === "error") {
-          const msg = String(ev.message ?? t("assistant.errorGeneric"));
+          const msg =
+            ev.code === "attachments_not_read"
+              ? t("assistant.attachmentsNotRead", { read: ev.readCount, total: ev.totalCount })
+              : String(ev.message ?? t("assistant.errorGeneric"));
           toast.error(msg);
           setTurnError(msg);
         }
@@ -345,6 +351,7 @@ export function AssistantChat({
       setTurnError(message);
     } finally {
       setBusy(false);
+      setPreparingSend(false);
       setActivity(null);
     }
   }
@@ -419,7 +426,7 @@ export function AssistantChat({
               </div>
             ),
           )}
-          {busy && (
+          {busy && !preparingSend && (
             <div
               data-testid="assistant-thinking"
               className="flex items-center gap-1 text-[12px] text-[var(--text-mut)]"
@@ -533,6 +540,21 @@ export function AssistantChat({
       {outOfCredits && <OutOfCreditsNotice onGetCredits={() => navigate({ to: "/credits" })} />}
 
       <div className="flex shrink-0 flex-col gap-2 border-[var(--border-soft)] border-t p-3">
+        {preparingSend && (
+          <output
+            data-testid="assistant-send-status"
+            className="flex items-center gap-2 text-[12px] text-[var(--text-mut)]"
+          >
+            <LoaderCircle aria-hidden className="h-3.5 w-3.5 shrink-0 animate-spin" />
+            <span>
+              {t(
+                serverFileCount + attachmentCount > 0
+                  ? "assistant.sendingFiles"
+                  : "assistant.preparingSend",
+              )}
+            </span>
+          </output>
+        )}
         <div data-testid="assistant-composer-toolbar" className="flex min-w-0 items-center gap-2">
           <ModelSelector
             value={modelId}
