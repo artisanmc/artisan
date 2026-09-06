@@ -1,7 +1,7 @@
 import { projectId } from "@/domain/ids";
 import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AssistantChat } from "./AssistantChat";
@@ -84,6 +84,42 @@ afterEach(() => {
 });
 
 describe("AssistantChat", () => {
+  it.each(["accepted", "failed"])(
+    "shows server send status until the first event is %s",
+    async (outcome) => {
+      setup();
+      const { streamAssistant, AssistantRequestError } = await import("@/lib/api/assistant");
+      const pending = Promise.withResolvers<void>();
+      const response = Promise.withResolvers<void>();
+      vi.mocked(streamAssistant).mockImplementationOnce(async function* () {
+        await pending.promise;
+        yield { type: "tool", name: "read_attachment", ok: true };
+        await response.promise;
+      });
+      render(<AssistantChat projectId={projectId("p")} networkId="n" serverId="s" serverOnline />);
+      await attachServerFiles();
+      await userEvent.type(screen.getByRole("textbox"), "migre tout");
+      await userEvent.click(screen.getByRole("button", { name: /^(send|envoyer)$/i }));
+      expect(screen.getByRole("status")).toHaveTextContent(/Sending files|Envoi des fichiers/i);
+      expect(screen.getByRole("textbox")).toBeDisabled();
+      expect(screen.getByRole("textbox")).toHaveValue("migre tout");
+      await act(async () => {
+        if (outcome === "failed") pending.reject(new AssistantRequestError("read_error", 500));
+        else pending.resolve();
+      });
+      expect(screen.queryByTestId("assistant-send-status")).toBeNull();
+      if (outcome === "failed") {
+        expect(screen.getByRole("textbox")).toBeEnabled();
+        expect(screen.getByRole("textbox")).toHaveValue("migre tout");
+        expect(screen.getByTestId("assistant-server-attachments")).toBeInTheDocument();
+      } else {
+        expect(screen.getByRole("textbox")).toHaveValue("");
+        expect(screen.getByTestId("assistant-thinking")).toHaveTextContent(/Reading|Lecture/i);
+        await act(async () => response.resolve());
+      }
+    },
+  );
+
   it("sends local and server attachments together and clears the accepted composer", async () => {
     setup();
     render(<AssistantChat projectId={projectId("p")} networkId="n" serverId="s" serverOnline />);
@@ -286,6 +322,27 @@ describe("AssistantChat", () => {
     });
     // It persists after the turn ends (busy is false).
     expect(screen.queryByTestId("assistant-thinking")).toBeNull();
+  });
+
+  it("localizes an incomplete attachment reading error with the counts", async () => {
+    setup();
+    const { streamAssistant } = await import("@/lib/api/assistant");
+    vi.mocked(streamAssistant).mockImplementationOnce(async function* () {
+      yield {
+        type: "error",
+        code: "attachments_not_read",
+        readCount: 2,
+        totalCount: 30,
+        message: "Attachment reading incomplete (2/30). Please retry.",
+      };
+    });
+    render(<AssistantChat projectId={projectId("p")} />);
+    await userEvent.type(screen.getByRole("textbox"), "migre les fichiers");
+    await userEvent.click(screen.getByRole("button", { name: /^(send|envoyer)$/i }));
+    expect(await screen.findByTestId("assistant-error")).toHaveTextContent(
+      /Lecture des fichiers incomplète \(2\/30\)/,
+    );
+    expect(screen.queryByTestId("assistant-send-status")).toBeNull();
   });
 
   it("a thrown stream shows the interrupted line", async () => {

@@ -14,7 +14,7 @@ export type EngineEvent =
   | { type: "dialog_deleted"; id: string }
   | { type: "translations_written"; entries: Record<string, Record<string, string>> }
   | { type: "usage"; usage: import("./provider/types").LlmUsage }
-  | { type: "error"; message: string }
+  | { type: "error"; message: string; code?: "attachments_not_read"; readCount?: number; totalCount?: number }
   | { type: "done"; stopReason: string };
 
 export interface ToolResult { ok: boolean; content: string; event?: EngineEvent }

@@ -55,6 +55,11 @@ in UTF-8 text. If a file cannot be read, the message and attachments stay in the
 composer; no AI turn starts and no credits are charged. Refresh or adjust the
 selection before retrying.
 
+After **Send**, a loading indicator beside the composer shows that files are
+being sent and Artisan is waiting for the assistant. This can take longer with
+many files. Your draft stays visible until the response starts; the assistant's
+activity indicator then takes over.
+
 The server administrator must configure [import sources](/getting-started/install-admin/)
 in the plugin configuration. An empty selector means no valid source is available.
 When the server is offline, **From the server** is disabled and **From my device**
