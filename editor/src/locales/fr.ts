@@ -1891,6 +1891,10 @@ const fr: typeof en = {
     placeholder: "Décris un menu, ou dépose un fichier zmenu/DeluxeMenus…",
     send: "Envoyer",
     thinking: "Réflexion",
+    preparingSend: "Préparation de l’envoi et attente de l’assistant…",
+    sendingFiles: "Envoi des fichiers et attente de l’assistant…",
+    attachmentsNotRead:
+      "Lecture des fichiers incomplète ({{read}}/{{total}}). Réessayez votre demande.",
     activity: {
       reading: "Lecture du fichier",
       menus: "Analyse des menus",

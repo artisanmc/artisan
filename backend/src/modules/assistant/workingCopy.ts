@@ -73,6 +73,7 @@ export class WorkingCopy {
   deleteCommand(id: string): boolean { return this.commands.delete(id); }
 
   attachment(fileId: string): string | undefined { return this.attachments.get(fileId); }
+  attachmentIds(): string[] { return [...this.attachments.keys()]; }
   snapshot(): MenuV1[] { return [...this.menus.values()]; }
 
   /** Translations, optionally filtered by exact keys and/or a key prefix. */
