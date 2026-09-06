@@ -173,6 +173,13 @@ Cf. `docs/superpowers/specs/2026-06-13-workspace-board-curation-design.md` (supe
 
 Un Document est **sur la planche ssi** il a une entrée explicite `project.canvasLayout[id] = {x,y}` (présence = appartenance, plus seulement position sauvegardée).
 
+Les positions et les modifications de contenu sont conservées dans le brouillon
+navigateur par `useDraftSync`. Après réhydratation, les bases sont comparées par
+contenu, jamais par identité d'objet : le rechargement ne doit pas reclasser un
+brouillon modifié comme propre et le faire abandonner à l'ouverture suivante.
+Les écritures locales en attente sont vidées sur `pagehide`, passage de la page
+à l'état caché et démontage du hook. L'écriture sur le serveur reste explicite.
+
 - `autoLayout(project)` (`features/canvas/autoLayout.ts`) ne remplit **plus** la grille : il ne retourne que les entrées explicites de `canvasLayout`.
 - `gridArrange(project)` (même fichier) construit une grille complète sur tous les Documents — appelé uniquement par le bouton « Tout arranger » via l'action store `arrangeAllOnBoard({projectId})`.
 - Trois actions `accountStore` distinctes : `addToBoard({projectId, nodeId, x, y})` / `removeFromBoard({projectId, nodeId})` manipulent `canvasLayout` (le Document reste dans le project) ; `deleteFromProject({projectId, nodeIds})` (existant) retire le Document du project.
