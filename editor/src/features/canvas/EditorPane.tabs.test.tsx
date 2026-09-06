@@ -2,7 +2,7 @@ import type { Project, ProjectId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/features/flow/FlowCanvas", () => ({ FlowCanvas: () => <div data-testid="flow" /> }));
@@ -89,5 +89,22 @@ describe("EditorPane — onglets contextuels", () => {
     expect(screen.getByTestId("flow")).toBeInTheDocument();
     // La préférence n'est pas écrasée : elle reprend sur un menu.
     expect(useUiStore.getState().editorTab).toBe("library");
+  });
+});
+
+/**
+ * Les paramètres du project survivent à une sélection vide — c'est ce qui les
+ * distingue d'une sélection — donc ils avaient besoin d'une sortie explicite.
+ */
+describe("EditorPane — fermeture", () => {
+  it("la croix vide la sélection et referme les paramètres du projet", () => {
+    useUiStore.getState().setProjectSettingsOpen(true);
+    useSelectionStore.getState().set(["m1"]);
+    render(<EditorPane projectId={PID} />);
+
+    fireEvent.click(screen.getByTestId("editor-pane-close"));
+
+    expect(useSelectionStore.getState().ids.size).toBe(0);
+    expect(useUiStore.getState().projectSettingsOpen).toBe(false);
   });
 });

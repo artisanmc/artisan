@@ -3,6 +3,7 @@ import { useAccountStore } from "@/state/accountStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
 import { fireEvent, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const navigate = vi.fn();
@@ -97,5 +98,23 @@ describe("ProjectPanel — racine du project", () => {
 
     expect(useUiStore.getState().projectSettingsOpen).toBe(true);
     expect(useSelectionStore.getState().ids.size).toBe(0);
+  });
+});
+
+/**
+ * La création vivait dans le panneau de droite, qui n'apparaît plus qu'à la
+ * sélection : elle a déménagé dans l'arbre, le registre du project. Le
+ * dialogue a aussi gagné une entrée — le panneau n'en proposait pas.
+ */
+describe("ProjectPanel — création", () => {
+  it("propose de créer un menu, une commande et un dialogue", async () => {
+    const user = userEvent.setup();
+    render(<ProjectPanel projectId={PID} />);
+
+    await user.click(screen.getByTestId("project-create"));
+
+    expect(screen.getByText(/Nouveau menu|New menu/i)).toBeInTheDocument();
+    expect(screen.getByText(/Nouvelle commande|New command/i)).toBeInTheDocument();
+    expect(screen.getByText(/Nouveau dialogue|New dialog/i)).toBeInTheDocument();
   });
 });

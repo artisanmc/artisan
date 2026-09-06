@@ -32,7 +32,7 @@ import { NewDialogDialog } from "./NewDialogDialog";
 import { NewMenuDialog } from "./NewMenuDialog";
 import { Selection } from "./Selection";
 import { autoLayout } from "./autoLayout";
-import { openProjectSettings } from "@/features/project/projectSettings";
+import { dismissInspector, openProjectSettings } from "@/features/project/projectSettings";
 import { dispatchOpenElement } from "./canvasEvents";
 import { fitViewport } from "./focusViewport";
 import { hitTestSlot, screenToWorld } from "./hitTest";
@@ -223,7 +223,9 @@ export function Stage({ projectId, focus }: StageProps) {
       // won't clear). suppressed = a marquee drag just finished.
       const suppressed = marquee.shouldConsumeClick();
       if (!suppressed && e.target === e.target.getStage()) {
-        useSelectionStore.getState().clear();
+        // Cliquer le fond veut dire « j'ai fini » : ça vide la sélection ET
+        // referme les paramètres du project, qui ne sont pas une sélection.
+        dismissInspector();
         useEdgeSelectionStore.getState().select(null);
         useUiStore.getState().setSelectedLayerKey(null);
       }
