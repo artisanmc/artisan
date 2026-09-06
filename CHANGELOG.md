@@ -22,6 +22,10 @@ See `docs/architecture/versioning.md` for the full versioning rules.
   endroits : une nouvelle ligne racine en tête de l'arbre du projet, le **clic droit sur le fond du
   canvas** (le geste qui désélectionne est celui après lequel on les cherche) et le **menu ⋮** de la
   barre du haut.
+- La **création** d'un menu, d'une commande ou d'un dialogue passe de ce panneau à l'arbre du projet
+  (bouton `+` sur la ligne racine) : c'est le registre du projet, et le panneau de droite n'est plus
+  toujours là pour l'héberger. Les dialogues y gagnent une entrée qu'ils n'avaient pas.
+- Le panneau se ferme par une **croix** dans son en-tête, ou en cliquant le fond du canvas.
 - Aucun nouveau geste : cliquer un menu le sélectionnait déjà (et le clic droit aussi), ce qui
   affiche ses paramètres. L'affordance existait, elle était invisible tant que le panneau était là
   en permanence.

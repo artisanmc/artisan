@@ -5,10 +5,12 @@ import { useAssetInit } from "@/features/assets/useAssetInit";
 import { FlowCanvas } from "@/features/flow/FlowCanvas";
 import { cx } from "@/lib/cx";
 import { type EditorTab, useUiStore } from "@/state/uiStore";
+import { X } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CapturedItemsSection } from "./CapturedItemsSection";
 import { isMenuContext } from "@/features/project/selectionContext";
+import { dismissInspector } from "@/features/project/projectSettings";
 import { useInspector } from "@/features/project/useInspector";
 import { Library } from "./Library";
 import { useTextureInit } from "./useTextureInit";
@@ -53,6 +55,16 @@ export function EditorPane({ projectId }: EditorPaneProps) {
           <TabsTrigger value="edit">{t("editorPane.tabEdit")}</TabsTrigger>
           {menuContext && <TabsTrigger value="library">{t("editorPane.tabLibrary")}</TabsTrigger>}
           {menuContext && <TabsTrigger value="assets">{t("editorPane.tabAssets")}</TabsTrigger>}
+          <button
+            type="button"
+            data-testid="editor-pane-close"
+            onClick={dismissInspector}
+            title={t("editorPane.close")}
+            aria-label={t("editorPane.close")}
+            className="ml-auto flex size-7 items-center justify-center rounded-[8px] text-[var(--text-faint)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+          >
+            <X className="size-4" />
+          </button>
         </TabsList>
         <TabsContent value="edit" className="min-h-0 flex-1 overflow-hidden">
           <FlowCanvas projectId={projectId} />
