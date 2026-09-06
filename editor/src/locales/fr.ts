@@ -111,11 +111,6 @@ const fr: typeof en = {
     sourceUser: "perso",
     sourceImported: "importé",
     sourceForked: "forké",
-    menusLabel: "menus",
-    commandsLabel: "commandes",
-    menusEmpty: "Aucun menu — créez-en un pour commencer à concevoir des GUIs de coffre.",
-    commandsEmpty:
-      "Aucune commande — créez-en une pour ajouter des /commandes utilisables par le joueur.",
     newMenu: "Nouveau menu",
     newCommand: "Nouvelle commande",
     newDialog: "Nouveau dialogue",
@@ -542,6 +537,7 @@ const fr: typeof en = {
     notFound: "Cet élément n'existe plus",
   },
   editorPane: {
+    close: "Fermer le panneau",
     tabEdit: "Édition",
     tabLibrary: "Library",
     tabAssets: "Assets",

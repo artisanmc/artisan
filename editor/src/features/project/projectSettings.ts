@@ -12,3 +12,13 @@ export function openProjectSettings(): void {
   useSelectionStore.getState().clear();
   useUiStore.getState().setProjectSettingsOpen(true);
 }
+
+/**
+ * Refermer le panneau, quoi qu'il montre. Sans ça, les paramètres du project
+ * n'avaient aucune sortie : ils survivent à une sélection vide, par
+ * construction — c'est justement ce qui les distingue d'une sélection.
+ */
+export function dismissInspector(): void {
+  useSelectionStore.getState().clear();
+  useUiStore.getState().setProjectSettingsOpen(false);
+}

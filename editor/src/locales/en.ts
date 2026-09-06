@@ -105,10 +105,6 @@ export default {
     sourceUser: "user",
     sourceImported: "imported",
     sourceForked: "forked",
-    menusLabel: "menus",
-    commandsLabel: "commands",
-    menusEmpty: "No menus yet — create one to start designing chest GUIs.",
-    commandsEmpty: "No commands yet — create one to add /commands the player can run.",
     newMenu: "New menu",
     newCommand: "New command",
     newDialog: "New dialog",
@@ -530,6 +526,7 @@ export default {
     notFound: "This element no longer exists",
   },
   editorPane: {
+    close: "Close panel",
     tabEdit: "Edit",
     tabLibrary: "Library",
     tabAssets: "Assets",
