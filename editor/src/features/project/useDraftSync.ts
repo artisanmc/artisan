@@ -1,8 +1,9 @@
-import { useEffect } from "react";
+import { isDirty } from "@/features/project/draft";
 import { projectTree } from "@/features/project/saveProjectToDisk";
 import { useAccountStore } from "@/state/accountStore";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
+import { useEffect } from "react";
 
 /**
  * Fenêtre d'apaisement : on ne resérialise pas l'arbre à chaque frappe.
@@ -28,38 +29,51 @@ export function useDraftSync(): void {
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | null = null;
 
+    const flush = () => {
+      if (timer === null) return;
+      clearTimeout(timer);
+      timer = null;
+      const baselines = useProjectBaselineStore.getState().baselines;
+      const drafts = useProjectDraftStore.getState();
+      for (const project of useAccountStore.getState().account.projects) {
+        const baseline = baselines[project.id];
+        // Sans base, on n'a jamais lu ce Project du serveur : conserver un
+        // arbre sans référence donnerait un brouillon qu'on ne saurait pas
+        // réconcilier. On attend la première lecture.
+        if (!baseline) continue;
+        const previous = drafts.get(project.id);
+        const sameLoad = previous !== undefined && !isDirty(previous.baseline, baseline);
+        const tree = projectTree(project);
+        drafts.save(project.id, {
+          baseline,
+          tree,
+          // Figé au premier passage suivant un chargement : c'est la référence
+          // de « as-tu modifié quelque chose ? ».
+          initialTree: sameLoad ? (previous?.initialTree ?? tree) : tree,
+          // L'âge du brouillon est celui de sa BASE, pas de la dernière frappe :
+          // c'est la péremption vis-à-vis du serveur qu'on affiche.
+          at: sameLoad ? previous.at : Date.now(),
+        });
+      }
+    };
+
     const unsubscribe = useAccountStore.subscribe((state, prev) => {
       if (state.account === prev.account) return;
       if (timer) clearTimeout(timer);
-      timer = setTimeout(() => {
-        const baselines = useProjectBaselineStore.getState().baselines;
-        const drafts = useProjectDraftStore.getState();
-        for (const project of useAccountStore.getState().account.projects) {
-          const baseline = baselines[project.id];
-          // Sans base, on n'a jamais lu ce Project du serveur : conserver un
-          // arbre sans référence donnerait un brouillon qu'on ne saurait pas
-          // réconcilier. On attend la première lecture.
-          if (!baseline) continue;
-          const previous = drafts.get(project.id);
-          const sameLoad = previous?.baseline === baseline;
-          const tree = projectTree(project);
-          drafts.save(project.id, {
-            baseline,
-            tree,
-            // Figé au premier passage suivant un chargement : c'est la référence
-            // de « as-tu modifié quelque chose ? ».
-            initialTree: sameLoad ? (previous?.initialTree ?? tree) : tree,
-            // L'âge du brouillon est celui de sa BASE, pas de la dernière frappe :
-            // c'est la péremption vis-à-vis du serveur qu'on affiche.
-            at: sameLoad ? previous.at : Date.now(),
-          });
-        }
-      }, DEBOUNCE_MS);
+      timer = setTimeout(flush, DEBOUNCE_MS);
     });
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "hidden") flush();
+    };
+    window.addEventListener("pagehide", flush);
+    document.addEventListener("visibilitychange", onVisibilityChange);
 
     return () => {
       unsubscribe();
-      if (timer) clearTimeout(timer);
+      window.removeEventListener("pagehide", flush);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      flush();
     };
   }, []);
 }
