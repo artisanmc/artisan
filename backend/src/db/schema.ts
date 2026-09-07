@@ -385,6 +385,58 @@ export const assistantConversations = pgTable(
 	(t) => [index("assistant_conv_owner_project_idx").on(t.ownerKey, t.projectId)],
 );
 
+// Migration metadata and derived assistant proposals, never raw sources or a Project copy.
+export const assistantMigrationRuns = pgTable("assistant_migration_runs", {
+	id: text("id").primaryKey(),
+	conversationId: text("conversation_id").notNull().references(() => assistantConversations.id, { onDelete: "cascade" }),
+	projectId: text("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+	networkId: text("network_id").notNull().references(() => networks.id, { onDelete: "cascade" }),
+	serverKeyId: text("server_key_id").notNull().references(() => serverKeys.id, { onDelete: "cascade" }),
+	ownerKey: text("owner_key").notNull(),
+	modelId: text("model_id").notNull(),
+	requestId: text("request_id").notNull(),
+	requestHash: text("request_hash").notNull(),
+	status: text("status").notNull(),
+	revision: integer("revision").notNull().default(0),
+	manifest: jsonb("manifest").notNull(),
+	budget: jsonb("budget").notNull(),
+	issues: jsonb("issues").notNull(),
+	createdAt: timestamp("created_at").notNull(),
+	updatedAt: timestamp("updated_at").notNull(),
+}, (t) => ({ requestUnique: uniqueIndex("assistant_migration_request_uniq").on(t.conversationId, t.requestId) }));
+
+export const assistantMigrationSteps = pgTable("assistant_migration_steps", {
+	id: text("id").primaryKey(),
+	runId: text("run_id").notNull().references(() => assistantMigrationRuns.id, { onDelete: "cascade" }),
+	key: text("key").notNull(),
+	position: integer("position").notNull(),
+	sourceFileId: text("source_file_id").notNull(),
+	targetId: text("target_id").notNull(),
+	baseHash: text("base_hash"),
+	status: text("status").notNull(),
+	attemptCount: integer("attempt_count").notNull().default(0),
+	leaseOwner: text("lease_owner"),
+	leaseToken: text("lease_token"),
+	leaseExpiresAt: timestamp("lease_expires_at"),
+	credits: integer("credits").notNull().default(0),
+}, (t) => ({ stepUnique: uniqueIndex("assistant_migration_step_key_uniq").on(t.runId, t.key) }));
+
+export const assistantMigrationProposals = pgTable("assistant_migration_proposals", {
+	id: text("id").primaryKey(),
+	runId: text("run_id").notNull().references(() => assistantMigrationRuns.id, { onDelete: "cascade" }),
+	stepId: text("step_id").notNull().references(() => assistantMigrationSteps.id, { onDelete: "cascade" }),
+	proposal: jsonb("proposal").notNull(),
+}, (t) => ({ proposalUnique: uniqueIndex("assistant_migration_proposal_step_uniq").on(t.stepId) }));
+
+export const assistantMigrationEvents = pgTable("assistant_migration_events", {
+	runId: text("run_id").notNull().references(() => assistantMigrationRuns.id, { onDelete: "cascade" }),
+	sequence: integer("sequence").notNull(),
+	type: text("type").notNull(),
+	stepId: text("step_id"),
+	code: text("code"),
+	createdAt: timestamp("created_at").notNull(),
+}, (t) => ({ sequencePk: primaryKey({ columns: [t.runId, t.sequence] }) }));
+
 // AI model catalog (admin-managed). Prices are integers: credits per 1M tokens,
 // real provider cost in micro-USD per 1M tokens ($0.075 → 75_000) — no floats
 // in DB. Models referenced by usage history are never hard-deleted: deactivate
@@ -424,6 +476,7 @@ export const aiUsageLog = pgTable(
 	"ai_usage_log",
 	{
 		id: text("id").primaryKey(),
+		idempotencyKey: text("idempotency_key"),
 		networkId: text("network_id")
 			.notNull()
 			.references(() => networks.id, { onDelete: "cascade" }),
@@ -452,6 +505,7 @@ export const aiUsageLog = pgTable(
 	},
 	(t) => [
 		index("ai_usage_network_time_idx").on(t.networkId, t.createdAt),
+		uniqueIndex("ai_usage_idempotency_uniq").on(t.idempotencyKey),
 		index("ai_usage_user_time_idx").on(t.userId, t.createdAt),
 		index("ai_usage_model_idx").on(t.modelId),
 		index("ai_usage_time_idx").on(t.createdAt),

@@ -7,6 +7,9 @@
 
 ## Conventions
 
+- **Resumable zMenu migrations**: `modules/assistant/migration/routes.ts` owns `/api/v1/assistant/conversations/:id/migrations`: POST creates a metadata-only manifest with an idempotent `requestId`; GET lists runs, reads `/:runId`, `/events?after=&limit=`, `/proposals`. POST `/start`, `/pause`, `/resume`, `/cancel` requires `expectedRevision`. Every request rechecks conversation ownership, membership, live Project and stored network/server scope. Start/resume rereads source hashes and requires the exact active model/provider plus credits; absent runner returns 503 before transition. GET never starts paid work (it may recover expired leases). Raw source YAML is not persisted; derived proposals are not automatically published to disk.
+- Migration model IDs are fixed without fallback; V1 uses active catalog pricing at each step, not a price snapshot. The accepted credit budget is checked between steps and may be exceeded by the in-flight provider call.
+
 - **Assistant SSE transport**: heartbeat `event: heartbeat`, `data: {}` every 15 seconds while the turn is active. The editor discards these frames (including payload-only heartbeats); they do not accept or clear the composer. Timers stop on completion or disconnect, with at most one heartbeat write pending. `X-Accel-Buffering: no` requests unbuffered delivery but cannot override every proxy timeout.
 - **Assistant diagnostics**: `X-Assistant-Request-Id` and error SSE `correlationId` identify a turn. Safe codes distinguish `provider_timeout`, `provider_network_error`, `provider_cancelled`, `provider_error`, `engine_error`; structured logs also report `client_disconnected` without raw provider errors or source contents. Disconnect never automatically retries a paid request or changes transcript/debit rules. The client does not read the correlation header; error frames carry it directly.
 
