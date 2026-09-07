@@ -161,7 +161,7 @@ function PanelItem({
           onClick={() => useAccountStore.getState().removeFromBoard({ projectId, nodeId: item.id })}
           className="flex shrink-0 items-center justify-center rounded-[8px] p-2 text-[var(--brand)] hover:bg-[var(--surface-raised)] hover:text-[var(--brand-hover)]"
         >
-          <ArrowLeftToLine className="size-[15px]" />
+          <ArrowRightToLine className="size-[15px]" />
         </button>
       ) : (
         <button
@@ -173,7 +173,7 @@ function PanelItem({
           }
           className="flex shrink-0 items-center justify-center rounded-[8px] p-2 text-[var(--text-faint)] hover:bg-[var(--surface-raised)] hover:text-[var(--text)] lg:opacity-0 lg:group-hover:opacity-100"
         >
-          <ArrowRightToLine className="size-[15px]" />
+          <ArrowLeftToLine className="size-[15px]" />
         </button>
       )}
       <DropdownMenu>

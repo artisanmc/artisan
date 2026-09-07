@@ -8,6 +8,7 @@ import type { ProjectId } from "@/domain/types";
 import { useProjectCacheStore } from "@/state/projectCacheStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
 import { RefreshProjectButton } from "./RefreshProjectButton";
+import { TopBarKebabMenu } from "./TopBarKebabMenu";
 
 const PID = "p1" as ProjectId;
 
@@ -24,6 +25,31 @@ function seedDraft(dirty: boolean) {
 }
 
 describe("RefreshProjectButton", () => {
+  it("keeps the confirmation usable after selecting refresh from the project menu", async () => {
+    seedDraft(true);
+    render(
+      <RefreshProjectButton
+        projectId={PID}
+        renderTrigger={(onRefresh) => (
+          <TopBarKebabMenu
+            onRefresh={onRefresh}
+            onOpenProjectSettings={() => {}}
+            onImport={() => {}}
+            onExportZip={() => {}}
+            onOpenPatterns={() => {}}
+            onDelete={() => {}}
+          />
+        )}
+      />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "topbar.more" }));
+    await userEvent.click(screen.getByRole("menuitem", { name: "topbar.refresh" }));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.queryByRole("menu")).toBeNull();
+    expect(useProjectCacheStore.getState().reloadToken).toBe(0);
+    await userEvent.click(screen.getByRole("button", { name: "topbar.refreshConfirm" }));
+    expect(useProjectCacheStore.getState().reloadToken).toBe(1);
+  });
   beforeEach(() => {
     useProjectDraftStore.setState({ drafts: {} } as never);
     useProjectCacheStore.setState({ reloadToken: 0 } as never);

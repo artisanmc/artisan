@@ -12,7 +12,7 @@ import { isDirty } from "@/features/project/draft";
 import { useProjectCacheStore } from "@/state/projectCacheStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
 import { RefreshCw } from "lucide-react";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 /**
@@ -28,7 +28,10 @@ import { useTranslation } from "react-i18next";
  * rafraîchissement — mais jamais sans le demander : ce qui est perdu ici ne se
  * retrouve nulle part.
  */
-export function RefreshProjectButton({ projectId }: { projectId: ProjectId }) {
+export function RefreshProjectButton({
+  projectId,
+  renderTrigger,
+}: { projectId: ProjectId; renderTrigger?: (refresh: () => void) => ReactNode }) {
   const { t } = useTranslation();
   const draft = useProjectDraftStore((s) => s.drafts[projectId]);
   const dirty = draft ? isDirty(draft.initialTree, draft.tree) : false;
@@ -44,15 +47,19 @@ export function RefreshProjectButton({ projectId }: { projectId: ProjectId }) {
 
   return (
     <>
-      <Button
-        variant="ghost"
-        size="icon"
-        aria-label={t("topbar.refresh")}
-        title={t("topbar.refresh")}
-        onClick={() => (dirty ? setConfirming(true) : refresh())}
-      >
-        <RefreshCw className="size-[15px]" />
-      </Button>
+      {renderTrigger ? (
+        renderTrigger(() => (dirty ? setConfirming(true) : refresh()))
+      ) : (
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label={t("topbar.refresh")}
+          title={t("topbar.refresh")}
+          onClick={() => (dirty ? setConfirming(true) : refresh())}
+        >
+          <RefreshCw className="size-[15px]" />
+        </Button>
+      )}
 
       <Dialog open={confirming} onOpenChange={setConfirming}>
         <DialogContent>

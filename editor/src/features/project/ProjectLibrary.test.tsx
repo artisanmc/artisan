@@ -16,10 +16,14 @@ import { ProjectLibraryButton, ProjectLibraryWorkspace } from "./ProjectLibrary"
 import { useProjectLibraryStore } from "./projectLibraryStore";
 
 const PID = "p1" as ProjectId;
+let desktop = true;
+vi.mock("@/lib/useMediaQuery", () => ({ useIsDesktop: () => desktop }));
 
 beforeEach(() => {
+  desktop = true;
   useSelectionStore.getState().clear();
   useProjectLibraryStore.getState().close();
+  useProjectLibraryStore.setState({ width: 340, height: 280 });
 });
 
 function Workspace({ projectId = PID }: { projectId?: ProjectId }) {
@@ -83,4 +87,81 @@ it("reopens the library from another workspace view instead of closing a hidden 
   await userEvent.click(screen.getByRole("button", { name: /bibliothèque|library/i }));
   expect(onOpen).toHaveBeenCalledOnce();
   expect(useProjectLibraryStore.getState().projectId).toBe(PID);
+});
+
+it("resizes from the right edge on desktop and remembers the width without remounting the canvas", () => {
+  const view = render(<Workspace />);
+  const canvas = screen.getByText("Canvas and properties");
+  act(() => useProjectLibraryStore.getState().open(PID));
+  const divider = screen.getByRole("separator");
+  vi.spyOn(divider.parentElement!, "getBoundingClientRect").mockReturnValue({
+    left: 100,
+    right: 1100,
+    top: 0,
+    bottom: 600,
+    width: 1000,
+    height: 600,
+  } as DOMRect);
+  fireEvent.pointerDown(divider, { pointerId: 1 });
+  fireEvent.pointerMove(window, { clientX: 550, pointerId: 1 });
+  fireEvent.pointerUp(window, { pointerId: 1 });
+  expect(useProjectLibraryStore.getState().width).toBe(450);
+  expect(screen.getByText("Canvas and properties")).toBe(canvas);
+  expect(JSON.parse(localStorage.getItem("artisan-library-size")!).state).toEqual({
+    width: 450,
+    height: 280,
+  });
+  view.unmount();
+  render(<Workspace />);
+  expect(useProjectLibraryStore.getState().width).toBe(450);
+});
+
+it("resizes the mobile library from its top edge while keeping canvas space", () => {
+  desktop = false;
+  render(<Workspace />);
+  act(() => useProjectLibraryStore.getState().open(PID));
+  const divider = screen.getByRole("separator");
+  expect(divider).toHaveAttribute("aria-orientation", "horizontal");
+  vi.spyOn(divider.parentElement!, "getBoundingClientRect").mockReturnValue({
+    left: 0,
+    right: 390,
+    top: 100,
+    bottom: 700,
+    width: 390,
+    height: 600,
+  } as DOMRect);
+  fireEvent.pointerDown(divider, { pointerId: 1 });
+  fireEvent.pointerMove(window, { clientY: 380, pointerId: 1 });
+  expect(useProjectLibraryStore.getState().height).toBe(320);
+  fireEvent.pointerMove(window, { clientY: 0, pointerId: 1 });
+  expect(useProjectLibraryStore.getState().height).toBeLessThanOrEqual(400);
+  fireEvent.pointerUp(window, { pointerId: 1 });
+});
+
+it("moves below the canvas when desktop panels leave too little horizontal space", () => {
+  let resize: (width: number) => void = () => {};
+  vi.stubGlobal(
+    "ResizeObserver",
+    class {
+      constructor(callback: ResizeObserverCallback) {
+        resize = (width) =>
+          callback(
+            [{ contentRect: { width, height: 600 } } as ResizeObserverEntry],
+            this as unknown as ResizeObserver,
+          );
+      }
+      observe() {}
+      disconnect() {}
+    },
+  );
+  try {
+    render(<Workspace />);
+    act(() => useProjectLibraryStore.getState().open(PID));
+    const canvas = screen.getByText("Canvas and properties");
+    act(() => resize(480));
+    expect(screen.getByRole("separator")).toHaveAttribute("aria-orientation", "horizontal");
+    expect(screen.getByText("Canvas and properties")).toBe(canvas);
+  } finally {
+    vi.unstubAllGlobals();
+  }
 });

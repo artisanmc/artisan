@@ -1,5 +1,14 @@
 import { migrationEn } from "./migration";
 export default {
+  navigation: {
+    menu: "Menu",
+    label: "Main navigation",
+    open: "Open navigation",
+    close: "Close navigation",
+    dismiss: "Dismiss navigation",
+    keepOpen: "Keep navigation open",
+    autoHide: "Auto-hide navigation",
+  },
   projectLibrary: {
     title: "Library",
     close: "Close library",
@@ -1666,6 +1675,8 @@ export default {
     revertTitle: "Discard unsaved changes and start again from the server state",
   },
   save: {
+    options: "Save options",
+    discardChanges: "Discard changes",
     save: "Save",
     saving: "Saving…",
     saved: "Saved to the server",

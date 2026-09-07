@@ -4,7 +4,8 @@ import { EditorPane } from "@/features/canvas/EditorPane";
 import { FloatingEditorPane } from "@/features/canvas/FloatingEditorPane";
 import { useIsDesktop } from "@/lib/useMediaQuery";
 import { useUiStore } from "@/state/uiStore";
-import type { ReactNode } from "react";
+import { type ReactNode, useContext } from "react";
+import { DockedInspectorContext } from "./inspectorLayout";
 import { useInspector } from "./useInspector";
 
 interface CanvasWithInspectorProps {
@@ -37,6 +38,7 @@ export function CanvasWithInspector({
 }: CanvasWithInspectorProps) {
   const { open } = useInspector(projectId);
   const isDesktop = useIsDesktop();
+  const docked = useContext(DockedInspectorContext);
   const editorPaneWidth = useUiStore((s) => s.editorPaneWidth);
   const setEditorPaneWidth = useUiStore((s) => s.setEditorPaneWidth);
 
@@ -44,7 +46,7 @@ export function CanvasWithInspector({
     return (
       <>
         <div className="absolute inset-0">{canvas}</div>
-        {open && (
+        {open && !docked && (
           <FloatingEditorPane
             projectId={projectId}
             width={editorPaneWidth}
