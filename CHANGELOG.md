@@ -9,6 +9,10 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Fixed — assistant streaming diagnostics
+
+- Keep silent assistant turns alive with SSE heartbeats ignored by the composer; clean up heartbeat timers on completion or disconnect and report safe failure codes with a correlation ID.
+
 ### Fixed — project creation on the server
 
 - Creating a project now writes its manifest on the connected server before returning success. The entered name is its disk identity; offline servers and existing names return explicit errors instead of creating invisible database entries.

@@ -34,5 +34,6 @@ export interface LlmProvider {
     messages: LlmMessage[];
     tools: ToolDef[];
     model: string;
+    signal?: AbortSignal;
   }): AsyncIterable<LlmStreamEvent>;
 }

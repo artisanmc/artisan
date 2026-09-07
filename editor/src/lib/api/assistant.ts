@@ -153,9 +153,10 @@ function parseFrame(frame: string): AssistantEvent | null {
     if (line.startsWith("event:")) event = line.slice(6).trim();
     else if (line.startsWith("data:")) dataLines.push(line.slice(5).trim());
   }
-  if (dataLines.length === 0) return null;
+  if (event === "heartbeat" || dataLines.length === 0) return null;
   try {
     const payload = JSON.parse(dataLines.join("\n")) as Record<string, unknown>;
+    if (payload.type === "heartbeat") return null;
     return { type: event, ...payload };
   } catch {
     return { type: event, raw: dataLines.join("\n") };

@@ -510,7 +510,9 @@ describe("assistant routes", () => {
 				},
 			);
 			expect(res.status).toBe(200);
-			await res.text();
+			const frames = await res.text();
+			expect(frames).not.toContain("NEVER_PERSIST_PROVIDER_ERROR");
+			expect(frames).toContain(`"correlationId":"${res.headers.get("X-Assistant-Request-Id")}"`);
 
 			const logs = await db
 				.select({ errorMessage: aiUsageLog.errorMessage })
