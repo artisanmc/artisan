@@ -1,6 +1,6 @@
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface Props {
   open: boolean;
@@ -17,7 +17,7 @@ export function NewProjectModal({ open, onOpenChange, serverLabel, onCreate }: P
 
   const submit = async () => {
     const trimmed = name.trim();
-    if (!trimmed) return;
+    if (!trimmed || submitting) return;
     setSubmitting(true);
     try {
       await onCreate({
@@ -36,30 +36,43 @@ export function NewProjectModal({ open, onOpenChange, serverLabel, onCreate }: P
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-sm">
         <DialogHeader>
-          <DialogTitle>
-            {t("newProjectModal.title", { server: serverLabel })}
-          </DialogTitle>
+          <DialogTitle>{t("newProjectModal.title", { server: serverLabel })}</DialogTitle>
         </DialogHeader>
-        <label className="mt-2 flex flex-col gap-1 text-[12px]">
-          <span className="text-[var(--text-mut)]">{t("newProjectModal.nameField")}</span>
-          <input className="input" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
-        </label>
-        <label className="mt-2 flex flex-col gap-1 text-[12px]">
-          <span className="text-[var(--text-mut)]">{t("newProjectModal.descriptionField")}</span>
-          <input className="input" value={description} onChange={(e) => setDescription(e.target.value)} />
-        </label>
-        <div className="mt-3 flex justify-end gap-2">
-          <button className="btn btn-sm btn-ghost" onClick={() => onOpenChange(false)}>
-            {t("newProjectModal.cancel")}
-          </button>
-          <button
-            className="btn btn-sm btn-primary"
-            onClick={submit}
-            disabled={submitting || name.trim().length === 0}
-          >
-            {submitting ? t("newProjectModal.creating") : t("newProjectModal.create")}
-          </button>
-        </div>
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            void submit();
+          }}
+        >
+          <label className="mt-2 flex flex-col gap-1 text-[12px]">
+            <span className="text-[var(--text-mut)]">{t("newProjectModal.nameField")}</span>
+            <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
+          </label>
+          <label className="mt-2 flex flex-col gap-1 text-[12px]">
+            <span className="text-[var(--text-mut)]">{t("newProjectModal.descriptionField")}</span>
+            <input
+              className="input"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
+          </label>
+          <div className="mt-3 flex justify-end gap-2">
+            <button
+              type="button"
+              className="btn btn-sm btn-ghost"
+              onClick={() => onOpenChange(false)}
+            >
+              {t("newProjectModal.cancel")}
+            </button>
+            <button
+              className="btn btn-sm btn-primary"
+              type="submit"
+              disabled={submitting || name.trim().length === 0}
+            >
+              {submitting ? t("newProjectModal.creating") : t("newProjectModal.create")}
+            </button>
+          </div>
+        </form>
       </DialogContent>
     </Dialog>
   );
