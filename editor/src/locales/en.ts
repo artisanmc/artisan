@@ -1,4 +1,13 @@
 export default {
+  projectLibrary: {
+    title: "Library",
+    close: "Close library",
+    items: "Items",
+    graphics: "Graphics",
+    catalogue: "Catalogue",
+    properties: "Properties",
+    backToGraphics: "Back to graphics",
+  },
   topbar: {
     refresh: "Refresh from the server",
     refreshConfirmTitle: "Discard your unsaved work?",

@@ -1,6 +1,6 @@
 import type { Project, ProjectId } from "@/domain/types";
 import { describe, expect, it } from "vitest";
-import { isMenuContext, selectionContext } from "./selectionContext";
+import { selectionContext } from "./selectionContext";
 
 const PID = "p1" as ProjectId;
 
@@ -73,17 +73,5 @@ describe("selectionContext", () => {
   });
   it("pas de project → none", () => {
     expect(selectionContext(undefined, new Set(["m1"]), null)).toEqual({ kind: "none" });
-  });
-});
-
-describe("isMenuContext", () => {
-  it("vrai pour un menu et pour un élément de menu", () => {
-    expect(isMenuContext(ctx(["m1"]))).toBe(true);
-    expect(isMenuContext(ctx(["grid"], "m1"))).toBe(true);
-  });
-  it("faux ailleurs — rien à y déposer", () => {
-    for (const ids of [[], ["c1"], ["d1"], ["m1", "c1"]]) {
-      expect(isMenuContext(ctx(ids))).toBe(false);
-    }
   });
 });

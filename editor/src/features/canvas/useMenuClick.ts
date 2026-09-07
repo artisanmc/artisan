@@ -68,9 +68,6 @@ export function useMenuClick({ projectId, menu, layout }: UseMenuClickArgs) {
       const { ids, set, toggle } = useSelectionStore.getState();
       if (additive) toggle(menu.id);
       else if (!ids.has(menu.id) || ids.size > 1) set([menu.id]);
-      // Selecting on the canvas reveals the Edit tab so the menu is
-      // immediately editable — no manual tab switch.
-      if (!additive) useUiStore.getState().setEditorTab("edit");
     },
     [menu.id, projectId, layout],
   );

@@ -1,6 +1,15 @@
 import type en from "./en";
 
 const fr: typeof en = {
+  projectLibrary: {
+    title: "Bibliothèque",
+    close: "Fermer la bibliothèque",
+    items: "Items",
+    graphics: "Ressources graphiques",
+    catalogue: "Catalogue",
+    properties: "Propriétés",
+    backToGraphics: "Retour aux ressources",
+  },
   topbar: {
     refresh: "Actualiser depuis le serveur",
     refreshConfirmTitle: "Abandonner le travail non enregistré ?",
@@ -141,8 +150,8 @@ const fr: typeof en = {
   menuProperties: {
     emptyMenuTitle: "Menu vide",
     emptyMenuHint:
-      "Glissez des items depuis la Library sur un slot, ou tapez sur un item pour l'« armer » puis tapez sur un slot.",
-    openLibrary: "Ouvrir la Library",
+      "Glissez un item depuis la bibliothèque sur un slot, ou sélectionnez un item puis tapez sur un slot.",
+    openLibrary: "Ouvrir la bibliothèque",
     titleSection: "Titre",
     titleLabel: "titre ({{lang}})",
     titleLabelFallback: "titre ({{lang}} — fallback)",

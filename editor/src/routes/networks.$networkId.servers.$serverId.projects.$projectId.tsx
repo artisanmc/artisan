@@ -1,4 +1,5 @@
 import { ProjectTopBarControls } from "@/components/ProjectTopBarControls";
+import { ProjectLibraryWorkspace } from "@/features/project/ProjectLibrary";
 import {
   Sheet,
   SheetBody,
@@ -378,7 +379,7 @@ export function ProjectCanvasPage() {
             </div>
           )}
           <div className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
-            {centerContent}
+            <ProjectLibraryWorkspace projectId={pId} active={tab === "overview"}>{centerContent}</ProjectLibraryWorkspace>
             {secondaryViews}
           </div>
         </div>
@@ -402,7 +403,7 @@ export function ProjectCanvasPage() {
             </Sheet>
           </div>
           <div className="relative min-h-0 flex-1 overflow-hidden">
-            {centerContent}
+            <ProjectLibraryWorkspace projectId={pId} active={tab === "overview"}>{centerContent}</ProjectLibraryWorkspace>
             {secondaryViews}
           </div>
         </div>

@@ -50,11 +50,3 @@ export function selectionContext(
   if (menu) return { kind: "menu", menuId: menu.id };
   return { kind: "unknown" };
 }
-
-/**
- * Les onglets Bibliothèque et Assets n'ont de sens que s'il y a un menu où
- * déposer un item ou un glyphe — pas dans une commande ni un dialogue.
- */
-export function isMenuContext(ctx: SelectionContext): boolean {
-  return ctx.kind === "menu" || ctx.kind === "element";
-}
