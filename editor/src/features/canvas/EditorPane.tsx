@@ -1,121 +1,32 @@
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 import type { ProjectId } from "@/domain/types";
-import { AssetsTab } from "@/features/assets/AssetsTab";
-import { useAssetInit } from "@/features/assets/useAssetInit";
 import { FlowCanvas } from "@/features/flow/FlowCanvas";
-import { cx } from "@/lib/cx";
-import { type EditorTab, useUiStore } from "@/state/uiStore";
-import { X } from "lucide-react";
-import { useState } from "react";
-import { useTranslation } from "react-i18next";
-import { CapturedItemsSection } from "./CapturedItemsSection";
-import { isMenuContext } from "@/features/project/selectionContext";
 import { dismissInspector } from "@/features/project/projectSettings";
-import { useInspector } from "@/features/project/useInspector";
-import { Library } from "./Library";
-import { useTextureInit } from "./useTextureInit";
+import { X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
-interface EditorPaneProps {
-  projectId: ProjectId;
-}
-
-/**
- * Resizable editor pane. Tab labels are flat with a sage underline on the
- * active one — the editor pane background uses the raised surface to feel
- * slightly lifted from the canvas.
- *
- * Les onglets sont CONTEXTUELS : Bibliothèque et Assets n'apparaissent que
- * s'il y a un menu où déposer un item ou un glyphe (`isMenuContext`). Le
- * contexte vient de `selectionContext`, la même dérivation que celle dont
- * `FlowCanvas` se sert pour choisir quoi éditer.
- */
-export function EditorPane({ projectId }: EditorPaneProps) {
-  useTextureInit(projectId);
-  useAssetInit(projectId);
-  const storedTab = useUiStore((s) => s.editorTab);
-  const setTab = useUiStore((s) => s.setEditorTab);
+export function EditorPane({ projectId }: { projectId: ProjectId }) {
   const { t } = useTranslation();
-  const { ctx } = useInspector(projectId);
-  const menuContext = isMenuContext(ctx);
-  // `editorTab` est persisté : l'onglet mémorisé peut ne pas exister dans le
-  // contexte courant. On l'ignore pour l'affichage SANS l'écraser, pour que la
-  // préférence reprenne dès qu'on resélectionne un menu.
-  const tab = menuContext || storedTab === "edit" ? storedTab : "edit";
 
   return (
-    // Plain fill — the surrounding container (SplitPane column on mobile, the
-    // FloatingEditorPane glass card on desktop) owns the surface/shape.
-    <div className="flex h-full min-h-0 flex-col">
-      <Tabs
-        value={tab}
-        onValueChange={(v) => setTab(v as EditorTab)}
-        className="flex h-full min-h-0 flex-col"
-      >
-        <TabsList className="flex h-[48px] shrink-0 items-center justify-start gap-1 px-3">
-          <TabsTrigger value="edit">{t("editorPane.tabEdit")}</TabsTrigger>
-          {menuContext && <TabsTrigger value="library">{t("editorPane.tabLibrary")}</TabsTrigger>}
-          {menuContext && <TabsTrigger value="assets">{t("editorPane.tabAssets")}</TabsTrigger>}
-          <button
-            type="button"
-            data-testid="editor-pane-close"
-            onClick={dismissInspector}
-            title={t("editorPane.close")}
-            aria-label={t("editorPane.close")}
-            className="ml-auto flex size-7 items-center justify-center rounded-[8px] text-[var(--text-faint)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
-          >
-            <X className="size-4" />
-          </button>
-        </TabsList>
-        <TabsContent value="edit" className="min-h-0 flex-1 overflow-hidden">
-          <FlowCanvas projectId={projectId} />
-        </TabsContent>
-        {menuContext && (
-          <TabsContent value="library" className="min-h-0 flex-1 overflow-hidden p-3">
-            <LibrarySubTabs projectId={projectId} />
-          </TabsContent>
-        )}
-        {menuContext && (
-          <TabsContent value="assets" className="h-full m-0 p-0">
-            <AssetsTab projectId={projectId} />
-          </TabsContent>
-        )}
-      </Tabs>
-    </div>
-  );
-}
-
-/**
- * The Library tab's own sub-tabs: Items (vanilla + custom materials),
- * Capturés (captured items + inventory mirror).
- * Local state — no persistence needed, the drag/arm gestures are identical
- * across both panes.
- */
-function LibrarySubTabs({ projectId }: { projectId: ProjectId }) {
-  const { t } = useTranslation();
-  const [sub, setSub] = useState<"items" | "captured">("items");
-  const chips: { key: typeof sub; label: string }[] = [
-    { key: "items", label: t("editorPane.subItems") },
-    { key: "captured", label: t("editorPane.subCaptured") },
-  ];
-  return (
-    <div className="flex h-full min-h-0 flex-col gap-2.5">
-      <div className="flex shrink-0 gap-1">
-        {chips.map((c) => (
-          <button
-            key={c.key}
-            type="button"
-            data-testid={`library-sub-${c.key}`}
-            onClick={() => setSub(c.key)}
-            className={cx("chip h-7 px-3 text-[11px]", sub === c.key && "is-active")}
-          >
-            {c.label}
-          </button>
-        ))}
+    <section className="flex h-full min-h-0 flex-col" aria-label={t("projectLibrary.properties")}>
+      <div className="flex h-12 shrink-0 items-center justify-between px-3">
+        <h2 className="text-sm font-medium">{t("projectLibrary.properties")}</h2>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          data-testid="editor-pane-close"
+          onClick={dismissInspector}
+          aria-label={t("editorPane.close")}
+          title={t("editorPane.close")}
+        >
+          <X className="size-4" />
+        </Button>
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        {sub === "items" ? <Library /> : null}
-        {sub === "captured" ? <CapturedItemsSection projectId={projectId} /> : null}
+      <div className="min-h-0 flex-1 overflow-hidden">
+        <FlowCanvas projectId={projectId} />
       </div>
-    </div>
+    </section>
   );
 }

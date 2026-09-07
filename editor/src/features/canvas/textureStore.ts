@@ -8,7 +8,7 @@ interface TextureState {
   byMaterial: Record<string, string>;       // vanilla: lowercase material id → texture path
   customByMaterial: Record<string, string>; // custom: lowercase material id → full URL
   renderedByMaterial: Record<string, string>; // 3D render data URLs, set after Three.js render
-  // Library UI state — populated by useTextureInit (always mounted in EditorPane)
+  // Library UI state — populated by useTextureInit in ProjectLibraryWorkspace
   libraryItems: LibraryItem[];
   libraryCustomData: CustomItemsData;
   libraryBundleReady: boolean;

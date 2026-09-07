@@ -2,6 +2,7 @@ import { LinkedServersDropdown } from "@/components/LinkedServersDropdown";
 import { RefreshProjectButton } from "@/components/RefreshProjectButton";
 import { TopBarKebabMenu } from "@/components/TopBarKebabMenu";
 import { openProjectSettings } from "@/features/project/projectSettings";
+import { ProjectLibraryButton } from "@/features/project/ProjectLibrary";
 import {
   Dialog,
   DialogContent,
@@ -98,6 +99,8 @@ export function ProjectTopBarControls({
   const displayName = projectName ?? project.name;
   const { t } = useTranslation();
   const panelOpen = useUiStore((s) => s.projectPanelOpen);
+  const navigate = useNavigate();
+  const { tab } = useSearch({ strict: false }) as { tab?: string };
 
   // Toggles the persistent left sidebar (ProjectPanel tree). The canvas stays
   // mounted regardless of the active view, so this is a plain open/close toggle.
@@ -118,6 +121,11 @@ export function ProjectTopBarControls({
         {panelOpen ? <PanelLeftClose className="size-4" /> : <PanelLeftOpen className="size-4" />}
       </button>
       <WorkspaceViewNav project={project} />
+      <ProjectLibraryButton
+        projectId={projectId}
+        active={!tab || tab === "overview"}
+        onOpen={() => navigate({ to: ".", search: (prev) => ({ ...(prev as object), tab: undefined }) as never })}
+      />
       <div className="flex min-w-0 flex-1 items-center gap-2.5 truncate px-1 font-mono text-[13px] text-[var(--text)]">
         <span className="truncate">{displayName}</span>
       </div>

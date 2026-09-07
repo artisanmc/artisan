@@ -4,10 +4,6 @@ import { type SupportedLang, detectEditorLang } from "@/i18n";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-// "sets" was briefly a top-level tab (2026-07-17) — now a Library sub-tab; the
-// persist merge below coerces any unknown persisted value back to "edit".
-export type EditorTab = "edit" | "library" | "assets";
-
 /**
  * Best-effort detection of the user's preferred language from the
  * browser. Returns just the primary subtag (e.g. "en" from "en-US")
@@ -78,9 +74,6 @@ interface UiState {
   /** Width (px) of the editor pane when laid out as a right sidebar (desktop). */
   editorPaneWidth: number;
   setEditorPaneWidth: (w: number) => void;
-  /** Active tab inside the editor pane. */
-  editorTab: EditorTab;
-  setEditorTab: (t: EditorTab) => void;
   /**
    * Le panneau d'édition est l'inspecteur de la sélection : il n'existe que
    * s'il y a quelque chose à inspecter. Les paramètres du PROJECT, eux, ne
@@ -245,8 +238,6 @@ export const useUiStore = create<UiState>()(
       setFlowCanvasHeight: (h) => set({ flowCanvasHeight: h }),
       editorPaneWidth: 420,
       setEditorPaneWidth: (w) => set({ editorPaneWidth: w }),
-      editorTab: "edit",
-      setEditorTab: (t) => set({ editorTab: t }),
       projectSettingsOpen: false,
       setProjectSettingsOpen: (open) => set({ projectSettingsOpen: open }),
       armedMaterial: null,
@@ -404,25 +395,20 @@ export const useUiStore = create<UiState>()(
         flowCanvasHeight: state.flowCanvasHeight,
         editorPaneWidth: state.editorPaneWidth,
         assistantPaneWidth: state.assistantPaneWidth,
-        editorTab: state.editorTab,
         projectPanelOpen: state.projectPanelOpen,
         canvasMode: state.canvasMode,
         // Persisté (contrairement à canvasViewports) : le cadrage de la vue
         // individuelle suit l'utilisateur, page à page et après rechargement.
         documentViewport: state.documentViewport,
       }),
-      // Coerce legacy persisted tab values ("code", "props") to "edit" — the
-      // 3-tab structure was replaced by 2 tabs (Edit + Library). Also push
-      // the persisted editor language into i18next so the very first paint
-      // uses the right locale (avoids an EN flash when the user is on FR).
+      // Discard retired inspector tabs and restore the editor language.
       merge: (persisted, current) => {
-        const p = (persisted ?? {}) as Partial<UiState>;
-        const t: EditorTab =
-          p.editorTab === "library" ? "library" : p.editorTab === "assets" ? "assets" : "edit";
+        const p = { ...(persisted ?? {}) } as Partial<UiState> & { editorTab?: unknown };
+        delete p.editorTab;
         if (p.editorLang) {
           import("@/i18n").then(({ default: i18n }) => i18n.changeLanguage(p.editorLang));
         }
-        return { ...current, ...p, editorTab: t };
+        return { ...current, ...p };
       },
     },
   ),

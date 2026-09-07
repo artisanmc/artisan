@@ -2,7 +2,6 @@ import type { Dialog, ProjectId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
 import { useAlignmentStore } from "@/state/alignmentStore";
 import { useSelectionStore } from "@/state/selectionStore";
-import { useUiStore } from "@/state/uiStore";
 import type Konva from "konva";
 import { useCallback } from "react";
 import { Group, Rect, Text } from "react-konva";
@@ -42,7 +41,6 @@ export function DialogGroup({ projectId, dialog, position }: DialogGroupProps) {
       else if (!ids.has(dialog.id) || ids.size > 1) set([dialog.id]);
       // Selecting on the canvas opens the Edit tab so the chosen element is
       // immediately editable — no manual tab switch.
-      if (!additive) useUiStore.getState().setEditorTab("edit");
     },
     [dialog.id],
   );
