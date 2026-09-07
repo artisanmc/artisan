@@ -36,7 +36,7 @@ export function ProjectLibraryButton({
       }}
     >
       <LibraryIcon className="size-4" />
-      <span className="hidden xl:inline">{t("projectLibrary.title")}</span>
+      <span>{t("projectLibrary.title")}</span>
     </Button>
   );
 }
@@ -89,7 +89,16 @@ export function ProjectLibraryWorkspace({
       <SplitPane
         orientation={horizontal ? "horizontal" : "vertical"}
         secondaryPosition={horizontal ? "start" : "end"}
-        primary={<div className="relative h-full min-h-0 min-w-0">{children}</div>}
+        primary={
+          <div className="relative h-full min-h-0 min-w-0">
+            {children}
+            {active && !open && (
+              <div className="absolute left-3 top-3 z-30 rounded-[var(--r-md)] bg-[var(--surface)] p-1 shadow-[var(--shadow-sm)]">
+                <ProjectLibraryButton projectId={projectId} />
+              </div>
+            )}
+          </div>
+        }
         secondary={
           open ? (
             <aside className="h-full min-h-0 bg-[var(--surface-raised)]">
@@ -119,24 +128,33 @@ function ProjectLibraryPanel({ projectId }: { projectId: ProjectId }) {
 
   return (
     <section className="flex h-full min-h-0 flex-col" aria-label={t("projectLibrary.title")}>
-      <div className="flex h-12 shrink-0 items-center justify-between px-3">
-        <h2 className="text-sm font-medium">{t("projectLibrary.title")}</h2>
-        <Button variant="ghost" size="icon" onClick={close} aria-label={t("projectLibrary.close")}>
-          <X className="size-4" />
-        </Button>
-      </div>
       <Tabs
         value={category}
         onValueChange={(v) => setCategory(v as LibraryCategory)}
         className="flex min-h-0 flex-1 flex-col"
       >
-        <TabsList className="shrink-0 px-3">
-          <TabsTrigger value="items">{t("projectLibrary.items")}</TabsTrigger>
-          <TabsTrigger value="graphics">{t("projectLibrary.graphics")}</TabsTrigger>
-        </TabsList>
+        <div className="flex shrink-0 items-center gap-1 px-2 pt-2">
+          <TabsList className="min-w-0 flex-1">
+            <TabsTrigger value="items" className="px-2">
+              {t("projectLibrary.items")}
+            </TabsTrigger>
+            <TabsTrigger value="graphics" className="px-2">
+              {t("projectLibrary.graphics")}
+            </TabsTrigger>
+          </TabsList>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-8 shrink-0"
+            onClick={close}
+            aria-label={t("projectLibrary.close")}
+          >
+            <X className="size-4" />
+          </Button>
+        </div>
         <TabsContent
           value="items"
-          className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden p-3"
+          className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-hidden px-2 pb-2 pt-1"
         >
           <div className="flex shrink-0 gap-1">
             <Button

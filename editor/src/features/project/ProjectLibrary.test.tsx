@@ -29,13 +29,24 @@ beforeEach(() => {
 function Workspace({ projectId = PID }: { projectId?: ProjectId }) {
   return (
     <>
-      <ProjectLibraryButton projectId={projectId} />
       <ProjectLibraryWorkspace projectId={projectId}>
         <div>Canvas and properties</div>
       </ProjectLibraryWorkspace>
     </>
   );
 }
+
+it("hides the canvas tool while open and restores it after closing with the cross", async () => {
+  render(<Workspace />);
+  const button = screen.getByRole("button", { name: /bibliothèque|library/i });
+  await userEvent.click(button);
+  expect(screen.queryByRole("button", { name: /^bibliothèque$|^library$/i })).toBeNull();
+  await userEvent.click(
+    screen.getByRole("button", { name: /fermer la bibliothèque|close library/i }),
+  );
+  expect(screen.queryByText("Item catalogue")).toBeNull();
+  expect(screen.getByRole("button", { name: /^bibliothèque$|^library$/i })).toBeInTheDocument();
+});
 
 it("opens the project library without a selection, beside the existing workspace", async () => {
   const user = userEvent.setup();
