@@ -169,6 +169,23 @@ Deux constats ont débloqué la décision :
 > ancienne peut produire des conflits sur beaucoup de fichiers d'un coup, d'où
 > l'affichage franc de l'âge du brouillon.
 
+> **Précision du 2026-09-07 — résultats de migration de l'assistant.**
+> Le flux reprenable conserve côté backend un manifeste de sources (identifiants,
+> chemins et hashes), les étapes et les propositions dérivées produites par l'IA.
+> Ce sont des checkpoints de l'assistant, pas une copie du Project ni un store
+> faisant autorité. Aucun cache permanent des fichiers zMenu bruts sélectionnés,
+> aucune working copy complète du Project n'est ajouté par ce flux.
+>
+> Les propositions restent liées à leur conversation, propriétaire, Project et
+> serveur ; leur lecture ou leur rejeu ne publie rien. L'utilisateur les applique
+> explicitement à son brouillon, puis **Enregistrer** utilise le chemin existant
+> vers le disque serveur. Une source modifiée exige une nouvelle analyse ; une
+> cible locale modifiée n'est jamais écrasée par l'application d'une proposition.
+>
+> Cette extension des [sources d'import serveur](../superpowers/specs/2026-09-04-assistant-server-import-sources-design.md)
+> autorise des résultats de conversion durables sans modifier l'autorité du disque
+> ni transformer les sources importées en sauvegarde backend.
+
 ## Ce qui disparaît
 
 `projects.filesJson` · `project_commits` / `project_branches` / `projectJournal`

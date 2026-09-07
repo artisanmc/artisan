@@ -1,6 +1,30 @@
 # Migration zMenu progressive et reprenable
 
-Statut : approuvé, implémentation en cours. Phases 1–4 terminées et vérifiées ; interface et vérification finale à terminer.
+Statut : phases 1–6 terminées et vérifications automatisées validées ; backend
+local déployé. Limite de validation : aucun smoke réel DeepSeek effectué.
+
+### Vérifications finales (2026-09-07)
+
+- Backend assistant + usage : **169 tests réussis**, **1 smoke réel ignoré**,
+  **0 échec**, 693 assertions dans 22 fichiers, via le wrapper `bun run test`.
+- Éditeur : suite ciblée de **44 tests réussis** dans 6 fichiers ; après le
+  dernier correctif de sonde de stockage, suite du helper seule **8 tests réussis**
+  (elle en comptait 7 dans la suite précédente, sans nouveau total global exécuté).
+- Build de production éditeur et vérification TypeScript complète réussis.
+  Documentation : build réussi, **21 pages**.
+- Playwright avec fournisseur simulé : scénario de **35 menus liés**, application
+  des 7 premiers, coupure et rechargement avec suivi GET uniquement, reprise des
+  28 restants et récupération des 35 résultats. Modification locale conservée ;
+  aucune requête inattendue, aucun appel au vrai fournisseur et aucune publication.
+  Exécution finale : **1 test réussi en 16,6 s**. Captures desktop et mobile
+  revues et approuvées, sans débordement ni indicateur de travail bloqué.
+- Aucun smoke réel DeepSeek effectué : les tests simulés ne valident pas le
+  fournisseur en production et n'établissent pas la cause d'une coupure réelle.
+- Déploiement local : backend seul redémarré avec succès, quatre tables de
+  migration confirmées, `/health` répond 200 et une route migration sans
+  authentification répond 401. Aucun redémarrage du plugin/Minecraft ni appel à
+  un vrai fournisseur. Ces changements concernent le backend et l'éditeur, sans
+  nouveau JAR requis par cette migration reprenable.
 
 ## Objectif
 
