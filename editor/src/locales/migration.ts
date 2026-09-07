@@ -1,0 +1,210 @@
+export const migrationEn = {
+	applyAll: "Apply available results",
+	title: "zMenu migration",
+	selection: "Migrate this selection",
+	loading: "Loading migrations…",
+	working: "Working…",
+	analyzeHelp:
+		"Keep the complete selection. Artisan indexes links, then converts one menu at a time. Analysis does not call the AI.",
+	budget: "Accepted budget (credits)",
+	budgetHelp:
+		"Generation stops between calls when the budget is reached. The last call may exceed it. Starting or resuming can consume credits.",
+	analyze: "Analyze selection",
+	history: "Previous migrations",
+	menus: "menus",
+	start: "Start migration",
+	resume: "Resume migration",
+	pause: "Pause after this menu",
+	cancel: "Cancel migration",
+	progress:
+		"{{generated}} / {{total}} generated · {{applied}} applied to this draft",
+	spent: "{{used}} / {{max}} accepted credits used",
+	active: "Converting:",
+	reanalyze: "Review sources and target names",
+	reanalyzeHelp:
+		"Correct conflicting names, then create a new analysis. Previous results remain available in history; this does not resume the old migration.",
+	analyzeAgain: "Create new analysis",
+	draftHelp:
+		"Apply results to your local draft, review them, then use Save to update the server. Source zMenu files are never changed.",
+	apply: "Apply to draft",
+	verify: "Review required.",
+	storageWarning:
+		"The browser cannot preserve your draft. Generated proposals remain available here; save applied changes before leaving.",
+	status: {
+		analyzing: "Analyzing selection",
+		ready: "Ready to start",
+		running: "Migration in progress",
+		paused: "Paused — resume explicitly",
+		blocked: "Selection needs attention",
+		completed: "Generation complete — review and apply results",
+		cancelled: "Cancelled — existing results kept",
+	},
+	applyStatus: {
+		available: "Generated",
+		already_applied: "Applied to this draft",
+		conflict: "Local changes — not overwritten",
+		blocked: "Cannot apply safely",
+	},
+	errors: {
+		migration_error:
+			"The operation could not finish. Check the connection and try the action again.",
+		invalid_budget:
+			"Enter a whole-number budget between 1 and 1,000,000 credits.",
+		revision_conflict:
+			"The migration changed elsewhere. Its latest state has been loaded; choose the action again.",
+		request_conflict:
+			"This analysis request changed. Review the selection before trying again.",
+		source_changed:
+			"A source file changed. Review the sources and create a new analysis.",
+		source_missing: "A selected source is no longer available.",
+		missing_reference: "A linked source was not selected; review this link.",
+		dynamic_reference: "This dynamic link needs manual review.",
+		external_reference:
+			"This link targets an external plugin and needs review.",
+		ambiguous_reference: "Several sources match this link; review it manually.",
+		target_collision:
+			"Several files use the same target name. Choose unique names below.",
+		target_exists: "This target already exists. Choose a different name below.",
+		invalid_target_id:
+			"Use letters, numbers, underscores or hyphens for the target name.",
+		unsupported_source:
+			"This file is not recognized as a menu or shared zMenu source.",
+		commands_manual_verification:
+			"Command bindings must be migrated manually; only menus are generated here.",
+		missing_generated_reference:
+			"A source link is absent from the generated menu. Review it before saving.",
+		provider_timeout:
+			"The AI took too long. Completed menus are retained; resume when ready.",
+		provider_network_error:
+			"The connection to the AI was interrupted. Completed menus are retained.",
+		provider_error:
+			"The AI returned an unusable response. Completed menus are retained.",
+		provider_output_limit:
+			"This menu's response exceeded the limit; simplify the source or review it manually.",
+		context_budget_exceeded:
+			"This menu and its shared sources exceed the context limit. Review large shared files.",
+		migration_budget_exceeded:
+			"The accepted budget is exhausted. Existing results remain available.",
+		step_budget_exceeded:
+			"The per-menu budget was reached. Completed results remain available.",
+		insufficient_credits: "There are not enough credits to continue.",
+		lease_expired:
+			"The previous worker stopped. Resume explicitly to continue.",
+		model_unavailable: "The selected model is unavailable.",
+		project_scope_changed:
+			"The Project moved to another server or network. Open it again.",
+		forbidden: "You no longer have access to this Project.",
+		conflict:
+			"Local changes conflict with this result. Nothing was overwritten.",
+		blocked: "This result cannot be applied safely.",
+		invalid_menu: "The generated menu could not be validated.",
+		import_server_offline: "The server must be online to read these sources.",
+		server_offline: "The server must be online to read these sources.",
+	},
+};
+export const migrationFr = {
+	applyAll: "Appliquer les résultats disponibles",
+	title: "Migration zMenu",
+	selection: "Migrer cette sélection",
+	loading: "Chargement des migrations…",
+	working: "Opération en cours…",
+	analyzeHelp:
+		"Gardez toute la sélection. Artisan indexe les liens, puis convertit un menu à la fois. L’analyse ne fait pas appel à l’IA.",
+	budget: "Budget accepté (crédits)",
+	budgetHelp:
+		"La génération s’arrête entre deux appels lorsque le budget est atteint. Le dernier appel peut le dépasser. Démarrer ou reprendre peut consommer des crédits.",
+	analyze: "Analyser la sélection",
+	history: "Migrations précédentes",
+	menus: "menus",
+	start: "Démarrer la migration",
+	resume: "Reprendre la migration",
+	pause: "Pause après ce menu",
+	cancel: "Annuler la migration",
+	progress:
+		"{{generated}} / {{total}} générés · {{applied}} appliqués à ce brouillon",
+	spent: "{{used}} / {{max}} crédits acceptés utilisés",
+	active: "Conversion :",
+	reanalyze: "Revoir les sources et les noms de destination",
+	reanalyzeHelp:
+		"Corrigez les noms en conflit, puis créez une nouvelle analyse. Les résultats précédents restent dans l’historique ; cela ne reprend pas l’ancienne migration.",
+	analyzeAgain: "Créer une nouvelle analyse",
+	draftHelp:
+		"Appliquez les résultats au brouillon local, vérifiez-les, puis utilisez Enregistrer pour modifier le serveur. Les fichiers zMenu sources ne sont jamais modifiés.",
+	apply: "Appliquer au brouillon",
+	verify: "À vérifier.",
+	storageWarning:
+		"Le navigateur ne peut pas conserver votre brouillon. Les propositions générées restent disponibles ici ; enregistrez les changements appliqués avant de partir.",
+	status: {
+		analyzing: "Analyse de la sélection",
+		ready: "Prêt à démarrer",
+		running: "Migration en cours",
+		paused: "En pause — reprise manuelle",
+		blocked: "Sélection à corriger",
+		completed: "Génération terminée — vérifiez et appliquez les résultats",
+		cancelled: "Annulée — résultats existants conservés",
+	},
+	applyStatus: {
+		available: "Généré",
+		already_applied: "Appliqué à ce brouillon",
+		conflict: "Modifications locales — aucun écrasement",
+		blocked: "Application bloquée par sécurité",
+	},
+	errors: {
+		migration_error:
+			"L’opération n’a pas abouti. Vérifiez la connexion puis réessayez l’action.",
+		invalid_budget: "Saisissez un budget entier entre 1 et 1 000 000 crédits.",
+		revision_conflict:
+			"La migration a changé ailleurs. Son dernier état a été chargé ; choisissez à nouveau l’action.",
+		request_conflict:
+			"La demande d’analyse a changé. Vérifiez la sélection avant de réessayer.",
+		source_changed:
+			"Un fichier source a changé. Vérifiez les sources puis créez une nouvelle analyse.",
+		source_missing: "Un fichier sélectionné n’est plus accessible.",
+		missing_reference:
+			"Une source liée n’est pas sélectionnée ; vérifiez ce lien.",
+		dynamic_reference: "Ce lien dynamique doit être vérifié manuellement.",
+		external_reference: "Ce lien vise un plugin externe et doit être vérifié.",
+		ambiguous_reference:
+			"Plusieurs sources correspondent à ce lien ; vérifiez-le manuellement.",
+		target_collision:
+			"Plusieurs fichiers ont le même nom de destination. Choisissez des noms uniques ci-dessous.",
+		target_exists:
+			"Cette destination existe déjà. Choisissez un autre nom ci-dessous.",
+		invalid_target_id:
+			"Utilisez lettres, chiffres, tirets ou underscores pour le nom de destination.",
+		unsupported_source:
+			"Ce fichier n’est pas reconnu comme menu ou source partagée zMenu.",
+		commands_manual_verification:
+			"Les commandes doivent être migrées manuellement ; seuls les menus sont générés ici.",
+		missing_generated_reference:
+			"Un lien source est absent du menu généré. Vérifiez-le avant d’enregistrer.",
+		provider_timeout:
+			"L’IA a mis trop de temps. Les menus terminés sont conservés ; reprenez quand vous le souhaitez.",
+		provider_network_error:
+			"La connexion à l’IA a été interrompue. Les menus terminés sont conservés.",
+		provider_error:
+			"L’IA a renvoyé une réponse inutilisable. Les menus terminés sont conservés.",
+		provider_output_limit:
+			"La réponse de ce menu dépasse la limite ; simplifiez la source ou vérifiez-la manuellement.",
+		context_budget_exceeded:
+			"Ce menu et ses sources partagées dépassent la limite de contexte. Vérifiez les gros fichiers partagés.",
+		migration_budget_exceeded:
+			"Le budget accepté est épuisé. Les résultats existants restent disponibles.",
+		step_budget_exceeded:
+			"Le budget par menu a été atteint. Les résultats terminés restent disponibles.",
+		insufficient_credits: "Il n’y a pas assez de crédits pour continuer.",
+		lease_expired:
+			"Le traitement précédent s’est arrêté. Reprenez manuellement pour continuer.",
+		model_unavailable: "Le modèle sélectionné n’est pas disponible.",
+		project_scope_changed:
+			"Le Project a changé de serveur ou de réseau. Ouvrez-le à nouveau.",
+		forbidden: "Vous n’avez plus accès à ce Project.",
+		conflict:
+			"Des modifications locales sont en conflit avec ce résultat. Rien n’a été écrasé.",
+		blocked: "Ce résultat ne peut pas être appliqué en toute sécurité.",
+		invalid_menu: "Le menu généré n’a pas pu être validé.",
+		import_server_offline:
+			"Le serveur doit être en ligne pour lire ces sources.",
+		server_offline: "Le serveur doit être en ligne pour lire ces sources.",
+	},
+};
