@@ -11,7 +11,6 @@ import {
 import { WorkspaceView } from "@/components/ui/workspace-view";
 import type { ElementId, MenuId, ProjectId } from "@/domain/types";
 import { AssistantBody } from "@/features/assistant/AssistantBody";
-import { CanvasWithInspector } from "@/features/project/CanvasWithInspector";
 import { LIBRARY_DRAG_PREFIX } from "@/features/canvas/Library";
 import { Stage } from "@/features/canvas/Stage";
 import { OPEN_ELEMENT_EVENT } from "@/features/canvas/canvasEvents";
@@ -27,8 +26,10 @@ import { runExportZip } from "@/features/export/runExportZip";
 import { pickProjectZipForImport, runImportZip } from "@/features/export/runImportZip";
 import { STATE_DROP_PREFIX } from "@/features/flow/FlowCanvas";
 import { PatternsGallery } from "@/features/help/PatternsGallery";
+import { CanvasWithInspector } from "@/features/project/CanvasWithInspector";
 import { ProjectLoadingSkeleton } from "@/features/project/ProjectLoadingSkeleton";
 import { ProjectPanel } from "@/features/project/ProjectPanel";
+import { ProjectWorkspacePanels } from "@/features/project/ProjectWorkspacePanels";
 import { useProjectLoader } from "@/features/project/useProjectLoader";
 import { useWorkspaceTabShortcuts } from "@/features/project/useWorkspaceTabShortcuts";
 import { SearchPalette } from "@/features/search/SearchPalette";
@@ -108,12 +109,12 @@ export function ProjectCanvasPage() {
     navigate({ to: ".", search: (prev) => ({ ...(prev as object), tab: undefined }) });
   const flowCanvasHeight = useUiStore((s) => s.flowCanvasHeight);
   const setFlowCanvasHeight = useUiStore((s) => s.setFlowCanvasHeight);
-  const projectPanelOpen = useUiStore((s) => s.projectPanelOpen);
   const isDesktop = useIsDesktop();
   const { t } = useTranslation();
   // Hooks must come before any conditional return — keep here, near the other
   // routing hooks, so React's call order stays stable across re-renders.
   const childMatches = useChildMatches();
+  const { documentId } = useParams({ strict: false }) as { documentId?: string };
 
   useGlobalSearchShortcut();
   useWorkspaceTabShortcuts();
@@ -344,7 +345,12 @@ export function ProjectCanvasPage() {
         title={t("assistant.title")}
       >
         <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col">
-          <AssistantBody projectId={pId} networkId={networkId} serverId={serverId} serverOnline={!offline} />
+          <AssistantBody
+            projectId={pId}
+            networkId={networkId}
+            serverId={serverId}
+            serverOnline={!offline}
+          />
         </div>
       </WorkspaceView>
     </>
@@ -369,22 +375,14 @@ export function ProjectCanvasPage() {
     // content collapses to its own height and the surface shows through below.
     <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
       {isDesktop ? (
-        // Persistent left column (ProjectPanel tree) | switchable center. The
-        // sidebar stays put across every view; only the center swaps between the
-        // canvas, a document detail, and the secondary views.
-        <div className="flex h-full min-h-0 w-full">
-          {projectPanelOpen && (
-            <div className="h-full w-[240px] shrink-0 min-w-0 overflow-hidden border-r border-[var(--border-soft)]">
-              <ProjectPanel projectId={pId} />
-            </div>
-          )}
-          <div className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
+        <ProjectWorkspacePanels projectId={pId} active={tab === "overview" && (!documentId || !!project?.menus.some((menu) => menu.id === documentId))}>
+          <div className="relative h-full min-h-0 min-w-0 flex-1 overflow-hidden">
             <ProjectLibraryWorkspace projectId={pId} active={tab === "overview"}>{centerContent}</ProjectLibraryWorkspace>
             {secondaryViews}
           </div>
-        </div>
+        </ProjectWorkspacePanels>
       ) : (
-        // Mobile: the ProjectPanel lives in a left drawer (the desktop column
+        // Mobile: the ProjectPanel lives in a right drawer (the desktop column
         // doesn't fit). A tappable trigger row sits above the switchable center.
         <div className="flex h-full flex-col">
           <div className="flex h-10 shrink-0 items-center border-b border-[var(--border-soft)] px-2">
@@ -392,7 +390,7 @@ export function ProjectCanvasPage() {
               <SheetTrigger className="btn btn-ghost btn-sm inline-flex items-center gap-1.5">
                 <PanelLeft className="size-4" /> {t("projectPanel.openPanel")}
               </SheetTrigger>
-              <SheetContent side="left" className="w-[280px] max-w-[85%] p-0">
+              <SheetContent side="right" className="w-[280px] max-w-[85%] p-0">
                 <SheetHeader>
                   <SheetTitle>{t("projectPanel.openPanel")}</SheetTitle>
                 </SheetHeader>

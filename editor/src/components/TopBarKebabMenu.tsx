@@ -9,6 +9,7 @@ import { MoreVertical } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 interface TopBarKebabMenuProps {
+  onRefresh?: () => void;
   onOpenProjectSettings: () => void;
   onImport: () => void;
   onExportZip: () => void;
@@ -17,6 +18,7 @@ interface TopBarKebabMenuProps {
 }
 
 export function TopBarKebabMenu({
+  onRefresh,
   onOpenProjectSettings,
   onImport,
   onExportZip,
@@ -37,6 +39,9 @@ export function TopBarKebabMenu({
           {t("projectProperties.title")}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
+        {onRefresh && (
+          <DropdownMenuItem onSelect={onRefresh}>{t("topbar.refresh")}</DropdownMenuItem>
+        )}
         <DropdownMenuItem onSelect={onExportZip}>{t("topbar.exportZip")}</DropdownMenuItem>
         <DropdownMenuItem onSelect={onImport}>{t("topbar.import")}</DropdownMenuItem>
         <DropdownMenuItem onSelect={onOpenPatterns}>{t("patterns.title")}</DropdownMenuItem>

@@ -1,8 +1,6 @@
 import { LinkedServersDropdown } from "@/components/LinkedServersDropdown";
 import { RefreshProjectButton } from "@/components/RefreshProjectButton";
 import { TopBarKebabMenu } from "@/components/TopBarKebabMenu";
-import { openProjectSettings } from "@/features/project/projectSettings";
-import { ProjectLibraryButton } from "@/features/project/ProjectLibrary";
 import {
   Dialog,
   DialogContent,
@@ -31,7 +29,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { Project, ProjectId } from "@/domain/types";
+import { ProjectLibraryButton } from "@/features/project/ProjectLibrary";
 import { isDirty } from "@/features/project/draft";
+import { openProjectSettings } from "@/features/project/projectSettings";
 import { type ConflictChoice, applyResolutions } from "@/features/project/resolveConflicts";
 import { adoptDiskIntoProject, saveProjectToDisk } from "@/features/project/saveProjectToDisk";
 import { WORKSPACE_VIEW_TABS, type WorkspaceViewTab } from "@/features/project/workspaceTabs";
@@ -45,11 +45,12 @@ import { useProjectDraftStore } from "@/state/projectDraftStore";
 import { useUiStore } from "@/state/uiStore";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import {
+  ChevronDown,
   Database as DatabaseIcon,
   Languages as LanguagesIcon,
   LayoutDashboard,
-  PanelLeftClose,
-  PanelLeftOpen,
+  PanelRightClose,
+  PanelRightOpen,
   Redo2,
   Search,
   Sparkles,
@@ -102,50 +103,89 @@ export function ProjectTopBarControls({
   const navigate = useNavigate();
   const { tab } = useSearch({ strict: false }) as { tab?: string };
 
-  // Toggles the persistent left sidebar (ProjectPanel tree). The canvas stays
+  // Toggles the fixed right Elements column. The canvas stays
   // mounted regardless of the active view, so this is a plain open/close toggle.
   const onElementsClick = () => {
     useUiStore.getState().toggleProjectPanel();
   };
 
   return (
-    <div className="flex h-[52px] shrink-0 items-center gap-2 pl-14 pr-3 lg:px-5">
-      <button
-        type="button"
-        onClick={onElementsClick}
-        aria-label={t("projectPanel.openPanel")}
-        aria-pressed={panelOpen}
-        className="hidden size-8 shrink-0 items-center justify-center rounded-[10px] text-[var(--text-mut)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)] lg:inline-flex"
-        title={t("projectPanel.openPanel")}
+    <header className="shrink-0 py-2 pl-14 pr-3">
+      <div
+        data-testid="project-header"
+        className="flex min-h-11 min-w-0 flex-wrap items-center gap-x-3 gap-y-1 rounded-[var(--r-lg)] bg-[var(--surface)] px-2 py-1 md:flex-nowrap"
       >
-        {panelOpen ? <PanelLeftClose className="size-4" /> : <PanelLeftOpen className="size-4" />}
-      </button>
-      <WorkspaceViewNav project={project} />
-      <ProjectLibraryButton
-        projectId={projectId}
-        active={!tab || tab === "overview"}
-        onOpen={() => navigate({ to: ".", search: (prev) => ({ ...(prev as object), tab: undefined }) as never })}
-      />
-      <div className="flex min-w-0 flex-1 items-center gap-2.5 truncate px-1 font-mono text-[13px] text-[var(--text)]">
-        <span className="truncate">{displayName}</span>
+        <div className="flex min-w-0 max-w-56 items-center gap-2">
+          <span
+            className="min-w-0 truncate px-1 text-sm font-medium text-[var(--text)]"
+            title={displayName}
+          >
+            {displayName}
+          </span>
+          <div className="hidden md:block">
+            <LinkedServersDropdown
+              networkId={networkId}
+              currentServerKeyId={project.serverKeyId ?? undefined}
+            />
+          </div>
+        </div>
+        <div data-testid="project-view-navigation" className="min-w-0 flex-1 overflow-x-auto">
+          <WorkspaceViewNav project={project} />
+        </div>
+        <div data-testid="project-editing-tools" className="flex shrink-0 items-center gap-1">
+          {(!tab || tab === "overview") && (
+            <>
+              <ProjectLibraryButton
+                projectId={projectId}
+                active
+                onOpen={() =>
+                  navigate({
+                    to: ".",
+                    search: (prev) => ({ ...(prev as object), tab: undefined }) as never,
+                  })
+                }
+              />
+              <UndoRedoButtons />
+            </>
+          )}
+          {(!tab || tab === "overview" || tab === "translations") && (
+            <LangSwitcher project={project} />
+          )}
+        </div>
+        <div className="flex shrink-0 items-center gap-1">
+          <SearchButton />
+          <SaveControls projectId={projectId} networkId={networkId ?? null} />
+          <RefreshProjectButton
+            projectId={projectId}
+            renderTrigger={(onRefresh) => (
+              <TopBarKebabMenu
+                onRefresh={onRefresh}
+                onOpenProjectSettings={openProjectSettings}
+                onImport={onImport ?? (() => {})}
+                onExportZip={onExportZip ?? (() => {})}
+                onOpenPatterns={onOpenPatterns ?? (() => {})}
+                onDelete={onDelete ?? (() => {})}
+              />
+            )}
+          />
+        </div>
+        <button
+          type="button"
+          onClick={onElementsClick}
+          data-project-elements-toggle
+          aria-label={t("projectPanel.openPanel")}
+          aria-pressed={panelOpen}
+          className="hidden size-8 shrink-0 items-center justify-center rounded-[10px] text-[var(--text-mut)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)] lg:inline-flex"
+          title={t("projectPanel.openPanel")}
+        >
+          {panelOpen ? (
+            <PanelRightClose className="size-4" />
+          ) : (
+            <PanelRightOpen className="size-4" />
+          )}
+        </button>
       </div>
-      <LinkedServersDropdown
-        networkId={networkId}
-        currentServerKeyId={project.serverKeyId ?? undefined}
-      />
-      <LangSwitcher project={project} />
-      <UndoRedoButtons />
-      <SearchButton />
-      <RefreshProjectButton projectId={projectId} />
-      <SaveControls projectId={projectId} networkId={networkId ?? null} />
-      <TopBarKebabMenu
-        onOpenProjectSettings={openProjectSettings}
-        onImport={onImport ?? (() => {})}
-        onExportZip={onExportZip ?? (() => {})}
-        onOpenPatterns={onOpenPatterns ?? (() => {})}
-        onDelete={onDelete ?? (() => {})}
-      />
-    </div>
+    </header>
   );
 }
 
@@ -201,7 +241,7 @@ function WorkspaceViewNav({ project }: { project: Project }) {
     hotkey: i + 1,
   }));
   return (
-    <div className="flex shrink-0 items-center gap-0.5 rounded-[12px] bg-[var(--surface)] p-0.5">
+    <div className="flex w-max items-center gap-1 rounded-[var(--r-md)] bg-[var(--surface-raised)] p-1">
       {views.map((v) => {
         const isActive = active === v.tab;
         return (
@@ -215,35 +255,22 @@ function WorkspaceViewNav({ project }: { project: Project }) {
             data-testid={`open-view-${v.tab}`}
             onClick={() => go(v.tab)}
             className={cn(
-              "relative flex h-8 items-center gap-1.5 rounded-[10px] px-2 text-[12px] transition-colors",
+              "relative flex h-8 items-center gap-1.5 rounded-[var(--r-md)] px-2.5 text-[13px] transition-colors",
               isActive
-                ? "bg-[var(--surface-raised)] text-[var(--text)] shadow-[var(--shadow-sm)]"
+                ? "bg-[var(--surface)] text-[var(--text)] shadow-[var(--shadow-sm)]"
                 : "text-[var(--text-mut)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]",
             )}
           >
             <v.Icon className="size-4 shrink-0" />
-            <span className="hidden lg:inline">{v.label}</span>
+            <span className="hidden xl:inline">{v.label}</span>
             {v.badge > 0 ? (
               <span
                 title={t("project.tabs.missingTranslations", { count: v.badge })}
-                className="flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-[var(--warning)] px-0.5 font-mono text-[8px] text-[#2A140C]"
+                className="flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-[var(--warning)] px-0.5 font-mono text-[8px] text-[var(--warning-fg)]"
               >
                 {v.badge}
               </span>
             ) : null}
-            {/* Hotbar-digit key hint (1-5), mirroring the search button's ⌘K
-                pill. Hidden on the icon-only compact nav (the tooltip carries it
-                there). Brightens on the active tab. */}
-            <kbd
-              className={cn(
-                "ml-0.5 hidden rounded-[5px] border px-1 font-mono text-[9px] leading-[1.6] lg:inline-block",
-                isActive
-                  ? "border-[var(--border-strong)] text-[var(--text-mut)]"
-                  : "border-[var(--border)] text-[var(--text-faint)]",
-              )}
-            >
-              {v.hotkey}
-            </kbd>
           </button>
         );
       })}
@@ -393,13 +420,10 @@ function SearchButton() {
       type="button"
       onClick={() => useUiStore.getState().setSearchOpen(true)}
       aria-label={t("search.open")}
-      className="hidden h-8 items-center gap-2 rounded-[10px] border border-[var(--border)] bg-[var(--surface)] px-2.5 text-[var(--text-faint)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text-mut)] sm:flex"
+      title={`${t("search.open")} (${SHORTCUT_MOD}K)`}
+      className="btn btn-ghost btn-icon size-8 shrink-0"
     >
       <Search className="size-4 shrink-0" />
-      <span className="text-[13px]">{t("search.open")}…</span>
-      <kbd className="ml-1 rounded-[6px] border border-[var(--border)] bg-[var(--surface-raised)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--text-faint)]">
-        {SHORTCUT_MOD}K
-      </kbd>
     </button>
   );
 }
@@ -519,25 +543,27 @@ function SaveControls({
           {saving ? t("save.saving") : t("save.save")}
         </button>
         {dirty ? (
-          <>
-            {/* Le retour en arrière : jeter le brouillon et repartir de ce que
-                le serveur exécute. Avec l'état du bouton Enregistrer — actif
-                seulement s'il y a quelque chose à enregistrer — c'est tout ce
-                qui reste du bandeau : le bouton dit déjà qu'il y a du travail
-                en cours, un mot de plus à côté ne l'aurait pas dit mieux. */}
-            <button
-              type="button"
-              className="btn btn-sm btn-ghost shrink-0"
-              title={t("draft.revertTitle")}
-              onClick={() => {
-                if (!project) return;
-                useProjectDraftStore.getState().clear(project.id);
-                window.location.reload();
-              }}
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              aria-label={t("save.options")}
+              className="btn btn-sm btn-ghost px-2"
             >
-              {t("draft.revert")}
-            </button>
-          </>
+              <ChevronDown className="size-4" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                className="text-[var(--danger)]"
+                title={t("draft.revertTitle")}
+                onSelect={() => {
+                  if (!project) return;
+                  useProjectDraftStore.getState().clear(project.id);
+                  window.location.reload();
+                }}
+              >
+                {t("save.discardChanges")}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         ) : null}
       </div>
 

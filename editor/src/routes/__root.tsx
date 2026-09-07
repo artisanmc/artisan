@@ -1,5 +1,6 @@
 import { AdminSidebar } from "@/components/AdminSidebar";
 import { BackendUnreachable } from "@/components/BackendUnreachable";
+import { NavigationSidebar } from "@/components/NavigationSidebar";
 import { ProjectSidebar } from "@/components/ProjectSidebar";
 import { onProjectsReloaded as onProjectsReloadedInEditor } from "@/features/project/onProjectsReloaded";
 import { useDraftSync } from "@/features/project/useDraftSync";
@@ -10,10 +11,8 @@ import { useNetworksStore } from "@/state/networksStore";
 import { useServerDataSourcesStore } from "@/state/serverDataSourcesStore";
 import { useServerScreensStore } from "@/state/serverScreensStore";
 import { useServersStore } from "@/state/serversStore";
-import { useSidebarStore } from "@/state/sidebarStore";
 import { PostHogProvider } from "@posthog/react";
 import { Outlet, createRootRoute, useRouterState } from "@tanstack/react-router";
-import { Menu } from "lucide-react";
 import posthog from "posthog-js";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
@@ -48,8 +47,6 @@ function RootLayoutInner() {
   const backendUnreachable = useAuthStore((s) => s.backendUnreachable);
   const activeNetworkId = useNetworksStore((s) => s.activeId);
   const activeServerId = useServersStore((s) => s.activeServerId);
-  const sidebarOpen = useSidebarStore((s) => s.isOpen);
-  const closeSidebar = useSidebarStore((s) => s.close);
   useEffect(() => {
     const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
     useAuthStore.getState().hydrate(apiUrl);
@@ -109,30 +106,7 @@ function RootLayoutInner() {
   return (
     <div className="relative flex h-full">
       {showSidebar && (
-        <>
-          {sidebarOpen ? (
-            <div
-              className="fixed inset-0 z-40 bg-black/50 lg:hidden"
-              onClick={closeSidebar}
-              aria-hidden
-            />
-          ) : null}
-          <aside
-            className={`fixed top-0 left-0 z-50 h-full w-[216px] shrink-0 bg-[var(--surface)] transition-transform duration-200 lg:relative lg:translate-x-0 ${
-              sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
-            }`}
-          >
-            {isAdminArea ? <AdminSidebar /> : <ProjectSidebar />}
-          </aside>
-          <button
-            type="button"
-            onClick={() => useSidebarStore.getState().open()}
-            aria-label="Open sidebar"
-            className="fixed top-3 left-3 z-30 flex size-[38px] items-center justify-center rounded-[10px] bg-[var(--surface-raised)] text-[var(--text-mut)] shadow-[var(--shadow-sm)] hover:text-[var(--text)] lg:hidden"
-          >
-            <Menu className="size-[18px]" />
-          </button>
-        </>
+        <NavigationSidebar>{isAdminArea ? <AdminSidebar /> : <ProjectSidebar />}</NavigationSidebar>
       )}
       <main className="flex flex-1 flex-col overflow-hidden">
         {sessionUndetermined ? <BackendUnreachable /> : <Outlet />}

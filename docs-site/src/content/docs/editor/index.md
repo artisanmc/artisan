@@ -14,11 +14,49 @@ Sections planned:
 - Dialogs and commands
 - Importing custom items (Nexo / Oraxen / ItemsAdder)
 
+## Main navigation
+
+The main navigation (projects, servers and installed modules) hides automatically
+on desktop, leaving the workspace full width. Hover over the left edge to reveal
+the rounded floating panel without moving your workspace. A small button in the
+top-left corner opens the main menu and remains available while the panel is open.
+It closes shortly after the pointer leaves, while keeping open menus and keyboard
+navigation usable. Click this button to open a fixed, borderless sidebar. Click it again
+to close it and return to automatic mode. Each reload starts in automatic mode.
+Escape dismisses the temporary
+panel. On smaller screens, use the navigation button to open it and the close button
+or backdrop to dismiss it.
+
+## Project toolbar
+
+The project toolbar groups the project identity, view tabs, editing tools and Save
+in one rounded surface. The selected view uses a soft capsule background; number
+shortcuts remain in tooltips. On smaller screens, labels become icons and groups
+can wrap within the same surface.
+
+Library and undo/redo appear on Canvas, and the content language on Canvas and
+Translations. Elements remains at the far right. Search uses a compact magnifying
+glass. **Refresh from server** lives in the project menu and still asks before
+replacing unsaved work. The arrow beside Save offers **Discard changes**.
+
 ## Library and properties
 
-Open **Library** from the project toolbar to browse **Items** (Catalogue or Captured)
+On desktop, **Elements** and **Properties** occupy separate full-height columns on
+the right, ordered **Canvas → Properties → Elements**. Drag Properties' left edge to resize its
+width, which is remembered. Elements starts hidden: hover the right edge to reveal
+it over the workspace without resizing Properties. It closes shortly after the
+pointer leaves, unless a menu is open or keyboard focus remains inside. Click the
+Elements button at the right end of the toolbar to keep its column open; click
+again to close it. Reloading restores automatic mode. On mobile, Elements opens
+in a drawer from the right.
+In Elements, the left arrow adds a document to the canvas; the right arrow removes it.
+
+Open **Library** in the project toolbar, to browse **Items** (Catalogue or Captured)
 and **Graphics** (textures, glyphs and fonts). No menu needs to be selected.
-The library sits beside the canvas on desktop and below it on smaller screens.
+The library sits left of the canvas when there is enough room, and below it on
+mobile or in a narrow workspace. Drag its right edge to adjust the width, or its
+top edge to adjust the height when it sits below. Both sizes are remembered;
+the resize limit preserves space for the canvas.
 Drag an item onto a menu slot, or click an item and then tap a slot to place it.
 Select a graphic to edit its details; **Back to graphics** returns to the catalogue.
 
