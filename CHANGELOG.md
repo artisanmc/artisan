@@ -9,6 +9,10 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Added — resumable migration state
+
+- Add authorized zMenu migration manifests, durable steps/proposals/events and revision-checked start/pause/resume/cancel endpoints, with source-change detection and idempotent checkpoint billing. Source YAML remains transient; proposals do not publish automatically.
+
 ### Fixed — assistant streaming diagnostics
 
 - Keep silent assistant turns alive with SSE heartbeats ignored by the composer; clean up heartbeat timers on completion or disconnect and report safe failure codes with a correlation ID.
