@@ -17,6 +17,7 @@ export class OpenAICompatibleProvider implements LlmProvider {
     messages: LlmMessage[];
     tools: ToolDef[];
     model: string;
+    signal?: AbortSignal;
   }): AsyncIterable<LlmStreamEvent> {
     const messages = args.messages.map((m) => {
       switch (m.role) {
@@ -57,7 +58,7 @@ export class OpenAICompatibleProvider implements LlmProvider {
       tools: tools as never,
       stream: true,
       stream_options: { include_usage: true },
-    } as never);
+    } as never, { signal: args.signal });
 
     const acc = new Map<number, { id: string; name: string; args: string }>();
     let usage: {

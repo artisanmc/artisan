@@ -21,6 +21,16 @@ async function collect(it: AsyncIterable<LlmStreamEvent>) {
 const cfg = { baseURL: "x", model: "m", apiKey: "k" };
 
 describe("OpenAICompatibleProvider.streamTurn", () => {
+  it("forwards the optional AbortSignal through SDK request options", async () => {
+    let options: unknown;
+    const client = { chat: { completions: { create: async (_params: unknown, opts: unknown) => {
+      options = opts;
+      return fakeStream([]);
+    } } } } as unknown as ConstructorParameters<typeof OpenAICompatibleProvider>[1];
+    const signal = new AbortController().signal;
+    await collect(new OpenAICompatibleProvider(cfg, client).streamTurn({ messages: [], tools: [], model: "m", signal }));
+    expect(options).toEqual({ signal });
+  });
   it("emits text deltas, then accumulates a tool_use, usage and done", async () => {
     const chunks = [
       { choices: [{ delta: { content: "Hel" } }] },
