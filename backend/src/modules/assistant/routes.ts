@@ -26,6 +26,7 @@ import {
 	resolveServerAttachments,
 } from "./serverAttachments";
 import { type DataSourceInfo, WorkingCopy } from "./workingCopy";
+import { assistantFailureCode, startAssistantHeartbeat } from "./transport";
 
 /** Prefix marking the transient system note that lists a turn's attachments. */
 export const ATTACHMENT_NOTE_PREFIX = "Fichiers joints par l'utilisateur";
@@ -221,8 +222,16 @@ export function buildAssistantRouter(): Hono {
 		const title =
 			conv.title || text.slice(0, 60) || attachedNames.join(", ").slice(0, 60);
 
+		const correlationId = crypto.randomUUID();
+		c.header("X-Assistant-Request-Id", correlationId);
+		c.header("X-Accel-Buffering", "no");
 		return streamSSE(c, async (stream) => {
 			const t0 = performance.now();
+			const diagnostic = (code: string) => console.warn("[assistant]", {
+				code, correlationId, conversationId: conv.id, modelId: pm.model.id,
+				durationMs: Math.round(performance.now() - t0),
+			});
+			const stopHeartbeat = startAssistantHeartbeat(stream, () => diagnostic("client_disconnected"));
 			const usages: LlmUsage[] = [];
 			const usageInput = () => ({
 				networkId,
@@ -265,24 +274,30 @@ export function buildAssistantRouter(): Hono {
 					data: JSON.stringify({ debited, balance: newBalance }),
 				});
 			} catch (e) {
-				const message = e instanceof Error ? e.message : String(e);
+				const code = assistantFailureCode(e);
+				diagnostic(code);
+				const message = code;
 				// Provider failure: log consumed tokens for admin visibility — no debit.
 				const persistedErrorMessage =
 					serverAttachmentIds.size > 0 ? SERVER_ATTACHMENT_PROVIDER_ERROR : message;
 				await recordErrorTurn({
 					...usageInput(),
 					errorMessage: persistedErrorMessage,
-				}).catch((logErr) =>
-					console.warn("[assistant] failed to record error turn:", logErr),
+				}).catch(() =>
+					diagnostic("error_record_failed"),
 				);
-				await stream.writeSSE({ event: "error", data: JSON.stringify({ message }) });
+				await stream.writeSSE({ event: "error", data: JSON.stringify({ message, code, correlationId }) });
 			} finally {
+				stopHeartbeat();
 				// Server file contents are available during the turn but never retained.
 				const persistedMessages = redactServerAttachmentToolResults(
 					conv.messages,
 					serverAttachmentIds,
 				);
-				await saveConversation(conv.id, persistedMessages, title);
+				await saveConversation(conv.id, persistedMessages, title).catch(() => {
+					diagnostic("conversation_save_failed");
+					throw new Error(`conversation_save_failed (${correlationId})`);
+				});
 			}
 		});
 	});

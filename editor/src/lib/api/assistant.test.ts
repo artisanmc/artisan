@@ -20,6 +20,17 @@ function sseResponse(frames: string[]): Response {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("assistant SSE client", () => {
+  it("ignores heartbeats so they cannot consume the pending composer snapshot", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => sseResponse([
+      'event: heartbeat\ndata: {"type":"heartbeat"}',
+      'data: {"type":"heartbeat"}',
+      ': keepalive',
+      'event: text\ndata: {"text":"Ready"}',
+    ])));
+    const events = [];
+    for await (const event of streamAssistant("c1", { text: "migrate" })) events.push(event);
+    expect(events).toEqual([{ type: "text", text: "Ready" }]);
+  });
   it("openConversation returns the id", async () => {
     vi.stubGlobal(
       "fetch",
