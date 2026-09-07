@@ -418,6 +418,29 @@ Chaîne complète : `packToMenuV1` (seed) → backend → SSE → `streamAssista
 Le re-seed (`menus` + `attachments`) à **chaque** message garantit que la working-copy backend reste alignée sur l'état éditeur (last-writer), même si l'admin a édité le project entre deux messages.
 
 ### Sélection de modèle + solde de crédits (plan 4 de `2026-07-02-ai-model-system-design.md`)
+### Migration zMenu reprenable (2026-09-07)
+
+`MigrationPanel` et `lib/api/assistantMigration.ts` proposent un flux explicite
+distinct du chat SSE : analyse de la sélection serveur, budget accepté, démarrage,
+pause/reprise et lecture des propositions. La reconnexion utilise des GET de suivi,
+jamais un nouveau démarrage payant. Les réponses tardives sont filtrées par portée
+Project/conversation ; généré, appliqué au brouillon et à vérifier restent distincts.
+
+`features/assistant/migrationProposal.ts` vérifie le SHA-256 du JSON canonique sur
+un snapshot immuable, puis recontrôle la portée et le store courant après le calcul
+asynchrone, sans autre attente avant la mutation synchrone. V1 crée uniquement des
+cibles absentes (`baseHash: null`) : résultat sémantiquement identique déjà appliqué,
+cible différente en conflit, jamais de remplacement. La comparaison normalise le
+round-trip domain/wire et les clés i18n aléatoires, avec les valeurs de toutes les
+langues référencées. Les constructions non représentables et les changements de
+traductions séparés sont bloqués plutôt que perdus silencieusement.
+
+L'application passe par `applyAssistantMenu` et ne modifie que le brouillon local ;
+**Enregistrer** reste explicite. Le backend ne stocke pas un état « appliqué » global :
+il est dérivé du brouillon présent. La sonde de stockage écrit puis retire une petite
+clé temporaire ; son succès ne garantit pas la place nécessaire au brouillon entier.
+En cas d'indisponibilité, l'UI avertit sans masquer une application déjà réussie.
+
 
 Le sélecteur de modèle `ModelSelector` rend les tiers (`cheap` / `balanced` / `premium`) en badges cliquables avec estimation de coût (`~50 credits`), choix mémorisé dans l'action store. Chaque message SSE reçoit le `modelId` dans le header ; une soumission `send()` inclut le modèle choisi. Le solde de crédits s'affiche dans la barre top du panel via `BalanceChip` ; à la réception de l'event SSE final `credits {debited, balance}`, le composant met à jour le compte. Erreur 402 (`insufficient_credits`) → toast + CTA `/credits` (placeholder).
 

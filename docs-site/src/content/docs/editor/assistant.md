@@ -73,6 +73,42 @@ When the server is offline, **From the server** is disabled and **From my device
 remains available. If the server does not respond, retry after checking that it
 is connected and running an up-to-date Artisan plugin.
 
+### Migrating a linked zMenu selection
+
+For a linked set such as 35 menus, keep the complete server selection, including
+shared patterns. The configured import source must expose those files: a source
+rooted at `plugins/zMenu/menus` cannot expose sibling pattern directories. When
+needed, ask your administrator to configure an allowed source such as
+`plugins/zMenu`, then select the needed menus and shared files, preserving relative
+`patterns/`, `action_patterns/` or `actions_patterns/` paths. Do not select unrelated
+plugin configuration files.
+
+Choose **Migrate this selection**, enter an **Accepted budget (credits)**, then
+**Analyze selection**. Analysis indexes files and links without calling the AI.
+Resolve duplicate or existing target names and review warnings before choosing
+**Start migration**.
+
+Artisan converts one menu at a time, using bounded shared context and an index of
+the other targets. **Pause after this menu** stops before the next menu; the
+current one may finish. Reopening the same conversation shows saved progress
+without restarting generation. **Resume migration** continues unfinished menus;
+generated results are retained after interruptions or cancellation.
+
+Use **Apply to draft** or **Apply available results**, review the menus, then
+**Save** to publish. “Generation complete” does not confirm that every behavior
+was migrated. Dynamic, external or missing links and command bindings require
+manual review; unsupported results are blocked. Existing local menus are never
+overwritten by this flow. If source files change, choose **Review sources and
+target names**, then **Create new analysis**. Old results stay in history but are
+not reused by the replacement run.
+
+If one menu and its shared files exceed the context limit, review those files
+manually; selecting all menus does not load every raw menu into each AI call.
+If the browser reports that it cannot preserve the draft, save applied changes
+before leaving. Generated proposals remain available in the migration history.
+The storage check is a small availability probe, not a guarantee that the full
+draft will fit in the browser's remaining quota.
+
 ## Requirements
 
 The assistant needs an AI provider configured on the server side. If it isn't
