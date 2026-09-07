@@ -7,6 +7,13 @@
 
 ## Conventions
 
+**Création de projet** (`POST /api/v1/networks/:id/projects`) : le nom saisi devient
+le dossier du serveur (128 caractères maximum, sans traversée de chemin). Le backend
+vérifie `project_list`, écrit `manifest.yaml` via `project_write` (`create: true`,
+`base_hash: null`), puis crée l'ancre DB après confirmation du plugin. Réponses :
+201 succès, 409 `project_exists`, 422 `invalid_name`, 503 `server_offline`,
+504 `fetch_timeout`, 502 erreur de lecture/écriture. Aucun contenu n'est stocké en DB.
+
 - Tout endpoint est sous **`/api/v1/`** (versioning : breaking change → `/api/v2/<name>` à côté, garder v1 6-12 mois).
 - **Accounts-only** (depuis l'accounts-only cutover, cf. `docs/decisions/accounts-only-editing.md`) : un seul système d'auth — **user session** (cookie `artisan_user_session`, HttpOnly 30j → row `user_sessions.id`) → routes `networks/*`, `user/projects/*`, `auth/*`, `admin/*`. Les routes `admin/*` ajoutent `requireAdmin` après `userAuth` (403 si `!user.isAdmin`). La trust dance anonyme (server_key + `editor_session` token dans l'URL, routes `editor-session/:token/*`) a été supprimée (Task 7) — plus aucune route session-mode.
 - Style d'erreur : `c.json({ error: "snake_case_reason" }, <status>)`.

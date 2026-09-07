@@ -92,7 +92,17 @@ export default {
   },
   newProjectDialog: {
     title: "New project",
-    placeholder: "Project name",
+    placeholder: "my_project",
+    errors: {
+      server_offline: "The server is offline. Connect it to create the project.",
+      fetch_timeout:
+        "The server did not respond in time. Check the project list before trying again.",
+      project_exists: "A project with this name already exists on this server.",
+      invalid_name: "Use a valid folder name for the project (128 characters maximum).",
+      invalid_path: "This project name is not valid.",
+      forbidden: "You do not have access to this server.",
+      create_failed: "Could not create the project on the server. Try again.",
+    },
     cancel: "Cancel",
     create: "Create",
   },
