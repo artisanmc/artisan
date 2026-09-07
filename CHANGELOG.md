@@ -12,6 +12,7 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 ### Added — resumable migration state
 
 - Add authorized zMenu migration manifests, durable steps/proposals/events and revision-checked start/pause/resume/cancel endpoints, with source-change detection and idempotent checkpoint billing. Source YAML remains transient; proposals do not publish automatically.
+- Execute menu migrations in bounded, lease-owned steps with explicit resume, source rechecks, safe provider limits, validated navigation links and no automatic paid retries. A disconnected progress reader does not discard completed proposals.
 
 ### Fixed — assistant streaming diagnostics
 

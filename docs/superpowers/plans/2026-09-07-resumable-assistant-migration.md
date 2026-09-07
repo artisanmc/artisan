@@ -1,6 +1,6 @@
 # Migration zMenu progressive et reprenable
 
-Statut : approuvé, implémentation en cours. Phase 1 terminée et vérifiée.
+Statut : approuvé, implémentation en cours. Phases 1–4 terminées et vérifiées ; interface et vérification finale à terminer.
 
 ## Objectif
 
