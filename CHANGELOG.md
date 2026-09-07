@@ -9,6 +9,11 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Fixed — project creation on the server
+
+- Creating a project now writes its manifest on the connected server before returning success. The entered name is its disk identity; offline servers and existing names return explicit errors instead of creating invisible database entries.
+- Both project dialogs support Enter, display creation errors, and use a localized project placeholder.
+
 ### Changed — le panneau d'édition n'apparaît qu'à la sélection
 
 - Le panneau (Édition / Bibliothèque / Assets) était affiché en permanence et mangeait de la place

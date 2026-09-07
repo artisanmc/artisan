@@ -10,6 +10,7 @@ import {
 	networkAccessRequests,
 	networkInvites,
 	networks,
+	projects,
 	serverDataSources,
 	serverDeclaredModels,
 	serverEditorScreens,
@@ -37,7 +38,7 @@ import { requireCapability, requireMember, withNetworkMemberLock } from "../lib/
 import { addMembership } from "../lib/membershipManager";
 import { createNetwork } from "../lib/networkManager";
 import { readOwnerModuleFromFiles } from "../lib/projectFiles";
-import { createProject, ensureProjectForServer, getProject, listProjectsForNetwork, projectDiskId } from "../lib/projectStorage";
+import { ensureProjectForServer, getProject, listProjectsForNetwork, projectDiskId } from "../lib/projectStorage";
 import { resolveNetworkForMember } from "../lib/refs";
 import { slugify } from "../lib/slug";
 import { allocServerSlug } from "../lib/slugAlloc";
@@ -493,6 +494,13 @@ userNetworksRouter.post(
 		if (typeof body.serverKeyId !== "string" || body.serverKeyId.length === 0) {
 			return c.json({ error: "missing_server_key" }, 422);
 		}
+		const diskId = body.name.trim();
+		if (diskId.length > 128 || diskId.startsWith(".") || diskId.includes("..") || /[<>:"/\\|?*\x00-\x1f]/.test(diskId) || diskId.endsWith(".")) {
+			return c.json({ error: "invalid_name" }, 422);
+		}
+		if (body.description !== undefined && typeof body.description !== "string") {
+			return c.json({ error: "invalid_description" }, 422);
+		}
 		const skRows = await db
 			.select()
 			.from(serverKeys)
@@ -505,12 +513,38 @@ userNetworksRouter.post(
 		if (skRows.length === 0)
 			return c.json({ error: "server_key_not_in_network" }, 403);
 
-		const project = await createProject({
+		const listing = await requestProjectList(body.serverKeyId);
+		if (listing.kind === "offline") return c.json({ error: "server_offline" }, 503);
+		if (listing.kind === "timeout") return c.json({ error: "fetch_timeout" }, 504);
+		if (!listing.result.ok) return c.json({ error: listing.result.error ?? "read_error" }, 502);
+		if (listing.result.project_ids?.includes(diskId)) return c.json({ error: "project_exists" }, 409);
+
+		const outcome = await requestProjectWrite(body.serverKeyId, {
+			projectId: diskId,
+			create: true,
+			files: [{
+				path: "manifest.yaml",
+				content: `id: ${JSON.stringify(diskId)}\nname: ${JSON.stringify(diskId)}\n` +
+					(body.description ? `description: ${JSON.stringify(body.description)}\n` : ""),
+				base_hash: null,
+			}],
+		});
+		if (outcome.kind === "offline") return c.json({ error: "server_offline" }, 503);
+		if (outcome.kind === "timeout") return c.json({ error: "fetch_timeout" }, 504);
+		if (!outcome.result.ok) {
+			const error = outcome.result.error ?? "write_error";
+			if (error === "conflict") return c.json({ error: "project_exists" }, 409);
+			return c.json({ error }, error === "invalid_path" ? 422 : 502);
+		}
+		const project = await ensureProjectForServer({
 			networkId,
 			serverKeyId: body.serverKeyId,
-			name: body.name.trim(),
-			description: body.description ?? null,
+			diskId,
 		});
+		if (body.description !== undefined) {
+			await db.update(projects).set({ description: body.description }).where(eq(projects.id, project.id));
+			project.description = body.description;
+		}
 		return c.json({ project }, 201);
 	},
 );

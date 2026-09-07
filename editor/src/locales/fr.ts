@@ -98,7 +98,17 @@ const fr: typeof en = {
   },
   newProjectDialog: {
     title: "Nouveau projet",
-    placeholder: "Nom du projet",
+    placeholder: "mon_projet",
+    errors: {
+      server_offline: "Le serveur est hors ligne. Connecte-le pour créer le projet.",
+      fetch_timeout:
+        "Le serveur n’a pas répondu à temps. Vérifie la liste des projets avant de réessayer.",
+      project_exists: "Un projet porte déjà ce nom sur ce serveur.",
+      invalid_name: "Utilise un nom de dossier valide pour le projet (128 caractères maximum).",
+      invalid_path: "Ce nom de projet n’est pas valide.",
+      forbidden: "Tu n’as pas accès à ce serveur.",
+      create_failed: "Impossible de créer le projet sur le serveur. Réessaie.",
+    },
     cancel: "Annuler",
     create: "Créer",
   },

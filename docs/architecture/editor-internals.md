@@ -310,6 +310,12 @@ Entrée dans le nom ou la description déclenche la même soumission que « Cré
 Un nom vide ou une création déjà en cours bloque la soumission ; « Annuler »
 ferme la modal sans créer de projet.
 
+La sidebar (`components/NewProjectDialog`) suit la même soumission native. Les deux
+modals restent ouvertes avec le nom saisi si le serveur refuse la création ; elles
+affichent une erreur traduite et le placeholder `mon_projet` / `my_project`.
+Le succès de `createProject` confirme l'écriture du manifeste sur le disque serveur,
+puis la liste est relue depuis ce disque.
+
 Cf. `docs/superpowers/specs/2026-05-27-workspace-shell-and-settings-design.md`.
 
 - **`ProjectSidebar`** (sticky, `routes/__root.tsx`) — brand cliquable (→ `/networks`) en haut + `ServerSelector` (label via `displayServerLabel`) + section Projects filtrée par server actif (drag-reorder via `account.projectOrder`) + section **Modules installés** (un groupe par module : son canvas « Éditeur », ses Config screens, sa route `/m/<id>`). Le découpage projects plats / groupes de modules vit dans `features/projects/projectGroups.ts` (`buildProjectGroups`, pur) — **la page d'un serveur (`/networks/$networkId/servers/$serverId`) affiche la même chose en lisant la même fonction**, et lit ses Projects sur le disque du serveur (`listServerProjects`) comme la sidebar + ⚙ Settings sticky bottom. Depuis les routes slugs (phase 4a), les params URL `networkId`/`serverId` peuvent porter un slug : la sidebar les résout en ids réels (match `id` OU `slug` contre `networksStore` / les `serverKeys` fetchés) avant tout filtrage de projects ; `ServerSelector` matche pareillement `serverId|serverSlug`. Les flows de création hors sidebar (hub `/networks`, network detail, setup wizard) appellent `networksStore.bumpRefresh()` après chaque create/delete — la sidebar écoute `refreshToken` et refetch networks + server entries (sinon elle resterait stale jusqu'au reload). Accounts-only (Task 8) : plus de session-mode, toujours cookie user + `listNetworks`.
