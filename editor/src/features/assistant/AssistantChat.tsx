@@ -31,6 +31,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { type ServerAttachmentGroup, ServerImportSourceDialog } from "./ServerImportSourceDialog";
+import { MigrationPanel } from "./MigrationPanel";
 
 type Entry =
   | { role: "user" | "assistant"; text: string }
@@ -144,6 +145,16 @@ export function AssistantChat({
   const [balance, setBalance] = useState<BalanceBreakdown | null>(null);
   const [outOfCredits, setOutOfCredits] = useState(false);
   const convId = useRef<string | null>(conversationId);
+  const [migrationConversationId, setMigrationConversationId] = useState(conversationId);
+  const openingConversation = useRef<Promise<string> | null>(null);
+  async function ensureConversation(): Promise<string> {
+    if (!convId.current) {
+      openingConversation.current ??= openConversation({ projectId }).finally(() => { openingConversation.current = null; });
+      convId.current = await openingConversation.current;
+    }
+    if (mounted.current) setMigrationConversationId(convId.current);
+    return convId.current;
+  }
 
   useEffect(() => {
     mounted.current = true;
@@ -241,10 +252,10 @@ export function AssistantChat({
         fields: (ds as { schema?: { name: string; type?: string }[] }).schema,
       }));
       if (!convId.current) {
-        convId.current = await openConversation({ projectId });
+        await ensureConversation();
       }
       if (!mounted.current) return;
-      const stream = streamAssistant(convId.current, {
+      const stream = streamAssistant(convId.current ?? await ensureConversation(), {
         text,
         menus,
         attachments: message.attachments,
@@ -452,6 +463,7 @@ export function AssistantChat({
       )}
 
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+        <MigrationPanel projectId={projectId} conversationId={migrationConversationId} ensureConversation={ensureConversation} modelId={modelId} groups={serverGroups} disabled={busy || !serverOnline} />
         <div
           data-testid="assistant-transcript"
           className="flex flex-col gap-2 text-[13px] text-[var(--text)]"

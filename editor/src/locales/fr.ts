@@ -1,4 +1,5 @@
 import type en from "./en";
+import { migrationFr } from "./migration";
 
 const fr: typeof en = {
   projectLibrary: {
@@ -1899,6 +1900,7 @@ const fr: typeof en = {
     },
   },
   assistant: {
+    migration: migrationFr,
     title: "Assistant IA",
     open: "Assistant IA",
     close: "Fermer",

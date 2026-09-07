@@ -173,7 +173,7 @@ describe("AssistantChat", () => {
       await attachServerFiles();
       await userEvent.type(screen.getByRole("textbox"), "migre tout");
       await userEvent.click(screen.getByRole("button", { name: /^(send|envoyer)$/i }));
-      expect(screen.getByRole("status")).toHaveTextContent(/Sending files|Envoi des fichiers/i);
+      expect(screen.getByTestId("assistant-send-status")).toHaveTextContent(/Sending files|Envoi des fichiers/i);
       expect(screen.getByRole("textbox")).toBeDisabled();
       expect(screen.getByRole("textbox")).toHaveValue("migre tout");
       await act(async () => {
