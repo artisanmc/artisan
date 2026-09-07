@@ -20,6 +20,7 @@ The main navigation (projects, servers and installed modules) hides automaticall
 on desktop, leaving the workspace full width. Hover over the left edge to reveal
 the rounded floating panel without moving your workspace. A small button in the
 top-left corner opens the main menu and remains available while the panel is open.
+Its left-panel icon mirrors the right-panel Elements toggle.
 It closes shortly after the pointer leaves, while keeping open menus and keyboard
 navigation usable. Click this button to open a fixed, borderless sidebar. Click it again
 to close it and return to automatic mode. Each reload starts in automatic mode.
@@ -34,7 +35,7 @@ in one rounded surface. The selected view uses a soft capsule background; number
 shortcuts remain in tooltips. On smaller screens, labels become icons and groups
 can wrap within the same surface.
 
-Library and undo/redo appear on Canvas, and the content language on Canvas and
+Undo/redo appears on Canvas, and the content language on Canvas and
 Translations. Elements remains at the far right. Search uses a compact magnifying
 glass. **Refresh from server** lives in the project menu and still asks before
 replacing unsaved work. The arrow beside Save offers **Discard changes**.
@@ -51,8 +52,11 @@ again to close it. Reloading restores automatic mode. On mobile, Elements opens
 in a drawer from the right.
 In Elements, the left arrow adds a document to the canvas; the right arrow removes it.
 
-Open **Library** in the project toolbar, to browse **Items** (Catalogue or Captured)
+Open **Library** using the rounded tool at the top-left of the canvas to browse **Items** (Catalogue or Captured)
 and **Graphics** (textures, glyphs and fonts). No menu needs to be selected.
+The tool hides while the panel is open; use the close button to dismiss the panel and restore the tool.
+The close button shares the category tabs row. Item filters scroll horizontally
+instead of stacking above the grid, leaving more room for items in narrow panels.
 The library sits left of the canvas when there is enough room, and below it on
 mobile or in a narrow workspace. Drag its right edge to adjust the width, or its
 top edge to adjust the height when it sits below. Both sizes are remembered;

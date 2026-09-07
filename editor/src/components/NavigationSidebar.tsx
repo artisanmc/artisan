@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { useIsDesktop } from "@/lib/useMediaQuery";
 import { useSidebarStore } from "@/state/sidebarStore";
-import { Menu, PanelLeftClose, X } from "lucide-react";
+import { PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -164,7 +164,7 @@ export function NavigationSidebar({ children }: { children: ReactNode }) {
             : open
         }
       >
-        {desktop && pinned ? <PanelLeftClose size={16} /> : <Menu size={18} />}
+        {desktop && pinned ? <PanelLeftClose size={16} /> : <PanelLeftOpen size={16} />}
       </Button>
     </>
   );
