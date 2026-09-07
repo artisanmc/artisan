@@ -1,10 +1,10 @@
 import { Input } from "@/components/ui/input";
+import type { LibraryItem } from "@/domain/library";
 import { cx } from "@/lib/cx";
 import { renderToCanvas } from "@/lib/mcModelRenderer";
-import type { LibraryItem } from "@/domain/library";
 import { useUiStore } from "@/state/uiStore";
-import { useVirtualizer } from "@tanstack/react-virtual";
 import { useDraggable } from "@dnd-kit/core";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useTextureStore } from "./textureStore";
@@ -27,7 +27,15 @@ interface ItemTileProps {
   tints?: Record<number, string>;
 }
 
-function ItemTile({ item, textureBase, version, isCustom, serverKeyId, bundleReady, tints }: ItemTileProps) {
+function ItemTile({
+  item,
+  textureBase,
+  version,
+  isCustom,
+  serverKeyId,
+  bundleReady,
+  tints,
+}: ItemTileProps) {
   const armed = useUiStore((s) => s.armedMaterial === item.id);
   const setArmedMaterial = useUiStore((s) => s.setArmedMaterial);
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
@@ -36,7 +44,9 @@ function ItemTile({ item, textureBase, version, isCustom, serverKeyId, bundleRea
   });
   const tileRef = useRef<HTMLButtonElement>(null);
   const setRendered = useTextureStore((s) => s.setRendered);
-  const renderedSrc = useTextureStore((s) => item.model ? s.renderedByMaterial[item.id.toLowerCase()] ?? null : null);
+  const renderedSrc = useTextureStore((s) =>
+    item.model ? (s.renderedByMaterial[item.id.toLowerCase()] ?? null) : null,
+  );
 
   useEffect(() => {
     if (!item.model || !bundleReady || !tileRef.current) return;
@@ -79,7 +89,7 @@ function ItemTile({ item, textureBase, version, isCustom, serverKeyId, bundleRea
       )}
       style={{ opacity: isDragging ? 0.4 : 1, width: TILE_SIZE, height: TILE_SIZE }}
     >
-      {(renderedSrc || item.texture) ? (
+      {renderedSrc || item.texture ? (
         <img
           src={renderedSrc ?? `${textureBase}/${item.texture}`}
           alt={item.label}
@@ -87,7 +97,9 @@ function ItemTile({ item, textureBase, version, isCustom, serverKeyId, bundleRea
           draggable={false}
           className="h-full w-full object-contain p-1"
           style={{ imageRendering: renderedSrc ? "auto" : "pixelated" }}
-          onError={(e) => { (e.target as HTMLImageElement).style.visibility = "hidden"; }}
+          onError={(e) => {
+            (e.target as HTMLImageElement).style.visibility = "hidden";
+          }}
         />
       ) : (
         <span
@@ -163,14 +175,14 @@ export function Library() {
         value={search}
         onChange={(e) => setSearch(e.target.value)}
       />
-      <div className="flex flex-wrap gap-1">
+      <div className="flex shrink-0 gap-1 overflow-x-auto pb-1">
         {categories.map((cat) => (
           <button
             key={cat}
             type="button"
             onClick={() => setCategory(cat)}
             className={cx(
-              "chip h-6 px-2.5 text-[10.5px] capitalize",
+              "chip h-6 shrink-0 whitespace-nowrap px-2.5 text-[10.5px] capitalize",
               category === cat && "is-active",
             )}
           >
@@ -180,10 +192,14 @@ export function Library() {
       </div>
 
       {allItems.length === 0 && !error && (
-        <div className="w-full py-4 text-center text-xs text-[var(--text-faint)]">{t("library.loading")}</div>
+        <div className="w-full py-4 text-center text-xs text-[var(--text-faint)]">
+          {t("library.loading")}
+        </div>
       )}
       {allItems.length > 0 && filtered.length === 0 && (
-        <div className="w-full py-4 text-center text-xs text-[var(--text-faint)]">{t("library.noMatch")}</div>
+        <div className="w-full py-4 text-center text-xs text-[var(--text-faint)]">
+          {t("library.noMatch")}
+        </div>
       )}
 
       <div ref={parentRef} className="min-h-0 flex-1 overflow-y-auto pb-2">

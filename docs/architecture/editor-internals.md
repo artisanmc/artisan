@@ -198,7 +198,8 @@ La bibliothèque utilise `SplitPane` avec `secondaryPosition="start"` à gauche
 Le store `projectLibraryStore` persiste uniquement largeur/hauteur sous
 `artisan-library-size` ; ouverture et catégorie restent éphémères.
 Le canvas reste monté pendant ouverture, fermeture, resize et changement d'orientation.
-Le bouton Bibliothèque est groupé avec les outils du canvas dans `ProjectTopBarControls`.
+Le bouton Bibliothèque est un outil flottant arrondi en haut à gauche du canvas, rendu par `ProjectLibraryWorkspace` dans le panneau principal du split uniquement si le panneau est fermé. La croix ferme le panneau et fait réapparaître l’outil ; aucun bouton Bibliothèque dans la topbar.
+L’en-tête regroupe onglets et fermeture sans ligne de titre supplémentaire ; les filtres du catalogue restent sur une ligne défilante horizontalement, pour préserver la hauteur de grille.
 
 ### `ProjectPanel` — arborescence du projet à droite
 
@@ -318,6 +319,7 @@ Cf. `docs/superpowers/specs/2026-06-14-search-palette-and-sidebar-toggle-design.
 La navigation globale est enveloppée par `NavigationSidebar` dans `__root.tsx` :
 sur desktop, zone de survol invisible de 8 px sans espace réservé au repos ;
 bouton flottant en haut à gauche et overlay de 216 px, décalé de 8 px des bords,
+icônes `PanelLeftOpen`/`PanelLeftClose` en miroir du toggle Éléments à droite,
 avec coins arrondis et contenu découpé dans le même contour ;
 repli après 300 ms hors du panneau. Les menus portallés et le focus clavier
 retiennent l'ouverture ; Échap ferme le panneau temporaire et rend le focus au

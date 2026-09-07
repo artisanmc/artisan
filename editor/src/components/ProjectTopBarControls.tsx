@@ -29,7 +29,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { Project, ProjectId } from "@/domain/types";
-import { ProjectLibraryButton } from "@/features/project/ProjectLibrary";
 import { isDirty } from "@/features/project/draft";
 import { openProjectSettings } from "@/features/project/projectSettings";
 import { type ConflictChoice, applyResolutions } from "@/features/project/resolveConflicts";
@@ -100,7 +99,6 @@ export function ProjectTopBarControls({
   const displayName = projectName ?? project.name;
   const { t } = useTranslation();
   const panelOpen = useUiStore((s) => s.projectPanelOpen);
-  const navigate = useNavigate();
   const { tab } = useSearch({ strict: false }) as { tab?: string };
 
   // Toggles the fixed right Elements column. The canvas stays
@@ -133,21 +131,7 @@ export function ProjectTopBarControls({
           <WorkspaceViewNav project={project} />
         </div>
         <div data-testid="project-editing-tools" className="flex shrink-0 items-center gap-1">
-          {(!tab || tab === "overview") && (
-            <>
-              <ProjectLibraryButton
-                projectId={projectId}
-                active
-                onOpen={() =>
-                  navigate({
-                    to: ".",
-                    search: (prev) => ({ ...(prev as object), tab: undefined }) as never,
-                  })
-                }
-              />
-              <UndoRedoButtons />
-            </>
-          )}
+          {(!tab || tab === "overview") && <UndoRedoButtons />}
           {(!tab || tab === "overview" || tab === "translations") && (
             <LangSwitcher project={project} />
           )}
