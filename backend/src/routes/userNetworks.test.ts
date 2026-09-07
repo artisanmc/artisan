@@ -40,6 +40,33 @@ function makeApp() {
   return app;
 }
 
+function writablePlugin(serverKeyId: string, ids: string[] = [], writeError?: string) {
+  const connId = `create-${serverKeyId}`;
+  const writes: { project_id: string; create: boolean; files: { path: string; content: string; base_hash: string | null }[] }[] = [];
+  registerConn(connId, (raw) => {
+    const msg = JSON.parse(raw);
+    if (msg.type === "project_list") {
+      void handlePluginMessage(connId, JSON.stringify({
+        type: "project_list_result", request_id: msg.request_id, ok: true, project_ids: ids,
+      }));
+    } else if (msg.type === "project_write") {
+      writes.push(msg);
+      if (!writeError) ids.push(msg.project_id);
+      void handlePluginMessage(connId, JSON.stringify({
+        type: "project_write_result", request_id: msg.request_id,
+        ok: !writeError, ...(writeError ? { error: writeError } : {}),
+      }));
+    } else if (msg.type === "project_read") {
+      void handlePluginMessage(connId, JSON.stringify({
+        type: "project_read_result", request_id: msg.request_id, ok: true,
+        files: writes.find((write) => write.project_id === msg.project_id)?.files ?? [],
+      }));
+    }
+  });
+  connToServerId.set(connId, serverKeyId);
+  return { writes, stop: () => { connSenders.delete(connId); connToServerId.delete(connId); } };
+}
+
 describe("userNetworksRouter", () => {
   beforeEach(clearAll);
 
@@ -428,6 +455,8 @@ describe("userNetworksRouter", () => {
     });
     const { id: skId } = await skRes.json();
 
+    const plugin = writablePlugin(skId);
+    try {
     const res = await app.request(`/api/v1/networks/${network.id}/projects`, {
       method: "POST",
       headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
@@ -438,6 +467,49 @@ describe("userNetworksRouter", () => {
     expect(body.project.name).toBe("my-project");
     expect(body.project.description).toBe("desc");
     expect(body.project.networkId).toBe(network.id);
+    expect(plugin.writes).toHaveLength(1);
+    expect(plugin.writes[0]).toMatchObject({
+      project_id: "my-project", create: true,
+      files: [{ path: "manifest.yaml", base_hash: null }],
+    });
+    expect(body.project.externalId).toBe("my-project");
+    const opened = await app.request(`/api/v1/networks/${network.id}/servers/${skId}/projects/my-project/files`, {
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
+    });
+    expect(opened.status).toBe(200);
+    expect((await opened.json()).files).toEqual(plugin.writes[0].files);
+    const refreshed = await app.request(`/api/v1/networks/${network.id}`, {
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
+    });
+    expect((await refreshed.json()).projects.map((p: { externalId: string }) => p.externalId)).toContain("my-project");
+    } finally { plugin.stop(); }
+  });
+
+  test.each([
+    ["offline", undefined, 503, "server_offline"],
+    ["existing", undefined, 409, "project_exists"],
+    ["write", "write_error", 502, "write_error"],
+    ["write", "conflict", 409, "project_exists"],
+  ])("creation failure %s/%s does not leave a database project", async (mode, writeError, status, error) => {
+    const { sessionId } = await seedUser();
+    const app = makeApp();
+    const headers = { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" };
+    const { network } = await (await app.request("/api/v1/networks", {
+      method: "POST", headers, body: JSON.stringify({ name: "N" }),
+    })).json();
+    const { id: skId } = await (await app.request(`/api/v1/networks/${network.id}/server-keys`, {
+      method: "POST", headers, body: "{}",
+    })).json();
+    const plugin = mode === "offline" ? null : writablePlugin(skId, mode === "existing" ? ["mon_projet"] : [], writeError);
+    try {
+      const res = await app.request(`/api/v1/networks/${network.id}/projects`, {
+        method: "POST", headers, body: JSON.stringify({ name: "mon_projet", serverKeyId: skId }),
+      });
+      expect(res.status).toBe(status);
+      expect((await res.json()).error).toBe(error);
+      expect(await db.select().from(projects)).toHaveLength(0);
+      if (mode === "existing") expect(plugin!.writes).toHaveLength(0);
+    } finally { plugin?.stop(); }
   });
 
   test("POST /:id/projects returns 422 when serverKeyId is missing", async () => {
@@ -730,12 +802,8 @@ describe("POST /api/v1/networks/:id/server-keys/:keyId/rotate", () => {
     const oldHash = await sha256(oldKey);
 
     // Create a project owned by this server_key to verify ownership survives rotation.
-    const projectRes = await app.request(`/api/v1/networks/${network.id}/projects`, {
-      method: "POST",
-      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ name: "rot-project", serverKeyId: skId }),
-    });
-    const { project: project } = await projectRes.json();
+    const { createProject } = await import("../lib/projectStorage");
+    const project = await createProject({ networkId: network.id, serverKeyId: skId, name: "rot-project" });
 
     const rotateRes = await app.request(`/api/v1/networks/${network.id}/server-keys/${skId}/rotate`, {
       method: "POST",
@@ -828,12 +896,8 @@ describe("DELETE /api/v1/networks/:id/server-keys/:keyId", () => {
     const { id: skId } = await skRes.json();
 
     // Create a project owned by this server_key
-    const projectRes = await app.request(`/api/v1/networks/${network.id}/projects`, {
-      method: "POST",
-      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ name: "c4-project", serverKeyId: skId }),
-    });
-    const { project: project } = await projectRes.json();
+    const { createProject } = await import("../lib/projectStorage");
+    const project = await createProject({ networkId: network.id, serverKeyId: skId, name: "c4-project" });
 
     // Verify project exists and is owned by the server_key
     const packsBefore = await db.select().from(projects).where(eq(projects.serverKeyId, skId));

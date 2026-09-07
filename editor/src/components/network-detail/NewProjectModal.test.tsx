@@ -4,6 +4,23 @@ import { describe, expect, it, vi } from "vitest";
 import { NewProjectModal } from "./NewProjectModal";
 
 describe("NewProjectModal", () => {
+  it("shows creation errors and keeps the entered project name", async () => {
+    const user = userEvent.setup();
+    const onOpenChange = vi.fn();
+    render(
+      <NewProjectModal
+        open
+        onOpenChange={onOpenChange}
+        serverLabel="Survival"
+        onCreate={vi.fn().mockRejectedValue(new Error("project_exists"))}
+      />,
+    );
+    await user.type(screen.getByPlaceholderText("mon_projet"), "Shop{Enter}");
+    expect(await screen.findByRole("alert")).toHaveTextContent(/déjà ce nom/i);
+    expect(screen.getByPlaceholderText("mon_projet")).toHaveValue("Shop");
+    expect(onOpenChange).not.toHaveBeenCalled();
+  });
+
   it("ignores Enter for an empty name and does not submit when cancelling", async () => {
     const user = userEvent.setup();
     const onCreate = vi.fn();

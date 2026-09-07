@@ -14,11 +14,13 @@ export function NewProjectModal({ open, onOpenChange, serverLabel, onCreate }: P
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const submit = async () => {
     const trimmed = name.trim();
     if (!trimmed || submitting) return;
     setSubmitting(true);
+    setError(null);
     try {
       await onCreate({
         name: trimmed,
@@ -27,6 +29,8 @@ export function NewProjectModal({ open, onOpenChange, serverLabel, onCreate }: P
       setName("");
       setDescription("");
       onOpenChange(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "create_failed");
     } finally {
       setSubmitting(false);
     }
@@ -46,7 +50,12 @@ export function NewProjectModal({ open, onOpenChange, serverLabel, onCreate }: P
         >
           <label className="mt-2 flex flex-col gap-1 text-[12px]">
             <span className="text-[var(--text-mut)]">{t("newProjectModal.nameField")}</span>
-            <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
+            <input
+              className="input"
+              placeholder={t("newProjectDialog.placeholder")}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
           </label>
           <label className="mt-2 flex flex-col gap-1 text-[12px]">
             <span className="text-[var(--text-mut)]">{t("newProjectModal.descriptionField")}</span>
@@ -56,6 +65,13 @@ export function NewProjectModal({ open, onOpenChange, serverLabel, onCreate }: P
               onChange={(e) => setDescription(e.target.value)}
             />
           </label>
+          {error && (
+            <div role="alert" className="mt-2 text-xs text-[var(--danger)]">
+              {t(`newProjectDialog.errors.${error}`, {
+                defaultValue: t("newProjectDialog.errors.create_failed"),
+              })}
+            </div>
+          )}
           <div className="mt-3 flex justify-end gap-2">
             <button
               type="button"

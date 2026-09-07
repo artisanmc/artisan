@@ -195,7 +195,10 @@ export async function createProject(
       ...(description !== undefined && { description }),
     }),
   });
-  if (!res.ok) throw new Error(`createProject failed: ${res.status}`);
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(body.error ?? "create_failed");
+  }
   return ((await res.json()) as { project: ProjectSummary }).project;
 }
 
