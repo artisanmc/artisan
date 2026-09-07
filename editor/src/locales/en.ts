@@ -1,3 +1,4 @@
+import { migrationEn } from "./migration";
 export default {
   projectLibrary: {
     title: "Library",
@@ -1877,6 +1878,7 @@ export default {
     },
   },
   assistant: {
+    migration: migrationEn,
     title: "AI Assistant",
     open: "AI Assistant",
     close: "Close",
