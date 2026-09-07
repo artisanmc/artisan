@@ -8,6 +8,8 @@ interface SplitPaneProps {
   primary: React.ReactNode;
   /** Vertical: bottom pane / Horizontal: right pane. Sized via `secondarySize`. */
   secondary: React.ReactNode;
+  /** Place the sized pane before the primary pane (left/top). */
+  secondaryPosition?: "start" | "end";
   /** Px size of the secondary pane. Caller persists. */
   secondarySize: number;
   onSecondarySizeChange: (size: number) => void;
@@ -31,6 +33,7 @@ export function SplitPane({
   orientation,
   primary,
   secondary,
+  secondaryPosition = "end",
   secondarySize,
   onSecondarySizeChange,
   minSecondary = 80,
@@ -59,11 +62,17 @@ export function SplitPane({
       const wrapper = wrapperRef.current;
       if (!wrapper) return;
       const rect = wrapper.getBoundingClientRect();
-      // Cursor distance from the far edge of the wrapper = desired secondary size.
-      const desired = isVertical ? rect.bottom - e.clientY : rect.right - e.clientX;
+      const desired =
+        secondaryPosition === "start"
+          ? isVertical
+            ? e.clientY - rect.top
+            : e.clientX - rect.left
+          : isVertical
+            ? rect.bottom - e.clientY
+            : rect.right - e.clientX;
       const total = isVertical ? rect.height : rect.width;
       const max = Math.max(0, total - minPrimary);
-      const clamped = Math.max(minSecondary, Math.min(max, desired));
+      const clamped = Math.min(max, Math.max(minSecondary, desired));
       onSecondarySizeChange(clamped);
     };
     const onUp = () => {
@@ -77,15 +86,22 @@ export function SplitPane({
     window.addEventListener("pointerup", onUp);
     window.addEventListener("pointercancel", onUp);
     return () => {
+      onUp();
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("pointercancel", onUp);
     };
-  }, [isVertical, minSecondary, minPrimary, onSecondarySizeChange]);
+  }, [isVertical, secondaryPosition, minSecondary, minPrimary, onSecondarySizeChange]);
 
   const wrapperClass = cx(
     "flex h-full min-h-0 w-full min-w-0",
-    isVertical ? "flex-col" : "flex-row",
+    isVertical
+      ? secondaryPosition === "start"
+        ? "flex-col-reverse"
+        : "flex-col"
+      : secondaryPosition === "start"
+        ? "flex-row-reverse"
+        : "flex-row",
   );
   // 1px visible line; the real pointer target is the wider invisible
   // overlay (hitClass) so the hairline stays easy to grab.
@@ -115,19 +131,27 @@ export function SplitPane({
 
   return (
     <div ref={wrapperRef} className={wrapperClass}>
-      <div className="min-h-0 min-w-0 flex-1 overflow-hidden">{primary}</div>
+      <div className="min-h-0 min-w-0 flex-1 overflow-hidden" hidden={primary == null}>
+        {primary}
+      </div>
       {/* biome-ignore lint/a11y/useSemanticElements: <hr> can't host a pointerdown drag affordance */}
       <div
         role="separator"
         aria-orientation={isVertical ? "horizontal" : "vertical"}
         tabIndex={-1}
+        onPointerDown={onPointerDown}
         className={handleClass}
+        hidden={primary == null || secondary == null}
       >
         <div className={gripClass} />
         <div className={highlightClass} />
-        <div onPointerDown={onPointerDown} className={hitClass} />
+        <div className={hitClass} />
       </div>
-      <div className="min-h-0 min-w-0 shrink-0 overflow-hidden" style={secondaryStyle}>
+      <div
+        className="min-h-0 min-w-0 shrink-0 overflow-hidden"
+        hidden={secondary == null}
+        style={primary == null ? { flex: 1 } : secondaryStyle}
+      >
         {secondary}
       </div>
     </div>

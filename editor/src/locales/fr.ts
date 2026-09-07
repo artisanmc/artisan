@@ -2,6 +2,15 @@ import type en from "./en";
 import { migrationFr } from "./migration";
 
 const fr: typeof en = {
+  navigation: {
+    menu: "Menu",
+    label: "Navigation principale",
+    open: "Ouvrir la navigation",
+    close: "Fermer la navigation",
+    dismiss: "Refermer la navigation",
+    keepOpen: "Garder la navigation ouverte",
+    autoHide: "Activer le repli automatique",
+  },
   projectLibrary: {
     title: "Bibliothèque",
     close: "Fermer la bibliothèque",
@@ -1687,6 +1696,8 @@ const fr: typeof en = {
     revertTitle: "Jeter les modifications non enregistrées et repartir de l'état du serveur",
   },
   save: {
+    options: "Options d’enregistrement",
+    discardChanges: "Abandonner les modifications",
     save: "Enregistrer",
     saving: "Enregistrement…",
     saved: "Enregistré sur le serveur",

@@ -1,9 +1,10 @@
-import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import { ProjectTopBarControls } from "./ProjectTopBarControls";
 
 vi.mock("@tanstack/react-router", async () => {
-  const actual = await vi.importActual<typeof import("@tanstack/react-router")>("@tanstack/react-router");
+  const actual =
+    await vi.importActual<typeof import("@tanstack/react-router")>("@tanstack/react-router");
   return {
     ...actual,
     useNavigate: () => () => {},
@@ -13,6 +14,32 @@ vi.mock("@tanstack/react-router", async () => {
 });
 
 describe("ProjectTopBarControls", () => {
+  it("separates project actions, navigation and canvas tools", () => {
+    const project = {
+      id: "p1",
+      name: "Test",
+      defaultLang: "en",
+      i18nKeys: {},
+      menus: [],
+      commands: [],
+      dialogs: [],
+      assets: [],
+    } as any;
+    render(<ProjectTopBarControls project={project} projectId={"p1" as any} />);
+    expect(within(screen.getByTestId("project-header")).getByText("Test")).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId("project-header")).getByRole("button", {
+        name: /^(Save|Enregistrer)/,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId("project-view-navigation")).getByTestId("open-view-overview"),
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId("project-editing-tools")).getByTitle(/Undo \(|Annuler \(/i),
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("open-view-overview").querySelector("kbd")).toBeNull();
+  });
   it("renders the lang switcher, undo/redo, and save when a project is provided", () => {
     const project = {
       id: "p1",

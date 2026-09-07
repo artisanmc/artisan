@@ -1,3 +1,4 @@
+import { SplitPane } from "@/components/SplitPane";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { ProjectId } from "@/domain/types";
@@ -6,8 +7,9 @@ import { useAssetInit } from "@/features/assets/useAssetInit";
 import { CapturedItemsSection } from "@/features/canvas/CapturedItemsSection";
 import { Library } from "@/features/canvas/Library";
 import { useTextureInit } from "@/features/canvas/useTextureInit";
+import { useIsDesktop } from "@/lib/useMediaQuery";
 import { Library as LibraryIcon, X } from "lucide-react";
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { type LibraryCategory, useProjectLibraryStore } from "./projectLibraryStore";
 
@@ -20,7 +22,7 @@ export function ProjectLibraryButton({
   const open = useProjectLibraryStore((s) => s.projectId === projectId);
   return (
     <Button
-      variant="ghost"
+      variant={open && active ? "secondary" : "ghost"}
       size="sm"
       aria-label={t("projectLibrary.title")}
       title={t("projectLibrary.title")}
@@ -49,6 +51,23 @@ export function ProjectLibraryWorkspace({
   useAssetInit(projectId);
   const open = useProjectLibraryStore((s) => s.projectId === projectId);
   const close = useProjectLibraryStore((s) => s.close);
+  const desktop = useIsDesktop();
+  const width = useProjectLibraryStore((s) => s.width);
+  const height = useProjectLibraryStore((s) => s.height);
+  const setWidth = useProjectLibraryStore((s) => s.setWidth);
+  const setHeight = useProjectLibraryStore((s) => s.setHeight);
+  const frame = useRef<HTMLDivElement>(null);
+  const [available, setAvailable] = useState({ width: 1000, height: 600 });
+  const horizontal = desktop && available.width >= 600;
+  useEffect(() => {
+    const element = frame.current;
+    if (!element) return;
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry) setAvailable({ width: entry.contentRect.width, height: entry.contentRect.height });
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     if (!open || !active) return;
@@ -66,13 +85,27 @@ export function ProjectLibraryWorkspace({
   }, [open, active, close]);
 
   return (
-    <div className="absolute inset-0 flex min-h-0 min-w-0 flex-col lg:flex-row">
-      <div className="relative min-h-0 min-w-0 flex-1">{children}</div>
-      {open && (
-        <aside className="order-last flex h-[45%] min-h-0 shrink-0 flex-col border-t border-[var(--border)] bg-[var(--surface-raised)] lg:order-first lg:h-full lg:w-[340px] lg:border-t-0 lg:border-r">
-          <ProjectLibraryPanel projectId={projectId} />
-        </aside>
-      )}
+    <div ref={frame} className="absolute inset-0 min-h-0 min-w-0">
+      <SplitPane
+        orientation={horizontal ? "horizontal" : "vertical"}
+        secondaryPosition={horizontal ? "start" : "end"}
+        primary={<div className="relative h-full min-h-0 min-w-0">{children}</div>}
+        secondary={
+          open ? (
+            <aside className="h-full min-h-0 bg-[var(--surface-raised)]">
+              <ProjectLibraryPanel projectId={projectId} />
+            </aside>
+          ) : null
+        }
+        secondarySize={
+          horizontal
+            ? Math.min(width, Math.max(0, available.width - 240))
+            : Math.min(height, Math.max(0, available.height - 200))
+        }
+        onSecondarySizeChange={horizontal ? setWidth : setHeight}
+        minPrimary={horizontal ? 240 : 200}
+        minSecondary={horizontal ? 260 : 160}
+      />
     </div>
   );
 }
