@@ -7,8 +7,8 @@ import { useAssetStore } from "./assetStore";
 /**
  * Loads the active project's assets into the asset store as soon as a
  * signed-in user AND a projectId are available. Must be called from a
- * component that is always mounted while the editor is open (e.g.
- * EditorPane), NOT from AssetsTab which is conditionally rendered per tab —
+ * ProjectLibraryWorkspace, which stays mounted independently of selection,
+ * NOT from AssetsTab which is conditionally rendered per category —
  * title-layer rendering needs the asset list before the user ever opens the
  * Assets tab, otherwise background/glyph layers paint as broken
  * placeholders.

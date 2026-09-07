@@ -65,6 +65,8 @@ vi.mock("@/components/ProjectTopBarControls", () => ({
   ProjectTopBarControls: () => <div data-testid="topbar" />,
 }));
 vi.mock("@/features/canvas/Stage", () => ({ Stage: () => <div data-testid="stage" /> }));
+vi.mock("@/features/canvas/useTextureInit", () => ({ useTextureInit: () => {} }));
+vi.mock("@/features/assets/useAssetInit", () => ({ useAssetInit: () => {} }));
 vi.mock("@/features/canvas/EditorPane", () => ({
   EditorPane: () => <div data-testid="editor-pane" />,
 }));

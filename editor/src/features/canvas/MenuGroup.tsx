@@ -592,7 +592,6 @@ export function MenuGroup({ projectId, menu, position, layout, solo = false }: M
                     }
                     // Non-additive slot click → reveal the Edit tab so the
                     // selected element is immediately editable.
-                    useUiStore.getState().setEditorTab("edit");
                     // Single-pos elements: button mode and instance mode
                     // would render identically (only one slot to outline),
                     // so the toggle is just visual noise. Always pick
@@ -645,7 +644,6 @@ export function MenuGroup({ projectId, menu, position, layout, solo = false }: M
                       return;
                     }
                     if (!el?.elementId) return;
-                    useUiStore.getState().setEditorTab("edit");
                     const sel = useSelectionStore.getState();
                     if (!el.multiPos) {
                       sel.set([el.elementId], i, menu.id);

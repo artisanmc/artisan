@@ -26,7 +26,7 @@ import { summarizeFieldType } from "@/features/data/helpers";
 import { parsePositions } from "@/lib/positions";
 import { useAccountStore } from "@/state/accountStore";
 import { useServerDataSourcesStore } from "@/state/serverDataSourcesStore";
-import { useUiStore } from "@/state/uiStore";
+import { useProjectLibraryStore } from "@/features/project/projectLibraryStore";
 import { Library as LibraryIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -60,7 +60,6 @@ export function rowModelLabel(ref: string): string {
 
 export function MenuProperties({ projectId, menu }: MenuPropertiesProps) {
   const setMenuField = useAccountStore((s) => s.setMenuField);
-  const setEditorTab = useUiStore((s) => s.setEditorTab);
   const [rowsError, setRowsError] = useState<string | null>(null);
   const { t } = useTranslation();
 
@@ -95,7 +94,7 @@ export function MenuProperties({ projectId, menu }: MenuPropertiesProps) {
           <p className="text-[11px] text-[var(--text-mut)]">{t("menuProperties.emptyMenuHint")}</p>
           <button
             type="button"
-            onClick={() => setEditorTab("library")}
+            onClick={() => useProjectLibraryStore.getState().open(projectId, "items")}
             className="self-start inline-flex items-center gap-1 rounded border border-[var(--brand)]/60 bg-[var(--brand-soft)] px-2.5 py-1.5 text-[11px] text-[var(--brand)] hover:bg-[var(--brand)]/20"
           >
             <LibraryIcon className="h-3 w-3" />
