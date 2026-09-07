@@ -36,6 +36,13 @@ type Entry =
   | { role: "user" | "assistant"; text: string }
   | { role: "card"; kind: "written" | "deleted"; id: string };
 
+type SentMessage = {
+  text: string;
+  attachments: Record<string, string>;
+  serverGroups: ServerAttachmentGroup[];
+  modelId: string | null;
+};
+
 /**
  * Map a backend tool name to the i18n key of its friendly activity label.
  * Unknown / not-yet-running tools fall back to the generic "thinking" line.
@@ -122,8 +129,12 @@ export function AssistantChat({
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [preparingSend, setPreparingSend] = useState(false);
+  const [sendingFiles, setSendingFiles] = useState(false);
   const [activity, setActivity] = useState<string | null>(null);
   const [turnError, setTurnError] = useState<string | null>(null);
+  const [retryMessage, setRetryMessage] = useState<SentMessage | null>(null);
+  const sending = useRef(false);
+  const mounted = useRef(true);
   const [attachments, setAttachments] = useState<Record<string, string>>({});
   const [serverGroups, setServerGroups] = useState<ServerAttachmentGroup[]>([]);
   const [serverDialogOpen, setServerDialogOpen] = useState(false);
@@ -133,6 +144,13 @@ export function AssistantChat({
   const [balance, setBalance] = useState<BalanceBreakdown | null>(null);
   const [outOfCredits, setOutOfCredits] = useState(false);
   const convId = useRef<string | null>(conversationId);
+
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
 
   // Resume: load the persisted transcript (parent keys us per conversation).
   useEffect(() => {
@@ -176,20 +194,35 @@ export function AssistantChat({
     });
   }
 
-  async function send() {
-    const text = input.trim();
+  async function send(retry?: SentMessage) {
+    if (sending.current || outOfCredits) return;
+    const message = retry ?? {
+      text: input.trim(),
+      attachments: { ...attachments },
+      serverGroups: serverGroups.map((group) => ({
+        ...group,
+        files: group.files.map((file) => ({ ...file })),
+      })),
+      modelId,
+    };
+    const { text } = message;
     const attachedNames = [
-      ...Object.keys(attachments),
-      ...serverGroups.flatMap((group) =>
+      ...Object.keys(message.attachments),
+      ...message.serverGroups.flatMap((group) =>
         group.files.map((file) => `server:${group.sourceId}/${file.path}`),
       ),
     ];
     if (!user || (!text && attachedNames.length === 0) || busy) return;
+    sending.current = true;
     const shown = text || t("assistant.sentFiles", { names: attachedNames.join(", ") });
     setBusy(true);
     setPreparingSend(true);
+    setSendingFiles(attachedNames.length > 0);
     setActivity(null);
     setTurnError(null);
+    setRetryMessage(null);
+    let failed = false;
+    let completed = false;
     try {
       const project = useAccountStore.getState().account.projects.find((p) => p.id === projectId);
       const lang = project?.defaultLang ?? "en";
@@ -210,11 +243,12 @@ export function AssistantChat({
       if (!convId.current) {
         convId.current = await openConversation({ projectId });
       }
+      if (!mounted.current) return;
       const stream = streamAssistant(convId.current, {
         text,
         menus,
-        attachments,
-        serverAttachments: serverGroups.map((group) => ({
+        attachments: message.attachments,
+        serverAttachments: message.serverGroups.map((group) => ({
           sourceId: group.sourceId,
           paths: group.files.map((file) => file.path).sort(),
         })),
@@ -222,18 +256,26 @@ export function AssistantChat({
         dialogs,
         translations,
         dataSources,
-        modelId: modelId ?? undefined,
+        modelId: message.modelId ?? undefined,
       });
       const first = await stream.next();
+      if (!mounted.current) {
+        await stream.return(undefined);
+        return;
+      }
       setPreparingSend(false);
       if (first.done || first.value.type !== "insufficient_credits") {
-        setInput("");
-        setAttachments({});
-        setServerGroups([]);
-        setExpandedGroups(new Set());
+        if (!retry) {
+          setInput("");
+          setAttachments({});
+          setServerGroups([]);
+          setExpandedGroups(new Set());
+        }
         setEntries((e) => [...e, { role: "user", text: shown }]);
       }
       function handleAssistantEvent(ev: AssistantEvent) {
+        if (!mounted.current) return;
+        if (ev.type === "done") completed = true;
         if (ev.type === "text") {
           // Once the model starts writing its answer, the streamed text is the
           // live feedback — fall back to the generic thinking label.
@@ -315,6 +357,8 @@ export function AssistantChat({
                 },
           );
         } else if (ev.type === "insufficient_credits") {
+          completed = true;
+          if (retry) setRetryMessage(message);
           setOutOfCredits(true);
           setBalance((b) =>
             b
@@ -322,6 +366,8 @@ export function AssistantChat({
               : { total: Number(ev.balance), subscription: 0, rollover: 0, topup: 0 },
           );
         } else if (ev.type === "error") {
+          failed = true;
+          setRetryMessage(message);
           const msg =
             ev.code === "attachments_not_read"
               ? t("assistant.attachmentsNotRead", { read: ev.readCount, total: ev.totalCount })
@@ -331,28 +377,38 @@ export function AssistantChat({
         }
       }
       if (!first.done) handleAssistantEvent(first.value);
-      for await (const event of stream) handleAssistantEvent(event);
+      for await (const event of stream) {
+        if (!mounted.current) break;
+        handleAssistantEvent(event);
+      }
+      if (!completed && !failed && mounted.current)
+        throw new Error("Assistant stream ended before done");
       // Ce que l'assistant génère atterrit dans l'état de la page, comme une
       // édition manuelle : rien n'est écrit sur le serveur sans que l'admin
       // clique sur Enregistrer (ADR `server-disk-only-storage`, décision 3).
       // Écrire ici serait le seul chemin du produit qui touche le disque sans
       // geste — et le plus surprenant, puisqu'il n'est pas de l'admin.
     } catch (err) {
+      if (!mounted.current) return;
       // Keep the friendly line but never swallow the cause — "Interrompu"
       // with an empty console made a wire-shape 404 undiagnosable.
       console.error("[assistant] turn failed:", err);
-      const message =
+      const errorMessage =
         err instanceof AssistantRequestError
           ? t(`assistant.serverFiles.errors.${err.code}`, {
               defaultValue: t("assistant.serverFiles.errors.read_error"),
             })
           : t("assistant.interrupted");
-      toast.error(message);
-      setTurnError(message);
+      toast.error(errorMessage);
+      setTurnError(errorMessage);
+      setRetryMessage(message);
     } finally {
-      setBusy(false);
-      setPreparingSend(false);
-      setActivity(null);
+      sending.current = false;
+      if (mounted.current) {
+        setBusy(false);
+        setPreparingSend(false);
+        setActivity(null);
+      }
     }
   }
 
@@ -441,6 +497,16 @@ export function AssistantChat({
             <div data-testid="assistant-error" className="text-[12px] text-[var(--danger)]">
               ⚠️ {turnError}
             </div>
+          )}
+          {!busy && retryMessage && (
+            <button
+              type="button"
+              className="btn btn-sm btn-secondary self-start"
+              disabled={outOfCredits}
+              onClick={() => void send(retryMessage)}
+            >
+              {t("assistant.retry")}
+            </button>
           )}
         </div>
       </div>
@@ -546,13 +612,7 @@ export function AssistantChat({
             className="flex items-center gap-2 text-[12px] text-[var(--text-mut)]"
           >
             <LoaderCircle aria-hidden className="h-3.5 w-3.5 shrink-0 animate-spin" />
-            <span>
-              {t(
-                serverFileCount + attachmentCount > 0
-                  ? "assistant.sendingFiles"
-                  : "assistant.preparingSend",
-              )}
-            </span>
+            <span>{t(sendingFiles ? "assistant.sendingFiles" : "assistant.preparingSend")}</span>
           </output>
         )}
         <div data-testid="assistant-composer-toolbar" className="flex min-w-0 items-center gap-2">

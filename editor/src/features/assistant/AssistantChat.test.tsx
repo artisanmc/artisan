@@ -84,6 +84,79 @@ afterEach(() => {
 });
 
 describe("AssistantChat", () => {
+  it("does not carry an interrupted turn into another conversation", async () => {
+    setup();
+    const { streamAssistant } = await import("@/lib/api/assistant");
+    const pending = Promise.withResolvers<void>();
+    vi.mocked(streamAssistant).mockImplementationOnce(async function* () {
+      yield { type: "text", text: "Reading" };
+      await pending.promise;
+      throw new Error("disconnected");
+    });
+    const view = render(<AssistantChat key="old" projectId={projectId("p")} />);
+    await userEvent.type(screen.getByRole("textbox"), "old request");
+    await userEvent.click(screen.getByRole("button", { name: /^(send|envoyer)$/i }));
+    await screen.findByText("Reading");
+    view.rerender(<AssistantChat key="new" projectId={projectId("p")} />);
+    await act(async () => pending.resolve());
+    expect(screen.queryByRole("button", { name: /^(retry|réessayer)$/i })).toBeNull();
+    expect(screen.queryByTestId("assistant-error")).toBeNull();
+    expect(screen.getByRole("textbox")).toHaveValue("");
+  });
+
+  it.each(["throw", "error", "eof"])(
+    "retries a %s with the original files without replacing a new draft",
+    async (failure) => {
+      setup();
+      const { streamAssistant, openConversation } = await import("@/lib/api/assistant");
+      vi.mocked(streamAssistant).mockImplementationOnce(async function* () {
+        yield { type: "text", text: "Lecture…" };
+        if (failure === "throw") throw new Error("disconnected");
+        if (failure === "error") {
+          yield { type: "error", message: "failed" };
+          yield { type: "done", stopReason: "end_turn" };
+        }
+      });
+      render(<AssistantChat projectId={projectId("p")} networkId="n" serverId="s" serverOnline />);
+      await attachServerFiles();
+      fireEvent.drop(screen.getByTestId("assistant-panel"), {
+        dataTransfer: { files: [new File(["local"], "local.yml")] },
+      });
+      await screen.findByText("local.yml");
+      await userEvent.type(screen.getByRole("textbox"), "migre tout");
+      await userEvent.click(screen.getByRole("button", { name: /^(send|envoyer)$/i }));
+      const retry = await screen.findByRole("button", { name: /^(retry|réessayer)$/i });
+      await userEvent.type(screen.getByRole("textbox"), "nouveau brouillon");
+      fireEvent.drop(screen.getByTestId("assistant-panel"), {
+        dataTransfer: { files: [new File(["new"], "draft.yml")] },
+      });
+      await screen.findByText("draft.yml");
+      const pending = Promise.withResolvers<void>();
+      vi.mocked(streamAssistant).mockImplementationOnce(async function* () {
+        await pending.promise;
+        yield { type: "done", stopReason: "end_turn" };
+      });
+      act(() => {
+        fireEvent.click(retry);
+        fireEvent.click(retry);
+      });
+      await waitFor(() => expect(streamAssistant).toHaveBeenCalledTimes(2));
+      expect(streamAssistant).toHaveBeenLastCalledWith(
+        "c1",
+        expect.objectContaining({
+          text: "migre tout",
+          attachments: { "local.yml": "local" },
+          serverAttachments: [{ sourceId: "zmenu", paths: ["categories/blocks.yml", "shop.yml"] }],
+        }),
+      );
+      expect(openConversation).toHaveBeenCalledOnce();
+      await act(async () => pending.resolve());
+      expect(screen.queryByRole("button", { name: /^(retry|réessayer)$/i })).toBeNull();
+      expect(screen.getByRole("textbox")).toHaveValue("nouveau brouillon");
+      expect(screen.getByText("draft.yml")).toBeInTheDocument();
+    },
+  );
+
   it.each(["accepted", "failed"])(
     "shows server send status until the first event is %s",
     async (outcome) => {
