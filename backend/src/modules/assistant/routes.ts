@@ -28,6 +28,7 @@ import {
 import { type DataSourceInfo, WorkingCopy } from "./workingCopy";
 import { assistantFailureCode, startAssistantHeartbeat } from "./transport";
 import { buildMigrationRouter } from "./migration/routes";
+import { dispatchMigration } from "./migration/runner";
 
 /** Prefix marking the transient system note that lists a turn's attachments. */
 export const ATTACHMENT_NOTE_PREFIX = "Fichiers joints par l'utilisateur";
@@ -61,8 +62,9 @@ export function buildAssistantRouter(): Hono {
 		return next();
 	});
 
+	r.route("/conversations/:id/migrations", buildMigrationRouter({ startExecution: dispatchMigration }));
+
 	// List a workspace's conversations (newest first), without message bodies.
-	r.route("/conversations/:id/migrations", buildMigrationRouter());
 	// `projectId` is the wire name since the project→project rename; `projectId` is
 	// the legacy alias kept for old clients.
 	r.get("/conversations", async (c) => {
