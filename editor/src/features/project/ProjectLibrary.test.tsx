@@ -67,6 +67,24 @@ it("opens the project library without a selection, beside the existing workspace
   expect([...useSelectionStore.getState().ids]).toEqual(["command1"]);
 });
 
+it("hides the tool and an already open panel while the workspace is inactive", () => {
+  const view = render(
+    <ProjectLibraryWorkspace projectId={PID} active={false}>
+      <div>Command view</div>
+    </ProjectLibraryWorkspace>,
+  );
+  expect(screen.queryByRole("button", { name: /library|bibliothèque/i })).toBeNull();
+  act(() => useProjectLibraryStore.getState().open(PID));
+  expect(screen.queryByText("Item catalogue")).toBeNull();
+  expect(screen.getByText("Command view")).toBeInTheDocument();
+  view.rerender(
+    <ProjectLibraryWorkspace projectId={PID} active>
+      <div>Canvas</div>
+    </ProjectLibraryWorkspace>,
+  );
+  expect(screen.getByText("Item catalogue")).toBeInTheDocument();
+});
+
 it("keeps captured items inside Items", async () => {
   const user = userEvent.setup();
   render(<Workspace />);

@@ -370,14 +370,18 @@ export function ProjectCanvasPage() {
     </div>
   ) : null;
 
+  const canvasActive =
+    tab === "overview" &&
+    (!documentId || !!project?.menus.some((menu) => menu.id === documentId));
+
   const tabContent = (
     // `h-full` (not just `flex-1`) so it fills the content frame — otherwise the
     // content collapses to its own height and the surface shows through below.
     <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
       {isDesktop ? (
-        <ProjectWorkspacePanels projectId={pId} active={tab === "overview" && (!documentId || !!project?.menus.some((menu) => menu.id === documentId))}>
+        <ProjectWorkspacePanels projectId={pId} active={canvasActive}>
           <div className="relative h-full min-h-0 min-w-0 flex-1 overflow-hidden">
-            <ProjectLibraryWorkspace projectId={pId} active={tab === "overview"}>{centerContent}</ProjectLibraryWorkspace>
+            <ProjectLibraryWorkspace projectId={pId} active={canvasActive}>{centerContent}</ProjectLibraryWorkspace>
             {secondaryViews}
           </div>
         </ProjectWorkspacePanels>
@@ -401,7 +405,7 @@ export function ProjectCanvasPage() {
             </Sheet>
           </div>
           <div className="relative min-h-0 flex-1 overflow-hidden">
-            <ProjectLibraryWorkspace projectId={pId} active={tab === "overview"}>{centerContent}</ProjectLibraryWorkspace>
+            <ProjectLibraryWorkspace projectId={pId} active={canvasActive}>{centerContent}</ProjectLibraryWorkspace>
             {secondaryViews}
           </div>
         </div>

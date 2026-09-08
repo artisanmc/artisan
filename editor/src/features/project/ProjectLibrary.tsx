@@ -93,14 +93,14 @@ export function ProjectLibraryWorkspace({
           <div className="relative h-full min-h-0 min-w-0">
             {children}
             {active && !open && (
-              <div className="absolute left-3 top-3 z-30 rounded-[var(--r-md)] bg-[var(--surface)] p-1 shadow-[var(--shadow-sm)]">
+              <div className="absolute right-3 top-3 z-30 rounded-[var(--r-md)] bg-[var(--surface)] p-1 shadow-[var(--shadow-sm)]">
                 <ProjectLibraryButton projectId={projectId} />
               </div>
             )}
           </div>
         }
         secondary={
-          open ? (
+          active && open ? (
             <aside className="h-full min-h-0 bg-[var(--surface-raised)]">
               <ProjectLibraryPanel projectId={projectId} />
             </aside>
