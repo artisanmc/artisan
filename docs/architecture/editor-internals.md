@@ -1,5 +1,9 @@
 # Editor & rendering internals
 
+## Tests et CI
+
+`vitest.config.ts` exclut tous les dossiers `**/e2e/**` pour ne pas charger les tests Playwright dans Vitest. Les scénarios navigateur restent exécutés par `playwright.config.ts` (`tests/e2e`) et `playwright.migration.config.ts` (`e2e/migration.spec.ts`). La CI éditeur doit réussir avant que le workflow de déploiement production démarre.
+
 > Détails d'implémentation éditeur + pipeline de rendu du titre. Consulté quand on touche
 > au title composer, au canvas / à l'édition d'élément, ou au `<SchemaForm>`.
 
