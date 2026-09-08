@@ -202,7 +202,7 @@ La bibliothèque utilise `SplitPane` avec `secondaryPosition="start"` à gauche
 Le store `projectLibraryStore` persiste uniquement largeur/hauteur sous
 `artisan-library-size` ; ouverture et catégorie restent éphémères.
 Le canvas reste monté pendant ouverture, fermeture, resize et changement d'orientation.
-Le bouton Bibliothèque est un outil flottant arrondi en haut à gauche du canvas, rendu par `ProjectLibraryWorkspace` dans le panneau principal du split uniquement si le panneau est fermé. La croix ferme le panneau et fait réapparaître l’outil ; aucun bouton Bibliothèque dans la topbar.
+Le bouton Bibliothèque est un outil flottant arrondi en haut à droite du canvas, rendu par `ProjectLibraryWorkspace` dans le panneau principal du split uniquement si le panneau est fermé. Bouton et panneau sont visibles uniquement sur la planche et les vues individuelles de menus, jamais dans les vues commande ou dialogue ni les onglets secondaires. L'état d'ouverture est conservé au retour au canvas. La croix ferme le panneau et fait réapparaître l’outil ; aucun bouton Bibliothèque dans la topbar.
 L’en-tête regroupe onglets et fermeture sans ligne de titre supplémentaire ; les filtres du catalogue restent sur une ligne défilante horizontalement, pour préserver la hauteur de grille.
 
 ### `ProjectPanel` — arborescence du projet à droite
@@ -242,6 +242,8 @@ Depuis 2026-09-05. Le panneau d'édition était **toujours** affiché et mangeai
 - **INVARIANT** : `DocumentView` ne réimplémente aucun éditeur — il monte les mêmes renderers que la planche (`MenuGroup` en solo, `FlowCanvas`). Pas de second éditeur (≠ focus mode 2026-06-02, forké puis reverté).
 - **Échap = retour planche** : `DocumentView` pose un listener `keydown` window qui rappelle `back()` sur `Escape`, **sauf** si le focus est dans un `INPUT`/`TEXTAREA`/`contentEditable`, si une modale/menu/liste est ouverte (`[role=dialog|menu|listbox]`), ou si l'événement est déjà `defaultPrevented`. Le bouton « Retour au canvas » affiche un badge clavier `<kbd>Esc</kbd>`.
 - **Mémorisation pan/zoom** : le `Stage` de la planche restaure son `viewport` au montage depuis `uiStore.canvasViewports[projectId]` (lu non-réactivement via `getState()` ; passé en `initial` à `usePanZoom`) et le réécrit à chaque changement via un effet. Indexé par projectId, **session-only** (hors `partialize`) : quitter pour une vue de Document puis revenir garde la position + le zoom ; un reload repart de la vue par défaut. En **mode focus**, le même `Stage` lit/écrit `uiStore.documentViewport` — un cadrage unique partagé par tous les Documents, celui-là **persisté**.
+
+- **Bulle de navigation** : le bouton « Retour au canvas » garde sa largeur et son libellé sur une seule ligne (`shrink-0`, `whitespace-nowrap`) ; le titre du Document est tronqué quand les sidebars réduisent l'espace disponible.
 
 ### Mode focus (`<Stage focus={documentId}>`)
 
