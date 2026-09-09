@@ -239,6 +239,13 @@
       "when": 1788943522725,
       "tag": "0033_legal_true_believers",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1788944854165,
+      "tag": "0034_brown_famine",
+      "breakpoints": true
     }
   ]
 }

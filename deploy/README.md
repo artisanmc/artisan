@@ -40,6 +40,12 @@ Ce seed manuel n'est plus requis pour faire marcher la bibliothèque de l'édite
 
 ## Livraison GitHub Actions
 
+### Connexion Google
+
+Créer un client OAuth Google de type **Application Web** avec le callback exact `https://api.artisanmc.net/api/v1/auth/google/callback`. Dans Coolify, renseigner `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` et `GOOGLE_REDIRECT_URI` sur le backend, au runtime uniquement, puis redéployer. Conserver `EDITOR_URL=https://editor.artisanmc.net`. Le secret ne doit jamais être placé dans les variables `VITE_*` ou dans Git.
+
+Compléter le branding Google avec le domaine `artisanmc.net`, puis publier l'application depuis **Audience** pour l'accès public. Après déploiement, `/api/v1/auth/google/configured` doit renvoyer `configured: true`; vérifier le retour vers `/account` après consentement Google et la conservation du compte existant.
+
 Désactiver l'auto-deploy Coolify sur push. Les seules releases automatiques passent par `.github/workflows/ci.yml`, puis `.github/workflows/deploy.yml` sur la révision courante validée de `main`.
 
 Dans l'environnement GitHub `production`, définir exactement :
