@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { streamPayloadBytes } from "../provider/types";
 import { assistantFailureCode } from "../transport";
 import {
 	compressMessages,
@@ -255,15 +256,14 @@ export async function agentLoop<T>(
 				tools,
 				model: input.model,
 				signal: input.signal,
-				maxOutputTokens: input.maxOutputTokens,
 				maxRetries: 0,
 				requireExplicitFinish: true,
 				maxResponseBytes: 1024 * 1024,
 			})) {
 				input.signal.throwIfAborted();
-				bytes += Buffer.byteLength(JSON.stringify(event));
+				bytes += streamPayloadBytes(event);
 				if (bytes > 1024 * 1024)
-					throw new MigrationInputError("provider_output_limit");
+					throw new MigrationInputError("response_buffer_exceeded");
 				if (event.type === "text") responseText += event.text;
 				if (event.type === "usage") input.onUsage(event.usage);
 				if (event.type === "tool_use") calls.push(event);

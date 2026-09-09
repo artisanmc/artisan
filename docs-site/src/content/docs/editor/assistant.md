@@ -114,6 +114,13 @@ it uses credits and may lose details. Original files and generated menus remain
 available. A failed summary preserves the prior state; a successful summary is
 saved before continuation, so reopening the conversation does not discard it.
 An old `context_budget_exceeded` pause can be resumed without its former local cap.
+Exploration and conversion also use the provider's default output allowance,
+including when resuming older migrations; Artisan no longer requests an 8,000-token
+output ceiling. `provider_output_limit` means the provider stopped generation
+at its output limit. Incomplete proposals are never applied. A separate
+`response_buffer_exceeded` guard bounds retained response data to 1 MiB, excluding
+repeated streaming metadata and discarded reasoning. Explicit compression keeps
+its smaller summary output allowance.
 Agentic conversion includes a compact target index and the current task's notes;
 other exploration reports and task details remain available through tools.
 Raw source pages are bounded by encoded size, with continuation offsets for the

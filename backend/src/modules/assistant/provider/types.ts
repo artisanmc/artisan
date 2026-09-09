@@ -6,7 +6,10 @@ export interface LlmUsage {
 
 export class LlmRequestError extends Error {
 	constructor(
-		public readonly code: "provider_network_error" | "provider_output_limit",
+		public readonly code:
+			| "provider_network_error"
+			| "provider_output_limit"
+			| "response_buffer_exceeded",
 	) {
 		super(code);
 		this.name = "LlmRequestError";
@@ -18,6 +21,18 @@ export type LlmStreamEvent =
 	| { type: "tool_use"; id: string; name: string; input: unknown }
 	| { type: "usage"; usage: LlmUsage }
 	| { type: "done"; stopReason: string };
+
+/** Count retained payload, not stream framing repeated for every token. */
+export function streamPayloadBytes(event: LlmStreamEvent): number {
+	if (event.type === "text") return Buffer.byteLength(event.text);
+	if (event.type === "tool_use")
+		return (
+			Buffer.byteLength(event.id) +
+			Buffer.byteLength(event.name) +
+			Buffer.byteLength(JSON.stringify(event.input) ?? "")
+		);
+	return 0;
+}
 
 export type LlmMessage =
 	| { role: "system"; content: string }

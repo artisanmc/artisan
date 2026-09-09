@@ -725,6 +725,7 @@ const FAILURE_CODES = new Set([
 	"migration_error",
 	"migration_attempt_limit",
 	"provider_output_limit",
+	"response_buffer_exceeded",
 	"invalid_tool",
 	"missing_proposal",
 	"unknown_menu_reference",

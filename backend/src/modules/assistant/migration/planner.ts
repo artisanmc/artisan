@@ -1,4 +1,5 @@
 import { buildMigrationSystemPrompt } from "../grounding";
+import { streamPayloadBytes } from "../provider/types";
 import type {
 	LlmMessage,
 	LlmProvider,
@@ -222,15 +223,14 @@ export async function convertMigrationStep(input: {
 			tools,
 			model: input.model,
 			signal: input.signal,
-			maxOutputTokens: input.maxOutputTokens,
 			maxRetries: 0,
 			requireExplicitFinish: true,
 			maxResponseBytes: 1024 * 1024,
 		})) {
 			input.signal.throwIfAborted();
-			responseBytes += Buffer.byteLength(JSON.stringify(event));
+			responseBytes += streamPayloadBytes(event);
 			if (responseBytes > 1024 * 1024)
-				throw new MigrationInputError("provider_output_limit");
+				throw new MigrationInputError("response_buffer_exceeded");
 			if (event.type === "usage") input.onUsage(event.usage);
 			if (event.type === "tool_use") calls.push(event);
 			if (event.type === "done") stop = event.stopReason;
