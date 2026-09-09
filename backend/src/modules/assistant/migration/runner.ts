@@ -1,3 +1,4 @@
+import { MigrationPausedError } from "./continuation";
 import { eq } from "drizzle-orm";
 import { db } from "../../../db";
 import { projects } from "../../../db/schema";
@@ -20,6 +21,7 @@ import {
 	type ClaimedMigrationStep,
 	claimNextStep,
 	completeStep,
+	completeCompression,
 	completeDiscovery,
 	getRunContext,
 	interruptStep,
@@ -72,6 +74,7 @@ export async function executeMigration(
 		if (!claim) return;
 		const started = performance.now();
 		const usages: LlmUsage[] = [];
+		let compressionCredits = 0;
 		let model: AiModel | null = null;
 		const controller = new AbortController();
 		let renewing: Promise<void> | undefined;
@@ -147,6 +150,24 @@ export async function executeMigration(
 				targetId: string;
 			} = {
 				provider,
+				continuation: claim.continuation,
+				onCompacted: async (continuation) => {
+					controller.signal.throwIfAborted();
+					if (!usages.length) throw new MigrationInputError("provider_error");
+					await requireCurrentAccess(claim);
+					await completeCompression({
+						runId,
+						stepId: claim.step.id,
+						leaseToken: claim.leaseToken,
+						continuation,
+						usageInput: usageInput(activeModel),
+					});
+					compressionCredits += computeCreditsCharged(
+						sumUsage(usages),
+						activeModel,
+					);
+					usages.length = 0;
+				},
 				model: model.providerModelId,
 				manifest: claim.run.manifest,
 				sourceFileId: claim.step.sourceFileId,
@@ -167,7 +188,9 @@ export async function executeMigration(
 					usages.push(usage);
 				},
 				canCall: () =>
-					computeCreditsCharged(sumUsage(usages), activeModel) < stepBudget,
+					compressionCredits +
+						computeCreditsCharged(sumUsage(usages), activeModel) <
+					stepBudget,
 			};
 			const discovery = Boolean(
 				claim.run.manifest.agent && !claim.run.manifest.agent.tasks,
@@ -215,6 +238,9 @@ export async function executeMigration(
 					stepId: claim.step.id,
 					leaseToken: claim.leaseToken,
 					code,
+					...(error instanceof MigrationPausedError
+						? { continuation: error.continuation }
+						: {}),
 					...(model && usages.length ? { usageInput: usageInput(model) } : {}),
 				});
 			} catch {

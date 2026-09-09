@@ -18,6 +18,10 @@ export const migrationEn = {
 	menus: "menus",
 	start: "Start migration",
 	resume: "Resume migration",
+	compress: "Compress and resume",
+	compressing: "Compressing the working history…",
+	compressionHelp:
+		"Generate an AI summary, then resume. This uses credits and may lose details; original files and generated menus remain available.",
 	pause: "Pause after this step",
 	cancel: "Cancel migration",
 	progress:
@@ -98,7 +102,14 @@ export const migrationEn = {
 		provider_output_limit:
 			"This menu's response exceeded the limit; simplify the source or review it manually.",
 		context_budget_exceeded:
-			"This menu and its shared sources exceed the context limit. Review large shared files.",
+			"An earlier version stopped at Artisan's local context limit. Resume to use the provider's actual limit.",
+		provider_context_full:
+			"The API reports that the context is full. Compress the working history to resume.",
+		compression_failed:
+			"The summary could not be completed or did not reduce the history. The previous state is preserved.",
+		compression_required: "Use Compress and resume to reduce this history.",
+		compression_unavailable:
+			"There is no saved context to compress for this step.",
 		migration_budget_exceeded:
 			"The accepted budget is exhausted. Existing results remain available.",
 		step_budget_exceeded:
@@ -138,6 +149,10 @@ export const migrationFr = {
 	menus: "menus",
 	start: "Démarrer la migration",
 	resume: "Reprendre la migration",
+	compress: "Compresser et reprendre",
+	compressing: "Compression de l’historique de travail…",
+	compressionHelp:
+		"Génère un résumé IA puis reprend. Cela consomme des crédits et peut perdre des détails ; les fichiers originaux et menus générés restent disponibles.",
 	pause: "Pause après cette étape",
 	cancel: "Annuler la migration",
 	progress:
@@ -219,7 +234,15 @@ export const migrationFr = {
 		provider_output_limit:
 			"La réponse de ce menu dépasse la limite ; simplifiez la source ou vérifiez-la manuellement.",
 		context_budget_exceeded:
-			"Ce menu et ses sources partagées dépassent la limite de contexte. Vérifiez les gros fichiers partagés.",
+			"Une ancienne version s’est arrêtée sur la limite locale d’Artisan. Reprenez pour utiliser la limite réelle du fournisseur.",
+		provider_context_full:
+			"L’API indique que le contexte est plein. Compressez l’historique de travail pour reprendre.",
+		compression_failed:
+			"Le résumé n’a pas abouti ou n’a pas réduit l’historique. L’état précédent est conservé.",
+		compression_required:
+			"Utilisez Compresser et reprendre pour réduire cet historique.",
+		compression_unavailable:
+			"Aucun contexte sauvegardé n’est disponible à compresser pour cette étape.",
 		migration_budget_exceeded:
 			"Le budget accepté est épuisé. Les résultats existants restent disponibles.",
 		step_budget_exceeded:

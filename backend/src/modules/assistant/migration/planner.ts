@@ -30,7 +30,9 @@ export async function convertAgentTask(
 	);
 	if (!task) throw new MigrationInputError("invalid_step_source");
 	const sources = sourceTools(input);
-	const issues: MigrationProposal["issues"] = [];
+	const issues: MigrationProposal["issues"] = [
+		...(input.continuation?.issues ?? []),
+	];
 	return agentLoop(
 		input,
 		[
@@ -43,8 +45,12 @@ export async function convertAgentTask(
 				content: JSON.stringify({
 					targetId: task.targetId,
 					task,
-					index: input.manifest.agent?.tasks,
-					reports: input.manifest.agent?.reports,
+					index: input.manifest.agent?.tasks?.map(
+						({ sourceFileId, targetId }) => ({ sourceFileId, targetId }),
+					),
+					reports: input.manifest.agent?.reports?.filter(
+						(report) => report.fileId === task.sourceFileId,
+					),
 					files: input.manifest.entries.map(({ fileId, byteLength }) => ({
 						fileId,
 						byteLength,
@@ -55,6 +61,20 @@ export async function convertAgentTask(
 		[
 			...TOOL_DEFS.filter((t) => t.name === "upsert_menu"),
 			...explorationTools,
+			{
+				name: "read_migration_plan",
+				description:
+					"Read the exploration report for one selected file and, optionally, the detailed task for one target listed in the index. Use this for dependency findings; other tasks and reports are not loaded automatically.",
+				parameters: {
+					type: "object",
+					properties: {
+						fileId: { type: "string" },
+						targetId: { type: "string" },
+					},
+					required: ["fileId"],
+					additionalProperties: false,
+				},
+			},
 			{
 				name: "report_limitations",
 				description:
@@ -68,6 +88,31 @@ export async function convertAgentTask(
 			},
 		],
 		(name, args) => {
+			if (name === "read_migration_plan") {
+				if (
+					typeof args.fileId !== "string" ||
+					!input.manifest.entries.some((entry) => entry.fileId === args.fileId)
+				)
+					throw new MigrationInputError("invalid_tool");
+				const selectedTask =
+					args.targetId === undefined
+						? undefined
+						: input.manifest.agent?.tasks?.find(
+								(candidate) =>
+									candidate.targetId === args.targetId &&
+									candidate.sourceFileId === args.fileId,
+							);
+				if (args.targetId !== undefined && !selectedTask)
+					throw new MigrationInputError("invalid_tool");
+				return {
+					content: JSON.stringify({
+						report: input.manifest.agent?.reports?.find(
+							(report) => report.fileId === args.fileId,
+						),
+						task: selectedTask,
+					}),
+				};
+			}
 			if (name === "report_limitations") {
 				if (
 					typeof args.notes !== "string" ||
@@ -130,6 +175,7 @@ export async function convertAgentTask(
 			}
 		},
 		32,
+		() => ({ ...sources.snapshot(), issues }),
 	);
 }
 
@@ -154,7 +200,7 @@ export async function convertMigrationStep(input: {
 	manifest: MigrationManifest;
 	sourceFileId: string;
 	attachments: Record<string, string>;
-	contextTokens: number;
+	contextTokens: number | null;
 	maxOutputTokens: number;
 	signal: AbortSignal;
 	onUsage: (usage: LlmUsage) => void;
@@ -168,13 +214,6 @@ export async function convertMigrationStep(input: {
 	for (let iteration = 0; iteration < 3; iteration++) {
 		input.signal.throwIfAborted();
 		if (!input.canCall()) throw new MigrationInputError("step_budget_exceeded");
-		const estimated =
-			Buffer.byteLength(JSON.stringify(messages)) +
-			Buffer.byteLength(JSON.stringify(tools)) +
-			256 +
-			input.maxOutputTokens;
-		if (estimated > input.contextTokens)
-			throw new MigrationInputError("context_budget_exceeded");
 		const calls: { id: string; name: string; input: unknown }[] = [];
 		let stop: string | undefined;
 		let responseBytes = 0;

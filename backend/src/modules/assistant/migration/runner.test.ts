@@ -27,6 +27,114 @@ import {
 	transitionRun,
 } from "./repository";
 import { executeMigration } from "./runner";
+import OpenAI from "openai";
+
+test("explicit compression is durable, billed once, and preserves source inspection across interruptions", async () => {
+	const fileId = "server:z/home.yml";
+	const sources = { [fileId]: "size: 9\nname: PRIVATE_COMPRESS_SOURCE" };
+	const run = await newRun(sources, 100, true);
+	let calls = 0;
+	let summaries = 0;
+	const provider: LlmProvider = {
+		async *streamTurn(input) {
+			calls++;
+			if (!input.tools.length) {
+				summaries++;
+				yield {
+					type: "text",
+					text: "Convert server:z/home.yml into home, size 9, no dependencies.",
+				};
+			} else if (calls === 2)
+				throw new OpenAI.APIError(
+					400,
+					{ code: "context_length_exceeded" },
+					undefined,
+					new Headers(),
+				);
+			else if (calls === 4)
+				throw new OpenAI.APIConnectionError({
+					message: "network interrupted after compression checkpoint",
+				});
+			else if (calls === 1 || calls === 6)
+				yield {
+					type: "tool_use",
+					id: `read${calls}`,
+					name: "read_source",
+					input: { fileId },
+				};
+			else if (calls === 5) {
+				expect(JSON.stringify(input.messages)).toContain(
+					"Convert server:z/home.yml",
+				);
+				yield {
+					type: "tool_use",
+					id: "plan",
+					name: "submit_plan",
+					input: {
+						menus: [
+							{
+								sourceFileId: fileId,
+								targetId: "home",
+								dependencyIds: [],
+								instructions: "Convert home",
+							},
+						],
+						files: [{ fileId, role: "menu", notes: "One menu" }],
+					},
+				};
+			} else
+				yield {
+					type: "tool_use",
+					id: "write",
+					name: "upsert_menu",
+					input: {
+						menu: {
+							schema: "menu/v1",
+							id: "home",
+							size: 9,
+							title: [],
+							layers: [{ id: "base", name: "base", elements: [] }],
+						},
+					},
+				};
+			yield { type: "usage", usage: { inputTokens: 100, outputTokens: 20 } };
+			yield {
+				type: "done",
+				stopReason: input.tools.length ? "tool_calls" : "stop",
+			};
+		},
+	};
+	const deps = {
+		providerFor: async () => provider,
+		readSources: read(sources),
+	};
+	await executeMigration(run.id, deps);
+	const paused = (await getRun(run.id))!;
+	expect(paused.status).toBe("paused");
+	expect(paused.canCompress).toBe(true);
+	expect(summaries).toBe(0);
+	const [saved] = await db
+		.select()
+		.from(assistantMigrationSteps)
+		.where(eq(assistantMigrationSteps.runId, run.id));
+	expect(JSON.stringify(saved)).not.toContain("PRIVATE_COMPRESS_SOURCE");
+	await transitionRun(run.id, paused.revision, "compress");
+	await executeMigration(run.id, deps);
+	const interrupted = (await getRun(run.id))!;
+	expect(interrupted.status).toBe("paused");
+	expect(summaries).toBe(1);
+	expect(interrupted.budget.usedCredits).toBeGreaterThan(0);
+	await transitionRun(run.id, interrupted.revision, "resume");
+	await executeMigration(run.id, deps);
+	expect((await getRun(run.id))!.status).toBe("completed");
+	expect(summaries).toBe(1);
+	expect(await getProposals(run.id)).toHaveLength(1);
+	expect(
+		(await getEvents(run.id)).filter(
+			(event) => event.type === "context_compressed",
+		),
+	).toHaveLength(1);
+});
 
 const networkId = crypto.randomUUID();
 const serverKeyId = crypto.randomUUID();
@@ -250,14 +358,14 @@ test("the agent explores 35 linked files then generates every menu with bounded 
 		async *streamTurn(input) {
 			if (input.tools.some((t) => t.name === "submit_plan")) {
 				if (offset < ids.length) {
-				for (const fileId of ids.slice(offset))
+					for (const fileId of ids.slice(offset))
 						yield {
 							type: "tool_use",
 							id: fileId,
 							name: "read_source",
 							input: { fileId },
 						};
-				offset = ids.length;
+					offset = ids.length;
 				} else
 					yield {
 						type: "tool_use",

@@ -8,6 +8,18 @@ export function assistantFailureCode(error: unknown): string {
 	if (error instanceof OpenAI.APIUserAbortError) return "provider_cancelled";
 	if (error instanceof OpenAI.APIConnectionError)
 		return "provider_network_error";
+	if (
+		error instanceof OpenAI.APIError &&
+		[400, 413, 422].includes(error.status ?? 0)
+	) {
+		if (
+			error.code === "context_length_exceeded" ||
+			/maximum context length|context (?:length|window).*(?:exceed|too (?:long|large))|prompt is too long/i.test(
+				error.message,
+			)
+		)
+			return "provider_context_full";
+	}
 	if (error instanceof OpenAI.APIError) return "provider_error";
 	return "engine_error";
 }

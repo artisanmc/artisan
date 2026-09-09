@@ -14,6 +14,82 @@ import {
 import { grantCredits } from "../../ai/creditsRepo";
 import { createModel } from "../../ai/modelRepo";
 import { createConversation } from "../conversationRepo";
+import { claimNextStep, interruptStep } from "./repository";
+
+test("compression is explicit, revision guarded, source checked and never dispatched by reads", async () => {
+	const originalSource = state.source;
+	let starts = 0;
+	dependencies.startExecution = () => {
+		starts++;
+	};
+	try {
+		const created = await (await request("", "POST", body())).json();
+		expect(created.run.budget.contextTokens).toBeNull();
+		const started = await (
+			await request(`/${created.run.id}/start`, "POST", {
+				expectedRevision: created.run.revision,
+			})
+		).json();
+		const claim = (await claimNextStep(started.run.id, "compression-test"))!;
+		await interruptStep({
+			runId: claim.run.id,
+			stepId: claim.step.id,
+			leaseToken: claim.leaseToken,
+			code: "provider_context_full",
+			continuation: {
+				messages: [{ role: "user", content: "working notes" }],
+				reads: {},
+				issues: [],
+				needsCompression: true,
+			},
+		});
+		const paused = await (await request(`/${claim.run.id}`)).json();
+		expect(paused.run.canCompress).toBe(true);
+		expect(JSON.stringify(paused)).not.toContain("working notes");
+		expect(starts).toBe(1);
+		expect(
+			(
+				await request(`/${claim.run.id}/resume`, "POST", {
+					expectedRevision: paused.run.revision,
+				})
+			).status,
+		).toBe(422);
+		const compressed = await request(`/${claim.run.id}/compress`, "POST", {
+			expectedRevision: paused.run.revision,
+		});
+		expect(compressed.status).toBe(200);
+		expect((await compressed.json()).run.compressing).toBe(true);
+		expect(starts).toBe(2);
+		expect(
+			(
+				await request(`/${claim.run.id}/compress`, "POST", {
+					expectedRevision: paused.run.revision,
+				})
+			).status,
+		).toBe(409);
+		expect(starts).toBe(2);
+		const next = (await claimNextStep(claim.run.id, "again"))!;
+		await interruptStep({
+			runId: next.run.id,
+			stepId: next.step.id,
+			leaseToken: next.leaseToken,
+			code: "provider_timeout",
+		});
+		const retry = await (await request(`/${claim.run.id}`)).json();
+		state.source += "\n# changed";
+		expect(
+			(
+				await request(`/${claim.run.id}/compress`, "POST", {
+					expectedRevision: retry.run.revision,
+				})
+			).status,
+		).toBe(409);
+		expect(starts).toBe(2);
+	} finally {
+		state.source = originalSource;
+		dependencies.startExecution = undefined;
+	}
+});
 import {
 	type MigrationRouteDependencies,
 	type MigrationRouteEnv,
@@ -182,7 +258,7 @@ test("masks foreign conversations and denies revoked membership and deleted Proj
 test("accepts analysis without a credit budget and validates context and request-ID reuse", async () => {
 	expect((await request("", "POST", body())).status).toBe(201);
 	expect(
-		(await request("", "POST", { ...body(), contextTokens: 1000 })).status,
+		(await request("", "POST", { ...body(), contextTokens: -1 })).status,
 	).toBe(422);
 	const input = body();
 	await request("", "POST", input);

@@ -232,6 +232,13 @@
       "when": 1788780920181,
       "tag": "0032_fearless_monster_badoon",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1788943522725,
+      "tag": "0033_legal_true_believers",
+      "breakpoints": true
     }
   ]
 }

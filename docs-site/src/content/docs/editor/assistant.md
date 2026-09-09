@@ -107,8 +107,17 @@ overwritten by this flow. If source files change, choose **Review sources and
 target names**, then **Create new analysis**. Old results stay in history but are
 not reused by the replacement run.
 
-If one menu and its shared files exceed the context limit, review those files
-manually; selecting all menus does not load every raw menu into each AI call.
+Artisan lets the API enforce its context capacity, without a local token ceiling
+or automatic history removal. If the API reports a full context, agentic migrations
+pause and offer **Compress and resume**. This explicitly requests an AI summary;
+it uses credits and may lose details. Original files and generated menus remain
+available. A failed summary preserves the prior state; a successful summary is
+saved before continuation, so reopening the conversation does not discard it.
+An old `context_budget_exceeded` pause can be resumed without its former local cap.
+Agentic conversion includes a compact target index and the current task's notes;
+other exploration reports and task details remain available through tools.
+Raw source pages are bounded by encoded size, with continuation offsets for the
+remaining content. Selecting all menus does not load every raw menu into each call.
 If the browser reports that it cannot preserve the draft, save applied changes
 before leaving. Generated proposals remain available in the migration history.
 The storage check is a small availability probe, not a guarantee that the full
