@@ -331,10 +331,15 @@ export function MigrationPanel({
 		}
 	}
 	const text = (key: string) => t(`assistant.migration.${key}`);
-	const issueText = (code: string) =>
-		t(`assistant.migration.errors.${code}`, {
+	const issueText = (code: string) => {
+		const [category, tool, reason] = code.split(":");
+		if (category === "invalid_tool" && tool && reason) {
+			return `${t(`assistant.migration.errors.${reason}`, { defaultValue: text("errors.invalid_tool") })} (${tool})`;
+		}
+		return t(`assistant.migration.errors.${code}`, {
 			defaultValue: text("errors.migration_error"),
 		});
+	};
 	const applied = proposals.filter(
 		(p) => inspectMigrationProposal(p, projectId).status === "already_applied",
 	).length;

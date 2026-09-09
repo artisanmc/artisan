@@ -44,7 +44,8 @@ export function saveMessages(messages: LlmMessage[]): SavedMessage[] {
 		}
 		if (message.role === "tool") {
 			const call = calls.get(message.toolCallId);
-			if (call) return { role: "source", toolCallId: message.toolCallId, call };
+			if (call && !message.isError)
+				return { role: "source", toolCallId: message.toolCallId, call };
 		}
 		return structuredClone(message);
 	});
