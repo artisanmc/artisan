@@ -292,6 +292,8 @@ const HEAD_DISPLAY = { rotation: [30, 45, 0] as [number,number,number], translat
 const headDef = (texturePath: string, textureW: number, textureH: number): EntityRenderDef => ({
   textureW, textureH, texturePath,
   boxes: [{ origin: [-4, -4, -4], size: [8, 8, 8], texOffset: [0, 0] }],
+  // Skin UVs already place the face south and the hair on top.
+  yFlip: false,
   display: HEAD_DISPLAY,
 });
 export const ENTITY_RENDER_MAP: Record<string, EntityRenderDef> = {

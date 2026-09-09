@@ -2247,6 +2247,63 @@ describe("POST /api/v1/networks/:id/access-requests/:requestId/approve|deny", ()
   });
 });
 
+describe("GET …/head-texture", () => {
+  beforeEach(clearAll);
+
+  test("resolves an HDB texture through the authenticated server relay", async () => {
+    const { sessionId } = await seedUser();
+    const app = makeApp();
+    const headers = { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" };
+    const { network } = await (await app.request("/api/v1/networks", {
+      method: "POST", headers, body: JSON.stringify({ name: "Heads" }),
+    })).json();
+    const keyId = crypto.randomUUID();
+    await db.insert(serverKeys).values({ id: keyId, hash: "h-head", networkId: network.id, createdAt: new Date() });
+    const url = `/api/v1/networks/${network.id}/servers/${keyId}/head-texture?id=128276`;
+    expect((await app.request(url)).status).toBe(401);
+    expect((await app.request(url.replace("id=128276", "id=invalid"), { headers })).status).toBe(422);
+    expect((await app.request(url, { headers })).status).toBe(503);
+    const outsider = await seedUser("head-outsider");
+    expect((await app.request(url, { headers: { Cookie: `artisan_user_session=${outsider.sessionId}` } })).status).toBe(403);
+    registerConn("conn-head", (raw) => {
+      const msg = JSON.parse(raw);
+      expect(msg.type).toBe("head_texture_fetch");
+      expect(msg.id).toBe("128276");
+      queueMicrotask(() => { handlePluginMessage("conn-head", JSON.stringify({
+        type: "head_texture_result", request_id: msg.request_id, ok: true, texture: "skin-base64",
+      })); });
+    });
+    connToServerId.set("conn-head", keyId);
+    try {
+      const res = await app.request(url, { headers });
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual({ texture: "skin-base64" });
+    } finally {
+      connToServerId.delete("conn-head");
+      connSenders.delete("conn-head");
+    }
+  });
+
+  test("ignores textures sent by a different server and times out old plugins", async () => {
+    const { requestHeadTexture } = await import("../ws/hub");
+    connToServerId.set("head-expected", "expected");
+    connToServerId.set("head-other", "other");
+    registerConn("head-expected", (raw) => {
+      const msg = JSON.parse(raw);
+      queueMicrotask(() => { handlePluginMessage("head-other", JSON.stringify({
+        type: "head_texture_result", request_id: msg.request_id, ok: true, texture: "wrong-server",
+      })); });
+    });
+    try {
+      expect(await requestHeadTexture("expected", "1", 20)).toEqual({ kind: "timeout" });
+    } finally {
+      connToServerId.delete("head-expected");
+      connToServerId.delete("head-other");
+      connSenders.delete("head-expected");
+    }
+  });
+});
+
 describe("GET …/player-inventory", () => {
   beforeEach(clearAll);
 

@@ -1,6 +1,6 @@
 import { Image as KonvaImage, Rect, Text } from "react-konva";
 import useImage from "use-image";
-import { headPreviewUrl } from "./headTexture";
+import { useHeadPreviewUrl } from "./useHeadPreviewUrl";
 import { TEX_SCALE, TEX_SLOT_INNER } from "./menuLayout";
 import { useTextureUrl } from "./textureStore";
 
@@ -30,7 +30,7 @@ export interface SlotItemProps {
  */
 export function SlotItem({ material, innerX, innerY, count, head, enchanted }: SlotItemProps) {
   const materialUrl = useTextureUrl(material);
-  const url = headPreviewUrl(head) ?? materialUrl;
+  const url = useHeadPreviewUrl(head) ?? materialUrl;
   const [image] = useImage(url ?? "");
   const showCount = (count ?? 0) > 1;
   const countText = String(count ?? 0);

@@ -9,6 +9,15 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Fixed — vanilla head previews
+
+- Keep Steve and other standard skull cubes upright in the editor's 3D renderer, closing the visible top and placing the face texture at the front.
+
+### Added — HeadDatabase previews
+
+- Render real HDB head textures in the editor using the connected server, with shared per-server preview caching and automatic retry when unavailable.
+- Add the authenticated `GET /api/v1/networks/:networkId/servers/:serverId/head-texture` relay and optional `head_texture_fetch` / `head_texture_result` WebSocket messages.
+
 ### Fixed — migration exploration pauses
 
 - Accept bounded batches of up to 256 agent tool calls, including a 35-file selection read in one response, instead of rejecting any batch larger than eight as `missing_proposal`.

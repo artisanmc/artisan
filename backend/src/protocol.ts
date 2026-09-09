@@ -456,6 +456,7 @@ export interface ConfigWriteResultMessage {
 // Plugin → backend: module message from `/boutique additem` — the boutique
 // backend module applies the mutation (ADR captured-items-and-module-field-kit
 export type PluginToServerMessage =
+  | HeadTextureResultMessage
   | HelloMessage
   | PongMessage
   | CustomItemsChangedMessage
@@ -481,6 +482,7 @@ export interface ResourcePackUpdatedMessage {
 }
 
 export type ServerToPluginMessage =
+  | HeadTextureFetchMessage
   | HelloAckMessage
   | DraftUpdateMessage
   | PingMessage
@@ -494,3 +496,17 @@ export type ServerToPluginMessage =
   | OnlinePlayersFetchMessage
   | ConfigReadMessage
   | ConfigWriteMessage;
+
+export interface HeadTextureFetchMessage {
+  type: "head_texture_fetch";
+  request_id: string;
+  id: string;
+}
+
+export interface HeadTextureResultMessage {
+  type: "head_texture_result";
+  request_id: string;
+  ok: boolean;
+  texture?: string;
+  error?: "hdb_unavailable" | "head_not_found" | "invalid_input" | "fetch_error";
+}

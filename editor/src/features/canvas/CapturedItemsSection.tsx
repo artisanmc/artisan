@@ -13,6 +13,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { LIBRARY_DRAG_PREFIX } from "./Library";
 import { headPreviewUrl } from "./headTexture";
+import { useHeadPreviewUrl } from "./useHeadPreviewUrl";
 import { useTextureUrl } from "./textureStore";
 
 /**
@@ -157,7 +158,7 @@ function CapturedTile({
   const ref = `item:${item.id}`;
   const display = project ? resolveDisplayRef(project, ref) : { material: ref };
   const materialUrl = useTextureUrl(display.material);
-  const textureUrl = headPreviewUrl(display.head) ?? materialUrl;
+  const textureUrl = useHeadPreviewUrl(display.head) ?? materialUrl;
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `${LIBRARY_DRAG_PREFIX}${ref}`,
     data: { material: ref },

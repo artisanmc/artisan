@@ -4,7 +4,7 @@ import type { ProjectId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
 import { useTranslation } from "react-i18next";
 import { MaterialPicker } from "./MaterialPicker";
-import { headPreviewUrl } from "./headTexture";
+import { useHeadPreviewUrl } from "./useHeadPreviewUrl";
 import { useTextureUrl } from "./textureStore";
 
 /**
@@ -30,7 +30,7 @@ export function MaterialRefField({
   const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
   const display = project ? resolveDisplayRef(project, value) : { material: value };
   const materialUrl = useTextureUrl(display.material);
-  const textureUrl = headPreviewUrl(display.head) ?? materialUrl;
+  const textureUrl = useHeadPreviewUrl(display.head) ?? materialUrl;
 
   return (
     <div className={`flex items-center gap-1.5 ${className ?? ""}`}>
