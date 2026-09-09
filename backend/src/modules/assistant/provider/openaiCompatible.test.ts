@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { OpenAICompatibleProvider } from "./openaiCompatible";
-import type { LlmStreamEvent } from "./types";
+import { type LlmStreamEvent, streamPayloadBytes } from "./types";
 
 // biome-ignore lint/suspicious/noExplicitAny: scripted SDK chunks are intentionally untyped
 function fakeStream(chunks: any[]) {
@@ -22,7 +22,53 @@ async function collect(it: AsyncIterable<LlmStreamEvent>) {
 
 const cfg = { baseURL: "x", model: "m", apiKey: "k" };
 
+it("counts retained UTF-8 payload independently of text chunk boundaries", () => {
+	const text = "é🙂".repeat(500);
+	expect(streamPayloadBytes({ type: "text", text })).toBe(
+		Buffer.byteLength(text),
+	);
+	expect(
+		Array.from(text).reduce(
+			(sum, text) => sum + streamPayloadBytes({ type: "text", text }),
+			0,
+		),
+	).toBe(Buffer.byteLength(text));
+	expect(streamPayloadBytes({ type: "done", stopReason: "stop" })).toBe(0);
+	expect(
+		streamPayloadBytes({
+			type: "tool_use",
+			id: "a",
+			name: "b",
+			input: { value: "é" },
+		}),
+	).toBe(2 + Buffer.byteLength(JSON.stringify({ value: "é" })));
+});
+
 describe("OpenAICompatibleProvider.streamTurn", () => {
+	it("does not count repeated stream envelopes or discarded reasoning as buffered output", async () => {
+		const provider = new OpenAICompatibleProvider(
+			cfg,
+			fakeClient([
+				...Array.from({ length: 5000 }, () => ({
+					id: "request",
+					model: "m",
+					system_fingerprint: "x".repeat(200),
+					choices: [{ delta: { content: "x", reasoning_content: "thinking" } }],
+				})),
+				{ choices: [{ delta: {}, finish_reason: "stop" }] },
+			]),
+		);
+		const events = await collect(
+			provider.streamTurn({
+				messages: [],
+				tools: [],
+				model: "m",
+				maxResponseBytes: 5000,
+				requireExplicitFinish: true,
+			}),
+		);
+		expect(events.filter((event) => event.type === "text")).toHaveLength(5000);
+	});
 	it("does not emit migration tools or completion after EOF without explicit finish", async () => {
 		const provider = new OpenAICompatibleProvider(
 			cfg,
@@ -96,7 +142,7 @@ describe("OpenAICompatibleProvider.streamTurn", () => {
 		} catch (error) {
 			code = (error as Error).message;
 		}
-		expect(code).toBe("provider_output_limit");
+		expect(code).toBe("response_buffer_exceeded");
 	});
 	it("bounds migration output and disables SDK retries only when requested", async () => {
 		let parameters: unknown;

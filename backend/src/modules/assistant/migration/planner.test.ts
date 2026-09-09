@@ -65,7 +65,7 @@ test("converts one reserved menu with bounded context and returns a validated pr
 	const provider: LlmProvider = {
 		async *streamTurn(input) {
 			expect(input.maxRetries).toBe(0);
-			expect(input.maxOutputTokens).toBe(4000);
+			expect(input.maxOutputTokens).toBeUndefined();
 			expect(input.tools.map((t) => t.name)).toEqual([
 				"upsert_menu",
 				"read_source",
