@@ -26,6 +26,8 @@ import {
 } from "./migrationProposal";
 
 interface Props {
+  historyOnly?: boolean;
+  preferredRunId?: string;
 	projectId: ProjectId;
 	conversationId: string | null;
 	ensureConversation(): Promise<string>;
@@ -34,6 +36,8 @@ interface Props {
 	disabled: boolean;
 }
 export function MigrationPanel({
+  historyOnly = false,
+  preferredRunId,
 	projectId,
 	conversationId,
 	ensureConversation,
@@ -66,7 +70,7 @@ export function MigrationPanel({
 	const creation = useRef<
 		{ fingerprint: string; input: CreateMigrationInput } | undefined
 	>(undefined);
-	const run = runs.find((r) => r.id === selected) ?? runs[0];
+	const run = preferredRunId ? runs.find((r) => r.id === preferredRunId) : runs.find((r) => r.id === selected) ?? runs[0];
 	const showError = useCallback(
 		(e: unknown) =>
 			setError(e instanceof MigrationRequestError ? e.code : "migration_error"),
@@ -348,6 +352,7 @@ export function MigrationPanel({
 			.length ?? 0;
 	const exploring = Boolean(run?.manifest.agent && !run.manifest.agent.tasks);
 	if (!groups.length && !conversationId) return null;
+	if (historyOnly && !runs.length) return null;
 	return (
 		<section
 			aria-label={text("title")}
@@ -355,7 +360,7 @@ export function MigrationPanel({
 		>
 			<div className="flex flex-wrap items-center justify-between gap-2">
 				<h3 className="font-medium">{text("title")}</h3>
-				{groups.length > 0 && (
+				{!historyOnly && groups.length > 0 && (
 					<Button
 						size="sm"
 						variant="secondary"
@@ -446,7 +451,7 @@ export function MigrationPanel({
 								{text(run.canCompress ? "compress" : "resume")}
 							</Button>
 						)}
-						{run.status === "running" && (
+						{run.status === "running" && !preferredRunId && (
 							<Button
 								variant="secondary"
 								disabled={busy}
@@ -455,7 +460,7 @@ export function MigrationPanel({
 								{text("pause")}
 							</Button>
 						)}
-						{!["completed", "cancelled"].includes(run.status) && (
+						{!["completed", "cancelled"].includes(run.status) && !preferredRunId && (
 							<Button
 								variant="secondary"
 								disabled={busy}

@@ -77,6 +77,8 @@ export async function* streamAssistant(
   conversationId: string,
   body: {
     text: string;
+    background?: boolean;
+    requestId?: string;
     menus?: unknown[];
     attachments?: Record<string, string>;
     serverAttachments?: { sourceId: string; paths: string[] }[];
@@ -106,6 +108,12 @@ export async function* streamAssistant(
   if (res.status === 402) {
     const json = (await res.json()) as { balance: number };
     yield { type: "insufficient_credits", balance: json.balance };
+    return;
+  }
+  if (res.status === 202) {
+    const { task } = await res.json();
+    yield { type: "task", task };
+    yield { type: "done", stopReason: "task_accepted" };
     return;
   }
   if (!res.ok) {

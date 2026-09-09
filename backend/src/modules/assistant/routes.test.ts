@@ -6,6 +6,7 @@ import {
 	aiModels,
 	aiUsageLog,
 	assistantConversations,
+	assistantTasks,
 	memberships,
 	networks,
 	projects,
@@ -16,6 +17,7 @@ import { createNetwork } from "../../lib/networkManager";
 import { createSession } from "../../lib/sessionManager";
 import { generateServerKey } from "../../lib/auth";
 import { saveConversation } from "./conversationRepo";
+import { requeueMigrationTask } from "./tasks";
 import { getBalance, grantCredits } from "../ai/creditsRepo";
 import { createModel, setDefaultModel } from "../ai/modelRepo";
 import type { LlmProvider, LlmStreamEvent } from "./provider/types";
@@ -36,9 +38,7 @@ const validMenu = {
 		{
 			id: "l1",
 			name: "d",
-			elements: [
-				{ id: "e1", positions: "0", material: "STONE" },
-			],
+			elements: [{ id: "e1", positions: "0", material: "STONE" }],
 		},
 	],
 };
@@ -83,7 +83,13 @@ beforeAll(async () => {
 	const { hash } = generated;
 	await db
 		.insert(serverKeys)
-		.values({ id: serverKeyId, hash, label: "assistant-test", networkId, createdAt: new Date() })
+		.values({
+			id: serverKeyId,
+			hash,
+			label: "assistant-test",
+			networkId,
+			createdAt: new Date(),
+		})
 		.onConflictDoNothing();
 	// The turn now debits the network of the conversation's project → the
 	// project must exist, the catalog must hold an active default model, and
@@ -127,7 +133,13 @@ beforeAll(async () => {
 		.onConflictDoNothing();
 	await db
 		.insert(memberships)
-		.values({ id: "mem_test_assistant", userId: USER_ID, networkId, role: "owner", createdAt: new Date() })
+		.values({
+			id: "mem_test_assistant",
+			userId: USER_ID,
+			networkId,
+			role: "owner",
+			createdAt: new Date(),
+		})
 		.onConflictDoNothing();
 	userSessionId = (await createSession(USER_ID)).id;
 	__setProviderForTests(fakeProvider());
@@ -151,6 +163,235 @@ function cookieHeader() {
 }
 
 describe("assistant routes", () => {
+	it("reuses the same task journal when explicitly resuming a migration", async () => {
+		const { conversationId } = await (
+			await app.request("/api/v1/assistant/conversations", {
+				method: "POST",
+				headers: cookieHeader(),
+				body: JSON.stringify({ projectId: PACK_ID }),
+			})
+		).json();
+		const id = crypto.randomUUID();
+		const runId = crypto.randomUUID();
+		const events = [
+			{ type: "accepted", networkId, serverKeyId },
+			{ type: "migration_started", runId },
+			{ type: "error", code: "provider_timeout" },
+		];
+		await db.insert(assistantTasks).values({
+			id,
+			conversationId,
+			requestId: id,
+			requestHash: id,
+			message: "Migrate",
+			status: "blocked",
+			events,
+			createdAt: new Date(),
+			updatedAt: new Date(),
+		});
+		const resumed = await requeueMigrationTask(runId, conversationId);
+		expect(resumed?.id).toBe(id);
+		expect(resumed?.status).toBe("queued");
+		expect(resumed?.events).toEqual(events);
+		let rejection = "";
+		try {
+			await requeueMigrationTask(runId, conversationId);
+		} catch (error) {
+			rejection = (error as Error).message;
+		}
+		expect(rejection).toBe("task_already_running");
+		await db.delete(assistantTasks).where(eq(assistantTasks.id, id));
+	});
+	it("reports an abandoned worker honestly and hides tasks after a project changes server", async () => {
+		const { conversationId } = await (
+			await app.request("/api/v1/assistant/conversations", {
+				method: "POST",
+				headers: cookieHeader(),
+				body: JSON.stringify({ projectId: PACK_ID }),
+			})
+		).json();
+		const id = crypto.randomUUID();
+		await db.insert(assistantTasks).values({
+			id,
+			conversationId,
+			requestId: id,
+			requestHash: id,
+			message: "Continue",
+			status: "running",
+			events: [{ type: "accepted", networkId, serverKeyId }],
+			createdAt: new Date(0),
+			updatedAt: new Date(0),
+		});
+		const url = `/api/v1/assistant/conversations/${conversationId}/tasks`;
+		const restored = await (
+			await app.request(`${url}/${id}`, { headers: cookieHeader() })
+		).json();
+		expect(restored.task.status).toBe("blocked");
+		expect(restored.task.events).toContainEqual(
+			expect.objectContaining({
+				type: "error",
+				code: "task_worker_interrupted",
+			}),
+		);
+		const replacement = await generateServerKey();
+		await db
+			.insert(serverKeys)
+			.values({
+				id: replacement.id,
+				hash: replacement.hash,
+				label: "replacement",
+				networkId,
+				createdAt: new Date(),
+			})
+			.onConflictDoNothing();
+		await db
+			.update(projects)
+			.set({ serverKeyId: replacement.id })
+			.where(eq(projects.id, PACK_ID));
+		try {
+			expect(
+				(await app.request(`${url}/${id}`, { headers: cookieHeader() })).status,
+			).toBe(404);
+			expect(
+				(
+					await app.request(`${url}/${id}/stop`, {
+						method: "POST",
+						headers: cookieHeader(),
+					})
+				).status,
+			).toBe(404);
+			expect(
+				(await (await app.request(url, { headers: cookieHeader() })).json())
+					.tasks,
+			).toEqual([]);
+		} finally {
+			await db
+				.update(projects)
+				.set({ serverKeyId })
+				.where(eq(projects.id, PACK_ID));
+		}
+	});
+	it("stops background work only through the explicit stop action", async () => {
+		__setProviderForTests({
+			async *streamTurn({ signal }) {
+				await new Promise<void>((_resolve, reject) => {
+					if (signal?.aborted) reject(signal.reason);
+					else
+						signal?.addEventListener("abort", () => reject(signal.reason), {
+							once: true,
+						});
+				});
+				yield { type: "done", stopReason: "stop" };
+			},
+		});
+		try {
+			const { conversationId } = await (
+				await app.request("/api/v1/assistant/conversations", {
+					method: "POST",
+					headers: cookieHeader(),
+					body: JSON.stringify({ projectId: PACK_ID }),
+				})
+			).json();
+			const url = `/api/v1/assistant/conversations/${conversationId}`;
+			const { task } = await (
+				await app.request(`${url}/messages`, {
+					method: "POST",
+					headers: cookieHeader(),
+					body: JSON.stringify({
+						text: "Wait",
+						background: true,
+						requestId: crypto.randomUUID(),
+					}),
+				})
+			).json();
+			expect(
+				(await app.request(`${url}/tasks/${task.id}/stop`, { method: "POST" }))
+					.status,
+			).toBe(401);
+			await app.request(`${url}/tasks/${task.id}/stop`, {
+				method: "POST",
+				headers: cookieHeader(),
+			});
+			let status = "";
+			for (let i = 0; i < 100; i++) {
+				status = (
+					await (
+						await app.request(`${url}/tasks/${task.id}`, {
+							headers: cookieHeader(),
+						})
+					).json()
+				).task.status;
+				if (status === "cancelled") break;
+				await new Promise((resolve) => setTimeout(resolve, 20));
+			}
+			expect(status).toBe("cancelled");
+		} finally {
+			__setProviderForTests(fakeProvider());
+		}
+	});
+	it("keeps a background task running without a response reader and restores its result", async () => {
+		let release!: () => void;
+		const gate = new Promise<void>((resolve) => {
+			release = resolve;
+		});
+		let calls = 0;
+		__setProviderForTests({
+			async *streamTurn() {
+				calls++;
+				await gate;
+				yield { type: "text", text: "Background result" };
+				yield { type: "done", stopReason: "stop" };
+			},
+		});
+		try {
+			const created = await app.request("/api/v1/assistant/conversations", {
+				method: "POST",
+				headers: cookieHeader(),
+				body: JSON.stringify({ projectId: PACK_ID }),
+			});
+			const { conversationId } = await created.json();
+			const url = `/api/v1/assistant/conversations/${conversationId}`;
+			const body = JSON.stringify({
+				text: "Work in the background",
+				background: true,
+				requestId: crypto.randomUUID(),
+			});
+			const submitted = await app.request(`${url}/messages`, {
+				method: "POST",
+				headers: cookieHeader(),
+				body,
+			});
+			expect(submitted.status).toBe(202);
+			const { task } = await submitted.json();
+			const replay = await app.request(`${url}/messages`, {
+				method: "POST",
+				headers: cookieHeader(),
+				body,
+			});
+			expect((await replay.json()).task.id).toBe(task.id);
+			release();
+			let restored: { task: { status: string; events: unknown[] } } = {
+				task: { status: "", events: [] },
+			};
+			for (let attempt = 0; attempt < 100; attempt++) {
+				restored = await (
+					await app.request(`${url}/tasks/${task.id}`, {
+						headers: cookieHeader(),
+					})
+				).json();
+				if (restored.task.status === "completed") break;
+				await new Promise((resolve) => setTimeout(resolve, 20));
+			}
+			expect(restored.task.status).toBe("completed");
+			expect(JSON.stringify(restored.task.events)).toContain(
+				"Background result",
+			);
+			expect(calls).toBe(1);
+		} finally {
+			release();
+			__setProviderForTests(fakeProvider());
+		}
+	});
 	it("401 without a valid session", async () => {
 		const res = await app.request("/api/v1/assistant/conversations", {
 			method: "POST",
@@ -179,7 +420,9 @@ describe("assistant routes", () => {
 		);
 		expect(listed.status).toBe(200);
 		const { conversations } = await listed.json();
-		expect(conversations.some((c: { id: string }) => c.id === conversationId)).toBe(true);
+		expect(
+			conversations.some((c: { id: string }) => c.id === conversationId),
+		).toBe(true);
 	});
 
 	it("creates a conversation and streams engine events for a message", async () => {
@@ -314,7 +557,10 @@ describe("assistant routes", () => {
 			);
 			await res2.text();
 			const notes = seen.filter(
-				(m, i) => i > 0 && m.role === "system" && m.content?.includes("read_attachment"),
+				(m, i) =>
+					i > 0 &&
+					m.role === "system" &&
+					m.content?.includes("read_attachment"),
 			);
 			expect(notes.length).toBe(1);
 		} finally {
@@ -325,7 +571,8 @@ describe("assistant routes", () => {
 	it("resolves server attachments before exposing them through read_attachment", async () => {
 		const sent: Record<string, unknown>[] = [];
 		const connId = "conn-assistant-server-attachments";
-		const serverContent = "name: Confidential Shop\nsecret-token: NEVER_PERSIST";
+		const serverContent =
+			"name: Confidential Shop\nsecret-token: NEVER_PERSIST";
 		let serverToolResult: string | null = null;
 		let localToolResult: string | null = null;
 		let turn = 0;
@@ -408,9 +655,7 @@ describe("assistant routes", () => {
 					body: JSON.stringify({
 						text: "migre ce menu",
 						attachments: { "notes.txt": "local notes" },
-						serverAttachments: [
-							{ sourceId: "zmenu", paths: ["shop.yml"] },
-						],
+						serverAttachments: [{ sourceId: "zmenu", paths: ["shop.yml"] }],
 					}),
 				},
 			);
@@ -484,7 +729,9 @@ describe("assistant routes", () => {
 						message.toolCallId === "read-server-before-error",
 				);
 				const detail =
-					toolMessage && "content" in toolMessage ? toolMessage.content : "missing";
+					toolMessage && "content" in toolMessage
+						? toolMessage.content
+						: "missing";
 				throw new Error(`provider rejected payload: ${detail}`);
 			},
 		});
@@ -503,16 +750,16 @@ describe("assistant routes", () => {
 					headers: cookieHeader(),
 					body: JSON.stringify({
 						text: "migre ce menu",
-						serverAttachments: [
-							{ sourceId: "zmenu", paths: ["shop.yml"] },
-						],
+						serverAttachments: [{ sourceId: "zmenu", paths: ["shop.yml"] }],
 					}),
 				},
 			);
 			expect(res.status).toBe(200);
 			const frames = await res.text();
 			expect(frames).not.toContain("NEVER_PERSIST_PROVIDER_ERROR");
-			expect(frames).toContain(`"correlationId":"${res.headers.get("X-Assistant-Request-Id")}"`);
+			expect(frames).toContain(
+				`"correlationId":"${res.headers.get("X-Assistant-Request-Id")}"`,
+			);
 
 			const logs = await db
 				.select({ errorMessage: aiUsageLog.errorMessage })
@@ -520,7 +767,9 @@ describe("assistant routes", () => {
 				.where(eq(aiUsageLog.conversationId, conversationId));
 			expect(logs).toHaveLength(1);
 			expect(logs[0].errorMessage).toBe("server_attachment_provider_error");
-			expect(logs[0].errorMessage).not.toContain("NEVER_PERSIST_PROVIDER_ERROR");
+			expect(logs[0].errorMessage).not.toContain(
+				"NEVER_PERSIST_PROVIDER_ERROR",
+			);
 		} finally {
 			cleanupConn(connId);
 			__setProviderForTests(fakeProvider());
@@ -632,12 +881,18 @@ describe("assistant routes", () => {
 		__setProviderForTests({
 			async *streamTurn({ messages }) {
 				if (i++ === 0) {
-					yield { type: "tool_use", id: "lc1", name: "list_commands", input: {} };
+					yield {
+						type: "tool_use",
+						id: "lc1",
+						name: "list_commands",
+						input: {},
+					};
 					yield { type: "done", stopReason: "tool_calls" };
 					return;
 				}
 				const toolMsg = messages.find(
-					(m) => m.role === "tool" && "toolCallId" in m && m.toolCallId === "lc1",
+					(m) =>
+						m.role === "tool" && "toolCallId" in m && m.toolCallId === "lc1",
 				);
 				toolResult =
 					toolMsg && "content" in toolMsg ? (toolMsg.content as string) : null;
@@ -726,11 +981,15 @@ describe("assistant routes", () => {
 
 			// runTurn prepends the FRESH grounding as messages[0] via the `system`
 			// param — so there is exactly one system message, and it is the fresh one.
-			const systemMessages = receivedMessages.filter((m) => m.role === "system");
+			const systemMessages = receivedMessages.filter(
+				(m) => m.role === "system",
+			);
 			expect(systemMessages.length).toBe(1);
 			// The fresh grounding is not the stale content.
 			expect(typeof systemMessages[0]?.content).toBe("string");
-			expect((systemMessages[0]?.content as string).includes("OLD GROUNDING")).toBe(false);
+			expect(
+				(systemMessages[0]?.content as string).includes("OLD GROUNDING"),
+			).toBe(false);
 		} finally {
 			__setProviderForTests(fakeProvider());
 		}
@@ -747,19 +1006,36 @@ describe("assistant routes", () => {
 		// A second user, also a member of the network, tries to access the first
 		// user's conversation — ownerKey differs (`user:<id>`) → 404.
 		const otherId = "usr_test_assistant_other";
-		await db.insert(users).values({
-			id: otherId, email: "assistant-other@example.com", name: "Other", createdAt: new Date(), updatedAt: new Date(),
-		}).onConflictDoNothing();
-		await db.insert(memberships).values({
-			id: "mem_test_assistant_other", userId: otherId, networkId, role: "owner", createdAt: new Date(),
-		}).onConflictDoNothing();
+		await db
+			.insert(users)
+			.values({
+				id: otherId,
+				email: "assistant-other@example.com",
+				name: "Other",
+				createdAt: new Date(),
+				updatedAt: new Date(),
+			})
+			.onConflictDoNothing();
+		await db
+			.insert(memberships)
+			.values({
+				id: "mem_test_assistant_other",
+				userId: otherId,
+				networkId,
+				role: "owner",
+				createdAt: new Date(),
+			})
+			.onConflictDoNothing();
 		const otherSessionId = (await createSession(otherId)).id;
 		try {
 			const res = await app.request(
 				`/api/v1/assistant/conversations/${conversationId}/messages`,
 				{
 					method: "POST",
-					headers: { Cookie: `artisan_user_session=${otherSessionId}`, "Content-Type": "application/json" },
+					headers: {
+						Cookie: `artisan_user_session=${otherSessionId}`,
+						"Content-Type": "application/json",
+					},
 					body: JSON.stringify({ text: "x" }),
 				},
 			);
@@ -767,7 +1043,10 @@ describe("assistant routes", () => {
 			const got = await app.request(
 				`/api/v1/assistant/conversations/${conversationId}`,
 				{
-					headers: { Cookie: `artisan_user_session=${otherSessionId}`, "Content-Type": "application/json" },
+					headers: {
+						Cookie: `artisan_user_session=${otherSessionId}`,
+						"Content-Type": "application/json",
+					},
 				},
 			);
 			expect(got.status).toBe(404);

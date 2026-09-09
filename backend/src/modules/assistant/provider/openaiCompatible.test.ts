@@ -45,6 +45,46 @@ it("counts retained UTF-8 payload independently of text chunk boundaries", () =>
 });
 
 describe("OpenAICompatibleProvider.streamTurn", () => {
+	it("streams provider reasoning when requested and replays it with tool history", async () => {
+		let sent: unknown;
+		const client = {
+			chat: {
+				completions: {
+					create: async (params: unknown) => {
+						sent = params;
+						return fakeStream([
+							{
+								choices: [{ delta: { reasoning_content: "Inspect the menu" } }],
+							},
+							{
+								choices: [
+									{ delta: { content: "Ready" }, finish_reason: "stop" },
+								],
+							},
+						]);
+					},
+				},
+			},
+		} as unknown as ConstructorParameters<typeof OpenAICompatibleProvider>[1];
+		const events = await collect(
+			new OpenAICompatibleProvider(cfg, client).streamTurn({
+				messages: [
+					{
+						role: "assistant",
+						content: null,
+						reasoningContent: "Previous reasoning",
+					},
+				],
+				tools: [],
+				model: "m",
+				includeReasoning: true,
+			}),
+		);
+		expect(events[0]).toEqual({ type: "reasoning", text: "Inspect the menu" });
+		expect(sent).toMatchObject({
+			messages: [{ reasoning_content: "Previous reasoning" }],
+		});
+	});
 	it("does not count repeated stream envelopes or discarded reasoning as buffered output", async () => {
 		const provider = new OpenAICompatibleProvider(
 			cfg,
