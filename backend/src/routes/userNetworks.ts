@@ -54,6 +54,7 @@ import {
 	requestImportSourcesList,
 	requestOnlinePlayers,
 	requestPlayerInventory,
+	requestHeadTexture,
 	requestProjectHistory,
 	requestProjectList,
 	requestProjectRead,
@@ -1406,6 +1407,25 @@ userNetworksRouter.post(
 // Snapshot of an online player's inventory, relayed to the connected plugin
 // (player_inventory_fetch / player_inventory_result, 5 s timeout). Feeds the
 // editor's capture panel (ADR captured-items-and-module-field-kit).
+userNetworksRouter.get("/:networkId/servers/:serverId/head-texture", async (c: Context<{ Variables: Vars }>) => {
+	const userId = getUserId(c);
+	if (!userId) return c.json({ error: "unauthorized" }, 401);
+	const resolved = await resolveNetworkServer(userId, c.req.param("networkId"), c.req.param("serverId"));
+	if (!resolved) return c.json({ error: "forbidden" }, 403);
+	if (!resolved.serverKeyId) return c.json({ error: "not_found" }, 404);
+	const id = c.req.query("id")?.trim();
+	if (!id || !/^\d{1,10}$/.test(id)) return c.json({ error: "invalid_input" }, 422);
+	const outcome = await requestHeadTexture(resolved.serverKeyId, id);
+	if (outcome.kind === "offline") return c.json({ error: "server_offline" }, 503);
+	if (outcome.kind === "timeout") return c.json({ error: "fetch_timeout" }, 504);
+	if (outcome.kind !== "result") return c.json({ error: "fetch_error" }, 502);
+	const r = outcome.result;
+	if (!r.ok || typeof r.texture !== "string" || !r.texture || r.texture.length > 16_384) {
+		return c.json({ error: r.error ?? "fetch_error" }, r.error === "head_not_found" ? 404 : 502);
+	}
+	return c.json({ texture: r.texture });
+});
+
 userNetworksRouter.get(
 	"/:networkId/servers/:serverId/player-inventory",
 	async (c: Context<{ Variables: Vars }>) => {

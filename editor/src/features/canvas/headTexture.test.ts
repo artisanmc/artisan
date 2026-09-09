@@ -24,7 +24,7 @@ describe("headPreviewUrl", () => {
     expect(headPreviewUrl("playerhead:{owner}")).toBeUndefined();
   });
 
-  it("returns undefined for hdb ids (no public resolution API)", () => {
+  it("leaves HDB resolution to the server-backed preview hook", () => {
     expect(headPreviewUrl("hdb:128276")).toBeUndefined();
   });
 

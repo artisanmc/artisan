@@ -11,7 +11,7 @@ import { useUiStore } from "@/state/uiStore";
 import { useDraggable } from "@dnd-kit/core";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { headPreviewUrl } from "../headTexture";
+import { useHeadPreviewUrl } from "../useHeadPreviewUrl";
 import { buildPreviewScope, renderPreview } from "../menuPreviewScope";
 import { PLACEMENT_ROW_DRAG_PREFIX, type PlacementRowDragData } from "../placementDrop";
 import { useTextureUrl } from "../textureStore";
@@ -450,7 +450,7 @@ function PlaceableRowTile({
   const titleRaw = app?.title ? getText(project, app.title, activeLang) : "";
   const title = titleRaw ? renderPreview(titleRaw, ctx, project, activeLang) : rowKey;
   const materialUrl = useTextureUrl(material);
-  const textureUrl = headPreviewUrl(display.head) ?? materialUrl;
+  const textureUrl = useHeadPreviewUrl(display.head) ?? materialUrl;
   const data: PlacementRowDragData = {
     placementRow: { menuId: menu.id, elementId: element.id, key: rowKey, material },
   };

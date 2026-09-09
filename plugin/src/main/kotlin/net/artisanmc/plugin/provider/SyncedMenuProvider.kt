@@ -612,6 +612,47 @@ class SyncedMenuProvider(
                 }
             }
 
+            "head_texture_fetch" -> {
+                val requestId = node["request_id"]?.asText() ?: return
+                val id = node["id"]?.asText() ?: ""
+                fun reply(payload: Map<String, Any?>) {
+                    try {
+                        httpClient.dispatcher.executorService.execute {
+                            @Suppress("UNCHECKED_CAST")
+                            send((mapOf("type" to "head_texture_result", "request_id" to requestId) + payload) as Map<String, Any>)
+                        }
+                    } catch (_: java.util.concurrent.RejectedExecutionException) {
+                        logger?.warning("head_texture_result dropped — plugin is stopping")
+                    }
+                }
+                if (!id.matches(Regex("[0-9]{1,10}"))) {
+                    reply(mapOf("ok" to false, "error" to "invalid_input"))
+                    return
+                }
+                try {
+                    runOnMainThread {
+                        try {
+                            val hdb = evaluator.deps.hdbHeads
+                            if (hdb == null) {
+                                reply(mapOf("ok" to false, "error" to "hdb_unavailable"))
+                                return@runOnMainThread
+                            }
+                            val stack = hdb.buildStack(id, 1)
+                            val texture = stack?.let { net.artisanmc.plugin.items.ItemDescriptor.derive(it, null)["head_texture"] as? String }
+                            if (texture.isNullOrEmpty() || texture.length > 16_384) {
+                                reply(mapOf("ok" to false, "error" to "head_not_found"))
+                            } else {
+                                reply(mapOf("ok" to true, "texture" to texture))
+                            }
+                        } catch (_: Exception) {
+                            reply(mapOf("ok" to false, "error" to "fetch_error"))
+                        }
+                    }
+                } catch (_: Exception) {
+                    reply(mapOf("ok" to false, "error" to "fetch_error"))
+                }
+            }
+
             "player_inventory_fetch" -> {
                 val requestId = node["request_id"]?.asText() ?: return
                 val playerName = node["player"]?.asText() ?: return

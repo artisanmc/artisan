@@ -55,6 +55,8 @@ vérifie `project_list`, écrit `manifest.yaml` via `project_write` (`create: tr
 
 ## Flux non-évidents
 
+- **HeadDatabase previews** : `userNetworks.ts`, `GET /api/v1/networks/:networkId/servers/:serverId/head-texture?id=<numeric-id>`, cookie auth + network membership (ids or slugs). Relays to the selected plugin and returns `{texture}`; offline/old plugin times out gracefully in the editor. No backend catalog or persisted Project content.
+
 - **Promotion** : `promote/:dst` est **fast-forward only** → `409 not_fast_forward` si divergence. Le merge 3-way / résolution de conflits a été retiré le 2026-06-17 (jamais câblé en UI ; concurrence live gérée par LWW + présence) — cf. ADR `no-branch-conflict-resolution`.
 - **Link editor-first** (cf. ADR `editor-first-server-linking`) : l'éditeur crée le Server via `POST /networks/:id/server-keys` (clé **non-redeemée**, `hash` NULL, aucun secret) qui renvoie `{id, code, expires_at}` ; re-link via `POST /networks/:id/server-keys/:keyId/link-code` (mint un code pour une clé existante). Le plugin `/artisan link <code>` appelle `POST /link/:code/redeem` (**no auth**, code = bearer single-use) → `redeemLinkCode` génère le secret, pose le `hash` (rotation si déjà redeemée), marque le code consommé, renvoie `{server_key, network_name}` **une fois**. Erreurs : `404 not_found`, `409 already_redeemed`, `410 expired`. L'ancien flux WS pairing (`setup_request`/`setup_claim`) + `POST /link` + `claim` ont été supprimés le 2026-07-15.
 - **Le backend ne stocke aucun contenu de Project** : les routes `/api/v1/bundles` et `…/branches` ont disparu avec lui. La protection contre l'écrasement concurrent est le compare-and-swap par fichier de `PUT …/projects/:pid/files` (cf. `invariants.md`).

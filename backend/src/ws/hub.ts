@@ -14,6 +14,7 @@ import { customItemsCacheDir, readCustomItemsHash, processBundle } from "../lib/
 import { currentPackInfo } from "../lib/resourcePack";
 import { invalidateCustomBundle } from "../routes/modelBundle";
 import type {
+  HeadTextureResultMessage,
   EditorProjectsReloadedMessage,
   ProjectsReloadedMessage,
   CustomItemsBundleMessage,
@@ -78,6 +79,31 @@ export function registerConn(connId: string, send: (msg: string) => void): void 
 export function cleanupConn(connId: string): void {
   connSenders.delete(connId);
   connToServerId.delete(connId);
+}
+
+type HeadTextureOutcome =
+  | { kind: "result"; result: HeadTextureResultMessage }
+  | { kind: "offline" | "timeout" };
+const pendingHeadTextures = new Map<string, {
+  serverKeyId: string;
+  finish: (outcome: HeadTextureOutcome) => void;
+}>();
+
+export function requestHeadTexture(serverKeyId: string, id: string, timeoutMs = 5_000): Promise<HeadTextureOutcome> {
+  const send = firstPluginSender(serverKeyId);
+  if (!send) return Promise.resolve({ kind: "offline" });
+  const requestId = crypto.randomUUID();
+  return new Promise((resolve) => {
+    const finish = (outcome: HeadTextureOutcome) => {
+      clearTimeout(timer);
+      pendingHeadTextures.delete(requestId);
+      resolve(outcome);
+    };
+    const timer = setTimeout(() => finish({ kind: "timeout" }), timeoutMs);
+    pendingHeadTextures.set(requestId, { serverKeyId, finish });
+    try { send(JSON.stringify({ type: "head_texture_fetch", request_id: requestId, id })); }
+    catch { finish({ kind: "offline" }); }
+  });
 }
 
 /**
@@ -1071,6 +1097,15 @@ export async function handlePluginMessage(
   }
 
   // ── player_inventory_result: resolve a pending inventory snapshot ─────────
+  if (msg.type === "head_texture_result") {
+    const result = msg as HeadTextureResultMessage;
+    const pending = pendingHeadTextures.get(result.request_id);
+    if (pending && connToServerId.get(connId) === pending.serverKeyId) {
+      pending.finish({ kind: "result", result });
+    }
+    return { reply: null };
+  }
+
   if (msg.type === "player_inventory_result") {
     const serverId = connToServerId.get(connId);
     if (!serverId) return { reply: null };
