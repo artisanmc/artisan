@@ -105,13 +105,19 @@ export class OpenAICompatibleProvider implements LlmProvider {
 
 		// biome-ignore lint/suspicious/noExplicitAny: openai stream chunks are dynamically shaped
 		for await (const chunk of stream as unknown as AsyncIterable<any>) {
-			if (args.maxResponseBytes !== undefined) {
-				responseBytes += Buffer.byteLength(JSON.stringify(chunk));
-				if (responseBytes > args.maxResponseBytes)
-					throw new LlmRequestError("provider_output_limit");
-			}
 			const choice = chunk.choices?.[0];
 			const delta = choice?.delta;
+			if (args.maxResponseBytes !== undefined) {
+				responseBytes += Buffer.byteLength(delta?.content ?? "");
+				for (const tc of delta?.tool_calls ?? []) {
+					responseBytes +=
+						Buffer.byteLength(tc.id ?? "") +
+						Buffer.byteLength(tc.function?.name ?? "") +
+						Buffer.byteLength(tc.function?.arguments ?? "");
+				}
+				if (responseBytes > args.maxResponseBytes)
+					throw new LlmRequestError("response_buffer_exceeded");
+			}
 			if (delta?.content) yield { type: "text", text: delta.content };
 			if (delta?.tool_calls) {
 				for (const tc of delta.tool_calls) {

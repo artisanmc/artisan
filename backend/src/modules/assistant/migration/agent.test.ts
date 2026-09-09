@@ -23,6 +23,7 @@ test("context rejection saves replayable state and only explicit compression sum
 	const provider: LlmProvider = {
 		async *streamTurn(input) {
 			calls++;
+			if (input.tools.length) expect(input.maxOutputTokens).toBeUndefined();
 			if (!input.tools.length) {
 				summaries++;
 				expect(JSON.stringify(input.messages)).toContain("PRIVATE_SOURCE");

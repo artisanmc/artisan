@@ -100,7 +100,9 @@ export const migrationEn = {
 		provider_error:
 			"The AI returned an unusable response. Completed menus are retained.",
 		provider_output_limit:
-			"This menu's response exceeded the limit; simplify the source or review it manually.",
+			"The provider stopped generation at its output limit. The incomplete response was not applied; completed menus are retained.",
+		response_buffer_exceeded:
+			"The response exceeded Artisan's memory safety limit. It was not applied; completed menus are retained.",
 		context_budget_exceeded:
 			"An earlier version stopped at Artisan's local context limit. Resume to use the provider's actual limit.",
 		provider_context_full:
@@ -232,7 +234,9 @@ export const migrationFr = {
 		provider_error:
 			"L’IA a renvoyé une réponse inutilisable. Les menus terminés sont conservés.",
 		provider_output_limit:
-			"La réponse de ce menu dépasse la limite ; simplifiez la source ou vérifiez-la manuellement.",
+			"Le fournisseur a arrêté la génération à sa limite de sortie. La réponse incomplète n’a pas été appliquée ; les menus terminés sont conservés.",
+		response_buffer_exceeded:
+			"La réponse dépasse la limite de sécurité mémoire d’Artisan. Elle n’a pas été appliquée ; les menus terminés sont conservés.",
 		context_budget_exceeded:
 			"Une ancienne version s’est arrêtée sur la limite locale d’Artisan. Reprenez pour utiliser la limite réelle du fournisseur.",
 		provider_context_full:

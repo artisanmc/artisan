@@ -57,6 +57,7 @@ export interface MigrationBudget {
 	usedCredits: number;
 	/** Legacy metadata only; the provider enforces context capacity. */
 	contextTokens: number | null;
+	/** Legacy setting: ignored during exploration/conversion; only bounds explicit summaries. */
 	maxOutputTokens: number;
 }
 export interface MigrationTranslationChange {
