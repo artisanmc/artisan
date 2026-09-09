@@ -42,7 +42,7 @@ export type LlmMessage =
 			content: string | null;
 			toolCalls?: { id: string; name: string; arguments: string }[];
 	  }
-	| { role: "tool"; toolCallId: string; content: string };
+	| { role: "tool"; toolCallId: string; content: string; isError?: boolean };
 
 export interface ToolDef {
 	name: string;

@@ -137,7 +137,7 @@ test("sends large context intact to the provider without enforcing the legacy lo
 			{ role: "system", content: "migrate" },
 			{ role: "user", content },
 		],
-		[],
+		[{ name: "finish", description: "Finish", parameters: { type: "object" } }],
 		() => ({ content: "done", result: true }),
 		1,
 	);

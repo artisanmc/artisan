@@ -100,6 +100,23 @@ function input(requestId = crypto.randomUUID()) {
 	};
 }
 describe("durable migration", () => {
+	it.each([
+		"invalid_tool:read_source:invalid_offset",
+		"invalid_tool:secret:invalid_offset",
+	])("persists only allowlisted tool diagnostics: %s", async (code) => {
+		const run = await createRun(input());
+		await transitionRun(run.id, run.revision, "start");
+		const claim = required(await claimNextStep(run.id, "diagnostic"));
+		await interruptStep({
+			runId: run.id,
+			stepId: claim.step.id,
+			leaseToken: claim.leaseToken,
+			code,
+		});
+		expect((await getEvents(run.id)).at(-1)?.code).toBe(
+			code.includes(":secret:") ? "migration_error" : code,
+		);
+	});
 	it("blocks a selection with no menu steps", async () => {
 		const run = await createRun({
 			...input(),

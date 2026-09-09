@@ -126,6 +126,22 @@ vi.mock("@/lib/api/assistantMigration", async (original) => ({
 	controlMigration: vi.fn(),
 }));
 
+it("shows the tool and translated reason after repeated invalid calls", async () => {
+	vi.mocked(api.getMigrationEvents).mockResolvedValueOnce([
+		{
+			sequence: 8,
+			runId: "r",
+			type: "step_interrupted",
+			code: "invalid_tool:read_source:invalid_offset",
+			createdAt: "",
+		},
+	]);
+	render(<MigrationPanel {...props} />);
+	await screen.findByText(
+		"assistant.migration.errors.invalid_offset (read_source)",
+	);
+});
+
 it("shows the precise interruption code instead of only generic connection advice", async () => {
 	vi.mocked(api.getMigrationEvents).mockResolvedValueOnce([
 		{

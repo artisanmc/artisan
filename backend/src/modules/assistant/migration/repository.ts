@@ -1,4 +1,5 @@
 import { and, desc, eq, gt, ne } from "drizzle-orm";
+import { isToolFailure } from "./toolErrors";
 import { db } from "../../../db";
 import {
 	assistantMigrationEvents as events,
@@ -734,7 +735,9 @@ const FAILURE_CODES = new Set([
 	"invalid_manifest_dependency",
 ]);
 function safeCode(code: string): string {
-	return FAILURE_CODES.has(code) ? code : "migration_error";
+	return FAILURE_CODES.has(code) || isToolFailure(code)
+		? code
+		: "migration_error";
 }
 export async function interruptStep(
 	input: InterruptStepInput,

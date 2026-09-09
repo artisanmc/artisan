@@ -58,6 +58,16 @@ export const migrationEn = {
 			"The AI ended its response without the required tool action. No result was saved for this step.",
 		invalid_tool:
 			"The AI requested an invalid tool action. This is not a connection failure.",
+		invalid_arguments:
+			"The AI repeatedly sent invalid action parameters. Migration paused.",
+		invalid_offset:
+			"The AI repeatedly requested an invalid position in a source file. Migration paused.",
+		unselected_source:
+			"The AI repeatedly requested a file outside the selection. Access was denied.",
+		unknown_tool:
+			"The AI repeatedly requested an unavailable tool. Migration paused.",
+		mixed_proposal:
+			"The AI repeatedly grouped a proposal with other actions. No ambiguous proposal was applied.",
 		tool_batch_limit:
 			"The AI requested more than 256 tool actions in one response. This step was stopped safely.",
 		migration_attempt_limit:
@@ -191,6 +201,16 @@ export const migrationFr = {
 			"L’IA a terminé sa réponse sans effectuer l’action attendue. Aucun résultat n’a été enregistré pour cette étape.",
 		invalid_tool:
 			"L’IA a demandé une action invalide. Ce n’est pas une erreur de connexion.",
+		invalid_arguments:
+			"L’IA a envoyé plusieurs fois des paramètres d’action invalides. Migration en pause.",
+		invalid_offset:
+			"L’IA a demandé plusieurs fois une position invalide dans un fichier source. Migration en pause.",
+		unselected_source:
+			"L’IA a demandé plusieurs fois un fichier hors de la sélection. L’accès a été refusé.",
+		unknown_tool:
+			"L’IA a demandé plusieurs fois un outil indisponible. Migration en pause.",
+		mixed_proposal:
+			"L’IA a regroupé plusieurs fois une proposition avec d’autres actions. Aucune proposition ambiguë n’a été appliquée.",
 		tool_batch_limit:
 			"L’IA a demandé plus de 256 actions dans une seule réponse. L’étape a été arrêtée par sécurité.",
 		migration_attempt_limit:

@@ -136,6 +136,13 @@ When a migration pauses, the explanation includes its interruption code. A pause
 does not necessarily indicate a connection problem: `missing_proposal` means the
 AI returned no tool action, while `tool_batch_limit` means more than 256 actions
 were requested in one response. Repeating a deterministic error may fail again.
+During agentic migration, invalid tool calls receive corrective feedback instead
+of immediately pausing the run. A batch containing a final proposal or plan and
+other actions is rejected without execution; the AI must submit it separately.
+After three invalid response rounds, migration pauses with the tool and reason
+shown. Failed reads remain error observations when resuming, never replayed reads.
+Only selected sources remain accessible; schema validation and credit safeguards
+still apply to every correction attempt.
 
 The assistant needs an AI provider configured on the server side. If it isn't
 set up, the assistant is unavailable — ask your server admin to configure a
