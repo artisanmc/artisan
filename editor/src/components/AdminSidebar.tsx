@@ -1,3 +1,4 @@
+import { ArtisanWordmark } from "@/components/ArtisanWordmark";
 import { useSidebarStore } from "@/state/sidebarStore";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { ArrowLeft, BarChart3, Bot, CreditCard, Palette, Users } from "lucide-react";
@@ -21,29 +22,21 @@ export function AdminSidebar() {
   ] as const;
 
   return (
-    <nav className="flex h-full flex-col gap-3.5 px-3 py-3.5">
+    <nav className="flex h-full flex-col gap-3.5 px-3 py-2">
       <Link
         to="/networks"
         onClick={() => useSidebarStore.getState().close()}
-        className="flex items-center gap-2.5 rounded-[10px] px-1.5 pt-1 pb-0.5 transition-colors hover:bg-[var(--surface-hover)]"
+        className="flex h-12 shrink-0 items-center gap-1 rounded-[10px] px-1.5 transition-colors hover:bg-[var(--surface-hover)]"
       >
-        <span className="pixel-mark">
-          <i />
-          <i />
-          <i />
-          <i />
-          <i />
-          <i />
-          <i />
-          <i />
-          <i />
-        </span>
-        <span
-          className="font-display text-[17px] font-semibold text-[var(--text)]"
-          style={{ fontFamily: "var(--font-display)" }}
-        >
-          {t("sidebar.brand")}
-        </span>
+        <img
+          src="/logo.svg"
+          alt=""
+          aria-hidden="true"
+          width={28}
+          height={28}
+          className="size-7 shrink-0"
+        />
+        <ArtisanWordmark />
       </Link>
 
       <Link

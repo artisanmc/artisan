@@ -16,6 +16,17 @@ Sections planned:
 
 ## Main navigation
 
+On mobile, project controls use two rows and the view tabs keep their icons.
+Opening Library temporarily hides Properties without clearing the selection.
+Selecting an item closes Library so its properties can be edited; closing Library
+also restores the previous selection's properties.
+
+Panels open and close with a short, 200 ms transition. Navigation and Elements slide
+from their edge; Library expands horizontally or vertically with its layout.
+Manual resizing remains immediate. Reduced-motion preferences disable these transitions.
+Properties uses the same transition when opening or closing, with no animation
+when changing the selected item inside an already open panel.
+
 The main navigation (projects, servers and installed modules) hides automatically
 on desktop, leaving the workspace full width. Hover over the left edge to reveal
 the rounded floating panel without moving your workspace. A small button in the
@@ -23,7 +34,8 @@ top-left corner opens the main menu and remains available while the panel is ope
 Its left-panel icon mirrors the right-panel Elements toggle.
 It closes shortly after the pointer leaves, while keeping open menus and keyboard
 navigation usable. Click this button to open a fixed, borderless sidebar. Click it again
-to close it and return to automatic mode. Each reload starts in automatic mode.
+to close it and return to automatic mode. This choice is remembered after reloading;
+temporary hover openings are not saved.
 Escape dismisses the temporary
 panel. On smaller screens, use the navigation button to open it and the close button
 or backdrop to dismiss it.
@@ -48,13 +60,14 @@ width, which is remembered. Elements starts hidden: hover the right edge to reve
 it over the workspace without resizing Properties. It closes shortly after the
 pointer leaves, unless a menu is open or keyboard focus remains inside. Click the
 Elements button at the right end of the toolbar to keep its column open; click
-again to close it. Reloading restores automatic mode. On mobile, Elements opens
+again to close it. This choice is remembered after reloading. On mobile, Elements opens
 in a drawer from the right.
 In Elements, the left arrow adds a document to the canvas; the right arrow removes it.
 
 Open **Library** using the rounded tool at the top-left of the canvas to browse **Items** (Catalogue or Captured)
 and **Graphics** (textures, glyphs and fonts). No menu needs to be selected.
 The tool hides while the panel is open; use the close button to dismiss the panel and restore the tool.
+Library visibility and its category are remembered for the last opened project after reloading.
 The close button shares the category tabs row. Item filters scroll horizontally
 instead of stacking above the grid, leaving more room for items in narrow panels.
 The library sits left of the canvas when there is enough room, and below it on

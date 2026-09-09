@@ -161,7 +161,7 @@ interface UiState {
   draggingNewLayer: DraggingNewLayer | null;
   setDraggingNewLayer: (payload: DraggingNewLayer | null) => void;
   /**
-   * Fix the right Elements panel open. Transient; false enables hover reveal.
+   * Remember the fixed right Elements panel choice; false enables hover reveal.
    */
   projectPanelOpen: boolean;
   setProjectPanelOpen: (open: boolean) => void;
@@ -393,6 +393,7 @@ export const useUiStore = create<UiState>()(
         editorLang: state.editorLang,
         flowCanvasHeight: state.flowCanvasHeight,
         editorPaneWidth: state.editorPaneWidth,
+        projectPanelOpen: state.projectPanelOpen,
         assistantPaneWidth: state.assistantPaneWidth,
         canvasMode: state.canvasMode,
         // Persisté (contrairement à canvasViewports) : le cadrage de la vue
@@ -403,7 +404,6 @@ export const useUiStore = create<UiState>()(
       merge: (persisted, current) => {
         const p = { ...(persisted ?? {}) } as Partial<UiState> & { editorTab?: unknown };
         delete p.editorTab;
-        p.projectPanelOpen = current.projectPanelOpen;
         if (p.editorLang) {
           import("@/i18n").then(({ default: i18n }) => i18n.changeLanguage(p.editorLang));
         }

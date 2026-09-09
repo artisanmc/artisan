@@ -6,6 +6,7 @@ import { useIsDesktop } from "@/lib/useMediaQuery";
 import { useUiStore } from "@/state/uiStore";
 import { type ReactNode, useContext } from "react";
 import { DockedInspectorContext } from "./inspectorLayout";
+import { useProjectLibraryStore } from "./projectLibraryStore";
 import { useInspector } from "./useInspector";
 
 interface CanvasWithInspectorProps {
@@ -38,6 +39,7 @@ export function CanvasWithInspector({
 }: CanvasWithInspectorProps) {
   const { open } = useInspector(projectId);
   const isDesktop = useIsDesktop();
+  const libraryOpen = useProjectLibraryStore((s) => s.projectId === projectId);
   const docked = useContext(DockedInspectorContext);
   const editorPaneWidth = useUiStore((s) => s.editorPaneWidth);
   const setEditorPaneWidth = useUiStore((s) => s.setEditorPaneWidth);
@@ -57,13 +59,12 @@ export function CanvasWithInspector({
     );
   }
 
-  if (!open) return <div className="h-full w-full">{canvas}</div>;
-
   return (
     <SplitPane
+      animatePresence
       orientation="vertical"
       primary={canvas}
-      secondary={<EditorPane projectId={projectId} />}
+      secondary={open && !libraryOpen ? <EditorPane projectId={projectId} /> : null}
       secondarySize={mobileSize}
       onSecondarySizeChange={onMobileSizeChange}
       minSecondary={minSecondary}

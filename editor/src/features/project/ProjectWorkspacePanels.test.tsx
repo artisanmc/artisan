@@ -5,6 +5,10 @@ import { beforeEach, expect, it, vi } from "vitest";
 import { CanvasWithInspector } from "./CanvasWithInspector";
 import { ProjectWorkspacePanels } from "./ProjectWorkspacePanels";
 
+vi.mock("@/lib/usePanelPresence", () => ({
+  usePanelPresence: (open: boolean) => ({ mounted: open, expanded: open }),
+}));
+
 let inspecting = false;
 vi.mock("./useInspector", () => ({ useInspector: () => ({ open: inspecting }) }));
 vi.mock("@/lib/useMediaQuery", () => ({ useIsDesktop: () => true }));

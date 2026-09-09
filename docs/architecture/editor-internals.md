@@ -1,5 +1,7 @@
 # Editor & rendering internals
 
+Les titres de l’interface (`h1`–`h6`, `.display`, `.font-display`) utilisent `--font-display: "Inter", sans-serif` en graisse 700, chargé depuis Bunny Fonts dans `editor/index.html`. Le texte courant et le monospace gardent leurs polices ; les polices de rendu Minecraft restent indépendantes. Spécimen dans `/admin/design`.
+
 ## Tests et CI
 
 `vitest.config.ts` exclut tous les dossiers `**/e2e/**` pour ne pas charger les tests Playwright dans Vitest. Les scénarios navigateur restent exécutés par `playwright.config.ts` (`tests/e2e`) et `playwright.migration.config.ts` (`e2e/migration.spec.ts`). La CI éditeur doit réussir avant que le workflow de déploiement production démarre.
@@ -102,7 +104,7 @@ Background = "gros glyph" : ascent calibré pour couvrir la zone. `LayerEditForm
 Le Document sélectionné s'édite dans le panneau de droite. L'ancien **mode focus** plein-écran (forké, `features/element-editor/` + `FocusButton` + `useElementDblClickNav`) a été retiré 2026-06-06 : doublon de l'onglet Edit + bugs de routing. Le 2026-06-13, une **vue individuelle** deep-linkable l'a remplacé sur des bases saines — un seul rendu partagé avec la planche, pas d'éditeur forké (cf. section « Planche curée » plus bas). La route `.../document.$documentId` est donc à nouveau présente, mais avec une implémentation différente.
 
 - **`features/canvas/EditorPane.tsx`** — panneau **Propriétés**, sans onglets, qui rend directement `<FlowCanvas>`. La Bibliothèque est indépendante (voir ci-dessous). **Le set d'items se crée au NIVEAU DU MENU et n'existe qu'à travers l'élément qui le rend** (ADR `item-templates-and-data-library`, révision 2026-07-31) : `MenuDataSection` porte un bloc « Set d'items » par liste ; `createMenuSet` crée un élément auto-suffisant en mode `iterates` ou `places`. En placement, `PlacementRowsPanel` liste les rows du contexte d'aperçu courant en tuiles draggables (`PLACEMENT_ROW_DRAG_PREFIX`, dépôt géré par `MenuGroup`/`pinPlacementRow`).
-- **Bibliothèque du projet** — `features/project/ProjectLibrary.tsx` : bouton permanent dans la barre du projet, catégories **Items** (Catalogue / Capturés) et **Ressources graphiques** (`AssetsTab`, détails avec retour à la grille). `ProjectLibraryWorkspace` enveloppe la planche ou la vue individuelle sous le même `DndContext` ; panneau à gauche sur desktop, sous la scène sur mobile. Il charge items et assets même sans sélection, indépendamment de l'ouverture des panneaux. L'ouverture est éphémère et liée au projet (`projectLibraryStore`), jamais à la sélection. Échap ferme la bibliothèque avant la navigation de Document ; les dialogues et champs conservent leur propre gestion d'Échap.
+- **Bibliothèque du projet** — `features/project/ProjectLibrary.tsx` : outil en haut à gauche du canvas, masqué quand la bibliothèque est ouverte, catégories **Items** (Catalogue / Capturés) et **Ressources graphiques** (`AssetsTab`, détails avec retour à la grille). `ProjectLibraryWorkspace` enveloppe la planche ou la vue individuelle sous le même `DndContext` ; panneau à gauche sur desktop, sous la scène sur mobile. Il charge items et assets même sans sélection, indépendamment de l'ouverture des panneaux. L'ouverture est persistée et liée au dernier projet ouvert (`projectLibraryStore`), jamais à la sélection. Échap ferme la bibliothèque avant la navigation de Document ; les dialogues et champs conservent leur propre gestion d'Échap.
 - **`features/flow/FlowCanvas.tsx`** — éditeur unifié de la sélection courante (`useSelectionStore`). Route par type :
   - 0 sélection → `ProjectProperties`
   - menu → `MenuProperties` (+ `LayersPanel` titre)
@@ -201,8 +203,8 @@ Exemple concret (module boutique, V1.5 — `docs/architecture/modules.md` §15) 
 
 La bibliothèque utilise `SplitPane` avec `secondaryPosition="start"` à gauche
 (bord droit redimensionnable), ou en bas si mobile/espace central <600 px.
-Le store `projectLibraryStore` persiste uniquement largeur/hauteur sous
-`artisan-library-size` ; ouverture et catégorie restent éphémères.
+Le store `projectLibraryStore` persiste largeur/hauteur sous
+`artisan-library-size`, ainsi que le projet ouvert (null si fermé) et la catégorie.
 Le canvas reste monté pendant ouverture, fermeture, resize et changement d'orientation.
 Le bouton Bibliothèque est un outil flottant arrondi en haut à droite du canvas, rendu par `ProjectLibraryWorkspace` dans le panneau principal du split uniquement si le panneau est fermé. Bouton et panneau sont visibles uniquement sur la planche et les vues individuelles de menus, jamais dans les vues commande ou dialogue ni les onglets secondaires. L'état d'ouverture est conservé au retour au canvas. La croix ferme le panneau et fait réapparaître l’outil ; aucun bouton Bibliothèque dans la topbar.
 L’en-tête regroupe onglets et fermeture sans ligne de titre supplémentaire ; les filtres du catalogue restent sur une ligne défilante horizontalement, pour préserver la hauteur de grille.
@@ -320,7 +322,7 @@ Cf. `docs/superpowers/specs/2026-06-14-search-palette-and-sidebar-toggle-design.
 
 ### Panneau toggleable
 
-`ProjectElementsSidebar` révèle l’arbre au survol des 8 px du bord droit, en overlay arrondi de 240 px sans redimensionner les propriétés. Sortir ferme après 300 ms, sauf menu/dialogue ouvert ou focus clavier dans le panneau ; Échap referme l’overlay et rend le focus au bouton. `uiStore.projectPanelOpen`, transitoire et faux par défaut (ancienne préférence ignorée), réserve une colonne fixe au clic sur Éléments (`PanelRightClose`/`PanelRightOpen`) ; un second clic referme. Le drawer mobile ouvre à droite. Cmd+K reste la recherche globale.
+`ProjectElementsSidebar` révèle l’arbre au survol des 8 px du bord droit, en overlay arrondi de 240 px sans redimensionner les propriétés. Sortir ferme après 300 ms, sauf menu/dialogue ouvert ou focus clavier dans le panneau ; Échap referme l’overlay et rend le focus au bouton. `uiStore.projectPanelOpen`, persisté et faux par défaut, réserve une colonne fixe au clic sur Éléments (`PanelRightClose`/`PanelRightOpen`) ; un second clic referme. Le drawer mobile ouvre à droite. Cmd+K reste la recherche globale.
 
 ## UI shell — Project + Settings (depuis 2026-05-27)
 
@@ -332,14 +334,24 @@ avec coins arrondis et contenu découpé dans le même contour ;
 repli après 300 ms hors du panneau. Les menus portallés et le focus clavier
 retiennent l'ouverture ; Échap ferme le panneau temporaire et rend le focus au
 bouton. Le bouton Menu reste visible : clic = ouverture fixe sans bordure (216 px),
-second clic = fermeture et retour au survol. `sidebarStore` est éphémère : chaque
-chargement démarre en automatique. Le drawer mobile
+second clic = fermeture et retour au survol. `sidebarStore.pinned` est persisté sous `artisan-navigation` ; le rechargement restaure ce choix. Le survol temporaire et le drawer mobile restent éphémères. Le drawer mobile
 conserve une ouverture explicite avec bouton et backdrop. Même shell pour l'admin.
 
 La création de projet depuis le réseau (`NewProjectModal`) utilise un formulaire :
 Entrée dans le nom ou la description déclenche la même soumission que « Créer ».
 Un nom vide ou une création déjà en cours bloque la soumission ; « Annuler »
 ferme la modal sans créer de projet.
+
+Le logo géométrique fourni est conservé dans `editor/public/logo.svg`, partagé entre les marques des sidebars, les écrans d’authentification/setup/accueil et le favicon SVG déclaré dans `editor/index.html`.
+Le texte de marque des sidebars et de l’authentification utilise `ArtisanWordmark`, une version inline du SVG fourni : Inter 700, approche -8, couleur héritée du thème. Le SVG inline permet de réutiliser la police chargée via Bunny Fonts.
+Sur mobile (<1024 px), la topbar utilise une grille de deux lignes, conserve les onglets à icônes et impose des cibles tactiles de 44 px. La bibliothèque masque temporairement l’inspecteur sans vider la sélection ; un changement de sélection ferme la bibliothèque. Les panneaux restent indépendants sur desktop.
+
+Les propriétés activent aussi `SplitPane.animatePresence` sur desktop (`ProjectWorkspacePanels`) et mobile (`CanvasWithInspector`, split toujours monté). Changer la sélection ne relance pas l’animation : seule la présence du panneau la déclenche.
+
+`usePanelPresence` conserve le contenu 200 ms pendant la sortie et annule le démontage à la réouverture. Éléments anime translation/opacité ; le menu anime aussi sa largeur réservée. La bibliothèque active `SplitPane.animatePresence` (largeur/hauteur), désactivé pendant le drag. Les panneaux sortants sont `inert` et `aria-hidden` ; `prefers-reduced-motion` supprime l’attente et les transitions CSS.
+
+La marge gauche de la topbar réserve 48 px au bouton de navigation flottant ; elle passe à 12 px sur desktop lorsque la navigation est fixe et occupe déjà sa propre colonne.
+Sur desktop, la topbar et le lien de marque des sidebars partagent une hauteur de 48 px et commencent à 8 px du haut. Le panneau flottant retire son padding supérieur interne pour compenser son décalage de 8 px ; son contour utilise un ring sans modifier les dimensions. Le toggle de 36 px est centré à 32 px du haut.
 
 La sidebar (`components/NewProjectDialog`) suit la même soumission native. Les deux
 modals restent ouvertes avec le nom saisi si le serveur refuse la création ; elles

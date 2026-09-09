@@ -1,4 +1,5 @@
 import type { ProjectId } from "@/domain/types";
+import { usePanelPresence } from "@/lib/usePanelPresence";
 import { useUiStore } from "@/state/uiStore";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -16,6 +17,7 @@ export function ProjectElementsSidebar({ projectId }: { projectId: ProjectId }) 
   const previousFixed = useRef(fixed);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const visible = fixed || revealed;
+  const presence = usePanelPresence(visible);
   const cancelClose = useCallback(() => {
     clearTimeout(timer.current);
     timer.current = undefined;
@@ -85,7 +87,7 @@ export function ProjectElementsSidebar({ projectId }: { projectId: ProjectId }) 
       <div
         data-testid="project-elements-space"
         data-fixed={fixed}
-        className={fixed ? "w-[240px] shrink-0" : "w-0 shrink-0"}
+        className={`shrink-0 transition-[width] duration-200 ease-out motion-reduce:transition-none ${fixed ? "w-[240px]" : "w-0"}`}
       />
       {!fixed && (
         <div
@@ -95,14 +97,20 @@ export function ProjectElementsSidebar({ projectId }: { projectId: ProjectId }) 
           onMouseLeave={leave}
         />
       )}
-      {visible && (
+      {presence.mounted && (
         <aside
           ref={panel}
           data-testid="project-elements-panel"
           aria-label={t("projectPanel.openPanel")}
+          aria-hidden={!visible}
+          inert={!visible}
+          style={{
+            transform: presence.expanded ? "translateX(0)" : "translateX(calc(100% + 8px))",
+            opacity: presence.expanded ? 1 : 0,
+          }}
           onMouseEnter={enter}
           onMouseLeave={leave}
-          className={`absolute z-30 w-[240px] min-w-0 overflow-hidden bg-[var(--surface)] ${fixed ? "inset-y-0 right-0 border-l border-[var(--border-soft)]" : "inset-y-2 right-2 rounded-[var(--r-lg)] border border-[var(--border)] shadow-[var(--shadow-lg)]"}`}
+          className={`absolute z-30 w-[240px] min-w-0 overflow-hidden bg-[var(--surface)] transition-[transform,opacity] duration-200 ease-out motion-reduce:transition-none ${fixed ? "inset-y-0 right-0 border-l border-[var(--border-soft)]" : "inset-y-2 right-2 rounded-[var(--r-lg)] border border-[var(--border)] shadow-[var(--shadow-lg)]"}`}
         >
           <ProjectPanel projectId={projectId} />
         </aside>

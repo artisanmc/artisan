@@ -5,9 +5,14 @@ export function EmptyState() {
   return (
     <div className="grain relative flex h-screen items-center justify-center bg-[var(--surface)]">
       <div className="card relative z-[1] flex max-w-sm flex-col gap-5 p-7 text-center">
-        <div className="mx-auto pixel-mark">
-          <i /><i /><i /><i /><i /><i /><i /><i /><i />
-        </div>
+        <img
+          src="/logo.svg"
+          alt=""
+          aria-hidden="true"
+          width={28}
+          height={28}
+          className="mx-auto size-7 shrink-0"
+        />
         <h1
           className="display text-[24px] tracking-tight text-[var(--text)]"
           style={{ fontFamily: "var(--font-display)" }}

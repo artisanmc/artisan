@@ -1,24 +1,20 @@
+import { ArtisanWordmark } from "@/components/ArtisanWordmark";
 import type { ReactNode } from "react";
 
 /** Shared shell of every auth screen: branded card + page title. */
 export function AuthCard({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="card relative z-[1] mx-auto flex w-full max-w-[400px] flex-col gap-5 p-8">
-      <div className="flex items-center gap-2.5">
-        <span className="pixel-mark">
-          <i />
-          <i />
-          <i />
-          <i />
-          <i />
-          <i />
-          <i />
-          <i />
-          <i />
-        </span>
-        <span className="text-[10.5px] font-semibold uppercase tracking-[.18em] text-[var(--text-mut)]">
-          Artisan
-        </span>
+      <div className="flex items-center gap-1">
+        <img
+          src="/logo.svg"
+          alt=""
+          aria-hidden="true"
+          width={28}
+          height={28}
+          className="size-7 shrink-0"
+        />
+        <ArtisanWordmark />
       </div>
 
       <h1
