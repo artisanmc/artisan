@@ -10,6 +10,32 @@ import {
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { MigrationPanel } from "./MigrationPanel";
 
+it("offers explicit paid compression on context exhaustion without automatically starting it", async () => {
+	const paused = { ...run, canCompress: true };
+	vi.mocked(api.listMigrations).mockResolvedValue([paused]);
+	vi.mocked(api.getMigration).mockResolvedValue(paused);
+	vi.mocked(api.controlMigration).mockResolvedValue({
+		...paused,
+		status: "running",
+		compressing: true,
+		revision: 8,
+	});
+	render(<MigrationPanel {...props} />);
+	const button = await screen.findByText("assistant.migration.compress");
+	expect(api.controlMigration).not.toHaveBeenCalled();
+	expect(screen.queryByText("assistant.migration.resume")).toBeNull();
+	expect(screen.getByText("assistant.migration.compressionHelp")).toBeTruthy();
+	fireEvent.click(button);
+	await waitFor(() =>
+		expect(api.controlMigration).toHaveBeenCalledExactlyOnceWith(
+			"c",
+			"r",
+			"compress",
+			7,
+		),
+	);
+});
+
 it("starts all 35 files directly and preserves the request ID after an uncertain response", async () => {
 	vi.mocked(api.listMigrations).mockResolvedValue([]);
 	vi.mocked(api.createMigration)

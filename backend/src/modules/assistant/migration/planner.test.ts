@@ -37,11 +37,27 @@ test("passes malformed source unchanged to the AI and validates the repaired out
 			const context = JSON.parse(input.messages[1].content ?? "{}");
 			expect(context.sources[0].content).toBe(raw);
 			yield { type: "usage", usage: { inputTokens: 100, outputTokens: 20 } };
-			yield { type: "tool_use", id: "repair", name: "upsert_menu", input: { menu } };
+			yield {
+				type: "tool_use",
+				id: "repair",
+				name: "upsert_menu",
+				input: { menu },
+			};
 			yield { type: "done", stopReason: "tool_calls" };
 		},
 	};
-	const result = await convertMigrationStep({ provider, model: "test", manifest: index, sourceFileId: "server:z/a.yml", attachments: sources, contextTokens: 64000, maxOutputTokens: 4000, signal: new AbortController().signal, onUsage: () => {}, canCall: () => true });
+	const result = await convertMigrationStep({
+		provider,
+		model: "test",
+		manifest: index,
+		sourceFileId: "server:z/a.yml",
+		attachments: sources,
+		contextTokens: 64000,
+		maxOutputTokens: 4000,
+		signal: new AbortController().signal,
+		onUsage: () => {},
+		canCall: () => true,
+	});
 	expect(result.menu).toEqual(menu);
 	expect(result.issues[0]?.code).toBe("source_analysis_incomplete");
 });
@@ -118,7 +134,7 @@ test("allows at most three explicit schema corrections and never checkpoints inv
 	expect(calls).toBe(3);
 });
 
-test("rechecks expanded source context and usage budget before another paid call", async () => {
+test("lets the provider handle expanded context while retaining credit safeguards", async () => {
 	let calls = 0;
 	const provider: LlmProvider = {
 		async *streamTurn() {
@@ -146,8 +162,8 @@ test("rechecks expanded source context and usage budget before another paid call
 	} catch (e) {
 		error = (e as Error).message;
 	}
-	expect(error).toBe("context_budget_exceeded");
-	expect(calls).toBe(1);
+	expect(error).toBe("invalid_menu");
+	expect(calls).toBe(3);
 	calls = 0;
 	try {
 		await convertMigrationStep({

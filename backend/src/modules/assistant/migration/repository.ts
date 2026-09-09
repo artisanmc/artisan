@@ -24,6 +24,8 @@ import {
 	isBlockingMigrationIssue,
 } from "./types";
 
+import type { MigrationContinuation } from "./continuation";
+
 type RunRow = typeof runs.$inferSelect;
 type StepRow = typeof steps.$inferSelect;
 export const MIGRATION_LEASE_MS = 90_000;
@@ -78,11 +80,10 @@ export async function createRun(input: CreateRunInput): Promise<MigrationRun> {
 	)
 		throw new MigrationInputError("manifest_too_large");
 	if (
-		![input.budget.contextTokens, input.budget.maxOutputTokens].every(
-			(n) => Number.isSafeInteger(n) && n > 0 && n <= 2_000_000_000,
-		) ||
-		input.budget.usedCredits !== 0 ||
-		input.budget.maxOutputTokens >= input.budget.contextTokens
+		!Number.isSafeInteger(input.budget.maxOutputTokens) ||
+		input.budget.maxOutputTokens <= 0 ||
+		input.budget.maxOutputTokens > 2_000_000_000 ||
+		input.budget.usedCredits !== 0
 	)
 		throw new MigrationInputError("invalid_budget");
 	const id = crypto.randomUUID();
@@ -169,6 +170,18 @@ export async function getRun(id: string): Promise<MigrationRun | null> {
 		.where(eq(proposals.runId, id));
 	return {
 		id,
+		canCompress:
+			row.status === "paused" &&
+			stepRows.some((s) =>
+				Boolean(
+					(s.continuation as MigrationContinuation | null)?.needsCompression,
+				),
+			),
+		compressing:
+			row.status === "running" &&
+			stepRows.some((s) =>
+				Boolean((s.continuation as MigrationContinuation | null)?.compact),
+			),
 		conversationId: row.conversationId,
 		projectId: row.projectId,
 		modelId: row.modelId,
@@ -257,7 +270,12 @@ export async function getEvents(runId: string, after = 0, limit = 100) {
 		createdAt: r.createdAt.toISOString(),
 	}));
 }
-export type MigrationAction = "start" | "resume" | "pause" | "cancel";
+export type MigrationAction =
+	| "start"
+	| "resume"
+	| "pause"
+	| "cancel"
+	| "compress";
 export async function transitionRun(
 	id: string,
 	expectedRevision: number,
@@ -273,11 +291,34 @@ export async function transitionRun(
 		const transitions: Record<MigrationAction, string[]> = {
 			start: ["ready"],
 			resume: ["paused"],
+			compress: ["paused"],
 			pause: ["running"],
 			cancel: ["ready", "running", "paused", "blocked"],
 		};
 		if (!transitions[action].includes(row.status))
 			throw new MigrationInputError("invalid_transition");
+		if (action === "compress" || action === "resume") {
+			const pending = await tx
+				.select()
+				.from(steps)
+				.where(eq(steps.runId, id))
+				.orderBy(steps.position);
+			if (pending.some((s) => s.status === "running"))
+				throw new MigrationInputError("step_in_flight");
+			const target = pending.find(
+				(s) => s.status === "interrupted" || s.status === "pending",
+			);
+			const continuation = target?.continuation as MigrationContinuation | null;
+			if (action === "compress") {
+				if (!target || !continuation?.needsCompression)
+					throw new MigrationInputError("compression_unavailable");
+				await tx
+					.update(steps)
+					.set({ continuation: { ...continuation, compact: true } })
+					.where(eq(steps.id, target.id));
+			} else if (continuation?.needsCompression)
+				throw new MigrationInputError("compression_required");
+		}
 		await tx
 			.update(runs)
 			.set({
@@ -301,6 +342,7 @@ export interface ClaimedMigrationStep {
 	ownerKey: string;
 	networkId: string;
 	serverKeyId: string;
+	continuation?: MigrationContinuation;
 }
 export async function claimNextStep(
 	id: string,
@@ -352,6 +394,8 @@ export async function claimNextStep(
 		await event(tx, row, "step_started", now, step.id);
 		return {
 			stepId: step.id,
+			continuation:
+				(step.continuation as MigrationContinuation | null) ?? undefined,
 			leaseToken,
 			leaseExpiresAt,
 			ownerKey: row.ownerKey,
@@ -447,7 +491,8 @@ export async function completeDiscovery(
 			.update(steps)
 			.set({
 				status: "completed",
-				credits: debited,
+				continuation: null,
+				credits: step.credits + debited,
 				leaseExpiresAt: null,
 				leaseOwner: null,
 			})
@@ -538,7 +583,8 @@ export async function completeStep(
 			.update(steps)
 			.set({
 				status: "completed",
-				credits: debited,
+				continuation: null,
+				credits: step.credits + debited,
 				leaseExpiresAt: null,
 				leaseOwner: null,
 			})
@@ -590,14 +636,68 @@ export async function renewLease(
 	});
 }
 
+/** Save the summary and debit its usage together before attempting continuation. */
+export async function completeCompression(
+	input: Omit<CompleteStepInput, "proposal"> & {
+		continuation: MigrationContinuation;
+	},
+	now = new Date(),
+): Promise<void> {
+	await db.transaction(async (tx) => {
+		const row = await lockRun(tx, input.runId);
+		const [step] = await tx
+			.select()
+			.from(steps)
+			.where(and(eq(steps.id, input.stepId), eq(steps.runId, row.id)));
+		checkLease(step, input.leaseToken, now);
+		if (!(step.continuation as MigrationContinuation | null)?.compact) return;
+		if (
+			input.usageInput.networkId !== row.networkId ||
+			input.usageInput.model.id !== row.modelId
+		)
+			throw new MigrationInputError("usage_scope_mismatch");
+		const { debited } = await recordDebitedTurnInTransaction(
+			tx,
+			{
+				...input.usageInput,
+				conversationId: row.conversationId,
+				serverKeyId: row.serverKeyId,
+				actionType: "migration",
+				promptPreview: "Migration context compression",
+			},
+			{
+				idempotencyKey: `migration-compression:${step.id}:${input.leaseToken}`,
+			},
+		);
+		await tx
+			.update(steps)
+			.set({
+				continuation: input.continuation,
+				credits: step.credits + debited,
+			})
+			.where(eq(steps.id, step.id));
+		const budget = row.budget as MigrationBudget;
+		await tx
+			.update(runs)
+			.set({ budget: { ...budget, usedCredits: budget.usedCredits + debited } })
+			.where(eq(runs.id, row.id));
+		await event(tx, row, "context_compressed", now, step.id);
+	});
+}
+
 export interface InterruptStepInput {
 	runId: string;
 	stepId: string;
 	leaseToken: string;
 	code: string;
 	usageInput?: UsageInput;
+	continuation?: MigrationContinuation;
 }
 const FAILURE_CODES = new Set([
+	"provider_context_full",
+	"compression_failed",
+	"compression_required",
+	"compression_unavailable",
 	"tool_batch_limit",
 	"invalid_plan",
 	"insufficient_credits",
@@ -670,7 +770,12 @@ export async function interruptStep(
 		}
 		await tx
 			.update(steps)
-			.set({ status: "interrupted", leaseExpiresAt: null, leaseOwner: null })
+			.set({
+				status: "interrupted",
+				leaseExpiresAt: null,
+				leaseOwner: null,
+				...(input.continuation ? { continuation: input.continuation } : {}),
+			})
 			.where(eq(steps.id, step.id));
 		await tx
 			.update(runs)
