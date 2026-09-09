@@ -13,6 +13,7 @@ vi.mock("@/features/canvas/EditorPane", () => ({
 }));
 
 import { CanvasWithInspector } from "./CanvasWithInspector";
+import { useProjectLibraryStore } from "./projectLibraryStore";
 
 const PID = "p1" as ProjectId;
 
@@ -41,6 +42,7 @@ function renderIt() {
 }
 
 beforeEach(() => {
+  useProjectLibraryStore.getState().close();
   useSelectionStore.getState().clear();
   useUiStore.getState().setProjectSettingsOpen(false);
   useAccountStore.setState({
@@ -74,6 +76,14 @@ describe.each([
   ["mobile", false],
 ])("CanvasWithInspector — %s", (_label, desktop) => {
   beforeEach(() => setDesktop(desktop));
+
+  it("gives the mobile library the inspector space without clearing the selection", () => {
+    useSelectionStore.getState().set(["m1"]);
+    useProjectLibraryStore.getState().open(PID);
+    renderIt();
+    expect(screen.queryByTestId("inspector") !== null).toBe(desktop);
+    expect([...useSelectionStore.getState().ids]).toEqual(["m1"]);
+  });
 
   /** Le grief de départ : le panneau mangeait de la place en permanence. */
   it("sans sélection, la scène est seule", () => {

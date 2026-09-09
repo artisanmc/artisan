@@ -1,7 +1,9 @@
 import { cx } from "@/lib/cx";
+import { usePanelPresence } from "@/lib/usePanelPresence";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 interface SplitPaneProps {
+  animatePresence?: boolean;
   /** Lay panes top→bottom (vertical) or left→right (horizontal). */
   orientation: "vertical" | "horizontal";
   /** Vertical: top pane / Horizontal: left pane. Fills the remaining space. */
@@ -30,6 +32,7 @@ interface SplitPaneProps {
  * hover and while dragging.
  */
 export function SplitPane({
+  animatePresence = false,
   orientation,
   primary,
   secondary,
@@ -43,6 +46,11 @@ export function SplitPane({
   const draggingRef = useRef(false);
   const [dragging, setDragging] = useState(false);
   const isVertical = orientation === "vertical";
+  const presence = usePanelPresence(secondary != null, animatePresence);
+  const previousSecondary = useRef(secondary);
+  if (secondary != null) previousSecondary.current = secondary;
+  const renderedSecondary =
+    secondary ?? (animatePresence && presence.mounted ? previousSecondary.current : null);
 
   const onPointerDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
@@ -127,7 +135,8 @@ export function SplitPane({
     dragging ? "opacity-100 duration-0" : "opacity-0 duration-100 group-hover:opacity-100",
     isVertical ? "inset-x-0 -top-px -bottom-px" : "inset-y-0 -left-px -right-px",
   );
-  const secondaryStyle = isVertical ? { height: secondarySize } : { width: secondarySize };
+  const displaySize = animatePresence && !presence.expanded ? 0 : secondarySize;
+  const secondaryStyle = isVertical ? { height: displaySize } : { width: displaySize };
 
   return (
     <div ref={wrapperRef} className={wrapperClass}>
@@ -148,11 +157,27 @@ export function SplitPane({
         <div className={hitClass} />
       </div>
       <div
-        className="min-h-0 min-w-0 shrink-0 overflow-hidden"
-        hidden={secondary == null}
+        className={cx(
+          "min-h-0 min-w-0 shrink-0 overflow-hidden",
+          animatePresence &&
+            !dragging &&
+            "transition-[width,height] duration-200 ease-out motion-reduce:transition-none",
+        )}
+        hidden={animatePresence ? !presence.mounted : secondary == null}
+        aria-hidden={secondary == null}
+        inert={secondary == null}
         style={primary == null ? { flex: 1 } : secondaryStyle}
       >
-        {secondary}
+        {animatePresence ? (
+          <div
+            className="h-full min-h-0"
+            style={isVertical ? { height: secondarySize } : { width: secondarySize }}
+          >
+            {renderedSecondary}
+          </div>
+        ) : (
+          secondary
+        )}
       </div>
     </div>
   );

@@ -8,6 +8,7 @@ import { CapturedItemsSection } from "@/features/canvas/CapturedItemsSection";
 import { Library } from "@/features/canvas/Library";
 import { useTextureInit } from "@/features/canvas/useTextureInit";
 import { useIsDesktop } from "@/lib/useMediaQuery";
+import { useSelectionStore } from "@/state/selectionStore";
 import { Library as LibraryIcon, X } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -24,6 +25,7 @@ export function ProjectLibraryButton({
     <Button
       variant={open && active ? "secondary" : "ghost"}
       size="sm"
+      className="min-h-11 lg:min-h-0"
       aria-label={t("projectLibrary.title")}
       title={t("projectLibrary.title")}
       aria-expanded={open && active}
@@ -60,6 +62,12 @@ export function ProjectLibraryWorkspace({
   const [available, setAvailable] = useState({ width: 1000, height: 600 });
   const horizontal = desktop && available.width >= 600;
   useEffect(() => {
+    if (desktop || !open || !active) return;
+    return useSelectionStore.subscribe((state, previous) => {
+      if (state.ids !== previous.ids || state.menuId !== previous.menuId) close();
+    });
+  }, [desktop, open, active, close]);
+  useEffect(() => {
     const element = frame.current;
     if (!element) return;
     const observer = new ResizeObserver(([entry]) => {
@@ -87,6 +95,7 @@ export function ProjectLibraryWorkspace({
   return (
     <div ref={frame} className="absolute inset-0 min-h-0 min-w-0">
       <SplitPane
+        animatePresence
         orientation={horizontal ? "horizontal" : "vertical"}
         secondaryPosition={horizontal ? "start" : "end"}
         primary={
@@ -145,7 +154,7 @@ function ProjectLibraryPanel({ projectId }: { projectId: ProjectId }) {
           <Button
             variant="ghost"
             size="icon"
-            className="size-8 shrink-0"
+            className="size-11 shrink-0 lg:size-8"
             onClick={close}
             aria-label={t("projectLibrary.close")}
           >

@@ -48,7 +48,7 @@
   --discord-fg: #ffffff;
 
   /* Typography */
-  --font-display: "Spectral", Georgia, serif;
+  --font-display: "Inter", sans-serif;
   --font-body: "Hanken Grotesque", system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
 
@@ -257,12 +257,23 @@ body {
 ---------------------------------------------------------------- */
 .display {
   font-family: var(--font-display);
-  font-weight: 500;
+  font-weight: 700;
   line-height: 1.08;
   letter-spacing: -.01em;
 }
+@media (max-width: 1023px) {
+  .project-topbar button {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
 .serif {
   font-family: var(--font-display);
+}
+h1, h2, h3, h4, h5, h6, .font-display, .serif {
+  font-family: var(--font-display);
+  font-weight: 700;
 }
 .mono {
   font-family: var(--font-mono);

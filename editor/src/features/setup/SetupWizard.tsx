@@ -105,17 +105,14 @@ export function SetupWizard() {
       <div className="card relative z-[1] flex w-full max-w-[560px] flex-col gap-7 p-8">
         <header className="flex flex-col gap-4">
           <div className="flex items-center gap-2.5">
-            <span className="pixel-mark">
-              <i />
-              <i />
-              <i />
-              <i />
-              <i />
-              <i />
-              <i />
-              <i />
-              <i />
-            </span>
+            <img
+              src="/logo.svg"
+              alt=""
+              aria-hidden="true"
+              width={28}
+              height={28}
+              className="size-7 shrink-0"
+            />
             <span className="text-[10.5px] font-semibold uppercase tracking-[.18em] text-[var(--text-mut)]">
               {t("setupWizard.eyebrow")}
             </span>

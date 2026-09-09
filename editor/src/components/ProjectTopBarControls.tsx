@@ -41,6 +41,7 @@ import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
+import { useSidebarStore } from "@/state/sidebarStore";
 import { useUiStore } from "@/state/uiStore";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import {
@@ -99,6 +100,7 @@ export function ProjectTopBarControls({
   const displayName = projectName ?? project.name;
   const { t } = useTranslation();
   const panelOpen = useUiStore((s) => s.projectPanelOpen);
+  const navigationPinned = useSidebarStore((s) => s.pinned);
   const { tab } = useSearch({ strict: false }) as { tab?: string };
 
   // Toggles the fixed right Elements column. The canvas stays
@@ -108,14 +110,19 @@ export function ProjectTopBarControls({
   };
 
   return (
-    <header className="shrink-0 py-2 pl-14 pr-3">
+    <header
+      className={cn(
+        "project-topbar shrink-0 py-2 pl-2 pr-2 lg:pl-12 lg:pr-3",
+        navigationPinned && "lg:pl-3",
+      )}
+    >
       <div
         data-testid="project-header"
-        className="flex min-h-11 min-w-0 flex-wrap items-center gap-x-3 gap-y-1 rounded-[var(--r-lg)] bg-[var(--surface)] px-2 py-1 md:flex-nowrap"
+        className="grid min-h-12 min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1 rounded-[var(--r-lg)] bg-[var(--surface)] px-2 py-1 lg:flex lg:flex-nowrap lg:gap-x-3"
       >
-        <div className="flex min-w-0 max-w-56 items-center gap-2">
+        <div className="flex min-w-0 items-center gap-2 pl-11 lg:max-w-56 lg:pl-0">
           <span
-            className="min-w-0 truncate px-1 text-sm font-medium text-[var(--text)]"
+            className="font-display min-w-0 truncate text-sm text-[var(--text)]"
             title={displayName}
           >
             {displayName}
@@ -127,16 +134,22 @@ export function ProjectTopBarControls({
             />
           </div>
         </div>
-        <div data-testid="project-view-navigation" className="min-w-0 flex-1 overflow-x-auto">
+        <div
+          data-testid="project-view-navigation"
+          className="col-start-1 row-start-2 min-w-0 overflow-x-auto lg:flex-1"
+        >
           <WorkspaceViewNav project={project} />
         </div>
-        <div data-testid="project-editing-tools" className="flex shrink-0 items-center gap-1">
+        <div
+          data-testid="project-editing-tools"
+          className="col-start-2 row-start-2 flex shrink-0 items-center justify-end gap-1"
+        >
           {(!tab || tab === "overview") && <UndoRedoButtons />}
           {(!tab || tab === "overview" || tab === "translations") && (
             <LangSwitcher project={project} />
           )}
         </div>
-        <div className="flex shrink-0 items-center gap-1">
+        <div className="col-start-2 row-start-1 flex shrink-0 items-center gap-1">
           <SearchButton />
           <SaveControls projectId={projectId} networkId={networkId ?? null} />
           <RefreshProjectButton
@@ -239,7 +252,7 @@ function WorkspaceViewNav({ project }: { project: Project }) {
             data-testid={`open-view-${v.tab}`}
             onClick={() => go(v.tab)}
             className={cn(
-              "relative flex h-8 items-center gap-1.5 rounded-[var(--r-md)] px-2.5 text-[13px] transition-colors",
+              "relative flex h-11 items-center gap-1.5 rounded-[var(--r-md)] px-2.5 text-[13px] transition-colors lg:h-8",
               isActive
                 ? "bg-[var(--surface)] text-[var(--text)] shadow-[var(--shadow-sm)]"
                 : "text-[var(--text-mut)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]",
@@ -304,7 +317,7 @@ function LangSwitcher({ project }: { project: Project }) {
         <button
           type="button"
           title={t("topbar.activeLanguage", { lang: activeLang })}
-          className="flex h-[34px] items-center gap-1.5 rounded-[10px] border border-[var(--border)] bg-[var(--surface-raised)] px-3 font-mono text-[12px] text-[var(--text-mut)] hover:border-[var(--border-strong)] hover:text-[var(--text)]"
+          className="flex h-11 items-center gap-1.5 rounded-[10px] border border-[var(--border)] bg-[var(--surface-raised)] px-2 font-mono text-[12px] text-[var(--text-mut)] hover:border-[var(--border-strong)] hover:text-[var(--text)] lg:h-[34px] lg:px-3"
         >
           <span className="uppercase">{activeLang}</span>
           <span className="text-[var(--text-faint)]">▾</span>
@@ -650,8 +663,8 @@ function TopBarIconButton({
       onClick={onClick}
       className={
         disabled
-          ? "relative flex h-9 w-9 cursor-not-allowed items-center justify-center rounded-[10px] text-[var(--text-faint)] opacity-40"
-          : "relative flex h-9 w-9 items-center justify-center rounded-[10px] text-[var(--text-mut)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+          ? "relative flex size-11 lg:size-9 cursor-not-allowed items-center justify-center rounded-[10px] text-[var(--text-faint)] opacity-40"
+          : "relative flex size-11 lg:size-9 items-center justify-center rounded-[10px] text-[var(--text-mut)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
       }
     >
       {children}
