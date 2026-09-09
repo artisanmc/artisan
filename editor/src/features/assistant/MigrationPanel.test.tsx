@@ -99,6 +99,20 @@ vi.mock("@/lib/api/assistantMigration", async (original) => ({
 	createMigration: vi.fn(),
 	controlMigration: vi.fn(),
 }));
+
+it("shows the precise interruption code instead of only generic connection advice", async () => {
+	vi.mocked(api.getMigrationEvents).mockResolvedValueOnce([
+		{
+			sequence: 8,
+			runId: "r",
+			type: "step_interrupted",
+			code: "missing_proposal",
+			createdAt: "",
+		},
+	]);
+	render(<MigrationPanel {...props} />);
+	await screen.findByText("missing_proposal", { selector: "code" });
+});
 vi.mock("./migrationProposal", () => ({
 	inspectMigrationProposal: () => ({ status: "available" }),
 	applyMigrationProposal: vi.fn(),

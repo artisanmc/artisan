@@ -457,7 +457,9 @@ export function MigrationPanel({
 						)}
 					</div>
 					{eventCode && (
-						<p className="text-[var(--text-mut)]">{issueText(eventCode)}</p>
+						<p className="text-[var(--text-mut)]">
+							<span>{issueText(eventCode)}</span> <code>{eventCode}</code>
+						</p>
 					)}
 					{run.issues.length > 0 && (
 						<ul className="text-xs text-[var(--text-mut)]">

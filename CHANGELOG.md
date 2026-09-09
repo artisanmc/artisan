@@ -9,6 +9,11 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Fixed — migration exploration pauses
+
+- Accept bounded batches of up to 256 agent tool calls, including a 35-file selection read in one response, instead of rejecting any batch larger than eight as `missing_proposal`.
+- Display the precise migration interruption code and distinguish invalid tool responses or exploration limits from network failures.
+
 ### Added — plugin-independent menu migration
 
 - Start directly from selected sources: the AI explores raw text, searches dependencies, plans multiple menus per file when needed, and reports conversion limitations. No zMenu parser is required for new runs.

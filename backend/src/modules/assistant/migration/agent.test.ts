@@ -1,8 +1,57 @@
 import { expect, test } from "bun:test";
 import { buildManifest } from "./manifest";
-import { discoverMigration, sourceTools, validateAgentPlan } from "./agent";
+import {
+	agentLoop,
+	discoverMigration,
+	sourceTools,
+	validateAgentPlan,
+} from "./agent";
 import { convertAgentTask } from "./planner";
 import type { LlmProvider } from "../provider/types";
+
+test("oversized tool batches stop with a specific code before executing any action", async () => {
+	const attachments = { "server:x/a.yml": "size: 9" };
+	const manifest = buildManifest(attachments, {
+		existingTargetIds: [],
+		agentic: true,
+	});
+	let executed = 0;
+	const provider: LlmProvider = {
+		async *streamTurn() {
+			for (let i = 0; i < 257; i++)
+				yield {
+					type: "tool_use",
+					id: String(i),
+					name: "read_source",
+					input: { fileId: "server:x/a.yml" },
+				};
+			yield { type: "done", stopReason: "tool_calls" };
+		},
+	};
+	await expect(
+		agentLoop(
+			{
+				provider,
+				model: "test",
+				manifest,
+				attachments,
+				contextTokens: 64000,
+				maxOutputTokens: 4000,
+				signal: new AbortController().signal,
+				canCall: () => true,
+				onUsage: () => {},
+			},
+			[],
+			[],
+			() => {
+				executed++;
+				return { content: "read" };
+			},
+			2,
+		),
+	).rejects.toThrow("tool_batch_limit");
+	expect(executed).toBe(0);
+});
 
 test("inventories arbitrary text formats without deciding what constitutes a menu", () => {
 	const manifest = buildManifest(

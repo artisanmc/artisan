@@ -250,14 +250,14 @@ test("the agent explores 35 linked files then generates every menu with bounded 
 		async *streamTurn(input) {
 			if (input.tools.some((t) => t.name === "submit_plan")) {
 				if (offset < ids.length) {
-					for (const fileId of ids.slice(offset, offset + 8))
+				for (const fileId of ids.slice(offset))
 						yield {
 							type: "tool_use",
 							id: fileId,
 							name: "read_source",
 							input: { fileId },
 						};
-					offset += 8;
+				offset = ids.length;
 				} else
 					yield {
 						type: "tool_use",
