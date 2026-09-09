@@ -406,6 +406,7 @@ export const assistantMigrationRuns = pgTable("assistant_migration_runs", {
 }, (t) => ({ requestUnique: uniqueIndex("assistant_migration_request_uniq").on(t.conversationId, t.requestId) }));
 
 export const assistantMigrationSteps = pgTable("assistant_migration_steps", {
+	continuation: jsonb("continuation"),
 	id: text("id").primaryKey(),
 	runId: text("run_id").notNull().references(() => assistantMigrationRuns.id, { onDelete: "cascade" }),
 	key: text("key").notNull(),

@@ -6,17 +6,11 @@ export function buildStepContext(input: {
 	manifest: MigrationManifest;
 	sourceFileId: string;
 	attachments: Record<string, string>;
-	contextTokens: number;
+	contextTokens: number | null;
 	maxOutputTokens: number;
 	systemPrompt: string;
 	tools?: ToolDef[];
-}): { messages: LlmMessage[]; estimatedTokens: number } {
-	if (
-		![input.contextTokens, input.maxOutputTokens].every(
-			(value) => Number.isSafeInteger(value) && value > 0,
-		)
-	)
-		throw new MigrationInputError("invalid_context_budget");
+}): { messages: LlmMessage[] } {
 	const changed = verifyManifestSources(input.manifest, input.attachments);
 	if (changed.length) throw new MigrationInputError(changed[0].code);
 	const entries = new Map(
@@ -63,13 +57,5 @@ export function buildStepContext(input: {
 			}),
 		},
 	];
-	// One UTF-8 byte per token plus framing is deliberately conservative, not a provider tokenizer.
-	const estimatedTokens =
-		Buffer.byteLength(JSON.stringify(messages)) +
-		Buffer.byteLength(JSON.stringify(input.tools ?? [])) +
-		256 +
-		input.maxOutputTokens;
-	if (estimatedTokens > input.contextTokens)
-		throw new MigrationInputError("context_budget_exceeded");
-	return { messages, estimatedTokens };
+	return { messages };
 }

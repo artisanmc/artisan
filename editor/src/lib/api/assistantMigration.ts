@@ -33,6 +33,8 @@ export interface MigrationProposal {
 	issues: MigrationIssue[];
 }
 export interface MigrationRun {
+	canCompress?: boolean;
+	compressing?: boolean;
 	id: string;
 	conversationId: string;
 	projectId: string;
@@ -65,7 +67,8 @@ export interface MigrationRun {
 	budget: {
 		maxCredits: number | null;
 		usedCredits: number;
-		contextTokens: number;
+		/** Legacy metadata only; the provider enforces context capacity. */
+		contextTokens: number | null;
 		maxOutputTokens: number;
 	};
 	steps: {
@@ -97,7 +100,12 @@ export interface CreateMigrationInput {
 	existingTargetIds: string[];
 	targetIds?: Record<string, string>;
 }
-export type MigrationAction = "start" | "resume" | "pause" | "cancel";
+export type MigrationAction =
+	| "start"
+	| "resume"
+	| "pause"
+	| "cancel"
+	| "compress";
 export class MigrationRequestError extends Error {
 	constructor(
 		readonly code: string,

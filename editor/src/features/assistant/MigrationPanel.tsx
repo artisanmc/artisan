@@ -395,9 +395,11 @@ export function MigrationPanel({
 				<>
 					<div aria-live="polite">
 						<p>
-							{exploring && run.status === "running"
-								? text("exploring")
-								: text(`status.${run.status}`)}
+							{run.compressing
+								? text("compressing")
+								: exploring && run.status === "running"
+									? text("exploring")
+									: text(`status.${run.status}`)}
 						</p>
 						<p>
 							{!exploring &&
@@ -432,9 +434,11 @@ export function MigrationPanel({
 						{run.status === "paused" && (
 							<Button
 								disabled={busy || disabled}
-								onClick={() => void control("resume")}
+								onClick={() =>
+									void control(run.canCompress ? "compress" : "resume")
+								}
 							>
-								{text("resume")}
+								{text(run.canCompress ? "compress" : "resume")}
 							</Button>
 						)}
 						{run.status === "running" && (
@@ -456,6 +460,11 @@ export function MigrationPanel({
 							</Button>
 						)}
 					</div>
+					{run.status === "paused" && run.canCompress && (
+						<p className="text-xs text-[var(--text-mut)]">
+							{text("compressionHelp")}
+						</p>
+					)}
 					{eventCode && (
 						<p className="text-[var(--text-mut)]">
 							<span>{issueText(eventCode)}</span> <code>{eventCode}</code>

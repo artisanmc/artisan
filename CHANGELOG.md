@@ -9,6 +9,11 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Changed — migration context handling
+
+- Let the provider enforce migration context capacity instead of a fixed local token estimate or silent history eviction.
+- Add explicit **Compress and resume**, with durable private checkpoints (migration 0033), source verification and atomic summary billing; original files and completed proposals remain available.
+
 ### Fixed — vanilla head previews
 
 - Keep Steve and other standard skull cubes upright in the editor's 3D renderer, closing the visible top and placing the face texture at the front.

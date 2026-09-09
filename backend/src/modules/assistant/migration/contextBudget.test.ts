@@ -30,7 +30,7 @@ test("a 35-menu cycle supplies a global target index but only the current raw me
 			contextTokens: 1000,
 			maxOutputTokens: 1000,
 		}),
-	).toThrow("context_budget_exceeded");
+	).not.toThrow();
 });
 
 test("transitive shared cycles are included once without pulling referenced raw menus", () => {
@@ -61,7 +61,7 @@ test("transitive shared cycles are included once without pulling referenced raw 
 	expect(JSON.stringify(result.messages)).not.toContain("EXCLUDED_RAW");
 });
 
-test("shared raw dependencies and tool/system/output overhead cannot bypass the context budget", () => {
+test("legacy context size does not block shared sources but changed sources are still rejected", () => {
 	const attachments = {
 		"server:z/menus/a.yml": "size: 9\npatterns: [p]",
 		"server:z/patterns/p.yml": "items: {}\nname: SHARED_RAW",
@@ -77,16 +77,14 @@ test("shared raw dependencies and tool/system/output overhead cannot bypass the 
 	};
 	const result = buildStepContext(input);
 	expect(JSON.stringify(result.messages)).toContain("SHARED_RAW");
-	expect(() =>
-		buildStepContext({ ...input, contextTokens: result.estimatedTokens - 1 }),
-	).toThrow("context_budget_exceeded");
+	expect(() => buildStepContext({ ...input, contextTokens: 1 })).not.toThrow();
 	expect(() =>
 		buildStepContext({
 			...input,
-			contextTokens: result.estimatedTokens,
+			contextTokens: 1,
 			tools: [{ name: "x", description: "large tool", parameters: {} }],
 		}),
-	).toThrow("context_budget_exceeded");
+	).not.toThrow();
 	expect(() =>
 		buildStepContext({
 			...input,

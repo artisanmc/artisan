@@ -171,18 +171,17 @@ export function buildMigrationRouter(
 				))
 		)
 			return c.json({ error: "invalid_input" }, 422);
+		// Retained only in request identity for older clients; never enforced as a context cap.
 		const contextTokens = body.contextTokens ?? 64000;
 		const maxOutputTokens = body.maxOutputTokens ?? 8000;
 		if (
 			typeof contextTokens !== "number" ||
 			!Number.isSafeInteger(contextTokens) ||
-			contextTokens < 4096 ||
-			contextTokens > 128000 ||
+			contextTokens <= 0 ||
 			typeof maxOutputTokens !== "number" ||
 			!Number.isSafeInteger(maxOutputTokens) ||
 			maxOutputTokens < 256 ||
-			maxOutputTokens > 16000 ||
-			maxOutputTokens >= contextTokens
+			maxOutputTokens > 16000
 		)
 			return c.json({ error: "invalid_context_budget" }, 422);
 		const requestHash = hashJsonValue({
@@ -245,7 +244,7 @@ export function buildMigrationRouter(
 			budget: {
 				maxCredits: null,
 				usedCredits: 0,
-				contextTokens,
+				contextTokens: null,
 				maxOutputTokens,
 			},
 		});
@@ -275,6 +274,7 @@ export function buildMigrationRouter(
 	for (const action of [
 		"start",
 		"resume",
+		"compress",
 		"pause",
 		"cancel",
 	] as MigrationAction[])
@@ -293,7 +293,7 @@ export function buildMigrationRouter(
 			if (!run) return c.json({ error: "not_found" }, 404);
 			if (body.expectedRevision !== run.revision)
 				return c.json({ error: "revision_conflict", run }, 409);
-			if (action === "start" || action === "resume") {
+			if (action === "start" || action === "resume" || action === "compress") {
 				if (!deps.startExecution)
 					return c.json({ error: "migration_runner_unavailable" }, 503);
 				const model = await getModel(run.modelId);
@@ -328,7 +328,7 @@ export function buildMigrationRouter(
 					);
 			}
 			const updated = await transitionRun(run.id, run.revision, action);
-			if (action === "start" || action === "resume") {
+			if (action === "start" || action === "resume" || action === "compress") {
 				try {
 					deps.startExecution?.(run.id);
 				} catch {

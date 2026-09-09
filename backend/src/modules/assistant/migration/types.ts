@@ -55,7 +55,8 @@ export interface MigrationBudget {
 	/** Legacy stored cap; no longer enforced. New migrations store null. */
 	maxCredits: number | null;
 	usedCredits: number;
-	contextTokens: number;
+	/** Legacy metadata only; the provider enforces context capacity. */
+	contextTokens: number | null;
 	maxOutputTokens: number;
 }
 export interface MigrationTranslationChange {
@@ -87,6 +88,8 @@ export interface MigrationStep {
 	credits: number;
 }
 export interface MigrationRun {
+	canCompress?: boolean;
+	compressing?: boolean;
 	id: string;
 	conversationId: string;
 	projectId: string;
