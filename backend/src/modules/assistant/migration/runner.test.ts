@@ -93,7 +93,11 @@ afterAll(async () => {
 	await db.delete(users).where(eq(users.id, userId));
 	await db.delete(aiModels).where(eq(aiModels.id, model.id));
 });
-async function newRun(sources = attachments, maxCredits = 100) {
+async function newRun(
+	sources = attachments,
+	maxCredits = 100,
+	agentic = false,
+) {
 	const run = await createRun({
 		conversationId,
 		projectId,
@@ -103,7 +107,7 @@ async function newRun(sources = attachments, maxCredits = 100) {
 		modelId: model.id,
 		requestId: crypto.randomUUID(),
 		requestHash: crypto.randomUUID(),
-		manifest: buildManifest(sources, { existingTargetIds: [] }),
+		manifest: buildManifest(sources, { existingTargetIds: [], agentic }),
 		budget: {
 			maxCredits,
 			usedCredits: 0,
@@ -113,6 +117,95 @@ async function newRun(sources = attachments, maxCredits = 100) {
 	});
 	return transitionRun(run.id, run.revision, "start");
 }
+
+test("checkpoints an AI plan and resumes conversions without rediscovering the sources", async () => {
+	const fileId = "server:z/custom.yml";
+	const sources = { [fileId]: "screens:\n  home: {}\n  store: {}" };
+	const run = await newRun(sources, 100, true);
+	let reads = 0;
+	let planned = false;
+	let interrupted = false;
+	const provider: LlmProvider = {
+		async *streamTurn(input) {
+			if (input.tools.some((t) => t.name === "submit_plan")) {
+				if (!reads++)
+					yield {
+						type: "tool_use",
+						id: "read",
+						name: "read_source",
+						input: { fileId },
+					};
+				else {
+					expect(planned).toBe(false);
+					planned = true;
+					yield {
+						type: "tool_use",
+						id: "plan",
+						name: "submit_plan",
+						input: {
+							menus: ["home", "store"].map((targetId) => ({
+								sourceFileId: fileId,
+								targetId,
+								instructions: `Convert screens.${targetId}`,
+								dependencyIds: [],
+							})),
+							files: [{ fileId, role: "menu", notes: "Two custom screens." }],
+						},
+					};
+				}
+			} else {
+				if (!interrupted) {
+					interrupted = true;
+					throw new Error("interrupted");
+				}
+				const targetId = JSON.parse(input.messages[1].content ?? "{}").targetId;
+				if (input.messages.length === 2)
+					yield {
+						type: "tool_use",
+						id: "read",
+						name: "read_source",
+						input: { fileId },
+					};
+				else
+					yield {
+						type: "tool_use",
+						id: "write",
+						name: "upsert_menu",
+						input: {
+							menu: {
+								schema: "menu/v1",
+								id: targetId,
+								title: [],
+								size: 9,
+								layers: [{ id: "base", name: "base", elements: [] }],
+							},
+						},
+					};
+			}
+			yield { type: "usage", usage: { inputTokens: 100, outputTokens: 20 } };
+			yield { type: "done", stopReason: "tool_calls" };
+		},
+	};
+	await executeMigration(run.id, {
+		providerFor: async () => provider,
+		readSources: read(sources),
+	});
+	const paused = await getRun(run.id);
+	expect(paused?.status).toBe("paused");
+	expect(paused?.manifest.agent?.tasks?.length).toBe(2);
+	expect(paused?.steps[0].status).toBe("completed");
+	await transitionRun(run.id, paused!.revision, "resume");
+	await executeMigration(run.id, {
+		providerFor: async () => provider,
+		readSources: read(sources),
+	});
+	expect((await getRun(run.id))?.status).toBe("completed");
+	expect((await getProposals(run.id)).map((p) => p.targetId).sort()).toEqual([
+		"home",
+		"store",
+	]);
+	expect(reads).toBe(2);
+});
 
 function read(sources: Record<string, string>): ImportSourcesReadFn {
 	return async () => ({
@@ -148,6 +241,91 @@ const twoMenus = {
 	"server:z/a.yml": "size: 9\nname: A\nitems: {}",
 	"server:z/b.yml": "size: 9\nname: B\nitems: {}",
 };
+
+test("the agent explores 35 linked files then generates every menu with bounded source reads", async () => {
+	const run = await newRun(attachments, 100, true);
+	const ids = Object.keys(attachments);
+	let offset = 0;
+	const provider: LlmProvider = {
+		async *streamTurn(input) {
+			if (input.tools.some((t) => t.name === "submit_plan")) {
+				if (offset < ids.length) {
+					for (const fileId of ids.slice(offset, offset + 8))
+						yield {
+							type: "tool_use",
+							id: fileId,
+							name: "read_source",
+							input: { fileId },
+						};
+					offset += 8;
+				} else
+					yield {
+						type: "tool_use",
+						id: "plan",
+						name: "submit_plan",
+						input: {
+							menus: ids.map((sourceFileId, i) => ({
+								sourceFileId,
+								targetId: `m${i}`,
+								instructions: `Convert m${i}, retaining the next-menu link.`,
+								dependencyIds: [ids[(i + 1) % ids.length]],
+							})),
+							files: ids.map((fileId) => ({
+								fileId,
+								role: "menu",
+								notes: "Menu with a link to the next screen.",
+							})),
+						},
+					};
+			} else {
+				const context = JSON.parse(input.messages[1].content ?? "{}");
+				if (input.messages.length === 2)
+					yield {
+						type: "tool_use",
+						id: "read",
+						name: "read_source",
+						input: { fileId: context.task.sourceFileId },
+					};
+				else {
+					const menu = validMenu(context.targetId);
+					const next = `m${(Number(context.targetId.slice(1)) + 1) % 35}`;
+					yield {
+						type: "tool_use",
+						id: "write",
+						name: "upsert_menu",
+						input: {
+							menu: {
+								...menu,
+								layers: [
+									{
+										...menu.layers[0],
+										elements: [
+											{
+												id: "next",
+												material: "STONE",
+												positions: "0",
+												click: { left: { steps: `open_menu ${next}` } },
+											},
+										],
+									},
+								],
+							},
+						},
+					};
+				}
+			}
+			yield { type: "usage", usage: { inputTokens: 100, outputTokens: 30 } };
+			yield { type: "done", stopReason: "tool_calls" };
+		},
+	};
+	await executeMigration(run.id, {
+		providerFor: async () => provider,
+		readSources: read(attachments),
+	});
+	expect((await getRun(run.id))?.status).toBe("completed");
+	expect(await getProposals(run.id)).toHaveLength(35);
+	expect((await getRun(run.id))?.steps).toHaveLength(36);
+});
 
 test("pause waits for the in-flight result without starting another menu", async () => {
 	const run = await newRun(twoMenus);
@@ -223,7 +401,9 @@ test("a silent provider times out and releases monitoring without a paid retry",
 					input.signal?.addEventListener(
 						"abort",
 						() => reject(input.signal?.reason),
-						{ once: true },
+						{
+							once: true,
+						},
 					);
 			});
 		},
@@ -293,7 +473,7 @@ test("a valid proposal without provider usage is not checkpointed or billed", as
 	expect((await getEvents(run.id)).at(-1)?.code).toBe("provider_error");
 });
 
-test("the accepted global budget prevents another step after the bounded in-flight call", async () => {
+test("legacy migration credit caps no longer stop progress while network credits remain", async () => {
 	const run = await newRun(twoMenus, 1);
 	let calls = 0;
 	const provider: LlmProvider = {
@@ -314,10 +494,10 @@ test("the accepted global budget prevents another step after the bounded in-flig
 		providerFor: async () => provider,
 		readSources: read(twoMenus),
 	});
-	expect(calls).toBe(1);
-	expect(await getProposals(run.id)).toHaveLength(1);
-	expect((await getRun(run.id))?.status).toBe("paused");
-	expect((await getRun(run.id))?.budget.usedCredits).toBe(1);
+	expect(calls).toBe(2);
+	expect(await getProposals(run.id)).toHaveLength(2);
+	expect((await getRun(run.id))?.status).toBe("completed");
+	expect((await getRun(run.id))?.budget.usedCredits).toBe(2);
 });
 
 test("lease loss aborts the old worker without checkpoint or debit on behalf of a new owner", async () => {

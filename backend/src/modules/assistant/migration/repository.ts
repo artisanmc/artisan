@@ -78,21 +78,22 @@ export async function createRun(input: CreateRunInput): Promise<MigrationRun> {
 	)
 		throw new MigrationInputError("manifest_too_large");
 	if (
-		![
-			input.budget.maxCredits,
-			input.budget.contextTokens,
-			input.budget.maxOutputTokens,
-		].every((n) => Number.isSafeInteger(n) && n > 0 && n <= 2_000_000_000) ||
+		![input.budget.contextTokens, input.budget.maxOutputTokens].every(
+			(n) => Number.isSafeInteger(n) && n > 0 && n <= 2_000_000_000,
+		) ||
 		input.budget.usedCredits !== 0 ||
 		input.budget.maxOutputTokens >= input.budget.contextTokens
 	)
 		throw new MigrationInputError("invalid_budget");
 	const id = crypto.randomUUID();
 	const now = new Date();
-	const entries = input.manifest.entries.filter(
-		(e): e is ManifestEntry & { targetId: string } =>
-			e.kind === "menu" && typeof e.targetId === "string",
-	);
+	const entries =
+		input.manifest.agent && !input.manifest.agent.tasks
+			? [{ fileId: "", targetId: "" }]
+			: input.manifest.entries.filter(
+					(e): e is ManifestEntry & { targetId: string } =>
+						e.kind === "menu" && typeof e.targetId === "string",
+				);
 	const issues = entries.length
 		? input.manifest.issues
 		: [
@@ -277,11 +278,6 @@ export async function transitionRun(
 		};
 		if (!transitions[action].includes(row.status))
 			throw new MigrationInputError("invalid_transition");
-		if (action === "start" || action === "resume") {
-			const budget = row.budget as MigrationBudget;
-			if (budget.usedCredits >= budget.maxCredits)
-				throw new MigrationInputError("migration_budget_exceeded");
-		}
 		await tx
 			.update(runs)
 			.set({
@@ -341,8 +337,6 @@ export async function claimNextStep(
 			await event(tx, row, "blocked", now, step.id, "migration_attempt_limit");
 			return null;
 		}
-		const budget = row.budget as MigrationBudget;
-		if (budget.usedCredits >= budget.maxCredits) return null;
 		const leaseToken = crypto.randomUUID();
 		const leaseExpiresAt = new Date(now.getTime() + MIGRATION_LEASE_MS);
 		await tx
@@ -391,6 +385,101 @@ export interface CompleteStepInput {
 	leaseToken: string;
 	proposal: Omit<MigrationProposal, "id" | "stepId">;
 	usageInput: UsageInput;
+}
+
+/** The discovery checkpoint and its debit are atomic, just like a generated menu. */
+export async function completeDiscovery(
+	input: Omit<CompleteStepInput, "proposal"> & { manifest: MigrationManifest },
+	now = new Date(),
+): Promise<void> {
+	await db.transaction(async (tx) => {
+		const row = await lockRun(tx, input.runId);
+		const [step] = await tx
+			.select()
+			.from(steps)
+			.where(and(eq(steps.id, input.stepId), eq(steps.runId, row.id)));
+		if (step?.status === "completed" && step.leaseToken === input.leaseToken)
+			return;
+		checkLease(step, input.leaseToken, now);
+		const original = row.manifest as MigrationManifest;
+		const tasks = input.manifest.agent?.tasks;
+		if (
+			step.sourceFileId !== "" ||
+			!original.agent ||
+			original.agent.tasks ||
+			!tasks ||
+			input.manifest.hash !== original.hash ||
+			hashJsonValue(input.manifest.entries) !==
+				hashJsonValue(original.entries) ||
+			tasks.length > 200 ||
+			Buffer.byteLength(JSON.stringify(input.manifest)) > 1024 * 1024
+		)
+			throw new MigrationInputError("invalid_plan");
+		if (
+			input.usageInput.networkId !== row.networkId ||
+			input.usageInput.model.id !== row.modelId
+		)
+			throw new MigrationInputError("usage_scope_mismatch");
+		if (tasks.length)
+			await tx.insert(steps).values(
+				tasks.map((task, index) => ({
+					id: crypto.randomUUID(),
+					runId: row.id,
+					position: index + 1,
+					key: hashJsonValue([original.hash, task.sourceFileId, task.targetId]),
+					sourceFileId: task.sourceFileId,
+					targetId: task.targetId,
+					status: "pending",
+				})),
+			);
+		const { debited } = await recordDebitedTurnInTransaction(
+			tx,
+			{
+				...input.usageInput,
+				conversationId: row.conversationId,
+				serverKeyId: row.serverKeyId,
+				actionType: "migration",
+				promptPreview: "Menu migration exploration",
+			},
+			{ idempotencyKey: `migration:${step.id}` },
+		);
+		await tx
+			.update(steps)
+			.set({
+				status: "completed",
+				credits: debited,
+				leaseExpiresAt: null,
+				leaseOwner: null,
+			})
+			.where(eq(steps.id, step.id));
+		const issues = tasks.length
+			? original.issues
+			: [
+					...original.issues,
+					{
+						code: "no_menus_to_migrate",
+						message: "No menu was identified; review the exploration report.",
+					},
+				];
+		await tx
+			.update(runs)
+			.set({
+				manifest: input.manifest,
+				issues,
+				budget: {
+					...(row.budget as MigrationBudget),
+					usedCredits: (row.budget as MigrationBudget).usedCredits + debited,
+				},
+				status:
+					row.status === "cancelled"
+						? "cancelled"
+						: !tasks.length
+							? "blocked"
+							: row.status,
+			})
+			.where(eq(runs.id, row.id));
+		await event(tx, row, "exploration_completed", now, step.id);
+	});
 }
 export async function completeStep(
 	input: CompleteStepInput,
@@ -469,9 +558,7 @@ export async function completeStep(
 					? "completed"
 					: row.status !== "running"
 						? row.status
-						: budget.usedCredits >= budget.maxCredits
-							? "paused"
-							: "running";
+						: "running";
 		await tx.update(runs).set({ budget, status }).where(eq(runs.id, row.id));
 		await event(tx, row, "step_completed", now, step.id);
 		return proposal;
@@ -511,6 +598,8 @@ export interface InterruptStepInput {
 	usageInput?: UsageInput;
 }
 const FAILURE_CODES = new Set([
+	"invalid_plan",
+	"insufficient_credits",
 	"provider_timeout",
 	"provider_network_error",
 	"provider_cancelled",

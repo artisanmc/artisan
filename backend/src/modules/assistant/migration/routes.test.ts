@@ -110,7 +110,6 @@ afterAll(async () => {
 const body = () => ({
 	requestId: crypto.randomUUID(),
 	modelId,
-	maxCredits: 100,
 	serverAttachments: [{ sourceId: "z", paths: ["shop.yml"] }],
 	existingTargetIds: [],
 });
@@ -139,6 +138,21 @@ test("creates an unstarted metadata-only migration and replays its request ID", 
 	expect((await (await request(`/${run.id}`)).json()).run.status).toBe("ready");
 });
 
+test("lets the AI read malformed source YAML without persisting it", async () => {
+	state.source = "size: 9\nname: PRIVATE_RAW_SOURCE\nitems: [broken";
+	try {
+		const response = await request("", "POST", body());
+		expect(response.status).toBe(201);
+		const { run } = await response.json();
+		expect(run.status).toBe("ready");
+		expect(run.issues).toEqual([]);
+		expect(run.manifest.agent.tasks).toBeUndefined();
+		expect(JSON.stringify(run)).not.toContain("PRIVATE_RAW_SOURCE");
+	} finally {
+		state.source = "size: 9\nname: PRIVATE_RAW_SOURCE\nitems: {}";
+	}
+});
+
 test("masks foreign conversations and denies revoked membership and deleted Projects", async () => {
 	const input = body();
 	const { run } = await (await request("", "POST", input)).json();
@@ -165,20 +179,18 @@ test("masks foreign conversations and denies revoked membership and deleted Proj
 		.where(eq(projects.id, projectId));
 });
 
-test("validates budgets, request-ID reuse and rejects selections with no menus", async () => {
-	expect(
-		(await request("", "POST", { ...body(), maxCredits: -1 })).status,
-	).toBe(422);
+test("accepts analysis without a credit budget and validates context and request-ID reuse", async () => {
+	expect((await request("", "POST", body())).status).toBe(201);
 	expect(
 		(await request("", "POST", { ...body(), contextTokens: 1000 })).status,
 	).toBe(422);
 	const input = body();
 	await request("", "POST", input);
 	expect(
-		(await request("", "POST", { ...input, maxCredits: 200 })).status,
+		(await request("", "POST", { ...input, contextTokens: 32000 })).status,
 	).toBe(409);
 	state.source = "commands: {shop: {inventory: shop}}";
-	expect((await request("", "POST", body())).status).toBe(422);
+	expect((await request("", "POST", body())).status).toBe(201);
 	state.source = "size: 9\nname: PRIVATE_RAW_SOURCE\nitems: {}";
 });
 

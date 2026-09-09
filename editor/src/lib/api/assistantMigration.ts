@@ -48,12 +48,22 @@ export interface MigrationRun {
 	revision: number;
 	manifest: {
 		version: 1;
+		agent?: {
+			existingTargetIds: string[];
+			tasks?: {
+				sourceFileId: string;
+				targetId: string;
+				instructions: string;
+				dependencyIds: string[];
+			}[];
+			reports?: { fileId: string; role: string; notes: string }[];
+		};
 		hash: string;
 		entries: MigrationEntry[];
 		issues: MigrationIssue[];
 	};
 	budget: {
-		maxCredits: number;
+		maxCredits: number | null;
 		usedCredits: number;
 		contextTokens: number;
 		maxOutputTokens: number;
@@ -83,7 +93,6 @@ export interface MigrationEvent {
 export interface CreateMigrationInput {
 	requestId: string;
 	modelId: string;
-	maxCredits: number;
 	serverAttachments: { sourceId: string; paths: string[] }[];
 	existingTargetIds: string[];
 	targetIds?: Record<string, string>;
@@ -196,7 +205,9 @@ export async function controlMigration(
 		await request<{ run: MigrationRun }>(
 			id,
 			`/${encodeURIComponent(runId)}/${action}`,
-			{ expectedRevision },
+			{
+				expectedRevision,
+			},
 		)
 	).run;
 }

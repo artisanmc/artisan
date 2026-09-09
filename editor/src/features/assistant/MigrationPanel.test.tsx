@@ -10,11 +10,16 @@ import {
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { MigrationPanel } from "./MigrationPanel";
 
-it("analyzes all 35 files with explicit budget and preserves the request ID after an uncertain response", async () => {
+it("starts all 35 files directly and preserves the request ID after an uncertain response", async () => {
 	vi.mocked(api.listMigrations).mockResolvedValue([]);
 	vi.mocked(api.createMigration)
 		.mockRejectedValueOnce(new Error("connection lost"))
 		.mockResolvedValueOnce({ ...run, status: "ready" });
+	vi.mocked(api.controlMigration).mockResolvedValueOnce({
+		...run,
+		status: "running",
+		revision: 8,
+	});
 	const groups = [
 		{
 			sourceId: "zmenu",
@@ -27,18 +32,23 @@ it("analyzes all 35 files with explicit budget and preserves the request ID afte
 	];
 	render(<MigrationPanel {...props} groups={groups} />);
 	fireEvent.click(screen.getByText("assistant.migration.selection"));
-	fireEvent.change(screen.getByLabelText("assistant.migration.budget"), {
-		target: { value: "50" },
-	});
-	fireEvent.click(screen.getByText("assistant.migration.analyze"));
+	expect(screen.queryByLabelText("assistant.migration.budget")).toBeNull();
+	fireEvent.click(screen.getByText("assistant.migration.start"));
 	await screen.findByText("assistant.migration.errors.migration_error");
-	fireEvent.click(screen.getByText("assistant.migration.analyze"));
-	await screen.findByText("assistant.migration.status.ready");
+	fireEvent.click(screen.getByText("assistant.migration.start"));
+	await waitFor(() =>
+		expect(api.controlMigration).toHaveBeenCalledExactlyOnceWith(
+			"c",
+			"r",
+			"start",
+			7,
+		),
+	);
 	const calls = vi.mocked(api.createMigration).mock.calls;
 	expect(calls[0]?.[1].serverAttachments[0]?.paths).toHaveLength(35);
-	expect(calls[0]?.[1].maxCredits).toBe(50);
+	expect(calls[0]?.[1]).not.toHaveProperty("maxCredits");
 	expect(calls[0]?.[1].requestId).toBe(calls[1]?.[1].requestId);
-	expect(api.controlMigration).not.toHaveBeenCalled();
+	expect(screen.queryByText("assistant.migration.analyze")).toBeNull();
 });
 
 it("ignores a control response after switching conversation in the same Project", async () => {

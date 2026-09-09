@@ -14,21 +14,18 @@ import { useServersStore } from "@/state/serversStore";
 import { PostHogProvider } from "@posthog/react";
 import { Outlet, createRootRoute, useRouterState } from "@tanstack/react-router";
 import posthog from "posthog-js";
+import { analyticsEnabled, capturePageView } from "@/lib/analytics";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
-posthog.init(import.meta.env.VITE_POSTHOG_PROJECT_TOKEN, {
-  api_host: import.meta.env.VITE_POSTHOG_HOST,
-  defaults: "2026-01-30",
-  capture_pageview: false,
-});
 
 export const Route = createRootRoute({
   component: RootLayout,
 });
 
 export function RootLayout() {
+  if (!analyticsEnabled) return <RootLayoutInner />;
   return (
     <PostHogProvider client={posthog}>
       <RootLayoutInner />
@@ -118,7 +115,7 @@ function RootLayoutInner() {
 function usePostHogPageView() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   useEffect(() => {
-    posthog.capture("$pageview", { $current_url: window.location.href });
+    capturePageView(window.location.href);
   }, [pathname]);
 }
 

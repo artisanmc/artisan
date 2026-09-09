@@ -12,11 +12,13 @@ export function validateMigrationProposal(
 	menu: Record<string, unknown>,
 	manifest: MigrationManifest,
 	sourceFileId: string,
+	targetId?: string,
 ): Omit<MigrationProposal, "id" | "stepId"> {
 	const source = manifest.entries.find(
 		(entry) => entry.fileId === sourceFileId,
 	);
-	if (!source?.targetId || menu.id !== source.targetId)
+	const target = targetId ?? source?.targetId;
+	if (!source || !target || menu.id !== target)
 		throw new MigrationInputError("target_mismatch");
 	if (!validateMenuV1(menu).valid)
 		throw new MigrationInputError("invalid_menu");
@@ -75,9 +77,14 @@ export function validateMigrationProposal(
 	};
 	walk(validationView);
 	const known = new Set(
-		manifest.entries
-			.filter((entry) => entry.kind === "menu")
-			.map((entry) => entry.targetId),
+		manifest.agent?.tasks
+			? [
+					...manifest.agent.tasks.map((task) => task.targetId),
+					...manifest.agent.existingTargetIds,
+				]
+			: manifest.entries
+					.filter((entry) => entry.kind === "menu")
+					.map((entry) => entry.targetId),
 	);
 	for (const target of links)
 		if (!known.has(target))
@@ -111,7 +118,7 @@ export function validateMigrationProposal(
 					"A recognized source link is absent from the generated menu; verify this conversion.",
 			});
 	return {
-		targetId: source.targetId,
+		targetId: target,
 		baseHash: null,
 		resultHash: hashJsonValue(menu),
 		menu,
