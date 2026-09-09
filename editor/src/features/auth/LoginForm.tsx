@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AuthCard } from "./AuthCard";
 import { DiscordLoginButton } from "./DiscordLoginButton";
+import { GoogleLoginButton } from "./GoogleLoginButton";
 
 interface Props {
   apiUrl: string;
@@ -29,7 +30,8 @@ export function LoginForm({ apiUrl, onSuccess }: Props) {
     }
   }
 
-  const errorKey = submitError ?? storeError ?? "";
+  const oauthError = new URLSearchParams(window.location.search).get("oauth_error");
+  const errorKey = submitError ?? storeError ?? oauthError ?? "";
   const errorMsg = errorKey
     ? t(`auth.errors.${errorKey}` as const, { defaultValue: t("auth.errors.unknown") })
     : "";
@@ -67,7 +69,11 @@ export function LoginForm({ apiUrl, onSuccess }: Props) {
           </a>
         </div>
 
-        {errorMsg && <div className="text-sm text-[var(--danger)]">{errorMsg}</div>}
+        {errorMsg && (
+          <div role="alert" className="text-sm text-[var(--danger)]">
+            {errorMsg}
+          </div>
+        )}
 
         <button type="submit" disabled={isLoading} className="btn btn-primary w-full">
           {t("auth.loginSubmit")}
@@ -79,6 +85,7 @@ export function LoginForm({ apiUrl, onSuccess }: Props) {
           <span className="h-px flex-1 bg-[var(--border-soft)]" />
         </div>
 
+        <GoogleLoginButton apiUrl={apiUrl} />
         <DiscordLoginButton apiUrl={apiUrl} />
       </form>
 

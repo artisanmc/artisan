@@ -9,6 +9,11 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Added — Google sign-in
+
+- Add Google sign-in on login and signup, with verified Gmail/Workspace email linking to an existing Artisan account while preserving its password and access.
+- Add `/api/v1/auth/google/{configured,start,callback}` and migration 0034 for shared OAuth identities; existing Discord links are copied intact. New Discord links now require a verified email.
+
 ### Changed — migration context handling
 
 - Let the provider enforce migration context capacity instead of a fixed local token estimate or silent history eviction.

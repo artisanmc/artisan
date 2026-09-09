@@ -62,6 +62,7 @@ export interface DiscordUserInfo {
   discordUserId: string;
   username: string;
   email: string | null;
+  emailVerified: boolean;
   avatarUrl: string | null;
 }
 
@@ -75,14 +76,16 @@ export async function fetchDiscordUser(
   if (!res.ok) {
     throw new Error(`Discord /users/@me failed (${res.status})`);
   }
-  const data = await res.json() as { id: string; username: string; email?: string; avatar?: string | null };
+  const data = await res.json() as { id: string; username: string; email?: string; verified?: boolean; avatar?: string | null };
+  if (typeof data.id !== "string" || !data.id || typeof data.username !== "string") throw new Error("Invalid Discord identity");
   const avatarUrl = data.avatar
     ? `https://cdn.discordapp.com/avatars/${data.id}/${data.avatar}.png`
     : null;
   return {
     discordUserId: data.id,
     username: data.username,
-    email: data.email ?? null,
+    email: typeof data.email === "string" ? data.email : null,
+    emailVerified: data.verified === true,
     avatarUrl,
   };
 }

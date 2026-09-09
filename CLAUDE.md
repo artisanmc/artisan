@@ -35,6 +35,8 @@ Ne pas mettre à jour = la prochaine session ne saura pas que le code a changé.
 | `docs/decisions/` | ADRs. `docs/specs/`, `docs/superpowers/` : specs et plans. |
 | `.env.example` | **Toutes** les variables d'environnement backend, documentées sur place. |
 
+Auth Google/Discord : identités communes `oauth_accounts` (migration 0034, anciens liens Discord conservés). Variables `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` requises ; Compose les transmet avec les variables Discord et `EDITOR_URL`. Callback local Google : `http://localhost:3001/api/v1/auth/google/callback`. Règles de liaison dans `docs/architecture/entities.md`, configuration dans `docs-site/src/content/docs/contributing/index.md`.
+
 ## Commandes
 
 ```bash
