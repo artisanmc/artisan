@@ -25,6 +25,20 @@ export function AuthCard({ title, children }: { title: string; children: ReactNo
       </h1>
 
       {children}
+      <nav
+        aria-label="Artisan"
+        className="flex flex-wrap justify-center gap-3 text-xs text-[var(--text-mut)]"
+      >
+        <a href="/about.html" className="underline">
+          Artisan
+        </a>
+        <a href="/privacy.html" className="underline">
+          Privacy / Confidentialité
+        </a>
+        <a href="/terms.html" className="underline">
+          Terms / Conditions
+        </a>
+      </nav>
     </div>
   );
 }

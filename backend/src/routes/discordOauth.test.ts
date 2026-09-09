@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { app } from "../app";
 import { createDiscordOauthRouter } from "./discordOauth";
 import { db } from "../db/index";
-import { users as usersTable, discordAccounts as discordTable, userSessions } from "../db/schema";
+import { users as usersTable, oauthAccounts as discordTable, userSessions } from "../db/schema";
 
 const savedEnv: Record<string, string | undefined> = {};
 beforeAll(() => {
@@ -86,7 +86,7 @@ describe("GET /api/v1/auth/discord/callback (happy path)", () => {
       }
       if (url.includes("users/@me")) {
         return new Response(JSON.stringify({
-          id: discordUserId, username: "alice", email, avatar: null,
+          id: discordUserId, username: "alice", email, verified: true, avatar: null,
         }), { status: 200, headers: { "Content-Type": "application/json" } });
       }
       throw new Error("Unexpected fetch in test: " + url);
@@ -104,11 +104,11 @@ describe("GET /api/v1/auth/discord/callback (happy path)", () => {
     expect(userRow).toHaveLength(1);
     expect(userRow[0].passwordHash).toBeNull();
     expect(userRow[0].name).toBe("alice");
-    const linkRow = await db.select().from(discordTable).where(eq(discordTable.discordUserId, discordUserId));
+    const linkRow = await db.select().from(discordTable).where(eq(discordTable.subject, discordUserId));
     expect(linkRow).toHaveLength(1);
 
     await db.delete(userSessions).where(eq(userSessions.userId, userRow[0].id));
-    await db.delete(discordTable).where(eq(discordTable.discordUserId, discordUserId));
+    await db.delete(discordTable).where(eq(discordTable.subject, discordUserId));
     await db.delete(usersTable).where(eq(usersTable.id, userRow[0].id));
   });
 
@@ -120,7 +120,7 @@ describe("GET /api/v1/auth/discord/callback (happy path)", () => {
       if (url.includes("oauth2/token")) return new Response(JSON.stringify({
         access_token: "AT", refresh_token: "RT", expires_in: 604800, scope: "identify email",
       }), { status: 200, headers: { "Content-Type": "application/json" } });
-      return new Response(JSON.stringify({ id: discordUserId, username: "bob", email, avatar: null }),
+      return new Response(JSON.stringify({ id: discordUserId, username: "bob", email, verified: true, avatar: null }),
         { status: 200, headers: { "Content-Type": "application/json" } });
     };
 
@@ -134,11 +134,11 @@ describe("GET /api/v1/auth/discord/callback (happy path)", () => {
 
     const userRows = await db.select().from(usersTable).where(eq(usersTable.email, email));
     expect(userRows).toHaveLength(1);
-    const linkRows = await db.select().from(discordTable).where(eq(discordTable.discordUserId, discordUserId));
+    const linkRows = await db.select().from(discordTable).where(eq(discordTable.subject, discordUserId));
     expect(linkRows).toHaveLength(1);
 
     await db.delete(userSessions).where(eq(userSessions.userId, userRows[0].id));
-    await db.delete(discordTable).where(eq(discordTable.discordUserId, discordUserId));
+    await db.delete(discordTable).where(eq(discordTable.subject, discordUserId));
     await db.delete(usersTable).where(eq(usersTable.id, userRows[0].id));
   });
 
@@ -155,7 +155,7 @@ describe("GET /api/v1/auth/discord/callback (happy path)", () => {
       if (url.includes("oauth2/token")) return new Response(JSON.stringify({
         access_token: "AT", refresh_token: "RT", expires_in: 604800, scope: "identify email",
       }), { status: 200, headers: { "Content-Type": "application/json" } });
-      return new Response(JSON.stringify({ id: discordUserId, username: "carol-discord", email, avatar: null }),
+      return new Response(JSON.stringify({ id: discordUserId, username: "carol-discord", email, verified: true, avatar: null }),
         { status: 200, headers: { "Content-Type": "application/json" } });
     };
 
@@ -166,12 +166,31 @@ describe("GET /api/v1/auth/discord/callback (happy path)", () => {
 
     const userRows = await db.select().from(usersTable).where(eq(usersTable.email, email));
     expect(userRows).toHaveLength(1);
-    const linkRows = await db.select().from(discordTable).where(eq(discordTable.discordUserId, discordUserId));
+    const linkRows = await db.select().from(discordTable).where(eq(discordTable.subject, discordUserId));
     expect(linkRows).toHaveLength(1);
     expect(linkRows[0].userId).toBe(userRows[0].id);
 
     await db.delete(userSessions).where(eq(userSessions.userId, userRows[0].id));
-    await db.delete(discordTable).where(eq(discordTable.discordUserId, discordUserId));
+    await db.delete(discordTable).where(eq(discordTable.subject, discordUserId));
     await db.delete(usersTable).where(eq(usersTable.id, userRows[0].id));
   });
+});
+
+test("unverified Discord email cannot attach to an existing account", async () => {
+  const email = `${crypto.randomUUID()}@gmail.com`;
+  await app.request("http://x/api/v1/auth/signup", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password: "longenoughpw", name: "Original" }),
+  });
+  const fakeFetch = (async (input: Request | URL | string) => {
+    const url = input instanceof Request ? input.url : input.toString();
+    return Response.json(url.includes("oauth2/token") ? { access_token: "AT" } : {
+      id: crypto.randomUUID(), username: "unverified", email, verified: false,
+    });
+  }) as typeof fetch;
+  const response = await buildAppWith(fakeFetch).request("http://x/api/v1/auth/discord/callback?code=c&state=s", {
+    headers: { Cookie: "artisan_oauth_state=s" },
+  });
+  expect(response.status).toBe(422);
+  expect(response.headers.get("set-cookie")).not.toContain("artisan_user_session=");
 });

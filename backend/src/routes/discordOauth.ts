@@ -1,10 +1,7 @@
 import { Hono } from "hono";
 import { getCookie, setCookie, deleteCookie } from "hono/cookie";
-import { eq } from "drizzle-orm";
-import { db } from "../db/index";
-import { users, discordAccounts } from "../db/schema";
+import { OauthAccountError, resolveOauthAccount } from "../lib/oauthAccounts";
 import { buildAuthorizeUrl, exchangeCode, fetchDiscordUser } from "../lib/discordOauth";
-import { normalizeEmail } from "../lib/emailNormalizer";
 import { createSession } from "../lib/sessionManager";
 import { sendSafely } from "../lib/mail/mailer";
 import { welcomeEmail } from "../lib/mail/templates";
@@ -16,9 +13,6 @@ export function createDiscordOauthRouter(fetchImpl: typeof fetch = fetch) {
     const bytes = crypto.getRandomValues(new Uint8Array(24));
     return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
   }
-  function newUserId(): string {
-    return "user_" + crypto.randomUUID().replace(/-/g, "").slice(0, 16);
-  }
   function envOrNull(name: string): string | null {
     const v = process.env[name];
     return v && v.length > 0 ? v : null;
@@ -27,13 +21,13 @@ export function createDiscordOauthRouter(fetchImpl: typeof fetch = fetch) {
   router.get("/configured", (c) => {
     const clientId = envOrNull("DISCORD_CLIENT_ID");
     const redirectUri = envOrNull("DISCORD_REDIRECT_URI");
-    return c.json({ configured: Boolean(clientId && redirectUri) });
+    return c.json({ configured: Boolean(clientId && redirectUri && envOrNull("DISCORD_CLIENT_SECRET")) });
   });
 
   router.get("/start", (c) => {
     const clientId = envOrNull("DISCORD_CLIENT_ID");
     const redirectUri = envOrNull("DISCORD_REDIRECT_URI");
-    if (!clientId || !redirectUri) {
+    if (!clientId || !redirectUri || !envOrNull("DISCORD_CLIENT_SECRET")) {
       return c.json({ error: "discord_not_configured" }, 500);
     }
     const state = newOauthState();
@@ -75,36 +69,18 @@ export function createDiscordOauthRouter(fetchImpl: typeof fetch = fetch) {
       return c.json({ error: "discord_exchange_failed" }, 502);
     }
 
-    if (!user.email) {
-      return c.json({ error: "discord_email_missing" }, 422);
-    }
-    const email = normalizeEmail(user.email);
-    const now = new Date();
-
-    const existingLink = await db.select().from(discordAccounts).where(eq(discordAccounts.discordUserId, user.discordUserId));
     let userId: string;
-
-    if (existingLink.length > 0) {
-      userId = existingLink[0].userId;
-    } else {
-      const existingUser = await db.select().from(users).where(eq(users.email, email));
-      if (existingUser.length > 0) {
-        userId = existingUser[0].id;
-      } else {
-        userId = newUserId();
-        await db.insert(users).values({
-          id: userId, email, name: user.username, passwordHash: null,
-          avatarUrl: user.avatarUrl, createdAt: now, updatedAt: now,
-        });
-        sendSafely(welcomeEmail({ to: email, displayName: user.username }));
-      }
-      await db.insert(discordAccounts).values({
-        discordUserId: user.discordUserId,
-        userId,
-        username: user.username,
-        email: user.email,
-        linkedAt: now,
+    try {
+      const account = await resolveOauthAccount({
+        provider: "discord", subject: user.discordUserId,
+        email: user.email, emailVerified: user.emailVerified, canLinkByEmail: user.emailVerified,
+        name: user.username, avatarUrl: user.avatarUrl,
       });
+      userId = account.userId;
+      if (account.created && user.email) sendSafely(welcomeEmail({ to: user.email, displayName: user.username }));
+    } catch (error) {
+      if (error instanceof OauthAccountError) return c.json({ error: error.message }, 422);
+      throw error;
     }
 
     const session = await createSession(userId);
