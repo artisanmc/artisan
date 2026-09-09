@@ -83,10 +83,15 @@ needed, ask your administrator to configure an allowed source such as
 `patterns/`, `action_patterns/` or `actions_patterns/` paths. Do not select unrelated
 plugin configuration files.
 
-Choose **Migrate this selection**, enter an **Accepted budget (credits)**, then
-**Analyze selection**. Analysis indexes files and links without calling the AI.
+Choose **Migrate this selection**, then **Analyze selection**. There is no separate
+credit budget to enter. Analysis indexes files and links without calling the AI.
 Resolve duplicate or existing target names and review warnings before choosing
 **Start migration**.
+
+Source YAML does not have to be syntactically valid: when static analysis fails,
+the AI receives the original text and attempts the conversion. A warning identifies
+sources whose dependencies could not be indexed. Review repaired syntax and links;
+generated Artisan menus still have to pass validation. Size/context limits remain.
 
 Artisan converts one menu at a time, using bounded shared context and an index of
 the other targets. **Pause after this menu** stops before the next menu; the

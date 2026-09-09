@@ -41,7 +41,11 @@ export function hashJsonValue(value: unknown): string {
 
 export function buildManifest(
 	attachments: Record<string, string>,
-	options: { existingTargetIds: string[]; targetIds?: Record<string, string> },
+	options: {
+		existingTargetIds: string[];
+		targetIds?: Record<string, string>;
+		agentic?: boolean;
+	},
 ): MigrationManifest {
 	const keys = Object.keys(attachments);
 	if (!keys.length) throw new MigrationInputError("empty_selection");
@@ -68,10 +72,24 @@ export function buildManifest(
 				match[2]
 					.split("/")
 					.some((part) => !part || part === "." || part === "..") ||
-				!/\.ya?ml$/i.test(match[2])
+				(!options.agentic && !/\.ya?ml$/i.test(match[2]))
 			)
 				throw new MigrationInputError("invalid_source_id");
 			const [, sourceId, path] = match;
+			if (Buffer.byteLength(attachments[fileId]) > 1024 * 1024)
+				throw new MigrationInputError("source_too_large");
+			if (options.agentic)
+				return {
+					fileId,
+					sourceId,
+					path,
+					byteLength: Buffer.byteLength(attachments[fileId]),
+					contentHash: contentHash(attachments[fileId]),
+					kind: "shared",
+					targetId: null,
+					dependencyIds: [],
+					issues: [],
+				};
 			const document = analyzeZmenu(path, attachments[fileId]);
 			documents.set(fileId, document);
 			return {
@@ -94,6 +112,14 @@ export function buildManifest(
 				issues: [],
 			};
 		});
+	if (options.agentic)
+		return {
+			version: 1,
+			hash: contentHash(JSON.stringify(entries)),
+			entries,
+			issues: [],
+			agent: { existingTargetIds: options.existingTargetIds },
+		};
 	for (const entry of entries) {
 		const document = documents.get(entry.fileId);
 		if (!document) throw new MigrationInputError("invalid_manifest");
@@ -109,6 +135,11 @@ export function buildManifest(
 					: { reference }),
 			});
 		};
+		if (document.analysisIncomplete)
+			issue(
+				"source_analysis_incomplete",
+				"Source analysis is incomplete. The AI will read the original text; verify repaired syntax and dependencies.",
+			);
 		if (entry.kind === "unsupported")
 			issue(
 				"unsupported_source",

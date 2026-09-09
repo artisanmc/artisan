@@ -20,9 +20,21 @@ export interface ManifestEntry {
 
 export interface MigrationManifest {
 	version: 1;
+	agent?: {
+		existingTargetIds: string[];
+		tasks?: MigrationTask[];
+		reports?: { fileId: string; role: string; notes: string }[];
+	};
 	hash: string;
 	entries: ManifestEntry[];
 	issues: MigrationIssue[];
+}
+
+export interface MigrationTask {
+	sourceFileId: string;
+	targetId: string;
+	instructions: string;
+	dependencyIds: string[];
 }
 
 export type MigrationStatus =
@@ -40,7 +52,8 @@ export type MigrationStepStatus =
 	| "interrupted"
 	| "blocked";
 export interface MigrationBudget {
-	maxCredits: number;
+	/** Legacy stored cap; no longer enforced. New migrations store null. */
+	maxCredits: number | null;
 	usedCredits: number;
 	contextTokens: number;
 	maxOutputTokens: number;
@@ -106,6 +119,7 @@ export class MigrationInputError extends Error {
 /** Unknown issues fail closed. Warnings must remain visible through final verification. */
 export function isBlockingMigrationIssue(issue: MigrationIssue): boolean {
 	return ![
+		"source_analysis_incomplete",
 		"missing_reference",
 		"dynamic_reference",
 		"external_reference",

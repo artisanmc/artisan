@@ -16,6 +16,7 @@ export interface ZmenuDocument {
 	kind: SourceKind;
 	aliases: string[];
 	references: ZmenuReference[];
+	analysisIncomplete?: boolean;
 }
 
 const record = (value: unknown): Record<string, unknown> | undefined =>
@@ -26,6 +27,15 @@ const record = (value: unknown): Record<string, unknown> | undefined =>
 export function analyzeZmenu(path: string, content: string): ZmenuDocument {
 	if (Buffer.byteLength(content) > 1024 * 1024)
 		throw new MigrationInputError("source_too_large");
+	const segments = path.split("/");
+	const basename = (segments.at(-1) ?? "").replace(/\.ya?ml$/i, "");
+	const fallback = (): ZmenuDocument => ({
+		kind: segments.includes("patterns") ? "pattern"
+			: segments.some((part) => ["action_patterns", "actions_patterns"].includes(part)) ? "actions" : "menu",
+		aliases: [basename],
+		references: [],
+		analysisIncomplete: true,
+	});
 	let root: Record<string, unknown> | undefined;
 	try {
 		const doc = parseDocument(content, { uniqueKeys: true });
@@ -44,13 +54,11 @@ export function analyzeZmenu(path: string, content: string): ZmenuDocument {
 		};
 		inspect(doc.contents, 0);
 		root = record(doc.toJS({ maxAliasCount: 0 }));
-	} catch (error) {
-		if (error instanceof MigrationInputError) throw error;
-		throw new MigrationInputError("invalid_yaml");
+	} catch {
+		// Do not expand aliases or guess dependencies from a partial parse. The AI reads bounded raw text.
+		return fallback();
 	}
-	if (!root) throw new MigrationInputError("invalid_yaml_root");
-	const segments = path.split("/");
-	const basename = (segments.at(-1) ?? "").replace(/\.ya?ml$/i, "");
+	if (!root) return fallback();
 	const kind: SourceKind = segments.some((part) => part === "patterns")
 		? "pattern"
 		: segments.some(

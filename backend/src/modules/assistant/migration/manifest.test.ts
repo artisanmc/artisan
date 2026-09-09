@@ -51,17 +51,18 @@ test("does not persist oversized reference values copied from raw source", () =>
 	expect(JSON.stringify(manifest)).not.toContain(secretLikeValue);
 });
 
-test("validates bounded YAML and source selections with controlled errors", () => {
-	for (const [content, code] of [
-		["x: &x [1]\ny: *x", "yaml_alias_unsupported"],
-		[`${"x: [".repeat(60)}1${"]".repeat(60)}`, "yaml_complexity"],
-		[`${"[".repeat(60)}1${"]".repeat(60)}`, "yaml_complexity"],
-		["size: 9\nsize: 18", "invalid_yaml"],
-		["#".repeat(1024 * 1024 + 1), "source_too_large"],
-	])
-		expect(() =>
-			buildManifest({ "server:z/a.yml": content }, { existingTargetIds: [] }),
-		).toThrow(code);
+test("keeps malformed, duplicate-key and unexpanded alias sources available to the AI", () => {
+	for (const content of ["size: 9\nitems: [broken", "size: 9\nsize: 18", "x: &x [1]\ny: *x", `${"[".repeat(60)}1${"]".repeat(60)}`]) {
+		const result = buildManifest({ "server:z/a.yml": content }, { existingTargetIds: [] });
+		expect(result.entries[0]?.targetId).toBe("a");
+		expect(result.entries[0]?.dependencyIds).toEqual([]);
+		expect(result.issues[0]?.code).toBe("source_analysis_incomplete");
+		expect(result.issues.some(isBlockingMigrationIssue)).toBe(false);
+	}
+});
+
+test("still enforces transfer size and source path bounds", () => {
+	expect(() => buildManifest({ "server:z/a.yml": "#".repeat(1024 * 1024 + 1) }, { existingTargetIds: [] })).toThrow("source_too_large");
 	expect(() => buildManifest({}, { existingTargetIds: [] })).toThrow(
 		"empty_selection",
 	);

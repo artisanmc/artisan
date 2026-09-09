@@ -29,7 +29,6 @@ it("sends explicit analysis and revision-bound controls without retrying conflic
 	const input = {
 		requestId: "request",
 		modelId: "model",
-		maxCredits: 20,
 		existingTargetIds: [],
 		serverAttachments: [{ sourceId: "z", paths: ["a.yml"] }],
 	};

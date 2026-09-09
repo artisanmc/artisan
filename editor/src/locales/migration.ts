@@ -1,6 +1,10 @@
 export const migrationEn = {
 	applyAll: "Apply available results",
-	title: "zMenu migration",
+	title: "Menu migration",
+	exploreHelp:
+		"The AI explores the selected files, identifies menus and dependencies, then prepares Artisan proposals. No source plugin is imposed.",
+	exploring: "Exploring sources and planning the migration…",
+	explorationReport: "Source findings and limitations",
 	selection: "Migrate this selection",
 	loading: "Loading migrations…",
 	working: "Working…",
@@ -8,24 +12,24 @@ export const migrationEn = {
 		"Keep the complete selection. Artisan indexes links, then converts one menu at a time. Analysis does not call the AI.",
 	budget: "Accepted budget (credits)",
 	budgetHelp:
-		"Generation stops between calls when the budget is reached. The last call may exceed it. Starting or resuming can consume credits.",
+		"Exploration and conversion use network credits. You can pause and resume; it stops when credits run out.",
 	analyze: "Analyze selection",
 	history: "Previous migrations",
 	menus: "menus",
 	start: "Start migration",
 	resume: "Resume migration",
-	pause: "Pause after this menu",
+	pause: "Pause after this step",
 	cancel: "Cancel migration",
 	progress:
 		"{{generated}} / {{total}} generated · {{applied}} applied to this draft",
-	spent: "{{used}} / {{max}} accepted credits used",
+	spent: "{{used}} credits used",
 	active: "Converting:",
 	reanalyze: "Review sources and target names",
 	reanalyzeHelp:
-		"Correct conflicting names, then create a new analysis. Previous results remain available in history; this does not resume the old migration.",
-	analyzeAgain: "Create new analysis",
+		"Review the sources, then start a new migration. Previous results remain available in history; this does not resume the old migration.",
+	analyzeAgain: "Restart with current sources",
 	draftHelp:
-		"Apply results to your local draft, review them, then use Save to update the server. Source zMenu files are never changed.",
+		"Apply results to your local draft, review them, then use Save to update the server. Source files are never changed.",
 	apply: "Apply to draft",
 	verify: "Review required.",
 	storageWarning:
@@ -46,6 +50,8 @@ export const migrationEn = {
 		blocked: "Cannot apply safely",
 	},
 	errors: {
+		source_analysis_incomplete:
+			"Automatic source analysis was incomplete. The AI will read the original text; check the repaired syntax and links before saving.",
 		migration_error:
 			"The operation could not finish. Check the connection and try the action again.",
 		invalid_budget:
@@ -104,7 +110,11 @@ export const migrationEn = {
 };
 export const migrationFr = {
 	applyAll: "Appliquer les résultats disponibles",
-	title: "Migration zMenu",
+	title: "Migration de menus",
+	exploreHelp:
+		"L’IA explore les fichiers sélectionnés, identifie les menus et leurs dépendances, puis prépare les propositions Artisan. Aucun plugin source n’est imposé.",
+	exploring: "Exploration des sources et préparation de la migration…",
+	explorationReport: "Sources examinées et limites de conversion",
 	selection: "Migrer cette sélection",
 	loading: "Chargement des migrations…",
 	working: "Opération en cours…",
@@ -112,24 +122,24 @@ export const migrationFr = {
 		"Gardez toute la sélection. Artisan indexe les liens, puis convertit un menu à la fois. L’analyse ne fait pas appel à l’IA.",
 	budget: "Budget accepté (crédits)",
 	budgetHelp:
-		"La génération s’arrête entre deux appels lorsque le budget est atteint. Le dernier appel peut le dépasser. Démarrer ou reprendre peut consommer des crédits.",
+		"L’exploration et la conversion consomment les crédits du réseau. Vous pouvez mettre en pause et reprendre ; elle s’arrête lorsque le solde est épuisé.",
 	analyze: "Analyser la sélection",
 	history: "Migrations précédentes",
 	menus: "menus",
 	start: "Démarrer la migration",
 	resume: "Reprendre la migration",
-	pause: "Pause après ce menu",
+	pause: "Pause après cette étape",
 	cancel: "Annuler la migration",
 	progress:
 		"{{generated}} / {{total}} générés · {{applied}} appliqués à ce brouillon",
-	spent: "{{used}} / {{max}} crédits acceptés utilisés",
+	spent: "{{used}} crédits consommés",
 	active: "Conversion :",
 	reanalyze: "Revoir les sources et les noms de destination",
 	reanalyzeHelp:
-		"Corrigez les noms en conflit, puis créez une nouvelle analyse. Les résultats précédents restent dans l’historique ; cela ne reprend pas l’ancienne migration.",
-	analyzeAgain: "Créer une nouvelle analyse",
+		"Vérifiez les sources, puis démarrez une nouvelle migration. Les résultats précédents restent dans l’historique ; cela ne reprend pas l’ancienne migration.",
+	analyzeAgain: "Recommencer avec les sources actuelles",
 	draftHelp:
-		"Appliquez les résultats au brouillon local, vérifiez-les, puis utilisez Enregistrer pour modifier le serveur. Les fichiers zMenu sources ne sont jamais modifiés.",
+		"Appliquez les résultats au brouillon local, vérifiez-les, puis utilisez Enregistrer pour modifier le serveur. Les fichiers sources ne sont jamais modifiés.",
 	apply: "Appliquer au brouillon",
 	verify: "À vérifier.",
 	storageWarning:
@@ -150,6 +160,8 @@ export const migrationFr = {
 		blocked: "Application bloquée par sécurité",
 	},
 	errors: {
+		source_analysis_incomplete:
+			"L’analyse automatique du fichier est incomplète. L’IA lira le texte original ; vérifiez la syntaxe réparée et les liens avant d’enregistrer.",
 		migration_error:
 			"L’opération n’a pas abouti. Vérifiez la connexion puis réessayez l’action.",
 		invalid_budget: "Saisissez un budget entier entre 1 et 1 000 000 crédits.",

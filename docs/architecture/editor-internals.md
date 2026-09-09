@@ -449,10 +449,15 @@ Le re-seed (`menus` + `attachments`) à **chaque** message garantit que la worki
 ### Migration zMenu reprenable (2026-09-07)
 
 `MigrationPanel` et `lib/api/assistantMigration.ts` proposent un flux explicite
-distinct du chat SSE : analyse de la sélection serveur, budget accepté, démarrage,
+distinct du chat SSE : analyse de la sélection serveur, information sur les crédits, démarrage,
 pause/reprise et lecture des propositions. La reconnexion utilise des GET de suivi,
 jamais un nouveau démarrage payant. Les réponses tardives sont filtrées par portée
 Project/conversation ; généré, appliqué au brouillon et à vérifier restent distincts.
+
+Depuis le 2026-09-08, aucun plafond de crédits propre à la migration n'est demandé ;
+seule la consommation s'affiche. `source_analysis_incomplete` est un avertissement :
+l'IA lit le fichier brut même si le parseur YAML échoue, sans expansion d'alias.
+`lib/analytics.ts` initialise PostHog et capture les pages uniquement si le token est renseigné.
 
 `features/assistant/migrationProposal.ts` vérifie le SHA-256 du JSON canonique sur
 un snapshot immuable, puis recontrôle la portée et le store courant après le calcul

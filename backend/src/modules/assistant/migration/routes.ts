@@ -150,10 +150,6 @@ export function buildMigrationRouter(
 			!/^[a-zA-Z0-9_-]{1,128}$/.test(body.requestId) ||
 			typeof body.modelId !== "string" ||
 			body.modelId.length > 128 ||
-			typeof body.maxCredits !== "number" ||
-			!Number.isSafeInteger(body.maxCredits) ||
-			body.maxCredits <= 0 ||
-			body.maxCredits > 1_000_000 ||
 			!Array.isArray(body.existingTargetIds) ||
 			body.existingTargetIds.length > 10000 ||
 			body.existingTargetIds.some(
@@ -191,7 +187,6 @@ export function buildMigrationRouter(
 			return c.json({ error: "invalid_context_budget" }, 422);
 		const requestHash = hashJsonValue({
 			modelId: body.modelId,
-			maxCredits: body.maxCredits,
 			serverAttachments: body.serverAttachments ?? null,
 			existingTargetIds: body.existingTargetIds,
 			targetIds: body.targetIds ?? {},
@@ -234,10 +229,8 @@ export function buildMigrationRouter(
 		if (!sources.ok) return c.json({ error: sources.error }, sources.status);
 		const manifest = buildManifest(sources.attachments, {
 			existingTargetIds: body.existingTargetIds as string[],
-			targetIds: body.targetIds as Record<string, string> | undefined,
+			agentic: true,
 		});
-		if (!manifest.entries.some((entry) => entry.kind === "menu"))
-			return c.json({ error: "no_menus_selected" }, 422);
 		const conversation = await getConversation(conversationId);
 		if (!conversation) return c.json({ error: "not_found" }, 404);
 		const run = await createRun({
@@ -250,7 +243,7 @@ export function buildMigrationRouter(
 			requestHash,
 			manifest,
 			budget: {
-				maxCredits: body.maxCredits,
+				maxCredits: null,
 				usedCredits: 0,
 				contextTokens,
 				maxOutputTokens,
