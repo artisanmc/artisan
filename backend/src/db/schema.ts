@@ -222,7 +222,7 @@ export const users = pgTable(
 		id: text("id").primaryKey(),
 		email: text("email").notNull(),
 		name: text("name").notNull(),
-		passwordHash: text("password_hash"), // null = Discord-only users
+		passwordHash: text("password_hash"), // null = OAuth-only users
 		avatarUrl: text("avatar_url"),
 		editorLanguage: text("editor_language"), // null = no preference set
 		theme: text("theme"), // "dark" | "light" | null
@@ -273,6 +273,23 @@ export const passwordResetTokens = pgTable(
 	],
 );
 
+export const oauthAccounts = pgTable(
+	"oauth_accounts",
+	{
+		provider: text("provider").notNull(),
+		subject: text("subject").notNull(),
+		userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+		name: text("name").notNull(),
+		email: text("email"),
+		linkedAt: timestamp("linked_at").notNull(),
+	},
+	(t) => ({
+		identity: primaryKey({ columns: [t.provider, t.subject] }),
+		userProvider: uniqueIndex("oauth_accounts_provider_user_uniq").on(t.provider, t.userId),
+	}),
+);
+
+// Retained as migration history; live OAuth identities use oauthAccounts.
 export const discordAccounts = pgTable(
 	"discord_accounts",
 	{
