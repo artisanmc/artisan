@@ -1,3 +1,4 @@
+import { tasksEn } from "./tasks";
 import { migrationEn } from "./migration";
 export default {
   navigation: {
@@ -1897,6 +1898,7 @@ export default {
     },
   },
   assistant: {
+    tasks: tasksEn,
     migration: migrationEn,
     title: "AI Assistant",
     open: "AI Assistant",

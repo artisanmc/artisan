@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import type { EngineEvent } from "../tools";
 import { isToolFailure, toolFailure, toolFeedback } from "./toolErrors";
 import { streamPayloadBytes } from "../provider/types";
 import { assistantFailureCode } from "../transport";
@@ -23,6 +24,7 @@ import {
 } from "./types";
 
 export interface AgentInput {
+	onActivity?: (event: EngineEvent) => Promise<void>;
 	continuation?: MigrationContinuation;
 	onCompacted?(state: MigrationContinuation): Promise<void>;
 	provider: LlmProvider;
@@ -253,6 +255,8 @@ export async function agentLoop<T>(
 			let stop: string | undefined;
 			let bytes = 0;
 			let responseText = "";
+			let reasoningText = "";
+			await input.onActivity?.({ type: "activity", name: "model" });
 			for await (const event of input.provider.streamTurn({
 				messages,
 				tools,
@@ -260,6 +264,7 @@ export async function agentLoop<T>(
 				signal: input.signal,
 				maxRetries: 0,
 				requireExplicitFinish: true,
+				includeReasoning: true,
 				maxResponseBytes: 1024 * 1024,
 			})) {
 				input.signal.throwIfAborted();
@@ -267,6 +272,9 @@ export async function agentLoop<T>(
 				if (bytes > 1024 * 1024)
 					throw new MigrationInputError("response_buffer_exceeded");
 				if (event.type === "text") responseText += event.text;
+				if (event.type === "reasoning") reasoningText += event.text;
+				if (event.type === "text" || event.type === "reasoning")
+					await input.onActivity?.(event);
 				if (event.type === "usage") input.onUsage(event.usage);
 				if (event.type === "tool_use") calls.push(event);
 				if (event.type === "done") stop = event.stopReason;
@@ -281,6 +289,7 @@ export async function agentLoop<T>(
 			messages.push({
 				role: "assistant",
 				content: responseText || null,
+				...(reasoningText ? { reasoningContent: reasoningText } : {}),
 				toolCalls: calls.map((c) => ({
 					id: c.id,
 					name: c.name,
@@ -305,10 +314,20 @@ export async function agentLoop<T>(
 						Array.isArray(call.input)
 					)
 						throw new MigrationInputError("invalid_tool");
+					const args = call.input as Record<string, unknown>;
+					await input.onActivity?.({
+						type: "activity",
+						name: call.name,
+						...(typeof args.fileId === "string" &&
+						input.manifest.entries.some((entry) => entry.fileId === args.fileId)
+							? { target: args.fileId }
+							: {}),
+					});
 					const outcome = execute(
 						call.name,
 						call.input as Record<string, unknown>,
 					);
+					await input.onActivity?.({ type: "tool", name: call.name, ok: true });
 					messages.push({
 						role: "tool",
 						toolCallId: call.id,
@@ -328,6 +347,12 @@ export async function agentLoop<T>(
 					failure = isToolFailure(error.code)
 						? error.code
 						: toolFailure(call.name, "invalid_arguments").code;
+					await input.onActivity?.({
+						type: "tool",
+						name: call.name,
+						ok: false,
+						detail: failure,
+					});
 					messages.push({
 						role: "tool",
 						toolCallId: call.id,

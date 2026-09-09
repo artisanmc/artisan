@@ -62,6 +62,8 @@ User ── Membership ──┐
 
 ## Assistant IA — conversations
 
+- **`assistant_tasks`** (migration 0035) : exécution serveur d'un message, liée par FK à la conversation. Stocke `request_id`, empreinte de requête, message, statut, dates et événements dérivés (activité, texte, raisonnement fourni par le modèle, propositions). Unicité requête/conversation et index partiel garantissant une seule tâche active. La portée réseau/serveur et le hash de base du brouillon sont dans l'événement d'acceptation. Aucune working-copy complète ni copie des sources serveur brutes n'est persistée. La déconnexion du navigateur ne termine pas l'exécution ; un processus serveur perdu exige une intervention explicite.
+
 - **`assistant_conversations`** (migration 0007) : historique du chat assistant, scopé par `(owner_key, project_id)` (index `assistant_conv_owner_project_idx`). `(id PK, owner_key TEXT, project_id TEXT, title TEXT, messages JSONB — transcript LLM complet pour la reprise, created_at, updated_at)`. `owner_key` = `sk:<serverKeyId>` (session plugin) ou `user:<userId>` (login web), miroir de `resolveOwnerKey` (`modules/assistant/routes.ts`). La working-copy n'est **pas** persistée (reconstruite depuis le project vivant à chaque tour). `title` dérivé du 1er message utilisateur. Pas de FK sur `project_id`/`owner_key` — des conversations orphelines sont tolérées si le project est supprimé.
 
 ## AI models & credits (2026-07-02)

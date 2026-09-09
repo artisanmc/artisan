@@ -13,18 +13,86 @@ function scriptedProvider(turns: LlmStreamEvent[][]): LlmProvider {
   };
 }
 const validMenu = {
-  schema: "menu/v1", id: "shop", title: [{ kind: "plain", value: { key: "k" } }], size: 27,
-  layers: [{ id: "l1", name: "default", elements: [{ id: "e1", positions: "0", material: "STONE" }] }],
+  schema: "menu/v1",
+  id: "shop",
+  title: [{ kind: "plain", value: { key: "k" } }],
+  size: 27,
+  layers: [
+    { id: "l1", name: "default", elements: [{ id: "e1", positions: "0", material: "STONE" }] },
+  ],
 };
-async function collect(it: AsyncIterable<any>) { const o: any[] = []; for await (const e of it) o.push(e); return o; }
+async function collect(it: AsyncIterable<any>) {
+  const o: any[] = [];
+  for await (const e of it) o.push(e);
+  return o;
+}
 
 describe("runTurn", () => {
-  const attachedFiles = Object.fromEntries(Array.from({ length: 30 }, (_, i) => [
-    i === 0 ? "local.yml" : `server:zmenu/menu-${i}.yml`, `title: menu-${i}`,
-  ]));
+  it("keeps tool history replayable when a migration is interrupted", async () => {
+    const messages: import("./provider/types").LlmMessage[] = [
+      { role: "user", content: "Migrate" },
+    ];
+    let failure = "";
+    try {
+      await collect(
+        runTurn({
+          provider: scriptedProvider([
+            [
+              { type: "tool_use", id: "m", name: "start_migration", input: {} },
+              { type: "done", stopReason: "tool_calls" },
+            ],
+          ]),
+          model: "m",
+          messages,
+          wc: new WorkingCopy([]),
+          migration: async function* () {
+            yield { type: "migration_started", runId: "r" };
+            throw new Error("cancelled");
+          },
+        }),
+      );
+    } catch (error) {
+      failure = (error as Error).message;
+    }
+    expect(failure).toBe("cancelled");
+    expect(messages.at(-1)).toMatchObject({ role: "tool", toolCallId: "m", isError: true });
+  });
+  it("lets the chat launch the resumable migration capability without a separate mode", async () => {
+    const messages: import("./provider/types").LlmMessage[] = [
+      { role: "user", content: "Migrate these menus" },
+    ];
+    const events = await collect(
+      runTurn({
+        provider: scriptedProvider([
+          [
+            { type: "tool_use", id: "migrate", name: "start_migration", input: {} },
+            { type: "done", stopReason: "tool_calls" },
+          ],
+        ]),
+        model: "m",
+        messages,
+        wc: new WorkingCopy([], { "server:x/a.yml": "size: 9" }),
+        migration: async function* () {
+          yield { type: "migration_started", runId: "r" };
+          return "Proposals ready for review";
+        },
+      }),
+    );
+    expect(events.some((event) => event.type === "migration_started")).toBe(true);
+    expect(events.at(-1)).toEqual({ type: "done", stopReason: "migration" });
+    expect(messages.at(-1)?.content).toBe("Proposals ready for review");
+  });
+  const attachedFiles = Object.fromEntries(
+    Array.from({ length: 30 }, (_, i) => [
+      i === 0 ? "local.yml" : `server:zmenu/menu-${i}.yml`,
+      `title: menu-${i}`,
+    ]),
+  );
 
   it("rejects an answer ignoring 30 attachments after one correction attempt", async () => {
-    const messages: import("./provider/types").LlmMessage[] = [{ role: "user", content: "Migrate these files" }];
+    const messages: import("./provider/types").LlmMessage[] = [
+      { role: "user", content: "Migrate these files" },
+    ];
     let calls = 0;
     const provider: LlmProvider = {
       async *streamTurn({ messages: incoming }) {
@@ -34,7 +102,9 @@ describe("runTurn", () => {
         yield { type: "done", stopReason: "stop" };
       },
     };
-    const events = await collect(runTurn({ provider, model: "m", messages, wc: new WorkingCopy([], attachedFiles) }));
+    const events = await collect(
+      runTurn({ provider, model: "m", messages, wc: new WorkingCopy([], attachedFiles) }),
+    );
     expect(calls).toBe(2);
     expect(events.filter((e) => e.type === "text")).toEqual([]);
     expect(events.filter((e) => e.type === "usage")).toHaveLength(2);
@@ -45,7 +115,9 @@ describe("runTurn", () => {
 
   it("recovers by reading all local and server attachments in parallel before answering", async () => {
     let calls = 0;
-    const messages: import("./provider/types").LlmMessage[] = [{ role: "user", content: "Migrate" }];
+    const messages: import("./provider/types").LlmMessage[] = [
+      { role: "user", content: "Migrate" },
+    ];
     const provider: LlmProvider = {
       async *streamTurn({ messages: incoming }) {
         const call = calls++;
@@ -55,15 +127,20 @@ describe("runTurn", () => {
             yield { type: "tool_use", id, name: "read_attachment", input: { file_id: id } };
           }
         } else {
-          for (const content of Object.values(attachedFiles)) expect(incoming.some((m) => m.role === "tool" && m.content === content)).toBe(true);
+          for (const content of Object.values(attachedFiles))
+            expect(incoming.some((m) => m.role === "tool" && m.content === content)).toBe(true);
           yield { type: "text", text: "Grounded answer" };
         }
         yield { type: "done", stopReason: call === 1 ? "tool_calls" : "stop" };
       },
     };
-    const events = await collect(runTurn({ provider, model: "m", messages, wc: new WorkingCopy([], attachedFiles) }));
+    const events = await collect(
+      runTurn({ provider, model: "m", messages, wc: new WorkingCopy([], attachedFiles) }),
+    );
     expect(calls).toBe(3);
-    expect(events.filter((e) => e.type === "text")).toEqual([{ type: "text", text: "Grounded answer" }]);
+    expect(events.filter((e) => e.type === "text")).toEqual([
+      { type: "text", text: "Grounded answer" },
+    ]);
     expect(events.filter((e) => e.type === "tool" && e.ok)).toHaveLength(30);
     expect(messages.some((m) => m.role === "system")).toBe(false);
     expect(events.at(-1)).toEqual({ type: "done", stopReason: "stop" });
@@ -78,7 +155,9 @@ describe("runTurn", () => {
         yield { type: "done", stopReason: "tool_calls" };
       },
     };
-    const events = await collect(runTurn({ provider, model: "m", messages: [], wc: new WorkingCopy([], attachedFiles) }));
+    const events = await collect(
+      runTurn({ provider, model: "m", messages: [], wc: new WorkingCopy([], attachedFiles) }),
+    );
     expect(calls).toBe(25);
     expect(events.find((e) => e.type === "error").message).toContain("25/30");
     expect(events.at(-1)).toEqual({ type: "done", stopReason: "attachments_not_read" });
@@ -87,17 +166,49 @@ describe("runTurn", () => {
   it("does not count failed reads or execute writes in the same batch as initial reads", async () => {
     const provider = scriptedProvider([
       [
-        { type: "tool_use", id: "bad-read", name: "read_attachment", input: { file_id: "missing.yml" } },
+        {
+          type: "tool_use",
+          id: "bad-read",
+          name: "read_attachment",
+          input: { file_id: "missing.yml" },
+        },
         { type: "tool_use", id: "read", name: "read_attachment", input: { file_id: "local.yml" } },
         { type: "tool_use", id: "write", name: "upsert_menu", input: { menu: validMenu } },
-        { type: "tool_use", id: "translate", name: "write_translations", input: { entries: { k: { en: "Shop" } } } },
+        {
+          type: "tool_use",
+          id: "translate",
+          name: "write_translations",
+          input: { entries: { k: { en: "Shop" } } },
+        },
         { type: "done", stopReason: "tool_calls" },
       ],
-      [{ type: "tool_use", id: "write-after-reading", name: "upsert_menu", input: { menu: validMenu } }, { type: "done", stopReason: "tool_calls" }],
-      [{ type: "text", text: "Done" }, { type: "done", stopReason: "stop" }],
+      [
+        {
+          type: "tool_use",
+          id: "write-after-reading",
+          name: "upsert_menu",
+          input: { menu: validMenu },
+        },
+        { type: "done", stopReason: "tool_calls" },
+      ],
+      [
+        { type: "text", text: "Done" },
+        { type: "done", stopReason: "stop" },
+      ],
     ]);
-    const events = await collect(runTurn({ provider, model: "m", messages: [], wc: new WorkingCopy([], { "local.yml": "content" }) }));
-    expect(events.filter((e) => e.type === "tool" && !e.ok).map((e) => e.name)).toEqual(["read_attachment", "upsert_menu", "write_translations"]);
+    const events = await collect(
+      runTurn({
+        provider,
+        model: "m",
+        messages: [],
+        wc: new WorkingCopy([], { "local.yml": "content" }),
+      }),
+    );
+    expect(events.filter((e) => e.type === "tool" && !e.ok).map((e) => e.name)).toEqual([
+      "read_attachment",
+      "upsert_menu",
+      "write_translations",
+    ]);
     expect(events.filter((e) => e.type === "menu_written")).toHaveLength(1);
     expect(events.some((e) => e.type === "translations_written")).toBe(false);
     expect(events.at(-1)).toEqual({ type: "done", stopReason: "stop" });
@@ -105,23 +216,52 @@ describe("runTurn", () => {
 
   it("cannot satisfy the read requirement using a missing attachment", async () => {
     const provider = scriptedProvider([
-      [{ type: "tool_use", id: "bad", name: "read_attachment", input: { file_id: "missing.yml" } }, { type: "done", stopReason: "tool_calls" }],
-      [{ type: "text", text: "Unfounded" }, { type: "done", stopReason: "stop" }],
-      [{ type: "text", text: "Still unfounded" }, { type: "done", stopReason: "stop" }],
+      [
+        { type: "tool_use", id: "bad", name: "read_attachment", input: { file_id: "missing.yml" } },
+        { type: "done", stopReason: "tool_calls" },
+      ],
+      [
+        { type: "text", text: "Unfounded" },
+        { type: "done", stopReason: "stop" },
+      ],
+      [
+        { type: "text", text: "Still unfounded" },
+        { type: "done", stopReason: "stop" },
+      ],
     ]);
-    const events = await collect(runTurn({ provider, model: "m", messages: [], wc: new WorkingCopy([], { "local.yml": "" }) }));
+    const events = await collect(
+      runTurn({ provider, model: "m", messages: [], wc: new WorkingCopy([], { "local.yml": "" }) }),
+    );
     expect(events.filter((e) => e.type === "text")).toEqual([]);
-    expect(events.find((e) => e.type === "error")).toMatchObject({ code: "attachments_not_read", readCount: 0, totalCount: 1 });
+    expect(events.find((e) => e.type === "error")).toMatchObject({
+      code: "attachments_not_read",
+      readCount: 0,
+      totalCount: 1,
+    });
   });
 
   it("self-corrects after an invalid upsert, then writes the menu", async () => {
     const provider = scriptedProvider([
       // turn 1: invalid upsert (size 13)
-      [{ type: "tool_use", id: "c1", name: "upsert_menu", input: { menu: { ...validMenu, size: 13 } } }, { type: "done", stopReason: "tool_calls" }],
+      [
+        {
+          type: "tool_use",
+          id: "c1",
+          name: "upsert_menu",
+          input: { menu: { ...validMenu, size: 13 } },
+        },
+        { type: "done", stopReason: "tool_calls" },
+      ],
       // turn 2: corrected upsert
-      [{ type: "tool_use", id: "c2", name: "upsert_menu", input: { menu: validMenu } }, { type: "done", stopReason: "tool_calls" }],
+      [
+        { type: "tool_use", id: "c2", name: "upsert_menu", input: { menu: validMenu } },
+        { type: "done", stopReason: "tool_calls" },
+      ],
       // turn 3: final text, no tools
-      [{ type: "text", text: "Done." }, { type: "done", stopReason: "end_turn" }],
+      [
+        { type: "text", text: "Done." },
+        { type: "done", stopReason: "end_turn" },
+      ],
     ]);
     const wc = new WorkingCopy();
     const messages: any[] = [{ role: "user", content: "make a shop" }];
@@ -144,7 +284,9 @@ describe("runTurn", () => {
       },
     };
     const messages: any[] = [{ role: "user", content: "hi" }];
-    await collect(runTurn({ provider, model: "m", messages, wc: new WorkingCopy(), system: "SYS" }));
+    await collect(
+      runTurn({ provider, model: "m", messages, wc: new WorkingCopy(), system: "SYS" }),
+    );
 
     // Provider saw the system prefix then the user message.
     expect(seen[0]).toEqual({ role: "system" });
@@ -155,9 +297,24 @@ describe("runTurn", () => {
   });
 
   it("stops at the iteration cap if the model never stops calling tools", async () => {
-    const loopTurn: LlmStreamEvent[] = [{ type: "tool_use", id: "x", name: "list_menus", input: {} }, { type: "done", stopReason: "tool_calls" }];
-    const provider: LlmProvider = { async *streamTurn() { for (const e of loopTurn) yield e; } };
-    const events = await collect(runTurn({ provider, model: "m", messages: [{ role: "user", content: "loop" }], wc: new WorkingCopy(), maxIterations: 3 }));
+    const loopTurn: LlmStreamEvent[] = [
+      { type: "tool_use", id: "x", name: "list_menus", input: {} },
+      { type: "done", stopReason: "tool_calls" },
+    ];
+    const provider: LlmProvider = {
+      async *streamTurn() {
+        for (const e of loopTurn) yield e;
+      },
+    };
+    const events = await collect(
+      runTurn({
+        provider,
+        model: "m",
+        messages: [{ role: "user", content: "loop" }],
+        wc: new WorkingCopy(),
+        maxIterations: 3,
+      }),
+    );
     expect(events.some((e) => e.type === "error")).toBe(true);
     expect(events.at(-1)).toEqual({ type: "done", stopReason: "max_iterations" });
   });

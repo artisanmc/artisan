@@ -18,13 +18,15 @@ export class LlmRequestError extends Error {
 
 export type LlmStreamEvent =
 	| { type: "text"; text: string }
+	| { type: "reasoning"; text: string }
 	| { type: "tool_use"; id: string; name: string; input: unknown }
 	| { type: "usage"; usage: LlmUsage }
 	| { type: "done"; stopReason: string };
 
 /** Count retained payload, not stream framing repeated for every token. */
 export function streamPayloadBytes(event: LlmStreamEvent): number {
-	if (event.type === "text") return Buffer.byteLength(event.text);
+	if (event.type === "text" || event.type === "reasoning")
+		return Buffer.byteLength(event.text);
 	if (event.type === "tool_use")
 		return (
 			Buffer.byteLength(event.id) +
@@ -40,6 +42,7 @@ export type LlmMessage =
 	| {
 			role: "assistant";
 			content: string | null;
+			reasoningContent?: string;
 			toolCalls?: { id: string; name: string; arguments: string }[];
 	  }
 	| { role: "tool"; toolCallId: string; content: string; isError?: boolean };
@@ -63,5 +66,6 @@ export interface LlmProvider {
 		maxRetries?: number;
 		requireExplicitFinish?: boolean;
 		maxResponseBytes?: number;
+		includeReasoning?: boolean;
 	}): AsyncIterable<LlmStreamEvent>;
 }

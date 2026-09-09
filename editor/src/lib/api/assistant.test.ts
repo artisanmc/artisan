@@ -20,6 +20,15 @@ function sseResponse(frames: string[]): Response {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("assistant SSE client", () => {
+	it("accepts a persistent task without holding a streaming connection", async () => {
+		const task = { id: "task-1", status: "queued", events: [] };
+		const fetchMock = vi.fn(async () => new Response(JSON.stringify({ task }), { status: 202 }));
+		vi.stubGlobal("fetch", fetchMock);
+		const events = [];
+		for await (const event of streamAssistant("c1", { text: "migrate", background: true, requestId: "request-1" })) events.push(event);
+		expect(events).toEqual([{ type: "task", task }, { type: "done", stopReason: "task_accepted" }]);
+		expect(fetchMock).toHaveBeenCalledTimes(1);
+	});
   it("ignores heartbeats so they cannot consume the pending composer snapshot", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => sseResponse([
       'event: heartbeat\ndata: {"type":"heartbeat"}',

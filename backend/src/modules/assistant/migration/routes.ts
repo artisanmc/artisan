@@ -37,7 +37,7 @@ export interface MigrationRouteDependencies {
 		model: NonNullable<Awaited<ReturnType<typeof getModel>>>,
 	) => Promise<boolean>;
 	/** Must dispatch detached work; it must not wait for provider completion. */
-	startExecution?: (runId: string) => void;
+	startExecution?: (runId: string) => void | Promise<void>;
 }
 
 export type MigrationRouteEnv = {
@@ -330,7 +330,7 @@ export function buildMigrationRouter(
 			const updated = await transitionRun(run.id, run.revision, action);
 			if (action === "start" || action === "resume" || action === "compress") {
 				try {
-					deps.startExecution?.(run.id);
+					await deps.startExecution?.(run.id);
 				} catch {
 					return c.json(
 						{

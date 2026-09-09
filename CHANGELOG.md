@@ -9,6 +9,11 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Added — background assistant tasks
+
+- Run chat requests server-side independently of browser connections, with idempotent acceptance, durable activity/results and explicit Stop (migration 0035).
+- Expose live activity and provider reasoning; let chat invoke resumable menu migration without a separate mode. Applying proposals to the draft remains explicit and detects intervening edits.
+
 ### Added — Google sign-in
 
 - Add Google sign-in on login and signup, with verified Gmail/Workspace email linking to an existing Artisan account while preserving its password and access.

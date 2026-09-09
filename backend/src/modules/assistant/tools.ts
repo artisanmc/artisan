@@ -5,6 +5,9 @@ import type { WorkingCopy, MenuV1, CommandV1, DialogV1 } from "./workingCopy";
 
 export type EngineEvent =
   | { type: "text"; text: string }
+  | { type: "reasoning"; text: string }
+  | { type: "activity"; name: string; target?: string }
+  | { type: "migration_started"; runId: string }
   | { type: "tool"; name: string; ok: boolean; detail?: string }
   | { type: "menu_written"; menu: MenuV1 }
   | { type: "menu_deleted"; id: string }

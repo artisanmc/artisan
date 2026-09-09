@@ -29,6 +29,7 @@ export class OpenAICompatibleProvider implements LlmProvider {
 		maxRetries?: number;
 		requireExplicitFinish?: boolean;
 		maxResponseBytes?: number;
+		includeReasoning?: boolean;
 	}): AsyncIterable<LlmStreamEvent> {
 		const messages = args.messages.map((m) => {
 			switch (m.role) {
@@ -46,6 +47,9 @@ export class OpenAICompatibleProvider implements LlmProvider {
 					return {
 						role: "assistant",
 						content: m.content,
+						...(m.reasoningContent !== undefined
+							? { reasoning_content: m.reasoningContent }
+							: {}),
 						...(m.toolCalls && m.toolCalls.length > 0
 							? {
 									tool_calls: m.toolCalls.map((tc) => ({
@@ -109,6 +113,8 @@ export class OpenAICompatibleProvider implements LlmProvider {
 			const delta = choice?.delta;
 			if (args.maxResponseBytes !== undefined) {
 				responseBytes += Buffer.byteLength(delta?.content ?? "");
+				if (args.includeReasoning)
+					responseBytes += Buffer.byteLength(delta?.reasoning_content ?? "");
 				for (const tc of delta?.tool_calls ?? []) {
 					responseBytes +=
 						Buffer.byteLength(tc.id ?? "") +
@@ -119,6 +125,8 @@ export class OpenAICompatibleProvider implements LlmProvider {
 					throw new LlmRequestError("response_buffer_exceeded");
 			}
 			if (delta?.content) yield { type: "text", text: delta.content };
+			if (args.includeReasoning && delta?.reasoning_content)
+				yield { type: "reasoning", text: delta.reasoning_content };
 			if (delta?.tool_calls) {
 				for (const tc of delta.tool_calls) {
 					const cur = acc.get(tc.index) ?? { id: "", name: "", args: "" };
