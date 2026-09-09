@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AuthCard } from "./AuthCard";
 import { DiscordLoginButton } from "./DiscordLoginButton";
+import { GoogleLoginButton } from "./GoogleLoginButton";
 
 interface Props {
   apiUrl: string;
@@ -84,6 +85,7 @@ export function SignupForm({ apiUrl, onSuccess }: Props) {
           <span className="h-px flex-1 bg-[var(--border-soft)]" />
         </div>
 
+        <GoogleLoginButton apiUrl={apiUrl} />
         <DiscordLoginButton apiUrl={apiUrl} />
       </form>
 
