@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { isToolFailure, toolFailure, toolFeedback } from "./toolErrors";
 import { streamPayloadBytes } from "../provider/types";
 import { assistantFailureCode } from "../transport";
 import {
@@ -123,7 +124,7 @@ export function sourceTools(
 					typeof args.fileId !== "string" ||
 					!input.manifest.entries.some((e) => e.fileId === args.fileId)
 				)
-					throw new MigrationInputError("invalid_tool");
+					throw toolFailure(name, "unselected_source");
 				const offset = args.offset ?? 0;
 				const raw = input.attachments[args.fileId];
 				if (
@@ -132,7 +133,7 @@ export function sourceTools(
 					offset < 0 ||
 					offset > raw.length
 				)
-					throw new MigrationInputError("invalid_tool");
+					throw toolFailure(name, "invalid_offset");
 				inspected.add(args.fileId);
 				let end = Math.min(raw.length, offset + 12000);
 				// Tool JSON is itself encoded inside a message's content string.
@@ -236,6 +237,7 @@ export async function agentLoop<T>(
 		...snapshot(),
 	});
 	let compressed = false;
+	let invalidRounds = 0;
 	try {
 		if (input.continuation?.compact) {
 			messages = await compressMessages(input, messages);
@@ -286,27 +288,56 @@ export async function agentLoop<T>(
 				})),
 			});
 			let result: T | undefined;
-			for (const call of calls) {
-				if (
-					!call.input ||
-					typeof call.input !== "object" ||
-					Array.isArray(call.input)
-				)
-					throw new MigrationInputError("invalid_tool");
-				const outcome = execute(
-					call.name,
-					call.input as Record<string, unknown>,
+			let failure: string | undefined;
+			const mixedProposal =
+				calls.length > 1 &&
+				calls.some((call) =>
+					["upsert_menu", "submit_plan"].includes(call.name),
 				);
-				messages.push({
-					role: "tool",
-					toolCallId: call.id,
-					content: outcome.content,
-				});
-				if (outcome.result !== undefined) {
-					if (calls.length !== 1) throw new MigrationInputError("invalid_tool");
-					result = outcome.result;
+			for (const call of calls) {
+				try {
+					if (mixedProposal) throw toolFailure(call.name, "mixed_proposal");
+					if (!tools.some((tool) => tool.name === call.name))
+						throw toolFailure(call.name, "unknown_tool");
+					if (
+						!call.input ||
+						typeof call.input !== "object" ||
+						Array.isArray(call.input)
+					)
+						throw new MigrationInputError("invalid_tool");
+					const outcome = execute(
+						call.name,
+						call.input as Record<string, unknown>,
+					);
+					messages.push({
+						role: "tool",
+						toolCallId: call.id,
+						content: outcome.content,
+					});
+					if (outcome.result !== undefined) {
+						if (calls.length !== 1)
+							throw new MigrationInputError("invalid_tool");
+						result = outcome.result;
+					}
+				} catch (error) {
+					if (
+						!(error instanceof MigrationInputError) ||
+						(error.code !== "invalid_tool" && !isToolFailure(error.code))
+					)
+						throw error;
+					failure = isToolFailure(error.code)
+						? error.code
+						: toolFailure(call.name, "invalid_arguments").code;
+					messages.push({
+						role: "tool",
+						toolCallId: call.id,
+						content: toolFeedback(failure),
+						isError: true,
+					});
 				}
 			}
+			if (failure && ++invalidRounds >= 3)
+				throw new MigrationPausedError(failure, checkpoint());
 			if (result !== undefined) return result;
 		}
 		throw new MigrationInputError("migration_attempt_limit");
