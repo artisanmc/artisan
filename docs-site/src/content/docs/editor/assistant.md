@@ -116,6 +116,11 @@ draft will fit in the browser's remaining quota.
 
 ## Requirements
 
+When a migration pauses, the explanation includes its interruption code. A pause
+does not necessarily indicate a connection problem: `missing_proposal` means the
+AI returned no tool action, while `tool_batch_limit` means more than 256 actions
+were requested in one response. Repeating a deterministic error may fail again.
+
 The assistant needs an AI provider configured on the server side. If it isn't
 set up, the assistant is unavailable — ask your server admin to configure a
 provider. Nothing the assistant produces is published to your live server until

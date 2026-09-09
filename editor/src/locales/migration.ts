@@ -50,10 +50,20 @@ export const migrationEn = {
 		blocked: "Cannot apply safely",
 	},
 	errors: {
+		missing_proposal:
+			"The AI ended its response without the required tool action. No result was saved for this step.",
+		invalid_tool:
+			"The AI requested an invalid tool action. This is not a connection failure.",
+		tool_batch_limit:
+			"The AI requested more than 256 tool actions in one response. This step was stopped safely.",
+		migration_attempt_limit:
+			"The exploration or retry limit was reached. Repeating the same request may fail again; review the sources before starting a new migration.",
+		invalid_plan:
+			"The exploration plan could not be validated. Review the source selection and target names.",
 		source_analysis_incomplete:
 			"Automatic source analysis was incomplete. The AI will read the original text; check the repaired syntax and links before saving.",
 		migration_error:
-			"The operation could not finish. Check the connection and try the action again.",
+			"The operation stopped. Use the interruption code to identify the cause before retrying.",
 		invalid_budget:
 			"Enter a whole-number budget between 1 and 1,000,000 credits.",
 		revision_conflict:
@@ -160,10 +170,20 @@ export const migrationFr = {
 		blocked: "Application bloquée par sécurité",
 	},
 	errors: {
+		missing_proposal:
+			"L’IA a terminé sa réponse sans effectuer l’action attendue. Aucun résultat n’a été enregistré pour cette étape.",
+		invalid_tool:
+			"L’IA a demandé une action invalide. Ce n’est pas une erreur de connexion.",
+		tool_batch_limit:
+			"L’IA a demandé plus de 256 actions dans une seule réponse. L’étape a été arrêtée par sécurité.",
+		migration_attempt_limit:
+			"La limite d’exploration ou de tentatives est atteinte. Reprendre à l’identique risque de répéter l’échec ; vérifiez les sources avant une nouvelle migration.",
+		invalid_plan:
+			"Le plan d’exploration n’a pas pu être validé. Vérifiez la sélection et les noms de destination.",
 		source_analysis_incomplete:
 			"L’analyse automatique du fichier est incomplète. L’IA lira le texte original ; vérifiez la syntaxe réparée et les liens avant d’enregistrer.",
 		migration_error:
-			"L’opération n’a pas abouti. Vérifiez la connexion puis réessayez l’action.",
+			"L’opération s’est arrêtée. Le code d’interruption permet d’identifier la cause avant de réessayer.",
 		invalid_budget: "Saisissez un budget entier entre 1 et 1 000 000 crédits.",
 		revision_conflict:
 			"La migration a changé ailleurs. Son dernier état a été chargé ; choisissez à nouveau l’action.",

@@ -598,6 +598,7 @@ export interface InterruptStepInput {
 	usageInput?: UsageInput;
 }
 const FAILURE_CODES = new Set([
+	"tool_batch_limit",
 	"invalid_plan",
 	"insufficient_credits",
 	"provider_timeout",

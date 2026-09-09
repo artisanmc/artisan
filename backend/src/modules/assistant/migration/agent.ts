@@ -235,8 +235,8 @@ export async function agentLoop<T>(
 			throw new MigrationInputError("provider_output_limit");
 		if (!["tool_calls", "stop", "end_turn"].includes(stop))
 			throw new MigrationInputError("provider_error");
-		if (!calls.length || calls.length > 8)
-			throw new MigrationInputError("missing_proposal");
+		if (!calls.length) throw new MigrationInputError("missing_proposal");
+		if (calls.length > 256) throw new MigrationInputError("tool_batch_limit");
 		messages.push({
 			role: "assistant",
 			content: null,
