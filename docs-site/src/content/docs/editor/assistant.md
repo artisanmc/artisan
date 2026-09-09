@@ -3,10 +3,9 @@ title: AI Assistant
 description: Describe a menu in plain language — or drop a zmenu / DeluxeMenus file — and let the assistant build it on your canvas.
 ---
 
-The AI Assistant is a chat panel inside the editor that creates and edits menus
-for you. Describe what you want in plain language, and the assistant writes the
-menu straight onto your canvas — titles, slots, click actions and all. You can
-keep chatting to refine it.
+The AI Assistant is a chat panel inside the editor that proposes menus and edits
+from plain-language requests. Review its results, choose **Apply to draft**, then
+**Save** to publish. You can keep chatting to refine your request.
 
 ## Opening the panel
 
@@ -22,12 +21,20 @@ Examples:
 - "Add a back button to the bottom-left of the current menu."
 - "Rename the title to **Daily Rewards**."
 
-As the assistant works, its reply streams in, and any menu it creates or changes
-appears on your canvas immediately. A small line in the transcript notes each
-menu it **created / updated** or **deleted** by id. Everything it does is part of
-your normal edit history, so you can **undo** it like any other change.
+Once accepted, a task runs on the server even if you reload or close the page.
+Reopen the conversation to recover its activity and results. **Stop** explicitly
+cancels the task; losing the tracking connection does not cancel it. Elapsed time,
+the current action and the activity log show progress. **Model reasoning** is
+available when the provider supplies it; a responding server does not prove that
+the model has produced new output. Errors preserve existing results without an
+automatic paid retry. A backend restart can interrupt the worker and require an
+explicit continuation; browser reloads do not.
 
-## Importing from zmenu / DeluxeMenus
+Changes are proposals, not immediate edits. **Apply to draft** checks that your
+draft has not changed since the task started. Review conflicts instead of
+overwriting newer work; **Save** remains the publishing step.
+
+## Importing from another menu plugin
 
 Have an existing menu from another plugin? **Drag the `.yml` file onto the chat
 panel**, or choose **📎 → From my device** next to the message box to pick
@@ -83,21 +90,25 @@ needed, ask your administrator to configure an allowed source such as
 `patterns/`, `action_patterns/` or `actions_patterns/` paths. Do not select unrelated
 plugin configuration files.
 
-Choose **Migrate this selection**, then **Analyze selection**. There is no separate
-credit budget to enter. Analysis indexes files and links without calling the AI.
-Resolve duplicate or existing target names and review warnings before choosing
-**Start migration**.
+Attach the complete selection and ask in chat, for example: "Migrate these menus
+into Artisan, preserving their shared navigation." There is no migration mode
+or separate migration credit budget to choose. For server-source migrations,
+the assistant can explore the sources and prepare a resumable conversion. The
+flow accepts menu plugins beyond zMenu, rather than requiring a plugin-specific
+parser. The migration card provides saved progress, results and explicit resume
+or compression controls when needed.
 
 Source YAML does not have to be syntactically valid: when static analysis fails,
 the AI receives the original text and attempts the conversion. A warning identifies
 sources whose dependencies could not be indexed. Review repaired syntax and links;
 generated Artisan menus still have to pass validation. Size/context limits remain.
 
-Artisan converts one menu at a time, using bounded shared context and an index of
-the other targets. **Pause after this menu** stops before the next menu; the
-current one may finish. Reopening the same conversation shows saved progress
-without restarting generation. **Resume migration** continues unfinished menus;
-generated results are retained after interruptions or cancellation.
+Artisan converts one menu at a time, retaining the target index and shared
+dependencies. Reopening the conversation restores progress without restarting
+generation. **Stop** cancels the active chat task and its conversion. Following
+a blocking error, **Resume migration** continues unfinished menus; generated
+results are retained after interruptions or cancellation. Earlier standalone
+migrations remain available in **Earlier migrations** with their legacy controls.
 
 Use **Apply to draft** or **Apply available results**, review the menus, then
 **Save** to publish. “Generation complete” does not confirm that every behavior
@@ -119,7 +130,7 @@ including when resuming older migrations; Artisan no longer requests an 8,000-to
 output ceiling. `provider_output_limit` means the provider stopped generation
 at its output limit. Incomplete proposals are never applied. A separate
 `response_buffer_exceeded` guard bounds retained response data to 1 MiB, excluding
-repeated streaming metadata and discarded reasoning. Explicit compression keeps
+repeated streaming metadata. Retained reasoning counts as response data. Explicit compression keeps
 its smaller summary output allowance.
 Agentic conversion includes a compact target index and the current task's notes;
 other exploration reports and task details remain available through tools.

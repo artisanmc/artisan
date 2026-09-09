@@ -30,6 +30,8 @@ import {
 import { MigrationInputError } from "./types";
 
 export interface MigrationRunnerDependencies {
+	signal?: AbortSignal;
+	onActivity?: AgentInput["onActivity"];
 	providerFor?: (model: AiModel) => Promise<LlmProvider | null>;
 	readSources?: ImportSourcesReadFn;
 	leaseIntervalMs?: number;
@@ -77,6 +79,10 @@ export async function executeMigration(
 		let compressionCredits = 0;
 		let model: AiModel | null = null;
 		const controller = new AbortController();
+		const abort = () =>
+			controller.abort(new MigrationInputError("provider_cancelled"));
+		if (deps.signal?.aborted) abort();
+		deps.signal?.addEventListener("abort", abort, { once: true });
 		let renewing: Promise<void> | undefined;
 		const timer = setInterval(() => {
 			if (renewing) return;
@@ -99,6 +105,7 @@ export async function executeMigration(
 					: 240000),
 		);
 		const stopMonitoring = async () => {
+			deps.signal?.removeEventListener("abort", abort);
 			clearInterval(timer);
 			clearTimeout(timeout);
 			await renewing;
@@ -150,6 +157,7 @@ export async function executeMigration(
 				targetId: string;
 			} = {
 				provider,
+				onActivity: deps.onActivity,
 				continuation: claim.continuation,
 				onCompacted: async (continuation) => {
 					controller.signal.throwIfAborted();
@@ -224,6 +232,11 @@ export async function executeMigration(
 					proposal,
 					usageInput: usageInput(model),
 				});
+			await deps.onActivity?.({
+				type: "activity",
+				name: discovered ? "migration_planned" : "menu_completed",
+				target: claim.step.targetId,
+			});
 		} catch (error) {
 			const reason = controller.signal.aborted
 				? controller.signal.reason

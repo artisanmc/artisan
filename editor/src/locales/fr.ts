@@ -1,3 +1,4 @@
+import { tasksFr } from "./tasks";
 import type en from "./en";
 import { migrationFr } from "./migration";
 
@@ -1919,6 +1920,7 @@ const fr: typeof en = {
     },
   },
   assistant: {
+    tasks: tasksFr,
     migration: migrationFr,
     title: "Assistant IA",
     open: "Assistant IA",

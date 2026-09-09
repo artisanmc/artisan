@@ -32,12 +32,15 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { type ServerAttachmentGroup, ServerImportSourceDialog } from "./ServerImportSourceDialog";
 import { MigrationPanel } from "./MigrationPanel";
+import { TaskTimeline } from "./TaskTimeline";
+import { applyTaskProposals } from "./taskProposals";
 
 type Entry =
   | { role: "user" | "assistant"; text: string }
   | { role: "card"; kind: "written" | "deleted"; id: string };
 
 type SentMessage = {
+  requestId?: string;
   text: string;
   attachments: Record<string, string>;
   serverGroups: ServerAttachmentGroup[];
@@ -129,6 +132,10 @@ export function AssistantChat({
   const [entries, setEntries] = useState<Entry[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  const [taskBusy, setTaskBusy] = useState(false);
+  const [taskRefresh, setTaskRefresh] = useState(0);
+  const [taskOffset, setTaskOffset] = useState<number | null>(null);
+  const [transcriptMessages, setTranscriptMessages] = useState<ConversationMessage[]>([]);
   const [preparingSend, setPreparingSend] = useState(false);
   const [sendingFiles, setSendingFiles] = useState(false);
   const [activity, setActivity] = useState<string | null>(null);
@@ -149,7 +156,9 @@ export function AssistantChat({
   const openingConversation = useRef<Promise<string> | null>(null);
   async function ensureConversation(): Promise<string> {
     if (!convId.current) {
-      openingConversation.current ??= openConversation({ projectId }).finally(() => { openingConversation.current = null; });
+      openingConversation.current ??= openConversation({ projectId }).finally(() => {
+        openingConversation.current = null;
+      });
       convId.current = await openingConversation.current;
     }
     if (mounted.current) setMigrationConversationId(convId.current);
@@ -169,7 +178,10 @@ export function AssistantChat({
     let cancelled = false;
     getConversation(conversationId)
       .then((c) => {
-        if (!cancelled) setEntries(messagesToEntries(c.messages));
+        if (!cancelled) {
+          setEntries(messagesToEntries(c.messages));
+          setTranscriptMessages(c.messages);
+        }
       })
       .catch(() => {});
     return () => {
@@ -206,7 +218,7 @@ export function AssistantChat({
   }
 
   async function send(retry?: SentMessage) {
-    if (sending.current || outOfCredits) return;
+    if (sending.current || outOfCredits || taskBusy) return;
     const message = retry ?? {
       text: input.trim(),
       attachments: { ...attachments },
@@ -215,6 +227,7 @@ export function AssistantChat({
         files: group.files.map((file) => ({ ...file })),
       })),
       modelId,
+      requestId: crypto.randomUUID(),
     };
     const { text } = message;
     const attachedNames = [
@@ -255,8 +268,10 @@ export function AssistantChat({
         await ensureConversation();
       }
       if (!mounted.current) return;
-      const stream = streamAssistant(convId.current ?? await ensureConversation(), {
+      const stream = streamAssistant(convId.current ?? (await ensureConversation()), {
         text,
+        background: true,
+        requestId: message.requestId ?? crypto.randomUUID(),
         menus,
         attachments: message.attachments,
         serverAttachments: message.serverGroups.map((group) => ({
@@ -286,6 +301,11 @@ export function AssistantChat({
       }
       function handleAssistantEvent(ev: AssistantEvent) {
         if (!mounted.current) return;
+        if (ev.type === "task") {
+          setTaskBusy(true);
+          setTaskRefresh((value) => value + 1);
+          return;
+        }
         if (ev.type === "done") completed = true;
         if (ev.type === "text") {
           // Once the model starts writing its answer, the streamed text is the
@@ -463,12 +483,26 @@ export function AssistantChat({
       )}
 
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
-        <MigrationPanel projectId={projectId} conversationId={migrationConversationId} ensureConversation={ensureConversation} modelId={modelId} groups={serverGroups} disabled={busy || !serverOnline} />
+        <details className="text-xs text-[var(--text-mut)]">
+          <summary className="cursor-pointer">{t("assistant.tasks.previousMigrations")}</summary>
+          <MigrationPanel
+            historyOnly
+            projectId={projectId}
+            conversationId={migrationConversationId}
+            ensureConversation={ensureConversation}
+            modelId={modelId}
+            groups={serverGroups}
+            disabled={busy || !serverOnline}
+          />
+        </details>
         <div
           data-testid="assistant-transcript"
           className="flex flex-col gap-2 text-[13px] text-[var(--text)]"
         >
-          {entries.map((en, i) =>
+          {(taskOffset === null
+            ? entries
+            : messagesToEntries(transcriptMessages.slice(0, taskOffset))
+          ).map((en, i) =>
             en.role === "card" ? (
               <div
                 // biome-ignore lint/suspicious/noArrayIndexKey: transcript entries are append-only and stable within a render
@@ -521,6 +555,33 @@ export function AssistantChat({
             </button>
           )}
         </div>
+        <TaskTimeline
+          conversationId={migrationConversationId}
+          refresh={taskRefresh}
+          onBusy={setTaskBusy}
+          onTranscriptOffset={setTaskOffset}
+          renderMigration={(runId) => (
+            <MigrationPanel
+              historyOnly
+              preferredRunId={runId}
+              projectId={projectId}
+              conversationId={migrationConversationId}
+              ensureConversation={ensureConversation}
+              modelId={modelId}
+              groups={[]}
+              disabled={false}
+            />
+          )}
+          onApply={async (task) => {
+            try {
+              await applyTaskProposals(task, projectId);
+            } catch (error) {
+              if (error instanceof Error && error.message === "task_draft_conflict")
+                throw new Error(t("assistant.tasks.conflict"));
+              throw error;
+            }
+          }}
+        />
       </div>
 
       {attachmentCount > 0 && (
@@ -694,7 +755,7 @@ export function AssistantChat({
             placeholder={t("assistant.placeholder")}
             aria-label={t("assistant.title")}
             rows={2}
-            disabled={outOfCredits || busy}
+            disabled={outOfCredits || busy || taskBusy}
             className="min-h-[44px] flex-1 resize-none rounded-[10px] border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2 text-[13px] text-[var(--text)] outline-none focus:border-[var(--border-strong)] disabled:opacity-50"
           />
           <button
@@ -702,6 +763,7 @@ export function AssistantChat({
             disabled={
               outOfCredits ||
               busy ||
+              taskBusy ||
               (input.trim().length === 0 && attachmentCount === 0 && serverFileCount === 0)
             }
             onClick={() => void send()}

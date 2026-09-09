@@ -653,3 +653,18 @@ export const stripeEvents = pgTable("stripe_events", {
 	type: text("type").notNull(),
 	processedAt: timestamp("processed_at").notNull(),
 });
+
+export const assistantTasks = pgTable("assistant_tasks", {
+	id: text("id").primaryKey(),
+	conversationId: text("conversation_id").notNull().references(() => assistantConversations.id, { onDelete: "cascade" }),
+	requestId: text("request_id").notNull(),
+	requestHash: text("request_hash").notNull(),
+	status: text("status").notNull(),
+	message: text("message").notNull(),
+	events: jsonb("events").notNull().default([]),
+	createdAt: timestamp("created_at").notNull(),
+	updatedAt: timestamp("updated_at").notNull(),
+}, (t) => ({
+	requestUnique: uniqueIndex("assistant_tasks_request_uniq").on(t.conversationId, t.requestId),
+	activeUnique: uniqueIndex("assistant_tasks_active_uniq").on(t.conversationId).where(sql`status in ('queued', 'running', 'stopping')`),
+}));

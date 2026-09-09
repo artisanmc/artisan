@@ -246,6 +246,13 @@
       "when": 1788944854165,
       "tag": "0034_brown_famine",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1788961127780,
+      "tag": "0035_bouncy_banshee",
+      "breakpoints": true
     }
   ]
 }
