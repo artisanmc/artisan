@@ -26,6 +26,7 @@ Dernière révision : 2026-06-19.
 | **Drag & drop** | @dnd-kit/core | react-beautiful-dnd | Performant, accessible, maintenu. |
 | **MiniMessage** | Custom TS parser (~500 LOC) | npm @minecraft-js/minimessage, adventure-webui | Zéro dépendance, intégration native avec l'autocomplete i18n/PAPI. adventure-webui sert de référence visuelle (MIT). |
 | **Tests backend** | `bun:test` | Vitest, Jest | Natif Bun, zero config. |
+| **Google ID tokens** | `jose` 6 (RS256 + cached remote Google JWKS) | Hand-written JWT/signature verification | Standard verification of issuer, audience and expiry on Bun; Google authorization-code flow additionally binds state, nonce and PKCE. |
 | **Tests editor** | Vitest + Playwright | Jest, Cypress | Vitest s'intègre à Vite. Playwright > Cypress en 2026. |
 | **Tests plugin** | JUnit 5 + MockBukkit + MockWebServer | - | Standards Paper/Bukkit. MockWebServer (OkHttp) pour simuler le backend en intégration. |
 | **Lint / format** | Biome (editor) | ESLint + Prettier | Un binaire, plus rapide. |

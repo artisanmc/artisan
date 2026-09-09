@@ -17,6 +17,7 @@ export default defineConfig({
           label: 'Editor',
           items: [
             { label: 'Overview', slug: 'editor' },
+            { label: 'Sign in', slug: 'editor/sign-in' },
             { label: 'Expressions', slug: 'editor/expressions' },
             { label: 'Custom heads', slug: 'editor/custom-heads' },
             { label: 'Advanced item parameters', slug: 'editor/item-details' },
