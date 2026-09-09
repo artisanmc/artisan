@@ -9,6 +9,17 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Added — plugin-independent menu migration
+
+- Start directly from selected sources: the AI explores raw text, searches dependencies, plans multiple menus per file when needed, and reports conversion limitations. No zMenu parser is required for new runs.
+- Checkpoint the exploration plan and its credit debit atomically; resume completed plans without repeating discovery. Generated menus are schema-validated before draft application; original files remain untouched.
+
+### Fixed — migration input flexibility
+
+- Remove the migration-specific credit cap, including enforcement of legacy caps; retain network balance and per-turn safety checks.
+- Pass malformed YAML source text to the AI with an incomplete-analysis warning instead of rejecting the selection with `invalid_yaml`; generated menus remain validated.
+- Skip PostHog initialization and pageview capture when its project token is absent.
+
 ### Added — resumable migration state
 
 - Add authorized zMenu migration manifests, durable steps/proposals/events and revision-checked start/pause/resume/cancel endpoints, with source-change detection and idempotent checkpoint billing. Source YAML remains transient; proposals do not publish automatically.

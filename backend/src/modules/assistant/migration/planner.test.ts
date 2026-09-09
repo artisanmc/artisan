@@ -28,6 +28,23 @@ const menu = {
 		},
 	],
 };
+test("passes malformed source unchanged to the AI and validates the repaired output", async () => {
+	const raw = "size: 9\nitems: [BROKEN_SOURCE";
+	const sources = { ...attachments, "server:z/a.yml": raw };
+	const index = buildManifest(sources, { existingTargetIds: [] });
+	const provider: LlmProvider = {
+		async *streamTurn(input) {
+			const context = JSON.parse(input.messages[1].content ?? "{}");
+			expect(context.sources[0].content).toBe(raw);
+			yield { type: "usage", usage: { inputTokens: 100, outputTokens: 20 } };
+			yield { type: "tool_use", id: "repair", name: "upsert_menu", input: { menu } };
+			yield { type: "done", stopReason: "tool_calls" };
+		},
+	};
+	const result = await convertMigrationStep({ provider, model: "test", manifest: index, sourceFileId: "server:z/a.yml", attachments: sources, contextTokens: 64000, maxOutputTokens: 4000, signal: new AbortController().signal, onUsage: () => {}, canCall: () => true });
+	expect(result.menu).toEqual(menu);
+	expect(result.issues[0]?.code).toBe("source_analysis_incomplete");
+});
 test("converts one reserved menu with bounded context and returns a validated proposal", async () => {
 	const provider: LlmProvider = {
 		async *streamTurn(input) {

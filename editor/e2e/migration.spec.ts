@@ -83,7 +83,7 @@ test("35 connected menus survive interruption, browser reload, explicit resume a
 			creations++;
 			const body = request.postDataJSON();
 			expect(body.serverAttachments[0].paths).toHaveLength(35);
-			expect(body.maxCredits).toBe(100);
+			expect(body).not.toHaveProperty("maxCredits");
 			run = {
 				id: "r",
 				conversationId: "c",
@@ -188,12 +188,8 @@ test("35 connected menus survive interruption, browser reload, explicit resume a
 	await page
 		.getByRole("button", { name: "Migrate this selection", exact: true })
 		.click();
-	await page
-		.getByRole("spinbutton", { name: "Accepted budget (credits)" })
-		.fill("100");
-	await page
-		.getByRole("button", { name: "Analyze selection", exact: true })
-		.click();
+	await expect(page.getByRole("spinbutton")).toHaveCount(0);
+	await expect(page.getByRole("button", { name: "Analyze selection", exact: true })).toHaveCount(0);
 	await page
 		.getByRole("button", { name: "Start migration", exact: true })
 		.click();

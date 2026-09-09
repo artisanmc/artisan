@@ -28,15 +28,16 @@ the model you chose.
 Your balance comes from your server admin — if you need more credits, contact them or ask
 about purchasing options.
 
-## Resumable migration budgets
+## Resumable migration credits
 
 **Analyze selection** does not call the AI. **Start migration** and **Resume
 migration** explicitly authorize generation and can consume credits. The selected
 model stays fixed for the run; each menu uses that model's active catalog prices
 at the time of conversion, not a price frozen during analysis.
 
-The accepted budget is checked between calls. The last in-flight call may exceed
-it; **Pause after this menu** can still let the current menu finish and be charged.
+There is no separate migration credit cap to enter. Network credits are consumed
+menu by menu; generation stops when the available balance is exhausted.
+**Pause after this menu** can still let the current menu finish and be charged.
 Generation also respects the administrator's per-menu credit limit and your
 available balance. An interruption does not automatically retry a paid call.
 

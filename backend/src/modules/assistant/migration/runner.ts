@@ -14,11 +14,13 @@ import {
 } from "../serverAttachments";
 import { assistantFailureCode } from "../transport";
 import { verifyManifestSources } from "./manifest";
-import { convertMigrationStep } from "./planner";
+import { convertMigrationStep, convertAgentTask } from "./planner";
+import { discoverMigration, type AgentInput } from "./agent";
 import {
 	type ClaimedMigrationStep,
 	claimNextStep,
 	completeStep,
+	completeDiscovery,
 	getRunContext,
 	interruptStep,
 	renewLease,
@@ -88,7 +90,10 @@ export async function executeMigration(
 		}, deps.leaseIntervalMs ?? 25000);
 		const timeout = setTimeout(
 			() => controller.abort(new MigrationInputError("provider_timeout")),
-			deps.stepTimeoutMs ?? 240000,
+			deps.stepTimeoutMs ??
+				(claim.run.manifest.agent && !claim.run.manifest.agent.tasks
+					? 900000
+					: 240000),
 		);
 		const stopMonitoring = async () => {
 			clearInterval(timer);
@@ -104,7 +109,7 @@ export async function executeMigration(
 			actionType: "migration",
 			usage: sumUsage(usages),
 			durationMs: Math.round(performance.now() - started),
-			promptPreview: "zMenu migration",
+			promptPreview: "Menu migration",
 		});
 		try {
 			await requireCurrentAccess(claim);
@@ -113,12 +118,10 @@ export async function executeMigration(
 			const provider = await (deps.providerFor ?? createProviderFor)(model);
 			if (!provider) throw new MigrationInputError("model_unavailable");
 			const balance = await getBalance(claim.networkId);
-			if (balance <= 0)
-				throw new MigrationInputError("migration_budget_exceeded");
+			if (balance <= 0) throw new MigrationInputError("insufficient_credits");
 			const settings = await getAiSettings();
 			const stepBudget = Math.min(
 				balance,
-				claim.run.budget.maxCredits - claim.run.budget.usedCredits,
 				settings.maxCreditsPerTurn ?? Number.POSITIVE_INFINITY,
 			);
 			const groups = new Map<string, string[]>();
@@ -139,11 +142,15 @@ export async function executeMigration(
 			);
 			if (issues.length) throw new MigrationInputError(issues[0].code);
 			const activeModel = model;
-			const proposal = await convertMigrationStep({
+			const agentInput: AgentInput & {
+				sourceFileId: string;
+				targetId: string;
+			} = {
 				provider,
 				model: model.providerModelId,
 				manifest: claim.run.manifest,
 				sourceFileId: claim.step.sourceFileId,
+				targetId: claim.step.targetId,
 				attachments: resolved.attachments,
 				contextTokens: claim.run.budget.contextTokens,
 				maxOutputTokens: claim.run.budget.maxOutputTokens,
@@ -161,19 +168,39 @@ export async function executeMigration(
 				},
 				canCall: () =>
 					computeCreditsCharged(sumUsage(usages), activeModel) < stepBudget,
-			});
+			};
+			const discovery = Boolean(
+				claim.run.manifest.agent && !claim.run.manifest.agent.tasks,
+			);
+			const discovered = discovery
+				? await discoverMigration(agentInput)
+				: undefined;
+			const proposal = discovery
+				? undefined
+				: claim.run.manifest.agent
+					? await convertAgentTask(agentInput)
+					: await convertMigrationStep(agentInput);
 			controller.signal.throwIfAborted();
 			if (!usages.length) throw new MigrationInputError("provider_error");
 			await stopMonitoring();
 			controller.signal.throwIfAborted();
 			await requireCurrentAccess(claim);
-			await completeStep({
-				runId,
-				stepId: claim.step.id,
-				leaseToken: claim.leaseToken,
-				proposal,
-				usageInput: usageInput(model),
-			});
+			if (discovered)
+				await completeDiscovery({
+					runId,
+					stepId: claim.step.id,
+					leaseToken: claim.leaseToken,
+					manifest: discovered,
+					usageInput: usageInput(model),
+				});
+			else if (proposal)
+				await completeStep({
+					runId,
+					stepId: claim.step.id,
+					leaseToken: claim.leaseToken,
+					proposal,
+					usageInput: usageInput(model),
+				});
 		} catch (error) {
 			const reason = controller.signal.aborted
 				? controller.signal.reason

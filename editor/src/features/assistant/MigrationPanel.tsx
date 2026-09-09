@@ -54,7 +54,6 @@ export function MigrationPanel({
 	const [loading, setLoading] = useState(false);
 	const [busy, setBusy] = useState(false);
 	const [setup, setSetup] = useState(false);
-	const [budget, setBudget] = useState("");
 	const [mappings, setMappings] = useState<Record<string, string>>({});
 	const [storageAvailable, setStorageAvailable] = useState(true);
 	const [refresh, setRefresh] = useState(0);
@@ -134,7 +133,6 @@ export function MigrationPanel({
 					.map((e) => [e.fileId, e.targetId ?? ""]),
 			),
 		);
-		setBudget(String(run.budget.maxCredits));
 	}, [run?.id]);
 	const selectedRunId = run?.id;
 	// biome-ignore lint/correctness/useExhaustiveDependencies: refresh deliberately restarts the passive read after an explicit control action
@@ -194,17 +192,8 @@ export function MigrationPanel({
 		};
 	}, [conversationId, projectId, selectedRunId, refresh, mergeRun, showError]);
 
-	async function analyze(reanalyze = false) {
+	async function startSelection(reanalyze = false) {
 		if (lock.current || disabled || (!modelId && !reanalyze)) return;
-		const maxCredits = Number(budget);
-		if (
-			!Number.isSafeInteger(maxCredits) ||
-			maxCredits < 1 ||
-			maxCredits > 1000000
-		) {
-			setError("invalid_budget");
-			return;
-		}
 		lock.current = true;
 		setBusy(true);
 		setError("");
@@ -238,7 +227,6 @@ export function MigrationPanel({
 						}));
 			const data = {
 				modelId: reanalyze && run ? run.modelId : (modelId ?? ""),
-				maxCredits,
 				serverAttachments,
 				existingTargetIds: project?.menus.map((m) => m.id) ?? [],
 				...(reanalyze ? { targetIds: mappings } : {}),
@@ -257,6 +245,18 @@ export function MigrationPanel({
 			setSelected(created.id);
 			setSetup(false);
 			creation.current = undefined;
+			if (created.status === "ready" && isCurrent()) {
+				const started = await controlMigration(
+					id,
+					created.id,
+					"start",
+					created.revision,
+				);
+				if (isCurrent()) {
+					mergeRun(started);
+					setRefresh((n) => n + 1);
+				}
+			}
 		} catch (e) {
 			if (isCurrent()) showError(e);
 		} finally {
@@ -339,7 +339,9 @@ export function MigrationPanel({
 		(p) => inspectMigrationProposal(p, projectId).status === "already_applied",
 	).length;
 	const generated =
-		run?.steps.filter((s) => s.status === "completed").length ?? 0;
+		run?.steps.filter((s) => s.sourceFileId && s.status === "completed")
+			.length ?? 0;
+	const exploring = Boolean(run?.manifest.agent && !run.manifest.agent.tasks);
 	if (!groups.length && !conversationId) return null;
 	return (
 		<section
@@ -362,25 +364,13 @@ export function MigrationPanel({
 			{loading && <output>{text("loading")}</output>}
 			{setup && (
 				<div className="flex flex-col gap-2">
-					<p>{text("analyzeHelp")}</p>
-					<label htmlFor={inputId}>
-						{text("budget")}
-						<Input
-							id={inputId}
-							aria-label={text("budget")}
-							type="number"
-							min={1}
-							max={1000000}
-							value={budget}
-							onChange={(e) => setBudget(e.target.value)}
-						/>
-					</label>
+					<p>{text("exploreHelp")}</p>
 					<p className="text-xs text-[var(--text-mut)]">{text("budgetHelp")}</p>
 					<Button
-						disabled={busy || disabled || !budget || !modelId}
-						onClick={() => void analyze()}
+						disabled={busy || disabled || !modelId}
+						onClick={() => void startSelection()}
 					>
-						{busy ? text("working") : text("analyze")}
+						{busy ? text("working") : text("start")}
 					</Button>
 				</div>
 			)}
@@ -394,8 +384,8 @@ export function MigrationPanel({
 					>
 						{runs.map((r) => (
 							<option key={r.id} value={r.id}>
-								{new Date(r.createdAt).toLocaleString()} — {r.steps.length}{" "}
-								{text("menus")}
+								{new Date(r.createdAt).toLocaleString()} —{" "}
+								{r.steps.filter((s) => s.sourceFileId).length} {text("menus")}
 							</option>
 						))}
 					</select>
@@ -404,24 +394,29 @@ export function MigrationPanel({
 			{run && (
 				<>
 					<div aria-live="polite">
-						<p>{text(`status.${run.status}`)}</p>
 						<p>
-							{t("assistant.migration.progress", {
-								generated,
-								total: run.steps.length,
-								applied,
-							})}
+							{exploring && run.status === "running"
+								? text("exploring")
+								: text(`status.${run.status}`)}
+						</p>
+						<p>
+							{!exploring &&
+								t("assistant.migration.progress", {
+									generated,
+									total: run.steps.filter((s) => s.sourceFileId).length,
+									applied,
+								})}
 						</p>
 						<p className="text-xs text-[var(--text-mut)]">
 							{t("assistant.migration.spent", {
 								used: run.budget.usedCredits,
-								max: run.budget.maxCredits,
 							})}
 						</p>
 						{run.steps.find((s) => s.status === "running") && (
 							<p>
 								{text("active")}{" "}
-								{run.steps.find((s) => s.status === "running")?.targetId}
+								{run.steps.find((s) => s.status === "running")?.targetId ||
+									text("exploring")}
 							</p>
 						)}
 					</div>
@@ -436,11 +431,7 @@ export function MigrationPanel({
 						)}
 						{run.status === "paused" && (
 							<Button
-								disabled={
-									busy ||
-									disabled ||
-									run.budget.usedCredits >= run.budget.maxCredits
-								}
+								disabled={busy || disabled}
 								onClick={() => void control("resume")}
 							>
 								{text("resume")}
@@ -465,9 +456,6 @@ export function MigrationPanel({
 							</Button>
 						)}
 					</div>
-					{run.budget.usedCredits >= run.budget.maxCredits && (
-						<p>{issueText("migration_budget_exceeded")}</p>
-					)}
 					{eventCode && (
 						<p className="text-[var(--text-mut)]">{issueText(eventCode)}</p>
 					)}
@@ -480,6 +468,18 @@ export function MigrationPanel({
 								</li>
 							))}
 						</ul>
+					)}
+					{run.manifest.agent?.reports && (
+						<details>
+							<summary>{text("explorationReport")}</summary>
+							<ul className="text-xs text-[var(--text-mut)]">
+								{run.manifest.agent.reports.map((report) => (
+									<li key={report.fileId}>
+										<strong>{report.fileId}</strong>: {report.notes}
+									</li>
+								))}
+							</ul>
+						</details>
 					)}
 					{run.status === "blocked" && (
 						<details>
@@ -509,7 +509,7 @@ export function MigrationPanel({
 								))}
 							<Button
 								disabled={busy || disabled}
-								onClick={() => void analyze(true)}
+								onClick={() => void startSelection(true)}
 							>
 								{text("analyzeAgain")}
 							</Button>
@@ -557,7 +557,11 @@ export function MigrationPanel({
 													<span className="block text-xs text-[var(--text-mut)]">
 														{text("verify")}{" "}
 														{proposal.issues
-															.map((i) => issueText(i.code))
+															.map((i) =>
+																i.code === "conversion_limitation"
+																	? i.message
+																	: issueText(i.code),
+															)
 															.join(" ")}
 													</span>
 												)}
