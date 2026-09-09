@@ -4,6 +4,10 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, expect, it, vi } from "vitest";
 
+vi.mock("@/lib/usePanelPresence", () => ({
+  usePanelPresence: (open: boolean) => ({ mounted: open, expanded: open }),
+}));
+
 vi.mock("@/features/assets/useAssetInit", () => ({ useAssetInit: () => {} }));
 vi.mock("@/features/canvas/useTextureInit", () => ({ useTextureInit: () => {} }));
 vi.mock("@/features/canvas/Library", () => ({ Library: () => <div>Item catalogue</div> }));
@@ -93,6 +97,15 @@ it("keeps captured items inside Items", async () => {
   expect(screen.getByText("Captured catalogue")).toBeInTheDocument();
 });
 
+it("returns to properties when a mobile library item changes the selection", () => {
+  desktop = false;
+  useProjectLibraryStore.getState().open(PID);
+  render(<Workspace />);
+  act(() => useSelectionStore.getState().set(["new-item"]));
+  expect(useProjectLibraryStore.getState().projectId).toBeNull();
+  expect([...useSelectionStore.getState().ids]).toEqual(["new-item"]);
+});
+
 it("does not carry an open catalogue into a different project", async () => {
   const user = userEvent.setup();
   const view = render(<Workspace />);
@@ -139,6 +152,8 @@ it("resizes from the right edge on desktop and remembers the width without remou
   expect(JSON.parse(localStorage.getItem("artisan-library-size")!).state).toEqual({
     width: 450,
     height: 280,
+    projectId: PID,
+    category: "items",
   });
   view.unmount();
   render(<Workspace />);

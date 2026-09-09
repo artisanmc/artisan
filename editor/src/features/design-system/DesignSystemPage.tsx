@@ -175,7 +175,7 @@ export function DesignSystemPage() {
         <div className="card flex flex-col gap-5 p-5">
           <div className="flex flex-col gap-1">
             <span className="mono text-[11px] text-[var(--text-faint)]">
-              .display / --font-display
+              .display / --font-display · Inter Bold 700 · Bunny Fonts
             </span>
             <span className="display text-[28px] text-[var(--text)]">
               Artisan — Menus & Projects

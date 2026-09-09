@@ -31,7 +31,12 @@ export const useProjectLibraryStore = create<ProjectLibraryState>()(
     }),
     {
       name: "artisan-library-size",
-      partialize: (state) => ({ width: state.width, height: state.height }),
+      partialize: (state) => ({
+        width: state.width,
+        height: state.height,
+        projectId: state.projectId,
+        category: state.category,
+      }),
     },
   ),
 );
