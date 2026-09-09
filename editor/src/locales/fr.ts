@@ -401,7 +401,7 @@ const fr: typeof en = {
     headPlaceholderHdb: "128276",
     headPlaceholderBase64: "eyJ0ZXh0dXJlcyI6…",
     headPlaceholderPlayer: "Notch ou %player%",
-    headHdbHint: "Nécessite le plugin HeadDatabase sur le serveur. Pas de preview dans l'éditeur.",
+    headHdbHint: "L’aperçu utilise HeadDatabase sur le serveur connecté. Une tête introuvable garde l’icône générique.",
     loreLabel: "lore ({{lang}})",
     loreLabelFallback: "lore ({{lang}} — fallback)",
     lorePlaceholder: "Une ligne par entrée de lore.",

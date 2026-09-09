@@ -2,7 +2,7 @@
  * Resolve an Appearance.head value to a previewable image URL.
  *  - basehead:<b64> / raw "eyJ…"  → decode → textures.minecraft.net hash → mc-heads 3D render
  *  - playerhead:<literal name>    → mc-heads by name (placeholders → undefined)
- *  - hdb:<id>                     → undefined (no public HeadDatabase API; caller shows the generic icon)
+ *  - hdb:<id>                     → useHeadPreviewUrl resolves these through the connected server
  * Returns undefined whenever the value can't be resolved — caller falls back to the material texture.
  */
 export function headPreviewUrl(head: string | undefined): string | undefined {

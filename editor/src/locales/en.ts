@@ -392,7 +392,7 @@ export default {
     headPlaceholderHdb: "128276",
     headPlaceholderBase64: "eyJ0ZXh0dXJlcyI6…",
     headPlaceholderPlayer: "Notch or %player%",
-    headHdbHint: "Requires the HeadDatabase plugin on the server. No preview in the editor.",
+    headHdbHint: "Preview uses HeadDatabase on the connected server. Unavailable heads keep the generic icon.",
     loreLabel: "lore ({{lang}})",
     loreLabelFallback: "lore ({{lang}} — fallback)",
     lorePlaceholder: "One line per lore entry.",

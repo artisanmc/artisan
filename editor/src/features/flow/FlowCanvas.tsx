@@ -22,7 +22,7 @@ import type {
   ProjectId,
 } from "@/domain/types";
 import { MaterialPicker } from "@/features/canvas/MaterialPicker";
-import { headPreviewUrl } from "@/features/canvas/headTexture";
+import { useHeadPreviewUrl } from "@/features/canvas/useHeadPreviewUrl";
 import { buildPreviewScope, renderPreview } from "@/features/canvas/menuPreviewScope";
 import {
   type PlaceholderInfo,
@@ -184,7 +184,7 @@ function ElementEditor({
     ? resolveDisplayRef(headerProject, headerMaterial)
     : { material: headerMaterial };
   const headerMaterialUrl = useTextureUrl(headerDisplay.material);
-  const headerTextureUrl = headPreviewUrl(headerDisplay.head) ?? headerMaterialUrl;
+  const headerTextureUrl = useHeadPreviewUrl(focusedState?.head ?? headerDisplay.head) ?? headerMaterialUrl;
   const getText = useGetText(projectId);
   const headerTitle = getText(focusedState?.title);
   const menuTitle = getText(getFirstTitleText(menu));
@@ -610,7 +610,7 @@ function StateCard({
   // Captured-item refs (`item:<id>`) expand to their display descriptor.
   const display = project ? resolveDisplayRef(project, material) : { material };
   const materialUrl = useTextureUrl(display.material);
-  const textureUrl = headPreviewUrl(appearance.head ?? display.head) ?? materialUrl;
+  const textureUrl = useHeadPreviewUrl(appearance.head ?? display.head) ?? materialUrl;
   const title = getText(appearance.title);
   const count = appearance.count ?? 1;
   const loreText = appearance.lore ? getText(appearance.lore) : "";
