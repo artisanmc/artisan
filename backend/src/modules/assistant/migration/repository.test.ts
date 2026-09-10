@@ -19,6 +19,7 @@ import {
 	completeStep,
 	createRun,
 	getEvents,
+	getLatestEventCode,
 	getProposals,
 	getRun,
 	interruptStep,
@@ -100,6 +101,31 @@ function input(requestId = crypto.randomUUID()) {
 	};
 }
 describe("durable migration", () => {
+	it("returns the current pause cause beyond the first event page", async () => {
+		const run = await createRun(input());
+		await transitionRun(run.id, run.revision, "start");
+		for (let i = 0; i < 55; i++) {
+			await transitionRun(
+				run.id,
+				required(await getRun(run.id)).revision,
+				"pause",
+			);
+			await transitionRun(
+				run.id,
+				required(await getRun(run.id)).revision,
+				"resume",
+			);
+		}
+		const claim = required(await claimNextStep(run.id, "worker"));
+		await interruptStep({
+			runId: run.id,
+			stepId: claim.step.id,
+			leaseToken: claim.leaseToken,
+			code: "provider_timeout",
+		});
+		expect((await getEvents(run.id)).at(-1)?.code).not.toBe("provider_timeout");
+		expect(await getLatestEventCode(run.id)).toBe("provider_timeout");
+	});
 	it.each([
 		"invalid_tool:read_source:invalid_offset",
 		"invalid_tool:secret:invalid_offset",

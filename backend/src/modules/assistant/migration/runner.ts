@@ -97,13 +97,17 @@ export async function executeMigration(
 					renewing = undefined;
 				});
 		}, deps.leaseIntervalMs ?? 25000);
-		const timeout = setTimeout(
-			() => controller.abort(new MigrationInputError("provider_timeout")),
-			deps.stepTimeoutMs ??
-				(claim.run.manifest.agent && !claim.run.manifest.agent.tasks
-					? 900000
-					: 240000),
-		);
+		const idleMs = deps.stepTimeoutMs ?? 240000;
+		let timeout: ReturnType<typeof setTimeout>;
+		const touch = () => {
+			clearTimeout(timeout);
+			if (!controller.signal.aborted)
+				timeout = setTimeout(
+					() => controller.abort(new MigrationInputError("provider_timeout")),
+					idleMs,
+				);
+		};
+		touch();
 		const stopMonitoring = async () => {
 			deps.signal?.removeEventListener("abort", abort);
 			clearInterval(timer);
@@ -156,7 +160,18 @@ export async function executeMigration(
 				sourceFileId: string;
 				targetId: string;
 			} = {
-				provider,
+				provider: {
+					async *streamTurn(input) {
+						touch();
+						for await (const event of provider.streamTurn({
+							...input,
+							onProgress: touch,
+						})) {
+							touch();
+							yield event;
+						}
+					},
+				},
 				onActivity: deps.onActivity,
 				continuation: claim.continuation,
 				onCompacted: async (continuation) => {

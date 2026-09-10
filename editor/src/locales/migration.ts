@@ -104,7 +104,7 @@ export const migrationEn = {
 		missing_generated_reference:
 			"A source link is absent from the generated menu. Review it before saving.",
 		provider_timeout:
-			"The AI took too long. Completed menus are retained; resume when ready.",
+			"The AI stopped responding or its provider timed out. Completed menus are retained; resume with the button or ask the assistant to continue.",
 		provider_network_error:
 			"The connection to the AI was interrupted. Completed menus are retained.",
 		provider_error:
@@ -248,7 +248,7 @@ export const migrationFr = {
 		missing_generated_reference:
 			"Un lien source est absent du menu généré. Vérifiez-le avant d’enregistrer.",
 		provider_timeout:
-			"L’IA a mis trop de temps. Les menus terminés sont conservés ; reprenez quand vous le souhaitez.",
+			"L’IA ne répond plus ou son fournisseur a expiré le délai d’attente. Les menus terminés sont conservés ; utilisez le bouton de reprise ou demandez à l’assistant de continuer.",
 		provider_network_error:
 			"La connexion à l’IA a été interrompue. Les menus terminés sont conservés.",
 		provider_error:

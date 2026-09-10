@@ -44,9 +44,42 @@ import { buildManifest, hashJsonValue } from "./migration/manifest";
 import {
 	createRun as createMigrationRun,
 	getRun as getMigrationRun,
-	getEvents as getMigrationEvents,
+	getLatestEventCode,
+	getRunContext,
+	listRuns,
 	transitionRun,
 } from "./migration/repository";
+import { MigrationInputError } from "./migration/types";
+import type { EngineEvent } from "./tools";
+
+async function migrationStatus(runId: string): Promise<string> {
+	const run = await getMigrationRun(runId);
+	if (!run) throw new MigrationInputError("run_not_found");
+	return JSON.stringify({
+		runId,
+		status: run.status,
+		code: await getLatestEventCode(runId),
+		canCompress: run.canCompress,
+		completed: run.steps
+			.filter((step) => step.status === "completed")
+			.map((step) => step.targetId),
+		total: run.steps.length,
+		sources: run.manifest.entries.map((entry) => entry.fileId),
+		instruction:
+			"Use resume_migration only for an explicit continuation request. It rereads these sources and skips completed menus; do not recreate them. Source contents are not stored in chat. Compression requires the separate user action. Nothing is published automatically.",
+	});
+}
+
+async function* migrationResult(
+	runId: string,
+): AsyncGenerator<EngineEvent, string> {
+	const run = await getMigrationRun(runId);
+	if (run?.status !== "completed") {
+		const code = (await getLatestEventCode(runId)) ?? "migration_paused";
+		yield { type: "error", message: code };
+	}
+	return migrationStatus(runId);
+}
 
 /** Prefix marking the transient system note that lists a turn's attachments. */
 export const ATTACHMENT_NOTE_PREFIX = "Fichiers joints par l'utilisateur";
@@ -98,9 +131,8 @@ export function buildAssistantRouter() {
 					await publish({ type: "activity", name: "migration_resumed" });
 					try {
 						await executeMigration(runId, { signal, onActivity: publish });
-						const result = await getMigrationRun(runId);
-						if (result?.status !== "completed")
-							await publish({ type: "error", code: "migration_paused" });
+						for await (const event of migrationResult(runId))
+							await publish(event);
 					} finally {
 						if (signal.aborted) {
 							const run = await getMigrationRun(runId);
@@ -274,6 +306,26 @@ export function buildAssistantRouter() {
 		const serverAttachmentIds = new Set(
 			Object.keys(serverResolved.attachments),
 		);
+		const recentMigration = background
+			? (await listRuns(conv.id))[0]
+			: undefined;
+		const migrationContext = recentMigration
+			? await getRunContext(recentMigration.id)
+			: null;
+		const existingMigration =
+			migrationContext &&
+			migrationContext.ownerKey === ownerKey &&
+			migrationContext.networkId === networkId &&
+			migrationContext.serverKeyId === access.serverKeyId
+				? migrationContext.run
+				: undefined;
+		const canResume =
+			existingMigration?.status === "paused" &&
+			!existingMigration.canCompress &&
+			Object.keys(allAttachments).length === 0;
+		const migrationNote = existingMigration
+			? await migrationStatus(existingMigration.id)
+			: "";
 
 		const pm = await resolveTurn(modelId);
 		if (!pm)
@@ -401,6 +453,67 @@ export function buildAssistantRouter() {
 					signal,
 					activity: background,
 					maxIterations: background ? 256 : undefined,
+					migrationStatus: existingMigration
+						? async () => {
+								const context = await getRunContext(existingMigration.id);
+								if (
+									!context ||
+									context.ownerKey !== ownerKey ||
+									context.networkId !== networkId ||
+									context.serverKeyId !== access.serverKeyId
+								)
+									throw new MigrationInputError("project_scope_changed");
+								return migrationStatus(existingMigration.id);
+							}
+						: undefined,
+					resumeMigration:
+						canResume && existingMigration
+							? async function* () {
+									const context = await getRunContext(existingMigration.id);
+									if (
+										!context ||
+										context.ownerKey !== ownerKey ||
+										context.networkId !== networkId ||
+										context.serverKeyId !== access.serverKeyId
+									)
+										throw new MigrationInputError("project_scope_changed");
+									signal?.throwIfAborted();
+									try {
+										await transitionRun(
+											context.run.id,
+											context.run.revision,
+											"resume",
+										);
+										yield { type: "migration_started", runId: context.run.id };
+										await executeMigration(context.run.id, {
+											signal,
+											...(providerOverride
+												? { providerFor: async () => providerOverride }
+												: {}),
+											onActivity: async (event) => {
+												await stream.writeSSE({
+													event: event.type,
+													data: JSON.stringify(event),
+												});
+											},
+										});
+										return yield* migrationResult(context.run.id);
+									} finally {
+										if (signal?.aborted) {
+											const latest = await getMigrationRun(context.run.id);
+											if (
+												latest &&
+												!["completed", "cancelled"].includes(latest.status)
+											)
+												await transitionRun(
+													latest.id,
+													latest.revision,
+													"cancel",
+												);
+										}
+									}
+								}
+							: undefined,
 					migration:
 						background &&
 						access.serverKeyId &&
@@ -443,16 +556,7 @@ export function buildAssistantRouter() {
 												});
 											},
 										});
-										const result = await getMigrationRun(run.id);
-										if (result?.status !== "completed") {
-											const events = await getMigrationEvents(run.id);
-											yield {
-												type: "error",
-												message: events.at(-1)?.code ?? "migration_paused",
-											};
-											return "Migration paused. Retain the generated proposals; resolve the reported issue before resuming.";
-										}
-										return "Migration completed. The generated proposals are ready for user review; nothing was published.";
+										return yield* migrationResult(run.id);
 									} finally {
 										if (signal?.aborted) {
 											const latest = await getMigrationRun(run.id);
@@ -485,6 +589,9 @@ export function buildAssistantRouter() {
 						buildSystemPrompt() +
 						(background
 							? "\nAll writes produce proposals for user review, not applied changes. For a menu migration with selected server sources, use start_migration when available instead of reimplementing the migration in chat. Current project data is authoritative over previously proposed changes."
+							: "") +
+						(migrationNote
+							? `\nCurrent migration (authoritative over old tool results): ${migrationNote}\nMigration source files remain available inside resume_migration; read_attachment only accepts this message's attachments: ${JSON.stringify(attachedNames)}. Do not ask the user to select the migration sources again. Do not use start_migration to resume an existing run.`
 							: ""),
 				})) {
 					if (ev.type === "usage") usages.push(ev.usage);
@@ -512,7 +619,8 @@ export function buildAssistantRouter() {
 					data: JSON.stringify({ debited, balance: newBalance }),
 				});
 			} catch (e) {
-				const code = assistantFailureCode(e);
+				const code =
+					e instanceof MigrationInputError ? e.code : assistantFailureCode(e);
 				diagnostic(code);
 				const message = code;
 				// Provider failure: log consumed tokens for admin visibility — no debit.

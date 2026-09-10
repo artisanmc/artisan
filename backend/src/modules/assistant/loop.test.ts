@@ -28,6 +28,26 @@ async function collect(it: AsyncIterable<any>) {
 }
 
 describe("runTurn", () => {
+  it("inspects and resumes an existing migration without new attachments", async () => {
+    const messages: import("./provider/types").LlmMessage[] = [{ role: "user", content: "continue" }];
+    let resumed = 0;
+    const events = await collect(runTurn({
+      provider: scriptedProvider([
+        [{ type: "tool_use", id: "status", name: "get_migration", input: {} }, { type: "done", stopReason: "tool_calls" }],
+        [{ type: "tool_use", id: "resume", name: "resume_migration", input: {} }, { type: "done", stopReason: "tool_calls" }],
+      ]),
+      model: "m", messages, wc: new WorkingCopy([], {}),
+      migrationStatus: async () => JSON.stringify({ runId: "existing", code: "provider_timeout", completed: 4 }),
+      resumeMigration: async function* () {
+        resumed++;
+        yield { type: "migration_started", runId: "existing" };
+        return "completed";
+      },
+    }));
+    expect(resumed).toBe(1);
+    expect(messages).toContainEqual({ role: "tool", toolCallId: "status", content: JSON.stringify({ runId: "existing", code: "provider_timeout", completed: 4 }) });
+    expect(events).toContainEqual({ type: "migration_started", runId: "existing" });
+  });
   it("keeps tool history replayable when a migration is interrupted", async () => {
     const messages: import("./provider/types").LlmMessage[] = [
       { role: "user", content: "Migrate" },
