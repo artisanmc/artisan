@@ -30,6 +30,14 @@ the model has produced new output. Errors preserve existing results without an
 automatic paid retry. A backend restart can interrupt the worker and require an
 explicit continuation; browser reloads do not.
 
+If a migration pauses, ask the assistant to **continue** in the same conversation
+or use **Resume migration**. Its saved source selection is reused and completed
+menus are not regenerated. Sources are reread with current permissions and checked
+for changes. The precise pause reason is shown in the task and available to the
+assistant. Context compression still requires **Compress and resume** explicitly.
+A slow migration is not interrupted while the provider keeps streaming reasoning,
+text or tool arguments; four minutes without provider activity pauses the step.
+
 Changes are proposals, not immediate edits. **Apply to draft** checks that your
 draft has not changed since the task started. Review conflicts instead of
 overwriting newer work; **Save** remains the publishing step.
