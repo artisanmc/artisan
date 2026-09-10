@@ -497,6 +497,35 @@ test("the active per-turn setting prevents another provider iteration", async ()
 	}
 });
 
+test("streaming reasoning keeps a migration alive beyond its inactivity deadline", async () => {
+	const run = await newRun(twoMenus);
+	const provider: LlmProvider = {
+		async *streamTurn(input) {
+			for (let i = 0; i < 8; i++) {
+				await new Promise((resolve) => setTimeout(resolve, 50));
+				input.signal?.throwIfAborted();
+				yield { type: "reasoning", text: "Working" };
+			}
+			const { targetId } = JSON.parse(input.messages[1].content ?? "{}");
+			yield {
+				type: "tool_use",
+				id: "write",
+				name: "upsert_menu",
+				input: { menu: validMenu(targetId) },
+			};
+			yield { type: "usage", usage: { inputTokens: 100, outputTokens: 20 } };
+			yield { type: "done", stopReason: "tool_calls" };
+		},
+	};
+	await executeMigration(run.id, {
+		providerFor: async () => provider,
+		readSources: read(twoMenus),
+		stepTimeoutMs: 200,
+	});
+	expect((await getRun(run.id))?.status).toBe("completed");
+	expect(await getProposals(run.id)).toHaveLength(2);
+});
+
 test("a silent provider times out and releases monitoring without a paid retry", async () => {
 	const run = await newRun(twoMenus);
 	let calls = 0;

@@ -18,6 +18,18 @@ import { createSession } from "../../lib/sessionManager";
 import { generateServerKey } from "../../lib/auth";
 import { saveConversation } from "./conversationRepo";
 import { requeueMigrationTask } from "./tasks";
+import { buildManifest, hashJsonValue } from "./migration/manifest";
+import {
+	createRun,
+	getRun,
+	listRuns,
+	transitionRun,
+	claimNextStep,
+	interruptStep,
+	completeStep,
+} from "./migration/repository";
+import { resolveModel } from "../ai/modelRepo";
+import { MigrationInputError } from "./migration/types";
 import { getBalance, grantCredits } from "../ai/creditsRepo";
 import { createModel, setDefaultModel } from "../ai/modelRepo";
 import type { LlmProvider, LlmStreamEvent } from "./provider/types";
@@ -392,6 +404,196 @@ describe("assistant routes", () => {
 			__setProviderForTests(fakeProvider());
 		}
 	});
+	it.each([false, true])(
+		"continue resumes saved sources and preserves completed menus without a new selection (timeout=%s)",
+		async (timeout) => {
+			const created = await app.request("/api/v1/assistant/conversations", {
+				method: "POST",
+				headers: cookieHeader(),
+				body: JSON.stringify({ projectId: PACK_ID }),
+			});
+			const { conversationId } = await created.json();
+			const model = (await resolveModel())!;
+			const sources = {
+				"server:zmenu/a.yml": "size: 9\nname: A",
+				"server:zmenu/b.yml": "size: 9\nname: B",
+			};
+			const run = await createRun({
+				conversationId,
+				projectId: PACK_ID,
+				networkId,
+				serverKeyId,
+				ownerKey: `user:${USER_ID}`,
+				modelId: model.id,
+				requestId: crypto.randomUUID(),
+				requestHash: "resume-test",
+				manifest: buildManifest(sources, { existingTargetIds: [] }),
+				budget: {
+					maxCredits: null,
+					usedCredits: 0,
+					contextTokens: null,
+					maxOutputTokens: 4000,
+				},
+			});
+			await transitionRun(run.id, run.revision, "start");
+			const first = (await claimNextStep(run.id, "first"))!;
+			await completeStep({
+				runId: run.id,
+				stepId: first.step.id,
+				leaseToken: first.leaseToken,
+				proposal: {
+					targetId: "a",
+					baseHash: null,
+					resultHash: hashJsonValue({ ...validMenu, id: "a", title: [] }),
+					menu: { ...validMenu, id: "a", title: [] },
+					issues: [],
+				},
+				usageInput: {
+					networkId,
+					userId: USER_ID,
+					serverKeyId,
+					model,
+					conversationId,
+					actionType: "migration",
+					usage: { inputTokens: 100, outputTokens: 10 },
+					durationMs: 1,
+					promptPreview: "migration",
+				},
+			});
+			const second = (await claimNextStep(run.id, "second"))!;
+			await interruptStep({
+				runId: run.id,
+				stepId: second.step.id,
+				leaseToken: second.leaseToken,
+				code: "provider_timeout",
+			});
+			const connId = "conn-resume-saved-migration";
+			let sourceReads = 0;
+			registerConn(connId, (raw) => {
+				const msg = JSON.parse(raw);
+				if (msg.type === "import_sources_read") {
+					sourceReads++;
+					void handlePluginMessage(
+						connId,
+						JSON.stringify({
+							type: "import_sources_read_result",
+							request_id: msg.request_id,
+							ok: true,
+							files: Object.entries(sources).map(([id, content]) => ({
+								source_id: "zmenu",
+								path: id.replace("server:zmenu/", ""),
+								content,
+							})),
+						}),
+					);
+				}
+			});
+			connToServerId.set(connId, serverKeyId);
+			let calls = 0;
+			__setProviderForTests({
+				async *streamTurn(input) {
+					calls++;
+					if (input.tools.some((tool) => tool.name === "list_menus")) {
+						expect(
+							input.tools.some((tool) => tool.name === "resume_migration"),
+						).toBe(true);
+						expect(JSON.stringify(input.messages)).toContain(
+							"provider_timeout",
+						);
+						yield {
+							type: "tool_use",
+							id: "resume",
+							name: "resume_migration",
+							input: {},
+						};
+					} else {
+						expect(JSON.parse(input.messages[1].content ?? "{}").targetId).toBe(
+							"b",
+						);
+						if (timeout) throw new MigrationInputError("provider_timeout");
+						yield {
+							type: "tool_use",
+							id: "write",
+							name: "upsert_menu",
+							input: { menu: { ...validMenu, id: "b", title: [] } },
+						};
+					}
+					yield {
+						type: "usage",
+						usage: { inputTokens: 100, outputTokens: 10 },
+					};
+					yield { type: "done", stopReason: "tool_calls" };
+				},
+			});
+			try {
+				const url = `/api/v1/assistant/conversations/${conversationId}`;
+				const submitted = await app.request(`${url}/messages`, {
+					method: "POST",
+					headers: cookieHeader(),
+					body: JSON.stringify({
+						text: "continue",
+						background: true,
+						requestId: crypto.randomUUID(),
+					}),
+				});
+				expect(submitted.status).toBe(202);
+				const { task } = await submitted.json();
+				let restored = task;
+				for (let i = 0; i < 100; i++) {
+					restored = (
+						await (
+							await app.request(`${url}/tasks/${task.id}`, {
+								headers: cookieHeader(),
+							})
+						).json()
+					).task;
+					if (["completed", "blocked", "cancelled"].includes(restored.status))
+						break;
+					await new Promise((resolve) => setTimeout(resolve, 20));
+				}
+				if (!timeout)
+					expect(
+						restored.events.filter(
+							(event: { type: string }) => event.type === "error",
+						),
+					).toEqual([]);
+				expect(restored.status).toBe(timeout ? "blocked" : "completed");
+				expect((await getRun(run.id))?.status).toBe(
+					timeout ? "paused" : "completed",
+				);
+				if (timeout) {
+					expect(restored.events).toContainEqual(
+						expect.objectContaining({
+							type: "error",
+							message: "provider_timeout",
+						}),
+					);
+					const history = await (
+						await app.request(url, { headers: cookieHeader() })
+					).json();
+					expect(history.messages).toContainEqual(
+						expect.objectContaining({
+							role: "tool",
+							toolCallId: "resume",
+							content: expect.stringContaining("provider_timeout"),
+						}),
+					);
+				}
+				expect(
+					(await getRun(run.id))?.steps.map((s) => s.attemptCount),
+				).toEqual([1, 2]);
+				expect(await listRuns(conversationId)).toHaveLength(1);
+				expect(restored.events).toContainEqual(
+					expect.objectContaining({ type: "migration_started", runId: run.id }),
+				);
+				expect(sourceReads).toBeGreaterThan(0);
+				expect(calls).toBe(2);
+			} finally {
+				cleanupConn(connId);
+				__setProviderForTests(fakeProvider());
+			}
+		},
+	);
 	it("401 without a valid session", async () => {
 		const res = await app.request("/api/v1/assistant/conversations", {
 			method: "POST",

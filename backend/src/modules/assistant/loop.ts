@@ -13,6 +13,8 @@ export async function* runTurn(args: {
   activity?: boolean;
   beforeIteration?: () => Promise<void>;
   migration?: () => AsyncGenerator<EngineEvent, string>;
+  migrationStatus?: () => Promise<string>;
+  resumeMigration?: () => AsyncGenerator<EngineEvent, string>;
   system?: string; // grounding prompt, prepended fresh per call — NOT persisted into `messages`
 }): AsyncIterable<EngineEvent> {
   const { provider, model, messages, wc, system } = args;
@@ -27,7 +29,17 @@ export async function* runTurn(args: {
           parameters: { type: "object", properties: {}, additionalProperties: false },
         },
       ]
-    : TOOL_DEFS;
+    : [...TOOL_DEFS];
+  if (args.migrationStatus) tools.push({
+    name: "get_migration",
+    description: "Inspect the existing migration in this conversation: status, exact pause cause, source files and completed menus. No work is started. Call with no arguments.",
+    parameters: { type: "object", properties: {}, additionalProperties: false },
+  });
+  if (args.resumeMigration) tools.push({
+    name: "resume_migration",
+    description: "Resume the existing paused migration using its saved source selection and checkpoints, without regenerating completed menus. Use only when the user explicitly requests continuation (e.g. continue/reprends). Never retry automatically or for a status question. Call alone with no arguments; no attachment reads are required. Compression requires the user's separate button action.",
+    parameters: { type: "object", properties: {}, additionalProperties: false },
+  });
   const attachmentIds = wc.attachmentIds();
   const unread = new Set(attachmentIds);
   let correctionAttempted = false;
@@ -117,7 +129,17 @@ export async function* runTurn(args: {
 
     for (const tc of toolCalls) {
       args.signal?.throwIfAborted();
-      if (tc.name === "start_migration" && args.migration) {
+      const getMigrationStatus = args.migrationStatus;
+      const migrationAction = tc.name === "start_migration" ? args.migration
+        : tc.name === "resume_migration" ? args.resumeMigration
+        : tc.name === "get_migration" && getMigrationStatus
+          ? async function* (): AsyncGenerator<EngineEvent, string> {
+              const content = await getMigrationStatus();
+              yield { type: "tool", name: tc.name, ok: true };
+              return content;
+            }
+          : undefined;
+      if (migrationAction) {
         if (
           toolCalls.length !== 1 ||
           !tc.input ||
@@ -128,13 +150,13 @@ export async function* runTurn(args: {
           messages.push({
             role: "tool",
             toolCallId: tc.id,
-            content: "Call start_migration alone with an empty JSON object.",
+            content: `Call ${tc.name} alone with an empty JSON object.`,
           });
           yield { type: "tool", name: tc.name, ok: false };
           continue;
         }
         try {
-          const content = yield* args.migration();
+          const content = yield* migrationAction();
           messages.push({ role: "tool", toolCallId: tc.id, content });
         } catch (error) {
           messages.push({
@@ -145,6 +167,9 @@ export async function* runTurn(args: {
             isError: true,
           });
           throw error;
+        }
+        if (tc.name === "get_migration") {
+          continue;
         }
         yield { type: "done", stopReason: "migration" };
         return;

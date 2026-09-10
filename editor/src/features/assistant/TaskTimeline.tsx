@@ -196,7 +196,7 @@ export function TaskTimeline({
             )}
             {task.status === "blocked" && (
               <p role="alert" className="text-xs text-[var(--danger)]">
-                {text("blockedHelp")}
+                {failure ? t(`assistant.migration.errors.${String(failure.code ?? failure.message ?? "")}`, { defaultValue: text("blockedHelp") }) : text("blockedHelp")}
                 {failure ? ` (${String(failure.code ?? failure.message ?? "")})` : ""}
               </p>
             )}

@@ -9,6 +9,11 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Fixed — assistant migration continuation
+
+- Resume paused migrations from chat with their saved sources and completed menus; surface the precise pause cause in both chat context and task UI.
+- Measure provider inactivity instead of cutting off active migration steps after a fixed duration, including streamed reasoning and partial tool arguments.
+
 ### Added — background assistant tasks
 
 - Run chat requests server-side independently of browser connections, with idempotent acceptance, durable activity/results and explicit Stop (migration 0035).

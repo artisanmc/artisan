@@ -271,6 +271,17 @@ export async function getEvents(runId: string, after = 0, limit = 100) {
 		createdAt: r.createdAt.toISOString(),
 	}));
 }
+export async function getLatestEventCode(
+	runId: string,
+): Promise<string | undefined> {
+	const [event] = await db
+		.select({ code: events.code })
+		.from(events)
+		.where(eq(events.runId, runId))
+		.orderBy(desc(events.sequence))
+		.limit(1);
+	return event?.code ?? undefined;
+}
 export type MigrationAction =
 	| "start"
 	| "resume"

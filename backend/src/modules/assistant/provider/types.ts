@@ -67,5 +67,7 @@ export interface LlmProvider {
 		requireExplicitFinish?: boolean;
 		maxResponseBytes?: number;
 		includeReasoning?: boolean;
+		/** Real streamed payload progress, including incomplete tool arguments. */
+		onProgress?: () => void;
 	}): AsyncIterable<LlmStreamEvent>;
 }

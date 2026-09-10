@@ -11,6 +11,16 @@ afterEach(() => {
   cleanup();
   vi.clearAllMocks();
 });
+it("explains the actual migration pause cause instead of a generic interruption", async () => {
+  vi.mocked(api.listAssistantTasks).mockResolvedValue([{
+    id: "paused", conversationId: "c", message: "continue", status: "blocked",
+    events: [{ type: "migration_started", runId: "run" }, { type: "error", message: "provider_timeout" }],
+    createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+  }]);
+  render(<TaskTimeline conversationId="c" refresh={0} onBusy={() => {}} onTranscriptOffset={() => {}} onApply={async () => {}} />);
+  expect(await screen.findByRole("alert")).toHaveTextContent("assistant.migration.errors.provider_timeout");
+  expect(api.stopAssistantTask).not.toHaveBeenCalled();
+});
 it("recovers running activity on mount without starting work or applying proposals", async () => {
   const task = {
     id: "t1",

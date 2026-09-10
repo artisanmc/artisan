@@ -45,6 +45,51 @@ it("counts retained UTF-8 payload independently of text chunk boundaries", () =>
 });
 
 describe("OpenAICompatibleProvider.streamTurn", () => {
+	it("reports partial tool payload progress, but not empty keepalives", async () => {
+		let progress = 0;
+		const provider = new OpenAICompatibleProvider(
+			cfg,
+			fakeClient([
+				{ choices: [{ delta: {} }] },
+				{
+					choices: [
+						{
+							delta: {
+								tool_calls: [
+									{
+										index: 0,
+										id: "t",
+										function: { name: "read_source", arguments: "{" },
+									},
+								],
+							},
+						},
+					],
+				},
+				{
+					choices: [
+						{
+							delta: {
+								tool_calls: [{ index: 0, function: { arguments: "}" } }],
+							},
+						},
+					],
+				},
+				{ choices: [{ delta: {}, finish_reason: "tool_calls" }] },
+			]),
+		);
+		await collect(
+			provider.streamTurn({
+				model: "m",
+				messages: [],
+				tools: [],
+				onProgress: () => {
+					progress++;
+				},
+			}),
+		);
+		expect(progress).toBe(2);
+	});
 	it("streams provider reasoning when requested and replays it with tool history", async () => {
 		let sent: unknown;
 		const client = {

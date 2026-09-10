@@ -30,6 +30,7 @@ export class OpenAICompatibleProvider implements LlmProvider {
 		requireExplicitFinish?: boolean;
 		maxResponseBytes?: number;
 		includeReasoning?: boolean;
+		onProgress?: () => void;
 	}): AsyncIterable<LlmStreamEvent> {
 		const messages = args.messages.map((m) => {
 			switch (m.role) {
@@ -111,6 +112,17 @@ export class OpenAICompatibleProvider implements LlmProvider {
 		for await (const chunk of stream as unknown as AsyncIterable<any>) {
 			const choice = chunk.choices?.[0];
 			const delta = choice?.delta;
+			if (
+				delta?.content ||
+				delta?.reasoning_content ||
+				delta?.tool_calls?.some(
+					(tc: {
+						id?: string;
+						function?: { name?: string; arguments?: string };
+					}) => tc.id || tc.function?.name || tc.function?.arguments,
+				)
+			)
+				args.onProgress?.();
 			if (args.maxResponseBytes !== undefined) {
 				responseBytes += Buffer.byteLength(delta?.content ?? "");
 				if (args.includeReasoning)
