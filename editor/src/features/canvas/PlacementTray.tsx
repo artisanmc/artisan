@@ -1,5 +1,6 @@
 import { resolveDisplayRef } from "@/domain/capturedItems";
 import type { Menu, Project } from "@/domain/types";
+import { lookupPath } from "@/lib/placeholders";
 import { useCssVar } from "@/lib/themeColors";
 import { useUiStore } from "@/state/uiStore";
 import type Konva from "konva";
@@ -51,6 +52,7 @@ export function PlacementTray({
   const pending: {
     elementId: string;
     keyField: string;
+    alias: string;
     rows: Record<string, unknown>[];
     material?: string;
   }[] = [];
@@ -58,7 +60,7 @@ export function PlacementTray({
     for (const el of layer.elements) {
       const places = el.places;
       if (!places) continue;
-      const rows = scope[places.source];
+      const rows = lookupPath(scope, places.source);
       if (!Array.isArray(rows)) continue;
       const left = unplacedRows(
         { keyField: places.keyField, placements: places.placements ?? [] },
@@ -68,6 +70,7 @@ export function PlacementTray({
       pending.push({
         elementId: el.id as string,
         keyField: places.keyField,
+        alias: places.alias,
         rows: left,
         material: el.display?.material,
       });
@@ -110,7 +113,12 @@ export function PlacementTray({
               // La tuile porte l'apparence de l'Élément, résolue contre SA ligne :
               // on voit ce qu'on va poser, pas un carré gris.
               const rawMaterial = group.material
-                ? renderPreview(group.material, { ...scope, ...row }, project, activeLang)
+                ? renderPreview(
+                    group.material,
+                    { ...scope, [group.alias]: row },
+                    project,
+                    activeLang,
+                  )
                 : undefined;
               const display = rawMaterial ? resolveDisplayRef(project, rawMaterial) : undefined;
               const label = String(row.name ?? row.id ?? key);

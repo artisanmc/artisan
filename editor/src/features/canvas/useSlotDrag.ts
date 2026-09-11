@@ -1,13 +1,19 @@
 import type { ElementId, InventoryType, Layer, MenuId, ProjectId } from "@/domain/types";
+import { lookupPath } from "@/lib/placeholders";
 import { parsePositions } from "@/lib/positions";
 import { useAccountStore } from "@/state/accountStore";
+import { usePaginationStore } from "@/state/paginationStore";
 import { useSelectionStore } from "@/state/selectionStore";
+import { useServerSnapshotsStore } from "@/state/serverSnapshotsStore";
+import { useUiStore } from "@/state/uiStore";
 import type Konva from "konva";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { hitTestSlot } from "./hitTest";
 import { colsFor } from "./inventoryTypes";
 import { TEX_SLOT_STRIDE, slotXY } from "./menuLayout";
+import { buildPreviewScope } from "./menuPreviewScope";
+import { placementAtSlot } from "./placement";
 
 export type SiblingGhost = { position: number; material: string; head?: string; count?: number };
 export type DragState =
@@ -79,6 +85,13 @@ export function useSlotDrag(args: UseSlotDragArgs) {
       const altKey = (e.evt as MouseEvent).altKey;
       const sel = useSelectionStore.getState();
       const sourceInSelection = sel.ids.has(sourceElementId);
+      const source = menuLayers
+        .flatMap((layer) => layer.elements)
+        .find((el) => el.id === sourceElementId);
+      if (source?.places) {
+        setDragState({ kind: "single", sourcePosition: slotPosition, altKey });
+        return;
+      }
 
       // Look up the source element's positions to decide between single
       // and selection drag. Selection drag is only meaningful when the
@@ -183,6 +196,44 @@ export function useSlotDrag(args: UseSlotDragArgs) {
       if (!project) return;
       const hit = hitTestSlot(project, layout, worldX, worldY);
       const altKey = (e.evt as MouseEvent).altKey;
+
+      const menu = project.menus.find((m) => m.id === menuId);
+      const source = menu?.layers
+        .flatMap((layer) => layer.elements)
+        .find((el) => el.id === sourceElementId);
+      if (menu && source?.places) {
+        const page = usePaginationStore.getState().pageByElement[sourceElementId] ?? 0;
+        const scope = buildPreviewScope(
+          menu,
+          project,
+          useServerSnapshotsStore.getState().rowsByRef,
+          useUiStore.getState().menuPreviewArgs[menuId],
+        );
+        const placement = placementAtSlot(
+          source.places,
+          lookupPath(scope, source.places.source),
+          page,
+          srcPosition,
+        );
+        if (!placement) return;
+        if (!hit || hit.menuId !== menuId) {
+          useAccountStore.getState().removeElementPlacement({
+            projectId,
+            menuId,
+            elementId: sourceElementId,
+            key: placement.key,
+          });
+        } else if (hit.position !== srcPosition) {
+          // A source row has one placement: Alt also moves it, preserving its cache.
+          useAccountStore.getState().setElementPlacement({
+            projectId,
+            menuId,
+            elementId: sourceElementId,
+            placement: { ...placement, position: hit.position },
+          });
+        }
+        return;
+      }
 
       // Selection-drag: shift the whole selection by the grid delta resolved
       // through hitTestSlot so the drop target depends on cursor position
