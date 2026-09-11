@@ -62,3 +62,33 @@ it("recovers running activity on mount without starting work or applying proposa
   fireEvent.click(await screen.findByRole("button", { name: "assistant.tasks.stop" }));
   await waitFor(() => expect(api.stopAssistantTask).toHaveBeenCalledWith("c", "t1"));
 });
+
+it("renders Markdown from streamed answer fragments", async () => {
+  vi.mocked(api.listAssistantTasks).mockResolvedValue([
+    {
+      id: "markdown",
+      conversationId: "c",
+      message: "Explain",
+      status: "completed",
+      events: [
+        { type: "text", text: "## Result\n\n**Bo" },
+        { type: "text", text: "ld**\n\n- First\n- Second\n\n```yaml\nmenu: shop\n```" },
+      ],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
+  ]);
+  render(
+    <TaskTimeline
+      conversationId="c"
+      refresh={0}
+      onBusy={() => {}}
+      onTranscriptOffset={() => {}}
+      onApply={async () => {}}
+    />,
+  );
+  expect(await screen.findByRole("heading", { name: "Result" })).toBeVisible();
+  expect(screen.getByText("Bold").tagName).toBe("STRONG");
+  expect(screen.getByText("First").tagName).toBe("LI");
+  expect(screen.getByText("menu: shop").tagName).toBe("CODE");
+});
