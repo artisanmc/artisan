@@ -1,4 +1,4 @@
-import { hashContent } from "@/lib/contentHash";
+import { hashContent } from "../../lib/contentHash";
 
 /**
  * Planification de l'enregistrement sur le disque du serveur (ADR

@@ -1,16 +1,4 @@
-/**
- * Le brouillon d'un Project : la **base** (ce que le serveur avait chargé) et
- * l'**arbre courant** (ce que l'éditeur affiche), gardés dans le navigateur.
- *
- * Révise les décisions 3 et 7 de l'ADR `server-disk-only-storage`, qui
- * excluaient tout brouillon persistant et rendaient un Project inouvrable
- * serveur éteint. L'argument d'alors portait sur le coût : il aurait fallu
- * construire la réconciliation. Elle existe désormais — base, compare-and-swap
- * par fichier, modale de conflit — et le brouillon la réutilise telle quelle.
- *
- * Il reste par-appareil, par-utilisateur, et meurt avec le cache. Ce n'est plus
- * une régression pour autant : sans lui, tout est perdu au rechargement de page.
- */
+/** A Project working copy and its server baseline. Backend persistence is separate from publication. */
 /** Un renommage déclaré par l'éditeur, en chemins relatifs. */
 export interface PendingRename {
   from: string;
@@ -18,6 +6,7 @@ export interface PendingRename {
 }
 
 export interface ProjectDraft {
+  remote?: { id: string; name: string; revision: number; ownerId: string; acknowledged?: string };
   /** L'arbre tel que le serveur l'avait chargé, rel-keyed. */
   baseline: Record<string, string>;
   /** L'arbre tel que l'éditeur l'affiche — ce qui partira à l'enregistrement. */

@@ -3,6 +3,8 @@ import { saveProjectToDisk } from "./saveProjectToDisk";
 import { writeProjectFiles } from "@/lib/api/projectFiles";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import type { Project, ProjectId } from "@/domain/types";
+import * as backendDrafts from "./backendDrafts";
+import { useProjectDraftStore } from "@/state/projectDraftStore";
 
 vi.mock("@/lib/api/projectFiles", () => ({ writeProjectFiles: vi.fn() }));
 
@@ -25,8 +27,20 @@ function emptyProject(): Project {
 
 describe("saveProjectToDisk", () => {
   beforeEach(() => {
+    vi.restoreAllMocks();
+    backendDrafts.useBackendDraftStore.setState({ sessions: {} });
     vi.mocked(writeProjectFiles).mockReset();
     useProjectBaselineStore.setState({ baselines: {} });
+  });
+
+  it("publishes through the backend draft when a draft session is active", async () => {
+    backendDrafts.useBackendDraftStore.setState({ sessions: { p1: { ownerId: "u1", drafts: [], status: "saved" } } });
+    const publish = vi.spyOn(backendDrafts, "publishBackendDraft").mockResolvedValue({ wrote: 1 });
+    const result = await saveProjectToDisk(emptyProject(), "n1", "s1");
+    expect(result).toEqual({ ok: true, wrote: 1 });
+    expect(publish).toHaveBeenCalledWith("p1");
+    expect(writeProjectFiles).not.toHaveBeenCalled();
+    expect(useProjectDraftStore.getState().get("p1")).toBeUndefined();
   });
 
   it("n'écrit rien quand l'arbre est identique à la base", async () => {
