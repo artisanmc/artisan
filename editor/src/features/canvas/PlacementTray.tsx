@@ -13,6 +13,10 @@ import { unplacedRows } from "./unplacedRows";
 
 const CELL = 18 * TEX_SCALE;
 const PAD = 4;
+const CARDS_TOP = 16;
+const LABEL_GAP = 2;
+const LABEL_HEIGHT = 9;
+const TRAY_HEIGHT = CARDS_TOP + CELL + LABEL_GAP + LABEL_HEIGHT + PAD;
 
 /**
  * Les lignes qu'il reste à poser, sous le menu qui les attend.
@@ -84,12 +88,12 @@ export function PlacementTray({
       {pending.map((group) => {
         const width = Math.max(boxWidth, group.rows.length * (CELL + PAD) + PAD);
         const top = y;
-        y += CELL + 22;
+        y += TRAY_HEIGHT + PAD;
         return (
           <Group key={group.elementId} y={top}>
             <Rect
               width={width}
-              height={CELL + 20}
+              height={TRAY_HEIGHT}
               cornerRadius={4}
               fill="#00000066"
               stroke={faint}
@@ -126,7 +130,7 @@ export function PlacementTray({
                 <Group
                   key={key}
                   x={PAD + i * (CELL + PAD)}
-                  y={16}
+                  y={CARDS_TOP}
                   onClick={(ev: Konva.KonvaEventObject<MouseEvent>) => {
                     ev.cancelBubble = true;
                     setArmed(isArmed ? null : { menuId: menu.id, elementId: group.elementId, key });
@@ -154,7 +158,8 @@ export function PlacementTray({
                   />
                   <Text
                     text={label}
-                    y={CELL + 1}
+                    y={CELL + LABEL_GAP}
+                    height={LABEL_HEIGHT}
                     width={CELL}
                     fontSize={7}
                     align="center"

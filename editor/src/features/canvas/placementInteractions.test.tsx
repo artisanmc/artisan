@@ -69,6 +69,38 @@ beforeEach(() => {
   useUiStore.setState({ activeLang: "en", menuPreviewArgs: {} });
 });
 
+it.each(["paste", "move", "duplicate", "selection"])(
+  "preserves placements when ordinary items %s",
+  (operation) => {
+    const ordinary = {
+      id: "ordinary" as ElementId,
+      positions: "8",
+      display: { material: "STONE" },
+      states: [],
+    };
+    project.menus[0]!.layers[0]!.elements.push(ordinary);
+    const before = structuredClone(project.menus[0]!.layers[0]!.elements[0]);
+    const store = useAccountStore.getState();
+    const target = { projectId, menuId, elementId: ordinary.id };
+    if (operation === "paste")
+      store.addElement({ projectId, menuId, element: { ...ordinary, positions: "7" } });
+    if (operation === "move")
+      store.moveElementPosition({ ...target, fromPosition: 8, toPosition: 7 });
+    if (operation === "duplicate") store.addElementPosition({ ...target, position: 7 });
+    if (operation === "selection")
+      store.moveSelectionByDelta({
+        projectId,
+        menuId,
+        elementIds: [ordinary.id],
+        dCol: -1,
+        dRow: 0,
+      });
+    const elements = useAccountStore.getState().account.projects[0]!.menus[0]!.layers[0]!.elements;
+    expect(elements.find((el) => el.id === elementId)).toEqual(before);
+    expect(elements.some((el) => el.positions.includes("7"))).toBe(true);
+  },
+);
+
 it("resolves tray thumbnails with the placement alias", () => {
   render(
     <PlacementTray
