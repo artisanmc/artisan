@@ -1,11 +1,12 @@
-import { type ReactNode, useEffect, useRef, useState } from "react";
-import { useTranslation } from "react-i18next";
-import { LoaderCircle } from "lucide-react";
 import {
   type AssistantTask,
   listAssistantTasks,
   stopAssistantTask,
 } from "@/lib/api/assistantTasks";
+import { LoaderCircle } from "lucide-react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { AssistantMarkdown } from "./AssistantMarkdown";
 
 export function TaskTimeline({
   conversationId,
@@ -196,16 +197,27 @@ export function TaskTimeline({
             )}
             {task.status === "blocked" && (
               <p role="alert" className="text-xs text-[var(--danger)]">
-                {failure ? t(`assistant.migration.errors.${String(failure.code ?? failure.message ?? "")}`, { defaultValue: text("blockedHelp") }) : text("blockedHelp")}
+                {failure
+                  ? t(
+                      `assistant.migration.errors.${String(failure.code ?? failure.message ?? "")}`,
+                      { defaultValue: text("blockedHelp") },
+                    )
+                  : text("blockedHelp")}
                 {failure ? ` (${String(failure.code ?? failure.message ?? "")})` : ""}
               </p>
             )}
-            {answer && <div className="whitespace-pre-wrap text-sm">{answer}</div>}
+            {answer && (
+              <div className="text-sm">
+                <AssistantMarkdown>{answer}</AssistantMarkdown>
+              </div>
+            )}
             {migration && renderMigration?.(String(migration.runId))}
             {reasoning && (
               <details className="text-xs text-[var(--text-mut)]">
                 <summary className="cursor-pointer">{text("reasoning")}</summary>
-                <p className="max-h-64 overflow-auto whitespace-pre-wrap py-2">{reasoning}</p>
+                <div className="max-h-64 overflow-auto py-2">
+                  <AssistantMarkdown>{reasoning}</AssistantMarkdown>
+                </div>
               </details>
             )}
             <details className="text-xs text-[var(--text-mut)]">

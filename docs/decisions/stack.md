@@ -125,6 +125,12 @@ TanStack Query n'est pas utilisé (pas de data fetching server-side côté edito
 
 ---
 
+## Rendu Markdown de l'assistant
+
+L'éditeur utilise `react-markdown` et `remark-gfm` pour afficher les réponses IA
+(CommonMark et tableaux GFM) dans le chat et le suivi des tâches. Le rendu produit
+des éléments React, ignore le HTML brut et conserve le filtrage des URL par défaut.
+
 ## Choses encore ouvertes
 
 - **Signature des bundles** : champ `signature` présent dans le protocole, non implémenté. ECDSA P-256 prévu.

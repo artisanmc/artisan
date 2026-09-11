@@ -30,8 +30,9 @@ import { ChevronLeft, FileText, LoaderCircle, Paperclip, X } from "lucide-react"
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { type ServerAttachmentGroup, ServerImportSourceDialog } from "./ServerImportSourceDialog";
+import { AssistantMarkdown } from "./AssistantMarkdown";
 import { MigrationPanel } from "./MigrationPanel";
+import { type ServerAttachmentGroup, ServerImportSourceDialog } from "./ServerImportSourceDialog";
 import { TaskTimeline } from "./TaskTimeline";
 import { applyTaskProposals } from "./taskProposals";
 
@@ -521,10 +522,14 @@ export function AssistantChat({
                 className={
                   en.role === "user"
                     ? "self-end rounded-[10px] bg-[var(--surface-hover)] px-3 py-1.5"
-                    : "whitespace-pre-wrap"
+                    : "min-w-0"
                 }
               >
-                {en.text}
+                {en.role === "assistant" ? (
+                  <AssistantMarkdown>{en.text}</AssistantMarkdown>
+                ) : (
+                  en.text
+                )}
               </div>
             ),
           )}

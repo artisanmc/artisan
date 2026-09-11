@@ -3,6 +3,9 @@ title: AI Assistant
 description: Describe a menu in plain language — or drop a zmenu / DeluxeMenus file — and let the assistant build it on your canvas.
 ---
 
+Assistant responses render Markdown formatting, including headings, lists, links,
+tables, and code blocks, both in the conversation history and while tasks run.
+
 The AI Assistant is a chat panel that proposes menus, dialogs, commands and translations
 from plain-language requests. Review its results, choose **Apply to draft**, then
 **Save** to publish. You can keep chatting to refine your request.
