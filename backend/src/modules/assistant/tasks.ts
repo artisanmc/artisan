@@ -1,6 +1,7 @@
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "../../db";
 import { assistantConversations, assistantTasks } from "../../db/schema";
+import { storeUploads } from "./uploads";
 
 export type TaskEvent = { type: string; [key: string]: unknown };
 export type AssistantTask = typeof assistantTasks.$inferSelect;
@@ -95,6 +96,7 @@ export async function createTask(
 	requestHash: string,
 	message: string,
 	metadata: TaskEvent = { type: "accepted" },
+	uploads?: { scope: { networkId: string; serverKeyId: string }; incoming: unknown },
 ) {
 	return db.transaction(async (tx) => {
 		await tx
@@ -122,6 +124,7 @@ export async function createTask(
 				),
 			);
 		if (running) throw new Error("task_already_running");
+		if (uploads) await storeUploads(tx, conversationId, uploads.scope, uploads.incoming);
 		const now = new Date();
 		const [task] = await tx
 			.insert(assistantTasks)

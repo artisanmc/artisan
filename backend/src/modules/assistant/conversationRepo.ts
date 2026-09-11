@@ -16,6 +16,7 @@ export interface ConversationRow {
 	projectId: string;
 	title: string;
 	messages: LlmMessage[];
+	uploadedFiles: typeof assistantConversations.$inferSelect.uploadedFiles;
 	createdAt: Date;
 	updatedAt: Date;
 }
@@ -64,6 +65,7 @@ export async function getConversation(
 		projectId: r.projectId,
 		title: r.title,
 		messages: (r.messages ?? []) as LlmMessage[],
+		uploadedFiles: r.uploadedFiles,
 		createdAt: r.createdAt,
 		updatedAt: r.updatedAt,
 	};

@@ -175,6 +175,319 @@ function cookieHeader() {
 }
 
 describe("assistant routes", () => {
+	it.each([false, true])("retains unread uploads after reopening the conversation (background=%s)", async (background) => {
+		const created = await app.request("/api/v1/assistant/conversations", {
+			method: "POST", headers: cookieHeader(), body: JSON.stringify({ projectId: PACK_ID }),
+		});
+		const { conversationId } = await created.json();
+		const url = `/api/v1/assistant/conversations/${conversationId}`;
+		const send = async (attachments: Record<string, string>) => {
+			const response = await app.request(`${url}/messages`, {
+				method: "POST", headers: cookieHeader(),
+				body: JSON.stringify({ text: "continue", background, requestId: crypto.randomUUID(), attachments }),
+			});
+			expect(response.status).toBe(background ? 202 : 200);
+			if (!background) return response.text();
+			let { task } = await response.json();
+			for (let i = 0; i < 150 && ["queued", "running", "stopping"].includes(task.status); i++) {
+				await new Promise((resolve) => setTimeout(resolve, 20));
+				task = (await (await app.request(`${url}/tasks/${task.id}`, { headers: cookieHeader() })).json()).task;
+			}
+			expect(task.status).toBe("completed");
+			return JSON.stringify(task);
+		};
+		try {
+			__setProviderForTests({ async *streamTurn() { yield { type: "done", stopReason: "stop" }; } });
+			await send({ "commands.yml": "PRIVATE_UPLOAD_ORIGINAL" });
+			// Reopening fetches history, but must not expose the stored upload body.
+			expect(await (await app.request(url, { headers: cookieHeader() })).text()).not.toContain("PRIVATE_UPLOAD_ORIGINAL");
+			let calls = 0;
+			__setProviderForTests({
+				async *streamTurn(input) {
+					if (calls++ === 0) yield { type: "tool_use", id: "saved-upload", name: "read_attachment", input: { file_id: "commands.yml" } };
+					else {
+						expect(input.messages).toContainEqual(expect.objectContaining({
+							role: "tool", toolCallId: "saved-upload", content: "PRIVATE_UPLOAD_ORIGINAL",
+						}));
+						yield { type: "text", text: "Upload available" };
+					}
+					yield { type: "done", stopReason: calls === 1 ? "tool_calls" : "stop" };
+				},
+			});
+			expect(await send({})).toContain("Upload available");
+			expect(calls).toBe(2);
+			expect(await (await app.request(url, { headers: cookieHeader() })).text()).not.toContain("PRIVATE_UPLOAD_ORIGINAL");
+		} finally { __setProviderForTests(fakeProvider()); }
+	});
+	it("merges uploads, replaces matching names, isolates conversations and removes files with their conversation", async () => {
+		const create = async () => (await (await app.request("/api/v1/assistant/conversations", {
+			method: "POST", headers: cookieHeader(), body: JSON.stringify({ projectId: PACK_ID }),
+		})).json()).conversationId as string;
+		const id = await create();
+		const otherId = await create();
+		const send = async (conversationId: string, attachments: Record<string, string>) => {
+			const response = await app.request(`/api/v1/assistant/conversations/${conversationId}/messages`, {
+				method: "POST", headers: cookieHeader(), body: JSON.stringify({ text: "read", attachments }),
+			});
+			expect(response.status).toBe(200);
+			return response.text();
+		};
+		try {
+			const results: Record<string, string> = {};
+			const readingProvider = () => {
+				let calls = 0;
+				return { async *streamTurn(input: Parameters<LlmProvider["streamTurn"]>[0]) {
+					if (calls++ === 0) {
+						for (const name of ["commands.yml", "dialog.yml"]) yield {
+							type: "tool_use" as const, id: name, name: "read_attachment", input: { file_id: name },
+						};
+					} else {
+						for (const message of input.messages) if (message.role === "tool") results[message.toolCallId] = message.content;
+					}
+					yield { type: "done" as const, stopReason: calls === 1 ? "tool_calls" : "stop" };
+				} };
+			};
+			__setProviderForTests(readingProvider());
+			await send(id, { "commands.yml": "ORIGINAL_UPLOAD", "dialog.yml": "DIALOG_UPLOAD" });
+			__setProviderForTests(readingProvider());
+			await send(id, { "commands.yml": "REPLACED_UPLOAD" });
+			expect(results["commands.yml"]).toBe("REPLACED_UPLOAD");
+			expect(results["dialog.yml"]).toBe("DIALOG_UPLOAD");
+			__setProviderForTests(readingProvider());
+			await send(otherId, {});
+			expect(results["commands.yml"]).toContain("No attachment");
+			expect(results["dialog.yml"]).toContain("No attachment");
+			const [stored] = await db.select().from(assistantConversations).where(eq(assistantConversations.id, id));
+			expect(stored.uploadedFiles?.files).toEqual({ "commands.yml": "REPLACED_UPLOAD", "dialog.yml": "DIALOG_UPLOAD" });
+			expect(JSON.stringify(stored.messages)).not.toContain("REPLACED_UPLOAD");
+			// Uploads belong to the row, with no external blob left behind.
+			await db.delete(assistantConversations).where(eq(assistantConversations.id, id));
+			expect((await app.request(`/api/v1/assistant/conversations/${id}`, { headers: cookieHeader() })).status).toBe(404);
+		} finally { __setProviderForTests(fakeProvider()); }
+	});
+	it("rejects invalid uploads before calling the provider or altering retained files", async () => {
+		const { conversationId } = await (await app.request("/api/v1/assistant/conversations", {
+			method: "POST", headers: cookieHeader(), body: JSON.stringify({ projectId: PACK_ID }),
+		})).json();
+		let calls = 0;
+		__setProviderForTests({ async *streamTurn() { calls++; yield { type: "done", stopReason: "stop" }; } });
+		try {
+			for (const attachments of [
+				[], { "bad.yml": 1 }, { "server:zmenu/fake.yml": "fake" },
+				{ "large.yml": "a".repeat(1024 * 1024 + 1) },
+				Object.fromEntries(Array.from({ length: 201 }, (_, i) => [`${i}.yml`, "a"])),
+			]) {
+				const response = await app.request(`/api/v1/assistant/conversations/${conversationId}/messages`, {
+					method: "POST", headers: cookieHeader(),
+					body: JSON.stringify({ background: true, requestId: crypto.randomUUID(), attachments }),
+				});
+				expect(response.status).toBe(422);
+			}
+			expect(calls).toBe(0);
+			const [stored] = await db.select().from(assistantConversations).where(eq(assistantConversations.id, conversationId));
+			expect(stored.uploadedFiles).toBeNull();
+		} finally { __setProviderForTests(fakeProvider()); }
+	});
+	it("uses ordinary tools for a mixed-artifact request, without a migration workflow", async () => {
+		const connId = "conn-general-assistant";
+		registerConn(connId, (raw) => {
+			const msg = JSON.parse(raw);
+			if (msg.type === "import_sources_read")
+				void handlePluginMessage(
+					connId,
+					JSON.stringify({
+						type: "import_sources_read_result",
+						request_id: msg.request_id,
+						ok: true,
+						files: [
+							{
+								source_id: "custom",
+								path: "project.txt",
+								content:
+									"Menu, dialogue, command and translations. PRIVATE_SOURCE",
+							},
+						],
+					}),
+				);
+		});
+		connToServerId.set(connId, serverKeyId);
+		let calls = 0;
+		__setProviderForTests({
+			async *streamTurn(input) {
+				expect(input.tools.map((tool) => tool.name)).not.toContain(
+					"start_migration",
+				);
+				expect(input.tools.map((tool) => tool.name)).not.toContain(
+					"resume_migration",
+				);
+				if (calls++ === 0)
+					yield {
+						type: "tool_use",
+						id: "read",
+						name: "read_attachment",
+						input: { file_id: "server:custom/project.txt" },
+					};
+				else if (calls === 2) {
+					yield {
+						type: "tool_use",
+						id: "m",
+						name: "upsert_menu",
+						input: { menu: { ...validMenu, title: [] } },
+					};
+					yield {
+						type: "tool_use",
+						id: "d",
+						name: "upsert_dialog",
+						input: {
+							dialog: {
+								schema: "dialog/v1",
+								id: "confirm",
+								title: "Confirm",
+								buttons: [{ id: "ok", label: "OK", actions: "close_dialog" }],
+							},
+						},
+					};
+					yield {
+						type: "tool_use",
+						id: "c",
+						name: "upsert_command",
+						input: {
+							command: {
+								schema: "command/v1",
+								id: "shop",
+								name: "shop",
+								actions: "open_menu shop",
+							},
+						},
+					};
+					yield {
+						type: "tool_use",
+						id: "t",
+						name: "write_translations",
+						input: { entries: { welcome: { fr: "Bienvenue" } } },
+					};
+				} else
+					yield { type: "text", text: "All four artifact kinds are prepared." };
+				yield { type: "done", stopReason: calls < 3 ? "tool_calls" : "stop" };
+			},
+		});
+		try {
+			const created = await app.request("/api/v1/assistant/conversations", {
+				method: "POST",
+				headers: cookieHeader(),
+				body: JSON.stringify({ projectId: PACK_ID }),
+			});
+			const { conversationId } = await created.json();
+			const url = `/api/v1/assistant/conversations/${conversationId}`;
+			const submitted = await app.request(`${url}/messages`, {
+				method: "POST",
+				headers: cookieHeader(),
+				body: JSON.stringify({
+					text: "Convert everything, including dialogs and commands",
+					background: true,
+					requestId: crypto.randomUUID(),
+					serverAttachments: [{ sourceId: "custom", paths: ["project.txt"] }],
+				}),
+			});
+			expect(submitted.status).toBe(202);
+			let { task } = await submitted.json();
+			for (let i = 0; i < 150; i++) {
+				task = (
+					await (
+						await app.request(`${url}/tasks/${task.id}`, {
+							headers: cookieHeader(),
+						})
+					).json()
+				).task;
+				if (["completed", "blocked", "cancelled"].includes(task.status)) break;
+				await new Promise((resolve) => setTimeout(resolve, 20));
+			}
+			expect(task.status).toBe("completed");
+			for (const type of [
+				"menu_written",
+				"dialog_written",
+				"command_written",
+				"translations_written",
+			])
+				expect(task.events).toContainEqual(expect.objectContaining({ type }));
+			expect(await listRuns(conversationId)).toHaveLength(0);
+			expect(JSON.stringify(task)).not.toContain("PRIVATE_SOURCE");
+			let followupCalls = 0;
+			__setProviderForTests({
+				async *streamTurn(input) {
+					if (followupCalls++ === 0) {
+						yield {
+							type: "tool_use",
+							id: "read-again",
+							name: "read_attachment",
+							input: { file_id: "server:custom/project.txt" },
+						};
+						yield {
+							type: "tool_use",
+							id: "previous",
+							name: "get_previous_results",
+							input: {},
+						};
+					} else {
+						expect(input.messages).toContainEqual(
+							expect.objectContaining({
+								role: "tool",
+								toolCallId: "read-again",
+								content: expect.stringContaining("PRIVATE_SOURCE"),
+							}),
+						);
+						expect(input.messages).toContainEqual(
+							expect.objectContaining({
+								role: "tool",
+								toolCallId: "previous",
+								content: expect.stringContaining("dialog_written"),
+							}),
+						);
+						yield { type: "text", text: "Sources still accessible" };
+					}
+					yield {
+						type: "done",
+						stopReason: followupCalls === 1 ? "tool_calls" : "stop",
+					};
+				},
+			});
+			const followup = await app.request(`${url}/messages`, {
+				method: "POST",
+				headers: cookieHeader(),
+				body: JSON.stringify({
+					text: "continue",
+					background: true,
+					requestId: crypto.randomUUID(),
+					serverAttachments: [],
+				}),
+			});
+			expect(followup.status).toBe(202);
+			task = (await followup.json()).task;
+			for (let i = 0; i < 150; i++) {
+				task = (
+					await (
+						await app.request(`${url}/tasks/${task.id}`, {
+							headers: cookieHeader(),
+						})
+					).json()
+				).task;
+				if (["completed", "blocked", "cancelled"].includes(task.status)) break;
+				await new Promise((resolve) => setTimeout(resolve, 20));
+			}
+			expect(task.status).toBe("completed");
+			for (const type of ["menu_written", "dialog_written", "command_written", "translations_written"])
+				expect(task.events).toContainEqual(expect.objectContaining({ type }));
+			expect(
+				JSON.stringify(
+					(await (await app.request(url, { headers: cookieHeader() })).json())
+						.messages,
+				),
+			).not.toContain("PRIVATE_SOURCE");
+		} finally {
+			cleanupConn(connId);
+			__setProviderForTests(fakeProvider());
+		}
+	});
 	it("reuses the same task journal when explicitly resuming a migration", async () => {
 		const { conversationId } = await (
 			await app.request("/api/v1/assistant/conversations", {
@@ -405,7 +718,7 @@ describe("assistant routes", () => {
 		}
 	});
 	it.each([false, true])(
-		"continue resumes saved sources and preserves completed menus without a new selection (timeout=%s)",
+		"ordinary chat recovers legacy sources without restarting or deleting old results (timeout=%s)",
 		async (timeout) => {
 			const created = await app.request("/api/v1/assistant/conversations", {
 				method: "POST",
@@ -493,22 +806,26 @@ describe("assistant routes", () => {
 			__setProviderForTests({
 				async *streamTurn(input) {
 					calls++;
-					if (input.tools.some((tool) => tool.name === "list_menus")) {
-						expect(
-							input.tools.some((tool) => tool.name === "resume_migration"),
-						).toBe(true);
+					expect(
+						input.tools.some((tool) => tool.name === "resume_migration"),
+					).toBe(false);
+					if (calls === 1) {
 						expect(JSON.stringify(input.messages)).toContain(
 							"provider_timeout",
 						);
 						yield {
 							type: "tool_use",
-							id: "resume",
-							name: "resume_migration",
-							input: {},
+							id: "read",
+							name: "read_attachment",
+							input: { file_id: "server:zmenu/b.yml" },
 						};
-					} else {
-						expect(JSON.parse(input.messages[1].content ?? "{}").targetId).toBe(
-							"b",
+					} else if (calls === 2) {
+						expect(input.messages).toContainEqual(
+							expect.objectContaining({
+								role: "tool",
+								toolCallId: "read",
+								content: sources["server:zmenu/b.yml"],
+							}),
 						);
 						if (timeout) throw new MigrationInputError("provider_timeout");
 						yield {
@@ -517,12 +834,12 @@ describe("assistant routes", () => {
 							name: "upsert_menu",
 							input: { menu: { ...validMenu, id: "b", title: [] } },
 						};
-					}
+					} else yield { type: "text", text: "Remaining work prepared" };
 					yield {
 						type: "usage",
 						usage: { inputTokens: 100, outputTokens: 10 },
 					};
-					yield { type: "done", stopReason: "tool_calls" };
+					yield { type: "done", stopReason: calls < 3 ? "tool_calls" : "stop" };
 				},
 			});
 			try {
@@ -558,36 +875,18 @@ describe("assistant routes", () => {
 						),
 					).toEqual([]);
 				expect(restored.status).toBe(timeout ? "blocked" : "completed");
-				expect((await getRun(run.id))?.status).toBe(
-					timeout ? "paused" : "completed",
-				);
-				if (timeout) {
-					expect(restored.events).toContainEqual(
-						expect.objectContaining({
-							type: "error",
-							message: "provider_timeout",
-						}),
-					);
-					const history = await (
-						await app.request(url, { headers: cookieHeader() })
-					).json();
-					expect(history.messages).toContainEqual(
-						expect.objectContaining({
-							role: "tool",
-							toolCallId: "resume",
-							content: expect.stringContaining("provider_timeout"),
-						}),
-					);
-				}
+				expect((await getRun(run.id))?.status).toBe("paused");
 				expect(
-					(await getRun(run.id))?.steps.map((s) => s.attemptCount),
-				).toEqual([1, 2]);
+					(await getRun(run.id))?.steps.map((step) => step.attemptCount),
+				).toEqual([1, 1]);
 				expect(await listRuns(conversationId)).toHaveLength(1);
-				expect(restored.events).toContainEqual(
-					expect.objectContaining({ type: "migration_started", runId: run.id }),
-				);
+				expect(
+					restored.events.some(
+						(event: { type: string }) => event.type === "migration_started",
+					),
+				).toBe(false);
 				expect(sourceReads).toBeGreaterThan(0);
-				expect(calls).toBe(2);
+				expect(calls).toBe(timeout ? 2 : 3);
 			} finally {
 				cleanupConn(connId);
 				__setProviderForTests(fakeProvider());
@@ -748,7 +1047,7 @@ describe("assistant routes", () => {
 			expect(userIdx).toBeGreaterThan(sysIdx); // announced before the user message
 			expect(seen[sysIdx]?.content).toContain("read_attachment");
 
-			// No attachments → no extra system note for that turn.
+			// No new uploads: the stored files are announced again.
 			const res2 = await app.request(
 				`/api/v1/assistant/conversations/${conversationId}/messages`,
 				{
@@ -762,9 +1061,11 @@ describe("assistant routes", () => {
 				(m, i) =>
 					i > 0 &&
 					m.role === "system" &&
-					m.content?.includes("read_attachment"),
+					m.content?.startsWith(ATTACHMENT_NOTE_PREFIX),
 			);
-			expect(notes.length).toBe(1);
+			expect(notes.length).toBe(2);
+			expect(notes[1]?.content).toContain("menu.yml");
+			expect(notes[1]?.content).toContain("kits.yml");
 		} finally {
 			__setProviderForTests(fakeProvider());
 		}
@@ -880,7 +1181,9 @@ describe("assistant routes", () => {
 			expect(transcript).toContain(
 				"[Contenu de la pièce jointe serveur non conservé après ce tour.]",
 			);
-			expect(transcript).toContain("local notes");
+			expect(transcript).not.toContain("local notes");
+			const [stored] = await db.select().from(assistantConversations).where(eq(assistantConversations.id, conversationId));
+			expect(stored.uploadedFiles?.files).toEqual({ "notes.txt": "local notes" });
 		} finally {
 			cleanupConn(connId);
 			__setProviderForTests(fakeProvider());

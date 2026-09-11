@@ -28,6 +28,7 @@ export type ResolvedServerAttachments =
 export function redactServerAttachmentToolResults(
 	messages: LlmMessage[],
 	serverAttachmentIds: ReadonlySet<string>,
+	replacement = SERVER_ATTACHMENT_REDACTION,
 ): LlmMessage[] {
 	if (serverAttachmentIds.size === 0) return messages;
 
@@ -52,7 +53,7 @@ export function redactServerAttachmentToolResults(
 
 	return messages.map((message) =>
 		message.role === "tool" && serverReadCallIds.has(message.toolCallId)
-			? { ...message, content: SERVER_ATTACHMENT_REDACTION }
+			? { ...message, content: replacement }
 			: message,
 	);
 }
