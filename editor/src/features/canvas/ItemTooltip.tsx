@@ -20,7 +20,7 @@ interface ItemTooltipProps {
 }
 
 /**
- * Walk the menu tree to locate `id`'s element + its parent menu. NOT a
+ * Locate `id` within the hovered menu: element ids can repeat across menus. NOT a
  * zustand selector — wrapping this in `useAccountStore(...)` would return
  * a fresh object every call and trigger an infinite re-render loop. Call
  * it from `useMemo` against a stable project ref instead.
@@ -28,13 +28,14 @@ interface ItemTooltipProps {
 const findElementAndMenu = (
   project: ReturnType<typeof useAccountStore.getState>["account"]["projects"][number] | undefined,
   id: string | null,
+  menuId: string | null,
 ): { element: Element; menu: Menu } | null => {
-  if (!project || !id) return null;
-  for (const m of project.menus) {
-    for (const layer of m.layers) {
-      for (const el of layer.elements) {
-        if (el.id === id) return { element: el, menu: m };
-      }
+  if (!project || !id || !menuId) return null;
+  const menu = project.menus.find((m) => m.id === menuId);
+  if (!menu) return null;
+  for (const layer of menu.layers) {
+    for (const el of layer.elements) {
+      if (el.id === id) return { element: el, menu };
     }
   }
   return null;
@@ -60,6 +61,7 @@ const humanize = (material: string): string =>
  */
 export function ItemTooltip({ projectId }: ItemTooltipProps) {
   const elementId = useHoverStore((s) => s.elementId);
+  const menuId = useHoverStore((s) => s.menuId);
   const slotPosition = useHoverStore((s) => s.slotPosition);
   const x = useHoverStore((s) => s.x);
   const y = useHoverStore((s) => s.y);
@@ -79,7 +81,10 @@ export function ItemTooltip({ projectId }: ItemTooltipProps) {
   // Whole map (stable identity) — menu.id is only known after the early
   // returns, and hooks must not run after them.
   const menuPreviewArgs = useUiStore((s) => s.menuPreviewArgs);
-  const found = useMemo(() => findElementAndMenu(project, elementId), [project, elementId]);
+  const found = useMemo(
+    () => findElementAndMenu(project, elementId, menuId),
+    [project, elementId, menuId],
+  );
   if (!found || !project) return null;
   const { element, menu } = found;
   const appearance = element.display;

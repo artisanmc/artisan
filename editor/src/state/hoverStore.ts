@@ -1,9 +1,10 @@
-import type { ElementId } from "@/domain/types";
+import type { ElementId, MenuId } from "@/domain/types";
 import { create } from "zustand";
 
 interface HoverState {
   /** Currently-hovered element id (null when no slot is under the cursor). */
   elementId: ElementId | null;
+  menuId: MenuId | null;
   /**
    * Currently-hovered slot index inside the parent menu (0..rows*9-1).
    * Needed so the tooltip can resolve iteration placeholders against the
@@ -13,7 +14,7 @@ interface HoverState {
   /** Cursor position in viewport-relative pixels — used by the tooltip overlay. */
   x: number;
   y: number;
-  setElement: (id: ElementId | null, slotPosition?: number | null) => void;
+  setElement: (id: ElementId | null, slotPosition?: number | null, menuId?: MenuId | null) => void;
   setCursor: (x: number, y: number) => void;
 }
 
@@ -24,9 +25,11 @@ interface HoverState {
  */
 export const useHoverStore = create<HoverState>((set) => ({
   elementId: null,
+  menuId: null,
   slotPosition: null,
   x: 0,
   y: 0,
-  setElement: (elementId, slotPosition = null) => set({ elementId, slotPosition }),
+  setElement: (elementId, slotPosition = null, menuId = null) =>
+    set({ elementId, slotPosition, menuId: elementId === null ? null : menuId }),
   setCursor: (x, y) => set({ x, y }),
 }));
