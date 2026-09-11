@@ -457,6 +457,14 @@ Chaîne complète : `packToMenuV1` (seed) → backend → SSE → `streamAssista
 
 ## Panel chat de l'assistant (sous-plan 4b — l'UI)
 
+Les réponses du chat et les réponses/raisonnements de `TaskTimeline` utilisent
+`features/assistant/AssistantMarkdown.tsx` : `react-markdown` + `remark-gfm`
+rendent titres, listes, liens, tableaux et code (inline ou blocs). Les fragments
+de réponse sont concaténés avant le rendu, y compris pendant une tâche en cours.
+Le HTML brut est ignoré et les URL utilisent le filtrage par défaut de
+`react-markdown`. Le style utilise les tokens du thème ; tableaux et blocs de
+code disposent d'un défilement horizontal. Les messages utilisateur restent du texte.
+
 **Depuis 2026-07-19/07-20**, l'assistant n'a plus de pane docké ni de drawer (`AssistantPane`/`AssistantPanel`/`assistantPanelOpen` supprimés). C'est une **vue secondaire comme les autres** : `?tab=assistant` ouvre `features/assistant/AssistantBody.tsx` dans un `WorkspaceView` qui remplace le canvas (cf. section « UI shell »). Corps `AssistantChat` :
 
 - **Ouverture** : entrée `Sparkles` du `WorkspaceViewNav` (topbar) → `?tab=assistant`. Monté keep-alive dans la zone centrale de la route project (le chat en cours survit au retour au canvas).
