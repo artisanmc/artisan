@@ -557,6 +557,12 @@ Panel admin système de modèles IA, accessible à `/admin` (gate super-admin c�
 
 ### Placement tray and slot dragging
 
+Preview context changes (canvas banner, board edges and properties selector) apply
+all call arguments through `uiStore.setMenuPreviewArgs` in one store update.
+Writing arguments separately exposes a partial context to the canvas reconciler,
+which can trigger the banner's first-context fallback and undo the selection.
+Single-field input edits continue to use `setMenuPreviewArg`.
+
 Item tooltips resolve the hovered element within its menu (`hoverStore.menuId` +
 `elementId`), since element IDs such as `player` can repeat across menus.
 `MenuGroup` supplies the menu on hover; leaving clears it. `ItemTooltip` subscribes
