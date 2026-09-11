@@ -513,8 +513,8 @@ interface AccountState {
     input: {
       projectId: ProjectId;
       appearanceIndex?: number;
-      field: "count" | "material" | "head";
-      value: string | number;
+      field: "count" | "material" | "head" | "item";
+      value: string | number | undefined;
     } & AppearanceTarget,
   ) => void;
   /**
@@ -2701,12 +2701,21 @@ export const useAccountStore = create<AccountState>()(
             const appearance = findAddressedAppearance(project, input, appearanceIndex);
             if (!appearance) return;
             if (field === "count") {
-              const n = typeof value === "number" ? value : Number(value);
-              if (Number.isNaN(n) || n < 1 || n > 64) return;
-              appearance.count = n === 1 ? undefined : n;
+              if (value === undefined || value === "") {
+                appearance.count = undefined;
+              } else {
+                const n = typeof value === "number" ? value : Number(value);
+                if (!Number.isInteger(n) || n < 1 || n > 64) return;
+                appearance.count = n;
+              }
             } else if (field === "material") {
               if (typeof value !== "string") return;
               appearance.material = value || undefined;
+              appearance.item = undefined;
+            } else if (field === "item") {
+              if (typeof value !== "string") return;
+              appearance.item = value;
+              appearance.material = undefined;
             } else if (field === "head") {
               if (typeof value !== "string") return;
               appearance.head = value || undefined;

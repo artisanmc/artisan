@@ -97,6 +97,8 @@ exact stack. A ref is **additive**: the item keeps its own name and lore, and
 the referencing appearance layers over it (its title wins, its lore is appended
 under the item's own lines). Cf. ADR `captured-items-and-module-field-kit`.
 
+A model's **item value** may also be an editable object (`material`, optional `count` and advanced attributes), with a vanilla/custom/captured ref as its base. A menu binds this value through `item: "{item.icon}"` and adds its presentation over it; legacy Material expressions remain readable.
+
 Non-examples:
 - A **custom item** of the server catalog (Nexo/Oraxen entry reported by
   `CustomItemsManager`) is not a Captured item — the catalog belongs to the item

@@ -7,6 +7,11 @@ const good = {
 };
 
 describe("validateMenuV1 (backend gate)", () => {
+  it("accepts explicit item bindings in v2 and rejects conflicting material", () => {
+    const menu = { ...good, schema: "menu/v2", elements: [{ id: "icon", positions: "0", item: "{item.icon}" }] };
+    expect(validateMenuV1(menu)).toEqual({ valid: true, errors: [] });
+    expect(validateMenuV1({ ...menu, elements: [{ ...menu.elements[0], material: "STONE" }] }).valid).toBe(false);
+  });
   it("accepts a canonical menu", () => {
     expect(validateMenuV1(good)).toEqual({ valid: true, errors: [] });
   });

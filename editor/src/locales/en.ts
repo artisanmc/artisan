@@ -327,6 +327,15 @@ export default {
     teleportYaw: "Yaw (optional)",
     teleportPitch: "Pitch (optional)",
   },
+  itemBinding: {
+    sample: "Preview with sample data",
+    title: "Displayed item", linked: "Linked to data", mode: "Item source",
+    define: "Define an item", data: "Use an item from data", source: "Item field",
+    choose: "Choose a field…", custom: "expression", empty: "No known item field in this context. You can enter an expression below.",
+    unresolved: "Preview unavailable", inherited: "inherited", customized: "customized",
+    customize: "Customize", reset: "Restore inherited value", inheritedEnchants: "Inherited enchantments",
+    expression: "Advanced expression", presentation: "The item supplies its quantity and attributes. The title below replaces its name; the description is appended to its lore.",
+  },
   flow: {
     headerStateOne: "{{count}} state",
     headerStateOther: "{{count}} states",

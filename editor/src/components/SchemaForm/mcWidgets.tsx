@@ -1,5 +1,6 @@
 import { RevealField } from "@/components/RevealField";
 import type { ProjectId } from "@/domain/types";
+import { ItemValueField } from "@/features/canvas/ItemValueField";
 import { MaterialRefField } from "@/features/canvas/MaterialRefField";
 import { ControlledStepsEditor } from "@/features/flow/ControlledStepsEditor";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
@@ -69,6 +70,12 @@ export function mcWidgets(projectId: ProjectId): Record<string, ComponentType<Wi
 
   return {
     material,
+    item: ({ value, onChange, schema }) => (
+      <div className="flex flex-col gap-1 text-sm">
+        {schema.title ? <span>{schema.title}</span> : null}
+        <ItemValueField projectId={projectId} value={value} onChange={onChange} />
+      </div>
+    ),
     minimessage: mini(false),
     minimessage_multiline: mini(true),
     actions,

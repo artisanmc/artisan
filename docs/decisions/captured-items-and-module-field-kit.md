@@ -69,6 +69,15 @@ way an author gives up following the item.
 
 ### 3. Capture flows
 
+**Structured item values (2026-09-11).** A model field of kind `item` also accepts
+`{ material: DIAMOND_SWORD, count: 3, enchants: { sharpness: 5 } }` using the
+appearance's existing item attributes. Simple string refs remain valid.
+`item: "{item.icon}"` in `menu/v2` evaluates a whole item value before applying the menu
+appearance: explicit count (including 1) and title win; lore and enchantments
+are added. Missing count preserves the referenced stack's amount. The catalog
+edits this value directly, independently of the purchase's actions.
+The editor exposes a typed data-item selector and inherited preview, with expressions behind an advanced disclosure. Legacy material expressions remain supported.
+
 - **Inventory mirror** (editor-initiated): a WS request/response relay (same
   pattern as `data_source_fetch`) returns a player's inventory as display
   descriptors + opaque stacks; the editor shows it as a Library panel; dragging

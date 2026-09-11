@@ -1,5 +1,6 @@
 import type { Appearance, Element, Placement, Project } from "@/domain/types";
 import { getText } from "@/lib/i18n";
+import { previewItem } from "./itemValuePreview";
 import { renderPreview } from "./menuPreviewScope";
 
 /**
@@ -16,6 +17,7 @@ export interface PlacementSlotInfo {
   head?: string;
   title?: string;
   count?: number;
+  enchanted?: boolean;
   elementId: string;
   multiPos: boolean;
   /** True when neither the live row nor a cache resolved — renders as an empty slot. */
@@ -37,7 +39,10 @@ export function matchPlacementRow(
 ): Record<string, unknown> | undefined {
   if (!Array.isArray(rows)) return undefined;
   return rows.find(
-    (r) => r != null && typeof r === "object" && String((r as Record<string, unknown>)[keyField]) === key,
+    (r) =>
+      r != null &&
+      typeof r === "object" &&
+      String((r as Record<string, unknown>)[keyField]) === key,
   ) as Record<string, unknown> | undefined;
 }
 
@@ -63,9 +68,7 @@ export function placementAtSlot(
 ): Placement | undefined {
   const here = places.placements.filter((p) => p.page === page && p.position === position);
   if (here.length === 0) return undefined;
-  return (
-    here.find((p) => matchPlacementRow(rows, places.keyField, p.key) !== undefined) ?? here[0]
-  );
+  return here.find((p) => matchPlacementRow(rows, places.keyField, p.key) !== undefined) ?? here[0];
 }
 
 /**
@@ -88,8 +91,17 @@ export function resolvePlacementSlot(opts: {
   activeLang: string;
   elementId: string;
 }): PlacementSlotInfo {
-  const { places, appearance, placement, row, rowsAvailable, baseCtx, project, activeLang, elementId } =
-    opts;
+  const {
+    places,
+    appearance,
+    placement,
+    row,
+    rowsAvailable,
+    baseCtx,
+    project,
+    activeLang,
+    elementId,
+  } = opts;
   const ctx = row ? { ...baseCtx, [places.alias]: row } : baseCtx;
   // multiPos: a placement element spans several authored slots, so slot clicks
   // follow the multi-position pattern — first click selects the whole element
@@ -98,13 +110,7 @@ export function resolvePlacementSlot(opts: {
   const info: PlacementSlotInfo = { elementId, multiPos: true, dangling: false };
 
   if (row) {
-    info.material = appearance.material
-      ? renderPreview(appearance.material, ctx, project, activeLang)
-      : undefined;
-    info.head = appearance.head;
-    const titleRaw = getText(project, appearance.title, activeLang);
-    info.title = titleRaw ? renderPreview(titleRaw, ctx, project, activeLang) : undefined;
-    info.count = appearance.count;
+    Object.assign(info, previewItem(appearance, ctx, project, activeLang));
   } else if (!rowsAvailable && placement.cachedDisplay) {
     info.material = placement.cachedDisplay.material || undefined;
     info.title = placement.cachedDisplay.name || undefined;
@@ -131,10 +137,12 @@ export function capturePlacementCache(opts: {
   const { places, appearance, row, baseCtx, project, activeLang } = opts;
   const ctx = { ...baseCtx, [places.alias]: row };
   const out: { name?: string; material?: string; lore?: string[] } = {};
-  if (appearance.material) out.material = renderPreview(appearance.material, ctx, project, activeLang);
+  if (appearance.item || appearance.material)
+    out.material = previewItem(appearance, ctx, project, activeLang).material;
   const titleRaw = getText(project, appearance.title, activeLang);
   if (titleRaw) out.name = renderPreview(titleRaw, ctx, project, activeLang);
   const loreRaw = appearance.lore ? getText(project, appearance.lore, activeLang) : "";
-  if (loreRaw) out.lore = loreRaw.split("\n").map((l) => renderPreview(l, ctx, project, activeLang));
+  if (loreRaw)
+    out.lore = loreRaw.split("\n").map((l) => renderPreview(l, ctx, project, activeLang));
   return out;
 }

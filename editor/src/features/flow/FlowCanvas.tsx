@@ -57,6 +57,8 @@ import { Wand2 } from "lucide-react";
 import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AdvancedItemSection } from "./AdvancedItemSection";
+import { ItemBindingEditor } from "./ItemBindingEditor";
+import { useServerSnapshotsStore } from "@/state/serverSnapshotsStore";
 import {
   CommandStepPseudocode,
   DialogButtonStepPseudocode,
@@ -652,16 +654,18 @@ function StateCard({
   // Preview scope — binds the first list item when the element iterates so
   // expressions like {rank.price > 1 ? "★" : ""} resolve with real data.
   const previewArgs = useUiStore((s) => s.menuPreviewArgs[menu.id]);
+  const snapshots = useServerSnapshotsStore((s) => s.rowsByRef);
   const lorePreviewCtx = useMemo(() => {
     if (!project) return {};
-    const base = buildPreviewScope(menu, project, undefined, previewArgs);
-    if (!element.iterates) return base;
-    const list = lookupPath(base, element.iterates.source);
+    const base = buildPreviewScope(menu, project, snapshots, previewArgs);
+    const iteration = element.iterates ?? element.places;
+    if (!iteration) return base;
+    const list = lookupPath(base, iteration.source);
     if (!Array.isArray(list) || list.length === 0) return base;
-    return { ...base, [element.iterates.alias]: list[0] };
-  }, [project, menu, element.iterates, previewArgs]);
+    return { ...base, [iteration.alias]: list[0] };
+  }, [project, menu, element.iterates, element.places, previewArgs, snapshots]);
 
-  const update = (field: "material" | "count" | "head", value: string | number) =>
+  const update = (field: "material" | "item" | "count" | "head", value: string | number | undefined) =>
     setAppearanceField({
       projectId,
       ...target,
@@ -832,25 +836,17 @@ function StateCard({
             ) : null}
           </div>
 
-          {/* Material row */}
-          <div className="flex items-center gap-1.5">
-            <StateMaterialIcon
-              projectId={projectId}
-              menuId={menu.id}
-              elementId={element.id}
-              stateIndex={stateIndex}
-              material={material}
-              textureUrl={textureUrl}
-              onPick={(picked) => update("material", picked)}
-            />
-            <Input
-              value={material}
-              placeholder="DIAMOND"
-              onChange={(e) => update("material", e.target.value.toUpperCase())}
-              onFocus={() => setSub({ kind: "state", stateIndex })}
-              className="h-8 flex-1 px-2 py-0 font-mono text-xs"
-            />
-          </div>
+          {project && <ItemBindingEditor project={project} menu={menu} element={element}
+            appearance={appearance} scope={lorePreviewCtx} lang={activeLang}
+            onSource={update} onCount={(value) => update("count", value)}>
+            <div className="flex items-center gap-1.5">
+              <StateMaterialIcon projectId={projectId} menuId={menu.id} elementId={element.id}
+                stateIndex={stateIndex} material={material} textureUrl={textureUrl}
+                onPick={(picked) => update("material", picked)} />
+              <Input value={material} placeholder="DIAMOND" onChange={(e) => update("material", e.target.value)}
+                className="h-8 flex-1 px-2 py-0 font-mono text-xs" />
+            </div>
+          </ItemBindingEditor>}
 
           {/* Captured item — offer to explode the ref into editable fields */}
           {capturedDetails ? (
@@ -916,8 +912,14 @@ function StateCard({
                 type="number"
                 min={1}
                 max={64}
-                value={count}
+                value={appearance.count ?? ""}
+                placeholder={String(count)}
+                aria-label={t("flow.countLabel")}
                 onChange={(e) => {
+                  if (e.target.value === "") {
+                    update("count", undefined);
+                    return;
+                  }
                   const n = Number(e.target.value);
                   if (!Number.isNaN(n) && n >= 1 && n <= 64) update("count", n);
                 }}
@@ -1688,7 +1690,7 @@ function DialogEditor({ projectId, dialog }: { projectId: ProjectId; dialog: Dia
                           projectId,
                           dialogId: dialog.id,
                           index: i,
-                          material: e.target.value.toUpperCase(),
+                          material: e.target.value,
                           count: body.count,
                         })
                       }

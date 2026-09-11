@@ -157,8 +157,9 @@ Values: `STATIC`, `DYNAMIC`.
 ### `net.artisanmc.modules.api.FieldKind`
 
 Enum describing the type of a declared data-source row field. Drives editor schema table and filter autocomplete.
+`ITEM` declares a complete item value (reference or structured material/quantity/metadata), exposed as `item` in source schemas. The editor offers these fields in **Displayed item → Use an item from data**. Text fields remain `STRING`.
 
-Values: `STRING`, `NUMBER`, `INTEGER`, `BOOLEAN`, `LIST`, `OBJECT`.
+Values: `STRING`, `NUMBER`, `INTEGER`, `BOOLEAN`, `LIST`, `OBJECT`, `ITEM`.
 
 ### `net.artisanmc.modules.api.DataSourceField`
 

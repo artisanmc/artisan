@@ -785,7 +785,7 @@ function GiveItemEditor({
           <Input
             value={action.material}
             placeholder={t("actionEditor.materialPlaceholder")}
-            onChange={(e) => onChange({ ...action, material: e.target.value.toUpperCase() })}
+            onChange={(e) => onChange({ ...action, material: e.target.value })}
           />
         </div>
       </div>
