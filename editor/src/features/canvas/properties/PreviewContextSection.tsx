@@ -25,6 +25,7 @@ export function PreviewContextSection({ menu, projectId }: { menu: Menu; project
   const snapshots = useServerSnapshotsStore((s) => s.rowsByRef);
   const menuPreviewArgs = useUiStore((s) => s.menuPreviewArgs);
   const setMenuPreviewArg = useUiStore((s) => s.setMenuPreviewArg);
+  const setMenuPreviewArgs = useUiStore((s) => s.setMenuPreviewArgs);
   const activeLang = useUiStore((s) => s.activeLang);
   const previewPlayer = useUiStore((s) => s.previewPlayer);
   const [playerDraft, setPlayerDraft] = useState(previewPlayer);
@@ -45,7 +46,7 @@ export function PreviewContextSection({ menu, projectId }: { menu: Menu; project
   const applyCallContext = (idx: number) => {
     const c = callContexts[idx];
     if (!c) return;
-    for (const [k, v] of Object.entries(c.args)) setMenuPreviewArg(menu.id, k, v);
+    setMenuPreviewArgs(menu.id, c.args);
   };
 
   const sourceInputs = (menu.contextInputs ?? []).filter(

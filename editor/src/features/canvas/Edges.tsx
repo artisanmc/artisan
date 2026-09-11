@@ -50,7 +50,7 @@ export function Edges({ project, layout }: EdgesProps) {
   const selectedIds = useSelectionStore((s) => s.ids);
   const activeLang = useUiStore((s) => s.activeLang);
   const menuPreviewArgs = useUiStore((s) => s.menuPreviewArgs);
-  const setMenuPreviewArg = useUiStore((s) => s.setMenuPreviewArg);
+  const setMenuPreviewArgs = useUiStore((s) => s.setMenuPreviewArgs);
   const snapshots = useServerSnapshotsStore((s) => s.rowsByRef);
 
   /**
@@ -65,7 +65,7 @@ export function Edges({ project, layout }: EdgesProps) {
     const contexts = findPreviewCallContexts(target, project, snapshots, activeLang);
     const next = nextCallContext(contexts, menuPreviewArgs[target.id], edge.source);
     if (!next) return;
-    for (const [k, v] of Object.entries(next.args)) setMenuPreviewArg(target.id, k, v);
+    setMenuPreviewArgs(target.id, next.args);
   };
 
   const highlightSet = useMemo(() => deriveHighlightSet(project, selectedIds), [project, selectedIds]);
