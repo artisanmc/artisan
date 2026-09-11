@@ -41,6 +41,7 @@ export class WorkingCopy {
     commands: CommandV1[] = [],
     translations: Record<string, Record<string, string>> = {},
     private readonly dataSources: DataSourceInfo[] = [],
+    private readonly previousResults: unknown[] = [],
   ) {
     for (const m of menus) if (typeof m?.id === "string") this.menus.set(m.id, m);
     for (const [k, v] of Object.entries(attachments)) this.attachments.set(k, v);
@@ -74,6 +75,7 @@ export class WorkingCopy {
 
   attachment(fileId: string): string | undefined { return this.attachments.get(fileId); }
   attachmentIds(): string[] { return [...this.attachments.keys()]; }
+  getPreviousResults(): unknown[] { return this.previousResults; }
   snapshot(): MenuV1[] { return [...this.menus.values()]; }
 
   /** Translations, optionally filtered by exact keys and/or a key prefix. */

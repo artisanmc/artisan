@@ -12,36 +12,13 @@ export async function* runTurn(args: {
   signal?: AbortSignal;
   activity?: boolean;
   beforeIteration?: () => Promise<void>;
-  migration?: () => AsyncGenerator<EngineEvent, string>;
-  migrationStatus?: () => Promise<string>;
-  resumeMigration?: () => AsyncGenerator<EngineEvent, string>;
   system?: string; // grounding prompt, prepended fresh per call — NOT persisted into `messages`
 }): AsyncIterable<EngineEvent> {
   const { provider, model, messages, wc, system } = args;
   const maxIterations = args.maxIterations ?? 25;
-  const tools = args.migration
-    ? [
-        ...TOOL_DEFS,
-        {
-          name: "start_migration",
-          description:
-            "Migrate the selected server menu files with a durable, resumable workflow. Use for menu migration requests; it explores sources, resolves dependencies and produces reviewable proposals. Call alone, with no arguments. Do not read every attachment first: this workflow handles source exploration.",
-          parameters: { type: "object", properties: {}, additionalProperties: false },
-        },
-      ]
-    : [...TOOL_DEFS];
-  if (args.migrationStatus) tools.push({
-    name: "get_migration",
-    description: "Inspect the existing migration in this conversation: status, exact pause cause, source files and completed menus. No work is started. Call with no arguments.",
-    parameters: { type: "object", properties: {}, additionalProperties: false },
-  });
-  if (args.resumeMigration) tools.push({
-    name: "resume_migration",
-    description: "Resume the existing paused migration using its saved source selection and checkpoints, without regenerating completed menus. Use only when the user explicitly requests continuation (e.g. continue/reprends). Never retry automatically or for a status question. Call alone with no arguments; no attachment reads are required. Compression requires the user's separate button action.",
-    parameters: { type: "object", properties: {}, additionalProperties: false },
-  });
+  const tools = TOOL_DEFS;
   const attachmentIds = wc.attachmentIds();
-  const unread = new Set(attachmentIds);
+  const unread = new Set(args.activity ? [] : attachmentIds);
   let correctionAttempted = false;
   let reminder: LlmMessage | undefined;
   const incompleteError = (): EngineEvent => ({
@@ -90,7 +67,8 @@ export async function* runTurn(args: {
       else if (ev.type === "usage") yield ev;
       else if (ev.type === "done") stop = ev.stopReason;
     }
-    if (["length", "max_tokens"].includes(stop)) throw new LlmRequestError("provider_output_limit");
+    if (["length", "max_tokens"].includes(stop))
+      throw new LlmRequestError("provider_output_limit");
 
     if (toolCalls.length === 0 && awaitingAttachments) {
       if (!correctionAttempted) {
@@ -127,82 +105,65 @@ export async function* runTurn(args: {
       return;
     }
 
-    for (const tc of toolCalls) {
-      args.signal?.throwIfAborted();
-      const getMigrationStatus = args.migrationStatus;
-      const migrationAction = tc.name === "start_migration" ? args.migration
-        : tc.name === "resume_migration" ? args.resumeMigration
-        : tc.name === "get_migration" && getMigrationStatus
-          ? async function* (): AsyncGenerator<EngineEvent, string> {
-              const content = await getMigrationStatus();
-              yield { type: "tool", name: tc.name, ok: true };
-              return content;
-            }
-          : undefined;
-      if (migrationAction) {
-        if (
-          toolCalls.length !== 1 ||
-          !tc.input ||
-          typeof tc.input !== "object" ||
-          Array.isArray(tc.input) ||
-          Object.keys(tc.input).length
-        ) {
-          messages.push({
-            role: "tool",
-            toolCallId: tc.id,
-            content: `Call ${tc.name} alone with an empty JSON object.`,
-          });
-          yield { type: "tool", name: tc.name, ok: false };
-          continue;
+    const answered = new Set<string>();
+    try {
+      for (const tc of toolCalls) {
+        args.signal?.throwIfAborted();
+        if (args.activity) {
+          const input = tc.input as Record<string, unknown> | null;
+          const target =
+            input && typeof input === "object"
+              ? (input.file_id ?? input.id)
+              : undefined;
+          yield {
+            type: "activity",
+            name: tc.name,
+            ...(typeof target === "string"
+              ? { target: target.slice(0, 256) }
+              : {}),
+          };
         }
-        try {
-          const content = yield* migrationAction();
-          messages.push({ role: "tool", toolCallId: tc.id, content });
-        } catch (error) {
-          messages.push({
-            role: "tool",
-            toolCallId: tc.id,
-            content:
-              "Migration interrupted. Retain existing results and await explicit user action.",
-            isError: true,
-          });
-          throw error;
+        // A model cannot have used results of reads requested in this same batch.
+        const mutatesProject =
+          tc.name.startsWith("upsert_") ||
+          tc.name.startsWith("delete_") ||
+          tc.name === "write_translations";
+        const res =
+          awaitingAttachments && mutatesProject
+            ? {
+                ok: false,
+                content:
+                  "Read all attached files with read_attachment and inspect their results before modifying the project.",
+              }
+            : executeTool(tc.name, tc.input, wc);
+        if (tc.name === "read_attachment" && res.ok) {
+          const input = tc.input as { file_id: string };
+          unread.delete(input.file_id);
         }
-        if (tc.name === "get_migration") {
-          continue;
-        }
-        yield { type: "done", stopReason: "migration" };
-        return;
-      }
-      if (args.activity) {
-        const input = tc.input as Record<string, unknown> | null;
-        const target = input && typeof input === "object" ? (input.file_id ?? input.id) : undefined;
+        messages.push({
+          role: "tool",
+          toolCallId: tc.id,
+          content: res.content,
+        });
+        answered.add(tc.id);
+        if (res.event) yield res.event;
         yield {
-          type: "activity",
+          type: "tool",
           name: tc.name,
-          ...(typeof target === "string" ? { target: target.slice(0, 256) } : {}),
+          ok: res.ok,
+          detail: res.ok ? undefined : res.content,
         };
       }
-      // A model cannot have used results of reads requested in this same batch.
-      const mutatesProject =
-        tc.name.startsWith("upsert_") ||
-        tc.name.startsWith("delete_") ||
-        tc.name === "write_translations";
-      const res =
-        awaitingAttachments && mutatesProject
-          ? {
-              ok: false,
-              content:
-                "Read all attached files with read_attachment and inspect their results before modifying the project.",
-            }
-          : executeTool(tc.name, tc.input, wc);
-      if (tc.name === "read_attachment" && res.ok) {
-        const input = tc.input as { file_id: string };
-        unread.delete(input.file_id);
-      }
-      if (res.event) yield res.event;
-      yield { type: "tool", name: tc.name, ok: res.ok, detail: res.ok ? undefined : res.content };
-      messages.push({ role: "tool", toolCallId: tc.id, content: res.content });
+    } finally {
+      for (const tc of toolCalls)
+        if (!answered.has(tc.id))
+          messages.push({
+            role: "tool",
+            toolCallId: tc.id,
+            isError: true,
+            content:
+              "Not executed: the task was interrupted. Existing proposals are retained; continue only on user request.",
+          });
     }
     // loop: re-streamTurn with the appended tool results
   }
@@ -212,6 +173,9 @@ export async function* runTurn(args: {
     yield { type: "done", stopReason: "attachments_not_read" };
     return;
   }
-  yield { type: "error", message: `Reached the ${maxIterations}-iteration cap.` };
+  yield {
+    type: "error",
+    message: `Reached the ${maxIterations}-iteration cap.`,
+  };
   yield { type: "done", stopReason: "max_iterations" };
 }

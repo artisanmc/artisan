@@ -396,6 +396,11 @@ export const assistantConversations = pgTable(
 		projectId: text("project_id").notNull(),
 		title: text("title").notNull().default(""),
 		messages: jsonb("messages").notNull().$type<unknown[]>(),
+		uploadedFiles: jsonb("uploaded_files").$type<{
+			networkId: string;
+			serverKeyId: string;
+			files: Record<string, string>;
+		}>(),
 		createdAt: timestamp("created_at").notNull(),
 		updatedAt: timestamp("updated_at").notNull(),
 	},
