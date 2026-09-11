@@ -201,7 +201,8 @@ export function serializeStepsLiteral(steps: Step[]): unknown[] {
 function serializeAppearance(app: Appearance, project: Project): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   if (app.if && app.if.length > 0) out.if = serializeIfArray(app.if, app.ifJoins);
-  if (app.material) out.material = app.material;
+  if (app.item !== undefined) out.item = app.item;
+  else if (app.material) out.material = app.material;
   if (app.head) out.head = app.head;
   if (app.count !== undefined) out.count = app.count;
   const t = textSerializer(project);
@@ -501,7 +502,7 @@ export function serializeMenuToV1(
   const type = menu.inventoryType ?? "chest";
   const t = textSerializer(project);
   const out: Record<string, unknown> = {
-    schema: "menu/v1",
+    schema: menu.layers.some((l) => l.elements.some((e) => [e.display, ...e.states].some((a) => a?.item !== undefined))) ? "menu/v2" : "menu/v1",
     id: menu.id,
     // Canonical sugar: a title that is exactly one uncolored plain layer
     // serializes to a bare string.

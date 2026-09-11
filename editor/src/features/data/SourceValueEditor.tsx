@@ -11,8 +11,8 @@ import type {
   ModelFieldType,
   Project,
 } from "@/domain/types";
+import { ItemValueField } from "@/features/canvas/ItemValueField";
 import { ConditionListEditor } from "@/features/canvas/properties/ConditionListEditor";
-import { MaterialRefField } from "@/features/canvas/MaterialRefField";
 import { ActionFieldEditor } from "@/features/data/ActionFieldEditor";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { cx } from "@/lib/cx";
@@ -58,8 +58,7 @@ function resolveObjectFields(
 function stableKeys(identities: unknown[]): string[] {
   const seen = new Map<string, number>();
   return identities.map((raw, i) => {
-    const id =
-      typeof raw === "string" || typeof raw === "number" ? String(raw).trim() : "";
+    const id = typeof raw === "string" || typeof raw === "number" ? String(raw).trim() : "";
     if (id === "") return `@${i}`;
     const n = (seen.get(id) ?? 0) + 1;
     seen.set(id, n);
@@ -257,7 +256,8 @@ export function ValueEditor({
     case "integer": {
       const n0 = typeof value === "number" ? value : 0;
       const outOfBounds =
-        (field?.min !== undefined && n0 < field.min) || (field?.max !== undefined && n0 > field.max);
+        (field?.min !== undefined && n0 < field.min) ||
+        (field?.max !== undefined && n0 > field.max);
       return (
         <Input
           type="number"
@@ -301,13 +301,7 @@ export function ValueEditor({
         />
       );
     case "item":
-      return (
-        <MaterialRefField
-          projectId={projectId}
-          value={typeof value === "string" ? value : ""}
-          onChange={set}
-        />
-      );
+      return <ItemValueField projectId={projectId} value={value} onChange={set} />;
     case "actions":
       return (
         <ActionFieldEditor
@@ -329,7 +323,9 @@ export function ValueEditor({
           entries={[]}
           multiline={multiline}
           rows={multiline ? 3 : undefined}
-          className={multiline ? "w-full min-w-48 text-[12px]" : "h-7 w-full min-w-24 px-2 text-[12px]"}
+          className={
+            multiline ? "w-full min-w-48 text-[12px]" : "h-7 w-full min-w-24 px-2 text-[12px]"
+          }
           placeholder={String(path[path.length - 1])}
           facade={<MiniMessageInline source={text} className="font-mono text-xs" />}
         />
@@ -441,9 +437,7 @@ export function ValueEditor({
           ))}
           <MapEntryAdder
             existing={Object.keys(obj)}
-            onAdd={(k) =>
-              set({ ...obj, [k]: defaultValueForModelType(type.of, models) })
-            }
+            onAdd={(k) => set({ ...obj, [k]: defaultValueForModelType(type.of, models) })}
           />
         </div>
       );
@@ -484,7 +478,10 @@ export function ValueEditor({
             <div className="ml-1 flex flex-col gap-1">
               {active.fields.map((f) => (
                 <div key={f.name} className="flex items-start gap-1.5">
-                  <span className="mt-1.5 min-w-16 text-[11px] text-[var(--text-mut)]" title={f.help}>
+                  <span
+                    className="mt-1.5 min-w-16 text-[11px] text-[var(--text-mut)]"
+                    title={f.help}
+                  >
                     {f.label ?? f.name}
                   </span>
                   <ValueEditor
@@ -528,10 +525,14 @@ export function ValueEditor({
                   {f.label ? (
                     <>
                       <span className="block text-[11px] text-[var(--text-mut)]">{f.label}</span>
-                      <span className="block font-mono text-[9px] text-[var(--text-faint)]">{f.name}</span>
+                      <span className="block font-mono text-[9px] text-[var(--text-faint)]">
+                        {f.name}
+                      </span>
                     </>
                   ) : (
-                    <span className="block font-mono text-[10px] text-[var(--text-faint)]">{f.name}</span>
+                    <span className="block font-mono text-[10px] text-[var(--text-faint)]">
+                      {f.name}
+                    </span>
                   )}
                 </span>
                 <div className="min-w-0 flex-1">
@@ -548,7 +549,9 @@ export function ValueEditor({
                   {/* Visible, not a tooltip: the explanation is why a config
                       file feels more helpful than a form. */}
                   {f.help ? (
-                    <p className="mt-0.5 text-[10px] leading-snug text-[var(--text-faint)]">{f.help}</p>
+                    <p className="mt-0.5 text-[10px] leading-snug text-[var(--text-faint)]">
+                      {f.help}
+                    </p>
                   ) : null}
                 </div>
               </div>

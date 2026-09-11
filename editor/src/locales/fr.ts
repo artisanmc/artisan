@@ -335,6 +335,15 @@ const fr: typeof en = {
     teleportYaw: "Yaw (optionnel)",
     teleportPitch: "Pitch (optionnel)",
   },
+  itemBinding: {
+    sample: "Aperçu avec les données d’exemple",
+    title: "Item affiché", linked: "Lié aux données", mode: "Origine de l’item",
+    define: "Définir un item", data: "Utiliser un item des données", source: "Champ item",
+    choose: "Choisir un champ…", custom: "expression", empty: "Aucun champ item connu dans ce contexte. Une expression peut être saisie ci-dessous.",
+    unresolved: "Aperçu indisponible", inherited: "héritée", customized: "personnalisée",
+    customize: "Personnaliser", reset: "Revenir à la valeur héritée", inheritedEnchants: "Enchantements hérités",
+    expression: "Expression avancée", presentation: "L’item fournit sa quantité et ses attributs. Le titre ci-dessous remplace son nom ; la description s’ajoute à la sienne.",
+  },
   flow: {
     headerStateOne: "{{count}} état",
     headerStateOther: "{{count}} états",

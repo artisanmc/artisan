@@ -4,6 +4,8 @@ import net.artisanmc.modules.api.DataSourceRegistry
 import net.artisanmc.plugin.engine.*
 import net.artisanmc.plugin.model.AppearanceYaml
 import net.artisanmc.plugin.model.BundleMenu
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import net.artisanmc.plugin.resourcepack.AssetEntry
 import net.kyori.adventure.text.format.Style
 import net.kyori.adventure.text.format.TextDecoration
@@ -23,6 +25,8 @@ class ArtisanMenuHolder : InventoryHolder {
 }
 
 object MenuRenderer {
+
+    private val itemMapper = ObjectMapper().registerKotlinModule()
 
     private val noItalic = Style.style(TextDecoration.ITALIC.withState(false))
 
@@ -231,17 +235,26 @@ object MenuRenderer {
         ctx: ExecutionContext,
         deps: SoftDepRegistry,
         i18nBase: String = "",
+        resolveItemValue: Boolean = true,
     ): ItemStack {
         val papi = deps.papi
-        val count = app.count.coerceAtLeast(1)
+        val rawMaterial = (app.item ?: app.material)?.trim()
+        val value = if (resolveItemValue && rawMaterial != null && rawMaterial.startsWith("{") && rawMaterial.endsWith("}")) {
+            exprListValue(rawMaterial.substring(1, rawMaterial.length - 1), ctx.resolvedArgs)
+        } else null
+        val base = (value as? Map<*, *>)?.takeIf { it["material"] is String }?.let {
+            runCatching { itemMapper.convertValue(it, AppearanceYaml::class.java) }.getOrNull()
+        }
+        val count = (app.count ?: base?.count ?: 1).coerceIn(1, 64)
         // Le material peut être un placeholder ({input} ou {alias.field}) — résolu
         // via le contexte avant le lookup vanilla/custom.
-        val resolvedMaterial = app.material?.let { ctx.render(it, papi) }
-        var item = resolvedMaterial?.let { mat ->
+        val resolvedMaterial = rawMaterial?.let { ctx.render(it, papi) }
+        var item = base?.let { buildItem(it, langMap, ctx, deps, resolveItemValue = false) } ?: resolvedMaterial?.let { mat ->
             deps.buildCustomStack(mat, count)
                 ?: runCatching { Material.valueOf(mat.uppercase()) }.getOrNull()
                     ?.let { ItemStack(it, count) }
         } ?: ItemStack(Material.STONE, count)
+        if (app.count != null) item.amount = count
         if (item.type == Material.PLAYER_HEAD && app.head != null) {
             item = HeadApplier.apply(item, resolveText(app.head, langMap, ctx, papi), deps)
         }

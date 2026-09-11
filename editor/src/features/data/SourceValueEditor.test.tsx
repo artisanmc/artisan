@@ -1,8 +1,8 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it } from "vitest";
 import type { Project, ProjectId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
 import { useUiStore } from "@/state/uiStore";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { beforeEach, describe, expect, it } from "vitest";
 import { ModelFieldsEditor } from "./ModelFieldsEditor";
 import { ConfigValueForm, SourceRowsTable } from "./SourceValueEditor";
 
@@ -57,7 +57,8 @@ function makeProject(): Project {
 }
 
 const project = () => useAccountStore.getState().account.projects[0]!;
-const tableSource = () => project().dataSources[0] as Extract<Project["dataSources"][number], { shape: "table" }>;
+const tableSource = () =>
+  project().dataSources[0] as Extract<Project["dataSources"][number], { shape: "table" }>;
 
 beforeEach(() => {
   useAccountStore.setState({
@@ -67,6 +68,36 @@ beforeEach(() => {
 });
 
 describe("SourceRowsTable", () => {
+  it("adds an enchantment to a simple icon through the shared advanced form", () => {
+    const p = project();
+    p.dataModels![0]!.fields.push({ name: "icon", type: { kind: "item" } });
+    tableSource().rows[0]!.icon = "DIAMOND_SWORD";
+    const view = render(<SourceRowsTable projectId={PID} project={p} source={tableSource()} />);
+    fireEvent.click(screen.getByRole("button", { name: /paramètres avancés/i }));
+    fireEvent.click(screen.getByRole("button", { name: /ajouter un enchantement/i }));
+    view.rerender(<SourceRowsTable projectId={PID} project={project()} source={tableSource()} />);
+    fireEvent.change(screen.getByPlaceholderText("sharpness"), { target: { value: "sharpness" } });
+    expect(tableSource().rows[0]!.icon).toEqual({ material: "DIAMOND_SWORD", enchants: { sharpness: 1 } });
+  });
+  it("edits an icon quantity without losing its material or enchantments", () => {
+    const p = project();
+    p.dataModels![0]!.fields.push({ name: "icon", type: { kind: "item" } });
+    tableSource().rows[0]!.icon = {
+      material: "DIAMOND_SWORD",
+      count: 3,
+      enchants: { sharpness: 5 },
+    };
+    render(<SourceRowsTable projectId={PID} project={p} source={tableSource()} />);
+    expect(screen.getByDisplayValue("DIAMOND_SWORD")).toBeInTheDocument();
+    fireEvent.change(screen.getByRole("spinbutton", { name: /count|quantité/i }), {
+      target: { value: "8" },
+    });
+    expect(tableSource().rows[0]!.icon).toEqual({
+      material: "DIAMOND_SWORD",
+      count: 8,
+      enchants: { sharpness: 5 },
+    });
+  });
   it("renders one column per declared field and the row's values", () => {
     render(<SourceRowsTable projectId={PID} project={project()} source={tableSource()} />);
     expect(screen.getByText("id")).toBeInTheDocument();
@@ -77,7 +108,9 @@ describe("SourceRowsTable", () => {
   });
 
   it("edits a string cell through setSourceValue", () => {
-    const view = render(<SourceRowsTable projectId={PID} project={project()} source={tableSource()} />);
+    const view = render(
+      <SourceRowsTable projectId={PID} project={project()} source={tableSource()} />,
+    );
     const input = screen.getByDisplayValue("vip");
     fireEvent.change(input, { target: { value: "gold" } });
     expect(tableSource().rows[0]!.id).toBe("vip");
@@ -91,7 +124,13 @@ describe("SourceRowsTable", () => {
     useAccountStore.getState().addSourceRow({ projectId: PID, sourceId: "ranks" as never });
     useAccountStore
       .getState()
-      .setSourceValue({ projectId: PID, sourceId: "ranks" as never, row: 1, path: ["id"], value: "member" });
+      .setSourceValue({
+        projectId: PID,
+        sourceId: "ranks" as never,
+        row: 1,
+        path: ["id"],
+        value: "member",
+      });
     render(<SourceRowsTable projectId={PID} project={project()} source={tableSource()} />);
 
     const input = screen.getByDisplayValue("member");
@@ -108,8 +147,16 @@ describe("SourceRowsTable", () => {
     useAccountStore.getState().addSourceRow({ projectId: PID, sourceId: "ranks" as never });
     useAccountStore
       .getState()
-      .setSourceValue({ projectId: PID, sourceId: "ranks" as never, row: 1, path: ["id"], value: "member" });
-    const view = render(<SourceRowsTable projectId={PID} project={project()} source={tableSource()} />);
+      .setSourceValue({
+        projectId: PID,
+        sourceId: "ranks" as never,
+        row: 1,
+        path: ["id"],
+        value: "member",
+      });
+    const view = render(
+      <SourceRowsTable projectId={PID} project={project()} source={tableSource()} />,
+    );
 
     const input = screen.getByDisplayValue("vip");
     fireEvent.change(input, { target: { value: " member " } });
@@ -136,7 +183,9 @@ describe("SourceRowsTable", () => {
   });
 
   it("commits a Row key on Enter", () => {
-    const view = render(<SourceRowsTable projectId={PID} project={project()} source={tableSource()} />);
+    const view = render(
+      <SourceRowsTable projectId={PID} project={project()} source={tableSource()} />,
+    );
     const input = screen.getByDisplayValue("vip");
     input.focus();
     fireEvent.change(input, { target: { value: " ELITE " } });
@@ -185,7 +234,9 @@ describe("SourceRowsTable", () => {
   });
 
   it("adds a row with minted ltexts and removes it releasing them", () => {
-    const view = render(<SourceRowsTable projectId={PID} project={project()} source={tableSource()} />);
+    const view = render(
+      <SourceRowsTable projectId={PID} project={project()} source={tableSource()} />,
+    );
     fireEvent.click(screen.getByText("+ Row"));
     expect(tableSource().rows).toHaveLength(2);
     const minted = tableSource().rows[1]!.name as { key: string };
@@ -370,7 +421,9 @@ describe("ValueEditor — map / enum / union widgets", () => {
     render(<SourceRowsTable projectId={PID} project={project()} source={tableSource()} />);
     const select = screen.getByRole("combobox", { name: "strategy" });
     fireEvent.change(select, { target: { value: "random" } });
-    expect((project().dataSources[0] as { rows: Record<string, unknown>[] }).rows[0]!.strategy).toBe("random");
+    expect(
+      (project().dataSources[0] as { rows: Record<string, unknown>[] }).rows[0]!.strategy,
+    ).toBe("random");
   });
 
   it("union renders the active variant's fields; switching variants rebuilds the value", () => {
@@ -389,7 +442,9 @@ describe("ValueEditor — map / enum / union widgets", () => {
 
   it("map lists entries, adds with a fresh key, removes an entry", () => {
     seedComposable();
-    const view = render(<SourceRowsTable projectId={PID} project={project()} source={tableSource()} />);
+    const view = render(
+      <SourceRowsTable projectId={PID} project={project()} source={tableSource()} />,
+    );
     expect(screen.getByText("gold")).toBeInTheDocument();
     // Add an entry.
     fireEvent.change(screen.getByPlaceholderText(/key|clé/), { target: { value: "gems" } });
@@ -400,7 +455,9 @@ describe("ValueEditor — map / enum / union widgets", () => {
     // Re-render from the fresh store (the app re-renders via its store
     // subscription; here project travels by prop), then remove the original entry.
     view.rerender(<SourceRowsTable projectId={PID} project={project()} source={tableSource()} />);
-    fireEvent.click(screen.getByRole("button", { name: /remove entry gold|supprimer l'entrée gold/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /remove entry gold|supprimer l'entrée gold/i }),
+    );
     prices = (project().dataSources[0] as { rows: Record<string, unknown>[] }).rows[0]!
       .prices as Record<string, unknown>;
     expect(prices.gold).toBeUndefined();
@@ -422,7 +479,14 @@ describe("form generator — hints + validation (§7)", () => {
           ...(masterDetail ? { masterDetail: true } : {}),
           fields: [
             { name: "id", type: { kind: "string" } },
-            { name: "price", type: { kind: "number" }, label: "Price (coins)", help: "Base price", min: 0, max: 100 },
+            {
+              name: "price",
+              type: { kind: "number" },
+              label: "Price (coins)",
+              help: "Base price",
+              min: 0,
+              max: 100,
+            },
             { name: "icon", type: { kind: "string" }, locked: true },
             { name: "gate", type: { kind: "conditions" }, label: "Visibility" },
           ],
@@ -451,10 +515,14 @@ describe("form generator — hints + validation (§7)", () => {
     // Stored 250 > max 100 (hand-edit scenario): surfaced, not rewritten.
     const priceA = screen.getByDisplayValue("250");
     expect(priceA).toHaveAttribute("aria-invalid", "true");
-    expect((project().dataSources[0] as { rows: Record<string, unknown>[] }).rows[0]!.price).toBe(250);
+    expect((project().dataSources[0] as { rows: Record<string, unknown>[] }).rows[0]!.price).toBe(
+      250,
+    );
     // Committing through the form clamps (blocking by construction).
     fireEvent.change(priceA, { target: { value: "999" } });
-    expect((project().dataSources[0] as { rows: Record<string, unknown>[] }).rows[0]!.price).toBe(100);
+    expect((project().dataSources[0] as { rows: Record<string, unknown>[] }).rows[0]!.price).toBe(
+      100,
+    );
   });
 
   it("locked fields render read-only (no input)", () => {
@@ -569,13 +637,25 @@ describe("field hints in the form", () => {
 
   it("shows the description as text, not only as a tooltip", () => {
     seedHinted();
-    render(<ConfigValueForm projectId={PID} project={project()} source={project().dataSources[0] as never} />);
+    render(
+      <ConfigValueForm
+        projectId={PID}
+        project={project()}
+        source={project().dataSources[0] as never}
+      />,
+    );
     expect(screen.getByText(/Remise appliquée à toute la boutique/)).toBeInTheDocument();
   });
 
   it("shows the label AND the technical key — the key is what the file uses", () => {
     seedHinted();
-    render(<ConfigValueForm projectId={PID} project={project()} source={project().dataSources[0] as never} />);
+    render(
+      <ConfigValueForm
+        projectId={PID}
+        project={project()}
+        source={project().dataSources[0] as never}
+      />,
+    );
     expect(screen.getByText("Remise globale")).toBeInTheDocument();
     expect(screen.getByText("whole_shop_discount")).toBeInTheDocument();
   });
