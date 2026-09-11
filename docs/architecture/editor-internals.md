@@ -554,3 +554,7 @@ Panel admin système de modèles IA, accessible à `/admin` (gate super-admin c�
   - Vue consommation utilisateur (total, dernière utilisation).
   - Formulaire grant de crédits (bouton « Ajouter des crédits » → modal `POST /api/v1/admin/ai/credits/grant`).
   - Client API : shared `adminAiUsage.ts` (lectu résumé user) + endpoint spécifique grant.
+
+### Placement tray and slot dragging
+
+The canvas placement tray binds each row under the placement alias when resolving its material and supports nested source paths. Dragging a placed item updates only its keyed placement on the current page, using the preview context to disambiguate shared slots. Other placements and the display cache are preserved; dropping outside the menu removes only that placement. Alt-drag also moves the row, since a row has one placement. Placement drags bypass ordinary position-list mutations.
