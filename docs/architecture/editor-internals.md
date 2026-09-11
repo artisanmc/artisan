@@ -557,6 +557,12 @@ Panel admin système de modèles IA, accessible à `/admin` (gate super-admin c�
 
 ### Placement tray and slot dragging
 
+Item tooltips resolve the hovered element within its menu (`hoverStore.menuId` +
+`elementId`), since element IDs such as `player` can repeat across menus.
+`MenuGroup` supplies the menu on hover; leaving clears it. `ItemTooltip` subscribes
+to the current project so title/lore edits update live, and hides if the hovered
+menu disappears instead of falling back to a same-ID element in another menu.
+
 The canvas placement tray binds each row under the placement alias when resolving its material and supports nested source paths. Dragging a placed item updates only its keyed placement on the current page, using the preview context to disambiguate shared slots. Other placements and the display cache are preserved; dropping outside the menu removes only that placement. Alt-drag also moves the row, since a row has one placement. Placement drags bypass ordinary position-list mutations.
 Ordinary item paste, move, duplicate and selection moves preserve placement elements during empty-position cleanup: an empty ordinary position list is valid when places is set.
 Placement tray height includes the card top offset, icon, label gap, label height and bottom padding; stacked trays use that same height plus spacing to avoid overlap.

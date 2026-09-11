@@ -659,7 +659,7 @@ export function MenuGroup({ projectId, menu, position, layout, solo = false }: M
               present
                 ? () => {
                     if (el?.elementId)
-                      useHoverStore.getState().setElement(el.elementId as ElementId, i);
+                      useHoverStore.getState().setElement(el.elementId as ElementId, i, menu.id);
                   }
                 : undefined
             }
