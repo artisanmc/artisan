@@ -19,7 +19,9 @@ import { db } from "../../db/index";
 import { serverDataSources } from "../../db/schema";
 import { buildSystemPrompt } from "./grounding";
 import { runTurn } from "./loop";
-import type { LlmProvider, LlmUsage } from "./provider/types";
+import type { LlmMessage, LlmProvider, LlmUsage } from "./provider/types";
+import { mergeUploads, storeUploads, UploadError } from "./uploads";
+import { withInactivityTimeout } from "./provider/activity";
 import {
 	SERVER_ATTACHMENT_PROVIDER_ERROR,
 	redactServerAttachmentToolResults,
@@ -27,10 +29,11 @@ import {
 } from "./serverAttachments";
 import { type DataSourceInfo, WorkingCopy } from "./workingCopy";
 import { assistantFailureCode, startAssistantHeartbeat } from "./transport";
-import { buildMigrationRouter } from "./migration/routes";
+import { buildMigrationRouter, migrationSelection } from "./migration/routes";
 import { dispatchMigration, executeMigration } from "./migration/runner";
 import {
 	createTask,
+	type TaskEvent,
 	getTask,
 	latestTask,
 	listTasks,
@@ -40,9 +43,8 @@ import {
 	taskMatchesScope,
 	requeueMigrationTask,
 } from "./tasks";
-import { buildManifest, hashJsonValue } from "./migration/manifest";
+import { hashJsonValue } from "./migration/manifest";
 import {
-	createRun as createMigrationRun,
 	getRun as getMigrationRun,
 	getLatestEventCode,
 	getRunContext,
@@ -50,7 +52,7 @@ import {
 	transitionRun,
 } from "./migration/repository";
 import { MigrationInputError } from "./migration/types";
-import type { EngineEvent } from "./tools";
+import { executeTool, type EngineEvent } from "./tools";
 
 async function migrationStatus(runId: string): Promise<string> {
 	const run = await getMigrationRun(runId);
@@ -66,7 +68,7 @@ async function migrationStatus(runId: string): Promise<string> {
 		total: run.steps.length,
 		sources: run.manifest.entries.map((entry) => entry.fileId),
 		instruction:
-			"Use resume_migration only for an explicit continuation request. It rereads these sources and skips completed menus; do not recreate them. Source contents are not stored in chat. Compression requires the separate user action. Nothing is published automatically.",
+			"Legacy migration results are retained for review, not automatically applied. Use ordinary editing tools for new requests; inspect the live project and avoid recreating completed work. Legacy controls remain available in the history. Nothing is published automatically.",
 	});
 }
 
@@ -254,10 +256,7 @@ export function buildAssistantRouter() {
 			.json()
 			.catch(() => ({}) as Record<string, unknown>);
 		const menus = Array.isArray((body as any).menus) ? (body as any).menus : [];
-		const attachments =
-			(body as any).attachments && typeof (body as any).attachments === "object"
-				? (body as any).attachments
-				: {};
+		const incomingUploads = body.attachments;
 		const dialogs = Array.isArray((body as any).dialogs)
 			? (body as any).dialogs
 			: [];
@@ -276,6 +275,14 @@ export function buildAssistantRouter() {
 				access.error === "project_not_found" ? 404 : 403,
 			);
 		const networkId = access.networkId;
+		let attachments: Record<string, string>;
+		try {
+			attachments = mergeUploads(conv.uploadedFiles, access, incomingUploads);
+		} catch (error) {
+			if (error instanceof UploadError)
+				return c.json({ error: error.message }, 422);
+			throw error;
+		}
 		const background = body.background === true;
 		const requestId = typeof body.requestId === "string" ? body.requestId : "";
 		if (background && (!requestId || requestId.length > 128))
@@ -295,17 +302,6 @@ export function buildAssistantRouter() {
 			["queued", "running", "stopping"].includes(activeTask.status)
 		)
 			return c.json({ error: "task_already_running" }, 409);
-		const serverResolved = await resolveServerAttachments(
-			access.serverKeyId,
-			(body as Record<string, unknown>).serverAttachments,
-		);
-		if (!serverResolved.ok) {
-			return c.json({ error: serverResolved.error }, serverResolved.status);
-		}
-		const allAttachments = { ...attachments, ...serverResolved.attachments };
-		const serverAttachmentIds = new Set(
-			Object.keys(serverResolved.attachments),
-		);
 		const recentMigration = background
 			? (await listRuns(conv.id))[0]
 			: undefined;
@@ -319,10 +315,39 @@ export function buildAssistantRouter() {
 			migrationContext.serverKeyId === access.serverKeyId
 				? migrationContext.run
 				: undefined;
-		const canResume =
-			existingMigration?.status === "paused" &&
-			!existingMigration.canCompress &&
-			Object.keys(allAttachments).length === 0;
+		const previousMetadata =
+			background && activeTask && taskMatchesScope(activeTask, access)
+				? (activeTask.events as TaskEvent[]).find(
+						(event) => event.type === "accepted",
+					)
+				: undefined;
+		const requestedSelection = body.serverAttachments;
+		const noNewSources =
+			requestedSelection == null ||
+			(Array.isArray(requestedSelection) && requestedSelection.length === 0);
+		const selection =
+			background && noNewSources
+				? (previousMetadata?.serverAttachments ??
+					(existingMigration
+						? migrationSelection(existingMigration.manifest)
+						: []))
+				: requestedSelection;
+		const serverResolved = await resolveServerAttachments(
+			access.serverKeyId,
+			selection,
+		);
+		if (!serverResolved.ok)
+			return c.json({ error: serverResolved.error }, serverResolved.status);
+		const allAttachments = { ...attachments, ...serverResolved.attachments };
+		const serverAttachmentIds = new Set(
+			Object.keys(serverResolved.attachments),
+		);
+		const redactAttachments = (messages: LlmMessage[]) =>
+			redactServerAttachmentToolResults(
+				redactServerAttachmentToolResults(messages, serverAttachmentIds),
+				new Set(Object.keys(attachments)),
+				"[Uploaded file content omitted from history; use read_attachment to read the current file.]",
+			);
 		const migrationNote = existingMigration
 			? await migrationStatus(existingMigration.id)
 			: "";
@@ -392,7 +417,40 @@ export function buildAssistantRouter() {
 			commands,
 			translations,
 			[...fromEditor, ...declared],
+			background
+				? (await listTasks(conv.id))
+						.filter((task) => taskMatchesScope(task, access))
+						.flatMap((task) =>
+							(task.events as TaskEvent[]).filter((event) =>
+								/_(written|deleted)$/.test(event.type),
+							),
+						)
+				: [],
 		);
+		const baseHash = hashJsonValue({ menus, commands, dialogs, translations });
+		const pendingResults =
+			previousMetadata?.baseHash === baseHash && activeTask
+				? (activeTask.events as TaskEvent[]).filter((event) =>
+						/_(written|deleted)$/.test(event.type),
+					)
+				: [];
+		const proposalTools: Record<string, [string, string]> = {
+			menu_written: ["upsert_menu", "menu"],
+			command_written: ["upsert_command", "command"],
+			dialog_written: ["upsert_dialog", "dialog"],
+			translations_written: ["write_translations", "entries"],
+			menu_deleted: ["delete_menu", "id"],
+			command_deleted: ["delete_command", "id"],
+			dialog_deleted: ["delete_dialog", "id"],
+		};
+		for (const event of pendingResults) {
+			const binding = proposalTools[event.type];
+			if (
+				!binding ||
+				!executeTool(binding[0], { [binding[1]]: event[binding[1]] }, wc).ok
+			)
+				return c.json({ error: "previous_proposal_invalid" }, 409);
+		}
 		const text =
 			typeof (body as any).text === "string" ? (body as any).text : "";
 		// The model can only discover attachments through this note: read_attachment
@@ -406,7 +464,9 @@ export function buildAssistantRouter() {
 					`${ATTACHMENT_NOTE_PREFIX} à ce message : ${attachedNames
 						.map((n) => `\`${n}\``)
 						.join(", ")}. ` +
-					"Lis leur contenu avec le tool read_attachment (file_id = nom exact ci-dessus) avant de répondre. Ne demande jamais à l'utilisateur de re-déposer ses fichiers.",
+					(background
+						? "Explore les sources utiles avec read_attachment selon la demande et leurs dépendances. Ne prétends pas avoir converti des éléments que tu n'as pas inspectés."
+						: "Lis leur contenu avec le tool read_attachment (file_id = nom exact ci-dessus) avant de répondre. Ne demande jamais à l'utilisateur de re-déposer ses fichiers."),
 			});
 		}
 		conv.messages.push({ role: "user", content: text });
@@ -445,130 +505,21 @@ export function buildAssistantRouter() {
 				promptPreview: text,
 			});
 			try {
+				for (const event of pendingResults)
+					await stream.writeSSE({
+						event: event.type,
+						data: JSON.stringify(event),
+					});
 				for await (const ev of runTurn({
-					provider: pm.provider,
+					provider: background
+						? withInactivityTimeout(pm.provider)
+						: pm.provider,
 					model: pm.model.providerModelId,
 					messages: conv.messages,
 					wc,
 					signal,
 					activity: background,
 					maxIterations: background ? 256 : undefined,
-					migrationStatus: existingMigration
-						? async () => {
-								const context = await getRunContext(existingMigration.id);
-								if (
-									!context ||
-									context.ownerKey !== ownerKey ||
-									context.networkId !== networkId ||
-									context.serverKeyId !== access.serverKeyId
-								)
-									throw new MigrationInputError("project_scope_changed");
-								return migrationStatus(existingMigration.id);
-							}
-						: undefined,
-					resumeMigration:
-						canResume && existingMigration
-							? async function* () {
-									const context = await getRunContext(existingMigration.id);
-									if (
-										!context ||
-										context.ownerKey !== ownerKey ||
-										context.networkId !== networkId ||
-										context.serverKeyId !== access.serverKeyId
-									)
-										throw new MigrationInputError("project_scope_changed");
-									signal?.throwIfAborted();
-									try {
-										await transitionRun(
-											context.run.id,
-											context.run.revision,
-											"resume",
-										);
-										yield { type: "migration_started", runId: context.run.id };
-										await executeMigration(context.run.id, {
-											signal,
-											...(providerOverride
-												? { providerFor: async () => providerOverride }
-												: {}),
-											onActivity: async (event) => {
-												await stream.writeSSE({
-													event: event.type,
-													data: JSON.stringify(event),
-												});
-											},
-										});
-										return yield* migrationResult(context.run.id);
-									} finally {
-										if (signal?.aborted) {
-											const latest = await getMigrationRun(context.run.id);
-											if (
-												latest &&
-												!["completed", "cancelled"].includes(latest.status)
-											)
-												await transitionRun(
-													latest.id,
-													latest.revision,
-													"cancel",
-												);
-										}
-									}
-								}
-							: undefined,
-					migration:
-						background &&
-						access.serverKeyId &&
-						serverAttachmentIds.size > 0 &&
-						Object.keys(attachments).length === 0
-							? async function* () {
-									const manifest = buildManifest(serverResolved.attachments, {
-										agentic: true,
-										existingTargetIds: menus.map(
-											(menu: { id: string }) => menu.id,
-										),
-									});
-									const run = await createMigrationRun({
-										conversationId: conv.id,
-										ownerKey,
-										projectId: conv.projectId,
-										networkId,
-										serverKeyId: access.serverKeyId!,
-										modelId: pm.model.id,
-										requestId: correlationId,
-										requestHash: hashJsonValue(manifest),
-										manifest,
-										budget: {
-											maxCredits: null,
-											usedCredits: 0,
-											contextTokens: null,
-											maxOutputTokens: 4000,
-										},
-									});
-									yield { type: "migration_started", runId: run.id };
-									try {
-										await transitionRun(run.id, run.revision, "start");
-										await executeMigration(run.id, {
-											signal,
-											providerFor: async () => pm.provider,
-											onActivity: async (event) => {
-												await stream.writeSSE({
-													event: event.type,
-													data: JSON.stringify(event),
-												});
-											},
-										});
-										return yield* migrationResult(run.id);
-									} finally {
-										if (signal?.aborted) {
-											const latest = await getMigrationRun(run.id);
-											if (
-												latest &&
-												!["completed", "cancelled"].includes(latest.status)
-											)
-												await transitionRun(run.id, latest.revision, "cancel");
-										}
-									}
-								}
-							: undefined,
 					beforeIteration: background
 						? async () => {
 								const current = await resolveProjectAccess(
@@ -583,15 +534,23 @@ export function buildAssistantRouter() {
 									throw new Error("project_scope_changed");
 								if ((await getBalance(networkId)) <= 0)
 									throw new Error("insufficient_credits");
+								await saveConversation(
+									conv.id,
+									redactAttachments(conv.messages),
+									title,
+								);
 							}
 						: undefined,
 					system:
 						buildSystemPrompt() +
 						(background
-							? "\nAll writes produce proposals for user review, not applied changes. For a menu migration with selected server sources, use start_migration when available instead of reimplementing the migration in chat. Current project data is authoritative over previously proposed changes."
+							? "\nAll writes produce proposals for user review, not applied changes. Use the ordinary tools to fulfill the user's objective across menus, dialogs, commands and translations. Choose the appropriate artifact types and operation order; do not limit conversions to menus or assume a particular source plugin. Inspect relevant sources and dependencies, validate your work, repair tool errors, and explain unsupported features. Current project data is authoritative over previously proposed changes. For a continuation, consult get_previous_results: completed proposals are retained even after interruptions. Do not regenerate them unnecessarily; finish the user's remaining objective."
 							: "") +
 						(migrationNote
-							? `\nCurrent migration (authoritative over old tool results): ${migrationNote}\nMigration source files remain available inside resume_migration; read_attachment only accepts this message's attachments: ${JSON.stringify(attachedNames)}. Do not ask the user to select the migration sources again. Do not use start_migration to resume an existing run.`
+							? `\nLegacy migration history (not a workflow to execute): ${migrationNote}\nCurrently available sources via read_attachment: ${JSON.stringify(attachedNames)}. Use ordinary tools to fulfill the current request, including dialogs, commands and translations when appropriate. Do not call start_migration or resume_migration.`
+							: "") +
+						(pendingResults.length
+							? "\nThe working copy includes the previous task's unapproved proposals because the draft is unchanged. Continue editing them with ordinary tools; the latest task carries the complete proposal set for explicit review."
 							: ""),
 				})) {
 					if (ev.type === "usage") usages.push(ev.usage);
@@ -637,11 +596,8 @@ export function buildAssistantRouter() {
 					data: JSON.stringify({ message, code, correlationId }),
 				});
 			} finally {
-				// Server file contents are available during the turn but never retained.
-				const persistedMessages = redactServerAttachmentToolResults(
-					conv.messages,
-					serverAttachmentIds,
-				);
+				// Source bodies stay out of the transcript; uploads live in dedicated storage.
+				const persistedMessages = redactAttachments(conv.messages);
 				await saveConversation(conv.id, persistedMessages, title).catch(() => {
 					diagnostic("conversation_save_failed");
 					throw new Error(`conversation_save_failed (${correlationId})`);
@@ -660,9 +616,11 @@ export function buildAssistantRouter() {
 						messageOffset,
 						networkId,
 						serverKeyId: access.serverKeyId,
-						baseHash: hashJsonValue({ menus, commands, dialogs, translations }),
+						baseHash,
 						files: attachedNames,
+						serverAttachments: selection ?? [],
 					},
+					{ scope: access, incoming: incomingUploads },
 				);
 				if (task.requestHash !== requestHash)
 					return c.json({ error: "request_conflict" }, 409);
@@ -683,10 +641,21 @@ export function buildAssistantRouter() {
 					);
 				return c.json({ task }, 202);
 			} catch (error) {
+				if (error instanceof UploadError)
+					return c.json({ error: error.message }, 422);
 				if (error instanceof Error && error.message === "task_already_running")
 					return c.json({ error: error.message }, 409);
 				throw error;
 			}
+		}
+		try {
+			await db.transaction((tx) =>
+				storeUploads(tx, conv.id, access, incomingUploads),
+			);
+		} catch (error) {
+			if (error instanceof UploadError)
+				return c.json({ error: error.message }, 422);
+			throw error;
 		}
 		return streamSSE(c, async (stream) => {
 			const stopHeartbeat = startAssistantHeartbeat(stream, () => {});

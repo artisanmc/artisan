@@ -3,7 +3,7 @@ title: AI Assistant
 description: Describe a menu in plain language — or drop a zmenu / DeluxeMenus file — and let the assistant build it on your canvas.
 ---
 
-The AI Assistant is a chat panel inside the editor that proposes menus and edits
+The AI Assistant is a chat panel that proposes menus, dialogs, commands and translations
 from plain-language requests. Review its results, choose **Apply to draft**, then
 **Save** to publish. You can keep chatting to refine your request.
 
@@ -30,13 +30,23 @@ the model has produced new output. Errors preserve existing results without an
 automatic paid retry. A backend restart can interrupt the worker and require an
 explicit continuation; browser reloads do not.
 
-If a migration pauses, ask the assistant to **continue** in the same conversation
-or use **Resume migration**. Its saved source selection is reused and completed
-menus are not regenerated. Sources are reread with current permissions and checked
-for changes. The precise pause reason is shown in the task and available to the
-assistant. Context compression still requires **Compress and resume** explicitly.
-A slow migration is not interrupted while the provider keeps streaming reasoning,
-text or tool arguments; four minutes without provider activity pauses the step.
+To continue an interrupted task, send a new message in the same conversation.
+Selected server file references are retained and reread with current permissions;
+their raw contents are not stored in the conversation. A new server selection
+replaces the previous one. Previous proposals remain available to the assistant.
+If your draft is unchanged, the latest task includes the earlier unapproved
+proposals so you can review and apply the complete set together.
+While the provider streams reasoning, text or tool arguments, a slow task stays
+active. Four minutes without provider activity interrupts the request without retry.
+
+Files uploaded from your device are also retained for the lifetime of the conversation,
+including files the assistant has not read yet. Reloading or sending another message
+does not remove them. New uploads are added; uploading the same filename replaces its
+contents. Removing a pending file before Send does not delete an earlier upload.
+Uploads are private to this conversation and its authorized Project scope, and are
+removed with the conversation. Storage allows 200 files, 1 MiB per file and 8 MiB
+total (including JSON encoding); these are storage limits, not model context limits.
+Uploads lost before this update cannot be recovered automatically.
 
 Changes are proposals, not immediate edits. **Apply to draft** checks that your
 draft has not changed since the task started. Review conflicts instead of
@@ -98,70 +108,33 @@ needed, ask your administrator to configure an allowed source such as
 `patterns/`, `action_patterns/` or `actions_patterns/` paths. Do not select unrelated
 plugin configuration files.
 
-Attach the complete selection and ask in chat, for example: "Migrate these menus
-into Artisan, preserving their shared navigation." There is no migration mode
-or separate migration credit budget to choose. For server-source migrations,
-the assistant can explore the sources and prepare a resumable conversion. The
-flow accepts menu plugins beyond zMenu, rather than requiring a plugin-specific
-parser. The migration card provides saved progress, results and explicit resume
-or compression controls when needed.
+Attach the complete selection and describe the goal in chat, for example:
+"Migrate this configuration into Artisan, including the menus, dialogs, commands
+and translations needed to preserve its behavior."
 
-Source YAML does not have to be syntactically valid: when static analysis fails,
-the AI receives the original text and attempts the conversion. A warning identifies
-sources whose dependencies could not be indexed. Review repaired syntax and links;
-generated Artisan menus still have to pass validation. Size/context limits remain.
+The same assistant tools handle creation, editing and importing. There is no
+special migration tool or mandatory menu-by-menu conversion plan. The model
+chooses which sources and dependencies to inspect, which artifact types to
+produce and in what order. Malformed source text is readable without a YAML
+analysis gate; generated artifacts still have to pass Artisan validation.
+Unsupported behavior must be explained rather than silently discarded.
 
-Artisan converts one menu at a time, retaining the target index and shared
-dependencies. Reopening the conversation restores progress without restarting
-generation. **Stop** cancels the active chat task and its conversion. Following
-a blocking error, **Resume migration** continues unfinished menus; generated
-results are retained after interruptions or cancellation. Earlier standalone
-migrations remain available in **Earlier migrations** with their legacy controls.
+Use **Apply to draft**, review all proposed changes, then **Save** to publish.
+Results are not proof of behavioral equivalence: check navigation, commands,
+permissions, dialogs and external plugin dependencies on your server.
 
-Use **Apply to draft** or **Apply available results**, review the menus, then
-**Save** to publish. “Generation complete” does not confirm that every behavior
-was migrated. Dynamic, external or missing links and command bindings require
-manual review; unsupported results are blocked. Existing local menus are never
-overwritten by this flow. If source files change, choose **Review sources and
-target names**, then **Create new analysis**. Old results stay in history but are
-not reused by the replacement run.
-
-Artisan lets the API enforce its context capacity, without a local token ceiling
-or automatic history removal. If the API reports a full context, agentic migrations
-pause and offer **Compress and resume**. This explicitly requests an AI summary;
-it uses credits and may lose details. Original files and generated menus remain
-available. A failed summary preserves the prior state; a successful summary is
-saved before continuation, so reopening the conversation does not discard it.
-An old `context_budget_exceeded` pause can be resumed without its former local cap.
-Exploration and conversion also use the provider's default output allowance,
-including when resuming older migrations; Artisan no longer requests an 8,000-token
-output ceiling. `provider_output_limit` means the provider stopped generation
-at its output limit. Incomplete proposals are never applied. A separate
-`response_buffer_exceeded` guard bounds retained response data to 1 MiB, excluding
-repeated streaming metadata. Retained reasoning counts as response data. Explicit compression keeps
-its smaller summary output allowance.
-Agentic conversion includes a compact target index and the current task's notes;
-other exploration reports and task details remain available through tools.
-Raw source pages are bounded by encoded size, with continuation offsets for the
-remaining content. Selecting all menus does not load every raw menu into each call.
-If the browser reports that it cannot preserve the draft, save applied changes
-before leaving. Generated proposals remain available in the migration history.
-The storage check is a small availability probe, not a guarantee that the full
-draft will fit in the browser's remaining quota.
+Existing migrations remain available in **Earlier migrations** with their saved
+menus and legacy resume/compression controls. New chat requests do not restart
+that workflow. Their source references can be reused by ordinary chat, subject
+to the same access checks. Legacy **Compress and resume** applies only to those
+older migrations; ordinary chat does not silently compress its history.
 
 ## Requirements
 
-When a migration pauses, the explanation includes its interruption code. A pause
-does not necessarily indicate a connection problem: `missing_proposal` means the
-AI returned no tool action, while `tool_batch_limit` means more than 256 actions
-were requested in one response. Repeating a deterministic error may fail again.
-During agentic migration, invalid tool calls receive corrective feedback instead
-of immediately pausing the run. A batch containing a final proposal or plan and
-other actions is rejected without execution; the AI must submit it separately.
-After three invalid response rounds, migration pauses with the tool and reason
-shown. Failed reads remain error observations when resuming, never replayed reads.
-Only selected sources remain accessible; schema validation and credit safeguards
-still apply to every correction attempt.
+The provider enforces context capacity. Errors preserve completed proposals.
+Output limits and validation remain separate safeguards; truncated output is not
+executed. If a task is interrupted, inspect the reported cause before requesting
+continuation. Stop and page reload behavior are unchanged.
 
 The assistant needs an AI provider configured on the server side. If it isn't
 set up, the assistant is unavailable — ask your server admin to configure a

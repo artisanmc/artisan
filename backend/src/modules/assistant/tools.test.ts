@@ -12,7 +12,7 @@ describe("TOOL_DEFS", () => {
     const names = TOOL_DEFS.map((t) => t.name).sort();
     expect(names).toEqual([
       "delete_command", "delete_dialog", "delete_menu",
-      "get_command", "get_dialog", "get_menu", "get_translations",
+      "get_command", "get_dialog", "get_menu", "get_previous_results", "get_translations",
       "list_commands", "list_data_sources", "list_dialogs", "list_menus",
       "read_attachment",
       "upsert_command", "upsert_dialog", "upsert_menu",
@@ -26,6 +26,12 @@ describe("TOOL_DEFS", () => {
 });
 
 describe("executeTool", () => {
+	it("exposes previous proposals without applying them to the live draft", () => {
+		const previous = [{ type: "dialog_written", dialog: { id: "confirm" } }];
+		const wc = new WorkingCopy([], {}, [], [], {}, [], previous);
+		expect(executeTool("get_previous_results", {}, wc)).toMatchObject({ ok: true, content: JSON.stringify(previous) });
+		expect(wc.listDialogs()).toEqual([]);
+	});
   it("upsert_menu rejects an invalid menu (gate) and does not write", () => {
     const wc = new WorkingCopy();
     const r = executeTool("upsert_menu", { menu: { ...validMenu, size: 13 } }, wc);
@@ -236,4 +242,3 @@ describe("list_data_sources", () => {
     expect(res.content.toLowerCase()).toContain("no data source is visible");
   });
 });
-

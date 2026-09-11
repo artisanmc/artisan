@@ -9,6 +9,12 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Changed — general-purpose assistant tasks
+
+- Let ordinary chat use menu, dialog, command and translation tools for any selected plugin sources, without starting a specialized migration workflow. Existing migration history and controls remain available.
+- Retain server source references and pending proposals across explicit continuations, rechecking access and draft consistency. Checkpoint tool results on interruption and measure provider inactivity without automatic paid retries.
+- Persist device uploads throughout their conversation (migration 0036), including unread files, with filename replacement, scope isolation and bounded storage. Keep raw read results out of public history; server sources remain reference-only.
+
 ### Fixed — assistant migration continuation
 
 - Resume paused migrations from chat with their saved sources and completed menus; surface the precise pause cause in both chat context and task UI.

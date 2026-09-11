@@ -8,6 +8,7 @@ export class LlmRequestError extends Error {
 	constructor(
 		public readonly code:
 			| "provider_network_error"
+			| "provider_timeout"
 			| "provider_output_limit"
 			| "response_buffer_exceeded",
 	) {

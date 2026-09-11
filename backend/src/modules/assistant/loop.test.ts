@@ -28,79 +28,32 @@ async function collect(it: AsyncIterable<any>) {
 }
 
 describe("runTurn", () => {
-  it("inspects and resumes an existing migration without new attachments", async () => {
-    const messages: import("./provider/types").LlmMessage[] = [{ role: "user", content: "continue" }];
-    let resumed = 0;
+  it("keeps completed results and closes unexecuted tool calls when Stop interrupts a batch", async () => {
+    const controller = new AbortController();
+    const messages: import("./provider/types").LlmMessage[] = [{ role: "user", content: "Create two menus" }];
+    const wc = new WorkingCopy([]);
+    try {
+      for await (const event of runTurn({
+        provider: scriptedProvider([[{ type: "tool_use", id: "first", name: "upsert_menu", input: { menu: validMenu } }, { type: "tool_use", id: "second", name: "upsert_menu", input: { menu: { ...validMenu, id: "other" } } }, { type: "done", stopReason: "tool_calls" }]]),
+        model: "m", messages, wc, activity: true, signal: controller.signal,
+      })) if (event.type === "menu_written") controller.abort(new Error("task_stopped"));
+    } catch { /* explicit stop */ }
+    expect(wc.get("shop")).toBeDefined();
+    expect(wc.get("other")).toBeUndefined();
+    expect(messages).toContainEqual(expect.objectContaining({ role: "tool", toolCallId: "first" }));
+    expect(messages).toContainEqual(expect.objectContaining({ role: "tool", toolCallId: "second", isError: true }));
+  });
+  it("lets a background assistant choose relevant sources and artifact order", async () => {
     const events = await collect(runTurn({
       provider: scriptedProvider([
-        [{ type: "tool_use", id: "status", name: "get_migration", input: {} }, { type: "done", stopReason: "tool_calls" }],
-        [{ type: "tool_use", id: "resume", name: "resume_migration", input: {} }, { type: "done", stopReason: "tool_calls" }],
+        [{ type: "tool_use", id: "write", name: "upsert_menu", input: { menu: validMenu } }, { type: "done", stopReason: "tool_calls" }],
+        [{ type: "text", text: "Prepared the requested menu; other files were unrelated." }, { type: "done", stopReason: "stop" }],
       ]),
-      model: "m", messages, wc: new WorkingCopy([], {}),
-      migrationStatus: async () => JSON.stringify({ runId: "existing", code: "provider_timeout", completed: 4 }),
-      resumeMigration: async function* () {
-        resumed++;
-        yield { type: "migration_started", runId: "existing" };
-        return "completed";
-      },
+      model: "m", messages: [{ role: "user", content: "Create a shop; ignore unrelated files." }],
+      wc: new WorkingCopy([], { "unrelated.txt": "unrelated" }), activity: true,
     }));
-    expect(resumed).toBe(1);
-    expect(messages).toContainEqual({ role: "tool", toolCallId: "status", content: JSON.stringify({ runId: "existing", code: "provider_timeout", completed: 4 }) });
-    expect(events).toContainEqual({ type: "migration_started", runId: "existing" });
-  });
-  it("keeps tool history replayable when a migration is interrupted", async () => {
-    const messages: import("./provider/types").LlmMessage[] = [
-      { role: "user", content: "Migrate" },
-    ];
-    let failure = "";
-    try {
-      await collect(
-        runTurn({
-          provider: scriptedProvider([
-            [
-              { type: "tool_use", id: "m", name: "start_migration", input: {} },
-              { type: "done", stopReason: "tool_calls" },
-            ],
-          ]),
-          model: "m",
-          messages,
-          wc: new WorkingCopy([]),
-          migration: async function* () {
-            yield { type: "migration_started", runId: "r" };
-            throw new Error("cancelled");
-          },
-        }),
-      );
-    } catch (error) {
-      failure = (error as Error).message;
-    }
-    expect(failure).toBe("cancelled");
-    expect(messages.at(-1)).toMatchObject({ role: "tool", toolCallId: "m", isError: true });
-  });
-  it("lets the chat launch the resumable migration capability without a separate mode", async () => {
-    const messages: import("./provider/types").LlmMessage[] = [
-      { role: "user", content: "Migrate these menus" },
-    ];
-    const events = await collect(
-      runTurn({
-        provider: scriptedProvider([
-          [
-            { type: "tool_use", id: "migrate", name: "start_migration", input: {} },
-            { type: "done", stopReason: "tool_calls" },
-          ],
-        ]),
-        model: "m",
-        messages,
-        wc: new WorkingCopy([], { "server:x/a.yml": "size: 9" }),
-        migration: async function* () {
-          yield { type: "migration_started", runId: "r" };
-          return "Proposals ready for review";
-        },
-      }),
-    );
-    expect(events.some((event) => event.type === "migration_started")).toBe(true);
-    expect(events.at(-1)).toEqual({ type: "done", stopReason: "migration" });
-    expect(messages.at(-1)?.content).toBe("Proposals ready for review");
+    expect(events.some((event) => event.type === "menu_written")).toBe(true);
+    expect(events.some((event) => event.type === "error")).toBe(false);
   });
   const attachedFiles = Object.fromEntries(
     Array.from({ length: 30 }, (_, i) => [
