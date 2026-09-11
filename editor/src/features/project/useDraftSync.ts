@@ -4,6 +4,9 @@ import { useAccountStore } from "@/state/accountStore";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
 import { useEffect } from "react";
+import { useAuthStore } from "@/state/authStore";
+import { markDraftPending, syncBackendDraft, useBackendDraftStore } from "./backendDrafts";
+import { registerDraftFlush } from "./draftFlush";
 
 /**
  * Fenêtre d'apaisement : on ne resérialise pas l'arbre à chaque frappe.
@@ -14,18 +17,25 @@ import { useEffect } from "react";
  */
 const DEBOUNCE_MS = 200;
 
-/**
- * Tient le brouillon du navigateur à jour à partir de l'état d'édition.
- *
- * Même patron que l'auto-save d'avant P2 — s'abonner au store, débouncer — mais
- * l'écriture va dans le **navigateur**, pas sur le serveur. C'est la différence
- * qui compte : rien n'atteint le disque sans le geste explicite d'Enregistrer,
- * et pourtant plus rien ne se perd à la fermeture d'un onglet.
- *
- * Écrire ne coûte qu'une sérialisation d'arbre (43 Ko pour le plus gros project
- * mesuré), donc le débounce est là par hygiène, pas par nécessité.
- */
+/** Saves local recovery copies immediately and synchronizes backend drafts after edits. */
 export function useDraftSync(): void {
+  const userId = useAuthStore(s => s.currentUser?.id);
+  useEffect(() => {
+    if (userId) useProjectDraftStore.getState().setOwner(userId);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const sync = () => {
+      if (useAuthStore.getState().currentUser?.id !== userId) return;
+      for (const id of Object.keys(useBackendDraftStore.getState().sessions)) void syncBackendDraft(id);
+    };
+    const unsubscribe = useProjectDraftStore.subscribe(() => {
+      for (const id of Object.keys(useBackendDraftStore.getState().sessions)) markDraftPending(id);
+      clearTimeout(timer);
+      timer = setTimeout(sync, 1000);
+    });
+    const interval = setInterval(sync, 15_000);
+    window.addEventListener("online", sync);
+    return () => { unsubscribe(); clearTimeout(timer); clearInterval(interval); window.removeEventListener("online", sync); };
+  }, [userId]);
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | null = null;
     let pendingAccount: ReturnType<typeof useAccountStore.getState>["account"] | null = null;
@@ -53,6 +63,7 @@ export function useDraftSync(): void {
         const initialTree =
           !previous && beforeEdit && !isDirty(baseline, projectTree(beforeEdit)) ? baseline : tree;
         drafts.save(project.id, {
+          remote: previous?.remote,
           baseline,
           tree,
           // Figé au premier passage suivant un chargement : c'est la référence
@@ -61,10 +72,12 @@ export function useDraftSync(): void {
           // L'âge du brouillon est celui de sa BASE, pas de la dernière frappe :
           // c'est la péremption vis-à-vis du serveur qu'on affiche.
           at: sameLoad ? previous.at : Date.now(),
+          renames: drafts.pendingRenames[project.id] ?? previous?.renames,
         });
       }
     };
 
+    const unregisterFlush = registerDraftFlush(flush);
     const unsubscribe = useAccountStore.subscribe((state, prev) => {
       if (state.account === prev.account) return;
       if (timer === null) pendingAccount = prev.account;
@@ -80,6 +93,7 @@ export function useDraftSync(): void {
 
     return () => {
       unsubscribe();
+      unregisterFlush();
       window.removeEventListener("pagehide", flush);
       document.removeEventListener("visibilitychange", onVisibilityChange);
       flush();

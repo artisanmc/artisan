@@ -1,6 +1,8 @@
+import { draftsEn } from "./drafts";
 import { tasksEn } from "./tasks";
 import { migrationEn } from "./migration";
 export default {
+  drafts: draftsEn,
   navigation: {
     menu: "Menu",
     label: "Main navigation",

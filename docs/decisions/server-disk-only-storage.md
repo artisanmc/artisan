@@ -7,6 +7,13 @@ dédié requis »).
 
 ## Contexte
 
+**Révision 2026-09-11 — brouillons backend** : le contenu publié reste sur le
+disque Minecraft. Le backend conserve désormais des copies de travail nommées
+et privées dans `project_drafts`, avec base et révision. La sauvegarde automatique
+ne publie rien ; la publication explicite réutilise le compare-and-swap du plugin.
+Cela révise l'exclusion des brouillons persistants sans réintroduire de bundle
+publié côté backend. Voir `entities.md` et `rest-endpoints.md` dans `docs/architecture/`.
+
 `files-first-source-of-truth` a fait des fichiers la vérité *de forme* : le
 backend a cessé de stocker une représentation riche (`editorJson` démoli) pour ne
 garder que l'arbre de fichiers (`filesJson`). Mais il gardait cet arbre comme une

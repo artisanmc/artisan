@@ -1,8 +1,10 @@
+import { draftsFr } from "./drafts";
 import { tasksFr } from "./tasks";
 import type en from "./en";
 import { migrationFr } from "./migration";
 
 const fr: typeof en = {
+  drafts: draftsFr,
   navigation: {
     menu: "Menu",
     label: "Navigation principale",
