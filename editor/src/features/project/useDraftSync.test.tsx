@@ -30,6 +30,26 @@ function setup() {
 }
 
 describe("browser draft retention", () => {
+  it("marks the first file-shape change after saving as dirty, and clears it on revert", () => {
+    const { project, initialTree } = setup();
+    // Saving clears the browser draft but retains the exact saved baseline.
+    renderHook(() => useDraftSync());
+    act(() => {
+      useAccountStore.getState().setProjectI18nMode({ projectId: project.id, mode: "inline" });
+      vi.advanceTimersByTime(250);
+    });
+    const draft = useProjectDraftStore.getState().get(project.id)!;
+    expect(draft.tree).not.toEqual(initialTree);
+    expect(isDirty(draft.initialTree, draft.tree)).toBe(true);
+    expect(draft.initialTree).toEqual(initialTree);
+    act(() => {
+      useAccountStore.getState().setProjectI18nMode({ projectId: project.id, mode: "extract" });
+      vi.advanceTimersByTime(250);
+    });
+    const reverted = useProjectDraftStore.getState().get(project.id)!;
+    expect(isDirty(reverted.initialTree, reverted.tree)).toBe(false);
+  });
+
   it("keeps a restored draft dirty after serialization and another refresh", () => {
     const { account, project, initialTree } = setup();
     project.name = "Edited project";
@@ -59,6 +79,22 @@ describe("browser draft retention", () => {
     expect(draft.tree).toEqual(tree);
     expect(draft.at).toBe(123);
     hook.unmount();
+  });
+
+  it("does not mark load-time file normalization as an edit", () => {
+    const { account, project, initialTree } = setup();
+    useProjectBaselineStore.getState().set(project.id, {
+      ...initialTree,
+      "manifest.yaml": `# Written by hand\n${initialTree["manifest.yaml"]}`,
+    });
+    renderHook(() => useDraftSync());
+    act(() => {
+      useAccountStore.getState().setAccount(account);
+      vi.advanceTimersByTime(250);
+    });
+    const draft = useProjectDraftStore.getState().get(project.id)!;
+    expect(isDirty(draft.baseline, draft.tree)).toBe(true);
+    expect(isDirty(draft.initialTree, draft.tree)).toBe(false);
   });
 
   it("flushes pending edits when the page is hidden before the debounce", () => {
