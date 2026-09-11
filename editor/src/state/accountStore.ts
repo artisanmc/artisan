@@ -2785,7 +2785,7 @@ export const useAccountStore = create<AccountState>()(
                   otherEl.positions = removePosition(otherEl.positions, toPosition);
                 }
               }
-              layer.elements = layer.elements.filter((el) => el.positions !== "");
+              layer.elements = layer.elements.filter((el) => el.places || el.positions !== "");
             }
             // Then update the source element: remove from, add to.
             for (const layer of menu.layers) {
@@ -2812,7 +2812,7 @@ export const useAccountStore = create<AccountState>()(
                   otherEl.positions = removePosition(otherEl.positions, position);
                 }
               }
-              layer.elements = layer.elements.filter((el) => el.positions !== "");
+              layer.elements = layer.elements.filter((el) => el.places || el.positions !== "");
             }
             for (const layer of menu.layers) {
               for (const el of layer.elements) {
@@ -3342,7 +3342,7 @@ export const useAccountStore = create<AccountState>()(
                   }
                 }
               }
-              layer.elements = layer.elements.filter((el) => el.positions !== "");
+              layer.elements = layer.elements.filter((el) => el.places || el.positions !== "");
             }
             let firstLayer: Layer | undefined = menu.layers[0];
             if (!firstLayer) {
@@ -3448,7 +3448,7 @@ export const useAccountStore = create<AccountState>()(
               const filtered = parsePositions(otherEl.positions).filter((p) => !claimed.has(p));
               otherEl.positions = formatPositions(filtered);
             }
-            layer.elements = layer.elements.filter((el) => el.positions !== "");
+            layer.elements = layer.elements.filter((el) => el.places || el.positions !== "");
           }
           // Apply new positions to target elements.
           for (const layer of menu.layers) {
