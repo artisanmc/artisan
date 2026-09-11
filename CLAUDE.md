@@ -100,10 +100,11 @@ ceux-ci — dans **`docs/architecture/invariants.md`**.
 
 1. **`bun run test`, jamais `bun test`** — le direct bypasse le wrapper et **vide la DB dev**
    `artisan` (incident 2026-06-01).
-2. **Le contenu d'un Project vit sur le disque du serveur, et NULLE PART ailleurs** — le backend
-   n'en stocke aucune copie (ADR `server-disk-only-storage`). L'éditeur lit par `project_read`,
-   écrit par `project_write` sur geste explicite ; **le plugin est le seul écrivain**. Serveur hors
-   ligne = Project inouvrable, jamais un repli sur une copie périmée.
+2. **Le contenu publié d'un Project vit sur le disque du serveur** — le backend stocke les
+   brouillons privés (`project_drafts`, révision 2026-09-11 de `server-disk-only-storage`).
+   L'éditeur sauvegarde automatiquement son brouillon ; publier reste explicite, via
+   `project_write` et son compare-and-swap. Serveur hors ligne : brouillon ouvrable,
+   publication impossible. Voir `docs/architecture/entities.md` et `rest-endpoints.md`.
 3. **`.artisan*` en premier segment = métadonnée** — hors hash, invisible au scan disque. L'éditeur
    possède `.artisan/editor.yaml` (il peut l'écrire) ; `.artisan/history/` (corbeille),
    `.artisan-trash/` et `.artisan-sync.yaml` lui restent invisibles **et** interdits en écriture.

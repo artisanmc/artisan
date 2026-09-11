@@ -44,7 +44,19 @@ User ── Membership ──┐
 - **Pas de merge 3-way ni de résolution de conflits.** Le moteur `mergeEngine` + les endpoints `merge-into`/`resolve` ont été retirés le 2026-06-17 (cf. ADR `no-branch-conflict-resolution`) : aucune UI ne les câblait, et la concurrence live est déjà gérée par LWW + présence (`decisions/editor-state-model.md`). Quand les branches reviendront (dev→prod), le flux sera *fast-forward only* (`promote/:dst`). Primitives DAG conservées mais inertes : `project_commits.parentId2`, `branchStorage.findLCA`.
 - **`canvasLayout`** (`Record<id, {x,y}>`, métadonnée éditeur) : depuis 2026-06-13 c'est l'**ensemble d'appartenance à la planche** (présence d'une entrée = le Document est sur la planche curée), pas seulement des positions sauvegardées. Pas de changement de schéma DB — seule la sémantique évolue ; `autoLayout` côté éditeur ne retourne que les entrées explicites. Détail : `editor-internals.md` (§ Planche curée).
 
+**Brouillons de Project (2026-09-11, migration 0037)** : `project_drafts` porte
+`id`, `project_id`, `owner_id`, `name`, `revision`, `status`, `snapshot`,
+`updated_by`, `source`, dates. Le Project détermine réseau et serveur ; les FK
+suppriment les brouillons avec le Project ou le propriétaire. Plusieurs brouillons
+privés par utilisateur/Project sont permis. `snapshot` contient base, arbre,
+arbre initial, date de base et renommages. Chaque mutation exige la révision
+attendue ; publication et écriture concurrente sont sérialisées par verrou de ligne.
+Les états sont `active`, `published`, `discarded` ; les états terminaux restent
+consultables, sans être repris par la liste active. `source` vaut `editor` pour
+l'API actuelle. Le MCP et ses autorisations déléguées restent à implémenter.
+
 ## Auth & comptes
+
 
 - Tables : `users`, `user_sessions`, `oauth_accounts`, `password_reset_tokens`. Migration 0034 copies existing `discord_accounts` links to `oauth_accounts`; the old table is retained as history and no longer written.
 - `oauth_accounts`: primary key `(provider, subject)`, unique `(provider, user_id)`, cascading FK to `users`. Google uses its verified ID-token `sub`; Discord uses its user ID. An existing identity always resolves to the original User, even after an email change. No access/refresh tokens are stored.

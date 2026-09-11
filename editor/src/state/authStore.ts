@@ -8,6 +8,7 @@ import {
   getMe,
 } from "@/lib/api/auth";
 import { create } from "zustand";
+import { useProjectDraftStore } from "./projectDraftStore";
 
 /** Ce qu'on sait de la session — « unknown » tant que le backend n'a pas
  *  répondu. Il n'y a pas de mode anonyme : « signed-out » veut dire /login. */
@@ -184,6 +185,7 @@ useAuthStore.subscribe(async (state) => {
   const previous = lastSeenUserId;
   lastSeenUserId = id;
   if (previous === null) return; // first sign-in — keep prior state
+  useProjectDraftStore.getState().setOwner(id);
   // Dynamic imports to avoid store import cycles (same pattern as hydrate()).
   const [{ useAccountStore }, { useUiStore }] = await Promise.all([
     import("./accountStore"),

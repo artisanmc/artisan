@@ -117,6 +117,14 @@ Le Document sélectionné s'édite dans le panneau de droite. L'ancien **mode fo
 
 - **Têtes vanilla en 3D** : les cubes de tête de `mcModelRenderer.headDef` utilisent `yFlip: false` : le découpage du skin place déjà le visage au sud et le dessus en haut. Les retourner exposait une face omise au-dessus et le visage à l'arrière. Le test de géométrie passe par `renderToCanvas` et vérifie par rayons la surface supérieure et les UV du visage.
 
+### Reconnexion d'un Project (depuis 2026-09-08)
+
+`useProjectLoader` retente la lecture 15 secondes après chaque réponse
+`server_offline` / `network_error`, sans requêtes concurrentes ni reconstruction
+répétée de l'affichage hors ligne. Une lecture réussie (y compris `unchanged`)
+efface `offline` et `stale` ; les réponses tardives et timers sont ignorés à la
+sortie du Project. Un brouillon modifié conserve sa base de compare-and-swap.
+
 ### Paramètres avancés d'un item (depuis 2026-07-29)
 
 Sous le lore de chaque state card, `features/flow/AdvancedItemSection.tsx` replie derrière un `<Collapsible>` tout ce qui dépasse material/titre/lore : **enchantements** (id + niveau, `datalist` sur le catalogue vanilla de `domain/itemAdvanced.ts` mais **saisie libre acceptée** pour le moddé), effet brillant sans enchant, custom model data, incassable, sections de tooltip masquées, **couleur** (affichée uniquement si le material est teintable — cuir / potion / étoile de feu d'artifice), et **NBT brut**. Un badge sur le trigger compte les valeurs posées (`countAdvanced`) pour qu'un item configuré ne cache pas sa propre configuration. Les mutations passent par l'action de store unique `setAppearanceAdvanced` (patch partiel ; une clé à `undefined` efface le champ).
@@ -182,8 +190,8 @@ Cf. `docs/superpowers/specs/2026-06-13-workspace-board-curation-design.md` (supe
 
 Un Document est **sur la planche ssi** il a une entrée explicite `project.canvasLayout[id] = {x,y}` (présence = appartenance, plus seulement position sauvegardée).
 
-Les positions et les modifications de contenu sont conservées dans le brouillon
-navigateur par `useDraftSync`. Après un enregistrement qui efface le brouillon,
+Les positions et modifications sont conservées par `useDraftSync` dans une copie
+locale, puis sauvegardées automatiquement côté backend (voir ci-dessous). Après un enregistrement qui efface le brouillon,
 la première modification conserve comme référence l'état précédent s'il correspond
 exactement à la base enregistrée : la bascule Clés / Texte en clair doit ainsi
 activer Enregistrer dès le premier changement. La normalisation au chargement
@@ -192,6 +200,21 @@ contenu, jamais par identité d'objet : le rechargement ne doit pas reclasser un
 brouillon modifié comme propre et le faire abandonner à l'ouverture suivante.
 Les écritures locales en attente sont vidées sur `pagehide`, passage de la page
 à l'état caché et démontage du hook. L'écriture sur le serveur reste explicite.
+
+**Brouillons backend (2026-09-11)** : `backendDrafts.ts` charge les brouillons
+privés avant la lecture disque, restaure la sélection et synchronise l'arbre avec
+révision attendue. La copie locale est isolée par compte ; un ancien brouillon
+sans identifiant backend devient une copie distincte. Un accusé de réception
+ne remplace jamais les frappes effectuées pendant la requête. Un conflit de
+révision conserve le travail local et bloque l'écriture jusqu'à création d'une
+copie. `BackendDraftControls` propose copies nommées, sélection et comparaison
+base/arbre depuis le menu d'Enregistrer, sans bloc permanent dans la topbar.
+Un point sur le chevron signale seulement un conflit ou une sauvegarde non confirmée.
+Les actions vident d'abord le debounce local via `draftFlush`.
+`saveProjectToDisk` publie la révision sauvegardée via l'API de brouillons ;
+création/import sans session garde le chemin existant. Une modification pendant
+la publication reste un nouveau travail basé sur les fichiers publiés.
+Le transport MCP reste futur ; il réutilisera les mêmes opérations et contrôles.
 
 - `autoLayout(project)` (`features/canvas/autoLayout.ts`) ne remplit **plus** la grille : il ne retourne que les entrées explicites de `canvasLayout`.
 - `gridArrange(project)` (même fichier) construit une grille complète sur tous les Documents — appelé uniquement par le bouton « Tout arranger » via l'action store `arrangeAllOnBoard({projectId})`.

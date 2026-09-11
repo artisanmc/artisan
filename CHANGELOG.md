@@ -9,6 +9,11 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Added — backend Project drafts
+
+- Private named drafts with automatic backend persistence, revision checks, local recovery, a draft picker and file comparison. Explicit Save publishes the stored draft through the existing server compare-and-swap.
+- Versioned draft CRUD/publication API and `publish_content` capability, separate from editing, as a foundation for a future MCP transport.
+
 ### Changed — general-purpose assistant tasks
 
 - Let ordinary chat use menu, dialog, command and translation tools for any selected plugin sources, without starting a specialized migration workflow. Existing migration history and controls remain available.

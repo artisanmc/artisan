@@ -376,6 +376,26 @@ export const projects = pgTable(
 	],
 );
 
+export const projectDrafts = pgTable("project_drafts", {
+	id: text("id").primaryKey(),
+	projectId: text("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+	ownerId: text("owner_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+	name: text("name").notNull(),
+	revision: integer("revision").notNull().default(1),
+	status: text("status").notNull().default("active"),
+	snapshot: jsonb("snapshot").notNull().$type<{
+		baseline: Record<string, string>;
+		tree: Record<string, string>;
+		initialTree?: Record<string, string>;
+		at: number;
+		renames?: { from: string; to: string }[];
+	}>(),
+	updatedBy: text("updated_by").notNull().references(() => users.id, { onDelete: "cascade" }),
+	source: text("source").notNull().default("editor"),
+	createdAt: timestamp("created_at").notNull(),
+	updatedAt: timestamp("updated_at").notNull(),
+}, (t) => [index("project_drafts_owner_project_idx").on(t.ownerId, t.projectId)]);
+
 export const appSettings = pgTable("app_settings", {
 	key: text("key").primaryKey(),
 	value: text("value").notNull(), // JSON stringifié

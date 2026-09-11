@@ -7,6 +7,18 @@
 
 ## Conventions
 
+- **Project drafts (2026-09-11)**: `routes/projectDrafts.ts` owns
+  `/api/v1/user/projects/:projectId/drafts` (internal Project ID): list/create,
+  read/update/discard `/:draftId`, and explicit POST `/:draftId/publish`.
+  Authentication, active Project, network membership/capability and draft ownership
+  are checked on every request. Mutations require `revision`; stale writes return
+  409 `draft_conflict`. Creation IDs are caller-generated to make lost responses
+  recoverable without duplicating drafts. Bodies are bounded to 8 MiB, trees to
+  5,000 relative paths. Publication uses the stored baseline and existing plugin
+  compare-and-swap; offline/error/conflict leaves the draft active. `publish_content`
+  is separate from `edit_content`; current member/owner roles retain both rights.
+  No MCP tokens or delegated grants are exposed yet.
+
 - **Conversation uploads (2026-09-11)**: message `attachments` are validated string maps, merged by filename and stored independently of the transcript. Missing/empty maps preserve previous files. Background acceptance and upload persistence share a transaction; rejected/replayed requests do not change files. Reads recheck owner/Project access and network/server scope. Raw upload bodies are excluded from task metadata and read-tool transcript results; provider-generated text may quote sources. Invalid names/types or reserved `server:` IDs return `invalid_attachments`; limits return `attachment_too_large` / `attachments_too_large` (422), before provider execution. Uploads do not replace retained server references.
 
 - **General assistant (2026-09-11)**: new background chat uses ordinary menu/dialog/command/translation tools; no `start_migration`, `get_migration` or `resume_migration` capability is offered. The model chooses source reads and operation order. Accepted task metadata retains validated server selections (not raw contents); an empty follow-up selection reuses same-scope references, or legacy manifest references when needed. Sources and permissions are checked again before model execution. `get_previous_results` reads prior same-scope proposals without applying them. When the draft fingerprint is unchanged, pending proposals are replayed into the working copy and carried into the new task for one explicit apply; otherwise the live draft wins. Transcript checkpoints are saved between iterations, and Stop closes unexecuted tool calls. Four-minute provider inactivity includes partial tool payload progress; no SDK retry is requested.

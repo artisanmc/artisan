@@ -11,6 +11,7 @@ import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { projectCacheKey, useProjectCacheStore } from "@/state/projectCacheStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
 import { useEffect, useState } from "react";
+import { loadBackendDrafts } from "./backendDrafts";
 
 export interface ProjectLoadResult {
   project: Project | null;
@@ -48,7 +49,7 @@ function treeToShow(
   fallback: Record<string, string>,
 ): { tree: Record<string, string>; fromDraft: boolean } {
   const draft = useProjectDraftStore.getState().get(projectId);
-  const resumable = draft && isDirty(draft.initialTree, draft.tree);
+  const resumable = draft && (draft.remote || isDirty(draft.initialTree, draft.tree));
   return resumable ? { tree: draft.tree, fromDraft: true } : { tree: fallback, fromDraft: false };
 }
 
@@ -147,6 +148,7 @@ export function useProjectLoader(projectId: string, serverRef?: string | null): 
   const [fromDraft, setFromDraft] = useState(false);
   const [stale, setStale] = useState(false);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reloadToken relance la lecture sur Actualiser.
   useEffect(() => {
     setError(null);
     setOffline(false);
@@ -157,11 +159,15 @@ export function useProjectLoader(projectId: string, serverRef?: string | null): 
       setError("Not authenticated");
       return;
     }
+    useProjectDraftStore.getState().setOwner(user.id);
     // La dernière version connue s'affiche TOUT DE SUITE, pendant que la vraie
     // lecture part. Sans elle, l'écran attend un aller-retour jusqu'au disque du
     // serveur — plusieurs secondes — pour afficher, neuf fois sur dix, la même
     // chose qu'à la visite précédente.
     let fresh = false;
+    let cancelled = false;
+    let unavailableShown = false;
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
     const cacheKey = projectCacheKey(projectId, serverRef);
     const cached = useProjectCacheStore.getState().get(cacheKey);
     if (cached) {
@@ -178,149 +184,206 @@ export function useProjectLoader(projectId: string, serverRef?: string | null): 
           // La réponse du serveur a pu arriver entre-temps : elle gagne,
           // toujours — y compris pour le store que lit le canvas, d'où le
           // miroir posé ICI et pas dans la construction.
-          if (fresh) return;
+          if (fresh || cancelled) return;
           mirrorIntoAccount(p, (cached.identity as { networkId?: string }).networkId ?? "");
           setProject(p);
           setFailed(cached.failed ?? []);
           setStale(true);
         })
         .catch(() => {
+          if (cancelled) return;
           // Un cache illisible (format d'une version précédente) ne casse rien :
           // on l'oublie et on attend le serveur, comme avant.
           useProjectCacheStore.getState().forget(cacheKey);
         });
     }
 
-    loadUserProject(projectId, serverRef)
-      .then(async (res) => {
-        // Le contenu vient du DISQUE du serveur, jamais du backend (ADR
-        // `server-disk-only-storage`) : la réponse ci-dessus ne sert plus qu'à
-        // l'identité (nom, slug, serveur propriétaire, network).
-        const diskId = res.project.externalId ?? res.project.id;
-        const ownerServerId = res.project.serverKeyId ?? res.serverKeyId;
-        // On annonce l'empreinte qu'on détient : si le serveur porte la même, il
-        // ne renvoie rien et notre copie vient d'être revalidée.
-        const disk = await readProjectFiles(res.networkId, ownerServerId, diskId, cached?.hash);
-        if (!disk.ok) {
-          const unreachable = disk.error === "server_offline" || disk.error === "network_error";
-          // Serveur injoignable : on ouvre le brouillon plutôt que de refuser
-          // l'accès (décision 7 révisée). C'est un état DATÉ, pas la vérité —
-          // l'appelant l'annonce, et Enregistrer reste hors de portée.
-          const draft = unreachable
-            ? useProjectDraftStore.getState().get(res.project.id)
-            : undefined;
-          if (draft) {
+    const refresh = () => {
+      let retry = false;
+      let validated = false;
+      return loadUserProject(projectId, serverRef)
+        .then(async (res) => {
+          if (cancelled) return;
+          // Le contenu vient du DISQUE du serveur, jamais du backend (ADR
+          // `server-disk-only-storage`) : la réponse ci-dessus ne sert plus qu'à
+          // l'identité (nom, slug, serveur propriétaire, network).
+          const diskId = res.project.externalId ?? res.project.id;
+          const ownerServerId = res.project.serverKeyId ?? res.serverKeyId;
+          await loadBackendDrafts(res.project.id, user.id);
+          if (cancelled) return;
+          const restoredDraft = useProjectDraftStore.getState().get(res.project.id);
+          if (restoredDraft) {
+            // Show the restored working copy before waiting for Minecraft.
+            // Otherwise edits on the stale canvas could replace the remote draft.
             fresh = true;
-            useProjectBaselineStore.getState().set(res.project.id, draft.baseline);
-            const built = await buildProject(res, diskId, draft.tree);
-            mirrorIntoAccount(built, res.networkId);
-            setProject(built);
+            useProjectBaselineStore.getState().set(res.project.id, restoredDraft.baseline);
+            const restored = await buildProject(res, diskId, restoredDraft.tree, cached?.declaredModels ?? []);
+            if (cancelled) return;
+            mirrorIntoAccount(restored, res.networkId);
+            setProject(restored);
             setNetworkId(res.networkId);
-            setFromDraft(true);
-            setOffline(true);
-            return;
-          }
-          fresh = true;
-          if (unreachable && cached) {
-            // Serveur injoignable, mais on sait ce qu'il avait : on le montre,
-            // daté, plutôt qu'un écran d'erreur. Enregistrer reste hors de portée.
-            const shown = treeToShow(res.project.id, cached.tree);
-            const built = await buildProject(cached.identity as never, cached.diskId, shown.tree);
-            setFromDraft(shown.fromDraft);
-            mirrorIntoAccount(built, res.networkId);
-            setProject(built);
-            setNetworkId(res.networkId);
+            setFromDraft(Boolean(restoredDraft.remote || isDirty(restoredDraft.initialTree, restoredDraft.tree)));
             setStale(true);
-            setOffline(true);
+          }
+          // On annonce l'empreinte qu'on détient : si le serveur porte la même, il
+          // ne renvoie rien et notre copie vient d'être revalidée.
+          const disk = await readProjectFiles(res.networkId, ownerServerId, diskId, cached?.hash);
+          if (cancelled) return;
+          if (!disk.ok) {
+            const unreachable = disk.error === "server_offline" || disk.error === "network_error";
+            retry = unreachable;
+            if (unreachable && unavailableShown) return;
+            unavailableShown = unreachable;
+            // Serveur injoignable : on ouvre le brouillon plutôt que de refuser
+            // l'accès (décision 7 révisée). C'est un état DATÉ, pas la vérité —
+            // l'appelant l'annonce, et Enregistrer reste hors de portée.
+            const draft = unreachable
+              ? useProjectDraftStore.getState().get(res.project.id)
+              : undefined;
+            if (draft) {
+              fresh = true;
+              useProjectBaselineStore.getState().set(res.project.id, draft.baseline);
+              const built = await buildProject(res, diskId, draft.tree);
+              if (cancelled) return;
+              mirrorIntoAccount(built, res.networkId);
+              setProject(built);
+              setNetworkId(res.networkId);
+              setFromDraft(true);
+              setStale(true);
+              setOffline(true);
+              return;
+            }
+            fresh = true;
+            if (unreachable && cached) {
+              // Serveur injoignable, mais on sait ce qu'il avait : on le montre,
+              // daté, plutôt qu'un écran d'erreur. Enregistrer reste hors de portée.
+              const shown = treeToShow(res.project.id, cached.tree);
+              const built = await buildProject(cached.identity as never, cached.diskId, shown.tree);
+              if (cancelled) return;
+              setFromDraft(shown.fromDraft);
+              mirrorIntoAccount(built, res.networkId);
+              setProject(built);
+              setNetworkId(res.networkId);
+              setStale(true);
+              setOffline(true);
+              return;
+            }
+            setOffline(unreachable);
+            setError(disk.error);
             return;
           }
-          setOffline(unreachable);
-          setError(disk.error);
-          return;
-        }
-        if (disk.unchanged) {
-          // Revalidé : ce qu'on affiche EST ce que le serveur porte. Rien à
-          // reconstruire, rien à retransporter — seul le drapeau tombe.
-          fresh = true;
-          if (cached) {
-            useProjectBaselineStore.getState().set(res.project.id, cached.tree);
+          if (disk.unchanged) {
+            // Revalidé : ce qu'on affiche EST ce que le serveur porte. Rien à
+            // reconstruire, rien à retransporter — seul le drapeau tombe.
+            fresh = true;
+            if (cached) {
+              const draft = useProjectDraftStore.getState().get(res.project.id);
+              useProjectBaselineStore
+                .getState()
+                .set(
+                  res.project.id,
+                  draft && (draft.remote || isDirty(draft.initialTree, draft.tree)) ? draft.baseline : cached.tree,
+                );
+              useProjectCacheStore.getState().put(cacheKey, {
+                ...cached,
+                hash: disk.hash ?? cached.hash,
+                fetchedAt: new Date().toISOString(),
+              });
+              const shown = treeToShow(res.project.id, cached.tree);
+              const built = await buildProject(res, diskId, shown.tree);
+              if (cancelled) return;
+              setFromDraft(shown.fromDraft);
+              mirrorIntoAccount(built, res.networkId);
+              setProject(built);
+              setNetworkId(res.networkId);
+              setFailed(cached.failed ?? []);
+              setStale(false);
+              validated = true;
+              return;
+            }
+            // Pas de cache mais un « inchangé » : on ne sait pas de quoi il parle.
+            // On redemande sans empreinte plutôt que d'afficher du vide.
+            const full = await readProjectFiles(res.networkId, ownerServerId, diskId);
+            if (cancelled) return;
+            if (!full.ok || full.unchanged) {
+              setError("read_error");
+              return;
+            }
+            fresh = true;
             useProjectCacheStore.getState().put(cacheKey, {
-              ...cached,
-              hash: disk.hash ?? cached.hash,
+              identity: res,
+              diskId,
+              serverKeyId: ownerServerId ?? null,
+              tree: full.files,
+              failed: full.failed,
+              hash: full.hash ?? null,
+              declaredModels: lastDeclaredModels,
               fetchedAt: new Date().toISOString(),
             });
-            const shown = treeToShow(res.project.id, cached.tree);
-            const built = await buildProject(res, diskId, shown.tree);
-            setFromDraft(shown.fromDraft);
+            useProjectBaselineStore.getState().set(res.project.id, full.files);
+            const built = await buildProject(res, diskId, full.files);
+            if (cancelled) return;
             mirrorIntoAccount(built, res.networkId);
-            if (!project) setProject(built);
+            setProject(built);
             setNetworkId(res.networkId);
-            setFailed(cached.failed ?? []);
+            setFailed(full.failed);
             setStale(false);
+            validated = true;
             return;
           }
-          // Pas de cache mais un « inchangé » : on ne sait pas de quoi il parle.
-          // On redemande sans empreinte plutôt que d'afficher du vide.
-          const full = await readProjectFiles(res.networkId, ownerServerId, diskId);
-          if (!full.ok || full.unchanged) {
-            setError("read_error");
-            return;
-          }
+          setFailed(disk.failed);
+          // Un brouillon avec du travail non enregistré est REPRIS : tu retrouves
+          // ton travail en rouvrant, comme dans n'importe quel éditeur. Ce qui
+          // t'évite de le confondre avec l'état du serveur, ce n'est plus un
+          // bandeau mais l'état de la topbar : Enregistrer n'est actif que s'il y
+          // a quelque chose à enregistrer, et Annuler y revient d'un clic.
+          const draft = useProjectDraftStore.getState().get(res.project.id);
+          const resumable = draft && (draft.remote || isDirty(draft.initialTree, draft.tree)) ? draft : null;
+          if (draft && !resumable) useProjectDraftStore.getState().clear(res.project.id);
+
+          // La base du compare-and-swap : ce que le disque contenait à l'ouverture.
+          useProjectBaselineStore.getState().set(res.project.id, resumable?.baseline ?? disk.files);
+
+          // La base reste celle du SERVEUR : c'est elle que le compare-and-swap
+          // doit présenter, sinon on écraserait sans le savoir ce qui a changé
+          // depuis. Seul l'arbre affiché vient du brouillon.
           fresh = true;
           useProjectCacheStore.getState().put(cacheKey, {
             identity: res,
             diskId,
             serverKeyId: ownerServerId ?? null,
-            tree: full.files,
-            failed: full.failed,
-            hash: full.hash ?? null,
+            tree: disk.files,
+            failed: disk.failed,
+            hash: disk.hash ?? null,
             declaredModels: lastDeclaredModels,
             fetchedAt: new Date().toISOString(),
           });
-          useProjectBaselineStore.getState().set(res.project.id, full.files);
-          const built = await buildProject(res, diskId, full.files);
+          const built = await buildProject(res, diskId, resumable?.tree ?? disk.files);
+          if (cancelled) return;
           mirrorIntoAccount(built, res.networkId);
           setProject(built);
           setNetworkId(res.networkId);
-          setFailed(full.failed);
+          setFromDraft(resumable !== null);
           setStale(false);
-          return;
-        }
-        setFailed(disk.failed);
-        // Un brouillon avec du travail non enregistré est REPRIS : tu retrouves
-        // ton travail en rouvrant, comme dans n'importe quel éditeur. Ce qui
-        // t'évite de le confondre avec l'état du serveur, ce n'est plus un
-        // bandeau mais l'état de la topbar : Enregistrer n'est actif que s'il y
-        // a quelque chose à enregistrer, et Annuler y revient d'un clic.
-        const draft = useProjectDraftStore.getState().get(res.project.id);
-        const resumable = draft && isDirty(draft.initialTree, draft.tree) ? draft : null;
-        if (draft && !resumable) useProjectDraftStore.getState().clear(res.project.id);
-
-        // La base du compare-and-swap : ce que le disque contenait à l'ouverture.
-        useProjectBaselineStore.getState().set(res.project.id, disk.files);
-
-        // La base reste celle du SERVEUR : c'est elle que le compare-and-swap
-        // doit présenter, sinon on écraserait sans le savoir ce qui a changé
-        // depuis. Seul l'arbre affiché vient du brouillon.
-        fresh = true;
-        useProjectCacheStore.getState().put(cacheKey, {
-          identity: res,
-          diskId,
-          serverKeyId: ownerServerId ?? null,
-          tree: disk.files,
-          failed: disk.failed,
-          hash: disk.hash ?? null,
-          declaredModels: lastDeclaredModels,
-          fetchedAt: new Date().toISOString(),
+          validated = true;
+        })
+        .catch((e) => {
+          if (!cancelled) setError((e as Error).message);
+        })
+        .finally(() => {
+          if (cancelled) return;
+          if (validated) {
+            setOffline(false);
+            setError(null);
+          }
+          if (retry) retryTimer = setTimeout(refresh, 15_000);
         });
-        const built = await buildProject(res, diskId, resumable?.tree ?? disk.files);
-        mirrorIntoAccount(built, res.networkId);
-        setProject(built);
-        setNetworkId(res.networkId);
-        setFromDraft(resumable !== null);
-        setStale(false);
-      })
-      .catch((e) => setError((e as Error).message));
+    };
+    void refresh();
+    return () => {
+      cancelled = true;
+      clearTimeout(retryTimer);
+    };
   }, [projectId, serverRef, user, reloadToken]);
 
   return { project, networkId, error, offline, failed, fromDraft, stale };

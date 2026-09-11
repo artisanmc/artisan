@@ -289,6 +289,16 @@ Non-examples:
   `assets-on-server-disk`). The backend keeps no copy: no `assets` table, no
   volume — only a throwaway cache keyed by content hash.
 
+## Draft
+
+A named, private working copy of a **Project**, owned by a user and persisted in
+the backend. Its Project determines the Network and Server; a user may have
+several drafts for the same Project. It stores a file baseline, edited tree and
+rename intentions. Saving a draft does not publish it: explicit publication
+uses the plugin's file compare-and-swap. Browser copies are recovery backups.
+An AI task will act on a user's draft through the same operations, with separate
+publication authorization; there is no permanent shared "AI draft".
+
 ## Element
 
 A single placed thing inside a **Menu**: a button/item/decoration occupying one
@@ -567,10 +577,10 @@ Non-examples:
 
 The editable collection of GUI content for one server — its **Menus**,
 **Commands**, **Dialogs**, translations, and assets. A Project **is a tree of
-human-readable files on that server**, and nowhere else: there is no copy of it
-in the backend (ADR `server-disk-only-storage`). Every editing surface — the web
-editor, a text editor over the server's files, an AI agent — edits that one tree,
-so the web editor is a *client* of the server's files, not a master copy of them
+human-readable files on that server**. Published content lives on server disk;
+private **Drafts** are persisted separately in the backend. The web editor and
+future AI clients edit drafts and explicitly publish through the plugin; a text
+editor can still edit server files directly. The web editor is a *client* of the server's files
 (cf. ADR `files-first-source-of-truth`). A Project belongs to
 **exactly one Server**; a Server holds **one or more** Projects. The Project is
 the granular unit of organisation *and* of **portability**: a server's content is

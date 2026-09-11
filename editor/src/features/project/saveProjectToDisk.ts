@@ -6,6 +6,8 @@ import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
 import { projectFromFiles } from "@/schema/projectFromFiles";
 import { applyRenames, planWrite, toRelative } from "./diskSave";
+import { publishBackendDraft, useBackendDraftStore } from "./backendDrafts";
+import { DraftApiError } from "@/lib/api/projectDrafts";
 
 /** L'arbre rel-keyed que produirait un enregistrement de [project], sans écrire. */
 export function projectTree(project: Project): Record<string, string> {
@@ -75,6 +77,24 @@ export async function saveProjectToDisk(
   // pas encore : c'est une création ou un import, et l'écriture doit le dire.
   const known = store.get(project.id);
   const baseline = known ?? {};
+  if (useBackendDraftStore.getState().sessions[project.id]) {
+    const previous = useProjectDraftStore.getState().get(project.id);
+    useProjectDraftStore.getState().save(project.id, { ...previous, baseline, tree: next,
+      initialTree: previous?.initialTree ?? baseline, at: previous?.at ?? Date.now() });
+    try {
+      const result = await publishBackendDraft(project.id);
+      if (!result) return { ok: false, error: "write_error" };
+      store.set(project.id, next);
+      const current = useProjectDraftStore.getState().get(project.id);
+      if (current && JSON.stringify(current.tree) !== JSON.stringify(next)) {
+        useProjectDraftStore.getState().save(project.id, { ...current, remote: undefined, baseline: next, initialTree: next, at: Date.now() });
+      } else useProjectDraftStore.getState().clear(project.id);
+      return { ok: true, wrote: result.wrote };
+    } catch (error) {
+      if (error instanceof DraftApiError && error.code === "conflict") return { ok: false, error: "conflict", conflicts: error.conflicts, diskFiles: error.diskFiles };
+      return { ok: false, error: error instanceof DraftApiError && error.code === "server_offline" ? "server_offline" : "write_error" };
+    }
+  }
   // Les renommages déclarés transforment « supprimer + créer » en déplacement :
   // seule l'intention de l'éditeur permet de les distinguer.
   const declared = useProjectDraftStore.getState().pendingRenames[project.id] ?? [];

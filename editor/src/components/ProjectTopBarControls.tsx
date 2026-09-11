@@ -30,6 +30,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import type { Project, ProjectId } from "@/domain/types";
 import { isDirty } from "@/features/project/draft";
+import { BackendDraftControls } from "@/features/project/BackendDraftControls";
+import { discardBackendDraft, useBackendDraftStore } from "@/features/project/backendDrafts";
 import { openProjectSettings } from "@/features/project/projectSettings";
 import { type ConflictChoice, applyResolutions } from "@/features/project/resolveConflicts";
 import { adoptDiskIntoProject, saveProjectToDisk } from "@/features/project/saveProjectToDisk";
@@ -451,6 +453,9 @@ function SaveControls({
   // était à l'ouverture — tout le travail de la session partait en silence.
   const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
   const [saving, setSaving] = useState(false);
+  const [draftsOpen, setDraftsOpen] = useState(false);
+  const draftSession = useBackendDraftStore((s) => s.sessions[projectId]);
+  const draftNeedsAttention = draftSession?.status === "conflict" || draftSession?.status === "offline";
   const [conflicts, setConflicts] = useState<ProjectFileConflict[]>([]);
   const [diskFiles, setDiskFiles] = useState<string[]>([]);
   const [choices, setChoices] = useState<Record<string, ConflictChoice>>({});
@@ -539,31 +544,40 @@ function SaveControls({
         >
           {saving ? t("save.saving") : t("save.save")}
         </button>
-        {dirty ? (
+        {dirty || draftSession ? (
           <DropdownMenu>
             <DropdownMenuTrigger
-              aria-label={t("save.options")}
-              className="btn btn-sm btn-ghost px-2"
+              aria-label={draftNeedsAttention ? `${t("save.options")} — ${t(`drafts.${draftSession.status}`)}` : t("save.options")}
+              title={draftNeedsAttention ? t(`drafts.${draftSession.status}`) : t("save.options")}
+              className="btn btn-sm btn-ghost relative px-2"
             >
               <ChevronDown className="size-4" />
+              {draftNeedsAttention && <span aria-hidden="true" className="absolute right-1 top-1 size-1.5 rounded-full bg-[var(--danger)]" />}
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              {draftSession && <DropdownMenuItem onSelect={() => setDraftsOpen(true)}>
+                {t("drafts.title")}
+              </DropdownMenuItem>}
+              {draftSession && dirty && <DropdownMenuSeparator />}
+              {dirty && (
               <DropdownMenuItem
                 className="text-[var(--danger)]"
                 title={t("draft.revertTitle")}
-                onSelect={() => {
+                onSelect={async () => {
                   if (!project) return;
-                  useProjectDraftStore.getState().clear(project.id);
-                  window.location.reload();
+                  try { await discardBackendDraft(project.id); window.location.reload(); }
+                  catch { toast.error(t("drafts.failed")); }
                 }}
               >
                 {t("save.discardChanges")}
               </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         ) : null}
       </div>
 
+      <BackendDraftControls projectId={projectId} open={draftsOpen} onOpenChange={setDraftsOpen} />
       <Dialog open={conflicts.length > 0} onOpenChange={(open) => !open && setConflicts([])}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>

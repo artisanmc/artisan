@@ -2,21 +2,11 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { PendingRename, ProjectDraft } from "@/features/project/draft";
 
-/**
- * Les brouillons de Projects, **persistés dans le navigateur**.
- *
- * C'est le seul état de contenu qui survit à un rechargement de page. Il ne
- * prétend pas être une vérité : le disque du serveur l'est (ADR
- * `server-disk-only-storage`). Un brouillon est un travail *en cours*, daté,
- * propre à cet appareil, et il ne devient réel qu'à l'enregistrement — où il
- * passe par le même compare-and-swap que tout le reste.
- *
- * Règle d'affichage qui va avec, et qui n'est pas négociable : **un brouillon ne
- * s'applique jamais en silence.** L'éditeur montre ce que le serveur exécute ;
- * afficher un brouillon sans le dire recréerait exactement la confusion que la
- * sémantique de reload a supprimée.
- */
+/** Account-scoped recovery copies of backend Project drafts, including unacknowledged edits. */
 interface ProjectDraftState {
+  ownerId: string | null;
+  backups: Record<string, { drafts: Record<string, ProjectDraft>; pendingRenames: Record<string, PendingRename[]> }>;
+  setOwner: (ownerId: string | null) => void;
   drafts: Record<string, ProjectDraft>;
   save: (projectId: string, draft: ProjectDraft) => void;
   get: (projectId: string) => ProjectDraft | undefined;
@@ -33,6 +23,18 @@ interface ProjectDraftState {
 export const useProjectDraftStore = create<ProjectDraftState>()(
   persist(
     (set, get) => ({
+      ownerId: null,
+      backups: {},
+      setOwner: (ownerId) => set(s => {
+        if (ownerId === s.ownerId) return s;
+        const backups = { ...s.backups };
+        if (s.ownerId) backups[s.ownerId] = { drafts: s.drafts, pendingRenames: s.pendingRenames };
+        // Unscoped legacy drafts are claimed on the first authenticated load.
+        const restored = ownerId ? backups[ownerId] : undefined;
+        const legacy = s.ownerId === null && Object.keys(s.backups).length === 0;
+        return { ownerId, backups, drafts: restored?.drafts ?? (legacy ? s.drafts : {}),
+          pendingRenames: restored?.pendingRenames ?? (legacy ? s.pendingRenames : {}) };
+      }),
       drafts: {},
       pendingRenames: {},
       recordRename: (projectId, from, to) =>
@@ -66,7 +68,7 @@ export const useProjectDraftStore = create<ProjectDraftState>()(
       name: "artisan.projectDrafts",
       // Les renommages voyagent avec le brouillon : l'arbre porte déjà le
       // nouveau nom, perdre l'intention le dégraderait en suppression+création.
-      partialize: (s) => ({ drafts: s.drafts, pendingRenames: s.pendingRenames }),
+      partialize: (s) => ({ drafts: s.drafts, pendingRenames: s.pendingRenames, ownerId: s.ownerId, backups: s.backups }),
     },
   ),
 );
