@@ -37,7 +37,7 @@ export function PreviewContextBanner({
 }) {
   const { t } = useTranslation();
   const activeLang = useUiStore((s) => s.activeLang);
-  const setMenuPreviewArg = useUiStore((s) => s.setMenuPreviewArg);
+  const setMenuPreviewArgs = useUiStore((s) => s.setMenuPreviewArgs);
   const snapshots = useServerSnapshotsStore((s) => s.rowsByRef);
   const brand = useCssVar("--brand");
   const faint = useCssVar("--text-faint");
@@ -71,8 +71,8 @@ export function PreviewContextBanner({
     if (current >= 0 || contexts.length === 0) return;
     const first = contexts[0];
     if (!first) return;
-    for (const [k, v] of Object.entries(first.args)) setMenuPreviewArg(menu.id, k, v);
-  }, [current, contexts, menu.id, setMenuPreviewArg]);
+    setMenuPreviewArgs(menu.id, first.args);
+  }, [current, contexts, menu.id, setMenuPreviewArgs]);
 
   // Un menu sans input n'a qu'un écran : rien à choisir, rien à afficher.
   if (!hasInputs || all.length === 0) return null;
@@ -89,7 +89,7 @@ export function PreviewContextBanner({
     const c = contexts[idx];
     setOpen(false);
     if (!c) return;
-    for (const [k, v] of Object.entries(c.args)) setMenuPreviewArg(menu.id, k, v);
+    setMenuPreviewArgs(menu.id, c.args);
   };
 
   const color = stale ? warning : active ? brand : faint;

@@ -97,6 +97,7 @@ interface UiState {
    */
   menuPreviewArgs: Record<string, Record<string, unknown>>;
   setMenuPreviewArg: (menuId: string, arg: string, value: unknown) => void;
+  setMenuPreviewArgs: (menuId: string, args: Record<string, unknown>) => void;
   activeDragMaterial: string | null;
   setActiveDragMaterial: (m: string | null) => void;
   /**
@@ -242,6 +243,13 @@ export const useUiStore = create<UiState>()(
       armedMaterial: null,
       setArmedMaterial: (m) => set({ armedMaterial: m }),
       menuPreviewArgs: {},
+      setMenuPreviewArgs: (menuId, args) =>
+        set((s) => ({
+          menuPreviewArgs: {
+            ...s.menuPreviewArgs,
+            [menuId]: { ...(s.menuPreviewArgs[menuId] ?? {}), ...args },
+          },
+        })),
       setMenuPreviewArg: (menuId, arg, value) =>
         set((s) => ({
           menuPreviewArgs: {
