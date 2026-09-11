@@ -28,11 +28,14 @@ const DEBOUNCE_MS = 200;
 export function useDraftSync(): void {
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | null = null;
+    let pendingAccount: ReturnType<typeof useAccountStore.getState>["account"] | null = null;
 
     const flush = () => {
       if (timer === null) return;
       clearTimeout(timer);
       timer = null;
+      const previousAccount = pendingAccount;
+      pendingAccount = null;
       const baselines = useProjectBaselineStore.getState().baselines;
       const drafts = useProjectDraftStore.getState();
       for (const project of useAccountStore.getState().account.projects) {
@@ -44,12 +47,17 @@ export function useDraftSync(): void {
         const previous = drafts.get(project.id);
         const sameLoad = previous !== undefined && !isDirty(previous.baseline, baseline);
         const tree = projectTree(project);
+        const beforeEdit = previousAccount?.projects.find((p) => p.id === project.id);
+        // A save clears the draft. Recognize its exact baseline before the
+        // first edit, without treating load-time normalization as user work.
+        const initialTree =
+          !previous && beforeEdit && !isDirty(baseline, projectTree(beforeEdit)) ? baseline : tree;
         drafts.save(project.id, {
           baseline,
           tree,
           // Figé au premier passage suivant un chargement : c'est la référence
           // de « as-tu modifié quelque chose ? ».
-          initialTree: sameLoad ? (previous?.initialTree ?? tree) : tree,
+          initialTree: sameLoad ? (previous?.initialTree ?? tree) : initialTree,
           // L'âge du brouillon est celui de sa BASE, pas de la dernière frappe :
           // c'est la péremption vis-à-vis du serveur qu'on affiche.
           at: sameLoad ? previous.at : Date.now(),
@@ -59,6 +67,7 @@ export function useDraftSync(): void {
 
     const unsubscribe = useAccountStore.subscribe((state, prev) => {
       if (state.account === prev.account) return;
+      if (timer === null) pendingAccount = prev.account;
       if (timer) clearTimeout(timer);
       timer = setTimeout(flush, DEBOUNCE_MS);
     });

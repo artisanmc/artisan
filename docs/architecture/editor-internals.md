@@ -183,7 +183,11 @@ Cf. `docs/superpowers/specs/2026-06-13-workspace-board-curation-design.md` (supe
 Un Document est **sur la planche ssi** il a une entrée explicite `project.canvasLayout[id] = {x,y}` (présence = appartenance, plus seulement position sauvegardée).
 
 Les positions et les modifications de contenu sont conservées dans le brouillon
-navigateur par `useDraftSync`. Après réhydratation, les bases sont comparées par
+navigateur par `useDraftSync`. Après un enregistrement qui efface le brouillon,
+la première modification conserve comme référence l'état précédent s'il correspond
+exactement à la base enregistrée : la bascule Clés / Texte en clair doit ainsi
+activer Enregistrer dès le premier changement. La normalisation au chargement
+reste exclue des modifications utilisateur. Après réhydratation, les bases sont comparées par
 contenu, jamais par identité d'objet : le rechargement ne doit pas reclasser un
 brouillon modifié comme propre et le faire abandonner à l'ouverture suivante.
 Les écritures locales en attente sont vidées sur `pagehide`, passage de la page
