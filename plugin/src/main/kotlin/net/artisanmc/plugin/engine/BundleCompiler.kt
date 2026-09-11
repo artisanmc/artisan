@@ -57,7 +57,7 @@ object BundleCompiler {
         stateIndex: Int,
         logger: Logger?,
     ) {
-        if (app.material != null || app.head != null) return
+        if (app.item != null || app.material != null || app.head != null) return
         logger?.warning(
             "menu=$menuId element=$elementId state${stateIndex + 1} names no material — it will render as STONE. " +
                 "A state replaces the display entirely; it inherits nothing from it.",
@@ -114,7 +114,7 @@ object BundleCompiler {
         logger: Logger?,
     ) {
         if (logger == null) return
-        val templates = listOfNotNull(app.material, app.head, app.title) + app.lore
+        val templates = listOfNotNull(app.item, app.material, app.head, app.title) + app.lore
         for (template in templates) {
             for (problem in warmTemplate(template)) {
                 logger.warning("[Artisan] menu=$menuId element=$elementId: malformed expression $problem")

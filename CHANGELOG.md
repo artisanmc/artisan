@@ -9,6 +9,11 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Added — complete catalog icons
+
+- Item model fields support quantity and advanced attributes. The displayed-item editor offers typed data bindings with inherited previews and quantity overrides; material inputs preserve expression casing.
+- Add `FieldKind.ITEM` and explicit `menu/v2` item bindings, retaining compatibility with legacy material expressions.
+
 ### Added — backend Project drafts
 
 - Private named drafts with automatic backend persistence, revision checks, local recovery, a draft picker and file comparison. Explicit Save publishes the stored draft through the existing server compare-and-swap.

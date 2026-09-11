@@ -221,9 +221,10 @@ class ElementYamlDeserializer : StdDeserializer<ElementYaml>(ElementYaml::class.
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class AppearanceYaml(
+    val item: String? = null,
     val material: String? = null,
     val head: String? = null,
-    val count: Int = 1,
+    val count: Int? = null,
     val title: String? = null,
     val lore: List<String> = emptyList(),
     val click: Map<String, ClickHandlerYaml> = emptyMap(),

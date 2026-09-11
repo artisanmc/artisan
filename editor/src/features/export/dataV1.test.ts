@@ -4,9 +4,10 @@
 // per-row _source.yaml. Same semantic coverage as the old data/v1 suite,
 // relocked on the bare forms.
 import type { Project, ProjectId } from "@/domain/types";
-import { parse } from "yaml";
 import { flattenLangTree } from "@/lib/langTree";
+import { projectFromFiles } from "@/schema/projectFromFiles";
 import { describe, expect, it } from "vitest";
+import { parse } from "yaml";
 import { transform } from "./transform";
 
 const PID = "p1" as ProjectId;
@@ -66,7 +67,12 @@ function makeProject(): Project {
         rows: [
           {
             id: "c1",
-            featured: { id: "vip", name: { key: "sources.cats.c1.featured.name" }, icon: "", perks: [] },
+            featured: {
+              id: "vip",
+              name: { key: "sources.cats.c1.featured.name" },
+              icon: "",
+              perks: [],
+            },
           },
         ],
       },
@@ -105,6 +111,17 @@ function makeProject(): Project {
 const BASE = `plugins/Artisan/projects/${PID}`;
 
 describe("bare data export", () => {
+  it("round-trips complete item values without flattening their metadata", () => {
+    const p = makeProject();
+    const icon = { material: "item:ci_1", count: 3, enchants: { sharpness: 5 }, unbreakable: true };
+    const source = p.dataSources[0] as Extract<Project["dataSources"][number], { shape: "table" }>;
+    source.rows[0]!.icon = icon;
+    const files = transform(p);
+    expect(parse(files[`${BASE}/data/ranks.yaml`]!)[0].icon).toEqual(icon);
+    const imported = projectFromFiles(PID, files);
+    const importedSource = imported.dataSources.find((s) => s.id === "ranks") as typeof source;
+    expect(importedSource.rows[0]!.icon).toEqual(icon);
+  });
   it("emits one BARE data/<id>.yaml per table source — a list of pure-value rows", () => {
     const files = transform(makeProject());
     const ranks = parse(files[`${BASE}/data/ranks.yaml`]!);
@@ -224,7 +241,12 @@ describe("bare export — map / enum / union kinds", () => {
               id: "daily",
               strategy: "sequential",
               tiers: {
-                gold: { act: { type: "message", text: { key: "sources.quests.daily.tiers.gold.act.text" } } },
+                gold: {
+                  act: {
+                    type: "message",
+                    text: { key: "sources.quests.daily.tiers.gold.act.text" },
+                  },
+                },
                 silver: { act: { type: "command", run: "say hi" } },
               },
             },
@@ -259,7 +281,10 @@ describe("bare export — map / enum / union kinds", () => {
     const files = transform(questsProject());
     const doc = parse(files[`${B}/models/quests.yaml`]!);
     expect(doc.id).toBe("m_quest");
-    expect(doc.fields[2]).toEqual({ name: "tiers", type: { kind: "map", of: { kind: "model", ref: "m_action" } } });
+    expect(doc.fields[2]).toEqual({
+      name: "tiers",
+      type: { kind: "map", of: { kind: "model", ref: "m_action" } },
+    });
     // m_action is model-kind-referenced → its own doc.
     expect(parse(files[`${B}/models/m_action.yaml`]!).id).toBe("m_action");
     const fr = flattenLangTree(parse(files[`${B}/lang/fr.yaml`]!));

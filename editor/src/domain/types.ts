@@ -298,6 +298,8 @@ export interface Placement {
 }
 
 export interface Appearance {
+  /** Complete item from data; distinct from a literal material. */
+  item?: string;
   if?: Condition[];
   /** Per-joiner ops between consecutive `if` conditions. Defaults to "and". */
   ifJoins?: ("and" | "or")[];
@@ -568,7 +570,7 @@ export type FieldType =
  *  - `minimessage` / `minimessage_multiline` — plain strings holding
  *    MiniMessage markup; editor-only editing affordance (rendered facade,
  *    raw source on focus), **exported as `string`** — data/v1 never sees it.
- *  - `item`  — the material value-space (`"DIAMOND"`, `item:<id>`, custom ref).
+ *  - `item` — a material ref or a complete item value (material/count/advanced fields).
  *  - `actions` — an Action chain, stored as an **Action DSL** string (the
  *    hand-writable text serialization of `Step[]`); exported verbatim. Cf. ADR
  *    `action-dsl`.

@@ -1,9 +1,6 @@
-import { CAPTURED_ITEM_REF_PREFIX, capturedPresentation } from "@/domain/capturedItems";
-import { capturedStackDetails } from "@/domain/capturedStack";
 import { formatEnchant } from "@/domain/itemAdvanced";
 import type { Element, Menu, ProjectId } from "@/domain/types";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
-import { getText } from "@/lib/i18n";
 import { lookupPath } from "@/lib/placeholders";
 import { parsePositions } from "@/lib/positions";
 import { useAccountStore } from "@/state/accountStore";
@@ -12,6 +9,7 @@ import { usePaginationStore } from "@/state/paginationStore";
 import { useServerSnapshotsStore } from "@/state/serverSnapshotsStore";
 import { useUiStore } from "@/state/uiStore";
 import { useMemo } from "react";
+import { previewItem } from "./itemValuePreview";
 import { buildPreviewScope, renderPreview } from "./menuPreviewScope";
 import { matchPlacementRow, placementAtSlot, placementTotalPages } from "./placement";
 
@@ -172,30 +170,14 @@ export function ItemTooltip({ projectId }: ItemTooltipProps) {
     }
   }
 
-  // Enchantments of the appearance itself, or of the captured stack it points at.
-  const captured = appearance.material?.startsWith(CAPTURED_ITEM_REF_PREFIX)
-    ? project.capturedItems?.find(
-        (c) => String(c.id) === appearance.material!.slice(CAPTURED_ITEM_REF_PREFIX.length),
-      )
-    : undefined;
-  const enchants =
-    appearance.enchants ??
-    (captured ? capturedStackDetails(captured.stackYaml).enchants : undefined) ??
-    [];
+  const resolved = previewItem(appearance, ctx, project, activeLang);
+  const enchants = resolved.enchants;
 
   // A referenced item brings its own name and lore. The element's title wins
   // when it has one, its lore is APPENDED — same order as the runtime.
-  const presentation = capturedPresentation(project, appearance.material);
-  const titleSource = (cachedName ?? getText(project, appearance.title, activeLang)).trim();
-  const rawTitle = titleSource || presentation.name || humanize(appearance.material ?? "");
+  const rawTitle = cachedName || resolved.title || humanize(resolved.material ?? "");
   const title = renderPreview(rawTitle, ctx, project, activeLang);
-  const loreRaw = appearance.lore ? getText(project, appearance.lore, activeLang) : "";
-  const ownLore = cachedLore
-    ? cachedLore
-    : loreRaw
-      ? loreRaw.split("\n").map((line) => renderPreview(line, ctx, project, activeLang))
-      : [];
-  const lore = [...presentation.lore, ...ownLore];
+  const lore = cachedLore ?? resolved.lore;
 
   return (
     <div className="pointer-events-none fixed z-50" style={{ left: x + 14, top: y + 14 }}>

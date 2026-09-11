@@ -60,6 +60,41 @@ function makeProject(): Project {
 }
 
 describe("state card title editing reaches the store", () => {
+  it("selects a typed item field and stores an explicit binding", () => {
+    const project = makeProject();
+    project.dataSources = [{ id: "settings", name: "settings", shape: "config", fields: [{ name: "icon", type: { kind: "item" } }], value: { icon: { material: "DIAMOND", count: 4 } } }] as Project["dataSources"];
+    project.menus[0]!.contextInputs = [{ kind: "sourceRef", name: "catalog", ref: "pack:settings" }] as NonNullable<Project["menus"][number]["contextInputs"]>;
+    useAccountStore.setState({ account: { projects: [project], projectOrder: [PACK_ID] } as Account });
+    render(<FlowCanvas projectId={PACK_ID} />);
+    fireEvent.change(screen.getByRole("combobox", { name: /item source|origine de l/i }), { target: { value: "data" } });
+    expect(screen.getByRole("combobox", { name: /item field|champ item/i })).toHaveValue("catalog.icon");
+    const appearance = () => useAccountStore.getState().account.projects[0]!.menus[0]!.layers[0]!.elements[0]!.display!;
+    expect(appearance()).toMatchObject({ item: "{catalog.icon}" });
+    expect(appearance().material).toBeUndefined();
+    fireEvent.click(screen.getByRole("button", { name: /^(customize|personnaliser)$/i }));
+    expect(appearance().count).toBe(4);
+    fireEvent.click(screen.getByRole("button", { name: /restore inherited|revenir à la valeur/i }));
+    expect(appearance().count).toBeUndefined();
+  });
+  it("clears the template count to inherit the catalog icon quantity", () => {
+    render(<FlowCanvas projectId={PACK_ID} />);
+    const input = screen.getByRole("spinbutton", { name: /count|quantité/i });
+    fireEvent.change(input, { target: { value: "8" } });
+    expect(
+      useAccountStore.getState().account.projects[0]!.menus[0]!.layers[0]!.elements[0]!.display!
+        .count,
+    ).toBe(8);
+    fireEvent.change(input, { target: { value: "" } });
+    expect(
+      useAccountStore.getState().account.projects[0]!.menus[0]!.layers[0]!.elements[0]!.display!
+        .count,
+    ).toBeUndefined();
+    fireEvent.change(input, { target: { value: "1" } });
+    expect(
+      useAccountStore.getState().account.projects[0]!.menus[0]!.layers[0]!.elements[0]!.display!
+        .count,
+    ).toBe(1);
+  });
   beforeEach(() => {
     const account: Account = {
       projects: [makeProject()],
@@ -68,6 +103,17 @@ describe("state card title editing reaches the store", () => {
     useAccountStore.setState({ account });
     useSelectionStore.getState().set([ELEMENT_ID], null, MENU_ID);
   });
+
+  it.each(["{cat.icon}", "{item.icon}", "nexo:MySword", "item:my_icon"])(
+    "preserves material reference %s when entered in the editor",
+    (material) => {
+      render(<FlowCanvas projectId={PACK_ID} />);
+      fireEvent.change(screen.getByDisplayValue("ARROW"), { target: { value: material } });
+      const project = useAccountStore.getState().account.projects[0]!;
+      expect(project.menus[0]!.layers[0]!.elements[0]!.display!.material).toBe(material);
+      expect(screen.getByDisplayValue(material)).toBeTruthy();
+    },
+  );
 
   it("typing writes the ACTIVE language (fallback text shown ≠ language written)", () => {
     useUiStore.setState({ activeLang: "en" });

@@ -13,5 +13,5 @@ import net.artisanmc.modules.api.annotations.Stable;
  */
 @Stable
 public enum FieldKind {
-    STRING, NUMBER, INTEGER, BOOLEAN, LIST, OBJECT
+    STRING, NUMBER, INTEGER, BOOLEAN, LIST, OBJECT, ITEM
 }

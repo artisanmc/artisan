@@ -13,6 +13,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useHeadPreviewUrl } from "../useHeadPreviewUrl";
 import { buildPreviewScope, renderPreview } from "../menuPreviewScope";
+import { previewItem } from "../itemValuePreview";
 import { PLACEMENT_ROW_DRAG_PREFIX, type PlacementRowDragData } from "../placementDrop";
 import { useTextureUrl } from "../textureStore";
 
@@ -444,7 +445,7 @@ function PlaceableRowTile({
   const app = element.display;
   const alias = element.places?.alias ?? "item";
   const ctx = { [alias]: row };
-  const rawMaterial = app?.material ? renderPreview(app.material, ctx, project, activeLang) : "";
+  const rawMaterial = app ? previewItem(app, ctx, project, activeLang).material ?? "" : "";
   const display = resolveDisplayRef(project, rawMaterial);
   const material = display.material;
   const titleRaw = app?.title ? getText(project, app.title, activeLang) : "";

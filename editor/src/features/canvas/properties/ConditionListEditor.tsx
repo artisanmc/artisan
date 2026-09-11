@@ -378,7 +378,7 @@ function ConditionInline({
           <Input
             placeholder="DIAMOND"
             value={condition.material}
-            onChange={(e) => onChange({ ...condition, material: e.target.value.toUpperCase() })}
+            onChange={(e) => onChange({ ...condition, material: e.target.value })}
             className="h-6 w-[120px] px-1.5 py-0 font-mono text-[11px]"
           />
           <span className="font-mono text-[10px] text-[var(--text-faint)]">×</span>

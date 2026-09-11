@@ -15,6 +15,8 @@ Les types ne sont **pas générés** — ils sont **écrits à la main** dans le
 
 ## Enforcement
 
+`menu/v2` ajoute `Appearance.item` (liaison vers un item complet), exclusif de `material`. Schéma et types : `docs/schema/menu/v2/`. L'export choisit v2 seulement si une apparence utilise cette liaison ; les validateurs éditeur/backend acceptent v1 et v2. `MenuV1ToV2`, enregistré dans le registre du lecteur plugin, conserve le contenu v1 en mémoire ; aucune réécriture automatique sur disque. Tests : `menuV2.test.ts`, `MenuV1ToV2Test` et `MenuRendererItemValueTest`.
+
 La cohérence types ↔ schéma n'est **pas** garantie par codegen mais par validation :
 
 - Validateur **ajv** (draft 2020-12) : `editor/src/schema/validateMenuV1.ts` + `editor/src/schema/validateMenuV1.test.ts`.

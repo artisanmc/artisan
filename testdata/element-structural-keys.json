@@ -18,6 +18,7 @@
   ],
   "appearance": [
     "if",
+    "item",
     "material",
     "head",
     "count",

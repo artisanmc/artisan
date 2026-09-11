@@ -6,6 +6,7 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import net.artisanmc.plugin.engine.BundleCompiler
 import net.artisanmc.plugin.model.*
+import net.artisanmc.modules.api.schemas.SchemaRegistry
 import java.io.File
 import java.util.logging.Logger
 
@@ -38,6 +39,7 @@ class ProjectReader(
     ) : this(net.artisanmc.plugin.project.ProjectRoots(projectsRoot), logger, declaredModels)
 
     private val mapper = ObjectMapper(YAMLFactory()).registerKotlinModule()
+    private val menuSchemas = SchemaRegistry<MenuYaml>().apply { register(MenuV1ToV2()) }
 
     /**
      * Verify the YAML's `schema` field is either empty (legacy / pre-versioning)
@@ -175,9 +177,12 @@ class ProjectReader(
             val f = File(projectDir, "menus/$menuId.yaml").takeIf { it.exists() } ?: return@mapNotNull null
             runCatching {
                 val menuYaml = withFileId(mapper.readValue(f, MenuYaml::class.java), menuId, f)
-                requireSchema(f, menuYaml.schema, "menu/v1")
+                requireSchema(f, menuYaml.schema, if (menuYaml.schema == "menu/v1") "menu/v1" else "menu/v2")
+                val currentMenu = if (menuYaml.schema == "menu/v1")
+                    menuSchemas.loadToCurrent(menuYaml, "menu/v2") { it.schema }
+                else menuYaml
                 BundleCompiler.compile(
-                    resolveTemplates(menuYaml, templates),
+                    resolveTemplates(currentMenu, templates),
                     langMaps, logger, defaultLang = manifest.defaultLang,
                 )
             }.getOrElse { e ->

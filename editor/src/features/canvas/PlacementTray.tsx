@@ -7,8 +7,8 @@ import type Konva from "konva";
 import { useTranslation } from "react-i18next";
 import { Group, Rect, Text } from "react-konva";
 import { SlotItem } from "./SlotItem";
+import { previewItem } from "./itemValuePreview";
 import { TEX_SCALE, TEX_SLOT_INNER_OFFSET } from "./menuLayout";
-import { renderPreview } from "./menuPreviewScope";
 import { unplacedRows } from "./unplacedRows";
 
 const CELL = 18 * TEX_SCALE;
@@ -76,7 +76,7 @@ export function PlacementTray({
         keyField: places.keyField,
         alias: places.alias,
         rows: left,
-        material: el.display?.material,
+        material: el.display?.item ?? el.display?.material,
       });
     }
   }
@@ -117,12 +117,12 @@ export function PlacementTray({
               // La tuile porte l'apparence de l'Élément, résolue contre SA ligne :
               // on voit ce qu'on va poser, pas un carré gris.
               const rawMaterial = group.material
-                ? renderPreview(
-                    group.material,
+                ? previewItem(
+                    { material: group.material },
                     { ...scope, [group.alias]: row },
                     project,
                     activeLang,
-                  )
+                  ).material
                 : undefined;
               const display = rawMaterial ? resolveDisplayRef(project, rawMaterial) : undefined;
               const label = String(row.name ?? row.id ?? key);

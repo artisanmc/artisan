@@ -1,6 +1,5 @@
 import { resolveDisplayRef } from "@/domain/capturedItems";
 import type { ElementId, Menu, Placement, ProjectId } from "@/domain/types";
-import { getText } from "@/lib/i18n";
 import { lookupPath } from "@/lib/placeholders";
 import { parsePositions } from "@/lib/positions";
 import { useCssVar } from "@/lib/themeColors";
@@ -23,6 +22,7 @@ import { PreviewContextBanner } from "./PreviewContextBanner";
 import { SlotItem } from "./SlotItem";
 import { dispatchOpenElement } from "./canvasEvents";
 import { INVENTORY_TYPES, slotCount } from "./inventoryTypes";
+import { previewItem } from "./itemValuePreview";
 import { type SlotEntry, fanoutElements } from "./menuFanout";
 import {
   TEXTURE_URLS,
@@ -37,7 +37,7 @@ import {
   topPieceCrop,
   usesSingleBackground,
 } from "./menuLayout";
-import { buildPreviewScope, renderPreview } from "./menuPreviewScope";
+import { buildPreviewScope } from "./menuPreviewScope";
 import {
   type PlacementSlotInfo,
   matchPlacementRow,
@@ -281,20 +281,12 @@ export function MenuGroup({ projectId, menu, position, layout, solo = false }: M
         // sees the button shape they're configuring even when the data
         // list is empty.
         if (items.length === 0) {
-          const titleRaw = project ? getText(project, appearance.title, activeLang) : "";
           elementsByPosition.set(positions[0]!, {
-            material: appearance.material
-              ? project
-                ? renderPreview(appearance.material, enhancedCtx, project, activeLang)
-                : appearance.material
-              : undefined,
+            material: appearance.material,
             head: appearance.head,
-            title:
-              titleRaw && project
-                ? renderPreview(titleRaw, enhancedCtx, project, activeLang)
-                : titleRaw || undefined,
             count: appearance.count,
             enchanted,
+            ...(project ? previewItem(appearance, enhancedCtx, project, activeLang) : {}),
             elementId: el.id,
             multiPos: false,
           });
@@ -304,20 +296,12 @@ export function MenuGroup({ projectId, menu, position, layout, solo = false }: M
         for (let i = 0; i < perPage && offset + i < items.length; i++) {
           const item = items[offset + i];
           const itemCtx = { ...enhancedCtx, [el.iterates.alias]: item };
-          const titleRaw = project ? getText(project, appearance.title, activeLang) : "";
           elementsByPosition.set(positions[i]!, {
-            material: appearance.material
-              ? project
-                ? renderPreview(appearance.material, itemCtx, project, activeLang)
-                : appearance.material
-              : undefined,
+            material: appearance.material,
             head: appearance.head,
-            title:
-              titleRaw && project
-                ? renderPreview(titleRaw, itemCtx, project, activeLang)
-                : titleRaw || undefined,
             count: appearance.count,
             enchanted,
+            ...(project ? previewItem(appearance, itemCtx, project, activeLang) : {}),
             elementId: el.id,
             multiPos: false,
           });
@@ -386,20 +370,12 @@ export function MenuGroup({ projectId, menu, position, layout, solo = false }: M
       // includes phantom entries so no-material slots render as dashed
       // placeholders). Placeholders resolved against enhancedCtx.
       const elSlots = fannedSlotsByElement.get(el.id as string) ?? [];
-      const titleRaw = project ? getText(project, appearance.title, activeLang) : "";
       const info = {
-        material: appearance.material
-          ? project
-            ? renderPreview(appearance.material, enhancedCtx, project, activeLang)
-            : appearance.material
-          : undefined,
+        material: appearance.material,
         head: appearance.head,
-        title:
-          titleRaw && project
-            ? renderPreview(titleRaw, enhancedCtx, project, activeLang)
-            : titleRaw || undefined,
         count: appearance.count,
         enchanted,
+        ...(project ? previewItem(appearance, enhancedCtx, project, activeLang) : {}),
         elementId: el.id,
         multiPos: elSlots.length > 1,
       };
