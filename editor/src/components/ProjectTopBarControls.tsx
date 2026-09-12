@@ -29,9 +29,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { Project, ProjectId } from "@/domain/types";
-import { isDirty } from "@/features/project/draft";
 import { BackendDraftControls } from "@/features/project/BackendDraftControls";
 import { discardBackendDraft, useBackendDraftStore } from "@/features/project/backendDrafts";
+import { isDirty } from "@/features/project/draft";
 import { openProjectSettings } from "@/features/project/projectSettings";
 import { type ConflictChoice, applyResolutions } from "@/features/project/resolveConflicts";
 import { adoptDiskIntoProject, saveProjectToDisk } from "@/features/project/saveProjectToDisk";
@@ -153,7 +153,7 @@ export function ProjectTopBarControls({
         </div>
         <div className="col-start-2 row-start-1 flex shrink-0 items-center gap-1">
           <SearchButton />
-          <SaveControls projectId={projectId} networkId={networkId ?? null} />
+          <SaveControls key={projectId} projectId={projectId} networkId={networkId ?? null} />
           <RefreshProjectButton
             projectId={projectId}
             renderTrigger={(onRefresh) => (
@@ -453,9 +453,19 @@ function SaveControls({
   // était à l'ouverture — tout le travail de la session partait en silence.
   const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
   const [saving, setSaving] = useState(false);
+  const [lastSaveError, setLastSaveError] = useState<string | null>(null);
+  const [saveErrorOpen, setSaveErrorOpen] = useState(false);
+  const reportSaveError = (code: string, status?: number, message?: string) => {
+    const reason = t(`save.errors.${code}`, { defaultValue: t("save.errors.unknown") });
+    setLastSaveError(
+      `${reason}${message ? `\n\n${message}` : ""}\n\n${code}${status ? ` (HTTP ${status})` : ""}`,
+    );
+    setSaveErrorOpen(true);
+  };
   const [draftsOpen, setDraftsOpen] = useState(false);
   const draftSession = useBackendDraftStore((s) => s.sessions[projectId]);
-  const draftNeedsAttention = draftSession?.status === "conflict" || draftSession?.status === "offline";
+  const draftNeedsAttention =
+    draftSession?.status === "conflict" || draftSession?.status === "offline";
   const [conflicts, setConflicts] = useState<ProjectFileConflict[]>([]);
   const [diskFiles, setDiskFiles] = useState<string[]>([]);
   const [choices, setChoices] = useState<Record<string, ConflictChoice>>({});
@@ -482,6 +492,8 @@ function SaveControls({
     try {
       const res = await saveProjectToDisk(project, networkId, serverId);
       if (res.ok) {
+        setLastSaveError(null);
+        setSaveErrorOpen(false);
         toast.success(res.wrote === 0 ? t("save.nothingToSave") : t("save.saved"));
         setConflicts([]);
         setChoices({});
@@ -495,11 +507,9 @@ function SaveControls({
         setChoices({});
         return;
       }
-      toast.error(
-        res.error === "server_offline" || res.error === "network_error"
-          ? t("save.serverOffline")
-          : t("save.failed"),
-      );
+      reportSaveError(res.code ?? res.error, res.status, res.message);
+    } catch (error) {
+      reportSaveError(error instanceof Error ? error.message : "unknown_error");
     } finally {
       setSaving(false);
     }
@@ -544,33 +554,53 @@ function SaveControls({
         >
           {saving ? t("save.saving") : t("save.save")}
         </button>
-        {dirty || draftSession ? (
+        {dirty || draftSession || lastSaveError ? (
           <DropdownMenu>
             <DropdownMenuTrigger
-              aria-label={draftNeedsAttention ? `${t("save.options")} — ${t(`drafts.${draftSession.status}`)}` : t("save.options")}
+              aria-label={
+                draftNeedsAttention
+                  ? `${t("save.options")} — ${t(`drafts.${draftSession.status}`)}`
+                  : t("save.options")
+              }
               title={draftNeedsAttention ? t(`drafts.${draftSession.status}`) : t("save.options")}
               className="btn btn-sm btn-ghost relative px-2"
             >
               <ChevronDown className="size-4" />
-              {draftNeedsAttention && <span aria-hidden="true" className="absolute right-1 top-1 size-1.5 rounded-full bg-[var(--danger)]" />}
+              {draftNeedsAttention && (
+                <span
+                  aria-hidden="true"
+                  className="absolute right-1 top-1 size-1.5 rounded-full bg-[var(--danger)]"
+                />
+              )}
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              {draftSession && <DropdownMenuItem onSelect={() => setDraftsOpen(true)}>
-                {t("drafts.title")}
-              </DropdownMenuItem>}
+              {lastSaveError && (
+                <DropdownMenuItem onSelect={() => setSaveErrorOpen(true)}>
+                  {t("save.lastError")}
+                </DropdownMenuItem>
+              )}
+              {draftSession && (
+                <DropdownMenuItem onSelect={() => setDraftsOpen(true)}>
+                  {t("drafts.title")}
+                </DropdownMenuItem>
+              )}
               {draftSession && dirty && <DropdownMenuSeparator />}
               {dirty && (
-              <DropdownMenuItem
-                className="text-[var(--danger)]"
-                title={t("draft.revertTitle")}
-                onSelect={async () => {
-                  if (!project) return;
-                  try { await discardBackendDraft(project.id); window.location.reload(); }
-                  catch { toast.error(t("drafts.failed")); }
-                }}
-              >
-                {t("save.discardChanges")}
-              </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="text-[var(--danger)]"
+                  title={t("draft.revertTitle")}
+                  onSelect={async () => {
+                    if (!project) return;
+                    try {
+                      await discardBackendDraft(project.id);
+                      window.location.reload();
+                    } catch {
+                      toast.error(t("drafts.failed"));
+                    }
+                  }}
+                >
+                  {t("save.discardChanges")}
+                </DropdownMenuItem>
               )}
             </DropdownMenuContent>
           </DropdownMenu>
@@ -578,6 +608,40 @@ function SaveControls({
       </div>
 
       <BackendDraftControls projectId={projectId} open={draftsOpen} onOpenChange={setDraftsOpen} />
+      <Dialog open={saveErrorOpen} onOpenChange={setSaveErrorOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("save.failed")}</DialogTitle>
+            <DialogDescription>{t("save.errorHelp")}</DialogDescription>
+          </DialogHeader>
+          <pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words text-sm text-[var(--text)]">
+            {lastSaveError}
+          </pre>
+          <DialogFooter>
+            <button
+              type="button"
+              className="btn btn-sm btn-ghost"
+              onClick={() => setSaveErrorOpen(false)}
+            >
+              {t("save.cancel")}
+            </button>
+            <button
+              type="button"
+              className="btn btn-sm btn-primary"
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(lastSaveError ?? "");
+                  toast.success(t("save.copied"));
+                } catch {
+                  toast.error(t("save.copyFailed"));
+                }
+              }}
+            >
+              {t("save.copyDetails")}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <Dialog open={conflicts.length > 0} onOpenChange={(open) => !open && setConflicts([])}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>

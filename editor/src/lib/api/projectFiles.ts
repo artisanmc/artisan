@@ -57,7 +57,7 @@ export type ProjectWriteResult =
       /** L'état réel du dossier — de quoi voir qu'un fichier renommé est apparu. */
       diskFiles: string[];
     }
-  | { ok: false; error: ProjectFilesError };
+  | { ok: false; error: ProjectFilesError; code?: string; status?: number; message?: string };
 
 function knownError(raw: unknown, fallback: ProjectFilesError): ProjectFilesError {
   const codes: ProjectFilesError[] = [
@@ -153,8 +153,17 @@ export async function writeProjectFiles(
       };
     }
     if (!res.ok) {
-      const body = (await res.json().catch(() => null)) as { error?: string } | null;
-      return { ok: false, error: knownError(body?.error, "write_error") };
+      const body = (await res.json().catch(() => null)) as {
+        error?: string;
+        message?: unknown;
+      } | null;
+      return {
+        ok: false,
+        error: knownError(body?.error, "write_error"),
+        code: typeof body?.error === "string" ? body.error : "write_error",
+        status: res.status,
+        ...(typeof body?.message === "string" ? { message: body.message } : {}),
+      };
     }
     return { ok: true };
   } catch {

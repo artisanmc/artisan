@@ -221,6 +221,20 @@ ne remplace jamais les frappes effectuées pendant la requête. Un conflit de
 révision conserve le travail local et bloque l'écriture jusqu'à création d'une
 copie. `BackendDraftControls` propose copies nommées, sélection et comparaison
 base/arbre depuis le menu d'Enregistrer, sans bloc permanent dans la topbar.
+
+Les échecs d'enregistrement ouvrent un `Dialog` avec raison traduite, code d'origine
+et statut HTTP disponible, ainsi que le champ `message` fourni par le plugin.
+`DraftApiError.detail` conserve ce message sans remplacer le code d'erreur.
+`saveProjectToDisk` conserve ces diagnostics de publication
+du brouillon ; `writeProjectFiles` les conserve pour l'écriture directe.
+`SaveControls` intercepte aussi les exceptions de préparation. Le détail est copiable
+et consultable dans le chevron jusqu'au prochain succès ou au démontage du contrôle.
+La pastille rouge reste réservée aux états `offline` / `conflict` du brouillon.
+Un listing de brouillons périmé ne remplace pas une révision confirmée par une
+autosauvegarde pendant sa lecture. Un brouillon bloqué est relu avant synchronisation :
+si son snapshot distant actif est strictement identique au local, sa révision est
+réconciliée sans écriture. Une différence de contenu ou une édition pendant la lecture
+maintient le conflit et préserve le travail local.
 Un point sur le chevron signale seulement un conflit ou une sauvegarde non confirmée.
 Les actions vident d'abord le debounce local via `draftFlush`.
 `saveProjectToDisk` publie la révision sauvegardée via l'API de brouillons ;

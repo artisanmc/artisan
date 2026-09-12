@@ -111,11 +111,42 @@ it("keeps unsent work when another browser has advanced the draft", async () => 
     tree: { "manifest.yaml": "local unsent" },
   });
   vi.mocked(api.listDrafts).mockResolvedValue([{ ...remote, revision: 2 }]);
+  vi.mocked(api.readDraft).mockResolvedValue({ ...remote, revision: 2 });
   await loadBackendDrafts("p1", "u1");
   await syncBackendDraft("p1");
   expect(useBackendDraftStore.getState().sessions.p1?.status).toBe("conflict");
   expect(useProjectDraftStore.getState().get("p1")?.tree["manifest.yaml"]).toBe("local unsent");
   expect(api.updateDraft).not.toHaveBeenCalled();
+});
+
+it("ignores a stale draft listing when this session acknowledged a newer revision during loading", async () => {
+  vi.mocked(api.listDrafts).mockResolvedValue([remote]);
+  await loadBackendDrafts("p1", "u1");
+  useProjectDraftStore.getState().save("p1", {
+    ...useProjectDraftStore.getState().get("p1")!,
+    tree: { "manifest.yaml": "single session edit" },
+  });
+  let finishListing!: (drafts: (typeof remote)[]) => void;
+  vi.mocked(api.listDrafts).mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finishListing = resolve;
+      }),
+  );
+  const loading = loadBackendDrafts("p1", "u1");
+  vi.mocked(api.updateDraft).mockImplementation(async (_p, _id, revision, _name, saved) => ({
+    ...remote,
+    snapshot: saved,
+    revision: revision + 1,
+  }));
+  await syncBackendDraft("p1");
+  finishListing([remote]);
+  await loading;
+  expect(useBackendDraftStore.getState().sessions.p1?.status).toBe("saved");
+  expect(useProjectDraftStore.getState().get("p1")?.remote?.revision).toBe(2);
+  expect(useProjectDraftStore.getState().get("p1")?.tree["manifest.yaml"]).toBe(
+    "single session edit",
+  );
 });
 
 it("separates local backups between accounts and restores them on return", () => {
@@ -125,6 +156,44 @@ it("separates local backups between accounts and restores them on return", () =>
   expect(useProjectDraftStore.getState().get("p1")).toBeUndefined();
   useProjectDraftStore.getState().setOwner("u1");
   expect(useProjectDraftStore.getState().get("p1")?.tree).toEqual(snapshot.tree);
+});
+
+it("recovers an already blocked draft when the backend has exactly the local snapshot", async () => {
+  vi.mocked(api.listDrafts).mockResolvedValue([remote]);
+  await loadBackendDrafts("p1", "u1");
+  useBackendDraftStore.setState({
+    sessions: { p1: { ownerId: "u1", drafts: [remote], status: "conflict" } },
+  });
+  vi.mocked(api.readDraft).mockResolvedValue({ ...remote, revision: 2 });
+  await syncBackendDraft("p1");
+  expect(useBackendDraftStore.getState().sessions.p1?.status).toBe("saved");
+  expect(useProjectDraftStore.getState().get("p1")?.remote?.revision).toBe(2);
+  expect(api.updateDraft).not.toHaveBeenCalled();
+});
+
+it("keeps edits made while checking whether a conflict is false", async () => {
+  vi.mocked(api.listDrafts).mockResolvedValue([remote]);
+  await loadBackendDrafts("p1", "u1");
+  useBackendDraftStore.setState({
+    sessions: { p1: { ownerId: "u1", drafts: [remote], status: "conflict" } },
+  });
+  let finish!: (draft: typeof remote) => void;
+  vi.mocked(api.readDraft).mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  const checking = syncBackendDraft("p1");
+  useProjectDraftStore.getState().save("p1", {
+    ...useProjectDraftStore.getState().get("p1")!,
+    tree: { "manifest.yaml": "new edit" },
+  });
+  finish({ ...remote, revision: 2 });
+  await checking;
+  expect(useProjectDraftStore.getState().get("p1")?.tree["manifest.yaml"]).toBe("new edit");
+  expect(useBackendDraftStore.getState().sessions.p1?.status).toBe("conflict");
+  expect(api.updateDraft).not.toHaveBeenCalled();
 });
 
 it("does not resurrect a draft published by another browser when this copy has no unsent edits", async () => {
