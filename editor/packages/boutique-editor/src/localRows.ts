@@ -21,6 +21,27 @@ interface ProjectSources {
 const num = (v: unknown): number => (typeof v === "number" && Number.isFinite(v) ? v : 0);
 const str = (v: unknown): string => (typeof v === "string" ? v : "");
 
+function formatPrice(price: number, finalPrice: number, settings?: unknown): string {
+  const formats = (settings as { placeholders?: Record<string, unknown> } | undefined)
+    ?.placeholders;
+  const discounted = finalPrice < Math.round(price);
+  const configured = formats?.[discounted ? "discount_price_display" : "price_display"];
+  const template =
+    typeof configured === "string" && configured.trim()
+      ? configured
+      : discounted
+        ? "&m%old_price% &f%price% tokens (-%discount_percent%%)"
+        : "%price% tokens";
+  const base = Math.round(price);
+  return template
+    .replaceAll("%old_price%", String(base))
+    .replaceAll(
+      "%discount_percent%",
+      String(base <= 0 ? 0 : Math.round(((base - finalPrice) * 100) / base)),
+    )
+    .replaceAll("%price%", String(finalPrice));
+}
+
 function source(project: unknown, id: string) {
   return (project as ProjectSources).dataSources?.find((d) => String(d.id) === id);
 }
@@ -33,30 +54,23 @@ function source(project: unknown, id: string) {
  * storage. Deriving the preview rows here is what the plugin's fetcher does at
  * runtime over the same files, so the canvas matches the server offline.
  */
-function rowsFromProjectFiles(
-  project: unknown,
-  ref: string,
-): Record<string, unknown>[] | null {
+function rowsFromProjectFiles(project: unknown, ref: string): Record<string, unknown>[] | null {
   const cats = source(project, "categories");
   if (!cats || cats.shape !== "table" || !Array.isArray(cats.rows)) return null;
   const categories = cats.rows as CategoryRow[];
 
-  if (ref === "boutique:categories") {
-    return categories.map((c) => ({
-      id: str(c.id),
-      name: c.name,
-      icon: c.icon,
-      discount: num(c.discount),
-    }));
-  }
-
   const settings = source(project, "shop_settings");
-  const whole = num((settings?.value as { whole_shop_discount?: unknown } | undefined)?.whole_shop_discount);
+  const whole = num(
+    (settings?.value as { whole_shop_discount?: unknown } | undefined)?.whole_shop_discount,
+  );
 
-  return categories.flatMap((c) => {
+  const rows = categories.flatMap((c) => {
     const items = Array.isArray(c.items) ? (c.items as Record<string, unknown>[]) : [];
     return items.map((i) => {
       const price = num(i.price);
+      const finalPrice = Math.round(
+        Math.max(0, price * (1 - (whole + num(c.discount) + num(i.discount)) / 100)),
+      );
       return {
         id: str(i.id),
         name: i.name,
@@ -65,13 +79,21 @@ function rowsFromProjectFiles(
         price,
         // Mirrors the plugin's BoutiqueModule.itemRow — the canvas must price
         // an item exactly like the server does.
-        final_price: Math.round(
-          Math.max(0, price * (1 - (whole + num(c.discount) + num(i.discount)) / 100)),
-        ),
+        final_price: finalPrice,
+        price_display: formatPrice(price, finalPrice, settings?.value),
         lore: Array.isArray(i.lore) ? (i.lore as unknown[]).join("\n") : (i.lore ?? ""),
       };
     });
   });
+  return ref === "boutique:categories"
+    ? categories.map((c) => ({
+        id: str(c.id),
+        name: c.name,
+        icon: c.icon,
+        discount: num(c.discount),
+        items: rows.filter((i) => i.category === str(c.id)),
+      }))
+    : rows;
 }
 
 /**
@@ -84,10 +106,7 @@ function rowsFromProjectFiles(
  * or a project holding no catalogue (the host then falls back to the live
  * server snapshot).
  */
-export function boutiqueLocalRows(
-  project: unknown,
-  ref: string,
-): Record<string, unknown>[] | null {
+export function boutiqueLocalRows(project: unknown, ref: string): Record<string, unknown>[] | null {
   if (ref !== "boutique:categories" && ref !== "boutique:items") return null;
 
   // Legacy authoring state (pre bare-data-files) still wins while it exists:
@@ -106,6 +125,12 @@ export function boutiqueLocalRows(
         price: i.price,
         final_price: Math.round(
           Math.max(0, i.price * (1 - (state.wholeShopDiscount + c.discount + i.discount) / 100)),
+        ),
+        price_display: formatPrice(
+          i.price,
+          Math.round(
+            Math.max(0, i.price * (1 - (state.wholeShopDiscount + c.discount + i.discount) / 100)),
+          ),
         ),
         lore: i.lore.join("\n"),
       })),

@@ -3,6 +3,24 @@ import { describe, expect, it } from "vitest";
 import { itemBindingOptions } from "./itemBindingOptions";
 
 describe("item data bindings", () => {
+  it("uses a declared module row model without a live server schema", () => {
+    const project = {
+      dataModels: [{ id: "boutique:item", fields: [{ name: "icon", type: { kind: "item" } }] }],
+      dataSources: [],
+    } as unknown as Project;
+    const menu = {
+      contextInputs: [{ kind: "sourceRef", name: "items", ref: "boutique:items" }],
+    } as Menu;
+    expect(
+      itemBindingOptions(
+        project,
+        menu,
+        { iterates: { source: "items", alias: "item" } } as Element,
+        [],
+        { "boutique:items": "boutique:item" },
+      ),
+    ).toEqual(["item.icon"]);
+  });
   it("uses ITEM fields reported by a server source", () => {
     const menu = {
       contextInputs: [{ kind: "sourceRef", name: "products", ref: "boutique:items" }],

@@ -58,6 +58,7 @@ import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next";
 import { AdvancedItemSection } from "./AdvancedItemSection";
 import { ItemBindingEditor } from "./ItemBindingEditor";
+import { previewItem } from "@/features/canvas/itemValuePreview";
 import { useServerSnapshotsStore } from "@/state/serverSnapshotsStore";
 import {
   CommandStepPseudocode,
@@ -664,6 +665,8 @@ function StateCard({
     if (!Array.isArray(list) || list.length === 0) return base;
     return { ...base, [iteration.alias]: list[0] };
   }, [project, menu, element.iterates, element.places, previewArgs, snapshots]);
+  const linkedItem = appearance.item ?? (appearance.material?.startsWith("{") ? appearance.material : undefined);
+  const inheritedItem = project && linkedItem !== undefined ? previewItem({ item: linkedItem }, lorePreviewCtx, project, activeLang) : undefined;
 
   const update = (field: "material" | "item" | "count" | "head", value: string | number | undefined) =>
     setAppearanceField({
@@ -838,7 +841,7 @@ function StateCard({
 
           {project && <ItemBindingEditor project={project} menu={menu} element={element}
             appearance={appearance} scope={lorePreviewCtx} lang={activeLang}
-            onSource={update} onCount={(value) => update("count", value)}>
+            onSource={update}>
             <div className="flex items-center gap-1.5">
               <StateMaterialIcon projectId={projectId} menuId={menu.id} elementId={element.id}
                 stateIndex={stateIndex} material={material} textureUrl={textureUrl}
@@ -913,7 +916,7 @@ function StateCard({
                 min={1}
                 max={64}
                 value={appearance.count ?? ""}
-                placeholder={String(count)}
+                placeholder={String(inheritedItem?.count ?? count)}
                 aria-label={t("flow.countLabel")}
                 onChange={(e) => {
                   if (e.target.value === "") {
@@ -926,6 +929,9 @@ function StateCard({
                 onFocus={() => setSub({ kind: "state", stateIndex })}
                 className="h-8 px-2 py-0 text-xs"
               />
+              {inheritedItem && (appearance.count === undefined
+                ? <span className="text-[10px] text-[var(--text-faint)]">{t("itemBinding.fromCatalog")}</span>
+                : <button type="button" className="text-[10px] text-[var(--text-mut)] hover:text-[var(--text)]" onClick={() => update("count", undefined)} aria-label={t("itemBinding.reset")} title={t("itemBinding.reset")}>↺ {t("itemBinding.fromCatalog")}</button>)}
             </div>
           </div>
 
@@ -1024,7 +1030,8 @@ function StateCard({
           {/* Advanced details — enchants, glint, CMD, unbreakable, hide, tint, NBT */}
           <AdvancedItemSection
             appearance={appearance}
-            material={display.material}
+            material={inheritedItem?.material ?? display.material}
+            inheritedEnchants={inheritedItem?.enchants}
             onFocus={() => setSub({ kind: "state", stateIndex })}
             onChange={(patch) =>
               setAppearanceAdvanced({ projectId, ...target, appearanceIndex: stateIndex, patch })

@@ -2,6 +2,8 @@ import type { ContextInput, DataSource, DataSourceId, Menu, Project, SourceRef }
 import { registerModule } from "@artisan/editor-sdk";
 import { afterEach, describe, expect, it } from "vitest";
 import { clearRegistry } from "../../../packages/editor-sdk/src/contract/registry";
+import boutiqueModule from "../../../packages/boutique-editor/src";
+import { useUiStore } from "@/state/uiStore";
 import { buildPreviewScope, renderPreview, resolveSourceRef } from "./menuPreviewScope";
 
 const stubProject = (overrides: Partial<Project> = {}): Project =>
@@ -33,6 +35,19 @@ const stubMenu = (inputs: ContextInput[] = []): Menu =>
   }) as Menu;
 
 describe("resolveSourceRef — module-local rows (authoring-time)", () => {
+  it("renders localized boutique lore and configured price in the active language", () => {
+    registerModule(boutiqueModule);
+    useUiStore.setState({ activeLang: "fr" });
+    const project = stubProject({
+      i18nKeys: { line1: { en: "Rare", fr: "Rare FR" }, line2: { en: "Sharp", fr: "Tranchante" } } as Project["i18nKeys"],
+      dataSources: [
+        { id: "categories", shape: "table", rows: [{ id: "weapons", items: [{ id: "sword", price: 100, lore: [{ key: "line1" }, { key: "line2" }] }] }] },
+        { id: "shop_settings", shape: "config", value: { placeholders: { price_display: "%price% jetons" } } },
+      ] as unknown as Project["dataSources"],
+    });
+    const rows = resolveSourceRef("boutique:items" as SourceRef, project) as Record<string, unknown>[];
+    expect(renderPreview("{item.lore}\n{item.price_display}", { item: rows[0] }, project, "fr")).toBe("Rare FR\nTranchante\n100 jetons");
+  });
   afterEach(() => clearRegistry());
 
   const registerLocalRowsModule = (rows: Record<string, unknown>[] | null) =>

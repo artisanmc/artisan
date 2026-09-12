@@ -51,13 +51,14 @@ A Table is backed by a **model**: the list of fields each row has. Add fields wi
 - **actions** — a chain of actions and conditions (e.g. what happens when a player buys a row), authored visually or as compact text — see [Action fields](#action-fields--the-action-dsl) below,
 - **list**, **object**, **model** — nested structures (e.g. a `perks` list of localized text for variable-length lore).
 
-In a menu template, open **Displayed item → Use an item from data** and select the icon field (for example **item → icon**).
-The preview shows inherited quantity and enchantments. Use **Customize** or **Restore inherited value** for the quantity; advanced attributes remain editable below.
+In a menu template, click **Icon** and choose **Product icon** or **Category icon** under **Catalogue**. Choose a fixed item under **Library** instead when needed. Manual expressions remain under **Advanced expression**.
+Quantity and enchantments show their catalogue values. Edit them in their usual fields, or use the reset control to restore inheritance.
 This writes `item: "{item.icon}"` in `menu/v2`. Existing `material: "{item.icon}"` templates remain readable.
 The complete icon supplies its quantity and attributes; an explicit template count overrides it, including `1`.
 Clear the template's quantity field to inherit the icon's quantity.
 The template title replaces the icon's name and its lore is appended to the icon's lore.
 Material fields preserve expression and custom-reference casing when typing or pasting.
+Boutique previews resolve localized lore before assembling its lines and use the catalogue's configured price display format, including discounts.
 
 One field is the **Row key** — the stable identifier of each row (e.g. `id`). Renaming or retyping a field updates all existing rows automatically.
 
