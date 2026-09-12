@@ -12,6 +12,14 @@ export interface ApiOptions {
   apiUrl: string;
 }
 
+export function requestAccountDeletion({ apiUrl }: ApiOptions) {
+  return postJson<void>(`${apiUrl}/api/v1/auth/delete-account/request`, {});
+}
+
+export function deleteAccount({ apiUrl }: ApiOptions, payload: { token: string }) {
+  return postJson<void>(`${apiUrl}/api/v1/auth/delete-account`, payload);
+}
+
 async function postJson<T>(
   url: string,
   body: unknown,

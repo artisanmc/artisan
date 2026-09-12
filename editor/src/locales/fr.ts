@@ -1,9 +1,11 @@
 import { draftsFr } from "./drafts";
+import { accountDeletionFr } from "./accountDeletion";
 import { tasksFr } from "./tasks";
 import type en from "./en";
 import { migrationFr } from "./migration";
 
 const fr: typeof en = {
+  accountDeletion: accountDeletionFr,
   drafts: draftsFr,
   navigation: {
     menu: "Menu",

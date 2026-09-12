@@ -1,8 +1,19 @@
 import i18n from "@/i18n";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { useAuthStore } from "./authStore";
+import { clearDeletedAccountSession, useAuthStore } from "./authStore";
 
 const API = "http://x";
+
+test("an in-flight hydration cannot restore a deleted account", async () => {
+  let complete!: (response: Response) => void;
+  vi.spyOn(globalThis, "fetch").mockReturnValue(new Promise(resolve => { complete = resolve; }));
+  const pending = useAuthStore.getState().hydrate(API);
+  clearDeletedAccountSession();
+  complete(new Response(JSON.stringify({ user: { id: "deleted", email: "a@b.c", name: "A", avatarUrl: null } }), { status: 200 }));
+  await pending;
+  expect(useAuthStore.getState().currentUser).toBeNull();
+  expect(useAuthStore.getState().sessionStatus).toBe("signed-out");
+});
 
 beforeEach(() => {
   useAuthStore.setState({

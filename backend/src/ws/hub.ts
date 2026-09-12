@@ -699,16 +699,29 @@ export function cleanupSession(sessionId: string): void {
   activeSessions.delete(sessionId);
 }
 
+const editorOwners = new Map<string, { userId: string; close: () => void }>();
+
+export function disconnectUserEditors(userId: string): void {
+  for (const [id, owner] of editorOwners) {
+    if (owner.userId !== userId) continue;
+    cleanupEditorConn(id);
+    try { owner.close(); } catch { /* Already closed. */ }
+  }
+}
+
 export function registerEditorConn(
   sessionId: string,
   serverKeyIds: string | Set<string>,
   send: (msg: string) => void,
+  owner?: { userId: string; close: () => void },
 ): void {
+  if (owner) editorOwners.set(sessionId, owner);
   editorSenders.set(sessionId, send);
   editorTokenToServers.set(sessionId, typeof serverKeyIds === "string" ? new Set([serverKeyIds]) : serverKeyIds);
 }
 
 export function cleanupEditorConn(sessionId: string): void {
+  editorOwners.delete(sessionId);
   editorSenders.delete(sessionId);
   editorTokenToServers.delete(sessionId);
 }
