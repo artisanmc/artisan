@@ -41,6 +41,15 @@ export async function loadBackendDrafts(projectId: string, ownerId: string): Pro
     const drafts = await api.listDrafts(projectId);
     if (useAuthStore.getState().currentUser?.id !== ownerId) return;
     const active = before?.remote ? drafts.find((d) => d.id === before.remote?.id) : drafts[0];
+    const acknowledged = useProjectDraftStore.getState().get(projectId)?.remote;
+    // An autosave may finish while the listing still describes the older revision.
+    if (
+      acknowledged &&
+      acknowledged.id === before?.remote?.id &&
+      acknowledged.revision > before.remote.revision &&
+      (!active || acknowledged.revision > active.revision)
+    )
+      return;
     if (before?.remote?.revision && !active) {
       const archived = await api.readDraft(projectId, before.remote.id);
       if (useAuthStore.getState().currentUser?.id !== ownerId) return;
@@ -239,14 +248,42 @@ async function syncOnce(projectId: string): Promise<void> {
   if (publishing.has(projectId)) return;
   const session = useBackendDraftStore.getState().sessions[projectId];
   const local = useProjectDraftStore.getState().get(projectId);
-  if (
-    !session ||
-    !local ||
-    session.ownerId !== useAuthStore.getState().currentUser?.id ||
-    session.status === "conflict"
-  )
-    return;
+  if (!session || !local || session.ownerId !== useAuthStore.getState().currentUser?.id) return;
   if (local.remote && local.remote.ownerId !== session.ownerId) return;
+  if (session.status === "conflict") {
+    if (!local.remote) return;
+    try {
+      const remote = await api.readDraft(projectId, local.remote.id);
+      if (
+        useAuthStore.getState().currentUser?.id !== session.ownerId ||
+        useProjectDraftStore.getState().get(projectId) !== local ||
+        useBackendDraftStore.getState().sessions[projectId] !== session ||
+        remote.status !== "active" ||
+        remote.id !== local.remote.id ||
+        remote.ownerId !== session.ownerId ||
+        fingerprint(remote.snapshot) !== fingerprint(snapshotOf(projectId, local))
+      )
+        return;
+      useProjectDraftStore.getState().save(projectId, {
+        ...local,
+        remote: {
+          ...local.remote,
+          revision: remote.revision,
+          acknowledged: fingerprint(remote.snapshot),
+        },
+      });
+      setSession(projectId, {
+        ...session,
+        active: remote,
+        drafts: [remote, ...session.drafts.filter((d) => d.id !== remote.id)],
+        status: "saved",
+        error: undefined,
+      });
+    } catch {
+      // An unavailable comparison cannot prove that the conflict is resolved.
+    }
+    return;
+  }
   const snapshot = snapshotOf(projectId, local);
   const sent = fingerprint(snapshot);
   if (local.remote?.acknowledged === sent) {

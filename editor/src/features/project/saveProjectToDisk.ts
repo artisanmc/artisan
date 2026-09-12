@@ -1,13 +1,17 @@
 import { rekeyProject } from "@/domain/i18nSites";
 import type { Project } from "@/domain/types";
 import { transform } from "@/features/export/transform";
-import { writeProjectFiles, type ProjectFileConflict, type ProjectFilesError } from "@/lib/api/projectFiles";
+import { DraftApiError } from "@/lib/api/projectDrafts";
+import {
+  type ProjectFileConflict,
+  type ProjectFilesError,
+  writeProjectFiles,
+} from "@/lib/api/projectFiles";
+import { projectFromFiles } from "@/schema/projectFromFiles";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
-import { projectFromFiles } from "@/schema/projectFromFiles";
-import { applyRenames, planWrite, toRelative } from "./diskSave";
 import { publishBackendDraft, useBackendDraftStore } from "./backendDrafts";
-import { DraftApiError } from "@/lib/api/projectDrafts";
+import { applyRenames, planWrite, toRelative } from "./diskSave";
 
 /** L'arbre rel-keyed que produirait un enregistrement de [project], sans écrire. */
 export function projectTree(project: Project): Record<string, string> {
@@ -53,7 +57,7 @@ export type SaveToDiskResult =
       /** L'état réel du dossier au moment du conflit — voir un renommage. */
       diskFiles: string[];
     }
-  | { ok: false; error: ProjectFilesError };
+  | { ok: false; error: ProjectFilesError; code?: string; status?: number; message?: string };
 
 /**
  * Enregistre un Project sur le disque de son serveur (ADR
@@ -79,20 +83,50 @@ export async function saveProjectToDisk(
   const baseline = known ?? {};
   if (useBackendDraftStore.getState().sessions[project.id]) {
     const previous = useProjectDraftStore.getState().get(project.id);
-    useProjectDraftStore.getState().save(project.id, { ...previous, baseline, tree: next,
-      initialTree: previous?.initialTree ?? baseline, at: previous?.at ?? Date.now() });
+    useProjectDraftStore.getState().save(project.id, {
+      ...previous,
+      baseline,
+      tree: next,
+      initialTree: previous?.initialTree ?? baseline,
+      at: previous?.at ?? Date.now(),
+    });
     try {
       const result = await publishBackendDraft(project.id);
       if (!result) return { ok: false, error: "write_error" };
       store.set(project.id, next);
       const current = useProjectDraftStore.getState().get(project.id);
       if (current && JSON.stringify(current.tree) !== JSON.stringify(next)) {
-        useProjectDraftStore.getState().save(project.id, { ...current, remote: undefined, baseline: next, initialTree: next, at: Date.now() });
+        useProjectDraftStore.getState().save(project.id, {
+          ...current,
+          remote: undefined,
+          baseline: next,
+          initialTree: next,
+          at: Date.now(),
+        });
       } else useProjectDraftStore.getState().clear(project.id);
       return { ok: true, wrote: result.wrote };
     } catch (error) {
-      if (error instanceof DraftApiError && error.code === "conflict") return { ok: false, error: "conflict", conflicts: error.conflicts, diskFiles: error.diskFiles };
-      return { ok: false, error: error instanceof DraftApiError && error.code === "server_offline" ? "server_offline" : "write_error" };
+      if (error instanceof DraftApiError && error.code === "conflict")
+        return {
+          ok: false,
+          error: "conflict",
+          conflicts: error.conflicts,
+          diskFiles: error.diskFiles,
+        };
+      return {
+        ok: false,
+        error:
+          error instanceof DraftApiError && error.code === "server_offline"
+            ? "server_offline"
+            : "write_error",
+        code:
+          error instanceof DraftApiError
+            ? error.code
+            : error instanceof Error
+              ? error.message
+              : "unknown_error",
+        ...(error instanceof DraftApiError ? { status: error.status, message: error.detail } : {}),
+      };
     }
   }
   // Les renommages déclarés transforment « supprimer + créer » en déplacement :
@@ -103,7 +137,10 @@ export async function saveProjectToDisk(
   // fichiers identiques (ce qui polluerait la corbeille pour rien).
   if (plan.empty) return { ok: true, wrote: 0 };
 
-  const res = await writeProjectFiles(networkId, serverId, diskId, { ...plan, create: known === undefined });
+  const res = await writeProjectFiles(networkId, serverId, diskId, {
+    ...plan,
+    create: known === undefined,
+  });
   if (!res.ok) {
     // Un conflit n'avance PAS la base : le plugin n'a rien écrit, donc ce qu'on
     // croit savoir du disque reste ce qu'on avait chargé.
