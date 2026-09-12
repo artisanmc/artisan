@@ -85,6 +85,8 @@ le backend n'est qu'un **relais** (ADR `server-disk-only-storage`).
 
 ## Invariants liés (détaillés dans `invariants.md`)
 
+- Account deletion revokes outstanding editor tickets and closes live editor sockets belonging to that User (1008). Server keys removed with an unmanaged network are disconnected locally after commit. No `project_deleted` or file-write message is sent to Minecraft.
+
 - **Une clé serveur = UN serveur vivant** : au `hello`, le backend évince la connexion précédente liée à la même clé (dernier arrivé gagne). Le relais choisit « la première connexion trouvée » — avec N instances sur une clé, chacune ayant son propre disque, on lirait l'une et écrirait l'autre, puis on basculerait en silence quand la première tombe.
 - **Un seul écrivain** : le plugin. Le backend relaie et n'arbitre jamais — il n'a aucune copie avec quoi arbitrer. La protection contre l'écrasement concurrent est le **compare-and-swap par fichier** de `project_write` (tout ou rien, conflits rendus avec le contenu disque).
 - **Le hash n'est plus inter-langage** : `BundleHasher` ne sert qu'au plugin (détection de changement + jeton de CAS). Le vecteur de conformance partagé a disparu avec l'implémentation backend.

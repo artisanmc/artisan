@@ -4,6 +4,11 @@ import { createMailerFromEnv, getMailer, sendSafely, __setMailerForTests, type M
 describe("mailer", () => {
   beforeEach(() => __setMailerForTests(null));
 
+  it("reports transport failure when delivery is required", async () => {
+    const m = createMailerFromEnv({ SMTP_HOST: "127.0.0.1", SMTP_PORT: "1", SMTP_USER: "u", SMTP_PASS: "p", MAIL_FROM: "t@t.t" });
+    await expect(m.send({ to: "a@b.c", subject: "s", text: "t" }, { throwOnError: true })).rejects.toThrow();
+  });
+
   it("is disabled and no-ops when env is incomplete", async () => {
     const m = createMailerFromEnv({});
     expect(m.enabled).toBe(false);

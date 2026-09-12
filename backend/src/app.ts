@@ -1,4 +1,7 @@
 import { Hono } from "hono";
+import { eq } from "drizzle-orm";
+import { db } from "./db";
+import { users } from "./db/schema";
 import { cors } from "hono/cors";
 import { createBunWebSocket } from "hono/bun";
 import { linkRouter } from "./routes/link";
@@ -113,6 +116,7 @@ app.get(
     const redeemed = ticket ? redeemTicket(ticket) : null;
     if (!redeemed) return c.json({ error: "Unauthorized" }, 401);
     const serverKeyIds = await listServerKeyIdsForUser(redeemed.userId);
+    c.set("editorUserId", redeemed.userId);
     c.set("editorServerIds", new Set(serverKeyIds));
     c.set("editorWsSessionId", "user_" + crypto.randomUUID());
     return next();
@@ -121,8 +125,12 @@ app.get(
     const serverIds = c.get("editorServerIds") as Set<string>;
     const sessionId = c.get("editorWsSessionId") as string;
     return {
-      onOpen(_, ws) {
-        registerEditorConn(sessionId, serverIds, (msg) => ws.send(msg));
+      async onOpen(_, ws) {
+        const userId = c.get("editorUserId") as string;
+        registerEditorConn(sessionId, serverIds, (msg) => ws.send(msg), { userId, close: () => ws.close(1008, "Account deleted") });
+        // Registration precedes this check so deletion during upgrade also closes this socket.
+        const exists = await db.select({ id: users.id }).from(users).where(eq(users.id, userId)).catch(() => []);
+        if (!exists.length) { cleanupEditorConn(sessionId); ws.close(1008, "Account unavailable"); }
       },
       onMessage() {},
       onClose() { cleanupEditorConn(sessionId); },

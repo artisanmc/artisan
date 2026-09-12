@@ -1,5 +1,7 @@
 # Editor & rendering internals
 
+The profile's `DeleteAccountSection` requests an email after a Dialog confirmation. Public `/delete-account` renders `DeleteAccountConfirmation` and submits only on an explicit click. `accountDeletionToken.ts` reads the fragment into memory and removes it before analytics initializes; reloading requires reopening the email link. Successful deletion clears local auth and invalidates pending profile hydration so a late `/me` cannot restore the removed identity.
+
 Les titres de l’interface (`h1`–`h6`, `.display`, `.font-display`) utilisent `--font-display: "Inter", sans-serif` en graisse 700, chargé depuis Bunny Fonts dans `editor/index.html`. Le texte courant et le monospace gardent leurs polices ; les polices de rendu Minecraft restent indépendantes. Spécimen dans `/admin/design`.
 
 ## Tests et CI

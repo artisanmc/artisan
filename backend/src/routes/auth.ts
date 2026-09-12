@@ -10,8 +10,49 @@ import { userAuth } from "../middleware/userAuth";
 import { sendSafely } from "../lib/mail/mailer";
 import { passwordResetEmail, welcomeEmail } from "../lib/mail/templates";
 import { consumeResetToken, createResetToken, invalidateUserResetTokens } from "../lib/passwordResetStorage";
+import { deleteAccount, discardDeletionToken, requestAccountDeletion } from "../lib/accountDeletion";
+import { accountDeletionEmail } from "../lib/mail/templates";
+import { getMailer } from "../lib/mail/mailer";
 
 const router = new Hono();
+
+router.post("/delete-account/request", userAuth(), async (c) => {
+  const user = c.var.user;
+  if (!user) return c.json({ error: "unauthorized" }, 401);
+  if (!getMailer().enabled) return c.json({ error: "email_unavailable" }, 503);
+  let token: string;
+  try {
+    token = await requestAccountDeletion(user.id, user.email);
+  } catch (error) {
+    if (error instanceof Error && error.message === "rate_limited") {
+      c.header("Retry-After", "60");
+      return c.json({ error: "rate_limited" }, 429);
+    }
+    throw error;
+  }
+  const editorUrl = process.env.EDITOR_URL ?? "http://localhost:5173";
+  try {
+    await getMailer().send(accountDeletionEmail({ to: user.email, url: `${editorUrl}/delete-account#token=${token}`, locale: user.editorLanguage === "fr" ? "fr" : "en" }), { throwOnError: true });
+  } catch {
+    await discardDeletionToken(token);
+    return c.json({ error: "email_unavailable" }, 503);
+  }
+  return c.body(null, 204);
+});
+
+router.post("/delete-account", async (c) => {
+  const body = await c.req.json().catch(() => null);
+  if (typeof body?.token !== "string" || !/^[A-Za-z0-9_-]{43}$/.test(body.token)) return c.json({ error: "invalid_token" }, 400);
+  try {
+    if (!await deleteAccount(body.token)) return c.json({ error: "invalid_token" }, 400);
+  } catch (error) {
+    if (error instanceof Error && error.message === "active_subscription") return c.json({ error: "active_subscription" }, 409);
+    if (error instanceof Error && error.message === "invalid_token") return c.json({ error: "invalid_token" }, 400);
+    throw error;
+  }
+  deleteCookie(c, "artisan_user_session", { path: "/" });
+  return c.body(null, 204);
+});
 
 function newUserId(): string {
   return "user_" + crypto.randomUUID().replace(/-/g, "").slice(0, 16);

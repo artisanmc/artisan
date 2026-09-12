@@ -57,6 +57,9 @@ l'API actuelle. Le MCP et ses autorisations déléguées restent à implémenter
 
 ## Auth & comptes
 
+- **Account deletion** (migration 0038): `account_deletion_tokens` stores one token per User, its SHA-256 hash, the confirmed email, creation time and 30-minute expiry. Resends replace the token after a one-minute cooldown. Confirmation consumes the token and deletes data in one transaction; failure rolls back consumption. Email changes invalidate the link. User deletion cascades sessions, OAuth links and private drafts; explicit cleanup removes personal assistant conversations/uploads/tasks, invitations and transfers, and scrubs usage previews and nullable audit references.
+- Networks losing their last manager (`owner` or legacy `admin`) are deleted with their server/project references, under the same advisory locks as membership management. Other networks remain. Active subscriptions block this teardown until cancelled. Plugin credentials are disconnected after commit; no file-deletion message is emitted. Minecraft files remain available for relinking.
+
 
 - Tables : `users`, `user_sessions`, `oauth_accounts`, `password_reset_tokens`. Migration 0034 copies existing `discord_accounts` links to `oauth_accounts`; the old table is retained as history and no longer written.
 - `oauth_accounts`: primary key `(provider, subject)`, unique `(provider, user_id)`, cascading FK to `users`. Google uses its verified ID-token `sub`; Discord uses its user ID. An existing identity always resolves to the original User, even after an email change. No access/refresh tokens are stored.
