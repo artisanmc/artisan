@@ -17,6 +17,8 @@ bare textarea while the core already has a full actions/conditions engine.
 
 ## Decision
 
+**2026-09 update — item extensions.** The additive lore rule below remains the compatibility behavior for existing appearances. New `extends` item values and `menu/v3` appearances with `lore_mode: replace` replace explicit lore, inherit absent fields, and expose the immediate resolved item as `{base.title}`, `{base.lore}`, `{base.count}` and `{base.material}`. Explicit empty lore clears it. `ItemEditor` is shared by catalog fields and canvas properties; resetting a field restores inheritance without extracting the captured stack.
+
 ### 1. Captured item — the universal item value
 
 A **Captured item** is a project-level entity:

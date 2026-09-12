@@ -235,43 +235,67 @@ object MenuRenderer {
         ctx: ExecutionContext,
         deps: SoftDepRegistry,
         i18nBase: String = "",
-        resolveItemValue: Boolean = true,
+        depth: Int = 0,
     ): ItemStack {
+        if (depth > 32) {
+            Bukkit.getLogger().warning("Artisan: circular item inheritance (maximum depth 32)")
+            return ItemStack(Material.BARRIER).apply { editMeta { it.displayName(parse("Circular item inheritance")) } }
+        }
         val papi = deps.papi
-        val rawMaterial = (app.item ?: app.material)?.trim()
-        val value = if (resolveItemValue && rawMaterial != null && rawMaterial.startsWith("{") && rawMaterial.endsWith("}")) {
+        val source = app.extends ?: app.item ?: app.material
+        val rawMaterial = (source as? String)?.trim()
+        val value = if (rawMaterial != null && rawMaterial.startsWith("{") && rawMaterial.endsWith("}")) {
             exprListValue(rawMaterial.substring(1, rawMaterial.length - 1), ctx.resolvedArgs)
-        } else null
-        val base = (value as? Map<*, *>)?.takeIf { it["material"] is String }?.let {
-            runCatching { itemMapper.convertValue(it, AppearanceYaml::class.java) }.getOrNull()
+        } else source as? Map<*, *>
+        val base = (value as? Map<*, *>)?.let {
+            val fields = it.entries.associate { entry -> entry.key.toString() to entry.value }.toMutableMap()
+            if (fields["lore"] is String) fields["lore"] = listOf(fields["lore"])
+            if (fields.containsKey("extends") && fields.containsKey("lore")) fields["lore_mode"] = "replace"
+            val extension = fields.remove("extends")
+            itemMapper.convertValue(fields, AppearanceYaml::class.java).copy(extends = extension)
         }
         val count = (app.count ?: base?.count ?: 1).coerceIn(1, 64)
         // Le material peut être un placeholder ({input} ou {alias.field}) — résolu
         // via le contexte avant le lookup vanilla/custom.
         val resolvedMaterial = rawMaterial?.let { ctx.render(it, papi) }
-        var item = base?.let { buildItem(it, langMap, ctx, deps, resolveItemValue = false) } ?: resolvedMaterial?.let { mat ->
+        var item = base?.let { buildItem(it, langMap, ctx, deps, depth = depth + 1) }
+            ?: (value as? String)?.let { buildItem(AppearanceYaml(item = it), langMap, ctx, deps, depth = depth + 1) }
+            ?: resolvedMaterial?.let { mat ->
             deps.buildCustomStack(mat, count)
                 ?: runCatching { Material.valueOf(mat.uppercase()) }.getOrNull()
                     ?.let { ItemStack(it, count) }
         } ?: ItemStack(Material.STONE, count)
+        val inheritedMeta = item.itemMeta
+        val baseValues = mapOf<String, Any>(
+            "material" to item.type.name, "count" to item.amount,
+            "title" to (inheritedMeta?.displayName()?.let { MiniMessage.miniMessage().serialize(it) } ?: ""),
+            "lore" to (inheritedMeta?.lore()?.joinToString("\n") { MiniMessage.miniMessage().serialize(it) } ?: ""),
+        )
+        val localCtx = ctx.copy(args = ctx.args + ("base" to baseValues))
         if (app.count != null) item.amount = count
         if (item.type == Material.PLAYER_HEAD && app.head != null) {
-            item = HeadApplier.apply(item, resolveText(app.head, langMap, ctx, papi), deps)
+            item = HeadApplier.apply(item, resolveText(app.head, langMap, localCtx, papi), deps)
         }
         val meta: ItemMeta = item.itemMeta ?: return item
         if (app.title != null) {
-            meta.displayName(parse(resolveText(app.title, langMap, ctx, papi, addressOf(i18nBase, "title"))))
+            meta.displayName(parse(resolveText(app.title, langMap, localCtx, papi, addressOf(i18nBase, "title"))))
         }
-        if (app.lore.isNotEmpty()) {
+        if (app.lore.isNotEmpty() || app.loreMode == "replace") {
             val loreAddress = addressOf(i18nBase, "lore")
-            // The resolved stack may carry its own lore (a captured `item:` ref,
-            // a Nexo/Oraxen item). The element's lines ADD to it rather than
-            // replace it — the referenced item keeps what it says about itself,
-            // the menu appends what IT has to say (a price, a rank…).
-            val base = meta.lore() ?: emptyList()
-            meta.lore(base + app.lore.flatMap { raw ->
-                resolveText(raw, langMap, ctx, papi, loreAddress).split("\n").map { parse(it) }
-            })
+            val alias = Regex("^\\{(\\w+)\\.icon}$").matchEntire((app.item ?: app.material).orEmpty())?.groupValues?.get(1)
+            val row = alias?.let { ctx.resolvedArgs[it] as? Map<*, *> }
+            val icon = row?.get("icon") as? Map<*, *>
+            val legacyToken = if (icon?.containsKey("extends") == true && icon.containsKey("lore") &&
+                (row?.get("lore") == null || row["lore"] == "" || row["lore"] == emptyList<Any>())) "{$alias.lore}" else null
+            val rawLines = app.lore.map { raw ->
+                if (raw.startsWith("{i18n:")) langMap[raw.removePrefix("{i18n:").removeSuffix("}")] ?: raw
+                else loreAddress?.let { langMap[it] } ?: raw
+            }
+            val legacy = legacyToken != null && rawLines.any { it.contains(legacyToken) }
+            val replacement = legacy || app.extends != null || app.loreMode == "replace"
+            val base = if (replacement) emptyList() else meta.lore() ?: emptyList()
+            val lines = rawLines.flatMap { raw -> localCtx.render(if (legacy) raw.replace(legacyToken!!, "{base.lore}") else raw, papi) { key -> langMap[key] }.split("\n") }
+            meta.lore(base + (if (replacement && lines == listOf("")) emptyList() else lines.map { parse(it) }))
         }
         ItemDetails.applyToMeta(app, meta)
         item.itemMeta = meta

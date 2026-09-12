@@ -13,6 +13,7 @@ vi.mock("@/lib/api/configScreens", async (orig) => {
 });
 vi.mock("@/lib/api/dataSources", () => ({ fetchServerDeclaredModels: vi.fn(async () => []) }));
 vi.mock("@/features/canvas/useTextureInit", () => ({ useTextureInit: () => {} }));
+vi.mock("@/lib/api/projectFiles", () => ({ readProjectFiles: vi.fn(async () => ({ ok: true, files: {} })) }));
 // The page is what's under test, not CodeMirror: a textarea stands in for the
 // shared YAML editor so edits can be simulated.
 vi.mock("@/components/ui/yaml-code-editor", () => ({
@@ -28,6 +29,7 @@ vi.mock("@/components/ui/yaml-code-editor", () => ({
 import { screenCacheKey, useScreenCacheStore } from "@/state/screenCacheStore";
 import { useServerScreensStore } from "@/state/serverScreensStore";
 import { ConfigScreenPage } from "./ConfigScreenPage";
+import { getModule } from "@artisan/editor-sdk";
 
 const SETTINGS = "whole_shop_discount: 10\n";
 
@@ -152,6 +154,11 @@ describe("ConfigScreenPage — dernière version connue", () => {
 });
 
 describe("ConfigScreenPage — form and YAML over the same file", () => {
+  it("loads the screen module before building its editable project", async () => {
+    renderPage();
+    await ready();
+    expect(getModule("boutique")?.migrateProject).toBeTypeOf("function");
+  });
   it("shows the generated form by default", async () => {
     renderPage();
     await ready();

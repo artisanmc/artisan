@@ -1,3 +1,4 @@
+import { listModules } from "@artisan/editor-sdk";
 import { injectDeclaredModels, normalizeDataSources } from "@/domain/dataModels";
 import type { Account, Project, ProjectId } from "@/domain/types";
 import { isDirty } from "@/features/project/draft";
@@ -103,6 +104,7 @@ async function buildProject(
   }
   // Accepted reset (ADR project-sources-and-data-models).
   normalizeDataSources(loaded);
+  for (const module of listModules()) module.migrateProject?.(loaded);
 
   return loaded;
 }

@@ -1,0 +1,1795 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://docs.artisanmc.net/schema/menu/v3.json",
+  "title": "Artisan Menu",
+  "description": "Format intermédiaire d'un menu Artisan. Source de vérité unique pour un menu.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "title",
+    "size"
+  ],
+  "anyOf": [
+    {
+      "required": [
+        "elements"
+      ]
+    },
+    {
+      "required": [
+        "layers"
+      ]
+    }
+  ],
+  "allOf": [
+    {
+      "if": {
+        "required": [
+          "inventory_type"
+        ],
+        "properties": {
+          "inventory_type": {
+            "const": "hopper"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "size": {
+            "const": 5
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": [
+          "inventory_type"
+        ],
+        "properties": {
+          "inventory_type": {
+            "const": "dropper"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "size": {
+            "const": 9
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "not": {
+          "required": [
+            "inventory_type"
+          ],
+          "properties": {
+            "inventory_type": {
+              "enum": [
+                "hopper",
+                "dropper"
+              ]
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "size": {
+            "enum": [
+              9,
+              18,
+              27,
+              36,
+              45,
+              54
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "properties": {
+    "schema": {
+      "const": "menu/v3",
+      "description": "Version du schéma. Verrouillée pour permettre les migrations applicables au load."
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]{0,63}$",
+      "description": "LEGACY, ignoré. L'identité d'un Document est le nom de son fichier (le reader force la valeur et signale une divergence). Toléré en lecture pour les projects antérieurs ; plus jamais écrit."
+    },
+    "title": {
+      "oneOf": [
+        {
+          "type": "string",
+          "description": "Forme canonique sucre : titre = une seule couche plain ('{i18n:key}' ou littéral)."
+        },
+        {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "type": "string",
+                "description": "Entrée string = couche plain."
+              },
+              {
+                "$ref": "#/$defs/MenuTitleLayer"
+              }
+            ]
+          },
+          "description": "Couches de titre, ordonnées. Vide = pas de titre. Format pixel-perfect (offsets, fonts) documenté dans editor-internals.md."
+        }
+      ]
+    },
+    "size": {
+      "type": "integer",
+      "enum": [
+        5,
+        9,
+        18,
+        27,
+        36,
+        45,
+        54
+      ],
+      "description": "Taille de l'inventaire en nombre de positions. chest = multiple de 9 (max 54) ; hopper = 5 ; dropper = 9. Validation croisée avec inventory_type."
+    },
+    "inventory_type": {
+      "type": "string",
+      "enum": [
+        "chest",
+        "hopper",
+        "dropper"
+      ],
+      "default": "chest",
+      "description": "Type de conteneur. Absent = chest (rétro-compatible). chest = grille 9×rows ; hopper = 5×1 ; dropper = 3×3."
+    },
+    "permission": {
+      "type": "string",
+      "description": "Permission requise pour ouvrir le menu. Si absente, ouvert à tous."
+    },
+    "inputs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/ContextInput"
+      },
+      "description": "Forme canonique (optionnelle) : slots nommées exposées par le menu — signature de paramètres (primitifs alimentés par les arguments de Command), shaping partagé (filter/sort/limit) et typage éditeur. Un élément peut aussi itérer une ref de source directement (iterates.source: \"ns:id\") sans la déclarer ici."
+    },
+    "context_inputs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/ContextInput"
+      },
+      "description": "Forme legacy de `inputs` — toujours acceptée en lecture ; l'export émet `inputs`."
+    },
+    "notes": {
+      "type": "string",
+      "maxLength": 2048,
+      "description": "Notes internes de l'admin (jamais rendues aux joueurs). Survivent au round-trip JSON ↔ YAML, contrairement aux commentaires YAML qui sont perdus à la conversion."
+    },
+    "background": {
+      "$ref": "#/$defs/Appearance",
+      "description": "Apparence par défaut des positions Minecraft non couvertes par un Element visible."
+    },
+    "open_requirements": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Condition"
+      },
+      "description": "Conditions à valider à l'ouverture. Si une échoue, le menu ne s'ouvre pas."
+    },
+    "open_actions": {
+      "type": "string",
+      "description": "Action DSL exécutée à l'ouverture du menu (chaîne d'actions + branches if, cf. ADR action-dsl)."
+    },
+    "close_actions": {
+      "type": "string",
+      "description": "Action DSL exécutée à la fermeture du menu (cf. ADR action-dsl)."
+    },
+    "elements": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Element"
+      },
+      "description": "Forme canonique : liste plate des éléments du menu. L'ordre du document = ordre d'empilement ; en cas de collision de slot, le dernier gagne."
+    },
+    "layers": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/Layer"
+      },
+      "description": "Forme legacy : enveloppe layers (id/name sans comportement runtime). Toujours acceptée en lecture ; l'export émet `elements` à plat."
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Métadonnées calculées par l'éditeur. Non éditables manuellement.",
+      "properties": {
+        "uses_plugins": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Liste des plugins tiers référencés via component_ref ou ContextInput.source. Calculée automatiquement."
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "author": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "Layer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "elements"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+          "description": "Identifiant slug du layer, unique dans le menu."
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "description": "Nom affiché dans le panel layer de l'éditeur."
+        },
+        "notes": {
+          "type": "string",
+          "maxLength": 1024,
+          "description": "Notes internes de l'admin (jamais rendues aux joueurs)."
+        },
+        "elements": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Element"
+          },
+          "description": "Elements contenus dans ce layer. Last-placed-wins en cas de chevauchement."
+        }
+      }
+    },
+    "Element": {
+      "type": "object",
+      "required": [
+        "id",
+        "positions"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]{0,63}$",
+          "description": "Identifiant stable de l'Element, unique au sein du menu."
+        },
+        "positions": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Position unique — forme canonique pour un seul slot (pas de quotes)."
+            },
+            {
+              "type": "string",
+              "pattern": "^\\d+(-\\d+)?(,\\d+(-\\d+)?)*$",
+              "description": "Range \"10-43\" ou liste séparée par virgules \"0,8,18-20\"."
+            },
+            {
+              "type": "array",
+              "items": {
+                "oneOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^\\d+(-\\d+)?$"
+                  }
+                ]
+              },
+              "description": "Liste YAML de positions et/ou ranges."
+            }
+          ],
+          "description": "Position(s) Minecraft occupée(s) : int nu, range/liste string, ou liste YAML."
+        },
+        "iterates": {
+          "$ref": "#/$defs/Iterates",
+          "description": "Si présent, l'Element devient itératif : pour chaque item du contextInput nommé `source` (de type \"list\"), le moteur évalue les apparences de l'Element (display + states) avec l'item courant exposé sous `alias`, accessible via {alias.field}. Mutuellement exclusif avec component_ref."
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "places": {
+          "$ref": "#/$defs/Places"
+        },
+        "states": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/State"
+          },
+          "description": "États gardés, essayés dans l'ordre AVANT le display (les champs d'apparence portés par l'Element lui-même). Le premier dont le `if` passe gagne ; si aucun ne passe, le display est rendu. Un état est une apparence ENTIÈRE, pas un patch."
+        }
+      },
+      "allOf": [
+        {
+          "$ref": "#/$defs/AppearanceFields"
+        }
+      ],
+      "unevaluatedProperties": false,
+      "description": "Un Element : ses clés structurelles (`id`, `positions`, `iterates`, `places`, `states`, `tags`) plus, À PLAT, les champs de son display."
+    },
+    "ContextInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "type"
+      ],
+      "description": "Slot nommée et typée exposée par le menu. Peuplée à l'ouverture par auto-binding par nom (depuis l'appelant : args de commande, contextInputs de l'appelant, alias d'iteration courant — cf. §15.4) ou via un ConnectorBinding attaché.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]{0,63}$",
+          "description": "Slug exposé comme {name} dans les champs du menu. Unique au sein du menu."
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "player",
+            "string",
+            "integer",
+            "number",
+            "boolean",
+            "list",
+            "object"
+          ]
+        },
+        "row_of": {
+          "type": "string",
+          "description": "Pour type=\"object\"/\"list\" : ref de la data source dont cette slot porte le MODELE de ligne (fournie par l'appelant - pas fetchee, contrairement a `source`). Outillage editeur uniquement (completion, apercu) ; le runtime l'ignore."
+        },
+        "default": {
+          "type": "string",
+          "description": "Valeur fallback si l'appelant ne passe rien et qu'aucune data source n'est attachée. Supporte les placeholders."
+        },
+        "source": {
+          "$ref": "#/$defs/ConnectorBinding",
+          "description": "Si présent, la valeur de la slot est fetchée par une data source au lieu d'être passée par l'appelant. Valide uniquement sur type=\"list\" ou type=\"object\"."
+        }
+      }
+    },
+    "ConnectorBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ref"
+      ],
+      "description": "Référence (côté consommateur) vers une data source (homemade Artisan ou registered par un plugin tiers en V2). Attaché à un ContextInput via `source`. Le plugin appelle la data source au render et obtient une liste/objet typé qui peuple la slot.",
+      "properties": {
+        "ref": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*:[a-z][a-z0-9_]*$",
+          "description": "Identifiant de la data source sous forme \"namespace:source\". Ex: \"chestshop:items\", \"essentials:warps\", \"jobs:list\"."
+        },
+        "params": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Paramètres passés à la data source (varient par data source). Supportent {name} pour interpoler les autres contextInputs du menu."
+        },
+        "filter": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Filtres appliqués sur les champs de la data. Supportent {name} pour interpoler les autres contextInputs. Ex: { \"category\": \"{category}\" } ne garde que les items dont category == valeur de l'input \"category\"."
+        },
+        "sort": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "by"
+          ],
+          "properties": {
+            "by": {
+              "type": "string",
+              "description": "Nom du champ de tri."
+            },
+            "direction": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "default": "asc"
+            }
+          }
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000,
+          "description": "Nombre max d'items retournés. Absent = pas de limite (la liste complète est paginée par l'Element qui itère la slot)."
+        }
+      }
+    },
+    "Iterates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source"
+      ],
+      "description": "Iteration : pour chaque item du contextInput `source` (type \"list\"), le moteur évalue les apparences de l'Element (display + states) avec l'item courant exposé sous `alias`. Les champs accèdent aux propriétés de l'item via {alias.field}.",
+      "properties": {
+        "source": {
+          "type": "string",
+          "description": "Nom d'un input du menu OU ref de source directe (`ns:id` / `pack:id`) — sucre canonique, résolue au rendu ; ref pendante = liste vide (non-hermétique)."
+        },
+        "alias": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]{0,63}$",
+          "description": "Nom local de l'item courant dans la scope de l'Element. Exposé comme {alias} et {alias.field}."
+        }
+      }
+    },
+    "AppearanceFields": {
+      "type": "object",
+      "properties": {
+        "if": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/Condition"
+          },
+          "description": "Conditions ANDées. Si absent, matche toujours (fallback)."
+        },
+        "asset": {
+          "type": "string"
+        },
+        "material": {
+          "type": "string",
+          "description": "Material vanilla (DIAMOND), ou un placeholder : {input_name} pour un contextInput, {alias.field} dans un Element qui itère."
+        },
+        "head": {
+          "type": "string",
+          "description": "Tête custom quand material = PLAYER_HEAD : hdb:<id> (HeadDatabase), basehead:<base64>, ou playerhead:<pseudo> (placeholders résolus au rendu). Ignoré pour tout autre material."
+        },
+        "count": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 64,
+          "default": 1
+        },
+        "title": {
+          "type": "string"
+        },
+        "lore": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "enchants": {
+          "description": "Enchantements appliqués à l'item. Forme canonique : map id → niveau ({ sharpness: 5 }). Les ids courts (sharpness), namespacés (minecraft:sharpness) et legacy Bukkit (DAMAGE_ALL) sont acceptés en lecture ; un id inconnu du serveur est ignoré avec un WARN. Les niveaux au-delà du max vanilla sont autorisés.",
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "id"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "level": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 1
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "enchanted": {
+          "type": "boolean",
+          "default": false,
+          "description": "Effet brillant sans enchantement réel. Redondant quand `enchants` est présent (les vrais enchantements brillent déjà)."
+        },
+        "custom_model_data": {
+          "type": "string"
+        },
+        "unbreakable": {
+          "type": "boolean",
+          "default": false,
+          "description": "Item incassable (la durabilité ne descend pas)."
+        },
+        "hide": {
+          "type": "array",
+          "description": "Sections du tooltip masquées au joueur (ItemFlag Bukkit, orthographe courte).",
+          "items": {
+            "type": "string",
+            "enum": [
+              "enchants",
+              "attributes",
+              "unbreakable",
+              "destroys",
+              "placed_on",
+              "additional",
+              "dye",
+              "armor_trim",
+              "stored_enchants"
+            ]
+          }
+        },
+        "color": {
+          "type": "string",
+          "pattern": "^#[0-9a-fA-F]{6}$",
+          "description": "Teinte #rrggbb — armure de cuir, potion, étoile de feu d'artifice. Ignorée sur tout autre material."
+        },
+        "nbt": {
+          "type": "string",
+          "description": "SNBT brut appliqué en dernier, après tous les autres champs (échappatoire). Best-effort : une erreur de parse est loggée en WARN et l'item est rendu sans."
+        },
+        "component_ref": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*:[a-z][a-z0-9_]*$"
+        },
+        "click": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/ClickMap"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "notes": {
+          "type": "string",
+          "maxLength": 1024,
+          "description": "Notes internes de l'admin (jamais rendues aux joueurs)."
+        },
+        "item": {
+          "type": "string",
+          "description": "Complete item reference or expression. Quantity and metadata are inherited before explicit presentation overrides."
+        },
+        "lore_mode": {
+          "type": "string",
+          "enum": [
+            "replace"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "not": {
+            "required": [
+              "item",
+              "material"
+            ]
+          }
+        }
+      ]
+    },
+    "Appearance": {
+      "description": "Une apparence complète et auto-suffisante — un ETAT gardé par son `if`. Un state REMPLACE le display, il ne le complète pas : ce qu'il n'écrit pas est absent, jamais hérité (ADR element-display-and-states). Une apparence complète et auto-suffisante. Le `if` détermine si cette apparence s'active. Si l'Element a `iterates`, les champs peuvent référencer {alias.field} pour accéder aux propriétés de l'item courant.",
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/AppearanceFields"
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "State": {
+      "description": "Un état gardé d'un Element : une apparence ENTIÈRE plus son `if`. Sans `if` il matcherait toujours et masquerait le display pour de bon — il est donc obligatoire (ADR element-display-and-states).",
+      "allOf": [
+        {
+          "$ref": "#/$defs/Appearance"
+        }
+      ],
+      "required": [
+        "if"
+      ]
+    },
+    "ClickMap": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "left": {
+          "$ref": "#/$defs/ClickHandler"
+        },
+        "right": {
+          "$ref": "#/$defs/ClickHandler"
+        },
+        "shift_left": {
+          "$ref": "#/$defs/ClickHandler"
+        },
+        "shift_right": {
+          "$ref": "#/$defs/ClickHandler"
+        },
+        "middle": {
+          "$ref": "#/$defs/ClickHandler"
+        }
+      }
+    },
+    "ClickHandler": {
+      "oneOf": [
+        {
+          "type": "string",
+          "description": "Forme canonique : le handler EST la chaîne Action DSL (actions + branches if/else-if/else). Cf. ADR action-dsl et le spec menu-format-ergonomics."
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "steps"
+          ],
+          "properties": {
+            "steps": {
+              "type": "string",
+              "description": "Forme legacy enveloppée — chaîne Action DSL dans un objet {steps}. Toujours acceptée en lecture ; l'export émet la forme string."
+            }
+          }
+        }
+      ]
+    },
+    "Step": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "action"
+          ],
+          "properties": {
+            "kind": {
+              "const": "action"
+            },
+            "action": {
+              "$ref": "#/$defs/Action"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "cases"
+          ],
+          "properties": {
+            "kind": {
+              "const": "if"
+            },
+            "cases": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "conditions",
+                  "steps"
+                ],
+                "properties": {
+                  "conditions": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/Condition"
+                    }
+                  },
+                  "joins": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "and",
+                        "or"
+                      ]
+                    }
+                  },
+                  "steps": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/Step"
+                    }
+                  }
+                }
+              }
+            },
+            "else": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Step"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "LText": {
+      "oneOf": [
+        {
+          "type": "string",
+          "description": "Forme canonique : '{i18n:key}' (référence) ou littéral inline (politique hybride). Une seule forme string pour tous les champs texte."
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "key"
+          ],
+          "properties": {
+            "key": {
+              "type": "string"
+            }
+          },
+          "description": "Forme legacy {key} — acceptée en lecture ; l'export émet la forme string."
+        }
+      ]
+    },
+    "MenuTitleLayer": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "asset_id"
+          ],
+          "properties": {
+            "kind": {
+              "const": "background"
+            },
+            "asset_id": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "asset_id",
+            "x",
+            "y"
+          ],
+          "properties": {
+            "kind": {
+              "const": "glyph"
+            },
+            "asset_id": {
+              "type": "string"
+            },
+            "x": {
+              "type": "integer"
+            },
+            "y": {
+              "type": "integer"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "value",
+            "x",
+            "y"
+          ],
+          "properties": {
+            "kind": {
+              "const": "text"
+            },
+            "value": {
+              "$ref": "#/$defs/LText"
+            },
+            "x": {
+              "type": "integer"
+            },
+            "y": {
+              "type": "integer"
+            },
+            "color": {
+              "type": "string"
+            },
+            "font_asset_id": {
+              "type": "string"
+            },
+            "size": {
+              "type": "integer",
+              "enum": [
+                8,
+                12,
+                16,
+                20,
+                24,
+                32
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "value"
+          ],
+          "properties": {
+            "kind": {
+              "const": "plain"
+            },
+            "value": {
+              "$ref": "#/$defs/LText"
+            },
+            "color": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "value",
+            "x",
+            "y",
+            "width",
+            "line_height",
+            "alignment"
+          ],
+          "properties": {
+            "kind": {
+              "const": "textarea"
+            },
+            "value": {
+              "$ref": "#/$defs/LText"
+            },
+            "x": {
+              "type": "integer"
+            },
+            "y": {
+              "type": "integer"
+            },
+            "width": {
+              "type": "integer"
+            },
+            "line_height": {
+              "type": "integer"
+            },
+            "alignment": {
+              "type": "string",
+              "enum": [
+                "left",
+                "center",
+                "right"
+              ]
+            },
+            "font_asset_id": {
+              "type": "string"
+            },
+            "size": {
+              "type": "integer",
+              "enum": [
+                8,
+                12,
+                16,
+                20,
+                24,
+                32
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "provider",
+            "glyph_name",
+            "x",
+            "y"
+          ],
+          "properties": {
+            "kind": {
+              "const": "external_glyph"
+            },
+            "provider": {
+              "type": "string",
+              "enum": [
+                "oraxen",
+                "nexo",
+                "itemsadder"
+              ]
+            },
+            "glyph_name": {
+              "type": "string"
+            },
+            "x": {
+              "type": "integer"
+            },
+            "y": {
+              "type": "integer"
+            }
+          }
+        }
+      ]
+    },
+    "Action": {
+      "type": "object",
+      "required": [
+        "type"
+      ],
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "command"
+          ],
+          "properties": {
+            "type": {
+              "const": "run_command"
+            },
+            "command": {
+              "type": "string"
+            },
+            "as": {
+              "type": "string",
+              "enum": [
+                "player",
+                "console"
+              ],
+              "default": "player"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "menu_id"
+          ],
+          "properties": {
+            "type": {
+              "const": "open_menu"
+            },
+            "menu_id": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]*$"
+            },
+            "close_current": {
+              "type": "boolean",
+              "default": true
+            },
+            "context": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              },
+              "description": "Override explicite de l'auto-binding par nom (cf. §15.4). Chaque entrée peuple un contextInput du menu cible ; les valeurs supportent {name} pour interpoler la scope courante."
+            },
+            "clear_context": {
+              "type": "boolean",
+              "default": false,
+              "description": "Désactive l'auto-binding par nom (l'override `context` reste actif)."
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "const": "close_menu"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "material",
+            "count"
+          ],
+          "properties": {
+            "type": {
+              "const": "give_item"
+            },
+            "material": {
+              "type": "string",
+              "pattern": "^[A-Z][A-Z0-9_]*$"
+            },
+            "count": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 64
+            },
+            "nbt": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "lore": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "lore_mode": {
+              "type": "string",
+              "enum": [
+                "replace"
+              ]
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "material",
+            "count"
+          ],
+          "properties": {
+            "type": {
+              "const": "take_item"
+            },
+            "material": {
+              "type": "string",
+              "pattern": "^[A-Z][A-Z0-9_]*$"
+            },
+            "count": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 64
+            },
+            "nbt": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "amount"
+          ],
+          "properties": {
+            "type": {
+              "const": "give_money"
+            },
+            "amount": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "currency": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "amount"
+          ],
+          "properties": {
+            "type": {
+              "const": "take_money"
+            },
+            "amount": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "currency": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "amount"
+          ],
+          "properties": {
+            "type": {
+              "const": "give_xp"
+            },
+            "amount": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "amount"
+          ],
+          "properties": {
+            "type": {
+              "const": "give_level"
+            },
+            "amount": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "text"
+          ],
+          "properties": {
+            "type": {
+              "const": "send_message"
+            },
+            "text": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "text"
+          ],
+          "properties": {
+            "type": {
+              "const": "broadcast"
+            },
+            "text": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "sound"
+          ],
+          "properties": {
+            "type": {
+              "const": "play_sound"
+            },
+            "sound": {
+              "type": "string"
+            },
+            "volume": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "default": 1
+            },
+            "pitch": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 2,
+              "default": 1
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "const": "teleport"
+            },
+            "world": {
+              "type": "string"
+            },
+            "x": {
+              "type": "number"
+            },
+            "y": {
+              "type": "number"
+            },
+            "z": {
+              "type": "number"
+            },
+            "yaw": {
+              "type": "number"
+            },
+            "pitch": {
+              "type": "number"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "const": "pagination_next"
+            },
+            "element_id": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]{0,63}$"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "const": "pagination_prev"
+            },
+            "element_id": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]{0,63}$"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "title"
+          ],
+          "properties": {
+            "type": {
+              "const": "show_title"
+            },
+            "title": {
+              "type": "string"
+            },
+            "subtitle": {
+              "type": "string"
+            },
+            "fade_in": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "stay": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "fade_out": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "dialog_id"
+          ],
+          "properties": {
+            "type": {
+              "const": "open_dialog"
+            },
+            "dialog_id": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]*$"
+            },
+            "context": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "clear_context": {
+              "type": "boolean",
+              "default": false
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "const": "close_dialog"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "arg",
+            "value"
+          ],
+          "properties": {
+            "type": {
+              "const": "set_arg"
+            },
+            "arg": {
+              "type": "string"
+            },
+            "value": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "arg",
+            "list"
+          ],
+          "properties": {
+            "type": {
+              "const": "set_arg_cycle_next"
+            },
+            "arg": {
+              "type": "string"
+            },
+            "list": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "arg",
+            "list"
+          ],
+          "properties": {
+            "type": {
+              "const": "set_arg_cycle_prev"
+            },
+            "arg": {
+              "type": "string"
+            },
+            "list": {
+              "type": "string"
+            }
+          }
+        }
+      ]
+    },
+    "Condition": {
+      "type": "object",
+      "required": [
+        "type"
+      ],
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "perm"
+          ],
+          "properties": {
+            "type": {
+              "const": "has_permission"
+            },
+            "perm": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "amount"
+          ],
+          "properties": {
+            "type": {
+              "const": "has_money"
+            },
+            "amount": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "currency": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "material",
+            "count"
+          ],
+          "properties": {
+            "type": {
+              "const": "has_item"
+            },
+            "material": {
+              "type": "string",
+              "pattern": "^[A-Z][A-Z0-9_]*$"
+            },
+            "count": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "nbt": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "amount"
+          ],
+          "properties": {
+            "type": {
+              "const": "has_xp"
+            },
+            "amount": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "level"
+          ],
+          "properties": {
+            "type": {
+              "const": "has_level"
+            },
+            "level": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "placeholder",
+            "value"
+          ],
+          "properties": {
+            "type": {
+              "const": "placeholder_equals"
+            },
+            "placeholder": {
+              "type": "string",
+              "description": "PAPI (%vault_eco_balance%), contextInput ({category}), ou champ d'iteration ({alias.field})."
+            },
+            "value": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "placeholder",
+            "regex"
+          ],
+          "properties": {
+            "type": {
+              "const": "placeholder_match"
+            },
+            "placeholder": {
+              "type": "string"
+            },
+            "regex": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "cooldown_id"
+          ],
+          "properties": {
+            "type": {
+              "const": "cooldown_passed"
+            },
+            "cooldown_id": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "world"
+          ],
+          "properties": {
+            "type": {
+              "const": "world_is"
+            },
+            "world": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "range"
+          ],
+          "properties": {
+            "type": {
+              "const": "time_is"
+            },
+            "range": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "day",
+                    "night"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "from_ticks",
+                    "to_ticks"
+                  ],
+                  "properties": {
+                    "from_ticks": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 24000
+                    },
+                    "to_ticks": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 24000
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "probability"
+          ],
+          "properties": {
+            "type": {
+              "const": "random_chance"
+            },
+            "probability": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "region"
+          ],
+          "properties": {
+            "type": {
+              "const": "player_in_region"
+            },
+            "region": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "const": "pagination_at_first"
+            },
+            "element_id": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]{0,63}$"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "const": "pagination_at_last"
+            },
+            "element_id": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]{0,63}$"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "of"
+          ],
+          "properties": {
+            "type": {
+              "const": "not"
+            },
+            "of": {
+              "$ref": "#/$defs/Condition"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "of"
+          ],
+          "properties": {
+            "type": {
+              "const": "and"
+            },
+            "of": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/Condition"
+              }
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "of"
+          ],
+          "properties": {
+            "type": {
+              "const": "or"
+            },
+            "of": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/Condition"
+              }
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "expr"
+          ],
+          "properties": {
+            "type": {
+              "const": "expression"
+            },
+            "expr": {
+              "type": "string"
+            }
+          }
+        }
+      ]
+    },
+    "Places": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "placements"
+      ],
+      "description": "Mode placement : épingle des rows d'une source STATIQUE (matchées par key_field) à des page+slot explicites. Mutuellement exclusif avec iterates.",
+      "properties": {
+        "source": {
+          "type": "string",
+          "description": "Nom d'un input du menu OU ref de source directe (`ns:id` / `pack:id`)."
+        },
+        "alias": {
+          "type": "string",
+          "description": "Alias local du row."
+        },
+        "key_field": {
+          "type": "string",
+          "description": "Row key de la source."
+        },
+        "placements": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "key",
+              "page",
+              "position"
+            ],
+            "properties": {
+              "key": {
+                "type": "string"
+              },
+              "page": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "position": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

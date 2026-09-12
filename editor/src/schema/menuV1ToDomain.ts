@@ -115,6 +115,10 @@ export function makeAppearanceConverter(bridge: I18nBridge): {
     if (a.title !== undefined) out.title = text(a.title);
     const lore = loreText(a.lore);
     if (lore !== undefined) out.lore = lore;
+    if (a.lore_mode === "replace") {
+      out.loreMode = "replace";
+      if (!out.lore) out.lore = text("");
+    }
     const click = clickMap(a.click);
     if (click) out.click = click;
     Object.assign(out, readAdvanced(a as Record<string, unknown>));

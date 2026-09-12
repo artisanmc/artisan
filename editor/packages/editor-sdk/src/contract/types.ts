@@ -38,4 +38,6 @@ export interface FrontendModule {
   localPreviewRows?: (project: unknown, ref: string) => Record<string, unknown>[] | null;
   /** Source ref → declared row model, available independently of server presence. */
   dataSourceModels?: Record<string, string>;
+  /** Idempotent, in-memory upgrade after declared models are attached. */
+  migrateProject?: (project: unknown) => void;
 }

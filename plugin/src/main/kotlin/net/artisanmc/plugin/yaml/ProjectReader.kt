@@ -39,7 +39,7 @@ class ProjectReader(
     ) : this(net.artisanmc.plugin.project.ProjectRoots(projectsRoot), logger, declaredModels)
 
     private val mapper = ObjectMapper(YAMLFactory()).registerKotlinModule()
-    private val menuSchemas = SchemaRegistry<MenuYaml>().apply { register(MenuV1ToV2()) }
+    private val menuSchemas = SchemaRegistry<MenuYaml>().apply { register(MenuV1ToV2()); register(MenuV2ToV3()) }
 
     /**
      * Verify the YAML's `schema` field is either empty (legacy / pre-versioning)
@@ -177,9 +177,9 @@ class ProjectReader(
             val f = File(projectDir, "menus/$menuId.yaml").takeIf { it.exists() } ?: return@mapNotNull null
             runCatching {
                 val menuYaml = withFileId(mapper.readValue(f, MenuYaml::class.java), menuId, f)
-                requireSchema(f, menuYaml.schema, if (menuYaml.schema == "menu/v1") "menu/v1" else "menu/v2")
-                val currentMenu = if (menuYaml.schema == "menu/v1")
-                    menuSchemas.loadToCurrent(menuYaml, "menu/v2") { it.schema }
+                requireSchema(f, menuYaml.schema, if (menuYaml.schema in listOf("menu/v1", "menu/v2")) menuYaml.schema else "menu/v3")
+                val currentMenu = if (menuYaml.schema != "menu/v3")
+                    menuSchemas.loadToCurrent(menuYaml, "menu/v3") { it.schema }
                 else menuYaml
                 BundleCompiler.compile(
                     resolveTemplates(currentMenu, templates),

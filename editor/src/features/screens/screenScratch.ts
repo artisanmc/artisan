@@ -1,8 +1,9 @@
-import type { Project, ProjectId } from "@/domain/types";
 import { injectDeclaredModels } from "@/domain/dataModels";
+import type { Project, ProjectId } from "@/domain/types";
 import { transform } from "@/features/export/transform";
 import type { ConfigFile, ServerEditorScreen } from "@/lib/api/configScreens";
 import { projectFromFiles } from "@/schema/projectFromFiles";
+import { listModules } from "@artisan/editor-sdk";
 
 /**
  * Config screens edit a live working copy held in the account store under a
@@ -34,16 +35,21 @@ export function buildScratchProject(
   screen: ServerEditorScreen,
   files: ConfigFile[],
   declaredModels: Record<string, unknown>[],
+  contextFiles: ConfigFile[] = [],
 ): Project {
   const id = screenScratchId(screen.id);
   const base = `plugins/Artisan/projects/${id}`;
   const fileMap: Record<string, string> = {
-    [`${base}/manifest.yaml`]:
-      `schema: manifest/v1\nproject_id: ${id}\ndefault_lang: en\nlanguages: [en]\nfiles:\n  menus: []\n  commands: []\n`,
+    [`${base}/manifest.yaml`]: `schema: manifest/v1\nproject_id: ${id}\ndefault_lang: en\nlanguages: [en]\nfiles:\n  menus: []\n  commands: []\n`,
   };
+  for (const f of contextFiles) {
+    if (f.path.startsWith("items/") || f.path === ".artisan/editor.yaml")
+      fileMap[`${base}/${f.path}`] = f.content;
+  }
   for (const f of files) fileMap[`${base}/${f.path}`] = f.content;
   const project = projectFromFiles(id, fileMap, { name: screen.label });
   injectDeclaredModels(project, declaredModels);
+  for (const module of listModules()) module.migrateProject?.(project);
   return project;
 }
 

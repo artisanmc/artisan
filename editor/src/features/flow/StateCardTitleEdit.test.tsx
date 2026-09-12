@@ -11,7 +11,7 @@ import { FlowCanvas } from "@/features/flow/FlowCanvas";
 import { useAccountStore } from "@/state/accountStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 
 const PACK_ID = "p_edit" as ProjectId;
@@ -66,6 +66,7 @@ describe("state card title editing reaches the store", () => {
     project.menus[0]!.contextInputs = [{ kind: "sourceRef", name: "catalog", ref: "pack:settings" }] as NonNullable<Project["menus"][number]["contextInputs"]>;
     useAccountStore.setState({ account: { projects: [project], projectOrder: [PACK_ID] } as Account });
     render(<FlowCanvas projectId={PACK_ID} />);
+    fireEvent.click(screen.getByRole("button", { name: /modifier l.item|edit item/i }));
     fireEvent.click(screen.getByRole("button", { name: /^(icon|icône)$/i }));
     fireEvent.click(screen.getByRole("button", { name: "catalog → icon" }));
     const appearance = () => useAccountStore.getState().account.projects[0]!.menus[0]!.layers[0]!.elements[0]!.display!;
@@ -75,11 +76,12 @@ describe("state card title editing reaches the store", () => {
     expect(count).toHaveAttribute("placeholder", "4");
     fireEvent.change(count, { target: { value: "2" } });
     expect(appearance().count).toBe(2);
-    fireEvent.click(screen.getByRole("button", { name: /restore inherited|revenir à la valeur/i }));
+    fireEvent.click(screen.getByRole("button", { name: /(?:restore inherited|revenir à la valeur).*\(count\)/i }));
     expect(appearance().count).toBeUndefined();
   });
   it("clears the template count to inherit the catalog icon quantity", () => {
     render(<FlowCanvas projectId={PACK_ID} />);
+    fireEvent.click(screen.getByRole("button", { name: /modifier l.item|edit item/i }));
     const input = screen.getByRole("spinbutton", { name: /count|quantité/i });
     fireEvent.change(input, { target: { value: "8" } });
     expect(
@@ -110,6 +112,7 @@ describe("state card title editing reaches the store", () => {
     "preserves material reference %s when entered in the editor",
     (material) => {
       render(<FlowCanvas projectId={PACK_ID} />);
+    fireEvent.click(screen.getByRole("button", { name: /modifier l.item|edit item/i }));
       fireEvent.change(screen.getByDisplayValue("ARROW"), { target: { value: material } });
       const project = useAccountStore.getState().account.projects[0]!;
       expect(project.menus[0]!.layers[0]!.elements[0]!.display!.material).toBe(material);
@@ -120,10 +123,11 @@ describe("state card title editing reaches the store", () => {
   it("typing writes the ACTIVE language (fallback text shown ≠ language written)", () => {
     useUiStore.setState({ activeLang: "en" });
     render(<FlowCanvas projectId={PACK_ID} />);
+    fireEvent.click(screen.getByRole("button", { name: /modifier l.item|edit item/i }));
     // The title field renders as a facade button first — activate it (the
     // element header shows the same text; only the RevealField facade is a
     // button, so click the button occurrence).
-    const facade = screen
+    const facade = within(screen.getByRole("dialog"))
       .getAllByText("§7Retour")
       .map((n) => n.closest("button"))
       .find((b) => b !== null)!;
@@ -144,7 +148,8 @@ describe("state card title editing reaches the store", () => {
   it("typing with the default language active edits it directly", () => {
     useUiStore.setState({ activeLang: "fr" });
     render(<FlowCanvas projectId={PACK_ID} />);
-    const facade = screen
+    fireEvent.click(screen.getByRole("button", { name: /modifier l.item|edit item/i }));
+    const facade = within(screen.getByRole("dialog"))
       .getAllByText("§7Retour")
       .map((n) => n.closest("button"))
       .find((b) => b !== null)!;
@@ -160,6 +165,7 @@ describe("state card title editing reaches the store", () => {
   it("shows the fallback variant of the title label when the active lang has no value", () => {
     useUiStore.setState({ activeLang: "en" });
     render(<FlowCanvas projectId={PACK_ID} />);
+    fireEvent.click(screen.getByRole("button", { name: /modifier l.item|edit item/i }));
     // The label must warn that the shown text is the fr fallback, not en.
     expect(screen.getByText(/fallback/i)).toBeTruthy();
   });

@@ -1,5 +1,6 @@
 import type { FrontendModule } from "@artisan/editor-sdk";
 import { boutiqueLocalRows } from "./localRows";
+import { migrateIcons } from "./migrateIcons";
 import { exportBoutiqueFiles } from "./state";
 
 /**
@@ -17,6 +18,7 @@ const boutiqueModule: FrontendModule = {
   routes: [],
   exportFiles: exportBoutiqueFiles,
   localPreviewRows: boutiqueLocalRows,
+  migrateProject: migrateIcons,
   dataSourceModels: { "boutique:items": "boutique:item", "boutique:categories": "boutique:category" },
 };
 
