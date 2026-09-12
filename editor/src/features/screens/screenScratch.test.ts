@@ -37,6 +37,12 @@ describe("screenScratchId", () => {
 });
 
 describe("buildScratchProject", () => {
+  it("loads captured item context without writing its files through the screen", () => {
+    const context = [{ path: "items/original.yaml", content: "type: DIAMOND_SWORD\namount: 3\n" }];
+    const project = buildScratchProject(screen, files, [model], context);
+    expect(project.capturedItems?.[0]?.display.count).toBe(3);
+    expect(diffScratchForWrite(project, screen, files).files.some(f => f.path.startsWith("items/"))).toBe(false);
+  });
   it("parses the table files into a project source with the declared model injected", () => {
     const project = buildScratchProject(screen, files, [model]);
     const src = project.dataSources.find((d) => d.id === ("categories" as DataSourceId));

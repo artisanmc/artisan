@@ -19,11 +19,13 @@
   "appearance": [
     "if",
     "item",
+    "extends",
     "material",
     "head",
     "count",
     "title",
     "lore",
+    "lore_mode",
     "click",
     "enchants",
     "enchanted",

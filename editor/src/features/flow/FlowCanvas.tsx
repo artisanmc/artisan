@@ -1,5 +1,6 @@
+import { ItemEditor } from "@/features/canvas/ItemEditor";
 import { PlaceholderInput } from "@/components/PlaceholderInput";
-import { RevealField } from "@/components/RevealField";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { usePlaceholderEntries } from "@/components/usePlaceholderEntries";
@@ -23,7 +24,7 @@ import type {
 } from "@/domain/types";
 import { MaterialPicker } from "@/features/canvas/MaterialPicker";
 import { useHeadPreviewUrl } from "@/features/canvas/useHeadPreviewUrl";
-import { buildPreviewScope, renderPreview } from "@/features/canvas/menuPreviewScope";
+import { buildPreviewScope } from "@/features/canvas/menuPreviewScope";
 import {
   type PlaceholderInfo,
   PlaceholderProvider,
@@ -56,7 +57,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { Wand2 } from "lucide-react";
 import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AdvancedItemSection } from "./AdvancedItemSection";
+
 import { ItemBindingEditor } from "./ItemBindingEditor";
 import { previewItem } from "@/features/canvas/itemValuePreview";
 import { useServerSnapshotsStore } from "@/state/serverSnapshotsStore";
@@ -65,13 +66,13 @@ import {
   DialogButtonStepPseudocode,
   ElementClickHandlersPseudocode,
 } from "./PseudocodeView";
-import { type HeadSource, buildHeadValue, headSourceOf, headValueOf } from "./headField";
+
 
 interface FlowCanvasProps {
   projectId: ProjectId;
 }
 
-const looksLikeMiniMessage = (s: string): boolean => s.includes("<");
+
 
 /**
  * Unified editor for the current selection. Routes by kind:
@@ -413,59 +414,7 @@ export function stateDropId(menuId: MenuId, elementId: ElementId, stateIndex: nu
  * holds the bare value. `buildHeadValue` re-detects pasted canonical values so
  * users can paste a full `hdb:…`/`eyJ…` and the select snaps to match.
  */
-export function HeadField({ head, onChange }: { head: string; onChange: (v: string) => void }) {
-  const { t } = useTranslation();
-  // Hold the user's chosen source locally so an empty head doesn't snap the
-  // select back to "none" mid-edit (which would unmount the value input and
-  // make the field unusable from a blank state). Seed from the head at mount
-  // (the use site remounts via a key per element/state, so this never leaks
-  // across cards). Derive from the stored value only when it's non-empty — that
-  // also keeps paste-auto-detection working.
-  const [localSource, setLocalSource] = useState<HeadSource>(() => headSourceOf(head));
-  const source = head ? headSourceOf(head) : localSource;
-  const placeholder =
-    source === "hdb"
-      ? t("flow.headPlaceholderHdb")
-      : source === "playerhead"
-        ? t("flow.headPlaceholderPlayer")
-        : t("flow.headPlaceholderBase64");
-  return (
-    <div>
-      <FieldLabel>{t("flow.headLabel")}</FieldLabel>
-      <div className="flex items-center gap-1.5">
-        <select
-          className="h-8 w-32 shrink-0 rounded border border-[var(--border-soft)] bg-[var(--surface-raised)] px-1.5 text-xs text-[var(--text)]"
-          value={source}
-          onChange={(e) => {
-            const next = e.target.value as HeadSource;
-            setLocalSource(next);
-            if (next === "none") onChange("");
-            else {
-              const rebuilt = buildHeadValue(next, headValueOf(head));
-              if (rebuilt !== head) onChange(rebuilt);
-            }
-          }}
-        >
-          <option value="none">{t("flow.headSourceNone")}</option>
-          <option value="hdb">{t("flow.headSourceHdb")}</option>
-          <option value="basehead">{t("flow.headSourceBase64")}</option>
-          <option value="playerhead">{t("flow.headSourcePlayer")}</option>
-        </select>
-        {source !== "none" ? (
-          <Input
-            value={headValueOf(head)}
-            placeholder={placeholder}
-            onChange={(e) => onChange(buildHeadValue(source, e.target.value))}
-            className="h-8 flex-1 px-2 py-0 font-mono text-xs"
-          />
-        ) : null}
-      </div>
-      {source === "hdb" ? (
-        <p className="mt-1 text-[10px] text-[var(--text-faint)]">{t("flow.headHdbHint")}</p>
-      ) : null}
-    </div>
-  );
-}
+export { HeadField } from "./ItemHeadField";
 
 interface StateMaterialIconProps {
   projectId: ProjectId;
@@ -615,7 +564,7 @@ function StateCard({
   const materialUrl = useTextureUrl(display.material);
   const textureUrl = useHeadPreviewUrl(appearance.head ?? display.head) ?? materialUrl;
   const title = getText(appearance.title);
-  const count = appearance.count ?? 1;
+
   const loreText = appearance.lore ? getText(appearance.lore) : "";
   const lore = loreText ? loreText.split("\n") : [];
 
@@ -630,20 +579,6 @@ function StateCard({
   const loreIsFallback = Boolean(
     appearance.lore && loreText !== "" && !inActiveLang(appearance.lore),
   );
-
-  // Local draft state — decoupled from the store so Enter doesn't jump the
-  // cursor. Resets to loreText when element/stateIndex changes or on blur.
-  const [loreDraft, setLoreDraft] = useState(loreText);
-  const [loreHasFocus, setLoreHasFocus] = useState(false);
-  const loreKey = `${element.id}-${stateIndex}`;
-  const prevLoreKeyRef = useRef(loreKey);
-  if (prevLoreKeyRef.current !== loreKey) {
-    prevLoreKeyRef.current = loreKey;
-    setLoreDraft(loreText);
-  }
-  useEffect(() => {
-    if (!loreHasFocus) setLoreDraft(loreText);
-  }, [loreText, loreHasFocus]);
 
   // Placeholder entries — computed once, shared by title and lore fields.
   const placeholderLocation = useMemo(
@@ -666,9 +601,9 @@ function StateCard({
     return { ...base, [iteration.alias]: list[0] };
   }, [project, menu, element.iterates, element.places, previewArgs, snapshots]);
   const linkedItem = appearance.item ?? (appearance.material?.startsWith("{") ? appearance.material : undefined);
-  const inheritedItem = project && linkedItem !== undefined ? previewItem({ item: linkedItem }, lorePreviewCtx, project, activeLang) : undefined;
+  const inheritedItem = project ? previewItem({ item: linkedItem ?? appearance.material }, lorePreviewCtx, project, activeLang) : { lore: [] };
 
-  const update = (field: "material" | "item" | "count" | "head", value: string | number | undefined) =>
+  const update = (field: "material" | "item" | "count" | "head" | "loreMode" | "title" | "lore", value: string | number | undefined) =>
     setAppearanceField({
       projectId,
       ...target,
@@ -839,19 +774,10 @@ function StateCard({
             ) : null}
           </div>
 
-          {project && <ItemBindingEditor project={project} menu={menu} element={element}
-            appearance={appearance} scope={lorePreviewCtx} lang={activeLang}
-            onSource={update}>
-            <div className="flex items-center gap-1.5">
-              <StateMaterialIcon projectId={projectId} menuId={menu.id} elementId={element.id}
-                stateIndex={stateIndex} material={material} textureUrl={textureUrl}
-                onPick={(picked) => update("material", picked)} />
-              <Input value={material} placeholder="DIAMOND" onChange={(e) => update("material", e.target.value)}
-                className="h-8 flex-1 px-2 py-0 font-mono text-xs" />
-            </div>
-          </ItemBindingEditor>}
-
-          {/* Captured item — offer to explode the ref into editable fields */}
+          {project && <ItemEditor
+            project={project}
+            onHead={value => update("head", value)}
+            details={<>          {/* Captured item — offer to explode the ref into editable fields */}
           {capturedDetails ? (
             <Button
               variant="ghost"
@@ -865,139 +791,33 @@ function StateCard({
             </Button>
           ) : null}
 
-          {/* Custom head — only meaningful when the material is a player_head */}
-          {material.toLowerCase() === "player_head" ? (
-            <HeadField
-              key={`${element.id}-${stateIndex}`}
-              head={appearance.head ?? ""}
-              onChange={(v) => update("head", v)}
-            />
-          ) : null}
-
-          {/* Title + count */}
-          <div className="flex items-start gap-2">
-            <div className="min-w-0 flex-1">
-              <FieldLabel>
-                {t(titleIsFallback ? "flow.titleLabelFallback" : "flow.titleLabel", {
-                  lang: activeLang,
-                })}
-              </FieldLabel>
-              <RevealField
-                value={title}
-                onChange={(v) => updateTitle(v)}
-                entries={placeholderEntries}
-                placeholder={t("flow.titlePlaceholder")}
-                onActivate={() => setSub({ kind: "state", stateIndex })}
-                className="h-8 px-2 py-0 text-xs"
-                facade={
-                  <MiniMessageInline
-                    source={
-                      project ? renderPreview(title, lorePreviewCtx, project, activeLang) : title
-                    }
-                    className="font-mono text-xs"
-                  />
-                }
-                preview={
-                  looksLikeMiniMessage(title) ? (
-                    <div className="mt-1 rounded border border-[var(--border-soft)] bg-[var(--surface-inset)] px-2 py-1">
-                      <span className="mr-2 text-[9px] text-[var(--text-faint)] uppercase">
-                        {t("menuProperties.preview")}
-                      </span>
-                      <MiniMessageInline source={title} className="font-mono text-xs" />
-                    </div>
-                  ) : null
-                }
-              />
+</>}
+            source={<ItemBindingEditor project={project} menu={menu} element={element}
+            appearance={appearance} scope={lorePreviewCtx} lang={activeLang}
+            onSource={update}>
+            <div className="flex items-center gap-1.5">
+              <StateMaterialIcon projectId={projectId} menuId={menu.id} elementId={element.id}
+                stateIndex={stateIndex} material={material} textureUrl={textureUrl}
+                onPick={(picked) => update("material", picked)} />
+              <Input value={material} placeholder="DIAMOND" onChange={(e) => update("material", e.target.value)}
+                className="h-8 flex-1 px-2 py-0 font-mono text-xs" />
             </div>
-            <div className="w-20 shrink-0">
-              <FieldLabel>{t("flow.countLabel")}</FieldLabel>
-              <Input
-                type="number"
-                min={1}
-                max={64}
-                value={appearance.count ?? ""}
-                placeholder={String(inheritedItem?.count ?? count)}
-                aria-label={t("flow.countLabel")}
-                onChange={(e) => {
-                  if (e.target.value === "") {
-                    update("count", undefined);
-                    return;
-                  }
-                  const n = Number(e.target.value);
-                  if (!Number.isNaN(n) && n >= 1 && n <= 64) update("count", n);
-                }}
-                onFocus={() => setSub({ kind: "state", stateIndex })}
-                className="h-8 px-2 py-0 text-xs"
-              />
-              {inheritedItem && (appearance.count === undefined
-                ? <span className="text-[10px] text-[var(--text-faint)]">{t("itemBinding.fromCatalog")}</span>
-                : <button type="button" className="text-[10px] text-[var(--text-mut)] hover:text-[var(--text)]" onClick={() => update("count", undefined)} aria-label={t("itemBinding.reset")} title={t("itemBinding.reset")}>↺ {t("itemBinding.fromCatalog")}</button>)}
-            </div>
-          </div>
-
-          {/* Lore */}
-          <div>
-            <FieldLabel>
-              {t(loreIsFallback ? "flow.loreLabelFallback" : "flow.loreLabel", {
-                lang: activeLang,
-              })}
-            </FieldLabel>
-            <RevealField
-              multiline
-              rows={lore.length > 2 ? 4 : 2}
-              value={loreDraft}
-              onChange={(v) => {
-                setLoreDraft(v);
-                updateLore(v.replace(/\n+$/, ""));
-              }}
-              onActivate={() => {
-                setLoreHasFocus(true);
-                setSub({ kind: "state", stateIndex });
-              }}
-              onDeactivate={() => {
-                setLoreHasFocus(false);
-                const trimmed = loreDraft.replace(/\n+$/, "");
-                updateLore(trimmed);
-                setLoreDraft(trimmed);
-              }}
-              entries={placeholderEntries}
-              placeholder={t("flow.lorePlaceholder")}
-              className="min-h-0 px-2 py-1 text-xs"
-              facade={
-                project ? (
-                  <span className="flex flex-col gap-0.5">
-                    {lore.map((line, i) => (
-                      <MiniMessageInline
-                        // biome-ignore lint/suspicious/noArrayIndexKey: lines are stable per render
-                        key={i}
-                        source={renderPreview(line, lorePreviewCtx, project, activeLang)}
-                        className="font-mono text-xs"
-                      />
-                    ))}
-                  </span>
-                ) : (
-                  <span className="whitespace-pre-wrap font-mono text-xs">{loreText}</span>
-                )
-              }
-              preview={
-                lore.length > 0 && project ? (
-                  <div className="mt-1 flex flex-col gap-0.5 rounded border border-[var(--border-soft)] bg-[var(--surface-inset)] px-2 py-1">
-                    <span className="text-[9px] text-[var(--text-faint)] uppercase">
-                      {t("menuProperties.preview")}
-                    </span>
-                    {lore.map((line, i) => (
-                      <MiniMessageInline
-                        // biome-ignore lint/suspicious/noArrayIndexKey: lines are stable per render
-                        key={i}
-                        source={renderPreview(line, lorePreviewCtx, project, activeLang)}
-                        className="font-mono text-xs"
-                      />
-                    ))}
-                  </div>
-                ) : null
-              }
-            />
-          </div>
+          </ItemBindingEditor>}
+            appearance={appearance} inherited={inheritedItem}
+            preview={previewItem(appearance, lorePreviewCtx, project, activeLang)}
+            title={appearance.title ? title : undefined}
+            lore={appearance.lore ? (appearance.loreMode === "replace" ? loreText : ("{base.lore}" + (loreText ? "\n" + loreText : ""))) : undefined}
+            titleLabel={t(titleIsFallback ? "flow.titleLabelFallback" : "flow.titleLabel", { lang: activeLang })}
+            loreLabel={t(loreIsFallback ? "flow.loreLabelFallback" : "flow.loreLabel", { lang: activeLang })}
+            entries={placeholderEntries} onFocus={() => setSub({ kind: "state", stateIndex })}
+            onText={(field, value) => {
+              if (value === undefined) { update(field, undefined); return; }
+              if (field === "title") updateTitle(value);
+              else { update("loreMode", "replace"); updateLore(value); }
+            }}
+            onCount={value => update("count", value)}
+            onAdvanced={patch => setAppearanceAdvanced({ projectId, ...target, appearanceIndex: stateIndex, patch })}
+          />}
 
           {/* Visibility conditions */}
           <div className="overflow-x-auto">
@@ -1026,17 +846,6 @@ function StateCard({
               }
             />
           </div>
-
-          {/* Advanced details — enchants, glint, CMD, unbreakable, hide, tint, NBT */}
-          <AdvancedItemSection
-            appearance={appearance}
-            material={inheritedItem?.material ?? display.material}
-            inheritedEnchants={inheritedItem?.enchants}
-            onFocus={() => setSub({ kind: "state", stateIndex })}
-            onChange={(patch) =>
-              setAppearanceAdvanced({ projectId, ...target, appearanceIndex: stateIndex, patch })
-            }
-          />
 
           {/* Click handlers — nested inside the focused state so the
           ownership is obvious (these handlers belong to *this* state). */}

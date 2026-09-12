@@ -7,6 +7,11 @@ const good = {
 };
 
 describe("validateMenuV1 (backend gate)", () => {
+  it("accepts explicit lore replacement in menu v3", () => {
+    expect(validateMenuV1({ schema: "menu/v3", id: "shop", title: [], size: 9, elements: [
+      { id: "product", positions: "0", item: "{item.icon}", lore_mode: "replace", lore: ["{base.lore}", "Price"] },
+    ] }).valid).toBe(true);
+  });
   it("accepts explicit item bindings in v2 and rejects conflicting material", () => {
     const menu = { ...good, schema: "menu/v2", elements: [{ id: "icon", positions: "0", item: "{item.icon}" }] };
     expect(validateMenuV1(menu)).toEqual({ valid: true, errors: [] });

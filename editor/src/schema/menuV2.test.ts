@@ -35,4 +35,14 @@ describe("explicit menu item binding", () => {
     expect(validateMenuV1(both).valid).toBe(false);
     expect(validateMenuV1({ ...wire, schema: "menu/v1" }).valid).toBe(false);
   });
+  it("round-trips explicit lore replacement and clearing in v3", () => {
+    const v3 = { ...wire, schema: "menu/v3", layers: [{ ...wire.layers[0], elements: [{ id: "icon", positions: "0", item: "{item.icon}", lore_mode: "replace", lore: [] }] }] };
+    expect(validateMenuV1(v3)).toEqual({ valid: true, errors: [] });
+    const { menu, i18nKeys } = menuV1ToDomain(v3, { projectId: "p" as ProjectId, lang: "en" });
+    const project = { id: "p", defaultLang: "en", i18nKeys } as Project;
+    expect(menu.layers[0]!.elements[0]!.display!.loreMode).toBe("replace");
+    const result = serializeMenuToV1(menu, project);
+    expect(result).toMatchObject({ schema: "menu/v3", elements: [{ lore_mode: "replace" }] });
+    expect(validateMenuV1(result).valid).toBe(true);
+  });
 });

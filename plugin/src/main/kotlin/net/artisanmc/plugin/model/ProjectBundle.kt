@@ -221,6 +221,8 @@ class ElementYamlDeserializer : StdDeserializer<ElementYaml>(ElementYaml::class.
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class AppearanceYaml(
+    val extends: Any? = null,
+    @JsonProperty("lore_mode") val loreMode: String? = null,
     val item: String? = null,
     val material: String? = null,
     val head: String? = null,
@@ -466,6 +468,16 @@ data class BundleDataSource(
         // Explicit key wins (legacy form); then the canonical ADDRESS (bare
         // form — the value is the default language's literal); else literal.
         field.kind == "ltext" -> (v as? String)?.let { lang[it] ?: lang[base] ?: it } ?: v
+        field.kind == "item" && v is Map<*, *> -> v.entries.associate { (key, value) ->
+            val name = key.toString()
+            val type = when (name) {
+                "title" -> DataFieldYaml(kind = "ltext")
+                "lore" -> if (value is List<*>) DataFieldYaml(kind = "list", of = DataFieldYaml(kind = "ltext")) else DataFieldYaml(kind = "ltext")
+                "extends" -> DataFieldYaml(kind = "item")
+                else -> null
+            }
+            name to localizeValue(value, type, lang, "$base.$name")
+        }
         field.kind == "list" && v is List<*> -> v.mapIndexed { i, el ->
             localizeValue(el, field.of, lang, if (i == 0) base else "${base}_${i + 1}")
         }

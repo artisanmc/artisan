@@ -39,6 +39,20 @@ const parseEditorState = (files: Record<string, string>) => {
 };
 
 describe("transform", () => {
+  it("exports localized presentation inside an extended item as text and translation addresses", () => {
+    const project = makeProject({
+      i18nKeys: { iconTitle: { en: "{item.name}", fr: "Article {item.name}" }, iconLore: { en: "{base.lore}\nRare", fr: "{base.lore}\nPrécieux" } } as never,
+      dataSources: [{ id: "settings", name: "settings", shape: "config", fields: [{ name: "icon", type: { kind: "item" } }], value: {
+        icon: { extends: "item:sword", title: { key: "iconTitle" }, lore: { key: "iconLore" } },
+      } }] as never,
+    });
+    const result = { files: transform(project) };
+    expect(result.files["plugins/Artisan/projects/p_test/data/settings.yaml"]).toContain("{base.lore}");
+    expect(result.files["plugins/Artisan/projects/p_test/data/settings.yaml"]).not.toContain("iconLore");
+    expect(flattenLangTree(parse(result.files["plugins/Artisan/projects/p_test/lang/fr.yaml"]!))).toMatchObject({
+      "sources.settings.icon.title": "Article {item.name}", "sources.settings.icon.lore": "{base.lore}\nPrécieux",
+    });
+  });
   it("emits manifest.yaml with menu and command ids", () => {
     const project = makeProject({
       menus: [

@@ -23,18 +23,18 @@ export function ItemBindingEditor({
   children,
 }: {
   project: Project;
-  menu: Menu;
-  element: Element;
+  menu?: Menu;
+  element?: Element;
   appearance: Appearance;
   scope: Record<string, unknown>;
   lang: string;
   onSource: (field: "material" | "item", value: string) => void;
-  children: ReactNode;
+  children?: ReactNode;
 }) {
   const { t } = useTranslation();
   const sources = useServerDataSourcesStore((s) => s.sources);
   const models = Object.assign({}, ...listModules().map((m) => m.dataSourceModels ?? {}));
-  const options = itemBindingOptions(project, menu, element, sources, models);
+  const options = menu && element ? itemBindingOptions(project, menu, element, sources, models) : [];
   const binding =
     appearance.item ?? (appearance.material?.startsWith("{") ? appearance.material : undefined);
   const resolved = previewItem(appearance, scope, project, lang);

@@ -208,6 +208,7 @@ function serializeAppearance(app: Appearance, project: Project): Record<string, 
   const t = textSerializer(project);
   if (app.title) out.title = t(app.title.key);
   if (app.lore) out.lore = [t(app.lore.key)];
+  if (app.loreMode) { out.lore_mode = app.loreMode; if (!app.lore) out.lore = []; }
   if (app.click) {
     const clickOut: Record<string, unknown> = {};
     for (const [clickType, handler] of Object.entries(app.click)) {
@@ -502,7 +503,7 @@ export function serializeMenuToV1(
   const type = menu.inventoryType ?? "chest";
   const t = textSerializer(project);
   const out: Record<string, unknown> = {
-    schema: menu.layers.some((l) => l.elements.some((e) => [e.display, ...e.states].some((a) => a?.item !== undefined))) ? "menu/v2" : "menu/v1",
+    schema: menu.layers.some((l) => l.elements.some((e) => [e.display, ...e.states].some((a) => a?.loreMode !== undefined))) ? "menu/v3" : menu.layers.some((l) => l.elements.some((e) => [e.display, ...e.states].some((a) => a?.item !== undefined))) ? "menu/v2" : "menu/v1",
     id: menu.id,
     // Canonical sugar: a title that is exactly one uncolored plain layer
     // serializes to a bare string.
@@ -833,6 +834,17 @@ function serializeDataValue(
   i18n: DataI18nCtx,
 ): unknown {
   switch (type.kind) {
+    case "item": {
+      const map = (v: unknown): unknown => {
+        if (Array.isArray(v)) return v.map(map);
+        if (v && typeof v === "object") {
+          if ("key" in v) return i18n.keys[String(v.key)]?.[i18n.defaultLang] ?? "";
+          return Object.fromEntries(Object.entries(v).map(([k,x]) => [k, map(x)]));
+        }
+        return v;
+      };
+      return map(value);
+    }
     case "ltext": {
       if (typeof value !== "object" || value === null || !("key" in value)) return "";
       const key = String((value as { key: unknown }).key);

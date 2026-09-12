@@ -12,6 +12,7 @@ import type {
   Project,
 } from "@/domain/types";
 import { ItemValueField } from "@/features/canvas/ItemValueField";
+import { resolveRowTexts } from "@/features/canvas/menuPreviewScope";
 import { ConditionListEditor } from "@/features/canvas/properties/ConditionListEditor";
 import { ActionFieldEditor } from "@/features/data/ActionFieldEditor";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
@@ -300,8 +301,13 @@ export function ValueEditor({
           aria-label={String(path[path.length - 1])}
         />
       );
-    case "item":
-      return <ItemValueField projectId={projectId} value={value} onChange={set} />;
+    case "item": {
+      const source = project.dataSources?.find(s => s.id === sourceId);
+      const root = source?.shape === "table" && row !== null ? source.rows[row] : source?.shape === "config" ? source.value : {};
+      const owner = path.slice(0, -1).reduce<unknown>((obj, key) => obj && typeof obj === "object" ? (obj as Record<string | number, unknown>)[key] : undefined, root);
+      const current = resolveRowTexts([owner as Record<string, unknown> ?? {}], project)[0];
+      return <ItemValueField projectId={projectId} value={value} onChange={set} scope={{ item: current }} />;
+    }
     case "actions":
       return (
         <ActionFieldEditor

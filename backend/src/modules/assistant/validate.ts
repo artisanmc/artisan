@@ -3,6 +3,7 @@ import addFormats from "ajv-formats";
 import commandSchema from "../../../../docs/schema/command/v1/schema.json";
 import dialogSchema from "../../../../docs/schema/dialog/v1/schema.json";
 import schema from "../../../../docs/schema/menu/v1/schema.json";
+import schemaV3 from "../../../../docs/schema/menu/v3/schema.json";
 import schemaV2 from "../../../../docs/schema/menu/v2/schema.json";
 import { validateMenuLayout } from "../../../../docs/schema/menu/v1/types";
 // Action DSL codec (Phase 2 of ADR action-dsl): click-handler / command steps /
@@ -147,7 +148,7 @@ function collectVocabErrors(menu: Json): string[] {
 
 /** Gate éditeur (ajv + validateMenuLayout) + contrainte de vocab du sous-ensemble assistant. */
 export function validateMenuV1(menu: unknown): MenuV1ValidationResult {
-  const validate = (menu as { schema?: string } | null)?.schema === "menu/v2" ? validateStructV2 : validateStruct;
+  const validate = (menu as { schema?: string } | null)?.schema === "menu/v3" ? ajv.compile(schemaV3) : (menu as { schema?: string } | null)?.schema === "menu/v2" ? validateStructV2 : validateStruct;
   const ok = validate(menu) as boolean;
   const structErrors = (validate.errors ?? []).map(
     (e) => `${e.instancePath || "/"} ${e.message ?? ""}`.trim(),
@@ -155,9 +156,12 @@ export function validateMenuV1(menu: unknown): MenuV1ValidationResult {
   let layoutErrors: string[] = [];
   let vocabErrors: string[] = [];
   if (ok) {
-    // validateMenuLayout reads size/layers/context_inputs of a menu/v1 object.
-    layoutErrors = validateMenuLayout(menu as never).errors;
-    vocabErrors = collectVocabErrors(menu as Json);
+    const wire = menu as Json;
+    const layered = Array.isArray(wire.elements)
+      ? { ...wire, layers: [{ id: "default", name: "default", elements: wire.elements }] }
+      : wire;
+    layoutErrors = validateMenuLayout(layered as never).errors;
+    vocabErrors = collectVocabErrors(layered);
   }
   const errors = [...structErrors, ...layoutErrors, ...vocabErrors];
   return { valid: errors.length === 0, errors };

@@ -513,7 +513,7 @@ interface AccountState {
     input: {
       projectId: ProjectId;
       appearanceIndex?: number;
-      field: "count" | "material" | "head" | "item";
+      field: "count" | "material" | "head" | "item" | "loreMode" | "title" | "lore";
       value: string | number | undefined;
     } & AppearanceTarget,
   ) => void;
@@ -2700,7 +2700,13 @@ export const useAccountStore = create<AccountState>()(
             if (!project) return;
             const appearance = findAddressedAppearance(project, input, appearanceIndex);
             if (!appearance) return;
-            if (field === "count") {
+            if (field === "title" || field === "lore") {
+              if (value !== undefined) return;
+              appearance[field] = undefined;
+              if (field === "lore") appearance.loreMode = undefined;
+            } else if (field === "loreMode") {
+              appearance.loreMode = value === "replace" ? "replace" : undefined;
+            } else if (field === "count") {
               if (value === undefined || value === "") {
                 appearance.count = undefined;
               } else {
@@ -3478,7 +3484,10 @@ export const useAccountStore = create<AccountState>()(
             if (!project) return;
             const appearance = findAddressedAppearance(project, input, appearanceIndex);
             if (!appearance) return;
-            if (!appearance.lore) {
+            if (appearance.loreMode === "replace") {
+              if (!appearance.lore) appearance.lore = createLTextAt(project, appearanceLoreKeyFor(input, appearanceIndex), value, lang);
+              else setLText(project, appearance.lore, lang, value);
+            } else if (!appearance.lore) {
               appearance.lore = value
                 ? createLTextAt(project, appearanceLoreKeyFor(input, appearanceIndex), value, lang)
                 : undefined;

@@ -102,7 +102,7 @@ function ownedSourceRows(project: Project, ref: string): unknown[] | null {
 }
 
 /** Resolve every LText node of a row list to text in the active language. */
-function resolveRowTexts<T>(rows: T[], project: Project): T[] {
+export function resolveRowTexts<T>(rows: T[], project: Project): T[] {
   const lang = useUiStore.getState().activeLang || project.defaultLang;
   return rows.map((r) => resolveLTexts(r, project, lang) as T);
 }

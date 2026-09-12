@@ -73,11 +73,12 @@ describe("SourceRowsTable", () => {
     p.dataModels![0]!.fields.push({ name: "icon", type: { kind: "item" } });
     tableSource().rows[0]!.icon = "DIAMOND_SWORD";
     const view = render(<SourceRowsTable projectId={PID} project={p} source={tableSource()} />);
+    fireEvent.click(screen.getByRole("button", { name: /modifier l.item|edit item/i }));
     fireEvent.click(screen.getByRole("button", { name: /paramètres avancés/i }));
     fireEvent.click(screen.getByRole("button", { name: /ajouter un enchantement/i }));
     view.rerender(<SourceRowsTable projectId={PID} project={project()} source={tableSource()} />);
     fireEvent.change(screen.getByPlaceholderText("sharpness"), { target: { value: "sharpness" } });
-    expect(tableSource().rows[0]!.icon).toEqual({ material: "DIAMOND_SWORD", enchants: { sharpness: 1 } });
+    expect(tableSource().rows[0]!.icon).toEqual({ extends: "DIAMOND_SWORD", enchants: { sharpness: 1 } });
   });
   it("edits an icon quantity without losing its material or enchantments", () => {
     const p = project();
@@ -88,12 +89,13 @@ describe("SourceRowsTable", () => {
       enchants: { sharpness: 5 },
     };
     render(<SourceRowsTable projectId={PID} project={p} source={tableSource()} />);
+    fireEvent.click(screen.getByRole("button", { name: /modifier l.item|edit item/i }));
     expect(screen.getByDisplayValue("DIAMOND_SWORD")).toBeInTheDocument();
     fireEvent.change(screen.getByRole("spinbutton", { name: /count|quantité/i }), {
       target: { value: "8" },
     });
     expect(tableSource().rows[0]!.icon).toEqual({
-      material: "DIAMOND_SWORD",
+      extends: "DIAMOND_SWORD",
       count: 8,
       enchants: { sharpness: 5 },
     });

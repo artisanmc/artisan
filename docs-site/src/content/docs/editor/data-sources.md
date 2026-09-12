@@ -56,7 +56,12 @@ Quantity and enchantments show their catalogue values. Edit them in their usual 
 This writes `item: "{item.icon}"` in `menu/v2`. Existing `material: "{item.icon}"` templates remain readable.
 The complete icon supplies its quantity and attributes; an explicit template count overrides it, including `1`.
 Clear the template's quantity field to inherit the icon's quantity.
-The template title replaces the icon's name and its lore is appended to the icon's lore.
+The catalogue and menu share the same item widget. A compact card shows the thumbnail, title, quantity, lore and enchantments. Click it to open a dialog for the source, title, lore, quantity, custom head and advanced attributes. **Done**, the close button or Escape closes the dialog; the card stays in place and reflects your edits. Edits use the screen's usual Save action. Unset fields inherit; the reset arrow restores inheritance when a source value exists.
+Catalogue icon text can use the current product's data, such as `{item.name}` and `{item.price}`. Each extension reads its immediate source with `{base.title}` and `{base.lore}`.
+Editing lore replaces it. **Insert source lore** inserts `{base.lore}` to keep the source's lines; add lines above or below, for example `{item.price_display}` at the end. The button appears only when the source has lore, and inherited labels appear only for fields with a source value. An explicitly empty lore removes inherited lines. This supports captured item → catalogue icon → menu template without copying the captured item.
+Explicit lore overrides use `menu/v3`. Boutique moves legacy product lore into the icon, including when opening the catalogue without its menus. The separate product lore field disappears. Loaded templates replace `{item.lore}` with `{base.lore}`; older templates still work after a catalogue-only save. The complete source lore is inserted at that position once, including any captured lore.
+Live catalogue screens edit item text in the file's default language; project editing supports translations.
+Their captured-item picker reads the owning project's existing captures. Create or delete captures in the project's Library; catalogue saves only update the catalogue files.
 Material fields preserve expression and custom-reference casing when typing or pasting.
 Boutique previews resolve localized lore before assembling its lines and use the catalogue's configured price display format, including discounts.
 

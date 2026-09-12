@@ -1,3 +1,4 @@
+import { itemTextFields } from "./itemTextFields";
 import { createLTextAt, deleteLText } from "@/lib/i18n";
 import {
   commandKeyPrefix,
@@ -247,6 +248,11 @@ function* visitModelValueLTexts(
   visited: Set<DataModelId>,
 ): Generator<LTextSite> {
   switch (type.kind) {
+    case "item": {
+      const obj = value as Record<string, unknown>;
+      for (const field of itemTextFields(value)) yield* visitModelValueLTexts(obj[field.name], field.type, base + "." + field.name, models, visited);
+      return;
+    }
     case "ltext":
       if (isLTextNode(value)) {
         yield { lText: value, key: base as I18nKey, path: base, kind: "sourceField" };
@@ -389,6 +395,12 @@ export function adoptBareLTexts(project: Project, ds: DataSource): void {
     visited: Set<DataModelId>,
   ): unknown => {
     switch (type.kind) {
+      case "item": {
+        if (!value || typeof value !== "object" || Array.isArray(value)) return value;
+        const obj = { ...value } as Record<string, unknown>;
+        for (const field of itemTextFields(value)) obj[field.name] = adopt(obj[field.name], field.type, base + "." + field.name, visited);
+        return obj;
+      }
       case "ltext": {
         if (isLTextNode(value)) return value;
         const s = typeof value === "string" ? value : "";

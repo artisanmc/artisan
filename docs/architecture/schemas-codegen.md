@@ -15,6 +15,10 @@ Les types ne sont **pas générés** — ils sont **écrits à la main** dans le
 
 ## Enforcement
 
+`menu/v3` ajoute `lore_mode: replace` aux apparences. Sans ce champ, l'ajout historique reste inchangé, y compris après `MenuV2ToV3` (migration en mémoire). L'export choisit v3 dès qu'une surcharge utilise ce mode ; lecteurs et validateurs acceptent v1/v2/v3. Les valeurs de données `item` composent récursivement `{ extends: <ref ou item>, title?, lore?, count?, ... }` : champs absents hérités, lore explicite remplacé. `{base.title}`, `{base.lore}`, `{base.count}` et `{base.material}` désignent la base immédiatement résolue. Un lore vide efface le lore hérité ; la résolution est bornée à 32 niveaux.
+
+Dans un champ de modèle `item`, `title` et `lore` sont des sites i18n, y compris sous `extends`. `itemTextFields.ts` définit les sites parcourus à l'import et au rekey ; l'export écrit les littéraux de la langue par défaut et les traductions à leurs adresses canoniques.
+
 `menu/v2` ajoute `Appearance.item` (liaison vers un item complet), exclusif de `material`. Schéma et types : `docs/schema/menu/v2/`. L'export choisit v2 seulement si une apparence utilise cette liaison ; les validateurs éditeur/backend acceptent v1 et v2. `MenuV1ToV2`, enregistré dans le registre du lecteur plugin, conserve le contenu v1 en mémoire ; aucune réécriture automatique sur disque. Tests : `menuV2.test.ts`, `MenuV1ToV2Test` et `MenuRendererItemValueTest`.
 
 La cohérence types ↔ schéma n'est **pas** garantie par codegen mais par validation :
