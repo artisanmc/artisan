@@ -51,7 +51,7 @@ A Table is backed by a **model**: the list of fields each row has. Add fields wi
 - **actions** — a chain of actions and conditions (e.g. what happens when a player buys a row), authored visually or as compact text — see [Action fields](#action-fields--the-action-dsl) below,
 - **list**, **object**, **model** — nested structures (e.g. a `perks` list of localized text for variable-length lore).
 
-In a menu template, click **Icon** and choose **Product icon** or **Category icon** under **Catalogue**. Choose a fixed item under **Library** instead when needed. Manual expressions remain under **Advanced expression**.
+In a menu template, click **Icon** and choose a field path such as `item.icon` or `cat.icon` under **Catalogue**. Paths use the aliases defined in your menu and are displayed without translation. Choose a fixed item under **Library** instead when needed. Manual expressions remain under **Advanced expression**.
 Quantity and enchantments show their catalogue values. Edit them in their usual fields, or use the reset control to restore inheritance.
 This writes `item: "{item.icon}"` in `menu/v2`. Existing `material: "{item.icon}"` templates remain readable.
 The complete icon supplies its quantity and attributes; an explicit template count overrides it, including `1`.
