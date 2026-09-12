@@ -54,6 +54,7 @@ describe("boutiqueLocalRows", () => {
       category: "weapons",
       price: 100,
       final_price: 80,
+      price_display: "&m100 &f80 tokens (-20%)",
       lore: "Tranchante\nRare",
     });
   });
@@ -82,7 +83,14 @@ describe("rows derived from the project's files", () => {
             icon: "item:ci_les_cles",
             discount: 10,
             items: [
-              { id: "cle", name: "Clé", icon: "item:ci_cle", price: 500, discount: 0, lore: ["a", "b"] },
+              {
+                id: "cle",
+                name: "Clé",
+                icon: "item:ci_cle",
+                price: 500,
+                discount: 0,
+                lore: ["a", "b"],
+              },
             ],
           },
         ],
@@ -92,9 +100,12 @@ describe("rows derived from the project's files", () => {
   };
 
   it("derives categories", () => {
-    expect(boutiqueLocalRows(project, "boutique:categories")).toEqual([
+    expect(boutiqueLocalRows(project, "boutique:categories")).toMatchObject([
       { id: "les_cles", name: "Les Clés", icon: "item:ci_les_cles", discount: 10 },
     ]);
+    expect(boutiqueLocalRows(project, "boutique:categories")![0]!.items).toEqual(
+      boutiqueLocalRows(project, "boutique:items"),
+    );
   });
 
   it("flattens items and prices them like the plugin", () => {
@@ -102,11 +113,28 @@ describe("rows derived from the project's files", () => {
     expect(rows).toHaveLength(1);
     // 500 * (1 - (20 whole + 10 category + 0 item)/100) = 350
     expect(rows[0]).toMatchObject({
-      id: "cle", category: "les_cles", price: 500, final_price: 350, lore: "a\nb",
+      id: "cle",
+      category: "les_cles",
+      price: 500,
+      final_price: 350,
+      lore: "a\nb",
     });
   });
 
   it("returns null for a project with no catalogue at all", () => {
     expect(boutiqueLocalRows({ dataSources: [] }, "boutique:items")).toBeNull();
+  });
+
+  it("uses the configured discount price format", () => {
+    const configured = structuredClone(project);
+    configured.dataSources[1]!.value = {
+      whole_shop_discount: 20,
+      placeholders: {
+        discount_price_display: "%old_price% → %price% jetons (-%discount_percent%%)",
+      },
+    } as (typeof configured.dataSources)[1]["value"];
+    expect(boutiqueLocalRows(configured, "boutique:items")![0]!.price_display).toBe(
+      "500 → 350 jetons (-30%)",
+    );
   });
 });

@@ -7,6 +7,7 @@ export function itemBindingOptions(
   menu: Menu,
   element: Element,
   serverSources: ServerDataSource[] = [],
+  sourceModels: Record<string, string> = {},
 ): string[] {
   const models = project.dataModels ?? [];
   const expand = (type: ModelFieldType | undefined): ModelFieldType | undefined =>
@@ -14,6 +15,8 @@ export function itemBindingOptions(
       ? { kind: "object", fields: models.find((m) => m.id === type.ref)?.fields ?? [] }
       : type;
   const source = (ref: string): ModelFieldType | undefined => {
+    const declared = models.find((m) => m.id === sourceModels[ref]);
+    if (declared) return { kind: "list", of: { kind: "model", ref: declared.id } };
     const id = ref.startsWith(`${project.ownerModule}:`)
       ? ref.slice(ref.indexOf(":") + 1)
       : ref.replace(/^pack:/, "");
