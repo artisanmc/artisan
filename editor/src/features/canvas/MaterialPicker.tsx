@@ -14,6 +14,8 @@ import { CapturedItemsSection } from "./CapturedItemsSection";
 import { getTextureUrl, useTextureStore } from "./textureStore";
 
 interface MaterialPickerProps {
+  dataItems?: { value: string; label: string }[];
+  onPickData?: (value: string) => void;
   /** Trigger element rendered by the consumer (a small icon button typically). */
   trigger: React.ReactNode;
   onPick: (material: string) => void;
@@ -29,16 +31,23 @@ interface MaterialPickerProps {
  * `projectId`, a second tab offers the project's captured items + the
  * inventory-mirror capture flow.
  */
-export function MaterialPicker({ trigger, onPick, projectId }: MaterialPickerProps) {
+export function MaterialPicker({
+  trigger,
+  onPick,
+  projectId,
+  dataItems,
+  onPickData,
+}: MaterialPickerProps) {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<"items" | "captured">("items");
   const [search, setSearch] = useState("");
   const libraryItems = useTextureStore((s) => s.libraryItems);
   const customItems = useTextureStore((s) => s.libraryCustomData.items);
   const allItems = [...libraryItems, ...customItems];
-  const filtered = allItems.filter((item) =>
-    item.id.toLowerCase().includes(search.toLowerCase()) ||
-    item.label.toLowerCase().includes(search.toLowerCase()),
+  const filtered = allItems.filter(
+    (item) =>
+      item.id.toLowerCase().includes(search.toLowerCase()) ||
+      item.label.toLowerCase().includes(search.toLowerCase()),
   );
   const { t } = useTranslation();
 
@@ -57,6 +66,25 @@ export function MaterialPicker({ trigger, onPick, projectId }: MaterialPickerPro
         <DialogHeader>
           <DialogTitle className="text-base">{t("materialPicker.title")}</DialogTitle>
         </DialogHeader>
+        {dataItems && dataItems.length > 0 && (
+          <div className="flex flex-col gap-1 border-b border-[var(--border-soft)] pb-3">
+            <span className="field-label">{t("itemBinding.catalog")}</span>
+            {dataItems.map((entry) => (
+              <button
+                key={entry.value}
+                type="button"
+                className="btn btn-ghost justify-start text-sm"
+                onClick={() => {
+                  onPickData?.(entry.value);
+                  setOpen(false);
+                }}
+              >
+                {entry.label}
+              </button>
+            ))}
+          </div>
+        )}
+        {dataItems && <span className="field-label">{t("itemBinding.library")}</span>}
         {projectId ? (
           <div className="flex gap-1">
             <button
@@ -93,7 +121,12 @@ export function MaterialPicker({ trigger, onPick, projectId }: MaterialPickerPro
             </div>
             <div className="grid min-h-0 flex-1 content-start grid-cols-6 gap-1.5 overflow-y-auto pb-2 sm:grid-cols-8">
               {filtered.map((item) => (
-                <Tile key={item.id} name={item.id} label={item.label} onClick={() => pick(item.id)} />
+                <Tile
+                  key={item.id}
+                  name={item.id}
+                  label={item.label}
+                  onClick={() => pick(item.id)}
+                />
               ))}
               {filtered.length === 0 && (
                 <div className="col-span-6 py-4 text-center text-xs text-[var(--text-faint)] sm:col-span-8">

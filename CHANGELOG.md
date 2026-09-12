@@ -13,6 +13,7 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 - Item model fields support quantity and advanced attributes. The displayed-item editor offers typed data bindings with inherited previews and quantity overrides; material inputs preserve expression casing.
 - Add `FieldKind.ITEM` and explicit `menu/v2` item bindings, retaining compatibility with legacy material expressions.
+- Simplify icon selection into Catalogue and Library choices with inline inherited attributes. Resolve localized Boutique lore before joining its lines and preview the configured price display, including discounts.
 
 ### Added — backend Project drafts
 

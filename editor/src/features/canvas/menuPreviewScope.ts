@@ -29,13 +29,14 @@ export function moduleLocalRows(
   for (const mod of listModules()) {
     const fn = mod.localPreviewRows;
     if (!fn) continue;
-    const own = fn(project, r);
+    const forPreview = (p: Project) => ({ ...p, dataSources: resolveLTexts(p.dataSources, p, useUiStore.getState().activeLang || p.defaultLang) });
+    const own = fn(forPreview(project), r);
     if (own) return own;
     // Lazy import avoided: accountStore never imports this module (no cycle).
     for (const sibling of useAccountStore.getState().account.projects) {
       if (sibling.id === project.id) continue;
-      const rows = fn(sibling, r);
-      if (rows) return rows;
+      const rows = fn(forPreview(sibling), r);
+      if (rows) return resolveRowTexts(rows, sibling);
     }
   }
   return null;

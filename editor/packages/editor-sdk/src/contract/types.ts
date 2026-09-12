@@ -32,7 +32,10 @@ export interface FrontendModule {
    * update LIVE while editing the module's form, before any deploy. Return
    * null when the ref isn't this module's or the project holds no data for it
    * (the host then falls back to the live server snapshot). Must mirror the
-   * plugin fetcher's row shape.
+   * plugin fetcher's row shape. The host resolves localized values in the
+   * project's dataSources before calling this hook, using the preview language.
    */
   localPreviewRows?: (project: unknown, ref: string) => Record<string, unknown>[] | null;
+  /** Source ref → declared row model, available independently of server presence. */
+  dataSourceModels?: Record<string, string>;
 }

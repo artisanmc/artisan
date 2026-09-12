@@ -11,6 +11,7 @@ import {
   clampEnchantLevel,
   countAdvanced,
   enchantMaxLevel,
+  formatEnchant,
   isColorable,
   normalizeEnchantId,
 } from "@/domain/itemAdvanced";
@@ -36,12 +37,14 @@ export function AdvancedItemSection({
   material,
   onChange,
   onFocus,
+  inheritedEnchants = [],
 }: {
   appearance: AdvancedFields;
   /** Drives which fields are relevant (a tint only applies to some materials). */
   material?: string;
   onChange: (patch: AdvancedFields) => void;
   onFocus?: () => void;
+  inheritedEnchants?: ItemEnchant[];
 }) {
   const { t } = useTranslation();
   const listId = useId();
@@ -74,6 +77,24 @@ export function AdvancedItemSection({
         {/* Enchantments */}
         <div>
           <FieldLabel>{t("flow.advanced.enchants")}</FieldLabel>
+          {inheritedEnchants.length > 0 && (
+            <div className="mb-2 flex flex-wrap items-center gap-1 text-xs text-[var(--text-mut)]">
+              <span>{inheritedEnchants.map(formatEnchant).join(", ")}</span>
+              <span className="text-[10px] text-[var(--text-faint)]">
+                {t("itemBinding.fromCatalog")}
+              </span>
+              {enchants.length > 0 && (
+                <button
+                  type="button"
+                  title={t("itemBinding.reset")}
+                  aria-label={t("itemBinding.reset")}
+                  onClick={() => onChange({ enchants: undefined })}
+                >
+                  ↺
+                </button>
+              )}
+            </div>
+          )}
           <datalist id={listId}>
             {ENCHANTMENTS.map((e) => (
               <option key={e.id} value={e.id} />

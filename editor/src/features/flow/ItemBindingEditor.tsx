@@ -1,12 +1,13 @@
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { formatEnchant } from "@/domain/itemAdvanced";
+import { resolveDisplayRef } from "@/domain/capturedItems";
 import type { Appearance, Element, Menu, Project } from "@/domain/types";
+import { MaterialPicker } from "@/features/canvas/MaterialPicker";
 import { previewItem } from "@/features/canvas/itemValuePreview";
 import { useTextureUrl } from "@/features/canvas/textureStore";
 import { useHeadPreviewUrl } from "@/features/canvas/useHeadPreviewUrl";
 import { useServerDataSourcesStore } from "@/state/serverDataSourcesStore";
+import { listModules } from "@artisan/editor-sdk";
+import { ChevronDown, ImageIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { itemBindingOptions } from "./itemBindingOptions";
@@ -19,7 +20,6 @@ export function ItemBindingEditor({
   scope,
   lang,
   onSource,
-  onCount,
   children,
 }: {
   project: Project;
@@ -29,122 +29,71 @@ export function ItemBindingEditor({
   scope: Record<string, unknown>;
   lang: string;
   onSource: (field: "material" | "item", value: string) => void;
-  onCount: (count: number | undefined) => void;
   children: ReactNode;
 }) {
   const { t } = useTranslation();
   const sources = useServerDataSourcesStore((s) => s.sources);
-  const options = itemBindingOptions(project, menu, element, sources);
-  const legacy = appearance.material?.startsWith("{") ? appearance.material : undefined;
-  const binding = appearance.item ?? legacy;
-  const linked = binding !== undefined;
+  const models = Object.assign({}, ...listModules().map((m) => m.dataSourceModels ?? {}));
+  const options = itemBindingOptions(project, menu, element, sources, models);
+  const binding =
+    appearance.item ?? (appearance.material?.startsWith("{") ? appearance.material : undefined);
   const resolved = previewItem(appearance, scope, project, lang);
-  const base = previewItem({ item: binding }, scope, project, lang);
-  const texture = useTextureUrl(resolved.material ?? "");
-  const icon = useHeadPreviewUrl(resolved.head) ?? texture;
-  const selected = binding?.replace(/^\{|\}$/g, "") ?? "";
+  const display = resolveDisplayRef(project, resolved.material ?? "");
+  const texture = useTextureUrl(display.material);
+  const icon = useHeadPreviewUrl(resolved.head ?? display.head) ?? texture;
+  const label = (path: string) =>
+    path === "item.icon"
+      ? t("itemBinding.productIcon")
+      : path === "cat.icon"
+        ? t("itemBinding.categoryIcon")
+        : path.split(".").join(" → ");
+  const selected = binding?.replace(/^\{|\}$/g, "");
   return (
-    <section
-      className="flex flex-col gap-2 rounded border border-[var(--border-soft)] p-2.5"
-      aria-label={t("itemBinding.title")}
-    >
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-sm font-medium">{t("itemBinding.title")}</span>
-        {linked && <Badge variant="sage">{t("itemBinding.linked")}</Badge>}
-      </div>
-      <select
-        className="input text-xs"
-        aria-label={t("itemBinding.mode")}
-        value={linked ? "data" : "define"}
-        onChange={(e) =>
-          e.target.value === "data"
-            ? onSource("item", options[0] ? `{${options[0]}}` : "")
-            : onSource(
-                "material",
-                resolved.material && !resolved.material.includes("{") ? resolved.material : "STONE",
-              )
-        }
-      >
-        <option value="define">{t("itemBinding.define")}</option>
-        <option value="data">{t("itemBinding.data")}</option>
-      </select>
-      {linked ? (
-        <>
-          <select
-            className="input text-xs"
-            aria-label={t("itemBinding.source")}
-            value={selected}
-            onChange={(e) => onSource("item", e.target.value ? `{${e.target.value}}` : "")}
+    <div className="flex flex-col gap-1.5">
+      <span className="field-label">{t("itemBinding.title")}</span>
+      <MaterialPicker
+        projectId={project.id}
+        dataItems={options.map((path) => ({ value: path, label: label(path) }))}
+        onPickData={(path) => onSource("item", `{${path}}`)}
+        onPick={(material) => onSource("material", material)}
+        trigger={
+          <button
+            type="button"
+            aria-label={t("itemBinding.title")}
+            className="input flex h-11 w-full items-center gap-2 text-left text-sm"
           >
-            <option value="">{t("itemBinding.choose")}</option>
-            {selected && !options.includes(selected) && (
-              <option value={selected}>
-                {selected.split(".").join(" → ")} ({t("itemBinding.custom")})
-              </option>
-            )}
-            {options.map((path) => (
-              <option key={path} value={path}>
-                {path.split(".").join(" → ")}
-              </option>
-            ))}
-          </select>
-          {options.length === 0 && (
-            <p className="text-xs text-[var(--text-mut)]">{t("itemBinding.empty")}</p>
-          )}
-          <div className="flex flex-col gap-1 text-xs" aria-live="polite">
-            <span className="text-[var(--text-mut)]">{t("itemBinding.sample")}</span>
-            {icon && (
+            {icon ? (
               <img
                 src={icon}
                 alt=""
-                className="h-8 w-8 object-contain"
+                className="h-7 w-7 object-contain"
                 style={{ imageRendering: "pixelated" }}
               />
+            ) : (
+              <ImageIcon size={20} className="shrink-0 text-[var(--text-faint)]" />
             )}
-            <span>
-              {resolved.material && !resolved.material.includes("{")
-                ? resolved.material
-                : t("itemBinding.unresolved")}
+            <span className="min-w-0 flex-1 truncate">
+              {selected ? label(selected) : appearance.material || t("itemBinding.choose")}
             </span>
-            <div className="flex items-center justify-between gap-2">
-              <span>
-                {t("flow.countLabel")} : {resolved.count ?? 1} ·{" "}
-                {t(
-                  appearance.count === undefined
-                    ? "itemBinding.inherited"
-                    : "itemBinding.customized",
-                )}
-              </span>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() =>
-                  onCount(appearance.count === undefined ? (base.count ?? 1) : undefined)
-                }
-              >
-                {t(appearance.count === undefined ? "itemBinding.customize" : "itemBinding.reset")}
-              </Button>
-            </div>
-            {base.enchants.length > 0 && (
-              <span>
-                {t("itemBinding.inheritedEnchants")} : {base.enchants.map(formatEnchant).join(", ")}
-              </span>
-            )}
-          </div>
-          <details className="text-xs text-[var(--text-mut)]">
-            <summary className="cursor-pointer">{t("itemBinding.expression")}</summary>
+            <ChevronDown size={14} className="shrink-0 text-[var(--text-mut)]" />
+          </button>
+        }
+      />
+      <details className="text-xs text-[var(--text-faint)]">
+        <summary className="cursor-pointer">{t("itemBinding.expression")}</summary>
+        <div className="mt-2">
+          {binding !== undefined ? (
             <Input
               aria-label={t("itemBinding.expression")}
-              value={binding ?? ""}
+              value={binding}
               onChange={(e) => onSource("item", e.target.value)}
-              className="mt-2 font-mono text-xs"
+              className="font-mono text-xs"
             />
-          </details>
-          <p className="text-xs text-[var(--text-mut)]">{t("itemBinding.presentation")}</p>
-        </>
-      ) : (
-        children
-      )}
-    </section>
+          ) : (
+            children
+          )}
+        </div>
+      </details>
+    </div>
   );
 }

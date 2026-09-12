@@ -17,6 +17,7 @@ const boutiqueModule: FrontendModule = {
   routes: [],
   exportFiles: exportBoutiqueFiles,
   localPreviewRows: boutiqueLocalRows,
+  dataSourceModels: { "boutique:items": "boutique:item", "boutique:categories": "boutique:category" },
 };
 
 export default boutiqueModule;

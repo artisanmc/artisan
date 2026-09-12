@@ -336,8 +336,9 @@ const fr: typeof en = {
     teleportPitch: "Pitch (optionnel)",
   },
   itemBinding: {
+    catalog: "Catalogue", library: "Bibliothèque", productIcon: "Icône du produit", categoryIcon: "Icône de la catégorie", fromCatalog: "du catalogue",
     sample: "Aperçu avec les données d’exemple",
-    title: "Item affiché", linked: "Lié aux données", mode: "Origine de l’item",
+    title: "Icône", linked: "Lié aux données", mode: "Origine de l’item",
     define: "Définir un item", data: "Utiliser un item des données", source: "Champ item",
     choose: "Choisir un champ…", custom: "expression", empty: "Aucun champ item connu dans ce contexte. Une expression peut être saisie ci-dessous.",
     unresolved: "Aperçu indisponible", inherited: "héritée", customized: "personnalisée",

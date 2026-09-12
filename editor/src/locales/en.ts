@@ -328,8 +328,9 @@ export default {
     teleportPitch: "Pitch (optional)",
   },
   itemBinding: {
+    catalog: "Catalog", library: "Library", productIcon: "Product icon", categoryIcon: "Category icon", fromCatalog: "from catalog",
     sample: "Preview with sample data",
-    title: "Displayed item", linked: "Linked to data", mode: "Item source",
+    title: "Icon", linked: "Linked to data", mode: "Item source",
     define: "Define an item", data: "Use an item from data", source: "Item field",
     choose: "Choose a field…", custom: "expression", empty: "No known item field in this context. You can enter an expression below.",
     unresolved: "Preview unavailable", inherited: "inherited", customized: "customized",
