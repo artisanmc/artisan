@@ -341,7 +341,7 @@ const fr: typeof en = {
     insertLore: "Insérer le lore source",
     editItem: "Modifier l’item",
     done: "Terminé",
-    catalog: "Catalogue", library: "Bibliothèque", productIcon: "Icône du produit", categoryIcon: "Icône de la catégorie", fromCatalog: "du catalogue",
+    catalog: "Catalogue", library: "Bibliothèque", fromCatalog: "du catalogue",
     sample: "Aperçu avec les données d’exemple",
     title: "Icône", linked: "Lié aux données", mode: "Origine de l’item",
     define: "Définir un item", data: "Utiliser un item des données", source: "Champ item",

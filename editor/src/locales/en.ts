@@ -333,7 +333,7 @@ export default {
     insertLore: "Insert source lore",
     editItem: "Edit item",
     done: "Done",
-    catalog: "Catalog", library: "Library", productIcon: "Product icon", categoryIcon: "Category icon", fromCatalog: "from catalog",
+    catalog: "Catalog", library: "Library", fromCatalog: "from catalog",
     sample: "Preview with sample data",
     title: "Icon", linked: "Linked to data", mode: "Item source",
     define: "Define an item", data: "Use an item from data", source: "Item field",
