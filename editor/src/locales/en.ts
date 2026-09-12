@@ -714,6 +714,8 @@ export default {
     errFetchError: "The module failed: {{message}}",
   },
   canvas: {
+    minimap: "Minimap",
+    closeMinimap: "Close minimap",
     previewContextNoData: "No data — server not connected",
     placementTrayLead: "{{count}} to place",
     placementTrayLead_other: "{{count}} to place",

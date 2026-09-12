@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { AlignmentGuides } from "./AlignmentGuidesOverlay";
 import { ArmedBanner } from "./ArmedBanner";
 import { CanvasToolbar } from "./CanvasToolbar";
+import { CanvasMinimap } from "./CanvasMinimap";
 import { CommandGroup } from "./CommandGroup";
 import { ContextMenu } from "./ContextMenu";
 import { DialogGroup } from "./DialogGroup";
@@ -36,7 +37,7 @@ import { dismissInspector, openProjectSettings } from "@/features/project/projec
 import { dispatchOpenElement } from "./canvasEvents";
 import { fitViewport } from "./focusViewport";
 import { hitTestSlot, screenToWorld } from "./hitTest";
-import { menuBoxSize } from "./menuLayout";
+import { menuBoxSize, nodeBox } from "./menuLayout";
 import { setStageDropTarget, setStageSlotHitTest } from "./stageDropTarget";
 import { setStageGeometryProvider } from "./stageGeometry";
 import { canvasClipboardActions, useCanvasKeyboard } from "./useCanvasKeyboard";
@@ -58,6 +59,16 @@ interface StageProps {
 }
 
 export function Stage({ projectId, focus }: StageProps) {
+  return (
+    <StageCanvas
+      key={`${projectId}:${focus ? "focus" : "board"}`}
+      projectId={projectId}
+      focus={focus}
+    />
+  );
+}
+
+function StageCanvas({ projectId, focus }: StageProps) {
   const focusMode = focus != null;
   const { t } = useTranslation();
   const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
@@ -69,7 +80,7 @@ export function Stage({ projectId, focus }: StageProps) {
   // mount (non-reactive); persisted back via the effect below.
   // Le focus a son propre cadrage, partagé par tous les Documents (passer de
   // l'un à l'autre garde la vue là où l'utilisateur l'a mise) et persisté ;
-  // la planche garde le sien, par project et session-only.
+  // la planche garde le sien, persisté par projet.
   const savedFocusViewport = useUiStore.getState().documentViewport;
   const { viewport, setViewport, onWheel, onTouchMove, onTouchEnd } = usePanZoom(
     focusMode
@@ -83,6 +94,7 @@ export function Stage({ projectId, focus }: StageProps) {
     touchedRef.current = true;
   }, []);
   const canvasMode = useUiStore((s) => s.canvasMode);
+  const minimapVisible = useUiStore((s) => s.minimapVisible);
   const [spaceHeld, setSpaceHeld] = useState(false);
   // Alt held = temporary pan (like Space), so you can navigate without leaving
   // select mode. Alt during a *node* drag still means "free move / no snap"
@@ -415,6 +427,17 @@ export function Stage({ projectId, focus }: StageProps) {
       )}
       <ArmedBanner />
       <CanvasToolbar />
+      {!focusMode && minimapVisible && size.w > 0 && size.h > 0 && (
+        <CanvasMinimap
+          boxes={Object.keys(layout).flatMap((id) => {
+            const box = nodeBox(project, id, layout);
+            return box ? [{ ...box, id }] : [];
+          })}
+          size={size}
+          viewport={viewport}
+          onNavigate={setViewport}
+        />
+      )}
       <KonvaStage
         ref={stageRef}
         width={size.w}

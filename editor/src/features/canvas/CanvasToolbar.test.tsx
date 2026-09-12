@@ -1,10 +1,14 @@
+import { useUiStore } from "@/state/uiStore";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
-import { useUiStore } from "@/state/uiStore";
 import { CanvasToolbar } from "./CanvasToolbar";
 
 describe("CanvasToolbar", () => {
-  beforeEach(() => useUiStore.setState({ canvasMode: "select" } as any));
+  it("leaves the minimap toggle to the library tools", () => {
+    render(<CanvasToolbar />);
+    expect(screen.queryByRole("button", { name: /minimap/i })).toBeNull();
+  });
+  beforeEach(() => useUiStore.setState({ canvasMode: "select" }));
   it("rend les 2 modes et marque l'actif via aria-pressed", () => {
     render(<CanvasToolbar />);
     const sel = screen.getByRole("button", { name: /select|sélection/i });
