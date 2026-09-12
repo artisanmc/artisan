@@ -65,9 +65,9 @@ export function useMenuClick({ projectId, menu, layout }: UseMenuClickArgs) {
       useUiStore.getState().setSelectedLayerKey(null);
 
       const additive = "evt" in e && (e.evt.shiftKey || e.evt.metaKey || e.evt.ctrlKey);
-      const { ids, set, toggle } = useSelectionStore.getState();
+      const { ids, menuId: selectionMenuId, set, toggle } = useSelectionStore.getState();
       if (additive) toggle(menu.id);
-      else if (!ids.has(menu.id) || ids.size > 1) set([menu.id]);
+      else if (selectionMenuId !== null || !ids.has(menu.id) || ids.size > 1) set([menu.id]);
     },
     [menu.id, projectId, layout],
   );
