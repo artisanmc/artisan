@@ -34,26 +34,21 @@ export function ItemBindingEditor({
   const { t } = useTranslation();
   const sources = useServerDataSourcesStore((s) => s.sources);
   const models = Object.assign({}, ...listModules().map((m) => m.dataSourceModels ?? {}));
-  const options = menu && element ? itemBindingOptions(project, menu, element, sources, models) : [];
+  const options =
+    menu && element ? itemBindingOptions(project, menu, element, sources, models) : [];
   const binding =
     appearance.item ?? (appearance.material?.startsWith("{") ? appearance.material : undefined);
   const resolved = previewItem(appearance, scope, project, lang);
   const display = resolveDisplayRef(project, resolved.material ?? "");
   const texture = useTextureUrl(display.material);
   const icon = useHeadPreviewUrl(resolved.head ?? display.head) ?? texture;
-  const label = (path: string) =>
-    path === "item.icon"
-      ? t("itemBinding.productIcon")
-      : path === "cat.icon"
-        ? t("itemBinding.categoryIcon")
-        : path.split(".").join(" → ");
   const selected = binding?.replace(/^\{|\}$/g, "");
   return (
     <div className="flex flex-col gap-1.5">
       <span className="field-label">{t("itemBinding.title")}</span>
       <MaterialPicker
         projectId={project.id}
-        dataItems={options.map((path) => ({ value: path, label: label(path) }))}
+        dataItems={options.map((path) => ({ value: path, label: path }))}
         onPickData={(path) => onSource("item", `{${path}}`)}
         onPick={(material) => onSource("material", material)}
         trigger={
@@ -73,7 +68,7 @@ export function ItemBindingEditor({
               <ImageIcon size={20} className="shrink-0 text-[var(--text-faint)]" />
             )}
             <span className="min-w-0 flex-1 truncate">
-              {selected ? label(selected) : appearance.material || t("itemBinding.choose")}
+              {selected || appearance.material || t("itemBinding.choose")}
             </span>
             <ChevronDown size={14} className="shrink-0 text-[var(--text-mut)]" />
           </button>
