@@ -1,5 +1,6 @@
 import type { ProjectId } from "@/domain/types";
 import { useSelectionStore } from "@/state/selectionStore";
+import { useUiStore } from "@/state/uiStore";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, expect, it, vi } from "vitest";
@@ -20,6 +21,22 @@ import { ProjectLibraryButton, ProjectLibraryWorkspace } from "./ProjectLibrary"
 import { useProjectLibraryStore } from "./projectLibraryStore";
 
 const PID = "p1" as ProjectId;
+it("shows the minimap button only when the minimap is closed", () => {
+  useUiStore.setState({ minimapVisible: false });
+  render(<Workspace />);
+  const toggle = screen.getByRole("button", { name: /minimap/i });
+  expect(toggle.parentElement).toBe(
+    screen.getByRole("button", { name: /library|bibliothèque/i }).parentElement,
+  );
+  fireEvent.click(toggle);
+  expect(useUiStore.getState().minimapVisible).toBe(true);
+  expect(screen.queryByRole("button", { name: /minimap/i })).toBeNull();
+  act(() => useUiStore.getState().setMinimapVisible(false));
+  fireEvent.click(screen.getByRole("button", { name: /library|bibliothèque/i }));
+  fireEvent.click(screen.getByRole("button", { name: /minimap/i }));
+  expect(useUiStore.getState().minimapVisible).toBe(true);
+  expect(screen.queryByRole("button", { name: /minimap/i })).toBeNull();
+});
 let desktop = true;
 vi.mock("@/lib/useMediaQuery", () => ({ useIsDesktop: () => desktop }));
 

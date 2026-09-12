@@ -379,9 +379,14 @@ export function ProjectCanvasPage() {
     // content collapses to its own height and the surface shows through below.
     <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
       {isDesktop ? (
-        <ProjectWorkspacePanels projectId={pId} active={canvasActive}>
+        <ProjectWorkspacePanels
+          projectId={pId}
+          active={canvasActive}
+        >
           <div className="relative h-full min-h-0 min-w-0 flex-1 overflow-hidden">
-            <ProjectLibraryWorkspace projectId={pId} active={canvasActive}>{centerContent}</ProjectLibraryWorkspace>
+            <ProjectLibraryWorkspace projectId={pId} active={canvasActive} showMinimapToggle={!documentId}>
+              {centerContent}
+            </ProjectLibraryWorkspace>
             {secondaryViews}
           </div>
         </ProjectWorkspacePanels>
@@ -405,7 +410,9 @@ export function ProjectCanvasPage() {
             </Sheet>
           </div>
           <div className="relative min-h-0 flex-1 overflow-hidden">
-            <ProjectLibraryWorkspace projectId={pId} active={canvasActive}>{centerContent}</ProjectLibraryWorkspace>
+            <ProjectLibraryWorkspace projectId={pId} active={canvasActive} showMinimapToggle={!documentId}>
+              {centerContent}
+            </ProjectLibraryWorkspace>
             {secondaryViews}
           </div>
         </div>

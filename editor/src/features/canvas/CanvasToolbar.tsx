@@ -1,6 +1,6 @@
-import { useTranslation } from "react-i18next";
-import { Hand, MousePointer2 } from "lucide-react";
 import { useUiStore } from "@/state/uiStore";
+import { Hand, MousePointer2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 export function CanvasToolbar() {
   const { t } = useTranslation();

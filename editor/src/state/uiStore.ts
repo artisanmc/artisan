@@ -188,17 +188,18 @@ interface UiState {
   /**
    * Pan/zoom sauvegardé de la planche principale, indexé par projectId. Permet de
    * quitter la planche (ex. ouvrir la vue d'un élément unique) puis d'y revenir
-   * exactement au même endroit + zoom. Session-only : volontairement NON persisté
-   * (un reload repart de la vue centrée par défaut).
+   * exactement au même endroit + zoom, y compris après un rechargement.
    */
   canvasViewports: Record<string, ViewportState>;
+  minimapVisible: boolean;
+  setMinimapVisible: (visible: boolean) => void;
   setCanvasViewport: (projectId: ProjectId, viewport: ViewportState) => void;
   /**
    * Pan/zoom de la vue individuelle, **partagé par tous les documents** et
    * persisté : le cadrage suit l'utilisateur quand il passe d'un menu à un
    * autre, au lieu de repartir du cadrage par défaut à chaque ouverture.
    * `null` = jamais réglé, la vue s'ajuste alors au document.
-   * (`canvasViewports`, la planche, reste par project et session-only.)
+   * `canvasViewports` conserve séparément le cadrage de chaque projet.
    */
   documentViewport: ViewportState | null;
   setDocumentViewport: (viewport: ViewportState | null) => void;
@@ -372,6 +373,8 @@ export const useUiStore = create<UiState>()(
       canvasMode: "hand",
       setCanvasMode: (m) => set({ canvasMode: m }),
       canvasViewports: {},
+      minimapVisible: true,
+      setMinimapVisible: (minimapVisible) => set({ minimapVisible }),
       documentViewport: null,
       setDocumentViewport: (viewport) => set({ documentViewport: viewport }),
       setCanvasViewport: (projectId, viewport) =>
@@ -404,7 +407,9 @@ export const useUiStore = create<UiState>()(
         projectPanelOpen: state.projectPanelOpen,
         assistantPaneWidth: state.assistantPaneWidth,
         canvasMode: state.canvasMode,
-        // Persisté (contrairement à canvasViewports) : le cadrage de la vue
+        canvasViewports: state.canvasViewports,
+        minimapVisible: state.minimapVisible,
+        // Persisté : le cadrage de la vue
         // individuelle suit l'utilisateur, page à page et après rechargement.
         documentViewport: state.documentViewport,
       }),
