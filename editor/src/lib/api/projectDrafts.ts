@@ -19,6 +19,7 @@ export class DraftApiError extends Error {
     public draft?: BackendDraft,
     public conflicts: ProjectFileConflict[] = [],
     public diskFiles: string[] = [],
+    public detail?: string,
   ) {
     super(code);
   }
@@ -43,6 +44,7 @@ async function call(projectId: string, suffix = "", method = "GET", body?: unkno
       data.draft,
       data.conflicts,
       data.disk_files,
+      typeof data.message === "string" ? data.message : undefined,
     );
   return data;
 }

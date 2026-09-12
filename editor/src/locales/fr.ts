@@ -1716,6 +1716,30 @@ const fr: typeof en = {
     revertTitle: "Jeter les modifications non enregistrées et repartir de l'état du serveur",
   },
   save: {
+    lastError: "Dernière erreur d’enregistrement",
+    errorHelp:
+      "Consulte la raison ci-dessous. Les détails restent accessibles dans les options d’enregistrement jusqu’au prochain enregistrement réussi ou à la fermeture du projet.",
+    copyDetails: "Copier les détails",
+    copied: "Détails copiés",
+    copyFailed: "Copie impossible — sélectionne le texte pour le copier.",
+    errors: {
+      server_offline: "Le serveur Minecraft est hors ligne.",
+      network_error: "La connexion au backend a échoué.",
+      fetch_timeout: "Le serveur n’a pas répondu à temps. Vérifie son état avant de réessayer.",
+      unknown_project: "Le projet est introuvable sur le serveur.",
+      invalid_path: "Un chemin de fichier est invalide.",
+      invalid_input: "Les données envoyées sont invalides.",
+      read_error: "Le serveur n’a pas pu lire les fichiers.",
+      write_error: "Le serveur n’a pas pu écrire les fichiers.",
+      too_large: "Les données dépassent la taille autorisée.",
+      forbidden: "Tu n’as pas l’autorisation d’enregistrer ce projet.",
+      unauthorized: "Ta session n’est plus valide. Reconnecte-toi.",
+      draft_conflict:
+        "La version de ton brouillon n’est plus celle du backend. Aucun fichier n’a été écrit par cette tentative. Pour conserver tes modifications, ouvre le chevron à côté d’Enregistrer → Brouillons, donne un nom puis clique sur Créer une copie. Enregistre ensuite cette copie.",
+      revision_conflict:
+        "Le brouillon a changé dans une autre session. Ouvre Brouillons pour le vérifier.",
+      unknown: "L’enregistrement a échoué. Le code disponible figure ci-dessous.",
+    },
     options: "Options d’enregistrement",
     discardChanges: "Abandonner les modifications",
     save: "Enregistrer",
