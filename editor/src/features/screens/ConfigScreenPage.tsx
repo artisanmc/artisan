@@ -1,5 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { MODULE_MANIFEST } from "@/distribution/modules.manifest";
+import { getModule, registerModule } from "@artisan/editor-sdk";
 import { useTextureInit } from "@/features/canvas/useTextureInit";
 import { ConfigValueForm, SourceRowsTable } from "@/features/data/SourceValueEditor";
 import {
@@ -9,6 +11,7 @@ import {
   configWrite,
 } from "@/lib/api/configScreens";
 import { fetchServerDeclaredModels } from "@/lib/api/dataSources";
+import { readProjectFiles } from "@/lib/api/projectFiles";
 import { cx } from "@/lib/cx";
 import { STALE_NOTICE_DELAY_MS, useSettledFlag } from "@/lib/useSettledFlag";
 import { useAccountStore } from "@/state/accountStore";
@@ -78,6 +81,7 @@ export function ConfigScreenPage({
   const revalidating = useSettledFlag(stale && errorCode === null, STALE_NOTICE_DELAY_MS);
   const staleSettled = (stale && errorCode !== null) || revalidating;
   const [original, setOriginal] = useState<ConfigFile[]>([]);
+  const [itemContext, setItemContext] = useState<ConfigFile[]>([]);
   const [saving, setSaving] = useState(false);
   // Two modes over the SAME file (ADR yaml-assisted-editing ⑦). `draft` holds
   // the text being typed; it is null while the form is the surface being used.
@@ -92,6 +96,12 @@ export function ConfigScreenPage({
 
   const load = useCallback(async () => {
     if (!screen) return;
+    // A declared screen can open before the presence-driven lazy loader finishes.
+    const entry = MODULE_MANIFEST.find((entry) => entry.id === screen.moduleId);
+    if (entry && !getModule(entry.id)) {
+      const module = await entry.load();
+      if (!getModule(entry.id)) registerModule(module);
+    }
     setErrorCode(null);
     const cacheKey = screenCacheKey(networkId, serverId, screen.id);
     const known = useScreenCacheStore.getState().get(cacheKey);
@@ -112,13 +122,14 @@ export function ConfigScreenPage({
     // A project-authored source keeps its schema in `models/<id>.yaml` beside
     // the data file — read it too, or the form opens untyped. Absent (a
     // module-declared table types itself from the declaration) is not an error.
-    const [models, res, beside] = await Promise.all([
+    const [models, res, beside, context] = await Promise.all([
       fetchServerDeclaredModels(networkId, serverId),
       configRead(networkId, serverId, { projectId: screen.projectId, table: screen.table }),
       configRead(networkId, serverId, {
         projectId: screen.projectId,
         table: besideModelPath(screen.table),
       }),
+      readProjectFiles(networkId, serverId, screen.projectId),
     ]);
     if (!res.ok) {
       setErrorCode(res.error);
@@ -128,7 +139,14 @@ export function ConfigScreenPage({
       return;
     }
     const files = [...res.files, ...(beside.ok ? beside.files : [])];
-    const project = buildScratchProject(screen, files, models);
+    const contextFiles =
+      context.ok && !context.unchanged
+        ? Object.entries(context.files)
+            .filter(([path]) => path.startsWith("items/") || path === ".artisan/editor.yaml")
+            .map(([path, content]) => ({ path, content }))
+        : [];
+    setItemContext(contextFiles);
+    const project = buildScratchProject(screen, files, models, contextFiles);
     useAccountStore.getState().upsertScratchProject(project);
     setDeclaredModels(models);
     setBaselineEmit(
@@ -175,12 +193,12 @@ export function ConfigScreenPage({
         );
         return { files: changed, deletes: [] };
       }
-      const rebuilt = buildScratchProject(screen, draft, declaredModels);
+      const rebuilt = buildScratchProject(screen, draft, declaredModels, itemContext);
       return diffScratchForWrite(rebuilt, screen, original);
     }
     if (!scratch) return null;
     return diffScratchForWrite(scratch, screen, original);
-  }, [screen, scratch, original, phase, draft, yamlErrors, declaredModels]);
+  }, [screen, scratch, original, phase, draft, yamlErrors, declaredModels, itemContext]);
   /** Emissions that differ from the load-time ones — i.e. what the admin changed. */
   const editedFiles = useMemo(
     () => (diff?.files ?? []).filter((f) => baselineEmit.get(f.path) !== f.content),
@@ -255,7 +273,7 @@ export function ConfigScreenPage({
                 disabled={yamlErrors.length > 0}
                 onClick={() => {
                   if (draft && yamlErrors.length === 0 && screen) {
-                    const rebuilt = buildScratchProject(screen, draft, declaredModels);
+                    const rebuilt = buildScratchProject(screen, draft, declaredModels, itemContext);
                     useAccountStore.getState().upsertScratchProject(rebuilt);
                     setDraft(null);
                   }

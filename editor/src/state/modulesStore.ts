@@ -43,7 +43,7 @@ export const useModulesStore = create<ModulesState>((set, get) => ({
         if (!activeIds.has(entry.id)) continue;
         if (!getModule(entry.id)) {
           const mod = await entry.load();
-          registerModule(mod);
+          if (!getModule(entry.id)) registerModule(mod);
         }
         mounted.push(entry.id);
       }

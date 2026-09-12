@@ -4,6 +4,7 @@ import type { CapturedItem, ProjectId } from "@/domain/types";
 import { PlayerNameInput } from "@/components/PlayerNameInput";
 import { type InventorySlotPayload, fetchPlayerInventory } from "@/lib/api/playerInventory";
 import { useAccountStore } from "@/state/accountStore";
+import { isScreenScratchId } from "@/features/screens/screenScratch";
 import { useNetworksStore } from "@/state/networksStore";
 import { useServersStore } from "@/state/serversStore";
 import { useUiStore } from "@/state/uiStore";
@@ -50,6 +51,7 @@ export function CapturedItemsSection({
 
   if (!project) return null;
   const captured = project.capturedItems ?? [];
+  const readOnly = isScreenScratchId(projectId);
 
   const load = async () => {
     if (!networkId || !serverId || !player.trim()) return;
@@ -87,7 +89,7 @@ export function CapturedItemsSection({
               projectId={projectId}
               item={ci}
               onPick={onPick}
-              onRemove={() => removeCapturedItem({ projectId, itemId: ci.id })}
+              onRemove={readOnly ? undefined : () => removeCapturedItem({ projectId, itemId: ci.id })}
             />
           ))}
         </div>
@@ -96,7 +98,7 @@ export function CapturedItemsSection({
       )}
 
       {/* Inventory mirror */}
-      <div className="flex items-center gap-1.5">
+      {!readOnly && <div className="flex items-center gap-1.5">
         <PlayerNameInput
           value={player}
           onChange={setPlayer}
@@ -113,7 +115,7 @@ export function CapturedItemsSection({
         >
           {state.kind === "loading" ? t("capturedItems.loading") : t("capturedItems.load")}
         </button>
-      </div>
+      </div>}
       {state.kind === "error" ? (
         <div className="rounded border border-[var(--warning)]/50 bg-[var(--warning-soft)] px-2 py-1 text-[10px] text-[var(--warning)]">
           {t(`capturedItems.err_${state.code}`, t("capturedItems.err_fetch_error"))}
@@ -150,7 +152,7 @@ function CapturedTile({
   projectId: ProjectId;
   item: CapturedItem;
   onPick?: (ref: string) => void;
-  onRemove: () => void;
+  onRemove?: () => void;
 }) {
   const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
   const setArmedMaterial = useUiStore((s) => s.setArmedMaterial);
@@ -202,14 +204,14 @@ function CapturedTile({
           </span>
         ) : null}
       </button>
-      <button
+      {onRemove && <button
         type="button"
         data-testid={`remove-captured-${item.id}`}
         onClick={onRemove}
         className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--surface-raised-2)] text-[9px] text-[var(--text-faint)] hover:text-[var(--danger)]"
       >
         ×
-      </button>
+      </button>}
     </div>
   );
 }

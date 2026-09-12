@@ -310,6 +310,7 @@ export interface Appearance {
   count?: number;
   title?: LText;
   lore?: LText | null;
+  loreMode?: "replace";
   click?: ClickMap;
   // ── advanced details (see domain/itemAdvanced.ts for the wire form) ───────
   enchants?: ItemEnchant[];

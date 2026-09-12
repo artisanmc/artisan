@@ -338,13 +338,16 @@ const fr: typeof en = {
     teleportPitch: "Pitch (optionnel)",
   },
   itemBinding: {
+    insertLore: "Insérer le lore source",
+    editItem: "Modifier l’item",
+    done: "Terminé",
     catalog: "Catalogue", library: "Bibliothèque", productIcon: "Icône du produit", categoryIcon: "Icône de la catégorie", fromCatalog: "du catalogue",
     sample: "Aperçu avec les données d’exemple",
     title: "Icône", linked: "Lié aux données", mode: "Origine de l’item",
     define: "Définir un item", data: "Utiliser un item des données", source: "Champ item",
     choose: "Choisir un champ…", custom: "expression", empty: "Aucun champ item connu dans ce contexte. Une expression peut être saisie ci-dessous.",
     unresolved: "Aperçu indisponible", inherited: "héritée", customized: "personnalisée",
-    customize: "Personnaliser", reset: "Revenir à la valeur héritée", inheritedEnchants: "Enchantements hérités",
+    customize: "Personnaliser", reset: "Revenir à la valeur héritée", clearValue: "Retirer cette valeur", inheritedEnchants: "Enchantements hérités",
     expression: "Expression avancée", presentation: "L’item fournit sa quantité et ses attributs. Le titre ci-dessous remplace son nom ; la description s’ajoute à la sienne.",
   },
   flow: {

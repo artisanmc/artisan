@@ -9,6 +9,12 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Added — recursive item extensions
+
+- Shared catalogue/menu item form with a compact preview card, a shared editing dialog for title/lore/quantity/attributes and reset-to-inherited controls.
+- Recursive item `extends`, immediate `{base.*}` scope and explicit lore replacement in `menu/v3`; legacy append behavior remains compatible.
+- Localized title/lore inside item values; Boutique's legacy product lore moves into its icon, including catalogue-only editing, with compatibility for older menu placeholders.
+
 ### Added — account deletion
 
 - Profile account deletion with a single-use email link expiring after 30 minutes and an explicit final confirmation. Revokes sessions and removes personal Artisan data while preserving Minecraft server files; networks with another owner remain available. Active subscriptions on networks losing their last owner must be cancelled first.

@@ -330,13 +330,16 @@ export default {
     teleportPitch: "Pitch (optional)",
   },
   itemBinding: {
+    insertLore: "Insert source lore",
+    editItem: "Edit item",
+    done: "Done",
     catalog: "Catalog", library: "Library", productIcon: "Product icon", categoryIcon: "Category icon", fromCatalog: "from catalog",
     sample: "Preview with sample data",
     title: "Icon", linked: "Linked to data", mode: "Item source",
     define: "Define an item", data: "Use an item from data", source: "Item field",
     choose: "Choose a field…", custom: "expression", empty: "No known item field in this context. You can enter an expression below.",
     unresolved: "Preview unavailable", inherited: "inherited", customized: "customized",
-    customize: "Customize", reset: "Restore inherited value", inheritedEnchants: "Inherited enchantments",
+    customize: "Customize", reset: "Restore inherited value", clearValue: "Remove this value", inheritedEnchants: "Inherited enchantments",
     expression: "Advanced expression", presentation: "The item supplies its quantity and attributes. The title below replaces its name; the description is appended to its lore.",
   },
   flow: {

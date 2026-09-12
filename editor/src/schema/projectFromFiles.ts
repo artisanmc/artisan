@@ -1,3 +1,4 @@
+import { itemTextFields } from "@/domain/itemTextFields";
 import { parseCapturedStack } from "@/domain/capturedStack";
 import {
   adoptAddressedTranslations,
@@ -319,6 +320,12 @@ function importDataValue(
   ref: (key: string) => LText,
 ): unknown {
   switch (type.kind) {
+    case "item": {
+      if (!value || typeof value !== "object" || Array.isArray(value)) return value;
+      const out = { ...value } as Record<string, unknown>;
+      for (const field of itemTextFields(value)) out[field.name] = importDataValue(out[field.name], field.type, models, visited, ref);
+      return out;
+    }
     case "ltext":
       return ref(typeof value === "string" ? value : "");
     case "list":
