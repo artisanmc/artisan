@@ -729,6 +729,8 @@ const fr: typeof en = {
     errFetchError: "Le module a échoué : {{message}}",
   },
   canvas: {
+    minimap: "Minimap",
+    closeMinimap: "Fermer la minimap",
     previewContextNoData: "Données indisponibles — serveur non connecté",
     placementTrayLead: "{{count}} à placer",
     placementTrayLead_other: "{{count}} à placer",

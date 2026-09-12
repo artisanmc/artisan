@@ -52,6 +52,18 @@ Translations. Elements remains at the far right. Search uses a compact magnifyin
 glass. **Refresh from server** lives in the project menu and still asks before
 replacing unsaved work. The arrow beside Save offers **Discard changes**.
 
+## Canvas navigation
+
+The canvas remembers your position and zoom separately for each project in this
+browser, including after leaving the editor or refreshing the page.
+
+Use **Minimap** beside **Library** to open the overview, placed 8 px from the lower-right
+corner. The button hides while the minimap is open; close it with **×** to reveal the button again.
+This preference is remembered. The overview shows the documents on your
+canvas and a rectangle marking the visible area. Drag that rectangle to move around,
+or click elsewhere in the minimap to center the canvas there without changing zoom.
+With the minimap focused, the arrow keys also move the view.
+
 ## Library and properties
 
 On desktop, **Elements** and **Properties** occupy separate full-height columns on

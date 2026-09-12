@@ -9,7 +9,8 @@ import { Library } from "@/features/canvas/Library";
 import { useTextureInit } from "@/features/canvas/useTextureInit";
 import { useIsDesktop } from "@/lib/useMediaQuery";
 import { useSelectionStore } from "@/state/selectionStore";
-import { Library as LibraryIcon, X } from "lucide-react";
+import { useUiStore } from "@/state/uiStore";
+import { Library as LibraryIcon, Map as MapIcon, X } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { type LibraryCategory, useProjectLibraryStore } from "./projectLibraryStore";
@@ -48,7 +49,10 @@ export function ProjectLibraryWorkspace({
   projectId,
   children,
   active = true,
-}: { projectId: ProjectId; children: ReactNode; active?: boolean }) {
+  showMinimapToggle = true,
+}: { projectId: ProjectId; children: ReactNode; active?: boolean; showMinimapToggle?: boolean }) {
+  const { t } = useTranslation();
+  const minimapVisible = useUiStore((s) => s.minimapVisible);
   useTextureInit(projectId);
   useAssetInit(projectId);
   const open = useProjectLibraryStore((s) => s.projectId === projectId);
@@ -101,9 +105,21 @@ export function ProjectLibraryWorkspace({
         primary={
           <div className="relative h-full min-h-0 min-w-0">
             {children}
-            {active && !open && (
-              <div className="absolute right-3 top-3 z-30 rounded-[var(--r-md)] bg-[var(--surface)] p-1 shadow-[var(--shadow-sm)]">
-                <ProjectLibraryButton projectId={projectId} />
+            {active && (!open || (showMinimapToggle && !minimapVisible)) && (
+              <div className="absolute right-3 top-3 z-30 flex items-center gap-1 rounded-[var(--r-md)] bg-[var(--surface)] p-1 shadow-[var(--shadow-sm)]">
+                {!open && <ProjectLibraryButton projectId={projectId} />}
+                {showMinimapToggle && !minimapVisible && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="min-h-11 lg:min-h-0"
+                    aria-pressed={minimapVisible}
+                    title={t("canvas.minimap")}
+                    onClick={() => useUiStore.getState().setMinimapVisible(true)}
+                  >
+                    <MapIcon className="size-4" /> {t("canvas.minimap")}
+                  </Button>
+                )}
               </div>
             )}
           </div>
