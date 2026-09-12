@@ -17,7 +17,7 @@ interface CommandGroupProps {
 
 export function CommandGroup({ projectId, command, position }: CommandGroupProps) {
   const setCanvasPosition = useAccountStore((s) => s.setCanvasPosition);
-  const isSelected = useSelectionStore((s) => s.ids.has(command.id));
+  const isSelected = useSelectionStore((s) => s.menuId === null && s.ids.has(command.id));
   const nodeAlign = useNodeAlignment(projectId, command.id);
 
   const onDragStart = useCallback((e: Konva.KonvaEventObject<DragEvent>) => {
@@ -36,9 +36,9 @@ export function CommandGroup({ projectId, command, position }: CommandGroupProps
     (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
       e.cancelBubble = true;
       const additive = "evt" in e && (e.evt.shiftKey || e.evt.metaKey || e.evt.ctrlKey);
-      const { ids, set, toggle } = useSelectionStore.getState();
+      const { ids, menuId: selectionMenuId, set, toggle } = useSelectionStore.getState();
       if (additive) toggle(command.id);
-      else if (!ids.has(command.id) || ids.size > 1) set([command.id]);
+      else if (selectionMenuId !== null || !ids.has(command.id) || ids.size > 1) set([command.id]);
       // Selecting on the canvas opens the Edit tab so the chosen element is
       // immediately editable — no manual tab switch.
     },

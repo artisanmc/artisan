@@ -80,7 +80,7 @@ interface MenuGroupProps {
  * + interaction targets.
  */
 export function MenuGroup({ projectId, menu, position, layout, solo = false }: MenuGroupProps) {
-  const isSelected = useSelectionStore((s) => s.ids.has(menu.id));
+  const isSelected = useSelectionStore((s) => s.menuId === null && s.ids.has(menu.id));
   const selectedIds = useSelectionStore((s) => s.ids);
   const selectionMenuId = useSelectionStore((s) => s.menuId);
   const focusedSlot = useSelectionStore((s) => s.focusedSlot);

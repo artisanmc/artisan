@@ -29,8 +29,11 @@ export function selectionContext(
   if (ids.size === 0) return { kind: "none" };
 
   const id = [...ids][0]!;
-  if (project.commands.some((c) => c.id === id)) return { kind: "command", id };
-  if ((project.dialogs ?? []).some((d) => d.id === id)) return { kind: "dialog", id };
+  if (selectionMenuId === null) {
+    if (project.commands.some((c) => c.id === id)) return { kind: "command", id };
+    if ((project.dialogs ?? []).some((d) => d.id === id)) return { kind: "dialog", id };
+    if (project.menus.some((m) => m.id === id)) return { kind: "menu", menuId: id };
+  }
 
   // Un id d'élément n'est unique QUE dans son menu (menu/v1) : on restreint la
   // résolution au menu où la sélection a été faite, sinon un id partagé (deux
@@ -46,7 +49,5 @@ export function selectionContext(
     }
   }
 
-  const menu = project.menus.find((m) => m.id === id);
-  if (menu) return { kind: "menu", menuId: menu.id };
   return { kind: "unknown" };
 }

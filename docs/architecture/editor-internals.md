@@ -6,6 +6,8 @@ Les titres de l’interface (`h1`–`h6`, `.display`, `.font-display`) utilisent
 
 ## Tests et CI
 
+La sélection d'un élément est résolue dans son menu propriétaire avant toute recherche de commande, dialogue ou menu portant le même ID. Les nœuds de ces entités ignorent une sélection scoped pour leur surbrillance ; un clic sur le nœud réinitialise ce scope. Un élément scoped disparu reste inconnu, sans sélectionner une autre entité homonyme.
+
 `vitest.config.ts` exclut tous les dossiers `**/e2e/**` pour ne pas charger les tests Playwright dans Vitest. Les scénarios navigateur restent exécutés par `playwright.config.ts` (`tests/e2e`) et `playwright.migration.config.ts` (`e2e/migration.spec.ts`). La CI éditeur doit réussir avant que le workflow de déploiement production démarre.
 
 > Détails d'implémentation éditeur + pipeline de rendu du titre. Consulté quand on touche
