@@ -6,6 +6,7 @@ import { useAuthStore } from "@/state/authStore";
 import { useNetworksStore } from "@/state/networksStore";
 import { listNetworks } from "@/lib/api/networks";
 import { LogoutButton } from "@/features/auth/LogoutButton";
+import { DeleteAccountSection } from "@/features/auth/DeleteAccount";
 
 export const Route = createFileRoute("/account")({ component: AccountPage });
 
@@ -104,6 +105,7 @@ export function AccountPage() {
         <div className="rule" />
 
         <LogoutButton apiUrl={apiUrl} />
+        <DeleteAccountSection apiUrl={apiUrl} email={user.email} />
       </div>
     </div>
   );

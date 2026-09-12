@@ -62,6 +62,11 @@ function whenVisible(): Promise<void> {
  *  marchent dessus. */
 let hydrateGeneration = 0;
 
+export function clearDeletedAccountSession(): void {
+  ++hydrateGeneration;
+  useAuthStore.setState({ currentUser: null, sessionStatus: "signed-out", isLoading: false, backendUnreachable: false, error: null });
+}
+
 export const useAuthStore = create<AuthState>((set) => ({
   currentUser: null,
   // Start true: hydrate() has not yet run on first render. Routes that gate on

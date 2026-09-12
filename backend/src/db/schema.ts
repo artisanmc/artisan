@@ -273,6 +273,14 @@ export const passwordResetTokens = pgTable(
 	],
 );
 
+export const accountDeletionTokens = pgTable("account_deletion_tokens", {
+	userId: text("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+	email: text("email").notNull(),
+	tokenHash: text("token_hash").notNull().unique(),
+	expiresAt: timestamp("expires_at").notNull(),
+	createdAt: timestamp("created_at").notNull(),
+});
+
 export const oauthAccounts = pgTable(
 	"oauth_accounts",
 	{

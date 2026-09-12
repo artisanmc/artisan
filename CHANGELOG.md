@@ -9,6 +9,10 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Added — account deletion
+
+- Profile account deletion with a single-use email link expiring after 30 minutes and an explicit final confirmation. Revokes sessions and removes personal Artisan data while preserving Minecraft server files; networks with another owner remain available. Active subscriptions on networks losing their last owner must be cancelled first.
+
 ### Added — complete catalog icons
 
 - Item model fields support quantity and advanced attributes. The displayed-item editor offers typed data bindings with inherited previews and quantity overrides; material inputs preserve expression casing.

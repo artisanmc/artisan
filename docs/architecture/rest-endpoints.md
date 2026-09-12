@@ -7,6 +7,8 @@
 
 ## Conventions
 
+- **Account deletion**: `routes/auth.ts` exposes `POST /api/v1/auth/delete-account/request` (session required, 204 after SMTP acceptance; 429 cooldown, 503 email unavailable) and `POST /api/v1/auth/delete-account` (`{token}`, explicit confirmation, 204). Invalid/expired/spent/email-changed tokens return 400; an active subscription on a network losing its last owner returns 409 without consuming the link. There is no destructive GET. Emailed tokens use a URL fragment on `/delete-account` and are removed before analytics initialization.
+
 - **Project drafts (2026-09-11)**: `routes/projectDrafts.ts` owns
   `/api/v1/user/projects/:projectId/drafts` (internal Project ID): list/create,
   read/update/discard `/:draftId`, and explicit POST `/:draftId/publish`.

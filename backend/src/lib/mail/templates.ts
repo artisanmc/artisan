@@ -2,6 +2,13 @@ import type { MailMessage } from "./mailer";
 
 export type MailLocale = "en" | "fr";
 
+export function accountDeletionEmail({ to, url, locale }: { to: string; url: string; locale: MailLocale }): MailMessage {
+  const text = locale === "fr"
+    ? `La suppression de votre compte Artisan a été demandée. Confirmez sur cette page dans les 30 minutes :\n\n${url}\n\nOuvrir le lien ne supprime rien. Les fichiers de vos serveurs Minecraft restent intacts. Si vous n'avez pas fait cette demande, ignorez cet email.`
+    : `Deletion of your Artisan account was requested. Confirm on this page within 30 minutes:\n\n${url}\n\nOpening the link does not delete anything. Files on your Minecraft servers stay intact. If you did not make this request, ignore this email.`;
+  return { to, subject: locale === "fr" ? "Confirmer la suppression de votre compte Artisan" : "Confirm deletion of your Artisan account", text };
+}
+
 function escapeHtml(s: string): string {
   return s.replace(/[&<>"']/g, (c) =>
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!,

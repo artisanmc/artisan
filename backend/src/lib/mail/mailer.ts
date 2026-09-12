@@ -8,7 +8,7 @@ export interface MailMessage {
 }
 
 export interface Mailer {
-  send(msg: MailMessage): Promise<void>;
+  send(msg: MailMessage, options?: { throwOnError?: boolean }): Promise<void>;
   readonly enabled: boolean;
 }
 
@@ -45,7 +45,7 @@ export function createMailerFromEnv(env: Record<string, string | undefined> = {}
 
   return {
     enabled: true,
-    async send(msg: MailMessage) {
+    async send(msg: MailMessage, options?: { throwOnError?: boolean }) {
       try {
         await transport.sendMail({
           from: MAIL_FROM,
@@ -55,6 +55,7 @@ export function createMailerFromEnv(env: Record<string, string | undefined> = {}
           html: msg.html,
         });
       } catch (err) {
+        if (options?.throwOnError) throw err;
         console.error("mailer: failed to send", err);
       }
     },

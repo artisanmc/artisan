@@ -1,7 +1,9 @@
 import { draftsEn } from "./drafts";
+import { accountDeletionEn } from "./accountDeletion";
 import { tasksEn } from "./tasks";
 import { migrationEn } from "./migration";
 export default {
+  accountDeletion: accountDeletionEn,
   drafts: draftsEn,
   navigation: {
     menu: "Menu",

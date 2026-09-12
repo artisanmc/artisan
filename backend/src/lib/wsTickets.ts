@@ -29,3 +29,7 @@ export function redeemTicket(ticket: string, nowMs: number = Date.now()): { user
 export function __resetTicketsForTests(): void {
   tickets.clear();
 }
+
+export function revokeUserTickets(userId: string): void {
+  for (const [ticket, entry] of tickets) if (entry.userId === userId) tickets.delete(ticket);
+}

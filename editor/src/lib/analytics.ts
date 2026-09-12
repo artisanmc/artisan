@@ -1,3 +1,4 @@
+import "./accountDeletionToken";
 import posthog from "posthog-js";
 
 const token = import.meta.env.VITE_POSTHOG_PROJECT_TOKEN?.trim();
