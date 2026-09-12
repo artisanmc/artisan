@@ -1,4 +1,4 @@
-import type { Project, ProjectId } from "@/domain/types";
+import type { ElementId, Project, ProjectId } from "@/domain/types";
 import { describe, expect, it } from "vitest";
 import { selectionContext } from "./selectionContext";
 
@@ -42,6 +42,18 @@ const ctx = (ids: string[], menuId: string | null = null) =>
   selectionContext(project(), new Set(ids), menuId);
 
 describe("selectionContext", () => {
+  it.each(["c1", "d1", "m1"])("keeps a scoped element distinct from entity %s", (id) => {
+    const p = project();
+    p.menus[1]!.layers[0]!.elements[0]!.id = id as ElementId;
+    expect(selectionContext(p, new Set([id]), "m2")).toEqual({
+      kind: "element",
+      menuId: "m2",
+      elementId: id,
+    });
+  });
+  it("does not resolve a stale scoped element as a command", () => {
+    expect(ctx(["c1"], "m2")).toEqual({ kind: "unknown" });
+  });
   it("sélection vide → none", () => {
     expect(ctx([])).toEqual({ kind: "none" });
   });

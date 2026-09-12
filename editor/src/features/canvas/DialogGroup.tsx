@@ -17,7 +17,7 @@ interface DialogGroupProps {
 
 export function DialogGroup({ projectId, dialog, position }: DialogGroupProps) {
   const setCanvasPosition = useAccountStore((s) => s.setCanvasPosition);
-  const isSelected = useSelectionStore((s) => s.ids.has(dialog.id));
+  const isSelected = useSelectionStore((s) => s.menuId === null && s.ids.has(dialog.id));
   const nodeAlign = useNodeAlignment(projectId, dialog.id);
 
   const onDragStart = useCallback((e: Konva.KonvaEventObject<DragEvent>) => {
@@ -36,9 +36,9 @@ export function DialogGroup({ projectId, dialog, position }: DialogGroupProps) {
     (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
       e.cancelBubble = true;
       const additive = "evt" in e && (e.evt.shiftKey || e.evt.metaKey || e.evt.ctrlKey);
-      const { ids, set, toggle } = useSelectionStore.getState();
+      const { ids, menuId: selectionMenuId, set, toggle } = useSelectionStore.getState();
       if (additive) toggle(dialog.id);
-      else if (!ids.has(dialog.id) || ids.size > 1) set([dialog.id]);
+      else if (selectionMenuId !== null || !ids.has(dialog.id) || ids.size > 1) set([dialog.id]);
       // Selecting on the canvas opens the Edit tab so the chosen element is
       // immediately editable — no manual tab switch.
     },
