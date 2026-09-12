@@ -68,7 +68,7 @@ describe("state card title editing reaches the store", () => {
     render(<FlowCanvas projectId={PACK_ID} />);
     fireEvent.click(screen.getByRole("button", { name: /modifier l.item|edit item/i }));
     fireEvent.click(screen.getByRole("button", { name: /^(icon|icône)$/i }));
-    fireEvent.click(screen.getByRole("button", { name: "catalog → icon" }));
+    fireEvent.click(screen.getByRole("button", { name: "catalog.icon" }));
     const appearance = () => useAccountStore.getState().account.projects[0]!.menus[0]!.layers[0]!.elements[0]!.display!;
     expect(appearance()).toMatchObject({ item: "{catalog.icon}" });
     expect(appearance().material).toBeUndefined();
