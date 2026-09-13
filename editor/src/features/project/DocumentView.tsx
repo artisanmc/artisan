@@ -1,20 +1,24 @@
-import { useCallback, useEffect, useState } from "react";
-import { useTranslation } from "react-i18next";
-import { useNavigate, useParams } from "@tanstack/react-router";
-import { ArrowLeft } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
 import type { ElementId, ProjectId } from "@/domain/types";
+import { Stage } from "@/features/canvas/Stage";
+import { FlowCanvas } from "@/features/flow/FlowCanvas";
+import { CanvasWithInspector } from "@/features/project/CanvasWithInspector";
 import { DocumentYamlView } from "@/features/project/DocumentYamlView";
+import { MiniMessageInline } from "@/lib/MiniMessageInline";
+import { projectDestination } from "@/lib/projectNavigation";
 import { useAccountStore } from "@/state/accountStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
-import { EmptyState } from "@/components/ui/empty-state";
-import { CanvasWithInspector } from "@/features/project/CanvasWithInspector";
-import { MiniMessageInline } from "@/lib/MiniMessageInline";
-import { FlowCanvas } from "@/features/flow/FlowCanvas";
-import { Stage } from "@/features/canvas/Stage";
+import { useNavigate, useParams } from "@tanstack/react-router";
+import { ArrowLeft } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { documentLabel } from "./useProjectDocuments";
 
-export function DocumentView({ projectId, documentId }: { projectId: ProjectId; documentId: ElementId }) {
+export function DocumentView({
+  projectId,
+  documentId,
+}: { projectId: ProjectId; documentId: ElementId }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const params = useParams({ strict: false }) as { networkId?: string; serverId?: string };
@@ -50,7 +54,8 @@ export function DocumentView({ projectId, documentId }: { projectId: ProjectId; 
     // recherche qui sélectionne un item précis avant que cette vue ne monte — on la
     // préserve au lieu de l'écraser.
     const childIds = new Set<string>([documentId as string]);
-    for (const layer of menu?.layers ?? []) for (const el of layer.elements ?? []) childIds.add(el.id);
+    for (const layer of menu?.layers ?? [])
+      for (const el of layer.elements ?? []) childIds.add(el.id);
     const current = useSelectionStore.getState().ids;
     const alreadyRelevant = current.size > 0 && [...current].every((id) => childIds.has(id));
     if (!alreadyRelevant) useSelectionStore.getState().set([documentId]);
@@ -58,11 +63,7 @@ export function DocumentView({ projectId, documentId }: { projectId: ProjectId; 
   }, [documentId]);
 
   const back = useCallback(
-    () =>
-      navigate({
-        to: "/networks/$networkId/servers/$serverId/projects/$projectId",
-        params: { networkId: params.networkId!, serverId: params.serverId!, projectId: projectId },
-      }),
+    () => navigate(projectDestination(params.networkId!, projectId, params.serverId)),
     [navigate, params.networkId, params.serverId, projectId],
   );
 
@@ -107,7 +108,7 @@ export function DocumentView({ projectId, documentId }: { projectId: ProjectId; 
         source={project ? documentLabel(project, documentId as string, activeLang) : documentId}
         className="truncate text-[13px] font-medium text-[var(--text)]"
       />
-      {relPath && params.networkId && params.serverId ? (
+      {relPath ? (
         <button
           type="button"
           onClick={() => setYamlMode((v) => !v)}
@@ -131,7 +132,7 @@ export function DocumentView({ projectId, documentId }: { projectId: ProjectId; 
     );
   }
 
-  if (yamlMode && relPath && params.networkId && params.serverId) {
+  if (yamlMode && relPath) {
     return (
       <div className="absolute inset-0 flex flex-col pt-14">
         {header}

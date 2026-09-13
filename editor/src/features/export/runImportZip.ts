@@ -17,10 +17,18 @@ export interface ImportProjectResult {
 export async function runImportZip(
   file: Blob,
   importProjectAction: (input: { project: unknown }) => string,
+  targetId?: string,
 ): Promise<ImportProjectResult> {
   const entries = await readProjectZip(file);
-  const { projectId, files } = normalizeProjectFiles(entries);
-  const project = projectFromFiles(projectId as ProjectId, files);
+  const { projectId, files } = normalizeProjectFiles(entries, targetId);
+  if (Object.values(files).some((content) => content instanceof Uint8Array))
+    throw new Error("binary_import_requires_storage");
+  const textFiles = Object.fromEntries(
+    Object.entries(files).filter(
+      (entry): entry is [string, string] => typeof entry[1] === "string",
+    ),
+  );
+  const project = projectFromFiles(projectId as ProjectId, textFiles);
   const newId = importProjectAction({ project });
   return { newId, name: project.name };
 }

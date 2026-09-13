@@ -1,7 +1,7 @@
 import { applyRenames, planWrite } from "../../../editor/src/features/project/diskSave";
 import type { projectDrafts } from "../db/schema";
-import { requestProjectWrite } from "../ws/hub";
-import { forgetProjectTree } from "./projectTreeReads";
+import { ServerProjectStorage } from "./storage/ServerProjectStorage";
+import type { ProjectStorage } from "./storage/ProjectStorage";
 
 export type DraftSnapshot = typeof projectDrafts.$inferSelect.snapshot;
 function record(value: unknown): value is Record<string, unknown> {
@@ -44,6 +44,11 @@ export function validSnapshot(value: unknown): value is DraftSnapshot {
     value.at < 0
   )
     return false;
+  for (const name of ["binaryBaseline", "binaryTree"] as const) {
+    const entries = value[name];
+    if (entries === undefined) continue;
+    if (!record(entries) || Object.keys(entries).length > 5000 || !Object.entries(entries).every(([key, ref]) => path(key) && record(ref) && typeof ref.hash === "string" && /^[a-f0-9]{64}$/.test(ref.hash) && Number.isSafeInteger(ref.size) && (ref.size as number) >= 0)) return false;
+  }
   if (value.renames === undefined) return true;
   if (!Array.isArray(value.renames) || value.renames.length > 5000) return false;
   const from = new Set<string>();
@@ -79,15 +84,17 @@ export async function publishDraftSnapshot(
   diskId: string,
   snapshot: DraftSnapshot,
 ) {
+  return publishStoredDraft(new ServerProjectStorage({ kind: "server", serverKeyId, folderName: diskId }), snapshot);
+}
+
+export async function publishStoredDraft(storage: ProjectStorage, snapshot: DraftSnapshot) {
   const plan = await applyRenames(
     await planWrite(snapshot.baseline, snapshot.tree),
     snapshot.renames ?? [],
     snapshot.baseline,
   );
   if (plan.empty) return { kind: "result" as const, result: { ok: true as const }, wrote: 0 };
-  forgetProjectTree(serverKeyId, diskId);
-  const result = await requestProjectWrite(serverKeyId, {
-    projectId: diskId,
+  const result = await storage.write({
     ...plan,
     create: false,
   });

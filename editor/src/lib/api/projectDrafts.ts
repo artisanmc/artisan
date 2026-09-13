@@ -1,7 +1,8 @@
 import type { ProjectDraft } from "@/features/project/draft";
+import { projectFetch } from "@/lib/projectFetch";
 import type { ProjectFileConflict } from "./projectFiles";
 
-export interface BackendDraft {
+export interface PersistedDraft {
   id: string;
   projectId: string;
   ownerId: string;
@@ -16,7 +17,7 @@ export class DraftApiError extends Error {
   constructor(
     public code: string,
     public status: number,
-    public draft?: BackendDraft,
+    public draft?: PersistedDraft,
     public conflicts: ProjectFileConflict[] = [],
     public diskFiles: string[] = [],
     public detail?: string,
@@ -26,7 +27,8 @@ export class DraftApiError extends Error {
 }
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
 async function call(projectId: string, suffix = "", method = "GET", body?: unknown) {
-  const response = await fetch(
+  const response = await projectFetch(
+    projectId,
     `${API_URL}/api/v1/user/projects/${encodeURIComponent(projectId)}/drafts${suffix}`,
     {
       method,
@@ -48,10 +50,10 @@ async function call(projectId: string, suffix = "", method = "GET", body?: unkno
     );
   return data;
 }
-export async function listDrafts(projectId: string): Promise<BackendDraft[]> {
+export async function listDrafts(projectId: string): Promise<PersistedDraft[]> {
   return (await call(projectId)).drafts;
 }
-export async function readDraft(projectId: string, id: string): Promise<BackendDraft> {
+export async function readDraft(projectId: string, id: string): Promise<PersistedDraft> {
   return (await call(projectId, `/${encodeURIComponent(id)}`)).draft;
 }
 export async function createDraft(
@@ -59,8 +61,9 @@ export async function createDraft(
   id: string,
   name: string,
   snapshot: ProjectDraft,
-): Promise<BackendDraft> {
-  return (await call(projectId, "", "POST", { id, name, snapshot })).draft;
+  operationId: string,
+): Promise<PersistedDraft> {
+  return (await call(projectId, "", "POST", { id, name, snapshot, operationId })).draft;
 }
 export async function updateDraft(
   projectId: string,
@@ -68,17 +71,48 @@ export async function updateDraft(
   revision: number,
   name: string,
   snapshot: ProjectDraft,
-): Promise<BackendDraft> {
-  return (await call(projectId, `/${encodeURIComponent(id)}`, "PUT", { revision, name, snapshot }))
-    .draft;
+  operationId: string,
+): Promise<PersistedDraft> {
+  return (
+    await call(projectId, `/${encodeURIComponent(id)}`, "PUT", {
+      revision,
+      name,
+      snapshot,
+      operationId,
+    })
+  ).draft;
 }
-export async function discardDraft(projectId: string, id: string, revision: number): Promise<void> {
-  await call(projectId, `/${encodeURIComponent(id)}`, "DELETE", { revision });
+export async function discardDraft(
+  projectId: string,
+  id: string,
+  revision: number,
+  operationId: string,
+): Promise<void> {
+  await call(projectId, `/${encodeURIComponent(id)}`, "DELETE", { revision, operationId });
 }
 export async function publishDraft(
   projectId: string,
   id: string,
   revision: number,
-): Promise<{ draft: BackendDraft; wrote: number }> {
-  return call(projectId, `/${encodeURIComponent(id)}/publish`, "POST", { revision });
+  operationId: string,
+): Promise<{ draft: PersistedDraft; wrote: number }> {
+  return call(projectId, `/${encodeURIComponent(id)}/publish`, "POST", { revision, operationId });
+}
+
+export async function uploadDraftBlob(
+  projectId: string,
+  id: string,
+  revision: number,
+  hash: string,
+  contentBase64: string,
+  operationId: string,
+): Promise<PersistedDraft> {
+  return (
+    await call(projectId, `/${encodeURIComponent(id)}/blobs`, "POST", {
+      revision,
+      hash,
+      contentBase64,
+      operationId,
+    })
+  ).draft;
 }

@@ -1,5 +1,7 @@
 import { RequestAccessPanel } from "@/components/network-detail/RequestAccessPanel";
 import { buildProjectGroups, diskProjectsToSummaries } from "@/features/projects/projectGroups";
+import { RenameProjectButton } from "@/features/projects/RenameProjectButton";
+import { onProjectRenamed, type ProjectRenamed } from "@/features/project/onProjectRenamed";
 import { getNetwork } from "@/lib/api/networks";
 import type { ProjectSummary } from "@/lib/api/networks";
 import { listServerProjects } from "@/lib/api/projectFiles";
@@ -111,6 +113,17 @@ function ServerOverview({
   const serverScreens = useServerScreensStore((s) => s.screens);
   const localProjects = useAccountStore((s) => s.account.projects);
   const mountedModuleIds = useModulesStore((s) => s.mountedIds);
+  useEffect(() => {
+    const renamed = (raw: Event) => {
+      const event = (raw as CustomEvent<ProjectRenamed>).detail;
+      if (event.serverKeyId !== serverKeyId) return;
+      setProjects((current) => current.map((project) => project.id === event.projectId
+        ? { ...project, externalId: event.diskId, name: project.name === event.previousDiskId ? event.diskId : project.name }
+        : project));
+    };
+    window.addEventListener("ifz:project_renamed", renamed);
+    return () => window.removeEventListener("ifz:project_renamed", renamed);
+  }, [serverKeyId]);
 
   /**
    * Les Projects se lisent sur le disque du serveur, comme dans la sidebar : le
@@ -132,7 +145,7 @@ function ServerOverview({
         setStatus("unavailable");
         return;
       }
-      setProjects(diskProjectsToSummaries(networkId, serverKeyId, res.projectIds));
+      setProjects(diskProjectsToSummaries(networkId, serverKeyId, res.projectIds, res.projects));
       setStatus("ready");
     });
     return () => {
@@ -188,11 +201,11 @@ function ServerOverview({
           ) : (
             <ul className="flex flex-col gap-2">
               {flatProjects.map((w) => (
-                <li key={w.id}>
+                <li key={w.id} className="flex items-center gap-2">
                   <Link
                     to="/networks/$networkId/servers/$serverId/projects/$projectId"
                     params={{ networkId, serverId, projectId: w.slug || w.id }}
-                    className="card flex items-center justify-between p-4 hover:bg-[var(--surface-hover)]"
+                    className="card flex flex-1 items-center justify-between p-4 hover:bg-[var(--surface-hover)]"
                   >
                     {/* Plus de compteur de Documents : le backend ne détient
                         plus les fichiers (ADR `server-disk-only-storage`), donc
@@ -200,6 +213,7 @@ function ServerOverview({
                         serveur. Un compteur figé de l'ancien monde aurait menti. */}
                     <span className="text-[14px] font-medium text-[var(--text)]">{w.name}</span>
                   </Link>
+                  <RenameProjectButton project={w} onRenamed={(diskId) => { if (serverKeyId) onProjectRenamed({ projectId: w.id, serverKeyId, previousDiskId: w.externalId ?? w.id, diskId }); }} />
                 </li>
               ))}
             </ul>

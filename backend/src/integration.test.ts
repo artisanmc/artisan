@@ -3,6 +3,7 @@ import { app, websocket } from "./app";
 import { db } from "./db/index";
 import { networks, serverKeys, projects, linkCodes } from "./db/schema";
 import { getProject } from "./lib/projectStorage";
+import {adminCookie} from './testSupport/adminSession';
 
 /**
  * Full-stack: a real Bun HTTP/WS server, a real socket.
@@ -57,7 +58,7 @@ function collectMessages(ws: WebSocket, count: number, timeoutMs = 3_000): Promi
 async function createKey(label: string): Promise<string> {
   const res = await app.request("/api/v1/server-keys", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json",Cookie:await adminCookie() },
     body: JSON.stringify({ label }),
   });
   return ((await res.json()) as { key: string }).key;

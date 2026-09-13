@@ -1,14 +1,105 @@
 # WS Protocol — plugin ↔ backend
 
+## Hosted-to-server copies (`project_copy_v1`)
+
+`hello.capabilities` negotiates `project_copy_v1`. `project_copy` carries
+`request_id`, stable `operation_id`, `target_id`, `fingerprint` and `action`:
+`begin` adds `minecraft_version`, sorted `modules` IDs and sorted `files`
+descriptors `{path,size,sha256}`; `chunk` adds `path`, byte `offset` and
+`content_base64`; `commit` verifies and activates; `status` queries the durable receipt.
+The fingerprint is SHA-256 of UTF-8 compact JSON in exact property order
+`{target_id,minecraft_version,modules,files}`, with descriptor order `path,size,sha256`.
+`project_copy_result` echoes correlation, operation, folder and fingerprint plus
+`ok`, `state: missing|staging|activated`, optional `error`, and the complete
+`file_hashes` map on activation. Backend accepts only the requesting authenticated connection.
+
+Bounds: 5,000 files, 16 MiB per file, 64 MiB total, 192 KiB decoded chunks,
+eight pending operations per server. Manifest is mandatory; exact Minecraft
+version and required module IDs are checked. Public `.artisan/editor.yaml` is
+included; private drafts/history, unsafe paths and duplicate case-folded paths are excluded.
+Plugin stages outside discovered roots, verifies every size/digest before one activation,
+and keeps receipts for idempotent recovery after lost ACK. Staging expires after
+24 hours without effective writes; status polling does not renew it. Expired
+operations return `operation_expired` and require a new operation ID. Activated roots never expire.
+Windows syncs file contents and atomically renames; directory fsync is unavailable,
+so abrupt power-loss guarantees follow the existing filesystem publication boundary.
+
+Backend reserves the folder before sending and suppresses hello/list discovery
+until the exact activation receipt is verified. Reconnect/pong maintenance resumes
+authorized operations; revoked actors permit only status reconciliation, never upload.
+After the destination anchor commits, resource-pack rebuild/push runs and retries
+from a durable `resource_pack_pending` flag if needed.
+
+## Atomic mixed publication (2026-09-13)
+
+The `hello` capability `project_mixed_write_v1` enables `project_write` with
+`operation_id` and `binaries: [{path, content_base64, base_hash}]` alongside text
+files, deletes and renames. All text/binary CAS checks precede one recoverable
+publisher journal and one reload; duplicate or private paths are rejected.
+The same operation ID replays its receipt after a lost acknowledgement without
+overwriting later edits. Older plugins retain text writes; mixed writes return
+`plugin_update_required` without sending a partial alternative.
+Hosted project operations do not use this WebSocket channel.
+
 > Référence du protocole WebSocket entre le plugin Kotlin et le backend.
 > Source de vérité du code : `backend/src/ws/hub.ts`, `editor/src/lib/ws/pluginBridge.ts`, plugin `WsClient.kt`.
 > Quand tu modifies un message, mets à jour ce fichier (cf. `.claude/skills/sync-docs/doc-impact-map.yaml`).
 
 ## Versioning / forward-compat
 
+### Private drafts (`project_drafts_v1`, 2026-09-13)
+
+Negotiated in `hello.capabilities`. `project_draft_request` carries `request_id`,
+`project_id`, backend-verified `owner_id`, `action`; replies use
+`project_draft_result` with `{ok,error?,draft?,drafts?,wrote?,content_base64?}`.
+Correlation is bound to the exact authenticated plugin connection.
+Actions: `list/read/create/update/discard/publish/write_blob/read_blob`;
+backend-only migration actions: `import/list_all/purge_owner`.
+Mutations carry `operation_id`; existing draft changes carry `expected_revision`.
+`create/update` carry `draft_id,name,snapshot`; `import` carries the full `draft`.
+The `artisan-draft/v1` envelope has no project ID and preserves owner, revision,
+status, source, timestamps, baseline/tree/initialTree and renames. Binary snapshot
+maps `binaryBaseline/binaryTree` use `{hash,size}`; `write_blob` transports
+`hash,content_base64` separately without advancing revision. Publication finalizes
+files and terminal draft state on storage, with a recoverable journal.
+Structurally impossible target hierarchies are rejected before the commit intent.
+`storage_error` is an uncertain outcome; retry the same `operation_id` after recovery.
+Legacy draft IDs retain their exact envelope spelling; uppercase-bearing IDs and
+Windows device names use an encoded private directory on every OS, preserving
+case-distinct IDs when projects move between filesystems.
+`list_all` accepts an empty administrative owner and returns every unrevoked state.
+`purge_owner` persists a private revocation marker, blocking restored owner data.
+Ordinary reads/exports/runtime never include `.artisan/drafts/`.
+
 `hello` carries `protocol_version: "1"` + `core_version`. Unknown message types are logged + ignored (forward-compat). Tout endpoint REST associé est sous `/api/v1/`.
 
 ## Messages
+
+### Project identity and durable rename (2026-09-12)
+
+`hello.capabilities` negotiates `project_rename`. `project_roots` reports
+`{project_id, identity: "folder" | "addon"}` on hello, list, reload and module
+registration. Add-on IDs remain registered and immutable; folder roots can rename.
+`project_rename` carries `request_id`, durable `operation_id`, `project_id` and
+`target_project_id`; `project_rename_result` echoes them with `ok` and `error`.
+The backend reserves the target and blocks text/config/binary writes while pending.
+The plugin journals the filesystem operation; hello `project_rename_results`
+replays successful receipts before discovery. Lost replies retry with the same
+operation ID in the background; listings exclude reserved source/target roots
+and return `pending_renames`, while unrelated projects stay available.
+SQL keeps the immutable Project primary key.
+`rename_error` remains pending; definite rejection releases the reservation.
+On server-initiated WebSocket close, the client acknowledges `onClosing` so
+`onClosed` schedules reconnection (including replacement close code 1012).
+Hello reads a cached immutable identity snapshot from the last completed reload
+or mutation; the OkHttp callback neither scans the disk nor waits on root locks.
+Authenticated receipts must match the operation's server and both identities.
+`project_renamed` notifies editors with `server_key_id`, immutable `project_id`,
+`previous_disk_id` and `disk_id`; tree caches are invalidated for both names.
+Explicit `identity_migrations: [{from: "boutique_shop", to: "boutique_addon"}]`
+requires a registered `boutique_addon` root. Occupied destinations stop migration;
+drafts and other foreign keys retain their anchor. Retired folder IDs are reserved
+by the plugin against stale creates until a future generation-aware create API.
 
 | Message | Sens | Contenu clé |
 |---|---|---|
@@ -89,5 +180,5 @@ le backend n'est qu'un **relais** (ADR `server-disk-only-storage`).
 
 - **Une clé serveur = UN serveur vivant** : au `hello`, le backend évince la connexion précédente liée à la même clé (dernier arrivé gagne). Le relais choisit « la première connexion trouvée » — avec N instances sur une clé, chacune ayant son propre disque, on lirait l'une et écrirait l'autre, puis on basculerait en silence quand la première tombe.
 - **Un seul écrivain** : le plugin. Le backend relaie et n'arbitre jamais — il n'a aucune copie avec quoi arbitrer. La protection contre l'écrasement concurrent est le **compare-and-swap par fichier** de `project_write` (tout ou rien, conflits rendus avec le contenu disque).
-- **Le hash n'est plus inter-langage** : `BundleHasher` ne sert qu'au plugin (détection de changement + jeton de CAS). Le vecteur de conformance partagé a disparu avec l'implémentation backend.
+- **Snapshot hash partagé** : `BundleHasher.snapshotHash` et `hashUtils.computeProjectSnapshotHash` suivent le vecteur `testdata/project-snapshot-hash-conformance.json` pour les stockages serveur et hébergé.
 - **OkHttp thread** : `SyncedMenuProvider.handleMessage` tourne sur le callback WS d'OkHttp — pas d'I/O bloquant direct.

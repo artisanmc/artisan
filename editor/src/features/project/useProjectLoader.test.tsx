@@ -1,7 +1,7 @@
 import * as dataSourcesApi from "@/lib/api/dataSources";
+import * as draftsApi from "@/lib/api/projectDrafts";
 import * as projectFilesApi from "@/lib/api/projectFiles";
 import * as userProjectsApi from "@/lib/api/userProjects";
-import * as draftsApi from "@/lib/api/projectDrafts";
 import { useAuthStore } from "@/state/authStore";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { projectCacheKey, useProjectCacheStore } from "@/state/projectCacheStore";
@@ -20,19 +20,29 @@ describe("useProjectLoader", () => {
     useProjectDraftStore.setState({ drafts: {}, pendingRenames: {}, ownerId: null, backups: {} });
   });
 
-  it("shows the backend draft before a slow Minecraft read completes", async () => {
+  it("waits for Minecraft before opening a persisted draft", async () => {
     useAuthStore.setState({ currentUser: { id: "u1" } } as never);
     vi.spyOn(userProjectsApi, "loadUserProject").mockResolvedValue({
-      project: { id: "p1", name: "Shop", externalId: "shop" }, networkId: "net_1", serverKeyId: "sk_1",
+      project: { id: "p1", name: "Shop", externalId: "shop" },
+      networkId: "net_1",
+      serverKeyId: "sk_1",
     } as never);
     const baseline = { "manifest.yaml": "id: shop\nname: Original\n" };
     const tree = { "manifest.yaml": "id: shop\nname: Backend draft\n" };
-    vi.mocked(draftsApi.listDrafts).mockResolvedValue([{ id: "d1", ownerId: "u1", name: "Work", revision: 1, status: "active", snapshot: { baseline, tree, at: 1 } }] as never);
+    vi.mocked(draftsApi.listDrafts).mockResolvedValue([
+      {
+        id: "d1",
+        ownerId: "u1",
+        name: "Work",
+        revision: 1,
+        status: "active",
+        snapshot: { baseline, tree, at: 1 },
+      },
+    ] as never);
     vi.spyOn(projectFilesApi, "readProjectFiles").mockReturnValue(new Promise(() => {}));
     const { result } = renderHook(() => useProjectLoader("p1"));
-    await waitFor(() => expect(result.current.project).not.toBeNull());
-    expect(result.current.fromDraft).toBe(true);
-    expect(useProjectBaselineStore.getState().get("p1")).toEqual(baseline);
+    await act(async () => {});
+    expect(result.current.project).toBeNull();
   });
 
   it("charge le contenu depuis le DISQUE du serveur, pas depuis le backend", async () => {
@@ -54,7 +64,7 @@ describe("useProjectLoader", () => {
     expect(result.current.error).toBeNull();
     // Lu sous l'id disque, auprès du serveur propriétaire. Sans version connue,
     // aucune empreinte à annoncer : le serveur envoie l'arbre.
-    expect(readSpy).toHaveBeenCalledWith("net_1", "sk_1", "boutique_shop", undefined);
+    expect(readSpy).toHaveBeenCalledWith("p1", undefined, undefined, undefined);
     // Ce qui a été lu devient la base du compare-and-swap.
     expect(useProjectBaselineStore.getState().get("p1")).toEqual({
       "manifest.yaml": "id: boutique_shop\n",
@@ -85,7 +95,7 @@ describe("useProjectLoader", () => {
    * précédente. On affiche donc ce qu'on avait, tout de suite, et on revalide
    * derrière — sans jamais faire passer le cache pour la vérité (`stale`).
    */
-  it("affiche tout de suite la dernière version connue, puis la remplace par celle du serveur", async () => {
+  it("keeps the cached project closed until the server responds", async () => {
     useAuthStore.setState({ currentUser: { id: "u1", name: "x", email: "x@a.b" } } as never);
     useProjectCacheStore.getState().put(projectCacheKey("p1"), {
       identity: {
@@ -114,15 +124,15 @@ describe("useProjectLoader", () => {
 
     const { result } = renderHook(() => useProjectLoader("p1"));
 
-    await waitFor(() => expect(result.current.project).not.toBeNull());
-    expect(result.current.stale).toBe(true);
+    await act(async () => {});
+    expect(result.current.project).toBeNull();
 
     release({
       ok: true,
       files: { "manifest.yaml": "id: boutique_shop\nname: frais\n" },
       failed: [],
     });
-    await waitFor(() => expect(result.current.stale).toBe(false));
+    await waitFor(() => expect(result.current.project).not.toBeNull());
   });
 
   it("ce que le serveur a rendu devient la version connue", async () => {
@@ -177,7 +187,7 @@ describe("useProjectLoader", () => {
     const { result } = renderHook(() => useProjectLoader("p1"));
 
     await waitFor(() => expect(result.current.project).not.toBeNull());
-    expect(readSpy).toHaveBeenCalledWith("net_1", "sk_1", "boutique_shop", "empreinte-connue");
+    expect(readSpy).toHaveBeenCalledWith("p1", undefined, undefined, "empreinte-connue");
     // Revalidé : la copie affichée n'est plus « datée », elle est confirmée.
     await waitFor(() => expect(result.current.stale).toBe(false));
     // Ce qui est à l'écran est bien ce que le serveur porte : c'est la base du
@@ -213,13 +223,13 @@ describe("useProjectLoader", () => {
     const { result, unmount } = renderHook(() => useProjectLoader("p1"));
     await act(async () => {});
     expect(result.current.offline).toBe(true);
-    expect(result.current.stale).toBe(true);
+    expect(result.current.project).toBeNull();
     await act(async () => {
       await vi.advanceTimersByTimeAsync(15_000);
     });
     expect(read).toHaveBeenCalledTimes(2);
     expect(result.current.offline).toBe(true);
-    expect(result.current.stale).toBe(true);
+    expect(result.current.project).toBeNull();
     await act(async () => {
       await vi.advanceTimersByTimeAsync(15_000);
     });
@@ -290,5 +300,60 @@ describe("useProjectLoader", () => {
     const { result } = renderHook(() => useProjectLoader("p1"));
     await waitFor(() => expect(result.current.error).toBe("Not authenticated"));
     expect(result.current.project).toBeNull();
+  });
+
+  it("keeps an already open project and dirty recovery copy when a refresh loses the server", async () => {
+    vi.spyOn(dataSourcesApi, "fetchServerDeclaredModels").mockResolvedValue([]);
+    useAuthStore.setState({ currentUser: { id: "u1" } } as never);
+    vi.spyOn(userProjectsApi, "loadUserProject").mockResolvedValue({
+      project: { id: "p1", name: "Shop", externalId: "shop" },
+      networkId: "net_1",
+      serverKeyId: "sk_1",
+    } as never);
+    const baseline = { "manifest.yaml": "schema: manifest/v2\n" };
+    const read = vi
+      .spyOn(projectFilesApi, "readProjectFiles")
+      .mockResolvedValue({ ok: true, files: baseline, failed: [], hash: "h" });
+    const { result } = renderHook(() => useProjectLoader("p1"));
+    await waitFor(() => expect(result.current.project).not.toBeNull());
+    const open = result.current.project;
+    const tree = { ...baseline, "menus/new.yaml": "id: new\n" };
+    useProjectDraftStore.getState().save("p1", { baseline, tree, initialTree: baseline, at: 1 });
+    read.mockResolvedValue({ ok: false, error: "server_offline" });
+    act(() => useProjectCacheStore.getState().requestReload());
+    await waitFor(() => expect(result.current.offline).toBe(true));
+    expect(result.current.project).toBe(open);
+    expect(useProjectDraftStore.getState().get("p1")?.tree).toEqual(tree);
+  });
+
+  it("preserves an open buffer and retries when the backend itself disconnects", async () => {
+    vi.useFakeTimers();
+    vi.spyOn(dataSourcesApi, "fetchServerDeclaredModels").mockResolvedValue([]);
+    useAuthStore.setState({ currentUser: { id: "u1" } } as never);
+    const identity = {
+      project: { id: "p1", name: "Shop", externalId: "shop" },
+      networkId: "net_1",
+      serverKeyId: "sk_1",
+    };
+    const load = vi.spyOn(userProjectsApi, "loadUserProject").mockResolvedValue(identity);
+    const baseline = { "manifest.yaml": "schema: manifest/v2\n" };
+    vi.spyOn(projectFilesApi, "readProjectFiles").mockResolvedValue({
+      ok: true,
+      files: baseline,
+      failed: [],
+      hash: "h",
+    });
+    const { result } = renderHook(() => useProjectLoader("p1"));
+    await act(async () => {});
+    const open = result.current.project;
+    expect(open).not.toBeNull();
+    load.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    await act(async () => useProjectCacheStore.getState().requestReload());
+    expect(result.current.offline).toBe(true);
+    expect(result.current.error).toBeNull();
+    expect(result.current.project).toBe(open);
+    await act(async () => vi.advanceTimersByTimeAsync(15_000));
+    expect(result.current.offline).toBe(false);
+    expect(load).toHaveBeenCalledTimes(3);
   });
 });

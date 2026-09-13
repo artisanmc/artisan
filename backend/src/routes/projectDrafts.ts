@@ -1,157 +1,81 @@
-import { and, desc, eq, sql } from "drizzle-orm";
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { bodyLimit } from "hono/body-limit";
-import { db } from "../db";
-import { projectDrafts } from "../db/schema";
-import { requireCapability } from "../lib/membershipGuard";
-import { publishDraftSnapshot, validDraftBody } from "../lib/projectDrafts";
-import { getProject, projectDiskId } from "../lib/projectStorage";
+import { validDraftBody } from "../lib/projectDrafts";
+import { resolveProjectStorage, ProjectStorageError } from "../lib/storage/resolveProjectStorage";
+import type { ProjectStorage } from "../lib/storage/ProjectStorage";
+import type { DraftOutcome, StoredDraft } from "../lib/storage/DraftStore";
 import type { AuthUser } from "../middleware/userAuth";
+import {requestProjectPrincipal,demoErrorResponse} from '../middleware/demoAuth';
 
-export const projectDraftsRouter = new Hono<{ Variables: { user: AuthUser | null } }>();
+type Env = { Variables: { user: AuthUser | null; projectStorage: ProjectStorage } };
+export const projectDraftsRouter = new Hono<Env>();
+projectDraftsRouter.onError((error,c)=>demoErrorResponse(c,error));
 const base = "/:projectId/drafts";
+const identifier = (value: unknown): value is string => typeof value === "string" && /^[a-zA-Z0-9_-]{1,100}$/.test(value);
 for (const path of [base, `${base}/*`]) {
   projectDraftsRouter.use(path, bodyLimit({ maxSize: 8 * 1024 * 1024 }));
   projectDraftsRouter.use(path, async (c, next) => {
-    const user = c.get("user");
-    if (!user) return c.json({ error: "unauthorized" }, 401);
-    const project = await getProject(c.req.param("projectId")!);
-    if (!project || project.deletedAt) return c.json({ error: "not_found" }, 404);
-    try {
-      await requireCapability(user.id, project.networkId, "edit_content");
-    } catch {
-      return c.json({ error: "forbidden" }, 403);
+    try { const principal=await requestProjectPrincipal(c,c.req.param('projectId')!);c.set("projectStorage", await resolveProjectStorage(principal, c.req.param("projectId")!, c.req.path.endsWith("/publish") ? "publish_content" : "edit_content")); }
+    catch (error) {
+      if(error&&typeof error==='object'&&'status'in error)return c.json({error:'code'in error?error.code:'forbidden'},error.status as 401);
+      if (error instanceof ProjectStorageError) return c.json({ error: error.code }, error.code === "forbidden" ? 403 : error.code === "not_found" ? 404 : 503);
+      throw error;
     }
     await next();
   });
 }
 
-projectDraftsRouter.get(base, async (c) => {
-  const drafts = await db
-    .select()
-    .from(projectDrafts)
-    .where(
-      and(
-        eq(projectDrafts.projectId, c.req.param("projectId")),
-        eq(projectDrafts.ownerId, c.get("user")!.id),
-        eq(projectDrafts.status, "active"),
-      ),
-    )
-    .orderBy(desc(projectDrafts.updatedAt));
-  return c.json({ drafts });
-});
-projectDraftsRouter.get(`${base}/:draftId`, async (c) => {
-  const [draft] = await db
-    .select()
-    .from(projectDrafts)
-    .where(
-      and(
-        eq(projectDrafts.id, c.req.param("draftId")),
-        eq(projectDrafts.projectId, c.req.param("projectId")),
-        eq(projectDrafts.ownerId, c.get("user")!.id),
-      ),
-    );
-  return draft ? c.json({ draft }) : c.json({ error: "not_found" }, 404);
+function response(c: Context<Env>, outcome: DraftOutcome, created = false) {
+  if (outcome.kind === "offline") return c.json({ error: "server_offline" }, 503);
+  if (outcome.kind === "timeout") return c.json({ error: "fetch_timeout" }, 504);
+  const result = outcome.result;
+  const attach = (draft: StoredDraft) => ({ ...draft, projectId: c.req.param("projectId") });
+  const body = { ...result, ...(result.draft ? { draft: attach(result.draft) } : {}), ...(result.drafts ? { drafts: result.drafts.map(attach) } : {}) };
+  if (result.ok) return c.json(body, created ? 201 : 200);
+  const error = result.error ?? "draft_error";
+  // A storage failure may follow a durable commit intent: preserve the client's retry key.
+  return c.json(body, error === "not_found" ? 404 : ["draft_migration_pending", "storage_error", "rename_in_progress", "rename_pending"].includes(error) ? 503 : ["draft_conflict", "draft_exists", "draft_closed", "conflict", "operation_mismatch", "operation_conflict", "operation_expired"].includes(error) ? 409 : 422);
+}
+function operation(body: Record<string, unknown>) {
+  return body.operationId === undefined ? crypto.randomUUID() : identifier(body.operationId) ? body.operationId : null;
+}
+projectDraftsRouter.get(base, async (c) => response(c, await c.get("projectStorage").drafts.list()));
+projectDraftsRouter.get(`${base}/:draftId`, async (c) => response(c, await c.get("projectStorage").drafts.read(c.req.param("draftId"))));
+projectDraftsRouter.get(`${base}/:draftId/blobs/:hash`, async (c) => {
+  const hash = c.req.param("hash");
+  if (!/^[a-f0-9]{64}$/.test(hash)) return c.json({ error: "invalid_input" }, 422);
+  const outcome = await c.get("projectStorage").drafts.readBlob(c.req.param("draftId"), hash);
+  if (outcome.kind !== "result" || !outcome.result.ok || outcome.result.content_base64 === undefined) return response(c, outcome);
+  c.header("Cache-Control", "private, no-store");
+  c.header("Content-Type", "application/octet-stream");
+  return c.body(Buffer.from(outcome.result.content_base64, "base64"));
 });
 projectDraftsRouter.post(base, async (c) => {
   const body = await c.req.json().catch(() => null);
   const id = body?.id;
-  if (!validDraftBody(body) || typeof id !== "string" || !/^[a-zA-Z0-9_-]{1,100}$/.test(id))
-    return c.json({ error: "invalid_input" }, 422);
-  const now = new Date();
-  const [draft] = await db
-    .insert(projectDrafts)
-    .values({
-      id,
-      projectId: c.req.param("projectId"),
-      ownerId: c.get("user")!.id,
-      name: body.name,
-      snapshot: body.snapshot,
-      updatedBy: c.get("user")!.id,
-      createdAt: now,
-      updatedAt: now,
-    })
-    .onConflictDoNothing()
-    .returning();
-  if (!draft) return c.json({ error: "draft_exists" }, 409);
-  return c.json({ draft }, 201);
+  if (!validDraftBody(body) || !identifier(id)) return c.json({ error: "invalid_input" }, 422);
+  const operationId = operation(body);
+  if (!operationId) return c.json({ error: "invalid_input" }, 422);
+  return response(c, await c.get("projectStorage").drafts.create(id, operationId, { name: body.name, snapshot: body.snapshot }), true);
 });
-
-for (const method of ["put", "delete"] as const) {
-  projectDraftsRouter[method](`${base}/:draftId`, async (c) => {
+for (const method of ["put", "delete", "publish", "blobs"] as const) {
+  const suffix = method === "publish" || method === "blobs" ? `/:draftId/${method}` : "/:draftId";
+  projectDraftsRouter[method === "publish" || method === "blobs" ? "post" : method](`${base}${suffix}`, async (c) => {
     const body = await c.req.json().catch(() => null);
-    if (!Number.isSafeInteger(body?.revision) || body.revision < 1)
-      return c.json({ error: "invalid_input" }, 422);
-    if (method === "put" && !validDraftBody(body)) return c.json({ error: "invalid_input" }, 422);
-    const scope = and(
-      eq(projectDrafts.id, c.req.param("draftId")),
-      eq(projectDrafts.projectId, c.req.param("projectId")),
-      eq(projectDrafts.ownerId, c.get("user")!.id),
-    );
-    const [draft] = await db
-      .update(projectDrafts)
-      .set({
-        ...(method === "delete"
-          ? { status: "discarded" }
-          : { name: body.name, snapshot: body.snapshot }),
-        revision: sql`${projectDrafts.revision} + 1`,
-        updatedAt: new Date(),
-        updatedBy: c.get("user")!.id,
-      })
-      .where(
-        and(scope, eq(projectDrafts.revision, body.revision), eq(projectDrafts.status, "active")),
-      )
-      .returning();
-    if (draft) return c.json({ draft });
-    const [current] = await db.select().from(projectDrafts).where(scope);
-    return current
-      ? c.json({ error: "draft_conflict", draft: current }, 409)
-      : c.json({ error: "not_found" }, 404);
+    if (!body || !Number.isSafeInteger(body.revision) || body.revision < 1) return c.json({ error: "invalid_input" }, 422);
+    const operationId = operation(body);
+    if (!operationId) return c.json({ error: "invalid_input" }, 422);
+    const store = c.get("projectStorage").drafts;
+    const id = c.req.param("draftId")!;
+    const revision: number = body.revision;
+    if (method === "put") {
+      if (!validDraftBody(body)) return c.json({ error: "invalid_input" }, 422);
+      return response(c, await store.update(id, revision, operationId, { name: body.name, snapshot: body.snapshot }));
+    }
+    if (method === "blobs") {
+      if (typeof body.hash !== "string" || !/^[a-f0-9]{64}$/.test(body.hash) || typeof body.contentBase64 !== "string" || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(body.contentBase64)) return c.json({ error: "invalid_input" }, 422);
+      return response(c, await store.writeBlob(id, body.revision, operationId, body.hash, body.contentBase64));
+    }
+    return response(c, method === "delete" ? await store.discard(id, body.revision, operationId) : await store.publish(id, body.revision, operationId));
   });
 }
-
-projectDraftsRouter.post(`${base}/:draftId/publish`, async (c) => {
-  const body = await c.req.json().catch(() => null);
-  if (!Number.isSafeInteger(body?.revision) || body.revision < 1)
-    return c.json({ error: "invalid_input" }, 422);
-  const project = await getProject(c.req.param("projectId"));
-  if (!project || project.deletedAt) return c.json({ error: "not_found" }, 404);
-  try {
-    await requireCapability(c.get("user")!.id, project.networkId, "publish_content");
-  } catch {
-    return c.json({ error: "forbidden" }, 403);
-  }
-  return db.transaction(async (tx) => {
-    const [draft] = await tx
-      .select()
-      .from(projectDrafts)
-      .where(
-        and(
-          eq(projectDrafts.id, c.req.param("draftId")),
-          eq(projectDrafts.projectId, project.id),
-          eq(projectDrafts.ownerId, c.get("user")!.id),
-        ),
-      )
-      .for("update");
-    if (!draft) return c.json({ error: "not_found" }, 404);
-    if (draft.revision !== body.revision || draft.status !== "active")
-      return c.json({ error: "draft_conflict", draft }, 409);
-    const outcome = await publishDraftSnapshot(
-      project.serverKeyId,
-      projectDiskId(project),
-      draft.snapshot,
-    );
-    if (outcome.kind === "offline") return c.json({ error: "server_offline" }, 503);
-    if (outcome.kind === "timeout") return c.json({ error: "fetch_timeout" }, 504);
-    if (!outcome.result.ok) {
-      const result = outcome.result;
-      return c.json(result, result.error === "conflict" ? 409 : 422);
-    }
-    const [published] = await tx
-      .update(projectDrafts)
-      .set({ status: "published", revision: draft.revision + 1, updatedAt: new Date() })
-      .where(eq(projectDrafts.id, draft.id))
-      .returning();
-    return c.json({ ok: true, draft: published, wrote: outcome.wrote });
-  });
-});

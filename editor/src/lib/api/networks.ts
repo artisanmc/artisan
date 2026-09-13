@@ -18,13 +18,15 @@ export interface ServerKeySummary {
 }
 
 export interface ProjectSummary {
+  pendingRename?: { operationId: string; targetId: string; status: "pending" };
+  capabilities?: { canRename: boolean };
   id: string;
   name: string;
   slug?: string;
   hash: string;
   updatedAt?: string;
   networkId: string;
-  serverKeyId: string;
+  serverKeyId: string | null;
   /** Id disque du project côté serveur propriétaire — c'est celui qu'un module
    *  déclare (`externalId`), et il diffère de `id` dès qu'un autre serveur a déjà
    *  réclamé le même nom. */

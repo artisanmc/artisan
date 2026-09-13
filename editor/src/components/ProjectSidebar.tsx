@@ -31,6 +31,7 @@ import { useModulesStore } from "@/state/modulesStore";
 import { useNetworksStore } from "@/state/networksStore";
 import { useServerScreensStore } from "@/state/serverScreensStore";
 import { useServersStore } from "@/state/serversStore";
+import { listHostedProjects } from "@/lib/api/hostedProjects";
 import { useSidebarStore } from "@/state/sidebarStore";
 import { CSS } from "@dnd-kit/utilities";
 import { ArrowRight, GripVertical, LayoutGrid } from "lucide-react";
@@ -60,6 +61,11 @@ export function ProjectSidebar() {
   );
   const [allServerEntries, setAllServerEntries] = useState<ServerEntry[]>([]);
   const [refetchToken, setRefetchToken] = useState(0);
+  useEffect(() => {
+    const renamed = () => setRefetchToken((token) => token + 1);
+    window.addEventListener("ifz:project_renamed", renamed);
+    return () => window.removeEventListener("ifz:project_renamed", renamed);
+  }, []);
 
   // Active network + server: URL params first, then persisted selection.
   // Since the slug routes (phase 4a), URL params may carry slugs instead of
@@ -70,7 +76,7 @@ export function ProjectSidebar() {
   // server while the project list stays scoped to it.
   const storedNetworkId = useNetworksStore((s) => s.activeId);
   const storedServerId = useServersStore((s) => s.activeServerId);
-  const urlParams = useParams({ strict: false }) as { networkId?: string; serverId?: string };
+  const urlParams = useParams({ strict: false }) as { networkId?: string; serverId?: string; projectId?: string };
   const rawNetworkParam = urlParams.networkId ?? storedNetworkId ?? networks[0]?.id ?? null;
   const activeNetworkId = rawNetworkParam
     ? (networks.find((n) => n.id === rawNetworkParam || n.slug === rawNetworkParam)?.id ??
@@ -85,7 +91,7 @@ export function ProjectSidebar() {
         e.serverId === storedServerId &&
         (activeNetworkId == null || e.networkId === activeNetworkId),
     );
-  const rawServerParam = urlParams.serverId ?? (storedServerValid ? storedServerId : null);
+  const rawServerParam = urlParams.serverId ?? (urlParams.projectId ? null : storedServerValid ? storedServerId : null);
   const activeNetworkName = activeNetworkId
     ? (networks.find((n) => n.id === activeNetworkId)?.name ?? null)
     : null;
@@ -151,17 +157,21 @@ export function ProjectSidebar() {
   // justement les signaux « relis le disque » (Project créé, changement ailleurs).
   // biome-ignore lint/correctness/useExhaustiveDependencies: dépendances = signaux de rafraîchissement
   useEffect(() => {
-    if (!activeNetworkId || !activeServerId) {
+    if (!activeNetworkId) {
       setServerProjects([]);
       setProjectsStatus("loading");
       return;
     }
     let cancelled = false;
     setProjectsStatus("loading");
+    if (!activeServerId) {
+      void listHostedProjects(activeNetworkId).then((projects) => { if (!cancelled) { setServerProjects(projects); setProjectsStatus("ready"); } }).catch(() => { if (!cancelled) setProjectsStatus("unavailable"); });
+      return () => { cancelled = true; };
+    }
     listServerProjects(activeNetworkId, activeServerId).then((res) => {
       if (cancelled) return;
       setServerProjects(
-        res.ok ? diskProjectsToSummaries(activeNetworkId, activeServerId, res.projectIds) : [],
+        res.ok ? diskProjectsToSummaries(activeNetworkId, activeServerId, res.projectIds, res.projects) : [],
       );
       setProjectsStatus(res.ok ? "ready" : "unavailable");
     });

@@ -3,12 +3,12 @@ import { Input } from "@/components/ui/input";
 import { assetPreviewUrl } from "@/domain/asset";
 import type { ProjectId } from "@/domain/types";
 import { deleteAsset, patchAsset } from "@/lib/api/userAssets";
-import { useAuthStore } from "@/state/authStore";
+import { useProjectPrincipalId } from "@/lib/projectPrincipal";
 import { useEffect, useState } from "react";
 import { useAssetStore } from "./assetStore";
 
 export function AssetDetailPanel({ projectId }: { projectId: ProjectId }) {
-  const user = useAuthStore((s) => s.currentUser);
+  const user = useProjectPrincipalId(projectId);
   const selectedId = useAssetStore((s) => s.selectedId);
   const asset = useAssetStore((s) => s.assets.find((a) => a.id === selectedId) ?? null);
   const upsertAsset = useAssetStore((s) => s.upsertAsset);

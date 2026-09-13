@@ -2,6 +2,10 @@ import { app, websocket } from "./app";
 import { seedBundledAssets } from "./lib/assetSeed";
 import { backfillSlugs } from "./lib/backfillSlugs";
 import { seedAiCatalogFromLegacy } from "./modules/ai/seed";
+import { expireDraftReceipts } from "./lib/storage/ReceiptDraftStore";
+import { resumeServerDrafts } from "./lib/projectDraftMigration";
+import { connToServerId } from "./ws/hub";
+import { maintainHostedProjects } from "./lib/storage/hostedMaintenance";
 
 // Avant d'ouvrir le port : le volume peut être neuf (icônes 3D + items.json
 // absents = « Bibliothèque indisponible » côté éditeur). Synchrone et rapide,
@@ -25,3 +29,16 @@ console.log(`Artisan backend on http://localhost:${port}`);
 
 backfillSlugs().catch((err) => console.error("[backfill] slugs failed:", err));
 seedAiCatalogFromLegacy().catch((err) => console.error("[ai] legacy seed failed:", err));
+const maintainDrafts = async () => {
+  await expireDraftReceipts();
+  await maintainHostedProjects();
+  for (const serverId of new Set(connToServerId.values())) await resumeServerDrafts(serverId);
+};
+let maintainingDrafts = false;
+const scheduleDraftMaintenance = () => {
+  if (maintainingDrafts) return;
+  maintainingDrafts = true;
+  void maintainDrafts().catch((error) => console.error("[drafts] maintenance pending", error)).finally(() => { maintainingDrafts = false; });
+};
+scheduleDraftMaintenance();
+setInterval(scheduleDraftMaintenance, 60_000).unref();

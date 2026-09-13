@@ -6,9 +6,9 @@ import { createNetwork } from "../lib/networkManager";
 import { rebuildResourcePack } from "../lib/resourcePack";
 
 describe("GET /api/v1/resource-pack/:serverKeyId/:hash.zip", () => {
-  test("serves the zip with immutable cache + ETag headers", async () => {
+  test.each(["uuid", "generated"])("serves the zip for %s server IDs with immutable cache + ETag headers", async (kind) => {
     const net = await createNetwork("N");
-    const serverKeyId = crypto.randomUUID();
+    const serverKeyId = kind === "uuid" ? crypto.randomUUID() : `srv_${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
     await db.insert(serverKeys).values({
       id: serverKeyId, hash: "h" + serverKeyId.slice(0, 8), networkId: net.id, createdAt: new Date(),
     });
@@ -31,5 +31,7 @@ describe("GET /api/v1/resource-pack/:serverKeyId/:hash.zip", () => {
   test("rejects path traversal attempts", async () => {
     const res = await app.request(`/api/v1/resource-pack/sk/..%2Fevil.zip`);
     expect([400, 404]).toContain(res.status);
+    const serverTraversal = await app.request(`/api/v1/resource-pack/srv_..%2Fevil/deadbeefdeadbeefdeadbeefdeadbeefdeadbeef.zip`);
+    expect([400, 404]).toContain(serverTraversal.status);
   });
 });

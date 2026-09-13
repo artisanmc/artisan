@@ -1,3 +1,6 @@
+import { demoFr } from "./demo";
+import { projectIdentityFr } from "./projectIdentity";
+import { projectCopyFr } from "./projectCopy";
 import { draftsFr } from "./drafts";
 import { accountDeletionFr } from "./accountDeletion";
 import { tasksFr } from "./tasks";
@@ -5,6 +8,9 @@ import type en from "./en";
 import { migrationFr } from "./migration";
 
 const fr: typeof en = {
+  demo: demoFr,
+  projectCopy: projectCopyFr,
+  projectIdentity: projectIdentityFr,
   accountDeletion: accountDeletionFr,
   drafts: draftsFr,
   navigation: {
@@ -886,6 +892,9 @@ const fr: typeof en = {
     },
   },
   project: {
+    collapseNotice: "Réduire le bandeau",
+    expandNotice: "Déplier le bandeau",
+    staleChecking: "Vérification du serveur…",
     staleLoading: "Affichage de ta dernière visite — lecture du serveur en cours…",
     staleOffline:
       "Serveur injoignable — affichage de ta dernière visite. Enregistrer est hors de portée.",
@@ -1744,9 +1753,9 @@ const fr: typeof en = {
     discardChanges: "Abandonner les modifications",
     save: "Enregistrer",
     saving: "Enregistrement…",
-    saved: "Enregistré sur le serveur",
+    saved: "Projet enregistré",
     nothingToSave: "Rien à enregistrer",
-    saveTitle: "Écrire les modifications sur le disque du serveur",
+    saveTitle: "Appliquer les modifications au projet enregistré",
     cannotSaveTitle: "Serveur inconnu — impossible d'enregistrer",
     serverOffline: "Serveur hors ligne — l'enregistrement est impossible",
     failed: "Échec de l'enregistrement",

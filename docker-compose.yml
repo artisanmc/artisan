@@ -45,10 +45,20 @@ services:
       # in those files are type-only and erased). Mount editor/ so ../../../editor
       # resolves to /editor.
       - ./editor:/editor
+      - hosted-projects:/var/lib/artisan/projects
     ports:
       - "3001:3001"
     environment:
       PORT: "3001"
+      HOSTED_PROJECTS_DIR: /var/lib/artisan/projects
+      DEMO_TTL_HOURS: ${DEMO_TTL_HOURS:-24}
+      DEMO_MINECRAFT_VERSION: ${DEMO_MINECRAFT_VERSION:-1.21.4}
+      DEMO_MAX_BYTES: ${DEMO_MAX_BYTES:-20971520}
+      DEMO_MAX_FILES: ${DEMO_MAX_FILES:-1000}
+      DEMO_GLOBAL_MAX_BYTES: ${DEMO_GLOBAL_MAX_BYTES:-536870912}
+      DEMO_MAX_SESSIONS: ${DEMO_MAX_SESSIONS:-1000}
+      DEMO_CREATIONS_PER_HOUR: ${DEMO_CREATIONS_PER_HOUR:-5}
+      DEMO_MUTATIONS_PER_MINUTE: ${DEMO_MUTATIONS_PER_MINUTE:-60}
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/artisan
       # URL the browser uses to reach the API (publish bundles, etc.)
       API_BASE_URL: ${API_BASE_URL:-http://localhost:3001}
@@ -117,3 +127,4 @@ services:
 volumes:
   pg-data:
   boutique-mysql-data:
+  hosted-projects:

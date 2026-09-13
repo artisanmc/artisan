@@ -14,6 +14,8 @@ import { create } from "zustand";
  * comptabilité de synchronisation, et elle ne doit pas voyager dans l'undo/redo.
  */
 interface ProjectBaselineState {
+  binaryBaselines: Record<string, Record<string, { hash: string; size: number }>>;
+  setBinaries: (projectId: string, files: Record<string, { hash: string; size: number }>) => void;
   /** projectId → { relPath: contenu }. */
   baselines: Record<string, Record<string, string>>;
   set: (projectId: string, files: Record<string, string>) => void;
@@ -30,6 +32,9 @@ function sameFiles(a: Record<string, string>, b: Record<string, string>): boolea
 
 export const useProjectBaselineStore = create<ProjectBaselineState>()((set, get) => ({
   baselines: {},
+  binaryBaselines: {},
+  setBinaries: (projectId, files) =>
+    set((state) => ({ binaryBaselines: { ...state.binaryBaselines, [projectId]: files } })),
   /**
    * Repose la base — en GARDANT l'objet précédent si le contenu n'a pas bougé.
    *
@@ -54,6 +59,8 @@ export const useProjectBaselineStore = create<ProjectBaselineState>()((set, get)
     set((s) => {
       const next = { ...s.baselines };
       delete next[projectId];
-      return { baselines: next };
+      const binaryBaselines = { ...s.binaryBaselines };
+      delete binaryBaselines[projectId];
+      return { baselines: next, binaryBaselines };
     }),
 }));

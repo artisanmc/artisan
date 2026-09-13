@@ -1,3 +1,4 @@
+import { projectFetch } from "@/lib/projectFetch";
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
 
 export interface UserProjectLoadResult {
@@ -7,10 +8,22 @@ export interface UserProjectLoadResult {
     slug?: string | null;
     /** Id disque du project côté serveur propriétaire (cf. `Project.diskId`). */
     externalId?: string | null;
-    serverKeyId?: string;
+    serverKeyId?: string | null;
   };
-  networkId: string;
-  serverKeyId: string;
+  networkId: string | null;
+  serverKeyId: string | null;
+  capabilities?: {
+    canUseAssistant?: boolean;
+    canImport?: boolean;
+    canDelete?: boolean;
+    canCopyToServer?: boolean;
+    canRename: boolean;
+    liveData: boolean;
+    captureInGame: boolean;
+    preview: boolean;
+  };
+  minecraftVersion?: string;
+  connection?: { available: boolean };
 }
 
 /**
@@ -23,7 +36,7 @@ export async function loadUserProject(
   serverRef?: string | null,
 ): Promise<UserProjectLoadResult> {
   const qs = serverRef ? `?server=${encodeURIComponent(serverRef)}` : "";
-  const res = await fetch(`${API_URL}/api/v1/user/projects/${projectRef}${qs}`, {
+  const res = await projectFetch(projectRef, `${API_URL}/api/v1/user/projects/${projectRef}${qs}`, {
     credentials: "include",
   });
   if (!res.ok) throw new Error(`loadUserProject failed: ${res.status}`);
@@ -41,7 +54,7 @@ export async function getNetworkOfProject(projectId: string): Promise<string | n
 
 /** DELETE /api/v1/user/projects/:projectId. */
 export async function deleteUserProject(projectId: string): Promise<void> {
-  const res = await fetch(`${API_URL}/api/v1/user/projects/${projectId}`, {
+  const res = await projectFetch(projectId, `${API_URL}/api/v1/user/projects/${projectId}`, {
     method: "DELETE",
     credentials: "include",
   });
@@ -52,10 +65,10 @@ export async function deleteUserProject(projectId: string): Promise<void> {
 // newest available items.json file when no MC version is known for any of the
 // project's bindings (e.g., server hasn't connected yet) so the Library panel
 // always populates.
-import type { LibraryData, CustomItemsData } from "@/domain/library";
+import type { CustomItemsData, LibraryData } from "@/domain/library";
 
 export async function fetchUserItems(projectId: string): Promise<LibraryData> {
-  const res = await fetch(`${API_URL}/api/v1/user/projects/${projectId}/items`, {
+  const res = await projectFetch(projectId, `${API_URL}/api/v1/user/projects/${projectId}/items`, {
     credentials: "include",
   });
   if (!res.ok) throw new Error(`fetchUserItems failed: ${res.status}`);
@@ -64,9 +77,13 @@ export async function fetchUserItems(projectId: string): Promise<LibraryData> {
 
 export async function fetchUserCustomItems(projectId: string): Promise<CustomItemsData> {
   try {
-    const res = await fetch(`${API_URL}/api/v1/user/projects/${projectId}/custom-items`, {
-      credentials: "include",
-    });
+    const res = await projectFetch(
+      projectId,
+      `${API_URL}/api/v1/user/projects/${projectId}/custom-items`,
+      {
+        credentials: "include",
+      },
+    );
     if (!res.ok) return { serverKeyId: "", items: [] };
     return res.json() as Promise<CustomItemsData>;
   } catch {

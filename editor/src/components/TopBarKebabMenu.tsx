@@ -11,10 +11,10 @@ import { useTranslation } from "react-i18next";
 interface TopBarKebabMenuProps {
   onRefresh?: () => void;
   onOpenProjectSettings: () => void;
-  onImport: () => void;
+  onImport?: () => void;
   onExportZip: () => void;
   onOpenPatterns: () => void;
-  onDelete: () => void;
+  onDelete?: () => void;
 }
 
 export function TopBarKebabMenu({
@@ -43,15 +43,17 @@ export function TopBarKebabMenu({
           <DropdownMenuItem onSelect={onRefresh}>{t("topbar.refresh")}</DropdownMenuItem>
         )}
         <DropdownMenuItem onSelect={onExportZip}>{t("topbar.exportZip")}</DropdownMenuItem>
-        <DropdownMenuItem onSelect={onImport}>{t("topbar.import")}</DropdownMenuItem>
+        {onImport && <DropdownMenuItem onSelect={onImport}>{t("topbar.import")}</DropdownMenuItem>}
         <DropdownMenuItem onSelect={onOpenPatterns}>{t("patterns.title")}</DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          onSelect={onDelete}
-          className="text-[var(--danger)] focus:text-[var(--danger)]"
-        >
-          {t("topbar.deleteProject")}
-        </DropdownMenuItem>
+        {onDelete && <DropdownMenuSeparator />}
+        {onDelete && (
+          <DropdownMenuItem
+            onSelect={onDelete}
+            className="text-[var(--danger)] focus:text-[var(--danger)]"
+          >
+            {t("topbar.deleteProject")}
+          </DropdownMenuItem>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );

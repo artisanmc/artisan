@@ -4,6 +4,7 @@ import { app } from "../app";
 import { db } from "../db";
 import {
   accountDeletionTokens,
+  deletedDraftOwners,
   appSettings,
   assistantConversations,
   memberships,
@@ -68,6 +69,7 @@ test("email confirmation deletes only after an explicit POST and revokes every s
   expect((await request("delete-account", "", undefined, "GET")).status).toBe(404);
   expect((await request("me", user.cookie, undefined, "GET")).status).toBe(200);
   expect((await request("delete-account", "", { token })).status).toBe(204);
+  expect((await db.select().from(deletedDraftOwners).where(eq(deletedDraftOwners.ownerId, user.id)))).toHaveLength(1);
   for (const cookie of [user.cookie, `artisan_user_session=${second.id}`]) {
     expect((await request("me", cookie, undefined, "GET")).status).toBe(401);
   }

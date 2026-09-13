@@ -1,12 +1,12 @@
 import { isDirty } from "@/features/project/draft";
 import { projectTree } from "@/features/project/saveProjectToDisk";
+import { projectPrincipal, useProjectPrincipalId } from "@/lib/projectPrincipal";
 import { useAccountStore } from "@/state/accountStore";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
 import { useEffect } from "react";
-import { useAuthStore } from "@/state/authStore";
-import { markDraftPending, syncBackendDraft, useBackendDraftStore } from "./backendDrafts";
 import { registerDraftFlush } from "./draftFlush";
+import { markDraftPending, syncPersistedDraft, usePersistedDraftStore } from "./persistedDrafts";
 
 /**
  * Fenêtre d'apaisement : on ne resérialise pas l'arbre à chaque frappe.
@@ -17,24 +17,31 @@ import { registerDraftFlush } from "./draftFlush";
  */
 const DEBOUNCE_MS = 200;
 
-/** Saves local recovery copies immediately and synchronizes backend drafts after edits. */
+/** Saves local recovery copies immediately and synchronizes persisted drafts after edits. */
 export function useDraftSync(): void {
-  const userId = useAuthStore(s => s.currentUser?.id);
+  const userId = useProjectPrincipalId();
   useEffect(() => {
     if (userId) useProjectDraftStore.getState().setOwner(userId);
     let timer: ReturnType<typeof setTimeout> | undefined;
     const sync = () => {
-      if (useAuthStore.getState().currentUser?.id !== userId) return;
-      for (const id of Object.keys(useBackendDraftStore.getState().sessions)) void syncBackendDraft(id);
+      if (projectPrincipal.current()?.id !== userId) return;
+      for (const id of Object.keys(usePersistedDraftStore.getState().sessions))
+        void syncPersistedDraft(id);
     };
     const unsubscribe = useProjectDraftStore.subscribe(() => {
-      for (const id of Object.keys(useBackendDraftStore.getState().sessions)) markDraftPending(id);
+      for (const id of Object.keys(usePersistedDraftStore.getState().sessions))
+        markDraftPending(id);
       clearTimeout(timer);
       timer = setTimeout(sync, 1000);
     });
     const interval = setInterval(sync, 15_000);
     window.addEventListener("online", sync);
-    return () => { unsubscribe(); clearTimeout(timer); clearInterval(interval); window.removeEventListener("online", sync); };
+    return () => {
+      unsubscribe();
+      clearTimeout(timer);
+      clearInterval(interval);
+      window.removeEventListener("online", sync);
+    };
   }, [userId]);
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | null = null;
@@ -49,6 +56,7 @@ export function useDraftSync(): void {
       const baselines = useProjectBaselineStore.getState().baselines;
       const drafts = useProjectDraftStore.getState();
       for (const project of useAccountStore.getState().account.projects) {
+        if (drafts.ownerId !== (projectPrincipal.current(project.id)?.id ?? null)) continue;
         const baseline = baselines[project.id];
         // Sans base, on n'a jamais lu ce Project du serveur : conserver un
         // arbre sans référence donnerait un brouillon qu'on ne saurait pas
@@ -64,6 +72,11 @@ export function useDraftSync(): void {
           !previous && beforeEdit && !isDirty(baseline, projectTree(beforeEdit)) ? baseline : tree;
         drafts.save(project.id, {
           remote: previous?.remote,
+          binaryBaseline:
+            previous?.binaryBaseline ??
+            useProjectBaselineStore.getState().binaryBaselines[project.id],
+          binaryTree:
+            previous?.binaryTree ?? useProjectBaselineStore.getState().binaryBaselines[project.id],
           baseline,
           tree,
           // Figé au premier passage suivant un chargement : c'est la référence

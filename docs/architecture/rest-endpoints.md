@@ -1,11 +1,71 @@
 # REST endpoints — index
 
+## Temporary demo access
+
+`demo.ts` exposes `GET /api/v1/demo` (recover only; never creates or renews),
+`POST /api/v1/demo` (create/recover), and `POST /api/v1/demo/claim`.
+The HttpOnly `artisan_demo_session` cookie selects a guest principal only for its
+exact Project. Mutations require the editor Origin and `X-Artisan-Demo-CSRF`;
+successful effective writes expose `X-Artisan-Demo-Expires-At` and update cookie
+expiry. Common files/drafts/assets/items routes use that principal without fake
+accounts or servers. Other projects still require account membership.
+Claim requires an account and `{operationId, networkId, projectId?}`. Revoked proof
+is retained for retries; without its cookie an owner-bound claim may resume using
+all three fields. A different current demo cookie never selects a new claim target.
+
+Deprecated `GET`/`POST /api/v1/server-keys` are admin-only. Normal account provisioning
+remains under `networks/:id/server-keys`; plugin `/link` is unchanged.
+
 > **Source de vérité = les fichiers de routes** (`backend/src/routes/*.ts`). Ce doc ne recopie pas
 > chaque signature (elle dériverait) : il dit **quel fichier ouvrir** pour quelle surface, les
 > conventions transverses, et les **flux non-évidents** qu'un skim du code ne révèle pas.
 > Pour les codes d'erreur exacts, le body et le statut : lire le handler.
 
 ## Conventions
+
+- **Hosted projects (2026-09-13)**: `userNetworks.ts` exposes
+  `GET/POST /api/v1/networks/:id/hosted-projects` and `GET .../templates`.
+  Creation takes `{operationId, folderName, name, minecraftVersion, templateId: "vanilla"}`;
+  Network detail includes hosted summaries. `userProjects.ts` adds capabilities,
+  selected `minecraftVersion` and `connection.available` to identity metadata.
+  Hosted `/items` requires that exact selected catalog; a missing catalog returns
+  `404 unknown_version`, without substituting another patch or minor version.
+  `projectContent.ts` serves authorized `GET .../binary?path=…` and accepts one
+  mixed PUT batch with `operationId` and `binaries: [{path, content_base64, base_hash}]`.
+  Existing server URL façades remain supported. Missing binaries return 404,
+  definitive operation mismatches/expiry return 409, uncertain storage failures 503.
+- **Private draft assets**: existing `userAssets.ts` endpoints accept `draftId`.
+  Mutations require `draftRevision`, `Idempotency-Key`, frozen `draftSnapshot` and
+  `draftName` in JSON or multipart fields. Blob staging precedes one draft CAS;
+  responses include the resulting `draft` (including DELETE, now 200 in draft scope).
+  Retry reuses the exact original request. `draft_conflict` is 409 with the current
+  owner-bound draft; public files and resource packs change only on explicit publish.
+  Asset/font texture routes accept `draftId`, require the cookie and membership,
+  and return `Cache-Control: private, no-cache`; browser image fetches need credentials.
+
+- **Project rename (2026-09-12)**: `projectContent.ts` exposes
+  `GET /api/v1/projects/:projectId/capabilities` and `POST .../rename` with
+  `{operationId, targetId}`. The internal ID and URL slug remain stable. Rename
+  requires `publish_content`; add-on roots cannot rename. Success is 200;
+  an uncertain remote outcome is 202 `rename_pending`, retried using the same ID.
+  Server project listings retain `project_ids` and add `projects` with immutable
+  anchors and `capabilities.canRename`. Clients cannot select another storage.
+  `pending_renames` identifies reserved roots omitted from listings without hiding
+  unrelated projects. Deletion returns 409 `rename_in_progress` until the operation
+  resolves; a thrown transport send still returns 202 with the durable operation ID.
+  `projects` also retains the existing pending anchor with
+  `pendingRename: {operationId, targetId, status: "pending"}` and disabled rename
+  capability, so reloads can restore its status/retry without discovering aliases.
+
+- **Project content storage (2026-09-12)**: `routes/projectContent.ts` exposes
+  `GET/PUT /api/v1/projects/:projectId/files` and `GET .../history?path=…`, keyed
+  by immutable internal Project ID. Cookie authentication and the storage resolver
+  check membership before selecting the configured adapter; writes additionally
+  require `publish_content`. The client cannot choose a storage location. File
+  bodies are limited to 8 MiB; reads preserve binary descriptors and conditional
+  hashes, conflicts preserve `disk_files`. Existing server-scoped file/history
+  routes use the same handlers after server authorization, including unanchored
+  disk projects. Hosted storage returns `storage_unavailable` until enabled.
 
 - **Account deletion**: `routes/auth.ts` exposes `POST /api/v1/auth/delete-account/request` (session required, 204 after SMTP acceptance; 429 cooldown, 503 email unavailable) and `POST /api/v1/auth/delete-account` (`{token}`, explicit confirmation, 204). Invalid/expired/spent/email-changed tokens return 400; an active subscription on a network losing its last owner returns 409 without consuming the link. There is no destructive GET. Emailed tokens use a URL fragment on `/delete-account` and are removed before analytics initialization.
 
@@ -17,9 +77,21 @@
   409 `draft_conflict`. Creation IDs are caller-generated to make lost responses
   recoverable without duplicating drafts. Bodies are bounded to 8 MiB, trees to
   5,000 relative paths. Publication uses the stored baseline and existing plugin
-  compare-and-swap; offline/error/conflict leaves the draft active. `publish_content`
+  compare-and-swap; pre-commit rejections leave the draft active, while an uncertain
+  storage failure can finish through journal recovery. `publish_content`
   is separate from `edit_content`; current member/owner roles retain both rights.
   No MCP tokens or delegated grants are exposed yet.
+  Server drafts now resolve through the bound `ProjectStorage.drafts` port.
+  Mutations accept a stable `operationId` retained across retries (old clients
+  receive an ID per attempt). Frozen migration returns 503 `draft_migration_pending`;
+  migrated offline storage returns 503 `server_offline`, timeout 504 `fetch_timeout`.
+  `storage_error`, `rename_in_progress` and `rename_pending` return 503: clients
+  retain the mutation ID because an accepted operation may still recover. Payload
+  mismatches (`operation_conflict`/`operation_mismatch`) return 409; validation stays 422.
+  POST `/:draftId/blobs` accepts `{revision,operationId,hash,contentBase64}` without
+  advancing revision; snapshot `binaryBaseline`/`binaryTree` contain `{hash,size}`
+  references only. GET `/:draftId/blobs/:hash` returns private uncached bytes.
+  HTTP attaches the current internal `projectId`; portable envelopes omit it.
 
 - **Conversation uploads (2026-09-11)**: message `attachments` are validated string maps, merged by filename and stored independently of the transcript. Missing/empty maps preserve previous files. Background acceptance and upload persistence share a transaction; rejected/replayed requests do not change files. Reads recheck owner/Project access and network/server scope. Raw upload bodies are excluded from task metadata and read-tool transcript results; provider-generated text may quote sources. Invalid names/types or reserved `server:` IDs return `invalid_attachments`; limits return `attachment_too_large` / `attachments_too_large` (422), before provider execution. Uploads do not replace retained server references.
 
@@ -66,7 +138,7 @@ vérifie `project_list`, écrit `manifest.yaml` via `project_write` (`create: tr
 | `serverKeys.ts` | Création server_key standalone (auto-crée un Network par défaut). |
 | `textures.ts` / `textures.assets` | Sert PNG : vanilla (`textures/:version/*`), custom (`textures/custom/:sk/*`), asset (`textures/asset/:projectId/:assetName`), asset-font (`textures/asset-font/:projectId/:police/*`). Les deux dernières lisent **le disque du serveur** — plus de repli sur le volume backend (P6). |
 | `models.ts` / `modelBundle.ts` | Sert JSON modèles : vanilla (`models/:version/*`), custom (`models/custom/:sk/*`). |
-| `resourcePack.ts` | `resource-pack/:server_key_id/:hash.zip` — `Cache-Control: immutable`, `ETag`. 404 si hash inconnu. |
+| `resourcePack.ts` | `resource-pack/:server_key_id/:hash.zip` — `Cache-Control: immutable`, `ETag`. IDs générés `srv_…` et UUID acceptés ; séparateurs de chemins refusés. 404 si hash inconnu. |
 | `modules/assistant/routes.ts` | `assistant/conversations` (**GET** — liste les conversations d'un project via `?packId=`, titres + dates seulement ; **POST** — crée une conversation `{packId}`, renvoie `{conversationId}`), `assistant/conversations/:id` (GET — transcript complet pour la reprise), `assistant/conversations/:id/messages` (POST — **réponse SSE**, flux d'`EngineEvent` ; la working-copy est reconstruite depuis `menus`/`attachments` du body, le transcript est persisté après le stream). Conversations stockées en DB (`assistant_conversations`), scopées par `ownerKey` (`user:<userId>` uniquement, `resolveOwnerKey`). Auth **cookie `artisan_user_session`**. Monté via `assistantModule` (cf. `mountModules` dans `app.ts`). `POST /api/v1/assistant/conversations/:id/messages` — body accepte `modelId?` et `serverAttachments?: [{sourceId, paths}]` ; 402 `insufficient_credits` si solde network ≤ 0 ; événement SSE final `credits {debited, balance}` ; erreur provider = loggée non débitée. Les fichiers serveur sont lus en preflight via le plugin et fusionnés sous `server:<sourceId>/<path>` dans la working-copy éphémère. |
 | `modules/assistant/adminRoutes.ts` | `admin/assistant-config` (GET — renvoie `{provider, baseUrl, model, keySet}`, **jamais la clé** ; PUT — upsert `{provider, baseUrl, model, apiKey?}` chiffré dans `app_settings`, renvoie `keySet`), `admin/assistant-config/test` (POST — teste un provider, renvoie `{ok}`). Auth **super-admin** (`userAuth` + `requireAdmin` sur `/api/v1/admin/*` dans `app.ts`). |
 | `modules/ai/routes.ts` | `/api/v1/ai/models`, `/api/v1/ai/balance`, `/api/v1/ai/preferred-model` — Sélecteur user : modèles actifs + estimations, solde network (`ownerKey` = `user:<userId>`), modèle préféré. `/balance` renvoie `{ balance, total, subscription, rollover, topup }` (breakdown par bucket pour l'indicateur composer ; `balance` = `total`, conservé pour compat). Auth **cookie user-session uniquement**. |
@@ -77,6 +149,8 @@ vérifie `project_list`, écrit `manifest.yaml` via `project_write` (`create: tr
 | `modules/billing/webhookRoutes.ts` | `POST /api/v1/billing/webhook` (**public**, signature Stripe vérifiée, idempotent via `stripe_events`) : fulfillment top-up (`checkout.session.completed` → credits `topup` + `credit_purchases`) + cycle de vie abonnement (`invoice.paid` → grant 1re période / renouvellement plafonné ; `invoice.payment_failed` → grâce ; `customer.subscription.updated/deleted` → `status`/`networks.tier`). Réseau résolu par `metadata.networkId`. Monté **avant** `userAuth()` dans `app.ts`. |
 
 ## Flux non-évidents
+
+- **Copie hébergée → Minecraft** : `projectCopies.ts`, sous `/api/v1/user/projects/:projectId`. `GET /copy-targets` renvoie `{sourceRevision,targets}` avec serveurs connectés autorisés, version exacte, compatibilité modules et dossier libre proposé. `POST /copies` reçoit `{operationId,targetServerKeyId,folderName,sourceRevision}` ; réponse directe `{operationId,state,sourceRevision,targetServerKeyId,targetNetworkId,folderName,projectId,error}`. `GET /copies/:operationId` relit l'état ; `POST /copies/:operationId/resume` reprend les octets figés. `202 pending` conserve l'intention hors ligne ; `200 completed` fournit l'ancre destination ; `409 failed` ou erreur préliminaire explicite. Lecture source + droits `publish_content`/`edit_content` cible sont revérifiés avant chaque message de mutation. Aucune publication de brouillon implicite ; une révision source modifiée avant capture renvoie `source_revision_changed`. Les reçus sont privés à l'acteur et ne transportent jamais les octets du transfert.
 
 - **HeadDatabase previews** : `userNetworks.ts`, `GET /api/v1/networks/:networkId/servers/:serverId/head-texture?id=<numeric-id>`, cookie auth + network membership (ids or slugs). Relays to the selected plugin and returns `{texture}`; offline/old plugin times out gracefully in the editor. No backend catalog or persisted Project content.
 
@@ -96,5 +170,7 @@ vérifie `project_list`, écrit `manifest.yaml` via `project_write` (`create: tr
 - **Lecture des pièces jointes avant réponse** : `runTurn` exige un `read_attachment` réussi pour chaque fichier local ou serveur du tour courant. Tant que ces résultats n'ont pas été vus par le modèle, le texte est masqué et les outils d'écriture sont rejetés (y compris dans le batch demandant la lecture). Une réponse prématurée déclenche un seul rappel éphémère demandant les lectures restantes en parallèle ; une nouvelle réponse prématurée ou le plafond de 25 itérations produit `error {code: "attachments_not_read", readCount, totalCount, message}` puis `done {stopReason: "attachments_not_read"}`. Les usages des appels effectués restent comptabilisés. Ce contrôle garantit la lecture, pas la compréhension du contenu.
 
 ## Endpoints supprimés (ne pas réintroduire)
+
+Guest draft `ownerId` equals the bootstrap principal ID. Account-only copy middleware is scoped to `copy-targets` and `copies` paths so adjacent guest asset routes retain principal authorization.
 
 - `…/projects/:projectId/bindings/*` (GET/PATCH/POST/DELETE) — modèle `project_bindings` M:N supprimé 2026-06-03 (→ 1:N `projects.serverKeyId`). Cf. `entities.md`.

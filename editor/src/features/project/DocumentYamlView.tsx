@@ -1,13 +1,14 @@
-import { useState } from "react";
-import { useTranslation } from "react-i18next";
-import { toast } from "sonner";
 import { YamlCodeEditor } from "@/components/ui/yaml-code-editor";
+import type { Project } from "@/domain/types";
 import { adoptDiskIntoProject } from "@/features/project/saveProjectToDisk";
 import { hashContent } from "@/lib/contentHash";
-import { writeProjectFiles } from "@/lib/api/projectFiles";
+import { projectClient } from "@/lib/projectClient";
 import { useAccountStore } from "@/state/accountStore";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
-import type { Project } from "@/domain/types";
+import { useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
+import { FileHistory } from "./FileHistory";
 
 /**
  * Le fichier d'un Document, tel quel — la « code mode » qui a déclenché toute
@@ -30,13 +31,11 @@ import type { Project } from "@/domain/types";
 export function DocumentYamlView({
   project,
   relPath,
-  networkId,
-  serverId,
 }: {
   project: Project;
   relPath: string;
-  networkId: string;
-  serverId: string;
+  networkId?: string;
+  serverId?: string;
 }) {
   const { t } = useTranslation();
   const baseline = useProjectBaselineStore((s) => s.baselines[project.id]);
@@ -44,31 +43,46 @@ export function DocumentYamlView({
   const original = baseline?.[relPath] ?? "";
   const [text, setText] = useState(original);
   const [saving, setSaving] = useState(false);
+  const pending = useRef<{
+    operationId: string;
+    files: { path: string; content: string; base_hash: string }[];
+    deletes: [];
+  } | null>(null);
 
   const dirty = text !== original;
 
   const save = async () => {
     setSaving(true);
     try {
-      const res = await writeProjectFiles(networkId, serverId, project.diskId ?? project.id, {
+      const request = pending.current ?? {
+        operationId: crypto.randomUUID(),
         // Le compare-and-swap habituel : le hash de ce qu'on croyait trouver.
         // Une écriture verbatim n'est pas une écriture privilégiée.
         files: [{ path: relPath, content: text, base_hash: await hashContent(original) }],
-        deletes: [],
-      });
+        deletes: [] as [],
+      };
+      pending.current = request;
+      const res = await projectClient(project.id).write(request);
       if (!res.ok) {
-        toast.error(
-          res.error === "conflict" ? t("yamlView.conflict") : t("save.failed"),
-        );
+        if (res.error === "conflict") pending.current = null;
+        toast.error(res.error === "conflict" ? t("yamlView.conflict") : t("save.failed"));
         return;
       }
+      pending.current = null;
+      const written = request.files[0]!.content;
       // La base avance, et le Project est re-parsé depuis le texte écrit : sans
       // ça l'éditeur visuel continuerait d'afficher l'ancienne version.
-      useProjectBaselineStore
-        .getState()
-        .set(project.id, { ...(baseline ?? {}), [relPath]: text });
-      replaceProject(adoptDiskIntoProject(project, { [relPath]: text }, []));
+      useProjectBaselineStore.getState().set(project.id, {
+        ...(useProjectBaselineStore.getState().get(project.id) ?? {}),
+        [relPath]: written,
+      });
+      const current =
+        useAccountStore.getState().account.projects.find((item) => item.id === project.id) ??
+        project;
+      replaceProject(adoptDiskIntoProject(current, { [relPath]: written }, []));
       toast.success(t("save.saved"));
+    } catch {
+      toast.error(t("save.failed"));
     } finally {
       setSaving(false);
     }
@@ -91,6 +105,7 @@ export function DocumentYamlView({
         <YamlCodeEditor value={text} ariaLabel={relPath} onChange={setText} />
       </div>
       <p className="text-[11px] text-[var(--text-faint)]">{t("yamlView.verbatimHint")}</p>
+      <FileHistory projectId={project.id} path={relPath} onRestore={setText} />
     </div>
   );
 }

@@ -60,7 +60,7 @@ function hashOf(bytes: Uint8Array): string {
 }
 
 /** Un faux plugin qui sert les arbres de `disks`, pour tous leurs Projects. */
-function serveDisks(connId: string, serverKeyId: string): () => void {
+function serveDisks(connId: string, serverKeyId: string, transformBytes = (bytes: Uint8Array) => bytes): () => void {
   registerConn(connId, (raw: string) => {
     const msg = JSON.parse(raw) as { type: string; request_id: string; project_id?: string; path?: string };
     if (msg.type === "project_read") {
@@ -82,7 +82,7 @@ function serveDisks(connId: string, serverKeyId: string): () => void {
         bytes
           ? {
               type: "asset_read_result", request_id: msg.request_id, ok: true,
-              content_base64: Buffer.from(bytes).toString("base64"), hash: hashOf(bytes),
+              content_base64: Buffer.from(transformBytes(bytes)).toString("base64"), hash: hashOf(bytes),
             }
           : { type: "asset_read_result", request_id: msg.request_id, ok: false, error: "not_found" },
       ));
@@ -133,6 +133,35 @@ afterEach(async () => {
 });
 
 describe("rebuildResourcePack", () => {
+  test.each([false, true])("copy preparation rejects an unavailable project instead of fallback (existing pack: %s)", async (existing) => {
+    if (existing) await rebuildResourcePack(serverKeyId);
+    stopServing();
+    forgetAllProjectTrees();
+    await expect(rebuildResourcePack(serverKeyId, { requiredProjectId: projectId })).rejects.toThrow("resource_pack_incomplete");
+  });
+
+  test("copy preparation rejects bytes that disagree with the advertised glyph hash", async () => {
+    seedGlyph(projectId, "coin", 0xE000);
+    stopServing();
+    stopServing = serveDisks(`corrupt-${serverKeyId}`, serverKeyId, () => new Uint8Array([1,2,3]));
+    await expect(rebuildResourcePack(serverKeyId, { requiredProjectId: projectId })).rejects.toThrow("resource_pack_incomplete");
+    expect(await currentPackInfo(serverKeyId)).toBeNull();
+  });
+
+  test("copy preparation confirms the anchored project and includes its glyph", async () => {
+    seedGlyph(projectId, "coin", 0xE000);
+    const pack = await rebuildResourcePack(serverKeyId, { requiredProjectId: projectId });
+    const zip = unzipSync(await Bun.file(resourcePackPath(serverKeyId, pack.hash)).bytes());
+    expect(JSON.stringify(JSON.parse(new TextDecoder().decode(zip["assets/artisan/asset-index.json"]!)))).toContain("coin");
+    await expect(rebuildResourcePack(serverKeyId, { requiredProjectId: "missing" })).rejects.toThrow("resource_pack_incomplete");
+  });
+  test("copy preparation refuses a missing font texture and succeeds once it is readable", async () => {
+    diskOf(projectId).set("assets/fonts/demo/font.yaml", new TextEncoder().encode("namespace: artisan:demo\nglyphs:\n  - char: A\n    texture: a.png\n    ascent: 1\n    height: 1\n    width: 1\n"));
+    await expect(rebuildResourcePack(serverKeyId, { requiredProjectId: projectId })).rejects.toThrow("resource_pack_incomplete");
+    diskOf(projectId).set("assets/fonts/demo/a.png", PNG_1x1);
+    const pack = await rebuildResourcePack(serverKeyId, { requiredProjectId: projectId });
+    expect(pack.hash).toMatch(/^[0-9a-f]{40}$/);
+  });
   test("writes a zip and updates server_keys columns", async () => {
     seedGlyph(projectId, "coin", 0xE000);
     const { hash, url } = await rebuildResourcePack(serverKeyId);

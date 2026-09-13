@@ -1,14 +1,14 @@
 import { Hono } from "hono";
-import { listDiskAssets, readDiskAssetBytes } from "../lib/diskAssets";
+import { resolveProjectAssets, assetAccessError } from "../lib/resolveProjectAssets";
+import { userAuth } from "../middleware/userAuth";
 import { existsSync } from "fs";
 import { join, resolve, sep } from "path";
 import { textureFilePath, assetsDone, ensureAssets } from "../lib/mcAssets";
 import { customItemsCacheDir } from "../lib/customItems";
-import { db } from "../db/index";
-import { projects } from "../db/schema";
-import { eq } from "drizzle-orm";
 
 const router = new Hono();
+router.use("/asset/*", userAuth());
+router.use("/asset-font/*", userAuth());
 
 router.get("/custom/:serverKeyId/*", async (c) => {
   const serverKeyId = c.req.param("serverKeyId");
@@ -38,83 +38,34 @@ router.get("/custom/:serverKeyId/*", async (c) => {
  * refuserait tout asset descendu.
  */
 router.get("/asset/:projectId/:assetId", async (c) => {
-  const projectId = c.req.param("projectId");
-  const assetId = c.req.param("assetId");
-  if (!/^[a-zA-Z0-9_-]+$/.test(projectId) || !/^[a-zA-Z0-9_.-]+$/.test(assetId)) {
-    return c.newResponse(null, 400);
-  }
-
-  const anchor = (await db.select().from(projects).where(eq(projects.id, projectId)))[0];
-  if (anchor?.serverKeyId) {
-    const diskId = anchor.externalId ?? anchor.id;
-    const found = await listDiskAssets(anchor.serverKeyId, diskId, anchor.id);
-    const asset = found?.find((a) => a.row.id === assetId);
-    if (asset) {
-      const bytes = await readDiskAssetBytes(anchor.serverKeyId, diskId, asset);
-      if (bytes) {
-        return new Response(bytes as unknown as BodyInit, {
-          headers: {
-            "Content-Type": "image/png",
-            // L'URL porte déjà le hash (`?h=`) : une réponse ne peut pas
-            // devenir fausse sans que l'URL change.
-            "Cache-Control": "public, max-age=31536000, immutable",
-          },
-        });
-      }
-    }
-  }
-
-  return c.newResponse(null, 404);
+  try {
+    const ctx = await resolveProjectAssets(c, c.req.param("projectId"));
+    const list = await ctx.assets.read();
+    if (!list.ok) return c.json({ error: list.error }, 503);
+    const asset = list.assets.find((a) => a.row.id === c.req.param("assetId"));
+    const bytes = asset ? await ctx.assets.bytes(asset) : null;
+    if (!bytes) return c.newResponse(null, 404);
+    return new Response(bytes as BodyInit, { headers: { "Content-Type": "image/png", "Cache-Control": "private, no-cache" } });
+  } catch (error) { return assetAccessError(c, error); }
 });
 
-/**
- * Un glyphe d'une police, par son chemin dans le dossier de la police.
- *
- * Une seule forme, servie par une route large parce que le chemin d'un glyphe
- * compte un nombre de segments variable :
- *
- *   /asset-font/<projectId>/<police>/<chemin>
- *
- * L'URL porte le Project depuis que les polices vivent sur le disque (ADR
- * `assets-on-server-disk`) : leur identité est un nom de dossier, unique dans
- * leur Project et nulle part ailleurs. L'ancienne forme sans Project est partie
- * avec la table (P6).
- */
 router.get("/asset-font/*", async (c) => {
-  const marker = "/asset-font/";
-  const idx = c.req.path.indexOf(marker);
-  const tail = idx >= 0 ? c.req.path.slice(idx + marker.length) : "";
-  const segments = tail.split("/").filter(Boolean);
-  if (segments.length < 2 || tail.includes("..")) return c.newResponse(null, 404);
-
-  const anchor = (await db.select().from(projects).where(eq(projects.id, segments[0]!)))[0];
-  if (anchor?.serverKeyId && segments.length >= 3) {
-    const assetId = segments[1]!;
-    const rest = segments.slice(2).join("/");
-    const diskId = anchor.externalId ?? anchor.id;
-    const found = await listDiskAssets(anchor.serverKeyId, diskId, anchor.id);
-    const font = found?.find((a) => a.row.type === "font" && a.row.id === assetId);
-    if (font) {
-      const dir = font.path.slice(0, font.path.lastIndexOf("/"));
-      const bytes = await readDiskAssetBytes(anchor.serverKeyId, diskId, {
-        ...font,
-        path: `${dir}/${rest}`,
-        // Le hash du descripteur ne décrit pas ce PNG : on ne range rien sous
-        // une clé qui mentirait.
-        hash: "",
-      });
-      if (bytes) {
-        return new Response(bytes as unknown as BodyInit, {
-          headers: {
-            "Content-Type": "image/png",
-            "Cache-Control": "public, max-age=31536000, immutable",
-          },
-        });
-      }
-    }
-  }
-
-  return c.newResponse(null, 404);
+  try {
+    const tail = c.req.path.split("/asset-font/")[1] ?? "";
+    const [projectId, assetId, ...parts] = tail.split("/");
+    if (!projectId || !assetId || !parts.length || parts.some((p) => !p || p === ".." || p === "." || p.includes("\\"))) return c.newResponse(null, 404);
+    const ctx = await resolveProjectAssets(c, projectId);
+    const list = await ctx.assets.read();
+    if (!list.ok) return c.json({ error: list.error }, 503);
+    const font = list.assets.find((a) => a.row.type === "font" && a.row.id === assetId);
+    if (!font) return c.newResponse(null, 404);
+    const path = `${font.path.slice(0, font.path.lastIndexOf("/"))}/${parts.join("/")}`;
+    const meta = list.binaries.find((b) => b.path === path);
+    if (!meta) return c.newResponse(null, 404);
+    const bytes = await ctx.assets.bytes({ ...font, path, hash: meta.hash });
+    if (!bytes) return c.newResponse(null, 404);
+    return new Response(bytes as BodyInit, { headers: { "Content-Type": "image/png", "Cache-Control": "private, no-cache" } });
+  } catch (error) { return assetAccessError(c, error); }
 });
 
 router.get("/:version/*", async (c) => {

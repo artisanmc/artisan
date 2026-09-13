@@ -1,5 +1,31 @@
 # Editor & rendering internals
 
+## Temporary demo workspace
+
+`features/demo/DemoWorkspace.tsx` composes the shared `ProjectWorkspace` under
+`/demo/projects/$projectId`; the document child also uses `DocumentView`.
+`projectPrincipal` selects the matching cookie-backed guest before the account
+principal, including during sign-in. Shared `projectFetch` adds guest CSRF only
+to that project's mutations and observes authoritative expiry headers. Capability
+metadata hides AI/import/delete/copy/live server actions; components do not branch
+on storage kind. The example bytes live in `backend/src/templates/demo-project.json`
+and pass the normal menu schema and project loader tests.
+
+`demoLifecycle` flushes edits and awaits serialized draft/asset writes, including
+file preparation before the upload starts, before
+authentication. A session-scoped return path restores the demo after OAuth.
+Confirmation restores the guest recovery scope and loads its persisted draft
+session when account return or direct reload has not completed that initialization.
+An unavailable session blocks claim submission; it never bypasses confirmation.
+Claims persist their owner, project, operation and destination before dispatch;
+retry includes `projectId` so account-bound recovery also works after cookie loss.
+Only confirmed target unavailability permits an explicit replacement operation.
+On confirmed receipt, local text/binary edits and rename intent move to the account
+scope while immutable project/draft IDs stay stable. Account-generation checks
+prevent late logout/relogin responses from repopulating private state.
+Texture initialization clears prior custom/rendered caches on project or principal
+changes and ignores late catalog, model-preload and rendering results.
+
 The profile's `DeleteAccountSection` requests an email after a Dialog confirmation. Public `/delete-account` renders `DeleteAccountConfirmation` and submits only on an explicit click. `accountDeletionToken.ts` reads the fragment into memory and removes it before analytics initializes; reloading requires reopening the email link. Successful deletion clears local auth and invalidates pending profile hydration so a late `/me` cannot restore the removed identity.
 
 Les titres de l’interface (`h1`–`h6`, `.display`, `.font-display`) utilisent `--font-display: "Inter", sans-serif` en graisse 700, chargé depuis Bunny Fonts dans `editor/index.html`. Le texte courant et le monospace gardent leurs polices ; les polices de rendu Minecraft restent indépendantes. Spécimen dans `/admin/design`.
@@ -128,6 +154,11 @@ Le Document sélectionné s'édite dans le panneau de droite. L'ancien **mode fo
 répétée de l'affichage hors ligne. Une lecture réussie (y compris `unchanged`)
 efface `offline` et `stale` ; les réponses tardives et timers sont ignorés à la
 sortie du Project. Un brouillon modifié conserve sa base de compare-and-swap.
+Depuis le 2026-09-13, une première ouverture attend une lecture serveur réussie,
+même avec cache ou brouillon local. Une coupure préserve le buffer déjà ouvert ;
+les échecs de transport backend et `fetch_timeout` sont également retentés.
+`ProjectStaleNotice` permet de réduire/déplier l'explication en gardant un statut
+court visible ; cet état reste local au bandeau du Project ouvert.
 
 ### Paramètres avancés d'un item (depuis 2026-07-29)
 
@@ -203,7 +234,7 @@ Cf. `docs/superpowers/specs/2026-06-13-workspace-board-curation-design.md` (supe
 Un Document est **sur la planche ssi** il a une entrée explicite `project.canvasLayout[id] = {x,y}` (présence = appartenance, plus seulement position sauvegardée).
 
 Les positions et modifications sont conservées par `useDraftSync` dans une copie
-locale, puis sauvegardées automatiquement côté backend (voir ci-dessous). Après un enregistrement qui efface le brouillon,
+locale, puis sauvegardées automatiquement via le stockage résolu (voir ci-dessous). Après un enregistrement qui efface le brouillon,
 la première modification conserve comme référence l'état précédent s'il correspond
 exactement à la base enregistrée : la bascule Clés / Texte en clair doit ainsi
 activer Enregistrer dès le premier changement. La normalisation au chargement
@@ -213,14 +244,22 @@ brouillon modifié comme propre et le faire abandonner à l'ouverture suivante.
 Les écritures locales en attente sont vidées sur `pagehide`, passage de la page
 à l'état caché et démontage du hook. L'écriture sur le serveur reste explicite.
 
-**Brouillons backend (2026-09-11)** : `backendDrafts.ts` charge les brouillons
-privés avant la lecture disque, restaure la sélection et synchronise l'arbre avec
+**Brouillons persistés (2026-09-13)** : `persistedDrafts.ts` charge les brouillons
+privés après validation de l'ouverture, restaure la sélection et synchronise l'arbre avec
 révision attendue. La copie locale est isolée par compte ; un ancien brouillon
 sans identifiant backend devient une copie distincte. Un accusé de réception
 ne remplace jamais les frappes effectuées pendant la requête. Un conflit de
 révision conserve le travail local et bloque l'écriture jusqu'à création d'une
-copie. `BackendDraftControls` propose copies nommées, sélection et comparaison
+copie. `PersistedDraftControls` propose copies nommées, sélection et comparaison
 base/arbre depuis le menu d'Enregistrer, sans bloc permanent dans la topbar.
+Les mutations portent un `operationId` et un snapshot figés dans le secours local
+isolé par propriétaire : après ACK perdu, rejouer cette opération avant d'envoyer
+les frappes suivantes. Un rejet définitif 4xx libère cette opération ; un échec
+incertain la conserve. Les références `binaryBaseline`/`binaryTree` voyagent avec
+les edits texte. `migration_pending` suspend la sauvegarde sans effacer le secours.
+Les ZIPs et arbres génériques excluent brouillons, transactions et marqueur de
+renommage privés ; `.artisan/editor.yaml` reste partagé. L'import texte refuse
+les binaires, dans l'attente du parcours portable complet.
 
 Les échecs d'enregistrement ouvrent un `Dialog` avec raison traduite, code d'origine
 et statut HTTP disponible, ainsi que le champ `message` fourni par le plugin.
@@ -250,7 +289,7 @@ Le transport MCP reste futur ; il réutilisera les mêmes opérations et contrô
 
 `Project.moduleData?: Record<string, unknown>` porte l'état d'un module tiers, keyé par id de module (ex. `"boutique"`) — le host ne l'interprète jamais. Round-trip files-first : `projectFromFiles` seed `moduleData[<dir>] = { __files: Record<relPath, content> }` pour un dossier de project non reconnu ; le module éditeur normalise `__files` à sa forme structurée à la première lecture, et dérive son `exportFiles()` depuis `moduleData` ; `transform()` ré-émet les `__files` verbatim des namespaces sans module registré. Action store : `setModuleData(projectId, moduleId, data)` (Immer `produce`, remplace tout le namespace, préserve les autres).
 
-Exemple concret (module boutique, V1.5 — `docs/architecture/modules.md` §15) : le plugin Add-on Boutique bootstrappe `projects/boutique_shop/boutique/shop.yaml` sur disque ; un `local_push` sur ce project stub seed `moduleData.boutique.__files["shop.yaml"]` (le préfixe du dossier module est retiré des clés `__files`). `@artisan/boutique-editor` (presence-gated `/m/boutique`) lit ce state, le normalise en catalogue structuré (categories/items) au premier accès, expose un form d'édition (pas de `<SchemaForm>` générique, §8), et sa fonction `exportFiles()` régénère `boutique/shop.yaml` depuis `moduleData.boutique` à chaque deploy — round-trip complet sans que le host `Project` n'ait besoin de connaître la forme du catalogue.
+Exemple historique (avant le stockage disk-only ; module boutique, V1.5 — `docs/architecture/modules.md` §15) : le plugin Add-on Boutique (ID actuel boutique_addon ; dossier physique editor inchangé) bootstrappe `plugins/Boutique/editor/boutique/shop.yaml` sur disque ; un `local_push` sur ce project stub seed `moduleData.boutique.__files["shop.yaml"]` (le préfixe du dossier module est retiré des clés `__files`). `@artisan/boutique-editor` (presence-gated `/m/boutique`) lit ce state, le normalise en catalogue structuré (categories/items) au premier accès, expose un form d'édition (pas de `<SchemaForm>` générique, §8), et sa fonction `exportFiles()` régénère `boutique/shop.yaml` depuis `moduleData.boutique` à chaque deploy — round-trip complet sans que le host `Project` n'ait besoin de connaître la forme du catalogue.
 
 ### Bibliothèque redimensionnable
 
@@ -622,3 +661,44 @@ menu disappears instead of falling back to a same-ID element in another menu.
 The canvas placement tray binds each row under the placement alias when resolving its material and supports nested source paths. Dragging a placed item updates only its keyed placement on the current page, using the preview context to disambiguate shared slots. Other placements and the display cache are preserved; dropping outside the menu removes only that placement. Alt-drag also moves the row, since a row has one placement. Placement drags bypass ordinary position-list mutations.
 Ordinary item paste, move, duplicate and selection moves preserve placement elements during empty-position cleanup: an empty ordinary position list is valid when places is set.
 Placement tray height includes the card top offset, icon, label gap, label height and bottom padding; stacked trays use that same height plus spacing to avoid overlap.
+
+### Project identity and rename (2026-09-12)
+
+The exporter no longer emits `manifest.project_id`. ZIP imports use the enclosing
+folder; rootless archives require a chosen target through `useProjectZipImport`.
+Explicit targets share `isValidProjectFolderName` with rename UI rules.
+`diskProjectsToSummaries` retains authoritative internal IDs and negotiated
+`capabilities.canRename` from server listings, with compatible legacy fallback.
+
+`RenameProjectButton` uses the neutral project rename API and keeps the operation
+UUID and target in session storage until a confirmed or terminal result. A
+pending operation remains recoverable when the server becomes unavailable.
+Listings retain durable pending anchors via `pendingRename` metadata even when
+their disk aliases are hidden; the shared summary factory keeps their retry row,
+and the server operation restores Retry after refresh without browser storage.
+`project_renamed` notifications flush pending local edits, rebind only matching
+server/internal IDs, invalidate cached hashes and trigger controlled loader
+revalidation. Relative draft trees, private owner identity and CAS baselines
+remain intact; an older autosave acknowledgement cannot replace newer edits.
+## Hosted and server project context
+
+Both URL families mount `ProjectWorkspace`; `projectClient(immutableProjectId)` binds files,
+history and binary reads/writes independently of a server URL. Resolved project metadata
+supplies capabilities, Minecraft version and connection availability. Hosted opening clears
+stale active-server selection; capture and live model context follow capabilities.
+`projectPrincipal` owns the account principal accessor used by persisted draft operations.
+Asset mutations serialize with draft autosave and retain a frozen snapshot, bytes and
+operation ID for uncertain acknowledgements. A three-way merge preserves edits made while
+an upload runs. Protected canvas images are fetched with credentials into revocable blob
+URLs, scoped to the principal and versioned asset URL. ZIP imports use one mixed text/binary
+transaction and owner-scoped session recovery; exported files exclude private metadata.
+
+`CopyProjectToServerButton` composes into the shared topbar through `canCopyToServer`
+(missing capability defaults to false). `copyProjectToServer` sends one atomic backend
+copy request bound to a saved source revision, never a series of file writes. Explicit
+Apply waits for `waitForDraftWrites`, flushes typing, and uses the common publication
+path, which preserves later edits. Saved-version copy does not publish any draft.
+Browser recovery stores only the operation UUID and frozen destination/revision under
+owner/project scope; status/resume endpoints remain authoritative after lost ACKs.
+Logout clears recovery and invalidates asynchronous completions via a generation guard.
+Known pre-acceptance rejections release choices; uncertain requests retain them.

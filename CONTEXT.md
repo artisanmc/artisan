@@ -577,18 +577,27 @@ Non-examples:
 
 ## Project
 
-The editable collection of GUI content for one server — its **Menus**,
-**Commands**, **Dialogs**, translations, and assets. A Project **is a tree of
-human-readable files on that server**. Published content lives on server disk;
-private **Drafts** are persisted separately in the backend. The web editor and
-future AI clients edit drafts and explicitly publish through the plugin; a text
-editor can still edit server files directly. The web editor is a *client* of the server's files
-(cf. ADR `files-first-source-of-truth`). A Project belongs to
-**exactly one Server**; a Server holds **one or more** Projects. The Project is
+**Storage modes (2026-09-13):** each Project has one authoritative storage
+location and an immutable internal backend ID. Server locations bind a server
+key and folder identity; hosted locations bind a private backend root and a logical
+folder name. Account-owned hosted projects belong to a Network; a temporary demo
+belongs to its DemoSession, without a fake User, Network or Server. The common
+`ProjectStorage` contract owns content operations. Private Drafts use that same
+storage after their verified migration.
+
+The editable collection of GUI content — its **Menus**,
+**Commands**, **Dialogs**, translations, and assets. A Project is a tree of files
+on its owning disk: Minecraft server or durable backend volume. Published content
+and private **Drafts** share that authority; publication is explicit. A text editor
+can still edit server files directly. The web editor is a client of the project's
+files (cf. ADR `files-first-source-of-truth`). A Project belongs to
+**exactly one Server** in server mode; hosted projects require no Server.
+A Server holds **one or more** Projects. The Project is
 the granular unit of organisation *and* of **portability**: a server's content is
 split into Projects so each can be exported, shared, and imported independently.
-Importing produces a *new* Project on the target server — Projects are copied,
-never live-linked across servers (so "belongs to one Server" always holds).
+ZIP import creates a new hosted Project. **Copy to Minecraft** creates an
+independent server Project from a saved revision, including binary assets;
+Projects are never live-linked across storage locations.
 
 A Project has **two identifiers, and only one of them is global**. Its *disk id*
 is the directory name the owning server uses, and it is unique **per server**

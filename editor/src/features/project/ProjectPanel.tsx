@@ -6,6 +6,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { EmptyState } from "@/components/ui/empty-state";
 import type { ProjectId } from "@/domain/types";
+import { NewCommandDialog } from "@/features/canvas/NewCommandDialog";
+import { NewDialogDialog } from "@/features/canvas/NewDialogDialog";
+import { NewMenuDialog } from "@/features/canvas/NewMenuDialog";
+import { projectDestination } from "@/lib/projectNavigation";
 import { useAccountStore } from "@/state/accountStore";
 import { useUiStore } from "@/state/uiStore";
 import { useNavigate, useParams } from "@tanstack/react-router";
@@ -20,11 +24,12 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { NewCommandDialog } from "@/features/canvas/NewCommandDialog";
-import { NewDialogDialog } from "@/features/canvas/NewDialogDialog";
-import { NewMenuDialog } from "@/features/canvas/NewMenuDialog";
 import { openProjectSettings } from "./projectSettings";
-import { type DocumentType, type ProjectDocumentItem, buildProjectDocuments } from "./useProjectDocuments";
+import {
+  type DocumentType,
+  type ProjectDocumentItem,
+  buildProjectDocuments,
+} from "./useProjectDocuments";
 
 const TYPE_ICON: Record<DocumentType, typeof LayoutGrid> = {
   menu: LayoutGrid,
@@ -55,15 +60,7 @@ export function ProjectPanel({ projectId }: { projectId: ProjectId }) {
   const empty = groups.every((g) => g.items.length === 0);
 
   const openElement = (id: string) =>
-    navigate({
-      to: "/networks/$networkId/servers/$serverId/projects/$projectId/document/$documentId",
-      params: {
-        networkId: params.networkId!,
-        serverId: params.serverId!,
-        projectId: projectId,
-        documentId: id,
-      },
-    });
+    navigate(projectDestination(params.networkId!, projectId, params.serverId, id));
 
   return (
     <nav className="flex h-full flex-col gap-2 overflow-auto p-2">

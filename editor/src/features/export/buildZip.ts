@@ -1,3 +1,4 @@
+import { isPrivateProjectPath } from "@/lib/projectFileVisibility";
 import JSZip from "jszip";
 
 /**
@@ -5,10 +6,15 @@ import JSZip from "jszip";
  * Paths may contain directory separators (e.g. "plugins/Artisan/menus/shop.yaml")
  * and JSZip will create the intermediate directories automatically.
  */
-export async function buildZip(files: Record<string, string>): Promise<Blob> {
+export async function buildZip(files: Record<string, string | Uint8Array>): Promise<Blob> {
   const zip = new JSZip();
   for (const [path, content] of Object.entries(files)) {
+    if (isPrivateProjectPath(path)) continue;
     zip.file(path, content);
   }
-  return zip.generateAsync({ type: "blob", compression: "DEFLATE", compressionOptions: { level: 6 } });
+  return zip.generateAsync({
+    type: "blob",
+    compression: "DEFLATE",
+    compressionOptions: { level: 6 },
+  });
 }

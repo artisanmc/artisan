@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { PendingRename, ProjectDraft } from "@/features/project/draft";
 
-/** Account-scoped recovery copies of backend Project drafts, including unacknowledged edits. */
+/** Account-scoped recovery copies of persisted Project drafts, including unacknowledged edits. */
 interface ProjectDraftState {
   ownerId: string | null;
   backups: Record<string, { drafts: Record<string, ProjectDraft>; pendingRenames: Record<string, PendingRename[]> }>;

@@ -40,7 +40,7 @@ export function buildScratchProject(
   const id = screenScratchId(screen.id);
   const base = `plugins/Artisan/projects/${id}`;
   const fileMap: Record<string, string> = {
-    [`${base}/manifest.yaml`]: `schema: manifest/v1\nproject_id: ${id}\ndefault_lang: en\nlanguages: [en]\nfiles:\n  menus: []\n  commands: []\n`,
+    [`${base}/manifest.yaml`]: `schema: manifest/v1\ndefault_lang: en\nlanguages: [en]\nfiles:\n  menus: []\n  commands: []\n`,
   };
   for (const f of contextFiles) {
     if (f.path.startsWith("items/") || f.path === ".artisan/editor.yaml")

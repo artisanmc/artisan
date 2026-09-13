@@ -1,7 +1,57 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { listAssets, uploadAsset, uploadFontAsset, patchAsset, deleteAsset, duplicateAsset } from "./userAssets";
+import { usePersistedDraftStore } from "@/features/project/persistedDrafts";
+import { useAccountStore } from "@/state/accountStore";
+import { useAuthStore } from "@/state/authStore";
+import { useProjectDraftStore } from "@/state/projectDraftStore";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  deleteAsset,
+  duplicateAsset,
+  listAssets,
+  patchAsset,
+  uploadAsset,
+  uploadFontAsset,
+} from "./userAssets";
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
+const snapshot = { baseline: {}, tree: {}, initialTree: {}, at: 1, renames: [] };
+const savedDraft = {
+  id: "draft",
+  projectId: "p1",
+  ownerId: "owner",
+  name: "Draft",
+  revision: 2,
+  status: "active",
+  source: "editor",
+  updatedAt: "",
+  snapshot,
+};
+beforeEach(() => {
+  useAuthStore.setState({ currentUser: { id: "owner" } } as never);
+  useAccountStore.setState({ account: { id: "owner", projects: [], projectOrder: [] } } as never);
+  useProjectDraftStore.setState({
+    ownerId: "owner",
+    drafts: {
+      p1: {
+        ...snapshot,
+        remote: {
+          id: "draft",
+          name: "Draft",
+          revision: 1,
+          ownerId: "owner",
+          acknowledged: JSON.stringify([[], [], [], 1, [], [], []]),
+        },
+      },
+    },
+    pendingRenames: {},
+    backups: {},
+  });
+  usePersistedDraftStore.setState({
+    sessions: { p1: { ownerId: "owner", status: "saved", drafts: [] } },
+  });
+});
 
 const A1 = {
   id: "asset_1",
@@ -29,7 +79,8 @@ describe("userAssets.listAssets", () => {
       expect.stringContaining("/api/v1/user/projects/p1/assets"),
       expect.objectContaining({ credentials: "include" }),
     );
-    expect(result).toEqual([A1]);
+    expect(result).toEqual([{ ...A1, draftId: "draft" }]);
+    expect(fetchMock.mock.calls[0]![0]).toContain("draftId=draft");
   });
 
   it("applies type/search filters as query params", async () => {
@@ -51,7 +102,9 @@ describe("userAssets.listAssets", () => {
 
 describe("userAssets.uploadAsset", () => {
   it("POSTs a FormData body with credentials included and returns the asset", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ asset: A1 }) });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue({ ok: true, json: async () => ({ asset: A1, draft: savedDraft }) });
     vi.stubGlobal("fetch", fetchMock);
     const file = new File([new Uint8Array([1])], "x.png", { type: "image/png" });
 
@@ -61,14 +114,23 @@ describe("userAssets.uploadAsset", () => {
       expect.stringContaining("/api/v1/user/projects/p1/assets"),
       expect.objectContaining({ method: "POST", credentials: "include" }),
     );
-    expect(result).toEqual(A1);
+    expect(result).toEqual({ ...A1, draftId: "draft" });
+    const [url, request] = fetchMock.mock.calls[0]!;
+    expect(url).toContain("draftId=draft&draftRevision=1");
+    expect(request.body).toBeInstanceOf(FormData);
+    expect(JSON.parse(request.body.get("draftSnapshot"))).toEqual(snapshot);
+    expect(new Headers(request.headers).get("Idempotency-Key")).toBeTruthy();
+    expect(useProjectDraftStore.getState().get("p1")?.remote?.revision).toBe(2);
   });
 
   it("throws with the backend error message on failure", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
-      ok: false,
-      json: async () => ({ error: "Asset name already exists" }),
-    }));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        json: async () => ({ error: "Asset name already exists" }),
+      }),
+    );
     const file = new File([new Uint8Array([1])], "x.png", { type: "image/png" });
     await expect(uploadAsset("p1", { file, type: "glyph", name: "bg" })).rejects.toThrow(
       "Asset name already exists",
@@ -80,7 +142,7 @@ describe("userAssets.uploadFontAsset", () => {
   it("POSTs a font FormData body and returns { asset, warnings }", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => ({ asset: A1, warnings: ["skipped x"] }),
+      json: async () => ({ asset: A1, warnings: ["skipped x"], draft: savedDraft }),
     });
     vi.stubGlobal("fetch", fetchMock);
     const file = new File([new Uint8Array([1])], "f.zip", { type: "application/zip" });
@@ -91,13 +153,17 @@ describe("userAssets.uploadFontAsset", () => {
       expect.stringContaining("/api/v1/user/projects/p1/assets"),
       expect.objectContaining({ method: "POST", credentials: "include" }),
     );
-    expect(result).toEqual({ asset: A1, warnings: ["skipped x"] });
+    expect(result).toEqual({ asset: { ...A1, draftId: "draft" }, warnings: ["skipped x"] });
+    expect(fetchMock.mock.calls[0]![1].body.get("type")).toBe("font");
+    expect(fetchMock.mock.calls[0]![1].body.get("draftName")).toBe("Draft");
   });
 });
 
 describe("userAssets.patchAsset", () => {
   it("PATCHes with credentials included and JSON body", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ asset: A1 }) });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue({ ok: true, json: async () => ({ asset: A1, draft: savedDraft }) });
     vi.stubGlobal("fetch", fetchMock);
 
     const result = await patchAsset("p1", "asset_1", { ascent: 3 });
@@ -107,16 +173,18 @@ describe("userAssets.patchAsset", () => {
       expect.objectContaining({
         method: "PATCH",
         credentials: "include",
-        body: JSON.stringify({ ascent: 3 }),
+        body: JSON.stringify({ ascent: 3, draftSnapshot: snapshot, draftName: "Draft" }),
       }),
     );
-    expect(result).toEqual(A1);
+    expect(result).toEqual({ ...A1, draftId: "draft" });
   });
 });
 
 describe("userAssets.deleteAsset", () => {
   it("DELETEs with credentials included", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue({ ok: true, json: async () => ({ draft: savedDraft }) });
     vi.stubGlobal("fetch", fetchMock);
 
     await deleteAsset("p1", "asset_1");
@@ -136,7 +204,9 @@ describe("userAssets.deleteAsset", () => {
 describe("userAssets.duplicateAsset", () => {
   it("POSTs to the duplicate endpoint with credentials included", async () => {
     const dup = { ...A1, id: "asset_2" };
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ asset: dup }) });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue({ ok: true, json: async () => ({ asset: dup, draft: savedDraft }) });
     vi.stubGlobal("fetch", fetchMock);
 
     const result = await duplicateAsset("p1", "asset_1");
@@ -145,6 +215,6 @@ describe("userAssets.duplicateAsset", () => {
       expect.stringContaining("/api/v1/user/projects/p1/assets/asset_1/duplicate"),
       expect.objectContaining({ method: "POST", credentials: "include" }),
     );
-    expect(result).toEqual(dup);
+    expect(result).toEqual({ ...dup, draftId: "draft" });
   });
 });

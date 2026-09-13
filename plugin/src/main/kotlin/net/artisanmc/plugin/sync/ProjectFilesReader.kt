@@ -23,7 +23,8 @@ object ProjectFilesReader {
     fun binaries(projectDir: File): Map<String, BinaryInfo> {
         val out = mutableMapOf<String, BinaryInfo>()
         projectDir.walkTopDown()
-            .filter { it.isFile }
+            .onEnter { it == projectDir || !java.nio.file.Files.isSymbolicLink(it.toPath()) && !net.artisanmc.plugin.project.ProjectPathPolicy.isPrivate(it.relativeTo(projectDir).invariantSeparatorsPath) }
+            .filter { it.isFile && !java.nio.file.Files.isSymbolicLink(it.toPath()) }
             .forEach { file ->
                 val rel = file.relativeTo(projectDir).path.replace('\\', '/')
                 if (isBinary(rel) && !BundleHasher.isArtisanMeta(rel)) {
@@ -39,17 +40,19 @@ object ProjectFilesReader {
 
     /**
      * The single project-dir walk. relPath-keyed map (forward slashes), holding
-     * every **text** file on disk — `.artisan*` metadata included. Every other
+     * every public **text** file plus editor metadata. History, private drafts,
+     * transaction journals and filesystem aliases are never exposed. Every other
      * text reader derives from this one; no second traversal.
      */
     fun readAll(projectDir: File): Map<String, String> {
         val out = mutableMapOf<String, String>()
         projectDir.walkTopDown()
-            .filter { it.isFile }
+            .onEnter { it == projectDir || !java.nio.file.Files.isSymbolicLink(it.toPath()) && !net.artisanmc.plugin.project.ProjectPathPolicy.isPrivate(it.relativeTo(projectDir).invariantSeparatorsPath) }
+            .filter { it.isFile && !java.nio.file.Files.isSymbolicLink(it.toPath()) }
             .forEach { file ->
                 val rel = file.relativeTo(projectDir).path.replace('\\', '/')
                 // Exclus par construction : un PNG lu en UTF-8 revient mutilé.
-                if (!isBinary(rel)) out[rel] = file.readText(Charsets.UTF_8)
+                if (!isBinary(rel) && !rel.startsWith(".artisan/history/", ignoreCase = true) && !net.artisanmc.plugin.project.ProjectPathPolicy.isPrivate(rel)) out[rel] = file.readText(Charsets.UTF_8)
             }
         return out
     }

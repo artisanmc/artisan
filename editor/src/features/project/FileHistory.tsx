@@ -1,6 +1,7 @@
+import { type FileVersion, readFileHistory } from "@/lib/api/projectFiles";
+import { projectClient } from "@/lib/projectClient";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { readFileHistory, type FileVersion } from "@/lib/api/projectFiles";
 
 /**
  * La corbeille d'un fichier (ADR `server-disk-only-storage` décision 5) : les
@@ -22,10 +23,12 @@ export function FileHistory({
   diskId,
   path,
   onRestore,
+  projectId,
 }: {
-  networkId: string;
-  serverId: string;
-  diskId: string;
+  projectId?: string;
+  networkId?: string;
+  serverId?: string;
+  diskId?: string;
   path: string;
   onRestore: (content: string) => void;
 }) {
@@ -37,7 +40,9 @@ export function FileHistory({
   const load = async () => {
     setLoading(true);
     setError(null);
-    const res = await readFileHistory(networkId, serverId, diskId, path);
+    const res = projectId
+      ? await projectClient(projectId).history(path)
+      : await readFileHistory(networkId!, serverId, diskId, path);
     setLoading(false);
     if (!res.ok) {
       setError(res.error === "server_offline" ? t("history.serverOffline") : t("history.failed"));

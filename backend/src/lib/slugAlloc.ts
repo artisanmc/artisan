@@ -31,8 +31,9 @@ export async function allocServerSlug(
 export async function allocProjectSlug(
 	serverKeyId: string,
 	name: string,
+	database: Pick<typeof db, "select"> = db,
 ): Promise<string> {
-	const rows = await db
+	const rows = await database
 		.select({ slug: projects.slug })
 		.from(projects)
 		.where(eq(projects.serverKeyId, serverKeyId));

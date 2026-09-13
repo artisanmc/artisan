@@ -7,6 +7,13 @@ dédié requis »).
 
 ## Contexte
 
+**Révision 2026-09-13 — migration des brouillons serveur** : voir
+[project-storage-modes](project-storage-modes.md). Le backend gèle les brouillons
+par Project puis vérifie leur copie dans `.artisan/drafts/` avant de retirer les
+lignes SQL. Un ancien plugin conserve provisoirement l'autorité SQL ; un projet
+migré exige le serveur connecté et ne revient pas à cette copie. Les projets
+hébergés et la démo restent des phases à venir, pas une disponibilité annoncée ici.
+
 **Révision 2026-09-11 — brouillons backend** : le contenu publié reste sur le
 disque Minecraft. Le backend conserve désormais des copies de travail nommées
 et privées dans `project_drafts`, avec base et révision. La sauvegarde automatique

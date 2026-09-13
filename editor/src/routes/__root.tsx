@@ -2,7 +2,9 @@ import { AdminSidebar } from "@/components/AdminSidebar";
 import { BackendUnreachable } from "@/components/BackendUnreachable";
 import { NavigationSidebar } from "@/components/NavigationSidebar";
 import { ProjectSidebar } from "@/components/ProjectSidebar";
+import { DemoAuthReturn } from "@/features/demo/DemoAuthReturn";
 import { onProjectsReloaded as onProjectsReloadedInEditor } from "@/features/project/onProjectsReloaded";
+import { onProjectRenamed } from "@/features/project/onProjectRenamed";
 import { useDraftSync } from "@/features/project/useDraftSync";
 import { EditorWs } from "@/lib/editorWs";
 import { useAuthStore } from "@/state/authStore";
@@ -63,6 +65,7 @@ function RootLayoutInner() {
     let ws: EditorWs | null = null;
     const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
     EditorWs.connectAsUser(apiUrl, {
+      onProjectRenamed,
       onDraftUpdate: (_projectId, menuId) => {
         // Capture the current i18n instance's translation at fire time — `t` is
         // deliberately not a dep below so a language switch doesn't reconnect the WS.
@@ -102,7 +105,8 @@ function RootLayoutInner() {
   const isAdminArea = pathname.startsWith("/admin") && !!user?.isAdmin;
   return (
     <div className="relative flex h-full">
-      {showSidebar && (
+      <DemoAuthReturn />
+      {showSidebar && !pathname.startsWith("/demo") && (
         <NavigationSidebar>{isAdminArea ? <AdminSidebar /> : <ProjectSidebar />}</NavigationSidebar>
       )}
       <main className="flex flex-1 flex-col overflow-hidden">

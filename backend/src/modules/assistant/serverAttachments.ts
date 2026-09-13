@@ -89,13 +89,14 @@ function isSelection(value: unknown): value is ServerAttachmentSelection {
 }
 
 export async function resolveServerAttachments(
-	serverKeyId: string,
+	serverKeyId: string | null,
 	raw: unknown,
 	read: ImportSourcesReadFn = requestImportSourcesRead,
 ): Promise<ResolvedServerAttachments> {
 	if (raw === undefined || (Array.isArray(raw) && raw.length === 0)) {
 		return { ok: true, attachments: {} };
 	}
+	if (!serverKeyId) return { ok: false, error: "server_unavailable", status: 422 };
 	if (
 		!Array.isArray(raw) ||
 		raw.length > MAX_SERVER_ATTACHMENT_GROUPS ||
