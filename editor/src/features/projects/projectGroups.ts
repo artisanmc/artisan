@@ -20,15 +20,25 @@ export function diskProjectsToSummaries(
   networkId: string,
   serverKeyId: string,
   projectIds: string[],
+  metadata: ProjectSummary[] = [],
 ): ProjectSummary[] {
-  return projectIds.map((id) => ({
-    id,
-    name: id,
-    slug: id,
-    hash: "",
-    networkId,
-    serverKeyId,
-  }));
+  const projects = projectIds.map(
+    (id) =>
+      metadata.find((project) => (project.externalId ?? project.id) === id) ?? {
+        id,
+        name: id,
+        slug: id,
+        hash: "",
+        networkId,
+        serverKeyId,
+      },
+  );
+  return [
+    ...projects,
+    ...metadata.filter(
+      (project) => project.pendingRename && !projects.some((listed) => listed.id === project.id),
+    ),
+  ];
 }
 
 /** Une ligne sous un module. `label: null` = l'entrée « Éditeur » générique :

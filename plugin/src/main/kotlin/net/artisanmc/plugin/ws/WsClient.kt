@@ -19,6 +19,7 @@ class WsClient(
     private val editorScreens: () -> List<Map<String, Any?>> = { emptyList() },
     private val onMessage: (String) -> Unit,
     private val logger: Logger? = null,
+    private val projectPresence: () -> Map<String, Any> = { emptyMap() },
 ) {
     private val httpClient = OkHttpClient.Builder()
         .pingInterval(30, TimeUnit.SECONDS)
@@ -67,7 +68,7 @@ class WsClient(
                 "declared_models" to declaredModels(),
                 // Module-declared Config screens (ADR module-config-screens).
                 "editor_screens" to editorScreens(),
-            )
+            ) + projectPresence()
             ws.send(mapper.writeValueAsString(hello))
         }
 
@@ -76,6 +77,10 @@ class WsClient(
         override fun onFailure(ws: WebSocket, t: Throwable, response: Response?) {
             logger?.warning("WS failure: ${t.message}")
             scheduleReconnect()
+        }
+
+        override fun onClosing(ws: WebSocket, code: Int, reason: String) {
+            ws.close(code, reason)
         }
 
         override fun onClosed(ws: WebSocket, code: Int, reason: String) {

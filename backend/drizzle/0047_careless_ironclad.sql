@@ -1,0 +1,1 @@
+ALTER TABLE "demo_sessions" ADD COLUMN "superseded_claims" jsonb DEFAULT '[]'::jsonb NOT NULL;

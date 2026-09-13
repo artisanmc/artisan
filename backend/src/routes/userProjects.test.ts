@@ -11,6 +11,9 @@ import { addMembership } from "../lib/membershipManager";
 import { createProject, getProject } from "../lib/projectStorage";
 import { generateServerKey } from "../lib/auth";
 import { registerEditorConn } from "../ws/hub";
+import { eq } from "drizzle-orm";
+import { readdir } from "node:fs/promises";
+import { join } from "node:path";
 
 async function clearAll() {
   await db.delete(projects);
@@ -50,6 +53,21 @@ function makeApp() {
 
 describe("userProjectsRouter — GET", () => {
   beforeEach(clearAll);
+
+  test("hosted item catalogs never substitute another patch for the selected version", async () => {
+    const { sessionId, projectId } = await seedUserWithProject("hosted-version");
+    const itemsDir = join(import.meta.dir, "../../data/items");
+    const available = (await readdir(itemsDir)).find((file) => /^\d+\.\d+\.\d+\.json$/.test(file));
+    expect(available).toBeDefined();
+    const missingVersion = `${available!.split(".").slice(0, 2).join(".")}.999999`;
+    expect(await Bun.file(join(itemsDir, `${missingVersion}.json`)).exists()).toBe(false);
+    await db.update(projects).set({ storageKind: "hosted", serverKeyId: null, hostedRootId: "strict-catalog", hostedMinecraftVersion: missingVersion }).where(eq(projects.id, projectId));
+    const res = await makeApp().request(`/api/v1/user/projects/${projectId}/items`, {
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
+    });
+    expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({ error: "unknown_version" });
+  });
 
   test("GET /:projectId 200 — member gets project content", async () => {
     const { sessionId, projectId } = await seedUserWithProject("u1");

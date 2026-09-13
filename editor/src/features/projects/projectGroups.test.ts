@@ -16,7 +16,7 @@ vi.mock("@artisan/editor-sdk", () => ({
 
 import type { ServerEditorScreen } from "@/lib/api/configScreens";
 import type { ProjectSummary } from "@/lib/api/networks";
-import { buildProjectGroups } from "./projectGroups";
+import { buildProjectGroups, diskProjectsToSummaries } from "./projectGroups";
 
 const project = (id: string, extra: Partial<ProjectSummary> = {}): ProjectSummary => ({
   id,
@@ -37,6 +37,11 @@ const screen = (id: string, moduleId: string, projectId: string): ServerEditorSc
 });
 
 describe("buildProjectGroups", () => {
+  it("preserves backend identities and rename capabilities for listed disk folders", () => {
+    const metadata = project("immutable", { externalId: "shop", capabilities: { canRename: true } });
+    expect(diskProjectsToSummaries("net_1", "sk_1", ["shop"], [metadata])).toEqual([metadata]);
+    expect(diskProjectsToSummaries("net_1", "sk_1", ["legacy"])[0]?.capabilities).toBeUndefined();
+  });
   it("keeps ordinary projects flat", () => {
     const { flatProjects, moduleGroups } = buildProjectGroups({
       projects: [project("hub"), project("lobby")],

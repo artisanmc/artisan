@@ -8,6 +8,13 @@ import {
 	resolveServerAttachments,
 } from "./serverAttachments";
 
+test("hosted context permits uploaded-only chat and rejects requested live attachments without WS", async () => {
+  const read = mock(async () => { throw new Error("unexpected websocket"); });
+  expect(await resolveServerAttachments(null, [], read)).toEqual({ ok: true, attachments: {} });
+  expect(await resolveServerAttachments(null, [{ sourceId: "zmenu", paths: ["a.yml"] }], read)).toEqual({ ok: false, error: "server_unavailable", status: 422 });
+  expect(read).not.toHaveBeenCalled();
+});
+
 test("namespaces returned server files", async () => {
 	const read = mock(async () => ({
 		kind: "result" as const,

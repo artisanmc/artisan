@@ -1,9 +1,9 @@
+import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import type { ProjectId } from "@/domain/types";
 import { uploadFontAsset } from "@/lib/api/userAssets";
-import { useAuthStore } from "@/state/authStore";
+import { useProjectPrincipalId } from "@/lib/projectPrincipal";
 import { useState } from "react";
 import { useAssetStore } from "./assetStore";
 
@@ -25,7 +25,7 @@ function stripZipExtension(filename: string): string {
 }
 
 export function AssetImportFontDialog({ projectId, open, onClose }: AssetImportFontDialogProps) {
-  const user = useAuthStore((s) => s.currentUser);
+  const user = useProjectPrincipalId(projectId);
   const upsertAsset = useAssetStore((s) => s.upsertAsset);
 
   const [file, setFile] = useState<File | null>(null);
@@ -77,11 +77,19 @@ export function AssetImportFontDialog({ projectId, open, onClose }: AssetImportF
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) onClose();
+      }}
+    >
       <DialogContent>
-        <DialogHeader><DialogTitle>Import MCFonts zip</DialogTitle></DialogHeader>
+        <DialogHeader>
+          <DialogTitle>Import MCFonts zip</DialogTitle>
+        </DialogHeader>
         <div className="flex flex-col gap-3">
-          <label className="text-xs">Zip file
+          <label className="text-xs">
+            Zip file
             <input
               type="file"
               accept=".zip"
@@ -89,11 +97,10 @@ export function AssetImportFontDialog({ projectId, open, onClose }: AssetImportF
             />
           </label>
           {file && (
-            <div className="text-xs text-muted-foreground">
-              Ready to import — {file.size} bytes
-            </div>
+            <div className="text-xs text-muted-foreground">Ready to import — {file.size} bytes</div>
           )}
-          <label className="text-xs">Name
+          <label className="text-xs">
+            Name
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -109,8 +116,12 @@ export function AssetImportFontDialog({ projectId, open, onClose }: AssetImportF
           )}
           {error && <div className="text-xs text-[var(--danger)]">{error}</div>}
           <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={onClose}>Cancel</Button>
-            <Button disabled={busy || !name || !file} onClick={onSubmit}>Import</Button>
+            <Button variant="ghost" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button disabled={busy || !name || !file} onClick={onSubmit}>
+              Import
+            </Button>
           </div>
         </div>
       </DialogContent>

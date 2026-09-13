@@ -42,6 +42,7 @@ export interface CachedProject {
   serverKeyId?: string | null;
   /** L'arbre rel-keyed, tel que le serveur l'a rendu. */
   tree: Record<string, string>;
+  binaries?: { path: string; hash: string; size: number }[];
   /**
    * Les modèles déclarés par les modules du serveur, tels qu'ils étaient.
    *

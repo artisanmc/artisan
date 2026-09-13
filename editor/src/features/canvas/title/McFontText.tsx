@@ -1,6 +1,6 @@
 import type { Asset } from "@/domain/asset";
 import { Group, Image as KonvaImage, Rect } from "react-konva";
-import useImage from "use-image";
+import { useAuthenticatedImage } from "@/lib/useAuthenticatedImage";
 import { fontGlyphUrl } from "./fontGlyphUrl";
 
 /**
@@ -159,7 +159,7 @@ function McFontGlyph({
   baselineY,
 }: GlyphProps) {
   const url = fontGlyphUrl(font, char);
-  const [image] = useImage(url ?? "");
+  const [image] = useAuthenticatedImage(url ?? "");
   if (!url) return null;
   const w = width * scale;
   const h = height * scale;

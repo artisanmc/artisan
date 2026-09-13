@@ -5,7 +5,7 @@ import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
 import { projectCacheKey, useProjectCacheStore } from "@/state/projectCacheStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useProjectLoader } from "./useProjectLoader";
 
@@ -67,8 +67,8 @@ describe("useProjectLoader — la version fraîche gagne toujours", () => {
 
     const { result } = renderHook(() => useProjectLoader("p1"));
 
-    await waitFor(() => expect(result.current.stale).toBe(false));
-    await new Promise((r) => setTimeout(r, 120));
+    await waitFor(() => expect(result.current.project).not.toBeNull());
+    expect(result.current.stale).toBe(false);
 
     const stored = useAccountStore.getState().account.projects.find((p) => p.id === "p1");
     const menuIds = (stored?.menus ?? []).map((m) => m.id);
@@ -82,7 +82,7 @@ describe("useProjectLoader — la version fraîche gagne toujours", () => {
    * attendait un aller-retour REST (les modèles déclarés du serveur) avant de
    * rendre quoi que ce soit. Un cache qui attend le réseau n'est pas un cache.
    */
-  it("affiche la version connue sans attendre le réseau", async () => {
+  it("does not expose a cached project before the network authorizes opening it", async () => {
     useProjectCacheStore.getState().put(projectCacheKey("p1"), {
       identity: IDENTITY,
       diskId: "boutique_shop",
@@ -102,8 +102,8 @@ describe("useProjectLoader — la version fraîche gagne toujours", () => {
 
     const { result } = renderHook(() => useProjectLoader("p1"));
 
-    await waitFor(() => expect(result.current.project).not.toBeNull());
-    expect(result.current.stale).toBe(true);
+    await act(async () => {});
+    expect(result.current.project).toBeNull();
     expect(models).not.toHaveBeenCalled();
   });
 

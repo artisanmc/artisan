@@ -1,8 +1,14 @@
+import { demoEn } from "./demo";
+import { projectIdentityEn } from "./projectIdentity";
+import { projectCopyEn } from "./projectCopy";
 import { draftsEn } from "./drafts";
 import { accountDeletionEn } from "./accountDeletion";
 import { tasksEn } from "./tasks";
 import { migrationEn } from "./migration";
 export default {
+  demo: demoEn,
+  projectCopy: projectCopyEn,
+  projectIdentity: projectIdentityEn,
   accountDeletion: accountDeletionEn,
   drafts: draftsEn,
   navigation: {
@@ -871,6 +877,9 @@ export default {
     },
   },
   project: {
+    collapseNotice: "Collapse notice",
+    expandNotice: "Expand notice",
+    staleChecking: "Checking server…",
     staleLoading: "Showing your last visit — fetching the server’s version…",
     staleOffline: "Server unreachable — showing your last visit. Saving is out of reach.",
     loading: "Reading the server's files…",
@@ -1722,9 +1731,9 @@ export default {
     discardChanges: "Discard changes",
     save: "Save",
     saving: "Saving…",
-    saved: "Saved to the server",
+    saved: "Project saved",
     nothingToSave: "Nothing to save",
-    saveTitle: "Write your changes to the server's disk",
+    saveTitle: "Apply your changes to the saved project",
     cannotSaveTitle: "Unknown server — cannot save",
     serverOffline: "Server offline — saving is not possible",
     failed: "Save failed",

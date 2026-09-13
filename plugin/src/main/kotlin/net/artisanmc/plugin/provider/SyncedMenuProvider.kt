@@ -63,6 +63,12 @@ class SyncedMenuProvider(
      */
     private val runOnMainThread: (() -> Unit) -> Unit = { it() },
 ) : MenuProvider {
+    private var copyMinecraftVersion = "1.21.4"
+    private val projectIo = object {
+        fun execute(task: () -> Unit) {
+            httpClient.dispatcher.executorService.execute { synchronized(roots) { task() } }
+        }
+    }
     companion object {
         internal const val MAX_PREVIEW_ROWS = 50
         internal const val MAX_PREVIEW_BYTES = 256 * 1024
@@ -82,8 +88,9 @@ class SyncedMenuProvider(
          * faire de la corbeille ni de l'état de sync.
          */
         internal fun isEditorInvisible(rel: String): Boolean {
+            if (net.artisanmc.plugin.project.ProjectPathPolicy.isPrivate(rel)) return true
             val first = rel.substringBefore('/')
-            return first == ".artisan-trash" || first == ".artisan-sync.yaml" ||
+            return first == ".artisan-trash" || first == ".artisan-sync.yaml" || rel == ".artisan/rename-operation.json" ||
                 rel.startsWith(".artisan/history/")
         }
 
@@ -98,6 +105,7 @@ class SyncedMenuProvider(
          * il ne peut pas l'écrire.
          */
         internal fun isEditorWritablePath(p: String): Boolean {
+            if (!net.artisanmc.plugin.project.ProjectPathPolicy.valid(p)) return false
             if (p.isBlank()) return false
             val norm = p.replace('\\', '/')
             if (norm.startsWith("/") || norm.contains("..") || norm.contains(":")) return false
@@ -106,6 +114,8 @@ class SyncedMenuProvider(
 
         /** Traversal guard for relay-provided relative paths (mirror of ProjectContentReader.resolve). */
         internal fun isSafeRelPath(p: String): Boolean {
+            if (!net.artisanmc.plugin.project.ProjectPathPolicy.valid(p)) return false
+            if (net.artisanmc.plugin.project.ProjectPathPolicy.isPrivate(p)) return false
             if (p.isBlank()) return false
             val norm = p.replace('\\', '/')
             if (norm.startsWith("/") || norm.contains("..") || norm.contains(":")) return false
@@ -134,6 +144,7 @@ class SyncedMenuProvider(
      * fichier illisible y figure aussi, donc reste réparable depuis l'éditeur.
      */
     @Volatile private var snapshot: Map<String, Map<String, String>> = emptyMap()
+    @Volatile private var cachedProjectPresence: Map<String, Any> = emptyMap()
 
     /**
      * L'instantané des **binaires** : projectId → (chemin → empreinte + taille).
@@ -164,6 +175,25 @@ class SyncedMenuProvider(
     private val draftMenus = ConcurrentHashMap<String, BundleMenu>()
     @Volatile private var dialogs = ConcurrentHashMap<String, BundleDialog>()
     private val jsonMapper = ObjectMapper()
+    private fun mutationFingerprint(node: com.fasterxml.jackson.databind.JsonNode): String =
+        BundleHasher.hashBytes(jsonMapper.writeValueAsBytes(node.deepCopy<com.fasterxml.jackson.databind.node.ObjectNode>().also { it.remove("request_id") }))
+
+    private fun prepareMutation(projectDir: File, node: com.fasterxml.jackson.databind.JsonNode, reply: (Map<String, Any?>) -> Unit): Boolean {
+        val publisher = net.artisanmc.plugin.project.ProjectPublisher(projectDir)
+        publisher.recover()
+        val operationId = node["operation_id"]?.asText() ?: return false
+        val result = publisher.previous(operationId, mutationFingerprint(node)) ?: return false
+        @Suppress("UNCHECKED_CAST")
+        reply(jsonMapper.convertValue(result, Map::class.java) as Map<String, Any?>)
+        return true
+    }
+
+    private fun commitMutation(projectDir: File, node: com.fasterxml.jackson.databind.JsonNode, changes: Map<String, ByteArray?>) {
+        net.artisanmc.plugin.project.ProjectPublisher(projectDir).commit(
+            node["operation_id"]?.asText() ?: java.util.UUID.randomUUID().toString(), mutationFingerprint(node), changes,
+            jsonMapper.valueToTree(mapOf("ok" to true)),
+        )
+    }
     private val yamlMapper = ObjectMapper(YAMLFactory()).registerKotlinModule()
     private val httpClient = OkHttpClient()
     @Volatile private var wsClient: WsClient? = null
@@ -197,37 +227,6 @@ class SyncedMenuProvider(
      * failed data-source preview. Falls back to the exception's simple class name
      * when `message` is null/blank (e.g. a bare NPE) so the editor never shows "?".
      */
-    /**
-     * Copie le contenu actuel de [relPath] dans `.artisan/history/<relPath>/<ms>`
-     * avant qu'il soit écrasé ou supprimé, puis purge l'anneau.
-     *
-     * Ce n'est pas de l'historique de version : c'est une corbeille par fichier
-     * (ADR `server-disk-only-storage` décision 5). « Remets ce menu comme il
-     * était » marche ; « remets tout le Project à hier soir » non, et c'est
-     * assumé. Vit sous `.artisan` donc hors hash, hors scan, hors export.
-     * Un échec d'archivage ne bloque pas l'écriture — perdre le filet est
-     * regrettable, perdre l'enregistrement de l'admin le serait plus.
-     */
-    private fun archiveToHistory(projectDir: java.io.File, relPath: String) {
-        val source = java.io.File(projectDir, relPath)
-        if (!source.isFile) return
-        try {
-            val dir = java.io.File(projectDir, ".artisan/history/$relPath")
-            dir.mkdirs()
-            // Nom = millis sur 13 chiffres : l'ordre lexicographique EST l'ordre
-            // chronologique, donc la purge n'a pas à parser de dates.
-            var stamp = System.currentTimeMillis()
-            while (java.io.File(dir, "%013d".format(stamp)).exists()) stamp++
-            java.io.File(dir, "%013d".format(stamp)).writeText(source.readText(Charsets.UTF_8))
-            val versions = dir.listFiles()?.sortedBy { it.name } ?: return
-            if (versions.size > MAX_HISTORY_VERSIONS) {
-                versions.take(versions.size - MAX_HISTORY_VERSIONS).forEach { it.delete() }
-            }
-        } catch (e: Throwable) {
-            logger?.log(java.util.logging.Level.WARNING, "[Artisan] archivage corbeille '$relPath' échoué", e)
-        }
-    }
-
     private fun describeError(e: Throwable): String =
         e.message?.takeIf { it.isNotBlank() } ?: e.javaClass.simpleName
 
@@ -284,6 +283,7 @@ class SyncedMenuProvider(
                 "1.21.4"
             }
             val availableSources = customItemsManager.availableSources()
+            copyMinecraftVersion = mcVersion
             logger?.info("[ART] Custom item sources available: ${availableSources.ifEmpty { listOf("(none)") }}")
             // Custom items hash is computed off-thread (see registerCustomItemsReloadListeners).
             // hello sends an empty hash; the backend learns the real hash via a follow-up
@@ -303,6 +303,7 @@ class SyncedMenuProvider(
                 editorScreens     = editorScreensReport,
                 onMessage         = ::handleMessage,
                 logger            = logger,
+                projectPresence   = ::projectPresence,
             )
             wsClient = client
             client.connect()
@@ -378,6 +379,8 @@ class SyncedMenuProvider(
             "data_sources" to dataSourcesReport(),
             "declared_models" to declaredModelsReport(),
             "editor_screens" to editorScreensReport(),
+            "project_roots" to roots.descriptors(),
+            "identity_migrations" to identityMigrations(),
         ))
     }
 
@@ -391,7 +394,7 @@ class SyncedMenuProvider(
     // changeait sous les pieds de l'admin) sans donner le bénéfice (l'éditeur
     // n'était live pour autant — il ne voyait rien avant un rechargement de page).
 
-    private fun reloadFromDisk() {
+    private fun reloadFromDisk() = synchronized(roots) {
         // Declared model docs feed the reader so BARE data files resolve their
         // schema from the JAR declaration (ADR bare-data-files ①).
         val failures = java.util.concurrent.ConcurrentHashMap<String, MutableMap<String, String>>()
@@ -426,6 +429,7 @@ class SyncedMenuProvider(
         }
         menus = freshMenus
         dialogs = freshDialogs
+        refreshProjectPresence()
         announceReload()
     }
 
@@ -455,7 +459,24 @@ class SyncedMenuProvider(
         }
         // Fire-and-forget : sans WS connecté (démarrage, coupure) l'annonce se
         // perd, et c'est sans conséquence — le prochain `project_read` tranchera.
-        runCatching { send(mapOf("type" to "projects_reloaded", "projects" to projects)) }
+        runCatching { send(mapOf("type" to "projects_reloaded", "projects" to projects,
+            "project_roots" to roots.descriptors(), "identity_migrations" to identityMigrations())) }
+    }
+
+    private fun identityMigrations(): List<Map<String, String>> =
+        if (roots.isRegistered("boutique_addon")) listOf(mapOf("from" to "boutique_shop", "to" to "boutique_addon")) else emptyList()
+
+    private fun projectPresence(): Map<String, Any> = cachedProjectPresence
+
+    /** Called under the project mutation lock; WS callbacks only read the published map. */
+    private fun refreshProjectPresence() {
+        cachedProjectPresence = mapOf(
+            "capabilities" to listOf("project_rename", "project_drafts_v1", "project_mixed_write_v1", "project_copy_v1"),
+            "local_project_ids" to snapshot.keys.sorted(),
+            "project_roots" to roots.descriptors(),
+            "project_rename_results" to roots.renamer.completed(),
+            "identity_migrations" to identityMigrations(),
+        )
     }
 
 
@@ -797,7 +818,7 @@ class SyncedMenuProvider(
                             // Même sémantique que `project_read` : ce que le serveur a
                             // chargé. Sinon on listerait un project qu'on ne peut pas
                             // ouvrir, ou l'inverse — l'incohérence exacte qu'on retire.
-                            reply(mapOf("ok" to true, "project_ids" to snapshot.keys.sorted()))
+                            reply(mapOf("ok" to true, "project_ids" to snapshot.keys.sorted(), "project_roots" to roots.descriptors()))
                         } catch (e: Throwable) {
                             logger?.log(java.util.logging.Level.WARNING, "[Artisan] project_list failed", e)
                             reply(mapOf("ok" to false, "error" to "read_error", "message" to describeError(e)))
@@ -923,13 +944,15 @@ class SyncedMenuProvider(
                     return
                 }
                 try {
-                    httpClient.dispatcher.executorService.execute {
+                    projectIo.execute {
                         try {
                             if (!binarySnapshot.containsKey(projectId)) {
                                 reply(mapOf("ok" to false, "error" to "unknown_project"))
                                 return@execute
                             }
-                            val file = java.io.File(roots.dirFor(projectId), path)
+                            val root = roots.dirFor(projectId)
+                            net.artisanmc.plugin.project.ProjectPublisher(root).recover()
+                            val file = net.artisanmc.plugin.project.ProjectPathPolicy.resolve(root, path)
                             if (!file.isFile) {
                                 reply(mapOf("ok" to false, "error" to "not_found"))
                                 return@execute
@@ -997,17 +1020,23 @@ class SyncedMenuProvider(
                     return
                 }
                 try {
-                    httpClient.dispatcher.executorService.execute {
+                    projectIo.execute {
                         try {
+                            val renameError = roots.renamer.mutationError(projectId)
+                            if (renameError != null) {
+                                reply(mapOf("ok" to false, "error" to renameError))
+                                return@execute
+                            }
                             val projectDir = roots.dirFor(projectId)
                             if (!projectDir.isDirectory) {
                                 reply(mapOf("ok" to false, "error" to "unknown_project"))
                                 return@execute
                             }
 
+                            if (prepareMutation(projectDir, node, ::reply)) return@execute
                             // Passe 1 — vérifier, sans rien toucher.
                             val conflicts = writes.mapNotNull { (path, _, expected) ->
-                                val target = java.io.File(projectDir, path)
+                                val target = net.artisanmc.plugin.project.ProjectPathPolicy.resolve(projectDir, path)
                                 val actual = target.takeIf { it.isFile }
                                     ?.let { BundleHasher.hashBytes(it.readBytes()) }
                                 if (actual == expected) null else mapOf("path" to path, "disk_hash" to actual)
@@ -1035,27 +1064,8 @@ class SyncedMenuProvider(
                                 return@execute
                             }
 
-                            decoded.forEach { (path, bytes) ->
-                                val target = java.io.File(projectDir, path)
-                                // `content_base64` absent = suppression. Le fichier
-                                // passe par la corbeille, comme un Document : une
-                                // image supprimée par erreur doit pouvoir revenir.
-                                if (bytes == null) {
-                                    if (target.isFile) {
-                                        archiveToHistory(projectDir, path)
-                                        target.delete()
-                                    }
-                                } else {
-                                    archiveToHistory(projectDir, path)
-                                    target.parentFile?.mkdirs()
-                                    val tmp = java.io.File(target.parentFile, target.name + ".artisan-tmp")
-                                    tmp.writeBytes(bytes)
-                                    java.nio.file.Files.move(
-                                        tmp.toPath(), target.toPath(),
-                                        java.nio.file.StandardCopyOption.REPLACE_EXISTING,
-                                    )
-                                }
-                            }
+                            val publisher = net.artisanmc.plugin.project.ProjectPublisher(projectDir)
+                            commitMutation(projectDir, node, publisher.withHistory(decoded.toMap()))
                             // Écrire, c'est savoir qu'on a écrit : sans reprise,
                             // l'éditeur téléverserait une image qu'il ne verrait
                             // pas ensuite (sémantique de reload).
@@ -1094,18 +1104,19 @@ class SyncedMenuProvider(
                     return
                 }
                 try {
-                    httpClient.dispatcher.executorService.execute {
+                    projectIo.execute {
                         try {
                             val projectDir = roots.dirFor(projectId)
                             if (!projectDir.isDirectory) {
                                 reply(mapOf("ok" to false, "error" to "unknown_project"))
                                 return@execute
                             }
-                            val dir = java.io.File(projectDir, ".artisan/history/$path")
+                            net.artisanmc.plugin.project.ProjectPublisher(projectDir).recover()
+                            val dir = net.artisanmc.plugin.project.ProjectPathPolicy.resolve(projectDir, ".artisan/history/$path")
                             // Un fichier jamais écrasé n'a pas d'archive : liste vide,
                             // pas une erreur — c'est un état normal, pas un incident.
                             val versions = (dir.listFiles() ?: emptyArray())
-                                .filter { it.isFile }
+                                .filter { it.isFile && !java.nio.file.Files.isSymbolicLink(it.toPath()) }
                                 .sortedByDescending { it.name }
                                 .map {
                                     mapOf(
@@ -1121,6 +1132,80 @@ class SyncedMenuProvider(
                     }
                 } catch (_: java.util.concurrent.RejectedExecutionException) {
                     logger?.warning("project_history dropped — plugin is stopping")
+                }
+            }
+
+            "project_copy" -> {
+                val requestId = node["request_id"]?.asText() ?: return
+                projectIo.execute {
+                    val beforeActivation = roots.copier.activationRevision
+                    val result = roots.copier.handle(node, copyMinecraftVersion, installedModules().mapNotNull { it["id"] }.toSet())
+                    if (roots.copier.activationRevision != beforeActivation) {
+                        runCatching {
+                            reloadFromDisk()
+                            onReload?.invoke()
+                        }.onFailure { error ->
+                            logger?.log(java.util.logging.Level.WARNING, "[Artisan] Project copy activated on disk, but runtime reload failed.", error)
+                        }
+                    }
+                    send(result + mapOf("type" to "project_copy_result", "request_id" to requestId))
+                }
+            }
+
+            "project_rename" -> {
+                val requestId = node["request_id"]?.asText() ?: return
+                val operationId = node["operation_id"]?.asText() ?: return
+                val projectId = node["project_id"]?.asText() ?: return
+                val targetId = node["target_project_id"]?.asText() ?: return
+                projectIo.execute {
+                    val result = mutableMapOf<String, Any>(
+                        "type" to "project_rename_result", "request_id" to requestId,
+                        "operation_id" to operationId, "project_id" to projectId, "target_project_id" to targetId,
+                    )
+                    try {
+                        val error = roots.renamer.rename(operationId, projectId, targetId)
+                        result["ok"] = error == null
+                        if (error != null) result["error"] = error
+                        else {
+                            reloadFromDisk()
+                            draftMenus.clear()
+                            onReload?.invoke()
+                        }
+                    } catch (e: Exception) {
+                        result["ok"] = false
+                        result["error"] = "rename_error"
+                        result["message"] = describeError(e)
+                    }
+                    send(result)
+                }
+            }
+
+            "project_draft_request" -> {
+                val requestId = node["request_id"]?.asText() ?: return
+                val projectId = node["project_id"]?.asText() ?: return
+                projectIo.execute {
+                    val result = try {
+                        val error = if (!isSafeProjectId(projectId)) "invalid_path" else roots.renamer.mutationError(projectId)
+                        val root = roots.dirFor(projectId)
+                        when {
+                            error != null -> jsonMapper.valueToTree<com.fasterxml.jackson.databind.JsonNode>(mapOf("ok" to false, "error" to error))
+                            !root.isDirectory -> jsonMapper.valueToTree<com.fasterxml.jackson.databind.JsonNode>(mapOf("ok" to false, "error" to "unknown_project"))
+                            else -> net.artisanmc.plugin.project.ProjectDraftStore(root).handle(node)
+                        }
+                    } catch (error: Exception) {
+                        logger?.log(java.util.logging.Level.WARNING, "[Artisan] Private draft operation failed", error)
+                        jsonMapper.valueToTree<com.fasterxml.jackson.databind.JsonNode>(mapOf("ok" to false, "error" to "storage_error"))
+                    }
+                    if (result.path("ok").asBoolean() && node.path("action").asText() == "publish") {
+                        reloadFromDisk()
+                        draftMenus.clear()
+                        onReload?.invoke()
+                    }
+                    val payload = jsonMapper.convertValue(result, Map::class.java).entries.associate { it.key.toString() to it.value }.toMutableMap()
+                    payload["type"] = "project_draft_result"
+                    payload["request_id"] = requestId
+                    @Suppress("UNCHECKED_CAST")
+                    send(payload as Map<String, Any>)
                 }
             }
 
@@ -1153,6 +1238,7 @@ class SyncedMenuProvider(
                     path to baseHashOf(d)
                 } ?: emptyList()
                 val create = node["create"]?.asBoolean() ?: false
+                val binaries = node["binaries"]?.takeIf { it.isArray }?.toList().orEmpty()
                 // Un renommage porte une INTENTION que l'arbre ne peut pas
                 // reconstituer : sans elle, un fichier disparaît et un autre
                 // apparaît, la corbeille archive une suppression qui n'en est pas
@@ -1163,15 +1249,24 @@ class SyncedMenuProvider(
                     Triple(from, to, baseHashOf(r))
                 } ?: emptyList()
                 if (!isSafeProjectId(projectId) ||
+                    (node.has("binaries") && !node["binaries"].isArray) ||
+                    (binaries.isNotEmpty() && !Regex("[A-Za-z0-9_-]{1,128}").matches(node.path("operation_id").asText())) ||
                     writes.any { !isEditorWritablePath(it.first) } ||
                     deletes.any { !isEditorWritablePath(it.first) } ||
+                    binaries.any { !it.path("path").isTextual || !isEditorWritablePath(it.path("path").asText()) || !it.has("content_base64") || (!it["content_base64"].isNull && !it["content_base64"].isTextual) || (it.has("base_hash") && !it["base_hash"].isNull && !it["base_hash"].isTextual) } ||
+                    binaries.map { it.path("path").asText() }.let { paths -> paths.size != paths.distinct().size || paths.any { path -> writes.any { it.first == path } || deletes.any { it.first == path } || renames.any { it.first == path || it.second == path } } } ||
                     renames.any { !isEditorWritablePath(it.first) || !isEditorWritablePath(it.second) }
                 ) {
                     reply(mapOf("ok" to false, "error" to "invalid_path"))
                     return
                 }
                 try {
-                    httpClient.dispatcher.executorService.execute {
+                    projectIo.execute {
+                        val renameError = roots.renamer.mutationError(projectId)
+                        if (renameError != null) {
+                            reply(mapOf("ok" to false, "error" to renameError))
+                            return@execute
+                        }
                         val projectDir = roots.dirFor(projectId)
                         if (!projectDir.isDirectory) {
                             // Un Project neuf (création, import) n'a pas encore de
@@ -1192,11 +1287,12 @@ class SyncedMenuProvider(
                             // qui a bougé annule l'écriture entière : un enregistrement
                             // à moitié appliqué laisserait un Project incohérent en
                             // ligne, et l'éditeur ne saurait plus de quel état repartir.
-            val renameChecks = renames.flatMap { (from, to, expected) ->
-                                val source = java.io.File(projectDir, from)
+                            if (prepareMutation(projectDir, node, ::reply)) return@execute
+                            val renameChecks = renames.flatMap { (from, to, expected) ->
+                                val source = net.artisanmc.plugin.project.ProjectPathPolicy.resolve(projectDir, from)
                                 val current = source.takeIf { it.isFile }?.readText(Charsets.UTF_8)
                                 val actual = current?.let { BundleHasher.hashContent(it) }
-                                val dest = java.io.File(projectDir, to)
+                                val dest = net.artisanmc.plugin.project.ProjectPathPolicy.resolve(projectDir, to)
                                 listOfNotNull(
                                     if (actual == expected) null else mapOf("path" to from, "disk" to current),
                                     // La destination doit être libre : écraser un fichier
@@ -1207,9 +1303,16 @@ class SyncedMenuProvider(
                                     } else null,
                                 )
                             }
-                            val conflicts = renameChecks + (writes.map { it.first to it.third } + deletes)
+                            val binaryChanges = binaries.associate { b -> b.path("path").asText() to b["content_base64"].takeIf { !it.isNull }?.asText()?.let { java.util.Base64.getDecoder().decode(it) } }
+                            val binaryConflicts = binaries.mapNotNull { b ->
+                                val path = b.path("path").asText()
+                                val target = net.artisanmc.plugin.project.ProjectPathPolicy.resolve(projectDir, path)
+                                val actual = target.takeIf { it.isFile }?.readBytes()?.let { BundleHasher.hashBytes(it) }
+                                if (actual == baseHashOf(b)) null else mapOf("path" to path, "disk" to null)
+                            }
+                            val conflicts = renameChecks + binaryConflicts + (writes.map { it.first to it.third } + deletes)
                                 .mapNotNull { (path, expected) ->
-                                    val target = java.io.File(projectDir, path)
+                                    val target = net.artisanmc.plugin.project.ProjectPathPolicy.resolve(projectDir, path)
                                     val current = target.takeIf { it.isFile }?.readText(Charsets.UTF_8)
                                     val actual = current?.let { BundleHasher.hashContent(it) }
                                     if (actual == expected) null
@@ -1237,42 +1340,38 @@ class SyncedMenuProvider(
                                 return@execute
                             }
 
-                            // Passe 2 — appliquer. Les renommages d'abord : une
-                            // écriture peut viser le nouveau nom (renommer ET
-                            // modifier dans le même enregistrement).
+                            val changes = linkedMapOf<String, ByteArray?>()
+                            val historyMoves = linkedMapOf<String, ByteArray?>()
                             renames.forEach { (from, to, _) ->
-                                val source = java.io.File(projectDir, from)
-                                val dest = java.io.File(projectDir, to)
-                                dest.parentFile?.mkdirs()
-                                java.nio.file.Files.move(source.toPath(), dest.toPath())
-                                // Le passé du Document le suit : sinon renommer
-                                // reviendrait à perdre sa corbeille.
-                                val histFrom = java.io.File(projectDir, ".artisan/history/$from")
-                                if (histFrom.isDirectory) {
-                                    val histTo = java.io.File(projectDir, ".artisan/history/$to")
-                                    histTo.parentFile?.mkdirs()
-                                    if (!histTo.exists()) java.nio.file.Files.move(histFrom.toPath(), histTo.toPath())
+                                changes[from] = null
+                                changes[to] = net.artisanmc.plugin.project.ProjectPathPolicy.resolve(projectDir, from).readBytes()
+                                val histFrom = net.artisanmc.plugin.project.ProjectPathPolicy.resolve(projectDir, ".artisan/history/$from")
+                                val histTo = net.artisanmc.plugin.project.ProjectPathPolicy.resolve(projectDir, ".artisan/history/$to")
+                                if (histFrom.isDirectory && !histTo.exists()) {
+                                    histFrom.listFiles()?.filter { it.isFile }?.forEach {
+                                        historyMoves[".artisan/history/$to/${it.name}"] = it.readBytes()
+                                        historyMoves[".artisan/history/$from/${it.name}"] = null
+                                    }
                                 }
                             }
                             writes.forEach { (path, content, _) ->
-                                val target = java.io.File(projectDir, path)
-                                if (target.isFile && target.readText() == content) return@forEach
-                                archiveToHistory(projectDir, path)
-                                target.parentFile?.mkdirs()
-                                val tmp = java.io.File(target.parentFile, target.name + ".artisan-tmp")
-                                tmp.writeText(content)
-                                java.nio.file.Files.move(
-                                    tmp.toPath(), target.toPath(),
-                                    java.nio.file.StandardCopyOption.REPLACE_EXISTING,
-                                )
+                                changes[path] = content.toByteArray(Charsets.UTF_8)
                             }
-                            deletes.forEach { (path, _) ->
-                                val target = java.io.File(projectDir, path)
-                                if (target.isFile) {
-                                    archiveToHistory(projectDir, path)
-                                    target.delete()
+                            deletes.forEach { (path, _) -> changes[path] = null }
+                            changes.putAll(binaryChanges)
+                            val publisher = net.artisanmc.plugin.project.ProjectPublisher(projectDir)
+                            val archived = publisher.withHistory(changes.filterKeys { p -> renames.none { it.first == p } }).toMutableMap()
+                            renames.forEach { archived[it.first] = null }
+                            // A renamed-and-edited document archives the source under its new path.
+                            renames.forEach { (from, to, _) ->
+                                val before = net.artisanmc.plugin.project.ProjectPathPolicy.resolve(projectDir, from).readBytes()
+                                if (changes[to]?.contentEquals(before) == false) {
+                                    var stamp = System.currentTimeMillis()
+                                    while (historyMoves.containsKey(".artisan/history/$to/${"%013d".format(stamp)}")) stamp++
+                                    historyMoves[".artisan/history/$to/${"%013d".format(stamp)}"] = before
                                 }
                             }
+                            commitMutation(projectDir, node, archived + historyMoves)
                             reloadFromDisk()
                             draftMenus.clear()
                             onReload?.invoke()
@@ -1307,18 +1406,19 @@ class SyncedMenuProvider(
                     return
                 }
                 try {
-                    httpClient.dispatcher.executorService.execute {
+                    projectIo.execute {
                         try {
                             val projectDir = roots.dirFor(projectId)
                             if (!projectDir.isDirectory) {
                                 reply(mapOf("ok" to false, "error" to "unknown_project"))
                                 return@execute
                             }
-                            val target = java.io.File(projectDir, table)
+                            net.artisanmc.plugin.project.ProjectPublisher(projectDir).recover()
+                            val target = net.artisanmc.plugin.project.ProjectPathPolicy.resolve(projectDir, table)
                             val files = mutableListOf<Map<String, String>>()
                             if (target.isDirectory) {
                                 target.listFiles()?.sortedBy { it.name }?.forEach { f ->
-                                    if (f.isFile && !f.name.startsWith(".") &&
+                                    if (f.isFile && !java.nio.file.Files.isSymbolicLink(f.toPath()) && !f.name.startsWith(".") &&
                                         (f.name.endsWith(".yaml") || f.name.endsWith(".yml"))
                                     ) {
                                         files.add(mapOf("path" to "$table/${f.name}", "content" to f.readText()))
@@ -1326,7 +1426,7 @@ class SyncedMenuProvider(
                                 }
                             } else {
                                 for (rel in listOf("$table.yaml", "$table.yml")) {
-                                    val f = java.io.File(projectDir, rel)
+                                    val f = net.artisanmc.plugin.project.ProjectPathPolicy.resolve(projectDir, rel)
                                     if (f.isFile) {
                                         files.add(mapOf("path" to rel, "content" to f.readText()))
                                         break
@@ -1376,28 +1476,22 @@ class SyncedMenuProvider(
                     return
                 }
                 try {
-                    httpClient.dispatcher.executorService.execute {
+                    projectIo.execute {
+                        val renameError = roots.renamer.mutationError(projectId)
+                        if (renameError != null) {
+                            reply(mapOf("ok" to false, "error" to renameError))
+                            return@execute
+                        }
                         val projectDir = roots.dirFor(projectId)
                         if (!projectDir.isDirectory) {
                             reply(mapOf("ok" to false, "error" to "unknown_project"))
                             return@execute
                         }
                         try {
-                            writes.forEach { (path, content) ->
-                                val target = java.io.File(projectDir, path)
-                                if (target.isFile && target.readText() == content) return@forEach
-                                target.parentFile?.mkdirs()
-                                val tmp = java.io.File(target.parentFile, target.name + ".artisan-tmp")
-                                tmp.writeText(content)
-                                java.nio.file.Files.move(
-                                    tmp.toPath(), target.toPath(),
-                                    java.nio.file.StandardCopyOption.REPLACE_EXISTING,
-                                )
-                            }
-                            deletes.forEach { path ->
-                                val target = java.io.File(projectDir, path)
-                                if (target.isFile) target.delete()
-                            }
+                            if (prepareMutation(projectDir, node, ::reply)) return@execute
+                            val changes = writes.associate { (path, content) -> path to content.toByteArray(Charsets.UTF_8) }.toMutableMap<String, ByteArray?>()
+                            deletes.forEach { changes[it] = null }
+                            commitMutation(projectDir, node, changes)
                             reloadFromDisk()
                             draftMenus.clear()
                             onReload?.invoke()
@@ -1444,7 +1538,9 @@ class SyncedMenuProvider(
 
             "project_deleted" -> {
                 val projectId = node["project_id"]?.asText() ?: return
-                handleProjectDeletion(projectId)
+                projectIo.execute {
+                    if (isSafeProjectId(projectId) && roots.renamer.mutationError(projectId) == null) handleProjectDeletion(projectId)
+                }
             }
 
             "ping" -> wsClient?.send(mapOf("type" to "pong"))
@@ -1465,6 +1561,10 @@ class SyncedMenuProvider(
         // The move-to-trash needs no suppression: the project root disappears, so
         // the scanner simply drops its state instead of seeing an edit.
         net.artisanmc.plugin.sync.ProjectDeleter(roots, logger).delete(projectId)
+        snapshot = snapshot - projectId
+        binarySnapshot = binarySnapshot - projectId
+        skipped = skipped - projectId
+        refreshProjectPresence()
         onReload?.invoke()
     }
 

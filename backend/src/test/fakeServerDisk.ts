@@ -80,10 +80,19 @@ export function fakeHubModule(extra: Record<string, unknown> = {}) {
     },
     requestProjectWrite: async (
       _sk: string,
-      req: { files: { path: string; content: string }[]; deletes?: { path: string }[] },
+      req: { files: { path: string; content: string; base_hash?: string | null }[]; deletes?: { path: string; base_hash?: string | null }[]; binaries?: { path: string; content_base64: string | null; base_hash: string | null }[] },
     ) => {
+      for (const f of [...req.files, ...(req.deletes ?? [])]) {
+        const current = diskText.get(f.path);
+        if (f.base_hash !== undefined && (current === undefined ? null : hashOf(new TextEncoder().encode(current))) !== f.base_hash) return { kind: "result", result: { ok: false, error: "conflict" } };
+      }
+      for (const f of req.binaries ?? []) {
+        const current = diskBinary.get(f.path);
+        if ((current ? hashOf(current) : null) !== f.base_hash) return { kind: "result", result: { ok: false, error: "conflict" } };
+      }
       for (const f of req.files) diskText.set(f.path, f.content);
       for (const d of req.deletes ?? []) diskText.delete(d.path);
+      for (const f of req.binaries ?? []) if (f.content_base64 === null) diskBinary.delete(f.path); else diskBinary.set(f.path, new Uint8Array(Buffer.from(f.content_base64, "base64")));
       return { kind: "result", result: { ok: true } };
     },
     ...extra,

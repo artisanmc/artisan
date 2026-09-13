@@ -1,4 +1,7 @@
 import type { PlannedDelete, PlannedWrite } from "@/features/project/diskSave";
+import { projectFetch } from "@/lib/projectFetch";
+import { isPrivateProjectPath } from "@/lib/projectFileVisibility";
+import type { ProjectSummary } from "./networks";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
 
@@ -38,6 +41,7 @@ export type ProjectReadResult =
       ok: true;
       unchanged?: false;
       files: Record<string, string>;
+      binaries?: { path: string; hash: string; size: number }[];
       failed: FailedDocument[];
       hash: string | null;
     }
@@ -74,15 +78,17 @@ function knownError(raw: unknown, fallback: ProjectFilesError): ProjectFilesErro
   return codes.includes(raw as ProjectFilesError) ? (raw as ProjectFilesError) : fallback;
 }
 
-function base(networkId: string, serverId: string, diskId: string): string {
+function base(networkId: string, serverId: string | undefined, diskId: string | undefined): string {
+  if (diskId === undefined)
+    return `${API_URL}/api/v1/projects/${encodeURIComponent(networkId)}/files`;
   return `${API_URL}/api/v1/networks/${networkId}/servers/${serverId}/projects/${encodeURIComponent(diskId)}/files`;
 }
 
 /** L'arbre complet du Project, lu à la demande sur le disque du serveur. */
 export async function readProjectFiles(
   networkId: string,
-  serverId: string,
-  diskId: string,
+  serverId?: string,
+  diskId?: string,
   /**
    * L'empreinte qu'on détient déjà. Le serveur ne renvoie l'arbre que s'il a
    * changé — sinon il répond `unchanged`, et on garde ce qu'on avait sans avoir
@@ -94,9 +100,12 @@ export async function readProjectFiles(
     const url = ifHash
       ? `${base(networkId, serverId, diskId)}?if_hash=${encodeURIComponent(ifHash)}`
       : base(networkId, serverId, diskId);
-    const res = await fetch(url, { credentials: "include" });
+    const res = await projectFetch(diskId === undefined ? networkId : undefined, url, {
+      credentials: "include",
+    });
     const body = (await res.json().catch(() => null)) as {
       files?: { path: string; content: string }[];
+      binaries?: { path: string; hash: string; size: number }[];
       failed?: FailedDocument[];
       hash?: string | null;
       unchanged?: boolean;
@@ -105,8 +114,14 @@ export async function readProjectFiles(
     if (!res.ok) return { ok: false, error: knownError(body?.error, "read_error") };
     if (body?.unchanged) return { ok: true, unchanged: true, hash: body.hash ?? null };
     const files: Record<string, string> = {};
-    for (const f of body?.files ?? []) files[f.path] = f.content;
-    return { ok: true, files, failed: body?.failed ?? [], hash: body?.hash ?? null };
+    for (const f of body?.files ?? []) if (!isPrivateProjectPath(f.path)) files[f.path] = f.content;
+    return {
+      ok: true,
+      files,
+      binaries: (body?.binaries ?? []).filter((file) => !isPrivateProjectPath(file.path)),
+      failed: body?.failed ?? [],
+      hash: body?.hash ?? null,
+    };
   } catch {
     return { ok: false, error: "network_error" };
   }
@@ -119,27 +134,35 @@ export async function readProjectFiles(
  */
 export async function writeProjectFiles(
   networkId: string,
-  serverId: string,
-  diskId: string,
+  serverId: string | undefined,
+  diskId: string | undefined,
   plan: {
     files: PlannedWrite[];
     deletes: PlannedDelete[];
     renames?: { from: string; to: string; base_hash: string }[];
     create?: boolean;
+    operationId?: string;
+    binaries?: { path: string; content_base64: string | null; base_hash: string | null }[];
   },
 ): Promise<ProjectWriteResult> {
   try {
-    const res = await fetch(base(networkId, serverId, diskId), {
-      method: "PUT",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        files: plan.files,
-        deletes: plan.deletes,
-        renames: plan.renames ?? [],
-        create: plan.create === true,
-      }),
-    });
+    const res = await projectFetch(
+      diskId === undefined ? networkId : undefined,
+      base(networkId, serverId, diskId),
+      {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          files: plan.files,
+          deletes: plan.deletes,
+          renames: plan.renames ?? [],
+          create: plan.create === true,
+          ...(plan.operationId ? { operationId: plan.operationId } : {}),
+          ...(plan.binaries ? { binaries: plan.binaries } : {}),
+        }),
+      },
+    );
     if (res.status === 409) {
       const body = (await res.json().catch(() => null)) as {
         conflicts?: ProjectFileConflict[];
@@ -192,12 +215,12 @@ export type ProjectHistoryResult =
  */
 export async function readFileHistory(
   networkId: string,
-  serverId: string,
-  diskId: string,
+  serverId: string | undefined,
+  diskId: string | undefined,
   path: string,
 ): Promise<ProjectHistoryResult> {
   try {
-    const url = `${API_URL}/api/v1/networks/${networkId}/servers/${serverId}/projects/${encodeURIComponent(diskId)}/history?path=${encodeURIComponent(path)}`;
+    const url = `${base(networkId, serverId, diskId).replace(/\/files$/, "/history")}?path=${encodeURIComponent(path)}`;
     const res = await fetch(url, { credentials: "include" });
     const body = (await res.json().catch(() => null)) as {
       versions?: FileVersion[];
@@ -211,7 +234,7 @@ export async function readFileHistory(
 }
 
 export type ProjectListResult =
-  | { ok: true; projectIds: string[] }
+  | { ok: true; projectIds: string[]; projects?: ProjectSummary[] }
   | { ok: false; error: ProjectFilesError };
 
 /**
@@ -235,10 +258,15 @@ export async function listServerProjects(
     );
     const body = (await res.json().catch(() => null)) as {
       project_ids?: string[];
+      projects?: ProjectSummary[];
       error?: string;
     } | null;
     if (!res.ok) return { ok: false, error: knownError(body?.error, "read_error") };
-    return { ok: true, projectIds: body?.project_ids ?? [] };
+    return {
+      ok: true,
+      projectIds: body?.project_ids ?? [],
+      ...(body?.projects ? { projects: body.projects } : {}),
+    };
   } catch {
     return { ok: false, error: "network_error" };
   }

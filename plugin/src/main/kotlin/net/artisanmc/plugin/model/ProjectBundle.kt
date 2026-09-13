@@ -15,7 +15,7 @@ import net.artisanmc.plugin.engine.MenuTitleParser
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class ManifestYaml(
     val schema: String = "",
-    @JsonProperty("project_id") val projectId: String = "",
+    @JsonProperty(value = "project_id", access = JsonProperty.Access.WRITE_ONLY) val projectId: String = "",
     @JsonProperty("default_lang") val defaultLang: String = "en",
     val languages: List<String> = emptyList(),
     val files: ManifestFiles = ManifestFiles(),

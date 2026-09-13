@@ -3,6 +3,7 @@ import { and, eq, gt, lte, or, sql } from "drizzle-orm";
 import { db } from "../db";
 import {
   accountDeletionTokens,
+  deletedDraftOwners,
   aiUsageLog,
   appSettings,
   assistantConversations,
@@ -68,6 +69,7 @@ export async function deleteAccount(token: string) {
       .from(users)
       .where(and(eq(users.id, userId), eq(users.email, confirmation.email)));
     if (!user) return false;
+    await tx.insert(deletedDraftOwners).values({ ownerId: userId, deletedAt: new Date() }).onConflictDoNothing();
     const memberOf = await tx.select().from(memberships).where(eq(memberships.userId, userId));
     const removedKeys: string[] = [];
     for (const { networkId } of memberOf.sort((a, b) => (a.networkId < b.networkId ? -1 : 1))) {

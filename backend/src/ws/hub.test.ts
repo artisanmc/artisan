@@ -16,6 +16,8 @@ import {
   requestPlayerInventory,
   requestImportSourcesList,
   requestImportSourcesRead,
+  requestProjectWrite,
+  cleanupConn,
 } from "./hub";
 import type {
   HelloMessage,
@@ -60,6 +62,24 @@ async function seedBoundProject(
 }
 
 beforeEach(clearAll);
+
+test("mixed file publication negotiates capability and preserves mutation identity", async () => {
+  const { id, key } = await seedServerKey();
+  const sent: any[] = [];
+  const conn = "mixed-capability-test";
+  registerConn(conn, (raw) => { const msg = JSON.parse(raw); sent.push(msg); if (msg.type === "project_write") void handlePluginMessage(conn, JSON.stringify({ type: "project_write_result", request_id: msg.request_id, ok: true })); });
+  const hello = { type: "hello", server_key: key, plugin_version: "1", minecraft_version: "1.21.4", current_bundle_hash: "" };
+  try {
+    await handlePluginMessage(conn, JSON.stringify(hello));
+    const batch = { projectId: "p", operationId: "same-op", files: [], binaries: [{ path: "assets/a.png", content_base64: "AP8=", base_hash: null }] };
+    expect(await requestProjectWrite(id, batch)).toMatchObject({ kind: "result", result: { ok: false, error: "plugin_update_required" } });
+    expect(sent.filter((m) => m.type === "project_write")).toHaveLength(0);
+    expect(await requestProjectWrite(id, { projectId: "p", files: [] })).toMatchObject({ result: { ok: true } });
+    await handlePluginMessage(conn, JSON.stringify({ ...hello, capabilities: ["project_mixed_write_v1"] }));
+    expect(await requestProjectWrite(id, batch)).toMatchObject({ result: { ok: true } });
+    expect(sent.filter((m) => m.type === "project_write").at(-1)).toMatchObject({ operation_id: "same-op", binaries: batch.binaries });
+  } finally { cleanupConn(conn); }
+});
 
 /**
  * Sonde une lecture DB jusqu'à ce qu'elle satisfasse [ok].
@@ -201,7 +221,7 @@ describe("handlePluginMessage", () => {
   test("hello with valid key returns hello_ack", async () => {
     const createRes = await app.request("/api/v1/server-keys", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Cookie:await adminCookie() },
       body: JSON.stringify({ label: "hub-test" }),
     });
     const { key } = (await createRes.json()) as { key: string };
@@ -428,7 +448,7 @@ describe("getMcVersion", () => {
   test("hello stores minecraft_version, getMcVersion returns it", async () => {
     const createRes = await app.request("/api/v1/server-keys", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Cookie:await adminCookie() },
       body: JSON.stringify({ label: "mc-version-test" }),
     });
     const { key } = (await createRes.json()) as { key: string };
@@ -623,6 +643,7 @@ describe("asset relay (assets-on-server-disk)", () => {
         projectId: "boutique",
         files: [{ path: "assets/textures/f.png", contentBase64: "iVBORw0K", baseHash: null }],
       });
+      await until(async () => sent, (messages) => messages.length === 2, "asset write reservation check");
       expect(sent.map((m) => m.type)).toEqual(["asset_read", "asset_write"]);
       const files = sent[1]!.files as { content_base64: string; base_hash: string | null }[];
       expect(files[0]!.content_base64).toBe("iVBORw0K");
@@ -668,6 +689,7 @@ describe("config read/write relay (module-config-screens)", () => {
         files: [{ path: "data/categories/weapons.yaml", content: "name: Armes\n" }],
         deletes: ["data/categories/old.yaml"],
       });
+      await until(async () => sent, (messages) => messages.length === 2, "config write reservation check");
       expect(sent.map((m) => m.type)).toEqual(["config_read", "config_write"]);
       expect(sent[0]!.project_id).toBe("boutique");
       expect(sent[0]!.table).toBe("data/categories");
@@ -865,6 +887,7 @@ describe("project_write relay (server-disk-only-storage P1)", () => {
         files: [{ path: "menus/a.yaml", content: "title: A\n", base_hash: "h_a" }],
         deletes: [{ path: "menus/b.yaml", base_hash: "h_b" }],
       });
+      await until(async () => sent, (messages) => messages.length === 1, "project write reservation check");
       expect(sent[0]!.type).toBe("project_write");
       expect(sent[0]!.files).toEqual([{ path: "menus/a.yaml", content: "title: A\n", base_hash: "h_a" }]);
       expect(sent[0]!.deletes).toEqual([{ path: "menus/b.yaml", base_hash: "h_b" }]);
@@ -1364,3 +1387,4 @@ describe("requestPlayerInventory", () => {
 // resolved the project by id ALONE and silently overwrote the first server's
 // content — a cross-tenant write reachable from the normal link flow
 // (incident 2026-08-12).
+import {adminCookie} from '../testSupport/adminSession';

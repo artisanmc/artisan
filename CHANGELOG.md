@@ -9,6 +9,44 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Added — isolated hosted demos
+
+- Guest draft ownership matches the bootstrap principal across repeated saves; copy-only account authorization does not intercept guest asset routes.
+- Guests edit one temporary hosted project with private drafts, effective inactivity expiry, shared physical quotas and creation/mutation limits.
+- A durable claim preserves project and draft identity when moving into an authorized Network; claim recovery survives cookie loss and a blocked destination without granting guest access again.
+
+- Added temporary-demo HTTP recovery/claim and guest access to common project routes,
+  scoped by opaque cookie, Origin and CSRF; account-bound claim retries survive cookie loss.
+- Restricted deprecated global `GET`/`POST /api/v1/server-keys` to administrators;
+  normal Network provisioning and plugin linking are unchanged.
+
+### Fixed — copied resource packs
+
+- Public resource-pack downloads accept generated `srv_…` server IDs while retaining path validation.
+- Copy completion keeps resource-pack preparation pending when server files are unavailable or glyph/font bytes fail integrity verification; it never treats an older fallback pack as confirmation.
+
+### Added — hosted project copies to Minecraft
+
+- Authorized members can select a compatible connected server and copy a frozen saved hosted revision, including public binary assets, into a free server folder. Private drafts and history remain at the source.
+- Durable copy operations survive disconnects and lost activation acknowledgements. `project_copy_v1` negotiates bounded staging, integrity verification, idempotent receipts and expiration; backend identity appears only after a verified activation receipt.
+
+### Added — hosted projects and atomic assets
+
+- Networks can create hosted projects with a selected Minecraft version and use the editor without Minecraft. Immutable content, binary and history APIs resolve authorized storage.
+- Asset mutations publish one atomic text/binary lot; plugins negotiate `project_mixed_write_v1`. Private draft assets remain private until explicit publication. Texture previews require membership and private caching.
+- Hosted assistant uploads retain Network billing and access scopes without implicit server tools.
+
+### Added — storage-bound private drafts
+
+- Server draft persistence negotiates `project_drafts_v1`; authorized storage adapters handle revisions, idempotent mutations, private blobs and publication. Existing draft endpoints remain compatible.
+- Draft publication rejects impossible file hierarchies before journal acceptance, preserves retry IDs on storage failures, and imports legacy draft IDs portably.
+- Per-project migration freezes SQL writes, verifies server readback before deleting source rows, and resumes on reconnection. Deleted-account tombstones queue private owner purges independently of project/network cascades.
+
+### Added — project identity lifecycle
+
+- Storage adapters expose a common rename operation and capabilities. Durable server renames preserve internal Project IDs, drafts and existing URLs, reserve destinations and recover lost acknowledgements before discovery.
+- Project listings expose immutable anchors and rename capability; explicit Boutique add-on identity migration preserves its existing backend links and rejects occupied destinations.
+
 ### Added — recursive item extensions
 
 - Shared catalogue/menu item form with a compact preview card, a shared editing dialog for title/lore/quantity/attributes and reset-to-inherited controls.

@@ -1,33 +1,22 @@
+import { ProjectAssets, assetWriteError } from "./projectAssets";
 // backend/src/lib/assetHandlers.ts
 // Business logic for asset CRUD, shared by the user-scoped router
 // (routes/userAssets.ts — cookie + membership guard). Extracted from the
 // former session-token router (routes/assets.ts, deleted in the
 // accounts-only cutover, Task 7) so there is exactly ONE implementation.
-import { and, eq } from "drizzle-orm";
 import { createHash } from "crypto";
-import { db } from "../db/index";
-import { projects } from "../db/schema";
 import { parseMcFontsZip, type ParsedMcFont } from "./mcFontsParser";
 import { readPngDimensions, readPngContentWidth } from "./pngDimensions";
-import { rebuildResourcePack } from "./resourcePack";
-import { projectDiskId } from "./projectStorage";
-import { forgetProjectTree } from "./projectTreeReads";
 import {
   assetDiskPath,
   assetFileName,
-  deleteDiskAsset,
-  deleteDiskFont,
   descriptorOf,
   type DiskAssetsTree,
   nextFreeCodepoint,
-  readDiskAssets,
-  writeDiskAsset,
 } from "./assetDiskWrite";
 import { fontFilesFor, fontFromDisk } from "./fontOnDisk";
-import { requestAssetWrite, requestProjectWrite } from "../ws/hub";
-import { type DiskAsset, readDiskAssetBytes } from "./diskAssets";
+import { type DiskAsset } from "./diskAssets";
 import type { AssetRow } from "./resourcePackBuilder";
-import { pushResourcePackUpdated } from "../ws/hub";
 
 const NAME_RE = /^[a-z0-9_-]+$/;
 
@@ -38,10 +27,10 @@ function sha256Hex(content: string): string {
 const MAX_RAW_BYTES = 2 * 1024 * 1024;       // 2 MB (texture/glyph PNG)
 const MAX_FONT_BYTES = 5 * 1024 * 1024;      // 5 MB (font zip)
 
-type AssetCtx = { projectId: string; serverKeyId: string };
+export type AssetCtx = { projectId: string; assets: ProjectAssets };
 
 export async function handleAssetCreate(c: any, ctx: AssetCtx) {
-  const { projectId, serverKeyId } = ctx;
+  const { projectId, assets } = ctx;
   const form = await c.req.parseBody();
   const type = String(form.type ?? "");
   const name = String(form.name ?? "");
@@ -104,10 +93,7 @@ export async function handleAssetCreate(c: any, ctx: AssetCtx) {
   // qu'une boîte noire au milieu d'un dossier éditable à la main coûterait plus
   // cher que ses ~96 entrées (mesuré sur l'ASCII vanilla : 26 Ko).
   if (type === "font" && parsedFont) {
-    const anchor = (await db.select().from(projects).where(eq(projects.id, projectId)))[0];
-    if (!anchor) return c.json({ error: "Not found" }, 404);
-    const diskId = projectDiskId(anchor);
-    const disk = await readDiskAssets(serverKeyId, diskId, projectId);
+    const disk = await assets.read();
     if (!disk.ok) return c.json({ error: disk.error }, disk.error === "server_offline" ? 503 : 502);
     if (disk.assets.some((a) => a.row.type === "font" && a.row.id === assetFileName(name))) {
       return c.json({ error: "Asset name already exists" }, 409);
@@ -116,32 +102,11 @@ export async function handleAssetCreate(c: any, ctx: AssetCtx) {
     const { binaries, descriptor } = fontFilesFor(name, parsedFont);
     // Les glyphes en UN seul envoi, tout ou rien : une police à moitié posée
     // afficherait des carrés à la place des lettres manquantes.
-    const written = await requestAssetWrite(serverKeyId, {
-      projectId: diskId,
-      files: binaries.map((b) => ({
-        path: b.path,
-        contentBase64: Buffer.from(b.bytes).toString("base64"),
-        baseHash: null,
-      })),
-    });
-    if (written.kind === "offline") return c.json({ error: "server_offline" }, 503);
-    if (written.kind !== "result" || !written.result.ok) {
-      const err = written.kind === "result" ? written.result.error : "write_error";
-      return c.json({ error: err ?? "write_error" }, err === "conflict" ? 409 : 502);
-    }
-    const desc = await requestProjectWrite(serverKeyId, {
-      projectId: diskId,
+    const written = await assets.commit({
       files: [{ path: descriptor.path, content: descriptor.content, base_hash: null }],
+      binaries: binaries.map((b) => ({ path: b.path, content: b.bytes, baseHash: null })),
     });
-    if (desc.kind !== "result" || !desc.result.ok) {
-      return c.json({ error: "write_error" }, 502);
-    }
-
-    // La police vient d'être posée : l'arbre qu'on connaît est déjà faux, et
-    // c'est CE geste-ci que l'admin s'attend à voir apparaître.
-    forgetProjectTree(serverKeyId, diskId);
-    const packInfo = await rebuildResourcePack(serverKeyId);
-    pushResourcePackUpdated(serverKeyId, packInfo.url, packInfo.hash);
+    if (!written.ok) return assetWriteError(c, written);
     const now = new Date();
     const body: Record<string, unknown> = {
       asset: {
@@ -164,10 +129,7 @@ export async function handleAssetCreate(c: any, ctx: AssetCtx) {
   }
 
   if (type !== "font") {
-    const anchor = (await db.select().from(projects).where(eq(projects.id, projectId)))[0];
-    if (!anchor) return c.json({ error: "Not found" }, 404);
-    const diskId = projectDiskId(anchor);
-    const disk = await readDiskAssets(serverKeyId, diskId, projectId);
+    const disk = await assets.read();
     // Serveur injoignable = pas d'écriture, comme pour les menus. On ne range
     // pas l'image « en attendant » : elle serait invisible du serveur et
     // l'admin la croirait posée.
@@ -185,7 +147,7 @@ export async function handleAssetCreate(c: any, ctx: AssetCtx) {
     }
     const codepointValue = type === "glyph" ? nextFreeCodepoint(disk.assets) : null;
 
-    const written = await writeDiskAsset(serverKeyId, diskId, {
+    const written = await assets.writeAsset({
       type,
       name,
       bytes,
@@ -199,13 +161,8 @@ export async function handleAssetCreate(c: any, ctx: AssetCtx) {
       baseHash: null,
       descriptorBaseHash: null,
     });
-    if (!written.ok) {
-      const status = written.error === "server_offline" ? 503 : written.error === "conflict" ? 409 : 502;
-      return c.json({ error: written.error ?? "write_error" }, status);
-    }
+    if (!written.ok) return assetWriteError(c, written);
 
-    const packInfo = await rebuildResourcePack(serverKeyId);
-    pushResourcePackUpdated(serverKeyId, packInfo.url, packInfo.hash);
     const now = new Date();
     return c.json({
       asset: {
@@ -226,7 +183,7 @@ export async function handleAssetCreate(c: any, ctx: AssetCtx) {
   }
 }
 
-export async function handleAssetList(c: any, ctx: { projectId: string; serverKeyId?: string }) {
+export async function handleAssetList(c: any, ctx: AssetCtx) {
   const { projectId } = ctx;
   const typeParam = c.req.query("type");
   const searchParam = c.req.query("search");
@@ -234,9 +191,7 @@ export async function handleAssetList(c: any, ctx: { projectId: string; serverKe
   // Le disque du serveur décide seul de ce qui existe (ADR
   // `assets-on-server-disk`). Plus de repli sur la table : il faisait passer un
   // serveur muet pour une bibliothèque vide, et une ligne périmée pour un asset.
-  const anchor = (await db.select().from(projects).where(eq(projects.id, projectId)))[0];
-  if (!anchor || !ctx.serverKeyId) return c.json({ error: "Not found" }, 404);
-  const disk = await readDiskAssets(ctx.serverKeyId, projectDiskId(anchor), projectId);
+  const disk = await ctx.assets.read();
   if (!disk.ok) return c.json({ error: disk.error }, disk.error === "server_offline" ? 503 : 502);
 
   const rows = disk.assets
@@ -260,20 +215,12 @@ type DiskLookup =
   | { ok: true; diskId: string; disk: DiskAssetsTree; found: DiskAsset }
   | { ok: false; error: "server_offline" | "read_error" | "not_found" };
 
-async function diskLookup(
-  projectId: string,
-  serverKeyId: string | undefined,
-  id: string,
-): Promise<DiskLookup> {
-  if (!serverKeyId) return { ok: false, error: "not_found" };
-  const anchor = (await db.select().from(projects).where(eq(projects.id, projectId)))[0];
-  if (!anchor) return { ok: false, error: "not_found" };
-  const diskId = projectDiskId(anchor);
-  const disk = await readDiskAssets(serverKeyId, diskId, projectId);
+async function diskLookup(ctx: AssetCtx, id: string): Promise<DiskLookup> {
+  const disk = await ctx.assets.read();
   if (!disk.ok) return { ok: false, error: disk.error };
   const found = disk.assets.find((a) => a.row.id === id);
   if (!found) return { ok: false, error: "not_found" };
-  return { ok: true, diskId, disk, found };
+  return { ok: true, diskId: ctx.projectId, disk, found };
 }
 
 /** Le statut HTTP de chaque échec de lecture disque, dit une seule fois. */
@@ -282,19 +229,19 @@ function diskLookupError(c: any, error: "server_offline" | "read_error" | "not_f
   return c.json({ error }, error === "server_offline" ? 503 : 502);
 }
 
-export async function handleAssetGet(c: any, ctx: { projectId: string; serverKeyId?: string }) {
-  const onDisk = await diskLookup(ctx.projectId, ctx.serverKeyId, c.req.param("id"));
+export async function handleAssetGet(c: any, ctx: AssetCtx) {
+  const onDisk = await diskLookup(ctx, c.req.param("id"));
   if (!onDisk.ok) return diskLookupError(c, onDisk.error);
   return c.json({ asset: serialize(onDisk.found.row) });
 }
 
 export async function handleAssetPatch(c: any, ctx: AssetCtx) {
-  const { projectId, serverKeyId } = ctx;
+  const { projectId, assets } = ctx;
   const id = c.req.param("id");
 
   // Sur le disque, éditer un asset c'est réécrire son DESCRIPTEUR (ascent…) ou
   // RENOMMER son fichier — le nom EST l'identité (ADR décision 2).
-  const onDisk = await diskLookup(projectId, serverKeyId, id);
+  const onDisk = await diskLookup(ctx, id);
   if (!onDisk.ok) return diskLookupError(c, onDisk.error);
   {
     const body = await c.req.json().catch(() => ({}));
@@ -332,7 +279,7 @@ export async function handleAssetPatch(c: any, ctx: AssetCtx) {
       return c.json({ error: "Asset name already exists" }, 409);
     }
 
-    const bytes = await readDiskAssetBytes(serverKeyId, onDisk.diskId, onDisk.found);
+    const bytes = await assets.bytes(onDisk.found);
     if (!bytes) return c.json({ error: "server_offline" }, 503);
     const descriptor = {
       ascent: nextAscent,
@@ -342,33 +289,13 @@ export async function handleAssetPatch(c: any, ctx: AssetCtx) {
       content_width: nextContentWidth,
     };
     const previous = descriptorOf(onDisk.disk.files, onDisk.found.path);
-    if (nextName !== row.name) {
-      // Renommer = écrire sous le nouveau nom puis retirer l'ancien. Pas de
-      // `renames` ici : le protocole binaire écrit un fichier à la fois, et
-      // l'ordre choisi ne peut pas perdre l'image.
-      const written = await writeDiskAsset(serverKeyId, onDisk.diskId, {
-        type: row.type, name: nextName, bytes, descriptor,
-        baseHash: null, descriptorBaseHash: null,
-      });
-      if (!written.ok) {
-        return c.json({ error: written.error ?? "write_error" }, written.error === "conflict" ? 409 : 502);
-      }
-      await deleteDiskAsset(serverKeyId, onDisk.diskId, {
-        type: row.type, name: row.name, baseHash: onDisk.found.hash,
-        descriptorBaseHash: previous ? sha256Hex(previous.content) : null,
-      });
-    } else {
-      const written = await writeDiskAsset(serverKeyId, onDisk.diskId, {
-        type: row.type, name: nextName, bytes, descriptor,
-        baseHash: onDisk.found.hash,
-        descriptorBaseHash: previous ? sha256Hex(previous.content) : null,
-      });
-      if (!written.ok) {
-        return c.json({ error: written.error ?? "write_error" }, written.error === "conflict" ? 409 : 502);
-      }
-    }
-    const packInfo = await rebuildResourcePack(serverKeyId);
-    pushResourcePackUpdated(serverKeyId, packInfo.url, packInfo.hash);
+    const renamed = nextName !== row.name;
+    const written = await assets.writeAsset({
+      type: row.type, name: nextName, bytes, descriptor,
+      baseHash: renamed ? null : onDisk.found.hash,
+      descriptorBaseHash: renamed ? null : previous ? sha256Hex(previous.content) : null,
+    }, renamed ? { path: onDisk.found.path, hash: onDisk.found.hash, descriptorHash: previous ? sha256Hex(previous.content) : null } : undefined);
+    if (!written.ok) return assetWriteError(c, written);
     return c.json({
       asset: serialize({
         ...row,
@@ -385,10 +312,10 @@ export async function handleAssetPatch(c: any, ctx: AssetCtx) {
 }
 
 export async function handleAssetDuplicate(c: any, ctx: AssetCtx) {
-  const { projectId, serverKeyId } = ctx;
+  const { projectId, assets } = ctx;
   const id = c.req.param("id");
 
-  const onDisk = await diskLookup(projectId, serverKeyId, id);
+  const onDisk = await diskLookup(ctx, id);
   if (!onDisk.ok) return diskLookupError(c, onDisk.error);
   {
     const src = onDisk.found.row;
@@ -398,9 +325,9 @@ export async function handleAssetDuplicate(c: any, ctx: AssetCtx) {
     let newName = `${src.name}_copy`;
     for (let n = 2; taken.has(assetFileName(newName)); n++) newName = `${src.name}_copy${n}`;
 
-    const bytes = await readDiskAssetBytes(serverKeyId, onDisk.diskId, onDisk.found);
+    const bytes = await assets.bytes(onDisk.found);
     if (!bytes) return c.json({ error: "server_offline" }, 503);
-    const written = await writeDiskAsset(serverKeyId, onDisk.diskId, {
+    const written = await assets.writeAsset({
       type: src.type,
       name: newName,
       bytes,
@@ -416,11 +343,7 @@ export async function handleAssetDuplicate(c: any, ctx: AssetCtx) {
       baseHash: null,
       descriptorBaseHash: null,
     });
-    if (!written.ok) {
-      return c.json({ error: written.error ?? "write_error" }, written.error === "conflict" ? 409 : 502);
-    }
-    const packInfo = await rebuildResourcePack(serverKeyId);
-    pushResourcePackUpdated(serverKeyId, packInfo.url, packInfo.hash);
+    if (!written.ok) return assetWriteError(c, written);
     return c.json({
       asset: serialize({
         ...src,
@@ -434,10 +357,10 @@ export async function handleAssetDuplicate(c: any, ctx: AssetCtx) {
 }
 
 export async function handleAssetDelete(c: any, ctx: AssetCtx) {
-  const { projectId, serverKeyId } = ctx;
+  const { projectId, assets } = ctx;
   const id = c.req.param("id");
 
-  const onDisk = await diskLookup(projectId, serverKeyId, id);
+  const onDisk = await diskLookup(ctx, id);
   if (!onDisk.ok) return diskLookupError(c, onDisk.error);
   if (onDisk.found.row.type === "font") {
     // Une police est un DOSSIER : ses glyphes partent avec elle, sinon ils
@@ -452,34 +375,25 @@ export async function handleAssetDelete(c: any, ctx: AssetCtx) {
       const bin = onDisk.disk.binaries.find((b) => b.path === path);
       if (bin) glyphs[path] = bin.hash;
     }
-    const removed = await deleteDiskFont(serverKeyId, onDisk.diskId, {
-      dir,
+    const removed = await assets.deleteFont({
       glyphs,
       descriptorPath: onDisk.found.path,
       descriptorBaseHash: sha256Hex(
         onDisk.disk.files.find((f) => f.path === onDisk.found.path)?.content ?? "",
       ),
     });
-    if (!removed.ok) {
-      return c.json({ error: removed.error ?? "write_error" }, removed.error === "conflict" ? 409 : 502);
-    }
-    const packInfo = await rebuildResourcePack(serverKeyId);
-    pushResourcePackUpdated(serverKeyId, packInfo.url, packInfo.hash);
+    if (!removed.ok) return assetWriteError(c, removed);
     return c.body(null, 204);
   }
   {
     const previous = descriptorOf(onDisk.disk.files, onDisk.found.path);
-    const removed = await deleteDiskAsset(serverKeyId, onDisk.diskId, {
+    const removed = await assets.deleteAsset({
       type: onDisk.found.row.type,
       name: onDisk.found.row.name,
       baseHash: onDisk.found.hash,
       descriptorBaseHash: previous ? sha256Hex(previous.content) : null,
     });
-    if (!removed.ok) {
-      return c.json({ error: removed.error ?? "write_error" }, removed.error === "conflict" ? 409 : 502);
-    }
-    const packInfo = await rebuildResourcePack(serverKeyId);
-    pushResourcePackUpdated(serverKeyId, packInfo.url, packInfo.hash);
+    if (!removed.ok) return assetWriteError(c, removed);
     return c.body(null, 204);
   }
 

@@ -1,21 +1,8 @@
 import { parse, stringify } from "yaml";
-import { requestAssetWrite, requestProjectWrite } from "../ws/hub";
-import { forgetProjectTree, readProjectTree } from "./projectTreeReads";
 import { CODEPOINT_MAX, CODEPOINT_MIN } from "./codepoints";
-import { diskAssetsFromTree, type DiskAsset } from "./diskAssets";
+import type { DiskAsset } from "./diskAssets";
 
-/**
- * Écrire un asset **sur le disque du serveur** (ADR `assets-on-server-disk`, P5).
- *
- * Le backend n'écrit plus rien lui-même : il relaie. Le plugin reste le seul
- * écrivain, comme pour tout le reste du contenu d'un Project.
- *
- * Deux écritures pour un geste — les octets (`asset_write`) puis le descripteur
- * (`project_write`) — parce que le protocole sépare texte et binaire. Elles ne
- * peuvent pas être atomiques ensemble ; l'ordre choisi fait que l'échec le plus
- * probable laisse une image **sans** descripteur (utilisable avec des défauts)
- * plutôt qu'un descripteur sans image (une ligne fantôme dans la bibliothèque).
- */
+/** Pure asset descriptors and discovery types; ProjectAssets owns storage operations. */
 
 const DIR_BY_TYPE: Record<string, string> = {
   glyph: "assets/glyphs",
@@ -70,12 +57,6 @@ export function nextFreeCodepoint(existing: DiskAsset[]): number {
   throw new Error(`no free codepoint left in U+E000..U+F7FF`);
 }
 
-export interface DiskWriteResult {
-  ok: boolean;
-  error?: "server_offline" | "conflict" | "write_error" | "name_taken";
-  path?: string;
-}
-
 export interface DiskAssetsTree {
   assets: DiskAsset[];
   files: { path: string; content: string }[];
@@ -100,97 +81,6 @@ export type DiskAssetsRead =
   | ({ ok: true } & DiskAssetsTree)
   | { ok: false; error: "server_offline" | "read_error" };
 
-export async function readDiskAssets(
-  serverKeyId: string,
-  diskProjectId: string,
-  anchorProjectId: string,
-): Promise<DiskAssetsRead> {
-  const read = await readProjectTree(serverKeyId, diskProjectId);
-  // Muet ou trop lent : dans les deux cas on ne sait pas, et on le dit.
-  if (read.kind !== "result") return { ok: false, error: "server_offline" };
-  if (!read.result.ok) return { ok: false, error: "read_error" };
-  const files = read.result.files ?? [];
-  const binaries = read.result.binaries ?? [];
-  return {
-    ok: true,
-    assets: diskAssetsFromTree(anchorProjectId, files, binaries),
-    files,
-    binaries,
-  };
-}
-
-export async function writeDiskAsset(
-  serverKeyId: string,
-  diskProjectId: string,
-  input: {
-    type: string;
-    name: string;
-    bytes: Uint8Array;
-    descriptor: DiskAssetDescriptor;
-    /** Empreinte attendue sur disque — null = « je crée ». */
-    baseHash: string | null;
-    /** Descripteur déjà présent, pour le compare-and-swap du texte. */
-    descriptorBaseHash: string | null;
-  },
-): Promise<DiskWriteResult> {
-  // Notre propre écriture : l'arbre qu'on connaît est déjà faux.
-  forgetProjectTree(serverKeyId, diskProjectId);
-  const path = assetDiskPath(input.type, input.name);
-  const write = await requestAssetWrite(serverKeyId, {
-    projectId: diskProjectId,
-    files: [{
-      path,
-      contentBase64: Buffer.from(input.bytes).toString("base64"),
-      baseHash: input.baseHash,
-    }],
-  });
-  if (write.kind === "offline") return { ok: false, error: "server_offline" };
-  if (write.kind !== "result" || !write.result.ok) {
-    return { ok: false, error: write.kind === "result" && write.result.error === "conflict" ? "conflict" : "write_error" };
-  }
-
-  const descriptorPath = path.replace(/\.png$/, ".yaml");
-  const desc = await requestProjectWrite(serverKeyId, {
-    projectId: diskProjectId,
-    files: [{
-      path: descriptorPath,
-      content: descriptorYaml(input.descriptor),
-      base_hash: input.descriptorBaseHash,
-    }],
-  });
-  // Les octets sont écrits ; un descripteur qui rate laisse une image
-  // utilisable avec des défauts. On le dit, on ne prétend pas que tout va bien.
-  if (desc.kind !== "result" || !desc.result.ok) return { ok: false, error: "write_error", path };
-  return { ok: true, path };
-}
-
-/** Supprime l'asset ET son descripteur — les deux passent par la corbeille. */
-export async function deleteDiskAsset(
-  serverKeyId: string,
-  diskProjectId: string,
-  input: { type: string; name: string; baseHash: string; descriptorBaseHash: string | null },
-): Promise<DiskWriteResult> {
-  // Notre propre écriture : l'arbre qu'on connaît est déjà faux.
-  forgetProjectTree(serverKeyId, diskProjectId);
-  const path = assetDiskPath(input.type, input.name);
-  const write = await requestAssetWrite(serverKeyId, {
-    projectId: diskProjectId,
-    files: [{ path, contentBase64: null, baseHash: input.baseHash }],
-  });
-  if (write.kind === "offline") return { ok: false, error: "server_offline" };
-  if (write.kind !== "result" || !write.result.ok) {
-    return { ok: false, error: write.kind === "result" && write.result.error === "conflict" ? "conflict" : "write_error" };
-  }
-  if (input.descriptorBaseHash !== null) {
-    await requestProjectWrite(serverKeyId, {
-      projectId: diskProjectId,
-      files: [],
-      deletes: [{ path: path.replace(/\.png$/, ".yaml"), base_hash: input.descriptorBaseHash }],
-    });
-  }
-  return { ok: true, path };
-}
-
 /** Descripteur courant d'un asset, tel qu'il est sur le disque. */
 export function descriptorOf(
   files: { path: string; content: string }[],
@@ -205,52 +95,4 @@ export function descriptorOf(
   } catch {
     return { content: file.content, parsed: {} };
   }
-}
-
-/**
- * Supprime une police DÉPLIÉE : tous ses glyphes et son descripteur.
- *
- * Une police est un dossier, pas un fichier — la supprimer à moitié laisserait
- * des PNG orphelins qu'aucun descripteur ne réclame, invisibles de la
- * bibliothèque et impossibles à retrouver.
- */
-export async function deleteDiskFont(
-  serverKeyId: string,
-  diskProjectId: string,
-  input: {
-    dir: string;
-    /** chemin → empreinte disque des PNG à retirer. */
-    glyphs: Record<string, string>;
-    descriptorPath: string;
-    descriptorBaseHash: string | null;
-  },
-): Promise<DiskWriteResult> {
-  // Notre propre écriture : l'arbre qu'on connaît est déjà faux.
-  forgetProjectTree(serverKeyId, diskProjectId);
-  const paths = Object.keys(input.glyphs);
-  if (paths.length > 0) {
-    const write = await requestAssetWrite(serverKeyId, {
-      projectId: diskProjectId,
-      files: paths.map((path) => ({
-        path,
-        contentBase64: null,
-        baseHash: input.glyphs[path]!,
-      })),
-    });
-    if (write.kind === "offline") return { ok: false, error: "server_offline" };
-    if (write.kind !== "result" || !write.result.ok) {
-      return {
-        ok: false,
-        error: write.kind === "result" && write.result.error === "conflict" ? "conflict" : "write_error",
-      };
-    }
-  }
-  if (input.descriptorBaseHash !== null) {
-    await requestProjectWrite(serverKeyId, {
-      projectId: diskProjectId,
-      files: [],
-      deletes: [{ path: input.descriptorPath, base_hash: input.descriptorBaseHash }],
-    });
-  }
-  return { ok: true, path: input.dir };
 }

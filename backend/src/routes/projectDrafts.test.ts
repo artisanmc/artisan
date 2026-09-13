@@ -1,7 +1,7 @@
 import { beforeEach, expect, test } from "bun:test";
 import { Hono } from "hono";
 import { db } from "../db";
-import { networks, projects, serverKeys, users } from "../db/schema";
+import { networks, projects, serverKeys, users, projectDraftStorage, projectDrafts } from "../db/schema";
 import { addMembership } from "../lib/membershipManager";
 import type { AuthUser } from "../middleware/userAuth";
 import { cleanupConn, connToServerId, handlePluginMessage, registerConn } from "../ws/hub";
@@ -89,6 +89,25 @@ test("a named draft survives a new request while the Minecraft server is offline
   expect((await (await request()).json()).drafts).toHaveLength(1);
 });
 
+test("migrated and frozen projects never write new SQL drafts while offline", async () => {
+  await db.insert(projectDraftStorage).values({ projectId: "draft-project", state: "server", migrationId: "migration", updatedAt: new Date() });
+  const result = await request("", "POST", { id: "d", operationId: "create-op", name: "Draft", snapshot, owner_id: "other-user", action: "import" });
+  expect(result.status).toBe(503);
+  expect(await result.json()).toEqual({ error: "server_offline" });
+  expect(await db.select().from(projectDrafts)).toHaveLength(0);
+});
+
+test("stable HTTP operation IDs return original result and reject different payload reuse", async () => {
+  const body = { id: "d", operationId: "same-op", name: "Original", snapshot };
+  const first = await request("", "POST", body);
+  const retry = await request("", "POST", body);
+  expect(retry.status).toBe(201);
+  expect(await retry.json()).toEqual(await first.json());
+  const changed = await request("", "POST", { ...body, name: "Changed" });
+  expect(changed.status).toBe(409);
+  expect((await changed.json()).error).toBe("operation_mismatch");
+});
+
 test("two editors cannot overwrite the same revision or access another owner's draft", async () => {
   await request("", "POST", { id: "draft-one", name: "First", snapshot });
   const results = await Promise.all(
@@ -124,6 +143,23 @@ test("invalid trees are rejected and retrying creation never replaces an existin
     409,
   );
   expect((await (await request("/draft-one")).json()).draft.name).toBe("First");
+});
+
+test("uncertain storage and pending identity errors remain retryable while validation stays definitive", async () => {
+  let error = "storage_error";
+  registerConn("draft-error-connection", (raw) => {
+    const msg = JSON.parse(raw);
+    if (msg.type === "project_write") void handlePluginMessage("draft-error-connection", JSON.stringify({ type: "project_write_result", request_id: msg.request_id, ok: false, error }));
+  });
+  connToServerId.set("draft-error-connection", "draft-server");
+  try {
+    await request("", "POST", { id: "draft-one", name: "First", snapshot });
+    for (const [code, status] of [["storage_error", 503], ["rename_in_progress", 503], ["rename_pending", 503], ["operation_conflict", 409], ["invalid_draft", 422]] as const) {
+      error = code;
+      const result = await request("/draft-one/publish", "POST", { revision: 1, operationId: code });
+      expect(result.status).toBe(status);
+    }
+  } finally { cleanupConn("draft-error-connection"); }
 });
 
 test("publication uses the saved baseline and preserves the draft on a disk conflict", async () => {

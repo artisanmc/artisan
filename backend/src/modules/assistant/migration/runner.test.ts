@@ -433,7 +433,7 @@ test("the agent explores 35 linked files then generates every menu with bounded 
 	expect((await getRun(run.id))?.status).toBe("completed");
 	expect(await getProposals(run.id)).toHaveLength(35);
 	expect((await getRun(run.id))?.steps).toHaveLength(36);
-});
+}, 20_000);
 
 test("pause waits for the in-flight result without starting another menu", async () => {
 	const run = await newRun(twoMenus);

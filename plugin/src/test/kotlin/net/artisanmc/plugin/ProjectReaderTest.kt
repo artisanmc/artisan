@@ -10,6 +10,34 @@ import org.junit.jupiter.api.assertThrows
 
 class ProjectReaderTest {
 
+    @Test
+    fun `resolved root identity overrides a divergent legacy manifest`() {
+        val root = writeTempProject()
+        val manifest = File(root, "p_test/manifest.yaml")
+        manifest.writeText(manifest.readText().replace("project_id: p_test", "project_id: stale"))
+        assertEquals("p_test", ProjectReader(root).readAll().single().projectId)
+    }
+
+    @Test
+    fun `addon registration remains identity without manifest project id`() {
+        val root = writeTempProject()
+        val dir = File(root, "p_test")
+        val manifest = File(dir, "manifest.yaml")
+        manifest.writeText(manifest.readText().replace("project_id: p_test", ""))
+        val roots = net.artisanmc.plugin.project.ProjectRoots(File(root, "empty"))
+        roots.register("boutique_addon", dir)
+        assertEquals("boutique_addon", ProjectReader(roots).readAll().single().projectId)
+    }
+
+    @Test
+    fun `legacy manifest identity is readable but never serialized`() {
+        val mapper = com.fasterxml.jackson.databind.ObjectMapper(com.fasterxml.jackson.dataformat.yaml.YAMLFactory())
+            .registerModule(com.fasterxml.jackson.module.kotlin.KotlinModule.Builder().build())
+        val manifest = mapper.readValue("project_id: legacy\n", net.artisanmc.plugin.model.ManifestYaml::class.java)
+        assertEquals("legacy", manifest.projectId)
+        kotlin.test.assertFalse(mapper.writeValueAsString(manifest).contains("project_id"))
+    }
+
     private fun writeTempProject(): File {
         val root = java.nio.file.Files.createTempDirectory("artisan_packs_").toFile()
         val projectDir = File(root, "p_test").apply { mkdirs() }

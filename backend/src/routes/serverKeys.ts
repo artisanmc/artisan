@@ -3,8 +3,11 @@ import { db } from "../db/index";
 import { serverKeys } from "../db/schema";
 import { generateServerKey } from "../lib/auth";
 import { createNetwork } from "../lib/networkManager";
+import {userAuth} from '../middleware/userAuth';
+import {requireAdmin} from '../middleware/requireAdmin';
 
 const router = new Hono();
+router.use('*',userAuth(),requireAdmin());
 
 router.post("/", async (c) => {
   const body = await c.req.json<{ label?: string }>();
@@ -28,7 +31,7 @@ router.get("/", async (c) => {
       id: r.id,
       label: r.label,
       createdAt: r.createdAt,
-      keyPrefix: `${r.hash.slice(0, 8)}...`,
+      keyPrefix: r.hash?`${r.hash.slice(0, 8)}...`:null,
     })),
   );
 });

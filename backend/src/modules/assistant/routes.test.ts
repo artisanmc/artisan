@@ -175,6 +175,24 @@ function cookieHeader() {
 }
 
 describe("assistant routes", () => {
+
+  it("hosted project chats use their Network credits and persist uploads without a server", async () => {
+    const id = "hosted_assistant";
+    const now = new Date();
+    await db.insert(projects).values({ id, networkId, serverKeyId: null, storageKind: "hosted", hostedRootId: id, externalId: "assistant", hostedMinecraftVersion: "1.21.4", name: "Hosted", createdAt: now, updatedAt: now });
+    __setProviderForTests(fakeProvider());
+    try {
+      const made = await app.request("/api/v1/assistant/conversations", { method: "POST", headers: cookieHeader(), body: JSON.stringify({ projectId: id }) });
+      expect(made.status).toBe(200);
+      const { conversationId } = await made.json();
+      const res = await app.request(`/api/v1/assistant/conversations/${conversationId}/messages`, { method: "POST", headers: cookieHeader(), body: JSON.stringify({ text: "Create a shop", menus: {}, attachments: { "input.yml": "menu: test" } }) });
+      expect(res.status).toBe(200);
+      await res.text();
+      const conv = (await db.select().from(assistantConversations).where(eq(assistantConversations.id, conversationId)))[0];
+      expect(conv?.uploadedFiles).toMatchObject({ networkId, serverKeyId: null, files: { "input.yml": "menu: test" } });
+      expect(await getBalance(networkId)).toBeGreaterThan(0);
+    } finally { await db.delete(projects).where(eq(projects.id, id)); __setProviderForTests(fakeProvider()); }
+  });
 	it.each([false, true])("retains unread uploads after reopening the conversation (background=%s)", async (background) => {
 		const created = await app.request("/api/v1/assistant/conversations", {
 			method: "POST", headers: cookieHeader(), body: JSON.stringify({ projectId: PACK_ID }),

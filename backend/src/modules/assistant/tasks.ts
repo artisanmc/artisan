@@ -96,7 +96,7 @@ export async function createTask(
 	requestHash: string,
 	message: string,
 	metadata: TaskEvent = { type: "accepted" },
-	uploads?: { scope: { networkId: string; serverKeyId: string }; incoming: unknown },
+	uploads?: { scope: { networkId: string; serverKeyId: string | null }; incoming: unknown },
 ) {
 	return db.transaction(async (tx) => {
 		await tx

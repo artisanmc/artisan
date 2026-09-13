@@ -1,4 +1,4 @@
-/** A Project working copy and its server baseline. Backend persistence is separate from publication. */
+/** A Project working copy and its server baseline. Draft persistence is separate from publication. */
 /** Un renommage déclaré par l'éditeur, en chemins relatifs. */
 export interface PendingRename {
   from: string;
@@ -6,7 +6,24 @@ export interface PendingRename {
 }
 
 export interface ProjectDraft {
-  remote?: { id: string; name: string; revision: number; ownerId: string; acknowledged?: string };
+  binaryBaseline?: Record<string, { hash: string; size: number }>;
+  binaryTree?: Record<string, { hash: string; size: number }>;
+  remote?: {
+    id: string;
+    name: string;
+    revision: number;
+    ownerId: string;
+    acknowledged?: string;
+    pendingMutation?: {
+      operationId: string;
+      kind: "save" | "copy" | "publish" | "discard" | "asset";
+      asset?: { suffix: string; method: string; fields: Record<string, string>; file?: { name: string; type: string; base64: string } };
+      id: string;
+      revision: number;
+      name: string;
+      snapshot?: ProjectDraft;
+    };
+  };
   /** L'arbre tel que le serveur l'avait chargé, rel-keyed. */
   baseline: Record<string, string>;
   /** L'arbre tel que l'éditeur l'affiche — ce qui partira à l'enregistrement. */
@@ -52,6 +69,18 @@ export function isDirty(
   const treeKeys = Object.keys(tree);
   if (baseKeys.length !== treeKeys.length) return true;
   return treeKeys.some((k) => base[k] !== tree[k]);
+}
+
+export function hasDraftChanges(draft: ProjectDraft): boolean {
+  if (isDirty(draft.initialTree, draft.tree)) return true;
+  const baseline = draft.binaryBaseline ?? {};
+  const tree = draft.binaryTree ?? {};
+  return (
+    Object.keys(baseline).length !== Object.keys(tree).length ||
+    Object.entries(tree).some(
+      ([path, value]) => value.hash !== baseline[path]?.hash || value.size !== baseline[path]?.size,
+    )
+  );
 }
 
 /**

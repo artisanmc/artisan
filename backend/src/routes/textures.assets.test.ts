@@ -10,13 +10,16 @@ mock.module("../ws/hub", () => fakeHubModule());
 import { beforeEach, describe, expect, test } from "bun:test";
 import { Hono } from "hono";
 import { db } from "../db/index";
-import {serverKeys, networks, projects} from "../db/schema";
+import {serverKeys, networks, projects, users, memberships} from "../db/schema";
+import { createSession } from "../lib/sessionManager";
 import { texturesRouter } from "./textures";
 
 // ─── Local app (avoids importing hub/bundles) ────────────────────────────────
 
-const app = new Hono();
-app.route("/api/v1/textures", texturesRouter);
+const routed = new Hono();
+routed.route("/api/v1/textures", texturesRouter);
+let cookie = "";
+const app = { request: (input: string, init?: RequestInit) => routed.request(input, { ...init, headers: { Cookie: cookie, ...init?.headers } }) };
 
 // ─── Cleanup ─────────────────────────────────────────────────────────────────
 
@@ -25,6 +28,10 @@ beforeEach(async () => {
   await db.delete(projects);
   await db.delete(serverKeys);
   await db.delete(networks);
+  await db.delete(users);
+  const now = new Date();
+  await db.insert(users).values({ id: "texture-owner", email: "texture@test", name: "Texture", createdAt: now, updatedAt: now });
+  cookie = `artisan_user_session=${(await createSession("texture-owner")).id}`;
 });
 
 const PNG_1x1 = new Uint8Array([
@@ -50,6 +57,7 @@ async function seedSession(): Promise<{ projectId: string }> {
 
   const serverKeyId = crypto.randomUUID();
   const now = new Date();
+  await db.insert(memberships).values({ id: crypto.randomUUID(), userId: "texture-owner", networkId, role: "owner", createdAt: now });
   await db.insert(serverKeys).values({
     id: serverKeyId,
     networkId,
@@ -139,7 +147,7 @@ describe("GET /api/v1/textures/asset-font/:assetId/*", () => {
     const res = await app.request(`/api/v1/textures/asset-font/${projectId}/mafonte/a.png`);
     expect(res.status).toBe(200);
     expect(res.headers.get("Content-Type")).toBe("image/png");
-    expect(res.headers.get("Cache-Control")).toBe("public, max-age=31536000, immutable");
+    expect(res.headers.get("Cache-Control")).toBe("private, no-cache");
     const bytes = new Uint8Array(await res.arrayBuffer());
     expect(bytes.length).toBe(PNG_1x1.length);
   });

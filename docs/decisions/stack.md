@@ -44,6 +44,7 @@ La spec initiale documentait Node 22 + Fastify + PostgreSQL + React Flow. L'impl
 | Java 21 | **Kotlin 2.0** | Null-safety et data classes réduisent le boilerplate sur les modèles de domaine. |
 | Node 22 + Fastify | **Bun + Hono** | MVP : Bun simplifie le toolchain (pas de transpilation). Fastify n'apporte rien de concret à cette échelle. |
 | React Flow | **Konva** | Le modèle visuel est un canvas d'inventaires Minecraft, pas un graphe de nœuds. Konva donne le contrôle pixel-perfect nécessaire. |
+| Projets uniquement sur disque Minecraft | **Deux adaptateurs, volume hébergé durable + disque Minecraft** | Préparer un projet sans serveur ; mêmes CAS/brouillons, autorité unique et sauvegarde SQL + volume. ADR `project-storage-modes`. |
 | Hébergement managé réparti entre plusieurs fournisseurs | **OVH + Coolify + PostgreSQL privé + nginx + Cloudflare Tunnel/Access** | Moins de fragmentation opérationnelle et une exploitation solo plus pratique, avec des releases toujours conditionnées par la CI GitHub Actions. |
 
 **Condition de migration vers Fastify :** si on a besoin de la validation JSON Schema intégrée sur les routes bundle upload (quand le schéma menu v2 arrive), ou si on atteint les limites de Hono en production.

@@ -5,7 +5,7 @@ import { resourcePackPath } from "../lib/resourcePackStorage";
 import { pushResourcePackUpdated } from "../ws/hub";
 
 const HASH_RE = /^[0-9a-f]{40}$/;
-const SK_RE = /^[a-zA-Z0-9-]+$/;
+const SK_RE = /^[a-zA-Z0-9_-]+$/;
 
 export const resourcePackPublicRouter = new Hono();
 

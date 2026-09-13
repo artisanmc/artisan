@@ -14,6 +14,42 @@ import kotlin.test.assertTrue
 
 class WsClientTest {
     @Test
+    fun `reconnect reports current project identity and rename receipts`() {
+        val server = MockWebServer()
+        val hellos = java.util.concurrent.CopyOnWriteArrayList<String>()
+        val projectId = java.util.concurrent.atomic.AtomicReference("old")
+        val received = CountDownLatch(2)
+        repeat(2) {
+            server.enqueue(MockResponse().withWebSocketUpgrade(object : ClosingWebSocketListener() {
+                override fun onMessage(ws: WebSocket, text: String) {
+                    hellos.add(text)
+                    received.countDown()
+                    if (hellos.size == 1) {
+                        projectId.set("new")
+                        ws.close(1012, "restart")
+                    }
+                }
+            }))
+        }
+        server.start()
+        val client = WsClient(
+            url = server.url("/ws/plugin").toString(), serverKey = "test", mcVersion = "1.21.4",
+            localProjectIds = listOf("stale_constructor_snapshot"), onMessage = {},
+            projectPresence = { mapOf("local_project_ids" to listOf(projectId.get()), "capabilities" to listOf("project_rename")) },
+        )
+        try {
+            client.connect()
+            assertTrue(received.await(8, TimeUnit.SECONDS))
+            val mapper = ObjectMapper()
+            assertEquals(listOf("old", "new"), hellos.map { mapper.readTree(it)["local_project_ids"][0].asText() })
+            assertEquals("project_rename", mapper.readTree(hellos.last())["capabilities"][0].asText())
+        } finally {
+            client.disconnect()
+            server.shutdown()
+        }
+    }
+
+    @Test
     fun `sends hello on connect and receives hello_ack`() {
         val server = MockWebServer()
         server.enqueue(

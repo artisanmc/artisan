@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { db } from "../../db";
 import { assistantConversations } from "../../db/schema";
 
-type Scope = { networkId: string; serverKeyId: string };
+type Scope = { networkId: string; serverKeyId: string | null };
 type StoredUploads = typeof assistantConversations.$inferSelect.uploadedFiles;
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 export class UploadError extends Error {}

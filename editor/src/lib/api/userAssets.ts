@@ -1,111 +1,154 @@
-// Asset CRUD — cookie auth (`credentials: "include"`), hitting
-// `userAssetsRouter` (backend/src/routes/userAssets.ts).
 import type { Asset, AssetType } from "@/domain/asset";
+import {
+  type AssetMutation,
+  mutateDraftAssets,
+  trackDraftAssetPreparation,
+} from "@/features/project/persistedDrafts";
+import { projectFetch } from "@/lib/projectFetch";
+import { watchProjectPrincipal } from "@/lib/projectPrincipal";
+import { useProjectDraftStore } from "@/state/projectDraftStore";
+import { DraftApiError, type PersistedDraft } from "./projectDrafts";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
-
+const base = (projectId: string) =>
+  `${API_URL}/api/v1/user/projects/${encodeURIComponent(projectId)}/assets`;
+type AssetResponse = { draft: PersistedDraft; asset?: Asset; warnings?: string[] };
+type RequestAsset = NonNullable<AssetMutation["asset"]>;
 export async function listAssets(
   projectId: string,
   filters: { type?: AssetType; search?: string } = {},
 ): Promise<Asset[]> {
-  const params = new URLSearchParams();
-  if (filters.type) params.set("type", filters.type);
-  if (filters.search) params.set("search", filters.search);
-  const qs = params.toString();
-  const res = await fetch(
-    `${API_URL}/api/v1/user/projects/${projectId}/assets${qs ? "?" + qs : ""}`,
-    { credentials: "include" },
-  );
-  if (!res.ok) throw new Error("Failed to load assets");
-  const data = (await res.json()) as { assets: Asset[] };
-  return data.assets;
+  const params = new URLSearchParams(filters);
+  const remote = useProjectDraftStore.getState().get(projectId)?.remote;
+  const draftId = remote && remote.revision > 0 ? remote.id : undefined;
+  if (draftId) params.set("draftId", draftId);
+  const response = await projectFetch(projectId, `${base(projectId)}?${params}`, {
+    credentials: "include",
+  });
+  if (!response.ok) throw new Error("Failed to load assets");
+  const body = (await response.json()) as { assets: Asset[] };
+  return body.assets.map((asset) => ({ ...asset, ...(draftId ? { draftId } : {}) }));
 }
-
+async function perform(projectId: string, operation: AssetMutation): Promise<AssetResponse> {
+  const input = operation.asset!;
+  const params = new URLSearchParams({
+    draftId: operation.id,
+    draftRevision: String(operation.revision),
+  });
+  let body: BodyInit;
+  const headers: Record<string, string> = { "Idempotency-Key": operation.operationId };
+  if (input.file) {
+    const form = new FormData();
+    for (const [key, value] of Object.entries(input.fields)) form.set(key, value);
+    form.set("draftSnapshot", JSON.stringify(operation.snapshot));
+    form.set("draftName", operation.name);
+    form.set(
+      "file",
+      new Blob([Uint8Array.from(atob(input.file.base64), (char) => char.charCodeAt(0))], {
+        type: input.file.type,
+      }),
+      input.file.name,
+    );
+    body = form;
+  } else {
+    headers["Content-Type"] = "application/json";
+    body = JSON.stringify({
+      ...Object.fromEntries(
+        Object.entries(input.fields).map(([key, value]) => [
+          key,
+          ["height", "ascent"].includes(key) ? Number(value) : value,
+        ]),
+      ),
+      draftSnapshot: operation.snapshot,
+      draftName: operation.name,
+    });
+  }
+  const response = await projectFetch(projectId, `${base(projectId)}${input.suffix}?${params}`, {
+    method: input.method,
+    credentials: "include",
+    headers,
+    body,
+    signal: AbortSignal.timeout(25_000),
+  });
+  const result = await response.json();
+  if (!response.ok)
+    throw new DraftApiError(result.error ?? "asset_update_failed", response.status, result.draft);
+  if (!result.draft) throw new Error("draft_acknowledgement_missing");
+  return {
+    ...result,
+    ...(result.asset ? { asset: { ...result.asset, draftId: operation.id } } : {}),
+  };
+}
+async function mutate(projectId: string, request: RequestAsset) {
+  return mutateDraftAssets(projectId, request, (operation) => perform(projectId, operation));
+}
+export async function resumeAssetMutation(projectId: string): Promise<void> {
+  const operation = useProjectDraftStore.getState().get(projectId)?.remote?.pendingMutation;
+  if (operation?.kind !== "asset" || !operation.asset) return;
+  await mutateDraftAssets(projectId, operation.asset, (frozen) => perform(projectId, frozen), true);
+}
+async function serializeFile(file: File): Promise<NonNullable<RequestAsset["file"]>> {
+  const base64 = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result).split(",")[1] ?? "");
+    reader.onerror = () => reject(new Error("file_read_failed"));
+    reader.readAsDataURL(file);
+  });
+  return { name: file.name, type: file.type, base64 };
+}
+function uploadFile(projectId: string, file: File, fields: Record<string, string>) {
+  const principal = watchProjectPrincipal(projectId);
+  return trackDraftAssetPreparation(projectId, async () => {
+    principal.assertCurrent();
+    const serialized = await serializeFile(file);
+    principal.assertCurrent();
+    return mutate(projectId, { suffix: "", method: "POST", fields, file: serialized });
+  }).finally(() => principal.dispose());
+}
 export async function uploadAsset(
   projectId: string,
   input: { file: File; type: AssetType; name: string; ascent?: number },
 ): Promise<Asset> {
-  const fd = new FormData();
-  fd.set("type", input.type);
-  fd.set("name", input.name);
-  if (input.ascent !== undefined) fd.set("ascent", String(input.ascent));
-  fd.set("file", input.file);
-  const res = await fetch(`${API_URL}/api/v1/user/projects/${projectId}/assets`, {
-    method: "POST",
-    credentials: "include",
-    body: fd,
+  const result = await uploadFile(projectId, input.file, {
+    type: input.type,
+    name: input.name,
+    ...(input.ascent === undefined ? {} : { ascent: String(input.ascent) }),
   });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: "Upload failed" }));
-    throw new Error(err.error ?? "Upload failed");
-  }
-  const data = (await res.json()) as { asset: Asset };
-  return data.asset;
+  return result.asset!;
 }
-
 export async function uploadFontAsset(
   projectId: string,
   input: { name: string; file: File },
 ): Promise<{ asset: Asset; warnings?: string[] }> {
-  const fd = new FormData();
-  fd.set("type", "font");
-  fd.set("name", input.name);
-  fd.set("file", input.file);
-  const res = await fetch(`${API_URL}/api/v1/user/projects/${projectId}/assets`, {
-    method: "POST",
-    credentials: "include",
-    body: fd,
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: "Upload failed" }));
-    throw new Error(err.error ?? "Upload failed");
-  }
-  const data = (await res.json()) as { asset: Asset; warnings?: string[] };
-  return data;
+  const result = await uploadFile(projectId, input.file, { type: "font", name: input.name });
+  return { asset: result.asset!, warnings: result.warnings };
 }
-
 export async function patchAsset(
   projectId: string,
   id: string,
   patch: { name?: string; ascent?: number; height?: number },
 ): Promise<Asset> {
-  const res = await fetch(`${API_URL}/api/v1/user/projects/${projectId}/assets/${id}`, {
-    method: "PATCH",
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(patch),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: "Update failed" }));
-    throw new Error(err.error ?? "Update failed");
-  }
-  const data = (await res.json()) as { asset: Asset };
-  return data.asset;
+  return (
+    await mutate(projectId, {
+      suffix: `/${encodeURIComponent(id)}`,
+      method: "PATCH",
+      fields: Object.fromEntries(
+        Object.entries(patch)
+          .filter((entry) => entry[1] !== undefined)
+          .map(([key, value]) => [key, String(value)]),
+      ),
+    })
+  ).asset!;
 }
-
 export async function deleteAsset(projectId: string, id: string): Promise<void> {
-  const res = await fetch(`${API_URL}/api/v1/user/projects/${projectId}/assets/${id}`, {
-    method: "DELETE",
-    credentials: "include",
-  });
-  if (!res.ok) throw new Error("Delete failed");
+  await mutate(projectId, { suffix: `/${encodeURIComponent(id)}`, method: "DELETE", fields: {} });
 }
-
-/**
- * Duplicate an existing asset (typically a glyph) into a new asset row.
- *
- *   POST /api/v1/user/projects/:projectId/assets/:id/duplicate
- *   → 200 { asset: Asset }
- */
 export async function duplicateAsset(projectId: string, id: string): Promise<Asset> {
-  const res = await fetch(
-    `${API_URL}/api/v1/user/projects/${projectId}/assets/${id}/duplicate`,
-    { method: "POST", credentials: "include" },
-  );
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: "Duplicate failed" }));
-    throw new Error(err.error ?? "Duplicate failed");
-  }
-  const data = (await res.json()) as { asset: Asset };
-  return data.asset;
+  return (
+    await mutate(projectId, {
+      suffix: `/${encodeURIComponent(id)}/duplicate`,
+      method: "POST",
+      fields: {},
+    })
+  ).asset!;
 }

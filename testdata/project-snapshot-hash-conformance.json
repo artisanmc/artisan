@@ -1,0 +1,26 @@
+{
+  "cases": [
+    {
+      "name": "empty",
+      "files": {},
+      "binaries": {},
+      "failed": {},
+      "hash": "8cd51be961accaec8bdf3f85af45c18d4d9d77cdebe1c1cc5f6ee961b0ede7fd"
+    },
+    {
+      "name": "mixed",
+      "files": {
+        "Z.yaml": "uppercase\n",
+        "a.yaml": "é\n",
+        ".artisan/editor.yaml": "layout: {}\n"
+      },
+      "binaries": {
+        "textures/p.png": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "failed": {
+        "broken.yaml": "bad yaml"
+      },
+      "hash": "7358c849af324231c625de17ab04b2cdac0a894df1b12c22f375cd33ec7abc59"
+    }
+  ]
+}

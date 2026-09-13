@@ -3,7 +3,14 @@ title: Sign in
 description: Sign in with a password, Google, or Discord.
 ---
 
-The public editor links to its [privacy policy](https://editor.artisanmc.net/privacy.html), [terms of use](https://editor.artisanmc.net/terms.html), and [service overview](https://editor.artisanmc.net/about.html). These pages are available without signing in.
+## Keep a demo project
+
+In a temporary project, choose **Keep this project** before signing in. The editor
+waits for your draft and asset changes to be confirmed, then returns you to the same
+project after password, Google or Discord authentication. A failed sign-in leaves
+your guest project intact. Choose a Network to finish keeping it; signing in alone
+does not send anything to a Minecraft server. If the confirmation response is lost,
+return with the same account and retry the pending transfer.
 
 Choose **Continue with Google** on the sign-in or sign-up page, then select your Google account. The button appears when Google sign-in has been configured by the site administrator.
 

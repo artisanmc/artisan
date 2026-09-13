@@ -1,7 +1,8 @@
-import { useEffect } from "react";
-import { listAssets } from "@/lib/api/userAssets";
 import type { ProjectId } from "@/domain/types";
-import { useAuthStore } from "@/state/authStore";
+import { listAssets } from "@/lib/api/userAssets";
+import { useProjectPrincipalId } from "@/lib/projectPrincipal";
+import { useProjectDraftStore } from "@/state/projectDraftStore";
+import { useEffect } from "react";
 import { useAssetStore } from "./assetStore";
 
 /**
@@ -16,17 +17,38 @@ import { useAssetStore } from "./assetStore";
  * Mirrors the `useTextureInit` pattern in `features/canvas/useTextureInit.ts`.
  */
 export function useAssetInit(projectId: ProjectId | null) {
-  const user = useAuthStore((s) => s.currentUser);
+  const ownerId = useProjectPrincipalId(projectId ?? undefined);
   const setAssets = useAssetStore((s) => s.setAssets);
   const setError = useAssetStore((s) => s.setError);
-
+  const draftRevision = useProjectDraftStore((state) =>
+    projectId ? state.drafts[projectId]?.remote?.revision : undefined,
+  );
+  const draftId = useProjectDraftStore((state) =>
+    projectId ? state.drafts[projectId]?.remote?.id : undefined,
+  );
+  // biome-ignore lint/correctness/useExhaustiveDependencies: clear private assets whenever the identity scope changes.
   useEffect(() => {
-    if (!projectId || !user) {
+    setAssets([]);
+  }, [projectId, ownerId, setAssets]);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: revisions invalidate the draft overlay read by listAssets.
+  useEffect(() => {
+    let cancelled = false;
+    if (!projectId || !ownerId) {
       // Clear assets when switching away from any project to avoid showing
       // another project's assets on a transitional render.
       setAssets([]);
       return;
     }
-    listAssets(projectId).then(setAssets).catch((e) => setError((e as Error).message));
-  }, [user, projectId, setAssets, setError]);
+    listAssets(projectId)
+      .then((assets) => {
+        if (!cancelled) setAssets(assets);
+      })
+      .catch((e) => {
+        if (!cancelled) setError((e as Error).message);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [ownerId, projectId, draftId, draftRevision, setAssets, setError]);
 }
