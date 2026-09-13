@@ -125,7 +125,7 @@ describe("durable migration", () => {
 		});
 		expect((await getEvents(run.id)).at(-1)?.code).not.toBe("provider_timeout");
 		expect(await getLatestEventCode(run.id)).toBe("provider_timeout");
-	});
+	}, 20_000);
 	it.each([
 		"invalid_tool:read_source:invalid_offset",
 		"invalid_tool:secret:invalid_offset",

@@ -20,7 +20,7 @@ const isTypingTarget = (target: EventTarget | null) => {
  * Ignored while typing in a field, when any modifier is held, or when the
  * search palette is open — so it never eats a keystroke the user meant for text.
  */
-export function useWorkspaceTabShortcuts(): void {
+export function useWorkspaceTabShortcuts(canUseAssistant = true): void {
   const navigate = useNavigate();
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -31,6 +31,7 @@ export function useWorkspaceTabShortcuts(): void {
       if (!m) return;
       const tab = WORKSPACE_VIEW_TABS[Number(m[1]) - 1];
       if (!tab) return;
+      if (tab === "assistant" && !canUseAssistant) return;
       e.preventDefault();
       navigate({
         to: ".",
@@ -40,5 +41,5 @@ export function useWorkspaceTabShortcuts(): void {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [navigate]);
+  }, [navigate, canUseAssistant]);
 }

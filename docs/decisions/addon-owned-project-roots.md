@@ -71,3 +71,27 @@ project vivant, et la bannière de divergence — **dont le défaut est « disqu
 `ProjectRoots.register` émet donc un WARN nommant les deux chemins. Un log, pas
 un refus : l'Add-on a le droit de posséder sa racine, c'est la copie orpheline
 qui doit disparaître, et seul l'admin peut en décider.
+
+### Amendment 2026-09-12 — resolved identity and durable rename
+
+`register(projectId, dir)` remains the permanent stable API for add-on identity,
+independent of the directory name. Ordinary projects use their directory name.
+`ProjectReader` now consumes the resolved map key in both cases; legacy manifest
+`project_id` is readable but ignored with a warning when divergent, and is no
+longer serialized. Boutique registers `boutique_addon` at the existing
+`plugins/Boutique/editor/` directory; its module and data namespaces stay unchanged.
+Presence reports ownership, including add-ons registered after initial connection.
+
+Ordinary project rename uses an operation ID, a journal and hidden staging under
+the core `.artisan-renames/` directory. Recovery precedes runtime discovery;
+an interrupted operation with a conflicting destination isolates its two roots
+without preventing unrelated projects from loading. File, asset, config writes
+and deletion share the rename lock. Private history and drafts move with the tree;
+the transient operation marker is excluded from ordinary reads and writes.
+The backend reconciles confirmed operations before discovery to preserve its
+immutable project anchor. Add-on roots cannot be renamed through this channel.
+
+Phase 2 limitation: historical source names remain reserved against stale writes,
+including `create: true`; renaming back to a previously used name returns
+`destination_reserved`. Case-only rename is supported with the new exact spelling.
+Safe name reuse requires a later lifecycle generation carried by every writer.

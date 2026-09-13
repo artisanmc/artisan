@@ -3,8 +3,10 @@
 import { and, desc, eq, inArray, isNull, ne, or } from "drizzle-orm";
 import type { Context } from "hono";
 import { Hono } from "hono";
+import { createHostedProject, listHostedProjects } from "../lib/storage/hostedProjects";
 import { db } from "../db/index";
-import { forgetProjectTree } from "../lib/projectTreeReads";
+import { ServerProjectStorage } from "../lib/storage/ServerProjectStorage";
+import { handleProjectRead, handleProjectWrite, handleProjectHistory } from "./projectContent";
 import {
 	memberships,
 	networkAccessRequests,
@@ -39,6 +41,7 @@ import { addMembership } from "../lib/membershipManager";
 import { createNetwork } from "../lib/networkManager";
 import { readOwnerModuleFromFiles } from "../lib/projectFiles";
 import { ensureProjectForServer, getProject, listProjectsForNetwork, projectDiskId } from "../lib/projectStorage";
+import { pendingProjectRenames } from "../lib/projectRename";
 import { resolveNetworkForMember } from "../lib/refs";
 import { slugify } from "../lib/slug";
 import { allocServerSlug } from "../lib/slugAlloc";
@@ -55,10 +58,10 @@ import {
 	requestOnlinePlayers,
 	requestPlayerInventory,
 	requestHeadTexture,
-	requestProjectHistory,
 	requestProjectList,
-	requestProjectRead,
 	requestProjectWrite,
+	supportsProjectRename,
+	reconcileServerProjectIdentity,
 } from "../ws/hub";
 import { handleResourcePackRebuild } from "./resourcePack";
 
@@ -97,6 +100,47 @@ function parseSchemaJson(raw: string | null): { name: string; type: string; desc
 }
 
 export const userNetworksRouter = new Hono<{ Variables: Vars }>();
+
+async function hostedNetwork(c: Context<{ Variables: Vars }>, mutation = false) {
+  const user = c.get("user");
+  if (!user) throw Object.assign(new Error("unauthorized"), { status: 401 });
+  const ref = c.req.param("id");
+  if (!ref) throw Object.assign(new Error("invalid_input"), { status: 422 });
+  const network = (await db.select().from(networks).where(or(eq(networks.id, ref), eq(networks.slug, ref))))[0];
+  if (!network) throw Object.assign(new Error("not_found"), { status: 404 });
+  if (mutation) await requireCapability(user.id, network.id, "publish_content");
+  else await requireMember(user.id, network.id);
+  return { user, network };
+}
+userNetworksRouter.get("/:id/hosted-projects/templates", async (c) => {
+  try {
+    await hostedNetwork(c);
+    const entries = await import("node:fs/promises").then((fs) => fs.readdir(new URL("../../data/items/", import.meta.url)));
+    return c.json({ templates: [{ id: "vanilla", name: "Vanilla" }], minecraftVersions: entries.filter((p) => /^\d+\.\d+(?:\.\d+)?\.json$/.test(p)).map((p) => p.replace(/\.json$/, "")).sort() });
+  } catch (error) { return hostedRouteError(c, error); }
+});
+userNetworksRouter.get("/:id/hosted-projects", async (c) => {
+  try { const { network } = await hostedNetwork(c); return c.json({ projects: await listHostedProjects(network.id) }); }
+  catch (error) { return hostedRouteError(c, error); }
+});
+userNetworksRouter.post("/:id/hosted-projects", async (c) => {
+  try {
+    const { network, user } = await hostedNetwork(c, true);
+    const body = await c.req.json().catch(() => null);
+    if (!body || typeof body.operationId !== "string" || typeof body.folderName !== "string" || typeof body.minecraftVersion !== "string" || !/^\d+\.\d+(?:\.\d+)?$/.test(body.minecraftVersion) || (body.templateId !== undefined && body.templateId !== "vanilla")) return c.json({ error: "invalid_input" }, 422);
+    if (!await Bun.file(new URL(`../../data/items/${body.minecraftVersion}.json`, import.meta.url)).exists()) return c.json({ error: "unknown_version" }, 422);
+    const project = await createHostedProject({ networkId: network.id, ownerId: user.id, operationId: body.operationId, folderName: body.folderName, name: typeof body.name === "string" ? body.name : body.folderName, minecraftVersion: body.minecraftVersion });
+    return c.json({ project }, 201);
+  } catch (error) { return hostedRouteError(c, error); }
+});
+function hostedRouteError(c: Context, error: unknown) {
+  const e = error as { code?: string; message?: string; status?: number };
+  const candidate = e.code ?? e.message ?? "";
+  const statuses: Record<string, number> = { unauthorized: 401, forbidden: 403, not_found: 404, invalid_input: 422, invalid_template: 422, invalid_path: 422, unknown_version: 422, destination_exists: 409, destination_reserved: 409, operation_mismatch: 409, operation_conflict: 409, operation_expired: 409 };
+  const status = statuses[candidate];
+  if (!status) console.error("[hosted-project] storage operation failed", error);
+  return c.json({ error: status ? candidate : "storage_unavailable" }, (status ?? 503) as 403);
+}
 
 type ImportSourcesListRequest = typeof requestImportSourcesList;
 let importSourcesListRequest: ImportSourcesListRequest = requestImportSourcesList;
@@ -266,7 +310,7 @@ userNetworksRouter.get("/:id", async (c: Context<{ Variables: Vars }>) => {
 
 	return c.json({
 		network,
-		projects: anchored,
+		projects: [...anchored, ...await listHostedProjects(network.id)],
 		serverKeys: listings.map(({ sk, online }) => ({ ...sk, online })),
 	});
 });
@@ -1025,21 +1069,9 @@ userNetworksRouter.get(
 
 		const projectId = c.req.param("projectId");
 		if (!projectId) return c.json({ error: "invalid_input" }, 422);
-
-		// L'éditeur peut annoncer l'empreinte qu'il détient déjà : si l'instantané
-		// du serveur porte la même, on ne transporte rien et il garde sa copie.
-		const ifHash = c.req.query("if_hash") ?? null;
-		const outcome = await requestProjectRead(resolved.serverKeyId, { projectId, ifHash });
-		if (outcome.kind === "offline") return c.json({ error: "server_offline" }, 503);
-		if (outcome.kind === "timeout") return c.json({ error: "fetch_timeout" }, 504);
-		const r = outcome.result;
-		if (!r.ok) {
-			const error = r.error ?? "read_error";
-			const status = error === "unknown_project" ? 404 : error === "invalid_path" ? 422 : 502;
-			return c.json({ error, message: r.message ?? null }, status);
-		}
-		if (r.unchanged) return c.json({ unchanged: true, hash: r.hash ?? null });
-		return c.json({ files: r.files ?? [], failed: r.failed ?? [], hash: r.hash ?? null });
+		return handleProjectRead(c, new ServerProjectStorage({
+			kind: "server", serverKeyId: resolved.serverKeyId, folderName: projectId,
+		}));
 	},
 );
 
@@ -1130,7 +1162,22 @@ userNetworksRouter.get(
 		if (outcome.kind === "timeout") return c.json({ error: "fetch_timeout" }, 504);
 		const r = outcome.result;
 		if (!r.ok) return c.json({ error: r.error ?? "read_error", message: r.message ?? null }, 502);
-		return c.json({ project_ids: r.project_ids ?? [] });
+		const anchored = [];
+		for (const diskId of r.project_ids ?? []) anchored.push(await ensureProjectForServer({ networkId: resolved.networkId, serverKeyId: resolved.serverKeyId, diskId }));
+		await reconcileServerProjectIdentity(resolved.serverKeyId, { project_roots: r.project_roots });
+		const listed = await Promise.all(anchored.map(async (p) => {
+			const project = (await getProject(p.id))!;
+			return { ...project, capabilities: { canRename: project.identityKind === "folder" && supportsProjectRename(resolved.serverKeyId!) } };
+		}));
+		const pending = await pendingProjectRenames(resolved.serverKeyId);
+		const pendingProjects = [];
+		for (const operation of pending) {
+			const project = await getProject(operation.projectId);
+			if (!project || project.deletedAt || project.networkId !== resolved.networkId) continue;
+			pendingProjects.push({ ...project, capabilities: { canRename: false }, pendingRename: { operationId: operation.id, targetId: operation.targetId, status: "pending" as const } });
+		}
+		const pendingIds = new Set(pendingProjects.map((project) => project.id));
+		return c.json({ project_ids: r.project_ids ?? [], projects: [...listed.filter((project) => !pendingIds.has(project.id)), ...pendingProjects], pending_renames: r.pending_renames ?? [] });
 	},
 );
 
@@ -1152,19 +1199,10 @@ userNetworksRouter.get(
 		if (!resolved.serverKeyId) return c.json({ error: "not_found" }, 404);
 
 		const projectId = c.req.param("projectId");
-		const path = c.req.query("path");
-		if (!projectId || !path) return c.json({ error: "invalid_input" }, 422);
-
-		const outcome = await requestProjectHistory(resolved.serverKeyId, { projectId, path });
-		if (outcome.kind === "offline") return c.json({ error: "server_offline" }, 503);
-		if (outcome.kind === "timeout") return c.json({ error: "fetch_timeout" }, 504);
-		const r = outcome.result;
-		if (!r.ok) {
-			const error = r.error ?? "read_error";
-			const status = error === "unknown_project" ? 404 : error === "invalid_path" ? 422 : 502;
-			return c.json({ error, message: r.message ?? null }, status);
-		}
-		return c.json({ versions: r.versions ?? [] });
+		if (!projectId) return c.json({ error: "invalid_input" }, 422);
+		return handleProjectHistory(c, new ServerProjectStorage({
+			kind: "server", serverKeyId: resolved.serverKeyId, folderName: projectId,
+		}));
 	},
 );
 
@@ -1191,58 +1229,10 @@ userNetworksRouter.put(
 		if (!resolved.serverKeyId) return c.json({ error: "not_found" }, 404);
 
 		const projectId = c.req.param("projectId");
-		const body = (await c.req.json().catch(() => null)) as {
-			files?: unknown;
-			deletes?: unknown;
-			renames?: unknown;
-			create?: unknown;
-		} | null;
-		const files = Array.isArray(body?.files) ? body.files : null;
-		const deletes = body?.deletes === undefined
-			? []
-			: Array.isArray(body.deletes) ? body.deletes : null;
-		if (!projectId || !files || !deletes) return c.json({ error: "invalid_input" }, 422);
-		const validFile = (f: unknown) =>
-			typeof f === "object" && f !== null &&
-			typeof (f as { path?: unknown }).path === "string" &&
-			typeof (f as { content?: unknown }).content === "string" &&
-			((f as { base_hash?: unknown }).base_hash === null ||
-				typeof (f as { base_hash?: unknown }).base_hash === "string");
-		const validDelete = (d: unknown) =>
-			typeof d === "object" && d !== null &&
-			typeof (d as { path?: unknown }).path === "string" &&
-			((d as { base_hash?: unknown }).base_hash === null ||
-				typeof (d as { base_hash?: unknown }).base_hash === "string");
-		if (!files.every(validFile) || !deletes.every(validDelete)) {
-			return c.json({ error: "invalid_input" }, 422);
-		}
-
-		// Les fichiers du Project changent : ce qu'on savait de son arbre est
-		// périmé (les aperçus d'assets s'en servent).
-		forgetProjectTree(resolved.serverKeyId, projectId);
-		const outcome = await requestProjectWrite(resolved.serverKeyId, {
-			projectId,
-			files: files as { path: string; content: string; base_hash: string | null }[],
-			deletes: deletes as { path: string; base_hash: string | null }[],
-			renames: (Array.isArray(body?.renames) ? body.renames : []) as {
-				from: string;
-				to: string;
-				base_hash: string;
-			}[],
-			create: body?.create === true,
-		});
-		if (outcome.kind === "offline") return c.json({ error: "server_offline" }, 503);
-		if (outcome.kind === "timeout") return c.json({ error: "fetch_timeout" }, 504);
-		const r = outcome.result;
-		if (!r.ok) {
-			const error = r.error ?? "write_error";
-			if (error === "conflict") {
-				return c.json({ error, conflicts: r.conflicts ?? [] }, 409);
-			}
-			const status = error === "unknown_project" ? 404 : error === "invalid_path" ? 422 : 502;
-			return c.json({ error, message: r.message ?? null }, status);
-		}
-		return c.json({ ok: true });
+		if (!projectId) return c.json({ error: "invalid_input" }, 422);
+		return handleProjectWrite(c, new ServerProjectStorage({
+			kind: "server", serverKeyId: resolved.serverKeyId, folderName: projectId,
+		}));
 	},
 );
 

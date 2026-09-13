@@ -29,20 +29,22 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { Project, ProjectId } from "@/domain/types";
-import { BackendDraftControls } from "@/features/project/BackendDraftControls";
-import { discardBackendDraft, useBackendDraftStore } from "@/features/project/backendDrafts";
-import { isDirty } from "@/features/project/draft";
+import { PersistedDraftControls } from "@/features/project/PersistedDraftControls";
+import { hasDraftChanges } from "@/features/project/draft";
+import { discardPersistedDraft, usePersistedDraftStore } from "@/features/project/persistedDrafts";
 import { openProjectSettings } from "@/features/project/projectSettings";
 import { type ConflictChoice, applyResolutions } from "@/features/project/resolveConflicts";
 import { adoptDiskIntoProject, saveProjectToDisk } from "@/features/project/saveProjectToDisk";
 import { WORKSPACE_VIEW_TABS, type WorkspaceViewTab } from "@/features/project/workspaceTabs";
+import { CopyProjectToServerButton } from "@/features/projects/CopyProjectToServerButton";
 import type { ProjectFileConflict } from "@/lib/api/projectFiles";
 import { cn } from "@/lib/cx";
 import { countMissingForLang } from "@/lib/i18nUsages";
+import { useProjectPrincipalId } from "@/lib/projectPrincipal";
 import { useAccountStore } from "@/state/accountStore";
-import { useAuthStore } from "@/state/authStore";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
+import { useProjectRuntime } from "@/state/projectRuntimeStore";
 import { useSidebarStore } from "@/state/sidebarStore";
 import { useUiStore } from "@/state/uiStore";
 import { useNavigate, useSearch } from "@tanstack/react-router";
@@ -153,17 +155,18 @@ export function ProjectTopBarControls({
         </div>
         <div className="col-start-2 row-start-1 flex shrink-0 items-center gap-1">
           <SearchButton />
-          <SaveControls key={projectId} projectId={projectId} networkId={networkId ?? null} />
+          <SaveControls key={projectId} projectId={projectId} />
+          <CopyProjectToServerButton projectId={projectId} />
           <RefreshProjectButton
             projectId={projectId}
             renderTrigger={(onRefresh) => (
               <TopBarKebabMenu
                 onRefresh={onRefresh}
                 onOpenProjectSettings={openProjectSettings}
-                onImport={onImport ?? (() => {})}
+                onImport={onImport}
                 onExportZip={onExportZip ?? (() => {})}
                 onOpenPatterns={onOpenPatterns ?? (() => {})}
-                onDelete={onDelete ?? (() => {})}
+                onDelete={onDelete}
               />
             )}
           />
@@ -219,6 +222,7 @@ const TAB_META: Record<WorkspaceViewTab, { labelKey: string; Icon: typeof Langua
 };
 
 function WorkspaceViewNav({ project }: { project: Project }) {
+  const runtime = useProjectRuntime(project.id);
   const { t } = useTranslation();
   const navigate = useNavigate();
   const activeLang = useUiStore((s) => s.activeLang);
@@ -232,7 +236,9 @@ function WorkspaceViewNav({ project }: { project: Project }) {
       search: (prev) =>
         ({ ...(prev as object), tab: tab === "overview" ? undefined : tab }) as never,
     });
-  const views = WORKSPACE_VIEW_TABS.map((tab, i) => ({
+  const views = WORKSPACE_VIEW_TABS.filter(
+    (tab) => tab !== "assistant" || runtime?.capabilities.canUseAssistant !== false,
+  ).map((tab, i) => ({
     tab,
     label: t(TAB_META[tab].labelKey),
     Icon: TAB_META[tab].Icon,
@@ -439,13 +445,11 @@ function SearchButton() {
  */
 function SaveControls({
   projectId,
-  networkId,
 }: {
   projectId: ProjectId;
-  networkId: string | null;
 }) {
   const { t } = useTranslation();
-  const user = useAuthStore((s) => s.currentUser);
+  const user = useProjectPrincipalId(projectId);
   const replaceProject = useAccountStore((s) => s.replaceProject);
   // Le Project VIVANT, pas la prop : celle-ci vient d'un `useState` figé au
   // chargement (`useProjectLoader`) alors que toutes les éditions atterrissent
@@ -463,34 +467,35 @@ function SaveControls({
     setSaveErrorOpen(true);
   };
   const [draftsOpen, setDraftsOpen] = useState(false);
-  const draftSession = useBackendDraftStore((s) => s.sessions[projectId]);
+  const draftSession = usePersistedDraftStore((s) => s.sessions[projectId]);
   const draftNeedsAttention =
-    draftSession?.status === "conflict" || draftSession?.status === "offline";
+    draftSession?.status === "conflict" ||
+    draftSession?.status === "offline" ||
+    draftSession?.status === "migration_pending";
   const [conflicts, setConflicts] = useState<ProjectFileConflict[]>([]);
   const [diskFiles, setDiskFiles] = useState<string[]>([]);
   const [choices, setChoices] = useState<Record<string, ConflictChoice>>({});
 
-  const serverId = project?.serverKeyId ?? null;
   // « As-tu du travail non enregistré ? » — lu depuis le brouillon, qui porte
   // déjà l'arbre sérialisé. Le recalculer ici resérialiserait tout le Project à
   // CHAQUE rendu de la topbar. Le brouillon a 800 ms de retard : c'est un
   // indicateur, pas un verrou.
   const draft = useProjectDraftStore((s) => (project ? s.drafts[project.id] : undefined));
-  const dirty = draft ? isDirty(draft.initialTree, draft.tree) : false;
-  const canSave = Boolean(user && networkId && serverId && project);
+  const dirty = draft ? hasDraftChanges(draft) : false;
+  const canSave = Boolean(user && project);
 
   /**
    * Enregistrer = écrire les fichiers du serveur. C'est le seul chemin par
    * lequel une édition atteint le disque (ADR `server-disk-only-storage`).
    */
   const runSave = async (): Promise<void> => {
-    if (!networkId || !serverId || !project) {
+    if (!project) {
       toast.info(t("save.cannotSaveTitle"));
       return;
     }
     setSaving(true);
     try {
-      const res = await saveProjectToDisk(project, networkId, serverId);
+      const res = await saveProjectToDisk(project);
       if (res.ok) {
         setLastSaveError(null);
         setSaveErrorOpen(false);
@@ -592,7 +597,7 @@ function SaveControls({
                   onSelect={async () => {
                     if (!project) return;
                     try {
-                      await discardBackendDraft(project.id);
+                      await discardPersistedDraft(project.id);
                       window.location.reload();
                     } catch {
                       toast.error(t("drafts.failed"));
@@ -607,7 +612,11 @@ function SaveControls({
         ) : null}
       </div>
 
-      <BackendDraftControls projectId={projectId} open={draftsOpen} onOpenChange={setDraftsOpen} />
+      <PersistedDraftControls
+        projectId={projectId}
+        open={draftsOpen}
+        onOpenChange={setDraftsOpen}
+      />
       <Dialog open={saveErrorOpen} onOpenChange={setSaveErrorOpen}>
         <DialogContent>
           <DialogHeader>

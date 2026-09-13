@@ -14,6 +14,13 @@ class FakeWebSocket {
 }
 
 describe("EditorWs.connectAsUser", () => {
+  it("dispatches a rename with immutable identity and both disk names", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ticket: "ticket" }) }));
+    const onProjectRenamed = vi.fn();
+    await EditorWs.connectAsUser("http://localhost:3001", { onProjectRenamed });
+    FakeWebSocket.instances[0]!.onmessage?.({ data: JSON.stringify({ type: "project_renamed", project_id: "internal", server_key_id: "server", previous_disk_id: "old", disk_id: "new" }) });
+    expect(onProjectRenamed).toHaveBeenCalledWith({ serverKeyId: "server", projectId: "internal", previousDiskId: "old", diskId: "new" });
+  });
   beforeEach(() => {
     FakeWebSocket.instances = [];
     vi.stubGlobal("WebSocket", FakeWebSocket as unknown as typeof WebSocket);

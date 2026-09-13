@@ -245,6 +245,10 @@ Read-only project content on disk (`plugins/Artisan/projects/`). The `.artisan*`
 
 Lets an Add-on host its Project in its **own plugin dir** instead of the core `plugins/Artisan/projects/` (ADR `addon-owned-project-roots`). Call once from `onEnable(api)`.
 
+The explicit `projectId` is a permanent immutable add-on identity, independent of
+the directory name. Registered roots cannot be renamed in the editor;
+`register(projectId, dir)` remains stable without deprecation.
+
 | Member | Type | Since |
 |---|---|---|
 | `register(projectId: String, dir: File)` | `Unit` | 1.5.0 |

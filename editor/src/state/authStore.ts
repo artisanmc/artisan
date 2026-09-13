@@ -7,11 +7,15 @@ import {
   signup as apiSignup,
   getMe,
 } from "@/lib/api/auth";
+import { clearImportRecovery } from "@/lib/importRecovery";
+import { clearCopyRecovery } from "@/lib/copyRecovery";
 import { create } from "zustand";
+import { useProjectCacheStore } from "./projectCacheStore";
 import { useProjectDraftStore } from "./projectDraftStore";
+import { useProjectRuntimeStore } from "./projectRuntimeStore";
 
 /** Ce qu'on sait de la session — « unknown » tant que le backend n'a pas
- *  répondu. Il n'y a pas de mode anonyme : « signed-out » veut dire /login. */
+ *  répondu. La démo possède un principal invité distinct de cette session de compte. */
 export type SessionStatus = "unknown" | "signed-out" | "signed-in";
 
 interface AuthState {
@@ -64,7 +68,13 @@ let hydrateGeneration = 0;
 
 export function clearDeletedAccountSession(): void {
   ++hydrateGeneration;
-  useAuthStore.setState({ currentUser: null, sessionStatus: "signed-out", isLoading: false, backendUnreachable: false, error: null });
+  useAuthStore.setState({
+    currentUser: null,
+    sessionStatus: "signed-out",
+    isLoading: false,
+    backendUnreachable: false,
+    error: null,
+  });
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -81,8 +91,8 @@ export const useAuthStore = create<AuthState>((set) => ({
     const generation = ++hydrateGeneration;
     set({ isLoading: true });
     /*
-     * Le mode anonyme n'existe plus (accounts-only) : soit on sait qui tu es,
-     * soit tu vas sur /login. Un backend injoignable (502, cold start, coupure
+     * Cette session décrit le compte ; le projet de démo utilise son propre principal.
+     * Un backend injoignable (502, cold start, coupure
      * réseau) n'autorise donc aucune de ces deux réponses — et surtout pas
      * « déconnecté », qui envoyait sur un /login incapable de fonctionner
      * puisque c'est le même backend qui l'anime. La session reste « unknown »
@@ -191,6 +201,10 @@ useAuthStore.subscribe(async (state) => {
   lastSeenUserId = id;
   if (previous === null) return; // first sign-in — keep prior state
   useProjectDraftStore.getState().setOwner(id);
+  clearImportRecovery();
+  clearCopyRecovery();
+  useProjectRuntimeStore.getState().set(null);
+  useProjectCacheStore.setState({ entries: {} });
   // Dynamic imports to avoid store import cycles (same pattern as hydrate()).
   const [{ useAccountStore }, { useUiStore }] = await Promise.all([
     import("./accountStore"),

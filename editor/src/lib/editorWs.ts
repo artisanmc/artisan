@@ -1,4 +1,5 @@
 const WS_URL = (import.meta.env.VITE_API_URL ?? "http://localhost:3001").replace(/^http/, "ws");
+import type { ProjectRenamed } from "@/features/project/onProjectRenamed";
 
 export type DraftUpdateHandler = (
   projectId: string,
@@ -8,6 +9,7 @@ export type DraftUpdateHandler = (
 ) => void;
 
 export interface EditorWsHandlers {
+  onProjectRenamed?: (event: ProjectRenamed) => void;
   onDraftUpdate?: DraftUpdateHandler;
   /** Files-first P3c: the plugin reported a disk↔web divergence on this project. */
   onSyncDivergence?: (projectId: string) => void;
@@ -44,6 +46,8 @@ export class EditorWs {
         menu_yaml?: string;
         updated_by?: string;
         server_key_id?: string;
+        previous_disk_id?: string;
+        disk_id?: string;
         projects?: { id: string; hash: string }[];
       };
       try {
@@ -62,6 +66,8 @@ export class EditorWs {
         this.handlers.onSyncDivergence?.(msg.project_id);
       } else if (msg.type === "divergence_resolved" && msg.project_id) {
         this.handlers.onDivergenceResolved?.(msg.project_id);
+      } else if (msg.type === "project_renamed" && msg.server_key_id && msg.project_id && msg.previous_disk_id && msg.disk_id) {
+        this.handlers.onProjectRenamed?.({ serverKeyId: msg.server_key_id, projectId: msg.project_id, previousDiskId: msg.previous_disk_id, diskId: msg.disk_id });
       } else if (msg.type === "projects_reloaded" && msg.server_key_id) {
         this.handlers.onProjectsReloaded?.(msg.server_key_id, msg.projects ?? []);
       }

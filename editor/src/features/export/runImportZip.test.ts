@@ -16,6 +16,14 @@ function firstProject(fn: ReturnType<typeof vi.fn<ImportFn>>): { menus: unknown[
 }
 
 describe("runImportZip", () => {
+  it("imports a rootless archive only under an explicitly chosen id", async () => {
+    const blob = await buildZip({ "manifest.yaml": MANIFEST, "menus/m.yaml": MENU });
+    const importProject = vi.fn<ImportFn>(() => "p_new");
+    await expect(runImportZip(blob, importProject)).rejects.toThrow("project_id_required");
+    expect(importProject).not.toHaveBeenCalled();
+    await runImportZip(blob, importProject, "chosen_project");
+    expect(importProject.mock.calls[0]?.[0].project).toMatchObject({ id: "chosen_project" });
+  });
   it("parses a server-shaped zip into a Project and hands it to the store", async () => {
     const blob = await buildZip({
       "plugins/Artisan/projects/shop/manifest.yaml": MANIFEST,

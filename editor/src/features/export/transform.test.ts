@@ -77,7 +77,7 @@ describe("transform", () => {
     const files = transform(project);
     const manifest = parse(files["plugins/Artisan/projects/p_test/manifest.yaml"]!);
     expect(manifest.schema).toBe("manifest/v1");
-    expect(manifest.project_id).toBe("p_test");
+    expect(manifest).not.toHaveProperty("project_id");
     // Plus de bloc `files:` : les Documents se découvrent par scan des dossiers,
     // des deux côtés. Ce qui atteste leur existence, c'est le fichier lui-même.
     expect(manifest.files).toBeUndefined();

@@ -1,8 +1,12 @@
 import { and, eq, isNotNull, isNull, notInArray } from "drizzle-orm";
+import type { DraftRequest } from "../lib/storage/ServerDraftStore";
+import type { DraftOutcome, DraftResult } from "../lib/storage/DraftStore";
 import { db } from "../db/index";
 import { forgetProjectTree } from "../lib/projectTreeReads";
+import { completeProjectRename, failProjectRename, isTerminalRenameError, pendingProjectRenames, projectIdentityLocked, reconcileProjectIdentity, type ProjectIdentityReport } from "../lib/projectRename";
+import type { ProjectRenameMessage, ProjectRenameResultMessage, ProjectCopyMessage, ProjectCopyResultMessage } from "../protocol";
 import { ensureAssets, assetsDone } from "../lib/mcAssets";
-import { networks, projects, serverKeyHelloes, serverKeys, serverModules, serverDataSources, serverDeclaredModels, serverEditorScreens } from "../db/schema";
+import { networks, projects, projectCopies, serverKeyHelloes, serverKeys, serverModules, serverDataSources, serverDeclaredModels, serverEditorScreens } from "../db/schema";
 import {
   createProject,
   ensureProjectForServer,
@@ -69,6 +73,97 @@ export const editorSenders = new Map<string, (msg: string) => void>();
 export const editorTokenToServers = new Map<string, Set<string>>();
 // connId → serverKeyId (set after successful hello)
 export const connToServerId = new Map<string, string>();
+const serverRenameCapabilities = new Map<string, boolean>();
+const draftConnections = new Set<string>();
+const mixedWriteConnections = new Set<string>();
+const copyConnections = new Map<string, { minecraftVersion: string; modules: string[] }>();
+const copyMaintenanceAt = new Map<string, number>();
+function scheduleCopyMaintenance(serverKeyId: string) {
+  if (Date.now() - (copyMaintenanceAt.get(serverKeyId) ?? 0) < 60_000) return;
+  copyMaintenanceAt.set(serverKeyId, Date.now());
+  setTimeout(() => { void import("../lib/projectCopy").then(({ resumeServerCopies }) => resumeServerCopies(serverKeyId)).catch(error => console.error("[copies] reconciliation pending", error)); }, 0);
+}
+export function projectCopyTarget(serverKeyId: string) {
+  const id = [...copyConnections.keys()].find(id => connToServerId.get(id) === serverKeyId && connSenders.has(id));
+  return id ? copyConnections.get(id) : undefined;
+}
+export type ProjectCopyOutcome = { kind: "result"; result: ProjectCopyResultMessage } | { kind: "offline" | "timeout" };
+const pendingCopies = new Map<string, { connId: string; request: Omit<ProjectCopyMessage, "type" | "request_id">; finish: (outcome: ProjectCopyOutcome) => void }>();
+export function requestProjectCopy(serverKeyId: string, request: Omit<ProjectCopyMessage, "type" | "request_id">, timeoutMs = 30_000): Promise<ProjectCopyOutcome> {
+  const connId = [...copyConnections.keys()].find(id => connToServerId.get(id) === serverKeyId && connSenders.has(id));
+  const send = connId && connSenders.get(connId);
+  if (!connId || !send) return Promise.resolve({ kind: "offline" });
+  return new Promise(resolve => {
+    const requestId = crypto.randomUUID();
+    const finish = (outcome: ProjectCopyOutcome) => { clearTimeout(timer); pendingCopies.delete(requestId); resolve(outcome); };
+    const timer = setTimeout(() => finish({ kind: "timeout" }), timeoutMs);
+    pendingCopies.set(requestId, { connId, request, finish });
+    try { send(JSON.stringify({ ...request, type: "project_copy", request_id: requestId })); } catch { finish({ kind: "offline" }); }
+  });
+}
+export function supportsMixedProjectWrite(serverKeyId: string) {
+  return [...mixedWriteConnections].some((id) => connToServerId.get(id) === serverKeyId && connSenders.has(id));
+}
+export function supportsProjectDrafts(serverKeyId: string) {
+  return [...draftConnections].some((id) => connToServerId.get(id) === serverKeyId && connSenders.has(id));
+}
+const pendingDrafts = new Map<string, { connId: string; finish: (outcome: DraftOutcome) => void }>();
+export async function requestProjectDraft(serverKeyId: string, request: DraftRequest, timeoutMs = 30_000): Promise<DraftOutcome> {
+  if (!["list", "list_all", "read", "read_blob"].includes(request.action) && await projectIdentityLocked(serverKeyId, request.project_id)) return { kind: "result", result: { ok: false, error: "rename_in_progress" } };
+  const connId = [...draftConnections].find((id) => connToServerId.get(id) === serverKeyId && connSenders.has(id));
+  const send = connId ? connSenders.get(connId) : undefined;
+  if (!send || !connId) return Promise.resolve({ kind: "offline" });
+  return new Promise((resolve) => {
+    const requestId = crypto.randomUUID();
+    const finish = (result: DraftOutcome) => { clearTimeout(timer); pendingDrafts.delete(requestId); resolve(result); };
+    const timer = setTimeout(() => finish({ kind: "timeout" }), timeoutMs);
+    pendingDrafts.set(requestId, { connId, finish });
+    try { send(JSON.stringify({ ...request, type: "project_draft_request", request_id: requestId })); }
+    catch { finish({ kind: "offline" }); }
+  });
+}
+export function supportsProjectRename(serverKeyId: string) { return serverRenameCapabilities.get(serverKeyId) === true && !!firstPluginSender(serverKeyId); }
+export type ProjectRenameOutcome = { kind: "result"; result: ProjectRenameResultMessage } | { kind: "offline" } | { kind: "timeout" };
+const pendingRenames = new Map<string, { serverKeyId: string; message: ProjectRenameMessage; resolve: (value: ProjectRenameOutcome) => void }>();
+
+export function requestProjectRename(serverKeyId: string, req: { operationId: string; projectId: string; targetId: string }, timeoutMs = CONFIG_WRITE_TIMEOUT_MS): Promise<ProjectRenameOutcome> {
+  const send = firstPluginSender(serverKeyId);
+  if (!send) return Promise.resolve({ kind: "offline" });
+  const message: ProjectRenameMessage = { type: "project_rename", request_id: crypto.randomUUID(), operation_id: req.operationId, project_id: req.projectId, target_project_id: req.targetId };
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => { pendingRenames.delete(message.request_id); resolve({ kind: "timeout" }); }, timeoutMs);
+    pendingRenames.set(message.request_id, { serverKeyId, message, resolve: (outcome) => { clearTimeout(timer); pendingRenames.delete(message.request_id); resolve(outcome); } });
+    try { send(JSON.stringify(message)); }
+    catch { clearTimeout(timer); pendingRenames.delete(message.request_id); resolve({ kind: "offline" }); }
+  });
+}
+
+function announceProjectRename(serverKeyId: string, projectId: string, sourceId: string, targetId: string) {
+  forgetProjectTree(serverKeyId, sourceId);
+  forgetProjectTree(serverKeyId, targetId);
+  const payload = JSON.stringify({ type: "project_renamed", server_key_id: serverKeyId, project_id: projectId, previous_disk_id: sourceId, disk_id: targetId });
+  for (const [sessionId, send] of editorSenders) if (editorTokenToServers.get(sessionId)?.has(serverKeyId)) send(payload);
+}
+
+export async function reconcileServerProjectIdentity(serverKeyId: string, report: ProjectIdentityReport) {
+  if (!report.project_roots?.length && !report.project_rename_results?.length && !report.identity_migrations?.length) return;
+  const previous = await db.select().from(projects).where(eq(projects.serverKeyId, serverKeyId));
+  await reconcileProjectIdentity(serverKeyId, report);
+  const current = await db.select().from(projects).where(eq(projects.serverKeyId, serverKeyId));
+  for (const project of current) {
+    const before = previous.find((p) => p.id === project.id);
+    if (before && projectDiskId(before) !== projectDiskId(project)) announceProjectRename(serverKeyId, project.id, projectDiskId(before), projectDiskId(project));
+  }
+}
+
+async function resumeProjectRenames(serverKeyId: string) {
+  void import("../lib/projectCopy").then(({ resumeServerCopies }) => resumeServerCopies(serverKeyId)).catch(error => console.error("[copies] resume pending", error));
+  void import("../lib/projectDraftMigration").then(({ resumeServerDrafts }) => resumeServerDrafts(serverKeyId)).catch((error) => console.error("[drafts] migration pending", error));
+  for (const op of await pendingProjectRenames(serverKeyId)) {
+    if ([...pendingRenames.values()].some((pending) => pending.serverKeyId === serverKeyId && pending.message.operation_id === op.id)) continue;
+    void requestProjectRename(serverKeyId, { operationId: op.id, projectId: op.sourceId, targetId: op.targetId });
+  }
+}
 // serverKeyId → minecraft version (set on hello, used by /api/items)
 const serverIdToMcVersion = new Map<string, string>();
 
@@ -77,6 +172,11 @@ export function registerConn(connId: string, send: (msg: string) => void): void 
 }
 
 export function cleanupConn(connId: string): void {
+  copyConnections.delete(connId);
+  for (const pending of pendingCopies.values()) if (pending.connId === connId) pending.finish({ kind: "offline" });
+  mixedWriteConnections.delete(connId);
+  draftConnections.delete(connId);
+  for (const pending of pendingDrafts.values()) if (pending.connId === connId) pending.finish({ kind: "offline" });
   connSenders.delete(connId);
   connToServerId.delete(connId);
 }
@@ -415,7 +515,7 @@ export function requestAssetRead(
 }
 
 /** Écriture (ou suppression, `contentBase64` null) d'UN asset, CAS sur `baseHash`. */
-export function requestAssetWrite(
+export async function requestAssetWrite(
   serverKeyId: string,
   req: {
     projectId: string;
@@ -424,6 +524,7 @@ export function requestAssetWrite(
   },
   timeoutMs: number = DATA_SOURCE_FETCH_TIMEOUT_MS,
 ): Promise<AssetWriteOutcome> {
+  if (await projectIdentityLocked(serverKeyId, req.projectId)) return { kind: "result", result: { type: "asset_write_result", request_id: "", ok: false, error: "write_error", message: "rename_in_progress" } };
   const send = firstPluginSender(serverKeyId);
   if (!send) return Promise.resolve({ kind: "offline" });
   const requestId = crypto.randomUUID();
@@ -474,10 +575,11 @@ const pendingProjectLists = new Map<string, (outcome: ProjectListOutcome) => voi
  * mais comme **points d'ancrage** de ce que le backend possède vraiment (assets,
  * resource pack, conversations) — plus comme inventaire.
  */
-export function requestProjectList(
+export async function requestProjectList(
   serverKeyId: string,
   timeoutMs: number = DATA_SOURCE_FETCH_TIMEOUT_MS,
 ): Promise<ProjectListOutcome> {
+  await resumeProjectRenames(serverKeyId);
   const send = firstPluginSender(serverKeyId);
   if (!send) return Promise.resolve({ kind: "offline" });
   const requestId = crypto.randomUUID();
@@ -549,10 +651,12 @@ export function requestProjectRead(
  * We relay, we do not store: the plugin owns the compare-and-swap and the trash,
  * so a stale save comes back as `conflict` with the disk content attached.
  */
-export function requestProjectWrite(
+export async function requestProjectWrite(
   serverKeyId: string,
   req: {
     projectId: string;
+    operationId?: string;
+    binaries?: { path: string; content_base64: string | null; base_hash: string | null }[];
     files: { path: string; content: string; base_hash: string | null }[];
     deletes?: { path: string; base_hash: string | null }[];
     renames?: { from: string; to: string; base_hash: string }[];
@@ -560,13 +664,17 @@ export function requestProjectWrite(
   },
   timeoutMs: number = CONFIG_WRITE_TIMEOUT_MS,
 ): Promise<ProjectWriteOutcome> {
+  if (await projectIdentityLocked(serverKeyId, req.projectId)) return { kind: "result", result: { type: "project_write_result", request_id: "", ok: false, error: "write_error", message: "rename_in_progress" } };
   const send = firstPluginSender(serverKeyId);
   if (!send) return Promise.resolve({ kind: "offline" });
+  if (req.binaries?.length && !supportsMixedProjectWrite(serverKeyId)) return { kind: "result", result: { type: "project_write_result", request_id: "", ok: false, error: "plugin_update_required" } };
   const requestId = crypto.randomUUID();
   const msg: ProjectWriteMessage = {
     type: "project_write",
     request_id: requestId,
     project_id: req.projectId,
+    ...(req.operationId ? { operation_id: req.operationId } : {}),
+    ...(req.binaries ? { binaries: req.binaries } : {}),
     files: req.files,
     deletes: req.deletes ?? [],
     renames: req.renames ?? [],
@@ -582,7 +690,8 @@ export function requestProjectWrite(
       pendingProjectWrites.delete(requestId);
       resolve(outcome);
     });
-    send(JSON.stringify(msg));
+    try { send(JSON.stringify(msg)); }
+    catch { clearTimeout(timer); pendingProjectWrites.delete(requestId); resolve({ kind: "offline" }); }
   });
 }
 
@@ -645,11 +754,12 @@ export function requestConfigRead(
 }
 
 /** Write Config-screen files to the plugin's disk (it hot-reloads + auto-pushes). */
-export function requestConfigWrite(
+export async function requestConfigWrite(
   serverKeyId: string,
   req: { projectId: string; files: { path: string; content: string }[]; deletes?: string[] },
   timeoutMs: number = CONFIG_WRITE_TIMEOUT_MS,
 ): Promise<ConfigWriteOutcome> {
+  if (await projectIdentityLocked(serverKeyId, req.projectId)) return { kind: "result", result: { type: "config_write_result", request_id: "", ok: false, error: "write_error", message: "rename_in_progress" } };
   const send = firstPluginSender(serverKeyId);
   if (!send) return Promise.resolve({ kind: "offline" });
   const requestId = crypto.randomUUID();
@@ -965,6 +1075,14 @@ export async function handlePluginMessage(
     // l'IDENTITÉ des Projects — c'est elle qui permet à l'éditeur de les lister
     // et de les router — donc un project présent sur le disque du serveur mais
     // inconnu de la base y est enregistré ici.
+    serverRenameCapabilities.set(keyId, hello.capabilities?.includes("project_rename") === true);
+    if (hello.capabilities?.includes("project_copy_v1")) copyConnections.set(connId, { minecraftVersion: hello.minecraft_version ?? "", modules: (hello.installed_modules ?? []).map(m => m.id) });
+    else copyConnections.delete(connId);
+    if (hello.capabilities?.includes("project_drafts_v1")) draftConnections.add(connId);
+    else draftConnections.delete(connId);
+    if (hello.capabilities?.includes("project_mixed_write_v1")) mixedWriteConnections.add(connId);
+    else mixedWriteConnections.delete(connId);
+    await reconcileServerProjectIdentity(keyId, hello);
     const boundProjects = await db.select().from(projects).where(
       and(eq(projects.serverKeyId, keyId), isNull(projects.deletedAt)),
     );
@@ -975,6 +1093,7 @@ export async function handlePluginMessage(
       const sk = skRows[0];
       if (sk) {
         for (const pid of missingProjectIds) {
+          if (await projectIdentityLocked(keyId, pid)) continue;
           // Server-scoped: `createProject` is idempotent on the *internal* id, so
           // a global create here handed this server another tenant's project
           // instead of making its own (incident 2026-08-12).
@@ -982,6 +1101,7 @@ export async function handlePluginMessage(
         }
       }
     }
+    await reconcileServerProjectIdentity(keyId, { project_roots: hello.project_roots });
 
     const rp = await currentPackInfo(keyId);
 
@@ -1008,17 +1128,22 @@ export async function handlePluginMessage(
       resource_pack: rp,
     };
 
+    setTimeout(() => { void import("../lib/projectDraftMigration").then(({ resumeServerDrafts }) => resumeServerDrafts(keyId)).catch((error) => console.error("[drafts] migration pending", error)); }, 0);
     // Plus rien à pousser après l'ack : le backend n'annonce plus de bundle.
+    scheduleCopyMaintenance(keyId);
     return { reply: JSON.stringify(ack), sessionId, push: [] };
   }
 
-  if (msg.type === "pong") return { reply: null };
+  if (msg.type === "pong") { const serverId = connToServerId.get(connId); if (serverId) scheduleCopyMaintenance(serverId); return { reply: null }; }
 
   // ── modules_changed: runtime module registration after hello ─────────────
   if (msg.type === "modules_changed") {
     const serverId = connToServerId.get(connId);
     if (!serverId) return { reply: null };
     const m = msg as ModulesChangedMessage;
+    const copyTarget = copyConnections.get(connId);
+    if (copyTarget) copyTarget.modules = (m.installed_modules ?? []).map(module => module.id);
+    await reconcileServerProjectIdentity(serverId, m);
     persistServerModules(serverId, m.installed_modules ?? []).catch(() => {});
     persistServerDataSources(serverId, m.data_sources ?? []).catch(() => {});
     persistServerDeclaredModels(serverId, (m as unknown as Record<string, unknown>).declared_models as Record<string, unknown>[] ?? []).catch(() => {});
@@ -1035,6 +1160,7 @@ export async function handlePluginMessage(
   if (msg.type === "projects_reloaded") {
     const serverId = connToServerId.get(connId);
     if (!serverId) return { reply: null };
+    await reconcileServerProjectIdentity(serverId, msg as ProjectsReloadedMessage);
     const projects = (msg as ProjectsReloadedMessage).projects ?? [];
     // Ce qu'on avait mémorisé de ces arbres décrit l'avant-reload.
     for (const p of projects) forgetProjectTree(serverId, p.id);
@@ -1149,11 +1275,53 @@ export async function handlePluginMessage(
     return { reply: null };
   }
 
+  if (msg.type === "project_draft_result") {
+    const result = msg as unknown as DraftResult & { type: string; request_id: string };
+    const pending = pendingDrafts.get(result.request_id);
+    if (pending?.connId === connId && connToServerId.has(connId)) {
+      const { type: _type, request_id: _requestId, ...payload } = result;
+      pending.finish({ kind: "result", result: payload });
+    }
+    return { reply: null };
+  }
+
+  if (msg.type === "project_copy_result") {
+    const result = msg as ProjectCopyResultMessage;
+    const pending = pendingCopies.get(result.request_id);
+    if (pending && pending.connId === connId && connToServerId.has(connId) && pending.request.operation_id === result.operation_id && pending.request.target_id === result.target_id && pending.request.fingerprint === result.fingerprint) pending.finish({ kind: "result", result });
+    return { reply: null };
+  }
+
+  if (msg.type === "project_rename_result") {
+    const serverId = connToServerId.get(connId);
+    const result = msg as ProjectRenameResultMessage;
+    const pending = pendingRenames.get(result.request_id);
+    if (!pending || pending.serverKeyId !== serverId || pending.message.operation_id !== result.operation_id || pending.message.project_id !== result.project_id || pending.message.target_project_id !== result.target_project_id) return { reply: null };
+    if (result.ok) {
+      const operation = await completeProjectRename(serverId, result);
+      announceProjectRename(serverId, operation.projectId, operation.sourceId, operation.targetId);
+    } else if (isTerminalRenameError(result.error)) {
+      await failProjectRename(result.operation_id);
+    }
+    pending.resolve({ kind: "result", result });
+    return { reply: null };
+  }
+
   if (msg.type === "project_list_result") {
     const serverId = connToServerId.get(connId);
     if (!serverId) return { reply: null };
     const result = msg as ProjectListResultMessage;
-    pendingProjectLists.get(result.request_id)?.({ kind: "result", result });
+    await reconcileServerProjectIdentity(serverId, result);
+    const pending = await pendingProjectRenames(serverId);
+    const reserved = new Set(pending.flatMap((op) => [op.sourceId.toLowerCase(), op.targetId.toLowerCase()]));
+    const copyReservations = await db.select({ targetId: projectCopies.targetId }).from(projectCopies).where(and(eq(projectCopies.serverKeyId, serverId), eq(projectCopies.status, "pending")));
+    for (const op of copyReservations) reserved.add(op.targetId.toLowerCase());
+    pendingProjectLists.get(result.request_id)?.({ kind: "result", result: {
+      ...result,
+      project_ids: result.project_ids?.filter((id) => !reserved.has(id.toLowerCase())),
+      project_roots: result.project_roots?.filter((root) => !reserved.has(root.project_id.toLowerCase())),
+      pending_renames: pending.map((op) => ({ operation_id: op.id, project_id: op.sourceId, target_project_id: op.targetId })),
+    } });
     return { reply: null };
   }
 

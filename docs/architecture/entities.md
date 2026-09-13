@@ -3,9 +3,121 @@
 > Source de vérité du schéma : `backend/src/db/schema.ts` (+ migrations dans `backend/drizzle/`).
 > Ce doc décrit le modèle **courant** puis l'historique des phases qui y ont mené.
 
+## Sessions de démo (migrations 0045–0047)
+
+`projects` appartient soit à un Network, soit à une `demo_sessions` (`CHECK`
+exclusif). Un projet invité reste `hosted`, sans faux compte/réseau/serveur.
+`demo_sessions` stocke l'empreinte du cookie, l'expiration, un identifiant de
+limitation haché et le journal de réclamation ; les fichiers/brouillons restent
+dans une racine `demo_<id>` du volume hébergé. Le template commun est
+`backend/src/templates/demo-project.json`, livré dans l'image backend et validé par le schéma éditeur.
+
+Création et mutations prennent les verrous maintenance → budget global → session
+→ racine. Seules les mutations effectives prolongent les 24 h ; une reprise du
+même identifiant d'opération, lecture ou polling ne les renouvelle pas. L'activité
+dans la révision active permet la reprise après activation FS puis rollback SQL.
+Les limites incluent métadonnées, brouillons, historique, reçus et staging.
+
+La réclamation journalise `claiming` avant le remappage des propriétaires de
+brouillons, préserve IDs/révisions/binaires et conserve l'ID immuable du projet.
+Le même compte reprend après perte du cookie via projet/opération. L'invité reste
+révoqué ; une réclamation en cours ne subit jamais la purge TTL. Si le compte
+perd l'accès au Network cible, il peut choisir une nouvelle cible autorisée avec
+une nouvelle opération ; l'ancienne est auditée et renvoie `operation_superseded`.
+Les racines réclamées ne consomment plus le budget invité et suivent le cycle
+de sauvegarde/rétention des projets hébergés ordinaires.
+Après révocation durable d'une démo expirée, ses métadonnées restent 24 h ;
+la maintenance supprime ensuite projet/session et empreintes après nettoyage
+physique confirmé. Un échec de nettoyage conserve le tombstone pour reprise.
+
+## Copies hébergées vers Minecraft (migration 0044)
+
+`project_copies` conserve l'opération, l'acteur, la révision source figée, le
+serveur/Network/dossier destination, le manifeste avec tailles/digests et un
+artefact borné immuable des octets publics. Ce journal n'est jamais une autorité
+éditable : source hébergée et copie serveur restent indépendantes. Il exclut
+brouillons privés et historique. L'artefact est retiré après activation vérifiée
+ou échec terminal ; les reçus gardent l'idempotence.
+
+Un verrou consultatif serveur partagé avec le renommage protège la réservation
+insensible à la casse ; discovery et renommage respectent les copies `pending`.
+Aucune ligne destination `projects` n'existe avant le reçu complet d'activation.
+Une transaction crée l'ancre puis marque `completed`; `resource_pack_pending`
+porte séparément le retry de reconstruction/push après commit SQL.
+Cette reconstruction exige l'ancre destination, des arbres complets relus et les
+tailles/SHA-256 des glyphes et textures de polices ; un ancien pack de secours ne
+confirme jamais la copie. Les autres reconstructions gardent leur fallback existant.
+Le Network courant de la clé est verrouillé et comparé à celui réservé : un
+transfert pendant l'ACK laisse `target_moved`, sans ancre dans le mauvais Network.
+
+Les identifiants d'acteur/source sont des références d'audit sans FK cascade :
+supprimer un compte ou une source ne détruit pas un journal d'activation incertaine.
+La maintenance authentifiée au serveur peut uniquement lire le reçu après révocation.
+Un reçu activé termine l'ancrage ; une preuve expirée (ou manquante après 24 h)
+libère artefact/réservation. Une activation inconnue hors ligne reste réservée
+(maximum huit opérations par serveur), sans expiration aveugle ni ré-upload.
+
 ## Modèle courant (depuis 2026-06-03 — "Servers UX simplification")
 
-**1 project = 1 server_key** (relation **1:N**). `projects.serverKeyId` est NOT NULL avec FK cascade vers `server_keys.id`. La table `project_bindings` (ancien M:N) a été supprimée.
+**Renommage durable (migration 0040)** : `projects.identity_kind` est résolu par
+le plugin (`folder`, `addon`, ou `unknown` avant négociation). `project_renames`
+conserve opération, ancre, serveur, source, cible et état `pending/complete/failed`.
+Les réservations actives sont uniques par ancre et cible insensible à la casse.
+Un verrou transactionnel par serveur sérialise réservation, découverte et ACK ;
+aucune transaction SQL n'attend une opération disque distante. L'ACK modifie
+seulement `external_id` : brouillons privés, révisions, conversations et URLs
+conservent leur ID/slug. La migration Boutique suit la même règle de conservation.
+
+**Localisation du Project (socle 2026-09-12, migration 0039)** : `projects.id`
+reste l'ancre interne immuable. `storageKind` vaut `server` (défaut existant) ou
+`hosted`. Un CHECK impose serveur non-null/racine hébergée null pour `server`,
+et serveur null/racine privée non-vide/nom externe non-vide pour `hosted`.
+Les noms et slugs restent uniques par serveur ; les projets hébergés ont une
+unicité par Network et une racine privée unique. Les FK Network et serveur
+conservent leurs cascades ; supprimer un serveur ne supprime pas les projets hébergés.
+La table `project_bindings` (ancien M:N) reste supprimée.
+
+Le resolver autorise l'accès avant de sélectionner `ProjectStorage`. L'adaptateur
+serveur reprend lectures, écritures CAS, binaires et historique existants ; la
+publication d'un brouillon consomme ce même contrat. Le stockage hébergé durable
+est implémenté en phase 4 ; les invités utilisent le même adaptateur en phase 6. Aucun mode ne
+crée de faux serveur.
+
+**Hébergement durable (migration 0043)** : `hosted_minecraft_version` décrit
+l'environnement vanilla choisi, hors manifeste publié. `hosted_creation_fingerprint`
+vérifie le retry d'une création idempotente ; aucun contenu n'y est stocké.
+`project_renames.server_key_id` devient nullable et `hosted_network_id` réserve les
+noms des projets hébergés ; un CHECK impose exactement une de ces deux portées.
+Le journal et le service de renommage restent communs aux deux adaptateurs.
+Les projets hébergés conservent leur racine opaque et ID/slug immuables pendant
+le déplacement réel de leur dossier logique dans une nouvelle révision.
+Les fichiers et brouillons sont dans le volume `HOSTED_PROJECTS_DIR` : pointeur
+atomique vers une révision complète, verrou PostgreSQL par racine partagé entre
+workers, reçus idempotents privés. Le SQL ne contient aucune copie des binaires.
+Les tombstones `deleted_draft_owners` déclenchent aussi la purge des brouillons
+hébergés après commit. Les cascades Network rendent les racines orphelines ; la
+maintenance les collecte après 24 h, sous verrou partagé avec la création.
+Les racines explicitement supprimées sont retirées après 30 jours. Une racine
+déjà retirée avec ancre supprimée est un état terminal, pas une erreur récurrente.
+La [sauvegarde conjointe](../operations/hosted-storage-backup.md) capture PostgreSQL,
+intentions de cycle de vie et volume sous verrous ; restauration avec workers arrêtés.
+Le catalogue d'items hébergé exige la version sélectionnée exacte : si son fichier
+est absent après restauration/déploiement, `/items` renvoie `404 unknown_version`
+au lieu de substituer un autre patch. Le fallback des projets serveur est conservé.
+
+`ProjectStorage.drafts` est lié au principal autorisé. `project_draft_storage`
+(0041–0042) conserve l'autorité `backend/frozen/server` : gel durable, import des
+enveloppes privées, relecture intégrale et vérification des blobs, puis basculement
+et suppression des seules lignes `project_drafts` de ce Project. Un échec conserve
+le gel et la source SQL ; reconnexion et maintenance minute reprennent l'opération.
+Un ancien plugin garde l'autorité SQL ; un Project migré ne revient jamais en SQL.
+Les reçus d'opérations legacy sont non modifiables pendant 24 h après migration,
+puis leur contenu est effacé au profit d'un marqueur `operation_expired` empêchant
+de rejouer une ancienne mutation. Aucun nouveau résultat serveur n'y est stocké.
+`deleted_draft_owners` n'a aucune FK : la suppression de compte conserve cette
+révocation après cascade Network/serveur. Chaque racine découverte reçoit une
+purge du propriétaire, y compris les dossiers copiés. L'accès web est révoqué
+immédiatement ; un serveur déconnecté applique la purge à sa reconnexion.
 
 ```
 User ── Membership ──┐
@@ -21,7 +133,7 @@ User ── Membership ──┐
                               Project → ProjectBranch ← ProjectCommit  (DAG, branches + commits)
 ```
 
-- **Project** : entité first-class — `id`, `networkId`, `serverKeyId`, `name`, `externalId`, `description`, `hash`, `filesJson`, `deletedAt`. `filesJson`/`hash` = buffer éditeur **WIP** live. **Files-first (P3a, 2026-07-24)** : l'arbre de fichiers est la **seule** représentation stockée (ADR `files-first-source-of-truth`) — les colonnes `editor_json`/`deployed_editor_json` ont été droppées (migration 0025) ; l'éditeur parse `files` → domaine au load (`editor/src/schema/projectFromFiles.ts`) et sérialise domaine → `files` au save (`transform.ts`).
+- **Project courant** : ancre immuable `id`, propriétaire `networkId` ou `demoSessionId`, localisation `storageKind` avec `serverKeyId` ou `hostedRootId`, puis `name`, `externalId`, `description`, `deletedAt`. Le contenu et les brouillons sont servis par `ProjectStorage` depuis le disque propriétaire ; `hash`/`filesJson` ne sont plus une autorité SQL éditable. Le modèle WIP/branches/commits décrit ci-dessous est historique (avant migration disk-only).
 - **server_keys.networkId** NOT NULL. Créés depuis l'éditeur (`POST /networks/:id/server-keys`) au sein d'un Network existant. **`server_keys.hash` est nullable** : `NULL` = clé créée mais **pas encore redeemée** via `/artisan link` (aucun secret émis, ne s'authentifie jamais). Le secret est généré au **redeem** (`redeemLinkCode`, cf. `link_codes` + ADR `editor-first-server-linking`), jamais stocké en clair. Re-redeem d'un nouveau code = **rotation** du secret en place (même row). Cf. `rest-endpoints.md` § Link editor-first.
 - **link_codes** (`code` PK, `serverKeyId` FK **ON DELETE CASCADE**, `expiresAt`, `claimedAt`) : code single-use TTL 10 min, minté par l'éditeur (create-server ou `.../link-code`), lié à un `server_key`. Supprimer la clé supprime ses codes (cascade).
 - **IDs server_key** (`generateServerKey` dans `lib/auth.ts`) : row id = `srv_<hex>` (utilisé dans les URLs `/networks/.../servers/srv_xxx`), clé plaintext = `sk_<hex>` (renvoyée une seule fois par le redeem). Préfixes distincts volontairement pour ne pas confondre l'identifiant de ligne et le secret. Affichage UI via `displayServerLabel()`.

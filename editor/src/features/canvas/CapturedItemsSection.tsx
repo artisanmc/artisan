@@ -7,6 +7,7 @@ import { useAccountStore } from "@/state/accountStore";
 import { isScreenScratchId } from "@/features/screens/screenScratch";
 import { useNetworksStore } from "@/state/networksStore";
 import { useServersStore } from "@/state/serversStore";
+import { useProjectRuntime } from "@/state/projectRuntimeStore";
 import { useUiStore } from "@/state/uiStore";
 import { useDraggable } from "@dnd-kit/core";
 import { useState } from "react";
@@ -40,6 +41,8 @@ export function CapturedItemsSection({
   const removeCapturedItem = useAccountStore((s) => s.removeCapturedItem);
   const networkId = useNetworksStore((s) => s.activeId);
   const serverId = useServersStore((s) => s.activeServerId);
+  const runtime = useProjectRuntime(projectId);
+  const canCapture = runtime ? runtime.capabilities.captureInGame && runtime.connection.available : Boolean(serverId);
 
   const [player, setPlayer] = useState("");
   const [state, setState] = useState<
@@ -54,7 +57,7 @@ export function CapturedItemsSection({
   const readOnly = isScreenScratchId(projectId);
 
   const load = async () => {
-    if (!networkId || !serverId || !player.trim()) return;
+    if (!canCapture || !networkId || !serverId || !player.trim()) return;
     setState({ kind: "loading" });
     const res = await fetchPlayerInventory(networkId, serverId, player.trim());
     setState(res.ok ? { kind: "done", slots: res.slots } : { kind: "error", code: res.error });
@@ -98,7 +101,7 @@ export function CapturedItemsSection({
       )}
 
       {/* Inventory mirror */}
-      {!readOnly && <div className="flex items-center gap-1.5">
+      {!readOnly && canCapture && <div className="flex items-center gap-1.5">
         <PlayerNameInput
           value={player}
           onChange={setPlayer}

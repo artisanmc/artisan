@@ -1,8 +1,8 @@
-import { useEffect } from "react";
-import { fetchUserItems, fetchUserCustomItems } from "@/lib/api/userProjects";
-import { useAuthStore } from "@/state/authStore";
+import { fetchUserCustomItems, fetchUserItems } from "@/lib/api/userProjects";
+import { preloadModels, renderToCanvas } from "@/lib/mcModelRenderer";
+import { useProjectPrincipalId, watchProjectPrincipal } from "@/lib/projectPrincipal";
 import { useUiStore } from "@/state/uiStore";
-import { renderToCanvas, preloadModels } from "@/lib/mcModelRenderer";
+import { useEffect } from "react";
 import { useTextureStore } from "./textureStore";
 
 /**
@@ -19,9 +19,9 @@ import { useTextureStore } from "./textureStore";
  * library (ADR `module-config-screens`).
  */
 export function useTextureInit(projectId?: string) {
-  const currentUser = useAuthStore((s) => s.currentUser);
   const lastActive = useUiStore((s) => s.lastActiveProjectId);
   const lastActiveProjectId = projectId ?? lastActive;
+  const currentUser = useProjectPrincipalId(lastActiveProjectId ?? undefined);
   const setData = useTextureStore((s) => s.setData);
   const setCustomData = useTextureStore((s) => s.setCustomData);
   const setRendered = useTextureStore((s) => s.setRendered);
@@ -31,10 +31,32 @@ export function useTextureInit(projectId?: string) {
   const setLibraryError = useTextureStore((s) => s.setLibraryError);
 
   useEffect(() => {
+    useTextureStore.setState({
+      version: "",
+      byMaterial: {},
+      customByMaterial: {},
+      renderedByMaterial: {},
+      libraryItems: [],
+      libraryCustomData: { serverKeyId: "", items: [] },
+      libraryBundleReady: false,
+      libraryError: false,
+    });
     if (!currentUser || !lastActiveProjectId) return;
+    let cancelled = false;
+    const principal = watchProjectPrincipal(lastActiveProjectId);
+    const isCurrent = () => {
+      if (cancelled) return false;
+      try {
+        principal.assertCurrent();
+        return true;
+      } catch {
+        return false;
+      }
+    };
 
     Promise.all([fetchUserItems(lastActiveProjectId), fetchUserCustomItems(lastActiveProjectId)])
       .then(async ([vanilla, custom]) => {
+        if (!isCurrent()) return;
         // Le premier fetch peut partir avec le slug de l'URL, avant que le
         // project soit chargé : une erreur ne doit pas rester collée une fois
         // le vrai id résolu.
@@ -44,21 +66,30 @@ export function useTextureInit(projectId?: string) {
         setLibraryCustomData(custom);
         if (custom.serverKeyId) setCustomData(custom.items, custom.serverKeyId);
         await preloadModels(vanilla.version);
+        if (!isCurrent()) return;
         if (custom.serverKeyId) await preloadModels(vanilla.version, true, custom.serverKeyId);
+        if (!isCurrent()) return;
         setLibraryBundleReady(true);
         for (const item of [...vanilla.items, ...custom.items]) {
           if (!item.model) continue;
           const isCustomItem = custom.items.some((c) => c.id === item.id);
           const keyId = isCustomItem ? custom.serverKeyId : undefined;
-          renderToCanvas(item.model, vanilla.version, isCustomItem, keyId, item.tints).then((src) => {
-            if (src) setRendered(item.id, src);
-          });
+          renderToCanvas(item.model, vanilla.version, isCustomItem, keyId, item.tints).then(
+            (src) => {
+              if (src && isCurrent()) setRendered(item.id, src);
+            },
+          );
         }
       })
       .catch((err) => {
+        if (!isCurrent()) return;
         console.warn("[library] items fetch failed", lastActiveProjectId, err);
         setLibraryError(true);
       });
+    return () => {
+      cancelled = true;
+      principal.dispose();
+    };
   }, [
     currentUser,
     lastActiveProjectId,

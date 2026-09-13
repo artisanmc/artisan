@@ -274,6 +274,69 @@
       "when": 1789208747404,
       "tag": "0038_volatile_peter_parker",
       "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1789225852595,
+      "tag": "0039_medical_rockslide",
+      "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1789227471840,
+      "tag": "0040_purple_talkback",
+      "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1789269157533,
+      "tag": "0041_whole_thaddeus_ross",
+      "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1789269703364,
+      "tag": "0042_spooky_magma",
+      "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1789272188651,
+      "tag": "0043_brief_vision",
+      "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1789280893905,
+      "tag": "0044_right_true_believers",
+      "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1789284164560,
+      "tag": "0045_yellow_white_tiger",
+      "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1789284212394,
+      "tag": "0046_demo_owner_constraints",
+      "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1789284636106,
+      "tag": "0047_careless_ironclad",
+      "breakpoints": true
     }
   ]
 }

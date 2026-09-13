@@ -13,7 +13,17 @@ export interface ReportedDataSource {
   key_field?: string | null;
 }
 
-export interface HelloMessage {
+export interface ProjectIdentityReport {
+  project_roots?: { project_id: string; identity: "folder" | "addon" }[];
+  project_rename_results?: { operation_id: string; project_id: string; target_project_id: string }[];
+  identity_migrations?: { from: string; to: string }[];
+}
+export type ProjectDraftRequestMessage = import("./lib/storage/ServerDraftStore").DraftRequest & {
+  type: "project_draft_request";
+  request_id: string;
+}
+export type ProjectDraftResultMessage = import("./lib/storage/DraftStore").DraftResult & { type: "project_draft_result"; request_id: string };
+export interface HelloMessage extends ProjectIdentityReport {
   type: "hello";
   protocol_version?: string;   // NEW — "1" for current protocol
   core_version?: string;       // NEW — plugin's own version string; mirrors plugin_version
@@ -22,6 +32,7 @@ export interface HelloMessage {
   minecraft_version?: string;
   current_bundle_hash: string;
   local_project_ids?: string[];
+  capabilities?: string[];
   custom_items_hash?: string | null;   // null/absent means no custom item plugin detected
   // Modules the Core plugin currently has registered. Drives editor visibility
   // (presence activation). Absent/empty on older plugins → no modules reported.
@@ -88,7 +99,7 @@ export interface ProjectDeletedMessage {
 
 
 // Plugin → backend: emitted when a module registers after hello (runtime registration seam)
-export interface ModulesChangedMessage {
+export interface ModulesChangedMessage extends ProjectIdentityReport {
   type: "modules_changed";
   // redundant with the authenticated session; ignored by the backend (kept for payload parity with hello)
   server_key: string;
@@ -226,13 +237,54 @@ export interface ProjectListMessage {
   request_id: string;
 }
 
+export interface ProjectCopyMessage {
+  type: "project_copy";
+  request_id: string;
+  operation_id: string;
+  action: "begin" | "chunk" | "commit" | "status";
+  target_id: string;
+  fingerprint: string;
+  minecraft_version?: string;
+  modules?: string[];
+  files?: { path: string; size: number; sha256: string }[];
+  path?: string;
+  offset?: number;
+  content_base64?: string;
+}
+export interface ProjectCopyResultMessage {
+  type: "project_copy_result";
+  request_id: string;
+  operation_id: string;
+  target_id: string;
+  fingerprint: string;
+  ok: boolean;
+  state: "missing" | "staging" | "activated";
+  error?: string;
+  file_hashes?: Record<string, string>;
+}
+
+export interface ProjectRenameMessage {
+  type: "project_rename";
+  request_id: string;
+  operation_id: string;
+  project_id: string;
+  target_project_id: string;
+}
+export interface ProjectRenameResultMessage extends Omit<ProjectRenameMessage, "type"> {
+  type: "project_rename_result";
+  ok: boolean;
+  error?: string;
+}
+
 // Plugin → backend: reply to ProjectListMessage — dir names, sorted. Le nom du
 // dossier EST l'identité du Project.
-export interface ProjectListResultMessage {
+export interface ProjectListResultMessage extends ProjectIdentityReport {
   type: "project_list_result";
   request_id: string;
   ok: boolean;
   project_ids?: string[];
+  /** Added by the backend relay; reserved roots are excluded from discovery. */
+  pending_renames?: { operation_id: string; project_id: string; target_project_id: string }[];
   error?: "read_error";
   message?: string;
 }
@@ -296,7 +348,7 @@ export interface ProjectReadResultMessage {
  * celui qui la détient déjà sait, sans un aller-retour de plus, qu'il n'a rien à
  * refaire.
  */
-export interface ProjectsReloadedMessage {
+export interface ProjectsReloadedMessage extends ProjectIdentityReport {
   type: "projects_reloaded";
   projects: { id: string; hash: string }[];
 }
@@ -364,6 +416,8 @@ export interface ProjectWriteMessage {
   type: "project_write";
   request_id: string;
   project_id: string;
+  operation_id?: string;
+  binaries?: { path: string; content_base64: string | null; base_hash: string | null }[];
   files: { path: string; content: string; base_hash: string | null }[];
   deletes?: { path: string; base_hash: string | null }[];
   /**
@@ -391,7 +445,7 @@ export interface ProjectWriteResultMessage {
    * « garder ma version » recrée l'ancien fichier en laissant le nouveau.
    */
   disk_files?: string[];
-  error?: "invalid_path" | "unknown_project" | "conflict" | "write_error";
+  error?: "invalid_path" | "unknown_project" | "conflict" | "write_error" | "plugin_update_required";
   message?: string;
 }
 
@@ -456,6 +510,7 @@ export interface ConfigWriteResultMessage {
 // Plugin → backend: module message from `/boutique additem` — the boutique
 // backend module applies the mutation (ADR captured-items-and-module-field-kit
 export type PluginToServerMessage =
+  | ProjectCopyResultMessage
   | HeadTextureResultMessage
   | HelloMessage
   | PongMessage
@@ -482,6 +537,7 @@ export interface ResourcePackUpdatedMessage {
 }
 
 export type ServerToPluginMessage =
+  | ProjectCopyMessage
   | HeadTextureFetchMessage
   | HelloAckMessage
   | DraftUpdateMessage

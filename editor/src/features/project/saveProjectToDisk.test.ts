@@ -4,8 +4,8 @@ import { writeProjectFiles } from "@/lib/api/projectFiles";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import * as backendDrafts from "./backendDrafts";
-import { saveProjectToDisk } from "./saveProjectToDisk";
+import * as persistedDrafts from "./persistedDrafts";
+import { projectTree, saveProjectToDisk } from "./saveProjectToDisk";
 
 vi.mock("@/lib/api/projectFiles", () => ({ writeProjectFiles: vi.fn() }));
 
@@ -28,10 +28,10 @@ function emptyProject(): Project {
 
 describe("saveProjectToDisk", () => {
   it("preserves the draft publication error and HTTP status without advancing the baseline", async () => {
-    backendDrafts.useBackendDraftStore.setState({
+    persistedDrafts.usePersistedDraftStore.setState({
       sessions: { p1: { ownerId: "u1", drafts: [], status: "saved" } },
     });
-    vi.spyOn(backendDrafts, "publishBackendDraft").mockRejectedValue(
+    vi.spyOn(persistedDrafts, "publishPersistedDraft").mockRejectedValue(
       new DraftApiError(
         "write_error",
         422,
@@ -52,16 +52,18 @@ describe("saveProjectToDisk", () => {
   });
   beforeEach(() => {
     vi.restoreAllMocks();
-    backendDrafts.useBackendDraftStore.setState({ sessions: {} });
+    persistedDrafts.usePersistedDraftStore.setState({ sessions: {} });
     vi.mocked(writeProjectFiles).mockReset();
     useProjectBaselineStore.setState({ baselines: {} });
   });
 
   it("publishes through the backend draft when a draft session is active", async () => {
-    backendDrafts.useBackendDraftStore.setState({
+    persistedDrafts.usePersistedDraftStore.setState({
       sessions: { p1: { ownerId: "u1", drafts: [], status: "saved" } },
     });
-    const publish = vi.spyOn(backendDrafts, "publishBackendDraft").mockResolvedValue({ wrote: 1 });
+    const publish = vi
+      .spyOn(persistedDrafts, "publishPersistedDraft")
+      .mockResolvedValue({ wrote: 1, tree: projectTree(emptyProject()) });
     const result = await saveProjectToDisk(emptyProject(), "n1", "s1");
     expect(result).toEqual({ ok: true, wrote: 1 });
     expect(publish).toHaveBeenCalledWith("p1");
@@ -80,6 +82,47 @@ describe("saveProjectToDisk", () => {
 
     expect(second).toEqual({ ok: true, wrote: 0 });
     expect(writeProjectFiles).not.toHaveBeenCalled();
+  });
+
+  it("rebases a rename continued while publication was pending", async () => {
+    persistedDrafts.usePersistedDraftStore.setState({
+      sessions: { p1: { ownerId: "u1", drafts: [], status: "saved" } },
+    });
+    const published = { "menus/b.yaml": "menu" };
+    vi.spyOn(persistedDrafts, "publishPersistedDraft").mockImplementation(async () => {
+      useProjectDraftStore.getState().save("p1", {
+        baseline: { "menus/a.yaml": "menu" },
+        tree: { "menus/c.yaml": "menu" },
+        at: 1,
+      });
+      useProjectDraftStore.setState({
+        pendingRenames: { p1: [{ from: "menus/a.yaml", to: "menus/c.yaml" }] },
+      });
+      return { wrote: 1, tree: published, renames: [{ from: "menus/a.yaml", to: "menus/b.yaml" }] };
+    });
+    expect(await saveProjectToDisk(emptyProject(), "n1", "s1")).toEqual({ ok: true, wrote: 1 });
+    expect(useProjectDraftStore.getState().get("p1")?.baseline).toEqual(published);
+    expect(useProjectDraftStore.getState().pendingRenames.p1).toEqual([
+      { from: "menus/b.yaml", to: "menus/c.yaml" },
+    ]);
+  });
+
+  it("keeps binary edits made while the unchanged text tree was published", async () => {
+    persistedDrafts.usePersistedDraftStore.setState({
+      sessions: { p1: { ownerId: "u1", drafts: [], status: "saved" } },
+    });
+    const tree = projectTree(emptyProject());
+    const before = { "assets/icon.png": { hash: "old", size: 2 } };
+    const after = { "assets/icon.png": { hash: "new", size: 3 } };
+    vi.spyOn(persistedDrafts, "publishPersistedDraft").mockImplementation(async () => {
+      useProjectDraftStore
+        .getState()
+        .save("p1", { baseline: tree, tree, at: 1, binaryTree: after });
+      return { wrote: 1, tree, binaryTree: before };
+    });
+    expect(await saveProjectToDisk(emptyProject(), "n1", "s1")).toEqual({ ok: true, wrote: 1 });
+    expect(useProjectDraftStore.getState().get("p1")?.binaryTree).toEqual(after);
+    expect(useProjectDraftStore.getState().get("p1")?.binaryBaseline).toEqual(before);
   });
 
   it("un enregistrement réussi devient la nouvelle base", async () => {
@@ -124,11 +167,11 @@ describe("saveProjectToDisk", () => {
     expect(useProjectBaselineStore.getState().get("p1")).toBeUndefined();
   });
 
-  it("écrit sous l'id disque, pas l'id interne", async () => {
+  it("binds publication to immutable project identity", async () => {
     vi.mocked(writeProjectFiles).mockResolvedValue({ ok: true });
 
     await saveProjectToDisk(emptyProject(), "n1", "s1");
 
-    expect(writeProjectFiles).toHaveBeenCalledWith("n1", "s1", "boutique_shop", expect.anything());
+    expect(writeProjectFiles).toHaveBeenCalledWith("p1", undefined, undefined, expect.anything());
   });
 });

@@ -114,21 +114,24 @@ class ProjectReader(
     }
 
     fun readAll(): List<ProjectBundle> =
-        roots.all().values.mapNotNull { dir ->
+        roots.all().mapNotNull { (projectId, dir) ->
             // Tolerant per project: a broken manifest/lang never nukes the
             // whole reload (which would fail plugin enable + cascade to
             // add-ons that `depend: Artisan`).
-            runCatching { readProject(dir) }.getOrElse { e ->
+            runCatching { readProject(projectId, dir) }.getOrElse { e ->
                 if (e is IllegalArgumentException) throw e // schema-version rejection stays loud
                 logger?.warning("[Artisan] skipping project ${dir.name}: ${e.message}")
                 null
             }
         }
 
-    private fun readProject(projectDir: File): ProjectBundle? {
+    private fun readProject(projectId: String, projectDir: File): ProjectBundle? {
         val manifestFile = File(projectDir, "manifest.yaml").takeIf { it.exists() } ?: return null
         val manifest = mapper.readValue(manifestFile, ManifestYaml::class.java)
         requireSchema(manifestFile, manifest.schema, "manifest/v1")
+        if (manifest.projectId.isNotEmpty() && manifest.projectId != projectId) {
+            logger?.warning("[Artisan] ${manifestFile.path}: legacy project_id '${manifest.projectId}' ignored; resolved identity is '$projectId'. Remove project_id from this manifest.")
+        }
 
         // Lang files are YAML trees; `LangFlattener` folds them back to the
         // dotted keys the runtime looks up (and still reads the legacy flat form).
@@ -188,7 +191,7 @@ class ProjectReader(
             }.getOrElse { e ->
                 if (e is IllegalArgumentException) throw e // schema-version rejection stays loud
                 logger?.warning("[Artisan] skipping menu ${f.name}: ${e.message}")
-                onSkip(projectDir.name, "menus/${f.name}", e.message ?: e::class.simpleName.orEmpty())
+                onSkip(projectId, "menus/${f.name}", e.message ?: e::class.simpleName.orEmpty())
                 null
             }
         }
@@ -202,7 +205,7 @@ class ProjectReader(
             }.getOrElse { e ->
                 if (e is IllegalArgumentException) throw e // schema-version rejection stays loud
                 logger?.warning("[Artisan] skipping command ${f.name}: ${e.message}")
-                onSkip(projectDir.name, "commands/${f.name}", e.message ?: e::class.simpleName.orEmpty())
+                onSkip(projectId, "commands/${f.name}", e.message ?: e::class.simpleName.orEmpty())
                 null
             }
         }
@@ -216,7 +219,7 @@ class ProjectReader(
             }.getOrElse { e ->
                 if (e is IllegalArgumentException) throw e // schema-version rejection stays loud
                 logger?.warning("[Artisan] skipping dialog ${f.name}: ${e.message}")
-                onSkip(projectDir.name, "dialogs/${f.name}", e.message ?: e::class.simpleName.orEmpty())
+                onSkip(projectId, "dialogs/${f.name}", e.message ?: e::class.simpleName.orEmpty())
                 null
             }
         }
@@ -287,7 +290,7 @@ class ProjectReader(
         val dataSources = singleFileSources + perRowSources
 
         return ProjectBundle(
-            manifest.projectId, manifest.defaultLang, manifest.languages,
+            projectId, manifest.defaultLang, manifest.languages,
             menus, commands, dialogs, dataSources, langMaps,
         )
     }

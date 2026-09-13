@@ -1,9 +1,9 @@
+import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import type { ProjectId } from "@/domain/types";
 import { uploadAsset } from "@/lib/api/userAssets";
-import { useAuthStore } from "@/state/authStore";
+import { useProjectPrincipalId } from "@/lib/projectPrincipal";
 import { useState } from "react";
 import { useAssetStore } from "./assetStore";
 
@@ -23,7 +23,7 @@ interface AssetUploadDialogProps {
  * (`AssetImportFontDialog`) — that concept stays distinct in the UI.
  */
 export function AssetUploadDialog({ projectId, open, onClose }: AssetUploadDialogProps) {
-  const user = useAuthStore((s) => s.currentUser);
+  const user = useProjectPrincipalId(projectId);
   const upsertAsset = useAssetStore((s) => s.upsertAsset);
 
   const [name, setName] = useState("");
@@ -57,22 +57,41 @@ export function AssetUploadDialog({ projectId, open, onClose }: AssetUploadDialo
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) onClose();
+      }}
+    >
       <DialogContent>
-        <DialogHeader><DialogTitle>Upload asset</DialogTitle></DialogHeader>
+        <DialogHeader>
+          <DialogTitle>Upload asset</DialogTitle>
+        </DialogHeader>
         <div className="flex flex-col gap-3">
-          <label className="text-xs">Name
-            <Input value={name} onChange={(e) => setName(e.target.value)}
-                   placeholder="lowercase, digits, _ and - only" />
+          <label className="text-xs">
+            Name
+            <Input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="lowercase, digits, _ and - only"
+            />
           </label>
-          <label className="text-xs">File
-            <input type="file" accept="image/png"
-                   onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+          <label className="text-xs">
+            File
+            <input
+              type="file"
+              accept="image/png"
+              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+            />
           </label>
           {error && <div className="text-xs text-[var(--danger)]">{error}</div>}
           <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={onClose}>Cancel</Button>
-            <Button disabled={busy || !name || !file} onClick={onSubmit}>Upload</Button>
+            <Button variant="ghost" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button disabled={busy || !name || !file} onClick={onSubmit}>
+              Upload
+            </Button>
           </div>
         </div>
       </DialogContent>

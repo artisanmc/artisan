@@ -1,70 +1,94 @@
-/**
- * Test runner — isolates tests in a separate `artisan_test` DB so they
- * never wipe the developer's `artisan` dev DB.
- *
- * Flow :
- *   1. Connect to the default `postgres` database as admin.
- *   2. CREATE DATABASE "artisan_test" if it doesn't already exist.
- *   3. Run Drizzle migrations against it.
- *   4. Spawn `bun test --isolate` with DATABASE_URL pointing at the test DB.
- *
- * Override the admin URL via ADMIN_DATABASE_URL if your local Postgres uses
- * different credentials (e.g. `postgresql://user:pwd@localhost:5432/postgres`).
- */
-import { tmpdir } from "os";
-import { join } from "path";
-import { rmSync } from "fs";
+import { spawnSync } from "node:child_process";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+/** Migrate the dedicated test database once; full runs use one process per file. */
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import postgres from "postgres";
-import { spawnSync } from "child_process";
-
+import { assertTestDatabaseName, testProcesses } from "./testPlan";
 const ADMIN_URL =
-  process.env.ADMIN_DATABASE_URL ?? "postgresql://postgres:postgres@localhost:5432/postgres";
+	process.env.ADMIN_DATABASE_URL ??
+	"postgresql://postgres:postgres@localhost:5432/postgres";
 const TEST_DB = process.env.TEST_DATABASE_NAME ?? "artisan_test";
-const HOST = new URL(ADMIN_URL).host;
-const USER = new URL(ADMIN_URL).username;
-const PWD = new URL(ADMIN_URL).password;
-const TEST_URL = `postgresql://${USER}:${PWD}@${HOST}/${TEST_DB}`;
-
-async function ensureTestDb(): Promise<void> {
-  const sql = postgres(ADMIN_URL);
-  try {
-    const rows = await sql`SELECT 1 FROM pg_database WHERE datname = ${TEST_DB}`;
-    if (rows.length === 0) {
-      console.log(`[test] creating database "${TEST_DB}"`);
-      await sql.unsafe(`CREATE DATABASE "${TEST_DB}"`);
-    }
-  } finally {
-    await sql.end();
-  }
+assertTestDatabaseName(TEST_DB);
+const testUrl = new URL(ADMIN_URL);
+testUrl.pathname = `/${TEST_DB}`;
+const TEST_URL = testUrl.toString();
+const env = { ...process.env, DATABASE_URL: TEST_URL };
+const admin = postgres(ADMIN_URL);
+try {
+	if (
+		!(await admin`SELECT 1 FROM pg_database WHERE datname = ${TEST_DB}`).length
+	)
+		await admin.unsafe(`CREATE DATABASE "${TEST_DB}"`);
+} finally {
+	await admin.end();
 }
-
-function migrateTestDb(): void {
-  console.log(`[test] migrating "${TEST_DB}"`);
-  const r = spawnSync("bun", ["run", "src/db/migrate.ts"], {
-    env: { ...process.env, DATABASE_URL: TEST_URL },
-    stdio: "inherit",
-    shell: process.platform === "win32",
-  });
-  if (r.status !== 0) process.exit(r.status ?? 1);
+console.log(
+	`[test] Bun ${Bun.version}: ${process.execPath}; database ${TEST_DB}`,
+);
+const migration = spawnSync(process.execPath, ["run", "src/db/migrate.ts"], {
+	env,
+	stdio: "inherit",
+});
+if (migration.status !== 0) process.exit(migration.status ?? 1);
+const args = process.argv.slice(2);
+const files = args.length
+	? []
+	: [...new Bun.Glob("**/*.{test,spec}.{ts,tsx,js,jsx}").scanSync(".")].filter(
+			(file) =>
+				!file
+					.split(/[\\/]/)
+					.some((part) =>
+						["node_modules", "dist", "build", ".scratch", ".git"].includes(
+							part,
+						),
+					),
+		);
+const commands = testProcesses(args, files);
+if (!commands.length) throw new Error("no_test_files");
+const logs = mkdtempSync(join(tmpdir(), "artisan-test-results-"));
+const sql = postgres(TEST_URL);
+let failed = 0;
+const totals = { pass: 0, fail: 0, skip: 0, todo: 0 };
+try {
+	for (const [index, command] of commands.entries()) {
+		if (!args.length) {
+			const [identity] = await sql`SELECT current_database() AS name`;
+			if (identity?.name !== TEST_DB) throw new Error("unsafe_test_database");
+			const tables =
+				await sql`SELECT tablename FROM pg_tables WHERE schemaname = 'public'`;
+			if (tables.length)
+				await sql.unsafe(
+					`TRUNCATE ${tables.map(({ tablename }) => `public."${String(tablename).replaceAll('"', '""')}"`).join(",")} RESTART IDENTITY CASCADE`,
+				);
+		}
+		const cache = mkdtempSync(join(tmpdir(), "artisan-test-cache-"));
+		try {
+			const result = spawnSync(process.execPath, command, {
+				env: { ...env, ASSET_CACHE_DIR: cache },
+				encoding: "utf8",
+				maxBuffer: 64 * 1024 * 1024,
+				timeout: 180_000,
+			});
+			const output = `${result.stdout ?? ""}${result.stderr ?? ""}${result.error ? `\n${result.error}` : ""}`;
+			writeFileSync(join(logs, `${index + 1}.log`), output);
+			for (const key of Object.keys(totals) as (keyof typeof totals)[])
+				totals[key] += Number(
+					output.match(new RegExp(`(?:^|\\n)\\s*(\\d+) ${key}\\b`))?.[1] ?? 0,
+				);
+			if (result.status !== 0) failed++;
+			console.log(
+				`[test] ${index + 1}/${commands.length} ${result.status === 0 ? "PASS" : "FAIL"} ${command.slice(1).join(" ")}`,
+			);
+			if (args.length || result.status !== 0) console.log(output);
+		} finally {
+			rmSync(cache, { recursive: true, force: true });
+		}
+	}
+} finally {
+	await sql.end();
 }
-
-function runTests(): void {
-  console.log(`[test] running bun test --isolate against "${TEST_DB}"`);
-  const args = ["test", "--isolate", ...process.argv.slice(2)];
-  // Cache d'assets isolé et NEUF à chaque run : partagé avec le dev, il ferait
-  // passer des tests sur des octets laissés par un run précédent — un cache qui
-  // survit à ce qu'il cache est un test qui ne teste plus rien.
-  const assetCacheDir = join(tmpdir(), `artisan-asset-cache-test-${process.pid}`);
-  rmSync(assetCacheDir, { recursive: true, force: true });
-  const r = spawnSync("bun", args, {
-    env: { ...process.env, DATABASE_URL: TEST_URL, ASSET_CACHE_DIR: assetCacheDir },
-    stdio: "inherit",
-    shell: process.platform === "win32",
-  });
-  rmSync(assetCacheDir, { recursive: true, force: true });
-  process.exit(r.status ?? 0);
-}
-
-await ensureTestDb();
-migrateTestDb();
-runTests();
+console.log(
+	`[test] ${commands.length} processes; ${failed} failed; ${JSON.stringify(totals)}; logs ${logs}`,
+);
+process.exit(failed ? 1 : 0);

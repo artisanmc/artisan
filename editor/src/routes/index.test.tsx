@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { HomeRoute } from "./index";
 import * as authStore from "@/state/authStore";
 
@@ -35,7 +35,7 @@ describe("HomeRoute", () => {
     });
   });
 
-  it("redirects unauthenticated user to /login", async () => {
+  it("offers a demo and sign-in without redirecting a guest", async () => {
     vi.mocked(authStore.useAuthStore).mockImplementation(
       (selector: (s: { currentUser: null }) => unknown) =>
         selector({ currentUser: null }) as any
@@ -43,10 +43,7 @@ describe("HomeRoute", () => {
 
     render(<HomeRoute />);
 
-    await waitFor(() => {
-      expect(mockNavigate).toHaveBeenCalledWith({
-        to: "/login",
-      });
-    });
+    expect(screen.getAllByRole("link").some(link => link.getAttribute("href") === "/demo")).toBe(true);
+    expect(mockNavigate).not.toHaveBeenCalled();
   });
 });

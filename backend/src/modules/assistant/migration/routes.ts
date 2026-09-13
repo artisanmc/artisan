@@ -99,7 +99,8 @@ export function buildMigrationRouter(
 		if (!project || project.deletedAt)
 			return c.json({ error: "project_not_found" }, 404);
 		c.set("migrationConversation", conversation);
-		c.set("migrationAccess", access);
+		if (!access.serverKeyId) return c.json({ error: "server_unavailable" }, 422);
+		c.set("migrationAccess", { networkId: access.networkId, serverKeyId: access.serverKeyId });
 		return next();
 	});
 	const guardRun: MiddlewareHandler<MigrationRouteEnv> = async (c, next) => {

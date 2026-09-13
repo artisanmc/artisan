@@ -3,7 +3,10 @@ import { existsSync } from "fs";
 import { db } from "../db/index";
 import { projects, serverKeys } from "../db/schema";
 import { buildResourcePackZip, type AssetRow } from "./resourcePackBuilder";
-import { listDiskAssets, readDiskAssetBytes } from "./diskAssets";
+import { diskAssetsFromTree, listDiskAssets, readDiskAssetBytes, type DiskAsset } from "./diskAssets";
+import { readProjectTree } from "./projectTreeReads";
+import { requestAssetRead } from "../ws/hub";
+import { createHash } from "crypto";
 import {
   pruneOldResourcePacks,
   resourcePackPath,
@@ -45,12 +48,14 @@ export interface PackInfo {
  * des carrés à la place des lettres se voient plus qu'un pack en retard d'une
  * écriture. Le pack précédent tient donc, et la prochaine écriture rejouera.
  */
-export async function rebuildResourcePack(serverKeyId: string): Promise<PackInfo> {
+export async function rebuildResourcePack(serverKeyId: string, options: { requiredProjectId?: string } = {}): Promise<PackInfo> {
   // Stable order: oldest project first → its codepoints win in case of collisions.
   const boundProjects = await db.select().from(projects).where(
     and(eq(projects.serverKeyId, serverKeyId), isNull(projects.deletedAt)),
   );
   boundProjects.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+  const strict = options.requiredProjectId !== undefined;
+  if (strict && !boundProjects.some(p => p.id === options.requiredProjectId)) throw new Error("resource_pack_incomplete");
 
   const allAssets: AssetRow[] = [];
   const contribs: GlyphContribution[] = [];
@@ -59,7 +64,24 @@ export async function rebuildResourcePack(serverKeyId: string): Promise<PackInfo
 
   for (const p of boundProjects) {
     const diskId = p.externalId ?? p.id;
-    const fromDisk = await listDiskAssets(serverKeyId, diskId, p.id);
+    const binaryRefs = new Map<string, { hash: string; size: number }>();
+    const fromDisk = strict ? await (async () => {
+      const tree = await readProjectTree(serverKeyId, diskId, { maxAgeMs: 0 });
+      if (tree.kind !== "result" || !tree.result.ok || tree.result.failed?.length) throw new Error("resource_pack_incomplete");
+      for (const ref of tree.result.binaries ?? []) binaryRefs.set(ref.path, ref);
+      return diskAssetsFromTree(p.id, tree.result.files ?? [], tree.result.binaries ?? []);
+    })() : await listDiskAssets(serverKeyId, diskId, p.id);
+
+    const readBytes = async (asset: DiskAsset) => {
+      if (!strict) return readDiskAssetBytes(serverKeyId, diskId, asset);
+      const ref = binaryRefs.get(asset.path);
+      if (!ref) throw new Error("resource_pack_incomplete");
+      const result = await requestAssetRead(serverKeyId, { projectId: diskId, path: asset.path });
+      if (result.kind !== "result" || !result.result.ok || result.result.content_base64 === undefined) throw new Error("resource_pack_incomplete");
+      const bytes = Buffer.from(result.result.content_base64, "base64");
+      if (bytes.length !== ref.size || createHash("sha256").update(bytes).digest("hex") !== ref.hash) throw new Error("resource_pack_incomplete");
+      return bytes;
+    };
 
     if (!fromDisk) {
       // Disque muet : on ne sait pas ce que ce Project contient. Publier
@@ -80,7 +102,7 @@ export async function rebuildResourcePack(serverKeyId: string): Promise<PackInfo
     for (const a of fromDisk) {
       allAssets.push(a.row);
       if (a.row.type === "glyph" && a.row.codepoint !== null) {
-        const bytes = await readDiskAssetBytes(serverKeyId, diskId, a);
+        const bytes = await readBytes(a);
         // Un glyphe dont on ne peut pas lire les octets est SAUTÉ, pas fatal :
         // un pack amputé d'une image vaut mieux qu'un serveur sans pack.
         if (bytes) glyphPngs.set(a.row.id, bytes);
@@ -93,7 +115,7 @@ export async function rebuildResourcePack(serverKeyId: string): Promise<PackInfo
       const dir = a.path.slice(0, a.path.lastIndexOf("/"));
       const fontMap = new Map<string, Uint8Array>();
       for (const g of meta?.glyphMap ?? []) {
-        const bytes = await readDiskAssetBytes(serverKeyId, diskId, {
+        const bytes = await readBytes({
           ...a,
           path: `${dir}/${g.texture}`,
           // Le hash du descripteur ne décrit pas ce PNG : sans empreinte

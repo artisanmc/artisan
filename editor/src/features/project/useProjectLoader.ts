@@ -1,18 +1,22 @@
-import { listModules } from "@artisan/editor-sdk";
 import { injectDeclaredModels, normalizeDataSources } from "@/domain/dataModels";
 import type { Account, Project, ProjectId } from "@/domain/types";
-import { isDirty } from "@/features/project/draft";
+import { hasDraftChanges } from "@/features/project/draft";
 import { fetchServerDeclaredModels } from "@/lib/api/dataSources";
-import { type FailedDocument, readProjectFiles } from "@/lib/api/projectFiles";
+import type { FailedDocument } from "@/lib/api/projectFiles";
 import { loadUserProject } from "@/lib/api/userProjects";
+import { projectClient } from "@/lib/projectClient";
+import { useProjectPrincipalId } from "@/lib/projectPrincipal";
 import { projectFromFiles } from "@/schema/projectFromFiles";
 import { useAccountStore } from "@/state/accountStore";
-import { useAuthStore } from "@/state/authStore";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { projectCacheKey, useProjectCacheStore } from "@/state/projectCacheStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
-import { useEffect, useState } from "react";
-import { loadBackendDrafts } from "./backendDrafts";
+import { projectRuntime, useProjectRuntimeStore } from "@/state/projectRuntimeStore";
+import { useServersStore } from "@/state/serversStore";
+import { listModules } from "@artisan/editor-sdk";
+import { useEffect, useRef, useState } from "react";
+import { flushDraftEdits } from "./draftFlush";
+import { loadPersistedDrafts } from "./persistedDrafts";
 
 export interface ProjectLoadResult {
   project: Project | null;
@@ -35,22 +39,13 @@ export interface ProjectLoadResult {
   stale: boolean;
 }
 
-/**
- * L'arbre à AFFICHER pour ce Project : le brouillon s'il porte du travail non
- * enregistré, sinon celui qu'on a sous la main.
- *
- * À appeler sur CHAQUE chemin d'affichage, sans exception. Les chemins passant
- * par la version connue — affichage immédiat, réponse « inchangé », serveur
- * injoignable — reconstruisaient depuis l'arbre du serveur et faisaient
- * disparaître le travail en cours à un simple rechargement de page. Un
- * brouillon n'existe nulle part ailleurs : le perdre, c'est le perdre.
- */
+/** Select working edits only after the project has passed its opening check. */
 function treeToShow(
   projectId: string,
   fallback: Record<string, string>,
 ): { tree: Record<string, string>; fromDraft: boolean } {
   const draft = useProjectDraftStore.getState().get(projectId);
-  const resumable = draft && (draft.remote || isDirty(draft.initialTree, draft.tree));
+  const resumable = draft && (draft.remote || hasDraftChanges(draft));
   return resumable ? { tree: draft.tree, fromDraft: true } : { tree: fallback, fromDraft: false };
 }
 
@@ -58,33 +53,23 @@ function treeToShow(
  *  version connue pour que la visite suivante n'ait rien à attendre. */
 let lastDeclaredModels: unknown[] | undefined;
 
-/**
- * Construit le Project depuis un arbre rel-keyed et l'installe dans les stores.
- *
- * Deux appelants, deux provenances : l'arbre lu sur le serveur, ou celui d'un
- * brouillon quand le serveur est injoignable. Le chemin est le même — c'est ce
- * qui garantit qu'un brouillon n'est pas un objet de seconde classe.
- */
+/** Parse the current working tree after resolving contextual models. */
 async function buildProject(
   res: Awaited<ReturnType<typeof loadUserProject>>,
   diskId: string,
   tree: Record<string, string>,
-  /**
-   * Les modèles déclarés, quand on les a déjà.
-   *
-   * Sans ça, l'affichage de la version connue attendait un aller-retour REST
-   * avant de rendre le moindre pixel — donc « Lecture des fichiers du
-   * serveur… » à chaque visite, alors que tout était là. Un cache qui attend
-   * le réseau n'est pas un cache. Le passage suivant, celui du serveur, les
-   * rafraîchit de toute façon.
-   */
   declaredModels?: unknown[],
 ): Promise<Project> {
-  // Files-first (ADR files-first-source-of-truth): the file tree IS the Project
-  // — parse it client-side. Les chemins sont relatifs au project ;
-  // `projectFromFiles` attend la forme canonique.
+  const serverId = res.project.serverKeyId ?? res.serverKeyId;
+  let models = declaredModels;
+  if (!models && serverId && res.networkId && projectRuntime(res).capabilities.liveData) {
+    models = await fetchServerDeclaredModels(res.networkId, serverId).catch(() => []);
+    lastDeclaredModels = models;
+  }
+  flushDraftEdits();
+  const currentTree = treeToShow(res.project.id, tree).tree;
   const canonical: Record<string, string> = {};
-  for (const [rel, content] of Object.entries(tree)) {
+  for (const [rel, content] of Object.entries(currentTree)) {
     canonical[`plugins/Artisan/projects/${diskId}/${rel}`] = content;
   }
   const loaded: Project = projectFromFiles(res.project.id as ProjectId, canonical, {
@@ -93,15 +78,7 @@ async function buildProject(
     slug: res.project.slug ?? undefined,
     serverKeyId: res.project.serverKeyId ?? res.serverKeyId ?? undefined,
   });
-  // Module-declared models (ADR composable-data-models §4/§5).
-  const serverId = res.project.serverKeyId ?? res.serverKeyId;
-  if (declaredModels) {
-    injectDeclaredModels(loaded, declaredModels as never);
-  } else if (serverId && res.networkId) {
-    const docs = await fetchServerDeclaredModels(res.networkId, serverId).catch(() => []);
-    injectDeclaredModels(loaded, docs);
-    lastDeclaredModels = docs;
-  }
+  if (models) injectDeclaredModels(loaded, models as never);
   // Accepted reset (ADR project-sources-and-data-models).
   normalizeDataSources(loaded);
   for (const module of listModules()) module.migrateProject?.(loaded);
@@ -109,26 +86,15 @@ async function buildProject(
   return loaded;
 }
 
-/**
- * Installe le Project dans le store que lit tout le canvas.
- *
- * Séparé de la construction, et ce n'est pas cosmétique : deux constructions
- * coexistent (la version connue, affichée tout de suite, et celle du serveur),
- * elles attendent chacune un aller-retour réseau, et rien ne garantit leur
- * ordre d'arrivée. Quand le miroir vivait DANS la construction, celle du cache
- * pouvait finir en dernier et écraser la fraîche — l'écran montrait alors la
- * visite précédente en croyant montrer le serveur.
- *
- * Le miroir appartient donc à l'appelant, qui seul sait qui a gagné.
- */
-function mirrorIntoAccount(loaded: Project, networkId: string): void {
+/** Install a project only from the currently authorized, uncancelled load. */
+function mirrorIntoAccount(loaded: Project, networkId: string | null): void {
   // EN PRÉSERVANT l'ordre existant — l'écraser remontait le project visité en
   // tête de sidebar.
   const current = useAccountStore.getState().account;
   const idx = current.projects.findIndex((p) => p.id === loaded.id);
   const loadedId = loaded.id as ProjectId;
   useAccountStore.getState().setAccount({
-    id: networkId as Account["id"],
+    id: (networkId ?? "") as Account["id"],
     projects:
       idx === -1
         ? [...current.projects, loaded]
@@ -140,8 +106,9 @@ function mirrorIntoAccount(loaded: Project, networkId: string): void {
 }
 
 export function useProjectLoader(projectId: string, serverRef?: string | null): ProjectLoadResult {
-  const user = useAuthStore((s) => s.currentUser);
+  const ownerId = useProjectPrincipalId(projectId);
   const reloadToken = useProjectCacheStore((s) => s.reloadToken);
+  const opened = useRef<string | null>(null);
   const [project, setProject] = useState<Project | null>(null);
   const [networkId, setNetworkId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -152,55 +119,27 @@ export function useProjectLoader(projectId: string, serverRef?: string | null): 
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: reloadToken relance la lecture sur Actualiser.
   useEffect(() => {
+    const scope = `${ownerId}:${serverRef ?? ""}:${projectId}`;
+    useProjectRuntimeStore.getState().set(null);
+    useServersStore.getState().setActiveServerId(null);
+    if (opened.current !== scope) setProject(null);
     setError(null);
     setOffline(false);
     setFailed([]);
     setFromDraft(false);
     setStale(false);
-    if (!user) {
+    if (!ownerId) {
       setError("Not authenticated");
       return;
     }
-    useProjectDraftStore.getState().setOwner(user.id);
-    // La dernière version connue s'affiche TOUT DE SUITE, pendant que la vraie
-    // lecture part. Sans elle, l'écran attend un aller-retour jusqu'au disque du
-    // serveur — plusieurs secondes — pour afficher, neuf fois sur dix, la même
-    // chose qu'à la visite précédente.
-    let fresh = false;
+    useProjectDraftStore.getState().setOwner(ownerId);
     let cancelled = false;
-    let unavailableShown = false;
     let retryTimer: ReturnType<typeof setTimeout> | undefined;
     const cacheKey = projectCacheKey(projectId, serverRef);
     const cached = useProjectCacheStore.getState().get(cacheKey);
-    if (cached) {
-      buildProject(
-        cached.identity as never,
-        cached.diskId,
-        treeToShow(
-          ((cached.identity as { project?: { id?: string } }).project?.id ?? "") as string,
-          cached.tree,
-        ).tree,
-        cached.declaredModels ?? [],
-      )
-        .then((p) => {
-          // La réponse du serveur a pu arriver entre-temps : elle gagne,
-          // toujours — y compris pour le store que lit le canvas, d'où le
-          // miroir posé ICI et pas dans la construction.
-          if (fresh || cancelled) return;
-          mirrorIntoAccount(p, (cached.identity as { networkId?: string }).networkId ?? "");
-          setProject(p);
-          setFailed(cached.failed ?? []);
-          setStale(true);
-        })
-        .catch(() => {
-          if (cancelled) return;
-          // Un cache illisible (format d'une version précédente) ne casse rien :
-          // on l'oublie et on attend le serveur, comme avant.
-          useProjectCacheStore.getState().forget(cacheKey);
-        });
-    }
 
     const refresh = () => {
+      flushDraftEdits();
       let retry = false;
       let validated = false;
       return loadUserProject(projectId, serverRef)
@@ -211,80 +150,48 @@ export function useProjectLoader(projectId: string, serverRef?: string | null): 
           // l'identité (nom, slug, serveur propriétaire, network).
           const diskId = res.project.externalId ?? res.project.id;
           const ownerServerId = res.project.serverKeyId ?? res.serverKeyId;
-          await loadBackendDrafts(res.project.id, user.id);
-          if (cancelled) return;
-          const restoredDraft = useProjectDraftStore.getState().get(res.project.id);
-          if (restoredDraft) {
-            // Show the restored working copy before waiting for Minecraft.
-            // Otherwise edits on the stale canvas could replace the remote draft.
-            fresh = true;
-            useProjectBaselineStore.getState().set(res.project.id, restoredDraft.baseline);
-            const restored = await buildProject(res, diskId, restoredDraft.tree, cached?.declaredModels ?? []);
-            if (cancelled) return;
-            mirrorIntoAccount(restored, res.networkId);
-            setProject(restored);
-            setNetworkId(res.networkId);
-            setFromDraft(Boolean(restoredDraft.remote || isDirty(restoredDraft.initialTree, restoredDraft.tree)));
-            setStale(true);
-          }
+          const runtime = projectRuntime(res);
+          useProjectRuntimeStore.getState().set(runtime);
+          useServersStore.getState().setActiveServerId(runtime.serverId);
           // On annonce l'empreinte qu'on détient : si le serveur porte la même, il
           // ne renvoie rien et notre copie vient d'être revalidée.
-          const disk = await readProjectFiles(res.networkId, ownerServerId, diskId, cached?.hash);
+          const disk = await projectClient(res.project.id).read(cached?.hash);
           if (cancelled) return;
           if (!disk.ok) {
-            const unreachable = disk.error === "server_offline" || disk.error === "network_error";
+            const unreachable =
+              disk.error === "server_offline" ||
+              disk.error === "network_error" ||
+              disk.error === "fetch_timeout";
             retry = unreachable;
-            if (unreachable && unavailableShown) return;
-            unavailableShown = unreachable;
-            // Serveur injoignable : on ouvre le brouillon plutôt que de refuser
-            // l'accès (décision 7 révisée). C'est un état DATÉ, pas la vérité —
-            // l'appelant l'annonce, et Enregistrer reste hors de portée.
-            const draft = unreachable
-              ? useProjectDraftStore.getState().get(res.project.id)
-              : undefined;
-            if (draft) {
-              fresh = true;
-              useProjectBaselineStore.getState().set(res.project.id, draft.baseline);
-              const built = await buildProject(res, diskId, draft.tree);
-              if (cancelled) return;
-              mirrorIntoAccount(built, res.networkId);
-              setProject(built);
-              setNetworkId(res.networkId);
-              setFromDraft(true);
-              setStale(true);
+            if (unreachable && opened.current === scope) {
               setOffline(true);
+              setStale(true);
               return;
             }
-            fresh = true;
-            if (unreachable && cached) {
-              // Serveur injoignable, mais on sait ce qu'il avait : on le montre,
-              // daté, plutôt qu'un écran d'erreur. Enregistrer reste hors de portée.
-              const shown = treeToShow(res.project.id, cached.tree);
-              const built = await buildProject(cached.identity as never, cached.diskId, shown.tree);
-              if (cancelled) return;
-              setFromDraft(shown.fromDraft);
-              mirrorIntoAccount(built, res.networkId);
-              setProject(built);
-              setNetworkId(res.networkId);
-              setStale(true);
-              setOffline(true);
-              return;
-            }
+            setProject(null);
             setOffline(unreachable);
             setError(disk.error);
             return;
           }
+          await loadPersistedDrafts(res.project.id, ownerId);
+          if (cancelled) return;
+          const binaries = disk.unchanged ? (cached?.binaries ?? []) : (disk.binaries ?? []);
+          useProjectBaselineStore
+            .getState()
+            .setBinaries(
+              res.project.id,
+              Object.fromEntries(binaries.map(({ path, hash, size }) => [path, { hash, size }])),
+            );
           if (disk.unchanged) {
             // Revalidé : ce qu'on affiche EST ce que le serveur porte. Rien à
             // reconstruire, rien à retransporter — seul le drapeau tombe.
-            fresh = true;
             if (cached) {
               const draft = useProjectDraftStore.getState().get(res.project.id);
               useProjectBaselineStore
                 .getState()
                 .set(
                   res.project.id,
-                  draft && (draft.remote || isDirty(draft.initialTree, draft.tree)) ? draft.baseline : cached.tree,
+                  draft && (draft.remote || hasDraftChanges(draft)) ? draft.baseline : cached.tree,
                 );
               useProjectCacheStore.getState().put(cacheKey, {
                 ...cached,
@@ -296,6 +203,7 @@ export function useProjectLoader(projectId: string, serverRef?: string | null): 
               if (cancelled) return;
               setFromDraft(shown.fromDraft);
               mirrorIntoAccount(built, res.networkId);
+              opened.current = scope;
               setProject(built);
               setNetworkId(res.networkId);
               setFailed(cached.failed ?? []);
@@ -305,28 +213,42 @@ export function useProjectLoader(projectId: string, serverRef?: string | null): 
             }
             // Pas de cache mais un « inchangé » : on ne sait pas de quoi il parle.
             // On redemande sans empreinte plutôt que d'afficher du vide.
-            const full = await readProjectFiles(res.networkId, ownerServerId, diskId);
+            const full = await projectClient(res.project.id).read();
             if (cancelled) return;
             if (!full.ok || full.unchanged) {
               setError("read_error");
               return;
             }
-            fresh = true;
+            useProjectBaselineStore
+              .getState()
+              .setBinaries(
+                res.project.id,
+                Object.fromEntries(
+                  (full.binaries ?? []).map(({ path, hash, size }) => [path, { hash, size }]),
+                ),
+              );
             useProjectCacheStore.getState().put(cacheKey, {
               identity: res,
               diskId,
               serverKeyId: ownerServerId ?? null,
               tree: full.files,
+              binaries: full.binaries,
               failed: full.failed,
               hash: full.hash ?? null,
               declaredModels: lastDeclaredModels,
               fetchedAt: new Date().toISOString(),
             });
-            useProjectBaselineStore.getState().set(res.project.id, full.files);
-            const built = await buildProject(res, diskId, full.files);
+            const shown = treeToShow(res.project.id, full.files);
+            const recovered = useProjectDraftStore.getState().get(res.project.id);
+            useProjectBaselineStore
+              .getState()
+              .set(res.project.id, shown.fromDraft && recovered ? recovered.baseline : full.files);
+            const built = await buildProject(res, diskId, shown.tree);
             if (cancelled) return;
             mirrorIntoAccount(built, res.networkId);
+            opened.current = scope;
             setProject(built);
+            setFromDraft(shown.fromDraft);
             setNetworkId(res.networkId);
             setFailed(full.failed);
             setStale(false);
@@ -340,7 +262,7 @@ export function useProjectLoader(projectId: string, serverRef?: string | null): 
           // bandeau mais l'état de la topbar : Enregistrer n'est actif que s'il y
           // a quelque chose à enregistrer, et Annuler y revient d'un clic.
           const draft = useProjectDraftStore.getState().get(res.project.id);
-          const resumable = draft && (draft.remote || isDirty(draft.initialTree, draft.tree)) ? draft : null;
+          const resumable = draft && (draft.remote || hasDraftChanges(draft)) ? draft : null;
           if (draft && !resumable) useProjectDraftStore.getState().clear(res.project.id);
 
           // La base du compare-and-swap : ce que le disque contenait à l'ouverture.
@@ -349,12 +271,12 @@ export function useProjectLoader(projectId: string, serverRef?: string | null): 
           // La base reste celle du SERVEUR : c'est elle que le compare-and-swap
           // doit présenter, sinon on écraserait sans le savoir ce qui a changé
           // depuis. Seul l'arbre affiché vient du brouillon.
-          fresh = true;
           useProjectCacheStore.getState().put(cacheKey, {
             identity: res,
             diskId,
             serverKeyId: ownerServerId ?? null,
             tree: disk.files,
+            binaries: disk.binaries,
             failed: disk.failed,
             hash: disk.hash ?? null,
             declaredModels: lastDeclaredModels,
@@ -363,6 +285,7 @@ export function useProjectLoader(projectId: string, serverRef?: string | null): 
           const built = await buildProject(res, diskId, resumable?.tree ?? disk.files);
           if (cancelled) return;
           mirrorIntoAccount(built, res.networkId);
+          opened.current = scope;
           setProject(built);
           setNetworkId(res.networkId);
           setFromDraft(resumable !== null);
@@ -370,7 +293,17 @@ export function useProjectLoader(projectId: string, serverRef?: string | null): 
           validated = true;
         })
         .catch((e) => {
-          if (!cancelled) setError((e as Error).message);
+          if (cancelled) return;
+          retry =
+            e instanceof TypeError ||
+            (e instanceof Error &&
+              ["network_error", "fetch_timeout", "server_offline"].includes(e.message));
+          if (retry) {
+            setOffline(true);
+            setStale(opened.current === scope);
+            if (opened.current === scope) return;
+          }
+          setError((e as Error).message);
         })
         .finally(() => {
           if (cancelled) return;
@@ -386,7 +319,7 @@ export function useProjectLoader(projectId: string, serverRef?: string | null): 
       cancelled = true;
       clearTimeout(retryTimer);
     };
-  }, [projectId, serverRef, user, reloadToken]);
+  }, [projectId, serverRef, ownerId, reloadToken]);
 
   return { project, networkId, error, offline, failed, fromDraft, stale };
 }

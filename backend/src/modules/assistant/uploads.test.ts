@@ -1,6 +1,13 @@
 import { expect, it } from "bun:test";
 import { mergeUploads } from "./uploads";
 
+it("hosted uploads stay in their authorized Network and do not inherit a live server scope", () => {
+  const stored = { networkId: "n", serverKeyId: null, files: { "x.yaml": "private" } };
+  expect(mergeUploads(stored, { networkId: "n", serverKeyId: null }, {})).toEqual(stored.files);
+  expect(mergeUploads(stored, { networkId: "other", serverKeyId: null }, {})).toEqual({});
+  expect(mergeUploads(stored, { networkId: "n", serverKeyId: "server" }, {})).toEqual({});
+});
+
 it("does not reuse uploads after a network or server scope change", () => {
 	const stored = {
 		networkId: "network-a",

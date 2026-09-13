@@ -2,16 +2,13 @@ import { rekeyProject } from "@/domain/i18nSites";
 import type { Project } from "@/domain/types";
 import { transform } from "@/features/export/transform";
 import { DraftApiError } from "@/lib/api/projectDrafts";
-import {
-  type ProjectFileConflict,
-  type ProjectFilesError,
-  writeProjectFiles,
-} from "@/lib/api/projectFiles";
+import type { ProjectFileConflict, ProjectFilesError } from "@/lib/api/projectFiles";
+import { projectClient } from "@/lib/projectClient";
 import { projectFromFiles } from "@/schema/projectFromFiles";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
-import { publishBackendDraft, useBackendDraftStore } from "./backendDrafts";
 import { applyRenames, planWrite, toRelative } from "./diskSave";
+import { publishPersistedDraft, usePersistedDraftStore } from "./persistedDrafts";
 
 /** L'arbre rel-keyed que produirait un enregistrement de [project], sans écrire. */
 export function projectTree(project: Project): Record<string, string> {
@@ -70,10 +67,9 @@ export type SaveToDiskResult =
  */
 export async function saveProjectToDisk(
   project: Project,
-  networkId: string,
-  serverId: string,
+  _networkId?: string,
+  _serverId?: string,
 ): Promise<SaveToDiskResult> {
-  const diskId = project.diskId ?? project.id;
   const next = projectTree(project);
 
   const store = useProjectBaselineStore.getState();
@@ -81,7 +77,7 @@ export async function saveProjectToDisk(
   // pas encore : c'est une création ou un import, et l'écriture doit le dire.
   const known = store.get(project.id);
   const baseline = known ?? {};
-  if (useBackendDraftStore.getState().sessions[project.id]) {
+  if (usePersistedDraftStore.getState().sessions[project.id]) {
     const previous = useProjectDraftStore.getState().get(project.id);
     useProjectDraftStore.getState().save(project.id, {
       ...previous,
@@ -91,16 +87,37 @@ export async function saveProjectToDisk(
       at: previous?.at ?? Date.now(),
     });
     try {
-      const result = await publishBackendDraft(project.id);
+      const result = await publishPersistedDraft(project.id);
       if (!result) return { ok: false, error: "write_error" };
-      store.set(project.id, next);
+      const published = result.tree ?? next;
+      store.set(project.id, published);
+      store.setBinaries(project.id, result.binaryTree ?? {});
       const current = useProjectDraftStore.getState().get(project.id);
-      if (current && JSON.stringify(current.tree) !== JSON.stringify(next)) {
+      if (
+        current &&
+        (JSON.stringify(current.tree) !== JSON.stringify(published) ||
+          JSON.stringify(current.binaryTree ?? {}) !== JSON.stringify(result.binaryTree ?? {}))
+      ) {
+        const renames = (
+          useProjectDraftStore.getState().pendingRenames[project.id] ??
+          current.renames ??
+          []
+        )
+          .map((rename) => ({
+            ...rename,
+            from: result.renames?.find((done) => done.from === rename.from)?.to ?? rename.from,
+          }))
+          .filter((rename) => rename.from !== rename.to);
+        useProjectDraftStore.setState((state) => ({
+          pendingRenames: { ...state.pendingRenames, [project.id]: renames },
+        }));
         useProjectDraftStore.getState().save(project.id, {
           ...current,
+          renames,
           remote: undefined,
-          baseline: next,
-          initialTree: next,
+          baseline: published,
+          binaryBaseline: result.binaryTree,
+          initialTree: published,
           at: Date.now(),
         });
       } else useProjectDraftStore.getState().clear(project.id);
@@ -137,8 +154,9 @@ export async function saveProjectToDisk(
   // fichiers identiques (ce qui polluerait la corbeille pour rien).
   if (plan.empty) return { ok: true, wrote: 0 };
 
-  const res = await writeProjectFiles(networkId, serverId, diskId, {
+  const res = await projectClient(project.id).write({
     ...plan,
+    operationId: crypto.randomUUID(),
     create: known === undefined,
   });
   if (!res.ok) {

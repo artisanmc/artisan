@@ -1,7 +1,8 @@
 import { and, eq, isNull, or, sql } from "drizzle-orm";
 import { db } from "../db/index";
-import { projects, serverKeys } from "../db/schema";
+import { projects, projectRenames, projectCopies, serverKeys } from "../db/schema";
 import { allocProjectSlug } from "./slugAlloc";
+import { ProjectRenameError, projectLifecycleScope } from "./projectRename";
 
 export type Project = typeof projects.$inferSelect;
 
@@ -122,26 +123,37 @@ export async function ensureProjectForServer(input: {
 	serverKeyId: string;
 	diskId: string;
 }): Promise<Project> {
-	const existing = await getProjectForServer(input.serverKeyId, input.diskId);
-	if (existing) return existing;
-	const taken = await getProject(input.diskId);
-	const id = taken
-		? "proj_" + crypto.randomUUID().replace(/-/g, "").slice(0, 12)
-		: input.diskId;
-	return await createProject({
-		networkId: input.networkId,
-		serverKeyId: input.serverKeyId,
-		name: input.diskId,
-		id,
-		externalId: input.diskId,
+	return db.transaction(async (tx) => {
+		await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${input.serverKeyId}))`);
+		const copying = await tx.select().from(projectCopies).where(and(eq(projectCopies.serverKeyId, input.serverKeyId), eq(projectCopies.status, "pending"), sql`lower(${projectCopies.targetId}) = lower(${input.diskId})`));
+		if (copying.length) throw new ProjectRenameError("destination_reserved");
+		const existing = (await tx.select().from(projects).where(and(eq(projects.serverKeyId, input.serverKeyId), sql`coalesce(${projects.externalId}, ${projects.id}) = ${input.diskId}`)))[0];
+		if (existing) return existing;
+		const reservation = (await tx.select().from(projectRenames).where(and(eq(projectRenames.serverKeyId, input.serverKeyId), sql`lower(${projectRenames.targetId}) = lower(${input.diskId})`, eq(projectRenames.status, "pending"))))[0];
+		if (reservation) return (await tx.select().from(projects).where(eq(projects.id, reservation.projectId)))[0]!;
+		const taken = (await tx.select().from(projects).where(eq(projects.id, input.diskId)))[0];
+		const id = taken ? "proj_" + crypto.randomUUID().replace(/-/g, "").slice(0, 12) : input.diskId;
+		const slug = await allocProjectSlug(input.serverKeyId, input.diskId, tx);
+		const now = new Date();
+		const inserted = await tx.insert(projects).values({ id, networkId: input.networkId, serverKeyId: input.serverKeyId, name: input.diskId, externalId: input.diskId, slug, createdAt: now, updatedAt: now }).onConflictDoNothing({ target: projects.id }).returning();
+		if (inserted[0]) return inserted[0];
+		// Another server may claim the globally free legacy ID concurrently.
+		return (await tx.insert(projects).values({ id: "proj_" + crypto.randomUUID().replace(/-/g, "").slice(0, 12), networkId: input.networkId, serverKeyId: input.serverKeyId, name: input.diskId, externalId: input.diskId, slug, createdAt: now, updatedAt: now }).returning())[0]!;
 	});
 }
 
 export async function softDeleteProject(id: string): Promise<void> {
-	await db
-		.update(projects)
-		.set({ deletedAt: new Date(), updatedAt: new Date() })
-		.where(eq(projects.id, id));
+	const anchor = await getProject(id);
+	if (!anchor) return;
+	await db.transaction(async (tx) => {
+		await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${projectLifecycleScope(anchor)}))`);
+		const project = (await tx.select().from(projects).where(eq(projects.id, id)).for("update"))[0];
+		if (!project || project.deletedAt) return;
+		if (project.serverKeyId !== anchor.serverKeyId) throw new ProjectRenameError("operation_mismatch");
+		const pending = (await tx.select().from(projectRenames).where(and(eq(projectRenames.projectId, id), eq(projectRenames.status, "pending"))))[0];
+		if (pending) throw new ProjectRenameError("rename_in_progress");
+		await tx.update(projects).set({ deletedAt: new Date(), updatedAt: new Date() }).where(eq(projects.id, id));
+	});
 }
 
 export async function listProjectsForNetwork(

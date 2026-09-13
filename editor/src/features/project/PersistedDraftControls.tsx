@@ -13,13 +13,13 @@ import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import {
-  copyBackendDraft,
-  refreshBackendDraftList,
-  selectBackendDraft,
-  useBackendDraftStore,
-} from "./backendDrafts";
+  copyPersistedDraft,
+  refreshPersistedDraftList,
+  selectPersistedDraft,
+  usePersistedDraftStore,
+} from "./persistedDrafts";
 
-export function BackendDraftControls({
+export function PersistedDraftControls({
   projectId,
   open,
   onOpenChange,
@@ -29,7 +29,7 @@ export function BackendDraftControls({
   onOpenChange: (open: boolean) => void;
 }) {
   const { t } = useTranslation();
-  const session = useBackendDraftStore((s) => s.sessions[projectId]);
+  const session = usePersistedDraftStore((s) => s.sessions[projectId]);
   const local = useProjectDraftStore((s) => s.drafts[projectId]);
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
@@ -75,7 +75,7 @@ export function BackendDraftControls({
               disabled={busy || !local || !name.trim()}
               onClick={() =>
                 void run(async () => {
-                  await copyBackendDraft(projectId, name.trim());
+                  await copyPersistedDraft(projectId, name.trim());
                   setName("");
                 })
               }
@@ -87,7 +87,7 @@ export function BackendDraftControls({
             size="sm"
             variant="ghost"
             disabled={busy}
-            onClick={() => void run(() => refreshBackendDraftList(projectId))}
+            onClick={() => void run(() => refreshPersistedDraftList(projectId))}
           >
             {t("drafts.refresh")}
           </Button>
@@ -101,7 +101,7 @@ export function BackendDraftControls({
                   disabled={busy || draft.id === local?.remote?.id || session.status === "conflict"}
                   onClick={() =>
                     void run(async () => {
-                      await selectBackendDraft(projectId, draft.id);
+                      await selectPersistedDraft(projectId, draft.id);
                       useProjectCacheStore.getState().requestReload();
                       onOpenChange(false);
                     })

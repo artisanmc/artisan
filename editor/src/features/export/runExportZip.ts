@@ -1,5 +1,5 @@
 import type { Project } from "@/domain/types";
-import { readProjectFiles } from "@/lib/api/projectFiles";
+import { projectClient } from "@/lib/projectClient";
 import { buildZip } from "./buildZip";
 
 export interface ExportZipResult {
@@ -24,13 +24,14 @@ export interface ExportZipResult {
 export async function runExportZip(
   project: Project,
   hasUser: boolean,
-  networkId: string,
-  serverId: string,
+  _networkId?: string,
+  _serverId?: string,
 ): Promise<ExportZipResult> {
   if (!hasUser) return { ok: false, error: "not_signed_in" };
   try {
     const diskId = project.diskId ?? project.id;
-    const disk = await readProjectFiles(networkId, serverId, diskId);
+    const client = projectClient(project.id);
+    const disk = await client.read();
     if (!disk.ok) {
       return { ok: false, error: disk.error === "server_offline" ? "server_offline" : "transport" };
     }
@@ -41,9 +42,14 @@ export async function runExportZip(
       return { ok: false, error: "transport" };
     }
     // buildZip attend les chemins canoniques que produisait le store backend.
-    const canonical: Record<string, string> = {};
+    const canonical: Record<string, string | Uint8Array> = {};
     for (const [rel, content] of Object.entries(disk.files)) {
       canonical[`plugins/Artisan/projects/${diskId}/${rel}`] = content;
+    }
+    for (const binary of disk.binaries ?? []) {
+      canonical[`plugins/Artisan/projects/${diskId}/${binary.path}`] = await client.binary(
+        binary.path,
+      );
     }
     const blob = await buildZip(canonical);
     const url = URL.createObjectURL(blob);

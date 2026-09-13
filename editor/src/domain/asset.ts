@@ -19,6 +19,7 @@ export interface FontMeta {
 }
 
 export interface Asset {
+  draftId?: string;
   id: AssetId;
   projectId: string;
   type: AssetType;
@@ -37,5 +38,5 @@ const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
 
 /** URL to fetch the raw PNG of an asset for preview. */
 export function assetPreviewUrl(asset: Asset): string {
-  return `${API_URL}/api/v1/textures/asset/${asset.projectId}/${asset.id}?h=${asset.contentHash}`;
+  return `${API_URL}/api/v1/textures/asset/${asset.projectId}/${asset.id}?h=${asset.contentHash}${asset.draftId ? `&draftId=${encodeURIComponent(asset.draftId)}` : ""}`;
 }

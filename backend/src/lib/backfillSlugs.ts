@@ -54,18 +54,21 @@ export async function backfillSlugs(): Promise<void> {
 			id: projects.id,
 			name: projects.name,
 			serverKeyId: projects.serverKeyId,
+			networkId: projects.networkId,
 			slug: projects.slug,
 		})
 		.from(projects);
 	const takenProjectByKey = new Map<string, Set<string>>();
+	const scope = (project: typeof allProjects[number]) => project.serverKeyId === null
+		? `hosted:${project.networkId}` : `server:${project.serverKeyId}`;
 	for (const p of allProjects) {
-		const set = takenProjectByKey.get(p.serverKeyId) ?? new Set<string>();
+		const set = takenProjectByKey.get(scope(p)) ?? new Set<string>();
 		if (p.slug) set.add(p.slug);
-		takenProjectByKey.set(p.serverKeyId, set);
+		takenProjectByKey.set(scope(p), set);
 	}
 	for (const p of allProjects) {
 		if (p.slug) continue;
-		const set = takenProjectByKey.get(p.serverKeyId) as Set<string>;
+		const set = takenProjectByKey.get(scope(p)) as Set<string>;
 		const slug = uniqueSlug(slugify(p.name, "project"), set);
 		set.add(slug);
 		await db.update(projects).set({ slug }).where(eq(projects.id, p.id));
