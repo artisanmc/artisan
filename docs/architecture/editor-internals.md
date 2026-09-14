@@ -1,5 +1,13 @@
 # Editor & rendering internals
 
+## Project display name
+
+`ProjectTopBarControls` subscribes to the current account project's name so
+settings edits update the header immediately, falling back to the loaded name.
+`projectFromFiles` defaults Boutique-owned projects (`manifest.module: boutique`)
+to `Boutique` when their metadata name is absent or matches their internal/disk ID.
+Explicit custom names remain unchanged; IDs and folder names are unaffected.
+
 ## Temporary demo workspace
 
 `features/demo/DemoWorkspace.tsx` composes the shared `ProjectWorkspace` under
