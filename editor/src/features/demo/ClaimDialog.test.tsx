@@ -15,8 +15,8 @@ beforeEach(() => {
   useAuthStore.setState({ currentUser: { id: "owner" } } as never);
   vi.mocked(listNetworks).mockResolvedValue([{ id: "network", name: "Network", tier: "free" }]);
 });
-test("claim navigates to the immutable project ID in the selected Network", async () => {
-  vi.mocked(finishDemoClaim).mockResolvedValue({ projectId: "immutable", networkId: "network" });
+test("claim navigates to the folder ID in the selected Network", async () => {
+  vi.mocked(finishDemoClaim).mockResolvedValue({ projectId: "immutable", networkId: "network", urlId: "demo-kept" });
   render(<ClaimDialog open onOpenChange={() => {}} />);
   await screen.findByRole("option", { name: "Network" });
   fireEvent.change(screen.getByRole("combobox"), { target: { value: "network" } });
@@ -24,7 +24,7 @@ test("claim navigates to the immutable project ID in the selected Network", asyn
   await waitFor(() => expect(finishDemoClaim).toHaveBeenCalledWith("network"));
   expect(navigate).toHaveBeenCalledWith({
     to: "/networks/$networkId/projects/$projectId",
-    params: { networkId: "network", projectId: "immutable" },
+    params: { networkId: "network", projectId: "demo-kept" },
   });
 });
 test("unknown Network creation response refreshes choices without creating twice", async () => {

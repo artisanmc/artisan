@@ -60,7 +60,7 @@ export function ProjectPanel({ projectId }: { projectId: ProjectId }) {
   const empty = groups.every((g) => g.items.length === 0);
 
   const openElement = (id: string) =>
-    navigate(projectDestination(params.networkId!, projectId, params.serverId, id));
+    navigate(projectDestination(params.networkId!, project, params.serverId, id));
 
   return (
     <nav className="flex h-full flex-col gap-2 overflow-auto p-2">

@@ -31,7 +31,7 @@ export function claimDemo(
   csrfToken: string,
   input: { operationId: string; networkId: string; projectId: string },
 ) {
-  return call<{ projectId: string; networkId: string }>("/claim", {
+  return call<{ projectId: string; networkId: string; urlId?: string }>("/claim", {
     method: "POST",
     headers: { "Content-Type": "application/json", "X-Artisan-Demo-CSRF": csrfToken },
     body: JSON.stringify(input),

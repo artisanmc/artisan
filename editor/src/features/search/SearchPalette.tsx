@@ -8,6 +8,7 @@ import { useUiStore } from "@/state/uiStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { buildSearchIndex, groupResultsForDisplay, searchQuery, type SearchEntry, type SearchGroup } from "./searchIndex";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
+import { projectDestination } from "@/lib/projectNavigation";
 
 const GROUP_ICON: Record<SearchGroup, typeof Search> = {
   menu: LayoutGrid, command: TerminalSquare, dialog: MessageSquare, content: Search,
@@ -46,14 +47,7 @@ export function SearchPalette({ projectId }: { projectId: ProjectId }) {
 
   const choose = (entry: SearchEntry | undefined) => {
     if (!entry) return;
-    // projectId (URL) == projectId (domain) dans le modèle actuel : un project par workspace.
-    navigate({
-      to: "/networks/$networkId/servers/$serverId/projects/$projectId/document/$documentId",
-      params: {
-        networkId: params.networkId!, serverId: params.serverId!, projectId: projectId,
-        documentId: entry.target.openId,
-      },
-    });
+    navigate(projectDestination(params.networkId, project ?? projectId, params.serverId, entry.target.openId));
     if (entry.target.selectId) {
       // `openId` is the owning menu — scope the element selection to it so a
       // shared element id doesn't resolve to the wrong menu.

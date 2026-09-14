@@ -83,14 +83,14 @@ export async function confirmDemoDraft(): Promise<DemoSession> {
   return session;
 }
 export async function prepareDemoAuthentication() {
-  const session = await confirmDemoDraft();
-  const next = `/demo/projects/${encodeURIComponent(session.projectId)}`;
+  await confirmDemoDraft();
+  const next = "/demo/projects/demo";
   sessionStorage.setItem(DEMO_AUTH_RETURN, next);
   return next;
 }
 export async function finishDemoClaim(
   networkId?: string,
-): Promise<{ projectId: string; networkId: string }> {
+): Promise<{ projectId: string; networkId: string; urlId?: string }> {
   const ownerId = useAuthStore.getState().currentUser?.id;
   const generation = accountGeneration;
   if (!ownerId) throw new Error("not_authenticated");
@@ -109,7 +109,7 @@ export async function finishDemoClaim(
     intent = { ...intent, operationId: crypto.randomUUID(), networkId, blocked: false };
   }
   sessionStorage.setItem(CLAIM_KEY, JSON.stringify(intent));
-  let result: { projectId: string; networkId: string };
+  let result: { projectId: string; networkId: string; urlId?: string };
   try {
     result = await claimDemo(intent.session.csrfToken, {
       operationId: intent.operationId,

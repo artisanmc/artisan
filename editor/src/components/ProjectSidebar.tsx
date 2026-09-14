@@ -1,3 +1,5 @@
+import { projectUrlId } from "@/lib/projectUrlId";
+import { projectDestination } from "@/lib/projectNavigation";
 import { ArtisanWordmark } from "@/components/ArtisanWordmark";
 import {
   DndContext,
@@ -233,7 +235,6 @@ export function ProjectSidebar() {
     .map((p) => ({
       id: p.id,
       name: p.name,
-      slug: "", // optimistic local entry; slug not used for the sidebar link (id-based)
       hash: "",
       updatedAt: p.updatedAt,
       networkId: (p as unknown as { networkId?: string }).networkId ?? "",
@@ -346,7 +347,7 @@ export function ProjectSidebar() {
                     <SortableProjectItem
                       key={w.id}
                       id={w.id}
-                      slug={w.slug}
+                      urlId={projectUrlId(w)}
                       name={w.name}
                       count={countFor(w)}
                       networkId={urlNetworkId(networks, w.networkId) || netParam}
@@ -397,7 +398,7 @@ export function ProjectSidebar() {
                   <OwnedProjectItem
                     key={g.id}
                     id={g.projects[0]!.id}
-                    slug={g.projects[0]!.slug}
+                    urlId={projectUrlId(g.projects[0]!)}
                     name={g.label}
                     count={countFor(g.projects[0]!)}
                     networkId={urlNetworkId(networks, g.projects[0]!.networkId) || netParam}
@@ -420,7 +421,7 @@ export function ProjectSidebar() {
                         <OwnedProjectItem
                           key={w.id}
                           id={w.id}
-                          slug={w.slug}
+                          urlId={projectUrlId(w)}
                           // Under a module group the canvas entry is "Éditeur"
                           // (ADR module-config-screens §2) — the group header
                           // already carries the module's name. Only a module
@@ -475,29 +476,30 @@ export function ProjectSidebar() {
  */
 function ProjectLink({
   projectId,
+  internalId,
   networkId,
   serverId,
   className,
   children,
 }: {
   projectId: string;
+  internalId: string;
   networkId: string | null;
   serverId: string | null;
   className: string;
   children: ReactNode;
 }) {
   const close = () => useSidebarStore.getState().close();
-  return networkId && serverId ? (
+  return networkId ? (
     <Link
-      to="/networks/$networkId/servers/$serverId/projects/$projectId"
-      params={{ networkId, serverId, projectId }}
+      {...projectDestination(networkId, projectId, serverId ?? undefined)}
       onClick={close}
       className={className}
     >
       {children}
     </Link>
   ) : (
-    <Link to="/project/$projectId" params={{ projectId }} onClick={close} className={className}>
+    <Link to="/project/$projectId" params={{ projectId: internalId }} onClick={close} className={className}>
       {children}
     </Link>
   );
@@ -540,15 +542,15 @@ function ScreenItem({
  *  not reorderable (its placement is the module's, not the user's). */
 function OwnedProjectItem({
   id,
-  slug,
+  urlId,
   name,
   count,
   networkId,
   serverId,
 }: {
   id: string;
-  /** URL form: project slugs are unique per server, so the link can carry one. */
-  slug?: string;
+  /** Exact folder/module ID in this location. */
+  urlId?: string;
   name: string;
   count: number | null;
   networkId: string | null;
@@ -556,11 +558,12 @@ function OwnedProjectItem({
 }) {
   const { t } = useTranslation();
   const params = useParams({ strict: false }) as { projectId?: string };
-  const isActiveProject = params.projectId === id || (!!slug && params.projectId === slug);
+  const isActiveProject = params.projectId === id || (!!urlId && params.projectId === urlId);
   return (
     <li className="flex flex-col">
       <ProjectLink
-        projectId={slug || id}
+        projectId={urlId ?? id}
+        internalId={id}
         networkId={networkId}
         serverId={serverId}
         className={
@@ -588,15 +591,15 @@ function OwnedProjectItem({
 
 function SortableProjectItem({
   id,
-  slug,
+  urlId,
   name,
   count,
   networkId,
   serverId,
 }: {
   id: string;
-  /** URL form: project slugs are unique per server, so the link can carry one. */
-  slug?: string;
+  /** Exact folder/module ID in this location. */
+  urlId?: string;
   name: string;
   count: number | null;
   networkId: string | null;
@@ -618,13 +621,14 @@ function SortableProjectItem({
     opacity: isDragging ? 0.5 : 1,
   };
   const params = useParams({ strict: false }) as { projectId?: string };
-  const isActiveProject = params.projectId === id || (!!slug && params.projectId === slug);
+  const isActiveProject = params.projectId === id || (!!urlId && params.projectId === urlId);
 
   return (
     <li ref={setNodeRef} style={style} className="flex flex-col">
       <div className="group flex items-stretch gap-0.5 rounded-[10px] hover:bg-[var(--surface-hover)]">
         <ProjectLink
-          projectId={slug || id}
+          projectId={urlId ?? id}
+          internalId={id}
           networkId={networkId}
           serverId={serverId}
           className={

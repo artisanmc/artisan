@@ -90,7 +90,7 @@ test.each(["text", "binary"])(
     await waitFor(() =>
       expect(navigate).toHaveBeenCalledWith({
         to: "/networks/$networkId/servers/$serverId/projects/$projectId",
-        params: { networkId: "target-network", serverId: "server-id", projectId: "immutable-copy" },
+        params: { networkId: "target-network", serverId: "server-id", projectId: "demo_2" },
       }),
     );
     expect(useProjectDraftStore.getState().get("source")?.binaryTree?.["a.png"]?.hash).toBe("new");

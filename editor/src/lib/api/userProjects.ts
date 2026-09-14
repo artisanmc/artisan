@@ -26,17 +26,17 @@ export interface UserProjectLoadResult {
   connection?: { available: boolean };
 }
 
-/**
- * `projectRef` may be the project's id **or** its slug; a slug only resolves
- * with `serverRef` (id or slug of the owning server) since project slugs are
- * unique per server. The response always carries the real id.
- */
+/** Resolve a public ID or legacy alias in its Network/server scope. */
 export async function loadUserProject(
   projectRef: string,
   serverRef?: string | null,
+  networkRef?: string | null,
 ): Promise<UserProjectLoadResult> {
-  const qs = serverRef ? `?server=${encodeURIComponent(serverRef)}` : "";
-  const res = await projectFetch(projectRef, `${API_URL}/api/v1/user/projects/${projectRef}${qs}`, {
+  const query = new URLSearchParams();
+  if (serverRef) query.set("server", serverRef);
+  if (networkRef) query.set("network", networkRef);
+  const qs = query.size ? `?${query}` : "";
+  const res = await projectFetch(projectRef, `${API_URL}/api/v1/user/projects/${encodeURIComponent(projectRef)}${qs}`, {
     credentials: "include",
   });
   if (!res.ok) throw new Error(`loadUserProject failed: ${res.status}`);

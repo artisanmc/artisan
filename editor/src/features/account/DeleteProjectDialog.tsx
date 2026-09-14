@@ -6,7 +6,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { deleteUserProject } from "@/lib/api/userProjects";
+import { deleteUserProject, loadUserProject } from "@/lib/api/userProjects";
+import { projectDestination } from "@/lib/projectNavigation";
 import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
 import { useState } from "react";
@@ -40,7 +41,8 @@ export function DeleteProjectDialog({ projectId, projectName, open, onOpenChange
       removeProject(projectId);
       const remaining = projectOrder.filter((id) => id !== projectId);
       if (remaining.length > 0) {
-        navigate({ to: "/project/$projectId", params: { projectId: remaining[0]! } });
+        const destination = await loadUserProject(remaining[0]!);
+        navigate(projectDestination(destination.networkId, destination.project, destination.serverKeyId));
       } else {
         navigate({ to: "/" });
       }

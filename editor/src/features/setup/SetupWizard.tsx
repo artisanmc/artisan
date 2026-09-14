@@ -1,5 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { listNetworks } from "@/lib/api/networks";
+import { loadUserProject } from "@/lib/api/userProjects";
+import { projectDestination } from "@/lib/projectNavigation";
 import { useNetworksStore } from "@/state/networksStore";
 import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
@@ -76,14 +78,8 @@ export function SetupWizard() {
       if (state.projectId && state.networkId && state.serverKeyId) {
         // Server-scoped workspace route (a workspace belongs to exactly one
         // server) — not the legacy /workspace/$id. The wizard has all 3 params.
-        navigate({
-          to: "/networks/$networkId/servers/$serverId/projects/$projectId",
-          params: {
-            networkId: state.networkId,
-            serverId: state.serverKeyId,
-            projectId: state.projectId,
-          },
-        });
+        const identity = await loadUserProject(state.projectId);
+        navigate(projectDestination(state.networkId, identity.project, state.serverKeyId));
       } else {
         navigate({ to: "/" });
       }

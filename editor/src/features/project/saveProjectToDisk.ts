@@ -40,7 +40,6 @@ export function adoptDiskIntoProject(
   return projectFromFiles(project.id, canonical, {
     name: project.name,
     diskId: project.diskId,
-    slug: project.slug,
     serverKeyId: project.serverKeyId,
   });
 }

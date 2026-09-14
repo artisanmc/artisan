@@ -32,7 +32,7 @@ export function DemoEntry() {
     if (pending) {
       void navigate({
         to: "/demo/projects/$projectId",
-        params: { projectId: pending.session.projectId },
+        params: { projectId: "demo" },
         replace: true,
       });
       return;
@@ -43,7 +43,7 @@ export function DemoEntry() {
         useDemoStore.getState().setSession(session);
         void navigate({
           to: "/demo/projects/$projectId",
-          params: { projectId: session.projectId },
+          params: { projectId: "demo" },
           replace: true,
         });
       })
@@ -83,17 +83,18 @@ export function DemoWorkspace() {
   const [claimOpen, setClaimOpen] = useState(false);
   const pending = getPendingDemoClaim();
   const hasPending = !!pending;
+  const matchesSession = !!session && (projectId === "demo" || session.projectId === projectId);
   useEffect(() => {
     useDemoStore.getState().setActive(true);
     return () => useDemoStore.getState().setActive(false);
   }, []);
   useEffect(() => {
-    if (hasPending || session?.projectId === projectId) return;
+    if (hasPending || matchesSession) return;
     let cancelled = false;
     void bootstrapDemo(false)
       .then((value) => {
         if (cancelled) return;
-        if (!value || value.projectId !== projectId) {
+        if (!value || (projectId !== "demo" && value.projectId !== projectId)) {
           setError(true);
           return;
         }
@@ -109,7 +110,7 @@ export function DemoWorkspace() {
     return () => {
       cancelled = true;
     };
-  }, [projectId, session?.projectId, hasPending]);
+  }, [projectId, matchesSession, hasPending]);
   useEffect(() => {
     if (user && sessionStorage.getItem(DEMO_AUTH_RETURN)) setClaimOpen(true);
   }, [user]);
@@ -149,7 +150,7 @@ export function DemoWorkspace() {
         )}
       </div>
     );
-  if (expired || (session?.projectId !== projectId && error))
+  if (expired || (!matchesSession && error))
     return (
       <div className="flex h-full flex-col items-center justify-center gap-4 p-6">
         <p>{t(expired ? "demo.expired" : "demo.unavailable")}</p>
@@ -158,7 +159,7 @@ export function DemoWorkspace() {
         </a>
       </div>
     );
-  if (!session || session.projectId !== projectId) return <output>{t("demo.loading")}</output>;
+  if (!session || !matchesSession) return <output>{t("demo.loading")}</output>;
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] bg-[var(--surface-raised)] px-4 py-2 text-sm">
@@ -174,7 +175,7 @@ export function DemoWorkspace() {
         {error && <p role="alert">{t("demo.saveFailed")}</p>}
       </div>
       <div className="min-h-0 flex-1">
-        <ProjectCanvasPage />
+        <ProjectCanvasPage projectRef={session.projectId} />
       </div>
       {claimOpen && user && <ClaimDialog key={user.id} open onOpenChange={setClaimOpen} />}
     </div>
@@ -214,7 +215,7 @@ export function ClaimDialog({
     setError("");
     try {
       const result = await finishDemoClaim(networkId);
-      await navigate(projectDestination(result.networkId, result.projectId));
+      await navigate(projectDestination(result.networkId, result.urlId ?? result.projectId));
     } catch (cause) {
       setPending(getPendingDemoClaim());
       setError(

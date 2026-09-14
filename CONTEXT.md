@@ -602,9 +602,14 @@ Projects are never live-linked across storage locations.
 A Project has **two identifiers, and only one of them is global**. Its *disk id*
 is the directory name the owning server uses, and it is unique **per server**
 only — an Add-on bootstraps the same one everywhere it is installed, so
-`boutique_shop` names a different Project on every server that runs the Boutique
+`boutique_addon` names a different Project on every server that runs the Boutique
 Add-on. Its *internal id* is unique platform-wide and is what the backend rows
-and the editor URLs address. Treating a disk id as global is what let one
+address. Editor URLs use the exact folder/module ID within a Network + Server
+(server storage), Network (hosted storage), or the current DemoSession. The
+internal ID remains the key for drafts, history, relationships and content APIs.
+Renaming changes the public folder ID, never that internal key. Old slugs and
+completed rename sources resolve only when unambiguous in the location; current
+folder IDs take precedence. Treating a disk id as global is what let one
 server overwrite another tenant's Project (2026-08-12); see
 `docs/architecture/entities.md` § `projects.externalId`.
 

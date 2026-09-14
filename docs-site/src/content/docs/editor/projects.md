@@ -126,11 +126,18 @@ is pending.
 
 An ordinary project's folder determines its file identity. The manifest no longer
 needs `project_id`. Add-on projects keep the identity registered by their add-on
-and cannot be renamed in the editor.
+and cannot be renamed in the editor. Boutique uses `boutique_addon`.
+
+Project URLs use this exact ID: `/projects/boutique_addon`, without replacing
+underscores or changing case. Server projects are scoped by Network and Server;
+hosted projects by Network. Different locations can contain the same ID.
+The account-free demo opens at `/demo/projects/demo`, using your current session.
 
 On the server overview, **Rename project** is available when the connected plugin
 supports it. Choose a free folder name using letters, numbers, underscores or
-hyphens. Renaming through Artisan keeps the project's links and private drafts.
+hyphens. Renaming through Artisan updates the URL and preserves private drafts, history
+and relationships. Old links redirect when they identify one project in that
+location; a current folder ID takes precedence over a historical alias.
 Renaming its folder manually is discovered as a different project.
 
 If the connection drops, the rename stays pending. **Retry** checks the same
