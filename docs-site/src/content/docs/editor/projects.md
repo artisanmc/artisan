@@ -28,6 +28,10 @@ until you later use **Copy to Minecraft**.
 
 ## Create on a Minecraft server
 
+The editor header shows the project's display name and updates when you edit it
+in project settings. The Boutique module's project is named **Boutique** by
+default; a custom display name is preserved.
+
 Select a connected server, then choose **New project** in the sidebar or network page.
 Enter a folder name such as `my_project`, then press **Enter** or click **Create**.
 The name becomes the project's folder on the server and must not contain path separators.

@@ -11,6 +11,16 @@ import { projectFromFiles } from "./projectFromFiles";
 const PID = "p_roundtrip" as ProjectId;
 const base = `plugins/Artisan/projects/${PID}`;
 
+it("uses Boutique as the default name of its module-owned project", () => {
+  const files = { [`${base}/manifest.yaml`]: "schema: manifest/v1\nmodule: boutique\n" };
+  expect(
+    projectFromFiles(PID, files, { name: "boutique_shop", diskId: "boutique_shop" }).name,
+  ).toBe("Boutique");
+  expect(projectFromFiles(PID, files).name).toBe("Boutique");
+  expect(projectFromFiles(PID, files, { name: "Ma boutique" }).name).toBe("Ma boutique");
+  expect(projectFromFiles(PID, {}, { name: "Mon atelier" }).name).toBe("Mon atelier");
+});
+
 function fixture(): Project {
   const now = "2026-07-24T00:00:00.000Z";
   const p = {

@@ -1,4 +1,5 @@
-import { render, screen, within } from "@testing-library/react";
+import { useAccountStore } from "@/state/accountStore";
+import { act, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { ProjectTopBarControls } from "./ProjectTopBarControls";
 
@@ -14,6 +15,40 @@ vi.mock("@tanstack/react-router", async () => {
 });
 
 describe("ProjectTopBarControls", () => {
+  it("updates the header when the project display name changes", () => {
+    const project = {
+      id: "named_project",
+      name: "named_project",
+      defaultLang: "en",
+      i18nKeys: {},
+      menus: [],
+      commands: [],
+      dialogs: [],
+      assets: [],
+    } as any;
+    const previous = useAccountStore.getState().account;
+    try {
+      useAccountStore.setState({ account: { ...previous, projects: [project] } });
+      render(
+        <ProjectTopBarControls
+          project={project}
+          projectId={project.id}
+          projectName={project.name}
+        />,
+      );
+      act(() =>
+        useAccountStore.setState({
+          account: { ...previous, projects: [{ ...project, name: "Mon atelier" }] },
+        }),
+      );
+      expect(
+        within(screen.getByTestId("project-header")).getByText("Mon atelier"),
+      ).toBeInTheDocument();
+      expect(within(screen.getByTestId("project-header")).queryByText("named_project")).toBeNull();
+    } finally {
+      act(() => useAccountStore.setState({ account: previous }));
+    }
+  });
   it("separates project actions, navigation and canvas tools", () => {
     const project = {
       id: "p1",

@@ -878,7 +878,11 @@ export function projectFromFiles(
 
   const project: Project = {
     id: projectId,
-    name: meta.name ?? projectId,
+    name:
+      manifest.module === "boutique" &&
+      (!meta.name || meta.name === projectId || meta.name === meta.diskId)
+        ? "Boutique"
+        : (meta.name ?? projectId),
     ...(meta.diskId && meta.diskId !== projectId ? { diskId: meta.diskId } : {}),
     ...(meta.slug ? { slug: meta.slug } : {}),
     ...(meta.description ? { description: meta.description } : {}),
