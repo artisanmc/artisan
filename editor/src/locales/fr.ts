@@ -1759,6 +1759,13 @@ const fr: typeof en = {
     cannotSaveTitle: "Serveur inconnu — impossible d'enregistrer",
     serverOffline: "Serveur hors ligne — l'enregistrement est impossible",
     failed: "Échec de l'enregistrement",
+    diffServer: "Version serveur",
+    diffMine: "Ta version",
+    diffLabel: "Différences du fichier",
+    diffNoNewline: "Sans saut de ligne final",
+    diffIdentical: "Les contenus sont identiques.",
+    diffMissingServer: "Fichier absent du serveur.",
+    diffMissingMine: "Fichier supprimé dans ta version.",
     conflictTitle: "Ces fichiers ont changé sur le serveur",
     conflictBody:
       "Ces fichiers ont changé sur le serveur depuis leur chargement. Rien n'a été écrit. Choisis, pour chaque fichier, la version à garder.",
