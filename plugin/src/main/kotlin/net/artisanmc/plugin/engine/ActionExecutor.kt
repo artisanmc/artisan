@@ -126,12 +126,12 @@ class ActionExecutor(
                 // that binds the iteration row / current args) — the target menu
                 // only ever sees already-resolved values.
                 val passed = action.context.mapValues { resolveContextValue(it.value, ctx) }
-                val newArgs = if (action.clearContext) passed else ctx.args + passed
+                val newArgs = if (action.clearContext) passed else ctx.navigationArgs + passed
                 // La pagination est un état par menu — ne jamais la propager au menu
                 // cible (collision d'element ids entre menus, ex. deux "grid").
                 menuProvider.openMenu(
                     player, action.menuId, ctx.lang,
-                    ctx.copy(args = newArgs, pagination = emptyMap(), pageInfo = emptyMap()),
+                    ctx.copy(args = newArgs, pagination = emptyMap(), pageInfo = emptyMap(), sourceArgs = emptyMap()),
                 )
             }
             is Action.CloseMenu -> player.closeInventory()
@@ -140,7 +140,10 @@ class ActionExecutor(
                 // the dialog's texts/actions read the passed args only.
                 val passed = action.context.mapValues { resolveContextValue(it.value, ctx) }
                 val newArgs = if (action.clearContext) passed else ctx.args + passed
-                menuProvider.openDialog(player, action.dialogId, ctx.lang, ctx.copy(args = newArgs))
+                menuProvider.openDialog(player, action.dialogId, ctx.lang, ctx.copy(
+                    args = newArgs,
+                    sourceArgs = if (action.clearContext) emptyMap() else ctx.sourceArgs - passed.keys,
+                ))
             }
             is Action.CloseDialog -> runCatching { player.javaClass.getMethod("closeDialog").invoke(player) }
             is Action.GiveItem  -> {

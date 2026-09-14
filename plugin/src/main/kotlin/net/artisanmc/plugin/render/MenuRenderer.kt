@@ -100,7 +100,15 @@ object MenuRenderer {
                         ?.let { ref to it as Any }
                 }
                 .toMap()
-        val boundCtx = ctx.copy(args = boundArgs + directArgs)
+        val fetchedArgs = menu.yaml.contextInputs.mapNotNull { input ->
+            val value = boundArgs[input.name]
+            if (input.name !in ctx.args && input.source["ref"] is String &&
+                (value is List<*> || value is Map<*, *>)) input.name to value else null
+        }.toMap()
+        val boundCtx = ctx.copy(
+            args = boundArgs + directArgs,
+            sourceArgs = ctx.sourceArgs + fetchedArgs + directArgs,
+        )
 
         // Pré-calcul des fenêtres de pagination de chaque élément itérant.
         val pageInfo = mutableMapOf<String, PageInfo>()
