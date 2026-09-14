@@ -11,7 +11,8 @@ import { useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useContext, useEffect, useState } from "react";
+import { ResolvedProjectContext } from "./ResolvedProjectContext";
 import { useTranslation } from "react-i18next";
 import { documentLabel } from "./useProjectDocuments";
 
@@ -22,14 +23,9 @@ export function DocumentView({
   const { t } = useTranslation();
   const navigate = useNavigate();
   const params = useParams({ strict: false }) as { networkId?: string; serverId?: string };
-  // L'URL peut désigner le project par son slug : l'id reste l'identité, mais
-  // la vue doit reconnaître les deux formes (ADR yaml-assisted-editing n'a rien
-  // à voir ici — c'est le passage des URLs aux slugs).
-  const project = useAccountStore((s) =>
-    s.account.projects.find((p) => p.id === projectId || p.slug === projectId),
-  );
-  // Tout ce qui est en dessous cherche le project par ID : le slug de l'URL
-  // s'arrête ici.
+  // The parent resolves the location before any document is selected.
+  const resolvedId = useContext(ResolvedProjectContext) ?? projectId;
+  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === resolvedId));
   const pId = (project?.id ?? projectId) as ProjectId;
   const activeLang = useUiStore((s) => s.activeLang);
   const editorPaneWidth = useUiStore((s) => s.editorPaneWidth);
@@ -63,8 +59,8 @@ export function DocumentView({
   }, [documentId]);
 
   const back = useCallback(
-    () => navigate(projectDestination(params.networkId!, projectId, params.serverId)),
-    [navigate, params.networkId, params.serverId, projectId],
+    () => navigate(projectDestination(params.networkId!, project ?? projectId, params.serverId)),
+    [navigate, params.networkId, params.serverId, project, projectId],
   );
 
   // Echap revient à la planche. On ignore l'événement si le focus est dans un

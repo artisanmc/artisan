@@ -8,7 +8,6 @@ import { captureProjectSnapshot, COPY_LIMITS, ProjectCopyError } from "./storage
 import { digest, logicalId, publicPath } from "./storage/hostedFilesystem";
 import { projectCopyTarget, requestProjectCopy, requestProjectList, getInstanceCount } from "../ws/hub";
 import type { ProjectCopyMessage, ProjectCopyResultMessage } from "../protocol";
-import { allocProjectSlug } from "./slugAlloc";
 import { rebuildResourcePack } from "./resourcePack";
 import { pushResourcePackUpdated } from "../ws/hub";
 import { forgetProjectTree } from "./projectTreeReads";
@@ -136,8 +135,7 @@ async function finalizeCopy(op: Operation, receipt: ProjectCopyResultMessage) {
   if (existing.length) return updateCopy(op.id, { error: "destination_exists" });
   const projectId = `copy_${digest(op.id).slice(0, 32)}`;
   const now = new Date();
-  const slug = await allocProjectSlug(op.serverKeyId, op.targetId, tx);
-  await tx.insert(projects).values({ id: projectId, networkId: op.targetNetworkId, serverKeyId: op.serverKeyId, externalId: op.targetId, slug, name: op.targetId, identityKind: "folder", storageKind: "server", createdAt: now, updatedAt: now });
+  await tx.insert(projects).values({ id: projectId, networkId: op.targetNetworkId, serverKeyId: op.serverKeyId, externalId: op.targetId, name: op.targetId, identityKind: "folder", storageKind: "server", createdAt: now, updatedAt: now });
   return updateCopy(op.id, { status: "completed", destinationProjectId: projectId, artifact: null, error: "resource_pack_pending" });
 }
 async function completeCopyRuntime(op: Operation, transport: CopyTransport) {

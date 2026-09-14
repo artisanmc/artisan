@@ -556,5 +556,5 @@ test("initial unauthorized claim target remains recoverable with another target"
 			operationId: "valid",
 			networkId,
 		}),
-	).toEqual({ projectId: session.projectId, networkId });
+	).toEqual({ projectId: session.projectId, networkId, urlId: `demo-${session.projectId.slice(5)}` });
 });

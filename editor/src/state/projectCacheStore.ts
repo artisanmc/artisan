@@ -70,8 +70,8 @@ export interface CachedProject {
  * présentent, sans résolution — résoudre demanderait le réseau qu'on cherche
  * justement à éviter.
  */
-export function projectCacheKey(projectId: string, serverRef?: string | null): string {
-  return `${serverRef ?? ""}/${projectId}`;
+export function projectCacheKey(projectId: string, serverRef?: string | null, networkRef?: string | null, ownerId?: string | null): string {
+  return JSON.stringify([ownerId, networkRef, serverRef, projectId]);
 }
 
 interface ProjectCacheState {

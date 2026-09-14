@@ -9,6 +9,8 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+- Project URLs now use exact folder/module IDs (including `boutique_addon`) within their location. Legacy links redirect when unambiguous; renames preserve internal identities, drafts and history. Network and Server slugs are unchanged.
+
 ### Added — isolated hosted demos
 
 - Guest draft ownership matches the bootstrap principal across repeated saves; copy-only account authorization does not intercept guest asset routes.

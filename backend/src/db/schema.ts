@@ -383,7 +383,7 @@ export const projects = pgTable(
 		// Folder identity (or explicit add-on ID), scoped by server key or by
 		// Network for hosted projects. `id` remains the immutable global FK.
 		externalId: text("external_id"),
-		// URL slug, unique within the same location scope. Nullable during backfill.
+		// Read-only legacy URL alias. New projects leave it null.
 		slug: text("slug"),
 		description: text("description"),
 		// Content belongs to the selected storage; SQL contains identity only.

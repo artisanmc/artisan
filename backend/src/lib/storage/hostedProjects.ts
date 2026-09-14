@@ -90,7 +90,7 @@ export async function createHostedProject(input: CreateHostedProjectInput): Prom
       identityKind: "folder",
       name: input.name?.trim() ?? input.folderName,
       externalId: input.folderName,
-      slug: input.folderName,
+      slug: null,
       description: null,
       deletedAt: null,
       createdAt: now,

@@ -1,3 +1,4 @@
+import { projectUrlId } from "@/lib/projectUrlId";
 import { RequestAccessPanel } from "@/components/network-detail/RequestAccessPanel";
 import { buildProjectGroups, diskProjectsToSummaries } from "@/features/projects/projectGroups";
 import { RenameProjectButton } from "@/features/projects/RenameProjectButton";
@@ -204,7 +205,7 @@ function ServerOverview({
                 <li key={w.id} className="flex items-center gap-2">
                   <Link
                     to="/networks/$networkId/servers/$serverId/projects/$projectId"
-                    params={{ networkId, serverId, projectId: w.slug || w.id }}
+                    params={{ networkId, serverId, projectId: projectUrlId(w) }}
                     className="card flex flex-1 items-center justify-between p-4 hover:bg-[var(--surface-hover)]"
                   >
                     {/* Plus de compteur de Documents : le backend ne détient
@@ -244,7 +245,7 @@ function ServerOverview({
                                 params={{
                                   networkId,
                                   serverId,
-                                  projectId: e.project.slug || e.project.id,
+                                  projectId: projectUrlId(e.project),
                                 }}
                                 className="chip"
                               >

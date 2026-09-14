@@ -63,6 +63,7 @@ it("imports text and exact image/font bytes in one retryable transaction", async
   await expect(importHostedProject(file, "network", "1.21.4", "owner")).rejects.toThrow("timeout");
   expect(await importHostedProject(file, "network", "1.21.4", "owner")).toEqual({
     newId: "immutable",
+    urlId: "demo",
     name: "Demo",
   });
   expect(write.mock.calls[0]).toEqual(write.mock.calls[1]);

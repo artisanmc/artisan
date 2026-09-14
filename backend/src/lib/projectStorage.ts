@@ -1,7 +1,7 @@
 import { and, eq, isNull, or, sql } from "drizzle-orm";
 import { db } from "../db/index";
-import { projects, projectRenames, projectCopies, serverKeys } from "../db/schema";
-import { allocProjectSlug } from "./slugAlloc";
+import { projects, projectRenames, projectCopies } from "../db/schema";
+import { resolveScopedProjectRef } from "./refs";
 import { ProjectRenameError, projectLifecycleScope } from "./projectRename";
 
 export type Project = typeof projects.$inferSelect;
@@ -17,7 +17,6 @@ export async function createProject(input: {
 	const id =
 		input.id ?? "pack_" + crypto.randomUUID().replace(/-/g, "").slice(0, 12);
 	const now = new Date();
-	const slug = await allocProjectSlug(input.serverKeyId, input.name);
 	// Idempotent sur l'id : deux chemins concurrents (hello stub-create, setup,
 	// local_push, POST /bundles) peuvent tenter de créer le même project — le
 	// perdant récupère l'existant au lieu de faire crasher le process sur un
@@ -28,7 +27,6 @@ export async function createProject(input: {
 		serverKeyId: input.serverKeyId,
 		name: input.name,
 		externalId: input.externalId ?? id,
-		slug,
 		description: input.description ?? null,
 		deletedAt: null,
 		createdAt: now,
@@ -37,37 +35,13 @@ export async function createProject(input: {
 	return (await getProject(id))!;
 }
 
-/**
- * Résout une référence de project (id **ou** slug) vers son id.
- *
- * Le slug n'est unique QUE par serveur (`projects_serverkey_slug_uniq`) — il
- * n'est donc résoluble qu'avec le serveur en portée, que l'URL de l'éditeur
- * porte déjà. Sans `serverRef`, la référence est traitée comme un id (comportement
- * historique). Un `serverRef` ambigu (slug porté par plusieurs serveurs, les
- * slugs de serveur n'étant uniques que par network) ne résout rien plutôt que de
- * risquer le mauvais project.
- */
+/** Translate a scoped public reference into the immutable backend anchor. */
 export async function resolveProjectRef(
 	ref: string,
 	serverRef?: string | null,
+	networkRef?: string | null,
 ): Promise<string | null> {
-	if (!serverRef) return ref;
-	const keys = await db
-		.select({ id: serverKeys.id })
-		.from(serverKeys)
-		.where(or(eq(serverKeys.id, serverRef), eq(serverKeys.slug, serverRef)));
-	if (keys.length !== 1) return null;
-	const rows = await db
-		.select({ id: projects.id })
-		.from(projects)
-		.where(
-			and(
-				eq(projects.serverKeyId, keys[0]!.id),
-				or(eq(projects.id, ref), eq(projects.slug, ref)),
-				isNull(projects.deletedAt),
-			),
-		);
-	return rows[0]?.id ?? null;
+	return resolveScopedProjectRef(ref, serverRef, networkRef);
 }
 
 export async function getProject(id: string): Promise<Project | null> {
@@ -133,12 +107,11 @@ export async function ensureProjectForServer(input: {
 		if (reservation) return (await tx.select().from(projects).where(eq(projects.id, reservation.projectId)))[0]!;
 		const taken = (await tx.select().from(projects).where(eq(projects.id, input.diskId)))[0];
 		const id = taken ? "proj_" + crypto.randomUUID().replace(/-/g, "").slice(0, 12) : input.diskId;
-		const slug = await allocProjectSlug(input.serverKeyId, input.diskId, tx);
 		const now = new Date();
-		const inserted = await tx.insert(projects).values({ id, networkId: input.networkId, serverKeyId: input.serverKeyId, name: input.diskId, externalId: input.diskId, slug, createdAt: now, updatedAt: now }).onConflictDoNothing({ target: projects.id }).returning();
+		const inserted = await tx.insert(projects).values({ id, networkId: input.networkId, serverKeyId: input.serverKeyId, name: input.diskId, externalId: input.diskId, createdAt: now, updatedAt: now }).onConflictDoNothing({ target: projects.id }).returning();
 		if (inserted[0]) return inserted[0];
 		// Another server may claim the globally free legacy ID concurrently.
-		return (await tx.insert(projects).values({ id: "proj_" + crypto.randomUUID().replace(/-/g, "").slice(0, 12), networkId: input.networkId, serverKeyId: input.serverKeyId, name: input.diskId, externalId: input.diskId, slug, createdAt: now, updatedAt: now }).returning())[0]!;
+		return (await tx.insert(projects).values({ id: "proj_" + crypto.randomUUID().replace(/-/g, "").slice(0, 12), networkId: input.networkId, serverKeyId: input.serverKeyId, name: input.diskId, externalId: input.diskId, createdAt: now, updatedAt: now }).returning())[0]!;
 	});
 }
 

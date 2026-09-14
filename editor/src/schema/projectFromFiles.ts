@@ -462,8 +462,6 @@ export interface ProjectFromFilesMeta {
   name?: string;
   /** Id disque du project (cf. `Project.diskId`). Défaut : l'id interne. */
   diskId?: string;
-  /** Forme URL (DB-owned, jamais dans les fichiers). */
-  slug?: string;
   description?: string;
   source?: Project["source"];
   serverKeyId?: string;
@@ -884,7 +882,6 @@ export function projectFromFiles(
         ? "Boutique"
         : (meta.name ?? projectId),
     ...(meta.diskId && meta.diskId !== projectId ? { diskId: meta.diskId } : {}),
-    ...(meta.slug ? { slug: meta.slug } : {}),
     ...(meta.description ? { description: meta.description } : {}),
     // `source` is cosmetic (badge) and DB/file-less — default to the common case.
     source: meta.source ?? "user_created",

@@ -1,5 +1,5 @@
 // backend/src/routes/userProjects.test.ts
-import { beforeEach, describe, expect, test } from "bun:test";
+import { beforeEach, afterEach, describe, expect, test } from "bun:test";
 import { Hono } from "hono";
 import { db } from "../db/index";
 import {memberships, networks, projects, serverKeys, linkCodes, users, userSessions} from "../db/schema";
@@ -12,8 +12,12 @@ import { createProject, getProject } from "../lib/projectStorage";
 import { generateServerKey } from "../lib/auth";
 import { registerEditorConn } from "../ws/hub";
 import { eq } from "drizzle-orm";
-import { readdir } from "node:fs/promises";
+import { readdir, mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { beginProjectRename, completeProjectRename } from "../lib/projectRename";
+import { HostedProjectStorage, hostedStorageOptions } from "../lib/storage/HostedProjectStorage";
+import { openHostedProjectStorage } from "../lib/storage/hostedProjects";
 
 async function clearAll() {
   await db.delete(projects);
@@ -41,6 +45,7 @@ async function seedUserWithProject(userId: string) {
   const { id: skId, hash: skHash } = await generateServerKey();
   await db.insert(serverKeys).values({ id: skId, hash: skHash, label: null, networkId: network.id, createdAt: new Date() });
   const project = await createProject({ networkId: network.id, serverKeyId: skId, name: "p" });
+  await db.update(projects).set({ slug: "legacy-p" }).where(eq(projects.id, project.id));
   return { userId, sessionId: session.id, networkId: network.id, projectId: project.id, skId };
 }
 
@@ -52,7 +57,81 @@ function makeApp() {
 }
 
 describe("userProjectsRouter — GET", () => {
-  beforeEach(clearAll);
+  let directory: string;
+  let previousDirectory: string | undefined;
+  beforeEach(async () => {
+    await clearAll();
+    previousDirectory = process.env.HOSTED_PROJECTS_DIR;
+    directory = await mkdtemp(join(tmpdir(), "artisan-project-urls-"));
+    process.env.HOSTED_PROJECTS_DIR = directory;
+  });
+  afterEach(async () => {
+    if (previousDirectory === undefined) delete process.env.HOSTED_PROJECTS_DIR;
+    else process.env.HOSTED_PROJECTS_DIR = previousDirectory;
+    await rm(directory, { recursive: true, force: true });
+  });
+
+  test("opens the module ID in its network/server scope without changing the internal anchor", async () => {
+    const { sessionId, projectId, skId, networkId } = await seedUserWithProject("url-id");
+    await db.update(projects).set({ externalId: "boutique_addon", slug: "boutique-shop" }).where(eq(projects.id, projectId));
+    await db.update(serverKeys).set({ slug: "survival" }).where(eq(serverKeys.id, skId));
+    const other = await createNetwork("Other");
+    await db.insert(serverKeys).values({ id: "other-server", hash: "other-hash", slug: "survival", networkId: other.id, createdAt: new Date() });
+    const response = await makeApp().request(`/api/v1/user/projects/boutique_addon?server=survival&network=${networkId}`, {
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
+    });
+    expect(response.status).toBe(200);
+    expect((await response.json()).project.id).toBe(projectId);
+  });
+
+  test("hosted folders resolve only in their own Network, apart from server projects", async () => {
+    const a = await seedUserWithProject("hosted-a");
+    const b = await seedUserWithProject("hosted-b");
+    for (const seed of [a, b]) {
+      await db.update(projects).set({ externalId: "shared", storageKind: "hosted", serverKeyId: null, hostedRootId: seed.projectId, hostedMinecraftVersion: "1.21.4" }).where(eq(projects.id, seed.projectId));
+      await HostedProjectStorage.initialize(hostedStorageOptions((await getProject(seed.projectId))!, seed.userId));
+    }
+    await createProject({ networkId: a.networkId, serverKeyId: a.skId, externalId: "shared", name: "shared" });
+    const app = makeApp();
+    for (const seed of [a, b]) {
+      const response = await app.request(`/api/v1/user/projects/shared?network=${seed.networkId}`, { headers: { Cookie: `artisan_user_session=${seed.sessionId}` } });
+      expect(response.status).toBe(200);
+      expect((await response.json()).project.id).toBe(seed.projectId);
+    }
+    const denied = await app.request(`/api/v1/user/projects/shared?network=${b.networkId}`, { headers: { Cookie: `artisan_user_session=${a.sessionId}` } });
+    expect(denied.status).toBe(403);
+  });
+
+  test.each(["server", "hosted"])("%s rename preserves the anchor and resolves its old folder and legacy slug", async (storageKind) => {
+    const seed = await seedUserWithProject(`rename-${storageKind}`);
+    await db.update(projects).set({ externalId: "old_folder", ...(storageKind === "hosted" ? { storageKind: "hosted", serverKeyId: null, hostedRootId: seed.projectId, hostedMinecraftVersion: "1.21.4" } : {}) }).where(eq(projects.id, seed.projectId));
+    if (storageKind === "hosted") await HostedProjectStorage.initialize(hostedStorageOptions((await getProject(seed.projectId))!, seed.userId));
+    await beginProjectRename(seed.projectId, `rename-${storageKind}`, "New_Folder");
+    const receipt = { operation_id: `rename-${storageKind}`, project_id: "old_folder", target_project_id: "New_Folder" };
+    if (storageKind === "server") await completeProjectRename(seed.skId, receipt);
+    else await (await openHostedProjectStorage((await getProject(seed.projectId))!, seed.userId)).rename(receipt.operation_id, receipt.target_project_id);
+    const scope = `network=${seed.networkId}${storageKind === "server" ? `&server=${seed.skId}` : ""}`;
+    for (const ref of ["old_folder", "New_Folder", "legacy-p", seed.projectId]) {
+      const response = await makeApp().request(`/api/v1/user/projects/${ref}?${scope}`, { headers: { Cookie: `artisan_user_session=${seed.sessionId}` } });
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect(body.project.id).toBe(seed.projectId);
+      expect(body.project.externalId).toBe("New_Folder");
+    }
+  });
+
+  test("ambiguous legacy aliases fail closed, while a current folder ID takes precedence", async () => {
+    const seed = await seedUserWithProject("ambiguous");
+    await db.update(projects).set({ externalId: "first" }).where(eq(projects.id, seed.projectId));
+    await beginProjectRename(seed.projectId, "rename-first", "second");
+    await completeProjectRename(seed.skId, { operation_id: "rename-first", project_id: "first", target_project_id: "second" });
+    const other = await createProject({ networkId: seed.networkId, serverKeyId: seed.skId, externalId: "third", name: "Third" });
+    await db.update(projects).set({ slug: "first" }).where(eq(projects.id, other.id));
+    const request = () => makeApp().request(`/api/v1/user/projects/first?network=${seed.networkId}&server=${seed.skId}`, { headers: { Cookie: `artisan_user_session=${seed.sessionId}` } });
+    expect((await request()).status).toBe(404);
+    await db.update(projects).set({ externalId: "first" }).where(eq(projects.id, other.id));
+    expect((await (await request()).json()).project.id).toBe(other.id);
+  });
 
   test("hosted item catalogs never substitute another patch for the selected version", async () => {
     const { sessionId, projectId } = await seedUserWithProject("hosted-version");
@@ -246,7 +325,7 @@ describe("userProjectsRouter — GET par slug", () => {
       id: otherSk, hash: otherHash, label: null, networkId, createdAt: new Date(),
     });
     const other = await createProject({ networkId, serverKeyId: otherSk, name: "p" });
-    expect(other.slug).toBe(mine.slug); // même slug, serveur différent
+    await db.update(projects).set({ slug: mine.slug }).where(eq(projects.id, other.id));
 
     const app = makeApp();
     const res = await app.request(`/api/v1/user/projects/${mine.slug}?server=${otherSk}`, {

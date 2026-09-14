@@ -43,6 +43,23 @@ describe("useProjectLoader", () => {
     const { result } = renderHook(() => useProjectLoader("p1"));
     await act(async () => {});
     expect(result.current.project).toBeNull();
+    expect(result.current.urlId).toBe("shop");
+  });
+
+  it("isolates identical folder/server names by Network and never exposes the previous project during navigation", async () => {
+    useAuthStore.setState({ currentUser: { id: "u1" } } as never);
+    vi.spyOn(dataSourcesApi, "fetchServerDeclaredModels").mockResolvedValue([]);
+    const load = vi.spyOn(userProjectsApi, "loadUserProject").mockImplementation(async (_ref, _server, network) => ({
+      project: { id: `internal-${network}`, name: "Shared", externalId: "shared" }, networkId: network!, serverKeyId: `server-${network}`,
+    }));
+    const read = vi.spyOn(projectFilesApi, "readProjectFiles").mockResolvedValue({ ok: true, files: { "manifest.yaml": "schema: manifest/v2\n" }, failed: [], hash: "first-hash" });
+    const { result, rerender } = renderHook(({ network }) => useProjectLoader("shared", "survival", network), { initialProps: { network: "first" } });
+    await waitFor(() => expect(result.current.project?.id).toBe("internal-first"));
+    read.mockReturnValue(new Promise(() => {}));
+    rerender({ network: "second" });
+    expect(result.current.project).toBeNull();
+    await waitFor(() => expect(load).toHaveBeenCalledWith("shared", "survival", "second"));
+    expect(read).toHaveBeenLastCalledWith("internal-second", undefined, undefined, undefined);
   });
 
   it("charge le contenu depuis le DISQUE du serveur, pas depuis le backend", async () => {
@@ -97,7 +114,7 @@ describe("useProjectLoader", () => {
    */
   it("keeps the cached project closed until the server responds", async () => {
     useAuthStore.setState({ currentUser: { id: "u1", name: "x", email: "x@a.b" } } as never);
-    useProjectCacheStore.getState().put(projectCacheKey("p1"), {
+    useProjectCacheStore.getState().put(projectCacheKey("p1", undefined, undefined, "u1"), {
       identity: {
         project: { id: "p1", name: "p", hash: "h", externalId: "boutique_shop" },
         networkId: "net_1",
@@ -151,7 +168,7 @@ describe("useProjectLoader", () => {
     const { result } = renderHook(() => useProjectLoader("p1"));
     await waitFor(() => expect(result.current.project).not.toBeNull());
 
-    expect(useProjectCacheStore.getState().get(projectCacheKey("p1"))?.tree).toEqual({
+    expect(useProjectCacheStore.getState().get(projectCacheKey("p1", undefined, undefined, "u1"))?.tree).toEqual({
       "manifest.yaml": "id: boutique_shop\n",
     });
   });
@@ -163,7 +180,7 @@ describe("useProjectLoader", () => {
    */
   it("annonce l'empreinte détenue et garde sa copie quand le serveur dit « inchangé »", async () => {
     useAuthStore.setState({ currentUser: { id: "u1", name: "x", email: "x@a.b" } } as never);
-    useProjectCacheStore.getState().put(projectCacheKey("p1"), {
+    useProjectCacheStore.getState().put(projectCacheKey("p1", undefined, undefined, "u1"), {
       identity: {
         project: { id: "p1", name: "p", hash: "h", externalId: "boutique_shop" },
         networkId: "net_1",
@@ -206,7 +223,7 @@ describe("useProjectLoader", () => {
       networkId: "net_1",
       serverKeyId: "sk_1",
     };
-    useProjectCacheStore.getState().put(projectCacheKey("p1"), {
+    useProjectCacheStore.getState().put(projectCacheKey("p1", undefined, undefined, "u1"), {
       identity,
       diskId: "shop",
       tree: { "manifest.yaml": "id: shop\n" },

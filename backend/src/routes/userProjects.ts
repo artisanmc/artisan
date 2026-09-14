@@ -2,9 +2,9 @@
 import { Hono } from "hono";
 import type { Context } from "hono";
 import { join } from "node:path";
-import { eq, or } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "../db";
-import { projects as projectsTable, serverKeys as serverKeysTable } from "../db/schema";
+import { projects as projectsTable } from "../db/schema";
 import { broadcastDraftUpdate, getMcVersion, pushProjectDeleted, requestProjectList, reconcileServerProjectIdentity } from "../ws/hub";
 import { customItemsCacheDir, readCustomItems } from "../lib/customItems";
 import { ensureProjectForServer, getProject, projectDiskId, resolveProjectRef, softDeleteProject } from "../lib/projectStorage";
@@ -15,6 +15,7 @@ import { projectRuntime } from "../lib/projectRuntime";
 import { deleteStoredProject } from "../lib/deleteStoredProject";
 import {requestProjectPrincipal} from '../middleware/demoAuth';
 import { authorizeProjectPrincipal } from '../lib/projectPrincipal';
+import { resolveProjectServer } from '../lib/refs';
 
 type Vars = { user: AuthUser | null };
 
@@ -36,13 +37,10 @@ async function ensureAnchorForDiskId(
   userId: string,
   serverRef: string,
   diskId: string,
+  networkRef?: string | null,
 ): Promise<string | null> {
-  const keys = await db
-    .select()
-    .from(serverKeysTable)
-    .where(or(eq(serverKeysTable.id, serverRef), eq(serverKeysTable.slug, serverRef)));
-  if (keys.length !== 1) return null;
-  const sk = keys[0]!;
+  const sk = await resolveProjectServer(serverRef, networkRef);
+  if (!sk) return null;
   try {
     await requireMember(userId, sk.networkId);
   } catch {
@@ -141,11 +139,10 @@ userProjectsRouter.get("/:projectId", async (c: Context<{ Variables: Vars }>) =>
   let principal;
   try{principal=await requestProjectPrincipal(c,c.req.param('projectId')!);}catch(error){return c.json({error:(error as any).code},(error as any).status);}
 
-  // L'URL de l'éditeur porte le serveur : il sert de portée pour résoudre un
-  // slug de project (unique par serveur seulement).
+  // Resolve the exact project ID or historical alias in its URL location.
   const ref = c.req.param("projectId")!;
   const serverRef = c.req.query("server");
-  let projectId = await resolveProjectRef(ref, serverRef);
+  let projectId = await resolveProjectRef(ref, serverRef, c.req.query("network"));
 
   // Rien en base ? Le project existe peut-être quand même : la liste vient
   // désormais du DISQUE (ADR `server-disk-only-storage`), donc un dossier créé
@@ -153,7 +150,7 @@ userProjectsRouter.get("/:projectId", async (c: Context<{ Variables: Vars }>) =>
   // son point d'ancrage à la volée — c'est lui qui portera les assets, le
   // resource pack et les conversations, pas le contenu.
   if (projectId === null && serverRef&&typeof principal==='string') {
-    const anchored = await ensureAnchorForDiskId(principal, serverRef, ref);
+    const anchored = await ensureAnchorForDiskId(principal, serverRef, ref, c.req.query("network"));
     if (anchored) projectId = anchored;
   }
   if (projectId === null) return c.json({ error: "not_found" }, 404);
@@ -163,7 +160,7 @@ userProjectsRouter.get("/:projectId", async (c: Context<{ Variables: Vars }>) =>
   let storage;try{storage=await resolveProjectStorage(principal,project.id);}catch{return c.json({error:'forbidden'},403);}
   const runtime = projectRuntime(project);
 
-  // L'IDENTITÉ seule : nom, slug, serveur propriétaire, network. Le contenu vit
+  // L'IDENTITÉ seule : ID interne, dossier, serveur propriétaire, network. Le contenu vit
   // sur le disque du serveur et se lit par `project_read` (ADR
   // `server-disk-only-storage`).
   return c.json({
@@ -180,9 +177,8 @@ userProjectsRouter.get("/:projectId", async (c: Context<{ Variables: Vars }>) =>
 userProjectsRouter.get("/:projectId/items", async (c: Context<{ Variables: Vars }>) => {
   let principal;try{principal=await requestProjectPrincipal(c,c.req.param('projectId')!);}catch(error){return c.json({error:(error as any).code},(error as any).status);}
 
-  // Même résolution id-ou-slug que `GET /:projectId` — la sidebar navigue en
-  // slug, la bibliothèque doit suivre.
-  const projectId = await resolveProjectRef(c.req.param("projectId")!, c.req.query("server"));
+  // Identity reads share the same scoped resolution.
+  const projectId = await resolveProjectRef(c.req.param("projectId")!, c.req.query("server"), c.req.query("network"));
   if (projectId === null) return c.json({ error: "not_found" }, 404);
   try {
       const project = await getProject(projectId);
@@ -208,7 +204,7 @@ userProjectsRouter.get("/:projectId/custom-items", async (c: Context<{ Variables
   const userId = getUserId(c);
   if (!userId) return c.json({ error: "unauthorized" }, 401);
 
-  const projectId = await resolveProjectRef(c.req.param("projectId")!, c.req.query("server"));
+  const projectId = await resolveProjectRef(c.req.param("projectId")!, c.req.query("server"), c.req.query("network"));
   if (projectId === null) return c.json({ error: "not_found" }, 404);
   const networkId = await getNetworkOfProject(projectId);
   if (networkId === null) return c.json({ error: "not_found" }, 404);

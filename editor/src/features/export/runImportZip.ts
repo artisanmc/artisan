@@ -4,6 +4,7 @@ import { normalizeProjectFiles, readProjectZip } from "./projectZip";
 
 export interface ImportProjectResult {
   newId: string;
+  urlId?: string;
   name: string;
 }
 

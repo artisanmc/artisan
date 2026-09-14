@@ -27,7 +27,7 @@ export function diskProjectsToSummaries(
       metadata.find((project) => (project.externalId ?? project.id) === id) ?? {
         id,
         name: id,
-        slug: id,
+        externalId: id,
         hash: "",
         networkId,
         serverKeyId,

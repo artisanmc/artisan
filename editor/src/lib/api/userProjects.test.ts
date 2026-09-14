@@ -35,4 +35,12 @@ describe("userProjects API client", () => {
     global.fetch = vi.fn(async () => new Response("nope", { status: 500 }));
     await expect(loadUserProject("p1")).rejects.toThrow();
   });
+
+  it("sends both location references and preserves the exact project ID", async () => {
+    global.fetch = vi.fn(async () => new Response(JSON.stringify({ project: { id: "internal", externalId: "My_Project" } })));
+    await loadUserProject("My_Project", "survival", "network-b");
+    const url = new URL(vi.mocked(fetch).mock.calls[0]![0] as string);
+    expect(url.pathname).toBe("/api/v1/user/projects/My_Project");
+    expect(Object.fromEntries(url.searchParams)).toEqual({ server: "survival", network: "network-b" });
+  });
 });
