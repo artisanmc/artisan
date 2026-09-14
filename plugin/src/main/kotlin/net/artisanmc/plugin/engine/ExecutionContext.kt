@@ -16,7 +16,12 @@ data class ExecutionContext(
     val pageInfo: Map<String, PageInfo> = emptyMap(),
     /** Profondeur d'appels `run_actions` imbriqués — garde anti-cycle (max 16). */
     val runActionsDepth: Int = 0,
+    /** Values fetched by the renderer, retained locally but not inherited by another menu. */
+    val sourceArgs: Map<String, Any> = emptyMap(),
 ) {
+    val navigationArgs: Map<String, Any>
+        get() = args.filter { (name, value) -> name !in sourceArgs || value !== sourceArgs[name] }
+
     /**
      * Args + built-ins implicites : `player` = joueur courant (jamais écrasé
      * si l'appelant a bindé un arg du même nom). Toute résolution de texte
