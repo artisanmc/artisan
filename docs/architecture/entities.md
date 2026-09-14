@@ -65,14 +65,24 @@ conserve opération, ancre, serveur, source, cible et état `pending/complete/fa
 Les réservations actives sont uniques par ancre et cible insensible à la casse.
 Un verrou transactionnel par serveur sérialise réservation, découverte et ACK ;
 aucune transaction SQL n'attend une opération disque distante. L'ACK modifie
-seulement `external_id` : brouillons privés, révisions, conversations et URLs
-conservent leur ID/slug. La migration Boutique suit la même règle de conservation.
+seulement `external_id` : brouillons privés, révisions et conversations
+conservent leur ID interne ; les URLs suivent le nouvel ID de dossier. La migration Boutique suit la même règle de conservation.
+
+**URLs de projet (2026-09-14)** : le segment `projects/:projectId` contient
+`externalId ?? id`, sans normalisation ni slugification (`boutique_addon`).
+`refs.ts` résout dans le serveur + Network, ou dans les projets hébergés du
+Network ; la démo `/demo/projects/demo` utilise uniquement sa session courante.
+Les IDs actuels sont prioritaires. Les anciens slugs, IDs internes et sources
+de renommages terminés restent des alias, acceptés seulement sans ambiguïté.
+Aucune migration SQL : `projects.slug` et ses index restent en lecture pour
+ces liens historiques ; créations, copies, démos et backfill ne génèrent plus
+de slugs de projet. Aucun ID interne, contenu ou lien de parenté n’est réécrit.
 
 **Localisation du Project (socle 2026-09-12, migration 0039)** : `projects.id`
 reste l'ancre interne immuable. `storageKind` vaut `server` (défaut existant) ou
 `hosted`. Un CHECK impose serveur non-null/racine hébergée null pour `server`,
 et serveur null/racine privée non-vide/nom externe non-vide pour `hosted`.
-Les noms et slugs restent uniques par serveur ; les projets hébergés ont une
+Les IDs de dossier restent uniques par serveur ; les projets hébergés ont une
 unicité par Network et une racine privée unique. Les FK Network et serveur
 conservent leurs cascades ; supprimer un serveur ne supprime pas les projets hébergés.
 La table `project_bindings` (ancien M:N) reste supprimée.
@@ -89,7 +99,7 @@ vérifie le retry d'une création idempotente ; aucun contenu n'y est stocké.
 `project_renames.server_key_id` devient nullable et `hosted_network_id` réserve les
 noms des projets hébergés ; un CHECK impose exactement une de ces deux portées.
 Le journal et le service de renommage restent communs aux deux adaptateurs.
-Les projets hébergés conservent leur racine opaque et ID/slug immuables pendant
+Les projets hébergés conservent leur racine opaque et ID interne immuables pendant
 le déplacement réel de leur dossier logique dans une nouvelle révision.
 Les fichiers et brouillons sont dans le volume `HOSTED_PROJECTS_DIR` : pointeur
 atomique vers une révision complète, verrou PostgreSQL par racine partagé entre

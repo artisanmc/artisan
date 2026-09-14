@@ -112,5 +112,5 @@ export async function importHostedProject(
   if (!result.ok) throw new Error(result.error);
   pending.delete(key);
   sessionStorage.removeItem(key);
-  return { newId: recovery.projectId, name };
+  return { newId: recovery.projectId, urlId: normalized.projectId, name };
 }

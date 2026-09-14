@@ -155,6 +155,20 @@ Le Document sélectionné s'édite dans le panneau de droite. L'ancien **mode fo
 
 - **Têtes vanilla en 3D** : les cubes de tête de `mcModelRenderer.headDef` utilisent `yFlip: false` : le découpage du skin place déjà le visage au sud et le dessus en haut. Les retourner exposait une face omise au-dessus et le visage à l'arrière. Le test de géométrie passe par `renderToCanvas` et vérifie par rayons la surface supérieure et les UV du visage.
 
+### URLs et identité des projets (2026-09-14)
+
+`projectUrlId` choisit exactement `externalId ?? diskId ?? id` ;
+`projectDestination` compose les routes serveur, hébergées et démo sans lookup
+global. Les liens de documents, recherche, add-ons, import et copie l’utilisent.
+Le loader transmet Network + serveur à la résolution d’identité, puis utilise
+uniquement l’ID interne pour le contenu et les brouillons. Le cache inclut
+l’utilisateur, le Network, le serveur et la référence URL.
+`ResolvedProjectContext` donne cette ancre à la vue de document ; celle-ci ne
+cherche jamais un nom public parmi les projets chargés. Après résolution, une
+ancienne URL est remplacée par l’ID courant en conservant document, query et hash.
+La démo résout `/demo/projects/demo` via sa session et transmet son ancre au
+même workspace. Un renommage modifie l’URL mais garde les buffers et leur base CAS.
+
 ### Reconnexion d'un Project (depuis 2026-09-08)
 
 `useProjectLoader` retente la lecture 15 secondes après chaque réponse

@@ -41,6 +41,8 @@ import { DeleteProjectDialog } from "@/features/sync/DeleteProjectDialog";
 import { TranslationPanelContent } from "@/features/translations/TranslationPanel";
 import { deleteUserProject } from "@/lib/api/userProjects";
 import { projectDestination } from "@/lib/projectNavigation";
+import { projectUrlId } from "@/lib/projectUrlId";
+import { ResolvedProjectContext } from "./ResolvedProjectContext";
 import { useProjectPrincipalId } from "@/lib/projectPrincipal";
 import { useIsDesktop } from "@/lib/useMediaQuery";
 import { STALE_NOTICE_DELAY_MS, useSettledFlag } from "@/lib/useSettledFlag";
@@ -82,21 +84,21 @@ export const validateProjectSearch = (search: Record<string, unknown>): ProjectS
   return { tab: "overview" };
 };
 
-export function ProjectCanvasPage() {
+export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) {
   const { networkId, serverId, projectId } = useParams({
     strict: false,
   }) as { networkId?: string; serverId?: string; projectId: string };
-  // L'URL peut porter le slug du project : le serveur, déjà dans l'URL, en est
-  // la portée (un slug n'est unique que par serveur). La réponse donne l'id
-  // réel, seul utilisé en aval — store, sélections, sauvegardes.
+  const loadRef = projectRef ?? projectId;
+  // Resolve the public folder/module ID in its complete location scope.
   const {
     project: userProject,
+    urlId,
     offline,
     error: loadError,
     failed,
     fromDraft,
     stale,
-  } = useProjectLoader(projectId, serverId);
+  } = useProjectLoader(loadRef, serverId, networkId);
   // Deux situations, deux urgences. Une revalidation en vol se résoudra d'
   // elle-même : on ne prévient que si elle s'éternise. Un serveur injoignable,
   // lui, laisse l'écran daté sans terme — ça, ça se dit tout de suite.
@@ -105,7 +107,7 @@ export function ProjectCanvasPage() {
   const project = userProject;
   const pId = (project?.id ?? projectId) as ProjectId;
   const currentUser = useAuthStore((s) => s.currentUser);
-  const principalId = useProjectPrincipalId(projectId);
+  const principalId = useProjectPrincipalId(loadRef);
   const runtime = useProjectRuntime(project?.id);
   const authLoading = useAuthStore((s) => s.isLoading);
   const navigate = useNavigate();
@@ -120,6 +122,16 @@ export function ProjectCanvasPage() {
   // routing hooks, so React's call order stays stable across re-renders.
   const childMatches = useChildMatches();
   const { documentId } = useParams({ strict: false }) as { documentId?: string };
+  const canonicalId = urlId ?? (project ? projectUrlId(project) : null);
+  useEffect(() => {
+    if (!canonicalId || canonicalId === projectId) return;
+    void navigate({
+      ...projectDestination(networkId, canonicalId, serverId, documentId),
+      replace: true,
+      search: (previous) => previous,
+      hash: true,
+    });
+  }, [canonicalId, projectId, networkId, serverId, documentId, navigate]);
 
   useGlobalSearchShortcut();
   useWorkspaceTabShortcuts(runtime?.capabilities.canUseAssistant !== false);
@@ -148,10 +160,10 @@ export function ProjectCanvasPage() {
         target,
       );
     },
-    onImported: ({ newId, name }) => {
+    onImported: ({ newId, urlId, name }) => {
       setSelection([newId as ElementId]);
       toast.success(t("toast.importedProject", { name }));
-      void navigate(projectDestination(networkId, newId));
+      void navigate(projectDestination(networkId, urlId ?? newId));
     },
     onError: (error) => {
       if (error.message === "not_a_zip") return toast.error(t("toast.importNotZip"));
@@ -192,11 +204,11 @@ export function ProjectCanvasPage() {
   useEffect(() => {
     function onOpen(e: Event) {
       const id = (e as CustomEvent<{ id: string }>).detail?.id;
-      if (id) navigate(projectDestination(networkId, pId, serverId, id));
+      if (id && project) navigate(projectDestination(networkId, project, serverId, id));
     }
     window.addEventListener(OPEN_ELEMENT_EVENT, onOpen);
     return () => window.removeEventListener(OPEN_ELEMENT_EVENT, onOpen);
-  }, [networkId, serverId, pId, navigate]);
+  }, [networkId, serverId, project, navigate]);
 
   // Wait for auth hydration first — on a hard load, `/me` is still in flight
   // and currentUser is briefly null; gating now would bounce a logged-in user
@@ -322,7 +334,7 @@ export function ProjectCanvasPage() {
   // Konva keeps its measured size.
   const centerContent =
     childMatches.length > 0 ? (
-      <Outlet />
+      <ResolvedProjectContext.Provider value={pId}><Outlet /></ResolvedProjectContext.Provider>
     ) : (
       // Le canvas occupe toute la région ; l'inspecteur n'apparaît que s'il y a
       // quelque chose à inspecter (`CanvasWithInspector`).

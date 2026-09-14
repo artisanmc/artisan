@@ -47,9 +47,9 @@ export function HostedProjectsSection({ networkId }: { networkId: string }) {
       ownerId
         ? importHostedProject(file, networkId, version, ownerId, target)
         : Promise.reject(new Error("not_authenticated")),
-    onImported: ({ newId }) => {
+    onImported: ({ newId, urlId }) => {
       useNetworksStore.getState().bumpRefresh();
-      void navigate(projectDestination(networkId, newId));
+      void navigate(projectDestination(networkId, urlId ?? newId));
     },
     onError: (failure) => setError(failure.message),
   });
@@ -102,7 +102,7 @@ export function HostedProjectsSection({ networkId }: { networkId: string }) {
       setProjects((previous) => [...previous.filter((item) => item.id !== project.id), project]);
       useNetworksStore.getState().bumpRefresh();
       setOpen(false);
-      void navigate(projectDestination(networkId, project.id));
+      void navigate(projectDestination(networkId, project));
     } catch (failure) {
       if (
         failure instanceof HostedProjectError &&
@@ -154,7 +154,7 @@ export function HostedProjectsSection({ networkId }: { networkId: string }) {
       {projects.map((project) => (
         <Link
           key={project.id}
-          {...projectDestination(networkId, project.id)}
+          {...projectDestination(networkId, project)}
           className="card p-4 text-sm hover:bg-[var(--surface-hover)]"
         >
           {project.name}

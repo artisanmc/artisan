@@ -53,7 +53,6 @@ export function applySourceYaml(project: Project, edited: SourceFile[]): Project
 
   const reparsed = projectFromFiles(project.id, files, {
     name: project.name,
-    slug: project.slug,
     serverKeyId: project.serverKeyId,
     createdAt: project.createdAt,
     updatedAt: project.updatedAt,

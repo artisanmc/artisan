@@ -18,6 +18,7 @@ vi.mock("@/features/flow/FlowCanvas", () => ({
 }));
 
 import { DocumentView } from "./DocumentView";
+import { ResolvedProjectContext } from "./ResolvedProjectContext";
 
 const PID = "p1" as ProjectId;
 beforeEach(() => {
@@ -65,6 +66,16 @@ beforeEach(() => {
 });
 
 describe("DocumentView", () => {
+  it("uses the parent anchor when another cached project has the same public folder ID", () => {
+    const account = useAccountStore.getState().account;
+    const own = { ...account.projects[0]!, diskId: "shared", serverKeyId: "s1" };
+    const other = { ...own, id: "shared" as ProjectId, serverKeyId: "s2", menus: [], commands: [] };
+    useAccountStore.setState({ account: { ...account, projects: [other, own] } });
+    render(<ResolvedProjectContext.Provider value={PID}><DocumentView projectId={"shared" as ProjectId} documentId={"m1" as any} /></ResolvedProjectContext.Provider>);
+    expect(screen.getByTestId("focus-stage")).toBeInTheDocument();
+    fireEvent.click(screen.getByText(/back to canvas|retour au canvas/i));
+    expect(navigate).toHaveBeenCalledWith(expect.objectContaining({ params: { networkId: "n1", serverId: "s1", projectId: "shared" } }));
+  });
   it("rend le stage focalisé + EditorPane pour un menu", () => {
     render(<DocumentView projectId={PID} documentId={"m1" as any} />);
     expect(screen.getByTestId("focus-stage")).toBeInTheDocument();

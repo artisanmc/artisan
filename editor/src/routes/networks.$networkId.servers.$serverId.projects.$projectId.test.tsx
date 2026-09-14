@@ -8,7 +8,7 @@ vi.mock("@tanstack/react-router", async () => {
     await vi.importActual<typeof import("@tanstack/react-router")>("@tanstack/react-router");
   return {
     ...actual,
-    useParams: () => ({ networkId: "net_1", serverId: "sk_1", projectId: "p1" }),
+    useParams: () => ({ networkId: "net_1", serverId: "sk_1", projectId: "p1", documentId: loaderState.documentId }),
     useNavigate: () => navigate,
     Navigate: () => null,
     Outlet: () => null,
@@ -35,7 +35,7 @@ vi.mock("@/state/accountStore", () => ({
       setAppearanceField: vi.fn(),
     }),
 }));
-const loaderState = vi.hoisted(() => ({ loaded: true }));
+const loaderState = vi.hoisted(() => ({ loaded: true, diskId: undefined as string | undefined, documentId: undefined as string | undefined }));
 vi.mock("@/features/project/useProjectLoader", () => ({
   useProjectLoader: () =>
     loaderState.loaded ? loadedProject() : { failed: [], project: null, networkId: "net_1" },
@@ -47,6 +47,7 @@ function loadedProject() {
     failed: [],
     project: {
       id: "p1",
+      diskId: loaderState.diskId,
       name: "Hub",
       defaultLang: "en",
       i18nKeys: {},
@@ -88,11 +89,27 @@ import { ServerProjectPage } from "./networks.$networkId.servers.$serverId.proje
 describe("ServerProjectPage", () => {
   beforeEach(() => {
     loaderState.loaded = true;
+    loaderState.diskId = undefined;
+    loaderState.documentId = undefined;
+    navigate.mockClear();
   });
 
   it("renders the top bar for the loaded project", () => {
     render(<ServerProjectPage />);
     expect(screen.getByTestId("topbar")).toBeInTheDocument();
+  });
+
+  it("replaces a legacy URL with the module ID while retaining document, search and fragment", () => {
+    loaderState.diskId = "boutique_addon";
+    loaderState.documentId = "menu";
+    render(<ServerProjectPage />);
+    const destination = navigate.mock.calls[0]![0];
+    expect(destination).toMatchObject({
+      to: "/networks/$networkId/servers/$serverId/projects/$projectId/document/$documentId",
+      params: { networkId: "net_1", serverId: "sk_1", projectId: "boutique_addon", documentId: "menu" },
+      replace: true, hash: true,
+    });
+    expect(destination.search({ tab: "translations" })).toEqual({ tab: "translations" });
   });
 
   /**

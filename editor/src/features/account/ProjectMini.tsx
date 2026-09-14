@@ -1,4 +1,5 @@
-import type { Project, ProjectId } from "@/domain/types";
+import type { Project } from "@/domain/types";
+import { projectDestination } from "@/lib/projectNavigation";
 import { cx } from "@/lib/cx";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -9,6 +10,7 @@ import { ProjectMiniPreview } from "./ProjectMiniPreview";
 
 interface ProjectMiniProps {
   project: Project;
+  networkId: string;
   active: boolean;
 }
 
@@ -22,7 +24,7 @@ const sourceColor = (source: Project["source"]) =>
       ? "bg-[var(--warning-soft)] text-[var(--warning)]"
       : "bg-[var(--success-soft)] text-[var(--success)]";
 
-export function ProjectMini({ project, active }: ProjectMiniProps) {
+export function ProjectMini({ project, active, networkId }: ProjectMiniProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: project.id,
   });
@@ -47,8 +49,7 @@ export function ProjectMini({ project, active }: ProjectMiniProps) {
       )}
     >
       <Link
-        to="/project/$projectId"
-        params={{ projectId: project.id as ProjectId }}
+        {...projectDestination(networkId, project, project.serverKeyId)}
         className="flex flex-col gap-1.5"
       >
         <div className="flex items-center justify-between gap-2">

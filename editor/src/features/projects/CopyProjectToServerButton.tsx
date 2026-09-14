@@ -88,7 +88,7 @@ function CopyProjectDialog({ ownerId, projectId }: { ownerId: string; projectId:
     void navigate(
       projectDestination(
         result.operation.targetNetworkId ?? result.target.networkId,
-        result.operation.projectId,
+        { id: result.operation.projectId, externalId: result.operation.folderName },
         result.operation.targetServerKeyId,
       ),
     );

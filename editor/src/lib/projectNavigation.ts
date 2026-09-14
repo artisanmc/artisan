@@ -1,9 +1,12 @@
+import { type ProjectUrlIdentity, projectUrlId } from "./projectUrlId";
+
 export function projectDestination(
   networkId: string | null | undefined,
-  projectId: string,
+  project: string | ProjectUrlIdentity,
   serverId?: string | null,
   documentId?: string,
 ) {
+  const projectId = typeof project === "string" ? project : projectUrlId(project);
   if (!networkId)
     return documentId
       ? {

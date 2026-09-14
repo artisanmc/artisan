@@ -20,6 +20,7 @@ import { loadPersistedDrafts } from "./persistedDrafts";
 
 export interface ProjectLoadResult {
   project: Project | null;
+  urlId: string | null;
   networkId: string | null;
   error: string | null;
   /** Le serveur propriétaire est injoignable — le Project n'est pas ouvrable. */
@@ -75,7 +76,6 @@ async function buildProject(
   const loaded: Project = projectFromFiles(res.project.id as ProjectId, canonical, {
     name: res.project.name,
     diskId: res.project.externalId ?? undefined,
-    slug: res.project.slug ?? undefined,
     serverKeyId: res.project.serverKeyId ?? res.serverKeyId ?? undefined,
   });
   if (models) injectDeclaredModels(loaded, models as never);
@@ -105,11 +105,12 @@ function mirrorIntoAccount(loaded: Project, networkId: string | null): void {
   });
 }
 
-export function useProjectLoader(projectId: string, serverRef?: string | null): ProjectLoadResult {
+export function useProjectLoader(projectId: string, serverRef?: string | null, networkRef?: string | null): ProjectLoadResult {
   const ownerId = useProjectPrincipalId(projectId);
   const reloadToken = useProjectCacheStore((s) => s.reloadToken);
   const opened = useRef<string | null>(null);
   const [project, setProject] = useState<Project | null>(null);
+  const [resolvedUrl, setResolvedUrl] = useState<{ scope: string; id: string } | null>(null);
   const [networkId, setNetworkId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [offline, setOffline] = useState(false);
@@ -119,7 +120,7 @@ export function useProjectLoader(projectId: string, serverRef?: string | null): 
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: reloadToken relance la lecture sur Actualiser.
   useEffect(() => {
-    const scope = `${ownerId}:${serverRef ?? ""}:${projectId}`;
+    const scope = JSON.stringify([ownerId, networkRef, serverRef, projectId]);
     useProjectRuntimeStore.getState().set(null);
     useServersStore.getState().setActiveServerId(null);
     if (opened.current !== scope) setProject(null);
@@ -135,20 +136,21 @@ export function useProjectLoader(projectId: string, serverRef?: string | null): 
     useProjectDraftStore.getState().setOwner(ownerId);
     let cancelled = false;
     let retryTimer: ReturnType<typeof setTimeout> | undefined;
-    const cacheKey = projectCacheKey(projectId, serverRef);
+    const cacheKey = projectCacheKey(projectId, serverRef, networkRef, ownerId);
     const cached = useProjectCacheStore.getState().get(cacheKey);
 
     const refresh = () => {
       flushDraftEdits();
       let retry = false;
       let validated = false;
-      return loadUserProject(projectId, serverRef)
+      return loadUserProject(projectId, serverRef, networkRef)
         .then(async (res) => {
           if (cancelled) return;
           // Le contenu vient du DISQUE du serveur, jamais du backend (ADR
           // `server-disk-only-storage`) : la réponse ci-dessus ne sert plus qu'à
           // l'identité (nom, slug, serveur propriétaire, network).
           const diskId = res.project.externalId ?? res.project.id;
+          setResolvedUrl({ scope, id: diskId });
           const ownerServerId = res.project.serverKeyId ?? res.serverKeyId;
           const runtime = projectRuntime(res);
           useProjectRuntimeStore.getState().set(runtime);
@@ -319,7 +321,8 @@ export function useProjectLoader(projectId: string, serverRef?: string | null): 
       cancelled = true;
       clearTimeout(retryTimer);
     };
-  }, [projectId, serverRef, ownerId, reloadToken]);
+  }, [projectId, serverRef, networkRef, ownerId, reloadToken]);
 
-  return { project, networkId, error, offline, failed, fromDraft, stale };
+  const currentScope = JSON.stringify([ownerId, networkRef, serverRef, projectId]);
+  return { project: opened.current === currentScope ? project : null, urlId: resolvedUrl?.scope === currentScope ? resolvedUrl.id : null, networkId, error, offline, failed, fromDraft, stale };
 }

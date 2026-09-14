@@ -1,3 +1,4 @@
+import { projectUrlId } from "@/lib/projectUrlId";
 import { createFileRoute, useParams, Navigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -18,7 +19,7 @@ function ProjectRedirect() {
     // Fetch the project to discover its network + server.
     loadUserProject(projectId)
       .then((res) => {
-        setDest({ networkId: res.networkId, serverId: res.serverKeyId, projectId: res.project.id });
+        setDest({ networkId: res.networkId, serverId: res.serverKeyId, projectId: projectUrlId(res.project) });
       })
       .catch(console.error);
   }, [projectId]);

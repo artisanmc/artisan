@@ -1,4 +1,5 @@
 import { displayServerLabel } from "@/lib/serverLabel";
+import { projectUrlId } from "@/lib/projectUrlId";
 import { Link } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -13,6 +14,7 @@ interface Server {
 }
 interface Project {
   id: string;
+  externalId?: string | null;
   name: string;
 }
 
@@ -71,7 +73,7 @@ export function ServerCard({ networkId, server, workspaces, onAction, onCreatePr
           <Link
             key={w.id}
             to="/networks/$networkId/servers/$serverId/projects/$projectId"
-            params={{ networkId, serverId: server.slug ?? server.id, projectId: w.id }}
+            params={{ networkId, serverId: server.slug ?? server.id, projectId: projectUrlId(w) }}
             className="group flex items-center justify-between gap-2 rounded-[8px] px-2 py-1.5 transition-colors hover:bg-[var(--surface-hover)]"
           >
             <span className="truncate text-[12.5px] text-[var(--text-mut)] group-hover:text-[var(--text)]">

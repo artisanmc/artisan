@@ -304,7 +304,6 @@ export async function createDemoSession(
 			identityKind: "folder",
 			name: "Welcome to Artisan",
 			externalId: "demo",
-			slug: "demo",
 			description: null,
 			deletedAt: null,
 			createdAt: now,
@@ -482,11 +481,14 @@ async function finishClaim(
 			!["claiming", "claimed"].includes(session.state)
 		)
 			throw new DemoError("forbidden");
-		if (session.state === "claimed")
+		if (session.state === "claimed") {
+			const project = (await tx.select().from(projects).where(eq(projects.id, session.projectId)))[0];
 			return {
 				projectId: session.projectId,
 				networkId: session.claimNetworkId,
+				urlId: project?.externalId ?? session.projectId,
 			};
+		}
 		const membership = (
 			await tx
 				.select()
@@ -521,11 +523,7 @@ async function finishClaim(
 					eq(projects.storageKind, "hosted"),
 				),
 			);
-		const used = new Set(occupied.map((p) => p.slug?.toLowerCase()));
-		let slug = `demo-${id.slice(-8)}`;
-		for (let suffix = 2; used.has(slug.toLowerCase()); suffix++)
-			slug = `demo-${id.slice(-8)}-${suffix}`;
-		// The logical folder remains intact; reserve a unique name before rehoming it.
+
 		const pendingRename = await tx
 			.select()
 			.from(projectRenames)
@@ -562,7 +560,6 @@ async function finishClaim(
 				networkId: session.claimNetworkId,
 				demoSessionId: null,
 				externalId: folder,
-				slug,
 				updatedAt: new Date(),
 			})
 			.where(eq(projects.id, project.id));
@@ -570,7 +567,7 @@ async function finishClaim(
 			.update(demoSessions)
 			.set({ state: "claimed" })
 			.where(eq(demoSessions.id, id));
-		return { projectId: project.id, networkId: session.claimNetworkId };
+		return { projectId: project.id, networkId: session.claimNetworkId, urlId: folder };
 	});
 }
 export async function maintainDemoSessions(
