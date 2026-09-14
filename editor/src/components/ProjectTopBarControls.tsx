@@ -73,7 +73,7 @@ export interface ProjectTopBarControlsProps {
   project: Project;
   projectId: ProjectId;
 
-  /** Display name shown in the left of the top bar. Defaults to `project.name`. */
+  /** Initial display name, used until the project is available in the account store. */
   projectName?: string;
 
   // Kebab menu handlers (route-specific implementations).
@@ -101,7 +101,10 @@ export function ProjectTopBarControls({
   onDelete,
   networkId,
 }: ProjectTopBarControlsProps) {
-  const displayName = projectName ?? project.name;
+  const currentName = useAccountStore(
+    (s) => s.account.projects.find((p) => p.id === projectId)?.name,
+  );
+  const displayName = currentName ?? projectName ?? project.name;
   const { t } = useTranslation();
   const panelOpen = useUiStore((s) => s.projectPanelOpen);
   const navigationPinned = useSidebarStore((s) => s.pinned);
