@@ -1,4 +1,5 @@
 import * as dataSourcesApi from "@/lib/api/dataSources";
+import * as draftsApi from "@/lib/api/projectDrafts";
 import * as projectFilesApi from "@/lib/api/projectFiles";
 import * as userProjectsApi from "@/lib/api/userProjects";
 import { useAccountStore } from "@/state/accountStore";
@@ -29,8 +30,9 @@ const menu = (id: string) => `schema: menu/v1\nid: ${id}\ntitle: ${id}\nsize: 27
 describe("useProjectLoader — la version fraîche gagne toujours", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    vi.spyOn(draftsApi, "listDrafts").mockResolvedValue([]);
     useProjectCacheStore.setState({ entries: {}, reloadToken: 0 } as never);
-    useProjectDraftStore.setState({ drafts: {} } as never);
+    useProjectDraftStore.setState({ drafts: {}, pendingRenames: {}, ownerId: null, backups: {} });
     useAccountStore.setState({
       account: { id: "", projects: [], projectOrder: [] },
     } as never);
@@ -38,7 +40,7 @@ describe("useProjectLoader — la version fraîche gagne toujours", () => {
   });
 
   it("un affichage depuis le cache qui finit en retard n'écrase pas le Project frais", async () => {
-    useProjectCacheStore.getState().put(projectCacheKey("p1"), {
+    useProjectCacheStore.getState().put(projectCacheKey("p1", undefined, undefined, "u1"), {
       identity: IDENTITY,
       diskId: "boutique_shop",
       serverKeyId: "sk_1",
@@ -83,7 +85,7 @@ describe("useProjectLoader — la version fraîche gagne toujours", () => {
    * rendre quoi que ce soit. Un cache qui attend le réseau n'est pas un cache.
    */
   it("does not expose a cached project before the network authorizes opening it", async () => {
-    useProjectCacheStore.getState().put(projectCacheKey("p1"), {
+    useProjectCacheStore.getState().put(projectCacheKey("p1", undefined, undefined, "u1"), {
       identity: IDENTITY,
       diskId: "boutique_shop",
       serverKeyId: "sk_1",
@@ -118,7 +120,7 @@ describe("useProjectLoader — la version fraîche gagne toujours", () => {
    * reprenait.
    */
   it("un brouillon non enregistré survit à une réponse « inchangé »", async () => {
-    useProjectCacheStore.getState().put(projectCacheKey("p1"), {
+    useProjectCacheStore.getState().put(projectCacheKey("p1", undefined, undefined, "u1"), {
       identity: IDENTITY,
       diskId: "boutique_shop",
       serverKeyId: "sk_1",
@@ -152,6 +154,12 @@ describe("useProjectLoader — la version fraîche gagne toujours", () => {
 
     await waitFor(() => expect(result.current.project).not.toBeNull());
     await waitFor(() => expect(result.current.stale).toBe(false));
+    expect(projectFilesApi.readProjectFiles).toHaveBeenCalledExactlyOnceWith(
+      "p1",
+      undefined,
+      undefined,
+      "identique",
+    );
 
     const menuIds = (result.current.project?.menus ?? []).map((m) => m.id);
     expect(menuIds).toContain("en_cours");
