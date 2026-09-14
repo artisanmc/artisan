@@ -31,14 +31,19 @@ function baseProject(name: string): Project {
     id: "p1" as ProjectId,
     diskId: "p1",
     name,
+    source: "user_created",
+    createdAt: "2026-09-14T00:00:00.000Z",
+    updatedAt: "2026-09-14T00:00:00.000Z",
     defaultLang: "en",
     i18nKeys: {},
     menus: [],
     commands: [],
     dialogs: [],
     assets: [],
+    dataSources: [],
+    canvasLayout: {},
     serverKeyId: "sk1",
-  } as unknown as Project;
+  };
 }
 
 /**
@@ -113,7 +118,8 @@ describe("ProjectTopBarControls — Enregistrer", () => {
     ).not.toBeInTheDocument();
   });
   beforeEach(() => {
-    vi.mocked(saveProjectToDisk).mockClear();
+    vi.mocked(saveProjectToDisk).mockReset();
+    vi.mocked(saveProjectToDisk).mockResolvedValue({ ok: true, wrote: 1 });
     useAuthStore.setState({ currentUser: { id: "u1", name: "x", email: "x@a.b" } } as never);
   });
 
