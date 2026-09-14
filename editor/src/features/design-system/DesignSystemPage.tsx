@@ -22,6 +22,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { EmptyState } from "@/components/ui/empty-state";
+import { FileDiff } from "@/components/ui/file-diff";
 import { FormField } from "@/components/ui/form-field";
 import { HBar } from "@/components/ui/h-bar";
 import { Input } from "@/components/ui/input";
@@ -139,6 +140,12 @@ export function DesignSystemPage() {
 
   return (
     <div className="flex flex-col gap-10">
+      <Section id="file-diff" title={t("save.diffLabel")}>
+        <FileDiff
+          before={"name: Boutique\nprice: 10\nenabled: true\n"}
+          after={"name: Boutique\nprice: 20\nenabled: true\n"}
+        />
+      </Section>
       {/* ── Rules ─────────────────────────────────────────────────────── */}
       <Section id="guidelines" title={t("adminDesign.guidelines.heading")}>
         <div className="card p-5">

@@ -618,6 +618,15 @@ Le sélecteur de modèle `ModelSelector` rend les tiers (`cheap` / `balanced` / 
 
 ## Design system (tokens + composants)
 
+`components/ui/file-diff.tsx` affiche une comparaison unifiée serveur → éditeur,
+avec numéros de ligne, contexte, signes −/+, tokens `danger-soft`/`success-soft`
+et marqueurs LF/CRLF/saut final absent. Les contenus identiques et fichiers absents
+sont explicites. Le calcul LCS est borné à un million de cellules ; au-delà,
+les portions différentes apparaissent comme un remplacement complet.
+Spécimen dans `/admin/design`. `SaveControls` conserve l'arbre de la tentative
+refusée et compare chaque contenu `conflicts[].disk` à cet arbre dans un
+`Collapsible` (premier ouvert). Les choix de résolution restent explicites.
+
 Source de vérité visuelle de l'éditeur, visualisable en live sur **`/admin/design`** (route `admin_.design.tsx`, gate admin, page `features/design-system/DesignSystemPage.tsx`).
 
 **Règle pour tout nouveau développement UI** : passer en priorité par le design system — d'abord les composants `components/ui/` (Button, Input, FormField, Badge, EmptyState, Card, Dialog, Sheet, Tabs, DropdownMenu) ou les classes utilitaires de `styles/globals.css` (`.btn*`, `.input`, `.card`, `.chip`, `.badge*`, `.tab`, `.eyebrow`, `.field-label`, `.rule`…) ; si un composant manque, le **créer dans `components/ui/`** puis ajouter son spécimen à la page `/admin/design` dans le même commit. Jamais de hex/rgba en dur (toujours `var(--token)`) — exception : le canvas Konva, non thémable par CSS.

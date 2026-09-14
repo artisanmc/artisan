@@ -1737,6 +1737,13 @@ export default {
     cannotSaveTitle: "Unknown server — cannot save",
     serverOffline: "Server offline — saving is not possible",
     failed: "Save failed",
+    diffServer: "Server version",
+    diffMine: "Your version",
+    diffLabel: "File differences",
+    diffNoNewline: "No newline at end of file",
+    diffIdentical: "The contents are identical.",
+    diffMissingServer: "File absent on the server.",
+    diffMissingMine: "File deleted in your version.",
     conflictTitle: "These files changed on the server",
     conflictBody:
       "These files changed on the server since they were loaded. Nothing was written. Pick which version to keep, file by file.",

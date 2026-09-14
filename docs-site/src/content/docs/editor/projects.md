@@ -122,6 +122,17 @@ pack** to finish preparing images and fonts using the same operation. This does 
 create another copy. You can also open the copied project separately while preparation
 is pending.
 
+## Comparing save conflicts
+
+When files changed on the server, expand a file in the conflict dialog to see a
+Git-style diff. Red **−** lines belong to the **server version**; green **+** lines
+belong to **your version**. Unchanged lines provide context and both versions have
+line numbers. The first file opens automatically.
+
+Identical contents, missing files, and changed line endings (LF/CRLF or a missing
+final newline) are indicated explicitly. Choose **Keep mine** or **Take the
+server's** for each file, then **Apply**. Opening a diff does not resolve it.
+
 ## Project folders and renaming
 
 An ordinary project's folder determines its file identity. The manifest no longer
