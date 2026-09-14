@@ -95,6 +95,91 @@ class MenuRendererIterationTest {
         assertTrue(session.activeClicks.containsKey(10))
     }
 
+    @Test fun `returning to shop main then clicking another category refreshes its items`() {
+        val p = player()
+        val pluginInstance = MockBukkit.load(ArtisanPlugin::class.java)
+        val sources = net.artisanmc.modules.api.DataSourceRegistry()
+        val categories = listOf(
+            mapOf("id" to "keys", "name" to "Keys", "icon" to "TRIPWIRE_HOOK"),
+            mapOf("id" to "tools", "name" to "Tools", "icon" to "DIAMOND_PICKAXE"),
+        )
+        sources.register(net.artisanmc.modules.api.DataSourceDeclaration("boutique:categories", { _, _ -> categories }))
+        sources.register(net.artisanmc.modules.api.DataSourceDeclaration("boutique:items", { _, _ ->
+            categories.map { mapOf("id" to it.getValue("id"), "category" to it.getValue("id"),
+                "name" to it.getValue("name"), "icon" to it.getValue("icon"), "final_price" to 10) }
+        }))
+        val menus = mapOf(
+            "shop_main" to """
+                schema: menu/v1
+                id: shop_main
+                title: []
+                size: 54
+                inputs:
+                  - { name: cats, type: list, source: { ref: 'boutique:categories' } }
+                elements:
+                  - id: grid
+                    positions: '10-43'
+                    iterates: { source: cats, alias: cat }
+                    material: '{cat.icon}'
+                    title: '{cat.name}'
+                    click:
+                      left: 'open_menu shop_category with category="{cat.id}" category_name="{cat.name}"'
+            """,
+            "shop_category" to """
+                schema: menu/v1
+                id: shop_category
+                title: []
+                size: 54
+                inputs:
+                  - { name: category, type: string }
+                  - { name: category_name, type: string, default: '' }
+                  - name: items
+                    type: list
+                    source: { ref: 'boutique:items', filter: { category: '{category}' } }
+                elements:
+                  - id: grid
+                    positions: '10-43'
+                    iterates: { source: items, alias: item }
+                    material: '{item.icon}'
+                    title: '{item.name}'
+                  - id: back
+                    positions: '49'
+                    material: ARROW
+                    click:
+                      left: 'open_menu shop_main'
+            """,
+        ).mapValues { (_, raw) ->
+            val yaml: MenuYaml = mapper.readValue(raw.trimIndent())
+            BundleCompiler.compile(yaml, emptyMap())
+        }
+        val sessions = MenuSessionStore()
+        val provider = object : MenuProvider {
+            override fun load() {}
+            override fun findMenu(menuId: String) = menus[menuId]
+            override fun allBundles(): List<ProjectBundle> = emptyList()
+            override fun openMenu(player: Player, menuId: String, lang: String, ctx: ExecutionContext) {
+                sessions.set(player, MenuRenderer.open(player, menus.getValue(menuId), lang, ctx, dataSources = sources))
+            }
+        }
+        val executor = ActionExecutor(pluginInstance, provider, sessions, SoftDepRegistry.EMPTY, CooldownStore(), ConditionEvaluator.EMPTY)
+        val listener = net.artisanmc.plugin.render.MenuListener(sessions, executor)
+        fun click(slot: Int) {
+            listener.onClick(org.bukkit.event.inventory.InventoryClickEvent(
+                p.openInventory, org.bukkit.event.inventory.InventoryType.SlotType.CONTAINER, slot,
+                org.bukkit.event.inventory.ClickType.LEFT, org.bukkit.event.inventory.InventoryAction.PICKUP_ALL,
+            ))
+        }
+
+        provider.openMenu(p, "shop_main", "en", ExecutionContext(p))
+        click(10)
+        assertEquals("keys", sessions.get(p)!!.ctx.args["category"])
+        assertEquals(Material.TRIPWIRE_HOOK, p.openInventory.topInventory.getItem(10)?.type)
+        click(49)
+        click(11)
+        assertEquals("tools", sessions.get(p)!!.ctx.args["category"])
+        assertEquals(Material.DIAMOND_PICKAXE, p.openInventory.topInventory.getItem(10)?.type)
+    }
+
     @Test fun `empty or missing list renders nothing and yields one empty page`() {
         val p = player()
         val menu = BundleCompiler.compile(gridMenu(), emptyMap())
