@@ -1,6 +1,7 @@
 import { LinkedServersDropdown } from "@/components/LinkedServersDropdown";
 import { RefreshProjectButton } from "@/components/RefreshProjectButton";
 import { TopBarKebabMenu } from "@/components/TopBarKebabMenu";
+import { Collapsible } from "@/components/ui/collapsible";
 import {
   Dialog,
   DialogContent,
@@ -28,13 +29,18 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { FileDiff } from "@/components/ui/file-diff";
 import type { Project, ProjectId } from "@/domain/types";
 import { PersistedDraftControls } from "@/features/project/PersistedDraftControls";
 import { hasDraftChanges } from "@/features/project/draft";
 import { discardPersistedDraft, usePersistedDraftStore } from "@/features/project/persistedDrafts";
 import { openProjectSettings } from "@/features/project/projectSettings";
 import { type ConflictChoice, applyResolutions } from "@/features/project/resolveConflicts";
-import { adoptDiskIntoProject, saveProjectToDisk } from "@/features/project/saveProjectToDisk";
+import {
+  adoptDiskIntoProject,
+  projectTree,
+  saveProjectToDisk,
+} from "@/features/project/saveProjectToDisk";
 import { WORKSPACE_VIEW_TABS, type WorkspaceViewTab } from "@/features/project/workspaceTabs";
 import { CopyProjectToServerButton } from "@/features/projects/CopyProjectToServerButton";
 import type { ProjectFileConflict } from "@/lib/api/projectFiles";
@@ -476,6 +482,7 @@ function SaveControls({
     draftSession?.status === "offline" ||
     draftSession?.status === "migration_pending";
   const [conflicts, setConflicts] = useState<ProjectFileConflict[]>([]);
+  const [conflictTree, setConflictTree] = useState<Record<string, string>>({});
   const [diskFiles, setDiskFiles] = useState<string[]>([]);
   const [choices, setChoices] = useState<Record<string, ConflictChoice>>({});
 
@@ -498,6 +505,7 @@ function SaveControls({
     }
     setSaving(true);
     try {
+      const attemptedTree = projectTree(project);
       const res = await saveProjectToDisk(project);
       if (res.ok) {
         setLastSaveError(null);
@@ -508,6 +516,7 @@ function SaveControls({
         return;
       }
       if (res.error === "conflict") {
+        setConflictTree(attemptedTree);
         // Rien n'a été écrit : le plugin applique tout ou rien. On demande à
         // l'admin de trancher fichier par fichier, jamais à sa place.
         setConflicts(res.conflicts);
@@ -655,18 +664,24 @@ function SaveControls({
         </DialogContent>
       </Dialog>
       <Dialog open={conflicts.length > 0} onOpenChange={(open) => !open && setConflicts([])}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
+        <DialogContent className="max-h-[90dvh] w-[calc(100%-2rem)] max-w-5xl overflow-y-auto">
+          <DialogHeader className="pr-6">
             <DialogTitle>{t("save.conflictTitle")}</DialogTitle>
             <DialogDescription>{t("save.conflictBody")}</DialogDescription>
           </DialogHeader>
           <div className="flex max-h-[50vh] flex-col gap-2 overflow-y-auto">
-            {conflicts.map((c) => (
-              <div key={c.path} className="card flex flex-col gap-2 p-3">
-                <code className="text-xs text-[var(--text-mut)]">{c.path}</code>
-                <div className="flex gap-2">
+            {conflicts.map((c, index) => (
+              <div key={c.path} className="card min-w-0 flex flex-col gap-2 p-3">
+                <Collapsible
+                  defaultOpen={index === 0}
+                  title={<code className="break-all text-xs">{c.path}</code>}
+                >
+                  <FileDiff before={c.disk} after={conflictTree[c.path] ?? null} />
+                </Collapsible>
+                <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
+                    aria-pressed={choices[c.path] === "mine"}
                     className={
                       choices[c.path] === "mine" ? "btn btn-sm btn-primary" : "btn btn-sm btn-ghost"
                     }
@@ -676,6 +691,7 @@ function SaveControls({
                   </button>
                   <button
                     type="button"
+                    aria-pressed={choices[c.path] === "disk"}
                     className={
                       choices[c.path] === "disk" ? "btn btn-sm btn-primary" : "btn btn-sm btn-ghost"
                     }
