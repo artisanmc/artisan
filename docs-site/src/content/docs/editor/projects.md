@@ -5,7 +5,7 @@ description: Create projects on a Minecraft server or in Artisan hosting.
 
 ## Access to an existing network
 
-Sign in before opening another network's projects. In invitation mode, request
+Sign in before opening another network's projects. Google sign-in returns you to the page you originally opened. In invitation mode, request
 access or accept an invitation from a network manager. If a server administrator
 has enabled console access, copy the displayed `artisan member add <email>`
 command and run it in the console of a listed server. The server must be online.

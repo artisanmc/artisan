@@ -9,6 +9,11 @@ import { welcomeEmail } from "../lib/mail/templates";
 const cookieName = "artisan_google_oauth";
 const randomToken = () => Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString("base64url");
 
+function safeReturnPath(value: unknown): string | undefined {
+  if (typeof value !== "string" || !value.startsWith("/") || value.startsWith("//") || /[\\\u0000-\u001f\u007f]/.test(value)) return undefined;
+  return value;
+}
+
 function config() {
   const clientId = process.env.GOOGLE_CLIENT_ID?.trim();
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim();
@@ -19,12 +24,17 @@ function config() {
 export function createGoogleOauthRouter(fetchImpl: typeof fetch = fetch) {
   const router = new Hono();
   const readIdentity = createGoogleIdentityReader(fetchImpl);
-  const errorUrl = (error: string) => `${process.env.EDITOR_URL ?? "http://localhost:5173"}/login?oauth_error=${error}`;
+  const errorUrl = (error: string, next?: string) => {
+    const params = new URLSearchParams({ oauth_error: error });
+    if (next) params.set("next", next);
+    return `${process.env.EDITOR_URL ?? "http://localhost:5173"}/login?${params}`;
+  };
   router.get("/configured", (c) => c.json({ configured: config() !== null }));
   router.get("/start", async (c) => {
     const settings = config();
-    if (!settings) return c.redirect(errorUrl("google_not_configured"));
-    const flow = { state: randomToken(), nonce: randomToken(), verifier: randomToken(), createdAt: Date.now() };
+    const next = safeReturnPath(c.req.query("next"));
+    if (!settings) return c.redirect(errorUrl("google_not_configured", next));
+    const flow = { state: randomToken(), nonce: randomToken(), verifier: randomToken(), createdAt: Date.now(), next };
     await setSignedCookie(c, cookieName, JSON.stringify(flow), settings.clientSecret, {
       httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "Lax", path: "/", maxAge: 600,
     });
@@ -41,7 +51,7 @@ export function createGoogleOauthRouter(fetchImpl: typeof fetch = fetch) {
     const settings = config();
     deleteCookie(c, cookieName, { path: "/" });
     if (!settings) return c.redirect(errorUrl("google_not_configured"));
-    let flow: { state: string; nonce: string; verifier: string; createdAt: number };
+    let flow: { state: string; nonce: string; verifier: string; createdAt: number; next?: string };
     try {
       const raw = await getSignedCookie(c, settings.clientSecret, cookieName);
       if (!raw) throw new Error("Missing flow");
@@ -53,9 +63,10 @@ export function createGoogleOauthRouter(fetchImpl: typeof fetch = fetch) {
     } catch {
       return c.redirect(errorUrl("oauth_invalid_state"));
     }
-    if (c.req.query("error")) return c.redirect(errorUrl("oauth_cancelled"));
+    const next = safeReturnPath(flow.next);
+    if (c.req.query("error")) return c.redirect(errorUrl("oauth_cancelled", next));
     const code = c.req.query("code");
-    if (!code) return c.redirect(errorUrl("oauth_invalid_state"));
+    if (!code) return c.redirect(errorUrl("oauth_invalid_state", next));
     try {
       const identity = await readIdentity({ ...settings, code, nonce: flow.nonce, verifier: flow.verifier });
       const account = await resolveOauthAccount(identity);
@@ -64,9 +75,9 @@ export function createGoogleOauthRouter(fetchImpl: typeof fetch = fetch) {
         httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "Lax", path: "/", expires: session.expiresAt,
       });
       if (account.created && identity.email) sendSafely(welcomeEmail({ to: identity.email, displayName: identity.name }));
-      return c.redirect(`${process.env.EDITOR_URL ?? "http://localhost:5173"}/account`);
+      return c.redirect(`${process.env.EDITOR_URL ?? "http://localhost:5173"}${next ?? "/account"}`);
     } catch (error) {
-      return c.redirect(errorUrl(error instanceof OauthAccountError ? error.message : "google_login_failed"));
+      return c.redirect(errorUrl(error instanceof OauthAccountError ? error.message : "google_login_failed", next));
     }
   });
   return router;

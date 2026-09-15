@@ -18,9 +18,11 @@ export function GoogleLoginButton({ apiUrl }: { apiUrl: string }) {
     return () => controller.abort();
   }, [apiUrl]);
   if (configuredApi !== apiUrl) return null;
+  const next = new URLSearchParams(window.location.search).get("next");
+  const startUrl = `${apiUrl}/api/v1/auth/google/start${next ? `?${new URLSearchParams({ next })}` : ""}`;
   return (
     <Button asChild variant="outline" className="w-full">
-      <a href={`${apiUrl}/api/v1/auth/google/start`}>{t("auth.googleButton")}</a>
+      <a href={startUrl}>{t("auth.googleButton")}</a>
     </Button>
   );
 }
