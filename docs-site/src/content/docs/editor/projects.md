@@ -159,6 +159,8 @@ supports it. Choose a free folder name using letters, numbers, underscores or
 hyphens. Renaming through Artisan updates the URL and preserves private drafts, history
 and relationships. Old links redirect when they identify one project in that
 location; a current folder ID takes precedence over a historical alias.
+If the displayed name matches the old folder ID, it follows the rename in the
+sidebar and project properties. A separate custom display name is preserved.
 Renaming its folder manually is discovered as a different project.
 
 If the connection drops, the rename stays pending. **Retry** checks the same

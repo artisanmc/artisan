@@ -17,6 +17,11 @@ export interface ProjectIdentityReport {
   identity_migrations?: { from: string; to: string }[];
 }
 export const pendingProjectRenames = (serverKeyId: string) => db.select().from(projectRenames).where(and(eq(projectRenames.serverKeyId, serverKeyId), eq(projectRenames.status, "pending")));
+const renamedProjectFields = (sourceId: string, targetId: string) => ({
+  externalId: targetId,
+  name: sql`case when ${projects.name} = ${sourceId} then ${targetId} else ${projects.name} end`,
+  updatedAt: new Date(),
+});
 export const projectLifecycleScope = (project: { serverKeyId: string | null; networkId: string | null; demoSessionId?:string|null }) => {
  if(project.serverKeyId)return project.serverKeyId;
  if(project.networkId)return `hosted-network:${project.networkId}`;
@@ -61,7 +66,7 @@ export async function completeProjectRename(serverKeyId: string, receipt: Rename
     if (!operation || operation.serverKeyId !== serverKeyId || operation.sourceId !== receipt.project_id || operation.targetId !== receipt.target_project_id) throw new ProjectRenameError("operation_mismatch");
     if (operation.status === "complete") return operation;
     if (operation.status !== "pending") throw new ProjectRenameError("operation_mismatch");
-    await tx.update(projects).set({ externalId: operation.targetId, updatedAt: new Date() }).where(eq(projects.id, operation.projectId));
+    await tx.update(projects).set(renamedProjectFields(operation.sourceId, operation.targetId)).where(eq(projects.id, operation.projectId));
     return (await tx.update(projectRenames).set({ status: "complete", updatedAt: new Date() }).where(eq(projectRenames.id, operation.id)).returning())[0]!;
   });
 }
@@ -74,7 +79,7 @@ export async function completeHostedProjectRename(projectId:string,receipt:Renam
     const operation=(await tx.select().from(projectRenames).where(eq(projectRenames.id,receipt.operation_id)).for("update"))[0];
     if(!operation||operation.projectId!==projectId||operation.hostedNetworkId!==anchor.networkId||operation.sourceId!==receipt.project_id||operation.targetId!==receipt.target_project_id||operation.status==="failed")throw new ProjectRenameError("operation_mismatch");
     if(operation.status==="complete")return operation;
-    await tx.update(projects).set({externalId:operation.targetId,updatedAt:new Date()}).where(eq(projects.id,projectId));
+    await tx.update(projects).set(renamedProjectFields(operation.sourceId, operation.targetId)).where(eq(projects.id,projectId));
     return (await tx.update(projectRenames).set({status:"complete",updatedAt:new Date()}).where(eq(projectRenames.id,operation.id)).returning())[0]!;
   });
 }

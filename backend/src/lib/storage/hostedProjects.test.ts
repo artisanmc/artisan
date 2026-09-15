@@ -78,7 +78,7 @@ test("creates serverless Network project idempotently and resolves selected vers
 	expect(await storage.read()).toMatchObject({ result: { ok: true } });
 });
 test("rename and retry retain SQL anchor, drafts, and directory identity", async () => {
-	const project = await createHostedProject(input());
+ const project = await createHostedProject({ ...input(), name: "demo" });
 	const storage = await openHostedProjectStorage(project, "owner");
 	await storage.drafts.create("Draft", "draft-create", {
 		name: "Draft",
@@ -94,6 +94,7 @@ test("rename and retry retain SQL anchor, drafts, and directory identity", async
 	});
 	const fresh = await getProject(project.id);
 	expect(fresh?.externalId).toBe("new-name");
+ expect(fresh?.name).toBe("new-name");
 	expect(
 		await (await openHostedProjectStorage(fresh!, "owner")).drafts.read(
 			"Draft",

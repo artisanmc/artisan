@@ -1,5 +1,6 @@
 import { beforeEach, expect, test } from "bun:test";
 import { db } from "../db";
+import { eq, sql } from "drizzle-orm";
 import { networks, projects, projectDrafts, serverKeys, users } from "../db/schema";
 import { getProject, ensureProjectForServer, softDeleteProject } from "./projectStorage";
 import { beginProjectRename, completeProjectRename, pendingProjectRenames, reconcileProjectIdentity } from "./projectRename";
@@ -13,6 +14,37 @@ beforeEach(async () => {
   await db.insert(networks).values({ id: "rename-network", name: "Rename", createdAt: now, updatedAt: now });
   await db.insert(serverKeys).values({ id: "rename-server", hash: "rename-key", networkId: "rename-network", createdAt: now });
   await db.insert(projects).values({ id: "immutable", externalId: "old", name: "My project", networkId: "rename-network", serverKeyId: "rename-server", createdAt: now, updatedAt: now });
+});
+
+test("rename moves the default display name and preserves a custom display name", async () => {
+  await db.update(projects).set({ name: "old" }).where(eq(projects.id, "immutable"));
+  await beginProjectRename("immutable", "default-name", "principal");
+  await completeProjectRename("rename-server", { operation_id: "default-name", project_id: "old", target_project_id: "principal" });
+  expect(await getProject("immutable")).toMatchObject({ id: "immutable", externalId: "principal", name: "principal" });
+  await db.update(projects).set({ name: "Mon atelier créatif" }).where(eq(projects.id, "immutable"));
+  await beginProjectRename("immutable", "custom-name", "next");
+  await completeProjectRename("rename-server", { operation_id: "custom-name", project_id: "principal", target_project_id: "next" });
+  expect((await getProject("immutable"))?.name).toBe("Mon atelier créatif");
+});
+
+test("migration repairs historical rename chains once and preserves custom names and pending operations", async () => {
+  const migration = await Bun.file(new URL("../../drizzle/0049_project_rename_display_names.sql", import.meta.url)).text();
+  await db.update(projects).set({ name: "old" }).where(eq(projects.id, "immutable"));
+  await beginProjectRename("immutable", "history-one", "middle");
+  await db.execute(sql.raw(migration));
+  expect((await getProject("immutable"))?.name).toBe("old");
+  await completeProjectRename("rename-server", { operation_id: "history-one", project_id: "old", target_project_id: "middle" });
+  await beginProjectRename("immutable", "history-two", "principal");
+  await completeProjectRename("rename-server", { operation_id: "history-two", project_id: "middle", target_project_id: "principal" });
+  await db.update(projects).set({ name: "old" }).where(eq(projects.id, "immutable"));
+  await db.execute(sql.raw(migration));
+  expect(await getProject("immutable")).toMatchObject({ id: "immutable", externalId: "principal", name: "principal" });
+  const updatedAt = (await getProject("immutable"))?.updatedAt;
+  await db.execute(sql.raw(migration));
+  expect((await getProject("immutable"))?.updatedAt).toEqual(updatedAt);
+  await db.update(projects).set({ name: "Mon atelier créatif" }).where(eq(projects.id, "immutable"));
+  await db.execute(sql.raw(migration));
+  expect((await getProject("immutable"))?.name).toBe("Mon atelier créatif");
 });
 
 test("explicit add-on migration preserves Boutique's anchor and private draft", async () => {

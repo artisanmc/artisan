@@ -168,6 +168,12 @@ cherche jamais un nom public parmi les projets chargés. Après résolution, une
 ancienne URL est remplacée par l’ID courant en conservant document, query et hash.
 La démo résout `/demo/projects/demo` via sa session et transmet son ancre au
 même workspace. Un renommage modifie l’URL mais garde les buffers et leur base CAS.
+`onProjectRenamed` actualise également le nom dans le compte et l’identité en
+cache lorsqu’il correspondait à l’ancien ID de dossier. Les libellés de la
+sidebar et des propriétés suivent ainsi le renommage ; un nom personnalisé
+distinct est conservé et la relecture retrouve le même nom en base.
+Le champ ID de `ProjectProperties` affiche lui aussi `projectUrlId(project)`,
+pas l’ancre interne immuable.
 
 ### Reconnexion d'un Project (depuis 2026-09-08)
 
