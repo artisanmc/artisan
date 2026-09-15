@@ -67,7 +67,7 @@ cp .env.example .env && docker compose up   # backend:3001 + editor:5173 + minec
 **Migrations** — tout merge dans `main` qui modifie `schema.ts` DOIT inclure la migration générée
 (`db:generate`). Pas de `db:push` en prod.
 
-**Commandes plugin** — `/artisan menu|reload|sync|link|editor|dump-title`, détail dans
+**Commandes plugin** — `/artisan menu|reload|sync|link|editor|member add <email>|dump-title`, détail dans
 `docs/architecture/plugin-commands.md`.
 
 **Assets MC** — `bun backend/scripts/gen-items.ts [version]` → `gen-icons.ts` → `pack-icons.ts`

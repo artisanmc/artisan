@@ -337,6 +337,13 @@
       "when": 1789284636106,
       "tag": "0047_careless_ironclad",
       "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1789477681050,
+      "tag": "0048_console_access",
+      "breakpoints": true
     }
   ]
 }

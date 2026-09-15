@@ -1,17 +1,58 @@
-import { requestAccess } from "@/lib/api/accessRequests";
-import { useState } from "react";
+import { type AccessOptions, getAccessOptions, requestAccess } from "@/lib/api/accessRequests";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 type PanelState = "idle" | "sending" | "sent" | "already_pending" | "error";
 
 interface Props {
   networkIdOrSlug: string;
+  onAccessGranted?: () => void;
+  pollIntervalMs?: number;
 }
 
-export function RequestAccessPanel({ networkIdOrSlug }: Props) {
+const reopenPage = () => window.location.reload();
+
+export function RequestAccessPanel({
+  networkIdOrSlug,
+  onAccessGranted = reopenPage,
+  pollIntervalMs = 3000,
+}: Props) {
   const { t } = useTranslation();
   const [message, setMessage] = useState("");
   const [state, setState] = useState<PanelState>("idle");
+  const [options, setOptions] = useState<AccessOptions | null>(null);
+  const [loadError, setLoadError] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    let timer: ReturnType<typeof setTimeout>;
+    setOptions(null);
+    setLoadError(false);
+    setState("idle");
+    setCopied(false);
+    const check = async () => {
+      try {
+        const next = await getAccessOptions(networkIdOrSlug, controller.signal);
+        if (controller.signal.aborted) return;
+        if (next.isMember) {
+          onAccessGranted();
+          return;
+        }
+        setOptions(next);
+        setLoadError(false);
+      } catch {
+        if (controller.signal.aborted) return;
+        setLoadError(true);
+      }
+      timer = setTimeout(check, pollIntervalMs);
+    };
+    void check();
+    return () => {
+      controller.abort();
+      clearTimeout(timer);
+    };
+  }, [networkIdOrSlug, onAccessGranted, pollIntervalMs]);
 
   async function handleSubmit() {
     setState("sending");
@@ -20,7 +61,11 @@ export function RequestAccessPanel({ networkIdOrSlug }: Props) {
       setState("sent");
     } catch (err) {
       const status = (err as Error & { status?: number }).status;
-      setState(status === 409 ? "already_pending" : "error");
+      setState(
+        status === 409 && (err as Error).message === "already_pending"
+          ? "already_pending"
+          : "error",
+      );
     }
   }
 
@@ -34,7 +79,51 @@ export function RequestAccessPanel({ networkIdOrSlug }: Props) {
           {t("requestAccess.title")}
         </h2>
 
-        {state === "sent" ? (
+        {!options ? (
+          <output>{t(loadError ? "requestAccess.error" : "requestAccess.loading")}</output>
+        ) : options.mode === "console" ? (
+          <>
+            <p className="text-[13px] leading-relaxed text-[var(--text-mut)]">
+              {t("requestAccess.consoleDescription")}
+            </p>
+            <ul className="text-[13px] text-[var(--text-mut)]">
+              {options.servers.map((server) => (
+                <li key={server.id}>
+                  {server.label || t("requestAccess.unnamedServer")} —{" "}
+                  {t(server.online ? "requestAccess.online" : "requestAccess.offline")}
+                </li>
+              ))}
+            </ul>
+            <code className="input break-all whitespace-normal" style={{ height: "auto" }}>
+              {options.command}
+            </code>
+            <button
+              type="button"
+              className="btn btn-sm btn-primary self-start"
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(options.command ?? "");
+                  setCopied(true);
+                } catch {
+                  setCopied(false);
+                  setState("error");
+                }
+              }}
+            >
+              {t(copied ? "requestAccess.copied" : "requestAccess.copyCommand")}
+            </button>
+            <output className="text-[13px] text-[var(--text-mut)]">
+              {t(
+                options.servers.some((s) => s.online)
+                  ? "requestAccess.waitingConsole"
+                  : "requestAccess.serverOffline",
+              )}
+            </output>
+            {(loadError || state === "error") && (
+              <p className="text-[13px] text-[var(--danger)]">{t("requestAccess.error")}</p>
+            )}
+          </>
+        ) : state === "sent" ? (
           <p className="text-[13px] leading-relaxed text-[var(--text-mut)]">
             {t("requestAccess.sent")}
           </p>

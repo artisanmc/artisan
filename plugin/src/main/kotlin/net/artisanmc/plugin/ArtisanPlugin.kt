@@ -176,6 +176,7 @@ open class ArtisanPlugin : JavaPlugin() {
         menuProvider = SyncedMenuProvider(
             roots            = projectRoots,
             serverKey        = cfg.serverKey,
+            editorAccessMode = cfg.editorAccessMode,
             wsUrl            = cfg.wsUrl,
             logger           = logger,
             evaluator        = evaluator,
@@ -361,6 +362,7 @@ open class ArtisanPlugin : JavaPlugin() {
         menuProvider = SyncedMenuProvider(
             roots            = projectRoots,
             serverKey        = cfg.serverKey,
+            editorAccessMode = cfg.editorAccessMode,
             wsUrl            = cfg.wsUrl,
             logger           = logger,
             evaluator        = evaluator,

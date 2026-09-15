@@ -3,6 +3,16 @@
 > Source de vérité du schéma : `backend/src/db/schema.ts` (+ migrations dans `backend/drizzle/`).
 > Ce doc décrit le modèle **courant** puis l'historique des phases qui y ont mené.
 
+## Accès console (migration 0048)
+
+`server_keys.editor_access_mode` conserve le dernier mode annoncé au hello
+authentifié (`invitation` par défaut, ou `console`), même hors ligne. Dès qu'un
+serveur du réseau active `console`, la page d'accès du réseau propose les
+serveurs autorisants et remplace la demande d'accès par la commande console.
+Les invitations manuelles restent possibles. `consoleAccess.ts` ajoute un compte
+existant comme `member` sous verrou réseau, sans promotion d'un membre existant.
+L'accès porte sur tout le Network, y compris ses autres serveurs/projets.
+
 ## Sessions de démo (migrations 0045–0047)
 
 `projects` appartient soit à un Network, soit à une `demo_sessions` (`CHECK`
