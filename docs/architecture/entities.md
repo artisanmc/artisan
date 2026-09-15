@@ -88,6 +88,12 @@ Aucune migration SQL : `projects.slug` et ses index restent en lecture pour
 ces liens historiques ; créations, copies, démos et backfill ne génèrent plus
 de slugs de projet. Aucun ID interne, contenu ou lien de parenté n’est réécrit.
 
+**Nom après renommage (2026-09-15)** : si `projects.name` correspond à l’ancien
+ID de dossier, la confirmation du renommage met à jour les deux atomiquement,
+sur stockage serveur comme hébergé. Un nom personnalisé distinct est conservé.
+La migration 0049 répare les noms restés sur une source de renommage terminé,
+y compris après plusieurs renommages ; add-ons et projets supprimés sont exclus.
+
 **Localisation du Project (socle 2026-09-12, migration 0039)** : `projects.id`
 reste l'ancre interne immuable. `storageKind` vaut `server` (défaut existant) ou
 `hosted`. Un CHECK impose serveur non-null/racine hébergée null pour `server`,
