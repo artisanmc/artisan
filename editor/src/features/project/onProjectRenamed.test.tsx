@@ -14,6 +14,39 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+it.each(["atelier", "Mon atelier créatif"])(
+  "updates the default name but preserves a custom name: %s",
+  (name) => {
+    const account = mockAccount();
+    const project = account.projects[0]!;
+    Object.assign(project, { name, diskId: "atelier", serverKeyId: "server" });
+    useAccountStore.getState().setAccount(account);
+    useProjectCacheStore.setState({
+      entries: {
+        cached: {
+          identity: { project: { id: project.id, name, externalId: "atelier" } },
+          diskId: "atelier",
+          serverKeyId: "server",
+          tree: {},
+          hash: "old",
+          fetchedAt: "yesterday",
+        },
+      },
+    });
+    onProjectRenamed({
+      projectId: project.id,
+      serverKeyId: "server",
+      previousDiskId: "atelier",
+      diskId: "principal",
+    });
+    const expected = name === "atelier" ? "principal" : name;
+    expect(useAccountStore.getState().account.projects[0]?.name).toBe(expected);
+    expect(useProjectCacheStore.getState().entries.cached?.identity).toMatchObject({
+      project: { name: expected },
+    });
+  },
+);
+
 it("flushes pending edits and preserves draft identity while rebinding a renamed folder", () => {
   vi.useFakeTimers();
   const account = mockAccount();

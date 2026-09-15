@@ -1,4 +1,5 @@
 import type { Project } from "@/domain/types";
+import { projectUrlId } from "@/lib/projectUrlId";
 import { DeleteProjectDialog } from "@/features/account/DeleteProjectDialog";
 import { useAccountStore } from "@/state/accountStore";
 import { Trash2 } from "lucide-react";
@@ -33,7 +34,7 @@ export function ProjectProperties({ project }: ProjectPropertiesProps) {
         <div>
           <div className="mb-1 text-[10px] uppercase text-[var(--text-faint)]">{t("projectProperties.id")}</div>
           <div className="flex items-center gap-2">
-            <span className="font-mono text-xs text-[var(--text-mut)]">{project.id}</span>
+            <span className="font-mono text-xs text-[var(--text-mut)]">{projectUrlId(project)}</span>
             <span className={`rounded px-1.5 py-0.5 text-[10px] ${sourceColor(project.source)}`}>
               {t(`projectProperties.${sourceLabelKey(project.source)}`)}
             </span>
