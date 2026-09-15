@@ -9,6 +9,7 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+- Added opt-in `editor.access_mode: console`: signed-in non-members can copy `artisan member add <email>` and run it in a server console/RCON to join its network as members. Invitations remain available; the editor opens automatically after authorization.
 - Fixed Boutique category navigation reusing the first category's items after returning to the main menu. Automatically loaded menu sources no longer leak into subsequent menus; explicit context values remain supported.
 
 - Project URLs now use exact folder/module IDs (including `boutique_addon`) within their location. Legacy links redirect when unambiguous; renames preserve internal identities, drafts and history. Network and Server slugs are unchanged.

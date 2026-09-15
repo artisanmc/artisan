@@ -39,6 +39,7 @@ data class PluginConfig(
     val resourcePack: ResourcePackConfig,
     val assistantImportSources: List<ImportSourceConfig>,
     val assistantImportSourceWarnings: List<String>,
+    val editorAccessMode: String = "invitation",
 ) {
     /**
      * HTTP(S) origin of the backend, derived from [wsUrl]: `wss://host/ws/plugin`
@@ -96,6 +97,7 @@ data class PluginConfig(
                 serverKey         = cfg.getString("server_key", "") ?: "",
                 wsUrl             = cfg.getString("ws_url", "wss://editor.artisan.gg/ws/plugin") ?: "",
                 editorConsoleOnly = cfg.getBoolean("editor.console_only", false),
+                editorAccessMode  = if (cfg.getString("editor.access_mode") == "console") "console" else "invitation",
                 language          = cfg.getString("language", "en") ?: "en",
                 perPlayerLanguage = cfg.getBoolean("per_player_language", false),
                 resourcePack      = ResourcePackConfig(

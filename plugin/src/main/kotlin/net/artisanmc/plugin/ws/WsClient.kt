@@ -4,6 +4,9 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import okhttp3.*
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.ConcurrentHashMap
+import java.util.UUID
 import java.util.logging.Logger
 
 class WsClient(
@@ -20,6 +23,7 @@ class WsClient(
     private val onMessage: (String) -> Unit,
     private val logger: Logger? = null,
     private val projectPresence: () -> Map<String, Any> = { emptyMap() },
+    private val editorAccessMode: String = "invitation",
 ) {
     private val httpClient = OkHttpClient.Builder()
         .pingInterval(30, TimeUnit.SECONDS)
@@ -29,6 +33,28 @@ class WsClient(
 
     @Volatile private var socket: WebSocket? = null
     @Volatile private var retryDelay = 1L
+    @Volatile private var authenticated = false
+    private val memberRequests = ConcurrentHashMap<String, CompletableFuture<String>>()
+
+    fun addMember(email: String): CompletableFuture<String> {
+        if (editorAccessMode != "console") return CompletableFuture.completedFuture("console_disabled")
+        if (!authenticated) return CompletableFuture.completedFuture("offline")
+        val id = UUID.randomUUID().toString()
+        val result = CompletableFuture<String>()
+        memberRequests[id] = result
+        result.completeOnTimeout("timeout", 15, TimeUnit.SECONDS)
+            .whenComplete { _, _ -> memberRequests.remove(id) }
+        if (socket?.send(mapper.writeValueAsString(mapOf("type" to "member_add", "request_id" to id, "email" to email))) != true) {
+            result.complete("offline")
+        }
+        return result
+    }
+
+    private fun clearMemberRequests() {
+        authenticated = false
+        memberRequests.values.forEach { it.complete("offline") }
+        memberRequests.clear()
+    }
 
     fun connect() {
         val req = Request.Builder().url(url).build()
@@ -40,6 +66,7 @@ class WsClient(
     }
 
     fun disconnect() {
+        clearMemberRequests()
         scheduler.shutdownNow()
         socket?.close(1000, "Plugin disabling")
         httpClient.dispatcher.cancelAll()
@@ -53,6 +80,7 @@ class WsClient(
             retryDelay = 1
             val hello = mapOf(
                 "type" to "hello",
+                "editor_access_mode" to editorAccessMode,
                 "protocol_version" to "1",
                 "core_version" to "1.0.0",   // Mirrors plugin_version (kept for backward compat).
                 "server_key" to serverKey,
@@ -72,14 +100,30 @@ class WsClient(
             ws.send(mapper.writeValueAsString(hello))
         }
 
-        override fun onMessage(ws: WebSocket, text: String) = onMessage(text)
+        override fun onMessage(ws: WebSocket, text: String) {
+            val message = runCatching { mapper.readTree(text) }.getOrNull()
+            when (message?.get("type")?.asText()) {
+                "hello_ack" -> authenticated = true
+                "session_replaced" -> clearMemberRequests()
+                "member_add_result" -> {
+                    val result = if (message.path("ok").asBoolean()) {
+                        if (message.path("already_member").asBoolean()) "already_member" else "added"
+                    } else message.path("error").asText("failed")
+                    memberRequests.remove(message.path("request_id").asText())?.complete(result)
+                    return
+                }
+            }
+            onMessage(text)
+        }
 
         override fun onFailure(ws: WebSocket, t: Throwable, response: Response?) {
+            clearMemberRequests()
             logger?.warning("WS failure: ${t.message}")
             scheduleReconnect()
         }
 
         override fun onClosing(ws: WebSocket, code: Int, reason: String) {
+            clearMemberRequests()
             ws.close(code, reason)
         }
 

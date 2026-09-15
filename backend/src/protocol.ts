@@ -33,6 +33,7 @@ export interface HelloMessage extends ProjectIdentityReport {
   current_bundle_hash: string;
   local_project_ids?: string[];
   capabilities?: string[];
+  editor_access_mode?: "invitation" | "console";
   custom_items_hash?: string | null;   // null/absent means no custom item plugin detected
   // Modules the Core plugin currently has registered. Drives editor visibility
   // (presence activation). Absent/empty on older plugins → no modules reported.

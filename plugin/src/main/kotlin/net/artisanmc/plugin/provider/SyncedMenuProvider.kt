@@ -62,6 +62,7 @@ class SyncedMenuProvider(
      * API). Default = synchronous, for tests; ArtisanPlugin injects the scheduler.
      */
     private val runOnMainThread: (() -> Unit) -> Unit = { it() },
+    private val editorAccessMode: String = "invitation",
 ) : MenuProvider {
     private var copyMinecraftVersion = "1.21.4"
     private val projectIo = object {
@@ -292,6 +293,7 @@ class SyncedMenuProvider(
             val client = WsClient(
                 url               = wsUrl,
                 serverKey         = serverKey,
+                editorAccessMode  = editorAccessMode,
                 mcVersion         = mcVersion,
                 // Le backend ne détient plus de contenu : il n'a rien à comparer.
                 currentBundleHash = "",
@@ -329,6 +331,9 @@ class SyncedMenuProvider(
         val url = editorUrl ?: return null
         return url to (networkName ?: "")
     }
+
+    fun addMember(email: String): java.util.concurrent.CompletableFuture<String> =
+        wsClient?.addMember(email) ?: java.util.concurrent.CompletableFuture.completedFuture("offline")
 
     override fun findMenu(menuId: String): BundleMenu? = draftMenus[menuId] ?: menus[menuId]
     override fun listMenuIds(): List<String> = (menus.keys + draftMenus.keys).distinct().sorted()

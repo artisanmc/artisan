@@ -1824,6 +1824,24 @@ userNetworksRouter.delete(
 	},
 );
 
+userNetworksRouter.get("/:idOrSlug/access-options", async (c: Context<{ Variables: Vars }>) => {
+	const userId = getUserId(c);
+	if (!userId) return c.json({ error: "unauthorized" }, 401);
+	const param = c.req.param("idOrSlug");
+	if (!param) return c.json({ error: "not_found" }, 404);
+	const [network] = await db.select({ id: networks.id }).from(networks).where(or(eq(networks.id, param), eq(networks.slug, param)));
+	if (!network) return c.json({ error: "not_found" }, 404);
+	const [member] = await db.select({ id: memberships.id }).from(memberships).where(and(eq(memberships.networkId, network.id), eq(memberships.userId, userId)));
+	const servers = await db.select({ id: serverKeys.id, label: serverKeys.label }).from(serverKeys).where(and(eq(serverKeys.networkId, network.id), eq(serverKeys.editorAccessMode, "console")));
+	const [user] = await db.select({ email: users.email }).from(users).where(eq(users.id, userId));
+	return c.json({
+		mode: servers.length ? "console" : "invitation",
+		isMember: !!member,
+		command: servers.length && user ? `artisan member add ${user.email}` : null,
+		servers: servers.map((server) => ({ ...server, online: getInstanceCount(server.id) > 0 })),
+	});
+});
+
 // POST /api/networks/:idOrSlug/access-requests — any authenticated user, no
 // membership required (the requester is by definition not a member yet).
 // Resolves id OR slug like GET /:id, but deliberately skips requireMember —
@@ -1852,6 +1870,9 @@ userNetworksRouter.post(
 		if (existingMembership.length > 0) {
 			return c.json({ error: "already_member" }, 409);
 		}
+		const consoleServers = await db.select({ id: serverKeys.id }).from(serverKeys)
+			.where(and(eq(serverKeys.networkId, network.id), eq(serverKeys.editorAccessMode, "console"))).limit(1);
+		if (consoleServers.length) return c.json({ error: "console_required" }, 409);
 
 		let body: { message?: unknown } = {};
 		try {

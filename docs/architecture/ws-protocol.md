@@ -1,5 +1,18 @@
 # WS Protocol — plugin ↔ backend
 
+## Console membership
+
+`hello.editor_access_mode` is `invitation` (default, including legacy/unknown
+values) or `console`, persisted on the authenticated server key. The plugin
+reads `editor.access_mode` at startup/reload. Console/RCON-only
+`artisan member add <email>` sends `member_add {request_id,email}` on that
+connection. `member_add_result` echoes `request_id` with `ok`, optional
+`already_member`, or `error` (`unauthorized`, `console_disabled`, `invalid_email`,
+`account_not_found`). No caller-supplied network or role is accepted: the backend
+adds an existing account as `member` to the key's network, preserving existing
+roles. Missing/replaced connections cannot grant access; replies time out after
+15 seconds in the plugin. Repeating the command is idempotent.
+
 ## Hosted-to-server copies (`project_copy_v1`)
 
 `hello.capabilities` negotiates `project_copy_v1`. `project_copy` carries

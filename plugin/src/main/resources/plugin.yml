@@ -7,7 +7,7 @@ description: Artisan GUI editor plugin
 commands:
   artisan:
     description: Artisan commands
-    usage: /artisan <menu <id>|reload|sync <status|reject>|setup [CODE]|editor|pushLocal <id|--all>
+    usage: /artisan <menu <id>|reload|sync <status|reject>|link <CODE>|editor|member add <email>|pushLocal <id|--all>>
 permissions:
   artisan.editor:
     description: Allows opening the Artisan web editor

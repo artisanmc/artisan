@@ -42,6 +42,7 @@ export const serverKeys = pgTable(
 			.notNull()
 			.references(() => networks.id, { onDelete: "cascade" }),
 		lastMcVersion: text("last_mc_version"),
+		editorAccessMode: text("editor_access_mode").notNull().default("invitation"),
 		createdAt: timestamp("created_at").notNull(),
 		resourcePackHash: text("resource_pack_hash"),
 		resourcePackUpdatedAt: timestamp("resource_pack_updated_at"),

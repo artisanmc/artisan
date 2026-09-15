@@ -2,6 +2,7 @@ import { and, eq, isNotNull, isNull, notInArray } from "drizzle-orm";
 import type { DraftRequest } from "../lib/storage/ServerDraftStore";
 import type { DraftOutcome, DraftResult } from "../lib/storage/DraftStore";
 import { db } from "../db/index";
+import { addConsoleMember } from "../lib/consoleAccess";
 import { forgetProjectTree } from "../lib/projectTreeReads";
 import { completeProjectRename, failProjectRename, isTerminalRenameError, pendingProjectRenames, projectIdentityLocked, reconcileProjectIdentity, type ProjectIdentityReport } from "../lib/projectRename";
 import type { ProjectRenameMessage, ProjectRenameResultMessage, ProjectCopyMessage, ProjectCopyResultMessage } from "../protocol";
@@ -1050,6 +1051,7 @@ export async function handlePluginMessage(
     const sessionId = crypto.randomUUID();
     activeSessions.set(sessionId, keyId);
     connToServerId.set(connId, keyId);
+    await db.update(serverKeys).set({ editorAccessMode: hello.editor_access_mode === "console" ? "console" : "invitation" }).where(eq(serverKeys.id, keyId));
     serverIdToMcVersion.set(keyId, hello.minecraft_version);
     db.update(serverKeys).set({ lastMcVersion: hello.minecraft_version }).where(eq(serverKeys.id, keyId)).catch(() => {});
     db.insert(serverKeyHelloes).values({
@@ -1132,6 +1134,16 @@ export async function handlePluginMessage(
     // Plus rien à pousser après l'ack : le backend n'annonce plus de bundle.
     scheduleCopyMaintenance(keyId);
     return { reply: JSON.stringify(ack), sessionId, push: [] };
+  }
+
+  if (msg.type === "member_add") {
+    const request = msg as { type: string; request_id?: unknown; email?: unknown };
+    if (typeof request.request_id !== "string" || request.request_id.length > 100) return { reply: null };
+    const serverId = connToServerId.get(connId);
+    const result = serverId
+      ? await addConsoleMember(serverId, request.email, () => connToServerId.get(connId) === serverId)
+      : { ok: false, error: "unauthorized" };
+    return { reply: JSON.stringify({ type: "member_add_result", request_id: request.request_id, ...result }) };
   }
 
   if (msg.type === "pong") { const serverId = connToServerId.get(connId); if (serverId) scheduleCopyMaintenance(serverId); return { reply: null }; }

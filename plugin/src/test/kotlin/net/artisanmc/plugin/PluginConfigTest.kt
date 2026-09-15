@@ -12,6 +12,16 @@ import kotlin.test.assertTrue
 
 class PluginConfigTest {
     @Test
+    fun `console access is opt in and unknown modes keep invitations`() {
+        val yaml = YamlConfiguration()
+        assertEquals("invitation", PluginConfig.from(yaml).editorAccessMode)
+        yaml.set("editor.access_mode", "console")
+        assertEquals("console", PluginConfig.from(yaml).editorAccessMode)
+        yaml.set("editor.access_mode", "unknown")
+        assertEquals("invitation", PluginConfig.from(yaml).editorAccessMode)
+    }
+
+    @Test
     fun `assistant import sources parse named roots`() {
         val yaml = YamlConfiguration()
         yaml.loadFromString("""
