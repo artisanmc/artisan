@@ -45,16 +45,16 @@ function setup(initial: JWTPayload = {}, signingKey = keys.privateKey) {
     app,
     update: (next: JWTPayload) => { claims = next; },
     exchanges: () => exchanges,
-    async start() {
-      const response = await app.request("http://x/api/v1/auth/google/start");
+    async start(next?: string) {
+      const response = await app.request(`http://x/api/v1/auth/google/start${next ? `?${new URLSearchParams({ next })}` : ""}`);
       expect(response.status).toBe(302);
       const location = new URL(response.headers.get("location")!);
       nonce = location.searchParams.get("nonce")!;
       const cookie = response.headers.getSetCookie().map((v) => v.split(";")[0]).join("; ");
       return { location, cookie };
     },
-    async login() {
-      const { location, cookie } = await this.start();
+    async login(next?: string) {
+      const { location, cookie } = await this.start(next);
       return app.request(`http://x/api/v1/auth/google/callback?code=test&state=${location.searchParams.get("state")}`, {
         headers: { Cookie: cookie },
       });
@@ -69,6 +69,38 @@ async function sessionUser(app: Hono, response: Response) {
   expect(me.status).toBe(200);
   return (await me.json()).user;
 }
+
+test("Google returns to the requested project after authentication", async () => {
+  const flow = setup({ sub: crypto.randomUUID(), email: `${crypto.randomUUID()}@gmail.com` });
+  const next = "/networks/network/servers/server/projects/project?tab=menus#details";
+  const response = await flow.login(next);
+  expect(response.headers.get("location")).toBe(`http://editor${next}`);
+  expect(await sessionUser(flow.app, response)).toBeDefined();
+});
+
+test.each(["https://attacker.invalid", "//attacker.invalid", "/\\attacker.invalid", "/\n/attacker.invalid", "javascript:alert(1)"])("rejects unsafe Google return destination %s", async (next) => {
+  const flow = setup({ sub: crypto.randomUUID(), email: `${crypto.randomUUID()}@gmail.com` });
+  expect((await flow.login(next)).headers.get("location")).toBe("http://editor/account");
+});
+
+test("cancelled Google consent preserves the destination for retry", async () => {
+  const flow = setup();
+  const next = "/networks/network?tab=projects";
+  const { cookie, location } = await flow.start(next);
+  const response = await flow.app.request(`http://x/api/v1/auth/google/callback?error=access_denied&state=${location.searchParams.get("state")}`, { headers: { Cookie: cookie } });
+  const redirect = new URL(response.headers.get("location")!);
+  expect(redirect.searchParams.get("oauth_error")).toBe("oauth_cancelled");
+  expect(redirect.searchParams.get("next")).toBe(next);
+});
+
+test("callback parameters cannot replace the signed return destination", async () => {
+  const flow = setup({ sub: crypto.randomUUID(), email: `${crypto.randomUUID()}@gmail.com` });
+  const next = "/networks/network";
+  const { cookie, location } = await flow.start(next);
+  const params = new URLSearchParams({ code: "test", state: location.searchParams.get("state")!, next: "https://attacker.invalid" });
+  const response = await flow.app.request(`http://x/api/v1/auth/google/callback?${params}`, { headers: { Cookie: cookie } });
+  expect(response.headers.get("location")).toBe(`http://editor${next}`);
+});
 
 test("Google reuses an existing Gmail account and preserves password login", async () => {
   const email = `google-${crypto.randomUUID()}@gmail.com`;
