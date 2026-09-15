@@ -1,5 +1,14 @@
 # REST endpoints — index
 
+## Network access options
+
+`userNetworks.ts`: `GET /api/v1/networks/:idOrSlug/access-options` requires a
+signed-in account but no membership. Returns its membership status, the effective
+mode, its own ready-to-copy command and only console-enabled server labels/status.
+Any console-enabled server selects console access for the entire network;
+`POST …/access-requests` then returns `409 console_required`. Manual invitations
+remain available. The editor polls every three seconds until membership exists.
+
 ## Temporary demo access
 
 `demo.ts` exposes `GET /api/v1/demo` (recover only; never creates or renews),

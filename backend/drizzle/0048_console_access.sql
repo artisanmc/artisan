@@ -1,0 +1,1 @@
+ALTER TABLE "server_keys" ADD COLUMN "editor_access_mode" text DEFAULT 'invitation' NOT NULL;

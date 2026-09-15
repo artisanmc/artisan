@@ -12,6 +12,7 @@ les deux doivent bouger ensemble.
 | `sync reject` | `menuProvider.unload()/load()` — recharge depuis le disque et reconnecte. |
 | `link <code>` | Editor-first linking, cf. ci-dessous. |
 | `editor` | Purement informatif, cf. ci-dessous. |
+| `member add <email>` | Console/RCON uniquement, `editor.access_mode: console` requis. Ajoute un compte existant comme membre de tout le réseau du serveur, sans changer un rôle existant. |
 | `dump-title <menu_id> [lang]` | **Diagnostic**, non documenté côté user. Compile le titre du menu et imprime chaque étape : le MiniMessage exact émis, les advances d'offset, et le curseur X MC à chaque frontière de layer. À utiliser quand la position en jeu diffère de l'aperçu éditeur. |
 
 ## `link <code>`

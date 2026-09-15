@@ -3,6 +3,7 @@ package net.artisanmc.plugin.command
 import net.artisanmc.plugin.ArtisanPlugin
 import net.artisanmc.plugin.config.ConfigWriter
 import net.artisanmc.plugin.config.PluginConfig
+import net.artisanmc.plugin.provider.SyncedMenuProvider
 import net.artisanmc.plugin.lang.LangManager
 import net.artisanmc.plugin.render.TitleCompiler
 import net.artisanmc.plugin.ws.LinkClient
@@ -12,6 +13,7 @@ import org.bukkit.command.Command
 import org.bukkit.command.CommandExecutor
 import org.bukkit.command.CommandSender
 import org.bukkit.command.ConsoleCommandSender
+import org.bukkit.command.RemoteConsoleCommandSender
 import org.bukkit.command.TabCompleter
 import org.bukkit.entity.Player
 
@@ -28,8 +30,11 @@ class ArtisanCommand(
         sender: CommandSender, command: Command, label: String, args: Array<out String>
     ): List<String> {
         return when {
-            args.size == 1 -> listOf("menu", "reload", "sync", "link", "editor", "dump-title")
+            args.size == 1 -> (listOf("menu", "reload", "sync", "link", "editor", "dump-title") +
+                if (sender is ConsoleCommandSender || sender is RemoteConsoleCommandSender) listOf("member") else emptyList())
                 .filter { it.startsWith(args[0].lowercase()) }
+            args.size == 2 && args[0].equals("member", ignoreCase = true) && (sender is ConsoleCommandSender || sender is RemoteConsoleCommandSender) ->
+                listOf("add").filter { it.startsWith(args[1].lowercase()) }
             args.size == 2 && args[0].equals("menu", ignoreCase = true) ->
                 plugin.menuProvider.listMenuIds().filter { it.startsWith(args[1]) }
             args.size == 2 && args[0].equals("dump-title", ignoreCase = true) ->
@@ -71,6 +76,7 @@ class ArtisanCommand(
             }
             "link" -> link(sender, args.getOrNull(1)?.uppercase())
             "editor" -> editor(sender)
+            "member" -> member(sender, args)
             "dump-title" -> {
                 val menuId = args.getOrNull(1) ?: run {
                     sender.sendMessage("Usage: /artisan dump-title <menu_id> [lang]")
@@ -194,6 +200,38 @@ class ArtisanCommand(
                 // Linked but not yet connected to backend (e.g., backend down at boot).
                 sender.sendMessage(lang.get("artisan.editor_connecting", senderLang))
             }
+        }
+    }
+
+    private fun member(sender: CommandSender, args: Array<out String>) {
+        if (sender !is ConsoleCommandSender && sender !is RemoteConsoleCommandSender) {
+            sender.sendMessage(lang.get("artisan.member_console_only", sender))
+            return
+        }
+        if (PluginConfig.from(plugin.config).editorAccessMode != "console") {
+            sender.sendMessage(lang.get("artisan.member_console_disabled", sender))
+            return
+        }
+        if (args.size != 3 || !args[1].equals("add", ignoreCase = true)) {
+            sender.sendMessage(lang.get("artisan.member_usage", sender))
+            return
+        }
+        val email = args[2]
+        if (email.length > 254 || !Regex("[^\\s@]+@[^\\s@]+\\.[^\\s@]+").matches(email)) {
+            sender.sendMessage(lang.get("artisan.member_invalid_email", sender))
+            return
+        }
+        val provider = plugin.menuProvider as? SyncedMenuProvider
+        if (provider == null) {
+            sender.sendMessage(lang.get("artisan.member_offline", sender))
+            return
+        }
+        sender.sendMessage(lang.get("artisan.member_sending", sender))
+        provider.addMember(email).whenComplete { result, _ ->
+            if (plugin.isEnabled) Bukkit.getScheduler().runTask(plugin, Runnable {
+                val status = result?.takeIf { it in setOf("added", "already_member", "console_disabled", "invalid_email", "account_not_found", "offline", "timeout") } ?: "failed"
+                sender.sendMessage(lang.get("artisan.member_$status", sender))
+            })
         }
     }
 

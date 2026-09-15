@@ -60,7 +60,24 @@ If the server is linked and connected to the backend, this prints a clickable de
 
 Opening the editor URL requires signing in with your Artisan account, and that account must be a **member of the network** the server is linked to (the account that created the network is the owner; invite teammates from the network settings page).
 
-If a logged-in user without network membership clicks the link, they see a **"Request access"** panel where they can optionally add a message and submit a request. The network owner receives an email notification (if SMTP is configured) and can approve or deny the request from the **Members** section of the network settings. Once approved, the user gains membership and can access all servers and projects in the network.
+By default, a signed-in non-member sees **Request access**. They can send a message to the network managers, who approve or deny it from **Members** (email notification requires SMTP).
+
+To authorize accounts from the server console instead, configure:
+
+```yaml
+editor:
+  access_mode: console # invitation (default) | console
+```
+
+Run `artisan reload` after changing this setting. If any server in the network
+enables console access, the access page lists those servers and shows
+`artisan member add <email>` for the signed-in account. Run the copied command
+in one of their consoles (RCON supported). It grants **member access to the whole
+network**, including every server and project. Existing roles are preserved.
+The account must already exist, and the server must be connected to the backend.
+The page opens automatically after authorization. Manual invitations remain
+available in both modes. Set every enabled server back to `invitation` and reload
+to restore access requests. This setting is independent of `editor.console_only`.
 
 Once the editor opens, see the [Editor overview](/editor/) for next steps — how to create your first project and menu, add slots, and wire up actions.
 
@@ -74,6 +91,7 @@ From the web editor, click your network name in the top bar, then **Members**. A
 |---|---|
 | `/artisan menu <id>` | Open a menu by id (in-game, players only). |
 | `/artisan reload` | Reload all menus from disk. |
+| `artisan member add <email>` | Console/RCON only, requires `editor.access_mode: console`. Add an existing account as a member of this server's entire network. |
 | `/artisan sync status` | Show the last sync status with the backend. |
 | `/artisan sync reject` | Reload menus from disk and reconnect to the backend. |
 | `/artisan editor` | Print the deep-link to this server's editor page + network name if linked (requires `artisan.editor` permission), otherwise print the editor home URL to add the server. |

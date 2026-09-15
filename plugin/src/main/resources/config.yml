@@ -13,6 +13,9 @@ per_player_language: false
 
 # Editor access settings.
 editor:
+  # invitation (default) or console: allow artisan member add <email> from console.
+  # Grants member access to the server's entire network. Apply with /artisan reload.
+  access_mode: invitation
   # Set to true to restrict /artisan editor to console only (no in-game players).
   console_only: false
 
