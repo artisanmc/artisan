@@ -111,6 +111,22 @@ afterEach(() => {
 });
 
 describe("LayerEditForm — empty state", () => {
+  it("edits legacy text as a resizable multiline block without losing translations or style", () => {
+    seedProject([{ kind: "text", value: { key: K("g") }, x: 8, y: 20, size: 12 }], {
+      g: { en: "Hello", fr: "Bonjour" },
+    });
+    selectLayer(0);
+    const { container } = render(<LayerEditForm projectId={PACK_ID} />);
+    expect(useAccountStore.getState().account.projects[0].menus[0].title[0].kind).toBe("text");
+    fireEvent.change(screen.getByTestId("textarea-width"), { target: { value: "100" } });
+    fireEvent.change(container.querySelector("textarea")!, { target: { value: "Hello\nWorld" } });
+    const project = useAccountStore.getState().account.projects[0];
+    expect(project.menus[0].title[0]).toMatchObject({
+      kind: "textarea", value: { key: K("g") }, x: 8, y: 20, size: 12, width: 100,
+    });
+    expect(project.i18nKeys.g).toEqual({ en: "Hello\nWorld", fr: "Bonjour" });
+  });
+
   it("renders an empty-state hint when no layer is selected", () => {
     seedProject([{ kind: "text", value: { key: K("g") }, x: 0, y: 0 }]);
     render(<LayerEditForm projectId={PACK_ID} />);
@@ -263,17 +279,17 @@ describe("LayerEditForm — text layer", () => {
     selectLayer(0);
   });
 
-  it("reveals an editor bound to the resolved text after clicking the facade", () => {
+  it("shows the resolved text in the multiline editor", () => {
     const { container } = render(<LayerEditForm projectId={PACK_ID} />);
     // The field shows a rendered facade until clicked (like the item inputs).
-    fireEvent.click(screen.getByText("Hello"));
+
     const input = container.querySelector("input, textarea") as HTMLInputElement;
     expect(input.value).toBe("Hello");
   });
 
-  it("typing in the revealed editor writes via setI18nValue", () => {
+  it("typing in the multiline editor writes via setI18nValue", () => {
     const { container } = render(<LayerEditForm projectId={PACK_ID} />);
-    fireEvent.click(screen.getByText("Hello"));
+
     const input = container.querySelector("input, textarea")!;
     fireEvent.change(input, { target: { value: "<gold>Hi</gold>" } });
     expect(
@@ -418,6 +434,20 @@ describe("LayerEditForm — textarea layer", () => {
     expect(layer.alignment).toBe("center");
   });
 
+  it("keeps the visible frame fixed through alignment and width changes", () => {
+    render(<LayerEditForm projectId={PACK_ID} />);
+    const left = Number((screen.getByTestId("textarea-x") as HTMLInputElement).value);
+    for (const alignment of ["center", "right", "left"] as const) {
+      fireEvent.click(screen.getByTestId(`textarea-align-${alignment}`));
+      fireEvent.change(screen.getByTestId("textarea-width"), { target: { value: "120" } });
+      const layer = useAccountStore.getState().account.projects[0].menus[0].title[0];
+      if (layer.kind !== "textarea") throw new Error("Expected text block");
+      const anchor = alignment === "center" ? Math.floor(layer.width / 2) : alignment === "right" ? layer.width : 0;
+      expect(layer.x - anchor).toBe(left);
+      expect(Number((screen.getByTestId("textarea-x") as HTMLInputElement).value)).toBe(left);
+    }
+  });
+
   it("line height clamps to [1, 32]", () => {
     render(<LayerEditForm projectId={PACK_ID} />);
     const lh = screen.getByTestId("textarea-line-height") as HTMLInputElement;
@@ -536,7 +566,7 @@ describe("LayerEditForm — textarea layer size + lineHeight align", () => {
     }]);
     selectLayer(0);
     render(<LayerEditForm projectId={PACK_ID} />);
-    fireEvent.click(screen.getByRole("button", { name: /aligner à la taille|match line height to size/i }));
+    fireEvent.click(screen.getByRole("button", { name: /ajuster l.interligne|adjust line spacing/i }));
     const layer = useAccountStore.getState().account.projects[0]!.menus[0]!.title[0]!;
     expect((layer as { lineHeight: number }).lineHeight).toBe(18);
   });
