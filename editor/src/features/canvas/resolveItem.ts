@@ -8,6 +8,9 @@ import { Scope } from "@/lib/expr/scope";
 import { getText } from "@/lib/i18n";
 import { renderPreview } from "./menuPreviewScope";
 
+/** Placeholder rendant le lore de l'item de base, à l'endroit où il est écrit. */
+export const BASE_LORE = "{base.lore}";
+
 export interface ResolvedItem extends AdvancedFields {
   material?: string;
   head?: string;
@@ -105,18 +108,25 @@ export function resolveItem(
             ? `{${alias}.lore}`
             : undefined;
         const legacy = legacyToken && lines.some((line) => rawText(line).includes(legacyToken));
-        const rendered = lines.flatMap((line) =>
-          text(legacy ? rawText(line).replaceAll(legacyToken!, "{base.lore}") : line, local).split(
-            "\n",
-          ),
+        const tokened = lines.map((line) =>
+          legacy ? rawText(line).replaceAll(legacyToken!, BASE_LORE) : line,
         );
+        const rendered = tokened.flatMap((line) => text(line, local).split("\n"));
+        // Le lore de base reste par défaut ; il ne part que sur demande explicite
+        // (`lore_mode: replace`) ou quand `{base.lore}` le place lui-même —
+        // sinon il apparaîtrait deux fois.
         const replacement =
-          legacy ||
-          own.extends !== undefined ||
+          tokened.some((line) => rawText(line).includes(BASE_LORE)) ||
           own.lore_mode === "replace" ||
           own.loreMode === "replace";
-        result.lore = [...(replacement ? [] : base.lore), ...rendered];
-        if (replacement && result.lore.length === 1 && result.lore[0] === "") result.lore = [];
+        const cleared = rendered.length === 1 && rendered[0] === "";
+        result.lore = replacement
+          ? cleared
+            ? []
+            : rendered
+          : cleared
+            ? base.lore
+            : [...base.lore, ...rendered];
       }
       return result;
     } finally {

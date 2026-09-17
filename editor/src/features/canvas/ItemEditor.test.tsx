@@ -70,3 +70,60 @@ it("inserts source lore below custom lines when the source has lore", () => {
   fireEvent.click(screen.getByRole("button", { name: /lore hérité|insérer le lore/i }));
   expect(onText).toHaveBeenCalledWith("lore", "Offer\n{base.lore}");
 });
+
+it("keeps the base lore by default and only drops it when replacement is ticked", () => {
+  const onLoreMode = vi.fn();
+  render(
+    <ItemEditor
+      source={null}
+      appearance={{}}
+      lore="Offer"
+      inherited={{ lore: ["Original"] }}
+      preview={{ lore: ["Original", "Offer"] }}
+      onLoreMode={onLoreMode}
+      onText={vi.fn()}
+      onCount={vi.fn()}
+      onAdvanced={vi.fn()}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: /modifier l.item/i }));
+  const box = screen.getByRole("checkbox", { name: /remplacer le lore/i });
+  expect(box).not.toBeChecked();
+  fireEvent.click(box);
+  expect(onLoreMode).toHaveBeenCalledWith("replace");
+});
+
+it("offers no replacement toggle when the base item carries no lore", () => {
+  render(
+    <ItemEditor
+      source={null}
+      appearance={{}}
+      inherited={{ lore: [] }}
+      preview={{ lore: [] }}
+      onLoreMode={vi.fn()}
+      onText={vi.fn()}
+      onCount={vi.fn()}
+      onAdvanced={vi.fn()}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: /modifier l.item/i }));
+  expect(screen.queryByRole("checkbox", { name: /remplacer le lore/i })).not.toBeInTheDocument();
+});
+
+it("shows an empty lore field rather than a {base.lore} placeholder when nothing is authored", () => {
+  render(
+    <ItemEditor
+      source={null}
+      appearance={{}}
+      inherited={{ lore: ["Original"] }}
+      preview={{ lore: ["Original"] }}
+      loreMode={undefined}
+      onLoreMode={vi.fn()}
+      onText={vi.fn()}
+      onCount={vi.fn()}
+      onAdvanced={vi.fn()}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: /modifier l.item/i }));
+  expect(screen.queryByDisplayValue("{base.lore}")).not.toBeInTheDocument();
+});

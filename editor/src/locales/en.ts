@@ -337,6 +337,7 @@ export default {
   },
   itemBinding: {
     insertLore: "Insert source lore",
+    replaceLore: "Replace the base item lore",
     editItem: "Edit item",
     done: "Done",
     catalog: "Catalog", library: "Library", fromCatalog: "from catalog",

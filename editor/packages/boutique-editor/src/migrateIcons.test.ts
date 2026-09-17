@@ -96,7 +96,7 @@ describe("catalogue icon migration", () => {
     const row = (project.dataSources[0] as { rows: { items: Record<string, unknown>[] }[] })
       .rows[0]!.items[0]!;
     expect(row.lore).toBeUndefined();
-    expect((row.icon as { lore: string[] }).lore).toEqual(["{base.lore}", "Rare"]);
+    expect((row.icon as { lore: string[] }).lore).toEqual(["Rare"]);
     expect(project.dataModels![0]!.fields.map((f) => f.name)).toEqual(["icon"]);
   });
 });

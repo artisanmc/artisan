@@ -806,14 +806,16 @@ function StateCard({
             appearance={appearance} inherited={inheritedItem}
             preview={previewItem(appearance, lorePreviewCtx, project, activeLang)}
             title={appearance.title ? title : undefined}
-            lore={appearance.lore ? (appearance.loreMode === "replace" ? loreText : ("{base.lore}" + (loreText ? "\n" + loreText : ""))) : undefined}
+            lore={appearance.lore ? loreText : undefined}
+            loreMode={appearance.loreMode}
+            onLoreMode={(mode) => update("loreMode", mode)}
             titleLabel={t(titleIsFallback ? "flow.titleLabelFallback" : "flow.titleLabel", { lang: activeLang })}
             loreLabel={t(loreIsFallback ? "flow.loreLabelFallback" : "flow.loreLabel", { lang: activeLang })}
             entries={placeholderEntries} onFocus={() => setSub({ kind: "state", stateIndex })}
             onText={(field, value) => {
               if (value === undefined) { update(field, undefined); return; }
               if (field === "title") updateTitle(value);
-              else { update("loreMode", "replace"); updateLore(value); }
+              else updateLore(value);
             }}
             onCount={value => update("count", value)}
             onAdvanced={patch => setAppearanceAdvanced({ projectId, ...target, appearanceIndex: stateIndex, patch })}

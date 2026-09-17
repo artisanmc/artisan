@@ -40,7 +40,9 @@ export function migrateIcons(raw: unknown): void {
   for (const row of rows) {
     const lore = Array.isArray(row.lore) ? row.lore : [];
     if (lore.length > 0) {
-      row.icon = { extends: row.icon, lore: ["{base.lore}", ...lore], lore_mode: "replace" };
+      // Le lore de base est conservé par défaut : le lore du catalogue s'ajoute
+      // simplement dessous, sans placeholder ni remplacement explicite.
+      row.icon = { extends: row.icon, lore };
     }
     Reflect.deleteProperty(row, "lore");
   }
@@ -50,18 +52,12 @@ export function migrateIcons(raw: unknown): void {
     const token = `{${alias}.lore}`;
     if (!Object.values(old).some((text) => text.includes(token))) continue;
     const key = `${app.lore!.key}.item_extension` as I18nKey;
+    // Le token positionne le lore de l'icône là où le catalogue l'écrivait ; une
+    // langue qui ne le portait pas s'en tient au défaut (lore de base au-dessus).
     project.i18nKeys[key] = Object.fromEntries(
-      Object.entries(old).map(([lang, text]) => [
-        lang,
-        text.includes(token)
-          ? text.replaceAll(token, "{base.lore}")
-          : app.loreMode === "replace"
-            ? text
-            : `{base.lore}\n${text}`,
-      ]),
+      Object.entries(old).map(([lang, text]) => [lang, text.replaceAll(token, "{base.lore}")]),
     );
     app.lore = { key };
-    app.loreMode = "replace";
   }
   model.fields = model.fields.filter((f) => f.name !== "lore");
 }
