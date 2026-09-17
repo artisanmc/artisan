@@ -178,7 +178,7 @@ export interface Appearance {
   count?: number;
   title?: string;
   lore?: string[];
-  /** `replace` : cette lore REMPLACE celle héritée d'`item` au lieu de s'y ajouter. Absent = ajout (comportement historique). */
+  /** `replace` : cette lore ÉCARTE celle de l'item de base. Absent = elle s'y ajoute (défaut) ; écrire `{base.lore}` la positionne soi-même. */
   lore_mode?: "replace";
   /** Map id → niveau ({ sharpness: 5 }) ; la forme liste est lue mais jamais écrite. */
   enchants?: Record<string, number> | { id: string; level?: number }[];

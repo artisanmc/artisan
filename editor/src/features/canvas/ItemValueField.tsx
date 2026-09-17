@@ -52,9 +52,6 @@ export function ItemValueField({
     const next: Record<string, unknown> = { ...item, extends: source };
     Reflect.deleteProperty(next, "material");
     Reflect.deleteProperty(next, "item");
-    if (item.extends === undefined && item.lore !== undefined) {
-      next.lore = ["{base.lore}", ...(Array.isArray(item.lore) ? item.lore : [item.lore])];
-    }
     return next;
   };
   const patch = (fields: Record<string, unknown>) => {
@@ -84,11 +81,9 @@ export function ItemValueField({
       titleLabel={t("flow.titleLabel", { lang })}
       loreLabel={t("flow.loreLabel", { lang })}
       title={item.title === undefined ? undefined : text(item.title)}
-      lore={
-        item.lore === undefined
-          ? undefined
-          : (item.extends === undefined ? "{base.lore}\n" : "") + text(item.lore)
-      }
+      lore={item.lore === undefined ? undefined : text(item.lore)}
+      loreMode={item.lore_mode === "replace" ? "replace" : undefined}
+      onLoreMode={(mode) => patch({ lore_mode: mode })}
       inherited={inherited}
       preview={preview}
       entries={entries}
@@ -120,7 +115,7 @@ export function ItemValueField({
           existing && typeof existing === "object" && !Array.isArray(existing) && "key" in existing
             ? (existing as LText)
             : ({ key: `items.${crypto.randomUUID()}.${field}` } as LText);
-        patch({ [field]: lt, ...(field === "lore" ? { lore_mode: "replace" } : {}) });
+        patch({ [field]: lt });
         setI18nValue({ projectId, lt, lang, value });
       }}
       onAdvanced={(fields) => {

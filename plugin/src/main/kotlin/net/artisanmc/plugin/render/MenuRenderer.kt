@@ -25,6 +25,8 @@ class ArtisanMenuHolder : InventoryHolder {
 }
 
 object MenuRenderer {
+    /** Placeholder rendant le lore de l'item de base, là où il est écrit. */
+    private const val BASE_LORE = "{base.lore}"
 
     private val itemMapper = ObjectMapper().registerKotlinModule()
 
@@ -258,7 +260,6 @@ object MenuRenderer {
         val base = (value as? Map<*, *>)?.let {
             val fields = it.entries.associate { entry -> entry.key.toString() to entry.value }.toMutableMap()
             if (fields["lore"] is String) fields["lore"] = listOf(fields["lore"])
-            if (fields.containsKey("extends") && fields.containsKey("lore")) fields["lore_mode"] = "replace"
             val extension = fields.remove("extends")
             itemMapper.convertValue(fields, AppearanceYaml::class.java).copy(extends = extension)
         }
@@ -300,10 +301,13 @@ object MenuRenderer {
                 else loreAddress?.let { langMap[it] } ?: raw
             }
             val legacy = legacyToken != null && rawLines.any { it.contains(legacyToken) }
-            val replacement = legacy || app.extends != null || app.loreMode == "replace"
+            val tokened = rawLines.map { if (legacy) it.replace(legacyToken!!, BASE_LORE) else it }
+            // Le lore de base reste par défaut : il ne part que sur `lore_mode: replace`
+            // ou quand `{base.lore}` le place lui-même (sinon il sortirait deux fois).
+            val replacement = tokened.any { it.contains(BASE_LORE) } || app.loreMode == "replace"
             val base = if (replacement) emptyList() else meta.lore() ?: emptyList()
-            val lines = rawLines.flatMap { raw -> localCtx.render(if (legacy) raw.replace(legacyToken!!, "{base.lore}") else raw, papi) { key -> langMap[key] }.split("\n") }
-            meta.lore(base + (if (replacement && lines == listOf("")) emptyList() else lines.map { parse(it) }))
+            val lines = tokened.flatMap { raw -> localCtx.render(raw, papi) { key -> langMap[key] }.split("\n") }
+            meta.lore(if (lines == listOf("")) base else base + lines.map { parse(it) })
         }
         ItemDetails.applyToMeta(app, meta)
         item.itemMeta = meta
