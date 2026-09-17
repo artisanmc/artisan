@@ -40,10 +40,10 @@ import { useGlobalSearchShortcut } from "@/features/search/useGlobalSearchShortc
 import { DeleteProjectDialog } from "@/features/sync/DeleteProjectDialog";
 import { TranslationPanelContent } from "@/features/translations/TranslationPanel";
 import { deleteUserProject } from "@/lib/api/userProjects";
+import { validActiveLang } from "@/lib/i18nUsages";
 import { projectDestination } from "@/lib/projectNavigation";
-import { projectUrlId } from "@/lib/projectUrlId";
-import { ResolvedProjectContext } from "./ResolvedProjectContext";
 import { useProjectPrincipalId } from "@/lib/projectPrincipal";
+import { projectUrlId } from "@/lib/projectUrlId";
 import { useIsDesktop } from "@/lib/useMediaQuery";
 import { STALE_NOTICE_DELAY_MS, useSettledFlag } from "@/lib/useSettledFlag";
 import { useAccountStore } from "@/state/accountStore";
@@ -73,6 +73,7 @@ import { PanelLeft } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import { ResolvedProjectContext } from "./ResolvedProjectContext";
 
 export type ProjectSearch = {
   tab?: "overview" | "translations" | "data-sources" | "assistant";
@@ -132,6 +133,16 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
       hash: true,
     });
   }, [canonicalId, projectId, networkId, serverId, documentId, navigate]);
+
+  // La langue active est persistée globalement : un project qui a perdu cette
+  // langue (fichiers lang/ retirés) doit retomber sur sa langue par défaut.
+  const activeLang = useUiStore((s) => s.activeLang);
+  const setActiveLang = useUiStore((s) => s.setActiveLang);
+  useEffect(() => {
+    if (!project) return;
+    const lang = validActiveLang(project, activeLang);
+    if (lang !== activeLang) setActiveLang(lang);
+  }, [project, activeLang, setActiveLang]);
 
   useGlobalSearchShortcut();
   useWorkspaceTabShortcuts(runtime?.capabilities.canUseAssistant !== false);
@@ -334,7 +345,9 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
   // Konva keeps its measured size.
   const centerContent =
     childMatches.length > 0 ? (
-      <ResolvedProjectContext.Provider value={pId}><Outlet /></ResolvedProjectContext.Provider>
+      <ResolvedProjectContext.Provider value={pId}>
+        <Outlet />
+      </ResolvedProjectContext.Provider>
     ) : (
       // Le canvas occupe toute la région ; l'inspecteur n'apparaît que s'il y a
       // quelque chose à inspecter (`CanvasWithInspector`).
