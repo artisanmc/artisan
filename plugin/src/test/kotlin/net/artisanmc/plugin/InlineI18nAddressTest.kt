@@ -72,13 +72,13 @@ class InlineI18nAddressTest {
     @Test fun `a literal title and lore resolve through their canonical address`() {
         val (title, lore, _) = render("fr", mapOf("fr" to fr))
         assertEquals("Épée", title)
-        assertEquals("Tranchante", lore)
+        assertEquals("\u00a7fTranchante", lore)
     }
 
     @Test fun `the literal stands in when the language has no entry at that address`() {
         val (title, lore, _) = render("en", mapOf("fr" to fr))
         assertEquals("Sword", title)
-        assertEquals("Sharp", lore)
+        assertEquals("\u00a7fSharp", lore)
     }
 
     @Test fun `an explicit i18n ref still wins over the address`() {

@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import net.artisanmc.plugin.resourcepack.AssetEntry
 import net.kyori.adventure.text.format.Style
+import net.kyori.adventure.text.format.NamedTextColor
 import net.kyori.adventure.text.format.TextDecoration
 import net.kyori.adventure.text.minimessage.MiniMessage
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
@@ -27,6 +28,7 @@ class ArtisanMenuHolder : InventoryHolder {
 object MenuRenderer {
     /** Placeholder rendant le lore de l'item de base, là où il est écrit. */
     private const val BASE_LORE = "{base.lore}"
+
 
     private val itemMapper = ObjectMapper().registerKotlinModule()
 
@@ -307,7 +309,7 @@ object MenuRenderer {
             val replacement = tokened.any { it.contains(BASE_LORE) } || app.loreMode == "replace"
             val base = if (replacement) emptyList() else meta.lore() ?: emptyList()
             val lines = tokened.flatMap { raw -> localCtx.render(raw, papi) { key -> langMap[key] }.split("\n") }
-            meta.lore(if (lines == listOf("")) base else base + lines.map { parse(it) })
+            meta.lore(if (lines == listOf("")) base else base + lines.map { parse(it).colorIfAbsent(NamedTextColor.WHITE) })
         }
         ItemDetails.applyToMeta(app, meta)
         item.itemMeta = meta

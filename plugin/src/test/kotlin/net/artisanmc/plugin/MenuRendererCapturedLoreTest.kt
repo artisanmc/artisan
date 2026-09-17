@@ -10,6 +10,7 @@ import net.artisanmc.plugin.items.CapturedItemStore
 import net.artisanmc.plugin.model.MenuYaml
 import net.artisanmc.plugin.render.MenuRenderer
 import net.kyori.adventure.text.Component
+import net.kyori.adventure.text.format.NamedTextColor
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
 import org.bukkit.Material
 import org.bukkit.inventory.ItemStack
@@ -93,6 +94,14 @@ class MenuRendererCapturedLoreTest {
 
     private fun loreOf(item: ItemStack?): List<String> =
         item?.itemMeta?.lore()?.map { plain.serialize(it) } ?: emptyList()
+
+    @Test
+    fun `authored lore defaults to white and preserves explicit colors`() {
+        val lines = render("DIAMOND", lore = listOf("Plain", "<red>Red</red>", "\u00a7aGreen"))!!.itemMeta!!.lore()!!
+        assertEquals(NamedTextColor.WHITE, lines[0].color())
+        assertEquals(NamedTextColor.RED, lines[1].color())
+        assertEquals(NamedTextColor.GREEN, lines[2].color())
+    }
 
     @Test
     fun `element lore is appended to the referenced item's own lore`() {
