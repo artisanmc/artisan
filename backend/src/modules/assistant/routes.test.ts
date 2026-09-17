@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { eq } from "drizzle-orm";
+import OpenAI from "openai";
 import { app } from "../../app";
 import { db } from "../../db/index";
 import {
@@ -193,6 +194,26 @@ describe("assistant routes", () => {
       expect(await getBalance(networkId)).toBeGreaterThan(0);
     } finally { await db.delete(projects).where(eq(projects.id, id)); __setProviderForTests(fakeProvider()); }
   });
+	it("returns safe provider diagnostics without leaking the provider payload", async () => {
+		const { conversationId } = await (await app.request("/api/v1/assistant/conversations", {
+			method: "POST", headers: cookieHeader(), body: JSON.stringify({ projectId: PACK_ID }),
+		})).json();
+		__setProviderForTests({ async *streamTurn() {
+			throw new OpenAI.APIError(400, { code: "invalid_request_error", param: "messages", detail: "PRIVATE_FILE" }, "SECRET_API_KEY", new Headers());
+		} });
+		try {
+			const response = await app.request(`/api/v1/assistant/conversations/${conversationId}/messages`, {
+				method: "POST", headers: cookieHeader(), body: JSON.stringify({ text: "continue" }),
+			});
+			const output = await response.text();
+			expect(output).toContain('"code":"provider_request_rejected"');
+			expect(output).toContain('"httpStatus":400');
+			expect(output).toContain('"parameter":"messages"');
+			expect(output).toContain('"correlationId":');
+			expect(output).not.toContain("PRIVATE_FILE");
+			expect(output).not.toContain("SECRET_API_KEY");
+		} finally { __setProviderForTests(fakeProvider()); }
+	});
 	it.each([false, true])("retains unread uploads after reopening the conversation (background=%s)", async (background) => {
 		const created = await app.request("/api/v1/assistant/conversations", {
 			method: "POST", headers: cookieHeader(), body: JSON.stringify({ projectId: PACK_ID }),

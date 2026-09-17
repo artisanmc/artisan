@@ -28,7 +28,11 @@ import {
 	resolveServerAttachments,
 } from "./serverAttachments";
 import { type DataSourceInfo, WorkingCopy } from "./workingCopy";
-import { assistantFailureCode, startAssistantHeartbeat } from "./transport";
+import {
+	assistantFailureCode,
+	assistantFailureDiagnostics,
+	startAssistantHeartbeat,
+} from "./transport";
 import { buildMigrationRouter, migrationSelection } from "./migration/routes";
 import { dispatchMigration, executeMigration } from "./migration/runner";
 import {
@@ -485,8 +489,9 @@ export function buildAssistantRouter() {
 			signal?: AbortSignal,
 		) => {
 			const t0 = performance.now();
-			const diagnostic = (code: string) =>
+			const diagnostic = (code: string, details = {}) =>
 				console.warn("[assistant]", {
+					...details,
 					code,
 					correlationId,
 					conversationId: conv.id,
@@ -580,7 +585,8 @@ export function buildAssistantRouter() {
 			} catch (e) {
 				const code =
 					e instanceof MigrationInputError ? e.code : assistantFailureCode(e);
-				diagnostic(code);
+				const details = assistantFailureDiagnostics(e);
+				diagnostic(code, details);
 				const message = code;
 				// Provider failure: log consumed tokens for admin visibility — no debit.
 				const persistedErrorMessage =
@@ -593,7 +599,7 @@ export function buildAssistantRouter() {
 				}).catch(() => diagnostic("error_record_failed"));
 				await stream.writeSSE({
 					event: "error",
-					data: JSON.stringify({ message, code, correlationId }),
+					data: JSON.stringify({ ...details, message, code, correlationId }),
 				});
 			} finally {
 				// Source bodies stay out of the transcript; uploads live in dedicated storage.
