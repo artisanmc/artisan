@@ -9,6 +9,27 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Fixed — assistant provider diagnostics
+
+- A failed assistant turn now says what the provider refused — rejected request, access, billing, unavailable model, rate limit, payload size, timeout, server error — instead of a bare "disconnected". Provider billing is distinct from Artisan credits; existing results are kept and no automatic retry is started.
+
+### Fixed — intentionally blank texts
+
+- A source text left deliberately empty counts as translated everywhere: the Translations panel, the missing-translations badge and export validation now agree. A key is invalid only when the default language has no entry at all.
+
+### Fixed — lore colour and legacy captures
+
+- Lore lines written without a colour render white in game rather than Minecraft's default purple; explicit colours are untouched.
+- A captured item written on an older server no longer floods the log with `ZipException` stacktraces: the dead `meta.internal` blob is dropped before Bukkit reads it, and the warning names the item id.
+
+### Added — the placeholders an item can use
+
+- The item dialog lists the placeholders available in its context, grouped by origin, searchable, each copied whole with its braces and shown with a sample value.
+
+### Changed — one frame model for text layers
+
+- Width, line height and anchoring of a title text layer live in one place (`textFrame.ts`), shared by the form, the renderer and the panel. The line-height control now reads "Adjust line spacing" and states the rule it applies.
+
 ### Changed — the base item's lore is kept by default
 
 - An item's explicit lore is now ADDED below the lore of the item it is built on, `extends` values included (they used to replace it silently). Dropping the base lore is an explicit choice: tick **Replace the base item lore** next to the lore field, which writes `lore_mode: replace`.

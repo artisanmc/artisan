@@ -108,7 +108,14 @@ export const migrationEn = {
 		provider_network_error:
 			"The connection to the AI was interrupted. Completed menus are retained.",
 		provider_error:
-			"The AI returned an unusable response. Completed menus are retained.",
+			"The AI request failed without a more precise cause. Existing results are retained.",
+		provider_request_rejected: "The provider rejected the request format or parameters. Existing results are retained.",
+		provider_auth_failed: "The provider denied access. Ask an administrator to check the API key and permissions.",
+		provider_payment_required: "The provider requires payment or more provider credit. This is separate from Artisan credits.",
+		provider_model_unavailable: "The provider could not find the requested model or endpoint. Check the provider configuration.",
+		provider_payload_too_large: "The provider rejected the request size. This does not necessarily mean the model context is full.",
+		provider_rate_limited: "The provider rate limit was reached. Wait before explicitly continuing; no automatic retry was started.",
+		provider_unavailable: "The provider reported a server error. Existing results are retained; no automatic retry was started.",
 		provider_output_limit:
 			"The provider stopped generation at its output limit. The incomplete response was not applied; completed menus are retained.",
 		response_buffer_exceeded:
@@ -252,7 +259,14 @@ export const migrationFr = {
 		provider_network_error:
 			"La connexion à l’IA a été interrompue. Les menus terminés sont conservés.",
 		provider_error:
-			"L’IA a renvoyé une réponse inutilisable. Les menus terminés sont conservés.",
+			"La requête à l’IA a échoué sans cause plus précise. Les résultats existants sont conservés.",
+		provider_request_rejected: "Le fournisseur a refusé le format ou les paramètres de la requête. Les résultats existants sont conservés.",
+		provider_auth_failed: "Le fournisseur a refusé l’accès. Un administrateur doit vérifier la clé API et les permissions.",
+		provider_payment_required: "Le fournisseur demande un paiement ou des crédits supplémentaires chez lui, distincts des crédits Artisan.",
+		provider_model_unavailable: "Le fournisseur ne trouve pas le modèle ou l’adresse demandée. Vérifiez sa configuration.",
+		provider_payload_too_large: "Le fournisseur a refusé la taille de la requête. Cela ne signifie pas forcément que le contexte du modèle est plein.",
+		provider_rate_limited: "La limite de débit du fournisseur est atteinte. Attendez avant de continuer explicitement ; aucune relance automatique n’a été lancée.",
+		provider_unavailable: "Le fournisseur a signalé une erreur serveur. Les résultats existants sont conservés ; aucune relance automatique n’a été lancée.",
 		provider_output_limit:
 			"Le fournisseur a arrêté la génération à sa limite de sortie. La réponse incomplète n’a pas été appliquée ; les menus terminés sont conservés.",
 		response_buffer_exceeded:
