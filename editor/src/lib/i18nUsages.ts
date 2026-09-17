@@ -71,11 +71,25 @@ export function validActiveLang(project: Project, activeLang: string): string {
 }
 
 /**
+ * A translation is missing only when the source has content and a secondary
+ * language has no content. An explicitly empty source is a valid intentional
+ * blank (for example an item title or lore that should not render).
+ */
+export function isTranslationMissing(
+  defaultLang: string,
+  lang: string,
+  source: string | undefined,
+  target: string | undefined,
+): boolean {
+  return lang !== defaultLang && Boolean(source?.trim()) && !target?.trim();
+}
+
+/**
  * For every non-default language in the project, count how many keys lack
- * a translation (missing entirely or empty string). Used by the
- * Translations panel tab badges and by the top-bar Languages button
- * dot indicator. Default lang is intentionally excluded — its values
- * are the source, there's nothing to "miss".
+ * a translation for a non-empty source (missing entirely or empty string).
+ * Used by the Translations panel tab badges and by the top-bar Languages button
+ * dot indicator. Default lang is intentionally excluded, and empty source
+ * values are treated as intentional blanks rather than missing translations.
  */
 export function countMissingPerLang(project: Project): Record<string, number> {
   const out: Record<string, number> = {};
@@ -85,8 +99,11 @@ export function countMissingPerLang(project: Project): Record<string, number> {
     let count = 0;
     for (const entry of allEntries) {
       if (!entry) continue;
-      const v = entry[lang];
-      if (!v || v.trim() === "") count++;
+      if (
+        isTranslationMissing(project.defaultLang, lang, entry[project.defaultLang], entry[lang])
+      ) {
+        count++;
+      }
     }
     out[lang] = count;
   }
@@ -94,18 +111,18 @@ export function countMissingPerLang(project: Project): Record<string, number> {
 }
 
 /**
- * Count keys whose value for `lang` is missing or empty — exactly the
- * "missing" headline the Translations panel shows for the active language
- * (the empty-`target` rows of {@link buildTranslationRows}). Used by the
- * sidebar Translations tab badge so the nav count always matches the panel,
- * including when `lang` is the default (empty source strings count too).
+ * Count keys whose target value is missing while the default-language source
+ * contains text. Used by the sidebar Translations tab badge so the nav count
+ * always matches the panel. Explicitly blank source values are not missing,
+ * including when `lang` is the default language.
  */
 export function countMissingForLang(project: Project, lang: string): number {
   let count = 0;
   for (const entry of Object.values(project.i18nKeys)) {
     if (!entry) continue;
-    const v = entry[lang];
-    if (!v || v.trim() === "") count++;
+    if (isTranslationMissing(project.defaultLang, lang, entry[project.defaultLang], entry[lang])) {
+      count++;
+    }
   }
   return count;
 }

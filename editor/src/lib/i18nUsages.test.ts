@@ -2,6 +2,8 @@ import type { I18nKey, Project } from "@/domain/types";
 import { describe, expect, it } from "vitest";
 import {
   buildTranslationRows,
+  countMissingForLang,
+  countMissingPerLang,
   findKeyUsages,
   findUnusedI18nKeys,
   validActiveLang,
@@ -251,6 +253,31 @@ describe("buildTranslationRows", () => {
     });
     const rows = buildTranslationRows(p, "en");
     expect(rows.map((r) => r.context)).toEqual(["menus.m1.title", "(unused)"]);
+  });
+});
+
+describe("translation completeness", () => {
+  it("does not count an intentionally blank source as missing", () => {
+    const p = project({
+      defaultLang: "fr",
+      i18nKeys: { [k("blank")]: { fr: "", en: "" } },
+    });
+
+    expect(countMissingForLang(p, "fr")).toBe(0);
+    expect(countMissingForLang(p, "en")).toBe(0);
+    expect(countMissingPerLang(p)).toEqual({ en: 0 });
+  });
+
+  it("counts an empty target only when the source contains text", () => {
+    const p = project({
+      i18nKeys: {
+        [k("translated")]: { en: "Hello", fr: "" },
+        [k("blank")]: { en: "", fr: "" },
+      },
+    });
+
+    expect(countMissingForLang(p, "fr")).toBe(1);
+    expect(countMissingPerLang(p)).toEqual({ fr: 1 });
   });
 });
 
