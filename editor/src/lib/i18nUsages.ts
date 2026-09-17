@@ -65,6 +65,11 @@ export function listLanguages(project: Project): string[] {
   return [project.defaultLang, ...others];
 }
 
+/** The persisted active language, or the project's default when it no longer exists there. */
+export function validActiveLang(project: Project, activeLang: string): string {
+  return listLanguages(project).includes(activeLang) ? activeLang : project.defaultLang;
+}
+
 /**
  * For every non-default language in the project, count how many keys lack
  * a translation (missing entirely or empty string). Used by the

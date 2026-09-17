@@ -1,6 +1,11 @@
 import type { I18nKey, Project } from "@/domain/types";
 import { describe, expect, it } from "vitest";
-import { buildTranslationRows, findKeyUsages, findUnusedI18nKeys } from "./i18nUsages";
+import {
+  buildTranslationRows,
+  findKeyUsages,
+  findUnusedI18nKeys,
+  validActiveLang,
+} from "./i18nUsages";
 
 const k = (s: string): I18nKey => s as I18nKey;
 
@@ -268,5 +273,17 @@ describe("findUnusedI18nKeys", () => {
       },
     });
     expect(findUnusedI18nKeys(p).sort()).toEqual([k("lt_orphan1"), k("lt_orphan2")]);
+  });
+});
+
+describe("validActiveLang", () => {
+  it("keeps a language the project still has", () => {
+    const p = project({ defaultLang: "fr", i18nKeys: { [k("a")]: { fr: "A", en: "A" } } });
+    expect(validActiveLang(p, "en")).toBe("en");
+  });
+
+  it("falls back to the default when the language left the project", () => {
+    const p = project({ defaultLang: "fr", i18nKeys: { [k("a")]: { fr: "A" } } });
+    expect(validActiveLang(p, "en")).toBe("fr");
   });
 });
