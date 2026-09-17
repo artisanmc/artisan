@@ -105,6 +105,44 @@ class CapturedItemStoreTest {
         assertNull(deps.buildCustomStack("item:ghost", 1))
     }
 
+    /**
+     * A legacy `meta.internal` blob that no longer inflates makes Bukkit log a
+     * full ZipException stacktrace per file and silently drop the block-state.
+     * The store must name the offending item instead, so the fix (re-capture)
+     * is obvious from the log.
+     */
+    @Test
+    fun `names the item when a legacy block-state blob is unreadable`() {
+        val dead = java.util.Base64.getEncoder().encodeToString("not gzip".toByteArray())
+        val dir = File(projectsDir, "shop/items").also { it.mkdirs() }
+        File(dir, "ci_shulker.yml").writeText(
+            """
+            item:
+              ==: org.bukkit.inventory.ItemStack
+              v: 1
+              type: SHULKER_BOX
+              amount: 1
+              meta:
+                ==: ItemMeta
+                meta-type: BLOCK_STATE
+                internal: $dead
+            """.trimIndent()
+        )
+
+        val warnings = mutableListOf<String>()
+        val logger = object : java.util.logging.Logger("test", null) {
+            override fun warning(msg: String) { warnings.add(msg) }
+        }
+
+        val store = CapturedItemStore(projectsDir, logger)
+        store.reload() // must not throw
+
+        assertTrue(
+            warnings.any { it.contains("ci_shulker") && it.contains("block-state") },
+            "expected a warning naming the item, got: $warnings",
+        )
+    }
+
     @Test
     fun `reload swaps atomically — removed files disappear`() {
         writeWrapped("shop", "ci_tmp", Material.STONE, 1)

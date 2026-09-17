@@ -38,7 +38,7 @@ open class CapturedItemStore(
             itemsDir.listFiles { f -> f.isFile && (f.extension == "yml" || f.extension == "yaml") }
                 ?.forEach { file ->
                     val id = file.nameWithoutExtension
-                    val stack = deserialize(file.readText())
+                    val stack = deserialize(id, file.readText())
                     if (stack != null) fresh[id] = stack
                     else logger?.warning("[Artisan] captured item '$id' ($projectId) failed to deserialize — skipped")
                 }
@@ -54,16 +54,26 @@ open class CapturedItemStore(
      */
     open fun resolve(id: String): ItemStack? = stacks[id]?.clone()
 
-    private fun deserialize(text: String): ItemStack? {
+    private fun deserialize(id: String, text: String): ItemStack? {
+        // A legacy block-state blob that no longer inflates would make Bukkit
+        // log a stacktrace per file and drop the state anonymously — name the
+        // item instead, and hand Bukkit the YAML without the dead key.
+        val source = LegacyInternalTag.stripUnreadable(text)?.also {
+            logger?.warning(
+                "[Artisan] captured item '$id' carries an unreadable legacy block-state " +
+                    "(its NBT no longer inflates) — loaded without it; re-capture the item to restore it",
+            )
+        } ?: text
+
         // Canonical: `item:` root key.
         runCatching {
             val yml = YamlConfiguration()
-            yml.loadFromString(text)
+            yml.loadFromString(source)
             yml.getItemStack("item")?.let { return it }
         }
         // Tolerated: root-level serialized stack — re-wrap under `item:`.
         return runCatching {
-            val wrapped = "item:\n" + text.lines().joinToString("\n") { "  $it" }
+            val wrapped = "item:\n" + source.lines().joinToString("\n") { "  $it" }
             val yml = YamlConfiguration()
             yml.loadFromString(wrapped)
             yml.getItemStack("item")
