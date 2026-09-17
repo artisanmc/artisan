@@ -11,6 +11,8 @@ Pick a language in the left column; the badge tells you how many texts are still
 
 **Add a language** creates a new column — nothing else changes until you fill it in. **Remove N unused** deletes texts no longer attached to anything (leftovers from a deleted button, say).
 
+An empty source value is valid: it means that a title, lore, or other text should stay blank. It is not counted as a missing translation, and an empty target is only missing when the source contains text. The empty value is still written to disk so the game renders nothing instead of showing the translation key.
+
 ## How the files are written
 
 Your project lives as YAML files on your server, and you can edit them by hand. The **On disk** toggle in the Translations panel decides what a text looks like there:
