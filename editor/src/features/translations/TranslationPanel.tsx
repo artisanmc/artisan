@@ -1,21 +1,22 @@
 import { RevealField } from "@/components/RevealField";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { YamlCodeEditor } from "@/components/ui/yaml-code-editor";
 import type { I18nKey, ProjectId } from "@/domain/types";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import {
   type TranslationRow,
   buildTranslationRows,
   countMissingPerLang,
+  isTranslationMissing,
   listLanguages,
 } from "@/lib/i18nUsages";
+import { flattenLangTree } from "@/lib/langTree";
 import { useAccountStore } from "@/state/accountStore";
 import { useUiStore } from "@/state/uiStore";
-import { YamlCodeEditor } from "@/components/ui/yaml-code-editor";
 import { AlertCircle, ArrowDown, Check, Copy as CopyIcon, Plus, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { flattenLangTree } from "@/lib/langTree";
 import { parse as parseYaml } from "yaml";
 import { countListLeaves, serializeRows } from "./translationsYaml";
 
@@ -96,11 +97,13 @@ export function TranslationPanelContent({ projectId }: { projectId: ProjectId })
   const isOnDefault = activeLang === project.defaultLang;
   const isInline = project.i18nMode === "inline";
 
+  const missing = rows.filter((r) =>
+    isTranslationMissing(project.defaultLang, activeLang, r.source, r.target),
+  ).length;
   const stats = {
     total: rows.length,
-    translated: rows.filter((r) => r.target.trim() !== "").length,
+    translated: rows.length - missing,
   };
-  const missing = stats.total - stats.translated;
   const unusedCount = rows.filter((r) => r.context === "(unused)").length;
 
   const onRemoveUnused = () => {
@@ -398,9 +401,14 @@ function FilterTab({
   );
 }
 
-function matchesFilter(row: TranslationRow, filter: Filter): boolean {
+function matchesFilter(
+  row: TranslationRow,
+  filter: Filter,
+  activeLang: string,
+  defaultLang: string,
+): boolean {
   if (filter === "all") return true;
-  const isTranslated = row.target.trim() !== "";
+  const isTranslated = !isTranslationMissing(defaultLang, activeLang, row.source, row.target);
   return filter === "missing" ? !isTranslated : isTranslated;
 }
 
@@ -424,18 +432,21 @@ function VisualBody({
   // steal focus mid-edit. The badge / border still update live because
   // each row reads its own row data on every render.
   const [visibleKeys, setVisibleKeys] = useState<I18nKey[]>(() =>
-    allRows.filter((r) => matchesFilter(r, filter)).map((r) => r.key),
+    allRows.filter((r) => matchesFilter(r, filter, activeLang, defaultLang)).map((r) => r.key),
   );
   // Track filter+lang together so we re-snapshot when either changes
   // but stay stable while the user types.
-  const lastSnapKey = useRef(`${filter}::${activeLang}`);
+  const lastSnapKey = useRef(`${filter}::${activeLang}::${defaultLang}`);
+  // Snapshot semantics intentionally exclude the live row array from deps.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: snapshot is intentional, see comment
   useEffect(() => {
-    const next = `${filter}::${activeLang}`;
+    const next = `${filter}::${activeLang}::${defaultLang}`;
     if (lastSnapKey.current === next) return;
     lastSnapKey.current = next;
-    setVisibleKeys(allRows.filter((r) => matchesFilter(r, filter)).map((r) => r.key));
-    // biome-ignore lint/correctness/useExhaustiveDependencies: snapshot is intentional, see comment
-  }, [filter, activeLang]);
+    setVisibleKeys(
+      allRows.filter((r) => matchesFilter(r, filter, activeLang, defaultLang)).map((r) => r.key),
+    );
+  }, [filter, activeLang, defaultLang]);
 
   // Map keys to live rows. If a key disappears from `allRows` (rare —
   // only on key deletion), drop it from the visible list silently.
@@ -481,8 +492,8 @@ function VisualRow({
   onChange: (value: string) => void;
 }) {
   const { t } = useTranslation();
-  const isMissing = row.target.trim() === "";
   const sameLang = defaultLang === activeLang;
+  const isMissing = isTranslationMissing(defaultLang, activeLang, row.source, row.target);
   // Multi-line lores get a textarea; everything else stays single-line.
   const isMultiline = row.source.includes("\n") || row.target.includes("\n");
 
@@ -612,13 +623,14 @@ function YamlBody({
     setError(null);
   };
 
+  // YAML content is intentionally reseeded only when its visible inputs change.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: snapshot semantics, see comment
   useEffect(() => {
     if (modeKey !== "yaml") return;
     const stamp = `${activeLang}::${includeContext}`;
     if (lastSeedRef.current === stamp) return;
     lastSeedRef.current = stamp;
     reseed();
-    // biome-ignore lint/correctness/useExhaustiveDependencies: snapshot semantics, see comment
   }, [modeKey, activeLang, includeContext]);
 
   const onCopy = async () => {
