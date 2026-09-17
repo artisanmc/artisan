@@ -1,14 +1,35 @@
-import { demoEn } from "./demo";
-import { projectIdentityEn } from "./projectIdentity";
-import { projectCopyEn } from "./projectCopy";
-import { draftsEn } from "./drafts";
 import { accountDeletionEn } from "./accountDeletion";
-import { tasksEn } from "./tasks";
+import { demoEn } from "./demo";
+import { draftsEn } from "./drafts";
 import { migrationEn } from "./migration";
+import { projectCopyEn } from "./projectCopy";
+import { projectIdentityEn } from "./projectIdentity";
+import { tasksEn } from "./tasks";
 export default {
   demo: demoEn,
   projectCopy: projectCopyEn,
   projectIdentity: projectIdentityEn,
+  itemContext: {
+    title: "Available context",
+    intro: "Copy a complete placeholder to use in a field. Displayed values are examples.",
+    search: "Search placeholders",
+    empty: "No matching placeholders.",
+    copyError: "Could not copy. Select the placeholder to copy it manually.",
+    help: "Open cheat sheet",
+    context: "Context",
+    iteration: "Current element",
+    pagination: "Pagination",
+    source: "Sources",
+    types: {
+      player: "Player",
+      string: "Text",
+      integer: "Integer",
+      number: "Number",
+      boolean: "Boolean",
+      list: "List",
+      object: "Object",
+    },
+  },
   accountDeletion: accountDeletionEn,
   drafts: draftsEn,
   navigation: {
@@ -340,14 +361,29 @@ export default {
     replaceLore: "Replace the base item lore",
     editItem: "Edit item",
     done: "Done",
-    catalog: "Catalog", library: "Library", fromCatalog: "from catalog",
+    catalog: "Catalog",
+    library: "Library",
+    fromCatalog: "from catalog",
     sample: "Preview with sample data",
-    title: "Icon", linked: "Linked to data", mode: "Item source",
-    define: "Define an item", data: "Use an item from data", source: "Item field",
-    choose: "Choose a field…", custom: "expression", empty: "No known item field in this context. You can enter an expression below.",
-    unresolved: "Preview unavailable", inherited: "inherited", customized: "customized",
-    customize: "Customize", reset: "Restore inherited value", clearValue: "Remove this value", inheritedEnchants: "Inherited enchantments",
-    expression: "Advanced expression", presentation: "The item supplies its quantity and attributes. The title below replaces its name; the description is appended to its lore.",
+    title: "Icon",
+    linked: "Linked to data",
+    mode: "Item source",
+    define: "Define an item",
+    data: "Use an item from data",
+    source: "Item field",
+    choose: "Choose a field…",
+    custom: "expression",
+    empty: "No known item field in this context. You can enter an expression below.",
+    unresolved: "Preview unavailable",
+    inherited: "inherited",
+    customized: "customized",
+    customize: "Customize",
+    reset: "Restore inherited value",
+    clearValue: "Remove this value",
+    inheritedEnchants: "Inherited enchantments",
+    expression: "Advanced expression",
+    presentation:
+      "The item supplies its quantity and attributes. The title below replaces its name; the description is appended to its lore.",
   },
   flow: {
     headerStateOne: "{{count}} state",
@@ -417,7 +453,8 @@ export default {
     headPlaceholderHdb: "128276",
     headPlaceholderBase64: "eyJ0ZXh0dXJlcyI6…",
     headPlaceholderPlayer: "Notch or %player%",
-    headHdbHint: "Preview uses HeadDatabase on the connected server. Unavailable heads keep the generic icon.",
+    headHdbHint:
+      "Preview uses HeadDatabase on the connected server. Unavailable heads keep the generic icon.",
     loreLabel: "lore ({{lang}})",
     loreLabelFallback: "lore ({{lang}} — fallback)",
     lorePlaceholder: "One line per lore entry.",
@@ -1434,14 +1471,17 @@ export default {
   },
   requestAccess: {
     loading: "Checking access settings…",
-    consoleDescription: "Run this command in the console of one of the servers below. It grants your account member access to the entire network and its projects. Manual invitations are also available from a network administrator.",
+    consoleDescription:
+      "Run this command in the console of one of the servers below. It grants your account member access to the entire network and its projects. Manual invitations are also available from a network administrator.",
     unnamedServer: "Artisan server",
     online: "Online",
     offline: "Offline",
     copyCommand: "Copy command",
     copied: "Copied",
-    waitingConsole: "Waiting for authorization… This page will open automatically once you are added.",
-    serverOffline: "The server must be connected to authorize your account. Start it, then run the command in its console.",
+    waitingConsole:
+      "Waiting for authorization… This page will open automatically once you are added.",
+    serverOffline:
+      "The server must be connected to authorize your account. Start it, then run the command in its console.",
     title: "You don't have access to this network",
     description: "Send a request to a network owner or admin to be granted access.",
     messageLabel: "Message (optional)",
@@ -1838,8 +1878,10 @@ export default {
       oauth_invalid_state: "This sign-in attempt has expired or is invalid. Please try again.",
       oauth_cancelled: "Sign-in was cancelled. You can try again or use your email and password.",
       oauth_email_unverified: "Verify your email with your sign-in provider, then try again.",
-      oauth_email_not_authoritative: "Google cannot confirm ownership of this external email. Sign in with your Artisan password instead.",
-      oauth_account_already_linked: "This Artisan account already uses a different account from this provider. Use the original account or your password.",
+      oauth_email_not_authoritative:
+        "Google cannot confirm ownership of this external email. Sign in with your Artisan password instead.",
+      oauth_account_already_linked:
+        "This Artisan account already uses a different account from this provider. Use the original account or your password.",
       invalid_email: "Email looks malformed.",
       weak_password: "Password must be at least 8 characters.",
       invalid_token: "This reset link is invalid or has expired. Request a new one.",

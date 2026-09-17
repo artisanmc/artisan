@@ -1,16 +1,38 @@
-import { demoFr } from "./demo";
-import { projectIdentityFr } from "./projectIdentity";
-import { projectCopyFr } from "./projectCopy";
-import { draftsFr } from "./drafts";
 import { accountDeletionFr } from "./accountDeletion";
-import { tasksFr } from "./tasks";
+import { demoFr } from "./demo";
+import { draftsFr } from "./drafts";
 import type en from "./en";
 import { migrationFr } from "./migration";
+import { projectCopyFr } from "./projectCopy";
+import { projectIdentityFr } from "./projectIdentity";
+import { tasksFr } from "./tasks";
 
 const fr: typeof en = {
   demo: demoFr,
   projectCopy: projectCopyFr,
   projectIdentity: projectIdentityFr,
+  itemContext: {
+    title: "Contexte disponible",
+    intro:
+      "Copie un placeholder complet pour l’utiliser dans un champ. Les valeurs affichées sont des exemples.",
+    search: "Rechercher un placeholder",
+    empty: "Aucun placeholder correspondant.",
+    copyError: "Copie impossible. Sélectionne le placeholder pour le copier manuellement.",
+    help: "Ouvrir l’aide-mémoire",
+    context: "Contexte",
+    iteration: "Élément courant",
+    pagination: "Pagination",
+    source: "Sources",
+    types: {
+      player: "Joueur",
+      string: "Texte",
+      integer: "Entier",
+      number: "Nombre",
+      boolean: "Booléen",
+      list: "Liste",
+      object: "Objet",
+    },
+  },
   accountDeletion: accountDeletionFr,
   drafts: draftsFr,
   navigation: {
@@ -348,14 +370,29 @@ const fr: typeof en = {
     replaceLore: "Remplacer le lore de l’item de base",
     editItem: "Modifier l’item",
     done: "Terminé",
-    catalog: "Catalogue", library: "Bibliothèque", fromCatalog: "du catalogue",
+    catalog: "Catalogue",
+    library: "Bibliothèque",
+    fromCatalog: "du catalogue",
     sample: "Aperçu avec les données d’exemple",
-    title: "Icône", linked: "Lié aux données", mode: "Origine de l’item",
-    define: "Définir un item", data: "Utiliser un item des données", source: "Champ item",
-    choose: "Choisir un champ…", custom: "expression", empty: "Aucun champ item connu dans ce contexte. Une expression peut être saisie ci-dessous.",
-    unresolved: "Aperçu indisponible", inherited: "héritée", customized: "personnalisée",
-    customize: "Personnaliser", reset: "Revenir à la valeur héritée", clearValue: "Retirer cette valeur", inheritedEnchants: "Enchantements hérités",
-    expression: "Expression avancée", presentation: "L’item fournit sa quantité et ses attributs. Le titre ci-dessous remplace son nom ; la description s’ajoute à la sienne.",
+    title: "Icône",
+    linked: "Lié aux données",
+    mode: "Origine de l’item",
+    define: "Définir un item",
+    data: "Utiliser un item des données",
+    source: "Champ item",
+    choose: "Choisir un champ…",
+    custom: "expression",
+    empty: "Aucun champ item connu dans ce contexte. Une expression peut être saisie ci-dessous.",
+    unresolved: "Aperçu indisponible",
+    inherited: "héritée",
+    customized: "personnalisée",
+    customize: "Personnaliser",
+    reset: "Revenir à la valeur héritée",
+    clearValue: "Retirer cette valeur",
+    inheritedEnchants: "Enchantements hérités",
+    expression: "Expression avancée",
+    presentation:
+      "L’item fournit sa quantité et ses attributs. Le titre ci-dessous remplace son nom ; la description s’ajoute à la sienne.",
   },
   flow: {
     headerStateOne: "{{count}} état",
@@ -426,7 +463,8 @@ const fr: typeof en = {
     headPlaceholderHdb: "128276",
     headPlaceholderBase64: "eyJ0ZXh0dXJlcyI6…",
     headPlaceholderPlayer: "Notch ou %player%",
-    headHdbHint: "L’aperçu utilise HeadDatabase sur le serveur connecté. Une tête introuvable garde l’icône générique.",
+    headHdbHint:
+      "L’aperçu utilise HeadDatabase sur le serveur connecté. Une tête introuvable garde l’icône générique.",
     loreLabel: "lore ({{lang}})",
     loreLabelFallback: "lore ({{lang}} — fallback)",
     lorePlaceholder: "Une ligne par entrée de lore.",
@@ -1455,14 +1493,17 @@ const fr: typeof en = {
   },
   requestAccess: {
     loading: "Vérification du mode d’accès…",
-    consoleDescription: "Exécute cette commande dans la console de l’un des serveurs ci-dessous. Elle donne à ton compte un accès membre à tout le réseau et à ses projets. Un administrateur du réseau peut aussi t’envoyer une invitation.",
+    consoleDescription:
+      "Exécute cette commande dans la console de l’un des serveurs ci-dessous. Elle donne à ton compte un accès membre à tout le réseau et à ses projets. Un administrateur du réseau peut aussi t’envoyer une invitation.",
     unnamedServer: "Serveur Artisan",
     online: "En ligne",
     offline: "Hors ligne",
     copyCommand: "Copier la commande",
     copied: "Copiée",
-    waitingConsole: "En attente d’autorisation… Cette page s’ouvrira automatiquement après ton ajout.",
-    serverOffline: "Le serveur doit être connecté pour autoriser ton compte. Démarre-le, puis exécute la commande dans sa console.",
+    waitingConsole:
+      "En attente d’autorisation… Cette page s’ouvrira automatiquement après ton ajout.",
+    serverOffline:
+      "Le serveur doit être connecté pour autoriser ton compte. Démarre-le, puis exécute la commande dans sa console.",
     title: "Tu n'as pas accès à ce network",
     description: "Envoie une demande à un owner ou admin du network pour obtenir l'accès.",
     messageLabel: "Message (optionnel)",
@@ -1855,13 +1896,19 @@ const fr: typeof en = {
     errors: {
       email_taken: "Un compte existe déjà avec cet email.",
       invalid_credentials: "Email ou mot de passe incorrect.",
-      google_not_configured: "La connexion Google n’est pas encore disponible. Utilisez votre email et votre mot de passe.",
+      google_not_configured:
+        "La connexion Google n’est pas encore disponible. Utilisez votre email et votre mot de passe.",
       google_login_failed: "La connexion Google a échoué. Veuillez réessayer.",
-      oauth_invalid_state: "Cette tentative de connexion a expiré ou est invalide. Veuillez réessayer.",
-      oauth_cancelled: "Connexion annulée. Réessayez ou utilisez votre email et votre mot de passe.",
-      oauth_email_unverified: "Vérifiez votre email auprès de votre fournisseur de connexion, puis réessayez.",
-      oauth_email_not_authoritative: "Google ne peut pas confirmer que cette adresse externe vous appartient. Utilisez votre mot de passe Artisan.",
-      oauth_account_already_linked: "Ce compte Artisan est déjà lié à un autre compte de ce fournisseur. Utilisez le compte d’origine ou votre mot de passe.",
+      oauth_invalid_state:
+        "Cette tentative de connexion a expiré ou est invalide. Veuillez réessayer.",
+      oauth_cancelled:
+        "Connexion annulée. Réessayez ou utilisez votre email et votre mot de passe.",
+      oauth_email_unverified:
+        "Vérifiez votre email auprès de votre fournisseur de connexion, puis réessayez.",
+      oauth_email_not_authoritative:
+        "Google ne peut pas confirmer que cette adresse externe vous appartient. Utilisez votre mot de passe Artisan.",
+      oauth_account_already_linked:
+        "Ce compte Artisan est déjà lié à un autre compte de ce fournisseur. Utilisez le compte d’origine ou votre mot de passe.",
       invalid_email: "Email mal formé.",
       weak_password: "Le mot de passe doit faire au moins 8 caractères.",
       invalid_token: "Ce lien de réinitialisation est invalide ou expiré. Demandes-en un nouveau.",
