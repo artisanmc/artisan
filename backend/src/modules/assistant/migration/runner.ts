@@ -13,7 +13,7 @@ import {
 	type ImportSourcesReadFn,
 	resolveServerAttachments,
 } from "../serverAttachments";
-import { assistantFailureCode } from "../transport";
+import { assistantFailureCode, assistantFailureDiagnostics } from "../transport";
 import { verifyManifestSources } from "./manifest";
 import { convertMigrationStep, convertAgentTask } from "./planner";
 import { discoverMigration, type AgentInput } from "./agent";
@@ -260,6 +260,9 @@ export async function executeMigration(
 				reason instanceof MigrationInputError
 					? reason.code
 					: assistantFailureCode(reason);
+			console.warn("[assistant-migration]", {
+				...assistantFailureDiagnostics(reason), code, runId, stepId: claim.step.id,
+			});
 			try {
 				await interruptStep({
 					runId,
