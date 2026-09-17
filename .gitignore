@@ -9,6 +9,7 @@ dist/
 .superpowers/
 .claude/
 .gstack/
+.scratch/
 .idea/
 .vscode/
 .worktrees/
@@ -33,4 +34,6 @@ backend/data/mc-assets/
 backend/data/assets/
 backend/data/custom-items/
 backend/data/resource-packs/
+backend/data/asset-cache/
+backend/data/resource-projects/
 /data/

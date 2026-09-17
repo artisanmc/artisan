@@ -108,7 +108,7 @@ val deploy by tasks.registering(Exec::class) {
     workingDir = composeDir
     doFirst {
         val jar = tasks.shadowJar.get().archiveFile.get().asFile
-        val dest = composeDir.resolve("docker/server/plugins/ArtisanPlugin.jar")
+        val dest = composeDir.resolve("docker/server/plugins/Artisan.jar")
         dest.parentFile.mkdirs()
         jar.copyTo(dest, overwrite = true)
     }
