@@ -1,6 +1,13 @@
 import { RevealField } from "@/components/RevealField";
-import { usePlaceholderEntries } from "@/components/usePlaceholderEntries";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { usePlaceholderEntries } from "@/components/usePlaceholderEntries";
 import { getFirstTitleText } from "@/domain/menuTitle";
 import type {
   Action,
@@ -186,6 +193,20 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
   return <div className="mb-1 text-[10px] uppercase text-[var(--text-faint)]">{children}</div>;
 }
 
+function MenuOptionLabel({ id, title }: { id: string; title: string }) {
+  return (
+    <span className="truncate">
+      {id}
+      {title ? (
+        <>
+          {" · "}
+          <MiniMessageInline source={title} />
+        </>
+      ) : null}
+    </span>
+  );
+}
+
 function OpenMenuEditor({
   projectId,
   action,
@@ -219,25 +240,32 @@ function OpenMenuEditor({
     <div className="flex flex-col gap-2">
       <div>
         <FieldLabel>{t("actionEditor.targetMenu")}</FieldLabel>
-        <select
-          value={action.menuId}
-          onChange={(e) => onChange({ ...action, menuId: e.target.value as MenuId })}
-          className="w-full rounded border border-[var(--border-soft)] bg-[var(--surface-raised)] px-2 py-1 font-mono text-xs text-[var(--text)]"
-        >
-          {/* Allow keeping a value that no longer exists in the project so the
-              user can see the dangling ref instead of silently flipping to the
-              first menu. */}
-          {menus.some((m) => m.id === action.menuId) ? null : (
-            <option value={action.menuId}>
-              {t("actionEditor.menuMissing", { id: action.menuId })}
-            </option>
-          )}
-          {menus.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.id} · {getText(getFirstTitleText(m))}
-            </option>
-          ))}
-        </select>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              className="flex w-full items-center gap-1 truncate rounded border border-[var(--border-soft)] bg-[var(--surface-raised)] px-2 py-1 text-left font-mono text-xs text-[var(--text)]"
+            >
+              {targetMenu ? (
+                <MenuOptionLabel id={targetMenu.id} title={getText(getFirstTitleText(targetMenu))} />
+              ) : (
+                t("actionEditor.menuMissing", { id: action.menuId })
+              )}
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="max-h-72 overflow-y-auto">
+            <DropdownMenuRadioGroup
+              value={action.menuId}
+              onValueChange={(v) => onChange({ ...action, menuId: v as MenuId })}
+            >
+              {menus.map((m) => (
+                <DropdownMenuRadioItem key={m.id} value={m.id} className="font-mono text-xs">
+                  <MenuOptionLabel id={m.id} title={getText(getFirstTitleText(m))} />
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
       {targetInputs.length > 0 || Object.keys(ctxValues).length > 0 ? (
         <div>
