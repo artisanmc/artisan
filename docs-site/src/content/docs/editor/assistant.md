@@ -134,6 +134,11 @@ older migrations; ordinary chat does not silently compress its history.
 
 ## Requirements
 
+Provider failures identify request, access, billing, rate-limit, size or server errors
+when the API supplies that information. Provider billing is separate from Artisan
+credits. Existing results are retained and no automatic retry is started.
+An unspecified failure does not prove that your files are invalid or too numerous.
+
 The provider enforces context capacity. Errors preserve completed proposals.
 Output limits and validation remain separate safeguards; truncated output is not
 executed. If a task is interrupted, inspect the reported cause before requesting

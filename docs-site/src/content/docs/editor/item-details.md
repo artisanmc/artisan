@@ -7,6 +7,27 @@ Every item state has an **Advanced parameters** section, collapsed under the lor
 It holds everything beyond material, title, and lore. The trigger shows a count badge when
 something is set, so a configured item never hides its own configuration.
 
+## Context placeholders
+
+Lore written in the editor defaults to white in game when no colour is specified.
+Explicit MiniMessage or legacy colours remain unchanged, as does the original lore
+inherited from a referenced item.
+
+Open an item's preview card to edit it. **Available context** lists the placeholders
+in scope, grouped by context, current element, pagination, and sources, with their
+types and example values. Search by name, then use **Copy** beside an entry to copy
+the complete `{placeholder}` syntax into your title or lore. A check replaces the copy
+icon for 1.5 seconds to confirm success. The `base.*` entries
+refer to the source item's title, lore, count, and material.
+
+**Open cheat sheet** opens the existing examples without closing the item editor.
+Close the cheat sheet to resume editing with your changes intact. On narrow screens,
+the context panel sits below the fields; click its heading to collapse it.
+The placeholder panel scrolls independently, so a long list does not push the
+item's advanced parameters down. On desktop, the form has its own scroll area too.
+The editor always fills the available screen height, with a small margin above and below.
+
+
 ## Enchantments
 
 Add one row per enchantment: an id and a level.
