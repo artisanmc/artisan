@@ -9,6 +9,14 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Changed — the base item's lore is kept by default
+
+- An item's explicit lore is now ADDED below the lore of the item it is built on, `extends` values included (they used to replace it silently). Dropping the base lore is an explicit choice: tick **Replace the base item lore** next to the lore field, which writes `lore_mode: replace`.
+- `{base.lore}` remains available to place the base lore among your own lines; where it appears, it positions that lore rather than having it prepended, so it is never rendered twice.
+- Leading `{base.lore}` lines written when the base lore had to be asked for — by the editor and by the Boutique catalogue migration — are stripped on project load, in every language, since they now say exactly what the default says.
+- Item tooltips in the canvas show the base item's lore above the template's lines, as the server renders it.
+- A hand-written YAML item using `extends` with its own `lore` and no `lore_mode` now appends instead of replacing; add `lore_mode: replace` to keep the previous rendering.
+
 - Project folder renames now update the matching default display name in the sidebar and properties. Preserve distinct custom names; repair stale default names from completed renames without changing internal IDs or drafts.
 - Google sign-in returns to the requested project, including query parameters and fragment, and preserves that destination when retrying cancelled consent. Only local editor paths are accepted.
 

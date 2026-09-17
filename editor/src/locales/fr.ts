@@ -345,6 +345,7 @@ const fr: typeof en = {
   },
   itemBinding: {
     insertLore: "Insérer le lore source",
+    replaceLore: "Remplacer le lore de l’item de base",
     editItem: "Modifier l’item",
     done: "Terminé",
     catalog: "Catalogue", library: "Bibliothèque", fromCatalog: "du catalogue",

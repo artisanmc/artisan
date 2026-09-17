@@ -589,7 +589,8 @@
           "type": "string",
           "enum": [
             "replace"
-          ]
+          ],
+          "description": "Drops the base item's lore, which is otherwise kept above the explicit lines. Writing {base.lore} in the lore positions that lore instead, and never duplicates it."
         }
       },
       "allOf": [
@@ -1062,7 +1063,8 @@
               "type": "string",
               "enum": [
                 "replace"
-              ]
+              ],
+              "description": "Drops the base item's lore, which is otherwise kept above the explicit lines."
             }
           }
         },

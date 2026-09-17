@@ -38,6 +38,9 @@ export interface ItemEditorProps {
   inherited: ResolvedItem;
   preview: ResolvedItem;
   entries?: PlaceholderEntry[];
+  /** `"replace"` = le lore de l'item de base est écarté ; absent = il est conservé. */
+  loreMode?: "replace";
+  onLoreMode?: (value: "replace" | undefined) => void;
   onText: (field: "title" | "lore", value: string | undefined) => void;
   onCount: (value: number | undefined) => void;
   onAdvanced: (patch: AdvancedFields) => void;
@@ -57,6 +60,8 @@ export function ItemEditor({
   inherited,
   preview,
   entries = [],
+  loreMode,
+  onLoreMode,
   onText,
   onCount,
   onAdvanced,
@@ -103,7 +108,9 @@ export function ItemEditor({
       <span className="text-[10px] text-[var(--text-faint)]">{t("itemBinding.inherited")}</span>
     ) : null;
   function textField(field: "title" | "lore", own: string | undefined, label: string) {
-    const raw = own ?? (hasInherited(field) ? `{base.${field}}` : "");
+    // Le lore de base s'applique déjà sans rien écrire : pré-remplir le champ
+    // avec `{base.lore}` faisait croire qu'il fallait le demander.
+    const raw = own ?? (field === "title" && hasInherited(field) ? "{base.title}" : "");
     const shown = field === "title" ? (preview.title ?? "") : preview.lore.join("\n");
     return (
       <div className="min-w-0 flex-1">
@@ -136,6 +143,19 @@ export function ItemEditor({
             />
           }
         />
+        {field === "lore" && hasInherited("lore") && onLoreMode && (
+          <label className="mt-1 flex items-center gap-2 text-xs text-[var(--text-mut)]">
+            <input
+              type="checkbox"
+              checked={loreMode === "replace"}
+              onChange={(e) => {
+                onFocus?.();
+                onLoreMode(e.target.checked ? "replace" : undefined);
+              }}
+            />
+            {t("itemBinding.replaceLore")}
+          </label>
+        )}
         {field === "lore" && hasInherited("lore") && (
           <button
             type="button"

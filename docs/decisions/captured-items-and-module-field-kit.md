@@ -17,7 +17,9 @@ bare textarea while the core already has a full actions/conditions engine.
 
 ## Decision
 
-**2026-09 update — item extensions.** The additive lore rule below remains the compatibility behavior for existing appearances. New `extends` item values and appearances with `lore_mode: replace` replace explicit lore, inherit absent fields, and expose the immediate resolved item as `{base.title}`, `{base.lore}`, `{base.count}` and `{base.material}`. Explicit empty lore clears it. `ItemEditor` is shared by catalog fields and canvas properties; resetting a field restores inheritance without extracting the captured stack.
+**2026-09 update — item extensions.** Item values may `extends` another item, inherit absent fields, and expose the immediate resolved item as `{base.title}`, `{base.lore}`, `{base.count}` and `{base.material}`. `ItemEditor` is shared by catalog fields and canvas properties; resetting a field restores inheritance without extracting the captured stack.
+
+**2026-09-17 revision — the base lore is kept by default.** Keeping the base item's lore is what an author wants nearly every time, so it is no longer something to ask for: explicit lore is APPENDED below the base lore, `extends` included (it used to force replacement, which is why `{base.lore}` was sprinkled through catalogues and appearances nobody wrote it into). Dropping the base lore is an explicit act — `lore_mode: replace`, surfaced as a checkbox next to the lore field. `{base.lore}` stays available to place the base lore elsewhere in the lines; where it appears, it positions the lore instead of it being prepended, so nothing is ever rendered twice. Explicit empty lore only clears the lore under `lore_mode: replace`. A leading `{base.lore}` that now says exactly what the default says is stripped at project import (`normalizeBaseLore`).
 
 ### 1. Captured item — the universal item value
 

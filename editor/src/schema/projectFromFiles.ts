@@ -32,6 +32,7 @@ import { flattenLangTree } from "@/lib/langTree";
 import { parse as parseYaml } from "yaml";
 import { commandV1ToDomain } from "./commandV1ToDomain";
 import { dialogV1ToDomain } from "./dialogV1ToDomain";
+import { normalizeBaseLore } from "@/domain/baseLore";
 import { makeAppearanceConverter, menuV1ToDomain } from "./menuV1ToDomain";
 
 // biome-ignore lint/suspicious/noExplicitAny: untyped wire objects — fields read by snake name
@@ -913,6 +914,10 @@ export function projectFromFiles(
   // minted key; its other languages sit in lang/ at the site's canonical
   // address, so bring node and address back together.
   adoptAddressedTranslations(project, translations);
+
+  // Le lore de base est conservé sans rien écrire : les `{base.lore}` de tête
+  // hérités du temps où il fallait le réclamer sont retirés (cf. baseLore.ts).
+  normalizeBaseLore(project);
 
   if (unsupported.length > 0) {
     console.warn(

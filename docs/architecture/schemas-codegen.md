@@ -15,7 +15,7 @@ Les types ne sont **pas générés** — ils sont **écrits à la main** dans le
 
 ## Enforcement
 
-`menu/v1` porte `lore_mode: replace` sur les apparences. Sans ce champ, l'ajout historique reste inchangé. Les valeurs de données `item` composent récursivement `{ extends: <ref ou item>, title?, lore?, count?, ... }` : champs absents hérités, lore explicite remplacé. `{base.title}`, `{base.lore}`, `{base.count}` et `{base.material}` désignent la base immédiatement résolue. Un lore vide efface le lore hérité ; la résolution est bornée à 32 niveaux.
+`menu/v1` porte `lore_mode: replace` sur les apparences. Sans ce champ, le lore explicite s'AJOUTE sous le lore de la base. Les valeurs de données `item` composent récursivement `{ extends: <ref ou item>, title?, lore?, count?, ... }` : champs absents hérités, lore ajouté de la même façon. `{base.title}`, `{base.lore}`, `{base.count}` et `{base.material}` désignent la base immédiatement résolue ; écrire `{base.lore}` positionne le lore de base au lieu de le laisser en tête (jamais les deux). Un lore vide n'efface le lore hérité que sous `lore_mode: replace` ; la résolution est bornée à 32 niveaux.
 
 Dans un champ de modèle `item`, `title` et `lore` sont des sites i18n, y compris sous `extends`. `itemTextFields.ts` définit les sites parcourus à l'import et au rekey ; l'export écrit les littéraux de la langue par défaut et les traductions à leurs adresses canoniques.
 

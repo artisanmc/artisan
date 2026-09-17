@@ -104,3 +104,67 @@ describe("ItemTooltip menu scope", () => {
     expect(screen.queryByText("Steve")).not.toBeInTheDocument();
   });
 });
+
+/**
+ * Ce que le serveur rend, l'aperçu doit le rendre : un item capturé porte son
+ * propre lore, les lignes du template s'ajoutent dessous.
+ */
+describe("ItemTooltip over a captured item", () => {
+  const captured = {
+    id: "p1",
+    defaultLang: "fr",
+    i18nKeys: { shop_lore: { fr: "Prix : 100" } },
+    capturedItems: [
+      {
+        id: "ci_sword",
+        name: "Épée du VIP",
+        stackYaml: `item:
+  id: minecraft:diamond_sword
+  components:
+    minecraft:custom_name: '{"text":"Épée du VIP"}'
+    minecraft:lore:
+      - '{"text":"Tranchante"}'
+`,
+        display: {},
+      },
+    ],
+    menus: [
+      {
+        id: "shop",
+        projectId: "p1",
+        title: [],
+        rows: 6,
+        layers: [
+          {
+            id: "shop_layer",
+            elements: [
+              {
+                id: "product",
+                positions: "0",
+                display: { material: "item:ci_sword", lore: { key: "shop_lore" } },
+                states: [],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+    commands: [],
+    assets: [],
+    dataSources: [],
+    importedConnectors: [],
+    dialogs: [],
+    canvasLayout: {},
+  } as unknown as Project;
+
+  it("shows the captured lore above the element's own lines", () => {
+    useAccountStore.setState({
+      account: { ...useAccountStore.getState().account, projects: [structuredClone(captured)] },
+    });
+    useUiStore.setState({ activeLang: "fr" });
+    useHoverStore.getState().setElement("product" as ElementId, 0, "shop" as MenuId);
+    render(<ItemTooltip projectId={captured.id} />);
+    expect(screen.getByText("Tranchante")).toBeInTheDocument();
+    expect(screen.getByText("Prix : 100")).toBeInTheDocument();
+  });
+});

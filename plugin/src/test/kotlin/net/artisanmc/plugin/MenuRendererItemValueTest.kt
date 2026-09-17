@@ -69,6 +69,49 @@ class MenuRendererItemValueTest {
         assertEquals(listOf("Offer", "Captured lore", "Rare", "Price: 100"), stack.itemMeta!!.lore()!!.map(plain::serialize))
     }
 
+    @Test fun `an extension keeps the base lore above its own lines unless replacement is explicit`() {
+        for (replace in listOf(false, true)) {
+            val yaml = ObjectMapper(YAMLFactory()).registerKotlinModule().readValue<MenuYaml>("""
+                schema: menu/v1
+                id: shop
+                size: 9
+                elements:
+                  - id: product
+                    positions: 0
+                    item: "{item.icon}"
+                    ${if (replace) "lore_mode: replace" else ""}
+                    lore: ["Added"]
+            """.trimIndent())
+            val icon = mapOf("extends" to mapOf("material" to "STONE", "lore" to listOf("Captured")))
+            val player = MockBukkit.getMock()!!.addPlayer()
+            MenuRenderer.open(player, BundleCompiler.compile(yaml, emptyMap()), "en", ExecutionContext(player,
+                args = mapOf("item" to mapOf("icon" to icon))))
+            val plain = PlainTextComponentSerializer.plainText()
+            assertEquals(if (replace) listOf("Added") else listOf("Captured", "Added"),
+                player.openInventory.topInventory.getItem(0)!!.itemMeta!!.lore()!!.map(plain::serialize))
+        }
+    }
+
+    @Test fun `an explicit base lore placeholder positions the base lore instead of duplicating it`() {
+        val yaml = ObjectMapper(YAMLFactory()).registerKotlinModule().readValue<MenuYaml>("""
+            schema: menu/v1
+            id: shop
+            size: 9
+            elements:
+              - id: product
+                positions: 0
+                item: "{item.icon}"
+                lore: ["Offer", "{base.lore}"]
+        """.trimIndent())
+        val icon = mapOf("extends" to mapOf("material" to "STONE", "lore" to listOf("Captured")))
+        val player = MockBukkit.getMock()!!.addPlayer()
+        MenuRenderer.open(player, BundleCompiler.compile(yaml, emptyMap()), "en", ExecutionContext(player,
+            args = mapOf("item" to mapOf("icon" to icon))))
+        val plain = PlainTextComponentSerializer.plainText()
+        assertEquals(listOf("Offer", "Captured"),
+            player.openInventory.topInventory.getItem(0)!!.itemMeta!!.lore()!!.map(plain::serialize))
+    }
+
     @Test fun `an explicitly empty replacement clears inherited lore`() {
         val yaml = ObjectMapper(YAMLFactory()).registerKotlinModule().readValue<MenuYaml>("""
             schema: menu/v1
