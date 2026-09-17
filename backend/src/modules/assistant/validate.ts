@@ -3,8 +3,6 @@ import addFormats from "ajv-formats";
 import commandSchema from "../../../../docs/schema/command/v1/schema.json";
 import dialogSchema from "../../../../docs/schema/dialog/v1/schema.json";
 import schema from "../../../../docs/schema/menu/v1/schema.json";
-import schemaV3 from "../../../../docs/schema/menu/v3/schema.json";
-import schemaV2 from "../../../../docs/schema/menu/v2/schema.json";
 import { validateMenuLayout } from "../../../../docs/schema/menu/v1/types";
 // Action DSL codec (Phase 2 of ADR action-dsl): click-handler / command steps /
 // dialog button actions travel as a DSL STRING. We reuse the editor's pure
@@ -18,7 +16,14 @@ import { SUPPORTED_ACTIONS, SUPPORTED_CONDITIONS } from "./grounding";
 const ajv = new Ajv2020({ allErrors: true, strict: false });
 addFormats(ajv);
 const validateStruct = ajv.compile(schema);
-const validateStructV2 = ajv.compile(schemaV2);
+
+/**
+ * `menu/v2` and `menu/v3` shipped as pure version bumps — neither migration
+ * touched the data — and were folded back into `menu/v1`. Documents written
+ * while they existed are still on disk, so reads normalize them; writes always
+ * emit `menu/v1`.
+ */
+const LEGACY_MENU_VERSIONS = ["menu/v2", "menu/v3"];
 
 // command/v1 & dialog/v1 $ref menu/v1 by $id — register it so refs resolve.
 if (!ajv.getSchema(schema.$id)) ajv.addSchema(schema, schema.$id);
@@ -148,9 +153,13 @@ function collectVocabErrors(menu: Json): string[] {
 
 /** Gate éditeur (ajv + validateMenuLayout) + contrainte de vocab du sous-ensemble assistant. */
 export function validateMenuV1(menu: unknown): MenuV1ValidationResult {
-  const validate = (menu as { schema?: string } | null)?.schema === "menu/v3" ? ajv.compile(schemaV3) : (menu as { schema?: string } | null)?.schema === "menu/v2" ? validateStructV2 : validateStruct;
-  const ok = validate(menu) as boolean;
-  const structErrors = (validate.errors ?? []).map(
+  const version = (menu as { schema?: string } | null)?.schema;
+  const subject =
+    version && LEGACY_MENU_VERSIONS.includes(version)
+      ? { ...(menu as object), schema: "menu/v1" }
+      : menu;
+  const ok = validateStruct(subject) as boolean;
+  const structErrors = (validateStruct.errors ?? []).map(
     (e) => `${e.instancePath || "/"} ${e.message ?? ""}`.trim(),
   );
   let layoutErrors: string[] = [];

@@ -932,3 +932,7 @@ supprime ses endpoints — pour ne jamais laisser la liaison coupée à moitié.
 
 ### Added
 - Pre-release alpha. See git log for the full history (auth, accounts × networks UX, multi-server bindings, branches + commits, Phase 3 semantic merge, title composer v3, resource pack delegation, custom items integration, etc.). Future releases will follow proper SemVer.
+### Changed — one menu schema again
+
+- `menu/v2` and `menu/v3` are folded back into `menu/v1`, which now carries `item` bindings and `lore_mode: replace`. Both retired versions were pure version bumps whose migrations transformed nothing, so the format never diverged. Menus written while they existed keep loading — readers and validators still accept the retired labels — and the editor only ever writes `menu/v1`.
+

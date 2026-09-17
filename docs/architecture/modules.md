@@ -460,21 +460,23 @@ Cross-linking, pas embedding. Chaque module reste owner de sa propre UX.
 
 Chaque module a son schema versionné indépendamment :
 
-- `menu/v1` → `menu/v2` (future, breaking change)
-- `shop/v1` → `shop/v2`
+- `shop/v1` → `shop/v2` (breaking change)
 - `quests/v1` → `quests/v2`
+
+`menu` en est resté à `v1` : `menu/v2` et `menu/v3` ont existé six jours sans
+transformer une seule donnée et ont été repliés (cf. `schemas-codegen.md`).
 
 Le **plugin Paper et le web editor migrent au load** d'un schema antérieur vers le current. Pattern :
 
 ```kotlin
-class MenusModule : ArtisanModule {
-    override val schemaVersion = "menu/v2"
+class ShopModule : ArtisanModule {
+    override val schemaVersion = "shop/v2"
     
-    fun loadMenu(json: JsonObject): Menu {
+    fun loadCatalog(json: JsonObject): Catalog {
         val version = json["schema"].asString
         return when (version) {
-            "menu/v1" -> migrateV1ToV2(json)
-            "menu/v2" -> parseV2(json)
+            "shop/v1" -> migrateV1ToV2(json)
+            "shop/v2" -> parseV2(json)
             else -> throw UnsupportedSchemaVersionException(version)
         }
     }

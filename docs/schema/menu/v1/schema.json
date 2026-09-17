@@ -580,8 +580,28 @@
           "type": "string",
           "maxLength": 1024,
           "description": "Notes internes de l'admin (jamais rendues aux joueurs)."
+        },
+        "item": {
+          "type": "string",
+          "description": "Complete item reference or expression. Quantity and metadata are inherited before explicit presentation overrides."
+        },
+        "lore_mode": {
+          "type": "string",
+          "enum": [
+            "replace"
+          ]
         }
-      }
+      },
+      "allOf": [
+        {
+          "not": {
+            "required": [
+              "item",
+              "material"
+            ]
+          }
+        }
+      ]
     },
     "Appearance": {
       "description": "Une apparence complète et auto-suffisante — un ETAT gardé par son `if`. Un state REMPLACE le display, il ne le complète pas : ce qu'il n'écrit pas est absent, jamais hérité (ADR element-display-and-states). Une apparence complète et auto-suffisante. Le `if` détermine si cette apparence s'active. Si l'Element a `iterates`, les champs peuvent référencer {alias.field} pour accéder aux propriétés de l'item courant.",
@@ -1037,6 +1057,12 @@
               "items": {
                 "type": "string"
               }
+            },
+            "lore_mode": {
+              "type": "string",
+              "enum": [
+                "replace"
+              ]
             }
           }
         },

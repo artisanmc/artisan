@@ -167,11 +167,19 @@ export interface Appearance {
   asset?: string;
   /** "DIAMOND" littéral, {input_name} pour un contextInput, ou {alias.field} dans un Element qui itère. */
   material?: string;
+  /**
+   * Référence ou expression d'item complet : quantité et métadonnées sont héritées
+   * de l'item désigné, puis écrasées par les champs de présentation explicites.
+   * Mutuellement exclusif avec `material`.
+   */
+  item?: string;
   /** Tête custom : hdb:<id>, basehead:<base64>, ou playerhead:<pseudo>. Ignoré si material ≠ PLAYER_HEAD. */
   head?: string;
   count?: number;
   title?: string;
   lore?: string[];
+  /** `replace` : cette lore REMPLACE celle héritée d'`item` au lieu de s'y ajouter. Absent = ajout (comportement historique). */
+  lore_mode?: "replace";
   /** Map id → niveau ({ sharpness: 5 }) ; la forme liste est lue mais jamais écrite. */
   enchants?: Record<string, number> | { id: string; level?: number }[];
   /** Effet brillant sans enchantement réel. Redondant quand `enchants` est présent. */

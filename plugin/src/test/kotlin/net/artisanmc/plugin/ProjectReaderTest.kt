@@ -317,6 +317,46 @@ class ProjectReaderTest {
         assertEquals("legacy_pack", projects[0].projectId)
     }
 
+    /**
+     * `menu/v2` and `menu/v3` shipped as pure version bumps — neither migration
+     * touched the data — and were folded back into `menu/v1`. Projects written
+     * while they existed are on servers' disks; they must keep loading.
+     */
+    @Test
+    fun `accepts menu YAML still labelled with a retired version`() {
+        for (version in listOf("menu/v2", "menu/v3")) {
+            val root = java.nio.file.Files.createTempDirectory("artisan_schema_retired_").toFile()
+            val projectDir = File(root, "retired_pack").apply { mkdirs() }
+            File(projectDir, "manifest.yaml").writeText("""
+                schema: "manifest/v1"
+                project_id: retired_pack
+                default_lang: en
+                languages: ["en"]
+                files:
+                  menus: ["retired"]
+                  commands: []
+                  dialogs: []
+            """.trimIndent())
+            File(projectDir, "menus").mkdirs()
+            File(projectDir, "menus/retired.yaml").writeText("""
+                schema: "$version"
+                id: retired
+                size: 27
+                elements:
+                  - id: icon
+                    positions: 0
+                    item: "shop:diamond"
+                    lore_mode: replace
+            """.trimIndent())
+            File(projectDir, "lang").mkdirs()
+            File(projectDir, "lang/en.yaml").writeText("{}")
+
+            val projects = ProjectReader(root).readAll()
+            assertEquals(1, projects.size, "menu labelled $version should still load")
+            assertEquals(1, projects[0].menus.size)
+        }
+    }
+
     @Test
     fun `rejects menu YAML with unsupported schema version`() {
         val root = java.nio.file.Files.createTempDirectory("artisan_schema_bad_").toFile()

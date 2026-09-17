@@ -58,7 +58,7 @@ Le `"schema"` field discrimine la version :
 - ❌ Supprimer un champ existant
 - ❌ Changer le type d'un champ existant
 
-**Pour les changements interdits** : tu fais `menu/v2` (nouvelle version).
+**Pour les changements interdits** : tu fais une nouvelle version (`shop/v2`).
 
 **Exception files-first — le renommage intra-version.** Les trois interdits de
 renommage/suppression/retypage sont calqués sur des surfaces où le **producteur
@@ -70,24 +70,30 @@ reste tolérant à l'ancienne forme, soit parce qu'on sait que ces fichiers
 n'existent pas ailleurs que chez nous. **La version change quand un fichier
 déployé cesserait d'être lisible**, pas quand le schéma change de forme.
 
-Appliqué trois fois sur `menu/v1` : `steps` → `actions`, l'aplatissement
-`layers` → `elements`, et le retrait de `appearances` au profit de
-display + `states` (ADR `element-display-and-states`).
+Appliqué quatre fois sur `menu/v1` : `steps` → `actions`, l'aplatissement
+`layers` → `elements`, le retrait de `appearances` au profit de
+display + `states` (ADR `element-display-and-states`), et le repli de
+`menu/v2`/`menu/v3` (2026-09-17, cf. `schemas-codegen.md`) — deux versions
+n'ayant transformé aucune donnée, dont les étiquettes restent acceptées en
+lecture pour les fichiers déjà écrits.
 
 ### 2.3 Migration framework
 
-Quand tu introduis `menu/v2`, tu écris une **migration** v1 → v2 :
+Quand tu introduis une v2, tu écris une **migration** v1 → v2. Elle n'a de
+raison d'être que si elle **transforme** des données : une migration qui se
+contente de réécrire le champ `schema` signale une version qui n'aurait pas dû
+naître (c'est ce qui est arrivé à `menu/v2` et `menu/v3`, repliés depuis).
 
 ```kotlin
-// /plugin/src/main/kotlin/net/artisanmc/core/schemas/migrations/MenuV1ToV2.kt
-class MenuV1ToV2 : SchemaMigration<JsonObject> {
-    override val from = "menu/v1"
-    override val to = "menu/v2"
+// /plugin/src/main/kotlin/net/artisanmc/core/schemas/migrations/ShopV1ToV2.kt
+class ShopV1ToV2 : SchemaMigration<JsonObject> {
+    override val from = "shop/v1"
+    override val to = "shop/v2"
     
     override fun migrate(data: JsonObject): JsonObject {
         // Migration logic : rename "size" → "dimensions", split layers...
         val result = data.deepCopy()
-        result["schema"] = JsonPrimitive("menu/v2")
+        result["schema"] = JsonPrimitive("shop/v2")
         result["dimensions"] = jsonObject {
             "rows" to (data["size"].asInt / 9)
             "type" to "chest"
