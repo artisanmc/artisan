@@ -32,7 +32,7 @@ class SchemaRegistry<T> {
      * Apply migrations until [data] reaches [currentVersion].
      *
      * @param data the input document
-     * @param currentVersion the target schema version (e.g. "menu/v2")
+     * @param currentVersion the target schema version (e.g. "shop/v2")
      * @param versionOf reads the current schema discriminator from a document
      */
     @Stable

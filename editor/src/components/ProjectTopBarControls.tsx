@@ -45,7 +45,7 @@ import { WORKSPACE_VIEW_TABS, type WorkspaceViewTab } from "@/features/project/w
 import { CopyProjectToServerButton } from "@/features/projects/CopyProjectToServerButton";
 import type { ProjectFileConflict } from "@/lib/api/projectFiles";
 import { cn } from "@/lib/cx";
-import { countMissingForLang } from "@/lib/i18nUsages";
+import { countMissingForLang, listLanguages } from "@/lib/i18nUsages";
 import { useProjectPrincipalId } from "@/lib/projectPrincipal";
 import { useAccountStore } from "@/state/accountStore";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
@@ -300,14 +300,7 @@ function LangSwitcher({ project }: { project: Project }) {
   const setProjectDefaultLang = useAccountStore((s) => s.setProjectDefaultLang);
   const { t } = useTranslation();
 
-  // Collect every language mentioned in the i18n map, plus defaultLang
-  // (which might be the only one before any keys exist).
-  const langs = new Set<string>([project.defaultLang]);
-  for (const entry of Object.values(project.i18nKeys)) {
-    if (!entry) continue;
-    for (const code of Object.keys(entry)) langs.add(code);
-  }
-  const sortedLangs = Array.from(langs).sort();
+  const sortedLangs = listLanguages(project);
 
   const onAdd = () => {
     const code = window.prompt(t("langSwitcher.addLanguagePrompt"));

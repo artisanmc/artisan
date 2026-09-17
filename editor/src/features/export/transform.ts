@@ -503,7 +503,7 @@ export function serializeMenuToV1(
   const type = menu.inventoryType ?? "chest";
   const t = textSerializer(project);
   const out: Record<string, unknown> = {
-    schema: menu.layers.some((l) => l.elements.some((e) => [e.display, ...e.states].some((a) => a?.loreMode !== undefined))) ? "menu/v3" : menu.layers.some((l) => l.elements.some((e) => [e.display, ...e.states].some((a) => a?.item !== undefined))) ? "menu/v2" : "menu/v1",
+    schema: "menu/v1",
     id: menu.id,
     // Canonical sugar: a title that is exactly one uncolored plain layer
     // serializes to a bare string.

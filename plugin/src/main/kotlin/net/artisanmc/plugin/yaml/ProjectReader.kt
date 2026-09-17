@@ -6,7 +6,6 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import net.artisanmc.plugin.engine.BundleCompiler
 import net.artisanmc.plugin.model.*
-import net.artisanmc.modules.api.schemas.SchemaRegistry
 import java.io.File
 import java.util.logging.Logger
 
@@ -39,7 +38,14 @@ class ProjectReader(
     ) : this(net.artisanmc.plugin.project.ProjectRoots(projectsRoot), logger, declaredModels)
 
     private val mapper = ObjectMapper(YAMLFactory()).registerKotlinModule()
-    private val menuSchemas = SchemaRegistry<MenuYaml>().apply { register(MenuV1ToV2()); register(MenuV2ToV3()) }
+
+    /**
+     * `menu/v2` and `menu/v3` shipped as pure version bumps — neither migration
+     * touched the data — and were folded back into `menu/v1`. Projects written
+     * while they existed are still on servers' disks, so reads accept the retired
+     * labels; the editor only ever writes `menu/v1`.
+     */
+    private val menuSchemaVersions = arrayOf("menu/v1", "menu/v2", "menu/v3")
 
     /**
      * Verify the YAML's `schema` field is either empty (legacy / pre-versioning)
@@ -50,11 +56,11 @@ class ProjectReader(
      * Future versions will register a SchemaMigration via api.schemas.register(...)
      * and run loadToCurrent before Jackson binds the data class.
      */
-    private fun requireSchema(file: File, actual: String, expected: String) {
-        if (actual.isEmpty() || actual == expected) return
+    private fun requireSchema(file: File, actual: String, vararg expected: String) {
+        if (actual.isEmpty() || actual in expected) return
         throw IllegalArgumentException(
             "Unsupported schema version '$actual' in ${file.absolutePath} — " +
-            "this plugin reads $expected only. Register a SchemaMigration via " +
+            "this plugin reads ${expected.joinToString(", ")} only. Register a SchemaMigration via " +
             "api.schemas.register(...) to migrate from older versions."
         )
     }
@@ -180,10 +186,9 @@ class ProjectReader(
             val f = File(projectDir, "menus/$menuId.yaml").takeIf { it.exists() } ?: return@mapNotNull null
             runCatching {
                 val menuYaml = withFileId(mapper.readValue(f, MenuYaml::class.java), menuId, f)
-                requireSchema(f, menuYaml.schema, if (menuYaml.schema in listOf("menu/v1", "menu/v2")) menuYaml.schema else "menu/v3")
-                val currentMenu = if (menuYaml.schema != "menu/v3")
-                    menuSchemas.loadToCurrent(menuYaml, "menu/v3") { it.schema }
-                else menuYaml
+                requireSchema(f, menuYaml.schema, *menuSchemaVersions)
+                val currentMenu =
+                    if (menuYaml.schema == "menu/v1") menuYaml else menuYaml.copy(schema = "menu/v1")
                 BundleCompiler.compile(
                     resolveTemplates(currentMenu, templates),
                     langMaps, logger, defaultLang = manifest.defaultLang,
