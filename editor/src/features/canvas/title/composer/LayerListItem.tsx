@@ -171,7 +171,7 @@ function deriveAutoName(
     const firstLine = (raw && raw.split("\n")[0]) || layer.value.key;
     const hasMore = raw && raw.includes("\n");
     const suffix = hasMore ? "…" : "";
-    return `Bloc texte • ${truncate(firstLine, 18)}${suffix}`;
+    return `Texte • ${truncate(firstLine, 18)}${suffix}`;
   }
   if (layer.kind === "external_glyph") {
     return `Image (${externalProviderLabel(layer.provider)}) • ${layer.glyphName}`;

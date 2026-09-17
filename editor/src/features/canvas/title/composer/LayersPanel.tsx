@@ -103,26 +103,18 @@ export function LayersPanel({ projectId, menuId, className }: LayersPanelProps) 
   /** Build the new layer to append. Image layers default to (0, 0); the
    *  caller patches in cursor-derived coords when applicable. */
   const buildLayer = (
-    kind: "image" | "text" | "textarea",
+    kind: "image" | "text",
     placement: { x: number; y: number } | null,
   ): MenuTitleLayer => {
-    if (kind === "textarea") {
+    if (kind === "text") {
       return {
         kind: "textarea",
         value: { key: newI18nKey() },
         x: placement?.x ?? 8,
-        y: placement?.y ?? 6,
+        y: placement?.y ?? 5,
         width: 168,
         lineHeight: 10,
         alignment: "left",
-      };
-    }
-    if (kind === "text") {
-      return {
-        kind: "text",
-        value: { key: newI18nKey() },
-        x: placement?.x ?? 8,
-        y: placement?.y ?? 5,
       };
     }
     return {
@@ -137,7 +129,7 @@ export function LayersPanel({ projectId, menuId, className }: LayersPanelProps) 
   };
 
   const onPlace = (
-    kind: "image" | "text" | "textarea",
+    kind: "image" | "text",
     cursor: { x: number; y: number } | null,
   ) => {
     // Drag-end branch — try cursor-driven attach first. If the project canvas

@@ -127,27 +127,27 @@ describe("LayerListItem — auto-name", () => {
     expect(label.textContent).not.toContain("asset_abc12345xyz");
   });
 
-  it("renders 'Bloc texte • <first-line>' for a textarea layer with single-line text", () => {
+  it("renders 'Texte • <first-line>' for a textarea layer with single-line text", () => {
     const layer: MenuTitleLayer = { kind: "textarea", value: { key: K("k_single") }, x: 0, y: 0, width: 168, lineHeight: 10, alignment: "left" };
     seedProject([layer], { k_single: { en: "Single line content" } });
     render(<LayerListItem projectId={PACK_ID} menuId={MENU_ID} index={0} layer={layer} />);
-    expect(screen.getByText(/Bloc texte • Single line co/)).toBeInTheDocument();
+    expect(screen.getByText(/Texte • Single line co/)).toBeInTheDocument();
   });
 
-  it("renders 'Bloc texte • <first-line>…' for a textarea layer with multiple lines", () => {
+  it("renders 'Texte • <first-line>…' for a textarea layer with multiple lines", () => {
     const layer: MenuTitleLayer = { kind: "textarea", value: { key: K("k_multi") }, x: 0, y: 0, width: 168, lineHeight: 10, alignment: "left" };
     seedProject([layer], { k_multi: { en: "First line\nSecond line" } });
     render(<LayerListItem projectId={PACK_ID} menuId={MENU_ID} index={0} layer={layer} />);
     // Should show first line + ellipsis
-    expect(screen.getByText(/Bloc texte • First line…/)).toBeInTheDocument();
+    expect(screen.getByText(/Texte • First line…/)).toBeInTheDocument();
   });
 
-  it("renders 'Bloc texte • <key>' for a textarea layer when no i18n value found", () => {
+  it("renders 'Texte • <key>' for a textarea layer when no i18n value found", () => {
     const layer: MenuTitleLayer = { kind: "textarea", value: { key: K("k_missing") }, x: 0, y: 0, width: 168, lineHeight: 10, alignment: "left" };
     seedProject([layer]); // no i18n keys defined
     render(<LayerListItem projectId={PACK_ID} menuId={MENU_ID} index={0} layer={layer} />);
     // Should fallback to key name
-    expect(screen.getByText(/Bloc texte • k_missing/)).toBeInTheDocument();
+    expect(screen.getByText(/Texte • k_missing/)).toBeInTheDocument();
   });
 });
 

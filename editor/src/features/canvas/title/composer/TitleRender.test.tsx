@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Asset } from "@/domain/asset";
 import type {
@@ -15,6 +15,7 @@ import { useAccountStore } from "@/state/accountStore";
 import { useUiStore } from "@/state/uiStore";
 import { MC_TITLE_H, TEX_SCALE } from "../../menuLayout";
 import { TitleRender } from "./TitleRender";
+import { LayerEditForm } from "./LayerEditForm";
 
 // Mock react-konva to render plain divs (no canvas in jsdom). Each shape
 // exposes its load-bearing props as data-* attrs so tests can assert layout.
@@ -235,6 +236,7 @@ vi.mock("./WidthResizeHandle", () => ({
       data-y={props.y}
       data-height={props.height}
       data-current-width={props.currentWidth}
+      onClick={(e) => { e.stopPropagation(); props.onResize(120); }}
     />
   ),
 }));
@@ -698,7 +700,7 @@ describe("TitleRender", () => {
     expect(Number(hit.getAttribute("data-height"))).toBeGreaterThan(0);
   });
 
-  it("text layer with size=16 has hit area DOUBLED vs default size", () => {
+  it("text size changes frame height without changing its width", () => {
     // vanillaTextWidth mock: text.length * 6 → "Hello" (I18N_KEY fallback) = 5 * 6 = 30
     // scale = TEX_SCALE = 2
     // default size (8): hitW = 30 * 2 = 60, hitH = 8 * 2 = 16
@@ -726,8 +728,8 @@ describe("TitleRender", () => {
     const scaledW = Number(scaledHit.getAttribute("data-width"));
     const scaledH = Number(scaledHit.getAttribute("data-height"));
 
-    // size=16 is 2× the default size=8 → hit area should be 2× in both dimensions
-    expect(scaledW).toBe(defaultW * 2);
+    // Font size changes the text height, not the frame's configured width.
+    expect(scaledW).toBe(defaultW);
     expect(scaledH).toBe(defaultH * 2);
   });
 
@@ -934,7 +936,7 @@ describe("TitleRender — textarea layer", () => {
     expect(lines[2]!.getAttribute("data-y")).toBe(String(20 * TEX_SCALE));
   });
 
-  it("center alignment: line x = -(lineWidth / 2) * scale", () => {
+  it("preserves the absolute position of legacy centered text", () => {
     // vanillaTextWidth mock: text.length * 6. "Hi" → 12px, center x = -6 * scale.
     const project = makeProject([]);
     useAccountStore.setState((state) => ({
@@ -968,10 +970,11 @@ describe("TitleRender — textarea layer", () => {
     render(<TitleRender projectId={PACK_ID} menuId={MENU_ID} scale={TEX_SCALE} />);
     const lines = screen.getAllByTestId("vanilla-mc-text");
     // "Hi".length * 6 = 12, center x = -(12/2) * 2 = -12
-    expect(lines[0]!.getAttribute("data-x")).toBe(String(-(12 / 2) * TEX_SCALE));
+    const group = lines[0]!.closest('[data-testid="group"]')!;
+    expect(Number(group.getAttribute("data-x")) + Number(lines[0]!.getAttribute("data-x"))).toBe((20 - 12 / 2) * TEX_SCALE);
   });
 
-  it("right alignment: line x = -lineWidth * scale", () => {
+  it("preserves the absolute position of legacy right-aligned text", () => {
     // "Hi" → 12px, right x = -12 * scale.
     const project = makeProject([]);
     useAccountStore.setState((state) => ({
@@ -1005,7 +1008,8 @@ describe("TitleRender — textarea layer", () => {
     render(<TitleRender projectId={PACK_ID} menuId={MENU_ID} scale={TEX_SCALE} />);
     const lines = screen.getAllByTestId("vanilla-mc-text");
     // "Hi".length * 6 = 12, right x = -12 * 2 = -24
-    expect(lines[0]!.getAttribute("data-x")).toBe(String(-12 * TEX_SCALE));
+    const group = lines[0]!.closest('[data-testid="group"]')!;
+    expect(Number(group.getAttribute("data-x")) + Number(lines[0]!.getAttribute("data-x"))).toBe((20 - 12) * TEX_SCALE);
   });
 
   it("single-line textarea renders exactly one VanillaMcText", () => {
@@ -1124,6 +1128,53 @@ function selectLayer(index: number) {
 }
 
 describe("TitleRender — textarea wrap and resize handle", () => {
+  it("keeps the frame and resize handle consistent when aligning and resizing sized text", () => {
+    seedProjectWithI18n([{
+      kind: "textarea", value: { key: K("fixed") }, x: 8, y: 20,
+      width: 100, lineHeight: 18, size: 16, alignment: "left",
+    }], { fixed: { en: "<bold>Hi</bold>" } });
+    selectLayer(0);
+    render(<><TitleRender projectId={PACK_ID} menuId={MENU_ID} scale={2} /><LayerEditForm projectId={PACK_ID} /></>);
+    for (const alignment of ["left", "center", "right"] as const) {
+      fireEvent.click(screen.getByTestId(`textarea-align-${alignment}`));
+      fireEvent.click(screen.getByTestId("width-resize-handle"));
+      const handle = screen.getByTestId("width-resize-handle");
+      const group = handle.closest('[data-testid="group"]')!;
+      expect(Number(group.getAttribute("data-x"))).toBe(16);
+      expect(Number(handle.getAttribute("data-x"))).toBe(240);
+      const hit = group.querySelector('[data-testid="rect"]')!;
+      expect(Number(hit.getAttribute("data-x"))).toBe(0);
+      expect(Number(hit.getAttribute("data-width"))).toBe(240);
+      const text = screen.getByTestId("vanilla-mc-text");
+      const width = (12 + 2) * 2;
+      const expectedX = alignment === "left" ? 0 : alignment === "center" ? 60 - width / 2 : 120 - width;
+      expect(Number(text.getAttribute("data-x"))).toBe(expectedX * 2);
+    }
+  });
+
+  it("provides width resizing for existing single-line text", () => {
+    seedProjectWithI18n([{ kind: "text", value: { key: K("legacy") }, x: 8, y: 20 }], { legacy: { en: "Hi" } });
+    selectLayer(0);
+    render(<TitleRender projectId={PACK_ID} menuId={MENU_ID} scale={1} />);
+    fireEvent.click(screen.getByTestId("width-resize-handle"));
+    expect(useAccountStore.getState().account.projects[0].menus[0].title[0]).toMatchObject({ kind: "textarea", x: 8, width: 120 });
+  });
+
+  it("saves the runtime anchor when dragging a centered frame", () => {
+    seedProjectWithI18n([{
+      kind: "textarea", value: { key: K("drag") }, x: 68, y: 20,
+      width: 121, lineHeight: 10, alignment: "center",
+    }], { drag: { en: "Hi" } });
+    selectLayer(0);
+    render(<TitleRender projectId={PACK_ID} menuId={MENU_ID} scale={2} />);
+    const group = screen.getByTestId("width-resize-handle").closest('[data-testid="group"]') as HTMLElement;
+    expect(Number(group.getAttribute("data-x"))).toBe(16);
+    act(() => { dispatchDragEnd(group, { x: 60, y: 40 }); });
+    expect(useAccountStore.getState().account.projects[0].menus[0].title[0]).toMatchObject({
+      x: 90, y: 20, alignment: "center", width: 121,
+    });
+  });
+
   beforeEach(() => {
     useAssetStore.getState().reset();
     useUiStore.setState({

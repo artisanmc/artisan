@@ -813,7 +813,8 @@ export default {
     plainPlaceholder: "Title text…",
     size: {
       label: "Size",
-      align: "Match line height to size",
+      align: "Adjust line spacing",
+      alignHint: "Text size + 2 px, up to a maximum of 32 px.",
       options: {
         normal: "Normal (8)",
         s: "Medium (12)",

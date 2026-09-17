@@ -54,11 +54,11 @@ function dispatchWindowPointer(type: "pointermove" | "pointerup", x: number, y: 
 }
 
 describe("AddLayerControls", () => {
-  it("renders + Image, + Texte, and + Bloc texte buttons", () => {
+  it("renders only + Image and the unified + Texte button", () => {
     render(<AddLayerControls onPlace={() => {}} />);
     expect(screen.getByTestId("add-layer-image")).toBeInTheDocument();
     expect(screen.getByTestId("add-layer-text")).toBeInTheDocument();
-    expect(screen.getByTestId("add-layer-textarea")).toBeInTheDocument();
+    expect(screen.queryByTestId("add-layer-textarea")).toBeNull();
   });
 
   it("click on + Image (pointerdown + pointerup at same position) fires onPlace('image', null)", () => {
@@ -81,15 +81,6 @@ describe("AddLayerControls", () => {
     expect(onPlace).toHaveBeenCalledWith("text", null);
   });
 
-  it("click on + Bloc texte (pointerdown + pointerup at same position) fires onPlace('textarea', null)", () => {
-    const onPlace = vi.fn();
-    render(<AddLayerControls onPlace={onPlace} />);
-    const btn = screen.getByTestId("add-layer-textarea");
-    fireEvent.pointerDown(btn, { clientX: 10, clientY: 10, pointerId: 1 });
-    dispatchWindowPointer("pointerup", 10, 10);
-    expect(onPlace).toHaveBeenCalledTimes(1);
-    expect(onPlace).toHaveBeenCalledWith("textarea", null);
-  });
 
   it("pointerdown + significant move + pointerup fires onPlace(kind, { x, y })", () => {
     const onPlace = vi.fn();
@@ -188,14 +179,6 @@ describe("AddLayerControls", () => {
     expect(onPlace).toHaveBeenCalledWith("text", null);
   });
 
-  it("Enter key on focused + Bloc texte button calls onPlace('textarea', null)", () => {
-    const onPlace = vi.fn();
-    render(<AddLayerControls onPlace={onPlace} />);
-    const btn = screen.getByTestId("add-layer-textarea");
-    fireEvent.click(btn, { detail: 0 });
-    expect(onPlace).toHaveBeenCalledTimes(1);
-    expect(onPlace).toHaveBeenCalledWith("textarea", null);
-  });
 
   it("pointerdown + pointerup + synthetic click (detail >= 1) fires onPlace exactly once", () => {
     // Reproduces the full browser sequence for a real mouse click:
