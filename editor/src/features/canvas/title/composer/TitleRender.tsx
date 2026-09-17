@@ -1,5 +1,6 @@
 import type { Asset } from "@/domain/asset";
 import { assetPreviewUrl } from "@/domain/asset";
+import { useAuthenticatedImage } from "@/lib/useAuthenticatedImage";
 import type { MenuId, MenuTitleLayer, ProjectId } from "@/domain/types";
 import { useAssetStore } from "@/features/assets/assetStore";
 import { getText } from "@/lib/i18n";
@@ -10,13 +11,13 @@ import { useUiStore } from "@/state/uiStore";
 import type Konva from "konva";
 import { useCallback, useMemo } from "react";
 import { Group, Image as KonvaImage, Rect, Text } from "react-konva";
-import useImage from "use-image";
 import { MC_TITLE_H } from "../../menuLayout";
 import { McFontText } from "../McFontText";
 import { VanillaMcText, vanillaTextWidth } from "../VanillaMcText";
 import { WidthResizeHandle } from "./WidthResizeHandle";
 import { snapDragPosition } from "./snap";
 import { useTitleLayerDrag } from "./useTitleLayerDrag";
+import { asTextFrame, patchTextFrame, textAnchorOffset } from "./textFrame";
 
 const TAG_RX = /<[^>]+>/g;
 
@@ -261,9 +262,11 @@ function LayerNode({
   text,
   selected,
 }: LayerNodeProps) {
-  const [image] = useImage(asset ? assetPreviewUrl(asset) : "");
+  const [image] = useAuthenticatedImage(asset ? assetPreviewUrl(asset) : "");
   const setSelectedLayerKey = useUiStore((s) => s.setSelectedLayerKey);
   const { onPositionChange } = useTitleLayerDrag({ menuId, layerIndex: index });
+  const textFrame = layer.kind === "text" || layer.kind === "textarea" ? asTextFrame(layer) : null;
+  const anchorOffset = textFrame ? textAnchorOffset(textFrame) : 0;
 
   // Reference ascent for text layers with a custom font. The maximum ascent
   // across all glyphs determines the topmost rendered pixel: groupY is placed
@@ -287,7 +290,7 @@ function LayerNode({
       : layer.kind === "plain"
         ? TITLE_LABEL_X * scale
         : "x" in layer
-          ? layer.x * scale
+          ? (layer.x - anchorOffset) * scale
           : 0;
   const groupY =
     layer.kind === "background"
@@ -358,9 +361,9 @@ function LayerNode({
       // Snap the node back so Konva's internal position matches the
       // committed domain coords (no sub-pixel drift on subsequent drags).
       e.target.position({ x: snapped.x * scale, y: finalY * scale });
-      onPositionChange({ x: snapped.x, y: finalY });
+      onPositionChange({ x: snapped.x + anchorOffset, y: finalY });
     },
-    [layer.kind, asset?.ascent, fontRefAscent, scale, onPositionChange],
+    [layer.kind, asset?.ascent, fontRefAscent, scale, onPositionChange, anchorOffset],
   );
 
   // Intrinsic bounding-box for image-kind layers — drives both the selection
@@ -379,21 +382,10 @@ function LayerNode({
           .split("\n")
           .flatMap((l) => wrapLineJs(l, Math.floor((layer.width * 8) / (layer.size ?? 8))))
       : [];
-  const textareaBoxW = layer.kind === "textarea" ? layer.width : 0;
-  // Alignment-aware x offset for the bbox/hit/handle: the textarea's lines
-  // render at relative x = 0 (left), -width/2 (center), or -width (right).
-  // The bounding box needs to follow the same offset so it actually wraps
-  // around the visible text.
-  const textareaBoxOffsetX =
-    layer.kind === "textarea"
-      ? layer.alignment === "center"
-        ? -layer.width / 2
-        : layer.alignment === "right"
-          ? -layer.width
-          : 0
-      : 0;
   const textareaTotalH =
-    layer.kind === "textarea" ? Math.max(1, textareaLines.length) * layer.lineHeight : 0;
+    layer.kind === "textarea"
+      ? Math.max(0, textareaLines.length - 1) * layer.lineHeight + Math.max(layer.lineHeight, layer.size ?? 8)
+      : 0;
 
   // Per-kind body. Background and glyph share the image path.
   let body: React.ReactNode = null;
@@ -444,19 +436,18 @@ function LayerNode({
       wrapLineJs(l, Math.floor((layer.width * 8) / (layer.size ?? 8))),
     );
     body = (
-      <>
-        {lines.map((line, i) => {
-          const lineWidth = vanillaTextWidth(line);
+      lines.map((line, i) => {
+          const lineWidth = Math.floor(measureLineWidthJs(line) * (layer.size ?? 8) / 8);
           const lineX =
             layer.alignment === "center"
-              ? -(lineWidth / 2) * scale
+              ? (anchorOffset - Math.floor(lineWidth / 2)) * scale
               : layer.alignment === "right"
-                ? -lineWidth * scale
+                ? (anchorOffset - lineWidth) * scale
                 : 0;
           const lineY = i * layer.lineHeight * scale;
           return fontAsset ? (
-            // biome-ignore lint/suspicious/noArrayIndexKey: stable visual order
             <McFontText
+              // biome-ignore lint/suspicious/noArrayIndexKey: stateless rendered lines follow their visual row.
               key={i}
               text={line}
               font={fontAsset}
@@ -466,8 +457,8 @@ function LayerNode({
               listening={false}
             />
           ) : (
-            // biome-ignore lint/suspicious/noArrayIndexKey: stable visual order
             <VanillaMcText
+              // biome-ignore lint/suspicious/noArrayIndexKey: stateless rendered lines follow their visual row.
               key={i}
               source={line}
               x={lineX}
@@ -478,8 +469,7 @@ function LayerNode({
               listening={false}
             />
           );
-        })}
-      </>
+        })
     );
   } else if (layer.kind === "external_glyph") {
     // external_glyph — runtime resolves these; in the editor we show a
@@ -525,8 +515,8 @@ function LayerNode({
       ? imageW
       : layer.kind === "external_glyph"
         ? 10 * scale
-        : layer.kind === "textarea"
-          ? textareaBoxW * scale * layerSizeScale
+        : textFrame
+          ? textFrame.width * scale
           : Math.max(vanillaTextWidth(text) * scale * layerSizeScale, 8);
   const outlineH =
     layer.kind === "background" || layer.kind === "glyph"
@@ -534,7 +524,7 @@ function LayerNode({
       : layer.kind === "external_glyph"
         ? 10 * scale
         : layer.kind === "textarea"
-          ? textareaTotalH * scale * layerSizeScale
+          ? textareaTotalH * scale
           : MC_FONT_HEIGHT_PX * scale * layerSizeScale;
 
   // All layer kinds need an explicit hit area: KonvaImage has listening={false}
@@ -546,21 +536,14 @@ function LayerNode({
   // BEFORE the visible body so Konva picks it up on mousedown anywhere
   // inside the outline (drag works, click selects). The same trick is used
   // for the title-bar backdrop above.
-  const hitW =
-    layer.kind === "background" || layer.kind === "glyph"
-      ? imageW
-      : layer.kind === "text" || layer.kind === "plain"
-        ? Math.max(vanillaTextWidth(text) * scale * layerSizeScale, 8)
-        : layer.kind === "textarea"
-          ? textareaBoxW * scale * layerSizeScale
-          : 10 * scale;
+  const hitW = outlineW;
   const hitH =
     layer.kind === "background" || layer.kind === "glyph"
       ? imageH
       : layer.kind === "text" || layer.kind === "plain"
         ? MC_FONT_HEIGHT_PX * scale * layerSizeScale
         : layer.kind === "textarea"
-          ? textareaTotalH * scale * layerSizeScale
+          ? textareaTotalH * scale
           : 10 * scale;
 
   return (
@@ -578,7 +561,7 @@ function LayerNode({
           click-through so the underlying menu remains reachable. When
           selected, this Rect captures pointer events for drag and click. */}
       <Rect
-        x={textareaBoxOffsetX * scale}
+        x={0}
         y={0}
         width={hitW}
         height={hitH}
@@ -591,7 +574,7 @@ function LayerNode({
           {/* Yellow 1-px stroke around the bounding box. Matches the v3 design
               spec (was emerald in v2). */}
           <Rect
-            x={textareaBoxOffsetX * scale - 1}
+            x={-1}
             y={-1}
             width={outlineW + 2}
             height={outlineH + 2}
@@ -600,19 +583,19 @@ function LayerNode({
             fill="transparent"
             listening={false}
           />
-          {layer.kind === "textarea" ? (
+          {textFrame ? (
             <WidthResizeHandle
-              x={(textareaBoxOffsetX + layer.width) * scale}
+              x={textFrame.width * scale}
               y={0}
               height={outlineH}
-              currentWidth={layer.width}
+              currentWidth={textFrame.width}
               scale={scale}
               onResize={(newWidth) => {
                 useAccountStore.getState().updateMenuTitleLayer({
                   projectId: _packId,
                   menuId,
                   index,
-                  patch: { width: newWidth } as Partial<MenuTitleLayer>,
+                  patch: patchTextFrame(textFrame, { width: newWidth }),
                 });
               }}
             />

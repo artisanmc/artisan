@@ -22,6 +22,7 @@ import { useAuthStore } from "@/state/authStore";
 import { useUiStore } from "@/state/uiStore";
 
 import { TextSizeSelector } from "./TextSizeSelector";
+import { asTextFrame, patchTextFrame, textAnchorOffset } from "./textFrame";
 
 interface LayerEditFormProps {
   projectId: ProjectId;
@@ -62,7 +63,7 @@ export function LayerEditForm({ projectId }: LayerEditFormProps) {
       />
     );
   }
-  if (layer.kind === "text") {
+  if (layer.kind === "text" || layer.kind === "textarea") {
     return (
       <TextLayerForm
         projectId={projectId}
@@ -75,16 +76,6 @@ export function LayerEditForm({ projectId }: LayerEditFormProps) {
   if (layer.kind === "plain") {
     return (
       <PlainLayerForm
-        projectId={projectId}
-        menuId={selectedKey.menuId}
-        index={selectedKey.index}
-        layer={layer}
-      />
-    );
-  }
-  if (layer.kind === "textarea") {
-    return (
-      <TextareaLayerForm
         projectId={projectId}
         menuId={selectedKey.menuId}
         index={selectedKey.index}
@@ -250,7 +241,7 @@ function ImageLayerForm({ projectId, menuId, index, layer }: ImageLayerFormProps
             type="number"
             value={currentX}
             onChange={(e) => {
-              const v = parseInt(e.target.value, 10);
+              const v = Number.parseInt(e.target.value, 10);
               if (Number.isFinite(v)) {
                 updateLayer({ projectId, menuId, index, patch: { x: v } as Partial<MenuTitleLayer> });
               }
@@ -273,12 +264,12 @@ function ImageLayerForm({ projectId, menuId, index, layer }: ImageLayerFormProps
             disabled={patchingAscent}
             className="h-7 w-20 font-mono text-xs"
             onBlur={(e) => {
-              const v = parseInt(e.target.value, 10);
+              const v = Number.parseInt(e.target.value, 10);
               if (Number.isFinite(v) && v !== currentAscent) onPatchAscent(v);
             }}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
-                const v = parseInt((e.target as HTMLInputElement).value, 10);
+                const v = Number.parseInt((e.target as HTMLInputElement).value, 10);
                 if (Number.isFinite(v) && v !== currentAscent) onPatchAscent(v);
               }
             }}
@@ -322,137 +313,6 @@ function ImageLayerForm({ projectId, menuId, index, layer }: ImageLayerFormProps
 }
 
 // ─── Text ──────────────────────────────────────────────────────────────────
-
-interface TextLayerFormProps {
-  projectId: ProjectId;
-  menuId: import("@/domain/types").MenuId;
-  index: number;
-  layer: Extract<MenuTitleLayer, { kind: "text" }>;
-}
-
-function TextLayerForm({ projectId, menuId, index, layer }: TextLayerFormProps) {
-  const { t } = useTranslation();
-  const textEdit = useTextEdit(projectId, layer.value);
-  const setI18nValue = useAccountStore((s) => s.setI18nValue);
-  const updateLayer = useAccountStore((s) => s.updateMenuTitleLayer);
-  const allAssets = useAssetStore((s) => s.assets);
-  const fontAssets = allAssets.filter((a) => a.type === "font");
-  const placeholderLocation = useMemo(
-    () => ({ kind: "menu" as const, menuId }),
-    [menuId],
-  );
-  const placeholderEntries = usePlaceholderEntries(projectId, placeholderLocation);
-
-  return (
-    <div className="flex flex-col gap-3 text-xs text-zinc-300">
-      <div>
-        <div className="mb-1 block text-[10px] uppercase text-zinc-500">
-          Titre (MiniMessage) — {textEdit.lang}
-        </div>
-        <RevealField
-          value={textEdit.value}
-          onChange={(v) =>
-            setI18nValue({
-              projectId,
-              lt: layer.value,
-              lang: textEdit.lang,
-              value: v,
-            })
-          }
-          entries={placeholderEntries}
-          placeholder={t("layerEditForm.textPlaceholder")}
-          className="text-xs"
-          facade={<MiniMessageInline source={textEdit.value} className="font-mono text-xs" />}
-          preview={
-            <div className="mt-1 rounded border border-zinc-800 bg-zinc-900/40 p-2">
-              <div className="mb-1 text-[10px] uppercase text-zinc-500">Aperçu</div>
-              <MiniMessageInline source={textEdit.value} className="font-mono text-xs" />
-            </div>
-          }
-        />
-      </div>
-
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="layer-edit-font" className="text-[10px] uppercase text-zinc-500">Police personnalisée</label>
-        <select
-          id="layer-edit-font"
-          value={layer.fontAssetId ?? ""}
-          onChange={(e) => {
-            const v = e.target.value;
-            updateLayer({
-              projectId,
-              menuId,
-              index,
-              patch: { fontAssetId: v || undefined } as Partial<MenuTitleLayer>,
-            });
-          }}
-          className="h-8 w-full rounded border border-zinc-700 bg-zinc-900 px-2 text-xs text-zinc-200"
-        >
-          <option value="">Aucune (vanilla)</option>
-          {fontAssets.map((f) => (
-            <option key={f.id} value={f.id}>{f.name}</option>
-          ))}
-        </select>
-        {fontAssets.length === 0 ? (
-          <div className="text-[10px] text-zinc-500 leading-snug">
-            Importe une police via l'onglet Assets pour afficher ce texte dans la zone d'inventaire (ascent négatif).
-          </div>
-        ) : null}
-      </div>
-
-      {layer.fontAssetId === undefined && (
-        <TextSizeSelector
-          id="layer-edit-size"
-          value={layer.size}
-          onChange={(size) =>
-            updateLayer({
-              projectId,
-              menuId,
-              index,
-              patch: { size } as Partial<MenuTitleLayer>,
-            })
-          }
-        />
-      )}
-
-      <div className="flex gap-3">
-        <div className="flex flex-col gap-1.5 flex-1">
-          <div className="text-[10px] uppercase text-zinc-500">X</div>
-          <Input
-            type="number"
-            value={layer.x}
-            onChange={(e) => {
-              const v = parseInt(e.target.value, 10);
-              if (Number.isFinite(v)) {
-                updateLayer({ projectId, menuId, index, patch: { x: v } as Partial<MenuTitleLayer> });
-              }
-            }}
-            className="h-7 w-full font-mono text-xs"
-          />
-        </div>
-        <div className="flex flex-col gap-1.5 flex-1">
-          <div className="text-[10px] uppercase text-zinc-500">Y</div>
-          <Input
-            type="number"
-            value={layer.y}
-            onChange={(e) => {
-              const v = parseInt(e.target.value, 10);
-              if (Number.isFinite(v)) {
-                updateLayer({ projectId, menuId, index, patch: { y: v } as Partial<MenuTitleLayer> });
-              }
-            }}
-            className="h-7 w-full font-mono text-xs"
-          />
-        </div>
-      </div>
-      <div className="text-[10px] text-zinc-500 leading-snug">
-        X depuis le bord gauche (titre naturel = 8) · Y depuis le haut (barre = 5–6, inventaire ≥ 18).
-      </div>
-    </div>
-  );
-}
-
-// ─── Plain (vanilla) ────────────────────────────────────────────────────────
 
 interface PlainLayerFormProps {
   projectId: ProjectId;
@@ -576,14 +436,15 @@ function ExternalGlyphForm({ projectId, menuId, index, layer }: ExternalGlyphFor
 
 // ─── Textarea ──────────────────────────────────────────────────────────────
 
-interface TextareaLayerFormProps {
+interface TextLayerFormProps {
   projectId: ProjectId;
   menuId: import("@/domain/types").MenuId;
   index: number;
-  layer: Extract<MenuTitleLayer, { kind: "textarea" }>;
+  layer: Extract<MenuTitleLayer, { kind: "text" | "textarea" }>;
 }
 
-function TextareaLayerForm({ projectId, menuId, index, layer }: TextareaLayerFormProps) {
+function TextLayerForm({ projectId, menuId, index, layer: originalLayer }: TextLayerFormProps) {
+  const layer = asTextFrame(originalLayer);
   const { t } = useTranslation();
   const textEdit = useTextEdit(projectId, layer.value);
   const setI18nValue = useAccountStore((s) => s.setI18nValue);
@@ -604,15 +465,15 @@ function TextareaLayerForm({ projectId, menuId, index, layer }: TextareaLayerFor
   const setAlignment = (a: "left" | "center" | "right") =>
     updateLayer({
       projectId, menuId, index,
-      patch: { alignment: a } as Partial<MenuTitleLayer>,
+      patch: patchTextFrame(layer, { alignment: a }),
     });
 
   return (
-    <div className="flex flex-col gap-3 text-xs text-zinc-300">
+    <div className="flex flex-col gap-3 text-xs text-[var(--text)]">
       <div>
         <label
           htmlFor={`textarea-layer-content-${index}`}
-          className="mb-1 block text-[10px] uppercase text-zinc-500"
+          className="mb-1 block text-[10px] uppercase text-[var(--text-faint)]"
         >
           Texte (MiniMessage, multi-ligne) — {textEdit.lang}
         </label>
@@ -620,68 +481,76 @@ function TextareaLayerForm({ projectId, menuId, index, layer }: TextareaLayerFor
           multiline
           rows={3}
           value={textEdit.value}
-          onChange={(v) =>
+          onChange={(v) => {
+            if (originalLayer.kind === "text") updateLayer({ projectId, menuId, index, patch: layer });
             setI18nValue({
               projectId,
               lt: layer.value,
               lang: textEdit.lang,
               value: v,
-            })
-          }
+            });
+          }}
           entries={placeholderEntries}
           placeholder={t("layerEditForm.textareaPlaceholder")}
         />
       </div>
 
-      <div className="rounded border border-zinc-800 bg-zinc-900/40 p-2">
-        <div className="mb-1 text-[10px] uppercase text-zinc-500">Aperçu</div>
+      <div className="rounded border border-[var(--border-soft)] bg-[var(--surface)] p-2">
+        <div className="mb-1 text-[10px] uppercase text-[var(--text-faint)]">Aperçu</div>
         {lines.map((line, i) => (
           // biome-ignore lint/suspicious/noArrayIndexKey: order is stable within preview
           <MiniMessageInline key={i} source={line} className="font-mono text-xs" />
         ))}
       </div>
 
-      <div className="flex gap-3">
+      <div className="flex flex-col gap-3">
         <div className="flex flex-col gap-1.5 flex-1">
-          <div className="text-[10px] uppercase text-zinc-500">Hauteur de ligne (px)</div>
+          <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+            <label htmlFor="text-line-height" className="field-label">Interligne (px)</label>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            title={t("layerEditForm.size.alignHint")}
+            onClick={() =>
+              updateLayer({
+                projectId, menuId, index,
+                patch: { ...layer, lineHeight: Math.min(32, (layer.size ?? 8) + 2) } as Partial<MenuTitleLayer>,
+              })
+            }
+            className="h-auto px-1.5 py-0.5 text-[11px]"
+          >
+            {t("layerEditForm.size.align")}
+          </Button>
+          </div>
           <Input
             type="number"
+            id="text-line-height"
             data-testid="textarea-line-height"
             value={layer.lineHeight}
             onChange={(e) => {
-              const raw = parseInt(e.target.value, 10);
+              const raw = Number.parseInt(e.target.value, 10);
               if (!Number.isFinite(raw)) return;
               const clamped = Math.min(32, Math.max(1, raw));
               updateLayer({
                 projectId, menuId, index,
-                patch: { lineHeight: clamped } as Partial<MenuTitleLayer>,
+                patch: { ...layer, lineHeight: clamped } as Partial<MenuTitleLayer>,
               });
             }}
             className="h-7 w-full font-mono text-xs"
           />
-          <button
-            type="button"
-            onClick={() =>
-              updateLayer({
-                projectId, menuId, index,
-                patch: { lineHeight: (layer.size ?? 8) + 2 } as Partial<MenuTitleLayer>,
-              })
-            }
-            className="h-7 rounded border border-zinc-700 bg-zinc-800 px-2 text-[10px] text-zinc-300 hover:bg-zinc-700"
-          >
-            {t("layerEditForm.size.align")}
-          </button>
+
         </div>
         <div className="flex flex-col gap-1.5 flex-1">
-          <div className="text-[10px] uppercase text-zinc-500">Alignement</div>
-          <div className="flex rounded border border-zinc-700 bg-zinc-900 p-0.5">
+          <div className="text-[10px] uppercase text-[var(--text-faint)]">Alignement</div>
+          <div className="flex rounded border border-[var(--border-soft)] bg-[var(--surface)] p-0.5">
             <button
               type="button"
               data-testid="textarea-align-left"
               onClick={() => setAlignment("left")}
               className={cn(
-                "flex-1 rounded p-1",
-                layer.alignment === "left" ? "bg-zinc-700 text-zinc-100" : "text-zinc-400",
+                "btn btn-ghost flex-1 p-1",
+                layer.alignment === "left" ? "bg-[var(--surface-raised)] text-[var(--text)]" : "text-[var(--text-mut)]",
               )}
               title="Aligner à gauche"
               aria-label="Aligner à gauche"
@@ -693,8 +562,8 @@ function TextareaLayerForm({ projectId, menuId, index, layer }: TextareaLayerFor
               data-testid="textarea-align-center"
               onClick={() => setAlignment("center")}
               className={cn(
-                "flex-1 rounded p-1",
-                layer.alignment === "center" ? "bg-zinc-700 text-zinc-100" : "text-zinc-400",
+                "btn btn-ghost flex-1 p-1",
+                layer.alignment === "center" ? "bg-[var(--surface-raised)] text-[var(--text)]" : "text-[var(--text-mut)]",
               )}
               title="Centrer"
               aria-label="Centrer"
@@ -706,8 +575,8 @@ function TextareaLayerForm({ projectId, menuId, index, layer }: TextareaLayerFor
               data-testid="textarea-align-right"
               onClick={() => setAlignment("right")}
               className={cn(
-                "flex-1 rounded p-1",
-                layer.alignment === "right" ? "bg-zinc-700 text-zinc-100" : "text-zinc-400",
+                "btn btn-ghost flex-1 p-1",
+                layer.alignment === "right" ? "bg-[var(--surface-raised)] text-[var(--text)]" : "text-[var(--text-mut)]",
               )}
               title="Aligner à droite"
               aria-label="Aligner à droite"
@@ -719,24 +588,28 @@ function TextareaLayerForm({ projectId, menuId, index, layer }: TextareaLayerFor
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <div className="text-[10px] uppercase text-zinc-500">Police personnalisée</div>
+        <label htmlFor="layer-edit-font" className="field-label">Police personnalisée</label>
         <select
+          id="layer-edit-font"
           data-testid="textarea-font"
           value={layer.fontAssetId ?? ""}
           onChange={(e) => {
             const v = e.target.value;
             updateLayer({
               projectId, menuId, index,
-              patch: { fontAssetId: v || undefined } as Partial<MenuTitleLayer>,
+              patch: { ...layer, fontAssetId: v || undefined } as Partial<MenuTitleLayer>,
             });
           }}
-          className="h-8 w-full rounded border border-zinc-700 bg-zinc-900 px-2 text-xs text-zinc-200"
+          className="h-8 w-full rounded border border-[var(--border-soft)] bg-[var(--surface)] px-2 text-xs text-[var(--text)]"
         >
           <option value="">Aucune (vanilla)</option>
           {fontAssets.map((f) => (
             <option key={f.id} value={f.id}>{f.name}</option>
           ))}
         </select>
+        {fontAssets.length === 0 && (
+          <div className="text-[10px] text-[var(--text-faint)]">Importe une police via la Bibliothèque pour utiliser une police personnalisée.</div>
+        )}
       </div>
 
       {layer.fontAssetId === undefined && (
@@ -748,25 +621,25 @@ function TextareaLayerForm({ projectId, menuId, index, layer }: TextareaLayerFor
               projectId,
               menuId,
               index,
-              patch: { size } as Partial<MenuTitleLayer>,
+              patch: { ...layer, size } as Partial<MenuTitleLayer>,
             })
           }
         />
       )}
 
       <div className="flex flex-col gap-1.5">
-        <div className="text-[10px] uppercase text-zinc-500">Largeur (px)</div>
+        <div className="text-[10px] uppercase text-[var(--text-faint)]">Largeur (px)</div>
         <Input
           type="number"
           data-testid="textarea-width"
           value={layer.width}
           onChange={(e) => {
-            const raw = parseInt(e.target.value, 10);
+            const raw = Number.parseInt(e.target.value, 10);
             if (!Number.isFinite(raw)) return;
             const clamped = Math.min(256, Math.max(8, raw));
             updateLayer({
               projectId, menuId, index,
-              patch: { width: clamped } as Partial<MenuTitleLayer>,
+              patch: patchTextFrame(layer, { width: clamped }),
             });
           }}
           className="h-7 w-full font-mono text-xs"
@@ -775,30 +648,30 @@ function TextareaLayerForm({ projectId, menuId, index, layer }: TextareaLayerFor
 
       <div className="flex gap-3">
         <div className="flex flex-col gap-1.5 flex-1">
-          <div className="text-[10px] uppercase text-zinc-500">X</div>
+          <div className="text-[10px] uppercase text-[var(--text-faint)]">X</div>
           <Input
             type="number"
             data-testid="textarea-x"
-            value={layer.x}
+            value={layer.x - textAnchorOffset(layer)}
             onChange={(e) => {
-              const v = parseInt(e.target.value, 10);
+              const v = Number.parseInt(e.target.value, 10);
               if (Number.isFinite(v)) {
-                updateLayer({ projectId, menuId, index, patch: { x: v } as Partial<MenuTitleLayer> });
+                updateLayer({ projectId, menuId, index, patch: patchTextFrame(layer, { x: v }) });
               }
             }}
             className="h-7 w-full font-mono text-xs"
           />
         </div>
         <div className="flex flex-col gap-1.5 flex-1">
-          <div className="text-[10px] uppercase text-zinc-500">Y (ligne 0)</div>
+          <div className="text-[10px] uppercase text-[var(--text-faint)]">Y (ligne 0)</div>
           <Input
             type="number"
             data-testid="textarea-y"
             value={layer.y}
             onChange={(e) => {
-              const v = parseInt(e.target.value, 10);
+              const v = Number.parseInt(e.target.value, 10);
               if (Number.isFinite(v)) {
-                updateLayer({ projectId, menuId, index, patch: { y: v } as Partial<MenuTitleLayer> });
+                updateLayer({ projectId, menuId, index, patch: { ...layer, y: v } as Partial<MenuTitleLayer> });
               }
             }}
             className="h-7 w-full font-mono text-xs"

@@ -829,7 +829,8 @@ const fr: typeof en = {
     plainPlaceholder: "Texte du titre…",
     size: {
       label: "Taille",
-      align: "Aligner à la taille",
+      align: "Ajuster l’interligne",
+      alignHint: "Taille du texte + 2 px, avec un maximum de 32 px.",
       options: {
         normal: "Normal (8)",
         s: "Moyen (12)",

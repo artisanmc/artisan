@@ -188,7 +188,7 @@ describe("LayersPanel — AddLayerControls wiring", () => {
     const project = useAccountStore.getState().account.projects[0]!;
     const title = project.menus[0]!.title;
     expect(title).toHaveLength(1);
-    expect(title[0]!.kind).toBe("text");
+    expect(title[0]).toMatchObject({ kind: "textarea", width: 168, alignment: "left", lineHeight: 10 });
     // Selection moved to the new layer
     expect(useUiStore.getState().selectedLayerKey).toEqual({ menuId: MENU_ID, index: 0 });
     // The text layer has an LText whose key is a fresh i18n key; no entry
@@ -326,7 +326,7 @@ describe("LayersPanel — cross-menu drag-to-attach", () => {
     const targetMenu = project.menus.find((m) => m.id === MENU_ID)!;
     expect(targetMenu.title).toHaveLength(1);
     const layer = targetMenu.title[0]!;
-    expect(layer.kind).toBe("text");
+    expect(layer.kind).toBe("textarea");
     // Default text placement is (8, 5), not the cursor-derived coords.
     expect((layer as any).x).toBe(8);
     expect((layer as any).y).toBe(5);
