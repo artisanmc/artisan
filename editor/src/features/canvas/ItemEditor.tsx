@@ -21,6 +21,7 @@ import type { PlaceholderEntry } from "@/lib/placeholderCatalog";
 import { ImageIcon, Pencil } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { ItemContextSidebar } from "./ItemContextSidebar";
 import type { ResolvedItem } from "./resolveItem";
 import { useTextureUrl } from "./textureStore";
 import { useHeadPreviewUrl } from "./useHeadPreviewUrl";
@@ -85,7 +86,7 @@ export function ItemEditor({
     ...entries,
     ...["title", "lore", "count", "material"].map((field) => ({
       path: `base.${field}`,
-      type: "string" as const,
+      type: field === "count" ? ("integer" as const) : ("string" as const),
       origin: "context" as const,
       sample:
         field === "lore"
@@ -232,58 +233,59 @@ export function ItemEditor({
         </DialogTrigger>
         <DialogContent
           aria-describedby={undefined}
-          className="flex max-h-[85dvh] w-[calc(100%-2rem)] max-w-xl flex-col overflow-hidden"
+          className="flex h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-4xl flex-col overflow-hidden"
         >
           <DialogHeader className="shrink-0 pr-6">
             <DialogTitle>{t("itemBinding.editItem")}</DialogTitle>
           </DialogHeader>
-          <div className="flex min-h-0 flex-col gap-4 overflow-y-auto">
-            {source}
-            {preview.error && (
-              <p role="alert" className="text-xs text-[var(--danger)]">
-                {preview.error}
-              </p>
-            )}
-            <div className="flex items-start gap-2">
-              {textField("title", title, titleLabel ?? t("flow.titleLabel", { lang: "" }))}
-              <div className="w-20 shrink-0">
-                <div className="mb-1 flex items-center justify-between">
-                  <span className="field-label">{t("flow.countLabel")}</span>
-                </div>
-                <Input
-                  type="number"
-                  min={1}
-                  max={64}
-                  value={appearance.count ?? ""}
-                  placeholder={String(inherited.count ?? 1)}
-                  aria-label={t("flow.countLabel")}
-                  className="h-8 px-2 text-xs"
-                  onFocus={onFocus}
-                  onChange={(e) => {
-                    if (e.target.value === "") onCount(undefined);
-                    else {
-                      const n = Number(e.target.value);
-                      if (Number.isInteger(n) && n >= 1 && n <= 64) onCount(n);
-                    }
-                  }}
-                />
-                <div className="mt-1 text-right">
-                  {reset("count", appearance.count !== undefined)}
+          <div className="grid min-h-0 flex-1 gap-4 overflow-y-auto md:grid-cols-[minmax(0,1fr)_17rem] md:grid-rows-[minmax(0,1fr)] md:overflow-hidden">
+            <div className="flex min-h-0 min-w-0 flex-col gap-4 md:overflow-y-auto md:overscroll-contain">
+              {source}
+              {preview.error && (
+                <p role="alert" className="text-xs text-[var(--danger)]">
+                  {preview.error}
+                </p>
+              )}
+              <div className="flex items-start gap-2">
+                {textField("title", title, titleLabel ?? t("flow.titleLabel", { lang: "" }))}
+                <div className="w-28 shrink-0">
+                  <div className="mb-1 flex items-center justify-between gap-2">
+                    <span className="field-label">{t("flow.countLabel")}</span>
+                    {reset("count", appearance.count !== undefined)}
+                  </div>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={64}
+                    value={appearance.count ?? ""}
+                    placeholder={String(inherited.count ?? 1)}
+                    aria-label={t("flow.countLabel")}
+                    className="h-8 px-2 text-xs"
+                    onFocus={onFocus}
+                    onChange={(e) => {
+                      if (e.target.value === "") onCount(undefined);
+                      else {
+                        const n = Number(e.target.value);
+                        if (Number.isInteger(n) && n >= 1 && n <= 64) onCount(n);
+                      }
+                    }}
+                  />
                 </div>
               </div>
+              {textField("lore", lore, loreLabel ?? t("flow.loreLabel", { lang: "" }))}
+              <AdvancedItemSection
+                appearance={appearance}
+                material={preview.material}
+                inheritedEnchants={inherited.enchants}
+                onChange={onAdvanced}
+                onFocus={onFocus}
+              />
+              {details}
+              {display.material?.toLowerCase() === "player_head" && onHead && (
+                <HeadField head={appearance.head ?? ""} onChange={onHead} />
+              )}
             </div>
-            {textField("lore", lore, loreLabel ?? t("flow.loreLabel", { lang: "" }))}
-            <AdvancedItemSection
-              appearance={appearance}
-              material={preview.material}
-              inheritedEnchants={inherited.enchants}
-              onChange={onAdvanced}
-              onFocus={onFocus}
-            />
-            {details}
-            {display.material?.toLowerCase() === "player_head" && onHead && (
-              <HeadField head={appearance.head ?? ""} onChange={onHead} />
-            )}
+            <ItemContextSidebar entries={suggestions} />
           </div>
           <DialogFooter className="shrink-0">
             <DialogClose asChild>
