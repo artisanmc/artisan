@@ -143,10 +143,10 @@ describe("ProjectTopBarControls", () => {
     const project = {
       id: "p1",
       name: "Test",
-      defaultLang: "en",
+      defaultLang: "fr",
       // activeLang defaults to the browser lang in tests ("en") — count misses
-      // for en: k1 has only fr → 1 missing.
-      i18nKeys: { k1: { fr: "Bonjour" }, k2: { en: "Bye", fr: "Au revoir" } },
+      // for en: k1 has French source text but no English value → 1 missing.
+      i18nKeys: { k1: { fr: "Bonjour" }, k2: { fr: "Au revoir", en: "Bye" } },
       menus: [],
       commands: [],
       dialogs: [],
