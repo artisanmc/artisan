@@ -19,43 +19,43 @@ class SchemaRegistryTest {
     @Test
     fun `loadToCurrent returns input as-is when already at current version`() {
         val registry = SchemaRegistry<MutableMap<String, Any?>>()
-        val doc = mutableMapOf<String, Any?>("schema" to "menu/v1", "id" to "main")
-        val out = registry.loadToCurrent(doc, "menu/v1") { it["schema"] as String }
-        assertEquals("menu/v1", out["schema"])
+        val doc = mutableMapOf<String, Any?>("schema" to "demo/v1", "id" to "main")
+        val out = registry.loadToCurrent(doc, "demo/v1") { it["schema"] as String }
+        assertEquals("demo/v1", out["schema"])
         assertEquals("main", out["id"])
     }
 
     @Test
     fun `loadToCurrent applies single migration v1 to v2`() {
         val registry = SchemaRegistry<MutableMap<String, Any?>>()
-        registry.register(migration("menu/v1", "menu/v2") { it["dimensions"] = mapOf("rows" to 3) })
+        registry.register(migration("demo/v1", "demo/v2") { it["dimensions"] = mapOf("rows" to 3) })
 
-        val doc = mutableMapOf<String, Any?>("schema" to "menu/v1")
-        val out = registry.loadToCurrent(doc, "menu/v2") { it["schema"] as String }
+        val doc = mutableMapOf<String, Any?>("schema" to "demo/v1")
+        val out = registry.loadToCurrent(doc, "demo/v2") { it["schema"] as String }
 
-        assertEquals("menu/v2", out["schema"])
+        assertEquals("demo/v2", out["schema"])
         assertEquals(mapOf("rows" to 3), out["dimensions"])
     }
 
     @Test
     fun `loadToCurrent chains v1 to v2 to v3`() {
         val registry = SchemaRegistry<MutableMap<String, Any?>>()
-        registry.register(migration("menu/v1", "menu/v2"))
-        registry.register(migration("menu/v2", "menu/v3"))
+        registry.register(migration("demo/v1", "demo/v2"))
+        registry.register(migration("demo/v2", "demo/v3"))
 
-        val doc = mutableMapOf<String, Any?>("schema" to "menu/v1")
-        val out = registry.loadToCurrent(doc, "menu/v3") { it["schema"] as String }
+        val doc = mutableMapOf<String, Any?>("schema" to "demo/v1")
+        val out = registry.loadToCurrent(doc, "demo/v3") { it["schema"] as String }
 
-        assertEquals("menu/v3", out["schema"])
+        assertEquals("demo/v3", out["schema"])
     }
 
     @Test
     fun `loadToCurrent throws UnsupportedSchemaVersionException when migration is missing`() {
         val registry = SchemaRegistry<MutableMap<String, Any?>>()
-        val doc = mutableMapOf<String, Any?>("schema" to "menu/v1")
+        val doc = mutableMapOf<String, Any?>("schema" to "demo/v1")
 
         assertThrows(UnsupportedSchemaVersionException::class.java) {
-            registry.loadToCurrent(doc, "menu/v2") { it["schema"] as String }
+            registry.loadToCurrent(doc, "demo/v2") { it["schema"] as String }
         }
     }
 

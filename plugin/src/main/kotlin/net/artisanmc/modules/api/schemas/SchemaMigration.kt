@@ -16,10 +16,10 @@ import net.artisanmc.modules.api.annotations.Stable
  */
 @Stable
 interface SchemaMigration<T> {
-    /** Source schema discriminator, e.g. "menu/v1". */
+    /** Source schema discriminator, e.g. "shop/v1". */
     val from: String
 
-    /** Target schema discriminator, e.g. "menu/v2". */
+    /** Target schema discriminator, e.g. "shop/v2". */
     val to: String
 
     /** Pure transform: returns the migrated document with `schema` set to [to]. */

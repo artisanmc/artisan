@@ -27,7 +27,7 @@ class MenuRendererItemValueTest {
 
     @Test fun `legacy template lore reads a migrated catalogue icon once`() {
         val yaml = ObjectMapper(YAMLFactory()).registerKotlinModule().readValue<MenuYaml>("""
-            schema: menu/v2
+            schema: menu/v1
             id: shop
             size: 9
             elements:
@@ -46,7 +46,7 @@ class MenuRendererItemValueTest {
 
     @Test fun `recursive extensions render their immediate base and replace lore`() {
         val yaml = ObjectMapper(YAMLFactory()).registerKotlinModule().readValue<MenuYaml>("""
-            schema: menu/v3
+            schema: menu/v1
             id: shop
             size: 9
             elements:
@@ -71,7 +71,7 @@ class MenuRendererItemValueTest {
 
     @Test fun `an explicitly empty replacement clears inherited lore`() {
         val yaml = ObjectMapper(YAMLFactory()).registerKotlinModule().readValue<MenuYaml>("""
-            schema: menu/v3
+            schema: menu/v1
             id: shop
             size: 9
             elements:
@@ -90,7 +90,7 @@ class MenuRendererItemValueTest {
 
     private fun verifyIcon(overrideCount: Int) {
         val yaml = ObjectMapper(YAMLFactory()).registerKotlinModule().readValue<MenuYaml>("""
-            schema: menu/v2
+            schema: menu/v1
             id: shop
             size: 9
             elements:

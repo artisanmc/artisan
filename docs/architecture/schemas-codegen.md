@@ -15,11 +15,27 @@ Les types ne sont **pas générés** — ils sont **écrits à la main** dans le
 
 ## Enforcement
 
-`menu/v3` ajoute `lore_mode: replace` aux apparences. Sans ce champ, l'ajout historique reste inchangé, y compris après `MenuV2ToV3` (migration en mémoire). L'export choisit v3 dès qu'une surcharge utilise ce mode ; lecteurs et validateurs acceptent v1/v2/v3. Les valeurs de données `item` composent récursivement `{ extends: <ref ou item>, title?, lore?, count?, ... }` : champs absents hérités, lore explicite remplacé. `{base.title}`, `{base.lore}`, `{base.count}` et `{base.material}` désignent la base immédiatement résolue. Un lore vide efface le lore hérité ; la résolution est bornée à 32 niveaux.
+`menu/v1` porte `lore_mode: replace` sur les apparences. Sans ce champ, l'ajout historique reste inchangé. Les valeurs de données `item` composent récursivement `{ extends: <ref ou item>, title?, lore?, count?, ... }` : champs absents hérités, lore explicite remplacé. `{base.title}`, `{base.lore}`, `{base.count}` et `{base.material}` désignent la base immédiatement résolue. Un lore vide efface le lore hérité ; la résolution est bornée à 32 niveaux.
 
 Dans un champ de modèle `item`, `title` et `lore` sont des sites i18n, y compris sous `extends`. `itemTextFields.ts` définit les sites parcourus à l'import et au rekey ; l'export écrit les littéraux de la langue par défaut et les traductions à leurs adresses canoniques.
 
-`menu/v2` ajoute `Appearance.item` (liaison vers un item complet), exclusif de `material`. Schéma et types : `docs/schema/menu/v2/`. L'export choisit v2 seulement si une apparence utilise cette liaison ; les validateurs éditeur/backend acceptent v1 et v2. `MenuV1ToV2`, enregistré dans le registre du lecteur plugin, conserve le contenu v1 en mémoire ; aucune réécriture automatique sur disque. Tests : `menuV2.test.ts`, `MenuV1ToV2Test` et `MenuRendererItemValueTest`.
+`menu/v1` porte aussi `Appearance.item` (liaison vers un item complet), exclusif de `material`. Schéma et types : `docs/schema/menu/v1/`. Tests : `menuItemBinding.test.ts` et `MenuRendererItemValueTest`.
+
+### `menu/v2` et `menu/v3` repliés dans `menu/v1` (2026-09-17)
+
+Les deux versions ont vécu six jours, le temps d'ajouter `Appearance.item` puis `lore_mode`. Leurs
+migrations (`MenuV1ToV2`, `MenuV2ToV3`) étaient des `data.copy(schema = to)` : **zéro transformation**,
+donc trois noms pour un seul format, un ternaire de choix de version à l'export et trois schémas JSON
+compilés côté validateurs. Les deux champs ont été repliés dans `menu/v1` et les dossiers `v2`/`v3`
+supprimés.
+
+C'est une **dérogation explicite à la règle forward-only** ci-dessous (« on ne modifie jamais un
+schéma après ship »). Elle tient parce qu'aucune donnée n'était transformée et que les deux versions
+n'avaient pas quitté la semaine de leur release. Le prix payé est une **tolérance en lecture
+permanente** : `menu/v2` et `menu/v3` restent acceptés par le lecteur plugin (`ProjectReader.menuSchemaVersions`)
+et par les deux validateurs (`LEGACY_VERSIONS`), parce que des projets portant ces étiquettes sont
+sur des disques de serveurs. L'écriture, elle, n'émet plus que `menu/v1`. Ne pas rejouer ce pli : la
+prochaine version de schéma qui transforme quoi que ce soit est définitivement acquise.
 
 La cohérence types ↔ schéma n'est **pas** garantie par codegen mais par validation :
 
