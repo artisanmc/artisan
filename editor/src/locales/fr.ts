@@ -901,7 +901,7 @@ const fr: typeof en = {
     loading: "Lecture des fichiers du serveur…",
     offlineTitle: "Serveur hors ligne",
     offlineBody:
-      "Le contenu de ce project vit sur le disque de son serveur. Tant que le serveur ne répond pas, il n'y a rien à afficher — et surtout pas une copie périmée.",
+      "Impossible de joindre le serveur de ce project, et aucun brouillon n'est disponible. Vérifie que le serveur est démarré et connecté, puis réessaie.",
     loadFailedTitle: "Impossible d'ouvrir ce project",
     loadFailedBody:
       "Le chargement a échoué. Le code ci-dessous dit pourquoi ; s'il persiste, il est aussi dans la console du navigateur.",
