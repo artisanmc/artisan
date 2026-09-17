@@ -1,6 +1,6 @@
 import { visitProjectLTexts } from "@/domain/i18nSites";
 import type { I18nKey, Project } from "@/domain/types";
-import { listLanguages } from "@/lib/i18nUsages";
+import { isTranslationMissing, listLanguages } from "@/lib/i18nUsages";
 
 export interface ValidationResult {
   valid: boolean;
@@ -17,7 +17,8 @@ export function validate(project: Project): ValidationResult {
   const referencedKeys = new Set<string>();
   for (const site of visitProjectLTexts(project)) referencedKeys.add(site.lText.key);
 
-  // 1. Every referenced key must have a non-empty value in defaultLang
+  // 1. Every referenced key must have a value entry in defaultLang. An
+  // explicit empty string is valid: it means this text is intentionally blank.
   for (const key of referencedKeys) {
     const entry = project.i18nKeys[key as I18nKey];
     if (!entry) {
@@ -25,7 +26,7 @@ export function validate(project: Project): ValidationResult {
       continue;
     }
     const val = entry[project.defaultLang];
-    if (!val || val.trim() === "") {
+    if (val === undefined) {
       errors.push(`Key "${key}" has no ${project.defaultLang} (default language) value.`);
     }
   }
@@ -43,8 +44,11 @@ export function validate(project: Project): ValidationResult {
     let missingCount = 0;
     for (const key of referencedKeys) {
       const entry = project.i18nKeys[key as I18nKey];
-      const val = entry?.[lang];
-      if (!val || val.trim() === "") missingCount++;
+      if (
+        isTranslationMissing(project.defaultLang, lang, entry?.[project.defaultLang], entry?.[lang])
+      ) {
+        missingCount++;
+      }
     }
     if (missingCount > 0) {
       warnings.push(`${missingCount} key(s) missing translation for language "${lang}".`);

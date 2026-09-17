@@ -45,7 +45,7 @@ describe("validate", () => {
     expect(result.errors.some((e) => e.includes("menus.shop.title"))).toBe(true);
   });
 
-  it("errors when a referenced key has an empty default-lang value", () => {
+  it("accepts an intentionally blank default-lang value", () => {
     const project = makeProject({
       i18nKeys: { "menus.shop.title": { en: "  " } } as Project["i18nKeys"],
       menus: [
@@ -59,8 +59,44 @@ describe("validate", () => {
       ],
     });
     const result = validate(project);
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it("errors when a referenced key has no default-lang entry", () => {
+    const project = makeProject({
+      i18nKeys: { "menus.shop.title": { fr: "Bonjour" } } as Project["i18nKeys"],
+      menus: [
+        {
+          id: menuId("shop"),
+          projectId: projectId("p_test"),
+          rows: 3,
+          title: [{ kind: "text", value: { key: "menus.shop.title" as I18nKey }, x: 8, y: 5 }],
+          layers: [],
+        },
+      ],
+    });
+    const result = validate(project);
     expect(result.valid).toBe(false);
     expect(result.errors.some((e) => e.includes("menus.shop.title"))).toBe(true);
+  });
+
+  it("does not warn about a target language when the source is intentionally blank", () => {
+    const project = makeProject({
+      i18nKeys: { "menus.shop.title": { en: "", fr: "" } } as Project["i18nKeys"],
+      menus: [
+        {
+          id: menuId("shop"),
+          projectId: projectId("p_test"),
+          rows: 3,
+          title: [{ kind: "text", value: { key: "menus.shop.title" as I18nKey }, x: 8, y: 5 }],
+          layers: [],
+        },
+      ],
+    });
+    const result = validate(project);
+    expect(result.valid).toBe(true);
+    expect(result.warnings).toHaveLength(0);
   });
 
   it("errors on stale undefined entry in i18nKeys", () => {
