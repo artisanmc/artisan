@@ -9,6 +9,10 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Fixed — plugin backend host
+
+- The plugin's shipped `ws_url` pointed at `editor.artisanmc.net`, the host that serves the editor web app and proxies neither `/ws` nor `/api`: `/artisan link` answered `405` and the WebSocket could never open. New installs ship the backend host, and a config still carrying the old value is rewritten on load — no manual edit needed after upgrading the JAR. `/artisan editor` keeps pointing at the browsable editor.
+
 ### Fixed — assistant provider diagnostics
 
 - A failed assistant turn now says what the provider refused — rejected request, access, billing, unavailable model, rate limit, payload size, timeout, server error — instead of a bare "disconnected". Provider billing is distinct from Artisan credits; existing results are kept and no automatic retry is started.

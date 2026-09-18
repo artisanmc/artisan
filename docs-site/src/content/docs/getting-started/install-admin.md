@@ -29,11 +29,13 @@ you a one-time code, and you run that code on your Minecraft server.
 1. First, point the plugin at the backend. Open `plugins/Artisan/config.yml`:
 
    ```yaml
-   ws_url: "wss://editor.artisanmc.net/ws/plugin"
+   ws_url: "wss://api.artisanmc.net/ws/plugin"
    ```
 
-   Adjust `ws_url` only if you are self-hosting the backend. Leave `server_key`
-   empty — `/artisan link` fills it in.
+   This is the backend host, not the editor host (`editor.artisanmc.net` serves
+   the web app only and answers `/api` requests with `405`). Adjust `ws_url`
+   only if you are self-hosting the backend. Leave `server_key` empty —
+   `/artisan link` fills it in.
 
 2. In the editor, create a network and **Add a server**. You'll get a command
    like `/artisan link ABCD2345`.
@@ -212,10 +214,11 @@ The path is filesystem-absolute or relative to the server root.
 ## 10. Reference: `config.yml`
 
 ```yaml
-# Set to connect this server to the Artisan editor backend for live sync.
+# Backend endpoint for live sync (WebSocket). Not the editor URL — the editor
+# lives on editor.artisanmc.net and doesn't proxy the API.
 # Leave empty to run offline using only locally exported packs.
 server_key: ""
-ws_url: "wss://editor.artisanmc.net/ws/plugin"
+ws_url: "wss://api.artisanmc.net/ws/plugin"
 
 # Language for plugin system messages (en, fr). Defaults to en.
 # Place custom lang files in plugins/Artisan/lang/<code>.yml to override.
