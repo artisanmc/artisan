@@ -11,7 +11,11 @@ Pick **Player Head** as an element's material and a **custom head** row appears 
 |---|---|---|
 | HeadDatabase | The numeric id from `/hdb` | `128276` |
 | Base64 texture | The `textures` value from any head site (minecraft-heads.com → "Other" → Value) | `eyJ0ZXh0dXJlcyI6…` |
-| Player name | A literal name or a placeholder | `Notch`, `%player%` |
+| Player name | A literal name or a placeholder | `Notch`, `{player.name}` |
+
+Picking **Player name** on an empty field fills in `{player.name}` — the head of the player
+who opens the menu, which is what you want most of the time. The **Current player** button
+re-inserts that placeholder when the field holds a literal name instead.
 
 Pasting a full value anywhere works: `hdb:128276` or a raw `eyJ…` base64 string is detected
 and routed to the right source automatically.
@@ -30,4 +34,4 @@ placeholders keep a generic preview until resolved to a literal name.
 - `hdb:` heads require the [HeadDatabase](https://www.spigotmc.org/resources/14280/) plugin
   on the server. Without it, a plain player head is rendered and one warning is logged.
 - Base64 and player-name heads work on any Paper server, no extra plugin.
-- Player-name placeholders (`%player%`, `{alias.owner}`…) resolve per viewer at render time.
+- Player-name placeholders (`%player%`, `{player.name}`, `{alias.owner}`…) resolve per viewer at render time.

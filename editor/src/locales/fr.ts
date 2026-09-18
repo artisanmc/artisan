@@ -465,6 +465,8 @@ const fr: typeof en = {
     headPlaceholderPlayer: "Notch ou %player%",
     headHdbHint:
       "L’aperçu utilise HeadDatabase sur le serveur connecté. Une tête introuvable garde l’icône générique.",
+    headViewer: "Joueur actuel",
+    headViewerHint: "Insère {player.name} — la tête du joueur qui ouvre le menu.",
     loreLabel: "lore ({{lang}})",
     loreLabelFallback: "lore ({{lang}} — fallback)",
     lorePlaceholder: "Une ligne par entrée de lore.",

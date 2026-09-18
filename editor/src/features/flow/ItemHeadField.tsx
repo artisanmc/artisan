@@ -1,7 +1,15 @@
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { UserRound } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { type HeadSource, buildHeadValue, headSourceOf, headValueOf } from "./headField";
+import {
+  type HeadSource,
+  VIEWER_HEAD,
+  buildHeadValue,
+  headSourceOf,
+  headValueOf,
+} from "./headField";
 
 export function HeadField({ head, onChange }: { head: string; onChange: (v: string) => void }) {
   const { t } = useTranslation();
@@ -30,6 +38,9 @@ export function HeadField({ head, onChange }: { head: string; onChange: (v: stri
             const next = e.target.value as HeadSource;
             setLocalSource(next);
             if (next === "none") onChange("");
+            // Le joueur qui ouvre le menu est le cas courant : choisir la
+            // source suffit, sans avoir à taper un pseudo.
+            else if (next === "playerhead" && !headValueOf(head).trim()) onChange(VIEWER_HEAD);
             else {
               const rebuilt = buildHeadValue(next, headValueOf(head));
               if (rebuilt !== head) onChange(rebuilt);
@@ -52,6 +63,19 @@ export function HeadField({ head, onChange }: { head: string; onChange: (v: stri
       </div>
       {source === "hdb" ? (
         <p className="mt-1 text-[10px] text-[var(--text-faint)]">{t("flow.headHdbHint")}</p>
+      ) : null}
+      {source === "playerhead" ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="mt-1 h-6 gap-1 px-1 text-xs"
+          title={t("flow.headViewerHint")}
+          onClick={() => onChange(VIEWER_HEAD)}
+        >
+          <UserRound size={12} />
+          {t("flow.headViewer")}
+        </Button>
       ) : null}
     </div>
   );
