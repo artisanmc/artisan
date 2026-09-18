@@ -61,3 +61,17 @@ describe("ChangeList", () => {
     expect(screen.getByText(/No changes|Aucun changement/)).toBeInTheDocument();
   });
 });
+
+describe("ChangeList — one scroll for the whole change set", () => {
+  it("wraps long lines and does not cap each diff in its own scroll box", () => {
+    const long = `description: ${"x".repeat(400)}\n`;
+    render(<ChangeList before={{ "a.yaml": "a\n" }} after={{ "a.yaml": long }} />);
+    const region = screen.getByRole("region");
+    expect(region.className).not.toMatch(/max-h-/);
+    expect(screen.getByText(long.trimEnd()).closest("td")).toHaveClass("whitespace-pre-wrap");
+  });
+  it("keeps the file header pinned while its diff scrolls by", () => {
+    render(<ChangeList before={{ "a.yaml": "a\n" }} after={{ "a.yaml": "b\n" }} />);
+    expect(screen.getByRole("button", { name: /a\.yaml/ })).toHaveClass("sticky");
+  });
+});
