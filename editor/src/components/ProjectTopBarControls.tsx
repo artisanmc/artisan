@@ -31,6 +31,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { FileDiff } from "@/components/ui/file-diff";
+import { Spinner } from "@/components/ui/spinner";
 import type { Project, ProjectId } from "@/domain/types";
 import { DeployReviewDialog } from "@/features/project/DeployReviewDialog";
 import { PersistedDraftControls } from "@/features/project/PersistedDraftControls";
@@ -68,7 +69,9 @@ import {
   LayoutDashboard,
   PanelRightClose,
   PanelRightOpen,
+  Play,
   Redo2,
+  Save,
   Search,
   Sparkles,
   Undo2,
@@ -592,10 +595,24 @@ function SaveControls({
             type="button"
             onClick={saveDraft}
             disabled={draftBusy || draftSaved}
-            title={draftSaved ? t("drafts.savedTitle") : t("drafts.saveTitle")}
-            className="btn btn-sm btn-ghost"
+            aria-busy={draftBusy}
+            aria-label={
+              draftBusy ? t("save.saving") : draftSaved ? t("drafts.savedShort") : t("drafts.save")
+            }
+            title={
+              draftBusy
+                ? t("save.saving")
+                : draftSaved
+                  ? t("drafts.savedTitle")
+                  : t("drafts.saveTitle")
+            }
+            className="btn btn-sm btn-ghost btn-icon"
           >
-            {draftBusy ? t("save.saving") : draftSaved ? t("drafts.savedShort") : t("drafts.save")}
+            {draftBusy ? (
+              <Spinner aria-hidden role="presentation" className="text-current" />
+            ) : (
+              <Save className="size-4" aria-hidden />
+            )}
           </button>
         )}
         <button
@@ -611,6 +628,11 @@ function SaveControls({
           }
           className="btn btn-sm btn-primary"
         >
+          {saving ? (
+            <Spinner aria-hidden role="presentation" className="text-current" />
+          ) : (
+            <Play className="size-4" aria-hidden />
+          )}
           {saving ? t("deploy.deploying") : t("deploy.deploy")}
         </button>
         {dirty || draftSession || lastSaveError ? (

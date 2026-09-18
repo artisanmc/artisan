@@ -225,6 +225,46 @@ describe("ProjectTopBarControls — Enregistrer", () => {
     }
   });
 
+  it("shows Save as a disk icon with a tooltip, and Deploy with a play icon beside its label", () => {
+    const p = baseProject("icônes");
+    useAccountStore.setState({
+      account: { id: "n1", projects: [p], projectOrder: [p.id] },
+    } as never);
+    usePersistedDraftStore.setState({
+      sessions: { p1: { ownerId: "u1", drafts: [], status: "pending" } },
+    });
+    try {
+      render(<ProjectTopBarControls project={p} projectId={p.id} networkId="n1" />);
+      const save = screen.getByRole("button", { name: /^(Save|Enregistrer)$/ });
+      expect(save).toHaveTextContent(/^$/);
+      expect(save).toHaveAttribute("title");
+      expect(save.querySelector("svg.lucide-save")).not.toBeNull();
+      const deploy = screen.getByRole("button", { name: DEPLOY });
+      expect(deploy).toHaveTextContent(/Deploy|Déployer/);
+      expect(deploy.querySelector("svg.lucide-play")).not.toBeNull();
+    } finally {
+      usePersistedDraftStore.setState({ sessions: {} });
+    }
+  });
+
+  it("spins the save icon while the draft is being saved", () => {
+    const p = baseProject("en cours");
+    useAccountStore.setState({
+      account: { id: "n1", projects: [p], projectOrder: [p.id] },
+    } as never);
+    usePersistedDraftStore.setState({
+      sessions: { p1: { ownerId: "u1", drafts: [], status: "saving" } },
+    });
+    try {
+      render(<ProjectTopBarControls project={p} projectId={p.id} networkId="n1" />);
+      const save = screen.getByRole("button", { name: /^(Saving…|Enregistrement…)$/ });
+      expect(save).toBeDisabled();
+      expect(save.querySelector(".animate-spin")).not.toBeNull();
+    } finally {
+      usePersistedDraftStore.setState({ sessions: {} });
+    }
+  });
+
   it("marks the draft as saved once the account holds it", () => {
     const p = baseProject("à jour");
     useAccountStore.setState({
