@@ -298,8 +298,9 @@ de Déployer, sans bloc permanent dans la topbar.
 
 **Enregistrer / Déployer (2026-09-18)** : deux gestes dans `SaveControls`.
 Enregistrer (visible avec une session de brouillons) vide le debounce puis force
-`syncPersistedDraft` ; il affiche « Enregistré » désactivé quand la session est
-`saved`. L'autosauvegarde du brouillon reste active. Déployer ouvre
+`syncPersistedDraft`. Bouton icône (disquette, `Spinner` pendant la sauvegarde, libellé
+en infobulle et `aria-label`), désactivé quand la session est `saved`. Déployer garde
+son libellé, précédé d’une icône lecture. L'autosauvegarde du brouillon reste active. Déployer ouvre
 `DeployReviewDialog` : base du serveur contre `projectTree` du Project vivant,
 renommages et binaires compris. Seule la confirmation appelle `saveProjectToDisk`.
 Les mutations portent un `operationId` et un snapshot figés dans le secours local
