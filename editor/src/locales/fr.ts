@@ -1,4 +1,5 @@
 import { accountDeletionFr } from "./accountDeletion";
+import { changesFr } from "./changes";
 import { demoFr } from "./demo";
 import { draftsFr } from "./drafts";
 import type en from "./en";
@@ -35,6 +36,7 @@ const fr: typeof en = {
   },
   accountDeletion: accountDeletionFr,
   drafts: draftsFr,
+  changes: changesFr,
   navigation: {
     menu: "Menu",
     label: "Navigation principale",
@@ -1798,7 +1800,7 @@ const fr: typeof en = {
       forbidden: "Tu n’as pas l’autorisation d’enregistrer ce projet.",
       unauthorized: "Ta session n’est plus valide. Reconnecte-toi.",
       draft_conflict:
-        "La version de ton brouillon n’est plus celle du backend. Aucun fichier n’a été écrit par cette tentative. Pour conserver tes modifications, ouvre le chevron à côté d’Enregistrer → Brouillons, donne un nom puis clique sur Créer une copie. Enregistre ensuite cette copie.",
+        "La version de ton brouillon n’est plus celle du backend. Aucun fichier n’a été écrit par cette tentative. Pour conserver tes modifications, ouvre le chevron à côté de Déployer → Brouillons, donne un nom puis clique sur Créer une copie. Déploie ensuite cette copie.",
       revision_conflict:
         "Le brouillon a changé dans une autre session. Ouvre Brouillons pour le vérifier.",
       unknown: "L’enregistrement a échoué. Le code disponible figure ci-dessous.",
@@ -1808,9 +1810,6 @@ const fr: typeof en = {
     save: "Enregistrer",
     saving: "Enregistrement…",
     saved: "Projet enregistré",
-    nothingToSave: "Rien à enregistrer",
-    saveTitle: "Appliquer les modifications au projet enregistré",
-    cannotSaveTitle: "Serveur inconnu — impossible d'enregistrer",
     serverOffline: "Serveur hors ligne — l'enregistrement est impossible",
     failed: "Échec de l'enregistrement",
     diffServer: "Version serveur",
@@ -1830,27 +1829,23 @@ const fr: typeof en = {
     conflictDiskNow: "Le dossier contient maintenant :",
     conflictDiskEmpty: "(vide)",
     conflictApply: "Appliquer",
-    conflictAdopted: "Versions du serveur reprises — enregistre à nouveau.",
+    conflictAdopted: "Versions du serveur reprises — déploie à nouveau.",
     cancel: "Annuler",
   },
   deploy: {
     deploy: "Déployer",
     deploying: "Déploiement…",
-    revert: "Annuler",
-    reverting: "…",
-    deployedToast: "Déployé ✓",
-    revertNothing: "Ce projet n'a jamais été déployé — rien à restaurer.",
-    reverted: "Modifications annulées — version live restaurée.",
-    deployFailed: "Échec du déploiement",
-    revertFailed: "Échec de la restauration",
-    deployTitle: "Déployer — rendre les modifications visibles aux joueurs",
-    revertTitle: "Annuler les modifications (revenir à la version live)",
-    cannotDeployTitle:
-      "Déployer demande soit une session éditeur trustée (/artisan editor dans la console MC), soit un compte connecté avec le network + la branche du projet chargés.",
-    cannotRevertTitle:
-      "Annuler demande soit une session éditeur trustée (/artisan editor dans la console MC), soit un compte connecté avec le network + la branche du projet chargés.",
-    noSessionTitle:
-      "Déployer / annuler demande une session éditeur trustée. Tape /artisan editor dans la console MC pour truster ce navigateur, ou utilise le bouton Commit pour sauvegarder sur une branche.",
+    deployTitle: "Relire puis écrire les changements sur le serveur",
+    nothing: "Rien à déployer",
+    cannotDeployTitle: "Serveur inconnu — impossible de déployer",
+    deployed: "Déployé sur le serveur",
+    failed: "Échec du déploiement",
+    reviewTitle: "Déployer sur le serveur ?",
+    reviewBody:
+      "Ces changements vont être écrits sur le disque du serveur et deviendront visibles en jeu. Relis-les avant de confirmer.",
+    server: "Serveur",
+    draft: "Brouillon",
+    confirm: "Déployer sur le serveur",
   },
   userMenu: {
     anonymous: "Anonyme",

@@ -1,4 +1,5 @@
 import { accountDeletionEn } from "./accountDeletion";
+import { changesEn } from "./changes";
 import { demoEn } from "./demo";
 import { draftsEn } from "./drafts";
 import { migrationEn } from "./migration";
@@ -32,6 +33,7 @@ export default {
   },
   accountDeletion: accountDeletionEn,
   drafts: draftsEn,
+  changes: changesEn,
   navigation: {
     menu: "Menu",
     label: "Main navigation",
@@ -1777,7 +1779,7 @@ export default {
       unauthorized: "Your session is no longer valid. Sign in again.",
       revision_conflict: "Another session changed the draft. Open Drafts to review it.",
       draft_conflict:
-        "Your draft version no longer matches the backend. This attempt did not write any files. To preserve your edits, open the arrow beside Save → Drafts, enter a name and choose Create a copy. Then save that copy.",
+        "Your draft version no longer matches the backend. This attempt did not write any files. To preserve your edits, open the arrow beside Deploy → Drafts, enter a name and choose Create a copy. Then deploy that copy.",
       unknown: "Saving failed. The available error code is shown below.",
     },
     options: "Save options",
@@ -1785,9 +1787,6 @@ export default {
     save: "Save",
     saving: "Saving…",
     saved: "Project saved",
-    nothingToSave: "Nothing to save",
-    saveTitle: "Apply your changes to the saved project",
-    cannotSaveTitle: "Unknown server — cannot save",
     serverOffline: "Server offline — saving is not possible",
     failed: "Save failed",
     diffServer: "Server version",
@@ -1807,27 +1806,23 @@ export default {
     conflictDiskNow: "The folder now contains:",
     conflictDiskEmpty: "(empty)",
     conflictApply: "Apply",
-    conflictAdopted: "Server versions adopted — save again.",
+    conflictAdopted: "Server versions adopted — deploy again.",
     cancel: "Cancel",
   },
   deploy: {
     deploy: "Deploy",
     deploying: "Deploying…",
-    revert: "Discard",
-    reverting: "…",
-    deployedToast: "Deployed ✓",
-    revertNothing: "This project has never been deployed — nothing to restore.",
-    reverted: "Changes discarded — live version restored.",
-    deployFailed: "Deploy failed",
-    revertFailed: "Restore failed",
-    deployTitle: "Deploy — make the changes visible to players",
-    revertTitle: "Discard changes (revert to the live version)",
-    cannotDeployTitle:
-      "Deploy needs either a trusted editor session (/artisan editor in MC console) or a signed-in account with the project's network + branch loaded.",
-    cannotRevertTitle:
-      "Discard needs either a trusted editor session (/artisan editor in MC console) or a signed-in account with the project's network + branch loaded.",
-    noSessionTitle:
-      "Deploy / revert needs a trusted editor session. Use /artisan editor in your MC console to trust this browser, or use the Commit button to save to a branch.",
+    deployTitle: "Review, then write the changes to the server",
+    nothing: "Nothing to deploy",
+    cannotDeployTitle: "Unknown server — cannot deploy",
+    deployed: "Deployed to the server",
+    failed: "Deploy failed",
+    reviewTitle: "Deploy to the server?",
+    reviewBody:
+      "These changes will be written to the server disk and become visible in game. Review them before confirming.",
+    server: "Server",
+    draft: "Draft",
+    confirm: "Deploy to the server",
   },
   userMenu: {
     anonymous: "Anonymous",

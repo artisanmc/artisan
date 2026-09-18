@@ -57,7 +57,7 @@ folder name and Minecraft version; the Vanilla template is available initially.
 Hosted projects keep their files and private drafts in Artisan storage. They use
 the same editor and previews, and remain accessible while Artisan is available.
 Live server data, inventory capture and in-game execution require a Minecraft server.
-**Save** updates the saved project; it does not run the project in Minecraft.
+**Deploy** updates the saved project; it does not run the project in Minecraft.
 
 **Import ZIP** explicitly creates a new hosted project in the selected Network.
 The import keeps images, fonts and editor layout bytes. Exported archives include
@@ -73,17 +73,19 @@ available. The notice explains that saving is suspended until reconnection.
 The editor retries every 15 seconds while the server is unreachable. After a
 successful read, the notice disappears automatically, including when the server's
 files have not changed. Unsaved edits are preserved; changes made on the server
-during the outage are checked for conflicts when you save.
+during the outage are checked for conflicts when you deploy.
 
 ## Drafts and publishing
 
 Edits are automatically saved to a private draft in the project's active storage.
+**Save** saves that draft to your account immediately, without touching the server;
+it reads **Saved** once your account holds the latest version.
 Sign in with the same account on another browser to resume it while that storage is available. **Drafts** shows whether the save has
 been confirmed; a local copy is retained while a request is pending or unavailable.
 Old browser drafts are uploaded separately so they do not replace existing work.
 
-Open the arrow beside **Save**, then **Drafts**, to create a named copy, choose another draft, or compare its files
-with the version it started from. Multiple drafts can belong to the same project.
+Open the arrow beside **Deploy**, then **Drafts**, to create a named copy, choose another draft, or review its changes
+against the server. Each changed file shows a colored line diff, like `git diff`. Multiple drafts can belong to the same project.
 If another session changed your draft, create a copy to preserve your local work.
 If a version mismatch has identical local and remote contents, synchronization
 clears it automatically without creating a copy or writing to Minecraft.
@@ -91,17 +93,18 @@ The editor does not automatically merge or overwrite concurrent changes.
 Draft management stays in this menu; normal autosaving adds no status block to
 the toolbar. A small indicator on the arrow flags a conflict or unconfirmed save.
 
-**Save** publishes the current draft into its project's storage. Automatic draft saving never
-publishes. Changes made directly on the server are checked at publication; resolve
+**Deploy** first opens a review of every file it will write: new, deleted, modified and
+renamed files, with their colored diffs. Nothing is written until you confirm
+**Deploy to the server**. Saving a draft, automatically or with **Save**, never deploys. Changes made directly on the server are checked at publication; resolve
 any file conflicts before retrying. Discarding changes also discards the private
 draft. Other drafts remain available.
 
-Asset uploads and changes also stay in the private draft until **Save**. Their previews
+Asset uploads and changes also stay in the private draft until **Deploy**. Their previews
 are visible only to the draft owner; sharing an exported project does not share that draft.
 
-If **Save** fails, a dialog shows the reason, the plugin's detailed message when supplied, the error code and the HTTP status
+If **Deploy** fails, a dialog shows the reason, the plugin's detailed message when supplied, the error code and the HTTP status
 when available. Use **Copy details** to share the diagnostic, or select the text
-if clipboard access is unavailable. Reopen it through the arrow beside **Save** →
+if clipboard access is unavailable. Reopen it through the arrow beside **Deploy** →
 **Last save error**. The error remains available until a successful save or until
 you close the project. File conflicts still open the resolution dialog.
 The red dot on the arrow specifically indicates an offline or conflicting draft

@@ -1,9 +1,10 @@
 import type { Project, ProjectId } from "@/domain/types";
+import { syncPersistedDraft, usePersistedDraftStore } from "@/features/project/persistedDrafts";
 import { saveProjectToDisk } from "@/features/project/saveProjectToDisk";
 import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ProjectTopBarControls } from "./ProjectTopBarControls";
@@ -14,6 +15,22 @@ vi.mock("@/features/project/saveProjectToDisk", async () => {
   );
   return { ...actual, saveProjectToDisk: vi.fn(async () => ({ ok: true, wrote: 1 })) };
 });
+
+vi.mock("@/features/project/persistedDrafts", async () => {
+  const actual = await vi.importActual<typeof import("@/features/project/persistedDrafts")>(
+    "@/features/project/persistedDrafts",
+  );
+  return { ...actual, syncPersistedDraft: vi.fn(async () => {}) };
+});
+
+const DEPLOY = /^(Deploy|Déployer)/;
+async function deployAndConfirm() {
+  fireEvent.click(screen.getByRole("button", { name: DEPLOY }));
+  const review = await screen.findByRole("dialog");
+  fireEvent.click(
+    within(review).getByRole("button", { name: /Deploy to the server|Déployer sur le serveur/ }),
+  );
+}
 
 vi.mock("@tanstack/react-router", async () => {
   const actual =
@@ -72,7 +89,7 @@ describe("ProjectTopBarControls — Enregistrer", () => {
       status: 409,
     });
     render(<ProjectTopBarControls project={p} projectId={p.id} networkId="n1" />);
-    fireEvent.click(screen.getByRole("button", { name: /^(Save|Enregistrer)/ }));
+    await deployAndConfirm();
     expect(await screen.findByRole("dialog")).toHaveTextContent(/Créer une copie|Create a copy/);
   });
   it("shows, copies and reopens the last save failure", async () => {
@@ -94,7 +111,7 @@ describe("ProjectTopBarControls — Enregistrer", () => {
       message: "AccessDeniedException: menus/shop.yaml",
     });
     render(<ProjectTopBarControls project={p} projectId={p.id} networkId="n1" />);
-    await user.click(screen.getByRole("button", { name: /^(Save|Enregistrer)/ }));
+    await deployAndConfirm();
     expect(await screen.findByRole("dialog")).toHaveTextContent(
       "AccessDeniedException: menus/shop.yaml",
     );
@@ -110,7 +127,7 @@ describe("ProjectTopBarControls — Enregistrer", () => {
       "AccessDeniedException: menus/shop.yaml",
     );
     await user.keyboard("{Escape}");
-    await user.click(screen.getByRole("button", { name: /^(Save|Enregistrer)/ }));
+    await deployAndConfirm();
     await waitFor(() => expect(saveProjectToDisk).toHaveBeenCalledTimes(2));
     await user.click(screen.getByRole("button", { name: /Save options|Options d’enregistrement/ }));
     expect(
@@ -139,7 +156,7 @@ describe("ProjectTopBarControls — Enregistrer", () => {
     });
 
     render(<ProjectTopBarControls project={stale} projectId={"p1" as ProjectId} networkId="n1" />);
-    fireEvent.click(screen.getByRole("button", { name: /^(Save|Enregistrer)/ }));
+    await deployAndConfirm();
 
     await waitFor(() => expect(saveProjectToDisk).toHaveBeenCalled());
     const savedProject = vi.mocked(saveProjectToDisk).mock.calls[0]![0];
@@ -166,6 +183,61 @@ describe("ProjectTopBarControls — Enregistrer", () => {
     });
 
     render(<ProjectTopBarControls project={p} projectId={"p1" as ProjectId} networkId="n1" />);
-    expect(screen.getByRole("button", { name: /^(Save|Enregistrer)/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: DEPLOY })).toBeDisabled();
+  });
+
+  it("shows the changes before deploying and writes nothing when cancelled", async () => {
+    const p = baseProject("revue");
+    useAccountStore.setState({
+      account: { id: "n1", projects: [p], projectOrder: [p.id] },
+    } as never);
+    useProjectDraftStore.getState().save("p1", {
+      baseline: {},
+      initialTree: {},
+      tree: { "manifest.yaml": "changed" },
+      at: 0,
+    });
+    render(<ProjectTopBarControls project={p} projectId={p.id} networkId="n1" />);
+    fireEvent.click(screen.getByRole("button", { name: DEPLOY }));
+    const review = await screen.findByRole("dialog");
+    expect(within(review).getByRole("button", { name: /manifest\.yaml/ })).toBeInTheDocument();
+    expect(within(review).getAllByText(/New|Nouveau/).length).toBeGreaterThan(0);
+    fireEvent.click(within(review).getByRole("button", { name: /^(Cancel|Annuler)$/ }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(saveProjectToDisk).not.toHaveBeenCalled();
+  });
+
+  it("saves the draft to the account without deploying it", async () => {
+    const p = baseProject("brouillon");
+    useAccountStore.setState({
+      account: { id: "n1", projects: [p], projectOrder: [p.id] },
+    } as never);
+    usePersistedDraftStore.setState({
+      sessions: { p1: { ownerId: "u1", drafts: [], status: "pending" } },
+    });
+    try {
+      render(<ProjectTopBarControls project={p} projectId={p.id} networkId="n1" />);
+      fireEvent.click(screen.getByRole("button", { name: /^(Save|Enregistrer)$/ }));
+      await waitFor(() => expect(syncPersistedDraft).toHaveBeenCalledWith("p1"));
+      expect(saveProjectToDisk).not.toHaveBeenCalled();
+    } finally {
+      usePersistedDraftStore.setState({ sessions: {} });
+    }
+  });
+
+  it("marks the draft as saved once the account holds it", () => {
+    const p = baseProject("à jour");
+    useAccountStore.setState({
+      account: { id: "n1", projects: [p], projectOrder: [p.id] },
+    } as never);
+    usePersistedDraftStore.setState({
+      sessions: { p1: { ownerId: "u1", drafts: [], status: "saved" } },
+    });
+    try {
+      render(<ProjectTopBarControls project={p} projectId={p.id} networkId="n1" />);
+      expect(screen.getByRole("button", { name: /^(Saved|Enregistré)$/ })).toBeDisabled();
+    } finally {
+      usePersistedDraftStore.setState({ sessions: {} });
+    }
   });
 });
