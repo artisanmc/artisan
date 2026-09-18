@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildHeadValue, headSourceOf, headValueOf } from "./headField";
+import { VIEWER_HEAD, buildHeadValue, headSourceOf, headValueOf } from "./headField";
 
 describe("headSourceOf", () => {
   it("detects each prefix", () => {
@@ -21,6 +21,11 @@ describe("headValueOf", () => {
 });
 
 describe("buildHeadValue", () => {
+  it("VIEWER_HEAD is the canonical spelling of the viewing-player head", () => {
+    expect(VIEWER_HEAD).toBe(buildHeadValue("playerhead", "{player.name}"));
+    expect(headSourceOf(VIEWER_HEAD)).toBe("playerhead");
+    expect(headValueOf(VIEWER_HEAD)).toBe("{player.name}");
+  });
   it("prefixes by selected source", () => {
     expect(buildHeadValue("hdb", "128276")).toBe("hdb:128276");
     expect(buildHeadValue("playerhead", "Notch")).toBe("playerhead:Notch");

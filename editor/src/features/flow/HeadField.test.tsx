@@ -67,6 +67,37 @@ describe("HeadField", () => {
     expect(onChange).toHaveBeenCalledWith("");
   });
 
+  it("picking 'playerhead' on a blank head stores the viewing player placeholder", () => {
+    const onChange = vi.fn();
+    render(<ControlledHeadField initial="" onChange={onChange} />);
+
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "playerhead" } });
+
+    // The viewer's head is the overwhelmingly common case, so choosing the
+    // source is enough — no need to type a name first.
+    expect(onChange).toHaveBeenCalledWith("playerhead:{player.name}");
+    expect(screen.getByRole("textbox")).toHaveValue("{player.name}");
+  });
+
+  it("picking 'playerhead' over an existing value keeps that value (no viewer placeholder)", () => {
+    const onChange = vi.fn();
+    render(<HeadField head="hdb:128276" onChange={onChange} />);
+
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "playerhead" } });
+
+    expect(onChange).toHaveBeenCalledWith("playerhead:128276");
+  });
+
+  it("the viewer-head button replaces a literal name with the placeholder", () => {
+    const onChange = vi.fn();
+    render(<ControlledHeadField initial="playerhead:Notch" onChange={onChange} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /current player|joueur actuel/i }));
+
+    expect(onChange).toHaveBeenCalledWith("playerhead:{player.name}");
+    expect(screen.getByRole("textbox")).toHaveValue("{player.name}");
+  });
+
   it("clearing the input keeps the input mounted (does not unmount on empty head)", () => {
     render(<ControlledHeadField initial="hdb:128276" />);
 
