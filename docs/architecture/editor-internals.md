@@ -292,8 +292,16 @@ révision attendue. La copie locale est isolée par compte ; un ancien brouillon
 sans identifiant backend devient une copie distincte. Un accusé de réception
 ne remplace jamais les frappes effectuées pendant la requête. Un conflit de
 révision conserve le travail local et bloque l'écriture jusqu'à création d'une
-copie. `PersistedDraftControls` propose copies nommées, sélection et comparaison
-base/arbre depuis le menu d'Enregistrer, sans bloc permanent dans la topbar.
+copie. `PersistedDraftControls` (modale large, liste à gauche, diffs à droite) propose
+copies nommées, sélection et comparaison base/arbre via `ChangeList`, depuis le chevron
+de Déployer, sans bloc permanent dans la topbar.
+
+**Enregistrer / Déployer (2026-09-18)** : deux gestes dans `SaveControls`.
+Enregistrer (visible avec une session de brouillons) vide le debounce puis force
+`syncPersistedDraft` ; il affiche « Enregistré » désactivé quand la session est
+`saved`. L'autosauvegarde du brouillon reste active. Déployer ouvre
+`DeployReviewDialog` : base du serveur contre `projectTree` du Project vivant,
+renommages et binaires compris. Seule la confirmation appelle `saveProjectToDisk`.
 Les mutations portent un `operationId` et un snapshot figés dans le secours local
 isolé par propriétaire : après ACK perdu, rejouer cette opération avant d'envoyer
 les frappes suivantes. Un rejet définitif 4xx libère cette opération ; un échec
@@ -501,7 +509,7 @@ Cf. `docs/superpowers/specs/2026-05-27-workspace-shell-and-settings-design.md`.
 - **Source picker (`SourcePickerOptions`, `MenuProperties.tsx`)** — liste désormais les data sources live du serveur connecté (`useServerDataSourcesStore`, endpoint `GET /api/v1/networks/:networkId/servers/:serverId/data-sources`, cookie auth, section "On this server"), en plus des project data ; les refs restent librement saisissables (invariant hermétique). Le flow « import de connecteurs » YAML a été retiré le 2026-07-17 (mort — remplacé par les sources reportées serveur).
 - **`SourceShapingEditor` (`properties/SourceShapingEditor.tsx`)** — éditeur visuel monté sous chaque `SourceRefInputRow` : filtre égalité (`filter: Record<field, value>`, valeur littérale ou `{arg}`), tri mono-clé (`sort.by`/`direction`), `limit`. Aucun changement runtime — édite les mêmes champs opaques `ContextInput.sourceRef` (round-trip YAML inchangé). Autocomplétion via `<datalist>` : champs depuis `serverSource.schema` (fallback saisie libre si `[]`), valeurs `{arg}` depuis les `contextInputs` de type `primitive` du menu.
 - **`MenuDataSection` (`properties/MenuDataSection.tsx`)** — section « Données du menu » sous `ContextInputsEditor` : une carte par `sourceRef` consommé (ref, badge module, résumé des filtres actifs). Preview live via `previewDataSource` (`POST …/data-sources/preview`) avec les filtres du menu + un formulaire de valeurs d'essai pour chaque token `{arg}` détecté (`extractArgTokens`). Refs `pack:*` (project data) : pas de preview serveur, juste un hint renvoyant vers l'onglet Data.
-- **Top bar** (`ProjectTopBarControls.tsx`) : surface compacte arrondie (`--r-lg`), groupes espacés sans séparateurs. Identité projet/serveur, navigation en capsules (`--r-md`, fond doux actif), outils contextuels puis recherche compacte, Enregistrer, menu `⋯` et Éléments tout à droite. Bibliothèque et annuler/rétablir sur Canvas ; langue sur Canvas et Traductions. Les libellés des onglets se replient en icônes avant xl ; les groupes peuvent revenir à la ligne sous md. Raccourcis numériques en infobulles, routage et badges inchangés. Actualiser reste dans `⋯` via `RefreshProjectButton.renderTrigger`, avec confirmation montée hors menu. Abandonner les modifications reste adjacent à Enregistrer.
+- **Top bar** (`ProjectTopBarControls.tsx`) : surface compacte arrondie (`--r-lg`), groupes espacés sans séparateurs. Identité projet/serveur, navigation en capsules (`--r-md`, fond doux actif), outils contextuels puis recherche compacte, Enregistrer (brouillon) puis Déployer, menu `⋯` et Éléments tout à droite. Bibliothèque et annuler/rétablir sur Canvas ; langue sur Canvas et Traductions. Les libellés des onglets se replient en icônes avant xl ; les groupes peuvent revenir à la ligne sous md. Raccourcis numériques en infobulles, routage et badges inchangés. Actualiser reste dans `⋯` via `RefreshProjectButton.renderTrigger`, avec confirmation montée hors menu. Abandonner les modifications reste dans le chevron de Déployer.
 - **Colonnes droites (`ProjectWorkspacePanels`)** : canvas, `EditorPane` pleine hauteur, puis arbre `ProjectPanel` de 240 px tout à droite. Les propriétés apparaissent uniquement avec sélection/paramètres projet sur le canvas ou un menu ; commandes/dialogues individuels gardent leur éditeur central. Un `SplitPane` horizontal règle la largeur des propriétés (`editorPaneWidth`, persistée et plafonnée selon la place disponible). Aucune division verticale des propriétés. Le bouton Éléments est à droite de la topbar ; fermer l’arbre conserve les propriétés et inversement. Dans l’arbre, `ArrowLeftToLine` ajoute au canvas et `ArrowRightToLine` en retire. `DockedInspectorContext` empêche un second inspecteur flottant. Le canvas garde le même montage quand les panneaux changent. Mobile : scène/propriétés restent en split vertical.
 - **`/settings`** — sidebar de sections (V1 = Apparence, héberge `EditorLangSwitcher`) + main content.
 - **`/admin`** — console super-admin. `routes/admin.tsx` est un **layout route** (gate admin + `<Outlet/>`) avec pages enfants `admin.index.tsx` (IA, `AssistantConfigForm`) et `admin.design.tsx` (`DesignSystemPage`). Pas d'onglets : sur `/admin*` (et user admin), `__root.tsx` remplace la `ProjectSidebar` par **`AdminSidebar`** (`components/AdminSidebar.tsx`) — même shell (brand top, `UserMenu` bottom, drawer mobile conservé), nav de sections IA / Design system + lien « Retour à l'éditeur » (→ `/networks`). **Gate côté composant** via `authStore` (mirror de `account.tsx`) : retourne `null` tant que `isLoading`, puis « admins only » si `!currentUser.isAdmin` (le `isAdmin` vient du `/me`). Le backend reste de toute façon gardé `requireAdmin` sur `/api/v1/admin/*`. Le client API (`lib/api/adminConfig.ts`) est en **cookie** (`credentials:"include"`). L'entrée « Console admin » sur `/account` n'apparaît que pour les admins. Clé API **write-only** : le GET ne renvoie jamais la clé (`keySet: boolean`), le champ vide laisse la clé inchangée.
@@ -632,7 +640,7 @@ langues référencées. Les constructions non représentables et les changements
 traductions séparés sont bloqués plutôt que perdus silencieusement.
 
 L'application passe par `applyAssistantMenu` et ne modifie que le brouillon local ;
-**Enregistrer** reste explicite. Le backend ne stocke pas un état « appliqué » global :
+**Déployer** reste explicite. Le backend ne stocke pas un état « appliqué » global :
 il est dérivé du brouillon présent. La sonde de stockage écrit puis retire une petite
 clé temporaire ; son succès ne garantit pas la place nécessaire au brouillon entier.
 En cas d'indisponibilité, l'UI avertit sans masquer une application déjà réussie.
@@ -644,7 +652,11 @@ Le sélecteur de modèle `ModelSelector` rend les tiers (`cheap` / `balanced` / 
 
 `components/ui/file-diff.tsx` affiche une comparaison unifiée serveur → éditeur,
 avec numéros de ligne, contexte, signes −/+, tokens `danger-soft`/`success-soft`
-et marqueurs LF/CRLF/saut final absent. Les contenus identiques et fichiers absents
+et marqueurs LF/CRLF/saut final absent. Comme `git diff`, les suites inchangées se
+replient en une ligne dépliable, avec trois lignes de contexte (`context`). Les libellés
+des deux côtés sont configurables. `components/ui/change-list.tsx` liste les fichiers
+d'un changement (`listChanges` : nouveau, supprimé, modifié, renommé, binaire), avec
+un résumé +/− et un `FileDiff` dépliable par fichier. Les contenus identiques et fichiers absents
 sont explicites. Le calcul LCS est borné à un million de cellules ; au-delà,
 les portions différentes apparaissent comme un remplacement complet.
 Spécimen dans `/admin/design`. `SaveControls` conserve l'arbre de la tentative

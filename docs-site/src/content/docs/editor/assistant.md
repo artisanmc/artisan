@@ -8,7 +8,7 @@ tables, and code blocks, both in the conversation history and while tasks run.
 
 The AI Assistant is a chat panel that proposes menus, dialogs, commands and translations
 from plain-language requests. Review its results, choose **Apply to draft**, then
-**Save** to publish. You can keep chatting to refine your request.
+**Deploy** to publish. You can keep chatting to refine your request.
 
 ## Opening the panel
 
@@ -53,7 +53,7 @@ Uploads lost before this update cannot be recovered automatically.
 
 Changes are proposals, not immediate edits. **Apply to draft** checks that your
 draft has not changed since the task started. Review conflicts instead of
-overwriting newer work; **Save** remains the publishing step.
+overwriting newer work; **Deploy** remains the publishing step.
 
 ## Importing from another menu plugin
 
@@ -122,7 +122,7 @@ produce and in what order. Malformed source text is readable without a YAML
 analysis gate; generated artifacts still have to pass Artisan validation.
 Unsupported behavior must be explained rather than silently discarded.
 
-Use **Apply to draft**, review all proposed changes, then **Save** to publish.
+Use **Apply to draft**, review all proposed changes, then **Deploy** to publish.
 Results are not proof of behavioral equivalence: check navigation, commands,
 permissions, dialogs and external plugin dependencies on your server.
 
@@ -147,4 +147,4 @@ continuation. Stop and page reload behavior are unchanged.
 The assistant needs an AI provider configured on the server side. If it isn't
 set up, the assistant is unavailable — ask your server admin to configure a
 provider. Nothing the assistant produces is published to your live server until
-you **Save** the Project as usual.
+you **Deploy** the Project as usual.
