@@ -298,9 +298,11 @@ de Déployer, sans bloc permanent dans la topbar.
 
 **Enregistrer / Déployer (2026-09-18)** : deux gestes dans `SaveControls`.
 Enregistrer (visible avec une session de brouillons) vide le debounce puis force
-`syncPersistedDraft`. Bouton icône (disquette, `Spinner` pendant la sauvegarde, libellé
-en infobulle et `aria-label`), désactivé quand la session est `saved`. Déployer garde
-son libellé, précédé d’une icône lecture. L'autosauvegarde du brouillon reste active. Déployer ouvre
+`syncPersistedDraft`. Bouton icône (disquette pleine `SaveFilledIcon`, `Spinner` pendant la
+sauvegarde) : `Tooltip` selon le statut de session (`drafts.tooltip.*`), libellé court en
+`aria-label`. Inactif via `aria-disabled` quand `saved` ou en cours, jamais `disabled` :
+un bouton `disabled` ne reçoit pas le survol et n’afficherait pas sa bulle. Déployer garde
+son libellé, précédé d’une icône lecture pleine. L'autosauvegarde du brouillon reste active. Déployer ouvre
 `DeployReviewDialog` : base du serveur contre `projectTree` du Project vivant,
 renommages et binaires compris. Seule la confirmation appelle `saveProjectToDisk`.
 Les mutations portent un `operationId` et un snapshot figés dans le secours local
@@ -657,7 +659,10 @@ et marqueurs LF/CRLF/saut final absent. Comme `git diff`, les suites inchangées
 replient en une ligne dépliable, avec trois lignes de contexte (`context`). Les libellés
 des deux côtés sont configurables. `components/ui/change-list.tsx` liste les fichiers
 d'un changement (`listChanges` : nouveau, supprimé, modifié, renommé, binaire), avec
-un résumé +/− et un `FileDiff` dépliable par fichier. Dans la liste, `FileDiff wrap` replie
+un résumé +/− et un `FileDiff` dépliable par fichier. `components/ui/tooltip.tsx` (Radix,
+version alignée sur les primitives déjà installées) : bulle fléchée instantanée au survol
+et au focus, couleurs inversées `--text`/`--surface`, à préférer au `title` natif.
+`components/ui/filled-icons.tsx` porte les icônes pleines que Lucide ne fournit pas. Dans la liste, `FileDiff wrap` replie
 les longues lignes et n’a pas de hauteur max : un seul conteneur défile, l’en-tête du
 fichier reste collé en haut. Des zones de défilement imbriquées rendaient la fin des longs diffs illisible. Les contenus identiques et fichiers absents
 sont explicites. Le calcul LCS est borné à un million de cellules ; au-delà,

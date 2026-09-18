@@ -80,7 +80,8 @@ during the outage are checked for conflicts when you deploy.
 Edits are automatically saved to a private draft in the project's active storage.
 The disk button (**Save**) saves that draft to your account immediately, without
 touching the server. It spins while saving and turns inactive once your account holds
-the latest version; hover it to see its state.
+the latest version. Hover it to see the draft state: unsaved, saved, local copy only, or
+changed in another session.
 Sign in with the same account on another browser to resume it while that storage is available. **Drafts** shows whether the save has
 been confirmed; a local copy is retained while a request is pending or unavailable.
 Old browser drafts are uploaded separately so they do not replace existing work.

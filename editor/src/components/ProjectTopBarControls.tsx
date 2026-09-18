@@ -31,7 +31,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { FileDiff } from "@/components/ui/file-diff";
+import { SaveFilledIcon } from "@/components/ui/filled-icons";
 import { Spinner } from "@/components/ui/spinner";
+import { Tooltip } from "@/components/ui/tooltip";
 import type { Project, ProjectId } from "@/domain/types";
 import { DeployReviewDialog } from "@/features/project/DeployReviewDialog";
 import { PersistedDraftControls } from "@/features/project/PersistedDraftControls";
@@ -71,7 +73,6 @@ import {
   PanelRightOpen,
   Play,
   Redo2,
-  Save,
   Search,
   Sparkles,
   Undo2,
@@ -551,7 +552,10 @@ function SaveControls({
     });
   };
 
+  const draftSaved = draftSession?.status === "saved";
+  const draftBusy = savingDraft || draftSession?.status === "saving";
   const saveDraft = async () => {
+    if (draftBusy || draftSaved) return;
     setSavingDraft(true);
     try {
       flushDraftEdits();
@@ -563,8 +567,6 @@ function SaveControls({
     if (status === "saved") toast.success(t("drafts.savedToast"));
     else if (status) toast.error(t(`drafts.${status}`));
   };
-  const draftSaved = draftSession?.status === "saved";
-  const draftBusy = savingDraft || draftSession?.status === "saving";
 
   const applyAndRetry = async () => {
     if (!project) return;
@@ -591,29 +593,31 @@ function SaveControls({
     <>
       <div className="flex items-center gap-1.5">
         {draftSession && (
-          <button
-            type="button"
-            onClick={saveDraft}
-            disabled={draftBusy || draftSaved}
-            aria-busy={draftBusy}
-            aria-label={
-              draftBusy ? t("save.saving") : draftSaved ? t("drafts.savedShort") : t("drafts.save")
-            }
-            title={
-              draftBusy
-                ? t("save.saving")
-                : draftSaved
-                  ? t("drafts.savedTitle")
-                  : t("drafts.saveTitle")
-            }
-            className="btn btn-sm btn-ghost btn-icon"
-          >
-            {draftBusy ? (
-              <Spinner aria-hidden role="presentation" className="text-current" />
-            ) : (
-              <Save className="size-4" aria-hidden />
-            )}
-          </button>
+          <Tooltip content={t(`drafts.tooltip.${draftBusy ? "saving" : draftSession.status}`)}>
+            <button
+              type="button"
+              onClick={saveDraft}
+              aria-disabled={draftBusy || draftSaved}
+              aria-busy={draftBusy}
+              aria-label={
+                draftBusy
+                  ? t("save.saving")
+                  : draftSaved
+                    ? t("drafts.savedShort")
+                    : t("drafts.save")
+              }
+              className={cn(
+                "btn btn-sm btn-ghost btn-icon",
+                (draftBusy || draftSaved) && "cursor-default opacity-50",
+              )}
+            >
+              {draftBusy ? (
+                <Spinner aria-hidden role="presentation" className="text-current" />
+              ) : (
+                <SaveFilledIcon aria-hidden />
+              )}
+            </button>
+          </Tooltip>
         )}
         <button
           type="button"
@@ -631,7 +635,7 @@ function SaveControls({
           {saving ? (
             <Spinner aria-hidden role="presentation" className="text-current" />
           ) : (
-            <Play className="size-4" aria-hidden />
+            <Play className="size-4" fill="currentColor" aria-hidden />
           )}
           {saving ? t("deploy.deploying") : t("deploy.deploy")}
         </button>
