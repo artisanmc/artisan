@@ -455,6 +455,8 @@ export default {
     headPlaceholderPlayer: "Notch or %player%",
     headHdbHint:
       "Preview uses HeadDatabase on the connected server. Unavailable heads keep the generic icon.",
+    headViewer: "Current player",
+    headViewerHint: "Inserts {player.name} — the head of the player opening the menu.",
     loreLabel: "lore ({{lang}})",
     loreLabelFallback: "lore ({{lang}} — fallback)",
     lorePlaceholder: "One line per lore entry.",
