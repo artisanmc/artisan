@@ -89,6 +89,11 @@ export interface FileDiffProps {
   afterLabel?: string;
   /** Unchanged lines kept around each change; longer runs fold into an expandable row. */
   context?: number;
+  /**
+   * Wraps long lines and drops the height cap, so an enclosing container does the
+   * only scrolling. For diffs listed one after another.
+   */
+  wrap?: boolean;
   /** Height cap of the scrollable diff. */
   className?: string;
 }
@@ -99,6 +104,7 @@ export function FileDiff({
   beforeLabel,
   afterLabel,
   context = 3,
+  wrap = false,
   className,
 }: FileDiffProps) {
   const { t } = useTranslation();
@@ -126,7 +132,7 @@ export function FileDiff({
             <p className="p-3 text-[var(--text-mut)]">{t("save.diffMissingMine")}</p>
           )}
           <section
-            className={cn("max-h-80 overflow-auto", className)}
+            className={cn(wrap ? "overflow-x-auto" : "max-h-80 overflow-auto", className)}
             // biome-ignore lint/a11y/noNoninteractiveTabindex: Keyboard users must be able to scroll the diff.
             tabIndex={0}
             aria-label={t("save.diffLabel")}
@@ -146,7 +152,7 @@ export function FileDiff({
                     expanded.has(row.gap) ? (
                       <Fragment key={`gap:${row.gap}`}>
                         {row.lines.map((line) => (
-                          <DiffRow key={`${line.old}:${line.next}`} line={line} />
+                          <DiffRow key={`${line.old}:${line.next}`} line={line} wrap={wrap} />
                         ))}
                       </Fragment>
                     ) : (
@@ -163,7 +169,11 @@ export function FileDiff({
                       </tr>
                     )
                   ) : (
-                    <DiffRow key={`${row.line.old ?? ""}:${row.line.next ?? ""}`} line={row.line} />
+                    <DiffRow
+                      key={`${row.line.old ?? ""}:${row.line.next ?? ""}`}
+                      line={row.line}
+                      wrap={wrap}
+                    />
                   ),
                 )}
               </tbody>
@@ -175,7 +185,7 @@ export function FileDiff({
   );
 }
 
-function DiffRow({ line }: { line: Line }) {
+function DiffRow({ line, wrap }: { line: Line; wrap: boolean }) {
   const { t } = useTranslation();
   return (
     <tr
@@ -202,7 +212,7 @@ function DiffRow({ line }: { line: Line }) {
       >
         {line.kind === "remove" ? "−" : line.kind === "add" ? "+" : " "}
       </td>
-      <td className="whitespace-pre py-0.5 pr-3">
+      <td className={cn("py-0.5 pr-3", wrap ? "whitespace-pre-wrap break-all" : "whitespace-pre")}>
         <code>{line.text.replace(/\r?\n$/, "")}</code>
         {line.kind !== "same" && (
           <span className="ml-3 select-none text-[10px] text-[var(--text-mut)]">
