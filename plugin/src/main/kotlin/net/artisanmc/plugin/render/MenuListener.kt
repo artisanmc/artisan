@@ -7,8 +7,10 @@ import org.bukkit.event.Listener
 import org.bukkit.event.inventory.InventoryClickEvent
 import org.bukkit.event.inventory.InventoryCloseEvent
 import org.bukkit.event.inventory.InventoryDragEvent
+import org.bukkit.plugin.Plugin
 
 class MenuListener(
+    private val plugin: Plugin,
     private val sessions: MenuSessionStore,
     private val executor: ActionExecutor,
 ) : Listener {
@@ -25,7 +27,10 @@ class MenuListener(
         val slotCtx = session!!.ctx.copy(
             args = session.ctx.args + (session.slotArgs[event.rawSlot] ?: emptyMap()),
         )
-        executor.handle(handler, slotCtx)
+        // Bukkit forbids opening/closing an inventory inside InventoryClickEvent:
+        // the client then misses every slot whose item is unchanged from the
+        // previous menu (decoration panes on the same slots). Next tick.
+        plugin.server.scheduler.runTask(plugin, Runnable { executor.handle(handler, slotCtx) })
     }
 
     @EventHandler
