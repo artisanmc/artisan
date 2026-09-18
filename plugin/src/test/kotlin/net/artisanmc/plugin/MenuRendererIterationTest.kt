@@ -162,16 +162,25 @@ class MenuRendererIterationTest {
             }
         }
         val executor = ActionExecutor(pluginInstance, provider, sessions, SoftDepRegistry.EMPTY, CooldownStore(), ConditionEvaluator.EMPTY)
-        val listener = net.artisanmc.plugin.render.MenuListener(sessions, executor)
+        val listener = net.artisanmc.plugin.render.MenuListener(pluginInstance, sessions, executor)
         fun click(slot: Int) {
             listener.onClick(org.bukkit.event.inventory.InventoryClickEvent(
                 p.openInventory, org.bukkit.event.inventory.InventoryType.SlotType.CONTAINER, slot,
                 org.bukkit.event.inventory.ClickType.LEFT, org.bukkit.event.inventory.InventoryAction.PICKUP_ALL,
             ))
+            MockBukkit.getMock()!!.scheduler.performOneTick()
         }
 
         provider.openMenu(p, "shop_main", "en", ExecutionContext(p))
-        click(10)
+        val mainInventory = p.openInventory.topInventory
+        listener.onClick(org.bukkit.event.inventory.InventoryClickEvent(
+            p.openInventory, org.bukkit.event.inventory.InventoryType.SlotType.CONTAINER, 10,
+            org.bukkit.event.inventory.ClickType.LEFT, org.bukkit.event.inventory.InventoryAction.PICKUP_ALL,
+        ))
+        // Bukkit forbids openInventory inside InventoryClickEvent: the client then
+        // misses the slots whose item is unchanged between the two menus.
+        assertSame(mainInventory, p.openInventory.topInventory)
+        MockBukkit.getMock()!!.scheduler.performOneTick()
         assertEquals("keys", sessions.get(p)!!.ctx.args["category"])
         assertEquals(Material.TRIPWIRE_HOOK, p.openInventory.topInventory.getItem(10)?.type)
         click(49)

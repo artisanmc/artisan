@@ -262,7 +262,7 @@ open class ArtisanPlugin : JavaPlugin() {
         artisanCommand = ArtisanCommand(this, langManager)
         getCommand("artisan")?.setExecutor(artisanCommand)
         getCommand("artisan")?.tabCompleter = artisanCommand
-        server.pluginManager.registerEvents(MenuListener(sessions, executor), this)
+        server.pluginManager.registerEvents(MenuListener(this, sessions, executor), this)
         logger.info("Artisan ${description.version} enabled")
     }
 

@@ -9,6 +9,10 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Fixed — menu navigation hid unchanged items
+
+- Moving from one menu to another (a category, then Back) no longer drops the items that sit on the same slot with the same look in both menus — typically decoration panes. The click opened the next menu inside Bukkit's click event, where the client misses those slots; the click's actions now run on the next tick.
+
 ### Fixed — plugin backend host
 
 - The plugin's shipped `ws_url` pointed at `editor.artisanmc.net`, the host that serves the editor web app and proxies neither `/ws` nor `/api`: `/artisan link` answered `405` and the WebSocket could never open. New installs ship the backend host, and a config still carrying the old value is rewritten on load — no manual edit needed after upgrading the JAR. `/artisan editor` keeps pointing at the browsable editor.
