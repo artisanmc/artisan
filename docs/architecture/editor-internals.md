@@ -656,7 +656,9 @@ et marqueurs LF/CRLF/saut final absent. Comme `git diff`, les suites inchangées
 replient en une ligne dépliable, avec trois lignes de contexte (`context`). Les libellés
 des deux côtés sont configurables. `components/ui/change-list.tsx` liste les fichiers
 d'un changement (`listChanges` : nouveau, supprimé, modifié, renommé, binaire), avec
-un résumé +/− et un `FileDiff` dépliable par fichier. Les contenus identiques et fichiers absents
+un résumé +/− et un `FileDiff` dépliable par fichier. Dans la liste, `FileDiff wrap` replie
+les longues lignes et n’a pas de hauteur max : un seul conteneur défile, l’en-tête du
+fichier reste collé en haut. Des zones de défilement imbriquées rendaient la fin des longs diffs illisible. Les contenus identiques et fichiers absents
 sont explicites. Le calcul LCS est borné à un million de cellules ; au-delà,
 les portions différentes apparaissent comme un remplacement complet.
 Spécimen dans `/admin/design`. `SaveControls` conserve l'arbre de la tentative

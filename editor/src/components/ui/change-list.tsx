@@ -144,13 +144,13 @@ export function ChangeList({
       {changes.map((change) => (
         <div
           key={change.path}
-          className="min-w-0 overflow-hidden rounded-[var(--r-md)] border border-[var(--border)]"
+          className="min-w-0 overflow-clip rounded-[var(--r-md)] border border-[var(--border)]"
         >
           <button
             type="button"
             aria-expanded={open.has(change.path)}
             onClick={() => toggle(change.path)}
-            className="flex w-full min-w-0 items-center gap-2 bg-[var(--surface-raised)] px-3 py-2 text-left text-xs hover:bg-[var(--surface-hover)]"
+            className="sticky top-0 z-10 flex w-full min-w-0 items-center gap-2 bg-[var(--surface-raised)] px-3 py-2 text-left text-xs hover:bg-[var(--surface-hover)]"
           >
             <ChevronRight
               size={14}
@@ -188,7 +188,7 @@ export function ChangeList({
                   after={change.after}
                   beforeLabel={beforeLabel}
                   afterLabel={afterLabel}
-                  className="max-h-[60vh]"
+                  wrap
                 />
               </div>
             ))}
