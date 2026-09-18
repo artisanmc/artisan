@@ -1,6 +1,7 @@
 import { LinkedServersDropdown } from "@/components/LinkedServersDropdown";
 import { RefreshProjectButton } from "@/components/RefreshProjectButton";
 import { TopBarKebabMenu } from "@/components/TopBarKebabMenu";
+import type { ChangeSet } from "@/components/ui/change-list";
 import { Collapsible } from "@/components/ui/collapsible";
 import {
   Dialog,
@@ -31,9 +32,15 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { FileDiff } from "@/components/ui/file-diff";
 import type { Project, ProjectId } from "@/domain/types";
+import { DeployReviewDialog } from "@/features/project/DeployReviewDialog";
 import { PersistedDraftControls } from "@/features/project/PersistedDraftControls";
 import { hasDraftChanges } from "@/features/project/draft";
-import { discardPersistedDraft, usePersistedDraftStore } from "@/features/project/persistedDrafts";
+import { flushDraftEdits } from "@/features/project/draftFlush";
+import {
+  discardPersistedDraft,
+  syncPersistedDraft,
+  usePersistedDraftStore,
+} from "@/features/project/persistedDrafts";
 import { openProjectSettings } from "@/features/project/projectSettings";
 import { type ConflictChoice, applyResolutions } from "@/features/project/resolveConflicts";
 import {
@@ -436,10 +443,10 @@ function SearchButton() {
 }
 
 /**
- * Enregistrer — le seul geste qui écrit sur le disque du serveur (ADR
- * `server-disk-only-storage`). Remplace la paire Déployer / Revenir : il n'y a
- * plus qu'une destination, donc plus qu'un geste, et l'historique de projet a
- * cédé la place à une corbeille par fichier.
+ * Deux gestes, deux destinations :
+ * - Enregistrer pousse le brouillon sur le compte (il s'y synchronise aussi seul) ;
+ * - Déployer, le seul geste qui écrit sur le disque du serveur (ADR
+ *   `server-disk-only-storage`), passe d'abord par une relecture des diffs.
  *
  * Un conflit ouvre la modale de résolution ; rien n'a été écrit à ce moment-là
  * (le plugin applique tout ou rien), et aucun fichier n'est tranché sans choix
@@ -478,6 +485,8 @@ function SaveControls({
   const [conflictTree, setConflictTree] = useState<Record<string, string>>({});
   const [diskFiles, setDiskFiles] = useState<string[]>([]);
   const [choices, setChoices] = useState<Record<string, ConflictChoice>>({});
+  const [review, setReview] = useState<ChangeSet | null>(null);
+  const [savingDraft, setSavingDraft] = useState(false);
 
   // « As-tu du travail non enregistré ? » — lu depuis le brouillon, qui porte
   // déjà l'arbre sérialisé. Le recalculer ici resérialiserait tout le Project à
@@ -493,7 +502,7 @@ function SaveControls({
    */
   const runSave = async (): Promise<void> => {
     if (!project) {
-      toast.info(t("save.cannotSaveTitle"));
+      toast.info(t("deploy.cannotDeployTitle"));
       return;
     }
     setSaving(true);
@@ -503,7 +512,7 @@ function SaveControls({
       if (res.ok) {
         setLastSaveError(null);
         setSaveErrorOpen(false);
-        toast.success(res.wrote === 0 ? t("save.nothingToSave") : t("save.saved"));
+        toast.success(res.wrote === 0 ? t("deploy.nothing") : t("deploy.deployed"));
         setConflicts([]);
         setChoices({});
         return;
@@ -524,6 +533,35 @@ function SaveControls({
       setSaving(false);
     }
   };
+
+  const openReview = () => {
+    if (!project) return;
+    flushDraftEdits();
+    const live = useAccountStore.getState().account.projects.find((p) => p.id === projectId);
+    const current = useProjectDraftStore.getState().get(projectId);
+    setReview({
+      before: useProjectBaselineStore.getState().get(projectId) ?? {},
+      after: projectTree(live ?? project),
+      renames: useProjectDraftStore.getState().pendingRenames[projectId] ?? current?.renames,
+      binaryBefore: current?.binaryBaseline,
+      binaryAfter: current?.binaryTree,
+    });
+  };
+
+  const saveDraft = async () => {
+    setSavingDraft(true);
+    try {
+      flushDraftEdits();
+      await syncPersistedDraft(projectId);
+    } finally {
+      setSavingDraft(false);
+    }
+    const status = usePersistedDraftStore.getState().sessions[projectId]?.status;
+    if (status === "saved") toast.success(t("drafts.savedToast"));
+    else if (status) toast.error(t(`drafts.${status}`));
+  };
+  const draftSaved = draftSession?.status === "saved";
+  const draftBusy = savingDraft || draftSession?.status === "saving";
 
   const applyAndRetry = async () => {
     if (!project) return;
@@ -549,20 +587,31 @@ function SaveControls({
   return (
     <>
       <div className="flex items-center gap-1.5">
+        {draftSession && (
+          <button
+            type="button"
+            onClick={saveDraft}
+            disabled={draftBusy || draftSaved}
+            title={draftSaved ? t("drafts.savedTitle") : t("drafts.saveTitle")}
+            className="btn btn-sm btn-ghost"
+          >
+            {draftBusy ? t("save.saving") : draftSaved ? t("drafts.savedShort") : t("drafts.save")}
+          </button>
+        )}
         <button
           type="button"
-          onClick={runSave}
+          onClick={openReview}
           disabled={saving || !canSave || !dirty}
           title={
             !canSave
-              ? t("save.cannotSaveTitle")
+              ? t("deploy.cannotDeployTitle")
               : dirty
-                ? t("save.saveTitle")
-                : t("save.nothingToSave")
+                ? t("deploy.deployTitle")
+                : t("deploy.nothing")
           }
           className="btn btn-sm btn-primary"
         >
-          {saving ? t("save.saving") : t("save.save")}
+          {saving ? t("deploy.deploying") : t("deploy.deploy")}
         </button>
         {dirty || draftSession || lastSaveError ? (
           <DropdownMenu>
@@ -617,6 +666,14 @@ function SaveControls({
         ) : null}
       </div>
 
+      <DeployReviewDialog
+        changes={review}
+        onCancel={() => setReview(null)}
+        onConfirm={() => {
+          setReview(null);
+          void runSave();
+        }}
+      />
       <PersistedDraftControls
         projectId={projectId}
         open={draftsOpen}
@@ -625,7 +682,7 @@ function SaveControls({
       <Dialog open={saveErrorOpen} onOpenChange={setSaveErrorOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{t("save.failed")}</DialogTitle>
+            <DialogTitle>{t("deploy.failed")}</DialogTitle>
             <DialogDescription>{t("save.errorHelp")}</DialogDescription>
           </DialogHeader>
           <pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words text-sm text-[var(--text)]">

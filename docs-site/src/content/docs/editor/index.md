@@ -42,15 +42,15 @@ or backdrop to dismiss it.
 
 ## Project toolbar
 
-The project toolbar groups the project identity, view tabs, editing tools and Save
-in one rounded surface. The selected view uses a soft capsule background; number
+The project toolbar groups the project identity, view tabs, editing tools, Save and
+Deploy in one rounded surface. The selected view uses a soft capsule background; number
 shortcuts remain in tooltips. On smaller screens, labels become icons and groups
 can wrap within the same surface.
 
 Undo/redo appears on Canvas, and the content language on Canvas and
 Translations. Elements remains at the far right. Search uses a compact magnifying
 glass. **Refresh from server** lives in the project menu and still asks before
-replacing unsaved work. The arrow beside Save offers **Discard changes**.
+replacing unsaved work. The arrow beside Deploy offers **Discard changes**.
 
 ## Canvas navigation
 

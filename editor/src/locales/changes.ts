@@ -1,0 +1,34 @@
+export const changesFr = {
+  unchanged_one: "{{count}} ligne inchangée",
+  unchanged_other: "{{count}} lignes inchangées",
+  files_one: "{{count}} fichier modifié",
+  files_other: "{{count}} fichiers modifiés",
+  empty: "Aucun changement",
+  binary: "Fichier binaire modifié — pas d’aperçu texte.",
+  renamedFrom: "renommé depuis {{from}}",
+  expandAll: "Tout déplier",
+  collapseAll: "Tout replier",
+  status: {
+    added: "Nouveau",
+    deleted: "Supprimé",
+    modified: "Modifié",
+    renamed: "Renommé",
+  },
+};
+export const changesEn = {
+  unchanged_one: "{{count}} unchanged line",
+  unchanged_other: "{{count}} unchanged lines",
+  files_one: "{{count}} file changed",
+  files_other: "{{count}} files changed",
+  empty: "No changes",
+  binary: "Binary file changed — no text preview.",
+  renamedFrom: "renamed from {{from}}",
+  expandAll: "Expand all",
+  collapseAll: "Collapse all",
+  status: {
+    added: "New",
+    deleted: "Deleted",
+    modified: "Modified",
+    renamed: "Renamed",
+  },
+};

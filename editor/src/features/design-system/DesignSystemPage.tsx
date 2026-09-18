@@ -3,6 +3,7 @@ import { ThemeSwitcher } from "@/components/ThemeSwitcher";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ChangeList } from "@/components/ui/change-list";
 import { Collapsible } from "@/components/ui/collapsible";
 import { DataTable } from "@/components/ui/data-table";
 import {
@@ -144,6 +145,20 @@ export function DesignSystemPage() {
         <FileDiff
           before={"name: Boutique\nprice: 10\nenabled: true\n"}
           after={"name: Boutique\nprice: 20\nenabled: true\n"}
+        />
+      </Section>
+      <Section id="change-list" title={t("drafts.changes")}>
+        <ChangeList
+          before={{
+            "menus/shop.yaml": "title: Boutique\nsize: 27\nprice: 10\n",
+            "menus/old.yaml": "title: Ancien\n",
+          }}
+          after={{
+            "menus/shop.yaml": "title: Boutique\nsize: 27\nprice: 20\n",
+            "menus/new.yaml": "title: Ancien\n",
+            "lang/en.yaml": "shop.title: Shop\n",
+          }}
+          renames={[{ from: "menus/old.yaml", to: "menus/new.yaml" }]}
         />
       </Section>
       {/* ── Rules ─────────────────────────────────────────────────────── */}

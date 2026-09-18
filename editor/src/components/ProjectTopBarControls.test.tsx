@@ -3,7 +3,7 @@ import { mockAccount } from "@/mock/fixtures";
 import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { ProjectTopBarControls } from "./ProjectTopBarControls";
 
@@ -40,7 +40,13 @@ describe("ProjectTopBarControls", () => {
         .getState()
         .save(project.id, { baseline: {}, tree: { "manifest.yaml": mine }, at: 1 });
       render(<ProjectTopBarControls project={project} projectId={project.id} />);
-      fireEvent.click(screen.getByRole("button", { name: /^(Save|Enregistrer)/ }));
+      fireEvent.click(screen.getByRole("button", { name: /^(Deploy|Déployer)/ }));
+      fireEvent.click(
+        within(await screen.findByRole("dialog")).getByRole("button", {
+          name: /Deploy to the server|Déployer sur le serveur/,
+        }),
+      );
+      await waitFor(() => expect(save).toHaveBeenCalled());
       const dialog = await screen.findByRole("dialog");
       expect(within(dialog).getByText("name: Remote shop")).toBeInTheDocument();
       expect(within(dialog).getByRole("region")).toHaveTextContent(mine.split("\n")[0]!);
@@ -106,7 +112,7 @@ describe("ProjectTopBarControls", () => {
     expect(within(screen.getByTestId("project-header")).getByText("Test")).toBeInTheDocument();
     expect(
       within(screen.getByTestId("project-header")).getByRole("button", {
-        name: /^(Save|Enregistrer)/,
+        name: /^(Deploy|Déployer)/,
       }),
     ).toBeInTheDocument();
     expect(
@@ -133,10 +139,10 @@ describe("ProjectTopBarControls", () => {
     // Titles may be in English or French depending on test locale.
     const undoMatches = screen.getAllByTitle(/Undo \(|Annuler \(/i);
     expect(undoMatches.length).toBeGreaterThanOrEqual(1);
-    // Un seul geste depuis la bascule « disque seul » : Enregistrer a remplacé
-    // la paire Déployer / Revenir (ADR `server-disk-only-storage`).
-    expect(screen.getByRole("button", { name: /^(Save|Enregistrer)/ })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /^(Deploy|Déployer)/ })).toBeNull();
+    // Déployer écrit sur le serveur ; Enregistrer (brouillon du compte) n'existe
+    // qu'avec une session de brouillons.
+    expect(screen.getByRole("button", { name: /^(Deploy|Déployer)/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^(Save|Enregistrer)$/ })).toBeNull();
   });
 
   it("renders the workspace view buttons with a missing-translations badge", () => {
