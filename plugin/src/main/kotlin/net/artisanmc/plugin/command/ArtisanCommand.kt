@@ -193,7 +193,7 @@ class ArtisanCommand(
             cfg.serverKey.isEmpty() -> {
                 // Not linked: point at the editor home so the admin can add the
                 // server there, which prints a code for `/artisan link <code>`.
-                val home = cfg.httpBaseUrl.ifEmpty { "https://editor.artisanmc.net" }
+                val home = cfg.editorHomeUrl.ifEmpty { "https://editor.artisanmc.net" }
                 sender.sendMessage(lang.get("artisan.editor_not_linked", senderLang, "url" to home))
             }
             else -> {

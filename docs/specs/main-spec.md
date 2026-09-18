@@ -1628,7 +1628,7 @@ JWT avec rotation. Session valide 7 jours, refresh transparent. Si la connexion 
 
 ### 17.1 Handshake
 
-Connexion sortante du plugin vers `wss://editor.artisanmc.net/ws/plugin`. Authentification via :
+Connexion sortante du plugin vers `wss://api.artisanmc.net/ws/plugin` (l'hôte du backend — `editor.artisanmc.net` ne sert que le SPA éditeur et ne proxifie ni `/ws` ni `/api`). Authentification via :
 
 ```json
 {
@@ -1694,7 +1694,7 @@ Côté plugin : reconnexion exponentielle (1s, 2s, 4s, 8s, 16s, max 60s). À la 
 ### 18.1 Plugin Minecraft
 
 **Architecture interne** : le plugin a deux providers de menus, **disponibles dans tous les tiers** :
-- `CloudMenuProvider` (défaut, tous tiers) : maintient le WebSocket vers `wss://editor.artisanmc.net/ws/plugin`, pull les bundles depuis le CDN. Active dès qu'une `server_key` valide est configurée.
+- `CloudMenuProvider` (défaut, tous tiers) : maintient le WebSocket vers `wss://api.artisanmc.net/ws/plugin`, pull les bundles depuis le CDN. Active dès qu'une `server_key` valide est configurée.
 - `FilesystemMenuProvider` (opt-in, offline) : lit `plugins/Artisan/menus/*.{json,yaml}` depuis le disque, watch les fichiers pour reload automatique optionnel. Pour les admins qui ne veulent aucune dépendance cloud (souveraineté, environnements air-gapped).
 
 Le moteur de rendu (parse menu/v1, evaluate appearances, génère l'inventaire Bukkit) est commun aux deux providers — c'est juste la source des données qui diffère. Le mode par défaut est cloud ; le mode local s'active via `config.yml` (`mode: local`).
