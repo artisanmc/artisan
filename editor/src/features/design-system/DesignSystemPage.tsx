@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FileDiff } from "@/components/ui/file-diff";
+import { SaveFilledIcon } from "@/components/ui/filled-icons";
 import { FormField } from "@/components/ui/form-field";
 import { HBar } from "@/components/ui/h-bar";
 import { Input } from "@/components/ui/input";
@@ -40,6 +41,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { StatCard } from "@/components/ui/stat-card";
 import { TBody, TD, TH, THead, TR, Table } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tooltip } from "@/components/ui/tooltip";
 import { WorkspaceView } from "@/components/ui/workspace-view";
 import { YamlCodeEditor } from "@/components/ui/yaml-code-editor";
 import { CanvasToolbar } from "@/features/canvas/CanvasToolbar";
@@ -146,6 +148,24 @@ export function DesignSystemPage() {
           before={"name: Boutique\nprice: 10\nenabled: true\n"}
           after={"name: Boutique\nprice: 20\nenabled: true\n"}
         />
+      </Section>
+      <Section id="tooltip" title={t("drafts.save")}>
+        <div className="flex items-center gap-3">
+          <Tooltip content={t("drafts.tooltip.pending")}>
+            <button
+              type="button"
+              aria-label={t("drafts.save")}
+              className="btn btn-sm btn-ghost btn-icon"
+            >
+              <SaveFilledIcon aria-hidden />
+            </button>
+          </Tooltip>
+          <Tooltip content={t("drafts.tooltip.saved")} side="top">
+            <button type="button" className="btn btn-sm btn-ghost">
+              {t("drafts.savedShort")}
+            </button>
+          </Tooltip>
+        </div>
       </Section>
       <Section id="change-list" title={t("drafts.changes")}>
         <ChangeList
