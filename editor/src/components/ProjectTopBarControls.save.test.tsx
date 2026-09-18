@@ -137,6 +137,7 @@ describe("ProjectTopBarControls — Enregistrer", () => {
   beforeEach(() => {
     vi.mocked(saveProjectToDisk).mockReset();
     vi.mocked(saveProjectToDisk).mockResolvedValue({ ok: true, wrote: 1 });
+    vi.mocked(syncPersistedDraft).mockClear();
     useAuthStore.setState({ currentUser: { id: "u1", name: "x", email: "x@a.b" } } as never);
   });
 
@@ -237,11 +238,33 @@ describe("ProjectTopBarControls — Enregistrer", () => {
       render(<ProjectTopBarControls project={p} projectId={p.id} networkId="n1" />);
       const save = screen.getByRole("button", { name: /^(Save|Enregistrer)$/ });
       expect(save).toHaveTextContent(/^$/);
-      expect(save).toHaveAttribute("title");
-      expect(save.querySelector("svg.lucide-save")).not.toBeNull();
+      expect(save).not.toHaveAttribute("title");
+      expect(save.querySelector('svg[data-icon="save-filled"]')).not.toBeNull();
       const deploy = screen.getByRole("button", { name: DEPLOY });
       expect(deploy).toHaveTextContent(/Deploy|Déployer/);
-      expect(deploy.querySelector("svg.lucide-play")).not.toBeNull();
+      expect(deploy.querySelector("svg.lucide-play")).toHaveAttribute("fill", "currentColor");
+    } finally {
+      usePersistedDraftStore.setState({ sessions: {} });
+    }
+  });
+
+  it.each([
+    ["pending", /not saved to your account yet|pas encore enregistrées sur votre compte/],
+    ["saved", /Draft saved to your account|Brouillon enregistré sur votre compte/],
+    ["offline", /Local copy only|Copie locale seulement/],
+    ["conflict", /another session|autre session/],
+  ] as const)("explains the %s draft state in a tooltip", async (status, text) => {
+    const p = baseProject("bulle");
+    useAccountStore.setState({
+      account: { id: "n1", projects: [p], projectOrder: [p.id] },
+    } as never);
+    usePersistedDraftStore.setState({ sessions: { p1: { ownerId: "u1", drafts: [], status } } });
+    try {
+      render(<ProjectTopBarControls project={p} projectId={p.id} networkId="n1" />);
+      fireEvent.focus(
+        screen.getByRole("button", { name: /^(Save|Saved|Enregistrer|Enregistré)$/ }),
+      );
+      expect(await screen.findByRole("tooltip")).toHaveTextContent(text);
     } finally {
       usePersistedDraftStore.setState({ sessions: {} });
     }
@@ -258,7 +281,7 @@ describe("ProjectTopBarControls — Enregistrer", () => {
     try {
       render(<ProjectTopBarControls project={p} projectId={p.id} networkId="n1" />);
       const save = screen.getByRole("button", { name: /^(Saving…|Enregistrement…)$/ });
-      expect(save).toBeDisabled();
+      expect(save).toHaveAttribute("aria-disabled", "true");
       expect(save.querySelector(".animate-spin")).not.toBeNull();
     } finally {
       usePersistedDraftStore.setState({ sessions: {} });
@@ -275,7 +298,10 @@ describe("ProjectTopBarControls — Enregistrer", () => {
     });
     try {
       render(<ProjectTopBarControls project={p} projectId={p.id} networkId="n1" />);
-      expect(screen.getByRole("button", { name: /^(Saved|Enregistré)$/ })).toBeDisabled();
+      const save = screen.getByRole("button", { name: /^(Saved|Enregistré)$/ });
+      expect(save).toHaveAttribute("aria-disabled", "true");
+      fireEvent.click(save);
+      expect(syncPersistedDraft).not.toHaveBeenCalled();
     } finally {
       usePersistedDraftStore.setState({ sessions: {} });
     }
