@@ -2,7 +2,9 @@ package net.artisanmc.plugin
 
 import net.artisanmc.plugin.config.PluginConfig
 import net.artisanmc.plugin.config.ImportSourceConfig
+import net.artisanmc.plugin.config.deriveEditorHomeUrl
 import net.artisanmc.plugin.config.deriveHttpBaseUrl
+import net.artisanmc.plugin.config.normalizeWsUrl
 import org.bukkit.configuration.file.YamlConfiguration
 import java.io.InputStreamReader
 import kotlin.test.Test
@@ -129,8 +131,47 @@ class PluginConfigTest {
     @Test
     fun `httpBaseUrl derived from ws_url on the config`() {
         val yaml = YamlConfiguration()
+        yaml.loadFromString("server_key: \"\"\nws_url: \"wss://backend.example.com/ws/plugin\"")
+        assertEquals("https://backend.example.com", PluginConfig.from(yaml).httpBaseUrl)
+    }
+
+    @Test
+    fun `ws_url on the editor host is rewritten to the api host`() {
+        val yaml = YamlConfiguration()
         yaml.loadFromString("server_key: \"\"\nws_url: \"wss://editor.artisanmc.net/ws/plugin\"")
-        assertEquals("https://editor.artisanmc.net", PluginConfig.from(yaml).httpBaseUrl)
+
+        val cfg = PluginConfig.from(yaml)
+
+        assertEquals("wss://api.artisanmc.net/ws/plugin", cfg.wsUrl)
+        assertEquals("https://api.artisanmc.net", cfg.httpBaseUrl)
+        assertEquals("https://editor.artisanmc.net", cfg.editorHomeUrl)
+    }
+
+    @Test
+    fun `normalizeWsUrl only rewrites the editor host`() {
+        assertEquals("wss://api.artisanmc.net/ws/plugin", normalizeWsUrl("wss://editor.artisanmc.net/ws/plugin"))
+        assertEquals("wss://api.artisanmc.net/ws/plugin", normalizeWsUrl("wss://EDITOR.ARTISANMC.NET/ws/plugin"))
+        assertEquals("ws://api.artisanmc.net:3001/ws/plugin", normalizeWsUrl("ws://editor.artisanmc.net:3001/ws/plugin"))
+        assertEquals("wss://api.artisanmc.net/ws/plugin", normalizeWsUrl("wss://api.artisanmc.net/ws/plugin"))
+        assertEquals("ws://localhost:3001/ws/plugin", normalizeWsUrl("ws://localhost:3001/ws/plugin"))
+        assertEquals("wss://editor.artisanmc.net.evil.test/ws/plugin", normalizeWsUrl("wss://editor.artisanmc.net.evil.test/ws/plugin"))
+        assertEquals("", normalizeWsUrl(""))
+    }
+
+    @Test
+    fun `editorHomeUrl maps the api host back to the browsable editor host`() {
+        assertEquals("https://editor.artisanmc.net", deriveEditorHomeUrl("wss://api.artisanmc.net/ws/plugin"))
+        assertEquals("http://localhost:3001", deriveEditorHomeUrl("ws://localhost:3001/ws/plugin"))
+        assertEquals("https://backend.example.com", deriveEditorHomeUrl("wss://backend.example.com/ws/plugin"))
+        assertEquals("", deriveEditorHomeUrl(""))
+    }
+
+    @Test
+    fun `configured api ws_url yields the editor home for command hints`() {
+        val yaml = YamlConfiguration()
+        yaml.loadFromString("server_key: \"\"\nws_url: \"wss://api.artisanmc.net/ws/plugin\"")
+
+        assertEquals("https://editor.artisanmc.net", PluginConfig.from(yaml).editorHomeUrl)
     }
 
     @Test

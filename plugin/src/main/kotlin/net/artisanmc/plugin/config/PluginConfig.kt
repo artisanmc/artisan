@@ -14,6 +14,39 @@ fun deriveHttpBaseUrl(wsUrl: String): String {
     return if (pathStart >= 0) http.substring(0, pathStart) else http
 }
 
+private const val EDITOR_HOST = "editor.artisanmc.net"
+private const val API_HOST = "api.artisanmc.net"
+
+/** `wss://fromHost:8443/x` → `wss://toHost:8443/x`; other hosts are untouched. */
+private fun rewriteHost(url: String, fromHost: String, toHost: String): String {
+    val schemeEnd = url.indexOf("://")
+    if (schemeEnd < 0) return url
+    val authorityStart = schemeEnd + 3
+    val authorityEnd = url.indexOf('/', authorityStart).let { if (it >= 0) it else url.length }
+    val authority = url.substring(authorityStart, authorityEnd)
+    if (!authority.substringBefore(':').equals(fromHost, ignoreCase = true)) return url
+    val port = authority.substringAfter(':', "")
+    val rewritten = if (port.isEmpty()) toHost else "$toHost:$port"
+    return url.substring(0, authorityStart) + rewritten + url.substring(authorityEnd)
+}
+
+/**
+ * `editor.artisanmc.net` serves the editor SPA on nginx and never proxies `/ws`
+ * or `/api` to the backend. Configs written with the old default (which pointed
+ * there) made `/artisan link` fail with `http_405` and broke the WS handshake.
+ * Rewrite that host to the API host; any other URL is untouched.
+ */
+fun normalizeWsUrl(wsUrl: String): String = rewriteHost(wsUrl, EDITOR_HOST, API_HOST)
+
+/**
+ * Browsable origin of the web editor, for the `/artisan editor` and "not linked
+ * yet" hints. The backend origin ([deriveHttpBaseUrl]) is not a website, so
+ * `api.artisanmc.net` maps back to `editor.artisanmc.net`. Self-hosted setups
+ * keep their own origin, which serves both unless they split the two hosts.
+ */
+fun deriveEditorHomeUrl(wsUrl: String): String =
+    rewriteHost(deriveHttpBaseUrl(wsUrl), API_HOST, EDITOR_HOST)
+
 data class ResourcePackConfig(
     val enabled: Boolean,
     val prompt: String,
@@ -44,10 +77,12 @@ data class PluginConfig(
     /**
      * HTTP(S) origin of the backend, derived from [wsUrl]: `wss://host/ws/plugin`
      * → `https://host`. Used before linking (no hello_ack yet) to POST the
-     * `/artisan link` redeem and to point `/artisan editor` at the editor home.
-     * Empty when [wsUrl] is blank.
+     * `/artisan link` redeem. Empty when [wsUrl] is blank.
      */
     val httpBaseUrl: String get() = deriveHttpBaseUrl(wsUrl)
+
+    /** Browsable editor origin for `/artisan editor` hints. Blank when [wsUrl] is blank. */
+    val editorHomeUrl: String get() = deriveEditorHomeUrl(wsUrl)
 
     companion object {
         fun from(cfg: FileConfiguration): PluginConfig {
@@ -95,7 +130,9 @@ data class PluginConfig(
 
             return PluginConfig(
                 serverKey         = cfg.getString("server_key", "") ?: "",
-                wsUrl             = cfg.getString("ws_url", "wss://editor.artisan.gg/ws/plugin") ?: "",
+                wsUrl             = normalizeWsUrl(
+                    cfg.getString("ws_url", "wss://$API_HOST/ws/plugin") ?: "",
+                ),
                 editorConsoleOnly = cfg.getBoolean("editor.console_only", false),
                 editorAccessMode  = if (cfg.getString("editor.access_mode") == "console") "console" else "invitation",
                 language          = cfg.getString("language", "en") ?: "en",

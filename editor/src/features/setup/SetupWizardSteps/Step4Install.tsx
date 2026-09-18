@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 import type { WizardState } from "../SetupWizard";
 
-const WS_URL = import.meta.env.VITE_PLUGIN_WS_URL ?? "wss://editor.artisanmc.net/ws/plugin";
+const WS_URL = import.meta.env.VITE_PLUGIN_WS_URL ?? "wss://api.artisanmc.net/ws/plugin";
 
 interface Props {
   state: WizardState;

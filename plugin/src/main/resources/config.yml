@@ -1,7 +1,8 @@
-# Set to connect this server to the Artisan editor backend for live sync.
+# Backend endpoint for live sync (WebSocket). Not the editor URL — the editor
+# lives on editor.artisanmc.net and doesn't proxy the API.
 # Leave empty to run offline using only locally exported packs.
 server_key: ""
-ws_url: "wss://editor.artisanmc.net/ws/plugin"
+ws_url: "wss://api.artisanmc.net/ws/plugin"
 
 # Language for plugin system messages (en, fr). Defaults to en.
 # Place custom lang files in plugins/Artisan/lang/<code>.yml to override.

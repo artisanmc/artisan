@@ -60,6 +60,12 @@ class EditorCommandTest {
         val cmd = plugin.getCommand("artisan")!!
         val result = cmd.executor!!.onCommand(sender, cmd, "artisan", arrayOf("editor"))
         assertTrue(result, "Command should return true (no exception)")
+
+        val messages = drainMessages(sender)
+        assertTrue(messages.any { it.contains("editor.artisanmc.net") },
+            "Expected the browsable editor host in the hint: $messages")
+        assertFalse(messages.any { it.contains("api.artisanmc.net") },
+            "The backend host is not browsable and must not be advertised: $messages")
     }
 
     @Test

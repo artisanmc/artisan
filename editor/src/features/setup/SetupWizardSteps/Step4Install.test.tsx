@@ -16,6 +16,13 @@ describe("Step4Install", () => {
     expect(screen.getByText(/ws_url/)).toBeTruthy();
   });
 
+  it("points ws_url at the backend host, never the editor host", () => {
+    render(<Step4Install state={stateWithCode} setState={() => {}} />);
+    const snippet = screen.getByText(/ws_url/).textContent ?? "";
+    expect(snippet).toContain("api.artisanmc.net/ws/plugin");
+    expect(snippet).not.toContain("editor.artisanmc.net");
+  });
+
   it("shows the /artisan link <code> instruction", () => {
     render(<Step4Install state={stateWithCode} setState={() => {}} />);
     expect(screen.getByText(/\/artisan link ABCD2345/)).toBeTruthy();
