@@ -121,7 +121,9 @@ L'encoder plugin est **lenient** : ne lève jamais d'exception, retourne `""` si
 
 Import MCFonts via "Import font" dans l'AssetsTab : drop d'un `.zip` (`font.json` + glyph PNGs). Le backend parse/valide/stocke (`data/assets/{projectId}/fonts/{asset_id}/`) et crée une row `Asset` `type=font` + `fontMeta = { namespace, glyphMap }`. À la régén RP : `assets/artisan/font/<name>.json` + `textures/font/<name>/*.png` embarqués. Éditeur : `TitleRender` rend pixel-perfect via `McFontText` (composition Konva des glyph PNGs).
 
-Background = "gros glyph" : ascent calibré pour couvrir la zone. `LayerEditForm` (Background) expose "Calibrer pour coffre" → `ascent = -11` (zone des slots). Pour couvrir depuis le haut (y=0) : `ascent = 6`. Formule : `ascent = titleLabelY(6) - targetY`.
+Background = "gros glyph" : sa hauteur vient de l'ascent de l'asset (`y = 13 - ascent`).
+
+**Glyph layers = Y par calque.** `layer.y` est le haut de l'image en pixels coffre. Le plugin (`TitleCompiler`) rend un glyph dont `y == 13 - ascent` avec `artisan:default`, sinon via `<font:artisan:glyph_y{Y}>`. Le backend (`rebuildResourcePack` → `glyphPlacementsFromMenus`) lit les `menus/*.yaml` de chaque Project et émet `assets/artisan/font/glyph_y{Y}.json` pour les seuls couples (glyph, Y) utilisés : chaque provider recharge sa texture côté client, donc pas de matrice complète comme `text_y`. Plancher partagé par les 3 couches : `y >= 13 - height` (MC refuse `ascent > height`). `LayerEditForm` expose X/Y et "Caler en fond de coffre" (x=0, y=17) ; l'`AssetPicker` reçoit `projectId` et propose l'upload (`AssetUploadDialog.onUploaded` → pick direct).
 
 ## Title Composer UX v3
 

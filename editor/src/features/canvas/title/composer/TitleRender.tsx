@@ -114,9 +114,9 @@ const BASELINE_Y_PX = 7;
 const MC_TITLE_LABEL_Y = 6;
 /**
  * Empirically confirmed MC formula: glyph_top = GLYPH_Y_BASE - ascent.
- * Used to position background and glyph layers in the editor so they match
- * exactly what TitleCompiler renders in-game. layer.y is NOT used by the
- * plugin — vertical placement is fully determined by asset.ascent.
+ * Backgrounds sit at their asset's ascent. Glyph layers carry their own Y:
+ * the plugin draws them through a `glyph_y{Y}` font whose ascent is 13 - Y,
+ * which MC only accepts while ascent <= height — so Y >= 13 - height.
  */
 const GLYPH_Y_BASE = 13;
 /**
@@ -124,6 +124,11 @@ const GLYPH_Y_BASE = 13;
  * font size for MiniMessageKonvaText (vector fallback, not pixel-perfect).
  */
 const MC_FONT_HEIGHT_PX = 8;
+
+/** Where MC draws a glyph layer: its Y, but never above 13 - height. */
+function glyphY(y: number, asset: Asset | undefined): number {
+  return asset ? Math.max(y, GLYPH_Y_BASE - asset.height) : y;
+}
 
 interface TitleRenderProps {
   projectId: ProjectId;
@@ -304,9 +309,7 @@ function LayerNode({
             ? (GLYPH_Y_BASE - fontRefAscent) * scale
             : layer.y * scale
           : layer.kind === "glyph"
-            ? asset?.ascent != null
-              ? (GLYPH_Y_BASE - asset.ascent) * scale
-              : layer.y * scale
+            ? glyphY(layer.y, asset) * scale
             : layer.kind === "textarea"
               ? layer.y * scale
               : "y" in layer
@@ -349,21 +352,20 @@ function LayerNode({
         shift: Boolean(evt.shiftKey),
         alt: Boolean(evt.altKey),
       });
-      // Y is controlled by asset/font ascent for glyphs and custom-font text.
-      // Plain text and external_glyph use the dragged Y (free positioning via
-      // Y-specific ascii fonts in the resource project).
+      // Custom-font text is pinned by its font's ascent; every other layer
+      // keeps the dragged Y (glyphs within their `glyph_y` floor).
       const finalY =
         layer.kind === "text" && fontRefAscent != null
           ? GLYPH_Y_BASE - fontRefAscent
-          : layer.kind === "glyph" && asset?.ascent != null
-            ? GLYPH_Y_BASE - asset.ascent
+          : layer.kind === "glyph"
+            ? glyphY(snapped.y, asset)
             : snapped.y;
       // Snap the node back so Konva's internal position matches the
       // committed domain coords (no sub-pixel drift on subsequent drags).
       e.target.position({ x: snapped.x * scale, y: finalY * scale });
       onPositionChange({ x: snapped.x + anchorOffset, y: finalY });
     },
-    [layer.kind, asset?.ascent, fontRefAscent, scale, onPositionChange, anchorOffset],
+    [layer.kind, asset, fontRefAscent, scale, onPositionChange, anchorOffset],
   );
 
   // Intrinsic bounding-box for image-kind layers — drives both the selection
