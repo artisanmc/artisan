@@ -136,7 +136,16 @@ open class ResourcePackManager(
 
     private fun applyDelegateAsync(info: ResourcePackInfo) {
         runDelegate {
-            delegator!!.apply(info.downloadUrl, info.hash)
+            // L'URL voyage dans le log : en délégation, un téléchargement qui
+            // échoue (adresse interne injoignable depuis ce serveur) donne
+            // exactement les mêmes symptômes qu'un message jamais reçu — pas de
+            // zip écrit, pas de reload de l'hôte.
+            logger?.info("[delegate] applying pack ${info.hash} from ${info.downloadUrl}")
+            try {
+                delegator!!.apply(info.downloadUrl, info.hash)
+            } catch (t: Throwable) {
+                throw IllegalStateException("download or extract of ${info.downloadUrl} failed: ${t.message}", t)
+            }
             val reloadCmd = config.delegateReloadCommand
             if (reloadCmd != null) {
                 // Bukkit's command dispatch isn't thread-safe — schedule the

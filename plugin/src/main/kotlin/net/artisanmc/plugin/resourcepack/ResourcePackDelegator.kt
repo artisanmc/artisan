@@ -152,10 +152,14 @@ open class ResourcePackDelegator(
             .joinToString("") { "%02x".format(it) }
 
     companion object {
-        // Minimal valid pack.mcmeta. pack_format 22 = 1.20.5+ (where the
-        // `space` font provider is supported). Host plugins that re-zip
-        // external projects need this at the root to recognize the zip.
+        // Minimal valid pack.mcmeta, aligné sur celui du backend. La racine
+        // s'appelle `pack` — c'est ce que lisent Minecraft et le fusionneur de
+        // l'hôte ; le renommage Interfaze→Artisan l'avait passée à `project`,
+        // et un hôte qui valide le mcmeta écartait alors tout le zip.
+        // pack_format 22 = plancher 1.20.5+ (fournisseur de police `space`).
         private const val PACK_MCMETA_JSON =
-            "{\"project\":{\"pack_format\":22,\"description\":\"Artisan (delegated)\"}}"
+            "{\"pack\":{\"pack_format\":64," +
+                "\"supported_formats\":{\"min_inclusive\":22,\"max_inclusive\":200}," +
+                "\"description\":\"Artisan (delegated)\"}}"
     }
 }
