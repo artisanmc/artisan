@@ -60,8 +60,9 @@ function hashOf(bytes: Uint8Array): string {
 }
 
 /** Un faux plugin qui sert les arbres de `disks`, pour tous leurs Projects. */
-function serveDisks(connId: string, serverKeyId: string, transformBytes = (bytes: Uint8Array) => bytes): () => void {
+function serveDisks(connId: string, serverKeyId: string, transformBytes = (bytes: Uint8Array) => bytes, received: string[] = []): () => void {
   registerConn(connId, (raw: string) => {
+    received.push(raw);
     const msg = JSON.parse(raw) as { type: string; request_id: string; project_id?: string; path?: string };
     if (msg.type === "project_read") {
       const tree = disks.get(msg.project_id ?? "") ?? new Map<string, Uint8Array>();
@@ -319,5 +320,43 @@ describe("rebuildResourcePack — source disque", () => {
     const zip = unzipSync(await Bun.file(resourcePackPath(serverKeyId, after.hash)).bytes());
     const index = JSON.parse(new TextDecoder().decode(zip["assets/artisan/asset-index.json"]!));
     expect(JSON.stringify(index)).toContain("du_disque");
+  });
+});
+
+describe("projects_reloaded", () => {
+  const packUpdates = (received: string[]) =>
+    received.map((raw) => JSON.parse(raw) as { type: string; hash?: string }).filter((m) => m.type === "resource_pack_updated");
+
+  async function announceReload(connId: string, received: string[]) {
+    await handlePluginMessage(connId, JSON.stringify({ type: "projects_reloaded", projects: [{ id: projectId, hash: "h" }] }));
+    for (let i = 0; i < 50 && packUpdates(received).length === 0; i++) await new Promise((r) => setTimeout(r, 10));
+  }
+
+  test("a published asset reaches the plugin as resource_pack_updated", async () => {
+    await rebuildResourcePack(serverKeyId);
+    stopServing();
+    const received: string[] = [];
+    const connId = `conn-reload-${serverKeyId}`;
+    stopServing = serveDisks(connId, serverKeyId, undefined, received);
+    seedGlyph(projectId, "coin", 0xE000);
+
+    await announceReload(connId, received);
+
+    const updates = packUpdates(received);
+    expect(updates).toHaveLength(1);
+    expect(updates[0]!.hash).toBe((await currentPackInfo(serverKeyId))!.hash);
+  });
+
+  test("a reload that leaves the pack unchanged pushes nothing", async () => {
+    seedGlyph(projectId, "coin", 0xE000);
+    await rebuildResourcePack(serverKeyId);
+    stopServing();
+    const received: string[] = [];
+    const connId = `conn-same-${serverKeyId}`;
+    stopServing = serveDisks(connId, serverKeyId, undefined, received);
+
+    await announceReload(connId, received);
+
+    expect(packUpdates(received)).toHaveLength(0);
   });
 });
