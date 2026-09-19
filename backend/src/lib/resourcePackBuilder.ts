@@ -1,7 +1,16 @@
 import { createHash } from "crypto";
 import { strToU8, zipSync } from "fflate";
 import { buildAssetIndex } from "./assetIndexBuilder";
-import { buildDefaultFontJson, buildTextYFontJson, minYForSize, type AssetRow } from "./fontJsonBuilder";
+import {
+  buildDefaultFontJson,
+  buildGlyphYFontJson,
+  buildTextYFontJson,
+  defaultGlyphY,
+  glyphYFloor,
+  minYForSize,
+  type AssetRow,
+} from "./fontJsonBuilder";
+import type { GlyphPlacement } from "./menuGlyphPlacements";
 
 export type { AssetRow };
 
@@ -52,6 +61,7 @@ export function buildResourcePackZip(
   glyphPngs: Map<string, Uint8Array>,
   fontGlyphPngs: Map<string, Map<string, Uint8Array>>,
   mergeResult: { finalCodepoints: Map<string, number> } = { finalCodepoints: new Map() },
+  glyphPlacements: GlyphPlacement[] = [],
 ): BuildResult {
   const remapped = assets.map((a) => {
     if (a.type !== "glyph" || a.codepoint === null) return a;
@@ -105,6 +115,22 @@ export function buildResourcePackZip(
     const png = glyphPngs.get(g.id);
     if (!png) continue;
     files[`assets/artisan/textures/font/${g.name}.png`] = png;
+  }
+
+  const glyphsById = new Map(glyphs.map((g) => [g.id, g]));
+  const glyphsByY = new Map<number, Map<string, AssetRow>>();
+  for (const { assetId, y } of glyphPlacements) {
+    const g = glyphsById.get(assetId);
+    if (!g) continue;
+    const effectiveY = Math.max(y, glyphYFloor(g.height));
+    if (effectiveY === defaultGlyphY(g.ascent)) continue;
+    const atY = glyphsByY.get(effectiveY) ?? new Map<string, AssetRow>();
+    atY.set(g.id, g);
+    glyphsByY.set(effectiveY, atY);
+  }
+  for (const [y, atY] of glyphsByY) {
+    files[`assets/artisan/font/glyph_y${y}.json`] =
+      strToU8(JSON.stringify(buildGlyphYFontJson(y, [...atY.values()]), null, 2));
   }
 
   const fontAssets = assets

@@ -175,6 +175,16 @@ describe("rebuildResourcePack", () => {
     expect(rows[0].resourcePackUpdatedAt).toBeInstanceOf(Date);
   });
 
+  test.each([false, true])("a glyph a menu moves off its default Y gets a glyph_y font (strict: %s)", async (strict) => {
+    seedGlyph(projectId, "coin", 0xE000);
+    diskOf(projectId).set("menus/shop.yaml", new TextEncoder().encode("id: shop\ntitle:\n  - kind: glyph\n    asset: coin\n    x: 0\n    y: 40\n"));
+    forgetAllProjectTrees();
+    const pack = await rebuildResourcePack(serverKeyId, strict ? { requiredProjectId: projectId } : {});
+    const zip = unzipSync(await Bun.file(resourcePackPath(serverKeyId, pack.hash)).bytes());
+    const font = JSON.parse(new TextDecoder().decode(zip["assets/artisan/font/glyph_y40.json"]!));
+    expect(font.providers[0]).toMatchObject({ file: "artisan:font/coin.png", ascent: -27 });
+  });
+
   test("two consecutive rebuilds with same assets produce the same hash", async () => {
     seedGlyph(projectId, "coin", 0xE000);
     const r1 = await rebuildResourcePack(serverKeyId);
