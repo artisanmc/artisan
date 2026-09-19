@@ -10,11 +10,14 @@ export interface BuildResult {
   hash: string;
 }
 
+// `pack` est le nom que Minecraft attend à la racine : le renommage
+// Interfaze→Artisan l'avait transformé en `project`, ce qui rend le
+// pack.mcmeta invalide — pour le client comme pour le fusionneur de l'hôte.
 const PACK_MCMETA = {
-  project: {
+  pack: {
     pack_format: 64,
     supported_formats: { min_inclusive: 22, max_inclusive: 200 },
-    description: "Artisan project",
+    description: "Artisan pack",
   },
 };
 
@@ -59,7 +62,7 @@ export function buildResourcePackZip(
   const files: Record<string, Uint8Array> = {};
 
   files["pack.mcmeta"] = strToU8(JSON.stringify(PACK_MCMETA, null, 2));
-  files["project.png"] = PACK_PNG_FALLBACK;
+  files["pack.png"] = PACK_PNG_FALLBACK;
 
   const fontJson = buildDefaultFontJson(remapped);
   files["assets/artisan/font/default.json"] = strToU8(JSON.stringify(fontJson, null, 2));
