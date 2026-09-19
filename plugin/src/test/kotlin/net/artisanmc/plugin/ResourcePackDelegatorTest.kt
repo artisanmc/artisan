@@ -61,7 +61,7 @@ class ResourcePackDelegatorTest {
     @Test
     fun `applyBytes skips project-mcmeta at zip root`() {
         val zip = buildZip(mapOf(
-            "pack.mcmeta" to """{"project":{"pack_format":64}}""".toByteArray(),
+            "pack.mcmeta" to """{"pack":{"pack_format":64}}""".toByteArray(),
             "assets/artisan/font/default.json" to "{}".toByteArray(),
         ))
         val delegator = ResourcePackDelegator(tempDir, logger = null)
@@ -180,6 +180,12 @@ class ResourcePackDelegatorTest {
         assertTrue(target.exists() && target.isFile, "target must be a regular file")
         val entries = zipEntries(target)
         assertTrue(entries.containsKey("pack.mcmeta"), "pack.mcmeta should be at zip root")
+        // Minecraft (et le fusionneur de Nexo) lisent la section `pack` : un
+        // autre nom de racine rend le pack.mcmeta invalide, donc le zip entier
+        // inexploitable par l'hôte.
+        val mcmeta = entries["pack.mcmeta"]!!.toString(Charsets.UTF_8)
+        assertTrue("\"pack\":" in mcmeta, "root key must be `pack`, was: $mcmeta")
+        assertFalse("\"project\":" in mcmeta, "root key must not be `project`, was: $mcmeta")
         assertEquals("{}", entries["assets/artisan/font/default.json"]?.toString(Charsets.UTF_8))
         assertNotNull(entries["assets/artisan/textures/foo.png"])
     }
@@ -188,7 +194,7 @@ class ResourcePackDelegatorTest {
     fun `zip mode skips entries outside assets-artisan`() {
         val target = File(tempDir, "artisan.zip")
         val zip = buildZip(mapOf(
-            "pack.mcmeta" to """{"project":{"pack_format":64}}""".toByteArray(),
+            "pack.mcmeta" to """{"pack":{"pack_format":12}}""".toByteArray(),
             "assets/minecraft/font/default.json" to "{}".toByteArray(),
             "assets/oraxen/textures/foo.png" to byteArrayOf(0x00),
             "assets/artisan/keep.json" to "{}".toByteArray(),
@@ -200,7 +206,7 @@ class ResourcePackDelegatorTest {
         // Our own pack.mcmeta replaces the source one (since we write it first
         // and the source one is filtered out by acceptEntry).
         val ourMcmeta = entries["pack.mcmeta"]?.toString(Charsets.UTF_8) ?: ""
-        assertFalse("pack_format\":64" in ourMcmeta, "source pack.mcmeta must not leak in")
+        assertFalse("pack_format\":12" in ourMcmeta, "source pack.mcmeta must not leak in")
         assertFalse(entries.containsKey("assets/minecraft/font/default.json"))
         assertFalse(entries.containsKey("assets/oraxen/textures/foo.png"))
         assertTrue(entries.containsKey("assets/artisan/keep.json"))
