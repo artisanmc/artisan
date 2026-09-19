@@ -321,11 +321,6 @@ export default {
     targetAllIterables: "All iterables in this menu",
     paginateHint:
       'Leave on "All" for menus with one list. Pick a specific element when several iterables coexist and need independent pagers.',
-    insertLabel: "insert:",
-    sourceCommandArg: "command arg",
-    sourceMenuContext: "menu context",
-    sourceClickContext: "click context",
-    insertHint: "Insert {{name}}{{type}} — {{source}}",
     setArgArgLabel: "context input to set",
     setArgArgPlaceholder: "current_tag",
     setArgValueLabel: "new value (expression)",

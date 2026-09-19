@@ -329,11 +329,6 @@ const fr: typeof en = {
     targetAllIterables: "Tous les itérables de ce menu",
     paginateHint:
       "Laissez « Tous » pour les menus à une seule liste. Choisissez un élément précis quand plusieurs itérables coexistent avec leurs propres pageurs.",
-    insertLabel: "insérer :",
-    sourceCommandArg: "arg de commande",
-    sourceMenuContext: "contexte de menu",
-    sourceClickContext: "contexte de clic",
-    insertHint: "Insérer {{name}}{{type}} — {{source}}",
     setArgArgLabel: "input de contexte à modifier",
     setArgArgPlaceholder: "current_tag",
     setArgValueLabel: "nouvelle valeur (expression)",

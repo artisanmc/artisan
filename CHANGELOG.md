@@ -9,6 +9,10 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Changed — action placeholders match the lore
+
+- Action text fields (command, values passed to a menu, `set_arg`) now autocomplete variables after `{`, like the lore, instead of showing an insert bar. They offer what the server actually provides: the menu inputs, the clicked row of an iterating **or placed** element (server sources included), a command's arguments, and `{player}`. `{slot}`, `{material}` and `{pagination.*}` are no longer suggested — the server never filled them in.
+
 ### Fixed — menu navigation hid unchanged items
 
 - Moving from one menu to another (a category, then Back) no longer drops the items that sit on the same slot with the same look in both menus — typically decoration panes. The click opened the next menu inside Bukkit's click event, where the client misses those slots; the click's actions now run on the next tick.

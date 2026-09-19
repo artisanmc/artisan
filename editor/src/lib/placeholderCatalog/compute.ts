@@ -17,8 +17,7 @@ import type {
 const ORDER: Record<PlaceholderOrigin, number> = {
   context: 0,
   iteration: 1,
-  pagination: 2,
-  source: 3,
+  source: 2,
 };
 
 /**
@@ -53,16 +52,24 @@ export function compute(
       collectMenuContextInputs(menu, project, scope, out, rowSchemas);
       if (location.kind === "element" || location.kind === "action") {
         const element = findElement(menu, location.elementId);
-        if (element?.iterates) {
-          collectIterationLeaves(element.iterates.source, element.iterates.alias, project, menu, scope, out);
-          collectPagination(out);
+        // Placement binds its alias exactly like an iteration (MenuRenderer).
+        const iteration = element?.iterates ?? element?.places;
+        if (iteration) {
+          collectIterationLeaves(iteration.source, iteration.alias, project, menu, scope, out, rowSchemas);
         }
       }
-      out.sort((a, b) => {
-        if (ORDER[a.origin] !== ORDER[b.origin]) return ORDER[a.origin] - ORDER[b.origin];
-        return a.path.localeCompare(b.path);
-      });
-      return out;
+      return sorted(out);
+    }
+    case "command": {
+      const command = project.commands.find((c) => c.id === location.commandId);
+      const out: PlaceholderEntry[] = [];
+      const args = command?.arguments ?? [];
+      if (!args.some((a) => a.name === "player")) out.push(...builtinPlayerEntries());
+      for (const arg of args) {
+        out.push({ path: arg.name, type: arg.type, sample: null, origin: "context" });
+        if (arg.type === "player") out.push(...playerSubfieldEntries(arg.name, null));
+      }
+      return sorted(out);
     }
     case "dialog":
     case "dialog-action":
@@ -70,6 +77,13 @@ export function compute(
       // scope at runtime, so the popup is never empty.
       return builtinPlayerEntries();
   }
+}
+
+function sorted(out: PlaceholderEntry[]): PlaceholderEntry[] {
+  return out.sort((a, b) => {
+    if (ORDER[a.origin] !== ORDER[b.origin]) return ORDER[a.origin] - ORDER[b.origin];
+    return a.path.localeCompare(b.path);
+  });
 }
 
 /** The implicit `{player}` entries available everywhere at runtime. */
@@ -253,13 +267,29 @@ function collectIterationLeaves(
   menu: Menu,
   scope: ReturnType<typeof buildPreviewScope>,
   out: PlaceholderEntry[],
+  rowSchemas?: RowModelSchemas,
 ): void {
   const sourceInput = (menu.contextInputs ?? []).find(
     (i) => i.kind === "sourceRef" && i.name === sourcePath,
   );
-  if (!sourceInput || sourceInput.kind !== "sourceRef") return;
-  const type = typeOfSourceRef(sourceInput.ref, project);
-  if (!type || type.kind !== "list") return;
+  // Direct-ref sugar: `source: "ns:id"` names the source itself.
+  const ref =
+    sourceInput?.kind === "sourceRef" ? sourceInput.ref : sourcePath.includes(":") ? sourcePath : null;
+  if (!ref) return;
+  const type = typeOfSourceRef(ref, project);
+  if (!type) {
+    for (const field of rowSchemaFields(ref, project, rowSchemas)) {
+      const leafPath = `${alias}.${field.name}`;
+      out.push({
+        path: leafPath,
+        type: fieldKindToPlaceholderType(field.type),
+        sample: iterationSample(scope, sourcePath, alias, leafPath),
+        origin: "iteration",
+      });
+    }
+    return;
+  }
+  if (type.kind !== "list") return;
   const itemType = type.of;
   if (itemType.kind === "object") {
     for (const field of itemType.fields) {
@@ -291,9 +321,4 @@ function iterationSample(
   if (!Array.isArray(list) || list.length === 0) return null;
   const enriched: Record<string, unknown> = { ...(scope as Record<string, unknown>), [alias]: list[0] };
   return renderSample(walkPath(enriched, fullPath));
-}
-
-function collectPagination(out: PlaceholderEntry[]): void {
-  out.push({ path: "pagination.page", type: "integer", sample: "1", origin: "pagination" });
-  out.push({ path: "pagination.totalPages", type: "integer", sample: "1", origin: "pagination" });
 }

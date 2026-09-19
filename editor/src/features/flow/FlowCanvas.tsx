@@ -25,10 +25,7 @@ import type {
 import { MaterialPicker } from "@/features/canvas/MaterialPicker";
 import { useHeadPreviewUrl } from "@/features/canvas/useHeadPreviewUrl";
 import { buildPreviewScope } from "@/features/canvas/menuPreviewScope";
-import {
-  type PlaceholderInfo,
-  PlaceholderProvider,
-} from "@/features/canvas/properties/ActionEditor";
+import { ActionScopeProvider } from "@/features/canvas/properties/ActionEditor";
 import { AliasesField } from "@/features/canvas/properties/AliasesField";
 import { ConditionListEditor } from "@/features/canvas/properties/ConditionListEditor";
 import { MenuProperties } from "@/features/canvas/properties/MenuProperties";
@@ -738,7 +735,7 @@ function StateCard({
   }
 
   return (
-    <PlaceholderProvider value={elementPlaceholders(menu, element)}>
+    <>
       <div
         ref={sortable.setNodeRef}
         style={dragStyle}
@@ -863,62 +860,8 @@ function StateCard({
           </div>
         </div>
       </div>
-    </PlaceholderProvider>
+    </>
   );
-}
-
-/**
- * Placeholders available inside an element's click handlers:
- *   - Implicit click context (player, slot, material) — always there.
- *   - Menu context inputs — declared by the parent menu.
- *   - This element's iteration alias, when set.
- */
-function elementPlaceholders(menu: Menu, element: Element): readonly PlaceholderInfo[] {
-  const list: PlaceholderInfo[] = [
-    { name: "player", type: "player", source: "click-implicit" },
-    { name: "slot", type: "integer", source: "click-implicit" },
-    { name: "material", type: "string", source: "click-implicit" },
-  ];
-  for (const input of menu.contextInputs ?? []) {
-    if (!input.name) continue;
-    list.push({
-      name: input.name,
-      type: input.kind === "primitive" ? input.type : "sourceRef",
-      source: "menu-context",
-    });
-  }
-  if (element.iterates?.alias) {
-    list.push({
-      name: element.iterates.alias,
-      type: "iteration item",
-      source: "menu-context",
-    });
-  }
-  // Pagination placeholders — computed from menu state at render time.
-  // `pagination.page` / `pagination.totalPages` default to the first
-  // iterable in the menu; per-source variants disambiguate when several
-  // iterables coexist on the same screen.
-  const iterSources = new Set<string>();
-  for (const layer of menu.layers) {
-    for (const el of layer.elements) {
-      if (el.iterates?.source) iterSources.add(el.iterates.source);
-    }
-  }
-  if (iterSources.size > 0) {
-    list.push({ name: "pagination.page", type: "integer", source: "menu-context" });
-    list.push({ name: "pagination.totalPages", type: "integer", source: "menu-context" });
-    if (iterSources.size > 1) {
-      for (const src of iterSources) {
-        list.push({ name: `pagination.${src}.page`, type: "integer", source: "menu-context" });
-        list.push({
-          name: `pagination.${src}.totalPages`,
-          type: "integer",
-          source: "menu-context",
-        });
-      }
-    }
-  }
-  return list;
 }
 
 function CommandIdField({ projectId, commandId }: { projectId: ProjectId; commandId: CommandId }) {
@@ -1083,6 +1026,7 @@ function CommandEditor({ projectId, command }: { projectId: ProjectId; command: 
   const setCommandField = useAccountStore((s) => s.setCommandField);
   const setCommandAliases = useAccountStore((s) => s.setCommandAliases);
   const { t } = useTranslation();
+  const commandScope = useMemo(() => ({ kind: "command" as const, commandId: command.id }), [command.id]);
   return (
     <div className="flex h-full flex-col bg-[var(--surface)]">
       <div className="border-[var(--border-soft)] border-b bg-[var(--surface-raised)] px-3 py-2">
@@ -1155,20 +1099,14 @@ function CommandEditor({ projectId, command }: { projectId: ProjectId; command: 
               <div className="overflow-x-auto rounded border border-[var(--border-soft)] bg-[var(--surface-raised)] p-2">
                 {/* Args declared above are referenceable as {name} in any text
                     field of the actions inside this step tree. */}
-                <PlaceholderProvider
-                  value={command.arguments.map<PlaceholderInfo>((a) => ({
-                    name: a.name,
-                    type: a.type,
-                    source: "command-arg",
-                  }))}
-                >
+                <ActionScopeProvider value={commandScope}>
                   <CommandStepPseudocode
                     projectId={projectId}
                     commandId={command.id}
                     steps={command.steps}
                     frames={[]}
                   />
-                </PlaceholderProvider>
+                </ActionScopeProvider>
               </div>
             </Lane>
           </div>
