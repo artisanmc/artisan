@@ -1,3 +1,4 @@
+import { PlaceholderInput } from "@/components/PlaceholderInput";
 import { RevealField } from "@/components/RevealField";
 import {
   DropdownMenu,
@@ -22,6 +23,7 @@ import { MaterialPicker } from "@/features/canvas/MaterialPicker";
 import { useTextureUrl } from "@/features/canvas/textureStore";
 import { UNALLOCATED_LTEXT_KEY } from "@/features/flow/defaults";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
+import type { FieldLocation, PlaceholderEntry } from "@/lib/placeholderCatalog";
 import { useGetText, useTextEdit } from "@/lib/useText";
 import { useAccountStore } from "@/state/accountStore";
 import { createContext, useContext, useMemo, useState } from "react";
@@ -44,85 +46,43 @@ interface ActionEditorProps {
 const looksLikeMiniMessage = (s: string): boolean => s.includes("<");
 
 /**
- * Source of a placeholder — drives the visual badge color and tooltip in
- * `<ArgInsertBar>` so users can tell where each `{name}` resolves from.
+ * Where the edited actions run, for the actions that don't sit in an element
+ * click (a command's steps). An element click passes menuId/elementId/clickType
+ * directly; without either, only the builtin {player} is offered.
  */
-export type PlaceholderSource = "command-arg" | "menu-context" | "click-implicit";
+const ActionScopeContext = createContext<FieldLocation | null>(null);
+export const ActionScopeProvider = ActionScopeContext.Provider;
 
-export interface PlaceholderInfo {
-  name: string;
-  /** Type hint for the tooltip — free-form (e.g. "player", "string"). */
-  type?: string;
-  source: PlaceholderSource;
-}
+/** Placeholders of the edited action — the same catalog as the lore. */
+const EntriesContext = createContext<PlaceholderEntry[]>([]);
+const useActionEntries = () => useContext(EntriesContext);
 
-/**
- * Placeholders available to actions in the current scope. Sources:
- *
- *   - `command-arg`     : declared on the parent command (`CommandEditor`).
- *   - `menu-context`    : declared on the parent menu (`MenuProperties`).
- *   - `click-implicit`  : always available inside element click handlers
- *                         (player, slot, material).
- *
- * Providers stack — the deepest context wins, but each provider should
- * concat its own entries with the parent's via `useParentPlaceholders()`
- * so deeper scopes inherit. Action editors below use `<ArgInsertBar>` to
- * render an "insert {name}" affordance next to text fields.
- */
-const PlaceholderContext = createContext<readonly PlaceholderInfo[]>([]);
-export const PlaceholderProvider = PlaceholderContext.Provider;
-
-export function usePlaceholders(): readonly PlaceholderInfo[] {
-  return useContext(PlaceholderContext);
-}
-
-const SOURCE_BADGE: Record<PlaceholderSource, string> = {
-  "command-arg":
-    "border-[var(--border)] bg-[var(--surface-raised-2)] text-[var(--text-mut)] hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)]",
-  "menu-context":
-    "border-[var(--brand-line)] bg-[var(--brand-soft)] text-[var(--brand)] hover:border-[var(--brand)] hover:bg-[var(--brand-soft)]",
-  "click-implicit":
-    "border-[var(--brand-line)] bg-[var(--brand-soft)] text-[var(--brand)] hover:border-[var(--brand)] hover:bg-[var(--brand-soft)]",
-};
-
-const SOURCE_KEY: Record<PlaceholderSource, string> = {
-  "command-arg": "actionEditor.sourceCommandArg",
-  "menu-context": "actionEditor.sourceMenuContext",
-  "click-implicit": "actionEditor.sourceClickContext",
-};
-
-export function ArgInsertBar({ onInsert }: { onInsert: (name: string) => void }) {
-  const { t } = useTranslation();
-  const placeholders = usePlaceholders();
-  if (placeholders.length === 0) return null;
-  return (
-    <div className="mt-1 flex flex-wrap items-center gap-1">
-      <span className="text-[9px] text-[var(--text-faint)] uppercase">{t("actionEditor.insertLabel")}</span>
-      {placeholders.map((p) => (
-        <button
-          key={`${p.source}:${p.name}`}
-          type="button"
-          onClick={() => onInsert(p.name)}
-          title={t("actionEditor.insertHint", {
-            name: `{${p.name}}`,
-            type: p.type ? ` (${p.type})` : "",
-            source: t(SOURCE_KEY[p.source]),
-          })}
-          className={`rounded border px-1.5 py-0.5 font-mono text-[10px] ${SOURCE_BADGE[p.source]}`}
-        >
-          {`{${p.name}}`}
-        </button>
-      ))}
-    </div>
-  );
-}
+const NO_SCOPE: FieldLocation = { kind: "dialog", dialogId: "" as DialogId };
 
 /**
  * Per-type editor for a click/command Action. Render fields specific to the
  * action's discriminator and call back with the new action object on every
  * edit (immer/zundo handles undo on the store side).
  */
-export function ActionEditor({ projectId, action, onChange, menuId, elementId, clickType, literalText }: ActionEditorProps) {
+export function ActionEditor(props: ActionEditorProps) {
+  const { projectId, menuId, elementId, clickType } = props;
+  const scope = useContext(ActionScopeContext);
+  const location = useMemo<FieldLocation>(
+    () =>
+      menuId && elementId && clickType
+        ? { kind: "action", menuId, elementId, clickType }
+        : (scope ?? NO_SCOPE),
+    [menuId, elementId, clickType, scope],
+  );
+  const entries = usePlaceholderEntries(projectId, location);
+  return (
+    <EntriesContext.Provider value={entries}>
+      <ActionFields {...props} />
+    </EntriesContext.Provider>
+  );
+}
+
+function ActionFields({ projectId, action, onChange, literalText }: ActionEditorProps) {
   const { t } = useTranslation();
   switch (action.type) {
     case "open_menu":
@@ -134,10 +94,10 @@ export function ActionEditor({ projectId, action, onChange, menuId, elementId, c
     case "send_message":
     case "broadcast":
       if (literalText) return <LiteralTextEditor action={action} onChange={onChange} />;
-      return <SendMessageEditor projectId={projectId} action={action} menuId={menuId} elementId={elementId} clickType={clickType} />;
+      return <SendMessageEditor projectId={projectId} action={action} />;
     case "show_title":
       if (literalText) return <LiteralShowTitleEditor action={action} onChange={onChange} />;
-      return <ShowTitleEditor projectId={projectId} action={action} onChange={onChange} menuId={menuId} elementId={elementId} clickType={clickType} />;
+      return <ShowTitleEditor projectId={projectId} action={action} onChange={onChange} />;
     case "give_item":
     case "take_item":
       return <GiveItemEditor action={action} onChange={onChange} />;
@@ -225,6 +185,7 @@ function OpenMenuEditor({
   const targetInputs = (targetMenu?.contextInputs ?? []).filter((i) => i.kind === "primitive");
   const ctxValues = action.context ?? {};
   const getText = useGetText(projectId);
+  const entries = useActionEntries();
 
   const setCtxValue = (name: string, value: string) => {
     const next = { ...ctxValues };
@@ -279,18 +240,14 @@ function OpenMenuEditor({
                     : {input.kind === "primitive" ? input.type : "sourceRef"}
                   </span>
                 </div>
-                <Input
+                <PlaceholderInput
                   value={ctxValues[input.name] ?? ""}
                   placeholder={t("actionEditor.placeholderOrLiteral", {
                     tag: `{${input.name}}`,
                   })}
-                  onChange={(e) => setCtxValue(input.name, e.target.value)}
+                  onChange={(value) => setCtxValue(input.name, value)}
+                  entries={entries}
                   className="h-7 px-2 py-0 font-mono text-xs"
-                />
-                <ArgInsertBar
-                  onInsert={(name) =>
-                    setCtxValue(input.name, `${ctxValues[input.name] ?? ""}{${name}}`)
-                  }
                 />
               </div>
             ))}
@@ -314,12 +271,12 @@ function OpenMenuEditor({
                       ×
                     </button>
                   </div>
-                  <Input
+                  <PlaceholderInput
                     value={ctxValues[k] ?? ""}
-                    onChange={(e) => setCtxValue(k, e.target.value)}
+                    onChange={(value) => setCtxValue(k, value)}
+                    entries={entries}
                     className="h-7 px-2 py-0 font-mono text-xs"
                   />
-                  <ArgInsertBar onInsert={(name) => setCtxValue(k, `${ctxValues[k] ?? ""}{${name}}`)} />
                 </div>
               ))}
             <AddContextKey
@@ -434,19 +391,18 @@ function RunCommandEditor({
   onChange: (a: Action) => void;
 }) {
   const { t } = useTranslation();
+  const entries = useActionEntries();
   return (
     <div className="flex flex-col gap-2">
       <div>
         <FieldLabel>{t("actionEditor.command")}</FieldLabel>
-        <Input
+        <PlaceholderInput
           value={action.command}
           placeholder={t("actionEditor.commandPlaceholder")}
-          onChange={(e) => onChange({ ...action, command: e.target.value })}
+          onChange={(command) => onChange({ ...action, command })}
+          entries={entries}
         />
         <div className="mt-1 text-[10px] text-[var(--text-faint)]">{t("actionEditor.commandHint")}</div>
-        <ArgInsertBar
-          onInsert={(name) => onChange({ ...action, command: `${action.command}{${name}}` })}
-        />
       </div>
       <div>
         <FieldLabel>{t("actionEditor.runAs")}</FieldLabel>
@@ -542,15 +498,9 @@ function LiteralShowTitleEditor({
 function SendMessageEditor({
   projectId,
   action,
-  menuId,
-  elementId,
-  clickType,
 }: {
   projectId: ProjectId;
   action: Extract<Action, { type: "send_message" | "broadcast" }>;
-  menuId?: MenuId;
-  elementId?: ElementId;
-  clickType?: ClickType;
 }) {
   const { t } = useTranslation();
   // We don't go through the generic `onChange(action)` callback here:
@@ -562,18 +512,7 @@ function SendMessageEditor({
   const onTextChange = (value: string) =>
     setI18nValue({ projectId, lt: action.text, lang: edit.lang, value });
 
-  const placeholderLocation = useMemo(
-    () =>
-      menuId && elementId && clickType
-        ? ({ kind: "action" as const, menuId, elementId, clickType })
-        // "" → no project scope → usePlaceholderEntries returns [] (graceful degradation)
-        : ({ kind: "menu" as const, menuId: "" as MenuId }),
-    [menuId, elementId, clickType],
-  );
-  const placeholderEntries = usePlaceholderEntries(
-    projectId,
-    placeholderLocation,
-  );
+  const placeholderEntries = useActionEntries();
 
   return (
     <div>
@@ -609,16 +548,10 @@ function ShowTitleEditor({
   projectId,
   action,
   onChange,
-  menuId,
-  elementId,
-  clickType,
 }: {
   projectId: ProjectId;
   action: Extract<Action, { type: "show_title" }>;
   onChange: (a: Action) => void;
-  menuId?: MenuId;
-  elementId?: ElementId;
-  clickType?: ClickType;
 }) {
   const { t } = useTranslation();
   const setI18nValue = useAccountStore((s) => s.setI18nValue);
@@ -626,15 +559,7 @@ function ShowTitleEditor({
   const subtitleEdit = useTextEdit(projectId, action.subtitle ?? { key: UNALLOCATED_LTEXT_KEY });
   const hasSubtitle = !!action.subtitle;
 
-  const placeholderLocation = useMemo(
-    () =>
-      menuId && elementId && clickType
-        ? ({ kind: "action" as const, menuId, elementId, clickType })
-        // "" → no project scope → usePlaceholderEntries returns [] (graceful degradation)
-        : ({ kind: "menu" as const, menuId: "" as MenuId }),
-    [menuId, elementId, clickType],
-  );
-  const placeholderEntries = usePlaceholderEntries(projectId, placeholderLocation);
+  const placeholderEntries = useActionEntries();
 
   const onTitleChange = (value: string) =>
     setI18nValue({ projectId, lt: action.title, lang: titleEdit.lang, value });
@@ -1086,6 +1011,7 @@ function SetArgEditor({
   onChange: (action: Action) => void;
 }) {
   const { t } = useTranslation();
+  const entries = useActionEntries();
   return (
     <div className="space-y-2">
       <div>
@@ -1099,10 +1025,11 @@ function SetArgEditor({
       </div>
       <div>
         <FieldLabel>{t("actionEditor.setArgValueLabel")}</FieldLabel>
-        <Input
+        <PlaceholderInput
           value={action.value}
           placeholder={t("actionEditor.setArgValuePlaceholder")}
-          onChange={(e) => onChange({ ...action, value: e.target.value })}
+          onChange={(value) => onChange({ ...action, value })}
+          entries={entries}
           className="h-7 text-[11px] font-mono"
         />
         <div className="mt-1 text-[10px] text-[var(--text-faint)]">{t("actionEditor.setArgValueHint")}</div>

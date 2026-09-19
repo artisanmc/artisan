@@ -1,4 +1,4 @@
-import type { DataSourceId, DialogId, ElementId, MenuId, Project, SourceRef } from "@/domain/types";
+import type { CommandId, DataSourceId, DialogId, ElementId, MenuId, Project, SourceRef } from "@/domain/types";
 import { describe, expect, it, vi } from "vitest";
 import { compute } from "./compute";
 
@@ -231,7 +231,7 @@ describe("PlaceholderCatalog.compute", () => {
   });
 
   // Task 5 tests
-  it("emits iteration alias leaves + pagination when the element iterates over a list of objects", () => {
+  it("emits iteration alias leaves when the element iterates over a list of objects", () => {
     const project = emptyProject();
     project.dataModels = [
       {
@@ -282,12 +282,103 @@ describe("PlaceholderCatalog.compute", () => {
       ...BUILTIN_PLAYER,
       { path: "quest.name", type: "string", sample: "Q1", origin: "iteration" },
       { path: "quest.reward", type: "integer", sample: "100", origin: "iteration" },
-      { path: "pagination.page", type: "integer", sample: "1", origin: "pagination" },
-      { path: "pagination.totalPages", type: "integer", sample: "1", origin: "pagination" },
     ]);
   });
 
-  it("does not emit iteration / pagination entries when the element does not iterate", () => {
+  it("exposes a placed element's alias from a server source's reported schema", () => {
+    const project = emptyProject();
+    project.menus.push({
+      id: "m1" as MenuId,
+      projectId: project.id,
+      title: [],
+      rows: 6,
+      layers: [
+        {
+          id: "l1" as Project["menus"][number]["layers"][number]["id"],
+          name: "default",
+          elements: [
+            {
+              id: "e1" as ElementId,
+              positions: "",
+              display: {},
+              states: [],
+              places: { source: "items", alias: "item", keyField: "id", placements: [] },
+            },
+          ],
+        },
+      ],
+      contextInputs: [{ kind: "sourceRef", name: "items", ref: "boutique:items" as SourceRef }],
+    });
+    const out = compute(
+      project,
+      { kind: "action", menuId: "m1" as MenuId, elementId: "e1" as ElementId, clickType: "left" },
+      { "boutique:items": [{ name: "id", type: "string" }, { name: "final_price", type: "integer" }] },
+    );
+    expect(out.filter((e) => e.origin === "iteration")).toEqual([
+      { path: "item.final_price", type: "integer", sample: null, origin: "iteration" },
+      { path: "item.id", type: "string", sample: null, origin: "iteration" },
+    ]);
+  });
+
+  it("resolves an iteration whose source names a server ref directly", () => {
+    const project = emptyProject();
+    project.menus.push({
+      id: "m1" as MenuId,
+      projectId: project.id,
+      title: [],
+      rows: 6,
+      layers: [
+        {
+          id: "l1" as Project["menus"][number]["layers"][number]["id"],
+          name: "default",
+          elements: [
+            {
+              id: "e1" as ElementId,
+              positions: "0-8",
+              display: {},
+              states: [],
+              iterates: { source: "boutique:categories", alias: "cat" },
+            },
+          ],
+        },
+      ],
+      contextInputs: [],
+    });
+    const out = compute(
+      project,
+      { kind: "element", menuId: "m1" as MenuId, elementId: "e1" as ElementId },
+      { "boutique:categories": [{ name: "name", type: "string" }] },
+    );
+    expect(out.filter((e) => e.origin === "iteration").map((e) => e.path)).toEqual(["cat.name"]);
+  });
+
+  it("command scope exposes its arguments next to the builtin {player}", () => {
+    const project = emptyProject();
+    project.commands.push({
+      id: "c1" as CommandId,
+      projectId: project.id,
+      name: "shop",
+      arguments: [
+        { name: "target", type: "player", required: true },
+        { name: "amount", type: "integer", required: false },
+      ],
+      steps: [],
+    });
+    const out = compute(project, { kind: "command", commandId: "c1" as CommandId });
+    expect(out.map((e) => [e.path, e.type])).toEqual([
+      ["amount", "integer"],
+      ["player", "player"],
+      ["player.name", "string"],
+      ["player.uuid", "string"],
+      ["player.world", "string"],
+      ["target", "player"],
+      ["target.name", "string"],
+      ["target.uuid", "string"],
+      ["target.world", "string"],
+    ]);
+  });
+
+  it("does not emit iteration entries when the element does not iterate", () => {
     const project = emptyProject();
     project.menus.push({
       id: "m1" as MenuId,
@@ -308,7 +399,7 @@ describe("PlaceholderCatalog.compute", () => {
       menuId: "m1" as MenuId,
       elementId: "e1" as ElementId,
     });
-    expect(out.filter((e) => e.origin === "iteration" || e.origin === "pagination")).toEqual([]);
+    expect(out.filter((e) => e.origin === "iteration")).toEqual([]);
   });
 
   it("action location returns the same scope as the parent element", () => {
@@ -405,7 +496,7 @@ describe("PlaceholderCatalog.compute", () => {
   });
 
   // Task 8 test
-  it("sorts entries by origin (context → iteration → pagination → source) then alpha by path", () => {
+  it("sorts entries by origin (context → iteration → source) then alpha by path", () => {
     const project = emptyProject();
     project.dataModels = [
       {
@@ -461,8 +552,6 @@ describe("PlaceholderCatalog.compute", () => {
       "context:player.world",
       "context:zoo",
       "iteration:quest.name",
-      "pagination:pagination.page",
-      "pagination:pagination.totalPages",
     ]);
   });
 });
