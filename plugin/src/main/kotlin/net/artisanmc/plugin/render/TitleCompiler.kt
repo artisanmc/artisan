@@ -49,6 +49,9 @@ object TitleCompiler {
      */
     internal const val TITLE_LABEL_X = 8
 
+    /** A title glyph's top lands at chest-Y `13 - ascent`. Mirrors `GLYPH_Y_BASE` in `backend/src/lib/fontJsonBuilder.ts`. */
+    internal const val GLYPH_Y_BASE = 13
+
     /** Fallback width for an image asset whose `width` is unknown (legacy v1 project). */
     private const val FALLBACK_IMAGE_WIDTH = 16
 
@@ -277,7 +280,12 @@ object TitleCompiler {
             is MenuTitleLayer.Glyph -> {
                 val entry = lookupAsset(layer.assetId) ?: return Pair("", startX)
                 val ch = entry.codepointChar ?: return Pair("", startX)
-                "<white>$ch</white>"
+                // The default font draws the glyph at `13 - ascent`. Any other Y
+                // goes through `glyph_y{Y}`, which the backend emits for each
+                // (glyph, Y) its menus use — clamped like it to `ascent <= height`.
+                val y = maxOf(layer.y, GLYPH_Y_BASE - entry.height)
+                if (y == GLYPH_Y_BASE - entry.ascent) "<white>$ch</white>"
+                else "<font:artisan:glyph_y$y><white>$ch</white></font>"
             }
             is MenuTitleLayer.Text -> {
                 val text = interpolate(resolveLText(layer.value, langMap))

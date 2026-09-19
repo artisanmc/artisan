@@ -385,3 +385,46 @@ describe("resource project — text_y matrix with size dimension", () => {
     expect(oldFormat).toHaveLength(0);
   });
 });
+
+describe("resource pack — per-layer glyph Y", () => {
+  const coin = () => row({ id: "coin", name: "coin", codepoint: 0xE000, ascent: 8, height: 9 });
+  const fontAt = (entries: Record<string, Uint8Array>, y: number) => {
+    const raw = entries[`assets/artisan/font/glyph_y${y}.json`];
+    return raw ? JSON.parse(strFromU8(raw)) : undefined;
+  };
+
+  test("emits glyph_y{Y}.json with the glyph's codepoint shifted to ascent 13 - Y", () => {
+    const { zipBytes } = buildResourcePackZip([coin()], new Map([["coin", PNG_1x1]]), new Map(), undefined, [
+      { assetId: "coin", y: 40 },
+    ]);
+    const font = fontAt(unzipSync(zipBytes), 40);
+    expect(font.providers).toEqual([
+      { type: "bitmap", file: "artisan:font/coin.png", ascent: -27, height: 9, chars: [""] },
+    ]);
+  });
+
+  test("skips the Y the default font already renders", () => {
+    const { zipBytes } = buildResourcePackZip([coin()], new Map(), new Map(), undefined, [{ assetId: "coin", y: 5 }]);
+    expect(fontAt(unzipSync(zipBytes), 5)).toBeUndefined();
+  });
+
+  test("clamps Y above the glyph's floor (ascent <= height)", () => {
+    const { zipBytes } = buildResourcePackZip([coin()], new Map(), new Map(), undefined, [{ assetId: "coin", y: -10 }]);
+    const entries = unzipSync(zipBytes);
+    expect(fontAt(entries, -10)).toBeUndefined();
+    expect(fontAt(entries, 4).providers[0].ascent).toBe(9);
+  });
+
+  test("groups glyphs sharing a Y, follows remapped codepoints, ignores unknown assets", () => {
+    const gem = row({ id: "gem", name: "gem", codepoint: 0xE001, ascent: 8, height: 9 });
+    const { zipBytes } = buildResourcePackZip(
+      [coin(), gem],
+      new Map(),
+      new Map(),
+      { finalCodepoints: new Map([["gem", 0xE042]]) },
+      [{ assetId: "gem", y: 20 }, { assetId: "coin", y: 20 }, { assetId: "coin", y: 20 }, { assetId: "ghost", y: 20 }],
+    );
+    const font = fontAt(unzipSync(zipBytes), 20);
+    expect(font.providers.map((p: { chars: string[] }) => p.chars[0])).toEqual(["", ""]);
+  });
+});

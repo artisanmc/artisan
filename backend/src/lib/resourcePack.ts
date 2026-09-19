@@ -3,7 +3,8 @@ import { existsSync } from "fs";
 import { db } from "../db/index";
 import { projects, serverKeys } from "../db/schema";
 import { buildResourcePackZip, type AssetRow } from "./resourcePackBuilder";
-import { diskAssetsFromTree, listDiskAssets, readDiskAssetBytes, type DiskAsset } from "./diskAssets";
+import { diskAssetsFromTree, readDiskAssetBytes, type DiskAsset } from "./diskAssets";
+import { glyphPlacementsFromMenus, type GlyphPlacement } from "./menuGlyphPlacements";
 import { readProjectTree } from "./projectTreeReads";
 import { requestAssetRead } from "../ws/hub";
 import { createHash } from "crypto";
@@ -61,16 +62,21 @@ export async function rebuildResourcePack(serverKeyId: string, options: { requir
   const contribs: GlyphContribution[] = [];
   const glyphPngs = new Map<string, Uint8Array>();
   const fontGlyphPngs = new Map<string, Map<string, Uint8Array>>();
+  const glyphPlacements: GlyphPlacement[] = [];
 
   for (const p of boundProjects) {
     const diskId = p.externalId ?? p.id;
     const binaryRefs = new Map<string, { hash: string; size: number }>();
-    const fromDisk = strict ? await (async () => {
-      const tree = await readProjectTree(serverKeyId, diskId, { maxAgeMs: 0 });
-      if (tree.kind !== "result" || !tree.result.ok || tree.result.failed?.length) throw new Error("resource_pack_incomplete");
-      for (const ref of tree.result.binaries ?? []) binaryRefs.set(ref.path, ref);
+    const fromDisk = await (async () => {
+      const tree = await readProjectTree(serverKeyId, diskId, strict ? { maxAgeMs: 0 } : undefined);
+      if (strict && (tree.kind !== "result" || !tree.result.ok || tree.result.failed?.length)) throw new Error("resource_pack_incomplete");
+      if (tree.kind !== "result" || !tree.result.ok) return null;
+      if (strict) for (const ref of tree.result.binaries ?? []) binaryRefs.set(ref.path, ref);
+      // Les menus disent à quelle hauteur chaque image est posée : le pack
+      // doit porter une police par hauteur utilisée.
+      glyphPlacements.push(...glyphPlacementsFromMenus(tree.result.files ?? []));
       return diskAssetsFromTree(p.id, tree.result.files ?? [], tree.result.binaries ?? []);
-    })() : await listDiskAssets(serverKeyId, diskId, p.id);
+    })();
 
     const readBytes = async (asset: DiskAsset) => {
       if (!strict) return readDiskAssetBytes(serverKeyId, diskId, asset);
@@ -136,6 +142,7 @@ export async function rebuildResourcePack(serverKeyId: string, options: { requir
     glyphPngs,
     fontGlyphPngs,
     { finalCodepoints },
+    glyphPlacements,
   );
   await writeResourcePack(serverKeyId, hash, zipBytes);
 
