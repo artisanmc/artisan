@@ -148,6 +148,17 @@ export async function rebuildResourcePack(serverKeyId: string, options: { requir
   return { url: buildPackUrl(serverKeyId, hash), hash };
 }
 
+/**
+ * Reconstruit le pack et ne le rend que s'il a changé : un reload qui ne touche
+ * aucun asset ne doit pas faire recharger le pack aux joueurs (ni relancer la
+ * commande de reload du plugin hôte en mode délégation).
+ */
+export async function refreshResourcePack(serverKeyId: string): Promise<PackInfo | null> {
+  const before = (await db.select({ hash: serverKeys.resourcePackHash }).from(serverKeys).where(eq(serverKeys.id, serverKeyId)))[0]?.hash ?? null;
+  const pack = await rebuildResourcePack(serverKeyId);
+  return pack.hash === before ? null : pack;
+}
+
 export async function currentPackInfo(serverKeyId: string): Promise<PackInfo | null> {
   const rows = await db
     .select({ hash: serverKeys.resourcePackHash })

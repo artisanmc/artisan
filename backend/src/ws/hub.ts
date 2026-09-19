@@ -16,7 +16,7 @@ import {
   projectDiskId,
 } from "../lib/projectStorage";
 import { customItemsCacheDir, readCustomItemsHash, processBundle } from "../lib/customItems";
-import { currentPackInfo } from "../lib/resourcePack";
+import { currentPackInfo, refreshResourcePack } from "../lib/resourcePack";
 import { invalidateCustomBundle } from "../routes/modelBundle";
 import type {
   HeadTextureResultMessage,
@@ -1187,6 +1187,10 @@ export async function handlePluginMessage(
       if (!editorTokenToServers.get(sessionId)?.has(serverId)) continue;
       send(payload);
     }
+    // Publier un brouillon, ou `/artisan reload`, est le seul moment où les
+    // assets du disque changent : le pack suit, sans bloquer ce message (sa
+    // reconstruction relit le disque par cette même connexion).
+    refreshPackAfterReload(serverId);
     return { reply: null };
   }
 
@@ -1417,6 +1421,20 @@ export async function getMcVersion(serverKeyId: string): Promise<string | undefi
   const persisted = rows[0]?.lastMcVersion ?? undefined;
   if (persisted) serverIdToMcVersion.set(serverKeyId, persisted);
   return persisted;
+}
+
+const packRefreshes = new Map<string, Promise<void>>();
+
+/** Sérialisé par serveur : deux reloads rapprochés ne reconstruisent pas en parallèle. */
+function refreshPackAfterReload(serverKeyId: string): void {
+  const next = (packRefreshes.get(serverKeyId) ?? Promise.resolve())
+    .then(async () => {
+      const pack = await refreshResourcePack(serverKeyId);
+      if (pack) pushResourcePackUpdated(serverKeyId, pack.url, pack.hash);
+    })
+    .catch((error) => console.error("[resource-pack] rebuild after reload failed", serverKeyId, error));
+  packRefreshes.set(serverKeyId, next);
+  void next.finally(() => { if (packRefreshes.get(serverKeyId) === next) packRefreshes.delete(serverKeyId); });
 }
 
 export function pushResourcePackUpdated(serverKeyId: string, url: string, hash: string): void {
