@@ -834,6 +834,9 @@ export default {
   assetUpload: {
     title: "Upload image",
     file: "File",
+    dropPrompt: "Drop a PNG here or click to browse",
+    dropHint: "PNG image",
+    clear: "Remove file",
     name: "Name",
     namePlaceholder: "lowercase, digits, _ and - only",
     cancel: "Cancel",
