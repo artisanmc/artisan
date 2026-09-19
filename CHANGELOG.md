@@ -9,6 +9,15 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Fixed — title images move vertically
+
+- An image in a composed title now stays where you drop it, vertically as well as horizontally. It used to jump back to the height set by its asset's ascent, shared by every menu using that image. Each image layer now has its own **Y**: the resource pack gets a `glyph_y{Y}` font for each height a menu uses, and the plugin draws the image through it. An image can go no higher than `y = 13 - height` (Minecraft rejects a font whose ascent exceeds its height).
+- Ctrl+Z after moving a title image puts it back: a drop that moved nothing no longer took an undo step of its own.
+
+### Added — upload an image from the title picker
+
+- **Choose an image** in a title layer has an **Upload** button: the new image is uploaded and placed on the layer directly. Uploading an image fills its name from the file name (lowercase, accents removed); a name you typed is kept.
+
 ### Changed — action placeholders match the lore
 
 - Action text fields (command, values passed to a menu, `set_arg`) now autocomplete variables after `{`, like the lore, instead of showing an insert bar. They offer what the server actually provides: the menu inputs, the clicked row of an iterating **or placed** element (server sources included), a command's arguments, and `{player}`. `{slot}`, `{material}` and `{pagination.*}` are no longer suggested — the server never filled them in.

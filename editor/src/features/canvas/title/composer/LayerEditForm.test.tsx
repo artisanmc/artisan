@@ -17,6 +17,7 @@ vi.mock("@/features/assets/AssetPicker", () => ({
       <button
         data-testid="asset-picker"
         data-type-filter={props.typeFilter}
+        data-project-id={props.projectId}
         onClick={() => props.onPick({ id: "g_new", name: "new", type: "glyph" })}
       >
         pick
@@ -196,6 +197,21 @@ describe("LayerEditForm — image layer (glyph)", () => {
     } as any);
     seedProject([{ kind: "glyph", assetId: A("g1"), x: 10, y: 4 }]);
     selectLayer(0);
+  });
+
+  it("the Y input moves the layer, not its asset", () => {
+    render(<LayerEditForm projectId={PACK_ID} />);
+    const inputs = screen.getAllByRole("spinbutton") as HTMLInputElement[];
+    const yInput = inputs.find((i) => Number(i.value) === 4)!;
+    fireEvent.change(yInput, { target: { value: "30" } });
+    const layer = useAccountStore.getState().account.projects[0]!.menus[0]!.title[0]!;
+    expect((layer as any).y).toBe(30);
+  });
+
+  it("opens the picker with the project so an image can be uploaded from it", () => {
+    render(<LayerEditForm projectId={PACK_ID} />);
+    fireEvent.click(screen.getByRole("button", { name: /choisir une image/i }));
+    expect(screen.getByTestId("asset-picker").getAttribute("data-project-id")).toBe(PACK_ID);
   });
 
   it("shows asset picker + Duplicate glyph button", () => {

@@ -810,6 +810,13 @@ export default {
     textPlaceholder: "<gold>Title text…",
     textareaPlaceholder: "<gold>Line 1\nLine 2…",
     plainPlaceholder: "Title text…",
+    image: {
+      x: "X",
+      y: "Y",
+      positionHint: "Pixels from the chest's top-left corner. An image can't go higher than y = {{floor}}.",
+      calibrate: "Align as chest background (x=0, y={{y}})",
+      calibrateHint: "To line up the chest AND the player inventory, add 1 px of transparent padding at the top of the PNG.",
+    },
     size: {
       label: "Size",
       align: "Adjust line spacing",
@@ -823,6 +830,17 @@ export default {
         xxl: "Giant (32)",
       },
     },
+  },
+  assetUpload: {
+    title: "Upload image",
+    file: "File",
+    name: "Name",
+    namePlaceholder: "lowercase, digits, _ and - only",
+    cancel: "Cancel",
+    submit: "Upload",
+  },
+  assetPicker: {
+    upload: "Upload",
   },
   sync: {
     deleteProjectDialog: {

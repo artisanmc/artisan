@@ -791,13 +791,30 @@ describe("TitleRender", () => {
     render(<TitleRender projectId={PACK_ID} menuId={MENU_ID} scale={TEX_SCALE} />);
     const group = screen.getAllByTestId("group")[0]!;
     // Simulate Konva's onDragEnd at (24px, 10px) in stage coords. At scale=2
-    // that's domain (12, 5) for x. Y is pinned to GLYPH_Y_BASE - ascent =
-    // 13 - 7 = 6 (glyph layers ignore drag Y; position comes from ascent).
+    // that's domain (12, 5): a glyph keeps the Y it was dropped at.
     dispatchDragEnd(group, { x: 24, y: 10 });
     const layer = getTitle()[0]!;
     if (layer.kind !== "glyph") throw new Error("expected glyph layer");
     expect(layer.x).toBe(12);
-    expect(layer.y).toBe(6);
+    expect(layer.y).toBe(5);
+  });
+
+  it("a glyph dragged above its floor stops at 13 - height (MC: ascent <= height)", () => {
+    seedProject([{ kind: "glyph", assetId: ASSET_GLYPH, x: 0, y: 20 }]);
+    useAssetStore.getState().setAssets([GLYPH_ASSET]);
+    render(<TitleRender projectId={PACK_ID} menuId={MENU_ID} scale={TEX_SCALE} />);
+    dispatchDragEnd(screen.getAllByTestId("group")[0]!, { x: 0, y: -40 });
+    const layer = getTitle()[0]!;
+    if (layer.kind !== "glyph") throw new Error("expected glyph layer");
+    // GLYPH_ASSET height = 9 → floor 13 - 9 = 4.
+    expect(layer.y).toBe(4);
+  });
+
+  it("glyph layer is drawn at its own y, not at its asset's ascent", () => {
+    seedProject([{ kind: "glyph", assetId: ASSET_GLYPH, x: 10, y: 40 }]);
+    useAssetStore.getState().setAssets([GLYPH_ASSET]);
+    render(<TitleRender projectId={PACK_ID} menuId={MENU_ID} scale={TEX_SCALE} />);
+    expect(screen.getAllByTestId("group")[0]!.getAttribute("data-y")).toBe(String(40 * TEX_SCALE));
   });
 
   it("layer drag events set cancelBubble=true so MenuGroup's drag handler doesn't fire (bug fix)", () => {

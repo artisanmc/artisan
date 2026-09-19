@@ -826,6 +826,13 @@ const fr: typeof en = {
     textPlaceholder: "<gold>Texte du titre…",
     textareaPlaceholder: "<gold>Ligne 1\nLigne 2…",
     plainPlaceholder: "Texte du titre…",
+    image: {
+      x: "X",
+      y: "Y",
+      positionHint: "Pixels depuis le coin haut gauche du coffre. Une image ne peut pas monter plus haut que y = {{floor}}.",
+      calibrate: "Caler en fond de coffre (x=0, y={{y}})",
+      calibrateHint: "Pour aligner le coffre ET l’inventaire joueur, ajoute 1 px de marge transparente en haut du PNG.",
+    },
     size: {
       label: "Taille",
       align: "Ajuster l’interligne",
@@ -839,6 +846,17 @@ const fr: typeof en = {
         xxl: "Géant (32)",
       },
     },
+  },
+  assetUpload: {
+    title: "Importer une image",
+    file: "Fichier",
+    name: "Nom",
+    namePlaceholder: "minuscules, chiffres, _ et - uniquement",
+    cancel: "Annuler",
+    submit: "Importer",
+  },
+  assetPicker: {
+    upload: "Importer",
   },
   sync: {
     deleteProjectDialog: {

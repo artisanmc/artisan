@@ -13,7 +13,7 @@ import { assetPreviewUrl } from "@/domain/asset";
 import type { AssetId, MenuTitleLayer, ProjectId } from "@/domain/types";
 import { AssetPicker } from "@/features/assets/AssetPicker";
 import { useAssetStore } from "@/features/assets/assetStore";
-import { duplicateAsset, patchAsset } from "@/lib/api/userAssets";
+import { duplicateAsset } from "@/lib/api/userAssets";
 import { cn } from "@/lib/cx";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { useTextEdit } from "@/lib/useText";
@@ -99,18 +99,17 @@ export function LayerEditForm({ projectId }: LayerEditFormProps) {
 // ─── Image (background | glyph) ────────────────────────────────────────────
 
 /**
- * MC font rendering formula (empirically confirmed): glyph_top = 13 - ascent.
- *
  * generic_54.png asymmetry (Mojang bug): chest slot border is at y=17 but the item
  * area starts at y=18 (1 px gap). Player-inv slot border AND item area are both at
  * y=139 (no gap). A single glyph cannot perfectly align both sections at once.
  *
- * Workaround: add 1 px of transparent padding at the very top of the background PNG.
- * With ascent=-4 (glyph at y=17): transparent pixel 0→y=17 (border), actual image
- * content pixel 1→y=18 (chest item area) ✓, pixel 122→y=139 (player-inv) ✓.
+ * Workaround: add 1 px of transparent padding at the very top of the background PNG,
+ * then place it at y=17: transparent pixel 0→y=17 (border), content pixel 1→y=18
+ * (chest item area) ✓, pixel 122→y=139 (player-inv) ✓.
  */
-const ASCENT_FOR_CHEST_BACKGROUND = -4;
-const Y_FOR_CHEST_BACKGROUND = 17; // glyph top = chest slot border row
+const Y_FOR_CHEST_BACKGROUND = 17;
+/** MC draws a glyph at `13 - ascent`, and ascent may not exceed height. */
+const GLYPH_Y_BASE = 13;
 
 interface ImageLayerFormProps {
   projectId: ProjectId;
@@ -128,11 +127,7 @@ function ImageLayerForm({ projectId, menuId, index, layer }: ImageLayerFormProps
   const user = useAuthStore((s) => s.currentUser);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [duplicating, setDuplicating] = useState(false);
-  const [patchingAscent, setPatchingAscent] = useState(false);
-
-  const isGlyph = asset?.type === "glyph";
-  const currentAscent = asset?.ascent ?? null;
-  const currentX = layer.kind === "glyph" ? layer.x : 0;
+  const { t } = useTranslation();
 
   const onPick = (picked: Asset) => {
     updateLayer({
@@ -170,30 +165,8 @@ function ImageLayerForm({ projectId, menuId, index, layer }: ImageLayerFormProps
     }
   };
 
-  const TITLE_LABEL_Y = 13;
-
-  const onPatchAscent = async (value: number) => {
-    if (!user || !asset) return;
-    setPatchingAscent(true);
-    try {
-      const updated = await patchAsset(projectId, asset.id, { ascent: value });
-      upsertAsset(updated);
-      // Keep layer.y in sync with the new ascent so the canvas reflects the
-      // change immediately (layer.y = titleLabelY - ascent).
-      if (layer.kind === "glyph") {
-        updateLayer({
-          projectId,
-          menuId,
-          index,
-          patch: { y: TITLE_LABEL_Y - value } as Partial<MenuTitleLayer>,
-        });
-      }
-    } catch (err) {
-      console.error("LayerEditForm: ascent patch failed", err);
-    } finally {
-      setPatchingAscent(false);
-    }
-  };
+  const setPosition = (patch: { x?: number; y?: number }) =>
+    updateLayer({ projectId, menuId, index, patch: patch as Partial<MenuTitleLayer> });
 
   return (
     <div className="flex flex-col gap-3 text-xs text-zinc-300">
@@ -236,71 +209,43 @@ function ImageLayerForm({ projectId, menuId, index, layer }: ImageLayerFormProps
 
       {layer.kind === "glyph" && (
         <div className="flex flex-col gap-1.5">
-          <div className="text-[10px] uppercase text-zinc-500">Position horizontale (x)</div>
-          <Input
-            type="number"
-            value={currentX}
-            onChange={(e) => {
-              const v = Number.parseInt(e.target.value, 10);
-              if (Number.isFinite(v)) {
-                updateLayer({ projectId, menuId, index, patch: { x: v } as Partial<MenuTitleLayer> });
-              }
-            }}
-            className="h-7 w-20 font-mono text-xs"
-          />
-          <div className="text-[10px] text-zinc-500">
-            Position depuis le bord gauche du coffre (px).
+          <div className="flex gap-3">
+            {(["x", "y"] as const).map((axis) => (
+              <div key={axis} className="flex flex-col gap-1">
+                <span className="field-label">{t(`layerEditForm.image.${axis}`)}</span>
+                <Input
+                  type="number"
+                  aria-label={t(`layerEditForm.image.${axis}`)}
+                  value={layer[axis]}
+                  onChange={(e) => {
+                    const v = Number.parseInt(e.target.value, 10);
+                    if (Number.isFinite(v)) setPosition({ [axis]: v });
+                  }}
+                  className="h-7 w-20 font-mono text-xs"
+                />
+              </div>
+            ))}
           </div>
-        </div>
-      )}
-
-      {isGlyph && (
-        <div className="flex flex-col gap-1.5">
-          <div className="text-[10px] uppercase text-zinc-500">Position verticale (ascent)</div>
-          <Input
-            type="number"
-            key={currentAscent}
-            defaultValue={currentAscent ?? 8}
-            disabled={patchingAscent}
-            className="h-7 w-20 font-mono text-xs"
-            onBlur={(e) => {
-              const v = Number.parseInt(e.target.value, 10);
-              if (Number.isFinite(v) && v !== currentAscent) onPatchAscent(v);
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                const v = Number.parseInt((e.target as HTMLInputElement).value, 10);
-                if (Number.isFinite(v) && v !== currentAscent) onPatchAscent(v);
-              }
-            }}
-          />
+          <div className="text-[10px] text-[var(--text-faint)] leading-snug">
+            {t("layerEditForm.image.positionHint", { floor: asset ? GLYPH_Y_BASE - asset.height : "…" })}
+          </div>
           <Button
             size="sm"
             variant="outline"
-            disabled={patchingAscent}
             className="text-[11px]"
-            onClick={() => {
-              onPatchAscent(ASCENT_FOR_CHEST_BACKGROUND);
-              if (layer.kind === "glyph") {
-                updateLayer({
-                  projectId,
-                  menuId,
-                  index,
-                  patch: { x: 0, y: Y_FOR_CHEST_BACKGROUND } as Partial<MenuTitleLayer>,
-                });
-              }
-            }}
+            onClick={() => setPosition({ x: 0, y: Y_FOR_CHEST_BACKGROUND })}
           >
-            {patchingAscent ? "…" : `Calibrer pour coffre (x=0, y=${Y_FOR_CHEST_BACKGROUND}, ascent ${ASCENT_FOR_CHEST_BACKGROUND})`}
+            {t("layerEditForm.image.calibrate", { y: Y_FOR_CHEST_BACKGROUND })}
           </Button>
-          <div className="text-[10px] text-zinc-500 leading-snug">
-            {`Zone des slots : ascent ${ASCENT_FOR_CHEST_BACKGROUND} → glyphe à y=${Y_FOR_CHEST_BACKGROUND} (bordure du coffre). Pour aligner coffre ET inventaire joueur simultanément, ajoute 1px de padding transparent en haut du PNG.`}
+          <div className="text-[10px] text-[var(--text-faint)] leading-snug">
+            {t("layerEditForm.image.calibrateHint")}
           </div>
         </div>
       )}
 
       <AssetPicker
         open={pickerOpen}
+        projectId={projectId}
         // No typeFilter → shows every image asset (texture + glyph). The
         // upload UX no longer distinguishes the two, so the picker
         // shouldn't either.

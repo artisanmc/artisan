@@ -1,9 +1,14 @@
+import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import type { Asset, AssetType } from "@/domain/asset";
+import type { ProjectId } from "@/domain/types";
 import { assetPreviewUrl } from "@/domain/asset";
 import { cx } from "@/lib/cx";
+import { Upload } from "lucide-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
+import { AssetUploadDialog } from "./AssetUploadDialog";
 import { useAssetStore } from "./assetStore";
 
 interface AssetPickerProps {
@@ -20,15 +25,19 @@ interface AssetPickerProps {
   typeFilter?: AssetType | AssetType[];
   onPick: (asset: Asset) => void;
   title?: string;
+  /** Offers uploading a new image, picked as soon as it lands. */
+  projectId?: ProjectId;
 }
 
 // What we show when no `typeFilter` is provided. Excludes `font` because
 // fonts aren't pickable as images in any current call site.
 const DEFAULT_IMAGE_TYPES: AssetType[] = ["texture", "glyph"];
 
-export function AssetPicker({ open, onClose, typeFilter, onPick, title }: AssetPickerProps) {
+export function AssetPicker({ open, onClose, typeFilter, onPick, title, projectId }: AssetPickerProps) {
+  const { t } = useTranslation();
   const all = useAssetStore((s) => s.assets);
   const [search, setSearch] = useState("");
+  const [uploadOpen, setUploadOpen] = useState(false);
 
   const allowedTypes: AssetType[] =
     typeFilter === undefined
@@ -53,8 +62,14 @@ export function AssetPicker({ open, onClose, typeFilter, onPick, title }: AssetP
       }}
     >
       <DialogContent className="flex max-h-[80vh] flex-col gap-3 border-[var(--border-soft)] bg-[var(--surface)] p-3 text-[var(--text)]">
-        <DialogHeader>
+        <DialogHeader className="flex-row items-center justify-between gap-2 pr-8">
           <DialogTitle className="text-sm">{title ?? `Pick a ${typeLabel}`}</DialogTitle>
+          {projectId && (
+            <Button size="sm" variant="outline" onClick={() => setUploadOpen(true)}>
+              <Upload className="size-3.5" />
+              {t("assetPicker.upload")}
+            </Button>
+          )}
         </DialogHeader>
         <Input placeholder="Search..." value={search} onChange={(e) => setSearch(e.target.value)} />
         <div className="grid min-h-0 grid-cols-6 gap-1.5 overflow-y-auto pb-2">
@@ -90,6 +105,17 @@ export function AssetPicker({ open, onClose, typeFilter, onPick, title }: AssetP
           )}
         </div>
       </DialogContent>
+      {projectId && (
+        <AssetUploadDialog
+          projectId={projectId}
+          open={uploadOpen}
+          onClose={() => setUploadOpen(false)}
+          onUploaded={(asset) => {
+            onPick(asset);
+            onClose();
+          }}
+        />
+      )}
     </Dialog>
   );
 }
