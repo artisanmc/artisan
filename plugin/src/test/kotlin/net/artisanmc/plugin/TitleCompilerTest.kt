@@ -84,6 +84,24 @@ class TitleCompilerTest {
     }
 
     @Test
+    fun `compileLayerBody for glyph off its default y wraps in the matching glyph_y font`() {
+        val layer = MenuTitleLayer.Glyph(assetId = "asset_coin", x = 32, y = 40)
+        val ch = 57344.toChar()
+        val lookup = stubLookup(mapOf("asset_coin" to glyphEntry("coin", 57344)))
+        val (s, _) = TitleCompiler.compileLayerBody(layer, 0, emptyMap(), lookup, OffsetEncoder.EMPTY)
+        assertEquals("<font:artisan:glyph_y40><white>$ch</white></font>", s)
+    }
+
+    @Test
+    fun `compileLayerBody for glyph above its floor clamps y to 13 minus height`() {
+        val layer = MenuTitleLayer.Glyph(assetId = "asset_coin", x = 32, y = -10)
+        val ch = 57344.toChar()
+        val lookup = stubLookup(mapOf("asset_coin" to glyphEntry("coin", 57344)))
+        val (s, _) = TitleCompiler.compileLayerBody(layer, 0, emptyMap(), lookup, OffsetEncoder.EMPTY)
+        assertEquals("<font:artisan:glyph_y4><white>$ch</white></font>", s)
+    }
+
+    @Test
     fun `compileLayerBody for unknown glyph asset returns empty string`() {
         val layer = MenuTitleLayer.Glyph(assetId = "asset_missing", x = 32, y = 5)
         val (s, _) = TitleCompiler.compileLayerBody(layer, 0, emptyMap(), emptyLookup, OffsetEncoder.EMPTY)
