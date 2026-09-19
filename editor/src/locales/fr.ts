@@ -850,6 +850,9 @@ const fr: typeof en = {
   assetUpload: {
     title: "Importer une image",
     file: "Fichier",
+    dropPrompt: "Déposez un PNG ici ou cliquez pour parcourir",
+    dropHint: "Image PNG",
+    clear: "Retirer le fichier",
     name: "Nom",
     namePlaceholder: "minuscules, chiffres, _ et - uniquement",
     cancel: "Annuler",

@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { FileDropzone } from "@/components/ui/file-dropzone";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import type { Asset } from "@/domain/asset";
@@ -93,14 +94,15 @@ export function AssetUploadDialog({ projectId, open, onClose, onUploaded }: Asse
           <DialogTitle>{t("assetUpload.title")}</DialogTitle>
         </DialogHeader>
         <div className="flex flex-col gap-3">
-          <label className="text-xs">
-            {t("assetUpload.file")}
-            <input
-              type="file"
-              accept="image/png"
-              onChange={(e) => onFile(e.target.files?.[0] ?? null)}
-            />
-          </label>
+          <FileDropzone
+            file={file}
+            onFile={onFile}
+            accept="image/png"
+            label={t("assetUpload.file")}
+            prompt={t("assetUpload.dropPrompt")}
+            hint={t("assetUpload.dropHint")}
+            clearLabel={t("assetUpload.clear")}
+          />
           <label className="text-xs">
             {t("assetUpload.name")}
             <Input

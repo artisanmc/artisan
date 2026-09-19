@@ -23,6 +23,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { EmptyState } from "@/components/ui/empty-state";
+import { FileDropzone } from "@/components/ui/file-dropzone";
 import { FileDiff } from "@/components/ui/file-diff";
 import { SaveFilledIcon } from "@/components/ui/filled-icons";
 import { FormField } from "@/components/ui/form-field";
@@ -393,6 +394,12 @@ export function DesignSystemPage() {
               Toujours accompagné de ce qu'on attend : un rond qui tourne seul n'informe de rien.
             </p>
           </div>
+          <div className="flex max-w-sm flex-col gap-2">
+            <span className="mono text-[11px] text-[var(--text-faint)]">
+              {"<FileDropzone file onFile accept label prompt hint>"}
+            </span>
+            <FileDropzoneSpecimen />
+          </div>
           <div className="flex flex-col gap-2">
             <span className="mono text-[11px] text-[var(--text-faint)]">
               {"<EmptyState icon title hint action>"}
@@ -676,6 +683,21 @@ export function DesignSystemPage() {
  *  History, Assistant) — REPLACES the canvas in the center region instead of
  *  floating as a modal. Opaque, keep-alive; Esc / × return to the canvas. Shown
  *  here inside a relative demo box (it absolutely fills its positioned parent). */
+function FileDropzoneSpecimen() {
+  const [file, setFile] = useState<File | null>(null);
+  return (
+    <FileDropzone
+      file={file}
+      onFile={setFile}
+      accept="image/png"
+      label="FileDropzone"
+      prompt="FileDropzone prompt"
+      hint="FileDropzone hint"
+      clearLabel="clear"
+    />
+  );
+}
+
 function WorkspaceViewSpecimen() {
   const [active, setActive] = useState(false);
   return (
