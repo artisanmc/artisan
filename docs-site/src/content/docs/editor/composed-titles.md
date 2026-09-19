@@ -17,3 +17,9 @@ block. Changing alignment or width keeps the left edge of the block in place.
 Existing Text and Textarea layers both appear as **Texte** and remain editable.
 Their translations are retained when editing them through the unified controls.
 Composed titles require the server's resource pack; vanilla title mode is unchanged.
+
+Image layers are dragged freely, or placed with their **X** and **Y** fields. An
+image can't go above `y = 13 − its height`. **Choose an image** lists the project's
+images and has an **Upload** button to add a new one; its name defaults to the file
+name. A newly placed height reaches players with the next resource pack, sent after
+**Deploy**.

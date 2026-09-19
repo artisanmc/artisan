@@ -22,12 +22,9 @@ function findMenu(menuId: MenuId): { projectId: ProjectId; layer: MenuTitleLayer
 }
 
 /**
- * Handles drag-end for title layers.
- *
- * Updates layer.x / layer.y in the local account store. Asset.ascent is the
- * source of truth for glyph positioning and is edited via LayerEditForm's
- * asset PATCH, not here — a drag snaps back to the ascent-derived position
- * on release.
+ * Handles drag-end for title layers: updates layer.x / layer.y in the local
+ * account store. A drop that moves nothing is skipped so it doesn't take an
+ * undo step of its own.
  */
 export function useTitleLayerDrag(args: UseTitleLayerDragArgs): UseTitleLayerDragHandlers {
   const { menuId, layerIndex } = args;
@@ -38,6 +35,7 @@ export function useTitleLayerDrag(args: UseTitleLayerDragArgs): UseTitleLayerDra
       if (!found) return;
       const layer = found.layer[layerIndex];
       if (!layer || layer.kind === "background") return;
+      if ("x" in layer && layer.x === newPos.x && layer.y === newPos.y) return;
 
       useAccountStore.getState().updateMenuTitleLayer({
         projectId: found.projectId,

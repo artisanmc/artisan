@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import * as userAssetsApi from "@/lib/api/userAssets";
+
+vi.mock("@/state/authStore", () => ({
+  useAuthStore: (sel: (s: { currentUser: { id: string } | null }) => unknown) => sel({ currentUser: { id: "u1" } }),
+}));
 import { AssetPicker } from "./AssetPicker";
 import { useAssetStore } from "./assetStore";
 import type { Asset } from "@/domain/asset";
@@ -67,5 +72,24 @@ describe("AssetPicker", () => {
     );
     expect(screen.getByTitle("shop_bg")).toBeTruthy();
     expect(screen.getByTitle("coin")).toBeTruthy();
+  });
+
+  it("without a projectId offers no upload", () => {
+    render(<AssetPicker open onClose={() => {}} onPick={() => {}} />);
+    expect(screen.queryByRole("button", { name: /importer/i })).toBeNull();
+  });
+
+  it("uploads a new image from the picker and picks it", async () => {
+    const uploaded: Asset = { ...GLYPH, id: "gem", name: "gem", codepoint: 0xE001 };
+    vi.spyOn(userAssetsApi, "uploadAsset").mockResolvedValue(uploaded);
+    const onPick = vi.fn();
+    const onClose = vi.fn();
+    render(<AssetPicker projectId={"p1" as never} open onClose={onClose} onPick={onPick} />);
+    fireEvent.click(screen.getByRole("button", { name: /importer/i }));
+    const file = new File([new Uint8Array([1])], "gem.png", { type: "image/png" });
+    fireEvent.change(screen.getByLabelText(/fichier/i), { target: { files: [file] } });
+    fireEvent.click(screen.getAllByRole("button", { name: /^importer$/i }).at(-1)!);
+    await waitFor(() => expect(onPick).toHaveBeenCalledWith(uploaded));
+    expect(onClose).toHaveBeenCalled();
   });
 });

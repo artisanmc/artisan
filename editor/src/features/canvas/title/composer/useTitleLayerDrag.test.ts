@@ -126,6 +126,23 @@ describe("useTitleLayerDrag", () => {
       expect(after).toEqual(before);
     });
 
+    it("a drop at the layer's current position leaves no undo entry", async () => {
+      seedMenuTitle([{ kind: "glyph", assetId: ASSET_GLYPH.id as AssetId, x: 4, y: 20 }]);
+      useAccountStore.temporal.getState().clear();
+      const { result } = renderHook(() => useTitleLayerDrag({ menuId: M_ID, layerIndex: 0 }));
+      await act(async () => result.current.onPositionChange({ x: 4, y: 20 }));
+      expect(useAccountStore.temporal.getState().pastStates).toHaveLength(0);
+    });
+
+    it("ctrl+z after a drag puts the layer back", async () => {
+      seedMenuTitle([{ kind: "glyph", assetId: ASSET_GLYPH.id as AssetId, x: 4, y: 20 }]);
+      useAccountStore.temporal.getState().clear();
+      const { result } = renderHook(() => useTitleLayerDrag({ menuId: M_ID, layerIndex: 0 }));
+      await act(async () => result.current.onPositionChange({ x: 30, y: 50 }));
+      act(() => useAccountStore.temporal.getState().undo());
+      expect(getTitle()[0]).toMatchObject({ x: 4, y: 20 });
+    });
+
     it("does not crash with an invalid layer index", async () => {
       seedMenuTitle([{ kind: "background", assetId: ASSET_BG.id as AssetId }]);
       const { result } = renderHook(() => useTitleLayerDrag({ menuId: M_ID, layerIndex: 99 }));

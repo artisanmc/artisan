@@ -29,10 +29,10 @@ describe("AssetUploadDialog", () => {
 
     render(<AssetUploadDialog projectId={"p1" as never} open onClose={onClose} />);
 
-    fireEvent.change(screen.getByLabelText(/name/i), { target: { value: "tex" } });
+    fireEvent.change(screen.getByLabelText(/^nom/i), { target: { value: "tex" } });
     const file = new File([new Uint8Array([1, 2, 3])], "tex.png", { type: "image/png" });
-    fireEvent.change(screen.getByLabelText(/file/i), { target: { files: [file] } });
-    fireEvent.click(screen.getByRole("button", { name: /upload/i }));
+    fireEvent.change(screen.getByLabelText(/fichier/i), { target: { files: [file] } });
+    fireEvent.click(screen.getByRole("button", { name: /importer/i }));
 
     await waitFor(() => expect(spy).toHaveBeenCalled());
     // Every upload routes through the `glyph` codepath — the user no longer
@@ -45,10 +45,10 @@ describe("AssetUploadDialog", () => {
   it("shows an error if upload fails", async () => {
     vi.spyOn(userAssetsApi, "uploadAsset").mockRejectedValue(new Error("Asset name already exists"));
     render(<AssetUploadDialog projectId={"p1" as never} open onClose={() => {}} />);
-    fireEvent.change(screen.getByLabelText(/name/i), { target: { value: "x" } });
+    fireEvent.change(screen.getByLabelText(/^nom/i), { target: { value: "x" } });
     const file = new File([new Uint8Array([1])], "x.png", { type: "image/png" });
-    fireEvent.change(screen.getByLabelText(/file/i), { target: { files: [file] } });
-    fireEvent.click(screen.getByRole("button", { name: /upload/i }));
+    fireEvent.change(screen.getByLabelText(/fichier/i), { target: { files: [file] } });
+    fireEvent.click(screen.getByRole("button", { name: /importer/i }));
     await waitFor(() => expect(screen.getByText(/Asset name already exists/i)).toBeTruthy());
   });
 
@@ -60,5 +60,35 @@ describe("AssetUploadDialog", () => {
     expect(screen.queryByLabelText(/^glyph$/i)).toBeNull();
     // Ascent has likewise disappeared (was gated on type=glyph).
     expect(screen.queryByLabelText(/ascent/i)).toBeNull();
+  });
+
+  it("names the asset after the chosen file", () => {
+    render(<AssetUploadDialog projectId={"p1" as never} open onClose={() => {}} />);
+    const file = new File([new Uint8Array([1])], "Mon Icône 2.png", { type: "image/png" });
+    fireEvent.change(screen.getByLabelText(/fichier/i), { target: { files: [file] } });
+    expect((screen.getByLabelText(/^nom/i) as HTMLInputElement).value).toBe("mon_icone_2");
+  });
+
+  it("keeps a name the user typed when a file is chosen", () => {
+    render(<AssetUploadDialog projectId={"p1" as never} open onClose={() => {}} />);
+    fireEvent.change(screen.getByLabelText(/^nom/i), { target: { value: "coin" } });
+    const file = new File([new Uint8Array([1])], "other.png", { type: "image/png" });
+    fireEvent.change(screen.getByLabelText(/fichier/i), { target: { files: [file] } });
+    expect((screen.getByLabelText(/^nom/i) as HTMLInputElement).value).toBe("coin");
+  });
+
+  it("hands the uploaded asset to onUploaded", async () => {
+    const fakeAsset = {
+      id: "coin", projectId: "p1", type: "glyph" as const, name: "coin",
+      width: 16, height: 16, ascent: 7, codepoint: 0xe000, fontMeta: null,
+      contentHash: "h", createdAt: "", updatedAt: "",
+    };
+    vi.spyOn(userAssetsApi, "uploadAsset").mockResolvedValue(fakeAsset);
+    const onUploaded = vi.fn();
+    render(<AssetUploadDialog projectId={"p1" as never} open onClose={() => {}} onUploaded={onUploaded} />);
+    const file = new File([new Uint8Array([1])], "coin.png", { type: "image/png" });
+    fireEvent.change(screen.getByLabelText(/fichier/i), { target: { files: [file] } });
+    fireEvent.click(screen.getByRole("button", { name: /importer/i }));
+    await waitFor(() => expect(onUploaded).toHaveBeenCalledWith(fakeAsset));
   });
 });

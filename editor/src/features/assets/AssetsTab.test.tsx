@@ -39,8 +39,8 @@ describe("AssetsTab", () => {
   it("opens the upload dialog when clicking Upload", () => {
     useAssetStore.getState().setAssets([]);
     render(<AssetsTab />);
-    fireEvent.click(screen.getByRole("button", { name: /upload/i }));
-    expect(screen.getByText(/upload asset/i)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /^upload$/i }));
+    expect(screen.getByText(/importer une image/i)).toBeTruthy();
   });
 
   it("filters by search query (case-insensitive)", () => {
