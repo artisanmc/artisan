@@ -168,6 +168,7 @@ export function ImageButtonEditor({
         </p>
       )}
       <AssetPicker
+        usage="button"
         open={picking}
         projectId={projectId}
         onClose={() => setPicking(false)}

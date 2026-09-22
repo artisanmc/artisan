@@ -10,6 +10,21 @@ import { diskAssetsFromTree } from "./diskAssets";
 describe("diskAssetsFromTree", () => {
   const bin = (path: string, hash = "h") => ({ path, hash, size: 10 });
 
+  test("image usage metadata survives descriptor round trips and preserves unclassified images", () => {
+    const files = [
+      { path: "assets/glyphs/button.yaml", content: "usages: [button, decoration, button]\n" },
+      { path: "assets/textures/background.yaml", content: "usages: [background]\n" },
+      { path: "assets/glyphs/unclassified.yaml", content: "usages: []\n" },
+      { path: "assets/glyphs/invalid.yaml", content: "usages: [unknown]\n" },
+    ];
+    const assets = diskAssetsFromTree("p", files, [
+      ...files.map((f) => bin(f.path.replace(".yaml", ".png"))),
+      bin("assets/glyphs/legacy.png"),
+    ]);
+    const usages = Object.fromEntries(assets.map((asset) => [asset.row.id, asset.row.usages]));
+    expect(usages).toEqual({ button: ["button", "menu"], background: ["menu"], unclassified: [], invalid: undefined, legacy: undefined });
+  });
+
   test("le nom de fichier est l'identité, le dossier donne le type", () => {
     const found = diskAssetsFromTree(
       "p1",

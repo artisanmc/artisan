@@ -15,6 +15,7 @@ vi.mock("@/features/assets/AssetPicker", () => ({
   AssetPicker: (props: any) =>
     props.open ? (
       <button
+        type="button"
         data-testid="asset-picker"
         data-type-filter={props.typeFilter}
         onClick={() => props.onPick({ id: "g_new", name: "x", type: "glyph" })}
@@ -109,10 +110,10 @@ beforeEach(() => {
     (globalThis as any).PointerEvent = PointerEventStub;
   }
   if (!HTMLElement.prototype.setPointerCapture) {
-    HTMLElement.prototype.setPointerCapture = function () {};
+    HTMLElement.prototype.setPointerCapture = () => {};
   }
   if (!HTMLElement.prototype.releasePointerCapture) {
-    HTMLElement.prototype.releasePointerCapture = function () {};
+    HTMLElement.prototype.releasePointerCapture = () => {};
   }
   seedProject([]);
 });
@@ -120,6 +121,19 @@ beforeEach(() => {
 afterEach(() => {
   setStageGeometryProvider(null);
   vi.restoreAllMocks();
+});
+
+it("keeps the appearance when clicking the already active composed mode", () => {
+  const layers: MenuTitleLayer[] = [
+    { kind: "background", assetId: "background" as import("@/domain/types").AssetId },
+    { kind: "text", value: { key: K("title") }, x: 8, y: 5 },
+  ];
+  seedProject(layers, { title: { en: "Shop", fr: "Boutique" } });
+  render(<LayersPanel projectId={PACK_ID} menuId={MENU_ID} />);
+  fireEvent.click(screen.getByRole("button", { name: /composé/i }));
+  const project = useAccountStore.getState().account.projects[0]!;
+  expect(project.menus[0]!.title).toEqual(layers);
+  expect(project.i18nKeys.title).toEqual({ en: "Shop", fr: "Boutique" });
 });
 
 describe("LayersPanel — body", () => {
@@ -188,7 +202,12 @@ describe("LayersPanel — AddLayerControls wiring", () => {
     const project = useAccountStore.getState().account.projects[0]!;
     const title = project.menus[0]!.title;
     expect(title).toHaveLength(1);
-    expect(title[0]).toMatchObject({ kind: "textarea", width: 168, alignment: "left", lineHeight: 10 });
+    expect(title[0]).toMatchObject({
+      kind: "textarea",
+      width: 168,
+      alignment: "left",
+      lineHeight: 10,
+    });
     // Selection moved to the new layer
     expect(useUiStore.getState().selectedLayerKey).toEqual({ menuId: MENU_ID, index: 0 });
     // The text layer has an LText whose key is a fresh i18n key; no entry

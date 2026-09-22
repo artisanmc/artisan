@@ -16,8 +16,33 @@ vi.mock("@/features/assets/AssetUploadDialog", () => ({
 it("lists project images with their slot footprint, filters them and offers upload", () => {
   useAssetStore.setState({
     assets: [
-      { id: "tall", name: "Tall", projectId: "p", type: "glyph", width: 16, height: 48 },
-      { id: "wide", name: "Wide", projectId: "p", type: "texture", width: 48, height: 16 },
+      {
+        id: "tall",
+        name: "Tall",
+        projectId: "p",
+        type: "glyph",
+        width: 16,
+        height: 48,
+        usages: ["button"],
+      },
+      {
+        id: "wide",
+        name: "Wide",
+        projectId: "p",
+        type: "texture",
+        width: 48,
+        height: 16,
+        usages: ["button"],
+      },
+      {
+        id: "background",
+        name: "Background",
+        projectId: "p",
+        type: "glyph",
+        width: 176,
+        height: 166,
+        usages: ["background"],
+      },
       { id: "foreign", name: "Foreign", projectId: "other", type: "glyph", width: 16, height: 16 },
       { id: "font", name: "Font", projectId: "p", type: "font", width: 16, height: 16 },
     ] as Asset[],
@@ -31,6 +56,7 @@ it("lists project images with their slot footprint, filters them and offers uplo
   expect(screen.getByText("3 × 1 slots")).toBeInTheDocument();
   expect(screen.queryByText("Foreign")).not.toBeInTheDocument();
   expect(screen.queryByText("Font")).not.toBeInTheDocument();
+  expect(screen.queryByText("Background")).not.toBeInTheDocument();
   fireEvent.change(screen.getByRole("textbox"), { target: { value: "tall" } });
   expect(screen.queryByText("Wide")).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: /Importer/ }));

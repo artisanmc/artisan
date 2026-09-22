@@ -5,17 +5,17 @@ import { useTranslation } from "react-i18next";
 
 import { PlaceholderInput } from "@/components/PlaceholderInput";
 import { RevealField } from "@/components/RevealField";
-import { usePlaceholderEntries } from "@/components/usePlaceholderEntries";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { usePlaceholderEntries } from "@/components/usePlaceholderEntries";
 import type { Asset } from "@/domain/asset";
 import { assetPreviewUrl } from "@/domain/asset";
 import type { AssetId, MenuTitleLayer, ProjectId } from "@/domain/types";
 import { AssetPicker } from "@/features/assets/AssetPicker";
 import { useAssetStore } from "@/features/assets/assetStore";
+import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { duplicateAsset } from "@/lib/api/userAssets";
 import { cn } from "@/lib/cx";
-import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { useTextEdit } from "@/lib/useText";
 import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
@@ -191,9 +191,7 @@ function ImageLayerForm({ projectId, menuId, index, layer }: ImageLayerFormProps
                 preview; only `height` round-trips through PATCH. The number
                 below therefore reflects the latest optimistic value, not a
                 server-confirmed one. */}
-            {asset
-              ? `${asset.type} · ${asset.width} × ${asset.height} px`
-              : "image non chargée"}
+            {asset ? `${asset.type} · ${asset.width} × ${asset.height} px` : "image non chargée"}
           </div>
         </div>
       </div>
@@ -227,7 +225,9 @@ function ImageLayerForm({ projectId, menuId, index, layer }: ImageLayerFormProps
             ))}
           </div>
           <div className="text-[10px] text-[var(--text-faint)] leading-snug">
-            {t("layerEditForm.image.positionHint", { floor: asset ? GLYPH_Y_BASE - asset.height : "…" })}
+            {t("layerEditForm.image.positionHint", {
+              floor: asset ? GLYPH_Y_BASE - asset.height : "…",
+            })}
           </div>
           <Button
             size="sm"
@@ -244,6 +244,7 @@ function ImageLayerForm({ projectId, menuId, index, layer }: ImageLayerFormProps
       )}
 
       <AssetPicker
+        usage="menu"
         open={pickerOpen}
         projectId={projectId}
         // No typeFilter → shows every image asset (texture + glyph). The
@@ -270,17 +271,14 @@ function PlainLayerForm({ projectId, menuId, layer }: PlainLayerFormProps) {
   const { t } = useTranslation();
   const textEdit = useTextEdit(projectId, layer.value);
   const setI18nValue = useAccountStore((s) => s.setI18nValue);
-  const placeholderLocation = useMemo(
-    () => ({ kind: "menu" as const, menuId }),
-    [menuId],
-  );
+  const placeholderLocation = useMemo(() => ({ kind: "menu" as const, menuId }), [menuId]);
   const placeholderEntries = usePlaceholderEntries(projectId, placeholderLocation);
 
   return (
     <div className="flex flex-col gap-3 text-xs text-zinc-300">
       <div className="rounded border border-zinc-700 bg-zinc-900/60 px-2.5 py-2 text-[10px] text-zinc-400 leading-snug">
-        Titre vanilla — aucun resource project requis. Le texte s'affiche avec la police MC par défaut.
-        MiniMessage supporté (<code className="text-zinc-300">{"<gold>"}</code>,{" "}
+        Titre vanilla — aucun resource project requis. Le texte s'affiche avec la police MC par
+        défaut. MiniMessage supporté (<code className="text-zinc-300">{"<gold>"}</code>,{" "}
         <code className="text-zinc-300">{"<bold>"}</code>, etc.).
       </div>
       <div>
@@ -396,10 +394,7 @@ function TextLayerForm({ projectId, menuId, index, layer: originalLayer }: TextL
   const updateLayer = useAccountStore((s) => s.updateMenuTitleLayer);
   const allAssets = useAssetStore((s) => s.assets);
   const fontAssets = allAssets.filter((a) => a.type === "font");
-  const placeholderLocation = useMemo(
-    () => ({ kind: "menu" as const, menuId }),
-    [menuId],
-  );
+  const placeholderLocation = useMemo(() => ({ kind: "menu" as const, menuId }), [menuId]);
   const placeholderEntries = usePlaceholderEntries(projectId, placeholderLocation);
 
   // Y-overflow: line i renders at y + i*lineHeight, must be ≤ 140.
@@ -409,7 +404,9 @@ function TextLayerForm({ projectId, menuId, index, layer: originalLayer }: TextL
 
   const setAlignment = (a: "left" | "center" | "right") =>
     updateLayer({
-      projectId, menuId, index,
+      projectId,
+      menuId,
+      index,
       patch: patchTextFrame(layer, { alignment: a }),
     });
 
@@ -427,7 +424,8 @@ function TextLayerForm({ projectId, menuId, index, layer: originalLayer }: TextL
           rows={3}
           value={textEdit.value}
           onChange={(v) => {
-            if (originalLayer.kind === "text") updateLayer({ projectId, menuId, index, patch: layer });
+            if (originalLayer.kind === "text")
+              updateLayer({ projectId, menuId, index, patch: layer });
             setI18nValue({
               projectId,
               lt: layer.value,
@@ -451,22 +449,29 @@ function TextLayerForm({ projectId, menuId, index, layer: originalLayer }: TextL
       <div className="flex flex-col gap-3">
         <div className="flex flex-col gap-1.5 flex-1">
           <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
-            <label htmlFor="text-line-height" className="field-label">Interligne (px)</label>
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            title={t("layerEditForm.size.alignHint")}
-            onClick={() =>
-              updateLayer({
-                projectId, menuId, index,
-                patch: { ...layer, lineHeight: Math.min(32, (layer.size ?? 8) + 2) } as Partial<MenuTitleLayer>,
-              })
-            }
-            className="h-auto px-1.5 py-0.5 text-[11px]"
-          >
-            {t("layerEditForm.size.align")}
-          </Button>
+            <label htmlFor="text-line-height" className="field-label">
+              Interligne (px)
+            </label>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              title={t("layerEditForm.size.alignHint")}
+              onClick={() =>
+                updateLayer({
+                  projectId,
+                  menuId,
+                  index,
+                  patch: {
+                    ...layer,
+                    lineHeight: Math.min(32, (layer.size ?? 8) + 2),
+                  } as Partial<MenuTitleLayer>,
+                })
+              }
+              className="h-auto px-1.5 py-0.5 text-[11px]"
+            >
+              {t("layerEditForm.size.align")}
+            </Button>
           </div>
           <Input
             type="number"
@@ -478,13 +483,14 @@ function TextLayerForm({ projectId, menuId, index, layer: originalLayer }: TextL
               if (!Number.isFinite(raw)) return;
               const clamped = Math.min(32, Math.max(1, raw));
               updateLayer({
-                projectId, menuId, index,
+                projectId,
+                menuId,
+                index,
                 patch: { ...layer, lineHeight: clamped } as Partial<MenuTitleLayer>,
               });
             }}
             className="h-7 w-full font-mono text-xs"
           />
-
         </div>
         <div className="flex flex-col gap-1.5 flex-1">
           <div className="text-[10px] uppercase text-[var(--text-faint)]">Alignement</div>
@@ -495,7 +501,9 @@ function TextLayerForm({ projectId, menuId, index, layer: originalLayer }: TextL
               onClick={() => setAlignment("left")}
               className={cn(
                 "btn btn-ghost flex-1 p-1",
-                layer.alignment === "left" ? "bg-[var(--surface-raised)] text-[var(--text)]" : "text-[var(--text-mut)]",
+                layer.alignment === "left"
+                  ? "bg-[var(--surface-raised)] text-[var(--text)]"
+                  : "text-[var(--text-mut)]",
               )}
               title="Aligner à gauche"
               aria-label="Aligner à gauche"
@@ -508,7 +516,9 @@ function TextLayerForm({ projectId, menuId, index, layer: originalLayer }: TextL
               onClick={() => setAlignment("center")}
               className={cn(
                 "btn btn-ghost flex-1 p-1",
-                layer.alignment === "center" ? "bg-[var(--surface-raised)] text-[var(--text)]" : "text-[var(--text-mut)]",
+                layer.alignment === "center"
+                  ? "bg-[var(--surface-raised)] text-[var(--text)]"
+                  : "text-[var(--text-mut)]",
               )}
               title="Centrer"
               aria-label="Centrer"
@@ -521,7 +531,9 @@ function TextLayerForm({ projectId, menuId, index, layer: originalLayer }: TextL
               onClick={() => setAlignment("right")}
               className={cn(
                 "btn btn-ghost flex-1 p-1",
-                layer.alignment === "right" ? "bg-[var(--surface-raised)] text-[var(--text)]" : "text-[var(--text-mut)]",
+                layer.alignment === "right"
+                  ? "bg-[var(--surface-raised)] text-[var(--text)]"
+                  : "text-[var(--text-mut)]",
               )}
               title="Aligner à droite"
               aria-label="Aligner à droite"
@@ -533,7 +545,9 @@ function TextLayerForm({ projectId, menuId, index, layer: originalLayer }: TextL
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <label htmlFor="layer-edit-font" className="field-label">Police personnalisée</label>
+        <label htmlFor="layer-edit-font" className="field-label">
+          Police personnalisée
+        </label>
         <select
           id="layer-edit-font"
           data-testid="textarea-font"
@@ -541,7 +555,9 @@ function TextLayerForm({ projectId, menuId, index, layer: originalLayer }: TextL
           onChange={(e) => {
             const v = e.target.value;
             updateLayer({
-              projectId, menuId, index,
+              projectId,
+              menuId,
+              index,
               patch: { ...layer, fontAssetId: v || undefined } as Partial<MenuTitleLayer>,
             });
           }}
@@ -549,11 +565,15 @@ function TextLayerForm({ projectId, menuId, index, layer: originalLayer }: TextL
         >
           <option value="">Aucune (vanilla)</option>
           {fontAssets.map((f) => (
-            <option key={f.id} value={f.id}>{f.name}</option>
+            <option key={f.id} value={f.id}>
+              {f.name}
+            </option>
           ))}
         </select>
         {fontAssets.length === 0 && (
-          <div className="text-[10px] text-[var(--text-faint)]">Importe une police via la Bibliothèque pour utiliser une police personnalisée.</div>
+          <div className="text-[10px] text-[var(--text-faint)]">
+            Importe une police via la Bibliothèque pour utiliser une police personnalisée.
+          </div>
         )}
       </div>
 
@@ -583,7 +603,9 @@ function TextLayerForm({ projectId, menuId, index, layer: originalLayer }: TextL
             if (!Number.isFinite(raw)) return;
             const clamped = Math.min(256, Math.max(8, raw));
             updateLayer({
-              projectId, menuId, index,
+              projectId,
+              menuId,
+              index,
               patch: patchTextFrame(layer, { width: clamped }),
             });
           }}
@@ -616,7 +638,12 @@ function TextLayerForm({ projectId, menuId, index, layer: originalLayer }: TextL
             onChange={(e) => {
               const v = Number.parseInt(e.target.value, 10);
               if (Number.isFinite(v)) {
-                updateLayer({ projectId, menuId, index, patch: { ...layer, y: v } as Partial<MenuTitleLayer> });
+                updateLayer({
+                  projectId,
+                  menuId,
+                  index,
+                  patch: { ...layer, y: v } as Partial<MenuTitleLayer>,
+                });
               }
             }}
             className="h-7 w-full font-mono text-xs"

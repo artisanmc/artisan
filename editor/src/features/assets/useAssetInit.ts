@@ -20,6 +20,7 @@ export function useAssetInit(projectId: ProjectId | null) {
   const ownerId = useProjectPrincipalId(projectId ?? undefined);
   const setAssets = useAssetStore((s) => s.setAssets);
   const setError = useAssetStore((s) => s.setError);
+  const setLoading = useAssetStore((s) => s.setLoading);
   const draftRevision = useProjectDraftStore((state) =>
     projectId ? state.drafts[projectId]?.remote?.revision : undefined,
   );
@@ -38,17 +39,24 @@ export function useAssetInit(projectId: ProjectId | null) {
       // Clear assets when switching away from any project to avoid showing
       // another project's assets on a transitional render.
       setAssets([]);
+      setLoading(false);
+      setError(null);
       return;
     }
+    setLoading(true);
+    setError(null);
     listAssets(projectId)
       .then((assets) => {
         if (!cancelled) setAssets(assets);
       })
       .catch((e) => {
         if (!cancelled) setError((e as Error).message);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
       });
     return () => {
       cancelled = true;
     };
-  }, [ownerId, projectId, draftId, draftRevision, setAssets, setError]);
+  }, [ownerId, projectId, draftId, draftRevision, setAssets, setError, setLoading]);
 }

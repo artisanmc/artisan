@@ -137,6 +137,58 @@ function uploadFontForm(opts: { name?: string; zip?: Uint8Array }): FormData {
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 describe("POST /api/v1/user/projects/:projectId/assets", () => {
+  test("classification survives create, list, get, rename and duplicate without copying the source image", async () => {
+    const { cookie, projectId } = await seedSession();
+    const url = `/api/v1/user/projects/${projectId}/assets`;
+    const headers = { Cookie: cookie };
+    const form = uploadForm({ type: "glyph", name: "classified" });
+    form.set("usages", JSON.stringify(["button", "menu", "button"]));
+    const created = await app.request(url, { method: "POST", headers, body: form });
+    expect(created.status).toBe(201);
+    expect((await created.json()).asset.usages).toEqual(["button", "menu"]);
+    expect(diskBinary.size).toBe(1);
+    const listed = await app.request(url, { headers });
+    expect((await listed.json()).assets[0].usages).toEqual(["button", "menu"]);
+    const fetched = await app.request(`${url}/classified`, { headers });
+    expect((await fetched.json()).asset.usages).toEqual(["button", "menu"]);
+    const renamed = await app.request(`${url}/classified`, { method: "PATCH", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify({ name: "renamed" }) });
+    expect(renamed.status).toBe(200);
+    expect((await renamed.json()).asset.usages).toEqual(["button", "menu"]);
+    const copied = await app.request(`${url}/renamed/duplicate`, { method: "POST", headers });
+    expect(copied.status).toBe(200);
+    expect((await copied.json()).asset.usages).toEqual(["button", "menu"]);
+    const copyRead = await app.request(`${url}/renamed_copy`, { headers });
+    expect((await copyRead.json()).asset.usages).toEqual(["button", "menu"]);
+    const reclassified = await app.request(`${url}/renamed`, { method: "PATCH", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify({ usages: ["menu"] }) });
+    expect((await reclassified.json()).asset.usages).toEqual(["menu"]);
+    expect(diskText.get("assets/glyphs/renamed.yaml")).toContain("menu");
+    const cleared = await app.request(`${url}/renamed`, { method: "PATCH", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify({ usages: [] }) });
+    expect((await cleared.json()).asset.usages).toEqual([]);
+    const readCleared = await app.request(`${url}/renamed`, { headers });
+    expect((await readCleared.json()).asset.usages).toEqual([]);
+  });
+
+  test("rejects invalid classifications and font classifications before writing", async () => {
+    const { cookie, projectId } = await seedSession();
+    const url = `/api/v1/user/projects/${projectId}/assets`;
+    const headers = { Cookie: cookie };
+    for (const usages of ["button", "null", "{}", '["unknown"]', '["button", 1]']) {
+      const form = uploadForm({ type: "glyph", name: "invalid" });
+      form.set("usages", usages);
+      expect((await app.request(url, { method: "POST", headers, body: form })).status).toBe(400);
+    }
+    const font = uploadFontForm({});
+    font.set("usages", '["button"]');
+    expect((await app.request(url, { method: "POST", headers, body: font })).status).toBe(400);
+    expect(diskBinary.size).toBe(0);
+    await app.request(url, { method: "POST", headers, body: uploadForm({ type: "glyph", name: "legacy" }) });
+    for (const usages of [null, "button", {}, ["unknown"], ["button", 1]]) {
+      expect((await app.request(`${url}/legacy`, { method: "PATCH", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify({ usages }) })).status).toBe(400);
+    }
+    const legacy = await app.request(`${url}/legacy`, { headers });
+    expect((await legacy.json()).asset).not.toHaveProperty("usages");
+  });
+
   test("creates a texture asset", async () => {
     const { cookie, projectId } = await seedSession();
     const res = await app.request(`/api/v1/user/projects/${projectId}/assets`, {

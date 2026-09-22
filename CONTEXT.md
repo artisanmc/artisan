@@ -313,6 +313,13 @@ guarded **states**. A Menu's layers each hold a list of Elements (`menu.layers[]
 .elements[]`, domain type `Element`). The fundamental menu-building block on the
 canvas — "you place Elements in a Menu."
 
+The editor's **Buttons** panel offers game items, captured items and images to
+place as Elements. **Resources** manages the Project's shared images and fonts.
+An image's usages (`button`, `menu`) classify where it is offered, not separate
+copies: one file may serve both uses. Menu images include backgrounds, logos,
+frames and separators; they are positionable title layers, not clickable Elements.
+Legacy `background` and `decoration` classifications both map to `menu`.
+
 An Element's own keys are few and closed by habit — `id`, `positions`,
 `iterates`, `places`, `states`, `tags` — because everything else at the top level
 of an Element **is** a field of its display Appearance.

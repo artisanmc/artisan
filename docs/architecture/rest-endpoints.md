@@ -57,6 +57,14 @@ remains under `networks/:id/server-keys`; plugin `/link` is unchanged.
   per request. The disk binary RPC allows 30 seconds for queued recovery/reload.
   Draft images unchanged from their binary baseline can reuse that exact hash;
   private replacements still read their owner-bound draft blob first.
+- **Image classification**: `userAssets.ts` delegates to `assetHandlers.ts`.
+  Image creation accepts optional multipart `usages` (a JSON array string);
+  PATCH accepts a JSON array of `button` and/or `menu`.
+  Legacy `background` and `decoration` values are accepted and normalized to `menu` on read/write.
+  Duplicates are normalized; invalid values/types and usages on fonts return 400.
+  The image's YAML descriptor stores the list; no DB schema or PNG duplication.
+  Missing `usages` preserves legacy inference in the editor; `[]` explicitly
+  leaves an image unclassified. Rename/resize preserve the list; duplicate copies it.
 
 - **Project URLs (2026-09-14)**: identity GET resolves the full location before
   `resolveProjectStorage`; content/draft/history APIs retain immutable internal IDs.
