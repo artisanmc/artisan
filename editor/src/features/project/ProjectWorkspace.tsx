@@ -10,13 +10,16 @@ import {
 import { WorkspaceView } from "@/components/ui/workspace-view";
 import type { Asset } from "@/domain/asset";
 import type { ElementId, MenuId, ProjectId } from "@/domain/types";
-import { AssetPreview } from "@/features/assets/AssetPreview";
 import { AssetsTab } from "@/features/assets/AssetsTab";
 import { AssistantBody } from "@/features/assistant/AssistantBody";
-import { IMAGE_BUTTON_DRAG_PREFIX } from "@/features/canvas/ImageButtonLibrary";
+import {
+  IMAGE_BUTTON_DRAG_PREFIX,
+  ImageButtonDragPreview,
+} from "@/features/canvas/ImageButtonLibrary";
 import { LIBRARY_DRAG_PREFIX } from "@/features/canvas/Library";
 import { Stage } from "@/features/canvas/Stage";
 import { OPEN_ELEMENT_EVENT } from "@/features/canvas/canvasEvents";
+import { anchorImageDragToCursor } from "@/features/canvas/imageButtonDrag";
 import { dropImageButton } from "@/features/canvas/imageButtonDrop";
 import {
   PLACEMENT_ROW_DRAG_PREFIX,
@@ -24,6 +27,7 @@ import {
   pinPlacementRow,
 } from "@/features/canvas/placementDrop";
 import { tryStageDrop, tryStageSlotHit } from "@/features/canvas/stageDropTarget";
+import { getStageGeometry } from "@/features/canvas/stageGeometry";
 import { getTextureUrl } from "@/features/canvas/textureStore";
 import { DataSourcesPanelContent } from "@/features/data/DataSourcesPanel";
 import { importHostedProject } from "@/features/export/importHostedProject";
@@ -601,14 +605,9 @@ function LibraryDragOverlay() {
   const { active } = useDndContext();
   const asset = active?.data.current?.imageButton as Asset | undefined;
   return (
-    <DragOverlay dropAnimation={null}>
+    <DragOverlay dropAnimation={null} modifiers={[anchorImageDragToCursor]}>
       {asset ? (
-        <div className="card pointer-events-none flex flex-col items-center gap-1 p-2 shadow-[var(--shadow-lg)]">
-          <AssetPreview asset={asset} className="h-16 w-16 object-contain" />
-          <span className="text-xs">
-            {Math.ceil(asset.width / 16)} × {Math.ceil(asset.height / 16)}
-          </span>
-        </div>
+        <ImageButtonDragPreview asset={asset} scale={getStageGeometry()?.viewport.scale ?? 1} />
       ) : material ? (
         <LibraryDragGhost material={material} />
       ) : null}
