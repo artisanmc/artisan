@@ -3,6 +3,18 @@ title: Projects
 description: Create projects on a Minecraft server or in Artisan hosting.
 ---
 
+The **Buttons** panel beside the canvas contains **Game items**, **Captured items**
+and **Images** for placing buttons in menus. The separate **Resources** project
+tab manages shared button images, menu images and fonts.
+One image can have both uses without uploading another copy.
+Resources offers **All**, **Button images**, **Menu images**,
+**Fonts** and **Unclassified** filters. In an image's details, **Use as** selects
+its uses. Menu images include backgrounds, logos, frames and separators.
+Existing images are classified from their menu usage when possible; images with
+no known use appear under **Unclassified**. Changing classification does not remove
+images already placed in menus.
+Resource changes stay in your private draft until **Deploy**, like other edits.
+
 ## Access to an existing network
 
 Sign in before opening another network's projects. Google sign-in returns you to the page you originally opened. In invitation mode, request

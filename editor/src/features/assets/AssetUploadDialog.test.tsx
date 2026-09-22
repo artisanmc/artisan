@@ -1,8 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import * as userAssetsApi from "@/lib/api/userAssets";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AssetUploadDialog } from "./AssetUploadDialog";
 import { useAssetStore } from "./assetStore";
-import * as userAssetsApi from "@/lib/api/userAssets";
 
 let mockCurrentUser: { id: string } | null = { id: "u1" };
 
@@ -12,6 +12,25 @@ vi.mock("@/state/authStore", () => ({
 }));
 
 describe("AssetUploadDialog", () => {
+  it("preselects the context role and lets an image have multiple uses", async () => {
+    const upload = vi
+      .spyOn(userAssetsApi, "uploadAsset")
+      .mockResolvedValue({ id: "bg", projectId: "p1" } as never);
+    render(<AssetUploadDialog projectId={"p1" as never} open onClose={() => {}} usage="menu" />);
+    expect(screen.getByRole("checkbox", { name: /^Images du menu$/ })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: /^Images du menu$/ })).toBeDisabled();
+    fireEvent.click(screen.getByRole("checkbox", { name: /Images de boutons/ }));
+    fireEvent.change(screen.getByLabelText(/fichier/i), {
+      target: { files: [new File(["png"], "bg.png", { type: "image/png" })] },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^Importer$/ }));
+    await waitFor(() =>
+      expect(upload).toHaveBeenCalledWith(
+        "p1",
+        expect.objectContaining({ usages: ["button", "menu"] }),
+      ),
+    );
+  });
   beforeEach(() => {
     useAssetStore.getState().reset();
     mockCurrentUser = { id: "u1" };
@@ -20,9 +39,18 @@ describe("AssetUploadDialog", () => {
 
   it("uploads as glyph (no type selector exposed) and upserts the result", async () => {
     const fakeAsset = {
-      id: "asset_x", projectId: "p1", type: "glyph" as const, name: "tex",
-      width: 16, height: 16, ascent: 7, codepoint: 0xe000, fontMeta: null,
-      contentHash: "h", createdAt: "", updatedAt: "",
+      id: "asset_x",
+      projectId: "p1",
+      type: "glyph" as const,
+      name: "tex",
+      width: 16,
+      height: 16,
+      ascent: 7,
+      codepoint: 0xe000,
+      fontMeta: null,
+      contentHash: "h",
+      createdAt: "",
+      updatedAt: "",
     };
     const spy = vi.spyOn(userAssetsApi, "uploadAsset").mockResolvedValue(fakeAsset);
     const onClose = vi.fn();
@@ -43,7 +71,9 @@ describe("AssetUploadDialog", () => {
   });
 
   it("shows an error if upload fails", async () => {
-    vi.spyOn(userAssetsApi, "uploadAsset").mockRejectedValue(new Error("Asset name already exists"));
+    vi.spyOn(userAssetsApi, "uploadAsset").mockRejectedValue(
+      new Error("Asset name already exists"),
+    );
     render(<AssetUploadDialog projectId={"p1" as never} open onClose={() => {}} />);
     fireEvent.change(screen.getByLabelText(/^nom/i), { target: { value: "x" } });
     const file = new File([new Uint8Array([1])], "x.png", { type: "image/png" });
@@ -79,13 +109,29 @@ describe("AssetUploadDialog", () => {
 
   it("hands the uploaded asset to onUploaded", async () => {
     const fakeAsset = {
-      id: "coin", projectId: "p1", type: "glyph" as const, name: "coin",
-      width: 16, height: 16, ascent: 7, codepoint: 0xe000, fontMeta: null,
-      contentHash: "h", createdAt: "", updatedAt: "",
+      id: "coin",
+      projectId: "p1",
+      type: "glyph" as const,
+      name: "coin",
+      width: 16,
+      height: 16,
+      ascent: 7,
+      codepoint: 0xe000,
+      fontMeta: null,
+      contentHash: "h",
+      createdAt: "",
+      updatedAt: "",
     };
     vi.spyOn(userAssetsApi, "uploadAsset").mockResolvedValue(fakeAsset);
     const onUploaded = vi.fn();
-    render(<AssetUploadDialog projectId={"p1" as never} open onClose={() => {}} onUploaded={onUploaded} />);
+    render(
+      <AssetUploadDialog
+        projectId={"p1" as never}
+        open
+        onClose={() => {}}
+        onUploaded={onUploaded}
+      />,
+    );
     const file = new File([new Uint8Array([1])], "coin.png", { type: "image/png" });
     fireEvent.change(screen.getByLabelText(/fichier/i), { target: { files: [file] } });
     fireEvent.click(screen.getByRole("button", { name: /importer/i }));

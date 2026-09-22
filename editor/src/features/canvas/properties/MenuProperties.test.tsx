@@ -1,7 +1,16 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { Menu, MenuId, ProjectId } from "@/domain/types";
+import type {
+  AssetId,
+  ElementId,
+  I18nKey,
+  LayerId,
+  Menu,
+  MenuId,
+  MenuTitleLayer,
+  ProjectId,
+} from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
 import { useUiStore } from "@/state/uiStore";
 
@@ -12,7 +21,17 @@ import { MenuProperties } from "./MenuProperties";
 // LayersPanel.test.tsx so the title section can mount cleanly.
 vi.mock("@/features/assets/AssetPicker", () => ({
   AssetPicker: (props: any) =>
-    props.open ? <div data-testid="asset-picker">picker {props.typeFilter}</div> : null,
+    props.open ? (
+      <button
+        type="button"
+        data-testid="asset-picker"
+        data-usage={props.usage}
+        data-project={props.projectId}
+        onClick={() => props.onPick({ id: "chosen-image", name: "Chosen image", type: "glyph" })}
+      >
+        pick
+      </button>
+    ) : null,
 }));
 
 const PACK_ID = "p1" as ProjectId;
@@ -76,6 +95,100 @@ describe("MenuProperties — embedded title section", () => {
     expect(screen.getByTestId("layers-panel")).toBeInTheDocument();
     // The AddLayerControls (the section's primary affordance) is visible.
     expect(screen.getByTestId("add-layer-controls")).toBeInTheDocument();
+  });
+});
+
+describe("MenuProperties — background and decorations", () => {
+  function show(title: MenuTitleLayer[]) {
+    useAccountStore
+      .getState()
+      .setMenuTitleLayers({ projectId: PACK_ID, menuId: MENU_ID, layers: title });
+    useAccountStore.setState((state) => ({
+      account: {
+        ...state.account,
+        projects: state.account.projects.map((project) => ({
+          ...project,
+          i18nKeys: { "original-title": { fr: "Boutique", en: "Shop" } },
+          menus: project.menus.map((menu) => ({
+            ...menu,
+            layers: [
+              {
+                id: "buttons" as LayerId,
+                name: "Buttons",
+                elements: [
+                  {
+                    id: "buy" as ElementId,
+                    positions: "3",
+                    display: { material: "DIAMOND" },
+                    states: [],
+                  },
+                ],
+              },
+            ],
+          })),
+        })),
+      },
+    }));
+    const project = useAccountStore.getState().account.projects[0]!;
+    const menu = project.menus[0]!;
+    render(<MenuProperties projectId={PACK_ID} menu={menu} />);
+    return menu;
+  }
+  function choose(label: RegExp, usage: string) {
+    fireEvent.click(screen.getByRole("button", { name: label }));
+    const picker = screen.getByTestId("asset-picker");
+    expect(picker).toHaveAttribute("data-usage", usage);
+    expect(picker).toHaveAttribute("data-project", PACK_ID);
+    fireEvent.click(picker);
+  }
+  const current = () => useAccountStore.getState().account.projects[0]!.menus[0]!;
+
+  it("adds a menu image while preserving the plain title and menu elements", () => {
+    const value = { key: "original-title" as I18nKey };
+    const before = show([{ kind: "plain", value, color: "red" }]);
+    choose(/ajouter une image|add an image/i, "menu");
+    expect(current().title).toEqual([
+      { kind: "text", value, color: "red", x: 8, y: 5 },
+      { kind: "glyph", assetId: "chosen-image", x: 0, y: 0 },
+    ]);
+    expect(current().layers).toEqual(before.layers);
+    expect(useAccountStore.getState().account.projects[0]!.i18nKeys["original-title"]).toEqual({
+      fr: "Boutique",
+      en: "Shop",
+    });
+    expect(useUiStore.getState().selectedLayerKey).toEqual({ menuId: MENU_ID, index: 1 });
+  });
+
+  it("appends an image without changing legacy layers, their positions or visibility", () => {
+    const title: MenuTitleLayer[] = [
+      { kind: "background", assetId: "old-background" as AssetId },
+      { kind: "glyph", assetId: "logo" as AssetId, x: 42, y: 9 },
+      { kind: "text", value: { key: "title" as I18nKey }, x: 8, y: 5 },
+    ];
+    show(title);
+    useUiStore.getState().toggleHiddenLayer(MENU_ID, 1);
+    choose(/ajouter une image|add an image/i, "menu");
+    expect(current().title).toEqual([
+      ...title,
+      { kind: "glyph", assetId: "chosen-image", x: 0, y: 0 },
+    ]);
+    expect(useUiStore.getState().hiddenLayerKeys.has(`${MENU_ID}:1`)).toBe(true);
+  });
+
+  it("offers one image action without separate background or decoration controls", () => {
+    const background: MenuTitleLayer = { kind: "background", assetId: "background" as AssetId };
+    show([background]);
+    expect(
+      screen.queryByRole("button", {
+        name: /choisir le fond|retirer le fond|ajouter une décoration/i,
+      }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^\+ Image$/ })).not.toBeInTheDocument();
+    choose(/ajouter une image|add an image/i, "menu");
+    expect(current().title).toEqual([
+      background,
+      { kind: "glyph", assetId: "chosen-image", x: 0, y: 0 },
+    ]);
   });
 });
 

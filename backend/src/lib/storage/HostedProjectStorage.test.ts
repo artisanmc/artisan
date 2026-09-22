@@ -4,6 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
 import { HostedProjectStorage } from "./HostedProjectStorage";
+import { ProjectAssets } from "../projectAssets";
+import { DraftAssetStorage } from "./DraftAssetStorage";
 
 const roots: string[] = [];
 const hash = (s: string | Uint8Array) =>
@@ -24,6 +26,35 @@ async function fixture(ownerId = "owner-a") {
 afterEach(async () => {
 	for (const p of roots.splice(0))
 		await rm(p, { recursive: true, force: true });
+});
+
+test("image classifications persist privately in drafts and through hosted publication", async () => {
+	const { storage, options } = await fixture();
+	const created = await storage.drafts.create("classified", "create-classified", {
+		name: "Classified images", snapshot: { baseline: {}, tree: {}, at: 1 },
+	});
+	if (created.kind !== "result" || !created.result.draft) throw new Error("draft creation failed");
+	const privateStorage = new DraftAssetStorage(storage, created.result.draft);
+	const privateAssets = new ProjectAssets("immutable", privateStorage, "classify-image");
+	expect(await privateAssets.writeAsset({
+		type: "glyph", name: "shared", bytes: new Uint8Array([1, 2, 3]),
+		descriptor: { width: 16, height: 16, usages: ["button", "background"] },
+		baseHash: null, descriptorBaseHash: null,
+	})).toEqual({ ok: true });
+	const publicBefore = await new ProjectAssets("immutable", storage).read();
+	expect(publicBefore).toMatchObject({ ok: true, assets: [] });
+	const saved = await storage.drafts.read("classified");
+	if (saved.kind !== "result" || !saved.result.draft) throw new Error("draft read failed");
+	const privateRead = await new ProjectAssets("immutable", new DraftAssetStorage(storage, saved.result.draft)).read();
+	expect(privateRead).toMatchObject({ ok: true, assets: [{ row: { usages: ["button", "menu"] } }] });
+	expect(await storage.drafts.publish("classified", saved.result.draft.revision, "publish-classified"))
+		.toMatchObject({ kind: "result", result: { ok: true } });
+	const reopened = await HostedProjectStorage.open(options);
+	const publicAfter = await new ProjectAssets("immutable", reopened).read();
+	expect(publicAfter).toMatchObject({ ok: true, assets: [{ row: { usages: ["button", "menu"] } }] });
+	if (!publicAfter.ok) throw new Error("published read failed");
+	expect(publicAfter.binaries).toHaveLength(1);
+	expect(publicAfter.files).toHaveLength(1);
 });
 
 test("hosted mixed text and binary CAS is atomic and persists across instances", async () => {

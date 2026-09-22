@@ -101,6 +101,19 @@ describe("userAssets.listAssets", () => {
 });
 
 describe("userAssets.uploadAsset", () => {
+  it("persists contextual image roles in the multipart upload", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue({ ok: true, json: async () => ({ asset: A1, draft: savedDraft }) });
+    vi.stubGlobal("fetch", fetchMock);
+    await uploadAsset("p1", {
+      file: new File(["png"], "x.png"),
+      type: "glyph",
+      name: "bg",
+      usages: ["background"],
+    });
+    expect(fetchMock.mock.calls[0]![1].body.get("usages")).toBe('["background"]');
+  });
   it("POSTs a FormData body with credentials included and returns the asset", async () => {
     const fetchMock = vi
       .fn()
@@ -160,6 +173,14 @@ describe("userAssets.uploadFontAsset", () => {
 });
 
 describe("userAssets.patchAsset", () => {
+  it("sends multiple roles as a JSON array and preserves an explicit empty classification", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue({ ok: true, json: async () => ({ asset: A1, draft: savedDraft }) });
+    vi.stubGlobal("fetch", fetchMock);
+    await patchAsset("p1", "asset_1", { usages: [] });
+    expect(JSON.parse(fetchMock.mock.calls[0]![1].body).usages).toEqual([]);
+  });
   it("PATCHes with credentials included and JSON body", async () => {
     const fetchMock = vi
       .fn()

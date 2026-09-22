@@ -86,3 +86,15 @@ describe("useWorkspaceTabShortcuts", () => {
     expect(navigate).not.toHaveBeenCalled();
   });
 });
+
+it("opens Resources with Digit4 even when assistant is unavailable", () => {
+  function DemoHarness() {
+    useWorkspaceTabShortcuts(false);
+    return null;
+  }
+  navigate.mockClear();
+  searchOpen = false;
+  render(<DemoHarness />);
+  pressOnWindow("Digit4");
+  expect(resolvedSearch()).toEqual({ tab: "resources" });
+});

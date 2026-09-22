@@ -5,6 +5,7 @@ import { getCachedAsset, putCachedAsset } from "./assetCache";
 import { requestAssetRead } from "../ws/hub";
 import { readProjectTree } from "./projectTreeReads";
 import type { AssetRow } from "./resourcePackBuilder";
+import { parseAssetUsages } from "./assetUsages";
 
 /**
  * Les assets d'un Project **lus sur le disque du serveur** (ADR
@@ -123,6 +124,7 @@ export function diskAssetsFromTree(
         projectId: anchorProjectId,
         type,
         name: nameOf(bin.path),
+        usages: parseAssetUsages(meta.usages),
         width: num(meta.width, 0) ?? 0,
         height: num(meta.height, 0) ?? 0,
         ascent: num(meta.ascent, null),

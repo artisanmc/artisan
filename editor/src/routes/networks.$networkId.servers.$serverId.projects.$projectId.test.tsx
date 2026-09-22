@@ -1,3 +1,4 @@
+import type { ProjectId } from "@/domain/types";
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -8,7 +9,12 @@ vi.mock("@tanstack/react-router", async () => {
     await vi.importActual<typeof import("@tanstack/react-router")>("@tanstack/react-router");
   return {
     ...actual,
-    useParams: () => ({ networkId: "net_1", serverId: "sk_1", projectId: "p1", documentId: loaderState.documentId }),
+    useParams: () => ({
+      networkId: "net_1",
+      serverId: "sk_1",
+      projectId: "p1",
+      documentId: loaderState.documentId,
+    }),
     useNavigate: () => navigate,
     Navigate: () => null,
     Outlet: () => null,
@@ -19,7 +25,7 @@ vi.mock("@tanstack/react-router", async () => {
       return route;
     },
     useChildMatches: () => [],
-    useSearch: () => ({ tab: "overview" }),
+    useSearch: () => ({ tab: loaderState.tab }),
   };
 });
 
@@ -35,7 +41,12 @@ vi.mock("@/state/accountStore", () => ({
       setAppearanceField: vi.fn(),
     }),
 }));
-const loaderState = vi.hoisted(() => ({ loaded: true, diskId: undefined as string | undefined, documentId: undefined as string | undefined }));
+const loaderState = vi.hoisted(() => ({
+  loaded: true,
+  tab: "overview",
+  diskId: undefined as string | undefined,
+  documentId: undefined as string | undefined,
+}));
 vi.mock("@/features/project/useProjectLoader", () => ({
   useProjectLoader: () =>
     loaderState.loaded ? loadedProject() : { failed: [], project: null, networkId: "net_1" },
@@ -65,6 +76,9 @@ vi.mock("@/lib/api/userProjects", () => ({
 vi.mock("@/components/ProjectTopBarControls", () => ({
   ProjectTopBarControls: () => <div data-testid="topbar" />,
 }));
+vi.mock("@/features/assets/AssetsTab", () => ({
+  AssetsTab: () => <div data-testid="resources-manager" />,
+}));
 vi.mock("@/features/canvas/Stage", () => ({ Stage: () => <div data-testid="stage" /> }));
 vi.mock("@/features/canvas/useTextureInit", () => ({ useTextureInit: () => {} }));
 vi.mock("@/features/assets/useAssetInit", () => ({ useAssetInit: () => {} }));
@@ -85,11 +99,15 @@ vi.mock("@dnd-kit/core", () => ({
 vi.mock("react-i18next", () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
 vi.mock("@/lib/useMediaQuery", () => ({ useIsDesktop: () => true }));
 
+import { validateProjectSearch } from "@/features/project/ProjectWorkspace";
+import { useProjectLibraryStore } from "@/features/project/projectLibraryStore";
+import { useUiStore } from "@/state/uiStore";
 import { ServerProjectPage } from "./networks.$networkId.servers.$serverId.projects.$projectId";
 
 describe("ServerProjectPage", () => {
   beforeEach(() => {
     loaderState.loaded = true;
+    loaderState.tab = "overview";
     loaderState.diskId = undefined;
     loaderState.documentId = undefined;
     navigate.mockClear();
@@ -107,8 +125,14 @@ describe("ServerProjectPage", () => {
     const destination = navigate.mock.calls[0]![0];
     expect(destination).toMatchObject({
       to: "/networks/$networkId/servers/$serverId/projects/$projectId/document/$documentId",
-      params: { networkId: "net_1", serverId: "sk_1", projectId: "boutique_addon", documentId: "menu" },
-      replace: true, hash: true,
+      params: {
+        networkId: "net_1",
+        serverId: "sk_1",
+        projectId: "boutique_addon",
+        documentId: "menu",
+      },
+      replace: true,
+      hash: true,
     });
     expect(destination.search({ tab: "translations" })).toEqual({ tab: "translations" });
   });
@@ -127,4 +151,29 @@ describe("ServerProjectPage", () => {
     expect(screen.getByTestId("project-skeleton")).toBeInTheDocument();
     expect(screen.queryByTestId("topbar")).not.toBeInTheDocument();
   });
+});
+
+it("retains Resources in the shared demo, hosted and live route search validator", () => {
+  expect(validateProjectSearch({ tab: "resources" })).toEqual({ tab: "resources" });
+  expect(validateProjectSearch({ tab: "unknown" })).toEqual({ tab: "overview" });
+});
+it("opens Resources in the center without buttons or inspector and retains the canvas", () => {
+  loaderState.loaded = true;
+  loaderState.diskId = undefined;
+  loaderState.documentId = undefined;
+  loaderState.tab = "resources";
+  useProjectLibraryStore.getState().open("p1" as ProjectId);
+  useUiStore.setState({ projectSettingsOpen: true });
+  try {
+    render(<ServerProjectPage />);
+    expect(screen.getByRole("tabpanel", { name: "project.tabs.resources" })).toBeInTheDocument();
+    expect(screen.getByTestId("resources-manager")).toBeInTheDocument();
+    expect(screen.getByTestId("stage")).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "projectLibrary.title" })).toBeNull();
+    expect(screen.queryByTestId("editor-pane")).toBeNull();
+    expect(useUiStore.getState().lastActiveTab).toBe("resources");
+  } finally {
+    useUiStore.setState({ projectSettingsOpen: false });
+    useProjectLibraryStore.getState().close();
+  }
 });

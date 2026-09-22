@@ -7,13 +7,14 @@ import { useAccountStore } from "@/state/accountStore";
 import { useUiStore } from "@/state/uiStore";
 import { PlainTitleForm } from "./PlainTitleForm";
 
+import { getStageGeometry } from "../../stageGeometry";
 import { AddLayerControls } from "./AddLayerControls";
-import { attachLayerAtCursor } from "./attachLayerAtCursor";
 import { LayerEditForm } from "./LayerEditForm";
 import { LayerListItem } from "./LayerListItem";
-import { getStageGeometry } from "../../stageGeometry";
+import { attachLayerAtCursor } from "./attachLayerAtCursor";
 
 interface LayersPanelProps {
+  hideImage?: boolean;
   projectId: ProjectId;
   /**
    * The menu whose title layers this panel edits. Provided by the parent
@@ -48,7 +49,7 @@ const DND_MIME = "application/x-layer-index";
  * panel switches to the new target (MenuProperties re-renders against
  * whichever menu the selectionStore now points at).
  */
-export function LayersPanel({ projectId, menuId, className }: LayersPanelProps) {
+export function LayersPanel({ projectId, menuId, className, hideImage = false }: LayersPanelProps) {
   const setSelectedLayerKey = useUiStore((s) => s.setSelectedLayerKey);
   const setSelectedMenuId = useUiStore((s) => s.setSelectedMenuId);
 
@@ -60,14 +61,16 @@ export function LayersPanel({ projectId, menuId, className }: LayersPanelProps) 
   const reorderMenuTitleLayers = useAccountStore((s) => s.reorderMenuTitleLayers);
   const applyLayerMoved = useUiStore((s) => s.applyLayerMoved);
 
-  const isVanillaMode = menu !== undefined && menu.title.length === 1 && menu.title[0]?.kind === "plain";
+  const isVanillaMode =
+    menu !== undefined && menu.title.length === 1 && menu.title[0]?.kind === "plain";
 
   const switchToVanilla = () => {
-    if (!menu) return;
+    if (!menu || isVanillaMode) return;
     if (
       menu.title.length > 0 &&
       !window.confirm("Passer en mode vanilla supprimera les layers actuels. Continuer ?")
-    ) return;
+    )
+      return;
     // Migrate the first text-bearing layer's i18n key into the plain layer so
     // the title text + its translations survive the round-trip (mirror of
     // switchToComposed). Minting a fresh key here would orphan the old one
@@ -85,7 +88,7 @@ export function LayersPanel({ projectId, menuId, className }: LayersPanelProps) 
   };
 
   const switchToComposed = () => {
-    if (!menu) return;
+    if (!menu || !isVanillaMode) return;
     // Migrate the plain layer's i18n key to a composed text layer so translations are preserved.
     const plainLayer = menu.title.find((l) => l.kind === "plain");
     const migratedLayers: MenuTitleLayer[] = plainLayer
@@ -128,10 +131,7 @@ export function LayersPanel({ projectId, menuId, className }: LayersPanelProps) 
     // ids as "asset not loaded", which surfaces a placeholder in the UI.
   };
 
-  const onPlace = (
-    kind: "image" | "text",
-    cursor: { x: number; y: number } | null,
-  ) => {
+  const onPlace = (kind: "image" | "text", cursor: { x: number; y: number } | null) => {
     // Drag-end branch — try cursor-driven attach first. If the project canvas
     // has a menu within range we use its id + the cursor-derived layer
     // coords; otherwise we fall through to the default placement on
@@ -206,10 +206,7 @@ export function LayersPanel({ projectId, menuId, className }: LayersPanelProps) 
   if (!menu) return null;
 
   return (
-    <div
-      className={cn("flex flex-col gap-3", className)}
-      data-testid="layers-panel"
-    >
+    <div className={cn("flex flex-col gap-3", className)} data-testid="layers-panel">
       {/* Mode toggle */}
       <div className="flex rounded border border-[var(--border)] bg-[var(--surface-raised)] p-0.5 text-[11px]">
         <button
@@ -243,7 +240,7 @@ export function LayersPanel({ projectId, menuId, className }: LayersPanelProps) 
         <PlainTitleForm projectId={projectId} menuId={menuId} />
       ) : (
         <>
-          <AddLayerControls onPlace={onPlace} />
+          <AddLayerControls onPlace={onPlace} hideImage={hideImage} />
 
           <div className="flex flex-col gap-0.5">
             {menu.title.map((layer, index) => (
@@ -256,12 +253,7 @@ export function LayersPanel({ projectId, menuId, className }: LayersPanelProps) 
                 onDragOver={onDragOver}
                 onDrop={onDrop(index)}
               >
-                <LayerListItem
-                  projectId={projectId}
-                  menuId={menuId}
-                  index={index}
-                  layer={layer}
-                />
+                <LayerListItem projectId={projectId} menuId={menuId} index={index} layer={layer} />
               </div>
             ))}
           </div>

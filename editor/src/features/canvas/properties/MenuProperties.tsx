@@ -7,6 +7,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { sourceFieldType } from "@/domain/dataModels";
 import type {
   ContextInput,
   InventoryType,
@@ -18,19 +19,19 @@ import type {
 } from "@/domain/types";
 import { slotCount } from "@/features/canvas/inventoryTypes";
 import { LayersPanel } from "@/features/canvas/title/composer/LayersPanel";
-import { MenuSetBlock, ObjectParamLists } from "./MenuDataSection";
-import { PreviewContextSection } from "./PreviewContextSection";
-import { SourceShapingEditor } from "./SourceShapingEditor";
-import { sourceFieldType } from "@/domain/dataModels";
 import { summarizeFieldType } from "@/features/data/helpers";
+import { useProjectLibraryStore } from "@/features/project/projectLibraryStore";
 import { parsePositions } from "@/lib/positions";
 import { useAccountStore } from "@/state/accountStore";
 import { useServerDataSourcesStore } from "@/state/serverDataSourcesStore";
-import { useProjectLibraryStore } from "@/features/project/projectLibraryStore";
 import { Library as LibraryIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { MenuAppearanceControls } from "./MenuAppearanceControls";
+import { MenuSetBlock, ObjectParamLists } from "./MenuDataSection";
+import { PreviewContextSection } from "./PreviewContextSection";
 import { PropertyField } from "./PropertyField";
+import { SourceShapingEditor } from "./SourceShapingEditor";
 
 interface MenuPropertiesProps {
   projectId: ProjectId;
@@ -107,13 +108,16 @@ export function MenuProperties({ projectId, menu }: MenuPropertiesProps) {
         <div className="font-mono text-[10px] text-[var(--text-faint)] uppercase tracking-wide">
           {t("menuProperties.titleSection")}
         </div>
-        <LayersPanel projectId={projectId} menuId={menu.id} />
+        <MenuAppearanceControls projectId={projectId} menuId={menu.id} />
+        <LayersPanel projectId={projectId} menuId={menu.id} hideImage />
       </div>
       <PropertyField
         label={t("menuProperties.permission")}
         value={menu.permission ?? ""}
         placeholder={t("menuProperties.permissionPlaceholder")}
-        onChange={(v) => setMenuField({ projectId, menuId: menu.id, field: "permission", value: v })}
+        onChange={(v) =>
+          setMenuField({ projectId, menuId: menu.id, field: "permission", value: v })
+        }
       />
       <div>
         <div className="mb-1 text-[10px] uppercase text-[var(--text-faint)]">
@@ -246,7 +250,12 @@ function ContextInputsEditor({ projectId, menu }: { projectId: ProjectId; menu: 
   const update = (index: number, patch: Partial<ContextInput>) => {
     const current = inputs[index];
     if (!current) return;
-    setInput({ projectId, menuId: menu.id, index, input: { ...current, ...patch } as ContextInput });
+    setInput({
+      projectId,
+      menuId: menu.id,
+      index,
+      input: { ...current, ...patch } as ContextInput,
+    });
   };
 
   return (
@@ -298,7 +307,9 @@ function ContextInputsEditor({ projectId, menu }: { projectId: ProjectId; menu: 
                     onChange={(patch) => update(i, patch)}
                     onRemove={() => removeInput({ projectId, menuId: menu.id, index: i })}
                   />
-                  {input.ref ? <MenuSetBlock projectId={projectId} menu={menu} input={input} /> : null}
+                  {input.ref ? (
+                    <MenuSetBlock projectId={projectId} menu={menu} input={input} />
+                  ) : null}
                 </>
               )}
               {isInvalid ? (
@@ -359,8 +370,7 @@ function PrimitiveInputRow({
   // (boutique:categories)" stores type "object" + rowOf, giving the editor
   // the field schema (placeholder completion, preview candidates).
   const serverSources = useServerDataSourcesStore((s) => s.sources);
-  const selectValue =
-    input.type === "object" && input.rowOf ? `row:${input.rowOf}` : input.type;
+  const selectValue = input.type === "object" && input.rowOf ? `row:${input.rowOf}` : input.type;
   return (
     <>
       {/* Row 1: name + type + remove button */}
@@ -493,7 +503,9 @@ function SourceRefInputRow({
             align="start"
             className="border-[var(--border)] bg-[var(--surface-raised)] text-[var(--text)]"
           >
-            {project ? <SourcePickerOptions project={project} onPick={(ref) => onChange({ ref })} /> : null}
+            {project ? (
+              <SourcePickerOptions project={project} onPick={(ref) => onChange({ ref })} />
+            ) : null}
           </DropdownMenuContent>
         </DropdownMenu>
         <button
@@ -507,9 +519,13 @@ function SourceRefInputRow({
       </div>
       <SourceShapingEditor
         input={input}
-        schemaFields={(serverSources.find((s) => s.ref === input.ref)?.schema ?? []).map((f) => f.name)}
+        schemaFields={(serverSources.find((s) => s.ref === input.ref)?.schema ?? []).map(
+          (f) => f.name,
+        )}
         argNames={(menu.contextInputs ?? [])
-          .filter((ci): ci is Extract<ContextInput, { kind: "primitive" }> => ci.kind === "primitive")
+          .filter(
+            (ci): ci is Extract<ContextInput, { kind: "primitive" }> => ci.kind === "primitive",
+          )
           .map((ci) => ci.name)
           .filter((n) => n !== "")}
         onChange={onChange}

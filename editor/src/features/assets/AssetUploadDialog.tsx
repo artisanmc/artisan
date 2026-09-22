@@ -1,13 +1,14 @@
 import { Button } from "@/components/ui/button";
-import { FileDropzone } from "@/components/ui/file-dropzone";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { FileDropzone } from "@/components/ui/file-dropzone";
 import { Input } from "@/components/ui/input";
-import type { Asset } from "@/domain/asset";
+import type { Asset, AssetUsage } from "@/domain/asset";
 import type { ProjectId } from "@/domain/types";
 import { uploadAsset } from "@/lib/api/userAssets";
 import { useProjectPrincipalId } from "@/lib/projectPrincipal";
-import { useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { AssetUsageFields } from "./AssetUsageFields";
 import { useAssetStore } from "./assetStore";
 
 interface AssetUploadDialogProps {
@@ -15,6 +16,7 @@ interface AssetUploadDialogProps {
   open: boolean;
   onClose: () => void;
   onUploaded?: (asset: Asset) => void;
+  usage?: AssetUsage;
 }
 
 /** An asset name (lowercase, digits, `_`, `-`) derived from a file name. */
@@ -39,7 +41,14 @@ export function assetNameFromFile(fileName: string): string {
  * keep working unchanged. Font uploads have their own dedicated dialog
  * (`AssetImportFontDialog`) — that concept stays distinct in the UI.
  */
-export function AssetUploadDialog({ projectId, open, onClose, onUploaded }: AssetUploadDialogProps) {
+export function AssetUploadDialog({
+  projectId,
+  open,
+  onClose,
+  onUploaded,
+  usage,
+}: AssetUploadDialogProps) {
+  const nameId = useId();
   const { t } = useTranslation();
   const user = useProjectPrincipalId(projectId);
   const upsertAsset = useAssetStore((s) => s.upsertAsset);
@@ -49,6 +58,10 @@ export function AssetUploadDialog({ projectId, open, onClose, onUploaded }: Asse
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [usages, setUsages] = useState<AssetUsage[]>(usage ? [usage] : []);
+  useEffect(() => {
+    if (open) setUsages(usage ? [usage] : []);
+  }, [open, usage]);
 
   const reset = () => {
     setName("");
@@ -70,7 +83,7 @@ export function AssetUploadDialog({ projectId, open, onClose, onUploaded }: Asse
       // Always `glyph` — see the component docblock for the rationale.
       // The backend allocates a font codepoint for glyph uploads, which
       // makes the asset usable everywhere (titles + slot icons).
-      const asset = await uploadAsset(projectId, { file, type: "glyph", name });
+      const asset = await uploadAsset(projectId, { file, type: "glyph", name, usages });
       upsertAsset(asset);
       reset();
       onUploaded?.(asset);
@@ -103,9 +116,10 @@ export function AssetUploadDialog({ projectId, open, onClose, onUploaded }: Asse
             hint={t("assetUpload.dropHint")}
             clearLabel={t("assetUpload.clear")}
           />
-          <label className="text-xs">
+          <label className="text-xs" htmlFor={nameId}>
             {t("assetUpload.name")}
             <Input
+              id={nameId}
               value={name}
               onChange={(e) => {
                 setName(e.target.value);
@@ -114,6 +128,7 @@ export function AssetUploadDialog({ projectId, open, onClose, onUploaded }: Asse
               placeholder={t("assetUpload.namePlaceholder")}
             />
           </label>
+          <AssetUsageFields value={usages} onChange={setUsages} requiredUsage={usage} />
           {error && <div className="text-xs text-[var(--danger)]">{error}</div>}
           <div className="flex justify-end gap-2">
             <Button variant="ghost" onClick={onClose}>

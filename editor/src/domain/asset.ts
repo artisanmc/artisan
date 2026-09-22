@@ -1,5 +1,6 @@
 export type AssetType = "texture" | "glyph" | "font";
 export type AssetId = string;
+export type AssetUsage = "button" | "menu";
 
 export interface FontMeta {
   namespace: string;
@@ -19,6 +20,8 @@ export interface FontMeta {
 }
 
 export interface Asset {
+  /** Legacy classifications may remain in cached drafts until their next save. */
+  usages?: (AssetUsage | "background" | "decoration")[];
   draftId?: string;
   id: AssetId;
   projectId: string;

@@ -9,6 +9,11 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Changed — buttons and project resources
+
+- The canvas Library becomes **Buttons**, with **Game items**, **Captured items** and **Images**. Project images and fonts are managed in the separate **Resources** project tab.
+- Images can be classified as button images and/or menu images, sharing one file. Asset create/PATCH APIs accept optional `usages` (`button`, `menu`), persisted in the image's YAML descriptor; legacy `background`/`decoration` values normalize to `menu`. Menu appearance provides one image picker with free placement; existing layers and references are preserved.
+
 ### Fixed — server project loading and in-game images
 
 - Fix slow server project opening by archiving completed publication journals and listing loaded projects without disk recovery.

@@ -17,6 +17,7 @@ import {
 import { fontFilesFor, fontFromDisk } from "./fontOnDisk";
 import { type DiskAsset } from "./diskAssets";
 import type { AssetRow } from "./resourcePackBuilder";
+import { parseAssetUsages, type AssetUsage } from "./assetUsages";
 
 const NAME_RE = /^[a-z0-9_-]+$/;
 
@@ -42,6 +43,15 @@ export async function handleAssetCreate(c: any, ctx: AssetCtx) {
   }
   if (!NAME_RE.test(name)) {
     return c.json({ error: "Invalid name (must match [a-z0-9_-]+)" }, 400);
+  }
+  let usages: AssetUsage[] | undefined;
+  if (form.usages !== undefined) {
+    try {
+      usages = typeof form.usages === "string" ? parseAssetUsages(JSON.parse(form.usages)) : undefined;
+    } catch {
+      return c.json({ error: "Invalid usages" }, 400);
+    }
+    if (type === "font" || usages === undefined) return c.json({ error: "Invalid usages (images only; button, menu)" }, 400);
   }
   if (!(file instanceof File)) {
     return c.json({ error: "Missing file" }, 400);
@@ -157,6 +167,7 @@ export async function handleAssetCreate(c: any, ctx: AssetCtx) {
         width,
         height,
         content_width: contentWidth,
+        usages,
       },
       baseHash: null,
       descriptorBaseHash: null,
@@ -175,6 +186,7 @@ export async function handleAssetCreate(c: any, ctx: AssetCtx) {
         ascent: ascentValue,
         codepoint: codepointValue,
         fontMeta: null,
+        usages,
         contentHash: diskContentHash,
         createdAt: now.toISOString(),
         updatedAt: now.toISOString(),
@@ -246,6 +258,10 @@ export async function handleAssetPatch(c: any, ctx: AssetCtx) {
   {
     const body = await c.req.json().catch(() => ({}));
     const row = onDisk.found.row;
+    const nextUsages = body.usages === undefined ? row.usages : parseAssetUsages(body.usages);
+    if (body.usages !== undefined && (row.type === "font" || nextUsages === undefined)) {
+      return c.json({ error: "Invalid usages (images only; button, menu)" }, 400);
+    }
     if (typeof body.name === "string" && !NAME_RE.test(body.name)) {
       return c.json({ error: "Invalid name" }, 400);
     }
@@ -287,6 +303,7 @@ export async function handleAssetPatch(c: any, ctx: AssetCtx) {
       width: nextWidth,
       height: nextHeight,
       content_width: nextContentWidth,
+      usages: nextUsages,
     };
     const previous = descriptorOf(onDisk.disk.files, onDisk.found.path);
     const renamed = nextName !== row.name;
@@ -305,6 +322,7 @@ export async function handleAssetPatch(c: any, ctx: AssetCtx) {
         height: nextHeight,
         width: nextWidth,
         contentWidth: nextContentWidth,
+        usages: nextUsages,
       }),
     });
   }
@@ -339,6 +357,7 @@ export async function handleAssetDuplicate(c: any, ctx: AssetCtx) {
         width: src.width,
         height: src.height,
         content_width: src.contentWidth,
+        usages: src.usages,
       },
       baseHash: null,
       descriptorBaseHash: null,
@@ -410,6 +429,7 @@ function serialize(row: AssetRow) {
     ascent: row.ascent,
     codepoint: row.codepoint,
     fontMeta: row.fontMeta,
+    usages: row.usages,
     contentHash: row.contentHash,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),

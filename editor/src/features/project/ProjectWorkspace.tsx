@@ -11,6 +11,7 @@ import { WorkspaceView } from "@/components/ui/workspace-view";
 import type { Asset } from "@/domain/asset";
 import type { ElementId, MenuId, ProjectId } from "@/domain/types";
 import { AssetPreview } from "@/features/assets/AssetPreview";
+import { AssetsTab } from "@/features/assets/AssetsTab";
 import { AssistantBody } from "@/features/assistant/AssistantBody";
 import { IMAGE_BUTTON_DRAG_PREFIX } from "@/features/canvas/ImageButtonLibrary";
 import { LIBRARY_DRAG_PREFIX } from "@/features/canvas/Library";
@@ -81,12 +82,13 @@ import { toast } from "sonner";
 import { ResolvedProjectContext } from "./ResolvedProjectContext";
 
 export type ProjectSearch = {
-  tab?: "overview" | "translations" | "data-sources" | "assistant";
+  tab?: "overview" | "translations" | "data-sources" | "resources" | "assistant";
 };
 
 export const validateProjectSearch = (search: Record<string, unknown>): ProjectSearch => {
   const t = search.tab;
-  if (t === "translations" || t === "data-sources" || t === "assistant") return { tab: t };
+  if (t === "translations" || t === "data-sources" || t === "resources" || t === "assistant")
+    return { tab: t };
   return { tab: "overview" };
 };
 
@@ -390,6 +392,13 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
   const secondaryViews = (
     <>
       {importDialog}
+      <WorkspaceView
+        active={tab === "resources"}
+        onExit={exitToCanvas}
+        title={t("project.tabs.resources")}
+      >
+        <AssetsTab projectId={pId} />
+      </WorkspaceView>
       <WorkspaceView
         active={tab === "translations"}
         onExit={exitToCanvas}

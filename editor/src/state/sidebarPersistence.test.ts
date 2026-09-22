@@ -38,12 +38,12 @@ it("restores both open and closed Elements choices", async () => {
 it("restores the library project and category, then remembers closing it", async () => {
   const name = useProjectLibraryStore.persist.getOptions().name;
   const projectId = "project-a" as ProjectId;
-  useProjectLibraryStore.getState().open(projectId, "graphics");
+  useProjectLibraryStore.getState().open(projectId, "captured");
   const saved = localStorage.getItem(name)!;
   useProjectLibraryStore.setState({ projectId: null, category: "items" });
   localStorage.setItem(name, saved);
   await useProjectLibraryStore.persist.rehydrate();
-  expect(useProjectLibraryStore.getState()).toMatchObject({ projectId, category: "graphics" });
+  expect(useProjectLibraryStore.getState()).toMatchObject({ projectId, category: "captured" });
   useProjectLibraryStore.getState().close();
   const closed = localStorage.getItem(name)!;
   useProjectLibraryStore.setState({ projectId });
