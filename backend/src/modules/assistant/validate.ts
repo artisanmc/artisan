@@ -4,6 +4,7 @@ import commandSchema from "../../../../docs/schema/command/v1/schema.json";
 import dialogSchema from "../../../../docs/schema/dialog/v1/schema.json";
 import schema from "../../../../docs/schema/menu/v1/schema.json";
 import { validateMenuLayout } from "../../../../docs/schema/menu/v1/types";
+import { imageButtonErrors } from "../../../../docs/schema/menu/v1/imageButtons";
 // Action DSL codec (Phase 2 of ADR action-dsl): click-handler / command steps /
 // dialog button actions travel as a DSL STRING. We reuse the editor's pure
 // parser directly — its only `@/…` imports are `import type` (erased at
@@ -170,6 +171,7 @@ export function validateMenuV1(menu: unknown): MenuV1ValidationResult {
       ? { ...wire, layers: [{ id: "default", name: "default", elements: wire.elements }] }
       : wire;
     layoutErrors = validateMenuLayout(layered as never).errors;
+    layoutErrors.push(...imageButtonErrors(layered));
     vocabErrors = collectVocabErrors(layered);
   }
   const errors = [...structErrors, ...layoutErrors, ...vocabErrors];

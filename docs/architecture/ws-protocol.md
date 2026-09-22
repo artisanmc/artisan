@@ -75,13 +75,28 @@ status, source, timestamps, baseline/tree/initialTree and renames. Binary snapsh
 maps `binaryBaseline/binaryTree` use `{hash,size}`; `write_blob` transports
 `hash,content_base64` separately without advancing revision. Publication finalizes
 files and terminal draft state on storage, with a recoverable journal.
+The plugin sends the durable publication receipt before reloading runtime menus
+and commands. Reload continues under the project mutation lock and announces
+`projects_reloaded`; a slow/failed reload cannot withhold an already committed
+receipt. Backend draft RPCs time out after 30 seconds; the editor allows 45 seconds
+to receive that structured outcome and retains the same operation ID on timeout.
 Structurally impossible target hierarchies are rejected before the commit intent.
+Completed publisher journals move atomically into `.artisan/transactions/.receipts/`
+after their durable completion marker. Recovery scans only pending journals;
+legacy completed journals are archived on their first recovery pass. Duplicate
+operation IDs still read their retained receipt, and owner revocation scrubs
+both pending journals and archived receipts. `project_list` returns identities
+from the loaded snapshot without triggering disk discovery or recovery.
 `storage_error` is an uncertain outcome; retry the same `operation_id` after recovery.
 Legacy draft IDs retain their exact envelope spelling; uppercase-bearing IDs and
 Windows device names use an encoded private directory on every OS, preserving
 case-distinct IDs when projects move between filesystems.
 `list_all` accepts an empty administrative owner and returns every unrevoked state.
 `purge_owner` persists a private revocation marker, blocking restored owner data.
+`hello_ack.bundle_url` carries `BUNDLE_BASE_URL` (fallback `API_BASE_URL`) for
+plugin-side resource-pack downloads; `resource_pack.url` remains player-facing.
+Resource-pack refresh skips an old database project only when the plugin confirms
+`unknown_project`; a timeout/offline project still preserves the previous pack.
 Ordinary reads/exports/runtime never include `.artisan/drafts/`.
 
 `hello` carries `protocol_version: "1"` + `core_version`. Unknown message types are logged + ignored (forward-compat). Tout endpoint REST associé est sous `/api/v1/`.

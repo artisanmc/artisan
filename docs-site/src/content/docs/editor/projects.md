@@ -109,6 +109,8 @@ when available. Use **Copy details** to share the diagnostic, or select the text
 if clipboard access is unavailable. Reopen it through the arrow beside **Deploy** →
 **Last save error**. The error remains available until a successful save or until
 you close the project. File conflicts still open the resolution dialog.
+After a timeout, retrying **Deploy** confirms the earlier attempt and also publishes
+your newer changes in the same action. Changes made during publication remain in your draft.
 The red dot on the arrow specifically indicates an offline or conflicting draft
 sync; hover over the arrow or open **Drafts** to inspect that state.
 During a draft storage migration, **Drafts** reports that saving is paused.

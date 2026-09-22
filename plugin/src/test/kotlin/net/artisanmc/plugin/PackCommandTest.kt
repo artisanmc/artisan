@@ -53,6 +53,31 @@ class PackCommandTest {
         assertTrue(result)
     }
 
+    @Test fun `command menu navigation carries the configured viewer language`() {
+        val player = MockBukkit.getMock()!!.addPlayer()
+        player.setLocale(java.util.Locale.FRANCE)
+        for ((defaultLang, perPlayer, expected) in listOf(Triple("en", true, "fr"), Triple("en", false, "en"), Triple("fr", false, "fr"))) {
+            val languages = LangManager(mapOf("en" to emptyMap(), "fr" to emptyMap()), defaultLang, perPlayer)
+            var opened: Pair<String, ExecutionContext>? = null
+            val provider = object : MenuProvider {
+                override fun load() {}
+                override fun findMenu(menuId: String): BundleMenu? = null
+                override fun allBundles(): List<ProjectBundle> = emptyList()
+                override fun openMenu(player: Player, menuId: String, lang: String, ctx: ExecutionContext) {
+                    assertEquals("menu_zdzd", menuId)
+                    opened = lang to ctx
+                }
+            }
+            val actions = ActionExecutor(plugin.value, provider, sessions, deps, cooldowns, evaluator)
+            val handler = ClickHandler(emptyList(), listOf(Action.OpenMenu("menu_zdzd")), emptyList())
+            val command = PackCommand(CompiledCommand("testimg", emptyList(), null, "", emptyList(), handler), actions, languages)
+            assertTrue(command.execute(player, "testimg", emptyArray()))
+            val (selected, context) = assertNotNull(opened)
+            assertEquals(expected, selected)
+            assertEquals(selected, context.lang)
+        }
+    }
+
     @Test fun `execute returns true when arg parse fails`() {
         val defs = listOf(ArgDef.IntArg("amount"))
         val command = cmd("pay", argDefs = defs)

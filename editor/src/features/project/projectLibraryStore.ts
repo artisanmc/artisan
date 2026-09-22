@@ -2,7 +2,7 @@ import type { ProjectId } from "@/domain/types";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-export type LibraryCategory = "items" | "graphics";
+export type LibraryCategory = "items" | "graphics" | "image-buttons";
 
 interface ProjectLibraryState {
   width: number;

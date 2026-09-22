@@ -35,6 +35,13 @@ import {
   newLayerId,
   newProjectId,
 } from "@/domain/ids";
+import {
+  assertImageButtonPlacement,
+  hasImageButton,
+  imageButtonRect,
+  imageButtonSize,
+  rectanglePositions,
+} from "@/domain/imageButton";
 import type { AdvancedFields } from "@/domain/itemAdvanced";
 import { migrateTitle } from "@/domain/migrateTitle";
 import { type StepFrame, type StepPath, resolveParentMut, walkActions } from "@/domain/stepPath";
@@ -517,6 +524,14 @@ interface AccountState {
       value: string | number | undefined;
     } & AppearanceTarget,
   ) => void;
+  setAppearanceImage: (
+    input: AppearanceTarget & {
+      projectId: ProjectId;
+      appearanceIndex?: number;
+      image: import("@/domain/types").Appearance["image"];
+      positions?: string;
+    },
+  ) => void;
   /**
    * Patch the advanced detail fields of an appearance (enchants, glint, custom
    * model data, unbreakable, hide flags, tint, raw NBT). A key set to
@@ -853,6 +868,12 @@ interface AccountState {
    * sibling elements (positions are unique within a menu).
    */
   addElement: (input: { projectId: ProjectId; menuId: MenuId; element: Element }) => void;
+  addImageButton: (input: {
+    projectId: ProjectId;
+    menuId: MenuId;
+    position: number;
+    asset: { id: string; width: number; height: number };
+  }) => ElementId | undefined;
   /**
    * Shift every position of every element in `elementIds` by (dCol, dRow)
    * within the menu's grid. Throws if any new position would fall outside
@@ -2672,6 +2693,8 @@ export const useAccountStore = create<AccountState>()(
             for (const layer of menu.layers) {
               for (const el of layer.elements) {
                 if (!positionsContains(el.positions, position)) continue;
+                if (hasImageButton(el))
+                  throw new Error("Change the image button's appearance in its properties.");
                 const appearance = el.display;
                 if (appearance) appearance.material = material;
                 project.updatedAt = new Date().toISOString();
@@ -2689,6 +2712,29 @@ export const useAccountStore = create<AccountState>()(
               display: { material },
               states: [],
             });
+            project.updatedAt = new Date().toISOString();
+          }),
+        ),
+      setAppearanceImage: (input) =>
+        set(
+          produce((draft: AccountState) => {
+            const project = draft.account.projects.find((p) => p.id === input.projectId);
+            if (!project) return;
+            const menu = project.menus.find((m) => m.id === input.menuId);
+            const element = menu?.layers
+              .flatMap((l) => l.elements)
+              .find((el) => el.id === input.elementId);
+            const appearance = findAddressedAppearance(project, input, input.appearanceIndex ?? 0);
+            if (!menu || !element || !appearance) return;
+            if (input.image) {
+              assertImageButtonPlacement(menu, element, input.positions ?? element.positions);
+              if (input.positions !== undefined) element.positions = input.positions;
+              appearance.image = input.image;
+              for (const field of ["material", "item", "head"])
+                Reflect.deleteProperty(appearance, field);
+            } else {
+              Reflect.deleteProperty(appearance, "image");
+            }
             project.updatedAt = new Date().toISOString();
           }),
         ),
@@ -2718,10 +2764,12 @@ export const useAccountStore = create<AccountState>()(
               if (typeof value !== "string") return;
               appearance.material = value || undefined;
               appearance.item = undefined;
+              appearance.image = undefined;
             } else if (field === "item") {
               if (typeof value !== "string") return;
               appearance.item = value;
               appearance.material = undefined;
+              appearance.image = undefined;
             } else if (field === "head") {
               if (typeof value !== "string") return;
               appearance.head = value || undefined;
@@ -2778,6 +2826,18 @@ export const useAccountStore = create<AccountState>()(
             for (const layer of menu.layers) {
               for (const el of layer.elements) {
                 if (el.id !== elementId) continue;
+                if (hasImageButton(el)) assertImageButtonPlacement(menu, el, positions);
+                for (const other of menu.layers.flatMap((l) => l.elements)) {
+                  if (
+                    other.id !== el.id &&
+                    hasImageButton(other) &&
+                    parsePositions(other.positions).some((slot) =>
+                      positionsContains(positions, slot),
+                    )
+                  ) {
+                    throw new Error("This area belongs to an image button.");
+                  }
+                }
                 el.positions = positions;
                 project.updatedAt = new Date().toISOString();
                 return;
@@ -2792,6 +2852,37 @@ export const useAccountStore = create<AccountState>()(
             if (!project) return;
             const menu = project.menus.find((m) => m.id === mId);
             if (!menu) return;
+            const imageElement = menu.layers
+              .flatMap((l) => l.elements)
+              .find((el) => el.id === elementId);
+            if (imageElement && hasImageButton(imageElement)) {
+              const type = menu.inventoryType ?? "chest";
+              const rect = imageButtonRect(imageElement.positions, type, menu.rows);
+              if (!rect) throw new Error("Invalid image button area.");
+              const cols = colsFor(type);
+              const col = (rect.slot % cols) + (toPosition % cols) - (fromPosition % cols);
+              const row =
+                Math.floor(rect.slot / cols) +
+                Math.floor(toPosition / cols) -
+                Math.floor(fromPosition / cols);
+              if (col < 0 || col + rect.width > cols || row < 0)
+                throw new Error("The image button must fit inside the menu.");
+              const positions = rectanglePositions(
+                row * cols + col,
+                rect.width,
+                rect.height,
+                type,
+                menu.rows,
+              );
+              assertImageButtonPlacement(menu, imageElement, positions);
+              imageElement.positions = positions;
+              project.updatedAt = new Date().toISOString();
+              return;
+            }
+            for (const other of menu.layers.flatMap((l) => l.elements)) {
+              if (hasImageButton(other) && positionsContains(other.positions, toPosition))
+                throw new Error("This area belongs to an image button.");
+            }
             // First, strip toPosition from any element that owns it.
             for (const layer of menu.layers) {
               for (const otherEl of layer.elements) {
@@ -2820,6 +2911,17 @@ export const useAccountStore = create<AccountState>()(
             if (!project) return;
             const menu = project.menus.find((m) => m.id === mId);
             if (!menu) return;
+            const source = menu.layers.flatMap((l) => l.elements).find((el) => el.id === elementId);
+            if (source && hasImageButton(source))
+              assertImageButtonPlacement(menu, source, addPosition(source.positions, position));
+            for (const other of menu.layers.flatMap((l) => l.elements)) {
+              if (
+                other.id !== elementId &&
+                hasImageButton(other) &&
+                positionsContains(other.positions, position)
+              )
+                throw new Error("This area belongs to an image button.");
+            }
             for (const layer of menu.layers) {
               for (const otherEl of layer.elements) {
                 if (otherEl.id === elementId) continue;
@@ -3341,6 +3443,36 @@ export const useAccountStore = create<AccountState>()(
             touch(draft, pId);
           }),
         ),
+      addImageButton: ({ projectId: pId, menuId: mId, position, asset }) => {
+        let created: ElementId | undefined;
+        set(
+          produce((draft: AccountState) => {
+            const project = draft.account.projects.find((p) => p.id === pId);
+            const menu = project?.menus.find((m) => m.id === mId);
+            if (!project || !menu) return;
+            const size = imageButtonSize(asset.width, asset.height);
+            const element: Element = {
+              id: nextElementIdForMaterial(project, undefined),
+              positions: rectanglePositions(
+                position,
+                size.width,
+                size.height,
+                menu.inventoryType ?? "chest",
+                menu.rows,
+              ),
+              display: { image: { asset: asset.id, fit: "native" } },
+              states: [],
+            };
+            assertImageButtonPlacement(menu, element);
+            if (!menu.layers.length)
+              menu.layers.push({ id: newLayerId(), name: "default", elements: [] });
+            menu.layers[0]!.elements.push(element);
+            project.updatedAt = new Date().toISOString();
+            created = element.id;
+          }),
+        );
+        return created;
+      },
       addElement: ({ projectId: pId, menuId: mId, element }) =>
         set(
           produce((draft: AccountState) => {
@@ -3454,6 +3586,18 @@ export const useAccountStore = create<AccountState>()(
             }
           }
           if (plans.size === 0) return;
+          for (const el of menu.layers.flatMap((l) => l.elements)) {
+            const plan = plans.get(el.id);
+            if (plan && hasImageButton(el))
+              assertImageButtonPlacement(menu, el, formatPositions(plan), targetSet);
+            if (
+              !plan &&
+              hasImageButton(el) &&
+              [...plans.values()].flat().some((slot) => positionsContains(el.positions, slot))
+            ) {
+              throw new Error("This area belongs to an image button.");
+            }
+          }
           // Strip new positions from non-target elements (takeover).
           const claimed = new Set<number>();
           for (const ps of plans.values()) for (const p of ps) claimed.add(p);
@@ -3485,7 +3629,13 @@ export const useAccountStore = create<AccountState>()(
             const appearance = findAddressedAppearance(project, input, appearanceIndex);
             if (!appearance) return;
             if (appearance.loreMode === "replace") {
-              if (!appearance.lore) appearance.lore = createLTextAt(project, appearanceLoreKeyFor(input, appearanceIndex), value, lang);
+              if (!appearance.lore)
+                appearance.lore = createLTextAt(
+                  project,
+                  appearanceLoreKeyFor(input, appearanceIndex),
+                  value,
+                  lang,
+                );
               else setLText(project, appearance.lore, lang, value);
             } else if (!appearance.lore) {
               appearance.lore = value
@@ -3514,7 +3664,7 @@ export const useAccountStore = create<AccountState>()(
               if (idx === -1) continue;
               const el = layer.elements[idx]!;
               const remaining = removePosition(el.positions, position);
-              if (remaining === "") {
+              if (remaining === "" || hasImageButton(el)) {
                 // Last position — drop the element entirely.
                 gcElementLTexts(project, el);
                 layer.elements.splice(idx, 1);

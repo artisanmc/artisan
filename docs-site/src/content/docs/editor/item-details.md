@@ -4,6 +4,9 @@ description: Add enchantments, custom model data, colours, and raw NBT to menu i
 ---
 
 Every item state has an **Advanced parameters** section, collapsed under the lore field.
+
+To use a PNG instead of a material, choose **Image** in the appearance card.
+See [Image buttons](../image-buttons/) for sizing and actions across several slots.
 It holds everything beyond material, title, and lore. The trigger shows a count badge when
 something is set, so a configured item never hides its own configuration.
 

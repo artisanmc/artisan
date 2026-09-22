@@ -5,6 +5,7 @@ import type { ProjectId } from "@/domain/types";
 import { AssetsTab } from "@/features/assets/AssetsTab";
 import { useAssetInit } from "@/features/assets/useAssetInit";
 import { CapturedItemsSection } from "@/features/canvas/CapturedItemsSection";
+import { ImageButtonLibrary } from "@/features/canvas/ImageButtonLibrary";
 import { Library } from "@/features/canvas/Library";
 import { useTextureInit } from "@/features/canvas/useTextureInit";
 import { useIsDesktop } from "@/lib/useMediaQuery";
@@ -166,6 +167,9 @@ function ProjectLibraryPanel({ projectId }: { projectId: ProjectId }) {
             <TabsTrigger value="graphics" className="px-2">
               {t("projectLibrary.graphics")}
             </TabsTrigger>
+            <TabsTrigger value="image-buttons" className="px-2">
+              {t("imageButton.library")}
+            </TabsTrigger>
           </TabsList>
           <Button
             variant="ghost"
@@ -205,6 +209,9 @@ function ProjectLibraryPanel({ projectId }: { projectId: ProjectId }) {
         </TabsContent>
         <TabsContent value="graphics" className="min-h-0 flex-1 overflow-hidden">
           <AssetsTab projectId={projectId} compact />
+        </TabsContent>
+        <TabsContent value="image-buttons" className="min-h-0 flex-1 overflow-hidden">
+          <ImageButtonLibrary projectId={projectId} />
         </TabsContent>
       </Tabs>
     </section>

@@ -1,5 +1,49 @@
 # Editor & rendering internals
 
+Draft API requests allow 45 seconds so the backend's 30-second plugin response
+window can complete. A local transport timeout becomes retryable `fetch_timeout`
+(504), preserving the pending operation ID: a publication may already be durable
+even if its acknowledgement is lost. The plugin confirms the durable write before
+runtime reload, which separately announces `projects_reloaded`. Regression coverage:
+`editor/src/lib/api/projectDrafts.test.ts` (28-second success and backend timeout).
+
+## Image buttons
+
+`Appearance.image = { asset, fit?: "native" | "contain" | "stretch", offset_x?, offset_y? }` selects a project PNG
+instead of `material`/`item`. `ImageButtonEditor` exposes the choice in each
+appearance card; width and height edit the Element's existing `positions` into
+one complete rectangle. States share that footprint but keep independent images,
+conditions, title/lore and actions. Iteration and explicit placements are excluded.
+`domain/imageButton.ts` validates resize/move operations and rejects collisions.
+`ImageButtonsRender` draws the display image once and drags the whole rectangle.
+The Library's **Image buttons** tab lists project PNGs with `ceil(width/16)` ×
+`ceil(height/16)` slot footprints and supports upload and direct drag/drop.
+`addImageButton` validates and inserts the whole footprint atomically; converting
+an item also sets its image and automatic positions in one undoable operation.
+New buttons use native pixels, centered by default. X/Y offsets (integer pixels)
+move the image within its clipped area; they never change click targets. Existing
+images keep their fit/footprint when replaced; **Fit slots to image** is explicit.
+`menu/v1/imageButtonGeometry.ts` shares canvas/resource-pack sizing and centering.
+`useAuthenticatedImageUrl` shares authenticated PNG requests and blob URLs by
+principal and full content-versioned URL. `AssetPreview` (picker/editor) and the
+canvas reuse those bytes, including the picker-to-canvas handoff. Picker thumbnails
+load near the viewport. The last consumer releases the preview in a microtask,
+aborting pending downloads and revoking blob URLs; account/content changes cannot
+reuse a different scope. Regression coverage: `useAuthenticatedImage.test.tsx`.
+Transient HTTP 5xx preview failures retry twice (500 ms, then 1 s) while mounted;
+permanent 4xx failures are not retried. Unmount/session change cancels pending retries.
+
+Backend `imageButtons.ts` collects all display/state variants from menu files and
+resizes PNGs with nearest-neighbour sampling into 18-pixel slot cells. Contain
+centres with transparent padding; stretch fills the rectangle; native keeps source pixels.
+Source assets are unchanged. Derived keys include the asset SHA-256, pixel dimensions, fit and Y,
+with an X/Y suffix only for nonzero offsets (legacy keys are preserved);
+each has its own font namespace and measured glyph advance in the asset index.
+`ImageButtonLayout` mirrors that key/geometry in Kotlin. The renderer evaluates
+the appearance once, appends its glyph to the title and fills the footprint with
+empty-model items carrying the shared tooltip/clicks. Missing images or invalid
+footprints produce no active image button. Plain title text renders after images.
+
 ## Project display name
 
 `ProjectTopBarControls` subscribes to the current account project's name so
@@ -314,6 +358,11 @@ isolé par propriétaire : après ACK perdu, rejouer cette opération avant d'en
 les frappes suivantes. Un rejet définitif 4xx libère cette opération ; un échec
 incertain la conserve. Les références `binaryBaseline`/`binaryTree` voyagent avec
 les edits texte. `migration_pending` suspend la sauvegarde sans effacer le secours.
+Lorsqu'un clic Déployer récupère le résultat d'une publication antérieure après
+timeout, `saveProjectToDisk` avance la base vers ce résultat puis publie le brouillon
+restant si la version demandée diffère. Le reçu ancien ne suffit pas à annoncer
+la réussite des nouvelles modifications. Un échec de cette seconde publication
+reste visible ; les modifications effectuées pendant l'envoi restent en brouillon.
 Les ZIPs et arbres génériques excluent brouillons, transactions et marqueur de
 renommage privés ; `.artisan/editor.yaml` reste partagé. L'import texte refuse
 les binaires, dans l'attente du parcours portable complet.
@@ -550,6 +599,11 @@ Au runtime, les listes/objets chargés automatiquement par `MenuRenderer` (input
 - **Runtime plugin** — `ProjectReader` scanne `data/*.yaml` (tolérant par fichier, formes nue + legacy) → `BundleDataSource` ; il lit aussi `models/` au load (docs verbatim `{name, type}` aplatis vers le vocabulaire inline) et les déclarations JAR via le supplier `declaredModels`. Le namespace réservé `pack:` est résolu au **fetch seam** du renderer (`ProjectDataResolver`) ; les ltext se localisent au bind : **clé explicite > adresse key-site (`sources.<id>.<rowKey>.<champ>`) > littéral** ; une config binde son objet entier sans shaping (`ContextBinder` accepte `Any?`).
 
 ### Champ `actions` & Action DSL (depuis 2026-07-21)
+
+Les commandes de Project (`PackCommand`) initialisent `ExecutionContext.lang`
+via `LangManager.playerLang`, comme `/artisan menu`. `open_menu` / `open_dialog`
+conservent cette langue ; les titres et lores, boutons image compris, utilisent
+donc la langue du joueur ou celle configurée si `per_player_language` est désactivé.
 
 Kind de champ `actions` (`ModelFieldType`) : une **Action chain** (`Step[]`) stockée comme **chaîne Action DSL** — la sérialisation texte compacte, écrivable à la main dans le YAML disque. Cf. ADR `action-dsl` + `CONTEXT.md` (Action chain / Action DSL).
 

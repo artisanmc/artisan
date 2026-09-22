@@ -11,6 +11,7 @@ import {
   type AssetRow,
 } from "./fontJsonBuilder";
 import type { GlyphPlacement } from "./menuGlyphPlacements";
+import { buildImageButtons, type ImageButtonPlacement } from "./imageButtons";
 
 export type { AssetRow };
 
@@ -62,6 +63,7 @@ export function buildResourcePackZip(
   fontGlyphPngs: Map<string, Map<string, Uint8Array>>,
   mergeResult: { finalCodepoints: Map<string, number> } = { finalCodepoints: new Map() },
   glyphPlacements: GlyphPlacement[] = [],
+  imageButtons: ImageButtonPlacement[] = [],
 ): BuildResult {
   const remapped = assets.map((a) => {
     if (a.type !== "glyph" || a.codepoint === null) return a;
@@ -77,8 +79,9 @@ export function buildResourcePackZip(
   const fontJson = buildDefaultFontJson(remapped);
   files["assets/artisan/font/default.json"] = strToU8(JSON.stringify(fontJson, null, 2));
 
-  files["assets/artisan/asset-index.json"] =
-    strToU8(JSON.stringify(buildAssetIndex(remapped), null, 2));
+  const assetIndex = buildAssetIndex(remapped);
+  buildImageButtons(files, assetIndex, glyphPngs, imageButtons);
+  files["assets/artisan/asset-index.json"] = strToU8(JSON.stringify(assetIndex, null, 2));
 
   // Y-specific text fonts: text_y{Y}.json for Y = -32..172.
   // TitleCompiler wraps plain text layers in <font:artisan:text_y{Y}> to

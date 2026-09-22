@@ -15,6 +15,18 @@ Les types ne sont **pas générés** — ils sont **écrits à la main** dans le
 
 ## Enforcement
 
+`menu/v1` accepts optional appearance `image: { asset: <project asset id>, fit?: native | contain | stretch, offset_x?: integer, offset_y?: integer }`,
+mutually exclusive with `material` and `item`; omitted fit means `contain`.
+Offsets default to zero, are bounded to ±4096 pixels and move the centered image
+inside its clipped footprint. New editor buttons explicitly use `native`.
+This additive field uses the existing v1 appearance format and requires an updated
+plugin for rendering. Editor, canonical TS and Kotlin types mirror it manually.
+`menu/v1/imageButtons.ts` supplies shared semantic checks to editor/backend:
+fixed, in-bounds rectangular positions without overlap (including other layers).
+Comma-separated ranges and YAML position lists support vertical rectangles.
+`menuImageButton.test.ts`, `imageButtons.test.ts` and `MenuRendererImageButtonTest`
+cover serialization, resource-pack generation, conditional images and clicks.
+
 `menu/v1` porte `lore_mode: replace` sur les apparences. Sans ce champ, le lore explicite s'AJOUTE sous le lore de la base. Les valeurs de données `item` composent récursivement `{ extends: <ref ou item>, title?, lore?, count?, ... }` : champs absents hérités, lore ajouté de la même façon. `{base.title}`, `{base.lore}`, `{base.count}` et `{base.material}` désignent la base immédiatement résolue ; écrire `{base.lore}` positionne le lore de base au lieu de le laisser en tête (jamais les deux). Un lore vide n'efface le lore hérité que sous `lore_mode: replace` ; la résolution est bornée à 32 niveaux.
 
 Dans un champ de modèle `item`, `title` et `lore` sont des sites i18n, y compris sous `extends`. `itemTextFields.ts` définit les sites parcourus à l'import et au rekey ; l'export écrit les littéraux de la langue par défaut et les traductions à leurs adresses canoniques.

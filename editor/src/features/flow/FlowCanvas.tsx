@@ -1,5 +1,9 @@
-import { ItemEditor } from "@/features/canvas/ItemEditor";
 import { PlaceholderInput } from "@/components/PlaceholderInput";
+import { RevealField } from "@/components/RevealField";
+import { assetPreviewUrl } from "@/domain/asset";
+import { useAssetStore } from "@/features/assets/assetStore";
+import { ItemEditor } from "@/features/canvas/ItemEditor";
+import { ImageButtonEditor } from "./ImageButtonEditor";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,16 +27,16 @@ import type {
   ProjectId,
 } from "@/domain/types";
 import { MaterialPicker } from "@/features/canvas/MaterialPicker";
-import { useHeadPreviewUrl } from "@/features/canvas/useHeadPreviewUrl";
 import { buildPreviewScope } from "@/features/canvas/menuPreviewScope";
 import { ActionScopeProvider } from "@/features/canvas/properties/ActionEditor";
 import { AliasesField } from "@/features/canvas/properties/AliasesField";
 import { ConditionListEditor } from "@/features/canvas/properties/ConditionListEditor";
 import { MenuProperties } from "@/features/canvas/properties/MenuProperties";
 import { ProjectProperties } from "@/features/canvas/properties/ProjectProperties";
-import { selectionContext } from "@/features/project/selectionContext";
 import { PropertyField } from "@/features/canvas/properties/PropertyField";
 import { useTextureUrl } from "@/features/canvas/textureStore";
+import { useHeadPreviewUrl } from "@/features/canvas/useHeadPreviewUrl";
+import { selectionContext } from "@/features/project/selectionContext";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { lookupPath } from "@/lib/placeholders";
 import { formatPositions, parsePositions } from "@/lib/positions";
@@ -55,21 +59,18 @@ import { Wand2 } from "lucide-react";
 import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { ItemBindingEditor } from "./ItemBindingEditor";
 import { previewItem } from "@/features/canvas/itemValuePreview";
 import { useServerSnapshotsStore } from "@/state/serverSnapshotsStore";
+import { ItemBindingEditor } from "./ItemBindingEditor";
 import {
   CommandStepPseudocode,
   DialogButtonStepPseudocode,
   ElementClickHandlersPseudocode,
 } from "./PseudocodeView";
 
-
 interface FlowCanvasProps {
   projectId: ProjectId;
 }
-
-
 
 /**
  * Unified editor for the current selection. Routes by kind:
@@ -185,7 +186,12 @@ function ElementEditor({
     ? resolveDisplayRef(headerProject, headerMaterial)
     : { material: headerMaterial };
   const headerMaterialUrl = useTextureUrl(headerDisplay.material);
-  const headerTextureUrl = useHeadPreviewUrl(focusedState?.head ?? headerDisplay.head) ?? headerMaterialUrl;
+  const headerItemUrl =
+    useHeadPreviewUrl(focusedState?.head ?? headerDisplay.head) ?? headerMaterialUrl;
+  const headerImage = useAssetStore((s) =>
+    s.assets.find((a) => a.projectId === projectId && a.id === focusedState?.image?.asset),
+  );
+  const headerTextureUrl = headerImage ? assetPreviewUrl(headerImage) : headerItemUrl;
   const getText = useGetText(projectId);
   const headerTitle = getText(focusedState?.title);
   const menuTitle = getText(getFirstTitleText(menu));
@@ -559,7 +565,11 @@ function StateCard({
   // Captured-item refs (`item:<id>`) expand to their display descriptor.
   const display = project ? resolveDisplayRef(project, material) : { material };
   const materialUrl = useTextureUrl(display.material);
-  const textureUrl = useHeadPreviewUrl(appearance.head ?? display.head) ?? materialUrl;
+  const itemTextureUrl = useHeadPreviewUrl(appearance.head ?? display.head) ?? materialUrl;
+  const imageAsset = useAssetStore((s) =>
+    s.assets.find((a) => a.projectId === projectId && a.id === appearance.image?.asset),
+  );
+  const textureUrl = imageAsset ? assetPreviewUrl(imageAsset) : itemTextureUrl;
   const title = getText(appearance.title);
 
   const loreText = appearance.lore ? getText(appearance.lore) : "";
@@ -597,10 +607,16 @@ function StateCard({
     if (!Array.isArray(list) || list.length === 0) return base;
     return { ...base, [iteration.alias]: list[0] };
   }, [project, menu, element.iterates, element.places, previewArgs, snapshots]);
-  const linkedItem = appearance.item ?? (appearance.material?.startsWith("{") ? appearance.material : undefined);
-  const inheritedItem = project ? previewItem({ item: linkedItem ?? appearance.material }, lorePreviewCtx, project, activeLang) : { lore: [] };
+  const linkedItem =
+    appearance.item ?? (appearance.material?.startsWith("{") ? appearance.material : undefined);
+  const inheritedItem = project
+    ? previewItem({ item: linkedItem ?? appearance.material }, lorePreviewCtx, project, activeLang)
+    : { lore: [] };
 
-  const update = (field: "material" | "item" | "count" | "head" | "loreMode" | "title" | "lore", value: string | number | undefined) =>
+  const update = (
+    field: "material" | "item" | "count" | "head" | "loreMode" | "title" | "lore",
+    value: string | number | undefined,
+  ) =>
     setAppearanceField({
       projectId,
       ...target,
@@ -771,52 +787,129 @@ function StateCard({
             ) : null}
           </div>
 
-          {project && <ItemEditor
-            project={project}
-            onHead={value => update("head", value)}
-            details={<>          {/* Captured item — offer to explode the ref into editable fields */}
-          {capturedDetails ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={extractCapturedDetails}
-              className="h-7 justify-start px-1 text-xs"
-              title={t("flow.advanced.extractHint")}
-            >
-              <Wand2 size={12} className="mr-1" />
-              {t("flow.advanced.extract")}
-            </Button>
-          ) : null}
-
-</>}
-            source={<ItemBindingEditor project={project} menu={menu} element={element}
-            appearance={appearance} scope={lorePreviewCtx} lang={activeLang}
-            onSource={update}>
-            <div className="flex items-center gap-1.5">
-              <StateMaterialIcon projectId={projectId} menuId={menu.id} elementId={element.id}
-                stateIndex={stateIndex} material={material} textureUrl={textureUrl}
-                onPick={(picked) => update("material", picked)} />
-              <Input value={material} placeholder="DIAMOND" onChange={(e) => update("material", e.target.value)}
-                className="h-8 flex-1 px-2 py-0 font-mono text-xs" />
-            </div>
-          </ItemBindingEditor>}
-            appearance={appearance} inherited={inheritedItem}
-            preview={previewItem(appearance, lorePreviewCtx, project, activeLang)}
-            title={appearance.title ? title : undefined}
-            lore={appearance.lore ? loreText : undefined}
-            loreMode={appearance.loreMode}
-            onLoreMode={(mode) => update("loreMode", mode)}
-            titleLabel={t(titleIsFallback ? "flow.titleLabelFallback" : "flow.titleLabel", { lang: activeLang })}
-            loreLabel={t(loreIsFallback ? "flow.loreLabelFallback" : "flow.loreLabel", { lang: activeLang })}
-            entries={placeholderEntries} onFocus={() => setSub({ kind: "state", stateIndex })}
-            onText={(field, value) => {
-              if (value === undefined) { update(field, undefined); return; }
-              if (field === "title") updateTitle(value);
-              else updateLore(value);
+          <ImageButtonEditor
+            projectId={projectId}
+            menu={menu}
+            element={element}
+            image={appearance.image}
+            onImage={(image, positions) =>
+              useAccountStore.getState().setAppearanceImage({
+                projectId,
+                ...target,
+                appearanceIndex: stateIndex,
+                image,
+                positions,
+              })
+            }
+            onItem={() => {
+              if (appearance.image) update("material", "STONE");
             }}
-            onCount={value => update("count", value)}
-            onAdvanced={patch => setAppearanceAdvanced({ projectId, ...target, appearanceIndex: stateIndex, patch })}
-          />}
+            onPositions={(positions) =>
+              useAccountStore.getState().setElementPositions({ projectId, ...target, positions })
+            }
+          >
+            <label className="field-label">
+              {t("flow.titleLabel", { lang: activeLang })}
+              <RevealField
+                value={title}
+                onChange={updateTitle}
+                entries={placeholderEntries}
+                className="input w-full"
+                facade={<MiniMessageInline source={title || t("flow.titlePlaceholder")} />}
+              />
+            </label>
+            <label className="field-label">
+              {t("flow.loreLabel", { lang: activeLang })}
+              <RevealField
+                value={loreText}
+                onChange={updateLore}
+                entries={placeholderEntries}
+                multiline
+                className="input w-full"
+                facade={<MiniMessageInline source={loreText || t("flow.lorePlaceholder")} />}
+              />
+            </label>
+          </ImageButtonEditor>
+          {project && !appearance.image && (
+            <ItemEditor
+              project={project}
+              onHead={(value) => update("head", value)}
+              details={
+                <>
+                  {" "}
+                  {/* Captured item — offer to explode the ref into editable fields */}
+                  {capturedDetails ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={extractCapturedDetails}
+                      className="h-7 justify-start px-1 text-xs"
+                      title={t("flow.advanced.extractHint")}
+                    >
+                      <Wand2 size={12} className="mr-1" />
+                      {t("flow.advanced.extract")}
+                    </Button>
+                  ) : null}
+                </>
+              }
+              source={
+                <ItemBindingEditor
+                  project={project}
+                  menu={menu}
+                  element={element}
+                  appearance={appearance}
+                  scope={lorePreviewCtx}
+                  lang={activeLang}
+                  onSource={update}
+                >
+                  <div className="flex items-center gap-1.5">
+                    <StateMaterialIcon
+                      projectId={projectId}
+                      menuId={menu.id}
+                      elementId={element.id}
+                      stateIndex={stateIndex}
+                      material={material}
+                      textureUrl={textureUrl}
+                      onPick={(picked) => update("material", picked)}
+                    />
+                    <Input
+                      value={material}
+                      placeholder="DIAMOND"
+                      onChange={(e) => update("material", e.target.value)}
+                      className="h-8 flex-1 px-2 py-0 font-mono text-xs"
+                    />
+                  </div>
+                </ItemBindingEditor>
+              }
+              appearance={appearance}
+              inherited={inheritedItem}
+              preview={previewItem(appearance, lorePreviewCtx, project, activeLang)}
+              title={appearance.title ? title : undefined}
+              lore={appearance.lore ? loreText : undefined}
+              loreMode={appearance.loreMode}
+              onLoreMode={(mode) => update("loreMode", mode)}
+              titleLabel={t(titleIsFallback ? "flow.titleLabelFallback" : "flow.titleLabel", {
+                lang: activeLang,
+              })}
+              loreLabel={t(loreIsFallback ? "flow.loreLabelFallback" : "flow.loreLabel", {
+                lang: activeLang,
+              })}
+              entries={placeholderEntries}
+              onFocus={() => setSub({ kind: "state", stateIndex })}
+              onText={(field, value) => {
+                if (value === undefined) {
+                  update(field, undefined);
+                  return;
+                }
+                if (field === "title") updateTitle(value);
+                else updateLore(value);
+              }}
+              onCount={(value) => update("count", value)}
+              onAdvanced={(patch) =>
+                setAppearanceAdvanced({ projectId, ...target, appearanceIndex: stateIndex, patch })
+              }
+            />
+          )}
 
           {/* Visibility conditions */}
           <div className="overflow-x-auto">
@@ -1026,7 +1119,10 @@ function CommandEditor({ projectId, command }: { projectId: ProjectId; command: 
   const setCommandField = useAccountStore((s) => s.setCommandField);
   const setCommandAliases = useAccountStore((s) => s.setCommandAliases);
   const { t } = useTranslation();
-  const commandScope = useMemo(() => ({ kind: "command" as const, commandId: command.id }), [command.id]);
+  const commandScope = useMemo(
+    () => ({ kind: "command" as const, commandId: command.id }),
+    [command.id],
+  );
   return (
     <div className="flex h-full flex-col bg-[var(--surface)]">
       <div className="border-[var(--border-soft)] border-b bg-[var(--surface-raised)] px-3 py-2">

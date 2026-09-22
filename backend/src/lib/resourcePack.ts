@@ -5,6 +5,7 @@ import { projects, serverKeys } from "../db/schema";
 import { buildResourcePackZip, type AssetRow } from "./resourcePackBuilder";
 import { diskAssetsFromTree, readDiskAssetBytes, type DiskAsset } from "./diskAssets";
 import { glyphPlacementsFromMenus, type GlyphPlacement } from "./menuGlyphPlacements";
+import { imageButtonsFromMenus, type ImageButtonPlacement } from "./imageButtons";
 import { readProjectTree } from "./projectTreeReads";
 import { requestAssetRead } from "../ws/hub";
 import { createHash } from "crypto";
@@ -63,6 +64,7 @@ export async function rebuildResourcePack(serverKeyId: string, options: { requir
   const glyphPngs = new Map<string, Uint8Array>();
   const fontGlyphPngs = new Map<string, Map<string, Uint8Array>>();
   const glyphPlacements: GlyphPlacement[] = [];
+  const imageButtons: ImageButtonPlacement[] = [];
 
   for (const p of boundProjects) {
     const diskId = p.externalId ?? p.id;
@@ -70,11 +72,15 @@ export async function rebuildResourcePack(serverKeyId: string, options: { requir
     const fromDisk = await (async () => {
       const tree = await readProjectTree(serverKeyId, diskId, strict ? { maxAgeMs: 0 } : undefined);
       if (strict && (tree.kind !== "result" || !tree.result.ok || tree.result.failed?.length)) throw new Error("resource_pack_incomplete");
+      // A stale database anchor is not a live project. Only an explicit absence
+      // can be skipped; an unreachable project still preserves the previous pack.
+      if (!strict && tree.kind === "result" && !tree.result.ok && tree.result.error === "unknown_project") return [];
       if (tree.kind !== "result" || !tree.result.ok) return null;
       if (strict) for (const ref of tree.result.binaries ?? []) binaryRefs.set(ref.path, ref);
       // Les menus disent à quelle hauteur chaque image est posée : le pack
       // doit porter une police par hauteur utilisée.
       glyphPlacements.push(...glyphPlacementsFromMenus(tree.result.files ?? []));
+      imageButtons.push(...imageButtonsFromMenus(tree.result.files ?? []));
       return diskAssetsFromTree(p.id, tree.result.files ?? [], tree.result.binaries ?? []);
     })();
 
@@ -107,7 +113,7 @@ export async function rebuildResourcePack(serverKeyId: string, options: { requir
     });
     for (const a of fromDisk) {
       allAssets.push(a.row);
-      if (a.row.type === "glyph" && a.row.codepoint !== null) {
+      if ((a.row.type === "glyph" && a.row.codepoint !== null) || a.row.type === "texture") {
         const bytes = await readBytes(a);
         // Un glyphe dont on ne peut pas lire les octets est SAUTÉ, pas fatal :
         // un pack amputé d'une image vaut mieux qu'un serveur sans pack.
@@ -143,6 +149,7 @@ export async function rebuildResourcePack(serverKeyId: string, options: { requir
     fontGlyphPngs,
     { finalCodepoints },
     glyphPlacements,
+    imageButtons,
   );
   await writeResourcePack(serverKeyId, hash, zipBytes);
 

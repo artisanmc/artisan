@@ -49,6 +49,7 @@ export interface HelloAckMessage {
   server_id: string;
   tier: "free" | "crew" | "network";
   api_url: string;
+  bundle_url?: string; // plugin-facing download base; may differ from the public API URL in Docker
   editor_url: string;  // browser-facing editor URL (EDITOR_URL) — informational, shown by /artisan editor
   server_url: string;  // deep link to this server's page in the editor (falls back to editor_url if network/server rows are missing)
   network_name: string;  // display name of the network this server_key belongs to

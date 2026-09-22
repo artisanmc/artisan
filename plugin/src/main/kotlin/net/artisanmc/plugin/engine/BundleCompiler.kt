@@ -57,7 +57,7 @@ object BundleCompiler {
         stateIndex: Int,
         logger: Logger?,
     ) {
-        if (app.item != null || app.material != null || app.head != null) return
+        if (app.image != null || app.item != null || app.material != null || app.head != null) return
         logger?.warning(
             "menu=$menuId element=$elementId state${stateIndex + 1} names no material — it will render as STONE. " +
                 "A state replaces the display entirely; it inherits nothing from it.",

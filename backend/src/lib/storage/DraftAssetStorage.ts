@@ -12,12 +12,18 @@ export class DraftAssetStorage implements ProjectStorage {
   async readBinary(path: string) {
     const meta = this.snapshot.binaryTree?.[path];
     if (!meta) return { kind: "result" as const, result: { ok: false, error: "invalid_path" as const } };
+    let original: Awaited<ReturnType<ProjectStorage["readBinary"]>> | undefined;
+    if (this.snapshot.binaryBaseline?.[path]?.hash === meta.hash && this.published.readAssetBinary) {
+      original = await this.published.readAssetBinary(path, meta.hash);
+      if (original.kind === "result" && original.result.ok && original.result.content && hash(original.result.content) === meta.hash) return original;
+    }
     const own = await this.drafts.readBlob(this.draft.id, meta.hash);
     if (own.kind !== "result") return own;
     if (own.result.ok && own.result.content_base64 !== undefined) return { kind: "result" as const, result: { ok: true, content: new Uint8Array(Buffer.from(own.result.content_base64, "base64")), hash: meta.hash } };
-    const original = await this.published.readBinary(path);
+    original ??= await (this.published.readAssetBinary?.(path, meta.hash) ?? this.published.readBinary(path));
     if (original.kind !== "result") return original;
-    if (!original.result.content || hash(original.result.content) !== meta.hash) return { kind: "result" as const, result: { ok: false, error: "invalid_path" as const } };
+    if (!original.result.ok) return original;
+    if (!original.result.content || hash(original.result.content) !== meta.hash) return { kind: "result" as const, result: { ok: false, error: "read_error" as const } };
     return original;
   }
   async write(batch: ProjectWriteBatch) {

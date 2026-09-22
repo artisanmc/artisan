@@ -13,6 +13,21 @@ class DslToEngineTest {
 
     private fun map(dsl: String): List<Step> = dslToEngineSteps(parseActionDsl(dsl))
 
+    @Test fun `set string literals decode quotes and escapes before template resolution`() {
+        assertEquals(
+            listOf(Step.ActionStep(Action.SetArg("label", "Say \"hello\" to {player.name}"))),
+            map("""set label = "Say \"hello\" to {player.name}""""),
+        )
+        assertEquals(
+            listOf(Step.ActionStep(Action.SetArg("label", ""))),
+            map("set label = \"\""),
+        )
+        assertEquals(
+            listOf(Step.ActionStep(Action.SetArg("label", "tools"))),
+            map("set label = tools"),
+        )
+    }
+
     @Test fun `flat actions map field-by-field with numeric narrowing`() {
         val steps = map(
             """

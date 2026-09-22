@@ -77,6 +77,10 @@ no-ops). The plugin reads only structured maps.
    (`run_command "…" as console`, `open_menu m clear`); `with k="v"` for context
    maps. `set <arg> = <expr>` and `cycle [next|prev] <arg> in <expr>` for the
    context-mutation actions (their args are bare expressions, no braces).
+   The Kotlin bridge decodes quoted string literals in `set` before passing
+   their text to the engine: `set test_tag = "test"` stores `test`, without
+   delimiters. Escaped quotes are decoded and templates inside the string still
+   resolve against the click context. Legacy `Action.SetArg` text is unchanged.
 
 6. **Basic expressions are core, not deferred.** Because boolean combination is
    handled structurally (typed conditions + joins), the only new runtime need is a

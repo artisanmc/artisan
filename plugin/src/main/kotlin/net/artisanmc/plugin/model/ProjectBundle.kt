@@ -221,6 +221,7 @@ class ElementYamlDeserializer : StdDeserializer<ElementYaml>(ElementYaml::class.
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class AppearanceYaml(
+    val image: ImageButtonYaml? = null,
     val extends: Any? = null,
     @JsonProperty("lore_mode") val loreMode: String? = null,
     val item: String? = null,
@@ -246,6 +247,12 @@ data class AppearanceYaml(
     val color: String? = null,
     /** Raw SNBT, applied last. Best-effort. */
     val nbt: String? = null,
+)
+
+data class ImageButtonYaml(
+    val asset: String = "", val fit: String = "contain",
+    @JsonProperty("offset_x") val offsetX: Int = 0,
+    @JsonProperty("offset_y") val offsetY: Int = 0,
 )
 
 @JsonIgnoreProperties(ignoreUnknown = true)

@@ -40,6 +40,9 @@ assistant:
 # Resource pack pushed by Artisan (independent from Oraxen/Nexo/ItemsAdder packs;
 # uses the 1.20.3+ pack stack so it coexists with other packs side-by-side).
 resource-pack:
+  # Only gates the push to players. In delegation mode (delegate-to-dir set)
+  # Artisan never touches players, so this flag decides nothing there —
+  # keep it true.
   enabled: true
   prompt: "<gold>Pack Artisan</gold>"
   send-on-join: true
@@ -47,6 +50,10 @@ resource-pack:
   # When set, Artisan stops pushing its own RP to players and writes its
   # pack contents to this path. The admin configures the host RP plugin
   # (Oraxen / Nexo / ItemsAdder / etc.) to read from it.
+  #
+  # In this mode `enabled`, `prompt`, `send-on-join` and `send-delay-ticks`
+  # are moot: Artisan only exports `assets/artisan/*` and the host plugin
+  # serves it.
   #
   # Output shape depends on the path suffix:
   #   - `<path>.zip`  → single zip file with `assets/artisan/*` and a

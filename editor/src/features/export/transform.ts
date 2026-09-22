@@ -201,14 +201,18 @@ export function serializeStepsLiteral(steps: Step[]): unknown[] {
 function serializeAppearance(app: Appearance, project: Project): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   if (app.if && app.if.length > 0) out.if = serializeIfArray(app.if, app.ifJoins);
-  if (app.item !== undefined) out.item = app.item;
+  if (app.image) out.image = app.image;
+  else if (app.item !== undefined) out.item = app.item;
   else if (app.material) out.material = app.material;
   if (app.head) out.head = app.head;
   if (app.count !== undefined) out.count = app.count;
   const t = textSerializer(project);
   if (app.title) out.title = t(app.title.key);
   if (app.lore) out.lore = [t(app.lore.key)];
-  if (app.loreMode) { out.lore_mode = app.loreMode; if (!app.lore) out.lore = []; }
+  if (app.loreMode) {
+    out.lore_mode = app.loreMode;
+    if (!app.lore) out.lore = [];
+  }
   if (app.click) {
     const clickOut: Record<string, unknown> = {};
     for (const [clickType, handler] of Object.entries(app.click)) {
@@ -839,7 +843,7 @@ function serializeDataValue(
         if (Array.isArray(v)) return v.map(map);
         if (v && typeof v === "object") {
           if ("key" in v) return i18n.keys[String(v.key)]?.[i18n.defaultLang] ?? "";
-          return Object.fromEntries(Object.entries(v).map(([k,x]) => [k, map(x)]));
+          return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, map(x)]));
         }
         return v;
       };

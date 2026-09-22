@@ -292,6 +292,7 @@ export interface Placement {
 }
 
 export interface Appearance {
+  image?: import("../../../docs/schema/menu/v1/imageButtonGeometry").ImageButtonImage;
   /** Complete item from data; distinct from a literal material. */
   item?: string;
   if?: Condition[];

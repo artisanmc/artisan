@@ -47,6 +47,9 @@ open class ArtisanPlugin : JavaPlugin() {
     /** Late-bound WS sender for module messages (api.messages) — set once the provider exists. */
     @Volatile var moduleMessageSender: ((Map<String, Any>) -> Unit)? = null
         private set
+    /** The event-registered resource-pack manager — swapped (not stacked) on `/artisan reload`. */
+    @Volatile
+    private var resourcePackManager: net.artisanmc.plugin.resourcepack.ResourcePackManager? = null
     lateinit var api: ArtisanAPI
         private set
 
@@ -252,7 +255,7 @@ open class ArtisanPlugin : JavaPlugin() {
         // during a backend outage (a later hello_ack simply refreshes).
         resourcePackManager.loadFromDisk()
         syncedProvider?.setResourcePackManager(resourcePackManager)
-        server.pluginManager.registerEvents(resourcePackManager, this)
+        registerResourcePackManager(resourcePackManager)
         menuProvider.load()
         if (syncedProvider != null) registerCustomItemsReloadListeners(syncedProvider)
 
@@ -432,7 +435,7 @@ open class ArtisanPlugin : JavaPlugin() {
         )
         resourcePackManagerReinit.loadFromDisk()
         syncedProviderReinit?.setResourcePackManager(resourcePackManagerReinit)
-        server.pluginManager.registerEvents(resourcePackManagerReinit, this)
+        registerResourcePackManager(resourcePackManagerReinit)
         menuProvider.load()
         if (syncedProviderReinit != null) registerCustomItemsReloadListeners(syncedProviderReinit)
         executor = ActionExecutor(this, menuProvider, sessions, softDeps, cooldowns, evaluator, api.commands)
@@ -447,5 +450,19 @@ open class ArtisanPlugin : JavaPlugin() {
                 reinitProvider.notifyCustomItemsReload()
             }, 40L)
         }
+    }
+
+    /**
+     * Registers [manager] as the resource-pack event listener, replacing the previous one.
+     *
+     * Bukkit keeps a listener until the plugin is disabled, and `/artisan reload` re-creates the
+     * manager from the freshly read config. Without this swap the stale instance keeps handling
+     * joins with the pre-reload settings (duplicate push, and a `resource-pack.enabled: false`
+     * that never takes effect).
+     */
+    private fun registerResourcePackManager(manager: net.artisanmc.plugin.resourcepack.ResourcePackManager) {
+        resourcePackManager?.let { org.bukkit.event.HandlerList.unregisterAll(it) }
+        server.pluginManager.registerEvents(manager, this)
+        resourcePackManager = manager
     }
 }
