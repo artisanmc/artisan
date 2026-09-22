@@ -4,6 +4,8 @@ import net.artisanmc.plugin.engine.Action
 import net.artisanmc.plugin.engine.Condition
 import net.artisanmc.plugin.engine.IfCase
 import net.artisanmc.plugin.engine.Step
+import net.artisanmc.plugin.expr.Node
+import net.artisanmc.plugin.expr.parseExpr
 
 /**
  * Maps the standalone Action DSL AST ({@link DslStep}) onto the plugin engine
@@ -87,9 +89,15 @@ private fun mapAction(a: DslAction): Action = when (a) {
         if (a.direction == "prev") Action.PaginationPrev(a.targetElementId)
         else Action.PaginationNext(a.targetElementId)
     is DslAction.RunActions -> Action.RunActions(a.actions)
-    is DslAction.SetArg -> Action.SetArg(a.arg, a.value)
+    is DslAction.SetArg -> Action.SetArg(a.arg, setArgText(a.value))
     is DslAction.SetArgCycleNext -> Action.SetArgCycleNext(a.arg, a.list)
     is DslAction.SetArgCyclePrev -> Action.SetArgCyclePrev(a.arg, a.list)
+}
+
+/** The engine consumes template text; DSL string delimiters are not part of that text. */
+private fun setArgText(value: String): String {
+    val literal = runCatching { parseExpr(value) as? Node.Literal }.getOrNull()
+    return literal?.value as? String ?: value
 }
 
 private fun mapCondition(c: DslCondition): Condition = when (c) {

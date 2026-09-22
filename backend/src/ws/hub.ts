@@ -60,6 +60,7 @@ import type {
 } from "../protocol";
 
 const API_BASE_URL = process.env.API_BASE_URL ?? "http://localhost:3001";
+const BUNDLE_BASE_URL = process.env.BUNDLE_BASE_URL || API_BASE_URL;
 const EDITOR_URL = process.env.EDITOR_URL ?? "http://localhost:5173";
 
 // Per-connection send functions (all connections, authenticated or not)
@@ -1124,6 +1125,7 @@ export async function handlePluginMessage(
       server_id: keyId,
       tier: "free",
       api_url: API_BASE_URL,
+      bundle_url: BUNDLE_BASE_URL,
       editor_url: EDITOR_URL,
       server_url: serverUrl,
       network_name: networkName,

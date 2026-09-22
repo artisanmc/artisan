@@ -8,11 +8,15 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { WorkspaceView } from "@/components/ui/workspace-view";
+import type { Asset } from "@/domain/asset";
 import type { ElementId, MenuId, ProjectId } from "@/domain/types";
+import { AssetPreview } from "@/features/assets/AssetPreview";
 import { AssistantBody } from "@/features/assistant/AssistantBody";
+import { IMAGE_BUTTON_DRAG_PREFIX } from "@/features/canvas/ImageButtonLibrary";
 import { LIBRARY_DRAG_PREFIX } from "@/features/canvas/Library";
 import { Stage } from "@/features/canvas/Stage";
 import { OPEN_ELEMENT_EVENT } from "@/features/canvas/canvasEvents";
+import { dropImageButton } from "@/features/canvas/imageButtonDrop";
 import {
   PLACEMENT_ROW_DRAG_PREFIX,
   type PlacementRowDragData,
@@ -58,6 +62,7 @@ import {
   type DragStartEvent,
   MouseSensor,
   TouchSensor,
+  useDndContext,
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
@@ -285,6 +290,25 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
   const onDragEnd = (e: DragEndEvent) => {
     setActiveDragMaterial(null);
     const id = String(e.active.id);
+    if (id.startsWith(IMAGE_BUTTON_DRAG_PREFIX)) {
+      const asset = e.active.data.current?.imageButton as Asset | undefined;
+      if (asset) {
+        const event = e.activatorEvent;
+        const start = "touches" in event ? (event as TouchEvent).touches[0] : (event as MouseEvent);
+        if (!start) return;
+        try {
+          dropImageButton(
+            pId,
+            asset,
+            (start.clientX ?? 0) + e.delta.x,
+            (start.clientY ?? 0) + e.delta.y,
+          );
+        } catch (error) {
+          toast.error(error instanceof Error ? error.message : String(error));
+        }
+      }
+      return;
+    }
 
     // Placement-mode row drop: pin the dragged static-source row onto the slot
     // under the release point (must land on the row's own menu).
@@ -565,9 +589,20 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
 
 function LibraryDragOverlay() {
   const material = useUiStore((s) => s.activeDragMaterial);
+  const { active } = useDndContext();
+  const asset = active?.data.current?.imageButton as Asset | undefined;
   return (
     <DragOverlay dropAnimation={null}>
-      {material ? <LibraryDragGhost material={material} /> : null}
+      {asset ? (
+        <div className="card pointer-events-none flex flex-col items-center gap-1 p-2 shadow-[var(--shadow-lg)]">
+          <AssetPreview asset={asset} className="h-16 w-16 object-contain" />
+          <span className="text-xs">
+            {Math.ceil(asset.width / 16)} × {Math.ceil(asset.height / 16)}
+          </span>
+        </div>
+      ) : material ? (
+        <LibraryDragGhost material={material} />
+      ) : null}
     </DragOverlay>
   );
 }

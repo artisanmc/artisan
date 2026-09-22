@@ -12,14 +12,17 @@ import net.artisanmc.plugin.sync.BundleHasher
 class ProjectPublisher(private val root: File, private val afterApply: (Int) -> Unit = {}) {
     private val mapper = ObjectMapper()
     private fun journal(id: String) = ProjectPathPolicy.resolve(root, ".artisan/transactions/${BundleHasher.hashContent(id)}")
+    private fun receipt(key: String) = ProjectPathPolicy.resolve(root, ".artisan/transactions/.receipts/$key/intent.json")
     private fun journalFile(dir: File, name: String) = ProjectPathPolicy.resolve(root, "${dir.relativeTo(root).invariantSeparatorsPath}/$name")
 
     fun previous(id: String, fingerprint: String): JsonNode? {
-        val file = journalFile(journal(id), "intent.json")
+        val archived = receipt(BundleHasher.hashContent(id))
+        val file = if (archived.isFile) archived else journalFile(journal(id), "intent.json")
         if (!file.isFile) return null
         val intent = mapper.readTree(file)
         require(intent["fingerprint"].asText() == fingerprint) { "operation_conflict" }
-        replay(file, intent)
+        if (file == archived) check(intent.path("complete").asBoolean()) { "invalid_receipt" }
+        else replay(file, intent)
         return intent["result"]
     }
 
@@ -62,7 +65,7 @@ class ProjectPublisher(private val root: File, private val afterApply: (Int) -> 
 
     fun recover() {
         val dir = ProjectPathPolicy.resolve(root, ".artisan/transactions")
-        dir.listFiles()?.filter { it.isDirectory }?.sortedBy { it.name }?.forEach {
+        dir.listFiles()?.filter { it.name != ".receipts" && it.isDirectory }?.sortedBy { it.name }?.forEach {
             ProjectPathPolicy.resolve(root, ".artisan/transactions/${it.name}/intent.json")
             val file = File(it, "intent.json")
             if (file.isFile) replay(file, mapper.readTree(file))
@@ -87,8 +90,10 @@ class ProjectPublisher(private val root: File, private val afterApply: (Int) -> 
 
     fun forgetOwner(owner: String) {
         val dir = ProjectPathPolicy.resolve(root, ".artisan/transactions")
-        dir.listFiles()?.filter { it.isDirectory }?.forEach { operation ->
-            val file = ProjectPathPolicy.resolve(root, ".artisan/transactions/${operation.name}/intent.json")
+        val receipts = ProjectPathPolicy.resolve(root, ".artisan/transactions/.receipts")
+        val operations = dir.listFiles().orEmpty().filter { it.name != ".receipts" } + receipts.listFiles().orEmpty()
+        operations.filter { it.isDirectory }.forEach { operation ->
+            val file = journalFile(operation, "intent.json")
             if (file.isFile) {
                 val intent = mapper.readTree(file)
                 if (intent.path("result").path("draft").path("ownerId").asText() == owner) {
@@ -120,7 +125,10 @@ class ProjectPublisher(private val root: File, private val afterApply: (Int) -> 
     }
 
     private fun replay(file: File, intent: JsonNode) {
-        if (intent["complete"].asBoolean()) return
+        if (intent["complete"].asBoolean()) {
+            archive(file)
+            return
+        }
         intent["changes"].forEachIndexed { index, entry ->
             val target = ProjectPathPolicy.resolve(root, entry["path"].asText())
             if (entry["blob"].isNull) Files.deleteIfExists(target.toPath())
@@ -140,7 +148,15 @@ class ProjectPublisher(private val root: File, private val afterApply: (Int) -> 
         }
         (intent as com.fasterxml.jackson.databind.node.ObjectNode).put("complete", true)
         durableWrite(file, mapper.writeValueAsBytes(intent))
+        archive(file)
+    }
+
+    /** Keep retry receipts, but never scan completed operations on ordinary reads. */
+    private fun archive(file: File) {
         file.parentFile.listFiles { f -> f.extension == "blob" }?.forEach { Files.deleteIfExists(it.toPath()) }
+        val destination = receipt(file.parentFile.name).parentFile
+        destination.parentFile.mkdirs()
+        Files.move(file.parentFile.toPath(), destination.toPath(), ATOMIC_MOVE)
     }
 
     companion object {

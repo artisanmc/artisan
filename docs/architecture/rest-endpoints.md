@@ -51,6 +51,12 @@ remains under `networks/:id/server-keys`; plugin `/link` is unchanged.
   owner-bound draft; public files and resource packs change only on explicit publish.
   Asset/font texture routes accept `draftId`, require the cookie and membership,
   and return `Cache-Control: private, no-cache`; browser image fetches need credentials.
+  Binary transport timeouts/offline/read errors return `503 storage_unavailable`,
+  not 404. Server asset reads share the short-lived project tree and cache verified
+  bytes by server, disk project, path and content hash; authorization still runs
+  per request. The disk binary RPC allows 30 seconds for queued recovery/reload.
+  Draft images unchanged from their binary baseline can reuse that exact hash;
+  private replacements still read their owner-bound draft blob first.
 
 - **Project URLs (2026-09-14)**: identity GET resolves the full location before
   `resolveProjectStorage`; content/draft/history APIs retain immutable internal IDs.

@@ -9,10 +9,48 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.io.File
 import java.io.IOException
+import java.nio.file.Files
 
 class ProjectPublisherRecoveryTest {
     @TempDir lateinit var root: File
     private val mapper = ObjectMapper()
+
+    @Test fun `completed receipts leave recovery queue and remain retryable after restart`() {
+        val result = mapper.readTree("{\"ok\":true}")
+        ProjectPublisher(root).commit("op", "request", mapOf("a.yaml" to "first".toByteArray()), result)
+        val transactions = File(root, ".artisan/transactions")
+        assertEquals(listOf(".receipts"), transactions.list()!!.toList())
+        File(root, "a.yaml").writeText("later")
+        ProjectPublisher(root).recover()
+        assertEquals(result, ProjectPublisher(root).previous("op", "request"))
+        assertEquals("later", File(root, "a.yaml").readText())
+        assertThrows(IllegalArgumentException::class.java) { ProjectPublisher(root).previous("op", "other") }
+    }
+
+    @Test fun `legacy completed journals are archived once without replaying old edits`() {
+        ProjectPublisher(root).commit("op", "request", mapOf("a.yaml" to "first".toByteArray()), mapper.readTree("{}"))
+        val transactions = File(root, ".artisan/transactions")
+        val archived = File(transactions, ".receipts").listFiles()?.single()
+        if (archived != null) Files.move(archived.toPath(), File(transactions, archived.name).toPath())
+        File(root, "a.yaml").writeText("later")
+        ProjectPublisher(root).recover()
+        assertEquals("later", File(root, "a.yaml").readText())
+        assertEquals(listOf(".receipts"), transactions.list()!!.toList())
+        assertNotNull(ProjectPublisher(root).previous("op", "request"))
+    }
+
+    @Test fun `recovery does not open archived receipts unrelated to the pending operation`() {
+        ProjectPublisher(root).commit("old", "old", emptyMap(), mapper.readTree("{}"))
+        val receipt = File(root, ".artisan/transactions/.receipts").walkTopDown().firstOrNull { it.name == "intent.json" }
+        assertNotNull(receipt)
+        receipt!!.writeText("unreadable historical receipt")
+        assertThrows(IOException::class.java) {
+            ProjectPublisher(root) { throw IOException("crash") }.commit("new", "new", mapOf("a.yaml" to "new".toByteArray()), mapper.readTree("{}"))
+        }
+        ProjectPublisher(root).recover()
+        assertEquals("new", File(root, "a.yaml").readText())
+        assertNotNull(ProjectPublisher(root).previous("new", "new"))
+    }
 
     @Test fun `impossible file hierarchies are rejected before accepting any journal`() {
         val scenarios = listOf(

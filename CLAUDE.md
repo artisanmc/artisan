@@ -3,6 +3,20 @@
 Ce fichier est un **routeur** : l'opérationnel (commandes, pièges) + où aller pour le détail.
 Il reste court volontairement — le détail vit dans `docs/`, lu quand la tâche y touche.
 
+## Agent skills
+
+### Issue tracker
+
+Les tickets et PRD vivent dans GitHub Issues. Voir `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Les cinq statuts standards sont utilisés. Voir `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Dépôt à contexte unique : `CONTEXT.md` et `docs/decisions/`. Voir `docs/agents/domain.md`.
+
 ## Règle de mise à jour des docs
 
 Quand tu modifies du code, mets à jour la doc correspondante. **Le mapping source-de-vérité est

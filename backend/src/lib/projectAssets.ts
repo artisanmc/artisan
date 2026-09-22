@@ -12,17 +12,22 @@ export function assetWriteError(c: any, result: AssetWriteResult) {
 export class ProjectAssets {
   constructor(readonly projectId: string, readonly storage: ProjectStorage, readonly operationId: string = crypto.randomUUID(), private readonly afterWrite: () => Promise<void> = async () => {}) {}
   async read(): Promise<DiskAssetsRead> {
-    const result = await this.storage.read();
+    const result = await (this.storage.readAssetTree?.() ?? this.storage.read());
     if (result.kind !== "result") return { ok: false, error: "server_offline" };
     if (!result.result.ok) return { ok: false, error: "read_error" };
     const files = result.result.files ?? [], binaries = result.result.binaries ?? [];
     return { ok: true, files, binaries, assets: diskAssetsFromTree(this.projectId, files, binaries) };
   }
   async bytes(asset: DiskAsset): Promise<Uint8Array | null> {
-    const outcome = await this.storage.readBinary(asset.path);
-    if (outcome.kind !== "result" || !outcome.result.ok || !outcome.result.content) return null;
+    const outcome = await (asset.hash && this.storage.readAssetBinary ? this.storage.readAssetBinary(asset.path, asset.hash) : this.storage.readBinary(asset.path));
+    if (outcome.kind !== "result") throw new Error("storage_unavailable");
+    if (!outcome.result.ok) {
+      if (["not_found", "invalid_path", "unknown_project"].includes(outcome.result.error ?? "")) return null;
+      throw new Error("storage_unavailable");
+    }
+    if (!outcome.result.content) throw new Error("storage_unavailable");
     const bytes = outcome.result.content;
-    if (asset.hash && createHash("sha256").update(bytes).digest("hex") !== asset.hash) return null;
+    if (asset.hash && createHash("sha256").update(bytes).digest("hex") !== asset.hash) throw new Error("storage_unavailable");
     return bytes;
   }
   async commit(batch: ProjectWriteBatch): Promise<AssetWriteResult> {

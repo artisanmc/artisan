@@ -240,6 +240,7 @@ describe("handlePluginMessage", () => {
     expect(ack.session_id).toBeDefined();
     expect(ack.tier).toBe("free");
     expect(ack.api_url).toBeDefined();
+    expect(ack.bundle_url).toBe(process.env.BUNDLE_BASE_URL || process.env.API_BASE_URL || "http://localhost:3001");
   });
 
   test("hello_ack carries editor_url and network_name", async () => {

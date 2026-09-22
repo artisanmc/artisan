@@ -12,22 +12,47 @@ import org.junit.jupiter.api.io.TempDir
 import java.io.File
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.CountDownLatch
 
 class ProjectDraftChannelTest {
     @TempDir lateinit var root: File
     private val mapper = ObjectMapper()
     private fun snapshot(content: String = "new") = mapOf("baseline" to emptyMap<String, String>(), "tree" to mapOf("menus/a.yaml" to content), "at" to 1)
-    private inner class Harness {
+    private inner class Harness(onReload: (() -> Unit)? = null) {
         val roots = ProjectRoots(root)
         val replies = LinkedBlockingQueue<String>()
-        val provider = SyncedMenuProvider(roots, "", "", null).also { p ->
+        val provider = SyncedMenuProvider(roots, "", "", null, onReload = onReload).also { p ->
             p.setSendForTesting { raw -> if (mapper.readTree(raw)["type"].asText() == "project_draft_result") replies.add(raw) }
         }
-        fun call(action: String, owner: String = "alice", extra: Map<String, Any?> = emptyMap()): com.fasterxml.jackson.databind.JsonNode {
+        fun request(action: String, owner: String = "alice", extra: Map<String, Any?> = emptyMap()) {
             provider.handleMessageForTesting(mapper.writeValueAsString(mapOf("type" to "project_draft_request", "request_id" to "r", "project_id" to "shop", "owner_id" to owner, "action" to action) + extra))
+        }
+        fun call(action: String, owner: String = "alice", extra: Map<String, Any?> = emptyMap()): com.fasterxml.jackson.databind.JsonNode {
+            request(action, owner, extra)
             return mapper.readTree(replies.poll(5, TimeUnit.SECONDS) ?: throw AssertionError("missing draft response"))
         }
         fun create() = call("create", extra = mapOf("draft_id" to "d1", "operation_id" to "create", "name" to "Work", "snapshot" to snapshot()))
+    }
+    @Test fun `durable publication is acknowledged while runtime reload is still blocked`() {
+        val project = File(root, "shop").also { it.mkdirs() }
+        val reloading = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        val h = Harness {
+            reloading.countDown()
+            release.await(5, TimeUnit.SECONDS)
+        }
+        h.create()
+        h.request("publish", extra = mapOf("draft_id" to "d1", "operation_id" to "publish", "expected_revision" to 1))
+        try {
+            assertTrue(reloading.await(3, TimeUnit.SECONDS), "reload should run after publication")
+            val raw = h.replies.poll(100, TimeUnit.MILLISECONDS)
+            assertNotNull(raw, "durable writes must not wait for reload before acknowledgement")
+            assertEquals("published", mapper.readTree(raw)["draft"]["status"].asText())
+            assertEquals("new", File(project, "menus/a.yaml").readText())
+        } finally {
+            release.countDown()
+        }
+        assertEquals(0, h.call("list")["drafts"].size())
     }
     @Test fun `owner isolation revision CAS and idempotent lost acknowledgement`() {
         File(root, "shop").mkdirs()
