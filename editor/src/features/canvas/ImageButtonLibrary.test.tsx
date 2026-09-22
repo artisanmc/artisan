@@ -3,7 +3,7 @@ import { useAssetStore } from "@/features/assets/assetStore";
 import { DndContext } from "@dnd-kit/core";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
-import { ImageButtonLibrary } from "./ImageButtonLibrary";
+import { ImageButtonDragPreview, ImageButtonLibrary } from "./ImageButtonLibrary";
 
 vi.mock("@/features/assets/AssetPreview", () => ({
   AssetPreview: ({ asset }: { asset: Asset }) => <img alt={asset.name} />,
@@ -12,6 +12,25 @@ vi.mock("@/features/assets/AssetUploadDialog", () => ({
   AssetUploadDialog: ({ open }: { open: boolean }) =>
     open ? <div>Upload image dialog</div> : null,
 }));
+
+it("previews native image pixels at canvas zoom instead of a fixed square thumbnail", () => {
+  const asset = { id: "wide", name: "Wide", width: 48, height: 16 } as Asset;
+  const { rerender } = render(<ImageButtonDragPreview asset={asset} scale={1} />);
+  expect(screen.getByTestId("image-button-drag-preview")).toHaveStyle({
+    width: "96px",
+    height: "32px",
+  });
+  rerender(<ImageButtonDragPreview asset={asset} scale={2.5} />);
+  expect(screen.getByTestId("image-button-drag-preview")).toHaveStyle({
+    width: "240px",
+    height: "80px",
+  });
+  rerender(<ImageButtonDragPreview asset={{ ...asset, width: 7, height: 25 }} scale={0.5} />);
+  expect(screen.getByTestId("image-button-drag-preview")).toHaveStyle({
+    width: "7px",
+    height: "25px",
+  });
+});
 
 it("lists project images with their slot footprint, filters them and offers upload", () => {
   useAssetStore.setState({

@@ -12,8 +12,21 @@ import { useDraggable } from "@dnd-kit/core";
 import { Upload } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { imageDragSize } from "./imageButtonDrag";
 
 export const IMAGE_BUTTON_DRAG_PREFIX = "image-button:";
+
+export function ImageButtonDragPreview({ asset, scale }: { asset: Asset; scale: number }) {
+  return (
+    <div
+      data-testid="image-button-drag-preview"
+      className="pointer-events-none"
+      style={imageDragSize(asset, scale)}
+    >
+      <AssetPreview asset={asset} className="h-full w-full max-w-none object-contain" />
+    </div>
+  );
+}
 
 function ImageTile({ asset }: { asset: Asset }) {
   const { t } = useTranslation();

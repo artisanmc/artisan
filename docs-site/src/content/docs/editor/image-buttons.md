@@ -7,6 +7,9 @@ Open **Buttons → Images**, upload a PNG if needed, then drag its thumbnail
 onto the menu. The button automatically occupies one slot per 16 source pixels
 in each direction (rounded up): 16×48 uses 1×3 slots; 48×16 uses 3×1; 32×32 uses 2×2.
 You can also convert an existing item by choosing **Image** in its appearance card.
+While dragging, the image preview uses its native pixel dimensions at the current
+canvas zoom, matching its size after placement instead of a fixed-size thumbnail.
+The preview is centered on the pointer whether you grab the thumbnail, name or slot label.
 Images imported here are classified as buttons. Manage their classification in
 the project's **Resources** tab: a background or decoration is offered here only
 when it is also classified for buttons. Several uses share the same image file.

@@ -18,6 +18,10 @@ conditions, title/lore and actions. Iteration and explicit placements are exclud
 `ImageButtonsRender` draws the display image once and drags the whole rectangle.
 The **Buttons → Images** tab lists button-classified PNGs with `ceil(width/16)` ×
 `ceil(height/16)` slot footprints and supports upload and direct drag/drop.
+The image drag overlay uses asset dimensions × `TEX_SCALE` × the live Stage zoom;
+it has no thumbnail frame or padding. Dropped buttons retain native image sizing.
+An image-only overlay modifier cancels the source-card grab offset and centers the
+native-sized preview on the pointer; grabbing the name or footprint label behaves identically.
 `domain/assetUsage.ts` resolves optional image `usages` (`button`, `menu`). Legacy
 `background` and `decoration` usages normalize to `menu`. Missing metadata is inferred from menu display/state images and
 title layers; explicit `[]` stays unclassified. Resources exposes unclassified
