@@ -85,42 +85,59 @@ export async function saveProjectToDisk(
       initialTree: previous?.initialTree ?? baseline,
       at: previous?.at ?? Date.now(),
     });
+    let recovering = previous?.remote?.pendingMutation?.kind === "publish";
+    let wrote = 0;
     try {
-      const result = await publishPersistedDraft(project.id);
-      if (!result) return { ok: false, error: "write_error" };
-      const published = result.tree ?? next;
-      store.set(project.id, published);
-      store.setBinaries(project.id, result.binaryTree ?? {});
-      const current = useProjectDraftStore.getState().get(project.id);
-      if (
-        current &&
-        (JSON.stringify(current.tree) !== JSON.stringify(published) ||
-          JSON.stringify(current.binaryTree ?? {}) !== JSON.stringify(result.binaryTree ?? {}))
-      ) {
-        const renames = (
-          useProjectDraftStore.getState().pendingRenames[project.id] ??
-          current.renames ??
-          []
-        )
-          .map((rename) => ({
-            ...rename,
-            from: result.renames?.find((done) => done.from === rename.from)?.to ?? rename.from,
-          }))
-          .filter((rename) => rename.from !== rename.to);
-        useProjectDraftStore.setState((state) => ({
-          pendingRenames: { ...state.pendingRenames, [project.id]: renames },
-        }));
-        useProjectDraftStore.getState().save(project.id, {
-          ...current,
-          renames,
-          remote: undefined,
-          baseline: published,
-          binaryBaseline: result.binaryTree,
-          initialTree: published,
-          at: Date.now(),
-        });
-      } else useProjectDraftStore.getState().clear(project.id);
-      return { ok: true, wrote: result.wrote };
+      for (;;) {
+        const result = await publishPersistedDraft(project.id);
+        if (!result) return { ok: false, error: "write_error" };
+        const published = result.tree ?? next;
+        store.set(project.id, published);
+        store.setBinaries(project.id, result.binaryTree ?? {});
+        const current = useProjectDraftStore.getState().get(project.id);
+        if (
+          current &&
+          (JSON.stringify(current.tree) !== JSON.stringify(published) ||
+            JSON.stringify(current.binaryTree ?? {}) !== JSON.stringify(result.binaryTree ?? {}))
+        ) {
+          const renames = (
+            useProjectDraftStore.getState().pendingRenames[project.id] ??
+            current.renames ??
+            []
+          )
+            .map((rename) => ({
+              ...rename,
+              from: result.renames?.find((done) => done.from === rename.from)?.to ?? rename.from,
+            }))
+            .filter((rename) => rename.from !== rename.to);
+          useProjectDraftStore.setState((state) => ({
+            pendingRenames: { ...state.pendingRenames, [project.id]: renames },
+          }));
+          useProjectDraftStore.getState().save(project.id, {
+            ...current,
+            renames,
+            remote: undefined,
+            baseline: published,
+            binaryBaseline: result.binaryTree,
+            initialTree: published,
+            at: Date.now(),
+          });
+        } else useProjectDraftStore.getState().clear(project.id);
+        wrote += result.wrote;
+        // A retry receipt confirms the old deployment, not this click's edits.
+        // Rebase above, then publish the remaining draft as a new operation.
+        if (
+          recovering &&
+          (JSON.stringify(next) !== JSON.stringify(published) ||
+            JSON.stringify(previous?.binaryTree ?? {}) !==
+              JSON.stringify(result.binaryTree ?? {})) &&
+          useProjectDraftStore.getState().get(project.id)
+        ) {
+          recovering = false;
+          continue;
+        }
+        return { ok: true, wrote };
+      }
     } catch (error) {
       if (error instanceof DraftApiError && error.code === "conflict")
         return {

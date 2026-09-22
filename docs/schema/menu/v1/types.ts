@@ -162,6 +162,7 @@ export interface Element extends Appearance {
 }
 
 export interface Appearance {
+  image?: import("./imageButtonGeometry").ImageButtonImage;
   /** Conditions ANDées. Si absent, matche toujours (fallback, à placer en dernier). */
   if?: Condition[];
   asset?: string;
@@ -464,12 +465,20 @@ export function validateMenuLayout(menu: Pick<Menu, "size" | "layers" | "context
         }
       }
 
-      const r = parsePositions(el.positions);
-      if (!r) {
+      const ranges = String(el.positions).split(",").map(part => parsePositions(part.trim()));
+      if (ranges.some(r => !r || !Number.isSafeInteger(r.from) || !Number.isSafeInteger(r.to))) {
         errors.push(`Element "${el.id}" has invalid positions "${el.positions}".`);
         continue;
       }
-      for (let p = r.from; p <= r.to; p++) {
+      const positions = new Set<number>();
+      for (const r of ranges) {
+        if (!r) continue;
+        if (r.to >= menu.size) {
+          errors.push(`Element "${el.id}" occupies position ${r.to} which is out of bounds (size=${menu.size}).`);
+        }
+        for (let p = r.from; p <= Math.min(r.to, menu.size - 1); p++) positions.add(p);
+      }
+      for (const p of positions) {
         if (p >= menu.size) {
           errors.push(`Element "${el.id}" occupies position ${p} which is out of bounds (size=${menu.size}).`);
           continue;

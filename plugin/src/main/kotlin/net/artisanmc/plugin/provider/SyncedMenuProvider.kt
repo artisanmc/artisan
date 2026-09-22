@@ -823,7 +823,11 @@ class SyncedMenuProvider(
                             // Même sémantique que `project_read` : ce que le serveur a
                             // chargé. Sinon on listerait un project qu'on ne peut pas
                             // ouvrir, ou l'inverse — l'incohérence exacte qu'on retire.
-                            reply(mapOf("ok" to true, "project_ids" to snapshot.keys.sorted(), "project_roots" to roots.descriptors()))
+                            val ids = snapshot.keys.sorted()
+                            val descriptors = ids.map { id ->
+                                mapOf("project_id" to id, "identity" to if (roots.isRegistered(id)) "addon" else "folder")
+                            }
+                            reply(mapOf("ok" to true, "project_ids" to ids, "project_roots" to descriptors))
                         } catch (e: Throwable) {
                             logger?.log(java.util.logging.Level.WARNING, "[Artisan] project_list failed", e)
                             reply(mapOf("ok" to false, "error" to "read_error", "message" to describeError(e)))
@@ -1201,16 +1205,21 @@ class SyncedMenuProvider(
                         logger?.log(java.util.logging.Level.WARNING, "[Artisan] Private draft operation failed", error)
                         jsonMapper.valueToTree<com.fasterxml.jackson.databind.JsonNode>(mapOf("ok" to false, "error" to "storage_error"))
                     }
-                    if (result.path("ok").asBoolean() && node.path("action").asText() == "publish") {
-                        reloadFromDisk()
-                        draftMenus.clear()
-                        onReload?.invoke()
-                    }
                     val payload = jsonMapper.convertValue(result, Map::class.java).entries.associate { it.key.toString() to it.value }.toMutableMap()
                     payload["type"] = "project_draft_result"
                     payload["request_id"] = requestId
                     @Suppress("UNCHECKED_CAST")
                     send(payload as Map<String, Any>)
+                    // The journal has committed. Runtime reload must not delay or lose its receipt.
+                    if (result.path("ok").asBoolean() && node.path("action").asText() == "publish") {
+                        try {
+                            reloadFromDisk()
+                            draftMenus.clear()
+                            onReload?.invoke()
+                        } catch (error: Exception) {
+                            logger?.log(java.util.logging.Level.WARNING, "[Artisan] Draft published but runtime reload failed", error)
+                        }
+                    }
                 }
             }
 

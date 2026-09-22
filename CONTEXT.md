@@ -42,13 +42,17 @@ Non-examples:
 
 ## Appearance
 
-How an **Element** looks and behaves in one situation: material/icon, title, lore,
+How an **Element** looks and behaves in one situation: material/icon or image, title, lore,
 count, the advanced item details, and the click **Action chains**. An Element
 carries exactly one **display** — what it looks like when nothing else applies —
 plus an ordered list of **states**, each guarded by an `if`. The first state whose
 guard passes wins; when none does, the display renders. On the wire the display's
 fields sit **directly on the Element** (`material:`, `title:`, `click:` …) and the
 states live under `states:`. Cf. ADR `element-display-and-states`.
+
+An image appearance uses a project PNG instead of an item. Its Element owns one
+fixed rectangular footprint of slots, shared by all states; the image spans that
+rectangle once and every covered slot invokes the same click Action chains.
 
 A state is a **whole** appearance, never a patch: a field it omits is absent, not
 inherited from the display. Two appearances of the same Element are therefore

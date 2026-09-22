@@ -108,7 +108,14 @@ export function makeAppearanceConverter(bridge: I18nBridge): {
       out.if = ifa.conds;
       if (ifa.joins.length > 0) out.ifJoins = ifa.joins;
     }
-    if (typeof a.item === "string") out.item = a.item;
+    if (a.image && typeof a.image.asset === "string")
+      out.image = {
+        asset: a.image.asset,
+        ...(a.image.fit ? { fit: a.image.fit } : {}),
+        ...(a.image.offset_x !== undefined ? { offset_x: a.image.offset_x } : {}),
+        ...(a.image.offset_y !== undefined ? { offset_y: a.image.offset_y } : {}),
+      };
+    else if (typeof a.item === "string") out.item = a.item;
     else if (a.material) out.material = a.material;
     if (a.head) out.head = a.head;
     if (a.count !== undefined) out.count = a.count;

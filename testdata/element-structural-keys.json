@@ -17,6 +17,7 @@
     "tags"
   ],
   "appearance": [
+    "image",
     "if",
     "item",
     "extends",

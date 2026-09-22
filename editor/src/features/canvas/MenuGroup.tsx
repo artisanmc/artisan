@@ -16,6 +16,7 @@ import { useEffect, useMemo } from "react";
 import { Group, Image as KonvaImage, Rect } from "react-konva";
 import { toast } from "sonner";
 import useImage from "use-image";
+import { ImageButtonsRender } from "./ImageButtonsRender";
 import { PaginationControls } from "./PaginationControls";
 import { PlacementTray } from "./PlacementTray";
 import { PreviewContextBanner } from "./PreviewContextBanner";
@@ -242,6 +243,7 @@ export function MenuGroup({ projectId, menu, position, layout, solo = false }: M
       enchanted?: boolean;
       elementId: string;
       multiPos: boolean;
+      image?: boolean;
     }
   >();
   for (const layer of menu.layers) {
@@ -378,6 +380,7 @@ export function MenuGroup({ projectId, menu, position, layout, solo = false }: M
         ...(project ? previewItem(appearance, enhancedCtx, project, activeLang) : {}),
         elementId: el.id,
         multiPos: elSlots.length > 1,
+        image: !!appearance.image,
       };
       for (const s of elSlots) {
         elementsByPosition.set(s.position, info);
@@ -479,6 +482,7 @@ export function MenuGroup({ projectId, menu, position, layout, solo = false }: M
           selection belonging to this menu). All wiring lives in TitleRender;
           no overlay Rect needed here. */}
       <TitleRender projectId={projectId} menuId={menu.id} scale={TEX_SCALE} />
+      <ImageButtonsRender projectId={projectId} menu={menu} />
       <PlacementTray
         menu={menu}
         project={project}
@@ -490,6 +494,7 @@ export function MenuGroup({ projectId, menu, position, layout, solo = false }: M
       {Array.from({ length: total }, (_, i) => {
         const { x, y } = slotXY(i, type);
         const el = elementsByPosition.get(i);
+        if (el?.image) return null;
         const present = Boolean(el);
         const filled = Boolean(el?.material);
         const innerX = TEX_SLOT_INNER_OFFSET;

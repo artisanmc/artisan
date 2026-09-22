@@ -1,4 +1,5 @@
 import { visitProjectLTexts } from "@/domain/i18nSites";
+import { assertImageButtonPlacement, hasImageButton } from "@/domain/imageButton";
 import type { I18nKey, Project } from "@/domain/types";
 import { isTranslationMissing, listLanguages } from "@/lib/i18nUsages";
 
@@ -11,6 +12,17 @@ export interface ValidationResult {
 export function validate(project: Project): ValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
+  for (const menu of project.menus)
+    for (const element of menu.layers.flatMap((layer) => layer.elements)) {
+      if (!hasImageButton(element)) continue;
+      try {
+        assertImageButtonPlacement(menu, element);
+      } catch (error) {
+        errors.push(
+          `${menu.id}/${element.id}: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    }
 
   // Collect all LText keys referenced in the project — one traversal covering
   // menus, commands, templates, and dialogs (see @/domain/i18nSites).

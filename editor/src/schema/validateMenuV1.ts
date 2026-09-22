@@ -1,5 +1,6 @@
 import addFormats from "ajv-formats";
 import Ajv2020, { type ErrorObject } from "ajv/dist/2020";
+import { imageButtonErrors } from "../../../docs/schema/menu/v1/imageButtons";
 import schema from "../../../docs/schema/menu/v1/schema.json";
 
 const ajv = new Ajv2020({ allErrors: true, strict: false });
@@ -30,5 +31,6 @@ export function validateMenuV1(menu: unknown): MenuV1ValidationResult {
   const errors = (validateFn.errors ?? []).map((e: ErrorObject) =>
     `${e.instancePath || "/"} ${e.message ?? ""}`.trim(),
   );
-  return { valid, errors };
+  if (valid) errors.push(...imageButtonErrors(subject));
+  return { valid: valid && errors.length === 0, errors };
 }

@@ -9,6 +9,29 @@ import { projectIdentityFr } from "./projectIdentity";
 import { tasksFr } from "./tasks";
 
 const fr: typeof en = {
+  imageButton: {
+    search: "Rechercher une image…",
+    library: "Boutons image",
+    native: "Taille naturelle",
+    offsetX: "Décalage horizontal (px)",
+    offsetY: "Décalage vertical (px)",
+    recenter: "Recentrer",
+    autoSize: "Adapter les slots à l’image",
+    slots: "{{width}} × {{height}} slots",
+    dragHint: "Glisse une image dans le menu pour créer un bouton à sa taille.",
+    empty: "Importe une image pour créer ton premier bouton.",
+    appearance: "Apparence",
+    item: "Item",
+    image: "Image",
+    choose: "Choisir une image",
+    width: "Largeur (slots)",
+    height: "Hauteur (slots)",
+    fit: "Ajustement de l’image",
+    contain: "Conserver les proportions",
+    stretch: "Étirer pour remplir",
+    rectangleRequired: "Sélectionne d’abord une zone de slots rectangulaire.",
+    sharedArea: "Tous les slots couverts partagent cette apparence et ses actions.",
+  },
   demo: demoFr,
   projectCopy: projectCopyFr,
   projectIdentity: projectIdentityFr,
@@ -829,9 +852,11 @@ const fr: typeof en = {
     image: {
       x: "X",
       y: "Y",
-      positionHint: "Pixels depuis le coin haut gauche du coffre. Une image ne peut pas monter plus haut que y = {{floor}}.",
+      positionHint:
+        "Pixels depuis le coin haut gauche du coffre. Une image ne peut pas monter plus haut que y = {{floor}}.",
       calibrate: "Caler en fond de coffre (x=0, y={{y}})",
-      calibrateHint: "Pour aligner le coffre ET l’inventaire joueur, ajoute 1 px de marge transparente en haut du PNG.",
+      calibrateHint:
+        "Pour aligner le coffre ET l’inventaire joueur, ajoute 1 px de marge transparente en haut du PNG.",
     },
     size: {
       label: "Taille",

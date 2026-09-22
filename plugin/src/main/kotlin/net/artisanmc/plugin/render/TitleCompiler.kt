@@ -213,7 +213,7 @@ object TitleCompiler {
         // to top) is preserved.
         val sorted = layers.sortedWith(compareBy {
             when (it) {
-                is MenuTitleLayer.Text, is MenuTitleLayer.Textarea -> 1
+                is MenuTitleLayer.Text, is MenuTitleLayer.Textarea, is MenuTitleLayer.Plain -> 1
                 else -> 0
             }
         })
@@ -284,7 +284,8 @@ object TitleCompiler {
                 // goes through `glyph_y{Y}`, which the backend emits for each
                 // (glyph, Y) its menus use — clamped like it to `ascent <= height`.
                 val y = maxOf(layer.y, GLYPH_Y_BASE - entry.height)
-                if (y == GLYPH_Y_BASE - entry.ascent) "<white>$ch</white>"
+                if (entry.namespace != null) "<font:${entry.namespace}><white>$ch</white></font>"
+                else if (y == GLYPH_Y_BASE - entry.ascent) "<white>$ch</white>"
                 else "<font:artisan:glyph_y$y><white>$ch</white></font>"
             }
             is MenuTitleLayer.Text -> {
@@ -375,7 +376,7 @@ object TitleCompiler {
         is MenuTitleLayer.Background -> 0
         is MenuTitleLayer.Glyph -> layer.x
         is MenuTitleLayer.Text -> layer.x
-        is MenuTitleLayer.Plain -> 0
+        is MenuTitleLayer.Plain -> TITLE_LABEL_X
         is MenuTitleLayer.ExternalGlyph -> layer.x
         is MenuTitleLayer.Textarea -> layer.x
     }
@@ -397,8 +398,9 @@ object TitleCompiler {
             (if (w > 0) w else FALLBACK_IMAGE_WIDTH) + 1
         }
         is MenuTitleLayer.Glyph -> {
-            val w = lookupAsset(layer.assetId)?.width ?: 0
-            (if (w > 0) w else FALLBACK_IMAGE_WIDTH) + 1
+            val entry = lookupAsset(layer.assetId)
+            val w = entry?.width ?: 0
+            (if (w > 0 || entry?.namespace?.startsWith("artisan:buttons/") == true) w else FALLBACK_IMAGE_WIDTH) + 1
         }
         is MenuTitleLayer.Text -> {
             val text = interpolate(resolveLText(layer.value, langMap))

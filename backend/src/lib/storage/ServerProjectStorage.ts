@@ -1,7 +1,10 @@
 import { requestProjectRead, requestProjectWrite, requestAssetRead, requestAssetWrite, requestProjectHistory, requestProjectRename, supportsProjectRename } from "../../ws/hub";
 import { ProjectRenameError } from "../projectRename";
 import { renameStoredProject } from "./projectLifecycle";
-import { forgetProjectTree } from "../projectTreeReads";
+import { forgetProjectTree, readProjectTree } from "../projectTreeReads";
+import { getCachedAsset, putCachedAsset } from "../assetCache";
+import { createHash } from "node:crypto";
+import type { BinaryReadResult } from "./ProjectStorage";
 import type { BinaryWrite, ProjectLocation, ProjectStorage, ProjectWriteBatch, StorageOutcome } from "./ProjectStorage";
 import type { DraftStore } from "./DraftStore";
 
@@ -12,7 +15,10 @@ interface ServerTransport {
   writeBinaries: typeof requestAssetWrite;
   history: typeof requestProjectHistory;
   invalidate: typeof forgetProjectTree;
+  readAssets: typeof readProjectTree;
 }
+
+const assetReads = new Map<string, Promise<StorageOutcome<BinaryReadResult>>>();
 
 function withoutCorrelation<T extends { type: string; request_id: string }>(outcome: { kind: "result"; result: T } | { kind: "offline" } | { kind: "timeout" }): StorageOutcome<T> {
   if (outcome.kind !== "result") return outcome;
@@ -27,7 +33,7 @@ export class ServerProjectStorage implements ProjectStorage {
   get capabilities() { return Object.freeze({ liveData: true, captureInGame: true, preview: true, canRename: this.identity?.kind === "folder" && supportsProjectRename(this.location.serverKeyId) }); }
   private readonly transport: ServerTransport;
   constructor(private readonly location: Extract<ProjectLocation, { kind: "server" }>, transport: Partial<ServerTransport> = {}, private readonly identity?: { id: string; kind: string }) {
-    this.transport = { read: requestProjectRead, write: requestProjectWrite, readBinary: requestAssetRead, writeBinaries: requestAssetWrite, history: requestProjectHistory, invalidate: forgetProjectTree, ...transport };
+    this.transport = { read: requestProjectRead, write: requestProjectWrite, readBinary: (server, request) => requestAssetRead(server, request, 30_000), writeBinaries: requestAssetWrite, history: requestProjectHistory, invalidate: forgetProjectTree, readAssets: readProjectTree, ...transport };
   }
   async rename(operationId: string, targetId: string) {
     if (!this.identity || this.identity.kind === "addon") throw new ProjectRenameError("addon_immutable");
@@ -38,6 +44,27 @@ export class ServerProjectStorage implements ProjectStorage {
   }
   async read(ifHash: string | null = null) {
     return withoutCorrelation(await this.transport.read(this.location.serverKeyId, { projectId: this.location.folderName, ifHash }));
+  }
+  async readAssetTree() {
+    return withoutCorrelation(await this.transport.readAssets(this.location.serverKeyId, this.location.folderName));
+  }
+  async readAssetBinary(path: string, hash: string): Promise<StorageOutcome<BinaryReadResult>> {
+    const key = { serverKeyId: this.location.serverKeyId, projectId: this.location.folderName, path, hash };
+    const id = JSON.stringify(key);
+    const pending = assetReads.get(id);
+    if (pending) return pending;
+    const load = (async () => {
+      const cached = await getCachedAsset(key);
+      if (cached) return { kind: "result" as const, result: { ok: true, content: cached, hash } };
+      const outcome = await this.readBinary(path);
+      if (outcome.kind === "result" && outcome.result.ok && outcome.result.content && createHash("sha256").update(outcome.result.content).digest("hex") === hash) {
+        await putCachedAsset(key, outcome.result.content);
+      }
+      return outcome;
+    })();
+    assetReads.set(id, load);
+    try { return await load; }
+    finally { if (assetReads.get(id) === load) assetReads.delete(id); }
   }
   async write(batch: ProjectWriteBatch) {
     this.invalidate();

@@ -41,6 +41,18 @@ class ActionExecutorTest {
     private fun player() = MockBukkit.getMock()!!.addPlayer()
     private fun ctx(p: Player) = ExecutionContext(p)
 
+    @Test fun `quoted DSL set activates the target state after reopening the menu`() {
+        val p = player()
+        val steps = net.artisanmc.plugin.actiondsl.compileActionDsl("""
+            set test_tag = "test"
+            open_menu menu_zdzd
+        """.trimIndent())
+        executor().executeSteps(steps, ctx(p))
+        assertEquals("menu_zdzd", lastOpenedMenuId)
+        assertEquals("test", lastMenuCtx!!.args["test_tag"])
+        assertTrue(evaluator.evaluate(Condition.Expression("""test_tag == "test""""), lastMenuCtx!!))
+    }
+
     @Test fun `handle executes actions when requirements pass`() {
         val p = player()
         val handler = ClickHandler(

@@ -9,6 +9,26 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Fixed — server project loading and in-game images
+
+- Fix slow server project opening by archiving completed publication journals and listing loaded projects without disk recovery.
+- Restore Docker-internal resource-pack downloads and allow pack refresh when an old project anchor no longer exists on the server, so image buttons reach the game.
+- Project commands preserve the viewer language when opening menus and dialogs, restoring translated image-button titles and lore instead of silently selecting English.
+
+### Fixed — image button previews
+
+- Selecting or duplicating an image button reuses its already loaded preview instead of downloading it again. Picker thumbnails and canvas share requests within the same account and image version.
+- Asset previews reuse validated server bytes and batch project-tree reads. Slow binary reads no longer become false 404s after five seconds; transient storage failures return 503 and the editor retries them automatically. Unchanged draft images reuse the same verified content.
+
+### Fixed — local deployment timeout
+
+- Draft requests now wait longer than the backend's plugin-response window. A successful publication taking 25–30 seconds no longer appears as `signal timed out`; transport timeouts use the translated retryable error and retain the operation ID.
+- The plugin acknowledges committed publications before runtime reload, so a slow reload no longer causes a deployment timeout after the files have already been written.
+
+### Added — image buttons
+
+- Menu appearances can use a project image, with the same conditions, tooltip and click actions as items. Width and height define one rectangular area of slots, such as 2×1, 1×2, 2×2, 3×2 or 2×3; every covered slot triggers the same button. Images can preserve proportions or stretch, and each state can choose a different image. Resizing and moving reject gaps, overflow and collisions; dynamic iteration/placements are not supported for image buttons.
+
 ### Fixed — title images move vertically
 
 - An image in a composed title now stays where you drop it, vertically as well as horizontally. It used to jump back to the height set by its asset's ascent, shared by every menu using that image. Each image layer now has its own **Y**: the resource pack gets a `glyph_y{Y}` font for each height a menu uses, and the plugin draws the image through it. An image can go no higher than `y = 13 - height` (Minecraft rejects a font whose ascent exceeds its height).

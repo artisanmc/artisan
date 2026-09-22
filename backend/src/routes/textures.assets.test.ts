@@ -5,7 +5,17 @@ mock.module("../lib/resourcePack", () => ({
   currentPackInfo: async () => null,
 }));
 import { clearFakeDisk, diskBinary, diskText, fakeHubModule } from "../test/fakeServerDisk";
-mock.module("../ws/hub", () => fakeHubModule());
+let binaryFailure: "timeout" | "offline" | undefined;
+let binaryReads = 0;
+let treeReads = 0;
+const fake = fakeHubModule();
+mock.module("../ws/hub", () => fakeHubModule({
+  requestProjectRead: async () => { treeReads++; return fake.requestProjectRead(); },
+  requestAssetRead: async (...args: Parameters<typeof fake.requestAssetRead>) => {
+    binaryReads++;
+    return binaryFailure ? { kind: binaryFailure } : fake.requestAssetRead(...args);
+  },
+}));
 
 import { beforeEach, describe, expect, test } from "bun:test";
 import { Hono } from "hono";
@@ -25,6 +35,9 @@ const app = { request: (input: string, init?: RequestInit) => routed.request(inp
 
 beforeEach(async () => {
   clearFakeDisk();
+  binaryFailure = undefined;
+  binaryReads = 0;
+  treeReads = 0;
   await db.delete(projects);
   await db.delete(serverKeys);
   await db.delete(networks);
@@ -81,6 +94,43 @@ async function seedSession(): Promise<{ projectId: string }> {
 }
 
 describe("GET /api/v1/textures/asset/:projectId/:assetId", () => {
+  test.each(["timeout", "offline"] as const)("reports transient %s instead of a false missing image", async (failure) => {
+    const { projectId } = await seedSession();
+    diskBinary.set("assets/glyphs/button.png", PNG_1x1);
+    binaryFailure = failure;
+    const response = await app.request(`/api/v1/textures/asset/${projectId}/button`);
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({ error: "storage_unavailable" });
+    binaryFailure = undefined;
+    expect((await app.request(`/api/v1/textures/asset/${projectId}/button`)).status).toBe(200);
+  });
+
+  test("reuses validated image bytes for concurrent previews of the same content", async () => {
+    const { projectId } = await seedSession();
+    diskBinary.set("assets/glyphs/button.png", PNG_1x1);
+    const url = `/api/v1/textures/asset/${projectId}/button`;
+    const responses = await Promise.all([app.request(url), app.request(url), app.request(url)]);
+    expect(responses.map((response) => response.status)).toEqual([200, 200, 200]);
+    expect(binaryReads).toBe(1);
+    expect(treeReads).toBe(1);
+    expect((await app.request(url)).status).toBe(200);
+    expect(binaryReads).toBe(1);
+  });
+
+  test("fresh asset metadata invalidates cached bytes after replacement or deletion", async () => {
+    const { projectId } = await seedSession();
+    diskBinary.set("assets/glyphs/button.png", PNG_1x1);
+    const url = `/api/v1/textures/asset/${projectId}/button`;
+    expect((await app.request(url)).status).toBe(200);
+    clearFakeDisk();
+    const changed = new Uint8Array([...PNG_1x1, 1]);
+    diskBinary.set("assets/glyphs/button.png", changed);
+    const response = await app.request(url);
+    expect(new Uint8Array(await response.arrayBuffer())).toEqual(changed);
+    expect(binaryReads).toBe(2);
+    clearFakeDisk();
+    expect((await app.request(url)).status).toBe(404);
+  });
   test("sert le PNG lu sur le disque du serveur", async () => {
     const { projectId } = await seedSession();
     diskText.set("assets/textures/tex_serve.yaml", `width: 1\nheight: 1\n`);

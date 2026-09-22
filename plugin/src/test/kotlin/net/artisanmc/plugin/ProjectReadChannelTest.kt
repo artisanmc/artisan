@@ -24,8 +24,9 @@ class ProjectReadChannelTest {
         val root: File = Files.createTempDirectory("artisan_pread_").toFile()
         val sink: MutableList<Map<String, Any?>> = java.util.Collections.synchronizedList(mutableListOf())
         val latch = CountDownLatch(1)
+        val roots = net.artisanmc.plugin.project.ProjectRoots(root)
         val provider = SyncedMenuProvider(
-            roots = net.artisanmc.plugin.project.ProjectRoots(root),
+            roots = roots,
             serverKey = "", wsUrl = "", logger = null,
         )
         init {
@@ -142,6 +143,20 @@ class ProjectReadChannelTest {
 
         assertEquals(true, h.awaitReply()["ok"])
         assertEquals(emptyList<String>(), h.awaitReply()["project_ids"])
+    }
+
+    @Test
+    fun `project list uses loaded roots without waiting for disk recovery`() {
+        val h = Harness()
+        h.write(h.project("loaded"), "manifest.yaml", "id: loaded\n")
+        h.provider.load()
+        h.write(h.project("not_loaded"), "manifest.yaml", "id: not_loaded\n")
+        synchronized(h.roots) {
+            h.provider.handleMessageForTesting("""{"type":"project_list","request_id":"snapshot"}""")
+            val msg = h.awaitReply()
+            assertEquals(listOf("loaded"), msg["project_ids"])
+            assertEquals(listOf(mapOf("project_id" to "loaded", "identity" to "folder")), msg["project_roots"])
+        }
     }
 
     @Test

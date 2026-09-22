@@ -13,6 +13,8 @@ import { createProject } from "./projectStorage";
 import { registerConn, connToServerId, connSenders, handlePluginMessage } from "../ws/hub";
 import { unzipSync } from "fflate";
 import { join } from "path";
+import { PNG } from "pngjs";
+import { imageButtonKey } from "./imageButtons";
 
 const PNG_1x1 = new Uint8Array([
   0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
@@ -134,6 +136,37 @@ afterEach(async () => {
 });
 
 describe("rebuildResourcePack", () => {
+  test("a project confirmed absent on disk cannot freeze image button updates in another project", async () => {
+    const previous = await rebuildResourcePack(serverKeyId);
+    const [server] = await db.select().from(serverKeys).where(eq(serverKeys.id, serverKeyId));
+    const missing = await createProject({ networkId: server!.networkId, serverKeyId, name: "removed" });
+    seedGlyph(projectId, "purplebtn", 0xe000);
+    const png = new PNG({ width: 2, height: 1 });
+    png.data.fill(255);
+    diskOf(projectId).set("assets/glyphs/purplebtn.png", PNG.sync.write(png));
+    diskOf(projectId).set("menus/menu_zdzd.yaml", new TextEncoder().encode(`
+size: 27
+elements:
+  - id: button
+    positions: 5-6,14-15
+    image: { asset: purplebtn }
+`));
+    const conn = `conn-rp-${serverKeyId}`;
+    const send = connSenders.get(conn)!;
+    registerConn(conn, (raw) => {
+      const msg = JSON.parse(raw);
+      if (msg.type === "project_read" && msg.project_id === missing.id) {
+        void handlePluginMessage(conn, JSON.stringify({ type: "project_read_result", request_id: msg.request_id, ok: false, error: "unknown_project" }));
+      } else send(raw);
+    });
+    const next = await rebuildResourcePack(serverKeyId);
+    expect(next.hash).not.toBe(previous.hash);
+    const entries = unzipSync(await Bun.file(resourcePackPath(serverKeyId, next.hash)).bytes());
+    const key = imageButtonKey({ asset: "purplebtn", fit: "contain", width: 36, height: 36, y: 17 });
+    expect(entries[`assets/artisan/font/${key}.json`]).toBeDefined();
+    expect(entries[`assets/artisan/textures/${key}.png`]).toBeDefined();
+    expect(JSON.parse(new TextDecoder().decode(entries["assets/artisan/asset-index.json"])).assets[key]).toBeDefined();
+  });
   test.each([false, true])("copy preparation rejects an unavailable project instead of fallback (existing pack: %s)", async (existing) => {
     if (existing) await rebuildResourcePack(serverKeyId);
     stopServing();

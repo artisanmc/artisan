@@ -1,0 +1,192 @@
+# doc-impact-map.yaml — source of truth for which docs to update
+# when which source files change. Used by the /sync-docs skill.
+#
+# Patterns: minimatch-style globs. ** = recursive wildcard.
+
+mappings:
+  - touches: "plugin/src/main/resources/config.yml"
+    updates:
+      - "docs-site/src/content/docs/getting-started/install-admin.md"
+    reason: "User-visible plugin config (Reference + Config sections)"
+
+  - touches: "plugin/src/main/kotlin/**/IfzCommand.kt"
+    updates:
+      - "docs-site/src/content/docs/getting-started/install-admin.md"
+      - "CLAUDE.md"
+    reason: "User-visible commands (table in install-admin + plugin section in CLAUDE.md)"
+
+  - touches: "plugin/src/main/kotlin/**/ResourcePackDelegator.kt"
+    updates:
+      - "docs-site/src/content/docs/getting-started/install-admin.md"
+      - "CLAUDE.md"
+    reason: "Resource pack distribution mode (Resource pack section)"
+
+  - touches: "plugin/src/main/kotlin/**/PluginConfig.kt"
+    updates:
+      - "docs-site/src/content/docs/getting-started/install-admin.md"
+    reason: "Plugin config schema / defaults"
+
+  - touches: "backend/src/lib/hub.ts"
+    updates:
+      - "CLAUDE.md"
+    reason: "WS protocol (AI-facing only — no user-visible surface)"
+
+  - touches: "backend/src/db/schema.ts"
+    updates:
+      - "CONTEXT.md"
+      - "CLAUDE.md"
+    reason: "Domain entities — may shift glossary or AI architecture notes"
+
+  - touches: "editor/src/features/canvas/**"
+    updates:
+      - "docs-site/src/content/docs/editor/"
+      - "CLAUDE.md"
+    reason: "User-visible editor UX (editor section + CLAUDE.md ops/UI notes)"
+
+  - touches: ".env.example"
+    updates:
+      - "CLAUDE.md"
+    reason: "Environment variables table"
+
+  - touches: "docker-compose.yml"
+    updates:
+      - "CLAUDE.md"
+      - "docs-site/src/content/docs/contributing/"
+    reason: "Stack layout (contributing guide when filled, CLAUDE.md commands section)"
+
+  - touches: "backend/src/routes/auth.ts"
+    updates:
+      - "CLAUDE.md"
+    reason: "Auth endpoints (Auth section in CLAUDE.md)"
+
+  - touches: "backend/src/routes/discordOauth.ts"
+    updates:
+      - "CLAUDE.md"
+    reason: "Discord OAuth endpoints (Auth section in CLAUDE.md)"
+
+  - touches: "backend/src/lib/sessionManager.ts"
+    updates:
+      - "CLAUDE.md"
+    reason: "Session lifecycle / cookie semantics"
+
+  - touches: "backend/src/routes/userNetworks.ts"
+    updates:
+      - "CLAUDE.md"
+    reason: "Network endpoints (section Modèle d'entités + Custom Items — endpoints et cache)"
+
+  - touches: "backend/src/routes/userPacks.ts"
+    updates:
+      - "CLAUDE.md"
+    reason: "Pack endpoints (Custom Items — endpoints et cache section)"
+
+  - touches: "backend/src/lib/membershipGuard.ts"
+    updates:
+      - "CLAUDE.md"
+    reason: "Reference for membership checks in network endpoints"
+
+  - touches: "plugin/src/main/kotlin/**/LocalPushSender.kt"
+    updates:
+      - "CLAUDE.md"
+    reason: "Local push command (Plugin commands section)"
+
+  - touches: "backend/src/lib/commitStorage.ts"
+    updates:
+      - "CLAUDE.md"
+    reason: "Phase 2 commits storage (Modèle d'entités — Phase 2 section)"
+
+  - touches: "backend/src/lib/branchStorage.ts"
+    updates:
+      - "CLAUDE.md"
+    reason: "Phase 2 branches storage + Phase 3 findLCA (Modèle d'entités — Phase 2 / Phase 3 sections)"
+
+  - touches: "backend/src/routes/userBranches.ts"
+    updates:
+      - "CLAUDE.md"
+    reason: "Phase 2 branches endpoints + Phase 3 merge-into / resolve (section endpoints)"
+
+  - touches: "backend/src/lib/mergeEngine.ts"
+    updates:
+      - "CLAUDE.md"
+    reason: "Phase 3 merge engine (Modèle d'entités — Phase 3 section)"
+
+  - touches: "backend/src/routes/link.ts"
+    updates:
+      - "CLAUDE.md"
+    reason: "Claim endpoint auth + smart-count (Plan accounts × networks UX — endpoints + entities)"
+
+  - touches: "backend/src/routes/networkTransfers.ts"
+    updates:
+      - "CLAUDE.md"
+    reason: "Network transfer init/get/accept endpoints (Plan accounts × networks UX)"
+
+  - touches: "backend/src/lib/networkTransferStorage.ts"
+    updates:
+      - "CLAUDE.md"
+    reason: "Network transfer storage helpers + table (Plan accounts × networks UX — entities)"
+
+  - touches: "backend/src/routes/userNetworks.ts"
+    updates:
+      - "CLAUDE.md"
+    reason: "Delete server-key endpoint (Plan accounts × networks UX — endpoints)"
+
+  - touches: "plugin/src/main/kotlin/gg/interfaze/modules/api/"
+    updates:
+      - "CLAUDE.md"
+      - "docs/architecture/modules.md"
+      - "docs/architecture/api-surface.md"
+      - "CHANGELOG.md"
+    reason: "Plugin module API surface (interfaces, registries) — changes here affect every module + must be reflected in CHANGELOG + api-surface doc"
+
+  - touches: "backend/src/modules/api/"
+    updates:
+      - "CLAUDE.md"
+      - "docs/architecture/modules.md"
+    reason: "Backend module API surface"
+
+  - touches: "editor/src/modules/api/"
+    updates:
+      - "CLAUDE.md"
+      - "docs/architecture/modules.md"
+    reason: "Frontend module API surface"
+
+  - touches: "editor/src/components/SchemaForm/"
+    updates:
+      - "CLAUDE.md"
+    reason: "SchemaForm is the module form multiplier — any new feature documented in CLAUDE.md form-gen section"
+
+  - touches: "backend/src/db/schema.ts"
+    updates:
+      - "backend/drizzle/"
+      - "CHANGELOG.md"
+    reason: "Schema change requires drizzle-kit generate + CHANGELOG entry"
+
+  - touches: "backend/src/app.ts"
+    updates:
+      - "CHANGELOG.md"
+    reason: "Route mount changes are part of the REST API surface (versioned)"
+
+  - touches: "backend/src/protocol.ts"
+    updates:
+      - "CHANGELOG.md"
+      - "docs/architecture/versioning.md"
+    reason: "WS protocol changes need version bump consideration"
+
+  - touches: "editor/src/routes/settings.tsx"
+    updates:
+      - "CLAUDE.md"
+    reason: "/settings is user-facing — section list + Apparence flow documented in CLAUDE.md UI shell section"
+
+  - touches: "editor/src/components/WorkspaceTabs.tsx"
+    updates:
+      - "CLAUDE.md"
+    reason: "Workspace tab structure (Overview / Translations / Data Sources) — UI shell mapping in CLAUDE.md"
+
+  - touches: "editor/src/components/WorkspaceSidebar.tsx"
+    updates:
+      - "CLAUDE.md"
+    reason: "Sidebar structure (Network dropdown + Workspaces + Modules + Settings button)"
+
+  - touches: "editor/src/routes/workspace.$workspaceId.tsx"
+    updates:
+      - "CLAUDE.md"
+    reason: "Workspace shell layout (top bar + tab strip + content per ?tab=) — UI shell mapping"

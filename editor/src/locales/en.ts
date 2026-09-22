@@ -7,6 +7,29 @@ import { projectCopyEn } from "./projectCopy";
 import { projectIdentityEn } from "./projectIdentity";
 import { tasksEn } from "./tasks";
 export default {
+  imageButton: {
+    search: "Search images…",
+    library: "Image buttons",
+    native: "Natural size",
+    offsetX: "Horizontal offset (px)",
+    offsetY: "Vertical offset (px)",
+    recenter: "Center image",
+    autoSize: "Fit slots to image",
+    slots: "{{width}} × {{height}} slots",
+    dragHint: "Drag an image into the menu to create a button at its natural size.",
+    empty: "Upload an image to create your first button.",
+    appearance: "Appearance",
+    item: "Item",
+    image: "Image",
+    choose: "Choose an image",
+    width: "Width (slots)",
+    height: "Height (slots)",
+    fit: "Image fit",
+    contain: "Keep proportions",
+    stretch: "Stretch to fill",
+    rectangleRequired: "Select a rectangular slot area first.",
+    sharedArea: "All covered slots share this appearance and its actions.",
+  },
   demo: demoEn,
   projectCopy: projectCopyEn,
   projectIdentity: projectIdentityEn,
@@ -813,9 +836,11 @@ export default {
     image: {
       x: "X",
       y: "Y",
-      positionHint: "Pixels from the chest's top-left corner. An image can't go higher than y = {{floor}}.",
+      positionHint:
+        "Pixels from the chest's top-left corner. An image can't go higher than y = {{floor}}.",
       calibrate: "Align as chest background (x=0, y={{y}})",
-      calibrateHint: "To line up the chest AND the player inventory, add 1 px of transparent padding at the top of the PNG.",
+      calibrateHint:
+        "To line up the chest AND the player inventory, add 1 px of transparent padding at the top of the PNG.",
     },
     size: {
       label: "Size",

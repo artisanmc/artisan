@@ -39,8 +39,10 @@ export interface ProjectStorage {
   rename(operationId: string, targetId: string): Promise<{ ok: true; operationId: string; projectId: string; diskId: string } | { ok: false; operationId: string; error: string }>;
   readonly capabilities: ProjectCapabilities;
   read(ifHash?: string | null): Promise<StorageOutcome<ProjectReadResultMessage>>;
+  readAssetTree?(): Promise<StorageOutcome<ProjectReadResultMessage>>;
   write(batch: ProjectWriteBatch): Promise<StorageOutcome<ProjectWriteResultMessage>>;
   readBinary(path: string): Promise<StorageOutcome<BinaryReadResult>>;
+  readAssetBinary?(path: string, hash: string): Promise<StorageOutcome<BinaryReadResult>>;
   writeBinaries(files: BinaryWrite[]): Promise<StorageOutcome<AssetWriteResultMessage>>;
   history(path: string): Promise<StorageOutcome<ProjectHistoryResultMessage>>;
 }

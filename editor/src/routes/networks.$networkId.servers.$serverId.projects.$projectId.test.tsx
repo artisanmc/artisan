@@ -76,6 +76,7 @@ vi.mock("@/features/sync/DeleteProjectDialog", () => ({ DeleteProjectDialog: () 
 vi.mock("@dnd-kit/core", () => ({
   DndContext: ({ children }: any) => <>{children}</>,
   DragOverlay: () => null,
+  useDndContext: () => ({ active: null }),
   useSensor: vi.fn(),
   useSensors: vi.fn(() => []),
   MouseSensor: class {},

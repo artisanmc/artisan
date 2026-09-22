@@ -31,7 +31,7 @@ class PackCommand(
             return true
         }
         val parsedArgs = ArgParser.parse(compiled.argDefs, args, sender, lang) ?: return true
-        val ctx = ExecutionContext(player = sender, args = parsedArgs)
+        val ctx = ExecutionContext(player = sender, args = parsedArgs, lang = lang.playerLang(sender))
         executor.handle(compiled.handler, ctx)
         return true
     }

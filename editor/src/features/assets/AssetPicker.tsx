@@ -3,11 +3,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import type { Asset, AssetType } from "@/domain/asset";
 import type { ProjectId } from "@/domain/types";
-import { assetPreviewUrl } from "@/domain/asset";
 import { cx } from "@/lib/cx";
 import { Upload } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { AssetPreview } from "./AssetPreview";
 import { AssetUploadDialog } from "./AssetUploadDialog";
 import { useAssetStore } from "./assetStore";
 
@@ -33,7 +33,14 @@ interface AssetPickerProps {
 // fonts aren't pickable as images in any current call site.
 const DEFAULT_IMAGE_TYPES: AssetType[] = ["texture", "glyph"];
 
-export function AssetPicker({ open, onClose, typeFilter, onPick, title, projectId }: AssetPickerProps) {
+export function AssetPicker({
+  open,
+  onClose,
+  typeFilter,
+  onPick,
+  title,
+  projectId,
+}: AssetPickerProps) {
   const { t } = useTranslation();
   const all = useAssetStore((s) => s.assets);
   const [search, setSearch] = useState("");
@@ -87,15 +94,7 @@ export function AssetPicker({ open, onClose, typeFilter, onPick, title, projectI
                 "rounded-[8px] border border-[var(--border-soft)] bg-[var(--surface-raised)] hover:border-[var(--brand)] hover:bg-[var(--brand-soft)]",
               )}
             >
-              <img
-                src={assetPreviewUrl(asset)}
-                alt={asset.name}
-                draggable={false}
-                className="h-3/4 w-3/4 object-contain"
-                style={{ imageRendering: "pixelated" }}
-                loading="lazy"
-                decoding="async"
-              />
+              <AssetPreview asset={asset} lazy className="h-3/4 w-3/4 object-contain" />
             </button>
           ))}
           {matches.length === 0 && (

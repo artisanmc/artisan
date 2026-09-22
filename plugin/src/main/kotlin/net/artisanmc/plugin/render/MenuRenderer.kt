@@ -4,6 +4,7 @@ import net.artisanmc.modules.api.DataSourceRegistry
 import net.artisanmc.plugin.engine.*
 import net.artisanmc.plugin.model.AppearanceYaml
 import net.artisanmc.plugin.model.BundleMenu
+import net.artisanmc.plugin.model.MenuTitleLayer
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import net.artisanmc.plugin.resourcepack.AssetEntry
@@ -14,6 +15,7 @@ import net.kyori.adventure.text.minimessage.MiniMessage
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
 import org.bukkit.Bukkit
 import org.bukkit.Material
+import org.bukkit.NamespacedKey
 import org.bukkit.entity.Player
 import org.bukkit.event.inventory.InventoryType
 import org.bukkit.inventory.Inventory
@@ -140,8 +142,20 @@ object MenuRenderer {
         // renderer resolves `{…}` and `%papi%` in one pass (ADR `expression-parity` §5).
         val papi = evaluator.deps.papi
         val interpolate: (String) -> String = { raw -> renderCtx.render(raw, papi) { k -> langMap[k] } }
+        val imageElements = menu.yaml.allElements.filter { el -> (listOf(el.display) + el.states).any { it.image != null } }
+        val imageChoices = imageElements.associate { el -> el.id to
+            menu.compiledAppearances[el.id]?.firstOrNull { evaluator.evaluateAll(it.conditions, renderCtx) } }
+        val imageLayouts = imageElements.associate { it.id to ImageButtonLayout.of(menu.yaml, it) }
+        val imageLayers = imageElements.mapNotNull { el ->
+            val image = imageChoices[el.id]?.yaml?.image ?: return@mapNotNull null
+            val layout = imageLayouts[el.id] ?: return@mapNotNull null
+            if (image.asset.isBlank() || image.fit !in listOf("contain", "stretch", "native")) return@mapNotNull null
+            val key = layout.assetKey(image)
+            if (lookupAsset(key) == null) return@mapNotNull null
+            MenuTitleLayer.Glyph(assetId = key, x = layout.x, y = layout.y)
+        }
         val title = TitleCompiler.compileTitle(
-            layers = menu.title,
+            layers = menu.title + imageLayers,
             lang = lang,
             langMap = langMap,
             lookupAsset = lookupAsset,
@@ -179,6 +193,19 @@ object MenuRenderer {
         for (element in menu.yaml.allElements) {
             val compiledList = menu.compiledAppearances[element.id] ?: emptyList()
             val slots = parsePositions(element.positionsSpec, menu.yaml.size)
+            if (element.id in imageChoices) {
+                val chosen = imageChoices[element.id] ?: continue
+                val layout = imageLayouts[element.id] ?: continue
+                val image = chosen.yaml.image
+                if (image != null && imageLayers.none { it.assetId == layout.assetKey(image) }) continue
+                val item = if (image == null) buildItem(chosen.yaml, langMap, renderCtx, evaluator.deps, chosen.i18nBase)
+                    else buildImageHitItem(chosen.yaml, langMap, renderCtx, evaluator.deps, chosen.i18nBase)
+                for (slot in layout.slots) {
+                    inv.setItem(slot, item)
+                    if (chosen.clicks.isNotEmpty()) activeClicks[slot] = chosen.clicks
+                }
+                continue
+            }
 
             // Placement mode: pin explicit rows (matched by key_field) to
             // hand-authored page+slot. Rows not placed are omitted; a placement
@@ -239,6 +266,21 @@ object MenuRenderer {
 
         player.openInventory(inv)
         return MenuSession(menu.id, renderCtx.copy(lang = lang, langMap = langMap), activeClicks, slotArgs)
+    }
+
+    private fun buildImageHitItem(app: AppearanceYaml, langMap: Map<String, String>, ctx: ExecutionContext,
+                                  deps: SoftDepRegistry, i18nBase: String): ItemStack {
+        val item = buildItem(AppearanceYaml(material = "PAPER", title = app.title, lore = app.lore), langMap, ctx, deps, i18nBase)
+        val meta = item.itemMeta
+        try {
+            meta.setItemModel(NamespacedKey("artisan", "buttons/hit_area"))
+        } catch (_: NoSuchMethodError) {
+            // MockBukkit's older API has no item_model; empty slots still route clicks.
+            return ItemStack(Material.AIR)
+        }
+        meta.setHideTooltip(app.title == null && app.lore.isEmpty())
+        item.itemMeta = meta
+        return item
     }
 
     private fun buildItem(

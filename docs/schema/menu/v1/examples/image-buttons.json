@@ -1,0 +1,23 @@
+{
+  "schema": "menu/v1",
+  "id": "image_buttons",
+  "title": "Image buttons",
+  "size": 27,
+  "elements": [
+    {
+      "id": "buy",
+      "positions": "0-2,9-11",
+      "image": { "asset": "buy_button", "fit": "native", "offset_x": 2, "offset_y": -1 },
+      "title": "Buy",
+      "click": { "left": "send_message \"Bought\"" },
+      "states": [
+        {
+          "if": [{ "type": "has_permission", "perm": "shop.vip" }],
+          "image": { "asset": "vip_button", "fit": "stretch" },
+          "title": "VIP purchase",
+          "click": { "left": "send_message \"VIP purchase\"" }
+        }
+      ]
+    }
+  ]
+}

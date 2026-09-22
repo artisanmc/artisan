@@ -27,6 +27,8 @@ export class DraftApiError extends Error {
 }
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
 async function call(projectId: string, suffix = "", method = "GET", body?: unknown) {
+  // The plugin channel waits up to 30s; allow its response to reach the browser.
+  const signal = AbortSignal.timeout(45_000);
   const response = await projectFetch(
     projectId,
     `${API_URL}/api/v1/user/projects/${encodeURIComponent(projectId)}/drafts${suffix}`,
@@ -35,9 +37,12 @@ async function call(projectId: string, suffix = "", method = "GET", body?: unkno
       credentials: "include",
       headers: { "Content-Type": "application/json" },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-      signal: AbortSignal.timeout(25_000),
+      signal,
     },
-  );
+  ).catch((error: unknown) => {
+    if (signal.aborted) throw new DraftApiError("fetch_timeout", 504);
+    throw error;
+  });
   const data = await response.json();
   if (!response.ok)
     throw new DraftApiError(
