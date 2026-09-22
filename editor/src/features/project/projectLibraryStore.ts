@@ -2,7 +2,7 @@ import type { ProjectId } from "@/domain/types";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-export type LibraryCategory = "items" | "graphics" | "image-buttons";
+export type LibraryCategory = "items" | "captured" | "image-buttons";
 
 interface ProjectLibraryState {
   width: number;
@@ -25,12 +25,28 @@ export const useProjectLibraryStore = create<ProjectLibraryState>()(
       setHeight: (height) => set({ height }),
       projectId: null,
       category: "items",
-      open: (projectId, category = "items") => set({ projectId, category }),
+      open: (projectId, category) =>
+        set((state) => ({ projectId, category: category ?? state.category })),
       close: () => set({ projectId: null }),
       setCategory: (category) => set({ category }),
     }),
     {
       name: "artisan-library-size",
+      version: 1,
+      migrate: (
+        persisted,
+      ): Pick<ProjectLibraryState, "width" | "height" | "projectId" | "category"> => {
+        const state = persisted as Partial<ProjectLibraryState>;
+        return {
+          width: state.width ?? 340,
+          height: state.height ?? 280,
+          projectId: state.projectId ?? null,
+          category:
+            state.category === "captured" || state.category === "image-buttons"
+              ? state.category
+              : "items",
+        };
+      },
       partialize: (state) => ({
         width: state.width,
         height: state.height,

@@ -1,4 +1,4 @@
-import type { Asset, AssetType } from "@/domain/asset";
+import type { Asset, AssetType, AssetUsage } from "@/domain/asset";
 import {
   type AssetMutation,
   mutateDraftAssets,
@@ -56,7 +56,11 @@ async function perform(projectId: string, operation: AssetMutation): Promise<Ass
       ...Object.fromEntries(
         Object.entries(input.fields).map(([key, value]) => [
           key,
-          ["height", "ascent"].includes(key) ? Number(value) : value,
+          key === "usages"
+            ? JSON.parse(value)
+            : ["height", "ascent"].includes(key)
+              ? Number(value)
+              : value,
         ]),
       ),
       draftSnapshot: operation.snapshot,
@@ -107,11 +111,12 @@ function uploadFile(projectId: string, file: File, fields: Record<string, string
 }
 export async function uploadAsset(
   projectId: string,
-  input: { file: File; type: AssetType; name: string; ascent?: number },
+  input: { file: File; type: AssetType; name: string; ascent?: number; usages?: AssetUsage[] },
 ): Promise<Asset> {
   const result = await uploadFile(projectId, input.file, {
     type: input.type,
     name: input.name,
+    ...(input.usages === undefined ? {} : { usages: JSON.stringify(input.usages) }),
     ...(input.ascent === undefined ? {} : { ascent: String(input.ascent) }),
   });
   return result.asset!;
@@ -126,7 +131,7 @@ export async function uploadFontAsset(
 export async function patchAsset(
   projectId: string,
   id: string,
-  patch: { name?: string; ascent?: number; height?: number },
+  patch: { name?: string; ascent?: number; height?: number; usages?: AssetUsage[] },
 ): Promise<Asset> {
   return (
     await mutate(projectId, {
@@ -135,7 +140,7 @@ export async function patchAsset(
       fields: Object.fromEntries(
         Object.entries(patch)
           .filter((entry) => entry[1] !== undefined)
-          .map(([key, value]) => [key, String(value)]),
+          .map(([key, value]) => [key, key === "usages" ? JSON.stringify(value) : String(value)]),
       ),
     })
   ).asset!;

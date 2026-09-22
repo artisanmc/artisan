@@ -1,7 +1,7 @@
-import { render } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as userAssetsApi from "@/lib/api/userAssets";
 import { useAuthStore } from "@/state/authStore";
+import { render } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useAssetStore } from "./assetStore";
 import { useAssetInit } from "./useAssetInit";
 
@@ -26,6 +26,9 @@ function Harness({ projectId }: { projectId: string | null }) {
 }
 
 describe("useAssetInit", () => {
+  afterEach(async () => {
+    await vi.dynamicImportSettled();
+  });
   beforeEach(() => {
     useAssetStore.getState().reset();
     useAuthStore.setState({ currentUser: { id: "u1", email: "a@b.c" } } as never);
@@ -35,12 +38,14 @@ describe("useAssetInit", () => {
   it("fetches assets on mount and populates the store", async () => {
     const spy = vi.spyOn(userAssetsApi, "listAssets").mockResolvedValue([A1]);
     render(<Harness projectId="p1" />);
+    expect(useAssetStore.getState().loading).toBe(true);
     // Flush the resolved promise chain.
     await new Promise((r) => setTimeout(r, 0));
     expect(spy).toHaveBeenCalledTimes(1);
     expect(spy).toHaveBeenCalledWith("p1");
     expect(useAssetStore.getState().assets).toHaveLength(1);
     expect(useAssetStore.getState().assets[0]?.id).toBe("asset_1");
+    expect(useAssetStore.getState().loading).toBe(false);
   });
 
   it("does not fetch when no user is signed in", () => {
@@ -63,5 +68,6 @@ describe("useAssetInit", () => {
     render(<Harness projectId="p1" />);
     await new Promise((r) => setTimeout(r, 0));
     expect(useAssetStore.getState().error).toBe("boom");
+    expect(useAssetStore.getState().loading).toBe(false);
   });
 });

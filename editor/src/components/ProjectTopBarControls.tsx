@@ -67,6 +67,7 @@ import { useNavigate, useSearch } from "@tanstack/react-router";
 import {
   ChevronDown,
   Database as DatabaseIcon,
+  Images,
   Languages as LanguagesIcon,
   LayoutDashboard,
   PanelRightClose,
@@ -238,6 +239,7 @@ const TAB_META: Record<WorkspaceViewTab, { labelKey: string; Icon: typeof Langua
   overview: { labelKey: "project.tabs.canvas", Icon: LayoutDashboard },
   translations: { labelKey: "project.tabs.translations", Icon: LanguagesIcon },
   "data-sources": { labelKey: "project.tabs.dataSources", Icon: DatabaseIcon },
+  resources: { labelKey: "project.tabs.resources", Icon: Images },
   assistant: { labelKey: "assistant.title", Icon: Sparkles },
 };
 

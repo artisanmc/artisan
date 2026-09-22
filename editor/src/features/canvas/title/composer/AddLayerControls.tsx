@@ -14,6 +14,7 @@ import { useUiStore } from "@/state/uiStore";
 const DRAG_THRESHOLD_PX = 5;
 
 interface AddLayerControlsProps {
+  hideImage?: boolean;
   /**
    * Called when the user finishes adding a layer.
    *  - `cursor === null` → simple click, parent picks default placement
@@ -61,7 +62,7 @@ interface ActiveGesture {
  *   - keyboard-originated click: `detail === 0` → invoke `onPlace(kind, null)`.
  * This avoids double-fire without needing a shared flag between handlers.
  */
-export function AddLayerControls({ onPlace }: AddLayerControlsProps) {
+export function AddLayerControls({ onPlace, hideImage = false }: AddLayerControlsProps) {
   const setDragging = useUiStore((s) => s.setDraggingNewLayer);
 
   // The single active gesture (if any). Refs (not state) so we don't
@@ -163,20 +164,22 @@ export function AddLayerControls({ onPlace }: AddLayerControlsProps) {
       data-testid="add-layer-controls"
       className="@container flex gap-2 rounded border border-[var(--border-soft)] bg-[var(--surface)] px-2 py-2"
     >
-      <Button
-        type="button"
-        data-testid="add-layer-image"
-        size="sm"
-        variant="outline"
-        className="flex-1"
-        title="+ Image"
-        aria-label="+ Image"
-        onPointerDown={(e) => onPointerDown("image", e)}
-        onClick={(e) => onClick("image", e)}
-      >
-        <ImageIcon className="h-3.5 w-3.5 @[15rem]:mr-1" />
-        <span className="hidden whitespace-nowrap @[15rem]:inline">+ Image</span>
-      </Button>
+      {!hideImage && (
+        <Button
+          type="button"
+          data-testid="add-layer-image"
+          size="sm"
+          variant="outline"
+          className="flex-1"
+          title="+ Image"
+          aria-label="+ Image"
+          onPointerDown={(e) => onPointerDown("image", e)}
+          onClick={(e) => onClick("image", e)}
+        >
+          <ImageIcon className="h-3.5 w-3.5 @[15rem]:mr-1" />
+          <span className="hidden whitespace-nowrap @[15rem]:inline">+ Image</span>
+        </Button>
+      )}
       <Button
         type="button"
         data-testid="add-layer-text"

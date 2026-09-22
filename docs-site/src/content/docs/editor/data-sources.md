@@ -51,7 +51,7 @@ A Table is backed by a **model**: the list of fields each row has. Add fields wi
 - **actions** — a chain of actions and conditions (e.g. what happens when a player buys a row), authored visually or as compact text — see [Action fields](#action-fields--the-action-dsl) below,
 - **list**, **object**, **model** — nested structures (e.g. a `perks` list of localized text for variable-length lore).
 
-In a menu template, click **Icon** and choose a field path such as `item.icon` or `cat.icon` under **Catalogue**. Paths use the aliases defined in your menu and are displayed without translation. Choose a fixed item under **Library** instead when needed. Manual expressions remain under **Advanced expression**.
+In a menu template, click **Icon** and choose a field path such as `item.icon` or `cat.icon` under **Catalogue**. Paths use the aliases defined in your menu and are displayed without translation. Choose a fixed item under **Buttons** instead when needed. Manual expressions remain under **Advanced expression**.
 Quantity and enchantments show their catalogue values. Edit them in their usual fields, or use the reset control to restore inheritance.
 This writes `item: "{item.icon}"` in `menu/v1`. Existing `material: "{item.icon}"` templates remain readable.
 The complete icon supplies its quantity and attributes; an explicit template count overrides it, including `1`.
@@ -63,7 +63,7 @@ On disk, the replace box writes `lore_mode: replace`. Boutique moves legacy prod
 
 The Boutique server also migrates existing catalogue files at startup, before loading the project. Original files are kept in `plugins/Boutique/catalog-icon-backup/`. New articles and imports write lore inside `icon` directly; opening and saving the editor is no longer needed to update old files. Existing canonical translations are copied to the icon addresses, while old translation keys remain available for references.
 Live catalogue screens edit item text in the file's default language; project editing supports translations.
-Their captured-item picker reads the owning project's existing captures. Create or delete captures in the project's Library; catalogue saves only update the catalogue files.
+Their captured-item picker reads the owning project's existing captures. Create or delete captures in **Buttons → Captured items**; catalogue saves only update the catalogue files.
 Material fields preserve expression and custom-reference casing when typing or pasting.
 Boutique previews resolve localized lore before assembling its lines and use the catalogue's configured price display format, including discounts.
 

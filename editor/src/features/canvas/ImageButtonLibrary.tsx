@@ -1,11 +1,13 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { Asset } from "@/domain/asset";
+import { assetUsages } from "@/domain/assetUsage";
 import { imageButtonSize } from "@/domain/imageButton";
 import type { ProjectId } from "@/domain/types";
 import { AssetPreview } from "@/features/assets/AssetPreview";
 import { AssetUploadDialog } from "@/features/assets/AssetUploadDialog";
 import { useAssetStore } from "@/features/assets/assetStore";
+import { useAccountStore } from "@/state/accountStore";
 import { useDraggable } from "@dnd-kit/core";
 import { Upload } from "lucide-react";
 import { useState } from "react";
@@ -40,12 +42,18 @@ function ImageTile({ asset }: { asset: Asset }) {
 export function ImageButtonLibrary({ projectId }: { projectId: ProjectId }) {
   const { t } = useTranslation();
   const assets = useAssetStore((s) => s.assets);
+  const project = useAccountStore((s) =>
+    s.account.projects.find((entry) => entry.id === projectId),
+  );
+  const loading = useAssetStore((s) => s.loading);
+  const error = useAssetStore((s) => s.error);
   const [search, setSearch] = useState("");
   const [uploadOpen, setUploadOpen] = useState(false);
   const images = assets.filter(
     (asset) =>
       asset.projectId === projectId &&
       asset.type !== "font" &&
+      assetUsages(asset, project).includes("button") &&
       asset.width > 0 &&
       asset.height > 0 &&
       asset.name.toLowerCase().includes(search.toLowerCase()),
@@ -67,11 +75,25 @@ export function ImageButtonLibrary({ projectId }: { projectId: ProjectId }) {
         {images.map((asset) => (
           <ImageTile key={asset.id} asset={asset} />
         ))}
-        {!images.length && (
-          <p className="col-span-3 py-4 text-sm text-[var(--text-mut)]">{t("imageButton.empty")}</p>
+        {(loading || error || !images.length) && (
+          <p
+            role={error ? "alert" : "status"}
+            className="col-span-3 py-4 text-sm text-[var(--text-mut)]"
+          >
+            {t(
+              loading
+                ? "resources.loading"
+                : error
+                  ? "resources.loadError"
+                  : search
+                    ? "resources.noResults"
+                    : "imageButton.empty",
+            )}
+          </p>
         )}
       </div>
       <AssetUploadDialog
+        usage="button"
         projectId={projectId}
         open={uploadOpen}
         onClose={() => setUploadOpen(false)}

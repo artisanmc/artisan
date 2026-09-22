@@ -12,7 +12,7 @@ vi.mock("@/lib/usePanelPresence", () => ({
 vi.mock("@/features/assets/useAssetInit", () => ({ useAssetInit: () => {} }));
 vi.mock("@/features/canvas/useTextureInit", () => ({ useTextureInit: () => {} }));
 vi.mock("@/features/canvas/Library", () => ({ Library: () => <div>Item catalogue</div> }));
-vi.mock("@/features/assets/AssetsTab", () => ({ AssetsTab: () => <div>Graphics catalogue</div> }));
+vi.mock("@/features/assets/AssetsTab", () => ({ AssetsTab: () => <div>Captured catalogue</div> }));
 vi.mock("@/features/canvas/CapturedItemsSection", () => ({
   CapturedItemsSection: () => <div>Captured catalogue</div>,
 }));
@@ -26,13 +26,13 @@ it("shows the minimap button only when the minimap is closed", () => {
   render(<Workspace />);
   const toggle = screen.getByRole("button", { name: /minimap/i });
   expect(toggle.parentElement).toBe(
-    screen.getByRole("button", { name: /library|bibliothèque/i }).parentElement,
+    screen.getByRole("button", { name: /buttons|boutons/i }).parentElement,
   );
   fireEvent.click(toggle);
   expect(useUiStore.getState().minimapVisible).toBe(true);
   expect(screen.queryByRole("button", { name: /minimap/i })).toBeNull();
   act(() => useUiStore.getState().setMinimapVisible(false));
-  fireEvent.click(screen.getByRole("button", { name: /library|bibliothèque/i }));
+  fireEvent.click(screen.getByRole("button", { name: /buttons|boutons/i }));
   fireEvent.click(screen.getByRole("button", { name: /minimap/i }));
   expect(useUiStore.getState().minimapVisible).toBe(true);
   expect(screen.queryByRole("button", { name: /minimap/i })).toBeNull();
@@ -44,7 +44,7 @@ beforeEach(() => {
   desktop = true;
   useSelectionStore.getState().clear();
   useProjectLibraryStore.getState().close();
-  useProjectLibraryStore.setState({ width: 340, height: 280 });
+  useProjectLibraryStore.setState({ width: 340, height: 280, category: "items" });
 });
 
 function Workspace({ projectId = PID }: { projectId?: ProjectId }) {
@@ -59,32 +59,30 @@ function Workspace({ projectId = PID }: { projectId?: ProjectId }) {
 
 it("hides the canvas tool while open and restores it after closing with the cross", async () => {
   render(<Workspace />);
-  const button = screen.getByRole("button", { name: /bibliothèque|library/i });
+  const button = screen.getByRole("button", { name: /boutons|buttons/i });
   await userEvent.click(button);
-  expect(screen.queryByRole("button", { name: /^bibliothèque$|^library$/i })).toBeNull();
-  await userEvent.click(
-    screen.getByRole("button", { name: /fermer la bibliothèque|close library/i }),
-  );
+  expect(screen.queryByRole("button", { name: /^boutons$|^buttons$/i })).toBeNull();
+  await userEvent.click(screen.getByRole("button", { name: /fermer les boutons|close buttons/i }));
   expect(screen.queryByText("Item catalogue")).toBeNull();
-  expect(screen.getByRole("button", { name: /^bibliothèque$|^library$/i })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /^boutons$|^buttons$/i })).toBeInTheDocument();
 });
 
 it("opens the project library without a selection, beside the existing workspace", async () => {
   const user = userEvent.setup();
   render(<Workspace />);
   expect(screen.queryByText("Item catalogue")).not.toBeInTheDocument();
-  await user.click(screen.getByRole("button", { name: /bibliothèque|library/i }));
+  await user.click(screen.getByRole("button", { name: /boutons|buttons/i }));
   expect(screen.getByText("Item catalogue")).toBeInTheDocument();
   expect(screen.getByText("Canvas and properties")).toBeInTheDocument();
   expect(useSelectionStore.getState().ids.size).toBe(0);
 
-  await user.click(screen.getByRole("tab", { name: /ressources graphiques|graphics/i }));
-  expect(screen.getByText("Graphics catalogue")).toBeInTheDocument();
+  await user.click(screen.getByRole("tab", { name: /items capturés|captured items/i }));
+  expect(screen.getByText("Captured catalogue")).toBeInTheDocument();
 
   act(() => useSelectionStore.getState().set(["command1"]));
-  expect(screen.getByText("Graphics catalogue")).toBeInTheDocument();
-  await user.click(screen.getByRole("button", { name: /fermer la bibliothèque|close library/i }));
-  expect(screen.queryByText("Graphics catalogue")).not.toBeInTheDocument();
+  expect(screen.getByText("Captured catalogue")).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: /fermer les boutons|close buttons/i }));
+  expect(screen.queryByText("Captured catalogue")).not.toBeInTheDocument();
   expect([...useSelectionStore.getState().ids]).toEqual(["command1"]);
 });
 
@@ -94,7 +92,7 @@ it("hides the tool and an already open panel while the workspace is inactive", (
       <div>Command view</div>
     </ProjectLibraryWorkspace>,
   );
-  expect(screen.queryByRole("button", { name: /library|bibliothèque/i })).toBeNull();
+  expect(screen.queryByRole("button", { name: /buttons|boutons/i })).toBeNull();
   act(() => useProjectLibraryStore.getState().open(PID));
   expect(screen.queryByText("Item catalogue")).toBeNull();
   expect(screen.getByText("Command view")).toBeInTheDocument();
@@ -106,12 +104,16 @@ it("hides the tool and an already open panel while the workspace is inactive", (
   expect(screen.getByText("Item catalogue")).toBeInTheDocument();
 });
 
-it("keeps captured items inside Items", async () => {
+it("offers three peer tabs for game items, captured items and images", async () => {
   const user = userEvent.setup();
   render(<Workspace />);
-  await user.click(screen.getByRole("button", { name: /bibliothèque|library/i }));
-  await user.click(screen.getByRole("button", { name: /capturés|captured/i }));
+  await user.click(screen.getByRole("button", { name: /boutons|buttons/i }));
+  await user.click(screen.getByRole("tab", { name: /items capturés|captured items/i }));
   expect(screen.getByText("Captured catalogue")).toBeInTheDocument();
+  expect(screen.getAllByRole("tab")).toHaveLength(3);
+  expect(screen.getByRole("tab", { name: /items du jeu|game items/i })).toBeInTheDocument();
+  expect(screen.getByRole("tab", { name: /^images$/i })).toBeInTheDocument();
+  expect(screen.queryByRole("tab", { name: /graphics|graphiques/i })).toBeNull();
 });
 
 it("returns to properties when a mobile library item changes the selection", () => {
@@ -126,7 +128,7 @@ it("returns to properties when a mobile library item changes the selection", () 
 it("does not carry an open catalogue into a different project", async () => {
   const user = userEvent.setup();
   const view = render(<Workspace />);
-  await user.click(screen.getByRole("button", { name: /bibliothèque|library/i }));
+  await user.click(screen.getByRole("button", { name: /boutons|buttons/i }));
   view.rerender(<Workspace projectId={"p2" as ProjectId} />);
   expect(screen.queryByText("Item catalogue")).not.toBeInTheDocument();
 });
@@ -134,16 +136,16 @@ it("does not carry an open catalogue into a different project", async () => {
 it("Escape closes the library before document navigation", async () => {
   const user = userEvent.setup();
   render(<Workspace />);
-  await user.click(screen.getByRole("button", { name: /bibliothèque|library/i }));
+  await user.click(screen.getByRole("button", { name: /boutons|buttons/i }));
   fireEvent.keyDown(window, { key: "Escape" });
   expect(screen.queryByText("Item catalogue")).not.toBeInTheDocument();
 });
 
 it("reopens the library from another workspace view instead of closing a hidden panel", async () => {
   const onOpen = vi.fn();
-  useProjectLibraryStore.getState().open(PID, "graphics");
+  useProjectLibraryStore.getState().open(PID, "captured");
   render(<ProjectLibraryButton projectId={PID} active={false} onOpen={onOpen} />);
-  await userEvent.click(screen.getByRole("button", { name: /bibliothèque|library/i }));
+  await userEvent.click(screen.getByRole("button", { name: /boutons|buttons/i }));
   expect(onOpen).toHaveBeenCalledOnce();
   expect(useProjectLibraryStore.getState().projectId).toBe(PID);
 });
@@ -225,4 +227,27 @@ it("moves below the canvas when desktop panels leave too little horizontal space
   } finally {
     vi.unstubAllGlobals();
   }
+});
+
+it("migrates the retired graphics category while preserving panel geometry", async () => {
+  localStorage.setItem(
+    "artisan-library-size",
+    JSON.stringify({
+      state: { width: 410, height: 300, projectId: PID, category: "graphics" },
+      version: 0,
+    }),
+  );
+  await useProjectLibraryStore.persist.rehydrate();
+  expect(useProjectLibraryStore.getState()).toMatchObject({
+    width: 410,
+    height: 300,
+    projectId: PID,
+    category: "items",
+  });
+});
+it("remembers the captured tab after closing and reopening", () => {
+  useProjectLibraryStore.getState().open(PID, "captured");
+  useProjectLibraryStore.getState().close();
+  useProjectLibraryStore.getState().open(PID);
+  expect(useProjectLibraryStore.getState().category).toBe("captured");
 });
