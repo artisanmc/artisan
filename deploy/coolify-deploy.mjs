@@ -9,6 +9,7 @@ const REQUIRED_ENV_KEYS = [
   "CF_ACCESS_CLIENT_SECRET",
   "API_HEALTH_URL",
   "EDITOR_HEALTH_URL",
+  "MARKETING_HEALTH_URL",
   "EXPECTED_SHA",
 ];
 
@@ -122,6 +123,7 @@ export async function deployProduction(deps, env) {
   const editorDeployment = await triggerDeployment(fetchImpl, env, env.COOLIFY_EDITOR_UUID);
   await waitForDeployment(fetchImpl, env, editorDeployment, sleep);
   await waitForHealth(fetchImpl, env.EDITOR_HEALTH_URL, sleep);
+  await waitForHealth(fetchImpl, env.MARKETING_HEALTH_URL, sleep);
 }
 
 const isMainModule = process.argv[1]

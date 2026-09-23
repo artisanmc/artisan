@@ -14,6 +14,7 @@ import { useTranslation } from "react-i18next";
 import { MarketingLayout } from "./MarketingLayout";
 import { PixelItem } from "./PixelItem";
 import { landingEn, landingFr } from "./landingCopy";
+import { editorHref } from "./marketingUrls";
 import "./landing.css";
 
 const featureIcons = [MousePointer2, Command, Sparkles];
@@ -41,7 +42,7 @@ export function LandingPage() {
         <p className="landing-hero-intro">{copy.intro}</p>
         <div className="landing-actions">
           <Button asChild variant="primary" size="lg">
-            <a href="/demo" target="_blank" rel="noopener noreferrer">
+            <a href={editorHref("/demo")} target="_blank" rel="noopener noreferrer">
               {copy.demo}
               <MousePointer2 size={16} aria-hidden="true" />
             </a>
@@ -193,13 +194,13 @@ export function LandingPage() {
         <p>{copy.closingText}</p>
         <div className="landing-actions">
           <Button asChild variant="primary" size="lg">
-            <a href="/demo" target="_blank" rel="noopener noreferrer">
+            <a href={editorHref("/demo")} target="_blank" rel="noopener noreferrer">
               {copy.demo}
               <MousePointer2 size={16} aria-hidden="true" />
             </a>
           </Button>
           <Button asChild variant="outline" size="lg">
-            <a href="/signup">{copy.signup}</a>
+            <a href={editorHref("/signup")}>{copy.signup}</a>
           </Button>
         </div>
       </section>

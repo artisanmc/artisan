@@ -39,6 +39,7 @@ import {
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { MarketingLayout } from "./MarketingLayout";
+import { editorHref } from "./marketingUrls";
 
 export function PricingPage() {
   const { t, i18n } = useTranslation();
@@ -121,7 +122,7 @@ export function PricingPage() {
           <div className="pricing-state">
             <p>{t("marketing.pricing.empty")}</p>
             <Button asChild variant="primary">
-              <a href="/demo">{t("marketing.pricing.demoCta")}</a>
+              <a href={editorHref("/demo")}>{t("marketing.pricing.demoCta")}</a>
             </Button>
           </div>
         )}
@@ -143,7 +144,7 @@ export function PricingPage() {
               <h2>{t("marketing.pricing.demoTitle")}</h2>
               <p>{t("marketing.pricing.demoText")}</p>
               <Button asChild variant="outline" size="lg">
-                <a href="/demo">
+                <a href={editorHref("/demo")}>
                   {t("marketing.pricing.demoCta")}
                   <ArrowUpRight size={17} />
                 </a>
@@ -220,7 +221,7 @@ export function PricingPage() {
                   </Button>
                 ) : (
                   <Button asChild variant="primary" size="lg">
-                    <a href={pricingSignupUrl(plan.id)}>
+                    <a href={editorHref(pricingSignupUrl(plan.id))}>
                       {t("marketing.pricing.choose", { name: plan.name })}
                       <ArrowUpRight size={17} />
                     </a>
@@ -246,7 +247,9 @@ export function PricingPage() {
           <p>{t("marketing.pricing.packsText")}</p>
           <a
             className="marketing-text-link"
-            href={user ? "/credits" : `/signup?${new URLSearchParams({ next: "/credits" })}`}
+            href={editorHref(
+              user ? "/credits" : `/signup?${new URLSearchParams({ next: "/credits" })}`,
+            )}
           >
             {t("marketing.pricing.packsCta")}
             <ArrowUpRight size={16} />
