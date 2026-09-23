@@ -35,6 +35,7 @@ import { SaveFilledIcon } from "@/components/ui/filled-icons";
 import { Spinner } from "@/components/ui/spinner";
 import { Tooltip } from "@/components/ui/tooltip";
 import type { Project, ProjectId } from "@/domain/types";
+import { useTourPresentation } from "@/features/onboarding/tourPresentation";
 import { DeployReviewDialog } from "@/features/project/DeployReviewDialog";
 import { PersistedDraftControls } from "@/features/project/PersistedDraftControls";
 import { hasDraftChanges } from "@/features/project/draft";
@@ -99,6 +100,8 @@ export interface ProjectTopBarControlsProps {
   onExportZip?: () => void | Promise<void>;
   onOpenPatterns?: () => void;
   onDelete?: () => void;
+  onTour?: () => void;
+  tourCanResume?: boolean;
 
   networkId?: string | null;
 }
@@ -117,6 +120,8 @@ export function ProjectTopBarControls({
   onExportZip,
   onOpenPatterns,
   onDelete,
+  onTour,
+  tourCanResume,
   networkId,
 }: ProjectTopBarControlsProps) {
   const currentName = useAccountStore(
@@ -161,6 +166,7 @@ export function ProjectTopBarControls({
         </div>
         <div
           data-testid="project-view-navigation"
+          data-tour="tabs"
           className="col-start-1 row-start-2 min-w-0 overflow-x-auto lg:flex-1"
         >
           <WorkspaceViewNav project={project} />
@@ -176,7 +182,9 @@ export function ProjectTopBarControls({
         </div>
         <div className="col-start-2 row-start-1 flex shrink-0 items-center gap-1">
           <SearchButton />
-          <SaveControls key={projectId} projectId={projectId} />
+          <div data-tour="save" className="flex items-center gap-1">
+            <SaveControls key={projectId} projectId={projectId} />
+          </div>
           <CopyProjectToServerButton projectId={projectId} />
           <RefreshProjectButton
             projectId={projectId}
@@ -188,6 +196,8 @@ export function ProjectTopBarControls({
                 onExportZip={onExportZip ?? (() => {})}
                 onOpenPatterns={onOpenPatterns ?? (() => {})}
                 onDelete={onDelete}
+                onTour={onTour}
+                tourCanResume={tourCanResume}
               />
             )}
           />
@@ -196,6 +206,7 @@ export function ProjectTopBarControls({
           type="button"
           onClick={onElementsClick}
           data-project-elements-toggle
+          data-tour="elements-trigger"
           aria-label={t("projectPanel.openPanel")}
           aria-pressed={panelOpen}
           className="hidden size-8 shrink-0 items-center justify-center rounded-[10px] text-[var(--text-mut)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)] lg:inline-flex"
@@ -250,7 +261,8 @@ function WorkspaceViewNav({ project }: { project: Project }) {
   const activeLang = useUiStore((s) => s.activeLang);
   const missing = countMissingForLang(project, activeLang);
   const search = useSearch({ strict: false }) as { tab?: WorkspaceViewTab };
-  const active: WorkspaceViewTab = search.tab ?? "overview";
+  const tourActive = useTourPresentation((s) => s.step !== null);
+  const active: WorkspaceViewTab = tourActive ? "overview" : (search.tab ?? "overview");
   // `overview` clears the param (canvas is the default view); the rest set it.
   const go = (tab: WorkspaceViewTab) =>
     navigate({

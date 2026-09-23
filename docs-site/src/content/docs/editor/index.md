@@ -26,6 +26,15 @@ Add [composed titles](/wiki/editor/composed-titles/) and
 
 ## Main navigation
 
+The first time you open a project, a short guided tour introduces navigation,
+the canvas, Buttons and properties, Elements, view tabs, and saving your work.
+It also works in the demo, with an explanation of **Keep this project**.
+Choose **Later** or close the tour to continue on your own; it will not open
+automatically again. Use **Resume the tour** in the project menu to pick up where you
+left off, or **Take the tour again** after finishing. Account progress follows you across
+devices. Without an account, the demo remembers it in this browser; clearing
+browser data resets that guest progress.
+
 On mobile, project controls use two rows and the view tabs keep their icons.
 Opening Buttons temporarily hides Properties without clearing the selection.
 Selecting an item closes Buttons so its properties can be edited; closing Buttons

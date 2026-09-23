@@ -162,11 +162,12 @@ export function DemoWorkspace() {
   if (!session || !matchesSession) return <output>{t("demo.loading")}</output>;
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] bg-[var(--surface-raised)] px-4 py-2 text-sm">
+      <div data-tour="demo-intro" className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] bg-[var(--surface-raised)] px-4 py-2 text-sm">
         <p>{t("demo.banner", { expiresAt: new Date(session.expiresAt).toLocaleString() })}</p>
         <button
           type="button"
           className="btn btn-primary btn-sm"
+          data-tour="demo-keep"
           disabled={busy}
           onClick={() => void keep()}
         >

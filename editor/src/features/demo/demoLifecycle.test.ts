@@ -1,10 +1,19 @@
+import {
+  EDITOR_TOUR_GUEST_KEY,
+  EDITOR_TOUR_TRANSFER_KEY,
+} from "@/features/onboarding/editorTourStorage";
 import { usePersistedDraftStore } from "@/features/project/persistedDrafts";
 import type { PersistedDraft } from "@/lib/api/projectDrafts";
 import { useAuthStore } from "@/state/authStore";
 import { useDemoStore } from "@/state/demoStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { bootstrapDemo, finishDemoClaim, getPendingDemoClaim } from "./demoLifecycle";
+import {
+  bootstrapDemo,
+  finishDemoClaim,
+  getPendingDemoClaim,
+  prepareDemoAuthentication,
+} from "./demoLifecycle";
 vi.mock("@/state/accountStore", () => ({
   useAccountStore: { getState: () => ({ setAccount: vi.fn() }) },
 }));
@@ -41,6 +50,18 @@ beforeEach(() => {
 afterEach(() => {
   vi.unstubAllGlobals();
   useDemoStore.getState().setSession(null);
+  localStorage.removeItem(EDITOR_TOUR_GUEST_KEY);
+});
+test("preparing guest demo authentication captures tour progress after draft confirmation", async () => {
+  useAuthStore.setState({ currentUser: null, sessionStatus: "signed-out" });
+  useProjectDraftStore.setState({ ownerId: "guest", drafts: {}, backups: {}, pendingRenames: {} });
+  localStorage.setItem(EDITOR_TOUR_GUEST_KEY, JSON.stringify({ step: 3, completed: false }));
+  await expect(prepareDemoAuthentication()).resolves.toBe("/demo/projects/demo");
+  expect(JSON.parse(sessionStorage.getItem(EDITOR_TOUR_TRANSFER_KEY) ?? "null")).toEqual({
+    accountId: null,
+    returnTo: "/demo/projects/demo",
+    progress: { step: 3, completed: false },
+  });
 });
 test("claim after sign-up waits for the guest draft session to load and confirm its text and PNG", async () => {
   const snapshot = {

@@ -9,6 +9,11 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Added — editor guided tour
+
+- A brief, six-step editor tour appears once per account, including in the demo. Pause it for later, resume from the project menu, or replay it after finishing; anonymous demo progress is remembered in the browser and transferred when returning from the matching explicit demo sign-in flow.
+- Auth responses expose `user.editorTour`; `PATCH /api/v1/auth/me` accepts validated tour start/progress/completion/import actions, with an atomic first-start claim and preserved completion.
+
 ### Added — public pricing presentation
 
 - Subscription plans expose their configured description, benefits, display order and featured status in the public catalog. Platform admins can edit the presentation without reprovisioning Stripe prices; existing plans retain their prices and default to an empty description and no highlight.
