@@ -42,6 +42,14 @@ remains under `networks/:id/server-keys`; plugin `/link` is unchanged.
   through the portal. Checkout success/cancel and portal URLs retain `networkId`;
   subscription checkout also retains `plan`, including configured return URLs.
 
+- **Editor guided tour**: `auth.ts` exposes `user.editorTour` in signup/login and
+  `GET/PATCH /api/v1/auth/me`. `PATCH` accepts `editor_tour` actions `start`,
+  `progress` (`step: 0..6`), `complete`, or `import` (`step`, `completed`).
+  A row lock serializes changes: `start` returns top-level `tourStarted: true`
+  only for the caller that initialized an unseen account; `import` also applies
+  only when unseen. Progress never clears completion. The state belongs to the
+  authenticated account, independently of the demo principal or current Project.
+
 - **Hosted projects (2026-09-13)**: `userNetworks.ts` exposes
   `GET/POST /api/v1/networks/:id/hosted-projects` and `GET .../templates`.
   Creation takes `{operationId, folderName, name, minecraftVersion, templateId: "vanilla"}`;

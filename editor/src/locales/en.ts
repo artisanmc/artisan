@@ -1,3 +1,4 @@
+import { onboardingEn } from "./onboarding";
 import { accountDeletionEn } from "./accountDeletion";
 import { marketingEn } from "./marketing";
 import { changesEn } from "./changes";
@@ -9,6 +10,7 @@ import { projectIdentityEn } from "./projectIdentity";
 import { tasksEn } from "./tasks";
 export default {
   marketing: marketingEn,
+  onboarding: onboardingEn,
   resources: {
     all: "All",
     button: "Button images",

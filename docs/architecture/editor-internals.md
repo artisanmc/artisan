@@ -539,6 +539,19 @@ Cf. `docs/superpowers/specs/2026-06-14-search-palette-and-sidebar-toggle-design.
 
 ## UI shell — Project + Settings (depuis 2026-05-27)
 
+`features/onboarding/EditorTour` and `editorTourController` coordinate a welcome and six brief guided-tour steps in
+the shared Project workspace: navigation/demo, canvas, Buttons/properties,
+Elements, tabs, then Save or keeping the demo. Automatic presentation is claimed
+once per account through `PATCH /auth/me`; anonymous demos keep browser state.
+Later/close preserves progress without another automatic opening; the project
+menu resumes an unfinished tour or replays a completed one. Guest progress is
+transferred only on the matching return from explicit demo authentication, without
+replacing account state; abandoning that flow discards its transfer intent.
+Temporary panel overrides reveal the target without changing saved preferences
+or project documents, then restore the previous view. Other dialogs suspend the
+tour; unavailable targets are skipped after layout settles. Mobile Elements uses
+its toggle to avoid opening another modal. The last step requires explicit completion.
+
 La navigation globale est enveloppée par `NavigationSidebar` dans `__root.tsx` :
 sur desktop, zone de survol invisible de 8 px sans espace réservé au repos ;
 bouton flottant en haut à gauche et overlay de 216 px, décalé de 8 px des bords,
@@ -724,6 +737,10 @@ En cas d'indisponibilité, l'UI avertit sans masquer une application déjà réu
 Le sélecteur de modèle `ModelSelector` rend les tiers (`cheap` / `balanced` / `premium`) en badges cliquables avec estimation de coût (`~50 credits`), choix mémorisé dans l'action store. Chaque message SSE reçoit le `modelId` dans le header ; une soumission `send()` inclut le modèle choisi. Le solde de crédits s'affiche dans la barre top du panel via `BalanceChip` ; à la réception de l'event SSE final `credits {debited, balance}`, le composant met à jour le compte. Erreur 402 (`insufficient_credits`) → toast + CTA `/credits` (placeholder).
 
 ## Design system (tokens + composants)
+
+`components/ui/guided-tour.tsx` exports `GuidedTour`, using semantic tokens and a
+Radix modal for keyboard focus, with responsive target highlighting. Escape defers
+the tour and restores focus. Specimen: `/admin/design`, section `guided-tour`.
 
 `components/ui/file-diff.tsx` affiche une comparaison unifiée serveur → éditeur,
 avec numéros de ligne, contexte, signes −/+, tokens `danger-soft`/`success-soft`

@@ -1,4 +1,5 @@
 import type { ProjectId } from "@/domain/types";
+import { useTourPresentation } from "@/features/onboarding/tourPresentation";
 import { usePanelPresence } from "@/lib/usePanelPresence";
 import { useUiStore } from "@/state/uiStore";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -10,13 +11,14 @@ const hasPopup = () => !!document.querySelector('[role="menu"], [role="dialog"],
 export function ProjectElementsSidebar({ projectId }: { projectId: ProjectId }) {
   const { t } = useTranslation();
   const fixed = useUiStore((s) => s.projectPanelOpen);
+  const tourStep = useTourPresentation((s) => s.step);
   const [revealed, setRevealed] = useState(false);
   const panel = useRef<HTMLElement>(null);
   const hovered = useRef(false);
   const keyboard = useRef(false);
   const previousFixed = useRef(fixed);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const visible = fixed || revealed;
+  const visible = tourStep === 4 || fixed || revealed;
   const presence = usePanelPresence(visible);
   const cancelClose = useCallback(() => {
     clearTimeout(timer.current);
@@ -101,6 +103,7 @@ export function ProjectElementsSidebar({ projectId }: { projectId: ProjectId }) 
         <aside
           ref={panel}
           data-testid="project-elements-panel"
+          data-tour="elements"
           aria-label={t("projectPanel.openPanel")}
           aria-hidden={!visible}
           inert={!visible}
