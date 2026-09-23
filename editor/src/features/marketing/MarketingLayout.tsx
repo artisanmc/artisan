@@ -5,6 +5,7 @@ import { ChevronDown, Menu, X } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import "./marketing.css";
+import { editorHref } from "./marketingUrls";
 
 export function MarketingLayout({
   children,
@@ -55,12 +56,12 @@ export function MarketingLayout({
               <ChevronDown size={12} />
             </label>
             {!user && (
-              <a className="marketing-login" href="/login">
+              <a className="marketing-login" href={editorHref("/login")}>
                 {t("marketing.nav.login")}
               </a>
             )}
             <Button asChild variant="primary" className="marketing-nav-cta">
-              <a href={user ? "/networks" : "/signup"}>
+              <a href={editorHref(user ? "/networks" : "/signup")}>
                 {t(user ? "marketing.nav.workspace" : "marketing.nav.start")}
               </a>
             </Button>
@@ -89,7 +90,7 @@ export function MarketingLayout({
             </a>
             <a href="/pricing">{t("marketing.nav.pricing")}</a>
             <a href="/wiki/">{t("marketing.nav.wiki")}</a>
-            <a href={user ? "/networks" : "/login"}>
+            <a href={editorHref(user ? "/networks" : "/login")}>
               {t(user ? "marketing.nav.workspace" : "marketing.nav.login")}
             </a>
           </nav>
@@ -107,11 +108,11 @@ export function MarketingLayout({
           </div>
           <div>
             <h2>{t("marketing.footer.product")}</h2>
-            <a href="/demo" target="_blank" rel="noopener noreferrer">
+            <a href={editorHref("/demo")} target="_blank" rel="noopener noreferrer">
               {t("marketing.footer.demo")}
             </a>
             <a href="/pricing">{t("marketing.nav.pricing")}</a>
-            <a href={user ? "/networks" : "/signup"}>{t("marketing.nav.start")}</a>
+            <a href={editorHref(user ? "/networks" : "/signup")}>{t("marketing.nav.start")}</a>
           </div>
           <div>
             <h2>{t("marketing.footer.resources")}</h2>

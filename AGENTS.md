@@ -246,6 +246,8 @@ Le champ `title` d'un menu est un `MenuTitleLayer[]` (background / glyph / text 
 | `PG_DUMP_BIN` | `pg_dump` | Exécutable PostgreSQL utilisé uniquement par `backend/scripts/backup-hosted.ts` ; alternative locale `--docker <container>`. |
 | `DATABASE_URL` | `postgresql://postgres:postgres@localhost:5432/artisan` | URL de connexion PostgreSQL |
 | `API_BASE_URL` | `http://localhost:3001` | URL publique du backend (envoyée dans `hello_ack.api_url`) |
+| `EDITOR_URL` | `http://localhost:5173` | Origine éditeur : retours OAuth, invitations et CORS API. Production : `https://editor.artisanmc.net`. |
+| `MARKETING_URL` | (vide) | Seconde origine CORS pour la vitrine publique. Production : `https://artisanmc.net`. |
 | `BUNDLE_BASE_URL` | `= API_BASE_URL` | URL utilisée dans `bundle_available.url` (**plugin → download du bundle menus**, donc côté réseau Docker = `http://backend:3001`) |
 | `RESOURCE_PACK_BASE_URL` | `= API_BASE_URL` | URL utilisée dans les URLs de resource pack envoyées au joueur via `setResourcePack` (**doit être joignable depuis la machine du joueur**, pas le réseau Docker). Override en prod avec l'URL publique. |
 | `DISCORD_CLIENT_ID` | (vide) | OAuth Discord — laisser vide désactive le bouton "Continue with Discord" |

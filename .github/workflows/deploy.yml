@@ -46,7 +46,8 @@ jobs:
           COOLIFY_BACKEND_UUID: ${{ vars.COOLIFY_BACKEND_UUID }}
           COOLIFY_EDITOR_UUID: ${{ vars.COOLIFY_EDITOR_UUID }}
           API_HEALTH_URL: https://api.artisanmc.net/health
-          EDITOR_HEALTH_URL: https://editor.artisanmc.net/
+          EDITOR_HEALTH_URL: https://editor.artisanmc.net/health
+          MARKETING_HEALTH_URL: https://artisanmc.net/
           COOLIFY_API_TOKEN: ${{ secrets.COOLIFY_API_TOKEN }}
           CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
           CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
