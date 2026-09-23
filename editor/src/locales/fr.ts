@@ -1,3 +1,4 @@
+import { onboardingFr } from "./onboarding";
 import { accountDeletionFr } from "./accountDeletion";
 import { marketingFr } from "./marketing";
 import { changesFr } from "./changes";
@@ -11,6 +12,7 @@ import { tasksFr } from "./tasks";
 
 const fr: typeof en = {
   marketing: marketingFr,
+  onboarding: onboardingFr,
   resources: {
     all: "Tout",
     button: "Images de boutons",

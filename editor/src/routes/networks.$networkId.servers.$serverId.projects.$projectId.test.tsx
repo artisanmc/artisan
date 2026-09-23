@@ -4,6 +4,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const navigate = vi.fn();
 
+vi.mock("@/features/onboarding/editorTourRuntime", () => ({
+  useEditorTourState: () => ({ open: false, step: 0, progress: null, busy: false }),
+  mountEditorTour: () => () => {},
+  editorTourController: { next: vi.fn(), back: vi.fn(), defer: vi.fn(), complete: vi.fn() },
+}));
+
 vi.mock("@tanstack/react-router", async () => {
   const actual =
     await vi.importActual<typeof import("@tanstack/react-router")>("@tanstack/react-router");
