@@ -8,7 +8,7 @@ export function DemoAuthReturn() {
   const navigate = useNavigate();
   useEffect(() => {
     const next = sessionStorage.getItem(DEMO_AUTH_RETURN);
-    if (!user || pathname.startsWith("/demo") || !next || !/^\/demo\/projects\/[^/?#]+$/.test(next))
+    if (!user || pathname !== "/account" || !next || !/^\/demo\/projects\/[^/?#]+$/.test(next))
       return;
     void navigate({
       to: "/demo/projects/$projectId",

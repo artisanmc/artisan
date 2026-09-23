@@ -44,6 +44,9 @@ export interface PlanDto {
   creditsPerPeriod: number;
   rolloverCap: number;
   features: string;
+  description?: string;
+  highlighted?: boolean;
+  sortOrder?: number;
 }
 export interface SubscriptionDto {
   status: string | null;
@@ -62,21 +65,27 @@ export interface PurchaseDto {
 }
 
 export async function getBillingBalance(networkId: string): Promise<BalanceBreakdown | null> {
-  return getJson<BalanceBreakdown>(`/api/v1/billing/balance?networkId=${encodeURIComponent(networkId)}`);
+  return getJson<BalanceBreakdown>(
+    `/api/v1/billing/balance?networkId=${encodeURIComponent(networkId)}`,
+  );
 }
 
 export async function getProjects(): Promise<PackDto[]> {
-  const r = await getJson<{ projects: PackDto[] }>(`/api/v1/billing/projects`);
-  return r?.projects ?? [];
+  const r = await getJson<{ packs: PackDto[] }>("/api/v1/billing/packs");
+  if (!r) throw new Error("catalog_unavailable");
+  return r.packs;
 }
 
 export async function getPlans(): Promise<PlanDto[]> {
-  const r = await getJson<{ plans: PlanDto[] }>(`/api/v1/billing/plans`);
-  return r?.plans ?? [];
+  const r = await getJson<{ plans: PlanDto[] }>("/api/v1/billing/plans");
+  if (!r) throw new Error("catalog_unavailable");
+  return r.plans;
 }
 
 export async function getSubscription(networkId: string): Promise<SubscriptionDto | null> {
-  return getJson<SubscriptionDto>(`/api/v1/billing/subscription?networkId=${encodeURIComponent(networkId)}`);
+  return getJson<SubscriptionDto>(
+    `/api/v1/billing/subscription?networkId=${encodeURIComponent(networkId)}`,
+  );
 }
 
 export async function getPurchases(networkId: string): Promise<PurchaseDto[]> {
@@ -86,14 +95,17 @@ export async function getPurchases(networkId: string): Promise<PurchaseDto[]> {
   return r?.purchases ?? [];
 }
 
-export async function startPackCheckout(networkId: string, projectId: string): Promise<string | null> {
-  return postForUrl(`/api/v1/billing/checkout/project`, { networkId, projectId });
+export async function startPackCheckout(networkId: string, packId: string): Promise<string | null> {
+  return postForUrl("/api/v1/billing/checkout/pack", { networkId, packId });
 }
 
-export async function startSubscriptionCheckout(networkId: string, planId: string): Promise<string | null> {
-  return postForUrl(`/api/v1/billing/checkout/subscription`, { networkId, planId });
+export async function startSubscriptionCheckout(
+  networkId: string,
+  planId: string,
+): Promise<string | null> {
+  return postForUrl("/api/v1/billing/checkout/subscription", { networkId, planId });
 }
 
 export async function openPortal(networkId: string): Promise<string | null> {
-  return postForUrl(`/api/v1/billing/portal`, { networkId });
+  return postForUrl("/api/v1/billing/portal", { networkId });
 }

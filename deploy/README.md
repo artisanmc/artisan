@@ -63,6 +63,16 @@ Le workflow reçoit le SHA validé par CI, épingle `git_commit_sha` sur chaque 
 
 ## Vérification et rollback
 
+### Vitrine et wiki
+
+Les redirections Nginx restent relatives (`absolute_redirect off`) pour conserver le protocole HTTPS et le port publics derrière le proxy, notamment pour `/wiki` vers `/wiki/`.
+
+La même image `editor/Dockerfile` sert la vitrine, les tarifs, l'éditeur et le wiki Astro Starlight à `/wiki/`. Le build installe les workspaces éditeur et les dépendances `docs-site`, puis `npm run build` compile les deux sites et copie les guides dans `editor/dist/wiki/`. Nginx réserve ce préfixe aux fichiers du wiki : un guide inconnu retourne la page 404 du wiki avec un statut 404, sans charger l'application React.
+
+En local : `npm ci --prefix docs-site`, puis `npm run dev --prefix editor`. Le wiki est compilé au démarrage de Vite ; après une modification de documentation, relancer `npm run build --prefix docs-site` pour actualiser `/wiki/`. Docker Compose monte aussi `docs-site` et isole ses dépendances Linux dans le volume `wiki-node-modules`.
+
+La CI vérifie le routage (`node --test deploy/*.test.mjs`), compile les pages et contrôle tous les liens internes, ancres, assets et l'index de recherche (`npm run verify --prefix docs-site`). Après déploiement, ouvrir `/wiki/`, rechercher un terme, suivre un guide et confirmer qu'une URL inconnue sous `/wiki/` répond 404.
+
 Après une release :
 
 1. vérifier que `/health` répond correctement sur l'API ;

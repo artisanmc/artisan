@@ -45,6 +45,70 @@ afterAll(async () => {
 const adminHeaders = () => ({ Cookie: `artisan_user_session=${adminSession}`, "Content-Type": "application/json" });
 
 describe("admin plans routes", () => {
+	it("public catalog exposes saved presentation and exact prices, hides inactive plans, and sorts consistently", async () => {
+		const base = { name: "Monthly", priceCents: 1200, creditsPerPeriod: 1500 };
+		const created = [];
+		for (const input of [
+			{ ...base, name: "Hidden", isActive: false, sortOrder: -5 },
+			{ ...base, name: "Annual", interval: "year", priceCents: 12000, currency: "usd", description: "Annual access", highlighted: true, features: "First benefit\nSecond benefit", sortOrder: 3 },
+			{ ...base, sortOrder: -1 },
+		]) {
+			created.push(await (await app.request("/api/v1/admin/billing/plans", {
+				method: "POST", headers: adminHeaders(), body: JSON.stringify(input),
+			})).json());
+		}
+		const response = await app.request("/api/v1/billing/plans");
+		expect(response.status).toBe(200);
+		const { plans } = await response.json();
+		expect(plans.map((plan: { id: string }) => plan.id)).toEqual([created[2].id, created[1].id]);
+		expect(plans[0]).toMatchObject({ description: "", highlighted: false, interval: "month", priceCents: 1200, currency: "eur", sortOrder: -1 });
+		expect(plans[1]).toMatchObject({ description: "Annual access", highlighted: true, interval: "year", priceCents: 12000, currency: "usd", creditsPerPeriod: 1500, features: "First benefit\nSecond benefit", sortOrder: 3 });
+		expect(JSON.stringify(plans)).not.toContain("stripe");
+	});
+
+	it("rejects malformed presentation settings on create and update", async () => {
+		const base = { name: "Pro", priceCents: 1200, creditsPerPeriod: 1500 };
+		const created = await (await app.request("/api/v1/admin/billing/plans", {
+			method: "POST", headers: adminHeaders(), body: JSON.stringify(base),
+		})).json();
+		for (const patch of [{ description: 12 }, { description: "x".repeat(241) }, { highlighted: "true" }, { sortOrder: 1.5 }, { features: ["Unexpected array"] }]) {
+			for (const method of ["POST", "PUT"]) {
+				const response = await app.request(`/api/v1/admin/billing/plans${method === "PUT" ? `/${created.id}` : ""}`, {
+					method, headers: adminHeaders(), body: JSON.stringify({ ...base, ...patch }),
+				});
+				expect(response.status).toBe(400);
+			}
+		}
+	});
+
+	it("publishes admin presentation settings without changing the Stripe price", async () => {
+		const response = await app.request("/api/v1/admin/billing/plans", {
+			method: "POST", headers: adminHeaders(),
+			body: JSON.stringify({
+				name: "Pro", interval: "year", priceCents: 12000, creditsPerPeriod: 1500,
+				description: "  More room to create  ", highlighted: true,
+				features: "1500 credits per year\nShared network balance", sortOrder: 5,
+			}),
+		});
+		expect(response.status).toBe(200);
+		const created = await response.json();
+		expect(created.description).toBe("More room to create");
+		expect(created.highlighted).toBe(true);
+		const updatedResponse = await app.request(`/api/v1/admin/billing/plans/${created.id}`, {
+			method: "PUT", headers: adminHeaders(),
+			body: JSON.stringify({ description: "A fresh description", highlighted: false, sortOrder: -1 }),
+		});
+		expect(updatedResponse.status).toBe(200);
+		const updated = await updatedResponse.json();
+		expect(updated.description).toBe("A fresh description");
+		expect(updated.highlighted).toBe(false);
+		expect(updated.stripePriceId).toBe(created.stripePriceId);
+		expect(archived).toEqual([]);
+		const fetched = await (await app.request(`/api/v1/admin/billing/plans/${created.id}`, { headers: adminHeaders() })).json();
+		expect(fetched.description).toBe(updated.description);
+		expect(fetched.features).toBe(created.features);
+	});
+
 	it("403 without admin", async () => {
 		expect((await app.request("/api/v1/admin/billing/plans")).status).toBe(403);
 	});

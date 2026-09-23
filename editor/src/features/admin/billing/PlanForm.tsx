@@ -30,6 +30,8 @@ export function PlanForm({
   const [creditsPerPeriod, setCreditsPerPeriod] = useState(String(plan?.creditsPerPeriod ?? 0));
   const [rolloverCap, setRolloverCap] = useState(String(plan?.rolloverCap ?? 0));
   const [features, setFeatures] = useState(plan?.features ?? "");
+  const [description, setDescription] = useState(plan?.description ?? "");
+  const [highlighted, setHighlighted] = useState(plan?.highlighted ?? false);
   const [sortOrder, setSortOrder] = useState(String(plan?.sortOrder ?? 0));
   const [active, setActive] = useState(plan?.isActive ?? true);
   const [busy, setBusy] = useState(false);
@@ -45,17 +47,24 @@ export function PlanForm({
       creditsPerPeriod: Number(creditsPerPeriod) || 0,
       rolloverCap: Number(rolloverCap) || 0,
       features,
+      description,
+      highlighted,
       sortOrder: Number(sortOrder) || 0,
       isActive: active,
     };
-    const r = isEdit ? await updatePlan(plan.id, body) : await createPlan(body);
-    setBusy(false);
-    if (r.ok) {
-      toast.success(t("admin.billing.plans.saved"));
-      onSaved();
-      onClose();
-    } else {
+    try {
+      const r = isEdit ? await updatePlan(plan.id, body) : await createPlan(body);
+      if (r.ok) {
+        toast.success(t("admin.billing.plans.saved"));
+        onSaved();
+        onClose();
+      } else {
+        toast.error(t("admin.billing.plans.saveFail"));
+      }
+    } catch {
       toast.error(t("admin.billing.plans.saveFail"));
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -121,8 +130,27 @@ export function PlanForm({
               />
             </FormField>
 
-            <FormField label={t("admin.billing.plans.form.features")}>
-              <Input value={features} onChange={(e) => setFeatures(e.target.value)} />
+            <FormField
+              label={t("admin.billing.plans.form.description")}
+              hint={t("admin.billing.plans.form.descriptionHint")}
+            >
+              <Input
+                value={description}
+                maxLength={240}
+                onChange={(e) => setDescription(e.target.value)}
+              />
+            </FormField>
+
+            <FormField
+              label={t("admin.billing.plans.form.features")}
+              hint={t("admin.billing.plans.form.featuresHint")}
+            >
+              <textarea
+                className="input min-h-24 resize-y"
+                rows={4}
+                value={features}
+                onChange={(e) => setFeatures(e.target.value)}
+              />
             </FormField>
 
             <FormField label={t("admin.billing.plans.form.sortOrder")}>
@@ -132,6 +160,18 @@ export function PlanForm({
                 onChange={(e) => setSortOrder(e.target.value)}
               />
             </FormField>
+
+            <label className="flex items-center gap-2.5">
+              <input
+                type="checkbox"
+                checked={highlighted}
+                onChange={(e) => setHighlighted(e.target.checked)}
+                className="size-4 accent-[var(--brand)]"
+              />
+              <span className="text-[13px] font-medium text-[var(--text)]">
+                {t("admin.billing.plans.form.highlighted")}
+              </span>
+            </label>
 
             <label className="flex items-center gap-2.5">
               <input

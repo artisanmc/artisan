@@ -24,11 +24,11 @@ level 3, and every example in these pages is taken from it.
 
 ## Read next
 
-- [Depend on the API](/developers/setup/) — Gradle/Maven, `plugin.yml`, getting the `ArtisanAPI` handle
-- [Data sources](/developers/data-sources/) — exposing live rows to menus
-- [Modules](/developers/modules/) — the module lifecycle, commands, project content
-- [Data models & config screens](/developers/data-models/) — a generated configuration UI for your plugin
-- [API reference](/developers/api-reference/) — stability contract, version table
+- [Depend on the API](/wiki/developers/setup/) — Gradle/Maven, `plugin.yml`, getting the `ArtisanAPI` handle
+- [Data sources](/wiki/developers/data-sources/) — exposing live rows to menus
+- [Modules](/wiki/developers/modules/) — the module lifecycle, commands, project content
+- [Data models & config screens](/wiki/developers/data-models/) — a generated configuration UI for your plugin
+- [API reference](/wiki/developers/api-reference/) — stability contract, version table
 
 ## What Artisan guarantees you
 

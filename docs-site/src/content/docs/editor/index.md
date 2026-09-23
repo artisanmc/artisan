@@ -3,16 +3,26 @@ title: Editor
 description: Documentation for menu and pack creators using the Artisan web editor.
 ---
 
-The editor guide is under construction. For now, the editor is best learned
-by opening it (`/artisan editor` in-game) and experimenting — basic operations
-are discoverable.
+Build Minecraft inventory menus in your browser: place items, edit their appearance,
+and choose what happens when a player clicks. Start with [the demo](/demo) to try
+the canvas without an account, or [open your Networks](/networks) to continue a project.
 
-Sections planned:
-- Creating your first pack and menu
-- Slots, glyphs, and titles
-- Click handlers and actions
-- Dialogs and commands
-- Importing custom items (Nexo / Oraxen / ItemsAdder)
+Select **Try the demo** on the [Artisan home page](/) to open the editor in a new
+tab. Use **Keep this project** to save your draft and continue with your account.
+
+## Your first menu
+
+1. Open a project or the demo's example menu. The [Projects guide](/wiki/editor/projects/)
+   explains hosting, access, private drafts, and keeping a demo in your account.
+2. Open **Buttons**, then drag a game item onto a menu slot. Select it to edit its
+   properties. For custom artwork, follow [Image buttons](/wiki/editor/image-buttons/).
+3. Add click actions and conditions. Use the visual blocks or explore the
+   [Action DSL](/wiki/editor/data-sources/#action-fields--the-action-dsl).
+4. **Save** keeps your private draft. When your menu is ready for players,
+   [connect your Paper server](/wiki/getting-started/install-admin/) and use **Deploy**.
+
+Add [composed titles](/wiki/editor/composed-titles/) and
+[translations](/wiki/editor/translations/) when you want to take the design further.
 
 ## Main navigation
 
