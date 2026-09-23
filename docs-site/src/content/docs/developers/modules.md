@@ -180,7 +180,7 @@ between modules. No module ever imports another module's classes.
   disconnected, so word your UX accordingly ("the update lands in a few
   seconds").
 - **`api.actions.execute(player, actions, args, projectId)`** — run an
-  [Action DSL](/editor/data-sources/#action-fields--the-action-dsl) string on
+  [Action DSL](/wiki/editor/data-sources/#action-fields--the-action-dsl) string on
   behalf of a player: the chain an admin authored on a row (an item's on-buy,
   say) after your own logic succeeded. Runs on the main thread; `args` become
   `{name}` placeholders; passing `projectId` puts that project's `lang/` files in

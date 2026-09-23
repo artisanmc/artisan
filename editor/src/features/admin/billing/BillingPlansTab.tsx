@@ -5,7 +5,7 @@ import { TBody, TD, TH, THead, TR, Table } from "@/components/ui/table";
 import { type AdminPlan, deactivatePlan, listPlans, updatePlan } from "@/lib/api/adminBilling";
 import { formatCredits, formatMoney } from "@/lib/format";
 import { CalendarClock } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { PlanForm } from "./PlanForm";
 
@@ -14,7 +14,7 @@ export function BillingPlansTab() {
   const [plans, setPlans] = useState<AdminPlan[] | null>(null); // null = loading
   const [editing, setEditing] = useState<AdminPlan | null | "new">(null);
 
-  async function refetch() {
+  const refetch = useCallback(async () => {
     try {
       const p = await listPlans();
       setPlans(p ?? []);
@@ -22,11 +22,11 @@ export function BillingPlansTab() {
       console.warn("[admin-billing] fetch failed:", e);
       setPlans([]);
     }
-  }
+  }, []);
 
   useEffect(() => {
     void refetch();
-  }, []);
+  }, [refetch]);
 
   const sorted = [...(plans ?? [])].sort((a, b) => a.sortOrder - b.sortOrder);
 
@@ -71,6 +71,14 @@ export function BillingPlansTab() {
               <TR key={p.id}>
                 <TD>
                   <span className="font-medium text-[var(--text)]">{p.name}</span>
+                  {p.highlighted && (
+                    <Badge variant="sage" className="ml-2">
+                      {t("admin.billing.plans.highlighted")}
+                    </Badge>
+                  )}
+                  {p.description && (
+                    <p className="mt-1 text-xs text-[var(--text-mut)]">{p.description}</p>
+                  )}
                 </TD>
                 <TD align="right">{formatMoney(p.priceCents, p.currency, i18n.language)}</TD>
                 <TD align="right">{formatCredits(p.creditsPerPeriod, i18n.language)}</TD>

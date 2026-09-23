@@ -827,6 +827,16 @@ and the server operation restores Retry after refresh without browser storage.
 server/internal IDs, invalidate cached hashes and trigger controlled loader
 revalidation. Relative draft trees, private owner identity and CAS baselines
 remain intact; an older autosave acknowledgement cannot replace newer edits.
+## Public product and pricing pages
+
+`features/marketing` hosts the public `/` landing and `/pricing` catalog. `MarketingLayout` reuses semantic tokens, existing buttons/cards/dialogs, shared navigation and an EN/FR language selector; public routes scroll without workspace sidebars and remain visible during auth hydration or an API outage. The demo and wiki links target `/demo` and `/wiki/`.
+
+`DemoAuthReturn` only recovers a pending demo from the default `/account` landing. It preserves explicit pricing, billing and public destinations instead of overriding them with an older demo intent.
+
+The landing links to `/demo` in a new tab (`target="_blank"`, `rel="noopener noreferrer"`). It does not embed or initialize a demo session. The `#editor` navigation anchor targets the product features section.
+
+Pricing reads the public billing catalog, never local price constants; loading, empty and failed catalogs are distinct. A selected plan returns through safe local `next` URLs, including Google/Discord, then requires network selection and an explicit checkout action. A network can be created in this flow. Membership and subscription checks precede payment; existing nonterminal subscriptions use the portal. Backend capability and duplicate-subscription guards remain authoritative. `/credits` restores the verified `networkId` returned by checkout, formats monthly/yearly periods, includes top-up bonuses and treats checkout return as pending until authoritative billing data arrives.
+
 ## Hosted and server project context
 
 Both URL families mount `ProjectWorkspace`; `projectClient(immutableProjectId)` binds files,

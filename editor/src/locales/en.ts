@@ -1,4 +1,5 @@
 import { accountDeletionEn } from "./accountDeletion";
+import { marketingEn } from "./marketing";
 import { changesEn } from "./changes";
 import { demoEn } from "./demo";
 import { draftsEn } from "./drafts";
@@ -7,6 +8,7 @@ import { projectCopyEn } from "./projectCopy";
 import { projectIdentityEn } from "./projectIdentity";
 import { tasksEn } from "./tasks";
 export default {
+  marketing: marketingEn,
   resources: {
     all: "All",
     button: "Button images",
@@ -1410,7 +1412,11 @@ export default {
           interval: "Interval",
           creditsPerPeriod: "Credits per period",
           rolloverCap: "Rollover cap",
+          description: "Short description",
+          descriptionHint: "Shown on the public pricing page (240 characters maximum).",
           features: "Features",
+          featuresHint: "One benefit per line, shown on the public pricing page.",
+          highlighted: "Highlight this plan on the pricing page",
           sortOrder: "Sort order",
           active: "Active",
         },
@@ -1419,6 +1425,7 @@ export default {
         activate: "Activate",
         deactivate: "Deactivate",
         saved: "Plan saved.",
+        highlighted: "Featured",
         saveFail: "Could not save the plan.",
       },
       statusActive: "Active",

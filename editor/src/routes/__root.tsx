@@ -102,15 +102,16 @@ function RootLayoutInner() {
   // Admin area swaps the workspace sidebar for the admin section nav.
   // Non-admins keep the workspace sidebar (the /admin layout shows "forbidden").
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const isMarketingPage = pathname === "/" || pathname === "/pricing" || pathname === "/pricing/";
   const isAdminArea = pathname.startsWith("/admin") && !!user?.isAdmin;
   return (
     <div className="relative flex h-full">
       <DemoAuthReturn />
-      {showSidebar && !pathname.startsWith("/demo") && (
+      {showSidebar && !isMarketingPage && !pathname.startsWith("/demo") && (
         <NavigationSidebar>{isAdminArea ? <AdminSidebar /> : <ProjectSidebar />}</NavigationSidebar>
       )}
-      <main className="flex flex-1 flex-col overflow-hidden">
-        {sessionUndetermined ? <BackendUnreachable /> : <Outlet />}
+      <main className={`flex min-w-0 flex-1 flex-col ${isMarketingPage ? "overflow-y-auto" : "overflow-hidden"}`}>
+        {sessionUndetermined && !isMarketingPage ? <BackendUnreachable /> : <Outlet />}
       </main>
     </div>
   );

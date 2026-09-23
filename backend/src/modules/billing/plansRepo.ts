@@ -12,6 +12,8 @@ export interface SubscriptionPlan {
 	creditsPerPeriod: number;
 	rolloverCap: number;
 	features: string;
+	description: string;
+	highlighted: boolean;
 	isActive: boolean;
 	sortOrder: number;
 	stripeProductId: string | null;
@@ -27,12 +29,14 @@ export type PlanInput = {
 	creditsPerPeriod: number;
 	rolloverCap?: number;
 	features?: string;
+	description?: string;
+	highlighted?: boolean;
 	isActive?: boolean;
 	sortOrder?: number;
 };
 
 export async function listPlans(): Promise<SubscriptionPlan[]> {
-	return db.select().from(subscriptionPlans).orderBy(subscriptionPlans.sortOrder);
+	return db.select().from(subscriptionPlans).orderBy(subscriptionPlans.sortOrder, subscriptionPlans.id);
 }
 export async function getPlan(id: string): Promise<SubscriptionPlan | null> {
 	const rows = await db.select().from(subscriptionPlans).where(eq(subscriptionPlans.id, id));
@@ -58,6 +62,8 @@ export async function createPlan(input: PlanInput): Promise<SubscriptionPlan> {
 		creditsPerPeriod: input.creditsPerPeriod,
 		rolloverCap: input.rolloverCap ?? 0,
 		features: input.features ?? "",
+		description: input.description ?? "",
+		highlighted: input.highlighted ?? false,
 		isActive: input.isActive ?? true,
 		sortOrder: input.sortOrder ?? 0,
 		stripeProductId: productId,
@@ -77,6 +83,8 @@ export async function updatePlan(id: string, patch: Partial<PlanInput>): Promise
 	if (patch.creditsPerPeriod !== undefined) next.creditsPerPeriod = patch.creditsPerPeriod;
 	if (patch.rolloverCap !== undefined) next.rolloverCap = patch.rolloverCap;
 	if (patch.features !== undefined) next.features = patch.features;
+	if (patch.description !== undefined) next.description = patch.description;
+	if (patch.highlighted !== undefined) next.highlighted = patch.highlighted;
 	if (patch.isActive !== undefined) next.isActive = patch.isActive;
 	if (patch.sortOrder !== undefined) next.sortOrder = patch.sortOrder;
 	if (patch.currency !== undefined) next.currency = patch.currency;

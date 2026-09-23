@@ -46,7 +46,7 @@ api.getDataSources().register(new DataSourceDeclaration(
         null));            // keyField
 ```
 
-Register from your module's `onEnable(api)` (see [Modules](/developers/modules/))
+Register from your module's `onEnable(api)` (see [Modules](/wiki/developers/modules/))
 so the core can attribute the source to your module in the editor's UI.
 Registering directly on the registry works too — the source is then shown as
 unattributed.

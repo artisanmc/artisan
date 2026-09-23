@@ -1,0 +1,116 @@
+:root {
+  --sl-font: 'Hanken Grotesque', system-ui, sans-serif;
+  --sl-font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+  --artisan-font-display: 'Inter', sans-serif;
+  --sl-color-white: #f8fafc;
+  --sl-color-gray-1: #f1f5f9;
+  --sl-color-gray-2: #cbd5e1;
+  --sl-color-gray-3: #94a3b8;
+  --sl-color-gray-4: #64748b;
+  --sl-color-gray-5: #334155;
+  --sl-color-gray-6: #181b22;
+  --sl-color-black: #0f1115;
+  --sl-color-accent-low: #153425;
+  --sl-color-accent: #2ed573;
+  --sl-color-accent-high: #7bed9f;
+  --sl-color-bg-nav: var(--sl-color-black);
+  --sl-color-bg-sidebar: var(--sl-color-black);
+  --sl-color-hairline-shade: #2a2f3a;
+  --sl-nav-height: 7rem;
+  --sl-content-width: 47rem;
+}
+
+:root[data-theme='light'] {
+  --sl-color-white: #0f172a;
+  --sl-color-gray-1: #181b22;
+  --sl-color-gray-2: #334155;
+  --sl-color-gray-3: #475569;
+  --sl-color-gray-4: #64748b;
+  --sl-color-gray-5: #cbd5e1;
+  --sl-color-gray-6: #f1f5f9;
+  --sl-color-gray-7: #f8fafc;
+  --sl-color-black: #ffffff;
+  --sl-color-accent-low: #e0f6e9;
+  --sl-color-accent: #147d42;
+  --sl-color-accent-high: #115d35;
+  --sl-color-bg-nav: var(--sl-color-black);
+  --sl-color-bg-sidebar: var(--sl-color-gray-7);
+  --sl-color-hairline-shade: #e2e8f0;
+}
+
+h1, h2, h3, .site-title {
+  font-family: var(--artisan-font-display);
+  letter-spacing: -0.035em;
+}
+
+.artisan-wiki-header {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: 0.65rem;
+}
+
+.artisan-wiki-header .site-title {
+  color: var(--sl-color-white);
+  gap: 0.5rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.artisan-wiki-header .site-title img {
+  height: 2.15rem;
+  width: 2.15rem;
+}
+
+.artisan-site-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1.5rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.artisan-site-nav a {
+  color: var(--sl-color-gray-2);
+  text-decoration: none;
+  text-underline-offset: 0.25em;
+}
+
+.artisan-site-nav a:hover {
+  color: var(--sl-color-text-accent);
+  text-decoration: underline;
+}
+
+.artisan-site-nav a:focus-visible {
+  border-radius: 0.2rem;
+  outline: 2px solid var(--sl-color-accent);
+  outline-offset: 0.3rem;
+}
+
+.hero h1 {
+  max-width: 12ch;
+  font-size: clamp(2.7rem, 5.5vw, 4.8rem);
+  line-height: 1.04;
+}
+
+.hero .tagline {
+  max-width: 43ch;
+  color: var(--sl-color-gray-2);
+}
+
+.sl-link-button {
+  border-radius: 0.7rem;
+  font-weight: 700;
+}
+
+.sl-markdown-content :is(pre, .expressive-code) {
+  border-radius: 0.6rem;
+}
+
+@media (max-width: 30rem) {
+  .artisan-site-nav {
+    gap: 1rem;
+    font-size: 0.8rem;
+  }
+}
