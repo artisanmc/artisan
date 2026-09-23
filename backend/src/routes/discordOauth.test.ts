@@ -73,6 +73,106 @@ function buildAppWith(fetchImpl: typeof fetch) {
   return a;
 }
 
+test("Discord sign-in returns to the selected pricing plan", async () => {
+  const identity = crypto.randomUUID();
+  const mockFetch = (async (input: Request | string | URL) => {
+    const url = input instanceof Request ? input.url : input.toString();
+    return Response.json(url.includes("oauth2/token") ? { access_token: "AT" } : {
+      id: identity, username: "pricing-user", email: `${identity}@example.com`, verified: true,
+    });
+  }) as typeof fetch;
+  const testApp = buildAppWith(mockFetch);
+  const next = "/pricing?plan=pro-yearly";
+  const start = await testApp.request(`/api/v1/auth/discord/start?next=${encodeURIComponent(next)}`);
+  const state = new URL(start.headers.get("location")!).searchParams.get("state");
+  const cookies = start.headers.getSetCookie().map((value) => value.split(";")[0]).join("; ");
+  const callback = await testApp.request(`/api/v1/auth/discord/callback?code=c&state=${state}`, {
+    headers: { Cookie: cookies },
+  });
+  expect(callback.status).toBe(302);
+  expect(callback.headers.get("location")).toBe(`${process.env.EDITOR_URL ?? "http://localhost:5173"}${next}`);
+  expect(callback.headers.get("set-cookie")).toContain("artisan_user_session=");
+});
+
+test.each(["https://outside.example", "//outside.example", "/\\outside.example", "/\n/outside.example", "/pricing\u0000"])("Discord ignores unsafe return path %j", async (next) => {
+  const identity = crypto.randomUUID();
+  const mockFetch = (async (input: Request | string | URL) => {
+    const url = input instanceof Request ? input.url : input.toString();
+    return Response.json(url.includes("oauth2/token") ? { access_token: "AT" } : {
+      id: identity, username: "safe-user", email: `${identity}@example.com`, verified: true,
+    });
+  }) as typeof fetch;
+  const testApp = buildAppWith(mockFetch);
+  const start = await testApp.request(`/api/v1/auth/discord/start?next=${encodeURIComponent(next)}`);
+  const state = new URL(start.headers.get("location")!).searchParams.get("state");
+  const cookies = start.headers.getSetCookie().map((value) => value.split(";")[0]).join("; ");
+  const callback = await testApp.request(`/api/v1/auth/discord/callback?code=c&state=${state}&next=${encodeURIComponent(next)}`, {
+    headers: { Cookie: cookies },
+  });
+  expect(callback.status).toBe(302);
+  expect(callback.headers.get("location")).toBe(`${process.env.EDITOR_URL ?? "http://localhost:5173"}/account`);
+});
+
+test("Discord does not reuse another OAuth flow's return destination", async () => {
+  const identity = crypto.randomUUID();
+  const mockFetch = (async (input: Request | string | URL) => {
+    const url = input instanceof Request ? input.url : input.toString();
+    return Response.json(url.includes("oauth2/token") ? { access_token: "AT" } : {
+      id: identity, username: "fresh-flow", email: `${identity}@example.com`, verified: true,
+    });
+  }) as typeof fetch;
+  const testApp = buildAppWith(mockFetch);
+  const oldStart = await testApp.request("/api/v1/auth/discord/start?next=%2Fpricing%3Fplan%3Dstale");
+  const start = await testApp.request("/api/v1/auth/discord/start");
+  const state = new URL(start.headers.get("location")!).searchParams.get("state");
+  const oldReturn = oldStart.headers.getSetCookie().find((value) => value.startsWith("artisan_discord_return="))!.split(";")[0];
+  const callback = await testApp.request(`/api/v1/auth/discord/callback?code=c&state=${state}`, {
+    headers: { Cookie: `artisan_oauth_state=${state}; ${oldReturn}` },
+  });
+  expect(callback.status).toBe(302);
+  expect(callback.headers.get("location")).toBe(`${process.env.EDITOR_URL ?? "http://localhost:5173"}/account`);
+});
+
+test("cancelled Discord consent keeps the selected plan for retry without exchanging a code", async () => {
+  let called = false;
+  const testApp = buildAppWith((async () => {
+    called = true;
+    throw new Error("Unexpected OAuth exchange");
+  }) as typeof fetch);
+  const next = "/pricing?plan=pro-monthly";
+  const start = await testApp.request(`/api/v1/auth/discord/start?next=${encodeURIComponent(next)}`);
+  const state = new URL(start.headers.get("location")!).searchParams.get("state");
+  const cookies = start.headers.getSetCookie().map((value) => value.split(";")[0]).join("; ");
+  const callback = await testApp.request(`/api/v1/auth/discord/callback?error=access_denied&state=${state}`, {
+    headers: { Cookie: cookies },
+  });
+  expect(callback.status).toBe(302);
+  const destination = new URL(callback.headers.get("location")!);
+  expect(destination.pathname).toBe("/login");
+  expect(destination.searchParams.get("oauth_error")).toBe("oauth_cancelled");
+  expect(destination.searchParams.get("next")).toBe(next);
+  expect(called).toBe(false);
+});
+
+test("a tampered Discord return cookie cannot replace the destination", async () => {
+  const identity = crypto.randomUUID();
+  const mockFetch = (async (input: Request | string | URL) => {
+    const url = input instanceof Request ? input.url : input.toString();
+    return Response.json(url.includes("oauth2/token") ? { access_token: "AT" } : {
+      id: identity, username: "signed-flow", email: `${identity}@example.com`, verified: true,
+    });
+  }) as typeof fetch;
+  const testApp = buildAppWith(mockFetch);
+  const start = await testApp.request("/api/v1/auth/discord/start?next=%2Fpricing%3Fplan%3Dpro");
+  const state = new URL(start.headers.get("location")!).searchParams.get("state");
+  const tamperedReturn = start.headers.getSetCookie().find((value) => value.startsWith("artisan_discord_return="))!.split(";")[0].replace("pricing", "account");
+  const callback = await testApp.request(`/api/v1/auth/discord/callback?code=c&state=${state}&next=%2Fpricing%3Fplan%3Dchanged`, {
+    headers: { Cookie: `artisan_oauth_state=${state}; ${tamperedReturn}` },
+  });
+  expect(callback.status).toBe(302);
+  expect(callback.headers.get("location")).toBe(`${process.env.EDITOR_URL ?? "http://localhost:5173"}/account`);
+});
+
 describe("GET /api/v1/auth/discord/callback (happy path)", () => {
   test("creates user, links Discord account, sets session cookie", async () => {
     const discordUserId = `discord_${Date.now()}`;

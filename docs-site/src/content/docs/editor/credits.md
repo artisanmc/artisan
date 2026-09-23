@@ -15,7 +15,7 @@ The **credit indicator** sits in the assistant composer, next to the model selec
 
 Click the indicator to open a breakdown:
 
-- **Subscription** — this month's quota (resets each billing period). When you have an active plan, a bar shows how much of the monthly quota remains.
+- **Subscription** — the current billing period's quota (monthly or yearly, according to your plan). When you have an active plan, a bar shows how much remains.
 - **Rollover** — unused subscription credits carried into the next period, up to your plan's cap.
 - **Top-up** — credits bought as one-off packs. These never expire.
 
@@ -29,7 +29,13 @@ Open **`/credits`** — click **Add credits** from the indicator, or **Billing &
 
 ## Subscribe to a plan
 
-Under **Subscriptions**, each plan card shows the monthly price and the credits granted every period. Click **Subscribe** to check out. Once active, the plan is marked **Active** and its monthly credits are granted automatically at the start of each billing period, with unused credits rolling over up to the plan's cap.
+Browse [Pricing](/pricing) without signing in to see the current plans, their monthly or yearly prices, credits, rollover caps and included benefits. These subscriptions fund the AI assistant; they are not separate editions of the visual editor. You can [try the demo](/demo) without an account or a server.
+
+Choose a plan, then create an account or sign in. Your choice is preserved through email, Google and Discord authentication. Select the network that will receive the credits, or create one if you do not have a network yet. Only a network owner can continue to Stripe, and payment always requires an explicit action.
+
+The **Subscriptions** section on `/credits` offers the same catalog. Once payment is confirmed, the plan becomes active and credits are granted at the start of each billing period. Unused credits carry over up to the plan's cap. If the network already has a subscription, manage it in the billing portal instead of creating another one.
+
+Returning from checkout does not by itself confirm payment. The return message explains that the balance and subscription may take a little time to update; use **Refresh billing** to check their current state. You can dismiss the return message yourself. An unavailable catalog shows an error and a retry action rather than silently hiding the offers.
 
 ## Manage your subscription
 
@@ -41,4 +47,4 @@ If a renewal payment fails, your subscription enters a short grace period before
 
 The **Purchase history** table lists your past top-ups and subscription charges, with a link to each Stripe invoice.
 
-> Billing is per network. If you belong to more than one network, switch to the one you want to manage before buying — the credits page always acts on your currently selected network.
+> Billing is per network. Choose the intended network before buying. Checkout and billing-portal returns restore the network used for that purchase, even if your previous workspace selection was different.

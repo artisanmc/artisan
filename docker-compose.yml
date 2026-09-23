@@ -100,10 +100,12 @@ services:
       - ./editor:/app
       # Editor schema tooling / converter reference docs/ types at the repo root.
       - ./docs:/docs
+      - ./docs-site:/docs-site
+      - wiki-node-modules:/docs-site/node_modules
     ports:
       - "5173:5173"
     command: >
-      sh -c "npm install && npm run dev -- --host"
+      sh -c "npm install && npm --prefix /docs-site ci && npm run dev -- --host"
 
   minecraft:
     image: itzg/minecraft-server
@@ -128,3 +130,4 @@ volumes:
   pg-data:
   boutique-mysql-data:
   hosted-projects:
+  wiki-node-modules:

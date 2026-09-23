@@ -1,4 +1,5 @@
 import { accountDeletionFr } from "./accountDeletion";
+import { marketingFr } from "./marketing";
 import { changesFr } from "./changes";
 import { demoFr } from "./demo";
 import { draftsFr } from "./drafts";
@@ -9,6 +10,7 @@ import { projectIdentityFr } from "./projectIdentity";
 import { tasksFr } from "./tasks";
 
 const fr: typeof en = {
+  marketing: marketingFr,
   resources: {
     all: "Tout",
     button: "Images de boutons",
@@ -1432,7 +1434,11 @@ const fr: typeof en = {
           interval: "Intervalle",
           creditsPerPeriod: "Crédits par période",
           rolloverCap: "Plafond de report",
+          description: "Description courte",
+          descriptionHint: "Affichée sur la page des tarifs (240 caractères maximum).",
           features: "Fonctionnalités",
+          featuresHint: "Un avantage par ligne, affiché sur la page des tarifs.",
+          highlighted: "Mettre en avant cette offre sur la page des tarifs",
           sortOrder: "Ordre de tri",
           active: "Actif",
         },
@@ -1441,6 +1447,7 @@ const fr: typeof en = {
         activate: "Activer",
         deactivate: "Désactiver",
         saved: "Plan enregistré.",
+        highlighted: "À la une",
         saveFail: "Impossible d'enregistrer le plan.",
       },
       statusActive: "Actif",

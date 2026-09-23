@@ -1,4 +1,5 @@
 import { LoginForm } from "@/features/auth/LoginForm";
+import { safeAuthReturn } from "@/lib/authReturn";
 import { useAuthStore } from "@/state/authStore";
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 
@@ -9,7 +10,7 @@ export const Route = createFileRoute("/login")({
     const user = useAuthStore.getState().currentUser;
     if (user) {
       const next = (search as { next?: string } | undefined)?.next;
-      const safeNext = next && next.startsWith("/") && !next.startsWith("//") ? next : "/account";
+      const safeNext = safeAuthReturn(next);
       throw redirect({ to: safeNext });
     }
   },
@@ -23,7 +24,7 @@ function LoginPage() {
   function handleLoginSuccess() {
     const params = new URLSearchParams(window.location.search);
     const next = params.get("next");
-    const safeNext = next && next.startsWith("/") && !next.startsWith("//") ? next : "/account";
+    const safeNext = safeAuthReturn(next);
     navigate({ to: safeNext });
   }
 
