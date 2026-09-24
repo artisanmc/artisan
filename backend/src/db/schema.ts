@@ -674,6 +674,8 @@ export const subscriptionPlans = pgTable("subscription_plans", {
 	creditsPerPeriod: integer("credits_per_period").notNull(),
 	rolloverCap: integer("rollover_cap").notNull().default(0),
 	features: text("features").notNull().default(""),
+	description: text("description").notNull().default(""),
+	highlighted: boolean("highlighted").notNull().default(false),
 	isActive: boolean("is_active").notNull().default(true),
 	sortOrder: integer("sort_order").notNull().default(0),
 	stripeProductId: text("stripe_product_id"),
