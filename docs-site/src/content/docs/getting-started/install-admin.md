@@ -81,7 +81,7 @@ The page opens automatically after authorization. Manual invitations remain
 available in both modes. Set every enabled server back to `invitation` and reload
 to restore access requests. This setting is independent of `editor.console_only`.
 
-Once the editor opens, see the [Editor overview](/editor/) for next steps — how to create your first project and menu, add slots, and wire up actions.
+Once the editor opens, see the [Editor overview](/wiki/editor/) for next steps — how to create your first project and menu, add slots, and wire up actions.
 
 ## 4. Invite your team
 

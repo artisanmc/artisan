@@ -351,6 +351,13 @@
       "when": 1789479987571,
       "tag": "0049_project_rename_display_names",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1790252560656,
+      "tag": "0050_friendly_excalibur",
+      "breakpoints": true
     }
   ]
 }

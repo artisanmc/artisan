@@ -95,7 +95,7 @@ is preserved. Retrying starts a new AI turn and uses credits normally; it never
 runs automatically. The retry selection is kept only while this conversation
 stays open, and is cleared after a successful response or a new message.
 
-The server administrator must configure [import sources](/getting-started/install-admin/)
+The server administrator must configure [import sources](/wiki/getting-started/install-admin/)
 in the plugin configuration. An empty selector means no valid source is available.
 When the server is offline, **From the server** is disabled and **From my device**
 remains available. If the server does not respond, retry after checking that it

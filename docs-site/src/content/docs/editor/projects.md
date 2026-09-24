@@ -23,7 +23,7 @@ has enabled console access, copy the displayed `artisan member add <email>`
 command and run it in the console of a listed server. The server must be online.
 This gives your account member access to **the entire network**, including all
 its projects; the page opens automatically after authorization. Invitations are
-still available in console mode. See [server configuration](/getting-started/install-admin/).
+still available in console mode. See [server configuration](/wiki/getting-started/install-admin/).
 
 ## Try without an account
 

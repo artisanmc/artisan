@@ -90,10 +90,17 @@ export function buildBillingAdminRouter(): Hono {
 	}
 
 	function parsePlanBody(body: Record<string, unknown>, partial: boolean): Partial<PlanInput> | null {
+		if (!body || typeof body !== "object" || Array.isArray(body)) return null;
+		if (body.description !== undefined && (typeof body.description !== "string" || body.description.trim().length > 240)) return null;
+		if (body.highlighted !== undefined && typeof body.highlighted !== "boolean") return null;
+		if (body.features !== undefined && typeof body.features !== "string") return null;
+		if (body.sortOrder !== undefined && (typeof body.sortOrder !== "number" || !Number.isSafeInteger(body.sortOrder) || body.sortOrder < -2147483648 || body.sortOrder > 2147483647)) return null;
 		const out: Partial<PlanInput> = {};
 		if (typeof body.name === "string") out.name = body.name;
 		if (typeof body.currency === "string") out.currency = body.currency.toLowerCase();
 		if (typeof body.features === "string") out.features = body.features;
+		if (typeof body.description === "string") out.description = body.description.trim();
+		if (typeof body.highlighted === "boolean") out.highlighted = body.highlighted;
 		if (body.interval === "month" || body.interval === "year") out.interval = body.interval;
 		const int = (k: string) => (typeof body[k] === "number" && Number.isInteger(body[k]) ? (body[k] as number) : undefined);
 		const priceCents = int("priceCents");

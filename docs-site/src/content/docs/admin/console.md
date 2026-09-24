@@ -4,7 +4,7 @@ description: Manage platform-wide settings — including the AI provider — fro
 ---
 
 The **admin console** is a web page at `/admin` in the editor, reserved for
-platform administrators. Its sidebar currently hosts two sections: **AI**,
+platform administrators. Its sidebar includes **Billing**, **AI**,
 where you configure the provider that powers the in-editor assistant without
 redeploying the backend, and **Users**, where you manage the platform's
 accounts.
@@ -26,6 +26,17 @@ The first time a listed user signs in, their account is promoted (`is_admin`
 flips to `true` in the database) and stays an admin afterward — you can remove
 the email from the variable once promotion has happened. An **Admin console**
 link then appears on your account page, and `/admin` becomes accessible.
+
+## Presenting subscription plans
+
+Open **Billing → Subscriptions** at `/admin/billing` to edit the offers shown on
+the public `/pricing` page. Each plan keeps its existing price, currency,
+billing interval and credit allowance. A **Short description** explains the
+offer in up to 240 characters; **Features** accepts one benefit per line.
+Enable **Highlight this plan on the pricing page** to feature an offer, and use
+**Sort order** to choose its position (lower numbers appear first).
+Inactive plans are hidden from the public catalog. Saving presentation fields
+does not change existing Stripe prices. Changes appear on the next page load.
 
 ## Managing users
 

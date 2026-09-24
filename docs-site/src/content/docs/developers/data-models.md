@@ -48,7 +48,7 @@ A duplicate or non-namespaced id throws at declare time.
 | `ltext` | Translatable text — one value per language, listed in the Translations view | Text in the project's `lang/` files |
 | `minimessage`, `minimessage_multiline` | Rendered at rest, raw markup on click | String with MiniMessage markup |
 | `item` | Item picker (vanilla material, custom item, captured item) | Material name or `item:<id>` ref |
-| `actions`, `conditions` | Visual block editor **or** raw [Action DSL](/editor/data-sources/#action-fields--the-action-dsl) | Compact DSL text |
+| `actions`, `conditions` | Visual block editor **or** raw [Action DSL](/wiki/editor/data-sources/#action-fields--the-action-dsl) | Compact DSL text |
 | `{kind: list, of: <type>}` | Repeatable rows | List |
 | `{kind: map, of: <type>}` | Keyed dictionary | Map |
 | `{kind: object, fields: [...]}` | Nested group | Map |

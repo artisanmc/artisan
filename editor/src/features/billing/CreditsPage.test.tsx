@@ -65,6 +65,9 @@ vi.mock("@/lib/api/billing", () => ({
   startSubscriptionCheckout: vi.fn(async () => null),
   openPortal: vi.fn(async () => "https://stripe/portal"),
 }));
+vi.mock("@/lib/api/members", () => ({
+  listMembers: vi.fn(async () => [{ userId: "u1", role: "owner" }]),
+}));
 
 afterEach(() => {
   vi.clearAllMocks();
@@ -126,11 +129,48 @@ describe("CreditsPage", () => {
     await waitFor(() => expect(screen.getByText(/Historique d'achats/)).toBeTruthy());
   });
 
-  it("shows the success banner after a completed checkout (?checkout=success)", async () => {
+  it("describes checkout return as pending rather than asserting payment", async () => {
     signedIn();
     h.search = { checkout: "success" };
     render(<CreditsPage />);
-    await waitFor(() => expect(screen.getByText(/Paiement reçu/)).toBeTruthy());
+    await waitFor(() => expect(screen.getByText(/retour du paiement/)).toBeTruthy());
+    expect(screen.queryByText(/Paiement reçu/)).toBeNull();
+  });
+
+  it("uses the network returned by Stripe instead of a stale sidebar selection", async () => {
+    signedIn();
+    h.search = { checkout: "success", networkId: "paid-network" };
+    const billing = await import("@/lib/api/billing");
+    render(<CreditsPage />);
+    await waitFor(() => expect(billing.getSubscription).toHaveBeenCalledWith("paid-network"));
+  });
+
+  it("shows retry if the catalog cannot be loaded", async () => {
+    signedIn();
+    const billing = await import("@/lib/api/billing");
+    vi.mocked(billing.getPlans).mockRejectedValueOnce(new Error("offline"));
+    render(<CreditsPage />);
+    expect(await screen.findByRole("alert")).toHaveTextContent(/charger/i);
+    expect(screen.getByRole("button", { name: /réessayer/i })).toBeTruthy();
+  });
+
+  it("formats an annual subscription with its actual period", async () => {
+    signedIn();
+    const billing = await import("@/lib/api/billing");
+    vi.mocked(billing.getPlans).mockResolvedValueOnce([
+      {
+        id: "year",
+        name: "Yearly",
+        interval: "year",
+        priceCents: 12000,
+        currency: "eur",
+        creditsPerPeriod: 15000,
+        rolloverCap: 0,
+        features: "",
+      },
+    ]);
+    render(<CreditsPage />);
+    expect(await screen.findByText(/\/an/)).toBeTruthy();
   });
 
   it("translates a past_due subscription status + shows the grace window (never the raw enum)", async () => {

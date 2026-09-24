@@ -32,6 +32,16 @@ remains under `networks/:id/server-keys`; plugin `/link` is unchanged.
 
 ## Conventions
 
+- **Public pricing catalog**: `modules/billing/userRoutes.ts` exposes public `GET /api/v1/billing/plans`, active plans only, ordered by `sortOrder` then ID. It returns the saved currency, cents and interval plus `description`, `highlighted`, `features` (newline text) and `sortOrder`, without Stripe identifiers. Admin create/update validates and persists presentation metadata in `modules/billing/adminRoutes.ts`.
+
+- **Pricing authentication and checkout**: Discord `/start?next=...` keeps a local
+  return path in a signed, expiring cookie bound to OAuth state; unsafe paths and
+  mismatched context fall back to `/account`. Google retains the same local-path
+  behavior. Billing checkout and portal require `manage_billing`; an existing
+  nonterminal subscription returns `409 subscription_exists` and must be managed
+  through the portal. Checkout success/cancel and portal URLs retain `networkId`;
+  subscription checkout also retains `plan`, including configured return URLs.
+
 - **Hosted projects (2026-09-13)**: `userNetworks.ts` exposes
   `GET/POST /api/v1/networks/:id/hosted-projects` and `GET .../templates`.
   Creation takes `{operationId, folderName, name, minecraftVersion, templateId: "vanilla"}`;
