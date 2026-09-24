@@ -9,6 +9,7 @@ Cloudflare gère les nameservers de `artisanmc.net`. Créer un Tunnel nommé et 
 | Hostname public | Service Coolify |
 |---|---|
 | `api.artisanmc.net` | backend, port 3001 |
+| `artisanmc.net` | vitrine, tarifs et wiki, éditeur nginx, port 80 |
 | `editor.artisanmc.net` | éditeur nginx, port 80 |
 | `coolify.artisanmc.net` | interface Coolify |
 
@@ -22,7 +23,9 @@ Créer un projet Artisan contenant :
 
 - PostgreSQL 16, privé sur le réseau Coolify, sans port public ;
 - le backend depuis le contexte `/` et `backend/Dockerfile`, domaine `https://api.artisanmc.net`, health check `/health`, stockage persistant monté sur `/app/data` ;
-- l'éditeur depuis le contexte `/` et `editor/Dockerfile`, domaine `https://editor.artisanmc.net`, avec les build args `VITE_API_URL=https://api.artisanmc.net` et `VITE_PLUGIN_WS_URL=wss://api.artisanmc.net/ws/plugin`.
+- l'éditeur depuis le contexte `/` et `editor/Dockerfile`, domaines `https://artisanmc.net` et `https://editor.artisanmc.net`, avec les build args `VITE_API_URL=https://api.artisanmc.net`, `VITE_PLUGIN_WS_URL=wss://api.artisanmc.net/ws/plugin` et `VITE_EDITOR_URL=https://editor.artisanmc.net`.
+
+Créer les deux hostnames dans le Tunnel Cloudflare vers la même ressource Coolify, en conservant le nom d'hôte public transmis à Nginx. L'apex sert `/`, `/pricing` et `/wiki/` ; les chemins de l'application y redirigent vers `editor.artisanmc.net` avec leur requête. Sur le sous-domaine éditeur, les pages de vitrine redirigent vers l'apex. Le backend garde `EDITOR_URL=https://editor.artisanmc.net` et reçoit `MARKETING_URL=https://artisanmc.net` pour les appels API de la vitrine.
 
 Copier les variables backend de [`.env.production.example`](.env.production.example), remplacer seulement les exemples/secrets dans Coolify, et conserver les valeurs publiques canoniques. `DATABASE_URL` doit utiliser la connection string interne de PostgreSQL. Générer et conserver durablement `CONFIG_ENC_KEY`; ne jamais le committer.
 
@@ -59,9 +62,19 @@ Dans l'environnement GitHub `production`, définir exactement :
 | Secret | `CF_ACCESS_CLIENT_ID` | client ID du service token Cloudflare Access |
 | Secret | `CF_ACCESS_CLIENT_SECRET` | secret du service token Cloudflare Access |
 
-Le workflow reçoit le SHA validé par CI, épingle `git_commit_sha` sur chaque application Coolify avant son déploiement, puis vérifie que Coolify rapporte exactement ce commit. Il déploie le backend en premier, attend `https://api.artisanmc.net/health`, puis déploie et vérifie `https://editor.artisanmc.net/`. Chaque requête réseau et le job complet ont un délai maximal. Les WebSockets sont vérifiés séparément après la release. Ne dupliquer aucune de ces valeurs dans le dépôt.
+Le workflow reçoit le SHA validé par CI, épingle `git_commit_sha` sur chaque application Coolify avant son déploiement, puis vérifie que Coolify rapporte exactement ce commit. Il déploie le backend en premier, attend `https://api.artisanmc.net/health`, puis déploie et vérifie `https://editor.artisanmc.net/health` et `https://artisanmc.net/`. Chaque requête réseau et le job complet ont un délai maximal. Les WebSockets sont vérifiés séparément après la release. Ne dupliquer aucune de ces valeurs dans le dépôt.
 
 ## Vérification et rollback
+
+### Vitrine et wiki
+
+Les redirections Nginx restent relatives (`absolute_redirect off`) pour conserver le protocole HTTPS et le port publics derrière le proxy, notamment pour `/wiki` vers `/wiki/`.
+
+La même image `editor/Dockerfile` sert la vitrine et les tarifs sur `artisanmc.net`, l'éditeur sur `editor.artisanmc.net`, et le wiki Astro Starlight à `artisanmc.net/wiki/`. Le build installe les workspaces éditeur et les dépendances `docs-site`, puis `npm run build` compile les deux sites et copie les guides dans `editor/dist/wiki/`. Nginx réserve ce préfixe aux fichiers du wiki : un guide inconnu retourne la page 404 du wiki avec un statut 404, sans charger l'application React.
+
+En local : `npm ci --prefix docs-site`, puis `npm run dev --prefix editor`. Le wiki est compilé au démarrage de Vite ; après une modification de documentation, relancer `npm run build --prefix docs-site` pour actualiser `/wiki/`. Docker Compose monte aussi `docs-site` et isole ses dépendances Linux dans le volume `wiki-node-modules`.
+
+La CI vérifie le routage (`node --test deploy/*.test.mjs`), compile les pages et contrôle tous les liens internes, ancres, assets et l'index de recherche (`npm run verify --prefix docs-site`). Après déploiement, ouvrir `/wiki/`, rechercher un terme, suivre un guide et confirmer qu'une URL inconnue sous `/wiki/` répond 404.
 
 Après une release :
 

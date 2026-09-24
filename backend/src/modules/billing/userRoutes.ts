@@ -12,6 +12,13 @@ const successUrl = (): string => process.env.BILLING_SUCCESS_URL ?? `${editorUrl
 const cancelUrl = (): string => process.env.BILLING_CANCEL_URL ?? `${editorUrl()}/credits?checkout=cancel`;
 const portalReturnUrl = (): string => process.env.BILLING_PORTAL_RETURN_URL ?? `${editorUrl()}/credits`;
 
+function withBillingContext(value: string, networkId: string, planId?: string): string {
+	const url = new URL(value);
+	url.searchParams.set("networkId", networkId);
+	if (planId) url.searchParams.set("plan", planId);
+	return url.toString().replaceAll("%7BCHECKOUT_SESSION_ID%7D", "{CHECKOUT_SESSION_ID}");
+}
+
 export function buildBillingUserRouter(): Hono {
 	const r = new Hono();
 
@@ -33,8 +40,8 @@ export function buildBillingUserRouter(): Hono {
 			mode: "payment",
 			priceId: pack.stripePriceId,
 			customerId,
-			successUrl: successUrl(),
-			cancelUrl: cancelUrl(),
+			successUrl: withBillingContext(successUrl(), networkId),
+			cancelUrl: withBillingContext(cancelUrl(), networkId),
 			metadata: { networkId, kind: "pack", packId, userId: user.id },
 		});
 		return c.json({ url });
@@ -53,13 +60,17 @@ export function buildBillingUserRouter(): Hono {
 		}
 		const plan = await getPlan(planId);
 		if (!plan || !plan.isActive || !plan.stripePriceId) return c.json({ error: "plan_not_found" }, 404);
+		const billing = await getNetworkBilling(networkId);
+		if (billing && (billing.stripeSubscriptionId || billing.status) && !["canceled", "incomplete_expired"].includes(billing.status ?? "")) {
+			return c.json({ error: "subscription_exists" }, 409);
+		}
 		const customerId = await ensureCustomer(networkId, user.email);
 		const { url } = await getStripeGateway().createCheckoutSession({
 			mode: "subscription",
 			priceId: plan.stripePriceId,
 			customerId,
-			successUrl: successUrl(),
-			cancelUrl: cancelUrl(),
+			successUrl: withBillingContext(successUrl(), networkId, planId),
+			cancelUrl: withBillingContext(cancelUrl(), networkId, planId),
 			metadata: { networkId, kind: "subscription", planId, userId: user.id },
 		});
 		return c.json({ url });
@@ -79,7 +90,7 @@ export function buildBillingUserRouter(): Hono {
 		if (!billing?.stripeCustomerId) return c.json({ error: "no_billing" }, 400);
 		const { url } = await getStripeGateway().createPortalSession({
 			customerId: billing.stripeCustomerId,
-			returnUrl: portalReturnUrl(),
+			returnUrl: withBillingContext(portalReturnUrl(), networkId),
 		});
 		return c.json({ url });
 	});
@@ -117,6 +128,7 @@ export function buildBillingUserRouter(): Hono {
 			.map((p) => ({
 				id: p.id, name: p.name, interval: p.interval, priceCents: p.priceCents,
 				currency: p.currency, creditsPerPeriod: p.creditsPerPeriod, rolloverCap: p.rolloverCap, features: p.features,
+				description: p.description, highlighted: p.highlighted, sortOrder: p.sortOrder,
 			}));
 		return c.json({ plans });
 	});

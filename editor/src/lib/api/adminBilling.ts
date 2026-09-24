@@ -4,32 +4,73 @@ const apiUrl = (): string =>
 export type Result<T> = { ok: true; data: T } | { ok: false; status: number; error?: string };
 
 export interface AdminPack {
-  id: string; name: string; priceCents: number; currency: string; credits: number;
-  bonusPct: number; isActive: boolean; sortOrder: number;
-  stripeProductId: string | null; stripePriceId: string | null;
-  createdAt: string; updatedAt: string;
+  id: string;
+  name: string;
+  priceCents: number;
+  currency: string;
+  credits: number;
+  bonusPct: number;
+  isActive: boolean;
+  sortOrder: number;
+  stripeProductId: string | null;
+  stripePriceId: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 export interface AdminPlan {
-  id: string; name: string; interval: "month" | "year"; priceCents: number; currency: string;
-  creditsPerPeriod: number; rolloverCap: number; features: string; isActive: boolean; sortOrder: number;
-  stripeProductId: string | null; stripePriceId: string | null;
-  createdAt: string; updatedAt: string;
+  id: string;
+  name: string;
+  interval: "month" | "year";
+  priceCents: number;
+  currency: string;
+  creditsPerPeriod: number;
+  rolloverCap: number;
+  features: string;
+  isActive: boolean;
+  sortOrder: number;
+  description: string;
+  highlighted: boolean;
+  stripeProductId: string | null;
+  stripePriceId: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 export interface PackInput {
-  name: string; priceCents: number; currency?: string; credits: number; bonusPct?: number;
-  isActive?: boolean; sortOrder?: number;
+  name: string;
+  priceCents: number;
+  currency?: string;
+  credits: number;
+  bonusPct?: number;
+  isActive?: boolean;
+  sortOrder?: number;
 }
 export interface PlanInput {
-  name: string; interval: "month" | "year"; priceCents: number; currency?: string;
-  creditsPerPeriod: number; rolloverCap?: number; features?: string; isActive?: boolean; sortOrder?: number;
+  name: string;
+  interval: "month" | "year";
+  priceCents: number;
+  currency?: string;
+  creditsPerPeriod: number;
+  rolloverCap?: number;
+  features?: string;
+  isActive?: boolean;
+  sortOrder?: number;
+  description?: string;
+  highlighted?: boolean;
 }
 export interface SalesSummary {
-  from: string; to: string;
+  from: string;
+  to: string;
   topups: { count: number; byCurrency: Record<string, number> };
   subscriptions: {
     activeCount: number;
     mrrByCurrency: Record<string, number>;
-    perPlan: Array<{ planId: string; planName: string; currency: string; priceCents: number; activeCount: number }>;
+    perPlan: Array<{
+      planId: string;
+      planName: string;
+      currency: string;
+      priceCents: number;
+      activeCount: number;
+    }>;
   };
   daily: Array<{ date: string; topupCents: number; topupCount: number }>;
 }
@@ -59,7 +100,8 @@ export async function listPacks(): Promise<AdminPack[] | null> {
   if (!res.ok) return null;
   return ((await res.json()) as { packs: AdminPack[] }).packs;
 }
-export const createPack = (input: PackInput) => mutate<AdminPack>("/api/v1/admin/billing/packs", "POST", input);
+export const createPack = (input: PackInput) =>
+  mutate<AdminPack>("/api/v1/admin/billing/packs", "POST", input);
 export const updatePack = (id: string, patch: Partial<PackInput>) =>
   mutate<AdminPack>(`/api/v1/admin/billing/packs/${id}`, "PUT", patch);
 // NOTE: the backend deactivate route returns only `{ ok: true }`, not the full
@@ -72,7 +114,8 @@ export async function listPlans(): Promise<AdminPlan[] | null> {
   if (!res.ok) return null;
   return ((await res.json()) as { plans: AdminPlan[] }).plans;
 }
-export const createPlan = (input: PlanInput) => mutate<AdminPlan>("/api/v1/admin/billing/plans", "POST", input);
+export const createPlan = (input: PlanInput) =>
+  mutate<AdminPlan>("/api/v1/admin/billing/plans", "POST", input);
 export const updatePlan = (id: string, patch: Partial<PlanInput>) =>
   mutate<AdminPlan>(`/api/v1/admin/billing/plans/${id}`, "PUT", patch);
 // NOTE: backend returns only `{ ok: true }` — check `.ok` + reload, don't read `.data`.
@@ -80,10 +123,16 @@ export const deactivatePlan = (id: string) =>
   mutate<AdminPlan>(`/api/v1/admin/billing/plans/${id}/deactivate`, "POST");
 
 export async function getSales(from?: string, to?: string): Promise<SalesSummary | null> {
-  const res = await fetch(`${apiUrl()}/api/v1/admin/billing/sales${qs({ from, to })}`, { credentials: "include" });
+  const res = await fetch(`${apiUrl()}/api/v1/admin/billing/sales${qs({ from, to })}`, {
+    credentials: "include",
+  });
   if (!res.ok) return null;
   return (await res.json()) as SalesSummary;
 }
 
 export const grantCredits = (networkId: string, amount: number, note?: string) =>
-  mutate<{ ok: true; balance: number }>("/api/v1/admin/billing/grant", "POST", { networkId, amount, note });
+  mutate<{ ok: true; balance: number }>("/api/v1/admin/billing/grant", "POST", {
+    networkId,
+    amount,
+    note,
+  });

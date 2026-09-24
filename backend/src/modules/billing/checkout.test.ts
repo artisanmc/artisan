@@ -18,6 +18,7 @@ let packId = "";
 let planId = "";
 
 let lastCheckout: any = null;
+let lastPortal: Parameters<StripeGateway["createPortalSession"]>[0] | null = null;
 
 function fake(): StripeGateway {
 	return {
@@ -27,7 +28,7 @@ function fake(): StripeGateway {
 		async archivePrice() {},
 		async createCustomer() { return { customerId: "cus_test" }; },
 		async createCheckoutSession(i) { lastCheckout = i; return { url: `https://checkout.test/${i.mode}/${i.metadata.kind}` }; },
-		async createPortalSession() { return { url: "https://portal.test/s" }; },
+		async createPortalSession(i) { lastPortal = i; return { url: "https://portal.test/s" }; },
 		constructWebhookEvent() { return { id: "", type: "", data: { object: {} } }; },
 	};
 }
@@ -84,6 +85,61 @@ describe("billing checkout/portal routes", () => {
 		expect(lastCheckout.metadata).toEqual({ networkId, kind: "subscription", planId, userId: USER_ID });
 	});
 
+	it("subscription checkout returns to the selected network and plan on success or cancellation", async () => {
+		const res = await app.request("/api/v1/billing/checkout/subscription", { method: "POST", headers: cookie(userSession), body: JSON.stringify({ networkId, planId }) });
+		expect(res.status).toBe(200);
+		for (const [key, state] of [["successUrl", "success"], ["cancelUrl", "cancel"]]) {
+			const url = new URL(lastCheckout[key]);
+			expect(url.pathname).toBe("/credits");
+			expect(url.searchParams.get("checkout")).toBe(state);
+			expect(url.searchParams.get("networkId")).toBe(networkId);
+			expect(url.searchParams.get("plan")).toBe(planId);
+		}
+	});
+
+	it.each(["active", "trialing", "past_due", "unpaid", "paused", "incomplete", null])("a %s subscription must be managed in the portal instead of starting another checkout", async (status) => {
+		await db.update(networkBilling).set({ stripeSubscriptionId: "sub_existing", status, planId }).where(eq(networkBilling.networkId, networkId));
+		lastCheckout = null;
+		try {
+			const res = await app.request("/api/v1/billing/checkout/subscription", { method: "POST", headers: cookie(userSession), body: JSON.stringify({ networkId, planId }) });
+			expect(res.status).toBe(409);
+			expect(await res.json()).toEqual({ error: "subscription_exists" });
+			expect(lastCheckout).toBeNull();
+		} finally {
+			await db.update(networkBilling).set({ stripeSubscriptionId: null, status: null, planId: null }).where(eq(networkBilling.networkId, networkId));
+		}
+	});
+
+	it.each(["canceled", "incomplete_expired"])("a %s subscription allows a fresh checkout", async (status) => {
+		await db.update(networkBilling).set({ stripeSubscriptionId: "sub_old", status, planId }).where(eq(networkBilling.networkId, networkId));
+		lastCheckout = null;
+		try {
+			const res = await app.request("/api/v1/billing/checkout/subscription", { method: "POST", headers: cookie(userSession), body: JSON.stringify({ networkId, planId }) });
+			expect(res.status).toBe(200);
+			expect(lastCheckout.mode).toBe("subscription");
+		} finally {
+			await db.update(networkBilling).set({ stripeSubscriptionId: null, status: null, planId: null }).where(eq(networkBilling.networkId, networkId));
+		}
+	});
+
+	it("configured checkout URLs keep their query, fragment and Stripe session placeholder", async () => {
+		const previous = process.env.BILLING_SUCCESS_URL;
+		process.env.BILLING_SUCCESS_URL = "https://editor.example/credits?checkout=success&networkId=stale&session_id={CHECKOUT_SESSION_ID}#receipt";
+		try {
+			const res = await app.request("/api/v1/billing/checkout/subscription", { method: "POST", headers: cookie(userSession), body: JSON.stringify({ networkId, planId }) });
+			expect(res.status).toBe(200);
+			const url = new URL(lastCheckout.successUrl);
+			expect(url.origin).toBe("https://editor.example");
+			expect(url.hash).toBe("#receipt");
+			expect(url.searchParams.getAll("networkId")).toEqual([networkId]);
+			expect(url.searchParams.get("plan")).toBe(planId);
+			expect(lastCheckout.successUrl).toContain("session_id={CHECKOUT_SESSION_ID}");
+		} finally {
+			if (previous === undefined) delete process.env.BILLING_SUCCESS_URL;
+			else process.env.BILLING_SUCCESS_URL = previous;
+		}
+	});
+
 	it("non-member → 403", async () => {
 		const res = await app.request("/api/v1/billing/checkout/pack", { method: "POST", headers: cookie(outsiderSession), body: JSON.stringify({ networkId, packId }) });
 		expect(res.status).toBe(403);
@@ -99,6 +155,7 @@ describe("billing checkout/portal routes", () => {
 		const res = await app.request("/api/v1/billing/portal", { method: "POST", headers: cookie(userSession), body: JSON.stringify({ networkId }) });
 		expect(res.status).toBe(200);
 		expect((await res.json()).url).toContain("portal.test");
+		expect(new URL(lastPortal!.returnUrl).searchParams.get("networkId")).toBe(networkId);
 	});
 
 	it("member role → 403 on portal (lacks manage_billing)", async () => {
@@ -109,5 +166,12 @@ describe("billing checkout/portal routes", () => {
 	it("member role → 403 on pack checkout (lacks manage_billing)", async () => {
 		const res = await app.request("/api/v1/billing/checkout/pack", { method: "POST", headers: cookie(memberSession), body: JSON.stringify({ networkId, packId }) });
 		expect(res.status).toBe(403);
+	});
+
+	it("member role cannot start a subscription checkout", async () => {
+		lastCheckout = null;
+		const res = await app.request("/api/v1/billing/checkout/subscription", { method: "POST", headers: cookie(memberSession), body: JSON.stringify({ networkId, planId }) });
+		expect(res.status).toBe(403);
+		expect(lastCheckout).toBeNull();
 	});
 });

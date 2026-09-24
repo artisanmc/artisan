@@ -23,6 +23,7 @@ const env = {
   CF_ACCESS_CLIENT_SECRET: "access-client-secret",
   API_HEALTH_URL: "https://api.artisanmc.net/health",
   EDITOR_HEALTH_URL: "https://editor.artisanmc.net/health",
+  MARKETING_HEALTH_URL: "https://artisanmc.net/",
   EXPECTED_SHA: "0123456789abcdef0123456789abcdef01234567",
 };
 
@@ -104,6 +105,7 @@ test("deployProduction strictly deploys and health-checks backend before editor"
     ["https://coolify.example.test/api/v1/deploy?uuid=editor%20uuid&force=false", "POST"],
     ["https://coolify.example.test/api/v1/deployments/editor-deployment", "GET"],
     ["https://editor.artisanmc.net/health", "GET"],
+    ["https://artisanmc.net/", "GET"],
   ]);
 });
 

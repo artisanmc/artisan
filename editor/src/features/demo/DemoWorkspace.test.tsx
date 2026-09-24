@@ -7,7 +7,11 @@ import { bootstrapDemo } from "./demoLifecycle";
 
 const route = vi.hoisted(() => ({ projectId: "demo" }));
 vi.mock("@tanstack/react-router", () => ({ useParams: () => route, useNavigate: () => vi.fn() }));
-vi.mock("./demoLifecycle", () => ({ bootstrapDemo: vi.fn(), getPendingDemoClaim: () => null }));
+vi.mock("./demoLifecycle", () => ({
+  bootstrapDemo: vi.fn(),
+  getPendingDemoClaim: () => null,
+  DEMO_AUTH_RETURN: "artisan:demo-auth-return",
+}));
 vi.mock("@/features/project/ProjectWorkspace", () => ({
   ProjectCanvasPage: ({ projectRef }: { projectRef: string }) => (
     <div data-testid="workspace">{projectRef}</div>

@@ -38,6 +38,7 @@ import { listServerKeyIdsForUser } from "./lib/membershipGuard";
 import { mountModules } from "@artisan/backend-sdk";
 import { menusModule } from "./modules/menus";
 import { commandsModule } from "./modules/commands";
+import { allowedWebOrigin } from "./lib/webOrigins";
 import { assistantModule } from "./modules/assistant";
 import { aiModule } from "./modules/ai";
 
@@ -46,7 +47,8 @@ export const app = new Hono();
 export { websocket };
 
 const EDITOR_URL = process.env.EDITOR_URL ?? "http://localhost:5173";
-app.use("/api/v1/*", cors({ origin: EDITOR_URL, credentials: true,exposeHeaders:['X-Artisan-Demo-Expires-At'] }));
+const MARKETING_URL = process.env.MARKETING_URL ?? "";
+app.use("/api/v1/*", cors({ origin: allowedWebOrigin(EDITOR_URL, MARKETING_URL), credentials: true,exposeHeaders:['X-Artisan-Demo-Expires-At'] }));
 app.use('/api/v1/*',refreshDemoResponse);
 
 app.get("/health", (c) => c.json({ ok: true, ts: new Date().toISOString() }));

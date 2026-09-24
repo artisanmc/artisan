@@ -118,7 +118,7 @@ TanStack Query n'est pas utilisé (pas de data fetching server-side côté edito
 - **Plugin** : distribué aux admins, pas hosté par nous.
 - **Hôte** : VPS OVH 4 vCPU / 8 Go sous Ubuntu 26.04, administré par Coolify.
 - **Backend** : image Docker Bun gérée par Coolify, volume persistant `/app/data`.
-- **Editor** : image Docker multi-stage, fichiers statiques servis par nginx.
+- **Editor + vitrine + wiki** : une image Docker multi-stage, fichiers statiques servis par nginx. Astro Starlight compile le wiki sous `/wiki/` ; les routes React restent à la racine. Le build éditeur inclut les guides et l'index Pagefind, sans service supplémentaire en production.
 - **Données** : PostgreSQL 16 privé sur le réseau Coolify ; assets et bundles sur `/app/data` sauvegardé hors hôte.
 - **Entrée web** : Cloudflare Tunnel nommé pour `api.artisanmc.net`, `editor.artisanmc.net` et `coolify.artisanmc.net`; Cloudflare Access protège Coolify.
 - **Livraison** : GitHub Actions déploie uniquement la révision `main` validée par CI ; l'auto-deploy direct de Coolify est désactivé.
