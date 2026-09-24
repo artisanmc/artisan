@@ -282,7 +282,7 @@ Cache disque : `backend/data/custom-items/{server_key_id}/{hash.txt, items.json,
 
 ## Billing (2026-07-03)
 
-- **`credit_packs`** / **`subscription_plans`** — catalogue admin des top-ups et formules, provisionnés en products/prices Stripe (`stripe_product_id`/`stripe_price_id`). Prix en cents. Pack : credits accordés = `credits + round(credits*bonus_pct/100)`.
+- **`credit_packs`** / **`subscription_plans`** — catalogue admin des top-ups et formules, provisionnés en products/prices Stripe (`stripe_product_id`/`stripe_price_id`). Prix en cents. Pack : credits accordés = `credits + round(credits*bonus_pct/100)`. Les formules exposent au catalogue public `description`, `features`, `highlighted` et `sort_order` ; les champs de présentation ne modifient pas les prix Stripe.
 - **`network_billing`** — état de facturation par network (`stripe_customer_id`, `stripe_subscription_id`, `plan_id`, `status`, `current_period_end`, `grace_until`, `current_period_id`). `networks.tier` = flag dénormalisé. `current_period_id` = periodId de la période d'abo courante, pour le rollover au renouvellement.
 - **`credit_purchases`** — audit des top-ups (historique §1.3) ; l'URL de facture pointe Stripe.
 - **`stripe_events`** — idempotence des webhooks (`event_id` PK) : `handleStripeEvent` claim l'`event_id` (insert-on-conflict-do-nothing) avant tout fulfillment ; un event rejoué est ignoré. `network_billing.status`/`current_period_id`/`grace_until` sont pilotés par ces webhooks (`invoice.paid`, `payment_failed`, `subscription.updated/deleted`).
