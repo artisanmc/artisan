@@ -14,9 +14,11 @@ backend/data
 .worktrees
 .superpowers
 .gstack
+.scratch
+.agents
+.codex
 .claire
 .claude
 plugin
 docker
-docs-site
 **/*.log

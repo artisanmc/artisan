@@ -63,6 +63,7 @@ services:
       # URL the browser uses to reach the API (publish bundles, etc.)
       API_BASE_URL: ${API_BASE_URL:-http://localhost:3001}
       EDITOR_URL: ${EDITOR_URL:-http://localhost:5173}
+      MARKETING_URL: ${MARKETING_URL:-}
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USER: ${SMTP_USER:-}
@@ -100,10 +101,12 @@ services:
       - ./editor:/app
       # Editor schema tooling / converter reference docs/ types at the repo root.
       - ./docs:/docs
+      - ./docs-site:/docs-site
+      - wiki-node-modules:/docs-site/node_modules
     ports:
       - "5173:5173"
     command: >
-      sh -c "npm install && npm run dev -- --host"
+      sh -c "npm install && npm --prefix /docs-site ci && npm run dev -- --host"
 
   minecraft:
     image: itzg/minecraft-server
@@ -128,3 +131,4 @@ volumes:
   pg-data:
   boutique-mysql-data:
   hosted-projects:
+  wiki-node-modules:

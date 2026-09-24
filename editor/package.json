@@ -7,9 +7,12 @@
     "packages/*"
   ],
   "scripts": {
+    "predev": "npm --prefix ../docs-site run build",
     "dev": "vite",
     "generate-routes": "tsr generate",
+    "prebuild": "npm --prefix ../docs-site run build",
     "build": "npm run generate-routes && tsc -p tsconfig.app.json && vite build",
+    "postbuild": "node scripts/copy-wiki.mjs",
     "typecheck": "tsc -b",
     "preview": "vite preview",
     "pretest": "tsr generate",

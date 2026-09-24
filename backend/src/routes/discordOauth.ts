@@ -1,10 +1,17 @@
 import { Hono } from "hono";
-import { getCookie, setCookie, deleteCookie } from "hono/cookie";
+import { getCookie, setCookie, deleteCookie, getSignedCookie, setSignedCookie } from "hono/cookie";
 import { OauthAccountError, resolveOauthAccount } from "../lib/oauthAccounts";
 import { buildAuthorizeUrl, exchangeCode, fetchDiscordUser } from "../lib/discordOauth";
 import { createSession } from "../lib/sessionManager";
 import { sendSafely } from "../lib/mail/mailer";
 import { welcomeEmail } from "../lib/mail/templates";
+
+const returnCookie = "artisan_discord_return";
+
+function safeReturnPath(value: unknown): string | undefined {
+  if (typeof value !== "string" || !value.startsWith("/") || value.startsWith("//") || /[\\\u0000-\u001f\u007f]/.test(value)) return undefined;
+  return value;
+}
 
 export function createDiscordOauthRouter(fetchImpl: typeof fetch = fetch) {
   const router = new Hono();
@@ -24,7 +31,7 @@ export function createDiscordOauthRouter(fetchImpl: typeof fetch = fetch) {
     return c.json({ configured: Boolean(clientId && redirectUri && envOrNull("DISCORD_CLIENT_SECRET")) });
   });
 
-  router.get("/start", (c) => {
+  router.get("/start", async (c) => {
     const clientId = envOrNull("DISCORD_CLIENT_ID");
     const redirectUri = envOrNull("DISCORD_REDIRECT_URI");
     if (!clientId || !redirectUri || !envOrNull("DISCORD_CLIENT_SECRET")) {
@@ -38,6 +45,14 @@ export function createDiscordOauthRouter(fetchImpl: typeof fetch = fetch) {
       path: "/",
       maxAge: 600,
     });
+    const next = safeReturnPath(c.req.query("next"));
+    if (next) {
+      await setSignedCookie(c, returnCookie, JSON.stringify({ state, next, createdAt: Date.now() }), envOrNull("DISCORD_CLIENT_SECRET")!, {
+        httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "Lax", path: "/", maxAge: 600,
+      });
+    } else {
+      deleteCookie(c, returnCookie, { path: "/" });
+    }
     return c.redirect(buildAuthorizeUrl({ clientId, redirectUri, state }));
   });
 
@@ -48,9 +63,6 @@ export function createDiscordOauthRouter(fetchImpl: typeof fetch = fetch) {
     if (!stateCookie || !state || stateCookie !== state) {
       return c.json({ error: "invalid_state" }, 400);
     }
-    if (!code) {
-      return c.json({ error: "missing_code" }, 400);
-    }
     deleteCookie(c, "artisan_oauth_state", { path: "/" });
 
     const clientId = envOrNull("DISCORD_CLIENT_ID");
@@ -58,6 +70,25 @@ export function createDiscordOauthRouter(fetchImpl: typeof fetch = fetch) {
     const redirectUri = envOrNull("DISCORD_REDIRECT_URI");
     if (!clientId || !clientSecret || !redirectUri) {
       return c.json({ error: "discord_not_configured" }, 500);
+    }
+    let next: string | undefined;
+    const rawReturn = await getSignedCookie(c, clientSecret, returnCookie);
+    deleteCookie(c, returnCookie, { path: "/" });
+    if (rawReturn) {
+      try {
+        const flow = JSON.parse(rawReturn);
+        if (flow.state === state && Number.isFinite(flow.createdAt) && flow.createdAt <= Date.now() && Date.now() - flow.createdAt <= 600_000) {
+          next = safeReturnPath(flow.next);
+        }
+      } catch { /* Invalid return context keeps the default account destination. */ }
+    }
+    if (c.req.query("error")) {
+      const params = new URLSearchParams({ oauth_error: "oauth_cancelled" });
+      if (next) params.set("next", next);
+      return c.redirect(`${process.env.EDITOR_URL ?? "http://localhost:5173"}/login?${params}`);
+    }
+    if (!code) {
+      return c.json({ error: "missing_code" }, 400);
     }
 
     let tokens, user;
@@ -93,7 +124,7 @@ export function createDiscordOauthRouter(fetchImpl: typeof fetch = fetch) {
     });
 
     const editorUrl = process.env.EDITOR_URL ?? "http://localhost:5173";
-    return c.redirect(`${editorUrl}/account`);
+    return c.redirect(`${editorUrl}${next ?? "/account"}`);
   });
 
   return router;

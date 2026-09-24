@@ -9,6 +9,14 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Added — public pricing presentation
+
+- Subscription plans expose their configured description, benefits, display order and featured status in the public catalog. Platform admins can edit the presentation without reprovisioning Stripe prices; existing plans retain their prices and default to an empty description and no highlight.
+
+### Fixed — pricing checkout continuity
+
+- Discord sign-in preserves the selected local pricing destination securely. Billing returns retain the selected network and plan, and networks with an existing nonterminal subscription use the billing portal instead of creating another subscription.
+
 ### Changed — buttons and project resources
 
 - The canvas Library becomes **Buttons**, with **Game items**, **Captured items** and **Images**. Project images and fonts are managed in the separate **Resources** project tab.
