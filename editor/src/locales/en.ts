@@ -4,6 +4,7 @@ import { marketingEn } from "./marketing";
 import { changesEn } from "./changes";
 import { demoEn } from "./demo";
 import { draftsEn } from "./drafts";
+import { serverCanvasEn } from "./serverCanvas";
 import { migrationEn } from "./migration";
 import { projectCopyEn } from "./projectCopy";
 import { projectIdentityEn } from "./projectIdentity";
@@ -91,6 +92,7 @@ export default {
   },
   accountDeletion: accountDeletionEn,
   drafts: draftsEn,
+  serverCanvas: serverCanvasEn,
   changes: changesEn,
   navigation: {
     menu: "Menu",
@@ -662,11 +664,8 @@ export default {
     commands: "Commands",
     dialogs: "Dialogs",
     edit: "Edit",
-    addToCanvas: "Add to canvas",
-    removeFromCanvas: "Remove from canvas",
     delete: "Delete from project",
     empty: "No elements yet",
-    arrangeAll: "Arrange all on canvas",
     options: "Options",
     openPanel: "Elements",
   },
@@ -695,7 +694,7 @@ export default {
   toast: {
     titleEditFailed: "title edit failed",
     importedProject: 'Imported "{{name}}"',
-    importFailed: "import failed",
+    importFailedCode: "import failed ({{code}})",
     importNotZip: "not a zip archive",
     importNoManifest: "no manifest.yaml found in the archive",
     slotDragFailed: "slot drag failed",
@@ -841,6 +840,10 @@ export default {
     create: "Create",
     modeSelect: "Select",
     modeHand: "Pan",
+    gutter: "Not linked yet",
+    rearrange: "Rearrange",
+    rearrangeHint: "Release hand-placed positions and link anchors, then rearrange the whole board (Ctrl+Z to undo)",
+    rearrangeNothing: "The board is already fully arranged",
   },
   dialog: {
     idLabel: "id",
@@ -1988,6 +1991,7 @@ export default {
     projectsUnavailable: "Server unreachable — its projects can’t be listed.",
     documentCount_one: "{{count}} element",
     documentCount_other: "{{count}} elements",
+    openBoard: "Server board",
   },
   redirect: {
     redirecting: "Redirecting…",

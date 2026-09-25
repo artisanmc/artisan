@@ -4,6 +4,7 @@ import { marketingFr } from "./marketing";
 import { changesFr } from "./changes";
 import { demoFr } from "./demo";
 import { draftsFr } from "./drafts";
+import { serverCanvasFr } from "./serverCanvas";
 import type en from "./en";
 import { migrationFr } from "./migration";
 import { projectCopyFr } from "./projectCopy";
@@ -95,6 +96,7 @@ const fr: typeof en = {
   },
   accountDeletion: accountDeletionFr,
   drafts: draftsFr,
+  serverCanvas: serverCanvasFr,
   changes: changesFr,
   navigation: {
     menu: "Menu",
@@ -676,11 +678,8 @@ const fr: typeof en = {
     commands: "Commandes",
     dialogs: "Dialogs",
     edit: "Éditer",
-    addToCanvas: "Ajouter au canvas",
-    removeFromCanvas: "Retirer du canvas",
     delete: "Supprimer du projet",
     empty: "Aucun élément pour l'instant",
-    arrangeAll: "Tout arranger sur le canvas",
     options: "Options",
     openPanel: "Éléments",
   },
@@ -710,7 +709,7 @@ const fr: typeof en = {
   toast: {
     titleEditFailed: "édition du titre échouée",
     importedProject: "« {{name}} » importé",
-    importFailed: "import échoué",
+    importFailedCode: "import échoué ({{code}})",
     importNotZip: "ce n'est pas une archive zip",
     importNoManifest: "aucun manifest.yaml dans l'archive",
     slotDragFailed: "drag de slot échoué",
@@ -859,6 +858,10 @@ const fr: typeof en = {
     create: "Créer",
     modeSelect: "Sélection",
     modeHand: "Navigation",
+    gutter: "Pas encore reliés",
+    rearrange: "Réarranger",
+    rearrangeHint: "Libère les positions et les ancres de liens posées à la main, puis réarrange toute la planche (Ctrl+Z pour annuler)",
+    rearrangeNothing: "La planche est déjà entièrement arrangée",
   },
   dialog: {
     idLabel: "id",
@@ -2065,6 +2068,7 @@ const fr: typeof en = {
     projectsUnavailable: "Serveur injoignable — impossible de lister ses projets.",
     documentCount_one: "{{count}} élément",
     documentCount_other: "{{count}} éléments",
+    openBoard: "Planche générale",
   },
   redirect: {
     redirecting: "Redirection en cours…",

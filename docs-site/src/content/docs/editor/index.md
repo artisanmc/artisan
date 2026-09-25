@@ -73,8 +73,20 @@ replacing unsaved work. The arrow beside Deploy offers **Discard changes**.
 
 ## Canvas navigation
 
+The canvas shows every document of the project and arranges them automatically:
+commands on the left, then the menus they open, then the next menus, following the
+links between them. Documents that nothing opens yet sit at the bottom, under
+**Not linked yet**. Drag a document to place it yourself: it stays where you put it,
+and the others move out of its way. **Rearrange**, in the toolbar at the bottom,
+releases every position and link anchor you set by hand and arranges the whole canvas again;
+**Ctrl+Z** undoes it.
+
 The canvas remembers your position and zoom separately for each project in this
 browser, including after leaving the editor or refreshing the page.
+
+**Server board**, on a server's page, shows the documents of all its projects on a
+single read-only canvas, with the links between projects. Filter it by project, type
+or id, and click a document to open it.
 
 Use **Minimap** beside **Buttons** to open the overview, placed 8 px from the lower-right
 corner. The button hides while the minimap is open; close it with **×** to reveal the button again.
@@ -93,7 +105,6 @@ pointer leaves, unless a menu is open or keyboard focus remains inside. Click th
 Elements button at the right end of the toolbar to keep its column open; click
 again to close it. This choice is remembered after reloading. On mobile, Elements opens
 in a drawer from the right.
-In Elements, the left arrow adds a document to the canvas; the right arrow removes it.
 
 Open **Buttons** using the square-and-pointer tool at the top-right of the canvas to browse
 **Game items**, **Captured items** and **Images**. No menu needs to be selected.

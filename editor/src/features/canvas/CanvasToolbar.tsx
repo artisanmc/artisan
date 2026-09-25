@@ -1,8 +1,15 @@
 import { useUiStore } from "@/state/uiStore";
-import { Hand, MousePointer2 } from "lucide-react";
+import { Hand, MousePointer2, WandSparkles } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
-export function CanvasToolbar() {
+export function CanvasToolbar({
+  onRearrange,
+  rearrangeDisabled = false,
+}: {
+  /** Absent en vue focus : il n'y a qu'un Document, rien à arranger. */
+  onRearrange?: () => void;
+  rearrangeDisabled?: boolean;
+} = {}) {
   const { t } = useTranslation();
   const mode = useUiStore((s) => s.canvasMode);
   const setMode = useUiStore((s) => s.setCanvasMode);
@@ -37,6 +44,20 @@ export function CanvasToolbar() {
       >
         <Hand className="size-4" /> {t("canvas.modeHand")}
       </button>
+      {onRearrange && (
+        <>
+          <span className="mx-0.5 h-5 w-px bg-[var(--border)]" />
+          <button
+            type="button"
+            disabled={rearrangeDisabled}
+            title={t(rearrangeDisabled ? "canvas.rearrangeNothing" : "canvas.rearrangeHint")}
+            onClick={onRearrange}
+            className={`${btn(false)} disabled:cursor-default disabled:opacity-50 disabled:hover:bg-transparent`}
+          >
+            <WandSparkles className="size-4" /> {t("canvas.rearrange")}
+          </button>
+        </>
+      )}
     </div>
   );
 }
