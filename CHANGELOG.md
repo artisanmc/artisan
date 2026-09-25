@@ -9,6 +9,18 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Changed — automatically arranged canvas
+
+- A project's canvas now shows every document, arranged automatically by navigation order (commands, then the menus they open), with unlinked documents grouped under **Not linked yet**. Positions set by hand are kept exactly; the others move out of their way. **Rearrange** in the canvas toolbar releases hand-set positions and link anchors, then arranges the whole canvas again (undoable). Links now leave and reach the centre of a side, spread evenly when several share it, and documents side by side are always linked through their facing left and right sides. The add/remove-from-canvas toggle in the Elements list is gone.
+
+### Fixed — hosted ZIP import
+
+- Importing a ZIP as a hosted project always failed with a generic "import failed": the file batch carried an operation id the backend rejects. Imports now complete, images and fonts included. When the chosen folder name is already taken in the Network, the dialog offers to import under another name or to overwrite the existing project; other failures show their error code.
+
+### Added — server board
+
+- **Server board**, linked from a server's page, shows the documents of all its projects on one read-only canvas, including links between projects, with project, type and id filters. Clicking a document opens it; links to a missing or ambiguous id are counted instead of drawn.
+
 ### Added — editor guided tour
 
 - A brief, six-step editor tour appears once per account, including in the demo. Pause it for later, resume from the project menu, or replay it after finishing; anonymous demo progress is remembered in the browser and transferred when returning from the matching explicit demo sign-in flow.

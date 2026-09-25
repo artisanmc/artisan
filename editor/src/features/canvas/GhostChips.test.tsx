@@ -46,20 +46,18 @@ describe("GhostChips", () => {
 
   it("rend un chip pour une cible hors-planche depuis un nœud sur la planche", () => {
     const layout = { m1: { x: 0, y: 0 } };
-    render(<GhostChips project={project()} layout={layout} projectId={PID} />);
+    render(<GhostChips project={project()} layout={layout} />);
     expect(screen.getByTestId("konva-group").getAttribute("data-name")).toBe(
       "ghostchip:m1->shop",
     );
   });
 
-  it("le clic sur le chip ajoute la cible à la planche", () => {
-    const spy = vi.spyOn(useAccountStore.getState(), "addToBoard");
+  it("sur la planche, la pastille signale une cible absente sans rien écrire", () => {
+    const before = useAccountStore.getState().account;
     const layout = { m1: { x: 0, y: 0 } };
-    render(<GhostChips project={project()} layout={layout} projectId={PID} />);
+    render(<GhostChips project={project()} layout={layout} />);
     fireEvent.click(screen.getByTestId("konva-group"));
-    expect(spy).toHaveBeenCalledWith(
-      expect.objectContaining({ projectId: PID, nodeId: "shop" }),
-    );
+    expect(useAccountStore.getState().account).toBe(before);
   });
 
   /**
@@ -67,16 +65,11 @@ describe("GhostChips", () => {
    * circuler vers le Document cible, qu'il soit posé sur la planche ou non.
    */
   it("en focus, le clic ouvre la cible au lieu de la poser sur la planche", () => {
-    // `spyOn` réinstalle le même mock sur le store : sans purge, il porte
-    // encore les appels du test précédent.
-    const spy = vi.spyOn(useAccountStore.getState(), "addToBoard");
-    spy.mockClear();
     const onOpen = vi.fn();
     const layout = { m1: { x: 0, y: 0 } };
-    render(<GhostChips project={project()} layout={layout} projectId={PID} onOpen={onOpen} />);
+    render(<GhostChips project={project()} layout={layout} onOpen={onOpen} />);
     fireEvent.click(screen.getByTestId("konva-group"));
     expect(onOpen).toHaveBeenCalledWith("shop");
-    expect(spy).not.toHaveBeenCalled();
   });
 
   it("rend deux chips distincts pour deux cibles hors-planche d'une même source", () => {
@@ -85,7 +78,7 @@ describe("GhostChips", () => {
       { id: "m1->bank", source: "m1", target: "bank", triggers: [] },
     ];
     const layout = { m1: { x: 0, y: 0 } };
-    render(<GhostChips project={project()} layout={layout} projectId={PID} />);
+    render(<GhostChips project={project()} layout={layout} />);
     const names = screen
       .getAllByTestId("konva-group")
       .map((g) => g.getAttribute("data-name"));

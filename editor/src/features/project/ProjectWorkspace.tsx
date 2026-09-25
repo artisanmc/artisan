@@ -190,7 +190,7 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
       version: runtime?.minecraftVersion ?? "1.21.4",
     }),
     importProject: importProjectAction as (input: { project: unknown }) => string,
-    persistImport: (file, target) => {
+    persistImport: (file, target, options) => {
       if (!currentUser || !networkId) return Promise.reject(new Error("not_authenticated"));
       return importHostedProject(
         file,
@@ -198,6 +198,7 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
         runtime?.minecraftVersion ?? "1.21.4",
         currentUser.id,
         target,
+        options,
       );
     },
     onImported: ({ newId, urlId, name }) => {
@@ -208,7 +209,7 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
     onError: (error) => {
       if (error.message === "not_a_zip") return toast.error(t("toast.importNotZip"));
       if (error.message === "no_manifest") return toast.error(t("toast.importNoManifest"));
-      toast.error(t("toast.importFailed"));
+      toast.error(t("toast.importFailedCode", { code: error.message }));
     },
   });
   const handleImport = () =>

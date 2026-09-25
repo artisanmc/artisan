@@ -307,10 +307,13 @@ Un menu est un coffre (défaut), un hopper (5×1) ou un dropper (3×3). La **sin
 ## Canvas edges (liens entre nœuds)
 
 Les liens menu/commande/dialog sont dérivés des actions (`deriveEdges.ts`, inchangé) puis
-routés par `edgeRouting.ts` (pur, testé) : côté de sortie/entrée choisi par position
-relative des nœuds (`autoSide`), endpoints d'un même côté regroupés vers leur position
-naturelle (projection du nœud opposé) avec séparation minimale `ANCHOR_SEP_PX` (16 px,
-marge coins 10 px), tracé bézier cubique à tangentes perpendiculaires
+routés par `edgeRouting.ts` (pur, testé) : côté de sortie/entrée choisi par `autoSide` —
+deux nœuds côte à côte (écart horizontal) se relient toujours par leurs côtés gauche/droit,
+deux nœuds empilés dans une colonne par haut/bas, axe dominant sinon. Les ancres auto d'un
+même côté sont **centrées** et réparties symétriquement tous les `ANCHOR_GAP_PX` (24 px,
+resserré si le côté est trop court, marge coins 10 px), dans l'ordre de la position du nœud
+opposé pour éviter les croisements (depuis 2026-09-25 ; avant, chaque ancre visait la
+projection du nœud opposé, ce qui la collait aux coins). Tracé bézier cubique à tangentes perpendiculaires
 au bord (longueur ∝ distance, clamp 24–160 px). Rendu : `Edges.tsx` en Konva `Arrow`
 (tête de flèche côté cible), hover → `EdgeTooltip`, clic → sélection + 2 poignées
 draggables le long du bord (snap périmètre via `closestAnchorOnBox`).
@@ -318,7 +321,9 @@ draggables le long du bord (snap périmètre via `closestAnchorOnBox`).
 Overrides manuels : `project.canvasEdges[edgeId] = { from?, to? }` avec
 `EdgeAnchor = { side, t∈[0,1] }` (ratio → survit au resize). Edge id = `"source->target"`.
 Les overrides sont des pins exacts : jamais écartés par la séparation auto — deux ancres
-manuelles peuvent se superposer ; seules les ancres auto cèdent le gap minimal.
+manuelles peuvent se superposer ; seules les ancres auto cèdent le gap minimal
+`ANCHOR_SEP_PX` (16 px) à une ancre forcée trop proche. « Réarranger » les libère toutes
+(`releaseBoardPositions` vide aussi `canvasEdges`).
 Actions store : `setEdgeAnchor` / `clearEdgeAnchor` (double-clic poignée = reset) ;
 pruning sur `deleteFromProject`, rekey sur rename d'id (`setMenuId`/`setCommandId`/`setDialogId`).
 Persistance : `edges` + `layout` dans **`.artisan/editor.yaml`** (fichier
@@ -333,9 +338,9 @@ préserve ses copies aux deux points d'ingestion (`local_push`, `POST
 
 Cf. `docs/superpowers/specs/2026-06-13-workspace-board-curation-design.md` (supersède le focus mode de `2026-06-02`). Le canvas n'est plus un canvas libre qui force tout en grille : c'est une **planche curée**, doublée d'un panneau source-de-vérité et d'une vue individuelle deep-linkable. **Invariant n°1** : un seul rendu/éditeur par type de Document, partagé entre planche et vue individuelle — c'est ce qui supprime la divergence qui avait causé le revert du focus mode. **Étendu 2026-09-05 aux *hôtes*** : un seul rendu par type de Document, et autant d'hôtes que de sémantiques distinctes, pas un de plus. La planche et le focus partageaient bien `MenuGroup`, mais avaient deux hôtes de stage pour une sémantique identique — d'où la re-divergence (cf. « Mode focus »).
 
-### `canvasLayout` = appartenance à la planche
+### `canvasLayout` = positions fixées (planche dérivée, depuis 2026-09-25)
 
-Un Document est **sur la planche ssi** il a une entrée explicite `project.canvasLayout[id] = {x,y}` (présence = appartenance, plus seulement position sauvegardée).
+**Révise la curation du 2026-06-13** (spec `docs/specs/server-registry-and-derived-canvas.md`, décision 5). La planche montre **tous** les Documents du project, arrangés automatiquement ; `canvasLayout` ne liste plus les membres, il garde seulement les positions posées à la main (un glisser-déposer écrit une position fixée). Les anciennes entrées de `canvasLayout` deviennent donc des positions fixées, conservées à l'identique.
 
 Les positions et modifications sont conservées par `useDraftSync` dans une copie
 locale, puis sauvegardées automatiquement via le stockage résolu (voir ci-dessous). Après un enregistrement qui efface le brouillon,
@@ -401,9 +406,11 @@ création/import sans session garde le chemin existant. Une modification pendant
 la publication reste un nouveau travail basé sur les fichiers publiés.
 Le transport MCP reste futur ; il réutilisera les mêmes opérations et contrôles.
 
-- `autoLayout(project)` (`features/canvas/autoLayout.ts`) ne remplit **plus** la grille : il ne retourne que les entrées explicites de `canvasLayout`.
-- `gridArrange(project)` (même fichier) construit une grille complète sur tous les Documents — appelé uniquement par le bouton « Tout arranger » via l'action store `arrangeAllOnBoard({projectId})`.
-- Trois actions `accountStore` distinctes : `addToBoard({projectId, nodeId, x, y})` / `removeFromBoard({projectId, nodeId})` manipulent `canvasLayout` (le Document reste dans le project) ; `deleteFromProject({projectId, nodeIds})` (existant) retire le Document du project.
+- `projectBoard(project)` (`features/canvas/autoLayout.ts`) → `{ layout, gutter }` : graphe de `deriveServerGraph([project])`, arrangé par `arrangeBoard` (`features/canvas/arrangeBoard.ts`, dagre par couches `LR`, une composante reliée par ligne, Documents sans lien en gouttière « Pas encore reliés »). Les positions fixées restent dans le calcul (fixer un nœud là où il était ne déplace rien) ; les nœuds automatiques qui les chevauchent descendent dans leur colonne ; deux positions fixées peuvent se chevaucher. Mémoïsé sur la forme du graphe (Documents, tailles, liens, positions fixées) : éditer un slot ou un texte ne recalcule rien. `autoLayout(project)` en renvoie le `layout` — c'est ce que lisent `Stage`, `useNodeAlignment`, `ProjectMiniPreview` et le title composer.
+- Tailles des nœuds : **uniquement** `menuBoxSize` / `COMMAND_BOX` / `DIALOG_BOX` (`menuLayout.ts`), les mêmes que le rendu. Coordonnées = coins haut-gauche (dagre renvoie des centres, convertis).
+- Action `releaseBoardPositions({projectId})` : vide `canvasLayout`, la planche redevient entièrement arrangée. Bouton **Réarranger** de `CanvasToolbar` (planche uniquement, grisé sans position fixée) ; annulable par Ctrl+Z (zundo). `addToBoard`, `removeFromBoard`, `arrangeAllOnBoard` et `gridArrange` sont supprimés. `deleteFromProject({projectId, nodeIds})` retire le Document du project et sa position fixée.
+- Recalcul complet à chaque changement de graphe, sans insertion locale ni cache : la stabilité de l'arrangement entre deux éditions reste une question ouverte de la spec.
+- **Planche générale** (lecture seule) : route `…/servers/$serverId/canvas` (`features/serverCanvas/ServerCanvasPage.tsx`), lien « Planche générale » sur la page du serveur. Charge chaque project du serveur par `useProjectLoader` (brouillon compris), graphe `deriveServerGraph(projects)` avec résolution des cibles sur tout le serveur (comme la table unique du plugin ; id porté par deux projects = lien ambigu, non dessiné), filtres project / type / id dans l'URL. Rendu par les mêmes `MenuGroup` / `CommandGroup` / `DialogGroup`, dans un calque `listening={false}` : aucun geste d'édition possible ; un calque de zones cliquables ouvre le Document dans son project.
 
 ### `Project.moduleData` — état opaque par module
 
@@ -425,12 +432,11 @@ L’en-tête regroupe onglets et fermeture sans ligne de titre supplémentaire ;
 
 `features/project/ProjectPanel.tsx` : liste **tout** le project groupé par catégorie (Menus / Commandes / Dialogs), construite par `buildProjectDocuments(project, lang)` (`useProjectDocuments.ts`).
 
-- **Ligne racine** (nom du project) : clic → `openProjectSettings()`, et un `+` à côté ouvre la **création** (Menu / Commande / Dialogue). Depuis 2026-09-05 c'est le registre qui crée, pas le panneau de droite — celui-ci n'apparaît qu'à la sélection, donc il ne pouvait plus héberger « Nouveau menu ». Les dialogues y gagnent une entrée qu'ils n'avaient pas. Création **sans position** : le Document naît hors planche, l'y poser reste un geste explicite (curation).
+- **Ligne racine** (nom du project) : clic → `openProjectSettings()`, et un `+` à côté ouvre la **création** (Menu / Commande / Dialogue). Depuis 2026-09-05 c'est le registre qui crée, pas le panneau de droite — celui-ci n'apparaît qu'à la sélection, donc il ne pouvait plus héberger « Nouveau menu ». Les dialogues y gagnent une entrée qu'ils n'avaient pas. Création **sans position** : le Document apparaît sur la planche à la place que lui donne l'arrangement.
 
 - Recherche texte.
-- **Bouton toggle « canvas »** par ligne (remplace l'ancien drag-and-drop, retiré) : flèche entrante `title="Ajouter au canvas"` → `addToBoard` quand le Document est hors planche ; flèche sortante colorée `--brand` `title="Retirer du canvas"` → `removeFromBoard` quand il est présent. La couleur `--brand` du bouton « retirer » sert aussi d'indicateur d'état (remplace l'ancien badge texte « sur la planche »).
-- **Clic** sur le label → ouvre la vue individuelle (n'ajoute pas à la planche). **Menu contextuel `···`** : éditer / supprimer du project (l'ajout/retrait passe par le bouton toggle).
-- Terminologie user-facing : « canvas » (les actions/identifiants internes gardent `board` : `addToBoard`, `removeFromBoard`, `canvasLayout`).
+- Plus de bouton ajouter / retirer du canvas (retiré le 2026-09-25) : tout Document est sur la planche.
+- **Clic** sur le label → ouvre la vue individuelle. **Menu contextuel `···`** : éditer / supprimer du project.
 - 3ᵉ zone du layout overview desktop (panneau · planche · `EditorPane`).
 - Helper de label partagé `documentLabel(project, id, lang)` (`useProjectDocuments.ts`) — utilisé aussi par l'en-tête de `DocumentView`.
 
@@ -469,10 +475,10 @@ Depuis 2026-09-05, la vue individuelle d'un menu n'a plus de stage à elle : ell
 Toute la différence tient dans la table `layout` :
 
 ```ts
-const layout = focus ? { [focus]: { x: 0, y: 0 } } : autoLayout(project);
+const layout = focus ? { [focus]: { x: 0, y: 0 } } : projectBoard(project).layout;
 ```
 
-- La planche lit l'appartenance réelle (`canvasLayout` via `autoLayout`) ; le focus fabrique une **planche synthétique d'un seul Document** posé à l'origine. Il ne consulte donc jamais `canvasLayout` : **un Document jamais posé sur la planche est pleinement éditable en focus**.
+- La planche montre tous les Documents, arrangés (`projectBoard`) ; le focus fabrique une **planche synthétique d'un seul Document** posé à l'origine, sans consulter `canvasLayout`.
 - Tout ce qui consomme `layout` suit sans le savoir : `Edges` (aucune arête, les deux bouts ne sont jamais tous deux présents), `GhostChips` (tous les liens du Document deviennent des pastilles), `useMarqueeSelection`, `hitTestSlot`, `setStageDropTarget`.
 - `MenuGroup` reçoit `solo` → non déplaçable (aucune position de planche à écrire), pas de double-clic « ouvrir ».
 - Chrome retirée en focus : l'`EmptyState` et les entrées « Créer un menu / une commande / un dialogue **ici** » du `ContextMenu` (les trois `onCreate*At` deviennent optionnelles — elles posent une position de planche). Copier / coller / dupliquer / supprimer restent.
@@ -483,9 +489,9 @@ const layout = focus ? { [focus]: { x: 0, y: 0 } } : autoLayout(project);
 
 ### Chips fantômes (liens hors-planche)
 
-`features/canvas/GhostChips.tsx` + `offBoardLinks.ts`. Un nœud sur la planche qui référence une cible **absente** de la planche affiche un chip cliquable `→ cible`. `offBoardLinks(edges, layout)` retourne les liens (source on-board, cible off-board), dédupliqués. `visibleEdges(edges, layout)` (`Edges.tsx`) ne trace des edges qu'entre nœuds présents. Helper de géométrie partagé `nodeBox(project, id, layout)` (`menuLayout.ts`) utilisé par `Edges` **et** `GhostChips`.
+`features/canvas/GhostChips.tsx` + `offBoardLinks.ts`. Un nœud sur la planche qui référence une cible **absente** de la planche affiche un chip `→ cible`. Depuis la planche dérivée (2026-09-25), tout Document existant y figure : sur la planche, une pastille ne signale plus qu'une cible absente du project (ref qui pendouille, ou menu d'un autre project). `offBoardLinks(edges, layout)` retourne les liens (source on-board, cible off-board), dédupliqués. `visibleEdges(edges, layout)` (`Edges.tsx`) ne trace des edges qu'entre nœuds présents. Helper de géométrie partagé `nodeBox(project, id, layout)` (`menuLayout.ts`) utilisé par `Edges` **et** `GhostChips`.
 
-Le clic dépend du mode, via la prop optionnelle `onOpen` : sur la **planche**, `addToBoard` (poser la cible) ; en **focus**, `dispatchOpenElement(target)` — il n'y a pas de planche à peupler, la pastille devient le moyen de circuler de Document en Document, y compris vers des Documents jamais posés sur la planche.
+Le clic dépend du mode, via la prop optionnelle `onOpen` : sur la **planche**, aucun (il n'y a rien à poser, et écrire une position pour un Document inexistant polluerait `canvasLayout`) ; en **focus**, `dispatchOpenElement(target)` — il n'y a pas de planche à peupler, la pastille devient le moyen de circuler de Document en Document, y compris vers des Documents jamais posés sur la planche.
 
 ### Entrées dans la vue individuelle
 
@@ -831,6 +837,13 @@ Placement tray height includes the card top offset, icon, label gap, label heigh
 The exporter no longer emits `manifest.project_id`. ZIP imports use the enclosing
 folder; rootless archives require a chosen target through `useProjectZipImport`.
 Explicit targets share `isValidProjectFolderName` with rename UI rules.
+Hosted imports (`importHostedProject`) send the file batch with operation id
+`<uuid>-files`, computed at send time: the backend only accepts `[a-zA-Z0-9_-]`, and the
+earlier `<uuid>:files` made every hosted ZIP import fail with `invalid_input` (fixed
+2026-09-25). A taken folder surfaces `destination_exists`; the import dialog then offers
+another folder name (`<folder>_2` prefilled) or **Overwrite**, which calls
+`importHostedProject(..., { overwrite: true })`: it reuses the hosted project of that folder
+(`listHostedProjects`) and writes the archive exactly, deleting files and binaries it lacks.
 `diskProjectsToSummaries` retains authoritative internal IDs and negotiated
 `capabilities.canRename` from server listings, with compatible legacy fallback.
 

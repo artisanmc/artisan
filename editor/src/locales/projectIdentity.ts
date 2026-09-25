@@ -14,6 +14,11 @@ export const projectIdentityEn = {
   immutable: "This project is managed by an add-on and cannot be renamed.",
   rejected: "The rename was rejected. You can choose another name and try again.",
   retryError: "The rename could not be confirmed. Retry to recover its result.",
+  importExists:
+    "A project “{{folder}}” already exists in this Network. Import under another folder name, or overwrite it.",
+  importOverwrite: "Overwrite “{{folder}}”",
+  importOverwriteHint:
+    "Overwriting replaces all of its content with the archive. The previous version stays in the project's history.",
 };
 
 export const projectIdentityFr: typeof projectIdentityEn = {
@@ -34,4 +39,9 @@ export const projectIdentityFr: typeof projectIdentityEn = {
   immutable: "Ce projet est géré par un add-on et ne peut pas être renommé.",
   rejected: "Le renommage a été refusé. Vous pouvez choisir un autre nom et réessayer.",
   retryError: "Le renommage n'a pas pu être confirmé. Réessayez pour récupérer son résultat.",
+  importExists:
+    "Un projet « {{folder}} » existe déjà dans ce network. Importez sous un autre nom de dossier, ou écrasez-le.",
+  importOverwrite: "Écraser « {{folder}} »",
+  importOverwriteHint:
+    "Écraser remplace tout son contenu par celui de l'archive. La version précédente reste dans l'historique du projet.",
 };

@@ -52,10 +52,19 @@ export function closestAnchorOnBox(box: Box, p: Point): EdgeAnchor {
   return { side: "right", t: ty };
 }
 
-/** Side of `from` facing `to`, by dominant axis between centers. */
+/**
+ * Side of `from` facing `to`. Two boxes side by side (a horizontal gap between
+ * them) always link by their left/right sides, however far apart vertically;
+ * boxes stacked in the same column link by top/bottom. Overlapping boxes fall
+ * back to the dominant axis between centers.
+ */
 export function autoSide(from: Box, to: Box): AnchorSide {
   const dx = to.x + to.width / 2 - (from.x + from.width / 2);
   const dy = to.y + to.height / 2 - (from.y + from.height / 2);
+  const hGap = Math.max(to.x - (from.x + from.width), from.x - (to.x + to.width));
+  const vGap = Math.max(to.y - (from.y + from.height), from.y - (to.y + to.height));
+  if (hGap > 0) return dx >= 0 ? "right" : "left";
+  if (vGap > 0) return dy >= 0 ? "bottom" : "top";
   if (Math.abs(dx) >= Math.abs(dy)) return dx >= 0 ? "right" : "left";
   return dy >= 0 ? "bottom" : "top";
 }
@@ -75,7 +84,7 @@ interface Endpoint {
   side: AnchorSide;
   /** Set when the user overrode this endpoint — t is final. */
   fixedT?: number;
-  /** Sort key for autos: opposite node center projected along the side axis. */
+  /** Order of autos along a side: opposite node center projected along the side axis. */
   sortKey: number;
 }
 
@@ -94,6 +103,8 @@ const CTRL_RATIO = 0.4;
 
 /** Minimum gap between two anchors on the same side (canvas px). */
 const ANCHOR_SEP_PX = 16;
+/** Spacing of auto anchors spread around the centre of a side (canvas px). */
+const ANCHOR_GAP_PX = 24;
 /** Keep auto anchors off the box corners (canvas px). */
 const ANCHOR_MARGIN_PX = 10;
 
@@ -130,10 +141,10 @@ export function routeEdges(args: {
     return { fromEp, toEp };
   });
 
-  // Group endpoints per (node, side). Each auto endpoint aims at its natural
-  // position (the opposite node's projection); overrides are exact pins.
-  // Autos then yield a minimum gap to their neighbours — pins never move, so
-  // two manual anchors may superpose.
+  // Group endpoints per (node, side). Auto endpoints are centred on their side
+  // and spread evenly around the middle, ordered by the opposite node's
+  // position so links don't cross; overrides are exact pins. Autos then yield
+  // a minimum gap to pins — pins never move, so two manual anchors may superpose.
   const groups = new Map<string, Endpoint[]>();
   for (const pair of pairs) {
     if (!pair) continue;
@@ -152,8 +163,20 @@ export function routeEdges(args: {
       first.side === "top" || first.side === "bottom" ? groupBox.width : groupBox.height;
     const margin = Math.min(ANCHOR_MARGIN_PX / sideLen, 0.45);
     const sep = Math.min(ANCHOR_SEP_PX / sideLen, 1 / (group.length + 1));
-    const desired = (ep: Endpoint) =>
-      ep.fixedT ?? Math.min(1 - margin, Math.max(margin, ep.sortKey));
+    const autos = group
+      .filter((ep) => ep.fixedT === undefined)
+      .sort(
+        (a, b) =>
+          a.sortKey - b.sortKey ||
+          a.edgeIndex - b.edgeIndex ||
+          (a.end === "from" ? -1 : 1) - (b.end === "from" ? -1 : 1),
+      );
+    const gap =
+      autos.length > 1
+        ? Math.min(ANCHOR_GAP_PX / sideLen, (1 - 2 * margin) / (autos.length - 1))
+        : 0;
+    const slot = new Map(autos.map((ep, i) => [ep, 0.5 + (i - (autos.length - 1) / 2) * gap]));
+    const desired = (ep: Endpoint) => ep.fixedT ?? slot.get(ep)!;
     group.sort(
       (a, b) =>
         desired(a) - desired(b) ||

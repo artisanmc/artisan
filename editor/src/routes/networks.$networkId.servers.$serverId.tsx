@@ -188,6 +188,13 @@ function ServerOverview({
           <div className="flex items-center gap-3">
             <h2 className="eyebrow">{t("serverDetail.projects")}</h2>
             <span className="h-px flex-1 bg-[var(--border-soft)]" />
+            <Link
+              to="/networks/$networkId/servers/$serverId/canvas"
+              params={{ networkId, serverId }}
+              className="btn-ghost btn-sm"
+            >
+              {t("serverDetail.openBoard")}
+            </Link>
           </div>
           {status === "loading" ? (
             <p className="text-[13px] text-[var(--text-mut)]">

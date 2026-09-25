@@ -1,29 +1,48 @@
 import type { Project } from "@/domain/types";
+import { arrangeBoard } from "./arrangeBoard";
+import { deriveServerGraph } from "./serverGraph";
 
-/**
- * Board layout = appartenance. Ne retourne que les positions EXPLICITES de
- * project.canvasLayout. Un élément absent de canvasLayout n'est pas sur la planche.
- * (Le grid-fill historique vit désormais dans gridArrange, appelé à la demande.)
- */
-export function autoLayout(project: Project): Record<string, { x: number; y: number }> {
-  return { ...project.canvasLayout };
+type Point = { x: number; y: number };
+
+export interface ProjectBoard {
+  layout: Record<string, Point>;
+  gutter: Point | null;
 }
 
-/** Grille déterministe sur TOUS les éléments — pour le bouton « Tout arranger ». */
-export function gridArrange(project: Project): Record<string, { x: number; y: number }> {
-  const layout: Record<string, { x: number; y: number }> = {};
-  const cellW = 220;
-  const cellH = 160;
-  const cols = 4;
-  const ids = [
-    ...(project.menus ?? []).map((m) => m.id),
-    ...(project.commands ?? []).map((c) => c.id),
-    ...(project.dialogs ?? []).map((d) => d.id),
-  ];
-  let i = 0;
-  for (const id of ids) {
-    layout[id] = { x: (i % cols) * cellW + 40, y: Math.floor(i / cols) * cellH + 40 };
-    i++;
+const bySignature = new Map<string, ProjectBoard>();
+
+/**
+ * La planche d'un project : tous ses Documents, arrangés automatiquement.
+ * `canvasLayout` ne liste plus les membres de la planche ; il ne garde que
+ * les positions posées à la main, qui priment sur l'arrangement.
+ *
+ * Mémoïsé sur la forme du graphe : éditer un slot ou un texte ne recalcule
+ * rien, seul un Document ou un lien ajouté, retiré ou redimensionné le fait.
+ */
+export function projectBoard(project: Project): ProjectBoard {
+  const graph = deriveServerGraph([project]);
+  const pinned: Record<string, Point> = {};
+  const layout = project.canvasLayout as Record<string, Point>;
+  for (const node of graph.nodes) {
+    const p = layout[node.docId];
+    if (p) pinned[node.key] = p;
   }
-  return layout;
+  const signature = JSON.stringify([
+    graph.nodes.map((n) => [n.key, n.width, n.height]),
+    graph.edges.map((e) => e.id),
+    pinned,
+  ]);
+  const cached = bySignature.get(signature);
+  if (cached) return cached;
+
+  const { positions, gutter } = arrangeBoard({ nodes: graph.nodes, edges: graph.edges, pinned });
+  const board: ProjectBoard = { layout: {}, gutter };
+  for (const node of graph.nodes) board.layout[node.docId] = positions[node.key]!;
+  if (bySignature.size > 64) bySignature.clear();
+  bySignature.set(signature, board);
+  return board;
+}
+
+export function autoLayout(project: Project): Record<string, Point> {
+  return projectBoard(project).layout;
 }

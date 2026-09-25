@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { anchorPoint, autoSide, closestAnchorOnBox, routeEdges, type Box } from "./edgeRouting";
 import type { Edge } from "./deriveEdges";
+import { type Box, anchorPoint, autoSide, closestAnchorOnBox, routeEdges } from "./edgeRouting";
 
 const box = (x: number, y: number, width = 100, height = 80): Box => ({ x, y, width, height });
 
@@ -49,6 +49,16 @@ describe("autoSide", () => {
     expect(autoSide(box(0, 0), box(300, 300))).toBe("right");
     expect(autoSide(box(0, 0), box(0, 0))).toBe("right");
   });
+
+  it("links side-by-side boxes by their left and right sides, even when one is much lower", () => {
+    expect(autoSide(box(0, 0), box(150, 600))).toBe("right");
+    expect(autoSide(box(150, 600), box(0, 0))).toBe("left");
+  });
+
+  it("links boxes stacked in the same column by their top and bottom sides", () => {
+    expect(autoSide(box(0, 0), box(40, 300))).toBe("bottom");
+    expect(autoSide(box(40, 300), box(0, 0))).toBe("top");
+  });
 });
 
 const edge = (source: string, target: string): Edge => ({
@@ -70,17 +80,21 @@ describe("routeEdges", () => {
     expect(r!.points[5]).toBe(40);
   });
 
-  it("separates A->B and B->A by the minimum gap, not a full-side spread", () => {
+  it("centres A->B and B->A around the middle of their side, 24px apart", () => {
     const [ab, ba] = routeEdges({ edges: [edge("a", "b"), edge("b", "a")], boxes });
-    // Both endpoints aim at the same natural t=0.5; the second is nudged by
-    // ANCHOR_SEP_PX (16px) instead of jumping to a 1/3-2/3 spread.
-    expect(ab!.from.y).toBeCloseTo(40, 5);
-    expect(ba!.to.y).toBeCloseTo(56, 5);
-    expect(ab!.to.y).toBeCloseTo(40, 5);
-    expect(ba!.from.y).toBeCloseTo(56, 5);
+    expect(ab!.from.y).toBeCloseTo(28, 5);
+    expect(ba!.to.y).toBeCloseTo(52, 5);
+    expect(ab!.to.y).toBeCloseTo(28, 5);
+    expect(ba!.from.y).toBeCloseTo(52, 5);
   });
 
-  it("clusters anchors toward their targets with a minimum separation", () => {
+  it("anchors a single link at the centre of its side, wherever the other box is", () => {
+    const [r] = routeEdges({ edges: [edge("a", "b")], boxes: { a: box(0, 0), b: box(300, 500) } });
+    expect(r!.from).toMatchObject({ x: 100, y: 40, side: "right" });
+    expect(r!.to).toMatchObject({ x: 300, y: 540, side: "left" });
+  });
+
+  it("spreads the links of a side evenly around its centre, ordered to avoid crossings", () => {
     const boxes3: Record<string, Box> = {
       a: box(0, 0),
       b: box(300, -200),
@@ -91,9 +105,20 @@ describe("routeEdges", () => {
       edges: [edge("a", "b"), edge("a", "c"), edge("a", "d")],
       boxes: boxes3,
     });
-    // Natural projections: b → -2 (clamped to margin 10px/80 = 0.125),
-    // c → 0.5, d → 3 (clamped to 0.875). Far enough apart → no nudging.
-    expect(routed.map((r) => r.from.y)).toEqual([10, 40, 70]);
+    expect(routed.map((r) => r.from.y)).toEqual([16, 40, 64]);
+  });
+
+  it("tightens the spread on a short side instead of leaving it", () => {
+    const small: Box = { x: 0, y: 0, width: 140, height: 48 };
+    const routed = routeEdges({
+      edges: [edge("a", "b"), edge("a", "c"), edge("a", "d")],
+      boxes: { a: small, b: box(300, -200), c: box(300, 0), d: box(300, 200) },
+    });
+    const ys = routed.map((r) => r.from.y);
+    expect(ys[0]!).toBeGreaterThanOrEqual(10);
+    expect(ys[2]!).toBeLessThanOrEqual(38);
+    expect(ys[1]!).toBeCloseTo(24, 5);
+    expect(ys[1]! - ys[0]!).toBeCloseTo(ys[2]! - ys[1]!, 5);
   });
 
   it("respects an override and keeps the other end auto", () => {
@@ -110,17 +135,23 @@ describe("routeEdges", () => {
     expect(routeEdges({ edges: [edge("a", "ghost")], boxes })).toHaveLength(0);
   });
 
-  it("mixed override+auto on the same side: override pins exactly, auto yields the min gap", () => {
+  it("mixed override+auto on the same side: an auto anchor stays centred unless a pin is too close", () => {
     const boxes2: Record<string, Box> = { a: box(0, 0), b: box(300, 0), c: box(300, 100) };
-    const routed = routeEdges({
+    const far = routeEdges({
       edges: [edge("a", "b"), edge("a", "c")],
       boxes: boxes2,
       overrides: { "a->b": { from: { side: "right", t: 0.9 } } },
     });
-    // a->b is pinned at t=0.9 → y=72. a->c aims at clamp(1.75) = 0.875 but the
-    // pin sits above it: backward pass pulls the auto to 0.9 - sep(0.2) = 0.7 → y=56.
-    expect(routed[0]!.from.y).toBe(72);
-    expect(routed[1]!.from.y).toBeCloseTo(56, 5);
+    expect(far[0]!.from.y).toBe(72);
+    expect(far[1]!.from.y).toBeCloseTo(40, 5);
+    const close = routeEdges({
+      edges: [edge("a", "b"), edge("a", "c")],
+      boxes: boxes2,
+      overrides: { "a->b": { from: { side: "right", t: 0.55 } } },
+    });
+    // The pin at t=0.55 is within the 16px minimum gap: the auto yields to 0.55 - 0.2 = 0.35.
+    expect(close[0]!.from.y).toBe(44);
+    expect(close[1]!.from.y).toBeCloseTo(28, 5);
   });
 
   it("manual overrides may superpose exactly (pins are never separated)", () => {
