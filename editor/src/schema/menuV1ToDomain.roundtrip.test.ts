@@ -559,3 +559,29 @@ describe("player_inventory", () => {
     expect(serializeMenuToV1(visible, project).player_inventory).toBeUndefined();
   });
 });
+
+describe("vanilla_texture", () => {
+  const project = {
+    id: "p",
+    i18nKeys: {},
+    defaultLang: "en",
+    menus: [],
+    commands: [],
+    dialogs: [],
+    // biome-ignore lint/suspicious/noExplicitAny: minimal fixture for serializer
+  } as any;
+  const read = (extra: Record<string, unknown>) =>
+    menuV1ToDomain(
+      { schema: "menu/v1", id: "m", title: [], size: 27, elements: [], ...extra },
+      { projectId: projectId("p"), lang: "en" },
+    ).menu;
+
+  it("round-trips a texture turned off and omits the default", () => {
+    const off = read({ vanilla_texture: false });
+    expect(off.vanillaTexture).toBe(false);
+    expect(serializeMenuToV1(off, project).vanilla_texture).toBe(false);
+    const on = read({ vanilla_texture: true });
+    expect(on.vanillaTexture).toBeUndefined();
+    expect(serializeMenuToV1(on, project).vanilla_texture).toBeUndefined();
+  });
+});

@@ -522,6 +522,7 @@ export function serializeMenuToV1(
   };
   if (type !== "chest") out.inventory_type = type;
   if (menu.playerInventory === "hidden") out.player_inventory = "hidden";
+  if (menu.vanillaTexture === false) out.vanilla_texture = false;
   if (menu.permission) out.permission = menu.permission;
   if (menu.notes) out.notes = menu.notes;
   if (menu.contextInputs && menu.contextInputs.length > 0) {

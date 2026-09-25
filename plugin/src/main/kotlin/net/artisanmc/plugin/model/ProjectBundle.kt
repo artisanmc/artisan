@@ -108,6 +108,8 @@ data class MenuYaml(
     @JsonProperty("inventory_type") val inventoryType: String = "chest",
     /** `visible` (défaut) | `hidden` : cf. [net.artisanmc.plugin.render.PlayerInventoryMode]. */
     @JsonProperty("player_inventory") val playerInventory: String = "visible",
+    /** `false` : coffre transparent (le pack rend generic_54.png invisible), cf. VanillaGuiTitle. */
+    @JsonProperty("vanilla_texture") val vanillaTexture: Boolean = true,
     val permission: String? = null,
     // Canonical wire name: `inputs`; `context_inputs` is the legacy spelling.
     @JsonProperty("inputs")

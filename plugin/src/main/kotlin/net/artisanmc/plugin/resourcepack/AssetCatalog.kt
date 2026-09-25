@@ -55,6 +55,14 @@ class AssetCatalog(
     private val state = AtomicReference<Map<String, AssetEntry>>(emptyMap())
     private val encoderRef = AtomicReference(OffsetEncoder.EMPTY)
 
+    /**
+     * The current pack overrides generic_54.png with a transparent texture
+     * (`vanilla_gui.transparent_chests`): chest windows then need the vanilla
+     * texture back as a title glyph (cf. VanillaGuiTitle).
+     */
+    @Volatile var transparentChests: Boolean = false
+        private set
+
     /** Returns the cached entry for [assetId], or null if unknown. */
     fun lookup(assetId: String): AssetEntry? = state.get()[assetId]
 
@@ -87,9 +95,7 @@ class AssetCatalog(
                     while (entry != null) {
                         if (entry.name == "assets/artisan/asset-index.json") {
                             val json = zip.readBytes().toString(Charsets.UTF_8)
-                            val (assets, encoder) = parse(json)
-                            state.set(assets)
-                            encoderRef.set(encoder)
+                            apply(json)
                             persistToDisk(json)
                             return
                         }
@@ -112,9 +118,7 @@ class AssetCatalog(
         val f = cacheFile ?: return
         try {
             if (!f.isFile) return
-            val (assets, encoder) = parse(f.readText(Charsets.UTF_8))
-            state.set(assets)
-            encoderRef.set(encoder)
+            apply(f.readText(Charsets.UTF_8))
         } catch (_: Throwable) {
             // Swallow: preserve previous (empty) state on any failure.
         }
@@ -134,6 +138,13 @@ class AssetCatalog(
         } catch (_: Throwable) {
             // Cache write failure must never break the in-memory update.
         }
+    }
+
+    private fun apply(json: String) {
+        val (assets, encoder) = parse(json)
+        state.set(assets)
+        encoderRef.set(encoder)
+        transparentChests = mapper.readTree(json)["vanilla_gui"]?.get("transparent_chests")?.asBoolean() == true
     }
 
     private fun parse(json: String): Pair<Map<String, AssetEntry>, OffsetEncoder> {

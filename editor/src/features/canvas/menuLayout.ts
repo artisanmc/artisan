@@ -128,3 +128,13 @@ export const singleBackgroundCrop = (type: InventoryType) => ({
 });
 
 export { slotCount } from "./inventoryTypes";
+
+/**
+ * Faint guides for a chest whose vanilla texture is off (`vanilla_texture:
+ * false`): the window box and every slot cell — menu rows and the 36 player
+ * slots, which stay in game (transparent) whatever `player_inventory` says.
+ */
+export const transparentOutline = (rows: number) => ({
+  box: menuBoxSize("chest", rows),
+  cells: Array.from({ length: rows * 9 + 36 }, (_, i) => slotXY(i, "chest", rows)),
+});

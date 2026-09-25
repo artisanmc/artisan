@@ -136,6 +136,22 @@ it("keeps the appearance when clicking the already active composed mode", () => 
   expect(project.i18nKeys.title).toEqual({ en: "Shop", fr: "Boutique" });
 });
 
+it("shows the default texture first and restores it when going back to a vanilla title", () => {
+  seedProject([{ kind: "text", value: { key: K("title") }, x: 8, y: 5 }]);
+  const project = () => useAccountStore.getState().account.projects[0]!;
+  useAccountStore.setState((s) => {
+    s.account.projects[0]!.menus[0]!.vanillaTexture = false;
+    return { account: { ...s.account } };
+  });
+  render(<LayersPanel projectId={PACK_ID} menuId={MENU_ID} />);
+  const rows = screen.getAllByTestId(/vanilla-texture-layer|layer-row-wrapper/);
+  expect(rows[0]).toHaveAttribute("data-testid", "vanilla-texture-layer");
+
+  vi.spyOn(window, "confirm").mockReturnValue(true);
+  fireEvent.click(screen.getByRole("button", { name: /^vanilla$/i }));
+  expect(project().menus[0]!.vanillaTexture).toBeUndefined();
+});
+
 describe("LayersPanel — body", () => {
   it("shows AddLayerControls + empty LayerEditForm hint for the provided menu", () => {
     render(<LayersPanel projectId={PACK_ID} menuId={MENU_ID} />);

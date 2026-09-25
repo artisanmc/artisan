@@ -23,7 +23,13 @@ open class ResourcePackManager(
      *  backend outage (previously `currentPackInfo` was only ever set from
      *  `hello_ack`, so a backend-down boot pushed nothing). */
     private val cacheFile: java.io.File? = null,
+    /** Records the packs pushed here, so a player counts once one of them is loaded. */
+    private val packLoads: PackLoadTracker? = null,
 ) : Listener {
+    init {
+        packLoads?.delegated = delegator != null
+    }
+
 
     @Volatile
     var currentPackInfo: ResourcePackInfo? = null
@@ -229,6 +235,7 @@ open class ResourcePackManager(
         }
         try {
             logger?.info("[resource-pack] pushing project to ${player.name}: ${info.url} hash=${info.hash}")
+            packLoads?.pushed(info.uuid)
             addProject(player, info)
         } catch (t: Throwable) {
             logger?.warning("[resource-pack] addResourcePack failed for ${player.name}: ${t.message}")

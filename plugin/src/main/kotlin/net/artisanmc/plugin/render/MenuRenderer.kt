@@ -272,7 +272,7 @@ object MenuRenderer {
         // Ancre vide : le contenu part par paquets. Enregistrée avant l'ouverture,
         // dont les paquets doivent déjà être réécrits ; retirée si un autre
         // plugin a annulé l'ouverture (sinon sa prochaine fenêtre serait prise).
-        windows?.open(player, inv, content)
+        windows?.open(player, inv, content, menu.yaml.vanillaTexture)
         player.openInventory(inv)
         if (player.openInventory.topInventory !== inv) windows?.release(player, inv)
         return MenuSession(menu.id, renderCtx.copy(lang = lang, langMap = langMap), activeClicks, slotArgs, content)

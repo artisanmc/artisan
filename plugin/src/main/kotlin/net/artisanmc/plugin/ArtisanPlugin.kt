@@ -41,6 +41,8 @@ open class ArtisanPlugin : JavaPlugin() {
     private lateinit var executor: ActionExecutor
     private lateinit var sessions: MenuSessionStore
     private lateinit var menuWindows: MenuWindows
+    /** Survives `/artisan reload`: the pack manager is swapped, the players' loaded packs are not. */
+    private val packLoads = net.artisanmc.plugin.resourcepack.PackLoadTracker()
     private var packetEventsLoaded = false
     private lateinit var cooldowns: CooldownStore
     private lateinit var commandRegistrar: CommandRegistrar
@@ -177,7 +179,13 @@ open class ArtisanPlugin : JavaPlugin() {
         menuWindows = MenuWindows(
             if (packets) PacketEventsSlotSink { menuWindows.get(it.uniqueId)?.stateId ?: 0 } else ClientSlotSink.None,
         )
-        if (packets) PacketEventsMenuPackets(menuWindows).register()
+        if (packets) {
+            val chestTexture = net.artisanmc.plugin.render.VanillaGuiTitle.Rule(menuWindows) { id ->
+                packLoads.hasLoaded(id) && ::assetCatalog.isInitialized && assetCatalog.transparentChests
+            }
+            PacketEventsMenuPackets(menuWindows, chestTexture).register()
+        }
+        server.pluginManager.registerEvents(packLoads, this)
         saveDefaultConfig()
         api = buildApi(this)
         server.servicesManager.register(ArtisanAPI::class.java, api, this, org.bukkit.plugin.ServicePriority.Normal)
@@ -277,6 +285,7 @@ open class ArtisanPlugin : JavaPlugin() {
             assetCatalog = assetCatalog,
             delegator = delegator,
             cacheFile = java.io.File(dataFolder, "cache/resource-pack.json"),
+            packLoads = packLoads,
         )
         // Restore the last applied project info so push mode survives a restart
         // during a backend outage (a later hello_ack simply refreshes).
@@ -461,6 +470,7 @@ open class ArtisanPlugin : JavaPlugin() {
             assetCatalog = assetCatalog,
             delegator = delegatorReinit,
             cacheFile = java.io.File(dataFolder, "cache/resource-pack.json"),
+            packLoads = packLoads,
         )
         resourcePackManagerReinit.loadFromDisk()
         syncedProviderReinit?.setResourcePackManager(resourcePackManagerReinit)

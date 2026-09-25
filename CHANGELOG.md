@@ -13,6 +13,11 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 - Menus now open an empty inventory and send their content through packets: nothing a menu shows exists on the server, so a crash, death or disconnect with a menu open can never lose or duplicate an item. PacketEvents 2.14.0 is bundled (relocated) — no separate plugin to install, and the `packetevents` soft dependency is gone.
 
+### Added — transparent chest menus (`vanilla_texture`)
+
+- New optional `menu/v1` field `vanilla_texture` (default `true`). Turned off on a chest menu, the whole window becomes transparent in game so the menu can bring its own texture through title images. The editor shows it as the first, fixed **Default texture** row of composed titles, with faint slot outlines on the canvas when off.
+- Since the chest texture is shared by every chest, the resource pack makes it transparent server-wide and the plugin draws the vanilla texture back into the title of every other chest window — only for players who loaded the pack. Every pack now ships the `artisan:vanilla_gui` font for this.
+
 ### Fixed — chest background alignment in the editor
 
 - The player inventory part of chest menus was drawn 1 pixel below its slots. The editor now crops the vanilla texture exactly like Minecraft does.
