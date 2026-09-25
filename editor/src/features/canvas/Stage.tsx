@@ -1,5 +1,6 @@
 import { EmptyState } from "@/components/ui/empty-state";
 import type { ElementId, MenuId, ProjectId } from "@/domain/types";
+import { useCssVar } from "@/lib/themeColors";
 import { useAccountStore } from "@/state/accountStore";
 import { useEdgeSelectionStore } from "@/state/edgeSelectionStore";
 import { useHoverStore } from "@/state/hoverStore";
@@ -13,7 +14,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 // accidentally starting a node drag when pressed over a menu.
 Konva.dragButtons = [0];
 import { useTranslation } from "react-i18next";
-import { Stage as KonvaStage, Layer } from "react-konva";
+import { Stage as KonvaStage, Layer, Text } from "react-konva";
 import { toast } from "sonner";
 import { AlignmentGuides } from "./AlignmentGuidesOverlay";
 import { ArmedBanner } from "./ArmedBanner";
@@ -32,7 +33,7 @@ import { NewCommandDialog } from "./NewCommandDialog";
 import { NewDialogDialog } from "./NewDialogDialog";
 import { NewMenuDialog } from "./NewMenuDialog";
 import { Selection } from "./Selection";
-import { autoLayout } from "./autoLayout";
+import { projectBoard } from "./autoLayout";
 import { dismissInspector, openProjectSettings } from "@/features/project/projectSettings";
 import { dispatchOpenElement } from "./canvasEvents";
 import { fitViewport } from "./focusViewport";
@@ -164,15 +165,18 @@ function StageCanvas({ projectId, focus }: StageProps) {
   }, [projectId, viewport, focusMode]);
 
   /**
-   * Toute la différence planche / focus tient ici. La planche lit
-   * l'appartenance réelle (`canvasLayout` via `autoLayout`) ; le focus
+   * Toute la différence planche / focus tient ici. La planche montre tous les
+   * Documents, arrangés (`projectBoard`), `canvasLayout` ne gardant que les
+   * positions posées à la main ; le focus
    * fabrique une planche synthétique d'un seul Document posé à l'origine.
    * Tout ce qui suit — arêtes, pastilles hors-planche, marquee, hit-test,
    * dépôt — consomme cette table et suit sans le savoir.
    */
+  const gutterColor = useCssVar("--text-mut");
+  const board = useMemo(() => (focus || !project ? null : projectBoard(project)), [project, focus]);
   const layout = useMemo(
-    () => (focus ? { [focus]: { x: 0, y: 0 } } : project ? autoLayout(project) : {}),
-    [project, focus],
+    () => (focus ? { [focus]: { x: 0, y: 0 } } : (board?.layout ?? {})),
+    [board, focus],
   );
 
   // Cadrage initial du Document focalisé : centré, réduit seulement s'il ne
@@ -411,22 +415,24 @@ function StageCanvas({ projectId, focus }: StageProps) {
                 >
                   {t("canvas.newDialog")}
                 </button>
-                {project.menus.length + project.commands.length + project.dialogs.length > 0 && (
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-sm"
-                    onClick={() => useAccountStore.getState().arrangeAllOnBoard({ projectId })}
-                  >
-                    {t("projectPanel.arrangeAll")}
-                  </button>
-                )}
               </div>
             }
           />
         </div>
       )}
       <ArmedBanner />
-      <CanvasToolbar />
+      <CanvasToolbar
+        onRearrange={
+          focusMode
+            ? undefined
+            : () => useAccountStore.getState().releaseBoardPositions({ projectId })
+        }
+        rearrangeDisabled={
+          !project ||
+          (Object.keys(project.canvasLayout).length === 0 &&
+            Object.keys(project.canvasEdges ?? {}).length === 0)
+        }
+      />
       {!focusMode && minimapVisible && size.w > 0 && size.h > 0 && (
         <CanvasMinimap
           boxes={Object.keys(layout).flatMap((id) => {
@@ -492,6 +498,16 @@ function StageCanvas({ projectId, focus }: StageProps) {
       >
         <Layer name="edges">
           <Edges project={project} layout={layout} />
+          {board?.gutter && (
+            <Text
+              x={board.gutter.x}
+              y={board.gutter.y}
+              text={t("canvas.gutter")}
+              fontSize={14}
+              fill={gutterColor}
+              listening={false}
+            />
+          )}
         </Layer>
         <Layer name="menus" imageSmoothingEnabled={false}>
           {project.menus.filter((menu) => layout[menu.id]).map((menu) => (
@@ -527,7 +543,6 @@ function StageCanvas({ projectId, focus }: StageProps) {
           <GhostChips
             project={project}
             layout={layout}
-            projectId={projectId}
             // En focus, tous les liens du Document sont hors-planche : la
             // pastille devient le moyen de circuler de Document en Document,
             // au lieu de peupler une planche qu'on ne regarde pas.

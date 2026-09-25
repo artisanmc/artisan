@@ -5,6 +5,7 @@ import { useAccountStore } from "@/state/accountStore";
 import { useAlignmentStore } from "@/state/alignmentStore";
 import { alignmentGuides, type Box } from "./alignmentGuides";
 import { nodeBox } from "./menuLayout";
+import { autoLayout } from "./autoLayout";
 
 const THRESHOLD = 8;
 
@@ -21,7 +22,7 @@ export function computeAndApplyAlignment(
   }
   const project = useAccountStore.getState().account.projects.find((p) => p.id === projectId);
   if (!project) return;
-  const layout = project.canvasLayout as Record<string, { x: number; y: number }>;
+  const layout = autoLayout(project);
   const selfBox = nodeBox(project, selfId, layout);
   if (!selfBox) return;
   const dragged: Box = { x: node.x(), y: node.y(), width: selfBox.width, height: selfBox.height };

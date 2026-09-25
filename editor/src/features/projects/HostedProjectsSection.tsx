@@ -43,9 +43,9 @@ export function HostedProjectsSection({ networkId }: { networkId: string }) {
     importProject: () => {
       throw new Error("storage_required");
     },
-    persistImport: (file, target) =>
+    persistImport: (file, target, options) =>
       ownerId
-        ? importHostedProject(file, networkId, version, ownerId, target)
+        ? importHostedProject(file, networkId, version, ownerId, target, options)
         : Promise.reject(new Error("not_authenticated")),
     onImported: ({ newId, urlId }) => {
       useNetworksStore.getState().bumpRefresh();

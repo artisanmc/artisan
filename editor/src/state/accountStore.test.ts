@@ -1,6 +1,5 @@
 import { dialogId, elementId, menuId, projectId } from "@/domain/ids";
 import type { I18nKey, MenuTitleLayer } from "@/domain/types";
-import { gridArrange } from "@/features/canvas/autoLayout";
 import { mockAccount } from "@/mock/fixtures";
 import { produce } from "immer";
 import { beforeEach, describe, expect, it } from "vitest";
@@ -2117,36 +2116,40 @@ describe("accountStore", () => {
   });
 });
 
-describe("accountStore — board membership", () => {
+describe("accountStore — positions de la planche", () => {
   const P = projectId("p_personal");
+  const project = () => useAccountStore.getState().account.projects.find((p) => p.id === P)!;
 
   beforeEach(() => {
     localStorage.clear();
     useAccountStore.setState({ account: mockAccount() });
+    useAccountStore.temporal.getState().clear();
   });
 
-  it("addToBoard écrit une entrée canvasLayout sans toucher au reste du project", () => {
-    useAccountStore.getState().addToBoard({ projectId: P, nodeId: "m_about", x: 5, y: 6 });
-    const project = useAccountStore.getState().account.projects.find((p) => p.id === P)!;
-    expect(project.canvasLayout["m_about" as keyof typeof project.canvasLayout]).toEqual({
-      x: 5,
-      y: 6,
+  it("releaseBoardPositions libère toutes les positions posées à la main, sans toucher aux Documents", () => {
+    useAccountStore.getState().setCanvasPosition({ projectId: P, nodeId: "m_about", x: 5, y: 6 });
+    const menus = project().menus.map((m) => m.id);
+    useAccountStore.getState().releaseBoardPositions({ projectId: P });
+    expect(project().canvasLayout).toEqual({});
+    expect(project().menus.map((m) => m.id)).toEqual(menus);
+  });
+
+  it("releaseBoardPositions libère aussi les ancres de liens forcées", () => {
+    useAccountStore.getState().setEdgeAnchor({
+      projectId: P,
+      edgeId: "m_shop_main->m_profile",
+      end: "from",
+      anchor: { side: "bottom", t: 0.5 },
     });
-    expect(project.menus.some((m) => m.id === "m_about")).toBe(true);
+    expect(Object.keys(project().canvasEdges ?? {})).toHaveLength(1);
+    useAccountStore.getState().releaseBoardPositions({ projectId: P });
+    expect(project().canvasEdges ?? {}).toEqual({});
   });
 
-  it("removeFromBoard retire l'entrée canvasLayout MAIS garde l'élément dans le project", () => {
-    useAccountStore.getState().addToBoard({ projectId: P, nodeId: "m_about", x: 5, y: 6 });
-    useAccountStore.getState().removeFromBoard({ projectId: P, nodeId: "m_about" });
-    const project = useAccountStore.getState().account.projects.find((p) => p.id === P)!;
-    expect("m_about" in project.canvasLayout).toBe(false);
-    expect(project.menus.some((m) => m.id === "m_about")).toBe(true);
-  });
-
-  it("arrangeAllOnBoard remplit canvasLayout pour tous les éléments via gridArrange", () => {
-    useAccountStore.getState().arrangeAllOnBoard({ projectId: P });
-    const project = useAccountStore.getState().account.projects.find((p) => p.id === P)!;
-    const expected = gridArrange(project);
-    expect(Object.keys(project.canvasLayout).sort()).toEqual(Object.keys(expected).sort());
+  it("releaseBoardPositions s'annule : les positions reviennent", () => {
+    useAccountStore.getState().setCanvasPosition({ projectId: P, nodeId: "m_about", x: 5, y: 6 });
+    useAccountStore.getState().releaseBoardPositions({ projectId: P });
+    useAccountStore.temporal.getState().undo();
+    expect((project().canvasLayout as Record<string, unknown>).m_about).toEqual({ x: 5, y: 6 });
   });
 });

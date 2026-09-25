@@ -26,14 +26,14 @@ function project(): Project {
   } as Project;
 }
 
-describe("Stage — board membership", () => {
+describe("Stage — planche dérivée", () => {
   beforeEach(() => {
     useAccountStore.setState({ account: { id: "a" as any, projects: [project()], projectOrder: [PID] } } as any);
   });
-  it("ne rend QUE les éléments présents dans canvasLayout", () => {
+  it("rend tous les Documents du project, même ceux jamais posés à la main", () => {
     render(<Stage projectId={PID} />);
     const names = screen.getAllByTestId("konva-group").map((g) => g.getAttribute("data-name"));
     expect(names).toContain("menu:m1");
-    expect(names).not.toContain("menu:m2");
+    expect(names).toContain("menu:m2");
   });
 });

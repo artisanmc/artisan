@@ -1,0 +1,469 @@
+import type { Project } from "@/domain/types";
+import type { ProjectId } from "@/domain/types";
+import { CommandGroup } from "@/features/canvas/CommandGroup";
+import { DialogGroup } from "@/features/canvas/DialogGroup";
+import { MenuGroup } from "@/features/canvas/MenuGroup";
+import { GUTTER_LABEL_HEIGHT, arrangeBoard } from "@/features/canvas/arrangeBoard";
+import type { Edge } from "@/features/canvas/deriveEdges";
+import { type Box, routeEdges } from "@/features/canvas/edgeRouting";
+import { fitViewport } from "@/features/canvas/focusViewport";
+import {
+  type BoardNode,
+  type DocumentKind,
+  deriveServerGraph,
+} from "@/features/canvas/serverGraph";
+import { usePanZoom } from "@/features/canvas/usePanZoom";
+import { useProjectLoader } from "@/features/project/useProjectLoader";
+import { diskProjectsToSummaries } from "@/features/projects/projectGroups";
+import { type ProjectSummary, getNetwork } from "@/lib/api/networks";
+import { listServerProjects } from "@/lib/api/projectFiles";
+import { projectUrlId } from "@/lib/projectUrlId";
+import { useCssVar } from "@/lib/themeColors";
+import { useUiStore } from "@/state/uiStore";
+import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router";
+import type Konva from "konva";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { Arrow, Stage as KonvaStage, Layer, Rect, Text } from "react-konva";
+import { type BoardFilter, filterBoard, parseBoardFilter } from "./boardFilter";
+
+const ROUTE = "/networks/$networkId/servers/$serverId/canvas" as const;
+const KINDS: DocumentKind[] = ["menu", "command", "dialog"];
+
+export const validateServerCanvasSearch = (search: Record<string, unknown>): BoardFilter =>
+  parseBoardFilter(search);
+
+interface ProbeResult {
+  project: Project | null;
+  failed: boolean;
+}
+
+/** Charge un project exactement comme sa propre vue (disque + brouillon), pour que la planche montre la même chose. */
+function ProjectProbe({
+  loadRef,
+  serverId,
+  networkId,
+  onResult,
+}: {
+  loadRef: string;
+  serverId: string;
+  networkId: string;
+  onResult: (loadRef: string, result: ProbeResult) => void;
+}) {
+  const { project, error, offline } = useProjectLoader(loadRef, serverId, networkId);
+  const failed = error != null || offline;
+  useEffect(() => onResult(loadRef, { project, failed }), [loadRef, project, failed, onResult]);
+  return null;
+}
+
+export function ServerCanvasPage() {
+  const { t } = useTranslation();
+  const { networkId, serverId } = useParams({ from: ROUTE });
+  const filter = useSearch({ from: ROUTE }) as BoardFilter;
+  const navigate = useNavigate();
+
+  const [summaries, setSummaries] = useState<ProjectSummary[] | null>(null);
+  const [listing, setListing] = useState<"loading" | "ready" | "unavailable">("loading");
+  const [results, setResults] = useState<Record<string, ProbeResult>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+    setListing("loading");
+    getNetwork(networkId)
+      .then(async (network) => {
+        const key = network.serverKeys.find((k) => k.slug === serverId || k.id === serverId);
+        if (!key) throw new Error("unknown_server");
+        const res = await listServerProjects(networkId, key.id);
+        if (cancelled) return;
+        if (!res.ok) {
+          setListing("unavailable");
+          return;
+        }
+        setSummaries(diskProjectsToSummaries(networkId, key.id, res.projectIds, res.projects));
+        setListing("ready");
+      })
+      .catch(() => {
+        if (!cancelled) setListing("unavailable");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [networkId, serverId]);
+
+  const onResult = useCallback((loadRef: string, result: ProbeResult) => {
+    setResults((prev) => {
+      const current = prev[loadRef];
+      if (current && current.project === result.project && current.failed === result.failed)
+        return prev;
+      return { ...prev, [loadRef]: result };
+    });
+  }, []);
+
+  const refs = useMemo(() => (summaries ?? []).map((s) => projectUrlId(s)), [summaries]);
+  const done = refs.filter((ref) => results[ref]?.project || results[ref]?.failed).length;
+  const failedCount = refs.filter((ref) => results[ref]?.failed && !results[ref]?.project).length;
+  const settled = listing === "ready" && done === refs.length;
+
+  const projects = useMemo(
+    () => refs.map((ref) => results[ref]?.project).filter((p): p is Project => p != null),
+    [refs, results],
+  );
+
+  const graph = useMemo(() => deriveServerGraph(projects), [projects]);
+  const visible = useMemo(() => filterBoard(graph, filter), [graph, filter]);
+  const arrangement = useMemo(
+    () => (settled ? arrangeBoard({ nodes: visible.nodes, edges: visible.edges }) : null),
+    [settled, visible],
+  );
+
+  const setFilter = (next: BoardFilter) =>
+    navigate({ to: ROUTE, params: { networkId, serverId }, search: next, replace: true });
+
+  const status =
+    listing === "loading"
+      ? t("serverCanvas.listing")
+      : listing === "unavailable"
+        ? t("serverCanvas.unavailable")
+        : !settled
+          ? t("serverCanvas.loading", { done, total: refs.length })
+          : null;
+
+  return (
+    <div className="flex h-full min-h-0 flex-col bg-[var(--bg)]">
+      {summaries?.map((s) => (
+        <ProjectProbe
+          key={projectUrlId(s)}
+          loadRef={projectUrlId(s)}
+          serverId={serverId}
+          networkId={networkId}
+          onResult={onResult}
+        />
+      ))}
+      <header className="flex flex-wrap items-center gap-2 border-b border-[var(--border)] px-4 py-3">
+        <Link
+          to="/networks/$networkId/servers/$serverId"
+          params={{ networkId, serverId }}
+          className="btn-ghost btn-sm"
+        >
+          ← {t("serverCanvas.back")}
+        </Link>
+        <h1 className="text-[15px] font-semibold text-[var(--text)]">{t("serverCanvas.title")}</h1>
+        <span className="text-[12px] text-[var(--text-mut)]">{t("serverCanvas.readOnly")}</span>
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            className={`chip${filter.project ? "" : " is-active"}`}
+            onClick={() => setFilter({ ...filter, project: undefined })}
+          >
+            {t("serverCanvas.allProjects")}
+          </button>
+          {projects.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              className={`chip${filter.project === p.id ? " is-active" : ""}`}
+              onClick={() => setFilter({ ...filter, project: p.id })}
+            >
+              {p.name}
+            </button>
+          ))}
+          <span className="mx-1 h-4 w-px bg-[var(--border)]" />
+          <button
+            type="button"
+            className={`chip${filter.kind ? "" : " is-active"}`}
+            onClick={() => setFilter({ ...filter, kind: undefined })}
+          >
+            {t("serverCanvas.allKinds")}
+          </button>
+          {KINDS.map((kind) => (
+            <button
+              key={kind}
+              type="button"
+              className={`chip${filter.kind === kind ? " is-active" : ""}`}
+              onClick={() => setFilter({ ...filter, kind })}
+            >
+              {t(`serverCanvas.kinds.${kind}`)}
+            </button>
+          ))}
+          <input
+            className="input h-8 w-44"
+            placeholder={t("serverCanvas.search")}
+            value={filter.q ?? ""}
+            onChange={(e) => setFilter({ ...filter, q: e.target.value || undefined })}
+          />
+        </div>
+      </header>
+      <div className="flex items-center gap-3 px-4 py-1.5 text-[12px] text-[var(--text-mut)]">
+        {status ??
+          t("serverCanvas.stats", { documents: visible.nodes.length, links: visible.edges.length })}
+        {settled && graph.unresolved.length > 0 && (
+          <span className="badge badge-amber" title={t("serverCanvas.unresolvedHint")}>
+            {t("serverCanvas.unresolved", { count: graph.unresolved.length })}
+          </span>
+        )}
+        {failedCount > 0 && (
+          <span className="badge badge-brick">
+            {t("serverCanvas.failed", { count: failedCount })}
+          </span>
+        )}
+      </div>
+      <div className="relative min-h-0 flex-1">
+        {arrangement &&
+          (visible.nodes.length === 0 ? (
+            <p className="p-6 text-[13px] text-[var(--text-mut)]">
+              {graph.nodes.length === 0 ? t("serverCanvas.empty") : t("serverCanvas.noMatch")}
+            </p>
+          ) : (
+            <Board
+              storageKey={`server-board:${networkId}/${serverId}`}
+              projects={projects}
+              nodes={visible.nodes}
+              edges={visible.edges.map((e) => ({
+                ...e.edge,
+                id: e.id,
+                source: e.source,
+                target: e.target,
+              }))}
+              positions={arrangement.positions}
+              gutter={arrangement.gutter}
+              gutterLabel={t("serverCanvas.gutter")}
+              onOpen={(node) => {
+                const project = projects.find((p) => p.id === node.projectId);
+                if (!project) return;
+                void navigate({
+                  to: "/networks/$networkId/servers/$serverId/projects/$projectId/document/$documentId",
+                  params: {
+                    networkId,
+                    serverId,
+                    projectId: projectUrlId(project),
+                    documentId: node.docId,
+                  },
+                });
+              }}
+            />
+          ))}
+      </div>
+    </div>
+  );
+}
+
+function Board({
+  storageKey,
+  projects,
+  nodes,
+  edges,
+  positions,
+  gutter,
+  gutterLabel,
+  onOpen,
+}: {
+  storageKey: string;
+  projects: Project[];
+  nodes: BoardNode[];
+  edges: Edge[];
+  positions: Record<string, { x: number; y: number }>;
+  gutter: { x: number; y: number } | null;
+  gutterLabel: string;
+  onOpen: (node: BoardNode) => void;
+}) {
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const stageRef = useRef<Konva.Stage>(null);
+  const [size, setSize] = useState({ w: 0, h: 0 });
+  const saved = useUiStore.getState().canvasViewports[storageKey];
+  const { viewport, setViewport, onWheel } = usePanZoom(saved);
+  const fitted = useRef(saved != null);
+  const [hovered, setHovered] = useState<string | null>(null);
+  const edgeColor = useCssVar("--border-strong");
+  const brand = useCssVar("--brand");
+  const muted = useCssVar("--text-mut");
+
+  useEffect(() => {
+    if (!wrapperRef.current) return;
+    const ro = new ResizeObserver(([entry]) => {
+      if (entry) setSize({ w: entry.contentRect.width, h: entry.contentRect.height });
+    });
+    ro.observe(wrapperRef.current);
+    return () => ro.disconnect();
+  }, []);
+
+  useEffect(() => {
+    useUiStore.getState().setCanvasViewport(storageKey as ProjectId, viewport);
+  }, [storageKey, viewport]);
+
+  const bounds = useMemo(() => {
+    let width = 0;
+    let height = 0;
+    for (const n of nodes) {
+      const p = positions[n.key];
+      if (!p) continue;
+      width = Math.max(width, p.x + n.width);
+      height = Math.max(height, p.y + n.height);
+    }
+    return { width: width + 40, height: height + 40 };
+  }, [nodes, positions]);
+
+  useEffect(() => {
+    if (fitted.current || size.w === 0) return;
+    fitted.current = true;
+    setViewport(fitViewport(size, bounds));
+  }, [size, bounds, setViewport]);
+
+  const boxes = useMemo(() => {
+    const out: Record<string, Box> = {};
+    for (const n of nodes) {
+      const p = positions[n.key];
+      if (p) out[n.key] = { ...p, width: n.width, height: n.height };
+    }
+    return out;
+  }, [nodes, positions]);
+  const routed = useMemo(() => routeEdges({ edges, boxes }), [edges, boxes]);
+
+  const byProject = useMemo(() => new Map(projects.map((p) => [p.id as string, p])), [projects]);
+  const layouts = useMemo(() => {
+    const out = new Map<string, Record<string, { x: number; y: number }>>();
+    for (const n of nodes) {
+      const p = positions[n.key];
+      if (!p) continue;
+      const layout = out.get(n.projectId) ?? {};
+      layout[n.docId] = p;
+      out.set(n.projectId, layout);
+    }
+    return out;
+  }, [nodes, positions]);
+  const showProvenance = projects.length > 1;
+
+  return (
+    <div
+      ref={wrapperRef}
+      className="absolute inset-0"
+      style={{ cursor: hovered ? "pointer" : "grab" }}
+    >
+      <KonvaStage
+        ref={stageRef}
+        width={size.w}
+        height={size.h}
+        x={viewport.x}
+        y={viewport.y}
+        scaleX={viewport.scale}
+        scaleY={viewport.scale}
+        draggable
+        dragDistance={4}
+        onWheel={onWheel}
+        onDragEnd={(e) => {
+          const stage = stageRef.current;
+          if (!stage || e.target !== stage) return;
+          setViewport({ x: stage.x(), y: stage.y(), scale: stage.scaleX() });
+        }}
+      >
+        <Layer listening={false}>
+          {routed.map((r) => (
+            <Arrow
+              key={r.edge.id}
+              points={r.points}
+              bezier
+              stroke={
+                hovered && (r.edge.source === hovered || r.edge.target === hovered)
+                  ? brand
+                  : edgeColor
+              }
+              fill={
+                hovered && (r.edge.source === hovered || r.edge.target === hovered)
+                  ? brand
+                  : edgeColor
+              }
+              strokeWidth={1.5}
+              pointerLength={9}
+              pointerWidth={8}
+            />
+          ))}
+          {gutter && (
+            <Text
+              x={gutter.x}
+              y={gutter.y}
+              text={gutterLabel}
+              fontSize={14}
+              fill={muted}
+              height={GUTTER_LABEL_HEIGHT}
+            />
+          )}
+        </Layer>
+        {/* Rendu identique aux vues project, mais sans aucun geste : un calque
+            qui n'écoute rien ne peut ni déplacer un menu ni en modifier un slot. */}
+        <Layer listening={false} imageSmoothingEnabled={false}>
+          {nodes.map((n) => {
+            const project = byProject.get(n.projectId);
+            const position = positions[n.key];
+            if (!project || !position) return null;
+            if (n.kind === "menu") {
+              const menu = project.menus.find((m) => m.id === n.docId);
+              return menu ? (
+                <MenuGroup
+                  key={n.key}
+                  projectId={project.id}
+                  menu={menu}
+                  position={position}
+                  layout={layouts.get(n.projectId) ?? {}}
+                />
+              ) : null;
+            }
+            if (n.kind === "command") {
+              const command = project.commands.find((c) => c.id === n.docId);
+              return command ? (
+                <CommandGroup
+                  key={n.key}
+                  projectId={project.id}
+                  command={command}
+                  position={position}
+                />
+              ) : null;
+            }
+            const dialog = (project.dialogs ?? []).find((d) => d.id === n.docId);
+            return dialog ? (
+              <DialogGroup key={n.key} projectId={project.id} dialog={dialog} position={position} />
+            ) : null;
+          })}
+        </Layer>
+        <Layer>
+          {nodes.map((n) => {
+            const p = positions[n.key];
+            if (!p) return null;
+            const isHovered = hovered === n.key;
+            return (
+              <Rect
+                key={n.key}
+                x={p.x}
+                y={p.y}
+                width={n.width}
+                height={n.height}
+                fill="transparent"
+                stroke={isHovered ? brand : undefined}
+                strokeWidth={isHovered ? 2 : 0}
+                onMouseEnter={() => setHovered(n.key)}
+                onMouseLeave={() => setHovered((h) => (h === n.key ? null : h))}
+                onClick={() => onOpen(n)}
+                onTap={() => onOpen(n)}
+              />
+            );
+          })}
+          {showProvenance &&
+            nodes.map((n) => {
+              const p = positions[n.key];
+              const project = byProject.get(n.projectId);
+              if (!p || !project) return null;
+              return (
+                <Text
+                  key={`${n.key}:provenance`}
+                  x={p.x}
+                  y={p.y - 16}
+                  text={project.name}
+                  fontSize={11}
+                  fill={muted}
+                  listening={false}
+                />
+              );
+            })}
+        </Layer>
+      </KonvaStage>
+    </div>
+  );
+}
