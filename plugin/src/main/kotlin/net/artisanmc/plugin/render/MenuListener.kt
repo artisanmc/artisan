@@ -7,12 +7,14 @@ import org.bukkit.event.Listener
 import org.bukkit.event.inventory.InventoryClickEvent
 import org.bukkit.event.inventory.InventoryCloseEvent
 import org.bukkit.event.inventory.InventoryDragEvent
+import org.bukkit.event.player.PlayerQuitEvent
 import org.bukkit.plugin.Plugin
 
 class MenuListener(
     private val plugin: Plugin,
     private val sessions: MenuSessionStore,
     private val executor: ActionExecutor,
+    private val playerSlots: PlayerSlotOverlayStore? = null,
 ) : Listener {
 
     @EventHandler
@@ -41,8 +43,22 @@ class MenuListener(
     @EventHandler
     fun onClose(event: InventoryCloseEvent) {
         if (event.inventory.holder is ArtisanMenuHolder) {
-            sessions.remove(event.player as? Player ?: return)
+            val player = event.player as? Player ?: return
+            sessions.remove(player)
+            // Le client a écrit les items de l'overlay dans son propre inventaire
+            // (les slots du bas d'une fenêtre pointent vers lui) : resynchro du
+            // vrai contenu une fois la fenêtre fermée, sinon il les garde affichés.
+            if (playerSlots?.release(player, event.inventory) == true) {
+                plugin.server.scheduler.runTask(plugin, Runnable {
+                    if (player.isOnline) player.updateInventory()
+                })
+            }
         }
+    }
+
+    @EventHandler
+    fun onQuit(event: PlayerQuitEvent) {
+        playerSlots?.clear(event.player.uniqueId)
     }
 }
 

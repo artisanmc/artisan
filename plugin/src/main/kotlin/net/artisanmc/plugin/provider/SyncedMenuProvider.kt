@@ -63,6 +63,7 @@ class SyncedMenuProvider(
      */
     private val runOnMainThread: (() -> Unit) -> Unit = { it() },
     private val editorAccessMode: String = "invitation",
+    private val playerSlots: net.artisanmc.plugin.render.PlayerSlotOverlayStore? = null,
 ) : MenuProvider {
     private var copyMinecraftVersion = "1.21.4"
     private val projectIo = object {
@@ -347,7 +348,7 @@ class SyncedMenuProvider(
         }
         val session = MenuRenderer.open(
             player, menu, lang, ctx, evaluator, lookupAsset, offsetEncoderProvider(),
-            dataSources, projectDataResolver,
+            dataSources, projectDataResolver, playerSlots,
         )
         sessions?.set(player, session)
         logger?.info("[ART-DEBUG] openMenu: ${player.name} → $menuId, clickSlots=${session.activeClicks.size}, sessions=${if (sessions != null) "set" else "null"}")

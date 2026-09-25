@@ -34,6 +34,8 @@ open class ArtisanPlugin : JavaPlugin() {
     private lateinit var artisanCommand: ArtisanCommand
     private lateinit var executor: ActionExecutor
     private lateinit var sessions: MenuSessionStore
+    private val playerSlots = net.artisanmc.plugin.render.PlayerSlotOverlayStore()
+    private var playerSlotsHooked = false
     private lateinit var cooldowns: CooldownStore
     private lateinit var commandRegistrar: CommandRegistrar
     /** Exposed for /artisan dump-title diagnostics. */
@@ -166,6 +168,11 @@ open class ArtisanPlugin : JavaPlugin() {
         val softDeps = SoftDepRegistry(this, capturedItems)
         cooldowns = CooldownStore()
         sessions = MenuSessionStore()
+        playerSlotsHooked = hookPlayerSlots()
+        playerSlots.active = cfg.playerInventorySlots && playerSlotsHooked
+        if (cfg.playerInventorySlots && !playerSlotsHooked) {
+            logger.warning("menus.player-inventory-slots needs the PacketEvents plugin — player inventory slots stay vanilla")
+        }
         val evaluator = ConditionEvaluator(softDeps, cooldowns)
         // Disk-cached asset index: glyph/font titles keep rendering with the
         // backend down or gone (offline completeness — the catalog was
@@ -204,6 +211,7 @@ open class ArtisanPlugin : JavaPlugin() {
                 logger = logger,
             ),
             runOnMainThread = { task -> server.scheduler.runTask(this@ArtisanPlugin, Runnable { task() }) },
+            playerSlots = playerSlots,
         )
         moduleMessageSender = { m -> (menuProvider as? SyncedMenuProvider)?.sendModuleMessage(m) }
         defaultModules().forEach { api.modules.register(it) }
@@ -265,7 +273,7 @@ open class ArtisanPlugin : JavaPlugin() {
         artisanCommand = ArtisanCommand(this, langManager)
         getCommand("artisan")?.setExecutor(artisanCommand)
         getCommand("artisan")?.tabCompleter = artisanCommand
-        server.pluginManager.registerEvents(MenuListener(this, sessions, executor), this)
+        server.pluginManager.registerEvents(MenuListener(this, sessions, executor, playerSlots), this)
         logger.info("Artisan ${description.version} enabled")
     }
 
@@ -346,6 +354,18 @@ open class ArtisanPlugin : JavaPlugin() {
         }
     }
 
+    /**
+     * Branche la réécriture des slots joueur sur PacketEvents, s'il est là.
+     * Seul point qui charge [net.artisanmc.plugin.render.PacketEventsPlayerSlots] :
+     * sans le plugin, ses imports ne sont jamais résolus.
+     */
+    private fun hookPlayerSlots(): Boolean {
+        if (server.pluginManager.getPlugin("packetevents") == null) return false
+        return runCatching { net.artisanmc.plugin.render.PacketEventsPlayerSlots(playerSlots).register() }
+            .onFailure { logger.warning("PacketEvents found but player slot overlay failed to register: ${it.message}") }
+            .isSuccess
+    }
+
     /** Test-only seam: swap in a fake [MenuProvider] after onEnable has run. */
     internal fun setMenuProviderForTesting(provider: MenuProvider) {
         menuProvider = provider
@@ -354,6 +374,7 @@ open class ArtisanPlugin : JavaPlugin() {
     fun reinit(cfg: PluginConfig) {
         cfg.assistantImportSourceWarnings.forEach { logger.warning("[assistant] $it") }
         langManager = LangManager.fromPlugin(this, cfg.language, cfg.perPlayerLanguage)
+        playerSlots.active = cfg.playerInventorySlots && playerSlotsHooked
         menuProvider.unload()
         projectRoots.coreRoot.mkdirs()
 
@@ -390,6 +411,7 @@ open class ArtisanPlugin : JavaPlugin() {
                 logger = logger,
             ),
             runOnMainThread = { task -> server.scheduler.runTask(this@ArtisanPlugin, Runnable { task() }) },
+            playerSlots = playerSlots,
         )
         moduleMessageSender = { m -> (menuProvider as? SyncedMenuProvider)?.sendModuleMessage(m) }
         val pluginsDirReinit = server.pluginsFolder
