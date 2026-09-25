@@ -15,6 +15,8 @@ interface TopBarKebabMenuProps {
   onExportZip: () => void;
   onOpenPatterns: () => void;
   onDelete?: () => void;
+  onTour?: () => void;
+  tourCanResume?: boolean;
 }
 
 export function TopBarKebabMenu({
@@ -24,11 +26,14 @@ export function TopBarKebabMenu({
   onExportZip,
   onOpenPatterns,
   onDelete,
+  onTour,
+  tourCanResume,
 }: TopBarKebabMenuProps) {
   const { t } = useTranslation();
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
+        data-tour="project-menu"
         aria-label={t("topbar.more")}
         className="flex h-9 w-9 items-center justify-center rounded-[10px] text-[var(--text-mut)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
       >
@@ -45,6 +50,11 @@ export function TopBarKebabMenu({
         <DropdownMenuItem onSelect={onExportZip}>{t("topbar.exportZip")}</DropdownMenuItem>
         {onImport && <DropdownMenuItem onSelect={onImport}>{t("topbar.import")}</DropdownMenuItem>}
         <DropdownMenuItem onSelect={onOpenPatterns}>{t("patterns.title")}</DropdownMenuItem>
+        {onTour && (
+          <DropdownMenuItem onSelect={onTour}>
+            {t(tourCanResume ? "onboarding.resume" : "onboarding.replay")}
+          </DropdownMenuItem>
+        )}
         {onDelete && <DropdownMenuSeparator />}
         {onDelete && (
           <DropdownMenuItem

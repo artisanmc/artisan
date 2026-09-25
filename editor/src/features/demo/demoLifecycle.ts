@@ -1,3 +1,4 @@
+import { prepareEditorTourAuthentication } from "@/features/onboarding/editorTourRuntime";
 import { flushDraftEdits } from "@/features/project/draftFlush";
 import {
   loadPersistedDrafts,
@@ -86,6 +87,7 @@ export async function prepareDemoAuthentication() {
   await confirmDemoDraft();
   const next = "/demo/projects/demo";
   sessionStorage.setItem(DEMO_AUTH_RETURN, next);
+  prepareEditorTourAuthentication(next);
   return next;
 }
 export async function finishDemoClaim(

@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { createMiddleware } from "hono/factory";
 import { getCookie } from "hono/cookie";
 import { db } from "../db/index";
-import { users } from "../db/schema";
+import { users, type EditorTourState } from "../db/schema";
 import { findSession, touchSession } from "../lib/sessionManager";
 
 export interface AuthUser {
@@ -12,6 +12,7 @@ export interface AuthUser {
   avatarUrl: string | null;
   editorLanguage: string | null;
   theme: string | null;
+  editorTour: EditorTourState | null;
   isAdmin: boolean;
 }
 
@@ -58,6 +59,7 @@ export const userAuth = () => createMiddleware(async (c, next) => {
     avatarUrl: row.avatarUrl,
     editorLanguage: row.editorLanguage,
     theme: row.theme ?? null,
+    editorTour: row.editorTour,
     isAdmin,
   });
   await touchSession(sessionId);

@@ -74,6 +74,10 @@ Live server data, inventory capture and in-game execution require a Minecraft se
 **Import ZIP** explicitly creates a new hosted project in the selected Network.
 The import keeps images, fonts and editor layout bytes. Exported archives include
 published files and binary assets, but exclude private drafts and operation journals.
+If the Network already has a hosted project with the chosen folder name, the import
+dialog says so and offers two choices: import under another folder name (a free
+suggestion is filled in), or **Overwrite** the existing project, which replaces all
+of its content with the archive. The previous version stays in the project's history.
 
 ## Opening a project while its server is offline
 

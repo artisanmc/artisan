@@ -17,14 +17,14 @@ function project(): Project {
 }
 
 describe("buildProjectDocuments", () => {
-  it("groupe par catégorie avec id, label, type et flag onBoard", () => {
+  it("groupe par catégorie avec id, label et type", () => {
     const groups = buildProjectDocuments(project(), "en");
     const menus = groups.find((g) => g.type === "menu")!;
-    expect(menus.items[0]).toMatchObject({ id: "m1", onBoard: true, type: "menu" });
+    expect(menus.items[0]).toMatchObject({ id: "m1", type: "menu" });
     const cmds = groups.find((g) => g.type === "command")!;
-    expect(cmds.items[0]).toMatchObject({ id: "c1", label: "/heal", onBoard: false });
+    expect(cmds.items[0]).toMatchObject({ id: "c1", label: "/heal" });
     const dlgs = groups.find((g) => g.type === "dialog")!;
-    expect(dlgs.items[0]).toMatchObject({ id: "d1", onBoard: false });
+    expect(dlgs.items[0]).toMatchObject({ id: "d1" });
     // dialog label is the id, even though the title resolves to "Confirm"
     expect(dlgs.items[0].label).toBe("d1");
   });

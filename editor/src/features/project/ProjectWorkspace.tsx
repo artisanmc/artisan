@@ -36,6 +36,13 @@ import { pickProjectZipForImport } from "@/features/export/runImportZip";
 import { useProjectZipImport } from "@/features/export/useProjectZipImport";
 import { STATE_DROP_PREFIX } from "@/features/flow/FlowCanvas";
 import { PatternsGallery } from "@/features/help/PatternsGallery";
+import { EditorTour } from "@/features/onboarding/EditorTour";
+import {
+  editorTourController,
+  mountEditorTour,
+  useEditorTourState,
+} from "@/features/onboarding/editorTourRuntime";
+import { useTourPresentation } from "@/features/onboarding/tourPresentation";
 import { CanvasWithInspector } from "@/features/project/CanvasWithInspector";
 import { ProjectLibraryWorkspace } from "@/features/project/ProjectLibrary";
 import { ProjectLoadingSkeleton } from "@/features/project/ProjectLoadingSkeleton";
@@ -57,6 +64,7 @@ import { useIsDesktop } from "@/lib/useMediaQuery";
 import { STALE_NOTICE_DELAY_MS, useSettledFlag } from "@/lib/useSettledFlag";
 import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
+import { useDemoStore } from "@/state/demoStore";
 import { useProjectRuntime } from "@/state/projectRuntimeStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
@@ -122,8 +130,18 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
   const principalId = useProjectPrincipalId(loadRef);
   const runtime = useProjectRuntime(project?.id);
   const authLoading = useAuthStore((s) => s.isLoading);
+  const demo = useDemoStore((s) => s.active && s.session?.projectId === pId);
+  const tourState = useEditorTourState();
+  const tourPresenting = useTourPresentation((s) => s.step !== null);
+  const tourReady = !authLoading && !!principalId && !!project && !loadError && !offline && !stale;
+  const accountId = currentUser?.id ?? null;
+  useEffect(() => {
+    if (!pId) return;
+    return mountEditorTour({ accountId, demo, ready: tourReady });
+  }, [accountId, demo, tourReady, pId]);
   const navigate = useNavigate();
   const { tab = "overview" } = useSearch({ strict: false }) as ProjectSearch;
+  const presentedTab = tourPresenting ? "overview" : tab;
   const exitToCanvas = () =>
     navigate({ to: ".", search: (prev) => ({ ...(prev as object), tab: undefined }) });
   const flowCanvasHeight = useUiStore((s) => s.flowCanvasHeight);
@@ -172,7 +190,7 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
       version: runtime?.minecraftVersion ?? "1.21.4",
     }),
     importProject: importProjectAction as (input: { project: unknown }) => string,
-    persistImport: (file, target) => {
+    persistImport: (file, target, options) => {
       if (!currentUser || !networkId) return Promise.reject(new Error("not_authenticated"));
       return importHostedProject(
         file,
@@ -180,6 +198,7 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
         runtime?.minecraftVersion ?? "1.21.4",
         currentUser.id,
         target,
+        options,
       );
     },
     onImported: ({ newId, urlId, name }) => {
@@ -190,7 +209,7 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
     onError: (error) => {
       if (error.message === "not_a_zip") return toast.error(t("toast.importNotZip"));
       if (error.message === "no_manifest") return toast.error(t("toast.importNoManifest"));
-      toast.error(t("toast.importFailed"));
+      toast.error(t("toast.importFailedCode", { code: error.message }));
     },
   });
   const handleImport = () =>
@@ -397,14 +416,14 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
     <>
       {importDialog}
       <WorkspaceView
-        active={tab === "resources"}
+        active={presentedTab === "resources"}
         onExit={exitToCanvas}
         title={t("project.tabs.resources")}
       >
         <AssetsTab projectId={pId} />
       </WorkspaceView>
       <WorkspaceView
-        active={tab === "translations"}
+        active={presentedTab === "translations"}
         onExit={exitToCanvas}
         title={t("project.tabs.translations")}
       >
@@ -413,7 +432,7 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
         </div>
       </WorkspaceView>
       <WorkspaceView
-        active={tab === "data-sources"}
+        active={presentedTab === "data-sources"}
         onExit={exitToCanvas}
         title={t("project.tabs.dataSources")}
       >
@@ -423,7 +442,7 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
       </WorkspaceView>
       {runtime?.capabilities.canUseAssistant !== false && (
         <WorkspaceView
-          active={tab === "assistant"}
+          active={presentedTab === "assistant"}
           onExit={exitToCanvas}
           title={t("assistant.title")}
         >
@@ -451,7 +470,8 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
   ) : null;
 
   const canvasActive =
-    tab === "overview" && (!documentId || !!project?.menus.some((menu) => menu.id === documentId));
+    presentedTab === "overview" &&
+    (!documentId || !!project?.menus.some((menu) => menu.id === documentId));
 
   const tabContent = (
     // `h-full` (not just `flex-1`) so it fills the content frame — otherwise the
@@ -459,7 +479,10 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
     <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
       {isDesktop ? (
         <ProjectWorkspacePanels projectId={pId} active={canvasActive}>
-          <div className="relative h-full min-h-0 min-w-0 flex-1 overflow-hidden">
+          <div
+            data-tour={canvasActive ? "canvas" : undefined}
+            className="relative h-full min-h-0 min-w-0 flex-1 overflow-hidden"
+          >
             <ProjectLibraryWorkspace
               projectId={pId}
               active={canvasActive}
@@ -476,7 +499,10 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
         <div className="flex h-full flex-col">
           <div className="flex h-10 shrink-0 items-center border-b border-[var(--border-soft)] px-2">
             <Sheet>
-              <SheetTrigger className="btn btn-ghost btn-sm inline-flex items-center gap-1.5">
+              <SheetTrigger
+                data-tour="elements-trigger"
+                className="btn btn-ghost btn-sm inline-flex items-center gap-1.5"
+              >
                 <PanelLeft className="size-4" /> {t("projectPanel.openPanel")}
               </SheetTrigger>
               <SheetContent side="right" className="w-[280px] max-w-[85%] p-0">
@@ -489,7 +515,10 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
               </SheetContent>
             </Sheet>
           </div>
-          <div className="relative min-h-0 flex-1 overflow-hidden">
+          <div
+            data-tour={canvasActive ? "canvas" : undefined}
+            className="relative min-h-0 flex-1 overflow-hidden"
+          >
             <ProjectLibraryWorkspace
               projectId={pId}
               active={canvasActive}
@@ -526,6 +555,12 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
             toast.success(t("export.success"));
           }}
           onOpenPatterns={() => setPatternsOpen(true)}
+          tourCanResume={!!tourState.progress && !tourState.progress.completed}
+          onTour={() => {
+            void (tourState.progress && !tourState.progress.completed
+              ? editorTourController.resume()
+              : editorTourController.replay());
+          }}
           onDelete={
             runtime?.capabilities.canDelete === false ? undefined : () => setShowDeleteDialog(true)
           }
@@ -563,6 +598,13 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
       </div>
 
       <LibraryDragOverlay />
+      <EditorTour
+        state={tourState}
+        actions={editorTourController}
+        demo={demo}
+        storage={demo ? "demo" : project.serverKeyId ? "server" : "hosted"}
+        canUseAssistant={runtime?.capabilities.canUseAssistant}
+      />
 
       {showDeleteDialog && project && (
         <DeleteProjectDialog

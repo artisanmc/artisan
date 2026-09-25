@@ -6,7 +6,7 @@ import { getFirstTitleText } from "@/domain/menuTitle";
 import { getText } from "@/lib/i18n";
 
 export type DocumentType = "menu" | "command" | "dialog";
-export interface ProjectDocumentItem { id: string; label: string; type: DocumentType; onBoard: boolean; }
+export interface ProjectDocumentItem { id: string; label: string; type: DocumentType; }
 export interface ProjectDocumentGroup { type: DocumentType; items: ProjectDocumentItem[]; }
 
 /** Human-readable label for any element id in the project (menu/command/dialog), fallback to the id. */
@@ -22,18 +22,17 @@ export function documentLabel(project: Project, id: string, activeLang: string):
 
 /** Pure: construit la liste catégorisée des éléments du project (source de vérité du panneau). */
 export function buildProjectDocuments(project: Project, activeLang: string): ProjectDocumentGroup[] {
-  const onBoard = (id: string) => id in project.canvasLayout;
   // Menus and dialogs are labelled by their id in the panel (their title is
   // decorative, often empty or ambiguous — not a stable identifier).
   // Commands keep their human label (`/name` IS their identifier).
   const menus: ProjectDocumentItem[] = (project.menus ?? []).map((m) => ({
-    id: m.id, label: m.id, type: "menu", onBoard: onBoard(m.id),
+    id: m.id, label: m.id, type: "menu",
   }));
   const commands: ProjectDocumentItem[] = (project.commands ?? []).map((c) => ({
-    id: c.id, label: documentLabel(project, c.id, activeLang), type: "command", onBoard: onBoard(c.id),
+    id: c.id, label: documentLabel(project, c.id, activeLang), type: "command",
   }));
   const dialogs: ProjectDocumentItem[] = (project.dialogs ?? []).map((d) => ({
-    id: d.id, label: d.id, type: "dialog", onBoard: onBoard(d.id),
+    id: d.id, label: d.id, type: "dialog",
   }));
   return [
     { type: "menu", items: menus },

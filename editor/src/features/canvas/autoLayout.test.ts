@@ -1,34 +1,90 @@
-import { describe, expect, it } from "vitest";
 import type { Project } from "@/domain/types";
-import { autoLayout, gridArrange } from "./autoLayout";
+import { describe, expect, it } from "vitest";
+import { autoLayout, projectBoard } from "./autoLayout";
+
+const menu = (id: string, opens?: string) =>
+  ({
+    id,
+    rows: 3,
+    layers: [
+      {
+        id: "l",
+        name: "default",
+        elements: opens
+          ? [
+              {
+                id: "el",
+                positions: "0",
+                display: {
+                  material: "PAPER",
+                  click: {
+                    left: {
+                      steps: [{ kind: "action", action: { type: "open_menu", menuId: opens } }],
+                    },
+                  },
+                },
+                states: [],
+              },
+            ]
+          : [],
+      },
+    ],
+  }) as never;
 
 function makeProject(over: Partial<Project> = {}): Project {
   return {
-    id: "p1" as Project["id"], name: "p", source: "user_created", createdAt: "", updatedAt: "",
-    menus: [], commands: [], assets: [], dataSources: [], importedConnectors: [],
-    i18nKeys: {}, defaultLang: "en", dialogs: [], canvasLayout: {}, ...over,
+    id: "p1" as Project["id"],
+    name: "p",
+    source: "user_created",
+    createdAt: "",
+    updatedAt: "",
+    menus: [],
+    commands: [],
+    assets: [],
+    dataSources: [],
+    importedConnectors: [],
+    i18nKeys: {},
+    defaultLang: "en",
+    dialogs: [],
+    canvasLayout: {},
+    ...over,
   } as Project;
 }
 
 describe("autoLayout", () => {
-  it("ne retourne QUE les entrées explicites de canvasLayout (pas de grid-fill)", () => {
+  it("places every Document of the project, even those never put on the board", () => {
     const project = makeProject({
-      menus: [{ id: "m1" } as any, { id: "m2" } as any],
-      canvasLayout: { m1: { x: 10, y: 20 } } as any,
+      menus: [menu("m1", "m2"), menu("m2")],
+      commands: [{ id: "c1", steps: [], arguments: [] } as never],
+      dialogs: [{ id: "d1", buttons: [] } as never],
     });
-    const layout = autoLayout(project);
-    expect(layout).toEqual({ m1: { x: 10, y: 20 } });
-    expect("m2" in layout).toBe(false);
+    expect(Object.keys(autoLayout(project)).sort()).toEqual(["c1", "d1", "m1", "m2"]);
   });
-});
 
-describe("gridArrange", () => {
-  it("place TOUS les éléments (menus + commandes + dialogs) dans une grille", () => {
+  it("keeps a position the user set by hand", () => {
     const project = makeProject({
-      menus: [{ id: "m1" } as any], commands: [{ id: "c1" } as any], dialogs: [{ id: "d1" } as any],
+      menus: [menu("m1", "m2"), menu("m2")],
+      canvasLayout: { m2: { x: 900, y: 12 } } as never,
     });
-    const layout = gridArrange(project);
-    expect(Object.keys(layout).sort()).toEqual(["c1", "d1", "m1"]);
-    expect(layout.m1).toEqual({ x: 40, y: 40 });
+    expect(autoLayout(project).m2).toEqual({ x: 900, y: 12 });
+  });
+
+  it("arranges linked menus in navigation order", () => {
+    const project = makeProject({ menus: [menu("m1", "m2"), menu("m2")] });
+    const layout = autoLayout(project);
+    expect(layout.m1!.x).toBeLessThan(layout.m2!.x);
+  });
+
+  it("reports the gutter of unlinked Documents", () => {
+    const project = makeProject({ menus: [menu("m1", "m2"), menu("m2"), menu("lonely")] });
+    const board = projectBoard(project);
+    expect(board.gutter).not.toBeNull();
+    expect(board.layout.lonely!.y).toBeGreaterThan(board.gutter!.y);
+  });
+
+  it("does not recompute for an edit that leaves the graph unchanged", () => {
+    const project = makeProject({ menus: [menu("m1", "m2"), menu("m2")] });
+    const edited = { ...project, updatedAt: "later" };
+    expect(projectBoard(edited)).toBe(projectBoard(project));
   });
 });
