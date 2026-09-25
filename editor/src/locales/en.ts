@@ -1,8 +1,8 @@
 import { accountDeletionEn } from "./accountDeletion";
-import { marketingEn } from "./marketing";
 import { changesEn } from "./changes";
 import { demoEn } from "./demo";
 import { draftsEn } from "./drafts";
+import { marketingEn } from "./marketing";
 import { migrationEn } from "./migration";
 import { projectCopyEn } from "./projectCopy";
 import { projectIdentityEn } from "./projectIdentity";
@@ -260,6 +260,13 @@ export default {
     typeDropper: "Dropper",
     outOfRange_one: "{{count}} element outside the inventory",
     outOfRange_other: "{{count}} elements outside the inventory",
+    playerInventory: "Player inventory",
+    playerInventoryVisible: "Visible",
+    playerInventoryHidden: "Hidden",
+    playerInventoryHintVisible:
+      "Players see their own inventory below the menu, read-only. The menu only uses its own slots.",
+    playerInventoryHintHidden:
+      "The player's items are no longer shown, and the 36 slots below the menu (inventory + hotbar) become available for the menu's buttons. The real inventory is never changed and comes back when the menu closes.",
     preview: "preview",
     id: "id",
     renameRejected: "rename rejected",

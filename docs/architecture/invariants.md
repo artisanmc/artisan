@@ -132,6 +132,31 @@ move-to-trash) et aux autres connexions éditeur.
 Répertoire au top de `projectsDir`, créé par `ProjectDeleter`. Ne jamais utiliser ce nom pour autre
 chose.
 
+## Le contenu des menus n'existe que côté client
+
+Un menu ouvre un vrai `createInventory(ArtisanMenuHolder…)` — **l'ancre** — mais **vide**. Elle fournit
+l'id de fenêtre, les événements Bukkit (click, close, drag) et la présence du joueur dans un menu pour
+les autres plugins. Tout le contenu vit dans `MenuSlots` (session) et est réécrit dans les paquets
+sortants par `PacketEventsMenuPackets` (`OPEN_WINDOW` capture l'id, `WINDOW_ITEMS` / `SET_SLOT`
+réécrits, `SET_PLAYER_INVENTORY` aussi quand le bas est `hidden`). PacketEvents est **intégré au jar**
+(relocalisé sous `net.artisanmc.shaded.packetevents`) : chaque version majeure de Minecraft impose de
+le mettre à jour, puis de passer la checklist manuelle de `testing.md`.
+
+- **Adressage unique par rawSlot du protocole** : `0..size-1` le menu, `size..size+26` l'inventaire
+  principal, `size+27..size+35` la barre rapide. Une position `≥ size` n'a de sens qu'avec
+  `player_inventory: hidden` ; en `visible` (défaut) elle est ignorée.
+- **Rien n'existe côté serveur** : ni l'ancre ni l'inventaire du joueur ne sont modifiés. Crash, mort,
+  déconnexion menu ouvert : rien à perdre ni à dupliquer. `/data get entity @s Inventory` menu
+  ouvert = le vrai inventaire.
+- **Écrire le contenu = `MenuSlots.set`**, jamais `anchor.setItem`. Menu ouvert, l'écriture part au
+  client via le `ClientSlotSink`.
+- **Fermeture** : la fenêtre n'est libérée que si c'est la bonne ancre (ouvrir B depuis A pose B puis
+  ferme A), puis `updateInventory()` au tick suivant pour que le client réaffiche le vrai inventaire.
+- **Slots de dépôt (`SlotKind.INPUT`)** : prévus dans le contrat, pas implémentés. Un slot `INPUT`
+  n'est jamais réécrit — son objet réel vivrait dans l'ancre. Le listener teste déjà le type de slot.
+- Sans PacketEvents opérationnel (échec de `load`/`init`, loggé en SEVERE ; cas de MockBukkit en
+  test), les menus s'ouvrent **vides** : clics et sessions restent actifs.
+
 ## Custom items — hash inline
 
 `CustomItemsManager.buildBundle()` calcule le hash **en inline** à partir des items / textures déjà

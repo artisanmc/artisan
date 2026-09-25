@@ -3,7 +3,8 @@ import { mockAccount } from "@/mock/fixtures";
 import { describe, expect, it } from "vitest";
 import { autoLayout } from "./autoLayout";
 import { hitTestSlot, screenToWorld } from "./hitTest";
-import { TEX_FIRST_SLOT_X, TEX_SLOT_STRIDE, TEX_TITLE_H } from "./menuLayout";
+import { slotMcXY } from "./inventoryTypes";
+import { TEX_FIRST_SLOT_X, TEX_SCALE, TEX_SLOT_STRIDE, TEX_TITLE_H } from "./menuLayout";
 
 /** Build a one-menu project of the given inventory type at layout origin {0,0}. */
 function singleMenuProject(inventoryType: InventoryType): {
@@ -95,5 +96,39 @@ describe("screenToWorld", () => {
       x: 75,
       y: 37.5,
     });
+  });
+});
+
+describe("hitTestSlot — player inventory (player_inventory: hidden)", () => {
+  function chest(playerInventory?: "hidden") {
+    const { project, layout, menuId } = singleMenuProject("chest");
+    if (playerInventory) (project.menus[0] as Menu).playerInventory = playerInventory;
+    return { project, layout, menuId };
+  }
+  const center = (mc: { x: number; y: number }) => ({
+    x: mc.x * TEX_SCALE + TEX_SLOT_STRIDE / 2,
+    y: mc.y * TEX_SCALE + TEX_SLOT_STRIDE / 2,
+  });
+
+  it("returns the raw slot of a player inventory cell when the bottom is hidden", () => {
+    const { project, layout, menuId } = chest("hidden");
+    for (const raw of [27, 35, 53, 54, 62]) {
+      const { x, y } = center(slotMcXY(raw, "chest", 3));
+      expect(hitTestSlot(project, layout, x, y)).toEqual({ menuId, position: raw });
+    }
+  });
+
+  it("ignores the gap above the hotbar", () => {
+    const { project, layout } = chest("hidden");
+    const hotbar = slotMcXY(54, "chest", 3);
+    expect(
+      hitTestSlot(project, layout, hotbar.x * TEX_SCALE + 10, (hotbar.y - 2) * TEX_SCALE),
+    ).toBeNull();
+  });
+
+  it("keeps the player inventory unreachable when visible", () => {
+    const { project, layout } = chest();
+    const { x, y } = center(slotMcXY(27, "chest", 3));
+    expect(hitTestSlot(project, layout, x, y)).toBeNull();
   });
 });

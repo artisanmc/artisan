@@ -149,6 +149,15 @@
       "default": "chest",
       "description": "Type de conteneur. Absent = chest (rétro-compatible). chest = grille 9×rows ; hopper = 5×1 ; dropper = 3×3."
     },
+    "player_inventory": {
+      "type": "string",
+      "enum": [
+        "visible",
+        "hidden"
+      ],
+      "default": "visible",
+      "description": "Bas de la fenêtre. visible = le vrai inventaire du joueur, non modifiable ; les positions ≥ size sont ignorées. hidden = seulement les boutons du menu : les positions size..size+35 désignent les slots joueur (rawSlot protocole : size..size+26 inventaire principal, size+27..size+35 barre rapide). Dans les deux cas le contenu n'existe que côté client."
+    },
     "permission": {
       "type": "string",
       "description": "Permission requise pour ouvrir le menu. Si absente, ouvert à tous."

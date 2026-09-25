@@ -353,6 +353,7 @@ export function menuV1ToDomain(
     title,
     rows,
     ...(inventoryType !== "chest" ? { inventoryType } : {}),
+    ...(src.player_inventory === "hidden" ? { playerInventory: "hidden" as const } : {}),
     // Canonical form: flat top-level `elements` (order = stacking) → one
     // default layer. Legacy `layers` wrapping is still read as-is.
     layers: Array.isArray(src.layers)

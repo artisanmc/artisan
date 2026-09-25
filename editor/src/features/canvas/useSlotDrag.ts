@@ -10,7 +10,7 @@ import type Konva from "konva";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { hitTestSlot } from "./hitTest";
-import { colsFor } from "./inventoryTypes";
+import { positionToCell } from "./inventoryTypes";
 import { TEX_SLOT_STRIDE, slotXY } from "./menuLayout";
 import { buildPreviewScope } from "./menuPreviewScope";
 import { placementAtSlot } from "./placement";
@@ -40,10 +40,12 @@ interface UseSlotDragArgs {
   /** Inventory type — drives slot geometry (slotXY origin) and column count
    *  for selection-drag grid deltas. Absent = chest. */
   inventoryType: InventoryType;
+  /** Chest rows — place the player slots (positions past the menu). */
+  menuRows: number;
 }
 
 export function useSlotDrag(args: UseSlotDragArgs) {
-  const { projectId, menuId, position, layout, menuLayers, inventoryType } = args;
+  const { projectId, menuId, position, layout, menuLayers, inventoryType, menuRows } = args;
 
   /**
    * Slot-drag state. Two flavours:
@@ -151,7 +153,7 @@ export function useSlotDrag(args: UseSlotDragArgs) {
       setDragState((prev) => {
         if (!prev) return prev;
         if (prev.kind === "selection") {
-          const origin = slotXY(prev.sourcePosition, inventoryType);
+          const origin = slotXY(prev.sourcePosition, inventoryType, menuRows);
           const dx = node.x() - origin.x;
           const dy = node.y() - origin.y;
           if (prev.offset.dx === dx && prev.offset.dy === dy && prev.altKey === altKey) return prev;
@@ -161,7 +163,7 @@ export function useSlotDrag(args: UseSlotDragArgs) {
         return { ...prev, altKey };
       });
     },
-    [inventoryType],
+    [inventoryType, menuRows],
   );
 
   /**
@@ -186,7 +188,7 @@ export function useSlotDrag(args: UseSlotDragArgs) {
       const node = e.target;
       const localX = node.x();
       const localY = node.y();
-      const original = slotXY(srcPosition, inventoryType);
+      const original = slotXY(srcPosition, inventoryType, menuRows);
       node.position({ x: original.x, y: original.y });
 
       const worldX = position.x + localX + TEX_SLOT_STRIDE / 2;
@@ -240,9 +242,10 @@ export function useSlotDrag(args: UseSlotDragArgs) {
       // rather than where the user grabbed inside the slot.
       if (captured?.kind === "selection") {
         if (!hit || hit.menuId !== menuId) return;
-        const cols = colsFor(inventoryType);
-        const dCol = (hit.position % cols) - (srcPosition % cols);
-        const dRow = Math.floor(hit.position / cols) - Math.floor(srcPosition / cols);
+        const to = positionToCell(hit.position, inventoryType, menuRows);
+        const from = positionToCell(srcPosition, inventoryType, menuRows);
+        const dCol = to.col - from.col;
+        const dRow = to.row - from.row;
         if (dCol === 0 && dRow === 0) return;
         try {
           useAccountStore.getState().moveSelectionByDelta({
@@ -290,7 +293,7 @@ export function useSlotDrag(args: UseSlotDragArgs) {
         toast.error(err instanceof Error ? err.message : "slot drag failed");
       }
     },
-    [dragState, projectId, menuId, position.x, position.y, layout, inventoryType],
+    [dragState, projectId, menuId, position.x, position.y, layout, inventoryType, menuRows],
   );
 
   return { dragState, onSlotDragStart, onSlotDragMove, onSlotDragEnd };

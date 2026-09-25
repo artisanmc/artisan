@@ -524,3 +524,38 @@ describe("inventory_type round-trip (domain -> v1 -> domain)", () => {
     });
   }
 });
+
+describe("player_inventory", () => {
+  const project = {
+    id: "p",
+    i18nKeys: {},
+    defaultLang: "en",
+    menus: [],
+    commands: [],
+    dialogs: [],
+    // biome-ignore lint/suspicious/noExplicitAny: minimal fixture for serializer
+  } as any;
+
+  it("round-trips hidden and omits the visible default", () => {
+    const menu = menuV1ToDomain(
+      { schema: "menu/v1", id: "m", title: [], size: 27, player_inventory: "hidden", elements: [] },
+      { projectId: projectId("p"), lang: "en" },
+    ).menu;
+    expect(menu.playerInventory).toBe("hidden");
+    expect(serializeMenuToV1(menu, project).player_inventory).toBe("hidden");
+
+    const visible = menuV1ToDomain(
+      {
+        schema: "menu/v1",
+        id: "m",
+        title: [],
+        size: 27,
+        player_inventory: "visible",
+        elements: [],
+      },
+      { projectId: projectId("p"), lang: "en" },
+    ).menu;
+    expect(visible.playerInventory).toBeUndefined();
+    expect(serializeMenuToV1(visible, project).player_inventory).toBeUndefined();
+  });
+});

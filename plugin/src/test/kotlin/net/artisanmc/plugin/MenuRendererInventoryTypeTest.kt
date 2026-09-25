@@ -38,7 +38,7 @@ class MenuRendererInventoryTypeTest {
     private fun openType(type: String?, size: Int): InventoryType {
         val p = player()
         val menu = BundleCompiler.compile(menuYaml(type, size), emptyMap())
-        MenuRenderer.open(p, menu, "en", ExecutionContext(p))
+        val slots = MenuRenderer.open(p, menu, "en", ExecutionContext(p)).slots
         return p.openInventory.topInventory.type
     }
 
@@ -57,8 +57,8 @@ class MenuRendererInventoryTypeTest {
     @Test fun `dropper top inventory has 9 slots and slot 0 populated`() {
         val p = player()
         val menu = BundleCompiler.compile(menuYaml("dropper", 9), emptyMap())
-        MenuRenderer.open(p, menu, "en", ExecutionContext(p))
+        val slots = MenuRenderer.open(p, menu, "en", ExecutionContext(p)).slots
         assertEquals(9, p.openInventory.topInventory.size)
-        assertNotNull(p.openInventory.topInventory.getItem(0))
+        assertNotNull(slots[0])
     }
 }

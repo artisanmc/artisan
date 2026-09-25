@@ -38,10 +38,10 @@ class MenuRendererItemValueTest {
         """.trimIndent())
         val icon = mapOf("extends" to mapOf("material" to "STONE", "lore" to listOf("Original")), "lore" to listOf("{base.lore}", "Rare"))
         val player = MockBukkit.getMock()!!.addPlayer()
-        MenuRenderer.open(player, BundleCompiler.compile(yaml, emptyMap()), "en", ExecutionContext(player,
-            args = mapOf("item" to mapOf("icon" to icon, "lore" to ""))))
+        val slots = MenuRenderer.open(player, BundleCompiler.compile(yaml, emptyMap()), "en", ExecutionContext(player,
+            args = mapOf("item" to mapOf("icon" to icon, "lore" to "")))).slots
         val plain = PlainTextComponentSerializer.plainText()
-        assertEquals(listOf("Original", "Rare", "Price"), player.openInventory.topInventory.getItem(0)!!.itemMeta!!.lore()!!.map(plain::serialize))
+        assertEquals(listOf("Original", "Rare", "Price"), slots[0]!!.itemMeta!!.lore()!!.map(plain::serialize))
     }
 
     @Test fun `recursive extensions render their immediate base and replace lore`() {
@@ -59,9 +59,9 @@ class MenuRendererItemValueTest {
         val original = mapOf("material" to "DIAMOND_SWORD", "title" to "Original", "lore" to listOf("Captured lore"), "count" to 2)
         val icon = mapOf("extends" to "{original}", "title" to "{item.name}", "lore" to listOf("{base.lore}", "Rare"), "count" to 4)
         val player = MockBukkit.getMock()!!.addPlayer()
-        MenuRenderer.open(player, BundleCompiler.compile(yaml, emptyMap()), "en", ExecutionContext(player,
-            args = mapOf("original" to original, "item" to mapOf("name" to "Rare sword", "price" to 100, "icon" to icon))))
-        val stack = player.openInventory.topInventory.getItem(0)!!
+        val slots = MenuRenderer.open(player, BundleCompiler.compile(yaml, emptyMap()), "en", ExecutionContext(player,
+            args = mapOf("original" to original, "item" to mapOf("name" to "Rare sword", "price" to 100, "icon" to icon)))).slots
+        val stack = slots[0]!!
         val plain = PlainTextComponentSerializer.plainText()
         assertEquals(Material.DIAMOND_SWORD, stack.type)
         assertEquals(4, stack.amount)
@@ -84,11 +84,11 @@ class MenuRendererItemValueTest {
             """.trimIndent())
             val icon = mapOf("extends" to mapOf("material" to "STONE", "lore" to listOf("Captured")))
             val player = MockBukkit.getMock()!!.addPlayer()
-            MenuRenderer.open(player, BundleCompiler.compile(yaml, emptyMap()), "en", ExecutionContext(player,
-                args = mapOf("item" to mapOf("icon" to icon))))
+            val slots = MenuRenderer.open(player, BundleCompiler.compile(yaml, emptyMap()), "en", ExecutionContext(player,
+                args = mapOf("item" to mapOf("icon" to icon)))).slots
             val plain = PlainTextComponentSerializer.plainText()
             assertEquals(if (replace) listOf("Added") else listOf("Captured", "Added"),
-                player.openInventory.topInventory.getItem(0)!!.itemMeta!!.lore()!!.map(plain::serialize))
+                slots[0]!!.itemMeta!!.lore()!!.map(plain::serialize))
         }
     }
 
@@ -105,11 +105,11 @@ class MenuRendererItemValueTest {
         """.trimIndent())
         val icon = mapOf("extends" to mapOf("material" to "STONE", "lore" to listOf("Captured")))
         val player = MockBukkit.getMock()!!.addPlayer()
-        MenuRenderer.open(player, BundleCompiler.compile(yaml, emptyMap()), "en", ExecutionContext(player,
-            args = mapOf("item" to mapOf("icon" to icon))))
+        val slots = MenuRenderer.open(player, BundleCompiler.compile(yaml, emptyMap()), "en", ExecutionContext(player,
+            args = mapOf("item" to mapOf("icon" to icon)))).slots
         val plain = PlainTextComponentSerializer.plainText()
         assertEquals(listOf("Offer", "Captured"),
-            player.openInventory.topInventory.getItem(0)!!.itemMeta!!.lore()!!.map(plain::serialize))
+            slots[0]!!.itemMeta!!.lore()!!.map(plain::serialize))
     }
 
     @Test fun `an explicitly empty replacement clears inherited lore`() {
@@ -126,9 +126,9 @@ class MenuRendererItemValueTest {
         """.trimIndent())
         val player = MockBukkit.getMock()!!.addPlayer()
         val icon = mapOf("extends" to mapOf("material" to "STONE", "lore" to listOf("Inherited")))
-        MenuRenderer.open(player, BundleCompiler.compile(yaml, emptyMap()), "en", ExecutionContext(player,
-            args = mapOf("item" to mapOf("icon" to icon))))
-        assertTrue(player.openInventory.topInventory.getItem(0)!!.itemMeta!!.lore().isNullOrEmpty())
+        val slots = MenuRenderer.open(player, BundleCompiler.compile(yaml, emptyMap()), "en", ExecutionContext(player,
+            args = mapOf("item" to mapOf("icon" to icon)))).slots
+        assertTrue(slots[0]!!.itemMeta!!.lore().isNullOrEmpty())
     }
 
     private fun verifyIcon(overrideCount: Int) {
@@ -149,8 +149,8 @@ class MenuRendererItemValueTest {
             "enchants" to mapOf("sharpness" to 5))
         val player = MockBukkit.getMock()!!.addPlayer()
         val menu = BundleCompiler.compile(yaml, emptyMap())
-        MenuRenderer.open(player, menu, "en", ExecutionContext(player, args = mapOf("item" to mapOf("icon" to icon))))
-        val stack = player.openInventory.topInventory.getItem(0)!!
+        val slots = MenuRenderer.open(player, menu, "en", ExecutionContext(player, args = mapOf("item" to mapOf("icon" to icon)))).slots
+        val stack = slots[0]!!
         assertEquals(Material.DIAMOND_SWORD, stack.type)
         assertEquals(if (overrideCount == 0) 3 else overrideCount, stack.amount)
         assertEquals(5, stack.getEnchantmentLevel(Registry.ENCHANTMENT.get(NamespacedKey.minecraft("sharpness"))!!))

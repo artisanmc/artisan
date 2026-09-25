@@ -22,7 +22,7 @@ import { PlacementTray } from "./PlacementTray";
 import { PreviewContextBanner } from "./PreviewContextBanner";
 import { SlotItem } from "./SlotItem";
 import { dispatchOpenElement } from "./canvasEvents";
-import { INVENTORY_TYPES, slotCount } from "./inventoryTypes";
+import { INVENTORY_TYPES, positionCount } from "./inventoryTypes";
 import { previewItem } from "./itemValuePreview";
 import { type SlotEntry, fanoutElements } from "./menuFanout";
 import {
@@ -128,6 +128,7 @@ export function MenuGroup({ projectId, menu, position, layout, solo = false }: M
     layout,
     menuLayers: menu.layers,
     inventoryType: type,
+    menuRows: menu.rows,
   });
 
   // Fanout: Map<elementId, SlotEntry[]> — single source of truth for both
@@ -388,7 +389,7 @@ export function MenuGroup({ projectId, menu, position, layout, solo = false }: M
     }
   }
 
-  const total = slotCount(type, menu.rows);
+  const total = positionCount(type, menu.rows, menu.playerInventory);
   const top = topPieceCrop(menu.rows);
   const bottom = bottomPieceCrop();
   const bottomY = bottomPieceY(menu.rows);
@@ -492,7 +493,7 @@ export function MenuGroup({ projectId, menu, position, layout, solo = false }: M
       />
       {/* Slot interaction overlays */}
       {Array.from({ length: total }, (_, i) => {
-        const { x, y } = slotXY(i, type);
+        const { x, y } = slotXY(i, type, menu.rows);
         const el = elementsByPosition.get(i);
         if (el?.image) return null;
         const present = Boolean(el);
@@ -767,7 +768,7 @@ export function MenuGroup({ projectId, menu, position, layout, solo = false }: M
       elementsByPosition.get(dragState.sourcePosition)?.material
         ? (() => {
             const info = elementsByPosition.get(dragState.sourcePosition)!;
-            const { x, y } = slotXY(dragState.sourcePosition, type);
+            const { x, y } = slotXY(dragState.sourcePosition, type, menu.rows);
             return (
               <Group x={x} y={y} listening={false} opacity={0.9}>
                 <SlotItem
@@ -785,7 +786,7 @@ export function MenuGroup({ projectId, menu, position, layout, solo = false }: M
           Group's offset so the user sees the whole selection translate. */}
       {dragState?.kind === "selection"
         ? dragState.siblings.map((sib) => {
-            const { x, y } = slotXY(sib.position, type);
+            const { x, y } = slotXY(sib.position, type, menu.rows);
             return (
               <Group
                 key={`ghost-${sib.position}`}

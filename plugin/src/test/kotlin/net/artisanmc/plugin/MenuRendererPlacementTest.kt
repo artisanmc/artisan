@@ -72,12 +72,11 @@ class MenuRendererPlacementTest {
         val m = BundleCompiler.compile(menu(
             "[ { key: sword, page: 0, position: 10 }, { key: shield, page: 0, position: 12 } ]"
         ), emptyMap())
-        MenuRenderer.open(p, m, "en", ExecutionContext(p), dataSources = catalog())
-        val inv = p.openInventory.topInventory
-        assertEquals(Material.DIAMOND_SWORD, inv.getItem(10)?.type)
-        assertEquals(Material.SHIELD, inv.getItem(12)?.type)
-        assertNull(inv.getItem(11))            // nothing placed there
-        assertNull(inv.getItem(13))            // apple never placed → omitted
+        val inv = MenuRenderer.open(p, m, "en", ExecutionContext(p), dataSources = catalog()).slots
+        assertEquals(Material.DIAMOND_SWORD, inv[10]?.type)
+        assertEquals(Material.SHIELD, inv[12]?.type)
+        assertNull(inv[11])            // nothing placed there
+        assertNull(inv[13])            // apple never placed → omitted
     }
 
     @Test fun `placements are windowed by hand-assigned page`() {
@@ -86,12 +85,12 @@ class MenuRendererPlacementTest {
             "[ { key: sword, page: 0, position: 10 }, { key: shield, page: 1, position: 10 } ]"
         ), emptyMap())
 
-        MenuRenderer.open(p, m, "en", ExecutionContext(p), dataSources = catalog())
-        assertEquals(Material.DIAMOND_SWORD, p.openInventory.topInventory.getItem(10)?.type)
+        val slots = MenuRenderer.open(p, m, "en", ExecutionContext(p), dataSources = catalog()).slots
+        assertEquals(Material.DIAMOND_SWORD, slots[10]?.type)
 
         val p2 = player()
-        MenuRenderer.open(p2, m, "en", ExecutionContext(p2, pagination = mapOf("grid" to 1)), dataSources = catalog())
-        assertEquals(Material.SHIELD, p2.openInventory.topInventory.getItem(10)?.type)
+        val page1 = MenuRenderer.open(p2, m, "en", ExecutionContext(p2, pagination = mapOf("grid" to 1)), dataSources = catalog()).slots
+        assertEquals(Material.SHIELD, page1[10]?.type)
     }
 
     @Test fun `a placement whose key is absent dangles and leaves the slot empty`() {
@@ -99,10 +98,9 @@ class MenuRendererPlacementTest {
         val m = BundleCompiler.compile(menu(
             "[ { key: ghost, page: 0, position: 10 }, { key: sword, page: 0, position: 11 } ]"
         ), emptyMap())
-        MenuRenderer.open(p, m, "en", ExecutionContext(p), dataSources = catalog())
-        val inv = p.openInventory.topInventory
-        assertNull(inv.getItem(10))                                  // ghost dangles
-        assertEquals(Material.DIAMOND_SWORD, inv.getItem(11)?.type)  // sword still fine
+        val inv = MenuRenderer.open(p, m, "en", ExecutionContext(p), dataSources = catalog()).slots
+        assertNull(inv[10])                                  // ghost dangles
+        assertEquals(Material.DIAMOND_SWORD, inv[11]?.type)  // sword still fine
     }
 
     @Test fun `legacy override key in YAML is ignored — template supplies everything`() {
@@ -114,7 +112,7 @@ class MenuRendererPlacementTest {
             "[ { key: apple, page: 0, position: 12, override: { title: \"PROMO\", lore: [\"-50%\"] } } ]"
         ), emptyMap())
         val session = MenuRenderer.open(p, m, "en", ExecutionContext(p), dataSources = catalog())
-        val item = p.openInventory.topInventory.getItem(12)
+        val item = session.slots[12]
         assertEquals(Material.APPLE, item?.type)                        // material from template
         assertNotEquals("PROMO", legacy(item?.itemMeta?.displayName())) // override NOT applied
         assertTrue(session.activeClicks.containsKey(12))                // click from template kept

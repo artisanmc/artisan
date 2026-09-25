@@ -54,10 +54,10 @@ class MenuRendererIterationTest {
         val p = player()
         val menu = BundleCompiler.compile(gridMenu(), emptyMap())
         val session = MenuRenderer.open(p, menu, "en", ExecutionContext(p, args = mapOf("shops" to shops(2))))
-        val inv = p.openInventory.topInventory
-        assertEquals(Material.EMERALD, inv.getItem(10)?.type)  // s1
-        assertEquals(Material.DIAMOND, inv.getItem(11)?.type)  // s2
-        assertNull(inv.getItem(12))                            // pas de 3e item
+        val inv = session.slots
+        assertEquals(Material.EMERALD, inv[10]?.type)  // s1
+        assertEquals(Material.DIAMOND, inv[11]?.type)  // s2
+        assertNull(inv[12])                            // pas de 3e item
         assertEquals("shop", session.menuId)
     }
 
@@ -68,10 +68,10 @@ class MenuRendererIterationTest {
             p, menu, "en",
             ExecutionContext(p, args = mapOf("shops" to shops(5)), pagination = mapOf("grid" to 1)),
         )
-        val inv = p.openInventory.topInventory
-        assertNotNull(inv.getItem(10)) // s4
-        assertNotNull(inv.getItem(11)) // s5
-        assertNull(inv.getItem(12))
+        val inv = session.slots
+        assertNotNull(inv[10]) // s4
+        assertNotNull(inv[11]) // s5
+        assertNull(inv[12])
         assertEquals(PageInfo(page = 1, pageCount = 2), session.ctx.pageInfo["grid"])
     }
 
@@ -182,18 +182,18 @@ class MenuRendererIterationTest {
         assertSame(mainInventory, p.openInventory.topInventory)
         MockBukkit.getMock()!!.scheduler.performOneTick()
         assertEquals("keys", sessions.get(p)!!.ctx.args["category"])
-        assertEquals(Material.TRIPWIRE_HOOK, p.openInventory.topInventory.getItem(10)?.type)
+        assertEquals(Material.TRIPWIRE_HOOK, sessions.get(p)!!.slots[10]?.type)
         click(49)
         click(11)
         assertEquals("tools", sessions.get(p)!!.ctx.args["category"])
-        assertEquals(Material.DIAMOND_PICKAXE, p.openInventory.topInventory.getItem(10)?.type)
+        assertEquals(Material.DIAMOND_PICKAXE, sessions.get(p)!!.slots[10]?.type)
     }
 
     @Test fun `empty or missing list renders nothing and yields one empty page`() {
         val p = player()
         val menu = BundleCompiler.compile(gridMenu(), emptyMap())
         val session = MenuRenderer.open(p, menu, "en", ExecutionContext(p))
-        assertNull(p.openInventory.topInventory.getItem(10))
+        assertNull(session.slots[10])
         assertEquals(PageInfo(0, 1), session.ctx.pageInfo["grid"])
     }
 
@@ -220,7 +220,7 @@ class MenuRendererIterationTest {
 
         val after = sessions.get(p)!!
         assertEquals(1, after.ctx.pageInfo["grid"]?.page)
-        assertNull(p.openInventory.topInventory.getItem(12)) // page 1 n'a que 2 items
+        assertNull(after.slots[12]) // page 1 n'a que 2 items
     }
 
     @Test fun `declared default fills an arg used by a non-iterating element`() {
@@ -267,8 +267,8 @@ class MenuRendererIterationTest {
             """.trimIndent(),
         )
         val menu = BundleCompiler.compile(yaml, emptyMap())
-        MenuRenderer.open(p, menu, "en", ExecutionContext(p))
-        val display = p.openInventory.topInventory.getItem(0)?.itemMeta?.displayName()
+        val slots = MenuRenderer.open(p, menu, "en", ExecutionContext(p)).slots
+        val display = slots[0]?.itemMeta?.displayName()
         assertNotNull(display)
         assertEquals("Hello Steve", PlainTextComponentSerializer.plainText().serialize(display))
     }

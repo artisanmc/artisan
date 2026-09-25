@@ -9,6 +9,14 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Changed — menu content sent to the client only
+
+- Menus now open an empty inventory and send their content through packets: nothing a menu shows exists on the server, so a crash, death or disconnect with a menu open can never lose or duplicate an item. PacketEvents 2.14.0 is bundled (relocated) — no separate plugin to install, and the `packetevents` soft dependency is gone.
+
+### Added — `player_inventory` menu setting
+
+- New optional `menu/v1` field `player_inventory: visible | hidden` (default `visible`, existing menus unchanged). `hidden` shows only the menu's buttons in the bottom of the window: positions `size..size+35` address the 27 inventory slots then the 9 hotbar slots, and the player's real inventory reappears on close. The editor adds a Visible/Hidden toggle in the menu properties and makes the 4 rows under the menu editable when hidden.
+
 ### Added — public pricing presentation
 
 - Subscription plans expose their configured description, benefits, display order and featured status in the public catalog. Platform admins can edit the presentation without reprovisioning Stripe prices; existing plans retain their prices and default to an empty description and no highlight.

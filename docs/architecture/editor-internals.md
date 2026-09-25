@@ -302,6 +302,8 @@ Un menu est un coffre (défaut), un hopper (5×1) ou un dropper (3×3). La **sin
 
 **Hit-test + drag paramétrés par type** : `hitTest.ts` et `useSlotDrag.ts` lisent cols / origine / rows depuis la table — plus aucun hardcode des 9 colonnes du chest.
 
+**Inventaire du joueur (`player_inventory`, 2026-09-25)** : `Menu.playerInventory` (absent = `visible`, stocké seulement si `hidden`). En `hidden`, les positions `size..size+35` (rawSlot protocole) sont éditables sur les 4 lignes vanilla sous le menu : `slotMcXY(i, type, rows)` place les positions `≥ slotCount` sur ces cellules (`playerInvY` par type, `null` = après les lignes du coffre ; +4 px avant la barre rapide), `positionCount` donne le nombre adressable (`MenuGroup`, clavier, `MenuProperties`), `hitTestSlot` les retourne. Les déplacements de sélection passent par une grille visuelle (`positionToCell` / `cellToPosition` : lignes du menu puis 4 lignes de 9) au lieu de `% cols`. Redimensionner le menu ou changer de type **décale** les positions joueur (`shiftPlayerPositions` dans `accountStore`) pour que chaque bouton reste sur le même slot joueur ; le refus de rétrécissement ne porte plus que sur les positions du menu. Les image buttons restent limités à la grille du menu.
+
 **Switch de type = keep+warn** : `MenuProperties` expose un sélecteur de type (Chest / Hopper / Dropper) ; le sélecteur de rows n'apparaît que pour le chest. Passer à un conteneur plus petit **conserve** les éléments hors-plage et affiche un chip d'avertissement — jamais de suppression silencieuse (`setMenuField` keep+warn).
 
 ## Canvas edges (liens entre nœuds)

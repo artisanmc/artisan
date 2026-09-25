@@ -88,8 +88,8 @@ class MenuRendererCapturedLoreTest {
         )
         val p = MockBukkit.getMock()!!.addPlayer()
         val menu = BundleCompiler.compile(menuYaml(material, title, lore), emptyMap())
-        MenuRenderer.open(p, menu, "en", ExecutionContext(p), ConditionEvaluator(deps, CooldownStore()))
-        return p.openInventory.topInventory.getItem(0)
+        val slots = MenuRenderer.open(p, menu, "en", ExecutionContext(p), ConditionEvaluator(deps, CooldownStore())).slots
+        return slots[0]
     }
 
     private fun loreOf(item: ItemStack?): List<String> =

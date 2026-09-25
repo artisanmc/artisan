@@ -85,9 +85,12 @@ export function nodeBox(
 
 export const bottomPieceY = (rows: number) => TEX_TITLE_H + rows * TEX_SLOT_STRIDE;
 
-/** Top-left corner of slot `i`'s outer cell (canvas px), relative to menu origin. */
-export const slotXY = (i: number, type: InventoryType) => {
-  const { x, y } = slotMcXY(i, type);
+/**
+ * Top-left corner of position `i`'s outer cell (canvas px), relative to menu
+ * origin. `chestRows` places the player slots (positions past the menu).
+ */
+export const slotXY = (i: number, type: InventoryType, chestRows?: number) => {
+  const { x, y } = slotMcXY(i, type, chestRows);
   return { x: x * TEX_SCALE, y: y * TEX_SCALE };
 };
 

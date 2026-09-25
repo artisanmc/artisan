@@ -53,17 +53,16 @@ class MenuRendererDottedSourceTest {
                 mapOf("id" to "shield", "material" to "SHIELD"),
             ),
         )
-        MenuRenderer.open(p, m, "en", ExecutionContext(p, args = mapOf("category" to category)))
-        val inv = p.openInventory.topInventory
-        assertEquals(Material.DIAMOND_SWORD, inv.getItem(10)?.type)
-        assertEquals(Material.SHIELD, inv.getItem(11)?.type)
-        assertNull(inv.getItem(12))
+        val inv = MenuRenderer.open(p, m, "en", ExecutionContext(p, args = mapOf("category" to category))).slots
+        assertEquals(Material.DIAMOND_SWORD, inv[10]?.type)
+        assertEquals(Material.SHIELD, inv[11]?.type)
+        assertNull(inv[12])
     }
 
     @Test fun `missing dotted path renders nothing instead of crashing`() {
         val p = player()
         val m = BundleCompiler.compile(menu(), emptyMap())
-        MenuRenderer.open(p, m, "en", ExecutionContext(p))
-        assertNull(p.openInventory.topInventory.getItem(10))
+        val slots = MenuRenderer.open(p, m, "en", ExecutionContext(p)).slots
+        assertNull(slots[10])
     }
 }
