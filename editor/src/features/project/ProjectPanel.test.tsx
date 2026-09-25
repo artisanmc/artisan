@@ -51,13 +51,6 @@ describe("ProjectPanel", () => {
     expect(screen.getByText("m1")).toBeInTheDocument();
   });
 
-  it("affiche le toggle 'retirer' pour un élément sur le canvas et 'ajouter' sinon", () => {
-    render(<ProjectPanel projectId={PID} />);
-    // m1 est dans canvasLayout → bouton retirer ; c1 ne l'est pas → bouton ajouter.
-    expect(screen.getByTitle(REMOVE)).toBeInTheDocument();
-    expect(screen.getByTitle(ADD)).toBeInTheDocument();
-  });
-
   it("cliquer un élément navigue vers sa vue individuelle", () => {
     render(<ProjectPanel projectId={PID} />);
     fireEvent.click(screen.getByText("/heal"));
@@ -69,27 +62,6 @@ describe("ProjectPanel", () => {
     );
   });
 
-  it("le toggle 'ajouter au canvas' ajoute l'élément à la planche", () => {
-    render(<ProjectPanel projectId={PID} />);
-    fireEvent.click(screen.getByTitle(ADD));
-    const p = useAccountStore.getState().account.projects.find((x) => x.id === PID)!;
-    expect("c1" in p.canvasLayout).toBe(true);
-  });
-
-  it("le toggle 'retirer du canvas' retire l'élément de la planche sans le supprimer du project", () => {
-    render(<ProjectPanel projectId={PID} />);
-    fireEvent.click(screen.getByTitle(REMOVE));
-    const p = useAccountStore.getState().account.projects.find((x) => x.id === PID)!;
-    expect("m1" in p.canvasLayout).toBe(false);
-    expect(p.menus.some((m) => m.id === "m1")).toBe(true);
-  });
-});
-
-/**
- * Le panneau d'édition n'apparaît plus qu'à la sélection : les paramètres du
- * project, qui ne correspondent à aucune sélection, ont besoin d'une entrée.
- */
-describe("ProjectPanel — racine du project", () => {
   it("la ligne racine ouvre les paramètres du project sans rien sélectionner", () => {
     useSelectionStore.getState().set(["m1"]);
     render(<ProjectPanel projectId={PID} />);

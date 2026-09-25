@@ -1,3 +1,14 @@
+export interface EditorTourProgress {
+  step: number;
+  completed: boolean;
+}
+
+export type EditorTourAction =
+  | { action: "start" }
+  | { action: "progress"; step: number }
+  | { action: "complete" }
+  | { action: "import"; step: number; completed: boolean };
+
 export interface AuthUserDto {
   id: string;
   email: string;
@@ -6,6 +17,7 @@ export interface AuthUserDto {
   editorLanguage?: string | null;
   theme?: "dark" | "light" | null;
   isAdmin?: boolean;
+  editorTour?: EditorTourProgress | null;
 }
 
 export interface ApiOptions {
@@ -94,8 +106,12 @@ export async function getMe({ apiUrl }: ApiOptions): Promise<AuthUserDto | null>
 
 export async function patchMe(
   { apiUrl }: ApiOptions,
-  payload: { editor_language?: string | null; theme?: "dark" | "light" | null },
-): Promise<{ user: AuthUserDto } | { error: string }> {
+  payload: {
+    editor_language?: string | null;
+    theme?: "dark" | "light" | null;
+    editor_tour?: EditorTourAction;
+  },
+): Promise<{ user: AuthUserDto; tourStarted?: boolean } | { error: string }> {
   const res = await fetch(`${apiUrl}/api/v1/auth/me`, {
     method: "PATCH",
     credentials: "include",

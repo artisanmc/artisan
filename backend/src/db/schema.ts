@@ -218,6 +218,11 @@ export const networkAccessRequests = pgTable(
 	],
 );
 
+export interface EditorTourState {
+	step: number;
+	completed: boolean;
+}
+
 export const users = pgTable(
 	"users",
 	{
@@ -228,6 +233,7 @@ export const users = pgTable(
 		avatarUrl: text("avatar_url"),
 		editorLanguage: text("editor_language"), // null = no preference set
 		theme: text("theme"), // "dark" | "light" | null
+		editorTour: jsonb("editor_tour").$type<EditorTourState>(),
 		isAdmin: boolean("is_admin").notNull().default(false),
 		// Last AI model picked in the assistant selector (plain id, no FK:
 		// ai_models is declared later in this file and models are never

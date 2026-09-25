@@ -16,6 +16,23 @@ import { getMailer } from "../lib/mail/mailer";
 
 const router = new Hono();
 
+type EditorTourAction =
+  | { action: "start" | "complete" }
+  | { action: "progress"; step: number }
+  | { action: "import"; step: number; completed: boolean };
+
+function parseEditorTourAction(value: unknown): EditorTourAction | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const input = value as Record<string, unknown>;
+  if (input.action === "start" || input.action === "complete") return { action: input.action };
+  if (typeof input.step !== "number" || !Number.isInteger(input.step) || input.step < 0 || input.step > 6) return null;
+  if (input.action === "progress") return { action: input.action, step: input.step };
+  if (input.action === "import" && typeof input.completed === "boolean") {
+    return { action: input.action, step: input.step, completed: input.completed };
+  }
+  return null;
+}
+
 router.post("/delete-account/request", userAuth(), async (c) => {
   const user = c.var.user;
   if (!user) return c.json({ error: "unauthorized" }, 401);
@@ -96,7 +113,7 @@ router.post("/signup", async (c) => {
   const session = await createSession(id);
   setSessionCookie(c, session.id, session.expiresAt);
   sendSafely(welcomeEmail({ to: email, displayName: body.name }));
-  return c.json({ user: { id, email, name: body.name, avatarUrl: null } }, 201);
+  return c.json({ user: { id, email, name: body.name, avatarUrl: null, editorTour: null } }, 201);
 });
 
 router.post("/login", async (c) => {
@@ -124,6 +141,7 @@ router.post("/login", async (c) => {
   return c.json({
     user: {
       id: row.id, email: row.email, name: row.name, avatarUrl: row.avatarUrl,
+      editorTour: row.editorTour,
     },
   });
 });
@@ -192,7 +210,7 @@ router.get("/me", userAuth(), (c) => {
     user: {
       id: user.id, email: user.email, name: user.name,
       avatarUrl: user.avatarUrl, editorLanguage: user.editorLanguage,
-      theme: user.theme, isAdmin: user.isAdmin,
+      theme: user.theme, isAdmin: user.isAdmin, editorTour: user.editorTour,
     },
   });
 });
@@ -201,12 +219,17 @@ router.patch("/me", userAuth(), async (c) => {
   const user = c.var.user;
   if (!user) return c.json({ error: "unauthorized" }, 401);
 
-  let body: { editor_language?: string | null; theme?: string | null };
+  let body: Record<string, unknown>;
   try {
     body = await c.req.json();
   } catch {
     return c.json({ error: "invalid_body" }, 400);
   }
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return c.json({ error: "invalid_body" }, 400);
+  }
+  const tour = "editor_tour" in body ? parseEditorTourAction(body.editor_tour) : null;
+  if ("editor_tour" in body && !tour) return c.json({ error: "invalid_editor_tour" }, 422);
 
   const updates: Record<string, unknown> = {};
   if ("editor_language" in body) {
@@ -219,24 +242,34 @@ router.patch("/me", userAuth(), async (c) => {
     updates.theme = body.theme;
   }
 
-  if (Object.keys(updates).length === 0) {
-    return c.json({
-      user: {
-        id: user.id, email: user.email, name: user.name,
-        avatarUrl: user.avatarUrl, editorLanguage: user.editorLanguage,
-        theme: user.theme, isAdmin: user.isAdmin,
-      },
-    });
-  }
-
-  await db.update(users).set(updates).where(eq(users.id, user.id));
-  const [row] = await db.select().from(users).where(eq(users.id, user.id));
+  const result = await db.transaction(async (tx) => {
+    const [current] = await tx.select().from(users).where(eq(users.id, user.id)).for("update");
+    if (!current) return null;
+    const tourStarted = tour?.action === "start" && current.editorTour === null;
+    if (tourStarted) updates.editorTour = { step: 0, completed: false };
+    if (tour?.action === "progress" && !current.editorTour?.completed) {
+      updates.editorTour = { step: tour.step, completed: false };
+    }
+    if (tour?.action === "complete") {
+      updates.editorTour = { step: 6, completed: true };
+    }
+    if (tour?.action === "import" && current.editorTour === null) {
+      updates.editorTour = { step: tour.step, completed: tour.completed };
+    }
+    const [row] = Object.keys(updates).length
+      ? await tx.update(users).set(updates).where(eq(users.id, user.id)).returning()
+      : [current];
+    return { row, tourStarted };
+  });
+  if (!result) return c.json({ error: "unauthorized" }, 401);
+  const { row, tourStarted } = result;
   return c.json({
     user: {
       id: row.id, email: row.email, name: row.name,
       avatarUrl: row.avatarUrl, editorLanguage: row.editorLanguage,
-      theme: row.theme, isAdmin: row.isAdmin,
+      theme: row.theme, isAdmin: row.isAdmin, editorTour: row.editorTour,
     },
+    ...(tour?.action === "start" ? { tourStarted } : {}),
   });
 });
 

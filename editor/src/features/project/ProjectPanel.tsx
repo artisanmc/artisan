@@ -14,8 +14,6 @@ import { useAccountStore } from "@/state/accountStore";
 import { useUiStore } from "@/state/uiStore";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import {
-  ArrowLeftToLine,
-  ArrowRightToLine,
   LayoutGrid,
   MessageSquare,
   Plus,
@@ -150,29 +148,6 @@ function PanelItem({
         <Icon className="size-[15px] shrink-0 text-[var(--text-faint)]" />
         <span className="flex-1 truncate">{item.label}</span>
       </button>
-      {item.onBoard ? (
-        <button
-          type="button"
-          title={t("projectPanel.removeFromCanvas")}
-          aria-label={t("projectPanel.removeFromCanvas")}
-          onClick={() => useAccountStore.getState().removeFromBoard({ projectId, nodeId: item.id })}
-          className="flex shrink-0 items-center justify-center rounded-[8px] p-2 text-[var(--brand)] hover:bg-[var(--surface-raised)] hover:text-[var(--brand-hover)]"
-        >
-          <ArrowRightToLine className="size-[15px]" />
-        </button>
-      ) : (
-        <button
-          type="button"
-          title={t("projectPanel.addToCanvas")}
-          aria-label={t("projectPanel.addToCanvas")}
-          onClick={() =>
-            useAccountStore.getState().addToBoard({ projectId, nodeId: item.id, x: 40, y: 40 })
-          }
-          className="flex shrink-0 items-center justify-center rounded-[8px] p-2 text-[var(--text-faint)] hover:bg-[var(--surface-raised)] hover:text-[var(--text)] lg:opacity-0 lg:group-hover:opacity-100"
-        >
-          <ArrowLeftToLine className="size-[15px]" />
-        </button>
-      )}
       <DropdownMenu>
         <DropdownMenuTrigger
           className="flex shrink-0 items-center justify-center p-2 text-[var(--text-faint)]"

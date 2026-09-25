@@ -7,6 +7,7 @@ import { CapturedItemsSection } from "@/features/canvas/CapturedItemsSection";
 import { ImageButtonLibrary } from "@/features/canvas/ImageButtonLibrary";
 import { Library } from "@/features/canvas/Library";
 import { useTextureInit } from "@/features/canvas/useTextureInit";
+import { useTourPresentation } from "@/features/onboarding/tourPresentation";
 import { useIsDesktop } from "@/lib/useMediaQuery";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
@@ -24,6 +25,7 @@ export function ProjectLibraryButton({
   const open = useProjectLibraryStore((s) => s.projectId === projectId);
   return (
     <Button
+      data-tour="library-trigger"
       variant={open && active ? "secondary" : "ghost"}
       size="sm"
       className="min-h-11 lg:min-h-0"
@@ -55,7 +57,9 @@ export function ProjectLibraryWorkspace({
   const minimapVisible = useUiStore((s) => s.minimapVisible);
   useTextureInit(projectId);
   useAssetInit(projectId);
-  const open = useProjectLibraryStore((s) => s.projectId === projectId);
+  const preferredOpen = useProjectLibraryStore((s) => s.projectId === projectId);
+  const tourStep = useTourPresentation((s) => s.step);
+  const open = tourStep === null ? preferredOpen : tourStep === 3;
   const close = useProjectLibraryStore((s) => s.close);
   const desktop = useIsDesktop();
   const width = useProjectLibraryStore((s) => s.width);
@@ -126,7 +130,7 @@ export function ProjectLibraryWorkspace({
         }
         secondary={
           active && open ? (
-            <aside className="h-full min-h-0 bg-[var(--surface-raised)]">
+            <aside data-tour="library" className="h-full min-h-0 bg-[var(--surface-raised)]">
               <ProjectLibraryPanel projectId={projectId} />
             </aside>
           ) : null

@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { useTourPresentation } from "@/features/onboarding/tourPresentation";
 import { useIsDesktop } from "@/lib/useMediaQuery";
 import { useSidebarStore } from "@/state/sidebarStore";
 import { PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
@@ -10,6 +11,7 @@ const hasPopup = () => !!document.querySelector('[role="menu"], [role="dialog"],
 export function NavigationSidebar({ children }: { children: ReactNode }) {
   const { t } = useTranslation();
   const desktop = useIsDesktop();
+  const tourStep = useTourPresentation((s) => s.step);
   const { pinned, togglePinned, isOpen, open, close } = useSidebarStore();
   const [revealed, setRevealed] = useState(false);
   const panel = useRef<HTMLElement>(null);
@@ -18,7 +20,7 @@ export function NavigationSidebar({ children }: { children: ReactNode }) {
   const keyboard = useRef(false);
   const restoreFocus = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const visible = desktop ? pinned || revealed : isOpen;
+  const visible = tourStep === 1 || (desktop ? pinned || revealed : isOpen);
   const cancelClose = useCallback(() => {
     clearTimeout(timer.current);
     timer.current = undefined;
@@ -108,6 +110,7 @@ export function NavigationSidebar({ children }: { children: ReactNode }) {
       <aside
         ref={panel}
         id="global-navigation"
+        data-tour="navigation"
         data-testid="navigation-sidebar"
         inert={!visible}
         aria-hidden={!visible}
@@ -145,6 +148,7 @@ export function NavigationSidebar({ children }: { children: ReactNode }) {
       </aside>
       <Button
         ref={toggle}
+        data-tour="navigation-trigger"
         variant="ghost"
         size="icon"
         type="button"

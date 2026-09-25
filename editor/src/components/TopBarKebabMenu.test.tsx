@@ -1,6 +1,6 @@
-import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { describe, expect, it, vi } from "vitest";
 import { TopBarKebabMenu } from "./TopBarKebabMenu";
 
 describe("TopBarKebabMenu", () => {
@@ -17,13 +17,28 @@ describe("TopBarKebabMenu", () => {
     expect(screen.getByLabelText(/More actions|Plus d'actions|topbar\.more/i)).toBeInTheDocument();
   });
 
+  it("resumes the tour from the project menu", async () => {
+    const user = userEvent.setup();
+    const onTour = vi.fn();
+    render(<TopBarKebabMenu {...baseProps} onTour={onTour} tourCanResume />);
+    await user.click(screen.getByLabelText(/More actions|Plus d'actions|topbar\.more/i));
+    await user.click(screen.getByRole("menuitem", { name: /Reprendre la visite|Resume the tour/ }));
+    expect(onTour).toHaveBeenCalledOnce();
+  });
+
   it("opens menu on click and shows all items", async () => {
     const user = userEvent.setup();
     render(<TopBarKebabMenu {...baseProps} />);
     await user.click(screen.getByLabelText(/More actions|Plus d'actions|topbar\.more/i));
-    expect(screen.getByText(/Exporter le projet|Export project|topbar\.exportZip/i)).toBeInTheDocument();
-    expect(screen.getByText(/Importer un projet|Import a project|topbar\.import/i)).toBeInTheDocument();
-    expect(screen.getByText(/Patterns|Aide-mémoire|Cheat sheet|patterns\.title/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Exporter le projet|Export project|topbar\.exportZip/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Importer un projet|Import a project|topbar\.import/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Patterns|Aide-mémoire|Cheat sheet|patterns\.title/i),
+    ).toBeInTheDocument();
     expect(screen.getByText(/Supprimer|Delete|topbar\.deleteProject/i)).toBeInTheDocument();
   });
 
