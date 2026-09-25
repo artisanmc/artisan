@@ -17,7 +17,13 @@ import java.util.concurrent.ConcurrentHashMap
  */
 class MenuWindows(private val sink: ClientSlotSink) {
 
-    inner class Window(val player: Player, val anchor: Inventory, val slots: MenuSlots) : MenuSlots.Client {
+    inner class Window(
+        val player: Player,
+        val anchor: Inventory,
+        val slots: MenuSlots,
+        /** `vanilla_texture` du menu : false garde le coffre transparent (cf. VanillaGuiTitle). */
+        val vanillaTexture: Boolean = true,
+    ) : MenuSlots.Client {
         /** Id de fenêtre protocole, capturé sur le paquet d'ouverture. -1 avant. */
         @Volatile var windowId: Int = -1
             internal set
@@ -50,8 +56,8 @@ class MenuWindows(private val sink: ClientSlotSink) {
     private val windows = ConcurrentHashMap<UUID, Window>()
 
     /** À poser AVANT `openInventory` : les paquets d'ouverture sont réécrits. */
-    fun open(player: Player, anchor: Inventory, slots: MenuSlots): Window {
-        val window = Window(player, anchor, slots)
+    fun open(player: Player, anchor: Inventory, slots: MenuSlots, vanillaTexture: Boolean = true): Window {
+        val window = Window(player, anchor, slots, vanillaTexture)
         slots.client = window
         windows.put(player.uniqueId, window)?.let { detach(it) }
         return window

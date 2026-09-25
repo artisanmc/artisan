@@ -23,8 +23,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { EmptyState } from "@/components/ui/empty-state";
-import { FileDropzone } from "@/components/ui/file-dropzone";
 import { FileDiff } from "@/components/ui/file-diff";
+import { FileDropzone } from "@/components/ui/file-dropzone";
 import { SaveFilledIcon } from "@/components/ui/filled-icons";
 import { FormField } from "@/components/ui/form-field";
 import { HBar } from "@/components/ui/h-bar";
@@ -40,6 +40,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { StatCard } from "@/components/ui/stat-card";
+import { Switch } from "@/components/ui/switch";
 import { TBody, TD, TH, THead, TR, Table } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip } from "@/components/ui/tooltip";
@@ -394,6 +395,7 @@ export function DesignSystemPage() {
               Toujours accompagné de ce qu'on attend : un rond qui tourne seul n'informe de rien.
             </p>
           </div>
+          <SwitchSpecimen />
           <div className="flex max-w-sm flex-col gap-2">
             <span className="mono text-[11px] text-[var(--text-faint)]">
               {"<FileDropzone file onFile accept label prompt hint>"}
@@ -713,6 +715,24 @@ function WorkspaceViewSpecimen() {
           Le canvas reste monté dessous — jamais display:none. Échap / × reviennent au canvas.
         </p>
       </WorkspaceView>
+    </div>
+  );
+}
+
+function SwitchSpecimen() {
+  const [on, setOn] = useState(true);
+  return (
+    <div className="flex flex-col gap-2">
+      <span className="mono text-[11px] text-[var(--text-faint)]">
+        {"<Switch checked onCheckedChange>"}
+      </span>
+      <div className="flex items-center gap-3">
+        <Switch checked={on} onCheckedChange={setOn} aria-label="Texture par défaut" />
+        <Switch checked={false} disabled onCheckedChange={() => {}} aria-label="Désactivé" />
+      </div>
+      <p className="text-[11.5px] text-[var(--text-faint)]">
+        Pour un réglage enregistré qui change le résultat en jeu. Un masquage d'aperçu garde l'œil.
+      </p>
     </div>
   );
 }

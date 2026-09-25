@@ -32,6 +32,8 @@ export interface Menu {
   size: 9 | 18 | 27 | 36 | 45 | 54;
   /** Bas de la fenêtre. Absent = "visible" (vrai inventaire, positions ≥ size ignorées). "hidden" : positions size..size+35 = slots joueur (rawSlot). */
   player_inventory?: "visible" | "hidden";
+  /** Absent/true = texture vanilla. false (coffre) : fenêtre transparente, cf. schema.json. */
+  vanilla_texture?: boolean;
   permission?: string;
   /** Notes internes de l'admin (jamais rendues aux joueurs). Round-trip-safe JSON ↔ YAML. */
   notes?: string;

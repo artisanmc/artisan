@@ -1,11 +1,13 @@
 import { and, eq, isNull } from "drizzle-orm";
-import { existsSync } from "fs";
+import { existsSync, readFileSync } from "fs";
+import { resolve } from "path";
 import { db } from "../db/index";
 import { projects, serverKeys } from "../db/schema";
 import { buildResourcePackZip, type AssetRow } from "./resourcePackBuilder";
 import { diskAssetsFromTree, readDiskAssetBytes, type DiskAsset } from "./diskAssets";
 import { glyphPlacementsFromMenus, type GlyphPlacement } from "./menuGlyphPlacements";
 import { imageButtonsFromMenus, type ImageButtonPlacement } from "./imageButtons";
+import { transparentChestsFromMenus } from "./vanillaGui";
 import { readProjectTree } from "./projectTreeReads";
 import { requestAssetRead } from "../ws/hub";
 import { createHash } from "crypto";
@@ -65,6 +67,7 @@ export async function rebuildResourcePack(serverKeyId: string, options: { requir
   const fontGlyphPngs = new Map<string, Map<string, Uint8Array>>();
   const glyphPlacements: GlyphPlacement[] = [];
   const imageButtons: ImageButtonPlacement[] = [];
+  let transparentChests = false;
 
   for (const p of boundProjects) {
     const diskId = p.externalId ?? p.id;
@@ -81,6 +84,7 @@ export async function rebuildResourcePack(serverKeyId: string, options: { requir
       // doit porter une police par hauteur utilisée.
       glyphPlacements.push(...glyphPlacementsFromMenus(tree.result.files ?? []));
       imageButtons.push(...imageButtonsFromMenus(tree.result.files ?? []));
+      transparentChests ||= transparentChestsFromMenus(tree.result.files ?? []);
       return diskAssetsFromTree(p.id, tree.result.files ?? [], tree.result.binaries ?? []);
     })();
 
@@ -150,6 +154,7 @@ export async function rebuildResourcePack(serverKeyId: string, options: { requir
     { finalCodepoints },
     glyphPlacements,
     imageButtons,
+    { source: vanillaChestTexture(), transparentChests },
   );
   await writeResourcePack(serverKeyId, hash, zipBytes);
 
@@ -186,4 +191,16 @@ export async function currentPackInfo(serverKeyId: string): Promise<PackInfo | n
 
 function buildPackUrl(serverKeyId: string, hash: string): string {
   return `${RESOURCE_PACK_BASE_URL}/api/v1/resource-pack/${serverKeyId}/${hash}.zip`;
+}
+
+/**
+ * Vanilla generic_54.png, the source of the `artisan:vanilla_gui` glyphs. The
+ * editor ships it; the backend image copies `editor/src` next to `/app`.
+ */
+let chestTexture: Uint8Array | undefined;
+function vanillaChestTexture(): Uint8Array {
+  chestTexture ??= new Uint8Array(
+    readFileSync(resolve(import.meta.dir, "../../../editor/src/assets/minecraft/generic_54.png")),
+  );
+  return chestTexture;
 }

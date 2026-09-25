@@ -272,6 +272,11 @@ const fr: typeof en = {
     playerInventory: "Inventaire du joueur",
     playerInventoryVisible: "Visible",
     playerInventoryHidden: "Masqué",
+    vanillaTexture: "Texture par défaut",
+    vanillaTextureOnHint: "La texture vanilla du coffre est dessinée sous le titre.",
+    vanillaTextureOffHint:
+      "Désactivée : la fenêtre est transparente en jeu, haut comme bas. Apporte ta propre texture avec une image. Les autres coffres du serveur gardent leur apparence.",
+    vanillaTextureChestOnly: "Réservé aux coffres pour l'instant.",
     playerInventoryHintVisible:
       "Le joueur voit son propre inventaire sous le menu, sans pouvoir le modifier. Le menu n'utilise que ses propres slots.",
     playerInventoryHintHidden:

@@ -182,6 +182,14 @@ vit dans `validateMenuLayout` (`types.ts`) et dans l'éditeur (`positionCount`).
 Export : émis **uniquement si `hidden`**. Resté dans `menu/v1` (additif). Runtime : cf.
 `invariants.md` « Le contenu des menus n'existe que côté client ».
 
+### `vanilla_texture` (fond de coffre transparent, 2026-09-25)
+
+Booléen **additif optionnel**, **défaut `true`**. `false` n'a de sens que pour un coffre : fenêtre
+transparente en jeu, le menu apporte sa texture par des glyphs de titre. Domaine éditeur
+`Menu.vanillaTexture?: false` (stocké seulement à `false`), export émis seulement à `false`, plugin
+`MenuYaml.vanillaTexture`. Effets hors du menu (pack + réinjection sur les autres coffres) :
+`invariants.md` « Coffres transparents ».
+
 ## Statut / phasage
 
 | Phase | Portée | Statut |

@@ -263,6 +263,11 @@ export default {
     playerInventory: "Player inventory",
     playerInventoryVisible: "Visible",
     playerInventoryHidden: "Hidden",
+    vanillaTexture: "Default texture",
+    vanillaTextureOnHint: "The vanilla chest texture is drawn under the title.",
+    vanillaTextureOffHint:
+      "Off: the window is transparent in game, top and bottom. Bring your own texture with an image. Every other chest on the server keeps its look.",
+    vanillaTextureChestOnly: "Chests only for now.",
     playerInventoryHintVisible:
       "Players see their own inventory below the menu, read-only. The menu only uses its own slots.",
     playerInventoryHintHidden:

@@ -29,9 +29,18 @@ export interface AssetIndex {
    * can build its OffsetEncoder without hard-coding the table.
    */
   offsets: Record<string, number>;
+  /**
+   * Present when the pack ships the `artisan:vanilla_gui` font. The plugin
+   * prepends the chest glyph to OPEN_WINDOW titles only when
+   * `transparent_chests` is true (the pack then overrides generic_54.png).
+   */
+  vanilla_gui?: { transparent_chests: boolean };
 }
 
-export function buildAssetIndex(assets: AssetRow[]): AssetIndex {
+export function buildAssetIndex(
+  assets: AssetRow[],
+  vanillaGui?: { transparentChests: boolean },
+): AssetIndex {
   const out: Record<string, AssetIndexEntry> = {};
   for (const a of assets) {
     const entry: AssetIndexEntry = {
@@ -59,5 +68,7 @@ export function buildAssetIndex(assets: AssetRow[]): AssetIndex {
     offsets[codepoint.toString(16).toUpperCase()] = advance;
   }
 
-  return { version: 2, assets: out, offsets };
+  const index: AssetIndex = { version: 2, assets: out, offsets };
+  if (vanillaGui) index.vanilla_gui = { transparent_chests: vanillaGui.transparentChests };
+  return index;
 }

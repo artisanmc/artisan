@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { slotMcXY } from "./inventoryTypes";
-import { MC_SLOT_STRIDE, MC_TITLE_H, bottomPieceCrop } from "./menuLayout";
+import {
+  MC_SLOT_STRIDE,
+  MC_TITLE_H,
+  bottomPieceCrop,
+  menuBoxSize,
+  slotXY,
+  transparentOutline,
+} from "./menuLayout";
 
 /** Row of the first player inventory slot border in generic_54.png. */
 const TEXTURE_PLAYER_INV_Y = 139;
@@ -16,5 +23,15 @@ describe("chest bottom piece", () => {
       const drawnBorderY = pieceTop + (TEXTURE_PLAYER_INV_Y - bottomPieceCrop().y);
       expect(slotMcXY(rows * 9, "chest", rows).y).toBe(drawnBorderY);
     }
+  });
+});
+
+describe("transparent window outline", () => {
+  it("outlines the window, every menu slot and the 36 player slots", () => {
+    const outline = transparentOutline(3);
+    expect(outline.box).toEqual(menuBoxSize("chest", 3));
+    expect(outline.cells).toHaveLength(27 + 36);
+    expect(outline.cells[0]).toEqual(slotXY(0, "chest", 3));
+    expect(outline.cells[62]).toEqual(slotXY(62, "chest", 3));
   });
 });
