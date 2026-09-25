@@ -22,6 +22,10 @@ remain so you can still place buttons.
 Every other chest on the server keeps its normal look: players who loaded the
 resource pack get the vanilla texture drawn back through the window title.
 Players who declined the pack see your menu over the plain vanilla texture.
+If your server's resource pack restyles chests, import that `generic_54.png` in the
+project's **Resources** and tick **Chest texture**: the chests drawn back use it
+instead of the vanilla texture (256×256, or a multiple for an HD pack). A texture
+pack a player picks on their own side is not kept while this is active.
 Chests only for now; switching back to a vanilla title turns the texture on again.
 
 ## Text

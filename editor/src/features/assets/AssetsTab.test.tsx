@@ -96,7 +96,7 @@ describe("AssetsTab", () => {
     expect(screen.queryByTitle("ico_one")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: /^Importer une image$/ }));
     expect(screen.getByRole("checkbox", { name: /^Images du menu$/ })).toBeChecked();
-    expect(screen.getAllByRole("checkbox")).toHaveLength(2);
+    expect(screen.getAllByRole("checkbox")).toHaveLength(3);
   });
   it("keeps unclassified images accessible and separates no-results from load failures", () => {
     useAssetStore.getState().setAssets([{ ...A1, usages: [] }, A2]);
