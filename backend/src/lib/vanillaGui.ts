@@ -13,6 +13,10 @@ import { parse } from "yaml";
  * top-left (ascent 13 puts the top pixel at chest y=0). U+E010 moves the pen
  * from the title origin (x=8) to x=0 ; U+E010+N walks back from the end of
  * glyph N to the title origin.
+ *
+ * The source is vanilla generic_54.png, or a project image marked as
+ * `chest_texture` (same layout, 256×256 or an HD multiple) so a server pack
+ * that restyles chests keeps its look on the chests drawn back.
  */
 export const VANILLA_GUI_FONT = "assets/artisan/font/vanilla_gui.json";
 export const GENERIC_54_OVERRIDE = "assets/minecraft/textures/gui/container/generic_54.png";
@@ -39,11 +43,35 @@ export function transparentChestsFromMenus(files: { path: string; content: strin
   });
 }
 
-function chestWindow(src: PNG, rows: number): PNG {
-  const topH = TITLE_H + rows * ROW_H;
-  const out = new PNG({ width: WIDTH, height: topH + BOTTOM_H });
-  PNG.bitblt(src, out, 0, 0, WIDTH, topH, 0, 0);
-  PNG.bitblt(src, out, 0, BOTTOM_SRC_Y, WIDTH, BOTTOM_H, 0, topH);
+/** Scale of a generic_54-layout texture (1 = 256×256), or null if it isn't one. */
+function chestTextureScale(png: PNG): number | null {
+  if (png.width !== png.height || png.width < 256 || png.width % 256 !== 0) return null;
+  return png.width / 256;
+}
+
+/**
+ * First project image marked as `chest_texture` whose file is a generic_54
+ * layout; undefined → the vanilla texture. Other marked images are ignored.
+ */
+export function chestTextureSource(
+  assets: { row: { usages?: readonly string[] }; bytes: Uint8Array }[],
+): Uint8Array | undefined {
+  for (const { row, bytes } of assets) {
+    if (!row.usages?.includes("chest_texture")) continue;
+    try {
+      if (chestTextureScale(PNG.sync.read(Buffer.from(bytes))) !== null) return bytes;
+    } catch {
+      // Unreadable PNG: not a usable source.
+    }
+  }
+  return undefined;
+}
+
+function chestWindow(src: PNG, rows: number, k: number): PNG {
+  const topH = (TITLE_H + rows * ROW_H) * k;
+  const out = new PNG({ width: WIDTH * k, height: topH + BOTTOM_H * k });
+  PNG.bitblt(src, out, 0, 0, WIDTH * k, topH, 0, 0);
+  PNG.bitblt(src, out, 0, BOTTOM_SRC_Y * k, WIDTH * k, BOTTOM_H * k, 0, topH);
   return out;
 }
 
@@ -62,20 +90,22 @@ export function buildVanillaGuiFiles(
   transparentChests: boolean,
 ): Record<string, Uint8Array> {
   const src = PNG.sync.read(Buffer.from(generic54));
+  const k = chestTextureScale(src) ?? 1;
   const files: Record<string, Uint8Array> = {};
   const providers: Record<string, unknown>[] = [];
   const advances: Record<string, number> = { [String.fromCodePoint(0xe010)]: -TITLE_X };
   for (let rows = 1; rows <= 6; rows++) {
-    const png = chestWindow(src, rows);
+    const png = chestWindow(src, rows, k);
     files[`assets/artisan/textures/gui/generic_9x${rows}.png`] = new Uint8Array(PNG.sync.write(png));
     providers.push({
       type: "bitmap",
       file: `artisan:gui/generic_9x${rows}.png`,
       ascent: TOP_ASCENT,
-      height: png.height,
+      height: png.height / k,
       chars: [String.fromCodePoint(0xe000 + rows)],
     });
-    advances[String.fromCodePoint(0xe010 + rows)] = -(contentWidth(png) + 1) + TITLE_X;
+    // MC scales a bitmap glyph to `height`: its advance is the scaled content width + 1.
+    advances[String.fromCodePoint(0xe010 + rows)] = -(Math.round(contentWidth(png) / k) + 1) + TITLE_X;
   }
   providers.push({ type: "space", advances });
   files[VANILLA_GUI_FONT] = new TextEncoder().encode(JSON.stringify({ providers }, null, 2));

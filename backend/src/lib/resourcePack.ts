@@ -7,7 +7,7 @@ import { buildResourcePackZip, type AssetRow } from "./resourcePackBuilder";
 import { diskAssetsFromTree, readDiskAssetBytes, type DiskAsset } from "./diskAssets";
 import { glyphPlacementsFromMenus, type GlyphPlacement } from "./menuGlyphPlacements";
 import { imageButtonsFromMenus, type ImageButtonPlacement } from "./imageButtons";
-import { transparentChestsFromMenus } from "./vanillaGui";
+import { chestTextureSource, transparentChestsFromMenus } from "./vanillaGui";
 import { readProjectTree } from "./projectTreeReads";
 import { requestAssetRead } from "../ws/hub";
 import { createHash } from "crypto";
@@ -154,7 +154,7 @@ export async function rebuildResourcePack(serverKeyId: string, options: { requir
     { finalCodepoints },
     glyphPlacements,
     imageButtons,
-    { source: vanillaChestTexture(), transparentChests },
+    { source: chestTexture(allAssets, glyphPngs, serverKeyId), transparentChests },
   );
   await writeResourcePack(serverKeyId, hash, zipBytes);
 
@@ -194,13 +194,34 @@ function buildPackUrl(serverKeyId: string, hash: string): string {
 }
 
 /**
- * Vanilla generic_54.png, the source of the `artisan:vanilla_gui` glyphs. The
+ * Source of the `artisan:vanilla_gui` glyphs: a project image marked
+ * `chest_texture` keeps a restyled chest on the chests drawn back; otherwise
+ * the vanilla texture. A marked image in the wrong layout is ignored, loudly.
+ */
+function chestTexture(assets: AssetRow[], pngs: Map<string, Uint8Array>, serverKeyId: string): Uint8Array {
+  const marked = assets.filter((row) => row.usages?.includes("chest_texture"));
+  const custom = chestTextureSource(
+    marked.flatMap((row) => {
+      const bytes = pngs.get(row.id);
+      return bytes ? [{ row, bytes }] : [];
+    }),
+  );
+  if (!custom && marked.length > 0) {
+    console.warn(
+      `[resource-pack] ${serverKeyId}: chest texture ${marked.map((r) => r.name).join(", ")} ignored (expected a generic_54.png layout, 256×256 or a multiple); using the vanilla texture`,
+    );
+  }
+  return custom ?? vanillaChestTexture();
+}
+
+/**
+ * Vanilla generic_54.png, the default source of the `artisan:vanilla_gui` glyphs. The
  * editor ships it; the backend image copies `editor/src` next to `/app`.
  */
-let chestTexture: Uint8Array | undefined;
+let vanillaChest: Uint8Array | undefined;
 function vanillaChestTexture(): Uint8Array {
-  chestTexture ??= new Uint8Array(
+  vanillaChest ??= new Uint8Array(
     readFileSync(resolve(import.meta.dir, "../../../editor/src/assets/minecraft/generic_54.png")),
   );
-  return chestTexture;
+  return vanillaChest;
 }

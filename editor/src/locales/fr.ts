@@ -15,6 +15,9 @@ const fr: typeof en = {
     all: "Tout",
     button: "Images de boutons",
     menu: "Images du menu",
+    chest_texture: "Texture de coffre",
+    chestTextureHint:
+      "Au format generic_54.png (256×256, ou un multiple pour un pack HD). Quand un menu désactive sa texture par défaut, les autres coffres du serveur sont redessinés avec cette image plutôt qu'avec la texture vanilla. Une seule image par serveur : la première trouvée est utilisée.",
     font: "Polices",
     unclassified: "À classer",
     upload: "Importer une image",

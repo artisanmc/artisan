@@ -175,8 +175,14 @@ et signale `vanilla_gui.transparent_chests` dans `asset-index.json`.
 - **Transitoires acceptés** : entre une publication et le rechargement du nouveau pack, un joueur peut
   voir la texture en double (invisible : c'est la même image) ou, si la transparence vient d'être
   retirée, un coffre transparent jusqu'à ce qu'il reçoive le pack suivant.
-- Un autre pack qui remplace aussi `generic_54.png` (Nexo, Oraxen, ItemsAdder, packs de textures) :
-  le dernier chargé gagne ; la glyph réinjectée garde l'aspect vanilla.
+- **Source des glyphs** : `generic_54.png` vanilla (copie de l'éditeur), ou la première image d'un
+  projet lié portant l'usage `chest_texture` (format generic_54, 256×256 ou multiple HD : découpée à
+  son échelle, dessinée à la taille vanilla). Une image marquée au mauvais format est ignorée avec un
+  WARN backend. C'est ainsi qu'un pack **serveur** qui restyle les coffres garde son aspect.
+- Un autre pack serveur qui remplace aussi `generic_54.png` (Nexo, Oraxen, ItemsAdder) : le dernier
+  chargé gagne. Un pack **perso** côté joueur est écrasé (les packs serveur passent au-dessus) et ses
+  coffres redeviennent ceux de la source ci-dessus — limite de l'approche globale, seul un shader
+  ciblé l'éviterait.
 - Entonnoir / distributeur : hors périmètre (même mécanisme avec `hopper.png` / `dispenser.png`).
 
 ## Custom items — hash inline
