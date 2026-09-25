@@ -15,7 +15,8 @@ from the web editor.
 ## 1. Download the plugin
 
 Download the latest `artisan-plugin-*.jar` from the Artisan GitHub
-Releases page, then drop it into your server's `plugins/` folder.
+Releases page, then drop it into your server's `plugins/` folder. Nothing
+else is required: the plugin ships its own copy of PacketEvents.
 
 Restart the server once. A default `plugins/Artisan/config.yml` is
 generated. The plugin will log a startup line indicating offline mode
@@ -136,6 +137,11 @@ own: open the project in the editor and resolve the banner, or run
 **`/artisan editor` says "connecting, retry shortly"**
 The server is linked (`server_key` set) but hasn't completed its WebSocket handshake with the backend yet — usually just after a restart or a brief backend outage. Wait a few seconds and run the command again; check `ws_url` reachability if it persists.
 
+**Menus open empty**
+Menu content is sent to players through packets. If the startup log shows
+`PacketEvents failed to load` or `failed to start`, your server version is
+newer than the bundled PacketEvents: update Artisan.
+
 **`/artisan editor` is console-only**
 `editor.console_only` is set to `true` in `config.yml`. Either change it
 or run the command from the console.
@@ -232,14 +238,6 @@ per_player_language: false
 editor:
   # Set to true to restrict /artisan editor to console only (no in-game players).
   console_only: false
-
-# Menus.
-menus:
-  # Experimental. Lets menu positions size..size+35 address the player's
-  # inventory slots (27 main + 9 hotbar), shown client-side only: the real
-  # inventory is never touched and reappears when the menu closes. Slots
-  # without a button are shown empty. Requires the PacketEvents plugin.
-  player-inventory-slots: false
 
 # Read-only roots that Project members may browse from the AI assistant.
 assistant:

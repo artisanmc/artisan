@@ -106,3 +106,12 @@ The separate **Properties** panel edits the current selection. Selecting another
 menu or item keeps the Buttons open, and either panel can be closed independently.
 Material and image fields still offer their contextual pickers. Press **Escape**
 outside a field or dialog to close the Buttons before leaving the document view.
+
+### Player inventory
+
+A menu's properties include **Player inventory**. **Visible** (the default) shows the
+player's real inventory under the menu, read-only. **Hidden** replaces it with the
+menu's own buttons: the 4 rows under the menu (3 inventory rows, then the hotbar)
+become slots you can fill like any other. The player's real inventory is never
+touched — it reappears as soon as the menu closes. Changing the menu's rows or
+container type keeps each of these buttons on the same inventory slot.

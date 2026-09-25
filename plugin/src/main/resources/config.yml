@@ -20,14 +20,6 @@ editor:
   # Set to true to restrict /artisan editor to console only (no in-game players).
   console_only: false
 
-# Menus.
-menus:
-  # Experimental. Lets menu positions size..size+35 address the player's
-  # inventory slots (27 main + 9 hotbar), shown client-side only: the real
-  # inventory is never touched and reappears when the menu closes. Slots
-  # without a button are shown empty. Requires the PacketEvents plugin.
-  player-inventory-slots: false
-
 # Read-only roots that Project members may browse from the AI assistant.
 # Paths may be absolute or relative to the Minecraft server root. Only files
 # matching the declared extensions are exposed; hidden paths and symlinks are

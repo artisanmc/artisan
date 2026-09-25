@@ -667,6 +667,7 @@ Pour chaque release du core ou d'un module :
 - [ ] Si nouveau schema : `/docs/schema/{name}/v{N}/` créé avec types.ts + examples
 - [ ] Si migration nécessaire : code de migration + test unitaire
 - [ ] Si breaking change : annonce Discord faite 3+ mois avant
+- [ ] Si Minecraft ou PacketEvents a changé : checklist « Menus en paquets » passée en jeu (`testing.md`)
 
 ### 11.2 Release
 

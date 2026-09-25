@@ -13,11 +13,12 @@ import type {
   InventoryType,
   Menu,
   MenuId,
+  PlayerInventoryMode,
   Project,
   ProjectId,
   SourceRef,
 } from "@/domain/types";
-import { slotCount } from "@/features/canvas/inventoryTypes";
+import { positionCount } from "@/features/canvas/inventoryTypes";
 import { LayersPanel } from "@/features/canvas/title/composer/LayersPanel";
 import { summarizeFieldType } from "@/features/data/helpers";
 import { useProjectLibraryStore } from "@/features/project/projectLibraryStore";
@@ -40,6 +41,7 @@ interface MenuPropertiesProps {
 
 const ROWS_OPTIONS = [1, 2, 3, 4, 5, 6] as const;
 const INVENTORY_TYPE_OPTIONS: InventoryType[] = ["chest", "hopper", "dropper"];
+const PLAYER_INVENTORY_OPTIONS: PlayerInventoryMode[] = ["visible", "hidden"];
 const PRIMITIVE_TYPES: Extract<ContextInput, { kind: "primitive" }>["type"][] = [
   "player",
   "string",
@@ -67,7 +69,7 @@ export function MenuProperties({ projectId, menu }: MenuPropertiesProps) {
   const elementCount = menu.layers.reduce((sum, layer) => sum + layer.elements.length, 0);
 
   const type = menu.inventoryType ?? "chest";
-  const capacity = slotCount(type, menu.rows);
+  const capacity = positionCount(type, menu.rows, menu.playerInventory);
   const outOfRange = menu.layers.reduce(
     (n, l) =>
       n + l.elements.filter((el) => parsePositions(el.positions).some((p) => p >= capacity)).length,
@@ -144,6 +146,41 @@ export function MenuProperties({ projectId, menu }: MenuPropertiesProps) {
             {t("menuProperties.outOfRange", { count: outOfRange })}
           </div>
         ) : null}
+      </div>
+      <div>
+        <div className="mb-1 text-[10px] uppercase text-[var(--text-faint)]">
+          {t("menuProperties.playerInventory")}
+        </div>
+        <div className="flex gap-1">
+          {PLAYER_INVENTORY_OPTIONS.map((opt) => (
+            <button
+              key={opt}
+              type="button"
+              aria-pressed={opt === (menu.playerInventory ?? "visible")}
+              onClick={() =>
+                setMenuField({ projectId, menuId: menu.id, field: "playerInventory", value: opt })
+              }
+              className={
+                opt === (menu.playerInventory ?? "visible")
+                  ? "rounded border border-[var(--brand)] bg-[var(--brand-soft)] px-2 py-1 text-xs"
+                  : "rounded border border-[var(--border)] px-2 py-1 text-xs hover:border-[var(--border-strong)]"
+              }
+            >
+              {t(
+                opt === "hidden"
+                  ? "menuProperties.playerInventoryHidden"
+                  : "menuProperties.playerInventoryVisible",
+              )}
+            </button>
+          ))}
+        </div>
+        <p className="mt-1 text-[10px] text-[var(--text-mut)]">
+          {t(
+            menu.playerInventory === "hidden"
+              ? "menuProperties.playerInventoryHintHidden"
+              : "menuProperties.playerInventoryHintVisible",
+          )}
+        </p>
       </div>
       {type === "chest" ? (
         <div>

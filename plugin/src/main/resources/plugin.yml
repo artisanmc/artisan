@@ -2,7 +2,7 @@ name: Artisan
 version: '1.0.0'
 main: net.artisanmc.plugin.ArtisanPlugin
 api-version: '1.21'
-softdepend: [packetevents, Vault, PlaceholderAPI, WorldGuard, Nexo, Oraxen, ItemsAdder, HeadDatabase]
+softdepend: [Vault, PlaceholderAPI, WorldGuard, Nexo, Oraxen, ItemsAdder, HeadDatabase]
 description: Artisan GUI editor plugin
 commands:
   artisan:

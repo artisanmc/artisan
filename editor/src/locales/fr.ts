@@ -1,9 +1,9 @@
 import { accountDeletionFr } from "./accountDeletion";
-import { marketingFr } from "./marketing";
 import { changesFr } from "./changes";
 import { demoFr } from "./demo";
 import { draftsFr } from "./drafts";
 import type en from "./en";
+import { marketingFr } from "./marketing";
 import { migrationFr } from "./migration";
 import { projectCopyFr } from "./projectCopy";
 import { projectIdentityFr } from "./projectIdentity";
@@ -269,6 +269,13 @@ const fr: typeof en = {
     typeDropper: "Distributeur",
     outOfRange_one: "{{count}} élément hors de l'inventaire",
     outOfRange_other: "{{count}} éléments hors de l'inventaire",
+    playerInventory: "Inventaire du joueur",
+    playerInventoryVisible: "Visible",
+    playerInventoryHidden: "Masqué",
+    playerInventoryHintVisible:
+      "Le joueur voit son propre inventaire sous le menu, sans pouvoir le modifier. Le menu n'utilise que ses propres slots.",
+    playerInventoryHintHidden:
+      "Les objets du joueur ne s'affichent plus, et les 36 slots du bas (inventaire + barre rapide) deviennent utilisables pour les boutons du menu. Son vrai inventaire n'est jamais modifié et réapparaît à la fermeture.",
     preview: "aperçu",
     id: "id",
     renameRejected: "renommage refusé",

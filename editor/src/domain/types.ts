@@ -176,6 +176,13 @@ export interface Project {
 /** Container shape of a menu. Absent in stored data = "chest" (back-compat). */
 export type InventoryType = "chest" | "hopper" | "dropper";
 
+/**
+ * Bottom of the window (menu/v1 `player_inventory`). Absent = "visible": the
+ * player's real inventory, read-only. "hidden": only the menu's buttons, placed
+ * at positions `size..size+35` (27 main inventory slots, then the 9 hotbar).
+ */
+export type PlayerInventoryMode = "visible" | "hidden";
+
 export interface Menu {
   id: MenuId;
   projectId: ProjectId;
@@ -186,6 +193,8 @@ export interface Menu {
    * meaningful for chest; hopper/dropper have fixed geometry (see INVENTORY_TYPES).
    */
   inventoryType?: InventoryType;
+  /** Absent = "visible" (back-compat). Stored only when "hidden". */
+  playerInventory?: PlayerInventoryMode;
   permission?: string;
   /**
    * Internal admin notes, never rendered to players (menu/v1 `notes`).

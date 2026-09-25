@@ -35,3 +35,27 @@ Trois vecteurs partagés verrouillent une égalité entre implémentations Kotli
 | `testdata/project-hash-conformance.json` | `BundleHashConformanceTest` (plugin) + `hashUtils.test.ts` (backend) |
 | `testdata/lang-tree-conformance.json` | `LangFlattener` (plugin) + `langTree.ts` (éditeur) |
 | `testdata/i18n-address-conformance.json` | `I18nAddresses.kt` (plugin) + sites i18n éditeur |
+
+## Menus en paquets — checklist manuelle
+
+Le contenu des menus n'existe que côté client (cf. `invariants.md`) : les tests plugin verrouillent
+le contrat (`MenuSlotsContractTest`, faux `ClientSlotSink`) mais pas le comportement du client
+Minecraft réel. Pas de bot client automatisé (Mineflayer écarté : coûteux, et indisponible à la
+sortie d'une nouvelle version de Minecraft, précisément quand le risque est là).
+
+**Déclencheurs** : mise à jour de Minecraft ou de PacketEvents, toute modification de
+`PacketEventsMenuPackets.kt` / `MenuWindows.kt` / `MenuSlots.kt`. Aussi dans la checklist de release
+(`versioning.md` §11.1).
+
+Sur `./gradlew deploy`, avec un menu `player_inventory: hidden` qui pose de la pierre sur toutes les
+positions (haut et bas) et un menu `visible` :
+
+- [ ] Pierre partout en haut et en bas (`hidden`).
+- [ ] Clic, shift-clic, double-clic, touche numérique, touche F : rien ne bouge, rien n'est récupéré.
+- [ ] Ramasser un objet au sol menu ouvert : le bas reste celui du menu.
+- [ ] Passer d'un menu A à un menu B (bouton `open_menu`) : B s'affiche entier, sans reste de A.
+- [ ] Fermeture : le vrai inventaire revient intact.
+- [ ] `/data get entity @s Inventory` menu ouvert = le vrai inventaire (rien côté serveur).
+- [ ] `visible` : le vrai inventaire s'affiche et n'est pas modifiable.
+- [ ] Avec le plugin PacketEvents installé à côté (copie relocalisée + plugin autonome) : démarrage
+  sans erreur et tout ce qui précède tient.

@@ -1,6 +1,5 @@
 import type { Command, Element, ElementId, Menu, MenuId, ProjectId } from "@/domain/types";
 import { formatPositions, parsePositions } from "@/lib/positions";
-import { slotCount } from "./inventoryTypes";
 import { useAccountStore } from "@/state/accountStore";
 import { useFlowSelectionStore } from "@/state/flowSelectionStore";
 import { usePaginationStore } from "@/state/paginationStore";
@@ -14,6 +13,7 @@ import {
   rewriteIds,
   writeClipboard,
 } from "./clipboard";
+import { positionCount } from "./inventoryTypes";
 
 /**
  * Locate an element by id within a project and return enough context
@@ -111,7 +111,7 @@ const findFreePositions = (
       for (const p of parsePositions(el.positions)) occupied.add(p);
     }
   }
-  const max = slotCount(menu.inventoryType ?? "chest", menu.rows);
+  const max = positionCount(menu.inventoryType ?? "chest", menu.rows, menu.playerInventory);
   for (let delta = 0; delta < max; delta++) {
     const shifted = original.map((p) => p + delta);
     if (shifted.every((p) => p < max && !occupied.has(p))) return shifted;
@@ -157,7 +157,11 @@ const placeElements = (
   }
 };
 
-const copySelection = async (projectId: ProjectId, ids: string[], onError?: (m: string) => void) => {
+const copySelection = async (
+  projectId: ProjectId,
+  ids: string[],
+  onError?: (m: string) => void,
+) => {
   if (ids.length === 0) return;
   const { menus, commands, elements } = findSelectedEntities(
     projectId,

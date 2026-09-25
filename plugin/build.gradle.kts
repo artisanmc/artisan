@@ -37,8 +37,17 @@ dependencies {
     compileOnly("me.clip:placeholderapi:2.11.6")
     compileOnly("com.nexomc:nexo:0.9.0")
     compileOnly("io.th0rgal:oraxen:1.189.0")
-    // Soft-dep : réécriture des slots joueur des menus (PacketEventsPlayerSlots).
-    compileOnly("com.github.retrooper:packetevents-spigot:2.14.0")
+    // Contenu des menus envoyé par paquets (PacketEventsMenuPackets). Intégré et
+    // relocalisé : chaque version majeure de Minecraft impose de le mettre à jour.
+    // Netty, adventure-api/key et examination sont fournis par Paper ; adventure-nbt ne
+    // l'est pas (NoClassDefFoundError BinaryTag au chargement) : embarqué et relocalisé.
+    implementation("com.github.retrooper:packetevents-spigot:2.14.0") {
+        exclude("io.netty")
+        exclude("net.kyori", "adventure-api")
+        exclude("net.kyori", "adventure-key")
+        exclude("net.kyori", "examination-api")
+        exclude("net.kyori", "examination-string")
+    }
     compileOnly("com.sk89q.worldguard:worldguard-bukkit:7.0.12") {
         exclude("com.google.guava", "guava")
         exclude("com.google.code.gson", "gson")
@@ -76,6 +85,12 @@ tasks.shadowJar {
     relocate("com.fasterxml.jackson", "net.artisanmc.shaded.jackson")
     relocate("okhttp3", "net.artisanmc.shaded.okhttp3")
     relocate("okio", "net.artisanmc.shaded.okio")
+    relocate("com.github.retrooper.packetevents", "net.artisanmc.shaded.packetevents.api")
+    relocate("io.github.retrooper.packetevents", "net.artisanmc.shaded.packetevents.impl")
+    // `adventure.nbt.api` appartient à adventure-api (fourni par Paper) : pas relocalisé.
+    relocate("net.kyori.adventure.nbt", "net.artisanmc.shaded.adventure.nbt") {
+        exclude("net.kyori.adventure.nbt.api.**")
+    }
     // Required: merge service-loader files instead of overwriting them.
     // shadowJar otherwise strips kotlin-reflect's META-INF/services entry,
     // causing "No BuiltInsLoader implementation was found" at runtime.

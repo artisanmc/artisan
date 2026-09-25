@@ -14,7 +14,8 @@ class MenuListener(
     private val plugin: Plugin,
     private val sessions: MenuSessionStore,
     private val executor: ActionExecutor,
-    private val playerSlots: PlayerSlotOverlayStore? = null,
+    private val windows: MenuWindows? = null,
+    private val resync: (Player) -> Unit = { it.updateInventory() },
 ) : Listener {
 
     @EventHandler
@@ -45,12 +46,13 @@ class MenuListener(
         if (event.inventory.holder is ArtisanMenuHolder) {
             val player = event.player as? Player ?: return
             sessions.remove(player)
-            // Le client a écrit les items de l'overlay dans son propre inventaire
+            // Le client a affiché le contenu du menu dans son propre inventaire
             // (les slots du bas d'une fenêtre pointent vers lui) : resynchro du
-            // vrai contenu une fois la fenêtre fermée, sinon il les garde affichés.
-            if (playerSlots?.release(player, event.inventory) == true) {
+            // vrai contenu une fois la fenêtre fermée. Seulement si c'est bien
+            // cette ancre : ouvrir B depuis A ferme A après avoir posé B.
+            if (windows?.release(player, event.inventory) == true) {
                 plugin.server.scheduler.runTask(plugin, Runnable {
-                    if (player.isOnline) player.updateInventory()
+                    if (player.isOnline) resync(player)
                 })
             }
         }
@@ -58,7 +60,8 @@ class MenuListener(
 
     @EventHandler
     fun onQuit(event: PlayerQuitEvent) {
-        playerSlots?.clear(event.player.uniqueId)
+        windows?.clear(event.player.uniqueId)
+        sessions.remove(event.player)
     }
 }
 
