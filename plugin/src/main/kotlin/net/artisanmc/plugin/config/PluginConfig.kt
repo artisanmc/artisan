@@ -73,6 +73,8 @@ data class PluginConfig(
     val assistantImportSources: List<ImportSourceConfig>,
     val assistantImportSourceWarnings: List<String>,
     val editorAccessMode: String = "invitation",
+    /** `menus.player-inventory-slots` — effectif seulement avec PacketEvents. */
+    val playerInventorySlots: Boolean = false,
 ) {
     /**
      * HTTP(S) origin of the backend, derived from [wsUrl]: `wss://host/ws/plugin`
@@ -147,6 +149,7 @@ data class PluginConfig(
                 ),
                 assistantImportSources = sources,
                 assistantImportSourceWarnings = sourceWarnings,
+                playerInventorySlots = cfg.getBoolean("menus.player-inventory-slots", false),
             )
         }
 
