@@ -13,6 +13,9 @@ export default {
     all: "All",
     button: "Button images",
     menu: "Menu images",
+    chest_texture: "Chest texture",
+    chestTextureHint:
+      "A generic_54.png layout (256×256, or a multiple for an HD pack). When a menu turns its default texture off, every other chest on the server is drawn back with this image instead of the vanilla texture. One image per server: the first one found is used.",
     font: "Fonts",
     unclassified: "Unclassified",
     upload: "Import an image",

@@ -8,6 +8,7 @@ import {
   GENERIC_54_OVERRIDE,
   VANILLA_GUI_FONT,
   buildVanillaGuiFiles,
+  chestTextureSource,
   transparentChestsFromMenus,
 } from "./vanillaGui";
 
@@ -90,5 +91,50 @@ describe("buildResourcePackZip vanilla GUI", () => {
     const zip = unzipSync(buildResourcePackZip([], new Map(), new Map()).zipBytes);
     expect(zip[VANILLA_GUI_FONT]).toBeUndefined();
     expect(JSON.parse(strFromU8(zip["assets/artisan/asset-index.json"]!)).vanilla_gui).toBeUndefined();
+  });
+});
+
+/** The vanilla texture scaled up `k` times, like an HD resource pack's generic_54.png. */
+function upscaled(k: number): Uint8Array {
+  const src = PNG.sync.read(Buffer.from(source));
+  const out = new PNG({ width: src.width * k, height: src.height * k });
+  for (let y = 0; y < out.height; y++)
+    for (let x = 0; x < out.width; x++) {
+      const s = ((Math.floor(y / k) * src.width + Math.floor(x / k)) * 4);
+      src.data.copy(out.data, (y * out.width + x) * 4, s, s + 4);
+    }
+  return new Uint8Array(PNG.sync.write(out));
+}
+
+describe("custom chest texture", () => {
+  const png = (w: number, h: number) => new Uint8Array(PNG.sync.write(new PNG({ width: w, height: h })));
+  const asset = (id: string, usages: string[] | undefined, bytes: Uint8Array) => ({
+    row: { id, usages },
+    bytes,
+  });
+
+  test("the first image marked as chest texture, in a generic_54 layout, is the source", () => {
+    const hd = upscaled(2);
+    expect(
+      chestTextureSource([
+        asset("logo", ["menu"], png(256, 256)),
+        asset("wrong_size", ["chest_texture"], png(176, 222)),
+        asset("chest", ["chest_texture", "menu"], hd),
+        asset("other", ["chest_texture"], png(256, 256)),
+      ]),
+    ).toBe(hd);
+    expect(chestTextureSource([asset("logo", ["menu"], png(256, 256))])).toBeUndefined();
+  });
+
+  test("an HD texture is cut at its own scale but drawn at the vanilla size", () => {
+    const files = buildVanillaGuiFiles(upscaled(2), false);
+    const three = PNG.sync.read(Buffer.from(files["assets/artisan/textures/gui/generic_9x3.png"]!));
+    expect([three.width, three.height]).toEqual([352, 2 * (17 + 3 * 18 + 96)]);
+    const font = JSON.parse(strFromU8(files[VANILLA_GUI_FONT]!)) as {
+      providers: { type: string; height?: number; advances?: Record<string, number> }[];
+    };
+    expect(font.providers[2]!.height).toBe(17 + 3 * 18 + 96);
+    const space = font.providers.find((p) => p.type === "space")!;
+    expect(space.advances![String.fromCodePoint(0xe013)]).toBe(-(176 + 1) + 8);
   });
 });

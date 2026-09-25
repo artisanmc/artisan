@@ -86,7 +86,7 @@ describe("AssetUploadDialog", () => {
     // The user should think "upload an image" — internal `asset.type` is
     // not part of the UI surface area.
     render(<AssetUploadDialog projectId={"p1" as never} open onClose={() => {}} />);
-    expect(screen.queryByLabelText(/texture/i)).toBeNull();
+    expect(screen.queryByLabelText(/^texture$/i)).toBeNull();
     expect(screen.queryByLabelText(/^glyph$/i)).toBeNull();
     // Ascent has likewise disappeared (was gated on type=glyph).
     expect(screen.queryByLabelText(/ascent/i)).toBeNull();

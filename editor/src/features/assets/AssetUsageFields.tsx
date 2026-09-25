@@ -31,6 +31,9 @@ export function AssetUsageFields({
           {t(`resources.${usage}`)}
         </label>
       ))}
+      {value.includes("chest_texture") ? (
+        <p className="text-xs text-[var(--text-mut)]">{t("resources.chestTextureHint")}</p>
+      ) : null}
       <p className="text-xs text-[var(--text-mut)]">{t("resources.usageHint")}</p>
     </fieldset>
   );
