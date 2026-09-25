@@ -1,5 +1,5 @@
 import { planWrite } from "@/features/project/diskSave";
-import { createHostedProject } from "@/lib/api/hostedProjects";
+import { createHostedProject, listHostedProjects } from "@/lib/api/hostedProjects";
 import { hashContent } from "@/lib/contentHash";
 import {
   IMPORT_RECOVERY_PREFIX,
@@ -26,6 +26,9 @@ function retain(key: string, value: PendingImport) {
   }
 }
 
+/** Le backend n'accepte que `[a-zA-Z0-9_-]` dans un operationId. */
+const filesOperation = (operationId: string) => `${operationId}-files`;
+
 /** Imports a portable archive as one mixed transaction, with a frozen recovery request. */
 export async function importHostedProject(
   file: Blob,
@@ -33,6 +36,7 @@ export async function importHostedProject(
   minecraftVersion: string,
   ownerId: string,
   targetId?: string,
+  options: { overwrite?: boolean } = {},
 ): Promise<ImportProjectResult> {
   const generation = importRecoveryGeneration();
   const assertPrincipal = () => {
@@ -59,6 +63,27 @@ export async function importHostedProject(
     JSON.stringify({ text, binary, folder: normalized.projectId, minecraftVersion }),
   );
   const key = `${PREFIX}${ownerId}:${networkId}:${digest}`;
+  /** Crée le project ; si son dossier est déjà pris et qu'on a choisi d'écraser, reprend l'existant. */
+  const createOrReuse = async (): Promise<string> => {
+    try {
+      const project = await createHostedProject(networkId, {
+        operationId: recovery!.operationId,
+        name,
+        folderName: normalized.projectId,
+        minecraftVersion,
+        templateId: "vanilla",
+      });
+      return project.id;
+    } catch (error) {
+      if (!options.overwrite || !(error instanceof Error) || error.message !== "destination_exists")
+        throw error;
+      const existing = (await listHostedProjects(networkId)).find(
+        (p) => (p.externalId ?? p.id) === normalized.projectId,
+      );
+      if (!existing) throw error;
+      return existing.id;
+    }
+  };
   assertPrincipal();
   let recovery = pending.get(key);
   if (!recovery) {
@@ -72,15 +97,8 @@ export async function importHostedProject(
     recovery = { operationId: crypto.randomUUID(), at: Date.now() };
   retain(key, recovery);
   if (!recovery.projectId) {
-    const project = await createHostedProject(networkId, {
-      operationId: recovery.operationId,
-      name,
-      folderName: normalized.projectId,
-      minecraftVersion,
-      templateId: "vanilla",
-    });
+    recovery.projectId = await createOrReuse();
     assertPrincipal();
-    recovery.projectId = project.id;
     retain(key, recovery);
   }
   const client = projectClient(recovery.projectId);
@@ -102,12 +120,17 @@ export async function importHostedProject(
       ...(await planWrite(baseline.files, text)),
       renames: [],
       binaries,
-      operationId: `${recovery.operationId}:files`,
+      operationId: filesOperation(recovery.operationId),
     };
     assertPrincipal();
     retain(key, recovery);
   }
-  const result = await client.write(recovery.batch);
+  // L'id est recalculé à l'envoi : un lot repris d'une ancienne tentative
+  // portait « :files », que le backend refuse.
+  const result = await client.write({
+    ...recovery.batch,
+    operationId: filesOperation(recovery.operationId),
+  });
   assertPrincipal();
   if (!result.ok) throw new Error(result.error);
   pending.delete(key);

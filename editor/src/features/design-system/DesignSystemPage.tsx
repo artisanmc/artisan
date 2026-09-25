@@ -27,6 +27,7 @@ import { FileDiff } from "@/components/ui/file-diff";
 import { FileDropzone } from "@/components/ui/file-dropzone";
 import { SaveFilledIcon } from "@/components/ui/filled-icons";
 import { FormField } from "@/components/ui/form-field";
+import { GuidedTour } from "@/components/ui/guided-tour";
 import { HBar } from "@/components/ui/h-bar";
 import { Input } from "@/components/ui/input";
 import {
@@ -49,7 +50,7 @@ import { YamlCodeEditor } from "@/components/ui/yaml-code-editor";
 import { CanvasToolbar } from "@/features/canvas/CanvasToolbar";
 import { useUiStore } from "@/state/uiStore";
 import { Inbox, LayoutGrid, Pencil, Plus, Search, Sparkles, TerminalSquare } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 /**
@@ -142,9 +143,32 @@ function Swatch({ token }: { token: string }) {
 export function DesignSystemPage() {
   const { t } = useTranslation();
   const [splitSize, setSplitSize] = useState(160);
+  const [tourOpen, setTourOpen] = useState(false);
+  const tourTarget = useRef<HTMLButtonElement>(null);
 
   return (
     <div className="flex flex-col gap-10">
+      <Section id="guided-tour" title="GuidedTour">
+        <Button ref={tourTarget} onClick={() => setTourOpen(true)}>
+          {t("onboarding.discover")}
+        </Button>
+        <GuidedTour
+          open={tourOpen}
+          target={tourTarget.current}
+          step={1}
+          totalSteps={6}
+          title={t("onboarding.navigationTitle")}
+          description={t("onboarding.navigationDescription")}
+          labels={{
+            next: t("onboarding.finish"),
+            previous: t("onboarding.previous"),
+            defer: t("onboarding.defer"),
+            progress: t("onboarding.progress", { step: 1, total: 6 }),
+          }}
+          onNext={() => setTourOpen(false)}
+          onDefer={() => setTourOpen(false)}
+        />
+      </Section>
       <Section id="file-diff" title={t("save.diffLabel")}>
         <FileDiff
           before={"name: Boutique\nprice: 10\nenabled: true\n"}

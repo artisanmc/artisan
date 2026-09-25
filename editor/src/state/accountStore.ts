@@ -80,7 +80,6 @@ import type {
   SourceRef,
   Step,
 } from "@/domain/types";
-import { gridArrange } from "@/features/canvas/autoLayout";
 import {
   cellToPosition,
   colsFor,
@@ -348,9 +347,8 @@ interface AccountState {
     x: number;
     y: number;
   }) => void;
-  addToBoard: (input: { projectId: ProjectId; nodeId: string; x: number; y: number }) => void;
-  removeFromBoard: (input: { projectId: ProjectId; nodeId: string }) => void;
-  arrangeAllOnBoard: (input: { projectId: ProjectId }) => void;
+  /** Libère positions et ancres de liens posées à la main : la planche redevient entièrement arrangée. */
+  releaseBoardPositions: (input: { projectId: ProjectId }) => void;
   /** Override one endpoint of a canvas edge ("source->target" id). */
   setEdgeAnchor: (input: {
     projectId: ProjectId;
@@ -2024,32 +2022,13 @@ export const useAccountStore = create<AccountState>()(
             (project.canvasLayout as Record<string, { x: number; y: number }>)[nodeId] = { x, y };
           }),
         ),
-      // Board-membership entry point: puts an element ON the board at (x,y).
-      // Same write as setCanvasPosition (drag-persist), but a distinct intent —
-      // call sites read clearly as "add to board" vs. "node moved".
-      addToBoard: ({ projectId: pId, nodeId, x, y }) =>
+      releaseBoardPositions: ({ projectId: pId }) =>
         set(
           produce((draft: AccountState) => {
             const project = draft.account.projects.find((p) => p.id === pId);
             if (!project) return;
-            (project.canvasLayout as Record<string, { x: number; y: number }>)[nodeId] = { x, y };
-          }),
-        ),
-      removeFromBoard: ({ projectId: pId, nodeId }) =>
-        set(
-          produce((draft: AccountState) => {
-            const project = draft.account.projects.find((p) => p.id === pId);
-            if (!project) return;
-            delete (project.canvasLayout as Record<string, { x: number; y: number }>)[nodeId];
-          }),
-        ),
-      arrangeAllOnBoard: ({ projectId: pId }) =>
-        set(
-          produce((draft: AccountState) => {
-            const project = draft.account.projects.find((p) => p.id === pId);
-            if (!project) return;
-            const grid = gridArrange(current(project));
-            project.canvasLayout = grid as typeof project.canvasLayout;
+            project.canvasLayout = {} as typeof project.canvasLayout;
+            project.canvasEdges = {};
           }),
         ),
       setEdgeAnchor: ({ projectId: pId, edgeId, end, anchor }) =>

@@ -1,4 +1,5 @@
 import type { ProjectId } from "@/domain/types";
+import { useTourPresentation } from "@/features/onboarding/tourPresentation";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
 import { act, fireEvent, render, screen } from "@testing-library/react";
@@ -41,10 +42,24 @@ let desktop = true;
 vi.mock("@/lib/useMediaQuery", () => ({ useIsDesktop: () => desktop }));
 
 beforeEach(() => {
+  useTourPresentation.setState({ step: null });
   desktop = true;
   useSelectionStore.getState().clear();
   useProjectLibraryStore.getState().close();
   useProjectLibraryStore.setState({ width: 340, height: 280, category: "items" });
+});
+
+it("temporarily presents Buttons for the tour without changing preferences or selection", () => {
+  useSelectionStore.getState().set(["existing-element"]);
+  const preferences = useProjectLibraryStore.getState();
+  render(<Workspace />);
+  act(() => useTourPresentation.setState({ step: 3 }));
+  expect(screen.getByText("Item catalogue")).toBeInTheDocument();
+  expect(useProjectLibraryStore.getState()).toBe(preferences);
+  expect([...useSelectionStore.getState().ids]).toEqual(["existing-element"]);
+  act(() => useTourPresentation.setState({ step: null }));
+  expect(screen.queryByText("Item catalogue")).not.toBeInTheDocument();
+  expect(useProjectLibraryStore.getState()).toBe(preferences);
 });
 
 function Workspace({ projectId = PID }: { projectId?: ProjectId }) {
