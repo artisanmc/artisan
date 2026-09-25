@@ -17,7 +17,9 @@ import { INVENTORY_TYPES, slotMcXY } from "./inventoryTypes";
  *
  * For an N-row chest we render two image slices:
  *   - top piece:    src y=0..17+18N    → height TEX_TITLE_H + N × TEX_SLOT_STRIDE
- *   - bottom piece: src y=125..222     → fixed height TEX_BOTTOM_H
+ *   - bottom piece: src y=126..222     → 96 px drawn inside the 97 px bottom
+ *     band (vanilla ChestScreen skips texture row 125; cropping from 125
+ *     drew the player inventory 1 px below its slots)
  *
  * Custom uploaded backgrounds replace BOTH slices (they cover the full menu
  * box). Slot material overlays render on top regardless.
@@ -36,6 +38,9 @@ export const MC_SLOT_INNER_OFFSET = 1;
 export const MC_FIRST_SLOT_X = 7;
 export const MC_BOTTOM_Y = 125;
 export const MC_BOTTOM_H = 97;
+/** Source crop of the bottom piece, as vanilla ChestScreen blits it. */
+const MC_BOTTOM_SRC_Y = 126;
+const MC_BOTTOM_SRC_H = 96;
 
 export const TEX_W = MC_W * TEX_SCALE;
 export const TEX_TITLE_H = MC_TITLE_H * TEX_SCALE;
@@ -105,9 +110,9 @@ export const topPieceCrop = (rows: number) => ({
 /** Source crop for the bottom piece (constant — only chest height changes). */
 export const bottomPieceCrop = () => ({
   x: 0,
-  y: MC_BOTTOM_Y,
+  y: MC_BOTTOM_SRC_Y,
   width: MC_W,
-  height: MC_BOTTOM_H,
+  height: MC_BOTTOM_SRC_H,
 });
 
 /** Whether this type renders a single fixed background image (vs. chest's 2 slices). */
