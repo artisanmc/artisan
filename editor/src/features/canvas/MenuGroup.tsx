@@ -30,12 +30,14 @@ import {
   TEX_SCALE,
   TEX_SLOT_INNER,
   TEX_SLOT_INNER_OFFSET,
+  TEX_SLOT_STRIDE,
   bottomPieceCrop,
   bottomPieceY,
   menuBoxSize,
   singleBackgroundCrop,
   slotXY,
   topPieceCrop,
+  transparentOutline,
   usesSingleBackground,
 } from "./menuLayout";
 import { buildPreviewScope } from "./menuPreviewScope";
@@ -115,6 +117,9 @@ export function MenuGroup({ projectId, menu, position, layout, solo = false }: M
   const [tex] = useImage(TEXTURE_URLS[INVENTORY_TYPES[type].textureKey]);
   const box = menuBoxSize(type, menu.rows);
   const single = usesSingleBackground(type);
+  // `vanilla_texture: false` : fenêtre transparente en jeu, seuls des repères restent.
+  const outline =
+    type === "chest" && menu.vanillaTexture === false ? transparentOutline(menu.rows) : null;
 
   const { onMenuDragStart, onMenuDragEnd } = useMenuDrag({ projectId, menuId: menu.id, position });
   const nodeAlign = useNodeAlignment(projectId, menu.id);
@@ -418,7 +423,36 @@ export function MenuGroup({ projectId, menu, position, layout, solo = false }: M
           listening=true so the menu Group has a hit shape and drag works from
           anywhere on the texture (Konva picks the deepest draggable, so filled
           slots still take precedence). */}
-      {tex ? (
+      {outline ? (
+        <>
+          {/* Transparent fill keeps a hit shape: the menu still drags from anywhere. */}
+          <Rect
+            width={box.width}
+            height={box.height}
+            fill="rgba(0,0,0,0)"
+            stroke={borderStrong}
+            strokeWidth={1}
+            dash={[6, 4]}
+            opacity={0.6}
+            perfectDrawEnabled={false}
+          />
+          {outline.cells.map((cell, i) => (
+            <Rect
+              // biome-ignore lint/suspicious/noArrayIndexKey: slot position is the stable identifier
+              key={`guide-${i}`}
+              x={cell.x}
+              y={cell.y}
+              width={TEX_SLOT_STRIDE}
+              height={TEX_SLOT_STRIDE}
+              stroke={borderStrong}
+              strokeWidth={1}
+              opacity={0.35}
+              listening={false}
+              perfectDrawEnabled={false}
+            />
+          ))}
+        </>
+      ) : tex ? (
         single ? (
           <KonvaImage
             image={tex}

@@ -57,5 +57,10 @@ positions (haut et bas) et un menu `visible` :
 - [ ] Fermeture : le vrai inventaire revient intact.
 - [ ] `/data get entity @s Inventory` menu ouvert = le vrai inventaire (rien côté serveur).
 - [ ] `visible` : le vrai inventaire s'affiche et n'est pas modifiable.
+- [ ] `vanilla_texture: false` : fenêtre transparente (haut et bas), la glyph du menu s'affiche, les
+  items restent au-dessus de la glyph.
+- [ ] Même serveur : un vrai coffre, un tonneau, un ender chest et un double coffre gardent leur
+  texture vanilla (réinjectée), titre à sa place ; idem juste après `/artisan reload`.
+- [ ] Joueur qui refuse le pack : coffres vanilla normaux, aucun caractère manquant dans les titres.
 - [ ] Avec le plugin PacketEvents installé à côté (copie relocalisée + plugin autonome) : démarrage
   sans erreur et tout ce qui précède tient.

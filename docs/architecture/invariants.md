@@ -157,6 +157,28 @@ le mettre à jour, puis de passer la checklist manuelle de `testing.md`.
 - Sans PacketEvents opérationnel (échec de `load`/`init`, loggé en SEVERE ; cas de MockBukkit en
   test), les menus s'ouvrent **vides** : clics et sessions restent actifs.
 
+## Coffres transparents : global côté pack, réinjectés par le titre
+
+`vanilla_texture: false` (coffre uniquement) ne peut pas être local à un menu : le client dessine
+`generic_54.png` pour **toutes** les fenêtres de coffre. Le pack (backend `vanillaGui.ts`) la
+remplace donc par une texture transparente dès qu'**un** menu d'un projet lié au serveur l'utilise,
+et signale `vanilla_gui.transparent_chests` dans `asset-index.json`.
+
+- **Chaque pack** embarque la police `artisan:vanilla_gui` : 6 glyphs `generic_9x1..6` découpées
+  comme `ChestScreen` (haut `0..17+18N`, bas depuis y=126 sur 96 px), `ascent 13` (haut à y=0),
+  plus deux espaces (−8 vers x=0, puis retour à l'origine du titre, calculé sur la largeur réelle).
+- **Le plugin réinjecte** (`VanillaGuiTitle`, dans `PacketEventsMenuPackets.onOpenWindow`) : titre
+  `OPEN_WINDOW` des types `generic_9x1..6` (ids 0..5) = préfixe glyph + titre d'origine intact. Pour
+  un joueur seulement si `PackLoadTracker` l'a vu charger le pack Artisan (id poussé, ou n'importe
+  quel pack en délégation) **et** si le catalogue courant a `transparent_chests`. Sinon la glyph
+  s'afficherait en caractère manquant. Un menu Artisan en `vanilla_texture: false` n'est pas décoré.
+- **Transitoires acceptés** : entre une publication et le rechargement du nouveau pack, un joueur peut
+  voir la texture en double (invisible : c'est la même image) ou, si la transparence vient d'être
+  retirée, un coffre transparent jusqu'à ce qu'il reçoive le pack suivant.
+- Un autre pack qui remplace aussi `generic_54.png` (Nexo, Oraxen, ItemsAdder, packs de textures) :
+  le dernier chargé gagne ; la glyph réinjectée garde l'aspect vanilla.
+- Entonnoir / distributeur : hors périmètre (même mécanisme avec `hopper.png` / `dispenser.png`).
+
 ## Custom items — hash inline
 
 `CustomItemsManager.buildBundle()` calcule le hash **en inline** à partir des items / textures déjà

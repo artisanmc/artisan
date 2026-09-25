@@ -149,6 +149,11 @@
       "default": "chest",
       "description": "Type de conteneur. Absent = chest (rétro-compatible). chest = grille 9×rows ; hopper = 5×1 ; dropper = 3×3."
     },
+    "vanilla_texture": {
+      "type": "boolean",
+      "default": true,
+      "description": "Texture vanilla du coffre. false (coffre uniquement) : fenêtre transparente, le menu apporte sa propre texture par des glyphs de titre. Le pack rend alors generic_54.png transparent pour tout le serveur et le plugin redessine la texture vanilla sur les autres coffres."
+    },
     "player_inventory": {
       "type": "string",
       "enum": [

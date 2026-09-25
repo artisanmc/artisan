@@ -10,6 +10,22 @@ decorations are all images: place them freely and reorder their layers.
 new use to the same file. Manage these uses in the project's **Resources** tab.
 Remove a layer to remove its image from this menu without deleting the resource.
 
+## Default texture
+
+In composed title mode, the first row of the layer list is **Default texture**:
+the vanilla chest background. Turn it off to draw the whole window yourself — the
+menu becomes fully transparent in game, including the player inventory part
+(its slots stay usable, just invisible). Add an image layer at `x = 0`, `y = 0`
+to bring your own texture. On the canvas, a dashed outline and faint slot cells
+remain so you can still place buttons.
+
+Every other chest on the server keeps its normal look: players who loaded the
+resource pack get the vanilla texture drawn back through the window title.
+Players who declined the pack see your menu over the plain vanilla texture.
+Chests only for now; switching back to a vanilla title turns the texture on again.
+
+## Text
+
 In composed title mode, use **+ Texte** for both single-line and multiline text.
 Enter line breaks directly; longer text wraps automatically to the block's width.
 

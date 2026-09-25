@@ -11,6 +11,7 @@ import { getStageGeometry } from "../../stageGeometry";
 import { AddLayerControls } from "./AddLayerControls";
 import { LayerEditForm } from "./LayerEditForm";
 import { LayerListItem } from "./LayerListItem";
+import { VanillaTextureLayer } from "./VanillaTextureLayer";
 import { attachLayerAtCursor } from "./attachLayerAtCursor";
 
 interface LayersPanelProps {
@@ -58,6 +59,7 @@ export function LayersPanel({ projectId, menuId, className, hideImage = false }:
 
   const addMenuTitleLayer = useAccountStore((s) => s.addMenuTitleLayer);
   const setMenuTitleLayers = useAccountStore((s) => s.setMenuTitleLayers);
+  const setMenuField = useAccountStore((s) => s.setMenuField);
   const reorderMenuTitleLayers = useAccountStore((s) => s.reorderMenuTitleLayers);
   const applyLayerMoved = useUiStore((s) => s.applyLayerMoved);
 
@@ -84,6 +86,9 @@ export function LayersPanel({ projectId, menuId, className, hideImage = false }:
       menuId,
       layers: [{ kind: "plain", value }],
     });
+    // A vanilla title has no image to replace the chest texture: restore it.
+    if (menu.vanillaTexture === false)
+      setMenuField({ projectId, menuId, field: "vanillaTexture", value: true });
     setSelectedLayerKey(null);
   };
 
@@ -243,6 +248,7 @@ export function LayersPanel({ projectId, menuId, className, hideImage = false }:
           <AddLayerControls onPlace={onPlace} hideImage={hideImage} />
 
           <div className="flex flex-col gap-0.5">
+            <VanillaTextureLayer projectId={projectId} menu={menu} />
             {menu.title.map((layer, index) => (
               <div
                 key={index}

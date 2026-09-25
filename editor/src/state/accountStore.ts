@@ -369,8 +369,8 @@ interface AccountState {
   setMenuField: (input: {
     projectId: ProjectId;
     menuId: MenuId;
-    field: "permission" | "rows" | "inventoryType" | "playerInventory";
-    value: string | MenuRows;
+    field: "permission" | "rows" | "inventoryType" | "playerInventory" | "vanillaTexture";
+    value: string | MenuRows | boolean;
   }) => void;
   /** Update the menu's title in the given language. Writes into the first text layer (or prepends one). */
   setMenuTitle: (input: {
@@ -2189,6 +2189,8 @@ export const useAccountStore = create<AccountState>()(
             menu.rows = value;
           } else if (field === "playerInventory") {
             menu.playerInventory = value === "hidden" ? "hidden" : undefined;
+          } else if (field === "vanillaTexture") {
+            menu.vanillaTexture = value === false ? false : undefined;
           } else if (field === "inventoryType") {
             if (typeof value !== "string") return;
             shiftPlayerPositions(

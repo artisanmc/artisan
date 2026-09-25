@@ -195,6 +195,13 @@ export interface Menu {
   inventoryType?: InventoryType;
   /** Absent = "visible" (back-compat). Stored only when "hidden". */
   playerInventory?: PlayerInventoryMode;
+  /**
+   * menu/v1 `vanilla_texture`. Absent = the vanilla chest texture is drawn.
+   * `false` (chest only): transparent window — the menu brings its own texture
+   * through title glyphs; the pack hides generic_54.png server-wide and the
+   * plugin draws it back on every other chest.
+   */
+  vanillaTexture?: false;
   permission?: string;
   /**
    * Internal admin notes, never rendered to players (menu/v1 `notes`).

@@ -122,3 +122,28 @@ describe("menu player_inventory", () => {
     ).toThrow(/outside the menu/);
   });
 });
+
+describe("menu vanilla_texture", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    useAccountStore.setState({ account: mockAccount() });
+  });
+
+  it("stores the texture off, and on as absent", () => {
+    const mId = store().createMenu({ projectId: PERSONAL, id: "m_tex", rows: 3 });
+    store().setMenuField({
+      projectId: PERSONAL,
+      menuId: mId,
+      field: "vanillaTexture",
+      value: false,
+    });
+    expect(getMenu(mId).vanillaTexture).toBe(false);
+    store().setMenuField({
+      projectId: PERSONAL,
+      menuId: mId,
+      field: "vanillaTexture",
+      value: true,
+    });
+    expect(getMenu(mId).vanillaTexture).toBeUndefined();
+  });
+});

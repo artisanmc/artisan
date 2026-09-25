@@ -61,6 +61,19 @@ class AssetCatalogTest {
     }
 
     @Test
+    fun `transparent chests follow the pack's vanilla_gui flag`(@org.junit.jupiter.api.io.TempDir tmp: java.nio.file.Path) {
+        val cache = tmp.resolve("asset-index.json").toFile()
+        val catalog = AssetCatalog(cacheFile = cache)
+        kotlin.test.assertFalse(catalog.transparentChests)
+        cache.writeText("""{ "version": 2, "assets": {}, "vanilla_gui": { "transparent_chests": true } }""")
+        catalog.loadFromDisk()
+        kotlin.test.assertTrue(catalog.transparentChests)
+        cache.writeText(INDEX_JSON)
+        catalog.loadFromDisk()
+        kotlin.test.assertFalse(catalog.transparentChests)
+    }
+
+    @Test
     fun `loadFromDisk with no cache file leaves the catalog empty`(@org.junit.jupiter.api.io.TempDir tmp: java.nio.file.Path) {
         val catalog = AssetCatalog(cacheFile = tmp.resolve("missing.json").toFile())
         catalog.loadFromDisk()
