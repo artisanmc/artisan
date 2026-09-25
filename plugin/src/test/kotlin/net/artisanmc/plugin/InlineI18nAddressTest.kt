@@ -60,12 +60,11 @@ class InlineI18nAddressTest {
     private fun render(lang: String, langMaps: Map<String, Map<String, String>>): List<String?> {
         val p = player()
         val m = BundleCompiler.compile(menu(), langMaps, defaultLang = "en")
-        MenuRenderer.open(p, m, lang, ExecutionContext(p))
-        val inv = p.openInventory.topInventory
+        val inv = MenuRenderer.open(p, m, lang, ExecutionContext(p)).slots
         return listOf(
-            legacy(inv.getItem(10)?.itemMeta?.displayName()),
-            legacy(inv.getItem(10)?.itemMeta?.lore()?.firstOrNull()),
-            legacy(inv.getItem(11)?.itemMeta?.displayName()),
+            legacy(inv[10]?.itemMeta?.displayName()),
+            legacy(inv[10]?.itemMeta?.lore()?.firstOrNull()),
+            legacy(inv[11]?.itemMeta?.displayName()),
         )
     }
 

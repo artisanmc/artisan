@@ -203,6 +203,27 @@ describe("MenuProperties — inventory type", () => {
     expect(screen.getByRole("button", { name: "Distributeur" })).toBeInTheDocument();
   });
 
+  it("explains that a hidden bottom frees the player slots for the menu", () => {
+    const menu = {
+      ...(useAccountStore.getState().account.projects[0]!.menus[0]! as Menu),
+      playerInventory: "hidden" as const,
+    };
+    render(<MenuProperties projectId={PACK_ID} menu={menu} />);
+    expect(screen.getByText(/deviennent utilisables pour les boutons du menu/)).toBeInTheDocument();
+  });
+
+  it("toggles the player inventory between visible and hidden", () => {
+    const menu = useAccountStore.getState().account.projects[0]!.menus[0]! as Menu;
+    render(<MenuProperties projectId={PACK_ID} menu={menu} />);
+
+    expect(screen.getByRole("button", { name: "Visible" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByText(/voit son propre inventaire/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Masqué" }));
+    expect(useAccountStore.getState().account.projects[0]!.menus[0]!.playerInventory).toBe(
+      "hidden",
+    );
+  });
+
   it("shows the rows selector for a chest menu", () => {
     const menu = useAccountStore.getState().account.projects[0]!.menus[0]! as Menu;
     render(<MenuProperties projectId={PACK_ID} menu={menu} />);

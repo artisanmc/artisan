@@ -1,5 +1,5 @@
 import type { Project } from "@/domain/types";
-import { INVENTORY_TYPES, rowsFor } from "./inventoryTypes";
+import { INVENTORY_TYPES, PLAYER_SLOTS, rowsFor, slotCount, slotMcXY } from "./inventoryTypes";
 import { TEX_SCALE, TEX_SLOT_STRIDE, menuBoxSize } from "./menuLayout";
 
 export interface SlotHit {
@@ -10,8 +10,8 @@ export interface SlotHit {
 /**
  * Manual hit-testing in project-canvas (world) coordinates: given a point in the
  * same coordinate system as the menu Group `position` props, find which slot of
- * which menu sits under it. Player-inventory slots aren't returned — they
- * aren't editable in the editor.
+ * which menu sits under it. Player-inventory cells are returned (as raw slots
+ * `size..size+35`) only when the menu hides the bottom (`player_inventory: hidden`).
  *
  * Slot Rects keep listening={false} (so click on a slot bubbles up to the
  * parent menu Group for selection); enabling listening would break
@@ -37,6 +37,18 @@ export function hitTestSlot(
     const localX = worldX - pos.x;
     const localY = worldY - pos.y;
     if (localX < 0 || localY < 0 || localX > box.width || localY > box.height) continue;
+
+    if (menu.playerInventory === "hidden") {
+      const size = slotCount(type, menu.rows);
+      for (let raw = size; raw < size + PLAYER_SLOTS; raw++) {
+        const cell = slotMcXY(raw, type, menu.rows);
+        const dx = localX - cell.x * TEX_SCALE;
+        const dy = localY - cell.y * TEX_SCALE;
+        if (dx >= 0 && dy >= 0 && dx < TEX_SLOT_STRIDE && dy < TEX_SLOT_STRIDE) {
+          return { menuId: menu.id, position: raw };
+        }
+      }
+    }
 
     // Slot grid only — exclude title bar and player inventory area.
     const gridX = localX - g.firstSlotX * TEX_SCALE;

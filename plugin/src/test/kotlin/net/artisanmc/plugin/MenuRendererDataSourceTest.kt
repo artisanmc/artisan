@@ -56,10 +56,9 @@ class MenuRendererDataSourceTest {
             ) },
         ))
         val menu = BundleCompiler.compile(shopMenu(), emptyMap())
-        MenuRenderer.open(p, menu, "en", ExecutionContext(p), dataSources = registry)
-        val inv = p.openInventory.topInventory
-        assertEquals(Material.DIAMOND_SWORD, inv.getItem(10)?.type)
-        assertNull(inv.getItem(11)) // apple filtrée (category != weapons)
+        val inv = MenuRenderer.open(p, menu, "en", ExecutionContext(p), dataSources = registry).slots
+        assertEquals(Material.DIAMOND_SWORD, inv[10]?.type)
+        assertNull(inv[11]) // apple filtrée (category != weapons)
     }
 
     private fun directRefMenu(): MenuYaml = mapper.readValue(
@@ -87,28 +86,28 @@ class MenuRendererDataSourceTest {
             ) },
         ))
         val menu = BundleCompiler.compile(directRefMenu(), emptyMap())
-        MenuRenderer.open(p, menu, "en", ExecutionContext(p), dataSources = registry)
-        assertEquals(Material.DIAMOND_SWORD, p.openInventory.topInventory.getItem(10)?.type)
+        val slots = MenuRenderer.open(p, menu, "en", ExecutionContext(p), dataSources = registry).slots
+        assertEquals(Material.DIAMOND_SWORD, slots[10]?.type)
     }
 
     @Test fun `direct ref that resolves nothing renders empty (non-hermetic)`() {
         val p = player()
         val menu = BundleCompiler.compile(directRefMenu(), emptyMap())
-        MenuRenderer.open(p, menu, "en", ExecutionContext(p), dataSources = DataSourceRegistry())
-        assertNull(p.openInventory.topInventory.getItem(10))
+        val slots = MenuRenderer.open(p, menu, "en", ExecutionContext(p), dataSources = DataSourceRegistry()).slots
+        assertNull(slots[10])
     }
 
     @Test fun `unknown ref renders an empty grid without throwing`() {
         val p = player()
         val menu = BundleCompiler.compile(shopMenu(), emptyMap())
-        MenuRenderer.open(p, menu, "en", ExecutionContext(p), dataSources = DataSourceRegistry())
-        assertNull(p.openInventory.topInventory.getItem(10))
+        val slots = MenuRenderer.open(p, menu, "en", ExecutionContext(p), dataSources = DataSourceRegistry()).slots
+        assertNull(slots[10])
     }
 
     @Test fun `no registry keeps the legacy behavior`() {
         val p = player()
         val menu = BundleCompiler.compile(shopMenu(), emptyMap())
-        MenuRenderer.open(p, menu, "en", ExecutionContext(p))
-        assertNull(p.openInventory.topInventory.getItem(10))
+        val slots = MenuRenderer.open(p, menu, "en", ExecutionContext(p)).slots
+        assertNull(slots[10])
     }
 }

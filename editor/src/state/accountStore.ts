@@ -81,7 +81,12 @@ import type {
   Step,
 } from "@/domain/types";
 import { gridArrange } from "@/features/canvas/autoLayout";
-import { colsFor, rowsFor, slotCount } from "@/features/canvas/inventoryTypes";
+import {
+  cellToPosition,
+  colsFor,
+  positionToCell,
+  slotCount,
+} from "@/features/canvas/inventoryTypes";
 import { createLText, createLTextAt, deleteLText, setLText } from "@/lib/i18n";
 import {
   clickHandlerKeyPrefix,
@@ -364,7 +369,7 @@ interface AccountState {
   setMenuField: (input: {
     projectId: ProjectId;
     menuId: MenuId;
-    field: "permission" | "rows" | "inventoryType";
+    field: "permission" | "rows" | "inventoryType" | "playerInventory";
     value: string | MenuRows;
   }) => void;
   /** Update the menu's title in the given language. Writes into the first text layer (or prepends one). */
@@ -1084,6 +1089,21 @@ function gcCommandLTexts(project: Project, command: Command): void {
 }
 function gcDialogLTexts(project: Project, dialog: Dialog): void {
   releaseLTexts(project, visitDialogLTexts(dialog));
+}
+
+/**
+ * With a hidden bottom, positions past the menu are player slots: when the menu
+ * part resizes they follow it, so each button stays on the same player slot.
+ */
+function shiftPlayerPositions(menu: Menu, oldSize: number, newSize: number): void {
+  if (menu.playerInventory !== "hidden" || oldSize === newSize) return;
+  const shift = (p: number) => (p >= oldSize ? p - oldSize + newSize : p);
+  for (const el of menu.layers.flatMap((l) => l.elements)) {
+    const positions = parsePositions(el.positions);
+    if (positions.some((p) => p >= oldSize)) el.positions = formatPositions(positions.map(shift));
+    for (const placement of el.places?.placements ?? [])
+      placement.position = shift(placement.position);
+  }
 }
 
 /** Auto slot range for a dropped paginated block: skip the first/last menu row when roomy. */
@@ -2149,18 +2169,33 @@ export const useAccountStore = create<AccountState>()(
             menu.permission = value || undefined;
           } else if (field === "rows") {
             if (typeof value !== "number") return;
-            const maxPos = slotCount(menu.inventoryType ?? "chest", value) - 1;
+            const type = menu.inventoryType ?? "chest";
+            const oldSize = slotCount(type, menu.rows);
+            const maxPos = slotCount(type, value) - 1;
+            // Player slots (hidden bottom) follow the resize: only menu positions can overflow.
+            const menuLimit =
+              menu.playerInventory === "hidden" ? oldSize : Number.POSITIVE_INFINITY;
             const overflow = menu.layers.some((l) =>
-              l.elements.some((el) => parsePositions(el.positions).some((p) => p > maxPos)),
+              l.elements.some((el) =>
+                parsePositions(el.positions).some((p) => p > maxPos && p < menuLimit),
+              ),
             );
             if (overflow) {
               throw new Error(
                 `cannot shrink to ${value} rows: elements exist past position ${maxPos}`,
               );
             }
+            shiftPlayerPositions(menu, oldSize, slotCount(type, value));
             menu.rows = value;
+          } else if (field === "playerInventory") {
+            menu.playerInventory = value === "hidden" ? "hidden" : undefined;
           } else if (field === "inventoryType") {
             if (typeof value !== "string") return;
+            shiftPlayerPositions(
+              menu,
+              slotCount(menu.inventoryType ?? "chest", menu.rows),
+              slotCount(value as InventoryType, menu.rows),
+            );
             // Keep+warn: never throw on out-of-range elements; the UI surfaces
             // a count and the canvas/export clamp to the new slotCount. Store
             // undefined for chest so "absent = chest" everywhere.
@@ -3564,10 +3599,9 @@ export const useAccountStore = create<AccountState>()(
           const menu = project.menus.find((m) => m.id === mId);
           if (!menu) return;
           const targetSet = new Set(elementIds);
-          // Grid is type-dependent: chest 9×rows, hopper 5×1, dropper 3×3.
+          // Grid is type-dependent: chest 9×rows, hopper 5×1, dropper 3×3, then
+          // the 4 player rows (9 columns) when the bottom is hidden.
           const type = menu.inventoryType ?? "chest";
-          const cols = colsFor(type);
-          const rows = rowsFor(type, menu.rows);
           // First pass: compute new positions and validate bounds.
           const plans = new Map<ElementId, number[]>();
           for (const layer of menu.layers) {
@@ -3575,12 +3609,15 @@ export const useAccountStore = create<AccountState>()(
               if (!targetSet.has(el.id)) continue;
               const newPositions: number[] = [];
               for (const p of parsePositions(el.positions)) {
-                const newCol = (p % cols) + dCol;
-                const newRow = Math.floor(p / cols) + dRow;
-                if (newCol < 0 || newCol >= cols || newRow < 0 || newRow >= rows) {
-                  throw new Error("selection drag would land outside the menu");
-                }
-                newPositions.push(newRow * cols + newCol);
+                const cell = positionToCell(p, type, menu.rows);
+                const target = cellToPosition(
+                  { col: cell.col + dCol, row: cell.row + dRow },
+                  type,
+                  menu.rows,
+                  menu.playerInventory,
+                );
+                if (target === null) throw new Error("selection drag would land outside the menu");
+                newPositions.push(target);
               }
               plans.set(el.id, newPositions);
             }

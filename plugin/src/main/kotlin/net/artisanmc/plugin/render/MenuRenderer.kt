@@ -73,7 +73,7 @@ object MenuRenderer {
         offsetEncoder: OffsetEncoder = OffsetEncoder.EMPTY,
         dataSources: DataSourceRegistry? = null,
         projectData: ProjectDataResolver? = null,
-        playerSlots: PlayerSlotOverlayStore? = null,
+        windows: MenuWindows? = null,
     ): MenuSession {
         // Deterministic fallback chain: requested lang → project defaultLang → empty.
         // Previously fell back to `langMaps.values.firstOrNull()` which is map-
@@ -117,10 +117,11 @@ object MenuRenderer {
             sourceArgs = ctx.sourceArgs + fetchedArgs + directArgs,
         )
 
-        // Partie joueur active : les positions `size until size + 36` désignent
-        // les slots d'inventaire du joueur (rawSlot), affichés par paquets.
-        val usePlayerSlots = playerSlots?.active == true
-        val slotLimit = menu.yaml.size + if (usePlayerSlots) PlayerSlots.COUNT else 0
+        // Contenu adressé par rawSlot : en `hidden`, les positions
+        // `size until size + 36` désignent les slots joueur de la fenêtre.
+        val invType = INVENTORY_TYPES[menu.yaml.inventoryType]
+        val content = MenuSlots(invType?.defaultSize ?: menu.yaml.size, PlayerInventoryMode.parse(menu.yaml.playerInventory))
+        val slotLimit = content.slotLimit
 
         // Pré-calcul des fenêtres de pagination de chaque élément itérant.
         val pageInfo = mutableMapOf<String, PageInfo>()
@@ -175,7 +176,6 @@ object MenuRenderer {
         // TYPE (un dropper a 9 slots comme un chest 1-row mais un type distinct),
         // donc on ne peut pas se reposer sur size. Chest garde le createInventory
         // basé sur size.
-        val invType = INVENTORY_TYPES[menu.yaml.inventoryType]
         val inv = if (invType != null) {
             runCatching { Bukkit.createInventory(ArtisanMenuHolder(), invType, title) }
                 .getOrElse {
@@ -195,12 +195,6 @@ object MenuRenderer {
         }
         val activeClicks = mutableMapOf<Int, Map<ClickType, ClickHandler>>()
         val slotArgs = mutableMapOf<Int, Map<String, Any>>()
-        val playerSlotItems = mutableMapOf<Int, ItemStack>()
-        val topSize = inv.size
-        fun place(slot: Int, item: ItemStack) {
-            if (slot < topSize) inv.setItem(slot, item) else playerSlotItems[slot] = item
-        }
-
         for (element in menu.yaml.allElements) {
             val compiledList = menu.compiledAppearances[element.id] ?: emptyList()
             val slots = parsePositions(element.positionsSpec, slotLimit)
@@ -212,7 +206,7 @@ object MenuRenderer {
                 val item = if (image == null) buildItem(chosen.yaml, langMap, renderCtx, evaluator.deps, chosen.i18nBase)
                     else buildImageHitItem(chosen.yaml, langMap, renderCtx, evaluator.deps, chosen.i18nBase)
                 for (slot in layout.slots) {
-                    place(slot, item)
+                    content[slot] = item
                     if (chosen.clicks.isNotEmpty()) activeClicks[slot] = chosen.clicks
                 }
                 continue
@@ -236,7 +230,7 @@ object MenuRenderer {
                     val itemCtx = renderCtx.copy(args = renderCtx.args + itemArgs)
                     val chosen = compiledList.firstOrNull { evaluator.evaluateAll(it.conditions, itemCtx) }
                         ?: continue
-                    place(placement.position, buildItem(chosen.yaml, langMap, itemCtx, evaluator.deps, chosen.i18nBase))
+                    content[placement.position] = buildItem(chosen.yaml, langMap, itemCtx, evaluator.deps, chosen.i18nBase)
                     if (chosen.clicks.isNotEmpty()) {
                         activeClicks[placement.position] = chosen.clicks
                         slotArgs[placement.position] = itemArgs
@@ -252,7 +246,7 @@ object MenuRenderer {
                 } ?: continue
                 val item = buildItem(chosen.yaml, langMap, renderCtx, evaluator.deps, chosen.i18nBase)
                 for (slot in slots) {
-                    place(slot, item)
+                    content[slot] = item
                     if (chosen.clicks.isNotEmpty()) activeClicks[slot] = chosen.clicks
                 }
                 continue
@@ -267,7 +261,7 @@ object MenuRenderer {
                 val itemCtx = renderCtx.copy(args = renderCtx.args + itemArgs)
                 val chosen = compiledList.firstOrNull { evaluator.evaluateAll(it.conditions, itemCtx) }
                     ?: return@forEachIndexed
-                place(slot, buildItem(chosen.yaml, langMap, itemCtx, evaluator.deps, chosen.i18nBase))
+                content[slot] = buildItem(chosen.yaml, langMap, itemCtx, evaluator.deps, chosen.i18nBase)
                 if (chosen.clicks.isNotEmpty()) {
                     activeClicks[slot] = chosen.clicks
                     slotArgs[slot] = itemArgs
@@ -275,10 +269,13 @@ object MenuRenderer {
             }
         }
 
-        // Avant l'ouverture : ses paquets doivent déjà être réécrits.
-        if (usePlayerSlots) playerSlots!!.set(player, inv, playerSlotItems)
+        // Ancre vide : le contenu part par paquets. Enregistrée avant l'ouverture,
+        // dont les paquets doivent déjà être réécrits ; retirée si un autre
+        // plugin a annulé l'ouverture (sinon sa prochaine fenêtre serait prise).
+        windows?.open(player, inv, content)
         player.openInventory(inv)
-        return MenuSession(menu.id, renderCtx.copy(lang = lang, langMap = langMap), activeClicks, slotArgs)
+        if (player.openInventory.topInventory !== inv) windows?.release(player, inv)
+        return MenuSession(menu.id, renderCtx.copy(lang = lang, langMap = langMap), activeClicks, slotArgs, content)
     }
 
     private fun buildImageHitItem(app: AppearanceYaml, langMap: Map<String, String>, ctx: ExecutionContext,

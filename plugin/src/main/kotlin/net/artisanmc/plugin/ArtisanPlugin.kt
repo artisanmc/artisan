@@ -12,7 +12,13 @@ import net.artisanmc.plugin.engine.*
 import net.artisanmc.plugin.lang.LangManager
 import net.artisanmc.plugin.provider.MenuProvider
 import net.artisanmc.plugin.provider.SyncedMenuProvider
+import com.github.retrooper.packetevents.PacketEvents
+import io.github.retrooper.packetevents.factory.spigot.SpigotPacketEventsBuilder
+import net.artisanmc.plugin.render.ClientSlotSink
 import net.artisanmc.plugin.render.MenuListener
+import net.artisanmc.plugin.render.MenuWindows
+import net.artisanmc.plugin.render.PacketEventsMenuPackets
+import net.artisanmc.plugin.render.PacketEventsSlotSink
 import org.bukkit.plugin.java.JavaPlugin
 import java.io.File
 
@@ -34,8 +40,8 @@ open class ArtisanPlugin : JavaPlugin() {
     private lateinit var artisanCommand: ArtisanCommand
     private lateinit var executor: ActionExecutor
     private lateinit var sessions: MenuSessionStore
-    private val playerSlots = net.artisanmc.plugin.render.PlayerSlotOverlayStore()
-    private var playerSlotsHooked = false
+    private lateinit var menuWindows: MenuWindows
+    private var packetEventsLoaded = false
     private lateinit var cooldowns: CooldownStore
     private lateinit var commandRegistrar: CommandRegistrar
     /** Exposed for /artisan dump-title diagnostics. */
@@ -153,7 +159,25 @@ open class ArtisanPlugin : JavaPlugin() {
         }
     }
 
+    /** PacketEvents est intégré au jar (relocalisé) : chargé ici, initialisé en tête d'[onEnable]. */
+    override fun onLoad() {
+        packetEventsLoaded = runCatching {
+            PacketEvents.setAPI(SpigotPacketEventsBuilder.build(this))
+            PacketEvents.getAPI().settings.checkForUpdates(false).bStats(false)
+            PacketEvents.getAPI().load()
+        }.onFailure { logger.log(java.util.logging.Level.SEVERE, "PacketEvents failed to load — menus will open empty", it) }.isSuccess
+    }
+
     override fun onEnable() {
+        // Le contenu des menus ne part que par paquets : sans PacketEvents,
+        // les fenêtres s'ouvrent vides (clics et sessions restent actifs).
+        val packets = packetEventsLoaded && runCatching { PacketEvents.getAPI().init() }
+            .onFailure { logger.log(java.util.logging.Level.SEVERE, "PacketEvents failed to start — menus will open empty", it) }
+            .isSuccess
+        menuWindows = MenuWindows(
+            if (packets) PacketEventsSlotSink { menuWindows.get(it.uniqueId)?.stateId ?: 0 } else ClientSlotSink.None,
+        )
+        if (packets) PacketEventsMenuPackets(menuWindows).register()
         saveDefaultConfig()
         api = buildApi(this)
         server.servicesManager.register(ArtisanAPI::class.java, api, this, org.bukkit.plugin.ServicePriority.Normal)
@@ -168,11 +192,6 @@ open class ArtisanPlugin : JavaPlugin() {
         val softDeps = SoftDepRegistry(this, capturedItems)
         cooldowns = CooldownStore()
         sessions = MenuSessionStore()
-        playerSlotsHooked = hookPlayerSlots()
-        playerSlots.active = cfg.playerInventorySlots && playerSlotsHooked
-        if (cfg.playerInventorySlots && !playerSlotsHooked) {
-            logger.warning("menus.player-inventory-slots needs the PacketEvents plugin — player inventory slots stay vanilla")
-        }
         val evaluator = ConditionEvaluator(softDeps, cooldowns)
         // Disk-cached asset index: glyph/font titles keep rendering with the
         // backend down or gone (offline completeness — the catalog was
@@ -211,7 +230,7 @@ open class ArtisanPlugin : JavaPlugin() {
                 logger = logger,
             ),
             runOnMainThread = { task -> server.scheduler.runTask(this@ArtisanPlugin, Runnable { task() }) },
-            playerSlots = playerSlots,
+            menuWindows = menuWindows,
         )
         moduleMessageSender = { m -> (menuProvider as? SyncedMenuProvider)?.sendModuleMessage(m) }
         defaultModules().forEach { api.modules.register(it) }
@@ -273,7 +292,7 @@ open class ArtisanPlugin : JavaPlugin() {
         artisanCommand = ArtisanCommand(this, langManager)
         getCommand("artisan")?.setExecutor(artisanCommand)
         getCommand("artisan")?.tabCompleter = artisanCommand
-        server.pluginManager.registerEvents(MenuListener(this, sessions, executor, playerSlots), this)
+        server.pluginManager.registerEvents(MenuListener(this, sessions, executor, menuWindows), this)
         logger.info("Artisan ${description.version} enabled")
     }
 
@@ -282,6 +301,7 @@ open class ArtisanPlugin : JavaPlugin() {
         artisanCommand.shutdown()
         commandRegistrar.unregisterAll()
         menuProvider.shutdown()
+        if (packetEventsLoaded) runCatching { PacketEvents.getAPI().terminate() }
         logger.info("Artisan disabled")
     }
 
@@ -354,18 +374,6 @@ open class ArtisanPlugin : JavaPlugin() {
         }
     }
 
-    /**
-     * Branche la réécriture des slots joueur sur PacketEvents, s'il est là.
-     * Seul point qui charge [net.artisanmc.plugin.render.PacketEventsPlayerSlots] :
-     * sans le plugin, ses imports ne sont jamais résolus.
-     */
-    private fun hookPlayerSlots(): Boolean {
-        if (server.pluginManager.getPlugin("packetevents") == null) return false
-        return runCatching { net.artisanmc.plugin.render.PacketEventsPlayerSlots(playerSlots).register() }
-            .onFailure { logger.warning("PacketEvents found but player slot overlay failed to register: ${it.message}") }
-            .isSuccess
-    }
-
     /** Test-only seam: swap in a fake [MenuProvider] after onEnable has run. */
     internal fun setMenuProviderForTesting(provider: MenuProvider) {
         menuProvider = provider
@@ -374,7 +382,6 @@ open class ArtisanPlugin : JavaPlugin() {
     fun reinit(cfg: PluginConfig) {
         cfg.assistantImportSourceWarnings.forEach { logger.warning("[assistant] $it") }
         langManager = LangManager.fromPlugin(this, cfg.language, cfg.perPlayerLanguage)
-        playerSlots.active = cfg.playerInventorySlots && playerSlotsHooked
         menuProvider.unload()
         projectRoots.coreRoot.mkdirs()
 
@@ -411,7 +418,7 @@ open class ArtisanPlugin : JavaPlugin() {
                 logger = logger,
             ),
             runOnMainThread = { task -> server.scheduler.runTask(this@ArtisanPlugin, Runnable { task() }) },
-            playerSlots = playerSlots,
+            menuWindows = menuWindows,
         )
         moduleMessageSender = { m -> (menuProvider as? SyncedMenuProvider)?.sendModuleMessage(m) }
         val pluginsDirReinit = server.pluginsFolder

@@ -42,9 +42,9 @@ class MenuRendererImageButtonTest {
         assertEquals(setOf(0, 1, 2, 9, 10, 11), session.activeClicks.keys)
         assertEquals(1, lookups.filter { it.startsWith("buttons/") }.size)
         for (slot in session.activeClicks.keys) {
-            assertNotEquals(Material.STONE, player.openInventory.topInventory.getItem(slot)?.type)
+            assertNotEquals(Material.STONE, session.slots[slot]?.type)
         }
-        assertNull(player.openInventory.topInventory.getItem(3))
+        assertNull(session.slots[3])
     }
 
     @Test fun `a conditional state replaces the image and the click map across every slot`() {
@@ -99,7 +99,7 @@ class MenuRendererImageButtonTest {
             val session = MenuRenderer.open(player, BundleCompiler.compile(yaml, emptyMap()), "en",
                 lookupAsset = { key -> AssetEntry(key, "glyph", 0xe000, -4, 36, 54, "artisan:$key") })
             assertTrue(session.activeClicks.isEmpty())
-            assertEquals(Material.DIAMOND, player.openInventory.topInventory.getItem(10)?.type)
+            assertEquals(Material.DIAMOND, session.slots[10]?.type)
         }
     }
 }

@@ -42,8 +42,8 @@ class MenuRendererHeadTest {
     private fun render(material: String, head: String, args: Map<String, Any> = emptyMap()): org.bukkit.inventory.ItemStack? {
         val p = player()
         val menu = BundleCompiler.compile(headMenu(material, head), emptyMap())
-        MenuRenderer.open(p, menu, "en", ExecutionContext(p, args = args))
-        return p.openInventory.topInventory.getItem(0)
+        val slots = MenuRenderer.open(p, menu, "en", ExecutionContext(p, args = args)).slots
+        return slots[0]
     }
 
     @Test fun `basehead applies a textures profile with a deterministic uuid`() {
@@ -83,8 +83,8 @@ class MenuRendererHeadTest {
             vault = null, papi = fakePapi, worldGuard = null,
             nexoItems = null, oraxenItems = null, itemsAdderItems = null, hdbHeads = null,
         )
-        MenuRenderer.open(p, menu, "en", ExecutionContext(p), ConditionEvaluator(deps, CooldownStore()))
-        val meta = p.openInventory.topInventory.getItem(0)?.itemMeta as SkullMeta
+        val slots = MenuRenderer.open(p, menu, "en", ExecutionContext(p), ConditionEvaluator(deps, CooldownStore())).slots
+        val meta = slots[0]?.itemMeta as SkullMeta
         assertEquals(p.name, meta.owningPlayer?.name)
     }
 

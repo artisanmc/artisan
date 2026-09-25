@@ -30,6 +30,8 @@ export interface Menu {
   /** Couches de titre, ordonnées. Vide = pas de titre. Format pixel-perfect (offsets, fonts) documenté dans editor-internals.md. */
   title: MenuTitleLayer[];
   size: 9 | 18 | 27 | 36 | 45 | 54;
+  /** Bas de la fenêtre. Absent = "visible" (vrai inventaire, positions ≥ size ignorées). "hidden" : positions size..size+35 = slots joueur (rawSlot). */
+  player_inventory?: "visible" | "hidden";
   permission?: string;
   /** Notes internes de l'admin (jamais rendues aux joueurs). Round-trip-safe JSON ↔ YAML. */
   notes?: string;
@@ -428,8 +430,10 @@ export interface LayoutCheck {
  * Overlap intra-layer = warning (last-placed-wins, pas une erreur).
  * Cross-layer overlap = OK (pattern fall-through intentionnel).
  */
-export function validateMenuLayout(menu: Pick<Menu, "size" | "layers" | "context_inputs">): LayoutCheck {
+export function validateMenuLayout(menu: Pick<Menu, "size" | "layers" | "context_inputs" | "player_inventory">): LayoutCheck {
   const errors: string[] = [];
+  // Positions adressables : le menu, plus les 36 slots joueur quand le bas est masqué.
+  const limit = menu.size + (menu.player_inventory === "hidden" ? 36 : 0);
   const warnings: string[] = [];
   const seenElementIds = new Set<string>();
   const seenLayerIds = new Set<string>();
@@ -473,14 +477,14 @@ export function validateMenuLayout(menu: Pick<Menu, "size" | "layers" | "context
       const positions = new Set<number>();
       for (const r of ranges) {
         if (!r) continue;
-        if (r.to >= menu.size) {
-          errors.push(`Element "${el.id}" occupies position ${r.to} which is out of bounds (size=${menu.size}).`);
+        if (r.to >= limit) {
+          errors.push(`Element "${el.id}" occupies position ${r.to} which is out of bounds (limit=${limit}).`);
         }
-        for (let p = r.from; p <= Math.min(r.to, menu.size - 1); p++) positions.add(p);
+        for (let p = r.from; p <= Math.min(r.to, limit - 1); p++) positions.add(p);
       }
       for (const p of positions) {
-        if (p >= menu.size) {
-          errors.push(`Element "${el.id}" occupies position ${p} which is out of bounds (size=${menu.size}).`);
+        if (p >= limit) {
+          errors.push(`Element "${el.id}" occupies position ${p} which is out of bounds (limit=${limit}).`);
           continue;
         }
         const other = occupiedInLayer.get(p);

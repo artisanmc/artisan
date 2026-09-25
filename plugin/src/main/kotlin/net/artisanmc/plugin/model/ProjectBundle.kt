@@ -106,6 +106,8 @@ data class MenuYaml(
     val title: Any? = null,
     val size: Int = 27,
     @JsonProperty("inventory_type") val inventoryType: String = "chest",
+    /** `visible` (défaut) | `hidden` : cf. [net.artisanmc.plugin.render.PlayerInventoryMode]. */
+    @JsonProperty("player_inventory") val playerInventory: String = "visible",
     val permission: String? = null,
     // Canonical wire name: `inputs`; `context_inputs` is the legacy spelling.
     @JsonProperty("inputs")

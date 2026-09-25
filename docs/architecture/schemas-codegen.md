@@ -165,6 +165,23 @@ Types alignés à la main sur les trois couches :
 
 Export (`serializeMenuToV1`) : émet `inventory_type` **uniquement si ≠ chest**, et `size = slotCount(type, rows)`. Import (`menuV1ToDomain`) : le lit (défaut `chest`) et calcule les rows par type. Plugin : `MenuRenderer` crée l'inventaire via `InventoryType.HOPPER`/`DROPPER` pour les types non-chest (branche sur le **type**, pas la taille — dropper = 9 slots comme un coffre 1 ligne).
 
+### `player_inventory` (bas de la fenêtre, 2026-09-25)
+
+Champ **additif optionnel** au niveau menu : `player_inventory ∈ {visible, hidden}`, **défaut
+`visible`** — les menus existants ne changent pas. `hidden` : les positions `size..size+35` désignent
+les slots joueur (rawSlot protocole, 27 principal puis 9 barre rapide) et le bas n'affiche que les
+boutons du menu. Le schéma ne borne pas les positions (JSON Schema ne compare pas à `size`) : la borne
+vit dans `validateMenuLayout` (`types.ts`) et dans l'éditeur (`positionCount`).
+
+| Couche | Source |
+|---|---|
+| Type éditeur | `PlayerInventoryMode`, `Menu.playerInventory` (stocké seulement si `hidden`) |
+| Géométrie | `positionCount`, `slotMcXY(i, type, rows)`, `positionToCell`/`cellToPosition` dans `inventoryTypes.ts` (`playerInvY` par type) |
+| Plugin | `MenuYaml.playerInventory` → `PlayerInventoryMode` → `MenuSlots.slotLimit` |
+
+Export : émis **uniquement si `hidden`**. Resté dans `menu/v1` (additif). Runtime : cf.
+`invariants.md` « Le contenu des menus n'existe que côté client ».
+
 ## Statut / phasage
 
 | Phase | Portée | Statut |
