@@ -12,6 +12,7 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 ### Fixed — canvas arrangement
 
 - The main menu no longer lands behind a submenu that links back to it: the arrangement now starts from the entry point that leads to the biggest hub (a main menu), not from the first command alphabetically. Every other link still goes to a later column, so no link runs under a menu (the short-lived column wrapping, which made links cross menus, is removed).
+- Each command is centered vertically on the menu it opens (or the nearest free spot beside it) instead of floating halfway between menus.
 
 ### Changed — menu content sent to the client only
 
