@@ -13,6 +13,7 @@ mock.module("../lib/projectTreeReads", () => ({
 	},
 	readProjectTree: async () => ({ kind: "offline" }),
 	forgetAllProjectTrees: () => {},
+	warmSnapshotMirror: async () => {},
 }));
 
 const {

@@ -3,6 +3,7 @@ import { ProjectRenameError } from "../projectRename";
 import { renameStoredProject } from "./projectLifecycle";
 import { forgetProjectTree, readProjectTree } from "../projectTreeReads";
 import { getCachedAsset, putCachedAsset } from "../assetCache";
+import { mirrorSupported } from "../snapshotMirror";
 import { createHash } from "node:crypto";
 import type { BinaryReadResult } from "./ProjectStorage";
 import type { BinaryWrite, ProjectLocation, ProjectStorage, ProjectWriteBatch, StorageOutcome } from "./ProjectStorage";
@@ -43,7 +44,15 @@ export class ServerProjectStorage implements ProjectStorage {
     }});
   }
   async read(ifHash: string | null = null) {
-    return withoutCorrelation(await this.transport.read(this.location.serverKeyId, { projectId: this.location.folderName, ifHash }));
+    if (!mirrorSupported(this.location.serverKeyId)) {
+      return withoutCorrelation(await this.transport.read(this.location.serverKeyId, { projectId: this.location.folderName, ifHash }));
+    }
+    // Le miroir du Snapshot sert l'arbre ; `if_hash` se tranche ici, sans le plugin.
+    const outcome = withoutCorrelation(await this.transport.readAssets(this.location.serverKeyId, this.location.folderName));
+    if (outcome.kind === "result" && outcome.result.ok && ifHash && outcome.result.hash === ifHash) {
+      return { kind: "result" as const, result: { ok: true, unchanged: true, hash: ifHash } };
+    }
+    return outcome;
   }
   async readAssetTree() {
     return withoutCorrelation(await this.transport.readAssets(this.location.serverKeyId, this.location.folderName));

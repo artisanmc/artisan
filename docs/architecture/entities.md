@@ -3,6 +3,16 @@
 > Source de vérité du schéma : `backend/src/db/schema.ts` (+ migrations dans `backend/drizzle/`).
 > Ce doc décrit le modèle **courant** puis l'historique des phases qui y ont mené.
 
+## Miroir du Snapshot (migration 0056)
+
+`project_snapshots(project_id PK → projects cascade, hash, files, binaries, failed,
+received_at)` garde le dernier Snapshot reçu d'un Project serveur ; `files` est un manifeste
+chemin → hash de contenu, les contenus vivent une fois dans `snapshot_blobs(hash, content)`
+(partagés entre Projects, préparés pour les Versions). `hash` est l'empreinte opaque du
+plugin. Clé = id **interne** (résolu par `getProjectForServer`). Jetable : jamais une
+autorité ni une base de CAS. Les corps binaires restent dans le cache d'assets. Pas de GC des
+blobs à ce stade. ADR `snapshot-mirror-and-backend-history`.
+
 ## Accès console (migration 0048)
 
 `server_keys.editor_access_mode` conserve le dernier mode annoncé au hello

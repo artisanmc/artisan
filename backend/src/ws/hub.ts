@@ -3,7 +3,8 @@ import type { DraftRequest } from "../lib/storage/ServerDraftStore";
 import type { DraftOutcome, DraftResult } from "../lib/storage/DraftStore";
 import { db } from "../db/index";
 import { addConsoleMember } from "../lib/consoleAccess";
-import { forgetProjectTree } from "../lib/projectTreeReads";
+import { forgetProjectTree, warmSnapshotMirror } from "../lib/projectTreeReads";
+import { forgetServer as forgetSnapshotMirror, recordHello as recordSnapshotHello, recordReload as recordSnapshotReload } from "../lib/snapshotMirror";
 import { completeProjectRename, failProjectRename, isTerminalRenameError, pendingProjectRenames, projectIdentityLocked, reconcileProjectIdentity, type ProjectIdentityReport } from "../lib/projectRename";
 import type { ProjectRenameMessage, ProjectRenameResultMessage, ProjectCopyMessage, ProjectCopyResultMessage } from "../protocol";
 import { ensureAssets, assetsDone } from "../lib/mcAssets";
@@ -135,7 +136,10 @@ export async function requestProjectDraft(serverKeyId: string, request: DraftReq
   }
   return new Promise((resolve) => {
     const requestId = crypto.randomUUID();
-    const finish = (result: DraftOutcome) => { clearTimeout(timer); pendingDrafts.delete(requestId); resolve(result); };
+    // Publier écrit le disque : le Snapshot annoncé ne vaut plus avant le reload.
+    const publishing = request.action === "publish";
+    if (publishing) forgetProjectTree(serverKeyId, request.project_id);
+    const finish = (result: DraftOutcome) => { clearTimeout(timer); pendingDrafts.delete(requestId); if (publishing) forgetProjectTree(serverKeyId, request.project_id); resolve(result); };
     const timer = setTimeout(() => finish({ kind: "timeout" }), timeoutMs);
     pendingDrafts.set(requestId, { connId, finish });
     try { send(JSON.stringify({ ...request, type: "project_draft_request", request_id: requestId })); }
@@ -199,7 +203,10 @@ export function cleanupConn(connId: string): void {
   draftConnections.delete(connId);
   for (const pending of pendingDrafts.values()) if (pending.connId === connId) pending.finish({ kind: "offline" });
   connSenders.delete(connId);
+  const serverId = connToServerId.get(connId);
   connToServerId.delete(connId);
+  // Plus personne pour annoncer ses hashes : le miroir ne peut plus être cru.
+  if (serverId && ![...connToServerId.values()].includes(serverId)) forgetSnapshotMirror(serverId);
 }
 
 type HeadTextureOutcome =
@@ -814,8 +821,10 @@ export async function requestConfigWrite(
     pendingConfigWrites.set(requestId, (outcome) => {
       clearTimeout(timer);
       pendingConfigWrites.delete(requestId);
+      forgetProjectTree(serverKeyId, req.projectId);
       resolve(outcome);
     });
+    forgetProjectTree(serverKeyId, req.projectId);
     send(JSON.stringify(msg));
   });
 }
@@ -835,6 +844,7 @@ export function disconnectServerKey(serverKeyId: string): number {
       n++;
     }
   }
+  forgetSnapshotMirror(serverKeyId);
   for (const [sid, sId] of activeSessions) {
     if (sId === serverKeyId) activeSessions.delete(sid);
   }
@@ -1121,6 +1131,11 @@ export async function handlePluginMessage(
     else mixedWriteConnections.delete(connId);
     if (hello.capabilities?.includes("resource_quota_v1")) quotaConnections.add(connId);
     else quotaConnections.delete(connId);
+    if (hello.capabilities?.includes("snapshot_mirror_v1")) {
+      recordSnapshotHello(keyId, hello.snapshot_hashes ?? []);
+    } else {
+      forgetSnapshotMirror(keyId);
+    }
     const vanillaGuiChanged = recordVanillaGuiSupport(keyId, hello.capabilities?.includes("vanilla_gui_v1") === true);
     await reconcileServerProjectIdentity(keyId, hello);
     const boundProjects = await db.select().from(projects).where(
@@ -1142,6 +1157,8 @@ export async function handlePluginMessage(
       }
     }
     await reconcileServerProjectIdentity(keyId, { project_roots: hello.project_roots });
+    // Après l'enregistrement des identités : le miroir se range sous l'id interne.
+    if (hello.capabilities?.includes("snapshot_mirror_v1")) warmSnapshotMirror(keyId, (hello.snapshot_hashes ?? []).map((p) => p.id));
 
     const rp = await currentPackInfo(keyId);
 
@@ -1217,6 +1234,8 @@ export async function handlePluginMessage(
     const projects = (msg as ProjectsReloadedMessage).projects ?? [];
     // Ce qu'on avait mémorisé de ces arbres décrit l'avant-reload.
     for (const p of projects) forgetProjectTree(serverId, p.id);
+    recordSnapshotReload(serverId, projects);
+    warmSnapshotMirror(serverId, projects.map((p) => p.id));
     // Les éditeurs ouverts sur CE serveur peuvent revalider — et avec
     // l'empreinte, celui qui a déjà cette version n'a rien à faire du tout.
     const payload = JSON.stringify({

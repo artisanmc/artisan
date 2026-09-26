@@ -435,6 +435,23 @@ export const projectDrafts = pgTable("project_drafts", {
 	updatedAt: timestamp("updated_at").notNull(),
 }, (t) => [index("project_drafts_owner_project_idx").on(t.ownerId, t.projectId)]);
 
+// Miroir du Snapshot d'un Project serveur (ADR `snapshot-mirror-and-backend-history`).
+// Jetable : jamais une autorité ni une base de compare-and-swap. Contenus adressés
+// par hash pour que les Versions (étape 2) les partagent sans migration.
+export const snapshotBlobs = pgTable("snapshot_blobs", {
+	hash: text("hash").primaryKey(),
+	content: text("content").notNull(),
+});
+
+export const projectSnapshots = pgTable("project_snapshots", {
+	projectId: text("project_id").primaryKey().references(() => projects.id, { onDelete: "cascade" }),
+	hash: text("hash").notNull(),
+	files: jsonb("files").notNull().$type<Record<string, string>>(),
+	binaries: jsonb("binaries").notNull().$type<{ path: string; hash: string; size: number }[]>(),
+	failed: jsonb("failed").notNull().$type<{ path: string; reason: string }[]>(),
+	receivedAt: timestamp("received_at").notNull(),
+});
+
 export const projectDraftStorage = pgTable("project_draft_storage", {
 	projectId: text("project_id").primaryKey().references(() => projects.id, { onDelete: "cascade" }),
 	state: text("state").notNull().default("backend").$type<"backend" | "frozen" | "server">(),

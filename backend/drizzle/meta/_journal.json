@@ -393,6 +393,13 @@
       "when": 1790414118036,
       "tag": "0055_fluffy_paper_doll",
       "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "version": "7",
+      "when": 1790433213579,
+      "tag": "0056_graceful_goliath",
+      "breakpoints": true
     }
   ]
 }
