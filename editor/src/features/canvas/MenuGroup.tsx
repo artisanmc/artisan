@@ -118,8 +118,7 @@ export function MenuGroup({ projectId, menu, position, layout, solo = false }: M
   const box = menuBoxSize(type, menu.rows);
   const single = usesSingleBackground(type);
   // `vanilla_texture: false` : fenêtre transparente en jeu, seuls des repères restent.
-  const outline =
-    type === "chest" && menu.vanillaTexture === false ? transparentOutline(menu.rows) : null;
+  const outline = menu.vanillaTexture === false ? transparentOutline(type, menu.rows) : null;
 
   const { onMenuDragStart, onMenuDragEnd } = useMenuDrag({ projectId, menuId: menu.id, position });
   const nodeAlign = useNodeAlignment(projectId, menu.id);

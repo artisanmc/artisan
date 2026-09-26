@@ -477,7 +477,7 @@ class SyncedMenuProvider(
     /** Called under the project mutation lock; WS callbacks only read the published map. */
     private fun refreshProjectPresence() {
         cachedProjectPresence = mapOf(
-            "capabilities" to listOf("project_rename", "project_drafts_v1", "project_mixed_write_v1", "project_copy_v1"),
+            "capabilities" to listOf("project_rename", "project_drafts_v1", "project_mixed_write_v1", "project_copy_v1", "vanilla_gui_v1"),
             "local_project_ids" to snapshot.keys.sorted(),
             "project_roots" to roots.descriptors(),
             "project_rename_results" to roots.renamer.completed(),

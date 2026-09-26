@@ -7,7 +7,8 @@ import {serverKeys, projects, networks, linkCodes} from "../db/schema";
 import { createHash } from "crypto";
 import { forgetAllProjectTrees } from "./projectTreeReads";
 import { resourcePackRoot, resourcePackPath } from "./resourcePackStorage";
-import { rebuildResourcePack, currentPackInfo } from "./resourcePack";
+import { rebuildResourcePack, currentPackInfo, recordVanillaGuiSupport } from "./resourcePack";
+import { GUI_OVERRIDES } from "./vanillaGui";
 import { createNetwork } from "./networkManager";
 import { createProject } from "./projectStorage";
 import { registerConn, connToServerId, connSenders, handlePluginMessage } from "../ws/hub";
@@ -136,6 +137,21 @@ afterEach(async () => {
 });
 
 describe("rebuildResourcePack", () => {
+  test("a transparent menu only overrides the chest texture once the server's plugin supports it", async () => {
+    diskOf(projectId).set("menus/glass.yaml", new TextEncoder().encode("size: 27\nvanilla_texture: false\nelements: []\n"));
+    const zipOf = async () => unzipSync(await Bun.file(resourcePackPath(serverKeyId, (await rebuildResourcePack(serverKeyId)).hash)).bytes());
+
+    recordVanillaGuiSupport(serverKeyId, false);
+    const old = await zipOf();
+    expect(old[GUI_OVERRIDES.chest]).toBeUndefined();
+    expect(JSON.parse(new TextDecoder().decode(old["assets/artisan/asset-index.json"])).vanilla_gui.transparent_chests).toBe(false);
+
+    expect(recordVanillaGuiSupport(serverKeyId, true)).toBe(true);
+    expect(recordVanillaGuiSupport(serverKeyId, true)).toBe(false);
+    expect((await zipOf())[GUI_OVERRIDES.chest]).toBeDefined();
+    recordVanillaGuiSupport(serverKeyId, false);
+  });
+
   test("a project confirmed absent on disk cannot freeze image button updates in another project", async () => {
     const previous = await rebuildResourcePack(serverKeyId);
     const [server] = await db.select().from(serverKeys).where(eq(serverKeys.id, serverKeyId));

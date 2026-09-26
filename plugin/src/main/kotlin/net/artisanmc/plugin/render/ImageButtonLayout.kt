@@ -26,19 +26,38 @@ data class ImageButtonLayout(val slots: List<Int>, val x: Int, val y: Int, val w
             }
             return slots.toList()
         }
+        private data class Cell(val section: Int, val col: Int, val row: Int, val x: Int, val y: Int)
+
+        /**
+         * Mirror of `imageButtonArea` (docs/schema/menu/v1/imageButtonGeometry.ts):
+         * raw slot → section (menu grid, inventory rows, hotbar), column, row and
+         * section origin in MC pixels. Player slots only with a hidden bottom.
+         */
+        private fun cell(slot: Int, type: String, size: Int): Cell {
+            if (slot < size) {
+                val (cols, x, y) = when (type) { "hopper" -> Triple(5, 43, 19); "dropper" -> Triple(3, 61, 16); else -> Triple(9, 7, 17) }
+                return Cell(0, slot % cols, slot / cols, x, y)
+            }
+            val j = slot - size
+            val top = when (type) { "hopper" -> 50; "dropper" -> 83; else -> 30 + (size / 9) * 18 }
+            return if (j < 27) Cell(1, j % 9, j / 9, 7, top) else Cell(2, j - 27, 0, 7, top + 58)
+        }
+
         fun of(menu: MenuYaml, element: ElementYaml): ImageButtonLayout? {
             if (element.iterates != null || element.places != null) return null
-            val slots = parsePositions(element.positionsSpec, menu.size).sorted()
+            val hidden = PlayerInventoryMode.parse(menu.playerInventory) == PlayerInventoryMode.HIDDEN
+            val limit = menu.size + if (hidden) MenuSlots.PLAYER_SLOTS else 0
+            val slots = parsePositions(element.positionsSpec, limit).sorted()
             if (slots.isEmpty()) return null
-            val cols = when (menu.inventoryType) { "hopper" -> 5; "dropper" -> 3; else -> 9 }
-            val left = slots.minOf { it % cols }; val right = slots.maxOf { it % cols }
-            val top = slots.first() / cols; val bottom = slots.last() / cols
+            val cells = slots.map { cell(it, menu.inventoryType, menu.size) }
+            if (cells.any { it.section != cells.first().section }) return null
+            val left = cells.minOf { it.col }; val right = cells.maxOf { it.col }
+            val top = cells.minOf { it.row }; val bottom = cells.maxOf { it.row }
             if (slots.size != (right - left + 1) * (bottom - top + 1)) return null
             if (menu.allElements.any { other -> other.id != element.id &&
-                (parsePositions(other.positionsSpec, menu.size) + (other.places?.placements?.map { it.position } ?: emptyList())).any { it in slots } }) return null
-            val originX = when (cols) { 5 -> 43; 3 -> 61; else -> 7 }
-            val originY = when (cols) { 5 -> 19; 3 -> 16; else -> 17 }
-            return ImageButtonLayout(slots, originX + left * 18, originY + top * 18, (right - left + 1) * 18, (bottom - top + 1) * 18)
+                (parsePositions(other.positionsSpec, limit) + (other.places?.placements?.map { it.position } ?: emptyList())).any { it in slots } }) return null
+            val origin = cells.first()
+            return ImageButtonLayout(slots, origin.x + left * 18, origin.y + top * 18, (right - left + 1) * 18, (bottom - top + 1) * 18)
         }
     }
 }

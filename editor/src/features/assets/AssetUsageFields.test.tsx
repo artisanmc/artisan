@@ -15,4 +15,14 @@ describe("AssetUsageFields", () => {
     render(<AssetUsageFields value={["chest_texture"]} onChange={() => {}} />);
     expect(screen.getByText(/generic_54\.png/)).toBeInTheDocument();
   });
+
+  it("offers the hopper and dispenser textures, each with its own format", () => {
+    render(
+      <AssetUsageFields value={["hopper_texture", "dispenser_texture"]} onChange={() => {}} />,
+    );
+    expect(screen.getByRole("checkbox", { name: "Texture d'entonnoir" })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "Texture de distributeur" })).toBeChecked();
+    expect(screen.getByText(/hopper\.png/)).toBeInTheDocument();
+    expect(screen.getByText(/dispenser\.png/)).toBeInTheDocument();
+  });
 });

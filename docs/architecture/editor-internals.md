@@ -36,7 +36,11 @@ an item also sets its image and automatic positions in one undoable operation.
 New buttons use native pixels, centered by default. X/Y offsets (integer pixels)
 move the image within its clipped area; they never change click targets. Existing
 images keep their fit/footprint when replaced; **Fit slots to image** is explicit.
-`menu/v1/imageButtonGeometry.ts` shares canvas/resource-pack sizing and centering.
+`menu/v1/imageButtonGeometry.ts` shares canvas/resource-pack sizing and centering, and
+`imageButtonArea` — the rectangle of raw slots a button covers and its image origin — used
+by the editor (`imageButtonRect`, `rectanglePositions`) and the backend (`imageButtons.ts`),
+mirrored by the plugin (`ImageButtonLayout.kt`, same test cases). With `player_inventory:
+hidden`, a rectangle may sit in the inventory rows or the hotbar, never across two sections.
 `useAuthenticatedImageUrl` shares authenticated PNG requests and blob URLs by
 principal and full content-versioned URL. `AssetPreview` (picker/editor) and the
 canvas reuse those bytes, including the picker-to-canvas handoff. Picker thumbnails
@@ -304,7 +308,7 @@ Un menu est un coffre (défaut), un hopper (5×1) ou un dropper (3×3). La **sin
 
 **Inventaire du joueur (`player_inventory`, 2026-09-25)** : `Menu.playerInventory` (absent = `visible`, stocké seulement si `hidden`). En `hidden`, les positions `size..size+35` (rawSlot protocole) sont éditables sur les 4 lignes vanilla sous le menu : `slotMcXY(i, type, rows)` place les positions `≥ slotCount` sur ces cellules (`playerInvY` par type, `null` = après les lignes du coffre ; +4 px avant la barre rapide), `positionCount` donne le nombre adressable (`MenuGroup`, clavier, `MenuProperties`), `hitTestSlot` les retourne. Les déplacements de sélection passent par une grille visuelle (`positionToCell` / `cellToPosition` : lignes du menu puis 4 lignes de 9) au lieu de `% cols`. Redimensionner le menu ou changer de type **décale** les positions joueur (`shiftPlayerPositions` dans `accountStore`) pour que chaque bouton reste sur le même slot joueur ; le refus de rétrécissement ne porte plus que sur les positions du menu. Les image buttons restent limités à la grille du menu.
 
-**Texture par défaut (`vanilla_texture`, 2026-09-25)** : en mode titre composé, `VanillaTextureLayer` est la première ligne fixe de `LayersPanel` (non déplaçable, non supprimable) avec un `Switch` (`components/ui/switch.tsx`, spécimen `/admin/design`) — l'œil des layers reste un masquage d'aperçu, le `Switch` un réglage enregistré qui change le jeu. Désactivée (coffres seulement), `MenuGroup` ne dessine plus la texture mais `transparentOutline(rows)` : cadre pointillé (garde une forme de hit pour le drag) et cellules de slot en traits légers, menu **et** 36 slots joueur. Repasser en titre vanilla réactive la texture.
+**Texture par défaut (`vanilla_texture`, 2026-09-25)** : en mode titre composé, `VanillaTextureLayer` est la première ligne fixe de `LayersPanel` (non déplaçable, non supprimable) avec un `Switch` (`components/ui/switch.tsx`, spécimen `/admin/design`) — l'œil des layers reste un masquage d'aperçu, le `Switch` un réglage enregistré qui change le jeu. Désactivée (tous types de conteneur), `MenuGroup` ne dessine plus la texture mais `transparentOutline(type, rows)` : cadre pointillé (garde une forme de hit pour le drag) et cellules de slot en traits légers, menu **et** 36 slots joueur, selon la géométrie du type. Repasser en titre vanilla réactive la texture.
 
 **Switch de type = keep+warn** : `MenuProperties` expose un sélecteur de type (Chest / Hopper / Dropper) ; le sélecteur de rows n'apparaît que pour le chest. Passer à un conteneur plus petit **conserve** les éléments hors-plage et affiche un chip d'avertissement — jamais de suppression silencieuse (`setMenuField` keep+warn).
 

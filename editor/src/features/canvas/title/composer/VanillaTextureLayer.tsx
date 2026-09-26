@@ -5,14 +5,13 @@ import type { Menu, ProjectId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
 
 /**
- * First, fixed row of the composed title: the vanilla chest texture. Off
+ * First, fixed row of the composed title: the vanilla container texture. Off
  * (`vanilla_texture: false`), the window is transparent in game and the menu
- * brings its own texture through image layers. Chests only.
+ * brings its own texture through image layers.
  */
 export function VanillaTextureLayer({ projectId, menu }: { projectId: ProjectId; menu: Menu }) {
   const { t } = useTranslation();
   const setMenuField = useAccountStore((s) => s.setMenuField);
-  const chest = (menu.inventoryType ?? "chest") === "chest";
   const on = menu.vanillaTexture !== false;
 
   return (
@@ -23,8 +22,7 @@ export function VanillaTextureLayer({ projectId, menu }: { projectId: ProjectId;
       <div className="flex items-center justify-between gap-2 text-xs text-[var(--text)]">
         <span>{t("menuProperties.vanillaTexture")}</span>
         <Switch
-          checked={on || !chest}
-          disabled={!chest}
+          checked={on}
           aria-label={t("menuProperties.vanillaTexture")}
           onCheckedChange={(value) =>
             setMenuField({ projectId, menuId: menu.id, field: "vanillaTexture", value })
@@ -32,13 +30,7 @@ export function VanillaTextureLayer({ projectId, menu }: { projectId: ProjectId;
         />
       </div>
       <p className="text-[10.5px] text-[var(--text-mut)]">
-        {t(
-          !chest
-            ? "menuProperties.vanillaTextureChestOnly"
-            : on
-              ? "menuProperties.vanillaTextureOnHint"
-              : "menuProperties.vanillaTextureOffHint",
-        )}
+        {t(on ? "menuProperties.vanillaTextureOnHint" : "menuProperties.vanillaTextureOffHint")}
       </p>
     </div>
   );

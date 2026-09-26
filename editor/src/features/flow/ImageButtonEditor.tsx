@@ -35,7 +35,7 @@ export function ImageButtonEditor({
   const assets = useAssetStore((state) => state.assets);
   const asset = assets.find((entry) => entry.id === image?.asset && entry.projectId === projectId);
   const type = menu.inventoryType ?? "chest";
-  const rect = imageButtonRect(element.positions, type, menu.rows);
+  const rect = imageButtonRect(element.positions, type, menu.rows, menu.playerInventory);
   const perform = (action: () => void) => {
     try {
       action();
@@ -47,7 +47,9 @@ export function ImageButtonEditor({
   const resize = (width: number, height: number) =>
     perform(() => {
       if (!rect) throw new Error(t("imageButton.rectangleRequired"));
-      onPositions(rectanglePositions(rect.slot, width, height, type, menu.rows));
+      onPositions(
+        rectanglePositions(rect.slot, width, height, type, menu.rows, menu.playerInventory),
+      );
     });
   return (
     <div className="flex flex-col gap-3">
@@ -181,7 +183,14 @@ export function ImageButtonEditor({
               const size = imageButtonSize(picked.width, picked.height);
               onImage(
                 { asset: picked.id, fit: "native" },
-                rectanglePositions(rect.slot, size.width, size.height, type, menu.rows),
+                rectanglePositions(
+                  rect.slot,
+                  size.width,
+                  size.height,
+                  type,
+                  menu.rows,
+                  menu.playerInventory,
+                ),
               );
             }
             setPicking(false);

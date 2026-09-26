@@ -7,7 +7,13 @@ import { buildResourcePackZip, type AssetRow } from "./resourcePackBuilder";
 import { diskAssetsFromTree, readDiskAssetBytes, type DiskAsset } from "./diskAssets";
 import { glyphPlacementsFromMenus, type GlyphPlacement } from "./menuGlyphPlacements";
 import { imageButtonsFromMenus, type ImageButtonPlacement } from "./imageButtons";
-import { chestTextureSource, transparentChestsFromMenus } from "./vanillaGui";
+import {
+  GUI_CONTAINERS,
+  TEXTURE_USAGE,
+  containerTextureSource,
+  transparentContainersFromMenus,
+  type GuiContainer,
+} from "./vanillaGui";
 import { readProjectTree } from "./projectTreeReads";
 import { requestAssetRead } from "../ws/hub";
 import { createHash } from "crypto";
@@ -67,7 +73,7 @@ export async function rebuildResourcePack(serverKeyId: string, options: { requir
   const fontGlyphPngs = new Map<string, Map<string, Uint8Array>>();
   const glyphPlacements: GlyphPlacement[] = [];
   const imageButtons: ImageButtonPlacement[] = [];
-  let transparentChests = false;
+  const transparent = new Set<GuiContainer>();
 
   for (const p of boundProjects) {
     const diskId = p.externalId ?? p.id;
@@ -84,7 +90,7 @@ export async function rebuildResourcePack(serverKeyId: string, options: { requir
       // doit porter une police par hauteur utilisée.
       glyphPlacements.push(...glyphPlacementsFromMenus(tree.result.files ?? []));
       imageButtons.push(...imageButtonsFromMenus(tree.result.files ?? []));
-      transparentChests ||= transparentChestsFromMenus(tree.result.files ?? []);
+      for (const c of transparentContainersFromMenus(tree.result.files ?? [])) transparent.add(c);
       return diskAssetsFromTree(p.id, tree.result.files ?? [], tree.result.binaries ?? []);
     })();
 
@@ -154,7 +160,12 @@ export async function rebuildResourcePack(serverKeyId: string, options: { requir
     { finalCodepoints },
     glyphPlacements,
     imageButtons,
-    { source: chestTexture(allAssets, glyphPngs, serverKeyId), transparentChests },
+    {
+      sources: containerTextures(allAssets, glyphPngs, serverKeyId),
+      // An older plugin cannot draw the other containers back: their texture
+      // stays vanilla (the menu then shows over it) until the jar is updated.
+      transparent: supportsVanillaGui(serverKeyId) ? transparent : new Set<GuiContainer>(),
+    },
   );
   await writeResourcePack(serverKeyId, hash, zipBytes);
 
@@ -193,35 +204,65 @@ function buildPackUrl(serverKeyId: string, hash: string): string {
   return `${RESOURCE_PACK_BASE_URL}/api/v1/resource-pack/${serverKeyId}/${hash}.zip`;
 }
 
+/** Servers whose plugin announced `vanilla_gui_v1` in its last hello. */
+const vanillaGuiServers = new Set<string>();
+
 /**
- * Source of the `artisan:vanilla_gui` glyphs: a project image marked
- * `chest_texture` keeps a restyled chest on the chests drawn back; otherwise
- * the vanilla texture. A marked image in the wrong layout is ignored, loudly.
+ * Records whether a server's plugin draws transparent containers back through
+ * the title (hello capability `vanilla_gui_v1`). Returns whether it changed:
+ * the pack must then be rebuilt with or without the transparent overrides.
  */
-function chestTexture(assets: AssetRow[], pngs: Map<string, Uint8Array>, serverKeyId: string): Uint8Array {
-  const marked = assets.filter((row) => row.usages?.includes("chest_texture"));
-  const custom = chestTextureSource(
-    marked.flatMap((row) => {
-      const bytes = pngs.get(row.id);
-      return bytes ? [{ row, bytes }] : [];
-    }),
-  );
-  if (!custom && marked.length > 0) {
-    console.warn(
-      `[resource-pack] ${serverKeyId}: chest texture ${marked.map((r) => r.name).join(", ")} ignored (expected a generic_54.png layout, 256×256 or a multiple); using the vanilla texture`,
-    );
-  }
-  return custom ?? vanillaChestTexture();
+export function recordVanillaGuiSupport(serverKeyId: string, supported: boolean): boolean {
+  if (supportsVanillaGui(serverKeyId) === supported) return false;
+  if (supported) vanillaGuiServers.add(serverKeyId);
+  else vanillaGuiServers.delete(serverKeyId);
+  return true;
+}
+
+export function supportsVanillaGui(serverKeyId: string): boolean {
+  return vanillaGuiServers.has(serverKeyId);
 }
 
 /**
- * Vanilla generic_54.png, the default source of the `artisan:vanilla_gui` glyphs. The
- * editor ships it; the backend image copies `editor/src` next to `/app`.
+ * Sources of the `artisan:vanilla_gui` glyphs: per container, a project image
+ * marked with its texture use keeps a restyled window on the windows drawn
+ * back; otherwise the vanilla texture. A marked image in the wrong layout is
+ * ignored, loudly.
  */
-let vanillaChest: Uint8Array | undefined;
-function vanillaChestTexture(): Uint8Array {
-  vanillaChest ??= new Uint8Array(
-    readFileSync(resolve(import.meta.dir, "../../../editor/src/assets/minecraft/generic_54.png")),
-  );
-  return vanillaChest;
+function containerTextures(
+  assets: AssetRow[],
+  pngs: Map<string, Uint8Array>,
+  serverKeyId: string,
+): Record<GuiContainer, Uint8Array> {
+  const withBytes = assets.flatMap((row) => {
+    const bytes = pngs.get(row.id);
+    return bytes ? [{ row, bytes }] : [];
+  });
+  const out = {} as Record<GuiContainer, Uint8Array>;
+  for (const container of GUI_CONTAINERS) {
+    const custom = containerTextureSource(withBytes, container);
+    const marked = assets.filter((row) => row.usages?.includes(TEXTURE_USAGE[container]));
+    if (!custom && marked.length > 0) {
+      console.warn(
+        `[resource-pack] ${serverKeyId}: ${TEXTURE_USAGE[container]} ${marked.map((r) => r.name).join(", ")} ignored (expected the vanilla layout, 256×256 or a multiple); using the vanilla texture`,
+      );
+    }
+    out[container] = custom ?? vanillaTexture(container);
+  }
+  return out;
+}
+
+/**
+ * Vanilla container textures, the default sources of the `artisan:vanilla_gui`
+ * glyphs. The editor ships them; the backend image copies `editor/src` next to `/app`.
+ */
+const vanillaTextures = new Map<GuiContainer, Uint8Array>();
+function vanillaTexture(container: GuiContainer): Uint8Array {
+  let bytes = vanillaTextures.get(container);
+  if (!bytes) {
+    const file = { chest: "generic_54", hopper: "hopper", dispenser: "dispenser" }[container];
+    bytes = new Uint8Array(readFileSync(resolve(import.meta.dir, `../../../editor/src/assets/minecraft/${file}.png`)));
+    vanillaTextures.set(container, bytes);
+  }
+  return bytes;
 }

@@ -62,5 +62,8 @@ positions (haut et bas) et un menu `visible` :
 - [ ] Même serveur : un vrai coffre, un tonneau, un ender chest et un double coffre gardent leur
   texture vanilla (réinjectée), titre à sa place ; idem juste après `/artisan reload`.
 - [ ] Joueur qui refuse le pack : coffres vanilla normaux, aucun caractère manquant dans les titres.
+- [ ] Menus entonnoir et dropper en `vanilla_texture: false` : fenêtres transparentes ; un vrai
+  entonnoir, un distributeur et un dropper gardent leur texture (réinjectée), un vrai coffre n'est
+  pas touché tant qu'aucun menu coffre n'est transparent.
 - [ ] Avec le plugin PacketEvents installé à côté (copie relocalisée + plugin autonome) : démarrage
   sans erreur et tout ce qui précède tient.

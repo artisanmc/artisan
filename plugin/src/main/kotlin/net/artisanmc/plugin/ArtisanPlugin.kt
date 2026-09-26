@@ -43,6 +43,7 @@ open class ArtisanPlugin : JavaPlugin() {
     private lateinit var menuWindows: MenuWindows
     /** Survives `/artisan reload`: the pack manager is swapped, the players' loaded packs are not. */
     private val packLoads = net.artisanmc.plugin.resourcepack.PackLoadTracker()
+    private val openedContainers = net.artisanmc.plugin.render.OpenedContainers()
     private var packetEventsLoaded = false
     private lateinit var cooldowns: CooldownStore
     private lateinit var commandRegistrar: CommandRegistrar
@@ -180,12 +181,17 @@ open class ArtisanPlugin : JavaPlugin() {
             if (packets) PacketEventsSlotSink { menuWindows.get(it.uniqueId)?.stateId ?: 0 } else ClientSlotSink.None,
         )
         if (packets) {
-            val chestTexture = net.artisanmc.plugin.render.VanillaGuiTitle.Rule(menuWindows) { id ->
-                packLoads.hasLoaded(id) && ::assetCatalog.isInitialized && assetCatalog.transparentChests
-            }
+            val chestTexture = net.artisanmc.plugin.render.VanillaGuiTitle.Rule(
+                menuWindows,
+                { id, texture ->
+                    packLoads.hasLoaded(id) && ::assetCatalog.isInitialized && texture in assetCatalog.transparentTextures
+                },
+                openedContainers::typeOf,
+            )
             PacketEventsMenuPackets(menuWindows, chestTexture).register()
         }
         server.pluginManager.registerEvents(packLoads, this)
+        server.pluginManager.registerEvents(openedContainers, this)
         saveDefaultConfig()
         api = buildApi(this)
         server.servicesManager.register(ArtisanAPI::class.java, api, this, org.bukkit.plugin.ServicePriority.Normal)

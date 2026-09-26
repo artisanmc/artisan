@@ -39,14 +39,13 @@ dependencies {
     compileOnly("io.th0rgal:oraxen:1.189.0")
     // Contenu des menus envoyé par paquets (PacketEventsMenuPackets). Intégré et
     // relocalisé : chaque version majeure de Minecraft impose de le mettre à jour.
-    // Netty, adventure-api/key et examination sont fournis par Paper ; adventure-nbt ne
-    // l'est pas (NoClassDefFoundError BinaryTag au chargement) : embarqué et relocalisé.
+    // Netty et adventure-api/key sont fournis par Paper. adventure-nbt ne l'est pas
+    // (NoClassDefFoundError BinaryTag), ni examination depuis Paper 26.x
+    // (ClassNotFoundException Examinable) : embarqués et relocalisés.
     implementation("com.github.retrooper:packetevents-spigot:2.14.0") {
         exclude("io.netty")
         exclude("net.kyori", "adventure-api")
         exclude("net.kyori", "adventure-key")
-        exclude("net.kyori", "examination-api")
-        exclude("net.kyori", "examination-string")
     }
     compileOnly("com.sk89q.worldguard:worldguard-bukkit:7.0.12") {
         exclude("com.google.guava", "guava")
@@ -91,6 +90,7 @@ tasks.shadowJar {
     relocate("net.kyori.adventure.nbt", "net.artisanmc.shaded.adventure.nbt") {
         exclude("net.kyori.adventure.nbt.api.**")
     }
+    relocate("net.kyori.examination", "net.artisanmc.shaded.examination")
     // Required: merge service-loader files instead of overwriting them.
     // shadowJar otherwise strips kotlin-reflect's META-INF/services entry,
     // causing "No BuiltInsLoader implementation was found" at runtime.
