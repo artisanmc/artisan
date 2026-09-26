@@ -73,6 +73,8 @@ export async function getSnapshot(projectId: string): Promise<MirroredSnapshot |
 // ── Validité ────────────────────────────────────────────────────────────────
 
 interface ServerState {
+	/** Les Projects du Snapshot, tels que le dernier hello/reload les a listés. */
+	listed: string[];
 	announced: Map<string, string>;
 	/** Bumpé à chaque écriture : une lecture partie avant ne valide rien. */
 	generation: Map<string, number>;
@@ -82,7 +84,7 @@ const servers = new Map<string, ServerState>();
 
 /** `hello` d'un plugin qui annonce `snapshot_mirror_v1` : l'état repart de ses hashes. */
 export function recordHello(serverKeyId: string, hashes: { id: string; hash: string }[]): void {
-	const state: ServerState = { announced: new Map(), generation: servers.get(serverKeyId)?.generation ?? new Map() };
+	const state: ServerState = { listed: sortedIds(hashes), announced: new Map(), generation: servers.get(serverKeyId)?.generation ?? new Map() };
 	for (const { id, hash } of hashes) state.announced.set(id, hash);
 	servers.set(serverKeyId, state);
 }
@@ -91,7 +93,15 @@ export function recordHello(serverKeyId: string, hashes: { id: string; hash: str
 export function recordReload(serverKeyId: string, hashes: { id: string; hash: string }[]): void {
 	const state = servers.get(serverKeyId);
 	if (!state) return;
+	state.listed = sortedIds(hashes);
 	for (const { id, hash } of hashes) state.announced.set(id, hash);
+}
+
+const sortedIds = (hashes: { id: string }[]) => hashes.map((h) => h.id).sort();
+
+/** Ce que `project_list` rendrait — `null` quand le plugin n'a pas annoncé la capacité. */
+export function listedProjects(serverKeyId: string): string[] | null {
+	return servers.get(serverKeyId)?.listed.slice() ?? null;
 }
 
 export function mirrorSupported(serverKeyId: string): boolean {

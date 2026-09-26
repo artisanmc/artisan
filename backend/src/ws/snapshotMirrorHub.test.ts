@@ -97,3 +97,18 @@ test("la déconnexion oublie le miroir", async () => {
 	cleanupConn(CONN);
 	expect(mirrorSupported(s.key.id)).toBe(false);
 });
+
+test("la liste des Projects vient du Snapshot annoncé, sans demander au plugin", async () => {
+	const { listProjectsFromSnapshot } = await import("./hub");
+	const s = await connect();
+	await s.hello([]);
+	expect(await listProjectsFromSnapshot(s.key.id)).toBeNull();
+
+	await s.hello(["snapshot_mirror_v1"]);
+	const listed = await listProjectsFromSnapshot(s.key.id);
+	expect(listed?.kind === "result" && listed.result.project_ids).toEqual(["shop"]);
+	await handlePluginMessage(CONN, JSON.stringify({ type: "projects_reloaded", projects: [{ id: "shop", hash: "H1" }, { id: "warps", hash: "W" }] }));
+	const after = await listProjectsFromSnapshot(s.key.id);
+	expect(after?.kind === "result" && after.result.project_ids).toEqual(["shop", "warps"]);
+	expect(s.sent.filter((m) => m.type === "project_list")).toHaveLength(0);
+});

@@ -61,6 +61,7 @@ import {
 	requestOnlinePlayers,
 	requestPlayerInventory,
 	requestHeadTexture,
+	listProjectsFromSnapshot,
 	requestProjectList,
 	requestProjectWrite,
 	supportsProjectRename,
@@ -1161,7 +1162,7 @@ userNetworksRouter.get(
 		if (!resolved) return c.json({ error: "forbidden" }, 403);
 		if (!resolved.serverKeyId) return c.json({ error: "not_found" }, 404);
 
-		const outcome = await requestProjectList(resolved.serverKeyId);
+		const outcome = (await listProjectsFromSnapshot(resolved.serverKeyId)) ?? (await requestProjectList(resolved.serverKeyId));
 		if (outcome.kind === "offline") return c.json({ error: "server_offline" }, 503);
 		if (outcome.kind === "timeout") return c.json({ error: "fetch_timeout" }, 504);
 		const r = outcome.result;
