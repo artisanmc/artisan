@@ -25,8 +25,6 @@ export interface Arrangement {
 export const BOARD_MARGIN = 40;
 const RANKSEP = 160;
 const NODESEP = 48;
-/** Au-delà, une colonne se replie en sous-colonnes côte à côte. */
-const MAX_PER_COLUMN = 4;
 const COMPONENT_GAP = 120;
 const ROW_WIDTH = 2400;
 const GUTTER_GAP = 160;
@@ -64,12 +62,10 @@ function components(keys: string[], edges: ArrangeEdge[]): string[][] {
 }
 
 /**
- * Arêtes qui fixent les colonnes d'une composante : celles qui s'éloignent des
- * points d'entrée. Chaque Document reçoit sa distance de navigation depuis les
- * nœuds que rien ne cible (commandes en tête) ; une arête ne compte que si elle
- * va vers une distance strictement plus grande. Un « retour au menu principal »
- * ou un lien entre menus frères ne repousse donc rien, quel que soit l'ordre des
- * commandes — et le résultat est acyclique par construction.
+ * Arêtes retour d'une composante : DFS depuis les nœuds que rien ne cible.
+ * Une arête vers un nœud encore sur la pile referme un cycle ; on l'écarte du
+ * calcul des couches pour qu'un « retour au menu principal » ne repousse pas
+ * le menu principal d'une couche.
  */
 function forwardEdges(keys: string[], edges: ArrangeEdge[]): ArrangeEdge[] {
   const out = new Map<string, string[]>(keys.map((k) => [k, []]));
@@ -78,76 +74,40 @@ function forwardEdges(keys: string[], edges: ArrangeEdge[]): ArrangeEdge[] {
     out.get(e.source)!.push(e.target);
     indegree.set(e.target, indegree.get(e.target)! + 1);
   }
-  const depth = new Map<string, number>();
-  const spread = (starts: string[], from: number) => {
-    let frontier = starts.filter((k) => !depth.has(k));
-    for (const k of frontier) depth.set(k, from);
-    for (let d = from + 1; frontier.length > 0; d++) {
-      const next: string[] = [];
-      for (const k of frontier) {
-        for (const t of out.get(k)!) {
-          if (depth.has(t)) continue;
-          depth.set(t, d);
-          next.push(t);
-        }
+  for (const targets of out.values()) targets.sort(compare);
+
+  const state = new Map<string, "open" | "done">();
+  const back = new Set<string>();
+  const visit = (root: string) => {
+    state.set(root, "open");
+    const stack: { key: string; next: number }[] = [{ key: root, next: 0 }];
+    while (stack.length > 0) {
+      const top = stack[stack.length - 1]!;
+      const targets = out.get(top.key)!;
+      if (top.next === targets.length) {
+        state.set(top.key, "done");
+        stack.pop();
+        continue;
       }
-      frontier = next;
+      const target = targets[top.next++]!;
+      const seen = state.get(target);
+      if (seen === "open") back.add(`${top.key}->${target}`);
+      else if (!seen) {
+        state.set(target, "open");
+        stack.push({ key: target, next: 0 });
+      }
     }
   };
-  spread(
-    keys.filter((k) => indegree.get(k) === 0),
-    0,
-  );
-  // Cycles que rien n'atteint : on entre par le nœud qui mène au plus d'autres.
-  while (depth.size < keys.length) {
-    const rest = keys.filter((k) => !depth.has(k));
-    rest.sort((a, b) => out.get(b)!.length - out.get(a)!.length || compare(a, b));
-    spread([rest[0]!], 0);
-  }
-  return edges.filter((e) => depth.get(e.target)! > depth.get(e.source)!);
-}
-
-/**
- * Replie les colonnes trop hautes : une couche dagre (même x) de plus de
- * MAX_PER_COLUMN Documents devient un bloc de sous-colonnes côte à côte, dans
- * l'ordre vertical d'origine (de haut en bas, puis colonne suivante), centré là
- * où était la colonne. Les couches suivantes glissent d'autant vers la droite.
- */
-function wrapTallColumns(nodes: ArrangeNode[], centers: Map<string, Point>): void {
-  const columns = new Map<number, ArrangeNode[]>();
-  for (const n of nodes) {
-    const x = Math.round(centers.get(n.key)!.x);
-    columns.set(x, [...(columns.get(x) ?? []), n]);
-  }
-  let shift = 0;
-  for (const x of [...columns.keys()].sort((a, b) => a - b)) {
-    const column = columns
-      .get(x)!
-      .sort((a, b) => centers.get(a.key)!.y - centers.get(b.key)!.y || compare(a.key, b.key));
-    for (const n of column) centers.get(n.key)!.x += shift;
-    if (column.length <= MAX_PER_COLUMN) continue;
-
-    const step = Math.max(...column.map((n) => n.width)) + NODESEP;
-    const top = Math.min(...column.map((n) => centers.get(n.key)!.y - n.height / 2));
-    const bottom = Math.max(...column.map((n) => centers.get(n.key)!.y + n.height / 2));
-    const subs: ArrangeNode[][] = [];
-    for (let i = 0; i < column.length; i += MAX_PER_COLUMN)
-      subs.push(column.slice(i, i + MAX_PER_COLUMN));
-    const heights = subs.map(
-      (sub) => sub.reduce((h, n) => h + n.height, 0) + (sub.length - 1) * NODESEP,
-    );
-    const blockTop = (top + bottom) / 2 - Math.max(...heights) / 2;
-    subs.forEach((sub, j) => {
-      let y = blockTop;
-      for (const n of sub) {
-        const c = centers.get(n.key)!;
-        c.x += j * step;
-        c.y = y + n.height / 2;
-        y += n.height + NODESEP;
-      }
-    });
-    shift += (subs.length - 1) * step;
-  }
+  // Entry points first by what they open: the one leading to the biggest hub
+  // (a main menu) is explored first, so its submenus' "back" links close the
+  // cycles — not the alphabetical order of the commands.
+  const hub = (k: string) => Math.max(0, ...out.get(k)!.map((t) => out.get(t)!.length));
+  const roots = keys
+    .filter((k) => indegree.get(k) === 0)
+    .sort((a, b) => hub(b) - hub(a) || out.get(b)!.length - out.get(a)!.length || compare(a, b));
+  for (const k of roots) if (!state.has(k)) visit(k);
+  for (const k of keys) if (!state.has(k)) visit(k);
+  return edges.filter((e) => !back.has(`${e.source}->${e.target}`));
 }
 
 function layoutComponent(nodes: ArrangeNode[], edges: ArrangeEdge[]): Placed {
@@ -164,14 +124,12 @@ function layoutComponent(nodes: ArrangeNode[], edges: ArrangeEdge[]): Placed {
   for (const n of nodes) g.setNode(n.key, { width: n.width, height: n.height });
   for (const e of edges) g.setEdge(e.source, e.target);
   layout(g);
-  const centers = new Map(nodes.map((n) => [n.key, { ...(g.node(n.key) as Point) }]));
-  wrapTallColumns(nodes, centers);
 
   const positions: Record<string, Point> = {};
   let minX = Number.POSITIVE_INFINITY;
   let minY = Number.POSITIVE_INFINITY;
   for (const n of nodes) {
-    const c = centers.get(n.key)!;
+    const c = g.node(n.key) as { x: number; y: number };
     const p = { x: c.x - n.width / 2, y: c.y - n.height / 2 };
     positions[n.key] = p;
     minX = Math.min(minX, p.x);
