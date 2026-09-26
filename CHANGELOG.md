@@ -9,6 +9,11 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Fixed — canvas arrangement
+
+- The main menu no longer lands behind a submenu that links back to it: canvas columns now follow the navigation distance from commands (and other entry points), so back links and links between sibling menus never push a menu to the right, whatever the order of the commands.
+- A column of more than 4 Documents wraps into side-by-side sub-columns instead of stacking ever taller; later columns move right to make room.
+
 ### Changed — menu content sent to the client only
 
 - Menus now open an empty inventory and send their content through packets: nothing a menu shows exists on the server, so a crash, death or disconnect with a menu open can never lose or duplicate an item. PacketEvents 2.14.0 is bundled (relocated) — no separate plugin to install, and the `packetevents` soft dependency is gone.
