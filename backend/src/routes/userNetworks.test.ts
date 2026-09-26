@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { Hono } from "hono";
 import { db } from "../db/index";
-import {memberships, networks, projects, serverKeys, serverKeyHelloes, linkCodes, users, userSessions, serverModules, serverDataSources, networkInvites, networkAccessRequests} from "../db/schema";
+import {memberships, networkBilling, networks, projects, serverKeys, serverKeyHelloes, linkCodes, users, userSessions, serverModules, serverDataSources, networkInvites, networkAccessRequests} from "../db/schema";
 import { __setImportSourcesListRequestForTests, userNetworksRouter } from "./userNetworks";
 import { userAuth } from "../middleware/userAuth";
 import { createSession } from "../lib/sessionManager";
@@ -369,6 +369,32 @@ describe("userNetworksRouter", () => {
     expect(sk[0].networkId).toBe(network.id);
     expect(sk[0].label).toBe("test-server");
     expect(sk[0].hash).toBeNull(); // unredeemed until `/artisan link`
+  });
+
+  test("Free network accepts two servers and rejects the third", async () => {
+    const { sessionId } = await seedUser();
+    const app = makeApp();
+    const headers = { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" };
+    const { network } = await (await app.request("/api/v1/networks", { method: "POST", headers, body: JSON.stringify({ name: "Free" }) })).json();
+    const create = () => app.request(`/api/v1/networks/${network.id}/server-keys`, { method: "POST", headers, body: "{}" });
+    expect((await create()).status).toBe(201);
+    expect((await create()).status).toBe(201);
+    const denied = await create();
+    expect(denied.status).toBe(409);
+    expect((await denied.json()).error).toBe("server_limit_reached");
+  });
+
+  test("Pro network accepts ten servers and rejects the eleventh", async () => {
+    const { sessionId } = await seedUser();
+    const app = makeApp();
+    const headers = { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" };
+    const { network } = await (await app.request("/api/v1/networks", { method: "POST", headers, body: JSON.stringify({ name: "Pro" }) })).json();
+    await db.insert(networkBilling).values({ networkId: network.id, paidEditorPro: true, paidThrough: new Date(Date.now() + 86_400_000), currentPeriodId: "paid", createdAt: new Date(), updatedAt: new Date() });
+    const create = () => app.request(`/api/v1/networks/${network.id}/server-keys`, { method: "POST", headers, body: "{}" });
+    for (let i = 0; i < 10; i++) expect((await create()).status).toBe(201);
+    const denied = await create();
+    expect(denied.status).toBe(409);
+    expect((await denied.json()).error).toBe("server_limit_reached");
   });
 
   test("POST /api/v1/networks/:id/server-keys/:keyId/link-code mints a code for an existing key", async () => {

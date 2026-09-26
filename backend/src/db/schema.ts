@@ -668,9 +668,9 @@ export const creditPacks = pgTable("credit_packs", {
 	updatedAt: timestamp("updated_at").notNull(),
 });
 
-// Admin-defined recurring subscription plans. interval="month" in V1
-// (year reserved). credits_per_period granted each renewal; rollover_cap caps
-// carried-over credits. Cf. spec §2.1/§2.2.
+// Admin-defined recurring subscription plans. Annual editor Pro bills yearly
+// but credits_per_period is its monthly credit grant; other plans grant at
+// billing renewal. rollover_cap caps carried-over credits. Cf. spec §2.1/§2.2.
 export const subscriptionPlans = pgTable("subscription_plans", {
 	id: text("id").primaryKey(),
 	name: text("name").notNull(),
@@ -682,12 +682,22 @@ export const subscriptionPlans = pgTable("subscription_plans", {
 	features: text("features").notNull().default(""),
 	description: text("description").notNull().default(""),
 	highlighted: boolean("highlighted").notNull().default(false),
+	editorPro: boolean("editor_pro").notNull().default(false),
 	isActive: boolean("is_active").notNull().default(true),
 	sortOrder: integer("sort_order").notNull().default(0),
 	stripeProductId: text("stripe_product_id"),
 	stripePriceId: text("stripe_price_id"),
 	createdAt: timestamp("created_at").notNull(),
 	updatedAt: timestamp("updated_at").notNull(),
+});
+
+export const billingConfigAudit = pgTable("billing_config_audit", {
+	id: text("id").primaryKey(),
+	actorId: text("actor_id").references(() => users.id, { onDelete: "set null" }),
+	action: text("action").notNull(),
+	before: jsonb("before"),
+	after: jsonb("after").notNull(),
+	createdAt: timestamp("created_at").notNull(),
 });
 
 // One row per network with billing state. status null = no subscription.
@@ -701,11 +711,17 @@ export const networkBilling = pgTable("network_billing", {
 	planId: text("plan_id").references(() => subscriptionPlans.id),
 	status: text("status"), // "active" | "past_due" | "grace" | "canceled" | null
 	currentPeriodEnd: timestamp("current_period_end"),
+	paidThrough: timestamp("paid_through"), // confirmed only by invoice.paid; subscription updates cannot grant Pro
+	paidEditorPro: boolean("paid_editor_pro").notNull().default(false),
 	graceUntil: timestamp("grace_until"),
 	// periodId of the current subscription period (Stripe invoice/period id).
 	// The recurring invoice.paid webhook passes it as renewSubscriptionPeriod's
 	// closingPeriodId, then overwrites it with the new period.
 	currentPeriodId: text("current_period_id"),
+	// Annual Artisan Pro is billed yearly but grants credits on monthly calendar
+	// boundaries. These fields identify its paid-year anchor and last granted month.
+	creditCycleStart: timestamp("credit_cycle_start"),
+	creditMonthIndex: integer("credit_month_index"),
 	createdAt: timestamp("created_at").notNull(),
 	updatedAt: timestamp("updated_at").notNull(),
 });

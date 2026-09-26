@@ -2,7 +2,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
 import { eq } from "drizzle-orm";
 import { app } from "../../app";
 import { db } from "../../db/index";
-import { subscriptionPlans, users } from "../../db/schema";
+import { appSettings, billingConfigAudit, subscriptionPlans, users } from "../../db/schema";
 import { createSession } from "../../lib/sessionManager";
 import { __setStripeGatewayForTests, type StripeGateway } from "./stripe";
 
@@ -28,6 +28,7 @@ beforeAll(async () => {
 	const now = new Date();
 	await db.insert(users).values({ id: ADMIN_ID, email: `${ADMIN_ID}@example.com`, name: "Admin", isAdmin: true, createdAt: now, updatedAt: now }).onConflictDoNothing();
 	adminSession = (await createSession(ADMIN_ID)).id;
+	await db.delete(appSettings).where(eq(appSettings.key, "editor_commercial_policy"));
 	__setStripeGatewayForTests(fakeGateway());
 });
 
@@ -39,12 +40,31 @@ afterEach(async () => {
 
 afterAll(async () => {
 	__setStripeGatewayForTests(null);
+	await db.delete(appSettings).where(eq(appSettings.key, "editor_commercial_policy"));
 	await db.delete(users).where(eq(users.id, ADMIN_ID));
 });
 
 const adminHeaders = () => ({ Cookie: `artisan_user_session=${adminSession}`, "Content-Type": "application/json" });
 
 describe("admin plans routes", () => {
+	it("keeps editor quota disabled by default, validates changes and audits activation", async () => {
+		const publicOffer = await app.request("/api/v1/billing/editor-offer");
+		expect(publicOffer.status).toBe(200);
+		expect(await publicOffer.json()).toEqual({
+			quota: 10, proQuota: 250, freeServers: 2, proServers: 10, freeCollaborators: 2,
+			proMonthlyPriceCents: 900, proYearlyPriceCents: 7000, proCreditsPerMonth: 500, currency: "eur",
+		});
+		const denied = await app.request("/api/v1/admin/billing/editor-policy", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ quota: 8, enforcementEnabled: true }) });
+		expect(denied.status).toBe(403);
+		const invalid = await app.request("/api/v1/admin/billing/editor-policy", { method: "PUT", headers: adminHeaders(), body: JSON.stringify({ quota: -1, enforcementEnabled: true }) });
+		expect(invalid.status).toBe(422);
+		const applied = await app.request("/api/v1/admin/billing/editor-policy", { method: "PUT", headers: adminHeaders(), body: JSON.stringify({ quota: 8, enforcementEnabled: true }) });
+		expect(applied.status).toBe(200);
+		expect(await applied.json()).toEqual({ quota: 8, enforcementEnabled: true });
+		const audit = await db.select().from(billingConfigAudit).where(eq(billingConfigAudit.action, "editor_policy_update"));
+		expect(audit.some((row) => row.actorId === ADMIN_ID)).toBe(true);
+		await db.delete(appSettings).where(eq(appSettings.key, "editor_commercial_policy"));
+	});
 	it("public catalog exposes saved presentation and exact prices, hides inactive plans, and sorts consistently", async () => {
 		const base = { name: "Monthly", priceCents: 1200, creditsPerPeriod: 1500 };
 		const created = [];
@@ -61,7 +81,7 @@ describe("admin plans routes", () => {
 		expect(response.status).toBe(200);
 		const { plans } = await response.json();
 		expect(plans.map((plan: { id: string }) => plan.id)).toEqual([created[2].id, created[1].id]);
-		expect(plans[0]).toMatchObject({ description: "", highlighted: false, interval: "month", priceCents: 1200, currency: "eur", sortOrder: -1 });
+		expect(plans[0]).toMatchObject({ description: "", highlighted: false, interval: "month", priceCents: 1200, currency: "eur", sortOrder: -1, purchasable: true });
 		expect(plans[1]).toMatchObject({ description: "Annual access", highlighted: true, interval: "year", priceCents: 12000, currency: "usd", creditsPerPeriod: 1500, features: "First benefit\nSecond benefit", sortOrder: 3 });
 		expect(JSON.stringify(plans)).not.toContain("stripe");
 	});

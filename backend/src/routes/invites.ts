@@ -9,6 +9,7 @@ import { Hono } from "hono";
 import { db } from "../db/index";
 import { networks } from "../db/schema";
 import { acceptInvite, getInviteByCode, inviteStatus } from "../lib/inviteStorage";
+import { PlanLimitError } from "../modules/billing/planLimits";
 import type { AuthUser } from "../middleware/userAuth";
 
 type Vars = { user: AuthUser | null };
@@ -42,8 +43,12 @@ invitesRouter.post(
 		if (!user) return c.json({ error: "unauthorized" }, 401);
 		const code = c.req.param("code");
 
-		const result = await acceptInvite(code, user.id);
+		const result = await acceptInvite(code, user.id).catch((error) => {
+			if (error instanceof PlanLimitError) return { error: error.code } as const;
+			throw error;
+		});
 		if ("error" in result) {
+			if (result.error === "collaborator_limit_reached") return c.json({ error: result.error }, 409);
 			if (result.error === "not_found") {
 				return c.json({ error: "not_found" }, 404);
 			}

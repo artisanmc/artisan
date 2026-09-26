@@ -252,6 +252,7 @@ export interface ProjectCopyMessage {
   path?: string;
   offset?: number;
   content_base64?: string;
+  commercial_policy?: { enabled: boolean; quota: number; pro_until: string | null };
 }
 export interface ProjectCopyResultMessage {
   type: "project_copy_result";
@@ -285,6 +286,7 @@ export interface ProjectListResultMessage extends ProjectIdentityReport {
   request_id: string;
   ok: boolean;
   project_ids?: string[];
+  resource_inventory?: { project_id: string; path: string; origin: "personal" | "module" }[];
   /** Added by the backend relay; reserved roots are excluded from discovery. */
   pending_renames?: { operation_id: string; project_id: string; target_project_id: string }[];
   error?: "read_error";
@@ -396,6 +398,7 @@ export interface AssetWriteMessage {
    * moitié posée si l'un échouait.
    */
   files: { path: string; content_base64?: string | null; base_hash: string | null }[];
+  commercial_policy?: { enabled: boolean; quota: number; pro_until: string | null };
 }
 
 export interface AssetWriteResultMessage {
@@ -405,7 +408,7 @@ export interface AssetWriteResultMessage {
   /** Empreinte réellement trouvée sur disque quand le CAS échoue (null = absent). */
   disk_hash?: string | null;
   conflicts?: { path: string; disk_hash: string | null }[];
-  error?: "invalid_path" | "unknown_project" | "conflict" | "invalid_content" | "write_error";
+  error?: "invalid_path" | "unknown_project" | "conflict" | "invalid_content" | "write_error" | "quota_denied" | "inventory_unavailable" | "plugin_update_required";
   message?: string;
 }
 
@@ -431,6 +434,7 @@ export interface ProjectWriteMessage {
   /** Créer le dossier du Project s'il n'existe pas (création / import). Sans ce
    *  drapeau un id inconnu reste une erreur, plutôt qu'un dossier fantôme. */
   create?: boolean;
+  commercial_policy?: { enabled: boolean; quota: number; pro_until: string | null };
 }
 
 // Plugin → backend: reply to ProjectWriteMessage. On `conflict`, `conflicts`
@@ -447,7 +451,7 @@ export interface ProjectWriteResultMessage {
    * « garder ma version » recrée l'ancien fichier en laissant le nouveau.
    */
   disk_files?: string[];
-  error?: "invalid_path" | "unknown_project" | "conflict" | "write_error" | "plugin_update_required";
+  error?: "invalid_path" | "unknown_project" | "conflict" | "write_error" | "plugin_update_required" | "quota_denied" | "inventory_unavailable";
   message?: string;
 }
 
@@ -498,6 +502,7 @@ export interface ConfigWriteMessage {
   project_id: string;
   files: { path: string; content: string }[];
   deletes?: string[];
+  commercial_policy?: { enabled: boolean; quota: number; pro_until: string | null };
 }
 
 // Plugin → backend: reply to ConfigWriteMessage.
@@ -505,7 +510,7 @@ export interface ConfigWriteResultMessage {
   type: "config_write_result";
   request_id: string;
   ok: boolean;
-  error?: "invalid_path" | "unknown_project" | "write_error";
+  error?: "invalid_path" | "unknown_project" | "write_error" | "quota_denied" | "inventory_unavailable" | "plugin_update_required";
   message?: string;
 }
 

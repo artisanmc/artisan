@@ -30,6 +30,7 @@ export interface AdminPlan {
   sortOrder: number;
   description: string;
   highlighted: boolean;
+  editorPro: boolean;
   stripeProductId: string | null;
   stripePriceId: string | null;
   createdAt: string;
@@ -56,7 +57,20 @@ export interface PlanInput {
   sortOrder?: number;
   description?: string;
   highlighted?: boolean;
+  editorPro?: boolean;
 }
+
+export interface EditorCommercialPolicy {
+  quota: number;
+  enforcementEnabled: boolean;
+}
+
+export async function getEditorCommercialPolicy(): Promise<EditorCommercialPolicy | null> {
+  const res = await fetch(`${apiUrl()}/api/v1/admin/billing/editor-policy`, { credentials: "include" });
+  return res.ok ? (await res.json()) as EditorCommercialPolicy : null;
+}
+export const updateEditorCommercialPolicy = (policy: EditorCommercialPolicy) =>
+  mutate<EditorCommercialPolicy>("/api/v1/admin/billing/editor-policy", "PUT", policy);
 export interface SalesSummary {
   from: string;
   to: string;

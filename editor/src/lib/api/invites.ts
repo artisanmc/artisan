@@ -21,7 +21,7 @@ export async function fetchInvitePreview(code: string): Promise<InvitePreviewRes
 
 export class AcceptInviteError extends Error {
   constructor(
-    public readonly code: "revoked" | "expired" | "exhausted" | "not_found" | "unauthorized" | "unknown",
+    public readonly code: "revoked" | "expired" | "exhausted" | "not_found" | "unauthorized" | "collaborator_limit_reached" | "unknown",
   ) {
     super(code);
   }
@@ -41,6 +41,10 @@ export async function acceptInvite(
   }
   if (res.status === 401) throw new AcceptInviteError("unauthorized");
   if (res.status === 404) throw new AcceptInviteError("not_found");
+  if (res.status === 409) {
+    const body = (await res.json().catch(() => ({}))) as { error?: string };
+    if (body.error === "collaborator_limit_reached") throw new AcceptInviteError("collaborator_limit_reached");
+  }
   if (res.status === 410) {
     const body = (await res.json().catch(() => ({}))) as { error?: string };
     if (body.error === "revoked" || body.error === "expired" || body.error === "exhausted") {

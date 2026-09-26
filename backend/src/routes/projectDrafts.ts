@@ -34,7 +34,7 @@ function response(c: Context<Env>, outcome: DraftOutcome, created = false) {
   if (result.ok) return c.json(body, created ? 201 : 200);
   const error = result.error ?? "draft_error";
   // A storage failure may follow a durable commit intent: preserve the client's retry key.
-  return c.json(body, error === "not_found" ? 404 : ["draft_migration_pending", "storage_error", "rename_in_progress", "rename_pending"].includes(error) ? 503 : ["draft_conflict", "draft_exists", "draft_closed", "conflict", "operation_mismatch", "operation_conflict", "operation_expired"].includes(error) ? 409 : 422);
+  return c.json(body, error === "not_found" ? 404 : error === "quota_denied" ? 403 : ["draft_migration_pending", "storage_error", "rename_in_progress", "rename_pending", "inventory_unavailable", "plugin_update_required"].includes(error) ? 503 : ["draft_conflict", "draft_exists", "draft_closed", "conflict", "operation_mismatch", "operation_conflict", "operation_expired"].includes(error) ? 409 : 422);
 }
 function operation(body: Record<string, unknown>) {
   return body.operationId === undefined ? crypto.randomUUID() : identifier(body.operationId) ? body.operationId : null;

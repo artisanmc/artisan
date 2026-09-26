@@ -1,7 +1,9 @@
 import { eq } from "drizzle-orm";
 import { db } from "../db";
-import { memberships, serverKeys, users } from "../db/schema";
+import { memberships, networkBilling, serverKeys, users } from "../db/schema";
 import { withNetworkMemberLock } from "./membershipGuard";
+import { hasProAccess } from "../modules/billing/resourceQuota";
+import { collaboratorCount, planLimits, withinPlanLimit } from "../modules/billing/planLimits";
 
 export async function addConsoleMember(serverId: string, email: unknown, stillConnected: () => boolean) {
   if (typeof email !== "string" || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -15,6 +17,10 @@ export async function addConsoleMember(serverId: string, email: unknown, stillCo
     if (current.editorAccessMode !== "console") return { ok: false, error: "console_disabled" };
     const [user] = await tx.select({ id: users.id }).from(users).where(eq(users.email, email.toLowerCase()));
     if (!user) return { ok: false, error: "account_not_found" };
+    const existing = await tx.select({ userId: memberships.userId, role: memberships.role }).from(memberships).where(eq(memberships.networkId, current.networkId));
+    if (existing.some((entry) => entry.userId === user.id)) return { ok: true, already_member: true };
+    const [billing] = await tx.select().from(networkBilling).where(eq(networkBilling.networkId, current.networkId));
+    if (!hasProAccess(billing) && !withinPlanLimit(collaboratorCount(existing.map((entry) => entry.role)), planLimits.free.collaborators)) return { ok: false, error: "collaborator_limit_reached" };
     const inserted = await tx.insert(memberships).values({
       id: `mem_${crypto.randomUUID()}`, networkId: current.networkId, userId: user.id,
       role: "member", createdAt: new Date(),

@@ -10,6 +10,13 @@ import { PricingPage } from "./PricingPage";
 
 vi.mock("@/lib/api/billing", () => ({
   getPlans: vi.fn(),
+  getEditorOffer: vi.fn(async () => ({
+    quota: 10,
+    proQuota: 250,
+    freeServers: 2,
+    proServers: 10,
+    freeCollaborators: 2,
+  })),
   getProjects: vi.fn(async () => []),
   getSubscription: vi.fn(async () => ({ status: null })),
   startSubscriptionCheckout: vi.fn(async () => null),
@@ -21,14 +28,16 @@ const plan = {
   id: "annual",
   name: "Studio",
   interval: "year",
-  priceCents: 9900,
+  priceCents: 7000,
   currency: "eur",
-  creditsPerPeriod: 12000,
+  creditsPerPeriod: 500,
   rolloverCap: 2000,
   features: "First benefit\nSecond benefit",
   description: "For your next creation",
   highlighted: true,
   sortOrder: 0,
+  editorPro: true,
+  purchasable: true,
 };
 
 beforeEach(() => {
@@ -43,17 +52,44 @@ beforeEach(() => {
 });
 
 describe("pricing catalog", () => {
-  it("renders live annual pricing and each configured benefit", async () => {
+  it("renders Free and Pro with the published quota and live annual price", async () => {
     render(<PricingPage />);
-    expect(await screen.findByRole("heading", { name: "Studio" })).toBeVisible();
-    expect(screen.getByText(/99,00/)).toBeVisible();
-    expect(screen.getByText(/\/an/)).toBeVisible();
-    expect(screen.getByText("Second benefit")).toBeVisible();
+    expect(await screen.findByRole("heading", { level: 1, name: "Tarifs" })).toBeVisible();
+    expect(screen.queryByText(/créez à votre rythme/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/commencez gratuitement.*voyez plus grand/i)).not.toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Gratuit" })).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Artisan Pro" })).toBeVisible();
+    expect(
+      screen.getByRole("heading", {
+        name: /contenus créés restent accessibles en jeu même sans abonnement/i,
+      }),
+    ).toBeVisible();
+    expect(screen.getByText(/10 ressources par serveur/i)).toBeVisible();
+    expect(screen.getByText(/250 ressources par serveur/i)).toBeVisible();
+    expect(screen.getByText(/2 serveurs/i)).toBeVisible();
+    expect(screen.getByText(/10 serveurs/i)).toBeVisible();
+    expect(screen.getByText(/2 collaborateurs/i)).toBeVisible();
+    expect(screen.getByText(/collaborateurs illimités/i)).toBeVisible();
+    expect(screen.getByText(/500 crédits IA par mois/i)).toBeVisible();
+    expect(screen.getAllByRole("button", { name: /ressources des modules/i })).toHaveLength(2);
+    expect(
+      screen.getByRole("heading", { name: "Artisan Pro" }).closest(".pricing-plan"),
+    ).not.toHaveTextContent(/édition.*abonnement/i);
+    expect(screen.getAllByText(/70\s*€/)[0]).toBeVisible();
+    expect(screen.getByText(/^0\s*€$/)).toBeVisible();
+    expect(screen.queryByText(/70,00|0,00/)).not.toBeInTheDocument();
+    expect(screen.getAllByText(/\/an/)[0]).toBeVisible();
     expect(screen.queryByText(/\/mois/)).not.toBeInTheDocument();
+  });
+  it("shows the new limits while an older backend still returns only the free quota", async () => {
+    vi.mocked(billing.getEditorOffer).mockResolvedValueOnce({ quota: 10 } as never);
+    render(<PricingPage />);
+    expect(await screen.findByText(/250 ressources par serveur/i)).toBeVisible();
+    expect(screen.getByText(/10 serveurs/i)).toBeVisible();
   });
   it("preserves selected plan in the signup return URL", async () => {
     render(<PricingPage />);
-    const choose = await screen.findByRole("link", { name: /choisir studio/i });
+    const choose = await screen.findByRole("link", { name: /passer à pro/i });
     const url = new URL(choose.getAttribute("href")!, "http://localhost");
     expect(url.pathname).toBe("/signup");
     expect(url.searchParams.get("next")).toBe("/pricing?plan=annual");
@@ -63,12 +99,35 @@ describe("pricing catalog", () => {
     render(<PricingPage />);
     expect(await screen.findByRole("alert")).toHaveTextContent(/charger/i);
     await userEvent.click(screen.getByRole("button", { name: /réessayer/i }));
-    expect(await screen.findByRole("heading", { name: "Studio" })).toBeVisible();
+    expect(await screen.findByRole("heading", { name: "Artisan Pro" })).toBeVisible();
   });
-  it("shows an honest empty state", async () => {
+  it("shows the published Pro prices without offering unavailable checkout", async () => {
     vi.mocked(billing.getPlans).mockResolvedValue([]);
     render(<PricingPage />);
-    expect(await screen.findByText(/aucun abonnement/i)).toBeVisible();
+    expect(await screen.findByText(/70\s*€/)).toBeVisible();
+    expect(screen.getByRole("button", { name: /annuel.*économisez 38/i })).toBeVisible();
+    expect(screen.getByText(/par network/i)).toBeVisible();
+    await userEvent.click(screen.getByRole("button", { name: "Mensuel" }));
+    expect(screen.getByText(/9\s*€/)).toBeVisible();
+    expect(screen.getByRole("button", { name: /annuel.*économisez 38/i })).toBeVisible();
+    expect(screen.queryByText(/tarif à venir/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /passer à pro/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/paiement sécurisé/i)).not.toBeInTheDocument();
+  });
+  it("shows the exact annual savings when both purchasable prices match the offer", async () => {
+    vi.mocked(billing.getPlans).mockResolvedValue([
+      { ...plan, id: "monthly", interval: "month", priceCents: 900 },
+      { ...plan, priceCents: 7000 },
+    ]);
+    render(<PricingPage />);
+    expect(await screen.findByText(/70\s*€/)).toBeVisible();
+    expect(screen.getByRole("button", { name: /annuel.*économisez 38/i })).toBeVisible();
+  });
+  it("does not offer checkout for a plan without a Stripe price", async () => {
+    vi.mocked(billing.getPlans).mockResolvedValue([{ ...plan, purchasable: false }]);
+    render(<PricingPage />);
+    expect(await screen.findByText(/70\s*€/)).toBeVisible();
+    expect(screen.queryByRole("link", { name: /passer à pro/i })).not.toBeInTheDocument();
   });
   it("requires an explicit action after signing in with a selected plan", async () => {
     window.history.replaceState({}, "", "/pricing?plan=annual");

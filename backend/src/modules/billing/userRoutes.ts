@@ -6,6 +6,9 @@ import { listPurchases } from "./purchasesRepo";
 import { getBucketBalances } from "../ai/creditsRepo";
 import { getStripeGateway } from "./stripe";
 import { requireCapability } from "../../lib/membershipGuard";
+import { getEditorCommercialPolicy } from "./editorAccess";
+import { planLimits, proPricing } from "./planLimits";
+import { annualCreditBoundary } from "./annualProCredits";
 
 const editorUrl = (): string => process.env.EDITOR_URL ?? "http://localhost:5173";
 const successUrl = (): string => process.env.BILLING_SUCCESS_URL ?? `${editorUrl()}/credits?checkout=success`;
@@ -107,7 +110,10 @@ export function buildBillingUserRouter(): Hono {
 			const plan = await getPlan(billing.planId);
 			subscriptionQuota = plan?.creditsPerPeriod ?? 0;
 		}
-		return c.json({ ...b, subscriptionQuota, periodEnd: billing?.currentPeriodEnd?.toISOString() ?? null });
+		const periodEnd = billing?.creditCycleStart && billing.creditMonthIndex !== null && billing.paidThrough
+			? new Date(Math.min(annualCreditBoundary(billing.creditCycleStart, billing.creditMonthIndex + 1).getTime(), billing.paidThrough.getTime()))
+			: billing?.currentPeriodEnd;
+		return c.json({ ...b, subscriptionQuota, periodEnd: periodEnd?.toISOString() ?? null });
 	});
 
 	r.get("/packs", async (c) => {
@@ -127,10 +133,17 @@ export function buildBillingUserRouter(): Hono {
 			.filter((p) => p.isActive)
 			.map((p) => ({
 				id: p.id, name: p.name, interval: p.interval, priceCents: p.priceCents,
+				editorPro: p.editorPro,
+				purchasable: Boolean(p.stripePriceId),
 				currency: p.currency, creditsPerPeriod: p.creditsPerPeriod, rolloverCap: p.rolloverCap, features: p.features,
 				description: p.description, highlighted: p.highlighted, sortOrder: p.sortOrder,
 			}));
 		return c.json({ plans });
+	});
+
+	r.get("/editor-offer", async (c) => {
+		const policy = await getEditorCommercialPolicy();
+    return c.json({ quota: policy.quota, proQuota: planLimits.pro.resourcesPerServer, freeServers: planLimits.free.servers, proServers: planLimits.pro.servers, freeCollaborators: planLimits.free.collaborators, proMonthlyPriceCents: proPricing.monthlyPriceCents, proYearlyPriceCents: proPricing.yearlyPriceCents, proCreditsPerMonth: proPricing.creditsPerMonth, currency: proPricing.currency });
 	});
 
 	r.get("/subscription", async (c) => {

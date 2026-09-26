@@ -47,6 +47,8 @@ export interface PlanDto {
   description?: string;
   highlighted?: boolean;
   sortOrder?: number;
+  editorPro?: boolean;
+  purchasable?: boolean;
 }
 export interface SubscriptionDto {
   status: string | null;
@@ -80,6 +82,24 @@ export async function getPlans(): Promise<PlanDto[]> {
   const r = await getJson<{ plans: PlanDto[] }>("/api/v1/billing/plans");
   if (!r) throw new Error("catalog_unavailable");
   return r.plans;
+}
+
+export interface EditorOffer {
+  quota: number;
+  proQuota: number;
+  freeServers: number;
+  proServers: number;
+  freeCollaborators: number;
+  proMonthlyPriceCents: number;
+  proYearlyPriceCents: number;
+  proCreditsPerMonth: number;
+  currency: string;
+}
+
+export async function getEditorOffer(): Promise<EditorOffer> {
+  const offer = await getJson<EditorOffer>("/api/v1/billing/editor-offer");
+  if (!offer) throw new Error("catalog_unavailable");
+  return offer;
 }
 
 export async function getSubscription(networkId: string): Promise<SubscriptionDto | null> {
