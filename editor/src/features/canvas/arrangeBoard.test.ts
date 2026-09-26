@@ -157,6 +157,53 @@ describe("arrangeBoard", () => {
     expect(positions.tp!.x).toBeLessThan(positions.res!.x);
   });
 
+  it("centers each command on the menu it opens, on a real-sized board", () => {
+    // Shape of a real server: a main menu with submenus and back links, a crafts menu
+    // with many recipes, and commands opening menus deep in the graph.
+    const recipes = ["pain", "burger", "steak", "elytra", "kebab", "crafter", "mending", "poulet"];
+    const nodes = [
+      cmd("/infosjobs"),
+      cmd("/menu"),
+      cmd("/voyageur"),
+      cmd("/ressources"),
+      menu("jobs", 5),
+      menu("main", 5),
+      menu("crafts", 5),
+      menu("grades", 4),
+      menu("quetes", 4),
+      menu("tp", 2),
+      menu("res", 2),
+      ...recipes.map((r) => menu(r)),
+      menu("wings"),
+    ];
+    const edges = [
+      link("/infosjobs", "jobs"),
+      link("/menu", "main"),
+      link("/voyageur", "tp"),
+      link("/ressources", "res"),
+      link("jobs", "main"),
+      link("main", "jobs"),
+      ...["crafts", "grades", "quetes", "tp"].flatMap((m) => [link("main", m), link(m, "main")]),
+      link("tp", "res"),
+      ...recipes.flatMap((r) => [link("crafts", r), link(r, "crafts")]),
+      link("elytra", "wings"),
+    ];
+    const { positions } = arrangeBoard({ nodes, edges });
+    const center = (key: string) =>
+      positions[key]!.y + nodes.find((n) => n.key === key)!.height / 2;
+    for (const [command, target] of [
+      ["/infosjobs", "jobs"],
+      ["/menu", "main"],
+      ["/voyageur", "tp"],
+    ] as const) {
+      expect(center(command), command).toBe(center(target));
+    }
+    // Its aligned spot is taken by the menu above: the nearest free one, still beside its menu.
+    const res = nodes.find((n) => n.key === "res")!;
+    expect(Math.abs(center("/ressources") - center("res"))).toBeLessThanOrEqual(res.height / 2);
+    assertNoOverlap(nodes, positions);
+  });
+
   it("puts unlinked Documents in the gutter, below everything else", () => {
     const nodes = [cmd("c"), menu("m"), menu("orphan"), dialog("lonely")];
     const { positions, gutter } = arrangeBoard({ nodes, edges: [link("c", "m")] });

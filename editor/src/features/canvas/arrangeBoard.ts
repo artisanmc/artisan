@@ -110,6 +110,60 @@ function forwardEdges(keys: string[], edges: ArrangeEdge[]): ArrangeEdge[] {
   return edges.filter((e) => !back.has(`${e.source}->${e.target}`));
 }
 
+/**
+ * Centre chaque point d'entrée (nœud que rien ne cible : une commande) sur le
+ * Document qu'il ouvre — la médiane s'il en ouvre plusieurs. dagre équilibre
+ * quatre alignements et laisse souvent une commande à mi-chemin. Si la place
+ * est prise, la position libre la plus proche : on ne recouvre jamais un autre
+ * nœud, et on ne s'éloigne pas au-delà de la hauteur du Document visé.
+ */
+function alignEntryPoints(
+  nodes: ArrangeNode[],
+  edges: ArrangeEdge[],
+  centers: Map<string, Point>,
+): void {
+  const byKey = new Map(nodes.map((n) => [n.key, n]));
+  const targeted = new Set(edges.map((e) => e.target));
+  const box = (n: ArrangeNode, c: Point) => ({
+    left: c.x - n.width / 2,
+    right: c.x + n.width / 2,
+    top: c.y - n.height / 2,
+    bottom: c.y + n.height / 2,
+  });
+  for (const n of [...nodes].sort((a, b) => compare(a.key, b.key))) {
+    if (targeted.has(n.key)) continue;
+    const ys = edges
+      .filter((e) => e.source === n.key)
+      .map((e) => centers.get(e.target)!.y)
+      .sort((a, b) => a - b);
+    if (ys.length === 0) continue;
+    const c = centers.get(n.key)!;
+    const targets = edges.filter((e) => e.source === n.key).map((e) => e.target);
+    const target = ys[Math.floor((ys.length - 1) / 2)]!;
+    const reach = Math.max(...targets.map((k) => byKey.get(k)!.height)) / 2;
+    const free = (y: number) => {
+      const moved = box(n, { x: c.x, y });
+      return nodes.every((o) => {
+        if (o.key === n.key) return true;
+        const b = box(o, centers.get(o.key)!);
+        return (
+          moved.right + NODESEP <= b.left ||
+          b.right + NODESEP <= moved.left ||
+          moved.bottom + NODESEP <= b.top ||
+          b.bottom + NODESEP <= moved.top
+        );
+      });
+    };
+    for (let d = 0; d <= reach; d += 4) {
+      const y = [target - d, target + d].find(free);
+      if (y !== undefined) {
+        c.y = y;
+        break;
+      }
+    }
+  }
+}
+
 function layoutComponent(nodes: ArrangeNode[], edges: ArrangeEdge[]): Placed {
   const g = new graphlib.Graph();
   g.setGraph({
@@ -124,12 +178,14 @@ function layoutComponent(nodes: ArrangeNode[], edges: ArrangeEdge[]): Placed {
   for (const n of nodes) g.setNode(n.key, { width: n.width, height: n.height });
   for (const e of edges) g.setEdge(e.source, e.target);
   layout(g);
+  const centers = new Map(nodes.map((n) => [n.key, { ...(g.node(n.key) as Point) }]));
+  alignEntryPoints(nodes, edges, centers);
 
   const positions: Record<string, Point> = {};
   let minX = Number.POSITIVE_INFINITY;
   let minY = Number.POSITIVE_INFINITY;
   for (const n of nodes) {
-    const c = g.node(n.key) as { x: number; y: number };
+    const c = centers.get(n.key)!;
     const p = { x: c.x - n.width / 2, y: c.y - n.height / 2 };
     positions[n.key] = p;
     minX = Math.min(minX, p.x);
