@@ -78,6 +78,7 @@ export const connToServerId = new Map<string, string>();
 const serverRenameCapabilities = new Map<string, boolean>();
 const draftConnections = new Set<string>();
 const mixedWriteConnections = new Set<string>();
+const quotaConnections = new Set<string>();
 const copyConnections = new Map<string, { minecraftVersion: string; modules: string[] }>();
 const copyMaintenanceAt = new Map<string, number>();
 function scheduleCopyMaintenance(serverKeyId: string) {
@@ -91,10 +92,17 @@ export function projectCopyTarget(serverKeyId: string) {
 }
 export type ProjectCopyOutcome = { kind: "result"; result: ProjectCopyResultMessage } | { kind: "offline" | "timeout" };
 const pendingCopies = new Map<string, { connId: string; request: Omit<ProjectCopyMessage, "type" | "request_id">; finish: (outcome: ProjectCopyOutcome) => void }>();
-export function requestProjectCopy(serverKeyId: string, request: Omit<ProjectCopyMessage, "type" | "request_id">, timeoutMs = 30_000): Promise<ProjectCopyOutcome> {
+export async function requestProjectCopy(serverKeyId: string, request: Omit<ProjectCopyMessage, "type" | "request_id">, timeoutMs = 30_000): Promise<ProjectCopyOutcome> {
   const connId = [...copyConnections.keys()].find(id => connToServerId.get(id) === serverKeyId && connSenders.has(id));
   const send = connId && connSenders.get(connId);
   if (!connId || !send) return Promise.resolve({ kind: "offline" });
+  if (request.action === "commit") {
+    const { getEditorCommercialPolicy, resolveServerCommercialPolicy } = await import("../modules/billing/editorAccess");
+    const configured = await getEditorCommercialPolicy();
+    if (configured.enforcementEnabled && !supportsResourceQuota(serverKeyId)) return { kind: "result", result: { type: "project_copy_result", request_id: "", operation_id: request.operation_id, target_id: request.target_id, fingerprint: request.fingerprint, ok: false, state: "staging", error: "plugin_update_required" } };
+    const policy = configured.enforcementEnabled ? await resolveServerCommercialPolicy(serverKeyId) : { enabled: false, quota: configured.quota, proUntil: null };
+    request = { ...request, commercial_policy: { enabled: policy.enabled, quota: policy.quota, pro_until: policy.proUntil } };
+  }
   return new Promise(resolve => {
     const requestId = crypto.randomUUID();
     const finish = (outcome: ProjectCopyOutcome) => { clearTimeout(timer); pendingCopies.delete(requestId); resolve(outcome); };
@@ -106,6 +114,9 @@ export function requestProjectCopy(serverKeyId: string, request: Omit<ProjectCop
 export function supportsMixedProjectWrite(serverKeyId: string) {
   return [...mixedWriteConnections].some((id) => connToServerId.get(id) === serverKeyId && connSenders.has(id));
 }
+export function supportsResourceQuota(serverKeyId: string) {
+  return [...quotaConnections].some((id) => connToServerId.get(id) === serverKeyId && connSenders.has(id));
+}
 export function supportsProjectDrafts(serverKeyId: string) {
   return [...draftConnections].some((id) => connToServerId.get(id) === serverKeyId && connSenders.has(id));
 }
@@ -115,6 +126,13 @@ export async function requestProjectDraft(serverKeyId: string, request: DraftReq
   const connId = [...draftConnections].find((id) => connToServerId.get(id) === serverKeyId && connSenders.has(id));
   const send = connId ? connSenders.get(connId) : undefined;
   if (!send || !connId) return Promise.resolve({ kind: "offline" });
+  if (request.action === "publish") {
+    const { getEditorCommercialPolicy, resolveServerCommercialPolicy } = await import("../modules/billing/editorAccess");
+    const configured = await getEditorCommercialPolicy();
+    if (configured.enforcementEnabled && !supportsResourceQuota(serverKeyId)) return { kind: "result", result: { ok: false, error: "plugin_update_required" } };
+    const policy = configured.enforcementEnabled ? await resolveServerCommercialPolicy(serverKeyId) : { enabled: false, quota: configured.quota, proUntil: null };
+    request = { ...request, commercial_policy: { enabled: policy.enabled, quota: policy.quota, pro_until: policy.proUntil } };
+  }
   return new Promise((resolve) => {
     const requestId = crypto.randomUUID();
     const finish = (result: DraftOutcome) => { clearTimeout(timer); pendingDrafts.delete(requestId); resolve(result); };
@@ -177,6 +195,7 @@ export function cleanupConn(connId: string): void {
   copyConnections.delete(connId);
   for (const pending of pendingCopies.values()) if (pending.connId === connId) pending.finish({ kind: "offline" });
   mixedWriteConnections.delete(connId);
+  quotaConnections.delete(connId);
   draftConnections.delete(connId);
   for (const pending of pendingDrafts.values()) if (pending.connId === connId) pending.finish({ kind: "offline" });
   connSenders.delete(connId);
@@ -529,11 +548,16 @@ export async function requestAssetWrite(
   if (await projectIdentityLocked(serverKeyId, req.projectId)) return { kind: "result", result: { type: "asset_write_result", request_id: "", ok: false, error: "write_error", message: "rename_in_progress" } };
   const send = firstPluginSender(serverKeyId);
   if (!send) return Promise.resolve({ kind: "offline" });
+  const { getEditorCommercialPolicy, resolveServerCommercialPolicy } = await import("../modules/billing/editorAccess");
+  const configured = await getEditorCommercialPolicy();
+  if (configured.enforcementEnabled && !supportsResourceQuota(serverKeyId)) return { kind: "result", result: { type: "asset_write_result", request_id: "", ok: false, error: "plugin_update_required" } };
+  const policy = configured.enforcementEnabled ? await resolveServerCommercialPolicy(serverKeyId) : { enabled: false, quota: configured.quota, proUntil: null };
   const requestId = crypto.randomUUID();
   const msg: AssetWriteMessage = {
     type: "asset_write",
     request_id: requestId,
     project_id: req.projectId,
+    commercial_policy: { enabled: policy.enabled, quota: policy.quota, pro_until: policy.proUntil },
     files: req.files.map((f) => ({
       path: f.path,
       content_base64: f.contentBase64,
@@ -670,6 +694,10 @@ export async function requestProjectWrite(
   const send = firstPluginSender(serverKeyId);
   if (!send) return Promise.resolve({ kind: "offline" });
   if (req.binaries?.length && !supportsMixedProjectWrite(serverKeyId)) return { kind: "result", result: { type: "project_write_result", request_id: "", ok: false, error: "plugin_update_required" } };
+  const { getEditorCommercialPolicy, resolveServerCommercialPolicy } = await import("../modules/billing/editorAccess");
+  const configured = await getEditorCommercialPolicy();
+  if (configured.enforcementEnabled && !supportsResourceQuota(serverKeyId)) return { kind: "result", result: { type: "project_write_result", request_id: "", ok: false, error: "plugin_update_required" } };
+  const policy = configured.enforcementEnabled ? await resolveServerCommercialPolicy(serverKeyId) : { enabled: false, quota: configured.quota, proUntil: null };
   const requestId = crypto.randomUUID();
   const msg: ProjectWriteMessage = {
     type: "project_write",
@@ -681,6 +709,7 @@ export async function requestProjectWrite(
     deletes: req.deletes ?? [],
     renames: req.renames ?? [],
     create: req.create ?? false,
+    commercial_policy: { enabled: policy.enabled, quota: policy.quota, pro_until: policy.proUntil },
   };
   return new Promise((resolve) => {
     const timer = setTimeout(() => {
@@ -764,6 +793,10 @@ export async function requestConfigWrite(
   if (await projectIdentityLocked(serverKeyId, req.projectId)) return { kind: "result", result: { type: "config_write_result", request_id: "", ok: false, error: "write_error", message: "rename_in_progress" } };
   const send = firstPluginSender(serverKeyId);
   if (!send) return Promise.resolve({ kind: "offline" });
+  const { getEditorCommercialPolicy, resolveServerCommercialPolicy } = await import("../modules/billing/editorAccess");
+  const configured = await getEditorCommercialPolicy();
+  if (configured.enforcementEnabled && !supportsResourceQuota(serverKeyId)) return { kind: "result", result: { type: "config_write_result", request_id: "", ok: false, error: "plugin_update_required" } };
+  const policy = configured.enforcementEnabled ? await resolveServerCommercialPolicy(serverKeyId) : { enabled: false, quota: configured.quota, proUntil: null };
   const requestId = crypto.randomUUID();
   const msg: ConfigWriteMessage = {
     type: "config_write",
@@ -771,6 +804,7 @@ export async function requestConfigWrite(
     project_id: req.projectId,
     files: req.files,
     deletes: req.deletes ?? [],
+    commercial_policy: { enabled: policy.enabled, quota: policy.quota, pro_until: policy.proUntil },
   };
   return new Promise((resolve) => {
     const timer = setTimeout(() => {
@@ -1085,6 +1119,8 @@ export async function handlePluginMessage(
     else draftConnections.delete(connId);
     if (hello.capabilities?.includes("project_mixed_write_v1")) mixedWriteConnections.add(connId);
     else mixedWriteConnections.delete(connId);
+    if (hello.capabilities?.includes("resource_quota_v1")) quotaConnections.add(connId);
+    else quotaConnections.delete(connId);
     const vanillaGuiChanged = recordVanillaGuiSupport(keyId, hello.capabilities?.includes("vanilla_gui_v1") === true);
     await reconcileServerProjectIdentity(keyId, hello);
     const boundProjects = await db.select().from(projects).where(
@@ -1341,6 +1377,7 @@ export async function handlePluginMessage(
       ...result,
       project_ids: result.project_ids?.filter((id) => !reserved.has(id.toLowerCase())),
       project_roots: result.project_roots?.filter((root) => !reserved.has(root.project_id.toLowerCase())),
+      resource_inventory: result.resource_inventory?.filter((entry) => !reserved.has(entry.project_id.toLowerCase())),
       pending_renames: pending.map((op) => ({ operation_id: op.id, project_id: op.sourceId, target_project_id: op.targetId })),
     } });
     return { reply: null };

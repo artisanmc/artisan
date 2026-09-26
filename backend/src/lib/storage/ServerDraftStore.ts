@@ -13,6 +13,7 @@ export interface DraftRequest {
   draft?: StoredDraft;
   hash?: string;
   content_base64?: string;
+  commercial_policy?: { enabled: boolean; quota: number; pro_until: string | null };
 }
 export type DraftTransport = (serverId: string, request: DraftRequest) => Promise<DraftOutcome>;
 

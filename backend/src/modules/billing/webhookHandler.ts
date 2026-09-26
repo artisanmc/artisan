@@ -1,12 +1,28 @@
 import { eq } from "drizzle-orm";
 import { db } from "../../db/index";
-import { aiCreditLedger, creditPurchases, networkBilling, networks, stripeEvents } from "../../db/schema";
+import { aiCreditLedger, creditPurchases, networkBilling, networks, stripeEvents, subscriptionPlans } from "../../db/schema";
 import { grantCredits } from "../ai/creditsRepo";
 import { renewSubscriptionPeriod } from "../ai/subscriptionCredits";
 import { getNetworkBilling } from "./networkBillingRepo";
 import { creditsForPack, getPack } from "./packsRepo";
 import { getPlan } from "./plansRepo";
+import { annualCreditBoundary, annualCreditPeriodId } from "./annualProCredits";
 import type { StripeWebhookEvent } from "./stripe";
+
+function productId(value: unknown): string | null {
+	if (typeof value === "string") return value;
+	if (value && typeof value === "object" && "id" in value && typeof value.id === "string") return value.id;
+	return null;
+}
+
+async function planForProduct(id: string) {
+	return (await db.select().from(subscriptionPlans).where(eq(subscriptionPlans.stripeProductId, id)))[0] ?? null;
+}
+
+function billedProduct(obj: Record<string, unknown>): string | null {
+	const line = (obj.lines as { data?: Array<{ price?: { product?: unknown }; pricing?: { price_details?: { product?: unknown } } }> } | undefined)?.data?.[0];
+	return productId(line?.price?.product ?? line?.pricing?.price_details?.product);
+}
 
 /** True if the error is a Postgres unique-constraint violation (SQLSTATE 23505). */
 function isUniqueViolation(e: unknown): boolean {
@@ -115,15 +131,6 @@ async function onCheckoutCompleted(obj: Record<string, unknown>): Promise<void> 
 }
 
 async function onInvoicePaid(obj: Record<string, unknown>): Promise<void> {
-	// KNOWN LIMITATION (residual concurrency): `billing` (incl. currentPeriodId, used
-	// as the renewal's closingPeriodId) is read before the transaction opens, without
-	// a row lock. The stripe_events claim only dedups replays of the SAME event id, so
-	// two *distinct* invoice.paid events for the same subscription delivered
-	// concurrently could both read the same stale currentPeriodId and each grant a
-	// period. Stripe emits one invoice.paid per invoice (retries share the id), so this
-	// is very low-probability; closing it fully needs a `SELECT ... FOR UPDATE` on
-	// network_billing inside the tx (or a unique (network_id, period_id) ledger
-	// constraint). Deferred — see billing V1.5 follow-ups.
 	const subscriptionId = typeof obj.subscription === "string" ? obj.subscription : null;
 	const md = (obj.metadata ?? {}) as Record<string, string>;
 	// Resolve network: prefer metadata.networkId, else our stored subscription mapping.
@@ -135,11 +142,15 @@ async function onInvoicePaid(obj: Record<string, unknown>): Promise<void> {
 		billing = rows[0] ?? null;
 		networkId = billing?.networkId ?? "";
 	}
-	if (!billing || !networkId || !billing.planId) return;
-	const plan = await getPlan(billing.planId);
-	if (!plan) return;
+	if (!billing || !networkId) {
+		if (subscriptionId) throw new Error(`invoice.paid subscription mapping unavailable: ${subscriptionId}`);
+		return;
+	}
+	const product = billedProduct(obj);
+	const plan = product ? await planForProduct(product) : billing.planId ? await getPlan(billing.planId) : null;
+	if (!plan) throw new Error(`invoice.paid plan mapping unavailable: ${product ?? billing.planId}`);
 
-	const lines = (obj.lines as { data?: Array<{ period?: { end?: number } }> } | undefined)?.data ?? [];
+	const lines = (obj.lines as { data?: Array<{ period?: { start?: number; end?: number } }> } | undefined)?.data ?? [];
 	const endUnix = lines[0]?.period?.end;
 	// A real invoice.paid always carries lines[].period.end (unix seconds) + an id.
 	// Fail loud (the claim is undone → Stripe retries) rather than silently granting
@@ -148,7 +159,12 @@ async function onInvoicePaid(obj: Record<string, unknown>): Promise<void> {
 		throw new Error(`invoice.paid missing period end or id (invoice ${String(obj.id)})`);
 	}
 	const periodEnd = new Date(endUnix * 1000);
-	const newPeriodId = obj.id;
+	const annualPro = plan.editorPro && plan.interval === "year";
+	const startUnix = lines[0]?.period?.start;
+	if (annualPro && typeof startUnix !== "number") throw new Error(`invoice.paid missing annual Pro period start (invoice ${obj.id})`);
+	const creditCycleStart = annualPro ? new Date(startUnix! * 1000) : null;
+	const creditPeriodEnd = creditCycleStart ? new Date(Math.min(annualCreditBoundary(creditCycleStart, 1).getTime(), periodEnd.getTime())) : periodEnd;
+	const newPeriodId = creditCycleStart ? annualCreditPeriodId(networkId, creditCycleStart, 0) : obj.id;
 	const isFirst = obj.billing_reason === "subscription_create";
 
 	// One transaction: the credit grant/renewal AND the network_billing period
@@ -156,13 +172,31 @@ async function onInvoicePaid(obj: Record<string, unknown>): Promise<void> {
 	// could leave credits granted but currentPeriodId stale, making the next
 	// renewal re-close the already-closed period.
 	await db.transaction(async (tx) => {
+		const fresh = (await tx.select().from(networkBilling).where(eq(networkBilling.networkId, networkId)).for("update"))[0];
+		if (!fresh || !fresh.planId || subscriptionId && fresh.stripeSubscriptionId !== subscriptionId) throw new Error("subscription mapping changed during invoice fulfillment");
+		if (fresh.paidThrough && fresh.paidThrough > periodEnd) return;
+		if (fresh.paidThrough?.getTime() === periodEnd.getTime()) {
+			// A paid mid-period upgrade can share the existing renewal date. It changes
+			// editor rights without closing or regranting a monthly AI credit period.
+			if (creditCycleStart && !fresh.creditCycleStart) {
+				await renewSubscriptionPeriod({ networkId, creditsPerPeriod: plan.creditsPerPeriod, rolloverCap: plan.rolloverCap, closingPeriodId: fresh.currentPeriodId, newPeriodId, newPeriodEnd: creditPeriodEnd }, tx);
+				await tx.update(networkBilling).set({ planId: plan.id, paidEditorPro: true, status: "active", currentPeriodId: newPeriodId, creditCycleStart, creditMonthIndex: 0, updatedAt: new Date() }).where(eq(networkBilling.networkId, networkId));
+				await tx.update(networks).set({ tier: plan.name, updatedAt: new Date() }).where(eq(networks.id, networkId));
+				return;
+			}
+			if (!fresh.paidEditorPro && plan.editorPro) {
+				await tx.update(networkBilling).set({ planId: plan.id, paidEditorPro: true, status: "active", updatedAt: new Date() }).where(eq(networkBilling.networkId, networkId));
+				await tx.update(networks).set({ tier: plan.name, updatedAt: new Date() }).where(eq(networks.id, networkId));
+			}
+			return;
+		}
 		if (isFirst) {
-			await grantCredits({ networkId, amount: plan.creditsPerPeriod, bucket: "subscription", expiresAt: periodEnd, periodId: newPeriodId, reason: "grant", note: "subscription" }, tx);
+			await grantCredits({ networkId, amount: plan.creditsPerPeriod, bucket: "subscription", expiresAt: creditPeriodEnd, periodId: newPeriodId, reason: "grant", note: "subscription" }, tx);
 		} else {
-			await renewSubscriptionPeriod({ networkId, creditsPerPeriod: plan.creditsPerPeriod, rolloverCap: plan.rolloverCap, closingPeriodId: billing.currentPeriodId ?? null, newPeriodId, newPeriodEnd: periodEnd }, tx);
+			await renewSubscriptionPeriod({ networkId, creditsPerPeriod: plan.creditsPerPeriod, rolloverCap: plan.rolloverCap, closingPeriodId: fresh.currentPeriodId ?? null, newPeriodId, newPeriodEnd: creditPeriodEnd }, tx);
 		}
 		await tx.update(networkBilling).set({
-			status: "active", currentPeriodEnd: periodEnd, currentPeriodId: newPeriodId, graceUntil: null, updatedAt: new Date(),
+			status: "active", planId: plan.id, currentPeriodEnd: fresh.currentPeriodEnd && fresh.currentPeriodEnd > periodEnd ? fresh.currentPeriodEnd : periodEnd, paidThrough: periodEnd, paidEditorPro: plan.editorPro, currentPeriodId: newPeriodId, creditCycleStart, creditMonthIndex: annualPro ? 0 : null, graceUntil: null, updatedAt: new Date(),
 		}).where(eq(networkBilling.networkId, networkId));
 		await tx.update(networks).set({ tier: plan.name, updatedAt: new Date() }).where(eq(networks.id, networkId));
 	});
@@ -190,13 +224,17 @@ async function onSubscriptionUpdated(obj: Record<string, unknown>): Promise<void
 	const b = await billingBySubscription(typeof obj.id === "string" ? obj.id : null);
 	if (!b) return;
 	const status = STATUS_MAP[String(obj.status)] ?? b.status ?? "active";
-	const end = typeof obj.current_period_end === "number" ? new Date(obj.current_period_end * 1000) : b.currentPeriodEnd;
-	await db.update(networkBilling).set({ status, currentPeriodEnd: end, updatedAt: new Date() }).where(eq(networkBilling.networkId, b.networkId));
+	const reportedEnd = typeof obj.current_period_end === "number" ? new Date(obj.current_period_end * 1000) : b.currentPeriodEnd;
+	const end = reportedEnd && b.currentPeriodEnd && reportedEnd < b.currentPeriodEnd ? b.currentPeriodEnd : reportedEnd;
+	const item = (obj.items as { data?: Array<{ price?: { product?: unknown } }> } | undefined)?.data?.[0];
+	const product = productId(item?.price?.product);
+	const plan = product ? await planForProduct(product) : null;
+	await db.update(networkBilling).set({ status, currentPeriodEnd: end, ...(plan ? { planId: plan.id } : {}), updatedAt: new Date() }).where(eq(networkBilling.networkId, b.networkId));
 }
 
 async function onSubscriptionDeleted(obj: Record<string, unknown>): Promise<void> {
 	const b = await billingBySubscription(typeof obj.id === "string" ? obj.id : null);
 	if (!b) return;
 	await db.update(networkBilling).set({ status: "canceled", updatedAt: new Date() }).where(eq(networkBilling.networkId, b.networkId));
-	await db.update(networks).set({ tier: "free", updatedAt: new Date() }).where(eq(networks.id, b.networkId));
+	if (!b.currentPeriodEnd || b.currentPeriodEnd <= new Date()) await db.update(networks).set({ tier: "free", updatedAt: new Date() }).where(eq(networks.id, b.networkId));
 }

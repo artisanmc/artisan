@@ -40,6 +40,18 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 - New optional `menu/v1` field `player_inventory: visible | hidden` (default `visible`, existing menus unchanged). `hidden` shows only the menu's buttons in the bottom of the window: positions `size..size+35` address the 27 inventory slots then the 9 hotbar slots, and the player's real inventory reappears on close. The editor adds a Visible/Hidden toggle in the menu properties and makes the 4 rows under the menu editable when hidden.
 
+### Added — Free and Pro editor access
+
+- Artisan Pro est affiché à 9 €/mois ou 70 €/an par Network, avec 38 € d'économie annuelle. Les prix sont visibles avant l'activation du paiement ; seuls les abonnements Stripe actifs aux montants publiés ouvrent le checkout.
+- L'économie annuelle figure directement sur le bouton Annuel ; les lignes de comparaison Free/Pro sont alignées. Docker Compose transmet les clés Stripe au backend pour permettre la création des offres depuis l'administration.
+- L'en-tête tarifaire se limite à « Tarifs ». Pro inclut 500 crédits IA par mois ; l'offre annuelle les attribue chaque mois pendant l'année payée, avec reprise idempotente après redémarrage.
+- Pricing simplifié : promesse de disponibilité en jeu mise en avant, tableau des plafonds Free (10 ressources/serveur, 2 serveurs, 2 collaborateurs) et Pro (250 ressources/serveur, 10 serveurs, collaborateurs illimités). Les ressources des modules sont précisées dans l'aide contextuelle ; l'expiration de Pro reste expliquée dans la FAQ.
+- Vérification transactionnelle des limites de serveurs et collaborateurs par Network, et plafond Pro de 250 ressources personnelles par serveur. Les serveurs et collaborateurs existants restent en place après expiration ; seules les nouvelles créations sont refusées au-delà du plafond Free.
+
+- Personal menus, dialogs and commands now have a server-wide free quota, checked against the plugin's live disk inventory on atomic writes. Registered module roots remain exempt; runtime and existing files remain available. The limit is configurable and enforcement starts disabled for a controlled rollout.
+- Pro entitlement follows the Network's confirmed paid period. The admin console can manage the quota and Pro plans, and pricing and project workspace show the corresponding offer and resource count.
+- REST adds the public editor offer, administrator policy settings and server project editor-access status; write routes return explicit quota and inventory errors.
+
 ### Changed — automatically arranged canvas
 
 - A project's canvas now shows every document, arranged automatically by navigation order (commands, then the menus they open), with unlinked documents grouped under **Not linked yet**. Positions set by hand are kept exactly; the others move out of their way. **Rearrange** in the canvas toolbar releases hand-set positions and link anchors, then arranges the whole canvas again (undoable). Links now leave and reach the centre of a side, spread evenly when several share it, and documents side by side are always linked through their facing left and right sides. The add/remove-from-canvas toggle in the Elements list is gone.

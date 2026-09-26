@@ -10,7 +10,7 @@ import java.time.Instant
 import java.util.Base64
 
 /** Private draft storage; the authenticated relay supplies the owner, never the editor. */
-class ProjectDraftStore(private val root: File) {
+class ProjectDraftStore(private val root: File, private val beforePublish: (Map<String, ByteArray?>) -> String? = { null }) {
     private val mapper = ObjectMapper()
     private val publisher = ProjectPublisher(root)
     private fun response(vararg values: Pair<String, Any?>): JsonNode = mapper.valueToTree(mapOf(*values))
@@ -53,7 +53,7 @@ class ProjectDraftStore(private val root: File) {
                 return response("ok" to true, "content_base64" to Base64.getEncoder().encodeToString(blob.readBytes()))
             }
             val operationId = request["operation_id"]?.takeIf { it.isTextual && it.asText().length in 1..256 }?.asText() ?: return fail("invalid_operation")
-            val fingerprintNode = request.deepCopy<ObjectNode>().also { it.remove(listOf("request_id", "project_id", "type")) }
+            val fingerprintNode = request.deepCopy<ObjectNode>().also { it.remove(listOf("request_id", "project_id", "type", "commercial_policy")) }
             val fingerprint = BundleHasher.hashBytes(mapper.writeValueAsBytes(fingerprintNode))
             publisher.previous(operationId, fingerprint)?.let { return it }
             if (action == "purge_owner") {
@@ -126,6 +126,7 @@ class ProjectDraftStore(private val root: File) {
                 "publish" -> {
                     val planned = planPublish(id, current["snapshot"])
                     if (planned.error != null) return planned.error
+                    beforePublish(planned.changes)?.let { return fail(if (it == "inventory_unavailable") it else "quota_denied") }
                     wrote = planned.changes.size
                     changes.putAll(publisher.withHistory(planned.changes))
                     // Move document history with a rename, keeping source versions private.

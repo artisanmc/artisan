@@ -528,6 +528,7 @@ function SaveControls({
       const attemptedTree = projectTree(project);
       const res = await saveProjectToDisk(project);
       if (res.ok) {
+        window.dispatchEvent(new Event("artisan:editor-access-refresh"));
         setLastSaveError(null);
         setSaveErrorOpen(false);
         toast.success(res.wrote === 0 ? t("deploy.nothing") : t("deploy.deployed"));

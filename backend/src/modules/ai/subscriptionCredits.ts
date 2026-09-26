@@ -8,7 +8,7 @@ type DbOrTx = typeof db;
  * Append-only subscription renewal: roll the closing period's leftover
  * subscription credits into rollover (capped at `rolloverCap`), then grant the
  * new period's subscription credits (expiring at `newPeriodEnd`). Called by the
- * Stripe `invoice.paid` webhook (sub-project B). Returns what was granted/rolled.
+ * Stripe `invoice.paid` webhook or the annual Pro monthly grant job. Returns what was granted/rolled.
  *
  * Leftover is computed period-scoped (by `closingPeriodId`), ignoring expiry —
  * the webhook can fire at/after the closing grant's own expiry, at which point

@@ -168,6 +168,12 @@ by the plugin against stale creates until a future generation-aware create API.
 
 ## HeadDatabase previews
 
+## Quota des ressources personnelles
+
+Le `hello` annonce `resource_quota_v1`. `project_list_result.resource_inventory` rapporte les fichiers YAML de `menus/`, `dialogs/` et `commands/`, avec `project_id`, `path` et `origin` (`personal` ou `module`). Le scan lit le disque, même si un YAML est invalide ; une lecture incomplète renvoie une erreur. Le backend relaie `commercial_policy: {enabled, quota, pro_until}` dans `project_write`, `asset_write`, `config_write`, `project_draft_request` (publication) et `project_copy` (commit). Le plugin recalcule le quota dans son exécuteur d'écritures sérialisé, avant publication atomique. `quota_denied` interdit l'opération entière ; `inventory_unavailable` échoue fermé. Les anciennes versions sans capacité sont refusées si l'application du quota est activée.
+
+Les racines enregistrées par les modules sont exemptées. Au-dessus du quota, seule la suppression explicite d'une ressource personnelle est admise ; le runtime, la lecture et les fichiers sur disque restent accessibles. Le quota est par serveur : Free utilise `commercial_policy.quota` (10 par défaut), Pro applique 250 ressources personnelles. Pro est déterminé par la période payée du Network.
+
 `head_texture_fetch` (backend → plugin) carries `{type, request_id, id}`; `id` is a numeric HDB id (1–10 digits). The plugin resolves the ItemStack on the Bukkit main thread and extracts its `textures` profile property through `ItemDescriptor`. `head_texture_result` replies `{type, request_id, ok, texture?, error?}` with Base64 texture data (≤16 KiB); errors are `hdb_unavailable`, `head_not_found`, `invalid_input`, or `fetch_error`. The backend accepts the correlated response only from the requested server, with a 5 s timeout for offline/old plugins. No protocol version bump: this is an additive optional preview exchange.
 
 ## Auth du WS éditeur (`GET /ws/editor`)
