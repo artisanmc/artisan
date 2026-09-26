@@ -1,7 +1,13 @@
 import type { Asset, AssetUsage } from "./asset";
 import type { Menu, Project } from "./types";
 
-export const ASSET_USAGES: AssetUsage[] = ["button", "menu", "chest_texture"];
+export const ASSET_USAGES: AssetUsage[] = [
+  "button",
+  "menu",
+  "chest_texture",
+  "hopper_texture",
+  "dispenser_texture",
+];
 
 function menuUsages(asset: Asset, menu: Menu): AssetUsage[] {
   const usages = new Set<AssetUsage>();

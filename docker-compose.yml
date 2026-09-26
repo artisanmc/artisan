@@ -109,7 +109,8 @@ services:
       sh -c "npm install && npm --prefix /docs-site ci && npm run dev -- --host"
 
   minecraft:
-    image: itzg/minecraft-server
+    # Minecraft 26.1+ exige Java 25.
+    image: itzg/minecraft-server:java25
     volumes:
       - ./docker/server:/data
     ports:
@@ -117,7 +118,7 @@ services:
     environment:
       EULA: "TRUE"
       TYPE: PAPER
-      VERSION: "1.21.11"
+      VERSION: "26.2"
       MEMORY: 1G
       RCON_PASSWORD: local
       BROADCAST_RCON_TO_OPS: "false"

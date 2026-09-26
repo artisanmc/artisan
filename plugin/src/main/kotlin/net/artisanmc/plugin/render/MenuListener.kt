@@ -23,6 +23,7 @@ class MenuListener(
         if (event.inventory.holder !is ArtisanMenuHolder) return
         event.isCancelled = true
         val player = event.whoClicked as? Player ?: return
+        resendNextTick(player, event.inventory)
         val session = sessions.get(player)
         val clickType = event.click.toIfzClickType()
         val handler = session?.activeClicks?.get(event.rawSlot)?.get(clickType)
@@ -38,7 +39,17 @@ class MenuListener(
 
     @EventHandler
     fun onDrag(event: InventoryDragEvent) {
-        if (event.inventory.holder is ArtisanMenuHolder) event.isCancelled = true
+        if (event.inventory.holder !is ArtisanMenuHolder) return
+        event.isCancelled = true
+        (event.whoClicked as? Player)?.let { resendNextTick(it, event.inventory) }
+    }
+
+    /** Le contenu n'existant que côté client, c'est à nous d'annuler sa prédiction. */
+    private fun resendNextTick(player: Player, anchor: org.bukkit.inventory.Inventory) {
+        val window = windows?.get(player.uniqueId)?.takeIf { it.anchor === anchor } ?: return
+        plugin.server.scheduler.runTask(plugin, Runnable {
+            if (windows.get(player.uniqueId) === window) window.resend()
+        })
     }
 
     @EventHandler

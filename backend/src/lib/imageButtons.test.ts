@@ -72,3 +72,31 @@ test("contain keeps proportions and transparent padding while stretch fills the 
   expect(image.data[(27 * 36) * 4 + 3]).toBe(0);
   expect(JSON.parse(strFromU8(entries["assets/artisan/items/buttons/hit_area.json"]!))).toEqual({ model: { type: "minecraft:empty" } });
 });
+
+test("with a hidden bottom, a button in the inventory rows or hotbar is placed like the editor places it", () => {
+  const placements = imageButtonsFromMenus([{ path: "menus/shop.yaml", content: `
+size: 27
+player_inventory: hidden
+elements:
+  - id: bar
+    positions: 54-56
+    image: { asset: bar }
+  - id: inv
+    positions: [28-29, 37-38]
+    image: { asset: inv }
+  - id: across_gap
+    positions: [45, 54]
+    image: { asset: nope }
+` }]);
+  expect(placements).toEqual([
+    { asset: "bar", fit: "contain", width: 54, height: 18, y: 142 },
+    { asset: "inv", fit: "contain", width: 36, height: 36, y: 84 },
+  ]);
+  expect(imageButtonsFromMenus([{ path: "menus/v.yaml", content: `
+size: 27
+elements:
+  - id: bar
+    positions: 54
+    image: { asset: bar }
+` }])).toEqual([]);
+});

@@ -283,11 +283,14 @@ open class ResourcePackManager(
 
     @EventHandler
     fun onPackStatus(event: PlayerResourcePackStatusEvent) {
+        // Every outcome is logged: a pack that never finishes loading (invalid
+        // URL, failed reload, discarded) otherwise leaves no trace at all.
+        val msg = "[resource-pack] ${event.player.name}: ${event.status} (pack ${event.id})"
         when (event.status) {
-            PlayerResourcePackStatusEvent.Status.DECLINED,
-            PlayerResourcePackStatusEvent.Status.FAILED_DOWNLOAD ->
-                logger?.warning("[resource-pack] ${event.player.name}: ${event.status}")
-            else -> { }
+            PlayerResourcePackStatusEvent.Status.ACCEPTED,
+            PlayerResourcePackStatusEvent.Status.DOWNLOADED,
+            PlayerResourcePackStatusEvent.Status.SUCCESSFULLY_LOADED -> logger?.info(msg)
+            else -> logger?.warning(msg)
         }
     }
 }

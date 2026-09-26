@@ -9,7 +9,6 @@ import { useHoverStore } from "@/state/hoverStore";
 import { isElementSelected, useSelectionStore } from "@/state/selectionStore";
 import { Group, Image, Rect, Text } from "react-konva";
 import { toast } from "sonner";
-import { slotMcXY } from "./inventoryTypes";
 import { TEX_SCALE } from "./menuLayout";
 
 export function ImageButtonsRender({ projectId, menu }: { projectId: ProjectId; menu: Menu }) {
@@ -39,11 +38,15 @@ function ImageButtonRender({
   const ids = useSelectionStore((state) => state.ids);
   const selectedMenu = useSelectionStore((state) => state.menuId);
   const brand = useCssVar("--brand");
-  const rect = imageButtonRect(element.positions, menu.inventoryType ?? "chest", menu.rows);
+  const rect = imageButtonRect(
+    element.positions,
+    menu.inventoryType ?? "chest",
+    menu.rows,
+    menu.playerInventory,
+  );
   if (!rect || !hasImageButton(element)) return null;
-  const origin = slotMcXY(rect.slot, menu.inventoryType ?? "chest");
-  const x = origin.x * TEX_SCALE;
-  const y = origin.y * TEX_SCALE;
+  const x = rect.x * TEX_SCALE;
+  const y = rect.y * TEX_SCALE;
   const width = rect.width * 18 * TEX_SCALE;
   const height = rect.height * 18 * TEX_SCALE;
   const selected = isElementSelected(ids, selectedMenu, element.id, menu.id);

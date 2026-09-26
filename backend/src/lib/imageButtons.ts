@@ -3,7 +3,12 @@ import { parse } from "yaml";
 import { PNG } from "pngjs";
 import { strToU8 } from "fflate";
 import type { AssetIndex } from "./assetIndexBuilder";
-import { imageButtonGeometry, type ImageButtonImage } from "../../../docs/schema/menu/v1/imageButtonGeometry";
+import {
+  imageButtonArea,
+  imageButtonGeometry,
+  type ImageButtonContainer,
+  type ImageButtonImage,
+} from "../../../docs/schema/menu/v1/imageButtonGeometry";
 
 export interface ImageButtonPlacement extends ImageButtonImage {
   fit: NonNullable<ImageButtonImage["fit"]>;
@@ -25,10 +30,12 @@ export function imageButtonsFromMenus(files: { path: string; content: string }[]
     let doc;
     try { doc = parse(file.content); } catch { continue; }
     if (!doc || typeof doc !== "object") continue;
-    const cols = doc.inventory_type === "hopper" ? 5 : doc.inventory_type === "dropper" ? 3 : 9;
-    const originY = cols === 5 ? 19 : cols === 3 ? 16 : 17;
+    const type: ImageButtonContainer =
+      doc.inventory_type === "hopper" || doc.inventory_type === "dropper" ? doc.inventory_type : "chest";
+    const hidden = doc.player_inventory === "hidden";
     const size = Number(doc.size);
     if (!Number.isInteger(size) || size < 1 || size > 54) continue;
+    const limit = size + (hidden ? 36 : 0);
     const elements = Array.isArray(doc.elements) ? doc.elements :
       (Array.isArray(doc.layers) ? doc.layers.flatMap((layer: any) => layer?.elements ?? []) : []);
     for (const el of elements) {
@@ -39,16 +46,13 @@ export function imageButtonsFromMenus(files: { path: string; content: string }[]
         const match = /^\s*(\d+)(?:\s*-\s*(\d+))?\s*$/.exec(part);
         if (!match) { valid = false; break; }
         const a = Number(match[1]); const b = Number(match[2] ?? a);
-        if (a >= size || b >= size) { valid = false; break; }
+        if (a >= limit || b >= limit) { valid = false; break; }
         for (let i = Math.min(a, b); i <= Math.max(a, b); i++) slots.add(i);
       }
       if (!valid || !slots.size) continue;
-      const left = Math.min(...[...slots].map((slot) => slot % cols));
-      const right = Math.max(...[...slots].map((slot) => slot % cols));
-      const top = Math.floor(Math.min(...slots) / cols);
-      const bottom = Math.floor(Math.max(...slots) / cols);
-      const width = right - left + 1; const height = bottom - top + 1;
-      if (slots.size !== width * height) continue;
+      // Same rectangle and origin as the editor and the plugin (imageButtonArea).
+      const area = imageButtonArea([...slots], type, size, hidden);
+      if (!area) continue;
       for (const app of [el, ...(Array.isArray(el.states) ? el.states : [])]) {
         if (typeof app?.image?.asset !== "string" || !app.image.asset) continue;
         if (app.image.fit !== undefined && !["contain", "stretch", "native"].includes(app.image.fit)) continue;
@@ -56,7 +60,7 @@ export function imageButtonsFromMenus(files: { path: string; content: string }[]
         out.push({ asset: app.image.asset, fit: app.image.fit ?? "contain",
           ...(app.image.offset_x ? { offset_x: app.image.offset_x } : {}),
           ...(app.image.offset_y ? { offset_y: app.image.offset_y } : {}),
-          width: width * 18, height: height * 18, y: originY + top * 18 });
+          width: area.width * 18, height: area.height * 18, y: area.y });
       }
     }
   }

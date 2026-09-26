@@ -30,10 +30,18 @@ describe("VanillaTextureLayer", () => {
     expect(screen.getByText(/transparente en jeu/)).toBeInTheDocument();
   });
 
-  it("is locked on for hoppers and droppers", () => {
-    const hopper: Menu = { ...menu(), inventoryType: "hopper" };
+  it("also turns the texture off for hoppers and droppers", () => {
+    useAccountStore.getState().setMenuField({
+      projectId: PERSONAL,
+      menuId: menu().id,
+      field: "inventoryType",
+      value: "hopper",
+    });
+    const hopper: Menu = menu();
     render(<VanillaTextureLayer projectId={PERSONAL} menu={hopper} />);
-    expect(screen.getByRole("switch")).toBeDisabled();
-    expect(screen.getByText(/coffres/)).toBeInTheDocument();
+    const sw = screen.getByRole("switch");
+    expect(sw).toBeEnabled();
+    fireEvent.click(sw);
+    expect(menu().vanillaTexture).toBe(false);
   });
 });

@@ -56,11 +56,11 @@ class AssetCatalog(
     private val encoderRef = AtomicReference(OffsetEncoder.EMPTY)
 
     /**
-     * The current pack overrides generic_54.png with a transparent texture
-     * (`vanilla_gui.transparent_chests`): chest windows then need the vanilla
-     * texture back as a title glyph (cf. VanillaGuiTitle).
+     * Container textures the current pack makes transparent
+     * (`vanilla_gui.transparent_chests|hoppers|dispensers`): those windows then
+     * need their vanilla texture back as a title glyph (cf. VanillaGuiTitle).
      */
-    @Volatile var transparentChests: Boolean = false
+    @Volatile var transparentTextures: Set<net.artisanmc.plugin.render.ContainerTexture> = emptySet()
         private set
 
     /** Returns the cached entry for [assetId], or null if unknown. */
@@ -144,7 +144,12 @@ class AssetCatalog(
         val (assets, encoder) = parse(json)
         state.set(assets)
         encoderRef.set(encoder)
-        transparentChests = mapper.readTree(json)["vanilla_gui"]?.get("transparent_chests")?.asBoolean() == true
+        val gui = mapper.readTree(json)["vanilla_gui"]
+        transparentTextures = mapOf(
+            "transparent_chests" to net.artisanmc.plugin.render.ContainerTexture.CHEST,
+            "transparent_hoppers" to net.artisanmc.plugin.render.ContainerTexture.HOPPER,
+            "transparent_dispensers" to net.artisanmc.plugin.render.ContainerTexture.DISPENSER,
+        ).filterKeys { gui?.get(it)?.asBoolean() == true }.values.toSet()
     }
 
     private fun parse(json: String): Pair<Map<String, AssetEntry>, OffsetEncoder> {

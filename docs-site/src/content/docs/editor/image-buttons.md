@@ -40,7 +40,10 @@ and the condition `test_tag == "test"` on that button's state. The quotes delimi
 the text value. Setting the value already refreshes the current menu; reopening it
 with `open_menu` is optional.
 
-The rectangle must fit inside the menu and cannot overlap another element.
+The rectangle must fit inside the menu and cannot overlap another element. When the
+menu hides the player inventory, an image button can also sit in the 3 inventory
+rows or in the hotbar — within one of them, since the gaps between these parts
+break the slot grid.
 Image buttons currently use fixed positions, without iteration or data placements.
 Choose **Item** to return to a material-based appearance.
 

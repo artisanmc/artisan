@@ -12,7 +12,7 @@ import {
 } from "./fontJsonBuilder";
 import type { GlyphPlacement } from "./menuGlyphPlacements";
 import { buildImageButtons, type ImageButtonPlacement } from "./imageButtons";
-import { buildVanillaGuiFiles } from "./vanillaGui";
+import { buildVanillaGuiFiles, type GuiContainer } from "./vanillaGui";
 
 export type { AssetRow };
 
@@ -65,8 +65,8 @@ export function buildResourcePackZip(
   mergeResult: { finalCodepoints: Map<string, number> } = { finalCodepoints: new Map() },
   glyphPlacements: GlyphPlacement[] = [],
   imageButtons: ImageButtonPlacement[] = [],
-  /** Vanilla generic_54.png, rebuilt as `artisan:vanilla_gui` glyphs (cf. vanillaGui.ts). */
-  vanillaGui?: { source: Uint8Array; transparentChests: boolean },
+  /** Container textures, rebuilt as `artisan:vanilla_gui` glyphs (cf. vanillaGui.ts). */
+  vanillaGui?: { sources: Record<GuiContainer, Uint8Array>; transparent: ReadonlySet<GuiContainer> },
 ): BuildResult {
   const remapped = assets.map((a) => {
     if (a.type !== "glyph" || a.codepoint === null) return a;
@@ -82,8 +82,8 @@ export function buildResourcePackZip(
   const fontJson = buildDefaultFontJson(remapped);
   files["assets/artisan/font/default.json"] = strToU8(JSON.stringify(fontJson, null, 2));
 
-  const assetIndex = buildAssetIndex(remapped, vanillaGui);
-  if (vanillaGui) Object.assign(files, buildVanillaGuiFiles(vanillaGui.source, vanillaGui.transparentChests));
+  const assetIndex = buildAssetIndex(remapped, vanillaGui?.transparent);
+  if (vanillaGui) Object.assign(files, buildVanillaGuiFiles(vanillaGui.sources, vanillaGui.transparent));
   buildImageButtons(files, assetIndex, glyphPngs, imageButtons);
   files["assets/artisan/asset-index.json"] = strToU8(JSON.stringify(assetIndex, null, 2));
 

@@ -1,25 +1,46 @@
 import { PNG } from "pngjs";
 import { parse } from "yaml";
+import type { AssetUsage } from "./assetUsages";
 
 /**
- * Vanilla chest texture, rebuilt as title glyphs.
+ * Vanilla container textures, rebuilt as title glyphs.
  *
- * A menu with `vanilla_texture: false` needs a transparent chest background,
- * which can only be done globally: the pack overrides `generic_54.png`. Every
- * other chest window gets the texture back as a title glyph, prepended by the
- * plugin to OPEN_WINDOW (`artisan:vanilla_gui`, see VanillaGuiTitle.kt).
+ * A menu with `vanilla_texture: false` needs a transparent window, which can
+ * only be done globally: the pack overrides the container texture for every
+ * window of that kind. Each other window gets the texture back as a title
+ * glyph, prepended by the plugin to OPEN_WINDOW (`artisan:vanilla_gui`, see
+ * VanillaGuiTitle.kt). Chests (generic_54), hoppers (hopper) and dispensers /
+ * droppers (dispenser) are independent: only the ones in use turn transparent.
  *
- * Codepoints: U+E001..U+E006 = the window of 1..6 rows, drawn from its
- * top-left (ascent 13 puts the top pixel at chest y=0). U+E010 moves the pen
- * from the title origin (x=8) to x=0 ; U+E010+N walks back from the end of
- * glyph N to the title origin.
+ * Codepoints: U+E001..U+E006 = the chest window of 1..6 rows, U+E007 the
+ * hopper, U+E008 the dispenser, drawn from the window's top-left (ascent 13
+ * puts the top pixel at y=0). U+E010 moves the pen from the title origin (x=8)
+ * to x=0 ; U+E010+N walks back from the end of glyph N to the title origin.
  *
- * The source is vanilla generic_54.png, or a project image marked as
- * `chest_texture` (same layout, 256×256 or an HD multiple) so a server pack
- * that restyles chests keeps its look on the chests drawn back.
+ * Each source is the vanilla texture, or a project image marked with the
+ * container's texture use (same layout, 256×256 or an HD multiple) so a server
+ * pack that restyles containers keeps its look on the windows drawn back.
  */
 export const VANILLA_GUI_FONT = "assets/artisan/font/vanilla_gui.json";
-export const GENERIC_54_OVERRIDE = "assets/minecraft/textures/gui/container/generic_54.png";
+
+export type GuiContainer = "chest" | "hopper" | "dispenser";
+export const GUI_CONTAINERS: GuiContainer[] = ["chest", "hopper", "dispenser"];
+
+const TEXTURE_FILE: Record<GuiContainer, string> = {
+  chest: "generic_54",
+  hopper: "hopper",
+  dispenser: "dispenser",
+};
+export const GUI_OVERRIDES: Record<GuiContainer, string> = Object.fromEntries(
+  GUI_CONTAINERS.map((c) => [c, `assets/minecraft/textures/gui/container/${TEXTURE_FILE[c]}.png`]),
+) as Record<GuiContainer, string>;
+/** Asset use marking a project image as the source for a container. */
+export const TEXTURE_USAGE: Record<GuiContainer, AssetUsage> = {
+  chest: "chest_texture",
+  hopper: "hopper_texture",
+  dispenser: "dispenser_texture",
+};
+const MENU_CONTAINER: Record<string, GuiContainer> = { chest: "chest", hopper: "hopper", dropper: "dispenser" };
 
 const TITLE_X = 8;
 const TOP_ASCENT = 13;
@@ -29,37 +50,44 @@ const ROW_H = 18;
 const BOTTOM_SRC_Y = 126;
 const BOTTOM_H = 96;
 const WIDTH = 176;
+/** Full window height of HopperScreen / DispenserScreen. */
+const BOX_H: Record<"hopper" | "dispenser", number> = { hopper: 133, dispenser: 166 };
+const CODEPOINT: Record<"hopper" | "dispenser", number> = { hopper: 7, dispenser: 8 };
 
-/** Does any chest menu of these project files turn its vanilla texture off? */
-export function transparentChestsFromMenus(files: { path: string; content: string }[]): boolean {
-  return files.some((f) => {
-    if (!f.path.startsWith("menus/") || !f.path.endsWith(".yaml")) return false;
+/** Containers whose menus, in these project files, turn their vanilla texture off. */
+export function transparentContainersFromMenus(files: { path: string; content: string }[]): Set<GuiContainer> {
+  const out = new Set<GuiContainer>();
+  for (const f of files) {
+    if (!f.path.startsWith("menus/") || !f.path.endsWith(".yaml")) continue;
     try {
       const doc = parse(f.content) as { vanilla_texture?: unknown; inventory_type?: unknown } | null;
-      return doc?.vanilla_texture === false && (doc.inventory_type ?? "chest") === "chest";
+      const container = MENU_CONTAINER[String(doc?.inventory_type ?? "chest")];
+      if (doc?.vanilla_texture === false && container) out.add(container);
     } catch {
-      return false;
+      // Unreadable menu: the plugin will not render it either.
     }
-  });
+  }
+  return out;
 }
 
-/** Scale of a generic_54-layout texture (1 = 256×256), or null if it isn't one. */
-function chestTextureScale(png: PNG): number | null {
+/** Scale of a container texture (1 = 256×256), or null if it isn't one. */
+function textureScale(png: PNG): number | null {
   if (png.width !== png.height || png.width < 256 || png.width % 256 !== 0) return null;
   return png.width / 256;
 }
 
 /**
- * First project image marked as `chest_texture` whose file is a generic_54
- * layout; undefined → the vanilla texture. Other marked images are ignored.
+ * First project image marked with the container's texture use whose file has
+ * the vanilla layout; undefined → the vanilla texture.
  */
-export function chestTextureSource(
+export function containerTextureSource(
   assets: { row: { usages?: readonly string[] }; bytes: Uint8Array }[],
+  container: GuiContainer,
 ): Uint8Array | undefined {
   for (const { row, bytes } of assets) {
-    if (!row.usages?.includes("chest_texture")) continue;
+    if (!row.usages?.includes(TEXTURE_USAGE[container])) continue;
     try {
-      if (chestTextureScale(PNG.sync.read(Buffer.from(bytes))) !== null) return bytes;
+      if (textureScale(PNG.sync.read(Buffer.from(bytes))) !== null) return bytes;
     } catch {
       // Unreadable PNG: not a usable source.
     }
@@ -75,6 +103,12 @@ function chestWindow(src: PNG, rows: number, k: number): PNG {
   return out;
 }
 
+function boxWindow(src: PNG, height: number, k: number): PNG {
+  const out = new PNG({ width: WIDTH * k, height: height * k });
+  PNG.bitblt(src, out, 0, 0, WIDTH * k, height * k, 0, 0);
+  return out;
+}
+
 /** Width MC measures for a bitmap glyph: up to its rightmost non-transparent column. */
 function contentWidth(png: PNG): number {
   for (let x = png.width - 1; x >= 0; x--) {
@@ -86,31 +120,37 @@ function contentWidth(png: PNG): number {
 }
 
 export function buildVanillaGuiFiles(
-  generic54: Uint8Array,
-  transparentChests: boolean,
+  sources: Record<GuiContainer, Uint8Array>,
+  transparent: ReadonlySet<GuiContainer>,
 ): Record<string, Uint8Array> {
-  const src = PNG.sync.read(Buffer.from(generic54));
-  const k = chestTextureScale(src) ?? 1;
   const files: Record<string, Uint8Array> = {};
   const providers: Record<string, unknown>[] = [];
   const advances: Record<string, number> = { [String.fromCodePoint(0xe010)]: -TITLE_X };
-  for (let rows = 1; rows <= 6; rows++) {
-    const png = chestWindow(src, rows, k);
-    files[`assets/artisan/textures/gui/generic_9x${rows}.png`] = new Uint8Array(PNG.sync.write(png));
+  const glyph = (name: string, codepoint: number, png: PNG, k: number) => {
+    files[`assets/artisan/textures/gui/${name}.png`] = new Uint8Array(PNG.sync.write(png));
     providers.push({
       type: "bitmap",
-      file: `artisan:gui/generic_9x${rows}.png`,
+      file: `artisan:gui/${name}.png`,
       ascent: TOP_ASCENT,
       height: png.height / k,
-      chars: [String.fromCodePoint(0xe000 + rows)],
+      chars: [String.fromCodePoint(0xe000 + codepoint)],
     });
     // MC scales a bitmap glyph to `height`: its advance is the scaled content width + 1.
-    advances[String.fromCodePoint(0xe010 + rows)] = -(Math.round(contentWidth(png) / k) + 1) + TITLE_X;
+    advances[String.fromCodePoint(0xe010 + codepoint)] = -(Math.round(contentWidth(png) / k) + 1) + TITLE_X;
+  };
+
+  const chest = PNG.sync.read(Buffer.from(sources.chest));
+  const kc = textureScale(chest) ?? 1;
+  for (let rows = 1; rows <= 6; rows++) glyph(`generic_9x${rows}`, rows, chestWindow(chest, rows, kc), kc);
+  for (const box of ["hopper", "dispenser"] as const) {
+    const src = PNG.sync.read(Buffer.from(sources[box]));
+    const k = textureScale(src) ?? 1;
+    glyph(box, CODEPOINT[box], boxWindow(src, BOX_H[box], k), k);
   }
   providers.push({ type: "space", advances });
   files[VANILLA_GUI_FONT] = new TextEncoder().encode(JSON.stringify({ providers }, null, 2));
-  if (transparentChests) {
-    files[GENERIC_54_OVERRIDE] = new Uint8Array(PNG.sync.write(new PNG({ width: 256, height: 256 })));
+  for (const container of transparent) {
+    files[GUI_OVERRIDES[container]] = new Uint8Array(PNG.sync.write(new PNG({ width: 256, height: 256 })));
   }
   return files;
 }

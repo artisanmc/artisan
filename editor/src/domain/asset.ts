@@ -1,7 +1,15 @@
 export type AssetType = "texture" | "glyph" | "font";
 export type AssetId = string;
-/** `chest_texture`: a generic_54.png layout, used to draw chests back when a menu hides the vanilla texture. */
-export type AssetUsage = "button" | "menu" | "chest_texture";
+/**
+ * `*_texture`: a vanilla container layout (generic_54 / hopper / dispenser.png),
+ * used to draw those windows back when a menu hides the vanilla texture.
+ */
+export type AssetUsage =
+  | "button"
+  | "menu"
+  | "chest_texture"
+  | "hopper_texture"
+  | "dispenser_texture";
 
 export interface FontMeta {
   namespace: string;

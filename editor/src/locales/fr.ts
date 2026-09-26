@@ -19,8 +19,14 @@ const fr: typeof en = {
     button: "Images de boutons",
     menu: "Images du menu",
     chest_texture: "Texture de coffre",
+    hopper_texture: "Texture d'entonnoir",
+    dispenser_texture: "Texture de distributeur",
     chestTextureHint:
       "Au format generic_54.png (256×256, ou un multiple pour un pack HD). Quand un menu désactive sa texture par défaut, les autres coffres du serveur sont redessinés avec cette image plutôt qu'avec la texture vanilla. Une seule image par serveur : la première trouvée est utilisée.",
+    hopperTextureHint:
+      "Au format hopper.png (256×256, ou un multiple pour un pack HD). Redessine les autres entonnoirs du serveur quand un menu entonnoir désactive sa texture par défaut.",
+    dispenserTextureHint:
+      "Au format dispenser.png (256×256, ou un multiple pour un pack HD). Redessine les autres distributeurs et droppers du serveur quand un menu distributeur désactive sa texture par défaut.",
     font: "Polices",
     unclassified: "À classer",
     upload: "Importer une image",
@@ -280,10 +286,9 @@ const fr: typeof en = {
     playerInventoryVisible: "Visible",
     playerInventoryHidden: "Masqué",
     vanillaTexture: "Texture par défaut",
-    vanillaTextureOnHint: "La texture vanilla du coffre est dessinée sous le titre.",
+    vanillaTextureOnHint: "La texture vanilla du conteneur est dessinée sous le titre.",
     vanillaTextureOffHint:
-      "Désactivée : la fenêtre est transparente en jeu, haut comme bas. Apporte ta propre texture avec une image. Les autres coffres du serveur gardent leur apparence.",
-    vanillaTextureChestOnly: "Réservé aux coffres pour l'instant.",
+      "Désactivée : la fenêtre est transparente en jeu, haut comme bas. Apporte ta propre texture avec une image. Les autres conteneurs du même type sur le serveur gardent leur apparence.",
     playerInventoryHintVisible:
       "Le joueur voit son propre inventaire sous le menu, sans pouvoir le modifier. Le menu n'utilise que ses propres slots.",
     playerInventoryHintHidden:

@@ -28,10 +28,18 @@ describe("chest bottom piece", () => {
 
 describe("transparent window outline", () => {
   it("outlines the window, every menu slot and the 36 player slots", () => {
-    const outline = transparentOutline(3);
+    const outline = transparentOutline("chest", 3);
     expect(outline.box).toEqual(menuBoxSize("chest", 3));
     expect(outline.cells).toHaveLength(27 + 36);
     expect(outline.cells[0]).toEqual(slotXY(0, "chest", 3));
     expect(outline.cells[62]).toEqual(slotXY(62, "chest", 3));
+  });
+
+  it("follows each container's geometry", () => {
+    const hopper = transparentOutline("hopper", 1);
+    expect(hopper.box).toEqual(menuBoxSize("hopper", 1));
+    expect(hopper.cells).toHaveLength(5 + 36);
+    expect(hopper.cells[5]).toEqual(slotXY(5, "hopper", 1));
+    expect(transparentOutline("dropper", 3).cells).toHaveLength(9 + 36);
   });
 });

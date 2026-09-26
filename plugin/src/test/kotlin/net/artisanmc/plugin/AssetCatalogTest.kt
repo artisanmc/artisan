@@ -61,16 +61,16 @@ class AssetCatalogTest {
     }
 
     @Test
-    fun `transparent chests follow the pack's vanilla_gui flag`(@org.junit.jupiter.api.io.TempDir tmp: java.nio.file.Path) {
+    fun `transparent textures follow the pack's vanilla_gui flags`(@org.junit.jupiter.api.io.TempDir tmp: java.nio.file.Path) {
         val cache = tmp.resolve("asset-index.json").toFile()
         val catalog = AssetCatalog(cacheFile = cache)
-        kotlin.test.assertFalse(catalog.transparentChests)
-        cache.writeText("""{ "version": 2, "assets": {}, "vanilla_gui": { "transparent_chests": true } }""")
+        assertEquals(emptySet(), catalog.transparentTextures)
+        cache.writeText("""{ "version": 2, "assets": {}, "vanilla_gui": { "transparent_chests": true, "transparent_hoppers": false, "transparent_dispensers": true } }""")
         catalog.loadFromDisk()
-        kotlin.test.assertTrue(catalog.transparentChests)
+        assertEquals(setOf(net.artisanmc.plugin.render.ContainerTexture.CHEST, net.artisanmc.plugin.render.ContainerTexture.DISPENSER), catalog.transparentTextures)
         cache.writeText(INDEX_JSON)
         catalog.loadFromDisk()
-        kotlin.test.assertFalse(catalog.transparentChests)
+        assertEquals(emptySet(), catalog.transparentTextures)
     }
 
     @Test

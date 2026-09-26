@@ -17,8 +17,14 @@ export default {
     button: "Button images",
     menu: "Menu images",
     chest_texture: "Chest texture",
+    hopper_texture: "Hopper texture",
+    dispenser_texture: "Dispenser texture",
     chestTextureHint:
       "A generic_54.png layout (256×256, or a multiple for an HD pack). When a menu turns its default texture off, every other chest on the server is drawn back with this image instead of the vanilla texture. One image per server: the first one found is used.",
+    hopperTextureHint:
+      "A hopper.png layout (256×256, or a multiple for an HD pack). Draws back every other hopper on the server when a hopper menu turns its default texture off.",
+    dispenserTextureHint:
+      "A dispenser.png layout (256×256, or a multiple for an HD pack). Draws back every other dispenser and dropper on the server when a dispenser menu turns its default texture off.",
     font: "Fonts",
     unclassified: "Unclassified",
     upload: "Import an image",
@@ -271,10 +277,9 @@ export default {
     playerInventoryVisible: "Visible",
     playerInventoryHidden: "Hidden",
     vanillaTexture: "Default texture",
-    vanillaTextureOnHint: "The vanilla chest texture is drawn under the title.",
+    vanillaTextureOnHint: "The vanilla container texture is drawn under the title.",
     vanillaTextureOffHint:
-      "Off: the window is transparent in game, top and bottom. Bring your own texture with an image. Every other chest on the server keeps its look.",
-    vanillaTextureChestOnly: "Chests only for now.",
+      "Off: the window is transparent in game, top and bottom. Bring your own texture with an image. Every other container of the same kind on the server keeps its look.",
     playerInventoryHintVisible:
       "Players see their own inventory below the menu, read-only. The menu only uses its own slots.",
     playerInventoryHintHidden:
