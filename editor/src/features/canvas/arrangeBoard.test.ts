@@ -118,6 +118,30 @@ describe("arrangeBoard", () => {
     expect(withBack).toEqual(without);
   });
 
+  it("puts the main menu in the first menu column, whichever command comes first", () => {
+    // "/infosjobs" sorts before "/menu" and its submenu links back to the main menu:
+    // that back link must not push the main menu behind the submenu.
+    const nodes = [cmd("/infosjobs"), cmd("/menu"), menu("jobs"), menu("main"), menu("crafts")];
+    const edges = [
+      link("/infosjobs", "jobs"),
+      link("/menu", "main"),
+      link("jobs", "main"),
+      link("main", "jobs"),
+      link("main", "crafts"),
+    ];
+    const { positions } = arrangeBoard({ nodes, edges });
+    expect(positions.main!.x).toBe(positions.jobs!.x);
+    expect(positions.main!.x).toBeLessThan(positions.crafts!.x);
+    expect(positions["/menu"]!.x).toBeLessThan(positions.main!.x);
+  });
+
+  it("keeps sibling menus in one column when they link to each other", () => {
+    const nodes = [cmd("c"), menu("main"), menu("a"), menu("b")];
+    const edges = [link("c", "main"), link("main", "a"), link("main", "b"), link("a", "b")];
+    const { positions } = arrangeBoard({ nodes, edges });
+    expect(positions.a!.x).toBe(positions.b!.x);
+  });
+
   it("puts unlinked Documents in the gutter, below everything else", () => {
     const nodes = [cmd("c"), menu("m"), menu("orphan"), dialog("lonely")];
     const { positions, gutter } = arrangeBoard({ nodes, edges: [link("c", "m")] });
@@ -146,6 +170,40 @@ describe("arrangeBoard", () => {
   it("ignores links whose ends are not on the board", () => {
     const { positions } = arrangeBoard({ nodes: [cmd("c")], edges: [link("c", "hidden")] });
     expect(Object.keys(positions)).toEqual(["c"]);
+  });
+});
+
+describe("arrangeBoard — colonnes trop hautes", () => {
+  const recipes = Array.from({ length: 10 }, (_, i) => menu(`r${i}`));
+  const nodes = [cmd("c"), menu("crafts"), ...recipes, menu("wings")];
+  const edges = [
+    link("c", "crafts"),
+    ...recipes.map((r) => link("crafts", r.key)),
+    link("r3", "wings"),
+  ];
+  const { positions } = arrangeBoard({ nodes, edges });
+  const stacks = new Map<number, number>();
+  for (const r of recipes)
+    stacks.set(positions[r.key]!.x, (stacks.get(positions[r.key]!.x) ?? 0) + 1);
+
+  it("wraps a column of more than 4 Documents into side-by-side sub-columns", () => {
+    expect(stacks.size).toBe(3);
+    expect(Math.max(...stacks.values())).toBeLessThanOrEqual(4);
+    assertNoOverlap(nodes, positions);
+  });
+
+  it("keeps the wrapped Documents right of their parent and their own children further right", () => {
+    const parentRight = positions.crafts!.x + 352;
+    for (const r of recipes) expect(positions[r.key]!.x).toBeGreaterThan(parentRight);
+    const wrappedRight = Math.max(...recipes.map((r) => positions[r.key]!.x + 352));
+    expect(positions.wings!.x).toBeGreaterThan(wrappedRight);
+  });
+
+  it("leaves columns of 4 or fewer as they were", () => {
+    const four = [cmd("c"), menu("m"), ...["a", "b", "d", "e"].map((k) => menu(k))];
+    const four_edges = [link("c", "m"), ...["a", "b", "d", "e"].map((k) => link("m", k))];
+    const p = arrangeBoard({ nodes: four, edges: four_edges }).positions;
+    expect(new Set(["a", "b", "d", "e"].map((k) => p[k]!.x)).size).toBe(1);
   });
 });
 
