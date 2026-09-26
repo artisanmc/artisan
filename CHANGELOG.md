@@ -11,8 +11,7 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ### Fixed — canvas arrangement
 
-- The main menu no longer lands behind a submenu that links back to it: canvas columns now follow the navigation distance from commands (and other entry points), so back links and links between sibling menus never push a menu to the right, whatever the order of the commands.
-- A column of more than 4 Documents wraps into side-by-side sub-columns instead of stacking ever taller; later columns move right to make room.
+- The main menu no longer lands behind a submenu that links back to it: the arrangement now starts from the entry point that leads to the biggest hub (a main menu), not from the first command alphabetically. Every other link still goes to a later column, so no link runs under a menu (the short-lived column wrapping, which made links cross menus, is removed).
 
 ### Changed — menu content sent to the client only
 
