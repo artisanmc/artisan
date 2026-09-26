@@ -12,6 +12,8 @@ export interface PersistedDraft {
   snapshot: ProjectDraft;
   source: string;
   updatedAt: string;
+  /** Fichiers modifiés des deux côtés depuis la base, calculés par le backend à l'ouverture. */
+  conflicts?: ProjectFileConflict[];
 }
 export class DraftApiError extends Error {
   constructor(

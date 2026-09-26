@@ -5,6 +5,7 @@ import { useProjectDraftStore } from "@/state/projectDraftStore";
 import { beforeEach, expect, it, vi } from "vitest";
 import { onProjectRenamed } from "./onProjectRenamed";
 import {
+  consumeOpenConflicts,
   copyPersistedDraft,
   discardPersistedDraft,
   loadPersistedDrafts,
@@ -59,6 +60,16 @@ it("restores a backend draft and its rename intentions on a fresh browser", asyn
   ]);
   await syncPersistedDraft("p1");
   expect(api.updateDraft).not.toHaveBeenCalled();
+});
+
+it("hands the conflicts found at open to the session, once", async () => {
+  const conflicts = [{ path: "menus/shop.yaml", disk: "server version" }];
+  vi.mocked(api.listDrafts).mockResolvedValue([{ ...remote, conflicts }]);
+  await loadPersistedDrafts("p1", "u1");
+  expect(usePersistedDraftStore.getState().sessions.p1?.openConflicts).toEqual(conflicts);
+  expect(usePersistedDraftStore.getState().sessions.p1?.status).toBe("saved");
+  consumeOpenConflicts("p1");
+  expect(usePersistedDraftStore.getState().sessions.p1?.openConflicts).toBeUndefined();
 });
 
 it("uploads a legacy local draft separately without overwriting existing backend work", async () => {

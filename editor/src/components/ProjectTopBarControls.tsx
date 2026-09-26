@@ -41,7 +41,9 @@ import { PersistedDraftControls } from "@/features/project/PersistedDraftControl
 import { hasDraftChanges } from "@/features/project/draft";
 import { flushDraftEdits } from "@/features/project/draftFlush";
 import {
+  consumeOpenConflicts,
   discardPersistedDraft,
+  markDraftPending,
   syncPersistedDraft,
   usePersistedDraftStore,
 } from "@/features/project/persistedDrafts";
@@ -79,7 +81,7 @@ import {
   Sparkles,
   Undo2,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { useStore } from "zustand";
@@ -503,6 +505,18 @@ function SaveControls({
   const [conflictTree, setConflictTree] = useState<Record<string, string>>({});
   const [diskFiles, setDiskFiles] = useState<string[]>([]);
   const [choices, setChoices] = useState<Record<string, ConflictChoice>>({});
+  // « open » : conflits trouvés à l'ouverture du brouillon — trancher ne publie rien.
+  const [conflictSource, setConflictSource] = useState<"save" | "open">("save");
+  const openConflicts = draftSession?.openConflicts;
+  useEffect(() => {
+    if (!project || !openConflicts?.length) return;
+    consumeOpenConflicts(projectId);
+    setConflictTree(projectTree(project));
+    setConflicts(openConflicts);
+    setDiskFiles([]);
+    setChoices({});
+    setConflictSource("open");
+  }, [openConflicts, project, projectId]);
   const [review, setReview] = useState<ChangeSet | null>(null);
   const [savingDraft, setSavingDraft] = useState(false);
 
@@ -537,6 +551,7 @@ function SaveControls({
         return;
       }
       if (res.error === "conflict") {
+        setConflictSource("save");
         setConflictTree(attemptedTree);
         // Rien n'a été écrit : le plugin applique tout ou rien. On demande à
         // l'admin de trancher fichier par fichier, jamais à sa place.
@@ -594,6 +609,14 @@ function SaveControls({
     }
     setConflicts([]);
     setChoices({});
+    if (conflictSource === "open") {
+      // La base du brouillon suit le choix ; l'enregistrement automatique la conserve.
+      const local = useProjectDraftStore.getState().get(project.id);
+      if (local) useProjectDraftStore.getState().save(project.id, { ...local, baseline: outcome.nextBaseline });
+      markDraftPending(project.id);
+      toast.info(t("save.conflictOpenResolved"));
+      return;
+    }
     // Le re-parse ci-dessus ne s'est pas encore propagé à cette closure ; le
     // prochain rendu tient le Project à jour, et l'admin réenregistre. On
     // relance quand même quand rien n'a été adopté : la base suffit.
@@ -758,7 +781,9 @@ function SaveControls({
         <DialogContent className="max-h-[90dvh] w-[calc(100%-2rem)] max-w-5xl overflow-y-auto">
           <DialogHeader className="pr-6">
             <DialogTitle>{t("save.conflictTitle")}</DialogTitle>
-            <DialogDescription>{t("save.conflictBody")}</DialogDescription>
+            <DialogDescription>
+              {t(conflictSource === "open" ? "save.conflictOpenBody" : "save.conflictBody")}
+            </DialogDescription>
           </DialogHeader>
           <div className="flex max-h-[50vh] flex-col gap-2 overflow-y-auto">
             {conflicts.map((c, index) => (

@@ -167,6 +167,14 @@ test("publication uses the saved baseline and preserves the draft on a disk conf
   let conflict = true;
   registerConn("draft-connection", (raw) => {
     const msg = JSON.parse(raw);
+    // Lire un brouillon le rebase sur le Snapshot : le serveur rend sa base inchangée.
+    if (msg.type === "project_read") {
+      void handlePluginMessage("draft-connection", JSON.stringify({
+        type: "project_read_result", request_id: msg.request_id, ok: true, hash: "H",
+        files: Object.entries(snapshot.baseline).map(([path, content]) => ({ path, content })), binaries: [], failed: [],
+      }));
+      return;
+    }
     if (msg.type !== "project_write") return;
     writes.push(msg);
     void handlePluginMessage(

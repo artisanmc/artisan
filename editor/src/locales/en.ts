@@ -1944,6 +1944,9 @@ export default {
     conflictDiskEmpty: "(empty)",
     conflictApply: "Apply",
     conflictAdopted: "Server versions adopted — deploy again.",
+    conflictOpenBody:
+      "Since your draft was started, these files changed on the server and in your draft. Files you did not touch were updated automatically. Pick which version to keep, file by file.",
+    conflictOpenResolved: "Your choices were applied to the draft. Nothing was published.",
     cancel: "Cancel",
   },
   deploy: {
