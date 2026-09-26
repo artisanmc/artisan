@@ -9,6 +9,10 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Added — backend mirror of the server Snapshot
+
+- The backend keeps a copy of what each server has loaded (its Snapshot) and serves project reads from it while the plugin's announced hash still matches, instead of asking the server every time. The server disk stays the source of truth: publishing still writes through the plugin with per-file compare-and-swap. Plugins announce the capability `snapshot_mirror_v1` and send `snapshot_hashes` in `hello`; older plugins keep the previous behaviour. Migration `0056` adds `project_snapshots` and `snapshot_blobs`.
+
 ### Fixed — canvas arrangement
 
 - The main menu no longer lands behind a submenu that links back to it: the arrangement now starts from the entry point that leads to the biggest hub (a main menu), not from the first command alphabetically. Every other link still goes to a later column, so no link runs under a menu (the short-lived column wrapping, which made links cross menus, is removed).

@@ -24,6 +24,11 @@ slug, serveur propriétaire, network) — de quoi le lister et le router dans l'
   **Rien n'est implémenté** — tant que ça dure, un dossier de Project renommé sur le disque
   orpheline silencieusement ses glyphes (ils pendent à l'ancienne ligne d'ancrage).
 
+> **Révision 2026-09-26** (ADR `snapshot-mirror-and-backend-history`) : le backend garde un
+> **miroir jetable** du Snapshot, servi seulement si son hash égale le dernier hash annoncé par
+> le plugin. Il n'est jamais une autorité ni une base de compare-and-swap : la publication
+> reste un CAS contre le disque, et vider `project_snapshots` ne perd rien.
+
 Corollaire : il n'existe plus de divergence disque↔backend, donc plus de `detectSyncAction`, plus
 de `sync_divergence`, plus de `bundle_available`. Le `SyncScanner` subsiste, mais **uniquement**
 pour recharger à chaud une édition faite à la main ou par un agent : il ne décide plus de rien.

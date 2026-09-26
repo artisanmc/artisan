@@ -28,3 +28,21 @@ test("binary transport preserves exact bytes without leaking base64 into the sto
   expect(await storage.writeBinaries([{ path: "textures/test.png", content: bytes, baseHash: null }])).toEqual({ kind: "offline" });
   expect(written).toEqual({ projectId: "shop", files: [{ path: "textures/test.png", contentBase64: Buffer.from(bytes).toString("base64"), baseHash: null }] });
 });
+
+test("with the snapshot mirror, reads go through the tree reader and honour if_hash", async () => {
+  const mirror = await import("../snapshotMirror");
+  mirror.recordHello("server-m", []);
+  const tree = { kind: "result" as const, result: { type: "project_read_result" as const, request_id: "", ok: true, hash: "H1", files: [{ path: "a.yaml", content: "a" }] } };
+  const plugin: unknown[] = [];
+  const storage = new ServerProjectStorage({ kind: "server", serverKeyId: "server-m", folderName: "shop" }, {
+    read: async (...args) => { plugin.push(args); return tree; },
+    readAssets: async () => tree,
+  });
+  try {
+    expect(await storage.read()).toEqual({ kind: "result", result: { ok: true, hash: "H1", files: [{ path: "a.yaml", content: "a" }] } });
+    expect(await storage.read("H1")).toEqual({ kind: "result", result: { ok: true, unchanged: true, hash: "H1" } });
+    expect(plugin).toEqual([]);
+  } finally {
+    mirror.forgetServer("server-m");
+  }
+});
