@@ -4,6 +4,7 @@ import { BillingGrantTab } from "./BillingGrantTab";
 import { BillingPacksTab } from "./BillingPacksTab";
 import { BillingPlansTab } from "./BillingPlansTab";
 import { BillingSalesTab } from "./BillingSalesTab";
+import { BillingEditorPolicyTab } from "./BillingEditorPolicyTab";
 
 export function BillingPage() {
   const { t } = useTranslation();
@@ -23,6 +24,7 @@ export function BillingPage() {
           <TabsTrigger value="packs">{t("admin.billing.tabs.packs")}</TabsTrigger>
           <TabsTrigger value="plans">{t("admin.billing.tabs.plans")}</TabsTrigger>
           <TabsTrigger value="grant">{t("admin.billing.tabs.grant")}</TabsTrigger>
+          <TabsTrigger value="editor">{t("admin.billing.tabs.editor")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="sales" className="mt-4">
@@ -36,6 +38,9 @@ export function BillingPage() {
         </TabsContent>
         <TabsContent value="grant" className="mt-4">
           <BillingGrantTab />
+        </TabsContent>
+        <TabsContent value="editor" className="mt-4">
+          <BillingEditorPolicyTab />
         </TabsContent>
       </Tabs>
     </div>

@@ -5,6 +5,7 @@ import { db } from "../../db/index";
 import { aiCreditLedger, creditPacks, creditPurchases, networkBilling, networks, stripeEvents, subscriptionPlans, users } from "../../db/schema";
 import { createNetwork } from "../../lib/networkManager";
 import { getBucketBalances } from "../ai/creditsRepo";
+import { grantDueAnnualProCredits } from "./annualProCredits";
 import { __setStripeGatewayForTests, type StripeGateway, type StripeWebhookEvent } from "./stripe";
 
 let networkId = "";
@@ -136,9 +137,80 @@ describe("webhook checkout.session.completed", () => {
 });
 
 describe("webhook invoice.paid", () => {
+	it("starts monthly grants when a paid same-end change activates annual Pro", async () => {
+		const planId = crypto.randomUUID();
+		const start = new Date("2999-01-31T00:00:00Z");
+		const end = new Date("3000-01-31T00:00:00Z");
+		await db.insert(subscriptionPlans).values({ id: planId, name: "Artisan Pro", interval: "year", priceCents: 7000, currency: "eur", creditsPerPeriod: 500, rolloverCap: 0, editorPro: true, stripeProductId: `prod_${planId}`, stripePriceId: `price_${planId}`, createdAt: new Date(), updatedAt: new Date() });
+		await db.insert(networkBilling).values({ networkId, stripeSubscriptionId: "sub_same_end", planId, currentPeriodId: "previous", paidThrough: end, paidEditorPro: false, createdAt: new Date(), updatedAt: new Date() });
+		try {
+			const invoice = { id: "inv_same_end", subscription: "sub_same_end", billing_reason: "subscription_cycle", lines: { data: [{ period: { start: Math.floor(start.getTime() / 1000), end: Math.floor(end.getTime() / 1000) } }] } };
+			expect((await post({ id: "evt_same_end", type: "invoice.paid", data: { object: invoice } })).status).toBe(200);
+			const [row] = await db.select().from(networkBilling).where(eq(networkBilling.networkId, networkId));
+			expect(row.creditCycleStart?.getTime()).toBe(start.getTime());
+			expect(row.creditMonthIndex).toBe(0);
+			expect((await getBucketBalances(networkId)).subscription).toBe(500);
+			await grantDueAnnualProCredits(new Date("2999-02-28T00:00:00Z"));
+			expect((await getBucketBalances(networkId)).subscription).toBe(500);
+		} finally {
+			await db.delete(networkBilling).where(eq(networkBilling.networkId, networkId));
+			await db.delete(subscriptionPlans).where(eq(subscriptionPlans.id, planId));
+		}
+	});
+	it("grants annual Pro credits monthly, idempotently, instead of all at once", async () => {
+		const planId = crypto.randomUUID();
+		const start = new Date("2999-01-31T00:00:00Z");
+		const end = new Date("3000-01-31T00:00:00Z");
+		await db.insert(subscriptionPlans).values({ id: planId, name: "Artisan Pro", interval: "year", priceCents: 7000, currency: "eur", creditsPerPeriod: 500, rolloverCap: 0, editorPro: true, stripeProductId: `prod_${planId}`, stripePriceId: `price_${planId}`, createdAt: new Date(), updatedAt: new Date() });
+		await db.insert(networkBilling).values({ networkId, stripeSubscriptionId: "sub_annual", planId, createdAt: new Date(), updatedAt: new Date() });
+		try {
+			const invoice = { id: "inv_annual", subscription: "sub_annual", billing_reason: "subscription_create", lines: { data: [{ period: { start: Math.floor(start.getTime() / 1000), end: Math.floor(end.getTime() / 1000) } }] } };
+			expect((await post({ id: "evt_annual", type: "invoice.paid", data: { object: invoice } })).status).toBe(200);
+			expect((await getBucketBalances(networkId)).subscription).toBe(500);
+			const [first] = await db.select().from(networkBilling).where(eq(networkBilling.networkId, networkId));
+			expect(first.creditCycleStart?.getTime()).toBe(start.getTime());
+			expect(first.creditMonthIndex).toBe(0);
+			const [firstGrant] = await db.select().from(aiCreditLedger).where(eq(aiCreditLedger.periodId, first.currentPeriodId!));
+			expect(firstGrant.expiresAt?.toISOString()).toBe("2999-02-28T00:00:00.000Z");
+			await grantDueAnnualProCredits(new Date("2999-02-28T00:00:01Z"));
+			await grantDueAnnualProCredits(new Date("2999-02-28T00:00:01Z"));
+			expect((await getBucketBalances(networkId)).subscription).toBe(500);
+			const [second] = await db.select().from(networkBilling).where(eq(networkBilling.networkId, networkId));
+			expect(second.creditMonthIndex).toBe(1);
+			expect(second.currentPeriodId).not.toBe(first.currentPeriodId);
+			await grantDueAnnualProCredits(new Date("2999-04-01T00:00:00Z"));
+			const [catchup] = await db.select().from(networkBilling).where(eq(networkBilling.networkId, networkId));
+			expect(catchup.creditMonthIndex).toBe(2);
+			expect((await getBucketBalances(networkId)).subscription).toBe(500);
+			const renewalStart = end;
+			const renewalEnd = new Date("3001-01-31T00:00:00Z");
+			expect((await post({ id: "evt_annual_renew", type: "invoice.paid", data: { object: { id: "inv_annual_renew", subscription: "sub_annual", billing_reason: "subscription_cycle", lines: { data: [{ period: { start: Math.floor(renewalStart.getTime() / 1000), end: Math.floor(renewalEnd.getTime() / 1000) } }] } } } })).status).toBe(200);
+			const [renewed] = await db.select().from(networkBilling).where(eq(networkBilling.networkId, networkId));
+			expect(renewed.creditCycleStart?.getTime()).toBe(renewalStart.getTime());
+			expect(renewed.creditMonthIndex).toBe(0);
+			expect((await getBucketBalances(networkId)).subscription).toBe(500);
+		} finally {
+			await db.delete(networkBilling).where(eq(networkBilling.networkId, networkId));
+			await db.delete(subscriptionPlans).where(eq(subscriptionPlans.id, planId));
+		}
+	});
+	it("ignores a late older invoice without moving paid access backward", async () => {
+		const planId = crypto.randomUUID();
+		await db.insert(subscriptionPlans).values({ id: planId, name: "Pro", interval: "month", priceCents: 2000, currency: "eur", creditsPerPeriod: 5000, rolloverCap: 0, features: "", isActive: true, sortOrder: 0, stripeProductId: "prod_s", stripePriceId: "price_s", createdAt: new Date(), updatedAt: new Date() });
+		const latestEnd = new Date("2999-03-01T00:00:00Z");
+		await db.insert(networkBilling).values({ networkId, stripeSubscriptionId: "sub_late", planId, currentPeriodId: "inv_latest", currentPeriodEnd: latestEnd, paidThrough: latestEnd, status: "active", createdAt: new Date(), updatedAt: new Date() });
+		const olderEnd = Math.floor(new Date("2999-02-01T00:00:00Z").getTime() / 1000);
+		const res = await post({ id: "evt_late", type: "invoice.paid", data: { object: { id: "inv_older", subscription: "sub_late", billing_reason: "subscription_cycle", lines: { data: [{ period: { end: olderEnd } }] } } } });
+		expect(res.status).toBe(200);
+		const [row] = await db.select().from(networkBilling).where(eq(networkBilling.networkId, networkId));
+		expect(row.currentPeriodId).toBe("inv_latest");
+		expect(row.currentPeriodEnd?.getTime()).toBe(latestEnd.getTime());
+		await db.delete(networkBilling).where(eq(networkBilling.networkId, networkId));
+		await db.delete(subscriptionPlans).where(eq(subscriptionPlans.id, planId));
+	});
 	it("invoice.paid (subscription_create) activates the subscription + grants the first period", async () => {
 		const planId = crypto.randomUUID();
-		await db.insert(subscriptionPlans).values({ id: planId, name: "Pro", interval: "month", priceCents: 2000, currency: "eur", creditsPerPeriod: 5000, rolloverCap: 1000, features: "", isActive: true, sortOrder: 0, stripeProductId: "prod_s", stripePriceId: "price_s", createdAt: new Date(), updatedAt: new Date() });
+		await db.insert(subscriptionPlans).values({ id: planId, name: "Pro", interval: "month", priceCents: 2000, currency: "eur", creditsPerPeriod: 5000, rolloverCap: 1000, editorPro: true, features: "", isActive: true, sortOrder: 0, stripeProductId: "prod_s", stripePriceId: "price_s", createdAt: new Date(), updatedAt: new Date() });
 		await db.insert(networkBilling).values({ networkId, stripeCustomerId: "cus", stripeSubscriptionId: "sub_1", planId, createdAt: new Date(), updatedAt: new Date() });
 		const periodEnd = Math.floor(new Date("2999-02-01T00:00:00Z").getTime() / 1000);
 		const res = await post({
@@ -150,6 +222,8 @@ describe("webhook invoice.paid", () => {
 		const [row] = await db.select().from(networkBilling).where(eq(networkBilling.networkId, networkId));
 		expect(row.status).toBe("active");
 		expect(row.currentPeriodId).toBe("inv_1");
+		expect(row.paidEditorPro).toBe(true);
+		expect(row.paidThrough?.getTime()).toBe(periodEnd * 1000);
 		await db.delete(networkBilling).where(eq(networkBilling.networkId, networkId));
 		await db.delete(subscriptionPlans).where(eq(subscriptionPlans.id, planId));
 	});
@@ -174,6 +248,37 @@ describe("webhook invoice.paid", () => {
 });
 
 describe("webhook subscription lifecycle", () => {
+	it("switches to the billed Pro product only after invoice payment", async () => {
+		const oldId = crypto.randomUUID();
+		const proId = crypto.randomUUID();
+		const oldProduct = `prod_${oldId}`;
+		const proProduct = `prod_${proId}`;
+		const base = { interval: "month" as const, priceCents: 2000, currency: "eur", creditsPerPeriod: 0, rolloverCap: 0, features: "", isActive: true, sortOrder: 0, createdAt: new Date(), updatedAt: new Date() };
+		await db.insert(subscriptionPlans).values([
+			{ ...base, id: oldId, name: "Old", stripeProductId: oldProduct, stripePriceId: "price_old" },
+			{ ...base, id: proId, name: "Pro", editorPro: true, stripeProductId: proProduct, stripePriceId: "price_new" },
+		]);
+		await db.insert(networkBilling).values({ networkId, stripeSubscriptionId: "sub_switch", planId: oldId, currentPeriodId: "inv_old", paidThrough: new Date("2999-02-01"), paidEditorPro: false, status: "active", createdAt: new Date(), updatedAt: new Date() });
+		expect((await db.select().from(subscriptionPlans).where(eq(subscriptionPlans.stripeProductId, proProduct)))[0]?.id).toBe(proId);
+		const end = Math.floor(new Date("2999-02-01").getTime() / 1000);
+		const update = await post({ id: "evt_switch", type: "customer.subscription.updated", data: { object: { id: "sub_switch", status: "unpaid", items: { data: [{ price: { product: proProduct } }] } } } });
+		expect(update.status).toBe(200);
+		let row = (await db.select().from(networkBilling).where(eq(networkBilling.networkId, networkId)))[0]!;
+		expect(row.status).toBe("canceled");
+		expect(row.planId).toBe(proId);
+		expect(row.paidEditorPro).toBe(false);
+		await post({ id: "evt_switch_paid", type: "invoice.paid", data: { object: { id: "inv_new", subscription: "sub_switch", billing_reason: "subscription_cycle", lines: { data: [{ period: { end }, price: { product: proProduct } }] } } } });
+		row = (await db.select().from(networkBilling).where(eq(networkBilling.networkId, networkId)))[0]!;
+		expect(row.paidEditorPro).toBe(true);
+		expect(row.paidThrough?.getTime()).toBe(end * 1000);
+		expect(row.currentPeriodId).toBe("inv_old");
+		await post({ id: "evt_switch_old_late", type: "invoice.paid", data: { object: { id: "inv_old_late", subscription: "sub_switch", billing_reason: "subscription_cycle", lines: { data: [{ period: { end }, price: { product: oldProduct } }] } } } });
+		row = (await db.select().from(networkBilling).where(eq(networkBilling.networkId, networkId)))[0]!;
+		expect(row.paidEditorPro).toBe(true);
+		await db.delete(networkBilling).where(eq(networkBilling.networkId, networkId));
+		await db.delete(subscriptionPlans).where(eq(subscriptionPlans.id, oldId));
+		await db.delete(subscriptionPlans).where(eq(subscriptionPlans.id, proId));
+	});
 	it("payment_failed sets past_due + a grace window", async () => {
 		await db.insert(networkBilling).values({ networkId, stripeSubscriptionId: "sub_f", status: "active", createdAt: new Date(), updatedAt: new Date() });
 		await post({ id: "evt_fail", type: "invoice.payment_failed", data: { object: { subscription: "sub_f" } } });

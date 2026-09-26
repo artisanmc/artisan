@@ -99,6 +99,17 @@ describe("/invite?code=...", () => {
     await screen.findByText(/déjà membre/i);
   });
 
+  it("explains the collaborator limit when the invitation cannot be accepted", async () => {
+    setUrl("?code=CODE1");
+    mockUser({ id: "u1", email: "i@a.b" });
+    vi.spyOn(invitesApi, "fetchInvitePreview").mockResolvedValue({ status: "valid", networkName: "Acme", role: "member" });
+    vi.spyOn(invitesApi, "acceptInvite").mockRejectedValue(new invitesApi.AcceptInviteError("collaborator_limit_reached"));
+    const { default: InviteRoute } = await import("./invite");
+    render(<InviteRoute />);
+    fireEvent.click(await screen.findByRole("button", { name: /Rejoindre/i }));
+    expect(await screen.findByText(/limite de collaborateurs/i)).toBeVisible();
+  });
+
   it("shows expired message", async () => {
     setUrl("?code=CODE1");
     mockUser({ id: "u1", email: "i@a.b" });

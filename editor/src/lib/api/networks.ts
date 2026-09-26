@@ -120,7 +120,10 @@ export async function createServerKey(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(label !== undefined ? { label } : {}),
   });
-  if (!res.ok) throw new Error(`createServerKey failed: ${res.status}`);
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.error === "server_limit_reached" ? "server_limit_reached" : `createServerKey failed: ${res.status}`);
+  }
   return res.json();
 }
 

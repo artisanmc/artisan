@@ -22,6 +22,8 @@ import {
 	type SubscriptionPlan,
 } from "./plansRepo";
 import { salesSummary } from "./salesRepo";
+import { getEditorCommercialPolicy, updateEditorCommercialPolicy } from "./editorAccess";
+import { billingConfigAudit } from "../../db/schema";
 
 function packDto(p: CreditPack) {
 	return { ...p, createdAt: p.createdAt.toISOString(), updatedAt: p.updatedAt.toISOString() };
@@ -89,10 +91,11 @@ export function buildBillingAdminRouter(): Hono {
 		return { ...p, createdAt: p.createdAt.toISOString(), updatedAt: p.updatedAt.toISOString() };
 	}
 
-	function parsePlanBody(body: Record<string, unknown>, partial: boolean): Partial<PlanInput> | null {
+	function parsePlanBody(body: Record<string, unknown>, partial: boolean, existingPro = false): Partial<PlanInput> | null {
 		if (!body || typeof body !== "object" || Array.isArray(body)) return null;
 		if (body.description !== undefined && (typeof body.description !== "string" || body.description.trim().length > 240)) return null;
 		if (body.highlighted !== undefined && typeof body.highlighted !== "boolean") return null;
+		if (body.editorPro !== undefined && typeof body.editorPro !== "boolean") return null;
 		if (body.features !== undefined && typeof body.features !== "string") return null;
 		if (body.sortOrder !== undefined && (typeof body.sortOrder !== "number" || !Number.isSafeInteger(body.sortOrder) || body.sortOrder < -2147483648 || body.sortOrder > 2147483647)) return null;
 		const out: Partial<PlanInput> = {};
@@ -101,6 +104,7 @@ export function buildBillingAdminRouter(): Hono {
 		if (typeof body.features === "string") out.features = body.features;
 		if (typeof body.description === "string") out.description = body.description.trim();
 		if (typeof body.highlighted === "boolean") out.highlighted = body.highlighted;
+		if (typeof body.editorPro === "boolean") out.editorPro = body.editorPro;
 		if (body.interval === "month" || body.interval === "year") out.interval = body.interval;
 		const int = (k: string) => (typeof body[k] === "number" && Number.isInteger(body[k]) ? (body[k] as number) : undefined);
 		const priceCents = int("priceCents");
@@ -114,7 +118,7 @@ export function buildBillingAdminRouter(): Hono {
 		if (typeof body.isActive === "boolean") out.isActive = body.isActive;
 		if (out.name === "") return null;
 		if (out.priceCents !== undefined && out.priceCents <= 0) return null;
-		if (out.creditsPerPeriod !== undefined && out.creditsPerPeriod <= 0) return null;
+		if (out.creditsPerPeriod !== undefined && (out.creditsPerPeriod < 0 || out.creditsPerPeriod === 0 && !(out.editorPro ?? existingPro))) return null;
 		if (out.rolloverCap !== undefined && out.rolloverCap < 0) return null;
 		if (!partial) {
 			if (!out.name || out.priceCents === undefined || out.creditsPerPeriod === undefined) return null;
@@ -132,19 +136,37 @@ export function buildBillingAdminRouter(): Hono {
 		const body = await c.req.json().catch(() => ({}) as Record<string, unknown>);
 		const input = parsePlanBody(body, false);
 		if (!input) return c.json({ error: "invalid_plan" }, 400);
-		return c.json(planDto(await createPlan(input as PlanInput)));
+		const plan = await createPlan(input as PlanInput);
+		await db.insert(billingConfigAudit).values({ id: crypto.randomUUID(), actorId: c.get("user")?.id ?? null, action: "plan_create", before: null, after: plan, createdAt: new Date() });
+		return c.json(planDto(plan));
 	});
 	r.put("/billing/plans/:id", async (c) => {
 		const body = await c.req.json().catch(() => ({}) as Record<string, unknown>);
-		const patch = parsePlanBody(body, true);
+		const before = await getPlan(c.req.param("id"));
+		if (!before) return c.json({ error: "not_found" }, 404);
+		const patch = parsePlanBody(body, true, before.editorPro);
 		if (!patch) return c.json({ error: "invalid_plan" }, 400);
-		if (!(await getPlan(c.req.param("id")))) return c.json({ error: "not_found" }, 404);
+		if ((patch.creditsPerPeriod ?? before.creditsPerPeriod) === 0 && !(patch.editorPro ?? before.editorPro)) return c.json({ error: "invalid_plan" }, 400);
 		const plan = await updatePlan(c.req.param("id"), patch);
+		if (plan) await db.insert(billingConfigAudit).values({ id: crypto.randomUUID(), actorId: c.get("user")?.id ?? null, action: "plan_update", before, after: plan, createdAt: new Date() });
 		return plan ? c.json(planDto(plan)) : c.json({ error: "not_found" }, 404);
 	});
 	r.post("/billing/plans/:id/deactivate", async (c) => {
+		const before = await getPlan(c.req.param("id"));
 		const ok = await deactivatePlan(c.req.param("id"));
+		if (ok) await db.insert(billingConfigAudit).values({ id: crypto.randomUUID(), actorId: c.get("user")?.id ?? null, action: "plan_deactivate", before, after: await getPlan(c.req.param("id")), createdAt: new Date() });
 		return ok ? c.json({ ok: true }) : c.json({ error: "not_found" }, 404);
+	});
+
+	r.get("/billing/editor-policy", async (c) => c.json(await getEditorCommercialPolicy()));
+	r.put("/billing/editor-policy", async (c) => {
+		const body = await c.req.json().catch(() => null);
+		if (!body || !Number.isSafeInteger(body.quota) || body.quota < 0 || body.quota > 100000 || typeof body.enforcementEnabled !== "boolean") return c.json({ error: "invalid_policy" }, 422);
+		const userId = c.get("user")?.id;
+		if (!userId) return c.json({ error: "unauthorized" }, 401);
+		const policy = { quota: body.quota as number, enforcementEnabled: body.enforcementEnabled as boolean };
+		await updateEditorCommercialPolicy(policy, userId);
+		return c.json(policy);
 	});
 
 	r.get("/billing/sales", async (c) => {

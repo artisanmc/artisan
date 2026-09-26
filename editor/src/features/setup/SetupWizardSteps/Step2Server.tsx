@@ -18,15 +18,19 @@ export function Step2Server({ state, setState }: Props) {
   const [generating, setGenerating] = useState(false);
   const [done, setDone] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function handleGenerate() {
     if (!state.networkId || name.trim().length === 0) return;
     setGenerating(true);
+    setError(null);
     try {
       const sk = await networksApi.createServerKey(state.networkId, name.trim());
       useNetworksStore.getState().bumpRefresh(); // sync the sidebar
       setState((s) => ({ ...s, linkCode: sk.code, serverKeyId: sk.id }));
       setDone(true);
+    } catch (failure) {
+      setError(failure instanceof Error && failure.message === "server_limit_reached" ? "limit" : "generic");
     } finally {
       setGenerating(false);
     }
@@ -50,6 +54,7 @@ export function Step2Server({ state, setState }: Props) {
       <p className="text-[13px] leading-relaxed text-[var(--text-mut)]">
         {t("setupWizard.step2.description")}
       </p>
+      {error && <p role="alert" className="text-sm text-[var(--danger)]">{t(`newServerModal.${error}`)}</p>}
 
       <div className="flex flex-col gap-1.5">
         <span className="field-label">{t("setupWizard.step2.nameLabel")}</span>

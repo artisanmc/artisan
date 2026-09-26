@@ -8,11 +8,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { FormField } from "@/components/ui/form-field";
+import { Tooltip } from "@/components/ui/tooltip";
 import { hasExistingSubscription } from "@/features/billing/subscriptionState";
 import {
+  type EditorOffer,
   type PackDto,
   type PlanDto,
   type SubscriptionDto,
+  getEditorOffer,
   getPlans,
   getProjects,
   getSubscription,
@@ -22,19 +25,18 @@ import {
 import { listMembers } from "@/lib/api/members";
 import { type NetworkSummary, createNetwork, listNetworks } from "@/lib/api/networks";
 import { pricingSignupUrl } from "@/lib/authReturn";
-import { formatCredits, formatMoney } from "@/lib/format";
+import { formatCredits } from "@/lib/format";
 import { useAuthStore } from "@/state/authStore";
 import { useNetworksStore } from "@/state/networksStore";
 import {
   ArrowUpRight,
-  Check,
   ChevronDown,
   Coins,
+  Info,
   Layers3,
+  Server,
   ShieldCheck,
-  Sparkles,
   Users,
-  WandSparkles,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -45,6 +47,8 @@ export function PricingPage() {
   const { t, i18n } = useTranslation();
   const user = useAuthStore((s) => s.currentUser);
   const [plans, setPlans] = useState<PlanDto[]>([]);
+  const [offer, setOffer] = useState<EditorOffer | null>(null);
+  const [period, setPeriod] = useState<"month" | "year">("year");
   const [packs, setPacks] = useState<PackDto[]>([]);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [packsFailed, setPacksFailed] = useState(false);
@@ -57,10 +61,21 @@ export function PricingPage() {
     let disposed = false;
     setStatus("loading");
     setPacksFailed(false);
-    getPlans()
-      .then((items) => {
+    Promise.all([getPlans(), getEditorOffer()])
+      .then(([items, offer]) => {
         if (!disposed) {
           setPlans(items);
+          setOffer({
+            quota: offer.quota,
+            proQuota: offer.proQuota ?? 250,
+            freeServers: offer.freeServers ?? 2,
+            proServers: offer.proServers ?? 10,
+            freeCollaborators: offer.freeCollaborators ?? 2,
+            proMonthlyPriceCents: offer.proMonthlyPriceCents ?? 900,
+            proYearlyPriceCents: offer.proYearlyPriceCents ?? 7000,
+            proCreditsPerMonth: offer.proCreditsPerMonth ?? 500,
+            currency: offer.currency ?? "eur",
+          });
           setStatus("ready");
         }
       })
@@ -78,7 +93,29 @@ export function PricingPage() {
       disposed = true;
     };
   }, [retry]);
-  const selected = plans.find((plan) => plan.id === selectedId);
+  const proPlans = plans.filter(
+    (plan) =>
+      plan.editorPro &&
+      plan.purchasable !== false &&
+      offer &&
+      plan.currency === offer.currency &&
+      plan.creditsPerPeriod === offer.proCreditsPerMonth &&
+      ((plan.interval === "month" && plan.priceCents === offer.proMonthlyPriceCents) ||
+        (plan.interval === "year" && plan.priceCents === offer.proYearlyPriceCents)),
+  );
+  const monthly = proPlans.find((plan) => plan.interval === "month");
+  const yearly = proPlans.find((plan) => plan.interval === "year");
+  const currentPlan = period === "year" ? yearly : monthly;
+  const selected = proPlans.find((plan) => plan.id === selectedId);
+  const annualSavings = offer ? offer.proMonthlyPriceCents * 12 - offer.proYearlyPriceCents : 0;
+  const formattedSavings =
+    offer && annualSavings > 0
+      ? new Intl.NumberFormat(i18n.language, {
+          style: "currency",
+          currency: offer.currency,
+          maximumFractionDigits: 0,
+        }).format(annualSavings / 100)
+      : null;
   const closeSelection = () => {
     setSelectedId(null);
     const url = new URL(window.location.href);
@@ -93,13 +130,15 @@ export function PricingPage() {
   return (
     <MarketingLayout page="pricing">
       <section className="marketing-container pricing-hero">
-        <span className="marketing-kicker">
-          <Sparkles size={15} />
-          {t("marketing.pricing.label")}
-        </span>
         <h1>{t("marketing.pricing.title")}</h1>
-        <p>{t("marketing.pricing.intro")}</p>
       </section>
+      <aside className="marketing-container pricing-promise">
+        <ShieldCheck size={28} aria-hidden="true" />
+        <div>
+          <h2>{t("marketing.pricing.runtimePromise")}</h2>
+          <p>{t("marketing.pricing.runtimeDetail")}</p>
+        </div>
+      </aside>
       <section
         className="marketing-container pricing-catalog"
         aria-label={t("marketing.pricing.plans")}
@@ -118,124 +157,110 @@ export function PricingPage() {
             </Button>
           </div>
         )}
-        {status === "ready" && plans.length === 0 && (
-          <div className="pricing-state">
-            <p>{t("marketing.pricing.empty")}</p>
-            <Button asChild variant="primary">
-              <a href={editorHref("/demo")}>{t("marketing.pricing.demoCta")}</a>
-            </Button>
-          </div>
-        )}
         {status === "ready" && selectedId && !selected && (
           <output className="pricing-notice">{t("marketing.pricing.selectionMissing")}</output>
         )}
-        {status === "ready" && plans.length > 0 && (
-          <div className={`pricing-plans ${plans.length === 1 ? "pricing-plans-single" : ""}`}>
-            <div className="pricing-demo">
-              <div className="pricing-demo-art" aria-hidden="true">
-                <div />
-                <div />
-                <div />
-                <div />
-                <div />
-                <div />
-                <WandSparkles size={42} />
-              </div>
-              <h2>{t("marketing.pricing.demoTitle")}</h2>
-              <p>{t("marketing.pricing.demoText")}</p>
-              <Button asChild variant="outline" size="lg">
-                <a href={editorHref("/demo")}>
-                  {t("marketing.pricing.demoCta")}
-                  <ArrowUpRight size={17} />
-                </a>
-              </Button>
-            </div>
-            {plans.map((plan) => (
-              <Card
-                key={plan.id}
-                className={`pricing-plan ${plan.highlighted ? "pricing-plan-featured" : ""}`}
+        {status === "ready" && offer && (
+          <>
+            <fieldset className="pricing-period border-0">
+              <legend className="sr-only">{t("marketing.pricing.period")}</legend>
+              <Button
+                variant={period === "month" ? "primary" : "outline"}
+                onClick={() => setPeriod("month")}
               >
+                {t("marketing.pricing.monthly")}
+              </Button>
+              <Button
+                className="pricing-annual-button"
+                variant={period === "year" ? "primary" : "outline"}
+                onClick={() => setPeriod("year")}
+              >
+                <span>{t("marketing.pricing.annual")}</span>
+                {formattedSavings && (
+                  <span className="pricing-annual-savings">
+                    {t("marketing.pricing.annualSavingsShort", { savings: formattedSavings })}
+                  </span>
+                )}
+              </Button>
+            </fieldset>
+            <div className="pricing-plans pricing-plans-two">
+              <Card className="pricing-plan">
                 <div className="pricing-plan-heading">
-                  <h2>{plan.name}</h2>
-                  {plan.highlighted && (
-                    <span className="pricing-featured">
-                      <Sparkles size={13} />
-                      {t("marketing.pricing.featured")}
-                    </span>
-                  )}
+                  <h2>{t("marketing.pricing.freeName")}</h2>
                 </div>
-                <p className="pricing-plan-description">
-                  {plan.description || t("marketing.pricing.planFallback")}
-                </p>
-                <div className="pricing-amount">
-                  <strong>{formatMoney(plan.priceCents, plan.currency, i18n.language)}</strong>
-                  <span>
-                    {t(
-                      plan.interval === "year"
-                        ? "marketing.pricing.year"
-                        : "marketing.pricing.month",
-                    )}
-                  </span>
+                <p className="pricing-plan-description">{t("marketing.pricing.freeDescription")}</p>
+                <div className="pricing-price-block">
+                  <div className="pricing-amount">
+                    <strong>{formatPrice(0, "eur", i18n.language)}</strong>
+                  </div>
                 </div>
-                <div className="pricing-quota">
-                  <Sparkles size={20} />
-                  <span>
-                    {t(
-                      plan.interval === "year"
-                        ? "marketing.pricing.yearlyCredits"
-                        : "marketing.pricing.monthlyCredits",
-                      { credits: formatCredits(plan.creditsPerPeriod, i18n.language) },
-                    )}
-                  </span>
+                <PricingLimits
+                  resources={offer.quota}
+                  servers={offer.freeServers}
+                  collaborators={offer.freeCollaborators}
+                />
+                <Button asChild variant="outline" size="lg">
+                  <a href={editorHref("/networks")}>{t("marketing.pricing.openEditor")}</a>
+                </Button>
+              </Card>
+              <Card className="pricing-plan pricing-plan-featured">
+                <div className="pricing-plan-heading">
+                  <h2>{t("marketing.pricing.proName")}</h2>
                 </div>
-                <ul className="pricing-benefits">
-                  <li>
-                    <Check size={16} />
-                    <span>{t("marketing.pricing.shared")}</span>
-                  </li>
-                  <li>
-                    <Check size={16} />
+                <p className="pricing-plan-description">{t("marketing.pricing.proDescription")}</p>
+                <div className="pricing-price-block">
+                  <div className="pricing-amount">
+                    <strong>
+                      {formatPrice(
+                        period === "year" ? offer.proYearlyPriceCents : offer.proMonthlyPriceCents,
+                        offer.currency,
+                        i18n.language,
+                      )}
+                    </strong>
                     <span>
-                      {plan.rolloverCap > 0
-                        ? t("marketing.pricing.rollover", {
-                            credits: formatCredits(plan.rolloverCap, i18n.language),
-                          })
-                        : t("marketing.pricing.noRollover")}
+                      {t(period === "year" ? "marketing.pricing.year" : "marketing.pricing.month")}
                     </span>
-                  </li>
-                  {plan.features
-                    .split(/\r?\n/)
-                    .map((feature) => feature.trim())
-                    .filter(Boolean)
-                    .map((feature, index) => (
-                      <li key={`${index}-${feature}`}>
-                        <Check size={16} />
-                        <span>{feature}</span>
-                      </li>
-                    ))}
-                </ul>
-                {user ? (
-                  <Button variant="primary" size="lg" onClick={() => setSelectedId(plan.id)}>
-                    {t("marketing.pricing.choose", { name: plan.name })}
-                    <ArrowUpRight size={17} />
-                  </Button>
-                ) : (
-                  <Button asChild variant="primary" size="lg">
-                    <a href={editorHref(pricingSignupUrl(plan.id))}>
-                      {t("marketing.pricing.choose", { name: plan.name })}
-                      <ArrowUpRight size={17} />
-                    </a>
-                  </Button>
+                  </div>
+                  <p className="pricing-plan-scope">{t("marketing.pricing.priceScope")}</p>
+                </div>
+                <PricingLimits
+                  resources={offer.proQuota}
+                  servers={offer.proServers}
+                  collaborators={null}
+                  creditsPerMonth={offer.proCreditsPerMonth}
+                />
+                {currentPlan &&
+                  (user ? (
+                    <Button
+                      variant="primary"
+                      size="lg"
+                      onClick={() => setSelectedId(currentPlan.id)}
+                    >
+                      {t("marketing.pricing.proCta")}
+                    </Button>
+                  ) : (
+                    <Button asChild variant="primary" size="lg">
+                      <a href={editorHref(pricingSignupUrl(currentPlan.id))}>
+                        {t("marketing.pricing.proCta")}
+                      </a>
+                    </Button>
+                  ))}
+                {!currentPlan && (
+                  <p className="pricing-plan-availability">
+                    {t("marketing.pricing.proAvailability")}
+                  </p>
                 )}
               </Card>
-            ))}
+            </div>
+          </>
+        )}
+        {currentPlan && (
+          <div className="pricing-trust">
+            <ShieldCheck size={16} />
+            <span>{t("marketing.pricing.secure")}</span>
+            <span>{t("marketing.pricing.details")}</span>
           </div>
         )}
-        <div className="pricing-trust">
-          <ShieldCheck size={16} />
-          <span>{t("marketing.pricing.secure")}</span>
-          <span>{t("marketing.pricing.details")}</span>
-        </div>
       </section>
       <section className="marketing-container pricing-topups">
         <div>
@@ -270,7 +295,7 @@ export function PricingPage() {
                     })}
                   </span>
                 </div>
-                <strong>{formatMoney(pack.priceCents, pack.currency, i18n.language)}</strong>
+                <strong>{formatPrice(pack.priceCents, pack.currency, i18n.language)}</strong>
               </div>
             ))
           )}
@@ -317,6 +342,59 @@ export function PricingPage() {
         <PlanCheckout key={`${user.id}-${selected.id}`} plan={selected} onClose={closeSelection} />
       )}
     </MarketingLayout>
+  );
+}
+
+function formatPrice(cents: number, currency: string, language: string): string {
+  return new Intl.NumberFormat(language, {
+    style: "currency",
+    currency: currency.toUpperCase(),
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(cents / 100);
+}
+
+function PricingLimits({
+  resources,
+  servers,
+  collaborators,
+  creditsPerMonth,
+}: { resources: number; servers: number; collaborators: number | null; creditsPerMonth?: number }) {
+  const { t } = useTranslation();
+  return (
+    <ul className="pricing-limits">
+      <li>
+        <Layers3 size={20} aria-hidden="true" />
+        <span>{t("marketing.pricing.resourcesPerServer", { count: resources })}</span>
+        <Tooltip content={t("marketing.pricing.moduleTooltip")}>
+          <button
+            type="button"
+            className="pricing-limit-info"
+            aria-label={t("marketing.pricing.moduleInfo")}
+          >
+            <Info size={16} />
+          </button>
+        </Tooltip>
+      </li>
+      <li>
+        <Server size={20} aria-hidden="true" />
+        <span>{t("marketing.pricing.servers", { count: servers })}</span>
+      </li>
+      <li>
+        <Users size={20} aria-hidden="true" />
+        <span>
+          {collaborators === null
+            ? t("marketing.pricing.unlimitedCollaborators")
+            : t("marketing.pricing.collaborators", { count: collaborators })}
+        </span>
+      </li>
+      {creditsPerMonth !== undefined && (
+        <li>
+          <Coins size={20} aria-hidden="true" />
+          <span>{t("marketing.pricing.creditsPerMonth", { count: creditsPerMonth })}</span>
+        </li>
+      )}
+    </ul>
   );
 }
 
@@ -439,7 +517,7 @@ function PlanCheckout({ plan, onClose }: { plan: PlanDto; onClose: () => void })
         <div className="pricing-checkout-summary">
           <span>{plan.name}</span>
           <strong>
-            {formatMoney(plan.priceCents, plan.currency, i18n.language)}
+            {formatPrice(plan.priceCents, plan.currency, i18n.language)}
             {t(plan.interval === "year" ? "marketing.pricing.year" : "marketing.pricing.month")}
           </strong>
         </div>

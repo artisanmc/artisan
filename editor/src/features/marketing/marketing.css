@@ -168,14 +168,14 @@
 }
 .pricing-hero {
   text-align: center;
-  padding-top: 78px;
-  padding-bottom: 50px;
+  padding-top: 54px;
+  padding-bottom: 38px;
 }
 .pricing-hero h1 {
   font: 650 clamp(38px, 5vw, 64px) / 1.09 var(--font-display);
   letter-spacing: -.055em;
   max-width: 760px;
-  margin: 22px auto 22px;
+  margin: 0 auto;
   text-wrap: balance;
 }
 .pricing-hero > p {
@@ -189,11 +189,61 @@
 .pricing-catalog {
   max-width: 1050px;
 }
+.pricing-promise {
+  max-width: 900px;
+  display: flex;
+  gap: 18px;
+  align-items: flex-start;
+  padding: 26px 30px;
+  margin-bottom: 40px;
+  border: 1px solid var(--brand-line);
+  border-radius: var(--r-lg);
+  background: var(--brand-soft);
+}
+.pricing-promise > svg {
+  color: var(--brand);
+  flex-shrink: 0;
+}
+.pricing-promise h2 {
+  font: 650 clamp(25px, 3vw, 36px) / 1.16 var(--font-display);
+  letter-spacing: -.035em;
+  margin: 0 0 7px;
+}
+.pricing-promise p {
+  color: var(--text-mut);
+  margin: 0;
+}
 .pricing-plans {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(275px, 1fr));
   gap: 22px;
   align-items: stretch;
+}
+.pricing-plans-two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  max-width: 900px;
+  margin-inline: auto;
+}
+.pricing-period {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 auto 28px;
+}
+.pricing-period .pricing-annual-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.pricing-annual-savings {
+  border-radius: var(--r-pill);
+  padding: 3px 8px;
+  background: var(--surface);
+  color: var(--brand);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
 }
 .pricing-plans-single {
   grid-template-columns: .9fr 1.1fr;
@@ -294,8 +344,13 @@
   display: flex;
   align-items: baseline;
   gap: 9px;
-  margin-bottom: 22px;
   flex-wrap: wrap;
+}
+.pricing-price-block {
+  min-height: 122px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 .pricing-amount strong {
   font: 650 clamp(38px, 3.5vw, 48px) / 1 var(--font-display);
@@ -304,6 +359,16 @@
 .pricing-amount > span {
   color: var(--text-mut);
   font-size: 15px;
+}
+.pricing-plan-scope {
+  color: var(--text-mut);
+  font-size: 13px;
+  margin: 12px 0 0;
+}
+.pricing-plan-availability {
+  color: var(--text-mut);
+  font-size: 13px;
+  margin: auto 0 0;
 }
 .pricing-quota {
   display: flex;
@@ -344,6 +409,45 @@
 .pricing-plan > .btn {
   width: 100%;
   justify-content: center;
+  margin-top: auto;
+}
+.pricing-limits {
+  display: grid;
+  gap: 0;
+  list-style: none;
+  margin: 0 0 30px;
+  padding: 0;
+  flex: none;
+}
+.pricing-limits li {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-height: 66px;
+  border-top: 1px solid var(--border-soft);
+  font-size: 15px;
+  font-weight: 600;
+}
+.pricing-limits li > svg {
+  color: var(--brand);
+  flex-shrink: 0;
+}
+.pricing-limit-info {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-pill);
+  color: var(--text-mut);
+  background: transparent;
+  cursor: help;
+}
+.pricing-limit-info:hover,
+.pricing-limit-info:focus-visible {
+  color: var(--brand);
+  background: var(--brand-soft);
 }
 .pricing-trust {
   display: flex;
@@ -637,6 +741,9 @@
   .pricing-plans-single {
     grid-template-columns: 1fr;
     gap: 25px;
+  }
+  .pricing-plans-two {
+    grid-template-columns: 1fr;
   }
   .pricing-demo {
     padding: 0 8px 20px;
