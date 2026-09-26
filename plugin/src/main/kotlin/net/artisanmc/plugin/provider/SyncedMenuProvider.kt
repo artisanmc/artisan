@@ -470,18 +470,9 @@ class SyncedMenuProvider(
      * inutile de l'arbre.
      */
     private fun announceReload() {
-        val projects = snapshot.keys.sorted().map { id ->
-            mapOf(
-                "id" to id,
-                "hash" to net.artisanmc.plugin.sync.BundleHasher.snapshotHash(
-                    snapshot[id] ?: emptyMap(),
-                    (binarySnapshot[id] ?: emptyMap()).mapValues { it.value.hash },
-                    skipped[id] ?: emptyMap(),
-                ),
-            )
-        }
+        val projects = snapshotHashes()
         // Fire-and-forget : sans WS connecté (démarrage, coupure) l'annonce se
-        // perd, et c'est sans conséquence — le prochain `project_read` tranchera.
+        // perd ; le `hello` suivant porte les mêmes empreintes (`snapshot_hashes`).
         runCatching { send(mapOf("type" to "projects_reloaded", "projects" to projects,
             "project_roots" to roots.descriptors(), "identity_migrations" to identityMigrations())) }
     }
@@ -491,11 +482,26 @@ class SyncedMenuProvider(
 
     private fun projectPresence(): Map<String, Any> = cachedProjectPresence
 
+    internal fun projectPresenceForTesting(): Map<String, Any> = projectPresence()
+
+    /** Même empreinte que `project_read` : le backend compare l'une à l'autre. */
+    private fun snapshotHashes(): List<Map<String, String>> = snapshot.keys.sorted().map { id ->
+        mapOf(
+            "id" to id,
+            "hash" to net.artisanmc.plugin.sync.BundleHasher.snapshotHash(
+                snapshot[id] ?: emptyMap(),
+                (binarySnapshot[id] ?: emptyMap()).mapValues { it.value.hash },
+                skipped[id] ?: emptyMap(),
+            ),
+        )
+    }
+
     /** Called under the project mutation lock; WS callbacks only read the published map. */
     private fun refreshProjectPresence() {
         cachedProjectPresence = mapOf(
-            "capabilities" to listOf("project_rename", "project_drafts_v1", "project_mixed_write_v1", "project_copy_v1", "resource_quota_v1", "vanilla_gui_v1"),
+            "capabilities" to listOf("project_rename", "project_drafts_v1", "project_mixed_write_v1", "project_copy_v1", "resource_quota_v1", "vanilla_gui_v1", "snapshot_mirror_v1"),
             "local_project_ids" to snapshot.keys.sorted(),
+            "snapshot_hashes" to snapshotHashes(),
             "project_roots" to roots.descriptors(),
             "project_rename_results" to roots.renamer.completed(),
             "identity_migrations" to identityMigrations(),

@@ -32,6 +32,8 @@ export interface HelloMessage extends ProjectIdentityReport {
   minecraft_version?: string;
   current_bundle_hash: string;
   local_project_ids?: string[];
+  /** Empreinte du Snapshot de chaque Project — capacité `snapshot_mirror_v1`. */
+  snapshot_hashes?: { id: string; hash: string }[];
   capabilities?: string[];
   editor_access_mode?: "invitation" | "console";
   custom_items_hash?: string | null;   // null/absent means no custom item plugin detected
