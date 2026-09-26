@@ -593,13 +593,15 @@ location and an immutable internal backend ID. Server locations bind a server
 key and folder identity; hosted locations bind a private backend root and a logical
 folder name. Account-owned hosted projects belong to a Network; a temporary demo
 belongs to its DemoSession, without a fake User, Network or Server. The common
-`ProjectStorage` contract owns content operations. Private Drafts use that same
-storage after their verified migration.
+`ProjectStorage` contract owns content operations. For server Projects, only
+published content lives on the server disk: private **Drafts** and **Versions**
+live in the backend, and the editor shows the server's current **Snapshot**
+(revision 2026-09-26).
 
 The editable collection of GUI content — its **Menus**,
 **Commands**, **Dialogs**, translations, and assets. A Project is a tree of files
-on its owning disk: Minecraft server or durable backend volume. Published content
-and private **Drafts** share that authority; publication is explicit. A text editor
+on its owning disk: Minecraft server or durable backend volume. That disk is the
+authority for published content; publication is explicit. A text editor
 can still edit server files directly. The web editor is a client of the project's
 files (cf. ADR `files-first-source-of-truth`). A Project belongs to
 **exactly one Server** in server mode; hosted projects require no Server.
@@ -692,6 +694,29 @@ Non-examples:
   secret, same Server.
 - A connected plugin process is a runtime *instance* of the Server, not a separate
   Server (instances may share one key).
+
+## Snapshot
+
+The files a server Project's plugin loaded at its last start or `/artisan
+reload` — what the server runs. The editor shows the Snapshot, not the live disk.
+_Avoid_: bundle, live files
+
+Non-examples:
+- A hand edit on the server disk is **not** in the Snapshot until the next reload.
+- A **Draft** is never a Snapshot: it is unpublished work.
+
+## Version
+
+A recorded state of a server Project: every **Snapshot** that differs from the
+previous one, with its date and author (the user
+who published, or the server itself after a hand edit and reload). Versions are
+browsable per file or for the whole Project. Restoring one never publishes: it
+loads that content into the user's **Draft**, which is then published normally.
+_Avoid_: commit, backup, trash (the retired on-disk `.artisan/history/`)
+
+Non-examples:
+- Several hand edits between two reloads form a single Version.
+- A Draft autosave is not a Version; only what the server loads is.
 
 ## Template
 

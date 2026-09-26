@@ -7,6 +7,11 @@ dédié requis »).
 
 ## Contexte
 
+**Révision 2026-09-26 — miroir, brouillons et Versions backend** : voir
+[snapshot-mirror-and-backend-history](snapshot-mirror-and-backend-history.md).
+Pour les projets serveur, le backend garde un miroir jetable de l'instantané,
+les brouillons et un historique de Versions ; décisions 1, 5 et 7 révisées.
+
 **Révision 2026-09-13 — migration des brouillons serveur** : voir
 [project-storage-modes](project-storage-modes.md). Le backend gèle les brouillons
 par Project puis vérifie leur copie dans `.artisan/drafts/` avant de retirer les
