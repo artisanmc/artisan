@@ -4,7 +4,7 @@ import type { DraftOutcome, DraftResult } from "../lib/storage/DraftStore";
 import { db } from "../db/index";
 import { addConsoleMember } from "../lib/consoleAccess";
 import { forgetProjectTree, warmSnapshotMirror } from "../lib/projectTreeReads";
-import { forgetServer as forgetSnapshotMirror, recordHello as recordSnapshotHello, recordReload as recordSnapshotReload } from "../lib/snapshotMirror";
+import { forgetServer as forgetSnapshotMirror, listedProjects, recordHello as recordSnapshotHello, recordReload as recordSnapshotReload } from "../lib/snapshotMirror";
 import { completeProjectRename, failProjectRename, isTerminalRenameError, pendingProjectRenames, projectIdentityLocked, reconcileProjectIdentity, type ProjectIdentityReport } from "../lib/projectRename";
 import type { ProjectRenameMessage, ProjectRenameResultMessage, ProjectCopyMessage, ProjectCopyResultMessage } from "../protocol";
 import { ensureAssets, assetsDone } from "../lib/mcAssets";
@@ -629,6 +629,34 @@ export async function requestProjectList(
     });
     send(JSON.stringify(msg));
   });
+}
+/**
+ * La liste des Projects telle que le Snapshot l'a annoncée (ADR
+ * `snapshot-mirror-and-backend-history`) — sans aller-retour. `null` pour un
+ * plugin sans `snapshot_mirror_v1` : l'appelant garde `requestProjectList`.
+ * N'inclut pas `resource_inventory`, qui reste un scan disque en direct.
+ */
+export async function listProjectsFromSnapshot(serverKeyId: string): Promise<ProjectListOutcome | null> {
+  const listed = listedProjects(serverKeyId);
+  if (!listed) return null;
+  await resumeProjectRenames(serverKeyId);
+  const reserved = await reservedProjectIds(serverKeyId);
+  const pending = await pendingProjectRenames(serverKeyId);
+  return { kind: "result", result: {
+    type: "project_list_result",
+    request_id: "",
+    ok: true,
+    project_ids: listed.filter((id) => !reserved.has(id.toLowerCase())),
+    pending_renames: pending.map((op) => ({ operation_id: op.id, project_id: op.sourceId, target_project_id: op.targetId })),
+  } };
+}
+
+async function reservedProjectIds(serverKeyId: string): Promise<Set<string>> {
+  const pending = await pendingProjectRenames(serverKeyId);
+  const reserved = new Set(pending.flatMap((op) => [op.sourceId.toLowerCase(), op.targetId.toLowerCase()]));
+  const copyReservations = await db.select({ targetId: projectCopies.targetId }).from(projectCopies).where(and(eq(projectCopies.serverKeyId, serverKeyId), eq(projectCopies.status, "pending")));
+  for (const op of copyReservations) reserved.add(op.targetId.toLowerCase());
+  return reserved;
 }
 const pendingConfigReads = new Map<string, (outcome: ConfigReadOutcome) => void>();
 const pendingConfigWrites = new Map<string, (outcome: ConfigWriteOutcome) => void>();
@@ -1389,9 +1417,7 @@ export async function handlePluginMessage(
     const result = msg as ProjectListResultMessage;
     await reconcileServerProjectIdentity(serverId, result);
     const pending = await pendingProjectRenames(serverId);
-    const reserved = new Set(pending.flatMap((op) => [op.sourceId.toLowerCase(), op.targetId.toLowerCase()]));
-    const copyReservations = await db.select({ targetId: projectCopies.targetId }).from(projectCopies).where(and(eq(projectCopies.serverKeyId, serverId), eq(projectCopies.status, "pending")));
-    for (const op of copyReservations) reserved.add(op.targetId.toLowerCase());
+    const reserved = await reservedProjectIds(serverId);
     pendingProjectLists.get(result.request_id)?.({ kind: "result", result: {
       ...result,
       project_ids: result.project_ids?.filter((id) => !reserved.has(id.toLowerCase())),
