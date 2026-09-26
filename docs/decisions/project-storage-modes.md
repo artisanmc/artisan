@@ -20,6 +20,11 @@ décrit les verrous, le snapshot SQL exporté et les règles de rétention.
 
 ## Contexte
 
+**Révision 2026-09-26** : les brouillons des projets serveur reviennent côté
+backend, avec un miroir d'instantané et des Versions — voir
+[snapshot-mirror-and-backend-history](snapshot-mirror-and-backend-history.md).
+Direction décidée : le mode hébergé sera remplacé par des Servers non reliés.
+
 Le disque Minecraft convient aux projets liés à un serveur, mais imposer un
 serveur connecté empêche de découvrir immédiatement Artisan ou de préparer un
 projet avant installation. Deux emplacements de stockage doivent partager le
