@@ -408,6 +408,12 @@ si son snapshot distant actif est strictement identique au local, sa révision e
 réconciliée sans écriture. Une différence de contenu ou une édition pendant la lecture
 maintient le conflit et préserve le travail local.
 Un point sur le chevron signale seulement un conflit ou une sauvegarde non confirmée.
+**Conflits à l'ouverture (2026-09-26)** : le backend rend le brouillon rebasé sur le
+Snapshot et ses `conflicts` ; `loadPersistedDrafts`/`selectPersistedDraft` les posent
+dans `session.openConflicts`, et `ProjectTopBarControls` ouvre la même modale que pour
+un conflit d'enregistrement (`conflictSource: "open"`). Appliquer met à jour la base du
+brouillon et le marque à sauvegarder, **sans publier** ; `consumeOpenConflicts` évite de
+reproposer les mêmes conflits.
 Les actions vident d'abord le debounce local via `draftFlush`.
 `saveProjectToDisk` publie la révision sauvegardée via l'API de brouillons ;
 création/import sans session garde le chemin existant. Une modification pendant

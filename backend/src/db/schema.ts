@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import {
 	boolean,
 	check,
+	customType,
 	index,
 	integer,
 	jsonb,
@@ -452,12 +453,26 @@ export const projectSnapshots = pgTable("project_snapshots", {
 	receivedAt: timestamp("received_at").notNull(),
 });
 
+const bytea = customType<{ data: Uint8Array; driverData: Buffer }>({
+	dataType: () => "bytea",
+	toDriver: (value) => Buffer.from(value),
+	fromDriver: (value) => new Uint8Array(value),
+});
+
+// Images privées d'un brouillon (ADR `snapshot-mirror-and-backend-history`,
+// décision 4) : seules les versions qui diffèrent de la base publiée y vivent.
+export const projectDraftBlobs = pgTable("project_draft_blobs", {
+	draftId: text("draft_id").notNull().references(() => projectDrafts.id, { onDelete: "cascade" }),
+	hash: text("hash").notNull(),
+	content: bytea("content").notNull(),
+}, (t) => [primaryKey({ columns: [t.draftId, t.hash] })]);
+
 export const projectDraftStorage = pgTable("project_draft_storage", {
 	projectId: text("project_id").primaryKey().references(() => projects.id, { onDelete: "cascade" }),
-	state: text("state").notNull().default("backend").$type<"backend" | "frozen" | "server">(),
+	state: text("state").notNull().default("backend").$type<"backend" | "frozen" | "server" | "returning">(),
 	migrationId: text("migration_id").notNull(),
 	updatedAt: timestamp("updated_at").notNull(),
-}, (t) => [check("project_draft_storage_state_check", sql`${t.state} IN ('backend', 'frozen', 'server')`)]);
+}, (t) => [check("project_draft_storage_state_check", sql`${t.state} IN ('backend', 'frozen', 'server', 'returning')`)]);
 
 export const projectDraftOperations = pgTable("project_draft_operations", {
 	projectId: text("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),

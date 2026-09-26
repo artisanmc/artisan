@@ -5,7 +5,7 @@ import type { Project } from "../projectStorage";
 import { projectDiskId } from "../projectStorage";
 import type { DraftStore, DraftOutcome } from "./DraftStore";
 import type { ProjectStorage } from "./ProjectStorage";
-import { LegacyDraftStore } from "./LegacyDraftStore";
+import { SqlDraftStore } from "./SqlDraftStore";
 import { ServerDraftStore } from "./ServerDraftStore";
 import { ReceiptDraftStore } from "./ReceiptDraftStore";
 
@@ -24,7 +24,8 @@ class PendingDraftStore implements DraftStore {
 export async function resolveDraftStore(project: Project, ownerId: string, storage: ProjectStorage): Promise<DraftStore> {
   await db.insert(projectDraftStorage).values({ projectId: project.id, state: "backend", migrationId: crypto.randomUUID(), updatedAt: new Date() }).onConflictDoNothing();
   const [gate] = await db.select().from(projectDraftStorage).where(eq(projectDraftStorage.projectId, project.id));
-  if (gate?.state === "frozen") return new PendingDraftStore();
+  if (gate?.state === "frozen" || gate?.state === "returning") return new PendingDraftStore();
+  // Encore sur le disque, en attendant le rapatriement (`resumeServerDrafts`).
   if (gate?.state === "server" && project.serverKeyId) return new ReceiptDraftStore(project.id, ownerId, new ServerDraftStore(project.serverKeyId, projectDiskId(project), ownerId));
-  return new LegacyDraftStore(project.id, ownerId, storage);
+  return new SqlDraftStore(project.id, ownerId, storage);
 }

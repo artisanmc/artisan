@@ -68,6 +68,9 @@ Negotiated in `hello.capabilities`. `project_draft_request` carries `request_id`
 Correlation is bound to the exact authenticated plugin connection.
 Actions: `list/read/create/update/discard/publish/write_blob/read_blob`;
 backend-only migration actions: `import/list_all/purge_owner`.
+**Depuis 2026-09-26** (ADR `snapshot-mirror-and-backend-history`), le backend ne s'en sert
+plus que pour rapatrier les brouillons encore sur disque (`list_all`, `read_blob`) et purger
+ceux des comptes supprimés (`purge_owner`) ; les brouillons vivent dans `project_drafts`.
 Mutations carry `operation_id`; existing draft changes carry `expected_revision`.
 `create/update` carry `draft_id,name,snapshot`; `import` carries the full `draft`.
 The `artisan-draft/v1` envelope has no project ID and preserves owner, revision,

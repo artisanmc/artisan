@@ -13,6 +13,8 @@ type Session = {
   active?: api.PersistedDraft;
   status: "saved" | "pending" | "saving" | "offline" | "conflict" | "migration_pending";
   error?: string;
+  /** Conflits trouvés à l'ouverture (ADR `snapshot-mirror-and-backend-history`), à trancher une fois. */
+  openConflicts?: api.PersistedDraft["conflicts"];
 };
 export const usePersistedDraftStore = create<{ sessions: Record<string, Session> }>(() => ({
   sessions: {},
@@ -79,6 +81,10 @@ export async function loadPersistedDrafts(projectId: string, ownerId: string): P
     ) {
       install(projectId, active);
       status = "saved";
+      if (active.conflicts?.length) {
+        setSession(projectId, { ownerId, drafts, active, status, openConflicts: active.conflicts });
+        return;
+      }
     } else if (current?.remote && (!active || active.revision !== current.remote.revision))
       status = "conflict";
     setSession(projectId, { ownerId, drafts, active, status });
@@ -192,7 +198,13 @@ export async function selectPersistedDraft(projectId: string, id: string): Promi
     throw new Error("draft_unavailable");
   if (useProjectDraftStore.getState().get(projectId) !== before) throw new Error("draft_changed");
   install(projectId, draft);
-  setSession(projectId, { ...session, active: draft, status: "saved" });
+  setSession(projectId, { ...session, active: draft, status: "saved", openConflicts: draft.conflicts });
+}
+
+/** La modale a pris les conflits d'ouverture : ils ne se représentent plus. */
+export function consumeOpenConflicts(projectId: string): void {
+  const session = usePersistedDraftStore.getState().sessions[projectId];
+  if (session?.openConflicts) setSession(projectId, { ...session, openConflicts: undefined });
 }
 
 export async function discardPersistedDraft(projectId: string): Promise<void> {

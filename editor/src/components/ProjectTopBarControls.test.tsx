@@ -1,4 +1,6 @@
+import { usePersistedDraftStore } from "@/features/project/persistedDrafts";
 import * as diskSave from "@/features/project/saveProjectToDisk";
+import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { mockAccount } from "@/mock/fixtures";
 import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
@@ -60,6 +62,55 @@ describe("ProjectTopBarControls", () => {
         useAccountStore.setState({ account: previousAccount });
         useAuthStore.setState({ currentUser: previousUser });
         useProjectDraftStore.getState().clear(project.id);
+      });
+    }
+  });
+  it("opens the conflicts found when the draft opens, and applying them publishes nothing", async () => {
+    const previousAccount = useAccountStore.getState().account;
+    const previousUser = useAuthStore.getState().currentUser;
+    const account = mockAccount();
+    const project = account.projects[0]!;
+    const mine = diskSave.projectTree(project)["manifest.yaml"]!;
+    const save = vi.spyOn(diskSave, "saveProjectToDisk");
+    try {
+      useAccountStore.setState({ account });
+      useAuthStore.setState({
+        currentUser: { id: "open-user", email: "open@example.test", name: "Open", avatarUrl: null },
+      });
+      useProjectBaselineStore.getState().set(project.id, { "manifest.yaml": "name: Base\n" });
+      useProjectDraftStore.getState().save(project.id, {
+        baseline: { "manifest.yaml": "name: Base\n" },
+        tree: { "manifest.yaml": mine },
+        at: 1,
+      });
+      usePersistedDraftStore.setState({
+        sessions: {
+          [project.id]: {
+            ownerId: "open-user",
+            drafts: [],
+            status: "saved",
+            openConflicts: [{ path: "manifest.yaml", disk: "name: Remote shop\n" }],
+          },
+        },
+      });
+      render(<ProjectTopBarControls project={project} projectId={project.id} />);
+      const dialog = await screen.findByRole("dialog");
+      expect(within(dialog).getByText("name: Remote shop")).toBeInTheDocument();
+      fireEvent.click(within(dialog).getByRole("button", { name: /Keep mine|Garder ma version/ }));
+      fireEvent.click(within(dialog).getByRole("button", { name: /^(Apply|Appliquer)$/ }));
+      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+      expect(save).not.toHaveBeenCalled();
+      expect(useProjectDraftStore.getState().get(project.id)?.baseline).toEqual({
+        "manifest.yaml": "name: Remote shop\n",
+      });
+      expect(usePersistedDraftStore.getState().sessions[project.id]?.openConflicts).toBeUndefined();
+    } finally {
+      save.mockRestore();
+      act(() => {
+        useAccountStore.setState({ account: previousAccount });
+        useAuthStore.setState({ currentUser: previousUser });
+        useProjectDraftStore.getState().clear(project.id);
+        usePersistedDraftStore.setState({ sessions: {} });
       });
     }
   });

@@ -21,6 +21,8 @@ export interface StoredDraft {
   source: string;
   createdAt: string;
   updatedAt: string;
+  /** Fichiers modifiés des deux côtés depuis la base, à l'ouverture (jamais stocké). */
+  conflicts?: { path: string; disk: string | null }[];
 }
 export interface DraftResult {
   ok: boolean;
