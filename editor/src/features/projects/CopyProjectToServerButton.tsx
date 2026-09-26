@@ -115,7 +115,7 @@ function CopyProjectDialog({ ownerId, projectId }: { ownerId: string; projectId:
       if (!current()) return;
       setPending(result);
       if (result.operation.state === "completed" && !result.operation.error) openCopy(result);
-      if (result.operation.state === "failed") setError(result.operation.error ?? "copy_failed");
+      if (result.operation.error && result.operation.error !== "resource_pack_pending") setError(result.operation.error);
     } catch (failure) {
       if (!current()) return;
       setPending(getPendingProjectCopy(ownerId, projectId));

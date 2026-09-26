@@ -282,9 +282,12 @@ export function CreditsPage() {
               </CardHeader>
               <CardContent className="flex flex-col gap-1">
                 <p className="text-[13px] text-[var(--text)]">
-                  {t("billing.page.creditsFor", {
-                    credits: formatCredits(plan.creditsPerPeriod, i18n.language),
-                  })}
+                  {t(
+                    plan.editorPro ? "billing.page.proMonthlyCredits" : "billing.page.creditsFor",
+                    {
+                      credits: formatCredits(plan.creditsPerPeriod, i18n.language),
+                    },
+                  )}
                 </p>
                 {plan.features && (
                   <p className="text-[12.5px] text-[var(--text-mut)]">{plan.features}</p>

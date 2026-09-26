@@ -173,6 +173,14 @@ describe("CreditsPage", () => {
     expect(await screen.findByText(/\/an/)).toBeTruthy();
   });
 
+  it("labels annual Pro credits as a monthly grant", async () => {
+    signedIn();
+    const billing = await import("@/lib/api/billing");
+    vi.mocked(billing.getPlans).mockResolvedValueOnce([{ id: "pro-year", name: "Artisan Pro", interval: "year", priceCents: 7000, currency: "eur", creditsPerPeriod: 500, rolloverCap: 0, features: "", editorPro: true }]);
+    render(<CreditsPage />);
+    expect(await screen.findByText(/500 crédits IA chaque mois/i)).toBeVisible();
+  });
+
   it("translates a past_due subscription status + shows the grace window (never the raw enum)", async () => {
     signedIn();
     const billing = await import("@/lib/api/billing");

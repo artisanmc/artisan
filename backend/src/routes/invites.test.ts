@@ -7,7 +7,8 @@ import { invitesRouter } from "./invites";
 import { userAuth } from "../middleware/userAuth";
 import { createSession } from "../lib/sessionManager";
 import { createNetwork } from "../lib/networkManager";
-import { createInvite, revokeInvite } from "../lib/inviteStorage";
+import { createInvite, getInviteByCode, revokeInvite } from "../lib/inviteStorage";
+import { addMembership } from "../lib/membershipManager";
 import { eq } from "drizzle-orm";
 
 async function clearAll() {
@@ -93,6 +94,22 @@ describe("invitesRouter", () => {
     const memberRows = await db.select().from(memberships).where(eq(memberships.userId, "newbie"));
     expect(memberRows).toHaveLength(1);
     expect(memberRows[0]!.role).toBe("member");
+  });
+
+  test("POST /:code/accept — 409 when the Free collaborator limit is reached without using the invite", async () => {
+    const net = await createNetwork("Full team");
+    const { userId: ownerId } = await seedUser("owner1");
+    await addMembership(ownerId, net.id, "owner");
+    for (const id of ["member1", "member2"]) {
+      await seedUser(id);
+      await addMembership(id, net.id, "member");
+    }
+    const { sessionId } = await seedUser("third");
+    const invite = await createInvite({ networkId: net.id, createdBy: ownerId, maxUses: 1 });
+    const res = await makeApp().request(`/api/v1/invites/${invite.code}/accept`, { method: "POST", headers: { Cookie: `artisan_user_session=${sessionId}` } });
+    expect(res.status).toBe(409);
+    expect((await res.json()).error).toBe("collaborator_limit_reached");
+    expect((await getInviteByCode(invite.code))?.usedCount).toBe(0);
   });
 
   test("POST /:code/accept — already_member true, no error, no duplicate row", async () => {

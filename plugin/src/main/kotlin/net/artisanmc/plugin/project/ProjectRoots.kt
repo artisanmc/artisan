@@ -34,6 +34,7 @@ class ProjectRoots(
     }
 
     fun isRegistered(projectId: String): Boolean = registered.keys.any { it.equals(projectId, ignoreCase = File.separatorChar == '\\') }
+    fun registeredRoots(): Map<String, File> = registered.toMap()
 
     fun descriptors(): List<Map<String, String>> = all().keys.map {
         mapOf("project_id" to it, "identity" to if (isRegistered(it)) "addon" else "folder")

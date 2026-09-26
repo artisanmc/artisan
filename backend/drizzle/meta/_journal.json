@@ -365,6 +365,34 @@
       "when": 1790323875957,
       "tag": "0051_robust_bloodaxe",
       "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "7",
+      "when": 1790345672224,
+      "tag": "0052_fair_marrow",
+      "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1790348496512,
+      "tag": "0053_productive_marrow",
+      "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1790349641366,
+      "tag": "0054_living_mantis",
+      "breakpoints": true
+    },
+    {
+      "idx": 55,
+      "version": "7",
+      "when": 1790414118036,
+      "tag": "0055_fluffy_paper_doll",
+      "breakpoints": true
     }
   ]
 }
