@@ -12,15 +12,19 @@ export function NewServerModal({ open, onOpenChange, onCreate }: Props) {
   const { t } = useTranslation();
   const [label, setLabel] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const submit = async () => {
     const trimmed = label.trim();
     if (!trimmed) return;
     setSubmitting(true);
+    setError(null);
     try {
       await onCreate(trimmed);
       setLabel("");
       onOpenChange(false);
+    } catch (failure) {
+      setError(failure instanceof Error && failure.message === "server_limit_reached" ? "limit" : "generic");
     } finally {
       setSubmitting(false);
     }
@@ -42,6 +46,7 @@ export function NewServerModal({ open, onOpenChange, onCreate }: Props) {
             autoFocus
           />
         </label>
+        {error && <p role="alert" className="text-sm text-[var(--danger)]">{t(`newServerModal.${error}`)}</p>}
         <div className="mt-3 flex justify-end gap-2">
           <button className="btn btn-sm btn-ghost" onClick={() => onOpenChange(false)}>
             {t("newServerModal.cancel")}

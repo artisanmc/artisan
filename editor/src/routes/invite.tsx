@@ -14,6 +14,7 @@ export const Route = createFileRoute("/invite")({ component: InviteRoute });
 type ViewState =
   | "loading"
   | "not_found"
+  | "limit"
   | "error"
   | { kind: "preview"; data: InvitePreview }
   | { kind: "already_member"; networkId: string };
@@ -51,7 +52,9 @@ function InviteRoute() {
       }
     } catch (err) {
       if (err instanceof AcceptInviteError) {
-        if (err.code === "revoked" || err.code === "expired" || err.code === "exhausted") {
+        if (err.code === "collaborator_limit_reached") {
+          setState("limit");
+        } else if (err.code === "revoked" || err.code === "expired" || err.code === "exhausted") {
           setState({
             kind: "preview",
             data: { status: err.code, networkName: null, role: "" },
@@ -76,6 +79,7 @@ function InviteRoute() {
       {state === "loading" && <SimpleCard label={t("invitePage.loading")} />}
       {state === "not_found" && <SimpleCard tone="brick" title={t("invitePage.notFound")} />}
       {state === "error" && <SimpleCard tone="brick" title={t("invitePage.error")} />}
+      {state === "limit" && <SimpleCard tone="brick" title={t("invitePage.limit")} />}
 
       {typeof state === "object" && state.kind === "already_member" && (
         <div className="card flex flex-col gap-4 p-7">

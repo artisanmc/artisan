@@ -23,6 +23,7 @@ const plan: AdminPlan = {
   features: "First benefit\nSecond benefit",
   description: "For your network",
   highlighted: true,
+  editorPro: false,
   isActive: true,
   sortOrder: 2,
   stripePriceId: "price_pro",
@@ -34,6 +35,11 @@ const plan: AdminPlan = {
 afterEach(() => vi.clearAllMocks());
 
 describe("PlanForm", () => {
+  it("defaults new subscription offers to EUR", () => {
+    render(<PlanForm open plan={null} onClose={vi.fn()} onSaved={vi.fn()} />);
+    expect(screen.getByRole("textbox", { name: /devise/i })).toHaveValue("eur");
+  });
+
   it("keeps the presentation editable and allows retry after a connection error", async () => {
     updateMock
       .mockRejectedValueOnce(new Error("offline"))
@@ -76,6 +82,7 @@ describe("PlanForm", () => {
         rolloverCap: 0,
         description: "A public description",
         highlighted: false,
+        editorPro: false,
         features: "Benefit one\nBenefit two",
         sortOrder: 2,
         isActive: true,

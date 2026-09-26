@@ -48,6 +48,7 @@ import { ProjectLibraryWorkspace } from "@/features/project/ProjectLibrary";
 import { ProjectLoadingSkeleton } from "@/features/project/ProjectLoadingSkeleton";
 import { ProjectPanel } from "@/features/project/ProjectPanel";
 import { ProjectStaleNotice } from "@/features/project/ProjectStaleNotice";
+import { EditorAccessNotice } from "@/features/project/EditorAccessNotice";
 import { ProjectWorkspacePanels } from "@/features/project/ProjectWorkspacePanels";
 import { useProjectLoader } from "@/features/project/useProjectLoader";
 import { useWorkspaceTabShortcuts } from "@/features/project/useWorkspaceTabShortcuts";
@@ -579,6 +580,7 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
           L-shaped frame. */}
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:rounded-tl-[var(--r-lg)] lg:border-t lg:border-l lg:border-[var(--border-soft)]">
         {staleBanner}
+        {project?.serverKeyId && <EditorAccessNotice projectId={project.id} />}
         {tabContent}
       </div>
     </main>

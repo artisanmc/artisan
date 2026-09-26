@@ -11,6 +11,7 @@ import {
 	memberships,
 	networkAccessRequests,
 	networkInvites,
+	networkBilling,
 	networks,
 	projects,
 	serverDataSources,
@@ -44,7 +45,9 @@ import { ensureProjectForServer, getProject, listProjectsForNetwork, projectDisk
 import { pendingProjectRenames } from "../lib/projectRename";
 import { resolveNetworkForMember } from "../lib/refs";
 import { slugify } from "../lib/slug";
-import { allocServerSlug } from "../lib/slugAlloc";
+import { hasProAccess } from "../modules/billing/resourceQuota";
+import { planLimits, PlanLimitError, withinPlanLimit } from "../modules/billing/planLimits";
+import { uniqueSlug } from "../lib/slug";
 import type { AuthUser } from "../middleware/userAuth";
 import { getCachedAsset, putCachedAsset } from "../lib/assetCache";
 import {
@@ -477,18 +480,19 @@ userNetworksRouter.post(
 		}
 		const label = typeof body.label === "string" ? body.label : null;
 
-		const slug = await allocServerSlug(networkId, label);
-		// Created unredeemed (hash NULL, no secret): the admin runs
-		// `/artisan link <code>` on the server, which mints + returns the secret.
-		const id = "srv_" + Array.from(crypto.getRandomValues(new Uint8Array(6)), (b) => b.toString(16).padStart(2, "0")).join("");
-		await db.insert(serverKeys).values({
-			id,
-			hash: null,
-			label,
-			slug,
-			networkId,
-			createdAt: new Date(),
+		const created = await withNetworkMemberLock(networkId, async (tx) => {
+			const [billing] = await tx.select().from(networkBilling).where(eq(networkBilling.networkId, networkId));
+			const limit = hasProAccess(billing) ? planLimits.pro.servers : planLimits.free.servers;
+			const existing = await tx.select({ id: serverKeys.id, slug: serverKeys.slug }).from(serverKeys).where(eq(serverKeys.networkId, networkId));
+			if (!withinPlanLimit(existing.length, limit)) return null;
+			const taken = existing.map((entry) => entry.slug).filter((value): value is string => !!value);
+			const slug = uniqueSlug(slugify(label ?? "server", "server"), taken);
+			const id = "srv_" + Array.from(crypto.getRandomValues(new Uint8Array(6)), (b) => b.toString(16).padStart(2, "0")).join("");
+			await tx.insert(serverKeys).values({ id, hash: null, label, slug, networkId, createdAt: new Date() });
+			return { id, slug };
 		});
+		if (!created) return c.json({ error: "server_limit_reached" }, 409);
+		const { id, slug } = created;
 		const { code, expiresAt } = await mintLinkCode(id);
 		return c.json({ id, label, slug, code, expires_at: expiresAt.toISOString() }, 201);
 	},
@@ -1329,7 +1333,7 @@ userNetworksRouter.post(
 		const r = outcome.result;
 		if (!r.ok) {
 			const error = r.error ?? "write_error";
-			const status = error === "unknown_project" ? 404 : error === "invalid_path" ? 422 : 502;
+			const status = error === "unknown_project" ? 404 : error === "invalid_path" ? 422 : error === "quota_denied" ? 403 : error === "inventory_unavailable" || error === "plugin_update_required" ? 503 : 502;
 			return c.json({ error, message: r.message ?? null }, status);
 		}
 
@@ -1986,7 +1990,10 @@ userNetworksRouter.post(
 			);
 		if (rows.length === 0) return c.json({ error: "not_found" }, 404);
 
-		const result = await resolveRequest(requestId, { approve: true, resolvedBy: userId });
+		const result = await resolveRequest(requestId, { approve: true, resolvedBy: userId }).catch((error) => {
+			if (error instanceof PlanLimitError) return { error: error.code } as const;
+			throw error;
+		});
 		if ("error" in result) return c.json({ error: result.error }, 409);
 		return c.json({ status: result.status });
 	},

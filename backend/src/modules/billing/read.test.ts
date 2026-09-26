@@ -97,6 +97,19 @@ describe("billing read routes", () => {
 		expect(out.status).toBe(403);
 	});
 
+	it("GET /billing/balance reports the monthly credit reset for an annual paid cycle", async () => {
+		const start = new Date("2026-01-31T00:00:00Z");
+		const paidThrough = new Date("2027-01-31T00:00:00Z");
+		const [original] = await db.select({ currentPeriodEnd: networkBilling.currentPeriodEnd }).from(networkBilling).where(eq(networkBilling.networkId, networkId));
+		await db.update(networkBilling).set({ creditCycleStart: start, creditMonthIndex: 0, paidThrough, currentPeriodEnd: paidThrough }).where(eq(networkBilling.networkId, networkId));
+		try {
+			const res = await app.request(`/api/v1/billing/balance?networkId=${networkId}`, { headers: cookie(userSession) });
+			expect((await res.json()).periodEnd).toBe("2026-02-28T00:00:00.000Z");
+		} finally {
+			await db.update(networkBilling).set({ creditCycleStart: null, creditMonthIndex: null, paidThrough: null, currentPeriodEnd: original.currentPeriodEnd }).where(eq(networkBilling.networkId, networkId));
+		}
+	});
+
 	it("GET /billing/packs lists active packs with creditsGranted (bonus applied), no Stripe ids", async () => {
 		const res = await app.request("/api/v1/billing/packs", { headers: cookie(userSession) });
 		expect(res.status).toBe(200);

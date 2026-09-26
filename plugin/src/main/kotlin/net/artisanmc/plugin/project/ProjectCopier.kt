@@ -50,7 +50,7 @@ class ProjectCopier(private val roots: ProjectRoots, private val limits: Limits 
     fun isPending(id: String) = quarantinedTargets.any { it.equals(id, ignoreCase = File.separatorChar == '\\') } ||
         File(roots.coreRoot,"$id/.artisan/copy-operation.json").exists() || operations.values.any { it["target_id"].asText().equals(id, ignoreCase = File.separatorChar == '\\') && it["state"].asText() in setOf("staging", "activating") }
 
-    fun handle(request: JsonNode, minecraftVersion: String, modules: Set<String>): Map<String, Any> {
+    fun handle(request: JsonNode, minecraftVersion: String, modules: Set<String>, beforeCommit: (String, List<String>) -> String? = { _, _ -> null }): Map<String, Any> {
         val id = request.path("operation_id").asText()
         val target = request.path("target_id").asText()
         val fingerprint = request.path("fingerprint").asText()
@@ -83,6 +83,7 @@ class ProjectCopier(private val roots: ProjectRoots, private val limits: Limits 
                 "commit" -> {
                     require(op != null) { "unknown_operation" }
                     if (op!!["state"].asText() == "staging") {
+                        beforeCommit(target, op!!["files"].map { it["path"].asText() })?.let { error(it) }
                         verify(op!!, tree(id))
                         val marker = ProjectPathPolicy.resolve(tree(id), ".artisan/copy-operation.json")
                         marker.parentFile.mkdirs(); writeSynced(marker, id.toByteArray())

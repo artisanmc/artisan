@@ -1,0 +1,1 @@
+ALTER TABLE "network_billing" ADD COLUMN "paid_through" timestamp;
