@@ -203,6 +203,17 @@ Les états sont `active`, `published`, `discarded` ; les états terminaux resten
 consultables, sans être repris par la liste active. `source` vaut `editor` pour
 l'API actuelle. Le MCP et ses autorisations déléguées restent à implémenter.
 
+**Retour des brouillons serveur dans le backend (2026-09-26, migration 0057)** :
+`project_draft_blobs(draft_id → project_drafts cascade, hash, content bytea)` garde les
+images **modifiées** d'un brouillon ; une image identique à la base publiée n'a pas
+d'octets privés. `project_draft_storage.state` gagne `returning` : `resumeServerDrafts`
+(au `hello`, au démarrage, à la maintenance) rapatrie les Projects à l'état `server`
+— gel `returning`, `list_all` + `read_blob` vérifiés, insertion et bascule `backend`
+en une transaction. Un ancien gel `frozen` repasse `backend` sans le plugin (la copie
+SQL n'avait jamais été retirée). Les brouillons d'un auteur disparu ne reviennent pas.
+Les copies `.artisan/drafts/` restent sur le disque, jamais relues ; celles des comptes
+supprimés sont toujours purgées (`purge_owner`). ADR `snapshot-mirror-and-backend-history`.
+
 ## Auth & comptes
 
 - **Account deletion** (migration 0038): `account_deletion_tokens` stores one token per User, its SHA-256 hash, the confirmed email, creation time and 30-minute expiry. Resends replace the token after a one-minute cooldown. Confirmation consumes the token and deletes data in one transaction; failure rolls back consumption. Email changes invalidate the link. User deletion cascades sessions, OAuth links and private drafts; explicit cleanup removes personal assistant conversations/uploads/tasks, invitations and transfers, and scrubs usage previews and nullable audit references.

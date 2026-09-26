@@ -130,6 +130,12 @@ remains under `networks/:id/server-keys`; plugin `/link` is unchanged.
   is separate from `edit_content`; current member/owner roles retain both rights.
   No MCP tokens or delegated grants are exposed yet.
   Server drafts now resolve through the bound `ProjectStorage.drafts` port.
+  **2026-09-26** (ADR `snapshot-mirror-and-backend-history`): server-project drafts
+  live in the backend again (`SqlDraftStore`), images included (`POST /:draftId/blobs`,
+  `GET /:draftId/blobs/:hash`). List and read return each active draft **rebased** on
+  the current Snapshot (not persisted): files changed only on the server advance, and
+  files changed on both sides come back in `draft.conflicts: [{path, disk}]`. Publish
+  sends text, images, deletes and renames in one `project_write` with its `operationId`.
   Mutations accept a stable `operationId` retained across retries (old clients
   receive an ID per attempt). Frozen migration returns 503 `draft_migration_pending`;
   migrated offline storage returns 503 `server_offline`, timeout 504 `fetch_timeout`.

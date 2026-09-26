@@ -9,6 +9,11 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Changed — server-project drafts live in the backend again
+
+- Drafts of server projects (and their images) are stored by the backend instead of the server disk; existing drafts are brought back automatically when the server connects, and the copies left under `.artisan/drafts/` are no longer read. Opening a draft now updates the files you did not touch to the server's current version, and shows a per-file choice for files changed on both sides — applying it updates the draft without publishing. Migration `0057` adds `project_draft_blobs`.
+- The server's project list is served from the backend's Snapshot mirror instead of asking the plugin.
+
 ### Added — backend mirror of the server Snapshot
 
 - The backend keeps a copy of what each server has loaded (its Snapshot) and serves project reads from it while the plugin's announced hash still matches, instead of asking the server every time. The server disk stays the source of truth: publishing still writes through the plugin with per-file compare-and-swap. Plugins announce the capability `snapshot_mirror_v1` and send `snapshot_hashes` in `hello`; older plugins keep the previous behaviour. Migration `0056` adds `project_snapshots` and `snapshot_blobs`.

@@ -2,7 +2,7 @@ import { and, eq, lte } from "drizzle-orm";
 import { db } from "../../db";
 import { projectDraftOperations } from "../../db/schema";
 import type { DraftBody, DraftOutcome, DraftStore } from "./DraftStore";
-import { draftOperationFingerprint } from "./LegacyDraftStore";
+import { draftOperationFingerprint } from "./SqlDraftStore";
 
 export async function expireDraftReceipts() {
   await db.update(projectDraftOperations).set({ result: { ok: false, error: "operation_expired" }, expiresAt: null }).where(lte(projectDraftOperations.expiresAt, new Date()));

@@ -1969,6 +1969,9 @@ const fr: typeof en = {
     conflictDiskEmpty: "(vide)",
     conflictApply: "Appliquer",
     conflictAdopted: "Versions du serveur reprises — déploie à nouveau.",
+    conflictOpenBody:
+      "Depuis le début de ton brouillon, ces fichiers ont changé sur le serveur et dans ton brouillon. Ceux que tu n'avais pas touchés ont été mis à jour automatiquement. Choisis, pour chaque fichier, la version à garder.",
+    conflictOpenResolved: "Tes choix sont appliqués au brouillon. Rien n'a été publié.",
     cancel: "Annuler",
   },
   deploy: {
