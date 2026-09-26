@@ -235,4 +235,7 @@ et le sert **sans aller-retour** tant que son hash égale le dernier hash annonc
   côté backend.
 - **Remplissage** : après le `hello` (une fois les identités enregistrées) et à chaque
   `projects_reloaded`, en file séquentielle par serveur.
+- **Liste des Projects** (`GET …/servers/:sid/projects`) : `listProjectsFromSnapshot` rend
+  les ids du dernier `hello`/`projects_reloaded`, sans `project_list`. `resource_inventory`
+  (quota) reste un scan disque en direct via `project_list`.
 - **Ancien plugin** : chemin d'avant inchangé (fusion des lectures en vol + cache 5 s).
