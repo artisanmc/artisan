@@ -109,6 +109,24 @@ class MenuRendererPlayerSlotsTest {
         assertTrue(resynced.isEmpty())
     }
 
+    @Test fun `a click in the menu resends the whole window next tick, the client's prediction is undone`() {
+        val p = player()
+        val sink = RecordingSink()
+        val windows = MenuWindows(sink)
+        val l = listener(MenuSessionStore(), windows, mutableListOf())
+        MenuRenderer.open(p, BundleCompiler.compile(menu("hidden"), emptyMap()), "en", windows = windows)
+        windows.onOpenWindow(p.uniqueId, 5)
+
+        l.onClick(org.bukkit.event.inventory.InventoryClickEvent(
+            p.openInventory, org.bukkit.event.inventory.InventoryType.SlotType.QUICKBAR, 62,
+            org.bukkit.event.inventory.ClickType.LEFT, org.bukkit.event.inventory.InventoryAction.PICKUP_ALL,
+        ))
+        assertTrue(sink.calls.isEmpty())
+        MockBukkit.getMock()!!.scheduler.performOneTick()
+        assertEquals(listOf("all:5"), sink.calls)
+        assertEquals(Material.STONE, sink.allSends.last()[62]?.type)
+    }
+
     @Test fun `quitting forgets the window and the session`() {
         val p = player()
         val windows = MenuWindows(RecordingSink())

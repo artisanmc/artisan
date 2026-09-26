@@ -1,6 +1,7 @@
-import { colsFor, rowsFor } from "@/features/canvas/inventoryTypes";
+import { cellToPosition, positionToCell, slotCount } from "@/features/canvas/inventoryTypes";
 import { formatPositions, parsePositions } from "@/lib/positions";
-import type { Element, InventoryType, Menu } from "./types";
+import { imageButtonArea } from "../../../docs/schema/menu/v1/imageButtonGeometry";
+import type { Element, InventoryType, Menu, PlayerInventoryMode } from "./types";
 export {
   imageButtonSize,
   imageButtonGeometry,
@@ -9,49 +10,54 @@ export {
 export const hasImageButton = (element: Element) =>
   [element.display, ...element.states].some((appearance) => !!appearance.image);
 
+/**
+ * Positions of a `width`×`height` rectangle whose top-left slot is `slot`.
+ * With a hidden bottom, the rectangle may sit in the inventory rows or the
+ * hotbar, never across two sections (cf. imageButtonArea).
+ */
 export function rectanglePositions(
   slot: number,
   width: number,
   height: number,
   type: InventoryType,
   chestRows: number,
+  playerInventory?: PlayerInventoryMode,
 ): string {
-  const cols = colsFor(type);
-  const rows = rowsFor(type, chestRows);
-  if (
-    ![slot, width, height].every(Number.isInteger) ||
-    slot < 0 ||
-    width < 1 ||
-    height < 1 ||
-    (slot % cols) + width > cols ||
-    Math.floor(slot / cols) + height > rows
-  ) {
-    throw new Error("The image button must fit inside the menu.");
+  const fail = () => new Error("The image button must fit inside the menu.");
+  if (![slot, width, height].every(Number.isInteger) || slot < 0 || width < 1 || height < 1)
+    throw fail();
+  const origin = positionToCell(slot, type, chestRows);
+  const slots: number[] = [];
+  for (let row = 0; row < height; row++) {
+    for (let col = 0; col < width; col++) {
+      const position = cellToPosition(
+        { col: origin.col + col, row: origin.row + row },
+        type,
+        chestRows,
+        playerInventory,
+      );
+      if (position === null) throw fail();
+      slots.push(position);
+    }
   }
-  return formatPositions(
-    Array.from({ length: height }, (_, row) =>
-      Array.from({ length: width }, (_, col) => slot + row * cols + col),
-    ).flat(),
-  );
+  if (!imageButtonArea(slots, type, slotCount(type, chestRows), playerInventory === "hidden"))
+    throw fail();
+  return formatPositions(slots.sort((a, b) => a - b));
 }
 
-export function imageButtonRect(positions: string, type: InventoryType, chestRows: number) {
-  const slots = parsePositions(positions);
-  const cols = colsFor(type);
-  if (
-    !slots.length ||
-    slots.some(
-      (slot) => !Number.isInteger(slot) || slot < 0 || slot >= cols * rowsFor(type, chestRows),
-    )
-  )
-    return null;
-  const left = Math.min(...slots.map((slot) => slot % cols));
-  const right = Math.max(...slots.map((slot) => slot % cols));
-  const top = Math.floor(slots[0]! / cols);
-  const bottom = Math.floor(slots[slots.length - 1]! / cols);
-  const width = right - left + 1;
-  const height = bottom - top + 1;
-  return slots.length === width * height ? { slot: top * cols + left, width, height } : null;
+/** Rectangle an image button covers and its image origin (MC px), or null. */
+export function imageButtonRect(
+  positions: string,
+  type: InventoryType,
+  chestRows: number,
+  playerInventory?: PlayerInventoryMode,
+) {
+  return imageButtonArea(
+    parsePositions(positions),
+    type,
+    slotCount(type, chestRows),
+    playerInventory === "hidden",
+  );
 }
 
 export function assertImageButtonPlacement(
@@ -62,7 +68,7 @@ export function assertImageButtonPlacement(
 ) {
   if (element.iterates || element.places)
     throw new Error("Image buttons need a fixed rectangular area.");
-  if (!imageButtonRect(positions, menu.inventoryType ?? "chest", menu.rows))
+  if (!imageButtonRect(positions, menu.inventoryType ?? "chest", menu.rows, menu.playerInventory))
     throw new Error("The image button must cover a rectangle inside the menu.");
   const slots = new Set(parsePositions(positions));
   for (const other of menu.layers.flatMap((layer) => layer.elements)) {

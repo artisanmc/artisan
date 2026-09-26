@@ -4,7 +4,7 @@ import hopperTextureUrl from "@/assets/minecraft/hopper.png";
 import type { Project } from "@/domain/types";
 import type { InventoryType } from "@/domain/types";
 import type { Box } from "./edgeRouting";
-import { INVENTORY_TYPES, slotMcXY } from "./inventoryTypes";
+import { INVENTORY_TYPES, positionCount, slotMcXY } from "./inventoryTypes";
 
 /**
  * Menu rendering geometry — based on the vanilla Minecraft chest GUI texture
@@ -130,11 +130,13 @@ export const singleBackgroundCrop = (type: InventoryType) => ({
 export { slotCount } from "./inventoryTypes";
 
 /**
- * Faint guides for a chest whose vanilla texture is off (`vanilla_texture:
- * false`): the window box and every slot cell — menu rows and the 36 player
+ * Faint guides for a menu whose vanilla texture is off (`vanilla_texture:
+ * false`): the window box and every slot cell — menu slots and the 36 player
  * slots, which stay in game (transparent) whatever `player_inventory` says.
  */
-export const transparentOutline = (rows: number) => ({
-  box: menuBoxSize("chest", rows),
-  cells: Array.from({ length: rows * 9 + 36 }, (_, i) => slotXY(i, "chest", rows)),
+export const transparentOutline = (type: InventoryType, rows: number) => ({
+  box: menuBoxSize(type, rows),
+  cells: Array.from({ length: positionCount(type, rows, "hidden") }, (_, i) =>
+    slotXY(i, type, rows),
+  ),
 });

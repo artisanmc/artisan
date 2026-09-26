@@ -18,6 +18,14 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 - New optional `menu/v1` field `vanilla_texture` (default `true`). Turned off on a chest menu, the whole window becomes transparent in game so the menu can bring its own texture through title images. The editor shows it as the first, fixed **Default texture** row of composed titles, with faint slot outlines on the canvas when off.
 - Since the chest texture is shared by every chest, the resource pack makes it transparent server-wide and the plugin draws the vanilla texture back into the title of every other chest window — only for players who loaded the pack. Every pack now ships the `artisan:vanilla_gui` font for this.
 - Resources can be marked **Chest texture** (`chest_texture` usage): a `generic_54.png` layout (HD multiples supported) that replaces the vanilla texture for those redrawn chests, so a server pack that restyles chests keeps its look.
+- Hopper and dropper menus can turn their texture off too, independently of chests (the pack overrides `hopper.png` / `dispenser.png` only when needed; dispensers and droppers share one texture). Resources gain **Hopper texture** and **Dispenser texture** uses, and the asset index adds `vanilla_gui.transparent_hoppers|dispensers`.
+- Transparent containers only reach servers whose plugin announces `vanilla_gui_v1`: a server still on an older jar keeps its vanilla textures and ignores the new menu settings until it updates.
+- Image buttons can sit in the inventory rows or the hotbar of a menu with a hidden bottom (one section at a time). The rectangle rule is shared by the editor and the backend (`imageButtonArea`) and mirrored by the plugin.
+
+### Fixed — clicks in hidden player slots
+
+- Clicking or dragging in an Artisan menu resends the whole window next tick, so a button in a hidden player slot no longer disappears under the client's click prediction. Every resource pack status is now logged.
+- The plugin bundles the `examination` library (relocated), which Paper 26.x no longer provides; without it PacketEvents failed to load and menus opened empty.
 
 ### Fixed — chest background alignment in the editor
 

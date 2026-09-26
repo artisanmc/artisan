@@ -1,4 +1,5 @@
 import type { AssetRow } from "./fontJsonBuilder";
+import type { GuiContainer } from "./vanillaGui";
 import { spaceOffsetTable } from "./spaceOffsets";
 
 export interface AssetIndexEntry {
@@ -31,15 +32,15 @@ export interface AssetIndex {
   offsets: Record<string, number>;
   /**
    * Present when the pack ships the `artisan:vanilla_gui` font. The plugin
-   * prepends the chest glyph to OPEN_WINDOW titles only when
-   * `transparent_chests` is true (the pack then overrides generic_54.png).
+   * prepends a container's glyph to OPEN_WINDOW titles only when the pack
+   * overrides that container's texture (generic_54 / hopper / dispenser.png).
    */
-  vanilla_gui?: { transparent_chests: boolean };
+  vanilla_gui?: { transparent_chests: boolean; transparent_hoppers: boolean; transparent_dispensers: boolean };
 }
 
 export function buildAssetIndex(
   assets: AssetRow[],
-  vanillaGui?: { transparentChests: boolean },
+  transparentContainers?: ReadonlySet<GuiContainer>,
 ): AssetIndex {
   const out: Record<string, AssetIndexEntry> = {};
   for (const a of assets) {
@@ -69,6 +70,12 @@ export function buildAssetIndex(
   }
 
   const index: AssetIndex = { version: 2, assets: out, offsets };
-  if (vanillaGui) index.vanilla_gui = { transparent_chests: vanillaGui.transparentChests };
+  if (transparentContainers) {
+    index.vanilla_gui = {
+      transparent_chests: transparentContainers.has("chest"),
+      transparent_hoppers: transparentContainers.has("hopper"),
+      transparent_dispensers: transparentContainers.has("dispenser"),
+    };
+  }
   return index;
 }

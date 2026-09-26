@@ -157,33 +157,40 @@ le mettre à jour, puis de passer la checklist manuelle de `testing.md`.
 - Sans PacketEvents opérationnel (échec de `load`/`init`, loggé en SEVERE ; cas de MockBukkit en
   test), les menus s'ouvrent **vides** : clics et sessions restent actifs.
 
-## Coffres transparents : global côté pack, réinjectés par le titre
+## Conteneurs transparents : globaux côté pack, réinjectés par le titre
 
-`vanilla_texture: false` (coffre uniquement) ne peut pas être local à un menu : le client dessine
-`generic_54.png` pour **toutes** les fenêtres de coffre. Le pack (backend `vanillaGui.ts`) la
-remplace donc par une texture transparente dès qu'**un** menu d'un projet lié au serveur l'utilise,
-et signale `vanilla_gui.transparent_chests` dans `asset-index.json`.
+`vanilla_texture: false` ne peut pas être local à un menu : le client dessine la même texture pour
+**toutes** les fenêtres d'un type — `generic_54.png` (coffres, tonneaux, ender chests, menus 9×N),
+`hopper.png` (entonnoirs), `dispenser.png` (distributeurs **et** droppers). Le pack (backend
+`vanillaGui.ts`) remplace donc par une texture transparente celle de chaque type dont **un** menu
+d'un projet lié au serveur l'utilise (coffre / entonnoir / dropper, indépendamment), et le signale
+dans `asset-index.json` : `vanilla_gui.transparent_chests|hoppers|dispensers`.
 
 - **Chaque pack** embarque la police `artisan:vanilla_gui` : 6 glyphs `generic_9x1..6` découpées
-  comme `ChestScreen` (haut `0..17+18N`, bas depuis y=126 sur 96 px), `ascent 13` (haut à y=0),
-  plus deux espaces (−8 vers x=0, puis retour à l'origine du titre, calculé sur la largeur réelle).
-- **Le plugin réinjecte** (`VanillaGuiTitle`, dans `PacketEventsMenuPackets.onOpenWindow`) : titre
-  `OPEN_WINDOW` des types `generic_9x1..6` (ids 0..5) = préfixe glyph + titre d'origine intact. Pour
-  un joueur seulement si `PackLoadTracker` l'a vu charger le pack Artisan (id poussé, ou n'importe
-  quel pack en délégation) **et** si le catalogue courant a `transparent_chests`. Sinon la glyph
-  s'afficherait en caractère manquant. Un menu Artisan en `vanilla_texture: false` n'est pas décoré.
+  comme `ChestScreen` (haut `0..17+18N`, bas depuis y=126 sur 96 px), `hopper` (176×133) et
+  `dispenser` (176×166) = la boîte complète ; `ascent 13` (haut à y=0), plus les espaces de recalage
+  (−8 vers x=0, puis retour à l'origine du titre, calculé sur la largeur réelle). Codepoints : 1..6
+  coffre, 7 entonnoir, 8 distributeur.
+- **Le plugin réinjecte** (`VanillaGuiTitle`, dans `PacketEventsMenuPackets.onOpenWindow`) : préfixe
+  glyph + titre d'origine intact. Les coffres sont reconnus par leur type protocole `generic_9x1..6`
+  (ids 0..5, stables) ; entonnoirs et distributeurs/droppers par le type Bukkit de l'inventaire qui
+  vient de s'ouvrir (`OpenedContainers`, `InventoryOpenEvent` juste avant le paquet), leurs ids
+  protocole bougeant d'une version à l'autre. Pour un joueur seulement si `PackLoadTracker` l'a vu
+  charger le pack Artisan (id poussé, ou n'importe quel pack en délégation) **et** si le catalogue
+  courant rend ce type transparent. Sinon la glyph s'afficherait en caractère manquant. Un menu
+  Artisan en `vanilla_texture: false` n'est pas décoré.
 - **Transitoires acceptés** : entre une publication et le rechargement du nouveau pack, un joueur peut
   voir la texture en double (invisible : c'est la même image) ou, si la transparence vient d'être
-  retirée, un coffre transparent jusqu'à ce qu'il reçoive le pack suivant.
-- **Source des glyphs** : `generic_54.png` vanilla (copie de l'éditeur), ou la première image d'un
-  projet lié portant l'usage `chest_texture` (format generic_54, 256×256 ou multiple HD : découpée à
-  son échelle, dessinée à la taille vanilla). Une image marquée au mauvais format est ignorée avec un
-  WARN backend. C'est ainsi qu'un pack **serveur** qui restyle les coffres garde son aspect.
-- Un autre pack serveur qui remplace aussi `generic_54.png` (Nexo, Oraxen, ItemsAdder) : le dernier
-  chargé gagne. Un pack **perso** côté joueur est écrasé (les packs serveur passent au-dessus) et ses
-  coffres redeviennent ceux de la source ci-dessus — limite de l'approche globale, seul un shader
+  retirée, un conteneur transparent jusqu'à ce qu'il reçoive le pack suivant.
+- **Source des glyphs** : la texture vanilla (copie de l'éditeur), ou la première image d'un projet
+  lié portant l'usage `chest_texture` / `hopper_texture` / `dispenser_texture` (format vanilla,
+  256×256 ou multiple HD : découpée à son échelle, dessinée à la taille vanilla). Une image marquée au
+  mauvais format est ignorée avec un WARN backend. C'est ainsi qu'un pack **serveur** qui restyle ces
+  conteneurs garde son aspect.
+- Un autre pack serveur qui remplace aussi ces textures (Nexo, Oraxen, ItemsAdder) : le dernier chargé
+  gagne. Un pack **perso** côté joueur est écrasé (les packs serveur passent au-dessus) et ses
+  conteneurs redeviennent ceux de la source ci-dessus — limite de l'approche globale, seul un shader
   ciblé l'éviterait.
-- Entonnoir / distributeur : hors périmètre (même mécanisme avec `hopper.png` / `dispenser.png`).
 
 ## Custom items — hash inline
 

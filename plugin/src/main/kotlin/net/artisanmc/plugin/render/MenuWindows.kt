@@ -47,6 +47,15 @@ class MenuWindows(private val sink: ClientSlotSink) {
 
         override fun allChanged() {
             converted.clear()
+            resend()
+        }
+
+        /**
+         * Renvoie toute la fenêtre. Après un clic annulé, le client a déjà
+         * prédit son effet (objet pris, slot vidé) et le serveur ne resynchronise
+         * pas toujours par la fenêtre du menu (slots joueur : fenêtre 0, ou rien).
+         */
+        fun resend() {
             if (windowId < 0) return
             val view = player.openInventory
             sink.sendAll(player, windowId, List(slots.size) { i -> if (slots.rewrites(i)) slots[i] else view.getItem(i) })

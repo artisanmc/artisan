@@ -80,8 +80,8 @@ class PacketEventsMenuPackets(
         if (!menuPending && chestTexture == null) return
         val packet = WrapperPlayServerOpenWindow(event)
         if (menuPending) windows.onOpenWindow(playerId, packet.containerId)
-        val rows = chestTexture?.rowsToDecorate(playerId, packet.containerId, packet.type) ?: return
-        packet.title = VanillaGuiTitle.decorate(packet.title, rows)
+        val glyph = chestTexture?.glyphToDecorate(playerId, packet.containerId, packet.type) ?: return
+        packet.title = VanillaGuiTitle.decorate(packet.title, glyph)
         event.markForReEncode(true)
     }
 }

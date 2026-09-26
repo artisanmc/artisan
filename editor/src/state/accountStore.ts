@@ -82,7 +82,6 @@ import type {
 } from "@/domain/types";
 import {
   cellToPosition,
-  colsFor,
   positionToCell,
   slotCount,
 } from "@/features/canvas/inventoryTypes";
@@ -2873,22 +2872,32 @@ export const useAccountStore = create<AccountState>()(
               .find((el) => el.id === elementId);
             if (imageElement && hasImageButton(imageElement)) {
               const type = menu.inventoryType ?? "chest";
-              const rect = imageButtonRect(imageElement.positions, type, menu.rows);
+              const rect = imageButtonRect(
+                imageElement.positions,
+                type,
+                menu.rows,
+                menu.playerInventory,
+              );
               if (!rect) throw new Error("Invalid image button area.");
-              const cols = colsFor(type);
-              const col = (rect.slot % cols) + (toPosition % cols) - (fromPosition % cols);
-              const row =
-                Math.floor(rect.slot / cols) +
-                Math.floor(toPosition / cols) -
-                Math.floor(fromPosition / cols);
-              if (col < 0 || col + rect.width > cols || row < 0)
-                throw new Error("The image button must fit inside the menu.");
+              // Move the rectangle by the drag delta on the visual grid (menu
+              // rows, then the player rows when the bottom is hidden).
+              const origin = positionToCell(rect.slot, type, menu.rows);
+              const from = positionToCell(fromPosition, type, menu.rows);
+              const to = positionToCell(toPosition, type, menu.rows);
+              const target = cellToPosition(
+                { col: origin.col + to.col - from.col, row: origin.row + to.row - from.row },
+                type,
+                menu.rows,
+                menu.playerInventory,
+              );
+              if (target === null) throw new Error("The image button must fit inside the menu.");
               const positions = rectanglePositions(
-                row * cols + col,
+                target,
                 rect.width,
                 rect.height,
                 type,
                 menu.rows,
+                menu.playerInventory,
               );
               assertImageButtonPlacement(menu, imageElement, positions);
               imageElement.positions = positions;
@@ -3475,6 +3484,7 @@ export const useAccountStore = create<AccountState>()(
                 size.height,
                 menu.inventoryType ?? "chest",
                 menu.rows,
+                menu.playerInventory,
               ),
               display: { image: { asset: asset.id, fit: "native" } },
               states: [],

@@ -13,20 +13,23 @@ Remove a layer to remove its image from this menu without deleting the resource.
 ## Default texture
 
 In composed title mode, the first row of the layer list is **Default texture**:
-the vanilla chest background. Turn it off to draw the whole window yourself — the
+the vanilla container background (chest, hopper or dropper). Turn it off to draw the whole window yourself — the
 menu becomes fully transparent in game, including the player inventory part
 (its slots stay usable, just invisible). Add an image layer at `x = 0`, `y = 0`
 to bring your own texture. On the canvas, a dashed outline and faint slot cells
 remain so you can still place buttons.
 
-Every other chest on the server keeps its normal look: players who loaded the
-resource pack get the vanilla texture drawn back through the window title.
+Every other container of that kind on the server keeps its normal look: players
+who loaded the resource pack get the vanilla texture drawn back through the window
+title. Dispensers and droppers share one texture, so a transparent dropper menu
+redraws every dispenser too.
 Players who declined the pack see your menu over the plain vanilla texture.
-If your server's resource pack restyles chests, import that `generic_54.png` in the
-project's **Resources** and tick **Chest texture**: the chests drawn back use it
-instead of the vanilla texture (256×256, or a multiple for an HD pack). A texture
-pack a player picks on their own side is not kept while this is active.
-Chests only for now; switching back to a vanilla title turns the texture on again.
+If your server's resource pack restyles these containers, import its
+`generic_54.png`, `hopper.png` or `dispenser.png` in the project's **Resources** and
+tick **Chest texture**, **Hopper texture** or **Dispenser texture**: the windows
+drawn back use it instead of the vanilla texture (256×256, or a multiple for an HD
+pack). A texture pack a player picks on their own side is not kept while this is
+active. Switching back to a vanilla title turns the texture on again.
 
 ## Text
 

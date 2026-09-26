@@ -152,7 +152,7 @@
     "vanilla_texture": {
       "type": "boolean",
       "default": true,
-      "description": "Texture vanilla du coffre. false (coffre uniquement) : fenêtre transparente, le menu apporte sa propre texture par des glyphs de titre. Le pack rend alors generic_54.png transparent pour tout le serveur et le plugin redessine la texture vanilla sur les autres coffres."
+      "description": "Texture vanilla du conteneur. false : fenêtre transparente (haut et bas), le menu apporte sa propre texture par des glyphs de titre. Le pack rend alors la texture de ce type de conteneur (generic_54 / hopper / dispenser.png) transparente pour tout le serveur, et le plugin la redessine sur les autres fenêtres de ce type."
     },
     "player_inventory": {
       "type": "string",

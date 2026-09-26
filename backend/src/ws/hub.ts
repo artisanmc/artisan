@@ -16,7 +16,7 @@ import {
   projectDiskId,
 } from "../lib/projectStorage";
 import { customItemsCacheDir, readCustomItemsHash, processBundle } from "../lib/customItems";
-import { currentPackInfo, refreshResourcePack } from "../lib/resourcePack";
+import { currentPackInfo, recordVanillaGuiSupport, refreshResourcePack } from "../lib/resourcePack";
 import { invalidateCustomBundle } from "../routes/modelBundle";
 import type {
   HeadTextureResultMessage,
@@ -1085,6 +1085,7 @@ export async function handlePluginMessage(
     else draftConnections.delete(connId);
     if (hello.capabilities?.includes("project_mixed_write_v1")) mixedWriteConnections.add(connId);
     else mixedWriteConnections.delete(connId);
+    const vanillaGuiChanged = recordVanillaGuiSupport(keyId, hello.capabilities?.includes("vanilla_gui_v1") === true);
     await reconcileServerProjectIdentity(keyId, hello);
     const boundProjects = await db.select().from(projects).where(
       and(eq(projects.serverKeyId, keyId), isNull(projects.deletedAt)),
@@ -1135,6 +1136,8 @@ export async function handlePluginMessage(
     setTimeout(() => { void import("../lib/projectDraftMigration").then(({ resumeServerDrafts }) => resumeServerDrafts(keyId)).catch((error) => console.error("[drafts] migration pending", error)); }, 0);
     // Plus rien à pousser après l'ack : le backend n'annonce plus de bundle.
     scheduleCopyMaintenance(keyId);
+    // Jar updated (or rolled back): the transparent container overrides follow it.
+    if (vanillaGuiChanged) setTimeout(() => refreshPackAfterReload(keyId), 0);
     return { reply: JSON.stringify(ack), sessionId, push: [] };
   }
 
