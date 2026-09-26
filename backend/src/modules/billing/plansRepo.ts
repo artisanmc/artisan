@@ -14,6 +14,7 @@ export interface SubscriptionPlan {
 	features: string;
 	description: string;
 	highlighted: boolean;
+	editorPro: boolean;
 	isActive: boolean;
 	sortOrder: number;
 	stripeProductId: string | null;
@@ -31,6 +32,7 @@ export type PlanInput = {
 	features?: string;
 	description?: string;
 	highlighted?: boolean;
+	editorPro?: boolean;
 	isActive?: boolean;
 	sortOrder?: number;
 };
@@ -64,6 +66,7 @@ export async function createPlan(input: PlanInput): Promise<SubscriptionPlan> {
 		features: input.features ?? "",
 		description: input.description ?? "",
 		highlighted: input.highlighted ?? false,
+		editorPro: input.editorPro ?? false,
 		isActive: input.isActive ?? true,
 		sortOrder: input.sortOrder ?? 0,
 		stripeProductId: productId,
@@ -85,6 +88,7 @@ export async function updatePlan(id: string, patch: Partial<PlanInput>): Promise
 	if (patch.features !== undefined) next.features = patch.features;
 	if (patch.description !== undefined) next.description = patch.description;
 	if (patch.highlighted !== undefined) next.highlighted = patch.highlighted;
+	if (patch.editorPro !== undefined) next.editorPro = patch.editorPro;
 	if (patch.isActive !== undefined) next.isActive = patch.isActive;
 	if (patch.sortOrder !== undefined) next.sortOrder = patch.sortOrder;
 	if (patch.currency !== undefined) next.currency = patch.currency;

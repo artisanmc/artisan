@@ -4,6 +4,8 @@ import type { AuthUser } from "../middleware/userAuth";
 import type { ProjectStorage, ProjectWriteBatch } from "../lib/storage/ProjectStorage";
 import { resolveProjectStorage } from "../lib/storage/resolveProjectStorage";
 import {requestProjectPrincipal,demoErrorResponse} from '../middleware/demoAuth';
+import { getServerEditorAccess } from "../modules/billing/editorAccess";
+import { getProject } from "../lib/projectStorage";
 
 type Vars = { user: AuthUser | null };
 
@@ -74,6 +76,8 @@ export async function handleProjectWrite(c: Context, storage: ProjectStorage) {
     const error = r.error ?? "write_error";
     if (["operation_mismatch", "operation_conflict", "operation_expired"].includes(r.message ?? "")) return c.json({ error: r.message }, 409);
     if (error === "conflict") return c.json({ error, conflicts: r.conflicts ?? [], ...(r.disk_files === undefined ? {} : { disk_files: r.disk_files }) }, 409);
+    if (error === "quota_denied") return c.json({ error, reason: r.message, message: r.message }, 403);
+    if (error === "inventory_unavailable") return c.json({ error }, 503);
     return readError(c, error, r.message);
   }
   return c.json({ ok: true });
@@ -86,6 +90,20 @@ export function createProjectContentRouter(resolve: typeof resolveProjectStorage
   router.get("/:projectId/capabilities", async (c) => {
     try { return c.json((await resolve(await requestProjectPrincipal(c,c.req.param('projectId')), c.req.param("projectId"))).capabilities); }
     catch (error) { const code = record(error) ? error.code : "storage_unavailable"; return c.json({ error: code }, code === 'unauthorized'?401:code==='demo_expired'?410:code === "not_found" ? 404 : code === "forbidden" ? 403 : 503); }
+  });
+  router.get("/:projectId/editor-access", async (c) => {
+    const projectId = c.req.param("projectId");
+    try {
+      await resolve(await requestProjectPrincipal(c, projectId), projectId);
+      const project = await getProject(projectId);
+      if (!project) return c.json({ error: "not_found" }, 404);
+      if (!project.serverKeyId) return c.json({ error: "not_server_project" }, 422);
+      const access = await getServerEditorAccess(project.serverKeyId);
+      return c.json({ ...access, projectOrigin: project.identityKind === "addon" ? "module" : "personal" }, access.inventoryAvailable ? 200 : 503);
+    } catch (error) {
+      const code = record(error) && typeof error.code === "string" ? error.code : "storage_unavailable";
+      return c.json({ error: code }, code === "not_found" ? 404 : code === "forbidden" ? 403 : 503);
+    }
   });
   router.post("/:projectId/rename", bodyLimit({ maxSize: 1024 }), async (c) => {
     const user = c.get("user");

@@ -25,13 +25,14 @@ export function PlanForm({
 
   const [name, setName] = useState(plan?.name ?? "");
   const [priceCents, setPriceCents] = useState(String(plan?.priceCents ?? 0));
-  const [currency, setCurrency] = useState(plan?.currency ?? "usd");
+  const [currency, setCurrency] = useState(plan?.currency ?? "eur");
   const [interval, setInterval] = useState<"month" | "year">(plan?.interval ?? "month");
   const [creditsPerPeriod, setCreditsPerPeriod] = useState(String(plan?.creditsPerPeriod ?? 0));
   const [rolloverCap, setRolloverCap] = useState(String(plan?.rolloverCap ?? 0));
   const [features, setFeatures] = useState(plan?.features ?? "");
   const [description, setDescription] = useState(plan?.description ?? "");
   const [highlighted, setHighlighted] = useState(plan?.highlighted ?? false);
+  const [editorPro, setEditorPro] = useState(plan?.editorPro ?? false);
   const [sortOrder, setSortOrder] = useState(String(plan?.sortOrder ?? 0));
   const [active, setActive] = useState(plan?.isActive ?? true);
   const [busy, setBusy] = useState(false);
@@ -49,6 +50,7 @@ export function PlanForm({
       features,
       description,
       highlighted,
+      editorPro,
       sortOrder: Number(sortOrder) || 0,
       isActive: active,
     };
@@ -114,7 +116,10 @@ export function PlanForm({
               </select>
             </FormField>
 
-            <FormField label={t("admin.billing.plans.form.creditsPerPeriod")}>
+            <FormField
+              label={t("admin.billing.plans.form.creditsPerPeriod")}
+              hint={editorPro ? t("admin.billing.plans.form.proCreditsHint") : undefined}
+            >
               <Input
                 type="number"
                 value={creditsPerPeriod}
@@ -170,6 +175,18 @@ export function PlanForm({
               />
               <span className="text-[13px] font-medium text-[var(--text)]">
                 {t("admin.billing.plans.form.highlighted")}
+              </span>
+            </label>
+
+            <label className="flex items-center gap-2.5">
+              <input
+                type="checkbox"
+                checked={editorPro}
+                onChange={(e) => setEditorPro(e.target.checked)}
+                className="size-4 accent-[var(--brand)]"
+              />
+              <span className="text-[13px] font-medium text-[var(--text)]">
+                {t("admin.billing.plans.form.editorPro")}
               </span>
             </label>
 

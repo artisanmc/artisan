@@ -6,6 +6,7 @@ import { expireDraftReceipts } from "./lib/storage/ReceiptDraftStore";
 import { resumeServerDrafts } from "./lib/projectDraftMigration";
 import { connToServerId } from "./ws/hub";
 import { maintainHostedProjects } from "./lib/storage/hostedMaintenance";
+import { grantDueAnnualProCredits } from "./modules/billing/annualProCredits";
 
 // Avant d'ouvrir le port : le volume peut être neuf (icônes 3D + items.json
 // absents = « Bibliothèque indisponible » côté éditeur). Synchrone et rapide,
@@ -42,3 +43,12 @@ const scheduleDraftMaintenance = () => {
 };
 scheduleDraftMaintenance();
 setInterval(scheduleDraftMaintenance, 60_000).unref();
+
+let grantingAnnualCredits = false;
+const scheduleAnnualCredits = () => {
+  if (grantingAnnualCredits) return;
+  grantingAnnualCredits = true;
+  void grantDueAnnualProCredits().catch((error) => console.error("[billing] annual Pro credit grant failed:", error)).finally(() => { grantingAnnualCredits = false; });
+};
+scheduleAnnualCredits();
+setInterval(scheduleAnnualCredits, 60_000).unref();

@@ -196,6 +196,23 @@ class SyncedMenuProvider(
             jsonMapper.valueToTree(mapOf("ok" to true)),
         )
     }
+    private fun commercialDenial(
+        node: com.fasterxml.jackson.databind.JsonNode,
+        projectId: String,
+        files: List<String>,
+        deletes: List<String>,
+        renames: List<Pair<String, String>> = emptyList(),
+    ): String? {
+        val policy = node["commercial_policy"] ?: return null
+        if (!policy.path("enabled").asBoolean(false)) return null
+        val quota = policy.path("quota").asInt(-1)
+        if (quota < 0) return "inventory_unavailable"
+        val proUntil = policy.path("pro_until").takeIf { it.isTextual }?.asText()
+        val pro = proUntil?.let { runCatching { java.time.Instant.parse(it).isAfter(java.time.Instant.now()) }.getOrDefault(false) } ?: false
+        val inventory = try { net.artisanmc.plugin.project.ResourceInventory.scan(roots) }
+        catch (_: Exception) { return "inventory_unavailable" }
+        return net.artisanmc.plugin.project.ResourceQuota.assess(quota, pro, inventory, projectId, roots.isRegistered(projectId), files, deletes, renames)
+    }
     private val yamlMapper = ObjectMapper(YAMLFactory()).registerKotlinModule()
     private val httpClient = OkHttpClient()
     @Volatile private var wsClient: WsClient? = null
@@ -477,7 +494,7 @@ class SyncedMenuProvider(
     /** Called under the project mutation lock; WS callbacks only read the published map. */
     private fun refreshProjectPresence() {
         cachedProjectPresence = mapOf(
-            "capabilities" to listOf("project_rename", "project_drafts_v1", "project_mixed_write_v1", "project_copy_v1"),
+            "capabilities" to listOf("project_rename", "project_drafts_v1", "project_mixed_write_v1", "project_copy_v1", "resource_quota_v1"),
             "local_project_ids" to snapshot.keys.sorted(),
             "project_roots" to roots.descriptors(),
             "project_rename_results" to roots.renamer.completed(),
@@ -828,7 +845,10 @@ class SyncedMenuProvider(
                             val descriptors = ids.map { id ->
                                 mapOf("project_id" to id, "identity" to if (roots.isRegistered(id)) "addon" else "folder")
                             }
-                            reply(mapOf("ok" to true, "project_ids" to ids, "project_roots" to descriptors))
+                            val inventory = net.artisanmc.plugin.project.ResourceInventory.scan(roots).map { entry ->
+                                mapOf("project_id" to entry.projectId, "path" to entry.path, "origin" to entry.origin)
+                            }
+                            reply(mapOf("ok" to true, "project_ids" to ids, "project_roots" to descriptors, "resource_inventory" to inventory))
                         } catch (e: Throwable) {
                             logger?.log(java.util.logging.Level.WARNING, "[Artisan] project_list failed", e)
                             reply(mapOf("ok" to false, "error" to "read_error", "message" to describeError(e)))
@@ -1037,6 +1057,11 @@ class SyncedMenuProvider(
                                 reply(mapOf("ok" to false, "error" to renameError))
                                 return@execute
                             }
+                            val quotaDenial = commercialDenial(node, projectId, writes.map { it.first }, emptyList())
+                            if (quotaDenial != null) {
+                                reply(mapOf("ok" to false, "error" to if (quotaDenial == "inventory_unavailable") "inventory_unavailable" else "quota_denied", "message" to quotaDenial))
+                                return@execute
+                            }
                             val projectDir = roots.dirFor(projectId)
                             if (!projectDir.isDirectory) {
                                 reply(mapOf("ok" to false, "error" to "unknown_project"))
@@ -1149,7 +1174,9 @@ class SyncedMenuProvider(
                 val requestId = node["request_id"]?.asText() ?: return
                 projectIo.execute {
                     val beforeActivation = roots.copier.activationRevision
-                    val result = roots.copier.handle(node, copyMinecraftVersion, installedModules().mapNotNull { it["id"] }.toSet())
+                    val result = roots.copier.handle(node, copyMinecraftVersion, installedModules().mapNotNull { it["id"] }.toSet()) { target, files ->
+                        commercialDenial(node, target, files, emptyList())
+                    }
                     if (roots.copier.activationRevision != beforeActivation) {
                         runCatching {
                             reloadFromDisk()
@@ -1200,7 +1227,9 @@ class SyncedMenuProvider(
                         when {
                             error != null -> jsonMapper.valueToTree<com.fasterxml.jackson.databind.JsonNode>(mapOf("ok" to false, "error" to error))
                             !root.isDirectory -> jsonMapper.valueToTree<com.fasterxml.jackson.databind.JsonNode>(mapOf("ok" to false, "error" to "unknown_project"))
-                            else -> net.artisanmc.plugin.project.ProjectDraftStore(root).handle(node)
+                            else -> net.artisanmc.plugin.project.ProjectDraftStore(root) { changes ->
+                                commercialDenial(node, projectId, changes.filterValues { it != null }.keys.toList(), changes.filterValues { it == null }.keys.toList())
+                            }.handle(node)
                         }
                     } catch (error: Exception) {
                         logger?.log(java.util.logging.Level.WARNING, "[Artisan] Private draft operation failed", error)
@@ -1280,6 +1309,16 @@ class SyncedMenuProvider(
                         val renameError = roots.renamer.mutationError(projectId)
                         if (renameError != null) {
                             reply(mapOf("ok" to false, "error" to renameError))
+                            return@execute
+                        }
+                        val quotaDenial = commercialDenial(
+                            node, projectId,
+                            writes.map { it.first } + binaries.filter { !it["content_base64"].isNull }.map { it.path("path").asText() },
+                            deletes.map { it.first } + binaries.filter { it["content_base64"].isNull }.map { it.path("path").asText() },
+                            renames.map { it.first to it.second },
+                        )
+                        if (quotaDenial != null) {
+                            reply(mapOf("ok" to false, "error" to if (quotaDenial == "inventory_unavailable") "inventory_unavailable" else "quota_denied", "message" to quotaDenial))
                             return@execute
                         }
                         val projectDir = roots.dirFor(projectId)
@@ -1495,6 +1534,11 @@ class SyncedMenuProvider(
                         val renameError = roots.renamer.mutationError(projectId)
                         if (renameError != null) {
                             reply(mapOf("ok" to false, "error" to renameError))
+                            return@execute
+                        }
+                        val quotaDenial = commercialDenial(node, projectId, writes.map { it.first }, deletes)
+                        if (quotaDenial != null) {
+                            reply(mapOf("ok" to false, "error" to if (quotaDenial == "inventory_unavailable") "inventory_unavailable" else "quota_denied", "message" to quotaDenial))
                             return@execute
                         }
                         val projectDir = roots.dirFor(projectId)
