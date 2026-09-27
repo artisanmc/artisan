@@ -3,6 +3,15 @@
 > Source de vérité du schéma : `backend/src/db/schema.ts` (+ migrations dans `backend/drizzle/`).
 > Ce doc décrit le modèle **courant** puis l'historique des phases qui y ont mené.
 
+## Projects jamais publiés (migration 0059)
+
+`projects.unpublished` : créé sur un Server non relié ou hors ligne, sans dossier sur
+le disque. Sa lecture rend un arbre publié vide (`unpublished: true`), il est listé avec
+les Projects du serveur, et son contenu vit dans le brouillon de son créateur. Le drapeau
+tombe à la première écriture réussie ou dès que le plugin annonce ce Project ; la
+première publication (base vide) demande au plugin de créer le dossier. ADR
+`server-only-projects`.
+
 ## Versions (migration 0058)
 
 `project_versions(id, project_id → projects cascade, hash, files, binaries, author_id →

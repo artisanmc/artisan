@@ -9,6 +9,12 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Changed — every project belongs to a server; the demo is disposable
+
+- Projects can be created on a server that is not linked yet (or offline): they start as your private draft, and their first publication after linking creates the folder on the server. Migration `0059` adds `projects.unpublished`.
+- Account-owned hosted projects, **Copy to Minecraft** and ZIP import are removed. ZIP import will come back, targeting a server.
+- The demo no longer moves into an account: **Export this project** downloads its current draft as a ZIP.
+
 ### Added — open a server project while its server is offline
 
 - When the server is disconnected, its projects are still listed and open from the backend's last copy, dated in the banner. Your draft stays editable; publishing waits until the server is back, and the editor checks again every 15 seconds.

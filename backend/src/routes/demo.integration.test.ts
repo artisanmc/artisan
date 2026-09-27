@@ -155,71 +155,8 @@ test("real guest routes isolate projects, assets and drafts and reject CSRF befo
 				headers: h,
 			})
 		).status,
-	).toBe(401);
-});
-test("account cookie cannot authorize unclaimed demo by ID; exact guest proof survives OAuth then claims", async () => {
-	const s = await createDemoSession({ rateKey: "http-account" });
-	const id = `http-${crypto.randomUUID()}`;
-	const now = new Date();
-	await db.insert(users).values({
-		id,
-		name: "HTTP fixture",
-		email: `${id}@test.invalid`,
-		createdAt: now,
-		updatedAt: now,
-	});
-	await db
-		.insert(networks)
-		.values({ id, name: "HTTP fixture", createdAt: now, updatedAt: now });
-	await db
-		.insert(memberships)
-		.values({ id, userId: id, networkId: id, role: "owner", createdAt: now });
-	const account = await createSession(id);
-	const cookie = `artisan_user_session=${account.id}`;
-	expect(
-		(
-			await app.request(`/api/v1/projects/${s.projectId}/files`, {
-				headers: { Cookie: cookie },
-			})
-		).status,
-	).toBe(403);
-	const h = { ...headers(s), Cookie: `${headers(s).Cookie}; ${cookie}` };
-	expect(
-		(await app.request(`/api/v1/projects/${s.projectId}/files`, { headers: h }))
-			.status,
-	).toBe(200);
-	const body = JSON.stringify({
-		operationId: "claim-http",
-		networkId: id,
-		projectId: s.projectId,
-	});
-	const claim = await app.request("/api/v1/demo/claim", {
-		method: "POST",
-		headers: h,
-		body,
-	});
-	expect(claim.status).toBe(200);
-	expect(claim.headers.get("Set-Cookie")).toBeNull();
-	expect(
-		(
-			await app.request(`/api/v1/projects/${s.projectId}/files`, {
-				headers: headers(s),
-			})
-		).status,
-	).toBe(403);
-	expect(
-		(await app.request(`/api/v1/projects/${s.projectId}/files`, { headers: h }))
-			.status,
-	).toBe(200);
-	const replay = await app.request("/api/v1/demo/claim", {
-		method: "POST",
-		headers: { ...h, Cookie: cookie },
-		body,
-	});
-	expect(replay.status).toBe(200);
-	expect(await replay.json()).toEqual(await claim.json());
-	await db.delete(networks).where(eq(networks.id, id));
-	await db.delete(users).where(eq(users.id, id));
+		// « Copier vers un serveur » est retiré (ADR `server-only-projects`).
+	).toBe(404);
 });
 test("quota rejection returns a safe actionable code and keeps the prior tree", async () => {
 	const s = await createDemoSession({ rateKey: "http-quota" });

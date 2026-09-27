@@ -96,48 +96,6 @@ export function createDemoRouter(deps: Dependencies = defaults) {
 		c.header("Cache-Control", "private, no-store");
 		return c.json(publicBody(s), 201);
 	});
-	router.post("/claim", async (c) => {
-		const user = c.get("user");
-		if (!user) return c.json({ error: "unauthorized" }, 401);
-		if (!demoOriginAllowed(c)) return c.json({ error: "forbidden" }, 403);
-		const token = getCookie(c, DEMO_COOKIE);
-		const proof = token ? await deps.proof(token) : null;
-		const body = await c.req.json().catch(() => null);
-		if (
-			proof &&
-			(!body?.projectId || body.projectId === proof.projectId) &&
-			c.req.header(DEMO_CSRF_HEADER) !== proof.csrfToken
-		)
-			return c.json({ error: "forbidden" }, 403);
-		if (
-			!body ||
-			typeof body.operationId !== "string" ||
-			!body.operationId ||
-			typeof body.networkId !== "string" ||
-			!body.networkId
-		)
-			return c.json({ error: "invalid_input" }, 422);
-		if (
-			!proof ||
-			(body.projectId !== undefined && body.projectId !== proof.projectId)
-		) {
-			if (!deps.resume || typeof body.projectId !== "string" || !body.projectId)
-				return c.json({ error: "forbidden" }, 403);
-			return c.json(
-				await deps.resume(user.id, {
-					projectId: body.projectId,
-					operationId: body.operationId,
-					networkId: body.networkId,
-				}),
-			);
-		}
-		if (!token) return c.json({ error: "forbidden" }, 403);
-		const result = await deps.claim(token, user.id, {
-			operationId: body.operationId,
-			networkId: body.networkId,
-		});
-		return c.json(result);
-	});
 	return router;
 }
 export const demoRouter = createDemoRouter();

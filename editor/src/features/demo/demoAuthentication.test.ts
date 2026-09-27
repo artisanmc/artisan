@@ -3,7 +3,7 @@ import { useAuthStore } from "@/state/authStore";
 import { useDemoStore } from "@/state/demoStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
 import { beforeEach, expect, test, vi } from "vitest";
-import { prepareDemoAuthentication } from "./demoLifecycle";
+import { confirmDemoDraft } from "./demoLifecycle";
 vi.mock("@/features/project/persistedDrafts", () => ({
   waitForDraftWrites: vi.fn(),
   syncPersistedDraft: vi.fn(),
@@ -26,7 +26,7 @@ beforeEach(() => {
     drafts: { demo: { baseline: {}, tree: { "menus/menu.yaml": "typing" }, at: 1 } },
   });
 });
-test("authentication waits for asset writes and confirms the draft first", async () => {
+test("export waits for asset writes and confirms the draft first", async () => {
   let release!: () => void;
   vi.mocked(waitForDraftWrites).mockImplementationOnce(
     () =>
@@ -34,20 +34,18 @@ test("authentication waits for asset writes and confirms the draft first", async
         release = resolve;
       }),
   );
-  const prepare = prepareDemoAuthentication();
+  const prepare = confirmDemoDraft();
   expect(syncPersistedDraft).not.toHaveBeenCalled();
-  expect(sessionStorage.getItem("artisan:demo-auth-return")).toBeNull();
   release();
-  expect(await prepare).toBe("/demo/projects/demo");
+  expect((await prepare).projectId).toBe("demo");
   expect(syncPersistedDraft).toHaveBeenCalledTimes(2);
   expect(useProjectDraftStore.getState().get("demo")?.tree).toEqual({
     "menus/menu.yaml": "typing",
   });
 });
-test("unconfirmed asset retry prevents leaving for authentication and preserves the draft", async () => {
+test("an unconfirmed asset write prevents the export and preserves the draft", async () => {
   vi.mocked(waitForDraftWrites).mockRejectedValueOnce(new Error("asset_pending"));
-  await expect(prepareDemoAuthentication()).rejects.toThrow("asset_pending");
-  expect(sessionStorage.getItem("artisan:demo-auth-return")).toBeNull();
+  await expect(confirmDemoDraft()).rejects.toThrow("asset_pending");
   expect(useProjectDraftStore.getState().get("demo")?.tree).toEqual({
     "menus/menu.yaml": "typing",
   });

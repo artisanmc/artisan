@@ -329,6 +329,8 @@ export interface ProjectReadResultMessage {
   unchanged?: boolean;
   /** Serveur déconnecté : l'arbre est la dernière copie connue, reçue à cette date. */
   offline_since?: string;
+  /** Jamais publié (créé serveur non relié) : l'arbre publié est vide, tout est en brouillon. */
+  unpublished?: boolean;
   files?: { path: string; content: string }[];
   /**
    * Documents que le serveur n'a PAS réussi à charger, avec la raison. Ils

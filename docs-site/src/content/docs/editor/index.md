@@ -8,7 +8,7 @@ and choose what happens when a player clicks. Start with [the demo](/demo) to tr
 the canvas without an account, or [open your Networks](/networks) to continue a project.
 
 Select **Try the demo** on the [Artisan home page](/) to open the editor in a new
-tab. Use **Keep this project** to save your draft and continue with your account.
+tab. Use **Export this project** to download what you made before the demo expires.
 
 ## Your first menu
 
@@ -28,7 +28,7 @@ Add [composed titles](/wiki/editor/composed-titles/) and
 
 The first time you open a project, a short guided tour introduces navigation,
 the canvas, Buttons and properties, Elements, view tabs, and saving your work.
-It also works in the demo, with an explanation of **Keep this project**.
+It also works in the demo, with an explanation of **Export this project**.
 Choose **Later** or close the tour to continue on your own; it will not open
 automatically again. Use **Resume the tour** in the project menu to pick up where you
 left off, or **Take the tour again** after finishing. Account progress follows you across

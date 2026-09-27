@@ -31,7 +31,6 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 export const Route = createFileRoute("/networks/$networkId")({ component: NetworkDetailPage });
-import { HostedProjectsSection } from "@/features/projects/HostedProjectsSection";
 
 type NetworkDetail = Awaited<ReturnType<typeof getNetwork>>;
 
@@ -243,7 +242,6 @@ export function NetworkDetailPage() {
           )}
         </section>
 
-        <HostedProjectsSection networkId={detail.network.id} />
         <MembersSection networkId={detail.network.id} />
       </div>
 

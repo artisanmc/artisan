@@ -123,3 +123,14 @@ export async function uploadDraftBlob(
     })
   ).draft;
 }
+
+/** Les octets d'une image modifiée dans ce brouillon (privée, jamais publiée). */
+export async function readDraftBlob(projectId: string, id: string, hash: string): Promise<Uint8Array> {
+  const response = await projectFetch(
+    projectId,
+    `${API_URL}/api/v1/user/projects/${encodeURIComponent(projectId)}/drafts/${encodeURIComponent(id)}/blobs/${hash}`,
+    { credentials: "include" },
+  );
+  if (!response.ok) throw new DraftApiError("blob_unavailable", response.status);
+  return new Uint8Array(await response.arrayBuffer());
+}

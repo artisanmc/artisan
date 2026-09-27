@@ -1025,6 +1025,8 @@ export default {
     staleChecking: "Checking server…",
     staleLoading: "Showing your last visit — fetching the server’s version…",
     staleOffline: "Server unreachable — showing your last visit. Saving is out of reach.",
+    unpublishedOffline:
+      "Server not connected yet — this project has never been published. Your draft is saved; link the server with /artisan link to publish.",
     staleOfflineSince:
       "Server offline — version from {{date}}. Your draft stays editable; publishing waits for its return.",
     loading: "Reading the server's files…",

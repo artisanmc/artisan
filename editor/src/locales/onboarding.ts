@@ -17,7 +17,7 @@ export const onboardingEn = {
     "Open navigation to move between your Networks, servers and projects. Pin it when you want it to stay close.",
   demoTitle: "Your space to try things",
   demoDescription:
-    "This demo is your own temporary project. Explore the editor and keep what you create by adding it to your account.",
+    "This demo is your own temporary project. Explore the editor, and export what you create to keep it.",
   canvasTitle: "See how your menus connect",
   canvasDescription:
     "The canvas brings your menus and their links together. Select a menu or one of its buttons to edit it.",
@@ -40,7 +40,7 @@ export const onboardingEn = {
   saveLocalDescription:
     "Your edits stay in this browser. Use Export project from the project menu to download a copy you can keep.",
   saveDemoDescription:
-    "Choose Keep this project to add your demo to an account before it expires. You can pick up this tour again from the project menu.",
+    "Choose Export this project to download your demo before it expires. You can pick up this tour again from the project menu.",
 };
 
 export const onboardingFr = {
@@ -62,7 +62,7 @@ export const onboardingFr = {
     "Ouvrez la navigation pour retrouver vos Networks, serveurs et projets. Épinglez-la pour la garder à portée de main.",
   demoTitle: "Un espace pour essayer",
   demoDescription:
-    "Cette démo est votre propre projet temporaire. Explorez l’éditeur et conservez vos créations en les ajoutant à votre compte.",
+    "Cette démo est votre propre projet temporaire. Explorez l’éditeur, et exportez vos créations pour les conserver.",
   canvasTitle: "Visualisez les liens entre vos menus",
   canvasDescription:
     "Le canvas rassemble vos menus et leurs liens. Sélectionnez un menu ou l’un de ses boutons pour le modifier.",
@@ -85,5 +85,5 @@ export const onboardingFr = {
   saveLocalDescription:
     "Vos modifications restent dans ce navigateur. Utilisez Exporter le projet dans le menu du projet pour télécharger une copie à conserver.",
   saveDemoDescription:
-    "Choisissez Conserver ce projet pour ajouter votre démo à un compte avant son expiration. La visite reste accessible depuis le menu du projet.",
+    "Choisissez Exporter ce projet pour télécharger votre démo avant son expiration. La visite reste accessible depuis le menu du projet.",
 };

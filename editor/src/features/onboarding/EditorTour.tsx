@@ -77,7 +77,7 @@ export function EditorTour({
       ["library", "library-trigger"],
       ["elements", "elements-trigger"],
       ["tabs"],
-      demo ? ["demo-keep"] : storage === "local" ? ["project-menu"] : ["save", "project-menu"],
+      demo ? ["demo-export"] : storage === "local" ? ["project-menu"] : ["save", "project-menu"],
     ];
     const measure = () => setTarget(visibleTarget(selectors[state.step] ?? []));
     const settled = window.setTimeout(measure, 260);
