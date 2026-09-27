@@ -40,7 +40,7 @@ const body = (snapshot: Partial<DraftSnapshot>) => ({
 	name: "Mon brouillon",
 	snapshot: { baseline: {}, tree: {}, at: 1, ...snapshot } as DraftSnapshot,
 });
-const ok = <T>(outcome: { kind: string; result?: T }) => (outcome as { result: T }).result;
+const ok = <T>(outcome: unknown) => (outcome as { result: T }).result;
 
 beforeEach(async () => {
 	server = { files: { "menus/a.yaml": "a1", "menus/b.yaml": "b1" }, binaries: { "assets/textures/logo.png": { hash: sha("old"), size: 3 } } };

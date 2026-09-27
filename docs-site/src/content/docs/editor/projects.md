@@ -29,8 +29,7 @@ still available in console mode. See [server configuration](/wiki/getting-starte
 
 Choose **Try the demo** on the editor landing page. A temporary project opens in
 the same canvas, with a bilingual example menu. You can edit menus, upload images
-and fonts, and save private drafts. AI, importing another project, and Minecraft
-server actions become available only after keeping the project in an account.
+and fonts, and save private drafts. AI and Minecraft server actions require an account.
 
 Temporary files, assets and private drafts are stored in Artisan's backend storage.
 The browser cookie contains only an opaque access token, not the project itself.
@@ -39,14 +38,10 @@ Deleting that cookie or losing access to that browser prevents guest recovery.
 The banner shows its expiry: **24 hours without an effective change**. Opening
 or refreshing the editor does not extend it. At expiry, guest access is revoked
 and the project is scheduled for cleanup; files are not necessarily deleted immediately.
-Browser recovery copies stay scoped to that guest session.
 
-Choose **Keep this project** before expiry. The editor first confirms pending
-text and asset writes, then offers sign-up or sign-in. Select an existing Network
-or create one, and confirm. Project identity, private drafts and assets are preserved.
-An interrupted claim can be retried after refresh with the same account. If access
-to its destination is lost, select another Network. No files are sent to Minecraft
-until you later use **Copy to Minecraft**.
+The demo is for trying things out. To keep what you made, choose **Export this
+project**: the editor confirms pending changes, then downloads a ZIP of your current
+draft, images included.
 
 ## Create on a Minecraft server
 
@@ -58,38 +53,21 @@ Select a connected server, then choose **New project** in the sidebar or network
 Enter a folder name such as `my_project`, then press **Enter** or click **Create**.
 The name becomes the project's folder on the server and must not contain path separators.
 
-Creation completes only after the server writes the project. If the server is offline,
-does not respond, or already has a project with that name, the dialog shows an error
-and keeps your input. After a timeout, check the project list before trying again.
+On a connected server, creation completes only after the server writes the project.
+If it does not respond, or already has a project with that name, the dialog shows an
+error and keeps your input. After a timeout, check the project list before trying again.
 
-## Create without a Minecraft server
-
-Open your Network and choose **Create without a server**. Enter a project name,
-folder name and Minecraft version; the Vanilla template is available initially.
-Hosted projects keep their files and private drafts in Artisan storage. They use
-the same editor and previews, and remain accessible while Artisan is available.
-Live server data, inventory capture and in-game execution require a Minecraft server.
-**Deploy** updates the saved project; it does not run the project in Minecraft.
-
-**Import ZIP** explicitly creates a new hosted project in the selected Network.
-The import keeps images, fonts and editor layout bytes. Exported archives include
-published files and binary assets, but exclude private drafts and operation journals.
-If the Network already has a hosted project with the chosen folder name, the import
-dialog says so and offers two choices: import under another folder name (a free
-suggestion is filled in), or **Overwrite** the existing project, which replaces all
-of its content with the archive. The previous version stays in the project's history.
+A server that is not linked yet, or offline, can still receive new projects: the project
+starts as your private draft, with nothing written on a server. Link the server with
+`/artisan link`, then **Deploy**: the first publication creates the project's folder.
+Prepare your menus this way before installing the plugin.
 
 ## Opening a project while its server is offline
 
-A server project opens only after its server responds. Cached files and local
-draft backups remain preserved until you reconnect; they do not unlock offline opening.
-If the connection drops while a project is already open, its editing buffer stays
-available. The notice explains that saving is suspended until reconnection.
-
-The editor retries every 15 seconds while the server is unreachable. After a
-successful read, the notice disappears automatically, including when the server's
-files have not changed. Unsaved edits are preserved; changes made on the server
-during the outage are checked for conflicts when you deploy.
+When its server is offline, a project still opens from the last version Artisan received
+from that server; the banner shows its date. Your draft stays editable and saved, and
+**Deploy** waits until the server is back. The editor checks again every 15 seconds.
+A project Artisan never received a copy of does not open until its server responds.
 
 ## Drafts and publishing
 

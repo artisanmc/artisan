@@ -33,7 +33,6 @@ import { useModulesStore } from "@/state/modulesStore";
 import { useNetworksStore } from "@/state/networksStore";
 import { useServerScreensStore } from "@/state/serverScreensStore";
 import { useServersStore } from "@/state/serversStore";
-import { listHostedProjects } from "@/lib/api/hostedProjects";
 import { useSidebarStore } from "@/state/sidebarStore";
 import { CSS } from "@dnd-kit/utilities";
 import { ArrowRight, GripVertical, LayoutGrid } from "lucide-react";
@@ -167,8 +166,10 @@ export function ProjectSidebar() {
     let cancelled = false;
     setProjectsStatus("loading");
     if (!activeServerId) {
-      void listHostedProjects(activeNetworkId).then((projects) => { if (!cancelled) { setServerProjects(projects); setProjectsStatus("ready"); } }).catch(() => { if (!cancelled) setProjectsStatus("unavailable"); });
-      return () => { cancelled = true; };
+      // Tout Project appartient à un serveur (ADR `server-only-projects`).
+      setServerProjects([]);
+      setProjectsStatus("ready");
+      return;
     }
     listServerProjects(activeNetworkId, activeServerId).then((res) => {
       if (cancelled) return;

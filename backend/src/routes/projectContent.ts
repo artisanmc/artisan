@@ -21,7 +21,7 @@ export async function handleProjectRead(c: Context, storage: ProjectStorage) {
   if (outcome.kind === "timeout") return c.json({ error: "fetch_timeout" }, 504);
   const r = outcome.result;
   if (!r.ok) return readError(c, r.error ?? "read_error", r.message);
-  const offline = r.offline_since ? { offlineSince: r.offline_since } : {};
+  const offline = { ...(r.offline_since ? { offlineSince: r.offline_since } : {}), ...(r.unpublished ? { unpublished: true } : {}) };
   if (r.unchanged) return c.json({ unchanged: true, hash: r.hash ?? null, ...offline });
   return c.json({ files: r.files ?? [], binaries: r.binaries ?? [], failed: r.failed ?? [], hash: r.hash ?? null, ...offline });
 }

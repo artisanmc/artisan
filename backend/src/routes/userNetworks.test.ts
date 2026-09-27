@@ -1,4 +1,5 @@
 // backend/src/routes/userNetworks.test.ts
+import { projectDrafts } from "../db/schema";
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { Hono } from "hono";
 import { db } from "../db/index";
@@ -511,8 +512,45 @@ describe("userNetworksRouter", () => {
     } finally { plugin.stop(); }
   });
 
+  test("sur un serveur non relié, le Project naît en brouillon : listé, ouvrable, rien sur disque", async () => {
+    const { sessionId, userId } = await seedUser();
+    const app = makeApp();
+    const headers = { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" };
+    const { network } = await (await app.request("/api/v1/networks", {
+      method: "POST", headers, body: JSON.stringify({ name: "N" }),
+    })).json();
+    const { id: skId } = await (await app.request(`/api/v1/networks/${network.id}/server-keys`, {
+      method: "POST", headers, body: "{}",
+    })).json();
+
+    const res = await app.request(`/api/v1/networks/${network.id}/projects`, {
+      method: "POST", headers, body: JSON.stringify({ name: "prepare", serverKeyId: skId }),
+    });
+    expect(res.status).toBe(201);
+    const { project } = await res.json();
+    expect(project.unpublished).toBe(true);
+    const [draft] = await db.select().from(projectDrafts);
+    expect(draft!.ownerId).toBe(userId);
+    expect(draft!.snapshot.baseline).toEqual({});
+    expect(Object.keys(draft!.snapshot.tree)).toEqual(["manifest.yaml"]);
+
+    const again = await app.request(`/api/v1/networks/${network.id}/projects`, {
+      method: "POST", headers, body: JSON.stringify({ name: "prepare", serverKeyId: skId }),
+    });
+    expect(again.status).toBe(409);
+
+    const listed = await (await app.request(`/api/v1/networks/${network.id}/servers/${skId}/projects`, { headers })).json();
+    expect(listed.project_ids).toEqual(["prepare"]);
+    const detail = await (await app.request(`/api/v1/networks/${network.id}`, { headers })).json();
+    expect(detail.projects.map((p: { externalId: string }) => p.externalId)).toContain("prepare");
+
+    const opened = await (await app.request(`/api/v1/networks/${network.id}/servers/${skId}/projects/prepare/files`, { headers })).json();
+    expect(opened.files).toEqual([]);
+    expect(opened.unpublished).toBe(true);
+    expect(typeof opened.offlineSince).toBe("string");
+  });
+
   test.each([
-    ["offline", undefined, 503, "server_offline"],
     ["existing", undefined, 409, "project_exists"],
     ["write", "write_error", 502, "write_error"],
     ["write", "conflict", 409, "project_exists"],

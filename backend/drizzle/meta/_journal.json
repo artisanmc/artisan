@@ -414,6 +414,13 @@
       "when": 1790478221539,
       "tag": "0058_shallow_namorita",
       "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1790484784026,
+      "tag": "0059_odd_ultron",
+      "breakpoints": true
     }
   ]
 }

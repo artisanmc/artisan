@@ -51,7 +51,7 @@ test("a successful write signs the next Snapshot with its author; a failed one d
   const mirror = await import("../snapshotMirror");
   const ok = { kind: "result" as const, result: { type: "project_write_result" as const, request_id: "", ok: true } };
   const ko = { kind: "result" as const, result: { type: "project_write_result" as const, request_id: "", ok: false, error: "conflict" as const } };
-  let next = ko;
+  let next: typeof ok | typeof ko = ko;
   const storage = new ServerProjectStorage({ kind: "server", serverKeyId: "server-sign", folderName: "shop" }, { write: async () => next, invalidate: () => {} }, undefined, "alice");
   await storage.write({ files: [] });
   expect(mirror.takeAuthor("server-sign", "shop")).toBeNull();

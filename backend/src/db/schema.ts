@@ -395,6 +395,9 @@ export const projects = pgTable(
 		slug: text("slug"),
 		description: text("description"),
 		// Content belongs to the selected storage; SQL contains identity only.
+		// `true` = créé serveur non relié ou hors ligne : aucun dossier sur disque
+		// avant la première publication (ADR `server-only-projects`).
+		unpublished: boolean("unpublished").notNull().default(false),
 		deletedAt: timestamp("deleted_at"),
 		createdAt: timestamp("created_at").notNull(),
 		updatedAt: timestamp("updated_at").notNull(),

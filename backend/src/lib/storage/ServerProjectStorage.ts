@@ -3,7 +3,7 @@ import { ProjectRenameError } from "../projectRename";
 import { renameStoredProject } from "./projectLifecycle";
 import { forgetProjectTree, readProjectTree } from "../projectTreeReads";
 import { getCachedAsset, putCachedAsset } from "../assetCache";
-import { mirrorSupported, noteAuthor } from "../snapshotMirror";
+import { markPublished, mirrorSupported, noteAuthor } from "../snapshotMirror";
 import { fileHistory } from "../projectVersions";
 import { createHash } from "node:crypto";
 import type { BinaryReadResult } from "./ProjectStorage";
@@ -47,14 +47,16 @@ export class ServerProjectStorage implements ProjectStorage {
   }
   async read(ifHash: string | null = null) {
     if (!mirrorSupported(this.location.serverKeyId) && this.transport.connected(this.location.serverKeyId)) {
-      return withoutCorrelation(await this.transport.read(this.location.serverKeyId, { projectId: this.location.folderName, ifHash }));
+      const legacy = withoutCorrelation(await this.transport.read(this.location.serverKeyId, { projectId: this.location.folderName, ifHash }));
+      // Un Project jamais publié est inconnu du plugin : le lecteur d'arbre le sait.
+      if (legacy.kind !== "result" || legacy.result.ok || legacy.result.error !== "unknown_project") return legacy;
     }
     // Le miroir du Snapshot sert l'arbre — serveur éteint compris, daté par
     // `offline_since` ; `if_hash` se tranche ici, sans le plugin.
     const outcome = withoutCorrelation(await this.transport.readAssets(this.location.serverKeyId, this.location.folderName));
     if (outcome.kind === "result" && outcome.result.ok && ifHash && outcome.result.hash === ifHash) {
-      const { offline_since } = outcome.result;
-      return { kind: "result" as const, result: { ok: true, unchanged: true, hash: ifHash, ...(offline_since ? { offline_since } : {}) } };
+      const { offline_since, unpublished } = outcome.result;
+      return { kind: "result" as const, result: { ok: true, unchanged: true, hash: ifHash, ...(offline_since ? { offline_since } : {}), ...(unpublished ? { unpublished } : {}) } };
     }
     return outcome;
   }
@@ -113,7 +115,10 @@ export class ServerProjectStorage implements ProjectStorage {
   }
   /** Une écriture réussie signe le prochain Snapshot de son auteur (Versions). */
   private signed<T extends StorageOutcome<{ ok: boolean }>>(outcome: T): T {
-    if (this.authorId && outcome.kind === "result" && outcome.result.ok) noteAuthor(this.location.serverKeyId, this.location.folderName, this.authorId);
+    if (outcome.kind === "result" && outcome.result.ok) {
+      if (this.authorId) noteAuthor(this.location.serverKeyId, this.location.folderName, this.authorId);
+      if (this.identity) void markPublished(this.identity.id).catch(() => {});
+    }
     return outcome;
   }
   private invalidate() {

@@ -1,5 +1,9 @@
 import type { Project } from "@/domain/types";
+import { projectTree } from "@/features/project/saveProjectToDisk";
+import { readDraftBlob } from "@/lib/api/projectDrafts";
 import { projectClient } from "@/lib/projectClient";
+import { useProjectBaselineStore } from "@/state/projectBaselineStore";
+import { useProjectDraftStore } from "@/state/projectDraftStore";
 import { buildZip } from "./buildZip";
 
 export interface ExportZipResult {
@@ -51,17 +55,52 @@ export async function runExportZip(
         binary.path,
       );
     }
-    const blob = await buildZip(canonical);
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${project.id}.zip`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    await download(canonical, project.id);
     return { ok: true };
   } catch {
     return { ok: false, error: "transport" };
   }
+}
+
+/**
+ * Exporte le **brouillon courant** : ce que l'éditeur montre, images modifiées
+ * comprises. C'est l'export de la démo (ADR `server-only-projects`) : elle ne
+ * publie rien, son travail vit tout entier dans son brouillon.
+ */
+export async function runExportDraftZip(project: Project): Promise<ExportZipResult> {
+  try {
+    const diskId = project.diskId ?? project.id;
+    const draft = useProjectDraftStore.getState().get(project.id);
+    const published = useProjectBaselineStore.getState().binaryBaselines[project.id] ?? {};
+    const base = draft?.binaryBaseline ?? published;
+    const images = draft?.binaryTree ?? base;
+    const client = projectClient(project.id);
+    const canonical: Record<string, string | Uint8Array> = {};
+    for (const [rel, content] of Object.entries(projectTree(project))) {
+      canonical[`plugins/Artisan/projects/${diskId}/${rel}`] = content;
+    }
+    for (const [path, meta] of Object.entries(images)) {
+      const unchanged = base[path]?.hash === meta.hash;
+      if (!unchanged && !draft?.remote) return { ok: false, error: "transport" };
+      canonical[`plugins/Artisan/projects/${diskId}/${path}`] = unchanged
+        ? await client.binary(path)
+        : await readDraftBlob(project.id, draft!.remote!.id, meta.hash);
+    }
+    await download(canonical, project.id);
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "transport" };
+  }
+}
+
+async function download(files: Record<string, string | Uint8Array>, name: string) {
+  const blob = await buildZip(files);
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${name}.zip`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }

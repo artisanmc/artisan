@@ -55,6 +55,8 @@ export async function putSnapshot(projectId: string, snapshot: MirroredSnapshot,
 			.insert(projectSnapshots)
 			.values({ projectId, ...row })
 			.onConflictDoUpdate({ target: projectSnapshots.projectId, set: row });
+		// Le plugin porte ce Project : il existe désormais sur le disque.
+		await tx.update(projects).set({ unpublished: false }).where(and(eq(projects.id, projectId), eq(projects.unpublished, true)));
 		const [latest] = await tx.select({ hash: projectVersions.hash }).from(projectVersions)
 			.where(eq(projectVersions.projectId, projectId)).orderBy(desc(projectVersions.createdAt)).limit(1);
 		if (latest?.hash !== snapshot.hash) {
@@ -90,6 +92,18 @@ export async function getSnapshot(projectId: string): Promise<MirroredSnapshot |
 		files.push({ path, content });
 	}
 	return { hash: row.hash, files, binaries: row.binaries, failed: row.failed, receivedAt: row.receivedAt.toISOString() };
+}
+
+/** Ids disque des Projects jamais publiés de ce serveur (ADR `server-only-projects`). */
+export async function unpublishedProjectIds(serverKeyId: string): Promise<string[]> {
+	const rows = await db.select({ id: projects.id, externalId: projects.externalId }).from(projects)
+		.where(and(eq(projects.serverKeyId, serverKeyId), eq(projects.unpublished, true), isNull(projects.deletedAt)));
+	return rows.map((r) => r.externalId ?? r.id).sort();
+}
+
+/** Première écriture réussie : le dossier existe sur le disque. */
+export async function markPublished(projectId: string): Promise<void> {
+	await db.update(projects).set({ unpublished: false }).where(and(eq(projects.id, projectId), eq(projects.unpublished, true)));
 }
 
 /** Ids disque des Projects de ce serveur dont le backend a une copie — pour le lister éteint. */

@@ -2,7 +2,6 @@ import { AdminSidebar } from "@/components/AdminSidebar";
 import { BackendUnreachable } from "@/components/BackendUnreachable";
 import { NavigationSidebar } from "@/components/NavigationSidebar";
 import { ProjectSidebar } from "@/components/ProjectSidebar";
-import { DemoAuthReturn } from "@/features/demo/DemoAuthReturn";
 import { onProjectsReloaded as onProjectsReloadedInEditor } from "@/features/project/onProjectsReloaded";
 import { onProjectRenamed } from "@/features/project/onProjectRenamed";
 import { useDraftSync } from "@/features/project/useDraftSync";
@@ -106,7 +105,6 @@ function RootLayoutInner() {
   const isAdminArea = pathname.startsWith("/admin") && !!user?.isAdmin;
   return (
     <div className="relative flex h-full">
-      <DemoAuthReturn />
       {showSidebar && !isMarketingPage && !pathname.startsWith("/demo") && (
         <NavigationSidebar>{isAdminArea ? <AdminSidebar /> : <ProjectSidebar />}</NavigationSidebar>
       )}
