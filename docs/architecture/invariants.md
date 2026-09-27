@@ -16,8 +16,10 @@ slug, serveur propriétaire, network) — de quoi le lister et le router dans l'
 - **Lecture** : `project_read` → l'arbre complet, relPath-keyed, lu à la demande sur le disque.
 - **Écriture** : `project_write`, sur **geste explicite** de l'admin. Le **plugin est le seul
   écrivain** — le backend relaie, il n'arbitre jamais (il n'a aucune copie avec quoi arbitrer).
-- **Serveur hors ligne** = Project inouvrable. Pas de repli sur une copie périmée : il n'y en a
-  pas, et en inventer une ferait éditer un état qui n'existe nulle part.
+- **Serveur hors ligne** (révisé 2026-09-26, ADR `snapshot-mirror-and-backend-history`
+  décision 7) : le Project s'ouvre depuis la dernière copie du Snapshot, **datée**
+  (`offlineSince`) et annoncée comme telle ; le brouillon reste modifiable, publier attend le
+  retour du serveur. Sans copie, il reste inouvrable.
 - **Exception en cours de résorption** : les assets binaires (textures, glyphes, polices) vivent
   encore sur un volume backend. ADR `assets-on-server-disk` (2026-08-17) les ramène sous
   `assets/` dans le Project, le backend n'en gardant qu'un **cache jetable** clé par contenu.

@@ -9,6 +9,10 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Added — open a server project while its server is offline
+
+- When the server is disconnected, its projects are still listed and open from the backend's last copy, dated in the banner. Your draft stays editable; publishing waits until the server is back, and the editor checks again every 15 seconds.
+
 ### Added — Project Versions
 
 - Every Snapshot the server loads that differs from the previous one is kept as a Version, with its date and author (the user who published, or the server after a hand edit and reload). The drafts window lists the Project's Versions; restoring one replaces your draft's content and publishes nothing. File history now shows who made each version. The plugin no longer writes `.artisan/history/`; existing archives stay readable until a Project has Versions. Migration `0058` adds `project_versions`.

@@ -59,3 +59,15 @@ test("a successful write signs the next Snapshot with its author; a failed one d
   await storage.write({ files: [] });
   expect(mirror.takeAuthor("server-sign", "shop")).toBe("alice");
 });
+
+test("server disconnected: the mirror is read and keeps its offline date, even when unchanged", async () => {
+  const tree = { kind: "result" as const, result: { type: "project_read_result" as const, request_id: "", ok: true, hash: "H1", files: [], offline_since: "2026-09-27T08:00:00.000Z" } };
+  const plugin: unknown[] = [];
+  const storage = new ServerProjectStorage({ kind: "server", serverKeyId: "server-off", folderName: "shop" }, {
+    read: async (...args) => { plugin.push(args); return { kind: "offline" }; },
+    readAssets: async () => tree,
+    connected: () => false,
+  });
+  expect(await storage.read("H1")).toEqual({ kind: "result", result: { ok: true, unchanged: true, hash: "H1", offline_since: "2026-09-27T08:00:00.000Z" } });
+  expect(plugin).toEqual([]);
+});

@@ -61,7 +61,7 @@ import {
 	requestOnlinePlayers,
 	requestPlayerInventory,
 	requestHeadTexture,
-	listProjectsFromSnapshot,
+	listProjectsForEditor,
 	requestProjectList,
 	requestProjectWrite,
 	supportsProjectRename,
@@ -288,7 +288,7 @@ userNetworksRouter.get("/:id", async (c: Context<{ Variables: Vars }>) => {
 	// les liste pas et `online` dit pourquoi.
 	const listings = await Promise.all(
 		skList.map(async (sk) => {
-			const outcome = await requestProjectList(sk.id);
+			const outcome = await listProjectsForEditor(sk.id);
 			const ids =
 				outcome.kind === "result" && outcome.result.ok
 					? (outcome.result.project_ids ?? [])
@@ -1162,7 +1162,7 @@ userNetworksRouter.get(
 		if (!resolved) return c.json({ error: "forbidden" }, 403);
 		if (!resolved.serverKeyId) return c.json({ error: "not_found" }, 404);
 
-		const outcome = (await listProjectsFromSnapshot(resolved.serverKeyId)) ?? (await requestProjectList(resolved.serverKeyId));
+		const outcome = await listProjectsForEditor(resolved.serverKeyId);
 		if (outcome.kind === "offline") return c.json({ error: "server_offline" }, 503);
 		if (outcome.kind === "timeout") return c.json({ error: "fetch_timeout" }, 504);
 		const r = outcome.result;
@@ -1182,7 +1182,7 @@ userNetworksRouter.get(
 			pendingProjects.push({ ...project, capabilities: { canRename: false }, pendingRename: { operationId: operation.id, targetId: operation.targetId, status: "pending" as const } });
 		}
 		const pendingIds = new Set(pendingProjects.map((project) => project.id));
-		return c.json({ project_ids: r.project_ids ?? [], projects: [...listed.filter((project) => !pendingIds.has(project.id)), ...pendingProjects], pending_renames: r.pending_renames ?? [] });
+		return c.json({ project_ids: r.project_ids ?? [], projects: [...listed.filter((project) => !pendingIds.has(project.id)), ...pendingProjects], pending_renames: r.pending_renames ?? [], ...(r.offline ? { offline: true } : {}) });
 	},
 );
 

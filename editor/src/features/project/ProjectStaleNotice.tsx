@@ -3,7 +3,7 @@ import { ChevronDown, ChevronUp } from "lucide-react";
 import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-export function ProjectStaleNotice({ offline }: { offline: boolean }) {
+export function ProjectStaleNotice({ offline, since }: { offline: boolean; since?: string | null }) {
   const { t } = useTranslation();
   const [collapsed, setCollapsed] = useState(false);
   const detailsId = useId();
@@ -12,7 +12,9 @@ export function ProjectStaleNotice({ offline }: { offline: boolean }) {
       <span className="chip min-w-0 px-2.5 text-[11px]">
         {collapsed && t(offline ? "project.offlineTitle" : "project.staleChecking")}
         <span id={detailsId} hidden={collapsed}>
-          {t(offline ? "project.staleOffline" : "project.staleLoading")}
+          {since
+            ? t("project.staleOfflineSince", { date: new Date(since).toLocaleString() })
+            : t(offline ? "project.staleOffline" : "project.staleLoading")}
         </span>
       </span>
       <Button

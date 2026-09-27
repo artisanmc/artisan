@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
-import { desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "../db";
-import { projectSnapshots, projectVersions, snapshotBlobs, users } from "../db/schema";
+import { projects, projectSnapshots, projectVersions, snapshotBlobs, users } from "../db/schema";
 
 /**
  * Le miroir du Snapshot d'un Project serveur (ADR
@@ -19,6 +19,8 @@ export interface MirroredSnapshot {
 	files: { path: string; content: string }[];
 	binaries: { path: string; hash: string; size: number }[];
 	failed: { path: string; reason: string }[];
+	/** Quand le backend l'a reçu — sert à dater un Project ouvert serveur éteint. */
+	receivedAt?: string;
 }
 
 const blobHash = (content: string) => createHash("sha256").update(content, "utf8").digest("hex");
@@ -87,7 +89,15 @@ export async function getSnapshot(projectId: string): Promise<MirroredSnapshot |
 		if (content === undefined) return null;
 		files.push({ path, content });
 	}
-	return { hash: row.hash, files, binaries: row.binaries, failed: row.failed };
+	return { hash: row.hash, files, binaries: row.binaries, failed: row.failed, receivedAt: row.receivedAt.toISOString() };
+}
+
+/** Ids disque des Projects de ce serveur dont le backend a une copie — pour le lister éteint. */
+export async function mirroredProjectIds(serverKeyId: string): Promise<string[]> {
+	const rows = await db.select({ id: projects.id, externalId: projects.externalId }).from(projects)
+		.innerJoin(projectSnapshots, eq(projectSnapshots.projectId, projects.id))
+		.where(and(eq(projects.serverKeyId, serverKeyId), isNull(projects.deletedAt)));
+	return rows.map((r) => r.externalId ?? r.id).sort();
 }
 
 // ── Validité ────────────────────────────────────────────────────────────────

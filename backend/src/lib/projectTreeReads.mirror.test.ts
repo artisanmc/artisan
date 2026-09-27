@@ -10,8 +10,10 @@ import { networks, projects, serverKeys, snapshotBlobs } from "../db/schema";
 const calls: { projectId: string; ifHash: string | null | undefined }[] = [];
 let disk: { hash: string; files: { path: string; content: string }[] } = { hash: "H1", files: [{ path: "menus/a.yaml", content: "a1" }] };
 let offline = false;
+let connected = true;
 
 mock.module("../ws/hub", () => ({
+	getInstanceCount: () => (connected ? 1 : 0),
 	requestProjectRead: async (_serverKeyId: string, req: { projectId: string; ifHash?: string | null }) => {
 		calls.push({ projectId: req.projectId, ifHash: req.ifHash });
 		if (offline) return { kind: "offline" };
@@ -32,6 +34,7 @@ describe("readProjectTree avec miroir", () => {
 	beforeEach(async () => {
 		calls.length = 0;
 		offline = false;
+		connected = true;
 		disk = { hash: "H1", files: [{ path: "menus/a.yaml", content: "a1" }] };
 		mirror.forgetAllServersForTesting();
 		await db.delete(snapshotBlobs);
@@ -101,5 +104,24 @@ describe("readProjectTree avec miroir", () => {
 		await readProjectTree("sk", "ghost");
 		await readProjectTree("sk", "ghost");
 		expect(calls).toHaveLength(2);
+	});
+
+	test("serveur déconnecté : la dernière copie est servie, datée, sans le plugin", async () => {
+		mirror.recordHello("sk", [{ id: "shop", hash: "H1" }]);
+		await readProjectTree("sk", "shop");
+		mirror.forgetServer("sk");
+		connected = false;
+		calls.length = 0;
+
+		const outcome = await readProjectTree("sk", "shop");
+		expect(calls).toHaveLength(0);
+		expect(filesOf(outcome)).toEqual([{ path: "menus/a.yaml", content: "a1" }]);
+		expect(outcome.kind === "result" && typeof outcome.result.offline_since).toBe("string");
+	});
+
+	test("serveur déconnecté sans copie : hors ligne, comme avant", async () => {
+		connected = false;
+		offline = true;
+		expect((await readProjectTree("sk", "shop")).kind).toBe("offline");
 	});
 });
