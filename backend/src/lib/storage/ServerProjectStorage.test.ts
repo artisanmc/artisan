@@ -46,3 +46,16 @@ test("with the snapshot mirror, reads go through the tree reader and honour if_h
     mirror.forgetServer("server-m");
   }
 });
+
+test("a successful write signs the next Snapshot with its author; a failed one does not", async () => {
+  const mirror = await import("../snapshotMirror");
+  const ok = { kind: "result" as const, result: { type: "project_write_result" as const, request_id: "", ok: true } };
+  const ko = { kind: "result" as const, result: { type: "project_write_result" as const, request_id: "", ok: false, error: "conflict" as const } };
+  let next = ko;
+  const storage = new ServerProjectStorage({ kind: "server", serverKeyId: "server-sign", folderName: "shop" }, { write: async () => next, invalidate: () => {} }, undefined, "alice");
+  await storage.write({ files: [] });
+  expect(mirror.takeAuthor("server-sign", "shop")).toBeNull();
+  next = ok;
+  await storage.write({ files: [] });
+  expect(mirror.takeAuthor("server-sign", "shop")).toBe("alice");
+});

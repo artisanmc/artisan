@@ -105,24 +105,12 @@ class ProjectPublisher(private val root: File, private val afterApply: (Int) -> 
         }
     }
 
-    /** History entries are part of the same replayable lot, preserving binary bytes. */
-    fun withHistory(changes: Map<String, ByteArray?>): Map<String, ByteArray?> {
-        val result = linkedMapOf<String, ByteArray?>()
-        changes.forEach { (path, bytes) ->
-            val target = ProjectPathPolicy.resolve(root, path)
-            if (target.isFile && !ProjectPathPolicy.isPrivate(path) && (bytes == null || !target.readBytes().contentEquals(bytes))) {
-                val history = ".artisan/history/$path"
-                val dir = ProjectPathPolicy.resolve(root, history)
-                var stamp = System.currentTimeMillis()
-                while (File(dir, "%013d".format(stamp)).exists()) stamp++
-                result["$history/${"%013d".format(stamp)}"] = target.readBytes()
-                val versions = dir.listFiles()?.filter { it.isFile }?.sortedBy { it.name }.orEmpty()
-                versions.take((versions.size - 19).coerceAtLeast(0)).forEach { result["$history/${it.name}"] = null }
-            }
-            result[path] = bytes
-        }
-        return result
-    }
+    /**
+     * `.artisan/history/` n'est plus alimenté : l'historique vit dans les Versions
+     * du backend (ADR `snapshot-mirror-and-backend-history`, décision 6). Les
+     * archives existantes restent lisibles par `project_history`.
+     */
+    fun withHistory(changes: Map<String, ByteArray?>): Map<String, ByteArray?> = changes
 
     private fun replay(file: File, intent: JsonNode) {
         if (intent["complete"].asBoolean()) {

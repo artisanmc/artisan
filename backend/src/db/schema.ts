@@ -453,6 +453,19 @@ export const projectSnapshots = pgTable("project_snapshots", {
 	receivedAt: timestamp("received_at").notNull(),
 });
 
+// Versions d'un Project serveur : chaque Snapshot reçu qui diffère du précédent
+// (ADR `snapshot-mirror-and-backend-history`, décision 6). Contenus dans `snapshot_blobs`.
+export const projectVersions = pgTable("project_versions", {
+	id: text("id").primaryKey(),
+	projectId: text("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+	hash: text("hash").notNull(),
+	files: jsonb("files").notNull().$type<Record<string, string>>(),
+	binaries: jsonb("binaries").notNull().$type<{ path: string; hash: string; size: number }[]>(),
+	// `null` = le serveur lui-même (édition à la main puis reload).
+	authorId: text("author_id").references(() => users.id, { onDelete: "set null" }),
+	createdAt: timestamp("created_at").notNull(),
+}, (t) => [index("project_versions_project_created_idx").on(t.projectId, t.createdAt)]);
+
 const bytea = customType<{ data: Uint8Array; driverData: Buffer }>({
 	dataType: () => "bytea",
 	toDriver: (value) => Buffer.from(value),

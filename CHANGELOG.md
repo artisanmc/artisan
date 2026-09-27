@@ -9,6 +9,10 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Added — Project Versions
+
+- Every Snapshot the server loads that differs from the previous one is kept as a Version, with its date and author (the user who published, or the server after a hand edit and reload). The drafts window lists the Project's Versions; restoring one replaces your draft's content and publishes nothing. File history now shows who made each version. The plugin no longer writes `.artisan/history/`; existing archives stay readable until a Project has Versions. Migration `0058` adds `project_versions`.
+
 ### Changed — server-project drafts live in the backend again
 
 - Drafts of server projects (and their images) are stored by the backend instead of the server disk; existing drafts are brought back automatically when the server connects, and the copies left under `.artisan/drafts/` are no longer read. Opening a draft now updates the files you did not touch to the server's current version, and shows a per-file choice for files changed on both sides — applying it updates the draft without publishing. Migration `0057` adds `project_draft_blobs`.

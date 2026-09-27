@@ -3,6 +3,15 @@
 > Source de vérité du schéma : `backend/src/db/schema.ts` (+ migrations dans `backend/drizzle/`).
 > Ce doc décrit le modèle **courant** puis l'historique des phases qui y ont mené.
 
+## Versions (migration 0058)
+
+`project_versions(id, project_id → projects cascade, hash, files, binaries, author_id →
+users set null, created_at)` : un Snapshot reçu qui diffère de la Version précédente, écrit
+dans la même transaction que `project_snapshots` (`putSnapshot`). `files` = manifeste chemin →
+hash dans `snapshot_blobs` ; `author_id` `null` = le serveur. L'auteur vient de `noteAuthor`,
+posé par `ServerProjectStorage` après une écriture réussie de l'éditeur, repris au Snapshot
+suivant. Aucune purge. ADR `snapshot-mirror-and-backend-history`, décision 6.
+
 ## Miroir du Snapshot (migration 0056)
 
 `project_snapshots(project_id PK → projects cascade, hash, files, binaries, failed,

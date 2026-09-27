@@ -129,12 +129,12 @@ class ProjectPublisherRecoveryTest {
         assertEquals(addon, roots.all()["addon_id"])
         assertEquals("b", File(addon, "b.yaml").readText())
     }
-    @Test fun `binary history preserves bytes and duplicate retry does not overwrite newer changes`() {
+    @Test fun `binary write keeps no disk history and duplicate retry does not overwrite newer changes`() {
         val before = byteArrayOf(-119, 0, -1)
         File(root, "image.png").writeBytes(before)
         val publisher = ProjectPublisher(root)
         publisher.commit("op", "request", publisher.withHistory(mapOf("image.png" to byteArrayOf(1, 2))), mapper.readTree("{\"ok\":true}"))
-        assertArrayEquals(before, File(root, ".artisan/history/image.png").listFiles()!!.single().readBytes())
+        assertFalse(File(root, ".artisan/history").exists())
         assertTrue(ProjectFilesReader.readAll(root).isEmpty())
         assertEquals(listOf("image.png"), ProjectFilesReader.allPaths(root))
         File(root, "image.png").writeBytes(byteArrayOf(3))

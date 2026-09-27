@@ -8,6 +8,7 @@ import {
 	markUnknown,
 	mirrorSupported,
 	putSnapshot,
+	takeAuthor,
 	type MirroredSnapshot,
 } from "./snapshotMirror";
 
@@ -88,7 +89,7 @@ async function mirroredRead(serverKeyId: string, diskId: string): Promise<Projec
 		files: outcome.result.files ?? [],
 		binaries: outcome.result.binaries ?? [],
 		failed: outcome.result.failed ?? [],
-	});
+	}, { authorId: takeAuthor(serverKeyId, diskId) });
 	confirmRead(serverKeyId, diskId, hash, generation);
 	return outcome;
 }

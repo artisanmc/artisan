@@ -66,18 +66,19 @@ le fichier neuf et le fichier disparu).
 
 **Verrouillé par** `ProjectWriteChannelTest` (plugin) et `diskSave` / `resolveConflicts` (éditeur).
 
-## Corbeille `.artisan/history/` — anneau par fichier
+## Versions en base — la corbeille disque n'est plus alimentée (2026-09-26)
 
-Avant tout écrasement ou suppression, le plugin recopie l'ancien contenu dans
-`.artisan/history/<relPath>/<ms>`, en anneau des 20 dernières versions par fichier. Le nom est un
-millis sur 13 chiffres : l'ordre lexicographique **est** l'ordre chronologique, donc la purge n'a
-pas à parser de dates.
+ADR `snapshot-mirror-and-backend-history`, décision 6. Chaque Snapshot reçu par le miroir qui
+diffère du précédent devient une **Version** (`project_versions`, contenus dans `snapshot_blobs`) :
+date, auteur (l'utilisateur dont l'écriture a précédé ce Snapshot, sinon le serveur) et manifeste.
+L'historique d'un fichier et celui du Project se lisent en base ; **restaurer ne publie jamais** :
+le contenu va dans le brouillon, puis la publication normale (CAS) s'applique.
 
-Un échec d'archivage **n'empêche pas** l'écriture : perdre le filet est regrettable, perdre
-l'enregistrement de l'admin le serait plus.
-
-C'est une corbeille **par fichier**, pas un point de restauration du Project entier. « Remets ce
-menu comme il était » marche ; « remets tout le Project à hier soir » non — et c'est assumé.
+Le plugin n'écrit plus `.artisan/history/` (`withHistory` est l'identité) ; les archives existantes
+restent lisibles par `project_history`, qui sert de repli tant qu'un Project n'a aucune Version.
+Limites assumées : plusieurs éditions à la main entre deux reloads forment une seule Version ;
+les images d'une Version ne sont que des hashes (leurs octets ne sont pas conservés) ; perdre la
+base perd les Versions, jamais le contenu publié.
 
 ## Exclusion `.artisan*` universelle (2026-07-23)
 

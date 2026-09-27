@@ -227,7 +227,7 @@ vérifie `project_list`, écrit `manifest.yaml` via `project_write` (`create: tr
 
 ## Accès commercial à l'éditeur
 
-`routes/projectContent.ts` expose aussi `GET /api/v1/projects/:projectId/editor-access` (session et appartenance requises). La réponse indique quota, compteur personnel live, origine du Project, échéance Pro et raison éventuelle ; inventaire indisponible = 503. Les écritures de `projectContent.ts`, `projectDrafts.ts` et `userNetworks.ts` propagent `quota_denied` (403), `inventory_unavailable` et `plugin_update_required` (503). `modules/billing/editorAccess.ts` résout la politique du Network et du serveur.
+`routes/projectContent.ts` expose les **Versions** (2026-09-26) : `GET /api/v1/projects/:projectId/versions` → `{versions:[{id,hash,createdAt,author,changed}]}` (50 plus récentes), `GET …/versions/:versionId` → `{id,hash,createdAt,files,binaries}` (404 inconnue). `GET …/history?path=` sert l'historique d'un fichier depuis les Versions (`author` inclus), et retombe sur la corbeille du plugin tant qu'aucune Version n'existe. Il expose aussi `GET /api/v1/projects/:projectId/editor-access` (session et appartenance requises). La réponse indique quota, compteur personnel live, origine du Project, échéance Pro et raison éventuelle ; inventaire indisponible = 503. Les écritures de `projectContent.ts`, `projectDrafts.ts` et `userNetworks.ts` propagent `quota_denied` (403), `inventory_unavailable` et `plugin_update_required` (503). `modules/billing/editorAccess.ts` résout la politique du Network et du serveur.
 
 ## Endpoints supprimés (ne pas réintroduire)
 
