@@ -3,13 +3,11 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { eq } from "drizzle-orm";
-import { Hono } from "hono";
 import { db } from "../db";
 import { users, networks, memberships, serverKeys, projectCopies, projects } from "../db/schema";
 import { createHostedProject } from "./storage/hostedProjects";
 import { resolveProjectStorage } from "./storage/resolveProjectStorage";
 import { beginCopy, listCopyTargets, readCopy, resumeCopy, reconcileCopyReceipt, type CopyTransport } from "./projectCopy";
-import { projectCopiesRouter } from "../routes/projectCopies";
 import { ensureProjectForServer } from "./projectStorage";
 import { beginProjectRename } from "./projectRename";
 
@@ -154,16 +152,4 @@ test("hard-deleted source/account keeps uncertain journal; expired missing proof
   expect(p.calls.slice(before)).toEqual(["status"]);
   expect((await db.select().from(projectCopies))[0]).toMatchObject({ status: "failed", artifact: null, error: "operation_expired" });
   expect(await anchors()).toHaveLength(0);
-});
-test("HTTP persists offline intent, returns stable status and actionable auth/input failures", async () => {
-  const s = await source();
-  const app = (user: string | null = "owner") => { const a = new Hono(); a.use("*", async (c, next) => { c.set("user" as never, (user ? { id: user } : null) as never); await next(); }); a.route("/api/v1/user/projects", projectCopiesRouter); return a; };
-  const path = `/api/v1/user/projects/${s.project.id}/copies`;
-  const response = await app().request(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input(s.revision)) });
-  expect(response.status).toBe(202); expect(await response.json()).toMatchObject({ operationId: "copy", state: "pending", projectId: null });
-  expect((await app().request(`${path}/copy`)).status).toBe(200);
-  expect((await app(null).request(`${path}/copy`)).status).toBe(401);
-  expect((await app("other").request(`${path}/copy`)).status).toBe(404);
-  const invalid = await app().request(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...input(s.revision), folderName: "../escape" }) });
-  expect(invalid.status).toBe(422); expect(await invalid.json()).toEqual({ error: "invalid_input" });
 });

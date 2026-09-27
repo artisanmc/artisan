@@ -1,0 +1,1 @@
+ALTER TABLE "projects" ADD COLUMN "unpublished" boolean DEFAULT false NOT NULL;

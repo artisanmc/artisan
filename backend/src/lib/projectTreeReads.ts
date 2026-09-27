@@ -49,7 +49,14 @@ export async function readProjectTree(
 	opts: { maxAgeMs?: number } = {},
 ): Promise<ProjectReadOutcome> {
 	if (!mirrorSupported(serverKeyId)) {
-		return getInstanceCount(serverKeyId) > 0 ? legacyRead(serverKeyId, projectId, opts) : offlineRead(serverKeyId, projectId);
+		if (getInstanceCount(serverKeyId) === 0) return offlineRead(serverKeyId, projectId);
+		const outcome = await legacyRead(serverKeyId, projectId, opts);
+		// Un ancien plugin ne connaît pas un Project jamais publié : c'est normal.
+		if (outcome.kind === "result" && !outcome.result.ok && outcome.result.error === "unknown_project") {
+			const project = await getProjectForServer(serverKeyId, projectId);
+			if (project?.unpublished) return unpublishedTree(project, true);
+		}
+		return outcome;
 	}
 	const key = keyOf(serverKeyId, projectId);
 	const pending = mirrorReads.get(key);
@@ -59,6 +66,21 @@ export async function readProjectTree(
 	});
 	mirrorReads.set(key, read);
 	return read;
+}
+
+/**
+ * Jamais publié (créé serveur non relié, ADR `server-only-projects`) : l'arbre
+ * publié est vide, c'est la vérité ; tout le contenu est dans le brouillon.
+ */
+function unpublishedTree(project: { createdAt: Date }, connected: boolean): ProjectReadOutcome {
+	return {
+		kind: "result",
+		result: {
+			type: "project_read_result", request_id: "", ok: true, hash: "unpublished",
+			files: [], binaries: [], failed: [], unpublished: true,
+			...(connected ? {} : { offline_since: project.createdAt.toISOString() }),
+		},
+	};
 }
 
 function fromMirror(snapshot: MirroredSnapshot, offline = false): ProjectReadOutcome {
@@ -75,6 +97,7 @@ function fromMirror(snapshot: MirroredSnapshot, offline = false): ProjectReadOut
  */
 async function offlineRead(serverKeyId: string, diskId: string): Promise<ProjectReadOutcome> {
 	const project = await getProjectForServer(serverKeyId, diskId);
+	if (project?.unpublished) return unpublishedTree(project, false);
 	const snapshot = project ? await getSnapshot(project.id) : null;
 	return snapshot ? fromMirror(snapshot, true) : { kind: "offline" };
 }
@@ -82,6 +105,7 @@ async function offlineRead(serverKeyId: string, diskId: string): Promise<Project
 async function mirroredRead(serverKeyId: string, diskId: string): Promise<ProjectReadOutcome> {
 	const project = await getProjectForServer(serverKeyId, diskId);
 	if (!project) return requestProjectRead(serverKeyId, { projectId: diskId });
+	if (project.unpublished && announcedHash(serverKeyId, diskId) === undefined) return unpublishedTree(project, true);
 
 	const snapshot = await getSnapshot(project.id);
 	const announced = announcedHash(serverKeyId, diskId);

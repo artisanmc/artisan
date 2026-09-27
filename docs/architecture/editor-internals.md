@@ -414,6 +414,11 @@ dans `session.openConflicts`, et `ProjectTopBarControls` ouvre la même modale q
 un conflit d'enregistrement (`conflictSource: "open"`). Appliquer met à jour la base du
 brouillon et le marque à sauvegarder, **sans publier** ; `consumeOpenConflicts` évite de
 reproposer les mêmes conflits.
+**Server-only (2026-09-27, ADR `server-only-projects`)** : plus de section « projets
+hébergés », de copie vers Minecraft ni d'import ZIP ; la démo n'a plus de réclamation,
+son bouton **Exporter** (`runExportDraftZip`) télécharge le brouillon courant (texte de
+l'éditeur, images publiées ou privées). `useProjectLoader` expose `unpublished` ;
+`ProjectStaleNotice` l'annonce quand le serveur n'est pas connecté.
 **Serveur éteint (2026-09-26)** : `readProjectFiles` rend `offlineSince` ; `useProjectLoader` ouvre alors le Project en `offline` + `stale`, expose `offlineSince` et revérifie toutes les 15 s ; `ProjectStaleNotice` affiche la date de la copie.
 **Versions (2026-09-26)** : `ProjectVersions` (dans la fenêtre des brouillons) liste les
 Versions du Project ; restaurer remplace l'arbre de l'éditeur par celui de la Version

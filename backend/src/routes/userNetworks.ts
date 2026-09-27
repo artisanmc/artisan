@@ -1,9 +1,9 @@
+import { SqlDraftStore } from "../lib/storage/SqlDraftStore";
 // backend/src/routes/userNetworks.ts
 
 import { and, desc, eq, inArray, isNull, ne, or } from "drizzle-orm";
 import type { Context } from "hono";
 import { Hono } from "hono";
-import { createHostedProject, listHostedProjects } from "../lib/storage/hostedProjects";
 import { db } from "../db/index";
 import { ServerProjectStorage } from "../lib/storage/ServerProjectStorage";
 import { handleProjectRead, handleProjectWrite, handleProjectHistory } from "./projectContent";
@@ -41,7 +41,7 @@ import { requireCapability, requireMember, withNetworkMemberLock } from "../lib/
 import { addMembership } from "../lib/membershipManager";
 import { createNetwork } from "../lib/networkManager";
 import { readOwnerModuleFromFiles } from "../lib/projectFiles";
-import { ensureProjectForServer, getProject, listProjectsForNetwork, projectDiskId } from "../lib/projectStorage";
+import { ensureProjectForServer, getProject, getProjectForServer, listProjectsForNetwork, projectDiskId } from "../lib/projectStorage";
 import { pendingProjectRenames } from "../lib/projectRename";
 import { resolveNetworkForMember } from "../lib/refs";
 import { slugify } from "../lib/slug";
@@ -104,47 +104,6 @@ function parseSchemaJson(raw: string | null): { name: string; type: string; desc
 }
 
 export const userNetworksRouter = new Hono<{ Variables: Vars }>();
-
-async function hostedNetwork(c: Context<{ Variables: Vars }>, mutation = false) {
-  const user = c.get("user");
-  if (!user) throw Object.assign(new Error("unauthorized"), { status: 401 });
-  const ref = c.req.param("id");
-  if (!ref) throw Object.assign(new Error("invalid_input"), { status: 422 });
-  const network = (await db.select().from(networks).where(or(eq(networks.id, ref), eq(networks.slug, ref))))[0];
-  if (!network) throw Object.assign(new Error("not_found"), { status: 404 });
-  if (mutation) await requireCapability(user.id, network.id, "publish_content");
-  else await requireMember(user.id, network.id);
-  return { user, network };
-}
-userNetworksRouter.get("/:id/hosted-projects/templates", async (c) => {
-  try {
-    await hostedNetwork(c);
-    const entries = await import("node:fs/promises").then((fs) => fs.readdir(new URL("../../data/items/", import.meta.url)));
-    return c.json({ templates: [{ id: "vanilla", name: "Vanilla" }], minecraftVersions: entries.filter((p) => /^\d+\.\d+(?:\.\d+)?\.json$/.test(p)).map((p) => p.replace(/\.json$/, "")).sort() });
-  } catch (error) { return hostedRouteError(c, error); }
-});
-userNetworksRouter.get("/:id/hosted-projects", async (c) => {
-  try { const { network } = await hostedNetwork(c); return c.json({ projects: await listHostedProjects(network.id) }); }
-  catch (error) { return hostedRouteError(c, error); }
-});
-userNetworksRouter.post("/:id/hosted-projects", async (c) => {
-  try {
-    const { network, user } = await hostedNetwork(c, true);
-    const body = await c.req.json().catch(() => null);
-    if (!body || typeof body.operationId !== "string" || typeof body.folderName !== "string" || typeof body.minecraftVersion !== "string" || !/^\d+\.\d+(?:\.\d+)?$/.test(body.minecraftVersion) || (body.templateId !== undefined && body.templateId !== "vanilla")) return c.json({ error: "invalid_input" }, 422);
-    if (!await Bun.file(new URL(`../../data/items/${body.minecraftVersion}.json`, import.meta.url)).exists()) return c.json({ error: "unknown_version" }, 422);
-    const project = await createHostedProject({ networkId: network.id, ownerId: user.id, operationId: body.operationId, folderName: body.folderName, name: typeof body.name === "string" ? body.name : body.folderName, minecraftVersion: body.minecraftVersion });
-    return c.json({ project }, 201);
-  } catch (error) { return hostedRouteError(c, error); }
-});
-function hostedRouteError(c: Context, error: unknown) {
-  const e = error as { code?: string; message?: string; status?: number };
-  const candidate = e.code ?? e.message ?? "";
-  const statuses: Record<string, number> = { unauthorized: 401, forbidden: 403, not_found: 404, invalid_input: 422, invalid_template: 422, invalid_path: 422, unknown_version: 422, destination_exists: 409, destination_reserved: 409, operation_mismatch: 409, operation_conflict: 409, operation_expired: 409 };
-  const status = statuses[candidate];
-  if (!status) console.error("[hosted-project] storage operation failed", error);
-  return c.json({ error: status ? candidate : "storage_unavailable" }, (status ?? 503) as 403);
-}
 
 type ImportSourcesListRequest = typeof requestImportSourcesList;
 let importSourcesListRequest: ImportSourcesListRequest = requestImportSourcesList;
@@ -314,7 +273,7 @@ userNetworksRouter.get("/:id", async (c: Context<{ Variables: Vars }>) => {
 
 	return c.json({
 		network,
-		projects: [...anchored, ...await listHostedProjects(network.id)],
+		projects: anchored,
 		serverKeys: listings.map(({ sk, online }) => ({ ...sk, online })),
 	});
 });
@@ -563,6 +522,22 @@ userNetworksRouter.post(
 		if (skRows.length === 0)
 			return c.json({ error: "server_key_not_in_network" }, 403);
 
+		const manifest = `id: ${JSON.stringify(diskId)}\nname: ${JSON.stringify(diskId)}\n` +
+			(body.description ? `description: ${JSON.stringify(body.description)}\n` : "");
+		// Serveur non relié ou hors ligne : le Project naît en brouillon, sans
+		// dossier ; sa première publication le créera (ADR `server-only-projects`).
+		if (getInstanceCount(body.serverKeyId) === 0) {
+			if (await getProjectForServer(body.serverKeyId, diskId)) return c.json({ error: "project_exists" }, 409);
+			const created = await ensureProjectForServer({ networkId, serverKeyId: body.serverKeyId, diskId });
+			await db.update(projects).set({ unpublished: true, ...(body.description !== undefined ? { description: body.description } : {}) }).where(eq(projects.id, created.id));
+			const storage = new ServerProjectStorage({ kind: "server", serverKeyId: body.serverKeyId, folderName: diskId });
+			await new SqlDraftStore(created.id, userId, storage).create(crypto.randomUUID(), crypto.randomUUID(), {
+				name: diskId,
+				snapshot: { baseline: {}, tree: { "manifest.yaml": manifest }, at: Date.now() },
+			});
+			return c.json({ project: (await getProject(created.id))! }, 201);
+		}
+
 		const listing = await requestProjectList(body.serverKeyId);
 		if (listing.kind === "offline") return c.json({ error: "server_offline" }, 503);
 		if (listing.kind === "timeout") return c.json({ error: "fetch_timeout" }, 504);
@@ -572,12 +547,7 @@ userNetworksRouter.post(
 		const outcome = await requestProjectWrite(body.serverKeyId, {
 			projectId: diskId,
 			create: true,
-			files: [{
-				path: "manifest.yaml",
-				content: `id: ${JSON.stringify(diskId)}\nname: ${JSON.stringify(diskId)}\n` +
-					(body.description ? `description: ${JSON.stringify(body.description)}\n` : ""),
-				base_hash: null,
-			}],
+			files: [{ path: "manifest.yaml", content: manifest, base_hash: null }],
 		});
 		if (outcome.kind === "offline") return c.json({ error: "server_offline" }, 503);
 		if (outcome.kind === "timeout") return c.json({ error: "fetch_timeout" }, 504);

@@ -55,7 +55,6 @@ import {
   saveProjectToDisk,
 } from "@/features/project/saveProjectToDisk";
 import { WORKSPACE_VIEW_TABS, type WorkspaceViewTab } from "@/features/project/workspaceTabs";
-import { CopyProjectToServerButton } from "@/features/projects/CopyProjectToServerButton";
 import type { ProjectFileConflict } from "@/lib/api/projectFiles";
 import { cn } from "@/lib/cx";
 import { countMissingForLang, listLanguages } from "@/lib/i18nUsages";
@@ -187,7 +186,6 @@ export function ProjectTopBarControls({
           <div data-tour="save" className="flex items-center gap-1">
             <SaveControls key={projectId} projectId={projectId} />
           </div>
-          <CopyProjectToServerButton projectId={projectId} />
           <RefreshProjectButton
             projectId={projectId}
             renderTrigger={(onRefresh) => (

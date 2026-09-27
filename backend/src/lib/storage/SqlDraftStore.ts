@@ -160,7 +160,9 @@ export class SqlDraftStore implements DraftStore {
     }
     const count = plan.files.length + plan.deletes.length + plan.renames.length + binaries.length;
     if (!count) return { kind: "result" as const, result: { ok: true }, wrote: 0 };
-    const result = await this.storage.write({ ...plan, ...(binaries.length ? { binaries } : {}), operationId, create: false });
+    // Base vide = rien de publié : la première publication crée le dossier.
+    const create = Object.keys(snapshot.baseline).length === 0 && Object.keys(snapshot.binaryBaseline ?? {}).length === 0;
+    const result = await this.storage.write({ ...plan, ...(binaries.length ? { binaries } : {}), operationId, create });
     return { ...result, wrote: count };
   }
 }

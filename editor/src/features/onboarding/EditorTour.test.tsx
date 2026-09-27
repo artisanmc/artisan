@@ -15,13 +15,13 @@ afterEach(() => {
   useTourPresentation.setState({ step: null });
 });
 
-it("spotlights the demo Keep action and finishes only on explicit confirmation", async () => {
+it("spotlights the demo Export action and finishes only on explicit confirmation", async () => {
   const user = userEvent.setup();
   const actions = { next: vi.fn(), back: vi.fn(), defer: vi.fn(), complete: vi.fn() };
   vi.mocked(HTMLElement.prototype.getBoundingClientRect).mockImplementation(function (
     this: HTMLElement,
   ) {
-    return this.dataset.tour === "demo-keep"
+    return this.dataset.tour === "demo-export"
       ? new DOMRect(600, 10, 120, 40)
       : new DOMRect(40, 80, 100, 80);
   });
@@ -30,8 +30,8 @@ it("spotlights the demo Keep action and finishes only on explicit confirmation",
       <button data-tour="save" type="button">
         Save
       </button>
-      <button data-tour="demo-keep" type="button">
-        Keep
+      <button data-tour="demo-export" type="button">
+        Export
       </button>
       <EditorTour
         state={{ open: true, step: 6, busy: false }}
@@ -73,7 +73,7 @@ it("skips an unavailable target after layout settles without completing the fina
   expect(actions.complete).not.toHaveBeenCalled();
 });
 
-it("walks through six demo stops, explains Keep, and cleans up presentation when deferred", async () => {
+it("walks through six demo stops, explains Export, and cleans up presentation when deferred", async () => {
   const user = userEvent.setup();
   const complete = vi.fn();
   function Example() {
@@ -86,8 +86,8 @@ it("walks through six demo stops, explains Keep, and cleans up presentation when
         <div data-tour="library" />
         <div data-tour="elements-trigger" />
         <div data-tour="tabs" />
-        <button type="button" data-tour="demo-keep">
-          Keep
+        <button type="button" data-tour="demo-export">
+          Export
         </button>
         <EditorTour
           state={{ open, step, busy: false }}
@@ -111,7 +111,7 @@ it("walks through six demo stops, explains Keep, and cleans up presentation when
   ).toBeInTheDocument();
   for (let step = 1; step < 6; step++)
     await user.click(screen.getByRole("button", { name: /Suivant|Next/ }));
-  expect(screen.getByRole("dialog")).toHaveTextContent(/Conserver ce projet|Keep this project/);
+  expect(screen.getByRole("dialog")).toHaveTextContent(/Exporter ce projet|Export this project/);
   expect(complete).not.toHaveBeenCalled();
   await user.click(screen.getByRole("button", { name: /Plus tard|Later/ }));
   expect(screen.queryByRole("dialog")).not.toBeInTheDocument();

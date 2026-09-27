@@ -66,12 +66,14 @@ export type ProjectReadResult =
       hash: string | null;
       /** Serveur éteint : dernière copie connue du backend, reçue à cette date. */
       offlineSince?: string;
+      /** Jamais publié : rien sur le disque, tout est dans le brouillon. */
+      unpublished?: boolean;
     }
   /**
    * Le serveur porte exactement l'empreinte annoncée : rien n'a été transporté,
    * et la dernière version connue reste valable — elle vient d'être revalidée.
    */
-  | { ok: true; unchanged: true; hash: string | null; offlineSince?: string }
+  | { ok: true; unchanged: true; hash: string | null; offlineSince?: string; unpublished?: boolean }
   | { ok: false; error: ProjectFilesError };
 
 export type ProjectWriteResult =
@@ -135,10 +137,14 @@ export async function readProjectFiles(
       hash?: string | null;
       unchanged?: boolean;
       offlineSince?: string;
+      unpublished?: boolean;
       error?: string;
     } | null;
     if (!res.ok) return { ok: false, error: knownError(body?.error, "read_error") };
-    const offline = body?.offlineSince ? { offlineSince: body.offlineSince } : {};
+    const offline = {
+      ...(body?.offlineSince ? { offlineSince: body.offlineSince } : {}),
+      ...(body?.unpublished ? { unpublished: true } : {}),
+    };
     if (body?.unchanged) return { ok: true, unchanged: true, hash: body.hash ?? null, ...offline };
     const files: Record<string, string> = {};
     for (const f of body?.files ?? []) if (!isPrivateProjectPath(f.path)) files[f.path] = f.content;

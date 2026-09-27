@@ -12,7 +12,8 @@ remain available. The editor polls every three seconds until membership exists.
 ## Temporary demo access
 
 `demo.ts` exposes `GET /api/v1/demo` (recover only; never creates or renews),
-`POST /api/v1/demo` (create/recover), and `POST /api/v1/demo/claim`.
+`POST /api/v1/demo` (create/recover). The demo is disposable: no claim into an account
+(`/demo/claim` removed 2026-09-27, ADR `server-only-projects`); it leaves only through export.
 The HttpOnly `artisan_demo_session` cookie selects a guest principal only for its
 exact Project. Mutations require the editor Origin and `X-Artisan-Demo-CSRF`;
 successful effective writes expose `X-Artisan-Demo-Expires-At` and update cookie
@@ -52,7 +53,7 @@ remains under `networks/:id/server-keys`; plugin `/link` is unchanged.
   only when unseen. Progress never clears completion. The state belongs to the
   authenticated account, independently of the demo principal or current Project.
 
-- **Hosted projects (2026-09-13)**: `userNetworks.ts` exposes
+- **Hosted projects (2026-09-13, account endpoints removed 2026-09-27 — ADR `server-only-projects`)**: `userNetworks.ts` exposed
   `GET/POST /api/v1/networks/:id/hosted-projects` and `GET .../templates`.
   Creation takes `{operationId, folderName, name, minecraftVersion, templateId: "vanilla"}`;
   Network detail includes hosted summaries. `userProjects.ts` adds capabilities,
@@ -206,7 +207,7 @@ vérifie `project_list`, écrit `manifest.yaml` via `project_write` (`create: tr
 
 ## Flux non-évidents
 
-- **Copie hébergée → Minecraft** : `projectCopies.ts`, sous `/api/v1/user/projects/:projectId`. `GET /copy-targets` renvoie `{sourceRevision,targets}` avec serveurs connectés autorisés, version exacte, compatibilité modules et dossier libre proposé. `POST /copies` reçoit `{operationId,targetServerKeyId,folderName,sourceRevision}` ; réponse directe `{operationId,state,sourceRevision,targetServerKeyId,targetNetworkId,folderName,projectId,error}`. `GET /copies/:operationId` relit l'état ; `POST /copies/:operationId/resume` reprend les octets figés. `202 pending` conserve l'intention hors ligne ; `200 completed` fournit l'ancre destination ; `409 failed` ou erreur préliminaire explicite. Lecture source + droits `publish_content`/`edit_content` cible sont revérifiés avant chaque message de mutation. Aucune publication de brouillon implicite ; une révision source modifiée avant capture renvoie `source_revision_changed`. Les reçus sont privés à l'acteur et ne transportent jamais les octets du transfert.
+- **Copie hébergée → Minecraft** (routeur retiré 2026-09-27, ADR `server-only-projects` ; le lib reste jusqu'au retrait du stockage hébergé) : `projectCopies.ts`, sous `/api/v1/user/projects/:projectId`. `GET /copy-targets` renvoie `{sourceRevision,targets}` avec serveurs connectés autorisés, version exacte, compatibilité modules et dossier libre proposé. `POST /copies` reçoit `{operationId,targetServerKeyId,folderName,sourceRevision}` ; réponse directe `{operationId,state,sourceRevision,targetServerKeyId,targetNetworkId,folderName,projectId,error}`. `GET /copies/:operationId` relit l'état ; `POST /copies/:operationId/resume` reprend les octets figés. `202 pending` conserve l'intention hors ligne ; `200 completed` fournit l'ancre destination ; `409 failed` ou erreur préliminaire explicite. Lecture source + droits `publish_content`/`edit_content` cible sont revérifiés avant chaque message de mutation. Aucune publication de brouillon implicite ; une révision source modifiée avant capture renvoie `source_revision_changed`. Les reçus sont privés à l'acteur et ne transportent jamais les octets du transfert.
 
 - **HeadDatabase previews** : `userNetworks.ts`, `GET /api/v1/networks/:networkId/servers/:serverId/head-texture?id=<numeric-id>`, cookie auth + network membership (ids or slugs). Relays to the selected plugin and returns `{texture}`; offline/old plugin times out gracefully in the editor. No backend catalog or persisted Project content.
 
@@ -230,6 +231,9 @@ vérifie `project_list`, écrit `manifest.yaml` via `project_write` (`create: tr
 Lecture de fichiers, serveur déconnecté (2026-09-26) : `GET …/files` répond 200 avec la dernière copie du miroir et `offlineSince` (aussi sur `unchanged`) ; `GET /networks/:id/servers/:sid/projects` et le détail du réseau listent les Projects qui ont une copie, avec `offline: true`. `routes/projectContent.ts` expose les **Versions** (2026-09-26) : `GET /api/v1/projects/:projectId/versions` → `{versions:[{id,hash,createdAt,author,changed}]}` (50 plus récentes), `GET …/versions/:versionId` → `{id,hash,createdAt,files,binaries}` (404 inconnue). `GET …/history?path=` sert l'historique d'un fichier depuis les Versions (`author` inclus), et retombe sur la corbeille du plugin tant qu'aucune Version n'existe. Il expose aussi `GET /api/v1/projects/:projectId/editor-access` (session et appartenance requises). La réponse indique quota, compteur personnel live, origine du Project, échéance Pro et raison éventuelle ; inventaire indisponible = 503. Les écritures de `projectContent.ts`, `projectDrafts.ts` et `userNetworks.ts` propagent `quota_denied` (403), `inventory_unavailable` et `plugin_update_required` (503). `modules/billing/editorAccess.ts` résout la politique du Network et du serveur.
 
 ## Endpoints supprimés (ne pas réintroduire)
+
+- `…/networks/:id/hosted-projects` (+ `/templates`), `…/user/projects/:projectId/copy-targets|copies*`, `POST /api/v1/demo/claim` — retirés 2026-09-27 (ADR `server-only-projects`).
+- `POST /api/v1/networks/:id/projects` sur un Server non relié ou hors ligne ne renvoie plus 503 : il crée le Project `unpublished` avec un brouillon du créateur (`manifest.yaml`), 409 si le dossier existe déjà en base.
 
 Guest draft `ownerId` equals the bootstrap principal ID. Account-only copy middleware is scoped to `copy-targets` and `copies` paths so adjacent guest asset routes retain principal authorization.
 

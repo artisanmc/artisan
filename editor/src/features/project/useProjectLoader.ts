@@ -43,6 +43,8 @@ export interface ProjectLoadResult {
    * Snapshot (ADR `snapshot-mirror-and-backend-history`, décision 7).
    */
   offlineSince: string | null;
+  /** Jamais publié (Server non relié) : le contenu vit tout entier dans le brouillon. */
+  unpublished: boolean;
 }
 
 /** Select working edits only after the project has passed its opening check. */
@@ -123,6 +125,7 @@ export function useProjectLoader(projectId: string, serverRef?: string | null, n
   const [fromDraft, setFromDraft] = useState(false);
   const [stale, setStale] = useState(false);
   const [offlineSince, setOfflineSince] = useState<string | null>(null);
+  const [unpublished, setUnpublished] = useState(false);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: reloadToken relance la lecture sur Actualiser.
   useEffect(() => {
@@ -150,7 +153,8 @@ export function useProjectLoader(projectId: string, serverRef?: string | null, n
       let retry = false;
       let validated = false;
       // Serveur éteint mais copie du backend : ouvert, daté, et on revérifie.
-      const settle = (since: string | undefined) => {
+      const settle = (since: string | undefined, neverPublished = false) => {
+        setUnpublished(neverPublished);
         if (since) {
           setOffline(true);
           setStale(true);
@@ -228,7 +232,7 @@ export function useProjectLoader(projectId: string, serverRef?: string | null, n
               setProject(built);
               setNetworkId(res.networkId);
               setFailed(cached.failed ?? []);
-              settle(disk.offlineSince);
+              settle(disk.offlineSince, disk.unpublished);
               return;
             }
             // Pas de cache mais un « inchangé » : on ne sait pas de quoi il parle.
@@ -271,7 +275,7 @@ export function useProjectLoader(projectId: string, serverRef?: string | null, n
             setFromDraft(shown.fromDraft);
             setNetworkId(res.networkId);
             setFailed(full.failed);
-            settle(full.offlineSince);
+            settle(full.offlineSince, full.unpublished);
             return;
           }
           setFailed(disk.failed);
@@ -308,7 +312,7 @@ export function useProjectLoader(projectId: string, serverRef?: string | null, n
           setProject(built);
           setNetworkId(res.networkId);
           setFromDraft(resumable !== null);
-          settle(disk.offlineSince);
+          settle(disk.offlineSince, disk.unpublished);
         })
         .catch((e) => {
           if (cancelled) return;
@@ -340,5 +344,5 @@ export function useProjectLoader(projectId: string, serverRef?: string | null, n
   }, [projectId, serverRef, networkRef, ownerId, reloadToken]);
 
   const currentScope = JSON.stringify([ownerId, networkRef, serverRef, projectId]);
-  return { project: opened.current === currentScope ? project : null, urlId: resolvedUrl?.scope === currentScope ? resolvedUrl.id : null, networkId, error, offline, failed, fromDraft, stale, offlineSince };
+  return { project: opened.current === currentScope ? project : null, urlId: resolvedUrl?.scope === currentScope ? resolvedUrl.id : null, networkId, error, offline, failed, fromDraft, stale, offlineSince, unpublished };
 }

@@ -89,55 +89,6 @@ test("bootstrap returns opaque cookie and CSRF without bearer token in JSON", as
 		principal: bootstrap.principal,
 	});
 });
-test("claim requires account, origin and CSRF; retains revoked proof for lost-response retry", async () => {
-	const f = fixture();
-	const headers = {
-		Cookie: "artisan_demo_session=secret",
-		Origin: "http://localhost:5173",
-		"Content-Type": "application/json",
-	};
-	expect(
-		(
-			await f.app.request("/api/v1/demo/claim", {
-				method: "POST",
-				headers,
-				body: "{}",
-			})
-		).status,
-	).toBe(401);
-	expect(
-		(
-			await f.app.request("/api/v1/demo/claim", {
-				method: "POST",
-				headers: { ...headers, "Test-Account": "yes" },
-				body: "{}",
-			})
-		).status,
-	).toBe(403);
-	const r = await f.app.request("/api/v1/demo/claim", {
-		method: "POST",
-		headers: {
-			...headers,
-			"Test-Account": "yes",
-			"X-Artisan-Demo-CSRF": "csrf",
-		},
-		body: JSON.stringify({ operationId: "claim", networkId: "network" }),
-	});
-	expect(r.status).toBe(200);
-	expect(f.count().claims).toBe(1);
-	expect(r.headers.get("Set-Cookie")).toBeNull();
-	const retry = await f.app.request("/api/v1/demo/claim", {
-		method: "POST",
-		headers: {
-			...headers,
-			"Test-Account": "yes",
-			"X-Artisan-Demo-CSRF": "csrf",
-		},
-		body: JSON.stringify({ operationId: "claim", networkId: "network" }),
-	});
-	expect(retry.status).toBe(200);
-	expect(await retry.json()).toEqual(await r.json());
-});
 test("GET recovery does not renew cookie and unknown failures are sanitized", async () => {
 	const f = fixture();
 	const recovered = await f.app.request("/api/v1/demo", {
@@ -160,51 +111,4 @@ test("GET recovery does not renew cookie and unknown failures are sanitized", as
 	});
 	expect(response.status).toBe(503);
 	expect(await response.json()).toEqual({ error: "storage_unavailable" });
-});
-test("retry for an older project never claims the newer demo cookie project", async () => {
-	let claims = 0;
-	const resumed: unknown[] = [];
-	const a = new Hono();
-	a.use("*", async (c, next) => {
-		c.set("user" as never, { id: "account" } as never);
-		await next();
-	});
-	a.route(
-		"/",
-		createDemoRouter({
-			read: async () => bootstrap,
-			create: async () => bootstrap,
-			proof: async () => ({ ...bootstrap, projectId: "new-demo" }),
-			claim: async () => {
-				claims++;
-				return { projectId: "new-demo", networkId: "n" };
-			},
-			resume: async (user, input) => {
-				resumed.push({ user, input });
-				return { projectId: input.projectId, networkId: input.networkId };
-			},
-			rateKey: () => "test",
-		}),
-	);
-	const r = await a.request("/claim", {
-		method: "POST",
-		headers: {
-			Origin: "http://localhost:5173",
-			Cookie: "artisan_demo_session=new",
-			"Content-Type": "application/json",
-		},
-		body: JSON.stringify({
-			projectId: "old-demo",
-			operationId: "old-op",
-			networkId: "n",
-		}),
-	});
-	expect(r.status).toBe(200);
-	expect(claims).toBe(0);
-	expect(resumed).toEqual([
-		{
-			user: "account",
-			input: { projectId: "old-demo", operationId: "old-op", networkId: "n" },
-		},
-	]);
 });

@@ -30,10 +30,7 @@ import { tryStageDrop, tryStageSlotHit } from "@/features/canvas/stageDropTarget
 import { getStageGeometry } from "@/features/canvas/stageGeometry";
 import { getTextureUrl } from "@/features/canvas/textureStore";
 import { DataSourcesPanelContent } from "@/features/data/DataSourcesPanel";
-import { importHostedProject } from "@/features/export/importHostedProject";
 import { runExportZip } from "@/features/export/runExportZip";
-import { pickProjectZipForImport } from "@/features/export/runImportZip";
-import { useProjectZipImport } from "@/features/export/useProjectZipImport";
 import { STATE_DROP_PREFIX } from "@/features/flow/FlowCanvas";
 import { PatternsGallery } from "@/features/help/PatternsGallery";
 import { EditorTour } from "@/features/onboarding/EditorTour";
@@ -67,7 +64,6 @@ import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
 import { useDemoStore } from "@/state/demoStore";
 import { useProjectRuntime } from "@/state/projectRuntimeStore";
-import { useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
 import {
   DndContext,
@@ -120,6 +116,7 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
     fromDraft,
     stale,
     offlineSince,
+    unpublished,
   } = useProjectLoader(loadRef, serverId, networkId);
   // Deux situations, deux urgences. Une revalidation en vol se résoudra d'
   // elle-même : on ne prévient que si elle s'éternise. Un serveur injoignable,
@@ -183,41 +180,6 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
   const [patternsOpen, setPatternsOpen] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
-  const importProjectAction = useAccountStore((s) => s.importProject);
-  const setSelection = useSelectionStore((s) => s.set);
-  const { importFile, dialog: importDialog } = useProjectZipImport({
-    destinationDescription: t("hosted.importDescription", {
-      defaultValue:
-        "Import as a new hosted project in this Network using Minecraft {{version}}. Choose its folder name. Images and fonts are included.",
-      version: runtime?.minecraftVersion ?? "1.21.4",
-    }),
-    importProject: importProjectAction as (input: { project: unknown }) => string,
-    persistImport: (file, target, options) => {
-      if (!currentUser || !networkId) return Promise.reject(new Error("not_authenticated"));
-      return importHostedProject(
-        file,
-        networkId,
-        runtime?.minecraftVersion ?? "1.21.4",
-        currentUser.id,
-        target,
-        options,
-      );
-    },
-    onImported: ({ newId, urlId, name }) => {
-      setSelection([newId as ElementId]);
-      toast.success(t("toast.importedProject", { name }));
-      void navigate(projectDestination(networkId, urlId ?? newId));
-    },
-    onError: (error) => {
-      if (error.message === "not_a_zip") return toast.error(t("toast.importNotZip"));
-      if (error.message === "no_manifest") return toast.error(t("toast.importNoManifest"));
-      toast.error(t("toast.importFailedCode", { code: error.message }));
-    },
-  });
-  const handleImport = () =>
-    pickProjectZipForImport((file) => {
-      void importFile(file);
-    });
   const setActiveDragMaterial = useUiStore((s) => s.setActiveDragMaterial);
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
@@ -416,7 +378,6 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
   // segmented nav shows which is active; Esc / × return to the canvas.
   const secondaryViews = (
     <>
-      {importDialog}
       <WorkspaceView
         active={presentedTab === "resources"}
         onExit={exitToCanvas}
@@ -468,7 +429,7 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
   // un bandeau qui clignote coûte plus d'attention qu'il n'en informe. Ce qui
   // s'attarde, en revanche, se dit — la règle tient là où elle compte.
   const staleBanner = staleSettled ? (
-    <ProjectStaleNotice key={`${serverId}/${projectId}`} offline={offline} since={offlineSince} />
+    <ProjectStaleNotice key={`${serverId}/${projectId}`} offline={offline} since={offlineSince} unpublished={unpublished} />
   ) : null;
 
   const canvasActive =
@@ -541,7 +502,6 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
         <ProjectTopBarControls
           project={project}
           projectId={pId}
-          onImport={runtime?.capabilities.canImport === false ? undefined : handleImport}
           onExportZip={async () => {
             const res = await runExportZip(project, !!principalId, networkId, serverId);
             if (!res.ok) {

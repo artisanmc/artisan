@@ -4,7 +4,7 @@ import type { DraftOutcome, DraftResult } from "../lib/storage/DraftStore";
 import { db } from "../db/index";
 import { addConsoleMember } from "../lib/consoleAccess";
 import { forgetProjectTree, warmSnapshotMirror } from "../lib/projectTreeReads";
-import { forgetServer as forgetSnapshotMirror, listedProjects, mirroredProjectIds, recordHello as recordSnapshotHello, recordReload as recordSnapshotReload } from "../lib/snapshotMirror";
+import { forgetServer as forgetSnapshotMirror, listedProjects, mirroredProjectIds, recordHello as recordSnapshotHello, recordReload as recordSnapshotReload, unpublishedProjectIds } from "../lib/snapshotMirror";
 import { completeProjectRename, failProjectRename, isTerminalRenameError, pendingProjectRenames, projectIdentityLocked, reconcileProjectIdentity, type ProjectIdentityReport } from "../lib/projectRename";
 import type { ProjectRenameMessage, ProjectRenameResultMessage, ProjectCopyMessage, ProjectCopyResultMessage } from "../protocol";
 import { ensureAssets, assetsDone } from "../lib/mcAssets";
@@ -657,10 +657,16 @@ export async function listProjectsFromSnapshot(serverKeyId: string): Promise<Pro
  * `offline` (décision 7 de l'ADR).
  */
 export async function listProjectsForEditor(serverKeyId: string): Promise<ProjectListOutcome> {
+  const pending = await unpublishedProjectIds(serverKeyId);
+  const withPending = (outcome: ProjectListOutcome): ProjectListOutcome => {
+    if (outcome.kind !== "result" || !outcome.result.ok || !pending.length) return outcome;
+    const ids = [...new Set([...(outcome.result.project_ids ?? []), ...pending])].sort();
+    return { ...outcome, result: { ...outcome.result, project_ids: ids } };
+  };
   const fromSnapshot = await listProjectsFromSnapshot(serverKeyId);
-  if (fromSnapshot) return fromSnapshot;
-  if (getInstanceCount(serverKeyId) > 0) return requestProjectList(serverKeyId);
-  const ids = await mirroredProjectIds(serverKeyId);
+  if (fromSnapshot) return withPending(fromSnapshot);
+  if (getInstanceCount(serverKeyId) > 0) return withPending(await requestProjectList(serverKeyId));
+  const ids = [...new Set([...(await mirroredProjectIds(serverKeyId)), ...pending])].sort();
   if (!ids.length) return { kind: "offline" };
   return { kind: "result", result: { type: "project_list_result", request_id: "", ok: true, project_ids: ids, offline: true } };
 }

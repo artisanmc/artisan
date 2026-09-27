@@ -113,6 +113,44 @@ describe("useProjectLoader", () => {
     unmount();
   });
 
+  it("jamais publié : ouvert depuis le brouillon, serveur non connecté annoncé", async () => {
+    useAuthStore.setState({ currentUser: { id: "u1", name: "x", email: "x@a.b" } } as never);
+    vi.spyOn(userProjectsApi, "loadUserProject").mockResolvedValue({
+      project: { id: "p1", name: "prepare", hash: "h", externalId: "prepare" },
+      networkId: "net_1",
+      serverKeyId: "sk_1",
+    } as never);
+    vi.spyOn(projectFilesApi, "readProjectFiles").mockResolvedValue({
+      ok: true,
+      files: {},
+      failed: [],
+      hash: "unpublished",
+      unpublished: true,
+      offlineSince: "2026-09-27T08:00:00.000Z",
+    });
+    vi.mocked(draftsApi.listDrafts).mockResolvedValue([
+      {
+        id: "d1",
+        projectId: "p1",
+        ownerId: "u1",
+        name: "prepare",
+        revision: 1,
+        status: "active",
+        source: "editor",
+        updatedAt: "now",
+        snapshot: { baseline: {}, tree: { "manifest.yaml": "id: prepare\nname: prepare\n" }, at: 1 },
+      },
+    ]);
+
+    const { result, unmount } = renderHook(() => useProjectLoader("p1"));
+
+    await waitFor(() => expect(result.current.project).not.toBeNull());
+    expect(result.current.unpublished).toBe(true);
+    expect(result.current.offline).toBe(true);
+    expect(result.current.fromDraft).toBe(true);
+    unmount();
+  });
+
   it("serveur hors ligne : pas de repli, le Project n'est pas ouvrable", async () => {
     useAuthStore.setState({ currentUser: { id: "u1", name: "x", email: "x@a.b" } } as never);
     vi.spyOn(userProjectsApi, "loadUserProject").mockResolvedValue({
