@@ -88,6 +88,31 @@ describe("useProjectLoader", () => {
     });
   });
 
+  it("serveur éteint avec une copie du backend : ouvert, daté, hors ligne", async () => {
+    useAuthStore.setState({ currentUser: { id: "u1", name: "x", email: "x@a.b" } } as never);
+    vi.spyOn(userProjectsApi, "loadUserProject").mockResolvedValue({
+      project: { id: "p1", name: "p", hash: "h", externalId: "boutique_shop" },
+      networkId: "net_1",
+      serverKeyId: "sk_1",
+    } as never);
+    vi.spyOn(projectFilesApi, "readProjectFiles").mockResolvedValue({
+      ok: true,
+      files: { "manifest.yaml": "id: boutique_shop\n" },
+      failed: [],
+      hash: "H1",
+      offlineSince: "2026-09-27T08:00:00.000Z",
+    });
+
+    const { result, unmount } = renderHook(() => useProjectLoader("p1"));
+
+    await waitFor(() => expect(result.current.project).not.toBeNull());
+    expect(result.current.offline).toBe(true);
+    expect(result.current.stale).toBe(true);
+    expect(result.current.offlineSince).toBe("2026-09-27T08:00:00.000Z");
+    expect(result.current.error).toBeNull();
+    unmount();
+  });
+
   it("serveur hors ligne : pas de repli, le Project n'est pas ouvrable", async () => {
     useAuthStore.setState({ currentUser: { id: "u1", name: "x", email: "x@a.b" } } as never);
     vi.spyOn(userProjectsApi, "loadUserProject").mockResolvedValue({

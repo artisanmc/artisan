@@ -1,4 +1,4 @@
-import { requestProjectRead } from "../ws/hub";
+import { getInstanceCount, requestProjectRead } from "../ws/hub";
 import { getProjectForServer } from "./projectStorage";
 import {
 	announcedHash,
@@ -48,7 +48,9 @@ export async function readProjectTree(
 	projectId: string,
 	opts: { maxAgeMs?: number } = {},
 ): Promise<ProjectReadOutcome> {
-	if (!mirrorSupported(serverKeyId)) return legacyRead(serverKeyId, projectId, opts);
+	if (!mirrorSupported(serverKeyId)) {
+		return getInstanceCount(serverKeyId) > 0 ? legacyRead(serverKeyId, projectId, opts) : offlineRead(serverKeyId, projectId);
+	}
 	const key = keyOf(serverKeyId, projectId);
 	const pending = mirrorReads.get(key);
 	if (pending) return pending;
@@ -59,11 +61,22 @@ export async function readProjectTree(
 	return read;
 }
 
-function fromMirror(snapshot: MirroredSnapshot): ProjectReadOutcome {
+function fromMirror(snapshot: MirroredSnapshot, offline = false): ProjectReadOutcome {
+	const { receivedAt, ...content } = snapshot;
 	return {
 		kind: "result",
-		result: { type: "project_read_result", request_id: "", ok: true, ...snapshot },
+		result: { type: "project_read_result", request_id: "", ok: true, ...content, ...(offline ? { offline_since: receivedAt } : {}) },
 	};
+}
+
+/**
+ * Serveur déconnecté : la dernière copie connue, datée (ADR
+ * `snapshot-mirror-and-backend-history`, décision 7). Sans copie, hors ligne.
+ */
+async function offlineRead(serverKeyId: string, diskId: string): Promise<ProjectReadOutcome> {
+	const project = await getProjectForServer(serverKeyId, diskId);
+	const snapshot = project ? await getSnapshot(project.id) : null;
+	return snapshot ? fromMirror(snapshot, true) : { kind: "offline" };
 }
 
 async function mirroredRead(serverKeyId: string, diskId: string): Promise<ProjectReadOutcome> {

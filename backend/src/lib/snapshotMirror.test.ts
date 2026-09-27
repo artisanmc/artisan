@@ -43,6 +43,7 @@ describe("store", () => {
 			files: [{ path: "menus/a.yaml", content: "a" }, { path: "menus/b.yaml", content: "b" }],
 			binaries: [{ path: "assets/textures/a.png", hash: "bin", size: 3 }],
 			failed: [{ path: "menus/broken.yaml", reason: "bad yaml" }],
+			receivedAt: expect.any(String),
 		});
 		expect(await getSnapshot("p2")).toBeNull();
 	});

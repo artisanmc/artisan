@@ -4,7 +4,7 @@ import type { DraftOutcome, DraftResult } from "../lib/storage/DraftStore";
 import { db } from "../db/index";
 import { addConsoleMember } from "../lib/consoleAccess";
 import { forgetProjectTree, warmSnapshotMirror } from "../lib/projectTreeReads";
-import { forgetServer as forgetSnapshotMirror, listedProjects, recordHello as recordSnapshotHello, recordReload as recordSnapshotReload } from "../lib/snapshotMirror";
+import { forgetServer as forgetSnapshotMirror, listedProjects, mirroredProjectIds, recordHello as recordSnapshotHello, recordReload as recordSnapshotReload } from "../lib/snapshotMirror";
 import { completeProjectRename, failProjectRename, isTerminalRenameError, pendingProjectRenames, projectIdentityLocked, reconcileProjectIdentity, type ProjectIdentityReport } from "../lib/projectRename";
 import type { ProjectRenameMessage, ProjectRenameResultMessage, ProjectCopyMessage, ProjectCopyResultMessage } from "../protocol";
 import { ensureAssets, assetsDone } from "../lib/mcAssets";
@@ -649,6 +649,20 @@ export async function listProjectsFromSnapshot(serverKeyId: string): Promise<Pro
     project_ids: listed.filter((id) => !reserved.has(id.toLowerCase())),
     pending_renames: pending.map((op) => ({ operation_id: op.id, project_id: op.sourceId, target_project_id: op.targetId })),
   } };
+}
+
+/**
+ * La liste que l'éditeur affiche : le Snapshot annoncé, sinon le plugin, sinon —
+ * serveur déconnecté — les Projects dont le backend garde une copie, marqués
+ * `offline` (décision 7 de l'ADR).
+ */
+export async function listProjectsForEditor(serverKeyId: string): Promise<ProjectListOutcome> {
+  const fromSnapshot = await listProjectsFromSnapshot(serverKeyId);
+  if (fromSnapshot) return fromSnapshot;
+  if (getInstanceCount(serverKeyId) > 0) return requestProjectList(serverKeyId);
+  const ids = await mirroredProjectIds(serverKeyId);
+  if (!ids.length) return { kind: "offline" };
+  return { kind: "result", result: { type: "project_list_result", request_id: "", ok: true, project_ids: ids, offline: true } };
 }
 
 async function reservedProjectIds(serverKeyId: string): Promise<Set<string>> {

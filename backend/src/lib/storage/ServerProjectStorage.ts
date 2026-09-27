@@ -1,4 +1,4 @@
-import { requestProjectRead, requestProjectWrite, requestAssetRead, requestAssetWrite, requestProjectHistory, requestProjectRename, supportsProjectRename } from "../../ws/hub";
+import { getInstanceCount, requestProjectRead, requestProjectWrite, requestAssetRead, requestAssetWrite, requestProjectHistory, requestProjectRename, supportsProjectRename } from "../../ws/hub";
 import { ProjectRenameError } from "../projectRename";
 import { renameStoredProject } from "./projectLifecycle";
 import { forgetProjectTree, readProjectTree } from "../projectTreeReads";
@@ -18,6 +18,7 @@ interface ServerTransport {
   history: typeof requestProjectHistory;
   invalidate: typeof forgetProjectTree;
   readAssets: typeof readProjectTree;
+  connected: (serverKeyId: string) => boolean;
 }
 
 const assetReads = new Map<string, Promise<StorageOutcome<BinaryReadResult>>>();
@@ -35,7 +36,7 @@ export class ServerProjectStorage implements ProjectStorage {
   get capabilities() { return Object.freeze({ liveData: true, captureInGame: true, preview: true, canRename: this.identity?.kind === "folder" && supportsProjectRename(this.location.serverKeyId) }); }
   private readonly transport: ServerTransport;
   constructor(private readonly location: Extract<ProjectLocation, { kind: "server" }>, transport: Partial<ServerTransport> = {}, private readonly identity?: { id: string; kind: string }, private readonly authorId?: string) {
-    this.transport = { read: requestProjectRead, write: requestProjectWrite, readBinary: (server, request) => requestAssetRead(server, request, 30_000), writeBinaries: requestAssetWrite, history: requestProjectHistory, invalidate: forgetProjectTree, readAssets: readProjectTree, ...transport };
+    this.transport = { read: requestProjectRead, write: requestProjectWrite, readBinary: (server, request) => requestAssetRead(server, request, 30_000), writeBinaries: requestAssetWrite, history: requestProjectHistory, invalidate: forgetProjectTree, readAssets: readProjectTree, connected: (server) => getInstanceCount(server) > 0, ...transport };
   }
   async rename(operationId: string, targetId: string) {
     if (!this.identity || this.identity.kind === "addon") throw new ProjectRenameError("addon_immutable");
@@ -45,13 +46,15 @@ export class ServerProjectStorage implements ProjectStorage {
     }});
   }
   async read(ifHash: string | null = null) {
-    if (!mirrorSupported(this.location.serverKeyId)) {
+    if (!mirrorSupported(this.location.serverKeyId) && this.transport.connected(this.location.serverKeyId)) {
       return withoutCorrelation(await this.transport.read(this.location.serverKeyId, { projectId: this.location.folderName, ifHash }));
     }
-    // Le miroir du Snapshot sert l'arbre ; `if_hash` se tranche ici, sans le plugin.
+    // Le miroir du Snapshot sert l'arbre — serveur éteint compris, daté par
+    // `offline_since` ; `if_hash` se tranche ici, sans le plugin.
     const outcome = withoutCorrelation(await this.transport.readAssets(this.location.serverKeyId, this.location.folderName));
     if (outcome.kind === "result" && outcome.result.ok && ifHash && outcome.result.hash === ifHash) {
-      return { kind: "result" as const, result: { ok: true, unchanged: true, hash: ifHash } };
+      const { offline_since } = outcome.result;
+      return { kind: "result" as const, result: { ok: true, unchanged: true, hash: ifHash, ...(offline_since ? { offline_since } : {}) } };
     }
     return outcome;
   }
