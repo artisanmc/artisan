@@ -242,3 +242,4 @@ et le sert **sans aller-retour** tant que son hash égale le dernier hash annonc
   les ids du dernier `hello`/`projects_reloaded`, sans `project_list`. `resource_inventory`
   (quota) reste un scan disque en direct via `project_list`.
 - **Ancien plugin** : chemin d'avant inchangé (fusion des lectures en vol + cache 5 s).
+- **Versions** : chaque Snapshot rangé qui diffère du précédent crée une Version ; `project_history` ne sert plus que de repli pour un Project sans Version, et le plugin n'alimente plus `.artisan/history/`.

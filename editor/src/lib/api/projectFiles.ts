@@ -221,6 +221,8 @@ export interface FileVersion {
   /** Millis de l'archivage. */
   at: number;
   content: string;
+  /** Présent quand l'historique vient des Versions ; `null` = le serveur. */
+  author?: { id: string; name: string } | null;
 }
 
 export type ProjectHistoryResult =

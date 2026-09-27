@@ -141,3 +141,23 @@ for (const [failure, status] of [["not_found", 404], ["forbidden", 403], ["stora
     expect(calls).toHaveLength(1);
   });
 }
+
+test("Project Versions are listed and read back through the neutral content routes", async () => {
+  const { db } = await import("../db");
+  const { networks, projects, serverKeys } = await import("../db/schema");
+  const { putSnapshot } = await import("../lib/snapshotMirror");
+  const now = new Date();
+  await db.delete(networks);
+  await db.insert(networks).values({ id: "versions-net", name: "N", createdAt: now, updatedAt: now });
+  await db.insert(serverKeys).values({ id: "versions-srv", hash: "h", networkId: "versions-net", createdAt: now });
+  await db.insert(projects).values({ id: "versions-p", name: "P", externalId: "shop", networkId: "versions-net", serverKeyId: "versions-srv", createdAt: now, updatedAt: now });
+  await putSnapshot("versions-p", { hash: "H1", files: [{ path: "menus/a.yaml", content: "a1" }], binaries: [], failed: [] });
+  const { app } = fixture();
+
+  const list = await (await app.request("/projects/versions-p/versions")).json();
+  expect(list.versions).toHaveLength(1);
+  expect(list.versions[0].changed).toEqual(["menus/a.yaml"]);
+  const read = await (await app.request(`/projects/versions-p/versions/${list.versions[0].id}`)).json();
+  expect(read.files).toEqual([{ path: "menus/a.yaml", content: "a1" }]);
+  expect((await app.request("/projects/versions-p/versions/nope")).status).toBe(404);
+});
