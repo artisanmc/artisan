@@ -87,6 +87,8 @@ aujourd'hui) sont un bénéfice de bord.
 
 ## Direction décidée, épopée suivante
 
+*Tranchée le 2026-09-27 : [server-only-projects](server-only-projects.md) (démo jetable, pas de rattachement).*
+
 Les projets hébergés n'ont plus lieu d'exister : un **Server non relié** (clé
 créée, jamais `/artisan link`) porte des Projects faits de brouillons seuls, et
 la publication crée les fichiers au premier link (CAS base `null`). Ordre :

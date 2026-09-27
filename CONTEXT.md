@@ -588,15 +588,14 @@ Non-examples:
 
 ## Project
 
-**Storage modes (2026-09-13):** each Project has one authoritative storage
-location and an immutable internal backend ID. Server locations bind a server
-key and folder identity; hosted locations bind a private backend root and a logical
-folder name. Account-owned hosted projects belong to a Network; a temporary demo
-belongs to its DemoSession, without a fake User, Network or Server. The common
-`ProjectStorage` contract owns content operations. For server Projects, only
-published content lives on the server disk: private **Drafts** and **Versions**
-live in the backend, and the editor shows the server's current **Snapshot**
-(revision 2026-09-26).
+**Storage (revised 2026-09-27, ADR `server-only-projects`):** every account
+Project belongs to a **Server**, linked or not; account-owned hosted projects are
+retired. Published content lives on the server disk; private **Drafts** and
+**Versions** live in the backend, and the editor shows the server's current
+**Snapshot**. A Project on an unlinked Server has no published content yet — only
+drafts — until its first publication. A temporary demo belongs to its DemoSession,
+without a fake User, Network or Server; it is disposable and leaves only through
+export.
 
 The editable collection of GUI content — its **Menus**,
 **Commands**, **Dialogs**, translations, and assets. A Project is a tree of files
@@ -604,13 +603,12 @@ on its owning disk: Minecraft server or durable backend volume. That disk is the
 authority for published content; publication is explicit. A text editor
 can still edit server files directly. The web editor is a client of the project's
 files (cf. ADR `files-first-source-of-truth`). A Project belongs to
-**exactly one Server** in server mode; hosted projects require no Server.
+**exactly one Server**.
 A Server holds **one or more** Projects. The Project is
 the granular unit of organisation *and* of **portability**: a server's content is
 split into Projects so each can be exported, shared, and imported independently.
-ZIP import creates a new hosted Project. **Copy to Minecraft** creates an
-independent server Project from a saved revision, including binary assets;
-Projects are never live-linked across storage locations.
+ZIP export is available everywhere, demo included; ZIP import is withdrawn
+until it can target a Server. Projects are never live-linked to one another.
 
 A Project has **two identifiers, and only one of them is global**. Its *disk id*
 is the directory name the owning server uses, and it is unique **per server**
@@ -618,7 +616,7 @@ only — an Add-on bootstraps the same one everywhere it is installed, so
 `boutique_addon` names a different Project on every server that runs the Boutique
 Add-on. Its *internal id* is unique platform-wide and is what the backend rows
 address. Editor URLs use the exact folder/module ID within a Network + Server
-(server storage), Network (hosted storage), or the current DemoSession. The
+(server Projects) or the current DemoSession. The
 internal ID remains the key for drafts, history, relationships and content APIs.
 Renaming changes the public folder ID, never that internal key. Old slugs and
 completed rename sources resolve only when unambiguous in the location; current
@@ -688,6 +686,11 @@ The **key** is the Server's *credential*, not the Server: rotating it — or run
 several plugin instances on one key — leaves the same Server. Whether a Server is
 **online** (≥1 instance currently connected) is its **Presence**, a runtime fact,
 not part of the entity.
+
+A Server is **unlinked** until `/artisan link` redeems its key: it exists in its
+Network and can hold Projects made of drafts only, prepared before the plugin is
+installed. Linking changes nothing about those Projects; their first publication
+creates their folders on the disk.
 
 Non-examples:
 - The bearer secret is **not** the Server; it's the credential. Rotation swaps the

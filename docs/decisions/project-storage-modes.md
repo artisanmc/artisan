@@ -20,6 +20,9 @@ décrit les verrous, le snapshot SQL exporté et les règles de rétention.
 
 ## Contexte
 
+**Révision 2026-09-27** : l'hébergé est retiré pour les comptes, la démo devient
+jetable (export seulement) — voir [server-only-projects](server-only-projects.md).
+
 **Révision 2026-09-26** : les brouillons des projets serveur reviennent côté
 backend, avec un miroir d'instantané et des Versions — voir
 [snapshot-mirror-and-backend-history](snapshot-mirror-and-backend-history.md).
