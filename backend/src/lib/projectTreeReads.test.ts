@@ -11,6 +11,8 @@ const calls: { serverKeyId: string; projectId: string }[] = [];
 let gate: (() => void) | null = null;
 
 mock.module("../ws/hub", () => ({
+	// Ancien plugin, mais connecté : c'est le chemin d'avant.
+	getInstanceCount: () => 1,
 	requestProjectRead: async (serverKeyId: string, req: { projectId: string }) => {
 		calls.push({ serverKeyId, projectId: req.projectId });
 		if (gate) await new Promise<void>((r) => (gate = r));

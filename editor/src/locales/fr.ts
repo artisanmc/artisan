@@ -1044,6 +1044,8 @@ const fr: typeof en = {
     staleLoading: "Affichage de ta dernière visite — lecture du serveur en cours…",
     staleOffline:
       "Serveur injoignable — affichage de ta dernière visite. Enregistrer est hors de portée.",
+    staleOfflineSince:
+      "Serveur hors ligne — version du {{date}}. Ton brouillon reste modifiable ; publier attend son retour.",
     loading: "Lecture des fichiers du serveur…",
     offlineTitle: "Serveur hors ligne",
     offlineBody:

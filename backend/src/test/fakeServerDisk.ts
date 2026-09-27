@@ -35,6 +35,8 @@ export function fakeHubModule(extra: Record<string, unknown> = {}) {
     handlePluginMessage: () => {},
     connSenders: new Map(),
     connToServerId: new Map(),
+    // Le faux disque est celui d'un serveur connecté.
+    getInstanceCount: () => 1,
     requestProjectRead: async () => ({
       kind: "result",
       result: {

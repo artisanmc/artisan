@@ -38,6 +38,11 @@ export interface ProjectLoadResult {
    * reste la vérité, et l'affichage ne doit pas prétendre l'être.
    */
   stale: boolean;
+  /**
+   * Serveur éteint, Project ouvert depuis la copie du backend : la date de ce
+   * Snapshot (ADR `snapshot-mirror-and-backend-history`, décision 7).
+   */
+  offlineSince: string | null;
 }
 
 /** Select working edits only after the project has passed its opening check. */
@@ -117,6 +122,7 @@ export function useProjectLoader(projectId: string, serverRef?: string | null, n
   const [failed, setFailed] = useState<FailedDocument[]>([]);
   const [fromDraft, setFromDraft] = useState(false);
   const [stale, setStale] = useState(false);
+  const [offlineSince, setOfflineSince] = useState<string | null>(null);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: reloadToken relance la lecture sur Actualiser.
   useEffect(() => {
@@ -143,6 +149,19 @@ export function useProjectLoader(projectId: string, serverRef?: string | null, n
       flushDraftEdits();
       let retry = false;
       let validated = false;
+      // Serveur éteint mais copie du backend : ouvert, daté, et on revérifie.
+      const settle = (since: string | undefined) => {
+        if (since) {
+          setOffline(true);
+          setStale(true);
+          setOfflineSince(since);
+          retry = true;
+          return;
+        }
+        setOfflineSince(null);
+        setStale(false);
+        validated = true;
+      };
       return loadUserProject(projectId, serverRef, networkRef)
         .then(async (res) => {
           if (cancelled) return;
@@ -209,8 +228,7 @@ export function useProjectLoader(projectId: string, serverRef?: string | null, n
               setProject(built);
               setNetworkId(res.networkId);
               setFailed(cached.failed ?? []);
-              setStale(false);
-              validated = true;
+              settle(disk.offlineSince);
               return;
             }
             // Pas de cache mais un « inchangé » : on ne sait pas de quoi il parle.
@@ -253,8 +271,7 @@ export function useProjectLoader(projectId: string, serverRef?: string | null, n
             setFromDraft(shown.fromDraft);
             setNetworkId(res.networkId);
             setFailed(full.failed);
-            setStale(false);
-            validated = true;
+            settle(full.offlineSince);
             return;
           }
           setFailed(disk.failed);
@@ -291,8 +308,7 @@ export function useProjectLoader(projectId: string, serverRef?: string | null, n
           setProject(built);
           setNetworkId(res.networkId);
           setFromDraft(resumable !== null);
-          setStale(false);
-          validated = true;
+          settle(disk.offlineSince);
         })
         .catch((e) => {
           if (cancelled) return;
@@ -324,5 +340,5 @@ export function useProjectLoader(projectId: string, serverRef?: string | null, n
   }, [projectId, serverRef, networkRef, ownerId, reloadToken]);
 
   const currentScope = JSON.stringify([ownerId, networkRef, serverRef, projectId]);
-  return { project: opened.current === currentScope ? project : null, urlId: resolvedUrl?.scope === currentScope ? resolvedUrl.id : null, networkId, error, offline, failed, fromDraft, stale };
+  return { project: opened.current === currentScope ? project : null, urlId: resolvedUrl?.scope === currentScope ? resolvedUrl.id : null, networkId, error, offline, failed, fromDraft, stale, offlineSince };
 }

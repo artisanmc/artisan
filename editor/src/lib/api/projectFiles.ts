@@ -64,12 +64,14 @@ export type ProjectReadResult =
       binaries?: { path: string; hash: string; size: number }[];
       failed: FailedDocument[];
       hash: string | null;
+      /** Serveur éteint : dernière copie connue du backend, reçue à cette date. */
+      offlineSince?: string;
     }
   /**
    * Le serveur porte exactement l'empreinte annoncée : rien n'a été transporté,
    * et la dernière version connue reste valable — elle vient d'être revalidée.
    */
-  | { ok: true; unchanged: true; hash: string | null }
+  | { ok: true; unchanged: true; hash: string | null; offlineSince?: string }
   | { ok: false; error: ProjectFilesError };
 
 export type ProjectWriteResult =
@@ -132,10 +134,12 @@ export async function readProjectFiles(
       failed?: FailedDocument[];
       hash?: string | null;
       unchanged?: boolean;
+      offlineSince?: string;
       error?: string;
     } | null;
     if (!res.ok) return { ok: false, error: knownError(body?.error, "read_error") };
-    if (body?.unchanged) return { ok: true, unchanged: true, hash: body.hash ?? null };
+    const offline = body?.offlineSince ? { offlineSince: body.offlineSince } : {};
+    if (body?.unchanged) return { ok: true, unchanged: true, hash: body.hash ?? null, ...offline };
     const files: Record<string, string> = {};
     for (const f of body?.files ?? []) if (!isPrivateProjectPath(f.path)) files[f.path] = f.content;
     return {
@@ -144,6 +148,7 @@ export async function readProjectFiles(
       binaries: (body?.binaries ?? []).filter((file) => !isPrivateProjectPath(file.path)),
       failed: body?.failed ?? [],
       hash: body?.hash ?? null,
+      ...offline,
     };
   } catch {
     return { ok: false, error: "network_error" };

@@ -119,6 +119,7 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
     failed,
     fromDraft,
     stale,
+    offlineSince,
   } = useProjectLoader(loadRef, serverId, networkId);
   // Deux situations, deux urgences. Une revalidation en vol se résoudra d'
   // elle-même : on ne prévient que si elle s'éternise. Un serveur injoignable,
@@ -467,7 +468,7 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
   // un bandeau qui clignote coûte plus d'attention qu'il n'en informe. Ce qui
   // s'attarde, en revanche, se dit — la règle tient là où elle compte.
   const staleBanner = staleSettled ? (
-    <ProjectStaleNotice key={`${serverId}/${projectId}`} offline={offline} />
+    <ProjectStaleNotice key={`${serverId}/${projectId}`} offline={offline} since={offlineSince} />
   ) : null;
 
   const canvasActive =

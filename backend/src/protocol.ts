@@ -291,6 +291,8 @@ export interface ProjectListResultMessage extends ProjectIdentityReport {
   resource_inventory?: { project_id: string; path: string; origin: "personal" | "module" }[];
   /** Added by the backend relay; reserved roots are excluded from discovery. */
   pending_renames?: { operation_id: string; project_id: string; target_project_id: string }[];
+  /** Ajouté par le backend : serveur déconnecté, liste tirée des copies du miroir. */
+  offline?: boolean;
   error?: "read_error";
   message?: string;
 }
@@ -325,6 +327,8 @@ export interface ProjectReadResultMessage {
   hash?: string;
   /** L'appelant avait déjà cette empreinte : rien n'est transporté. */
   unchanged?: boolean;
+  /** Serveur déconnecté : l'arbre est la dernière copie connue, reçue à cette date. */
+  offline_since?: string;
   files?: { path: string; content: string }[];
   /**
    * Documents que le serveur n'a PAS réussi à charger, avec la raison. Ils

@@ -112,3 +112,17 @@ test("la liste des Projects vient du Snapshot annoncé, sans demander au plugin"
 	expect(after?.kind === "result" && after.result.project_ids).toEqual(["shop", "warps"]);
 	expect(s.sent.filter((m) => m.type === "project_list")).toHaveLength(0);
 });
+
+test("serveur déconnecté : la liste reprend les Projects dont le backend a une copie", async () => {
+	const { listProjectsForEditor } = await import("./hub");
+	const s = await connect();
+	await s.hello(["snapshot_mirror_v1"]);
+	await until(() => s.reads().length === 1);
+	await s.answer();
+	await new Promise((r) => setTimeout(r, 50));
+	cleanupConn(CONN);
+
+	const listed = await listProjectsForEditor(s.key.id);
+	expect(listed.kind === "result" && listed.result.project_ids).toEqual(["shop"]);
+	expect(listed.kind === "result" && listed.result.offline).toBe(true);
+});
