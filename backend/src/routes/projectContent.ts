@@ -1,3 +1,4 @@
+import { listVersions, readVersion } from "../lib/projectVersions";
 import { Hono, type Context } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import type { AuthUser } from "../middleware/userAuth";
@@ -83,6 +84,20 @@ export async function handleProjectWrite(c: Context, storage: ProjectStorage) {
   return c.json({ ok: true });
 }
 
+/** Versions du Project (ADR `snapshot-mirror-and-backend-history`, décision 6) — lecture seule. */
+export async function handleProjectVersions(c: Context, _storage: ProjectStorage) {
+  const project = await getProject(c.req.param("projectId")!);
+  if (!project) return c.json({ error: "not_found" }, 404);
+  return c.json({ versions: await listVersions(project.id) });
+}
+
+export async function handleProjectVersion(c: Context, _storage: ProjectStorage) {
+  const project = await getProject(c.req.param("projectId")!);
+  const version = project ? await readVersion(project.id, c.req.param("versionId")!) : null;
+  if (!version) return c.json({ error: "not_found" }, 404);
+  return c.json(version);
+}
+
 export function createProjectContentRouter(resolve: typeof resolveProjectStorage = resolveProjectStorage) {
   const router = new Hono<{ Variables: Vars }>();
   router.onError((error,c)=>demoErrorResponse(c,error));
@@ -123,6 +138,8 @@ export function createProjectContentRouter(resolve: typeof resolveProjectStorage
   const routes = [
     { method: "get", path: "/:projectId/files", handler: handleProjectRead, capability: undefined },
     { method: "get", path: "/:projectId/history", handler: handleProjectHistory, capability: undefined },
+    { method: "get", path: "/:projectId/versions", handler: handleProjectVersions, capability: undefined },
+    { method: "get", path: "/:projectId/versions/:versionId", handler: handleProjectVersion, capability: undefined },
     { method: "get", path: "/:projectId/binary", handler: handleProjectBinary, capability: undefined },
     { method: "put", path: "/:projectId/files", handler: handleProjectWrite, capability: "publish_content" },
   ] as const;

@@ -96,9 +96,6 @@ class SyncedMenuProvider(
                 rel.startsWith(".artisan/history/")
         }
 
-        /** Profondeur de la corbeille `.artisan/history/<rel>/` — anneau par fichier. */
-        internal const val MAX_HISTORY_VERSIONS = 20
-
         /**
          * Garde de chemin pour `project_write`. Distinct de [isSafeRelPath], qui
          * refuse **tout** `.artisan*` : l'éditeur est propriétaire de

@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
-import { eq, inArray } from "drizzle-orm";
+import { desc, eq, inArray } from "drizzle-orm";
 import { db } from "../db";
-import { projectSnapshots, snapshotBlobs } from "../db/schema";
+import { projectSnapshots, projectVersions, snapshotBlobs, users } from "../db/schema";
 
 /**
  * Le miroir du Snapshot d'un Project serveur (ADR
@@ -23,7 +23,11 @@ export interface MirroredSnapshot {
 
 const blobHash = (content: string) => createHash("sha256").update(content, "utf8").digest("hex");
 
-export async function putSnapshot(projectId: string, snapshot: MirroredSnapshot): Promise<void> {
+/**
+ * Range le Snapshot ; s'il diffère de la dernière Version, il en devient une
+ * (décision 6). `authorId` = qui a publié ; absent = le serveur (reload).
+ */
+export async function putSnapshot(projectId: string, snapshot: MirroredSnapshot, opts: { authorId?: string | null } = {}): Promise<void> {
 	const manifest: Record<string, string> = {};
 	const blobs = new Map<string, string>();
 	for (const file of snapshot.files) {
@@ -49,6 +53,22 @@ export async function putSnapshot(projectId: string, snapshot: MirroredSnapshot)
 			.insert(projectSnapshots)
 			.values({ projectId, ...row })
 			.onConflictDoUpdate({ target: projectSnapshots.projectId, set: row });
+		const [latest] = await tx.select({ hash: projectVersions.hash }).from(projectVersions)
+			.where(eq(projectVersions.projectId, projectId)).orderBy(desc(projectVersions.createdAt)).limit(1);
+		if (latest?.hash !== snapshot.hash) {
+			const author = opts.authorId
+				? (await tx.select({ id: users.id }).from(users).where(eq(users.id, opts.authorId)))[0]?.id ?? null
+				: null;
+			await tx.insert(projectVersions).values({
+				id: crypto.randomUUID(),
+				projectId,
+				hash: snapshot.hash,
+				files: manifest,
+				binaries: snapshot.binaries,
+				authorId: author,
+				createdAt: row.receivedAt,
+			});
+		}
 	});
 }
 
@@ -131,6 +151,20 @@ export function markUnknown(serverKeyId: string, diskId: string): void {
 	state.generation.set(diskId, generationOf(serverKeyId, diskId) + 1);
 }
 
+const authors = new Map<string, string>();
+
+/** Une écriture de l'éditeur a réussi : le prochain Snapshot de ce Project lui revient. */
+export function noteAuthor(serverKeyId: string, diskId: string, userId: string): void {
+	authors.set(`${serverKeyId} ${diskId}`, userId);
+}
+
+export function takeAuthor(serverKeyId: string, diskId: string): string | null {
+	const key = `${serverKeyId} ${diskId}`;
+	const userId = authors.get(key) ?? null;
+	authors.delete(key);
+	return userId;
+}
+
 /** Déconnexion, éviction, ou `hello` sans la capacité. */
 export function forgetServer(serverKeyId: string): void {
 	servers.delete(serverKeyId);
@@ -138,4 +172,5 @@ export function forgetServer(serverKeyId: string): void {
 
 export function forgetAllServersForTesting(): void {
 	servers.clear();
+	authors.clear();
 }

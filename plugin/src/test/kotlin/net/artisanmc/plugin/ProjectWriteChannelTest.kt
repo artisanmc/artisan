@@ -193,7 +193,7 @@ class ProjectWriteChannelTest {
     }
 
     @Test
-    fun `archive l'ancien contenu avant d'ecraser`() {
+    fun `n'archive plus l'ancien contenu - l'historique vit dans les Versions du backend`() {
         val h = Harness()
         val p = h.project("boutique")
         h.write(p, "menus/shop_main.yaml", "title: Ancien\n")
@@ -205,7 +205,7 @@ class ProjectWriteChannelTest {
 
         assertEquals(true, h.reply()["ok"])
         assertEquals("title: Nouveau\n", h.read(p, "menus/shop_main.yaml"))
-        assertEquals(listOf("title: Ancien\n"), h.historyOf(p, "menus/shop_main.yaml"))
+        assertEquals(emptyList<String>(), h.historyOf(p, "menus/shop_main.yaml"))
     }
 
     @Test
@@ -279,7 +279,7 @@ class ProjectWriteChannelTest {
     }
 
     @Test
-    fun `supprime un fichier sous CAS et l'archive`() {
+    fun `supprime un fichier sous CAS sans l'archiver`() {
         val h = Harness()
         val p = h.project("boutique")
         h.write(p, "menus/vieux.yaml", "title: Vieux\n")
@@ -289,30 +289,7 @@ class ProjectWriteChannelTest {
 
         assertEquals(true, h.reply()["ok"])
         assertNull(h.read(p, "menus/vieux.yaml"))
-        assertEquals(listOf("title: Vieux\n"), h.historyOf(p, "menus/vieux.yaml"))
-    }
-
-    @Test
-    fun `la corbeille est un anneau des N dernieres versions`() {
-        val h = Harness()
-        val p = h.project("boutique")
-        val histDir = File(p, ".artisan/history/menus/m.yaml").also { it.mkdirs() }
-        repeat(SyncedMenuProvider.MAX_HISTORY_VERSIONS + 5) { i ->
-            File(histDir, "%013d".format(1_700_000_000_000L + i)).writeText("v$i\n")
-        }
-        h.write(p, "menus/m.yaml", "courant\n")
-        val base = BundleHasher.hashContent("courant\n")
-
-        h.send(writeMsg("boutique", """[
-            {"path":"menus/m.yaml","content":"nouveau\n","base_hash":"$base"}
-        ]"""))
-
-        assertEquals(true, h.reply()["ok"])
-        val kept = h.historyOf(p, "menus/m.yaml")
-        assertEquals(SyncedMenuProvider.MAX_HISTORY_VERSIONS, kept.size)
-        // Les plus anciennes sont purgées, la version qu'on vient d'écraser est gardée.
-        assertEquals("courant\n", kept.last())
-        assertFalse(kept.contains("v0\n"), "la plus vieille version doit être purgée")
+        assertEquals(emptyList<String>(), h.historyOf(p, "menus/vieux.yaml"))
     }
 
     @Test

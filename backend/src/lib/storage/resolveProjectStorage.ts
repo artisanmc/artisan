@@ -34,7 +34,7 @@ interface StorageFactories {
 }
 const defaultFactories: StorageFactories = {
   server: async (location, project, ownerId) => {
-    const storage = new ServerProjectStorage(location, {}, project ? { id: project.id, kind: project.identityKind } : undefined);
+    const storage = new ServerProjectStorage(location, {}, project ? { id: project.id, kind: project.identityKind } : undefined, ownerId);
     if (project && ownerId) storage.bindDraftStore(await resolveDraftStore(project, ownerId, storage));
     return storage;
   },

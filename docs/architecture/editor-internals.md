@@ -414,6 +414,10 @@ dans `session.openConflicts`, et `ProjectTopBarControls` ouvre la même modale q
 un conflit d'enregistrement (`conflictSource: "open"`). Appliquer met à jour la base du
 brouillon et le marque à sauvegarder, **sans publier** ; `consumeOpenConflicts` évite de
 reproposer les mêmes conflits.
+**Versions (2026-09-26)** : `ProjectVersions` (dans la fenêtre des brouillons) liste les
+Versions du Project ; restaurer remplace l'arbre de l'éditeur par celui de la Version
+(`adoptDiskIntoProject`), donc le brouillon, **sans publier**. `FileHistory` affiche l'auteur
+quand l'historique vient des Versions.
 Les actions vident d'abord le debounce local via `draftFlush`.
 `saveProjectToDisk` publie la révision sauvegardée via l'API de brouillons ;
 création/import sans session garde le chemin existant. Une modification pendant

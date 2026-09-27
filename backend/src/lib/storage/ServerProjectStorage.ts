@@ -3,7 +3,8 @@ import { ProjectRenameError } from "../projectRename";
 import { renameStoredProject } from "./projectLifecycle";
 import { forgetProjectTree, readProjectTree } from "../projectTreeReads";
 import { getCachedAsset, putCachedAsset } from "../assetCache";
-import { mirrorSupported } from "../snapshotMirror";
+import { mirrorSupported, noteAuthor } from "../snapshotMirror";
+import { fileHistory } from "../projectVersions";
 import { createHash } from "node:crypto";
 import type { BinaryReadResult } from "./ProjectStorage";
 import type { BinaryWrite, ProjectLocation, ProjectStorage, ProjectWriteBatch, StorageOutcome } from "./ProjectStorage";
@@ -33,7 +34,7 @@ export class ServerProjectStorage implements ProjectStorage {
   bindDraftStore(store: DraftStore) { this.draftStore = store; }
   get capabilities() { return Object.freeze({ liveData: true, captureInGame: true, preview: true, canRename: this.identity?.kind === "folder" && supportsProjectRename(this.location.serverKeyId) }); }
   private readonly transport: ServerTransport;
-  constructor(private readonly location: Extract<ProjectLocation, { kind: "server" }>, transport: Partial<ServerTransport> = {}, private readonly identity?: { id: string; kind: string }) {
+  constructor(private readonly location: Extract<ProjectLocation, { kind: "server" }>, transport: Partial<ServerTransport> = {}, private readonly identity?: { id: string; kind: string }, private readonly authorId?: string) {
     this.transport = { read: requestProjectRead, write: requestProjectWrite, readBinary: (server, request) => requestAssetRead(server, request, 30_000), writeBinaries: requestAssetWrite, history: requestProjectHistory, invalidate: forgetProjectTree, readAssets: readProjectTree, ...transport };
   }
   async rename(operationId: string, targetId: string) {
@@ -79,7 +80,7 @@ export class ServerProjectStorage implements ProjectStorage {
     this.invalidate();
     try {
       const { binaries, ...text } = batch;
-      return withoutCorrelation(await this.transport.write(this.location.serverKeyId, { ...text, projectId: this.location.folderName, ...(binaries ? { binaries: binaries.map((b) => ({ path: b.path, base_hash: b.baseHash, content_base64: b.content === null ? null : Buffer.from(b.content).toString("base64") })) } : {}) }));
+      return this.signed(withoutCorrelation(await this.transport.write(this.location.serverKeyId, { ...text, projectId: this.location.folderName, ...(binaries ? { binaries: binaries.map((b) => ({ path: b.path, base_hash: b.baseHash, content_base64: b.content === null ? null : Buffer.from(b.content).toString("base64") })) } : {}) })));
     } finally {
       this.invalidate();
     }
@@ -93,16 +94,24 @@ export class ServerProjectStorage implements ProjectStorage {
   async writeBinaries(files: BinaryWrite[]) {
     this.invalidate();
     try {
-      return withoutCorrelation(await this.transport.writeBinaries(this.location.serverKeyId, {
+      return this.signed(withoutCorrelation(await this.transport.writeBinaries(this.location.serverKeyId, {
         projectId: this.location.folderName,
         files: files.map(({ path, content, baseHash }) => ({ path, contentBase64: content === null ? null : Buffer.from(content).toString("base64"), baseHash })),
-      }));
+      })));
     } finally {
       this.invalidate();
     }
   }
+  /** Les Versions en base ; le plugin (corbeille disque) tant qu'il n'y en a aucune. */
   async history(path: string) {
+    const versions = this.identity ? await fileHistory(this.identity.id, path) : null;
+    if (versions) return { kind: "result" as const, result: { ok: true, versions } };
     return withoutCorrelation(await this.transport.history(this.location.serverKeyId, { projectId: this.location.folderName, path }));
+  }
+  /** Une écriture réussie signe le prochain Snapshot de son auteur (Versions). */
+  private signed<T extends StorageOutcome<{ ok: boolean }>>(outcome: T): T {
+    if (this.authorId && outcome.kind === "result" && outcome.result.ok) noteAuthor(this.location.serverKeyId, this.location.folderName, this.authorId);
+    return outcome;
   }
   private invalidate() {
     this.transport.invalidate(this.location.serverKeyId, this.location.folderName);
