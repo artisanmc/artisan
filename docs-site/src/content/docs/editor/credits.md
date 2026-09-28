@@ -15,7 +15,7 @@ The **credit indicator** sits in the assistant composer, next to the model selec
 
 Click the indicator to open a breakdown:
 
-- **Subscription** — the current billing period's quota (monthly or yearly, according to your plan). When you have an active plan, a bar shows how much remains.
+- **Subscription** — the current credit period's allowance. Credit renewal can differ from billing: standard annual Pro grants credits monthly. When you have an active plan, a bar shows how much remains.
 - **Rollover** — unused subscription credits carried into the next period, up to your plan's cap.
 - **Top-up** — credits bought as one-off packs. These never expire.
 
@@ -29,15 +29,21 @@ Open **`/credits`** — click **Add credits** from the indicator, or **Billing &
 
 ## Subscribe to a plan
 
-Browse [Pricing](/pricing) without signing in to see the current plans, their monthly or yearly prices, credits, rollover caps and included benefits. These subscriptions fund the AI assistant; they are not separate editions of the visual editor. You can [try the demo](/demo) without an account or a server.
+Browse [Pricing](/pricing) without signing in to see the standard plans, their monthly or yearly prices, credits, rollover caps and editor limits. You can [try the demo](/demo) without an account or a server. Offers remain visible when payment setup is unavailable; checkout is enabled only when it is ready.
 
 Choose a plan, then create an account or sign in. Your choice is preserved through email, Google and Discord authentication. Select the network that will receive the credits, or create one if you do not have a network yet. Only a network owner can continue to Stripe, and payment always requires an explicit action.
 
-The **Subscriptions** section on `/credits` offers the same catalog. Once payment is confirmed, the plan becomes active and credits are granted at the start of each billing period. Unused credits carry over up to the plan's cap. If the network already has a subscription, manage it in the billing portal instead of creating another one.
+The **Subscriptions** section on `/credits` includes the standard offers and any published custom offer reserved for the selected Network. Other Networks cannot view or buy that private offer. Once payment is confirmed, the subscribed version's rights become active and credits follow its stated credit cadence. Unused credits carry over up to that version's cap. If the network already has a subscription, manage it in the billing portal instead of creating another one.
+
+Publishing a new version does not replace existing subscribers' conditions. Custom offers can have different limits and credit allowances from standard Pro; the selected Network's offer shows its own terms.
 
 Returning from checkout does not by itself confirm payment. The return message explains that the balance and subscription may take a little time to update; use **Refresh billing** to check their current state. You can dismiss the return message yourself. An unavailable catalog shows an error and a retry action rather than silently hiding the offers.
 
 ## Manage your subscription
+
+Your current effective plan is shown even without a subscription: **Free** applies
+by default, with no recurring credits. Standard Pro grants **500 credits each month**
+for both monthly and annual billing; custom offers show their own credit cadence.
 
 The **My subscription** section shows your current plan, its status, and the next renewal date. Click **Manage subscription** to open the Stripe **Customer Portal**, where you can update your payment method, change or cancel your plan, and download invoices.
 

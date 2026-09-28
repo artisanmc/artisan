@@ -26,6 +26,15 @@ vi.mock("@/lib/api/networks", () => ({ listNetworks: vi.fn(), createNetwork: vi.
 vi.mock("@/lib/api/members", () => ({ listMembers: vi.fn() }));
 const plan = {
   id: "annual",
+  key: "pro",
+  version: 1,
+  managedBy: "code" as const,
+  audience: "public" as const,
+  targetNetworkId: null,
+  publicationStatus: "published" as const,
+  creditInterval: "month" as const,
+  limits: { resourcesPerServer: 250, servers: 10, collaborators: null },
+  capabilities: { editorPro: true },
   name: "Studio",
   interval: "year",
   priceCents: 7000,
@@ -40,12 +49,21 @@ const plan = {
   purchasable: true,
 };
 
+const free = {
+  ...plan,
+  id: "free",
+  key: "free",
+  priceCents: 0,
+  limits: { resourcesPerServer: 10, servers: 2, collaborators: 2 },
+  purchasable: false,
+};
+const monthly = { ...plan, id: "monthly", interval: "month", priceCents: 900 };
 beforeEach(() => {
   vi.clearAllMocks();
   window.history.replaceState({}, "", "/pricing");
   useAuthStore.setState({ currentUser: null, isLoading: false });
   useNetworksStore.setState({ activeId: null });
-  vi.mocked(billing.getPlans).mockResolvedValue([plan]);
+  vi.mocked(billing.getPlans).mockResolvedValue([free, monthly, plan]);
   vi.mocked(billing.getSubscription).mockResolvedValue({ status: null });
   vi.mocked(listNetworks).mockResolvedValue([{ id: "n1", name: "My server", tier: "free" }]);
   vi.mocked(listMembers).mockResolvedValue([{ userId: "u1", role: "owner" } as never]);
@@ -81,11 +99,21 @@ describe("pricing catalog", () => {
     expect(screen.getAllByText(/\/an/)[0]).toBeVisible();
     expect(screen.queryByText(/\/mois/)).not.toBeInTheDocument();
   });
-  it("shows the new limits while an older backend still returns only the free quota", async () => {
-    vi.mocked(billing.getEditorOffer).mockResolvedValueOnce({ quota: 10 } as never);
+  it("uses catalog limits and prices instead of business fallbacks", async () => {
+    vi.mocked(billing.getPlans).mockResolvedValueOnce([
+      free,
+      monthly,
+      {
+        ...plan,
+        priceCents: 8100,
+        limits: { resourcesPerServer: 321, servers: 14, collaborators: null },
+      },
+    ]);
     render(<PricingPage />);
-    expect(await screen.findByText(/250 ressources par serveur/i)).toBeVisible();
-    expect(screen.getByText(/10 serveurs/i)).toBeVisible();
+    expect(await screen.findByText(/321 ressources par serveur/i)).toBeVisible();
+    expect(screen.getByText(/14 serveurs/i)).toBeVisible();
+    expect(screen.getAllByText(/81\s*€/)[0]).toBeVisible();
+    expect(billing.getEditorOffer).not.toHaveBeenCalled();
   });
   it("preserves selected plan in the signup return URL", async () => {
     render(<PricingPage />);
@@ -102,7 +130,11 @@ describe("pricing catalog", () => {
     expect(await screen.findByRole("heading", { name: "Artisan Pro" })).toBeVisible();
   });
   it("shows the published Pro prices without offering unavailable checkout", async () => {
-    vi.mocked(billing.getPlans).mockResolvedValue([]);
+    vi.mocked(billing.getPlans).mockResolvedValue([
+      free,
+      { ...monthly, purchasable: false },
+      { ...plan, purchasable: false },
+    ]);
     render(<PricingPage />);
     expect(await screen.findByText(/70\s*€/)).toBeVisible();
     expect(screen.getByRole("button", { name: /annuel.*économisez 38/i })).toBeVisible();
@@ -116,6 +148,7 @@ describe("pricing catalog", () => {
   });
   it("shows the exact annual savings when both purchasable prices match the offer", async () => {
     vi.mocked(billing.getPlans).mockResolvedValue([
+      free,
       { ...plan, id: "monthly", interval: "month", priceCents: 900 },
       { ...plan, priceCents: 7000 },
     ]);
@@ -124,7 +157,7 @@ describe("pricing catalog", () => {
     expect(screen.getByRole("button", { name: /annuel.*économisez 38/i })).toBeVisible();
   });
   it("does not offer checkout for a plan without a Stripe price", async () => {
-    vi.mocked(billing.getPlans).mockResolvedValue([{ ...plan, purchasable: false }]);
+    vi.mocked(billing.getPlans).mockResolvedValue([free, monthly, { ...plan, purchasable: false }]);
     render(<PricingPage />);
     expect(await screen.findByText(/70\s*€/)).toBeVisible();
     expect(screen.queryByRole("link", { name: /passer à pro/i })).not.toBeInTheDocument();

@@ -49,7 +49,7 @@ beforeAll(async () => {
 	packId = crypto.randomUUID();
 	planId = crypto.randomUUID();
 	await db.insert(creditPacks).values({ id: packId, name: "P", priceCents: 1000, currency: "eur", credits: 500, bonusPct: 0, isActive: true, sortOrder: 0, stripeProductId: "prod_p", stripePriceId: "price_p", createdAt: now, updatedAt: now });
-	await db.insert(subscriptionPlans).values({ id: planId, name: "Pro", interval: "month", priceCents: 2000, currency: "eur", creditsPerPeriod: 5000, rolloverCap: 0, features: "", isActive: true, sortOrder: 0, stripeProductId: "prod_s", stripePriceId: "price_s", createdAt: now, updatedAt: now });
+	await db.insert(subscriptionPlans).values({ audience: "public", publicationStatus: "published", id: planId, name: "Pro", interval: "month", priceCents: 2000, currency: "eur", creditsPerPeriod: 5000, rolloverCap: 0, features: "", isActive: true, sortOrder: 0, stripeProductId: "prod_s", stripePriceId: "price_s", createdAt: now, updatedAt: now });
 	__setStripeGatewayForTests(fake());
 });
 

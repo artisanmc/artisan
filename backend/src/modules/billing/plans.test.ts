@@ -1,408 +1,187 @@
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import { eq } from "drizzle-orm";
 import { app } from "../../app";
 import { db } from "../../db/index";
-import { appSettings, billingConfigAudit, subscriptionPlans, users } from "../../db/schema";
+import { appSettings, billingConfigAudit, memberships, networks, subscriptionPlans, users } from "../../db/schema";
 import { createSession } from "../../lib/sessionManager";
-import { __setStripeGatewayForTests, type StripeGateway } from "./stripe";
+import { syncStandardPlans } from "./catalog";
+import { listPlans } from "./plansRepo";
+import { __setStripeGatewayForTests } from "./stripe";
 
 const ADMIN_ID = "user_admin_plans";
+const NETWORK_ID = "admin_plans_network";
+const secret = process.env.STRIPE_SECRET_KEY;
 let adminSession = "";
-let archived: string[] = [];
-
-function fakeGateway(): StripeGateway {
-	let n = 0;
-	return {
-		async createProductWithPrice() { n++; return { productId: `prod_${n}`, priceId: `price_${n}` }; },
-		async createPriceForProduct() { return { priceId: `price_reuse_${n}` }; },
-		async updateProductName() {},
-		async archivePrice(id: string) { archived.push(id); },
-		async createCustomer() { return { customerId: "c" }; },
-		async createCheckoutSession() { return { url: "u" }; },
-		async createPortalSession() { return { url: "u" }; },
-		constructWebhookEvent() { return { id: "", type: "", data: { object: {} } }; },
-	};
+let sourcePlanId = "";
+const headers = () => ({ Cookie: `artisan_user_session=${adminSession}`, "Content-Type": "application/json" });
+const request = (suffix = "", method = "GET", body?: unknown) => app.request(`/api/v1/admin/billing/plans${suffix}`, {
+  method, headers: headers(), ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+});
+async function create(patch: Record<string, unknown> = {}) {
+  const response = await request("", "POST", { sourcePlanId, name: "Private contract", ...patch });
+  expect(response.status).toBe(200);
+  return response.json();
 }
 
 beforeAll(async () => {
-	const now = new Date();
-	await db.insert(users).values({ id: ADMIN_ID, email: `${ADMIN_ID}@example.com`, name: "Admin", isAdmin: true, createdAt: now, updatedAt: now }).onConflictDoNothing();
-	adminSession = (await createSession(ADMIN_ID)).id;
-	await db.delete(appSettings).where(eq(appSettings.key, "editor_commercial_policy"));
-	__setStripeGatewayForTests(fakeGateway());
+  delete process.env.STRIPE_SECRET_KEY;
+  __setStripeGatewayForTests(null);
+  const now = new Date();
+  await db.insert(users).values({ id: ADMIN_ID, email: `${ADMIN_ID}@example.com`, name: "Admin", isAdmin: true, createdAt: now, updatedAt: now }).onConflictDoNothing();
+  await db.insert(networks).values({ id: NETWORK_ID, name: "Contracts", createdAt: now, updatedAt: now }).onConflictDoNothing();
+  await db.insert(memberships).values({ id: "admin_plans_membership", userId: ADMIN_ID, networkId: NETWORK_ID, role: "owner", createdAt: now }).onConflictDoNothing();
+  adminSession = (await createSession(ADMIN_ID)).id;
 });
-
-afterEach(async () => {
-	await db.delete(subscriptionPlans);
-	archived = [];
-	__setStripeGatewayForTests(fakeGateway());
+beforeEach(async () => {
+  await db.delete(subscriptionPlans);
+  await db.delete(billingConfigAudit);
+  await db.delete(appSettings).where(eq(appSettings.key, "editor_commercial_policy"));
+  await syncStandardPlans();
+  sourcePlanId = (await listPlans()).find(p => p.key === "pro" && p.interval === "month")!.id;
 });
-
 afterAll(async () => {
-	__setStripeGatewayForTests(null);
-	await db.delete(appSettings).where(eq(appSettings.key, "editor_commercial_policy"));
-	await db.delete(users).where(eq(users.id, ADMIN_ID));
+  __setStripeGatewayForTests(null);
+  if (secret !== undefined) process.env.STRIPE_SECRET_KEY = secret;
+  await db.delete(subscriptionPlans);
+  await db.delete(billingConfigAudit);
+  await db.delete(appSettings).where(eq(appSettings.key, "editor_commercial_policy"));
+  await db.delete(users).where(eq(users.id, ADMIN_ID));
+  await db.delete(networks).where(eq(networks.id, NETWORK_ID));
 });
 
-const adminHeaders = () => ({ Cookie: `artisan_user_session=${adminSession}`, "Content-Type": "application/json" });
+describe("admin managed plans", () => {
+  it("removes the separate editor policy endpoint and cannot store a toggle", async () => {
+    const policyUrl = "/api/v1/admin/billing/editor-policy";
+    expect((await app.request(policyUrl, { headers: headers() })).status).toBe(404);
+    expect((await app.request(policyUrl, { method: "PUT", headers: headers(), body: JSON.stringify({ quota: 10, enforcementEnabled: false }) })).status).toBe(404);
+    expect(await db.select().from(appSettings).where(eq(appSettings.key, "editor_commercial_policy"))).toHaveLength(0);
+    expect(await db.select().from(billingConfigAudit).where(eq(billingConfigAudit.action, "editor_policy_update"))).toHaveLength(0);
+  });
 
-describe("admin plans routes", () => {
-	it("keeps editor quota disabled by default, validates changes and audits activation", async () => {
-		const publicOffer = await app.request("/api/v1/billing/editor-offer");
-		expect(publicOffer.status).toBe(200);
-		expect(await publicOffer.json()).toEqual({
-			quota: 10, proQuota: 250, freeServers: 2, proServers: 10, freeCollaborators: 2,
-			proMonthlyPriceCents: 900, proYearlyPriceCents: 7000, proCreditsPerMonth: 500, currency: "eur",
-		});
-		const denied = await app.request("/api/v1/admin/billing/editor-policy", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ quota: 8, enforcementEnabled: true }) });
-		expect(denied.status).toBe(403);
-		const invalid = await app.request("/api/v1/admin/billing/editor-policy", { method: "PUT", headers: adminHeaders(), body: JSON.stringify({ quota: -1, enforcementEnabled: true }) });
-		expect(invalid.status).toBe(422);
-		const applied = await app.request("/api/v1/admin/billing/editor-policy", { method: "PUT", headers: adminHeaders(), body: JSON.stringify({ quota: 8, enforcementEnabled: true }) });
-		expect(applied.status).toBe(200);
-		expect(await applied.json()).toEqual({ quota: 8, enforcementEnabled: true });
-		const audit = await db.select().from(billingConfigAudit).where(eq(billingConfigAudit.action, "editor_policy_update"));
-		expect(audit.some((row) => row.actorId === ADMIN_ID)).toBe(true);
-		await db.delete(appSettings).where(eq(appSettings.key, "editor_commercial_policy"));
-	});
-	it("public catalog exposes saved presentation and exact prices, hides inactive plans, and sorts consistently", async () => {
-		const base = { name: "Monthly", priceCents: 1200, creditsPerPeriod: 1500 };
-		const created = [];
-		for (const input of [
-			{ ...base, name: "Hidden", isActive: false, sortOrder: -5 },
-			{ ...base, name: "Annual", interval: "year", priceCents: 12000, currency: "usd", description: "Annual access", highlighted: true, features: "First benefit\nSecond benefit", sortOrder: 3 },
-			{ ...base, sortOrder: -1 },
-		]) {
-			created.push(await (await app.request("/api/v1/admin/billing/plans", {
-				method: "POST", headers: adminHeaders(), body: JSON.stringify(input),
-			})).json());
-		}
-		const response = await app.request("/api/v1/billing/plans");
-		expect(response.status).toBe(200);
-		const { plans } = await response.json();
-		expect(plans.map((plan: { id: string }) => plan.id)).toEqual([created[2].id, created[1].id]);
-		expect(plans[0]).toMatchObject({ description: "", highlighted: false, interval: "month", priceCents: 1200, currency: "eur", sortOrder: -1, purchasable: true });
-		expect(plans[1]).toMatchObject({ description: "Annual access", highlighted: true, interval: "year", priceCents: 12000, currency: "usd", creditsPerPeriod: 1500, features: "First benefit\nSecond benefit", sortOrder: 3 });
-		expect(JSON.stringify(plans)).not.toContain("stripe");
-	});
+  it("copies standards offline, preserves presentation, and audits creation and draft edits", async () => {
+    const created = await create({ description: "  More room  ", highlighted: true, features: "Shared credits\nMore servers", sortOrder: 5 });
+    expect(created).toMatchObject({ managedBy: "admin", audience: "private", publicationStatus: "draft", priceCents: 900, creditsPerPeriod: 500, creditInterval: "month", stripePriceId: null, description: "More room", highlighted: true, limits: { servers: 10, resourcesPerServer: 250, collaborators: null } });
+    const response = await request(`/${created.id}`, "PUT", { description: "Updated", highlighted: false, sortOrder: -1, creditsPerPeriod: 750 });
+    expect(response.status).toBe(200);
+    const updated = await response.json();
+    expect(updated).toMatchObject({ id: created.id, version: 1, description: "Updated", highlighted: false, creditsPerPeriod: 750, stripePriceId: null });
+    const fetched = await request(`/${created.id}`);
+    expect(fetched.status).toBe(200);
+    expect(await fetched.json()).toMatchObject({ description: "Updated", features: created.features });
+    const audit = await db.select().from(billingConfigAudit);
+    expect(audit.map(row => row.action).sort()).toEqual(["plan_create", "plan_update"]);
+    expect(audit.every(row => row.actorId === ADMIN_ID)).toBe(true);
+    expect(audit.find(row => row.action === "plan_update")).toMatchObject({ before: { description: "More room" }, after: { description: "Updated" } });
+  });
 
-	it("rejects malformed presentation settings on create and update", async () => {
-		const base = { name: "Pro", priceCents: 1200, creditsPerPeriod: 1500 };
-		const created = await (await app.request("/api/v1/admin/billing/plans", {
-			method: "POST", headers: adminHeaders(), body: JSON.stringify(base),
-		})).json();
-		for (const patch of [{ description: 12 }, { description: "x".repeat(241) }, { highlighted: "true" }, { sortOrder: 1.5 }, { features: ["Unexpected array"] }]) {
-			for (const method of ["POST", "PUT"]) {
-				const response = await app.request(`/api/v1/admin/billing/plans${method === "PUT" ? `/${created.id}` : ""}`, {
-					method, headers: adminHeaders(), body: JSON.stringify({ ...base, ...patch }),
-				});
-				expect(response.status).toBe(400);
-			}
-		}
-	});
+  it("exposes only public standards anonymously with exact prices and no payment identifiers", async () => {
+    await create({ isActive: false, sortOrder: -5 });
+    const privatePlan = await create({ targetNetworkId: NETWORK_ID });
+    expect((await request(`/${privatePlan.id}/publish`, "POST")).status).toBe(200);
+    const response = await app.request("/api/v1/billing/plans");
+    expect(response.status).toBe(200);
+    const { plans } = await response.json();
+    expect(plans.map((p: { key: string; interval: string; priceCents: number }) => [p.key, p.interval, p.priceCents])).toEqual([["free", "month", 0], ["pro", "month", 900], ["pro", "year", 7000]]);
+    expect(plans.every((p: { purchasable: boolean }) => !p.purchasable)).toBe(true);
+    expect(JSON.stringify(plans)).not.toContain("stripe");
+  });
 
-	it("publishes admin presentation settings without changing the Stripe price", async () => {
-		const response = await app.request("/api/v1/admin/billing/plans", {
-			method: "POST", headers: adminHeaders(),
-			body: JSON.stringify({
-				name: "Pro", interval: "year", priceCents: 12000, creditsPerPeriod: 1500,
-				description: "  More room to create  ", highlighted: true,
-				features: "1500 credits per year\nShared network balance", sortOrder: 5,
-			}),
-		});
-		expect(response.status).toBe(200);
-		const created = await response.json();
-		expect(created.description).toBe("More room to create");
-		expect(created.highlighted).toBe(true);
-		const updatedResponse = await app.request(`/api/v1/admin/billing/plans/${created.id}`, {
-			method: "PUT", headers: adminHeaders(),
-			body: JSON.stringify({ description: "A fresh description", highlighted: false, sortOrder: -1 }),
-		});
-		expect(updatedResponse.status).toBe(200);
-		const updated = await updatedResponse.json();
-		expect(updated.description).toBe("A fresh description");
-		expect(updated.highlighted).toBe(false);
-		expect(updated.stripePriceId).toBe(created.stripePriceId);
-		expect(archived).toEqual([]);
-		const fetched = await (await app.request(`/api/v1/admin/billing/plans/${created.id}`, { headers: adminHeaders() })).json();
-		expect(fetched.description).toBe(updated.description);
-		expect(fetched.features).toBe(created.features);
-	});
+  it("rejects malformed terms and presentation on both creation and draft update", async () => {
+    const created = await create();
+    const invalid = [{ name: "" }, { priceCents: -1 }, { priceCents: 2147483648 }, { creditsPerPeriod: -5 }, { rolloverCap: -5 }, { description: 12 }, { description: "x".repeat(241) }, { highlighted: "true" }, { sortOrder: 1.5 }, { features: ["unexpected"] }, { interval: "week" }, { currency: "bad-currency" }, { limits: { servers: 2 } }, { capabilities: { editorPro: "yes" } }, { publicationStatus: "published" }, { managedBy: "code" }, { audience: "public" }, { key: "pro" }, { version: 2 }];
+    for (const patch of invalid) {
+      for (const method of ["POST", "PUT"]) {
+        const response = await request(method === "PUT" ? `/${created.id}` : "", method, { sourcePlanId, ...patch });
+        expect(response.status).toBe(400);
+      }
+    }
+    expect((await request("", "POST", { name: "Missing source" })).status).toBe(400);
+    expect((await request("", "POST", { sourcePlanId: created.id })).status).toBe(400);
+    expect((await request("", "POST", { sourcePlanId, targetNetworkId: "missing" })).status).toBe(400);
+    for (const body of [null, [], "invalid", 5]) {
+      expect((await request("", "POST", body)).status).toBe(400);
+      expect((await request(`/${created.id}`, "PUT", body)).status).toBe(400);
+    }
+  });
 
-	it("403 without admin", async () => {
-		expect((await app.request("/api/v1/admin/billing/plans")).status).toBe(403);
-	});
+  it("accepts zero credits and unlimited quotas when the explicit calendar is consistent", async () => {
+    const created = await create({ priceCents: 0, creditsPerPeriod: 0, creditInterval: "none", limits: { servers: null, resourcesPerServer: 0, collaborators: null } });
+    expect(created).toMatchObject({ priceCents: 0, creditsPerPeriod: 0, creditInterval: "none", limits: { servers: null, resourcesPerServer: 0, collaborators: null } });
+    expect((await request(`/${created.id}`, "PUT", { creditsPerPeriod: 5 })).status).toBe(400);
+  });
 
-	it("POST creates a plan + provisions a RECURRING Stripe price", async () => {
-		let recurringSeen: unknown = null;
-		__setStripeGatewayForTests({
-			async createProductWithPrice(input) { recurringSeen = input.recurring; return { productId: "prod_s", priceId: "price_s" }; },
-			async createPriceForProduct() { return { priceId: "price_s2" }; },
-			async updateProductName() {},
-			async archivePrice() {},
-			async createCustomer() { return { customerId: "c" }; },
-			async createCheckoutSession() { return { url: "u" }; },
-			async createPortalSession() { return { url: "u" }; },
-			constructWebhookEvent() { return { id: "", type: "", data: { object: {} } }; },
-		});
-		const post = await app.request("/api/v1/admin/billing/plans", {
-			method: "POST", headers: adminHeaders(),
-			body: JSON.stringify({ name: "Pro", priceCents: 2000, creditsPerPeriod: 5000, rolloverCap: 1000 }),
-		});
-		expect(post.status).toBe(200);
-		const created = await post.json();
-		expect(created.interval).toBe("month");
-		expect(created.stripePriceId).toBe("price_s");
-		expect(recurringSeen).toEqual({ interval: "month" });
-	});
+  it("lists standards and custom drafts by sort order with serialized dates", async () => {
+    const first = await create({ name: "First", sortOrder: -2 });
+    const last = await create({ name: "Last", sortOrder: 8 });
+    const { plans } = await (await request()).json();
+    expect(plans.map((p: { id: string }) => p.id)).toEqual([first.id, ...(await listPlans()).filter(p => p.managedBy === "code").map(p => p.id), last.id]);
+    expect(plans.every((p: { createdAt: unknown }) => typeof p.createdAt === "string")).toBe(true);
+  });
 
-	it("POST validates (missing name / non-positive price / non-positive creditsPerPeriod / negative rolloverCap → 400)", async () => {
-		for (const body of [
-			{ name: "", priceCents: 2000, creditsPerPeriod: 100 },
-			{ name: "X", priceCents: 0, creditsPerPeriod: 100 },
-			{ name: "X", priceCents: 2000, creditsPerPeriod: 0 },
-			{ name: "X", priceCents: 2000, creditsPerPeriod: -5 },
-			{ name: "X", priceCents: 2000, creditsPerPeriod: 100, rolloverCap: -5 },
-		]) {
-			const res = await app.request("/api/v1/admin/billing/plans", { method: "POST", headers: adminHeaders(), body: JSON.stringify(body) });
-			expect(res.status).toBe(400);
-		}
-	});
+  it("publishes targeted contracts and creates draft versions without mutating sold terms", async () => {
+    const original = await create();
+    const missingTarget = await request(`/${original.id}/publish`, "POST");
+    expect(missingTarget.status).toBe(400);
+    expect(await missingTarget.json()).toEqual({ error: "target_network_required" });
+    expect((await request(`/${original.id}`, "PUT", { targetNetworkId: NETWORK_ID })).status).toBe(200);
+    expect((await request(`/${original.id}/publish`, "POST")).status).toBe(200);
+    const response = await request(`/${original.id}`, "PUT", { priceCents: 2000, currency: "usd", interval: "year" });
+    expect(response.status).toBe(200);
+    const updated = await response.json();
+    expect(updated.id).not.toBe(original.id);
+    expect(updated).toMatchObject({ version: 2, publicationStatus: "draft", priceCents: 2000, currency: "usd", interval: "year", stripePriceId: null });
+    expect(await (await request(`/${original.id}`)).json()).toMatchObject({ priceCents: 900, currency: "eur", interval: "month", publicationStatus: "published" });
+    const { plans } = await (await request()).json();
+    expect(plans.filter((p: { key: string }) => p.key === original.key).map((p: { id: string }) => p.id)).toEqual([updated.id]);
+    expect((await request(`/${updated.id}/publish`, "POST")).status).toBe(200);
+    const audit = await db.select().from(billingConfigAudit).where(eq(billingConfigAudit.action, "plan_publish"));
+    expect(audit).toHaveLength(2);
+    expect(audit.every(row => row.actorId === ADMIN_ID)).toBe(true);
+  });
 
-	it("GET lists all plans sorted by sortOrder", async () => {
-		const post1 = await app.request("/api/v1/admin/billing/plans", {
-			method: "POST", headers: adminHeaders(),
-			body: JSON.stringify({ name: "Starter", priceCents: 500, creditsPerPeriod: 1000, sortOrder: 1 }),
-		});
-		const plan1 = await post1.json();
+  it("protects standards and restricts admin endpoints", async () => {
+    expect((await app.request("/api/v1/admin/billing/plans")).status).toBe(403);
+    for (const [method, suffix] of [["PUT", ""], ["POST", "/publish"], ["POST", "/deactivate"]]) {
+      const response = await request(`/${sourcePlanId}${suffix}`, method, { name: "Changed" });
+      expect(response.status).toBe(409);
+      expect(await response.json()).toEqual({ error: "managed_plan_read_only" });
+    }
+  });
 
-		const post2 = await app.request("/api/v1/admin/billing/plans", {
-			method: "POST", headers: adminHeaders(),
-			body: JSON.stringify({ name: "Pro", priceCents: 2000, creditsPerPeriod: 5000, sortOrder: 2 }),
-		});
-		const plan2 = await post2.json();
+  it("preserves orphaned private offers without blocking network deletion or exposing them", async () => {
+    const removedId = "admin_plans_removed_network";
+    const now = new Date();
+    await db.insert(networks).values({ id: removedId, name: "Removed", createdAt: now, updatedAt: now }).onConflictDoNothing();
+    const draft = await create({ targetNetworkId: removedId });
+    const published = await create({ targetNetworkId: removedId });
+    expect((await request(`/${published.id}/publish`, "POST")).status).toBe(200);
+    const deletionError = await db.delete(networks).where(eq(networks.id, removedId)).then(() => null).catch(error => error.code ?? error.message);
+    expect(deletionError).toBeNull();
+    for (const original of [draft, published]) {
+      expect(await (await request(`/${original.id}`)).json()).toMatchObject({ id: original.id, targetNetworkId: null, audience: "private", priceCents: original.priceCents });
+    }
+    const denied = await request(`/${draft.id}/publish`, "POST");
+    expect(denied.status).toBe(400);
+    expect(await denied.json()).toEqual({ error: "target_network_required" });
+    for (const url of ["/api/v1/billing/plans", `/api/v1/billing/plans?networkId=${NETWORK_ID}`]) {
+      const response = await app.request(url, { headers: headers() });
+      expect(response.status).toBe(200);
+      const { plans } = await response.json();
+      expect(plans.some((p: { id: string }) => [draft.id, published.id].includes(p.id))).toBe(false);
+    }
+    const checkout = await app.request("/api/v1/billing/checkout/subscription", { method: "POST", headers: headers(), body: JSON.stringify({ networkId: NETWORK_ID, planId: published.id }) });
+    expect(checkout.status).toBe(404);
+  });
 
-		const list = await (await app.request("/api/v1/admin/billing/plans", { headers: adminHeaders() })).json();
-		expect(list.plans.length).toBe(2);
-		expect(list.plans[0].name).toBe("Starter");
-		expect(list.plans[1].name).toBe("Pro");
-		expect(typeof list.plans[0].createdAt).toBe("string");
-	});
-
-	it("GET /billing/plans/:id retrieves a single plan; 404 for unknown", async () => {
-		const post = await app.request("/api/v1/admin/billing/plans", {
-			method: "POST", headers: adminHeaders(),
-			body: JSON.stringify({ name: "Solo", priceCents: 1000, creditsPerPeriod: 2000 }),
-		});
-		const created = await post.json();
-
-		const get = await app.request(`/api/v1/admin/billing/plans/${created.id}`, { headers: adminHeaders() });
-		expect(get.status).toBe(200);
-		const fetched = await get.json();
-		expect(fetched.name).toBe("Solo");
-		expect(fetched.priceCents).toBe(1000);
-
-		const missing = await app.request("/api/v1/admin/billing/plans/nope", { headers: adminHeaders() });
-		expect(missing.status).toBe(404);
-	});
-
-	it("PUT updates plan fields without re-provisioning if price/interval unchanged", async () => {
-		const post = await app.request("/api/v1/admin/billing/plans", {
-			method: "POST", headers: adminHeaders(),
-			body: JSON.stringify({ name: "P", priceCents: 1000, creditsPerPeriod: 500, features: "" }),
-		});
-		const created = await post.json();
-		const oldPriceId = created.stripePriceId;
-
-		const put = await app.request(`/api/v1/admin/billing/plans/${created.id}`, {
-			method: "PUT", headers: adminHeaders(),
-			body: JSON.stringify({ creditsPerPeriod: 750, features: "priority support" }),
-		});
-		expect(put.status).toBe(200);
-		const updated = await put.json();
-		expect(updated.creditsPerPeriod).toBe(750);
-		expect(updated.features).toBe("priority support");
-		expect(updated.stripePriceId).toBe(oldPriceId); // no re-provisioning
-	});
-
-	it("PUT re-provisions when price changes", async () => {
-		const post = await app.request("/api/v1/admin/billing/plans", {
-			method: "POST", headers: adminHeaders(),
-			body: JSON.stringify({ name: "P", priceCents: 1000, creditsPerPeriod: 500 }),
-		});
-		const created = await post.json();
-		const oldPriceId = created.stripePriceId;
-
-		const put = await app.request(`/api/v1/admin/billing/plans/${created.id}`, {
-			method: "PUT", headers: adminHeaders(),
-			body: JSON.stringify({ priceCents: 2000 }),
-		});
-		expect(put.status).toBe(200);
-		const updated = await put.json();
-		expect(updated.priceCents).toBe(2000);
-		expect(updated.stripePriceId).not.toBe(oldPriceId); // new price provisioned
-		expect(archived).toContain(oldPriceId); // old price archived
-	});
-
-	it("PUT re-provisions when interval changes", async () => {
-		const post = await app.request("/api/v1/admin/billing/plans", {
-			method: "POST", headers: adminHeaders(),
-			body: JSON.stringify({ name: "P", priceCents: 1000, creditsPerPeriod: 500, interval: "month" }),
-		});
-		const created = await post.json();
-		const oldPriceId = created.stripePriceId;
-
-		const put = await app.request(`/api/v1/admin/billing/plans/${created.id}`, {
-			method: "PUT", headers: adminHeaders(),
-			body: JSON.stringify({ interval: "year" }),
-		});
-		expect(put.status).toBe(200);
-		const updated = await put.json();
-		expect(updated.interval).toBe("year");
-		expect(updated.stripePriceId).not.toBe(oldPriceId); // new price provisioned
-		expect(archived).toContain(oldPriceId); // old price archived
-	});
-
-	it("PUT re-provisions when only the currency changes", async () => {
-		const post = await app.request("/api/v1/admin/billing/plans", {
-			method: "POST", headers: adminHeaders(),
-			body: JSON.stringify({ name: "P", priceCents: 1000, creditsPerPeriod: 500, currency: "eur" }),
-		});
-		const created = await post.json();
-		const oldPriceId = created.stripePriceId;
-		expect(created.currency).toBe("eur");
-
-		const put = await app.request(`/api/v1/admin/billing/plans/${created.id}`, {
-			method: "PUT", headers: adminHeaders(),
-			body: JSON.stringify({ currency: "usd" }),
-		});
-		expect(put.status).toBe(200);
-		const updated = await put.json();
-		expect(updated.currency).toBe("usd");
-		expect(updated.stripePriceId).not.toBe(oldPriceId); // new price provisioned
-		expect(archived).toContain(oldPriceId); // old price archived
-	});
-
-	it("POST /billing/plans/:id/deactivate flips isActive", async () => {
-		const post = await app.request("/api/v1/admin/billing/plans", {
-			method: "POST", headers: adminHeaders(),
-			body: JSON.stringify({ name: "P", priceCents: 1000, creditsPerPeriod: 500 }),
-		});
-		const created = await post.json();
-		expect(created.isActive).toBe(true);
-
-		const res = await app.request(`/api/v1/admin/billing/plans/${created.id}/deactivate`, { method: "POST", headers: adminHeaders() });
-		expect(res.status).toBe(200);
-		const [row] = await db.select().from(subscriptionPlans).where(eq(subscriptionPlans.id, created.id));
-		expect(row.isActive).toBe(false);
-	});
-
-	it("PUT validates (empty name / non-positive price / non-positive creditsPerPeriod / negative rolloverCap → 400)", async () => {
-		const post = await app.request("/api/v1/admin/billing/plans", {
-			method: "POST", headers: adminHeaders(),
-			body: JSON.stringify({ name: "P", priceCents: 1000, creditsPerPeriod: 500 }),
-		});
-		const created = await post.json();
-
-		const badName = await app.request(`/api/v1/admin/billing/plans/${created.id}`, {
-			method: "PUT", headers: adminHeaders(),
-			body: JSON.stringify({ name: "" }),
-		});
-		expect(badName.status).toBe(400);
-
-		const badPrice = await app.request(`/api/v1/admin/billing/plans/${created.id}`, {
-			method: "PUT", headers: adminHeaders(),
-			body: JSON.stringify({ priceCents: 0 }),
-		});
-		expect(badPrice.status).toBe(400);
-
-		const badCredits = await app.request(`/api/v1/admin/billing/plans/${created.id}`, {
-			method: "PUT", headers: adminHeaders(),
-			body: JSON.stringify({ creditsPerPeriod: 0 }),
-		});
-		expect(badCredits.status).toBe(400);
-
-		const badRollover = await app.request(`/api/v1/admin/billing/plans/${created.id}`, {
-			method: "PUT", headers: adminHeaders(),
-			body: JSON.stringify({ rolloverCap: -10 }),
-		});
-		expect(badRollover.status).toBe(400);
-	});
-
-	it("PUT 404 if plan not found", async () => {
-		const res = await app.request("/api/v1/admin/billing/plans/nonexistent", {
-			method: "PUT", headers: adminHeaders(),
-			body: JSON.stringify({ name: "X" }),
-		});
-		expect(res.status).toBe(404);
-	});
-
-	it("POST /billing/plans/:id/deactivate 404 if plan not found", async () => {
-		const res = await app.request("/api/v1/admin/billing/plans/nonexistent/deactivate", { method: "POST", headers: adminHeaders() });
-		expect(res.status).toBe(404);
-	});
-
-	it("PUT reuses the existing Stripe product on reprice (no orphan product) and archives the old price", async () => {
-		const products: string[] = [];
-		const priced: string[] = [];
-		const renamed: Array<[string, string]> = [];
-		const archived2: string[] = [];
-		__setStripeGatewayForTests({
-			async createProductWithPrice() { const p = `prod_${products.length}`; products.push(p); return { productId: p, priceId: `price_${priced.push(p)}` }; },
-			async createPriceForProduct(i) { priced.push(i.productId); return { priceId: `price_reuse_${priced.length}` }; },
-			async updateProductName(id, name) { renamed.push([id, name]); },
-			async archivePrice(id) { archived2.push(id); },
-			async createCustomer() { return { customerId: "c" }; },
-			async createCheckoutSession() { return { url: "u" }; },
-			async createPortalSession() { return { url: "u" }; },
-			constructWebhookEvent() { return { id: "", type: "", data: { object: {} } }; },
-		});
-		const created = await (await app.request("/api/v1/admin/billing/plans", { method: "POST", headers: adminHeaders(), body: JSON.stringify({ name: "P", priceCents: 1000, creditsPerPeriod: 500 }) })).json();
-		const productCountAfterCreate = products.length;
-		const put = await app.request(`/api/v1/admin/billing/plans/${created.id}`, { method: "PUT", headers: adminHeaders(), body: JSON.stringify({ priceCents: 2000 }) });
-		const updated = await put.json();
-		expect(products.length).toBe(productCountAfterCreate); // NO new product created on reprice
-		expect(updated.stripePriceId).not.toBe(created.stripePriceId);
-		expect(archived2).toContain(created.stripePriceId);
-	});
-
-	it("PUT renaming updates the Stripe product name", async () => {
-		const renamed: Array<[string, string]> = [];
-		__setStripeGatewayForTests({
-			async createProductWithPrice() { return { productId: "prod_x", priceId: "price_x" }; },
-			async createPriceForProduct() { return { priceId: "price_y" }; },
-			async updateProductName(id, name) { renamed.push([id, name]); },
-			async archivePrice() {},
-			async createCustomer() { return { customerId: "c" }; },
-			async createCheckoutSession() { return { url: "u" }; },
-			async createPortalSession() { return { url: "u" }; },
-			constructWebhookEvent() { return { id: "", type: "", data: { object: {} } }; },
-		});
-		const created = await (await app.request("/api/v1/admin/billing/plans", { method: "POST", headers: adminHeaders(), body: JSON.stringify({ name: "Old", priceCents: 1000, creditsPerPeriod: 500 }) })).json();
-		await app.request(`/api/v1/admin/billing/plans/${created.id}`, { method: "PUT", headers: adminHeaders(), body: JSON.stringify({ name: "New" }) });
-		expect(renamed).toContainEqual(["prod_x", "New"]);
-	});
-
-	it("PUT reuses the existing Stripe product when interval changes and archives the old price", async () => {
-		const products: string[] = [];
-		const priced: string[] = [];
-		const archived2: string[] = [];
-		__setStripeGatewayForTests({
-			async createProductWithPrice() { const p = `prod_${products.length}`; products.push(p); return { productId: p, priceId: `price_${priced.push(p)}` }; },
-			async createPriceForProduct(i) { priced.push(i.productId); return { priceId: `price_reuse_${priced.length}` }; },
-			async updateProductName() {},
-			async archivePrice(id) { archived2.push(id); },
-			async createCustomer() { return { customerId: "c" }; },
-			async createCheckoutSession() { return { url: "u" }; },
-			async createPortalSession() { return { url: "u" }; },
-			constructWebhookEvent() { return { id: "", type: "", data: { object: {} } }; },
-		});
-		const created = await (await app.request("/api/v1/admin/billing/plans", { method: "POST", headers: adminHeaders(), body: JSON.stringify({ name: "P", priceCents: 1000, creditsPerPeriod: 500, interval: "month" }) })).json();
-		const productCountAfterCreate = products.length;
-		const put = await app.request(`/api/v1/admin/billing/plans/${created.id}`, { method: "PUT", headers: adminHeaders(), body: JSON.stringify({ interval: "year" }) });
-		const updated = await put.json();
-		expect(products.length).toBe(productCountAfterCreate); // NO new product created on interval change
-		expect(updated.stripePriceId).not.toBe(created.stripePriceId);
-		expect(archived2).toContain(created.stripePriceId);
-	});
+  it("deactivates a custom plan with an audit record and returns 404 for unknown IDs", async () => {
+    const created = await create();
+    expect((await request(`/${created.id}/deactivate`, "POST")).status).toBe(200);
+    expect(await (await request(`/${created.id}`)).json()).toMatchObject({ isActive: false });
+    const audit = await db.select().from(billingConfigAudit).where(eq(billingConfigAudit.action, "plan_deactivate"));
+    expect(audit).toHaveLength(1);
+    expect(audit[0]).toMatchObject({ actorId: ADMIN_ID, before: { isActive: true }, after: { isActive: false } });
+    for (const [method, suffix] of [["GET", ""], ["PUT", ""], ["POST", "/deactivate"], ["POST", "/publish"]]) {
+      expect((await request(`/missing${suffix}`, method, method === "PUT" ? { name: "Changed" } : undefined)).status).toBe(404);
+    }
+  });
 });

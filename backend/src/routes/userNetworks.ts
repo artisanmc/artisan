@@ -11,7 +11,6 @@ import {
 	memberships,
 	networkAccessRequests,
 	networkInvites,
-	networkBilling,
 	networks,
 	projects,
 	serverDataSources,
@@ -45,8 +44,9 @@ import { ensureProjectForServer, getProject, getProjectForServer, listProjectsFo
 import { pendingProjectRenames } from "../lib/projectRename";
 import { resolveNetworkForMember } from "../lib/refs";
 import { slugify } from "../lib/slug";
-import { hasProAccess } from "../modules/billing/resourceQuota";
-import { planLimits, PlanLimitError, withinPlanLimit } from "../modules/billing/planLimits";
+import { resolveNetworkEntitlements } from "../modules/billing/entitlements";
+import { getServerEditorAccess } from "../modules/billing/editorAccess";
+import { PlanLimitError, withinPlanLimit } from "../modules/billing/planLimits";
 import { uniqueSlug } from "../lib/slug";
 import type { AuthUser } from "../middleware/userAuth";
 import { getCachedAsset, putCachedAsset } from "../lib/assetCache";
@@ -441,8 +441,8 @@ userNetworksRouter.post(
 		const label = typeof body.label === "string" ? body.label : null;
 
 		const created = await withNetworkMemberLock(networkId, async (tx) => {
-			const [billing] = await tx.select().from(networkBilling).where(eq(networkBilling.networkId, networkId));
-			const limit = hasProAccess(billing) ? planLimits.pro.servers : planLimits.free.servers;
+			const { limits } = await resolveNetworkEntitlements(networkId, tx);
+			const limit = limits.servers;
 			const existing = await tx.select({ id: serverKeys.id, slug: serverKeys.slug }).from(serverKeys).where(eq(serverKeys.networkId, networkId));
 			if (!withinPlanLimit(existing.length, limit)) return null;
 			const taken = existing.map((entry) => entry.slug).filter((value): value is string => !!value);
@@ -845,6 +845,20 @@ async function resolveNetworkServer(
 		);
 	return { networkId, serverKeyId: sk[0]?.id ?? null };
 }
+
+userNetworksRouter.get(
+	"/:networkId/servers/:serverId/editor-access",
+	async (c: Context<{ Variables: Vars }>) => {
+		const userId = getUserId(c);
+		if (!userId) return c.json({ error: "unauthorized" }, 401);
+		const resolved = await resolveNetworkServer(userId, c.req.param("networkId"), c.req.param("serverId"));
+		if (!resolved) return c.json({ error: "forbidden" }, 403);
+		if (!resolved.serverKeyId) return c.json({ error: "not_found" }, 404);
+		const { resources: _resources, ...access } = await getServerEditorAccess(resolved.serverKeyId);
+		c.header("Cache-Control", "no-store");
+		return c.json(access, access.inventoryAvailable ? 200 : 503);
+	},
+);
 
 userNetworksRouter.get(
 	"/:networkId/servers/:serverId/projects/:projectId/import-sources",

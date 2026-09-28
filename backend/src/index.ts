@@ -7,6 +7,11 @@ import { resumeServerDrafts } from "./lib/projectDraftMigration";
 import { connToServerId } from "./ws/hub";
 import { maintainDemoSessions } from "./lib/demoSessions";
 import { grantDueAnnualProCredits } from "./modules/billing/annualProCredits";
+import { syncStandardPlans } from "./modules/billing/catalog";
+import { provisionPublishedPlans } from "./modules/billing/planProvisioning";
+import { isStripeConfigured } from "./modules/billing/stripe";
+
+await syncStandardPlans();
 
 // Avant d'ouvrir le port : le volume peut être neuf (icônes 3D + items.json
 // absents = « Bibliothèque indisponible » côté éditeur). Synchrone et rapide,
@@ -27,6 +32,7 @@ export default {
 };
 
 console.log(`Artisan backend on http://localhost:${port}`);
+if (isStripeConfigured()) void provisionPublishedPlans().then(results => console.log("[billing] plan provisioning", results)).catch(error => console.error("[billing] plan provisioning failed", error));
 
 backfillSlugs().catch((err) => console.error("[backfill] slugs failed:", err));
 seedAiCatalogFromLegacy().catch((err) => console.error("[ai] legacy seed failed:", err));

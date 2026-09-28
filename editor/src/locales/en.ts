@@ -1,4 +1,5 @@
 import { onboardingEn } from "./onboarding";
+import { planCatalogEn } from "./planCatalog";
 import { accountDeletionEn } from "./accountDeletion";
 import { changesEn } from "./changes";
 import { demoEn } from "./demo";
@@ -1401,17 +1402,6 @@ export default {
         packs: "Credit packs",
         plans: "Subscriptions",
         grant: "Manual grant",
-        editor: "Editor access",
-      },
-      editor: {
-        title: "Editor access",
-        help: "The published free quota appears on pricing and is checked against each server's resources.",
-        quota: "Free personal resources per server",
-        lowering: "Lowering this quota can make existing projects read only. Their files remain on the server.",
-        enforce: "Enforce editor write restrictions. Enable after connected plugins report their inventory.",
-        save: "Save editor offer",
-        saved: "Editor offer updated",
-        failed: "Could not update the editor offer",
       },
       packs: {
         title: "Credit packs",
@@ -1449,17 +1439,15 @@ export default {
         columns: {
           name: "Name",
           price: "Price",
-          credits: "Credits / period",
-          interval: "Interval",
+          credits: "Credits",
+          interval: "Billing",
           status: "Status",
         },
         form: {
           name: "Name",
           priceCents: "Price (cents)",
           currency: "Currency",
-          interval: "Interval",
-          creditsPerPeriod: "Credits per period",
-          proCreditsHint: "Artisan Pro: enter 500. Credits are granted each month, including with annual billing.",
+          interval: "Billing frequency",
           rolloverCap: "Rollover cap",
           description: "Short description",
           descriptionHint: "Shown on the public pricing page (240 characters maximum).",
@@ -1992,6 +1980,7 @@ export default {
     confirm: "Deploy to the server",
   },
   userMenu: {
+    resourceUsage: "Resource usage",
     anonymous: "Anonymous",
     profile: "Profile",
     signIn: "Sign in",
@@ -2126,6 +2115,7 @@ export default {
     confirm: "Delete server",
   },
   billing: {
+    catalog: planCatalogEn,
     indicator: {
       total: "{{n}} credits",
       ariaLabel: "Credit balance: {{n}} credits",
@@ -2150,6 +2140,7 @@ export default {
       buy: "Buy",
       subscribe: "Subscribe",
       creditsFor: "{{credits}} credits",
+      yearlyCredits: "{{credits}} AI credits each year",
       proMonthlyCredits: "{{credits}} AI credits each month",
       bonus: "+{{pct}}% bonus",
       perMonth: "/mo",

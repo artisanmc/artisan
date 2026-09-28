@@ -11,11 +11,9 @@ import { FormField } from "@/components/ui/form-field";
 import { Tooltip } from "@/components/ui/tooltip";
 import { hasExistingSubscription } from "@/features/billing/subscriptionState";
 import {
-  type EditorOffer,
   type PackDto,
   type PlanDto,
   type SubscriptionDto,
-  getEditorOffer,
   getPlans,
   getProjects,
   getSubscription,
@@ -47,7 +45,6 @@ export function PricingPage() {
   const { t, i18n } = useTranslation();
   const user = useAuthStore((s) => s.currentUser);
   const [plans, setPlans] = useState<PlanDto[]>([]);
-  const [offer, setOffer] = useState<EditorOffer | null>(null);
   const [period, setPeriod] = useState<"month" | "year">("year");
   const [packs, setPacks] = useState<PackDto[]>([]);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
@@ -61,21 +58,12 @@ export function PricingPage() {
     let disposed = false;
     setStatus("loading");
     setPacksFailed(false);
-    Promise.all([getPlans(), getEditorOffer()])
-      .then(([items, offer]) => {
+    getPlans()
+      .then((items) => {
         if (!disposed) {
+          if (!items.some((p) => p.key === "free") || !items.some((p) => p.key === "pro"))
+            throw new Error("catalog_incomplete");
           setPlans(items);
-          setOffer({
-            quota: offer.quota,
-            proQuota: offer.proQuota ?? 250,
-            freeServers: offer.freeServers ?? 2,
-            proServers: offer.proServers ?? 10,
-            freeCollaborators: offer.freeCollaborators ?? 2,
-            proMonthlyPriceCents: offer.proMonthlyPriceCents ?? 900,
-            proYearlyPriceCents: offer.proYearlyPriceCents ?? 7000,
-            proCreditsPerMonth: offer.proCreditsPerMonth ?? 500,
-            currency: offer.currency ?? "eur",
-          });
           setStatus("ready");
         }
       })
@@ -93,21 +81,28 @@ export function PricingPage() {
       disposed = true;
     };
   }, [retry]);
-  const proPlans = plans.filter(
-    (plan) =>
-      plan.editorPro &&
-      plan.purchasable !== false &&
-      offer &&
-      plan.currency === offer.currency &&
-      plan.creditsPerPeriod === offer.proCreditsPerMonth &&
-      ((plan.interval === "month" && plan.priceCents === offer.proMonthlyPriceCents) ||
-        (plan.interval === "year" && plan.priceCents === offer.proYearlyPriceCents)),
-  );
+  const free = plans.find((plan) => plan.key === "free" && plan.managedBy === "code");
+  const proPlans = plans.filter((plan) => plan.key === "pro" && plan.managedBy === "code");
   const monthly = proPlans.find((plan) => plan.interval === "month");
   const yearly = proPlans.find((plan) => plan.interval === "year");
   const currentPlan = period === "year" ? yearly : monthly;
-  const selected = proPlans.find((plan) => plan.id === selectedId);
-  const annualSavings = offer ? offer.proMonthlyPriceCents * 12 - offer.proYearlyPriceCents : 0;
+  const selected = proPlans.find((plan) => plan.id === selectedId && plan.purchasable);
+  const offer =
+    free && currentPlan
+      ? {
+          quota: free.limits.resourcesPerServer,
+          freeServers: free.limits.servers,
+          freeCollaborators: free.limits.collaborators,
+          proQuota: currentPlan.limits.resourcesPerServer,
+          proServers: currentPlan.limits.servers,
+          proCreditsPerMonth: currentPlan.creditsPerPeriod,
+          currency: currentPlan.currency,
+        }
+      : null;
+  const annualSavings =
+    monthly && yearly && monthly.currency === yearly.currency
+      ? monthly.priceCents * 12 - yearly.priceCents
+      : 0;
   const formattedSavings =
     offer && annualSavings > 0
       ? new Intl.NumberFormat(i18n.language, {
@@ -191,7 +186,7 @@ export function PricingPage() {
                 <p className="pricing-plan-description">{t("marketing.pricing.freeDescription")}</p>
                 <div className="pricing-price-block">
                   <div className="pricing-amount">
-                    <strong>{formatPrice(0, "eur", i18n.language)}</strong>
+                    <strong>{formatPrice(free!.priceCents, free!.currency, i18n.language)}</strong>
                   </div>
                 </div>
                 <PricingLimits
@@ -211,11 +206,7 @@ export function PricingPage() {
                 <div className="pricing-price-block">
                   <div className="pricing-amount">
                     <strong>
-                      {formatPrice(
-                        period === "year" ? offer.proYearlyPriceCents : offer.proMonthlyPriceCents,
-                        offer.currency,
-                        i18n.language,
-                      )}
+                      {formatPrice(currentPlan!.priceCents, offer.currency, i18n.language)}
                     </strong>
                     <span>
                       {t(period === "year" ? "marketing.pricing.year" : "marketing.pricing.month")}
@@ -226,10 +217,10 @@ export function PricingPage() {
                 <PricingLimits
                   resources={offer.proQuota}
                   servers={offer.proServers}
-                  collaborators={null}
+                  collaborators={currentPlan!.limits.collaborators}
                   creditsPerMonth={offer.proCreditsPerMonth}
                 />
-                {currentPlan &&
+                {currentPlan?.purchasable &&
                   (user ? (
                     <Button
                       variant="primary"
@@ -245,7 +236,7 @@ export function PricingPage() {
                       </a>
                     </Button>
                   ))}
-                {!currentPlan && (
+                {!currentPlan?.purchasable && (
                   <p className="pricing-plan-availability">
                     {t("marketing.pricing.proAvailability")}
                   </p>
@@ -254,7 +245,7 @@ export function PricingPage() {
             </div>
           </>
         )}
-        {currentPlan && (
+        {currentPlan?.purchasable && (
           <div className="pricing-trust">
             <ShieldCheck size={16} />
             <span>{t("marketing.pricing.secure")}</span>
@@ -359,13 +350,22 @@ function PricingLimits({
   servers,
   collaborators,
   creditsPerMonth,
-}: { resources: number; servers: number; collaborators: number | null; creditsPerMonth?: number }) {
+}: {
+  resources: number | null;
+  servers: number | null;
+  collaborators: number | null;
+  creditsPerMonth?: number;
+}) {
   const { t } = useTranslation();
   return (
     <ul className="pricing-limits">
       <li>
         <Layers3 size={20} aria-hidden="true" />
-        <span>{t("marketing.pricing.resourcesPerServer", { count: resources })}</span>
+        <span>
+          {resources === null
+            ? t("billing.catalog.unlimitedResources")
+            : t("marketing.pricing.resourcesPerServer", { count: resources })}
+        </span>
         <Tooltip content={t("marketing.pricing.moduleTooltip")}>
           <button
             type="button"
@@ -378,7 +378,11 @@ function PricingLimits({
       </li>
       <li>
         <Server size={20} aria-hidden="true" />
-        <span>{t("marketing.pricing.servers", { count: servers })}</span>
+        <span>
+          {servers === null
+            ? t("billing.catalog.unlimitedServers")
+            : t("marketing.pricing.servers", { count: servers })}
+        </span>
       </li>
       <li>
         <Users size={20} aria-hidden="true" />

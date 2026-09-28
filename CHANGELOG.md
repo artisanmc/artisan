@@ -9,6 +9,15 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+- Resource usage in the user menu follows the selected server, including without an open project. A member-only server editor-access endpoint reports live usage across its projects; unavailable inventory is never displayed as zero.
+
+### Changed — managed standard plans and private custom offers
+
+- Free and monthly/yearly Pro now come from a versioned backend catalogue, synchronized automatically without Stripe. Standard plans are read-only in admin; existing manual plans are retained as inactive custom drafts.
+- Administrators can copy a standard version into a private Network offer, edit its limits and credit cadence, and publish it explicitly. Published terms are immutable; edits create a successor draft and existing subscribers retain their confirmed version.
+- Public pricing and Network billing use the same catalogue. Private offers require membership in their target Network; checkout verifies eligibility and payment readiness. Stripe Prices identify exact versions, and only confirmed payment changes paid rights.
+- Network quotas resolve from the paid version, including custom and unlimited allowances, then fall back to Free on expiry. Free is the effective default without a billing record. Resource quotas always apply from the effective plan; the separate admin editor-policy endpoints and toggle are removed. Subscription responses expose the effective plan independently of payment status.
+
 ### Changed — the demo lives in the database; hosted storage is gone
 
 - A demo's work is stored as its draft in PostgreSQL, with the same size and rate limits; the demo publishes nothing and **Deploy** is hidden there. Demos in progress when this ships are discarded.

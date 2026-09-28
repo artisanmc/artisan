@@ -254,7 +254,7 @@ export interface ProjectCopyMessage {
   path?: string;
   offset?: number;
   content_base64?: string;
-  commercial_policy?: { enabled: boolean; quota: number; pro_until: string | null };
+  commercial_policy?: { enabled: boolean; quota: number | null; pro_until: string | null };
 }
 export interface ProjectCopyResultMessage {
   type: "project_copy_result";
@@ -406,7 +406,7 @@ export interface AssetWriteMessage {
    * moitié posée si l'un échouait.
    */
   files: { path: string; content_base64?: string | null; base_hash: string | null }[];
-  commercial_policy?: { enabled: boolean; quota: number; pro_until: string | null };
+  commercial_policy?: { enabled: boolean; quota: number | null; pro_until: string | null };
 }
 
 export interface AssetWriteResultMessage {
@@ -442,7 +442,7 @@ export interface ProjectWriteMessage {
   /** Créer le dossier du Project s'il n'existe pas (création / import). Sans ce
    *  drapeau un id inconnu reste une erreur, plutôt qu'un dossier fantôme. */
   create?: boolean;
-  commercial_policy?: { enabled: boolean; quota: number; pro_until: string | null };
+  commercial_policy?: { enabled: boolean; quota: number | null; pro_until: string | null };
 }
 
 // Plugin → backend: reply to ProjectWriteMessage. On `conflict`, `conflicts`
@@ -511,7 +511,7 @@ export interface ConfigWriteMessage {
   project_id: string;
   files: { path: string; content: string }[];
   deletes?: string[];
-  commercial_policy?: { enabled: boolean; quota: number; pro_until: string | null };
+  commercial_policy?: { enabled: boolean; quota: number | null; pro_until: string | null };
 }
 
 // Plugin → backend: reply to ConfigWriteMessage.

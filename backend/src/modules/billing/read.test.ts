@@ -52,7 +52,7 @@ beforeAll(async () => {
 
 	// Pack with 500 credits + 20% bonus = 600 credits granted
 	await db.insert(creditPacks).values({ id: packId, name: "P", priceCents: 1000, currency: "eur", credits: 500, bonusPct: 20, isActive: true, sortOrder: 0, stripeProductId: "prod_p", stripePriceId: "price_p", createdAt: now, updatedAt: now });
-	await db.insert(subscriptionPlans).values({ id: planId, name: "Pro", interval: "month", priceCents: 2000, currency: "eur", creditsPerPeriod: 5000, rolloverCap: 0, features: "", isActive: true, sortOrder: 0, stripeProductId: "prod_s", stripePriceId: "price_s", createdAt: now, updatedAt: now });
+	await db.insert(subscriptionPlans).values({ audience: "public", publicationStatus: "published", id: planId, name: "Pro", interval: "month", priceCents: 2000, currency: "eur", creditsPerPeriod: 5000, rolloverCap: 0, features: "", isActive: true, sortOrder: 0, stripeProductId: "prod_s", stripePriceId: "price_s", createdAt: now, updatedAt: now });
 
 	// Network billing with active subscription
 	const periodEnd = new Date();
@@ -136,8 +136,33 @@ describe("billing read routes", () => {
 		expect(s.status).toBe("active");
 		expect(s.planId).toBe(planId);
 		expect(s.planName).toBe("Pro");
+		expect(s.effectivePlan).toMatchObject({ id: null, key: "free", name: "Free", limits: { resourcesPerServer: 10 } });
 		const out = await app.request(`/api/v1/billing/subscription?networkId=${networkId}`, { headers: cookie(outsiderSession) });
 		expect(out.status).toBe(403);
+	});
+
+	it("reports effective paid version until expiry, then Free without changing billing status", async () => {
+		await db.update(networkBilling).set({ currentPeriodId: "confirmed", paidThrough: new Date("2999-01-01") }).where(eq(networkBilling.networkId, networkId));
+		try {
+			let res = await app.request(`/api/v1/billing/subscription?networkId=${networkId}`, { headers: cookie(userSession) });
+			expect((await res.json()).effectivePlan).toMatchObject({ id: planId, name: "Pro" });
+			await db.update(networkBilling).set({ paidThrough: new Date("2000-01-01") }).where(eq(networkBilling.networkId, networkId));
+			res = await app.request(`/api/v1/billing/subscription?networkId=${networkId}`, { headers: cookie(userSession) });
+			expect(await res.json()).toMatchObject({ status: "active", effectivePlan: { id: null, key: "free", name: "Free" } });
+		} finally {
+			await db.update(networkBilling).set({ currentPeriodId: null, paidThrough: null }).where(eq(networkBilling.networkId, networkId));
+		}
+	});
+
+	it("reports Free for a Network without a billing record", async () => {
+		const free = await createNetwork("free-read-net");
+		await db.insert(memberships).values({ id: "free-read-member", userId: USER_ID, networkId: free.id, role: "owner", createdAt: new Date() });
+		try {
+			const res = await app.request(`/api/v1/billing/subscription?networkId=${free.id}`, { headers: cookie(userSession) });
+			expect(await res.json()).toMatchObject({ status: null, effectivePlan: { id: null, key: "free", name: "Free", limits: { servers: 2, resourcesPerServer: 10, collaborators: 2 } } });
+		} finally {
+			await db.delete(networks).where(eq(networks.id, free.id));
+		}
 	});
 
 	it("GET /billing/purchases lists the network's purchases newest first", async () => {

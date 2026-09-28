@@ -572,6 +572,16 @@ Cf. `docs/superpowers/specs/2026-06-14-search-palette-and-sidebar-toggle-design.
 
 ## UI shell — Project + Settings (depuis 2026-05-27)
 
+Le menu `UserMenu` de la sidebar affiche le plan du Network sélectionné sous le
+nom utilisateur (nom de souscription, ou Free sans souscription active). Sa section
+« Utilisation des ressources » reprend `EditorAccessNotice` pour le serveur
+sélectionné, directement via `GET /networks/:networkId/servers/:serverId/editor-access`,
+même sans Project. Le compteur couvre tous ses Projects personnels ; les modules
+restent exemptés. Un changement de serveur réinitialise le compteur et ignore les
+anciennes réponses. Le bandeau est retiré de `ProjectWorkspace`.
+L'inventaire est chargé à l'ouverture du menu et rafraîchi toutes les 15 secondes
+tant qu'il reste ouvert ; quotas, alertes et réessai conservent leur logique.
+
 `features/onboarding/EditorTour` and `editorTourController` coordinate a welcome and six brief guided-tour steps in
 the shared Project workspace: navigation/demo, canvas, Buttons/properties,
 Elements, tabs, then Save or keeping the demo. Automatic presentation is claimed
@@ -893,6 +903,26 @@ remain intact; an older autosave acknowledgement cannot replace newer edits.
 The landing links to `/demo` in a new tab (`target="_blank"`, `rel="noopener noreferrer"`). It does not embed or initialize a demo session. The `#editor` navigation anchor targets the product features section.
 
 Pricing reads the public billing catalog, never local price constants; loading, empty and failed catalogs are distinct. A selected plan returns through safe local `next` URLs, including Google/Discord, then requires network selection and an explicit checkout action. A network can be created in this flow. Membership and subscription checks precede payment; existing nonterminal subscriptions use the portal. Backend capability and duplicate-subscription guards remain authoritative. `/credits` restores the verified `networkId` returned by checkout, formats monthly/yearly periods, includes top-up bonuses and treats checkout return as pending until authoritative billing data arrives.
+
+Standard selection uses the catalogue's stable `key` and billing interval; limits,
+credit cadence and payment readiness come from the same API response. Free has no
+checkout. A loaded catalogue without Stripe remains visible with purchasing
+unavailable. `/credits` requests the selected Network's catalogue so eligible
+private offers appear there; it clears/reloads offers on Network changes. Credit
+cadence is distinct from billing interval, including monthly grants on annual Pro.
+
+Admin billing shows code-managed versions read-only. A custom offer starts as a
+copy of a standard version with independent limits, capabilities and conditions.
+Draft saving and explicit publication are separate; publication requires a target
+Network. Editing published terms creates a successor draft. The API independently
+enforces code-managed protection and private eligibility; hiding an action in the
+UI is not the authorization check.
+
+Admin billing has no separate editor-policy tab or enforcement switch. Free is the
+default Network plan. `/credits` displays `/billing/subscription.effectivePlan`
+independently of payment status, without exposing a portal for an absent subscription.
+Plan rows and forms distinguish `creditInterval` from billing `interval`: standard
+annual Pro displays 500 credits/month and annual billing; custom annual grants stay annual.
 
 ## Hosted and server project context
 
