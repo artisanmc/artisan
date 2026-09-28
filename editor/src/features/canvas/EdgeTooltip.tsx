@@ -5,12 +5,14 @@ import { getText } from "@/lib/i18n";
 import { useEdgeHoverStore } from "@/state/edgeHoverStore";
 import { useUiStore } from "@/state/uiStore";
 import { getTextureUrl } from "./textureStore";
+import type { BoardGroup } from "./groupedBoard";
 
 interface EdgeTooltipProps {
   project: Project;
+  groups?: BoardGroup[];
 }
 
-export function EdgeTooltip({ project }: EdgeTooltipProps) {
+export function EdgeTooltip({ project, groups }: EdgeTooltipProps) {
   const edge = useEdgeHoverStore((s) => s.edge);
   const x = useEdgeHoverStore((s) => s.x);
   const y = useEdgeHoverStore((s) => s.y);
@@ -19,6 +21,8 @@ export function EdgeTooltip({ project }: EdgeTooltipProps) {
   if (!edge) return null;
 
   const nodeName = (id: string): string => {
+    const group = groups?.find((g) => g.key === id);
+    if (group) return group.name;
     const menu = project.menus.find((m) => m.id === id);
     if (menu) {
       const lt = getFirstTitleText(menu);

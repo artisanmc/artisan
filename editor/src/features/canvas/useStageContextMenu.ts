@@ -61,6 +61,22 @@ export function useStageContextMenu({
       // Slot path: manual hit-test in world coords (slots have listening=false
       // so Konva's own target won't surface them).
       const slotHit = hitTestSlot(project, layout, world.x, world.y);
+      const selected = useSelectionStore.getState();
+      if (
+        slotHit &&
+        selected.menuId === null &&
+        selected.ids.size > 1 &&
+        selected.ids.has(slotHit.menuId) &&
+        [...selected.ids].every((id) => project.menus.some((m) => m.id === id))
+      ) {
+        setCtxMenu({
+          open: true,
+          x: clientX,
+          y: clientY,
+          target: { kind: "entity", selectedIds: [...selected.ids] },
+        });
+        return;
+      }
       if (slotHit) {
         setCtxMenu({
           open: true,
@@ -86,7 +102,7 @@ export function useStageContextMenu({
         useSelectionStore.getState().set(ids);
       }
       const currentSelection = [...useSelectionStore.getState().ids];
-      const effectiveSelection = ids.length > 0 ? ids : currentSelection;
+      const effectiveSelection = currentSelection;
 
       // Truly empty area + nothing selected → "create here" affordances.
       if (effectiveSelection.length === 0) {

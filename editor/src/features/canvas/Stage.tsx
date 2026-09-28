@@ -19,6 +19,8 @@ import { toast } from "sonner";
 import { AlignmentGuides } from "./AlignmentGuidesOverlay";
 import { ArmedBanner } from "./ArmedBanner";
 import { CanvasToolbar } from "./CanvasToolbar";
+import { BoardGroupControls, type GroupDialogState } from "./BoardGroupControls";
+import { BoardGroupFrames, type GroupDrag } from "./BoardGroupFrames";
 import { CanvasMinimap } from "./CanvasMinimap";
 import { CommandGroup } from "./CommandGroup";
 import { ContextMenu } from "./ContextMenu";
@@ -173,7 +175,24 @@ function StageCanvas({ projectId, focus }: StageProps) {
    * dépôt — consomme cette table et suit sans le savoir.
    */
   const gutterColor = useCssVar("--text-mut");
-  const board = useMemo(() => (focus || !project ? null : projectBoard(project)), [project, focus]);
+  const [groupDialog, setGroupDialog] = useState<GroupDialogState>(null);
+  const [groupDrag, setGroupDrag] = useState<GroupDrag | null>(null);
+  const baseBoard = useMemo(() => {
+    if (focus || !project) return null;
+    const arrangement = projectBoard(project);
+    return { ...arrangement, groups: arrangement.groups.filter((group) => group.kind === "group") };
+  }, [project, focus]);
+  const board = useMemo(() => {
+    if (!baseBoard || !groupDrag) return baseBoard;
+    const group = baseBoard.groups.find((g) => g.key === groupDrag.key);
+    if (!group) return baseBoard;
+    const members = new Set(group.members);
+    const shift = (p: { x: number; y: number }) => ({ x: p.x + groupDrag.dx, y: p.y + groupDrag.dy });
+    return { ...baseBoard,
+      layout: Object.fromEntries(Object.entries(baseBoard.layout).map(([id, p]) => [id, members.has(id) ? shift(p) : p])),
+      groups: baseBoard.groups.map((g) => group.kind === "project" || g.key === group.key ? { ...g, ...shift(g) } : g),
+    };
+  }, [baseBoard, groupDrag]);
   const layout = useMemo(
     () => (focus ? { [focus]: { x: 0, y: 0 } } : (board?.layout ?? {})),
     [board, focus],
@@ -385,7 +404,7 @@ function StageCanvas({ projectId, focus }: StageProps) {
       }}
     >
       <div aria-hidden className="stage-bg-glow pointer-events-none absolute inset-0" />
-      {!focusMode && Object.keys(layout).length === 0 && (
+      {!focusMode && Object.keys(layout).length === 0 && !board?.groups?.length && (
         // pointer-events-none lets right-click / drag fall through to the Konva
         // stage below (so the create context-menu still works); only the action
         // buttons opt back into pointer events.
@@ -421,6 +440,7 @@ function StageCanvas({ projectId, focus }: StageProps) {
         </div>
       )}
       <ArmedBanner />
+      {!focusMode && <BoardGroupControls project={project} dialog={groupDialog} onDialogChange={setGroupDialog} />}
       <CanvasToolbar
         onRearrange={
           focusMode
@@ -430,15 +450,16 @@ function StageCanvas({ projectId, focus }: StageProps) {
         rearrangeDisabled={
           !project ||
           (Object.keys(project.canvasLayout).length === 0 &&
-            Object.keys(project.canvasEdges ?? {}).length === 0)
+            Object.keys(project.canvasEdges ?? {}).length === 0 &&
+            !project.canvasGroups?.some((g) => g.position))
         }
       />
       {!focusMode && minimapVisible && size.w > 0 && size.h > 0 && (
         <CanvasMinimap
-          boxes={Object.keys(layout).flatMap((id) => {
+          boxes={[...Object.keys(layout).flatMap((id) => {
             const box = nodeBox(project, id, layout);
             return box ? [{ ...box, id }] : [];
-          })}
+          })]}
           size={size}
           viewport={viewport}
           onNavigate={setViewport}
@@ -496,8 +517,15 @@ function StageCanvas({ projectId, focus }: StageProps) {
           }
         }}
       >
+        {!focusMode && <Layer name="groups">
+          <BoardGroupFrames groups={board?.groups ?? []}
+            onManage={(group) => { if (group.kind === "group") setGroupDialog({ groupId: group.id }); }}
+            onDrag={setGroupDrag}
+            onMove={(group, dx, dy) => useAccountStore.getState().moveCanvasGroup({ projectId, groupId: group.kind === "project" ? null : group.id, dx, dy })}
+          />
+        </Layer>}
         <Layer name="edges">
-          <Edges project={project} layout={layout} />
+          <Edges project={project} layout={layout} representatives={board?.representatives} />
           {board?.gutter && (
             <Text
               x={board.gutter.x}
@@ -543,6 +571,7 @@ function StageCanvas({ projectId, focus }: StageProps) {
           <GhostChips
             project={project}
             layout={layout}
+            representatives={board?.representatives}
             // En focus, tous les liens du Document sont hors-planche : la
             // pastille devient le moyen de circuler de Document en Document,
             // au lieu de peupler une planche qu'on ne regarde pas.
@@ -556,7 +585,7 @@ function StageCanvas({ projectId, focus }: StageProps) {
         </Layer>
       </KonvaStage>
       <ItemTooltip projectId={projectId} />
-      <EdgeTooltip project={project} />
+      <EdgeTooltip project={project} groups={board?.groups} />
       <ContextMenu
         projectId={projectId}
         state={ctxMenu}
@@ -587,6 +616,10 @@ function StageCanvas({ projectId, focus }: StageProps) {
           closeCtxMenu();
           openProjectSettings();
         }}
+        onGroup={
+          !focusMode && entityIds.length >= 2 && entityIds.every((id) => project.menus.some((m) => m.id === id))
+            ? () => { setGroupDialog({ menuIds: entityIds }); closeCtxMenu(); } : undefined
+        }
         onMoveTo={(toProjectId) => {
           if (entityIds.length !== 1) return;
           try {

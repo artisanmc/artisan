@@ -1,3 +1,4 @@
+import { normalizeCanvasGroups } from "@/domain/canvasGroups";
 import { itemTextFields } from "@/domain/itemTextFields";
 import { parseCapturedStack } from "@/domain/capturedStack";
 import {
@@ -51,6 +52,7 @@ interface ManifestYaml {
 
 /** `.artisan/editor.yaml` — hash-excluded editor metadata. */
 interface EditorStateYaml {
+  groups?: unknown;
   layout?: Record<string, unknown>;
   edges?: Record<string, unknown>;
   /** Captured item label + display descriptor, keyed by item id. */
@@ -900,6 +902,8 @@ export function projectFromFiles(
     ...(editorState.i18n_mode === "inline" ? { i18nMode: "inline" as const } : {}),
     dialogs,
     canvasLayout: parseEditorLayout(editorState.layout),
+    ...(normalizeCanvasGroups(editorState.groups, menus.map((m) => m.id)).length
+      ? { canvasGroups: normalizeCanvasGroups(editorState.groups, menus.map((m) => m.id)) } : {}),
     ...(Object.keys(parseEditorEdges(editorState.edges)).length > 0
       ? { canvasEdges: parseEditorEdges(editorState.edges) }
       : {}),

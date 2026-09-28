@@ -37,6 +37,7 @@ interface ContextMenuProps {
   onMoveTo: (toProjectId: ProjectId) => void;
   /** Fond du canvas : montrer les paramètres du project dans le panneau. */
   onOpenProjectSettings: () => void;
+  onGroup?: () => void;
   /** Absents en vue focus : créer « ici » suppose une position de planche. */
   onCreateMenuAt?: (world: { x: number; y: number }) => void;
   onCreateCommandAt?: (world: { x: number; y: number }) => void;
@@ -53,6 +54,7 @@ export function ContextMenu({
   onDelete,
   onMoveTo,
   onOpenProjectSettings,
+  onGroup,
   onCreateMenuAt,
   onCreateCommandAt,
   onCreateDialogAt,
@@ -131,6 +133,7 @@ export function ContextMenu({
               <span className="ml-auto text-[10px] text-[var(--text-faint)]">⌘D</span>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
+            {onGroup && <DropdownMenuItem onSelect={onGroup}>{t("canvas.groups.createSelection")}</DropdownMenuItem>}
             <DropdownMenuItem onSelect={onDelete} disabled={state.target.selectedIds.length === 0}>
               Delete
               <span className="ml-auto text-[10px] text-[var(--text-faint)]">⌫</span>

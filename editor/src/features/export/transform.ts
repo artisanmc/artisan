@@ -1,3 +1,4 @@
+import { normalizeCanvasGroups } from "@/domain/canvasGroups";
 import { addressedAppearances } from "@/domain/element";
 import { visitDataSourceLTexts } from "@/domain/i18nSites";
 import { writeAdvanced } from "@/domain/itemAdvanced";
@@ -1361,6 +1362,8 @@ export function transform(project: Project): Record<string, string> {
     }),
   );
   const editorState: Record<string, unknown> = { schema: "editor-state/v1" };
+  const groups = normalizeCanvasGroups(project.canvasGroups, project.menus.map((m) => m.id));
+  if (groups.length) editorState.groups = groups;
   // The i18n mode is a presentation choice about the file shape, not project
   // content — it rides in the hash-excluded editor state so flipping it back
   // and forth doesn't churn the bundle hash on its own. Only written when it
