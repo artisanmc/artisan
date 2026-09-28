@@ -1048,7 +1048,7 @@ const fr: typeof en = {
       "Serveur pas encore connecté — ce projet n'a jamais été publié. Ton brouillon est enregistré ; relie le serveur avec /artisan link pour publier.",
     staleOfflineSince:
       "Serveur hors ligne — version du {{date}}. Ton brouillon reste modifiable ; publier attend son retour.",
-    loading: "Lecture des fichiers du serveur…",
+    loading: "Ouverture du projet…",
     offlineTitle: "Serveur hors ligne",
     offlineBody:
       "Impossible de joindre le serveur de ce project, et aucun brouillon n'est disponible. Vérifie que le serveur est démarré et connecté, puis réessaie.",
@@ -2137,7 +2137,7 @@ const fr: typeof en = {
   serverDetail: {
     projects: "Projets",
     noProjects: "Aucun projet sur ce serveur.",
-    loadingProjects: "Lecture des fichiers du serveur…",
+    loadingProjects: "Chargement des projets…",
     projectsUnavailable: "Serveur injoignable — impossible de lister ses projets.",
     documentCount_one: "{{count}} élément",
     documentCount_other: "{{count}} éléments",

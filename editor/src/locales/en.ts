@@ -1029,7 +1029,7 @@ export default {
       "Server not connected yet — this project has never been published. Your draft is saved; link the server with /artisan link to publish.",
     staleOfflineSince:
       "Server offline — version from {{date}}. Your draft stays editable; publishing waits for its return.",
-    loading: "Reading the server's files…",
+    loading: "Opening the project…",
     offlineTitle: "Server offline",
     offlineBody:
       "Can't reach this project's server, and no draft is available. Make sure the server is running and connected, then try again.",
@@ -2060,7 +2060,7 @@ export default {
   serverDetail: {
     projects: "Projects",
     noProjects: "No projects on this server yet.",
-    loadingProjects: "Reading the server's files…",
+    loadingProjects: "Loading projects…",
     projectsUnavailable: "Server unreachable — its projects can’t be listed.",
     documentCount_one: "{{count}} element",
     documentCount_other: "{{count}} elements",
