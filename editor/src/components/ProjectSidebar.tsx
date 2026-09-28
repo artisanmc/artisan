@@ -464,7 +464,11 @@ export function ProjectSidebar() {
         </div>
       </div>
 
-      <UserMenu />
+      <UserMenu
+        networkId={activeNetworkId}
+        serverId={activeServerId}
+        serverLabel={allServerEntries.find((entry) => entry.networkId === activeNetworkId && entry.serverId === activeServerId)?.serverLabel ?? undefined}
+      />
     </nav>
   );
 }

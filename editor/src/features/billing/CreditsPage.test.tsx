@@ -1,6 +1,6 @@
 import { useAuthStore } from "@/state/authStore";
 import { useNetworksStore } from "@/state/networksStore";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CreditsPage } from "./CreditsPage";
@@ -10,7 +10,7 @@ vi.mock("@tanstack/react-router", async (orig) => ({
   ...(await orig<typeof import("@tanstack/react-router")>()),
   useSearch: () => h.search,
   useNavigate: () => vi.fn(),
-  Link: ({ children }: { children: React.ReactNode }) => <a>{children}</a>,
+  Link: ({ children }: { children: React.ReactNode }) => <a href="/login">{children}</a>,
 }));
 vi.mock("@/lib/api/billing", () => ({
   getBillingBalance: vi.fn(async () => ({
@@ -85,6 +85,23 @@ function signedIn() {
 }
 
 describe("CreditsPage", () => {
+  it("shows Free as the effective plan without implying a paid subscription", async () => {
+    signedIn();
+    const billing = await import("@/lib/api/billing");
+    vi.mocked(billing.getSubscription).mockResolvedValueOnce({
+      status: null,
+      effectivePlan: {
+        id: null,
+        key: "free",
+        name: "Free",
+        limits: { servers: 2, resourcesPerServer: 10, collaborators: 2 },
+        capabilities: { editorPro: false },
+      },
+    });
+    render(<CreditsPage />);
+    expect(await screen.findByText("Plan actuel : Free")).toBeVisible();
+    expect(screen.queryByRole("button", { name: /Gérer/ })).not.toBeInTheDocument();
+  });
   it("prompts sign-in when signed out", () => {
     render(<CreditsPage />);
     expect(screen.getByText(/Connecte-toi/)).toBeTruthy();
@@ -154,6 +171,56 @@ describe("CreditsPage", () => {
     expect(screen.getByRole("button", { name: /réessayer/i })).toBeTruthy();
   });
 
+  it("loads the catalog for the selected network", async () => {
+    signedIn();
+    const billing = await import("@/lib/api/billing");
+    render(<CreditsPage />);
+    await waitFor(() => expect(billing.getPlans).toHaveBeenCalledWith("net1"));
+  });
+
+  it("clears private offers when switching networks and ignores a late previous response", async () => {
+    signedIn();
+    const billing = await import("@/lib/api/billing");
+    let resolveOld!: (value: never[]) => void;
+    vi.mocked(billing.getPlans).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveOld = resolve;
+        }),
+    );
+    vi.mocked(billing.getPlans).mockResolvedValueOnce([]);
+    render(<CreditsPage />);
+    await waitFor(() => expect(billing.getPlans).toHaveBeenCalledWith("net1"));
+    act(() => useNetworksStore.setState({ activeId: "net2" }));
+    await waitFor(() => expect(billing.getPlans).toHaveBeenCalledWith("net2"));
+    await act(async () => resolveOld([{ id: "private", name: "Private offer" }] as never[]));
+    expect(screen.queryByText("Private offer")).not.toBeInTheDocument();
+  });
+
+  it("keeps unavailable offers visible without allowing checkout", async () => {
+    signedIn();
+    const billing = await import("@/lib/api/billing");
+    vi.mocked(billing.getPlans).mockResolvedValueOnce([
+      {
+        id: "custom",
+        name: "Private offline",
+        interval: "month",
+        priceCents: 1500,
+        currency: "eur",
+        creditsPerPeriod: 20,
+        creditInterval: "year",
+        purchasable: false,
+      },
+    ] as never);
+    render(<CreditsPage />);
+    expect(await screen.findByText("Private offline")).toBeVisible();
+    expect(screen.getByText(/20 crédits IA chaque année/i)).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: /souscription.*indisponible|pro.*disponible|bientôt/i }),
+    ).toBeDisabled();
+    expect(billing.startSubscriptionCheckout).not.toHaveBeenCalled();
+  });
+
   it("formats an annual subscription with its actual period", async () => {
     signedIn();
     const billing = await import("@/lib/api/billing");
@@ -176,7 +243,20 @@ describe("CreditsPage", () => {
   it("labels annual Pro credits as a monthly grant", async () => {
     signedIn();
     const billing = await import("@/lib/api/billing");
-    vi.mocked(billing.getPlans).mockResolvedValueOnce([{ id: "pro-year", name: "Artisan Pro", interval: "year", priceCents: 7000, currency: "eur", creditsPerPeriod: 500, rolloverCap: 0, features: "", editorPro: true }]);
+    vi.mocked(billing.getPlans).mockResolvedValueOnce([
+      {
+        id: "pro-year",
+        name: "Artisan Pro",
+        interval: "year",
+        priceCents: 7000,
+        currency: "eur",
+        creditsPerPeriod: 500,
+        rolloverCap: 0,
+        features: "",
+        editorPro: false,
+        creditInterval: "month",
+      },
+    ]);
     render(<CreditsPage />);
     expect(await screen.findByText(/500 crédits IA chaque mois/i)).toBeVisible();
   });

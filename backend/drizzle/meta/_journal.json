@@ -428,6 +428,27 @@
       "when": 1790523723756,
       "tag": "0060_flashy_husk",
       "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "7",
+      "when": 1790601738596,
+      "tag": "0061_fair_lady_deathstrike",
+      "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1790603291690,
+      "tag": "0062_parched_lester",
+      "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "7",
+      "when": 1790603831897,
+      "tag": "0063_silly_wasp",
+      "breakpoints": true
     }
   ]
 }

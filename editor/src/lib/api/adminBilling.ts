@@ -1,3 +1,4 @@
+import type { PlanLimits } from "./billing";
 const apiUrl = (): string =>
   (import.meta.env.VITE_API_URL as string | undefined) ?? "http://localhost:3001";
 
@@ -18,6 +19,16 @@ export interface AdminPack {
   updatedAt: string;
 }
 export interface AdminPlan {
+  key: string;
+  version: number;
+  managedBy: "code" | "admin";
+  audience: "public" | "private";
+  targetNetworkId: string | null;
+  publicationStatus: "draft" | "published";
+  creditInterval: "month" | "year" | "none";
+  limits: PlanLimits;
+  capabilities: { editorPro: boolean };
+  stripeProvisioningStatus: "ready" | "pending" | "unavailable";
   id: string;
   name: string;
   interval: "month" | "year";
@@ -46,6 +57,11 @@ export interface PackInput {
   sortOrder?: number;
 }
 export interface PlanInput {
+  sourcePlanId?: string;
+  targetNetworkId?: string | null;
+  creditInterval?: "month" | "year" | "none";
+  limits?: PlanLimits;
+  capabilities?: { editorPro: boolean };
   name: string;
   interval: "month" | "year";
   priceCents: number;
@@ -60,17 +76,6 @@ export interface PlanInput {
   editorPro?: boolean;
 }
 
-export interface EditorCommercialPolicy {
-  quota: number;
-  enforcementEnabled: boolean;
-}
-
-export async function getEditorCommercialPolicy(): Promise<EditorCommercialPolicy | null> {
-  const res = await fetch(`${apiUrl()}/api/v1/admin/billing/editor-policy`, { credentials: "include" });
-  return res.ok ? (await res.json()) as EditorCommercialPolicy : null;
-}
-export const updateEditorCommercialPolicy = (policy: EditorCommercialPolicy) =>
-  mutate<EditorCommercialPolicy>("/api/v1/admin/billing/editor-policy", "PUT", policy);
 export interface SalesSummary {
   from: string;
   to: string;
@@ -135,6 +140,13 @@ export const updatePlan = (id: string, patch: Partial<PlanInput>) =>
 // NOTE: backend returns only `{ ok: true }` — check `.ok` + reload, don't read `.data`.
 export const deactivatePlan = (id: string) =>
   mutate<AdminPlan>(`/api/v1/admin/billing/plans/${id}/deactivate`, "POST");
+
+export const publishPlan = (id: string) =>
+  mutate<AdminPlan>(`/api/v1/admin/billing/plans/${id}/publish`, "POST");
+export const provisionPlans = () =>
+  mutate<{
+    results: { planId: string; status: "ready" | "unavailable" | "error"; error?: string }[];
+  }>("/api/v1/admin/billing/plans/provision", "POST");
 
 export async function getSales(from?: string, to?: string): Promise<SalesSummary | null> {
   const res = await fetch(`${apiUrl()}/api/v1/admin/billing/sales${qs({ from, to })}`, {

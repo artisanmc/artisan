@@ -2,8 +2,7 @@ package net.artisanmc.plugin.project
 
 object ResourceQuota {
     fun assess(
-        quota: Int,
-        pro: Boolean,
+        quota: Int?,
         inventory: List<ResourceEntry>,
         projectId: String,
         module: Boolean,
@@ -11,8 +10,8 @@ object ResourceQuota {
         deletes: List<String> = emptyList(),
         renames: List<Pair<String, String>> = emptyList(),
     ): String? {
-        if (module) return null
-        val limit = if (pro) 250 else quota
+        if (module || quota == null) return null
+        val limit = quota
         val existing = inventory.filter { it.origin == "personal" }.map { it.projectId to it.path }.toMutableSet()
         val before = existing.size
         val removesRoot = deletes.any { ResourceInventory.kind(it) != null && (projectId to it) in existing }

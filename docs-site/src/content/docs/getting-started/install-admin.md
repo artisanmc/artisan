@@ -106,8 +106,12 @@ From the web editor, click your network name in the top bar, then **Members**. A
 Super-admins have a dedicated **`/admin/billing`** page in the editor with four tabs:
 
 - **Sales** — top-up revenue (per currency) and active subscribers per plan over a chosen period (7 / 30 days or custom range).
-- **Credit packs** / **Subscriptions** — create, edit, activate or deactivate the credit packs and subscription plans offered on the `/credits` page (each change provisions the corresponding Stripe product/price).
+- **Credit packs** — manage one-off packs and their Stripe products/prices.
+- **Subscriptions** — inspect code-managed standard plans and create private custom offers from a standard version. Custom drafts can be saved without Stripe; choose a target Network before publishing. Changing published terms creates a new draft version and preserves existing subscribers' conditions. See [Managing subscription plans](/admin/console/#presenting-subscription-plans).
 - **Manual grant** — add top-up credits to a specific network (recorded as an adjustment in the audit trail), e.g. for support or compensation.
+
+Networks use Free by default and its limits apply automatically. Plan limits are
+managed under Subscriptions; there is no separate editor access switch.
 
 ## 7. Troubleshooting
 

@@ -1,13 +1,15 @@
+import { STANDARD_CATALOG } from "./catalog";
+
 export const planLimits = {
-  free: { resourcesPerServer: 10, servers: 2, collaborators: 2 },
-  pro: { resourcesPerServer: 250, servers: 10, collaborators: null },
+  free: STANDARD_CATALOG[0].limits,
+  pro: STANDARD_CATALOG[1].limits,
 } as const;
 
 export const proPricing = {
   currency: "eur",
-  monthlyPriceCents: 900,
-  yearlyPriceCents: 7000,
-  creditsPerMonth: 500,
+  monthlyPriceCents: STANDARD_CATALOG[1].priceCents,
+  yearlyPriceCents: STANDARD_CATALOG[2].priceCents,
+  creditsPerMonth: STANDARD_CATALOG[1].creditsPerPeriod,
 } as const;
 
 export function withinPlanLimit(current: number, limit: number | null): boolean {

@@ -68,14 +68,14 @@ test("mixed file publication negotiates capability and preserves mutation identi
   const sent: any[] = [];
   const conn = "mixed-capability-test";
   registerConn(conn, (raw) => { const msg = JSON.parse(raw); sent.push(msg); if (msg.type === "project_write") void handlePluginMessage(conn, JSON.stringify({ type: "project_write_result", request_id: msg.request_id, ok: true })); });
-  const hello = { type: "hello", server_key: key, plugin_version: "1", minecraft_version: "1.21.4", current_bundle_hash: "" };
+  const hello = { type: "hello", server_key: key, plugin_version: "1", minecraft_version: "1.21.4", current_bundle_hash: "", capabilities: ["resource_quota_v2"] };
   try {
     await handlePluginMessage(conn, JSON.stringify(hello));
     const batch = { projectId: "p", operationId: "same-op", files: [], binaries: [{ path: "assets/a.png", content_base64: "AP8=", base_hash: null }] };
     expect(await requestProjectWrite(id, batch)).toMatchObject({ kind: "result", result: { ok: false, error: "plugin_update_required" } });
     expect(sent.filter((m) => m.type === "project_write")).toHaveLength(0);
     expect(await requestProjectWrite(id, { projectId: "p", files: [] })).toMatchObject({ result: { ok: true } });
-    await handlePluginMessage(conn, JSON.stringify({ ...hello, capabilities: ["project_mixed_write_v1"] }));
+    await handlePluginMessage(conn, JSON.stringify({ ...hello, capabilities: ["project_mixed_write_v1", "resource_quota_v2"] }));
     expect(await requestProjectWrite(id, batch)).toMatchObject({ result: { ok: true } });
     expect(sent.filter((m) => m.type === "project_write").at(-1)).toMatchObject({ operation_id: "same-op", binaries: batch.binaries });
   } finally { cleanupConn(conn); }
@@ -636,11 +636,13 @@ describe("asset relay (assets-on-server-disk)", () => {
     const { requestAssetRead, requestAssetWrite, connToServerId, connSenders } = await import("./hub");
     const sent: Record<string, unknown>[] = [];
     const connId = "conn-asset-relay";
+    const { id, key } = await seedServerKey();
     registerConn(connId, (raw) => sent.push(JSON.parse(raw)));
-    connToServerId.set(connId, "sk-asset-live");
+    await handlePluginMessage(connId, JSON.stringify({ type: "hello", server_key: key, plugin_version: "test", minecraft_version: "1.21.4", current_bundle_hash: "", capabilities: ["resource_quota_v2"] }));
+    sent.length = 0;
     try {
-      const pRead = requestAssetRead("sk-asset-live", { projectId: "boutique", path: "assets/glyphs/d.png" });
-      const pWrite = requestAssetWrite("sk-asset-live", {
+      const pRead = requestAssetRead(id, { projectId: "boutique", path: "assets/glyphs/d.png" });
+      const pWrite = requestAssetWrite(id, {
         projectId: "boutique",
         files: [{ path: "assets/textures/f.png", contentBase64: "iVBORw0K", baseHash: null }],
       });
@@ -681,11 +683,13 @@ describe("config read/write relay (module-config-screens)", () => {
     const { requestConfigRead, requestConfigWrite, connToServerId, connSenders } = await import("./hub");
     const sent: Record<string, unknown>[] = [];
     const connId = "conn-config-relay";
+    const { id, key } = await seedServerKey();
     registerConn(connId, (raw) => sent.push(JSON.parse(raw)));
-    connToServerId.set(connId, "sk-config-live");
+    await handlePluginMessage(connId, JSON.stringify({ type: "hello", server_key: key, plugin_version: "test", minecraft_version: "1.21.4", current_bundle_hash: "", capabilities: ["resource_quota_v2"] }));
+    sent.length = 0;
     try {
-      const pRead = requestConfigRead("sk-config-live", { projectId: "boutique", table: "data/categories" });
-      const pWrite = requestConfigWrite("sk-config-live", {
+      const pRead = requestConfigRead(id, { projectId: "boutique", table: "data/categories" });
+      const pWrite = requestConfigWrite(id, {
         projectId: "boutique",
         files: [{ path: "data/categories/weapons.yaml", content: "name: Armes\n" }],
         deletes: ["data/categories/old.yaml"],
@@ -880,10 +884,12 @@ describe("project_write relay (server-disk-only-storage P1)", () => {
     const { requestProjectWrite, connToServerId, connSenders } = await import("./hub");
     const sent: Record<string, unknown>[] = [];
     const connId = "conn-project-write";
+    const { id, key } = await seedServerKey();
     registerConn(connId, (raw) => sent.push(JSON.parse(raw)));
-    connToServerId.set(connId, "sk-project-write");
+    await handlePluginMessage(connId, JSON.stringify({ type: "hello", server_key: key, plugin_version: "test", minecraft_version: "1.21.4", current_bundle_hash: "", capabilities: ["resource_quota_v2"] }));
+    sent.length = 0;
     try {
-      const pending = requestProjectWrite("sk-project-write", {
+      const pending = requestProjectWrite(id, {
         projectId: "boutique",
         files: [{ path: "menus/a.yaml", content: "title: A\n", base_hash: "h_a" }],
         deletes: [{ path: "menus/b.yaml", base_hash: "h_b" }],

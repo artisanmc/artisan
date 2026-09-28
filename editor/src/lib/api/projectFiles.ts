@@ -28,12 +28,21 @@ export type ProjectFilesError =
   | "plugin_update_required";
 export interface EditorAccessDto {
   enabled: boolean;
-  quota: number;
+  quota: number | null;
   proUntil: string | null;
   inventoryAvailable: boolean;
   count: number | null;
   reason: "free_quota_reached" | "free_quota_exceeded" | "inventory_unavailable" | null;
   projectOrigin: "personal" | "module";
+}
+
+export type ServerEditorAccessDto = Omit<EditorAccessDto, "projectOrigin">;
+
+export async function getServerEditorAccess(networkId: string, serverId: string): Promise<ServerEditorAccessDto> {
+  const res = await fetch(`${API_URL}/api/v1/networks/${encodeURIComponent(networkId)}/servers/${encodeURIComponent(serverId)}/editor-access`, { credentials: "include", cache: "no-store" });
+  const body = await res.json().catch(() => null) as ServerEditorAccessDto | null;
+  if (body && (res.ok || res.status === 503 && body.reason === "inventory_unavailable")) return body;
+  throw new Error("editor_access_unavailable");
 }
 
 export async function getEditorAccess(projectId: string): Promise<EditorAccessDto | null> {

@@ -42,6 +42,8 @@ class SnapshotHashesHelloTest {
         @Suppress("UNCHECKED_CAST")
         val capabilities = provider.projectPresenceForTesting()["capabilities"] as List<String>
         assertTrue("snapshot_mirror_v1" in capabilities)
+        assertTrue("resource_quota_v1" in capabilities)
+        assertTrue("resource_quota_v2" in capabilities)
     }
 
     @Test

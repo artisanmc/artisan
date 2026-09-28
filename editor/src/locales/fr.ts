@@ -1,4 +1,5 @@
 import { onboardingFr } from "./onboarding";
+import { planCatalogFr } from "./planCatalog";
 import { accountDeletionFr } from "./accountDeletion";
 import { changesFr } from "./changes";
 import { demoFr } from "./demo";
@@ -1423,17 +1424,6 @@ const fr: typeof en = {
         packs: "Packs de crédits",
         plans: "Abonnements",
         grant: "Grant manuel",
-        editor: "Accès éditeur",
-      },
-      editor: {
-        title: "Accès éditeur",
-        help: "Le quota gratuit publié apparaît dans les tarifs et s'applique aux ressources de chaque serveur.",
-        quota: "Ressources personnelles gratuites par serveur",
-        lowering: "Réduire ce quota peut rendre des projets existants non modifiables. Leurs fichiers restent sur le serveur.",
-        enforce: "Appliquer les restrictions d'écriture. Activer après que les plugins connectés signalent leur inventaire.",
-        save: "Enregistrer l'offre éditeur",
-        saved: "Offre éditeur mise à jour",
-        failed: "Impossible de mettre à jour l'offre éditeur",
       },
       packs: {
         title: "Packs de crédits",
@@ -1471,17 +1461,15 @@ const fr: typeof en = {
         columns: {
           name: "Nom",
           price: "Prix",
-          credits: "Crédits / période",
-          interval: "Intervalle",
+          credits: "Crédits",
+          interval: "Facturation",
           status: "Statut",
         },
         form: {
           name: "Nom",
           priceCents: "Prix (centimes)",
           currency: "Devise",
-          interval: "Intervalle",
-          creditsPerPeriod: "Crédits par période",
-          proCreditsHint: "Artisan Pro : saisir 500. Ces crédits sont attribués chaque mois, même si la facturation est annuelle.",
+          interval: "Fréquence de facturation",
           rolloverCap: "Plafond de report",
           description: "Description courte",
           descriptionHint: "Affichée sur la page des tarifs (240 caractères maximum).",
@@ -2017,6 +2005,7 @@ const fr: typeof en = {
     confirm: "Déployer sur le serveur",
   },
   userMenu: {
+    resourceUsage: "Utilisation des ressources",
     anonymous: "Anonyme",
     profile: "Profil",
     signIn: "Se connecter",
@@ -2155,6 +2144,7 @@ const fr: typeof en = {
     redirecting: "Redirection en cours…",
   },
   billing: {
+    catalog: planCatalogFr,
     indicator: {
       total: "{{n}} crédits",
       ariaLabel: "Solde de crédits : {{n}} crédits",
@@ -2180,6 +2170,7 @@ const fr: typeof en = {
       buy: "Acheter",
       subscribe: "Souscrire",
       creditsFor: "{{credits}} crédits",
+      yearlyCredits: "{{credits}} crédits IA chaque année",
       proMonthlyCredits: "{{credits}} crédits IA chaque mois",
       bonus: "+{{pct}}% bonus",
       perMonth: "/mois",

@@ -1,5 +1,3 @@
-import { planLimits } from "./planLimits";
-
 export type ResourceOrigin = "personal" | "module";
 export type ResourceKind = "menu" | "dialog" | "command";
 
@@ -28,20 +26,10 @@ export function countPersonalResources(inventory: readonly ResourceEntry[]): num
   return new Set(inventory.filter((entry) => entry.origin === "personal" && resourceKind(entry.path)).map((entry) => `${entry.projectId}\0${entry.path}`)).size;
 }
 
-export function hasProAccess(billing: {
-  paidEditorPro: boolean;
-  currentPeriodId: string | null;
-  paidThrough: Date | null;
-  status: string | null;
-} | null, now = new Date()): boolean {
-  return !!billing?.paidEditorPro && !!billing.currentPeriodId && !!billing.paidThrough && billing.paidThrough > now;
-}
-
 export type QuotaReason = "free_quota_reached" | "free_quota_exceeded";
 
 export function assessResourceMutation(input: {
-  quota: number;
-  pro: boolean;
+  quota: number | null;
   inventory: readonly ResourceEntry[];
   projectId: string;
   origin: ResourceOrigin;
@@ -62,7 +50,8 @@ export function assessResourceMutation(input: {
   }
   for (const path of input.files ?? []) if (resourceKind(path)) existing.add(key(path));
   const count = existing.size;
-  const quota = input.pro ? planLimits.pro.resourcesPerServer : input.quota;
+  const quota = input.quota;
+  if (quota === null) return { allowed: true, count, reason: null };
   if (before > quota && (changed || (input.deletes?.length ?? 0) > 0 && !removesRoot)) return { allowed: false, count: before, reason: "free_quota_exceeded" };
   if (count > quota) return { allowed: false, count: before, reason: "free_quota_reached" };
   return { allowed: true, count, reason: null };
