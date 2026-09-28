@@ -13,6 +13,8 @@ import {
   networkInvites,
   networks,
   networkTransfers,
+  projectDraftOperations,
+  projectDrafts,
   serverKeys,
   users,
 } from "../db/schema";
@@ -123,6 +125,10 @@ export async function deleteAccount(token: string) {
       .update(aiUsageLog)
       .set({ promptPreview: "", errorMessage: null, conversationId: null })
       .where(eq(aiUsageLog.userId, userId));
+    // Pas de FK vers `users` (un invité de démo possède aussi des brouillons) :
+    // les brouillons privés et leurs reçus partent explicitement.
+    await tx.delete(projectDrafts).where(eq(projectDrafts.ownerId, userId));
+    await tx.delete(projectDraftOperations).where(eq(projectDraftOperations.ownerId, userId));
     const deleted = await tx
       .delete(users)
       .where(and(eq(users.id, userId), eq(users.email, confirmation.email)))

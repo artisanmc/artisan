@@ -237,7 +237,6 @@ Le champ `title` d'un menu est un `MenuTitleLayer[]` (background / glyph / text 
 | Variable | Défaut | Usage |
 |---|---|---|
 | `PORT` | `3001` | Port HTTP/WS du backend |
-| `HOSTED_PROJECTS_DIR` | `data/hosted-projects` (backend cwd) | Volume durable des projets hébergés, incluant brouillons privés/historique. Compose : `/var/lib/artisan/projects`. Sauvegarde conjointe PostgreSQL obligatoire ; voir `docs/operations/hosted-storage-backup.md`. |
 | `DEMO_TTL_HOURS` | `24` | Inactivité effective invitée ; lectures/retries ne prolongent pas le délai. |
 | `DEMO_MINECRAFT_VERSION` | `1.21.4` | Version des nouvelles démos ; catalogue exact installé requis, validé avant création. Les sessions existantes conservent leur version. |
 | `DEMO_MAX_BYTES` / `DEMO_MAX_FILES` | `20971520` / `1000` | Quota physique par démo, staging/métadonnées/brouillons/historique compris. |

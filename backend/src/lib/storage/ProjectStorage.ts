@@ -3,7 +3,7 @@ import type { DraftStore } from "./DraftStore";
 
 export type ProjectLocation =
   | { kind: "server"; serverKeyId: string; folderName: string }
-  | { kind: "hosted"; rootId: string; folderName: string };
+  | { kind: "demo"; folderName: string };
 
 export interface ProjectCapabilities {
   readonly canCopyToServer?: boolean;

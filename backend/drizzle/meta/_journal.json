@@ -421,6 +421,13 @@
       "when": 1790484784026,
       "tag": "0059_odd_ultron",
       "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1790523723756,
+      "tag": "0060_flashy_husk",
+      "breakpoints": true
     }
   ]
 }

@@ -41,59 +41,28 @@ Les invitations manuelles restent possibles. `consoleAccess.ts` ajoute un compte
 existant comme `member` sous verrou réseau, sans promotion d'un membre existant.
 L'accès porte sur tout le Network, y compris ses autres serveurs/projets.
 
-## Sessions de démo (migrations 0045–0047)
+## Démo en base (migration 0060)
 
-`projects` appartient soit à un Network, soit à une `demo_sessions` (`CHECK`
-exclusif). Un projet invité reste `hosted`, sans faux compte/réseau/serveur.
-`demo_sessions` stocke l'empreinte du cookie, l'expiration, un identifiant de
-limitation haché et le journal de réclamation ; les fichiers/brouillons restent
-dans une racine `demo_<id>` du volume hébergé. Le template commun est
-`backend/src/templates/demo-project.json`, livré dans l'image backend et validé par le schéma éditeur.
+ADR `server-only-projects`, étape 2. `projects.storage_kind` vaut `server` ou `demo` ;
+un CHECK impose un serveur pour `server`, aucun pour `demo`, et un Project démo
+appartient à sa `demo_sessions` (jamais à un Network). Le contenu « publié » d'une
+démo est le modèle fixe `backend/src/templates/demo-project.json` ; le travail de
+l'invité vit dans ses brouillons SQL (`project_drafts`, `project_draft_blobs`) via
+`DemoProjectStorage`. Publier est refusé (`demo_read_only`), l'export du brouillon
+est la seule sortie. Quotas par session (`DEMO_MAX_BYTES`, `DEMO_MAX_FILES`,
+`DEMO_MUTATIONS_PER_MINUTE`) et global (`DEMO_GLOBAL_MAX_BYTES`, somme des brouillons
+démo) vérifiés avant chaque mutation ; seule une mutation effective prolonge les
+24 h. À l'expiration, la maintenance passe la session en `expired` et supprime le
+Project (brouillons en cascade) ; la session est oubliée 24 h plus tard.
+`project_drafts.owner_id`/`updated_by` et `project_draft_operations.owner_id` n'ont
+plus de FK vers `users` (un invité n'est pas un User) : la suppression de compte
+les efface explicitement. La migration refuse de s'appliquer si un projet hébergé
+de compte existe, et abandonne les démos en cours (jetables).
 
-Création et mutations prennent les verrous maintenance → budget global → session
-→ racine. Seules les mutations effectives prolongent les 24 h ; une reprise du
-même identifiant d'opération, lecture ou polling ne les renouvelle pas. L'activité
-dans la révision active permet la reprise après activation FS puis rollback SQL.
-Les limites incluent métadonnées, brouillons, historique, reçus et staging.
-
-La réclamation journalise `claiming` avant le remappage des propriétaires de
-brouillons, préserve IDs/révisions/binaires et conserve l'ID immuable du projet.
-Le même compte reprend après perte du cookie via projet/opération. L'invité reste
-révoqué ; une réclamation en cours ne subit jamais la purge TTL. Si le compte
-perd l'accès au Network cible, il peut choisir une nouvelle cible autorisée avec
-une nouvelle opération ; l'ancienne est auditée et renvoie `operation_superseded`.
-Les racines réclamées ne consomment plus le budget invité et suivent le cycle
-de sauvegarde/rétention des projets hébergés ordinaires.
-Après révocation durable d'une démo expirée, ses métadonnées restent 24 h ;
-la maintenance supprime ensuite projet/session et empreintes après nettoyage
-physique confirmé. Un échec de nettoyage conserve le tombstone pour reprise.
-
-## Copies hébergées vers Minecraft (migration 0044)
-
-`project_copies` conserve l'opération, l'acteur, la révision source figée, le
-serveur/Network/dossier destination, le manifeste avec tailles/digests et un
-artefact borné immuable des octets publics. Ce journal n'est jamais une autorité
-éditable : source hébergée et copie serveur restent indépendantes. Il exclut
-brouillons privés et historique. L'artefact est retiré après activation vérifiée
-ou échec terminal ; les reçus gardent l'idempotence.
-
-Un verrou consultatif serveur partagé avec le renommage protège la réservation
-insensible à la casse ; discovery et renommage respectent les copies `pending`.
-Aucune ligne destination `projects` n'existe avant le reçu complet d'activation.
-Une transaction crée l'ancre puis marque `completed`; `resource_pack_pending`
-porte séparément le retry de reconstruction/push après commit SQL.
-Cette reconstruction exige l'ancre destination, des arbres complets relus et les
-tailles/SHA-256 des glyphes et textures de polices ; un ancien pack de secours ne
-confirme jamais la copie. Les autres reconstructions gardent leur fallback existant.
-Le Network courant de la clé est verrouillé et comparé à celui réservé : un
-transfert pendant l'ACK laisse `target_moved`, sans ancre dans le mauvais Network.
-
-Les identifiants d'acteur/source sont des références d'audit sans FK cascade :
-supprimer un compte ou une source ne détruit pas un journal d'activation incertaine.
-La maintenance authentifiée au serveur peut uniquement lire le reçu après révocation.
-Un reçu activé termine l'ancrage ; une preuve expirée (ou manquante après 24 h)
-libère artefact/réservation. Une activation inconnue hors ligne reste réservée
-(maximum huit opérations par serveur), sans expiration aveugle ni ré-upload.
+Retirés : volume `HOSTED_PROJECTS_DIR`, révisions hébergées et leur sauvegarde,
+réclamation de démo (colonnes `claim_*`), copies vers Minecraft (`project_copies`),
+colonnes `hosted_root_id`/`hosted_creation_fingerprint`. `hosted_minecraft_version`
+reste : version Minecraft d'un Project démo.
 
 ## Modèle courant (depuis 2026-06-03 — "Servers UX simplification")
 
@@ -122,42 +91,12 @@ sur stockage serveur comme hébergé. Un nom personnalisé distinct est conserv�
 La migration 0049 répare les noms restés sur une source de renommage terminé,
 y compris après plusieurs renommages ; add-ons et projets supprimés sont exclus.
 
-**Localisation du Project (socle 2026-09-12, migration 0039)** : `projects.id`
-reste l'ancre interne immuable. `storageKind` vaut `server` (défaut existant) ou
-`hosted`. Un CHECK impose serveur non-null/racine hébergée null pour `server`,
-et serveur null/racine privée non-vide/nom externe non-vide pour `hosted`.
-Les IDs de dossier restent uniques par serveur ; les projets hébergés ont une
-unicité par Network et une racine privée unique. Les FK Network et serveur
-conservent leurs cascades ; supprimer un serveur ne supprime pas les projets hébergés.
-La table `project_bindings` (ancien M:N) reste supprimée.
-
-Le resolver autorise l'accès avant de sélectionner `ProjectStorage`. L'adaptateur
-serveur reprend lectures, écritures CAS, binaires et historique existants ; la
-publication d'un brouillon consomme ce même contrat. Le stockage hébergé durable
-est implémenté en phase 4 ; les invités utilisent le même adaptateur en phase 6. Aucun mode ne
-crée de faux serveur.
-
-**Hébergement durable (migration 0043)** : `hosted_minecraft_version` décrit
-l'environnement vanilla choisi, hors manifeste publié. `hosted_creation_fingerprint`
-vérifie le retry d'une création idempotente ; aucun contenu n'y est stocké.
-`project_renames.server_key_id` devient nullable et `hosted_network_id` réserve les
-noms des projets hébergés ; un CHECK impose exactement une de ces deux portées.
-Le journal et le service de renommage restent communs aux deux adaptateurs.
-Les projets hébergés conservent leur racine opaque et ID interne immuables pendant
-le déplacement réel de leur dossier logique dans une nouvelle révision.
-Les fichiers et brouillons sont dans le volume `HOSTED_PROJECTS_DIR` : pointeur
-atomique vers une révision complète, verrou PostgreSQL par racine partagé entre
-workers, reçus idempotents privés. Le SQL ne contient aucune copie des binaires.
-Les tombstones `deleted_draft_owners` déclenchent aussi la purge des brouillons
-hébergés après commit. Les cascades Network rendent les racines orphelines ; la
-maintenance les collecte après 24 h, sous verrou partagé avec la création.
-Les racines explicitement supprimées sont retirées après 30 jours. Une racine
-déjà retirée avec ancre supprimée est un état terminal, pas une erreur récurrente.
-La [sauvegarde conjointe](../operations/hosted-storage-backup.md) capture PostgreSQL,
-intentions de cycle de vie et volume sous verrous ; restauration avec workers arrêtés.
-Le catalogue d'items hébergé exige la version sélectionnée exacte : si son fichier
-est absent après restauration/déploiement, `/items` renvoie `404 unknown_version`
-au lieu de substituer un autre patch. Le fallback des projets serveur est conservé.
+**Localisation du Project** (0039, révisée 0060) : `projects.id` reste l'ancre
+interne immuable ; `storageKind` vaut `server` ou `demo` (voir « Démo en base »).
+Les IDs de dossier restent uniques par serveur. Le resolver autorise l'accès avant de
+sélectionner `ProjectStorage` ; un compte n'ouvre jamais un Project démo. La table
+`project_bindings` (ancien M:N) reste supprimée. `project_renames.hosted_network_id`
+subsiste, toujours nul.
 
 `ProjectStorage.drafts` est lié au principal autorisé. `project_draft_storage`
 (0041–0042) conserve l'autorité `backend/frozen/server` : gel durable, import des

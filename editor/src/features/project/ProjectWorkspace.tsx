@@ -565,7 +565,7 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
         state={tourState}
         actions={editorTourController}
         demo={demo}
-        storage={demo ? "demo" : project.serverKeyId ? "server" : "hosted"}
+        storage={demo ? "demo" : "server"}
         canUseAssistant={runtime?.capabilities.canUseAssistant}
       />
 

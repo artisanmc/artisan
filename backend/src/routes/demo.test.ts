@@ -17,7 +17,6 @@ test("known expired recovery returns410 without creating a replacement", async (
 		create: async () => {
 			throw Error("must not create");
 		},
-		claim: async () => ({ projectId: "old", networkId: "n" }),
 		rateKey: () => "test",
 	});
 	expect(
@@ -35,7 +34,6 @@ const bootstrap = {
 };
 function fixture() {
 	let creates = 0;
-	let claims = 0;
 	const router = createDemoRouter({
 		read: async (token) => (token === "secret" ? bootstrap : null),
 		create: async () => {
@@ -43,10 +41,6 @@ function fixture() {
 			return bootstrap;
 		},
 		proof: async (token) => (token === "secret" ? bootstrap : null),
-		claim: async () => {
-			claims++;
-			return { projectId: "demo", networkId: "network" };
-		},
 		rateKey: () => "trusted-test-key",
 	});
 	const app = new Hono();
@@ -58,7 +52,7 @@ function fixture() {
 		await next();
 	});
 	app.route("/api/v1/demo", router);
-	return { app, count: () => ({ creates, claims }) };
+	return { app, count: () => ({ creates }) };
 }
 test("GET demo never creates; POST refuses cross-site bootstrap", async () => {
 	const f = fixture();
@@ -102,7 +96,6 @@ test("GET recovery does not renew cookie and unknown failures are sanitized", as
 			throw Error("internal filesystem detail");
 		},
 		proof: async () => null,
-		claim: async () => ({ projectId: "p", networkId: "n" }),
 		rateKey: () => "fixed",
 	});
 	const response = await app.request("/", {

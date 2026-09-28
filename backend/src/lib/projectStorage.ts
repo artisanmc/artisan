@@ -1,6 +1,6 @@
 import { and, eq, isNull, or, sql } from "drizzle-orm";
 import { db } from "../db/index";
-import { projects, projectRenames, projectCopies } from "../db/schema";
+import { projects, projectRenames } from "../db/schema";
 import { resolveScopedProjectRef } from "./refs";
 import { ProjectRenameError, projectLifecycleScope } from "./projectRename";
 
@@ -99,8 +99,6 @@ export async function ensureProjectForServer(input: {
 }): Promise<Project> {
 	return db.transaction(async (tx) => {
 		await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${input.serverKeyId}))`);
-		const copying = await tx.select().from(projectCopies).where(and(eq(projectCopies.serverKeyId, input.serverKeyId), eq(projectCopies.status, "pending"), sql`lower(${projectCopies.targetId}) = lower(${input.diskId})`));
-		if (copying.length) throw new ProjectRenameError("destination_reserved");
 		const existing = (await tx.select().from(projects).where(and(eq(projects.serverKeyId, input.serverKeyId), sql`coalesce(${projects.externalId}, ${projects.id}) = ${input.diskId}`)))[0];
 		if (existing) return existing;
 		const reservation = (await tx.select().from(projectRenames).where(and(eq(projectRenames.serverKeyId, input.serverKeyId), sql`lower(${projectRenames.targetId}) = lower(${input.diskId})`, eq(projectRenames.status, "pending"))))[0];

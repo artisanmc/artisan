@@ -362,16 +362,12 @@ export const demoSessions = pgTable("demo_sessions", {
   id: text("id").primaryKey(),
   tokenHash: text("token_hash").notNull().unique(),
   projectId: text("project_id").notNull().unique(),
-  state: text("state").notNull().$type<"active" | "claiming" | "claimed" | "expired">(),
+  state: text("state").notNull().$type<"active" | "expired">(),
   createdAt: timestamp("created_at").notNull(),
   lastActivityAt: timestamp("last_activity_at").notNull(),
   expiresAt: timestamp("expires_at").notNull(),
   rateKey: text("rate_key").notNull(),
-  claimOperationId: text("claim_operation_id"),
-  claimOwnerId: text("claim_owner_id"),
-  claimNetworkId: text("claim_network_id"),
-  supersededClaims: jsonb("superseded_claims").notNull().default([]).$type<{operationId:string;networkId:string;ownerId:string}[]>(),
-}, t => ({expiry:index("demo_sessions_expiry_idx").on(t.state, t.expiresAt),rate:index("demo_sessions_rate_idx").on(t.rateKey, t.createdAt),state:check("demo_sessions_state_check",sql`${t.state} IN ('active','claiming','claimed','expired') AND ((${t.state} IN ('claiming','claimed') AND ${t.claimOwnerId} IS NOT NULL AND ${t.claimNetworkId} IS NOT NULL AND ${t.claimOperationId} IS NOT NULL) OR (${t.state} IN ('active','expired') AND ${t.claimOwnerId} IS NULL AND ${t.claimNetworkId} IS NULL AND ${t.claimOperationId} IS NULL))`)}));
+}, t => ({expiry:index("demo_sessions_expiry_idx").on(t.state, t.expiresAt),rate:index("demo_sessions_rate_idx").on(t.rateKey, t.createdAt),state:check("demo_sessions_state_check",sql`${t.state} IN ('active','expired')`)}));
 
 export const projects = pgTable(
 	"projects",
@@ -382,14 +378,15 @@ export const projects = pgTable(
 		demoSessionId: text("demo_session_id").references(() => demoSessions.id),
 		serverKeyId: text("server_key_id")
 			.references(() => serverKeys.id, { onDelete: "cascade" }),
-		storageKind: text("storage_kind").notNull().default("server").$type<"server" | "hosted">(),
-		hostedRootId: text("hosted_root_id"),
+		// `demo` = Project d'une DemoSession : brouillons en base, rien de publié
+		// hors du modèle de départ (ADR `server-only-projects`).
+		storageKind: text("storage_kind").notNull().default("server").$type<"server" | "demo">(),
+		// Version Minecraft d'un Project démo (catalogue d'items) ; nulle pour un serveur.
 		hostedMinecraftVersion: text("hosted_minecraft_version"),
-		hostedCreationFingerprint: text("hosted_creation_fingerprint"),
 		identityKind: text("identity_kind").notNull().default("unknown").$type<"unknown" | "folder" | "addon">(),
 		name: text("name").notNull(),
-		// Folder identity (or explicit add-on ID), scoped by server key or by
-		// Network for hosted projects. `id` remains the immutable global FK.
+		// Folder identity (or explicit add-on ID), scoped by server key.
+		// `id` remains the immutable global FK.
 		externalId: text("external_id"),
 		// Read-only legacy URL alias. New projects leave it null.
 		slug: text("slug"),
@@ -405,22 +402,21 @@ export const projects = pgTable(
 	(t) => [
 		index("projects_network_idx").on(t.networkId),
 		uniqueIndex("projects_demo_session_uniq").on(t.demoSessionId),
-		check("projects_owner_check", sql`(${t.networkId} IS NOT NULL AND ${t.demoSessionId} IS NULL) OR (${t.networkId} IS NULL AND ${t.demoSessionId} IS NOT NULL AND ${t.storageKind} = 'hosted')`),
+		check("projects_owner_check", sql`(${t.networkId} IS NOT NULL AND ${t.demoSessionId} IS NULL) OR (${t.networkId} IS NULL AND ${t.demoSessionId} IS NOT NULL AND ${t.storageKind} = 'demo')`),
 		index("projects_network_deleted_idx").on(t.networkId, t.deletedAt),
 		index("projects_server_key_idx").on(t.serverKeyId),
 		uniqueIndex("projects_serverkey_slug_uniq").on(t.serverKeyId, t.slug),
 		uniqueIndex("projects_serverkey_external_uniq").on(t.serverKeyId, t.externalId),
-		uniqueIndex("projects_hosted_root_uniq").on(t.hostedRootId),
-		uniqueIndex("projects_hosted_network_external_uniq").on(t.networkId, t.externalId).where(sql`${t.storageKind} = 'hosted'`),
-		uniqueIndex("projects_hosted_network_slug_uniq").on(t.networkId, t.slug).where(sql`${t.storageKind} = 'hosted'`),
-		check("projects_location_check", sql`(${t.storageKind} = 'server' AND ${t.serverKeyId} IS NOT NULL AND ${t.hostedRootId} IS NULL) OR (${t.storageKind} = 'hosted' AND ${t.serverKeyId} IS NULL AND ${t.hostedRootId} IS NOT NULL AND length(${t.hostedRootId}) > 0 AND ${t.externalId} IS NOT NULL AND length(${t.externalId}) > 0)`),
+		check("projects_location_check", sql`(${t.storageKind} = 'server' AND ${t.serverKeyId} IS NOT NULL) OR (${t.storageKind} = 'demo' AND ${t.serverKeyId} IS NULL)`),
 	],
 );
 
 export const projectDrafts = pgTable("project_drafts", {
 	id: text("id").primaryKey(),
 	projectId: text("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
-	ownerId: text("owner_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+	// Un User, ou l'invité d'une DemoSession : pas de FK, la suppression de compte
+	// efface ses brouillons explicitement (`accountDeletion.ts`).
+	ownerId: text("owner_id").notNull(),
 	name: text("name").notNull(),
 	revision: integer("revision").notNull().default(1),
 	status: text("status").notNull().default("active"),
@@ -433,7 +429,7 @@ export const projectDrafts = pgTable("project_drafts", {
 		binaryBaseline?: Record<string, { hash: string; size: number }>;
 		binaryTree?: Record<string, { hash: string; size: number }>;
 	}>(),
-	updatedBy: text("updated_by").notNull().references(() => users.id, { onDelete: "cascade" }),
+	updatedBy: text("updated_by").notNull(),
 	source: text("source").notNull().default("editor"),
 	createdAt: timestamp("created_at").notNull(),
 	updatedAt: timestamp("updated_at").notNull(),
@@ -492,7 +488,7 @@ export const projectDraftStorage = pgTable("project_draft_storage", {
 
 export const projectDraftOperations = pgTable("project_draft_operations", {
 	projectId: text("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
-	ownerId: text("owner_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+	ownerId: text("owner_id").notNull(),
 	operationId: text("operation_id").notNull(),
 	fingerprint: text("fingerprint").notNull(),
 	expiresAt: timestamp("expires_at"),
@@ -823,30 +819,6 @@ export const assistantTasks = pgTable("assistant_tasks", {
 }));
 
 // A bounded, immutable transfer artifact; never an editable project authority.
-export const projectCopies = pgTable("project_copies", {
-  id: text("id").primaryKey(),
-  // Audit identifiers survive source/account deletion until uncertain activation is reconciled.
-  ownerId: text("owner_id").notNull(),
-  sourceProjectId: text("source_project_id").notNull(),
-  sourceRevision: text("source_revision").notNull(),
-  serverKeyId: text("server_key_id").notNull().references(() => serverKeys.id, { onDelete: "cascade" }),
-  targetId: text("target_id").notNull(),
-  targetNetworkId: text("target_network_id").notNull().references(() => networks.id, { onDelete: "cascade" }),
-  minecraftVersion: text("minecraft_version").notNull(),
-  modules: jsonb("modules").notNull().$type<string[]>(),
-  fingerprint: text("fingerprint").notNull(),
-  manifest: jsonb("manifest").notNull().$type<{ path: string; size: number; sha256: string }[]>(),
-  artifact: jsonb("artifact").$type<import("../lib/storage/captureProjectSnapshot").CapturedFile[]>(),
-  status: text("status").notNull().$type<"pending" | "completed" | "failed">(),
-  destinationProjectId: text("destination_project_id"),
-  error: text("error"),
-  createdAt: timestamp("created_at").notNull(),
-  updatedAt: timestamp("updated_at").notNull(),
-}, t => ({
-  pendingTarget: uniqueIndex("project_copies_pending_target").on(t.serverKeyId, sql`lower(${t.targetId})`).where(sql`${t.status} = 'pending'`),
-  stateCheck: check("project_copies_state_check", sql`${t.status} IN ('pending', 'completed', 'failed')`),
-}));
-
 export const projectRenames = pgTable("project_renames", {
   id: text("id").primaryKey(),
   projectId: text("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),

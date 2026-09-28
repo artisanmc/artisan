@@ -45,12 +45,10 @@ services:
       # in those files are type-only and erased). Mount editor/ so ../../../editor
       # resolves to /editor.
       - ./editor:/editor
-      - hosted-projects:/var/lib/artisan/projects
     ports:
       - "3001:3001"
     environment:
       PORT: "3001"
-      HOSTED_PROJECTS_DIR: /var/lib/artisan/projects
       DEMO_TTL_HOURS: ${DEMO_TTL_HOURS:-24}
       DEMO_MINECRAFT_VERSION: ${DEMO_MINECRAFT_VERSION:-1.21.4}
       DEMO_MAX_BYTES: ${DEMO_MAX_BYTES:-20971520}
@@ -133,5 +131,4 @@ services:
 volumes:
   pg-data:
   boutique-mysql-data:
-  hosted-projects:
   wiki-node-modules:

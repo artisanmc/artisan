@@ -61,6 +61,7 @@ import { countMissingForLang, listLanguages } from "@/lib/i18nUsages";
 import { useProjectPrincipalId } from "@/lib/projectPrincipal";
 import { useAccountStore } from "@/state/accountStore";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
+import { useDemoStore } from "@/state/demoStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
 import { useProjectRuntime } from "@/state/projectRuntimeStore";
 import { useSidebarStore } from "@/state/sidebarStore";
@@ -495,6 +496,8 @@ function SaveControls({
   };
   const [draftsOpen, setDraftsOpen] = useState(false);
   const draftSession = usePersistedDraftStore((s) => s.sessions[projectId]);
+  // La démo ne publie rien : son travail sort par l'export (ADR `server-only-projects`).
+  const demo = useDemoStore((s) => s.active);
   const draftNeedsAttention =
     draftSession?.status === "conflict" ||
     draftSession?.status === "offline" ||
@@ -655,6 +658,7 @@ function SaveControls({
             </button>
           </Tooltip>
         )}
+        {!demo && (
         <button
           type="button"
           onClick={openReview}
@@ -675,6 +679,7 @@ function SaveControls({
           )}
           {saving ? t("deploy.deploying") : t("deploy.deploy")}
         </button>
+        )}
         {dirty || draftSession || lastSaveError ? (
           <DropdownMenu>
             <DropdownMenuTrigger
