@@ -62,20 +62,7 @@ export async function requestProjectPrincipal(
 		if (!session) {
 			const proof = await deps.proof(token);
 			if (proof?.projectId === projectId) {
-				const account = c.get("user") as { id: string } | null;
-				if (proof.state === "claimed" && account) return account.id;
-				fail(
-					proof.state === "claiming"
-						? "claim_pending"
-						: proof.state === "claimed"
-							? "forbidden"
-							: "demo_expired",
-					proof.state === "claiming"
-						? 409
-						: proof.state === "claimed"
-							? 403
-							: 410,
-				);
+				fail("demo_expired", 410);
 			}
 		}
 	}

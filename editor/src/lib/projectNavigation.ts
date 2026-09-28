@@ -24,10 +24,7 @@ export function projectDestination(
           to: "/networks/$networkId/servers/$serverId/projects/$projectId" as const,
           params: { networkId, serverId, projectId },
         };
-  return documentId
-    ? {
-        to: "/networks/$networkId/projects/$projectId/document/$documentId" as const,
-        params: { networkId, projectId, documentId },
-      }
-    : { to: "/networks/$networkId/projects/$projectId" as const, params: { networkId, projectId } };
+  // Tout Project de compte appartient à un serveur (ADR `server-only-projects`) :
+  // sans serveur connu, on revient au Network.
+  return { to: "/networks/$networkId" as const, params: { networkId } };
 }

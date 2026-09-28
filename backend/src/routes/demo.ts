@@ -3,13 +3,7 @@ import { bodyLimit } from "hono/body-limit";
 import { getConnInfo } from "hono/bun";
 import { getCookie } from "hono/cookie";
 import {HTTPException} from 'hono/http-exception';
-import {
-	claimDemoSession,
-	createDemoSession,
-	getDemoSessionProof,
-	readDemoSession,
-	resumeOwnedDemoClaim,
-} from "../lib/demoSessions";
+import { createDemoSession, getDemoSessionProof, readDemoSession } from "../lib/demoSessions";
 import {
 	DEMO_COOKIE,
 	DEMO_CSRF_HEADER,
@@ -24,16 +18,12 @@ type Dependencies = {
 	proof: (
 		token: string,
 	) => Promise<{ csrfToken: string; projectId: string; state?: string } | null>;
-	claim: typeof claimDemoSession;
-	resume?: typeof resumeOwnedDemoClaim;
 	rateKey: (c: Context) => string;
 };
 const defaults: Dependencies = {
 	read: readDemoSession,
 	create: createDemoSession,
 	proof: getDemoSessionProof,
-	claim: claimDemoSession,
-	resume: resumeOwnedDemoClaim,
 	rateKey: (c) => {
 		try {
 			return getConnInfo(c).remote.address ?? "unknown";
@@ -55,9 +45,6 @@ export function createDemoRouter(deps: Dependencies = defaults) {
 			demo_expired: 410,
 			invalid_input: 422,
 			not_found: 404,
-			claim_pending: 409,
-			claim_target_unavailable: 409,
-			operation_superseded: 409,
 			operation_mismatch: 409,
 			demo_quota_exceeded: 413,
 			demo_unavailable: 503,

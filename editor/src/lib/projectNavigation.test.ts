@@ -11,10 +11,11 @@ describe("project URLs", () => {
       documentId: "menu",
     });
   });
-  it("keeps hosted and demo location scopes with their folder ID", () => {
-    expect(
-      projectDestination("network", { id: "internal", externalId: "My_Project" }).params.projectId,
-    ).toBe("My_Project");
+  it("keeps the demo scope with its folder ID; a Network alone leads back to the Network", () => {
+    expect(projectDestination("network", { id: "internal", externalId: "My_Project" })).toEqual({
+      to: "/networks/$networkId",
+      params: { networkId: "network" },
+    });
     expect(
       projectDestination(null, { id: "guest-internal", externalId: "demo" }).params.projectId,
     ).toBe("demo");

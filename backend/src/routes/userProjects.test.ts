@@ -1,5 +1,5 @@
 // backend/src/routes/userProjects.test.ts
-import { beforeEach, afterEach, describe, expect, test } from "bun:test";
+import { beforeEach, describe, expect, test } from "bun:test";
 import { Hono } from "hono";
 import { db } from "../db/index";
 import {memberships, networks, projects, serverKeys, linkCodes, users, userSessions} from "../db/schema";
@@ -12,12 +12,7 @@ import { createProject, getProject } from "../lib/projectStorage";
 import { generateServerKey } from "../lib/auth";
 import { registerEditorConn } from "../ws/hub";
 import { eq } from "drizzle-orm";
-import { readdir, mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import { beginProjectRename, completeProjectRename } from "../lib/projectRename";
-import { HostedProjectStorage, hostedStorageOptions } from "../lib/storage/HostedProjectStorage";
-import { openHostedProjectStorage } from "../lib/storage/hostedProjects";
 
 async function clearAll() {
   await db.delete(projects);
@@ -57,18 +52,8 @@ function makeApp() {
 }
 
 describe("userProjectsRouter — GET", () => {
-  let directory: string;
-  let previousDirectory: string | undefined;
   beforeEach(async () => {
     await clearAll();
-    previousDirectory = process.env.HOSTED_PROJECTS_DIR;
-    directory = await mkdtemp(join(tmpdir(), "artisan-project-urls-"));
-    process.env.HOSTED_PROJECTS_DIR = directory;
-  });
-  afterEach(async () => {
-    if (previousDirectory === undefined) delete process.env.HOSTED_PROJECTS_DIR;
-    else process.env.HOSTED_PROJECTS_DIR = previousDirectory;
-    await rm(directory, { recursive: true, force: true });
   });
 
   test("opens the module ID in its network/server scope without changing the internal anchor", async () => {
@@ -84,33 +69,13 @@ describe("userProjectsRouter — GET", () => {
     expect((await response.json()).project.id).toBe(projectId);
   });
 
-  test("hosted folders resolve only in their own Network, apart from server projects", async () => {
-    const a = await seedUserWithProject("hosted-a");
-    const b = await seedUserWithProject("hosted-b");
-    for (const seed of [a, b]) {
-      await db.update(projects).set({ externalId: "shared", storageKind: "hosted", serverKeyId: null, hostedRootId: seed.projectId, hostedMinecraftVersion: "1.21.4" }).where(eq(projects.id, seed.projectId));
-      await HostedProjectStorage.initialize(hostedStorageOptions((await getProject(seed.projectId))!, seed.userId));
-    }
-    await createProject({ networkId: a.networkId, serverKeyId: a.skId, externalId: "shared", name: "shared" });
-    const app = makeApp();
-    for (const seed of [a, b]) {
-      const response = await app.request(`/api/v1/user/projects/shared?network=${seed.networkId}`, { headers: { Cookie: `artisan_user_session=${seed.sessionId}` } });
-      expect(response.status).toBe(200);
-      expect((await response.json()).project.id).toBe(seed.projectId);
-    }
-    const denied = await app.request(`/api/v1/user/projects/shared?network=${b.networkId}`, { headers: { Cookie: `artisan_user_session=${a.sessionId}` } });
-    expect(denied.status).toBe(403);
-  });
-
-  test.each(["server", "hosted"])("%s rename preserves the anchor and resolves its old folder and legacy slug", async (storageKind) => {
+  test.each(["server"])("%s rename preserves the anchor and resolves its old folder and legacy slug", async (storageKind) => {
     const seed = await seedUserWithProject(`rename-${storageKind}`);
-    await db.update(projects).set({ externalId: "old_folder", ...(storageKind === "hosted" ? { storageKind: "hosted", serverKeyId: null, hostedRootId: seed.projectId, hostedMinecraftVersion: "1.21.4" } : {}) }).where(eq(projects.id, seed.projectId));
-    if (storageKind === "hosted") await HostedProjectStorage.initialize(hostedStorageOptions((await getProject(seed.projectId))!, seed.userId));
+    await db.update(projects).set({ externalId: "old_folder" }).where(eq(projects.id, seed.projectId));
     await beginProjectRename(seed.projectId, `rename-${storageKind}`, "New_Folder");
     const receipt = { operation_id: `rename-${storageKind}`, project_id: "old_folder", target_project_id: "New_Folder" };
-    if (storageKind === "server") await completeProjectRename(seed.skId, receipt);
-    else await (await openHostedProjectStorage((await getProject(seed.projectId))!, seed.userId)).rename(receipt.operation_id, receipt.target_project_id);
-    const scope = `network=${seed.networkId}${storageKind === "server" ? `&server=${seed.skId}` : ""}`;
+    await completeProjectRename(seed.skId, receipt);
+    const scope = `network=${seed.networkId}&server=${seed.skId}`;
     for (const ref of ["old_folder", "New_Folder", "legacy-p", seed.projectId]) {
       const response = await makeApp().request(`/api/v1/user/projects/${ref}?${scope}`, { headers: { Cookie: `artisan_user_session=${seed.sessionId}` } });
       expect(response.status).toBe(200);
@@ -131,21 +96,6 @@ describe("userProjectsRouter — GET", () => {
     expect((await request()).status).toBe(404);
     await db.update(projects).set({ externalId: "first" }).where(eq(projects.id, other.id));
     expect((await (await request()).json()).project.id).toBe(other.id);
-  });
-
-  test("hosted item catalogs never substitute another patch for the selected version", async () => {
-    const { sessionId, projectId } = await seedUserWithProject("hosted-version");
-    const itemsDir = join(import.meta.dir, "../../data/items");
-    const available = (await readdir(itemsDir)).find((file) => /^\d+\.\d+\.\d+\.json$/.test(file));
-    expect(available).toBeDefined();
-    const missingVersion = `${available!.split(".").slice(0, 2).join(".")}.999999`;
-    expect(await Bun.file(join(itemsDir, `${missingVersion}.json`)).exists()).toBe(false);
-    await db.update(projects).set({ storageKind: "hosted", serverKeyId: null, hostedRootId: "strict-catalog", hostedMinecraftVersion: missingVersion }).where(eq(projects.id, projectId));
-    const res = await makeApp().request(`/api/v1/user/projects/${projectId}/items`, {
-      headers: { Cookie: `artisan_user_session=${sessionId}` },
-    });
-    expect(res.status).toBe(404);
-    expect(await res.json()).toEqual({ error: "unknown_version" });
   });
 
   test("GET /:projectId 200 — member gets project content", async () => {

@@ -1,6 +1,6 @@
 # Projets serveur uniquement — l'hébergé est retiré, la démo est jetable
 
-**Status :** accepted (2026-09-27) — rien n'est implémenté. Révise
+**Status :** accepted (2026-09-27) — implémenté : étape 1 le 2026-09-27, étape 2 le 2026-09-28. Révise
 [project-storage-modes](project-storage-modes.md) (projets hébergés, réclamation de
 la démo, « Copier vers Minecraft », import ZIP hébergé) et remplit la direction
 laissée par [snapshot-mirror-and-backend-history](snapshot-mirror-and-backend-history.md).

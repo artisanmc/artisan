@@ -15,7 +15,7 @@ sur disque ; une modification manuelle incohérente provoque une erreur explicit
 Le renommage déplace le dossier dans une révision puis réconcilie le journal SQL
 commun, en conservant l'ancre interne. Les projets hébergés gardent leur version
 Minecraft sélectionnée dans les métadonnées d'environnement SQL, hors manifeste.
-La [procédure de sauvegarde/restauration](../operations/hosted-storage-backup.md)
+La procédure de sauvegarde/restauration du volume (retirée avec lui le 2026-09-28)
 décrit les verrous, le snapshot SQL exporté et les règles de rétention.
 
 ## Contexte
