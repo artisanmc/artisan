@@ -4,7 +4,6 @@ import { getProject, projectDiskId, type Project } from "../projectStorage";
 import type { ProjectLocation, ProjectStorage } from "./ProjectStorage";
 import { ServerProjectStorage } from "./ServerProjectStorage";
 import { resolveDraftStore } from "./resolveDraftStore";
-import { openHostedProjectStorage } from "./hostedProjects";
 import {authorizeProjectPrincipal,type ProjectPrincipal} from '../projectPrincipal';
 import {openDemoProjectStorage} from '../demoSessions';
 
@@ -14,15 +13,14 @@ export class ProjectStorageError extends Error {
   }
 }
 
-export function projectLocation(project: Pick<Project, "id" | "externalId" | "serverKeyId" | "storageKind" | "hostedRootId">): ProjectLocation {
+export function projectLocation(project: Pick<Project, "id" | "externalId" | "serverKeyId" | "storageKind">): ProjectLocation {
   const folderName = projectDiskId(project);
   switch (project.storageKind) {
     case "server":
-      if (!project.serverKeyId || project.hostedRootId !== null) throw new ProjectStorageError("invalid_location");
+      if (!project.serverKeyId) throw new ProjectStorageError("invalid_location");
       return { kind: "server", serverKeyId: project.serverKeyId, folderName };
-    case "hosted":
-      if (project.serverKeyId !== null || !project.hostedRootId || !/^[a-zA-Z0-9_-]+$/.test(project.hostedRootId) || !project.externalId || !/^[a-zA-Z0-9_-]+$/.test(project.externalId)) throw new ProjectStorageError("invalid_location");
-      return { kind: "hosted", rootId: project.hostedRootId, folderName };
+    case "demo":
+      return { kind: "demo", folderName };
     default:
       throw new ProjectStorageError("invalid_location");
   }
@@ -30,7 +28,6 @@ export function projectLocation(project: Pick<Project, "id" | "externalId" | "se
 
 interface StorageFactories {
   server: (location: Extract<ProjectLocation, { kind: "server" }>, project?: Project, ownerId?: string) => ProjectStorage | Promise<ProjectStorage>;
-  hosted: (location: Extract<ProjectLocation, { kind: "hosted" }>, project?:Project, ownerId?:string) => ProjectStorage | Promise<ProjectStorage>;
 }
 const defaultFactories: StorageFactories = {
   server: async (location, project, ownerId) => {
@@ -38,7 +35,6 @@ const defaultFactories: StorageFactories = {
     if (project && ownerId) storage.bindDraftStore(await resolveDraftStore(project, ownerId, storage));
     return storage;
   },
-  hosted: async (_location,project,ownerId) => { if(!project||!ownerId)throw new ProjectStorageError("storage_unavailable");return openHostedProjectStorage(project,ownerId); },
 };
 
 interface ResolverDependencies {
@@ -66,7 +62,7 @@ export function createProjectStorageResolver(dependencies: ResolverDependencies 
     if(typeof userId!=='string') return openDemoProjectStorage(userId,project);
     switch (location.kind) {
       case "server": return dependencies.factories.server(location, project, userId);
-      case "hosted": return dependencies.factories.hosted(location,project,userId);
+      case "demo": throw new ProjectStorageError("forbidden");
     }
   };
 }

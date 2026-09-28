@@ -108,9 +108,7 @@ export function EditorTour({
       "saveTitle",
       demo
         ? "saveDemoDescription"
-        : storage === "hosted"
-          ? "saveHostedDescription"
-          : storage === "local"
+        : storage === "local"
             ? "saveLocalDescription"
             : "saveServerDescription",
     ],

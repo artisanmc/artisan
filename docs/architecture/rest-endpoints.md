@@ -14,6 +14,8 @@ remain available. The editor polls every three seconds until membership exists.
 `demo.ts` exposes `GET /api/v1/demo` (recover only; never creates or renews),
 `POST /api/v1/demo` (create/recover). The demo is disposable: no claim into an account
 (`/demo/claim` removed 2026-09-27, ADR `server-only-projects`); it leaves only through export.
+Since 2026-09-28 a demo publishes nothing: `PUT …/files` is refused, its work goes through
+the drafts routes (`demo_quota_exceeded` 413, `demo_rate_limited` 429 before any write).
 The HttpOnly `artisan_demo_session` cookie selects a guest principal only for its
 exact Project. Mutations require the editor Origin and `X-Artisan-Demo-CSRF`;
 successful effective writes expose `X-Artisan-Demo-Expires-At` and update cookie

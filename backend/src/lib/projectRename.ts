@@ -1,6 +1,6 @@
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "../db";
-import { projects, projectRenames, projectCopies } from "../db/schema";
+import { projects, projectRenames } from "../db/schema";
 import { storageDatabase, storageTransaction } from "./storage/storageTransaction";
 
 export class ProjectRenameError extends Error {
@@ -47,12 +47,8 @@ export async function beginProjectRename(projectId: string, operationId: string,
     if (project.identityKind === "addon") throw new ProjectRenameError("addon_immutable");
     const scope = project.serverKeyId ? eq(projectRenames.serverKeyId, project.serverKeyId) : eq(projectRenames.hostedNetworkId, project.networkId);
     const pending = await tx.select().from(projectRenames).where(and(scope, eq(projectRenames.status, "pending")));
-    if (project.serverKeyId) {
-      const copying = await tx.select().from(projectCopies).where(and(eq(projectCopies.serverKeyId, project.serverKeyId), eq(projectCopies.status, "pending"), sql`lower(${projectCopies.targetId}) = lower(${targetId})`));
-      if (copying.length) throw new ProjectRenameError("destination_reserved");
-    }
     if (pending.some((r) => r.projectId === projectId)) throw new ProjectRenameError("rename_in_progress");
-    const occupied = await tx.select().from(projects).where(project.serverKeyId ? eq(projects.serverKeyId, project.serverKeyId) : and(eq(projects.networkId, project.networkId), eq(projects.storageKind, "hosted")));
+    const occupied = await tx.select().from(projects).where(project.serverKeyId ? eq(projects.serverKeyId, project.serverKeyId) : eq(projects.networkId, project.networkId));
     if (occupied.some((p) => p.id !== projectId && (p.externalId ?? p.id).toLowerCase() === targetId.toLowerCase()) || pending.some((r) => r.targetId.toLowerCase() === targetId.toLowerCase())) throw new ProjectRenameError("destination_exists");
     const now = new Date();
     return (await tx.insert(projectRenames).values({ id: operationId, projectId, serverKeyId: project.serverKeyId, hostedNetworkId: project.serverKeyId ? null : project.networkId, sourceId: project.externalId ?? project.id, targetId, status: "pending", createdAt: now, updatedAt: now }).returning())[0]!;
@@ -68,19 +64,6 @@ export async function completeProjectRename(serverKeyId: string, receipt: Rename
     if (operation.status !== "pending") throw new ProjectRenameError("operation_mismatch");
     await tx.update(projects).set(renamedProjectFields(operation.sourceId, operation.targetId)).where(eq(projects.id, operation.projectId));
     return (await tx.update(projectRenames).set({ status: "complete", updatedAt: new Date() }).where(eq(projectRenames.id, operation.id)).returning())[0]!;
-  });
-}
-
-export async function completeHostedProjectRename(projectId:string,receipt:RenameReceipt) {
-  const anchor=(await storageDatabase().select().from(projects).where(eq(projects.id,projectId)))[0];
-  if(!anchor || anchor.storageKind!=="hosted")throw new ProjectRenameError("operation_mismatch");
-  return storageTransaction(async tx=> {
-    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${projectLifecycleScope(anchor)}))`);
-    const operation=(await tx.select().from(projectRenames).where(eq(projectRenames.id,receipt.operation_id)).for("update"))[0];
-    if(!operation||operation.projectId!==projectId||operation.hostedNetworkId!==anchor.networkId||operation.sourceId!==receipt.project_id||operation.targetId!==receipt.target_project_id||operation.status==="failed")throw new ProjectRenameError("operation_mismatch");
-    if(operation.status==="complete")return operation;
-    await tx.update(projects).set(renamedProjectFields(operation.sourceId, operation.targetId)).where(eq(projects.id,projectId));
-    return (await tx.update(projectRenames).set({status:"complete",updatedAt:new Date()}).where(eq(projectRenames.id,operation.id)).returning())[0]!;
   });
 }
 
@@ -115,8 +98,6 @@ export async function failProjectRename(operationId: string) {
 }
 
 export async function projectIdentityLocked(serverKeyId: string, diskId: string) {
-  const copies = await storageDatabase().select().from(projectCopies).where(and(eq(projectCopies.serverKeyId, serverKeyId), eq(projectCopies.status, "pending"), sql`lower(${projectCopies.targetId}) = lower(${diskId})`));
-  if (copies.length) return true;
   const operations = await pendingProjectRenames(serverKeyId);
   return operations.some((r) => r.sourceId.toLowerCase() === diskId.toLowerCase() || r.targetId.toLowerCase() === diskId.toLowerCase());
 }

@@ -6,9 +6,9 @@ import { addConsoleMember } from "../lib/consoleAccess";
 import { forgetProjectTree, warmSnapshotMirror } from "../lib/projectTreeReads";
 import { forgetServer as forgetSnapshotMirror, listedProjects, mirroredProjectIds, recordHello as recordSnapshotHello, recordReload as recordSnapshotReload, unpublishedProjectIds } from "../lib/snapshotMirror";
 import { completeProjectRename, failProjectRename, isTerminalRenameError, pendingProjectRenames, projectIdentityLocked, reconcileProjectIdentity, type ProjectIdentityReport } from "../lib/projectRename";
-import type { ProjectRenameMessage, ProjectRenameResultMessage, ProjectCopyMessage, ProjectCopyResultMessage } from "../protocol";
+import type { ProjectRenameMessage, ProjectRenameResultMessage } from "../protocol";
 import { ensureAssets, assetsDone } from "../lib/mcAssets";
-import { networks, projects, projectCopies, serverKeyHelloes, serverKeys, serverModules, serverDataSources, serverDeclaredModels, serverEditorScreens } from "../db/schema";
+import { networks, projects, serverKeyHelloes, serverKeys, serverModules, serverDataSources, serverDeclaredModels, serverEditorScreens } from "../db/schema";
 import {
   createProject,
   ensureProjectForServer,
@@ -80,38 +80,6 @@ const serverRenameCapabilities = new Map<string, boolean>();
 const draftConnections = new Set<string>();
 const mixedWriteConnections = new Set<string>();
 const quotaConnections = new Set<string>();
-const copyConnections = new Map<string, { minecraftVersion: string; modules: string[] }>();
-const copyMaintenanceAt = new Map<string, number>();
-function scheduleCopyMaintenance(serverKeyId: string) {
-  if (Date.now() - (copyMaintenanceAt.get(serverKeyId) ?? 0) < 60_000) return;
-  copyMaintenanceAt.set(serverKeyId, Date.now());
-  setTimeout(() => { void import("../lib/projectCopy").then(({ resumeServerCopies }) => resumeServerCopies(serverKeyId)).catch(error => console.error("[copies] reconciliation pending", error)); }, 0);
-}
-export function projectCopyTarget(serverKeyId: string) {
-  const id = [...copyConnections.keys()].find(id => connToServerId.get(id) === serverKeyId && connSenders.has(id));
-  return id ? copyConnections.get(id) : undefined;
-}
-export type ProjectCopyOutcome = { kind: "result"; result: ProjectCopyResultMessage } | { kind: "offline" | "timeout" };
-const pendingCopies = new Map<string, { connId: string; request: Omit<ProjectCopyMessage, "type" | "request_id">; finish: (outcome: ProjectCopyOutcome) => void }>();
-export async function requestProjectCopy(serverKeyId: string, request: Omit<ProjectCopyMessage, "type" | "request_id">, timeoutMs = 30_000): Promise<ProjectCopyOutcome> {
-  const connId = [...copyConnections.keys()].find(id => connToServerId.get(id) === serverKeyId && connSenders.has(id));
-  const send = connId && connSenders.get(connId);
-  if (!connId || !send) return Promise.resolve({ kind: "offline" });
-  if (request.action === "commit") {
-    const { getEditorCommercialPolicy, resolveServerCommercialPolicy } = await import("../modules/billing/editorAccess");
-    const configured = await getEditorCommercialPolicy();
-    if (configured.enforcementEnabled && !supportsResourceQuota(serverKeyId)) return { kind: "result", result: { type: "project_copy_result", request_id: "", operation_id: request.operation_id, target_id: request.target_id, fingerprint: request.fingerprint, ok: false, state: "staging", error: "plugin_update_required" } };
-    const policy = configured.enforcementEnabled ? await resolveServerCommercialPolicy(serverKeyId) : { enabled: false, quota: configured.quota, proUntil: null };
-    request = { ...request, commercial_policy: { enabled: policy.enabled, quota: policy.quota, pro_until: policy.proUntil } };
-  }
-  return new Promise(resolve => {
-    const requestId = crypto.randomUUID();
-    const finish = (outcome: ProjectCopyOutcome) => { clearTimeout(timer); pendingCopies.delete(requestId); resolve(outcome); };
-    const timer = setTimeout(() => finish({ kind: "timeout" }), timeoutMs);
-    pendingCopies.set(requestId, { connId, request, finish });
-    try { send(JSON.stringify({ ...request, type: "project_copy", request_id: requestId })); } catch { finish({ kind: "offline" }); }
-  });
-}
 export function supportsMixedProjectWrite(serverKeyId: string) {
   return [...mixedWriteConnections].some((id) => connToServerId.get(id) === serverKeyId && connSenders.has(id));
 }
@@ -181,7 +149,6 @@ export async function reconcileServerProjectIdentity(serverKeyId: string, report
 }
 
 async function resumeProjectRenames(serverKeyId: string) {
-  void import("../lib/projectCopy").then(({ resumeServerCopies }) => resumeServerCopies(serverKeyId)).catch(error => console.error("[copies] resume pending", error));
   void import("../lib/projectDraftMigration").then(({ resumeServerDrafts }) => resumeServerDrafts(serverKeyId)).catch((error) => console.error("[drafts] migration pending", error));
   for (const op of await pendingProjectRenames(serverKeyId)) {
     if ([...pendingRenames.values()].some((pending) => pending.serverKeyId === serverKeyId && pending.message.operation_id === op.id)) continue;
@@ -196,8 +163,6 @@ export function registerConn(connId: string, send: (msg: string) => void): void 
 }
 
 export function cleanupConn(connId: string): void {
-  copyConnections.delete(connId);
-  for (const pending of pendingCopies.values()) if (pending.connId === connId) pending.finish({ kind: "offline" });
   mixedWriteConnections.delete(connId);
   quotaConnections.delete(connId);
   draftConnections.delete(connId);
@@ -674,8 +639,6 @@ export async function listProjectsForEditor(serverKeyId: string): Promise<Projec
 async function reservedProjectIds(serverKeyId: string): Promise<Set<string>> {
   const pending = await pendingProjectRenames(serverKeyId);
   const reserved = new Set(pending.flatMap((op) => [op.sourceId.toLowerCase(), op.targetId.toLowerCase()]));
-  const copyReservations = await db.select({ targetId: projectCopies.targetId }).from(projectCopies).where(and(eq(projectCopies.serverKeyId, serverKeyId), eq(projectCopies.status, "pending")));
-  for (const op of copyReservations) reserved.add(op.targetId.toLowerCase());
   return reserved;
 }
 const pendingConfigReads = new Map<string, (outcome: ConfigReadOutcome) => void>();
@@ -1171,8 +1134,6 @@ export async function handlePluginMessage(
     // et de les router — donc un project présent sur le disque du serveur mais
     // inconnu de la base y est enregistré ici.
     serverRenameCapabilities.set(keyId, hello.capabilities?.includes("project_rename") === true);
-    if (hello.capabilities?.includes("project_copy_v1")) copyConnections.set(connId, { minecraftVersion: hello.minecraft_version ?? "", modules: (hello.installed_modules ?? []).map(m => m.id) });
-    else copyConnections.delete(connId);
     if (hello.capabilities?.includes("project_drafts_v1")) draftConnections.add(connId);
     else draftConnections.delete(connId);
     if (hello.capabilities?.includes("project_mixed_write_v1")) mixedWriteConnections.add(connId);
@@ -1236,7 +1197,6 @@ export async function handlePluginMessage(
 
     setTimeout(() => { void import("../lib/projectDraftMigration").then(({ resumeServerDrafts }) => resumeServerDrafts(keyId)).catch((error) => console.error("[drafts] migration pending", error)); }, 0);
     // Plus rien à pousser après l'ack : le backend n'annonce plus de bundle.
-    scheduleCopyMaintenance(keyId);
     // Jar updated (or rolled back): the transparent container overrides follow it.
     if (vanillaGuiChanged) setTimeout(() => refreshPackAfterReload(keyId), 0);
     return { reply: JSON.stringify(ack), sessionId, push: [] };
@@ -1252,15 +1212,13 @@ export async function handlePluginMessage(
     return { reply: JSON.stringify({ type: "member_add_result", request_id: request.request_id, ...result }) };
   }
 
-  if (msg.type === "pong") { const serverId = connToServerId.get(connId); if (serverId) scheduleCopyMaintenance(serverId); return { reply: null }; }
+  if (msg.type === "pong") return { reply: null };
 
   // ── modules_changed: runtime module registration after hello ─────────────
   if (msg.type === "modules_changed") {
     const serverId = connToServerId.get(connId);
     if (!serverId) return { reply: null };
     const m = msg as ModulesChangedMessage;
-    const copyTarget = copyConnections.get(connId);
-    if (copyTarget) copyTarget.modules = (m.installed_modules ?? []).map(module => module.id);
     await reconcileServerProjectIdentity(serverId, m);
     persistServerModules(serverId, m.installed_modules ?? []).catch(() => {});
     persistServerDataSources(serverId, m.data_sources ?? []).catch(() => {});
@@ -1406,13 +1364,6 @@ export async function handlePluginMessage(
       const { type: _type, request_id: _requestId, ...payload } = result;
       pending.finish({ kind: "result", result: payload });
     }
-    return { reply: null };
-  }
-
-  if (msg.type === "project_copy_result") {
-    const result = msg as ProjectCopyResultMessage;
-    const pending = pendingCopies.get(result.request_id);
-    if (pending && pending.connId === connId && connToServerId.has(connId) && pending.request.operation_id === result.operation_id && pending.request.target_id === result.target_id && pending.request.fingerprint === result.fingerprint) pending.finish({ kind: "result", result });
     return { reply: null };
   }
 

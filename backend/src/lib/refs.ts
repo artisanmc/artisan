@@ -88,15 +88,9 @@ export async function resolveScopedProjectRef(
     const server = await resolveProjectServer(serverRef, networkRef);
     return server ? resolveProjectInScope(ref, eq(projects.serverKeyId, server.id)) : null;
   }
-  if (networkRef) {
-    const networkId = await resolveNetworkRef(networkRef);
-    return networkId
-      ? resolveProjectInScope(
-          ref,
-          and(eq(projects.networkId, networkId), eq(projects.storageKind, "hosted"))!,
-        )
-      : null;
-  }
+  // Tout Project de compte appartient à un serveur (ADR `server-only-projects`) :
+  // un Network seul ne désigne aucun Project.
+  if (networkRef) return null;
   // Unscoped API callers already hold the immutable internal identity.
   return ref;
 }

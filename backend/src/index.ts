@@ -5,7 +5,7 @@ import { seedAiCatalogFromLegacy } from "./modules/ai/seed";
 import { expireDraftReceipts } from "./lib/storage/ReceiptDraftStore";
 import { resumeServerDrafts } from "./lib/projectDraftMigration";
 import { connToServerId } from "./ws/hub";
-import { maintainHostedProjects } from "./lib/storage/hostedMaintenance";
+import { maintainDemoSessions } from "./lib/demoSessions";
 import { grantDueAnnualProCredits } from "./modules/billing/annualProCredits";
 
 // Avant d'ouvrir le port : le volume peut être neuf (icônes 3D + items.json
@@ -32,7 +32,7 @@ backfillSlugs().catch((err) => console.error("[backfill] slugs failed:", err));
 seedAiCatalogFromLegacy().catch((err) => console.error("[ai] legacy seed failed:", err));
 const maintainDrafts = async () => {
   await expireDraftReceipts();
-  await maintainHostedProjects();
+  await maintainDemoSessions();
   for (const serverId of new Set(connToServerId.values())) await resumeServerDrafts(serverId);
 };
 let maintainingDrafts = false;

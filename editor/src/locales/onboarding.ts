@@ -35,8 +35,6 @@ export const onboardingEn = {
   saveTitle: "Keep your work",
   saveServerDescription:
     "Save keeps a private draft on your account. Deploy lets you review the changes before applying them to your Minecraft server.",
-  saveHostedDescription:
-    "Save keeps your private draft. Deploy applies the changes to your hosted project after review. You can later copy it to a Minecraft server.",
   saveLocalDescription:
     "Your edits stay in this browser. Use Export project from the project menu to download a copy you can keep.",
   saveDemoDescription:
@@ -80,8 +78,6 @@ export const onboardingFr = {
   saveTitle: "Conservez votre travail",
   saveServerDescription:
     "Enregistrer conserve un brouillon privé sur votre compte. Déployer permet de vérifier les changements avant de les appliquer à votre serveur Minecraft.",
-  saveHostedDescription:
-    "Enregistrer conserve votre brouillon privé. Déployer applique les changements au projet hébergé après vérification. Vous pourrez ensuite le copier vers un serveur Minecraft.",
   saveLocalDescription:
     "Vos modifications restent dans ce navigateur. Utilisez Exporter le projet dans le menu du projet pour télécharger une copie à conserver.",
   saveDemoDescription:
