@@ -1,8 +1,8 @@
 # Registre serveur et canvas dérivé
 
-**Status :** draft — révisé le 2026-09-25. Tranches 1 à 3 implémentées sur la branche
-`feat/server-canvas` (non commitée), plus l'arrangement automatique appliqué aux planches de
-project (cf. « État d'avancement »). Rien sur `main`.
+**Status :** draft — révisé le 2026-09-28. Tranches 1 à 3 sur `main` (commit `04746e1`), plus
+l'arrangement automatique appliqué aux planches de project. Registre serveur (décision 10 bis) et
+sélection par `?doc=` en cours sur la planche générale (cf. « État d'avancement »).
 
 ## Historique
 
@@ -94,10 +94,31 @@ axe de groupement du registre.
 le commentaire de `diskId` dans `editor/src/domain/types.ts`. Sans project, l'Add-on déverserait ses
 fichiers dans le pot commun de l'utilisateur.
 
-### 2. Le registre est serveur-scopé, le focus est la maison
+### 2. Le registre est serveur-scopé, la planche est la maison
 
-Le registre liste tous les Documents du serveur, groupés et filtrables par project. Le focus reste
-la maison obligatoire de chaque Document. Dans la cible, le landing n'est plus la planche.
+Le registre liste tous les Documents du serveur, groupés et filtrables par project.
+
+**Révisé le 2026-09-28** : la vue focus (`…/document/$documentId`) est **retirée à la bascule**. La
+version initiale en faisait la maison obligatoire de chaque Document ; c'était un second hôte de
+rendu pour un besoin que la planche couvre dès qu'elle est éditable (l'inspecteur `EditorPane`
+héberge déjà `FlowCanvas` pour les commandes et dialogs). Ce que le focus apportait est conservé
+autrement :
+
+| Apport du focus | Remplacement |
+|---|---|
+| URL partageable d'un Document | `?doc=<project>/<id>` sur la planche : sélection et cadrage restaurés au chargement |
+| Mode YAML | onglet de l'inspecteur |
+| Isolement | le reste de la planche est atténué tant que le Document est sélectionné, Échap l'annule |
+| Cadrage | la caméra va au Document |
+
+**Règle de caméra** : elle ne bouge que si la sélection vient de hors de l'écran (registre,
+recherche, lien partagé, pastille fantôme) **et** que le Document n'est pas entièrement visible.
+Un clic sur un nœud visible sélectionne sans déplacer la vue : recentrer ce qu'on s'apprête à
+éditer fait perdre ses repères. Elle centre à l'échelle courante et ne dézoome que si le Document
+ne tient pas.
+
+Jusqu'à l'édition sur la planche (tranche 5), le focus reste le chemin d'édition : double-clic sur
+un nœud, ou « Éditer » dans la bulle de sélection.
 
 ### 3. La planche est une vue dérivée, pas une composition
 
@@ -363,6 +384,31 @@ Cmd+K couvre la navigation rapide. La liste « MES PROJECTS » de la sidebar gau
 filtre du registre ; la création, le renommage, l'import/export et la suppression de projects
 restent disponibles dans le registre.
 
+### 10 bis. Un seul arbre à gauche, l'inspecteur seul à droite (2026-09-28)
+
+Aujourd'hui, deux panneaux font le même travail de part et d'autre du canvas : la sidebar gauche
+(`ProjectSidebar` : « Mes projects », « Modules installés » et leurs Config screens) choisit un
+project, le rail droit (`ProjectElementsSidebar`) liste ce qu'il contient. Deux niveaux d'un même
+arbre, coupés en deux. Dès que le project n'est plus un lieu, il n'y a plus rien à choisir à
+gauche : on **fusionne** les deux en un seul arbre, à gauche. À droite ne reste que l'inspecteur,
+contextuel à la sélection (modèle calques / propriétés).
+
+- **Groupes** : un par project ordinaire, puis un par module installé (ses projects possédés et
+  ses Config screens, même découpage que `buildProjectGroups`). Sous chaque groupe, les Documents
+  par type. En pied d'arbre, « Pas encore reliés » (la gouttière).
+- **Un seul sens par geste** : le chevron replie, la **case filtre la planche** (masque tous les
+  projects du groupe), un clic sur un Document le sélectionne, un clic sur un Config screen l'ouvre.
+  Sélectionner un Document d'un project masqué le remontre.
+- **Filtre par soustraction** (`?hide=`) : un project apparu après le partage d'un lien est
+  visible par défaut.
+- Un seul project ordinaire : pas d'en-tête de groupe (décision 12).
+- **Sortent de l'arbre** : Traductions, Données, Ressources (onglets globaux, décision 11) ; la
+  bibliothèque d'items devient un onglet de l'inspecteur quand un menu est sélectionné ; la
+  configuration serveur passe dans le menu du serveur de la barre du haut.
+- **Point à trancher avant la bascule** : si « Mes projects » liste aujourd'hui des projects de
+  plusieurs serveurs, le passage d'un serveur à l'autre doit être reporté explicitement sur le
+  `ServerSelector` de la barre du haut.
+
 ### 11. Tous les onglets passent au niveau du serveur, le stockage reste par project
 
 | Onglet | Vue serveur | Stockage (inchangé) |
@@ -385,7 +431,20 @@ en-tête de groupe.
 Où a lieu ce bootstrap ? Plugin, backend, ou selon le type de project ? La réponse dépend de la
 piste stockage : **reporté** avec elle.
 
-## État d'avancement (2026-09-25, branche `feat/server-canvas`, non commitée)
+## État d'avancement (2026-09-28)
+
+- **Registre serveur, première passe** (tranche 6 avancée, en lecture seule) :
+  `features/serverCanvas/registryTree.ts` (arbre pur, testé), `ServerRegistry.tsx` monté à gauche
+  de la planche générale, repliable. Les puces project du bandeau sont remplacées par les cases de
+  l'arbre ; le filtre texte vit en tête d'arbre et vise aussi le libellé affiché.
+- **Sélection et caméra** : `?doc=` porte la sélection ; `camera.ts` (`revealViewport`,
+  `tweenViewport`) applique la règle de la décision 2. Clic = sélection, double-clic ou « Éditer »
+  = focus existant.
+- Pas encore fait : « + » de création par groupe, onglet plein écran (prop de densité),
+  atténuation du reste de la planche, recherche Cmd+K vers `?doc=`. Masquer un project relance
+  l'arrangement complet (stabilité, tranche 5).
+
+## État d'avancement (2026-09-25)
 
 - **Tranche 1** — `features/canvas/serverGraph.ts` : graphe de tout le serveur, cibles résolues
   sur tout le serveur comme la table unique du plugin (`menus[menuId]`), id introuvable ou porté

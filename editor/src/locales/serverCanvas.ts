@@ -17,7 +17,15 @@ export const serverCanvasFr = {
   failed_one: "{{count}} projet illisible",
   failed_other: "{{count}} projets illisibles",
   gutter: "Pas encore reliés",
-  readOnly: "Lecture seule — clic pour ouvrir un Document",
+  readOnly: "Lecture seule — clic pour sélectionner, double-clic pour éditer",
+  edit: "Éditer",
+  registry: {
+    label: "Registre du serveur",
+    toggle: "Afficher ou masquer le registre",
+    show: "Afficher {{name}} sur la planche",
+    hide: "Masquer {{name}} de la planche",
+    empty: "Aucun Document",
+  },
 };
 
 export const serverCanvasEn: typeof serverCanvasFr = {
@@ -39,5 +47,13 @@ export const serverCanvasEn: typeof serverCanvasFr = {
   failed_one: "{{count}} unreadable project",
   failed_other: "{{count}} unreadable projects",
   gutter: "Not linked yet",
-  readOnly: "Read-only — click to open a Document",
+  readOnly: "Read-only — click to select, double-click to edit",
+  edit: "Edit",
+  registry: {
+    label: "Server registry",
+    toggle: "Show or hide the registry",
+    show: "Show {{name}} on the board",
+    hide: "Hide {{name}} from the board",
+    empty: "No Document",
+  },
 };

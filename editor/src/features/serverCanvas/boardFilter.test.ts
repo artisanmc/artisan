@@ -30,8 +30,8 @@ describe("filterBoard", () => {
     expect(filterBoard(graph, {})).toEqual({ nodes: graph.nodes, edges: graph.edges });
   });
 
-  it("shows one project, and drops links that leave it", () => {
-    const shown = filterBoard(graph, { project: "core" });
+  it("hides unchecked projects, and drops links that leave the rest", () => {
+    const shown = filterBoard(graph, { hide: ["boutique"] });
     expect(shown.nodes.map((n) => n.key)).toEqual(["core/cmd_menu", "core/menu_accueil"]);
     expect(shown.edges.map((e) => e.id)).toEqual(["a"]);
   });
@@ -47,15 +47,29 @@ describe("filterBoard", () => {
       "boutique/menu_catalogue",
     ]);
   });
+
+  it("matches the displayed label too", () => {
+    const labelOf = (n: BoardNode) => (n.docId === "cmd_menu" ? "/spawn" : undefined);
+    expect(filterBoard(graph, { q: "/spa" }, labelOf).nodes.map((n) => n.key)).toEqual([
+      "core/cmd_menu",
+    ]);
+  });
 });
 
 describe("parseBoardFilter", () => {
   it("keeps only known values from the URL", () => {
-    expect(parseBoardFilter({ project: "core", kind: "menu", q: "acc" })).toEqual({
-      project: "core",
-      kind: "menu",
-      q: "acc",
-    });
-    expect(parseBoardFilter({ project: "", kind: "npc", q: 3 })).toEqual({});
+    expect(
+      parseBoardFilter({
+        hide: ["core", "boutique", "core"],
+        kind: "menu",
+        q: "acc",
+        doc: "core/x",
+      }),
+    ).toEqual({ hide: ["boutique", "core"], kind: "menu", q: "acc", doc: "core/x" });
+    expect(parseBoardFilter({ hide: [""], kind: "npc", q: 3, doc: 1 })).toEqual({});
+  });
+
+  it("accepts a single hidden project written as a plain string", () => {
+    expect(parseBoardFilter({ hide: "core" })).toEqual({ hide: ["core"] });
   });
 });
