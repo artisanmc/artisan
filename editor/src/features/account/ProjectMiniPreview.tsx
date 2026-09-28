@@ -1,5 +1,5 @@
 import type { Project } from "@/domain/types";
-import { autoLayout } from "@/features/canvas/autoLayout";
+import { projectBoard } from "@/features/canvas/autoLayout";
 import { COMMAND_BOX, menuBoxSize } from "@/features/canvas/menuLayout";
 import { useTranslation } from "react-i18next";
 
@@ -20,14 +20,15 @@ const PADDING = 6;
  */
 export function ProjectMiniPreview({ project }: ProjectMiniPreviewProps) {
   const { t } = useTranslation();
-  const layout = autoLayout(project);
+  const board = projectBoard(project);
+  const layout = board.layout;
   const boxes = [
-    ...(project.menus ?? []).map((m) => ({
+    ...(project.menus ?? []).filter((m) => layout[m.id]).map((m) => ({
       pos: layout[m.id] ?? { x: 0, y: 0 },
       size: menuBoxSize(m.inventoryType ?? "chest", m.rows),
       kind: "menu" as const,
     })),
-    ...(project.commands ?? []).map((c) => ({
+    ...(project.commands ?? []).filter((c) => layout[c.id]).map((c) => ({
       pos: layout[c.id] ?? { x: 0, y: 0 },
       size: COMMAND_BOX,
       kind: "command" as const,

@@ -840,6 +840,14 @@ export default {
     errFetchError: "The module failed: {{message}}",
   },
   canvas: {
+    groups: {
+      title: "Groups", createSelection: "Group selection", create: "Create group",
+      name: "Group name", edit: "Edit group", color: "Group color", rearrange: "Rearrange contents",
+      dissolve: "Dissolve group",
+      cancel: "Cancel", save: "Save", documents: "{{count}} documents",
+      description: "Visual organization only. Dissolving a group keeps its menus.",
+      invalidSelection: "Select at least two menus in the same project.",
+    },
     minimap: "Minimap",
     closeMinimap: "Close minimap",
     previewContextNoData: "No data — server not connected",
@@ -862,7 +870,7 @@ export default {
     modeHand: "Pan",
     gutter: "Not linked yet",
     rearrange: "Rearrange",
-    rearrangeHint: "Release hand-placed positions and link anchors, then rearrange the whole board (Ctrl+Z to undo)",
+    rearrangeHint: "Rearrange groups and ungrouped documents while preserving each group's contents (Ctrl+Z to undo)",
     rearrangeNothing: "The board is already fully arranged",
   },
   dialog: {

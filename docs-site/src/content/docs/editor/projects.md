@@ -15,6 +15,21 @@ no known use appear under **Unclassified**. Changing classification does not rem
 images already placed in menus.
 Resource changes stay in your private draft until **Deploy**, like other edits.
 
+Each project has its own frame on the server-wide canvas. Inside a project, only manual groups have frames. Select two or more menus, then choose
+**Group selection** (also available on right-click), name the group and choose its color.
+The background, including the header, uses that color at 15% opacity. Drag a group's header to move its menus together.
+Click its name or use **Groups → Edit group** to change its name or color. You can also dissolve groups. Dissolving
+keeps the menus. A menu belongs to one group within its project; groups cannot be nested.
+Groups always stay open, including groups saved as collapsed in older versions. Changes support Undo/Redo and
+are saved with the editor layout. The server-wide canvas groups by project too;
+editing stays in each project.
+
+**Rearrange** on the canvas toolbar moves groups as whole blocks, using their incoming
+and outgoing links to place them alongside ungrouped documents. It preserves every
+group's internal arrangement. To rearrange only one group's menus, choose
+**Groups → group name → Rearrange contents**. The group stays in place and its frame
+resizes to fit; other groups and documents stay where they are. Both actions support Undo/Redo.
+
 ## Access to an existing network
 
 Sign in before opening another network's projects. Google sign-in returns you to the page you originally opened. In invitation mode, request
