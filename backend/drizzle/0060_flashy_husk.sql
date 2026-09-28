@@ -1,11 +1,7 @@
 -- ADR `server-only-projects`, étape 2 : la démo passe en base, le stockage hébergé disparaît.
--- Garde-fou : aucun projet hébergé de compte ne doit exister (sinon on s'arrête, rien n'est supprimé).
-DO $$ BEGIN
- IF EXISTS (SELECT 1 FROM "projects" WHERE "storage_kind" = 'hosted' AND "network_id" IS NOT NULL) THEN
-  RAISE EXCEPTION 'hosted account projects exist: migrate them before 0060';
- END IF;
-END $$;
---> statement-breakpoint
+-- Projets hébergés de compte : jamais utilisés en réel (décision du propriétaire,
+-- 2026-09-28) ; supprimés avec tout ce qui en dépend (FK en cascade).
+DELETE FROM "projects" WHERE "storage_kind" = 'hosted' AND "network_id" IS NOT NULL;--> statement-breakpoint
 -- Démos jetables : celles en cours vivaient sur le volume retiré.
 DELETE FROM "project_drafts" WHERE "project_id" IN (SELECT "id" FROM "projects" WHERE "demo_session_id" IS NOT NULL);--> statement-breakpoint
 DELETE FROM "projects" WHERE "demo_session_id" IS NOT NULL;--> statement-breakpoint

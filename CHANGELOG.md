@@ -12,7 +12,7 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 ### Changed — the demo lives in the database; hosted storage is gone
 
 - A demo's work is stored as its draft in PostgreSQL, with the same size and rate limits; the demo publishes nothing and **Deploy** is hidden there. Demos in progress when this ships are discarded.
-- The hosted project volume (`HOSTED_PROJECTS_DIR`), its backup script and procedure, and the Copy-to-Minecraft machinery are removed. Migration `0060` refuses to run if an account-owned hosted project still exists.
+- The hosted project volume (`HOSTED_PROJECTS_DIR`), its backup script and procedure, and the Copy-to-Minecraft machinery are removed. Migration `0060` deletes the remaining account-owned hosted projects (never used for real).
 
 ### Changed — every project belongs to a server; the demo is disposable
 
