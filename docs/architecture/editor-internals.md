@@ -572,6 +572,11 @@ Cf. `docs/superpowers/specs/2026-06-14-search-palette-and-sidebar-toggle-design.
 
 ## UI shell — Project + Settings (depuis 2026-05-27)
 
+Facturation admin : l'onglet `BillingAssignmentsTab` sélectionne un Network, une version
+publiée éligible et une expiration locale facultative ; Free retire l'attribution. Le
+formulaire est réinitialisé au changement de Network. `UserMenu` affiche le plan effectif
+et `CreditsPage` distingue l'attribution administrative d'un abonnement payant.
+
 Le menu `UserMenu` de la sidebar affiche le plan du Network sélectionné sous le
 nom utilisateur (nom de souscription, ou Free sans souscription active). Sa section
 « Utilisation des ressources » reprend `EditorAccessNotice` pour le serveur

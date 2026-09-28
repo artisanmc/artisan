@@ -85,6 +85,27 @@ function signedIn() {
 }
 
 describe("CreditsPage", () => {
+  it("shows a manually assigned plan without a payment portal", async () => {
+    signedIn();
+    const billing = await import("@/lib/api/billing");
+    vi.mocked(billing.getSubscription).mockResolvedValueOnce({
+      status: null,
+      manualAssignment: { planId: "manual-pro", expiresAt: null },
+      effectivePlan: {
+        id: "manual-pro",
+        key: "pro",
+        name: "Pro",
+        limits: { servers: 10, resourcesPerServer: 250, collaborators: null },
+        capabilities: { editorPro: true },
+      },
+    });
+    render(<CreditsPage />);
+    expect(await screen.findByText("Plan actuel : Pro")).toBeVisible();
+    expect(screen.getByText(/Plan attribué par un administrateur/)).toHaveTextContent(
+      "Sans expiration",
+    );
+    expect(screen.queryByRole("button", { name: /Gérer/ })).not.toBeInTheDocument();
+  });
   it("shows Free as the effective plan without implying a paid subscription", async () => {
     signedIn();
     const billing = await import("@/lib/api/billing");

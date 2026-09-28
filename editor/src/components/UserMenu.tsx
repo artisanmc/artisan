@@ -56,12 +56,14 @@ export function UserMenu({
     };
   }, [user, networkId, open]);
   const currentSubscription = subscription?.networkId === networkId ? subscription.value : null;
-  const planName = currentSubscription
-    ? currentSubscription.status &&
-      !["canceled", "incomplete_expired"].includes(currentSubscription.status)
-      ? currentSubscription.planName
-      : "Free"
-    : null;
+  const planName =
+    currentSubscription?.effectivePlan?.name ??
+    (currentSubscription
+      ? currentSubscription.status &&
+        !["canceled", "incomplete_expired"].includes(currentSubscription.status)
+        ? currentSubscription.planName
+        : "Free"
+      : null);
   const closeSidebar = useSidebarStore((s) => s.close);
   const displayName = user?.name ?? t("userMenu.anonymous");
   const initial = getInitial(user?.name);

@@ -9,6 +9,7 @@ import { requireCapability } from "../../lib/membershipGuard";
 import { STANDARD_CATALOG } from "./catalog";
 import { annualCreditBoundary } from "./annualProCredits";
 import { resolveNetworkEntitlements } from "./entitlements";
+import { hasManualPlan } from "./manualAssignments";
 const editorUrl = (): string => process.env.EDITOR_URL ?? "http://localhost:5173";
 const successUrl = (): string => process.env.BILLING_SUCCESS_URL ?? `${editorUrl()}/credits?checkout=success`;
 const cancelUrl = (): string => process.env.BILLING_CANCEL_URL ?? `${editorUrl()}/credits?checkout=cancel`;
@@ -63,6 +64,7 @@ export function buildBillingUserRouter(): Hono {
             return c.json({ error: "forbidden" }, 403);
         }
         const currentPlans = await listCurrentPlans();
+        if (hasManualPlan(await getNetworkBilling(networkId))) return c.json({ error: "manual_plan_active" }, 409);
         const plan = currentPlans.find(p => planId ? p.id === planId : p.key === body.planKey && p.interval === body.interval);
         if (!plan || !plan.isActive || plan.audience === "private" && plan.targetNetworkId !== networkId || plan.priceCents === 0)
             return c.json({ error: "plan_not_found" }, 404);
@@ -114,11 +116,13 @@ export function buildBillingUserRouter(): Hono {
         const b = await getBucketBalances(networkId);
         const billing = await getNetworkBilling(networkId);
         let subscriptionQuota = 0;
-        if (billing?.planId) {
-            const plan = await getPlan(billing.planId);
+        const manual = hasManualPlan(billing);
+        const effectivePlanId = manual ? billing!.manualPlanId : billing?.planId;
+        if (effectivePlanId) {
+            const plan = await getPlan(effectivePlanId);
             subscriptionQuota = plan?.creditsPerPeriod ?? 0;
         }
-        const periodEnd = billing?.creditCycleStart && billing.creditMonthIndex !== null && billing.paidThrough
+        const periodEnd = manual ? billing!.manualPeriodEnd : billing?.creditCycleStart && billing.creditMonthIndex !== null && billing.paidThrough
             ? new Date(Math.min(annualCreditBoundary(billing.creditCycleStart, billing.creditMonthIndex + 1).getTime(), billing.paidThrough.getTime()))
             : billing?.currentPeriodEnd;
         return c.json({ ...b, subscriptionQuota, periodEnd: periodEnd?.toISOString() ?? null });
@@ -171,12 +175,14 @@ export function buildBillingUserRouter(): Hono {
         const billing = await getNetworkBilling(networkId);
         const rights = await resolveNetworkEntitlements(networkId);
         const effectivePlan = { id: rights.planId, key: rights.planKey, name: rights.planName, limits: rights.limits, capabilities: rights.capabilities };
+        const manualAssignment = hasManualPlan(billing) ? { planId: billing!.manualPlanId, expiresAt: billing!.manualExpiresAt } : null;
         if (!billing?.status)
-            return c.json({ status: null, effectivePlan });
+            return c.json({ status: null, effectivePlan, ...(manualAssignment ? { manualAssignment } : {}) });
         const plan = billing.planId ? await getPlan(billing.planId) : null;
         return c.json({
             status: billing.status,
             effectivePlan,
+            ...(manualAssignment ? { manualAssignment } : {}),
             planId: billing.planId,
             planName: plan?.name ?? null,
             currentPeriodEnd: billing.currentPeriodEnd?.toISOString() ?? null,

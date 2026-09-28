@@ -532,7 +532,9 @@ their paid version. Billing cadence and credit cadence are distinct: standard
 annual Pro is paid yearly but grants credits monthly.
 
 **Entitlements** are a Network's effective limits and capabilities, resolved from
-its confirmed paid version until expiry, then from Free. Features check these
+an active **manual assignment**, otherwise its confirmed paid version until expiry,
+then from Free. A manual assignment grants a published plan's full rights and
+recurring credits without payment, optionally until a fixed date. Features check these
 rights rather than a plan name or the denormalized `tier` flag. A null limit means
 unlimited; zero means no allowance.
 

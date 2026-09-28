@@ -45,6 +45,21 @@ it("shows the current network plan in the user button", async () => {
   expect(await screen.findByRole("button", { name: /Iban.*Pro annuel/ })).toBeInTheDocument();
 });
 
+it("uses the effective manually assigned plan independently from payment status", async () => {
+  vi.mocked(getSubscription).mockResolvedValue({
+    status: null,
+    effectivePlan: {
+      id: "manual-pro",
+      key: "pro",
+      name: "Pro",
+      limits: { servers: 10, resourcesPerServer: 250, collaborators: null },
+      capabilities: { editorPro: true },
+    },
+  });
+  render(<UserMenu networkId="network" />);
+  expect(await screen.findByRole("button", { name: /Iban.*Pro/ })).toBeInTheDocument();
+});
+
 it("ignores a late inventory response from the previously selected server", async () => {
   vi.mocked(getSubscription).mockResolvedValue({ status: null });
   let resolveFirst!: (value: ServerEditorAccessDto) => void;

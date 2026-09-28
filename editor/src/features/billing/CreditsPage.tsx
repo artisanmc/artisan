@@ -330,7 +330,18 @@ export function CreditsPage() {
             {t("billing.catalog.effectivePlan", { name: subscription.effectivePlan.name })}
           </p>
         )}
-        {subscription?.status ? (
+        {subscription?.manualAssignment ? (
+          <p className="text-sm text-[var(--text-mut)]">
+            {t("billing.catalog.assignment.provided")} ·{" "}
+            {subscription.manualAssignment.expiresAt
+              ? t("billing.catalog.assignment.until", {
+                  date: new Date(subscription.manualAssignment.expiresAt).toLocaleDateString(
+                    i18n.language,
+                  ),
+                })
+              : t("billing.catalog.assignment.noExpiration")}
+          </p>
+        ) : subscription?.status ? (
           <Card>
             <CardContent className="flex flex-wrap items-center justify-between gap-3 pt-6">
               <div className="flex items-center gap-2">

@@ -9,6 +9,9 @@ import { salesSummary } from "./salesRepo";
 import { billingConfigAudit } from "../../db/schema";
 import { provisionPublishedPlans } from "./planProvisioning";
 import { isStripeConfigured } from "./stripe";
+import { assignManualPlan } from "./manualAssignments";
+import { getNetworkBilling } from "./networkBillingRepo";
+import { resolveNetworkEntitlements } from "./entitlements";
 function packDto(p: CreditPack) {
     return { ...p, createdAt: p.createdAt.toISOString(), updatedAt: p.updatedAt.toISOString() };
 }
@@ -51,6 +54,28 @@ function parsePackBody(body: Record<string, unknown>, partial: boolean): Partial
 }
 export function buildBillingAdminRouter(): Hono {
     const r = new Hono();
+    r.get("/billing/networks", async c => c.json({ networks: await db.select({ id: networks.id, name: networks.name }).from(networks).orderBy(networks.name) }));
+    r.get("/billing/networks/:networkId/plan", async c => {
+        const networkId = c.req.param("networkId");
+        if (!(await db.select({ id: networks.id }).from(networks).where(eq(networks.id, networkId))).length) return c.json({ error: "network_not_found" }, 404);
+        const billing = await getNetworkBilling(networkId);
+        return c.json({ effectivePlan: await resolveNetworkEntitlements(networkId),
+            assignment: billing?.manualPlanId ? { planId: billing.manualPlanId, expiresAt: billing.manualExpiresAt, startedAt: billing.manualStartedAt } : null });
+    });
+    r.put("/billing/networks/:networkId/plan", async c => {
+        const body = await c.req.json().catch(() => null);
+        if (!body || (body.planId !== null && (typeof body.planId !== "string" || !body.planId)) || (body.expiresAt != null && typeof body.expiresAt !== "string")) return c.json({ error: "invalid_assignment" }, 400);
+        try {
+            await assignManualPlan(c.req.param("networkId"), body.planId, body.expiresAt == null ? null : new Date(body.expiresAt), c.get("user").id);
+            return c.json({ ok: true });
+        } catch (error) {
+            const code = error instanceof Error ? error.message : "";
+            if (["invalid_expiration", "plan_not_available"].includes(code)) return c.json({ error: code }, 400);
+            if (code === "network_not_found") return c.json({ error: code }, 404);
+            if (code === "subscription_exists") return c.json({ error: code }, 409);
+            throw error;
+        }
+    });
     r.get("/billing/packs", async (c) => c.json({ packs: (await listPacks()).map(packDto) }));
     r.get("/billing/packs/:id", async (c) => {
         const pack = await getPack(c.req.param("id"));
