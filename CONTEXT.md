@@ -67,6 +67,14 @@ Non-examples:
   because nothing distinguished the fallback entry from the guarded ones. It is
   not read any more.
 
+## Board group
+
+A visual container on the canvas: each **Project** is the default outer group on the server-wide canvas. Its frame is hidden in the project's own view.
+Within a Project, selected **Menus** can form one named, movable, colored
+group; a Menu belongs to at most one manual group, with no nested manual groups.
+Groups always remain expanded; their background uses the chosen color at 15% opacity.
+Grouping changes only editor metadata, never Document files or runtime navigation.
+
 ## Bundle — **retired term** (2026-08-12)
 
 A Bundle *was* the hash-keyed materialization of a **Project**, announced by the

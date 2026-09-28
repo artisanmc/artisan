@@ -1,3 +1,5 @@
+import { isGroupColor, normalizeCanvasGroups } from "@/domain/canvasGroups";
+import { projectBoard, rearrangeProjectLayout } from "@/features/canvas/autoLayout";
 import {
   type FieldEdit,
   type FieldEditTarget,
@@ -342,8 +344,13 @@ interface AccountState {
     x: number;
     y: number;
   }) => void;
-  /** Libère positions et ancres de liens posées à la main : la planche redevient entièrement arrangée. */
+  /** Réarrange la planche en conservant la disposition interne des groupes. */
   releaseBoardPositions: (input: { projectId: ProjectId }) => void;
+  rearrangeCanvasGroup: (input: { projectId: ProjectId; groupId: string }) => void;
+  createCanvasGroup: (input: { projectId: ProjectId; name: string; menuIds: string[]; color?: string }) => string;
+  updateCanvasGroup: (input: { projectId: ProjectId; groupId: string; name?: string; color?: string }) => void;
+  dissolveCanvasGroup: (input: { projectId: ProjectId; groupId: string }) => void;
+  moveCanvasGroup: (input: { projectId: ProjectId; groupId: string | null; dx: number; dy: number }) => void;
   /** Override one endpoint of a canvas edge ("source->target" id). */
   setEdgeAnchor: (input: {
     projectId: ProjectId;
@@ -2004,28 +2011,94 @@ export const useAccountStore = create<AccountState>()(
           if (idx === -1) throw new Error("menu not found in source project");
           const [moved] = from.menus.splice(idx, 1);
           if (!moved) return;
+          from.canvasGroups = normalizeCanvasGroups(from.canvasGroups, from.menus.map((m) => m.id));
           moved.projectId = toProjectId;
           to.menus.push(moved);
         });
         set({ account: next });
       },
-      setCanvasPosition: ({ projectId: pId, nodeId, x, y }) =>
+      setCanvasPosition: ({ projectId: pId, nodeId, x, y }) => {
+        const current = get().account.projects.find((p) => p.id === pId);
+        const group = current?.canvasGroups?.find((g) => g.menuIds.includes(nodeId));
+        const layout = group && current ? projectBoard(current).allLayout : {};
         set(
           produce((draft: AccountState) => {
             const project = draft.account.projects.find((p) => p.id === pId);
             if (!project) return;
+            for (const id of group?.menuIds ?? []) {
+              if (layout[id]) (project.canvasLayout as Record<string, { x: number; y: number }>)[id] = layout[id]!;
+            }
             (project.canvasLayout as Record<string, { x: number; y: number }>)[nodeId] = { x, y };
           }),
-        ),
-      releaseBoardPositions: ({ projectId: pId }) =>
-        set(
-          produce((draft: AccountState) => {
-            const project = draft.account.projects.find((p) => p.id === pId);
-            if (!project) return;
-            project.canvasLayout = {} as typeof project.canvasLayout;
-            project.canvasEdges = {};
-          }),
-        ),
+        );
+      },
+      createCanvasGroup: ({ projectId: pId, name, menuIds, color }) => {
+        const id = crypto.randomUUID();
+        set(produce((draft: AccountState) => {
+          const project = draft.account.projects.find((p) => p.id === pId);
+          if (!project || !name.trim()) throw new Error("Invalid group");
+          const members = [...new Set(menuIds)];
+          if (members.length < 2 || members.some((key) => !project.menus.some((m) => m.id === key)))
+            throw new Error("Select at least two menus in this project");
+          project.canvasGroups = normalizeCanvasGroups([
+            { id, name: name.trim(), menuIds: members, color }, ...(project.canvasGroups ?? []),
+          ], project.menus.map((m) => m.id));
+          for (const key of members) delete (project.canvasLayout as Record<string, unknown>)[key];
+        }));
+        return id;
+      },
+      updateCanvasGroup: ({ projectId: pId, groupId, name, color }) =>
+        set(produce((draft: AccountState) => {
+          const project = draft.account.projects.find((p) => p.id === pId);
+          const group = project?.canvasGroups?.find((g) => g.id === groupId);
+          if (!group) return;
+          if (name?.trim()) group.name = name.trim();
+          if (isGroupColor(color)) group.color = color;
+        })),
+      dissolveCanvasGroup: ({ projectId: pId, groupId }) =>
+        set(produce((draft: AccountState) => {
+          const project = draft.account.projects.find((p) => p.id === pId);
+          if (project) project.canvasGroups = project.canvasGroups?.filter((g) => g.id !== groupId);
+        })),
+      moveCanvasGroup: ({ projectId: pId, groupId, dx, dy }) => {
+        if (!Number.isFinite(dx) || !Number.isFinite(dy) || (dx === 0 && dy === 0)) return;
+        const current = get().account.projects.find((p) => p.id === pId);
+        if (!current) return;
+        const board = projectBoard(current);
+        const frame = board.groups.find((g) => groupId === null ? g.kind === "project" : g.kind === "group" && g.id === groupId);
+        if (!frame) return;
+        set(produce((draft: AccountState) => {
+          const project = draft.account.projects.find((p) => p.id === pId)!;
+          const layout = project.canvasLayout as Record<string, { x: number; y: number }>;
+          for (const id of frame.members) {
+            const p = board.allLayout[id];
+            if (p) layout[id] = { x: p.x + dx, y: p.y + dy };
+          }
+          for (const group of project.canvasGroups ?? []) {
+            if (groupId !== null && group.id !== groupId) continue;
+            const g = board.groups.find((f) => f.kind === "group" && f.id === group.id);
+            if (g) group.position = { x: g.x + dx, y: g.y + dy };
+          }
+        }));
+      },
+      releaseBoardPositions: ({ projectId: pId }) => {
+        const current = get().account.projects.find((p) => p.id === pId);
+        if (!current) return;
+        const layout = rearrangeProjectLayout(current);
+        if (!layout) return;
+        set(produce((draft: AccountState) => {
+          Object.assign(draft.account.projects.find((p) => p.id === pId)!, layout);
+        }));
+      },
+      rearrangeCanvasGroup: ({ projectId: pId, groupId }) => {
+        const current = get().account.projects.find((p) => p.id === pId);
+        if (!current) return;
+        const layout = rearrangeProjectLayout(current, groupId);
+        if (!layout) return;
+        set(produce((draft: AccountState) => {
+          Object.assign(draft.account.projects.find((p) => p.id === pId)!, layout);
+        }));
+      },
       setEdgeAnchor: ({ projectId: pId, edgeId, end, anchor }) =>
         set(
           produce((draft: AccountState) => {
@@ -2631,6 +2704,9 @@ export const useAccountStore = create<AccountState>()(
               delete layout[oldId];
             }
             rewriteCanvasEdgeIds(project, oldId as string, newId as string);
+            for (const group of project.canvasGroups ?? []) {
+              group.menuIds = group.menuIds.map((id) => id === oldId ? newId : id);
+            }
             rekeyMenu(project, menu);
             project.updatedAt = new Date().toISOString();
           }),
@@ -4012,6 +4088,9 @@ export const useAccountStore = create<AccountState>()(
             if (ids.has(d.id)) gcDialogLTexts(project, d);
           }
           project.menus = project.menus.filter((m) => !ids.has(m.id));
+          if (project.canvasGroups) {
+            project.canvasGroups = normalizeCanvasGroups(project.canvasGroups, project.menus.map((m) => m.id));
+          }
           project.commands = project.commands.filter((c) => !ids.has(c.id));
           project.dialogs = project.dialogs.filter((d) => !ids.has(d.id));
           for (const id of ids) {

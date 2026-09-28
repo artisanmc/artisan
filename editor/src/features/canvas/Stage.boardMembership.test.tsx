@@ -36,4 +36,25 @@ describe("Stage — planche dérivée", () => {
     expect(names).toContain("menu:m1");
     expect(names).toContain("menu:m2");
   });
+  it("shows only manual frames in project view even when the project is folded", () => {
+    useAccountStore.setState({ account: { id: "a" as any, projects: [{ ...project(),
+      canvasProjectCollapsed: true,
+      canvasGroups: [{ id: "crafts", name: "Crafts", menuIds: ["m2"] }],
+    }], projectOrder: [PID] } } as any);
+    render(<Stage projectId={PID} />);
+    const names = screen.getAllByTestId("konva-group").map((g) => g.getAttribute("data-name"));
+    expect(names).not.toContain("board-group:@project/p1");
+    expect(names).toContain("board-group:@group/p1/crafts");
+    expect(names).toContain("menu:m1");
+    expect(names).toContain("menu:m2");
+  });
+  it("keeps legacy folded group menus visible on the board and in document view", () => {
+    useAccountStore.setState({ account: { id: "a" as any, projects: [{ ...project(),
+      canvasGroups: [{ id: "crafts", name: "Crafts", menuIds: ["m1", "m2"], collapsed: true }],
+    }], projectOrder: [PID] } } as any);
+    const { rerender } = render(<Stage projectId={PID} />);
+    expect(screen.getAllByTestId("konva-group").some((g) => g.getAttribute("data-name") === "menu:m1")).toBe(true);
+    rerender(<Stage projectId={PID} focus={"m1" as any} />);
+    expect(screen.getAllByTestId("konva-group").some((g) => g.getAttribute("data-name") === "menu:m1")).toBe(true);
+  });
 });

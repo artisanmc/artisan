@@ -105,6 +105,14 @@ export interface EdgeAnchor {
   t: number;
 }
 
+export interface CanvasGroup {
+  id: string;
+  name: string;
+  menuIds: string[];
+  color?: string;
+  position?: { x: number; y: number };
+}
+
 export interface Project {
   id: ProjectId;
   /**
@@ -152,6 +160,8 @@ export interface Project {
   i18nMode?: "extract" | "inline";
   dialogs: Dialog[];
   canvasLayout: Record<MenuId | CommandId | DialogId, { x: number; y: number }>;
+  /** Visual-only groups, one level inside the project; stored in .artisan/editor.yaml. */
+  canvasGroups?: CanvasGroup[];
   /**
    * Manual edge-endpoint overrides, keyed by edge id ("source->target").
    * Editor-only metadata — exported as manifest `editor_edges`.

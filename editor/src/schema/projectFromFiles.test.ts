@@ -213,6 +213,32 @@ function fixture(): Project {
 }
 
 describe("projectFromFiles (files → domain, inverse of transform)", () => {
+  it("ignores malformed group metadata and stale or duplicate memberships", () => {
+    const files = transform(fixture());
+    files[`plugins/Artisan/projects/${PID}/.artisan/editor.yaml`] = JSON.stringify({ groups: [
+      null, { id: "bad", name: 42, menuIds: ["m1"] },
+      { id: "valid", name: "Crafts", menuIds: ["m1", "m1", "missing"], position: { x: "wrong", y: 4 } },
+      { id: "duplicate", name: "Other", menuIds: ["m1"] },
+    ] });
+    expect(projectFromFiles(PID, files).canvasGroups).toEqual([{ id: "valid", name: "Crafts", menuIds: ["m1"] }]);
+  });
+  it("round-trips visual groups without changing any menu file", () => {
+    const original = fixture();
+    const grouped = {
+      ...original,
+      canvasGroups: [{ id: "crafts", name: "Crafts", menuIds: ["m1"], color: "#a855f7",
+        position: { x: 120, y: 240 } }],
+    };
+    const files = transform(grouped);
+    const restored = projectFromFiles(PID, files, { name: "Round Trip" });
+    expect(restored.canvasGroups).toEqual(grouped.canvasGroups);
+    const before = transform(original);
+    for (const [path, content] of Object.entries(before)) {
+      if (!path.endsWith(".artisan/editor.yaml")) expect(files[path]).toEqual(content);
+    }
+    expect(transform(restored)).toEqual(files);
+  });
+
   it("is a fixed point: domain → files → domain → files", () => {
     const files1 = transform(fixture());
     const p2 = projectFromFiles(PID, transform(fixture()), { name: "Round Trip" });

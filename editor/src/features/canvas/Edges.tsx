@@ -14,6 +14,7 @@ import { anchorPoint, closestAnchorOnBox, routeEdges, type Box } from "./edgeRou
 import { nodeBox } from "./menuLayout";
 import { findPreviewCallContexts } from "./previewCallContexts";
 import { nextCallContext } from "./previewCallNavigation";
+import { groupEdges } from "./groupedBoard";
 
 /** Ne garde que les edges dont les deux extrémités sont sur la planche. */
 export function visibleEdges(edges: Edge[], layout: Record<string, { x: number; y: number }>): Edge[] {
@@ -23,6 +24,7 @@ export function visibleEdges(edges: Edge[], layout: Record<string, { x: number; 
 interface EdgesProps {
   project: Project;
   layout: Record<string, { x: number; y: number }>;
+  representatives?: Record<string, string>;
 }
 
 function deriveHighlightSet(project: Project, ids: ReadonlySet<string>): Set<string> {
@@ -46,7 +48,7 @@ function deriveHighlightSet(project: Project, ids: ReadonlySet<string>): Set<str
   return out;
 }
 
-export function Edges({ project, layout }: EdgesProps) {
+export function Edges({ project, layout, representatives }: EdgesProps) {
   const selectedIds = useSelectionStore((s) => s.ids);
   const activeLang = useUiStore((s) => s.activeLang);
   const menuPreviewArgs = useUiStore((s) => s.menuPreviewArgs);
@@ -68,7 +70,7 @@ export function Edges({ project, layout }: EdgesProps) {
     setMenuPreviewArgs(target.id, next.args);
   };
 
-  const highlightSet = useMemo(() => deriveHighlightSet(project, selectedIds), [project, selectedIds]);
+  const highlightSet = useMemo(() => new Set([...deriveHighlightSet(project, selectedIds)].map((id) => representatives?.[id] ?? id)), [project, selectedIds, representatives]);
   const hoveredEdgeId = useEdgeHoverStore((s) => s.edge?.id ?? null);
   const setHover = useEdgeHoverStore((s) => s.set);
   const moveHover = useEdgeHoverStore((s) => s.move);
@@ -118,8 +120,8 @@ export function Edges({ project, layout }: EdgesProps) {
   }, [project.canvasEdges, dragOverride]);
 
   const routed = useMemo(
-    () => routeEdges({ edges: visibleEdges(deriveEdges(project), layout), boxes, overrides }),
-    [project, layout, boxes, overrides],
+    () => routeEdges({ edges: visibleEdges(groupEdges(deriveEdges(project), representatives ?? {}), boxes), boxes, overrides }),
+    [project, boxes, overrides, representatives],
   );
 
   const selectEdge = (id: string) => {

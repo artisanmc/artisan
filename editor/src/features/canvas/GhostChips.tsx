@@ -17,6 +17,7 @@ interface GhostChipsProps {
    * signale qu'une cible absente du project, et n'a rien à ouvrir.
    */
   onOpen?: (target: string) => void;
+  representatives?: Record<string, string>;
 }
 
 const CHIP_H = 22;
@@ -26,9 +27,10 @@ const CHIP_GAP = 4; // vertical gap between stacked chips of the same source
 // If that font/size changes, re-tune this.
 const CHAR_W = 6.2;
 
-export function GhostChips({ project, layout, onOpen }: GhostChipsProps) {
+export function GhostChips({ project, layout, onOpen, representatives }: GhostChipsProps) {
   const activeLang = useUiStore((s) => s.activeLang);
-  const links = useMemo(() => offBoardLinks(deriveEdges(project), layout), [project, layout]);
+  const links = useMemo(() => offBoardLinks(deriveEdges(project), layout).filter((e) =>
+    !representatives?.[e.target] || representatives[e.target] === e.target), [project, layout, representatives]);
 
   // Index of each link within its source group — used to stagger overlapping chips.
   const indexBySource = useMemo(() => {

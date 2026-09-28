@@ -858,6 +858,14 @@ const fr: typeof en = {
     errFetchError: "Le module a échoué : {{message}}",
   },
   canvas: {
+    groups: {
+      title: "Groupes", createSelection: "Grouper la sélection", create: "Créer le groupe",
+      name: "Nom du groupe", edit: "Modifier le groupe", color: "Couleur du groupe", rearrange: "Réarranger le contenu",
+      dissolve: "Dissocier le groupe",
+      cancel: "Annuler", save: "Enregistrer", documents: "{{count}} documents",
+      description: "Organisation visuelle uniquement. Dissocier un groupe conserve ses menus.",
+      invalidSelection: "Sélectionne au moins deux menus du même projet.",
+    },
     minimap: "Minimap",
     closeMinimap: "Fermer la minimap",
     previewContextNoData: "Données indisponibles — serveur non connecté",
@@ -880,7 +888,7 @@ const fr: typeof en = {
     modeHand: "Navigation",
     gutter: "Pas encore reliés",
     rearrange: "Réarranger",
-    rearrangeHint: "Libère les positions et les ancres de liens posées à la main, puis réarrange toute la planche (Ctrl+Z pour annuler)",
+    rearrangeHint: "Réarrange les groupes et les éléments hors groupe en conservant le contenu de chaque groupe (Ctrl+Z pour annuler)",
     rearrangeNothing: "La planche est déjà entièrement arrangée",
   },
   dialog: {

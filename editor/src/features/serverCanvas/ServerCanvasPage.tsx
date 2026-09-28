@@ -3,7 +3,9 @@ import type { ProjectId } from "@/domain/types";
 import { CommandGroup } from "@/features/canvas/CommandGroup";
 import { DialogGroup } from "@/features/canvas/DialogGroup";
 import { MenuGroup } from "@/features/canvas/MenuGroup";
-import { GUTTER_LABEL_HEIGHT, arrangeBoard } from "@/features/canvas/arrangeBoard";
+import { GUTTER_LABEL_HEIGHT } from "@/features/canvas/arrangeBoard";
+import { BoardGroupFrames } from "@/features/canvas/BoardGroupFrames";
+import { groupEdges, serverBoard, type BoardGroup } from "@/features/canvas/groupedBoard";
 import type { Edge } from "@/features/canvas/deriveEdges";
 import { type Box, routeEdges } from "@/features/canvas/edgeRouting";
 import { fitViewport } from "@/features/canvas/focusViewport";
@@ -112,8 +114,8 @@ export function ServerCanvasPage() {
   const graph = useMemo(() => deriveServerGraph(projects), [projects]);
   const visible = useMemo(() => filterBoard(graph, filter), [graph, filter]);
   const arrangement = useMemo(
-    () => (settled ? arrangeBoard({ nodes: visible.nodes, edges: visible.edges }) : null),
-    [settled, visible],
+    () => (settled ? serverBoard(projects, visible) : null),
+    [settled, visible, projects],
   );
 
   const setFilter = (next: BoardFilter) =>
@@ -225,6 +227,8 @@ export function ServerCanvasPage() {
                 target: e.target,
               }))}
               positions={arrangement.positions}
+              groups={arrangement.groups}
+              representatives={arrangement.representatives}
               gutter={arrangement.gutter}
               gutterLabel={t("serverCanvas.gutter")}
               onOpen={(node) => {
@@ -253,6 +257,8 @@ function Board({
   nodes,
   edges,
   positions,
+  groups,
+  representatives,
   gutter,
   gutterLabel,
   onOpen,
@@ -262,6 +268,8 @@ function Board({
   nodes: BoardNode[];
   edges: Edge[];
   positions: Record<string, { x: number; y: number }>;
+  groups: BoardGroup[];
+  representatives: Record<string, string>;
   gutter: { x: number; y: number } | null;
   gutterLabel: string;
   onOpen: (node: BoardNode) => void;
@@ -299,8 +307,12 @@ function Board({
       width = Math.max(width, p.x + n.width);
       height = Math.max(height, p.y + n.height);
     }
+    for (const g of groups) {
+      width = Math.max(width, g.x + g.width);
+      height = Math.max(height, g.y + g.height);
+    }
     return { width: width + 40, height: height + 40 };
-  }, [nodes, positions]);
+  }, [nodes, positions, groups]);
 
   useEffect(() => {
     if (fitted.current || size.w === 0) return;
@@ -316,7 +328,7 @@ function Board({
     }
     return out;
   }, [nodes, positions]);
-  const routed = useMemo(() => routeEdges({ edges, boxes }), [edges, boxes]);
+  const routed = useMemo(() => routeEdges({ edges: groupEdges(edges, representatives), boxes }), [edges, boxes, representatives]);
 
   const byProject = useMemo(() => new Map(projects.map((p) => [p.id as string, p])), [projects]);
   const layouts = useMemo(() => {
@@ -330,7 +342,6 @@ function Board({
     }
     return out;
   }, [nodes, positions]);
-  const showProvenance = projects.length > 1;
 
   return (
     <div
@@ -355,6 +366,7 @@ function Board({
           setViewport({ x: stage.x(), y: stage.y(), scale: stage.scaleX() });
         }}
       >
+        <Layer><BoardGroupFrames groups={groups} /></Layer>
         <Layer listening={false}>
           {routed.map((r) => (
             <Arrow
@@ -445,23 +457,6 @@ function Board({
               />
             );
           })}
-          {showProvenance &&
-            nodes.map((n) => {
-              const p = positions[n.key];
-              const project = byProject.get(n.projectId);
-              if (!p || !project) return null;
-              return (
-                <Text
-                  key={`${n.key}:provenance`}
-                  x={p.x}
-                  y={p.y - 16}
-                  text={project.name}
-                  fontSize={11}
-                  fill={muted}
-                  listening={false}
-                />
-              );
-            })}
         </Layer>
       </KonvaStage>
     </div>

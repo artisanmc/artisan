@@ -67,7 +67,7 @@ function components(keys: string[], edges: ArrangeEdge[]): string[][] {
  * calcul des couches pour qu'un « retour au menu principal » ne repousse pas
  * le menu principal d'une couche.
  */
-function forwardEdges(keys: string[], edges: ArrangeEdge[]): ArrangeEdge[] {
+function forwardEdges(keys: string[], edges: ArrangeEdge[], preferredRoots: string[] = []): ArrangeEdge[] {
   const out = new Map<string, string[]>(keys.map((k) => [k, []]));
   const indegree = new Map<string, number>(keys.map((k) => [k, 0]));
   for (const e of edges) {
@@ -105,6 +105,7 @@ function forwardEdges(keys: string[], edges: ArrangeEdge[]): ArrangeEdge[] {
   const roots = keys
     .filter((k) => indegree.get(k) === 0)
     .sort((a, b) => hub(b) - hub(a) || out.get(b)!.length - out.get(a)!.length || compare(a, b));
+  for (const k of preferredRoots) if (out.has(k) && !state.has(k)) visit(k);
   for (const k of roots) if (!state.has(k)) visit(k);
   for (const k of keys) if (!state.has(k)) visit(k);
   return edges.filter((e) => !back.has(`${e.source}->${e.target}`));
@@ -208,7 +209,7 @@ function layoutComponent(nodes: ArrangeNode[], edges: ArrangeEdge[]): Placed {
  * composante connexe, une composante par ligne, les Documents sans
  * lien en gouttière. Déterministe : l'ordre d'entrée n'a aucun effet.
  */
-function arrangeFree(input: { nodes: ArrangeNode[]; edges: ArrangeEdge[] }): Arrangement {
+function arrangeFree(input: { nodes: ArrangeNode[]; edges: ArrangeEdge[]; preferredRoots?: string[] }): Arrangement {
   const nodes = [...input.nodes].sort((a, b) => compare(a.key, b.key));
   if (nodes.length === 0) return { positions: {}, gutter: null };
   const byKey = new Map(nodes.map((n) => [n.key, n]));
@@ -239,7 +240,7 @@ function arrangeFree(input: { nodes: ArrangeNode[]; edges: ArrangeEdge[] }): Arr
     const groupEdges = edges.filter((e) => inGroup.has(e.source));
     const placed = layoutComponent(
       keys.map((k) => byKey.get(k)!),
-      forwardEdges(keys, groupEdges),
+      forwardEdges(keys, groupEdges, input.preferredRoots),
     );
     for (const [key, p] of Object.entries(placed.positions))
       positions[key] = { x: BOARD_MARGIN + p.x, y: y + p.y };
@@ -286,6 +287,7 @@ export function arrangeBoard(input: {
   nodes: ArrangeNode[];
   edges: ArrangeEdge[];
   pinned?: Record<string, Point>;
+  preferredRoots?: string[];
 }): Arrangement {
   const arrangement = arrangeFree(input);
   const byKey = new Map(input.nodes.map((n) => [n.key, n]));
