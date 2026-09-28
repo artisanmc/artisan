@@ -232,6 +232,13 @@ vérifie `project_list`, écrit `manifest.yaml` via `project_write` (`create: tr
 
 ## Accès commercial à l'éditeur
 
+`modules/billing/adminRoutes.ts` : `GET /api/v1/admin/billing/networks` liste les Networks ;
+`GET /api/v1/admin/billing/networks/:networkId/plan` expose droits effectifs et attribution ;
+`PUT` au même chemin reçoit `{planId, expiresAt}` (null = retrait / sans expiration).
+Super-admin requis, audit et crédits transactionnels ; 400 plan/date invalide, 404 Network inconnu,
+409 abonnement payant existant. `/billing/subscription` expose `manualAssignment` si active ;
+`/billing/balance` utilise sa période et son quota. Le checkout d'abonnement refuse une attribution active (409).
+
 `userNetworks.ts` expose aussi `GET /api/v1/networks/:networkId/servers/:serverId/editor-access`
 (session et appartenance au Network requises, IDs ou slugs). Il renvoie le quota du plan
 et le compteur personnel live de tout le serveur, sans Project requis ni origine de Project.

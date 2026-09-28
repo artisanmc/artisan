@@ -62,6 +62,16 @@ Deactivating a custom offer withdraws all its versions from new purchases,
 including an older published version when a newer draft exists. Existing paid
 conditions stay valid until their paid period ends.
 
+To give a Network a plan without payment, open **Billing → Plan assignments**.
+Select the Network and a published plan, optionally set an expiration date, then
+save. A custom offer must target that Network. Leave expiration empty for an
+indefinite assignment; select **Free** to remove it. An active paid subscription
+must be managed first. Assignments are audited and do not create Stripe payments.
+Included credits are granted immediately and renew at the plan's credit cadence
+(500 each month for either Pro offer). Missed periods are not accumulated after
+downtime. Expiration or removal closes remaining subscription credits; purchased
+credits and previously rolled-over credits remain available.
+
 ## Managing users
 
 The **Users** section lists every account on the platform, with a search box

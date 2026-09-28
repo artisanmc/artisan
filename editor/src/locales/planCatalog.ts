@@ -1,4 +1,7 @@
+import { manualPlanEn, manualPlanFr } from "./manualPlan";
+
 export const planCatalogEn = {
+  assignment: manualPlanEn,
   defaultNetworkPlan: "Default plan for Networks",
   effectivePlan: "Current plan: {{name}}",
   noBilling: "No billing",
@@ -42,6 +45,7 @@ export const planCatalogEn = {
 };
 
 export const planCatalogFr: typeof planCatalogEn = {
+  assignment: manualPlanFr,
   defaultNetworkPlan: "Plan par défaut des Networks",
   effectivePlan: "Plan actuel : {{name}}",
   noBilling: "Sans facturation",

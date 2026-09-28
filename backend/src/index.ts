@@ -7,6 +7,7 @@ import { resumeServerDrafts } from "./lib/projectDraftMigration";
 import { connToServerId } from "./ws/hub";
 import { maintainDemoSessions } from "./lib/demoSessions";
 import { grantDueAnnualProCredits } from "./modules/billing/annualProCredits";
+import { grantDueManualPlanCredits } from "./modules/billing/manualAssignments";
 import { syncStandardPlans } from "./modules/billing/catalog";
 import { provisionPublishedPlans } from "./modules/billing/planProvisioning";
 import { isStripeConfigured } from "./modules/billing/stripe";
@@ -54,7 +55,7 @@ let grantingAnnualCredits = false;
 const scheduleAnnualCredits = () => {
   if (grantingAnnualCredits) return;
   grantingAnnualCredits = true;
-  void grantDueAnnualProCredits().catch((error) => console.error("[billing] annual Pro credit grant failed:", error)).finally(() => { grantingAnnualCredits = false; });
+  void grantDueManualPlanCredits().then(() => grantDueAnnualProCredits()).catch((error) => console.error("[billing] recurring credit grant failed:", error)).finally(() => { grantingAnnualCredits = false; });
 };
 scheduleAnnualCredits();
 setInterval(scheduleAnnualCredits, 60_000).unref();

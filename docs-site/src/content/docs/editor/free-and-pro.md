@@ -14,6 +14,11 @@ Your content stays available in game, even without a subscription. Menus, dialog
 Every Network uses **Free** by default. Limits apply automatically from its current
 plan; no administrator needs to enable editor restrictions separately.
 
+An administrator can also assign a complete plan without payment, indefinitely
+or until a chosen date. Its included credits renew normally. The Credits page
+shows the assignment and its expiration; without another entitlement, the
+Network returns to Free when the assignment expires or is removed.
+
 | | Free | Pro |
 | --- | ---: | ---: |
 | Personal resources per server | 10 | 250 |

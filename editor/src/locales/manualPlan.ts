@@ -1,0 +1,46 @@
+export const manualPlanEn = {
+  title: "Plan assignments",
+  description:
+    "Give a Network a complete plan without payment. Included credits renew at the plan’s cadence.",
+  network: "Network",
+  chooseNetwork: "Choose a Network",
+  plan: "Plan",
+  free: "Free — remove manual assignment",
+  expires: "Expires on (optional)",
+  expiryHint: "Leave empty for no expiration. Dates use your local time.",
+  save: "Save assignment",
+  saved: "Assignment saved.",
+  loading: "Loading…",
+  fail: "Unable to load or save the assignment. Please try again.",
+  invalid_expiration: "Choose a future expiration date.",
+  plan_not_available: "This plan is not available for this Network.",
+  subscription_exists:
+    "This Network has a paid subscription. Manage it before assigning a manual plan.",
+  provided: "Plan assigned by an administrator",
+  noExpiration: "No expiration",
+  until: "Available until {{date}}",
+  none: "No recurring credits",
+};
+export const manualPlanFr = {
+  title: "Attribution des plans",
+  description:
+    "Attribuez un plan complet à un Network sans paiement. Les crédits inclus sont renouvelés selon la cadence du plan.",
+  network: "Network",
+  chooseNetwork: "Choisir un Network",
+  plan: "Plan",
+  free: "Free — retirer l’attribution manuelle",
+  expires: "Expiration (facultative)",
+  expiryHint: "Laissez vide pour une durée illimitée. La date utilise votre heure locale.",
+  save: "Enregistrer l’attribution",
+  saved: "Attribution enregistrée.",
+  loading: "Chargement…",
+  fail: "Impossible de charger ou d’enregistrer l’attribution. Réessayez.",
+  invalid_expiration: "Choisissez une date d’expiration future.",
+  plan_not_available: "Ce plan n’est pas disponible pour ce Network.",
+  subscription_exists:
+    "Ce Network a un abonnement payant. Gérez-le avant d’attribuer un plan manuellement.",
+  provided: "Plan attribué par un administrateur",
+  noExpiration: "Sans expiration",
+  until: "Disponible jusqu’au {{date}}",
+  none: "Aucun crédit récurrent",
+};
