@@ -56,8 +56,8 @@ démo) vérifiés avant chaque mutation ; seule une mutation effective prolonge 
 Project (brouillons en cascade) ; la session est oubliée 24 h plus tard.
 `project_drafts.owner_id`/`updated_by` et `project_draft_operations.owner_id` n'ont
 plus de FK vers `users` (un invité n'est pas un User) : la suppression de compte
-les efface explicitement. La migration refuse de s'appliquer si un projet hébergé
-de compte existe, et abandonne les démos en cours (jetables).
+les efface explicitement. La migration supprime les projets hébergés de compte
+(jamais utilisés en réel) et abandonne les démos en cours (jetables).
 
 Retirés : volume `HOSTED_PROJECTS_DIR`, révisions hébergées et leur sauvegarde,
 réclamation de démo (colonnes `claim_*`), copies vers Minecraft (`project_copies`),
