@@ -80,11 +80,7 @@ import type {
   SourceRef,
   Step,
 } from "@/domain/types";
-import {
-  cellToPosition,
-  positionToCell,
-  slotCount,
-} from "@/features/canvas/inventoryTypes";
+import { cellToPosition, positionToCell, slotCount } from "@/features/canvas/inventoryTypes";
 import { createLText, createLTextAt, deleteLText, setLText } from "@/lib/i18n";
 import {
   clickHandlerKeyPrefix,
@@ -3718,7 +3714,7 @@ export const useAccountStore = create<AccountState>()(
             // Clone each text layer's LText under a fresh key, copying the
             // value map so the pasted copy doesn't share keys with the original.
             stamped.title = stamped.title.map((titleLayer) => {
-              if (titleLayer.kind !== "text") return titleLayer;
+              if (!("value" in titleLayer)) return titleLayer;
               const src = project.i18nKeys[titleLayer.value.key];
               const cloned = createLText(project, "", project.defaultLang);
               if (src) project.i18nKeys[cloned.key] = { ...src };

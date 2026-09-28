@@ -198,7 +198,12 @@ export async function selectPersistedDraft(projectId: string, id: string): Promi
     throw new Error("draft_unavailable");
   if (useProjectDraftStore.getState().get(projectId) !== before) throw new Error("draft_changed");
   install(projectId, draft);
-  setSession(projectId, { ...session, active: draft, status: "saved", openConflicts: draft.conflicts });
+  setSession(projectId, {
+    ...session,
+    active: draft,
+    status: "saved",
+    openConflicts: draft.conflicts,
+  });
 }
 
 /** La modale a pris les conflits d'ouverture : ils ne se représentent plus. */
@@ -218,7 +223,14 @@ export async function discardPersistedDraft(projectId: string): Promise<void> {
       await api.discardDraft(projectId, operation.id, operation.revision, operation.operationId);
     } catch (error) {
       rejectMutation(projectId, operation.operationId, error);
-      throw error;
+      // Discarding is explicit: a revision saved elsewhere since is thrown away too.
+      const server =
+        error instanceof api.DraftApiError && error.code === "draft_conflict"
+          ? error.draft
+          : undefined;
+      if (!server) throw error;
+      if (server.status === "active")
+        await api.discardDraft(projectId, server.id, server.revision, crypto.randomUUID());
     }
   }
   if (projectPrincipal.current(projectId)?.id !== ownerId) throw new Error("session_changed");
