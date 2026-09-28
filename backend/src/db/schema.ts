@@ -717,6 +717,15 @@ export const creditPacks = pgTable("credit_packs", {
 // billing renewal. rollover_cap caps carried-over credits. Cf. spec §2.1/§2.2.
 export const subscriptionPlans = pgTable("subscription_plans", {
 	id: text("id").primaryKey(),
+	key: text("key"),
+	version: integer("version").notNull().default(1),
+	managedBy: text("managed_by").notNull().default("admin"),
+	audience: text("audience").notNull().default("private"),
+	targetNetworkId: text("target_network_id").references(() => networks.id, { onDelete: "set null" }),
+	publicationStatus: text("publication_status").notNull().default("draft"),
+	creditInterval: text("credit_interval").notNull().default("month"),
+	limits: jsonb("limits").$type<{ resourcesPerServer: number | null; servers: number | null; collaborators: number | null }>().notNull().default({ resourcesPerServer: 10, servers: 2, collaborators: 2 }),
+	capabilities: jsonb("capabilities").$type<{ editorPro: boolean }>().notNull().default({ editorPro: false }),
 	name: text("name").notNull(),
 	interval: text("interval").notNull().default("month"), // "month" | "year"
 	priceCents: integer("price_cents").notNull(),
@@ -733,7 +742,10 @@ export const subscriptionPlans = pgTable("subscription_plans", {
 	stripePriceId: text("stripe_price_id"),
 	createdAt: timestamp("created_at").notNull(),
 	updatedAt: timestamp("updated_at").notNull(),
-});
+}, (t) => ({
+	keyIntervalVersion: uniqueIndex("subscription_plans_key_interval_version_uniq").on(t.key, t.interval, t.version),
+	stripePrice: uniqueIndex("subscription_plans_stripe_price_uniq").on(t.stripePriceId),
+}));
 
 export const billingConfigAudit = pgTable("billing_config_audit", {
 	id: text("id").primaryKey(),
@@ -756,6 +768,8 @@ export const networkBilling = pgTable("network_billing", {
 	status: text("status"), // "active" | "past_due" | "grace" | "canceled" | null
 	currentPeriodEnd: timestamp("current_period_end"),
 	paidThrough: timestamp("paid_through"), // confirmed only by invoice.paid; subscription updates cannot grant Pro
+	lastPaidInvoiceId: text("last_paid_invoice_id"),
+	lastPaidInvoiceCreatedAt: timestamp("last_paid_invoice_created_at"),
 	paidEditorPro: boolean("paid_editor_pro").notNull().default(false),
 	graceUntil: timestamp("grace_until"),
 	// periodId of the current subscription period (Stripe invoice/period id).

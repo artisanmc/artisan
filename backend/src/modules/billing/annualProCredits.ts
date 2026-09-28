@@ -23,7 +23,7 @@ export async function grantDueAnnualProCredits(now = new Date()): Promise<void> 
       const [billing] = await tx.select().from(networkBilling).where(eq(networkBilling.networkId, networkId)).for("update");
       if (!billing?.creditCycleStart || billing.creditMonthIndex === null || !billing.paidThrough || billing.paidThrough <= now || billing.creditMonthIndex >= 11 || !billing.planId) return;
       const [plan] = await tx.select().from(subscriptionPlans).where(eq(subscriptionPlans.id, billing.planId));
-      if (!plan?.editorPro || plan.interval !== "year") return;
+      if (!plan || plan.creditInterval !== "month" || plan.interval !== "year") return;
 
       let monthIndex = billing.creditMonthIndex + 1;
       if (annualCreditBoundary(billing.creditCycleStart, monthIndex) > now) return;

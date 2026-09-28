@@ -506,7 +506,7 @@ Non-examples:
 ## Network
 
 A group of **Servers** under one ownership/team — the unit of ownership, access
-(**memberships** with roles), billing (**tier**), and handover (**transfer**).
+(**memberships** with roles), billing (a paid **Plan version**), and handover (**transfer**).
 **Not** a Minecraft proxy topology: a Network is who-owns-what, not which servers
 sit behind a proxy (the two often coincide but needn't). A User may belong to
 several Networks and a Network has several members — so a Network is **not** a
@@ -516,6 +516,25 @@ Non-examples:
 - A Bungee/Velocity proxy cluster doesn't define a Network — ownership does;
   Artisan never sees the proxy topology.
 - The owning **User** is not the Network; users are *members* of Networks.
+
+## Plan and entitlements
+
+A **standard plan** is a code-managed commercial offer with a stable key (`free`
+or `pro`). Its billing interval and version identify immutable conditions;
+database and payment-provider IDs are environment-specific references.
+A **custom offer** is an independent copy of standard conditions, managed in the
+admin console and private to one Network. A draft grants no access; publishing
+makes the offer available to its intended Network, subject to payment readiness.
+
+A **Plan version** fixes price, billing and credit cadence, limits and capabilities.
+Changing published conditions creates a successor; existing subscribers retain
+their paid version. Billing cadence and credit cadence are distinct: standard
+annual Pro is paid yearly but grants credits monthly.
+
+**Entitlements** are a Network's effective limits and capabilities, resolved from
+its confirmed paid version until expiry, then from Free. Features check these
+rights rather than a plan name or the denormalized `tier` flag. A null limit means
+unlimited; zero means no allowance.
 
 ## Placement
 

@@ -341,6 +341,13 @@ Chaque message peut aussi avoir son propre versioning local :
 
 Le handler v2 lit `signed_url` ; le handler v1 (anciens plugins) ignore le champ qu'il ne connaît pas.
 
+Les quotas commerciaux négocient `resource_quota_v2` dans les capacités du hello,
+sans changer `protocol_version`. V2 accepte `commercial_policy.quota: null`
+(illimité) ; V1 reste compatible avec les quotas effectifs finis et
+`pro_until: null`. Une offre illimitée exige V2 sur toutes les connexions actives
+du serveur, sinon la mutation renvoie `plugin_update_required` sans envoi.
+Voir `ws-protocol.md`, section quotas, pour les valeurs acceptées.
+
 ---
 
 ## 5. REST API

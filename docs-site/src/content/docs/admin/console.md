@@ -29,14 +29,38 @@ link then appears on your account page, and `/admin` becomes accessible.
 
 ## Presenting subscription plans
 
-Open **Billing → Subscriptions** at `/admin/billing` to edit the offers shown on
-the public `/pricing` page. Each plan keeps its existing price, currency,
-billing interval and credit allowance. A **Short description** explains the
-offer in up to 240 characters; **Features** accepts one benefit per line.
-Enable **Highlight this plan on the pricing page** to feature an offer, and use
-**Sort order** to choose its position (lower numbers appear first).
-Inactive plans are hidden from the public catalog. Saving presentation fields
-does not change existing Stripe prices. Changes appear on the next page load.
+Open **Billing → Subscriptions** at `/admin/billing`. Free and monthly/yearly
+Pro are managed in code and installed automatically in each environment. Their
+conditions are read-only here; changing them requires a new catalogue version
+and deployment. Standard offers appear on public `/pricing` even before payment
+setup is available.
+
+Free is every Network's default plan. Its limits apply automatically; there is no
+separate editor access setting. The list distinguishes credit allocation from
+billing: both Pro offers grant **500 credits/month**, including annual billing.
+
+Create a custom offer by copying a standard version. Set its price, billing and
+credit cadence, limits and target Network, then save the draft. A blank limit
+means unlimited; zero means no allowance. The copy is independent of later
+standard-plan changes. Drafts can be created without Stripe and are not offered
+to customers.
+
+Publish the completed draft to make it available in its target Network's billing
+page. Custom offers stay private and never appear on public Pricing. Publishing
+does not grant an entitlement or confirm payment. Checkout remains unavailable
+until payment setup is ready.
+
+After connecting Stripe, use **Set up payment offers** to prepare the published
+offers for checkout. The action can be retried after a setup failure; each row
+shows its payment readiness. This does not change the offer's conditions.
+
+Editing published conditions creates a new draft version. Publish that version
+when ready; subscribers retain the version they have paid for. Existing manual
+plans are preserved as inactive custom drafts for review and completion.
+
+Deactivating a custom offer withdraws all its versions from new purchases,
+including an older published version when a newer draft exists. Existing paid
+conditions stay valid until their paid period ends.
 
 ## Managing users
 

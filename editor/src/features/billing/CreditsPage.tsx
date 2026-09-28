@@ -78,7 +78,7 @@ export function CreditsPage() {
       const [b, pk, pl, sub, pur, members] = await Promise.all([
         getBillingBalance(activeId),
         getProjects(),
-        getPlans(),
+        getPlans(activeId),
         getSubscription(activeId),
         getPurchases(activeId),
         listMembers(activeId),
@@ -283,7 +283,11 @@ export function CreditsPage() {
               <CardContent className="flex flex-col gap-1">
                 <p className="text-[13px] text-[var(--text)]">
                   {t(
-                    plan.editorPro ? "billing.page.proMonthlyCredits" : "billing.page.creditsFor",
+                    plan.creditInterval === "month"
+                      ? "billing.page.proMonthlyCredits"
+                      : plan.creditInterval === "year"
+                        ? "billing.page.yearlyCredits"
+                        : "billing.page.creditsFor",
                     {
                       credits: formatCredits(plan.creditsPerPeriod, i18n.language),
                     },
@@ -294,18 +298,22 @@ export function CreditsPage() {
                 )}
               </CardContent>
               <CardFooter>
-                {subscription?.planId === plan.id && hasExistingSubscription(subscription) ? (
+                {plan.key === "free" ? (
+                  <Badge>{t("billing.catalog.included")}</Badge>
+                ) : subscription?.planId === plan.id && hasExistingSubscription(subscription) ? (
                   <Badge variant="sage">{t("billing.page.active")}</Badge>
                 ) : (
                   <Button
                     variant="primary"
-                    disabled={!canManage || busy}
+                    disabled={!canManage || busy || !plan.purchasable}
                     onClick={() => subscribeToPlan(plan.id)}
                   >
                     {t(
-                      hasExistingSubscription(subscription)
-                        ? "billing.page.manage"
-                        : "billing.page.subscribe",
+                      !plan.purchasable
+                        ? "marketing.pricing.proAvailability"
+                        : hasExistingSubscription(subscription)
+                          ? "billing.page.manage"
+                          : "billing.page.subscribe",
                     )}
                   </Button>
                 )}
@@ -317,6 +325,11 @@ export function CreditsPage() {
 
       <section className="flex flex-col gap-3">
         <h2 className="eyebrow">{t("billing.page.mySubscription")}</h2>
+        {subscription?.effectivePlan && (
+          <p className="text-sm font-medium text-[var(--text)]">
+            {t("billing.catalog.effectivePlan", { name: subscription.effectivePlan.name })}
+          </p>
+        )}
         {subscription?.status ? (
           <Card>
             <CardContent className="flex flex-wrap items-center justify-between gap-3 pt-6">

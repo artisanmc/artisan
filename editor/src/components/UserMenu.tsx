@@ -5,10 +5,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { EditorAccessNotice } from "@/features/project/EditorAccessNotice";
+import { type SubscriptionDto, getSubscription } from "@/lib/api/billing";
 import { useAuthStore } from "@/state/authStore";
+import { useNetworksStore } from "@/state/networksStore";
 import { useSidebarStore } from "@/state/sidebarStore";
 import { Link } from "@tanstack/react-router";
 import { LogOut, Settings as SettingsIcon, Shield, UserIcon } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 function getInitial(name: string | null | undefined): string {
@@ -18,9 +22,46 @@ function getInitial(name: string | null | undefined): string {
   return trimmed.charAt(0).toUpperCase();
 }
 
-export function UserMenu() {
+export function UserMenu({
+  networkId: selectedNetworkId,
+  serverId,
+  serverLabel,
+}: {
+  networkId?: string | null;
+  serverId?: string | null;
+  serverLabel?: string;
+} = {}) {
   const { t } = useTranslation();
   const user = useAuthStore((s) => s.currentUser);
+  const storedNetworkId = useNetworksStore((s) => s.activeId);
+  const networkId = selectedNetworkId === undefined ? storedNetworkId : selectedNetworkId;
+  const [open, setOpen] = useState(false);
+  const [subscription, setSubscription] = useState<{
+    networkId: string;
+    value: SubscriptionDto;
+  } | null>(null);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: opening the menu refreshes the subscription.
+  useEffect(() => {
+    let live = true;
+    setSubscription(null);
+    if (user && networkId) {
+      void getSubscription(networkId)
+        .then((value) => {
+          if (live && value) setSubscription({ networkId, value });
+        })
+        .catch(() => {});
+    }
+    return () => {
+      live = false;
+    };
+  }, [user, networkId, open]);
+  const currentSubscription = subscription?.networkId === networkId ? subscription.value : null;
+  const planName = currentSubscription
+    ? currentSubscription.status &&
+      !["canceled", "incomplete_expired"].includes(currentSubscription.status)
+      ? currentSubscription.planName
+      : "Free"
+    : null;
   const closeSidebar = useSidebarStore((s) => s.close);
   const displayName = user?.name ?? t("userMenu.anonymous");
   const initial = getInitial(user?.name);
@@ -31,7 +72,7 @@ export function UserMenu() {
   };
 
   return (
-    <DropdownMenu>
+    <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
         <button
           type="button"
@@ -51,12 +92,35 @@ export function UserMenu() {
               {initial}
             </div>
           )}
-          <span className="truncate flex-1 font-medium">{displayName}</span>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate font-medium">{displayName}</span>
+            {user && planName && (
+              <span className="block truncate text-xs text-[var(--text-mut)]">{planName}</span>
+            )}
+          </span>
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent side="top" align="start" className="w-[200px]">
+      <DropdownMenuContent side="top" align="start" className="w-[280px] max-w-[calc(100vw-24px)]">
         {user ? (
           <>
+            {networkId && serverId && (
+              <>
+                <div className="px-2.5 pt-2 text-xs font-medium text-[var(--text)]">
+                  {t("userMenu.resourceUsage")}
+                  {serverLabel && (
+                    <div className="truncate pt-1 font-normal text-[var(--text-mut)]">
+                      {serverLabel}
+                    </div>
+                  )}
+                </div>
+                <EditorAccessNotice
+                  key={`${networkId}:${serverId}`}
+                  networkId={networkId}
+                  serverId={serverId}
+                />
+                <DropdownMenuSeparator />
+              </>
+            )}
             <DropdownMenuItem asChild>
               <Link to="/account" onClick={closeSidebar} className="flex items-center gap-2.5">
                 <UserIcon className="size-[14px]" />

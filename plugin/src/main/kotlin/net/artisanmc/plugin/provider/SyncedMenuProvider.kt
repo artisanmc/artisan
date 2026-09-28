@@ -202,13 +202,14 @@ class SyncedMenuProvider(
     ): String? {
         val policy = node["commercial_policy"] ?: return null
         if (!policy.path("enabled").asBoolean(false)) return null
-        val quota = policy.path("quota").asInt(-1)
-        if (quota < 0) return "inventory_unavailable"
-        val proUntil = policy.path("pro_until").takeIf { it.isTextual }?.asText()
-        val pro = proUntil?.let { runCatching { java.time.Instant.parse(it).isAfter(java.time.Instant.now()) }.getOrDefault(false) } ?: false
+        val quotaNode = policy["quota"] ?: return "inventory_unavailable"
+        val quota = if (quotaNode.isNull) null else {
+            if (!quotaNode.isIntegralNumber || !quotaNode.canConvertToInt() || quotaNode.intValue() < 0) return "inventory_unavailable"
+            quotaNode.intValue()
+        }
         val inventory = try { net.artisanmc.plugin.project.ResourceInventory.scan(roots) }
         catch (_: Exception) { return "inventory_unavailable" }
-        return net.artisanmc.plugin.project.ResourceQuota.assess(quota, pro, inventory, projectId, roots.isRegistered(projectId), files, deletes, renames)
+        return net.artisanmc.plugin.project.ResourceQuota.assess(quota, inventory, projectId, roots.isRegistered(projectId), files, deletes, renames)
     }
     private val yamlMapper = ObjectMapper(YAMLFactory()).registerKotlinModule()
     private val httpClient = OkHttpClient()
@@ -496,7 +497,7 @@ class SyncedMenuProvider(
     /** Called under the project mutation lock; WS callbacks only read the published map. */
     private fun refreshProjectPresence() {
         cachedProjectPresence = mapOf(
-            "capabilities" to listOf("project_rename", "project_drafts_v1", "project_mixed_write_v1", "project_copy_v1", "resource_quota_v1", "vanilla_gui_v1", "snapshot_mirror_v1"),
+            "capabilities" to listOf("project_rename", "project_drafts_v1", "project_mixed_write_v1", "project_copy_v1", "resource_quota_v1", "resource_quota_v2", "vanilla_gui_v1", "snapshot_mirror_v1"),
             "local_project_ids" to snapshot.keys.sorted(),
             "snapshot_hashes" to snapshotHashes(),
             "project_roots" to roots.descriptors(),

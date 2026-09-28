@@ -1,11 +1,17 @@
-import { describe, it, expect, beforeEach } from "bun:test";
+import { describe, it, expect, beforeEach, afterEach } from "bun:test";
 import { db } from "../db/index";
-import { memberships, networkBilling, networks, users } from "../db/schema";
+import { memberships, networkBilling, networks, users, subscriptionPlans, serverKeys } from "../db/schema";
 import { addMembership, listNetworksForUser } from "./membershipManager";
 import { createNetwork } from "./networkManager";
+import { syncStandardPlans } from "../modules/billing/catalog";
+import { listPlans, createPlan } from "../modules/billing/plansRepo";
+import { addConsoleMember } from "./consoleAccess";
 
 describe("membershipManager", () => {
+  afterEach(async () => { await db.delete(networkBilling); await db.delete(subscriptionPlans); });
   beforeEach(async () => {
+    await db.delete(networkBilling);
+    await db.delete(subscriptionPlans);
     await db.delete(memberships);
     await db.delete(networks);
     await db.delete(users);
@@ -40,12 +46,27 @@ describe("membershipManager", () => {
 
   it("allows more collaborators while Pro is paid", async () => {
     const net = await createNetwork("Pro team");
-    await db.insert(networkBilling).values({ networkId: net.id, paidEditorPro: true, paidThrough: new Date(Date.now() + 86_400_000), currentPeriodId: "paid", createdAt: new Date(), updatedAt: new Date() });
+    await syncStandardPlans();
+    const pro = (await listPlans()).find(p => p.key === "pro")!;
+    await db.insert(networkBilling).values({ networkId: net.id, planId: pro.id, paidEditorPro: true, paidThrough: new Date(Date.now() + 86_400_000), currentPeriodId: "paid", createdAt: new Date(), updatedAt: new Date() });
     for (const id of ["p1", "p2", "p3"]) {
       await db.insert(users).values({ id, email: `${id}@b.c`, name: id, passwordHash: null, avatarUrl: null, createdAt: new Date(), updatedAt: new Date() });
       await addMembership(id, net.id, "member");
     }
     expect((await db.select().from(memberships)).filter((entry) => entry.networkId === net.id)).toHaveLength(3);
+  });
+
+  it("enforces a custom collaborator limit even with the Pro capability", async () => {
+    const net = await createNetwork("Small contract");
+    const plan = await createPlan({ name: "Small", targetNetworkId: net.id, publicationStatus: "published", priceCents: 900, creditsPerPeriod: 0,
+      limits: { resourcesPerServer: 10, servers: 2, collaborators: 0 }, capabilities: { editorPro: true } });
+    await db.insert(networkBilling).values({ networkId: net.id, planId: plan.id, paidEditorPro: true, paidThrough: new Date("2999-01-01"), currentPeriodId: "paid", createdAt: new Date(), updatedAt: new Date() });
+    await db.insert(memberships).values({ id: "owner", networkId: net.id, userId: "u1", role: "owner", createdAt: new Date() });
+    await db.insert(users).values({ id: "extra", email: "extra@b.c", name: "Extra", createdAt: new Date(), updatedAt: new Date() });
+    expect(await addMembership("extra", net.id, "member").catch(e => e.code)).toBe("collaborator_limit_reached");
+    await db.insert(serverKeys).values({ id: "console-custom", networkId: net.id, editorAccessMode: "console", createdAt: new Date() });
+    expect(await addConsoleMember("console-custom", "extra@b.c", () => true)).toEqual({ ok: false, error: "collaborator_limit_reached" });
+    expect(await addConsoleMember("console-custom", "a@b.c", () => true)).toEqual({ ok: true, already_member: true });
   });
 
   it("counts a second owner as a collaborator", async () => {

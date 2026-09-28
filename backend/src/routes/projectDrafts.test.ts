@@ -4,7 +4,9 @@ import { db } from "../db";
 import { networks, projects, serverKeys, users, projectDraftStorage, projectDrafts } from "../db/schema";
 import { addMembership } from "../lib/membershipManager";
 import type { AuthUser } from "../middleware/userAuth";
-import { cleanupConn, connToServerId, handlePluginMessage, registerConn } from "../ws/hub";
+import { cleanupConn, handlePluginMessage, registerConn } from "../ws/hub";
+import { eq } from "drizzle-orm";
+import { generateServerKey } from "../lib/auth";
 import { projectDraftsRouter } from "./projectDrafts";
 
 const app = new Hono<{ Variables: { user: AuthUser | null } }>();
@@ -151,7 +153,9 @@ test("uncertain storage and pending identity errors remain retryable while valid
     const msg = JSON.parse(raw);
     if (msg.type === "project_write") void handlePluginMessage("draft-error-connection", JSON.stringify({ type: "project_write_result", request_id: msg.request_id, ok: false, error }));
   });
-  connToServerId.set("draft-error-connection", "draft-server");
+  const key = await generateServerKey();
+  await db.update(serverKeys).set({ hash: key.hash }).where(eq(serverKeys.id, "draft-server"));
+  await handlePluginMessage("draft-error-connection", JSON.stringify({ type: "hello", server_key: key.key, plugin_version: "test", minecraft_version: "1.21.4", current_bundle_hash: "", capabilities: ["resource_quota_v2"] }));
   try {
     await request("", "POST", { id: "draft-one", name: "First", snapshot });
     for (const [code, status] of [["storage_error", 503], ["rename_in_progress", 503], ["rename_pending", 503], ["operation_conflict", 409], ["invalid_draft", 422]] as const) {
@@ -189,7 +193,9 @@ test("publication uses the saved baseline and preserves the draft on a disk conf
       }),
     );
   });
-  connToServerId.set("draft-connection", "draft-server");
+  const key = await generateServerKey();
+  await db.update(serverKeys).set({ hash: key.hash }).where(eq(serverKeys.id, "draft-server"));
+  await handlePluginMessage("draft-connection", JSON.stringify({ type: "hello", server_key: key.key, plugin_version: "test", minecraft_version: "1.21.4", current_bundle_hash: "", capabilities: ["resource_quota_v2"] }));
   try {
     await request("", "POST", { id: "draft-one", name: "First", snapshot });
     expect(writes).toHaveLength(0);

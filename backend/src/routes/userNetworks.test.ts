@@ -1,5 +1,7 @@
 // backend/src/routes/userNetworks.test.ts
-import { projectDrafts } from "../db/schema";
+import { projectDrafts, subscriptionPlans } from "../db/schema";
+import { syncStandardPlans } from "../modules/billing/catalog";
+import { listPlans, createPlan } from "../modules/billing/plansRepo";
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { Hono } from "hono";
 import { db } from "../db/index";
@@ -10,9 +12,12 @@ import { createSession } from "../lib/sessionManager";
 import { addMembership } from "../lib/membershipManager";
 import { and, eq } from "drizzle-orm";
 import { __setMailerForTests, type MailMessage } from "../lib/mail/mailer";
+import { generateServerKey } from "../lib/auth";
 import { registerConn, connToServerId, connSenders, handlePluginMessage } from "../ws/hub";
 
 async function clearAll() {
+  await db.delete(networkBilling);
+  await db.delete(subscriptionPlans);
   await db.delete(projects);
   await db.delete(linkCodes);
   await db.delete(serverKeyHelloes);
@@ -41,7 +46,7 @@ function makeApp() {
   return app;
 }
 
-function writablePlugin(serverKeyId: string, ids: string[] = [], writeError?: string) {
+async function writablePlugin(serverKeyId: string, ids: string[] = [], writeError?: string) {
   const connId = `create-${serverKeyId}`;
   const writes: { project_id: string; create: boolean; files: { path: string; content: string; base_hash: string | null }[] }[] = [];
   registerConn(connId, (raw) => {
@@ -64,9 +69,58 @@ function writablePlugin(serverKeyId: string, ids: string[] = [], writeError?: st
       }));
     }
   });
-  connToServerId.set(connId, serverKeyId);
+  const key = await generateServerKey();
+  await db.update(serverKeys).set({ hash: key.hash }).where(eq(serverKeys.id, serverKeyId));
+  await handlePluginMessage(connId, JSON.stringify({ type: "hello", server_key: key.key, plugin_version: "test", minecraft_version: "1.21.4", current_bundle_hash: "", capabilities: ["resource_quota_v2"] }));
   return { writes, stop: () => { connSenders.delete(connId); connToServerId.delete(connId); } };
 }
+
+describe("server resource usage", () => {
+  beforeEach(clearAll);
+
+  test("returns server usage without any stored project, including through slugs", async () => {
+    const { sessionId } = await seedUser();
+    const app = makeApp();
+    const headers = { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" };
+    const { network } = await (await app.request("/api/v1/networks", {
+      method: "POST", headers, body: JSON.stringify({ name: "Usage" }),
+    })).json();
+    await db.insert(serverKeys).values({ id: "usage-server", networkId: network.id, slug: "survival", createdAt: new Date() });
+    const connId = "usage-connection";
+    registerConn(connId, (raw) => {
+      const message = JSON.parse(raw);
+      if (message.type === "project_list") void handlePluginMessage(connId, JSON.stringify({
+        type: "project_list_result", request_id: message.request_id, ok: true, project_ids: [],
+        resource_inventory: [
+          { project_id: "one", path: "menus/a.yml", origin: "personal" },
+          { project_id: "two", path: "menus/b.yml", origin: "personal" },
+          { project_id: "addon", path: "menus/c.yml", origin: "module" },
+        ],
+      }));
+    });
+    connToServerId.set(connId, "usage-server");
+    try {
+      const response = await app.request(`/api/v1/networks/${network.slug}/servers/survival/editor-access`, { headers });
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({ count: 2, quota: 10, inventoryAvailable: true });
+    } finally {
+      connSenders.delete(connId);
+      connToServerId.delete(connId);
+    }
+    const offline = await app.request(`/api/v1/networks/${network.id}/servers/usage-server/editor-access`, { headers });
+    expect(offline.status).toBe(503);
+    expect(await offline.json()).toMatchObject({ count: null, reason: "inventory_unavailable" });
+    expect((await app.request(`/api/v1/networks/${network.id}/servers/usage-server/editor-access`)).status).toBe(401);
+    const outsider = await seedUser("outsider");
+    expect((await app.request(`/api/v1/networks/${network.id}/servers/usage-server/editor-access`, {
+      headers: { Cookie: `artisan_user_session=${outsider.sessionId}` },
+    })).status).toBe(403);
+    const { network: other } = await (await app.request("/api/v1/networks", {
+      method: "POST", headers, body: JSON.stringify({ name: "Other" }),
+    })).json();
+    expect((await app.request(`/api/v1/networks/${other.id}/servers/usage-server/editor-access`, { headers })).status).toBe(404);
+  });
+});
 
 describe("userNetworksRouter", () => {
   beforeEach(clearAll);
@@ -390,12 +444,27 @@ describe("userNetworksRouter", () => {
     const app = makeApp();
     const headers = { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" };
     const { network } = await (await app.request("/api/v1/networks", { method: "POST", headers, body: JSON.stringify({ name: "Pro" }) })).json();
-    await db.insert(networkBilling).values({ networkId: network.id, paidEditorPro: true, paidThrough: new Date(Date.now() + 86_400_000), currentPeriodId: "paid", createdAt: new Date(), updatedAt: new Date() });
+    await syncStandardPlans();
+    const pro = (await listPlans()).find(p => p.key === "pro")!;
+    await db.insert(networkBilling).values({ networkId: network.id, planId: pro.id, paidEditorPro: true, paidThrough: new Date(Date.now() + 86_400_000), currentPeriodId: "paid", createdAt: new Date(), updatedAt: new Date() });
     const create = () => app.request(`/api/v1/networks/${network.id}/server-keys`, { method: "POST", headers, body: "{}" });
     for (let i = 0; i < 10; i++) expect((await create()).status).toBe(201);
     const denied = await create();
     expect(denied.status).toBe(409);
     expect((await denied.json()).error).toBe("server_limit_reached");
+  });
+
+  test("custom server limits apply without the Pro capability", async () => {
+    const { sessionId } = await seedUser();
+    const app = makeApp();
+    const headers = { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" };
+    const { network } = await (await app.request("/api/v1/networks", { method: "POST", headers, body: JSON.stringify({ name: "Custom" }) })).json();
+    const plan = await createPlan({ name: "Custom", targetNetworkId: network.id, publicationStatus: "published", priceCents: 900, creditsPerPeriod: 0,
+      limits: { servers: 3, resourcesPerServer: 12, collaborators: 1 }, capabilities: { editorPro: false } });
+    await db.insert(networkBilling).values({ networkId: network.id, planId: plan.id, paidThrough: new Date("2999-01-01"), currentPeriodId: "paid", createdAt: new Date(), updatedAt: new Date() });
+    const create = () => app.request(`/api/v1/networks/${network.id}/server-keys`, { method: "POST", headers, body: "{}" });
+    for (let i = 0; i < 3; i++) expect((await create()).status).toBe(201);
+    expect((await create()).status).toBe(409);
   });
 
   test("POST /api/v1/networks/:id/server-keys/:keyId/link-code mints a code for an existing key", async () => {
@@ -482,7 +551,7 @@ describe("userNetworksRouter", () => {
     });
     const { id: skId } = await skRes.json();
 
-    const plugin = writablePlugin(skId);
+    const plugin = await writablePlugin(skId);
     try {
     const res = await app.request(`/api/v1/networks/${network.id}/projects`, {
       method: "POST",
@@ -564,7 +633,7 @@ describe("userNetworksRouter", () => {
     const { id: skId } = await (await app.request(`/api/v1/networks/${network.id}/server-keys`, {
       method: "POST", headers, body: "{}",
     })).json();
-    const plugin = mode === "offline" ? null : writablePlugin(skId, mode === "existing" ? ["mon_projet"] : [], writeError);
+    const plugin = mode === "offline" ? null : await writablePlugin(skId, mode === "existing" ? ["mon_projet"] : [], writeError);
     try {
       const res = await app.request(`/api/v1/networks/${network.id}/projects`, {
         method: "POST", headers, body: JSON.stringify({ name: "mon_projet", serverKeyId: skId }),

@@ -35,7 +35,21 @@ export interface PackDto {
   bonusPct: number;
   creditsGranted: number;
 }
+export interface PlanLimits {
+  resourcesPerServer: number | null;
+  servers: number | null;
+  collaborators: number | null;
+}
 export interface PlanDto {
+  key: string;
+  version: number;
+  managedBy: "code" | "admin";
+  audience: "public" | "private";
+  targetNetworkId: string | null;
+  publicationStatus: "draft" | "published";
+  creditInterval: "month" | "year" | "none";
+  limits: PlanLimits;
+  capabilities: { editorPro: boolean };
   id: string;
   name: string;
   interval: string;
@@ -51,6 +65,13 @@ export interface PlanDto {
   purchasable?: boolean;
 }
 export interface SubscriptionDto {
+  effectivePlan?: {
+    id: string | null;
+    key: string;
+    name: string;
+    limits: PlanLimits;
+    capabilities: { editorPro: boolean };
+  };
   status: string | null;
   planId?: string | null;
   planName?: string | null;
@@ -78,8 +99,10 @@ export async function getProjects(): Promise<PackDto[]> {
   return r.packs;
 }
 
-export async function getPlans(): Promise<PlanDto[]> {
-  const r = await getJson<{ plans: PlanDto[] }>("/api/v1/billing/plans");
+export async function getPlans(networkId?: string): Promise<PlanDto[]> {
+  const r = await getJson<{ plans: PlanDto[] }>(
+    `/api/v1/billing/plans${networkId ? `?networkId=${encodeURIComponent(networkId)}` : ""}`,
+  );
   if (!r) throw new Error("catalog_unavailable");
   return r.plans;
 }
