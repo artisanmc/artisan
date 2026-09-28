@@ -3,6 +3,7 @@ import { db } from "../../db/index";
 import { aiCreditLedger, creditPurchases, networkBilling, networks, stripeEvents, subscriptionPlans } from "../../db/schema";
 import { grantCredits } from "../ai/creditsRepo";
 import { renewSubscriptionPeriod } from "../ai/subscriptionCredits";
+import { clearManualAssignment } from "./manualAssignments";
 import { getNetworkBilling } from "./networkBillingRepo";
 import { creditsForPack, getPack } from "./packsRepo";
 import { getPlan } from "./plansRepo";
@@ -229,6 +230,7 @@ async function onInvoicePaid(obj: Record<string, unknown>): Promise<void> {
             }
         }
         await tx.update(networkBilling).set({ lastPaidInvoiceId: invoiceId, lastPaidInvoiceCreatedAt: invoiceCreatedAt }).where(eq(networkBilling.networkId, networkId));
+        await clearManualAssignment(tx, fresh, new Date());
         if (fresh.paidThrough?.getTime() === periodEnd.getTime()) {
             // A paid mid-period upgrade can share the existing renewal date. It changes
             // editor rights without closing or regranting a monthly AI credit period.

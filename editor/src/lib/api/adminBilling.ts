@@ -162,3 +162,34 @@ export const grantCredits = (networkId: string, amount: number, note?: string) =
     amount,
     note,
   });
+
+export interface NetworkPlanAssignment {
+  effectivePlan: { planId: string | null; planName: string };
+  assignment: { planId: string; expiresAt: string | null; startedAt: string } | null;
+}
+export async function listBillingNetworks(): Promise<{ id: string; name: string }[]> {
+  const result = await mutate<{ networks: { id: string; name: string }[] }>(
+    "/api/v1/admin/billing/networks",
+    "GET",
+  );
+  if (!result.ok) throw new Error("networks_unavailable");
+  return result.data.networks;
+}
+export async function getNetworkPlan(networkId: string): Promise<NetworkPlanAssignment> {
+  const result = await mutate<NetworkPlanAssignment>(
+    `/api/v1/admin/billing/networks/${encodeURIComponent(networkId)}/plan`,
+    "GET",
+  );
+  if (!result.ok) throw new Error("assignment_unavailable");
+  return result.data;
+}
+export const assignNetworkPlan = (
+  networkId: string,
+  planId: string | null,
+  expiresAt: string | null,
+) =>
+  mutate<{ ok: true }>(
+    `/api/v1/admin/billing/networks/${encodeURIComponent(networkId)}/plan`,
+    "PUT",
+    { planId, expiresAt },
+  );

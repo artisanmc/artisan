@@ -780,6 +780,12 @@ export const networkBilling = pgTable("network_billing", {
 	// boundaries. These fields identify its paid-year anchor and last granted month.
 	creditCycleStart: timestamp("credit_cycle_start"),
 	creditMonthIndex: integer("credit_month_index"),
+	manualPlanId: text("manual_plan_id").references(() => subscriptionPlans.id),
+	manualStartedAt: timestamp("manual_started_at"),
+	manualExpiresAt: timestamp("manual_expires_at"),
+	manualPeriodId: text("manual_period_id"),
+	manualPeriodIndex: integer("manual_period_index"),
+	manualPeriodEnd: timestamp("manual_period_end"),
 	createdAt: timestamp("created_at").notNull(),
 	updatedAt: timestamp("updated_at").notNull(),
 });

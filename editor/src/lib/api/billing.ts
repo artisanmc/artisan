@@ -65,6 +65,7 @@ export interface PlanDto {
   purchasable?: boolean;
 }
 export interface SubscriptionDto {
+  manualAssignment?: { planId: string; expiresAt: string | null };
   effectivePlan?: {
     id: string | null;
     key: string;

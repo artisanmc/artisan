@@ -9,6 +9,8 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+- Administrators can assign published plans to Networks without Stripe, with optional expiration and recurring included credits. The billing console adds plan assignments; member billing and the user menu display the effective plan. New admin Network plan endpoints audit assignments and reject conflicting paid subscriptions. Migration `0064` stores the independent manual credit cycle.
+
 - Resource usage in the user menu follows the selected server, including without an open project. A member-only server editor-access endpoint reports live usage across its projects; unavailable inventory is never displayed as zero.
 
 ### Changed — managed standard plans and private custom offers
