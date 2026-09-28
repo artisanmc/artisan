@@ -45,7 +45,11 @@ const isEditableTarget = (target: EventTarget | null) => {
   return tag === "INPUT" || tag === "TEXTAREA" || el.isContentEditable;
 };
 
-const findSelectedEntities = (projectId: ProjectId, ids: string[], scopeMenuId?: string | null) => {
+export const findSelectedEntities = (
+  projectId: ProjectId,
+  ids: string[],
+  scopeMenuId?: string | null,
+) => {
   const account = useAccountStore.getState().account;
   const project = account.projects.find((p) => p.id === projectId);
   if (!project)
@@ -62,8 +66,11 @@ const findSelectedEntities = (projectId: ProjectId, ids: string[], scopeMenuId?:
       }
     }
   }
+  // A menu whose items are selected is only their container (e.g. the document
+  // view keeps its menu selected): copying the items must not copy the menu.
+  const owners = new Set(elements.map((e) => e.sourceMenuId));
   return {
-    menus: project.menus.filter((m) => idSet.has(m.id)),
+    menus: project.menus.filter((m) => idSet.has(m.id) && !owners.has(m.id)),
     commands: project.commands.filter((c) => idSet.has(c.id)),
     elements,
   };

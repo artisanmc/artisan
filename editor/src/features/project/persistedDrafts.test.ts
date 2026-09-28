@@ -413,3 +413,27 @@ it("retries discard after a lost ACK without deleting edits made during the requ
   expect(vi.mocked(api.discardDraft).mock.calls[1]).toEqual(operation);
   expect(useProjectDraftStore.getState().get("p1")?.tree["manifest.yaml"]).toBe("later");
 });
+
+it("discards against the server revision when another device saved the draft since", async () => {
+  vi.mocked(api.listDrafts).mockResolvedValue([remote]);
+  await loadPersistedDrafts("p1", "u1");
+  vi.mocked(api.discardDraft)
+    .mockRejectedValueOnce(
+      new api.DraftApiError("draft_conflict", 409, { ...remote, revision: 14 }),
+    )
+    .mockResolvedValueOnce(undefined as never);
+  await discardPersistedDraft("p1");
+  expect(vi.mocked(api.discardDraft).mock.calls[1]?.[2]).toBe(14);
+  expect(useProjectDraftStore.getState().get("p1")).toBeUndefined();
+});
+
+it("treats a discard conflict on an already closed draft as done", async () => {
+  vi.mocked(api.listDrafts).mockResolvedValue([remote]);
+  await loadPersistedDrafts("p1", "u1");
+  vi.mocked(api.discardDraft).mockRejectedValueOnce(
+    new api.DraftApiError("draft_conflict", 409, { ...remote, revision: 5, status: "discarded" }),
+  );
+  await discardPersistedDraft("p1");
+  expect(api.discardDraft).toHaveBeenCalledTimes(1);
+  expect(useProjectDraftStore.getState().get("p1")).toBeUndefined();
+});
