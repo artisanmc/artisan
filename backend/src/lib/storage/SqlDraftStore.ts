@@ -3,7 +3,7 @@ import { and, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import { db } from "../../db";
 import { projectDraftBlobs, projectDraftOperations, projectDrafts, projectDraftStorage } from "../../db/schema";
 import { applyRenames, planWrite } from "../../../../editor/src/features/project/diskSave";
-import { rebaseDraft } from "../draftRebase";
+import { rebaseDraft } from "../../../../editor/src/features/project/draftRebase";
 import type { BinaryWrite, ProjectStorage } from "./ProjectStorage";
 import type { DraftBody, DraftOutcome, DraftResult, DraftSnapshot, DraftStore, StoredDraft } from "./DraftStore";
 

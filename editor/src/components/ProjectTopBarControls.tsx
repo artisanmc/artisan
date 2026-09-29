@@ -44,6 +44,7 @@ import {
   consumeOpenConflicts,
   discardPersistedDraft,
   markDraftPending,
+  resolveDraftConflict,
   syncPersistedDraft,
   usePersistedDraftStore,
 } from "@/features/project/persistedDrafts";
@@ -60,8 +61,8 @@ import { cn } from "@/lib/cx";
 import { countMissingForLang, listLanguages } from "@/lib/i18nUsages";
 import { useProjectPrincipalId } from "@/lib/projectPrincipal";
 import { useAccountStore } from "@/state/accountStore";
-import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { useDemoStore } from "@/state/demoStore";
+import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
 import { useProjectRuntime } from "@/state/projectRuntimeStore";
 import { useSidebarStore } from "@/state/sidebarStore";
@@ -462,6 +463,28 @@ function SearchButton() {
 }
 
 /**
+ * Réaligne le Project affiché sur le brouillon après une résolution de conflit :
+ * les fichiers repris de l'autre session (choix « prendre celle de l'autre » ou
+ * mis à jour automatiquement) entrent dans l'arbre de l'éditeur. On ne touche
+ * qu'aux chemins qui diffèrent, jamais aux fichiers non concernés.
+ */
+function syncAccountFromDraft(projectId: ProjectId): void {
+  const live = useAccountStore.getState().account.projects.find((p) => p.id === projectId);
+  const draft = useProjectDraftStore.getState().get(projectId);
+  if (!live || !draft) return;
+  const before = projectTree(live);
+  const adopt: Record<string, string> = {};
+  const remove: string[] = [];
+  for (const path of new Set([...Object.keys(before), ...Object.keys(draft.tree)])) {
+    const next = draft.tree[path];
+    if (next === undefined) remove.push(path);
+    else if (next !== before[path]) adopt[path] = next;
+  }
+  if (Object.keys(adopt).length > 0 || remove.length > 0)
+    useAccountStore.getState().replaceProject(adoptDiskIntoProject(live, adopt, remove));
+}
+
+/**
  * Deux gestes, deux destinations :
  * - Enregistrer pousse le brouillon sur le compte (il s'y synchronise aussi seul) ;
  * - Déployer, le seul geste qui écrit sur le disque du serveur (ADR
@@ -507,7 +530,8 @@ function SaveControls({
   const [diskFiles, setDiskFiles] = useState<string[]>([]);
   const [choices, setChoices] = useState<Record<string, ConflictChoice>>({});
   // « open » : conflits trouvés à l'ouverture du brouillon — trancher ne publie rien.
-  const [conflictSource, setConflictSource] = useState<"save" | "open">("save");
+  // « draft » : une autre session a avancé le brouillon — trancher fichier par fichier.
+  const [conflictSource, setConflictSource] = useState<"save" | "open" | "draft">("save");
   const openConflicts = draftSession?.openConflicts;
   useEffect(() => {
     if (!project || !openConflicts?.length) return;
@@ -518,6 +542,24 @@ function SaveControls({
     setChoices({});
     setConflictSource("open");
   }, [openConflicts, project, projectId]);
+  const draftConflict = draftSession?.draftConflict;
+  useEffect(() => {
+    if (!draftConflict) return;
+    // Aucun fichier divergent : le rebase suffit, on l'applique sans modale —
+    // seule la mise à jour de l'arbre de l'éditeur reste à faire.
+    if (draftConflict.conflicts.length === 0) {
+      void resolveDraftConflict(projectId, {})
+        .then(() => syncAccountFromDraft(projectId))
+        .catch(() => {});
+      return;
+    }
+    const live = useAccountStore.getState().account.projects.find((p) => p.id === projectId);
+    setConflictSource("draft");
+    setConflictTree(live ? projectTree(live) : {});
+    setConflicts(draftConflict.conflicts);
+    setDiskFiles([]);
+    setChoices({});
+  }, [draftConflict, projectId]);
   const [review, setReview] = useState<ChangeSet | null>(null);
   const [savingDraft, setSavingDraft] = useState(false);
 
@@ -538,6 +580,9 @@ function SaveControls({
       toast.info(t("deploy.cannotDeployTitle"));
       return;
     }
+    // Un conflit de brouillon non tranché est déjà proposé par la modale : on
+    // n'empile pas un dialogue d'échec par-dessus.
+    if (draftSession?.draftConflict) return;
     setSaving(true);
     try {
       const attemptedTree = projectTree(project);
@@ -587,6 +632,7 @@ function SaveControls({
   const draftBusy = savingDraft || draftSession?.status === "saving";
   const saveDraft = async () => {
     if (draftBusy || draftSaved) return;
+    if (draftSession?.draftConflict) return;
     setSavingDraft(true);
     try {
       flushDraftEdits();
@@ -601,6 +647,18 @@ function SaveControls({
 
   const applyAndRetry = async () => {
     if (!project) return;
+    if (conflictSource === "draft") {
+      try {
+        await resolveDraftConflict(projectId, choices);
+        syncAccountFromDraft(projectId);
+        setConflicts([]);
+        setChoices({});
+        toast.info(t("save.conflictDraftResolved"));
+      } catch {
+        toast.error(t("drafts.failed"));
+      }
+      return;
+    }
     const baseline = useProjectBaselineStore.getState().get(project.id) ?? {};
     const outcome = applyResolutions(baseline, conflicts, choices);
     if (outcome.unresolved.length > 0) return; // le bouton est déjà désactivé
@@ -613,7 +671,10 @@ function SaveControls({
     if (conflictSource === "open") {
       // La base du brouillon suit le choix ; l'enregistrement automatique la conserve.
       const local = useProjectDraftStore.getState().get(project.id);
-      if (local) useProjectDraftStore.getState().save(project.id, { ...local, baseline: outcome.nextBaseline });
+      if (local)
+        useProjectDraftStore
+          .getState()
+          .save(project.id, { ...local, baseline: outcome.nextBaseline });
       markDraftPending(project.id);
       toast.info(t("save.conflictOpenResolved"));
       return;
@@ -659,26 +720,26 @@ function SaveControls({
           </Tooltip>
         )}
         {!demo && (
-        <button
-          type="button"
-          onClick={openReview}
-          disabled={saving || !canSave || !dirty}
-          title={
-            !canSave
-              ? t("deploy.cannotDeployTitle")
-              : dirty
-                ? t("deploy.deployTitle")
-                : t("deploy.nothing")
-          }
-          className="btn btn-sm btn-primary"
-        >
-          {saving ? (
-            <Spinner aria-hidden role="presentation" className="text-current" />
-          ) : (
-            <Play className="size-4" fill="currentColor" aria-hidden />
-          )}
-          {saving ? t("deploy.deploying") : t("deploy.deploy")}
-        </button>
+          <button
+            type="button"
+            onClick={openReview}
+            disabled={saving || !canSave || !dirty}
+            title={
+              !canSave
+                ? t("deploy.cannotDeployTitle")
+                : dirty
+                  ? t("deploy.deployTitle")
+                  : t("deploy.nothing")
+            }
+            className="btn btn-sm btn-primary"
+          >
+            {saving ? (
+              <Spinner aria-hidden role="presentation" className="text-current" />
+            ) : (
+              <Play className="size-4" fill="currentColor" aria-hidden />
+            )}
+            {saving ? t("deploy.deploying") : t("deploy.deploy")}
+          </button>
         )}
         {dirty || draftSession || lastSaveError ? (
           <DropdownMenu>
@@ -783,9 +844,17 @@ function SaveControls({
       <Dialog open={conflicts.length > 0} onOpenChange={(open) => !open && setConflicts([])}>
         <DialogContent className="max-h-[90dvh] w-[calc(100%-2rem)] max-w-5xl overflow-y-auto">
           <DialogHeader className="pr-6">
-            <DialogTitle>{t("save.conflictTitle")}</DialogTitle>
+            <DialogTitle>
+              {t(conflictSource === "draft" ? "save.conflictDraftTitle" : "save.conflictTitle")}
+            </DialogTitle>
             <DialogDescription>
-              {t(conflictSource === "open" ? "save.conflictOpenBody" : "save.conflictBody")}
+              {t(
+                conflictSource === "draft"
+                  ? "save.conflictDraftBody"
+                  : conflictSource === "open"
+                    ? "save.conflictOpenBody"
+                    : "save.conflictBody",
+              )}
             </DialogDescription>
           </DialogHeader>
           <div className="flex max-h-[50vh] flex-col gap-2 overflow-y-auto">
@@ -816,7 +885,11 @@ function SaveControls({
                     }
                     onClick={() => setChoices((p) => ({ ...p, [c.path]: "disk" }))}
                   >
-                    {t("save.conflictTakeServer")}
+                    {t(
+                      conflictSource === "draft"
+                        ? "save.conflictTakeOther"
+                        : "save.conflictTakeServer",
+                    )}
                   </button>
                 </div>
                 {c.disk === null ? (

@@ -10,6 +10,7 @@ import {
   discardPersistedDraft,
   loadPersistedDrafts,
   publishPersistedDraft,
+  resolveDraftConflict,
   syncPersistedDraft,
   usePersistedDraftStore,
 } from "./persistedDrafts";
@@ -436,4 +437,133 @@ it("treats a discard conflict on an already closed draft as done", async () => {
   await discardPersistedDraft("p1");
   expect(api.discardDraft).toHaveBeenCalledTimes(1);
   expect(useProjectDraftStore.getState().get("p1")).toBeUndefined();
+});
+
+/** Charge le brouillon, édite manifest.yaml, puis simule une autre session qui a écrit le même fichier. */
+async function setupSameFileConflict(): Promise<void> {
+  vi.mocked(api.listDrafts).mockResolvedValue([remote]);
+  await loadPersistedDrafts("p1", "u1");
+  const mine = useProjectDraftStore.getState().get("p1")!;
+  useProjectDraftStore.getState().save("p1", { ...mine, tree: { "manifest.yaml": "mine" } });
+  const theirs = {
+    ...remote,
+    revision: 2,
+    snapshot: { ...snapshot, tree: { "manifest.yaml": "theirs" } },
+  };
+  vi.mocked(api.updateDraft).mockRejectedValue(
+    new api.DraftApiError("draft_conflict", 409, theirs),
+  );
+  await syncPersistedDraft("p1");
+}
+
+it("rebase une autre session et adopte en silence les fichiers qu'elle a seuls touchés", async () => {
+  vi.mocked(api.listDrafts).mockResolvedValue([remote]);
+  await loadPersistedDrafts("p1", "u1");
+  const mine = useProjectDraftStore.getState().get("p1")!;
+  useProjectDraftStore.getState().save("p1", {
+    ...mine,
+    tree: { ...mine.tree, "menus/mine.yaml": "mine" },
+  });
+  const theirs = {
+    ...remote,
+    revision: 2,
+    snapshot: {
+      baseline: { "manifest.yaml": "base" },
+      tree: { "manifest.yaml": "edited", "menus/theirs.yaml": "theirs" },
+      initialTree: { "manifest.yaml": "base" },
+      at: 200,
+    },
+  };
+  vi.mocked(api.updateDraft).mockRejectedValue(
+    new api.DraftApiError("draft_conflict", 409, theirs),
+  );
+  await syncPersistedDraft("p1");
+  expect(api.updateDraft).toHaveBeenCalledOnce();
+  const session = usePersistedDraftStore.getState().sessions.p1;
+  expect(session?.status).toBe("conflict");
+  expect(session?.draftConflict?.conflicts).toEqual([]);
+  const local = useProjectDraftStore.getState().get("p1")!;
+  expect(local.tree["menus/theirs.yaml"]).toBe("theirs");
+  expect(local.tree["menus/mine.yaml"]).toBe("mine");
+  expect(local.tree["manifest.yaml"]).toBe("edited");
+  expect(local.remote?.revision).toBe(2);
+});
+
+it("signale un fichier édité des deux côtés et cesse d'écrire tant que ce n'est pas tranché", async () => {
+  await setupSameFileConflict();
+  const session = usePersistedDraftStore.getState().sessions.p1;
+  expect(session?.draftConflict?.conflicts).toEqual([{ path: "manifest.yaml", disk: "theirs" }]);
+  expect(useProjectDraftStore.getState().get("p1")?.tree["manifest.yaml"]).toBe("mine");
+  expect(useProjectDraftStore.getState().get("p1")?.remote?.revision).toBe(2);
+  expect(api.updateDraft).toHaveBeenCalledOnce();
+  await syncPersistedDraft("p1");
+  expect(api.updateDraft).toHaveBeenCalledOnce();
+});
+
+it("tranche un conflit : garder ma version écrit à la révision distante", async () => {
+  await setupSameFileConflict();
+  vi.mocked(api.updateDraft).mockImplementation(async (_p, _id, revision, _name, saved) => ({
+    ...remote,
+    revision: revision + 1,
+    snapshot: saved,
+  }));
+  await resolveDraftConflict("p1", { "manifest.yaml": "mine" });
+  expect(vi.mocked(api.updateDraft).mock.calls[1]?.[2]).toBe(2);
+  expect(vi.mocked(api.updateDraft).mock.calls[1]?.[4].tree["manifest.yaml"]).toBe("mine");
+  expect(usePersistedDraftStore.getState().sessions.p1?.status).toBe("saved");
+  expect(usePersistedDraftStore.getState().sessions.p1?.draftConflict).toBeUndefined();
+  expect(useProjectDraftStore.getState().get("p1")?.remote?.revision).toBe(3);
+});
+
+it("tranche un conflit : prendre l'autre session ne réécrit rien", async () => {
+  await setupSameFileConflict();
+  vi.mocked(api.updateDraft).mockClear();
+  await resolveDraftConflict("p1", { "manifest.yaml": "disk" });
+  expect(api.updateDraft).not.toHaveBeenCalled();
+  expect(useProjectDraftStore.getState().get("p1")?.tree["manifest.yaml"]).toBe("theirs");
+  expect(useProjectDraftStore.getState().get("p1")?.baseline["manifest.yaml"]).toBe("theirs");
+  expect(usePersistedDraftStore.getState().sessions.p1?.status).toBe("saved");
+  expect(usePersistedDraftStore.getState().sessions.p1?.draftConflict).toBeUndefined();
+});
+
+it("ne vide pas la base d'images locale quand le brouillon distant n'en porte pas", async () => {
+  vi.mocked(api.listDrafts).mockResolvedValue([remote]);
+  await loadPersistedDrafts("p1", "u1");
+  const mine = useProjectDraftStore.getState().get("p1")!;
+  const binaries = { "assets/icon.png": { hash: "old", size: 3 } };
+  useProjectDraftStore.getState().save("p1", {
+    ...mine,
+    tree: { "manifest.yaml": "mine" },
+    binaryBaseline: binaries,
+    binaryTree: binaries,
+  });
+  const theirs = {
+    ...remote,
+    revision: 2,
+    snapshot: { ...snapshot, tree: { "manifest.yaml": "theirs" } },
+  };
+  vi.mocked(api.updateDraft).mockRejectedValue(
+    new api.DraftApiError("draft_conflict", 409, theirs),
+  );
+  await syncPersistedDraft("p1");
+  const local = useProjectDraftStore.getState().get("p1")!;
+  expect(local.binaryBaseline).toEqual(binaries);
+  expect(local.binaryTree).toEqual(binaries);
+});
+
+it("détecte un conflit de révision à l'ouverture quand une autre session a avancé le brouillon", async () => {
+  vi.mocked(api.listDrafts).mockResolvedValue([remote]);
+  await loadPersistedDrafts("p1", "u1");
+  const mine = useProjectDraftStore.getState().get("p1")!;
+  useProjectDraftStore.getState().save("p1", { ...mine, tree: { "manifest.yaml": "mine" } });
+  const theirs = {
+    ...remote,
+    revision: 2,
+    snapshot: { ...snapshot, tree: { "manifest.yaml": "theirs" } },
+  };
+  vi.mocked(api.listDrafts).mockResolvedValue([theirs]);
+  await loadPersistedDrafts("p1", "u1");
+  const session = usePersistedDraftStore.getState().sessions.p1;
+  expect(session?.status).toBe("conflict");
+  expect(session?.draftConflict?.conflicts).toEqual([{ path: "manifest.yaml", disk: "theirs" }]);
 });

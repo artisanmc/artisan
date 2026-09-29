@@ -3,10 +3,17 @@ import { projectTree } from "@/features/project/saveProjectToDisk";
 import { projectPrincipal, useProjectPrincipalId } from "@/lib/projectPrincipal";
 import { useAccountStore } from "@/state/accountStore";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
+import { useProjectCacheStore } from "@/state/projectCacheStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
 import { useEffect } from "react";
+import { subscribeDraftSaved } from "./draftBroadcast";
 import { registerDraftFlush } from "./draftFlush";
-import { markDraftPending, syncPersistedDraft, usePersistedDraftStore } from "./persistedDrafts";
+import {
+  loadPersistedDrafts,
+  markDraftPending,
+  syncPersistedDraft,
+  usePersistedDraftStore,
+} from "./persistedDrafts";
 
 /**
  * Fenêtre d'apaisement : on ne resérialise pas l'arbre à chaque frappe.
@@ -42,6 +49,24 @@ export function useDraftSync(): void {
       clearInterval(interval);
       window.removeEventListener("online", sync);
     };
+  }, [userId]);
+  // Un autre onglet du même navigateur a écrit le brouillon : on se réaligne,
+  // ou on présente le conflit tout de suite si on a aussi des modifications.
+  useEffect(() => {
+    if (!userId) return;
+    return subscribeDraftSaved((message) => {
+      if (message.ownerId !== userId) return;
+      if (projectPrincipal.current(message.projectId)?.id !== userId) return;
+      const session = usePersistedDraftStore.getState().sessions[message.projectId];
+      if (!session || session.draftConflict) return;
+      if (session.status !== "saved" && session.status !== "pending") return;
+      const local = useProjectDraftStore.getState().get(message.projectId);
+      if (local?.remote && local.remote.revision >= message.remote.revision) return;
+      void loadPersistedDrafts(message.projectId, userId).then(() => {
+        const after = usePersistedDraftStore.getState().sessions[message.projectId];
+        if (after?.status === "saved") useProjectCacheStore.getState().requestReload();
+      });
+    });
   }, [userId]);
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | null = null;

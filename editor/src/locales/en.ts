@@ -1962,6 +1962,11 @@ export default {
     conflictOpenBody:
       "Since your draft was started, these files changed on the server and in your draft. Files you did not touch were updated automatically. Pick which version to keep, file by file.",
     conflictOpenResolved: "Your choices were applied to the draft. Nothing was published.",
+    conflictDraftTitle: "This draft changed in another session",
+    conflictDraftBody:
+      "Another session saved this draft while you were editing. Files only it touched were updated automatically. Nothing was written back. Pick which version to keep, file by file.",
+    conflictTakeOther: "Take the other session's",
+    conflictDraftResolved: "Your choices were applied to the draft.",
     cancel: "Cancel",
   },
   deploy: {
