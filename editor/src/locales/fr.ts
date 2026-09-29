@@ -1987,6 +1987,11 @@ const fr: typeof en = {
     conflictOpenBody:
       "Depuis le début de ton brouillon, ces fichiers ont changé sur le serveur et dans ton brouillon. Ceux que tu n'avais pas touchés ont été mis à jour automatiquement. Choisis, pour chaque fichier, la version à garder.",
     conflictOpenResolved: "Tes choix sont appliqués au brouillon. Rien n'a été publié.",
+    conflictDraftTitle: "Ce brouillon a changé dans une autre session",
+    conflictDraftBody:
+      "Une autre session a enregistré ce brouillon pendant ton édition. Les fichiers qu'elle a seuls touchés ont été mis à jour automatiquement. Rien n'a été réécrit. Choisis, pour chaque fichier, la version à garder.",
+    conflictTakeOther: "Prendre celle de l'autre session",
+    conflictDraftResolved: "Tes choix sont appliqués au brouillon.",
     cancel: "Annuler",
   },
   deploy: {
