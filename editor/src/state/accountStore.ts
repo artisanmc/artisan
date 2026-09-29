@@ -1,4 +1,4 @@
-import { isGroupColor, normalizeCanvasGroups } from "@/domain/canvasGroups";
+import { isGroupColor, liveDocumentIds, normalizeCanvasGroups } from "@/domain/canvasGroups";
 import { projectBoard, rearrangeProjectLayout } from "@/features/canvas/autoLayout";
 import {
   type FieldEdit,
@@ -347,7 +347,7 @@ interface AccountState {
   /** Réarrange la planche en conservant la disposition interne des groupes. */
   releaseBoardPositions: (input: { projectId: ProjectId }) => void;
   rearrangeCanvasGroup: (input: { projectId: ProjectId; groupId: string }) => void;
-  createCanvasGroup: (input: { projectId: ProjectId; name: string; menuIds: string[]; color?: string }) => string;
+  createCanvasGroup: (input: { projectId: ProjectId; name: string; nodeIds: string[]; color?: string }) => string;
   updateCanvasGroup: (input: { projectId: ProjectId; groupId: string; name?: string; color?: string }) => void;
   dissolveCanvasGroup: (input: { projectId: ProjectId; groupId: string }) => void;
   moveCanvasGroup: (input: { projectId: ProjectId; groupId: string | null; dx: number; dy: number }) => void;
@@ -1594,6 +1594,7 @@ export const useAccountStore = create<AccountState>()(
             delete layout[oldId as string];
           }
           rewriteCanvasEdgeIds(p, oldId as string, newId as string);
+          rewriteCanvasGroupMembers(p, oldId as string, newId as string);
           p.updatedAt = new Date().toISOString();
         });
         set({ account: next });
@@ -2011,7 +2012,7 @@ export const useAccountStore = create<AccountState>()(
           if (idx === -1) throw new Error("menu not found in source project");
           const [moved] = from.menus.splice(idx, 1);
           if (!moved) return;
-          from.canvasGroups = normalizeCanvasGroups(from.canvasGroups, from.menus.map((m) => m.id));
+          from.canvasGroups = normalizeCanvasGroups(from.canvasGroups, liveDocumentIds(from));
           moved.projectId = toProjectId;
           to.menus.push(moved);
         });
@@ -2019,30 +2020,31 @@ export const useAccountStore = create<AccountState>()(
       },
       setCanvasPosition: ({ projectId: pId, nodeId, x, y }) => {
         const current = get().account.projects.find((p) => p.id === pId);
-        const group = current?.canvasGroups?.find((g) => g.menuIds.includes(nodeId));
+        const group = current?.canvasGroups?.find((g) => g.nodeIds.includes(nodeId));
         const layout = group && current ? projectBoard(current).allLayout : {};
         set(
           produce((draft: AccountState) => {
             const project = draft.account.projects.find((p) => p.id === pId);
             if (!project) return;
-            for (const id of group?.menuIds ?? []) {
+            for (const id of group?.nodeIds ?? []) {
               if (layout[id]) (project.canvasLayout as Record<string, { x: number; y: number }>)[id] = layout[id]!;
             }
             (project.canvasLayout as Record<string, { x: number; y: number }>)[nodeId] = { x, y };
           }),
         );
       },
-      createCanvasGroup: ({ projectId: pId, name, menuIds, color }) => {
+      createCanvasGroup: ({ projectId: pId, name, nodeIds, color }) => {
         const id = crypto.randomUUID();
         set(produce((draft: AccountState) => {
           const project = draft.account.projects.find((p) => p.id === pId);
           if (!project || !name.trim()) throw new Error("Invalid group");
-          const members = [...new Set(menuIds)];
-          if (members.length < 2 || members.some((key) => !project.menus.some((m) => m.id === key)))
-            throw new Error("Select at least two menus in this project");
+          const members = [...new Set(nodeIds)];
+          const live = new Set(liveDocumentIds(project));
+          if (members.length < 2 || members.some((key) => !live.has(key)))
+            throw new Error("Select at least two documents in this project");
           project.canvasGroups = normalizeCanvasGroups([
-            { id, name: name.trim(), menuIds: members, color }, ...(project.canvasGroups ?? []),
-          ], project.menus.map((m) => m.id));
+            { id, name: name.trim(), nodeIds: members, color }, ...(project.canvasGroups ?? []),
+          ], live);
           for (const key of members) delete (project.canvasLayout as Record<string, unknown>)[key];
         }));
         return id;
@@ -2704,9 +2706,7 @@ export const useAccountStore = create<AccountState>()(
               delete layout[oldId];
             }
             rewriteCanvasEdgeIds(project, oldId as string, newId as string);
-            for (const group of project.canvasGroups ?? []) {
-              group.menuIds = group.menuIds.map((id) => id === oldId ? newId : id);
-            }
+            rewriteCanvasGroupMembers(project, oldId as string, newId as string);
             rekeyMenu(project, menu);
             project.updatedAt = new Date().toISOString();
           }),
@@ -2738,6 +2738,7 @@ export const useAccountStore = create<AccountState>()(
               delete layout[oldId];
             }
             rewriteCanvasEdgeIds(project, oldId as string, newId as string);
+            rewriteCanvasGroupMembers(project, oldId as string, newId as string);
             rekeyCommand(project, cmd);
             project.updatedAt = new Date().toISOString();
           }),
@@ -4088,11 +4089,11 @@ export const useAccountStore = create<AccountState>()(
             if (ids.has(d.id)) gcDialogLTexts(project, d);
           }
           project.menus = project.menus.filter((m) => !ids.has(m.id));
-          if (project.canvasGroups) {
-            project.canvasGroups = normalizeCanvasGroups(project.canvasGroups, project.menus.map((m) => m.id));
-          }
           project.commands = project.commands.filter((c) => !ids.has(c.id));
           project.dialogs = project.dialogs.filter((d) => !ids.has(d.id));
+          if (project.canvasGroups) {
+            project.canvasGroups = normalizeCanvasGroups(project.canvasGroups, liveDocumentIds(project));
+          }
           for (const id of ids) {
             delete (project.canvasLayout as Record<string, { x: number; y: number }>)[id];
           }
@@ -4117,6 +4118,13 @@ export const useAccountStore = create<AccountState>()(
     },
   ),
 );
+
+/** Rekey canvasGroups membership when a Document id changes. */
+function rewriteCanvasGroupMembers(project: Project, oldId: string, newId: string) {
+  for (const group of project.canvasGroups ?? []) {
+    group.nodeIds = group.nodeIds.map((id) => (id === oldId ? newId : id));
+  }
+}
 
 /** Rekey canvasEdges entries when a node id changes ("a->b" keys embed node ids). */
 function rewriteCanvasEdgeIds(project: Project, oldId: string, newId: string) {

@@ -108,7 +108,8 @@ export interface EdgeAnchor {
 export interface CanvasGroup {
   id: string;
   name: string;
-  menuIds: string[];
+  /** Any Document id in the project — menus, commands and dialogs alike. */
+  nodeIds: string[];
   color?: string;
   position?: { x: number; y: number };
 }

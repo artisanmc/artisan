@@ -1,4 +1,5 @@
 import { EmptyState } from "@/components/ui/empty-state";
+import { liveDocumentIds } from "@/domain/canvasGroups";
 import type { ElementId, MenuId, ProjectId } from "@/domain/types";
 import { useCssVar } from "@/lib/themeColors";
 import { useAccountStore } from "@/state/accountStore";
@@ -384,6 +385,7 @@ function StageCanvas({ projectId, focus }: StageProps) {
   if (!project) return <div className="p-8 text-[var(--text-mut)]">Project not found.</div>;
 
   const entityIds = ctxMenu.target.kind === "entity" ? ctxMenu.target.selectedIds : [];
+  const groupableIds = new Set(liveDocumentIds(project));
 
   return (
     <div
@@ -617,8 +619,8 @@ function StageCanvas({ projectId, focus }: StageProps) {
           openProjectSettings();
         }}
         onGroup={
-          !focusMode && entityIds.length >= 2 && entityIds.every((id) => project.menus.some((m) => m.id === id))
-            ? () => { setGroupDialog({ menuIds: entityIds }); closeCtxMenu(); } : undefined
+          !focusMode && entityIds.length >= 2 && entityIds.every((id) => groupableIds.has(id))
+            ? () => { setGroupDialog({ nodeIds: entityIds }); closeCtxMenu(); } : undefined
         }
         onMoveTo={(toProjectId) => {
           if (entityIds.length !== 1) return;
