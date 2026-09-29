@@ -220,13 +220,13 @@ describe("projectFromFiles (files → domain, inverse of transform)", () => {
       { id: "valid", name: "Crafts", menuIds: ["m1", "m1", "missing"], position: { x: "wrong", y: 4 } },
       { id: "duplicate", name: "Other", menuIds: ["m1"] },
     ] });
-    expect(projectFromFiles(PID, files).canvasGroups).toEqual([{ id: "valid", name: "Crafts", menuIds: ["m1"] }]);
+    expect(projectFromFiles(PID, files).canvasGroups).toEqual([{ id: "valid", name: "Crafts", nodeIds: ["m1"] }]);
   });
-  it("round-trips visual groups without changing any menu file", () => {
+  it("round-trips visual groups of any Document kind without changing any file", () => {
     const original = fixture();
     const grouped = {
       ...original,
-      canvasGroups: [{ id: "crafts", name: "Crafts", menuIds: ["m1"], color: "#a855f7",
+      canvasGroups: [{ id: "crafts", name: "Crafts", nodeIds: ["m1", "c1", "d1"], color: "#a855f7",
         position: { x: 120, y: 240 } }],
     };
     const files = transform(grouped);

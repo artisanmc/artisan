@@ -31,8 +31,30 @@ it("creates a named group from the selected menus through the canvas controls", 
   expect(
     useAccountStore.getState().account.projects.find((p) => p.id === pid)!.canvasGroups,
   ).toEqual([
-    expect.objectContaining({ name: "Crafts", menuIds: ["craft_a", "craft_b"], color: "#a855f7" }),
+    expect.objectContaining({ name: "Crafts", nodeIds: ["craft_a", "craft_b"], color: "#a855f7" }),
   ]);
+});
+
+it("groups a command and a menu from the selection", async () => {
+  const pid = projectId("p_personal");
+  useAccountStore.setState({ account: mockAccount() });
+  const store = useAccountStore.getState();
+  store.createMenu({ projectId: pid, id: "craft_a" });
+  const cmdId = store.createCommand({ projectId: pid, id: "cmd_a" });
+  useSelectionStore.getState().set(["craft_a", cmdId]);
+  function Harness() {
+    const project = useAccountStore((s) => s.account.projects.find((p) => p.id === pid)!);
+    const [dialog, setDialog] = useState<GroupDialogState>(null);
+    return <BoardGroupControls project={project} dialog={dialog} onDialogChange={setDialog} />;
+  }
+  const user = userEvent.setup();
+  render(<Harness />);
+  await user.click(screen.getByRole("button", { name: /Grouper la sélection|Group selection/i }));
+  await user.type(screen.getByRole("textbox", { name: /Nom du groupe|Group name/i }), "Mixed");
+  await user.click(screen.getByRole("button", { name: /Créer le groupe|Create group/i }));
+  expect(
+    useAccountStore.getState().account.projects.find((p) => p.id === pid)!.canvasGroups,
+  ).toEqual([expect.objectContaining({ name: "Mixed", nodeIds: ["craft_a", cmdId] })]);
 });
 
 it("rearranges a group's contents from its menu", async () => {
@@ -43,7 +65,7 @@ it("rearranges a group's contents from its menu", async () => {
   const groupId = store.createCanvasGroup({
     projectId: pid,
     name: "Crafts",
-    menuIds: ["craft_a", "craft_b"],
+    nodeIds: ["craft_a", "craft_b"],
   });
   store.setCanvasPosition({ projectId: pid, nodeId: "craft_b", x: 5000, y: 3000 });
   const project = () => useAccountStore.getState().account.projects.find((p) => p.id === pid)!;
@@ -73,7 +95,7 @@ it("edits a saved group's color and supports undo", async () => {
   const groupId = store.createCanvasGroup({
     projectId: pid,
     name: "Crafts",
-    menuIds: ["craft_a", "craft_b"],
+    nodeIds: ["craft_a", "craft_b"],
     color: "#a855f7",
   });
   const project = () => useAccountStore.getState().account.projects.find((p) => p.id === pid)!;

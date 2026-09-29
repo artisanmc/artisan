@@ -1,15 +1,15 @@
-import { onboardingFr } from "./onboarding";
-import { planCatalogFr } from "./planCatalog";
 import { accountDeletionFr } from "./accountDeletion";
 import { changesFr } from "./changes";
 import { demoFr } from "./demo";
 import { draftsFr } from "./drafts";
-import { serverCanvasFr } from "./serverCanvas";
 import type en from "./en";
 import { marketingFr } from "./marketing";
 import { migrationFr } from "./migration";
+import { onboardingFr } from "./onboarding";
+import { planCatalogFr } from "./planCatalog";
 import { projectCopyFr } from "./projectCopy";
 import { projectIdentityFr } from "./projectIdentity";
+import { serverCanvasFr } from "./serverCanvas";
 import { tasksFr } from "./tasks";
 
 const fr: typeof en = {
@@ -860,12 +860,19 @@ const fr: typeof en = {
   },
   canvas: {
     groups: {
-      title: "Groupes", createSelection: "Grouper la sélection", create: "Créer le groupe",
-      name: "Nom du groupe", edit: "Modifier le groupe", color: "Couleur du groupe", rearrange: "Réarranger le contenu",
+      title: "Groupes",
+      createSelection: "Grouper la sélection",
+      create: "Créer le groupe",
+      name: "Nom du groupe",
+      edit: "Modifier le groupe",
+      color: "Couleur du groupe",
+      rearrange: "Réarranger le contenu",
       dissolve: "Dissocier le groupe",
-      cancel: "Annuler", save: "Enregistrer", documents: "{{count}} documents",
-      description: "Organisation visuelle uniquement. Dissocier un groupe conserve ses menus.",
-      invalidSelection: "Sélectionne au moins deux menus du même projet.",
+      cancel: "Annuler",
+      save: "Enregistrer",
+      documents: "{{count}} documents",
+      description: "Organisation visuelle uniquement. Dissocier un groupe conserve ses documents.",
+      invalidSelection: "Sélectionne au moins deux documents du même projet.",
     },
     minimap: "Minimap",
     closeMinimap: "Fermer la minimap",
@@ -889,7 +896,8 @@ const fr: typeof en = {
     modeHand: "Navigation",
     gutter: "Pas encore reliés",
     rearrange: "Réarranger",
-    rearrangeHint: "Réarrange les groupes et les éléments hors groupe en conservant le contenu de chaque groupe (Ctrl+Z pour annuler)",
+    rearrangeHint:
+      "Réarrange les groupes et les éléments hors groupe en conservant le contenu de chaque groupe (Ctrl+Z pour annuler)",
     rearrangeNothing: "La planche est déjà entièrement arrangée",
   },
   dialog: {
@@ -1874,7 +1882,8 @@ const fr: typeof en = {
     revoked: "Cette invitation a été révoquée",
     expired: "Cette invitation a expiré",
     exhausted: "Cette invitation a atteint sa limite d'utilisation",
-    limit: "Ce réseau a atteint sa limite de collaborateurs. Son propriétaire peut passer à Pro pour vous inviter.",
+    limit:
+      "Ce réseau a atteint sa limite de collaborateurs. Son propriétaire peut passer à Pro pour vous inviter.",
     notFound: "Invitation introuvable",
     error: "Erreur lors du chargement de l'invitation",
   },
@@ -1920,13 +1929,18 @@ const fr: typeof en = {
     revertTitle: "Jeter les modifications non enregistrées et repartir de l'état du serveur",
   },
   editorAccess: {
-    unavailable: "Impossible de vérifier les droits de l'éditeur tant que l'inventaire du serveur est indisponible.",
+    unavailable:
+      "Impossible de vérifier les droits de l'éditeur tant que l'inventaire du serveur est indisponible.",
     module: "Ressource de module · hors quota personnel",
     pro: "{{count}} / {{quota}} ressources personnelles · Pro actif",
-    proAtQuota: "Quota Pro atteint ({{quota}} ressources par serveur). Vous pouvez modifier les ressources existantes.",
-    proLocked: "Ce serveur contient {{count}} ressources personnelles pour une limite Pro de {{quota}}. Les ressources existantes restent accessibles en jeu.",
-    locked: "Ce serveur contient {{count}} ressources personnelles. L'édition gratuite en permet {{quota}}. Les ressources personnelles sont en lecture seule ; les contenus installés restent actifs en jeu.",
-    atQuota: "Quota gratuit atteint. Tu peux modifier tes {{quota}} ressources personnelles, mais pas en ajouter.",
+    proAtQuota:
+      "Quota Pro atteint ({{quota}} ressources par serveur). Vous pouvez modifier les ressources existantes.",
+    proLocked:
+      "Ce serveur contient {{count}} ressources personnelles pour une limite Pro de {{quota}}. Les ressources existantes restent accessibles en jeu.",
+    locked:
+      "Ce serveur contient {{count}} ressources personnelles. L'édition gratuite en permet {{quota}}. Les ressources personnelles sont en lecture seule ; les contenus installés restent actifs en jeu.",
+    atQuota:
+      "Quota gratuit atteint. Tu peux modifier tes {{quota}} ressources personnelles, mais pas en ajouter.",
     count: "{{count}} / {{quota}} ressources personnelles",
     proLink: "Voir Pro",
     retry: "Réessayer",
@@ -1947,8 +1961,10 @@ const fr: typeof en = {
       invalid_input: "Les données envoyées sont invalides.",
       read_error: "Le serveur n’a pas pu lire les fichiers.",
       write_error: "Le serveur n’a pas pu écrire les fichiers.",
-      quota_denied: "Cette modification dépasse le quota gratuit de l'éditeur. Ton brouillon est conservé. Renouvelle Pro ou supprime des ressources personnelles pour continuer.",
-      inventory_unavailable: "L'inventaire des ressources du serveur est indisponible. Reconnecte le serveur et réessaie.",
+      quota_denied:
+        "Cette modification dépasse le quota gratuit de l'éditeur. Ton brouillon est conservé. Renouvelle Pro ou supprime des ressources personnelles pour continuer.",
+      inventory_unavailable:
+        "L'inventaire des ressources du serveur est indisponible. Reconnecte le serveur et réessaie.",
       plugin_update_required: "Mets à jour le plugin serveur pour modifier avec cette offre.",
       too_large: "Les données dépassent la taille autorisée.",
       forbidden: "Tu n’as pas l’autorisation d’enregistrer ce projet.",

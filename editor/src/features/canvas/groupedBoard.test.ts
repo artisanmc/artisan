@@ -49,7 +49,7 @@ function project(id = "p"): Project {
         },
       ],
     })),
-    canvasGroups: [{ id: "crafts", name: "Crafts", menuIds: [`${id}_craft_a`, `${id}_craft_b`] }],
+    canvasGroups: [{ id: "crafts", name: "Crafts", nodeIds: [`${id}_craft_a`, `${id}_craft_b`] }],
   } as unknown as Project;
 }
 

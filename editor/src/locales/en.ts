@@ -1,14 +1,14 @@
-import { onboardingEn } from "./onboarding";
-import { planCatalogEn } from "./planCatalog";
 import { accountDeletionEn } from "./accountDeletion";
 import { changesEn } from "./changes";
 import { demoEn } from "./demo";
 import { draftsEn } from "./drafts";
 import { marketingEn } from "./marketing";
-import { serverCanvasEn } from "./serverCanvas";
 import { migrationEn } from "./migration";
+import { onboardingEn } from "./onboarding";
+import { planCatalogEn } from "./planCatalog";
 import { projectCopyEn } from "./projectCopy";
 import { projectIdentityEn } from "./projectIdentity";
+import { serverCanvasEn } from "./serverCanvas";
 import { tasksEn } from "./tasks";
 export default {
   marketing: marketingEn,
@@ -842,12 +842,19 @@ export default {
   },
   canvas: {
     groups: {
-      title: "Groups", createSelection: "Group selection", create: "Create group",
-      name: "Group name", edit: "Edit group", color: "Group color", rearrange: "Rearrange contents",
+      title: "Groups",
+      createSelection: "Group selection",
+      create: "Create group",
+      name: "Group name",
+      edit: "Edit group",
+      color: "Group color",
+      rearrange: "Rearrange contents",
       dissolve: "Dissolve group",
-      cancel: "Cancel", save: "Save", documents: "{{count}} documents",
-      description: "Visual organization only. Dissolving a group keeps its menus.",
-      invalidSelection: "Select at least two menus in the same project.",
+      cancel: "Cancel",
+      save: "Save",
+      documents: "{{count}} documents",
+      description: "Visual organization only. Dissolving a group keeps its documents.",
+      invalidSelection: "Select at least two documents in the same project.",
     },
     minimap: "Minimap",
     closeMinimap: "Close minimap",
@@ -871,7 +878,8 @@ export default {
     modeHand: "Pan",
     gutter: "Not linked yet",
     rearrange: "Rearrange",
-    rearrangeHint: "Rearrange groups and ungrouped documents while preserving each group's contents (Ctrl+Z to undo)",
+    rearrangeHint:
+      "Rearrange groups and ungrouped documents while preserving each group's contents (Ctrl+Z to undo)",
     rearrangeNothing: "The board is already fully arranged",
   },
   dialog: {
@@ -1850,7 +1858,8 @@ export default {
     revoked: "This invite has been revoked",
     expired: "This invite has expired",
     exhausted: "This invite has reached its usage limit",
-    limit: "This network has reached its collaborator limit. Its owner can upgrade to Pro to invite you.",
+    limit:
+      "This network has reached its collaborator limit. Its owner can upgrade to Pro to invite you.",
     notFound: "Invite not found",
     error: "Error loading the invite",
   },
@@ -1899,10 +1908,14 @@ export default {
     unavailable: "Editor rights cannot be checked while the server inventory is unavailable.",
     module: "Module resource · outside the personal quota",
     pro: "{{count}} / {{quota}} personal resources · Pro active",
-    proAtQuota: "Pro limit reached ({{quota}} resources per server). You can edit existing resources.",
-    proLocked: "This server has {{count}} personal resources above the Pro limit of {{quota}}. Existing content remains available in game.",
-    locked: "This server has {{count}} personal resources. Free editing allows {{quota}}. Personal resources are read only; installed content still runs in game.",
-    atQuota: "Free quota reached. You can edit your {{quota}} personal resources, but cannot add another.",
+    proAtQuota:
+      "Pro limit reached ({{quota}} resources per server). You can edit existing resources.",
+    proLocked:
+      "This server has {{count}} personal resources above the Pro limit of {{quota}}. Existing content remains available in game.",
+    locked:
+      "This server has {{count}} personal resources. Free editing allows {{quota}}. Personal resources are read only; installed content still runs in game.",
+    atQuota:
+      "Free quota reached. You can edit your {{quota}} personal resources, but cannot add another.",
     count: "{{count}} / {{quota}} personal resources",
     proLink: "See Pro",
     retry: "Retry",
@@ -1923,8 +1936,10 @@ export default {
       invalid_input: "The submitted data is invalid.",
       read_error: "The server could not read the files.",
       write_error: "The server could not write the files.",
-      quota_denied: "This change exceeds the free editor quota. Your draft is still here. Renew Pro or delete personal resources to continue.",
-      inventory_unavailable: "The server resource inventory could not be checked. Reconnect the server and try again.",
+      quota_denied:
+        "This change exceeds the free editor quota. Your draft is still here. Renew Pro or delete personal resources to continue.",
+      inventory_unavailable:
+        "The server resource inventory could not be checked. Reconnect the server and try again.",
       plugin_update_required: "Update the server plugin before editing with this offer.",
       too_large: "The data exceeds the allowed size.",
       forbidden: "You do not have permission to save this project.",

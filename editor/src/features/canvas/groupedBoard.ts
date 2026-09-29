@@ -49,7 +49,8 @@ function navigationRoot(
 ): string[] {
   const targets = (key: string) =>
     new Set(edges.filter((e) => e.source === key && e.target !== key).map((e) => e.target)).size;
-  const candidates = nodes.filter((n) => n.kind === "menu");
+  const menus = nodes.filter((n) => n.kind === "menu");
+  const candidates = menus.length ? menus : [...nodes];
   candidates.sort(
     (a, b) =>
       Number(entries.includes(b.key)) - Number(entries.includes(a.key)) ||
@@ -70,7 +71,7 @@ export function arrangeProjectGroups(
   const edges = graph.edges.filter((e) => live.has(e.source) && live.has(e.target));
   const groups = normalizeCanvasGroups(
     project.canvasGroups,
-    nodes.filter((n) => n.kind === "menu").map((n) => n.docId),
+    nodes.map((n) => n.docId),
   );
   const parent = new Map<string, string>();
   const inner = new Map<
@@ -81,7 +82,7 @@ export function arrangeProjectGroups(
   const pins: Record<string, Point> = {};
   const metadata = new Map(groups.map((g) => [manualKey(project.id, g.id), g]));
   for (const [key, group] of metadata) {
-    const members = group.menuIds.map((id) => documentKey(project.id, id));
+    const members = group.nodeIds.map((id) => documentKey(project.id, id));
     const memberSet = new Set(members);
     for (const id of members) parent.set(id, key);
     const childNodes = nodes.filter((n) => memberSet.has(n.key));
