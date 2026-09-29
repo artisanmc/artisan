@@ -1,13 +1,20 @@
-import { usePersistedDraftStore } from "@/features/project/persistedDrafts";
+import { resolveDraftConflict, usePersistedDraftStore } from "@/features/project/persistedDrafts";
 import * as diskSave from "@/features/project/saveProjectToDisk";
-import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { mockAccount } from "@/mock/fixtures";
 import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
+import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { ProjectTopBarControls } from "./ProjectTopBarControls";
+
+vi.mock("@/features/project/persistedDrafts", async () => {
+  const actual = await vi.importActual<typeof import("@/features/project/persistedDrafts")>(
+    "@/features/project/persistedDrafts",
+  );
+  return { ...actual, resolveDraftConflict: vi.fn(async () => {}) };
+});
 
 vi.mock("@tanstack/react-router", async () => {
   const actual =
@@ -214,5 +221,72 @@ describe("ProjectTopBarControls", () => {
     expect(screen.getByTestId("open-view-data-sources")).toBeInTheDocument();
     expect(screen.getByTestId("open-view-resources")).toHaveAccessibleName(/resources|ressources/i);
     expect(screen.getByTestId("open-view-translations")).toHaveTextContent("1");
+  });
+
+  it("opens the per-file modal when another session advanced the draft, and applies the choice", async () => {
+    const previousAccount = useAccountStore.getState().account;
+    const previousUser = useAuthStore.getState().currentUser;
+    const account = mockAccount();
+    const project = account.projects[0]!;
+    const mine = diskSave.projectTree(project)["manifest.yaml"]!;
+    try {
+      useAccountStore.setState({ account });
+      useAuthStore.setState({
+        currentUser: { id: "u1", email: "draft@example.test", name: "Draft", avatarUrl: null },
+      });
+      useProjectDraftStore.getState().save(project.id, {
+        baseline: { "manifest.yaml": "base" },
+        tree: { "manifest.yaml": mine },
+        initialTree: { "manifest.yaml": "base" },
+        at: 1,
+      });
+      usePersistedDraftStore.setState({
+        sessions: {
+          [project.id]: {
+            ownerId: "u1",
+            drafts: [],
+            status: "conflict",
+            draftConflict: {
+              remote: {
+                id: "d1",
+                projectId: project.id,
+                ownerId: "u1",
+                name: "Other",
+                revision: 2,
+                status: "active",
+                snapshot: {
+                  baseline: { "manifest.yaml": "base" },
+                  tree: { "manifest.yaml": "name: Other\n" },
+                  initialTree: { "manifest.yaml": "base" },
+                  at: 2,
+                },
+                source: "editor",
+                updatedAt: "today",
+              },
+              merged: {
+                baseline: { "manifest.yaml": "base" },
+                tree: { "manifest.yaml": mine },
+              },
+              conflicts: [{ path: "manifest.yaml", disk: "name: Other\n" }],
+            },
+          },
+        },
+      });
+      render(<ProjectTopBarControls project={project} projectId={project.id} />);
+      const dialog = await screen.findByRole("dialog");
+      expect(within(dialog).getByText("name: Other")).toBeInTheDocument();
+      fireEvent.click(within(dialog).getByRole("button", { name: /Keep mine|Garder ma version/ }));
+      fireEvent.click(within(dialog).getByRole("button", { name: /^(Apply|Appliquer)$/ }));
+      await waitFor(() =>
+        expect(resolveDraftConflict).toHaveBeenCalledWith(project.id, { "manifest.yaml": "mine" }),
+      );
+    } finally {
+      act(() => {
+        useAccountStore.setState({ account: previousAccount });
+        useAuthStore.setState({ currentUser: previousUser });
+        useProjectDraftStore.getState().clear(project.id);
+        usePersistedDraftStore.setState({ sessions: {} });
+      });
+    }
   });
 });

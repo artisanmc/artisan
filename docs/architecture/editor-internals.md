@@ -414,6 +414,21 @@ dans `session.openConflicts`, et `ProjectTopBarControls` ouvre la même modale q
 un conflit d'enregistrement (`conflictSource: "open"`). Appliquer met à jour la base du
 brouillon et le marque à sauvegarder, **sans publier** ; `consumeOpenConflicts` évite de
 reproposer les mêmes conflits.
+**Conflit entre deux sessions (2026-09-29)** : une écriture refusée en `409
+draft_conflict` (l'autre session a avancé la révision) n'enchaîne plus des relectures
+silencieuses. `persistedDrafts` rebase l'arbre local sur le snapshot distant
+(`rebaseDraft`, module partagé avec le backend) : les fichiers que l'autre session a
+seuls touchés sont repris en silence, les fichiers divergents deviennent
+`session.draftConflict`, et `ProjectTopBarControls` ouvre la modale de conflit
+(`conflictSource: "draft"`, bouton « Prendre celle de l'autre session »). Aucune
+écriture n'est tentée tant que le conflit n'est pas tranché ; `resolveDraftConflict`
+applique les choix, avance la révision locale et resynchronise (sans réécriture si tout
+vient de l'autre session). Même détection au chargement quand la révision listée diffère
+de la locale ; un rebase sans fichier divergent est appliqué d'office, sans modale.
+**Onglets (2026-09-29)** : une écriture réussie est diffusée par `BroadcastChannel`
+(`draftBroadcast`). Un autre onglet du même navigateur sans travail local recharge son
+brouillon et l'arbre du Project tout seul ; un onglet avec des modifications voit le
+conflit se présenter immédiatement. Le cross-appareil reste couvert par le `409`.
 **Server-only (2026-09-27, ADR `server-only-projects`)** : plus de section « projets
 hébergés », de copie vers Minecraft ni d'import ZIP ; la démo n'a plus de réclamation,
 son bouton **Exporter** (`runExportDraftZip`) télécharge le brouillon courant (texte de
@@ -431,7 +446,7 @@ la publication reste un nouveau travail basé sur les fichiers publiés.
 Le transport MCP reste futur ; il réutilisera les mêmes opérations et contrôles.
 
 - `projectBoard(project)` (`features/canvas/autoLayout.ts`) renvoie les positions (`layout` / `allLayout`), cadres (`groups`), identifiants représentants des Documents et gouttière. `groupedBoard.ts` arrange d'abord chaque groupe manuel, puis son cadre avec les Documents non groupés ; `serverBoard` arrange ensuite les cadres de Projects. `arrangeBoard` reste le moteur dagre `LR` de chaque niveau, avec exclusion des retours du calcul des couches, alignement des commandes et conservation des positions fixées. Les entrées externes guident le choix de la racine d'un groupe. Mémoïsation par forme du graphe, groupes, nom et positions : éditer un slot sans changer les liens ne recalcule rien.
-- Un Project forme le cadre racine sur la planche serveur uniquement. Dans sa propre vue, `Stage` masque ce cadre ; seuls les groupes manuels restent visibles. Sélection de ≥2 Menus → **Grouper la sélection** (barre flottante ou menu contextuel), puis nom et couleur ; un seul niveau manuel, appartenance exclusive. `BoardGroupControls` gère nom/couleur/dissociation ; `BoardGroupFrames` partage le rendu entre planches. Déplacer l'en-tête translate les membres en une opération annulable ; dissocier conserve les Menus. Les changements sont dans `canvasGroups`, sérialisés comme `groups` dans `.artisan/editor.yaml`, jamais dans les fichiers des Documents. Renommer/supprimer/déplacer un Menu maintient les appartenances ; les imports ignorent les groupes invalides ou vides.
+- Un Project forme le cadre racine sur la planche serveur uniquement. Dans sa propre vue, `Stage` masque ce cadre ; seuls les groupes manuels restent visibles. Sélection de ≥2 Documents (Menus, Commandes ou Dialogs, éventuellement mêlés) → **Grouper la sélection** (barre flottante ou menu contextuel), puis nom et couleur ; un seul niveau manuel, appartenance exclusive. `BoardGroupControls` gère nom/couleur/dissociation ; `BoardGroupFrames` partage le rendu entre planches. Déplacer l'en-tête translate les membres en une opération annulable ; dissocier conserve les Documents. Les changements sont dans `canvasGroups` (`nodeIds`), sérialisés comme `groups` dans `.artisan/editor.yaml`, jamais dans les fichiers des Documents. Renommer/supprimer un Document (ou déplacer un Menu) maintient les appartenances ; les imports ignorent les groupes invalides ou vides, et lisent encore l'ancien champ `menuIds`.
 - Les groupes restent toujours ouverts, y compris les anciens états `collapsed` / `project_collapsed`, désormais ignorés et non réexportés. La couleur optionnelle `color` accepte uniquement `#RRGGBB` ; bleu par défaut pour un groupe manuel sans couleur. Le fond, bandeau inclus, est rendu à 15 % d'opacité, la bordure à 65 %, le titre reste opaque ; le fond ne capture pas les interactions. Création et édition restent dans le Project ; la planche serveur réutilise les couleurs sauvegardées.
 - Tailles des nœuds : **uniquement** `menuBoxSize` / `COMMAND_BOX` / `DIALOG_BOX` (`menuLayout.ts`), les mêmes que le rendu. Coordonnées = coins haut-gauche (dagre renvoie des centres, convertis).
 - Action `releaseBoardPositions({projectId})` : réarrange uniquement le niveau extérieur, chaque groupe étant un bloc dimensionné selon son contenu et relié par ses liens entrants/sortants. `rearrangeProjectLayout` capture les positions visibles avant calcul pour conserver exactement les positions relatives internes, même non fixées manuellement. Sans groupe, conserve le comportement historique de remise à zéro. Bouton **Réarranger** de `CanvasToolbar` ; annulable par Ctrl+Z (zundo).
