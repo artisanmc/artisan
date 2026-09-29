@@ -1362,7 +1362,7 @@ export function transform(project: Project): Record<string, string> {
     }),
   );
   const editorState: Record<string, unknown> = { schema: "editor-state/v1" };
-  const groups = normalizeCanvasGroups(project.canvasGroups, project.menus.map((m) => m.id));
+  const groups = normalizeCanvasGroups(project.canvasGroups, liveIds);
   if (groups.length) editorState.groups = groups;
   // The i18n mode is a presentation choice about the file shape, not project
   // content — it rides in the hash-excluded editor state so flipping it back

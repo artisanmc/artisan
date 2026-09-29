@@ -1,13 +1,24 @@
-import type { CanvasGroup } from "./types";
+import type { CanvasGroup, Project } from "./types";
+
+/** Every Document id in a project — the live set groups may reference. */
+export const liveDocumentIds = (project: Project): string[] => [
+  ...project.menus.map((m) => m.id),
+  ...project.commands.map((c) => c.id),
+  ...(project.dialogs ?? []).map((d) => d.id),
+];
 
 export const DEFAULT_GROUP_COLOR = "#60a5fa";
 export const isGroupColor = (value: unknown): value is string =>
   typeof value === "string" && /^#[0-9a-f]{6}$/i.test(value);
 
-/** Tolerant metadata reader: each live menu belongs to at most one group. */
-export function normalizeCanvasGroups(value: unknown, menuIds: Iterable<string>): CanvasGroup[] {
+/**
+ * Tolerant metadata reader: each live Document belongs to at most one group.
+ * Reads `nodeIds` (menus, commands and dialogs) and the legacy `menuIds` field
+ * written before groups were generalized.
+ */
+export function normalizeCanvasGroups(value: unknown, liveIds: Iterable<string>): CanvasGroup[] {
   if (!Array.isArray(value)) return [];
-  const live = new Set(menuIds);
+  const live = new Set(liveIds);
   const assigned = new Set<string>();
   const ids = new Set<string>();
   const groups: CanvasGroup[] = [];
@@ -19,13 +30,18 @@ export function normalizeCanvasGroups(value: unknown, menuIds: Iterable<string>)
       !raw.id ||
       ids.has(raw.id) ||
       typeof raw.name !== "string" ||
-      !raw.name.trim() ||
-      !Array.isArray(raw.menuIds)
+      !raw.name.trim()
     )
       continue;
+    const rawMembers = Array.isArray(raw.nodeIds)
+      ? raw.nodeIds
+      : Array.isArray(raw.menuIds)
+        ? raw.menuIds
+        : null;
+    if (!rawMembers) continue;
     const members = [
       ...new Set<string>(
-        raw.menuIds.filter(
+        rawMembers.filter(
           (id: unknown): id is string =>
             typeof id === "string" && live.has(id) && !assigned.has(id),
         ),
@@ -38,7 +54,7 @@ export function normalizeCanvasGroups(value: unknown, menuIds: Iterable<string>)
     groups.push({
       id: raw.id,
       name: raw.name.trim(),
-      menuIds: members,
+      nodeIds: members,
       ...(isGroupColor(raw.color) ? { color: raw.color } : {}),
       ...(p && Number.isFinite(p.x) && Number.isFinite(p.y)
         ? { position: { x: p.x, y: p.y } }

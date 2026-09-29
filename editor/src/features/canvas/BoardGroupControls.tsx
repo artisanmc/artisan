@@ -16,7 +16,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { DEFAULT_GROUP_COLOR } from "@/domain/canvasGroups";
+import { DEFAULT_GROUP_COLOR, liveDocumentIds } from "@/domain/canvasGroups";
 import type { Project } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
 import { useSelectionStore } from "@/state/selectionStore";
@@ -24,7 +24,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
-export type GroupDialogState = { menuIds: string[] } | { groupId: string } | null;
+export type GroupDialogState = { nodeIds: string[] } | { groupId: string } | null;
 
 export function BoardGroupControls({
   project,
@@ -38,8 +38,9 @@ export function BoardGroupControls({
   const { t } = useTranslation();
   const selected = useSelectionStore((s) => s.ids);
   const selectionScope = useSelectionStore((s) => s.menuId);
-  const menus = project.menus.filter((m) => selected.has(m.id)).map((m) => m.id as string);
-  const canGroup = selectionScope === null && menus.length >= 2 && menus.length === selected.size;
+  const live = new Set(liveDocumentIds(project));
+  const nodes = [...selected].filter((id) => live.has(id));
+  const canGroup = selectionScope === null && nodes.length >= 2 && nodes.length === selected.size;
   const editing =
     dialog && "groupId" in dialog
       ? project.canvasGroups?.find((g) => g.id === dialog.groupId)
@@ -56,8 +57,8 @@ export function BoardGroupControls({
     event.preventDefault();
     if (!name.trim() || !dialog) return;
     try {
-      if ("menuIds" in dialog)
-        store.createCanvasGroup({ projectId: project.id, name, menuIds: dialog.menuIds, color });
+      if ("nodeIds" in dialog)
+        store.createCanvasGroup({ projectId: project.id, name, nodeIds: dialog.nodeIds, color });
       else store.updateCanvasGroup({ projectId: project.id, groupId: dialog.groupId, name, color });
       close();
     } catch {
@@ -68,7 +69,7 @@ export function BoardGroupControls({
     <>
       <div className="absolute left-3 top-3 z-20 flex max-w-[calc(100%-1.5rem)] flex-wrap gap-2">
         {canGroup && (
-          <Button size="sm" onClick={() => onDialogChange({ menuIds: menus })}>
+          <Button size="sm" onClick={() => onDialogChange({ nodeIds: nodes })}>
             {t("canvas.groups.createSelection")}
           </Button>
         )}

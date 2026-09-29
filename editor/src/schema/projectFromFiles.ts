@@ -877,6 +877,12 @@ export function projectFromFiles(
     (moduleData[dir] ??= { __files: {} }).__files[rel.slice(slash + 1)] = content;
   }
 
+  const canvasGroups = normalizeCanvasGroups(editorState.groups, [
+    ...menus.map((m) => m.id),
+    ...commands.map((c) => c.id),
+    ...dialogs.map((d) => d.id),
+  ]);
+
   const project: Project = {
     id: projectId,
     name:
@@ -902,8 +908,7 @@ export function projectFromFiles(
     ...(editorState.i18n_mode === "inline" ? { i18nMode: "inline" as const } : {}),
     dialogs,
     canvasLayout: parseEditorLayout(editorState.layout),
-    ...(normalizeCanvasGroups(editorState.groups, menus.map((m) => m.id)).length
-      ? { canvasGroups: normalizeCanvasGroups(editorState.groups, menus.map((m) => m.id)) } : {}),
+    ...(canvasGroups.length ? { canvasGroups } : {}),
     ...(Object.keys(parseEditorEdges(editorState.edges)).length > 0
       ? { canvasEdges: parseEditorEdges(editorState.edges) }
       : {}),

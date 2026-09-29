@@ -1,4 +1,4 @@
-import { normalizeCanvasGroups } from "@/domain/canvasGroups";
+import { liveDocumentIds, normalizeCanvasGroups } from "@/domain/canvasGroups";
 import type { Project } from "@/domain/types";
 import { type BoardGroup, arrangeProjectGroups } from "./groupedBoard";
 import { deriveServerGraph } from "./serverGraph";
@@ -73,17 +73,14 @@ export function rearrangeProjectLayout(
   project: Project,
   groupId?: string,
 ): Pick<Project, "canvasLayout" | "canvasGroups" | "canvasEdges"> | null {
-  const groups = normalizeCanvasGroups(
-    project.canvasGroups,
-    project.menus.map((m) => m.id),
-  );
+  const groups = normalizeCanvasGroups(project.canvasGroups, liveDocumentIds(project));
   const target = groups.find((g) => g.id === groupId);
   if (groupId !== undefined && !target) return null;
   if (!groups.length)
     return { canvasLayout: {} as Project["canvasLayout"], canvasGroups: groups, canvasEdges: {} };
 
   const before = projectBoard(project);
-  const members = new Set(target?.menuIds ?? []);
+  const members = new Set(target?.nodeIds ?? []);
   const snapshot = {
     ...project,
     canvasLayout: Object.fromEntries(
@@ -101,7 +98,7 @@ export function rearrangeProjectLayout(
   const canvasLayout = Object.fromEntries(
     graph.nodes.map((node) => [node.docId, arranged.positions[node.key]!]),
   ) as Project["canvasLayout"];
-  const membership = new Map(groups.flatMap((g) => g.menuIds.map((id) => [id, g.id] as const)));
+  const membership = new Map(groups.flatMap((g) => g.nodeIds.map((id) => [id, g.id] as const)));
   const canvasEdges = Object.fromEntries(
     Object.entries(project.canvasEdges ?? {}).filter(([id]) => {
       const [source, destination] = id.split("->");
