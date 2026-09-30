@@ -1,5 +1,6 @@
 import { projectUrlId } from "@/lib/projectUrlId";
 import { RequestAccessPanel } from "@/components/network-detail/RequestAccessPanel";
+import { ImportProjectDialog } from "@/features/import/ImportProjectDialog";
 import { buildProjectGroups, diskProjectsToSummaries } from "@/features/projects/projectGroups";
 import { RenameProjectButton } from "@/features/projects/RenameProjectButton";
 import { onProjectRenamed, type ProjectRenamed } from "@/features/project/onProjectRenamed";
@@ -19,7 +20,7 @@ import {
   useNavigate,
   useParams,
 } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 export const Route = createFileRoute("/networks/$networkId/servers/$serverId")({
@@ -109,8 +110,10 @@ function ServerOverview({
   label: string;
 }) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [status, setStatus] = useState<"loading" | "ready" | "unavailable">("loading");
+  const [importOpen, setImportOpen] = useState(false);
   const serverScreens = useServerScreensStore((s) => s.screens);
   const localProjects = useAccountStore((s) => s.account.projects);
   const mountedModuleIds = useModulesStore((s) => s.mountedIds);
@@ -135,8 +138,8 @@ function ServerOverview({
    * serveur hors ligne n'est pas un serveur sans projects — l'annoncer vide
    * serait affirmer un vide qu'on n'a pas constaté.
    */
-  useEffect(() => {
-    if (!serverKeyId) return;
+  const reloadProjects = useCallback(() => {
+    if (!serverKeyId) return undefined;
     let cancelled = false;
     setStatus("loading");
     listServerProjects(networkId, serverKeyId).then((res) => {
@@ -153,6 +156,8 @@ function ServerOverview({
       cancelled = true;
     };
   }, [networkId, serverKeyId]);
+
+  useEffect(() => reloadProjects(), [reloadProjects]);
 
   // Les Config screens décident du regroupement : la page les charge pour SON
   // serveur au lieu d'attendre que la sidebar l'ait fait — sinon un project
@@ -188,6 +193,14 @@ function ServerOverview({
           <div className="flex items-center gap-3">
             <h2 className="eyebrow">{t("serverDetail.projects")}</h2>
             <span className="h-px flex-1 bg-[var(--border-soft)]" />
+            <button
+              type="button"
+              className="btn-ghost btn-sm"
+              disabled={!serverKeyId}
+              onClick={() => setImportOpen(true)}
+            >
+              {t("topbar.import")}
+            </button>
             <Link
               to="/networks/$networkId/servers/$serverId/canvas"
               params={{ networkId, serverId }}
@@ -292,6 +305,21 @@ function ServerOverview({
               </ul>
             )}
           </section>
+        )}
+        {serverKeyId && (
+          <ImportProjectDialog
+            networkId={networkId}
+            serverKeyId={serverKeyId}
+            open={importOpen}
+            onClose={() => setImportOpen(false)}
+            onImported={(projectId) => {
+              setImportOpen(false);
+              navigate({
+                to: "/networks/$networkId/servers/$serverId/projects/$projectId",
+                params: { networkId, serverId, projectId },
+              });
+            }}
+          />
         )}
       </div>
     </div>

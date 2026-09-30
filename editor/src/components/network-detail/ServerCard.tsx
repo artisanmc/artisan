@@ -29,9 +29,10 @@ interface Props {
     serverId: string,
   ) => void;
   onCreateProject: (serverId: string) => void;
+  onImportProject?: (serverId: string) => void;
 }
 
-export function ServerCard({ networkId, server, workspaces, onAction, onCreateProject }: Props) {
+export function ServerCard({ networkId, server, workspaces, onAction, onCreateProject, onImportProject }: Props) {
   const { t } = useTranslation();
   return (
     <div className="card flex flex-col gap-3 p-4">
@@ -93,6 +94,15 @@ export function ServerCard({ networkId, server, workspaces, onAction, onCreatePr
         >
           + {t("serverCard.newProject")}
         </button>
+        {onImportProject && (
+          <button
+            type="button"
+            onClick={() => onImportProject(server.id)}
+            className="flex items-center gap-1.5 rounded-[8px] px-2 py-1.5 text-left text-[12px] text-[var(--text-mut)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+          >
+            {t("topbar.import")}
+          </button>
+        )}
       </div>
     </div>
   );
