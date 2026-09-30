@@ -27,6 +27,12 @@ le second stockage n'apporte plus rien. Personne ne l'a utilisé en prod.
    en ZIP.
 4. **L'import ZIP est retiré** avec l'hébergé, dont il était la seule cible. Il
    reviendra plus tard, vers un Server, sous forme d'un nouveau Project en brouillon.
+   *Rétabli le 2026-09-30 :* l'import cible un Server, identifie le Project par le
+   nom de dossier du ZIP, et dépose le résultat dans le **brouillon** (création ou
+   mise à jour). Fusion ou écrasement au choix ; les conflits se tranchent fichier
+   par fichier contre l'instantané courant (miroir backend), avec une case
+   « garder ce choix pour tous les fichiers suivants ». Voir
+   `docs-site/src/content/docs/editor/projects.md` et `editor/src/features/import/`.
 
 *Rejeté :* rattacher la démo à un serveur au moment de déployer (machinerie pour
 des démos simples, qu'un export couvre) ; publier directement à l'import (écriture

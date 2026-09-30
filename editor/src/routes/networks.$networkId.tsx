@@ -7,6 +7,7 @@ import { NewProjectModal } from "@/components/network-detail/NewProjectModal";
 import { NewServerModal } from "@/components/network-detail/NewServerModal";
 import { RequestAccessPanel } from "@/components/network-detail/RequestAccessPanel";
 import { ServerCard } from "@/components/network-detail/ServerCard";
+import { ImportProjectDialog } from "@/features/import/ImportProjectDialog";
 import {
   createProject,
   createServerKey,
@@ -43,6 +44,7 @@ export function NetworkDetailPage() {
   const [detail, setDetail] = useState<NetworkDetail | null>(null);
   const [newServerOpen, setNewServerOpen] = useState(false);
   const [newWsForServer, setNewWsForServer] = useState<string | null>(null);
+  const [importForServer, setImportForServer] = useState<string | null>(null);
   const [historyServer, setHistoryServer] = useState<string | null>(null);
   const [editServer, setEditServer] = useState<{
     id: string;
@@ -230,6 +232,7 @@ export function NetworkDetailPage() {
                   workspaces={packsByServer.get(sk.id) ?? []}
                   onAction={handleAction}
                   onCreateProject={(serverId) => setNewWsForServer(serverId)}
+                  onImportProject={(serverId) => setImportForServer(serverId)}
                 />
               ))}
               <button
@@ -259,6 +262,24 @@ export function NetworkDetailPage() {
             return sk ? displayServerLabel(sk) : "";
           })()}
           onCreate={handleCreateProject}
+        />
+      )}
+      {importForServer && (
+        <ImportProjectDialog
+          networkId={detail.network.id}
+          serverKeyId={importForServer}
+          open
+          onClose={() => setImportForServer(null)}
+          onImported={(projectId) => {
+            const slug =
+              detail.serverKeys.find((k) => k.id === importForServer)?.slug ?? importForServer;
+            setImportForServer(null);
+            useNetworksStore.getState().bumpRefresh();
+            navigate({
+              to: "/networks/$networkId/servers/$serverId/projects/$projectId",
+              params: { networkId, serverId: slug, projectId },
+            });
+          }}
         />
       )}
       <EditServerModal
