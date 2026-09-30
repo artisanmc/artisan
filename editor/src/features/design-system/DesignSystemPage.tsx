@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChangeList } from "@/components/ui/change-list";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Collapsible } from "@/components/ui/collapsible";
 import { DataTable } from "@/components/ui/data-table";
 import {
@@ -420,6 +421,7 @@ export function DesignSystemPage() {
             </p>
           </div>
           <SwitchSpecimen />
+          <CheckboxSpecimen />
           <div className="flex max-w-sm flex-col gap-2">
             <span className="mono text-[11px] text-[var(--text-faint)]">
               {"<FileDropzone file onFile accept label prompt hint>"}
@@ -739,6 +741,25 @@ function WorkspaceViewSpecimen() {
           Le canvas reste monté dessous — jamais display:none. Échap / × reviennent au canvas.
         </p>
       </WorkspaceView>
+    </div>
+  );
+}
+
+function CheckboxSpecimen() {
+  const [on, setOn] = useState(true);
+  return (
+    <div className="flex flex-col gap-2">
+      <span className="mono text-[11px] text-[var(--text-faint)]">
+        {"<Checkbox checked onCheckedChange>"}
+      </span>
+      <div className="flex items-center gap-3">
+        <Checkbox checked={on} onCheckedChange={setOn} aria-label="Appliquer à tous" />
+        <Checkbox checked={false} disabled onCheckedChange={() => {}} aria-label="Désactivé" />
+      </div>
+      <p className="text-[11.5px] text-[var(--text-faint)]">
+        Pour un état de formulaire confirmé explicitement. Un réglage persistant qui change le
+        résultat en jeu garde {"<Switch>"}.
+      </p>
     </div>
   );
 }

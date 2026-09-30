@@ -7,8 +7,18 @@
  * juste le contenu en UTF-8.
  */
 export async function hashContent(content: string): Promise<string> {
-  const bytes = new TextEncoder().encode(content);
-  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return hashBytes(new TextEncoder().encode(content));
+}
+
+/**
+ * SHA-256 des octets d'un fichier binaire (image, police), hex minuscule.
+ *
+ * Miroir de `BundleHasher.hashBytes` côté plugin, et de la métadonnée `hash`
+ * d'un asset : c'est l'identité d'un binaire dans les arbres (disque, miroir,
+ * brouillon).
+ */
+export async function hashBytes(bytes: Uint8Array): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", bytes as unknown as BufferSource);
   return Array.from(new Uint8Array(digest))
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");

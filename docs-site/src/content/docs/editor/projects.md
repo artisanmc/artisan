@@ -77,6 +77,32 @@ starts as your private draft, with nothing written on a server. Link the server 
 `/artisan link`, then **Deploy**: the first publication creates the project's folder.
 Prepare your menus this way before installing the plugin.
 
+## Importing a project from a ZIP
+
+Choose **Import a project (.zip)** on a server page, or on the server's card in the
+network page. Artisan reads the archive, takes the project's folder name from its
+manifest, and looks for a matching project on that server.
+
+The import always lands in a **private draft**; nothing reaches the server until you
+**Deploy**. If the project does not exist yet, it is created as a draft-only project
+and its first deployment creates the folder. If it already exists, imports work in
+one of two ways:
+
+- **Merge** (default) — keep what the server has, add the archive's files, and choose
+  file by file where both sides hold a different version. Server files the archive
+  does not contain are kept.
+- **Overwrite** — the archive becomes the new state; server files it does not contain
+  are removed.
+
+Conflicts are compared against the server's **current snapshot** (the last version
+Artisan received), so a project can be imported while its server is offline. Each
+conflict is shown as a Git-style diff; choose **Keep import** or **Keep server** per
+file. Tick **Keep this choice for all following files** to apply one choice to the
+remaining conflicts. Images that differ are resolved by identity, without a line diff.
+
+The archive is a full project export, or the project's folder zipped as-is. Private
+working data — drafts and operation journals — is excluded, as at export.
+
 ## Opening a project while its server is offline
 
 When its server is offline, a project still opens from the last version Artisan received
@@ -184,6 +210,6 @@ operation, including after refreshing this tab. A reserved or occupied target
 requires another name. Open editors retain unsaved work while their identity is
 updated and the server state is checked again.
 
-ZIP imports use the enclosing project folder rather than an old manifest ID.
-If an archive contains `manifest.yaml` directly at its root, the import dialog
-asks you to choose the destination folder before importing.
+ZIP imports use the enclosing project folder as the project's identity, rather than an
+old manifest ID. See [Importing a project from a ZIP](#importing-a-project-from-a-zip)
+above.
