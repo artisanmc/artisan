@@ -15,7 +15,10 @@ import {
   useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { ProjectDocumentTree } from "@/features/project/ProjectDocumentTree";
+import { projectNamespace } from "@/domain/docRef";
+import type { Project } from "@/domain/types";
+import { DocumentGroups, ProjectDocumentTree } from "@/features/project/ProjectDocumentTree";
+import { useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { type ReactNode, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -36,7 +39,7 @@ import { useServerScreensStore } from "@/state/serverScreensStore";
 import { useServersStore } from "@/state/serversStore";
 import { useSidebarStore } from "@/state/sidebarStore";
 import { CSS } from "@dnd-kit/utilities";
-import { ArrowRight, GripVertical, LayoutGrid } from "lucide-react";
+import { ArrowRight, ChevronDown, ChevronRight, GripVertical, LayoutGrid } from "lucide-react";
 import { NewProjectDialog } from "./NewProjectDialog";
 import { type ServerEntry, ServerSelector } from "./ServerSelector";
 import { UserMenu } from "./UserMenu";
@@ -579,6 +582,76 @@ function ActiveProjectDocuments({
   );
 }
 
+/**
+ * Un project du serveur qui n'est pas ouvert, vu depuis l'index serveur (état
+ * publié) : ses Documents en lecture, dépliables à la demande. Un clic ouvre le
+ * Document dans son project. Rien n'est rendu tant que l'index ne le connaît pas.
+ */
+function useIndexedProject(urlId: string | undefined, id: string): Project | undefined {
+  return useServerIndexStore((s) =>
+    s.projects.find((p) => projectNamespace(p) === (urlId ?? id) || p.id === id),
+  );
+}
+
+function OtherProjectDocuments({
+  project,
+  networkId,
+  serverId,
+}: {
+  project: Project;
+  networkId: string;
+  serverId: string | null;
+}) {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  return (
+    <div
+      role="group"
+      aria-label={t("sidebar.projectDocuments", { name: project.name })}
+      className="ml-3 flex flex-col border-l border-[var(--border)] pl-1"
+    >
+      <DocumentGroups
+        project={project}
+        onOpen={(documentId) => {
+          useSidebarStore.getState().close();
+          void navigate(
+            projectDestination(
+              networkId,
+              projectNamespace(project),
+              serverId ?? undefined,
+              documentId,
+            ),
+          );
+        }}
+      />
+    </div>
+  );
+}
+
+function ExpandToggle({
+  name,
+  expanded,
+  onToggle,
+}: {
+  name: string;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
+  const { t } = useTranslation();
+  const Icon = expanded ? ChevronDown : ChevronRight;
+  return (
+    <button
+      type="button"
+      aria-expanded={expanded}
+      aria-label={t("sidebar.showDocuments", { name })}
+      onClick={onToggle}
+      className="flex w-6 shrink-0 items-center justify-center rounded text-[var(--text-faint)] hover:text-[var(--text)]"
+    >
+      <Icon className="size-3.5" />
+    </button>
+  );
+}
+
 /** Add-on-owned project link under "Installed modules" — like a project item but
  *  not reorderable (its placement is the module's, not the user's). */
 function OwnedProjectItem({
@@ -666,10 +739,16 @@ function SortableProjectItem({
   };
   const params = useParams({ strict: false }) as { projectId?: string };
   const isActiveProject = params.projectId === id || (!!urlId && params.projectId === urlId);
+  const indexed = useIndexedProject(urlId, id);
+  const [expanded, setExpanded] = useState(false);
+  const canExpand = !isActiveProject && !!indexed && !!networkId;
 
   return (
     <li ref={setNodeRef} style={style} className="flex flex-col">
       <div className="group flex items-stretch gap-0.5 rounded-[10px] hover:bg-[var(--surface-hover)]">
+        {canExpand && (
+          <ExpandToggle name={name} expanded={expanded} onToggle={() => setExpanded((v) => !v)} />
+        )}
         <ProjectLink
           projectId={urlId ?? id}
           internalId={id}
@@ -706,6 +785,9 @@ function SortableProjectItem({
       </div>
       {isActiveProject && (
         <ActiveProjectDocuments id={id} urlId={urlId} networkId={networkId} serverId={serverId} />
+      )}
+      {canExpand && expanded && (
+        <OtherProjectDocuments project={indexed} networkId={networkId} serverId={serverId} />
       )}
     </li>
   );

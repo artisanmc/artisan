@@ -1,9 +1,10 @@
 import * as networksApi from "@/lib/api/networks";
 import { listServerProjects } from "@/lib/api/projectFiles";
+import { useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
 import { useAccountStore } from "@/state/accountStore";
 import { useNetworksStore } from "@/state/networksStore";
 import { useServersStore } from "@/state/serversStore";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ProjectSidebar } from "./ProjectSidebar";
 
@@ -135,6 +136,7 @@ describe("ProjectSidebar", () => {
       useAccountStore.setState({
         account: { id: "", projects: [loaded("pack_a"), loaded("pack_b")], projectOrder: [] },
       } as any);
+      useServerIndexStore.getState().reset();
     });
 
     it("déplie le project ouvert en ses documents, groupés par type", async () => {
@@ -150,6 +152,34 @@ describe("ProjectSidebar", () => {
       render(<ProjectSidebar />);
       await screen.findByRole("group", { name: /pack_a/ });
       expect(screen.getAllByRole("group", { name: /documents/i })).toHaveLength(1);
+    });
+
+    it("déplie à la demande un autre project, depuis son état publié", async () => {
+      mockParams.current = { networkId: "net_1", serverId: "sk_1", projectId: "pack_a" };
+      useServerIndexStore.setState({
+        scope: "net_1/sk_1",
+        status: "ready",
+        failed: [],
+        projects: [
+          {
+            id: "pack_b",
+            name: "pack_b",
+            defaultLang: "fr",
+            i18nKeys: {},
+            menus: [{ id: "catalogue", rows: 3, layers: [], title: [] }],
+            commands: [],
+            dialogs: [],
+          } as never,
+        ],
+      });
+      render(<ProjectSidebar />);
+      const toggle = await screen.findByRole("button", { name: /pack_b/, expanded: false });
+      expect(screen.queryByRole("group", { name: /Documents de pack_b/ })).toBeNull();
+      fireEvent.click(toggle);
+      expect(screen.getByRole("group", { name: /Documents de pack_b/ })).toHaveTextContent(
+        "catalogue",
+      );
+      expect(toggle).toHaveAttribute("aria-expanded", "true");
     });
 
     it("ne déplie rien hors d'un project", async () => {
