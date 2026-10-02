@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   prepareImportZip: vi.fn(),
@@ -30,6 +30,8 @@ function pickFile() {
 }
 
 describe("ImportProjectDialog", () => {
+  beforeEach(() => vi.clearAllMocks());
+
   it("applique directement un import sans conflit", async () => {
     mocks.prepareImportZip.mockResolvedValue({
       ok: true,
@@ -99,5 +101,58 @@ describe("ImportProjectDialog", () => {
         "menus/a.yaml": "server",
       }),
     );
+  });
+
+  it("en écrasement, confirme sans demander de choix et applique sans choix", async () => {
+    mocks.prepareImportZip.mockResolvedValue({
+      ok: true,
+      preview: {
+        ...basePreview,
+        mode: "overwrite",
+        diff: {
+          additions: [],
+          identical: [],
+          serverOnly: [],
+          conflicts: [
+            { path: "menus/a.yaml", kind: "text", server: "server\n", serverBinary: null },
+          ],
+        },
+      },
+    });
+    mocks.applyImportZip.mockResolvedValue({
+      ok: true,
+      projectId: "shop",
+      created: false,
+      conflicts: 1,
+    });
+
+    render(<ImportProjectDialog networkId="n1" serverKeyId="sk1" open onClose={() => {}} />);
+    pickFile();
+    fireEvent.click(screen.getByRole("button", { name: /^import/i }));
+
+    const apply = await screen.findByRole("button", { name: /appliqu|apply/i });
+    expect(screen.queryByRole("button", { name: /garder le serveur|keep server/i })).toBeNull();
+    expect(apply).toBeEnabled();
+    fireEvent.click(apply);
+
+    await waitFor(() => expect(mocks.applyImportZip).toHaveBeenCalledWith(expect.anything(), {}));
+  });
+
+  it("en écrasement, fait confirmer la suppression des fichiers absents de l'archive", async () => {
+    mocks.prepareImportZip.mockResolvedValue({
+      ok: true,
+      preview: {
+        ...basePreview,
+        mode: "overwrite",
+        diff: { additions: [], identical: [], conflicts: [], serverOnly: ["menus/old.yaml"] },
+      },
+    });
+
+    render(<ImportProjectDialog networkId="n1" serverKeyId="sk1" open onClose={() => {}} />);
+    pickFile();
+    fireEvent.click(screen.getByRole("button", { name: /^import/i }));
+
+    expect(await screen.findByText("menus/old.yaml")).toBeInTheDocument();
+    expect(mocks.applyImportZip).not.toHaveBeenCalled();
   });
 });

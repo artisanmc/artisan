@@ -32,8 +32,10 @@ interface ImportProjectDialogProps {
 /**
  * Import d'un Project depuis un ZIP, **dans le brouillon** du Project serveur
  * (ADR `server-only-projects`, décision 4) : rien n'atteint le disque avant que
- * l'admin ne déploie. Les conflits avec l'instantané courant se tranchent
- * fichier par fichier, jamais en silence.
+ * l'admin ne déploie. En fusion, les conflits avec l'instantané courant se
+ * tranchent fichier par fichier, jamais en silence. En écrasement, l'archive
+ * remplace tout : rien à trancher, l'écran confirme seulement ce qui sera
+ * remplacé ou supprimé.
  */
 export function ImportProjectDialog({
   networkId,
@@ -88,7 +90,9 @@ export function ImportProjectDialog({
       setError(result.error);
       return;
     }
-    if (result.preview.diff.conflicts.length === 0) {
+    const { conflicts, serverOnly } = result.preview.diff;
+    const destructive = result.preview.mode === "overwrite" && serverOnly.length > 0;
+    if (conflicts.length === 0 && !destructive) {
       await apply(result.preview, {});
       return;
     }
@@ -100,6 +104,7 @@ export function ImportProjectDialog({
   const conflicts = preview?.diff.conflicts ?? [];
   const serverOnly = preview?.diff.serverOnly ?? [];
   const additions = preview?.diff.additions ?? [];
+  const overwrite = preview?.mode === "overwrite";
 
   const choose = (index: number, path: string, choice: ImportChoice) => {
     setChoices((current) =>
@@ -109,7 +114,7 @@ export function ImportProjectDialog({
     );
   };
 
-  const ready = allConflictsResolved(choices, conflicts);
+  const ready = overwrite || allConflictsResolved(choices, conflicts);
 
   return (
     <Dialog
@@ -122,22 +127,36 @@ export function ImportProjectDialog({
         {preview ? (
           <>
             <DialogHeader>
-              <DialogTitle>{t("importProject.conflictsTitle")}</DialogTitle>
+              <DialogTitle>
+                {t(overwrite ? "importProject.overwriteTitle" : "importProject.conflictsTitle")}
+              </DialogTitle>
               <DialogDescription>
-                {t("importProject.conflictsDescription", {
-                  count: conflicts.length,
-                })}
+                {t(
+                  overwrite
+                    ? "importProject.overwriteDescription"
+                    : "importProject.conflictsDescription",
+                  { count: conflicts.length },
+                )}
               </DialogDescription>
             </DialogHeader>
 
             <div className="flex flex-col gap-2 text-[12px] text-[var(--text-mut)]">
               <span>{t("importProject.summaryAdditions", { count: additions.length })}</span>
-              {mode === "overwrite" && serverOnly.length > 0 && (
-                <span className="text-[var(--danger)]">
-                  {t("importProject.summaryDeletions", { count: serverOnly.length })}
-                </span>
+              {overwrite && serverOnly.length > 0 && (
+                <>
+                  <span className="text-[var(--danger)]">
+                    {t("importProject.summaryDeletions", { count: serverOnly.length })}
+                  </span>
+                  <ul className="mono flex flex-col gap-0.5 text-[12px] text-[var(--text)]">
+                    {serverOnly.map((path) => (
+                      <li key={path} className="truncate">
+                        {path}
+                      </li>
+                    ))}
+                  </ul>
+                </>
               )}
-              {mode === "merge" && serverOnly.length > 0 && (
+              {!overwrite && serverOnly.length > 0 && (
                 <span>{t("importProject.summaryKept", { count: serverOnly.length })}</span>
               )}
             </div>
@@ -149,22 +168,24 @@ export function ImportProjectDialog({
                     <span className="mono truncate text-[12.5px] text-[var(--text)]">
                       {conflict.path}
                     </span>
-                    <div className="flex shrink-0 gap-1.5">
-                      <Button
-                        size="sm"
-                        variant={choices[conflict.path] === "import" ? "primary" : "outline"}
-                        onClick={() => choose(index, conflict.path, "import")}
-                      >
-                        {t("importProject.keepImport")}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant={choices[conflict.path] === "server" ? "primary" : "outline"}
-                        onClick={() => choose(index, conflict.path, "server")}
-                      >
-                        {t("importProject.keepServer")}
-                      </Button>
-                    </div>
+                    {!overwrite && (
+                      <div className="flex shrink-0 gap-1.5">
+                        <Button
+                          size="sm"
+                          variant={choices[conflict.path] === "import" ? "primary" : "outline"}
+                          onClick={() => choose(index, conflict.path, "import")}
+                        >
+                          {t("importProject.keepImport")}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant={choices[conflict.path] === "server" ? "primary" : "outline"}
+                          onClick={() => choose(index, conflict.path, "server")}
+                        >
+                          {t("importProject.keepServer")}
+                        </Button>
+                      </div>
+                    )}
                   </div>
                   {conflict.kind === "text" ? (
                     <FileDiff
@@ -175,23 +196,29 @@ export function ImportProjectDialog({
                     />
                   ) : (
                     <p className="text-[12px] text-[var(--text-mut)]">
-                      {t("importProject.binaryConflict")}
+                      {t(
+                        overwrite
+                          ? "importProject.binaryOverwrite"
+                          : "importProject.binaryConflict",
+                      )}
                     </p>
                   )}
                 </div>
               ))}
             </div>
 
-            <div className="flex items-center gap-2 text-[13px] text-[var(--text)]">
-              <Checkbox
-                id="import-apply-to-rest"
-                checked={applyToRest}
-                onCheckedChange={setApplyToRest}
-              />
-              <label htmlFor="import-apply-to-rest" className="cursor-pointer">
-                {t("importProject.applyToRest")}
-              </label>
-            </div>
+            {!overwrite && (
+              <div className="flex items-center gap-2 text-[13px] text-[var(--text)]">
+                <Checkbox
+                  id="import-apply-to-rest"
+                  checked={applyToRest}
+                  onCheckedChange={setApplyToRest}
+                />
+                <label htmlFor="import-apply-to-rest" className="cursor-pointer">
+                  {t("importProject.applyToRest")}
+                </label>
+              </div>
+            )}
 
             {error && (
               <div className="text-xs text-[var(--danger)]">
@@ -208,7 +235,7 @@ export function ImportProjectDialog({
               <Button
                 variant="primary"
                 disabled={busy || !ready}
-                onClick={() => preview && apply(preview, choices)}
+                onClick={() => preview && apply(preview, overwrite ? {} : choices)}
               >
                 {busy ? "…" : t("importProject.apply")}
               </Button>

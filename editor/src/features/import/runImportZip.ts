@@ -267,7 +267,10 @@ export async function applyImportZip(
     const changed = Object.entries(resolved.binaries)
       .filter(([path, meta]) => reference.binaries[path]?.hash !== meta.hash)
       .map(([, meta]) => meta);
-    if (changed.length > 0) {
+    // Une image retirée par l'écrasement compte aussi : sans mise à jour, le
+    // brouillon garderait l'arbre d'images du serveur.
+    const removed = Object.keys(reference.binaries).some((path) => !(path in resolved.binaries));
+    if (changed.length > 0 || removed) {
       for (const meta of changed) {
         if (!meta.bytes) continue;
         await uploadDraftBlob(
