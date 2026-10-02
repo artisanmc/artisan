@@ -1,6 +1,7 @@
 import type { Project, ProjectId } from "@/domain/types";
 import { syncPersistedDraft, usePersistedDraftStore } from "@/features/project/persistedDrafts";
 import { saveProjectToDisk } from "@/features/project/saveProjectToDisk";
+import { useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
 import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
@@ -206,6 +207,58 @@ describe("ProjectTopBarControls — Enregistrer", () => {
     fireEvent.click(within(review).getByRole("button", { name: /^(Cancel|Annuler)$/ }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(saveProjectToDisk).not.toHaveBeenCalled();
+  });
+
+  describe("contrôles entre projets dans la revue", () => {
+    const command = (id: string, name: string) => ({
+      id,
+      projectId: "x",
+      name,
+      arguments: [],
+      steps: [],
+    });
+    function openReviewWith(index: {
+      scope: string;
+      status: "loading" | "ready";
+      projects: Project[];
+      failed: string[];
+    }) {
+      const p = { ...baseProject("revue"), commands: [command("c1", "craft")] } as unknown as Project;
+      useAccountStore.setState({
+        account: { id: "n1", projects: [p], projectOrder: [p.id] },
+      } as never);
+      useProjectDraftStore.getState().save("p1", {
+        baseline: {},
+        initialTree: {},
+        tree: { "manifest.yaml": "changed" },
+        at: 0,
+      });
+      useServerIndexStore.setState(index);
+      render(<ProjectTopBarControls project={p} projectId={p.id} networkId="n1" />);
+      fireEvent.click(screen.getByRole("button", { name: DEPLOY }));
+    }
+
+    it("warns about a command another project already claims, without blocking the deploy", async () => {
+      const shop = {
+        ...baseProject("Boutique"),
+        id: "shop" as ProjectId,
+        diskId: "shop",
+        commands: [command("c2", "craft")],
+      } as unknown as Project;
+      openReviewWith({ scope: "n1/s1", status: "ready", projects: [shop], failed: [] });
+      const review = await screen.findByRole("dialog");
+      expect(review).toHaveTextContent(/\/craft .* p1:c1, shop:c2/);
+      expect(
+        within(review).getByRole("button", { name: /Deploy to the server|Déployer sur le serveur/ }),
+      ).toBeEnabled();
+    });
+
+    it("does not pretend the checks passed while the other projects are loading", async () => {
+      openReviewWith({ scope: "n1/s1", status: "loading", projects: [], failed: [] });
+      const review = await screen.findByRole("dialog");
+      expect(review).toHaveTextContent(/pas encore faits|not done yet/);
+      expect(review).not.toHaveTextContent(/Aucun conflit|No conflict/);
+    });
   });
 
   it("saves the draft to the account without deploying it", async () => {

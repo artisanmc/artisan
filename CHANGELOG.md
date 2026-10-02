@@ -9,6 +9,8 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+- The deploy review now warns about conflicts with the server's other projects before anything is written: a command name or alias claimed twice, a menu or dialog id defined in two projects, and links that point to nothing (or to an id several projects define). They are warnings, not blockers, and the review says so when the other projects could not be read or are still loading instead of implying all is well.
+
 - The search palette (Ctrl/Cmd+K) also finds the menus, commands and dialogs of the server's other projects, labelled with their project, and opens them in that project. Other projects are read from their published state in the background once the open project is ready.
 
 - Menus remember the screens a player came through. A new `open_previous_menu` action opens the previous menu or dialog (back button) and exposes `{has_previous_menu}` / `{previous_menu.id}` / `{previous_menu.title}` placeholders. The history is a LIFO stack that the back action consumes, so `menu → wiki → item` returns to the menu in two backs instead of bouncing between `item` and `wiki`.
