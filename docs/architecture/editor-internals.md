@@ -586,6 +586,18 @@ Cf. `docs/superpowers/specs/2026-06-14-search-palette-and-sidebar-toggle-design.
 - **`SearchPalette.tsx`** — overlay combobox/listbox (conforme a11y). Navigation clavier ↑/↓/Enter/Esc. Sur sélection : navigue vers la vue individuelle du Document (`…/document.$documentId`) ; pour les matches d'items de menu, sous-sélectionne le slot correspondant. Ouverte via `useGlobalSearchShortcut` **ou** le bouton 🔍 de la topbar.
 - **`useGlobalSearchShortcut.ts`** — écoute Cmd+K (Mac) / Ctrl+K (Windows/Linux) ; ignore Shift. Monte/démonte le listener de façon propre.
 
+### Index serveur (`editor/src/features/serverIndex/`, depuis 2026-10-02)
+
+Lecture de **tous les projects du serveur**, en dehors du project édité. L'édition, le brouillon, les conflits et la publication restent **par project** : l'index est un modèle de lecture, jamais un second éditeur.
+
+- **`serverIndexLoader.ts`** — `loadServerProjects({networkId, serverId})` liste les projects du disque du serveur puis lit chaque arbre **publié** (`readProjectFiles`, en parallèle). **Aucun effet de bord** : il ne touche ni runtime, ni serveur actif, ni brouillon, ni compte (contrairement à `useProjectLoader`, qui ouvre UN project pour l'éditer). Cache par hash : un `unchanged` réutilise le `Project` déjà parsé. Un project illisible ou inparsable est rendu dans `failed`, sans retirer les autres.
+- **`serverIndexStore.ts`** — état éphémère (`scope` = `<network>/<server>` tels que l'URL les nomme). Changer de serveur vide les projects du précédent ; un résultat arrivé pour un autre scope est ignoré.
+- **`useServerIndexLoader.ts`** — monté par `ProjectCanvasPage` ; charge en arrière-plan une fois le project édité prêt. L'ouverture ne l'attend jamais.
+- **`serverIndex.ts`** — pur. `indexProjectDocuments(project, lang)` donne les Documents avec leur identité qualifiée `ref = <dossier>:<id>` (le dossier disque, `diskId ?? id`, est le **namespace** : le même id dans deux projects reste deux Documents). `toSearchEntries` les adapte à la palette.
+- **Palette** : `SearchPalette` ajoute les Documents des autres projects (menus, commandes, dialogs — pas leur contenu) après ceux du project édité, avec le nom du project en contexte (`search.ctxInProject`) ; le nom du project est cherchable. Le project édité n'y figure jamais en double. Sélectionner un résultat navigue vers l'autre project.
+
+L'index montre l'état **publié** : le brouillon d'un project non édité n'y est pas. Il se rafraîchit à chaque ouverture d'un project (peu coûteux : cache par hash), pas à la suite d'un Déployer en cours de session.
+
 ### Panneau toggleable
 
 `ProjectElementsSidebar` révèle l’arbre au survol des 8 px du bord droit, en overlay arrondi de 240 px sans redimensionner les propriétés. Sortir ferme après 300 ms, sauf menu/dialogue ouvert ou focus clavier dans le panneau ; Échap referme l’overlay et rend le focus au bouton. `uiStore.projectPanelOpen`, persisté et faux par défaut, réserve une colonne fixe au clic sur Éléments (`PanelRightClose`/`PanelRightOpen`) ; un second clic referme. Le drawer mobile ouvre à droite. Cmd+K reste la recherche globale.

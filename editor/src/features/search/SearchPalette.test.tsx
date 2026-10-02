@@ -1,4 +1,5 @@
 import type { Project, ProjectId } from "@/domain/types";
+import { useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
 import { useAccountStore } from "@/state/accountStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
@@ -52,6 +53,7 @@ function project(): Project {
 describe("SearchPalette", () => {
   beforeEach(() => {
     navigate.mockClear();
+    useServerIndexStore.getState().reset();
     useAccountStore.setState({
       account: { id: "a" as any, projects: [project()], projectOrder: [PID] },
     } as any);
@@ -93,5 +95,75 @@ describe("SearchPalette", () => {
     render(<SearchPalette projectId={PID} />);
     fireEvent.keyDown(screen.getByRole("combobox"), { key: "Escape" });
     expect(useUiStore.getState().searchOpen).toBe(false);
+  });
+
+  describe("autres projects du serveur", () => {
+    const boutique = (): Project =>
+      ({
+        id: "boutique" as ProjectId,
+        diskId: "boutique",
+        name: "Boutique",
+        menus: [
+          {
+            id: "catalogue",
+            projectId: "boutique",
+            title: [{ kind: "plain", value: { key: "kc" } }],
+            rows: 3,
+            layers: [],
+          },
+        ],
+        commands: [],
+        dialogs: [],
+        i18nKeys: { kc: { en: "Catalogue" } },
+        defaultLang: "en",
+      }) as unknown as Project;
+
+    beforeEach(() => {
+      useServerIndexStore.setState({
+        scope: "n1/s1",
+        status: "ready",
+        projects: [boutique()],
+        failed: [],
+      });
+    });
+
+    it("propose leurs Documents, avec le project en contexte, et y navigue", () => {
+      render(<SearchPalette projectId={PID} />);
+      fireEvent.change(screen.getByRole("combobox"), { target: { value: "catalogue" } });
+      expect(screen.getByText("Catalogue")).toBeInTheDocument();
+      expect(screen.getByText("dans Boutique")).toBeInTheDocument();
+      fireEvent.keyDown(screen.getByRole("combobox"), { key: "Enter" });
+      expect(navigate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: "/networks/$networkId/servers/$serverId/projects/$projectId/document/$documentId",
+          params: expect.objectContaining({ projectId: "boutique", documentId: "catalogue" }),
+        }),
+      );
+    });
+
+    it("ne répète pas le project en cours d'édition, déjà indexé en détail", () => {
+      useServerIndexStore.setState({ projects: [boutique(), project()] });
+      render(<SearchPalette projectId={PID} />);
+      fireEvent.change(screen.getByRole("combobox"), { target: { value: "heal" } });
+      expect(screen.getAllByText("/heal")).toHaveLength(1);
+    });
+
+    it("ignore ce qui a été chargé pour un autre serveur", () => {
+      useServerIndexStore.setState({ scope: "n1/ailleurs" });
+      render(<SearchPalette projectId={PID} />);
+      fireEvent.change(screen.getByRole("combobox"), { target: { value: "catalogue" } });
+      expect(screen.queryByText("Catalogue")).not.toBeInTheDocument();
+    });
+
+    it("garde les résultats du project édité avant ceux des autres", () => {
+      useServerIndexStore.setState({
+        projects: [{ ...boutique(), commands: [{ id: "c", projectId: "boutique", name: "heal2", arguments: [], steps: [] }] } as unknown as Project],
+      });
+      render(<SearchPalette projectId={PID} />);
+      fireEvent.change(screen.getByRole("combobox"), { target: { value: "heal" } });
+      const options = screen.getAllByRole("option").map((o) => o.textContent);
+      expect(options[0]).toContain("/heal");
+      expect(options[1]).toContain("/heal2");
+    });
   });
 });

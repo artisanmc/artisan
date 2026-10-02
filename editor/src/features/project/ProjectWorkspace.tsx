@@ -49,6 +49,7 @@ import { ProjectWorkspacePanels } from "@/features/project/ProjectWorkspacePanel
 import { useProjectLoader } from "@/features/project/useProjectLoader";
 import { useWorkspaceTabShortcuts } from "@/features/project/useWorkspaceTabShortcuts";
 import { SearchPalette } from "@/features/search/SearchPalette";
+import { useServerIndexLoader } from "@/features/serverIndex/useServerIndexLoader";
 import { useGlobalSearchShortcut } from "@/features/search/useGlobalSearchShortcut";
 import { DeleteProjectDialog } from "@/features/sync/DeleteProjectDialog";
 import { TranslationPanelContent } from "@/features/translations/TranslationPanel";
@@ -172,6 +173,7 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
   }, [project, activeLang, setActiveLang]);
 
   useGlobalSearchShortcut();
+  useServerIndexLoader(networkId, serverId, !!project && !loadError);
   useWorkspaceTabShortcuts(runtime?.capabilities.canUseAssistant !== false);
 
   // networkId comes directly from the URL param — no lazy fetch needed.

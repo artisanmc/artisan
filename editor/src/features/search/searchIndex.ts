@@ -12,7 +12,8 @@ export interface SearchEntry {
   /** Où se trouve le match — traduit par la palette via t(context.key, { owner }). */
   context?: { key: string; owner: string };
   haystack: string;
-  target: { openId: string; selectId?: string; focusedSlot?: number };
+  /** `projectUrlId` : le Document vit dans un autre project du serveur. */
+  target: { openId: string; selectId?: string; focusedSlot?: number; projectUrlId?: string };
 }
 
 function entry(partial: Omit<SearchEntry, "haystack">): SearchEntry {
