@@ -14,6 +14,15 @@ export interface ProjectDraft {
     revision: number;
     ownerId: string;
     acknowledged?: string;
+    /**
+     * L'arbre de la révision acquittée : le dernier point commun avec les autres
+     * sessions, contre lequel on fusionne leur travail. Distinct de `baseline`,
+     * qui reste le disque publié.
+     */
+    base?: {
+      tree: Record<string, string>;
+      binaryTree?: Record<string, { hash: string; size: number }>;
+    };
     pendingMutation?: {
       operationId: string;
       kind: "save" | "copy" | "publish" | "discard" | "asset";

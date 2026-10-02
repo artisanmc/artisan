@@ -49,6 +49,7 @@ function install(projectId: string, draft: api.PersistedDraft) {
       revision: draft.revision,
       ownerId: draft.ownerId,
       acknowledged: fingerprint(draft.snapshot),
+      base: baseOf(draft.snapshot),
     },
   });
   useProjectDraftStore.setState((s) => ({
@@ -208,6 +209,7 @@ export async function copyPersistedDraft(projectId: string, name: string): Promi
         ownerId: created.ownerId,
         revision: created.revision,
         acknowledged: fingerprint(created.snapshot),
+        base: baseOf(created.snapshot),
       },
     });
   setSession(projectId, {
@@ -265,7 +267,8 @@ export async function resolveDraftConflict(
   for (const path of outcome.removeFromTree) delete tree[path];
   const resolved: ProjectDraft = {
     ...local,
-    baseline: outcome.nextBaseline,
+    // Le choix porte sur l'arbre ; la base reste le disque publié (cf. `draftConflictOf`).
+    baseline: conflict.merged.baseline,
     tree,
     binaryBaseline: conflict.merged.binaryBaseline ?? local.binaryBaseline,
     binaryTree: conflict.merged.binaryTree ?? local.binaryTree,
@@ -275,6 +278,7 @@ export async function resolveDraftConflict(
       revision: conflict.remote.revision,
       ownerId: session.ownerId,
       acknowledged: fingerprint(conflict.remote.snapshot),
+      base: baseOf(conflict.remote.snapshot),
     },
   };
   // Rien de local à écrire (tout « prendre celle de l'autre session ») : on
@@ -288,6 +292,7 @@ export async function resolveDraftConflict(
       revision: conflict.remote.revision,
       ownerId: session.ownerId,
       acknowledged: settled ? fingerprint(resolved) : fingerprint(conflict.remote.snapshot),
+      base: baseOf(conflict.remote.snapshot),
     },
   };
   useProjectDraftStore.getState().save(projectId, toSave);
@@ -466,10 +471,22 @@ function sameWorkingCopy(a: ProjectDraft, b: ProjectDraft): boolean {
   return normalize(a) === normalize(b);
 }
 
+/** Point commun que fixe une révision acquittée (`remote.base`). */
+function baseOf(snapshot: ProjectDraft): NonNullable<ProjectDraft["remote"]>["base"] {
+  const binaryTree = snapshot.binaryTree ?? snapshot.binaryBaseline;
+  return { tree: snapshot.tree, ...(binaryTree ? { binaryTree } : {}) };
+}
+
 /**
  * Rebase le brouillon local sur celui d'une autre session (le distant fait foi).
  * Les fichiers touchés seulement par l'autre session sont repris en silence ;
  * ceux divergents des deux côtés sortent en `conflicts`.
+ *
+ * Fusion à trois voies depuis la dernière révision commune (`remote.base`), et
+ * non depuis le disque : un fichier déjà modifié dans le brouillon partagé n'est
+ * pas « modifié des deux côtés ». La `baseline` n'avance jamais ici : le travail
+ * de l'autre session n'est pas publié, la base doit rester le disque, sinon la
+ * publication l'omet et le rebase backend contre le disque l'annule.
  */
 function draftConflictOf(
   projectId: string,
@@ -477,17 +494,21 @@ function draftConflictOf(
   remote: api.PersistedDraft,
 ): DraftConflict {
   const renames = useProjectDraftStore.getState().pendingRenames[projectId] ?? local.renames ?? [];
+  const common = local.remote?.base;
   // `binaryTree`/`binaryBaseline` d'un brouillon est la carte complète des images
   // suivies. Sans elle côté distant, on ne rebase pas les images : les passer
   // pour vides ferait croire à une suppression et viderait la base locale.
   const theirsBinaries = remote.snapshot.binaryTree ?? remote.snapshot.binaryBaseline;
   const { snapshot, conflicts } = rebaseDraft(
     {
-      baseline: local.baseline,
+      baseline: common?.tree ?? local.baseline,
       tree: local.tree,
       renames,
       ...(theirsBinaries
-        ? { binaryBaseline: local.binaryBaseline, binaryTree: local.binaryTree }
+        ? {
+            binaryBaseline: common?.binaryTree ?? local.binaryBaseline,
+            binaryTree: local.binaryTree ?? local.binaryBaseline,
+          }
         : {}),
     },
     { files: remote.snapshot.tree, binaries: theirsBinaries ?? {} },
@@ -495,10 +516,10 @@ function draftConflictOf(
   return {
     remote,
     merged: {
-      baseline: snapshot.baseline,
+      baseline: local.baseline,
       tree: snapshot.tree,
-      binaryBaseline: snapshot.binaryBaseline,
-      binaryTree: snapshot.binaryTree,
+      binaryBaseline: local.binaryBaseline,
+      binaryTree: theirsBinaries ? snapshot.binaryTree : local.binaryTree,
     },
     conflicts,
   };
@@ -522,6 +543,7 @@ function applyDraftConflict(
       revision: conflict.remote.revision,
       ownerId,
       acknowledged: fingerprint(conflict.remote.snapshot),
+      base: baseOf(conflict.remote.snapshot),
     },
   };
 }
@@ -579,6 +601,7 @@ async function syncOnce(projectId: string): Promise<void> {
             ...local.remote,
             revision: remote.revision,
             acknowledged: fingerprint(remote.snapshot),
+            base: baseOf(remote.snapshot),
           },
         });
         setSession(projectId, {
@@ -666,6 +689,7 @@ async function syncOnce(projectId: string): Promise<void> {
         revision: saved.revision,
         ownerId: saved.ownerId,
         acknowledged: fingerprint(saved.snapshot),
+        base: baseOf(saved.snapshot),
       },
     });
     setSession(projectId, {
@@ -852,6 +876,7 @@ async function mutateDraftAssetsOnce<T extends { draft: api.PersistedDraft }>(
         revision: result.draft.revision,
         ownerId: session.ownerId,
         acknowledged: fingerprint(result.draft.snapshot),
+        base: baseOf(result.draft.snapshot),
       },
     });
     setSession(projectId, {

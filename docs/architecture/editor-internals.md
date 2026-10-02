@@ -425,6 +425,11 @@ seuls touchés sont repris en silence, les fichiers divergents deviennent
 applique les choix, avance la révision locale et resynchronise (sans réécriture si tout
 vient de l'autre session). Même détection au chargement quand la révision listée diffère
 de la locale ; un rebase sans fichier divergent est appliqué d'office, sans modale.
+La fusion est à trois voies depuis la dernière révision acquittée (`remote.base`, arbre
+mémorisé à chaque acquittement), pas depuis le disque : un fichier déjà modifié dans le
+brouillon partagé n'est pas un conflit. Elle ne touche **jamais** `baseline`, qui reste le
+disque publié — y mettre le travail non publié de l'autre session le ferait omettre à la
+publication et annuler par le rebase backend contre le Snapshot (correctif 2026-10-02).
 **Onglets (2026-09-29)** : une écriture réussie est diffusée par `BroadcastChannel`
 (`draftBroadcast`). Un autre onglet du même navigateur sans travail local recharge son
 brouillon et l'arbre du Project tout seul ; un onglet avec des modifications voit le
