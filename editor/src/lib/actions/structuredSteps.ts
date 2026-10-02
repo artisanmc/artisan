@@ -284,16 +284,27 @@ export function conditionToStructured(c: Condition): Record<string, unknown> {
   }
 }
 
-/** Conditions of an `if:`, AND-implicit. A pure-OR flat list is wrapped in `or:`.
+/** Conditions of an `if:`, AND-implicit. Flat `joins` are folded left to right,
+ *  without precedence — the plugin's historical `caseMatches` semantics:
+ *  `A and B or C` → `(A and B) or C`, `A or B and C` → `(A or B) and C`.
  *  Exported for appearance/state `if` (ADR `structured-action-wire`). */
 export function conditionsToStructured(
   conditions: Condition[],
   joins?: ("and" | "or")[],
 ): unknown[] {
-  if (conditions.length > 1 && (joins?.[0] ?? "and") === "or") {
-    return [{ or: conditions.map(conditionToStructured) }];
+  if (conditions.length === 0) return [];
+  let acc: Condition = conditions[0]!;
+  for (let i = 1; i < conditions.length; i++) {
+    const op = joins?.[i - 1] ?? "and";
+    const next = conditions[i]!;
+    acc =
+      acc.type === op && i > 1
+        ? { type: op, of: [...acc.of, next] }
+        : { type: op, of: [acc, next] };
   }
-  return conditions.map(conditionToStructured);
+  // Top-level AND is the list itself.
+  const top = conditions.length > 1 && acc.type === "and" ? acc.of : [acc];
+  return top.map(conditionToStructured);
 }
 
 // ── conditions: decode ───────────────────────────────────────────────────────
