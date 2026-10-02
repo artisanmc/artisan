@@ -7,7 +7,7 @@ const navigate = vi.fn();
 vi.mock("@tanstack/react-router", () => ({
   useNavigate: () => navigate,
   useParams: () => ({ projectId: "demo" }),
-  Link: ({ children, to, ...props }: any) => (
+  Link: ({ children, to, ...props }: { children?: React.ReactNode; to?: string }) => (
     <a href={to} {...props}>
       {children}
     </a>

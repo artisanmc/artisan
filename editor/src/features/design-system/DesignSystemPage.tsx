@@ -40,6 +40,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Breadcrumb, BreadcrumbCurrent, breadcrumbLinkClass } from "@/components/ui/breadcrumb";
 import { Spinner } from "@/components/ui/spinner";
 import { StatCard } from "@/components/ui/stat-card";
 import { Switch } from "@/components/ui/switch";
@@ -169,6 +170,17 @@ export function DesignSystemPage() {
           onNext={() => setTourOpen(false)}
           onDefer={() => setTourOpen(false)}
         />
+      </Section>
+      <Section id="breadcrumb" title="Breadcrumb">
+        <Breadcrumb label={t("breadcrumb.label")}>
+          <a href="#breadcrumb" className={breadcrumbLinkClass}>
+            Primalcraft
+          </a>
+          <a href="#breadcrumb" className={breadcrumbLinkClass}>
+            Survie
+          </a>
+          <BreadcrumbCurrent>main</BreadcrumbCurrent>
+        </Breadcrumb>
       </Section>
       <Section id="file-diff" title={t("save.diffLabel")}>
         <FileDiff

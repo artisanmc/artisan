@@ -17,7 +17,11 @@ import {
 } from "@dnd-kit/sortable";
 import { projectNamespace } from "@/domain/docRef";
 import type { Project } from "@/domain/types";
-import { DocumentGroups, ProjectDocumentTree } from "@/features/project/ProjectDocumentTree";
+import {
+  DocumentGroups,
+  ProjectActions,
+  ProjectDocumentTree,
+} from "@/features/project/ProjectDocumentTree";
 import { goToDocument } from "@/features/project/goToDocument";
 import { useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
@@ -40,9 +44,9 @@ import { useServerScreensStore } from "@/state/serverScreensStore";
 import { useServersStore } from "@/state/serversStore";
 import { useSidebarStore } from "@/state/sidebarStore";
 import { CSS } from "@dnd-kit/utilities";
-import { ArrowRight, ChevronDown, ChevronRight, GripVertical, LayoutGrid } from "lucide-react";
+import { ChevronDown, ChevronRight, GripVertical, LayoutGrid } from "lucide-react";
 import { NewProjectDialog } from "./NewProjectDialog";
-import { type ServerEntry, ServerSelector } from "./ServerSelector";
+import type { ServerEntry } from "./ServerSelector";
 import { UserMenu } from "./UserMenu";
 
 export function ProjectSidebar() {
@@ -98,9 +102,6 @@ export function ProjectSidebar() {
         (activeNetworkId == null || e.networkId === activeNetworkId),
     );
   const rawServerParam = urlParams.serverId ?? (urlParams.projectId ? null : storedServerValid ? storedServerId : null);
-  const activeNetworkName = activeNetworkId
-    ? (networks.find((n) => n.id === activeNetworkId)?.name ?? null)
-    : null;
   // Server slugs are only unique per network ("server" exists in many) — scope
   // the lookup to the active network or a slug could resolve to another
   // network's server and the workspace list would filter to the wrong projects.
@@ -323,20 +324,6 @@ export function ProjectSidebar() {
         />
         <ArtisanWordmark />
       </Link>
-
-      <ServerSelector servers={allServerEntries} />
-
-      {activeNetworkId && activeNetworkName && (
-        <Link
-          to="/networks/$networkId"
-          params={{ networkId: netParam! }}
-          onClick={() => useSidebarStore.getState().close()}
-          className="-mt-2 flex items-center justify-between gap-2 rounded-[10px] px-2.5 py-1.5 text-[11.5px] text-[var(--text-faint)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
-        >
-          <span className="truncate">{activeNetworkName}</span>
-          <ArrowRight className="size-3 shrink-0" />
-        </Link>
-      )}
 
       <div className="flex min-h-0 flex-1 flex-col overflow-auto">
         {openProjectId && !openIsListed && (
@@ -588,7 +575,7 @@ function ActiveProjectDocuments({
     <div data-tour="elements" className="ml-3 border-l border-[var(--border)] pl-1">
       <ProjectDocumentTree
         projectId={project.id}
-        header="actions"
+        header="none"
         onOpen={(documentId) => {
           useSidebarStore.getState().close();
           goToDocument(navigate, { networkId, serverId, project, ref: documentId });
@@ -618,13 +605,29 @@ function UnlistedOpenProject({
   if (!project) return null;
   return (
     <div className="mb-3 flex flex-col">
-      <div className="flex items-center gap-2.5 px-2.5 py-2 text-[13px] font-semibold text-[var(--text)]">
+      <div className="flex items-center gap-1 rounded-[10px] px-2.5 py-1">
         <LayoutGrid className="size-[15px] shrink-0 text-[var(--brand)]" />
-        <span className="truncate">{project.name}</span>
+        <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-[var(--text)]">
+          {project.name}
+        </span>
+        <ProjectActions projectId={project.id} />
       </div>
-      <ActiveProjectDocuments id={project.id} urlId={urlId} networkId={networkId} serverId={serverId} />
+      <ActiveProjectDocuments
+        id={project.id}
+        urlId={urlId}
+        networkId={networkId}
+        serverId={serverId}
+      />
     </div>
   );
+}
+
+/** Paramètres et création, sur la ligne du project ouvert — une fois chargé. */
+function ActiveProjectActions({ id, urlId }: { id: string; urlId?: string }) {
+  const project = useAccountStore((s) =>
+    s.account.projects.find((p) => p.id === id || (!!urlId && projectUrlId(p) === urlId)),
+  );
+  return project ? <ProjectActions projectId={project.id} /> : null;
 }
 
 /**
@@ -650,6 +653,7 @@ function OtherProjectDocuments({
   const { t } = useTranslation();
   const navigate = useNavigate();
   return (
+    // biome-ignore lint/a11y/useSemanticElements: un groupe nommé de listes de navigation, pas un formulaire — <fieldset> serait faux.
     <div
       role="group"
       aria-label={t("sidebar.projectDocuments", { name: project.name })}
@@ -717,30 +721,33 @@ function OwnedProjectItem({
   const isActiveProject = params.projectId === id || (!!urlId && params.projectId === urlId);
   return (
     <li className="flex flex-col">
-      <ProjectLink
-        projectId={urlId ?? id}
-        internalId={id}
-        networkId={networkId}
-        serverId={serverId}
-        className={
-          isActiveProject
-            ? "flex items-center gap-2.5 rounded-[10px] px-2.5 py-2 text-[13px] font-semibold text-white transition-colors [&_svg]:text-[var(--brand)]"
-            : "flex items-center gap-2.5 rounded-[10px] px-2.5 py-2 text-[13px] font-medium text-[var(--text-mut)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
-        }
-      >
-        <span className="truncate flex-1" title={name}>
-          {name}
-        </span>
-        {count != null && (
-          <span
-            title={t("serverDetail.documentCount", { count })}
-            aria-label={t("serverDetail.documentCount", { count })}
-            className="shrink-0 rounded-full bg-[var(--surface-raised)] px-1.5 text-[10px] font-medium tabular-nums text-[var(--text-faint)]"
-          >
-            {count}
+      <div className="flex items-center gap-0.5 rounded-[10px] hover:bg-[var(--surface-hover)]">
+        <ProjectLink
+          projectId={urlId ?? id}
+          internalId={id}
+          networkId={networkId}
+          serverId={serverId}
+          className={
+            isActiveProject
+              ? "flex min-w-0 flex-1 items-center gap-2.5 rounded-[10px] px-2.5 py-2 text-[13px] font-semibold text-white transition-colors [&_svg]:text-[var(--brand)]"
+              : "flex min-w-0 flex-1 items-center gap-2.5 rounded-[10px] px-2.5 py-2 text-[13px] font-medium text-[var(--text-mut)] transition-colors hover:text-[var(--text)]"
+          }
+        >
+          <span className="min-w-0 truncate" title={name}>
+            {name}
           </span>
-        )}
-      </ProjectLink>
+          {count != null && (
+            <span
+              title={t("serverDetail.documentCount", { count })}
+              aria-label={t("serverDetail.documentCount", { count })}
+              className="shrink-0 rounded-full bg-[var(--surface-raised)] px-1.5 text-[10px] font-medium tabular-nums text-[var(--text-faint)]"
+            >
+              {count}
+            </span>
+          )}
+        </ProjectLink>
+        {isActiveProject && <ActiveProjectActions id={id} urlId={urlId} />}
+      </div>
       {isActiveProject && (
         <ActiveProjectDocuments id={id} urlId={urlId} networkId={networkId} serverId={serverId} />
       )}
@@ -803,7 +810,7 @@ function SortableProjectItem({
           }
         >
           <LayoutGrid className="size-[15px] shrink-0 text-[var(--text-faint)]" />
-          <span className="truncate flex-1">{name}</span>
+          <span className="min-w-0 truncate">{name}</span>
           {count != null && (
             <span
               title={t("serverDetail.documentCount", { count })}
@@ -814,6 +821,7 @@ function SortableProjectItem({
             </span>
           )}
         </ProjectLink>
+        {isActiveProject && <ActiveProjectActions id={id} urlId={urlId} />}
         <button
           type="button"
           aria-label="Reorder project"

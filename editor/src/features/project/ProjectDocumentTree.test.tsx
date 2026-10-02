@@ -63,7 +63,7 @@ describe("ProjectDocumentTree", () => {
   it("la ligne racine ouvre les paramètres du project sans rien sélectionner", () => {
     useSelectionStore.getState().set(["m1" as never]);
     render(<ProjectDocumentTree projectId={PID} onOpen={vi.fn()} />);
-    fireEvent.click(screen.getByTestId("project-settings-row"));
+    fireEvent.click(screen.getByTestId("project-settings"));
     expect(useUiStore.getState().projectSettingsOpen).toBe(true);
     expect(useSelectionStore.getState().ids.size).toBe(0);
   });

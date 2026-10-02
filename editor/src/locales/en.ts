@@ -299,6 +299,7 @@ export default {
     sourceImported: "imported",
     sourceForked: "forked",
     newMenu: "New menu",
+    create: "Create a document",
     newCommand: "New command",
     newDialog: "New dialog",
     countAssets: "{{assets}} {{assetsPlural}}",
@@ -1221,6 +1222,9 @@ export default {
     offline: "offline",
     titleOnline: "Server is online — click to open Network",
     titleOffline: "Server is offline — click to open Network",
+  },
+  breadcrumb: {
+    label: "Breadcrumb",
   },
   linkedServers: {
     title: "Linked servers",
