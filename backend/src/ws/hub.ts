@@ -189,6 +189,7 @@ export function cleanupConn(connId: string): void {
   quotaConnections.delete(connId);
   unlimitedQuotaConnections.delete(connId);
   draftConnections.delete(connId);
+  contentVersionByConn.delete(connId);
   for (const pending of pendingDrafts.values()) if (pending.connId === connId) pending.finish({ kind: "offline" });
   connSenders.delete(connId);
   const serverId = connToServerId.get(connId);
