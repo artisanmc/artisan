@@ -255,8 +255,10 @@ sortie du Project. Un brouillon modifié conserve sa base de compare-and-swap.
 Depuis le 2026-09-13, une première ouverture attend une lecture serveur réussie,
 même avec cache ou brouillon local. Une coupure préserve le buffer déjà ouvert ;
 les échecs de transport backend et `fetch_timeout` sont également retentés.
-`ProjectStaleNotice` permet de réduire/déplier l'explication en gardant un statut
-court visible ; cet état reste local au bandeau du Project ouvert.
+Depuis le 2026-10-02, plus de bandeau : le badge serveur de la topbar porte l'état
+hors-ligne et son infobulle (`downHint` de `LinkedServersDropdown`) en donne la
+raison exacte (date de la copie, brouillon, jamais publié). L'état reste local à
+la topbar du Project ouvert.
 
 ### Paramètres avancés d'un item (depuis 2026-07-29)
 
@@ -438,8 +440,8 @@ conflit se présenter immédiatement. Le cross-appareil reste couvert par le `40
 hébergés », de copie vers Minecraft ni d'import ZIP ; la démo n'a plus de réclamation,
 son bouton **Exporter** (`runExportDraftZip`) télécharge le brouillon courant (texte de
 l'éditeur, images publiées ou privées). `useProjectLoader` expose `unpublished` ;
-`ProjectStaleNotice` l'annonce quand le serveur n'est pas connecté.
-**Serveur éteint (2026-09-26)** : `readProjectFiles` rend `offlineSince` ; `useProjectLoader` ouvre alors le Project en `offline` + `stale`, expose `offlineSince` et revérifie toutes les 15 s ; `ProjectStaleNotice` affiche la date de la copie.
+l'infobulle du badge serveur l'annonce quand le serveur n'est pas connecté.
+**Serveur éteint (2026-09-26)** : `readProjectFiles` rend `offlineSince` ; `useProjectLoader` ouvre alors le Project en `offline` + `stale`, expose `offlineSince` et revérifie toutes les 15 s ; l'infobulle du badge serveur affiche la date de la copie. Depuis le 2026-10-02, plus de bandeau `ProjectStaleNotice` — l'état est porté par le badge serveur et son infobulle (`downHint`).
 **Versions (2026-09-26)** : `ProjectVersions` (dans la fenêtre des brouillons) liste les
 Versions du Project ; restaurer remplace l'arbre de l'éditeur par celui de la Version
 (`adoptDiskIntoProject`), donc le brouillon, **sans publier**. `FileHistory` affiche l'auteur

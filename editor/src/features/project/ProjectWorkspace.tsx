@@ -44,13 +44,12 @@ import { CanvasWithInspector } from "@/features/project/CanvasWithInspector";
 import { ProjectLibraryWorkspace } from "@/features/project/ProjectLibrary";
 import { ProjectLoadingSkeleton } from "@/features/project/ProjectLoadingSkeleton";
 import { ProjectPanel } from "@/features/project/ProjectPanel";
-import { ProjectStaleNotice } from "@/features/project/ProjectStaleNotice";
 import { ProjectWorkspacePanels } from "@/features/project/ProjectWorkspacePanels";
 import { useProjectLoader } from "@/features/project/useProjectLoader";
 import { useWorkspaceTabShortcuts } from "@/features/project/useWorkspaceTabShortcuts";
 import { SearchPalette } from "@/features/search/SearchPalette";
-import { useServerIndexLoader } from "@/features/serverIndex/useServerIndexLoader";
 import { useGlobalSearchShortcut } from "@/features/search/useGlobalSearchShortcut";
+import { useServerIndexLoader } from "@/features/serverIndex/useServerIndexLoader";
 import { DeleteProjectDialog } from "@/features/sync/DeleteProjectDialog";
 import { TranslationPanelContent } from "@/features/translations/TranslationPanel";
 import { deleteUserProject } from "@/lib/api/userProjects";
@@ -59,7 +58,6 @@ import { documentDestination, projectDestination } from "@/lib/projectNavigation
 import { useProjectPrincipalId } from "@/lib/projectPrincipal";
 import { projectUrlId } from "@/lib/projectUrlId";
 import { useIsDesktop } from "@/lib/useMediaQuery";
-import { STALE_NOTICE_DELAY_MS, useSettledFlag } from "@/lib/useSettledFlag";
 import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
 import { useDemoStore } from "@/state/demoStore";
@@ -118,11 +116,6 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
     offlineSince,
     unpublished,
   } = useProjectLoader(loadRef, serverId, networkId);
-  // Deux situations, deux urgences. Une revalidation en vol se résoudra d'
-  // elle-même : on ne prévient que si elle s'éternise. Un serveur injoignable,
-  // lui, laisse l'écran daté sans terme — ça, ça se dit tout de suite.
-  const revalidating = useSettledFlag(stale && !offline, STALE_NOTICE_DELAY_MS);
-  const staleSettled = (stale && offline) || revalidating;
   const project = userProject;
   const pId = (project?.id ?? projectId) as ProjectId;
   const currentUser = useAuthStore((s) => s.currentUser);
@@ -424,16 +417,6 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
     </>
   );
 
-  // Ce qui est à l'écran vient de la dernière visite pendant que la lecture du
-  // serveur est en vol. Un état daté ne s'affiche jamais en silence — c'est la
-  // règle des brouillons, et elle vaut pour le cache.
-  // Différé : une revalidation qui répond en 300 ms n'a personne à prévenir, et
-  // un bandeau qui clignote coûte plus d'attention qu'il n'en informe. Ce qui
-  // s'attarde, en revanche, se dit — la règle tient là où elle compte.
-  const staleBanner = staleSettled ? (
-    <ProjectStaleNotice key={`${serverId}/${projectId}`} offline={offline} since={offlineSince} unpublished={unpublished} />
-  ) : null;
-
   const canvasActive =
     presentedTab === "overview" &&
     (!documentId || !!project?.menus.some((menu) => menu.id === documentId));
@@ -529,6 +512,9 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
             runtime?.capabilities.canDelete === false ? undefined : () => setShowDeleteDialog(true)
           }
           networkId={networkId}
+          offline={offline}
+          offlineSince={offlineSince}
+          unpublished={unpublished}
         />
       ) : (
         <div className="flex h-[52px] shrink-0 items-center px-5">
@@ -542,7 +528,6 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
           corner + hairline so the sidebar and topbar read as one continuous
           L-shaped frame. */}
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:rounded-tl-[var(--r-lg)] lg:border-t lg:border-l lg:border-[var(--border-soft)]">
-        {staleBanner}
         {tabContent}
       </div>
     </main>
