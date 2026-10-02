@@ -303,6 +303,23 @@ Non-examples:
   `assets-on-server-disk`). The backend keeps no copy: no `assets` table, no
   volume — only a throwaway cache keyed by content hash.
 
+## Document reference
+
+How one **Document** names another (the target of `open_menu` / `open_dialog`).
+A **bare id** (`main`) resolves in the referencing Document's own **Project**
+first, then on the whole server if exactly one Project defines it. A **qualified
+id** (`boutique:main`) names the Project by its **folder** on the server's disk —
+its *namespace* — and resolves there only. The same id in two Projects is two
+Documents. Locked editor ↔ plugin by `testdata/doc-ref-conformance.json`; ADR
+`project-qualified-refs`.
+
+Non-examples:
+- Command **names** (`/craft`) are not Document references: Bukkit registers them
+  server-wide, so two Projects claiming one name still conflict (the deploy
+  review warns).
+- A data-source ref (`pack:<id>`, `boutique:category`) is not a Document
+  reference — `ns:id` there names a module or Project source.
+
 ## Draft
 
 A named, private working copy of a **Project**, owned by a user and persisted in

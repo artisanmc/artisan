@@ -20,6 +20,12 @@ data class ExecutionContext(
     val runActionsDepth: Int = 0,
     /** Values fetched by the renderer, retained locally but not inherited by another menu. */
     val sourceArgs: Map<String, Any> = emptyMap(),
+    /**
+     * Le project du Document dont viennent les actions (menu cliqué, commande,
+     * dialog). Un `open_menu` / `open_dialog` à id nu s'y résout d'abord.
+     * `null` = pas de project (API, `/artisan menu`) : résolution sur le serveur.
+     */
+    val projectId: String? = null,
 ) {
     val navigationArgs: Map<String, Any>
         get() = args.filter { (name, value) -> name !in sourceArgs || value !== sourceArgs[name] }

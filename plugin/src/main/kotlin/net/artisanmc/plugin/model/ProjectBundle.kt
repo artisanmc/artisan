@@ -340,6 +340,8 @@ data class BundleDialog(
     val langMaps: Map<String, Map<String, String>>,
     /** Fallback language used when the player's locale isn't shipped by the project. See [BundleMenu.defaultLang]. */
     val defaultLang: String = "en",
+    /** Dossier du project qui le définit — le namespace de ses références (cf. [BundleMenu.projectId]). */
+    val projectId: String = "",
 ) {
     val id: String get() = yaml.id
 
@@ -569,6 +571,12 @@ data class BundleMenu(
      * keys to *some* translation instead of leaking `{i18n:foo}` to chat.
      */
     val defaultLang: String = "en",
+    /**
+     * Dossier du project qui le définit. C'est le namespace des références : un
+     * `open_menu` nu tiré de ce menu se résout d'abord ici (`DocumentTable`).
+     * Vide pour un menu sans project (brouillon relayé, tests).
+     */
+    val projectId: String = "",
 ) {
     val id: String get() = yaml.id
 

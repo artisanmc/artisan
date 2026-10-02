@@ -11,6 +11,8 @@ class PackCommand(
     private val compiled: CompiledCommand,
     private val executor: ActionExecutor,
     private val lang: LangManager,
+    /** Project qui définit la commande : ses `open_menu` à id nu s'y résolvent d'abord. */
+    private val projectId: String? = null,
 ) : Command(
     compiled.name,
     compiled.description,
@@ -31,7 +33,12 @@ class PackCommand(
             return true
         }
         val parsedArgs = ArgParser.parse(compiled.argDefs, args, sender, lang) ?: return true
-        val ctx = ExecutionContext(player = sender, args = parsedArgs, lang = lang.playerLang(sender))
+        val ctx = ExecutionContext(
+            player = sender,
+            args = parsedArgs,
+            lang = lang.playerLang(sender),
+            projectId = projectId,
+        )
         executor.handle(compiled.handler, ctx)
         return true
     }

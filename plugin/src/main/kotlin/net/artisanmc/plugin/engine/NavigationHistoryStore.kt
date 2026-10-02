@@ -16,8 +16,13 @@ data class NavigationEntry(
     val args: Map<String, Any> = emptyMap(),
     val pagination: Map<String, Int> = emptyMap(),
     val lang: String = "en",
+    /** Project de l'écran : le retour rouvre `projectId:id`, jamais un homonyme d'un autre project. */
+    val projectId: String? = null,
 ) {
     enum class Kind { MENU, DIALOG }
+
+    /** La référence qui rouvre exactement cet écran. */
+    val ref: String get() = if (projectId.isNullOrEmpty()) id else "$projectId:$id"
 }
 
 /**

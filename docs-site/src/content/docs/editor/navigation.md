@@ -7,6 +7,24 @@ Menus and dialogs remember the screens a player came through. That history lets
 you build a **Back** button that returns to exactly where the player was —
 without hand-wiring a target for every call site.
 
+## Opening a screen of another project
+
+`open_menu` and `open_dialog` name their target by id. A bare id (`shop`) is
+looked up in the project of the screen or command that runs the action first,
+then on the whole server if only one project defines it. To reach a screen of
+another project — or to choose between two projects that both define the same
+id — prefix it with the project's folder name:
+
+```yaml
+click:
+  left:
+    - open_menu: boutique:main
+```
+
+If a bare id matches several other projects, the last loaded one opens (as
+before) and the server log says which projects define it. The deploy review
+warns about it too.
+
 ## How the history works
 
 Every time a screen opens another one (`open_menu` or `open_dialog`), the screen

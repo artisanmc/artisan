@@ -13,12 +13,18 @@ interface MenuProvider {
     /** Hard tear-down used by `onDisable` — releases resources that cannot be reused. */
     fun shutdown() { unload() }
     fun findMenu(menuId: String): BundleMenu?
+    /**
+     * `ref` = id nu (cherché d'abord dans [fromProject], puis sur le serveur) ou
+     * `project:id`. Défaut : ignore le project, pour les implémentations simples.
+     */
+    fun findMenu(ref: String, fromProject: String?): BundleMenu? = findMenu(ref)
     fun listMenuIds(): List<String> = emptyList()
     fun openMenu(player: Player, menuId: String, lang: String, ctx: ExecutionContext)
     fun openMenu(player: Player, menuId: String, lang: String) =
         openMenu(player, menuId, lang, ExecutionContext(player))
     fun allBundles(): List<ProjectBundle> = emptyList()
     fun findDialog(dialogId: String): BundleDialog? = null
+    fun findDialog(ref: String, fromProject: String?): BundleDialog? = findDialog(ref)
     fun openDialog(player: Player, dialogId: String, lang: String, ctx: ExecutionContext) {}
     /** (editorUrl, networkName) once known from hello_ack; null before the plugin has connected. */
     fun editorInfo(): Pair<String, String>? = null

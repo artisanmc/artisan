@@ -34,6 +34,27 @@ class PackCommandTest {
         return PackCommand(compiled, executor(), lang)
     }
 
+    @Test fun `a command resolves its menu references in its own project`() {
+        var openedFrom: String? = "unset"
+        val provider = object : MenuProvider {
+            override fun load() {}
+            override fun findMenu(menuId: String): BundleMenu? = null
+            override fun openMenu(player: Player, menuId: String, lang: String, ctx: ExecutionContext) {
+                openedFrom = ctx.projectId
+            }
+        }
+        val handler = ClickHandler(emptyList(), listOf(Action.OpenMenu("main")), emptyList())
+        val compiled = CompiledCommand("shopcmd", emptyList(), null, "", emptyList(), handler)
+        val command = PackCommand(
+            compiled,
+            ActionExecutor(plugin.value, provider, sessions, deps, cooldowns, evaluator),
+            lang,
+            projectId = "shop",
+        )
+        command.execute(MockBukkit.getMock()!!.addPlayer(), "shopcmd", emptyArray())
+        assertEquals("shop", openedFrom)
+    }
+
     @Test fun `execute sends usage when non-player sender`() {
         val command = cmd("test")
         val console = MockBukkit.getMock()!!.consoleSender

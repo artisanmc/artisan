@@ -50,7 +50,7 @@ class CommandRegistrar(private val plugin: JavaPlugin, private val lang: LangMan
                         logger.warning("Alias '/$alias' for command '/$name' conflicts with an existing command — alias may not work.")
                     }
                 }
-                val projectCommand = PackCommand(compiled, executor, lang)
+                val projectCommand = PackCommand(compiled, executor, lang, bundle.projectId)
                 commandMap.register(namespace, projectCommand)
                 registered += name
                 seen += name
