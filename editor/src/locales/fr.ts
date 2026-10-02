@@ -181,6 +181,9 @@ const fr: typeof en = {
     binaryConflict:
       "Cette image diffère entre l'archive et le serveur. « Garder le serveur » laisse le fichier serveur intact.",
     applyToRest: "Garder ce choix pour tous les fichiers suivants",
+    overwriteTitle: "Confirmer l'écrasement",
+    overwriteDescription: "{{count}} fichier(s) seront remplacés par la version de l'archive.",
+    binaryOverwrite: "Cette image sera remplacée par la version de l'archive.",
     summaryAdditions: "{{count}} nouveau(x) fichier(s) seront ajoutés",
     summaryDeletions: "{{count}} fichier(s) du serveur seront supprimés",
     summaryKept: "{{count}} fichier(s) du serveur absents de l'archive sont conservés",

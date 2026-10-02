@@ -176,6 +176,9 @@ export default {
     binaryConflict:
       "This image differs between the archive and the server. Choosing “Keep server” leaves the server file untouched.",
     applyToRest: "Keep this choice for all following files",
+    overwriteTitle: "Confirm overwrite",
+    overwriteDescription: "{{count}} file(s) will be replaced by the archive's version.",
+    binaryOverwrite: "This image will be replaced by the archive's version.",
     summaryAdditions: "{{count}} new file(s) will be added",
     summaryDeletions: "{{count}} server file(s) will be deleted",
     summaryKept: "{{count}} server file(s) not in the archive are kept",
