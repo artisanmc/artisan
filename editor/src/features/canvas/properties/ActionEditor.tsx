@@ -3,10 +3,17 @@ import { RevealField } from "@/components/RevealField";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { parseDocRef, projectNamespace } from "@/domain/docRef";
+import { useOtherServerProjects } from "@/features/serverIndex/useOtherServerProjects";
+import { getText as libGetText } from "@/lib/i18n";
+import { useUiStore } from "@/state/uiStore";
 import { Input } from "@/components/ui/input";
 import { usePlaceholderEntries } from "@/components/usePlaceholderEntries";
 import { getFirstTitleText } from "@/domain/menuTitle";
@@ -180,7 +187,23 @@ function OpenMenuEditor({
 }) {
   const { t } = useTranslation();
   const menus = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId)?.menus ?? []);
-  const targetMenu = menus.find((m) => m.id === action.menuId);
+  const others = useOtherServerProjects(projectId);
+  const activeLang = useUiStore((s) => s.activeLang);
+  // Une cible qualifiée (`boutique:main`) vit dans un autre project : on la lit
+  // dans l'index serveur (état publié) pour son titre et ses entrées.
+  const ref = parseDocRef(action.menuId);
+  const remote =
+    ref.namespace === null
+      ? null
+      : (others
+          .filter((p) => projectNamespace(p) === ref.namespace)
+          .flatMap((p) =>
+            p.menus.filter((m) => m.id === ref.id).map((m) => ({ project: p, menu: m })),
+          )[0] ?? null);
+  const targetMenu = remote ? remote.menu : menus.find((m) => m.id === action.menuId);
+  const targetTitle = remote
+    ? libGetText(remote.project, getFirstTitleText(remote.menu), activeLang)
+    : undefined;
   // Only PRIMITIVE inputs are caller-passed; sourceRef inputs are FETCHED by
   // the target menu itself (ContextBinder) — asking the caller to fill them
   // was a trap ("items: ?").
@@ -210,7 +233,10 @@ function OpenMenuEditor({
               className="flex w-full items-center gap-1 truncate rounded border border-[var(--border-soft)] bg-[var(--surface-raised)] px-2 py-1 text-left font-mono text-xs text-[var(--text)]"
             >
               {targetMenu ? (
-                <MenuOptionLabel id={targetMenu.id} title={getText(getFirstTitleText(targetMenu))} />
+                <MenuOptionLabel
+                  id={action.menuId}
+                  title={targetTitle ?? getText(getFirstTitleText(targetMenu))}
+                />
               ) : (
                 t("actionEditor.menuMissing", { id: action.menuId })
               )}
@@ -226,6 +252,28 @@ function OpenMenuEditor({
                   <MenuOptionLabel id={m.id} title={getText(getFirstTitleText(m))} />
                 </DropdownMenuRadioItem>
               ))}
+              {others
+                .filter((p) => p.menus.length > 0)
+                .map((p) => (
+                  <DropdownMenuGroup key={p.id}>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuLabel className="text-[10px] uppercase text-[var(--text-faint)]">
+                      {p.name}
+                    </DropdownMenuLabel>
+                    {p.menus.map((m) => (
+                      <DropdownMenuRadioItem
+                        key={m.id}
+                        value={`${projectNamespace(p)}:${m.id}`}
+                        className="font-mono text-xs"
+                      >
+                        <MenuOptionLabel
+                          id={m.id}
+                          title={libGetText(p, getFirstTitleText(m), activeLang)}
+                        />
+                      </DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuGroup>
+                ))}
             </DropdownMenuRadioGroup>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -350,26 +398,40 @@ function OpenDialogEditor({
   action: Extract<Action, { type: "open_dialog" }>;
   onChange: (a: Action) => void;
 }) {
+  const { t } = useTranslation();
   const dialogs = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId)?.dialogs ?? []);
+  const others = useOtherServerProjects(projectId).filter((p) => (p.dialogs ?? []).length > 0);
+  const known =
+    dialogs.some((d) => d.id === action.dialogId) ||
+    others.some((p) =>
+      (p.dialogs ?? []).some((d) => `${projectNamespace(p)}:${d.id}` === action.dialogId),
+    );
 
   return (
     <div className="flex flex-col gap-2">
       <div>
-        <FieldLabel>Dialogue cible</FieldLabel>
+        <FieldLabel>{t("actionEditor.targetDialog")}</FieldLabel>
         <select
           value={action.dialogId}
           onChange={(e) => onChange({ ...action, dialogId: e.target.value as DialogId })}
           className="w-full rounded border border-[var(--border-soft)] bg-[var(--surface-raised)] px-2 py-1 font-mono text-xs text-[var(--text)]"
         >
-          {dialogs.some((d) => d.id === action.dialogId) ? null : (
-            <option value={action.dialogId}>
-              {action.dialogId || "— choisir —"}
-            </option>
+          {known ? null : (
+            <option value={action.dialogId}>{action.dialogId || t("actionEditor.choose")}</option>
           )}
           {dialogs.map((d) => (
             <option key={d.id} value={d.id}>
               {d.id}
             </option>
+          ))}
+          {others.map((p) => (
+            <optgroup key={p.id} label={p.name}>
+              {(p.dialogs ?? []).map((d) => (
+                <option key={d.id} value={`${projectNamespace(p)}:${d.id}`}>
+                  {d.id}
+                </option>
+              ))}
+            </optgroup>
           ))}
         </select>
       </div>
@@ -379,7 +441,7 @@ function OpenDialogEditor({
           checked={Boolean(action.clearContext)}
           onChange={(e) => onChange({ ...action, clearContext: e.target.checked || undefined })}
         />
-        Réinitialiser le contexte
+        {t("actionEditor.clearContext")}
       </label>
     </div>
   );

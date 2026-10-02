@@ -45,8 +45,14 @@ propre — namespace, langue par défaut, traductions — : ce n'est pas qu'un d
 - **DSL texte** (`action-dsl`) : sa grammaire n'accepte pas `:` dans un
   identifiant et n'est pas étendue. L'éditeur écrit le format structuré
   (`structured-action-wire`), où `open_menu: boutique:main` est une simple chaîne.
-- **Choisir une cible d'un autre project dans l'éditeur** (sélecteur de menu) :
-  pas encore fait ; une référence qualifiée s'écrit aujourd'hui dans le YAML.
+## Éditeur
+
+- Les sélecteurs de cible d'`open_menu` / `open_dialog` listent, sous le nom de
+  chaque autre project du serveur (index serveur, état publié), ses menus et
+  dialogs ; les choisir écrit la forme qualifiée. Une cible qualifiée s'affiche
+  avec son titre et propose les entrées de contexte du menu distant.
+- Suivre une référence qualifiée (pastille de lien en vue focus) ouvre le project
+  qu'elle nomme (`documentDestination`).
 
 ## Conséquences
 
