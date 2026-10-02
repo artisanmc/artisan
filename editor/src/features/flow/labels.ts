@@ -7,6 +7,8 @@ export function actionTypeLabel(type: Action["type"]): string {
       return "menu";
     case "close_menu":
       return "close";
+    case "open_previous_menu":
+      return "back";
     case "run_command":
       return "cmd";
     case "send_message":

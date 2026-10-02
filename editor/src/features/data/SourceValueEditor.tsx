@@ -309,13 +309,7 @@ export function ValueEditor({
       return <ItemValueField projectId={projectId} value={value} onChange={set} scope={{ item: current }} />;
     }
     case "actions":
-      return (
-        <ActionFieldEditor
-          projectId={projectId}
-          value={typeof value === "string" ? value : ""}
-          onChange={set}
-        />
-      );
+      return <ActionFieldEditor projectId={projectId} value={value} onChange={set} />;
     case "minimessage":
     case "minimessage_multiline": {
       // Same kit as the SchemaForm minimessage widgets: rendered facade at

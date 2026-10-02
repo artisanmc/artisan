@@ -1,6 +1,16 @@
 import { graphlib, layout } from "@dagrejs/dagre";
 import type { DocumentKind } from "./serverGraph";
 
+/**
+ * Stratégie d'arrangement :
+ * - `columns` : couches dagre LR, un rank = une colonne (historique).
+ * - `wrap` : idem mais une colonne trop haute se replie en sous-colonnes.
+ * - `auto` : `wrap` en LR ou TB selon le ratio de la planche.
+ * - `cluster` : les enfants d'un parent sont packés en bloc grille à sa droite.
+ * - `force` : ressorts + répulsion déterministes, grappes organiques.
+ */
+export type ArrangeMode = "columns" | "wrap" | "auto" | "cluster" | "force" | "structured";
+
 export interface ArrangeNode {
   key: string;
   kind: DocumentKind;
@@ -31,6 +41,15 @@ const GUTTER_GAP = 160;
 export const GUTTER_LABEL_HEIGHT = 36;
 const GUTTER_CELL_GAP = 48;
 const GUTTER_KIND_ORDER: Record<DocumentKind, number> = { menu: 0, dialog: 1, command: 2 };
+
+/** Budget de hauteur (wrap) ou de largeur (TB) d'une sous-colonne avant repli. */
+const WRAP_STACK_MAX = 1500;
+/** Nombre maximal de nœuds empilés dans une sous-colonne. */
+const WRAP_ROWS_MAX = 5;
+/** Budget de hauteur du bloc d'enfants d'un parent (mode cluster). */
+const CLUSTER_STACK_MAX = 1200;
+/** Ratio cible (largeur / hauteur) visé par le mode auto. */
+const AUTO_TARGET_RATIO = 16 / 9;
 
 const compare = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 
@@ -209,7 +228,10 @@ function layoutComponent(nodes: ArrangeNode[], edges: ArrangeEdge[]): Placed {
  * composante connexe, une composante par ligne, les Documents sans
  * lien en gouttière. Déterministe : l'ordre d'entrée n'a aucun effet.
  */
-function arrangeFree(input: { nodes: ArrangeNode[]; edges: ArrangeEdge[]; preferredRoots?: string[] }): Arrangement {
+function arrangeFree(
+  input: { nodes: ArrangeNode[]; edges: ArrangeEdge[]; preferredRoots?: string[] },
+  place: PlaceFn,
+): Arrangement {
   const nodes = [...input.nodes].sort((a, b) => compare(a.key, b.key));
   if (nodes.length === 0) return { positions: {}, gutter: null };
   const byKey = new Map(nodes.map((n) => [n.key, n]));
@@ -238,9 +260,10 @@ function arrangeFree(input: { nodes: ArrangeNode[]; edges: ArrangeEdge[]; prefer
   for (const keys of groups) {
     const inGroup = new Set(keys);
     const groupEdges = edges.filter((e) => inGroup.has(e.source));
-    const placed = layoutComponent(
+    const placed = place(
       keys.map((k) => byKey.get(k)!),
       forwardEdges(keys, groupEdges, input.preferredRoots),
+      input.preferredRoots ?? [],
     );
     for (const [key, p] of Object.entries(placed.positions))
       positions[key] = { x: BOARD_MARGIN + p.x, y: y + p.y };
@@ -276,6 +299,678 @@ type Rect = Point & { width: number; height: number };
 const overlaps = (a: Rect, b: Rect) =>
   a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
 
+type PlaceFn = (
+  nodes: ArrangeNode[],
+  forward: ArrangeEdge[],
+  preferredRoots: string[],
+) => Placed;
+
+interface Sized {
+  w: number;
+  h: number;
+}
+interface Packed {
+  width: number;
+  height: number;
+  pos: Point[];
+}
+
+/**
+ * Répartit les nœuds d'un composant en couches (dagre) puis replie chaque
+ * couche en sous-colonnes (LR) ou sous-rangées (TB) dès que l'empilement
+ * dépasse un budget. L'ordre de lecture reste gauche→droite, les frères
+ * d'une même couche restent voisins.
+ */
+function layoutWrapped(
+  nodes: ArrangeNode[],
+  edges: ArrangeEdge[],
+  _preferredRoots: string[],
+  axis: "lr" | "tb",
+): Placed {
+  if (nodes.length === 0) return { positions: {}, width: 0, height: 0 };
+  const byKey = new Map(nodes.map((n) => [n.key, n]));
+  const g = new graphlib.Graph();
+  g.setGraph({
+    rankdir: axis === "lr" ? "LR" : "TB",
+    ranker: "network-simplex",
+    ranksep: RANKSEP,
+    nodesep: NODESEP,
+    marginx: 0,
+    marginy: 0,
+  });
+  g.setDefaultEdgeLabel(() => ({}));
+  for (const n of nodes) g.setNode(n.key, { width: n.width, height: n.height });
+  for (const e of edges) g.setEdge(e.source, e.target);
+  layout(g);
+
+  const rankAxisKey = axis === "lr" ? "x" : "y";
+  const stackAxisKey = axis === "lr" ? "y" : "x";
+  const rankCoord = (key: string) => Math.round((g.node(key) as Point)[rankAxisKey]);
+  const stackCoord = (key: string) => Math.round((g.node(key) as Point)[stackAxisKey]);
+  const stackSize = (key: string) =>
+    axis === "lr" ? byKey.get(key)!.height : byKey.get(key)!.width;
+  const rankSize = (key: string) =>
+    axis === "lr" ? byKey.get(key)!.width : byKey.get(key)!.height;
+
+  const ranks = [...new Set(nodes.map((n) => rankCoord(n.key)))].sort((a, b) => a - b);
+  const rankIndex = new Map(ranks.map((r, i) => [r, i]));
+  const buckets: string[][] = ranks.map(() => []);
+  for (const n of nodes) buckets[rankIndex.get(rankCoord(n.key))!]!.push(n.key);
+  for (const bucket of buckets)
+    bucket.sort((a, b) => stackCoord(a) - stackCoord(b) || compare(a, b));
+
+  const rankPos: Record<string, number> = {};
+  const stackPos: Record<string, number> = {};
+  let rankCursor = 0;
+  for (const bucket of buckets) {
+    const bands: string[][] = [];
+    let cur: string[] = [];
+    let curStack = 0;
+    for (const key of bucket) {
+      const gap = cur.length ? NODESEP : 0;
+      if (
+        cur.length &&
+        (curStack + gap + stackSize(key) > WRAP_STACK_MAX || cur.length >= WRAP_ROWS_MAX)
+      ) {
+        bands.push(cur);
+        cur = [];
+        curStack = 0;
+      }
+      cur.push(key);
+      curStack += (cur.length > 1 ? NODESEP : 0) + stackSize(key);
+    }
+    if (cur.length) bands.push(cur);
+
+    let bandCursor = rankCursor;
+    let bandRankExtent = 0;
+    for (const band of bands) {
+      let stack = 0;
+      let bandSelfRank = 0;
+      for (const key of band) {
+        rankPos[key] = bandCursor;
+        stackPos[key] = stack;
+        stack += stackSize(key) + NODESEP;
+        bandSelfRank = Math.max(bandSelfRank, rankSize(key));
+      }
+      bandCursor += bandSelfRank + RANKSEP;
+      bandRankExtent = bandCursor - rankCursor - RANKSEP;
+    }
+    rankCursor += bandRankExtent + RANKSEP;
+  }
+
+  const positions: Record<string, Point> = {};
+  let minRank = Number.POSITIVE_INFINITY;
+  let minStack = Number.POSITIVE_INFINITY;
+  for (const n of nodes) {
+    minRank = Math.min(minRank, rankPos[n.key]!);
+    minStack = Math.min(minStack, stackPos[n.key]!);
+  }
+  let width = 0;
+  let height = 0;
+  for (const n of nodes) {
+    const r = rankPos[n.key]! - minRank;
+    const s = stackPos[n.key]! - minStack;
+    const p = axis === "lr" ? { x: r, y: s } : { x: s, y: r };
+    positions[n.key] = p;
+    width = Math.max(width, p.x + n.width);
+    height = Math.max(height, p.y + n.height);
+  }
+  return { positions, width, height };
+}
+
+/** Empile des blocs enfants en colonnes, repliées au-delà d'un budget de hauteur. */
+function packBlocks(items: Sized[], maxStack: number, gap: number): Packed {
+  const columns: number[][] = [];
+  let cur: number[] = [];
+  let curStack = 0;
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i]!;
+    if (cur.length && curStack + gap + item.h > maxStack) {
+      columns.push(cur);
+      cur = [];
+      curStack = 0;
+    }
+    cur.push(i);
+    curStack += (cur.length > 1 ? gap : 0) + item.h;
+  }
+  if (cur.length) columns.push(cur);
+
+  const pos: Point[] = new Array(items.length);
+  let x = 0;
+  let height = 0;
+  for (const column of columns) {
+    let y = 0;
+    let colWidth = 0;
+    for (const i of column) {
+      pos[i] = { x, y };
+      y += items[i]!.h + gap;
+      colWidth = Math.max(colWidth, items[i]!.w);
+    }
+    height = Math.max(height, y - gap);
+    x += colWidth + gap;
+  }
+  return { width: Math.max(0, x - gap), height, pos };
+}
+
+/**
+ * Le parent à gauche, ses enfants packés en bloc grille à sa droite. Approximation
+ * en arbre : un nœud à plusieurs parents n'apparaît que sous le premier (ordre
+ * déterministe). C'est le mode qui matérialise le regroupement logique.
+ */
+function layoutClustered(
+  nodes: ArrangeNode[],
+  edges: ArrangeEdge[],
+  preferredRoots: string[],
+): Placed {
+  if (nodes.length === 0) return { positions: {}, width: 0, height: 0 };
+  const byKey = new Map(nodes.map((n) => [n.key, n]));
+  const keys = nodes.map((n) => n.key);
+  const children = new Map<string, string[]>(keys.map((k) => [k, []]));
+  const hasParent = new Set<string>();
+  const ordered = [...edges].sort(
+    (a, b) => compare(a.source, b.source) || compare(a.target, b.target),
+  );
+  for (const e of ordered) {
+    if (hasParent.has(e.target) || !byKey.has(e.source)) continue;
+    hasParent.add(e.target);
+    children.get(e.source)!.push(e.target);
+  }
+  for (const list of children.values()) list.sort(compare);
+  const pref = new Map(preferredRoots.map((k, i) => [k, i]));
+  const roots = keys
+    .filter((k) => !hasParent.has(k))
+    .sort(
+      (a, b) =>
+        (pref.get(a) ?? Number.MAX_SAFE_INTEGER) - (pref.get(b) ?? Number.MAX_SAFE_INTEGER) ||
+        compare(a, b),
+    );
+
+  const sizes = new Map<string, Sized>();
+  const packed = new Map<string, Packed>();
+  const measure = (key: string): Sized => {
+    const cached = sizes.get(key);
+    if (cached) return cached;
+    const n = byKey.get(key)!;
+    const kids = children.get(key)!;
+    let size: Sized = { w: n.width, h: n.height };
+    if (kids.length) {
+      const block = packBlocks(kids.map(measure), CLUSTER_STACK_MAX, NODESEP);
+      packed.set(key, block);
+      size = { w: n.width + RANKSEP + block.width, h: Math.max(n.height, block.height) };
+    }
+    sizes.set(key, size);
+    return size;
+  };
+
+  const positions: Record<string, Point> = {};
+  const place = (key: string, x: number, yTop: number) => {
+    const n = byKey.get(key)!;
+    const size = sizes.get(key)!;
+    positions[key] = { x, y: yTop + (size.h - n.height) / 2 };
+    const kids = children.get(key)!;
+    if (!kids.length) return;
+    const block = packed.get(key)!;
+    const childX = x + n.width + RANKSEP;
+    const childY = yTop + (size.h - block.height) / 2;
+    kids.forEach((k, i) => place(k, childX + block.pos[i]!.x, childY + block.pos[i]!.y));
+  };
+
+  let y = 0;
+  let width = 0;
+  for (const root of roots) {
+    const size = measure(root);
+    place(root, 0, y);
+    y += size.h + COMPONENT_GAP;
+    width = Math.max(width, size.w);
+  }
+  return { positions, width, height: Math.max(0, y - COMPONENT_GAP) };
+}
+
+/** Étalonné sur une position seed, mis à l'échelle en poussant les chevauchements. */
+function separate(rects: Rect[], gap: number): void {
+  for (let iter = 0; iter < 80; iter++) {
+    let moved = false;
+    for (let i = 0; i < rects.length; i++) {
+      for (let j = i + 1; j < rects.length; j++) {
+        const a = rects[i]!;
+        const b = rects[j]!;
+        const overlapX = Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x);
+        const overlapY = Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y);
+        if (overlapX <= 0 || overlapY <= 0) continue;
+        moved = true;
+        // Repousse sur l'axe de moindre recouvrement, moitié chacun, + la marge.
+        if (overlapX < overlapY) {
+          const push = (overlapX + gap) / 2;
+          const dir = a.x <= b.x ? 1 : -1;
+          a.x -= push * dir;
+          b.x += push * dir;
+        } else {
+          const push = (overlapY + gap) / 2;
+          const dir = a.y <= b.y ? 1 : -1;
+          a.y -= push * dir;
+          b.y += push * dir;
+        }
+      }
+    }
+    if (!moved) return;
+  }
+}
+
+/** Distance centre-à-centre le long de (ux,uy) où deux rectangles se touchent. */
+function contactDistance(na: ArrangeNode, nb: ArrangeNode, ux: number, uy: number): number {
+  return (
+    (Math.abs(ux) * na.width + Math.abs(uy) * na.height) / 2 +
+    (Math.abs(ux) * nb.width + Math.abs(uy) * nb.height) / 2
+  );
+}
+
+/** Centre moyen d'un ensemble de clés. */
+function centroid(keys: string[], points: Map<string, Point>): Point {
+  let x = 0;
+  let y = 0;
+  for (const key of keys) {
+    const p = points.get(key)!;
+    x += p.x;
+    y += p.y;
+  }
+  return { x: x / keys.length, y: y / keys.length };
+}
+
+/**
+ * Compacte un groupe : ressorts à distance de contact + collision rectangle,
+ * sans champ lointain. Renvoie les coins haut-gauche (non normalisés).
+ */
+function packBySprings(
+  nodes: ArrangeNode[],
+  links: ArrangeEdge[],
+  seedCenters: Map<string, Point>,
+  edgeGap: number,
+  packGap: number,
+): Map<string, Point> {
+  const byKey = new Map(nodes.map((n) => [n.key, n]));
+  const keys = nodes.map((n) => n.key);
+  const centers = new Map<string, Point>(
+    keys.map((key) => [key, { ...seedCenters.get(key)! }]),
+  );
+  const toRects = () =>
+    keys.map((key) => {
+      const n = byKey.get(key)!;
+      const c = centers.get(key)!;
+      return {
+        key,
+        rect: { x: c.x - n.width / 2, y: c.y - n.height / 2, width: n.width, height: n.height },
+      };
+    });
+  if (nodes.length > 1) {
+    for (let round = 0; round < 6; round++) {
+      for (let it = 0; it < 40; it++) {
+        for (const e of links) {
+          const na = byKey.get(e.source)!;
+          const nb = byKey.get(e.target)!;
+          const ca = centers.get(e.source)!;
+          const cb = centers.get(e.target)!;
+          let dx = cb.x - ca.x;
+          let dy = cb.y - ca.y;
+          let dist = Math.hypot(dx, dy);
+          if (dist < 0.001) {
+            dx = 0.001;
+            dy = 0;
+            dist = 0.001;
+          }
+          const ux = dx / dist;
+          const uy = dy / dist;
+          const rest = contactDistance(na, nb, ux, uy) + edgeGap;
+          const move = (dist - rest) * 0.25;
+          ca.x += ux * move;
+          ca.y += uy * move;
+          cb.x -= ux * move;
+          cb.y -= uy * move;
+        }
+      }
+      const entries = toRects();
+      separate(
+        entries.map((e) => e.rect),
+        packGap,
+      );
+      for (const { key, rect } of entries) {
+        const n = byKey.get(key)!;
+        centers.set(key, { x: rect.x + n.width / 2, y: rect.y + n.height / 2 });
+      }
+    }
+  }
+  const out = new Map<string, Point>();
+  for (const n of nodes) {
+    const c = centers.get(n.key)!;
+    out.set(n.key, { x: c.x - n.width / 2, y: c.y - n.height / 2 });
+  }
+  return out;
+}
+
+/** Positions Fruchterman-Reingold (rapproche les liens, écarte le reste). */
+function frCenters(nodes: ArrangeNode[], links: ArrangeEdge[], seed: Placed): Map<string, Point> {
+  const keys = nodes.map((n) => n.key);
+  const centers = new Map<string, Point>();
+  for (const n of nodes) {
+    const p = seed.positions[n.key]!;
+    centers.set(n.key, { x: p.x + n.width / 2, y: p.y + n.height / 2 });
+  }
+  const count = keys.length;
+  if (count < 2) return centers;
+  const avg = nodes.reduce((sum, n) => sum + Math.max(n.width, n.height), 0) / count;
+  const k = avg * 2.2;
+  const disp = new Map<string, Point>(keys.map((key) => [key, { x: 0, y: 0 }]));
+  let temp = k * 2;
+  for (let it = 0; it < 160; it++) {
+    for (const key of keys) disp.set(key, { x: 0, y: 0 });
+    for (let i = 0; i < count; i++) {
+      for (let j = i + 1; j < count; j++) {
+        const a = keys[i]!;
+        const b = keys[j]!;
+        const ca = centers.get(a)!;
+        const cb = centers.get(b)!;
+        let dx = ca.x - cb.x;
+        let dy = ca.y - cb.y;
+        let dist = Math.hypot(dx, dy);
+        if (dist < 0.01) {
+          dx = (i - j) * 0.01 + 0.01;
+          dy = 0.01;
+          dist = Math.hypot(dx, dy);
+        }
+        const force = (k * k) / dist;
+        const ux = dx / dist;
+        const uy = dy / dist;
+        const da = disp.get(a)!;
+        const db = disp.get(b)!;
+        da.x += ux * force;
+        da.y += uy * force;
+        db.x -= ux * force;
+        db.y -= uy * force;
+      }
+    }
+    for (const e of links) {
+      const ca = centers.get(e.source)!;
+      const cb = centers.get(e.target)!;
+      const dx = ca.x - cb.x;
+      const dy = ca.y - cb.y;
+      const dist = Math.hypot(dx, dy) || 0.01;
+      const force = (dist * dist) / k;
+      const ux = dx / dist;
+      const uy = dy / dist;
+      const da = disp.get(e.source)!;
+      const db = disp.get(e.target)!;
+      da.x -= ux * force;
+      da.y -= uy * force;
+      db.x += ux * force;
+      db.y += uy * force;
+    }
+    for (const key of keys) {
+      const c = centers.get(key)!;
+      const d = disp.get(key)!;
+      const len = Math.hypot(d.x, d.y) || 0.01;
+      const step = Math.min(len, temp);
+      c.x += (d.x / len) * step;
+      c.y += (d.y / len) * step;
+    }
+    temp = Math.max(0.5, temp * 0.97);
+  }
+  return centers;
+}
+
+/**
+ * Détecte les communautés : les liens de pont entre groupes s'étirent sous la
+ * répulsion, on coupe ceux plus longs que `moyenne + écart-type`, puis on prend
+ * les composantes connexes du graphe restant.
+ */
+function detectCommunities(
+  keys: string[],
+  links: ArrangeEdge[],
+  base: Map<string, Point>,
+): string[][] {
+  if (links.length <= 1) return components(keys, links);
+  const lengths = links.map((e) => {
+    const a = base.get(e.source)!;
+    const b = base.get(e.target)!;
+    return Math.hypot(a.x - b.x, a.y - b.y);
+  });
+  const mean = lengths.reduce((sum, v) => sum + v, 0) / lengths.length;
+  const sd = Math.sqrt(
+    lengths.reduce((sum, v) => sum + (v - mean) * (v - mean), 0) / lengths.length,
+  );
+  const threshold = mean + sd;
+  const kept = links.filter((_, i) => lengths[i]! <= threshold);
+  return components(keys, kept.length ? kept : links);
+}
+
+/**
+ * Organique « deux niveaux ». Une passe de force détecte les groupes (les liens
+ * de pont entre communautés s'étirent et sont coupés au-delà de la moyenne).
+ * Chaque groupe est ensuite compacté au contact, puis les groupes sont posés
+ * aux positions de la force avec un vrai vide entre eux : groupes lisibles,
+ * sans l'étalement interne d'une répulsion globale. Déterministe.
+ */
+function layoutForced(
+  nodes: ArrangeNode[],
+  edges: ArrangeEdge[],
+  preferredRoots: string[],
+): Placed {
+  if (nodes.length === 0) return { positions: {}, width: 0, height: 0 };
+  const seed = layoutWrapped(nodes, edges, preferredRoots, "lr");
+  const byKey = new Map(nodes.map((n) => [n.key, n]));
+  const keys = nodes.map((n) => n.key);
+  const links = edges.filter(
+    (e) => e.source !== e.target && byKey.has(e.source) && byKey.has(e.target),
+  );
+  const base = frCenters(nodes, links, seed);
+  const clusters = detectCommunities(keys, links, base);
+
+  const EDGE_GAP = 40;
+  const PACK_GAP = 24;
+  const positions = new Map<string, Point>();
+  const boxes: { members: string[]; placed: Rect; rect: Rect }[] = [];
+  for (const members of clusters) {
+    const set = new Set(members);
+    const memberNodes = members.map((key) => byKey.get(key)!);
+    const inner = links.filter((e) => set.has(e.source) && set.has(e.target));
+    const seedSub = new Map(members.map((key) => [key, base.get(key)!]));
+    const local = packBySprings(memberNodes, inner, seedSub, EDGE_GAP, PACK_GAP);
+    let minX = Number.POSITIVE_INFINITY;
+    let minY = Number.POSITIVE_INFINITY;
+    let maxX = Number.NEGATIVE_INFINITY;
+    let maxY = Number.NEGATIVE_INFINITY;
+    for (const n of memberNodes) {
+      const p = local.get(n.key)!;
+      minX = Math.min(minX, p.x);
+      minY = Math.min(minY, p.y);
+      maxX = Math.max(maxX, p.x + n.width);
+      maxY = Math.max(maxY, p.y + n.height);
+    }
+    const anchor = centroid(members, base);
+    const dx = anchor.x - (minX + (maxX - minX) / 2);
+    const dy = anchor.y - (minY + (maxY - minY) / 2);
+    for (const n of memberNodes) {
+      const p = local.get(n.key)!;
+      positions.set(n.key, { x: p.x + dx, y: p.y + dy });
+    }
+    const placed = { x: minX + dx, y: minY + dy, width: maxX - minX, height: maxY - minY };
+    boxes.push({ members, placed, rect: { ...placed } });
+  }
+
+  // Compacte les groupes entre eux : chaque bloc est un nœud d'un méta-graphe
+  // complet, ressorté au contact et écarté par collision. Les groupes restent
+  // serrés dans l'ensemble tout en gardant un vide net entre eux.
+  const META_EDGE_GAP = 140;
+  const META_PACK_GAP = 180;
+  const metaNodes: ArrangeNode[] = boxes.map((b, i) => ({
+    key: `@c${i}`,
+    kind: "menu",
+    width: b.placed.width,
+    height: b.placed.height,
+  }));
+  const metaLinks: ArrangeEdge[] = [];
+  for (let i = 0; i < boxes.length; i++)
+    for (let j = i + 1; j < boxes.length; j++)
+      metaLinks.push({ source: `@c${i}`, target: `@c${j}` });
+  const metaSeed = new Map(
+    boxes.map((b, i) => [
+      `@c${i}`,
+      { x: b.placed.x + b.placed.width / 2, y: b.placed.y + b.placed.height / 2 },
+    ]),
+  );
+  const metaPacked = packBySprings(metaNodes, metaLinks, metaSeed, META_EDGE_GAP, META_PACK_GAP);
+  boxes.forEach((b, i) => {
+    const p = metaPacked.get(`@c${i}`)!;
+    const ddx = p.x - b.placed.x;
+    const ddy = p.y - b.placed.y;
+    b.rect = { ...b.placed, x: p.x, y: p.y };
+    if (!ddx && !ddy) return;
+    for (const key of b.members) {
+      const q = positions.get(key)!;
+      q.x += ddx;
+      q.y += ddy;
+    }
+  });
+
+  const out: Record<string, Point> = {};
+  let minX = Number.POSITIVE_INFINITY;
+  let minY = Number.POSITIVE_INFINITY;
+  for (const n of nodes) {
+    const p = positions.get(n.key)!;
+    minX = Math.min(minX, p.x);
+    minY = Math.min(minY, p.y);
+  }
+  let width = 0;
+  let height = 0;
+  for (const n of nodes) {
+    const p = positions.get(n.key)!;
+    const q = { x: p.x - minX, y: p.y - minY };
+    out[n.key] = q;
+    width = Math.max(width, q.x + n.width);
+    height = Math.max(height, q.y + n.height);
+  }
+  return { positions: out, width, height };
+}
+
+/**
+ * Structuré : mêmes groupes que `force`, mais chaque groupe est rangé en
+ * couches compactes (colonnes repliées, ordre de navigation) et les blocs sont
+ * posés en rangées alignées. Moins organique, plus lisible.
+ */
+function layoutStructured(
+  nodes: ArrangeNode[],
+  edges: ArrangeEdge[],
+  preferredRoots: string[],
+): Placed {
+  if (nodes.length === 0) return { positions: {}, width: 0, height: 0 };
+  const seed = layoutWrapped(nodes, edges, preferredRoots, "lr");
+  const byKey = new Map(nodes.map((n) => [n.key, n]));
+  const keys = nodes.map((n) => n.key);
+  const links = edges.filter(
+    (e) => e.source !== e.target && byKey.has(e.source) && byKey.has(e.target),
+  );
+  const base = frCenters(nodes, links, seed);
+  const communities = detectCommunities(keys, links, base);
+
+  const GAP = 220;
+  const blocks = communities.map((members) => {
+    const set = new Set(members);
+    const inner = links.filter((e) => set.has(e.source) && set.has(e.target));
+    return {
+      members,
+      placed: layoutWrapped(
+        members.map((key) => byKey.get(key)!),
+        inner,
+        [],
+        "lr",
+      ),
+    };
+  });
+
+  // Rangées : blocs hauts d'abord pour des rangées régulières ; largeur cible
+  // ≈ ratio d'écran appliqué à l'aire totale.
+  const ordered = [...blocks].sort(
+    (a, b) => b.placed.height - a.placed.height || compare(a.members[0]!, b.members[0]!),
+  );
+  const totalArea = ordered.reduce(
+    (sum, b) => sum + (b.placed.width + GAP) * (b.placed.height + GAP),
+    0,
+  );
+  const rowWidth = Math.max(1200, Math.sqrt(totalArea * AUTO_TARGET_RATIO));
+
+  const out: Record<string, Point> = {};
+  let x = 0;
+  let y = 0;
+  let rowHeight = 0;
+  for (const block of ordered) {
+    if (x > 0 && x + block.placed.width > rowWidth) {
+      x = 0;
+      y += rowHeight + GAP;
+      rowHeight = 0;
+    }
+    for (const key of block.members) {
+      const p = block.placed.positions[key]!;
+      out[key] = { x: x + p.x, y: y + p.y };
+    }
+    x += block.placed.width + GAP;
+    rowHeight = Math.max(rowHeight, block.placed.height);
+  }
+
+  let minX = Number.POSITIVE_INFINITY;
+  let minY = Number.POSITIVE_INFINITY;
+  for (const n of nodes) {
+    minX = Math.min(minX, out[n.key]!.x);
+    minY = Math.min(minY, out[n.key]!.y);
+  }
+  let width = 0;
+  let height = 0;
+  for (const n of nodes) {
+    const p = out[n.key]!;
+    p.x -= minX;
+    p.y -= minY;
+    width = Math.max(width, p.x + n.width);
+    height = Math.max(height, p.y + n.height);
+  }
+  return { positions: out, width, height };
+}
+
+/** Score d'écart au ratio cible : 0 = planche idéalement proportionnée. */
+function aspectDistance(arrangement: Arrangement, nodes: ArrangeNode[]): number {
+  let maxX = 0;
+  let maxY = 0;
+  for (const n of nodes) {
+    const p = arrangement.positions[n.key];
+    if (!p) continue;
+    maxX = Math.max(maxX, p.x + n.width);
+    maxY = Math.max(maxY, p.y + n.height);
+  }
+  const ratio = maxX / Math.max(1, maxY);
+  return Math.abs(Math.log(Math.max(1e-6, ratio)) - Math.log(AUTO_TARGET_RATIO));
+}
+
+function resolveArrangement(input: {
+  nodes: ArrangeNode[];
+  edges: ArrangeEdge[];
+  preferredRoots?: string[];
+  mode?: ArrangeMode;
+}): Arrangement {
+  const mode = input.mode ?? "columns";
+  if (mode === "auto") {
+    const lr = arrangeFree(input, (n, f, p) => layoutWrapped(n, f, p, "lr"));
+    const tb = arrangeFree(input, (n, f, p) => layoutWrapped(n, f, p, "tb"));
+    return aspectDistance(tb, input.nodes) < aspectDistance(lr, input.nodes) ? tb : lr;
+  }
+  const place: PlaceFn =
+    mode === "wrap"
+      ? (n, f, p) => layoutWrapped(n, f, p, "lr")
+      : mode === "cluster"
+        ? (n, f, p) => layoutClustered(n, f, p)
+        : mode === "force"
+          ? (n, f, p) => layoutForced(n, f, p)
+          : mode === "structured"
+            ? (n, f, p) => layoutStructured(n, f, p)
+            : (n, f) => layoutComponent(n, f);
+  return arrangeFree(input, place);
+}
+
 /**
  * L'arrangement, avec les positions fixées par l'utilisateur. Un nœud fixé
  * reste dans le calcul (ses arêtes structurent les couches de ses voisins) :
@@ -288,8 +983,9 @@ export function arrangeBoard(input: {
   edges: ArrangeEdge[];
   pinned?: Record<string, Point>;
   preferredRoots?: string[];
+  mode?: ArrangeMode;
 }): Arrangement {
-  const arrangement = arrangeFree(input);
+  const arrangement = resolveArrangement(input);
   const byKey = new Map(input.nodes.map((n) => [n.key, n]));
   const pins = Object.entries(input.pinned ?? {}).filter(([key]) => byKey.has(key));
   if (pins.length === 0) return arrangement;

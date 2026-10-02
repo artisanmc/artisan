@@ -68,7 +68,7 @@ test("mixed file publication negotiates capability and preserves mutation identi
   const sent: any[] = [];
   const conn = "mixed-capability-test";
   registerConn(conn, (raw) => { const msg = JSON.parse(raw); sent.push(msg); if (msg.type === "project_write") void handlePluginMessage(conn, JSON.stringify({ type: "project_write_result", request_id: msg.request_id, ok: true })); });
-  const hello = { type: "hello", server_key: key, plugin_version: "1", minecraft_version: "1.21.4", current_bundle_hash: "", capabilities: ["resource_quota_v2"] };
+  const hello = { type: "hello", content_version: 2, server_key: key, plugin_version: "1", minecraft_version: "1.21.4", current_bundle_hash: "", capabilities: ["resource_quota_v2"] };
   try {
     await handlePluginMessage(conn, JSON.stringify(hello));
     const batch = { projectId: "p", operationId: "same-op", files: [], binaries: [{ path: "assets/a.png", content_base64: "AP8=", base_hash: null }] };
@@ -78,6 +78,22 @@ test("mixed file publication negotiates capability and preserves mutation identi
     await handlePluginMessage(conn, JSON.stringify({ ...hello, capabilities: ["project_mixed_write_v1", "resource_quota_v2"] }));
     expect(await requestProjectWrite(id, batch)).toMatchObject({ result: { ok: true } });
     expect(sent.filter((m) => m.type === "project_write").at(-1)).toMatchObject({ operation_id: "same-op", binaries: batch.binaries });
+  } finally { cleanupConn(conn); }
+});
+
+test("content-version gate refuses writes to a legacy plugin, allows after update", async () => {
+  const { id, key } = await seedServerKey();
+  const sent: any[] = [];
+  const conn = "content-version-test";
+  registerConn(conn, (raw) => { const msg = JSON.parse(raw); sent.push(msg); if (msg.type === "project_write") void handlePluginMessage(conn, JSON.stringify({ type: "project_write_result", request_id: msg.request_id, ok: true })); });
+  try {
+    // Legacy plugin: no content_version → 1 → the keyed write is refused.
+    await handlePluginMessage(conn, JSON.stringify({ type: "hello", server_key: key, plugin_version: "0.9", minecraft_version: "1.21.4", current_bundle_hash: "", capabilities: ["resource_quota_v2"] }));
+    expect(await requestProjectWrite(id, { projectId: "p", files: [] })).toMatchObject({ kind: "result", result: { ok: false, error: "plugin_update_required" } });
+    expect(sent.filter((m) => m.type === "project_write")).toHaveLength(0);
+    // Updated plugin advertises content_version 2 → allowed.
+    await handlePluginMessage(conn, JSON.stringify({ type: "hello", content_version: 2, server_key: key, plugin_version: "1.0", minecraft_version: "1.21.4", current_bundle_hash: "", capabilities: ["resource_quota_v2"] }));
+    expect(await requestProjectWrite(id, { projectId: "p", files: [] })).toMatchObject({ result: { ok: true } });
   } finally { cleanupConn(conn); }
 });
 
@@ -208,7 +224,7 @@ describe("persistServerDataSources", () => {
 describe("handlePluginMessage", () => {
   test("hello with unknown key returns null", async () => {
     const hello: HelloMessage = {
-      type: "hello",
+      type: "hello", content_version: 2,
       server_key: "sk_doesnotexist",
       plugin_version: "1.0.0",
       minecraft_version: "1.21.4",
@@ -227,7 +243,7 @@ describe("handlePluginMessage", () => {
     const { key } = (await createRes.json()) as { key: string };
 
     const hello: HelloMessage = {
-      type: "hello",
+      type: "hello", content_version: 2,
       server_key: key,
       plugin_version: "1.0.0",
       minecraft_version: "1.21.4",
@@ -246,7 +262,7 @@ describe("handlePluginMessage", () => {
   test("hello_ack carries editor_url and network_name", async () => {
     const { key } = await seedServerKey();
     const hello: HelloMessage = {
-      type: "hello",
+      type: "hello", content_version: 2,
       server_key: key,
       plugin_version: "1.0.0",
       minecraft_version: "1.21.4",
@@ -263,7 +279,7 @@ describe("handlePluginMessage", () => {
     const { id, key, networkId } = await seedServerKey();
     const netRow = (await db.select().from(networks).where(eq(networks.id, networkId)))[0]!;
     const hello: HelloMessage = {
-      type: "hello",
+      type: "hello", content_version: 2,
       server_key: key,
       plugin_version: "1.0.0",
       minecraft_version: "1.21.4",
@@ -279,7 +295,7 @@ describe("handlePluginMessage", () => {
     await db.update(serverKeys).set({ slug: "my-server" }).where(eq(serverKeys.id, id));
     const netRow = (await db.select().from(networks).where(eq(networks.id, networkId)))[0]!;
     const hello: HelloMessage = {
-      type: "hello",
+      type: "hello", content_version: 2,
       server_key: key,
       plugin_version: "1.0.0",
       minecraft_version: "1.21.4",
@@ -293,7 +309,7 @@ describe("handlePluginMessage", () => {
   test("hello inserts a row into server_key_helloes (audit log) with the source IP", async () => {
     const { id: keyId, key } = await seedServerKey();
     const hello: HelloMessage = {
-      type: "hello",
+      type: "hello", content_version: 2,
       server_key: key,
       plugin_version: "1.0.0",
       minecraft_version: "1.21.4",
@@ -313,7 +329,7 @@ describe("handlePluginMessage", () => {
 
   test("hello with an unknown key does NOT insert an audit row", async () => {
     const hello: HelloMessage = {
-      type: "hello",
+      type: "hello", content_version: 2,
       server_key: "sk_bogus",
       plugin_version: "1.0.0",
       minecraft_version: "1.21.4",
@@ -332,7 +348,7 @@ describe("handlePluginMessage", () => {
     const { id: keyId, key } = await seedServerKey();
     await db.update(serverKeys).set({ allowedIps: ["203.0.113.10"] }).where(eq(serverKeys.id, keyId));
     const hello: HelloMessage = {
-      type: "hello", server_key: key, plugin_version: "1.0.0",
+      type: "hello", content_version: 2, server_key: key, plugin_version: "1.0.0",
       minecraft_version: "1.21.4", current_bundle_hash: "",
     };
     const result = await handlePluginMessage("conn-allow-ok", JSON.stringify(hello), "203.0.113.10");
@@ -349,7 +365,7 @@ describe("handlePluginMessage", () => {
     const { id: keyId, key } = await seedServerKey();
     await db.update(serverKeys).set({ allowedIps: ["203.0.113.10"] }).where(eq(serverKeys.id, keyId));
     const hello: HelloMessage = {
-      type: "hello", server_key: key, plugin_version: "1.0.0",
+      type: "hello", content_version: 2, server_key: key, plugin_version: "1.0.0",
       minecraft_version: "1.21.4", current_bundle_hash: "",
     };
     const result = await handlePluginMessage("conn-allow-bad", JSON.stringify(hello), "198.51.100.99");
@@ -369,7 +385,7 @@ describe("handlePluginMessage", () => {
     const { id: keyId, key } = await seedServerKey();
     await db.update(serverKeys).set({ allowedIps: [] }).where(eq(serverKeys.id, keyId));
     const hello: HelloMessage = {
-      type: "hello", server_key: key, plugin_version: "1.0.0",
+      type: "hello", content_version: 2, server_key: key, plugin_version: "1.0.0",
       minecraft_version: "1.21.4", current_bundle_hash: "",
     };
     const result = await handlePluginMessage("conn-allow-empty", JSON.stringify(hello), "1.2.3.4");
@@ -384,7 +400,7 @@ describe("handlePluginMessage", () => {
     const connId = "conn-local-stub";
     registerConn(connId, () => {});
     const hello: HelloMessage = {
-      type: "hello",
+      type: "hello", content_version: 2,
       server_key: key,
       plugin_version: "1.0.0",
       minecraft_version: "1.21.4",
@@ -455,7 +471,7 @@ describe("getMcVersion", () => {
     const { key } = (await createRes.json()) as { key: string };
 
     const hello: HelloMessage = {
-      type: "hello",
+      type: "hello", content_version: 2,
       server_key: key,
       plugin_version: "1.0.0",
       minecraft_version: "1.21.99",
@@ -475,7 +491,7 @@ describe("resource_pack in hello_ack", () => {
     const connId = "conn-rp-null";
     registerConn(connId, () => {});
     const hello: HelloMessage = {
-      type: "hello",
+      type: "hello", content_version: 2,
       server_key: key,
       plugin_version: "1.0.0",
       minecraft_version: "1.21.4",
@@ -496,7 +512,7 @@ describe("resource_pack in hello_ack", () => {
     const connId = "conn-rp-built";
     registerConn(connId, () => {});
     const hello: HelloMessage = {
-      type: "hello",
+      type: "hello", content_version: 2,
       server_key: key,
       plugin_version: "1.0.0",
       minecraft_version: "1.21.4",
@@ -558,7 +574,7 @@ describe("declared_models presence (composable-data-models §4)", () => {
       fields: [{ name: "id", type: { kind: "string" } }],
     };
     await handlePluginMessage(connId, JSON.stringify({
-      type: "hello", server_key: key, plugin_version: "1.0", minecraft_version: "1.21",
+      type: "hello", content_version: 2, server_key: key, plugin_version: "1.0", minecraft_version: "1.21",
       current_bundle_hash: "",
       declared_models: [catDoc, { schema: "model/v1", id: "not-namespaced" }],
     }));
@@ -591,7 +607,7 @@ describe("editor_screens presence (module-config-screens)", () => {
       table: "data/categories", project_id: "boutique",
     };
     await handlePluginMessage(connId, JSON.stringify({
-      type: "hello", server_key: key, plugin_version: "1.0", minecraft_version: "1.21",
+      type: "hello", content_version: 2, server_key: key, plugin_version: "1.0", minecraft_version: "1.21",
       current_bundle_hash: "",
       editor_screens: [
         catalogScreen,
@@ -638,7 +654,7 @@ describe("asset relay (assets-on-server-disk)", () => {
     const connId = "conn-asset-relay";
     const { id, key } = await seedServerKey();
     registerConn(connId, (raw) => sent.push(JSON.parse(raw)));
-    await handlePluginMessage(connId, JSON.stringify({ type: "hello", server_key: key, plugin_version: "test", minecraft_version: "1.21.4", current_bundle_hash: "", capabilities: ["resource_quota_v2"] }));
+    await handlePluginMessage(connId, JSON.stringify({ type: "hello", content_version: 2, server_key: key, plugin_version: "test", minecraft_version: "1.21.4", current_bundle_hash: "", capabilities: ["resource_quota_v2"] }));
     sent.length = 0;
     try {
       const pRead = requestAssetRead(id, { projectId: "boutique", path: "assets/glyphs/d.png" });
@@ -685,7 +701,7 @@ describe("config read/write relay (module-config-screens)", () => {
     const connId = "conn-config-relay";
     const { id, key } = await seedServerKey();
     registerConn(connId, (raw) => sent.push(JSON.parse(raw)));
-    await handlePluginMessage(connId, JSON.stringify({ type: "hello", server_key: key, plugin_version: "test", minecraft_version: "1.21.4", current_bundle_hash: "", capabilities: ["resource_quota_v2"] }));
+    await handlePluginMessage(connId, JSON.stringify({ type: "hello", content_version: 2, server_key: key, plugin_version: "test", minecraft_version: "1.21.4", current_bundle_hash: "", capabilities: ["resource_quota_v2"] }));
     sent.length = 0;
     try {
       const pRead = requestConfigRead(id, { projectId: "boutique", table: "data/categories" });
@@ -754,7 +770,7 @@ describe("une clé serveur = un serveur vivant", () => {
     registerConn("conn-evicted", (raw) => firstMsgs.push(raw));
     registerConn("conn-winner", () => {});
     const hello = {
-      type: "hello", server_key: key, plugin_version: "1.0",
+      type: "hello", content_version: 2, server_key: key, plugin_version: "1.0",
       minecraft_version: "1.21", current_bundle_hash: "",
     };
     try {
@@ -783,7 +799,7 @@ describe("une clé serveur = un serveur vivant", () => {
     registerConn("conn-dead", () => {});
     registerConn("conn-restarted", () => {});
     const hello = {
-      type: "hello", server_key: key, plugin_version: "1.0",
+      type: "hello", content_version: 2, server_key: key, plugin_version: "1.0",
       minecraft_version: "1.21", current_bundle_hash: "",
     };
     try {
@@ -886,7 +902,7 @@ describe("project_write relay (server-disk-only-storage P1)", () => {
     const connId = "conn-project-write";
     const { id, key } = await seedServerKey();
     registerConn(connId, (raw) => sent.push(JSON.parse(raw)));
-    await handlePluginMessage(connId, JSON.stringify({ type: "hello", server_key: key, plugin_version: "test", minecraft_version: "1.21.4", current_bundle_hash: "", capabilities: ["resource_quota_v2"] }));
+    await handlePluginMessage(connId, JSON.stringify({ type: "hello", content_version: 2, server_key: key, plugin_version: "test", minecraft_version: "1.21.4", current_bundle_hash: "", capabilities: ["resource_quota_v2"] }));
     sent.length = 0;
     try {
       const pending = requestProjectWrite(id, {
@@ -942,7 +958,7 @@ describe("protocol_version + unknown message types", () => {
     registerConn(connId, () => {});
     const { key } = await seedServerKey();
     const result = await handlePluginMessage(connId, JSON.stringify({
-      type: "hello",
+      type: "hello", content_version: 2,
       protocol_version: "1",
       core_version: "1.0.0",
       server_key: key,
@@ -964,7 +980,7 @@ describe("modules_changed", () => {
 
     // Authenticate via hello first (installs menus/1.0)
     await handlePluginMessage(connId, JSON.stringify({
-      type: "hello",
+      type: "hello", content_version: 2,
       server_key: key,
       plugin_version: "1.0.0",
       minecraft_version: "1.21.4",

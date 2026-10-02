@@ -6,6 +6,7 @@ import {
   listServerProjects,
   readProjectFiles,
 } from "@/lib/api/projectFiles";
+import { loadUserProject } from "@/lib/api/userProjects";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
 import {
   type ImportChoice,
@@ -35,7 +36,31 @@ export type ImportError =
   | "read_error"
   | "write_error"
   | "create_failed"
+  | "invalid_name"
+  | "forbidden"
+  | "server_key_not_in_network"
+  | "quota_denied"
+  | "plugin_update_required"
+  | "invalid_path"
   | "unknown";
+
+/** Les codes d'erreur que `POST /networks/:id/projects` peut renvoyer. */
+const CREATE_ERRORS: ImportError[] = [
+  "server_offline",
+  "fetch_timeout",
+  "network_error",
+  "invalid_name",
+  "forbidden",
+  "server_key_not_in_network",
+  "quota_denied",
+  "plugin_update_required",
+  "invalid_path",
+];
+
+function mapCreateError(code: string): ImportError {
+  if (code === "unauthorized" || code === "forbidden") return "forbidden";
+  return CREATE_ERRORS.includes(code as ImportError) ? (code as ImportError) : "create_failed";
+}
 
 export interface ImportPreview {
   target: ImportTarget;
@@ -191,15 +216,22 @@ export async function applyImportZip(
       projectRef = project.id;
       created = true;
     } catch (error) {
-      // Course : un autre onglet l'a créé entre-temps — on lit son état.
-      if (!(error instanceof Error && error.message === "project_exists"))
-        return {
-          ok: false,
-          error:
-            error instanceof Error && error.message.includes("server")
-              ? "server_offline"
-              : "create_failed",
-        };
+      const code = error instanceof Error ? error.message : "create_failed";
+      if (code === "project_exists") {
+        // Le listing (miroir) ne le voyait pas encore, mais le serveur le
+        // porte : on résout son ancre interne et l'import devient une mise à
+        // jour, pas un échec.
+        try {
+          const resolved = await loadUserProject(projectId, target.serverId, target.networkId);
+          projectRef = resolved.project.id;
+        } catch {
+          console.error("[import] project_exists mais l'ancre est introuvable");
+          return { ok: false, error: "create_failed" };
+        }
+      } else {
+        console.error("[import] createProject a échoué :", code);
+        return { ok: false, error: mapCreateError(code) };
+      }
     }
     // Le Project neuf peut porter un `manifest.yaml` d'ancrage : la base du
     // brouillon doit le refléter, sinon la publication entrerait en conflit.

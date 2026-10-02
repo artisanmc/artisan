@@ -54,6 +54,7 @@ positions (haut et bas) et un menu `visible` :
 - [ ] Clic, shift-clic, double-clic, touche numérique, touche F : rien ne bouge, rien n'est récupéré.
 - [ ] Ramasser un objet au sol menu ouvert : le bas reste celui du menu.
 - [ ] Passer d'un menu A à un menu B (bouton `open_menu`) : B s'affiche entier, sans reste de A.
+- [ ] Retour : `A → B → C` puis bouton `open_previous_menu` deux fois ramène à A (jamais de va-et-vient C↔B) ; sans historique, le placeholder `{has_previous_menu}` est faux et le retour ne fait rien.
 - [ ] Fermeture : le vrai inventaire revient intact.
 - [ ] `/data get entity @s Inventory` menu ouvert = le vrai inventaire (rien côté serveur).
 - [ ] `visible` : le vrai inventaire s'affiche et n'est pas modifiable.

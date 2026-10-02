@@ -134,8 +134,20 @@ object MenuTitleParser {
     private fun parseLText(v: Any?): LText = when (v) {
         // Canonical string form: "{i18n:key}" ref or inline literal.
         is String -> literalToLText(v)
-        // Legacy {key} object form.
-        is Map<*, *> -> LText(key = v["key"] as? String ?: "")
+        is Map<*, *> -> {
+            // Legacy {key} object form vs field-local {lang: text} map.
+            val key = v["key"] as? String
+            if (key != null) LText(key = key)
+            else {
+                val localized = v.entries.mapNotNull { (k, value) ->
+                    val lang = k as? String ?: return@mapNotNull null
+                    val text = value as? String ?: return@mapNotNull null
+                    lang to text
+                }.toMap()
+                if (localized.isEmpty()) LText(key = "")
+                else LText(key = "", literal = true, localized = localized)
+            }
+        }
         else -> LText(key = "")
     }
 

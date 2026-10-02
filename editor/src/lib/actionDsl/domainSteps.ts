@@ -1,5 +1,4 @@
-import type { Action, I18nKey, LText, Project, Step } from "@/domain/types";
-import { getText } from "@/lib/i18n";
+import type { Action, I18nKey, LText, Step } from "@/domain/types";
 import type { DslAction, DslStep, DslText } from "./ast";
 import { parseActionDsl } from "./parser";
 import { printActionDsl } from "./printer";
@@ -118,34 +117,4 @@ export function printFromSteps(steps: Step[], toText: LTextToText = defaultLText
   return printActionDsl(stepsToDslSteps(steps, toText));
 }
 
-// ─── Project-aware conversions (Phase 2: menu / command / dialog) ─────────────
 
-/**
- * Domain Step[] → DSL string, resolving each action `LText` against the
- * Project: a key registered in `project.i18nKeys` serializes as `@key` (a Key-site
- * reference), anything else as a `"literal"` (default-language text). Cf. ADR
- * `action-dsl` Phase 2.
- *
- * In `inline` i18n mode there are no `@key` refs at all: every text is the
- * default language's literal, and the plugin re-derives the canonical address
- * of each one to look up the other languages.
- */
-export function stepsToDsl(steps: Step[], project: Project): string {
-  const toText: LTextToText = (l) =>
-    project.i18nMode !== "inline" && String(l.key) in project.i18nKeys
-      ? { ref: String(l.key) }
-      : { lit: getText(project, l, project.defaultLang) };
-  return printActionDsl(stepsToDslSteps(steps, toText));
-}
-
-/**
- * DSL string → domain Step[], the inverse of {@link stepsToDsl}: `@key` maps to
- * `LText{key}`, a literal maps to a verbatim `LText{key: literal}` (the
- * `literalSteps` convention — no key minting, read-only contexts). Import paths
- * that need to mint/register keys use the converter callbacks instead. Empty /
- * blank input yields no steps.
- */
-export function dslToSteps(dsl: string, _pack: Project): Step[] {
-  if (!dsl || dsl.trim() === "") return [];
-  return dslStepsToSteps(parseActionDsl(dsl), defaultTextToLText);
-}

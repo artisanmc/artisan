@@ -1,6 +1,6 @@
 import { normalizeCanvasGroups } from "@/domain/canvasGroups";
 import type { Project } from "@/domain/types";
-import { type ArrangeEdge, type ArrangeNode, arrangeBoard } from "./arrangeBoard";
+import { type ArrangeEdge, type ArrangeMode, type ArrangeNode, arrangeBoard } from "./arrangeBoard";
 import type { Edge } from "./deriveEdges";
 import type { Box } from "./edgeRouting";
 import { type ServerGraph, documentKey } from "./serverGraph";
@@ -64,7 +64,7 @@ function navigationRoot(
 export function arrangeProjectGroups(
   project: Project,
   graph: Pick<ServerGraph, "nodes" | "edges">,
-  options: { releaseOuterPositions?: boolean } = {},
+  options: { releaseOuterPositions?: boolean; mode?: ArrangeMode } = {},
 ): GroupedArrangement {
   const nodes = graph.nodes.filter((n) => n.projectId === project.id);
   const live = new Set(nodes.map((n) => n.key));
@@ -101,6 +101,7 @@ export function arrangeProjectGroups(
       edges: childEdges,
       pinned: childPins,
       preferredRoots: navigationRoot(childNodes, childEdges, entryMenus),
+      mode: options.mode,
     });
     const box = bounds(
       childNodes.map((n) => ({ ...arranged.positions[n.key]!, width: n.width, height: n.height })),
@@ -131,6 +132,7 @@ export function arrangeProjectGroups(
     nodes: outerNodes,
     edges: outerEdges,
     pinned: options.releaseOuterPositions ? {} : pins,
+    mode: options.mode,
     ...(groups.length ? { preferredRoots: navigationRoot(outerNodes, outerEdges) } : {}),
   });
   const result: GroupedArrangement = {

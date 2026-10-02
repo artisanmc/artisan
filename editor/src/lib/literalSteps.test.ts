@@ -4,24 +4,21 @@ import { stepsFromWire, stepsToWire } from "./literalSteps";
 
 const lt = (s: string) => ({ key: s as I18nKey });
 
-describe("literalSteps (module-data steps, Action DSL string wire, literal text)", () => {
-  it("round-trips run_command + send_message through the DSL string", () => {
+describe("literalSteps (data-source / module `actions`, structured step wire)", () => {
+  it("emits a keyed step tree (literal text) and reads it back", () => {
     const steps: Step[] = [
       { kind: "action", action: { type: "run_command", command: "give {player} diamond", as: "console" } },
       { kind: "action", action: { type: "send_message", text: lt("§aMerci pour ton achat !") } },
     ];
     const wire = stepsToWire(steps);
-    expect(typeof wire).toBe("string");
-    expect(wire).toBe(
-      [
-        'run_command "give {player} diamond" as console',
-        'send_message "§aMerci pour ton achat !"',
-      ].join("\n"),
-    );
+    expect(wire).toEqual([
+      { run_command: { command: "give {player} diamond", as: "console" } },
+      { send_message: "§aMerci pour ton achat !" },
+    ]);
     expect(stepsFromWire(wire)).toEqual(steps);
   });
 
-  it("round-trips an if-step with conditions, joins and else", () => {
+  it("round-trips an if-step with conditions and else", () => {
     const steps: Step[] = [
       {
         kind: "if",
@@ -39,11 +36,38 @@ describe("literalSteps (module-data steps, Action DSL string wire, literal text)
       },
     ];
     const wire = stepsToWire(steps);
-    expect(typeof wire).toBe("string");
-    expect(stepsFromWire(wire)).toEqual(steps);
+    expect(wire).toEqual([
+      {
+        if: [{ has_permission: "shop.vip" }, { has_money: 100 }],
+        do: [{ run_command: { command: "kit vip", as: "console" } }],
+        else: [{ send_message: "Pas assez !" }],
+      },
+    ]);
+    // A flat AND list canonicalizes to an implicit-AND list (no `joins`).
+    expect(stepsFromWire(wire)).toEqual([
+      {
+        kind: "if",
+        cases: [
+          {
+            conditions: [
+              { type: "has_permission", perm: "shop.vip" },
+              { type: "has_money", amount: 100 },
+            ],
+            steps: [{ kind: "action", action: { type: "run_command", command: "kit vip", as: "console" } }],
+          },
+        ],
+        else: [{ kind: "action", action: { type: "send_message", text: lt("Pas assez !") } }],
+      },
+    ]);
   });
 
-  it("stepsFromWire tolerates garbage (null, non-string, empty, unparseable)", () => {
+  it("reads a legacy Action DSL string", () => {
+    expect(stepsFromWire('send_message "hi"')).toEqual([
+      { kind: "action", action: { type: "send_message", text: lt("hi") } },
+    ]);
+  });
+
+  it("tolerates garbage (null, empty, unparseable)", () => {
     expect(stepsFromWire(null)).toEqual([]);
     expect(stepsFromWire([])).toEqual([]);
     expect(stepsFromWire("")).toEqual([]);

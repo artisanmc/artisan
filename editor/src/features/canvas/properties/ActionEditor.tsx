@@ -89,6 +89,8 @@ function ActionFields({ projectId, action, onChange, literalText }: ActionEditor
       return <OpenMenuEditor projectId={projectId} action={action} onChange={onChange} />;
     case "close_menu":
       return <div className="text-[11px] text-[var(--text-faint)]">{t("actionEditor.closeMenuLabel")}</div>;
+    case "open_previous_menu":
+      return <div className="text-[11px] text-[var(--text-faint)]">{t("actionEditor.openPreviousMenuLabel")}</div>;
     case "run_command":
       return <RunCommandEditor action={action} onChange={onChange} />;
     case "send_message":

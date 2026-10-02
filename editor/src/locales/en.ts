@@ -190,6 +190,12 @@ export default {
       read_error: "The server's current snapshot could not be read.",
       write_error: "The import could not be saved as a draft.",
       create_failed: "The project could not be created on the server.",
+      invalid_name: "That folder name is not allowed on the server.",
+      forbidden: "You don't have permission to create a project on this server.",
+      server_key_not_in_network: "This server no longer belongs to the network.",
+      quota_denied: "The server's plan does not allow another project.",
+      plugin_update_required: "The server's plugin is too old for this action.",
+      invalid_path: "The project's folder name is invalid.",
       unknown: "Import failed.",
     },
   },
@@ -424,6 +430,8 @@ export default {
     placeholderOrLiteral: "{{tag}} or literal",
     clearContext: "clear context (forget the parent menu's history)",
     closeMenuLabel: "Closes the active menu — no parameters.",
+    openPreviousMenuLabel:
+      "Returns to the previous screen (back button). Does nothing when there is no history.",
     runActionsLabel: "actions to run",
     runActionsHint:
       "An expression pointing at an actions field (e.g. item.on_buy). Runs it inline.",
@@ -930,6 +938,21 @@ export default {
     rearrangeHint:
       "Rearrange groups and ungrouped documents while preserving each group's contents (Ctrl+Z to undo)",
     rearrangeNothing: "The board is already fully arranged",
+    arrangeModes: {
+      label: "Rearrange mode",
+      columns: "Columns",
+      columnsHint: "One rank per column, dagre style (the original behaviour).",
+      wrap: "Wrapped columns",
+      wrapHint: "Folds tall columns into sub-columns, siblings kept together.",
+      auto: "Auto",
+      autoHint: "Picks left→right or top→bottom from the board's shape.",
+      cluster: "Parent blocks",
+      clusterHint: "Packs a parent's children into a block to its right.",
+      force: "Organic",
+      forceHint: "Springs and repulsion: linked documents drift together.",
+      structured: "Structured",
+      structuredHint: "Same groups as Organic, laid out in layers and aligned blocks.",
+    },
   },
   dialog: {
     idLabel: "id",
@@ -1207,6 +1230,7 @@ export default {
     neverConnected: "Never connected",
     current: "current",
     empty: "No servers linked",
+    pluginOutdated: "Plugin outdated — update it to edit this server",
   },
   sidebar: {
     settings: "Settings",

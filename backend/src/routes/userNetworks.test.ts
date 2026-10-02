@@ -71,7 +71,7 @@ async function writablePlugin(serverKeyId: string, ids: string[] = [], writeErro
   });
   const key = await generateServerKey();
   await db.update(serverKeys).set({ hash: key.hash }).where(eq(serverKeys.id, serverKeyId));
-  await handlePluginMessage(connId, JSON.stringify({ type: "hello", server_key: key.key, plugin_version: "test", minecraft_version: "1.21.4", current_bundle_hash: "", capabilities: ["resource_quota_v2"] }));
+  await handlePluginMessage(connId, JSON.stringify({ type: "hello", content_version: 2, server_key: key.key, plugin_version: "test", minecraft_version: "1.21.4", current_bundle_hash: "", capabilities: ["resource_quota_v2"] }));
   return { writes, stop: () => { connSenders.delete(connId); connToServerId.delete(connId); } };
 }
 

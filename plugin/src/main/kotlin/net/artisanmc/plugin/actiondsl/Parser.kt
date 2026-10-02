@@ -163,6 +163,7 @@ private fun parseVerb(verb: String, c: LineCursor): DslAction = when (verb) {
     }
     "close_menu" -> DslAction.CloseMenu
     "close_dialog" -> DslAction.CloseDialog
+    "open_previous_menu" -> DslAction.OpenPreviousMenu
     "paginate" -> {
         val direction = c.oneOf("next", "prev")
         val targetElementId = c.optWord()

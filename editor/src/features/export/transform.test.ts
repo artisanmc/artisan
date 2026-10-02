@@ -370,7 +370,7 @@ describe("transform", () => {
     expect(menu.title).toHaveLength(1);
     expect(menu.title[0]).toEqual({
       kind: "text",
-      value: "{i18n:menus.shop.title}",
+      value: "Shop",
       x: 8,
       y: 5,
     });
@@ -428,10 +428,10 @@ describe("transform", () => {
     const files = transform(project);
     const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
     const app = menu.elements[0];
-    expect(app.title).toBe("{i18n:menus.shop.elements.btn.default.title}");
-    expect(app.lore).toEqual(["{i18n:menus.shop.elements.btn.default.lore}"]);
-    // Click steps are an Action DSL string; menu text is a Key site → `@key`.
-    expect(app.click.left).toBe("send_message @menus.shop.elements.btn.default.click.left.message");
+    expect(app.title).toBe("Buy");
+    expect(app.lore).toEqual(["Click here"]);
+    // Click steps are structured (ADR structured-action-wire); text is field-local.
+    expect(app.click.left).toEqual([{ send_message: "Hello" }]);
   });
 
   it("serializes appearance.head", () => {
@@ -524,10 +524,9 @@ describe("transform", () => {
     const files = transform(project);
     const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
     const steps = menu.elements[0].click.left;
-    expect(steps).toBe(
-      "show_title @menus.shop.elements.btn.default.click.left.show_title " +
-        "@menus.shop.elements.btn.default.click.left.show_subtitle fadeIn=5 stay=40 fadeOut=15",
-    );
+    expect(steps).toEqual([
+      { show_title: { title: "Hello", subtitle: "World", fade_in: 5, stay: 40, fade_out: 15 } },
+    ]);
   });
 
   it("serializes show_title action omitting optional subtitle and timings", () => {
@@ -578,8 +577,8 @@ describe("transform", () => {
     const files = transform(project);
     const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
     const steps = menu.elements[0].click.left;
-    // No subtitle / timings → DSL carries only the title ref.
-    expect(steps).toBe("show_title @menus.shop.elements.btn.default.click.left.show_title");
+    // No subtitle / timings → only the title is carried.
+    expect(steps).toEqual([{ show_title: { title: "Hello" } }]);
   });
 
   it("serializes open_menu action with snake_case fields", () => {
@@ -623,9 +622,7 @@ describe("transform", () => {
     const files = transform(project);
     const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
     const steps = menu.elements[0].click.left;
-    // DSL: bare menu id + `clear` modifier (no snake_case wire fields).
-    expect(steps).toBe("open_menu profile clear");
-    expect(steps).not.toContain("menuId");
+    expect(steps).toEqual([{ open_menu: { menu_id: "profile", clear_context: true } }]);
   });
 
   it("round-trips a row-model context input (type object + row_of)", () => {
@@ -697,9 +694,8 @@ describe("transform", () => {
     });
     const files = transform(project);
     const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
-    // Canonical collapsed form: the handler IS the DSL string, one action per line.
-    const dsl = menu.elements[0].click.left;
-    expect(dsl).toBe("paginate next\npaginate prev grid");
+    const steps = menu.elements[0].click.left;
+    expect(steps).toEqual([{ pagination_next: null }, { pagination_prev: "grid" }]);
   });
 
   it("emits a command yaml", () => {
@@ -765,8 +761,11 @@ describe("transform", () => {
     const files = transform(project);
     const en = flattenLangTree(parse(files["plugins/Artisan/projects/p_test/lang/en.yaml"]!));
     const fr = flattenLangTree(parse(files["plugins/Artisan/projects/p_test/lang/fr.yaml"]!));
-    expect(en["menus.shop.title"]).toBe("Shop");
-    expect(fr["menus.shop.title"]).toBe("Boutique");
+    // Structural title travels field-local in the document, not in lang/.
+    expect(en["menus.shop.title"]).toBeUndefined();
+    expect(fr["menus.shop.title"]).toBeUndefined();
+    // lang/ only holds siteless presentation keys now.
+    expect(Object.keys(en).every((k) => k.startsWith("artisan."))).toBe(true);
     expect(en["lt_orphan"]).toBeUndefined();
     expect(en["greeting"]).toBeUndefined();
     expect(files["plugins/Artisan/projects/p_test/translations.yaml"]).toBeUndefined();
@@ -837,7 +836,8 @@ describe("transform — dialogs", () => {
     expect(yaml).toContain("schema: dialog/v1");
     expect(yaml).not.toContain("id: d_test");
     expect(yaml).toContain("can_close_with_escape: false");
-    expect(yaml).toContain("{i18n:dialogs.d_test.title}");
+    // Structural title is field-local — empty here (no i18nKeys entry), never a ref.
+    expect(yaml).toContain('title: ""');
   });
 
   it("le dialog existe par son fichier, plus par une entrée de manifest", () => {
@@ -905,8 +905,8 @@ describe("transform — dialogs", () => {
     };
     const files = transform(projectWithDialog(dialog));
     const yaml = files["plugins/Artisan/projects/p_test/dialogs/d_test.yaml"]!;
-    // Button actions are an Action DSL string: `open_dialog <bare id>`.
-    expect(yaml).toContain("open_dialog d_other");
+    // Button actions are structured: `- open_dialog: d_other`.
+    expect(yaml).toContain("open_dialog: d_other");
     expect(yaml).not.toContain("dialogId");
   });
 });
@@ -930,7 +930,8 @@ describe("transform — title layers", () => {
       menuWithTitle([{ kind: "plain", value: { key: "k_plain" as I18nKey } }]),
     );
     const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
-    expect(menu.title).toBe("{i18n:k_plain}");
+    // Field-local structural text: no i18nKeys entry ⇒ empty bare string.
+    expect(menu.title).toBe("");
   });
 
   it("serializes a background layer to { kind, asset_id }", () => {
@@ -954,7 +955,7 @@ describe("transform — title layers", () => {
       menuWithTitle([{ kind: "text", value: { key: "k_text" as I18nKey }, x: 8, y: 5 }]),
     );
     const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
-    expect(menu.title).toEqual([{ kind: "text", value: "{i18n:k_text}", x: 8, y: 5 }]);
+    expect(menu.title).toEqual([{ kind: "text", value: "", x: 8, y: 5 }]);
     expect(menu.title[0]).not.toHaveProperty("color");
     expect(menu.title[0]).not.toHaveProperty("font_asset_id");
   });
@@ -975,7 +976,7 @@ describe("transform — title layers", () => {
     const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
     expect(menu.title[0]).toEqual({
       kind: "text",
-      value: "{i18n:k_text}",
+      value: "",
       x: 8,
       y: 5,
       color: "#FFAA00",
@@ -1007,7 +1008,7 @@ describe("transform — title layers", () => {
     expect(menu.title).toEqual([
       { kind: "background", asset_id: "asset_bg" },
       { kind: "glyph", asset_id: "asset_g1", x: 10, y: 2 },
-      { kind: "text", value: "{i18n:k_title}", x: 8, y: 5, color: "#FFAA00" },
+      { kind: "text", value: "", x: 8, y: 5, color: "#FFAA00" },
     ]);
   });
 
@@ -1032,7 +1033,7 @@ describe("transform — title layers", () => {
     expect(yaml).toContain("asset_id: asset_a1b2c3");
     expect(yaml).toContain("kind: glyph");
     expect(yaml).toContain("kind: text");
-    expect(yaml).toContain('value: "{i18n:k_xyz}"');
+    expect(yaml).toContain('value: ""');
     expect(yaml).toContain("color");
     expect(yaml).toContain("#FFAA00");
 
@@ -1040,7 +1041,7 @@ describe("transform — title layers", () => {
     expect(parsed.title).toEqual([
       { kind: "background", asset_id: "asset_a1b2c3" },
       { kind: "glyph", asset_id: "asset_d4e5f6", x: 32, y: 4 },
-      { kind: "text", value: "{i18n:k_xyz}", x: 8, y: 5, color: "#FFAA00" },
+      { kind: "text", value: "", x: 8, y: 5, color: "#FFAA00" },
     ]);
   });
 });
@@ -1078,7 +1079,7 @@ describe("transform — textarea title layer", () => {
     expect(menu.title).toHaveLength(1);
     expect(menu.title[0]).toEqual({
       kind: "textarea",
-      value: "{i18n:k_ta}",
+      value: "",
       x: 12,
       y: 8,
       width: 120,
@@ -1108,10 +1109,7 @@ describe("transform — textarea title layer", () => {
     expect(menu.title[0].alignment).toBe("left");
   });
 
-  it("textarea i18n key is exported to lang/<lang>.yaml (regression: was silently dropped)", () => {
-    // Without `textarea` in getTitleTextLayers, the key wasn't in
-    // referencedKeys and the lang file came out empty — plugin then rendered
-    // `<i18nKey>` literally as the title text.
+  it("textarea text is field-local, not emitted to lang/<lang>.yaml", () => {
     const project = makeProject({
       defaultLang: "en",
       i18nKeys: {
@@ -1138,10 +1136,10 @@ describe("transform — textarea title layer", () => {
       ],
     });
     const files = transform(project);
-    const lang = parse(files["plugins/Artisan/projects/p_test/lang/en.yaml"]!);
-    // Asserted by key: every lang file also carries the project's presentation
-    // keys (`artisan.duration.*`), which are not the subject here.
-    expect(lang.k_ta).toBe("Hello\nWorld");
+    const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
+    expect(menu.title[0].value).toBe("Hello\nWorld");
+    // Structural text no longer travels in lang/ (ADR field-local-translations).
+    expect(parse(files["plugins/Artisan/projects/p_test/lang/en.yaml"]!).k_ta).toBeUndefined();
   });
 });
 
@@ -1498,7 +1496,7 @@ describe("transform — appearance conditions", () => {
       menus: [baseMenu([{ if: [{ type: "has_permission", perm: "vip" }] }])],
     });
     const app = getApp(transform(project));
-    expect(app.if).toEqual([{ type: "has_permission", perm: "vip" }]);
+    expect(app.if).toEqual([{ has_permission: "vip" }]);
   });
 
   it("AND-joined conditions are an ANDed array", () => {
@@ -1516,13 +1514,10 @@ describe("transform — appearance conditions", () => {
       ],
     });
     const app = getApp(transform(project));
-    expect(app.if).toEqual([
-      { type: "has_permission", perm: "vip" },
-      { type: "has_money", amount: 100 },
-    ]);
+    expect(app.if).toEqual([{ has_permission: "vip" }, { has_money: 100 }]);
   });
 
-  it("OR-joined conditions are wrapped in a single { type: 'or', of: [...] }", () => {
+  it("OR-joined conditions are wrapped in a single { or: [...] }", () => {
     const project = makeProject({
       menus: [
         baseMenu([
@@ -1538,29 +1533,23 @@ describe("transform — appearance conditions", () => {
     });
     const app = getApp(transform(project));
     expect(app.if).toEqual([
-      {
-        type: "or",
-        of: [
-          { type: "has_permission", perm: "vip" },
-          { type: "has_permission", perm: "admin" },
-        ],
-      },
+      { or: [{ has_permission: "vip" }, { has_permission: "admin" }] },
     ]);
   });
 
-  it("composite 'and' condition uses 'of'", () => {
+  it("composite 'and' condition uses 'and'", () => {
     const inner: Condition = { type: "has_permission", perm: "vip" };
     const project = makeProject({ menus: [baseMenu([{ if: [{ type: "and", of: [inner] }] }])] });
     const app = getApp(transform(project));
-    expect(app.if[0].of).toBeDefined();
-    expect(app.if[0].all).toBeUndefined();
+    expect(app.if[0].and).toBeDefined();
+    expect(app.if[0].of).toBeUndefined();
   });
 
-  it("composite 'or' condition uses 'of'", () => {
+  it("composite 'or' condition uses 'or'", () => {
     const inner: Condition = { type: "has_permission", perm: "vip" };
     const project = makeProject({ menus: [baseMenu([{ if: [{ type: "or", of: [inner] }] }])] });
     const app = getApp(transform(project));
-    expect(app.if[0].of).toBeDefined();
+    expect(app.if[0].or).toBeDefined();
     expect(app.if[0].any).toBeUndefined();
   });
 });
@@ -1580,8 +1569,8 @@ describe("projectToCommandV1 / projectToDialogV1", () => {
     });
     const [cmd] = projectToCommandV1(project);
     expect(cmd).toMatchObject({ schema: "command/v1", id: "heal" });
-    // The action chain is the `actions` Action DSL string; name omitted (== id).
-    expect((cmd as any).actions).toBe("close_menu");
+    // The action chain is structured steps; name omitted (== id).
+    expect((cmd as any).actions).toEqual(["close_menu"]);
     expect((cmd as any).arguments[0]).toEqual({ name: "n", type: "integer", required: true });
   });
 
@@ -1608,8 +1597,8 @@ describe("projectToCommandV1 / projectToDialogV1", () => {
     });
     const [dlg] = projectToDialogV1(project);
     expect(dlg).toMatchObject({ schema: "dialog/v1", id: "confirm" });
-    // Button actions are now an Action DSL string.
-    expect((dlg as any).buttons[0].actions).toBe("close_dialog");
+    // Button actions are structured steps.
+    expect((dlg as any).buttons[0].actions).toEqual(["close_dialog"]);
   });
 });
 

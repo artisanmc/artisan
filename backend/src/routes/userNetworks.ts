@@ -65,6 +65,7 @@ import {
 	requestProjectList,
 	requestProjectWrite,
 	supportsProjectRename,
+	contentVersionOf,
 	reconcileServerProjectIdentity,
 } from "../ws/hub";
 import { handleResourcePackRebuild } from "./resourcePack";
@@ -801,6 +802,8 @@ userNetworksRouter.get(
 				lastMcVersion: k.lastMcVersion,
 				lastSeenAt: hello ? hello.helloAt.toISOString() : null,
 				lastSeenIp: hello ? hello.ip : null,
+				// Version du wire de contenu lue par le plugin (ADR content-version-negotiation).
+				contentVersion: contentVersionOf(k.id),
 				isCurrent: k.id === current,
 			};
 		});

@@ -43,7 +43,7 @@ async function connect() {
 	};
 	const hello = (capabilities: string[]) =>
 		handlePluginMessage(CONN, JSON.stringify({
-			type: "hello", server_key: key.key, plugin_version: "test", minecraft_version: "26.2", current_bundle_hash: "",
+			type: "hello", content_version: 2, server_key: key.key, plugin_version: "test", minecraft_version: "26.2", current_bundle_hash: "",
 			local_project_ids: ["shop"], snapshot_hashes: [{ id: "shop", hash: disk.hash }], capabilities,
 		}));
 	return { key, sent, reads, answer, hello, setDisk: (d: typeof disk) => (disk = d) };

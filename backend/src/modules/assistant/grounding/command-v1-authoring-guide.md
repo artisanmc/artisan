@@ -19,8 +19,8 @@ vocabulary listed in the VOCAB block; anything else is rejected.
   "description": "Send money to another player.",
   "arguments": [ /* typed positional args */ ],
   "requirements": [ /* Condition[] (structured) checked before running */ ],
-  "steps": "<Action DSL string> — same DSL as menu click handlers",
-  "fallback": [ /* flat structured Action[] run if requirements fail */ ],
+  "steps": [ /* structured Step[] — same wire as menu click handlers */ ],
+  "fallback": [ /* Step[] run if requirements fail */ ],
   "cooldown": { /* optional */ }
 }
 ```
@@ -35,36 +35,41 @@ Required: `schema` (always the literal `"command/v1"`), `id`, `name`, `steps` (�
 Optional: `aliases`, `permission`, `description`, `arguments`, `requirements`, `fallback`,
 `cooldown`, `notes` (internal admin notes, never shown to players).
 
-## Steps — an Action DSL string (identical to menu click handlers)
+## Steps — structured (identical wire to menu click handlers)
 
-`steps` is a **STRING** written in the **Action DSL** — the exact same syntax used by menu click
-handlers (see the **Action DSL reference** in the `menu/v1` guide for the full grammar). One
-action per line; `if` / `else if` / `else` blocks open with `:` and a two-space indent:
+`steps` is an **array of structured steps** — the exact same wire as menu click handlers (see the
+**Action reference** in the `menu/v1` guide). An action is `{ "<verb>": args }`; an if block is
+`{ "if": [<conditions>], "do": [<steps>], "else": [<steps>] }`:
 
+```json
+"steps": [
+  {
+    "if": [{ "has_permission": "artisan.vip" }],
+    "do": [
+      { "give_item": { "material": "DIAMOND", "count": 1 } },
+      { "send_message": "<green>Here's your VIP reward.</green>" }
+    ],
+    "else": [{ "send_message": "<red>VIP only.</red>" }]
+  }
+]
 ```
-if has_permission(artisan.vip):
-  give_item DIAMOND 1
-  send_message "<green>Here's your VIP reward.</green>"
-else:
-  send_message "<red>VIP only.</red>"
-```
 
-- Text is always quoted (`"literal"`, may hold `%papi%` / `{placeholders}`) or `@key` for a
-  translatable message. `run_command` needs an `as player` / `as console` suffix.
+- Text is a literal string (may hold `%papi%` / `{placeholders}`) or `"{i18n:key}"`.
+  `run_command` is `{ "run_command": { "command": "…", "as": "console" } }`.
 - The allowed verbs and conditions are exactly the VOCAB subset (`run_command`, `send_message`,
   `take_money`, `give_item`, `open_menu`, `open_dialog`, …; conditions `has_money`,
-  `has_permission`, `%ph% == "v"`, …). Anything outside it — an unknown verb, `run_actions`, or a
-  free comparison like `balance >= 100` — is rejected.
+  `has_permission`, `placeholder_equals`, …). Anything outside it — an unknown verb, `run_actions`,
+  or a free comparison like `balance >= 100` — is rejected.
 
 ## Optional fields
 
 - **`aliases`** — `string[]` (each `^[a-z][a-z0-9_-]{0,31}$`); all point to the same command.
 - **`permission`** — required to execute. Omit to allow everyone (subject to `requirements`).
 - **`description`** — player-visible help line, ≤256 chars.
-- **`requirements`** — `Condition[]`, **ANDed**, evaluated before the command runs. If any fails,
-  `fallback` runs instead of `steps`.
-- **`fallback`** — a **flat** list of `Action` objects (no `kind`/`if` wrapper), run when
-  requirements fail — typically a `send_message` explaining why.
+- **`requirements`** — `Condition[]` (keyed, e.g. `{ "has_money": 1 }`), **ANDed**, evaluated
+  before the command runs. If any fails, `fallback` runs instead of `steps`.
+- **`fallback`** — a structured `Step[]`, run when requirements fail — typically a
+  `{ "send_message": "…" }` explaining why.
 - **`cooldown`** — `{ "id", "duration_seconds", "scope"?: "player" | "server", "message"? }`.
   `scope` defaults to `"player"`. `message` is shown while the cooldown is active (literal
   MiniMessage or an `{i18n:key}` you were told exists).
@@ -109,13 +114,14 @@ send_message "<green>Sent %args_amount% coins.</green>"
     { "name": "amount", "type": "integer", "required": true,
       "description": "Amount in coins." }
   ],
-  "requirements": [
-    { "type": "has_money", "amount": 1 }
+  "requirements": [{ "has_money": 1 }],
+  "steps": [
+    { "take_money": 1 },
+    { "run_command": { "command": "eco give %args_target% %args_amount%", "as": "console" } },
+    { "send_message": "<green>You sent %args_amount% coins to %args_target%.</green>" },
+    { "play_sound": "ENTITY_EXPERIENCE_ORB_PICKUP" }
   ],
-  "steps": "take_money 1\nrun_command \"eco give %args_target% %args_amount%\" as console\nsend_message \"<green>You sent %args_amount% coins to %args_target%.</green>\"\nplay_sound ENTITY_EXPERIENCE_ORB_PICKUP",
-  "fallback": [
-    { "type": "send_message", "text": "<red>You don't have enough money.</red>" }
-  ],
+  "fallback": [{ "send_message": "<red>You don't have enough money.</red>" }],
   "cooldown": { "id": "pay_cmd", "duration_seconds": 5, "scope": "player" }
 }
 ```

@@ -104,6 +104,8 @@ Ordinary reads/exports/runtime never include `.artisan/drafts/`.
 
 `hello` carries `protocol_version: "1"` + `core_version`. Unknown message types are logged + ignored (forward-compat). Tout endpoint REST associé est sous `/api/v1/`.
 
+**Version de contenu (`content_version`, ADR `content-version-negotiation`, 2026-10-01).** `hello.content_version?: number` = version du **format de contenu de projet** que le plugin sait lire. Absente = `1` (ancien wire DSL) ; `2` = étapes structurées keyed (ADR `structured-action-wire`). Le backend suit la version par connexion, l'expose via `GET /networks/:id/servers-status` (`contentVersion`), et **refuse les écritures de contenu** (`project_write`, publication `project_draft_request`) sous `MIN_CONTENT_VERSION` (= 2) avec l'erreur `plugin_update_required` — on ne produit jamais de fichiers qu'un plugin en retard ne saurait pas lire. L'éditeur affiche « plugin obsolète » pour ce serveur.
+
 ## Messages
 
 ### Project identity and durable rename (2026-09-12)

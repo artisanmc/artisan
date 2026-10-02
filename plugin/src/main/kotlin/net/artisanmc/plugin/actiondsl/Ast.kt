@@ -83,6 +83,7 @@ sealed interface DslAction {
     ) : DslAction
     data object CloseMenu : DslAction
     data object CloseDialog : DslAction
+    data object OpenPreviousMenu : DslAction
     data class Paginate(val direction: String, val targetElementId: String? = null) : DslAction
     data class RunActions(val actions: String) : DslAction
     data class SetArg(val arg: String, val value: String) : DslAction

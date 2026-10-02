@@ -372,7 +372,16 @@ describe("menuV1ToDomain — round-trip oracle", () => {
   it("round-trips the grid pagination / set_arg / run_command / open_dialog actions", () => {
     const ihandler = imported.layers[0]!.elements[1]!.states[0]!.click!.left!;
     const ohandler = original.layers[0]!.elements[1]!.states[0]!.click!.left!;
-    expect(ihandler.steps).toEqual(ohandler.steps);
+    // Text keys are re-minted on import — compare resolved text, not key identity.
+    const norm = (steps: unknown) =>
+      JSON.parse(
+        JSON.stringify(steps, (k, v) =>
+          k === "key" && typeof v === "string"
+            ? (resolve(result.i18nKeys, project.i18nKeys, v) ?? v)
+            : v,
+        ),
+      );
+    expect(norm(ihandler.steps)).toEqual(norm(ohandler.steps));
   });
 
   it("resolves every imported LText to the original literal value", () => {

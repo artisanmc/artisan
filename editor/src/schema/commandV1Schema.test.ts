@@ -5,10 +5,10 @@ import profile from "../../../docs/schema/command/v1/examples/profile-with-targe
 import heal from "../../../docs/schema/command/v1/examples/simple-heal.json";
 
 describe("command/v1 schema shape", () => {
-  it("uses `actions` (DSL string) as the canonical body, `steps` as legacy", () => {
+  it("uses `actions` (ClickHandler) as the canonical body, `steps` as legacy", () => {
     const props = (schema as any).properties;
-    expect(props.actions.type).toBe("string");
-    expect(props.steps.type).toBe("string");
+    expect(props.actions.$ref).toContain("ClickHandler");
+    expect(props.steps.$ref).toContain("ClickHandler");
     expect((schema as any).required).toEqual(["schema"]);
     expect((schema as any).anyOf).toEqual([{ required: ["actions"] }, { required: ["steps"] }]);
   });
@@ -17,10 +17,10 @@ describe("command/v1 schema shape", () => {
     expect((schema as any).required).not.toContain("name");
   });
 
-  it("keeps requirements/fallback as flat Action arrays", () => {
+  it("keeps requirements as Condition arrays, fallback as Step arrays", () => {
     const props = (schema as any).properties;
     expect(props.requirements.items.$ref).toContain("#/$defs/Condition");
-    expect(props.fallback.items.$ref).toContain("#/$defs/Action");
+    expect(props.fallback.items.$ref).toContain("#/$defs/Step");
   });
 
   it("all examples use the canonical `actions` DSL string, not legacy `steps`", () => {

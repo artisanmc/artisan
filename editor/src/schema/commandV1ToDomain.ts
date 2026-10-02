@@ -34,7 +34,12 @@ export function commandV1ToDomain(
     if (tr) i18nKeys[key] = { ...tr };
     return { key: key as I18nKey };
   }
-  function text(raw: string | undefined): LText {
+  function text(raw: string | Record<string, string> | undefined): LText {
+    if (raw && typeof raw === "object") {
+      const key = newI18nKey();
+      i18nKeys[key] = { ...raw };
+      return { key };
+    }
     const m = typeof raw === "string" ? /^\{i18n:(.+)\}$/.exec(raw) : null;
     if (m) return ref(m[1]!);
     const key = newI18nKey();

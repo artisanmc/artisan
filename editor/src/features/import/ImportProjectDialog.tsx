@@ -195,7 +195,9 @@ export function ImportProjectDialog({
 
             {error && (
               <div className="text-xs text-[var(--danger)]">
-                {t(`importProject.errors.${error}`)}
+                {t(`importProject.errors.${error}`, {
+                  defaultValue: t("importProject.errors.unknown"),
+                })}
               </div>
             )}
 
@@ -255,7 +257,9 @@ export function ImportProjectDialog({
 
             {error && (
               <div className="text-xs text-[var(--danger)]">
-                {t(`importProject.errors.${error}`)}
+                {t(`importProject.errors.${error}`, {
+                  defaultValue: t("importProject.errors.unknown"),
+                })}
               </div>
             )}
 

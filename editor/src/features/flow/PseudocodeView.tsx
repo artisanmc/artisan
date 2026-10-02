@@ -1089,6 +1089,8 @@ function actionSummaryArgs(action: Action, getText: (lt: LText | undefined) => s
     }
     case "close_menu":
       return "";
+    case "open_previous_menu":
+      return "";
     case "run_command":
       return `${action.as === "console" ? "[console] " : ""}/${action.command}`;
     case "send_message":

@@ -21,7 +21,7 @@ beforeEach(async () => {
 test("reconnect applies exact durable receipt before discovery creates a target anchor", async () => {
   await beginProjectRename("anchor", "lost-ack", "new");
   registerConn("reconnect", () => {});
-  await handlePluginMessage("reconnect", JSON.stringify({ type: "hello", server_key: key, plugin_version: "test", minecraft_version: "1.21.4", current_bundle_hash: "", local_project_ids: ["new"], capabilities: ["project_rename"], project_roots: [{ project_id: "new", identity: "folder" }], project_rename_results: [{ operation_id: "lost-ack", project_id: "old", target_project_id: "new" }] }));
+  await handlePluginMessage("reconnect", JSON.stringify({ type: "hello", content_version: 2, server_key: key, plugin_version: "test", minecraft_version: "1.21.4", current_bundle_hash: "", local_project_ids: ["new"], capabilities: ["project_rename"], project_roots: [{ project_id: "new", identity: "folder" }], project_rename_results: [{ operation_id: "lost-ack", project_id: "old", target_project_id: "new" }] }));
   expect((await getProject("anchor"))?.externalId).toBe("new");
   expect((await db.select().from(projects)).map((p) => p.id)).toEqual(["anchor"]);
 });

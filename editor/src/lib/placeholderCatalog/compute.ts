@@ -49,6 +49,7 @@ export function compute(
       if (!(menu.contextInputs ?? []).some((i) => i.name === "player")) {
         out.push(...builtinPlayerEntries());
       }
+      out.push(...builtinNavigationEntries());
       collectMenuContextInputs(menu, project, scope, out, rowSchemas);
       if (location.kind === "element" || location.kind === "action") {
         const element = findElement(menu, location.elementId);
@@ -73,9 +74,10 @@ export function compute(
     }
     case "dialog":
     case "dialog-action":
-      // Dialogs have no contextInputs yet — the builtin {player} is still in
-      // scope at runtime, so the popup is never empty.
-      return builtinPlayerEntries();
+      // Dialogs have no contextInputs yet — the builtin {player} and the
+      // navigation placeholders are still in scope at runtime, so the popup is
+      // never empty.
+      return sorted([...builtinPlayerEntries(), ...builtinNavigationEntries()]);
   }
 }
 
@@ -91,6 +93,20 @@ function builtinPlayerEntries(): PlaceholderEntry[] {
   return [
     { path: "player", type: "player", sample: SAMPLE_PLAYER_NAME, origin: "context" },
     ...playerSubfieldEntries("player", SAMPLE_PLAYER_NAME),
+  ];
+}
+
+/**
+ * The navigation-history placeholders, available everywhere a screen renders.
+ * `has_previous_menu` guards a back button (a condition); `previous_menu` is the
+ * screen `open_previous_menu` would return to.
+ */
+function builtinNavigationEntries(): PlaceholderEntry[] {
+  return [
+    { path: "has_previous_menu", type: "boolean", sample: "true", origin: "context" },
+    { path: "previous_menu", type: "object", sample: null, origin: "context" },
+    { path: "previous_menu.id", type: "string", sample: null, origin: "context" },
+    { path: "previous_menu.title", type: "string", sample: null, origin: "context" },
   ];
 }
 

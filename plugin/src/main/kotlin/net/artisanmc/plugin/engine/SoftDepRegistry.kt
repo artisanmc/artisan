@@ -21,8 +21,15 @@ class VaultProvider(private val economy: Economy) {
 }
 
 open class PapiProvider {
+    /**
+     * Tolérant : une PlaceholderAPI installée mais **cassée** (ex. incompatibilité
+     * de version Paper — son `<clinit>` jette `ExceptionInInitializerError`) ne
+     * doit jamais faire planter un menu. On rend le texte tel quel en cas d'échec,
+     * les `%papi%` restent simplement non résolus.
+     */
     open fun resolve(player: Player, text: String): String =
-        me.clip.placeholderapi.PlaceholderAPI.setPlaceholders(player, text)
+        runCatching { me.clip.placeholderapi.PlaceholderAPI.setPlaceholders(player, text) }
+            .getOrDefault(text)
 
     companion object {
         fun tryInit(): PapiProvider? = runCatching {

@@ -447,7 +447,7 @@ function StageCanvas({ projectId, focus }: StageProps) {
         onRearrange={
           focusMode
             ? undefined
-            : () => useAccountStore.getState().releaseBoardPositions({ projectId })
+            : (mode) => useAccountStore.getState().releaseBoardPositions({ projectId, mode })
         }
         rearrangeDisabled={
           !project ||

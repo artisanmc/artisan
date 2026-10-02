@@ -206,6 +206,8 @@ function parseVerb(verb: string, c: LineCursor): DslAction {
       return { type: "close_menu" };
     case "close_dialog":
       return { type: "close_dialog" };
+    case "open_previous_menu":
+      return { type: "open_previous_menu" };
     case "paginate": {
       const direction = c.oneOf("next", "prev") as "next" | "prev";
       const targetElementId = c.optWord() as ElementId | undefined;

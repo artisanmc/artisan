@@ -234,7 +234,7 @@ describe("validateCommandV1", () => {
         "else:",
         '  send_message "<red>No perm.</red>"',
       ].join("\n"),
-      fallback: [{ type: "send_message", text: "<red>Not enough money.</red>" }],
+      fallback: [{ send_message: "<red>Not enough money.</red>" }],
     });
     expect(r.valid).toBe(true);
     expect(r.errors).toEqual([]);
@@ -283,7 +283,7 @@ describe("validators are crash-safe on malformed input", () => {
     for (const bad of [
       { schema: "command/v1", id: "c", name: "c", steps: "nope" }, // unknown DSL verb
       { schema: "command/v1", id: "c", name: "c", steps: "if has_money(1)\n  close_menu" }, // missing ':'
-      { schema: "command/v1", id: "c", name: "c", steps: [] }, // wrong type (array, schema wants string)
+      { schema: "command/v1", id: "c", name: "c", steps: 42 }, // wrong type (neither string nor step list)
       { schema: "command/v1", id: "c", name: "c", steps: "close_menu", requirements: "x" },
       { schema: "command/v1", id: "c", name: "c", steps: "close_menu", requirements: [{ type: "and", of: "x" }] },
       { schema: "command/v1", id: "c", name: "c", steps: "close_menu", fallback: "x" },

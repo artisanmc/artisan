@@ -399,6 +399,13 @@ export type Action =
       context?: Record<string, string>;
     }
   | { type: "close_menu" }
+  /**
+   * Re-open the previous screen from the player's navigation history — the back
+   * button. Consumes the history (menu → wiki → item: two backs return to the
+   * menu, never bounce between item and wiki). No-op when there is no previous
+   * screen; guard the button with `has_previous_menu`.
+   */
+  | { type: "open_previous_menu" }
   | { type: "run_command"; command: string; as: "player" | "console" }
   | { type: "send_message"; text: LText }
   /**

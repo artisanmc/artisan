@@ -232,9 +232,11 @@ data class AppearanceYaml(
     val material: String? = null,
     val head: String? = null,
     val count: Int? = null,
-    val title: String? = null,
-    val lore: List<String> = emptyList(),
-    val click: Map<String, ClickHandlerYaml> = emptyMap(),
+    /** Field-local text (ADR `field-local-translations`): literal or `{lang: text}` map. */
+    val title: LocalizedText? = null,
+    val lore: List<LocalizedText> = emptyList(),
+    /** Wire handler par type de clic : string (legacy DSL), `{steps}`, ou keyed (map/liste). */
+    val click: Map<String, Any?> = emptyMap(),
     @JsonProperty("if")
     val conditions: Any? = null,
     // ── advanced details, all applied by [net.artisanmc.plugin.render.ItemDetails] ──
@@ -289,7 +291,7 @@ data class CooldownYaml(
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class DialogBodyYaml(
     val type: String = "text",
-    val text: String? = null,
+    val text: LocalizedText? = null,
     val material: String? = null,
     val count: Int = 1,
 )
@@ -297,14 +299,14 @@ data class DialogBodyYaml(
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class DialogOptionYaml(
     val value: String = "",
-    val label: String = "",
+    val label: LocalizedText? = null,
 )
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class DialogInputYaml(
     val id: String = "",
     val type: String = "",
-    val label: String = "",
+    val label: LocalizedText? = null,
     val default: String = "",
     val min: Double = 0.0,
     val max: Double = 100.0,
@@ -315,18 +317,18 @@ data class DialogInputYaml(
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class DialogButtonYaml(
     val id: String = "",
-    val label: String = "",
+    val label: LocalizedText? = null,
     val requirements: List<Map<String, Any>> = emptyList(),
-    /** Action DSL string (Phase 2) — compiled to a Step tree by [net.artisanmc.plugin.render.DialogRenderer]. */
-    val actions: String = "",
-    val fallback: List<Map<String, Any>> = emptyList(),
+    /** Wire handler : string (legacy DSL), `{steps}`, ou keyed (map/liste) — cf. ADR structured-action-wire. */
+    val actions: Any? = null,
+    val fallback: Any? = null,
 )
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class DialogYaml(
     val schema: String = "",
     val id: String = "",
-    val title: String = "",
+    val title: LocalizedText? = null,
     @JsonProperty("can_close_with_escape") val canCloseWithEscape: Boolean = true,
     val body: List<DialogBodyYaml> = emptyList(),
     val inputs: List<DialogInputYaml> = emptyList(),
@@ -360,7 +362,7 @@ data class CommandYaml(
      *  list (the pre-DSL wire). Disambiguated by runtime type — see [dsl] and
      *  [legacyActions]. */
     val actions:      Any? = null,
-    val fallback:     List<Map<String, Any>> = emptyList(),
+    val fallback:     Any? = null,
     val cooldown:     CooldownYaml? = null,
     /** Legacy spelling of the Action DSL string (`actions` is canonical). */
     val steps:        String = "",
@@ -368,10 +370,18 @@ data class CommandYaml(
     /** The Action DSL string: canonical `actions` (string form) or legacy `steps`. */
     val dsl: String get() = (actions as? String) ?: steps
 
-    /** The legacy flat action-map list (old `actions:` wire), when present. */
+    /** Wire handler brut : `actions` (canonique) ou `steps` (legacy). */
+    val handler: Any? get() = actions ?: steps.ifEmpty { null }
+
+    /**
+     * The legacy flat action-map list (old `actions:` wire), when present. A
+     * list whose entries carry a `type` key is the legacy `Action` shape; a
+     * keyed list (`{send_message: …}`) is the new wire and is filtered out here.
+     */
     @Suppress("UNCHECKED_CAST")
     val legacyActions: List<Map<String, Any>>
-        get() = (actions as? List<Map<String, Any>>) ?: emptyList()
+        get() = (actions as? List<*>)?.filterIsInstance<Map<String, Any>>()?.filter { it.containsKey("type") }
+            ?: emptyList()
 }
 
 /**

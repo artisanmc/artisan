@@ -1,5 +1,6 @@
 import { liveDocumentIds, normalizeCanvasGroups } from "@/domain/canvasGroups";
 import type { Project } from "@/domain/types";
+import type { ArrangeMode } from "./arrangeBoard";
 import { type BoardGroup, arrangeProjectGroups } from "./groupedBoard";
 import { deriveServerGraph } from "./serverGraph";
 
@@ -72,11 +73,15 @@ export function autoLayout(project: Project): Record<string, Point> {
 export function rearrangeProjectLayout(
   project: Project,
   groupId?: string,
+  mode: ArrangeMode = "columns",
 ): Pick<Project, "canvasLayout" | "canvasGroups" | "canvasEdges"> | null {
   const groups = normalizeCanvasGroups(project.canvasGroups, liveDocumentIds(project));
   const target = groups.find((g) => g.id === groupId);
   if (groupId !== undefined && !target) return null;
-  if (!groups.length)
+  // Sans groupe manuel, `columns` libère les positions et laisse la planche
+  // s'auto-arranger (comportement historique). Les autres modes doivent au
+  // contraire calculer et persister leur arrangement.
+  if (!groups.length && mode === "columns")
     return { canvasLayout: {} as Project["canvasLayout"], canvasGroups: groups, canvasEdges: {} };
 
   const before = projectBoard(project);
@@ -94,6 +99,7 @@ export function rearrangeProjectLayout(
   const graph = deriveServerGraph([snapshot]);
   const arranged = arrangeProjectGroups(snapshot, graph, {
     releaseOuterPositions: groupId === undefined,
+    mode,
   });
   const canvasLayout = Object.fromEntries(
     graph.nodes.map((node) => [node.docId, arranged.positions[node.key]!]),

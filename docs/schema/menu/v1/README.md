@@ -184,6 +184,34 @@ Règles :
 - Conditions sur les champs de l'item d'iteration : utiliser `placeholder_equals` / `placeholder_match` avec `{alias.field}` comme placeholder. Les anciennes conditions `data_field_*` ont été retirées.
 - Le namespace du `ref` (`chestshop`, `essentials`, `jobs`, ...) est ajouté automatiquement à `metadata.uses_plugins`.
 
+## Navigation arrière (retour)
+
+L'action sans argument **`open_previous_menu`** rouvre l'écran précédent de
+l'historique du joueur (menu **ou** dialog). L'historique est une **pile LIFO** :
+`open_menu` / `open_dialog` empilent l'écran quitté, `open_previous_menu` le
+dépile sans ré-empiler l'écran courant. Conséquence voulue : `menu → wiki → item`
+revient au menu en **deux** retours, sans va-et-vient `item ↔ wiki`. Pile vide =
+no-op.
+
+```yaml
+elements:
+  - id: back
+    positions: 0
+    click:
+      left:
+        - open_previous_menu
+    states:
+      # Le bouton n'apparaît que s'il y a un historique : sans état qui matche,
+      # le display vide laisse la position en AIR.
+      - if:
+          - expression: has_previous_menu
+        material: ARROW
+        title: { en: "Back", fr: "Retour" }
+```
+
+Placeholders disponibles au rendu de tout écran : `{has_previous_menu}`
+(booléen) et `{previous_menu.id}` / `{previous_menu.title}` (l'écran précédent).
+
 ## Limitations connues (cross-field non-exprimables en JSON Schema)
 
 À valider au load par `validateMenuLayout` (cf. `types.ts`) :

@@ -76,55 +76,56 @@ const I18N = {
   "menus.shop.elements.btn.default.click.left.message": { en: "Bought!", fr: "Acheté !" },
 } as Project["i18nKeys"];
 
-const inlineProject = (overrides: Partial<Project> = {}): Project =>
-  makeProject({ i18nMode: "inline", menus: [shopMenu()], i18nKeys: { ...I18N }, ...overrides });
+/** i18nMode is a legacy flag; structural text is field-local regardless. */
+const project = (overrides: Partial<Project> = {}): Project =>
+  makeProject({ menus: [shopMenu()], i18nKeys: { ...I18N }, ...overrides });
 
 const langFile = (files: Record<string, string>, lang: string) => {
   const raw = files[`${BASE}/lang/${lang}.yaml`];
   return raw === undefined ? undefined : flattenLangTree(parse(raw));
 };
 
-describe("transform — inline i18n mode", () => {
-  it("writes the default language's literal text into the menu document", () => {
-    const menu = parse(transform(inlineProject())[`${BASE}/menus/shop.yaml`]!);
-    expect(menu.title).toEqual([{ kind: "text", value: "Shop", x: 8, y: 5 }]);
+describe("transform — structural text is field-local", () => {
+  it("writes a {lang: text} map for translated title, lore and layers", () => {
+    const menu = parse(transform(project())[`${BASE}/menus/shop.yaml`]!);
+    expect(menu.title).toEqual([
+      { kind: "text", value: { en: "Shop", fr: "Boutique" }, x: 8, y: 5 },
+    ]);
     const app = menu.elements[0];
-    expect(app.title).toBe("Sword");
-    expect(app.lore).toEqual(["Sharp"]);
-    // Click handler is an Action DSL string — the text is a quoted literal, not `@key`.
-    expect(app.click.left).toContain('"Bought!"');
-    expect(app.click.left).not.toContain("@menus.");
+    expect(app.title).toEqual({ en: "Sword", fr: "Épée" });
+    expect(app.lore).toEqual([{ en: "Sharp", fr: "Tranchante" }]);
   });
 
-  it("emits no site-addressed key for the default language — the documents carry it", () => {
-    const files = transform(inlineProject());
-    // The file exists only to hold the project's PRESENTATION keys, which belong
-    // to no document and so have nowhere to be inlined (ADR `expression-parity` §8).
-    // Not one menu/dialog address is in it.
-    const keys = Object.keys(langFile(files, "en") ?? {});
-    expect(keys.every((k) => k.startsWith("artisan."))).toBe(true);
-  });
-
-  it("emits other languages at the canonical addresses of their key sites", () => {
-    const files = transform(inlineProject());
-    const fr = langFile(files, "fr") ?? {};
-    const sites = Object.fromEntries(Object.entries(fr).filter(([k]) => !k.startsWith("artisan.")));
-    expect(sites).toEqual({
-      "menus.shop.title": "Boutique",
-      "menus.shop.elements.btn.default.title": "Épée",
-      "menus.shop.elements.btn.default.lore": "Tranchante",
-      "menus.shop.elements.btn.default.click.left.message": "Acheté !",
-    });
-  });
-
-  it("inlines an empty string when the default language has no text yet", () => {
-    const files = transform(inlineProject({ i18nKeys: {} as Project["i18nKeys"] }));
-    const menu = parse(files[`${BASE}/menus/shop.yaml`]!);
+  it("emits a bare string when only the default language has a value", () => {
+    const menu = parse(
+      transform(project({ i18nKeys: { "menus.shop.title": { en: "Shop" } } as Project["i18nKeys"] }))[
+        `${BASE}/menus/shop.yaml`
+      ]!,
+    );
+    expect(menu.title[0].value).toBe("Shop");
+    // Untranslated keys with no value land as empty strings, never a raw key.
     expect(menu.elements[0].title).toBe("");
   });
 
-  it("inlines command and dialog texts too", () => {
-    const project = inlineProject({
+  it("makes action text field-local too", () => {
+    const files = transform(project());
+    const menu = parse(files[`${BASE}/menus/shop.yaml`]!);
+    expect(menu.elements[0].click.left).toEqual([
+      { send_message: { en: "Bought!", fr: "Acheté !" } },
+    ]);
+    // No action key in lang/ anymore.
+    expect(langFile(files, "en")?.["menus.shop.elements.btn.default.click.left.message"]).toBeUndefined();
+  });
+
+  it("leaves structural keys out of lang/", () => {
+    const fr = langFile(transform(project()), "fr") ?? {};
+    expect(fr["menus.shop.title"]).toBeUndefined();
+    expect(fr["menus.shop.elements.btn.default.title"]).toBeUndefined();
+    expect(fr["menus.shop.elements.btn.default.lore"]).toBeUndefined();
+  });
+
+  it("inlines command and dialog structural texts too", () => {
+    const p = project({
       menus: [],
       commands: [
         {
@@ -164,36 +165,28 @@ describe("transform — inline i18n mode", () => {
         "dialogs.confirm.buttons.ok.label": { en: "OK", fr: "OK" },
       } as Project["i18nKeys"],
     });
-    const files = transform(project);
-    expect(parse(files[`${BASE}/commands/heal.yaml`]!).actions).toContain('"Healed"');
+    const files = transform(p);
+    expect(parse(files[`${BASE}/commands/heal.yaml`]!).actions).toEqual([
+      { send_message: { en: "Healed", fr: "Soigné" } },
+    ]);
     const dialog = parse(files[`${BASE}/dialogs/confirm.yaml`]!);
-    expect(dialog.title).toBe("Sure?");
-    expect(dialog.body[0].text).toBe("Confirm");
-    expect(dialog.buttons[0].label).toBe("OK");
-    expect(langFile(files, "fr")).toMatchObject({
-      "commands.heal.message": "Soigné",
-      "dialogs.confirm.title": "Sûr ?",
-      "dialogs.confirm.body.0.text": "Confirmer",
-    });
+    expect(dialog.title).toEqual({ en: "Sure?", fr: "Sûr ?" });
+    expect(dialog.body[0].text).toEqual({ en: "Confirm", fr: "Confirmer" });
+    expect(dialog.buttons[0].label).toEqual({ en: "OK", fr: "OK" });
+    // Action text is field-local now — nothing document-related stays in lang/.
+    const fr = langFile(files, "fr") ?? {};
+    expect(fr["commands.heal.message"]).toBeUndefined();
+    expect(fr["dialogs.confirm.title"]).toBeUndefined();
   });
 
-  it("records the mode in .artisan/editor.yaml so a re-import keeps it", () => {
-    const state = parse(transform(inlineProject())[`${BASE}/.artisan/editor.yaml`]!);
-    expect(state.i18n_mode).toBe("inline");
-  });
 });
 
-describe("inline i18n mode — round-trip through the file tree", () => {
-  const reimport = (project: Project) =>
-    projectFromFiles(projectId("p_test"), transform(project), { name: "Test" });
+describe("field-local — round-trip through the file tree", () => {
+  const reimport = (p: Project) =>
+    projectFromFiles(projectId("p_test"), transform(p), { name: "Test" });
 
-  it("keeps the mode, so a save doesn't silently flip the tree back", () => {
-    expect(reimport(inlineProject()).i18nMode).toBe("inline");
-    expect(reimport(makeProject({ menus: [shopMenu()] })).i18nMode).toBeUndefined();
-  });
-
-  it("reattaches the other languages to their key sites", () => {
-    const back = reimport(inlineProject());
+  it("reattaches the languages to their key sites", () => {
+    const back = reimport(project());
     const texts = [...visitProjectLTexts(back)].map((s) => [
       s.key,
       back.i18nKeys[back.i18nKeys[s.lText.key] ? s.lText.key : s.key],
@@ -207,8 +200,8 @@ describe("inline i18n mode — round-trip through the file tree", () => {
   });
 
   it("is a fixed point — re-exporting the imported project yields the same tree", () => {
-    const once = transform(inlineProject());
-    const back = reimport(inlineProject());
+    const once = transform(project());
+    const back = reimport(project());
     rekeyProject(back);
     const twice = transform(back);
     for (const path of Object.keys(once)) expect([path, twice[path]]).toEqual([path, once[path]]);
@@ -216,18 +209,9 @@ describe("inline i18n mode — round-trip through the file tree", () => {
   });
 });
 
-describe("transform — extract i18n mode (default)", () => {
-  it("keeps {i18n:key} refs and the default language file", () => {
-    const files = transform(makeProject({ menus: [shopMenu()], i18nKeys: { ...I18N } }));
-    const menu = parse(files[`${BASE}/menus/shop.yaml`]!);
-    expect(menu.title[0].value).toBe("{i18n:menus.shop.title}");
-    expect(menu.elements[0].title).toBe("{i18n:menus.shop.elements.btn.default.title}");
-    expect(langFile(files, "en")).toMatchObject({ "menus.shop.title": "Shop" });
-    expect(langFile(files, "fr")).toMatchObject({ "menus.shop.title": "Boutique" });
-  });
-
-  it("writes no i18n_mode marker", () => {
-    const raw = transform(makeProject({ menus: [shopMenu()] }))[`${BASE}/.artisan/editor.yaml`];
-    expect(raw === undefined ? undefined : parse(raw).i18n_mode).toBeUndefined();
+describe("legacy i18n_mode marker", () => {
+  it("keeps the inline marker so a re-import round-trips it", () => {
+    const files = transform(project({ i18nMode: "inline" }));
+    expect(parse(files[`${BASE}/.artisan/editor.yaml`]!).i18n_mode).toBe("inline");
   });
 });

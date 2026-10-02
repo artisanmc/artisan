@@ -32,7 +32,7 @@ test("authenticated rename uses immutable anchor, exposes folder capability and 
     if (message.type === "project_list") void handlePluginMessage("rename-route", JSON.stringify({ type: "project_list_result", request_id: message.request_id, ok: true, project_ids: diskIds, project_roots: diskIds.map((project_id) => ({ project_id, identity: "folder" })) }));
   });
   try {
-    await handlePluginMessage("rename-route", JSON.stringify({ type: "hello", server_key: generated.key, plugin_version: "test", minecraft_version: "1.21.4", current_bundle_hash: "", capabilities: ["project_rename"], project_roots: [{ project_id: "old", identity: "folder" }] }));
+    await handlePluginMessage("rename-route", JSON.stringify({ type: "hello", content_version: 2, server_key: generated.key, plugin_version: "test", minecraft_version: "1.21.4", current_bundle_hash: "", capabilities: ["project_rename"], project_roots: [{ project_id: "old", identity: "folder" }] }));
     diskIds.push("late");
     const direct = await app.request(`/api/v1/user/projects/late?server=${generated.id}`, { headers });
     expect(direct.status).toBe(200);

@@ -258,7 +258,7 @@ class ProjectReaderTest {
         val bundle = bundles.first()
         assertEquals(1, bundle.dialogs.size)
         assertEquals("d_test", bundle.dialogs.first().id)
-        assertEquals("Test Dialog", bundle.dialogs.first().yaml.title)
+        assertEquals("Test Dialog", bundle.dialogs.first().yaml.title?.forLang("en", "en"))
     }
 
     @Test

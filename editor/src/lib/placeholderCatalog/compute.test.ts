@@ -31,6 +31,17 @@ const BUILTIN_PLAYER = [
   { path: "player.world", type: "string", sample: "world", origin: "context" },
 ];
 
+/** The navigation-history builtins every menu/element/action/dialog scope adds. */
+const BUILTIN_NAV = [
+  { path: "has_previous_menu", type: "boolean", sample: "true", origin: "context" },
+  { path: "previous_menu", type: "object", sample: null, origin: "context" },
+  { path: "previous_menu.id", type: "string", sample: null, origin: "context" },
+  { path: "previous_menu.title", type: "string", sample: null, origin: "context" },
+];
+
+/** Player builtins + navigation builtins, in the catalog's sorted order. */
+const BUILTIN_MENU = [BUILTIN_NAV[0], ...BUILTIN_PLAYER, ...BUILTIN_NAV.slice(1)];
+
 describe("PlaceholderCatalog.compute", () => {
   it("returns [] for a menu location when the menu id is unknown", () => {
     const project = emptyProject();
@@ -49,7 +60,7 @@ describe("PlaceholderCatalog.compute", () => {
       contextInputs: [],
     });
     const result = compute(project, { kind: "menu", menuId: "m1" as MenuId });
-    expect(result).toEqual(BUILTIN_PLAYER);
+    expect(result).toEqual(BUILTIN_MENU);
   });
 
   // Task 3 tests
@@ -73,6 +84,7 @@ describe("PlaceholderCatalog.compute", () => {
     // there is exactly one `player` entry; its player-typed subfields still show.
     expect(out).toEqual([
       { path: "active", type: "boolean", sample: "true", origin: "context" },
+      BUILTIN_NAV[0],
       { path: "player", type: "player", sample: "Steve", origin: "context" },
       { path: "player.name", type: "string", sample: "Steve", origin: "context" },
       {
@@ -82,6 +94,7 @@ describe("PlaceholderCatalog.compute", () => {
         origin: "context",
       },
       { path: "player.world", type: "string", sample: "world", origin: "context" },
+      ...BUILTIN_NAV.slice(1),
       { path: "rank", type: "integer", sample: "5", origin: "context" },
     ]);
     expect(out.filter((e) => e.path === "player")).toHaveLength(1);
@@ -100,7 +113,7 @@ describe("PlaceholderCatalog.compute", () => {
     const out = compute(project, { kind: "menu", menuId: "m1" as MenuId });
     // No input named `player` → builtins stay, then target + its subfields.
     expect(out).toEqual([
-      ...BUILTIN_PLAYER,
+      ...BUILTIN_MENU,
       { path: "target", type: "player", sample: "Alex", origin: "context" },
       { path: "target.name", type: "string", sample: "Alex", origin: "context" },
       {
@@ -160,7 +173,7 @@ describe("PlaceholderCatalog.compute", () => {
     });
     const out = compute(project, { kind: "menu", menuId: "m1" as MenuId });
     expect(out).toEqual([
-      ...BUILTIN_PLAYER,
+      ...BUILTIN_MENU,
       { path: "quest.name", type: "string", sample: "Tuer 10 zombies", origin: "context" },
       { path: "quest.reward", type: "integer", sample: "500", origin: "context" },
     ]);
@@ -227,7 +240,7 @@ describe("PlaceholderCatalog.compute", () => {
       contextInputs: [{ kind: "sourceRef", name: "quests", ref: "pack:ds2" as SourceRef }],
     });
     const out = compute(project, { kind: "menu", menuId: "m1" as MenuId });
-    expect(out).toEqual(BUILTIN_PLAYER);
+    expect(out).toEqual(BUILTIN_MENU);
   });
 
   // Task 5 tests
@@ -279,7 +292,7 @@ describe("PlaceholderCatalog.compute", () => {
       elementId: "e1" as ElementId,
     });
     expect(out).toEqual([
-      ...BUILTIN_PLAYER,
+      ...BUILTIN_MENU,
       { path: "quest.name", type: "string", sample: "Q1", origin: "iteration" },
       { path: "quest.reward", type: "integer", sample: "100", origin: "iteration" },
     ]);
@@ -463,7 +476,7 @@ describe("PlaceholderCatalog.compute", () => {
   it("returns the builtin {player} entries for dialog scope (no contextInputs modeled)", () => {
     const project = emptyProject();
     const out = compute(project, { kind: "dialog", dialogId: "d1" as DialogId });
-    expect(out).toEqual(BUILTIN_PLAYER);
+    expect(out).toEqual(BUILTIN_MENU);
   });
 
   it("returns the builtin {player} entries for dialog-action scope", () => {
@@ -473,7 +486,7 @@ describe("PlaceholderCatalog.compute", () => {
       dialogId: "d1" as DialogId,
       buttonId: "btn_confirm",
     });
-    expect(out).toEqual(BUILTIN_PLAYER);
+    expect(out).toEqual(BUILTIN_MENU);
   });
 
   // Task 7 test
@@ -489,7 +502,7 @@ describe("PlaceholderCatalog.compute", () => {
     });
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const out = compute(project, { kind: "menu", menuId: "m1" as MenuId });
-    expect(out).toEqual(BUILTIN_PLAYER);
+    expect(out).toEqual(BUILTIN_MENU);
     expect(warn).toHaveBeenCalledTimes(1);
     expect(warn.mock.calls[0]![0]).toMatch(/deleted/);
     warn.mockRestore();
@@ -546,10 +559,14 @@ describe("PlaceholderCatalog.compute", () => {
     });
     expect(out.map((e) => `${e.origin}:${e.path}`)).toEqual([
       "context:alpha",
+      "context:has_previous_menu",
       "context:player",
       "context:player.name",
       "context:player.uuid",
       "context:player.world",
+      "context:previous_menu",
+      "context:previous_menu.id",
+      "context:previous_menu.title",
       "context:zoo",
       "iteration:quest.name",
     ]);

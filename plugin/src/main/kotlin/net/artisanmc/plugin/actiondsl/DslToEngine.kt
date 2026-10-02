@@ -5,6 +5,7 @@ import net.artisanmc.plugin.engine.Condition
 import net.artisanmc.plugin.engine.IfCase
 import net.artisanmc.plugin.engine.Step
 import net.artisanmc.plugin.expr.Node
+import net.artisanmc.plugin.model.LocalizedText
 import net.artisanmc.plugin.expr.parseExpr
 
 /**
@@ -45,10 +46,10 @@ private fun mapStep(step: DslStep): Step = when (step) {
     )
 }
 
-/** `{lit:s}` → `s` ; `{ref:k}` → `"{i18n:k}"` (localized by `resolveText`). */
-private fun mapText(text: DslText): String = when (text) {
-    is DslText.Lit -> text.lit
-    is DslText.Ref -> "{i18n:${text.ref}}"
+/** `{lit:s}` → literal ; `{ref:k}` → `"{i18n:k}"` (localized by `resolveText`). */
+private fun mapText(text: DslText): LocalizedText = when (text) {
+    is DslText.Lit -> LocalizedText.of(text.lit)
+    is DslText.Ref -> LocalizedText.of("{i18n:${text.ref}}")
 }
 
 private fun mapAction(a: DslAction): Action = when (a) {
@@ -85,6 +86,7 @@ private fun mapAction(a: DslAction): Action = when (a) {
     is DslAction.OpenDialog -> Action.OpenDialog(a.dialogId, a.context ?: emptyMap(), a.clearContext)
     DslAction.CloseMenu -> Action.CloseMenu
     DslAction.CloseDialog -> Action.CloseDialog
+    DslAction.OpenPreviousMenu -> Action.OpenPreviousMenu
     is DslAction.Paginate ->
         if (a.direction == "prev") Action.PaginationPrev(a.targetElementId)
         else Action.PaginationNext(a.targetElementId)
