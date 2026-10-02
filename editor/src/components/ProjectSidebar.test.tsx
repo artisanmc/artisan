@@ -114,6 +114,51 @@ describe("ProjectSidebar", () => {
     );
   });
 
+  describe("arbre des documents du project ouvert", () => {
+    const loaded = (id: string) =>
+      ({
+        id,
+        name: id,
+        defaultLang: "fr",
+        i18nKeys: {},
+        menus: [{ id: "accueil", rows: 3, layers: [], title: [] }],
+        commands: [{ id: "c_heal", name: "heal", arguments: [], steps: [] }],
+        dialogs: [],
+      }) as never;
+
+    beforeEach(() => {
+      vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
+        network: { id: "net_1", name: "Mon Network", tier: "free" },
+        projects: [],
+        serverKeys: [{ id: "sk_1", label: "Survival" }],
+      });
+      useAccountStore.setState({
+        account: { id: "", projects: [loaded("pack_a"), loaded("pack_b")], projectOrder: [] },
+      } as any);
+    });
+
+    it("déplie le project ouvert en ses documents, groupés par type", async () => {
+      mockParams.current = { networkId: "net_1", serverId: "sk_1", projectId: "pack_a" };
+      render(<ProjectSidebar />);
+      const tree = await screen.findByRole("group", { name: /pack_a/ });
+      expect(tree).toHaveTextContent("accueil");
+      expect(tree).toHaveTextContent("/heal");
+    });
+
+    it("ne déplie pas les projects qui ne sont pas ouverts", async () => {
+      mockParams.current = { networkId: "net_1", serverId: "sk_1", projectId: "pack_a" };
+      render(<ProjectSidebar />);
+      await screen.findByRole("group", { name: /pack_a/ });
+      expect(screen.getAllByRole("group", { name: /documents/i })).toHaveLength(1);
+    });
+
+    it("ne déplie rien hors d'un project", async () => {
+      render(<ProjectSidebar />);
+      await screen.findByRole("link", { name: /pack_a/ });
+      expect(screen.queryByRole("group", { name: /documents/i })).toBeNull();
+    });
+  });
+
   it("renders the Modules empty state", async () => {
     vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
       network: { id: "net_1", name: "Mon Network", tier: "free" },

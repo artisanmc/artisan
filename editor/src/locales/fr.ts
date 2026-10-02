@@ -1258,6 +1258,7 @@ const fr: typeof en = {
     pluginOutdated: "Plugin obsolète — mets-le à jour pour éditer ce serveur",
   },
   sidebar: {
+    projectDocuments: "Documents de {{name}}",
     settings: "Paramètres",
     brand: "Artisan",
     myProjects: "Mes Projects",
