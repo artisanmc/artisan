@@ -1,6 +1,7 @@
 import { AdminSidebar } from "@/components/AdminSidebar";
 import { BackendUnreachable } from "@/components/BackendUnreachable";
 import { NavigationSidebar } from "@/components/NavigationSidebar";
+import { DemoSidebar } from "@/components/DemoSidebar";
 import { ProjectSidebar } from "@/components/ProjectSidebar";
 import { onProjectsReloaded as onProjectsReloadedInEditor } from "@/features/project/onProjectsReloaded";
 import { onProjectRenamed } from "@/features/project/onProjectRenamed";
@@ -105,8 +106,18 @@ function RootLayoutInner() {
   const isAdminArea = pathname.startsWith("/admin") && !!user?.isAdmin;
   return (
     <div className="relative flex h-full">
-      {showSidebar && !isMarketingPage && !pathname.startsWith("/demo") && (
-        <NavigationSidebar>{isAdminArea ? <AdminSidebar /> : <ProjectSidebar />}</NavigationSidebar>
+      {pathname.startsWith("/demo/projects/") ? (
+        // La démo n'a ni compte ni serveur, mais ses Documents ont besoin d'une
+        // place depuis le retrait du panneau de droite.
+        <NavigationSidebar>
+          <DemoSidebar />
+        </NavigationSidebar>
+      ) : (
+        showSidebar &&
+        !isMarketingPage &&
+        !pathname.startsWith("/demo") && (
+          <NavigationSidebar>{isAdminArea ? <AdminSidebar /> : <ProjectSidebar />}</NavigationSidebar>
+        )
       )}
       <main className={`flex min-w-0 flex-1 flex-col ${isMarketingPage ? "overflow-y-auto" : "overflow-hidden"}`}>
         {sessionUndetermined && !isMarketingPage ? <BackendUnreachable /> : <Outlet />}

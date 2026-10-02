@@ -142,18 +142,11 @@ describe("uiStore — applyLayerDeleted", () => {
   });
 });
 
-describe("uiStore — panel/search flags", () => {
+describe("uiStore — search flag", () => {
   beforeEach(() => {
-    useUiStore.setState({ projectPanelOpen: true, searchOpen: false });
+    useUiStore.setState({ searchOpen: false });
   });
 
-  it("projectPanelOpen défaut true, toggle/set le modifient", () => {
-    expect(useUiStore.getState().projectPanelOpen).toBe(true);
-    useUiStore.getState().setProjectPanelOpen(false);
-    expect(useUiStore.getState().projectPanelOpen).toBe(false);
-    useUiStore.getState().toggleProjectPanel();
-    expect(useUiStore.getState().projectPanelOpen).toBe(true);
-  });
   it("searchOpen défaut false, set le modifie", () => {
     expect(useUiStore.getState().searchOpen).toBe(false);
     useUiStore.getState().setSearchOpen(true);

@@ -1,12 +1,4 @@
 import { ProjectTopBarControls } from "@/components/ProjectTopBarControls";
-import {
-  Sheet,
-  SheetBody,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
 import { WorkspaceView } from "@/components/ui/workspace-view";
 import type { Asset } from "@/domain/asset";
 import type { ElementId, MenuId, ProjectId } from "@/domain/types";
@@ -43,7 +35,6 @@ import { useTourPresentation } from "@/features/onboarding/tourPresentation";
 import { CanvasWithInspector } from "@/features/project/CanvasWithInspector";
 import { ProjectLibraryWorkspace } from "@/features/project/ProjectLibrary";
 import { ProjectLoadingSkeleton } from "@/features/project/ProjectLoadingSkeleton";
-import { ProjectPanel } from "@/features/project/ProjectPanel";
 import { ProjectWorkspacePanels } from "@/features/project/ProjectWorkspacePanels";
 import { useProjectLoader } from "@/features/project/useProjectLoader";
 import { useWorkspaceTabShortcuts } from "@/features/project/useWorkspaceTabShortcuts";
@@ -83,7 +74,6 @@ import {
   useParams,
   useSearch,
 } from "@tanstack/react-router";
-import { PanelLeft } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -455,27 +445,9 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
           </div>
         </ProjectWorkspacePanels>
       ) : (
-        // Mobile: the ProjectPanel lives in a right drawer (the desktop column
-        // doesn't fit). A tappable trigger row sits above the switchable center.
+        // Mobile: the project's documents live in the navigation drawer (left
+        // sidebar), like on desktop — no second drawer on the right.
         <div className="flex h-full flex-col">
-          <div className="flex h-10 shrink-0 items-center border-b border-[var(--border-soft)] px-2">
-            <Sheet>
-              <SheetTrigger
-                data-tour="elements-trigger"
-                className="btn btn-ghost btn-sm inline-flex items-center gap-1.5"
-              >
-                <PanelLeft className="size-4" /> {t("projectPanel.openPanel")}
-              </SheetTrigger>
-              <SheetContent side="right" className="w-[280px] max-w-[85%] p-0">
-                <SheetHeader>
-                  <SheetTitle>{t("projectPanel.openPanel")}</SheetTitle>
-                </SheetHeader>
-                <SheetBody className="p-0">
-                  <ProjectPanel projectId={pId} />
-                </SheetBody>
-              </SheetContent>
-            </Sheet>
-          </div>
           <div
             data-tour={canvasActive ? "canvas" : undefined}
             className="relative min-h-0 flex-1 overflow-hidden"

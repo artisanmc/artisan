@@ -76,8 +76,6 @@ import {
   Images,
   Languages as LanguagesIcon,
   LayoutDashboard,
-  PanelRightClose,
-  PanelRightOpen,
   Play,
   Redo2,
   Search,
@@ -142,15 +140,8 @@ export function ProjectTopBarControls({
   );
   const displayName = currentName ?? projectName ?? project.name;
   const { t } = useTranslation();
-  const panelOpen = useUiStore((s) => s.projectPanelOpen);
   const navigationPinned = useSidebarStore((s) => s.pinned);
   const { tab } = useSearch({ strict: false }) as { tab?: string };
-
-  // Toggles the fixed right Elements column. The canvas stays
-  // mounted regardless of the active view, so this is a plain open/close toggle.
-  const onElementsClick = () => {
-    useUiStore.getState().toggleProjectPanel();
-  };
 
   // Le hors-ligne n'est plus un bandeau : le badge serveur le porte déjà en rouge,
   // et l'infobulle en donne la raison exacte (date de la copie, brouillon, never-published).
@@ -225,22 +216,6 @@ export function ProjectTopBarControls({
             )}
           />
         </div>
-        <button
-          type="button"
-          onClick={onElementsClick}
-          data-project-elements-toggle
-          data-tour="elements-trigger"
-          aria-label={t("projectPanel.openPanel")}
-          aria-pressed={panelOpen}
-          className="hidden size-8 shrink-0 items-center justify-center rounded-[10px] text-[var(--text-mut)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)] lg:inline-flex"
-          title={t("projectPanel.openPanel")}
-        >
-          {panelOpen ? (
-            <PanelRightClose className="size-4" />
-          ) : (
-            <PanelRightOpen className="size-4" />
-          )}
-        </button>
       </div>
     </header>
   );

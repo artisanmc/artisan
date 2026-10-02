@@ -764,7 +764,6 @@ const fr: typeof en = {
     delete: "Supprimer du projet",
     empty: "Aucun élément pour l'instant",
     options: "Options",
-    openPanel: "Éléments",
   },
   documentView: {
     back: "Retour au canvas",
