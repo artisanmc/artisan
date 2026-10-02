@@ -1,5 +1,30 @@
 import { describe, expect, it } from "vitest";
-import { projectDestination } from "./projectNavigation";
+import { documentDestination, projectDestination } from "./projectNavigation";
+
+describe("documentDestination — following a document reference", () => {
+  const core = { id: "internal-1", diskId: "core" };
+
+  it("opens a bare id in the current project", () => {
+    expect(documentDestination("n", core, "s", "main").params).toMatchObject({
+      projectId: "core",
+      documentId: "main",
+    });
+  });
+
+  it("opens a qualified id in the project it names", () => {
+    expect(documentDestination("n", core, "s", "boutique:main").params).toMatchObject({
+      projectId: "boutique",
+      documentId: "main",
+    });
+  });
+
+  it("keeps a qualified id that names the current project inside it", () => {
+    expect(documentDestination("n", core, "s", "core:main").params).toMatchObject({
+      projectId: "core",
+      documentId: "main",
+    });
+  });
+});
 
 describe("project URLs", () => {
   it("uses the exact module identity, including document links", () => {

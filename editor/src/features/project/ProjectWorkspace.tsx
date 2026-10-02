@@ -55,7 +55,7 @@ import { DeleteProjectDialog } from "@/features/sync/DeleteProjectDialog";
 import { TranslationPanelContent } from "@/features/translations/TranslationPanel";
 import { deleteUserProject } from "@/lib/api/userProjects";
 import { validActiveLang } from "@/lib/i18nUsages";
-import { projectDestination } from "@/lib/projectNavigation";
+import { documentDestination, projectDestination } from "@/lib/projectNavigation";
 import { useProjectPrincipalId } from "@/lib/projectPrincipal";
 import { projectUrlId } from "@/lib/projectUrlId";
 import { useIsDesktop } from "@/lib/useMediaQuery";
@@ -207,10 +207,11 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
   }, [pId, navigate]);
 
   // Open the individual element view on double-click (dispatched from board nodes).
+  // A qualified ref (`boutique:main`, from a link chip) opens the project it names.
   useEffect(() => {
     function onOpen(e: Event) {
       const id = (e as CustomEvent<{ id: string }>).detail?.id;
-      if (id && project) navigate(projectDestination(networkId, project, serverId, id));
+      if (id && project) navigate(documentDestination(networkId, project, serverId, id));
     }
     window.addEventListener(OPEN_ELEMENT_EVENT, onOpen);
     return () => window.removeEventListener(OPEN_ELEMENT_EVENT, onOpen);
