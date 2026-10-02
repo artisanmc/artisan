@@ -477,11 +477,17 @@ Le canvas reste monté pendant ouverture, fermeture, resize et changement d'orie
 Le bouton Boutons est un outil flottant arrondi en haut à droite du canvas, rendu par `ProjectLibraryWorkspace` dans le panneau principal du split uniquement si le panneau est fermé. Bouton et panneau sont visibles uniquement sur la planche et les vues individuelles de menus, jamais dans les vues commande ou dialogue ni les onglets secondaires. L'état d'ouverture est conservé au retour au canvas. La croix ferme le panneau et fait réapparaître l’outil ; aucun bouton Boutons dans la topbar.
 L’en-tête regroupe onglets et fermeture sans ligne de titre supplémentaire ; les filtres du catalogue restent sur une ligne défilante horizontalement, pour préserver la hauteur de grille.
 
-### `ProjectPanel` — arborescence du projet à droite
+### Registre du project — barre de gauche (le panneau de droite est retiré)
 
-`features/project/ProjectPanel.tsx` : liste **tout** le project groupé par catégorie (Menus / Commandes / Dialogs), construite par `buildProjectDocuments(project, lang)` (`useProjectDocuments.ts`).
+**Depuis 2026-10-02**, les Documents du project vivent **uniquement dans la barre de gauche** : `ProjectElementsSidebar`, `ProjectPanel`, le bouton Éléments de la topbar, `uiStore.projectPanelOpen` et le drawer mobile droit sont supprimés. À droite ne reste que l'inspecteur de la sélection (`ProjectWorkspacePanels`).
 
-**Sidebar unique (depuis 2026-10-02, en transition)** : le rendu du registre vit dans `ProjectDocumentTree` (groupes, recherche de création `+`, paramètres, menu `···`), monté à deux endroits. La barre de gauche (`ProjectSidebar`) le déplie sous la ligne du project **ouvert** (`header="actions"` : le nom est déjà sur la ligne), dès que ce project est chargé dans le compte ; un clic ferme le drawer mobile et ouvre le Document. `ProjectPanel` (droite) le monte encore avec `header="name"`, le temps que la gauche couvre tout ; il sera retiré ensuite (bouton Éléments, `uiStore.projectPanelOpen`). Le groupe est un `role="group"` nommé « Documents de … », pas un `tree` ARIA (pas de navigation clavier d'arbre). Les **autres projects** du serveur portent un chevron (`aria-expanded`) dès que l'index serveur les connaît : dépliés, ils listent leurs Documents **publiés** en lecture (`DocumentGroups` sans `editable`, donc sans menu `···`), et un clic ouvre le Document dans son project (par son dossier).
+- **`ProjectDocumentTree`** (`features/project/`) : les Documents groupés par type (`buildProjectDocuments`), **une icône par catégorie** dans l'en-tête et aucune sur les lignes ; menu `···` (éditer, supprimer). `header="name"` ajoute une ligne nom + actions (démo) ; `header="none"` quand la ligne du project les porte déjà.
+- **`ProjectActions`** : deux boutons icône, ⚙ (`openProjectSettings`) et + (créer menu / commande / dialogue), posés **à droite du nom** sur la ligne du project ouvert de « Mes projets » (et des projects de module). Plus de ligne « Paramètres du projet ».
+- **`ProjectSidebar`** : plus de sélecteur de serveur ni de lien vers le network (le fil d'Ariane de la topbar les remplace, voir UI shell). Le compteur de Documents suit directement le nom. Un project ouvert absent de la liste visible (project non listé) s'affiche en tête avec nom, actions et Documents.
+- **Démo** : la racine monte `DemoSidebar` sur `/demo/projects/…` (logo + `ProjectDocumentTree header="name"`), la démo n'ayant ni compte ni liste de serveur.
+- Largeur de la barre : **264 px** (`NavigationSidebar`). L'étape « Retrouvez chaque élément » de la visite guidée vise `data-tour="elements"` (l'arbre), ou le bouton qui ouvre la barre si elle est repliée.
+
+**Arbre du project ouvert** : la barre de gauche déplie `ProjectDocumentTree` (`header="none"`) sous la ligne du project **ouvert**, dès que ce project est chargé dans le compte ; un clic ferme le drawer mobile et passe par `goToDocument`. Le groupe est un `role="group"` nommé « Documents de … », pas un `tree` ARIA (pas de navigation clavier d'arbre). Les **autres projects** du serveur portent un chevron (`aria-expanded`) dès que l'index serveur les connaît : dépliés, ils listent leurs Documents **publiés** en lecture (`DocumentGroups` sans `editable`, donc sans menu `···`), et un clic ouvre le Document dans son project (par son dossier).
 
 - **Ligne racine** (nom du project) : clic → `openProjectSettings()`, et un `+` à côté ouvre la **création** (Menu / Commande / Dialogue). Depuis 2026-09-05 c'est le registre qui crée, pas le panneau de droite — celui-ci n'apparaît qu'à la sélection, donc il ne pouvait plus héberger « Nouveau menu ». Les dialogues y gagnent une entrée qu'ils n'avaient pas. Création **sans position** : le Document apparaît sur la planche à la place que lui donne l'arrangement.
 
@@ -556,7 +562,7 @@ Vers un autre project (référence qualifiée `boutique:main`, arbre d'un autre 
 
 ### Mobile (< lg)
 
-Le `ProjectPanel` vit dans un **drawer droit** (`Sheet`, `side="right"`) ouvert par un bouton dédié ; les 3 zones desktop deviennent mono-panneau + drawers.
+Les Documents du project sont dans le **drawer de navigation** (barre de gauche), comme sur desktop ; il n'y a plus de drawer droit. Le canvas occupe la zone centrale, l'inspecteur reste sous lui.
 
 ## Modes d'interaction + guides d'alignement (depuis 2026-06-14)
 
@@ -610,9 +616,9 @@ Lecture de **tous les projects du serveur**, en dehors du project édité. L'éd
 
 L'index montre l'état **publié** : le brouillon d'un project non édité n'y est pas. Il se rafraîchit à chaque ouverture d'un project (peu coûteux : cache par hash), pas à la suite d'un Déployer en cours de session.
 
-### Panneau toggleable
+### Fil d'Ariane de la topbar (depuis 2026-10-02)
 
-`ProjectElementsSidebar` révèle l’arbre au survol des 8 px du bord droit, en overlay arrondi de 240 px sans redimensionner les propriétés. Sortir ferme après 300 ms, sauf menu/dialogue ouvert ou focus clavier dans le panneau ; Échap referme l’overlay et rend le focus au bouton. `uiStore.projectPanelOpen`, persisté et faux par défaut, réserve une colonne fixe au clic sur Éléments (`PanelRightClose`/`PanelRightOpen`) ; un second clic referme. Le drawer mobile ouvre à droite. Cmd+K reste la recherche globale.
+`ProjectBreadcrumb` (`components/`) remplace le nom seul du project en tête de la topbar : **network › serveur › project**, les deux premiers niveaux étant des liens vers leurs pages (le libellé du serveur est lu via `getNetwork`). Hors network (démo), seul le project s'affiche. Rendu par le composant du design system `components/ui/breadcrumb.tsx` (`Breadcrumb`, `BreadcrumbCurrent`, `breadcrumbLinkClass` ; spécimen sur `/admin/design`). Changer de serveur passe par ce fil (page du serveur ou du network), plus par un sélecteur dans la barre.
 
 ## UI shell — Project + Settings (depuis 2026-05-27)
 

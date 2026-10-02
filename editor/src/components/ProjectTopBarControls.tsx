@@ -1,3 +1,4 @@
+import { ProjectBreadcrumb } from "@/components/ProjectBreadcrumb";
 import { LinkedServersDropdown } from "@/components/LinkedServersDropdown";
 import { RefreshProjectButton } from "@/components/RefreshProjectButton";
 import { TopBarKebabMenu } from "@/components/TopBarKebabMenu";
@@ -69,7 +70,7 @@ import { useProjectDraftStore } from "@/state/projectDraftStore";
 import { useProjectRuntime } from "@/state/projectRuntimeStore";
 import { useSidebarStore } from "@/state/sidebarStore";
 import { useUiStore } from "@/state/uiStore";
-import { useNavigate, useSearch } from "@tanstack/react-router";
+import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import {
   ChevronDown,
   Database as DatabaseIcon,
@@ -142,6 +143,7 @@ export function ProjectTopBarControls({
   const { t } = useTranslation();
   const navigationPinned = useSidebarStore((s) => s.pinned);
   const { tab } = useSearch({ strict: false }) as { tab?: string };
+  const { serverId: serverRef } = useParams({ strict: false }) as { serverId?: string };
 
   // Le hors-ligne n'est plus un bandeau : le badge serveur le porte déjà en rouge,
   // et l'infobulle en donne la raison exacte (date de la copie, brouillon, never-published).
@@ -164,13 +166,12 @@ export function ProjectTopBarControls({
         data-testid="project-header"
         className="grid min-h-12 min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1 rounded-[var(--r-lg)] bg-[var(--surface)] px-2 py-1 lg:flex lg:flex-nowrap lg:gap-x-3"
       >
-        <div className="flex min-w-0 items-center gap-2 pl-11 lg:max-w-56 lg:pl-0">
-          <span
-            className="font-display min-w-0 truncate text-sm text-[var(--text)]"
-            title={displayName}
-          >
-            {displayName}
-          </span>
+        <div className="flex min-w-0 items-center gap-2 pl-11 lg:max-w-md lg:pl-0">
+          <ProjectBreadcrumb
+            networkRef={networkId}
+            serverRef={serverRef}
+            projectName={displayName}
+          />
           <div className="hidden md:block">
             <LinkedServersDropdown
               networkId={networkId}
