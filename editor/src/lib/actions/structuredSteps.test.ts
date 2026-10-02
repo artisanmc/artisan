@@ -1,10 +1,11 @@
 import type { Condition, I18nKey, LText, Step } from "@/domain/types";
 import { describe, expect, it } from "vitest";
 import {
+  type ActionTextCodec,
   conditionToStructured,
+  conditionsToStructured,
   stepsToStructured,
   structuredToSteps,
-  type ActionTextCodec,
 } from "./structuredSteps";
 
 const values: Record<string, Record<string, string>> = {
@@ -65,7 +66,10 @@ describe("structuredSteps — actions", () => {
       { kind: "action", action: { type: "send_message", text: { key: "m1" as I18nKey } } },
       { kind: "action", action: { type: "open_dialog", dialogId: "confirm", clearContext: true } },
       { kind: "action", action: { type: "play_sound", sound: "PLING", pitch: 1.2 } },
-      { kind: "action", action: { type: "paginate", direction: "next", targetElementId: "grid" as never } },
+      {
+        kind: "action",
+        action: { type: "paginate", direction: "next", targetElementId: "grid" as never },
+      },
     ];
     const { wire, wire2 } = roundTrip(steps);
     expect(wire2).toEqual(wire);
@@ -129,7 +133,9 @@ describe("structuredSteps — if / else", () => {
             steps: [{ kind: "action", action: { type: "open_dialog", dialogId: "d" } }],
           },
         ],
-        else: [{ kind: "action", action: { type: "send_message", text: { key: "m1" as I18nKey } } }],
+        else: [
+          { kind: "action", action: { type: "send_message", text: { key: "m1" as I18nKey } } },
+        ],
       },
     ];
     const { wire, back, wire2 } = roundTrip(steps);
@@ -173,6 +179,46 @@ describe("structuredSteps — if / else", () => {
     expect(stepsToStructured(steps, codec)).toEqual([
       { if: [{ or: [{ world_is: "a" }, { world_is: "b" }] }], do: ["close_menu"] },
     ]);
+  });
+});
+
+describe("structuredSteps — mixed and/or joins", () => {
+  const w = (world: string): Condition => ({ type: "world_is", world });
+
+  it("folds left to right: A and B or C → (A and B) or C", () => {
+    expect(conditionsToStructured([w("a"), w("b"), w("c")], ["and", "or"])).toEqual([
+      { or: [{ and: [{ world_is: "a" }, { world_is: "b" }] }, { world_is: "c" }] },
+    ]);
+  });
+
+  it("folds left to right: A or B and C → (A or B) and C, AND staying implicit", () => {
+    expect(conditionsToStructured([w("a"), w("b"), w("c")], ["or", "and"])).toEqual([
+      { or: [{ world_is: "a" }, { world_is: "b" }] },
+      { world_is: "c" },
+    ]);
+  });
+
+  it("evaluates like the plugin's caseMatches for every join and truth combination", () => {
+    const evalWire = (node: unknown, truth: Record<string, boolean>): boolean => {
+      const [[key, value]] = Object.entries(node as Record<string, unknown>) as [[string, unknown]];
+      if (key === "world_is") return truth[value as string]!;
+      if (key === "and") return (value as unknown[]).every((n) => evalWire(n, truth));
+      if (key === "or") return (value as unknown[]).some((n) => evalWire(n, truth));
+      throw new Error(key);
+    };
+    const names = ["a", "b", "c", "d"];
+    for (let j = 0; j < 8; j++) {
+      const joins = [0, 1, 2].map((bit) => ((j >> bit) & 1 ? "or" : "and") as "and" | "or");
+      const wire = conditionsToStructured(names.map(w), joins);
+      for (let t = 0; t < 16; t++) {
+        const truth = Object.fromEntries(names.map((n, i) => [n, ((t >> i) & 1) === 1]));
+        let expected = truth.a!;
+        for (let i = 1; i < 4; i++)
+          expected =
+            joins[i - 1] === "or" ? expected || truth[names[i]!]! : expected && truth[names[i]!]!;
+        expect(wire.every((n) => evalWire(n, truth))).toBe(expected);
+      }
+    }
   });
 });
 

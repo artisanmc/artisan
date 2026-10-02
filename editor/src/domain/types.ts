@@ -373,8 +373,9 @@ export type Step =
  *   conditions[i+1]. Length is `max(0, conditions.length - 1)`. Missing
  *   entries default to "and".
  *
- *   Standard precedence at runtime: AND binds tighter than OR. So
- *   `A AND B OR C AND D` evaluates as `(A AND B) OR (C AND D)`.
+ *   Evaluated left to right, without precedence (plugin `caseMatches`):
+ *   `A AND B OR C AND D` evaluates as `((A AND B) OR C) AND D`. The
+ *   structured wire encodes exactly that nesting (`conditionsToStructured`).
  *
  * For unary negation use `Condition` of type `not`. Composite AND/OR
  * conditions also exist for explicit grouping when precedence isn't enough.
