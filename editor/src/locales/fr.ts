@@ -2100,6 +2100,22 @@ const fr: typeof en = {
     server: "Serveur",
     draft: "Brouillon",
     confirm: "Déployer sur le serveur",
+    checks: {
+      title: "Contrôles entre projets",
+      none: "Aucun conflit avec les autres projets.",
+      pending:
+        "Les autres projets sont en cours de lecture : les contrôles entre projets ne sont pas encore faits.",
+      unavailable:
+        "Les autres projets n'ont pas pu être lus : les contrôles entre projets n'ont pas été faits.",
+      unreadable: "Projets illisibles, contrôles incomplets : {{names}}.",
+      commandConflict: "/{{name}} est revendiquée par {{owners}} : le jeu n'en garde qu'une.",
+      duplicateMenu: "Le menu {{id}} existe dans {{owners}} : le jeu n'en garde qu'un.",
+      duplicateDialog: "Le dialogue {{id}} existe dans {{owners}} : le jeu n'en garde qu'un.",
+      brokenMissing: "{{kind}} {{from}} : lien vers {{target}} introuvable sur le serveur.",
+      brokenAmbiguous:
+        "{{kind}} {{from}} : lien vers {{target}} ambigu, plusieurs projets le définissent.",
+      kind: { menu: "Menu", command: "Commande", dialog: "Dialogue" },
+    },
   },
   userMenu: {
     resourceUsage: "Utilisation des ressources",

@@ -61,12 +61,15 @@ describe("useServerIndexLoader", () => {
     });
     await waitFor(() => expect(useServerIndexStore.getState().projects).toHaveLength(1));
 
-    const second = Promise.withResolvers<unknown>();
-    loadServerProjects.mockReturnValueOnce(second.promise);
+    let resolveSecond!: (value: unknown) => void;
+    const second = new Promise<unknown>((resolve) => {
+      resolveSecond = resolve;
+    });
+    loadServerProjects.mockReturnValueOnce(second);
     rerender({ srv: "two" });
 
     await waitFor(() => expect(useServerIndexStore.getState().scope).toBe("net/two"));
     expect(useServerIndexStore.getState().projects).toEqual([]);
-    second.resolve({ status: "ready", projects: [], failed: [] });
+    resolveSecond({ status: "ready", projects: [], failed: [] });
   });
 });
