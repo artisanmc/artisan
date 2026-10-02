@@ -208,6 +208,31 @@ describe("checkServerIssues — links", () => {
     ).toEqual(["command:cmd", "menu:m"]);
   });
 
+  it("treats a local target as resolved: only the duplicate id remains to warn about", () => {
+    const issues = checkServerIssues(
+      project("core", { menus: [menu("accueil", [{ to: "main" }]), menu("main")] }),
+      [project("shop", { menus: [menu("main")] })],
+    );
+    expect(issues.map((i) => i.kind)).toEqual(["duplicate_id"]);
+  });
+
+  it("accepts a qualified link to another project, and flags one to a missing document", () => {
+    const issues = checkServerIssues(
+      project("core", {
+        menus: [menu("accueil", [{ to: "shop:catalogue" }, { to: "shop:absent" }])],
+      }),
+      [project("shop", { menus: [menu("catalogue")] })],
+    );
+    expect(issues).toEqual([
+      {
+        kind: "broken_link",
+        reason: "missing",
+        targetId: "shop:absent",
+        from: { docId: "accueil", docKind: "menu" },
+      },
+    ]);
+  });
+
   it("does not report the broken links of other projects", () => {
     const issues = checkServerIssues(project("core"), [
       project("shop", { menus: [menu("main", [{ to: "fantome" }])] }),

@@ -108,14 +108,61 @@ describe("deriveServerGraph", () => {
     ]);
   });
 
-  it("reports an id shared by two projects as ambiguous: the game would pick one arbitrarily", () => {
+  it("resolves a bare id in the referencing project first, even when another project has it too", () => {
     const graph = deriveServerGraph([
       project("core", { menus: [menu("accueil", [{ to: "doublon" }]), menu("doublon")] }),
       project("boutique", { menus: [menu("doublon")] }),
     ]);
+    expect(graph.unresolved).toEqual([]);
+    expect(graph.edges.map((e) => [e.source, e.target])).toEqual([
+      [documentKey("core", "accueil"), documentKey("core", "doublon")],
+    ]);
+  });
+
+  it("reports a bare id as ambiguous when it is not local and two other projects define it", () => {
+    const graph = deriveServerGraph([
+      project("core", { menus: [menu("accueil", [{ to: "doublon" }])] }),
+      project("a", { menus: [menu("doublon")] }),
+      project("b", { menus: [menu("doublon")] }),
+    ]);
     expect(graph.edges).toEqual([]);
     expect(graph.unresolved).toEqual([
       { source: documentKey("core", "accueil"), targetId: "doublon", reason: "ambiguous" },
+    ]);
+  });
+
+  it("follows a qualified `project:id` link to that project, whatever the others define", () => {
+    const graph = deriveServerGraph([
+      project("core", { menus: [menu("accueil", [{ to: "boutique:main" }]), menu("main")] }),
+      project("boutique", { menus: [menu("main")] }),
+    ]);
+    expect(graph.edges.map((e) => [e.source, e.target])).toEqual([
+      [documentKey("core", "accueil"), documentKey("boutique", "main")],
+    ]);
+  });
+
+  it("names projects by their on-disk folder in a qualified link", () => {
+    const shop = {
+      ...project("internal-7", { menus: [menu("main")] }),
+      diskId: "boutique",
+    } as Project;
+    const graph = deriveServerGraph([
+      project("core", { menus: [menu("accueil", [{ to: "boutique:main" }])] }),
+      shop,
+    ]);
+    expect(graph.edges.map((e) => e.target)).toEqual([documentKey("internal-7", "main")]);
+  });
+
+  it("reports a qualified link to an unknown project or document as missing", () => {
+    const graph = deriveServerGraph([
+      project("core", {
+        menus: [menu("accueil", [{ to: "nulle:main" }, { to: "boutique:absent" }])],
+      }),
+      project("boutique", { menus: [menu("main")] }),
+    ]);
+    expect(graph.unresolved.map((u) => [u.targetId, u.reason])).toEqual([
+      ["boutique:absent", "missing"],
+      ["nulle:main", "missing"],
     ]);
   });
 

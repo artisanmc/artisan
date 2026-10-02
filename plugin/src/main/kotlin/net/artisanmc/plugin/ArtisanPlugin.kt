@@ -143,6 +143,7 @@ open class ArtisanPlugin : JavaPlugin() {
                                     args = args,
                                     lang = lang,
                                     langMap = langMap,
+                                    projectId = projectId,
                                 ),
                             )
                         }

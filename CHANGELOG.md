@@ -9,6 +9,8 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+- Menus and dialogs can be referenced across projects as `project:id` (e.g. `open_menu: boutique:main`). A bare id now resolves in the referencing project first, then on the server if only one project defines it — so two projects can each have their own `main`. Ambiguous bare ids keep opening the menu they opened before, with a one-time server log warning. The back action reopens the exact screen, never a same-id screen of another project. ADR `project-qualified-refs`.
+
 - The deploy review now warns about conflicts with the server's other projects before anything is written: a command name or alias claimed twice, a menu or dialog id defined in two projects, and links that point to nothing (or to an id several projects define). They are warnings, not blockers, and the review says so when the other projects could not be read or are still loading instead of implying all is well.
 
 - The search palette (Ctrl/Cmd+K) also finds the menus, commands and dialogs of the server's other projects, labelled with their project, and opens them in that project. Other projects are read from their published state in the background once the open project is ready.

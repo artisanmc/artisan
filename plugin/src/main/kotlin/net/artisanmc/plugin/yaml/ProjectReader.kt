@@ -192,7 +192,7 @@ class ProjectReader(
                 BundleCompiler.compile(
                     resolveTemplates(currentMenu, templates),
                     langMaps, logger, defaultLang = manifest.defaultLang,
-                )
+                ).copy(projectId = projectId)
             }.getOrElse { e ->
                 if (e is IllegalArgumentException) throw e // schema-version rejection stays loud
                 logger?.warning("[Artisan] skipping menu ${f.name}: ${e.message}")
@@ -220,7 +220,7 @@ class ProjectReader(
             runCatching {
                 val dialogYaml = withFileId(mapper.readValue(f, DialogYaml::class.java), dialogId, f)
                 requireSchema(f, dialogYaml.schema, "dialog/v1")
-                BundleDialog(dialogYaml, langMaps, defaultLang = manifest.defaultLang)
+                BundleDialog(dialogYaml, langMaps, defaultLang = manifest.defaultLang, projectId = projectId)
             }.getOrElse { e ->
                 if (e is IllegalArgumentException) throw e // schema-version rejection stays loud
                 logger?.warning("[Artisan] skipping dialog ${f.name}: ${e.message}")
