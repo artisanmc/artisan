@@ -1238,6 +1238,7 @@ export default {
     pluginOutdated: "Plugin outdated — update it to edit this server",
   },
   sidebar: {
+    projectDocuments: "Documents of {{name}}",
     settings: "Settings",
     brand: "Artisan",
     myProjects: "My Projects",

@@ -15,7 +15,8 @@ import {
   useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { Link, useParams } from "@tanstack/react-router";
+import { ProjectDocumentTree } from "@/features/project/ProjectDocumentTree";
+import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { type ReactNode, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -543,6 +544,41 @@ function ScreenItem({
   );
 }
 
+/**
+ * Les Documents du project ouvert, sous sa ligne : la barre de gauche devient
+ * le registre (ADR à venir sur la sidebar unique). Ne s'affiche qu'une fois le
+ * project chargé dans le compte, donc jamais pour un project simplement listé.
+ */
+function ActiveProjectDocuments({
+  id,
+  urlId,
+  networkId,
+  serverId,
+}: {
+  id: string;
+  urlId?: string;
+  networkId: string | null;
+  serverId: string | null;
+}) {
+  const navigate = useNavigate();
+  const project = useAccountStore((s) =>
+    s.account.projects.find((p) => p.id === id || (!!urlId && projectUrlId(p) === urlId)),
+  );
+  if (!project || !networkId) return null;
+  return (
+    <div className="ml-3 border-l border-[var(--border)] pl-1">
+      <ProjectDocumentTree
+        projectId={project.id}
+        header="actions"
+        onOpen={(documentId) => {
+          useSidebarStore.getState().close();
+          void navigate(projectDestination(networkId, project, serverId ?? undefined, documentId));
+        }}
+      />
+    </div>
+  );
+}
+
 /** Add-on-owned project link under "Installed modules" — like a project item but
  *  not reorderable (its placement is the module's, not the user's). */
 function OwnedProjectItem({
@@ -590,6 +626,9 @@ function OwnedProjectItem({
           </span>
         )}
       </ProjectLink>
+      {isActiveProject && (
+        <ActiveProjectDocuments id={id} urlId={urlId} networkId={networkId} serverId={serverId} />
+      )}
     </li>
   );
 }
@@ -665,6 +704,9 @@ function SortableProjectItem({
           <GripVertical className="size-3.5" />
         </button>
       </div>
+      {isActiveProject && (
+        <ActiveProjectDocuments id={id} urlId={urlId} networkId={networkId} serverId={serverId} />
+      )}
     </li>
   );
 }
