@@ -18,6 +18,7 @@ import {
 import { projectNamespace } from "@/domain/docRef";
 import type { Project } from "@/domain/types";
 import { DocumentGroups, ProjectDocumentTree } from "@/features/project/ProjectDocumentTree";
+import { goToDocument } from "@/features/project/goToDocument";
 import { useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { type ReactNode, useEffect, useState } from "react";
@@ -575,7 +576,7 @@ function ActiveProjectDocuments({
         header="actions"
         onOpen={(documentId) => {
           useSidebarStore.getState().close();
-          void navigate(projectDestination(networkId, project, serverId ?? undefined, documentId));
+          goToDocument(navigate, { networkId, serverId, project, ref: documentId });
         }}
       />
     </div>
@@ -614,14 +615,11 @@ function OtherProjectDocuments({
         project={project}
         onOpen={(documentId) => {
           useSidebarStore.getState().close();
-          void navigate(
-            projectDestination(
-              networkId,
-              projectNamespace(project),
-              serverId ?? undefined,
-              documentId,
-            ),
-          );
+          // Ouvre ce project, centré sur le Document (`?doc=`, cf. goToDocument).
+          void navigate({
+            ...projectDestination(networkId, projectNamespace(project), serverId ?? undefined),
+            search: { doc: documentId },
+          } as never);
         }}
       />
     </div>

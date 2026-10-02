@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fitViewport } from "./focusViewport";
+import { centerViewport, fitViewport } from "./focusViewport";
 
 const BOX = { width: 352, height: 400 };
 
@@ -29,5 +29,23 @@ describe("fitViewport", () => {
 
   it("degrades to a neutral viewport before the region is measured", () => {
     expect(fitViewport({ w: 0, h: 0 }, BOX)).toEqual({ x: 0, y: 0, scale: 1 });
+  });
+});
+
+describe("centerViewport", () => {
+  it("frames a document where it sits on the board, as fitViewport frames it at the origin", () => {
+    const view = { w: 1000, h: 800 };
+    const atOrigin = fitViewport(view, BOX);
+    const v = centerViewport(view, { x: 600, y: 300, ...BOX });
+    expect(v.scale).toBe(atOrigin.scale);
+    // The document's top-left lands exactly where fitViewport puts the origin.
+    expect(600 * v.scale + v.x).toBeCloseTo(atOrigin.x);
+    expect(300 * v.scale + v.y).toBeCloseTo(atOrigin.y);
+  });
+
+  it("never zooms in past 1:1 on a small document", () => {
+    expect(
+      centerViewport({ w: 2000, h: 1600 }, { x: 10, y: 10, width: 100, height: 60 }).scale,
+    ).toBe(1);
   });
 });

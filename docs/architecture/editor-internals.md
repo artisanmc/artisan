@@ -544,9 +544,15 @@ const layout = focus ? { [focus]: { x: 0, y: 0 } } : projectBoard(project).layou
 
 Le clic dépend du mode, via la prop optionnelle `onOpen` : sur la **planche**, aucun (il n'y a rien à poser, et écrire une position pour un Document inexistant polluerait `canvasLayout`) ; en **focus**, `dispatchOpenElement(target)` — il n'y a pas de planche à peupler, la pastille devient le moyen de circuler de Document en Document, y compris vers des Documents jamais posés sur la planche.
 
+### Aller à un Document : `goToDocument` (depuis 2026-10-02)
+
+`features/project/goToDocument.ts` est la **seule** façon d'aller à un Document depuis l'arbre (gauche et droite), la palette ⌘K et la planche générale. Dans le project courant, il **reste sur la planche** : sélection du Document (l'inspecteur s'ouvre), puis `uiStore.requestCenter(projectId, docId)` et retour à la planche (on quitte la vue focus ou un onglet). Le `Stage` de la planche consomme la demande (`viewportForCenterRequest` → `centerViewport`, même cadrage que `fitViewport` mais à la position du Document, jamais au-delà de 1:1) dès qu'il a une taille et que le Document est placé, puis l'efface ; le `nonce` fait qu'un second clic sur le même Document recentre. `centerRequest` est éphémère (hors `partialize`).
+
+Vers un autre project (référence qualifiée `boutique:main`, arbre d'un autre project, planche générale), la navigation passe par le **lien profond `?doc=<id>`** (`ProjectSearch.doc`) : `ProjectCanvasPage` le transforme en `goToDocument` une fois le project chargé, ce qui retire le paramètre de l'URL.
+
 ### Entrées dans la vue individuelle
 
-Clic dans le panneau, ou **double-clic** sur un nœud de la planche : `dispatchOpenElement(id)` (`features/canvas/canvasEvents.ts`) émet le CustomEvent `artisan:open_element` (`OPEN_ELEMENT_EVENT`), écouté par la route overview qui `navigate` vers la route Document.
+**Double-clic** sur un nœud de la planche : `dispatchOpenElement(id)` (`features/canvas/canvasEvents.ts`) émet le CustomEvent `artisan:open_element` (`OPEN_ELEMENT_EVENT`), écouté par la route overview qui `navigate` vers la route Document (`documentDestination`, qui suit aussi une référence qualifiée). Les pastilles de lien de la vue focus passent par le même événement. Un clic simple dans l'arbre ou la palette ne l'ouvre plus : il centre la planche (`goToDocument`).
 
 ### Mobile (< lg)
 

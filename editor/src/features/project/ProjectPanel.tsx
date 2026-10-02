@@ -1,8 +1,8 @@
 import type { ProjectId } from "@/domain/types";
-import { projectDestination } from "@/lib/projectNavigation";
 import { useAccountStore } from "@/state/accountStore";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { ProjectDocumentTree } from "./ProjectDocumentTree";
+import { goToDocument } from "./goToDocument";
 
 /** Le registre du project dans le panneau de droite (rendu partagé : `ProjectDocumentTree`). */
 export function ProjectPanel({ projectId }: { projectId: ProjectId }) {
@@ -16,7 +16,12 @@ export function ProjectPanel({ projectId }: { projectId: ProjectId }) {
       <ProjectDocumentTree
         projectId={projectId}
         onOpen={(id) =>
-          navigate(projectDestination(params.networkId!, project, params.serverId, id))
+          goToDocument(navigate, {
+            networkId: params.networkId,
+            serverId: params.serverId,
+            project,
+            ref: id,
+          })
         }
       />
     </nav>

@@ -39,6 +39,7 @@ import { Selection } from "./Selection";
 import { projectBoard } from "./autoLayout";
 import { dismissInspector, openProjectSettings } from "@/features/project/projectSettings";
 import { dispatchOpenElement } from "./canvasEvents";
+import { viewportForCenterRequest } from "./centerRequest";
 import { fitViewport } from "./focusViewport";
 import { hitTestSlot, screenToWorld } from "./hitTest";
 import { menuBoxSize, nodeBox } from "./menuLayout";
@@ -212,6 +213,17 @@ function StageCanvas({ projectId, focus }: StageProps) {
     if (touchedRef.current || size.w === 0 || !focusBox) return;
     setViewport(fitViewport(size, focusBox));
   }, [size, focusBox, setViewport]);
+
+  // `goToDocument` : centrer la planche sur un Document. La demande attend que
+  // la planche ait une taille et que le Document y soit placé, puis est consommée.
+  const centerRequest = useUiStore((s) => s.centerRequest);
+  useEffect(() => {
+    if (focusMode || !centerRequest) return;
+    const centred = viewportForCenterRequest(centerRequest, projectId, project, layout, size);
+    if (!centred) return;
+    setViewport(centred);
+    useUiStore.getState().clearCenterRequest(centerRequest.nonce);
+  }, [centerRequest, focusMode, projectId, project, layout, size, setViewport]);
 
   const marquee = useMarqueeSelection({
     stageRef,
