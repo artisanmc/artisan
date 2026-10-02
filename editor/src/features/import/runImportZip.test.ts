@@ -220,4 +220,32 @@ describe("applyImportZip", () => {
     const updated = mocks.updateDraft.mock.calls[0]![4];
     expect(updated.binaryTree["assets/icon.png"].hash).toBe(await hashBytes(bytes));
   });
+
+  it("en écrasement, retire du brouillon les images absentes de l'archive même sans autre image modifiée", async () => {
+    mocks.readProjectZip.mockResolvedValue({});
+    mocks.normalizeProjectFiles.mockReturnValue(
+      normalized({ "plugins/Artisan/projects/shop/manifest.yaml": "id: shop\n" }),
+    );
+    mocks.listServerProjects.mockResolvedValue({
+      ok: true,
+      projectIds: ["shop"],
+      projects: [shopSummary],
+    });
+    mocks.readProjectFiles.mockResolvedValue({
+      ok: true,
+      files: { "manifest.yaml": "id: shop\n" },
+      binaries: [{ path: "assets/old.png", hash: "h-old", size: 3 }],
+      failed: [],
+      hash: "h",
+    });
+
+    const prepared = await prepareImportZip(file, target, "overwrite");
+    if (!prepared.ok) throw new Error("expected preview");
+    expect(prepared.preview.diff.serverOnly).toEqual(["assets/old.png"]);
+    await applyImportZip(prepared.preview);
+
+    expect(mocks.uploadDraftBlob).not.toHaveBeenCalled();
+    expect(mocks.updateDraft).toHaveBeenCalledTimes(1);
+    expect(mocks.updateDraft.mock.calls[0]![4].binaryTree).toEqual({});
+  });
 });

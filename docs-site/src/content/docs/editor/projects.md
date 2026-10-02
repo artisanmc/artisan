@@ -100,6 +100,10 @@ conflict is shown as a Git-style diff; choose **Keep import** or **Keep server**
 file. Tick **Keep this choice for all following files** to apply one choice to the
 remaining conflicts. Images that differ are resolved by identity, without a line diff.
 
+In **Overwrite** mode there is nothing to choose: a confirmation screen shows the files
+the archive will replace (with their diffs) and lists the server files that will be
+removed, then **Apply import** writes the archive as is.
+
 The archive is a full project export, or the project's folder zipped as-is. Private
 working data — drafts and operation journals — is excluded, as at export.
 
