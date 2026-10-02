@@ -82,7 +82,7 @@ class MenuListener(
         val shown = store.current(player)?.takeIf { it.kind == NavigationEntry.Kind.MENU } ?: return
         plugin.server.scheduler.runTask(plugin, Runnable {
             if (store.current(player) !== shown) return@Runnable
-            if (player.openInventory.topInventory.holder is ArtisanMenuHolder) return@Runnable
+            if (player.openInventory.topInventory?.holder is ArtisanMenuHolder) return@Runnable
             store.clear(player)
         })
     }
