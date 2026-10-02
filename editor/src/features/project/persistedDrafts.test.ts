@@ -3,6 +3,7 @@ import { useAuthStore } from "@/state/authStore";
 import { useProjectCacheStore } from "@/state/projectCacheStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
 import { beforeEach, expect, it, vi } from "vitest";
+import { rebaseDraft } from "./draftRebase";
 import { onProjectRenamed } from "./onProjectRenamed";
 import {
   consumeOpenConflicts,
@@ -521,9 +522,54 @@ it("tranche un conflit : prendre l'autre session ne réécrit rien", async () =>
   await resolveDraftConflict("p1", { "manifest.yaml": "disk" });
   expect(api.updateDraft).not.toHaveBeenCalled();
   expect(useProjectDraftStore.getState().get("p1")?.tree["manifest.yaml"]).toBe("theirs");
-  expect(useProjectDraftStore.getState().get("p1")?.baseline["manifest.yaml"]).toBe("theirs");
+  // La version de l'autre session n'est pas publiée : la base reste le disque.
+  expect(useProjectDraftStore.getState().get("p1")?.baseline["manifest.yaml"]).toBe("base");
   expect(usePersistedDraftStore.getState().sessions.p1?.status).toBe("saved");
   expect(usePersistedDraftStore.getState().sessions.p1?.draftConflict).toBeUndefined();
+});
+
+const disk = { "g.yaml": "base", "m.yaml": "base" };
+const revisionOf = (revision: number, tree: Record<string, string>) => ({
+  ...remote,
+  revision,
+  snapshot: { baseline: disk, tree, initialTree: disk, at: 1 },
+});
+
+it("garde la base sur le disque quand il reprend le travail d'une autre session", async () => {
+  vi.mocked(api.listDrafts).mockResolvedValue([revisionOf(1, disk)]);
+  await loadPersistedDrafts("p1", "u1");
+  const mine = useProjectDraftStore.getState().get("p1")!;
+  useProjectDraftStore.getState().save("p1", { ...mine, tree: { ...mine.tree, "g.yaml": "A" } });
+  vi.mocked(api.updateDraft).mockRejectedValueOnce(
+    new api.DraftApiError("draft_conflict", 409, revisionOf(2, { ...disk, "m.yaml": "B" })),
+  );
+  await syncPersistedDraft("p1");
+  expect(usePersistedDraftStore.getState().sessions.p1?.draftConflict?.conflicts).toEqual([]);
+  vi.mocked(api.updateDraft).mockImplementation(async (_p, _id, revision, _name, saved) => ({
+    ...remote,
+    revision: revision + 1,
+    snapshot: saved,
+  }));
+  await resolveDraftConflict("p1", {});
+  const saved = vi.mocked(api.updateDraft).mock.calls.at(-1)![4];
+  expect(saved.tree).toEqual({ "g.yaml": "A", "m.yaml": "B" });
+  expect(saved.baseline).toEqual(disk);
+  // Relu par le backend (rebase contre le disque), le travail de B survit.
+  expect(rebaseDraft(saved, { files: disk, binaries: {} }).snapshot.tree["m.yaml"]).toBe("B");
+});
+
+it("ne signale pas de conflit sur un fichier changé depuis la dernière révision commune", async () => {
+  const shared = { ...disk, "m.yaml": "S" };
+  vi.mocked(api.listDrafts).mockResolvedValue([revisionOf(1, shared)]);
+  await loadPersistedDrafts("p1", "u1");
+  const mine = useProjectDraftStore.getState().get("p1")!;
+  useProjectDraftStore.getState().save("p1", { ...mine, tree: { ...mine.tree, "g.yaml": "A" } });
+  vi.mocked(api.updateDraft).mockRejectedValueOnce(
+    new api.DraftApiError("draft_conflict", 409, revisionOf(2, { ...shared, "m.yaml": "B" })),
+  );
+  await syncPersistedDraft("p1");
+  expect(usePersistedDraftStore.getState().sessions.p1?.draftConflict?.conflicts).toEqual([]);
+  expect(useProjectDraftStore.getState().get("p1")?.tree).toEqual({ "g.yaml": "A", "m.yaml": "B" });
 });
 
 it("ne vide pas la base d'images locale quand le brouillon distant n'en porte pas", async () => {
