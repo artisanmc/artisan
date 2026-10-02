@@ -29,6 +29,10 @@ main → wiki → item
 Two backs from `item` land on `main`; a back from `main` does nothing (empty
 stack). Dialogs are part of the same history, so a back can re-open a dialog too.
 
+Closing a menu without opening another screen (pressing Esc, or a **close_menu**
+action) ends the navigation and empties the history. A link to a menu or dialog
+that does not exist leaves the history unchanged.
+
 ## Showing the button only when it can work
 
 Use the `{has_previous_menu}` placeholder to hide the button when there is
