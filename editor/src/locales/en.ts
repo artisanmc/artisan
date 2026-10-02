@@ -2380,6 +2380,7 @@ export default {
     groupDialog: "Dialogs",
     groupContent: "Content",
     ctxInMenu: "in {{owner}}",
+    ctxInProject: "in {{owner}}",
     ctxItemTitle: "title · {{owner}}",
     ctxItemLore: "lore · {{owner}}",
     ctxDialogBody: "dialog · {{owner}}",

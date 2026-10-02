@@ -9,6 +9,11 @@ import { useSelectionStore } from "@/state/selectionStore";
 import { buildSearchIndex, groupResultsForDisplay, searchQuery, type SearchEntry, type SearchGroup } from "./searchIndex";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { projectDestination } from "@/lib/projectNavigation";
+import { indexProjectDocuments, namespaceOf, toSearchEntries } from "@/features/serverIndex/serverIndex";
+import { serverIndexScope, useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
+import type { Project } from "@/domain/types";
+
+const NO_PROJECTS: Project[] = [];
 
 const GROUP_ICON: Record<SearchGroup, typeof Search> = {
   menu: LayoutGrid, command: TerminalSquare, dialog: MessageSquare, content: Search,
@@ -30,8 +35,26 @@ export function SearchPalette({ projectId }: { projectId: ProjectId }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const activeRowRef = useRef<HTMLButtonElement>(null);
 
+  const scope = params.networkId && params.serverId ? serverIndexScope(params.networkId, params.serverId) : null;
+  const serverProjects = useServerIndexStore((s) => (s.scope === scope ? s.projects : NO_PROJECTS));
+  const editedNamespace = project ? namespaceOf(project) : projectId;
+
   const index = useMemo(() => (project ? buildSearchIndex(project, activeLang) : []), [project, activeLang]);
-  const results = useMemo(() => groupResultsForDisplay(searchQuery(index, q)), [index, q]);
+  // Les autres projects du serveur : leurs Documents seulement (pas leur contenu).
+  // Le project édité est déjà indexé en détail, et en direct — jamais en double.
+  const remote = useMemo(
+    () =>
+      toSearchEntries(
+        serverProjects
+          .filter((p) => namespaceOf(p) !== editedNamespace)
+          .flatMap((p) => indexProjectDocuments(p, activeLang)),
+      ),
+    [serverProjects, editedNamespace, activeLang],
+  );
+  const results = useMemo(
+    () => groupResultsForDisplay(searchQuery([...index, ...remote], q)),
+    [index, remote, q],
+  );
 
   useEffect(() => {
     if (open) {
@@ -47,7 +70,14 @@ export function SearchPalette({ projectId }: { projectId: ProjectId }) {
 
   const choose = (entry: SearchEntry | undefined) => {
     if (!entry) return;
-    navigate(projectDestination(params.networkId, project ?? projectId, params.serverId, entry.target.openId));
+    navigate(
+      projectDestination(
+        params.networkId,
+        entry.target.projectUrlId ?? project ?? projectId,
+        params.serverId,
+        entry.target.openId,
+      ),
+    );
     if (entry.target.selectId) {
       // `openId` is the owning menu — scope the element selection to it so a
       // shared element id doesn't resolve to the wrong menu.
