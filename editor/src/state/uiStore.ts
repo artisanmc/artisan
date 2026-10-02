@@ -31,6 +31,12 @@ export interface DraggingNewLayer {
   y: number;
 }
 
+export interface CenterRequest {
+  projectId: string;
+  docId: string;
+  nonce: number;
+}
+
 interface UiState {
   /** Last project the user opened. The index route reads this to redirect. */
   lastActiveProjectId: ProjectId | null;
@@ -207,6 +213,14 @@ interface UiState {
    */
   documentViewport: ViewportState | null;
   setDocumentViewport: (viewport: ViewportState | null) => void;
+  /**
+   * « Centre la planche sur ce Document » (`goToDocument`). Éphémère, jamais
+   * persisté ; le `nonce` fait qu'un second clic sur le même Document recentre.
+   * La planche du project la consomme dès qu'elle peut y répondre.
+   */
+  centerRequest: CenterRequest | null;
+  requestCenter: (projectId: string, docId: string) => void;
+  clearCenterRequest: (nonce: number) => void;
 }
 
 export const useUiStore = create<UiState>()(
@@ -383,6 +397,13 @@ export const useUiStore = create<UiState>()(
       setMinimapVisible: (minimapVisible) => set({ minimapVisible }),
       documentViewport: null,
       setDocumentViewport: (viewport) => set({ documentViewport: viewport }),
+      centerRequest: null,
+      requestCenter: (projectId, docId) =>
+        set((s) => ({
+          centerRequest: { projectId, docId, nonce: (s.centerRequest?.nonce ?? 0) + 1 },
+        })),
+      clearCenterRequest: (nonce) =>
+        set((s) => (s.centerRequest?.nonce === nonce ? { centerRequest: null } : {})),
       setCanvasViewport: (projectId, viewport) =>
         set((s) => ({ canvasViewports: { ...s.canvasViewports, [projectId]: viewport } })),
     }),

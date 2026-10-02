@@ -72,16 +72,14 @@ describe("SearchPalette", () => {
     expect(screen.getByText("/heal")).toBeInTheDocument();
     expect(screen.queryByText("Shop")).not.toBeInTheDocument();
   });
-  it("Entrée sur un menu navigue vers sa vue individuelle", () => {
+  it("Entrée sur un menu centre la planche dessus et le sélectionne", () => {
     render(<SearchPalette projectId={PID} />);
     fireEvent.change(screen.getByRole("combobox"), { target: { value: "shop" } });
     fireEvent.keyDown(screen.getByRole("combobox"), { key: "Enter" });
     expect(navigate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        to: "/networks/$networkId/servers/$serverId/projects/$projectId/document/$documentId",
-        params: expect.objectContaining({ documentId: "m_shop" }),
-      }),
+      expect.objectContaining({ to: "/networks/$networkId/servers/$serverId/projects/$projectId" }),
     );
+    expect(useUiStore.getState().centerRequest).toMatchObject({ docId: "m_shop" });
     expect(useUiStore.getState().searchOpen).toBe(false);
   });
   it("Entrée sur un item sélectionne l'élément + slot", () => {
@@ -135,8 +133,9 @@ describe("SearchPalette", () => {
       fireEvent.keyDown(screen.getByRole("combobox"), { key: "Enter" });
       expect(navigate).toHaveBeenCalledWith(
         expect.objectContaining({
-          to: "/networks/$networkId/servers/$serverId/projects/$projectId/document/$documentId",
-          params: expect.objectContaining({ projectId: "boutique", documentId: "catalogue" }),
+          to: "/networks/$networkId/servers/$serverId/projects/$projectId",
+          params: expect.objectContaining({ projectId: "boutique" }),
+          search: { doc: "catalogue" },
         }),
       );
     });

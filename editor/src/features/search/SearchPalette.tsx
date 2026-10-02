@@ -8,7 +8,7 @@ import { useUiStore } from "@/state/uiStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { buildSearchIndex, groupResultsForDisplay, searchQuery, type SearchEntry, type SearchGroup } from "./searchIndex";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
-import { projectDestination } from "@/lib/projectNavigation";
+import { goToDocument } from "@/features/project/goToDocument";
 import { indexProjectDocuments, namespaceOf, toSearchEntries } from "@/features/serverIndex/serverIndex";
 import { serverIndexScope, useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
 import type { Project } from "@/domain/types";
@@ -70,14 +70,16 @@ export function SearchPalette({ projectId }: { projectId: ProjectId }) {
 
   const choose = (entry: SearchEntry | undefined) => {
     if (!entry) return;
-    navigate(
-      projectDestination(
-        params.networkId,
-        entry.target.projectUrlId ?? project ?? projectId,
-        params.serverId,
-        entry.target.openId,
-      ),
-    );
+    // Un Document d'un autre project s'ouvre centré sur sa planche (`?doc=`) ;
+    // un Document de ce project centre la planche courante.
+    goToDocument(navigate, {
+      networkId: params.networkId,
+      serverId: params.serverId,
+      project: project ?? { id: projectId },
+      ref: entry.target.projectUrlId
+        ? `${entry.target.projectUrlId}:${entry.target.openId}`
+        : entry.target.openId,
+    });
     if (entry.target.selectId) {
       // `openId` is the owning menu — scope the element selection to it so a
       // shared element id doesn't resolve to the wrong menu.

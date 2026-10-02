@@ -27,3 +27,16 @@ export function fitViewport(
     y: TOP_GUTTER + Math.max(0, (availableH - box.height * scale) / 2),
   };
 }
+
+/**
+ * Le cadrage de `fitViewport`, pour un Document posé n'importe où sur la
+ * planche : même échelle (jamais au-delà de 1:1), son coin haut-gauche à
+ * l'endroit où `fitViewport` place l'origine.
+ */
+export function centerViewport(
+  view: { w: number; h: number },
+  box: { x: number; y: number; width: number; height: number },
+): ViewportState {
+  const fit = fitViewport(view, box);
+  return { scale: fit.scale, x: fit.x - box.x * fit.scale, y: fit.y - box.y * fit.scale };
+}
