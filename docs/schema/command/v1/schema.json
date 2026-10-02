@@ -73,17 +73,17 @@
       "description": "Conditions ANDées évaluées avant exécution. Si une échoue, le fallback (s'il existe) est exécuté à la place des actions."
     },
     "actions": {
-      "type": "string",
-      "description": "Forme canonique — chaîne Action DSL exécutée quand la commande est appelée (actions + branches if, comme les click-handlers de menu). Cf. ADR action-dsl. Les arguments résolus sont disponibles via les placeholders %args_<name>% et {arg}."
+      "$ref": "https://docs.artisanmc.net/schema/menu/v1.json#/$defs/ClickHandler",
+      "description": "Chaîne d'actions exécutée quand la commande est appelée. Wire canonique : steps structurés (ou un step / une liste). Une string = ancien Action DSL (legacy). Les arguments résolus sont disponibles via %args_<name>% et {arg}."
     },
     "steps": {
-      "type": "string",
+      "$ref": "https://docs.artisanmc.net/schema/menu/v1.json#/$defs/ClickHandler",
       "description": "Forme legacy de `actions` — toujours acceptée en lecture ; l'export émet `actions`."
     },
     "fallback": {
       "type": "array",
       "items": {
-        "$ref": "https://docs.artisanmc.net/schema/menu/v1.json#/$defs/Action"
+        "$ref": "https://docs.artisanmc.net/schema/menu/v1.json#/$defs/Step"
       },
       "description": "Actions à exécuter si les requirements échouent. Typiquement un send_message expliquant pourquoi."
     },

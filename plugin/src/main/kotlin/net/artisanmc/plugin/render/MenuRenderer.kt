@@ -143,7 +143,7 @@ object MenuRenderer {
             val requested = boundCtx.pagination[element.id] ?: 0
             pageInfo[element.id] = PageInfo(requested.coerceIn(0, pageCount - 1), pageCount)
         }
-        val renderCtx = boundCtx.copy(pageInfo = pageInfo)
+        val renderCtx = boundCtx.copy(pageInfo = pageInfo, lang = lang, defaultLang = menu.defaultLang)
 
         // A menu title is a Template like any other player-facing string — the
         // renderer resolves `{…}` and `%papi%` in one pass (ADR `expression-parity` §5).
@@ -168,6 +168,7 @@ object MenuRenderer {
             lookupAsset = lookupAsset,
             offsetEncoder = offsetEncoder,
             interpolate = interpolate,
+            defaultLang = menu.defaultLang,
         )
         // MockBukkit n'implémente pas l'overload Component de createInventory —
         // fallback legacy uniquement dans ce cas (la prod garde le Component,
@@ -341,7 +342,14 @@ object MenuRenderer {
         }
         val meta: ItemMeta = item.itemMeta ?: return item
         if (app.title != null) {
-            meta.displayName(parse(resolveText(app.title, langMap, localCtx, papi, addressOf(i18nBase, "title"))))
+            val lt = app.title!!
+            val value = lt.forLang(localCtx.lang, localCtx.defaultLang)
+            if (value != null) {
+                // A field-local map is authoritative (ADR field-local-translations); a
+                // bare literal keeps the legacy address lookup for non-default langs.
+                val address = if (lt.isMap) null else addressOf(i18nBase, "title")
+                meta.displayName(parse(resolveText(value, langMap, localCtx, papi, address)))
+            }
         }
         if (app.lore.isNotEmpty() || app.loreMode == "replace") {
             val loreAddress = addressOf(i18nBase, "lore")
@@ -350,9 +358,13 @@ object MenuRenderer {
             val icon = row?.get("icon") as? Map<*, *>
             val legacyToken = if (icon?.containsKey("extends") == true && icon.containsKey("lore") &&
                 (row?.get("lore") == null || row["lore"] == "" || row["lore"] == emptyList<Any>())) "{$alias.lore}" else null
-            val rawLines = app.lore.map { raw ->
-                if (raw.startsWith("{i18n:")) langMap[raw.removePrefix("{i18n:").removeSuffix("}")] ?: raw
-                else loreAddress?.let { langMap[it] } ?: raw
+            val rawLines = app.lore.mapNotNull { lt ->
+                val value = lt.forLang(localCtx.lang, localCtx.defaultLang) ?: return@mapNotNull null
+                when {
+                    lt.isMap -> value
+                    value.startsWith("{i18n:") -> langMap[value.removePrefix("{i18n:").removeSuffix("}")] ?: value
+                    else -> loreAddress?.let { langMap[it] } ?: value
+                }
             }
             val legacy = legacyToken != null && rawLines.any { it.contains(legacyToken) }
             val tokened = rawLines.map { if (legacy) it.replace(legacyToken!!, BASE_LORE) else it }

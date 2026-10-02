@@ -15,7 +15,7 @@ test("a server supports transparent containers only when its plugin says so in h
   await db.insert(serverKeys).values({ id: key.id, hash: key.hash, networkId: "vanilla-gui", createdAt: now });
   registerConn("vanilla-gui", () => {});
   const hello = (capabilities: string[]) =>
-    handlePluginMessage("vanilla-gui", JSON.stringify({ type: "hello", server_key: key.key, plugin_version: "test", minecraft_version: "26.2", current_bundle_hash: "", local_project_ids: [], capabilities }));
+    handlePluginMessage("vanilla-gui", JSON.stringify({ type: "hello", content_version: 2, server_key: key.key, plugin_version: "test", minecraft_version: "26.2", current_bundle_hash: "", local_project_ids: [], capabilities }));
 
   await hello([]);
   expect(supportsVanillaGui(key.id)).toBe(false);

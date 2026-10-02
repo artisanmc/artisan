@@ -29,7 +29,7 @@ async function setup(quota: number | null, capabilities: string[]) {
     publicationStatus: "published", targetNetworkId: "quota", limits: { resourcesPerServer: quota, servers: 1, collaborators: 1 }, capabilities: { editorPro: true }, createdAt: now, updatedAt: now });
   await db.insert(networkBilling).values({ networkId: "quota", planId: "quota-plan", paidEditorPro: true, currentPeriodId: "paid", paidThrough: new Date("2999-01-01"), createdAt: now, updatedAt: now });
   const sent: any[] = [];
-  const hello = { type: "hello", server_key: key, plugin_version: "1", minecraft_version: "1.21.4", current_bundle_hash: "" };
+  const hello = { type: "hello", content_version: 2, server_key: key, plugin_version: "1", minecraft_version: "1.21.4", current_bundle_hash: "" };
   async function connect(conn: string, caps: string[]) {
     connections.push(conn);
     registerConn(conn, raw => {

@@ -40,6 +40,7 @@ class SyncedMenuProvider(
     private val logger: Logger?,
     private val evaluator: ConditionEvaluator = ConditionEvaluator.EMPTY,
     private val sessions: MenuSessionStore? = null,
+    private val history: net.artisanmc.plugin.engine.NavigationHistoryStore? = null,
     private val onReload: (() -> Unit)? = null,
     private val executorProvider: (() -> ActionExecutor)? = null,
     private val langManager: LangManager? = null,
@@ -361,8 +362,18 @@ class SyncedMenuProvider(
                 ?: net.kyori.adventure.text.Component.text("Menu '$menuId' not found."))
             return
         }
+        history?.setCurrent(
+            player,
+            net.artisanmc.plugin.engine.NavigationEntry(
+                kind = net.artisanmc.plugin.engine.NavigationEntry.Kind.MENU,
+                id = menuId,
+                args = ctx.navigationArgs,
+                pagination = ctx.pagination,
+                lang = lang,
+            ),
+        )
         val session = MenuRenderer.open(
-            player, menu, lang, ctx, evaluator, lookupAsset, offsetEncoderProvider(),
+            player, menu, lang, decorateNavigation(player, ctx), evaluator, lookupAsset, offsetEncoderProvider(),
             dataSources, projectDataResolver, menuWindows,
         )
         sessions?.set(player, session)
@@ -381,7 +392,71 @@ class SyncedMenuProvider(
             logger?.warning("openDialog called but executorProvider is null")
             return
         }
-        DialogRenderer.open(player, dialog, lang, ctx, executor)
+        history?.setCurrent(
+            player,
+            net.artisanmc.plugin.engine.NavigationEntry(
+                kind = net.artisanmc.plugin.engine.NavigationEntry.Kind.DIALOG,
+                id = dialogId,
+                args = ctx.args,
+                lang = lang,
+            ),
+        )
+        DialogRenderer.open(player, dialog, lang, decorateNavigation(player, ctx), executor)
+    }
+
+    /**
+     * Injects the navigation-history placeholders into the render scope:
+     * `has_previous_menu` (always present) and `previous_menu` (an object with
+     * `id` / `title`, only when a previous screen exists). Both are registered
+     * as `sourceArgs` so they stay local to THIS screen and are never inherited
+     * by a further `open_menu` (a grandchild has its own previous).
+     */
+    private fun decorateNavigation(player: Player, ctx: ExecutionContext): ExecutionContext {
+        val store = history ?: return ctx
+        val previous = store.previous(player)
+        val extra = buildMap<String, Any> {
+            put("has_previous_menu", previous != null)
+            if (previous != null) {
+                put(
+                    "previous_menu",
+                    net.artisanmc.plugin.engine.ScreenValue(
+                        mapOf("id" to previous.id, "title" to screenTitle(previous)),
+                        previous.id,
+                    ),
+                )
+            }
+        }
+        return ctx.copy(args = ctx.args + extra, sourceArgs = ctx.sourceArgs + extra)
+    }
+
+    /** Best-effort display title of a history entry (first text layer / dialog title). */
+    private fun screenTitle(entry: net.artisanmc.plugin.engine.NavigationEntry): String =
+        when (entry.kind) {
+            net.artisanmc.plugin.engine.NavigationEntry.Kind.MENU ->
+                findMenu(entry.id)?.let { firstTitleText(it, entry.lang) } ?: entry.id
+            net.artisanmc.plugin.engine.NavigationEntry.Kind.DIALOG ->
+                findDialog(entry.id)?.yaml?.title?.forLang(entry.lang, findDialog(entry.id)!!.defaultLang) ?: entry.id
+        }
+
+    private fun firstTitleText(menu: BundleMenu, lang: String): String? {
+        val langMap = menu.langMapWithFallback(lang)
+        for (layer in menu.title) {
+            val value = when (layer) {
+                is net.artisanmc.plugin.model.MenuTitleLayer.Text -> layer.value
+                is net.artisanmc.plugin.model.MenuTitleLayer.Plain -> layer.value
+                is net.artisanmc.plugin.model.MenuTitleLayer.Textarea -> layer.value
+                else -> continue
+            }
+            val localized = value.localized
+            val resolved = when {
+                localized != null ->
+                    localized[lang] ?: localized[menu.defaultLang] ?: localized.values.firstOrNull() ?: ""
+                value.literal -> value.address?.let { langMap[it] } ?: value.key
+                else -> langMap[value.key] ?: value.key
+            }
+            if (resolved.isNotBlank()) return resolved
+        }
+        return null
     }
 
     fun notifyCustomItemsReload() {

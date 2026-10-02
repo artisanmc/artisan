@@ -86,7 +86,7 @@
         "name": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$" },
         "kind": {
           "enum": ["string", "number", "integer", "boolean", "ltext", "item", "actions", "conditions", "list", "object", "map", "enum", "union"],
-          "description": "ltext = clé i18n (résolue au bind selon la langue du joueur) ; item = espace de valeurs material (`DIAMOND` | `item:<id>` | ref custom) ; actions = Action chain sérialisée en Action DSL (string, parsée+exécutée par le plugin, cf. ADR action-dsl) ; map = dictionnaire clé→valeur ; enum = string d'un ensemble fermé ; union = variante discriminée par `tag` (ADR composable-data-models). `model` n'existe pas ici : inliné à l'export — le fichier reste self-contained."
+          "description": "ltext = clé i18n (résolue au bind selon la langue du joueur) ; item = espace de valeurs material (`DIAMOND` | `item:<id>` | ref custom) ; actions = Action chain en steps structurés keyed (ADR structured-action-wire ; une ancienne string Action DSL reste lue) ; map = dictionnaire clé→valeur ; enum = string d'un ensemble fermé ; union = variante discriminée par `tag` (ADR composable-data-models). `model` n'existe pas ici : inliné à l'export — le fichier reste self-contained."
         },
         "of": { "$ref": "#/$defs/FieldType", "description": "Type des éléments (kind=list) ou des valeurs (kind=map)." },
         "fields": {

@@ -1,0 +1,199 @@
+import type { Condition, I18nKey, LText, Step } from "@/domain/types";
+import { describe, expect, it } from "vitest";
+import {
+  conditionToStructured,
+  stepsToStructured,
+  structuredToSteps,
+  type ActionTextCodec,
+} from "./structuredSteps";
+
+const values: Record<string, Record<string, string>> = {
+  m1: { en: "Hi", fr: "Salut" },
+  m2: { en: "Title", fr: "Titre" },
+};
+let counter = 0;
+const codec: ActionTextCodec = {
+  toWire: (key) => values[key] ?? "",
+  fromWire: (raw) => {
+    const key = `k${counter++}` as I18nKey;
+    values[key] = typeof raw === "string" ? { en: raw } : raw;
+    return { key } as LText;
+  },
+};
+
+/** Domain → wire → domain → wire must be stable (text values preserved). */
+function roundTrip(steps: Step[]) {
+  const wire = stepsToStructured(steps, codec);
+  const back = structuredToSteps(wire, codec);
+  return { wire, back, wire2: stepsToStructured(back, codec) };
+}
+
+describe("structuredSteps — actions", () => {
+  it("encodes scalar, null and multi-arg actions", () => {
+    const steps: Step[] = [
+      { kind: "action", action: { type: "send_message", text: { key: "m1" as I18nKey } } },
+      { kind: "action", action: { type: "close_menu" } },
+      { kind: "action", action: { type: "open_previous_menu" } },
+      { kind: "action", action: { type: "give_money", amount: 100 } },
+      { kind: "action", action: { type: "run_command", command: "say hi", as: "player" } },
+      { kind: "action", action: { type: "run_command", command: "op", as: "console" } },
+      { kind: "action", action: { type: "open_menu", menuId: "shop" } },
+      {
+        kind: "action",
+        action: { type: "open_menu", menuId: "shop", context: { cat: "{cat.id}" } },
+      },
+      {
+        kind: "action",
+        action: { type: "show_title", title: { key: "m2" as I18nKey }, stay: 40 },
+      },
+    ];
+    expect(stepsToStructured(steps, codec)).toEqual([
+      { send_message: { en: "Hi", fr: "Salut" } },
+      "close_menu",
+      "open_previous_menu",
+      { give_money: 100 },
+      { run_command: "say hi" },
+      { run_command: { command: "op", as: "console" } },
+      { open_menu: "shop" },
+      { open_menu: { menu_id: "shop", context: { cat: "{cat.id}" } } },
+      { show_title: { title: { en: "Title", fr: "Titre" }, stay: 40 } },
+    ]);
+  });
+
+  it("round-trips action steps through the wire", () => {
+    const steps: Step[] = [
+      { kind: "action", action: { type: "send_message", text: { key: "m1" as I18nKey } } },
+      { kind: "action", action: { type: "open_dialog", dialogId: "confirm", clearContext: true } },
+      { kind: "action", action: { type: "play_sound", sound: "PLING", pitch: 1.2 } },
+      { kind: "action", action: { type: "paginate", direction: "next", targetElementId: "grid" as never } },
+    ];
+    const { wire, wire2 } = roundTrip(steps);
+    expect(wire2).toEqual(wire);
+  });
+});
+
+describe("structuredSteps — conditions", () => {
+  it("encodes and/or/not as explicit nodes", () => {
+    const c: Condition = {
+      type: "and",
+      of: [
+        { type: "has_permission", perm: "shop.vip" },
+        {
+          type: "or",
+          of: [
+            { type: "world_is", world: "world_nether" },
+            { type: "time_is", range: "night" },
+          ],
+        },
+        { type: "not", of: { type: "has_permission", perm: "banned" } },
+      ],
+    };
+    expect(conditionToStructured(c)).toEqual({
+      and: [
+        { has_permission: "shop.vip" },
+        { or: [{ world_is: "world_nether" }, { time_is: "night" }] },
+        { not: { has_permission: "banned" } },
+      ],
+    });
+  });
+
+  it("encodes scalar and object conditions", () => {
+    expect(conditionToStructured({ type: "random_chance", probability: 0.1 })).toEqual({
+      random_chance: 0.1,
+    });
+    expect(
+      conditionToStructured({
+        type: "placeholder_equals",
+        placeholder: "%rank%",
+        value: "vip",
+      }),
+    ).toEqual({ placeholder_equals: { placeholder: "%rank%", value: "vip" } });
+    expect(conditionToStructured({ type: "has_item", material: "DIAMOND", count: 3 })).toEqual({
+      has_item: { material: "DIAMOND", count: 3 },
+    });
+  });
+});
+
+describe("structuredSteps — if / else", () => {
+  it("encodes else-if recursively and folds it back on decode", () => {
+    const steps: Step[] = [
+      {
+        kind: "if",
+        cases: [
+          {
+            conditions: [{ type: "has_permission", perm: "a" }],
+            steps: [{ kind: "action", action: { type: "close_menu" } }],
+          },
+          {
+            conditions: [{ type: "random_chance", probability: 0.1 }],
+            steps: [{ kind: "action", action: { type: "open_dialog", dialogId: "d" } }],
+          },
+        ],
+        else: [{ kind: "action", action: { type: "send_message", text: { key: "m1" as I18nKey } } }],
+      },
+    ];
+    const { wire, back, wire2 } = roundTrip(steps);
+    expect(wire).toEqual([
+      {
+        if: [{ has_permission: "a" }],
+        do: ["close_menu"],
+        else: [
+          {
+            if: [{ random_chance: 0.1 }],
+            do: [{ open_dialog: "d" }],
+            else: [{ send_message: { en: "Hi", fr: "Salut" } }],
+          },
+        ],
+      },
+    ]);
+    // Decode folds the recursive else back into cases + else (text keys are
+    // re-minted, so compare structure not identity).
+    const backIf = back[0] as Extract<Step, { kind: "if" }>;
+    expect(backIf.cases).toHaveLength(2);
+    expect(backIf.else).toHaveLength(1);
+    expect(wire2).toEqual(wire);
+  });
+
+  it("wraps a pure-OR flat condition list in or:", () => {
+    const steps: Step[] = [
+      {
+        kind: "if",
+        cases: [
+          {
+            conditions: [
+              { type: "world_is", world: "a" },
+              { type: "world_is", world: "b" },
+            ],
+            joins: ["or"],
+            steps: [{ kind: "action", action: { type: "close_menu" } }],
+          },
+        ],
+      },
+    ];
+    expect(stepsToStructured(steps, codec)).toEqual([
+      { if: [{ or: [{ world_is: "a" }, { world_is: "b" }] }], do: ["close_menu"] },
+    ]);
+  });
+});
+
+describe("structuredSteps — tolerant decode", () => {
+  it("reads a bare string as an arg-less action", () => {
+    expect(structuredToSteps(["close_menu", "close_dialog"], codec)).toEqual([
+      { kind: "action", action: { type: "close_menu" } },
+      { kind: "action", action: { type: "close_dialog" } },
+    ]);
+  });
+
+  it("accepts close_menu: (null) as the same action", () => {
+    expect(structuredToSteps([{ close_menu: null }], codec)).toEqual([
+      { kind: "action", action: { type: "close_menu" } },
+    ]);
+  });
+
+  it("treats a map handler as a single step, a list as steps", () => {
+    expect(structuredToSteps({ send_message: "Hello" }, codec)).toHaveLength(1);
+    expect(
+      structuredToSteps([{ send_message: "Hello" }, { close_menu: null }], codec),
+    ).toHaveLength(2);
+  });
+});

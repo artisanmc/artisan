@@ -38,9 +38,26 @@ Les trois readers (plugin, import éditeur, mutation module) acceptent **arbre /
 mélange** — rien à migrer. Une clé bloquée par une feuille (`a.b` et `a.b.c` coexistent) reste
 pointée à la racine plutôt que perdue.
 
-Le mode d'inlining (littéral de la langue par défaut dans le document, autres langues à l'adresse
-canonique dans `lang/`) est redérivé côté Kotlin par `I18nAddresses.kt` et verrouillé par
-`testdata/i18n-address-conformance.json`.
+## Textes structurels — field-local (ADR `field-local-translations`)
+
+Depuis 2026-09-30, les textes **structurels** (titre de menu, `title`/`lore` d'apparence, `title`/
+`body`/labels de dialog) vivent **dans le document**, pas dans `lang/`. Un slot texte est soit une
+**string** (littéral, ou ref `{i18n:key}`, identique pour toutes les langues), soit une **map
+field-local `{ <lang>: texte }`** (résolue langue demandée → `defaultLang` → n'importe quelle entrée).
+La forme string est un sucre pour `{<defaultLang>: texte}`. Un champ structurel n'est jamais à la
+fois string et map.
+
+`lang/` ne porte donc plus que : les **textes d'action** (sérialisés en refs `@key` à l'intérieur de
+l'Action DSL — une string DSL ne peut pas contenir de map), les **clés sans site** de présentation
+(`artisan.duration.*`) et les **adresses des data sources** (ADR `bare-data-files` ④). En
+conséquence, le sous-système d'**adresses positionnelles** (`I18nAddresses.kt` côté plugin,
+`i18nKeys.ts`/`i18nSites.ts` côté éditeur) n'est plus un contrat de rendu pour les documents —
+le runtime lit la map du slot. Vecteur retiré : `testdata/i18n-address-conformance.json`.
+
+`title: "Retour"` et `title: { fr: Retour, en: Back }` coexistent ; un champ string est lu comme la
+valeur du `defaultLang` (donc détecté comme non traduit pour les autres langues). Migration
+paresseuse : un projet inline mono-langue se lit à l'identique, la promotion string → map ne se fait
+qu'à la saisie d'une deuxième langue. La lecture reste tolérante à l'ancienne forme adressée.
 
 ## Champ `title` d'un menu
 

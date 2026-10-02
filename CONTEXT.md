@@ -394,6 +394,11 @@ its position (`menus.<id>.elements.<id>.<state>.title`, `…click.left.message_1
 (usage labels, validation), key assignment (`rekeyProject`), minting, and release
 are all folds over it.
 
+Since 2026-09-30 (ADR `field-local-translations`) the canonical key is only the
+editor's **in-memory bookkeeping** for structural text — on disk a structural
+slot holds its own `{ <lang>: text }` map, not an address. An **action** text and
+a data-source value keep the key-into-`lang/` contract.
+
 Examples:
 - A button's `send_message` text is a key site; its canonical key is
   `commands.give.message` (or `…message_1` for the second message in the chain).
@@ -427,12 +432,17 @@ Non-examples:
 
 ## LText
 
-A reference to a localizable string: a stable **key** into the project's
-`i18nKeys` map, which holds the per-language values. Domain objects carry the
-LText (the key), never the resolved string — resolution happens at render/export
-against the active language with a fallback chain. A fresh LText is minted with
-a random provisional key (`lt_<rand>`); canonicalization to a semantic key
-happens lazily at the deploy/export/persist boundary, not per edit.
+A reference to a localizable string. On disk (ADR `field-local-translations`,
+2026-09-30) a **structural** slot — menu title, appearance title/lore, dialog
+title/body/label — holds either a bare string (the default language's literal,
+or a `{i18n:key}` ref) or a field-local `{ <lang>: text }` map, so a Document
+carries its own languages. An **action** text (inside the Action DSL string) and
+a **data-source** value still use a stable **key** into the project's `i18nKeys`
+map. The editor's in-memory domain carries the LText (the key), never the
+resolved string — resolution happens at render/export against the active
+language with a fallback chain. A fresh domain LText is minted with a random
+provisional key (`lt_<rand>`); canonicalization to a semantic key happens lazily
+at the deploy/export/persist boundary, not per edit.
 
 ## Membership
 
@@ -467,6 +477,20 @@ Examples:
 Non-examples:
 - `shop_main_page_2` is **not** a menu name we generate. There is one
   `shop_main` that paginates internally.
+
+## Navigation history
+
+The per-player LIFO stack of screens (**menu** or **dialog**) a player moved
+through. Opening a screen (`open_menu` / `open_dialog`) pushes the screen being
+left; the `open_previous_menu` action pops the top and re-opens it without
+pushing the current one — so the stack shrinks on every back and two screens
+cannot ping-pong forever. Cleared when the player quits, not when a menu closes
+(closing is how every navigation shows the next menu).
+
+Exposed to templates as `{has_previous_menu}` (boolean, guard a back button) and
+`{previous_menu.id}` / `{previous_menu.title}`.
+
+_Avoid_: browser history, breadcrumb (this is a stack, not a path).
 
 ## Module
 

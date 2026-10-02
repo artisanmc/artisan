@@ -75,6 +75,8 @@ function printAction(a: DslAction): string {
       return "close_menu";
     case "close_dialog":
       return "close_dialog";
+    case "open_previous_menu":
+      return "open_previous_menu";
     case "paginate":
       return `paginate ${a.direction}${a.targetElementId ? ` ${a.targetElementId}` : ""}`;
     case "run_actions":

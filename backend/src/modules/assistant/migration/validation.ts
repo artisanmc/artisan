@@ -76,6 +76,29 @@ export function validateMigrationProposal(
 		}
 	};
 	walk(validationView);
+	// Structured-action-wire: collect `open_menu` links from keyed handlers too
+	// (`{ open_menu: id }` / `{ open_menu: { menu_id } }`, nested under if/do/else).
+	const collectKeyedLinks = (value: unknown): void => {
+		if (Array.isArray(value)) {
+			value.forEach(collectKeyedLinks);
+			return;
+		}
+		if (!value || typeof value !== "object") return;
+		for (const [key, child] of Object.entries(value)) {
+			if (key === "context") continue;
+			if (key === "open_menu") {
+				const id =
+					typeof child === "string"
+						? child
+						: child && typeof child === "object"
+							? (child as Record<string, unknown>).menu_id
+							: undefined;
+				if (typeof id === "string") links.add(id);
+			}
+			collectKeyedLinks(child);
+		}
+	};
+	collectKeyedLinks(validationView);
 	const known = new Set(
 		manifest.agent?.tasks
 			? [

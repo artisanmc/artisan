@@ -9,6 +9,11 @@ import type {
 } from "@/domain/types";
 import type { DslText } from "@/lib/actionDsl";
 import { dslStepsToSteps, parseActionDsl } from "@/lib/actionDsl";
+import {
+  conditionFromStructured,
+  structuredToSteps,
+  type ActionTextCodec,
+} from "@/lib/actions/structuredSteps";
 
 // The menu/v1 wire object is parsed YAML (snake_case, loosely typed). We model
 // it as a bag and reconcile each field explicitly into the domain shapes.
@@ -16,7 +21,7 @@ import { dslStepsToSteps, parseActionDsl } from "@/lib/actionDsl";
 type Json = Record<string, any>;
 
 export interface ConverterCtx {
-  text: (raw: string | undefined) => LText;
+  text: (raw: string | Record<string, string> | undefined) => LText;
   ref: (key: string) => LText;
   pushUnsupported: (s: string) => void;
 }
@@ -69,8 +74,14 @@ export function makeStepConverter(ctx: ConverterCtx): StepConverter {
 
   // ── conditions (explicit per-type mapping; NOT pass-through) ──────────────
   function condition(c: Json): DomainCondition | null {
-    if (!c || typeof c !== "object" || !DOMAIN_CONDITIONS.has(c.type)) {
-      pushUnsupported(`condition: ${c?.type}`);
+    if (!c || typeof c !== "object") {
+      pushUnsupported("condition: <invalid>");
+      return null;
+    }
+    // Keyed structured condition (no `type` discriminant) — ADR structured-action-wire.
+    if (typeof c.type !== "string") return conditionFromStructured(c);
+    if (!DOMAIN_CONDITIONS.has(c.type)) {
+      pushUnsupported(`condition: ${c.type}`);
       return null;
     }
     switch (c.type) {
@@ -140,10 +151,44 @@ export function makeStepConverter(ctx: ConverterCtx): StepConverter {
   // so this layer only bridges DSL text ↔ the i18n Key site.
   const toLText = (t: DslText): LText => ("ref" in t ? ref(t.ref) : text(t.lit));
 
-  function steps(dsl: unknown): DomainStep[] {
-    if (typeof dsl !== "string" || dsl.trim() === "") return [];
+  // Wire text → domain: string (literal / `{i18n:key}`) or field-local map.
+  const textCodec: ActionTextCodec = { toWire: () => "", fromWire: (raw) => text(raw) };
+
+  function dslToSteps(dsl: string): DomainStep[] {
+    if (dsl.trim() === "") return [];
     try {
       return dslStepsToSteps(parseActionDsl(dsl), toLText);
+    } catch (e) {
+      pushUnsupported(`steps: ${(e as Error).message}`);
+      return [];
+    }
+  }
+
+  /**
+   * Wire handler → domain steps. A string = legacy Action DSL ; `{steps:"<dsl>"}`
+   * = legacy wrapped DSL ; a map/list = structured keyed (ADR
+   * `structured-action-wire`). Text is bridged through the i18n Key site.
+   */
+  function steps(raw: unknown): DomainStep[] {
+    if (typeof raw === "string") return dslToSteps(raw);
+    if (raw && typeof raw === "object" && !Array.isArray(raw) && typeof (raw as Json).steps === "string") {
+      return dslToSteps((raw as Json).steps);
+    }
+    // Pre-DSL legacy wire: a flat list of type-tagged actions (`{type:…}`).
+    if (
+      Array.isArray(raw) &&
+      raw.length > 0 &&
+      raw.every((e) => e && typeof e === "object" && "type" in (e as Json))
+    ) {
+      return (raw as Json[])
+        .map((a) => {
+          const act = action(a);
+          return act ? ({ kind: "action", action: act } as DomainStep) : null;
+        })
+        .filter(Boolean) as DomainStep[];
+    }
+    try {
+      return structuredToSteps(raw, textCodec);
     } catch (e) {
       pushUnsupported(`steps: ${(e as Error).message}`);
       return [];
@@ -162,6 +207,8 @@ export function makeStepConverter(ctx: ConverterCtx): StepConverter {
         };
       case "close_menu":
         return { type: "close_menu" };
+      case "open_previous_menu":
+        return { type: "open_previous_menu" };
       case "run_command":
         return { type: "run_command", command: a.command, as: a.as ?? "player" };
       case "send_message":

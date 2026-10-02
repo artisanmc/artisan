@@ -30,7 +30,7 @@ object DialogRenderer {
 
     fun open(player: Player, dialog: BundleDialog, lang: String, ctx: ExecutionContext, executor: ActionExecutor) {
         val langMap = dialog.langMapWithFallback(lang)
-        val ctxWithLang = ctx.copy(lang = lang, langMap = langMap)
+        val ctxWithLang = ctx.copy(lang = lang, defaultLang = dialog.defaultLang, langMap = langMap)
         // i18n puis args ({player} & co) — même chaîne que MenuRenderer.resolveText.
         val texts = DialogTextResolver.resolveAll(dialog, langMap, ctxWithLang)
 
@@ -86,11 +86,10 @@ object DialogRenderer {
 
         val buttons = dialog.yaml.buttons.mapIndexed { i, btnYaml ->
             val requirements = btnYaml.requirements.map { ConditionParser.parse(it) }
-            // Button `actions` is an Action DSL string (Phase 2, ADR action-dsl)
-            // → Step tree; the flat `fallback:` legacy wire stays as-is.
+            // Button `actions` : keyed (map/liste), string DSL, ou `{steps}`.
             val steps        = runCatching {
-                assignI18nAddresses(
-                    compileActionDsl(btnYaml.actions),
+                ActionChainCompiler.compile(
+                    btnYaml.actions,
                     I18nAddress.dialogButton(dialog.yaml.id, btnYaml.id),
                 )
             }
@@ -99,7 +98,7 @@ object DialogRenderer {
                         .warning("[Artisan] dialog button '${btnYaml.id}' steps skipped — ${e.message}")
                     emptyList()
                 }
-            val fallback     = btnYaml.fallback.map { ActionParser.parse(it) }
+            val fallback     = ActionChainCompiler.compile(btnYaml.fallback)
             val handler      = ClickHandler(requirements, emptyList(), fallback, steps = steps)
             val btnLabel     = LenientText.parse(texts.buttonLabels[i])
 

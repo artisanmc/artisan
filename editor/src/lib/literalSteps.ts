@@ -1,31 +1,41 @@
-import type { Step } from "@/domain/types";
-import { parseToSteps, printFromSteps } from "@/lib/actionDsl";
+import type { I18nKey, Step } from "@/domain/types";
+import { parseToSteps } from "@/lib/actionDsl";
+import {
+  stepsToStructured,
+  structuredToSteps,
+  type ActionTextCodec,
+} from "@/lib/actions/structuredSteps";
 
 /**
- * Module-data steps (`actions` field kit widget) — the "wire" for a module-data
- * `actions` field is now the **Action DSL string** (cf. ADR `action-dsl`,
- * Phase 2), not the old structured `[{kind:"action",...}]` tree. Text is
- * LITERAL: no i18n keys, no LText allocation — a quoted literal maps to the
- * LText `key` (the `@/lib/actionDsl` data-source `@`-convention), so the whole
- * domain Step machinery (editors, condition types) stays reusable.
+ * Wire des chaînes d'actions d'un champ **`actions`** de data source (et du
+ * widget module-data). Depuis l'ADR `structured-action-wire` la valeur est un
+ * **arbre de steps keyed** (comme les click-handlers de document), plus une
+ * string DSL.
  *
- * `stepsToWire` prints the canonical DSL string; `stepsFromWire` parses it back.
- * A missing / empty / non-string value → `[]`. The function names are kept: the
- * caller (SchemaForm `actions` widget) still speaks "wire", only the shape
- * changed from array to string.
+ * Le texte y est **littéral** : pas de clés i18n, le littéral vit dans le
+ * `LText.key` du domaine. Un ancien fichier portant une **string DSL** reste lu
+ * (et ré-écrit structuré au prochain save).
  */
 
-/** Domain steps → wire value (canonical Action DSL string, literal text). */
-export function stepsToWire(steps: Step[]): string {
-  return printFromSteps(steps);
+const literalCodec: ActionTextCodec = {
+  toWire: (key) => String(key),
+  fromWire: (raw) => ({ key: (typeof raw === "string" ? raw : "") as I18nKey }),
+};
+
+/** Domain steps → wire value (arbre de steps keyed, texte littéral). */
+export function stepsToWire(steps: Step[]): unknown[] {
+  return stepsToStructured(steps, literalCodec);
 }
 
-/** Wire value (Action DSL string) → domain steps. Non-string / empty / unparseable → []. */
+/** Wire value (arbre keyed, ou string DSL legacy) → domain steps. */
 export function stepsFromWire(raw: unknown): Step[] {
-  if (typeof raw !== "string" || raw.trim() === "") return [];
-  try {
-    return parseToSteps(raw);
-  } catch {
-    return [];
+  if (typeof raw === "string") {
+    if (raw.trim() === "") return [];
+    try {
+      return parseToSteps(raw);
+    } catch {
+      return [];
+    }
   }
+  return structuredToSteps(raw, literalCodec);
 }

@@ -31,7 +31,7 @@ async function fixture(mode = "console") {
   const conn = crypto.randomUUID();
   connections.push(conn);
   registerConn(conn, () => {});
-  const hello = { type: "hello", server_key: key.key, plugin_version: "1", minecraft_version: "1.21.4", current_bundle_hash: "", editor_access_mode: mode };
+  const hello = { type: "hello", content_version: 2, server_key: key.key, plugin_version: "1", minecraft_version: "1.21.4", current_bundle_hash: "", editor_access_mode: mode };
   await handlePluginMessage(conn, JSON.stringify(hello));
   return { network, key, id, email, conn, hello };
 }

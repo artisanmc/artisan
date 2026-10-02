@@ -1,5 +1,4 @@
 import { isGroupColor, liveDocumentIds, normalizeCanvasGroups } from "@/domain/canvasGroups";
-import { projectBoard, rearrangeProjectLayout } from "@/features/canvas/autoLayout";
 import {
   type FieldEdit,
   type FieldEditTarget,
@@ -82,6 +81,8 @@ import type {
   SourceRef,
   Step,
 } from "@/domain/types";
+import type { ArrangeMode } from "@/features/canvas/arrangeBoard";
+import { projectBoard, rearrangeProjectLayout } from "@/features/canvas/autoLayout";
 import { cellToPosition, positionToCell, slotCount } from "@/features/canvas/inventoryTypes";
 import { createLText, createLTextAt, deleteLText, setLText } from "@/lib/i18n";
 import {
@@ -345,7 +346,7 @@ interface AccountState {
     y: number;
   }) => void;
   /** Réarrange la planche en conservant la disposition interne des groupes. */
-  releaseBoardPositions: (input: { projectId: ProjectId }) => void;
+  releaseBoardPositions: (input: { projectId: ProjectId; mode?: ArrangeMode }) => void;
   rearrangeCanvasGroup: (input: { projectId: ProjectId; groupId: string }) => void;
   createCanvasGroup: (input: { projectId: ProjectId; name: string; nodeIds: string[]; color?: string }) => string;
   updateCanvasGroup: (input: { projectId: ProjectId; groupId: string; name?: string; color?: string }) => void;
@@ -2083,10 +2084,10 @@ export const useAccountStore = create<AccountState>()(
           }
         }));
       },
-      releaseBoardPositions: ({ projectId: pId }) => {
+      releaseBoardPositions: ({ projectId: pId, mode }) => {
         const current = get().account.projects.find((p) => p.id === pId);
         if (!current) return;
-        const layout = rearrangeProjectLayout(current);
+        const layout = rearrangeProjectLayout(current, undefined, mode);
         if (!layout) return;
         set(produce((draft: AccountState) => {
           Object.assign(draft.account.projects.find((p) => p.id === pId)!, layout);

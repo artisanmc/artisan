@@ -12,7 +12,8 @@ data class Cooldown(
 data class ClickHandler(
     val requirements: List<Condition>,
     val actions: List<Action>,
-    val fallback: List<Action>,
+    /** Fallback exécuté si `requirements` échoue — arbre de steps (wire structuré). */
+    val fallback: List<Step>,
     val cooldown: Cooldown? = null,
     /** Arbre canonique menu/v1. Non-vide = prioritaire sur `actions` (wire legacy). */
     val steps: List<Step> = emptyList(),

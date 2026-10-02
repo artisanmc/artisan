@@ -1,4 +1,5 @@
 import type { MenuId, ProjectId } from "@/domain/types";
+import type { ArrangeMode } from "@/features/canvas/arrangeBoard";
 import type { ViewportState } from "@/features/canvas/usePanZoom";
 import { type SupportedLang, detectEditorLang } from "@/i18n";
 import { create } from "zustand";
@@ -185,6 +186,9 @@ interface UiState {
   /** Mode d'interaction du canvas : main (pan, défaut) ou sélection (clic + marquee). Persisté. */
   canvasMode: "select" | "hand";
   setCanvasMode: (m: "select" | "hand") => void;
+  /** Dernier mode de réarrangement choisi dans la barre. Persisté. */
+  arrangeMode: ArrangeMode;
+  setArrangeMode: (m: ArrangeMode) => void;
   /**
    * Pan/zoom sauvegardé de la planche principale, indexé par projectId. Permet de
    * quitter la planche (ex. ouvrir la vue d'un élément unique) puis d'y revenir
@@ -372,6 +376,8 @@ export const useUiStore = create<UiState>()(
       setAssistantPaneWidth: (w) => set({ assistantPaneWidth: w }),
       canvasMode: "hand",
       setCanvasMode: (m) => set({ canvasMode: m }),
+      arrangeMode: "columns",
+      setArrangeMode: (m) => set({ arrangeMode: m }),
       canvasViewports: {},
       minimapVisible: true,
       setMinimapVisible: (minimapVisible) => set({ minimapVisible }),
@@ -407,6 +413,7 @@ export const useUiStore = create<UiState>()(
         projectPanelOpen: state.projectPanelOpen,
         assistantPaneWidth: state.assistantPaneWidth,
         canvasMode: state.canvasMode,
+        arrangeMode: state.arrangeMode,
         canvasViewports: state.canvasViewports,
         minimapVisible: state.minimapVisible,
         // Persisté : le cadrage de la vue

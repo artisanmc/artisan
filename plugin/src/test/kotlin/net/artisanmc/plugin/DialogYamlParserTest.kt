@@ -20,11 +20,11 @@ class DialogYamlParserTest {
                 actions: close_dialog
         """.trimIndent(), DialogYaml::class.java)
         assertEquals("d_simple", d.id)
-        assertEquals("Hello", d.title)
+        assertEquals("Hello", d.title?.forLang("en", "en"))
         assertTrue(d.canCloseWithEscape)
         assertEquals(1, d.buttons.size)
         assertEquals("btn_ok", d.buttons[0].id)
-        assertEquals("OK", d.buttons[0].label)
+        assertEquals("OK", d.buttons[0].label?.forLang("en", "en"))
         // Button actions are an Action DSL string since Phase 2 (ADR action-dsl).
         assertEquals("close_dialog", d.buttons[0].actions)
     }
@@ -57,7 +57,7 @@ class DialogYamlParserTest {
         """.trimIndent(), DialogYaml::class.java)
         assertEquals(2, d.body.size)
         assertEquals("text", d.body[0].type)
-        assertEquals("Hello world", d.body[0].text)
+        assertEquals("Hello world", d.body[0].text?.forLang("en", "en"))
         assertEquals("item", d.body[1].type)
         assertEquals("DIAMOND", d.body[1].material)
         assertEquals(5, d.body[1].count)
@@ -144,7 +144,7 @@ class DialogYamlParserTest {
         assertEquals("single_option", input.type)
         assertEquals(2, input.options.size)
         assertEquals("basic", input.options[0].value)
-        assertEquals("Basic", input.options[0].label)
+        assertEquals("Basic", input.options[0].label?.forLang("en", "en"))
         assertEquals("premium", input.options[1].value)
         assertEquals("basic", input.default)
     }
@@ -168,6 +168,6 @@ class DialogYamlParserTest {
         assertEquals(1, btn.requirements.size)
         assertEquals("has_money", btn.requirements[0]["type"])
         assertEquals("take_money 100", btn.actions)
-        assertEquals(1, btn.fallback.size)
+        assertEquals(1, (btn.fallback as List<*>).size)
     }
 }

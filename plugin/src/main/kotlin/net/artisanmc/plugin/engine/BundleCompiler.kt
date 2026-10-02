@@ -72,28 +72,13 @@ object BundleCompiler {
         logger: Logger?,
     ): CompiledAppearance? =
         runCatching {
-            @Suppress("UNCHECKED_CAST")
-            val conditions = when (val raw = app.conditions) {
-                is Map<*, *> -> listOf(ConditionParser.parse(raw as Map<String, Any>))
-                is List<*>   -> raw.map { ConditionParser.parse(it as Map<String, Any>) }
-                else         -> emptyList()
-            }
+            // Keyed conditions (canonical) or legacy type-tagged `{type:…}`.
+            val conditions = KeyedStepParser.parseConditions(app.conditions)
 
             val base = I18nAddress.appearance(menuId, elementId, appIndex)
-            val clicks = app.click.mapNotNull { (key, handlerYaml) ->
+            val clicks = app.click.mapNotNull { (key, handlerRaw) ->
                 val clickType = ClickType.fromYamlKey(key) ?: return@mapNotNull null
-                val requirements = handlerYaml.requirements.map { ConditionParser.parse(it) }
-                // Canonical wire (`steps:`) is an Action DSL string (Phase 2, ADR
-                // action-dsl) → parsed + mapped to the engine Step tree. The flat
-                // `actions:`/`fallback:` keys are the legacy wire and stay as-is.
-                // Addresses key on the WIRE click key, like the editor's visitor.
-                val steps        = assignI18nAddresses(compileActionDsl(handlerYaml.steps), I18nAddress.clickHandler(base, key))
-                val actions      = handlerYaml.actions.map { ActionParser.parse(it) }
-                val fallback     = handlerYaml.fallback.map { ActionParser.parse(it) }
-                val cooldown     = handlerYaml.cooldown?.let { cy ->
-                    Cooldown(cy.id, cy.duration, cy.scope, cy.message)
-                }
-                clickType to ClickHandler(requirements, actions, fallback, cooldown, steps)
+                clickType to compileClickHandler(handlerRaw, I18nAddress.clickHandler(base, key))
             }.toMap()
 
             // Parse the appearance's Templates now: the cache is warm before the
@@ -107,6 +92,46 @@ object BundleCompiler {
             null
         }
 
+    /**
+     * Wire handler de clic → [ClickHandler]. Le legacy (objet
+     * `{requirements, actions, fallback, cooldown, steps}`) est détecté par ses
+     * clés ; le reste (string DSL, `{steps}`, keyed) passe par
+     * [ActionChainCompiler].
+     */
+    @Suppress("UNCHECKED_CAST")
+    private fun compileClickHandler(raw: Any?, prefix: String): ClickHandler {
+        // Programmatic construction (tests): a ClickHandlerYaml instance.
+        if (raw is net.artisanmc.plugin.model.ClickHandlerYaml) {
+            return ClickHandler(
+                requirements = raw.requirements.map { ConditionParser.parse(it) },
+                actions = raw.actions.map { ActionParser.parse(it) },
+                fallback = raw.fallback.map { Step.ActionStep(ActionParser.parse(it)) },
+                cooldown = raw.cooldown?.let { Cooldown(it.id, it.duration, it.scope, it.message) },
+                steps = assignI18nAddresses(compileActionDsl(raw.steps), prefix),
+            )
+        }
+        val m = raw as? Map<*, *>
+        val isLegacyObject = m != null &&
+            (m.containsKey("requirements") || m.containsKey("cooldown") ||
+                m.containsKey("fallback") || m.containsKey("actions"))
+        if (!isLegacyObject) {
+            return ClickHandler(emptyList(), emptyList(), emptyList(), steps = ActionChainCompiler.compile(raw, prefix))
+        }
+        val requirements = (m!!["requirements"] as? List<Map<String, Any>>).orEmpty().map { ConditionParser.parse(it) }
+        val legacyActions = (m["actions"] as? List<Map<String, Any>>).orEmpty().map { ActionParser.parse(it) }
+        val fallback = (m["fallback"] as? List<Map<String, Any>>).orEmpty().map { Step.ActionStep(ActionParser.parse(it)) }
+        val cooldown = (m["cooldown"] as? Map<*, *>)?.let { cy ->
+            Cooldown(
+                cy["id"]?.toString() ?: "",
+                (cy["duration"] as? Number)?.toLong() ?: 0L,
+                cy["scope"]?.toString() ?: "player",
+                cy["message"]?.toString(),
+            )
+        }
+        val steps = (m["steps"] as? String)?.let { assignI18nAddresses(compileActionDsl(it), prefix) } ?: emptyList()
+        return ClickHandler(requirements, legacyActions, fallback, cooldown, steps)
+    }
+
     private fun warnMalformedTemplates(
         app: AppearanceYaml,
         menuId: String,
@@ -114,7 +139,9 @@ object BundleCompiler {
         logger: Logger?,
     ) {
         if (logger == null) return
-        val templates = listOfNotNull(app.item, app.material, app.head, app.title) + app.lore
+        val templates = listOfNotNull(app.item, app.material, app.head) +
+            (app.title?.allValues() ?: emptyList()) +
+            app.lore.flatMap { it.allValues() }
         for (template in templates) {
             for (problem in warmTemplate(template)) {
                 logger.warning("[Artisan] menu=$menuId element=$elementId: malformed expression $problem")

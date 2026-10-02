@@ -3,6 +3,7 @@ package net.artisanmc.plugin.engine
 import net.artisanmc.modules.api.CommandRegistry
 import net.artisanmc.plugin.actiondsl.dslToEngineSteps
 import net.artisanmc.plugin.actiondsl.parseActionDsl
+import net.artisanmc.plugin.model.LocalizedText
 import net.artisanmc.plugin.provider.MenuProvider
 import net.artisanmc.plugin.render.LenientText
 import net.kyori.adventure.text.minimessage.MiniMessage
@@ -23,6 +24,7 @@ class ActionExecutor(
     private val cooldowns: CooldownStore,
     private val evaluator: ConditionEvaluator,
     private val commandRegistry: CommandRegistry? = null,
+    private val history: NavigationHistoryStore? = null,
 ) {
 
     fun handle(handler: ClickHandler, ctx: ExecutionContext) {
@@ -32,7 +34,7 @@ class ActionExecutor(
             return
         }
         if (!evaluator.evaluateAll(handler.requirements, ctx)) {
-            execute(handler.fallback, ctx)
+            executeSteps(handler.fallback, ctx)
             return
         }
         if (handler.steps.isNotEmpty()) executeSteps(handler.steps, ctx)
@@ -92,6 +94,10 @@ class ActionExecutor(
         return resolved
     }
 
+    /** Field-local action text (post structured-action-wire): pick the language, then resolve. */
+    fun resolveText(text: LocalizedText, ctx: ExecutionContext, address: String? = null): String =
+        resolveText(text.forLang(ctx.lang, ctx.defaultLang) ?: "", ctx, address)
+
     private val WHOLE_PLACEHOLDER = Regex("^\\{([a-z][a-z0-9_]*(?:\\.[a-z0-9_]+)?)}$")
 
     /**
@@ -122,6 +128,9 @@ class ActionExecutor(
                 }
             }
             is Action.OpenMenu -> {
+                // Real navigation: remember the screen we're leaving so a back
+                // button can return to it (popPrevious consumes it).
+                history?.pushCurrent(player)
                 // Context values resolve against the EMITTING ctx (the click
                 // that binds the iteration row / current args) — the target menu
                 // only ever sees already-resolved values.
@@ -135,7 +144,10 @@ class ActionExecutor(
                 )
             }
             is Action.CloseMenu -> player.closeInventory()
+            is Action.OpenPreviousMenu -> return openPrevious(player, ctx)
             is Action.OpenDialog -> {
+                // Same as OpenMenu: a dialog is a navigation step too.
+                history?.pushCurrent(player)
                 // Same rule as OpenMenu: context values resolve at emit time —
                 // the dialog's texts/actions read the passed args only.
                 val passed = action.context.mapValues { resolveContextValue(it.value, ctx) }
@@ -259,15 +271,15 @@ class ActionExecutor(
             return ctx
         }
         val raw = ctx.exprValue(action.actions)
-        if (raw !is String || raw.isBlank()) {
+        if (raw == null || (raw is String && raw.isBlank())) {
             Bukkit.getLogger().warning("[Artisan] run_actions '${action.actions}' resolved to no action chain — skipping")
             return ctx
         }
-        val dslSteps = runCatching { parseActionDsl(raw) }.getOrElse {
+        // Keyed structured steps (canonical) or a legacy Action DSL string.
+        val steps = runCatching { ActionChainCompiler.compile(raw) }.getOrElse {
             Bukkit.getLogger().warning("[Artisan] run_actions '${action.actions}' failed to parse: ${it.message}")
             return ctx
         }
-        val steps = dslToEngineSteps(dslSteps)
 
         // Self-binding : l'objet dont l'expression tire sa valeur (la ligne / le
         // config object) devient racine locale — la chaîne adresse ses champs bare
@@ -286,6 +298,27 @@ class ActionExecutor(
         }
 
         executeSteps(steps, ctx.copy(args = newArgs, runActionsDepth = ctx.runActionsDepth + 1))
+        return ctx
+    }
+
+    /**
+     * `open_previous_menu` : dépile l'écran précédent et le rouvre SANS empiler
+     * l'écran courant — la pile décroît à chaque retour, donc deux écrans ne
+     * peuvent jamais se renvoyer la balle indéfiniment. Pile vide = no-op.
+     */
+    private fun openPrevious(player: Player, ctx: ExecutionContext): ExecutionContext {
+        val previous = history?.popPrevious(player) ?: return ctx
+        val target = ctx.copy(
+            args = previous.args,
+            lang = previous.lang,
+            pagination = previous.pagination,
+            pageInfo = emptyMap(),
+            sourceArgs = emptyMap(),
+        )
+        when (previous.kind) {
+            NavigationEntry.Kind.MENU -> menuProvider.openMenu(player, previous.id, previous.lang, target)
+            NavigationEntry.Kind.DIALOG -> menuProvider.openDialog(player, previous.id, previous.lang, target)
+        }
         return ctx
     }
 

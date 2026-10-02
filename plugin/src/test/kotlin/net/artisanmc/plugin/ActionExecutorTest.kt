@@ -69,7 +69,7 @@ class ActionExecutorTest {
         val handler = ClickHandler(
             requirements = listOf(Condition.HasPermission("never.granted")),
             actions  = listOf(Action.SendMessage("<green>Success")),
-            fallback = listOf(Action.SendMessage("<red>No permission")),
+            fallback = listOf(Step.ActionStep(Action.SendMessage("<red>No permission"))),
         )
         executor().handle(handler, ctx(p))
         // No exception = fallback taken
@@ -331,7 +331,7 @@ class ActionExecutorTest {
         val handler = ClickHandler(
             requirements = listOf(Condition.HasPermission("never.granted")),
             actions = emptyList(),
-            fallback = listOf(Action.GiveItem("STONE", 1)),
+            fallback = listOf(Step.ActionStep(Action.GiveItem("STONE", 1))),
             steps = listOf(give("DIAMOND")),
         )
         executor().handle(handler, ctx(p))

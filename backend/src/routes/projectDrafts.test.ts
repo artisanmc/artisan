@@ -155,7 +155,7 @@ test("uncertain storage and pending identity errors remain retryable while valid
   });
   const key = await generateServerKey();
   await db.update(serverKeys).set({ hash: key.hash }).where(eq(serverKeys.id, "draft-server"));
-  await handlePluginMessage("draft-error-connection", JSON.stringify({ type: "hello", server_key: key.key, plugin_version: "test", minecraft_version: "1.21.4", current_bundle_hash: "", capabilities: ["resource_quota_v2"] }));
+  await handlePluginMessage("draft-error-connection", JSON.stringify({ type: "hello", content_version: 2, server_key: key.key, plugin_version: "test", minecraft_version: "1.21.4", current_bundle_hash: "", capabilities: ["resource_quota_v2"] }));
   try {
     await request("", "POST", { id: "draft-one", name: "First", snapshot });
     for (const [code, status] of [["storage_error", 503], ["rename_in_progress", 503], ["rename_pending", 503], ["operation_conflict", 409], ["invalid_draft", 422]] as const) {
@@ -195,7 +195,7 @@ test("publication uses the saved baseline and preserves the draft on a disk conf
   });
   const key = await generateServerKey();
   await db.update(serverKeys).set({ hash: key.hash }).where(eq(serverKeys.id, "draft-server"));
-  await handlePluginMessage("draft-connection", JSON.stringify({ type: "hello", server_key: key.key, plugin_version: "test", minecraft_version: "1.21.4", current_bundle_hash: "", capabilities: ["resource_quota_v2"] }));
+  await handlePluginMessage("draft-connection", JSON.stringify({ type: "hello", content_version: 2, server_key: key.key, plugin_version: "test", minecraft_version: "1.21.4", current_bundle_hash: "", capabilities: ["resource_quota_v2"] }));
   try {
     await request("", "POST", { id: "draft-one", name: "First", snapshot });
     expect(writes).toHaveLength(0);

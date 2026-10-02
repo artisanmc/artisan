@@ -145,8 +145,8 @@ class MenuYamlParsingTest {
             """.trimIndent(),
         )
         val click = menu.layers[0].elements[0].display.click
-        assertEquals("close_menu", click["left"]?.steps)
-        assertEquals("open_menu other", click["right"]?.steps)
+        assertEquals("close_menu", click["left"])
+        assertEquals(mapOf("steps" to "open_menu other"), click["right"])
     }
 
     @Test

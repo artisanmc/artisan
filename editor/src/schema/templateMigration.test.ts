@@ -185,13 +185,12 @@ describe("legacy templates/ migration", () => {
     // The manifest no longer advertises a templates list.
     expect(files[`${base}/manifest.yaml`]).not.toContain("templates:");
 
-    // Both elements' text is addressable in every language file.
-    for (const lang of ["en", "fr"]) {
-      const out = files[`${base}/lang/${lang}.yaml`]!;
-      expect(out).toContain("a:");
-      expect(out).toContain("b:");
-    }
-    expect(files[`${base}/lang/fr.yaml`]).toContain("Épée");
+    // Both elements' text is field-local in the menu document, in every language.
+    const menu = files[`${base}/menus/m1.yaml`]!;
+    expect(menu).toContain("Sword");
+    expect(menu).toContain("Épée");
+    // Structural text no longer travels in lang/ (ADR field-local-translations).
+    expect(files[`${base}/lang/fr.yaml`] ?? "").not.toContain("Épée");
   });
 
   it("keeps a dangling template ref harmless", () => {

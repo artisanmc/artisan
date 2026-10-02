@@ -37,9 +37,22 @@ export interface ImportResult {
   unsupported: string[];
 }
 
+/**
+ * True when a wire text value is a field-local `{ lang: text }` map (ADR
+ * `field-local-translations`) — as opposed to an inline literal/ref string or a
+ * legacy `{key}`/`{value}`/layer object. Structural text slots accept both.
+ */
+export function isLangMap(v: unknown): v is Record<string, string> {
+  if (!v || typeof v !== "object" || Array.isArray(v)) return false;
+  const o = v as Record<string, unknown>;
+  if ("key" in o || "value" in o || "text" in o || "kind" in o) return false;
+  const values = Object.values(o);
+  return values.length > 0 && values.every((x) => typeof x === "string");
+}
+
 /** i18n bridge shared by the wire→domain converters (same contract as makeStepConverter). */
 export interface I18nBridge {
-  text: (raw: string | undefined) => LText;
+  text: (raw: string | Record<string, string> | undefined) => LText;
   ref: (key: string) => LText;
   pushUnsupported: (s: string) => void;
 }
@@ -60,10 +73,8 @@ export function makeAppearanceConverter(bridge: I18nBridge): {
     for (const ct of CLICK_TYPES) {
       const handler = click[ct] as Json | string | undefined;
       if (!handler) continue;
-      // Canonical collapsed form: the handler IS the Action DSL string.
-      // Legacy object form `{steps: "<dsl>"}` is still accepted.
-      const dsl = typeof handler === "string" ? handler : handler.steps;
-      out[ct] = { steps: parseSteps(dsl) } satisfies ClickHandler;
+      // String = legacy DSL ; `{steps:"<dsl>"}` = legacy wrapped ; map/list = keyed.
+      out[ct] = { steps: parseSteps(handler) } satisfies ClickHandler;
     }
     return Object.keys(out).length > 0 ? out : undefined;
   }
@@ -83,8 +94,9 @@ export function makeAppearanceConverter(bridge: I18nBridge): {
    * Ce qu'on ne sait toujours pas lire finit en JSON plutôt qu'en
    * « [object Object] » : l'un se diagnostique, l'autre non.
    */
-  function loreLine(line: unknown): string {
+  function loreLine(line: unknown): string | Record<string, string> {
     if (typeof line === "string") return line;
+    if (isLangMap(line)) return line;
     if (line && typeof line === "object") {
       const o = line as Record<string, unknown>;
       if (typeof o.key === "string") return `{i18n:${o.key}}`;
@@ -98,7 +110,7 @@ export function makeAppearanceConverter(bridge: I18nBridge): {
   function loreText(lore: unknown): LText | undefined {
     if (!Array.isArray(lore) || lore.length === 0) return undefined;
     if (lore.length === 1) return text(loreLine(lore[0]));
-    return text(lore.map(loreLine).join("\n"));
+    return text(lore.map(loreLine).filter((l): l is string => typeof l === "string").join("\n"));
   }
 
   function appearance(a: Json): DomainAppearance {
@@ -152,7 +164,13 @@ export function menuV1ToDomain(
     if (tr) i18nKeys[key] = { ...tr };
     return { key: key as I18nKey };
   }
-  function text(raw: string | undefined): LText {
+  function text(raw: string | Record<string, string> | undefined): LText {
+    // Field-local map: the slot's languages travel with the document.
+    if (raw && typeof raw === "object") {
+      const key = newI18nKey();
+      i18nKeys[key] = { ...raw };
+      return { key };
+    }
     const m = typeof raw === "string" ? /^\{i18n:(.+)\}$/.exec(raw) : null;
     if (m) return ref(m[1]!);
     const key = newI18nKey();
@@ -168,15 +186,19 @@ export function menuV1ToDomain(
   });
 
   // ── title layers (inverse of serializeTitleLayer) ─────────────────────────
-  /** Layer `value`: canonical string form (`"{i18n:key}"` or literal) or the
-   *  legacy `{key}` object form. */
+  /** Layer `value`: canonical string form (`"{i18n:key}"` or literal), a
+   *  field-local `{lang: text}` map, or the legacy `{key}` object form. */
   function layerValue(v: unknown): LText {
-    return typeof v === "string" ? text(v) : ref((v as Json)?.key ?? "");
+    if (typeof v === "string") return text(v);
+    if (isLangMap(v)) return text(v);
+    return ref((v as Json)?.key ?? "");
   }
 
   function titleLayer(l: Json): MenuTitleLayer | null {
     // A bare string entry is a plain text layer (canonical sugar).
     if (typeof l === "string") return { kind: "plain", value: text(l) };
+    // A bare `{lang: text}` map is the field-local form of a plain layer.
+    if (isLangMap(l)) return { kind: "plain", value: text(l) };
     switch (l.kind) {
       case "background":
         return { kind: "background", assetId: l.asset_id as AssetId };

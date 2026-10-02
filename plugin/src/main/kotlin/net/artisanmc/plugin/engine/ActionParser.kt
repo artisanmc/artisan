@@ -1,5 +1,7 @@
 package net.artisanmc.plugin.engine
 
+import net.artisanmc.plugin.model.LocalizedText
+
 object ActionParser {
 
     @Suppress("UNCHECKED_CAST")
@@ -18,6 +20,7 @@ object ActionParser {
                 clearContext = raw["clear_context"] as? Boolean ?: false,
             )
             "close_menu"     -> Action.CloseMenu
+            "open_previous_menu" -> Action.OpenPreviousMenu
             "give_item"      -> Action.GiveItem(
                 material = str(raw, "material"),
                 count    = (raw["count"] as? Number)?.toInt() ?: 1,
@@ -29,11 +32,11 @@ object ActionParser {
             "take_money"     -> Action.TakeMoney((raw["amount"] as Number).toDouble(), raw["currency"] as? String)
             "give_xp"        -> Action.GiveXp((raw["amount"] as Number).toInt())
             "give_level"     -> Action.GiveLevel((raw["amount"] as Number).toInt())
-            "send_message"   -> Action.SendMessage(str(raw, "text"))
-            "broadcast"      -> Action.Broadcast(str(raw, "text"))
+            "send_message"   -> Action.SendMessage(LocalizedText.of(str(raw, "text")))
+            "broadcast"      -> Action.Broadcast(LocalizedText.of(str(raw, "text")))
             "show_title"     -> Action.ShowTitle(
-                title    = str(raw, "title"),
-                subtitle = raw["subtitle"] as? String,
+                title    = LocalizedText.of(str(raw, "title")),
+                subtitle = (raw["subtitle"] as? String)?.let(LocalizedText::of),
                 fadeIn   = (raw["fade_in"]  as? Number)?.toInt() ?: 10,
                 stay     = (raw["stay"]     as? Number)?.toInt() ?: 70,
                 fadeOut  = (raw["fade_out"] as? Number)?.toInt() ?: 20,

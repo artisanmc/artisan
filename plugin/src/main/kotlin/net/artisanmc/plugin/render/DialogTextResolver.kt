@@ -4,6 +4,7 @@ import net.artisanmc.plugin.engine.I18nAddress
 import net.artisanmc.plugin.engine.ExecutionContext
 import net.artisanmc.plugin.engine.render
 import net.artisanmc.plugin.model.BundleDialog
+import net.artisanmc.plugin.model.LocalizedText
 
 /**
  * Textes d'un dialog après résolution, index-alignés sur les listes du YAML
@@ -49,19 +50,22 @@ internal object DialogTextResolver {
     }
 
     /**
-     * Explicit `{i18n:key}` ref wins; otherwise the literal is looked up at its
-     * canonical ADDRESS (inline mode); otherwise it stands as written.
+     * A field-local map wins (ADR `field-local-translations`); otherwise a bare
+     * value keeps the legacy chain: explicit `{i18n:key}` ref → canonical ADDRESS
+     * (inline mode) → the value as written. Then `{arg}`/`%papi%` interpolation.
      */
     fun resolve(
-        raw: String,
+        raw: LocalizedText?,
         langMap: Map<String, String>,
         ctx: ExecutionContext,
         address: String? = null,
     ): String {
-        val text = if (raw.startsWith("{i18n:")) {
-            langMap[raw.removePrefix("{i18n:").removeSuffix("}")] ?: raw
-        } else {
-            address?.let { langMap[it] } ?: raw
+        if (raw == null) return ""
+        val value = raw.forLang(ctx.lang, ctx.defaultLang) ?: return ""
+        val text = when {
+            raw.isMap -> value
+            value.startsWith("{i18n:") -> langMap[value.removePrefix("{i18n:").removeSuffix("}")] ?: value
+            else -> address?.let { langMap[it] } ?: value
         }
         return ctx.render(text)
     }

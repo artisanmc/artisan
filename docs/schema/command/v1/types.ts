@@ -18,7 +18,7 @@
  *                   (sauf clear_context: true).
  */
 
-import type { Action, Condition, Step } from "../../menu/v1/types";
+import type { ClickHandler, Condition, StructuredStep } from "../../menu/v1/types";
 
 // ============================================================================
 // TOP-LEVEL
@@ -35,10 +35,12 @@ export interface Command {
   notes?: string;
   arguments?: Argument[];
   requirements?: Condition[];
-  /** Chaîne **Action DSL** exécutée quand la commande est appelée (actions + branches if). Cf. ADR `action-dsl`. */
-  steps: string;
+  /** Chaîne d'actions exécutée quand la commande est appelée (ADR `structured-action-wire`). */
+  actions?: ClickHandler;
+  /** Forme legacy de `actions` — toujours acceptée en lecture. */
+  steps?: ClickHandler;
   /** Exécuté si requirements échoue. */
-  fallback?: Action[];
+  fallback?: StructuredStep[];
   cooldown?: Cooldown;
   metadata?: CommandMetadata;
 }

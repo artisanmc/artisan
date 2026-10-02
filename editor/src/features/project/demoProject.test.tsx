@@ -183,5 +183,6 @@ test("the mounted guest loader and root autosave persist two successive French i
   await waitFor(() => expect(create).toHaveBeenCalledOnce(), { timeout: 4000 });
   edit("Deuxième titre");
   await waitFor(() => expect(update).toHaveBeenCalledOnce(), { timeout: 4000 });
-  expect(update.mock.calls[0]![4].tree["lang/fr.yaml"]).toContain("Deuxième titre");
+  // Structural text is field-local — the edited title lands in the menu document.
+  expect(update.mock.calls[0]![4].tree["menus/welcome.yaml"]).toContain("Deuxième titre");
 });

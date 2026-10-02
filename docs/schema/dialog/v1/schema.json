@@ -21,8 +21,8 @@
       "description": "LEGACY, ignoré. L'identité d'un Document est le nom de son fichier (le reader force la valeur et signale une divergence). Toléré en lecture pour les projects antérieurs ; plus jamais écrit."
     },
     "title": {
-      "type": "string",
-      "description": "Titre affiché. Référence i18n {i18n:key} ou littéral MiniMessage."
+      "$ref": "#/$defs/LText",
+      "description": "Titre affiché. Référence i18n {i18n:key}, littéral MiniMessage, ou map field-local."
     },
     "can_close_with_escape": {
       "type": "boolean",
@@ -52,6 +52,25 @@
     }
   },
   "$defs": {
+    "LText": {
+      "description": "Un texte de slot structurel (ADR field-local-translations) : string ('{i18n:key}' ou littéral, identique pour toutes les langues) ou map field-local { LangCode: texte }.",
+      "oneOf": [
+        {
+          "type": "string",
+          "description": "Référence i18n {i18n:key} ou littéral MiniMessage."
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "patternProperties": {
+            "^[a-z]{2,3}(_[A-Za-z]{2,4})?$": {
+              "type": "string"
+            }
+          },
+          "description": "Map field-local { lang: texte }."
+        }
+      ]
+    },
     "DialogBody": {
       "oneOf": [
         {
@@ -66,8 +85,8 @@
               "const": "text"
             },
             "text": {
-              "type": "string",
-              "description": "Référence i18n {i18n:key} ou littéral MiniMessage."
+              "$ref": "#/$defs/LText",
+              "description": "Référence i18n {i18n:key}, littéral MiniMessage, ou map field-local."
             }
           }
         },
@@ -114,7 +133,7 @@
               "const": "text"
             },
             "label": {
-              "type": "string"
+              "$ref": "#/$defs/LText"
             },
             "default": {
               "type": "string"
@@ -135,7 +154,7 @@
               "const": "bool"
             },
             "label": {
-              "type": "string"
+              "$ref": "#/$defs/LText"
             },
             "default": {
               "type": "string",
@@ -156,7 +175,7 @@
               "const": "number_range"
             },
             "label": {
-              "type": "string"
+              "$ref": "#/$defs/LText"
             },
             "min": {
               "type": "number"
@@ -179,7 +198,7 @@
               "const": "single_option"
             },
             "label": {
-              "type": "string"
+              "$ref": "#/$defs/LText"
             },
             "options": {
               "type": "array",
@@ -196,7 +215,7 @@
                     "type": "string"
                   },
                   "label": {
-                    "type": "string"
+                    "$ref": "#/$defs/LText"
                   }
                 }
               }
@@ -220,11 +239,21 @@
           "$ref": "#/$defs/InputId"
         },
         "label": {
-          "type": "string"
+          "$ref": "#/$defs/LText"
         },
         "actions": {
-          "type": "string",
-          "description": "Chaîne Action DSL exécutée au clic du bouton (actions + branches if/else, comme les click-handlers de menu). Cf. ADR action-dsl — remplace l'ancienne liste d'actions plates ; les branches if round-trip désormais."
+          "description": "Chaîne d'actions exécutée au clic du bouton. Wire canonique : steps structurés (ou un step / une liste). Une string = ancien Action DSL (legacy). Cf. ADR structured-action-wire.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object"
+            },
+            {
+              "type": "array"
+            }
+          ]
         }
       }
     },

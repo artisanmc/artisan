@@ -40,6 +40,7 @@ open class ArtisanPlugin : JavaPlugin() {
     private lateinit var artisanCommand: ArtisanCommand
     private lateinit var executor: ActionExecutor
     private lateinit var sessions: MenuSessionStore
+    private lateinit var navigationHistory: NavigationHistoryStore
     private lateinit var menuWindows: MenuWindows
     /** Survives `/artisan reload`: the pack manager is swapped, the players' loaded packs are not. */
     private val packLoads = net.artisanmc.plugin.resourcepack.PackLoadTracker()
@@ -206,6 +207,7 @@ open class ArtisanPlugin : JavaPlugin() {
         val softDeps = SoftDepRegistry(this, capturedItems)
         cooldowns = CooldownStore()
         sessions = MenuSessionStore()
+        navigationHistory = NavigationHistoryStore()
         val evaluator = ConditionEvaluator(softDeps, cooldowns)
         // Disk-cached asset index: glyph/font titles keep rendering with the
         // backend down or gone (offline completeness — the catalog was
@@ -224,6 +226,7 @@ open class ArtisanPlugin : JavaPlugin() {
             logger           = logger,
             evaluator        = evaluator,
             sessions         = sessions,
+            history          = navigationHistory,
             onReload         = {
                 capturedItems.reload()
                 commandRegistrar.reload(menuProvider.allBundles(), executor, evaluator)
@@ -301,13 +304,13 @@ open class ArtisanPlugin : JavaPlugin() {
         menuProvider.load()
         if (syncedProvider != null) registerCustomItemsReloadListeners(syncedProvider)
 
-        executor = ActionExecutor(this, menuProvider, sessions, softDeps, cooldowns, evaluator, api.commands)
+        executor = ActionExecutor(this, menuProvider, sessions, softDeps, cooldowns, evaluator, api.commands, navigationHistory)
         commandRegistrar.reload(menuProvider.allBundles(), executor, evaluator)
 
         artisanCommand = ArtisanCommand(this, langManager)
         getCommand("artisan")?.setExecutor(artisanCommand)
         getCommand("artisan")?.tabCompleter = artisanCommand
-        server.pluginManager.registerEvents(MenuListener(this, sessions, executor, menuWindows), this)
+        server.pluginManager.registerEvents(MenuListener(this, sessions, executor, menuWindows, history = navigationHistory), this)
         logger.info("Artisan ${description.version} enabled")
     }
 
@@ -413,6 +416,7 @@ open class ArtisanPlugin : JavaPlugin() {
             logger           = logger,
             evaluator        = evaluator,
             sessions         = sessions,
+            history          = navigationHistory,
             onReload         = {
                 capturedItems.reload()
                 commandRegistrar.reload(menuProvider.allBundles(), executor, evaluator)
@@ -483,7 +487,7 @@ open class ArtisanPlugin : JavaPlugin() {
         registerResourcePackManager(resourcePackManagerReinit)
         menuProvider.load()
         if (syncedProviderReinit != null) registerCustomItemsReloadListeners(syncedProviderReinit)
-        executor = ActionExecutor(this, menuProvider, sessions, softDeps, cooldowns, evaluator, api.commands)
+        executor = ActionExecutor(this, menuProvider, sessions, softDeps, cooldowns, evaluator, api.commands, navigationHistory)
         commandRegistrar.reload(menuProvider.allBundles(), executor, evaluator)
 
         // reinit happens after ServerLoadEvent has already fired, so we kick off

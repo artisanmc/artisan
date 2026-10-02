@@ -1,6 +1,6 @@
 import type { Project } from "@/domain/types";
 import { describe, expect, it } from "vitest";
-import { autoLayout, projectBoard } from "./autoLayout";
+import { autoLayout, projectBoard, rearrangeProjectLayout } from "./autoLayout";
 
 const menu = (id: string, opens?: string) =>
   ({
@@ -86,5 +86,51 @@ describe("autoLayout", () => {
     const project = makeProject({ menus: [menu("m1", "m2"), menu("m2")] });
     const edited = { ...project, updatedAt: "later" };
     expect(projectBoard(edited)).toBe(projectBoard(project));
+  });
+});
+
+describe("rearrangeProjectLayout — modes", () => {
+  const opens = (id: string, targets: string[]) => ({
+    id,
+    rows: 3,
+    layers: [
+      {
+        id: "l",
+        name: "default",
+        elements: targets.map((target, index) => ({
+          id: `e${index}`,
+          positions: String(index),
+          display: {
+            click: {
+              left: { steps: [{ kind: "action", action: { type: "open_menu", menuId: target } }] },
+            },
+          },
+          states: [],
+        })),
+      },
+    ],
+  });
+  /** Un menu principal qui ouvre huit sous-menus : le rank qui fait une colonne de dix. */
+  const fanout = () => {
+    const children = ["a", "b", "c", "d", "e", "f", "g", "h"];
+    return makeProject({
+      menus: [opens("main", children), ...children.map((c) => opens(c, []))] as never,
+    });
+  };
+
+  it("columns libère les positions ; un autre mode les persiste toutes", () => {
+    const project = fanout();
+    expect(rearrangeProjectLayout(project, undefined, "columns")!.canvasLayout).toEqual({});
+    for (const mode of ["wrap", "auto", "cluster", "force"] as const) {
+      const layout = rearrangeProjectLayout(project, undefined, mode)!.canvasLayout;
+      expect(Object.keys(layout), mode).toHaveLength(project.menus.length);
+    }
+  });
+
+  it("deux modes donnent deux dispositions distinctes", () => {
+    const project = fanout();
+    const wrap = rearrangeProjectLayout(project, undefined, "wrap")!.canvasLayout;
+    const cluster = rearrangeProjectLayout(project, undefined, "cluster")!.canvasLayout;
+    expect(cluster).not.toEqual(wrap);
   });
 });
