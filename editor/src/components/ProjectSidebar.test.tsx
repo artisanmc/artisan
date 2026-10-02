@@ -182,6 +182,14 @@ describe("ProjectSidebar", () => {
       expect(toggle).toHaveAttribute("aria-expanded", "true");
     });
 
+    it("montre le project ouvert même s'il n'est pas listé (démo, sans network)", async () => {
+      mockParams.current = { projectId: "pack_a" };
+      useNetworksStore.setState({ networks: [], activeId: null } as any);
+      render(<ProjectSidebar />);
+      const tree = await screen.findByRole("group", { name: /Documents de pack_a/ });
+      expect(tree).toHaveTextContent("accueil");
+    });
+
     it("ne déplie rien hors d'un project", async () => {
       render(<ProjectSidebar />);
       await screen.findByRole("link", { name: /pack_a/ });

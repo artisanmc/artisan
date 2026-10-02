@@ -169,12 +169,6 @@ interface UiState {
   draggingNewLayer: DraggingNewLayer | null;
   setDraggingNewLayer: (payload: DraggingNewLayer | null) => void;
   /**
-   * Remember the fixed right Elements panel choice; false enables hover reveal.
-   */
-  projectPanelOpen: boolean;
-  setProjectPanelOpen: (open: boolean) => void;
-  toggleProjectPanel: () => void;
-  /**
    * Cmd+K search palette open? Transient session state: deliberately NOT
    * persisted (see partialize).
    */
@@ -379,9 +373,6 @@ export const useUiStore = create<UiState>()(
         }),
       draggingNewLayer: null,
       setDraggingNewLayer: (payload) => set({ draggingNewLayer: payload }),
-      projectPanelOpen: false,
-      setProjectPanelOpen: (open) => set({ projectPanelOpen: open }),
-      toggleProjectPanel: () => set((s) => ({ projectPanelOpen: !s.projectPanelOpen })),
       searchOpen: false,
       setSearchOpen: (open) => set({ searchOpen: open }),
       assistantPanelOpen: false,
@@ -431,7 +422,6 @@ export const useUiStore = create<UiState>()(
         editorLang: state.editorLang,
         flowCanvasHeight: state.flowCanvasHeight,
         editorPaneWidth: state.editorPaneWidth,
-        projectPanelOpen: state.projectPanelOpen,
         assistantPaneWidth: state.assistantPaneWidth,
         canvasMode: state.canvasMode,
         arrangeMode: state.arrangeMode,

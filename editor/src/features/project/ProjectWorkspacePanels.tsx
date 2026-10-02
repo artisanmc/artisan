@@ -3,10 +3,13 @@ import type { ProjectId } from "@/domain/types";
 import { EditorPane } from "@/features/canvas/EditorPane";
 import { useUiStore } from "@/state/uiStore";
 import { type ReactNode, useEffect, useRef, useState } from "react";
-import { ProjectElementsSidebar } from "./ProjectElementsSidebar";
 import { DockedInspectorContext } from "./inspectorLayout";
 import { useInspector } from "./useInspector";
 
+/**
+ * Le canvas et, à droite, l'inspecteur de la sélection — rien d'autre : les
+ * Documents du project vivent dans la barre de gauche (`ProjectSidebar`).
+ */
 export function ProjectWorkspacePanels({
   projectId,
   active,
@@ -16,7 +19,6 @@ export function ProjectWorkspacePanels({
   active: boolean;
   children: ReactNode;
 }) {
-  const treeOpen = useUiStore((s) => s.projectPanelOpen);
   const width = useUiStore((s) => s.editorPaneWidth);
   const setWidth = useUiStore((s) => s.setEditorPaneWidth);
   const { open } = useInspector(projectId);
@@ -46,16 +48,12 @@ export function ProjectWorkspacePanels({
             orientation="horizontal"
             primary={children}
             secondary={sidebar}
-            secondarySize={Math.min(
-              width,
-              Math.max(300, availableWidth - (treeOpen ? 240 : 0) - 300),
-            )}
+            secondarySize={Math.min(width, Math.max(300, availableWidth - 300))}
             onSecondarySizeChange={setWidth}
             minPrimary={300}
             minSecondary={300}
           />
         </div>
-        <ProjectElementsSidebar key={projectId} projectId={projectId} />
       </div>
     </DockedInspectorContext.Provider>
   );

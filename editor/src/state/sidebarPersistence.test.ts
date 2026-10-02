@@ -2,12 +2,10 @@ import type { ProjectId } from "@/domain/types";
 import { useProjectLibraryStore } from "@/features/project/projectLibraryStore";
 import { beforeEach, expect, it } from "vitest";
 import { useSidebarStore } from "./sidebarStore";
-import { useUiStore } from "./uiStore";
 
 beforeEach(() => {
   localStorage.clear();
   useSidebarStore.setState({ pinned: false, isOpen: false });
-  useUiStore.setState({ projectPanelOpen: false });
   useProjectLibraryStore.setState({ projectId: null, category: "items" });
 });
 
@@ -21,18 +19,6 @@ it("restores the fixed navigation choice without reopening the mobile drawer", a
   await useSidebarStore.persist.rehydrate();
   expect(useSidebarStore.getState().pinned).toBe(true);
   expect(useSidebarStore.getState().isOpen).toBe(false);
-});
-
-it("restores both open and closed Elements choices", async () => {
-  const name = useUiStore.persist.getOptions().name;
-  for (const open of [true, false]) {
-    useUiStore.getState().setProjectPanelOpen(open);
-    const saved = localStorage.getItem(name)!;
-    useUiStore.setState({ projectPanelOpen: !open });
-    localStorage.setItem(name, saved);
-    await useUiStore.persist.rehydrate();
-    expect(useUiStore.getState().projectPanelOpen).toBe(open);
-  }
 });
 
 it("restores the library project and category, then remembers closing it", async () => {

@@ -42,9 +42,6 @@ vi.mock("@/features/canvas/Stage", () => ({ Stage: () => <div>Demo canvas</div> 
 vi.mock("@/features/canvas/useTextureInit", () => ({ useTextureInit: () => {} }));
 vi.mock("@/features/assets/useAssetInit", () => ({ useAssetInit: () => {} }));
 vi.mock("@/features/canvas/EditorPane", () => ({ EditorPane: () => null }));
-vi.mock("@/features/project/ProjectPanel", () => ({
-  ProjectPanel: () => <div>Project elements</div>,
-}));
 vi.mock("@/features/assets/AssetsTab", () => ({ AssetsTab: () => <div>Resource library</div> }));
 vi.mock("@/features/translations/TranslationPanel", () => ({
   TranslationPanelContent: () => null,

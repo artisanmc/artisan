@@ -26,7 +26,7 @@ export const onboardingEn = {
     "Find Minecraft items and images in Buttons, then drag them into a menu. Select an element to edit its appearance and actions in the inspector.",
   elementsTitle: "Find every element",
   elementsDescription:
-    "Elements lists the project's menus, commands and dialogs. Use it to open an existing document or create another.",
+    "The left sidebar lists the open project's menus, commands and dialogs. Pick one to centre the canvas on it, or create another with +.",
   tabsTitle: "Go beyond the canvas",
   tabsDescription:
     "These tabs hold translations, data sources and resources. The assistant can help you create and refine your project.",
@@ -69,7 +69,7 @@ export const onboardingFr = {
     "Retrouvez les items Minecraft et les images dans Boutons, puis glissez-les dans un menu. Sélectionnez un élément pour régler son apparence et ses actions dans l’inspecteur.",
   elementsTitle: "Retrouvez chaque élément",
   elementsDescription:
-    "Éléments regroupe les menus, commandes et dialogues du projet. Ouvrez un document existant ou créez-en un nouveau depuis ce panneau.",
+    "La barre de gauche liste les menus, commandes et dialogues du projet ouvert. Choisissez-en un pour centrer le canvas dessus, ou créez-en un avec +.",
   tabsTitle: "Allez au-delà du canvas",
   tabsDescription:
     "Ces onglets regroupent les traductions, sources de données et ressources. L’assistant peut vous aider à créer et affiner votre projet.",
