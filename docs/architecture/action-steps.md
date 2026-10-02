@@ -61,6 +61,9 @@ Un `{i18n:key}` reste une valeur possible (clé partagée) ; les templates
 
 `if:` porte une **liste = AND implicite**. `or:` / `and:` prennent une liste,
 `not:` une condition. `else if` = un `if` **en tête du `else`**.
+Les `joins` plats de l'éditeur s'encodent de gauche à droite, sans précédence
+(sémantique historique du plugin) : `A and B or C` → `or: [and: [A, B], C]`,
+`A or B and C` → `[or: [A, B], C]` (`conditionsToStructured`).
 
 ```yaml
 - if:
