@@ -435,6 +435,8 @@ const fr: typeof en = {
   },
   actionEditor: {
     targetMenu: "menu cible",
+    targetDialog: "dialogue cible",
+    choose: "— choisir —",
     menuMissing: "{{id}} (introuvable)",
     contextToPass: "contexte à passer",
     contextUndeclared: "(non déclaré sur le menu cible)",

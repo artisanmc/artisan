@@ -424,6 +424,8 @@ export default {
   },
   actionEditor: {
     targetMenu: "target menu",
+    targetDialog: "target dialog",
+    choose: "— choose —",
     menuMissing: "{{id}} (missing)",
     contextToPass: "context to pass",
     contextUndeclared: "(not declared on the target menu)",
