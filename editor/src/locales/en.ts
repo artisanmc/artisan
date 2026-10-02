@@ -1239,6 +1239,7 @@ export default {
   },
   sidebar: {
     projectDocuments: "Documents of {{name}}",
+    showDocuments: "Show the documents of {{name}}",
     settings: "Settings",
     brand: "Artisan",
     myProjects: "My Projects",
