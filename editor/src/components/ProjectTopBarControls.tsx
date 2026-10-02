@@ -37,6 +37,8 @@ import { Tooltip } from "@/components/ui/tooltip";
 import type { Project, ProjectId } from "@/domain/types";
 import { useTourPresentation } from "@/features/onboarding/tourPresentation";
 import { DeployReviewDialog } from "@/features/project/DeployReviewDialog";
+import { type ServerChecks, serverChecksFor } from "@/features/serverIndex/serverChecks";
+import { useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
 import { PersistedDraftControls } from "@/features/project/PersistedDraftControls";
 import { hasDraftChanges } from "@/features/project/draft";
 import { flushDraftEdits } from "@/features/project/draftFlush";
@@ -561,6 +563,7 @@ function SaveControls({
     setChoices({});
   }, [draftConflict, projectId]);
   const [review, setReview] = useState<ChangeSet | null>(null);
+  const [reviewChecks, setReviewChecks] = useState<ServerChecks | undefined>();
   const [savingDraft, setSavingDraft] = useState(false);
 
   // « As-tu du travail non enregistré ? » — lu depuis le brouillon, qui porte
@@ -619,6 +622,8 @@ function SaveControls({
     flushDraftEdits();
     const live = useAccountStore.getState().account.projects.find((p) => p.id === projectId);
     const current = useProjectDraftStore.getState().get(projectId);
+    // Contrôles contre l'état publié des autres projects, lu à l'instant de la revue.
+    setReviewChecks(serverChecksFor(live ?? project, useServerIndexStore.getState()));
     setReview({
       before: useProjectBaselineStore.getState().get(projectId) ?? {},
       after: projectTree(live ?? project),
@@ -796,6 +801,7 @@ function SaveControls({
 
       <DeployReviewDialog
         changes={review}
+        checks={reviewChecks}
         onCancel={() => setReview(null)}
         onConfirm={() => {
           setReview(null);

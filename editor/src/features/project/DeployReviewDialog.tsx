@@ -7,15 +7,20 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { ServerChecksSection } from "@/features/serverIndex/ServerChecksSection";
+import type { ServerChecks } from "@/features/serverIndex/serverChecks";
 import { useTranslation } from "react-i18next";
 
 /** Last look at what a deployment writes to the server disk, before anything is sent. */
 export function DeployReviewDialog({
   changes,
+  checks,
   onConfirm,
   onCancel,
 }: {
   changes: ChangeSet | null;
+  /** Ce que ce déploiement pourrait casser dans les autres projects du serveur. */
+  checks?: ServerChecks;
   onConfirm: () => void;
   onCancel: () => void;
 }) {
@@ -27,6 +32,7 @@ export function DeployReviewDialog({
           <DialogTitle>{t("deploy.reviewTitle")}</DialogTitle>
           <DialogDescription>{t("deploy.reviewBody")}</DialogDescription>
         </DialogHeader>
+        {checks && <ServerChecksSection checks={checks} />}
         {changes && (
           <ChangeList
             {...changes}
