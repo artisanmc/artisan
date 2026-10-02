@@ -107,6 +107,16 @@ describe("transform — structural text is field-local", () => {
     expect(menu.elements[0].title).toBe("");
   });
 
+  it("keeps a text written only in a non-default language as a map", () => {
+    const menu = parse(
+      transform(
+        project({ i18nKeys: { "menus.shop.title": { fr: "Boutique" } } as Project["i18nKeys"] }),
+      )[`${BASE}/menus/shop.yaml`]!,
+    );
+    // A bare string would mean the default language (en) — and was "" before.
+    expect(menu.title[0].value).toEqual({ fr: "Boutique" });
+  });
+
   it("makes action text field-local too", () => {
     const files = transform(project());
     const menu = parse(files[`${BASE}/menus/shop.yaml`]!);

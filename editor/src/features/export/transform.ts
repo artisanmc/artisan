@@ -50,7 +50,9 @@ function fieldTextOf(project: Project): FieldTextOf {
   return (key) => {
     const entry = project.i18nKeys[key] ?? {};
     const langs = Object.keys(entry);
-    if (langs.length <= 1) return entry[project.defaultLang] ?? "";
+    // A bare string means the default language: a lone other language keeps its map.
+    if (langs.length === 0 || (langs.length === 1 && langs[0] === project.defaultLang))
+      return entry[project.defaultLang] ?? "";
     const out: Record<string, string> = {};
     for (const lang of langs) out[lang] = entry[lang] ?? "";
     return out;
