@@ -51,15 +51,14 @@ describe("ProjectPanel", () => {
     expect(screen.getByText("m1")).toBeInTheDocument();
   });
 
-  it("cliquer un élément navigue vers sa vue individuelle", () => {
+  it("cliquer un élément le sélectionne et centre la planche dessus, sans quitter la planche", () => {
     render(<ProjectPanel projectId={PID} />);
     fireEvent.click(screen.getByText("/heal"));
     expect(navigate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        to: "/networks/$networkId/servers/$serverId/projects/$projectId/document/$documentId",
-        params: expect.objectContaining({ documentId: "c1" }),
-      }),
+      expect.objectContaining({ to: "/networks/$networkId/servers/$serverId/projects/$projectId" }),
     );
+    expect(useUiStore.getState().centerRequest).toMatchObject({ docId: "c1" });
+    expect([...useSelectionStore.getState().ids]).toEqual(["c1"]);
   });
 
   it("la ligne racine ouvre les paramètres du project sans rien sélectionner", () => {

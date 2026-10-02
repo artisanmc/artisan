@@ -55,6 +55,7 @@ import { TranslationPanelContent } from "@/features/translations/TranslationPane
 import { deleteUserProject } from "@/lib/api/userProjects";
 import { validActiveLang } from "@/lib/i18nUsages";
 import { documentDestination, projectDestination } from "@/lib/projectNavigation";
+import { goToDocument } from "./goToDocument";
 import { useProjectPrincipalId } from "@/lib/projectPrincipal";
 import { projectUrlId } from "@/lib/projectUrlId";
 import { useIsDesktop } from "@/lib/useMediaQuery";
@@ -90,13 +91,16 @@ import { ResolvedProjectContext } from "./ResolvedProjectContext";
 
 export type ProjectSearch = {
   tab?: "overview" | "translations" | "data-sources" | "resources" | "assistant";
+  /** Lien profond : centrer la planche sur ce Document à l'ouverture (`goToDocument`). */
+  doc?: string;
 };
 
 export const validateProjectSearch = (search: Record<string, unknown>): ProjectSearch => {
   const t = search.tab;
   if (t === "translations" || t === "data-sources" || t === "resources" || t === "assistant")
     return { tab: t };
-  return { tab: "overview" };
+  const doc = typeof search.doc === "string" && search.doc ? { doc: search.doc } : {};
+  return { tab: "overview", ...doc };
 };
 
 export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) {
@@ -132,7 +136,16 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
     return mountEditorTour({ accountId, demo, ready: tourReady });
   }, [accountId, demo, tourReady, pId]);
   const navigate = useNavigate();
-  const { tab = "overview" } = useSearch({ strict: false }) as ProjectSearch;
+  const { tab = "overview", doc } = useSearch({ strict: false }) as ProjectSearch;
+  // Lien profond `?doc=` (arbre d'un autre project, planche générale, palette) :
+  // une fois le project chargé, centrer sa planche sur le Document — goToDocument
+  // retire le paramètre au passage, un rechargement ne recentre donc pas.
+  const loadedId = project?.id;
+  // biome-ignore lint/correctness/useExhaustiveDependencies: on réagit au lien et au chargement, pas à chaque édition du project.
+  useEffect(() => {
+    if (!doc || !project) return;
+    goToDocument(navigate, { networkId, serverId, project, ref: doc });
+  }, [doc, loadedId]);
   const presentedTab = tourPresenting ? "overview" : tab;
   const exitToCanvas = () =>
     navigate({ to: ".", search: (prev) => ({ ...(prev as object), tab: undefined }) });

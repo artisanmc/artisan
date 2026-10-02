@@ -1,0 +1,65 @@
+import { useSelectionStore } from "@/state/selectionStore";
+import { useUiStore } from "@/state/uiStore";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { validateProjectSearch } from "./ProjectWorkspace";
+import { goToDocument } from "./goToDocument";
+
+const navigate = vi.fn();
+const core = { id: "p1", diskId: "core" };
+const BOARD = "/networks/$networkId/servers/$serverId/projects/$projectId";
+
+beforeEach(() => {
+  navigate.mockReset();
+  useUiStore.setState({ centerRequest: null });
+  useSelectionStore.getState().clear();
+});
+
+describe("goToDocument", () => {
+  it("selects the document, asks the board to centre on it, and returns to the board", () => {
+    goToDocument(navigate, { networkId: "n", serverId: "s", project: core, ref: "main" });
+    expect(useUiStore.getState().centerRequest).toMatchObject({ projectId: "p1", docId: "main" });
+    expect([...useSelectionStore.getState().ids]).toEqual(["main"]);
+    expect(navigate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: BOARD,
+        params: expect.objectContaining({ projectId: "core" }),
+        search: {},
+      }),
+    );
+  });
+
+  it("centres again when the same document is picked twice", () => {
+    goToDocument(navigate, { networkId: "n", serverId: "s", project: core, ref: "main" });
+    const first = useUiStore.getState().centerRequest?.nonce;
+    goToDocument(navigate, { networkId: "n", serverId: "s", project: core, ref: "main" });
+    expect(useUiStore.getState().centerRequest?.nonce).not.toBe(first);
+  });
+
+  it("opens another project on its board, centred on the document, through the URL", () => {
+    goToDocument(navigate, { networkId: "n", serverId: "s", project: core, ref: "boutique:main" });
+    expect(navigate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: BOARD,
+        params: expect.objectContaining({ projectId: "boutique" }),
+        search: { doc: "main" },
+      }),
+    );
+    expect(useUiStore.getState().centerRequest).toBeNull();
+  });
+
+  it("treats a ref qualified with this project's own folder as local", () => {
+    goToDocument(navigate, { networkId: "n", serverId: "s", project: core, ref: "core:main" });
+    expect(useUiStore.getState().centerRequest).toMatchObject({ docId: "main" });
+  });
+});
+
+describe("validateProjectSearch", () => {
+  it("keeps the document to centre on, from a deep link", () => {
+    expect(validateProjectSearch({ doc: "main" })).toEqual({ tab: "overview", doc: "main" });
+  });
+
+  it("drops a malformed doc", () => {
+    expect(validateProjectSearch({ doc: 3 })).toEqual({ tab: "overview" });
+    expect(validateProjectSearch({ tab: "translations" })).toEqual({ tab: "translations" });
+  });
+});

@@ -234,14 +234,11 @@ export function ServerCanvasPage() {
               onOpen={(node) => {
                 const project = projects.find((p) => p.id === node.projectId);
                 if (!project) return;
+                // Ouvre la planche du project, centrée sur le Document (goToDocument).
                 void navigate({
-                  to: "/networks/$networkId/servers/$serverId/projects/$projectId/document/$documentId",
-                  params: {
-                    networkId,
-                    serverId,
-                    projectId: projectUrlId(project),
-                    documentId: node.docId,
-                  },
+                  to: "/networks/$networkId/servers/$serverId/projects/$projectId",
+                  params: { networkId, serverId, projectId: projectUrlId(project) },
+                  search: { doc: node.docId },
                 });
               }}
             />
