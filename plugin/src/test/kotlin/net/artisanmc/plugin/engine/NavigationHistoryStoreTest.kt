@@ -18,6 +18,11 @@ class NavigationHistoryStoreTest {
     private fun menu(id: String, vararg args: Pair<String, Any>) =
         NavigationEntry(NavigationEntry.Kind.MENU, id, args.toMap())
 
+    @Test fun `a screen from a project reopens by its qualified ref, never a same-id screen elsewhere`() {
+        assertEquals("shop:main", NavigationEntry(NavigationEntry.Kind.MENU, "main", projectId = "shop").ref)
+        assertEquals("main", NavigationEntry(NavigationEntry.Kind.MENU, "main").ref)
+    }
+
     @Test fun `pushCurrent then popPrevious is LIFO`() {
         val store = NavigationHistoryStore()
         val p = player()

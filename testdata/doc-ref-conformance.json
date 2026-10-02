@@ -1,0 +1,25 @@
+{
+  "description": "Résolution d'une référence de Document (open_menu / open_dialog) sur un serveur à plusieurs projects. Lu par l'éditeur (editor/src/domain/docRef.test.ts) et par le plugin (DocRefConformanceTest) : un id nu se résout d'abord dans le project qui référence (`from`), puis sur le serveur s'il n'y est défini qu'une fois ; `project:id` vise ce project. `expect` = `<project>:<id>` du Document atteint, `missing` ou `ambiguous`.",
+  "documents": [
+    { "project": "core", "id": "main" },
+    { "project": "shop", "id": "main" },
+    { "project": "shop", "id": "catalogue" },
+    { "project": "a", "id": "dup" },
+    { "project": "b", "id": "dup" }
+  ],
+  "cases": [
+    { "ref": "main", "from": "core", "expect": "core:main" },
+    { "ref": "main", "from": "shop", "expect": "shop:main" },
+    { "ref": "catalogue", "from": "core", "expect": "shop:catalogue" },
+    { "ref": "shop:main", "from": "core", "expect": "shop:main" },
+    { "ref": "core:catalogue", "from": "core", "expect": "missing" },
+    { "ref": "nope:main", "from": "core", "expect": "missing" },
+    { "ref": "absent", "from": "core", "expect": "missing" },
+    { "ref": "dup", "from": "core", "expect": "ambiguous" },
+    { "ref": "dup", "from": "a", "expect": "a:dup" },
+    { "ref": "main", "from": null, "expect": "ambiguous" },
+    { "ref": "catalogue", "from": null, "expect": "shop:catalogue" },
+    { "ref": ":main", "from": "core", "expect": "missing" },
+    { "ref": "shop:", "from": "core", "expect": "missing" }
+  ]
+}

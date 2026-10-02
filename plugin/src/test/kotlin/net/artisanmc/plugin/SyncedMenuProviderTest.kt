@@ -81,6 +81,50 @@ class SyncedMenuProviderTest {
         assertEquals(27, player.openInventory.topInventory.size)
     }
 
+    /** Deux projects qui portent chacun un menu `main`, de tailles différentes pour les distinguer. */
+    private fun writeTwoProjectsWithSameMenuId(root: File) {
+        for ((project, size) in listOf("core" to 27, "shop" to 54)) {
+            val dir = File(root, project).apply { mkdirs() }
+            File(dir, "manifest.yaml").writeText("schema: manifest/v1\ndefault_lang: en\nlanguages: [en]\n")
+            File(dir, "menus").mkdirs()
+            File(dir, "menus/main.yaml").writeText("schema: menu/v1\nsize: $size\nelements: []\n")
+        }
+    }
+
+    private fun twoProjectProvider(): SyncedMenuProvider {
+        val root = Files.createTempDirectory("artisan_ns_").toFile()
+        writeTwoProjectsWithSameMenuId(root)
+        return SyncedMenuProvider(net.artisanmc.plugin.project.ProjectRoots(root), serverKey = "", wsUrl = "", logger = null)
+            .also { it.load() }
+    }
+
+    @Test
+    fun `a qualified ref finds the menu of that project`() {
+        val menu = twoProjectProvider().findMenu("shop:main")
+        assertNotNull(menu)
+        assertEquals(54, menu.yaml.size)
+        assertEquals("shop", menu.projectId)
+    }
+
+    @Test
+    fun `a bare id opens the menu of the project the action comes from`() {
+        val provider = twoProjectProvider()
+        val player = server.addPlayer()
+        provider.openMenu(player, "main", "en", net.artisanmc.plugin.engine.ExecutionContext(player, projectId = "shop"))
+        assertEquals(54, player.openInventory.topInventory.size)
+        provider.openMenu(player, "main", "en", net.artisanmc.plugin.engine.ExecutionContext(player, projectId = "core"))
+        assertEquals(27, player.openInventory.topInventory.size)
+    }
+
+    @Test
+    fun `an ambiguous bare id still opens a menu, as before namespaces`() {
+        val provider = twoProjectProvider()
+        val player = server.addPlayer()
+        provider.openMenu(player, "main", "en")
+        assertNotNull(player.openInventory)
+        assertTrue(player.openInventory.topInventory.size in setOf(27, 54))
+    }
+
     @Test
     fun `no WsClient created when serverKey is empty`() {
         val packsRoot = Files.createTempDirectory("artisan_packs_").toFile()

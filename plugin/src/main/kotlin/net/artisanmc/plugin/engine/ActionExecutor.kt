@@ -331,8 +331,8 @@ class ActionExecutor(
             sourceArgs = emptyMap(),
         )
         when (previous.kind) {
-            NavigationEntry.Kind.MENU -> menuProvider.openMenu(player, previous.id, previous.lang, target)
-            NavigationEntry.Kind.DIALOG -> menuProvider.openDialog(player, previous.id, previous.lang, target)
+            NavigationEntry.Kind.MENU -> menuProvider.openMenu(player, previous.ref, previous.lang, target)
+            NavigationEntry.Kind.DIALOG -> menuProvider.openDialog(player, previous.ref, previous.lang, target)
         }
         return ctx
     }

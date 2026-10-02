@@ -1,3 +1,4 @@
+import { projectNamespace } from "@/domain/docRef";
 import { getFirstTitleText } from "@/domain/menuTitle";
 import type { Project } from "@/domain/types";
 import type { SearchEntry } from "@/features/search/searchIndex";
@@ -22,7 +23,7 @@ export interface IndexedDocument {
   label: string;
 }
 
-export const namespaceOf = (project: Project): string => project.diskId ?? project.id;
+export const namespaceOf = (project: Project): string => projectNamespace(project);
 
 /** Les Documents d'un project, dans l'ordre menus, commandes, dialogs. Pur. */
 export function indexProjectDocuments(project: Project, lang: string): IndexedDocument[] {

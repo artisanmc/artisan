@@ -168,12 +168,46 @@ class SyncedMenuProvider(
      */
     @Volatile private var skipped: Map<String, Map<String, String>> = emptyMap()
 
-    @Volatile private var menus = ConcurrentHashMap<String, BundleMenu>()
+    /**
+     * Menus et dialogs de tous les projects, résolus par référence (`main`,
+     * `boutique:main`) — cf. [net.artisanmc.plugin.engine.DocumentTable]. Les
+     * bundles sont chargés dans l'ordre des projects : en cas d'ambiguïté, le
+     * dernier gagne, comme la table unique d'avant les namespaces.
+     */
+    @Volatile private var menuTable = net.artisanmc.plugin.engine.DocumentTable<BundleMenu>(emptyList()) { it.id }
+    @Volatile private var dialogTable = net.artisanmc.plugin.engine.DocumentTable<BundleDialog>(emptyList()) { it.id }
+    /** Une seule alerte par référence ambiguë et par project appelant : pas un log par clic. */
+    private val warnedAmbiguous = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
     @Volatile private var bundles = listOf<ProjectBundle>()
     /** `pack:` refs resolve against the live bundle list (survives hot-reload swaps). */
     private val projectDataResolver = net.artisanmc.plugin.engine.ProjectDataResolver { bundles }
     private val draftMenus = ConcurrentHashMap<String, BundleMenu>()
-    @Volatile private var dialogs = ConcurrentHashMap<String, BundleDialog>()
+
+    private fun indexDocuments(loaded: List<ProjectBundle>) {
+        menuTable = net.artisanmc.plugin.engine.DocumentTable(
+            loaded.flatMap { b -> b.menus.map { b.projectId to it } },
+        ) { it.id }
+        dialogTable = net.artisanmc.plugin.engine.DocumentTable(
+            loaded.flatMap { b -> b.dialogs.map { b.projectId to it } },
+        ) { it.id }
+        warnedAmbiguous.clear()
+    }
+
+    private fun <T> resolveRef(
+        table: net.artisanmc.plugin.engine.DocumentTable<T>,
+        kind: String,
+        ref: String,
+        fromProject: String?,
+    ): T? {
+        val r = table.resolve(ref, fromProject)
+        if (r is net.artisanmc.plugin.engine.DocumentTable.Ambiguous && warnedAmbiguous.add("$kind|$ref|$fromProject")) {
+            logger?.warning(
+                "[Artisan] $kind '$ref' is defined by several projects (${r.projects.joinToString()}); " +
+                    "opening the last loaded one. Qualify it as <project>:$ref to choose.",
+            )
+        }
+        return r.value
+    }
     private val jsonMapper = ObjectMapper()
     private fun mutationFingerprint(node: com.fasterxml.jackson.databind.JsonNode): String =
         BundleHasher.hashBytes(jsonMapper.writeValueAsBytes(node.deepCopy<com.fasterxml.jackson.databind.node.ObjectNode>().also { it.remove("request_id") }))
@@ -352,38 +386,45 @@ class SyncedMenuProvider(
     fun addMember(email: String): java.util.concurrent.CompletableFuture<String> =
         wsClient?.addMember(email) ?: java.util.concurrent.CompletableFuture.completedFuture("offline")
 
-    override fun findMenu(menuId: String): BundleMenu? = draftMenus[menuId] ?: menus[menuId]
-    override fun listMenuIds(): List<String> = (menus.keys + draftMenus.keys).distinct().sorted()
+    override fun findMenu(menuId: String): BundleMenu? = findMenu(menuId, null)
+    override fun findMenu(ref: String, fromProject: String?): BundleMenu? =
+        draftMenus[ref] ?: resolveRef(menuTable, "Menu", ref, fromProject)
+    override fun listMenuIds(): List<String> = (menuTable.ids + draftMenus.keys).distinct().sorted()
     override fun allBundles(): List<ProjectBundle> = bundles
 
     override fun openMenu(player: Player, menuId: String, lang: String, ctx: ExecutionContext) {
-        val menu = findMenu(menuId) ?: run {
+        val menu = findMenu(menuId, ctx.projectId) ?: run {
             player.sendMessage(langManager?.get("cmd.menu_not_found", player, "id" to menuId)
                 ?: net.kyori.adventure.text.Component.text("Menu '$menuId' not found."))
             return
         }
+        // Les clics de ce menu se résolvent dans SON project, pas dans celui d'où l'on vient.
+        val opened = ctx.copy(projectId = menu.projectId.ifEmpty { null } ?: ctx.projectId)
         history?.setCurrent(
             player,
             net.artisanmc.plugin.engine.NavigationEntry(
                 kind = net.artisanmc.plugin.engine.NavigationEntry.Kind.MENU,
-                id = menuId,
+                id = menu.id,
                 args = ctx.navigationArgs,
                 pagination = ctx.pagination,
                 lang = lang,
+                projectId = opened.projectId,
             ),
         )
         val session = MenuRenderer.open(
-            player, menu, lang, decorateNavigation(player, ctx), evaluator, lookupAsset, offsetEncoderProvider(),
+            player, menu, lang, decorateNavigation(player, opened), evaluator, lookupAsset, offsetEncoderProvider(),
             dataSources, projectDataResolver, menuWindows,
         )
         sessions?.set(player, session)
         logger?.info("[ART-DEBUG] openMenu: ${player.name} → $menuId, clickSlots=${session.activeClicks.size}, sessions=${if (sessions != null) "set" else "null"}")
     }
 
-    override fun findDialog(dialogId: String): BundleDialog? = dialogs[dialogId]
+    override fun findDialog(dialogId: String): BundleDialog? = findDialog(dialogId, null)
+    override fun findDialog(ref: String, fromProject: String?): BundleDialog? =
+        resolveRef(dialogTable, "Dialog", ref, fromProject)
 
     override fun openDialog(player: Player, dialogId: String, lang: String, ctx: ExecutionContext) {
-        val dialog = findDialog(dialogId) ?: run {
+        val dialog = findDialog(dialogId, ctx.projectId) ?: run {
             player.sendMessage(langManager?.get("cmd.dialog_not_found", player, "id" to dialogId)
                 ?: net.kyori.adventure.text.Component.text("Dialog '$dialogId' not found."))
             return
@@ -392,16 +433,18 @@ class SyncedMenuProvider(
             logger?.warning("openDialog called but executorProvider is null")
             return
         }
+        val opened = ctx.copy(projectId = dialog.projectId.ifEmpty { null } ?: ctx.projectId)
         history?.setCurrent(
             player,
             net.artisanmc.plugin.engine.NavigationEntry(
                 kind = net.artisanmc.plugin.engine.NavigationEntry.Kind.DIALOG,
-                id = dialogId,
+                id = dialog.id,
                 args = ctx.args,
                 lang = lang,
+                projectId = opened.projectId,
             ),
         )
-        DialogRenderer.open(player, dialog, lang, decorateNavigation(player, ctx), executor)
+        DialogRenderer.open(player, dialog, lang, decorateNavigation(player, opened), executor)
     }
 
     /**
@@ -433,9 +476,9 @@ class SyncedMenuProvider(
     private fun screenTitle(entry: net.artisanmc.plugin.engine.NavigationEntry): String =
         when (entry.kind) {
             net.artisanmc.plugin.engine.NavigationEntry.Kind.MENU ->
-                findMenu(entry.id)?.let { firstTitleText(it, entry.lang) } ?: entry.id
+                findMenu(entry.ref)?.let { firstTitleText(it, entry.lang) } ?: entry.id
             net.artisanmc.plugin.engine.NavigationEntry.Kind.DIALOG ->
-                findDialog(entry.id)?.yaml?.title?.forLang(entry.lang, findDialog(entry.id)!!.defaultLang) ?: entry.id
+                findDialog(entry.ref)?.let { it.yaml.title?.forLang(entry.lang, it.defaultLang) } ?: entry.id
         }
 
     private fun firstTitleText(menu: BundleMenu, lang: String): String? {
@@ -517,14 +560,7 @@ class SyncedMenuProvider(
             }.getOrDefault(emptyMap())
         }
         bundles = loaded
-        val freshMenus = ConcurrentHashMap<String, BundleMenu>()
-        val freshDialogs = ConcurrentHashMap<String, BundleDialog>()
-        loaded.forEach { bundle ->
-            bundle.menus.forEach { menu -> freshMenus[menu.id] = menu }
-            bundle.dialogs.forEach { dialog -> freshDialogs[dialog.id] = dialog }
-        }
-        menus = freshMenus
-        dialogs = freshDialogs
+        indexDocuments(loaded)
         refreshProjectPresence()
         announceReload()
     }
@@ -1688,14 +1724,7 @@ class SyncedMenuProvider(
     private fun handleProjectDeletion(projectId: String) {
         // Atomic switch: drop the project from the in-memory bundles BEFORE touching disk.
         bundles = bundles.filterNot { it.projectId == projectId }
-        val freshMenus = ConcurrentHashMap<String, BundleMenu>()
-        val freshDialogs = ConcurrentHashMap<String, BundleDialog>()
-        bundles.forEach { b ->
-            b.menus.forEach { freshMenus[it.id] = it }
-            b.dialogs.forEach { freshDialogs[it.id] = it }
-        }
-        menus = freshMenus
-        dialogs = freshDialogs
+        indexDocuments(bundles)
         // The move-to-trash needs no suppression: the project root disappears, so
         // the scanner simply drops its state instead of seeing an edit.
         net.artisanmc.plugin.sync.ProjectDeleter(roots, logger).delete(projectId)
