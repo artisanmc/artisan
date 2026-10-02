@@ -2413,6 +2413,7 @@ const fr: typeof en = {
     groupDialog: "Dialogs",
     groupContent: "Contenu",
     ctxInMenu: "dans {{owner}}",
+    ctxInProject: "dans {{owner}}",
     ctxItemTitle: "titre · {{owner}}",
     ctxItemLore: "lore · {{owner}}",
     ctxDialogBody: "dialog · {{owner}}",

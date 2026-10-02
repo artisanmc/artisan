@@ -9,6 +9,8 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+- The search palette (Ctrl/Cmd+K) also finds the menus, commands and dialogs of the server's other projects, labelled with their project, and opens them in that project. Other projects are read from their published state in the background once the open project is ready.
+
 - Menus remember the screens a player came through. A new `open_previous_menu` action opens the previous menu or dialog (back button) and exposes `{has_previous_menu}` / `{previous_menu.id}` / `{previous_menu.title}` placeholders. The history is a LIFO stack that the back action consumes, so `menu → wiki → item` returns to the menu in two backs instead of bouncing between `item` and `wiki`.
 
 - Administrators can assign published plans to Networks without Stripe, with optional expiration and recurring included credits. The billing console adds plan assignments; member billing and the user menu display the effective plan. New admin Network plan endpoints audit assignments and reject conflicting paid subscriptions. Migration `0064` stores the independent manual credit cycle.
