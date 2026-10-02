@@ -750,7 +750,6 @@ export default {
     delete: "Delete from project",
     empty: "No elements yet",
     options: "Options",
-    openPanel: "Elements",
   },
   documentView: {
     back: "Back to canvas",

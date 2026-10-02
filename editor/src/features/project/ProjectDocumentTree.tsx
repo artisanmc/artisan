@@ -140,24 +140,32 @@ export function DocumentGroups({
   const activeLang = useUiStore((s) => s.activeLang);
   return (
     <>
-      {buildProjectDocuments(project, activeLang).map(
-        (g) =>
-          g.items.length > 0 && (
-            <div key={g.type} className="flex flex-col">
-              <div className="px-2 pt-2 pb-1 text-[9.5px] font-bold uppercase tracking-[.14em] text-[var(--text-faint)]">
-                {t(TYPE_LABEL_KEY[g.type])}
-              </div>
-              {g.items.map((it) => (
-                <DocumentRow
-                  key={it.id}
-                  projectId={editable ? project.id : null}
-                  item={it}
-                  onOpen={() => onOpen(it.id)}
-                />
-              ))}
+      {buildProjectDocuments(project, activeLang).map((g) => {
+        if (g.items.length === 0) return null;
+        // Une icône par catégorie, dans son en-tête : répétée sur chaque ligne,
+        // elle ne disait rien de plus que l'en-tête et mangeait la largeur.
+        const Icon = TYPE_ICON[g.type];
+        const label = t(TYPE_LABEL_KEY[g.type]);
+        return (
+          <div key={g.type} className="flex flex-col">
+            <div className="flex items-center gap-1.5 px-2 pt-2 pb-1 text-[9.5px] font-bold uppercase tracking-[.14em] text-[var(--text-faint)]">
+              <Icon className="size-3.5 shrink-0" aria-hidden />
+              <span>{label}</span>
             </div>
-          ),
-      )}
+            <ul aria-label={label} className="flex flex-col">
+              {g.items.map((it) => (
+                <li key={it.id}>
+                  <DocumentRow
+                    projectId={editable ? project.id : null}
+                    item={it}
+                    onOpen={() => onOpen(it.id)}
+                  />
+                </li>
+              ))}
+            </ul>
+          </div>
+        );
+      })}
     </>
   );
 }
@@ -172,15 +180,13 @@ function DocumentRow({
   item: ProjectDocumentItem;
   onOpen: () => void;
 }) {
-  const Icon = TYPE_ICON[item.type];
   return (
     <div className="group flex items-center gap-0.5 rounded-[10px] hover:bg-[var(--surface-hover)]">
       <button
         type="button"
         onClick={onOpen}
-        className="flex flex-1 items-center gap-2 rounded-[10px] px-2.5 py-2 text-left text-[13px] text-[var(--text-mut)] hover:text-[var(--text)]"
+        className="flex min-w-0 flex-1 items-center rounded-[10px] py-1.5 pr-2 pl-7 text-left text-[13px] text-[var(--text-mut)] hover:text-[var(--text)]"
       >
-        <Icon className="size-[15px] shrink-0 text-[var(--text-faint)]" />
         <span className="flex-1 truncate">{item.label}</span>
       </button>
       {projectId !== null && <RowActions projectId={projectId} item={item} onOpen={onOpen} />}

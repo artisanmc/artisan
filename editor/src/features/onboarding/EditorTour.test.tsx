@@ -84,7 +84,7 @@ it("walks through six demo stops, explains Export, and cleans up presentation wh
         <div data-tour="demo-intro" />
         <div data-tour="canvas" />
         <div data-tour="library" />
-        <div data-tour="elements-trigger" />
+        <div data-tour="elements" />
         <div data-tour="tabs" />
         <button type="button" data-tour="demo-export">
           Export

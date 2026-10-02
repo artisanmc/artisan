@@ -81,7 +81,7 @@ export function NavigationSidebar({ children }: { children: ReactNode }) {
       <div
         data-testid="navigation-space"
         data-pinned={pinned}
-        className={`hidden shrink-0 transition-[width] duration-200 ease-out motion-reduce:transition-none lg:block ${pinned ? "w-[216px]" : "w-0"}`}
+        className={`hidden shrink-0 transition-[width] duration-200 ease-out motion-reduce:transition-none lg:block ${pinned ? "w-[264px]" : "w-0"}`}
       />
       {desktop && !pinned && (
         <div
@@ -125,7 +125,7 @@ export function NavigationSidebar({ children }: { children: ReactNode }) {
           hovered.current = false;
           scheduleClose();
         }}
-        className={`fixed z-50 flex w-[216px] flex-col overflow-hidden bg-[var(--surface)] transition-transform duration-200 motion-reduce:transition-none ${desktop && pinned ? "inset-y-0 left-0" : "inset-y-2 left-2 rounded-[var(--r-lg)] ring-1 ring-inset ring-[var(--border)]"} ${visible ? `translate-x-0 ${desktop && pinned ? "" : "shadow-[var(--shadow-lg)]"}` : "-translate-x-[calc(100%+8px)]"}`}
+        className={`fixed z-50 flex w-[264px] flex-col overflow-hidden bg-[var(--surface)] transition-transform duration-200 motion-reduce:transition-none ${desktop && pinned ? "inset-y-0 left-0" : "inset-y-2 left-2 rounded-[var(--r-lg)] ring-1 ring-inset ring-[var(--border)]"} ${visible ? `translate-x-0 ${desktop && pinned ? "" : "shadow-[var(--shadow-lg)]"}` : "-translate-x-[calc(100%+8px)]"}`}
       >
         {!desktop && (
           <div className="absolute right-2 top-3 z-10">

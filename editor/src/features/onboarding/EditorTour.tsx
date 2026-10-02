@@ -75,7 +75,9 @@ export function EditorTour({
       demo ? ["demo-intro"] : ["navigation", "navigation-trigger"],
       ["canvas"],
       ["library", "library-trigger"],
-      ["elements", "elements-trigger"],
+      // Les Documents du project ouvert, dans la barre de gauche ; repliée,
+      // on montre le bouton qui l'ouvre.
+      ["elements", "navigation-trigger"],
       ["tabs"],
       demo ? ["demo-export"] : storage === "local" ? ["project-menu"] : ["save", "project-menu"],
     ];

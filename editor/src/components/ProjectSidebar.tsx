@@ -284,6 +284,18 @@ export function ProjectSidebar() {
   );
   const countFor = (p: ProjectSummary): number | null => liveCount.get(p.id as ProjectId) ?? null;
 
+  // Le project ouvert a-t-il une ligne dans la liste ? Sinon (démo, project non
+  // listé), il s'affiche en tête avec ses Documents.
+  const openProjectId = urlParams.projectId;
+  // La liste des projects n'est rendue qu'avec un network ; les modules toujours.
+  const visibleRows = [
+    ...(activeNetworkId ? flatProjects : []),
+    ...moduleGroups.flatMap((g) => g.projects),
+  ];
+  const openIsListed =
+    !!openProjectId &&
+    visibleRows.some((p) => p.id === openProjectId || projectUrlId(p) === openProjectId);
+
   const onDragEnd = (e: DragEndEvent) => {
     const { active, over } = e;
     if (!over || active.id === over.id) return;
@@ -327,6 +339,9 @@ export function ProjectSidebar() {
       )}
 
       <div className="flex min-h-0 flex-1 flex-col overflow-auto">
+        {openProjectId && !openIsListed && (
+          <UnlistedOpenProject urlId={openProjectId} networkId={netParam} serverId={srvParam} />
+        )}
         {activeNetworkId ? (
           <div className="flex flex-col">
             <div className="px-2 pt-0.5 pb-2 text-[9.5px] font-bold uppercase tracking-[.14em] text-[var(--text-faint)]">
@@ -568,9 +583,9 @@ function ActiveProjectDocuments({
   const project = useAccountStore((s) =>
     s.account.projects.find((p) => p.id === id || (!!urlId && projectUrlId(p) === urlId)),
   );
-  if (!project || !networkId) return null;
+  if (!project) return null;
   return (
-    <div className="ml-3 border-l border-[var(--border)] pl-1">
+    <div data-tour="elements" className="ml-3 border-l border-[var(--border)] pl-1">
       <ProjectDocumentTree
         projectId={project.id}
         header="actions"
@@ -579,6 +594,35 @@ function ActiveProjectDocuments({
           goToDocument(navigate, { networkId, serverId, project, ref: documentId });
         }}
       />
+    </div>
+  );
+}
+
+/**
+ * Le project ouvert quand aucune ligne de la liste ne le porte : la démo (pas de
+ * network) ou un project que la liste du serveur ne montre pas. Sans ce bloc,
+ * ses Documents n'auraient plus de place, depuis le retrait du panneau de droite.
+ */
+function UnlistedOpenProject({
+  urlId,
+  networkId,
+  serverId,
+}: {
+  urlId: string;
+  networkId: string | null;
+  serverId: string | null;
+}) {
+  const project = useAccountStore((s) =>
+    s.account.projects.find((p) => p.id === urlId || projectUrlId(p) === urlId),
+  );
+  if (!project) return null;
+  return (
+    <div className="mb-3 flex flex-col">
+      <div className="flex items-center gap-2.5 px-2.5 py-2 text-[13px] font-semibold text-[var(--text)]">
+        <LayoutGrid className="size-[15px] shrink-0 text-[var(--brand)]" />
+        <span className="truncate">{project.name}</span>
+      </div>
+      <ActiveProjectDocuments id={project.id} urlId={urlId} networkId={networkId} serverId={serverId} />
     </div>
   );
 }
