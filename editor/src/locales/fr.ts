@@ -307,6 +307,7 @@ const fr: typeof en = {
     sourceImported: "importé",
     sourceForked: "forké",
     newMenu: "Nouveau menu",
+    create: "Créer un document",
     newCommand: "Nouvelle commande",
     newDialog: "Nouveau dialogue",
     countAssets: "{{assets}} {{assetsPlural}}",
@@ -1241,6 +1242,9 @@ const fr: typeof en = {
     offline: "hors-ligne",
     titleOnline: "Serveur en ligne — cliquer pour ouvrir le Network",
     titleOffline: "Serveur hors-ligne — cliquer pour ouvrir le Network",
+  },
+  breadcrumb: {
+    label: "Fil d’Ariane",
   },
   linkedServers: {
     title: "Serveurs liés",

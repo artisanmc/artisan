@@ -110,7 +110,8 @@ it("starts only after a resolved demo workspace, then resumes from its real proj
   expect(
     await screen.findByRole("dialog", { name: /Un espace pour essayer|Your space to try things/ }),
   ).toBeInTheDocument();
-});
+  // Rythmé par les vrais délais de la visite (~2,3 s seul) : 5 s ne suffisent pas sous charge.
+}, 15_000);
 
 it("restores a previously open secondary tab without changing the route or selection", async () => {
   const user = userEvent.setup();

@@ -9,6 +9,8 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+- The right-hand Elements panel is gone: the project's documents live in the left sidebar, which is wider and shows one icon per category. The open project's row carries its settings and create buttons beside its name. The server selector and the network link left the sidebar; the top bar now shows a breadcrumb (network › server › project) whose levels link to their pages. The demo gets a minimal sidebar with its documents.
+
 - Picking a document from the project tree, the search palette or the server board now selects it and centres the canvas on it instead of replacing the board with the document view; double-click a node to open its focused view. The left sidebar lists the open project's documents under its row, and the server's other projects expand to their published documents.
 
 - Menus and dialogs can be referenced across projects as `project:id` (e.g. `open_menu: boutique:main`). A bare id now resolves in the referencing project first, then on the server if only one project defines it — so two projects can each have their own `main`. Ambiguous bare ids keep opening the menu they opened before, with a one-time server log warning. The back action reopens the exact screen, never a same-id screen of another project. In the editor, the target pickers of `open_menu` / `open_dialog` list the other projects' menus and dialogs under each project name and write the qualified form; following such a link opens the other project. ADR `project-qualified-refs`.

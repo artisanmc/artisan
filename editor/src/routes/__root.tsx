@@ -116,7 +116,9 @@ function RootLayoutInner() {
         showSidebar &&
         !isMarketingPage &&
         !pathname.startsWith("/demo") && (
-          <NavigationSidebar>{isAdminArea ? <AdminSidebar /> : <ProjectSidebar />}</NavigationSidebar>
+          <NavigationSidebar>
+            {isAdminArea ? <AdminSidebar /> : <ProjectSidebar />}
+          </NavigationSidebar>
         )
       )}
       <main className={`flex min-w-0 flex-1 flex-col ${isMarketingPage ? "overflow-y-auto" : "overflow-hidden"}`}>

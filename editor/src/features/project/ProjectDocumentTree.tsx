@@ -33,13 +33,66 @@ const TYPE_LABEL_KEY: Record<DocumentType, string> = {
 };
 
 /**
- * Le registre d'un project : ses Documents groupés par type, ses paramètres et
- * la création. Un seul rendu, monté par la barre de gauche (sous le project
- * ouvert) et par le panneau de droite tant qu'il existe.
+ * Paramètres et création d'un project : deux boutons icône, posés à droite du
+ * nom du project (ligne de la barre de gauche, ou en-tête de l'arbre).
+ */
+export function ProjectActions({ projectId }: { projectId: ProjectId }) {
+  const { t } = useTranslation();
+  const [newMenuOpen, setNewMenuOpen] = useState(false);
+  const [newCommandOpen, setNewCommandOpen] = useState(false);
+  const [newDialogOpen, setNewDialogOpen] = useState(false);
+  const iconButton =
+    "flex size-7 shrink-0 items-center justify-center rounded-[8px] text-[var(--text-faint)] hover:bg-[var(--surface-raised)] hover:text-[var(--text)]";
+  return (
+    <div className="flex shrink-0 items-center">
+      <button
+        type="button"
+        data-testid="project-settings"
+        onClick={openProjectSettings}
+        aria-label={t("projectProperties.title")}
+        title={t("projectProperties.title")}
+        className={iconButton}
+      >
+        <Settings className="size-[15px]" />
+      </button>
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          data-testid="project-create"
+          aria-label={t("projectProperties.create")}
+          title={t("projectProperties.create")}
+          className={iconButton}
+        >
+          <Plus className="size-[15px]" />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onSelect={() => setNewMenuOpen(true)}>
+            {t("projectProperties.newMenu")}
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => setNewCommandOpen(true)}>
+            {t("projectProperties.newCommand")}
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => setNewDialogOpen(true)}>
+            {t("projectProperties.newDialog")}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <NewMenuDialog projectId={projectId} open={newMenuOpen} onOpenChange={setNewMenuOpen} />
+      <NewCommandDialog
+        projectId={projectId}
+        open={newCommandOpen}
+        onOpenChange={setNewCommandOpen}
+      />
+      <NewDialogDialog projectId={projectId} open={newDialogOpen} onOpenChange={setNewDialogOpen} />
+    </div>
+  );
+}
+
+/**
+ * Le registre d'un project : ses Documents groupés par type.
  *
- * `header="name"` : la ligne racine porte le nom du project (panneau seul).
- * `header="actions"` : le nom est déjà sur la ligne du project (barre de gauche),
- * on ne garde que paramètres et création.
+ * `header="name"` : une ligne avec le nom du project et ses actions (démo, où
+ * aucune ligne de project ne les porte). `header="none"` : la ligne du project
+ * dans la barre de gauche porte déjà nom et actions.
  */
 export function ProjectDocumentTree({
   projectId,
@@ -48,12 +101,9 @@ export function ProjectDocumentTree({
 }: {
   projectId: ProjectId;
   onOpen: (documentId: string) => void;
-  header?: "name" | "actions";
+  header?: "name" | "none";
 }) {
   const { t } = useTranslation();
-  const [newMenuOpen, setNewMenuOpen] = useState(false);
-  const [newCommandOpen, setNewCommandOpen] = useState(false);
-  const [newDialogOpen, setNewDialogOpen] = useState(false);
   const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
   if (!project) return null;
 
@@ -63,56 +113,20 @@ export function ProjectDocumentTree({
     (project.dialogs ?? []).length === 0;
 
   return (
+    // biome-ignore lint/a11y/useSemanticElements: un groupe nommé de listes de navigation, pas un formulaire — <fieldset> serait faux.
     <div
       role="group"
       aria-label={t("sidebar.projectDocuments", { name: project.name })}
       className="flex flex-col gap-2"
     >
-      <div className="flex items-center gap-0.5 rounded-[10px] hover:bg-[var(--surface-hover)]">
-        <button
-          type="button"
-          data-testid="project-settings-row"
-          onClick={openProjectSettings}
-          title={t("projectProperties.title")}
-          className={
-            header === "name"
-              ? "flex flex-1 items-center gap-2 rounded-[10px] px-2.5 py-2 text-left text-[13px] font-medium text-[var(--text)]"
-              : "flex flex-1 items-center gap-2 rounded-[10px] px-2.5 py-1.5 text-left text-[12px] text-[var(--text-mut)] hover:text-[var(--text)]"
-          }
-        >
-          <Settings className="size-[15px] shrink-0 text-[var(--text-faint)]" />
-          <span className="flex-1 truncate">
-            {header === "name" ? project.name : t("projectProperties.title")}
+      {header === "name" && (
+        <div className="flex items-center gap-1 px-2.5 py-1">
+          <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-[var(--text)]">
+            {project.name}
           </span>
-        </button>
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            data-testid="project-create"
-            aria-label={t("projectProperties.newMenu")}
-            className="flex shrink-0 items-center justify-center rounded-[8px] p-2 text-[var(--text-faint)] hover:bg-[var(--surface-raised)] hover:text-[var(--text)]"
-          >
-            <Plus className="size-[15px]" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start">
-            <DropdownMenuItem onSelect={() => setNewMenuOpen(true)}>
-              {t("projectProperties.newMenu")}
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => setNewCommandOpen(true)}>
-              {t("projectProperties.newCommand")}
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => setNewDialogOpen(true)}>
-              {t("projectProperties.newDialog")}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-      <NewMenuDialog projectId={projectId} open={newMenuOpen} onOpenChange={setNewMenuOpen} />
-      <NewCommandDialog
-        projectId={projectId}
-        open={newCommandOpen}
-        onOpenChange={setNewCommandOpen}
-      />
-      <NewDialogDialog projectId={projectId} open={newDialogOpen} onOpenChange={setNewDialogOpen} />
+          <ProjectActions projectId={projectId} />
+        </div>
+      )}
       {empty ? (
         <EmptyState title={t("projectPanel.empty")} />
       ) : (
