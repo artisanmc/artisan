@@ -129,7 +129,9 @@ class ActionExecutor(
             }
             is Action.OpenMenu -> {
                 // Real navigation: remember the screen we're leaving so a back
-                // button can return to it (popPrevious consumes it).
+                // button can return to it (popPrevious consumes it). Pushed
+                // before opening so the new screen renders `has_previous_menu`.
+                val leaving = history?.current(player)
                 history?.pushCurrent(player)
                 // Context values resolve against the EMITTING ctx (the click
                 // that binds the iteration row / current args) — the target menu
@@ -142,11 +144,13 @@ class ActionExecutor(
                     player, action.menuId, ctx.lang,
                     ctx.copy(args = newArgs, pagination = emptyMap(), pageInfo = emptyMap(), sourceArgs = emptyMap()),
                 )
+                undoPushIfNotShown(player, leaving)
             }
             is Action.CloseMenu -> player.closeInventory()
             is Action.OpenPreviousMenu -> return openPrevious(player, ctx)
             is Action.OpenDialog -> {
                 // Same as OpenMenu: a dialog is a navigation step too.
+                val leaving = history?.current(player)
                 history?.pushCurrent(player)
                 // Same rule as OpenMenu: context values resolve at emit time —
                 // the dialog's texts/actions read the passed args only.
@@ -156,6 +160,7 @@ class ActionExecutor(
                     args = newArgs,
                     sourceArgs = if (action.clearContext) emptyMap() else ctx.sourceArgs - passed.keys,
                 ))
+                undoPushIfNotShown(player, leaving)
             }
             is Action.CloseDialog -> runCatching { player.javaClass.getMethod("closeDialog").invoke(player) }
             is Action.GiveItem  -> {
@@ -299,6 +304,16 @@ class ActionExecutor(
 
         executeSteps(steps, ctx.copy(args = newArgs, runActionsDepth = ctx.runActionsDepth + 1))
         return ctx
+    }
+
+    /**
+     * Annule le push d'une navigation qui n'a rien affiché (menu/dialog introuvable) :
+     * le provider n'a pas appelé `setCurrent`, l'écran quitté est toujours l'écran
+     * courant et ne doit pas devenir son propre « précédent ».
+     */
+    private fun undoPushIfNotShown(player: Player, leaving: NavigationEntry?) {
+        val store = history ?: return
+        if (leaving != null && store.current(player) === leaving) store.popPrevious(player)
     }
 
     /**

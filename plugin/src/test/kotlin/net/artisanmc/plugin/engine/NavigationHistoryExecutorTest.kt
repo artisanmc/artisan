@@ -37,6 +37,7 @@ class NavigationHistoryExecutorTest {
         override fun load() {}
         override fun findMenu(menuId: String): BundleMenu? = null
         override fun openMenu(player: Player, menuId: String, lang: String, ctx: ExecutionContext) {
+            if (menuId == MISSING) return // like SyncedMenuProvider: not found, nothing shown
             opened.add("menu:$menuId")
             history.setCurrent(
                 player,
@@ -44,6 +45,7 @@ class NavigationHistoryExecutorTest {
             )
         }
         override fun openDialog(player: Player, dialogId: String, lang: String, ctx: ExecutionContext) {
+            if (dialogId == MISSING) return
             opened.add("dialog:$dialogId")
             history.setCurrent(player, NavigationEntry(NavigationEntry.Kind.DIALOG, dialogId, ctx.args, lang = lang))
         }
@@ -111,6 +113,26 @@ class NavigationHistoryExecutorTest {
         assertEquals("dialog:confirm", opened.single())
     }
 
+    @Test fun `open_menu to a missing menu leaves the history untouched`() {
+        val p = player()
+        history.setCurrent(p, NavigationEntry(NavigationEntry.Kind.MENU, "root"))
+        executor().execute(listOf(Action.OpenMenu("a")), ctx(p))
+        executor().execute(listOf(Action.OpenMenu(MISSING)), ctx(p))
+        assertEquals("a", history.current(p)?.id)
+        assertEquals("root", history.previous(p)?.id)
+        opened.clear()
+        executor().execute(listOf(Action.OpenPreviousMenu), ctx(p))
+        assertEquals(listOf("menu:root"), opened)
+    }
+
+    @Test fun `open_dialog to a missing dialog leaves the history untouched`() {
+        val p = player()
+        history.setCurrent(p, NavigationEntry(NavigationEntry.Kind.MENU, "a"))
+        executor().execute(listOf(Action.OpenDialog(MISSING)), ctx(p))
+        assertFalse(history.hasPrevious(p))
+        assertEquals("a", history.current(p)?.id)
+    }
+
     @Test fun `back can return to a dialog`() {
         val p = player()
         history.setCurrent(p, NavigationEntry(NavigationEntry.Kind.DIALOG, "confirm"))
@@ -118,5 +140,9 @@ class NavigationHistoryExecutorTest {
         history.setCurrent(p, NavigationEntry(NavigationEntry.Kind.MENU, "menu"))
         executor().execute(listOf(Action.OpenPreviousMenu), ctx(p))
         assertEquals("dialog:confirm", opened.single())
+    }
+
+    private companion object {
+        const val MISSING = "missing"
     }
 }
