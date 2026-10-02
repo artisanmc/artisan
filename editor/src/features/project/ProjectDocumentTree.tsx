@@ -5,7 +5,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { EmptyState } from "@/components/ui/empty-state";
-import type { ProjectId } from "@/domain/types";
+import type { Project, ProjectId } from "@/domain/types";
 import { NewCommandDialog } from "@/features/canvas/NewCommandDialog";
 import { NewDialogDialog } from "@/features/canvas/NewDialogDialog";
 import { NewMenuDialog } from "@/features/canvas/NewMenuDialog";
@@ -55,11 +55,12 @@ export function ProjectDocumentTree({
   const [newCommandOpen, setNewCommandOpen] = useState(false);
   const [newDialogOpen, setNewDialogOpen] = useState(false);
   const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
-  const activeLang = useUiStore((s) => s.activeLang);
   if (!project) return null;
 
-  const groups = buildProjectDocuments(project, activeLang);
-  const empty = groups.every((g) => g.items.length === 0);
+  const empty =
+    project.menus.length === 0 &&
+    project.commands.length === 0 &&
+    (project.dialogs ?? []).length === 0;
 
   return (
     <div
@@ -115,26 +116,49 @@ export function ProjectDocumentTree({
       {empty ? (
         <EmptyState title={t("projectPanel.empty")} />
       ) : (
-        groups.map(
-          (g) =>
-            g.items.length > 0 && (
-              <div key={g.type} className="flex flex-col">
-                <div className="px-2 pt-2 pb-1 text-[9.5px] font-bold uppercase tracking-[.14em] text-[var(--text-faint)]">
-                  {t(TYPE_LABEL_KEY[g.type])}
-                </div>
-                {g.items.map((it) => (
-                  <DocumentRow
-                    key={it.id}
-                    projectId={projectId}
-                    item={it}
-                    onOpen={() => onOpen(it.id)}
-                  />
-                ))}
-              </div>
-            ),
-        )
+        <DocumentGroups project={project} onOpen={onOpen} editable />
       )}
     </div>
+  );
+}
+
+/**
+ * Les Documents d'un project groupés par type. `editable` ajoute le menu `···`
+ * (éditer, supprimer) ; sans lui, une liste en lecture — un project du serveur
+ * vu depuis l'index (état publié), qu'on ne modifie pas d'ici.
+ */
+export function DocumentGroups({
+  project,
+  onOpen,
+  editable = false,
+}: {
+  project: Project;
+  onOpen: (documentId: string) => void;
+  editable?: boolean;
+}) {
+  const { t } = useTranslation();
+  const activeLang = useUiStore((s) => s.activeLang);
+  return (
+    <>
+      {buildProjectDocuments(project, activeLang).map(
+        (g) =>
+          g.items.length > 0 && (
+            <div key={g.type} className="flex flex-col">
+              <div className="px-2 pt-2 pb-1 text-[9.5px] font-bold uppercase tracking-[.14em] text-[var(--text-faint)]">
+                {t(TYPE_LABEL_KEY[g.type])}
+              </div>
+              {g.items.map((it) => (
+                <DocumentRow
+                  key={it.id}
+                  projectId={editable ? project.id : null}
+                  item={it}
+                  onOpen={() => onOpen(it.id)}
+                />
+              ))}
+            </div>
+          ),
+      )}
+    </>
   );
 }
 
@@ -143,11 +167,11 @@ function DocumentRow({
   item,
   onOpen,
 }: {
-  projectId: ProjectId;
+  /** `null` = lecture seule : pas de menu d'actions. */
+  projectId: ProjectId | null;
   item: ProjectDocumentItem;
   onOpen: () => void;
 }) {
-  const { t } = useTranslation();
   const Icon = TYPE_ICON[item.type];
   return (
     <div className="group flex items-center gap-0.5 rounded-[10px] hover:bg-[var(--surface-hover)]">
@@ -159,24 +183,39 @@ function DocumentRow({
         <Icon className="size-[15px] shrink-0 text-[var(--text-faint)]" />
         <span className="flex-1 truncate">{item.label}</span>
       </button>
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          className="flex shrink-0 items-center justify-center p-2 text-[var(--text-faint)]"
-          aria-label={t("projectPanel.options")}
-        >
-          ···
-        </DropdownMenuTrigger>
-        <DropdownMenuContent>
-          <DropdownMenuItem onClick={onOpen}>{t("projectPanel.edit")}</DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={() =>
-              useAccountStore.getState().deleteFromProject({ projectId, nodeIds: [item.id] })
-            }
-          >
-            {t("projectPanel.delete")}
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      {projectId !== null && <RowActions projectId={projectId} item={item} onOpen={onOpen} />}
     </div>
+  );
+}
+
+function RowActions({
+  projectId,
+  item,
+  onOpen,
+}: {
+  projectId: ProjectId;
+  item: ProjectDocumentItem;
+  onOpen: () => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        className="flex shrink-0 items-center justify-center p-2 text-[var(--text-faint)]"
+        aria-label={t("projectPanel.options")}
+      >
+        ···
+      </DropdownMenuTrigger>
+      <DropdownMenuContent>
+        <DropdownMenuItem onClick={onOpen}>{t("projectPanel.edit")}</DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() =>
+            useAccountStore.getState().deleteFromProject({ projectId, nodeIds: [item.id] })
+          }
+        >
+          {t("projectPanel.delete")}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

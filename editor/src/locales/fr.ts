@@ -1259,6 +1259,7 @@ const fr: typeof en = {
   },
   sidebar: {
     projectDocuments: "Documents de {{name}}",
+    showDocuments: "Afficher les documents de {{name}}",
     settings: "Paramètres",
     brand: "Artisan",
     myProjects: "Mes Projects",
