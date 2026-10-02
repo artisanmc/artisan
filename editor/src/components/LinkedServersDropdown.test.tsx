@@ -1,8 +1,8 @@
 import "@/i18n"; // initialise the default react-i18next instance for useTranslation
-import { render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "@/lib/api/networks";
 import type { ServerStatusEntry } from "@/lib/api/networks";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { LinkedServersDropdown, ServerRow, relTime } from "./LinkedServersDropdown";
 
 vi.mock("@/lib/api/networks");
@@ -43,7 +43,13 @@ describe("ServerRow", () => {
   it("online row shows IP and version", () => {
     render(
       <ServerRow
-        s={entry({ id: "b", label: "Lobby", online: true, lastMcVersion: "1.21.4", lastSeenIp: "1.2.3.5" })}
+        s={entry({
+          id: "b",
+          label: "Lobby",
+          online: true,
+          lastMcVersion: "1.21.4",
+          lastSeenIp: "1.2.3.5",
+        })}
         lang="en"
         t={t}
       />,
@@ -59,7 +65,17 @@ describe("ServerRow", () => {
   it("offline row with a last hello shows last-seen + last IP", () => {
     const iso = new Date(Date.now() - 2 * 3_600_000).toISOString();
     render(
-      <ServerRow s={entry({ id: "a", label: "Survival", online: false, lastSeenAt: iso, lastSeenIp: "1.2.3.4" })} lang="en" t={t} />,
+      <ServerRow
+        s={entry({
+          id: "a",
+          label: "Survival",
+          online: false,
+          lastSeenAt: iso,
+          lastSeenIp: "1.2.3.4",
+        })}
+        lang="en"
+        t={t}
+      />,
     );
     expect(screen.getByText(/Last seen/)).toBeInTheDocument();
     expect(screen.getByText(/1\.2\.3\.4/)).toBeInTheDocument();
@@ -102,6 +118,28 @@ describe("LinkedServersDropdown", () => {
     });
     render(<LinkedServersDropdown networkId="net1" />);
     expect(await screen.findByText("2/3")).toBeInTheDocument();
+  });
+
+  // Le hors-ligne n'est plus un bandeau : c'est le badge qui le porte, et son
+  // infobulle qui donne la raison exacte (date de la copie, brouillon, jamais publié).
+  it("explique le hors-ligne du serveur courant en infobulle sur le badge", async () => {
+    vi.mocked(api.getNetworkServersStatus).mockResolvedValue({
+      online: 0,
+      total: 1,
+      servers: [entry({ id: "a", online: false, isCurrent: true })],
+    });
+    render(
+      <LinkedServersDropdown
+        networkId="net1"
+        currentServerKeyId="a"
+        downHint="Serveur hors ligne — version du 01/10/2026. Ton brouillon reste modifiable."
+      />,
+    );
+    const trigger = await screen.findByRole("button", { name: /Serveurs liés/ });
+    fireEvent.focus(trigger);
+    expect(await screen.findByRole("tooltip")).toHaveTextContent(
+      /Serveur hors ligne — version du 01\/10\/2026/,
+    );
   });
 
   it("renders nothing without a networkId", () => {

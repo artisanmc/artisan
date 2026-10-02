@@ -37,8 +37,6 @@ import { Tooltip } from "@/components/ui/tooltip";
 import type { Project, ProjectId } from "@/domain/types";
 import { useTourPresentation } from "@/features/onboarding/tourPresentation";
 import { DeployReviewDialog } from "@/features/project/DeployReviewDialog";
-import { type ServerChecks, serverChecksFor } from "@/features/serverIndex/serverChecks";
-import { useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
 import { PersistedDraftControls } from "@/features/project/PersistedDraftControls";
 import { hasDraftChanges } from "@/features/project/draft";
 import { flushDraftEdits } from "@/features/project/draftFlush";
@@ -58,6 +56,8 @@ import {
   saveProjectToDisk,
 } from "@/features/project/saveProjectToDisk";
 import { WORKSPACE_VIEW_TABS, type WorkspaceViewTab } from "@/features/project/workspaceTabs";
+import { type ServerChecks, serverChecksFor } from "@/features/serverIndex/serverChecks";
+import { useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
 import type { ProjectFileConflict } from "@/lib/api/projectFiles";
 import { cn } from "@/lib/cx";
 import { countMissingForLang, listLanguages } from "@/lib/i18nUsages";
@@ -109,6 +109,11 @@ export interface ProjectTopBarControlsProps {
   tourCanResume?: boolean;
 
   networkId?: string | null;
+
+  /** Serveur du Project injoignable : le badge le signale, l'infobulle l'explique. */
+  offline?: boolean;
+  offlineSince?: string | null;
+  unpublished?: boolean;
 }
 
 /**
@@ -128,6 +133,9 @@ export function ProjectTopBarControls({
   onTour,
   tourCanResume,
   networkId,
+  offline = false,
+  offlineSince,
+  unpublished,
 }: ProjectTopBarControlsProps) {
   const currentName = useAccountStore(
     (s) => s.account.projects.find((p) => p.id === projectId)?.name,
@@ -143,6 +151,16 @@ export function ProjectTopBarControls({
   const onElementsClick = () => {
     useUiStore.getState().toggleProjectPanel();
   };
+
+  // Le hors-ligne n'est plus un bandeau : le badge serveur le porte déjà en rouge,
+  // et l'infobulle en donne la raison exacte (date de la copie, brouillon, never-published).
+  const pushStatusHint = offline
+    ? unpublished
+      ? t("project.unpublishedOffline")
+      : offlineSince
+        ? t("project.staleOfflineSince", { date: new Date(offlineSince).toLocaleString() })
+        : t("project.staleOffline")
+    : undefined;
 
   return (
     <header
@@ -166,6 +184,7 @@ export function ProjectTopBarControls({
             <LinkedServersDropdown
               networkId={networkId}
               currentServerKeyId={project.serverKeyId ?? undefined}
+              downHint={pushStatusHint}
             />
           </div>
         </div>

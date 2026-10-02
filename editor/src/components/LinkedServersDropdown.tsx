@@ -1,3 +1,4 @@
+import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -5,12 +6,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Badge } from "@/components/ui/badge";
+import { Tooltip } from "@/components/ui/tooltip";
 import {
-  getNetworkServersStatus,
-  isPluginOutdated,
   type NetworkServersStatus,
   type ServerStatusEntry,
+  getNetworkServersStatus,
+  isPluginOutdated,
 } from "@/lib/api/networks";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -82,9 +83,12 @@ export function ServerRow({ s, lang, t }: { s: ServerStatusEntry; lang: string; 
 export function LinkedServersDropdown({
   networkId,
   currentServerKeyId,
+  downHint,
 }: {
   networkId: string | null | undefined;
   currentServerKeyId?: string;
+  /** Explication du hors-ligne du serveur courant, affichée en infobulle sur le badge. */
+  downHint?: string;
 }) {
   const { t, i18n } = useTranslation();
   const [data, setData] = useState<NetworkServersStatus | null>(null);
@@ -124,26 +128,30 @@ export function LinkedServersDropdown({
     ? t(current.online ? "linkedServers.up" : "linkedServers.down")
     : t("linkedServers.count", { online, total });
 
+  const trigger = (
+    <DropdownMenuTrigger asChild>
+      <button
+        type="button"
+        title={downHint ? undefined : t("linkedServers.trigger", { online, total })}
+        aria-label={t("linkedServers.trigger", { online, total })}
+        className="flex h-[34px] shrink-0 items-center gap-1.5 rounded-[10px] border border-[var(--border)] bg-[var(--surface-raised)] px-3 font-mono text-[12px] text-[var(--text-mut)] hover:border-[var(--border-strong)] hover:text-[var(--text)]"
+      >
+        <span
+          aria-hidden
+          className="h-1.5 w-1.5 rounded-full"
+          style={{
+            background: up ? "var(--success)" : "var(--danger)",
+            boxShadow: up ? "0 0 6px var(--success)" : "0 0 6px var(--danger)",
+          }}
+        />
+        {label}
+      </button>
+    </DropdownMenuTrigger>
+  );
+
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          title={t("linkedServers.trigger", { online, total })}
-          aria-label={t("linkedServers.trigger", { online, total })}
-          className="flex h-[34px] shrink-0 items-center gap-1.5 rounded-[10px] border border-[var(--border)] bg-[var(--surface-raised)] px-3 font-mono text-[12px] text-[var(--text-mut)] hover:border-[var(--border-strong)] hover:text-[var(--text)]"
-        >
-          <span
-            aria-hidden
-            className="h-1.5 w-1.5 rounded-full"
-            style={{
-              background: up ? "var(--success)" : "var(--danger)",
-              boxShadow: up ? "0 0 6px var(--success)" : "0 0 6px var(--danger)",
-            }}
-          />
-          {label}
-        </button>
-      </DropdownMenuTrigger>
+      {downHint ? <Tooltip content={downHint}>{trigger}</Tooltip> : trigger}
       {/* Le project ouvert vit sur le disque d'UN serveur : c'est celui-là, et
           lui seul, qui a quelque chose à dire ici. Lister tout le parc du network
           à cet endroit répondait à une question que personne ne se pose depuis
