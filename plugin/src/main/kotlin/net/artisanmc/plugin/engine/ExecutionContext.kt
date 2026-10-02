@@ -9,6 +9,8 @@ data class ExecutionContext(
     val player: Player,
     val args: Map<String, Any> = emptyMap(),
     val lang: String = "en",
+    /** Project default language — fallback for field-local maps ([LocalizedText]). */
+    val defaultLang: String = "en",
     val langMap: Map<String, String> = emptyMap(),
     /** Pages demandées par élément itérant (elementId → page). Écrit par pagination_next/prev. */
     val pagination: Map<String, Int> = emptyMap(),

@@ -17,6 +17,8 @@ export function defaultAction(type: Action["type"], firstMenuId?: MenuId): Actio
       return { type: "open_menu", menuId: firstMenuId ?? ("" as MenuId) };
     case "close_menu":
       return { type: "close_menu" };
+    case "open_previous_menu":
+      return { type: "open_previous_menu" };
     case "run_command":
       return { type: "run_command", command: "", as: "player" };
     case "send_message":
@@ -61,6 +63,7 @@ export function defaultAction(type: Action["type"], firstMenuId?: MenuId): Actio
 export const ACTION_TYPES: Action["type"][] = [
   "open_menu",
   "close_menu",
+  "open_previous_menu",
   "run_command",
   "send_message",
   "broadcast",

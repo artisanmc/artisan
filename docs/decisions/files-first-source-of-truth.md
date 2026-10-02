@@ -138,6 +138,17 @@ editing path.
    *Rejeté :* inférer le mode du contenu à l'import — un fichier peut être mixte,
    et « c'est ce que tu as choisi » bat un devin.
 
+   **Amendement 2026-09-30 — les textes structurels sont field-local.** L'ADR
+   `field-local-translations` remplace le mode projet `extract`/`inline` pour les
+   textes **structurels** (titre de menu, `title`/`lore` d'apparence,
+   `title`/`body`/labels de dialog) : un slot texte porte soit une string, soit
+   une map `{ <lang>: texte }` résolue langue demandée → `defaultLang`. Le
+   sous-système d'adresses positionnelles est retiré pour les documents (il ne
+   survit que pour les data sources). `lang/` ne porte plus que les textes
+   d'action (refs `@key`), les clés sans site et les data sources. La décision 4
+   ci-dessus (mode projet, hybride par champ) est donc superseded pour les
+   documents ; elle reste l'historique de la forme inline.
+
 5. **`menu/v1` evolves in place.** The "never mutate a shipped schema version"
    discipline applies from real production use, which has not started; the
    owner explicitly waives it here (dated dispensation). Local Docker files are

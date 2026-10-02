@@ -1,11 +1,7 @@
 import { normalizeCanvasGroups } from "@/domain/canvasGroups";
-import { addressedAppearances } from "@/domain/element";
 import { visitDataSourceLTexts } from "@/domain/i18nSites";
 import { writeAdvanced } from "@/domain/itemAdvanced";
-import { getTitleTextLayers } from "@/domain/menuTitle";
-import { walkActions } from "@/domain/stepPath";
 import type {
-  Action,
   Appearance,
   AssetId,
   Command,
@@ -24,41 +20,46 @@ import type {
   ModelField,
   ModelFieldType,
   Project,
-  Step,
 } from "@/domain/types";
 import { slotCount } from "@/features/canvas/inventoryTypes";
-import { stepsToDsl } from "@/lib/actionDsl";
+import {
+  conditionsToStructured,
+  stepsToStructured,
+  type ActionTextCodec,
+} from "@/lib/actions/structuredSteps";
 import { DURATION_DEFAULTS, DURATION_KEYS } from "@/lib/expr/duration";
 import { listLanguages } from "@/lib/i18nUsages";
 import { nestLangTree } from "@/lib/langTree";
 import { collectModuleExportFiles, getModule } from "@artisan/editor-sdk";
 import { Document as YamlDocument, stringify } from "yaml";
 
-const i18nRef = (key: string): string => `{i18n:${key}}`;
-
 /**
- * How LText refs serialize inside steps: menu/command export wraps the key in
- * `{i18n:…}` (translated at runtime); module-data steps (SchemaForm `actions`
- * widget) carry the literal text in `key` and emit it verbatim.
- */
-type StepTextOf = (key: string) => string;
-
-/**
- * How a key site's text lands in a document, per the project's i18n mode:
+ * A structural site's text as it lands on disk (ADR `field-local-translations`):
+ * a bare string when only the default language has a value (sugar for
+ * `{<defaultLang>: text}`), otherwise a `{ lang: text }` map. The site's key is
+ * canonicalized by `rekeyProject` just before export, so `project.i18nKeys[key]`
+ * holds exactly this site's per-language values.
  *
- *  - `extract` (default) — the `{i18n:key}` ref; every language, the default
- *    one included, lives in `lang/<lang>.yaml`.
- *  - `inline` — the DEFAULT language's literal text, written where a reader
- *    expects to read it. The other languages travel in `lang/<lang>.yaml` under
- *    the site's canonical ADDRESS, which the plugin recomputes from the file
- *    structure at load (`I18nAddresses.kt`, `MenuTitleParser`,
- *    `DialogTextResolver`) — the addresses being exactly the canonical keys
- *    `rekeyProject` assigns just before this runs. Locked cross-language by
- *    `testdata/i18n-address-conformance.json`.
+ * Action texts use the same shape (ADR `structured-action-wire`) : the wire step
+ * text is a {@link FieldText} produced by this same serializer.
  */
-function textSerializer(project: Project): StepTextOf {
-  if (project.i18nMode !== "inline") return i18nRef;
-  return (key) => project.i18nKeys[key as I18nKey]?.[project.defaultLang] ?? "";
+type FieldText = string | Record<string, string>;
+type FieldTextOf = (key: I18nKey) => FieldText;
+
+function fieldTextOf(project: Project): FieldTextOf {
+  return (key) => {
+    const entry = project.i18nKeys[key] ?? {};
+    const langs = Object.keys(entry);
+    if (langs.length <= 1) return entry[project.defaultLang] ?? "";
+    const out: Record<string, string> = {};
+    for (const lang of langs) out[lang] = entry[lang] ?? "";
+    return out;
+  };
+}
+
+/** Codec for the structured action wire: only `toWire` is used on export. */
+function actionTextCodec(project: Project): ActionTextCodec {
+  return { toWire: fieldTextOf(project), fromWire: () => ({ key: "" as I18nKey }) };
 }
 
 // ─── condition serialization ────────────────────────────────────────────────
@@ -75,139 +76,17 @@ function serializeCondition(c: Condition): unknown {
   return c;
 }
 
-/**
- * Canonical appearance `if` is a Condition[] (ANDed). We mirror the prior
- * single-join semantics: one join op governs the whole list. A pure-OR list
- * becomes a single wrapped `or`; otherwise the array is emitted as-is (ANDed).
- */
-function serializeIfArray(conditions: Condition[], joins?: ("and" | "or")[]): unknown[] {
-  if (conditions.length === 1) return [serializeCondition(conditions[0]!)];
-  const items = conditions.map(serializeCondition);
-  if ((joins?.[0] ?? "and") === "or") return [{ type: "or", of: items }];
-  return items;
-}
-
-// ─── action serialization ────────────────────────────────────────────────────
-
-function serializeAction(action: Action, textOf: StepTextOf = i18nRef): unknown {
-  switch (action.type) {
-    case "open_menu": {
-      const out: Record<string, unknown> = { type: "open_menu", menu_id: action.menuId };
-      if (action.clearContext) out.clear_context = true;
-      if (action.context) out.context = action.context;
-      return out;
-    }
-    case "send_message":
-      return { type: "send_message", text: textOf(action.text.key) };
-    case "show_title": {
-      const out: Record<string, unknown> = { type: "show_title", title: textOf(action.title.key) };
-      if (action.subtitle) out.subtitle = textOf(action.subtitle.key);
-      if (action.fadeIn !== undefined) out.fade_in = action.fadeIn;
-      if (action.stay !== undefined) out.stay = action.stay;
-      if (action.fadeOut !== undefined) out.fade_out = action.fadeOut;
-      return out;
-    }
-    case "run_command":
-      return { type: "run_command", command: action.command, as: action.as };
-    case "close_menu":
-      return { type: "close_menu" };
-    case "give_item":
-      return { type: "give_item", material: action.material, count: action.count };
-    case "take_item":
-      return { type: "take_item", material: action.material, count: action.count };
-    case "take_money":
-      return { type: "take_money", amount: action.amount };
-    case "give_money":
-      return { type: "give_money", amount: action.amount };
-    case "give_xp":
-      return { type: "give_xp", amount: action.amount };
-    case "give_level":
-      return { type: "give_level", amount: action.amount };
-    case "broadcast":
-      return { type: "broadcast", text: textOf(action.text.key) };
-    case "play_sound": {
-      const out: Record<string, unknown> = { type: "play_sound", sound: action.sound };
-      if (action.volume !== undefined) out.volume = action.volume;
-      if (action.pitch !== undefined) out.pitch = action.pitch;
-      return out;
-    }
-    case "teleport": {
-      const out: Record<string, unknown> = {
-        type: "teleport",
-        world: action.world,
-        x: action.x,
-        y: action.y,
-        z: action.z,
-      };
-      if (action.yaw !== undefined) out.yaw = action.yaw;
-      if (action.pitch !== undefined) out.pitch = action.pitch;
-      return out;
-    }
-    case "paginate": {
-      const type = action.direction === "next" ? "pagination_next" : "pagination_prev";
-      const out: Record<string, unknown> = { type };
-      if (action.targetElementId) out.element_id = action.targetElementId;
-      return out;
-    }
-    case "set_arg":
-      return { type: "set_arg", arg: action.arg, value: action.value };
-    case "set_arg_cycle_next":
-      return { type: "set_arg_cycle_next", arg: action.arg, list: action.list };
-    case "set_arg_cycle_prev":
-      return { type: "set_arg_cycle_prev", arg: action.arg, list: action.list };
-    case "open_dialog": {
-      const out: Record<string, unknown> = { type: "open_dialog", dialog_id: action.dialogId };
-      if (action.clearContext) out.clear_context = true;
-      if (action.context && Object.keys(action.context).length > 0) out.context = action.context;
-      return out;
-    }
-    case "close_dialog":
-      return { type: "close_dialog" };
-    default:
-      return action;
-  }
-}
-
-// ─── step tree serialization ─────────────────────────────────────────────────
-
-function serializeStep(step: Step, project: Project, textOf: StepTextOf = i18nRef): unknown {
-  if (step.kind === "action") {
-    return { kind: "action", action: serializeAction(step.action, textOf) };
-  }
-  const out: Record<string, unknown> = {
-    kind: "if",
-    cases: step.cases.map((c) => ({
-      conditions: c.conditions.map(serializeCondition),
-      ...(c.joins ? { joins: c.joins } : {}),
-      steps: c.steps.map((s) => serializeStep(s, project, textOf)),
-    })),
-  };
-  if (step.else) {
-    out.else = step.else.map((s) => serializeStep(s, project, textOf));
-  }
-  return out;
-}
-
-/**
- * Serialize steps with LITERAL text (the LText `key` holds the raw string) —
- * the wire shape of module-data steps (`actions` field kit widget). Same
- * structure the plugin's ActionParser reads, minus the `{i18n:…}` indirection.
- */
-export function serializeStepsLiteral(steps: Step[]): unknown[] {
-  return steps.map((s) => serializeStep(s, undefined as unknown as Project, (key) => key));
-}
-
 // ─── appearance serialization ────────────────────────────────────────────────
 
 function serializeAppearance(app: Appearance, project: Project): Record<string, unknown> {
   const out: Record<string, unknown> = {};
-  if (app.if && app.if.length > 0) out.if = serializeIfArray(app.if, app.ifJoins);
+  if (app.if && app.if.length > 0) out.if = conditionsToStructured(app.if, app.ifJoins);
   if (app.image) out.image = app.image;
   else if (app.item !== undefined) out.item = app.item;
   else if (app.material) out.material = app.material;
   if (app.head) out.head = app.head;
   if (app.count !== undefined) out.count = app.count;
-  const t = textSerializer(project);
+  const t = fieldTextOf(project);
   if (app.title) out.title = t(app.title.key);
   if (app.lore) out.lore = [t(app.lore.key)];
   if (app.loreMode) {
@@ -216,11 +95,12 @@ function serializeAppearance(app: Appearance, project: Project): Record<string, 
   }
   if (app.click) {
     const clickOut: Record<string, unknown> = {};
+    const codec = actionTextCodec(project);
     for (const [clickType, handler] of Object.entries(app.click)) {
       if (!handler) continue;
-      // Canonical collapsed form: the handler IS the Action DSL string (ADR
-      // action-dsl); menu action text is a Key site → `@key`, else a "literal".
-      clickOut[clickType] = stepsToDsl(handler.steps, project);
+      // Canonical wire: a list of structured steps (ADR `structured-action-wire`);
+      // action text is field-local.
+      clickOut[clickType] = stepsToStructured(handler.steps, codec);
     }
     if (Object.keys(clickOut).length > 0) out.click = clickOut;
   }
@@ -283,7 +163,7 @@ function serializeElements(menu: Menu, project: Project): Record<string, unknown
 
 function serializeTitleLayer(
   layer: MenuTitleLayer,
-  t: StepTextOf,
+  t: FieldTextOf,
 ): Record<string, unknown> | string {
   if (layer.kind === "background") {
     return { kind: "background", asset_id: layer.assetId };
@@ -306,9 +186,14 @@ function serializeTitleLayer(
     return out;
   }
   if (layer.kind === "plain") {
-    // Canonical sugar: an uncolored plain layer is just its string.
-    if (layer.color === undefined) return t(layer.value.key);
-    return { kind: "plain", value: t(layer.value.key), color: layer.color };
+    const value = t(layer.value.key);
+    // Canonical sugar: an uncolored plain layer whose value is a bare string is
+    // just that string. A multi-language map must keep the `kind` wrapper — a
+    // bare `{lang: text}` entry is not a MenuTitleLayer.
+    if (layer.color === undefined && typeof value === "string") return value;
+    return layer.color === undefined
+      ? { kind: "plain", value }
+      : { kind: "plain", value, color: layer.color };
   }
   if (layer.kind === "textarea") {
     const out: Record<string, unknown> = {
@@ -506,18 +391,21 @@ export function serializeMenuToV1(
   project: Project,
 ): { id: string } & Record<string, unknown> {
   const type = menu.inventoryType ?? "chest";
-  const t = textSerializer(project);
+  const t = fieldTextOf(project);
+  const titleLayers = menu.title.map((l) => serializeTitleLayer(l, t));
   const out: Record<string, unknown> = {
     schema: "menu/v1",
     id: menu.id,
-    // Canonical sugar: a title that is exactly one uncolored plain layer
-    // serializes to a bare string.
+    // Canonical sugar: a title that is exactly one uncolored plain layer whose
+    // value is a bare string serializes to that string; a multi-language map
+    // stays in the array layer form (the top-level title union is string|array).
     title:
       menu.title.length === 1 &&
       menu.title[0]!.kind === "plain" &&
-      menu.title[0]!.color === undefined
-        ? serializeTitleLayer(menu.title[0]!, t)
-        : menu.title.map((l) => serializeTitleLayer(l, t)),
+      menu.title[0]!.color === undefined &&
+      typeof titleLayers[0] === "string"
+        ? titleLayers[0]
+        : titleLayers,
     size: slotCount(type, menu.rows),
     elements: serializeElements(menu, project),
   };
@@ -561,9 +449,9 @@ export function serializeCommand(cmd: Command, project: Project): Record<string,
     id: cmd.id,
     // `name` (the in-game trigger) is only written when it differs from `id`.
     ...(cmd.name !== cmd.id ? { name: cmd.name } : {}),
-    // The command's action chain serializes to an Action DSL string (ADR
-    // action-dsl). Canonical field: `actions` (`steps` is the legacy spelling).
-    actions: stepsToDsl(cmd.steps, project),
+    // The command's action chain serializes to structured steps (ADR
+    // `structured-action-wire`). Canonical field: `actions`.
+    actions: stepsToStructured(cmd.steps, actionTextCodec(project)),
   };
   if (cmd.aliases && cmd.aliases.length > 0) out.aliases = cmd.aliases;
   if (cmd.permission) out.permission = cmd.permission;
@@ -586,12 +474,12 @@ export function projectToCommandV1(project: Project): Record<string, unknown>[] 
 
 // ─── dialog serialization ────────────────────────────────────────────────────
 
-function serializeDialogBody(body: DialogBody, t: StepTextOf): Record<string, unknown> {
+function serializeDialogBody(body: DialogBody, t: FieldTextOf): Record<string, unknown> {
   if (body.type === "text") return { type: "text", text: t(body.text.key) };
   return { type: "item", material: body.material, count: body.count };
 }
 
-function serializeDialogInput(input: DialogInput, t: StepTextOf): Record<string, unknown> {
+function serializeDialogInput(input: DialogInput, t: FieldTextOf): Record<string, unknown> {
   const out: Record<string, unknown> = {
     id: input.id,
     type: input.type,
@@ -616,18 +504,17 @@ function serializeDialogInput(input: DialogInput, t: StepTextOf): Record<string,
 function serializeDialogButton(
   btn: DialogButton,
   project: Project,
-  t: StepTextOf,
+  t: FieldTextOf,
 ): Record<string, unknown> {
   const out: Record<string, unknown> = { id: btn.id, label: t(btn.label.key) };
-  // dialog/v1 button actions serialize to an Action DSL string (ADR action-dsl
-  // Phase 2). Unlike the old flat-action wire, if-branches now round-trip.
-  const dsl = stepsToDsl(btn.steps, project);
-  if (dsl !== "") out.actions = dsl;
+  // Button actions serialize to structured steps (ADR `structured-action-wire`).
+  const steps = stepsToStructured(btn.steps, actionTextCodec(project));
+  if (steps.length > 0) out.actions = steps;
   return out;
 }
 
 export function serializeDialog(dialog: Dialog, project: Project): Record<string, unknown> {
-  const t = textSerializer(project);
+  const t = fieldTextOf(project);
   const out: Record<string, unknown> = {
     schema: "dialog/v1",
     id: dialog.id,
@@ -646,14 +533,6 @@ export function projectToDialogV1(project: Project): Record<string, unknown>[] {
 }
 
 // ─── translations serialization ──────────────────────────────────────────────
-
-function addActionKeys(action: Action, keys: Set<string>): void {
-  if (action.type === "send_message" || action.type === "broadcast") keys.add(action.text.key);
-  else if (action.type === "show_title") {
-    keys.add(action.title.key);
-    if (action.subtitle) keys.add(action.subtitle.key);
-  }
-}
 
 /**
  * Keys that belong to the **project**, not to any document site: presentation
@@ -674,48 +553,12 @@ const DURATION_DEFAULTS_BY_KEY: Record<string, string> = Object.fromEntries(
   ]),
 );
 
-function collectReferencedKeys(project: Project): Set<string> {
-  const keys = new Set<string>(SITELESS_KEYS);
-  for (const menu of project.menus) {
-    for (const lt of getTitleTextLayers(menu)) keys.add(lt.key);
-    for (const layer of menu.layers) {
-      for (const el of layer.elements) {
-        for (const app of addressedAppearances(el)) {
-          if (app.title) keys.add(app.title.key);
-          if (app.lore) keys.add(app.lore.key);
-          if (app.click) {
-            for (const handler of Object.values(app.click)) {
-              if (!handler) continue;
-              for (const action of walkActions(handler.steps)) addActionKeys(action, keys);
-            }
-          }
-        }
-      }
-    }
-  }
-  for (const cmd of project.commands) {
-    for (const action of walkActions(cmd.steps)) addActionKeys(action, keys);
-  }
-  for (const dialog of project.dialogs) {
-    if (dialog.title) keys.add(dialog.title.key);
-    for (const body of dialog.body) {
-      if (body.type === "text") keys.add(body.text.key);
-    }
-    for (const input of dialog.inputs) {
-      keys.add(input.label.key);
-      if (input.type === "single_option") {
-        for (const opt of input.options) keys.add(opt.label.key);
-      }
-    }
-    for (const btn of dialog.buttons) {
-      keys.add(btn.label.key);
-      for (const action of walkActions(btn.steps)) addActionKeys(action, keys);
-    }
-  }
-  // NOTE: data-source ltext values are NOT collected here anymore (ADR
-  // bare-data-files ④): their default text is inlined in the data file and
-  // their other languages are emitted by ADDRESS via dataSourceI18n().
-  return keys;
+/** Keys that still live in `lang/`: **siteless** presentation keys only. All
+ *  document text (structural AND action, since ADR `structured-action-wire`) is
+ *  field-local, inline in the document. Data-source ltext is handled by
+ *  `dataSourceI18n` (ADR `bare-data-files` ④). */
+function collectReferencedKeys(_project: Project): Set<string> {
+  return new Set<string>(SITELESS_KEYS);
 }
 
 function serializeLang(
@@ -1281,31 +1124,21 @@ export function transform(project: Project): Record<string, string> {
   const referencedKeys = collectReferencedKeys(project);
   const dsI18n = dataSourceI18n(project);
   for (const lang of langs) {
-    // Inline mode: the default language IS the documents, so a `lang/<default>`
-    // file would be a second copy of the same truth (same rule data sources
-    // already follow, ADR bare-data-files ④) — except for SITELESS keys, which no
-    // document can hold. Those still need a home, so the file is emitted with
-    // them alone.
-    if (project.i18nMode === "inline" && lang === project.defaultLang) {
-      const siteless = serializeLang(project, lang, new Set(SITELESS_KEYS));
-      if (Object.keys(siteless).length > 0) {
-        files[`${base}/lang/${lang}.yaml`] = stringify(nestLangTree(siteless), yamlOpts);
-      }
-      continue;
-    }
-    // Written as a YAML tree, not one dotted key per line — `nestLangTree`
-    // re-sorts every level in byte order so the file stays deterministic.
-    files[`${base}/lang/${lang}.yaml`] = stringify(
-      nestLangTree(
-        serializeLang(
-          project,
-          lang,
-          referencedKeys,
-          lang === project.defaultLang ? {} : (dsI18n.byLang[lang] ?? {}),
-        ),
+    // `lang/` now only holds action-text refs, siteless presentation keys and
+    // data-source addresses — structural text is field-local in the documents.
+    // Written as a YAML tree (`nestLangTree` sorts every level byte-order).
+    const tree = nestLangTree(
+      serializeLang(
+        project,
+        lang,
+        referencedKeys,
+        lang === project.defaultLang ? {} : (dsI18n.byLang[lang] ?? {}),
       ),
-      yamlOpts,
     );
+    // Nothing to say for this language → no file (a pure mono-language,
+    // structural-only project ships zero `lang/` files).
+    if (Object.keys(tree).length === 0) continue;
+    files[`${base}/lang/${lang}.yaml`] = stringify(tree, yamlOpts);
   }
 
   const liveIds = new Set<string>([

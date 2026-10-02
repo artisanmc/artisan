@@ -8,6 +8,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import {
   getNetworkServersStatus,
+  isPluginOutdated,
   type NetworkServersStatus,
   type ServerStatusEntry,
 } from "@/lib/api/networks";
@@ -64,6 +65,11 @@ export function ServerRow({ s, lang, t }: { s: ServerStatusEntry; lang: string; 
           t("linkedServers.neverConnected")
         )}
       </div>
+      {isPluginOutdated(s) ? (
+        <div className="pl-3.5 text-[11px] text-[var(--danger)]">
+          {t("linkedServers.pluginOutdated")}
+        </div>
+      ) : null}
     </div>
   );
 }

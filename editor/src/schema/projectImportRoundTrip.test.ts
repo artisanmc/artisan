@@ -161,11 +161,11 @@ function roundTrip(): {
 }
 
 describe("projectImport round-trip (Boutique bootstrap → import → transform)", () => {
-  it("preserves title layer i18n keys", () => {
+  it("moves structural title text into the document (field-local)", () => {
     const { out } = roundTrip();
-    // Single plain layers re-export as the canonical bare-string sugar.
-    expect(out["menus/shop_main.yaml"]!.title).toBe("{i18n:boutique.shop_main.title}");
-    expect(out["menus/shop_category.yaml"]!.title).toBe("{i18n:boutique.shop_category.title}");
+    // A single plain layer whose value is a bare string re-exports as that string.
+    expect(out["menus/shop_main.yaml"]!.title).toBe("Boutique");
+    expect(out["menus/shop_category.yaml"]!.title).toBe("Boutique — {category_name}");
   });
 
   it("preserves every input (name/type/source ref + filter) under the canonical `inputs` key", () => {
@@ -187,53 +187,64 @@ describe("projectImport round-trip (Boutique bootstrap → import → transform)
   it("preserves open_menu/open_dialog/run_command targets and context", () => {
     const { out } = roundTrip();
 
-    // Steps re-export as Action DSL strings (Phase 2). Targets + context tails
-    // survive the structured→domain→DSL round-trip.
+    // Steps re-export structured (ADR structured-action-wire). Targets + context
+    // survive the structured→domain→structured round-trip.
     const mainGrid = out["menus/shop_main.yaml"]!.elements[0];
     expect(mainGrid.iterates).toEqual({ source: "cats", alias: "cat" });
-    expect(mainGrid.click.left).toBe(
-      'open_menu shop_category with category="{cat.id}" category_name="{cat.name}"',
-    );
+    expect(mainGrid.click.left).toEqual([
+      {
+        open_menu: {
+          menu_id: "shop_category",
+          context: { category: "{cat.id}", category_name: "{cat.name}" },
+        },
+      },
+    ]);
 
     const catLayers = out["menus/shop_category.yaml"]!.elements;
-    expect(catLayers[0].click.left).toBe(
-      'open_dialog confirm_purchase with item_id="{item.id}" item_name="{item.name}" item_price="{item.final_price}"',
-    );
-    expect(catLayers[1].click.left).toBe("open_menu shop_main");
+    expect(catLayers[0].click.left).toEqual([
+      {
+        open_dialog: {
+          dialog_id: "confirm_purchase",
+          context: {
+            item_id: "{item.id}",
+            item_name: "{item.name}",
+            item_price: "{item.final_price}",
+          },
+        },
+      },
+    ]);
+    expect(catLayers[1].click.left).toEqual([{ open_menu: "shop_main" }]);
 
-    expect(out["commands/boutique.yaml"]!.actions).toBe("open_menu shop_main");
+    expect(out["commands/boutique.yaml"]!.actions).toEqual([{ open_menu: "shop_main" }]);
 
     const buttons = out["dialogs/confirm_purchase.yaml"]!.buttons;
-    expect(buttons[0].actions).toBe('run_command "boutique:buy {item_id}" as player');
-    expect(buttons[1].actions).toBe("open_menu shop_category");
+    expect(buttons[0].actions).toEqual([{ run_command: "boutique:buy {item_id}" }]);
+    expect(buttons[1].actions).toEqual([{ open_menu: "shop_category" }]);
   });
 
-  it("re-emits lang/fr.yaml with both bootstrap keys", () => {
+  it("keeps only siteless presentation keys in lang/fr.yaml", () => {
     const { out } = roundTrip();
-    const fr = out["lang/fr.yaml"]!;
-    expect(fr["boutique.shop_main.title"]).toBe("Boutique");
-    expect(fr["boutique.shop_category.title"]).toBe("Boutique — {category_name}");
+    const fr = out["lang/fr.yaml"] ?? {};
+    // Structural bootstrap keys moved field-local into the documents.
+    expect(fr["boutique.shop_main.title"]).toBeUndefined();
+    expect(fr["boutique.shop_category.title"]).toBeUndefined();
+    // `fr` is the default language, so its file is seeded with the presentation
+    // defaults — and nothing else.
+    expect(Object.keys(fr).every((k) => k.startsWith("artisan."))).toBe(true);
   });
 
-  it("re-emits lang/fr.yaml as a nested tree, not one dotted key per line", () => {
+  it("keeps lang/fr.yaml a nested tree, not one dotted key per line", () => {
     const { rawOut } = roundTrip();
     const raw = rawOut[`${base}/lang/fr.yaml`]!;
-    // Nesting is what this asserts, not which top-level key comes first —
-    // `artisan:` (the project's presentation keys) sorts before `boutique:`.
-    expect(raw).toMatch(/^boutique:$/m);
+    expect(raw).toMatch(/^artisan:$/m);
     expect(raw).not.toMatch(/^boutique\./m);
-    expect((parse(raw) as Json).boutique.shop_main.title).toBe("Boutique");
+    expect((parse(raw) as Json).artisan.duration.days).toBe("{n}d");
   });
 
-  it("keeps literal appearance text resolvable through the default lang file", () => {
+  it("keeps literal appearance text field-local in the document", () => {
     const { out } = roundTrip();
-    const fr = out["lang/fr.yaml"]!;
-    // Literal titles get minted keys; the fr lang file must resolve them back
-    // to the original literal (placeholders intact).
-    const title = out["menus/shop_main.yaml"]!.elements[0].title as string;
-    const key = /^\{i18n:(.+)\}$/.exec(title)?.[1];
-    expect(key).toBeDefined();
-    expect(fr[key!]).toBe("{cat.name}");
+    // A literal element title is inlined as-is (placeholders intact), not keyed.
+    expect(out["menus/shop_main.yaml"]!.elements[0].title).toBe("{cat.name}");
   });
 
   it("re-emits unclaimed module files (boutique/shop.yaml) verbatim", () => {

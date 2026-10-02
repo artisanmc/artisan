@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   uploadDraftBlob: vi.fn(),
   listServerProjects: vi.fn(),
   readProjectFiles: vi.fn(),
+  loadUserProject: vi.fn(),
 }));
 
 vi.mock("@/features/export/projectZip", () => ({
@@ -25,6 +26,7 @@ vi.mock("@/lib/api/projectFiles", () => ({
   listServerProjects: mocks.listServerProjects,
   readProjectFiles: mocks.readProjectFiles,
 }));
+vi.mock("@/lib/api/userProjects", () => ({ loadUserProject: mocks.loadUserProject }));
 
 import { hashBytes } from "@/lib/contentHash";
 import { applyImportZip, prepareImportZip } from "./runImportZip";
@@ -126,6 +128,31 @@ describe("applyImportZip", () => {
       "menus/a.yaml": "name: a\n",
       "manifest.yaml": "id: shop\n",
     });
+  });
+
+  it("résout l'ancre quand le serveur a déjà le projet (project_exists)", async () => {
+    mocks.readProjectZip.mockResolvedValue({});
+    mocks.normalizeProjectFiles.mockReturnValue(
+      normalized({ "plugins/Artisan/projects/shop/menus/a.yaml": "v: 1\n" }),
+    );
+    mocks.listServerProjects.mockResolvedValue({ ok: true, projectIds: [], projects: [] });
+    mocks.createProject.mockRejectedValue(new Error("project_exists"));
+    mocks.loadUserProject.mockResolvedValue({ project: { id: "proj_shop" } });
+    mocks.readProjectFiles.mockResolvedValue({
+      ok: true,
+      files: {},
+      binaries: [],
+      failed: [],
+      hash: "h",
+    });
+
+    const prepared = await prepareImportZip(file, target, "merge");
+    if (!prepared.ok) throw new Error("expected preview");
+    const result = await applyImportZip(prepared.preview);
+
+    expect(result).toMatchObject({ ok: true, projectId: "shop", created: false });
+    expect(mocks.loadUserProject).toHaveBeenCalledWith("shop", "sk1", "n1");
+    expect(mocks.createDraft.mock.calls[0]![0]).toBe("proj_shop");
   });
 
   it("un conflit tranché « serveur » garde le contenu du serveur dans le brouillon", async () => {

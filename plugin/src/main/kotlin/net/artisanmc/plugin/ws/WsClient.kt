@@ -75,6 +75,15 @@ class WsClient(
         httpClient.dispatcher.executorService.awaitTermination(5, TimeUnit.SECONDS)
     }
 
+    companion object {
+        /**
+         * Version du **format de contenu** de projet que ce plugin sait lire
+         * (ADR `content-version-negotiation`). À incrémenter à chaque évolution
+         * cassante du wire. 2 = étapes structurées keyed.
+         */
+        const val CONTENT_VERSION = 2
+    }
+
     private inner class Listener : WebSocketListener() {
         override fun onOpen(ws: WebSocket, response: Response) {
             retryDelay = 1
@@ -82,6 +91,9 @@ class WsClient(
                 "type" to "hello",
                 "editor_access_mode" to editorAccessMode,
                 "protocol_version" to "1",
+                // Wire de contenu de projet : 2 = étapes structurées keyed
+                // (ADR content-version-negotiation). Absente = 1 (DSL legacy).
+                "content_version" to CONTENT_VERSION,
                 "core_version" to "1.0.0",   // Mirrors plugin_version (kept for backward compat).
                 "server_key" to serverKey,
                 "plugin_version" to "1.0.0",

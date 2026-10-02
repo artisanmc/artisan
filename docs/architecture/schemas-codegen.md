@@ -93,6 +93,9 @@ Modifier un `docs/schema/*/v1/schema.json` ⇒ dans le même mouvement :
 - ✅ pagination — `pagination_next/prev` avancent/reculent avec clamp + re-render ;
   `pagination_at_first/last` réelles (état dans `ExecutionContext.pagination`/`pageInfo`,
   aucune modification d'interface `MenuProvider`).
+- ✅ navigation arrière — `open_previous_menu` (pile LIFO par joueur, menus + dialogs) et
+  placeholders `has_previous_menu` / `previous_menu.*` ; vocabulaire `menu/v1` étendu, pas de
+  breaking (cf. `action-steps.md` §open_previous_menu).
 
 **Restants** (le plugin ne les exécute pas encore — projets séparés) :
 

@@ -72,7 +72,7 @@ describe("full-stack: WS handshake over a real socket", () => {
     // après l'ack, il arriverait ici. Le timeout est le test.
     const pending = collectMessages(ws, 2, 1_000);
     ws.send(JSON.stringify({
-      type: "hello",
+      type: "hello", content_version: 2,
       server_key: key,
       plugin_version: "1.0.0",
       minecraft_version: "1.21.4",
@@ -96,7 +96,7 @@ describe("full-stack: WS handshake over a real socket", () => {
     const ws = await connectWs();
     const pending = collectMessages(ws, 1);
     ws.send(JSON.stringify({
-      type: "hello",
+      type: "hello", content_version: 2,
       server_key: key,
       plugin_version: "1.0.0",
       minecraft_version: "1.21.4",

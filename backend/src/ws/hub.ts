@@ -92,6 +92,23 @@ export function supportsResourceQuota(serverKeyId: string, quota: number | null 
 export function supportsProjectDrafts(serverKeyId: string) {
   return [...draftConnections].some((id) => connToServerId.get(id) === serverKeyId && connSenders.has(id));
 }
+/**
+ * Version du format de contenu de projet que chaque connexion plugin sait lire
+ * (ADR `content-version-negotiation`). Absente au hello = 1 (DSL legacy).
+ */
+const contentVersionByConn = new Map<string, number>();
+/** Version minimale du wire de contenu exigée pour écrire. 2 = keyed structuré. */
+export const MIN_CONTENT_VERSION = 2;
+/** Toutes les connexions vivantes du serveur lisent-elles au moins [min] ? */
+export function supportsContentVersion(serverKeyId: string, min = MIN_CONTENT_VERSION): boolean {
+  const live = [...connToServerId].filter(([id, sid]) => sid === serverKeyId && connSenders.has(id)).map(([id]) => id);
+  return live.length > 0 && live.every((id) => (contentVersionByConn.get(id) ?? 1) >= min);
+}
+/** Version de contenu courante d'un serveur (min des connexions vivantes, sinon 1). */
+export function contentVersionOf(serverKeyId: string): number {
+  const live = [...connToServerId].filter(([id, sid]) => sid === serverKeyId && connSenders.has(id)).map(([id]) => contentVersionByConn.get(id) ?? 1);
+  return live.length > 0 ? Math.min(...live) : 1;
+}
 const pendingDrafts = new Map<string, { connId: string; finish: (outcome: DraftOutcome) => void }>();
 export async function requestProjectDraft(serverKeyId: string, request: DraftRequest, timeoutMs = 30_000): Promise<DraftOutcome> {
   if (!["list", "list_all", "read", "read_blob"].includes(request.action) && await projectIdentityLocked(serverKeyId, request.project_id)) return { kind: "result", result: { ok: false, error: "rename_in_progress" } };
@@ -103,6 +120,8 @@ export async function requestProjectDraft(serverKeyId: string, request: DraftReq
     const policy = await resolveServerCommercialPolicy(serverKeyId);
     if (connToServerId.get(connId) !== serverKeyId || connSenders.get(connId) !== send) return { kind: "offline" };
     if (policy.enabled && !supportsResourceQuota(serverKeyId, policy.quota)) return { kind: "result", result: { ok: false, error: "plugin_update_required" } };
+    // Publier écrit le contenu keyed : plugin trop ancien refusé (ADR content-version-negotiation).
+    if (!supportsContentVersion(serverKeyId)) return { kind: "result", result: { ok: false, error: "plugin_update_required" } };
     request = { ...request, commercial_policy: { enabled: policy.enabled, quota: policy.quota, pro_until: policy.proUntil } };
   }
   return new Promise((resolve) => {
@@ -716,6 +735,9 @@ export async function requestProjectWrite(
   const send = firstPluginSender(serverKeyId);
   if (!send) return Promise.resolve({ kind: "offline" });
   if (req.binaries?.length && !supportsMixedProjectWrite(serverKeyId)) return { kind: "result", result: { type: "project_write_result", request_id: "", ok: false, error: "plugin_update_required" } };
+  // Le wire de contenu écrit est keyed : un plugin trop ancien ne saurait pas
+  // le lire → on refuse l'écriture (ADR content-version-negotiation).
+  if (!supportsContentVersion(serverKeyId)) return { kind: "result", result: { type: "project_write_result", request_id: "", ok: false, error: "plugin_update_required" } };
   const { resolveServerCommercialPolicy } = await import("../modules/billing/editorAccess");
   const policy = await resolveServerCommercialPolicy(serverKeyId);
   if (firstPluginSender(serverKeyId) !== send) return { kind: "offline" };
@@ -1138,6 +1160,8 @@ export async function handlePluginMessage(
     // et de les router — donc un project présent sur le disque du serveur mais
     // inconnu de la base y est enregistré ici.
     serverRenameCapabilities.set(keyId, hello.capabilities?.includes("project_rename") === true);
+    // Version du wire de contenu (ADR content-version-negotiation). Absente = 1.
+    contentVersionByConn.set(connId, typeof hello.content_version === "number" ? hello.content_version : 1);
     if (hello.capabilities?.includes("project_drafts_v1")) draftConnections.add(connId);
     else draftConnections.delete(connId);
     if (hello.capabilities?.includes("project_mixed_write_v1")) mixedWriteConnections.add(connId);

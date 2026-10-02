@@ -59,6 +59,7 @@ private fun printAction(a: DslAction): String = when (a) {
     is DslAction.OpenDialog -> "open_dialog ${a.dialogId}${menuTail(a.clearContext, a.context)}"
     is DslAction.CloseMenu -> "close_menu"
     is DslAction.CloseDialog -> "close_dialog"
+    is DslAction.OpenPreviousMenu -> "open_previous_menu"
     is DslAction.Paginate ->
         "paginate ${a.direction}${if (a.targetElementId != null) " ${a.targetElementId}" else ""}"
     is DslAction.RunActions -> "run_actions ${a.actions}"

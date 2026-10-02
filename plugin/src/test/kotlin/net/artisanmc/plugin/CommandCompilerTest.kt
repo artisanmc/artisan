@@ -4,6 +4,7 @@ import net.artisanmc.plugin.command.ArgDef
 import net.artisanmc.plugin.command.CommandCompiler
 import net.artisanmc.plugin.engine.Action
 import net.artisanmc.plugin.engine.Condition
+import net.artisanmc.plugin.engine.Step
 import net.artisanmc.plugin.model.CooldownYaml
 import net.artisanmc.plugin.model.CommandYaml
 import kotlin.test.*
@@ -65,7 +66,7 @@ class CommandCompilerTest {
         assertEquals(1, result.handler.requirements.size)
         assertIs<Condition.CooldownPassed>(result.handler.requirements[0])
         assertEquals(1, result.handler.fallback.size)
-        assertIs<Action.SendMessage>(result.handler.fallback[0])
+        assertIs<Action.SendMessage>((result.handler.fallback[0] as Step.ActionStep).action)
     }
 
     @Test fun `compile command with cooldown`() {

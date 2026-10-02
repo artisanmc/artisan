@@ -15,8 +15,6 @@ export {
   stepsToDslSteps,
   parseToSteps,
   printFromSteps,
-  stepsToDsl,
-  dslToSteps,
   type TextToLText,
   type LTextToText,
 } from "./domainSteps";

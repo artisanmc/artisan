@@ -11,12 +11,13 @@ object CommandCompiler {
 
     fun compile(yaml: CommandYaml, logger: Logger? = null): CompiledCommand? = runCatching {
         val requirements = yaml.requirements.map { ConditionParser.parse(it) }
-        // Canonical wire (`actions:`) is an Action DSL string (`steps:` is the
-        // legacy spelling); a flat action-map list in `actions:` is the pre-DSL
-        // legacy wire, kept as-is.
-        val steps        = assignI18nAddresses(compileActionDsl(yaml.dsl), I18nAddress.command(yaml.id))
-        val actions      = yaml.legacyActions.map { ActionParser.parse(it) }
-        val fallback     = yaml.fallback.map { ActionParser.parse(it) }
+        // Canonical wire: keyed steps (ou un step / une liste) ; string = ancien
+        // DSL. Une liste plate d'Action `{type:…}` est le wire legacy pré-DSL.
+        val legacy       = yaml.legacyActions
+        val steps        = if (legacy.isNotEmpty()) emptyList()
+                           else ActionChainCompiler.compile(yaml.handler, I18nAddress.command(yaml.id))
+        val actions      = legacy.map { ActionParser.parse(it) }
+        val fallback     = ActionChainCompiler.compile(yaml.fallback)
         val cooldown     = yaml.cooldown?.let { cy -> Cooldown(cy.id, cy.duration, cy.scope, cy.message) }
         val argDefs      = ArgDefParser.parseAll(yaml.arguments)
         CompiledCommand(

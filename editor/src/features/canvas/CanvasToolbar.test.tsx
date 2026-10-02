@@ -21,4 +21,8 @@ describe("CanvasToolbar", () => {
     fireEvent.click(screen.getByRole("button", { name: /pan|navigation/i }));
     expect(useUiStore.getState().canvasMode).toBe("hand");
   });
+  it("propose la dropdown de modes quand onRearrange est fourni", () => {
+    render(<CanvasToolbar onRearrange={() => {}} />);
+    expect(screen.getByRole("button", { name: /rearrange|réarranger/i })).toBeInTheDocument();
+  });
 });

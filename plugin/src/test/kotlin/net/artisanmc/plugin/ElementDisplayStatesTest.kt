@@ -39,7 +39,7 @@ class ElementDisplayStatesTest {
         )
         val el = menu.allElements.single()
         assertEquals("ARROW", el.display.material)
-        assertEquals("§7Retour", el.display.title)
+        assertEquals("§7Retour", el.display.title?.forLang("en", "en"))
         assertTrue(el.display.click.containsKey("left"))
         assertTrue(el.states.isEmpty())
     }

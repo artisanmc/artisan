@@ -118,6 +118,7 @@ class ArtisanCommand(
             langMap = langMap,
             lookupAsset = plugin.assetCatalog::lookup,
             offsetEncoder = encoder,
+            defaultLang = menu.defaultLang,
         )
         val raw = result.toString()
 
@@ -156,6 +157,7 @@ class ArtisanCommand(
             }
             val (frag, newX) = TitleCompiler.compileLayerBody(
                 layer, startX, langMap, plugin.assetCatalog::lookup, encoder,
+                lang = resolvedLang, defaultLang = menu.defaultLang,
             )
             currentX = newX
             val kindShort = layer.javaClass.simpleName

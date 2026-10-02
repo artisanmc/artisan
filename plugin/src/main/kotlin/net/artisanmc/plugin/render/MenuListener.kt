@@ -15,6 +15,7 @@ class MenuListener(
     private val sessions: MenuSessionStore,
     private val executor: ActionExecutor,
     private val windows: MenuWindows? = null,
+    private val history: NavigationHistoryStore? = null,
     private val resync: (Player) -> Unit = { it.updateInventory() },
 ) : Listener {
 
@@ -73,6 +74,7 @@ class MenuListener(
     fun onQuit(event: PlayerQuitEvent) {
         windows?.clear(event.player.uniqueId)
         sessions.remove(event.player)
+        history?.clear(event.player)
     }
 }
 

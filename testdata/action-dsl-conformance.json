@@ -305,5 +305,11 @@
         ]
       }
     ]
+  },
+  {
+    "name": "open_previous_menu",
+    "dsl": "open_previous_menu",
+    "canonicalDsl": "open_previous_menu",
+    "ast": [{ "kind": "action", "action": { "type": "open_previous_menu" } }]
   }
 ]

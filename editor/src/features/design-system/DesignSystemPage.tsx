@@ -581,12 +581,13 @@ export function DesignSystemPage() {
           <span className="mono text-[11px] text-[var(--text-faint)]">{"<CanvasToolbar>"}</span>
           <span className="text-[12px] text-[var(--text-mut)]">
             Bottom-center DOM toolbar (absolute, z-20). Two mode buttons (Select / Pan), active
-            state via --brand-soft. Hotkeys: <kbd className="mono text-[11px]">V</kbd> /{" "}
+            state via --brand-soft, plus a rearrange-mode dropdown. Hotkeys:{" "}
+            <kbd className="mono text-[11px]">V</kbd> /{" "}
             <kbd className="mono text-[11px]">H</kbd> / Space-hold (temporary pan).
           </span>
           {/* Live render in a relative container to avoid absolute positioning overflow */}
           <div className="relative h-16 overflow-hidden rounded-[var(--r-md)] border border-[var(--border-soft)] bg-[var(--surface-inset)]">
-            <CanvasToolbar />
+            <CanvasToolbar onRearrange={() => {}} />
           </div>
         </div>
       </Section>

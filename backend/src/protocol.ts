@@ -27,6 +27,12 @@ export interface HelloMessage extends ProjectIdentityReport {
   type: "hello";
   protocol_version?: string;   // NEW — "1" for current protocol
   core_version?: string;       // NEW — plugin's own version string; mirrors plugin_version
+  /**
+   * Version du format de contenu de projet que le plugin sait lire (ADR
+   * `content-version-negotiation`). Absente = 1 (DSL legacy) ; 2 = étapes
+   * structurées keyed. Le backend refuse les écritures sous le minimum.
+   */
+  content_version?: number;
   server_key: string;
   plugin_version: string;
   minecraft_version?: string;

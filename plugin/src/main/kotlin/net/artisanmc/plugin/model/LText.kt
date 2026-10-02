@@ -26,4 +26,10 @@ data class LText(
      * owning menu; mirror of the editor's `visitMenuTitleLTexts`.
      */
     val address: String? = null,
+    /**
+     * Field-local per-language values (ADR `field-local-translations`): a map
+     * `{ lang: text }` read from a title layer's `value`. When present it wins
+     * over both the literal and the address.
+     */
+    val localized: Map<String, String>? = null,
 )

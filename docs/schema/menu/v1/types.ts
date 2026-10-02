@@ -53,10 +53,12 @@ export interface Menu {
 // TITLE LAYERS
 // ============================================================================
 
-/** Référence i18n. La valeur résolue vit dans lang/<lang>.yaml. */
-export interface LText {
-  key: string;
-}
+/**
+ * Un texte de slot structurel (ADR `field-local-translations`) : soit une string
+ * (`'{i18n:key}'` ou littéral, identique pour toutes les langues), soit une map
+ * field-local `{ lang: texte }` résolue langue demandée → defaultLang → défaut.
+ */
+export type LText = string | Record<string, string>;
 
 /** Taille de police autorisée pour les title-layers text/textarea. */
 export type TitleFontSize = 8 | 12 | 16 | 20 | 24 | 32;
@@ -181,8 +183,8 @@ export interface Appearance {
   /** Tête custom : hdb:<id>, basehead:<base64>, ou playerhead:<pseudo>. Ignoré si material ≠ PLAYER_HEAD. */
   head?: string;
   count?: number;
-  title?: string;
-  lore?: string[];
+  title?: LText;
+  lore?: LText[];
   /** `replace` : cette lore ÉCARTE celle de l'item de base. Absent = elle s'y ajoute (défaut) ; écrire `{base.lore}` la positionne soi-même. */
   lore_mode?: "replace";
   /** Map id → niveau ({ sharpness: 5 }) ; la forme liste est lue mais jamais écrite. */
@@ -232,15 +234,30 @@ export interface ClickMap {
 }
 
 /**
- * Un handler de clic : une chaîne **Action DSL** (`steps`) — la sérialisation
- * texte de la séquence d'actions + branches if. Cf. ADR `action-dsl` (Phase 2 :
- * les steps structurés `{kind,action|cases}` sont remplacés par la string DSL).
- * Les types {@link Step}/{@link IfCase} ci-dessous décrivent la forme que le DSL
- * parse (domaine), plus le wire.
+ * Une chaîne d'actions (ADR `structured-action-wire`). Wire canonique : une
+ * **liste de steps** structurés (ou un step unique). Une **string** = ancien
+ * Action DSL (legacy, lu et ré-écrit structuré) ; `{ steps: string }` = forme
+ * legacy enveloppée.
+ *
+ * Un step = une action sans argument (string nue), une action `{ <nom>: args }`,
+ * ou un bloc `{ if, do, else }`. Le texte des actions est un {@link LText}.
  */
-export interface ClickHandler {
-  steps: string;
-}
+export type ClickHandler =
+  | string
+  | StructuredStep
+  | StructuredStep[]
+  | { steps: string };
+
+export type StructuredStep =
+  | string
+  | StructuredAction
+  | { if: StructuredCondition[]; do: StructuredStep[]; else?: StructuredStep[] };
+
+/** Action = map à une clé : `{ <nom>: args }` (1 arg → valeur, multi → map). */
+export type StructuredAction = Record<string, unknown>;
+
+/** Condition = map à une clé : `{ <nom>: args }` (`or:`/`and:` = liste, `not:` = condition). */
+export type StructuredCondition = Record<string, unknown>;
 
 /** Un cas conditionnel dans un Step `if`. */
 export interface IfCase {
@@ -260,7 +277,7 @@ export type Step =
 // ============================================================================
 
 export type Action =
-  | RunCommandAction | OpenMenuAction | CloseMenuAction
+  | RunCommandAction | OpenMenuAction | CloseMenuAction | OpenPreviousMenuAction
   | GiveItemAction | TakeItemAction
   | GiveMoneyAction | TakeMoneyAction
   | GiveXpAction | GiveLevelAction
@@ -286,6 +303,13 @@ export interface OpenMenuAction   {
   clear_context?: boolean;
 }
 export interface CloseMenuAction  { type: "close_menu"; }
+/**
+ * Ré-ouvre l'écran précédent de l'historique de navigation du joueur (bouton
+ * retour). Consomme l'historique : menu → wiki → item, deux retours ramènent au
+ * menu (pas de va-et-vient item ↔ wiki). No-op sans écran précédent ; garder le
+ * bouton avec le placeholder `has_previous_menu`.
+ */
+export interface OpenPreviousMenuAction { type: "open_previous_menu"; }
 export interface GiveItemAction   { type: "give_item"; material: string; count: number; nbt?: string; name?: string; lore?: string[]; }
 export interface TakeItemAction   { type: "take_item"; material: string; count: number; nbt?: string; }
 export interface GiveMoneyAction  { type: "give_money"; amount: number; currency?: string; }
@@ -371,7 +395,7 @@ export interface TemplateVariable {
 // ============================================================================
 
 export const ACTION_TYPES = [
-  "run_command", "open_menu", "close_menu",
+  "run_command", "open_menu", "close_menu", "open_previous_menu",
   "give_item", "take_item",
   "give_money", "take_money",
   "give_xp", "give_level",

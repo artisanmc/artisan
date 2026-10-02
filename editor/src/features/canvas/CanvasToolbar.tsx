@@ -1,18 +1,30 @@
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import type { ArrangeMode } from "@/features/canvas/arrangeBoard";
 import { useUiStore } from "@/state/uiStore";
-import { Hand, MousePointer2, WandSparkles } from "lucide-react";
+import { Check, ChevronDown, Hand, MousePointer2, WandSparkles } from "lucide-react";
 import { useTranslation } from "react-i18next";
+
+const ARRANGE_MODES: ArrangeMode[] = ["columns", "cluster", "force", "structured"];
 
 export function CanvasToolbar({
   onRearrange,
   rearrangeDisabled = false,
 }: {
   /** Absent en vue focus : il n'y a qu'un Document, rien à arranger. */
-  onRearrange?: () => void;
+  onRearrange?: (mode: ArrangeMode) => void;
   rearrangeDisabled?: boolean;
 } = {}) {
   const { t } = useTranslation();
   const mode = useUiStore((s) => s.canvasMode);
   const setMode = useUiStore((s) => s.setCanvasMode);
+  const arrangeMode = useUiStore((s) => s.arrangeMode);
+  const setArrangeMode = useUiStore((s) => s.setArrangeMode);
   const btn = (active: boolean) =>
     `flex h-8 items-center gap-1.5 rounded-[8px] px-2.5 text-[12px] transition-colors ${
       active
@@ -47,15 +59,44 @@ export function CanvasToolbar({
       {onRearrange && (
         <>
           <span className="mx-0.5 h-5 w-px bg-[var(--border)]" />
-          <button
-            type="button"
-            disabled={rearrangeDisabled}
-            title={t(rearrangeDisabled ? "canvas.rearrangeNothing" : "canvas.rearrangeHint")}
-            onClick={onRearrange}
-            className={`${btn(false)} disabled:cursor-default disabled:opacity-50 disabled:hover:bg-transparent`}
-          >
-            <WandSparkles className="size-4" /> {t("canvas.rearrange")}
-          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                disabled={rearrangeDisabled}
+                title={t(rearrangeDisabled ? "canvas.rearrangeNothing" : "canvas.rearrangeHint")}
+                className={`${btn(false)} disabled:cursor-default disabled:opacity-50 disabled:hover:bg-transparent`}
+              >
+                <WandSparkles className="size-4" /> {t("canvas.rearrange")}
+                <ChevronDown className="size-3.5 opacity-60" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="center" side="top" className="w-64">
+              <DropdownMenuLabel>{t("canvas.arrangeModes.label")}</DropdownMenuLabel>
+              {ARRANGE_MODES.map((m) => (
+                <DropdownMenuItem
+                  key={m}
+                  onSelect={() => {
+                    setArrangeMode(m);
+                    onRearrange(m);
+                  }}
+                  className="flex-col items-start gap-0.5"
+                >
+                  <span className="flex items-center gap-1.5 text-[var(--text)]">
+                    {m === arrangeMode ? (
+                      <Check className="size-3.5 text-[var(--brand)]" />
+                    ) : (
+                      <span className="size-3.5" />
+                    )}
+                    {t(`canvas.arrangeModes.${m}`)}
+                  </span>
+                  <span className="pl-5 text-[11px] text-[var(--text-mut)]">
+                    {t(`canvas.arrangeModes.${m}Hint`)}
+                  </span>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </>
       )}
     </div>

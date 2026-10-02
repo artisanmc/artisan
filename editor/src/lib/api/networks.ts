@@ -75,6 +75,10 @@ export async function getNetwork(id: string): Promise<{
   return { network: json.network, projects: json.projects, serverKeys: json.serverKeys };
 }
 
+/** Version du wire de contenu que la plateforme exige pour écrire (ADR
+ *  `content-version-negotiation`). 2 = étapes structurées keyed. */
+export const MIN_CONTENT_VERSION = 2;
+
 export interface ServerStatusEntry {
   id: string;
   label: string | null;
@@ -83,7 +87,14 @@ export interface ServerStatusEntry {
   /** ISO timestamp of the last *accepted* hello; null = never connected. */
   lastSeenAt: string | null;
   lastSeenIp: string | null;
+  /** Version du wire de contenu lue par le plugin (1 = DSL legacy, 2 = keyed). */
+  contentVersion?: number;
   isCurrent: boolean;
+}
+
+/** Un plugin connecté en retard : il ne sait pas lire ce que l'éditeur écrit. */
+export function isPluginOutdated(s: ServerStatusEntry): boolean {
+  return s.online && (s.contentVersion ?? 1) < MIN_CONTENT_VERSION;
 }
 
 export interface NetworkServersStatus {

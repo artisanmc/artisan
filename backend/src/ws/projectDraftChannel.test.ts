@@ -13,7 +13,7 @@ test("draft channel negotiates capability and rejects replies from another conne
   await db.insert(serverKeys).values({ id: key.id, hash: key.hash, networkId: "draft-wire", createdAt: now });
   const messages: any[] = [];
   registerConn("draft-channel", (raw) => messages.push(JSON.parse(raw)));
-  await handlePluginMessage("draft-channel", JSON.stringify({ type: "hello", server_key: key.key, plugin_version: "test", minecraft_version: "1.21.4", current_bundle_hash: "", local_project_ids: [], capabilities: ["project_drafts_v1"] }));
+  await handlePluginMessage("draft-channel", JSON.stringify({ type: "hello", content_version: 2, server_key: key.key, plugin_version: "test", minecraft_version: "1.21.4", current_bundle_hash: "", local_project_ids: [], capabilities: ["project_drafts_v1"] }));
   expect(supportsProjectDrafts(key.id)).toBe(true);
   const promise = requestProjectDraft(key.id, { project_id: "folder", owner_id: "owner", action: "update", draft_id: "d", expected_revision: 2, operation_id: "op", name: "Draft", snapshot: { baseline: {}, tree: {}, at: 0 } }, 1000);
   for (let i = 0; i < 50 && !messages.some((message) => message.type === "project_draft_request"); i++) await new Promise((resolve) => setTimeout(resolve, 10));
