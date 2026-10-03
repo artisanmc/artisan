@@ -16,6 +16,8 @@ const setup = vi.hoisted(() => ({
   tab: "overview",
   navigate: vi.fn(),
   project: null as Project | null,
+  offline: false,
+  stale: false,
 }));
 vi.mock("@tanstack/react-router", async () => ({
   ...(await vi.importActual<typeof import("@tanstack/react-router")>("@tanstack/react-router")),
@@ -31,8 +33,8 @@ vi.mock("@/features/project/useProjectLoader", () => ({
     project: setup.ready ? setup.project : null,
     urlId: "demo",
     failed: [],
-    offline: false,
-    stale: false,
+    offline: setup.offline,
+    stale: setup.stale,
     error: null,
     fromDraft: false,
   }),
@@ -70,6 +72,8 @@ beforeEach(() => {
   useProjectLibraryStore.getState().close();
   useTourPresentation.setState({ step: null });
   setup.ready = true;
+  setup.offline = false;
+  setup.stale = false;
   setup.tab = "overview";
   setup.project = {
     id: "p1",
@@ -112,6 +116,23 @@ it("starts only after a resolved demo workspace, then resumes from its real proj
   ).toBeInTheDocument();
   // Rythmé par les vrais délais de la visite (~2,3 s seul) : 5 s ne suffisent pas sous charge.
 }, 15_000);
+
+it("replays the tour on a project opened from the backend copy while its server is offline", async () => {
+  // La visite ne dépend pas du serveur : sa progression vit dans le compte ou le
+  // navigateur. Un serveur éteint rendait « Refaire la visite » muet.
+  const user = userEvent.setup();
+  localStorage.setItem("artisan:editor-tour:guest", JSON.stringify({ step: 6, completed: true }));
+  setup.offline = true;
+  setup.stale = true;
+  render(<ProjectCanvasPage projectRef="p1" />);
+  await act(async () => {});
+  expect(screen.queryByRole("dialog")).toBeNull();
+  await user.click(screen.getByRole("button", { name: /Plus d'actions|More actions/ }));
+  await user.click(screen.getByRole("menuitem", { name: /Refaire la visite|Take the tour again/ }));
+  expect(
+    await screen.findByRole("dialog", { name: /Découvrir Artisan|Discover Artisan/ }),
+  ).toBeInTheDocument();
+});
 
 it("restores a previously open secondary tab without changing the route or selection", async () => {
   const user = userEvent.setup();
