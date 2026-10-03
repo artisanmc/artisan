@@ -6,7 +6,7 @@ import { useAccountStore } from "@/state/accountStore";
 import { useEdgeSelectionStore } from "@/state/edgeSelectionStore";
 import { useHoverStore } from "@/state/hoverStore";
 import { useSelectionStore } from "@/state/selectionStore";
-import { useUiStore } from "@/state/uiStore";
+import { type CanvasKind, useUiStore } from "@/state/uiStore";
 import Konva from "konva";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -39,6 +39,7 @@ import { Selection } from "./Selection";
 import { projectBoard } from "./autoLayout";
 import { dismissInspector, openProjectSettings } from "@/features/project/projectSettings";
 import { dispatchOpenElement } from "./canvasEvents";
+import { MENU_CARD_MAX_SCALE, MenuCard } from "./MenuCard";
 import { viewportForCenterRequest } from "./centerRequest";
 import { fitViewport } from "./focusViewport";
 import { hitTestSlot, screenToWorld } from "./hitTest";
@@ -62,6 +63,9 @@ interface StageProps {
    */
   focus?: ElementId;
 }
+
+/** Opacité d'un type de Document écarté par le filtre de la barre d'outils. */
+const DIMMED_KIND_OPACITY = 0.18;
 
 export function Stage({ projectId, focus }: StageProps) {
   return (
@@ -213,6 +217,13 @@ function StageCanvas({ projectId, focus }: StageProps) {
     if (touchedRef.current || size.w === 0 || !focusBox) return;
     setViewport(fitViewport(size, focusBox));
   }, [size, focusBox, setViewport]);
+
+  // Filtre par type de la barre d'outils : jamais en vue focus (un seul Document).
+  const hiddenKinds = useUiStore((s) => s.canvasHiddenKinds);
+  const kindLayer = (kind: CanvasKind) =>
+    focusMode || !hiddenKinds.includes(kind)
+      ? { opacity: 1, listening: true }
+      : { opacity: DIMMED_KIND_OPACITY, listening: false };
 
   // `goToDocument` : centrer la planche sur un Document. La demande attend que
   // la planche ait une taille et que le Document y soit placé, puis est consommée.
@@ -551,21 +562,38 @@ function StageCanvas({ projectId, focus }: StageProps) {
             />
           )}
         </Layer>
-        <Layer name="menus" imageSmoothingEnabled={false}>
-          {project.menus.filter((menu) => layout[menu.id]).map((menu) => (
-            <MenuGroup
-              key={menu.id}
-              projectId={projectId}
-              menu={menu}
-              position={layout[menu.id]!}
-              layout={layout}
-              solo={focusMode}
-            />
-          ))}
+        {/* Un type écarté par le filtre est atténué et inerte, jamais retiré :
+            l'arrangement reste celui du graphe complet. */}
+        <Layer name="menus" imageSmoothingEnabled={false} {...kindLayer("menu")}>
+          {project.menus
+            .filter((menu) => layout[menu.id])
+            .map((menu) =>
+              // Zoom sémantique : de loin, une carte lisible plutôt qu'un
+              // inventaire illisible (jamais en vue focus, où l'on édite).
+              !focusMode && viewport.scale < MENU_CARD_MAX_SCALE ? (
+                <MenuCard
+                  key={menu.id}
+                  projectId={projectId}
+                  project={project}
+                  menu={menu}
+                  position={layout[menu.id]!}
+                  scale={viewport.scale}
+                />
+              ) : (
+                <MenuGroup
+                  key={menu.id}
+                  projectId={projectId}
+                  menu={menu}
+                  position={layout[menu.id]!}
+                  layout={layout}
+                  solo={focusMode}
+                />
+              ),
+            )}
         </Layer>
         {/* Commands and dialogs render above the menus layer so they always
             take click priority, even after a menu calls moveToTop() during drag. */}
-        <Layer name="commands" imageSmoothingEnabled={false}>
+        <Layer name="commands" imageSmoothingEnabled={false} {...kindLayer("command")}>
           {project.commands.filter((command) => layout[command.id]).map((command) => (
             <CommandGroup
               key={command.id}
@@ -574,6 +602,8 @@ function StageCanvas({ projectId, focus }: StageProps) {
               position={layout[command.id]!}
             />
           ))}
+        </Layer>
+        <Layer name="dialogs" imageSmoothingEnabled={false} {...kindLayer("dialog")}>
           {project.dialogs.filter((dialog) => layout[dialog.id]).map((dialog) => (
             <DialogGroup
               key={dialog.id}
@@ -582,6 +612,8 @@ function StageCanvas({ projectId, focus }: StageProps) {
               position={layout[dialog.id]!}
             />
           ))}
+        </Layer>
+        <Layer name="chips" imageSmoothingEnabled={false}>
           <GhostChips
             project={project}
             layout={layout}

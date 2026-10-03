@@ -9,6 +9,8 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+- The canvas toolbar can dim menus, commands or dialogs without rearranging the board, and a board seen from afar shows each menu as a readable card (its title) instead of an unreadable inventory; clicking a card centres on that menu. The guided tour now replays on a project opened while its server is offline.
+
 - The right-hand Elements panel is gone: the project's documents live in the left sidebar, which is wider and shows one icon per category. The open project's row carries its settings and create buttons beside its name. The server selector and the network link left the sidebar; the top bar now shows a breadcrumb (network › server › project) whose levels link to their pages. The demo gets a minimal sidebar with its documents.
 
 - Picking a document from the project tree, the search palette or the server board now selects it and centres the canvas on it instead of replacing the board with the document view; double-click a node to open its focused view. The left sidebar lists the open project's documents under its row, and the server's other projects expand to their published documents.

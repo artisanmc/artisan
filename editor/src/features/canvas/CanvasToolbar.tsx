@@ -6,11 +6,27 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { ArrangeMode } from "@/features/canvas/arrangeBoard";
-import { useUiStore } from "@/state/uiStore";
-import { Check, ChevronDown, Hand, MousePointer2, WandSparkles } from "lucide-react";
+import { type CanvasKind, useUiStore } from "@/state/uiStore";
+import {
+  Check,
+  ChevronDown,
+  Hand,
+  LayoutGrid,
+  MessageSquare,
+  MousePointer2,
+  TerminalSquare,
+  WandSparkles,
+} from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 const ARRANGE_MODES: ArrangeMode[] = ["columns", "cluster", "force", "structured"];
+
+/** Filtres par type : un type écarté est atténué sur la planche, jamais retiré. */
+const KIND_FILTERS: { kind: CanvasKind; label: string; Icon: typeof LayoutGrid }[] = [
+  { kind: "menu", label: "projectPanel.menus", Icon: LayoutGrid },
+  { kind: "command", label: "projectPanel.commands", Icon: TerminalSquare },
+  { kind: "dialog", label: "projectPanel.dialogs", Icon: MessageSquare },
+];
 
 export function CanvasToolbar({
   onRearrange,
@@ -25,6 +41,8 @@ export function CanvasToolbar({
   const setMode = useUiStore((s) => s.setCanvasMode);
   const arrangeMode = useUiStore((s) => s.arrangeMode);
   const setArrangeMode = useUiStore((s) => s.setArrangeMode);
+  const hiddenKinds = useUiStore((s) => s.canvasHiddenKinds);
+  const toggleKind = useUiStore((s) => s.toggleCanvasKind);
   const btn = (active: boolean) =>
     `flex h-8 items-center gap-1.5 rounded-[8px] px-2.5 text-[12px] transition-colors ${
       active
@@ -58,6 +76,23 @@ export function CanvasToolbar({
       </button>
       {onRearrange && (
         <>
+          <span className="mx-0.5 h-5 w-px bg-[var(--border)]" />
+          {KIND_FILTERS.map(({ kind, label, Icon }) => {
+            const shown = !hiddenKinds.includes(kind);
+            return (
+              <button
+                key={kind}
+                type="button"
+                aria-pressed={shown}
+                aria-label={t(label)}
+                title={t(shown ? "canvas.filterDim" : "canvas.filterShow", { kind: t(label) })}
+                onClick={() => toggleKind(kind)}
+                className={`${btn(false)} px-2 ${shown ? "" : "opacity-40"}`}
+              >
+                <Icon className="size-4" />
+              </button>
+            );
+          })}
           <span className="mx-0.5 h-5 w-px bg-[var(--border)]" />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
