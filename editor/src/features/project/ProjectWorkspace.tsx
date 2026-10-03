@@ -106,7 +106,6 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
     error: loadError,
     failed,
     fromDraft,
-    stale,
     offlineSince,
     unpublished,
   } = useProjectLoader(loadRef, serverId, networkId);
@@ -119,7 +118,11 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
   const demo = useDemoStore((s) => s.active && s.session?.projectId === pId);
   const tourState = useEditorTourState();
   const tourPresenting = useTourPresentation((s) => s.step !== null);
-  const tourReady = !authLoading && !!principalId && !!project && !loadError && !offline && !stale;
+  // La visite ne dépend pas du serveur : sa progression vit dans le compte ou le
+  // navigateur, et elle montre l'écran affiché. Exiger un serveur joignable la
+  // rendait muette (« Refaire la visite » sans effet) sur un project ouvert
+  // depuis la copie du backend.
+  const tourReady = !authLoading && !!principalId && !!project && !loadError;
   const accountId = currentUser?.id ?? null;
   useEffect(() => {
     if (!pId) return;
