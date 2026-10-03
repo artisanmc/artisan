@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { useTourPresentation } from "@/features/onboarding/tourPresentation";
 import { useIsDesktop } from "@/lib/useMediaQuery";
 import { useSidebarStore } from "@/state/sidebarStore";
+import { Link } from "@tanstack/react-router";
 import { PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -172,6 +173,22 @@ export function NavigationSidebar({ children }: { children: ReactNode }) {
       >
         {desktop && pinned ? <PanelLeftClose size={16} /> : <PanelLeftOpen size={16} />}
       </Button>
+      {desktop && !visible && (
+        <Link
+          to="/networks"
+          aria-label="Artisan"
+          className="fixed left-14 top-3.5 z-40 flex size-9 items-center justify-center rounded-[var(--r-md)] hover:bg-[var(--surface-hover)]"
+        >
+          <img
+            src="/logo.svg"
+            alt=""
+            aria-hidden="true"
+            width={28}
+            height={28}
+            className="size-7"
+          />
+        </Link>
+      )}
     </>
   );
 }

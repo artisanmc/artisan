@@ -9,6 +9,14 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { NavigationSidebar } from "./NavigationSidebar";
 
+vi.mock("@tanstack/react-router", () => ({
+  Link: ({ to, children, ...rest }: { to: string; children: React.ReactNode }) => (
+    <a href={to} {...rest}>
+      {children}
+    </a>
+  ),
+}));
+
 let desktop = true;
 vi.mock("@/lib/useMediaQuery", () => ({ useIsDesktop: () => desktop }));
 
