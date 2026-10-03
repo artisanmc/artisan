@@ -48,9 +48,8 @@ export function CanvasMinimap({ boxes, size, viewport, onNavigate }: Props) {
       aria-label={t("canvas.minimap")}
       // biome-ignore lint/a11y/noNoninteractiveTabindex: The interactive map supports arrow-key navigation.
       tabIndex={0}
-      className="absolute right-2 bottom-2 z-20 overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] shadow-md"
+      className="absolute right-2 bottom-2 z-20 w-[128px] overflow-hidden sm:w-[220px] rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] shadow-md"
       style={{
-        width: 220,
         aspectRatio: "11 / 7",
         touchAction: "none",
         cursor: frozen ? "grabbing" : "grab",

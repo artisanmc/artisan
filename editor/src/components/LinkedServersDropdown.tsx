@@ -76,7 +76,7 @@ export function ServerRow({ s, lang, t }: { s: ServerStatusEntry; lang: string; 
 }
 
 /**
- * Topbar badge + dropdown listing every server key in the current network with
+ * Status dot (beside the server in the breadcrumb) + dropdown listing every server key in the current network with
  * live online/offline state, last-seen time and last IP. Polls every 15s.
  * Read-only (no actions). Replaces the single-server ServerStatusBadge.
  */
@@ -134,17 +134,17 @@ export function LinkedServersDropdown({
         type="button"
         title={downHint ? undefined : t("linkedServers.trigger", { online, total })}
         aria-label={t("linkedServers.trigger", { online, total })}
-        className="flex h-[34px] shrink-0 items-center gap-1.5 rounded-[10px] border border-[var(--border)] bg-[var(--surface-raised)] px-3 font-mono text-[12px] text-[var(--text-mut)] hover:border-[var(--border-strong)] hover:text-[var(--text)]"
+        className="flex size-6 shrink-0 items-center justify-center rounded-full hover:bg-[var(--surface-hover)]"
       >
         <span
           aria-hidden
-          className="h-1.5 w-1.5 rounded-full"
+          className="size-2 rounded-full"
           style={{
             background: up ? "var(--success)" : "var(--danger)",
             boxShadow: up ? "0 0 6px var(--success)" : "0 0 6px var(--danger)",
           }}
         />
-        {label}
+        <span className="sr-only">{label}</span>
       </button>
     </DropdownMenuTrigger>
   );

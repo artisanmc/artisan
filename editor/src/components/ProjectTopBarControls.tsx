@@ -1,5 +1,5 @@
-import { ProjectBreadcrumb } from "@/components/ProjectBreadcrumb";
 import { LinkedServersDropdown } from "@/components/LinkedServersDropdown";
+import { ProjectBreadcrumb } from "@/components/ProjectBreadcrumb";
 import { RefreshProjectButton } from "@/components/RefreshProjectButton";
 import { TopBarKebabMenu } from "@/components/TopBarKebabMenu";
 import type { ChangeSet } from "@/components/ui/change-list";
@@ -158,7 +158,7 @@ export function ProjectTopBarControls({
   return (
     <header
       className={cn(
-        "project-topbar shrink-0 py-2 pl-2 pr-2 lg:pl-12 lg:pr-3",
+        "project-topbar shrink-0 py-2 pl-2 pr-2 lg:pl-24 lg:pr-3",
         navigationPinned && "lg:pl-3",
       )}
     >
@@ -166,37 +166,37 @@ export function ProjectTopBarControls({
         data-testid="project-header"
         className="grid min-h-12 min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1 rounded-[var(--r-lg)] bg-[var(--surface)] px-2 py-1 lg:flex lg:flex-nowrap lg:gap-x-3"
       >
-        <div className="flex min-w-0 items-center gap-2 pl-11 lg:max-w-md lg:pl-0">
+        <div className="col-span-2 flex min-h-9 min-w-0 items-center gap-2 pl-11 lg:col-auto lg:max-w-md lg:pl-0">
           <ProjectBreadcrumb
             networkRef={networkId}
             serverRef={serverRef}
             projectName={displayName}
+            serverStatus={
+              <LinkedServersDropdown
+                networkId={networkId}
+                currentServerKeyId={project.serverKeyId ?? undefined}
+                downHint={pushStatusHint}
+              />
+            }
           />
-          <div className="hidden md:block">
-            <LinkedServersDropdown
-              networkId={networkId}
-              currentServerKeyId={project.serverKeyId ?? undefined}
-              downHint={pushStatusHint}
-            />
-          </div>
         </div>
         <div
           data-testid="project-view-navigation"
           data-tour="tabs"
-          className="col-start-1 row-start-2 min-w-0 overflow-x-auto lg:flex-1"
+          className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--border)] bg-[var(--surface)] px-2 pt-1 pb-[max(0.25rem,env(safe-area-inset-bottom))] lg:static lg:col-start-1 lg:row-start-2 lg:min-w-0 lg:flex-1 lg:overflow-x-auto lg:border-0 lg:bg-transparent lg:p-0"
         >
           <WorkspaceViewNav project={project} />
         </div>
         <div
           data-testid="project-editing-tools"
-          className="col-start-2 row-start-2 flex shrink-0 items-center justify-end gap-1"
+          className="col-start-1 row-start-2 flex shrink-0 items-center justify-start gap-1 lg:col-auto lg:row-auto lg:justify-end"
         >
           {(!tab || tab === "overview") && <UndoRedoButtons />}
           {(!tab || tab === "overview" || tab === "translations") && (
             <LangSwitcher project={project} />
           )}
         </div>
-        <div className="col-start-2 row-start-1 flex shrink-0 items-center gap-1">
+        <div className="col-start-2 row-start-2 flex shrink-0 items-center gap-1 lg:col-auto lg:row-auto">
           <SearchButton />
           <div data-tour="save" className="flex items-center gap-1">
             <SaveControls key={projectId} projectId={projectId} />
@@ -279,7 +279,7 @@ function WorkspaceViewNav({ project }: { project: Project }) {
     hotkey: i + 1,
   }));
   return (
-    <div className="flex w-max items-center gap-1 rounded-[var(--r-md)] bg-[var(--surface-raised)] p-1">
+    <div className="flex w-full items-center gap-1 lg:w-max lg:rounded-[var(--r-md)] lg:bg-[var(--surface-raised)] lg:p-1">
       {views.map((v) => {
         const isActive = active === v.tab;
         return (
@@ -293,7 +293,7 @@ function WorkspaceViewNav({ project }: { project: Project }) {
             data-testid={`open-view-${v.tab}`}
             onClick={() => go(v.tab)}
             className={cn(
-              "relative flex h-11 items-center gap-1.5 rounded-[var(--r-md)] px-2.5 text-[13px] transition-colors lg:h-8",
+              "relative flex h-11 flex-1 items-center justify-center gap-1.5 rounded-[var(--r-md)] px-2.5 text-[13px] transition-colors lg:h-8 lg:flex-none",
               isActive
                 ? "bg-[var(--surface)] text-[var(--text)] shadow-[var(--shadow-sm)]"
                 : "text-[var(--text-mut)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]",

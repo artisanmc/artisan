@@ -3,7 +3,7 @@ import { getNetwork } from "@/lib/api/networks";
 import { displayServerLabel } from "@/lib/serverLabel";
 import { useNetworksStore } from "@/state/networksStore";
 import { Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 /**
@@ -16,10 +16,13 @@ export function ProjectBreadcrumb({
   networkRef,
   serverRef,
   projectName,
+  serverStatus,
 }: {
   networkRef: string | null | undefined;
   serverRef: string | null | undefined;
   projectName: string;
+  /** Pastille d'état du serveur, devant son nom. */
+  serverStatus?: ReactNode;
 }) {
   const { t } = useTranslation();
   const networkName = useNetworksStore(
@@ -53,13 +56,16 @@ export function ProjectBreadcrumb({
         </Link>
       )}
       {networkRef && serverRef && (
-        <Link
-          to="/networks/$networkId/servers/$serverId"
-          params={{ networkId: networkRef, serverId: serverRef }}
-          className={breadcrumbLinkClass}
-        >
-          {serverLabel ?? serverRef}
-        </Link>
+        <span className="flex min-w-0 items-center">
+          {serverStatus}
+          <Link
+            to="/networks/$networkId/servers/$serverId"
+            params={{ networkId: networkRef, serverId: serverRef }}
+            className={breadcrumbLinkClass}
+          >
+            {serverLabel ?? serverRef}
+          </Link>
+        </span>
       )}
       <BreadcrumbCurrent title={projectName}>{projectName}</BreadcrumbCurrent>
     </Breadcrumb>

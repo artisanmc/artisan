@@ -1,6 +1,15 @@
-import { projectUrlId } from "@/lib/projectUrlId";
-import { projectDestination } from "@/lib/projectNavigation";
 import { ArtisanWordmark } from "@/components/ArtisanWordmark";
+import { projectNamespace } from "@/domain/docRef";
+import type { Project } from "@/domain/types";
+import {
+  DocumentGroups,
+  ProjectActions,
+  ProjectDocumentTree,
+} from "@/features/project/ProjectDocumentTree";
+import { goToDocument } from "@/features/project/goToDocument";
+import { useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
+import { projectDestination } from "@/lib/projectNavigation";
+import { projectUrlId } from "@/lib/projectUrlId";
 import {
   DndContext,
   type DragEndEvent,
@@ -15,15 +24,6 @@ import {
   useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { projectNamespace } from "@/domain/docRef";
-import type { Project } from "@/domain/types";
-import {
-  DocumentGroups,
-  ProjectActions,
-  ProjectDocumentTree,
-} from "@/features/project/ProjectDocumentTree";
-import { goToDocument } from "@/features/project/goToDocument";
-import { useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { type ReactNode, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -44,7 +44,7 @@ import { useServerScreensStore } from "@/state/serverScreensStore";
 import { useServersStore } from "@/state/serversStore";
 import { useSidebarStore } from "@/state/sidebarStore";
 import { CSS } from "@dnd-kit/utilities";
-import { ChevronDown, ChevronRight, GripVertical, LayoutGrid } from "lucide-react";
+import { ChevronDown, ChevronRight, Folder, FolderOpen, GripVertical } from "lucide-react";
 import { NewProjectDialog } from "./NewProjectDialog";
 import type { ServerEntry } from "./ServerSelector";
 import { UserMenu } from "./UserMenu";
@@ -86,7 +86,11 @@ export function ProjectSidebar() {
   // server while the project list stays scoped to it.
   const storedNetworkId = useNetworksStore((s) => s.activeId);
   const storedServerId = useServersStore((s) => s.activeServerId);
-  const urlParams = useParams({ strict: false }) as { networkId?: string; serverId?: string; projectId?: string };
+  const urlParams = useParams({ strict: false }) as {
+    networkId?: string;
+    serverId?: string;
+    projectId?: string;
+  };
   const rawNetworkParam = urlParams.networkId ?? storedNetworkId ?? networks[0]?.id ?? null;
   const activeNetworkId = rawNetworkParam
     ? (networks.find((n) => n.id === rawNetworkParam || n.slug === rawNetworkParam)?.id ??
@@ -101,7 +105,8 @@ export function ProjectSidebar() {
         e.serverId === storedServerId &&
         (activeNetworkId == null || e.networkId === activeNetworkId),
     );
-  const rawServerParam = urlParams.serverId ?? (urlParams.projectId ? null : storedServerValid ? storedServerId : null);
+  const rawServerParam =
+    urlParams.serverId ?? (urlParams.projectId ? null : storedServerValid ? storedServerId : null);
   // Server slugs are only unique per network ("server" exists in many) — scope
   // the lookup to the active network or a slug could resolve to another
   // network's server and the workspace list would filter to the wrong projects.
@@ -180,7 +185,9 @@ export function ProjectSidebar() {
     listServerProjects(activeNetworkId, activeServerId).then((res) => {
       if (cancelled) return;
       setServerProjects(
-        res.ok ? diskProjectsToSummaries(activeNetworkId, activeServerId, res.projectIds, res.projects) : [],
+        res.ok
+          ? diskProjectsToSummaries(activeNetworkId, activeServerId, res.projectIds, res.projects)
+          : [],
       );
       setProjectsStatus(res.ok ? "ready" : "unavailable");
     });
@@ -325,7 +332,7 @@ export function ProjectSidebar() {
         <ArtisanWordmark />
       </Link>
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-auto">
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden">
         {openProjectId && !openIsListed && (
           <UnlistedOpenProject urlId={openProjectId} networkId={netParam} serverId={srvParam} />
         )}
@@ -456,7 +463,7 @@ export function ProjectSidebar() {
                             to="/m/$moduleId"
                             params={{ moduleId: g.id }}
                             onClick={() => useSidebarStore.getState().close()}
-                            className="flex items-center gap-2.5 rounded-[10px] px-2.5 py-2 text-[13px] font-medium text-[var(--text-mut)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+                            className="flex items-center gap-2.5 rounded-[10px] px-2.5 py-1.5 text-[13px] font-medium text-[var(--text-mut)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
                           >
                             <span className="truncate flex-1">{t("sidebar.configuration")}</span>
                           </Link>
@@ -474,7 +481,11 @@ export function ProjectSidebar() {
       <UserMenu
         networkId={activeNetworkId}
         serverId={activeServerId}
-        serverLabel={allServerEntries.find((entry) => entry.networkId === activeNetworkId && entry.serverId === activeServerId)?.serverLabel ?? undefined}
+        serverLabel={
+          allServerEntries.find(
+            (entry) => entry.networkId === activeNetworkId && entry.serverId === activeServerId,
+          )?.serverLabel ?? undefined
+        }
       />
     </nav>
   );
@@ -511,7 +522,12 @@ function ProjectLink({
       {children}
     </Link>
   ) : (
-    <Link to="/project/$projectId" params={{ projectId: internalId }} onClick={close} className={className}>
+    <Link
+      to="/project/$projectId"
+      params={{ projectId: internalId }}
+      onClick={close}
+      className={className}
+    >
       {children}
     </Link>
   );
@@ -538,8 +554,8 @@ function ScreenItem({
         onClick={() => useSidebarStore.getState().close()}
         className={
           isActive
-            ? "flex items-center gap-2.5 rounded-[10px] px-2.5 py-2 text-[13px] font-semibold text-white transition-colors"
-            : "flex items-center gap-2.5 rounded-[10px] px-2.5 py-2 text-[13px] font-medium text-[var(--text-mut)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+            ? "flex items-center gap-2.5 rounded-[10px] px-2.5 py-1.5 text-[13px] font-semibold text-white transition-colors"
+            : "flex items-center gap-2.5 rounded-[10px] px-2.5 py-1.5 text-[13px] font-medium text-[var(--text-mut)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
         }
       >
         <span className="truncate flex-1" title={screen.label}>
@@ -605,8 +621,8 @@ function UnlistedOpenProject({
   if (!project) return null;
   return (
     <div className="mb-3 flex flex-col">
-      <div className="flex items-center gap-1 rounded-[10px] px-2.5 py-1">
-        <LayoutGrid className="size-[15px] shrink-0 text-[var(--brand)]" />
+      <div className="flex items-center gap-1 rounded-[10px] px-2.5 py-0.5">
+        <FolderOpen className="size-[15px] shrink-0 text-[var(--brand)]" />
         <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-[var(--text)]">
           {project.name}
         </span>
@@ -729,8 +745,8 @@ function OwnedProjectItem({
           serverId={serverId}
           className={
             isActiveProject
-              ? "flex min-w-0 flex-1 items-center gap-2.5 rounded-[10px] px-2.5 py-2 text-[13px] font-semibold text-white transition-colors [&_svg]:text-[var(--brand)]"
-              : "flex min-w-0 flex-1 items-center gap-2.5 rounded-[10px] px-2.5 py-2 text-[13px] font-medium text-[var(--text-mut)] transition-colors hover:text-[var(--text)]"
+              ? "flex min-w-0 flex-1 items-center gap-2.5 rounded-[10px] px-2.5 py-1.5 text-[13px] font-semibold text-white transition-colors [&_svg]:text-[var(--brand)]"
+              : "flex min-w-0 flex-1 items-center gap-2.5 rounded-[10px] px-2.5 py-1.5 text-[13px] font-medium text-[var(--text-mut)] transition-colors hover:text-[var(--text)]"
           }
         >
           <span className="min-w-0 truncate" title={name}>
@@ -791,12 +807,21 @@ function SortableProjectItem({
   const indexed = useIndexedProject(urlId, id);
   const [expanded, setExpanded] = useState(false);
   const canExpand = !isActiveProject && !!indexed && !!networkId;
+  const [collapsed, setCollapsed] = useState(false);
 
   return (
     <li ref={setNodeRef} style={style} className="flex flex-col">
       <div className="group flex items-stretch gap-0.5 rounded-[10px] hover:bg-[var(--surface-hover)]">
-        {canExpand && (
-          <ExpandToggle name={name} expanded={expanded} onToggle={() => setExpanded((v) => !v)} />
+        {isActiveProject ? (
+          <ExpandToggle
+            name={name}
+            expanded={!collapsed}
+            onToggle={() => setCollapsed((v) => !v)}
+          />
+        ) : (
+          canExpand && (
+            <ExpandToggle name={name} expanded={expanded} onToggle={() => setExpanded((v) => !v)} />
+          )
         )}
         <ProjectLink
           projectId={urlId ?? id}
@@ -805,11 +830,15 @@ function SortableProjectItem({
           serverId={serverId}
           className={
             isActiveProject
-              ? "flex flex-1 items-center gap-2.5 rounded-[10px] px-2.5 py-2 text-[13px] font-semibold text-white transition-colors [&_svg]:text-[var(--brand)]"
-              : "flex flex-1 items-center gap-2.5 rounded-[10px] px-2.5 py-2 text-[13px] font-medium text-[var(--text-mut)] transition-colors hover:text-[var(--text)]"
+              ? "flex min-w-0 flex-1 items-center gap-2.5 rounded-[10px] px-2.5 py-1.5 text-[13px] font-semibold text-white transition-colors [&_svg]:text-[var(--brand)]"
+              : "flex min-w-0 flex-1 items-center gap-2.5 rounded-[10px] px-2.5 py-1.5 text-[13px] font-medium text-[var(--text-mut)] transition-colors hover:text-[var(--text)]"
           }
         >
-          <LayoutGrid className="size-[15px] shrink-0 text-[var(--text-faint)]" />
+          {isActiveProject ? (
+            <FolderOpen className="size-[15px] shrink-0" />
+          ) : (
+            <Folder className="size-[15px] shrink-0 text-[var(--text-faint)]" />
+          )}
           <span className="min-w-0 truncate">{name}</span>
           {count != null && (
             <span
@@ -833,7 +862,7 @@ function SortableProjectItem({
           <GripVertical className="size-3.5" />
         </button>
       </div>
-      {isActiveProject && (
+      {isActiveProject && !collapsed && (
         <ActiveProjectDocuments id={id} urlId={urlId} networkId={networkId} serverId={serverId} />
       )}
       {canExpand && expanded && (
