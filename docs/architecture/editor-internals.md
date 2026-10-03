@@ -568,11 +568,6 @@ Les Documents du project sont dans le **drawer de navigation** (barre de gauche)
 
 Cf. `docs/superpowers/specs/2026-06-14-canvas-modes-and-alignment-design.md`.
 
-### Filtres par type et zoom sémantique (depuis 2026-10-03)
-
-- **Filtres** : `CanvasToolbar` porte trois bascules (Menus, Commandes, Dialogues ; `aria-pressed` = affiché), absentes en vue focus. `uiStore.canvasHiddenKinds` (persisté) liste les types écartés. Un type écarté est **atténué** (opacité 0,18) et **inerte** (`listening: false`), jamais retiré : menus, commandes et dialogues ont chacun leur calque Konva (`menus`, `commands`, `dialogs`, puis `chips` pour les pastilles), atténué en bloc, et l'arrangement reste celui du graphe complet. Les arêtes ne sont pas atténuées.
-- **Zoom sémantique** : sous `MENU_CARD_MAX_SCALE` (0,45), la planche rend chaque menu en `MenuCard` (cadre + titre sans balises, à ~15 px à l'écran) au lieu de `MenuGroup` — jamais en vue focus. Un clic sur la carte sélectionne le menu et demande le centrage (`requestCenter`), ce qui ramène à l'inventaire complet. Une carte ne se déplace pas à la main : on rapproche d'abord.
-
 ### `canvasMode` (select / hand) — toolbar + raccourcis
 
 `uiStore.canvasMode: "select" | "hand"` (persisté via `partialize`, défaut `"select"`) + `setCanvasMode`.
