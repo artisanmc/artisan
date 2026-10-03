@@ -31,6 +31,8 @@ export interface DraggingNewLayer {
   y: number;
 }
 
+export type CanvasKind = "menu" | "command" | "dialog";
+
 export interface CenterRequest {
   projectId: string;
   docId: string;
@@ -186,6 +188,12 @@ interface UiState {
   /** Mode d'interaction du canvas : main (pan, défaut) ou sélection (clic + marquee). Persisté. */
   canvasMode: "select" | "hand";
   setCanvasMode: (m: "select" | "hand") => void;
+  /**
+   * Types de Document atténués sur la planche (filtre de la barre d'outils).
+   * Atténués, pas retirés : l'arrangement reste celui du graphe complet. Persisté.
+   */
+  canvasHiddenKinds: CanvasKind[];
+  toggleCanvasKind: (kind: CanvasKind) => void;
   /** Dernier mode de réarrangement choisi dans la barre. Persisté. */
   arrangeMode: ArrangeMode;
   setArrangeMode: (m: ArrangeMode) => void;
@@ -381,6 +389,13 @@ export const useUiStore = create<UiState>()(
       setAssistantPaneWidth: (w) => set({ assistantPaneWidth: w }),
       canvasMode: "hand",
       setCanvasMode: (m) => set({ canvasMode: m }),
+      canvasHiddenKinds: [],
+      toggleCanvasKind: (kind) =>
+        set((s) => ({
+          canvasHiddenKinds: s.canvasHiddenKinds.includes(kind)
+            ? s.canvasHiddenKinds.filter((k) => k !== kind)
+            : [...s.canvasHiddenKinds, kind],
+        })),
       arrangeMode: "columns",
       setArrangeMode: (m) => set({ arrangeMode: m }),
       canvasViewports: {},
@@ -424,6 +439,7 @@ export const useUiStore = create<UiState>()(
         editorPaneWidth: state.editorPaneWidth,
         assistantPaneWidth: state.assistantPaneWidth,
         canvasMode: state.canvasMode,
+        canvasHiddenKinds: state.canvasHiddenKinds,
         arrangeMode: state.arrangeMode,
         canvasViewports: state.canvasViewports,
         minimapVisible: state.minimapVisible,
