@@ -42,7 +42,7 @@ export function ProjectActions({ projectId }: { projectId: ProjectId }) {
   const [newCommandOpen, setNewCommandOpen] = useState(false);
   const [newDialogOpen, setNewDialogOpen] = useState(false);
   const iconButton =
-    "flex size-7 shrink-0 items-center justify-center rounded-[8px] text-[var(--text-faint)] hover:bg-[var(--surface-raised)] hover:text-[var(--text)]";
+    "flex size-6 shrink-0 items-center justify-center rounded-[6px] text-[var(--text-faint)] hover:bg-[var(--surface-raised)] hover:text-[var(--text)]";
   return (
     <div className="flex shrink-0 items-center">
       <button
@@ -117,7 +117,7 @@ export function ProjectDocumentTree({
     <div
       role="group"
       aria-label={t("sidebar.projectDocuments", { name: project.name })}
-      className="flex flex-col gap-2"
+      className="flex flex-col gap-0.5"
     >
       {header === "name" && (
         <div className="flex items-center gap-1 px-2.5 py-1">
@@ -162,8 +162,8 @@ export function DocumentGroups({
         const label = t(TYPE_LABEL_KEY[g.type]);
         return (
           <div key={g.type} className="flex flex-col">
-            <div className="flex items-center gap-1.5 px-2 pt-2 pb-1 text-[9.5px] font-bold uppercase tracking-[.14em] text-[var(--text-faint)]">
-              <Icon className="size-3.5 shrink-0" aria-hidden />
+            <div className="flex items-center gap-1.5 px-2 pt-2 pb-0.5 text-[9.5px] font-semibold uppercase tracking-[.14em] text-[var(--text-faint)]">
+              <Icon className="size-3 shrink-0" aria-hidden />
               <span>{label}</span>
             </div>
             <ul aria-label={label} className="flex flex-col">
@@ -199,7 +199,7 @@ function DocumentRow({
       <button
         type="button"
         onClick={onOpen}
-        className="flex min-w-0 flex-1 items-center rounded-[10px] py-1.5 pr-2 pl-7 text-left text-[13px] text-[var(--text-mut)] hover:text-[var(--text)]"
+        className="flex min-w-0 flex-1 items-center rounded-[10px] py-1 pr-2 pl-6 text-left text-[12.5px] leading-5 text-[var(--text-mut)] hover:text-[var(--text)]"
       >
         <span className="flex-1 truncate">{item.label}</span>
       </button>
@@ -221,7 +221,7 @@ function RowActions({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        className="flex shrink-0 items-center justify-center p-2 text-[var(--text-faint)]"
+        className="flex shrink-0 items-center justify-center px-2 py-1 text-[var(--text-faint)] hover:text-[var(--text)] lg:opacity-0 lg:group-hover:opacity-100 lg:focus-visible:opacity-100 lg:data-[state=open]:opacity-100"
         aria-label={t("projectPanel.options")}
       >
         ···

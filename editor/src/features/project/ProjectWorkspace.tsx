@@ -46,7 +46,6 @@ import { TranslationPanelContent } from "@/features/translations/TranslationPane
 import { deleteUserProject } from "@/lib/api/userProjects";
 import { validActiveLang } from "@/lib/i18nUsages";
 import { documentDestination, projectDestination } from "@/lib/projectNavigation";
-import { goToDocument } from "./goToDocument";
 import { useProjectPrincipalId } from "@/lib/projectPrincipal";
 import { projectUrlId } from "@/lib/projectUrlId";
 import { useIsDesktop } from "@/lib/useMediaQuery";
@@ -78,6 +77,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { ResolvedProjectContext } from "./ResolvedProjectContext";
+import { goToDocument } from "./goToDocument";
 
 export type ProjectSearch = {
   tab?: "overview" | "translations" | "data-sources" | "resources" | "assistant";
@@ -467,7 +467,7 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
   );
 
   const mainContent = (
-    <main className="flex h-full min-h-0 min-w-0 flex-1 flex-col">
+    <main className="flex h-full min-h-0 min-w-0 flex-1 flex-col pb-14 lg:pb-0">
       {project ? (
         <ProjectTopBarControls
           project={project}
