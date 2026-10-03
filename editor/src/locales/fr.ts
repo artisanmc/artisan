@@ -956,8 +956,6 @@ const fr: typeof en = {
     create: "Créer",
     modeSelect: "Sélection",
     modeHand: "Navigation",
-    filterDim: "Atténuer : {{kind}}",
-    filterShow: "Afficher : {{kind}}",
     gutter: "Pas encore reliés",
     rearrange: "Réarranger",
     rearrangeHint:

@@ -938,8 +938,6 @@ export default {
     create: "Create",
     modeSelect: "Select",
     modeHand: "Pan",
-    filterDim: "Dim: {{kind}}",
-    filterShow: "Show: {{kind}}",
     gutter: "Not linked yet",
     rearrange: "Rearrange",
     rearrangeHint:
