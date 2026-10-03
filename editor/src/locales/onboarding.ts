@@ -14,7 +14,7 @@ export const onboardingEn = {
   discover: "Discover the editor",
   navigationTitle: "Your projects, in one place",
   navigationDescription:
-    "Open navigation to move between your Networks, servers and projects. Pin it when you want it to stay close.",
+    "Open navigation to move between your Networks, servers and projects.",
   demoTitle: "Your space to try things",
   demoDescription:
     "This demo is your own temporary project. Explore the editor, and export what you create to keep it.",
@@ -57,7 +57,7 @@ export const onboardingFr = {
   discover: "Découvrir l’éditeur",
   navigationTitle: "Vos projets au même endroit",
   navigationDescription:
-    "Ouvrez la navigation pour retrouver vos Networks, serveurs et projets. Épinglez-la pour la garder à portée de main.",
+    "Ouvrez la navigation pour retrouver vos Networks, serveurs et projets.",
   demoTitle: "Un espace pour essayer",
   demoDescription:
     "Cette démo est votre propre projet temporaire. Explorez l’éditeur, et exportez vos créations pour les conserver.",
