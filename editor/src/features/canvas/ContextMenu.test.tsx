@@ -12,6 +12,7 @@ const baseProps = {
   onClose: vi.fn(),
   onCopy: vi.fn(),
   onPaste: vi.fn(),
+  onPasteAt: vi.fn(),
   onDuplicate: vi.fn(),
   onDelete: vi.fn(),
   onMoveTo: vi.fn(),
