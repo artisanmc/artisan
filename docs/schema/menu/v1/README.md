@@ -191,7 +191,8 @@ l'historique du joueur (menu **ou** dialog). L'historique est une **pile LIFO** 
 `open_menu` / `open_dialog` empilent l'écran quitté, `open_previous_menu` le
 dépile sans ré-empiler l'écran courant. Conséquence voulue : `menu → wiki → item`
 revient au menu en **deux** retours, sans va-et-vient `item ↔ wiki`. Pile vide =
-no-op.
+no-op. Un `open_menu` vers l'écran juste avant (même id, args ignorés) compte
+comme un retour, pour qu'un bouton retour câblé en `open_menu` ne boucle pas.
 
 ```yaml
 elements:

@@ -72,6 +72,22 @@ class NavigationHistoryStore(private val maxDepth: Int = 32) {
         while (s.stack.size > maxDepth) s.stack.removeFirst()
     }
 
+    /**
+     * Un `open_menu` qui rouvre l'écran d'avant (bouton retour câblé en `open_menu`)
+     * est un retour : on retire l'écran quitté et l'ancienne entrée au lieu d'empiler,
+     * sinon chaque aller-retour rallonge la pile en boucle. Args ignorés : un tel
+     * bouton hérite des args de l'écran enfant.
+     */
+    @Synchronized
+    fun collapseReturn(player: Player) {
+        val s = states[player.uniqueId] ?: return
+        val cur = s.current ?: return
+        val before = s.stack.getOrNull(s.stack.size - 2) ?: return
+        if (before.kind != cur.kind || before.id != cur.id || before.projectId != cur.projectId) return
+        s.stack.removeLast()
+        s.stack.removeLast()
+    }
+
     /** Removes and returns the previous screen, or null when the stack is empty. */
     @Synchronized
     fun popPrevious(player: Player): NavigationEntry? =

@@ -91,6 +91,22 @@ class NavigationHistoryExecutorTest {
         assertEquals("armor", history.current(p)?.args?.get("cat"))
     }
 
+    @Test fun `open_menu back to the previous screen acts as a back (no loop)`() {
+        val p = player()
+        history.setCurrent(p, NavigationEntry(NavigationEntry.Kind.MENU, "main"))
+        executor().execute(listOf(Action.OpenMenu("crafts")), ctx(p))
+        executor().execute(listOf(Action.OpenMenu("burger")), ctx(p, mapOf("recipe" to "burger")))
+        executor().execute(listOf(Action.OpenMenu("crafts")), ctx(p, mapOf("recipe" to "burger")))
+        executor().execute(listOf(Action.OpenMenu("elytra")), ctx(p))
+        opened.clear()
+
+        executor().execute(listOf(Action.OpenPreviousMenu), ctx(p))
+        executor().execute(listOf(Action.OpenPreviousMenu), ctx(p))
+
+        assertEquals(listOf("menu:crafts", "menu:main"), opened)
+        assertFalse(history.hasPrevious(p))
+    }
+
     @Test fun `back with an empty stack is a no-op`() {
         val p = player()
         executor().execute(listOf(Action.OpenPreviousMenu), ctx(p))
