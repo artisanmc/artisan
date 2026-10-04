@@ -19,7 +19,6 @@ import {
   selectPersistedDraft,
   usePersistedDraftStore,
 } from "./persistedDrafts";
-import { ProjectVersions } from "./ProjectVersions";
 
 export function PersistedDraftControls({
   projectId,
@@ -113,7 +112,6 @@ export function PersistedDraftControls({
             >
               {t("drafts.copy")}
             </Button>
-            <ProjectVersions projectId={projectId} onRestored={() => onOpenChange(false)} />
           </aside>
           <section className="flex min-h-0 min-w-0 flex-col gap-2 lg:overflow-y-auto">
             <h3 className="field-label">{t("drafts.changes")}</h3>

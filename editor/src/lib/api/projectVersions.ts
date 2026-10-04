@@ -16,7 +16,10 @@ export interface ProjectVersionSummary {
 export interface ProjectVersionContent {
   id: string;
   createdAt: string;
+  /** La Version d'avant — `null` pour la toute première. */
+  previousId: string | null;
   files: { path: string; content: string }[];
+  binaries: { path: string; hash: string; size: number }[];
 }
 
 const url = (projectId: string, suffix = "") =>

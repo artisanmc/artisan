@@ -11,8 +11,8 @@ vi.mock("@/state/uiStore", () => ({
 
 import { useWorkspaceTabShortcuts } from "./useWorkspaceTabShortcuts";
 
-function Harness() {
-  useWorkspaceTabShortcuts();
+function Harness({ hasHistory = true }: { hasHistory?: boolean }) {
+  useWorkspaceTabShortcuts(true, hasHistory);
   return <input data-testid="field" />;
 }
 
@@ -55,6 +55,17 @@ describe("useWorkspaceTabShortcuts", () => {
     expect(resolvedSearch()).toEqual({ tab: "translations" });
   });
 
+  it("Digit6 opens History, unless the Project has none (demo)", () => {
+    const { unmount } = render(<Harness />);
+    pressOnWindow("Digit6");
+    expect(resolvedSearch()).toEqual({ tab: "history" });
+    unmount();
+    navigate.mockClear();
+    render(<Harness hasHistory={false} />);
+    pressOnWindow("Digit6");
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
   it("ignores digits when a modifier is held", () => {
     render(<Harness />);
     pressOnWindow("Digit2", { ctrlKey: true });
@@ -64,9 +75,9 @@ describe("useWorkspaceTabShortcuts", () => {
     expect(navigate).not.toHaveBeenCalled();
   });
 
-  it("ignores out-of-range digits (only 1-5 map to a tab)", () => {
+  it("ignores out-of-range digits (only 1-6 map to a tab)", () => {
     render(<Harness />);
-    pressOnWindow("Digit6");
+    pressOnWindow("Digit7");
     pressOnWindow("Digit9");
     expect(navigate).not.toHaveBeenCalled();
   });
