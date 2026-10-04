@@ -9,6 +9,8 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+- Mobile fixes: pinch-to-zoom works on the canvas, the item editor dialog stacks its form and placeholder list instead of overlapping them, and the project top bar wraps instead of overlapping its buttons.
+
 - The Properties panel has a YAML button that swaps the form for the selected document's file (the parent menu's for an element), edited and saved verbatim.
 
 - PlaceholderAPI text fields now suggest `%…%` tokens explicitly declared by the connected server's installed expansions. A member-only `GET /api/v1/networks/:networkId/servers/:serverId/papi-placeholders` endpoint relays the live catalog; offline servers and expansions without declared lists provide no suggestions.

@@ -165,9 +165,9 @@ export function ProjectTopBarControls({
     >
       <div
         data-testid="project-header"
-        className="grid min-h-12 min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1 rounded-[var(--r-lg)] bg-[var(--surface)] px-2 py-1 lg:flex lg:flex-nowrap lg:gap-x-3"
+        className="flex min-h-12 min-w-0 flex-wrap items-center gap-x-2 gap-y-1 rounded-[var(--r-lg)] bg-[var(--surface)] px-2 py-1 lg:flex-nowrap lg:gap-x-3"
       >
-        <div className="col-span-2 flex min-h-9 min-w-0 items-center gap-2 pl-11 lg:col-auto lg:max-w-md lg:pl-0">
+        <div className="flex min-h-9 min-w-0 basis-full items-center gap-2 pl-11 lg:basis-auto lg:max-w-md lg:pl-0">
           <ProjectBreadcrumb
             networkRef={networkId}
             serverRef={serverRef}
@@ -184,20 +184,17 @@ export function ProjectTopBarControls({
         <div
           data-testid="project-view-navigation"
           data-tour="tabs"
-          className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--border)] bg-[var(--surface)] px-2 pt-1 pb-[max(0.25rem,env(safe-area-inset-bottom))] lg:static lg:col-start-1 lg:row-start-2 lg:min-w-0 lg:flex-1 lg:overflow-x-auto lg:border-0 lg:bg-transparent lg:p-0"
+          className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--border)] bg-[var(--surface)] px-2 pt-1 pb-[max(0.25rem,env(safe-area-inset-bottom))] lg:static lg:min-w-0 lg:flex-1 lg:overflow-x-auto lg:border-0 lg:bg-transparent lg:p-0"
         >
           <WorkspaceViewNav project={project} />
         </div>
-        <div
-          data-testid="project-editing-tools"
-          className="col-start-1 row-start-2 flex shrink-0 items-center justify-start gap-1 lg:col-auto lg:row-auto lg:justify-end"
-        >
+        <div data-testid="project-editing-tools" className="flex shrink-0 items-center gap-1">
           {(!tab || tab === "overview") && <UndoRedoButtons />}
           {(!tab || tab === "overview" || tab === "translations") && (
             <LangSwitcher project={project} />
           )}
         </div>
-        <div className="col-start-2 row-start-2 flex shrink-0 items-center gap-1 lg:col-auto lg:row-auto">
+        <div className="ml-auto flex shrink-0 items-center gap-1 lg:ml-0">
           <SearchButton />
           <div data-tour="save" className="flex items-center gap-1">
             <SaveControls key={projectId} projectId={projectId} />

@@ -238,8 +238,8 @@ export function ItemEditor({
           <DialogHeader className="shrink-0 pr-6">
             <DialogTitle>{t("itemBinding.editItem")}</DialogTitle>
           </DialogHeader>
-          <div className="grid min-h-0 flex-1 gap-4 overflow-y-auto md:grid-cols-[minmax(0,1fr)_17rem] md:grid-rows-[minmax(0,1fr)] md:overflow-hidden">
-            <div className="flex min-h-0 min-w-0 flex-col gap-4 md:overflow-y-auto md:overscroll-contain">
+          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto md:grid md:grid-cols-[minmax(0,1fr)_17rem] md:grid-rows-[minmax(0,1fr)] md:overflow-hidden">
+            <div className="flex min-h-0 min-w-0 shrink-0 flex-col gap-4 md:overflow-y-auto md:overscroll-contain">
               {source}
               {preview.error && (
                 <p role="alert" className="text-xs text-[var(--danger)]">
