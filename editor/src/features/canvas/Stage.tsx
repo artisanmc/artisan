@@ -45,7 +45,7 @@ import { hitTestSlot, screenToWorld } from "./hitTest";
 import { menuBoxSize, nodeBox } from "./menuLayout";
 import { setStageDropTarget, setStageSlotHitTest } from "./stageDropTarget";
 import { setStageGeometryProvider } from "./stageGeometry";
-import { canvasClipboardActions, useCanvasKeyboard } from "./useCanvasKeyboard";
+import { type PasteAnchor, canvasClipboardActions, useCanvasKeyboard } from "./useCanvasKeyboard";
 import { useMarqueeSelection } from "./useMarqueeSelection";
 import { useMiddleClickPan } from "./useMiddleClickPan";
 import { usePanZoom } from "./usePanZoom";
@@ -379,16 +379,35 @@ function StageCanvas({ projectId, focus }: StageProps) {
     return () => setStageGeometryProvider(null);
   }, [viewport]);
 
+  // Last cursor position over the canvas (null once it leaves): Ctrl+V pastes
+  // items into the slot under it.
+  const pointerRef = useRef<{ clientX: number; clientY: number } | null>(null);
+  const getPasteAnchor = useCallback((): PasteAnchor | null => {
+    const wrapper = wrapperRef.current;
+    const pointer = pointerRef.current;
+    if (!wrapper || !pointer || !project) return null;
+    const rect = wrapper.getBoundingClientRect();
+    const world = screenToWorld(
+      { x: pointer.clientX - rect.left, y: pointer.clientY - rect.top },
+      viewport,
+    );
+    const hit = hitTestSlot(project, layout, world.x, world.y);
+    return hit ? { menuId: hit.menuId as MenuId, position: hit.position } : null;
+  }, [project, layout, viewport]);
+
   useCanvasKeyboard({
     projectId,
     onError: (msg) => toast.error(msg),
+    getPasteAnchor,
   });
 
   const onWrapperMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    pointerRef.current = { clientX: e.clientX, clientY: e.clientY };
     useHoverStore.getState().setCursor(e.clientX, e.clientY);
   }, []);
 
   const onWrapperMouseLeave = useCallback(() => {
+    pointerRef.current = null;
     // Clear hover when the cursor leaves the canvas entirely (Konva
     // mouseleave on a slot doesn't fire if we exit the whole stage at speed).
     useHoverStore.getState().setElement(null);
@@ -610,6 +629,10 @@ function StageCanvas({ projectId, focus }: StageProps) {
         }}
         onPaste={() => {
           void canvasClipboardActions.pasteFromClipboard(projectId, (m) => toast.error(m));
+          closeCtxMenu();
+        }}
+        onPasteAt={(anchor) => {
+          void canvasClipboardActions.pasteFromClipboard(projectId, (m) => toast.error(m), anchor);
           closeCtxMenu();
         }}
         onDuplicate={() => {

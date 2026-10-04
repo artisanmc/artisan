@@ -117,6 +117,9 @@ mobile or in a narrow workspace. Drag its right edge to adjust the width, or its
 top edge to adjust the height when it sits below. Both sizes are remembered;
 the resize limit preserves space for the canvas.
 Drag an item onto a menu slot, or click an item and then tap a slot to place it.
+To paste copied items at a specific slot, hover that slot and press **Ctrl+V** (**⌘V**),
+or right-click the slot and choose **Paste here**. Several items keep their layout; if
+the slot is taken, they land in the next free slots.
 Open the project's **Resources** tab to import and manage images and fonts.
 Select a resource to edit its details; **Back to resources** returns to the grid.
 Classify images as **Button images** and/or **Menu images**; one image may have both

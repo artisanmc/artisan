@@ -948,6 +948,7 @@ const fr: typeof en = {
     newDialog: "Nouveau dialogue",
     newDialogHere: "Nouveau dialogue ici",
     newMenuHere: "Nouveau menu ici",
+    pasteHere: "Coller ici",
     newCommandHere: "Nouvelle commande ici",
     newDialogDialogTitle: "Nouveau dialogue",
     newMenuDialogTitle: "Nouveau menu",
