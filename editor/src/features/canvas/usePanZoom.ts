@@ -1,5 +1,8 @@
-import type Konva from "konva";
+import Konva from "konva";
 import { useCallback, useRef, useState } from "react";
+
+// Sinon Konva coupe les touchmove dès que le premier doigt lance un drag : le pinch ne part jamais.
+Konva.hitOnDragEnabled = true;
 
 export interface ViewportState {
   x: number;
@@ -54,7 +57,8 @@ export function usePanZoom(initial: ViewportState = { x: 0, y: 0, scale: 1 }) {
     e.evt.preventDefault();
     const stage = e.target.getStage();
     if (!stage) return;
-    if (stage.isDragging()) stage.stopDrag();
+    // Le premier doigt a pu lancer le pan du stage ou le drag d'un menu.
+    Konva.DD.node?.stopDrag();
 
     const center = {
       x: (t1.clientX + t2.clientX) / 2,

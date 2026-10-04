@@ -20,7 +20,7 @@ export function ItemContextSidebar({ entries }: { entries: PlaceholderEntry[] })
   return (
     <details
       open
-      className="max-h-80 min-h-0 min-w-0 overflow-y-auto overscroll-contain border-t border-[var(--border)] pt-4 md:max-h-none md:border-l md:border-t-0 md:pl-4 md:pt-0 md:[contain:size]"
+      className="max-h-80 min-h-0 min-w-0 shrink-0 overflow-y-auto overscroll-contain border-t border-[var(--border)] pt-4 md:max-h-none md:border-l md:border-t-0 md:pl-4 md:pt-0 md:[contain:size]"
     >
       <summary className="field-label cursor-pointer">{t("itemContext.title")}</summary>
       <div className="mt-3 space-y-3">
