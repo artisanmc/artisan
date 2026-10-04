@@ -33,6 +33,7 @@ import {
 } from "@/features/onboarding/editorTourRuntime";
 import { useTourPresentation } from "@/features/onboarding/tourPresentation";
 import { CanvasWithInspector } from "@/features/project/CanvasWithInspector";
+import { ProjectHistory } from "@/features/project/ProjectHistory";
 import { ProjectLibraryWorkspace } from "@/features/project/ProjectLibrary";
 import { ProjectLoadingSkeleton } from "@/features/project/ProjectLoadingSkeleton";
 import { ProjectWorkspacePanels } from "@/features/project/ProjectWorkspacePanels";
@@ -80,14 +81,20 @@ import { ResolvedProjectContext } from "./ResolvedProjectContext";
 import { goToDocument } from "./goToDocument";
 
 export type ProjectSearch = {
-  tab?: "overview" | "translations" | "data-sources" | "resources" | "assistant";
+  tab?: "overview" | "translations" | "data-sources" | "resources" | "assistant" | "history";
   /** Lien profond : centrer la planche sur ce Document à l'ouverture (`goToDocument`). */
   doc?: string;
 };
 
 export const validateProjectSearch = (search: Record<string, unknown>): ProjectSearch => {
   const t = search.tab;
-  if (t === "translations" || t === "data-sources" || t === "resources" || t === "assistant")
+  if (
+    t === "translations" ||
+    t === "data-sources" ||
+    t === "resources" ||
+    t === "assistant" ||
+    t === "history"
+  )
     return { tab: t };
   const doc = typeof search.doc === "string" && search.doc ? { doc: search.doc } : {};
   return { tab: "overview", ...doc };
@@ -173,7 +180,7 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
 
   useGlobalSearchShortcut();
   useServerIndexLoader(networkId, serverId, !!project && !loadError);
-  useWorkspaceTabShortcuts(runtime?.capabilities.canUseAssistant !== false);
+  useWorkspaceTabShortcuts(runtime?.capabilities.canUseAssistant !== false, !!runtime?.serverId);
 
   // networkId comes directly from the URL param — no lazy fetch needed.
 
@@ -420,6 +427,15 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
           </div>
         </WorkspaceView>
       )}
+      {runtime?.serverId ? (
+        <WorkspaceView
+          active={presentedTab === "history"}
+          onExit={exitToCanvas}
+          title={t("project.tabs.history")}
+        >
+          <ProjectHistory projectId={pId} active={presentedTab === "history"} />
+        </WorkspaceView>
+      ) : null}
     </>
   );
 

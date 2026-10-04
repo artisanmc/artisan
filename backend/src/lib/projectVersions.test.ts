@@ -53,7 +53,20 @@ test("une Version se relit en entier", async () => {
 	const [version] = await listVersions("p");
 	const read = await readVersion("p", version!.id);
 	expect(read?.files).toEqual([{ path: "lang/fr.yaml", content: "x" }, { path: "menus/a.yaml", content: "a1" }]);
+	expect(read?.previousId).toBeNull();
 	expect(await readVersion("autre", version!.id)).toBeNull();
+});
+
+test("une Version désigne la précédente, et ses binaires changés comptent", async () => {
+	await putSnapshot("p", snap("H1", { "menus/a.yaml": "a1" }));
+	await tick();
+	await putSnapshot("p", {
+		...snap("H2", { "menus/a.yaml": "a1" }),
+		binaries: [{ path: "assets/logo.png", hash: "B1", size: 10 }],
+	});
+	const [latest, first] = await listVersions("p");
+	expect(latest!.changed).toEqual(["assets/logo.png"]);
+	expect((await readVersion("p", latest!.id))?.previousId).toBe(first!.id);
 });
 
 test("l'historique d'un fichier rend ses contenus passés, le plus récent d'abord, sans l'actuel", async () => {
