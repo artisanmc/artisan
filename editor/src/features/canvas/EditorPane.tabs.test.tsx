@@ -11,6 +11,10 @@ vi.mock("@/features/assets/useAssetInit", () => ({ useAssetInit: () => {} }));
 vi.mock("./useTextureInit", () => ({ useTextureInit: () => {} }));
 vi.mock("./Library", () => ({ Library: () => <div data-testid="library" /> }));
 vi.mock("./CapturedItemsSection", () => ({ CapturedItemsSection: () => <div /> }));
+vi.mock("@/features/project/DocumentYamlView", async (orig) => ({
+  ...(await orig<object>()),
+  DocumentYamlView: ({ relPath }: { relPath: string }) => <div data-testid="yaml">{relPath}</div>,
+}));
 
 import { EditorPane } from "./EditorPane";
 
@@ -99,5 +103,22 @@ describe("EditorPane — fermeture", () => {
 
     expect(useSelectionStore.getState().ids.size).toBe(0);
     expect(useUiStore.getState().projectSettingsOpen).toBe(false);
+  });
+});
+
+describe("EditorPane — mode YAML", () => {
+  it("remplace les propriétés par le fichier du document de la sélection", () => {
+    useSelectionStore.getState().set(["el1"], 0, "m1");
+    render(<EditorPane projectId={PID} />);
+
+    fireEvent.click(screen.getByTestId("editor-pane-yaml"));
+
+    expect(screen.getByTestId("yaml")).toHaveTextContent("menus/m1.yaml");
+    expect(screen.queryByTestId("flow")).toBeNull();
+  });
+
+  it("pas de bascule sans document sélectionné", () => {
+    render(<EditorPane projectId={PID} />);
+    expect(screen.queryByTestId("editor-pane-yaml")).toBeNull();
   });
 });
