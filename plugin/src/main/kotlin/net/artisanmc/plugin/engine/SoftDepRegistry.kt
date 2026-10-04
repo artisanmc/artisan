@@ -21,6 +21,14 @@ class VaultProvider(private val economy: Economy) {
 }
 
 open class PapiProvider {
+    open fun declaredPlaceholders(): PapiPlaceholderCatalog {
+        val expansions = me.clip.placeholderapi.PlaceholderAPIPlugin.getInstance()
+            .localExpansionManager.expansions
+        return PapiPlaceholderCatalog.collect(expansions.map { expansion ->
+            PapiExpansion(expansion.identifier) { expansion.placeholders }
+        })
+    }
+
     /**
      * Tolérant : une PlaceholderAPI installée mais **cassée** (ex. incompatibilité
      * de version Paper — son `<clinit>` jette `ExceptionInInitializerError`) ne

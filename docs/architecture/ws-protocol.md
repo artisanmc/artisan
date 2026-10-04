@@ -1,5 +1,14 @@
 # WS Protocol — plugin ↔ backend
 
+`papi_placeholders_fetch {request_id}` requests the connected server's current
+PlaceholderAPI catalog. `papi_placeholders_result` echoes `{request_id,ok,
+placeholders?:[{placeholder,expansion}],truncated?,error?:"fetch_error"}`.
+Only registered expansions' explicit lists are used, normalized to `%id_params%`;
+empty/broken expansions contribute no suggestions. Collection runs on the Bukkit
+main thread. Limits: 2,000 entries, 256 characters per token, 128 KiB of names.
+The backend binds replies to the exact requested authenticated connection,
+releases pending requests on disconnect, and times out old plugins after 5 s.
+
 ## Console membership
 
 `hello.editor_access_mode` is `invitation` (default, including legacy/unknown

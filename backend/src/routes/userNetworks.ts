@@ -61,6 +61,7 @@ import {
 	requestOnlinePlayers,
 	requestPlayerInventory,
 	requestHeadTexture,
+	requestPapiPlaceholders,
 	listProjectsForEditor,
 	requestProjectList,
 	requestProjectWrite,
@@ -1406,6 +1407,25 @@ userNetworksRouter.get("/:networkId/servers/:serverId/head-texture", async (c: C
 		return c.json({ error: r.error ?? "fetch_error" }, r.error === "head_not_found" ? 404 : 502);
 	}
 	return c.json({ texture: r.texture });
+});
+
+userNetworksRouter.get("/:networkId/servers/:serverId/papi-placeholders", async (c: Context<{ Variables: Vars }>) => {
+	const userId = getUserId(c);
+	if (!userId) return c.json({ error: "unauthorized" }, 401);
+	const resolved = await resolveNetworkServer(userId, c.req.param("networkId"), c.req.param("serverId"));
+	if (!resolved) return c.json({ error: "forbidden" }, 403);
+	if (!resolved.serverKeyId) return c.json({ error: "not_found" }, 404);
+	const outcome = await requestPapiPlaceholders(resolved.serverKeyId);
+	if (outcome.kind === "offline") return c.json({ error: "server_offline" }, 503);
+	if (outcome.kind === "timeout") return c.json({ error: "fetch_timeout" }, 504);
+	if (outcome.kind !== "result" || !outcome.result.ok) return c.json({ error: "fetch_error" }, 502);
+	const { placeholders, truncated } = outcome.result;
+	if (!Array.isArray(placeholders) || placeholders.length > 2_000 || placeholders.some((p) =>
+		!p || typeof p.placeholder !== "string" || p.placeholder.length > 256 || !/^%[^%{}\s]+_[^%{}\s]+%$/.test(p.placeholder) ||
+		typeof p.expansion !== "string" || !/^[a-zA-Z0-9-]{1,64}$/.test(p.expansion)
+	)) return c.json({ error: "fetch_error" }, 502);
+	c.header("Cache-Control", "no-store");
+	return c.json({ placeholders, truncated: truncated === true });
 });
 
 userNetworksRouter.get(

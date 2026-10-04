@@ -11,6 +11,7 @@ import { useAuthStore } from "@/state/authStore";
 import { useModulesStore } from "@/state/modulesStore";
 import { useNetworksStore } from "@/state/networksStore";
 import { useServerDataSourcesStore } from "@/state/serverDataSourcesStore";
+import { useServerPapiPlaceholdersStore } from "@/state/serverPapiPlaceholdersStore";
 import { useServerScreensStore } from "@/state/serverScreensStore";
 import { useServersStore } from "@/state/serversStore";
 import { PostHogProvider } from "@posthog/react";
@@ -42,10 +43,25 @@ function RootLayoutInner() {
   usePostHogPageView();
   const { i18n } = useTranslation();
   const user = useAuthStore((s) => s.currentUser);
+  const userId = user?.id;
   const sessionStatus = useAuthStore((s) => s.sessionStatus);
   const backendUnreachable = useAuthStore((s) => s.backendUnreachable);
   const activeNetworkId = useNetworksStore((s) => s.activeId);
   const activeServerId = useServersStore((s) => s.activeServerId);
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const isDemo = pathname.startsWith("/demo");
+  useEffect(() => {
+    const catalog = useServerPapiPlaceholdersStore.getState();
+    if (!userId || !activeNetworkId || !activeServerId || isDemo) {
+      catalog.clear();
+      return;
+    }
+    const scope = { userId, networkId: activeNetworkId, serverId: activeServerId };
+    const refresh = () => { void catalog.load(scope); };
+    refresh();
+    const timer = setInterval(refresh, 15_000);
+    return () => { clearInterval(timer); catalog.clear(); };
+  }, [userId, activeNetworkId, activeServerId, isDemo]);
   useEffect(() => {
     const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
     useAuthStore.getState().hydrate(apiUrl);
@@ -76,6 +92,9 @@ function RootLayoutInner() {
       // `onProjectsReloaded` — notamment, elle épargne le travail en cours.
       onProjectsReloaded: (serverKeyId, projects) => {
         onProjectsReloadedInEditor(serverKeyId, projects);
+        if (!cancelled && serverKeyId === activeServerId && useServerPapiPlaceholdersStore.getState().key) {
+          void useServerPapiPlaceholdersStore.getState().load({ userId: user.id, networkId: activeNetworkId, serverId: activeServerId });
+        }
       },
     })
       .then((connected) => {
@@ -101,7 +120,6 @@ function RootLayoutInner() {
   const showSidebar = !!user;
   // Admin area swaps the workspace sidebar for the admin section nav.
   // Non-admins keep the workspace sidebar (the /admin layout shows "forbidden").
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isMarketingPage = pathname === "/" || pathname === "/pricing" || pathname === "/pricing/";
   const isAdminArea = pathname.startsWith("/admin") && !!user?.isAdmin;
   return (

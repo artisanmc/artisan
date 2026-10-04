@@ -2200,6 +2200,7 @@ const fr: typeof en = {
   },
   placeholderInput: {
     hint: "Tape « { » pour insérer une variable",
+    papiHint: "Tape « { » pour une variable ou « % » pour un placeholder du serveur",
     emptyMatch: "Aucune variable ne matche « {{query}} »",
     emptyContext: "Aucune variable disponible dans ce contexte",
   },

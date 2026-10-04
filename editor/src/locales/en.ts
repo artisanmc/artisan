@@ -2167,6 +2167,7 @@ export default {
   },
   placeholderInput: {
     hint: 'Type "{" to insert a variable',
+    papiHint: 'Type "{" for a variable or "%" for a server placeholder',
     emptyMatch: 'No variable matches "{{query}}"',
     emptyContext: "No variable available in this context",
   },

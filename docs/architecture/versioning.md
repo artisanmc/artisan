@@ -265,6 +265,9 @@ Outil : `japicmp` en CI pour catch les regressions binary compat avant release.
 
 ## 4. Protocol WebSocket
 
+`papi_placeholders_fetch/result` is an additive protocol v1 extension: legacy
+plugins time out to an empty suggestion catalog; no content-version bump is needed.
+
 ### 4.1 Version dans le handshake
 
 ```json

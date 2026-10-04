@@ -10,6 +10,55 @@ const entries: PlaceholderEntry[] = [
 ];
 
 describe("PlaceholderInput", () => {
+  it("does not suggest anything or consume Tab for % when no expansion declares placeholders", () => {
+    render(<PlaceholderInput value="" onChange={() => {}} entries={entries} />);
+    const input = screen.getByRole("combobox");
+    fireEvent.change(input, { target: { value: "%" } });
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    expect(fireEvent.keyDown(input, { key: "Tab" })).toBe(true);
+  });
+
+  it("opens pending % suggestions when the catalog arrives, then hides them offline", () => {
+    const { rerender } = render(<PlaceholderInput value="" onChange={() => {}} entries={[]} />);
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "%" } });
+    rerender(<PlaceholderInput value="%" onChange={() => {}} entries={[]} papiPlaceholders={[{ placeholder: "%player_name%", expansion: "player" }]} />);
+    expect(screen.getByText("%player_name%")).toBeInTheDocument();
+    rerender(<PlaceholderInput value="%" onChange={() => {}} entries={[]} />);
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+  });
+
+  it("keeps manual completed tokens closed and inserts at the textarea caret without dropping the suffix", () => {
+    const calls: string[] = [];
+    const papiPlaceholders = [{ placeholder: "%player_name%", expansion: "player" }];
+    const { rerender } = render(<PlaceholderInput multiline value="" onChange={(v) => calls.push(v)} entries={entries} papiPlaceholders={papiPlaceholders} />);
+    const input = screen.getByRole("combobox") as HTMLTextAreaElement;
+    fireEvent.change(input, { target: { value: "%player_name%" } });
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    fireEvent.change(input, { target: { value: "%player_name%\n%pla suffix", selectionStart: 18, selectionEnd: 18 } });
+    rerender(<PlaceholderInput multiline value={"%player_name%\n%pla suffix"} onChange={(v) => calls.push(v)} entries={entries} papiPlaceholders={papiPlaceholders} />);
+    input.setSelectionRange(18, 18);
+    fireEvent.mouseDown(screen.getByRole("option", { name: /%player_name%/ }));
+    expect(calls.at(-1)).toBe("%player_name%\n%player_name% suffix");
+  });
+
+  it("filters declared PAPI placeholders after % and inserts the full token with Tab", () => {
+    const calls: string[] = [];
+    const papiPlaceholders = [
+      { placeholder: "%player_name%", expansion: "player" },
+      { placeholder: "%vault_eco_balance%", expansion: "vault" },
+    ];
+    const { rerender } = render(<PlaceholderInput value="" onChange={(v) => calls.push(v)} entries={entries} papiPlaceholders={papiPlaceholders} />);
+    const input = screen.getByRole("combobox");
+    fireEvent.change(input, { target: { value: "Hello %pla" } });
+    rerender(<PlaceholderInput value="Hello %pla" onChange={(v) => calls.push(v)} entries={entries} papiPlaceholders={papiPlaceholders} />);
+    expect(screen.getByText("%player_name%")).toBeInTheDocument();
+    expect(screen.queryByText("%vault_eco_balance%")).not.toBeInTheDocument();
+    expect(screen.queryByText("quest.name")).not.toBeInTheDocument();
+    fireEvent.keyDown(input, { key: "Tab" });
+    expect(calls.at(-1)).toBe("Hello %player_name%");
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+  });
+
   it("opens the popup when the user types {", () => {
     render(<PlaceholderInput value="" onChange={() => {}} entries={entries} />);
     const input = screen.getByRole("combobox");

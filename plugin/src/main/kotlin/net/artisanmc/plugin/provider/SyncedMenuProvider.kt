@@ -771,6 +771,32 @@ class SyncedMenuProvider(
                 }
             }
 
+            "papi_placeholders_fetch" -> {
+                val requestId = node["request_id"]?.asText() ?: return
+                fun reply(payload: Map<String, Any>) {
+                    try {
+                        httpClient.dispatcher.executorService.execute {
+                            send(mapOf("type" to "papi_placeholders_result", "request_id" to requestId) + payload)
+                        }
+                    } catch (_: java.util.concurrent.RejectedExecutionException) {
+                        logger?.warning("papi_placeholders_result dropped — plugin is stopping")
+                    }
+                }
+                try {
+                    runOnMainThread {
+                        try {
+                            val catalog = evaluator.deps.papi?.declaredPlaceholders()
+                                ?: net.artisanmc.plugin.engine.PapiPlaceholderCatalog(emptyList())
+                            reply(mapOf("ok" to true, "placeholders" to catalog.placeholders, "truncated" to catalog.truncated))
+                        } catch (_: Throwable) {
+                            reply(mapOf("ok" to false, "error" to "fetch_error"))
+                        }
+                    }
+                } catch (_: Throwable) {
+                    reply(mapOf("ok" to false, "error" to "fetch_error"))
+                }
+            }
+
             "head_texture_fetch" -> {
                 val requestId = node["request_id"]?.asText() ?: return
                 val id = node["id"]?.asText() ?: ""

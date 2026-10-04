@@ -1,5 +1,10 @@
 # REST endpoints — index
 
+`userNetworks.ts`: `GET /api/v1/networks/:networkId/servers/:serverId/papi-placeholders`
+requires Network membership and accepts IDs/slugs. Relays the live plugin catalog;
+returns `{placeholders:[{placeholder,expansion}],truncated}` without HTTP caching.
+Offline → 503, timeout/old plugin → 504, malformed/failed result → 502.
+
 ## Network access options
 
 `userNetworks.ts`: `GET /api/v1/networks/:idOrSlug/access-options` requires a

@@ -532,6 +532,7 @@ export interface ConfigWriteResultMessage {
 // Plugin → backend: module message from `/boutique additem` — the boutique
 // backend module applies the mutation (ADR captured-items-and-module-field-kit
 export type PluginToServerMessage =
+  | PapiPlaceholdersResultMessage
   | ProjectCopyResultMessage
   | HeadTextureResultMessage
   | HelloMessage
@@ -559,6 +560,7 @@ export interface ResourcePackUpdatedMessage {
 }
 
 export type ServerToPluginMessage =
+  | PapiPlaceholdersFetchMessage
   | ProjectCopyMessage
   | HeadTextureFetchMessage
   | HelloAckMessage
@@ -579,6 +581,25 @@ export interface HeadTextureFetchMessage {
   type: "head_texture_fetch";
   request_id: string;
   id: string;
+}
+
+export interface PapiPlaceholder {
+  placeholder: string;
+  expansion: string;
+}
+
+export interface PapiPlaceholdersFetchMessage {
+  type: "papi_placeholders_fetch";
+  request_id: string;
+}
+
+export interface PapiPlaceholdersResultMessage {
+  type: "papi_placeholders_result";
+  request_id: string;
+  ok: boolean;
+  placeholders?: PapiPlaceholder[];
+  truncated?: boolean;
+  error?: "fetch_error";
 }
 
 export interface HeadTextureResultMessage {

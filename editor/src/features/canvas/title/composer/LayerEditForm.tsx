@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { AlignCenter, AlignLeft, AlignRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
-import { PlaceholderInput } from "@/components/PlaceholderInput";
+import { ServerPlaceholderInput as PlaceholderInput } from "@/components/ServerPlaceholderInput";
 import { RevealField } from "@/components/RevealField";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
