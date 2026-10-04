@@ -10,6 +10,14 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { FileHistory } from "./FileHistory";
 
+/** Le fichier d'un Document : son dossier dit sa nature, son nom son identité. */
+export function documentRelPath(project: Project, id: string): string | null {
+  if (project.menus.some((m) => m.id === id)) return `menus/${id}.yaml`;
+  if (project.commands.some((c) => c.id === id)) return `commands/${id}.yaml`;
+  if ((project.dialogs ?? []).some((d) => d.id === id)) return `dialogs/${id}.yaml`;
+  return null;
+}
+
 /**
  * Le fichier d'un Document, tel quel — la « code mode » qui a déclenché toute
  * l'épopée files-first (« a feature request (a "code mode" showing a Document's
