@@ -37,7 +37,10 @@ dialog). C'est une **pile LIFO** : l'ouverture d'un écran (`open_menu` /
 `open_dialog`) empile l'écran quitté, et `open_previous_menu` le **dépile** sans
 ré-empiler l'écran courant. La pile décroît donc à chaque retour — `menu → wiki →
 item` demande deux retours pour revenir au menu, sans va-et-vient `item ↔ wiki`.
-Pile vide = no-op. Placeholders associés : `{has_previous_menu}` (booléen, pour
+Pile vide = no-op. Un `open_menu` / `open_dialog` qui rouvre l'écran juste avant
+(même id et project, args ignorés) compte comme un retour : il dépile au lieu
+d'empiler, donc un bouton retour câblé en `open_menu parent` ne boucle pas.
+Placeholders associés : `{has_previous_menu}` (booléen, pour
 conditionner le bouton) et `{previous_menu.id}` / `.title`.
 
 ### Texte d'action — field-local

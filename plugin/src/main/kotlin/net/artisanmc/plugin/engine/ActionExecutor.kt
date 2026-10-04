@@ -309,11 +309,13 @@ class ActionExecutor(
     /**
      * Annule le push d'une navigation qui n'a rien affiché (menu/dialog introuvable) :
      * le provider n'a pas appelé `setCurrent`, l'écran quitté est toujours l'écran
-     * courant et ne doit pas devenir son propre « précédent ».
+     * courant et ne doit pas devenir son propre « précédent ». Affiché : un retour
+     * câblé en `open_menu` est replié (cf. `collapseReturn`).
      */
     private fun undoPushIfNotShown(player: Player, leaving: NavigationEntry?) {
         val store = history ?: return
         if (leaving != null && store.current(player) === leaving) store.popPrevious(player)
+        else store.collapseReturn(player)
     }
 
     /**
