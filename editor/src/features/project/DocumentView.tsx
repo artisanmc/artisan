@@ -3,7 +3,7 @@ import type { ElementId, ProjectId } from "@/domain/types";
 import { Stage } from "@/features/canvas/Stage";
 import { FlowCanvas } from "@/features/flow/FlowCanvas";
 import { CanvasWithInspector } from "@/features/project/CanvasWithInspector";
-import { DocumentYamlView } from "@/features/project/DocumentYamlView";
+import { DocumentYamlView, documentRelPath } from "@/features/project/DocumentYamlView";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { projectDestination } from "@/lib/projectNavigation";
 import { useAccountStore } from "@/state/accountStore";
@@ -35,14 +35,7 @@ export function DocumentView({
   const menu = project?.menus.find((m) => m.id === eid);
   const command = project?.commands.find((c) => c.id === eid);
   const dialog = project?.dialogs.find((d) => d.id === eid);
-  // Le fichier du Document : son dossier dit sa nature, son nom son identité.
-  const relPath = menu
-    ? `menus/${eid}.yaml`
-    : command
-      ? `commands/${eid}.yaml`
-      : dialog
-        ? `dialogs/${eid}.yaml`
-        : null;
+  const relPath = project ? documentRelPath(project, eid) : null;
 
   useEffect(() => {
     // Par défaut, sélectionne l'élément (menu/commande/dialog) lui-même. Mais si une
