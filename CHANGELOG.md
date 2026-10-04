@@ -11,6 +11,8 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 - The Properties panel has a YAML button that swaps the form for the selected document's file (the parent menu's for an element), edited and saved verbatim.
 
+- PlaceholderAPI text fields now suggest `%…%` tokens explicitly declared by the connected server's installed expansions. A member-only `GET /api/v1/networks/:networkId/servers/:serverId/papi-placeholders` endpoint relays the live catalog; offline servers and expansions without declared lists provide no suggestions.
+
 - Opening the menu or dialog you just came from with `open_menu` / `open_dialog` now counts as going back, so a back button wired as `open_menu <parent>` no longer makes later back presses loop through old screens.
 
 - The guided tour now replays on a project opened while its server is offline.

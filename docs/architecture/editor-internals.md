@@ -1,5 +1,14 @@
 # Editor & rendering internals
 
+`ServerPlaceholderInput` wraps the catalog-agnostic `PlaceholderInput` for live
+PlaceholderAPI `%…%` completion in title, lore, dialog and action text fields,
+including `RevealField` and module MiniMessage fields. `{…}` keeps its own catalog.
+`serverPapiPlaceholdersStore` scopes declarations by account/Network/Server,
+deduplicates pending requests and ignores late replies after scope changes/logout.
+The root refreshes every 15 s and on `projects_reloaded`; fields refresh on focus.
+Offline/errors clear suggestions; demo/no-server contexts have no server catalog.
+Only expansion-declared tokens are offered, without an external catalog or guessed prefixes.
+
 Draft API requests allow 45 seconds so the backend's 30-second plugin response
 window can complete. A local transport timeout becomes retryable `fetch_timeout`
 (504), preserving the pending operation ID: a publication may already be durable
