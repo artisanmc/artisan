@@ -114,6 +114,15 @@ from that server; the banner shows its date. Your draft stays editable and saved
 **Deploy** waits until the server is back. The editor checks again every 15 seconds.
 A project Artisan never received a copy of does not open until its server responds.
 
+## History
+
+The **History** view (clock icon in the top bar, shortcut `6`) lists every version the
+server loaded, newest first. A **Deployment** was published from the editor and shows who
+deployed it; a **Server edit** means files were edited directly on the server, then
+reloaded. **See changes** opens the diff of that version against the previous one.
+**Restore into my draft** replaces your draft's text files with that version's; images
+are left as they are, and nothing reaches the server until you deploy.
+
 ## Drafts and publishing
 
 Edits are automatically saved to a private draft in the project's active storage.

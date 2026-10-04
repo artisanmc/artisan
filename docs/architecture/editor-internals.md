@@ -451,9 +451,13 @@ son bouton **Exporter** (`runExportDraftZip`) télécharge le brouillon courant 
 l'éditeur, images publiées ou privées). `useProjectLoader` expose `unpublished` ;
 l'infobulle du badge serveur l'annonce quand le serveur n'est pas connecté.
 **Serveur éteint (2026-09-26)** : `readProjectFiles` rend `offlineSince` ; `useProjectLoader` ouvre alors le Project en `offline` + `stale`, expose `offlineSince` et revérifie toutes les 15 s ; l'infobulle du badge serveur affiche la date de la copie. Depuis le 2026-10-02, plus de bandeau `ProjectStaleNotice` — l'état est porté par le badge serveur et son infobulle (`downHint`).
-**Versions (2026-09-26)** : `ProjectVersions` (dans la fenêtre des brouillons) liste les
-Versions du Project ; restaurer remplace l'arbre de l'éditeur par celui de la Version
-(`adoptDiskIntoProject`), donc le brouillon, **sans publier**. `FileHistory` affiche l'auteur
+**Versions (2026-09-26, onglet depuis 2026-10-04)** : la vue `?tab=history` du workspace
+(`ProjectHistory`, 6ᵉ entrée de la nav, masquée sans `runtime.serverId` donc en démo) liste
+les Versions — badge « Déploiement » (auteur) ou « Modif. serveur » (auteur `null`). « Voir les
+changements » ouvre `VersionDiffDialog` : `ChangeList` de la Version contre `previousId`
+(binaires compris). Restaurer (`restoreVersionIntoDraft`) remplace l'arbre texte de l'éditeur
+par celui de la Version (`adoptDiskIntoProject`), donc le brouillon, **sans publier** ; les
+images du brouillon restent telles quelles. `FileHistory` affiche l'auteur
 quand l'historique vient des Versions.
 Les actions vident d'abord le debounce local via `draftFlush`.
 `saveProjectToDisk` publie la révision sauvegardée via l'API de brouillons ;

@@ -74,6 +74,7 @@ import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import {
   ChevronDown,
   Database as DatabaseIcon,
+  History as HistoryIcon,
   Images,
   Languages as LanguagesIcon,
   LayoutDashboard,
@@ -242,7 +243,7 @@ export function ProjectTopBarControls({
  * highlighted — Canvas (`overview`) is first so returning to the board is one
  * click. Selecting a secondary view REPLACES the canvas in the center region
  * (see WorkspaceView); it no longer floats as a modal. The missing-translations
- * badge rides on the Translations entry. Order (and thus the 1-5 hotbar digit
+ * badge rides on the Translations entry. Order (and thus the 1-6 hotbar digit
  * shortcut) comes from WORKSPACE_VIEW_TABS — see useWorkspaceTabShortcuts.
  */
 const TAB_META: Record<WorkspaceViewTab, { labelKey: string; Icon: typeof LanguagesIcon }> = {
@@ -251,6 +252,7 @@ const TAB_META: Record<WorkspaceViewTab, { labelKey: string; Icon: typeof Langua
   "data-sources": { labelKey: "project.tabs.dataSources", Icon: DatabaseIcon },
   resources: { labelKey: "project.tabs.resources", Icon: Images },
   assistant: { labelKey: "assistant.title", Icon: Sparkles },
+  history: { labelKey: "project.tabs.history", Icon: HistoryIcon },
 };
 
 function WorkspaceViewNav({ project }: { project: Project }) {
@@ -269,14 +271,18 @@ function WorkspaceViewNav({ project }: { project: Project }) {
       search: (prev) =>
         ({ ...(prev as object), tab: tab === "overview" ? undefined : tab }) as never,
     });
+  // Les Versions n'existent que pour un Project serveur (pas la démo).
   const views = WORKSPACE_VIEW_TABS.filter(
-    (tab) => tab !== "assistant" || runtime?.capabilities.canUseAssistant !== false,
-  ).map((tab, i) => ({
+    (tab) =>
+      (tab !== "assistant" || runtime?.capabilities.canUseAssistant !== false) &&
+      (tab !== "history" || !!runtime?.serverId),
+  ).map((tab) => ({
     tab,
     label: t(TAB_META[tab].labelKey),
     Icon: TAB_META[tab].Icon,
     badge: tab === "translations" ? missing : 0,
-    hotkey: i + 1,
+    // Le chiffre suit WORKSPACE_VIEW_TABS, comme le raccourci, même si un onglet est masqué.
+    hotkey: WORKSPACE_VIEW_TABS.indexOf(tab) + 1,
   }));
   return (
     <div className="flex w-full items-center gap-1 lg:w-max lg:rounded-[var(--r-md)] lg:bg-[var(--surface-raised)] lg:p-1">
@@ -286,7 +292,7 @@ function WorkspaceViewNav({ project }: { project: Project }) {
           <button
             key={v.tab}
             type="button"
-            // Tooltip carries the hotbar digit (1-5) for discoverability.
+            // Tooltip carries the hotbar digit (1-6) for discoverability.
             title={`${v.label} (${v.hotkey})`}
             aria-label={v.label}
             aria-current={isActive ? "page" : undefined}
