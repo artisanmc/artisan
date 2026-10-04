@@ -8,7 +8,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import type { ProjectId } from "@/domain/types";
+import type { MenuId, ProjectId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -32,6 +32,8 @@ interface ContextMenuProps {
   onClose: () => void;
   onCopy: () => void;
   onPaste: () => void;
+  /** Clic droit sur un slot : coller les items copiés à partir de ce slot. */
+  onPasteAt: (anchor: { menuId: MenuId; position: number }) => void;
   onDuplicate: () => void;
   onDelete: () => void;
   onMoveTo: (toProjectId: ProjectId) => void;
@@ -50,6 +52,7 @@ export function ContextMenu({
   onClose,
   onCopy,
   onPaste,
+  onPasteAt,
   onDuplicate,
   onDelete,
   onMoveTo,
@@ -74,8 +77,18 @@ export function ContextMenu({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" sideOffset={2}>
         {state.target.kind === "slot" ? (
-          <DropdownMenuItem disabled>
-            <span className="text-[var(--text-faint)]">No slot actions yet — drag a slot out to clear it</span>
+          <DropdownMenuItem
+            onSelect={() => {
+              if (state.target.kind === "slot") {
+                onPasteAt({
+                  menuId: state.target.menuId as MenuId,
+                  position: state.target.position,
+                });
+              }
+            }}
+          >
+            {t("canvas.pasteHere")}
+            <span className="ml-auto text-[10px] text-[var(--text-faint)]">⌘V</span>
           </DropdownMenuItem>
         ) : state.target.kind === "empty" ? (
           <>

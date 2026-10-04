@@ -930,6 +930,7 @@ export default {
     newDialog: "New dialog",
     newDialogHere: "New dialog here",
     newMenuHere: "New menu here",
+    pasteHere: "Paste here",
     newCommandHere: "New command here",
     newDialogDialogTitle: "New dialog",
     newMenuDialogTitle: "New menu",
