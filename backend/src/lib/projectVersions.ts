@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, lt } from "drizzle-orm";
 import { db } from "../db";
 import { projectVersions, snapshotBlobs, users } from "../db/schema";
 
@@ -20,10 +20,17 @@ async function authors(rows: VersionRow[]): Promise<Map<string, Author>> {
 	return new Map(found.map((u) => [u.id, { id: u.id, name: u.name }]));
 }
 
-const changedPaths = (next: Record<string, string>, previous: Record<string, string> | undefined) =>
-	[...new Set([...Object.keys(next), ...Object.keys(previous ?? {})])]
-		.filter((path) => next[path] !== previous?.[path])
-		.sort();
+/** Chemins (textes et binaires) qui diffèrent de la Version précédente. */
+const changedPaths = (next: VersionRow, previous: VersionRow | undefined) => {
+	const binaries = (row: VersionRow | undefined) =>
+		Object.fromEntries((row?.binaries ?? []).map((b) => [b.path, `${b.hash}:${b.size}`]));
+	const differs = (a: Record<string, string>, b: Record<string, string>) =>
+		[...new Set([...Object.keys(a), ...Object.keys(b)])].filter((path) => a[path] !== b[path]);
+	return [...new Set([
+		...differs(next.files, previous?.files ?? {}),
+		...differs(binaries(next), binaries(previous)),
+	])].sort();
+};
 
 export async function listVersions(projectId: string, limit = 50) {
 	const rows = await db.select().from(projectVersions).where(eq(projectVersions.projectId, projectId))
@@ -34,7 +41,7 @@ export async function listVersions(projectId: string, limit = 50) {
 		hash: row.hash,
 		createdAt: row.createdAt.toISOString(),
 		author: row.authorId ? (names.get(row.authorId) ?? null) : null,
-		changed: changedPaths(row.files, rows[i + 1]?.files),
+		changed: changedPaths(row, rows[i + 1]),
 	}));
 }
 
@@ -42,13 +49,24 @@ export async function readVersion(projectId: string, versionId: string) {
 	const [row] = await db.select().from(projectVersions)
 		.where(and(eq(projectVersions.projectId, projectId), eq(projectVersions.id, versionId)));
 	if (!row) return null;
+	// La Version d'avant, pour que l'éditeur montre ce que celle-ci a changé.
+	const [previous] = await db.select({ id: projectVersions.id }).from(projectVersions)
+		.where(and(eq(projectVersions.projectId, projectId), lt(projectVersions.createdAt, row.createdAt)))
+		.orderBy(desc(projectVersions.createdAt)).limit(1);
 	const hashes = [...new Set(Object.values(row.files))];
 	const blobs = hashes.length ? await db.select().from(snapshotBlobs).where(inArray(snapshotBlobs.hash, hashes)) : [];
 	const byHash = new Map(blobs.map((b) => [b.hash, b.content]));
 	const files = Object.entries(row.files)
 		.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
 		.flatMap(([path, hash]) => (byHash.has(hash) ? [{ path, content: byHash.get(hash)! }] : []));
-	return { id: row.id, hash: row.hash, createdAt: row.createdAt.toISOString(), files, binaries: row.binaries };
+	return {
+		id: row.id,
+		hash: row.hash,
+		createdAt: row.createdAt.toISOString(),
+		previousId: previous?.id ?? null,
+		files,
+		binaries: row.binaries,
+	};
 }
 
 /**
