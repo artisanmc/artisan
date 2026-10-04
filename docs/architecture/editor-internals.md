@@ -307,6 +307,17 @@ Avant `FrontendModule.localPreviewRows`, l'hôte résout les `LText` des `dataSo
 
 Note : cibles de taille (≤400/≤250) pas entièrement atteintes (MenuGroup 591, Stage 351) — split supplémentaire différé.
 
+### Coller des items à un slot (depuis 2026-10-04)
+
+`pasteFromClipboard(projectId, onError, anchor?)` (`useCanvasKeyboard.ts`) accepte un `PasteAnchor`
+`{ menuId, position }`. Ctrl/⌘+V le calcule via `Stage.getPasteAnchor` (dernière position du curseur
+sur le wrapper → `screenToWorld` → `hitTestSlot`) ; le clic droit sur un slot propose « Coller ici »
+avec le slot visé. Avec ancre : le menu ciblé est celui de l'ancre (prioritaire sur la sélection), et le
+groupe copié est décalé linéairement pour que sa plus petite position tombe sur l'ancre (disposition
+relative conservée). Slot pris → premier groupe libre après lui (`findFreePositions`) ; élément qui
+sortirait de la grille → ses positions copiées. Sans ancre (curseur hors d'un slot) : comportement
+historique (`resolveTargetMenu` + positions d'origine). Duplicate (⌘D) n'utilise pas d'ancre.
+
 ## Types d'inventaire (Chest / Hopper / Dropper, depuis 2026-06-14)
 
 Un menu est un coffre (défaut), un hopper (5×1) ou un dropper (3×3). La **single source of truth** est la table `INVENTORY_TYPES` dans `features/canvas/inventoryTypes.ts` : par type elle porte `cols`, les `rows` fixes (`null` pour le chest = `menu.rows`), l'origine du slot 0 en px MC (`firstSlotX/Y`), la hauteur de box (`null` = calculée depuis les rows pour le chest), la clé texture et le type Bukkit. Helpers : `colsFor`, `rowsFor`, `slotCount`, `slotMcXY` (stride constant `MC_SLOT_STRIDE = 18`).

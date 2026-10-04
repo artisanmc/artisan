@@ -126,11 +126,17 @@ const findFreePositions = (
   return null;
 };
 
+/** Slot the user pointed at for a paste: under the cursor, or right-clicked. */
+export interface PasteAnchor {
+  menuId: MenuId;
+  position: number;
+}
+
 const placeElements = (
   projectId: ProjectId,
   menuId: MenuId,
   elements: ElementCopy[],
-  options: { skipSourcePositions: boolean },
+  options: { skipSourcePositions: boolean; anchor?: number },
   onError?: (m: string) => void,
 ) => {
   const account = useAccountStore.getState().account;
@@ -143,9 +149,18 @@ const placeElements = (
   // We accumulate `extra` as we place elements so two clipboard items don't
   // land on top of each other.
   const extra = new Set<number>();
+  // Anchored paste: shift the whole group so its first slot lands on the
+  // anchor, keeping the elements' relative layout. A shifted element that
+  // falls off the grid keeps its copied positions instead.
+  const max = positionCount(menu.inventoryType ?? "chest", menu.rows, menu.playerInventory);
+  const groupMin = Math.min(...elements.flatMap((ec) => parsePositions(ec.element.positions)));
+  const anchorDelta =
+    options.anchor !== undefined && Number.isFinite(groupMin) ? options.anchor - groupMin : 0;
   for (const ec of elements) {
-    const original = parsePositions(ec.element.positions);
-    if (original.length === 0) continue;
+    const copied = parsePositions(ec.element.positions);
+    if (copied.length === 0) continue;
+    const shifted = copied.map((p) => p + anchorDelta);
+    const original = shifted.every((p) => p < max) ? shifted : copied;
     const initialOccupied = options.skipSourcePositions
       ? new Set([...extra, ...original])
       : new Set(extra);
@@ -189,7 +204,11 @@ const copySelection = async (
   }
 };
 
-const pasteFromClipboard = async (projectId: ProjectId, onError?: (m: string) => void) => {
+const pasteFromClipboard = async (
+  projectId: ProjectId,
+  onError?: (m: string) => void,
+  anchor?: PasteAnchor | null,
+) => {
   const payload = await readClipboard();
   if (!payload) {
     onError?.("Clipboard is empty");
@@ -210,7 +229,7 @@ const pasteFromClipboard = async (projectId: ProjectId, onError?: (m: string) =>
       });
     }
     if (rewritten.elements.length > 0) {
-      const targetMenu = resolveTargetMenu(projectId, rewritten.elements);
+      const targetMenu = anchor?.menuId ?? resolveTargetMenu(projectId, rewritten.elements);
       if (!targetMenu) {
         onError?.("No target menu — select a menu before pasting");
       } else {
@@ -218,7 +237,7 @@ const pasteFromClipboard = async (projectId: ProjectId, onError?: (m: string) =>
           projectId,
           targetMenu,
           rewritten.elements,
-          { skipSourcePositions: false },
+          { skipSourcePositions: false, anchor: anchor?.position },
           onError,
         );
       }
@@ -266,9 +285,15 @@ const duplicateSelection = (projectId: ProjectId, ids: string[], onError?: (m: s
 interface UseCanvasKeyboardArgs {
   projectId: ProjectId;
   onError?: (message: string) => void;
+  /** Slot under the cursor at paste time; null → the paste picks its own slot. */
+  getPasteAnchor?: () => PasteAnchor | null;
 }
 
-export function useCanvasKeyboard({ projectId, onError }: UseCanvasKeyboardArgs): void {
+export function useCanvasKeyboard({
+  projectId,
+  onError,
+  getPasteAnchor,
+}: UseCanvasKeyboardArgs): void {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (isEditableTarget(e.target)) return;
@@ -304,7 +329,7 @@ export function useCanvasKeyboard({ projectId, onError }: UseCanvasKeyboardArgs)
       }
       if (cmdOrCtrl && e.key === "v") {
         e.preventDefault();
-        void pasteFromClipboard(projectId, onError);
+        void pasteFromClipboard(projectId, onError, getPasteAnchor?.());
         return;
       }
       if (cmdOrCtrl && e.key === "d") {
@@ -442,7 +467,7 @@ export function useCanvasKeyboard({ projectId, onError }: UseCanvasKeyboardArgs)
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [projectId, onError]);
+  }, [projectId, onError, getPasteAnchor]);
 }
 
 export const canvasClipboardActions = {
