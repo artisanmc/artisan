@@ -1,4 +1,4 @@
-import { PlaceholderInput } from "@/components/PlaceholderInput";
+import { ServerPlaceholderInput as PlaceholderInput } from "@/components/ServerPlaceholderInput";
 import { RevealField } from "@/components/RevealField";
 import { assetPreviewUrl } from "@/domain/asset";
 import { useAssetStore } from "@/features/assets/assetStore";

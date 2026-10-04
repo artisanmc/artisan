@@ -20,6 +20,7 @@ import { customItemsCacheDir, readCustomItemsHash, processBundle } from "../lib/
 import { currentPackInfo, recordVanillaGuiSupport, refreshResourcePack } from "../lib/resourcePack";
 import { invalidateCustomBundle } from "../routes/modelBundle";
 import type {
+  PapiPlaceholdersResultMessage,
   HeadTextureResultMessage,
   EditorProjectsReloadedMessage,
   ProjectsReloadedMessage,
@@ -191,6 +192,7 @@ export function cleanupConn(connId: string): void {
   draftConnections.delete(connId);
   contentVersionByConn.delete(connId);
   for (const pending of pendingDrafts.values()) if (pending.connId === connId) pending.finish({ kind: "offline" });
+  for (const pending of pendingPapiPlaceholders.values()) if (pending.connId === connId) pending.finish({ kind: "offline" });
   connSenders.delete(connId);
   const serverId = connToServerId.get(connId);
   connToServerId.delete(connId);
@@ -219,6 +221,32 @@ export function requestHeadTexture(serverKeyId: string, id: string, timeoutMs = 
     const timer = setTimeout(() => finish({ kind: "timeout" }), timeoutMs);
     pendingHeadTextures.set(requestId, { serverKeyId, finish });
     try { send(JSON.stringify({ type: "head_texture_fetch", request_id: requestId, id })); }
+    catch { finish({ kind: "offline" }); }
+  });
+}
+
+type PapiPlaceholdersOutcome =
+  | { kind: "result"; result: PapiPlaceholdersResultMessage }
+  | { kind: "offline" | "timeout" };
+const pendingPapiPlaceholders = new Map<string, {
+  connId: string;
+  finish: (outcome: PapiPlaceholdersOutcome) => void;
+}>();
+
+export function requestPapiPlaceholders(serverKeyId: string, timeoutMs = 5_000): Promise<PapiPlaceholdersOutcome> {
+  const connId = [...connToServerId].find(([id, serverId]) => serverId === serverKeyId && connSenders.has(id))?.[0];
+  const send = connId ? connSenders.get(connId) : undefined;
+  if (!send || !connId) return Promise.resolve({ kind: "offline" });
+  return new Promise((resolve) => {
+    const requestId = crypto.randomUUID();
+    const finish = (outcome: PapiPlaceholdersOutcome) => {
+      clearTimeout(timer);
+      pendingPapiPlaceholders.delete(requestId);
+      resolve(outcome);
+    };
+    const timer = setTimeout(() => finish({ kind: "timeout" }), timeoutMs);
+    pendingPapiPlaceholders.set(requestId, { connId, finish });
+    try { send(JSON.stringify({ type: "papi_placeholders_fetch", request_id: requestId })); }
     catch { finish({ kind: "offline" }); }
   });
 }
@@ -1353,6 +1381,15 @@ export async function handlePluginMessage(
     const result = msg as HeadTextureResultMessage;
     const pending = pendingHeadTextures.get(result.request_id);
     if (pending && connToServerId.get(connId) === pending.serverKeyId) {
+      pending.finish({ kind: "result", result });
+    }
+    return { reply: null };
+  }
+
+  if (msg.type === "papi_placeholders_result") {
+    const result = msg as PapiPlaceholdersResultMessage;
+    const pending = pendingPapiPlaceholders.get(result.request_id);
+    if (pending?.connId === connId && connToServerId.has(connId)) {
       pending.finish({ kind: "result", result });
     }
     return { reply: null };

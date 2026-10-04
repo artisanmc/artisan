@@ -1,7 +1,7 @@
 import { type ReactNode, useState } from "react";
 import { cn } from "@/lib/cx";
 import type { PlaceholderEntry } from "@/lib/placeholderCatalog";
-import { PlaceholderInput } from "./PlaceholderInput";
+import { ServerPlaceholderInput as PlaceholderInput } from "./ServerPlaceholderInput";
 
 export interface RevealFieldProps {
   value: string;

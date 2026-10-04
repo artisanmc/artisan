@@ -2437,6 +2437,65 @@ describe("GET …/head-texture", () => {
   });
 });
 
+describe("GET …/papi-placeholders", () => {
+  beforeEach(clearAll);
+
+  test("rejects replies from another connection and releases requests on disconnect", async () => {
+    const { requestPapiPlaceholders, cleanupConn } = await import("../ws/hub");
+    connToServerId.set("papi-expected", "server1");
+    connToServerId.set("papi-forged", "server1");
+    registerConn("papi-expected", (raw) => {
+      const msg = JSON.parse(raw);
+      void handlePluginMessage("papi-forged", JSON.stringify({
+        type: "papi_placeholders_result", request_id: msg.request_id, ok: true,
+        placeholders: [{ placeholder: "%wrong_name%", expansion: "wrong" }],
+      }));
+    });
+    try {
+      expect(await requestPapiPlaceholders("server1", 20)).toEqual({ kind: "timeout" });
+      const pending = requestPapiPlaceholders("server1");
+      cleanupConn("papi-expected");
+      expect(await pending).toEqual({ kind: "offline" });
+    } finally {
+      cleanupConn("papi-expected");
+      cleanupConn("papi-forged");
+    }
+  });
+
+  test("only members can retrieve the connected server's declared placeholders", async () => {
+    const { sessionId } = await seedUser();
+    const app = makeApp();
+    const headers = { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" };
+    const { network } = await (await app.request("/api/v1/networks", {
+      method: "POST", headers, body: JSON.stringify({ name: "Placeholders" }),
+    })).json();
+    const serverId = "papi-server";
+    await db.insert(serverKeys).values({ id: serverId, networkId: network.id, createdAt: new Date() });
+    const url = `/api/v1/networks/${network.id}/servers/${serverId}/papi-placeholders`;
+    expect((await app.request(url)).status).toBe(401);
+    const outsider = await seedUser("papi-outsider");
+    expect((await app.request(url, { headers: { Cookie: `artisan_user_session=${outsider.sessionId}` } })).status).toBe(403);
+    expect((await app.request(url, { headers })).status).toBe(503);
+    registerConn("papi-conn", (raw) => {
+      const msg = JSON.parse(raw);
+      expect(msg.type).toBe("papi_placeholders_fetch");
+      void handlePluginMessage("papi-conn", JSON.stringify({
+        type: "papi_placeholders_result", request_id: msg.request_id, ok: true,
+        placeholders: [{ placeholder: "%player_name%", expansion: "player" }], truncated: false,
+      }));
+    });
+    connToServerId.set("papi-conn", serverId);
+    try {
+      const res = await app.request(url, { headers });
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual({ placeholders: [{ placeholder: "%player_name%", expansion: "player" }], truncated: false });
+    } finally {
+      connToServerId.delete("papi-conn");
+      connSenders.delete("papi-conn");
+    }
+  });
+});
+
 describe("GET …/player-inventory", () => {
   beforeEach(clearAll);
 

@@ -4,11 +4,19 @@ import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/cx";
 import type { PlaceholderEntry } from "@/lib/placeholderCatalog";
 
+export interface PapiPlaceholder {
+  placeholder: string;
+  expansion: string;
+}
+
+const NO_PAPI_PLACEHOLDERS: PapiPlaceholder[] = [];
+
 export interface PlaceholderInputProps {
   value: string;
   onChange: (v: string) => void;
   /** Pre-computed entries — the caller passes `compute(project, location)`. */
   entries: PlaceholderEntry[];
+  papiPlaceholders?: PapiPlaceholder[];
   multiline?: boolean;
   placeholder?: string;
   /** Default true. Set false on fields where the hint would be redundant. */
@@ -22,7 +30,7 @@ export interface PlaceholderInputProps {
 }
 
 /**
- * Text input with `{`-triggered placeholder autocomplete. The caller owns
+ * Text input with `{` and `%` placeholder autocomplete. The caller owns
  * the project→entries computation (via the PlaceholderCatalog) so this stays
  * domain-agnostic and reusable.
  */
@@ -30,6 +38,7 @@ export function PlaceholderInput({
   value,
   onChange,
   entries,
+  papiPlaceholders = NO_PAPI_PLACEHOLDERS,
   multiline,
   placeholder,
   showHint = true,
@@ -55,10 +64,15 @@ export function PlaceholderInput({
   // Position of the caret at the moment `{` was typed (i.e. the char right
   // after the opening brace). anchorPos === 0 means "not set".
   const [anchorPos, setAnchorPos] = useState(0);
+  const [trigger, setTrigger] = useState<"{" | "%">("{");
 
-  const filtered = entries.filter((e) =>
+  const suggestions = trigger === "%"
+    ? papiPlaceholders.map((p) => ({ path: p.placeholder, type: "PlaceholderAPI", sample: null, origin: p.expansion }))
+    : entries;
+  const filtered = suggestions.filter((e) =>
     e.path.toLowerCase().includes(query.toLowerCase()),
   );
+  const popupVisible = open && (trigger === "{" || papiPlaceholders.length > 0);
 
   // Close on outside click. The popup is portaled to document.body so it is
   // no longer a DOM child of wrapperRef — we must check both refs separately.
@@ -76,20 +90,24 @@ export function PlaceholderInput({
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const next = e.target.value;
+    const caretPos = e.target.selectionStart ?? next.length;
     onChange(next);
-
-    const caretPos = (e.target as HTMLInputElement).selectionStart ?? next.length;
 
     if (!open) {
       // Check if the new value has an open `{...` fragment at or before the caret
       // with no closing `}` or whitespace between the `{` and the caret.
       const head = next.slice(0, caretPos);
       const lastBrace = head.lastIndexOf("{");
-      if (lastBrace !== -1) {
-        const tail = head.slice(lastBrace + 1);
+      const papiFragment = [...head.matchAll(/%[^%{}\s]*%|%([^%{}\s]*)$/g)].find((m) => m[1] !== undefined);
+      const percentPos = papiFragment?.index ?? -1;
+      const start = Math.max(lastBrace, percentPos);
+      if (start !== -1) {
+        const delimiter = start === percentPos ? "%" : "{";
+        const tail = head.slice(start + 1);
         // Only open if no `}` or whitespace in the tail (fresh open fragment).
-        if (!/[}\s]/.test(tail)) {
-          const anchor = lastBrace + 1; // caret position right after the `{`
+        if (!(delimiter === "%" ? /[%{}\s]/ : /[}\s]/).test(tail)) {
+          const anchor = start + 1;
+          setTrigger(delimiter);
           setOpen(true);
           setAnchorPos(anchor);
           setQuery(tail);
@@ -106,14 +124,14 @@ export function PlaceholderInput({
       }
     } else {
       // The `{` is at anchorPos - 1. If it's gone, close.
-      if (next[anchorPos - 1] !== "{") {
+      if (caretPos < anchorPos || next[anchorPos - 1] !== trigger) {
         setOpen(false);
         return;
       }
       // Derive query from the anchor to the current caret.
       const tail = next.slice(anchorPos, caretPos);
       // Close if the user added a closing brace, a space, or a newline.
-      if (/[}\s]/.test(tail)) {
+      if ((trigger === "%" ? /[%{}\s]/ : /[}\s]/).test(tail)) {
         setOpen(false);
         return;
       }
@@ -123,7 +141,7 @@ export function PlaceholderInput({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    if (!open) return;
+    if (!popupVisible) return;
 
     if (e.key === "Escape") {
       e.preventDefault();
@@ -162,8 +180,9 @@ export function PlaceholderInput({
     // `{path}`. Then close.
     const caret = el.selectionStart ?? value.length;
     const bracePos = anchorPos - 1; // position of the `{` in value
-    if (bracePos < 0 || value[bracePos] !== "{") return;
-    const newValue = value.slice(0, bracePos) + `{${path}}` + value.slice(caret);
+    if (bracePos < 0 || value[bracePos] !== trigger) return;
+    const token = trigger === "%" ? path : `{${path}}`;
+    const newValue = value.slice(0, bracePos) + token + value.slice(caret);
     onChange(newValue);
     setOpen(false);
     setQuery("");
@@ -174,17 +193,17 @@ export function PlaceholderInput({
     onChange: handleChange,
     onKeyDown: handleKeyDown,
     onFocus,
-    onBlur,
+    onBlur: () => { setOpen(false); onBlur?.(); },
     autoFocus,
     placeholder,
     role: "combobox" as const,
-    "aria-expanded": open,
+    "aria-expanded": popupVisible,
     "aria-controls": listboxId,
     "aria-activedescendant":
-      open && filtered[highlight] ? rowId(filtered[highlight].path) : undefined,
+      popupVisible && filtered[highlight] ? rowId(filtered[highlight].path) : undefined,
   };
 
-  const popup = open
+  const popup = popupVisible
     ? createPortal(
         <ul
           ref={popupRef}
@@ -195,7 +214,7 @@ export function PlaceholderInput({
         >
           {filtered.length === 0 ? (
             <li className="empty" role="option" aria-selected={false}>
-              {entries.length === 0
+              {suggestions.length === 0
                 ? t("placeholderInput.emptyContext")
                 : t("placeholderInput.emptyMatch", { query })}
             </li>
@@ -246,9 +265,9 @@ export function PlaceholderInput({
 
       {popup}
 
-      {showHint && !open && entries.length > 0 && (
+      {showHint && !open && (entries.length > 0 || papiPlaceholders.length > 0) && (
         <p className="placeholder-hint text-[11px] text-[var(--text-faint)]">
-          {t("placeholderInput.hint")}
+          {t(papiPlaceholders.length > 0 ? "placeholderInput.papiHint" : "placeholderInput.hint")}
         </p>
       )}
     </div>

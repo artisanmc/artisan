@@ -25,6 +25,13 @@ A template is made of four kinds of segment, which you can mix freely in one lin
 | Translation | `{i18n:shop.title}` | Looks up a key in your project's translations |
 | Placeholder | `%player_name%` | Resolved by PlaceholderAPI on your server |
 
+In compatible text fields, type `%` to see the placeholders explicitly listed by
+your connected server's installed expansions. Keep typing to filter, then click
+a suggestion or select it with the arrow keys and press Tab or Enter to insert it.
+Suggestions refresh after a reload or reconnect and disappear while offline.
+An expansion that does not list its placeholders contributes no suggestions;
+you can still enter its placeholders manually. Suggestions do not evaluate player values.
+
 ## Reading your data
 
 Inside `{…}`, start from a name that is in scope — a menu input, or the alias of the
