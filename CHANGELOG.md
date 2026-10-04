@@ -9,6 +9,8 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+- Opening the menu or dialog you just came from with `open_menu` / `open_dialog` now counts as going back, so a back button wired as `open_menu <parent>` no longer makes later back presses loop through old screens.
+
 - The guided tour now replays on a project opened while its server is offline.
 
 - The right-hand Elements panel is gone: the project's documents live in the left sidebar, which is wider and shows one icon per category. The open project's row carries its settings and create buttons beside its name. The server selector and the network link left the sidebar; the top bar now shows a breadcrumb (network › server › project) whose levels link to their pages. The demo gets a minimal sidebar with its documents.
