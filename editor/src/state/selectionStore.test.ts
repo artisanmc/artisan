@@ -26,6 +26,24 @@ describe("selectionStore", () => {
     expect(useSelectionStore.getState().ids.has("a")).toBe(false);
   });
 
+  it("toggleElement adds items of one menu without ever keeping the menu itself", () => {
+    useSelectionStore.getState().set(["shop"]);
+    useSelectionStore.getState().toggleElement("a", "shop");
+    expect([...useSelectionStore.getState().ids]).toEqual(["a"]);
+    useSelectionStore.getState().toggleElement("b", "shop");
+    expect([...useSelectionStore.getState().ids]).toEqual(["a", "b"]);
+    expect(useSelectionStore.getState().menuId).toBe("shop");
+    useSelectionStore.getState().toggleElement("a", "shop");
+    expect([...useSelectionStore.getState().ids]).toEqual(["b"]);
+  });
+
+  it("toggleElement restarts the selection when the item lives in another menu", () => {
+    useSelectionStore.getState().set(["a"], 0, "shop");
+    useSelectionStore.getState().toggleElement("x", "bank");
+    expect([...useSelectionStore.getState().ids]).toEqual(["x"]);
+    expect(useSelectionStore.getState().menuId).toBe("bank");
+  });
+
   it("clear empties the selection", () => {
     useSelectionStore.getState().set(["a", "b", "c"]);
     useSelectionStore.getState().clear();

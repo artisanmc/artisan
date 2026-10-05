@@ -595,14 +595,11 @@ export function MenuGroup({ projectId, menu, position, layout, solo = false }: M
                     if (!el?.elementId) return;
                     const evt = e.evt as MouseEvent;
                     const sel = useSelectionStore.getState();
-                    // Shift = additive multi-select (always button-mode for
-                    // every member, since instance focus only makes sense on
+                    // Shift/ctrl = additive multi-select of this menu's items
+                    // (always button-mode: instance focus only makes sense on
                     // a single element).
-                    if (evt.shiftKey) {
-                      const next = new Set(sel.ids);
-                      if (next.has(el.elementId)) next.delete(el.elementId);
-                      else next.add(el.elementId);
-                      sel.set(next, null);
+                    if (evt.shiftKey || evt.ctrlKey || evt.metaKey) {
+                      sel.toggleElement(el.elementId, menu.id);
                       return;
                     }
                     // Non-additive slot click → reveal the Edit tab so the
@@ -615,13 +612,10 @@ export function MenuGroup({ projectId, menu, position, layout, solo = false }: M
                       sel.set([el.elementId], i, menu.id);
                       return;
                     }
-                    // Multi-pos: cmd/ctrl-click forces button mode.
-                    // Otherwise first click = button mode; a follow-up
+                    // Multi-pos: first click = button mode; a follow-up
                     // click on any slot of the already-selected element
                     // narrows focus to that slot.
-                    if (evt.metaKey || evt.ctrlKey) {
-                      sel.set([el.elementId], null, menu.id);
-                    } else if (sel.ids.has(el.elementId) && sel.ids.size === 1) {
+                    if (sel.ids.has(el.elementId) && sel.ids.size === 1) {
                       sel.set([el.elementId], i, menu.id);
                     } else {
                       sel.set([el.elementId], null, menu.id);

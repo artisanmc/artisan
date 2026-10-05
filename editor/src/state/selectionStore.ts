@@ -19,6 +19,8 @@ interface SelectionState {
   set: (ids: Iterable<string>, focusedSlot?: number | null, menuId?: string | null) => void;
   add: (id: string) => void;
   toggle: (id: string) => void;
+  /** Ctrl/shift-click on an item: toggles it within its menu's item selection. */
+  toggleElement: (elementId: string, menuId: string) => void;
   clear: () => void;
 }
 
@@ -40,6 +42,13 @@ export const useSelectionStore = create<SelectionState>((set, get) => ({
     if (next.has(id)) next.delete(id);
     else next.add(id);
     set({ ids: next, menuId: null });
+  },
+  toggleElement: (elementId, menuId) => {
+    const { ids, menuId: current } = get();
+    const next = new Set(current === menuId ? ids : []);
+    if (next.has(elementId)) next.delete(elementId);
+    else next.add(elementId);
+    set({ ids: next, focusedSlot: null, menuId });
   },
   clear: () => set({ ids: new Set(), focusedSlot: null, menuId: null }),
 }));

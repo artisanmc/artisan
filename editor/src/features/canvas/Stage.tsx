@@ -48,6 +48,7 @@ import { setStageGeometryProvider } from "./stageGeometry";
 import { type PasteAnchor, canvasClipboardActions, useCanvasKeyboard } from "./useCanvasKeyboard";
 import { useMarqueeSelection } from "./useMarqueeSelection";
 import { useMiddleClickPan } from "./useMiddleClickPan";
+import { usePrimaryButtonOnly } from "./usePrimaryButtonOnly";
 import { usePanZoom } from "./usePanZoom";
 import { useStageContextMenu } from "./useStageContextMenu";
 import { useStageTouch } from "./useStageTouch";
@@ -235,6 +236,7 @@ function StageCanvas({ projectId, focus }: StageProps) {
 
   // Middle-button pans regardless of mode/target (document capture listener).
   const middlePan = useMiddleClickPan({ containerRef: wrapperRef, viewport, setViewport });
+  usePrimaryButtonOnly(wrapperRef);
 
   // Empty-stage click clears selection. Konva fires `click` on the Stage when
   // the user clicks an area not occupied by any listening child.
@@ -642,7 +644,7 @@ function StageCanvas({ projectId, focus }: StageProps) {
         onDelete={() => {
           if (entityIds.length === 0) return;
           try {
-            useAccountStore.getState().deleteFromProject({ projectId, nodeIds: entityIds });
+            canvasClipboardActions.deleteSelection(projectId, entityIds);
             useSelectionStore.getState().clear();
           } catch (err) {
             toast.error(err instanceof Error ? err.message : "delete failed");

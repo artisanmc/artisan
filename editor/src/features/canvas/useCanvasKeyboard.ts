@@ -282,6 +282,17 @@ const duplicateSelection = (projectId: ProjectId, ids: string[], onError?: (m: s
   }
 };
 
+/** Delete menus/commands/dialogs and the selected items of menus alike. */
+const deleteSelection = (projectId: ProjectId, ids: string[]) => {
+  const store = useAccountStore.getState();
+  const { elements } = findSelectedEntities(projectId, ids, useSelectionStore.getState().menuId);
+  for (const { sourceMenuId, element } of elements) {
+    store.deleteElement({ projectId, menuId: sourceMenuId, elementId: element.id as ElementId });
+  }
+  const owners = new Set<string>(elements.map((e) => e.sourceMenuId));
+  store.deleteFromProject({ projectId, nodeIds: ids.filter((id) => !owners.has(id)) });
+};
+
 interface UseCanvasKeyboardArgs {
   projectId: ProjectId;
   onError?: (message: string) => void;
@@ -448,7 +459,7 @@ export function useCanvasKeyboard({
               return;
             }
           }
-          useAccountStore.getState().deleteFromProject({ projectId, nodeIds: ids });
+          deleteSelection(projectId, ids);
           useSelectionStore.getState().clear();
         } catch (err) {
           onError?.(err instanceof Error ? err.message : "delete failed");
@@ -474,4 +485,5 @@ export const canvasClipboardActions = {
   copySelection,
   pasteFromClipboard,
   duplicateSelection,
+  deleteSelection,
 };

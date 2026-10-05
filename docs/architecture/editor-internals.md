@@ -307,6 +307,16 @@ Avant `FrontendModule.localPreviewRows`, l'hôte résout les `LText` des `dataSo
 
 Note : cibles de taille (≤400/≤250) pas entièrement atteintes (MenuGroup 591, Stage 351) — split supplémentaire différé.
 
+### Clic droit et sélection multiple (depuis 2026-10-05)
+
+Konva émet `click` pour **tous** les boutons : `usePrimaryButtonOnly` (branché sur le wrapper du
+`Stage`) avale en capture les `pointer/mouse down/up` non primaires, sinon le clic droit réduisait la
+sélection avant `contextmenu`. Ctrl/⌘/Shift+clic sur un item → `selectionStore.toggleElement(id,
+menuId)` : sélection d'items d'**un seul** menu, jamais le menu lui-même (repart à zéro si autre menu).
+`useStageContextMenu` garde la sélection (cible `entity`) quand le slot visé porte un item sélectionné
+ou un menu d'une sélection de nœuds. `deleteSelection` (`useCanvasKeyboard.ts`, menu contextuel + Suppr)
+supprime items et nœuds, en épargnant le menu qui contient les items sélectionnés.
+
 ### Coller des items à un slot (depuis 2026-10-04)
 
 `pasteFromClipboard(projectId, onError, anchor?)` (`useCanvasKeyboard.ts`) accepte un `PasteAnchor`
