@@ -5,7 +5,31 @@ import { useUiStore } from "@/state/uiStore";
 import type Konva from "konva";
 import { useCallback } from "react";
 import { toast } from "sonner";
+import { parsePositions } from "@/lib/positions";
 import { hitTestSlot } from "./hitTest";
+
+const itemUnderPointer = (
+  e: Konva.KonvaEventObject<MouseEvent | TouchEvent>,
+  projectId: ProjectId,
+  menu: Menu,
+  layout: Record<string, { x: number; y: number }>,
+): string | undefined => {
+  const stage = e.target.getStage();
+  const pointer = stage?.getPointerPosition();
+  const project = useAccountStore.getState().account.projects.find((p) => p.id === projectId);
+  if (!stage || !pointer || !project) return undefined;
+  const hit = hitTestSlot(
+    project,
+    layout,
+    (pointer.x - stage.x()) / stage.scaleX(),
+    (pointer.y - stage.y()) / stage.scaleY(),
+  );
+  if (hit?.menuId !== menu.id) return undefined;
+  for (const layer of menu.layers)
+    for (const el of layer.elements)
+      if (parsePositions(el.positions).includes(hit.position)) return el.id;
+  return undefined;
+};
 
 interface UseMenuClickArgs {
   projectId: ProjectId;
@@ -65,11 +89,16 @@ export function useMenuClick({ projectId, menu, layout }: UseMenuClickArgs) {
       useUiStore.getState().setSelectedLayerKey(null);
 
       const additive = "evt" in e && (e.evt.shiftKey || e.evt.metaKey || e.evt.ctrlKey);
-      const { ids, menuId: selectionMenuId, set, toggle } = useSelectionStore.getState();
-      if (additive) toggle(menu.id);
+      const { ids, menuId: selectionMenuId, set, toggle, toggleElement } =
+        useSelectionStore.getState();
+      // A modifier-click that lands on an item (one whose slot overlay didn't
+      // catch it) toggles the item, never the whole menu.
+      const itemId = additive ? itemUnderPointer(e, projectId, menu, layout) : undefined;
+      if (itemId) toggleElement(itemId, menu.id);
+      else if (additive) toggle(menu.id);
       else if (selectionMenuId !== null || !ids.has(menu.id) || ids.size > 1) set([menu.id]);
     },
-    [menu.id, projectId, layout],
+    [menu, projectId, layout],
   );
   return { onClick };
 }
