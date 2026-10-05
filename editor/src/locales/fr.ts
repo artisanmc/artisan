@@ -303,6 +303,8 @@ const fr: typeof en = {
     name: "nom",
     description: "description",
     descriptionPlaceholder: "(aucune)",
+    loreMaxWidth: "largeur max du lore (px)",
+    loreMaxWidthHint: "Au-delà, les lignes du lore passent à la ligne, en jeu comme dans l'aperçu. ~6 px par caractère, 0 = jamais.",
     sourceUser: "perso",
     sourceImported: "importé",
     sourceForked: "forké",

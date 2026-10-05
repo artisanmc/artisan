@@ -568,6 +568,7 @@ describe("userNetworksRouter", () => {
       project_id: "my-project", create: true,
       files: [{ path: "manifest.yaml", base_hash: null }],
     });
+    expect(plugin.writes[0].files[0].content).toContain("lore_max_width: 240\n");
     expect(body.project.externalId).toBe("my-project");
     const opened = await app.request(`/api/v1/networks/${network.id}/servers/${skId}/projects/my-project/files`, {
       headers: { Cookie: `artisan_user_session=${sessionId}` },
@@ -602,6 +603,7 @@ describe("userNetworksRouter", () => {
     expect(draft!.ownerId).toBe(userId);
     expect(draft!.snapshot.baseline).toEqual({});
     expect(Object.keys(draft!.snapshot.tree)).toEqual(["manifest.yaml"]);
+    expect(draft!.snapshot.tree["manifest.yaml"]).toContain("lore_max_width: 240\n");
 
     const again = await app.request(`/api/v1/networks/${network.id}/projects`, {
       method: "POST", headers, body: JSON.stringify({ name: "prepare", serverKeyId: skId }),

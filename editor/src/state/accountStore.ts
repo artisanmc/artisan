@@ -364,7 +364,7 @@ interface AccountState {
   deleteFromProject: (input: { projectId: ProjectId; nodeIds: string[] }) => void;
   setProjectField: (input: {
     projectId: ProjectId;
-    field: "name" | "description";
+    field: "name" | "description" | "loreMaxWidth";
     value: string;
   }) => void;
   setMenuField: (input: {
@@ -1296,6 +1296,7 @@ export const useAccountStore = create<AccountState>()(
               dialogs: [],
               i18nKeys: {},
               defaultLang: "en",
+              loreMaxWidth: 240,
               canvasLayout: {},
             });
             draft.account.projectOrder.push(id);
@@ -2128,6 +2129,9 @@ export const useAccountStore = create<AccountState>()(
             if (!project) return;
             if (field === "name") project.name = value;
             else if (field === "description") project.description = value || undefined;
+            else if (field === "loreMaxWidth") {
+              project.loreMaxWidth = Math.max(0, Math.floor(Number(value)) || 0) || undefined;
+            }
             project.updatedAt = new Date().toISOString();
           }),
         ),
