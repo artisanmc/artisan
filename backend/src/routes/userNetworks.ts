@@ -524,7 +524,7 @@ userNetworksRouter.post(
 		if (skRows.length === 0)
 			return c.json({ error: "server_key_not_in_network" }, 403);
 
-		const manifest = `id: ${JSON.stringify(diskId)}\nname: ${JSON.stringify(diskId)}\n` +
+		const manifest = `id: ${JSON.stringify(diskId)}\nname: ${JSON.stringify(diskId)}\nlore_max_width: 240\n` +
 			(body.description ? `description: ${JSON.stringify(body.description)}\n` : "");
 		// Serveur non relié ou hors ligne : le Project naît en brouillon, sans
 		// dossier ; sa première publication le créera (ADR `server-only-projects`).

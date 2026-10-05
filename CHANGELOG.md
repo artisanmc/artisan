@@ -9,6 +9,8 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+- Long lore lines can wrap automatically: set **lore max width (px)** in project settings (manifest `lore_max_width`, ~6 px per character, 0 = never). Lines wrap on spaces after placeholders are resolved, keep their color on the next line, and the editor preview wraps exactly like the game. New projects start at 240 px; existing projects are unchanged. Project settings also get the YAML button, which opens `manifest.yaml`.
+
 - Mobile fixes: pinch-to-zoom works on the canvas, the item editor dialog stacks its form and placeholder list instead of overlapping them, and the project top bar wraps instead of overlapping its buttons.
 
 - The Properties panel has a YAML button that swaps the form for the selected document's file (the parent menu's for an element), edited and saved verbatim.

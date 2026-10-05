@@ -262,6 +262,15 @@ class ProjectReaderTest {
     }
 
     @Test
+    fun `manifest lore_max_width reaches every menu, absent means no wrap`() {
+        val root = writeTempProject()
+        assertEquals(0, ProjectReader(root).readAll().first().menus.first().loreMaxWidth)
+        val manifest = File(root, "p_test/manifest.yaml")
+        manifest.appendText("\nlore_max_width: 240\n")
+        assertEquals(240, ProjectReader(root).readAll().first().menus.first().loreMaxWidth)
+    }
+
+    @Test
     fun `accepts menu YAML with explicit schema field menu_v1`() {
         val root = java.nio.file.Files.createTempDirectory("artisan_schema_ok_").toFile()
         val projectDir = File(root, "test_pack").apply { mkdirs() }

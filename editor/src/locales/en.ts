@@ -295,6 +295,8 @@ export default {
     name: "name",
     description: "description",
     descriptionPlaceholder: "(none)",
+    loreMaxWidth: "lore max width (px)",
+    loreMaxWidthHint: "Longer lore lines wrap, in game and in the preview. ~6 px per character, 0 = never.",
     sourceUser: "user",
     sourceImported: "imported",
     sourceForked: "forked",

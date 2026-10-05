@@ -19,6 +19,8 @@ data class ManifestYaml(
     @JsonProperty("default_lang") val defaultLang: String = "en",
     val languages: List<String> = emptyList(),
     val files: ManifestFiles = ManifestFiles(),
+    /** Lore lines wider than this many MC pixels wrap ([net.artisanmc.plugin.render.LoreWrap]). 0 = never. */
+    @JsonProperty("lore_max_width") val loreMaxWidth: Int = 0,
 )
 
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -577,6 +579,8 @@ data class BundleMenu(
      * Vide pour un menu sans project (brouillon relayé, tests).
      */
     val projectId: String = "",
+    /** From the project manifest — see [ManifestYaml.loreMaxWidth]. */
+    val loreMaxWidth: Int = 0,
 ) {
     val id: String get() = yaml.id
 

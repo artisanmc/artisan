@@ -252,3 +252,16 @@ describe("projectImport round-trip (Boutique bootstrap → import → transform)
     expect(rawOut[`${base}/boutique/shop.yaml`]).toBe(SHOP_YAML);
   });
 });
+
+describe("manifest lore_max_width", () => {
+  it("round-trips, and stays absent when unset", () => {
+    const withWidth = {
+      ...bootstrapFiles,
+      [`${base}/manifest.yaml`]: `${MANIFEST}\nlore_max_width: 240\n`,
+    };
+    const project = projectFromFiles(PROJECT_ID as ProjectId, withWidth);
+    expect(project.loreMaxWidth).toBe(240);
+    expect(parse(transform(project)[`${base}/manifest.yaml`]!).lore_max_width).toBe(240);
+    expect(parse(roundTrip().rawOut[`${base}/manifest.yaml`]!)).not.toHaveProperty("lore_max_width");
+  });
+});

@@ -26,6 +26,8 @@ data class ExecutionContext(
      * `null` = pas de project (API, `/artisan menu`) : résolution sur le serveur.
      */
     val projectId: String? = null,
+    /** Lore wrap width of the menu being rendered (MC pixels, 0 = never). */
+    val loreMaxWidth: Int = 0,
 ) {
     val navigationArgs: Map<String, Any>
         get() = args.filter { (name, value) -> name !in sourceArgs || value !== sourceArgs[name] }

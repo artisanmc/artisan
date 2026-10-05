@@ -117,7 +117,17 @@ describe("EditorPane — mode YAML", () => {
     expect(screen.queryByTestId("flow")).toBeNull();
   });
 
+  it("les paramètres du projet ouvrent le manifest", () => {
+    useUiStore.getState().setProjectSettingsOpen(true);
+    render(<EditorPane projectId={PID} />);
+
+    fireEvent.click(screen.getByTestId("editor-pane-yaml"));
+
+    expect(screen.getByTestId("yaml")).toHaveTextContent("manifest.yaml");
+  });
+
   it("pas de bascule sans document sélectionné", () => {
+    useUiStore.getState().setProjectSettingsOpen(false);
     render(<EditorPane projectId={PID} />);
     expect(screen.queryByTestId("editor-pane-yaml")).toBeNull();
   });

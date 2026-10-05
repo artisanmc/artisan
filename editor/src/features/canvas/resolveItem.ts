@@ -6,6 +6,7 @@ import { evaluate } from "@/lib/expr/evaluator";
 import { parse } from "@/lib/expr/parser";
 import { Scope } from "@/lib/expr/scope";
 import { getText } from "@/lib/i18n";
+import { wrapLore } from "@/lib/loreWrap";
 import { renderPreview } from "./menuPreviewScope";
 
 /** Placeholder rendant le lore de l'item de base, à l'endroit où il est écrit. */
@@ -111,7 +112,9 @@ export function resolveItem(
         const tokened = lines.map((line) =>
           legacy ? rawText(line).replaceAll(legacyToken!, BASE_LORE) : line,
         );
-        const rendered = tokened.flatMap((line) => text(line, local).split("\n"));
+        const rendered = tokened
+          .flatMap((line) => text(line, local).split("\n"))
+          .flatMap((line) => wrapLore(line, project.loreMaxWidth ?? 0));
         // Le lore de base reste par défaut ; il ne part que sur demande explicite
         // (`lore_mode: replace`) ou quand `{base.lore}` le place lui-même —
         // sinon il apparaîtrait deux fois.
