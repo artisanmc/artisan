@@ -120,6 +120,9 @@ Drag an item onto a menu slot, or click an item and then tap a slot to place it.
 To paste copied items at a specific slot, hover that slot and press **Ctrl+V** (**⌘V**),
 or right-click the slot and choose **Paste here**. Several items keep their layout; if
 the slot is taken, they land in the next free slots.
+**Ctrl+click** (**⌘-click**) or **Shift+click** items of a menu to select several of them;
+right-click one of them to copy, duplicate or delete the whole selection. The menu itself
+stays untouched.
 Open the project's **Resources** tab to import and manage images and fonts.
 Select a resource to edit its details; **Back to resources** returns to the grid.
 Classify images as **Button images** and/or **Menu images**; one image may have both

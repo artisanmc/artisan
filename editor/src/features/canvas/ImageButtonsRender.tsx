@@ -66,7 +66,9 @@ function ImageButtonRender({
       name={`image-button:${menu.id}:${element.id}`}
       onClick={(event) => {
         event.cancelBubble = true;
-        select();
+        if (event.evt.shiftKey || event.evt.ctrlKey || event.evt.metaKey)
+          useSelectionStore.getState().toggleElement(element.id, menu.id);
+        else select();
       }}
       onTap={(event) => {
         event.cancelBubble = true;

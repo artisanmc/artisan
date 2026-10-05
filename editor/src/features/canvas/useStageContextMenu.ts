@@ -1,4 +1,5 @@
 import type { useAccountStore } from "@/state/accountStore";
+import { parsePositions } from "@/lib/positions";
 import { useSelectionStore } from "@/state/selectionStore";
 import type Konva from "konva";
 import { type RefObject, useCallback, useState } from "react";
@@ -20,6 +21,18 @@ const slotIsFilled = (
     l.elements.some((el) => el.positions === positionStr && el.display?.material),
   );
 };
+
+const selectedElementAt = (
+  project: ReturnType<typeof useAccountStore.getState>["account"]["projects"][number],
+  menuId: string,
+  position: number,
+  ids: ReadonlySet<string>,
+): boolean =>
+  !!project.menus
+    .find((m) => m.id === menuId)
+    ?.layers.some((l) =>
+      l.elements.some((el) => ids.has(el.id) && parsePositions(el.positions).includes(position)),
+    );
 
 interface UseStageContextMenuArgs {
   project: ReturnType<typeof useAccountStore.getState>["account"]["projects"][number] | undefined;
@@ -62,13 +75,18 @@ export function useStageContextMenu({
       // so Konva's own target won't surface them).
       const slotHit = hitTestSlot(project, layout, world.x, world.y);
       const selected = useSelectionStore.getState();
-      if (
+      const keepsSelection =
         slotHit &&
-        selected.menuId === null &&
         selected.ids.size > 1 &&
-        selected.ids.has(slotHit.menuId) &&
-        [...selected.ids].every((id) => project.menus.some((m) => m.id === id))
-      ) {
+        ((selected.menuId === null &&
+          selected.ids.has(slotHit.menuId) &&
+          [...selected.ids].every((id) =>
+            [project.menus, project.commands, project.dialogs].some((nodes) =>
+              nodes?.some((n) => n.id === id),
+            ),
+          )) ||
+          selectedElementAt(project, slotHit.menuId, slotHit.position, selected.ids));
+      if (keepsSelection) {
         setCtxMenu({
           open: true,
           x: clientX,
