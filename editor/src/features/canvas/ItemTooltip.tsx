@@ -181,7 +181,7 @@ export function ItemTooltip({ projectId }: ItemTooltipProps) {
 
   return (
     <div className="pointer-events-none fixed z-50" style={{ left: x + 14, top: y + 14 }}>
-      <div className="min-w-[120px] max-w-xs rounded-sm border border-purple-900 bg-zinc-950/95 px-2 py-1 shadow-lg">
+      <div className="min-w-[120px] whitespace-pre rounded-sm border border-purple-900 bg-zinc-950/95 px-2 py-1 shadow-lg">
         <MiniMessageInline source={title} className="block font-mono text-white text-xs" />
         {/* Enchantments sit between the name and the lore, as in the vanilla tooltip. */}
         {enchants.length > 0 && (

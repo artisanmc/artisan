@@ -150,6 +150,8 @@ export interface Project {
   importedConnectors?: ConnectorSpec[];
   i18nKeys: Record<I18nKey, Record<string, string>>;
   defaultLang: string;
+  /** Manifest `lore_max_width`: lore lines wrap past this many MC pixels (lib/loreWrap). Absent = never. */
+  loreMaxWidth?: number;
   /**
    * How texts land on disk (ADR `files-first-source-of-truth` §4). `extract`
    * (default, and what absent means) keeps `{i18n:key}` refs in the documents

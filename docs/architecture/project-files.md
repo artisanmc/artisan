@@ -25,6 +25,18 @@ Les chemins dont le **premier segment** commence par `.artisan` sont hors hash, 
 invisibles au scan disque — cf. `invariants.md` § Exclusion `.artisan*` universelle. Idem pour
 `.artisan-trash/`, au top de `projectsDir`.
 
+## `manifest.yaml` — `lore_max_width`
+
+Largeur max d'une ligne de lore, en **pixels MC** (avances de la police vanilla, +1 px par caractère
+gras ; ~6 px par caractère courant). Absent ou `0` = pas de retour à la ligne ; les projets créés
+depuis l'éditeur naissent avec `240`. Le plugin découpe chaque ligne **après** résolution des
+placeholders (`render/LoreWrap.kt`), l'aperçu éditeur applique le même algorithme
+(`lib/loreWrap.ts`) — contrat figé par `testdata/lore-wrap-conformance.json`. On coupe sur les
+espaces, un mot trop long déborde seul, et une ligne de continuation rouvre les balises
+MiniMessage encore ouvertes (chaque ligne de lore est parsée seule). Le lore de l'item de base
+n'est pas redécoupé, sauf placé par `{base.lore}`. Réglable dans les paramètres du projet
+(bouton YAML = `manifest.yaml` verbatim).
+
 ## `lang/` — arborescence, pas fichier plat
 
 Chaque `.` de la clé est un niveau (`menus:` → `<menu_id>:` → `elements:` → …). Le runtime adresse

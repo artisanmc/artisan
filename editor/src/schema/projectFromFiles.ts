@@ -44,6 +44,7 @@ interface ManifestYaml {
   module?: string;
   default_lang?: string;
   languages?: string[];
+  lore_max_width?: number;
   files?: { menus?: string[]; commands?: string[]; dialogs?: string[] };
   /** Legacy home of the board state (pre `.artisan/editor.yaml`). */
   editor_layout?: Record<string, unknown>;
@@ -911,6 +912,7 @@ export function projectFromFiles(
     ...(dataModels.length > 0 ? { dataModels } : {}),
     i18nKeys: i18nKeys as Project["i18nKeys"],
     defaultLang,
+    ...(manifest.lore_max_width ? { loreMaxWidth: manifest.lore_max_width } : {}),
     ...(editorState.i18n_mode === "inline" ? { i18nMode: "inline" as const } : {}),
     dialogs,
     canvasLayout: parseEditorLayout(editorState.layout),

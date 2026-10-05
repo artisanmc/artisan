@@ -192,7 +192,7 @@ class ProjectReader(
                 BundleCompiler.compile(
                     resolveTemplates(currentMenu, templates),
                     langMaps, logger, defaultLang = manifest.defaultLang,
-                ).copy(projectId = projectId)
+                ).copy(projectId = projectId, loreMaxWidth = manifest.loreMaxWidth)
             }.getOrElse { e ->
                 if (e is IllegalArgumentException) throw e // schema-version rejection stays loud
                 logger?.warning("[Artisan] skipping menu ${f.name}: ${e.message}")

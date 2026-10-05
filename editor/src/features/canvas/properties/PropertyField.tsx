@@ -6,6 +6,7 @@ interface PropertyFieldProps {
   placeholder?: string;
   onChange?: (value: string) => void;
   multiline?: boolean;
+  type?: "text" | "number";
 }
 
 export function PropertyField({
@@ -14,6 +15,7 @@ export function PropertyField({
   placeholder,
   onChange,
   multiline,
+  type,
 }: PropertyFieldProps) {
   return (
     <div>
@@ -28,6 +30,8 @@ export function PropertyField({
         />
       ) : (
         <Input
+          type={type}
+          min={type === "number" ? 0 : undefined}
           value={value}
           placeholder={placeholder}
           onChange={onChange ? (e) => onChange(e.target.value) : undefined}

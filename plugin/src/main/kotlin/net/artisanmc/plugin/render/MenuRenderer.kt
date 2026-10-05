@@ -143,7 +143,7 @@ object MenuRenderer {
             val requested = boundCtx.pagination[element.id] ?: 0
             pageInfo[element.id] = PageInfo(requested.coerceIn(0, pageCount - 1), pageCount)
         }
-        val renderCtx = boundCtx.copy(pageInfo = pageInfo, lang = lang, defaultLang = menu.defaultLang)
+        val renderCtx = boundCtx.copy(pageInfo = pageInfo, lang = lang, defaultLang = menu.defaultLang, loreMaxWidth = menu.loreMaxWidth)
 
         // A menu title is a Template like any other player-facing string — the
         // renderer resolves `{…}` and `%papi%` in one pass (ADR `expression-parity` §5).
@@ -373,6 +373,7 @@ object MenuRenderer {
             val replacement = tokened.any { it.contains(BASE_LORE) } || app.loreMode == "replace"
             val base = if (replacement) emptyList() else meta.lore() ?: emptyList()
             val lines = tokened.flatMap { raw -> localCtx.render(raw, papi) { key -> langMap[key] }.split("\n") }
+                .flatMap { LoreWrap.wrap(LenientText.legacyToMini(it), localCtx.loreMaxWidth) }
             meta.lore(if (lines == listOf("")) base else base + lines.map { parse(it).colorIfAbsent(NamedTextColor.WHITE) })
         }
         ItemDetails.applyToMeta(app, meta)

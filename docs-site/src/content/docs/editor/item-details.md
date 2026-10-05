@@ -10,6 +10,19 @@ See [Image buttons](../image-buttons/) for sizing and actions across several slo
 It holds everything beyond material, title, and lore. The trigger shows a count badge when
 something is set, so a configured item never hides its own configuration.
 
+## Lore line wrapping
+
+Minecraft never wraps lore on its own, so a long line can run off the player's screen.
+Set **lore max width (px)** in project settings to wrap every lore line of the project
+past that width. It is measured in Minecraft pixels — about 6 per character, a bit more
+in bold — so `240` holds roughly 40 characters. `0` turns wrapping off. New projects
+start at 240; projects created before this setting keep 0 until you change it.
+
+Lines wrap on spaces, after placeholders are filled in, and a continuation line keeps
+the colour and formatting of the text it continues. A word longer than the width stays
+whole. The editor's tooltip preview wraps exactly like the game. A line break you write
+yourself is always kept.
+
 ## Context placeholders
 
 Lore written in the editor defaults to white in game when no colour is specified.

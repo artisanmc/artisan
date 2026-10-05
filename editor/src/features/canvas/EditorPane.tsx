@@ -6,6 +6,7 @@ import { dismissInspector } from "@/features/project/projectSettings";
 import { selectionContext } from "@/features/project/selectionContext";
 import { useAccountStore } from "@/state/accountStore";
 import { useSelectionStore } from "@/state/selectionStore";
+import { useUiStore } from "@/state/uiStore";
 import { X } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -15,6 +16,7 @@ export function EditorPane({ projectId }: { projectId: ProjectId }) {
   const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
   const ids = useSelectionStore((s) => s.ids);
   const selectionMenuId = useSelectionStore((s) => s.menuId);
+  const projectSettingsOpen = useUiStore((s) => s.projectSettingsOpen);
   const [yamlMode, setYamlMode] = useState(false);
 
   // Un élément n'a pas de fichier à lui : on montre celui de son menu.
@@ -25,7 +27,12 @@ export function EditorPane({ projectId }: { projectId: ProjectId }) {
       : ctx.kind === "command" || ctx.kind === "dialog"
         ? ctx.id
         : null;
-  const relPath = project && docId ? documentRelPath(project, docId) : null;
+  const relPath =
+    project && docId
+      ? documentRelPath(project, docId)
+      : project && ids.size === 0 && projectSettingsOpen
+        ? "manifest.yaml"
+        : null;
 
   return (
     <section className="flex h-full min-h-0 flex-col" aria-label={t("projectLibrary.properties")}>

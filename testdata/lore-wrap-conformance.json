@@ -1,0 +1,17 @@
+{
+  "note": "Lore auto-wrap — the cross-language contract behind manifest `lore_max_width`. The plugin (render/LoreWrap.kt) wraps each rendered lore line before parsing it; the editor (lib/loreWrap.ts) wraps the preview with the same algorithm, so the tooltip shows what the player sees. Width is in MC pixels from the vanilla font advances (a=6, b=6, space=4, i=2, bold +1 per char). Words never split; a continuation line reopens the tags still open where it starts. Owned by: plugin LoreWrapConformanceTest + editor lib/loreWrap.test.ts.",
+  "cases": [
+    { "name": "disabled", "line": "aaaa bbbb", "width": 0, "expected": ["aaaa bbbb"] },
+    { "name": "fits exactly", "line": "aaaa bbbb", "width": 52, "expected": ["aaaa bbbb"] },
+    { "name": "wraps on space", "line": "aaaa bbbb", "width": 51, "expected": ["aaaa", "bbbb"] },
+    { "name": "pixels, not characters", "line": "iiiiii aaaa", "width": 40, "expected": ["iiiiii aaaa"] },
+    { "name": "empty line", "line": "", "width": 40, "expected": [""] },
+    { "name": "long word overflows alone", "line": "aaaaaaaaaa b", "width": 30, "expected": ["aaaaaaaaaa", "b"] },
+    { "name": "leading spaces kept on first line only", "line": "  aaaa bbbb", "width": 40, "expected": ["  aaaa", "bbbb"] },
+    { "name": "color carried to continuation", "line": "<red>aaaa bbbb</red> cc", "width": 30, "expected": ["<red>aaaa", "<red>bbbb</red>", "cc"] },
+    { "name": "bold widens glyphs", "line": "<bold>aaaa bbbb", "width": 55, "expected": ["<bold>aaaa", "<bold>bbbb"] },
+    { "name": "reset clears open tags", "line": "<red>aa<reset> bbbb", "width": 20, "expected": ["<red>aa<reset>", "bbbb"] },
+    { "name": "nested tags reopened in order", "line": "<gray>aaaa <yellow>bbbb</yellow> aaaa", "width": 40, "expected": ["<gray>aaaa", "<gray><yellow>bbbb</yellow>", "<gray>aaaa"] },
+    { "name": "tag with argument closed by name", "line": "<color:#ff0000>aaaa bbbb</color> aa", "width": 30, "expected": ["<color:#ff0000>aaaa", "<color:#ff0000>bbbb</color>", "aa"] }
+  ]
+}

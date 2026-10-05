@@ -52,6 +52,17 @@ export function ProjectProperties({ project }: ProjectPropertiesProps) {
           multiline
           onChange={(v) => setProjectField({ projectId: project.id, field: "description", value: v })}
         />
+        <div>
+          <PropertyField
+            label={t("projectProperties.loreMaxWidth")}
+            type="number"
+            value={String(project.loreMaxWidth ?? 0)}
+            onChange={(v) => setProjectField({ projectId: project.id, field: "loreMaxWidth", value: v })}
+          />
+          <p className="mt-1 text-[10px] text-[var(--text-faint)]">
+            {t("projectProperties.loreMaxWidthHint")}
+          </p>
+        </div>
       </div>
 
       <div className="text-[10px] text-[var(--text-faint)]">
