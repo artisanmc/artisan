@@ -276,7 +276,7 @@ object MenuRenderer {
         windows?.open(player, inv, content, menu.yaml.vanillaTexture)
         player.openInventory(inv)
         if (player.openInventory.topInventory !== inv) windows?.release(player, inv)
-        return MenuSession(menu.id, renderCtx.copy(lang = lang, langMap = langMap), activeClicks, slotArgs, content)
+        return MenuSession(menu.id, renderCtx.copy(lang = lang, langMap = langMap), activeClicks, slotArgs, content, menu.escapeGoesBack)
     }
 
     private fun buildImageHitItem(app: AppearanceYaml, langMap: Map<String, String>, ctx: ExecutionContext,

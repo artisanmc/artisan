@@ -6,6 +6,8 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 import org.junit.jupiter.api.assertThrows
 
 class ProjectReaderTest {
@@ -268,6 +270,14 @@ class ProjectReaderTest {
         val manifest = File(root, "p_test/manifest.yaml")
         manifest.appendText("\nlore_max_width: 240\n")
         assertEquals(240, ProjectReader(root).readAll().first().menus.first().loreMaxWidth)
+    }
+
+    @Test
+    fun `manifest escape_goes_back reaches every menu, absent means ESC closes`() {
+        val root = writeTempProject()
+        assertFalse(ProjectReader(root).readAll().first().menus.first().escapeGoesBack)
+        File(root, "p_test/manifest.yaml").appendText("\nescape_goes_back: true\n")
+        assertTrue(ProjectReader(root).readAll().first().menus.first().escapeGoesBack)
     }
 
     @Test

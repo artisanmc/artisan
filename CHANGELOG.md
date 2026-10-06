@@ -9,6 +9,8 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+- New project setting **ESC goes back** (manifest `escape_goes_back`): pressing Esc in a menu reopens the previous screen, like a back button, instead of closing everything. On the first menu, Esc closes as usual; `close_menu` still closes everything. Off by default.
+
 - The server badge in the editor now offers **Update** when a newer Artisan plugin is available. Any network member can click it: the plugin downloads the new JAR from the Artisan backend, checks its signature, and drops it into `plugins/update/`, where Paper applies it at the next restart. The badge then says the update is waiting for a restart. Only plugins from this version on can do this; installing this one is still manual. Plugins now report their real version (`1.0.<build>`) instead of `1.0.0`. New: `GET`/`PUT /api/v1/plugin-release`, `GET /api/v1/plugin-release/artisan.jar`, `POST /api/v1/networks/:networkId/servers/:serverId/plugin-update`, WS `plugin_update` / `plugin_update_result` behind capability `plugin_update_v1`.
 
 - Long lore lines can wrap automatically: set **lore max width (px)** in project settings (manifest `lore_max_width`, ~6 px per character, 0 = never). Lines wrap on spaces after placeholders are resolved, keep their color on the next line, and the editor preview wraps exactly like the game. New projects start at 240 px; existing projects are unchanged. Project settings also get the YAML button, which opens `manifest.yaml`.

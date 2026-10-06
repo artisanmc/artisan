@@ -11,6 +11,7 @@ data class MenuSession(
     val slotArgs: Map<Int, Map<String, Any>> = emptyMap(),
     /** Contenu de la fenêtre (l'ancre Bukkit reste vide). */
     val slots: net.artisanmc.plugin.render.MenuSlots = net.artisanmc.plugin.render.MenuSlots(0),
+    val escapeGoesBack: Boolean = false,
 )
 
 class MenuSessionStore {

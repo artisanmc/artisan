@@ -305,6 +305,8 @@ const fr: typeof en = {
     descriptionPlaceholder: "(aucune)",
     loreMaxWidth: "largeur max du lore (px)",
     loreMaxWidthHint: "Au-delà, les lignes du lore passent à la ligne, en jeu comme dans l'aperçu. ~6 px par caractère, 0 = jamais.",
+    escapeGoesBack: "Échap revient en arrière",
+    escapeGoesBackHint: "Échap dans un menu rouvre l'écran précédent, comme un bouton retour. Sur le premier menu, Échap ferme.",
     sourceUser: "perso",
     sourceImported: "importé",
     sourceForked: "forké",
