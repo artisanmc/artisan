@@ -51,6 +51,13 @@ Closing a menu without opening another screen (pressing Esc, or a **close_menu**
 action) ends the navigation and empties the history. A link to a menu or dialog
 that does not exist leaves the history unchanged.
 
+## Esc as a back button
+
+Turn on **ESC goes back** in the project settings (manifest `escape_goes_back: true`)
+and pressing Esc in one of the project's menus behaves like **open_previous_menu**:
+the previous screen reopens. On the first menu (empty history), Esc closes as usual.
+A **close_menu** action still closes everything.
+
 ## Showing the button only when it can work
 
 Use the `{has_previous_menu}` placeholder to hide the button when there is

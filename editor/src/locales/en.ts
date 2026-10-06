@@ -297,6 +297,8 @@ export default {
     descriptionPlaceholder: "(none)",
     loreMaxWidth: "lore max width (px)",
     loreMaxWidthHint: "Longer lore lines wrap, in game and in the preview. ~6 px per character, 0 = never.",
+    escapeGoesBack: "ESC goes back",
+    escapeGoesBackHint: "Pressing ESC in a menu reopens the previous screen, like a back button. On the first menu, ESC closes.",
     sourceUser: "user",
     sourceImported: "imported",
     sourceForked: "forked",

@@ -37,6 +37,14 @@ MiniMessage encore ouvertes (chaque ligne de lore est parsée seule). Le lore de
 n'est pas redécoupé, sauf placé par `{base.lore}`. Réglable dans les paramètres du projet
 (bouton YAML = `manifest.yaml` verbatim).
 
+## `manifest.yaml` — `escape_goes_back`
+
+Booléen, absent = `false`. Vrai : Échap dans un menu du projet rouvre l'écran précédent de la pile
+de navigation (comme `open_previous_menu`) au lieu de la vider ; pile vide = fermeture normale.
+Seule la raison de fermeture `PLAYER` déclenche le retour — `close_menu` (`PLUGIN`) ferme tout.
+Câblé dans `render/MenuListener.kt` (tick suivant, comme le vidage d'historique). Les dialogs ne
+sont pas concernés.
+
 ## `lang/` — arborescence, pas fichier plat
 
 Chaque `.` de la clé est un niveau (`menus:` → `<menu_id>:` → `elements:` → …). Le runtime adresse

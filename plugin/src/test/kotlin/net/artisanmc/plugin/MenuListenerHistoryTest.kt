@@ -33,24 +33,35 @@ class MenuListenerHistoryTest {
         """.trimIndent(),
     )
 
+    private val sessions = MenuSessionStore()
+    private val opened = mutableListOf<String>()
+
     private fun listener(history: NavigationHistoryStore): MenuListener {
         val plugin = MockBukkit.createMockPlugin()
-        val sessions = MenuSessionStore()
         val provider = object : MenuProvider {
             override fun load() {}
             override fun findMenu(menuId: String) = null
-            override fun openMenu(player: Player, menuId: String, lang: String, ctx: ExecutionContext) {}
+            override fun openMenu(player: Player, menuId: String, lang: String, ctx: ExecutionContext) { opened += menuId }
         }
-        val executor = ActionExecutor(plugin, provider, sessions, SoftDepRegistry.EMPTY, CooldownStore(), ConditionEvaluator.EMPTY)
+        val executor = ActionExecutor(plugin, provider, sessions, SoftDepRegistry.EMPTY, CooldownStore(), ConditionEvaluator.EMPTY, history = history)
         return MenuListener(plugin, sessions, executor, history = history)
     }
 
     /** Menu `id` affiché après `previous` : l'état que laisse un `open_menu`. */
-    private fun showMenu(p: Player, history: NavigationHistoryStore, id: String, previous: String) {
-        history.setCurrent(p, NavigationEntry(NavigationEntry.Kind.MENU, previous))
-        history.pushCurrent(p)
+    private fun showMenu(p: Player, history: NavigationHistoryStore, id: String, previous: String?, escapeGoesBack: Boolean = false) {
+        if (previous != null) {
+            history.setCurrent(p, NavigationEntry(NavigationEntry.Kind.MENU, previous))
+            history.pushCurrent(p)
+        }
         history.setCurrent(p, NavigationEntry(NavigationEntry.Kind.MENU, id))
-        MenuRenderer.open(p, BundleCompiler.compile(menu(), emptyMap()), "en")
+        val bundle = BundleCompiler.compile(menu(), emptyMap()).copy(escapeGoesBack = escapeGoesBack)
+        sessions.set(p, MenuRenderer.open(p, bundle, "en", ExecutionContext(p)))
+    }
+
+    private fun close(p: Player, l: MenuListener, reason: InventoryCloseEvent.Reason) {
+        val view = p.openInventory
+        p.closeInventory()
+        l.onClose(InventoryCloseEvent(view, reason))
     }
 
     @Test fun `closing a menu with ESC clears the history next tick`() {
@@ -59,9 +70,7 @@ class MenuListenerHistoryTest {
         val l = listener(history)
         showMenu(p, history, "b", previous = "a")
 
-        val view = p.openInventory
-        p.closeInventory()
-        l.onClose(InventoryCloseEvent(view))
+        close(p, l, InventoryCloseEvent.Reason.PLAYER)
         assertTrue(history.hasPrevious(p), "cleared only once the tick confirms nothing else opened")
         tick()
         assertFalse(history.hasPrevious(p))
@@ -100,5 +109,41 @@ class MenuListenerHistoryTest {
         tick()
         assertEquals("confirm", history.current(p)?.id)
         assertEquals("a", history.previous(p)?.id)
+    }
+
+    @Test fun `ESC reopens the previous menu when the project has escape_goes_back`() {
+        val p = player()
+        val history = NavigationHistoryStore()
+        val l = listener(history)
+        showMenu(p, history, "b", previous = "a", escapeGoesBack = true)
+
+        close(p, l, InventoryCloseEvent.Reason.PLAYER)
+        tick()
+        assertEquals(listOf("a"), opened)
+        assertFalse(history.hasPrevious(p), "going back consumes the entry")
+    }
+
+    @Test fun `close_menu still closes everything with escape_goes_back`() {
+        val p = player()
+        val history = NavigationHistoryStore()
+        val l = listener(history)
+        showMenu(p, history, "b", previous = "a", escapeGoesBack = true)
+
+        close(p, l, InventoryCloseEvent.Reason.PLUGIN)
+        tick()
+        assertTrue(opened.isEmpty())
+        assertFalse(history.hasPrevious(p))
+    }
+
+    @Test fun `ESC on the root menu closes it with escape_goes_back`() {
+        val p = player()
+        val history = NavigationHistoryStore()
+        val l = listener(history)
+        showMenu(p, history, "root", previous = null, escapeGoesBack = true)
+
+        close(p, l, InventoryCloseEvent.Reason.PLAYER)
+        tick()
+        assertTrue(opened.isEmpty())
+        assertNull(history.current(p))
     }
 }

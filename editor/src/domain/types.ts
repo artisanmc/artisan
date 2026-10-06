@@ -152,6 +152,8 @@ export interface Project {
   defaultLang: string;
   /** Manifest `lore_max_width`: lore lines wrap past this many MC pixels (lib/loreWrap). Absent = never. */
   loreMaxWidth?: number;
+  /** Manifest `escape_goes_back`: ESC in a menu reopens the previous screen instead of closing. */
+  escapeGoesBack?: boolean;
   /**
    * How texts land on disk (ADR `files-first-source-of-truth` §4). `extract`
    * (default, and what absent means) keeps `{i18n:key}` refs in the documents
