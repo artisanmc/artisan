@@ -364,8 +364,8 @@ interface AccountState {
   deleteFromProject: (input: { projectId: ProjectId; nodeIds: string[] }) => void;
   setProjectField: (input: {
     projectId: ProjectId;
-    field: "name" | "description" | "loreMaxWidth";
-    value: string;
+    field: "name" | "description" | "loreMaxWidth" | "escapeGoesBack";
+    value: string | boolean;
   }) => void;
   setMenuField: (input: {
     projectId: ProjectId;
@@ -2127,7 +2127,9 @@ export const useAccountStore = create<AccountState>()(
           produce((draft: AccountState) => {
             const project = draft.account.projects.find((p) => p.id === pId);
             if (!project) return;
-            if (field === "name") project.name = value;
+            if (field === "escapeGoesBack") project.escapeGoesBack = value === true || undefined;
+            else if (typeof value !== "string") return;
+            else if (field === "name") project.name = value;
             else if (field === "description") project.description = value || undefined;
             else if (field === "loreMaxWidth") {
               project.loreMaxWidth = Math.max(0, Math.floor(Number(value)) || 0) || undefined;

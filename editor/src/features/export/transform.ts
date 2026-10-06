@@ -1160,6 +1160,7 @@ export function transform(project: Project): Record<string, string> {
     default_lang: project.defaultLang,
     languages: langs,
     ...(project.loreMaxWidth ? { lore_max_width: project.loreMaxWidth } : {}),
+    ...(project.escapeGoesBack ? { escape_goes_back: true } : {}),
     // Plus de bloc `files:` : il recopiait le contenu de menus/, commands/ et
     // dialogs/ sans y ajouter ni ordre de chargement ni exclusion — un index à
     // tenir à jour à la main dont le seul effet possible était de se

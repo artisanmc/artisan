@@ -21,6 +21,8 @@ data class ManifestYaml(
     val files: ManifestFiles = ManifestFiles(),
     /** Lore lines wider than this many MC pixels wrap ([net.artisanmc.plugin.render.LoreWrap]). 0 = never. */
     @JsonProperty("lore_max_width") val loreMaxWidth: Int = 0,
+    /** ESC rouvre l'écran précédent de la pile au lieu de tout fermer ([net.artisanmc.plugin.render.MenuListener]). */
+    @JsonProperty("escape_goes_back") val escapeGoesBack: Boolean = false,
 )
 
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -581,6 +583,8 @@ data class BundleMenu(
     val projectId: String = "",
     /** From the project manifest — see [ManifestYaml.loreMaxWidth]. */
     val loreMaxWidth: Int = 0,
+    /** From the project manifest — see [ManifestYaml.escapeGoesBack]. */
+    val escapeGoesBack: Boolean = false,
 ) {
     val id: String get() = yaml.id
 

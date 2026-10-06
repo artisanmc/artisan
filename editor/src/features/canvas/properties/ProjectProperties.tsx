@@ -5,6 +5,7 @@ import { useAccountStore } from "@/state/accountStore";
 import { Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Switch } from "@/components/ui/switch";
 import { PropertyField } from "./PropertyField";
 
 interface ProjectPropertiesProps {
@@ -61,6 +62,19 @@ export function ProjectProperties({ project }: ProjectPropertiesProps) {
           />
           <p className="mt-1 text-[10px] text-[var(--text-faint)]">
             {t("projectProperties.loreMaxWidthHint")}
+          </p>
+        </div>
+        <div>
+          <div className="flex items-center justify-between gap-2 text-xs text-[var(--text)]">
+            <span>{t("projectProperties.escapeGoesBack")}</span>
+            <Switch
+              checked={project.escapeGoesBack === true}
+              aria-label={t("projectProperties.escapeGoesBack")}
+              onCheckedChange={(value) => setProjectField({ projectId: project.id, field: "escapeGoesBack", value })}
+            />
+          </div>
+          <p className="mt-1 text-[10px] text-[var(--text-faint)]">
+            {t("projectProperties.escapeGoesBackHint")}
           </p>
         </div>
       </div>

@@ -57,8 +57,10 @@ class MenuListener(
     fun onClose(event: InventoryCloseEvent) {
         if (event.inventory.holder is ArtisanMenuHolder) {
             val player = event.player as? Player ?: return
+            val session = sessions.get(player)
             sessions.remove(player)
-            forgetNavigationIfClosed(player)
+            val goBack = session?.escapeGoesBack == true && event.reason == InventoryCloseEvent.Reason.PLAYER
+            endNavigationIfClosed(player, goBack, session?.ctx)
             // Le client a affiché le contenu du menu dans son propre inventaire
             // (les slots du bas d'une fenêtre pointent vers lui) : resynchro du
             // vrai contenu une fois la fenêtre fermée. Seulement si c'est bien
@@ -76,14 +78,17 @@ class MenuListener(
      * finie, l'historique aussi — sinon un `open_menu` ultérieur empilerait un
      * menu déjà fermé et le retour le rouvrirait. Vérifié au tick suivant : ouvrir
      * B depuis A (ou un dialog) ferme aussi A, mais un autre écran est alors affiché.
+     * [goBack] (ESC + `escape_goes_back` du project) : rouvre l'écran précédent
+     * s'il y en a un, comme `open_previous_menu`.
      */
-    private fun forgetNavigationIfClosed(player: Player) {
+    private fun endNavigationIfClosed(player: Player, goBack: Boolean, ctx: ExecutionContext?) {
         val store = history ?: return
         val shown = store.current(player)?.takeIf { it.kind == NavigationEntry.Kind.MENU } ?: return
         plugin.server.scheduler.runTask(plugin, Runnable {
             if (store.current(player) !== shown) return@Runnable
             if (player.openInventory.topInventory?.holder is ArtisanMenuHolder) return@Runnable
-            store.clear(player)
+            if (goBack && ctx != null && store.hasPrevious(player)) executor.execute(listOf(Action.OpenPreviousMenu), ctx)
+            else store.clear(player)
         })
     }
 

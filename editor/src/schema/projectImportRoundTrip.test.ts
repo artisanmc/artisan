@@ -265,3 +265,18 @@ describe("manifest lore_max_width", () => {
     expect(parse(roundTrip().rawOut[`${base}/manifest.yaml`]!)).not.toHaveProperty("lore_max_width");
   });
 });
+
+describe("manifest escape_goes_back", () => {
+  it("round-trips, and stays absent when unset", () => {
+    const withBack = {
+      ...bootstrapFiles,
+      [`${base}/manifest.yaml`]: `${MANIFEST}
+escape_goes_back: true
+`,
+    };
+    const project = projectFromFiles(PROJECT_ID as ProjectId, withBack);
+    expect(project.escapeGoesBack).toBe(true);
+    expect(parse(transform(project)[`${base}/manifest.yaml`]!).escape_goes_back).toBe(true);
+    expect(parse(roundTrip().rawOut[`${base}/manifest.yaml`]!)).not.toHaveProperty("escape_goes_back");
+  });
+});
