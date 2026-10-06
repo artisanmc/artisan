@@ -22,6 +22,10 @@ Restart the server once. A default `plugins/Artisan/config.yml` is
 generated. The plugin will log a startup line indicating offline mode
 because no `server_key` is set yet.
 
+### Updating the plugin
+
+When a newer Artisan plugin is available, the server badge in the editor's top bar shows **Update**. Any network member can click it. The plugin downloads the new version from Artisan, checks its signature, and places it in `plugins/update/`. Paper swaps it in at the **next restart**, and the badge says so until then. Restart the server whenever it suits you.
+
 ## 2. Link your server
 
 Linking is **editor-first**: you add the server in the web editor, which gives

@@ -1,5 +1,5 @@
 name: Artisan
-version: '1.0.0'
+version: '${version}'
 main: net.artisanmc.plugin.ArtisanPlugin
 api-version: '1.21'
 softdepend: [Vault, PlaceholderAPI, WorldGuard, Nexo, Oraxen, ItemsAdder, HeadDatabase]

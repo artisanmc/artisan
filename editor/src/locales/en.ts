@@ -1242,6 +1242,11 @@ export default {
     current: "current",
     empty: "No servers linked",
     pluginOutdated: "Plugin outdated — update it to edit this server",
+    pluginUpdateAvailable: "Plugin {{version}} available",
+    pluginUpdate: "Update",
+    pluginUpdating: "Installing…",
+    pluginUpdatePending: "Plugin {{version}} installed — restart the server to apply it",
+    pluginUpdateFailed: "Update failed ({{error}})",
   },
   sidebar: {
     projectDocuments: "Documents of {{name}}",

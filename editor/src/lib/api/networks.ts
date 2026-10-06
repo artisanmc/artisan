@@ -89,6 +89,12 @@ export interface ServerStatusEntry {
   lastSeenIp: string | null;
   /** Version du wire de contenu lue par le plugin (1 = DSL legacy, 2 = keyed). */
   contentVersion?: number;
+  /** Version du plugin connecté (null = jamais vu depuis le démarrage du backend). */
+  pluginVersion?: string | null;
+  /** Version plus récente installable depuis l'éditeur ; null = rien à proposer. */
+  pluginUpdateVersion?: string | null;
+  /** Version déjà posée dans `plugins/update/`, appliquée au prochain redémarrage. */
+  pluginUpdatePending?: string | null;
   isCurrent: boolean;
 }
 
@@ -114,6 +120,15 @@ export async function getNetworkServersStatus(
   });
   if (!res.ok) throw new Error(`getNetworkServersStatus failed: ${res.status}`);
   return res.json();
+}
+
+/** Le plugin télécharge le dernier JAR signé dans `plugins/update/`. Rejette avec le code d'erreur du backend. */
+export async function updateServerPlugin(networkId: string, serverKeyId: string): Promise<void> {
+  const res = await fetch(`${API_URL}/api/v1/networks/${networkId}/servers/${serverKeyId}/plugin-update`, {
+    method: "POST",
+    credentials: "include",
+  });
+  if (!res.ok) throw new Error((await res.json().catch(() => null))?.error ?? `${res.status}`);
 }
 
 /**

@@ -22,6 +22,7 @@ import { invalidateCustomBundle } from "../routes/modelBundle";
 import type {
   PapiPlaceholdersResultMessage,
   HeadTextureResultMessage,
+  PluginUpdateResultMessage,
   EditorProjectsReloadedMessage,
   ProjectsReloadedMessage,
   CustomItemsBundleMessage,
@@ -221,6 +222,45 @@ export function requestHeadTexture(serverKeyId: string, id: string, timeoutMs = 
     const timer = setTimeout(() => finish({ kind: "timeout" }), timeoutMs);
     pendingHeadTextures.set(requestId, { serverKeyId, finish });
     try { send(JSON.stringify({ type: "head_texture_fetch", request_id: requestId, id })); }
+    catch { finish({ kind: "offline" }); }
+  });
+}
+
+// ── Mise à jour du plugin depuis l'éditeur ───────────────────────────────────
+// Le plugin télécharge lui-même le JAR signé et le pose dans `plugins/update/` ;
+// Paper l'applique au prochain démarrage. Jusque-là le serveur annonce encore
+// l'ancienne version, d'où `pendingVersion` (oublié au hello suivant).
+const pluginVersionByServer = new Map<string, string>();
+const pluginUpdateCapable = new Set<string>();
+const pendingPluginVersion = new Map<string, string>();
+type PluginUpdateOutcome =
+  | { kind: "result"; result: PluginUpdateResultMessage }
+  | { kind: "offline" | "unsupported" | "timeout" };
+const pendingPluginUpdates = new Map<string, { serverKeyId: string; finish: (outcome: PluginUpdateOutcome) => void }>();
+
+export function pluginStatus(serverKeyId: string) {
+  return {
+    version: pluginVersionByServer.get(serverKeyId) ?? null,
+    canUpdate: pluginUpdateCapable.has(serverKeyId) && !!firstPluginSender(serverKeyId),
+    pendingVersion: pendingPluginVersion.get(serverKeyId) ?? null,
+  };
+}
+
+export function requestPluginUpdate(serverKeyId: string, timeoutMs = 120_000): Promise<PluginUpdateOutcome> {
+  const send = firstPluginSender(serverKeyId);
+  if (!send) return Promise.resolve({ kind: "offline" });
+  if (!pluginUpdateCapable.has(serverKeyId)) return Promise.resolve({ kind: "unsupported" });
+  const requestId = crypto.randomUUID();
+  return new Promise((resolve) => {
+    const finish = (outcome: PluginUpdateOutcome) => {
+      clearTimeout(timer);
+      pendingPluginUpdates.delete(requestId);
+      if (outcome.kind === "result" && outcome.result.ok && outcome.result.version) pendingPluginVersion.set(serverKeyId, outcome.result.version);
+      resolve(outcome);
+    };
+    const timer = setTimeout(() => finish({ kind: "timeout" }), timeoutMs);
+    pendingPluginUpdates.set(requestId, { serverKeyId, finish });
+    try { send(JSON.stringify({ type: "plugin_update", request_id: requestId })); }
     catch { finish({ kind: "offline" }); }
   });
 }
@@ -1189,6 +1229,10 @@ export async function handlePluginMessage(
     // et de les router — donc un project présent sur le disque du serveur mais
     // inconnu de la base y est enregistré ici.
     serverRenameCapabilities.set(keyId, hello.capabilities?.includes("project_rename") === true);
+    pluginVersionByServer.set(keyId, hello.plugin_version);
+    pendingPluginVersion.delete(keyId);
+    if (hello.capabilities?.includes("plugin_update_v1")) pluginUpdateCapable.add(keyId);
+    else pluginUpdateCapable.delete(keyId);
     // Version du wire de contenu (ADR content-version-negotiation). Absente = 1.
     contentVersionByConn.set(connId, typeof hello.content_version === "number" ? hello.content_version : 1);
     if (hello.capabilities?.includes("project_drafts_v1")) draftConnections.add(connId);
@@ -1383,6 +1427,13 @@ export async function handlePluginMessage(
     if (pending && connToServerId.get(connId) === pending.serverKeyId) {
       pending.finish({ kind: "result", result });
     }
+    return { reply: null };
+  }
+
+  if (msg.type === "plugin_update_result") {
+    const result = msg as PluginUpdateResultMessage;
+    const pending = pendingPluginUpdates.get(result.request_id);
+    if (pending && connToServerId.get(connId) === pending.serverKeyId) pending.finish({ kind: "result", result });
     return { reply: null };
   }
 
