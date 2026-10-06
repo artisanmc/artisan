@@ -61,8 +61,15 @@ Dans l'environnement GitHub `production`, définir exactement :
 | Secret | `COOLIFY_API_TOKEN` | token API Coolify dédié au déploiement |
 | Secret | `CF_ACCESS_CLIENT_ID` | client ID du service token Cloudflare Access |
 | Secret | `CF_ACCESS_CLIENT_SECRET` | secret du service token Cloudflare Access |
+| Secret | `PLUGIN_SIGNING_KEY` | clé privée Ed25519 (PEM PKCS8) qui signe le JAR du plugin |
 
 Le workflow reçoit le SHA validé par CI, épingle `git_commit_sha` sur chaque application Coolify avant son déploiement, puis vérifie que Coolify rapporte exactement ce commit. Il déploie le backend en premier, attend `https://api.artisanmc.net/health`, puis déploie et vérifie `https://editor.artisanmc.net/health` et `https://artisanmc.net/`. Chaque requête réseau et le job complet ont un délai maximal. Les WebSockets sont vérifiés séparément après la release. Ne dupliquer aucune de ces valeurs dans le dépôt.
+
+### Release du plugin
+
+Après le backend, si `plugin/` a changé depuis le commit de la release servie (`GET /api/v1/plugin-release`), le workflow construit le JAR en version `1.0.<numéro du run CI>`, le signe avec `PLUGIN_SIGNING_KEY` et l'envoie par `PUT /api/v1/plugin-release` (`deploy/publish-plugin.mjs`). Le backend le garde dans le volume (`/app/data/plugin-release/`) et le propose aux serveurs connectés ; un membre du network clique **Mettre à jour** dans le badge serveur de l'éditeur, le plugin pose le JAR dans `plugins/update/` et Paper l'applique au redémarrage suivant.
+
+La clé publique est codée en dur dans `backend/src/lib/pluginRelease.ts` et `plugin/…/update/PluginUpdater.kt`. Perdre la clé privée oblige à en générer une nouvelle, à remplacer ces deux constantes, et à installer **à la main** la release suivante sur chaque serveur : les plugins déjà déployés refuseront tout JAR signé par la nouvelle clé.
 
 ## Vérification et rollback
 

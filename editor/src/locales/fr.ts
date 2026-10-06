@@ -1262,6 +1262,11 @@ const fr: typeof en = {
     current: "courant",
     empty: "Aucun serveur lié",
     pluginOutdated: "Plugin obsolète — mets-le à jour pour éditer ce serveur",
+    pluginUpdateAvailable: "Plugin {{version}} disponible",
+    pluginUpdate: "Mettre à jour",
+    pluginUpdating: "Installation…",
+    pluginUpdatePending: "Plugin {{version}} installé — redémarre le serveur pour l'appliquer",
+    pluginUpdateFailed: "Échec de la mise à jour ({{error}})",
   },
   sidebar: {
     projectDocuments: "Documents de {{name}}",

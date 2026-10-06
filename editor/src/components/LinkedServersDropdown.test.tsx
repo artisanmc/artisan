@@ -1,7 +1,7 @@
 import "@/i18n"; // initialise the default react-i18next instance for useTranslation
 import * as api from "@/lib/api/networks";
 import type { ServerStatusEntry } from "@/lib/api/networks";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { LinkedServersDropdown, ServerRow, relTime } from "./LinkedServersDropdown";
 
@@ -84,6 +84,42 @@ describe("ServerRow", () => {
   it("never-connected row shows the never-connected label and no IP", () => {
     render(<ServerRow s={entry({ id: "c", label: "Events" })} lang="en" t={t} />);
     expect(screen.getByText("linkedServers.neverConnected")).toBeInTheDocument();
+  });
+});
+
+describe("ServerRow — mise à jour du plugin", () => {
+  it("propose la mise à jour et l'annonce en attente de redémarrage une fois posée", async () => {
+    const onUpdatePlugin = vi.fn().mockResolvedValue(undefined);
+    render(
+      <ServerRow
+        s={entry({ online: true, pluginVersion: "1.0.2", pluginUpdateVersion: "1.0.4" })}
+        lang="en"
+        t={t}
+        onUpdatePlugin={onUpdatePlugin}
+      />,
+    );
+    expect(screen.getByText("linkedServers.pluginUpdateAvailable")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "linkedServers.pluginUpdate" }));
+    await waitFor(() => expect(onUpdatePlugin).toHaveBeenCalledOnce());
+  });
+
+  it("affiche l'erreur renvoyée par le serveur", async () => {
+    render(
+      <ServerRow
+        s={entry({ online: true, pluginUpdateVersion: "1.0.4" })}
+        lang="en"
+        t={t}
+        onUpdatePlugin={() => Promise.reject(new Error("invalid_signature"))}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "linkedServers.pluginUpdate" }));
+    expect(await screen.findByText("linkedServers.pluginUpdateFailed")).toBeInTheDocument();
+  });
+
+  it("n'offre rien de plus quand la mise à jour attend le redémarrage", () => {
+    render(<ServerRow s={entry({ online: true, pluginUpdatePending: "1.0.4" })} lang="en" t={t} onUpdatePlugin={vi.fn()} />);
+    expect(screen.getByText("linkedServers.pluginUpdatePending")).toBeInTheDocument();
+    expect(screen.queryByRole("button")).toBeNull();
   });
 });
 

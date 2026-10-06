@@ -7,7 +7,9 @@ plugins {
 }
 
 group = "net.artisanmc"
-version = "1.0.0-SNAPSHOT"
+// La CI de déploiement passe `-PartisanVersion=1.0.<run>` : c'est ce numéro que
+// l'éditeur compare pour proposer la mise à jour (cf. PluginUpdater).
+version = providers.gradleProperty("artisanVersion").getOrElse("1.0.0-SNAPSHOT")
 
 java {
     sourceCompatibility = JavaVersion.VERSION_21
@@ -66,6 +68,11 @@ dependencies {
 
 tasks.test {
     useJUnitPlatform()
+}
+
+tasks.processResources {
+    inputs.property("version", project.version)
+    filesMatching("plugin.yml") { expand("version" to project.version) }
 }
 
 tasks.shadowJar {

@@ -249,6 +249,8 @@ open class ArtisanPlugin : JavaPlugin() {
             ),
             runOnMainThread = { task -> server.scheduler.runTask(this@ArtisanPlugin, Runnable { task() }) },
             menuWindows = menuWindows,
+            pluginVersion = description.version,
+            pluginUpdater = pluginUpdater(cfg),
         )
         moduleMessageSender = { m -> (menuProvider as? SyncedMenuProvider)?.sendModuleMessage(m) }
         defaultModules().forEach { api.modules.register(it) }
@@ -398,6 +400,14 @@ open class ArtisanPlugin : JavaPlugin() {
         menuProvider = provider
     }
 
+    /** Pose le dernier JAR signé dans `plugins/update/` : Paper l'applique au prochain démarrage. */
+    private fun pluginUpdater(cfg: PluginConfig): () -> net.artisanmc.plugin.update.PluginUpdater.Result {
+        val updater = net.artisanmc.plugin.update.PluginUpdater(
+            cfg.httpBaseUrl, cfg.serverKey, description.version, java.io.File(server.updateFolderFile, file.name),
+        )
+        return updater::install
+    }
+
     fun reinit(cfg: PluginConfig) {
         cfg.assistantImportSourceWarnings.forEach { logger.warning("[assistant] $it") }
         langManager = LangManager.fromPlugin(this, cfg.language, cfg.perPlayerLanguage)
@@ -439,6 +449,8 @@ open class ArtisanPlugin : JavaPlugin() {
             ),
             runOnMainThread = { task -> server.scheduler.runTask(this@ArtisanPlugin, Runnable { task() }) },
             menuWindows = menuWindows,
+            pluginVersion = description.version,
+            pluginUpdater = pluginUpdater(cfg),
         )
         moduleMessageSender = { m -> (menuProvider as? SyncedMenuProvider)?.sendModuleMessage(m) }
         val pluginsDirReinit = server.pluginsFolder
