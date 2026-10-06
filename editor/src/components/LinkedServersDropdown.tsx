@@ -1,4 +1,5 @@
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,8 +13,9 @@ import {
   type ServerStatusEntry,
   getNetworkServersStatus,
   isPluginOutdated,
+  updateServerPlugin,
 } from "@/lib/api/networks";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 const POLL_MS = 15_000;
@@ -33,7 +35,31 @@ export function relTime(iso: string, lang: string): string {
 
 /** One server row in the dropdown. Exported so it can be unit-tested without
  * opening the (portalled) Radix menu. */
-export function ServerRow({ s, lang, t }: { s: ServerStatusEntry; lang: string; t: TFn }) {
+export function ServerRow({
+  s,
+  lang,
+  t,
+  onUpdatePlugin,
+}: {
+  s: ServerStatusEntry;
+  lang: string;
+  t: TFn;
+  onUpdatePlugin?: () => Promise<void>;
+}) {
+  const [updating, setUpdating] = useState(false);
+  const [updateError, setUpdateError] = useState<string | null>(null);
+  const update = async () => {
+    if (!onUpdatePlugin) return;
+    setUpdating(true);
+    setUpdateError(null);
+    try {
+      await onUpdatePlugin();
+    } catch (e) {
+      setUpdateError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setUpdating(false);
+    }
+  };
   return (
     <div className="flex flex-col gap-0.5 px-2.5 py-1.5">
       <div className="flex items-center gap-2">
@@ -71,6 +97,27 @@ export function ServerRow({ s, lang, t }: { s: ServerStatusEntry; lang: string; 
           {t("linkedServers.pluginOutdated")}
         </div>
       ) : null}
+      {s.pluginUpdatePending ? (
+        <div className="pl-3.5 text-[11px] text-[var(--text-mut)]">
+          {t("linkedServers.pluginUpdatePending", { version: s.pluginUpdatePending })}
+        </div>
+      ) : s.pluginUpdateVersion && onUpdatePlugin ? (
+        <div className="flex flex-col gap-1 pl-3.5 pt-1">
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] text-[var(--text-mut)]">
+              {t("linkedServers.pluginUpdateAvailable", { version: s.pluginUpdateVersion })}
+            </span>
+            <Button size="sm" variant="primary" disabled={updating} onClick={update}>
+              {t(updating ? "linkedServers.pluginUpdating" : "linkedServers.pluginUpdate")}
+            </Button>
+          </div>
+          {updateError ? (
+            <span className="text-[11px] text-[var(--danger)]">
+              {t("linkedServers.pluginUpdateFailed", { error: updateError })}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -78,7 +125,7 @@ export function ServerRow({ s, lang, t }: { s: ServerStatusEntry; lang: string; 
 /**
  * Status dot (beside the server in the breadcrumb) + dropdown listing every server key in the current network with
  * live online/offline state, last-seen time and last IP. Polls every 15s.
- * Read-only (no actions). Replaces the single-server ServerStatusBadge.
+ * Seule action : installer la dernière version du plugin. Replaces the single-server ServerStatusBadge.
  */
 export function LinkedServersDropdown({
   networkId,
@@ -93,24 +140,20 @@ export function LinkedServersDropdown({
   const { t, i18n } = useTranslation();
   const [data, setData] = useState<NetworkServersStatus | null>(null);
 
-  useEffect(() => {
+  const refresh = useCallback(async () => {
     if (!networkId) return;
-    let cancelled = false;
-    const refresh = async () => {
-      try {
-        const d = await getNetworkServersStatus(networkId, currentServerKeyId);
-        if (!cancelled) setData(d);
-      } catch {
-        /* silent — keep last known state */
-      }
-    };
+    try {
+      setData(await getNetworkServersStatus(networkId, currentServerKeyId));
+    } catch {
+      /* silent — keep last known state */
+    }
+  }, [networkId, currentServerKeyId]);
+
+  useEffect(() => {
     refresh();
     const id = setInterval(refresh, POLL_MS);
-    return () => {
-      cancelled = true;
-      clearInterval(id);
-    };
-  }, [networkId, currentServerKeyId]);
+    return () => clearInterval(id);
+  }, [refresh]);
 
   if (!networkId || data === null) return null;
 
@@ -160,7 +203,12 @@ export function LinkedServersDropdown({
         <DropdownMenuLabel>{t("linkedServers.serverTitle")}</DropdownMenuLabel>
         <DropdownMenuSeparator />
         {current ? (
-          <ServerRow s={current} lang={i18n.language} t={t} />
+          <ServerRow
+            s={current}
+            lang={i18n.language}
+            t={t}
+            onUpdatePlugin={() => updateServerPlugin(networkId, current.id).then(refresh)}
+          />
         ) : (
           <div className="px-2.5 py-2 text-[12px] text-[var(--text-faint)]">
             {t("linkedServers.empty")}

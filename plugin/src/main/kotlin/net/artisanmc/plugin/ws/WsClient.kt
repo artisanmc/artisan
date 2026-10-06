@@ -1,6 +1,7 @@
 package net.artisanmc.plugin.ws
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import net.artisanmc.plugin.update.PluginUpdater
 import okhttp3.*
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -24,6 +25,9 @@ class WsClient(
     private val logger: Logger? = null,
     private val projectPresence: () -> Map<String, Any> = { emptyMap() },
     private val editorAccessMode: String = "invitation",
+    private val pluginVersion: String = "1.0.0",
+    /** Bloquant (téléchargement) : appelé hors du thread WS. Null = mise à jour non proposée. */
+    private val pluginUpdater: (() -> PluginUpdater.Result)? = null,
 ) {
     private val httpClient = OkHttpClient.Builder()
         .pingInterval(30, TimeUnit.SECONDS)
@@ -94,9 +98,9 @@ class WsClient(
                 // Wire de contenu de projet : 2 = étapes structurées keyed
                 // (ADR content-version-negotiation). Absente = 1 (DSL legacy).
                 "content_version" to CONTENT_VERSION,
-                "core_version" to "1.0.0",   // Mirrors plugin_version (kept for backward compat).
+                "core_version" to pluginVersion,   // Mirrors plugin_version (kept for backward compat).
                 "server_key" to serverKey,
-                "plugin_version" to "1.0.0",
+                "plugin_version" to pluginVersion,
                 "minecraft_version" to mcVersion,
                 "current_bundle_hash" to currentBundleHash,
                 "local_project_ids" to localProjectIds,
@@ -108,7 +112,10 @@ class WsClient(
                 "declared_models" to declaredModels(),
                 // Module-declared Config screens (ADR module-config-screens).
                 "editor_screens" to editorScreens(),
-            ) + projectPresence()
+            ) + projectPresence().let { presence ->
+                if (pluginUpdater == null) presence
+                else presence + ("capabilities" to ((presence["capabilities"] as? List<*>).orEmpty() + "plugin_update_v1"))
+            }
             ws.send(mapper.writeValueAsString(hello))
         }
 
@@ -117,6 +124,17 @@ class WsClient(
             when (message?.get("type")?.asText()) {
                 "hello_ack" -> authenticated = true
                 "session_replaced" -> clearMemberRequests()
+                "plugin_update" -> {
+                    val requestId = message.path("request_id").asText()
+                    val updater = pluginUpdater
+                    scheduler.execute {
+                        val result = updater?.invoke() ?: PluginUpdater.Result(false, error = "no_release")
+                        if (result.ok) logger?.info("Artisan ${result.version} installed in the update folder; restart the server to apply it.")
+                        else logger?.warning("Artisan update failed: ${result.error}")
+                        send(mapOf("type" to "plugin_update_result", "request_id" to requestId, "ok" to result.ok, "version" to result.version, "error" to result.error))
+                    }
+                    return
+                }
                 "member_add_result" -> {
                     val result = if (message.path("ok").asBoolean()) {
                         if (message.path("already_member").asBoolean()) "already_member" else "added"

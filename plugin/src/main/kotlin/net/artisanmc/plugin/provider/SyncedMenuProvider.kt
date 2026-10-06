@@ -65,6 +65,8 @@ class SyncedMenuProvider(
     private val runOnMainThread: (() -> Unit) -> Unit = { it() },
     private val editorAccessMode: String = "invitation",
     private val menuWindows: net.artisanmc.plugin.render.MenuWindows? = null,
+    private val pluginVersion: String = "1.0.0",
+    private val pluginUpdater: (() -> net.artisanmc.plugin.update.PluginUpdater.Result)? = null,
 ) : MenuProvider {
     private var copyMinecraftVersion = "1.21.4"
     private val projectIo = object {
@@ -357,6 +359,8 @@ class SyncedMenuProvider(
                 onMessage         = ::handleMessage,
                 logger            = logger,
                 projectPresence   = ::projectPresence,
+                pluginVersion     = pluginVersion,
+                pluginUpdater     = pluginUpdater,
             )
             wsClient = client
             client.connect()

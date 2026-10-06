@@ -535,6 +535,7 @@ export type PluginToServerMessage =
   | PapiPlaceholdersResultMessage
   | ProjectCopyResultMessage
   | HeadTextureResultMessage
+  | PluginUpdateResultMessage
   | HelloMessage
   | PongMessage
   | CustomItemsChangedMessage
@@ -600,6 +601,15 @@ export interface PapiPlaceholdersResultMessage {
   placeholders?: PapiPlaceholder[];
   truncated?: boolean;
   error?: "fetch_error";
+}
+
+/** Réponse du plugin à `plugin_update` : le JAR signé est posé dans `plugins/update/`. */
+export interface PluginUpdateResultMessage {
+  type: "plugin_update_result";
+  request_id: string;
+  ok: boolean;
+  version?: string;
+  error?: "no_release" | "not_newer" | "invalid_signature" | "download_failed" | "write_failed";
 }
 
 export interface HeadTextureResultMessage {

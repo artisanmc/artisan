@@ -36,4 +36,5 @@ backend/data/custom-items/
 backend/data/resource-packs/
 backend/data/asset-cache/
 backend/data/resource-projects/
+backend/data/plugin-release/
 /data/

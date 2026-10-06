@@ -1,3 +1,4 @@
+import { buildNumber, readRelease } from "../lib/pluginRelease";
 import { SqlDraftStore } from "../lib/storage/SqlDraftStore";
 // backend/src/routes/userNetworks.ts
 
@@ -62,6 +63,8 @@ import {
 	requestPlayerInventory,
 	requestHeadTexture,
 	requestPapiPlaceholders,
+	pluginStatus,
+	requestPluginUpdate,
 	listProjectsForEditor,
 	requestProjectList,
 	requestProjectWrite,
@@ -792,6 +795,7 @@ userNetworksRouter.get(
 			: [];
 		const helloById = new Map(lastHelloes.map((h) => [h.serverKeyId, h]));
 
+		const latest = readRelease()?.version ?? null;
 		const servers = keys.map((k) => {
 			// Plus de compte d'instances : une clé = un serveur vivant, le backend
 			// évince l'ancienne connexion au hello (ADR `server-disk-only-storage`).
@@ -805,6 +809,7 @@ userNetworksRouter.get(
 				lastSeenIp: hello ? hello.ip : null,
 				// Version du wire de contenu lue par le plugin (ADR content-version-negotiation).
 				contentVersion: contentVersionOf(k.id),
+				...pluginUpdateFields(k.id, latest),
 				isCurrent: k.id === current,
 			};
 		});
@@ -1407,6 +1412,32 @@ userNetworksRouter.get("/:networkId/servers/:serverId/head-texture", async (c: C
 		return c.json({ error: r.error ?? "fetch_error" }, r.error === "head_not_found" ? 404 : 502);
 	}
 	return c.json({ texture: r.texture });
+});
+
+/** Ce que l'éditeur peut proposer : une version plus récente que celle du plugin, sauf si elle est déjà posée et attend un redémarrage. */
+function pluginUpdateFields(serverKeyId: string, latest: string | null) {
+	const plugin = pluginStatus(serverKeyId);
+	const offer = plugin.canUpdate && !plugin.pendingVersion && buildNumber(latest) > buildNumber(plugin.version);
+	return { pluginVersion: plugin.version, pluginUpdateVersion: offer ? latest : null, pluginUpdatePending: plugin.pendingVersion };
+}
+
+// Tout membre du network peut lancer l'installation : le JAR est signé par la
+// CI et revérifié par le plugin, le pire possible est donc une mise à jour.
+userNetworksRouter.post("/:networkId/servers/:serverId/plugin-update", async (c: Context<{ Variables: Vars }>) => {
+	const userId = getUserId(c);
+	if (!userId) return c.json({ error: "unauthorized" }, 401);
+	const resolved = await resolveNetworkServer(userId, c.req.param("networkId"), c.req.param("serverId"));
+	if (!resolved) return c.json({ error: "forbidden" }, 403);
+	if (!resolved.serverKeyId) return c.json({ error: "not_found" }, 404);
+	if (!pluginUpdateFields(resolved.serverKeyId, readRelease()?.version ?? null).pluginUpdateVersion) {
+		if (!pluginStatus(resolved.serverKeyId).canUpdate) return c.json({ error: "server_offline" }, 503);
+		return c.json({ error: "up_to_date" }, 409);
+	}
+	const outcome = await requestPluginUpdate(resolved.serverKeyId);
+	if (outcome.kind === "offline" || outcome.kind === "unsupported") return c.json({ error: "server_offline" }, 503);
+	if (outcome.kind === "timeout") return c.json({ error: "timeout" }, 504);
+	if (!outcome.result.ok) return c.json({ error: outcome.result.error ?? "update_failed" }, 502);
+	return c.json({ version: outcome.result.version });
 });
 
 userNetworksRouter.get("/:networkId/servers/:serverId/papi-placeholders", async (c: Context<{ Variables: Vars }>) => {
