@@ -3,7 +3,7 @@ import { join } from "path";
 import { existsSync } from "fs";
 import { readFile, readdir } from "fs/promises";
 import { assetsRoot } from "../lib/mcAssets";
-import { customItemsCacheDir } from "../lib/customItems";
+import { customItemsCacheDir, SERVER_KEY_ID_PATTERN } from "../lib/customItems";
 
 const router = new Hono();
 
@@ -147,9 +147,13 @@ export function invalidateCustomBundle(serverKeyId: string): void {
 
 // ── Routes ─────────────────────────────────────────────────────────────────────
 
-router.get("/custom/:serverKeyId", async (c) => {
+const VERSION = /^\d+(\.\d+)+$/;
+
+router.get(`/custom/:serverKeyId{${SERVER_KEY_ID_PATTERN}}`, async (c) => {
   const serverKeyId = c.req.param("serverKeyId");
   const version = c.req.query("version") ?? "1.21.4";
+  if (!VERSION.test(version)) return c.json({ error: "invalid_version" }, 400);
+  if (!existsSync(customItemsCacheDir(serverKeyId))) return c.json({}, 200, { "Cache-Control": "no-cache" });
   const cacheKey = `custom:${serverKeyId}`;
   if (!bundleCache.has(cacheKey)) {
     bundleCache.set(cacheKey, buildCustomBundle(serverKeyId, version));
@@ -157,12 +161,15 @@ router.get("/custom/:serverKeyId", async (c) => {
   return c.json(await bundleCache.get(cacheKey)!, 200, { "Cache-Control": "no-cache" });
 });
 
-router.get("/:version", async (c) => {
+router.get(String.raw`/:version{\d+(?:\.\d+)+}`, async (c) => {
   const version = c.req.param("version");
   if (!bundleCache.has(version)) {
     bundleCache.set(version, buildVanillaBundle(version));
   }
-  return c.json(await bundleCache.get(version)!, 200, {
+  const bundle = await bundleCache.get(version)!;
+  // Only versions with assets on disk stay cached — the map can't grow per request.
+  if (Object.keys(bundle).length === 0) bundleCache.delete(version);
+  return c.json(bundle, 200, {
     "Cache-Control": "public, max-age=604800",
   });
 });

@@ -9,7 +9,10 @@ export interface CustomItemEntry {
   category: string;
 }
 
+export const SERVER_KEY_ID_PATTERN = "[A-Za-z0-9_-]+";
+
 export function customItemsCacheDir(serverKeyId: string): string {
+  if (!new RegExp(`^${SERVER_KEY_ID_PATTERN}$`).test(serverKeyId)) throw new Error(`invalid server key id: ${serverKeyId}`);
   const DATA_DIR = join(import.meta.dir, "../../data");
   return join(DATA_DIR, "custom-items", serverKeyId);
 }
