@@ -4,13 +4,13 @@ import { userAuth } from "../middleware/userAuth";
 import { existsSync } from "fs";
 import { join, resolve, sep } from "path";
 import { textureFilePath, assetsDone, ensureAssets } from "../lib/mcAssets";
-import { customItemsCacheDir } from "../lib/customItems";
+import { customItemsCacheDir, SERVER_KEY_ID_PATTERN } from "../lib/customItems";
 
 const router = new Hono();
 router.use("/asset/*", userAuth());
 router.use("/asset-font/*", userAuth());
 
-router.get("/custom/:serverKeyId/*", async (c) => {
+router.get(`/custom/:serverKeyId{${SERVER_KEY_ID_PATTERN}}/*`, async (c) => {
   const serverKeyId = c.req.param("serverKeyId");
   const fullPath = c.req.path;
   const prefix = `/custom/${serverKeyId}/`;
