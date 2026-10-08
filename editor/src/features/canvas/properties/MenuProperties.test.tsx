@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type {
@@ -96,6 +96,14 @@ describe("MenuProperties — embedded title section", () => {
     // The AddLayerControls (the section's primary affordance) is visible.
     expect(screen.getByTestId("add-layer-controls")).toBeInTheDocument();
   });
+
+  it("offers adding an image next to adding text, in composed mode", () => {
+    const menu = useAccountStore.getState().account.projects[0]!.menus[0]! as Menu;
+    render(<MenuProperties projectId={PACK_ID} menu={menu} />);
+    const controls = screen.getByTestId("add-layer-controls");
+    expect(within(controls).getByTestId("menu-add-image")).toBeInTheDocument();
+    expect(within(controls).queryByTestId("add-layer-image")).toBeNull();
+  });
 });
 
 describe("MenuProperties — background and decorations", () => {
@@ -146,6 +154,7 @@ describe("MenuProperties — background and decorations", () => {
   it("adds a menu image while preserving the plain title and menu elements", () => {
     const value = { key: "original-title" as I18nKey };
     const before = show([{ kind: "plain", value, color: "red" }]);
+    fireEvent.click(screen.getByRole("button", { name: /Composé/ }));
     choose(/ajouter une image|add an image/i, "menu");
     expect(current().title).toEqual([
       { kind: "text", value, color: "red", x: 8, y: 5 },
