@@ -197,7 +197,7 @@ open class ArtisanPlugin : JavaPlugin() {
         saveDefaultConfig()
         api = buildApi(this)
         server.servicesManager.register(ArtisanAPI::class.java, api, this, org.bukkit.plugin.ServicePriority.Normal)
-        val cfg = PluginConfig.from(config)
+        val cfg = loadPluginConfig()
         cfg.assistantImportSourceWarnings.forEach { logger.warning("[assistant] $it") }
         projectRoots.coreRoot.mkdirs()
 
@@ -252,6 +252,7 @@ open class ArtisanPlugin : JavaPlugin() {
             pluginVersion = description.version,
             pluginUpdater = pluginUpdater(cfg),
             nexoGlyphs = net.artisanmc.plugin.customitems.NexoGlyphReader(java.io.File(server.pluginsFolder, "Nexo")),
+            serverConfig = serverConfigAccess,
         )
         moduleMessageSender = { m -> (menuProvider as? SyncedMenuProvider)?.sendModuleMessage(m) }
         defaultModules().forEach { api.modules.register(it) }
@@ -409,6 +410,30 @@ open class ArtisanPlugin : JavaPlugin() {
         return updater::install
     }
 
+    val connectionFile: File get() = File(dataFolder, "connection.yml")
+
+    /** Called on the main thread; reloads on the next tick, once the reply is sent. */
+    private val serverConfigAccess = object : net.artisanmc.plugin.config.ServerConfigAccess {
+        private fun editable() = net.artisanmc.plugin.config.EditableConfig(config.defaults ?: config)
+        override fun report() = editable().report(config)
+        override fun write(changes: Map<String, Any?>): String? {
+            editable().apply(config, changes)?.let { return it }
+            saveConfig()
+            server.scheduler.runTask(this@ArtisanPlugin, Runnable { reinit(loadPluginConfig()) })
+            return null
+        }
+    }
+
+    /** Re-reads `config.yml` + `connection.yml` (ADR `server-config-from-editor`). */
+    fun loadPluginConfig(): PluginConfig {
+        net.artisanmc.plugin.config.ConnectionFile.prepare(File(dataFolder, "config.yml"), connectionFile)
+        reloadConfig()
+        return currentConfig()
+    }
+
+    fun currentConfig(): PluginConfig =
+        PluginConfig.from(config, org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(connectionFile))
+
     fun reinit(cfg: PluginConfig) {
         cfg.assistantImportSourceWarnings.forEach { logger.warning("[assistant] $it") }
         langManager = LangManager.fromPlugin(this, cfg.language, cfg.perPlayerLanguage)
@@ -453,6 +478,7 @@ open class ArtisanPlugin : JavaPlugin() {
             pluginVersion = description.version,
             pluginUpdater = pluginUpdater(cfg),
             nexoGlyphs = net.artisanmc.plugin.customitems.NexoGlyphReader(java.io.File(server.pluginsFolder, "Nexo")),
+            serverConfig = serverConfigAccess,
         )
         moduleMessageSender = { m -> (menuProvider as? SyncedMenuProvider)?.sendModuleMessage(m) }
         val pluginsDirReinit = server.pluginsFolder

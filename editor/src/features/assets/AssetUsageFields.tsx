@@ -2,12 +2,6 @@ import type { AssetUsage } from "@/domain/asset";
 import { ASSET_USAGES } from "@/domain/assetUsage";
 import { useTranslation } from "react-i18next";
 
-const TEXTURE_HINTS: [AssetUsage, string][] = [
-  ["chest_texture", "resources.chestTextureHint"],
-  ["hopper_texture", "resources.hopperTextureHint"],
-  ["dispenser_texture", "resources.dispenserTextureHint"],
-];
-
 export function AssetUsageFields({
   value,
   onChange,
@@ -36,11 +30,6 @@ export function AssetUsageFields({
           />
           {t(`resources.${usage}`)}
         </label>
-      ))}
-      {TEXTURE_HINTS.filter(([usage]) => value.includes(usage)).map(([usage, hint]) => (
-        <p key={usage} className="text-xs text-[var(--text-mut)]">
-          {t(hint)}
-        </p>
       ))}
       <p className="text-xs text-[var(--text-mut)]">{t("resources.usageHint")}</p>
     </fieldset>

@@ -19,15 +19,6 @@ const fr: typeof en = {
     all: "Tout",
     button: "Images de boutons",
     menu: "Images du menu",
-    chest_texture: "Texture de coffre",
-    hopper_texture: "Texture d'entonnoir",
-    dispenser_texture: "Texture de distributeur",
-    chestTextureHint:
-      "Au format generic_54.png (256×256, ou un multiple pour un pack HD). Quand un menu désactive sa texture par défaut, les autres coffres du serveur sont redessinés avec cette image plutôt qu'avec la texture vanilla. Une seule image par serveur : la première trouvée est utilisée.",
-    hopperTextureHint:
-      "Au format hopper.png (256×256, ou un multiple pour un pack HD). Redessine les autres entonnoirs du serveur quand un menu entonnoir désactive sa texture par défaut.",
-    dispenserTextureHint:
-      "Au format dispenser.png (256×256, ou un multiple pour un pack HD). Redessine les autres distributeurs et droppers du serveur quand un menu distributeur désactive sa texture par défaut.",
     font: "Polices",
     unclassified: "À classer",
     upload: "Importer une image",
@@ -2283,6 +2274,56 @@ const fr: typeof en = {
     confirmLabel: "Tape « {{label}} » pour confirmer :",
     cancel: "Annuler",
     confirm: "Supprimer le serveur",
+  },
+  serverConfig: {
+    title: "Configuration",
+    loading: "Lecture de la configuration…",
+    unavailable:
+      "Configuration indisponible : le serveur doit être connecté avec une version récente du plugin.",
+    save: "Enregistrer",
+    saveFailed: "Enregistrement impossible : le serveur n'a pas répondu.",
+    refused: "Refusé par le serveur : {{detail}}",
+    listHint: "Valeurs séparées par des virgules.",
+    vanillaTexture: "Texture vanilla",
+    connectionHint:
+      "La connexion au backend (server_key, ws_url) vit dans connection.yml et ne se modifie qu'à la main.",
+    groups: {
+      general: "Général",
+      textures: "Textures des conteneurs",
+      resourcePack: "Resource pack",
+      editor: "Accès à l'éditeur",
+      assistant: "Sources de l'assistant",
+      other: "Autres",
+    },
+    fields: {
+      language: "Langue",
+      per_player_language: "Langue de chaque joueur",
+      editor: {
+        access_mode: "Mode d'accès (invitation ou console)",
+        console_only: "/artisan editor réservé à la console",
+      },
+      "resource-pack": {
+        enabled: "Envoyer le pack aux joueurs",
+        prompt: "Message de demande",
+        "send-on-join": "Envoyer à la connexion",
+        "send-delay-ticks": "Délai d'envoi (ticks)",
+        "delegate-to-dir": "Déléguer le pack vers (chemin)",
+        "delegate-reload-command": "Commande de rechargement après délégation",
+        "container-textures": {
+          chest: "Coffres",
+          hopper: "Entonnoirs",
+          dispenser: "Distributeurs et droppers",
+        },
+      },
+    },
+    hints: {
+      chest:
+        "Image au format generic_54.png (256×256, ou un multiple pour un pack HD). Quand un menu désactive sa texture vanilla, les autres coffres du serveur sont redessinés avec elle.",
+      hopper:
+        "Image au format hopper.png (256×256, ou un multiple pour un pack HD). Redessine les autres entonnoirs quand un menu entonnoir désactive sa texture vanilla.",
+      dispenser:
+        "Image au format dispenser.png (256×256, ou un multiple pour un pack HD). Redessine les autres distributeurs et droppers quand un menu distributeur désactive sa texture vanilla.",
+    },
   },
   serverDetail: {
     projects: "Projets",

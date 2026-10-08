@@ -1,6 +1,5 @@
 import { PNG } from "pngjs";
 import { parse } from "yaml";
-import type { AssetUsage } from "./assetUsages";
 
 /**
  * Vanilla container textures, rebuilt as title glyphs.
@@ -17,9 +16,10 @@ import type { AssetUsage } from "./assetUsages";
  * puts the top pixel at y=0). U+E010 moves the pen from the title origin (x=8)
  * to x=0 ; U+E010+N walks back from the end of glyph N to the title origin.
  *
- * Each source is the vanilla texture, or a project image marked with the
- * container's texture use (same layout, 256×256 or an HD multiple) so a server
- * pack that restyles containers keeps its look on the windows drawn back.
+ * Each source is the vanilla texture, or the project image the server's
+ * `config.yml` names for that container (same layout, 256×256 or an HD
+ * multiple) so a server pack that restyles containers keeps its look on the
+ * windows drawn back.
  */
 export const VANILLA_GUI_FONT = "assets/artisan/font/vanilla_gui.json";
 
@@ -34,12 +34,6 @@ const TEXTURE_FILE: Record<GuiContainer, string> = {
 export const GUI_OVERRIDES: Record<GuiContainer, string> = Object.fromEntries(
   GUI_CONTAINERS.map((c) => [c, `assets/minecraft/textures/gui/container/${TEXTURE_FILE[c]}.png`]),
 ) as Record<GuiContainer, string>;
-/** Asset use marking a project image as the source for a container. */
-export const TEXTURE_USAGE: Record<GuiContainer, AssetUsage> = {
-  chest: "chest_texture",
-  hopper: "hopper_texture",
-  dispenser: "dispenser_texture",
-};
 const MENU_CONTAINER: Record<string, GuiContainer> = { chest: "chest", hopper: "hopper", dropper: "dispenser" };
 
 const TITLE_X = 8;
@@ -77,22 +71,21 @@ function textureScale(png: PNG): number | null {
 }
 
 /**
- * First project image marked with the container's texture use whose file has
- * the vanilla layout; undefined → the vanilla texture.
+ * The project image `projet:image` names (server `config.yml`,
+ * `resource-pack.container-textures.*`) when its file has the vanilla layout;
+ * undefined → the vanilla texture.
  */
 export function containerTextureSource(
-  assets: { row: { usages?: readonly string[] }; bytes: Uint8Array }[],
-  container: GuiContainer,
+  assets: { ref: string; bytes: Uint8Array }[],
+  ref: string | undefined,
 ): Uint8Array | undefined {
-  for (const { row, bytes } of assets) {
-    if (!row.usages?.includes(TEXTURE_USAGE[container])) continue;
-    try {
-      if (textureScale(PNG.sync.read(Buffer.from(bytes))) !== null) return bytes;
-    } catch {
-      // Unreadable PNG: not a usable source.
-    }
+  const bytes = ref === undefined ? undefined : assets.find((a) => a.ref === ref)?.bytes;
+  if (!bytes) return undefined;
+  try {
+    return textureScale(PNG.sync.read(Buffer.from(bytes))) !== null ? bytes : undefined;
+  } catch {
+    return undefined; // Unreadable PNG: not a usable source.
   }
-  return undefined;
 }
 
 function chestWindow(src: PNG, rows: number, k: number): PNG {
