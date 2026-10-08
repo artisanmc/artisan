@@ -10,6 +10,7 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 ## [Unreleased]
 
 - **Import from Nexo** in the project's Resources tab: pick glyphs from the server's Nexo config and copy their textures into the project as ordinary images, usable as menu backgrounds, title glyphs or image buttons. Glyphs whose texture is missing from the Nexo pack are greyed out. Importing a glyph again updates its image and keeps its uses. Works without Nexo running (Artisan reads `plugins/Nexo/` directly). New: `GET /api/v1/user/projects/:projectId/nexo-glyphs[/:glyphId]`, asset creation accepts `replace=true`, WS `nexo_glyphs_list` / `nexo_glyph_read`.
+- An add-on can name the module that owns its project when it registers it (`ProjectRootRegistry.register(projectId, dir, moduleId)`): the editor then lists the project under that module in **Installed modules**, even if the module has no config screen (before, only modules with a config screen were grouped there, so a menus-only add-on landed among personal projects). The plugin reports it as `project_roots[].module_id`; migration `0065` adds `projects.owner_module`.
 
 - New project setting **ESC goes back** (manifest `escape_goes_back`): pressing Esc in a menu reopens the previous screen, like a back button, instead of closing everything. On the first menu, Esc closes as usual; `close_menu` still closes everything. Off by default.
 

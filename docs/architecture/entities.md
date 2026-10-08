@@ -67,7 +67,9 @@ reste : version Minecraft d'un Project démo.
 ## Modèle courant (depuis 2026-06-03 — "Servers UX simplification")
 
 **Renommage durable (migration 0040)** : `projects.identity_kind` est résolu par
-le plugin (`folder`, `addon`, ou `unknown` avant négociation). `project_renames`
+le plugin (`folder`, `addon`, ou `unknown` avant négociation). `projects.owner_module`
+(migration 0065) porte le module propriétaire d'une racine d'Add-on, rapporté avec elle
+(`project_roots[].module_id`) ; l'éditeur y range le project sous « Modules installés ». `project_renames`
 conserve opération, ancre, serveur, source, cible et état `pending/complete/failed`.
 Les réservations actives sont uniques par ancre et cible insensible à la casse.
 Un verrou transactionnel par serveur sérialise réservation, découverte et ACK ;
