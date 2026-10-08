@@ -234,7 +234,8 @@ function ServerOverview({
                         serveur. Un compteur figé de l'ancien monde aurait menti. */}
                     <span className="text-[14px] font-medium text-[var(--text)]">{w.name}</span>
                   </Link>
-                  <RenameProjectButton project={w} onRenamed={(diskId) => { if (serverKeyId) onProjectRenamed({ projectId: w.id, serverKeyId, previousDiskId: w.externalId ?? w.id, diskId }); }} />
+                  {/* L'ID se modifie dans les Propriétés du projet ; ici ne reste que la reprise d'un changement en attente. */}
+                  {w.pendingRename && <RenameProjectButton project={w} onRenamed={(diskId) => { if (serverKeyId) onProjectRenamed({ projectId: w.id, serverKeyId, previousDiskId: w.externalId ?? w.id, diskId }); }} />}
                 </li>
               ))}
             </ul>

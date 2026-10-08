@@ -1,6 +1,9 @@
 import type { Project } from "@/domain/types";
 import { projectUrlId } from "@/lib/projectUrlId";
 import { DeleteProjectDialog } from "@/features/account/DeleteProjectDialog";
+import { onProjectRenamed } from "@/features/project/onProjectRenamed";
+import { RenameProjectButton } from "@/features/projects/RenameProjectButton";
+import { useProjectRuntime } from "@/state/projectRuntimeStore";
 import { useAccountStore } from "@/state/accountStore";
 import { Trash2 } from "lucide-react";
 import { useState } from "react";
@@ -28,6 +31,8 @@ export function ProjectProperties({ project }: ProjectPropertiesProps) {
   const setProjectField = useAccountStore((s) => s.setProjectField);
   const { t } = useTranslation();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const runtime = useProjectRuntime(project.id);
+  const serverKeyId = project.serverKeyId ?? runtime?.serverId;
 
   return (
     <div className="flex flex-col gap-4">
@@ -38,6 +43,15 @@ export function ProjectProperties({ project }: ProjectPropertiesProps) {
             <span className="font-mono text-xs text-[var(--text-mut)]">{projectUrlId(project)}</span>
             <span className={`rounded px-1.5 py-0.5 text-[10px] ${sourceColor(project.source)}`}>
               {t(`projectProperties.${sourceLabelKey(project.source)}`)}
+            </span>
+            <span className="ml-auto">
+              <RenameProjectButton
+                project={{ id: project.id, externalId: project.diskId, capabilities: runtime?.capabilities }}
+                onRenamed={(diskId) => {
+                  if (serverKeyId)
+                    onProjectRenamed({ projectId: project.id, serverKeyId, previousDiskId: projectUrlId(project), diskId });
+                }}
+              />
             </span>
           </div>
         </div>

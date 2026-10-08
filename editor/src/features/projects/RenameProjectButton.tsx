@@ -100,7 +100,7 @@ export function RenameProjectButton({
   return (
     <>
       <Button variant="ghost" size="sm" onClick={() => setOpen(true)}>
-        {t("projectIdentity.renameTitle", { defaultValue: "Rename project" })}
+        {t("projectIdentity.edit", { defaultValue: "Edit" })}
       </Button>
       <Dialog
         open={open}
@@ -110,11 +110,12 @@ export function RenameProjectButton({
       >
         <DialogContent>
           <DialogTitle>
-            {t("projectIdentity.renameTitle", { defaultValue: "Rename project" })}
+            {t("projectIdentity.renameTitle", { defaultValue: "Change project ID" })}
           </DialogTitle>
           <DialogDescription>
             {t("projectIdentity.renameDescription", {
-              defaultValue: "Rename the project folder while keeping its drafts and links.",
+              defaultValue:
+                "Change the project ID (its folder on the server) while keeping its drafts and links.",
             })}
           </DialogDescription>
           <form
@@ -151,7 +152,7 @@ export function RenameProjectButton({
             >
               {operation
                 ? t("projectIdentity.retry", { defaultValue: "Retry" })
-                : t("projectIdentity.rename", { defaultValue: "Rename" })}
+                : t("projectIdentity.rename", { defaultValue: "Save" })}
             </Button>
           </form>
         </DialogContent>
