@@ -353,6 +353,18 @@ class ActionExecutorTest {
         assertEquals("tools", lastMenuCtx?.args?.get("category"))
     }
 
+    @Test fun `set_arg re-renders without the data the menu fetched, so its sources refresh`() {
+        val p = player()
+        val fetched = listOf(mapOf("key" to "KICK_MEMBER", "granted" to false))
+        openSession(p)
+        executor().execute(
+            listOf(Action.SetArg("refresh", "1")),
+            ExecutionContext(p, args = mapOf("rank" to "admin", "perms" to fetched), sourceArgs = mapOf("perms" to fetched)),
+        )
+        assertEquals("admin", lastMenuCtx?.args?.get("rank"))
+        assertNull(lastMenuCtx?.args?.get("perms"))
+    }
+
     @Test fun `set_arg resolves placeholders in the value`() {
         val p = player()
         openSession(p)
