@@ -36,8 +36,18 @@ export function MenuAppearanceControls({
 
   return (
     <>
-      <Button variant="outline" size="sm" onClick={() => setPicking(true)}>
-        <ImagePlus className="size-3.5" /> {t("resources.addImage")}
+      <Button
+        type="button"
+        data-testid="menu-add-image"
+        variant="outline"
+        size="sm"
+        className="flex-1"
+        title={t("resources.addImage")}
+        aria-label={t("resources.addImage")}
+        onClick={() => setPicking(true)}
+      >
+        <ImagePlus className="size-3.5 @[15rem]:mr-1" />
+        <span className="hidden whitespace-nowrap @[15rem]:inline">{t("resources.addImage")}</span>
       </Button>
       {picking && (
         <AssetPicker

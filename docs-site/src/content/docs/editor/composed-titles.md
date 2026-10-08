@@ -3,7 +3,8 @@ title: Composed titles
 description: Add and align resizable text in resource-pack menu titles.
 ---
 
-Select a menu and open **Menu appearance**. **Add an image** offers your
+Select a menu, open **Menu appearance** and switch to **Composed** mode.
+**Add an image**, next to **+ Text**, offers your
 **Menu images** and can import a new one directly. Backgrounds, logos and
 decorations are all images: place them freely and reorder their layers.
 **Show all images** lets you reuse another project image: choosing it adds the

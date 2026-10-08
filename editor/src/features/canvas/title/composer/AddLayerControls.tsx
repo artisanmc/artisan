@@ -1,6 +1,7 @@
 import { Image as ImageIcon, Type } from "lucide-react";
 import {
   type MouseEvent as ReactMouseEvent,
+  type ReactNode,
   type PointerEvent as ReactPointerEvent,
   useCallback,
   useEffect,
@@ -14,7 +15,8 @@ import { useUiStore } from "@/state/uiStore";
 const DRAG_THRESHOLD_PX = 5;
 
 interface AddLayerControlsProps {
-  hideImage?: boolean;
+  /** Remplace le bouton `+ Image` intégré (ex. le sélecteur de ressources du menu). */
+  imageControl?: ReactNode;
   /**
    * Called when the user finishes adding a layer.
    *  - `cursor === null` → simple click, parent picks default placement
@@ -62,7 +64,7 @@ interface ActiveGesture {
  *   - keyboard-originated click: `detail === 0` → invoke `onPlace(kind, null)`.
  * This avoids double-fire without needing a shared flag between handlers.
  */
-export function AddLayerControls({ onPlace, hideImage = false }: AddLayerControlsProps) {
+export function AddLayerControls({ onPlace, imageControl }: AddLayerControlsProps) {
   const setDragging = useUiStore((s) => s.setDraggingNewLayer);
 
   // The single active gesture (if any). Refs (not state) so we don't
@@ -164,7 +166,7 @@ export function AddLayerControls({ onPlace, hideImage = false }: AddLayerControl
       data-testid="add-layer-controls"
       className="@container flex gap-2 rounded border border-[var(--border-soft)] bg-[var(--surface)] px-2 py-2"
     >
-      {!hideImage && (
+      {imageControl ?? (
         <Button
           type="button"
           data-testid="add-layer-image"
