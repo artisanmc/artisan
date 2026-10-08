@@ -1263,6 +1263,7 @@ const fr: typeof en = {
   },
   breadcrumb: {
     label: "Fil d’Ariane",
+    searchServers: "Rechercher un serveur",
   },
   linkedServers: {
     title: "Serveurs liés",
