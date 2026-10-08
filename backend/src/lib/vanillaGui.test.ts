@@ -140,20 +140,21 @@ function upscaled(bytes: Uint8Array, k: number): Uint8Array {
 
 describe("custom container textures", () => {
   const png = (w: number, h: number) => new Uint8Array(PNG.sync.write(new PNG({ width: w, height: h })));
-  const asset = (usages: string[] | undefined, bytes: Uint8Array) => ({ row: { usages }, bytes });
+  const asset = (ref: string, bytes: Uint8Array) => ({ ref, bytes });
 
-  test("the first image marked for that container, in its vanilla layout, is the source", () => {
+  test("the image the server config names, in its vanilla layout, is the source", () => {
     const hd = upscaled(sources.chest, 2);
     const assets = [
-      asset(["menu"], png(256, 256)),
-      asset(["chest_texture"], png(176, 222)),
-      asset(["chest_texture", "menu"], hd),
-      asset(["chest_texture"], png(256, 256)),
-      asset(["hopper_texture"], sources.hopper),
+      asset("ui:bad_layout", png(176, 222)),
+      asset("ui:hd", hd),
+      asset("other:hd", png(256, 256)),
+      asset("ui:hopper", sources.hopper),
     ];
-    expect(containerTextureSource(assets, "chest")).toBe(hd);
-    expect(containerTextureSource(assets, "hopper")).toBe(sources.hopper);
-    expect(containerTextureSource(assets, "dispenser")).toBeUndefined();
+    expect(containerTextureSource(assets, "ui:hd")).toBe(hd);
+    expect(containerTextureSource(assets, "ui:hopper")).toBe(sources.hopper);
+    expect(containerTextureSource(assets, "ui:bad_layout")).toBeUndefined();
+    expect(containerTextureSource(assets, "ui:missing")).toBeUndefined();
+    expect(containerTextureSource(assets, undefined)).toBeUndefined();
   });
 
   test("an HD texture is cut at its own scale but drawn at the vanilla size", () => {

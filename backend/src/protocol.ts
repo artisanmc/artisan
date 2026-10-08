@@ -49,6 +49,8 @@ export interface HelloMessage extends ProjectIdentityReport {
   // Data sources registered plugin-side (DataSourceRegistry). Drives the
   // editor's menu source picker. Absent/empty on older plugins.
   data_sources?: ReportedDataSource[];
+  /** Editable `config.yml`, flat dotted keys (ADR `server-config-from-editor`). Absent on older plugins. */
+  server_config?: Record<string, unknown>;
 }
 
 export interface HelloAckMessage {
@@ -625,6 +627,16 @@ export interface HeadTextureResultMessage {
 export type NexoGlyphsRequest =
   | { type: "nexo_glyphs_list" }
   | { type: "nexo_glyph_read"; glyph_id: string };
+
+// Backend → plugin: écriture de `config.yml` depuis la page serveur.
+export interface ServerConfigWriteResultMessage {
+  type: "server_config_write_result";
+  request_id: string;
+  ok: boolean;
+  server_config?: Record<string, unknown>;
+  error?: "invalid_config";
+  message?: string;
+}
 
 export interface NexoGlyphsResultMessage {
   type: "nexo_glyphs_list_result" | "nexo_glyph_read_result";

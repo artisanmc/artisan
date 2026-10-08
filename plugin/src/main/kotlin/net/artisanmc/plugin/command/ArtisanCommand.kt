@@ -2,7 +2,6 @@ package net.artisanmc.plugin.command
 
 import net.artisanmc.plugin.ArtisanPlugin
 import net.artisanmc.plugin.config.ConfigWriter
-import net.artisanmc.plugin.config.PluginConfig
 import net.artisanmc.plugin.provider.SyncedMenuProvider
 import net.artisanmc.plugin.lang.LangManager
 import net.artisanmc.plugin.render.TitleCompiler
@@ -57,8 +56,7 @@ class ArtisanCommand(
                 // `per_player_language` and `language` pick up changes without
                 // needing a full server restart. Then reload the menu provider
                 // so disk-side YAML edits are picked up too.
-                plugin.reloadConfig()
-                plugin.reinit(PluginConfig.from(plugin.config))
+                plugin.reinit(plugin.loadPluginConfig())
                 plugin.menuProvider.unload()
                 plugin.menuProvider.load()
                 sender.sendMessage(lang.get("artisan.reloaded", sender))
@@ -101,7 +99,7 @@ class ArtisanCommand(
             sender.sendMessage("Menu '$menuId' not found. Known: ${plugin.menuProvider.listMenuIds()}")
             return
         }
-        val resolvedLang = langOverride ?: PluginConfig.from(plugin.config).language
+        val resolvedLang = langOverride ?: plugin.currentConfig().language
         val langMap = menu.langMapWithFallback(resolvedLang)
         val encoder = plugin.assetCatalog.offsetEncoder()
         val advances: Map<Char, Int> = encoder.advances()
@@ -175,7 +173,7 @@ class ArtisanCommand(
     }
 
     private fun editor(sender: CommandSender) {
-        val cfg = PluginConfig.from(plugin.config)
+        val cfg = plugin.currentConfig()
         val senderLang = lang.playerLang(sender)
         if (cfg.editorConsoleOnly && sender !is ConsoleCommandSender) {
             sender.sendMessage(lang.get("artisan.editor_console_only", senderLang))
@@ -210,7 +208,7 @@ class ArtisanCommand(
             sender.sendMessage(lang.get("artisan.member_console_only", sender))
             return
         }
-        if (PluginConfig.from(plugin.config).editorAccessMode != "console") {
+        if (plugin.currentConfig().editorAccessMode != "console") {
             sender.sendMessage(lang.get("artisan.member_console_disabled", sender))
             return
         }
@@ -239,12 +237,12 @@ class ArtisanCommand(
 
     /**
      * Redeem a link code minted by the editor when the Server was added, writing
-     * the returned secret to config.yml and reconnecting. Running this on an
+     * the returned secret to connection.yml and reconnecting. Running this on an
      * already-linked server **overwrites** the key (rotation / re-link) — the code
      * is explicit intent, so we proceed with a WARN rather than block.
      */
     private fun link(sender: CommandSender, code: String?) {
-        val cfg = PluginConfig.from(plugin.config)
+        val cfg = plugin.currentConfig()
         val senderLang = lang.playerLang(sender)
         if (code.isNullOrBlank()) {
             sender.sendMessage(lang.get("artisan.link_usage", senderLang))
@@ -258,7 +256,7 @@ class ArtisanCommand(
             plugin.logger.warning("[link] Server already linked — /artisan link overwrites the existing key.")
         }
         sender.sendMessage(lang.get("artisan.link_connecting", senderLang))
-        val configFile = plugin.dataFolder.resolve("config.yml")
+        val connectionFile = plugin.connectionFile
         val client = LinkClient(cfg.httpBaseUrl)
         // Blocking REST call off the main thread; hop back for config + reinit.
         Bukkit.getScheduler().runTaskAsynchronously(plugin, Runnable {
@@ -266,11 +264,10 @@ class ArtisanCommand(
             Bukkit.getScheduler().runTask(plugin, Runnable {
                 when (result) {
                     is LinkResult.Success -> {
-                        ConfigWriter.writeServerKey(configFile, result.serverKey)
-                        plugin.logger.info("Server linked (server_key written to config.yml)")
+                        ConfigWriter.writeServerKey(connectionFile, result.serverKey)
+                        plugin.logger.info("Server linked (server_key written to connection.yml)")
                         sender.sendMessage(lang.get("artisan.link_linked", senderLang))
-                        plugin.reloadConfig()
-                        plugin.reinit(PluginConfig.from(plugin.config))
+                        plugin.reinit(plugin.loadPluginConfig())
                         sender.sendMessage(lang.get("artisan.link_ready", senderLang))
                     }
                     is LinkResult.Failure -> {

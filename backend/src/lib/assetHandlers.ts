@@ -51,7 +51,7 @@ export async function handleAssetCreate(c: any, ctx: AssetCtx) {
     } catch {
       return c.json({ error: "Invalid usages" }, 400);
     }
-    if (type === "font" || usages === undefined) return c.json({ error: "Invalid usages (images only; button, menu, chest_texture, hopper_texture, dispenser_texture)" }, 400);
+    if (type === "font" || usages === undefined) return c.json({ error: "Invalid usages (images only; button, menu)" }, 400);
   }
   if (!(file instanceof File)) {
     return c.json({ error: "Missing file" }, 400);
@@ -267,7 +267,7 @@ export async function handleAssetPatch(c: any, ctx: AssetCtx) {
     const row = onDisk.found.row;
     const nextUsages = body.usages === undefined ? row.usages : parseAssetUsages(body.usages);
     if (body.usages !== undefined && (row.type === "font" || nextUsages === undefined)) {
-      return c.json({ error: "Invalid usages (images only; button, menu, chest_texture, hopper_texture, dispenser_texture)" }, 400);
+      return c.json({ error: "Invalid usages (images only; button, menu)" }, 400);
     }
     if (typeof body.name === "string" && !NAME_RE.test(body.name)) {
       return c.json({ error: "Invalid name" }, 400);

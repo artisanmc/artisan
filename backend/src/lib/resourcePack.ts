@@ -4,12 +4,12 @@ import { resolve } from "path";
 import { db } from "../db/index";
 import { projects, serverKeys } from "../db/schema";
 import { buildResourcePackZip, type AssetRow } from "./resourcePackBuilder";
+import { containerTextureRefs } from "./serverConfig";
 import { diskAssetsFromTree, readDiskAssetBytes, type DiskAsset } from "./diskAssets";
 import { glyphPlacementsFromMenus, type GlyphPlacement } from "./menuGlyphPlacements";
 import { imageButtonsFromMenus, type ImageButtonPlacement } from "./imageButtons";
 import {
   GUI_CONTAINERS,
-  TEXTURE_USAGE,
   containerTextureSource,
   transparentContainersFromMenus,
   type GuiContainer,
@@ -74,6 +74,7 @@ export async function rebuildResourcePack(serverKeyId: string, options: { requir
   const glyphPlacements: GlyphPlacement[] = [];
   const imageButtons: ImageButtonPlacement[] = [];
   const transparent = new Set<GuiContainer>();
+  const imagesByRef: { ref: string; bytes: Uint8Array }[] = [];
 
   for (const p of boundProjects) {
     const diskId = p.externalId ?? p.id;
@@ -127,7 +128,10 @@ export async function rebuildResourcePack(serverKeyId: string, options: { requir
         const bytes = await readBytes(a);
         // Un glyphe dont on ne peut pas lire les octets est SAUTÉ, pas fatal :
         // un pack amputé d'une image vaut mieux qu'un serveur sans pack.
-        if (bytes) glyphPngs.set(a.row.id, bytes);
+        if (bytes) {
+          glyphPngs.set(a.row.id, bytes);
+          imagesByRef.push({ ref: `${diskId}:${a.row.name}`, bytes });
+        }
         continue;
       }
       if (a.row.type !== "font") continue;
@@ -161,7 +165,7 @@ export async function rebuildResourcePack(serverKeyId: string, options: { requir
     glyphPlacements,
     imageButtons,
     {
-      sources: containerTextures(allAssets, glyphPngs, serverKeyId),
+      sources: containerTextures(imagesByRef, serverKeyId),
       // An older plugin cannot draw the other containers back: their texture
       // stays vanilla (the menu then shows over it) until the jar is updated.
       transparent: supportsVanillaGui(serverKeyId) ? transparent : new Set<GuiContainer>(),
@@ -224,27 +228,22 @@ export function supportsVanillaGui(serverKeyId: string): boolean {
 }
 
 /**
- * Sources of the `artisan:vanilla_gui` glyphs: per container, a project image
- * marked with its texture use keeps a restyled window on the windows drawn
- * back; otherwise the vanilla texture. A marked image in the wrong layout is
- * ignored, loudly.
+ * Sources of the `artisan:vanilla_gui` glyphs: per container, the project image
+ * the server's `config.yml` names keeps a restyled window on the windows drawn
+ * back; otherwise the vanilla texture. A named image that is missing or in the
+ * wrong layout is ignored, loudly.
  */
 function containerTextures(
-  assets: AssetRow[],
-  pngs: Map<string, Uint8Array>,
+  images: { ref: string; bytes: Uint8Array }[],
   serverKeyId: string,
 ): Record<GuiContainer, Uint8Array> {
-  const withBytes = assets.flatMap((row) => {
-    const bytes = pngs.get(row.id);
-    return bytes ? [{ row, bytes }] : [];
-  });
+  const refs = containerTextureRefs(serverKeyId);
   const out = {} as Record<GuiContainer, Uint8Array>;
   for (const container of GUI_CONTAINERS) {
-    const custom = containerTextureSource(withBytes, container);
-    const marked = assets.filter((row) => row.usages?.includes(TEXTURE_USAGE[container]));
-    if (!custom && marked.length > 0) {
+    const custom = containerTextureSource(images, refs[container]);
+    if (!custom && refs[container]) {
       console.warn(
-        `[resource-pack] ${serverKeyId}: ${TEXTURE_USAGE[container]} ${marked.map((r) => r.name).join(", ")} ignored (expected the vanilla layout, 256×256 or a multiple); using the vanilla texture`,
+        `[resource-pack] ${serverKeyId}: container-textures.${container} ${refs[container]} ignored (missing, or not the vanilla layout 256×256 or a multiple); using the vanilla texture`,
       );
     }
     out[container] = custom ?? vanillaTexture(container);

@@ -18,8 +18,8 @@ Download the latest `artisan-plugin-*.jar` from the Artisan GitHub
 Releases page, then drop it into your server's `plugins/` folder. Nothing
 else is required: the plugin ships its own copy of PacketEvents.
 
-Restart the server once. A default `plugins/Artisan/config.yml` is
-generated. The plugin will log a startup line indicating offline mode
+Restart the server once. A default `plugins/Artisan/config.yml` (settings) and
+`plugins/Artisan/connection.yml` (the link to the backend) are generated. The plugin will log a startup line indicating offline mode
 because no `server_key` is set yet.
 
 ### Updating the plugin
@@ -31,7 +31,7 @@ When a newer Artisan plugin is available, the server badge in the editor's top b
 Linking is **editor-first**: you add the server in the web editor, which gives
 you a one-time code, and you run that code on your Minecraft server.
 
-1. First, point the plugin at the backend. Open `plugins/Artisan/config.yml`:
+1. First, point the plugin at the backend. Open `plugins/Artisan/connection.yml`:
 
    ```yaml
    ws_url: "wss://api.artisanmc.net/ws/plugin"
@@ -46,7 +46,7 @@ you a one-time code, and you run that code on your Minecraft server.
    like `/artisan link ABCD2345`.
 
 3. Run that command in-game or from the console. The plugin redeems the code,
-   writes the `server_key` to `config.yml`, and connects immediately — no
+   writes the `server_key` to `connection.yml`, and connects immediately — no
    restart needed. Codes are single-use and expire after 10 minutes.
 
 To **re-link** a server later (rotate its key, or move it to a different server
@@ -102,7 +102,7 @@ From the web editor, click your network name in the top bar, then **Members**. A
 | `/artisan sync status` | Show the last sync status with the backend. |
 | `/artisan sync reject` | Reload menus from disk and reconnect to the backend. |
 | `/artisan editor` | Print the deep-link to this server's editor page + network name if linked (requires `artisan.editor` permission), otherwise print the editor home URL to add the server. |
-| `/artisan link <code>` | Redeem a link code from the editor: writes the `server_key` to `config.yml` and connects. On an already-linked server it rotates the key in place. Codes are single-use and expire after 10 minutes. |
+| `/artisan link <code>` | Redeem a link code from the editor: writes the `server_key` to `connection.yml` and connects. On an already-linked server it rotates the key in place. Codes are single-use and expire after 10 minutes. |
 | `/artisan pushLocal <id\|--all>` | Manually push local on-disk project changes to the backend. Rarely needed: the plugin scans your project files every few seconds and pushes disk edits automatically. When both the disk and the web editor changed since the last sync, nothing is overwritten: the editor shows a resolution banner where you pick, per file, which side to keep — `pushLocal` remains the "force the disk side" shortcut. |
 
 ## 6. Billing administration (super-admins)
@@ -125,7 +125,7 @@ firewall rules on your server host.
 
 **Invalid server_key**
 The key was rotated or revoked. Get a fresh one from your dashboard,
-paste it into `config.yml`, and run `/artisan reload`.
+paste it into `connection.yml`, and run `/artisan reload`.
 
 **Resource pack not loading**
 By default the plugin sends its own resource pack on join. If a competing
@@ -225,14 +225,24 @@ zip-merger picks them up.
 
 The path is filesystem-absolute or relative to the server root.
 
-## 10. Reference: `config.yml`
+## 10. Reference: `connection.yml` and `config.yml`
+
+`connection.yml` holds the link to the backend. The editor never writes it:
 
 ```yaml
-# Backend endpoint for live sync (WebSocket). Not the editor URL — the editor
-# lives on editor.artisanmc.net and doesn't proxy the API.
-# Leave empty to run offline using only locally exported packs.
-server_key: ""
+server_key: ""   # written by /artisan link — keep it private
 ws_url: "wss://api.artisanmc.net/ws/plugin"
+```
+
+Servers set up before this split keep working: at startup the plugin moves
+`server_key` and `ws_url` out of `config.yml` into `connection.yml`.
+
+`config.yml` holds every other setting. Edit it by hand (then `/artisan reload`)
+or from the **Configuration** section of the server page in the editor: the
+plugin checks each value, rewrites the file (comments kept) and reloads. From the
+editor, paths must stay under the server root (no absolute path, no `..`).
+
+```yaml
 
 # Language for plugin system messages (en, fr). Defaults to en.
 # Place custom lang files in plugins/Artisan/lang/<code>.yml to override.
@@ -301,4 +311,11 @@ resource-pack:
   # glyphs until they manually rejoin. Examples: "n reload" (Nexo),
   # "oraxen reload pack" (Oraxen).
   delegate-reload-command: ""
+  # Textures drawn back on the other windows when a menu turns its vanilla
+  # texture off. "project:image" names a project image in the vanilla layout
+  # (256×256 or an HD multiple); empty = the vanilla texture.
+  container-textures:
+    chest: ""
+    hopper: ""
+    dispenser: ""
 ```

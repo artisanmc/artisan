@@ -1,13 +1,7 @@
 import type { Asset, AssetUsage } from "./asset";
 import type { Menu, Project } from "./types";
 
-export const ASSET_USAGES: AssetUsage[] = [
-  "button",
-  "menu",
-  "chest_texture",
-  "hopper_texture",
-  "dispenser_texture",
-];
+export const ASSET_USAGES: AssetUsage[] = ["button", "menu"];
 
 function menuUsages(asset: Asset, menu: Menu): AssetUsage[] {
   const usages = new Set<AssetUsage>();
@@ -31,8 +25,12 @@ export function assetUsages(asset: Asset, project?: Project): AssetUsage[] {
   if (asset.usages !== undefined)
     return [
       ...new Set(
-        asset.usages.map((usage) =>
-          usage === "background" || usage === "decoration" ? "menu" : usage,
+        asset.usages.flatMap((usage): AssetUsage[] =>
+          usage === "background" || usage === "decoration"
+            ? ["menu"]
+            : ASSET_USAGES.includes(usage as AssetUsage)
+              ? [usage as AssetUsage]
+              : [],
         ),
       ),
     ];

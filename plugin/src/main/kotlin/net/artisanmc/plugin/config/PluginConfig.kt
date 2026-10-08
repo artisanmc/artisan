@@ -85,7 +85,7 @@ data class PluginConfig(
     val editorHomeUrl: String get() = deriveEditorHomeUrl(wsUrl)
 
     companion object {
-        fun from(cfg: FileConfiguration): PluginConfig {
+        fun from(cfg: FileConfiguration, connection: FileConfiguration = cfg): PluginConfig {
             val sources = mutableListOf<ImportSourceConfig>()
             val sourceWarnings = mutableListOf<String>()
             (if (cfg.contains("assistant.import-sources", true)) {
@@ -129,9 +129,9 @@ data class PluginConfig(
                 }
 
             return PluginConfig(
-                serverKey         = cfg.getString("server_key", "") ?: "",
+                serverKey         = connection.getString("server_key", "") ?: "",
                 wsUrl             = normalizeWsUrl(
-                    cfg.getString("ws_url", "wss://$API_HOST/ws/plugin") ?: "",
+                    connection.getString("ws_url", DEFAULT_WS_URL) ?: "",
                 ),
                 editorConsoleOnly = cfg.getBoolean("editor.console_only", false),
                 editorAccessMode  = if (cfg.getString("editor.access_mode") == "console") "console" else "invitation",

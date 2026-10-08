@@ -1,8 +1,6 @@
-# Backend endpoint for live sync (WebSocket). Not the editor URL — the editor
-# lives on editor.artisanmc.net and doesn't proxy the API.
-# Leave empty to run offline using only locally exported packs.
-server_key: ""
-ws_url: "wss://api.artisanmc.net/ws/plugin"
+# Server settings — editable by hand or from the editor's server page.
+# The backend link (server_key, ws_url) lives in connection.yml, which the
+# editor never writes.
 
 # Language for plugin system messages (en, fr). Defaults to en.
 # Place custom lang files in plugins/Artisan/lang/<code>.yml to override.
@@ -77,3 +75,11 @@ resource-pack:
   # glyphs until they manually rejoin. Examples: "n reload" (Nexo),
   # "oraxen reload pack" (Oraxen).
   delegate-reload-command: ""
+  # Textures drawn back on the other windows when a menu turns its vanilla
+  # texture off (the pack makes that container transparent server-wide).
+  # "project:image" names a project image in the vanilla layout (256×256 or an
+  # HD multiple); empty = the vanilla texture.
+  container-textures:
+    chest: ""
+    hopper: ""
+    dispenser: ""

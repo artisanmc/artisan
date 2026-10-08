@@ -68,6 +68,7 @@ class SyncedMenuProvider(
     private val pluginVersion: String = "1.0.0",
     private val pluginUpdater: (() -> net.artisanmc.plugin.update.PluginUpdater.Result)? = null,
     private val nexoGlyphs: net.artisanmc.plugin.customitems.NexoGlyphReader? = null,
+    private val serverConfig: net.artisanmc.plugin.config.ServerConfigAccess? = null,
 ) : MenuProvider {
     private var copyMinecraftVersion = "1.21.4"
     private val projectIo = object {
@@ -594,7 +595,8 @@ class SyncedMenuProvider(
     private fun identityMigrations(): List<Map<String, String>> =
         if (roots.isRegistered("boutique_addon")) listOf(mapOf("from" to "boutique_shop", "to" to "boutique_addon")) else emptyList()
 
-    private fun projectPresence(): Map<String, Any> = cachedProjectPresence
+    private fun projectPresence(): Map<String, Any> =
+        serverConfig?.let { cachedProjectPresence + ("server_config" to it.report()) } ?: cachedProjectPresence
 
     internal fun projectPresenceForTesting(): Map<String, Any> = projectPresence()
 
@@ -768,6 +770,21 @@ class SyncedMenuProvider(
                     }
                 } catch (_: java.util.concurrent.RejectedExecutionException) {
                     logger?.warning("$type dropped — plugin is stopping")
+                }
+            }
+
+            // config.yml depuis la page serveur (ADR `server-config-from-editor`).
+            // La réponse part avant le rechargement, qui rouvre la connexion.
+            "server_config_write" -> {
+                val requestId = node["request_id"]?.asText() ?: return
+                val access = serverConfig ?: return
+                @Suppress("UNCHECKED_CAST")
+                val changes = jsonMapper.convertValue(node["changes"], Map::class.java) as? Map<String, Any?> ?: emptyMap()
+                runOnMainThread {
+                    val error = runCatching { access.write(changes) }.getOrElse { "write_error: ${describeError(it)}" }
+                    val base = mapOf("type" to "server_config_write_result", "request_id" to requestId)
+                    send(base + if (error == null) mapOf("ok" to true, "server_config" to access.report())
+                        else mapOf("ok" to false, "error" to "invalid_config", "message" to error))
                 }
             }
 
