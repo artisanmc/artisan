@@ -1,15 +1,8 @@
 export type AssetType = "texture" | "glyph" | "font";
 export type AssetId = string;
-/**
- * `*_texture`: a vanilla container layout (generic_54 / hopper / dispenser.png),
- * used to draw those windows back when a menu hides the vanilla texture.
- */
-export type AssetUsage =
-  | "button"
-  | "menu"
-  | "chest_texture"
-  | "hopper_texture"
-  | "dispenser_texture";
+export type AssetUsage = "button" | "menu";
+/** Container textures moved to the server config (ADR `server-config-from-editor`). */
+type LegacyAssetUsage = "background" | "decoration" | "chest_texture" | "hopper_texture" | "dispenser_texture";
 
 export interface FontMeta {
   namespace: string;
@@ -30,7 +23,7 @@ export interface FontMeta {
 
 export interface Asset {
   /** Legacy classifications may remain in cached drafts until their next save. */
-  usages?: (AssetUsage | "background" | "decoration")[];
+  usages?: (AssetUsage | LegacyAssetUsage)[];
   draftId?: string;
   id: AssetId;
   projectId: string;

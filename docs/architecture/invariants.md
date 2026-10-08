@@ -190,10 +190,11 @@ dans `asset-index.json` : `vanilla_gui.transparent_chests|hoppers|dispensers`.
 - **Transitoires acceptés** : entre une publication et le rechargement du nouveau pack, un joueur peut
   voir la texture en double (invisible : c'est la même image) ou, si la transparence vient d'être
   retirée, un conteneur transparent jusqu'à ce qu'il reçoive le pack suivant.
-- **Source des glyphs** : la texture vanilla (copie de l'éditeur), ou la première image d'un projet
-  lié portant l'usage `chest_texture` / `hopper_texture` / `dispenser_texture` (format vanilla,
-  256×256 ou multiple HD : découpée à son échelle, dessinée à la taille vanilla). Une image marquée au
-  mauvais format est ignorée avec un WARN backend. C'est ainsi qu'un pack **serveur** qui restyle ces
+- **Source des glyphs** : la texture vanilla (copie de l'éditeur), ou l'image `projet:image` que le
+  `config.yml` du serveur nomme dans `resource-pack.container-textures.{chest,hopper,dispenser}`
+  (format vanilla, 256×256 ou multiple HD : découpée à son échelle, dessinée à la taille vanilla ;
+  ADR `server-config-from-editor`). Une image absente ou au mauvais format est ignorée avec un WARN
+  backend. C'est ainsi qu'un pack **serveur** qui restyle ces
   conteneurs garde son aspect.
 - Un autre pack serveur qui remplace aussi ces textures (Nexo, Oraxen, ItemsAdder) : le dernier chargé
   gagne. Un pack **perso** côté joueur est écrasé (les packs serveur passent au-dessus) et ses

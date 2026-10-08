@@ -3,6 +3,7 @@ import { RequestAccessPanel } from "@/components/network-detail/RequestAccessPan
 import { ImportProjectDialog } from "@/features/import/ImportProjectDialog";
 import { buildProjectGroups, diskProjectsToSummaries } from "@/features/projects/projectGroups";
 import { RenameProjectButton } from "@/features/projects/RenameProjectButton";
+import { ServerConfigSection } from "@/features/serverConfig/ServerConfigSection";
 import { onProjectRenamed, type ProjectRenamed } from "@/features/project/onProjectRenamed";
 import { getNetwork } from "@/lib/api/networks";
 import type { ProjectSummary } from "@/lib/api/networks";
@@ -305,6 +306,16 @@ function ServerOverview({
                 ))}
               </ul>
             )}
+          </section>
+        )}
+        {serverKeyId && (
+          <section className="flex flex-col gap-3">
+            <div className="flex items-center gap-3">
+              <h2 className="eyebrow">{t("serverConfig.title")}</h2>
+              <span className="h-px flex-1 bg-[var(--border-soft)]" />
+            </div>
+            <p className="text-[12px] text-[var(--text-mut)]">{t("serverConfig.connectionHint")}</p>
+            <ServerConfigSection networkId={networkId} serverKeyId={serverKeyId} projects={projects} />
           </section>
         )}
         {serverKeyId && (

@@ -17,15 +17,6 @@ export default {
     all: "All",
     button: "Button images",
     menu: "Menu images",
-    chest_texture: "Chest texture",
-    hopper_texture: "Hopper texture",
-    dispenser_texture: "Dispenser texture",
-    chestTextureHint:
-      "A generic_54.png layout (256×256, or a multiple for an HD pack). When a menu turns its default texture off, every other chest on the server is drawn back with this image instead of the vanilla texture. One image per server: the first one found is used.",
-    hopperTextureHint:
-      "A hopper.png layout (256×256, or a multiple for an HD pack). Draws back every other hopper on the server when a hopper menu turns its default texture off.",
-    dispenserTextureHint:
-      "A dispenser.png layout (256×256, or a multiple for an HD pack). Draws back every other dispenser and dropper on the server when a dispenser menu turns its default texture off.",
     font: "Fonts",
     unclassified: "Unclassified",
     upload: "Import an image",
@@ -2203,6 +2194,56 @@ export default {
     papiHint: 'Type "{" for a variable or "%" for a server placeholder',
     emptyMatch: 'No variable matches "{{query}}"',
     emptyContext: "No variable available in this context",
+  },
+  serverConfig: {
+    title: "Configuration",
+    loading: "Reading the configuration…",
+    unavailable:
+      "Configuration unavailable: the server must be connected with a recent plugin version.",
+    save: "Save",
+    saveFailed: "Could not save: the server did not answer.",
+    refused: "Refused by the server: {{detail}}",
+    listHint: "Comma-separated values.",
+    vanillaTexture: "Vanilla texture",
+    connectionHint:
+      "The backend link (server_key, ws_url) lives in connection.yml and is edited by hand only.",
+    groups: {
+      general: "General",
+      textures: "Container textures",
+      resourcePack: "Resource pack",
+      editor: "Editor access",
+      assistant: "Assistant sources",
+      other: "Other",
+    },
+    fields: {
+      language: "Language",
+      per_player_language: "Per-player language",
+      editor: {
+        access_mode: "Access mode (invitation or console)",
+        console_only: "/artisan editor from the console only",
+      },
+      "resource-pack": {
+        enabled: "Send the pack to players",
+        prompt: "Prompt message",
+        "send-on-join": "Send on join",
+        "send-delay-ticks": "Send delay (ticks)",
+        "delegate-to-dir": "Delegate the pack to (path)",
+        "delegate-reload-command": "Reload command after delegation",
+        "container-textures": {
+          chest: "Chests",
+          hopper: "Hoppers",
+          dispenser: "Dispensers and droppers",
+        },
+      },
+    },
+    hints: {
+      chest:
+        "A generic_54.png layout (256×256, or a multiple for an HD pack). When a menu turns its vanilla texture off, every other chest on the server is drawn back with it.",
+      hopper:
+        "A hopper.png layout (256×256, or a multiple for an HD pack). Draws back every other hopper when a hopper menu turns its vanilla texture off.",
+      dispenser:
+        "A dispenser.png layout (256×256, or a multiple for an HD pack). Draws back every other dispenser and dropper when a dispenser menu turns its vanilla texture off.",
+    },
   },
   serverDetail: {
     projects: "Projects",

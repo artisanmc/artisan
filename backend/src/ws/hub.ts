@@ -18,12 +18,14 @@ import {
 } from "../lib/projectStorage";
 import { customItemsCacheDir, readCustomItemsHash, processBundle } from "../lib/customItems";
 import { currentPackInfo, recordVanillaGuiSupport, refreshResourcePack } from "../lib/resourcePack";
+import { recordServerConfig, serverConfig } from "../lib/serverConfig";
 import { invalidateCustomBundle } from "../routes/modelBundle";
 import type {
   PapiPlaceholdersResultMessage,
   HeadTextureResultMessage,
   NexoGlyphsRequest,
   NexoGlyphsResultMessage,
+  ServerConfigWriteResultMessage,
   PluginUpdateResultMessage,
   EditorProjectsReloadedMessage,
   ProjectsReloadedMessage,
@@ -246,6 +248,33 @@ export function requestNexoGlyphs(serverKeyId: string, request: NexoGlyphsReques
     const timer = setTimeout(() => finish({ kind: "timeout" }), timeoutMs);
     pendingNexoGlyphs.set(requestId, { serverKeyId, finish });
     try { send(JSON.stringify({ ...request, request_id: requestId })); }
+    catch { finish({ kind: "offline" }); }
+  });
+}
+
+type ServerConfigWriteOutcome =
+  | { kind: "result"; result: ServerConfigWriteResultMessage }
+  | { kind: "offline" | "unsupported" | "timeout" };
+const pendingServerConfigWrites = new Map<string, { serverKeyId: string; finish: (outcome: ServerConfigWriteOutcome) => void }>();
+
+/** `config.yml` written by the plugin, which validates and reloads (ADR `server-config-from-editor`). */
+export function requestServerConfigWrite(serverKeyId: string, changes: Record<string, unknown>, timeoutMs = CONFIG_WRITE_TIMEOUT_MS): Promise<ServerConfigWriteOutcome> {
+  const send = firstPluginSender(serverKeyId);
+  if (!send) return Promise.resolve({ kind: "offline" });
+  if (!serverConfig(serverKeyId)) return Promise.resolve({ kind: "unsupported" });
+  const requestId = crypto.randomUUID();
+  return new Promise((resolve) => {
+    const finish = (outcome: ServerConfigWriteOutcome) => {
+      clearTimeout(timer);
+      pendingServerConfigWrites.delete(requestId);
+      if (outcome.kind === "result" && outcome.result.ok && recordServerConfig(serverKeyId, outcome.result.server_config)) {
+        setTimeout(() => refreshPackAfterReload(serverKeyId), 0);
+      }
+      resolve(outcome);
+    };
+    const timer = setTimeout(() => finish({ kind: "timeout" }), timeoutMs);
+    pendingServerConfigWrites.set(requestId, { serverKeyId, finish });
+    try { send(JSON.stringify({ type: "server_config_write", request_id: requestId, changes })); }
     catch { finish({ kind: "offline" }); }
   });
 }
@@ -760,7 +789,7 @@ async function reservedProjectIds(serverKeyId: string): Promise<Set<string>> {
 const pendingConfigReads = new Map<string, (outcome: ConfigReadOutcome) => void>();
 const pendingConfigWrites = new Map<string, (outcome: ConfigWriteOutcome) => void>();
 
-function firstPluginSender(serverKeyId: string): ((msg: string) => void) | undefined {
+export function firstPluginSender(serverKeyId: string): ((msg: string) => void) | undefined {
   for (const [cId, sId] of connToServerId) {
     if (sId === serverKeyId) {
       const send = connSenders.get(cId);
@@ -1273,6 +1302,7 @@ export async function handlePluginMessage(
       forgetSnapshotMirror(keyId);
     }
     const vanillaGuiChanged = recordVanillaGuiSupport(keyId, hello.capabilities?.includes("vanilla_gui_v1") === true);
+    const containerTexturesChanged = recordServerConfig(keyId, hello.server_config);
     await reconcileServerProjectIdentity(keyId, hello);
     const boundProjects = await db.select().from(projects).where(
       and(eq(projects.serverKeyId, keyId), isNull(projects.deletedAt)),
@@ -1325,7 +1355,7 @@ export async function handlePluginMessage(
     setTimeout(() => { void import("../lib/projectDraftMigration").then(({ resumeServerDrafts }) => resumeServerDrafts(keyId)).catch((error) => console.error("[drafts] migration pending", error)); }, 0);
     // Plus rien à pousser après l'ack : le backend n'annonce plus de bundle.
     // Jar updated (or rolled back): the transparent container overrides follow it.
-    if (vanillaGuiChanged) setTimeout(() => refreshPackAfterReload(keyId), 0);
+    if (vanillaGuiChanged || containerTexturesChanged) setTimeout(() => refreshPackAfterReload(keyId), 0);
     return { reply: JSON.stringify(ack), sessionId, push: [] };
   }
 
@@ -1457,6 +1487,13 @@ export async function handlePluginMessage(
   if (msg.type === "nexo_glyphs_list_result" || msg.type === "nexo_glyph_read_result") {
     const result = msg as NexoGlyphsResultMessage;
     const pending = pendingNexoGlyphs.get(result.request_id);
+    if (pending && connToServerId.get(connId) === pending.serverKeyId) pending.finish({ kind: "result", result });
+    return { reply: null };
+  }
+
+  if (msg.type === "server_config_write_result") {
+    const result = msg as ServerConfigWriteResultMessage;
+    const pending = pendingServerConfigWrites.get(result.request_id);
     if (pending && connToServerId.get(connId) === pending.serverKeyId) pending.finish({ kind: "result", result });
     return { reply: null };
   }

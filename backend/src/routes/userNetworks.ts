@@ -65,6 +65,8 @@ import {
 	requestPapiPlaceholders,
 	pluginStatus,
 	requestPluginUpdate,
+	requestServerConfigWrite,
+	firstPluginSender,
 	listProjectsForEditor,
 	requestProjectList,
 	requestProjectWrite,
@@ -72,6 +74,7 @@ import {
 	contentVersionOf,
 	reconcileServerProjectIdentity,
 } from "../ws/hub";
+import { serverConfig } from "../lib/serverConfig";
 import { handleResourcePackRebuild } from "./resourcePack";
 
 const EDITOR_URL = process.env.EDITOR_URL ?? "http://localhost:5173";
@@ -1438,6 +1441,37 @@ userNetworksRouter.post("/:networkId/servers/:serverId/plugin-update", async (c:
 	if (outcome.kind === "timeout") return c.json({ error: "timeout" }, 504);
 	if (!outcome.result.ok) return c.json({ error: outcome.result.error ?? "update_failed" }, 502);
 	return c.json({ version: outcome.result.version });
+});
+
+// `config.yml` du serveur (ADR `server-config-from-editor`) : lu tel que le
+// plugin l'a rapporté, écrit par lui. Tout membre, comme les menus qui peuvent
+// déjà lancer des commandes console.
+userNetworksRouter.get("/:networkId/servers/:serverId/server-config", async (c: Context<{ Variables: Vars }>) => {
+	const userId = getUserId(c);
+	if (!userId) return c.json({ error: "unauthorized" }, 401);
+	const resolved = await resolveNetworkServer(userId, c.req.param("networkId"), c.req.param("serverId"));
+	if (!resolved) return c.json({ error: "forbidden" }, 403);
+	if (!resolved.serverKeyId) return c.json({ error: "not_found" }, 404);
+	c.header("Cache-Control", "no-store");
+	return c.json({ config: serverConfig(resolved.serverKeyId), online: !!firstPluginSender(resolved.serverKeyId) });
+});
+
+userNetworksRouter.patch("/:networkId/servers/:serverId/server-config", async (c: Context<{ Variables: Vars }>) => {
+	const userId = getUserId(c);
+	if (!userId) return c.json({ error: "unauthorized" }, 401);
+	const resolved = await resolveNetworkServer(userId, c.req.param("networkId"), c.req.param("serverId"));
+	if (!resolved) return c.json({ error: "forbidden" }, 403);
+	if (!resolved.serverKeyId) return c.json({ error: "not_found" }, 404);
+	const body = await c.req.json().catch(() => null) as { changes?: unknown } | null;
+	const changes = body?.changes;
+	if (!changes || typeof changes !== "object" || Array.isArray(changes) || Object.keys(changes).length === 0) {
+		return c.json({ error: "invalid_input" }, 422);
+	}
+	const outcome = await requestServerConfigWrite(resolved.serverKeyId, changes as Record<string, unknown>);
+	if (outcome.kind === "offline" || outcome.kind === "unsupported") return c.json({ error: "server_offline" }, 503);
+	if (outcome.kind === "timeout") return c.json({ error: "timeout" }, 504);
+	if (!outcome.result.ok) return c.json({ error: outcome.result.error ?? "invalid_config", message: outcome.result.message ?? null }, 422);
+	return c.json({ config: serverConfig(resolved.serverKeyId) });
 });
 
 userNetworksRouter.get("/:networkId/servers/:serverId/papi-placeholders", async (c: Context<{ Variables: Vars }>) => {

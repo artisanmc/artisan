@@ -72,7 +72,7 @@ class EditorCommandTest {
     fun `editor on a linked-but-not-connected server shows connecting message and does not trigger setup`() {
         val plugin = MockBukkit.load(ArtisanPlugin::class.java)
         // Simulate a linked server (has server_key) but backend is not yet reachable (editorInfo() is null)
-        plugin.config.set("server_key", "sk_" + "a".repeat(64))
+        plugin.connectionFile.writeText("server_key: \"sk_${"a".repeat(64)}\"\n")
         plugin.setMenuProviderForTesting(StubProvider(null))
         val sender = MockBukkit.getMock()!!.consoleSender
         val cmd = plugin.getCommand("artisan")!!

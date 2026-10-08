@@ -6,8 +6,8 @@ describe("asset usage compatibility", () => {
     expect(parseAssetUsages(["button", "menu"])).toEqual(["button", "menu"]);
     expect(parseAssetUsages(["background", "decoration", "menu", "button"])).toEqual(["menu", "button"]);
   });
-  test("accepts the chest texture usage", () => {
-    expect(parseAssetUsages(["chest_texture", "menu"])).toEqual(["chest_texture", "menu"]);
+  test("drops the container texture usages, now a server setting", () => {
+    expect(parseAssetUsages(["chest_texture", "menu", "hopper_texture"])).toEqual(["menu"]);
   });
   test("preserves explicit unclassified and rejects invalid metadata", () => {
     expect(parseAssetUsages([])).toEqual([]);

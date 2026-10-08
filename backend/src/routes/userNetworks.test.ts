@@ -2498,6 +2498,56 @@ describe("GET …/papi-placeholders", () => {
   });
 });
 
+describe("…/servers/:sid/config", () => {
+  beforeEach(clearAll);
+
+  test("members read the reported config and write it through the plugin", async () => {
+    const { recordServerConfig } = await import("../lib/serverConfig");
+    const { sessionId } = await seedUser();
+    const app = makeApp();
+    const headers = { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" };
+    const { network } = await (await app.request("/api/v1/networks", {
+      method: "POST", headers, body: JSON.stringify({ name: "Config" }),
+    })).json();
+    const serverId = "config-server";
+    await db.insert(serverKeys).values({ id: serverId, networkId: network.id, createdAt: new Date() });
+    const url = `/api/v1/networks/${network.id}/servers/${serverId}/server-config`;
+    const patch = (changes: unknown, h: Record<string, string> = headers) =>
+      app.request(url, { method: "PATCH", headers: h, body: JSON.stringify({ changes }) });
+
+    expect((await app.request(url)).status).toBe(401);
+    const outsider = await seedUser("config-outsider");
+    expect((await app.request(url, { headers: { Cookie: `artisan_user_session=${outsider.sessionId}` } })).status).toBe(403);
+    expect(await (await app.request(url, { headers })).json()).toEqual({ config: null, online: false });
+    expect((await patch({ language: "fr" })).status).toBe(503);
+    expect((await patch("nope")).status).toBe(422);
+
+    recordServerConfig(serverId, { language: "en" });
+    registerConn("config-conn", (raw) => {
+      const msg = JSON.parse(raw);
+      expect(msg.type).toBe("server_config_write");
+      const ok = msg.changes.language === "fr";
+      void handlePluginMessage("config-conn", JSON.stringify(ok
+        ? { type: "server_config_write_result", request_id: msg.request_id, ok: true, server_config: { language: "fr" } }
+        : { type: "server_config_write_result", request_id: msg.request_id, ok: false, error: "invalid_config", message: "language: invalid_type" }));
+    });
+    connToServerId.set("config-conn", serverId);
+    try {
+      expect(await (await app.request(url, { headers })).json()).toEqual({ config: { language: "en" }, online: true });
+      const accepted = await patch({ language: "fr" });
+      expect(accepted.status).toBe(200);
+      expect(await accepted.json()).toEqual({ config: { language: "fr" } });
+      const refused = await patch({ language: 3 });
+      expect(refused.status).toBe(422);
+      expect(await refused.json()).toEqual({ error: "invalid_config", message: "language: invalid_type" });
+    } finally {
+      recordServerConfig(serverId, undefined);
+      connToServerId.delete("config-conn");
+      connSenders.delete("config-conn");
+    }
+  });
+});
+
 describe("GET …/player-inventory", () => {
   beforeEach(clearAll);
 
