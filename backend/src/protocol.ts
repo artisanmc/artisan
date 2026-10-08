@@ -619,3 +619,20 @@ export interface HeadTextureResultMessage {
   texture?: string;
   error?: "hdb_unavailable" | "head_not_found" | "invalid_input" | "fetch_error";
 }
+
+// Backend → plugin: import de glyphes Nexo. La liste ne porte que des
+// métadonnées ; chaque PNG est lu à part (un message WS Bun plafonne à 16 Mo).
+export type NexoGlyphsRequest =
+  | { type: "nexo_glyphs_list" }
+  | { type: "nexo_glyph_read"; glyph_id: string };
+
+export interface NexoGlyphsResultMessage {
+  type: "nexo_glyphs_list_result" | "nexo_glyph_read_result";
+  request_id: string;
+  ok: boolean;
+  /** `available: false` = texture introuvable dans le pack Nexo (non importable). */
+  glyphs?: { id: string; texture: string; available: boolean }[];
+  content_base64?: string;
+  error?: "not_found" | "read_error";
+  message?: string;
+}
