@@ -43,7 +43,7 @@ it("restores a pending server operation from a refreshed listing without browser
     operationId: operation.operationId,
   });
   render(<RenameProjectButton project={pending} onRenamed={vi.fn()} />);
-  fireEvent.click(screen.getByRole("button", { name: "Rename project" }));
+  fireEvent.click(screen.getByRole("button", { name: "Edit" }));
   expect(screen.getByLabelText("Project folder")).toHaveValue("new");
   fireEvent.click(screen.getByRole("button", { name: "Retry" }));
   await waitFor(() => expect(renameProject).toHaveBeenCalledWith("internal", operation));
@@ -69,9 +69,9 @@ it("lets the user choose another target after a terminal reserved-name rejection
       onRenamed={vi.fn()}
     />,
   );
-  fireEvent.click(screen.getByRole("button", { name: "Rename project" }));
+  fireEvent.click(screen.getByRole("button", { name: "Edit" }));
   fireEvent.change(screen.getByLabelText("Project folder"), { target: { value: "reserved" } });
-  fireEvent.click(screen.getByRole("button", { name: "Rename" }));
+  fireEvent.click(screen.getByRole("button", { name: "Save" }));
   await waitFor(() => expect(screen.getByLabelText("Project folder")).not.toBeDisabled());
   expect(sessionStorage.getItem("artisan.rename.internal")).toBeNull();
   expect(
@@ -90,7 +90,7 @@ it("keeps a persisted pending operation visible when the server capability becom
       onRenamed={vi.fn()}
     />,
   );
-  fireEvent.click(screen.getByRole("button", { name: "Rename project" }));
+  fireEvent.click(screen.getByRole("button", { name: "Edit" }));
   expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
 });
 
@@ -102,9 +102,9 @@ it("retries a pending rename with the original operation after remount", async (
   const project = { id: "internal", externalId: "old", capabilities: { canRename: true } };
   const onRenamed = vi.fn();
   const first = render(<RenameProjectButton project={project} onRenamed={onRenamed} />);
-  fireEvent.click(screen.getByRole("button", { name: "Rename project" }));
+  fireEvent.click(screen.getByRole("button", { name: "Edit" }));
   fireEvent.change(screen.getByLabelText("Project folder"), { target: { value: "new_folder" } });
-  fireEvent.click(screen.getByRole("button", { name: "Rename" }));
+  fireEvent.click(screen.getByRole("button", { name: "Save" }));
   await screen.findByRole("button", { name: "Retry" });
   const operation = vi.mocked(renameProject).mock.calls[0]![1];
   first.unmount();
@@ -115,7 +115,7 @@ it("retries a pending rename with the original operation after remount", async (
     diskId: "new_folder",
   });
   render(<RenameProjectButton project={project} onRenamed={onRenamed} />);
-  fireEvent.click(screen.getByRole("button", { name: "Rename project" }));
+  fireEvent.click(screen.getByRole("button", { name: "Edit" }));
   fireEvent.click(screen.getByRole("button", { name: "Retry" }));
   await waitFor(() => expect(onRenamed).toHaveBeenCalledWith("new_folder"));
   expect(renameProject).toHaveBeenLastCalledWith("internal", operation);
