@@ -14,7 +14,7 @@ export interface ReportedDataSource {
 }
 
 export interface ProjectIdentityReport {
-  project_roots?: { project_id: string; identity: "folder" | "addon" }[];
+  project_roots?: { project_id: string; identity: "folder" | "addon"; module_id?: string }[];
   project_rename_results?: { operation_id: string; project_id: string; target_project_id: string }[];
   identity_migrations?: { from: string; to: string }[];
 }

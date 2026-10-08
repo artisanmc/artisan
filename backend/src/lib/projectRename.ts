@@ -12,7 +12,7 @@ export async function findProjectRename(projectId: string, operationId: string) 
 }
 export type RenameReceipt = { operation_id: string; project_id: string; target_project_id: string };
 export interface ProjectIdentityReport {
-  project_roots?: { project_id: string; identity: "folder" | "addon" }[];
+  project_roots?: { project_id: string; identity: "folder" | "addon"; module_id?: string }[];
   project_rename_results?: RenameReceipt[];
   identity_migrations?: { from: string; to: string }[];
 }
@@ -88,7 +88,8 @@ export async function reconcileProjectIdentity(serverKeyId: string, report: Proj
     }
     for (const root of report.project_roots ?? []) {
       if (root.identity !== "folder" && root.identity !== "addon") continue;
-      await tx.update(projects).set({ identityKind: root.identity }).where(and(eq(projects.serverKeyId, serverKeyId), sql`coalesce(${projects.externalId}, ${projects.id}) = ${root.project_id}`));
+      const ownerModule = root.identity === "addon" && typeof root.module_id === "string" ? root.module_id : null;
+      await tx.update(projects).set({ identityKind: root.identity, ownerModule }).where(and(eq(projects.serverKeyId, serverKeyId), sql`coalesce(${projects.externalId}, ${projects.id}) = ${root.project_id}`));
     }
   });
 }

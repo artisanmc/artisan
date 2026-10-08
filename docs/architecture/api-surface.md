@@ -249,9 +249,15 @@ The explicit `projectId` is a permanent immutable add-on identity, independent o
 the directory name. Registered roots cannot be renamed in the editor;
 `register(projectId, dir)` remains stable without deprecation.
 
+Prefer `register(projectId, dir, moduleId)`: it names the module (`ArtisanModule.getId()`)
+that owns the project, so the editor lists it under that module in "Installed modules"
+even when the module declares no config screen. Without it, the editor falls back to the
+module's declared screens to find the owner.
+
 | Member | Type | Since |
 |---|---|---|
 | `register(projectId: String, dir: File)` | `Unit` | 1.5.0 |
+| `register(projectId: String, dir: File, moduleId: String)` | `Unit` | 1.6.0 |
 
 ## Beta APIs (may change)
 

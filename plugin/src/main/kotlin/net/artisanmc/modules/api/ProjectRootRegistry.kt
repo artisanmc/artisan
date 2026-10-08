@@ -22,6 +22,13 @@ interface ProjectRootRegistry {
      */
     @Stable fun register(projectId: String, dir: File)
 
+    /**
+     * Same as [register], naming the module ([ArtisanModule.getId]) that owns the
+     * project: the editor then lists it under that module ("Installed modules") even
+     * when the module declares no config screen. Prefer this form.
+     */
+    @Stable fun register(projectId: String, dir: File, moduleId: String) = register(projectId, dir)
+
     companion object {
         /** No-op registry (test/default convenience). */
         @Stable val NOOP: ProjectRootRegistry = object : ProjectRootRegistry {
