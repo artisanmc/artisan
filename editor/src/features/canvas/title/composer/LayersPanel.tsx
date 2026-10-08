@@ -1,4 +1,4 @@
-import { type DragEvent, useState } from "react";
+import { type DragEvent, type ReactNode, useState } from "react";
 
 import type { AssetId, MenuId, MenuTitleLayer, ProjectId } from "@/domain/types";
 import { cn } from "@/lib/cx";
@@ -15,7 +15,7 @@ import { VanillaTextureLayer } from "./VanillaTextureLayer";
 import { attachLayerAtCursor } from "./attachLayerAtCursor";
 
 interface LayersPanelProps {
-  hideImage?: boolean;
+  imageControl?: ReactNode;
   projectId: ProjectId;
   /**
    * The menu whose title layers this panel edits. Provided by the parent
@@ -50,7 +50,7 @@ const DND_MIME = "application/x-layer-index";
  * panel switches to the new target (MenuProperties re-renders against
  * whichever menu the selectionStore now points at).
  */
-export function LayersPanel({ projectId, menuId, className, hideImage = false }: LayersPanelProps) {
+export function LayersPanel({ projectId, menuId, className, imageControl }: LayersPanelProps) {
   const setSelectedLayerKey = useUiStore((s) => s.setSelectedLayerKey);
   const setSelectedMenuId = useUiStore((s) => s.setSelectedMenuId);
 
@@ -97,7 +97,7 @@ export function LayersPanel({ projectId, menuId, className, hideImage = false }:
     // Migrate the plain layer's i18n key to a composed text layer so translations are preserved.
     const plainLayer = menu.title.find((l) => l.kind === "plain");
     const migratedLayers: MenuTitleLayer[] = plainLayer
-      ? [{ kind: "text", value: plainLayer.value, x: 8, y: 5 }]
+      ? [{ ...plainLayer, kind: "text", x: 8, y: 5 }]
       : [];
     setMenuTitleLayers({ projectId, menuId, layers: migratedLayers });
     setSelectedLayerKey(null);
@@ -245,7 +245,7 @@ export function LayersPanel({ projectId, menuId, className, hideImage = false }:
         <PlainTitleForm projectId={projectId} menuId={menuId} />
       ) : (
         <>
-          <AddLayerControls onPlace={onPlace} hideImage={hideImage} />
+          <AddLayerControls onPlace={onPlace} imageControl={imageControl} />
 
           <div className="flex flex-col gap-0.5">
             <VanillaTextureLayer projectId={projectId} menu={menu} />

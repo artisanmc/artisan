@@ -37,9 +37,10 @@ title layers; explicit `[]` stays unclassified. Resources exposes unclassified
 images for review. Classification filters choices, never rendering or existing
 references; several usages share one asset and its descriptor, not copied PNGs.
 Contextual pickers filter by usage; **Show all images** enables reuse and adds
-the chosen usage without discarding previous ones. **Menu appearance** exposes
-one **Add an image** picker, which appends a positionable glyph layer and preserves
-existing title layers. Background/glyph rendering kinds remain unchanged for compatibility.
+the chosen usage without discarding previous ones. In composed mode, **Menu appearance**
+exposes one **Add an image** picker beside **+ Text** (`imageControl` slot of
+`AddLayerControls`), which appends a positionable glyph layer and preserves existing
+title layers. Switching vanilla → composed keeps the plain title's fields (color…). Background/glyph rendering kinds remain unchanged for compatibility.
 `addImageButton` validates and inserts the whole footprint atomically; converting
 an item also sets its image and automatic positions in one undoable operation.
 New buttons use native pixels, centered by default. X/Y offsets (integer pixels)

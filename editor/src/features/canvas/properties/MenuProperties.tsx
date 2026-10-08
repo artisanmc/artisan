@@ -110,8 +110,11 @@ export function MenuProperties({ projectId, menu }: MenuPropertiesProps) {
         <div className="font-mono text-[10px] text-[var(--text-faint)] uppercase tracking-wide">
           {t("menuProperties.titleSection")}
         </div>
-        <MenuAppearanceControls projectId={projectId} menuId={menu.id} />
-        <LayersPanel projectId={projectId} menuId={menu.id} hideImage />
+        <LayersPanel
+          projectId={projectId}
+          menuId={menu.id}
+          imageControl={<MenuAppearanceControls projectId={projectId} menuId={menu.id} />}
+        />
       </div>
       <PropertyField
         label={t("menuProperties.permission")}
