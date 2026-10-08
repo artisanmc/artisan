@@ -40,7 +40,12 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Breadcrumb, BreadcrumbCurrent, breadcrumbLinkClass } from "@/components/ui/breadcrumb";
+import {
+  Breadcrumb,
+  BreadcrumbCurrent,
+  BreadcrumbSwitcher,
+  breadcrumbLinkClass,
+} from "@/components/ui/breadcrumb";
 import { Spinner } from "@/components/ui/spinner";
 import { StatCard } from "@/components/ui/stat-card";
 import { Switch } from "@/components/ui/switch";
@@ -176,9 +181,16 @@ export function DesignSystemPage() {
           <a href="#breadcrumb" className={breadcrumbLinkClass}>
             Primalcraft
           </a>
-          <a href="#breadcrumb" className={breadcrumbLinkClass}>
-            Survie
-          </a>
+          <BreadcrumbSwitcher
+            current="survie"
+            items={[
+              { id: "lobby", label: "Lobby" },
+              { id: "survie", label: "Survie" },
+              { id: "creatif", label: "Créatif" },
+            ]}
+            onSelect={() => {}}
+            searchPlaceholder={t("breadcrumb.searchServers")}
+          />
           <BreadcrumbCurrent>main</BreadcrumbCurrent>
         </Breadcrumb>
       </Section>

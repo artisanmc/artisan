@@ -303,7 +303,6 @@ function WorkspaceViewNav({ project }: { project: Project }) {
             )}
           >
             <v.Icon className="size-4 shrink-0" />
-            <span className="hidden xl:inline">{v.label}</span>
             {v.badge > 0 ? (
               <span
                 title={t("project.tabs.missingTranslations", { count: v.badge })}

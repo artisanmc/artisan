@@ -1,6 +1,13 @@
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/cx";
-import { ChevronRight } from "lucide-react";
-import { Children, type ReactNode } from "react";
+import { ChevronDown, ChevronRight } from "lucide-react";
+import { Children, type ReactNode, useState } from "react";
 
 /** Classes d'un niveau cliquable (lien du routeur ou `<a>`). */
 export const breadcrumbLinkClass =
@@ -48,5 +55,71 @@ export function BreadcrumbCurrent({ children, title }: { children: ReactNode; ti
     >
       {children}
     </span>
+  );
+}
+
+export interface BreadcrumbSwitcherItem {
+  id: string;
+  label: string;
+  /** Pastille ou icône devant le libellé, dans le menu. */
+  leading?: ReactNode;
+}
+
+/** Au-delà, le menu gagne un champ de recherche. */
+const SWITCHER_SEARCH_THRESHOLD = 7;
+
+/**
+ * Niveau qui ouvre la liste de ses voisins (serveurs d'un network…) pour en
+ * changer. Recherche seulement quand la liste est longue.
+ */
+export function BreadcrumbSwitcher({
+  current,
+  items,
+  onSelect,
+  searchPlaceholder,
+  title,
+}: {
+  current: string;
+  items: BreadcrumbSwitcherItem[];
+  onSelect: (id: string) => void;
+  searchPlaceholder: string;
+  title?: string;
+}) {
+  const [query, setQuery] = useState("");
+  const active = items.find((i) => i.id === current);
+  const q = query.trim().toLowerCase();
+  const visible = q ? items.filter((i) => i.label.toLowerCase().includes(q)) : items;
+  return (
+    <DropdownMenu onOpenChange={(open) => !open && setQuery("")}>
+      <DropdownMenuTrigger
+        title={title}
+        className={cn(breadcrumbLinkClass, "flex items-center gap-1.5")}
+      >
+        <span className="truncate">{active?.label ?? current}</span>
+        <ChevronDown aria-hidden className="size-3.5 shrink-0" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="min-w-56">
+        {items.length > SWITCHER_SEARCH_THRESHOLD && (
+          <Input
+            autoFocus
+            value={query}
+            placeholder={searchPlaceholder}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => e.key !== "Escape" && e.stopPropagation()}
+            className="mb-1 h-8"
+          />
+        )}
+        {visible.map((item) => (
+          <DropdownMenuItem
+            key={item.id}
+            onSelect={() => onSelect(item.id)}
+            className={cn("gap-2", item.id === current && "text-[var(--brand)]")}
+          >
+            {item.leading}
+            <span className="truncate">{item.label}</span>
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
