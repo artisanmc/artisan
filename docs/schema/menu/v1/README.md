@@ -213,6 +213,22 @@ elements:
 Placeholders disponibles au rendu de tout écran : `{has_previous_menu}`
 (booléen) et `{previous_menu.id}` / `{previous_menu.title}` (l'écran précédent).
 
+## Rafraîchir après une commande de module
+
+`set_arg` re-rend le menu courant **sans** les données qu'il avait récupérées : ses sources
+sont ré-interrogées. Après une commande de module qui change ces données (accorder une
+permission, promouvoir un membre), on enchaîne donc :
+
+```yaml
+click:
+  left:
+    - run_command: "msguilds:rank_permission {rank_id} {p.key}"
+    - set_arg: { arg: refresh, value: "1" }
+```
+
+`open_menu` vers le même menu ré-interroge aussi les sources, mais empile l'historique : le
+bouton retour reviendrait sur le même écran.
+
 ## Limitations connues (cross-field non-exprimables en JSON Schema)
 
 À valider au load par `validateMenuLayout` (cf. `types.ts`) :
