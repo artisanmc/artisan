@@ -243,7 +243,11 @@ class ActionExecutor(
     private fun applyArg(ctx: ExecutionContext, arg: String, value: String): ExecutionContext {
         val newCtx = ctx.copy(args = ctx.args + (arg to value))
         sessions.get(ctx.player)?.let { session ->
-            menuProvider.openMenu(ctx.player, session.menuId, newCtx.lang, newCtx)
+            // Without what the menu fetched: its sources run again, so the repaint
+            // shows data a previous action changed (a module command) and filters
+            // that read the new arg.
+            val renderCtx = newCtx.copy(args = newCtx.navigationArgs, sourceArgs = emptyMap())
+            menuProvider.openMenu(ctx.player, session.menuId, newCtx.lang, renderCtx)
         }
         return newCtx
     }
