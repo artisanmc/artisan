@@ -8,7 +8,15 @@ mock.module("../lib/resourcePack", () => ({
   currentPackInfo: async () => null,
 }));
 import { clearFakeDisk, fakeHubModule } from "../test/fakeServerDisk";
-mock.module("../ws/hub", () => fakeHubModule());
+mock.module("../ws/hub", () => fakeHubModule({ requestNexoGlyphs: fakeNexoGlyphs }));
+function fakeNexoGlyphs(_sk: string, req: { type: string; glyph_id?: string }) {
+  if (req.type === "nexo_glyphs_list") {
+    return Promise.resolve({ kind: "result", result: { ok: true, glyphs: [{ id: "bg", texture: "gui/bg", available: true }] } });
+  }
+  return Promise.resolve({ kind: "result", result: req.glyph_id === "bg"
+    ? { ok: true, content_base64: Buffer.from([1, 2, 3]).toString("base64") }
+    : { ok: false, error: "not_found" } });
+}
 
 import { beforeEach, describe, expect, test } from "bun:test";
 import { Hono } from "hono";
@@ -21,6 +29,7 @@ import { createNetwork } from "../lib/networkManager";
 import { addMembership } from "../lib/membershipManager";
 import { createProject } from "../lib/projectStorage";
 import { generateServerKey } from "../lib/auth";
+import { PNG } from "pngjs";
 
 // ─── App ──────────────────────────────────────────────────────────────────
 
@@ -130,6 +139,41 @@ describe("POST /api/v1/user/projects/:projectId/assets", () => {
     const body = await res.json();
     expect(body.asset.type).toBe("glyph");
     expect(body.asset.codepoint).toBe(0xE000);
+  });
+
+  test("replace=true swaps the pixels and keeps codepoint, ascent and usages", async () => {
+    const { sessionId, projectId } = await seedUserWithProject("u1");
+    const app = makeApp();
+    const post = (fd: FormData) => app.request(`/api/v1/user/projects/${projectId}/assets`, {
+      method: "POST", headers: { Cookie: `artisan_user_session=${sessionId}` }, body: fd,
+    });
+    const first = uploadForm({ type: "glyph", name: "coin", ascent: "7" });
+    first.set("usages", JSON.stringify(["button"]));
+    expect((await post(first)).status).toBe(201);
+    expect((await post(uploadForm({ type: "glyph", name: "coin" }))).status).toBe(409);
+
+    const png = new PNG({ width: 2, height: 3 });
+    const again = uploadForm({ type: "glyph", name: "coin", png: new Uint8Array(PNG.sync.write(png)) });
+    again.set("replace", "true");
+    const res = await post(again);
+    expect(res.status).toBe(200);
+    const { asset } = await res.json();
+    expect(asset).toMatchObject({ codepoint: 0xE000, ascent: 7, usages: ["button"], width: 2, height: 3 });
+    const list = await (await app.request(`/api/v1/user/projects/${projectId}/assets`, {
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
+    })).json();
+    expect(list.assets).toHaveLength(1);
+    expect(list.assets[0]).toMatchObject({ codepoint: 0xE000, width: 2 });
+  });
+
+  test("replace=true on a missing asset is 404", async () => {
+    const { sessionId, projectId } = await seedUserWithProject("u1");
+    const fd = uploadForm({ type: "glyph", name: "ghost" });
+    fd.set("replace", "true");
+    const res = await makeApp().request(`/api/v1/user/projects/${projectId}/assets`, {
+      method: "POST", headers: { Cookie: `artisan_user_session=${sessionId}` }, body: fd,
+    });
+    expect(res.status).toBe(404);
   });
 
   test("403 when the user is not a network member", async () => {
@@ -324,6 +368,40 @@ describe("POST /api/v1/networks/:networkId/servers/:serverId/resource-pack/rebui
     const res = await app.request(`/api/v1/networks/${networkId}/servers/${serverKeyId}/resource-pack/rebuild`, {
       method: "POST",
       headers: { Cookie: `artisan_user_session=${outsiderSession}` },
+    });
+    expect(res.status).toBe(403);
+  });
+});
+
+describe("GET /api/v1/user/projects/:projectId/nexo-glyphs", () => {
+  beforeEach(clearAll);
+
+  test("lists the Nexo glyphs of the project's server", async () => {
+    const { sessionId, projectId } = await seedUserWithProject("u1");
+    const res = await makeApp().request(`/api/v1/user/projects/${projectId}/nexo-glyphs`, {
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
+    });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ glyphs: [{ id: "bg", texture: "gui/bg", available: true }] });
+  });
+
+  test("serves one glyph's PNG, 404 when unknown", async () => {
+    const { sessionId, projectId } = await seedUserWithProject("u1");
+    const get = (id: string) => makeApp().request(`/api/v1/user/projects/${projectId}/nexo-glyphs/${id}`, {
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
+    });
+    const ok = await get("bg");
+    expect(ok.status).toBe(200);
+    expect(ok.headers.get("content-type")).toBe("image/png");
+    expect([...new Uint8Array(await ok.arrayBuffer())]).toEqual([1, 2, 3]);
+    expect((await get("nope")).status).toBe(404);
+  });
+
+  test("403 when the user is not a network member", async () => {
+    const { projectId } = await seedUserWithProject("u1");
+    const outsider = await addOutsider();
+    const res = await makeApp().request(`/api/v1/user/projects/${projectId}/nexo-glyphs`, {
+      headers: { Cookie: `artisan_user_session=${outsider}` },
     });
     expect(res.status).toBe(403);
   });

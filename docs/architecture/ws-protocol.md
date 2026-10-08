@@ -196,6 +196,8 @@ Les racines enregistrées par les modules sont exemptées. Au-dessus du quota, s
 
 `head_texture_fetch` (backend → plugin) carries `{type, request_id, id}`; `id` is a numeric HDB id (1–10 digits). The plugin resolves the ItemStack on the Bukkit main thread and extracts its `textures` profile property through `ItemDescriptor`. `head_texture_result` replies `{type, request_id, ok, texture?, error?}` with Base64 texture data (≤16 KiB); errors are `hdb_unavailable`, `head_not_found`, `invalid_input`, or `fetch_error`. The backend accepts the correlated response only from the requested server, with a 5 s timeout for offline/old plugins. No protocol version bump: this is an additive optional preview exchange.
 
+`nexo_glyphs_list` / `nexo_glyph_read` (backend → plugin) carry `{type, request_id}` and `{type, request_id, glyph_id}`. The plugin reads Nexo's glyph configs straight from `plugins/Nexo/glyphs/` (no Nexo API, works with Nexo disabled; bitmap glyphs skipped) and resolves each texture like Nexo does: `pack/assets`, then `pack/external_packs/` folders, then its zips. Replies `nexo_glyphs_list_result` `{ok, glyphs:[{id, texture, available}]}` (metadata only — a Bun WS frame caps at 16 MiB) and `nexo_glyph_read_result` `{ok, content_base64?, error?}` (`not_found` / `read_error`). The glyph id is a lookup key, never a path; `..` in a texture key is refused. Correlated per server, 10 s timeout; old plugins time out. Additive, no version bump.
+
 ## Auth du WS éditeur (`GET /ws/editor`)
 
 Accounts-only : un seul chemin d'authentification, ticket one-shot (le chemin `?token=` de la trust dance anonyme a été supprimé en Task 7 — cf. `docs/decisions/accounts-only-editing.md`) :

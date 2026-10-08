@@ -67,6 +67,7 @@ class SyncedMenuProvider(
     private val menuWindows: net.artisanmc.plugin.render.MenuWindows? = null,
     private val pluginVersion: String = "1.0.0",
     private val pluginUpdater: (() -> net.artisanmc.plugin.update.PluginUpdater.Result)? = null,
+    private val nexoGlyphs: net.artisanmc.plugin.customitems.NexoGlyphReader? = null,
 ) : MenuProvider {
     private var copyMinecraftVersion = "1.21.4"
     private val projectIo = object {
@@ -738,6 +739,35 @@ class SyncedMenuProvider(
                     }
                 } catch (_: java.util.concurrent.RejectedExecutionException) {
                     logger?.warning("import_sources_read dropped — plugin is stopping")
+                }
+            }
+
+            // Import de glyphes Nexo dans les assets (lecture disque, hors main thread).
+            "nexo_glyphs_list", "nexo_glyph_read" -> {
+                val requestId = node["request_id"]?.asText() ?: return
+                val type = node["type"].asText()
+                val glyphId = node["glyph_id"]?.asText()
+                try {
+                    httpClient.dispatcher.executorService.execute {
+                        val base = mapOf("type" to "${type}_result", "request_id" to requestId)
+                        val payload: Map<String, Any> = try {
+                            if (type == "nexo_glyphs_list") {
+                                mapOf("ok" to true, "glyphs" to (nexoGlyphs?.list().orEmpty()).map {
+                                    mapOf("id" to it.id, "texture" to it.texture, "available" to it.available)
+                                })
+                            } else {
+                                val bytes = glyphId?.let { nexoGlyphs?.read(it) }
+                                if (bytes == null) mapOf("ok" to false, "error" to "not_found")
+                                else mapOf("ok" to true, "content_base64" to java.util.Base64.getEncoder().encodeToString(bytes))
+                            }
+                        } catch (error: Throwable) {
+                            logger?.log(java.util.logging.Level.WARNING, "[Artisan] $type failed", error)
+                            mapOf("ok" to false, "error" to "read_error", "message" to describeError(error))
+                        }
+                        send(base + payload)
+                    }
+                } catch (_: java.util.concurrent.RejectedExecutionException) {
+                    logger?.warning("$type dropped — plugin is stopping")
                 }
             }
 

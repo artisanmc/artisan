@@ -111,11 +111,19 @@ function uploadFile(projectId: string, file: File, fields: Record<string, string
 }
 export async function uploadAsset(
   projectId: string,
-  input: { file: File; type: AssetType; name: string; ascent?: number; usages?: AssetUsage[] },
+  input: {
+    file: File;
+    type: AssetType;
+    name: string;
+    ascent?: number;
+    usages?: AssetUsage[];
+    replace?: boolean;
+  },
 ): Promise<Asset> {
   const result = await uploadFile(projectId, input.file, {
     type: input.type,
     name: input.name,
+    ...(input.replace ? { replace: "true" } : {}),
     ...(input.usages === undefined ? {} : { usages: JSON.stringify(input.usages) }),
     ...(input.ascent === undefined ? {} : { ascent: String(input.ascent) }),
   });
@@ -156,4 +164,22 @@ export async function duplicateAsset(projectId: string, id: string): Promise<Ass
       fields: {},
     })
   ).asset!;
+}
+
+export interface NexoGlyph {
+  id: string;
+  texture: string;
+  available: boolean;
+}
+export const nexoGlyphUrl = (projectId: string, id?: string) =>
+  `${API_URL}/api/v1/user/projects/${encodeURIComponent(projectId)}/nexo-glyphs${id === undefined ? "" : `/${encodeURIComponent(id)}`}`;
+export async function listNexoGlyphs(projectId: string): Promise<NexoGlyph[]> {
+  const response = await projectFetch(projectId, nexoGlyphUrl(projectId));
+  if (!response.ok) throw new Error("nexo_glyphs_unavailable");
+  return ((await response.json()) as { glyphs: NexoGlyph[] }).glyphs;
+}
+export async function fetchNexoGlyph(projectId: string, id: string): Promise<Blob> {
+  const response = await projectFetch(projectId, nexoGlyphUrl(projectId, id));
+  if (!response.ok) throw new Error(`nexo_glyph_unavailable: ${id}`);
+  return response.blob();
 }

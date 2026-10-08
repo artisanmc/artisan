@@ -251,6 +251,7 @@ open class ArtisanPlugin : JavaPlugin() {
             menuWindows = menuWindows,
             pluginVersion = description.version,
             pluginUpdater = pluginUpdater(cfg),
+            nexoGlyphs = net.artisanmc.plugin.customitems.NexoGlyphReader(java.io.File(server.pluginsFolder, "Nexo")),
         )
         moduleMessageSender = { m -> (menuProvider as? SyncedMenuProvider)?.sendModuleMessage(m) }
         defaultModules().forEach { api.modules.register(it) }
@@ -451,6 +452,7 @@ open class ArtisanPlugin : JavaPlugin() {
             menuWindows = menuWindows,
             pluginVersion = description.version,
             pluginUpdater = pluginUpdater(cfg),
+            nexoGlyphs = net.artisanmc.plugin.customitems.NexoGlyphReader(java.io.File(server.pluginsFolder, "Nexo")),
         )
         moduleMessageSender = { m -> (menuProvider as? SyncedMenuProvider)?.sendModuleMessage(m) }
         val pluginsDirReinit = server.pluginsFolder
