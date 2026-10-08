@@ -25,6 +25,20 @@ class ProjectRootsTest {
         addonDir.deleteRecursively()
     }
 
+    @Test fun `an add-on root reports the module that owns it`() {
+        roots.register("msguilds_addon", addonDir, "msguilds")
+        assertEquals(
+            mapOf("project_id" to "msguilds_addon", "identity" to "addon", "module_id" to "msguilds"),
+            roots.descriptor("msguilds_addon"),
+        )
+        assertEquals(mapOf("project_id" to "user_proj", "identity" to "folder"), roots.descriptor("user_proj"))
+    }
+
+    @Test fun `an add-on root registered without a module reports none`() {
+        roots.register("boutique_addon", addonDir)
+        assertEquals(mapOf("project_id" to "boutique_addon", "identity" to "addon"), roots.descriptor("boutique_addon"))
+    }
+
     @Test fun `dirFor resolves a core project under the core root`() {
         assertEquals(File(coreRoot, "user_proj"), roots.dirFor("user_proj"))
     }

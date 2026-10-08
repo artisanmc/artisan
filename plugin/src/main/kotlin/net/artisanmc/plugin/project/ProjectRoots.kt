@@ -22,6 +22,8 @@ class ProjectRoots(
 
     /** projectId -> project dir, for Add-on-owned projects registered at onEnable. */
     private val registered = ConcurrentHashMap<String, File>()
+    /** projectId -> owning module id, when the Add-on named it at registration. */
+    private val owners = ConcurrentHashMap<String, String>()
 
     val copier: ProjectCopier by lazy { ProjectCopier(this, onRecoveryFailure = { error ->
         logger?.log(java.util.logging.Level.WARNING, "[Artisan] Copy receipt recovery failed; affected targets remain isolated.", error)
@@ -36,8 +38,13 @@ class ProjectRoots(
     fun isRegistered(projectId: String): Boolean = registered.keys.any { it.equals(projectId, ignoreCase = File.separatorChar == '\\') }
     fun registeredRoots(): Map<String, File> = registered.toMap()
 
-    fun descriptors(): List<Map<String, String>> = all().keys.map {
-        mapOf("project_id" to it, "identity" to if (isRegistered(it)) "addon" else "folder")
+    fun descriptors(): List<Map<String, String>> = all().keys.map { descriptor(it) }
+
+    /** `project_roots` entry: identity, plus the owning module of an Add-on root when known. */
+    fun descriptor(projectId: String): Map<String, String> {
+        val identity = mapOf("project_id" to projectId, "identity" to if (isRegistered(projectId)) "addon" else "folder")
+        val owner = owners[projectId] ?: return identity
+        return identity + ("module_id" to owner)
     }
 
     /**
@@ -68,6 +75,11 @@ class ProjectRoots(
         }
         registered[projectId] = dir
         onRegister?.invoke(projectId, dir)
+    }
+
+    override fun register(projectId: String, dir: File, moduleId: String) {
+        owners[projectId] = moduleId
+        register(projectId, dir)
     }
 
     /** The project dir for [projectId]: a registered Add-on root, else `<coreRoot>/<projectId>`. */
