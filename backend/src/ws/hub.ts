@@ -22,6 +22,8 @@ import { invalidateCustomBundle } from "../routes/modelBundle";
 import type {
   PapiPlaceholdersResultMessage,
   HeadTextureResultMessage,
+  NexoGlyphsRequest,
+  NexoGlyphsResultMessage,
   PluginUpdateResultMessage,
   EditorProjectsReloadedMessage,
   ProjectsReloadedMessage,
@@ -222,6 +224,28 @@ export function requestHeadTexture(serverKeyId: string, id: string, timeoutMs = 
     const timer = setTimeout(() => finish({ kind: "timeout" }), timeoutMs);
     pendingHeadTextures.set(requestId, { serverKeyId, finish });
     try { send(JSON.stringify({ type: "head_texture_fetch", request_id: requestId, id })); }
+    catch { finish({ kind: "offline" }); }
+  });
+}
+
+type NexoGlyphsOutcome =
+  | { kind: "result"; result: NexoGlyphsResultMessage }
+  | { kind: "offline" | "timeout" };
+const pendingNexoGlyphs = new Map<string, { serverKeyId: string; finish: (outcome: NexoGlyphsOutcome) => void }>();
+
+export function requestNexoGlyphs(serverKeyId: string, request: NexoGlyphsRequest, timeoutMs = 10_000): Promise<NexoGlyphsOutcome> {
+  const send = firstPluginSender(serverKeyId);
+  if (!send) return Promise.resolve({ kind: "offline" });
+  const requestId = crypto.randomUUID();
+  return new Promise((resolve) => {
+    const finish = (outcome: NexoGlyphsOutcome) => {
+      clearTimeout(timer);
+      pendingNexoGlyphs.delete(requestId);
+      resolve(outcome);
+    };
+    const timer = setTimeout(() => finish({ kind: "timeout" }), timeoutMs);
+    pendingNexoGlyphs.set(requestId, { serverKeyId, finish });
+    try { send(JSON.stringify({ ...request, request_id: requestId })); }
     catch { finish({ kind: "offline" }); }
   });
 }
@@ -1427,6 +1451,13 @@ export async function handlePluginMessage(
     if (pending && connToServerId.get(connId) === pending.serverKeyId) {
       pending.finish({ kind: "result", result });
     }
+    return { reply: null };
+  }
+
+  if (msg.type === "nexo_glyphs_list_result" || msg.type === "nexo_glyph_read_result") {
+    const result = msg as NexoGlyphsResultMessage;
+    const pending = pendingNexoGlyphs.get(result.request_id);
+    if (pending && connToServerId.get(connId) === pending.serverKeyId) pending.finish({ kind: "result", result });
     return { reply: null };
   }
 

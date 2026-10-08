@@ -147,15 +147,22 @@ export async function handleAssetCreate(c: any, ctx: AssetCtx) {
 
     const path = assetDiskPath(type, name);
     const existingSame = disk.assets.find((a) => a.path === path);
-    if (existingSame) return c.json({ error: "Asset name already exists" }, 409);
+    // `replace` = réimport (ex. glyphe Nexo mis à jour) : nouveaux pixels, même
+    // codepoint/ascent/usages, pour que les menus qui l'utilisent suivent.
+    const replace = form.replace === "true";
+    if (existingSame && !replace) return c.json({ error: "Asset name already exists" }, 409);
+    if (!existingSame && replace) return c.json({ error: "not_found" }, 404);
+    const kept = existingSame?.row;
+    const previous = existingSame ? descriptorOf(disk.files, existingSame.path) : null;
+    if (kept) usages = kept.usages;
 
-    const ascentValue = type === "glyph"
+    const ascentValue = kept ? kept.ascent : type === "glyph"
       ? (ascentRaw !== null ? parseInt(ascentRaw, 10) : 8)
       : null;
     if (ascentValue !== null && !Number.isFinite(ascentValue)) {
       return c.json({ error: "Invalid ascent" }, 400);
     }
-    const codepointValue = type === "glyph" ? nextFreeCodepoint(disk.assets) : null;
+    const codepointValue = kept ? kept.codepoint : type === "glyph" ? nextFreeCodepoint(disk.assets) : null;
 
     const written = await assets.writeAsset({
       type,
@@ -169,8 +176,8 @@ export async function handleAssetCreate(c: any, ctx: AssetCtx) {
         content_width: contentWidth,
         usages,
       },
-      baseHash: null,
-      descriptorBaseHash: null,
+      baseHash: existingSame?.hash ?? null,
+      descriptorBaseHash: previous ? sha256Hex(previous.content) : null,
     });
     if (!written.ok) return assetWriteError(c, written);
 
@@ -191,7 +198,7 @@ export async function handleAssetCreate(c: any, ctx: AssetCtx) {
         createdAt: now.toISOString(),
         updatedAt: now.toISOString(),
       },
-    }, 201);
+    }, replace ? 200 : 201);
   }
 }
 

@@ -10,6 +10,7 @@ import { useTranslation } from "react-i18next";
 import { AssetDetailPanel } from "./AssetDetailPanel";
 import { AssetGrid } from "./AssetGrid";
 import { AssetImportFontDialog } from "./AssetImportFontDialog";
+import { AssetImportNexoDialog } from "./AssetImportNexoDialog";
 import { AssetUploadDialog } from "./AssetUploadDialog";
 import { useAssetStore } from "./assetStore";
 
@@ -38,6 +39,7 @@ export function AssetsTab({
   const [category, setCategory] = useState<(typeof CATEGORIES)[number]>("all");
   const [uploadOpen, setUploadOpen] = useState(false);
   const [importFontOpen, setImportFontOpen] = useState(false);
+  const [importNexoOpen, setImportNexoOpen] = useState(false);
 
   const filtered = assets.filter((asset) => {
     if (asset.projectId !== projectId || !asset.name.toLowerCase().includes(search.toLowerCase()))
@@ -58,6 +60,9 @@ export function AssetsTab({
             <Button onClick={() => setUploadOpen(true)}>{t("resources.upload")}</Button>
             <Button variant="outline" onClick={() => setImportFontOpen(true)}>
               {t("resources.importFont")}
+            </Button>
+            <Button variant="outline" onClick={() => setImportNexoOpen(true)}>
+              {t("resources.importNexo")}
             </Button>
             <Input
               aria-label={t("resources.search")}
@@ -127,6 +132,11 @@ export function AssetsTab({
         projectId={projectId}
         open={importFontOpen}
         onClose={() => setImportFontOpen(false)}
+      />
+      <AssetImportNexoDialog
+        projectId={projectId}
+        open={importNexoOpen}
+        onClose={() => setImportNexoOpen(false)}
       />
     </div>
   );

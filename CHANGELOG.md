@@ -9,6 +9,8 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+- **Import from Nexo** in the project's Resources tab: pick glyphs from the server's Nexo config and copy their textures into the project as ordinary images, usable as menu backgrounds, title glyphs or image buttons. Glyphs whose texture is missing from the Nexo pack are greyed out. Importing a glyph again updates its image and keeps its uses. Works without Nexo running (Artisan reads `plugins/Nexo/` directly). New: `GET /api/v1/user/projects/:projectId/nexo-glyphs[/:glyphId]`, asset creation accepts `replace=true`, WS `nexo_glyphs_list` / `nexo_glyph_read`.
+
 - New project setting **ESC goes back** (manifest `escape_goes_back`): pressing Esc in a menu reopens the previous screen, like a back button, instead of closing everything. On the first menu, Esc closes as usual; `close_menu` still closes everything. Off by default.
 
 - The server badge in the editor now offers **Update** when a newer Artisan plugin is available. Any network member can click it: the plugin downloads the new JAR from the Artisan backend, checks its signature, and drops it into `plugins/update/`, where Paper applies it at the next restart. The badge then says the update is waiting for a restart. Only plugins from this version on can do this; installing this one is still manual. Plugins now report their real version (`1.0.<build>`) instead of `1.0.0`. New: `GET`/`PUT /api/v1/plugin-release`, `GET /api/v1/plugin-release/artisan.jar`, `POST /api/v1/networks/:networkId/servers/:serverId/plugin-update`, WS `plugin_update` / `plugin_update_result` behind capability `plugin_update_v1`.

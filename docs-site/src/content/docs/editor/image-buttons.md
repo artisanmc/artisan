@@ -25,6 +25,12 @@ transparent padding. **Stretch** fills the entire area. The source PNG is unchan
 Replacing an existing button's image keeps its area and settings. **Fit slots to image**
 recalculates its footprint when desired. Existing buttons retain their previous rendering.
 
+**Using Nexo glyphs.** In the project's **Resources** tab, **Import from Nexo** lists
+the glyphs configured in `plugins/Nexo/glyphs/` on the server. Selected glyphs are
+copied into the project as images, so they work as buttons, backgrounds or title
+glyphs like any upload. Greyed glyphs have no texture in the Nexo pack. If you change
+a glyph in Nexo, import it again: the image is updated and its uses are kept.
+
 Configure the title, lore and click actions as usual. Every slot in the rectangle
 triggers the same actions, including transparent parts of the image. Minecraft
 handles clicks by slot, so the small gaps between slots are not separate targets.
