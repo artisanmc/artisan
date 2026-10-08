@@ -1,9 +1,11 @@
 import * as networksApi from "@/lib/api/networks";
 import { useNetworksStore } from "@/state/networksStore";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 
+const navigate = vi.fn();
 vi.mock("@tanstack/react-router", () => ({
+  useNavigate: () => navigate,
   Link: ({
     children,
     to,
@@ -26,16 +28,24 @@ beforeEach(() => {
   vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
     network: { id: "net_1", name: "Primalcraft", tier: "free" },
     projects: [],
-    serverKeys: [{ id: "sk_1", slug: "survie", label: "Survie" }],
+    serverKeys: [
+      { id: "sk_1", slug: "survie", label: "Survie", online: true },
+      { id: "sk_2", slug: "lobby", label: "Lobby" },
+    ],
   } as never);
 });
 
-it("links the network and the server, and ends on the project", async () => {
+it("switches server from a menu (network in its tooltip), and ends on the project", async () => {
   render(<ProjectBreadcrumb networkRef="primalcraft" serverRef="survie" projectName="main" />);
-  const network = screen.getByRole("link", { name: "Primalcraft" });
-  expect(network.getAttribute("href")).toContain("/networks/$networkId|");
-  const server = await screen.findByRole("link", { name: "Survie" });
-  expect(server.getAttribute("href")).toContain("/networks/$networkId/servers/$serverId|");
+  expect(screen.queryByText("Primalcraft")).toBeNull();
+  const server = await screen.findByRole("button", { name: /Survie/ });
+  expect(server).toHaveAttribute("title", "Primalcraft › Survie");
+  fireEvent.keyDown(server, { key: "Enter" });
+  fireEvent.click(screen.getByRole("menuitem", { name: "Lobby" }));
+  expect(navigate).toHaveBeenCalledWith({
+    to: "/networks/$networkId/servers/$serverId",
+    params: { networkId: "primalcraft", serverId: "lobby" },
+  });
   expect(screen.getByText("main")).toHaveAttribute("aria-current", "page");
 });
 

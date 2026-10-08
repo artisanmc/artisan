@@ -1243,6 +1243,7 @@ export default {
   },
   breadcrumb: {
     label: "Breadcrumb",
+    searchServers: "Search servers",
   },
   linkedServers: {
     title: "Linked servers",

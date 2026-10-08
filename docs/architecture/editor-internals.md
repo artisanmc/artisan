@@ -652,7 +652,7 @@ L'index montre l'état **publié** : le brouillon d'un project non édité n'y e
 
 ### Fil d'Ariane de la topbar (depuis 2026-10-02)
 
-`ProjectBreadcrumb` (`components/`) remplace le nom seul du project en tête de la topbar : **network › serveur › project**, les deux premiers niveaux étant des liens vers leurs pages (le libellé du serveur est lu via `getNetwork`). Hors network (démo), seul le project s'affiche. Rendu par le composant du design system `components/ui/breadcrumb.tsx` (`Breadcrumb`, `BreadcrumbCurrent`, `breadcrumbLinkClass` ; spécimen sur `/admin/design`). Changer de serveur passe par ce fil (page du serveur ou du network), plus par un sélecteur dans la barre.
+`ProjectBreadcrumb` (`components/`) remplace le nom seul du project en tête de la topbar : **serveur › project**. Le serveur est un `BreadcrumbSwitcher` : il ouvre la liste des serveurs du network (pastille en ligne/hors ligne, champ de recherche au-delà de 7) et en choisir un mène à sa page. Le network n'apparaît plus qu'en infobulle du serveur (2026-10-08), pour laisser la place aux onglets ; sa page reste accessible depuis la liste `/networks` et le compte. La pastille d'état devant le serveur (`LinkedServersDropdown`) garde son propre menu. Hors network (démo), seul le project s'affiche. Rendu par `components/ui/breadcrumb.tsx` (`Breadcrumb`, `BreadcrumbCurrent`, `BreadcrumbSwitcher`, `breadcrumbLinkClass` ; spécimens sur `/admin/design`). Les onglets de la topbar n'affichent que leur icône (nom en infobulle avec le raccourci).
 
 ## UI shell — Project + Settings (depuis 2026-05-27)
 
