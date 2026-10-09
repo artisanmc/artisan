@@ -62,6 +62,7 @@ import { useTranslation } from "react-i18next";
 import { previewItem } from "@/features/canvas/itemValuePreview";
 import { useServerSnapshotsStore } from "@/state/serverSnapshotsStore";
 import { ItemBindingEditor } from "./ItemBindingEditor";
+import { conditionsSummary } from "./labels";
 import {
   CommandStepPseudocode,
   DialogButtonStepPseudocode,
@@ -681,6 +682,9 @@ function StateCard({
   // formatted title + lore right) so the visual link is obvious.
   if (!focused) {
     const displayTitle = title.trim() || material || "(empty)";
+    const conditionText = appearance.if?.length
+      ? conditionsSummary(appearance.if, appearance.ifJoins)
+      : "";
     return (
       <div
         ref={sortable.setNodeRef}
@@ -711,18 +715,15 @@ function StateCard({
           <div className="min-w-0 flex-1">
             <div className="font-mono text-[10px] text-[var(--text-faint)] uppercase tracking-wide">
               {isDefault ? t("flow.stateDefault") : t("flow.stateN", { index: stateIndex })}
-              {!isDefault && (appearance.if ?? []).length > 0 ? (
-                <span className="ml-1.5 normal-case text-[var(--text-faint)]">
-                  ·{" "}
-                  {t(
-                    (appearance.if ?? []).length === 1
-                      ? "flow.stateConditionsOne"
-                      : "flow.stateConditionsOther",
-                    { count: (appearance.if ?? []).length },
-                  )}
-                </span>
-              ) : null}
             </div>
+            {conditionText ? (
+              <div
+                title={conditionText}
+                className="truncate font-mono text-[10px] text-[var(--brand)]"
+              >
+                {t("flow.stateCondition", { summary: conditionText })}
+              </div>
+            ) : null}
             <MiniMessageInline
               source={displayTitle}
               className="block truncate font-mono text-xs text-[var(--text)]"
