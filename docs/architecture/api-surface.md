@@ -282,7 +282,7 @@ net.artisanmc:artisan-core-api:<version>
 Served by Artisan's Maven repository `https://repo.artisanmc.net` (Reposilite, `deploy/reposilite/`), published by `.github/workflows/publish-api.yml`:
 
 - tag `api-vX.Y.Z` → `/releases`, version `X.Y.Z` — the API's own SemVer (the `Since` column above), independent of the plugin build number `1.0.<run>`;
-- push to `main` touching the API or `plugin/build.gradle.kts` → `/snapshots`, version `1.0.0-SNAPSHOT`.
+- push to `main` touching the API or `plugin/build.gradle.kts` → `/snapshots`, version `X.(Y+1).0-SNAPSHOT` computed from the latest `api-vX.Y.Z` tag (after `api-v1.6.0`: `1.7.0-SNAPSHOT`). The snapshot names the next minor, so it always sorts above the latest release; no manual bump. Without any `api-v*` tag the snapshot job fails on purpose.
 
 The publication carries a sources jar (KDoc) and a POM declaring `kotlin-stdlib`. License: GPL-3.0, like the repo. External module plugins declare it as `compileOnly` (the jar is provided by the running Artisan plugin at runtime):
 
