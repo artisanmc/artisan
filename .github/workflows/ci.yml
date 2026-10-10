@@ -79,4 +79,4 @@ jobs:
           java-version: 21
           cache: gradle
       - uses: gradle/actions/setup-gradle@v5
-      - run: bash ./gradlew test shadowJar --no-daemon
+      - run: bash ./gradlew test shadowJar publishCoreApiPublicationToMavenLocal --no-daemon

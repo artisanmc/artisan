@@ -23,36 +23,39 @@ The jar is provided at runtime by the installed Artisan plugin, so declare it as
 repositories {
     mavenCentral()
     maven("https://repo.papermc.io/repository/maven-public/")
-    mavenLocal() // until the artifact is published to a public repo
+    maven("https://repo.artisanmc.net/releases")
 }
 
 dependencies {
     compileOnly("io.papermc.paper:paper-api:1.21.4-R0.1-SNAPSHOT")
-    compileOnly("net.artisanmc:artisan-core-api:1.0.0-SNAPSHOT")
+    compileOnly("net.artisanmc:artisan-core-api:1.6.0")
 }
 ```
 
 ### Maven
 
 ```xml
+<repository>
+    <id>artisan</id>
+    <url>https://repo.artisanmc.net/releases</url>
+</repository>
+
 <dependency>
     <groupId>net.artisanmc</groupId>
     <artifactId>artisan-core-api</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>1.6.0</version>
     <scope>provided</scope>
 </dependency>
 ```
 
-If you build in Java, also add `org.jetbrains.kotlin:kotlin-stdlib` as
-`provided` — the API is written in Kotlin and a few signatures (`kotlin.Unit`,
-`Function2`) surface in Java call sites.
+Versions follow the API's own SemVer (the version a member appeared in), not the
+plugin build number. To track unreleased changes, use
+`https://repo.artisanmc.net/snapshots` and version `1.0.0-SNAPSHOT`.
 
-While the artifact is not on a public repository, build it from the Artisan
-plugin sources:
+The POM declares `kotlin-stdlib`, which the API's few Kotlin types (`kotlin.Unit`,
+`Function2`) need in Java call sites. Sources (with KDoc) are published alongside.
 
-```bash
-cd plugin && ./gradlew publishToMavenLocal
-```
+The API is licensed GPL-3.0, like the rest of Artisan.
 
 ## Declare the dependency in `plugin.yml`
 
