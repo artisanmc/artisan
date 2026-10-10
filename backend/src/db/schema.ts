@@ -384,6 +384,9 @@ export const projects = pgTable(
 		// Version Minecraft d'un Project démo (catalogue d'items) ; nulle pour un serveur.
 		hostedMinecraftVersion: text("hosted_minecraft_version"),
 		identityKind: text("identity_kind").notNull().default("unknown").$type<"unknown" | "folder" | "addon">(),
+		// Module owning an add-on root, as its plugin reported it (`project_roots[].module_id`);
+		// the editor lists the project under that module. Null for folders and unnamed add-ons.
+		ownerModule: text("owner_module"),
 		name: text("name").notNull(),
 		// Folder identity (or explicit add-on ID), scoped by server key.
 		// `id` remains the immutable global FK.

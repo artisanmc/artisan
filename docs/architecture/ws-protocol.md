@@ -120,8 +120,9 @@ Ordinary reads/exports/runtime never include `.artisan/drafts/`.
 ### Project identity and durable rename (2026-09-12)
 
 `hello.capabilities` negotiates `project_rename`. `project_roots` reports
-`{project_id, identity: "folder" | "addon"}` on hello, list, reload and module
-registration. Add-on IDs remain registered and immutable; folder roots can rename.
+`{project_id, identity: "folder" | "addon", module_id?}` on hello, list, reload and module
+registration. `module_id` names the module owning an add-on root when it registered with
+`register(projectId, dir, moduleId)`; the backend stores it in `projects.owner_module`. Add-on IDs remain registered and immutable; folder roots can rename.
 `project_rename` carries `request_id`, durable `operation_id`, `project_id` and
 `target_project_id`; `project_rename_result` echoes them with `ok` and `error`.
 The backend reserves the target and blocks text/config/binary writes while pending.
