@@ -35,9 +35,10 @@ In GitHub, `artisanmc/artisan` > Settings > Secrets and variables > Actions:
 
 ## Release
 
-A release: `git tag api-vX.Y.Z && git push origin api-vX.Y.Z` (first one: `api-v1.6.0`).
-Merging to `main` then publishes `X.(Y+1).0-SNAPSHOT`, computed from the latest `api-v*` tag;
-before the first tag the snapshot job fails on purpose.
+Automatic: the version is the highest `Since` in `docs/architecture/api-surface.md`. A merge to
+`main` that raises it above the latest `api-vX.Y.Z` tag publishes that release and creates the tag
+and the GitHub Release; any other API change publishes `X.(Y+1).0-SNAPSHOT`.
+Re-run without a change: Actions > Publish API > Run workflow.
 
 ## Check
 

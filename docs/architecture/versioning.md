@@ -240,6 +240,8 @@ L'API publique du core suit **SemVer strict** :
 - **Minor (1.0.0 → 1.1.0)** : ajouts de méthodes, classes, fields OK. Pas de retrait, pas de changement de signature existante.
 - **Major (1.0.0 → 2.0.0)** : retrait, breaking changes OK. Éviter au max.
 
+La version publiée est la plus haute valeur `Since` d'`api-surface.md` : la monter dans la PR suffit à publier la release au merge (`publish-api.yml`, détail dans `api-surface.md` § Published artifact).
+
 ### 3.4 Deprecation flow
 
 Quand tu veux retirer une API en major :
