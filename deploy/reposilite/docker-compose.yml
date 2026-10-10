@@ -1,0 +1,18 @@
+# Maven repository repo.artisanmc.net (Reposilite), deployed as a Docker Compose resource in Coolify.
+# Setup and tokens: deploy/reposilite/README.md.
+services:
+  reposilite:
+    image: dzikoysk/reposilite:3.6.3
+    restart: unless-stopped
+    environment:
+      # Temporary admin token, valid while this variable is set: used once to create the
+      # persistent tokens, then remove it and redeploy.
+      REPOSILITE_OPTS: ${REPOSILITE_OPTS:-}
+      JAVA_OPTS: -Xmx256M
+    volumes:
+      - reposilite-data:/app/data
+    expose:
+      - "8080"
+
+volumes:
+  reposilite-data:
