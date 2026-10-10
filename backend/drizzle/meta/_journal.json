@@ -456,6 +456,13 @@
       "when": 1790614394295,
       "tag": "0064_luxuriant_dakota_north",
       "breakpoints": true
+    },
+    {
+      "idx": 65,
+      "version": "7",
+      "when": 1791435091673,
+      "tag": "0065_dry_vulcan",
+      "breakpoints": true
     }
   ]
 }

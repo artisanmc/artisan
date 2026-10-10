@@ -11,7 +11,7 @@ const deployWorkflowPath = fileURLToPath(
 const deployWorkflow = readFileSync(deployWorkflowPath, "utf8");
 
 test("plugin CI invokes the Gradle wrapper through Bash", () => {
-  assert.match(workflow, /run: bash \.\/gradlew test shadowJar --no-daemon/);
+  assert.match(workflow, /run: bash \.\/gradlew test shadowJar( \w+)* --no-daemon/);
 });
 
 test("editor CI does not enforce the repository-wide lint while its baseline is red", () => {

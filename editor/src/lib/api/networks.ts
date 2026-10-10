@@ -31,10 +31,11 @@ export interface ProjectSummary {
    *  déclare (`externalId`), et il diffère de `id` dès qu'un autre serveur a déjà
    *  réclamé le même nom. */
   externalId?: string | null;
-  /** Owning Add-on module id — redérivé des écrans déclarés côté éditeur
-   *  (`ownerModuleOf`) depuis que le backend ne détient plus les fichiers.
+  /** Owning Add-on module id, as the plugin reported it with the project's root
+   *  (`project_roots[].module_id`). Null for a folder or an add-on registered without
+   *  its module — `ownerModuleOf` then falls back to the declared screens.
    *  Groupe le project sous "Modules installés" au lieu de la liste plate. */
-  ownerModule?: string;
+  ownerModule?: string | null;
 }
 
 export async function listNetworks(): Promise<NetworkSummary[]> {

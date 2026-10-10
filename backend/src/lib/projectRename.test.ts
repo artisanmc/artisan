@@ -62,6 +62,13 @@ test("explicit add-on migration preserves Boutique's anchor and private draft", 
   expect((await getProject("immutable"))?.externalId).toBe("boutique_addon");
 });
 
+test("an add-on root records the module that owns it, a folder root clears it", async () => {
+  await reconcileProjectIdentity("rename-server", { project_roots: [{ project_id: "old", identity: "addon", module_id: "msguilds" }] });
+  expect(await getProject("immutable")).toMatchObject({ identityKind: "addon", ownerModule: "msguilds" });
+  await reconcileProjectIdentity("rename-server", { project_roots: [{ project_id: "old", identity: "folder" }] });
+  expect(await getProject("immutable")).toMatchObject({ identityKind: "folder", ownerModule: null });
+});
+
 test("occupied Boutique destination preserves both anchors and rejects migration", async () => {
   await db.update(projects).set({ externalId: "boutique_shop" });
   await ensureProjectForServer({ networkId: "rename-network", serverKeyId: "rename-server", diskId: "boutique_addon" });

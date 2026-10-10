@@ -32,7 +32,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { type CSSProperties, createContext, useContext, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ACTION_TYPES, defaultAction } from "./defaults";
-import { CLICK_TYPE_ORDER, actionTypeLabel, clickTypeLabel, conditionSummary } from "./labels";
+import { CLICK_TYPE_ORDER, actionTypeLabel, clickTypeLabel, conditionsSummary } from "./labels";
 
 const INDENT = 16;
 
@@ -1141,12 +1141,7 @@ function summarizeConditions(
   t: (key: string) => string,
 ): string {
   if (conditions.length === 0) return t("flow.conditionAlways");
-  return conditions
-    .map((c, i) => {
-      const op = (joins?.[i - 1] ?? "and").toUpperCase();
-      return i === 0 ? conditionSummary(c) : ` ${op} ${conditionSummary(c)}`;
-    })
-    .join("");
+  return conditionsSummary(conditions, joins);
 }
 
 // ────────────────────────────────────────────────────────────────────────────

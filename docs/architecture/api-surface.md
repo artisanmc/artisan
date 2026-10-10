@@ -249,9 +249,15 @@ The explicit `projectId` is a permanent immutable add-on identity, independent o
 the directory name. Registered roots cannot be renamed in the editor;
 `register(projectId, dir)` remains stable without deprecation.
 
+Prefer `register(projectId, dir, moduleId)`: it names the module (`ArtisanModule.getId()`)
+that owns the project, so the editor lists it under that module in "Installed modules"
+even when the module declares no config screen. Without it, the editor falls back to the
+module's declared screens to find the owner.
+
 | Member | Type | Since |
 |---|---|---|
 | `register(projectId: String, dir: File)` | `Unit` | 1.5.0 |
+| `register(projectId: String, dir: File, moduleId: String)` | `Unit` | 1.6.0 |
 
 ## Beta APIs (may change)
 
@@ -273,13 +279,20 @@ The API surface above is packaged as a standalone Gradle artifact:
 net.artisanmc:artisan-core-api:<version>
 ```
 
-Published to `mavenLocal` via `./gradlew publishToMavenLocal`. External module plugins declare it as `compileOnly` (the jar is provided by the running Artisan plugin at runtime):
+Served by Artisan's Maven repository `https://repo.artisanmc.net` (Reposilite, `deploy/reposilite/`), published by `.github/workflows/publish-api.yml`:
+
+- tag `api-vX.Y.Z` → `/releases`, version `X.Y.Z` — the API's own SemVer (the `Since` column above), independent of the plugin build number `1.0.<run>`;
+- push to `main` touching the API or `plugin/build.gradle.kts` → `/snapshots`, version `1.0.0-SNAPSHOT`.
+
+The publication carries a sources jar (KDoc) and a POM declaring `kotlin-stdlib`. License: GPL-3.0, like the repo. External module plugins declare it as `compileOnly` (the jar is provided by the running Artisan plugin at runtime):
 
 ```kotlin
 // build.gradle.kts
-repositories { mavenLocal() }
+repositories { maven("https://repo.artisanmc.net/releases") }
 dependencies { compileOnly("net.artisanmc:artisan-core-api:<version>") }
 ```
+
+`./gradlew publishToMavenLocal` still works for testing an unreleased API change against an add-on; CI runs `publishCoreApiPublicationToMavenLocal` so a broken publication fails the PR.
 
 The artifact contains only the `net.artisanmc.modules.api.*` packages filtered through `apiJar`. Nothing under `net.artisanmc.plugin.*` is included.
 
