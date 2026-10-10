@@ -1,62 +1,60 @@
 name: Publish API
 
+# Version source : la plus haute version `Since` de docs/architecture/api-surface.md
+# (deploy/api-version.mjs). Au-dessus du dernier tag api-vX.Y.Z → release X.Y.Z
+# (/releases, puis tag + GitHub Release créés ici). Sinon → snapshot de la mineure
+# suivante (/snapshots). Aucun tag à poser à la main.
 on:
   push:
     branches: [main]
     paths:
       - plugin/src/main/kotlin/net/artisanmc/modules/api/**
       - plugin/build.gradle.kts
-    tags: ["api-v*"]
+      - docs/architecture/api-surface.md
+  workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
-  group: publish-api-${{ github.ref }}
+  group: publish-api
   cancel-in-progress: false
 
 jobs:
   publish:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: plugin
     steps:
       - uses: actions/checkout@v5
         with:
-          # Les tags api-v* servent à calculer la version du snapshot.
           fetch-depth: 0
           fetch-tags: true
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Resolve API version
+        id: plan
+        run: node deploy/api-version.mjs plan
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: 21
           cache: gradle
       - uses: gradle/actions/setup-gradle@v5
-      # Tag api-vX.Y.Z → releases/X.Y.Z.
-      # Push sur main → snapshots/X.(Y+1).0-SNAPSHOT, X.Y étant le dernier tag api-vX.Y.Z :
-      # le snapshot annonce la prochaine mineure et reste au-dessus de la dernière release.
-      - name: Resolve API version
-        id: version
-        env:
-          REF_NAME: ${{ github.ref_name }}
-        run: |
-          if [[ "$REF_NAME" == api-v* ]]; then
-            version="${REF_NAME#api-v}"
-          else
-            last=$(git tag -l 'api-v*' | sed 's/^api-v//' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n1 || true)
-            if [[ -z "$last" ]]; then
-              echo "::error::No api-vX.Y.Z tag yet: tag the first release before publishing snapshots."
-              exit 1
-            fi
-            IFS=. read -r major minor _ <<< "$last"
-            version="${major}.$((minor + 1)).0-SNAPSHOT"
-          fi
-          echo "API version: $version"
-          echo "value=$version" >> "$GITHUB_OUTPUT"
       - run: bash ./gradlew test --no-daemon
+        working-directory: plugin
       - name: Publish to repo.artisanmc.net
+        working-directory: plugin
         env:
           ORG_GRADLE_PROJECT_artisanRepoUsername: ${{ secrets.ARTISAN_REPO_USERNAME }}
           ORG_GRADLE_PROJECT_artisanRepoPassword: ${{ secrets.ARTISAN_REPO_PASSWORD }}
-        run: bash ./gradlew publishCoreApiPublicationToArtisanRepoRepository -PapiVersion="${{ steps.version.outputs.value }}" --no-daemon
+          API_VERSION: ${{ steps.plan.outputs.version }}
+        run: bash ./gradlew publishCoreApiPublicationToArtisanRepoRepository -PapiVersion="$API_VERSION" --no-daemon
+      - name: Tag and GitHub Release
+        if: steps.plan.outputs.kind == 'release'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          API_VERSION: ${{ steps.plan.outputs.version }}
+        run: |
+          gh release create "api-v$API_VERSION" --target "$GITHUB_SHA" \
+            --title "Artisan API $API_VERSION" \
+            --notes "\`net.artisanmc:artisan-core-api:$API_VERSION\` on https://repo.artisanmc.net/releases. Members and their \`Since\` version: docs/architecture/api-surface.md."
