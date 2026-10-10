@@ -7,8 +7,9 @@ Published by `.github/workflows/publish-api.yml`.
 
 ## Deploy in Coolify
 
-1. New resource > Docker Compose, source: this repository, compose file
-   `deploy/reposilite/docker-compose.yml`.
+1. New resource > Docker Compose Empty, paste `deploy/reposilite/docker-compose.yml`
+   (deployed this way in the `Artisan / production` project, service `reposilite`; a compose
+   change here must be pasted again in Coolify > Edit Compose File).
 2. Domain of the `reposilite` service: `https://repo.artisanmc.net`, port 8080.
    DNS: add `repo.artisanmc.net` to the Cloudflare Tunnel (no A/AAAA record to the origin,
    cf. `deploy/README.md`). Do not put Cloudflare Access in front of it:
