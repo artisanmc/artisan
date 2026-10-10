@@ -115,13 +115,68 @@ val apiJar by tasks.registering(Jar::class) {
     }
 }
 
+// Sources (KDoc) pour l'IDE des add-ons.
+val apiSourcesJar by tasks.registering(Jar::class) {
+    archiveBaseName.set("artisan-core-api")
+    archiveClassifier.set("sources")
+    from(sourceSets.main.get().allSource) {
+        include("net/artisanmc/modules/api/**")
+    }
+}
+
+// SemVer propre à l'API (colonne `Since` d'api-surface.md), indépendante du
+// numéro de build du plugin : `-PapiVersion=1.6.0` en release (tag `api-v1.6.0`).
+val apiVersion: String = providers.gradleProperty("apiVersion").getOrElse(project.version.toString())
+
 publishing {
     publications {
         create<MavenPublication>("coreApi") {
             groupId = "net.artisanmc"
             artifactId = "artisan-core-api"
-            version = project.version.toString()
+            version = apiVersion
             artifact(apiJar)
+            artifact(apiSourcesJar)
+            pom {
+                name.set("Artisan Core API")
+                description.set("Public API surface (net.artisanmc.modules.api) for Artisan add-ons.")
+                url.set("https://artisanmc.net")
+                licenses {
+                    license {
+                        name.set("GNU General Public License v3.0")
+                        url.set("https://www.gnu.org/licenses/gpl-3.0.html")
+                    }
+                }
+                developers {
+                    developer {
+                        id.set("artisanmc")
+                        name.set("Artisan")
+                        url.set("https://artisanmc.net")
+                    }
+                }
+                scm {
+                    url.set("https://github.com/artisanmc/artisan")
+                    connection.set("scm:git:https://github.com/artisanmc/artisan.git")
+                }
+                withXml {
+                    val deps = asNode().appendNode("dependencies")
+                    val stdlib = deps.appendNode("dependency")
+                    stdlib.appendNode("groupId", "org.jetbrains.kotlin")
+                    stdlib.appendNode("artifactId", "kotlin-stdlib")
+                    stdlib.appendNode("version", "2.0.21")
+                    stdlib.appendNode("scope", "compile")
+                }
+            }
+        }
+    }
+    repositories {
+        maven {
+            name = "artisanRepo"
+            val channel = if (apiVersion.endsWith("SNAPSHOT")) "snapshots" else "releases"
+            url = uri("https://repo.artisanmc.net/$channel")
+            credentials {
+                username = providers.gradleProperty("artisanRepoUsername").orNull
+                password = providers.gradleProperty("artisanRepoPassword").orNull
+            }
         }
     }
 }
