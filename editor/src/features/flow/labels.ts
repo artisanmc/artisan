@@ -98,6 +98,20 @@ export function conditionSummary(condition: Condition): string {
   }
 }
 
+/** One-line summary of a top-level condition list joined by its AND/OR operators. */
+export function conditionsSummary(
+  conditions: Condition[],
+  joins: ("and" | "or")[] | undefined,
+): string {
+  return conditions
+    .map((c, i) =>
+      i === 0
+        ? conditionSummary(c)
+        : ` ${(joins?.[i - 1] ?? "and").toUpperCase()} ${conditionSummary(c)}`,
+    )
+    .join("");
+}
+
 /** Human-readable label for a click type. */
 export function clickTypeLabel(type: ClickType): string {
   switch (type) {

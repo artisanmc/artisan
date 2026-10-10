@@ -1017,9 +1017,7 @@ class SyncedMenuProvider(
                             // chargé. Sinon on listerait un project qu'on ne peut pas
                             // ouvrir, ou l'inverse — l'incohérence exacte qu'on retire.
                             val ids = snapshot.keys.sorted()
-                            val descriptors = ids.map { id ->
-                                mapOf("project_id" to id, "identity" to if (roots.isRegistered(id)) "addon" else "folder")
-                            }
+                            val descriptors = ids.map { id -> roots.descriptor(id) }
                             val inventory = net.artisanmc.plugin.project.ResourceInventory.scan(roots).map { entry ->
                                 mapOf("project_id" to entry.projectId, "path" to entry.path, "origin" to entry.origin)
                             }
