@@ -23,22 +23,40 @@ jobs:
         working-directory: plugin
     steps:
       - uses: actions/checkout@v5
+        with:
+          # Les tags api-v* servent à calculer la version du snapshot.
+          fetch-depth: 0
+          fetch-tags: true
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: 21
           cache: gradle
       - uses: gradle/actions/setup-gradle@v5
+      # Tag api-vX.Y.Z → releases/X.Y.Z.
+      # Push sur main → snapshots/X.(Y+1).0-SNAPSHOT, X.Y étant le dernier tag api-vX.Y.Z :
+      # le snapshot annonce la prochaine mineure et reste au-dessus de la dernière release.
+      - name: Resolve API version
+        id: version
+        env:
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          if [[ "$REF_NAME" == api-v* ]]; then
+            version="${REF_NAME#api-v}"
+          else
+            last=$(git tag -l 'api-v*' | sed 's/^api-v//' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n1 || true)
+            if [[ -z "$last" ]]; then
+              echo "::error::No api-vX.Y.Z tag yet: tag the first release before publishing snapshots."
+              exit 1
+            fi
+            IFS=. read -r major minor _ <<< "$last"
+            version="${major}.$((minor + 1)).0-SNAPSHOT"
+          fi
+          echo "API version: $version"
+          echo "value=$version" >> "$GITHUB_OUTPUT"
       - run: bash ./gradlew test --no-daemon
-      # Tag api-vX.Y.Z → releases/X.Y.Z ; push sur main → snapshots/1.0.0-SNAPSHOT.
       - name: Publish to repo.artisanmc.net
         env:
           ORG_GRADLE_PROJECT_artisanRepoUsername: ${{ secrets.ARTISAN_REPO_USERNAME }}
           ORG_GRADLE_PROJECT_artisanRepoPassword: ${{ secrets.ARTISAN_REPO_PASSWORD }}
-          REF_NAME: ${{ github.ref_name }}
-        run: |
-          if [[ "$REF_NAME" == api-v* ]]; then
-            bash ./gradlew publishCoreApiPublicationToArtisanRepoRepository -PapiVersion="${REF_NAME#api-v}" --no-daemon
-          else
-            bash ./gradlew publishCoreApiPublicationToArtisanRepoRepository --no-daemon
-          fi
+        run: bash ./gradlew publishCoreApiPublicationToArtisanRepoRepository -PapiVersion="${{ steps.version.outputs.value }}" --no-daemon
