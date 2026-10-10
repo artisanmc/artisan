@@ -23,12 +23,11 @@ The jar is provided at runtime by the installed Artisan plugin, so declare it as
 repositories {
     mavenCentral()
     maven("https://repo.papermc.io/repository/maven-public/")
-    mavenLocal() // until the artifact is published to a public repo
 }
 
 dependencies {
     compileOnly("io.papermc.paper:paper-api:1.21.4-R0.1-SNAPSHOT")
-    compileOnly("net.artisanmc:artisan-core-api:1.0.0-SNAPSHOT")
+    compileOnly("net.artisanmc:artisan-core-api:1.5.0")
 }
 ```
 
@@ -38,17 +37,19 @@ dependencies {
 <dependency>
     <groupId>net.artisanmc</groupId>
     <artifactId>artisan-core-api</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>1.5.0</version>
     <scope>provided</scope>
 </dependency>
 ```
 
-If you build in Java, also add `org.jetbrains.kotlin:kotlin-stdlib` as
-`provided` — the API is written in Kotlin and a few signatures (`kotlin.Unit`,
-`Function2`) surface in Java call sites.
+The artifact is on Maven Central. Its version is the API's own SemVer (see the
+`Since` column of each API member), independent of the Artisan plugin build number.
+It declares `org.jetbrains.kotlin:kotlin-stdlib` as a dependency: the API is
+written in Kotlin and a few signatures (`kotlin.Unit`, `Function2`) surface in Java
+call sites. Keep it `compileOnly` / `provided` as well, never shade it.
 
-While the artifact is not on a public repository, build it from the Artisan
-plugin sources:
+To compile against unreleased API changes, publish the artifact locally from the
+Artisan plugin sources and add `mavenLocal()` to your repositories:
 
 ```bash
 cd plugin && ./gradlew publishToMavenLocal

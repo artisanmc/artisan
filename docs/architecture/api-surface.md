@@ -273,13 +273,17 @@ The API surface above is packaged as a standalone Gradle artifact:
 net.artisanmc:artisan-core-api:<version>
 ```
 
-Published to `mavenLocal` via `./gradlew publishToMavenLocal`. External module plugins declare it as `compileOnly` (the jar is provided by the running Artisan plugin at runtime):
+Published to **Maven Central** by `.github/workflows/publish-api.yml` when a tag `api-vX.Y.Z` is pushed. The version is the API's SemVer (`versioning.md` §3.3, the `Since` column above), passed as `-PapiVersion`, independent of the plugin build number `1.0.<run>`. The bundle carries the jar, a sources jar (KDoc), a placeholder javadoc jar (`plugin/src/apiJavadoc/`), a POM declaring `kotlin-stdlib`, and GPG signatures. Secrets: `CENTRAL_USERNAME`, `CENTRAL_PASSWORD` (Central Portal user token), `SIGNING_KEY`, `SIGNING_PASSWORD`; namespace `net.artisanmc` verified through `artisanmc.net`.
+
+External module plugins declare it as `compileOnly` (the jar is provided by the running Artisan plugin at runtime):
 
 ```kotlin
 // build.gradle.kts
-repositories { mavenLocal() }
+repositories { mavenCentral() }
 dependencies { compileOnly("net.artisanmc:artisan-core-api:<version>") }
 ```
+
+`./gradlew publishToMavenLocal` still publishes the current sources (unsigned, version = plugin version) to compile against unreleased API changes.
 
 The artifact contains only the `net.artisanmc.modules.api.*` packages filtered through `apiJar`. Nothing under `net.artisanmc.plugin.*` is included.
 

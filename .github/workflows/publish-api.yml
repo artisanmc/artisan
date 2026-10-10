@@ -1,0 +1,89 @@
+name: Publish API
+
+# Publishes net.artisanmc:artisan-core-api to Maven Central.
+# Trigger: push a tag `api-vX.Y.Z` (version = X.Y.Z, SemVer of the public API, versioning.md §3.3).
+#
+# Secrets (repository settings > Secrets and variables > Actions):
+#   CENTRAL_USERNAME / CENTRAL_PASSWORD  user token from central.sonatype.com (Account > Generate User Token)
+#   SIGNING_KEY / SIGNING_PASSWORD       ASCII-armored private GPG key and its passphrase
+
+on:
+  push:
+    tags: ['api-v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-api
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: plugin
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v5
+
+      - name: Resolve version
+        id: version
+        run: |
+          VERSION="${GITHUB_REF_NAME#api-v}"
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Tag must be api-vX.Y.Z, got $GITHUB_REF_NAME"
+            exit 1
+          fi
+          echo "value=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Build and sign the bundle
+        env:
+          SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
+          SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
+        run: |
+          if [ -z "$SIGNING_KEY" ]; then
+            echo "::error::Missing secret SIGNING_KEY"
+            exit 1
+          fi
+          bash ./gradlew --no-daemon test publishCoreApiPublicationToCentralBundleRepository \
+            -PapiVersion=${{ steps.version.outputs.value }}
+
+      # The Central Portal takes a zip of the Maven layout; maven-metadata files are not part of it.
+      - name: Upload to Maven Central
+        env:
+          CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
+          CENTRAL_PASSWORD: ${{ secrets.CENTRAL_PASSWORD }}
+          VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          cd build/central-bundle
+          find . -name 'maven-metadata*' -delete
+          zip -qr ../central-bundle.zip net
+          cd ..
+          TOKEN=$(printf '%s:%s' "$CENTRAL_USERNAME" "$CENTRAL_PASSWORD" | base64 -w0)
+          DEPLOYMENT=$(curl -fsS -X POST \
+            -H "Authorization: Bearer $TOKEN" \
+            -F "bundle=@central-bundle.zip" \
+            "https://central.sonatype.com/api/v1/publisher/upload?publishingType=AUTOMATIC&name=artisan-core-api-$VERSION")
+          echo "Deployment $DEPLOYMENT"
+          for _ in $(seq 1 60); do
+            STATE=$(curl -fsS -X POST -H "Authorization: Bearer $TOKEN" \
+              "https://central.sonatype.com/api/v1/publisher/status?id=$DEPLOYMENT" | jq -r .deploymentState)
+            echo "State: $STATE"
+            case "$STATE" in
+              PUBLISHING|PUBLISHED) exit 0 ;;
+              FAILED)
+                curl -fsS -X POST -H "Authorization: Bearer $TOKEN" \
+                  "https://central.sonatype.com/api/v1/publisher/status?id=$DEPLOYMENT" | jq .
+                exit 1 ;;
+            esac
+            sleep 10
+          done
+          echo "::error::Deployment $DEPLOYMENT still validating after 10 minutes"
+          exit 1

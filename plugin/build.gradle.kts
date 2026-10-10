@@ -4,6 +4,7 @@ plugins {
     kotlin("jvm") version "2.0.21"
     id("io.github.goooler.shadow") version "8.1.8"
     `maven-publish`
+    signing
 }
 
 group = "net.artisanmc"
@@ -107,12 +108,35 @@ tasks.shadowJar {
 // Publishable, self-contained API surface (net.artisanmc.modules.api.**).
 // Business-module plugins compileOnly this + paper-api. The full :api Gradle
 // subproject split is deferred (cf. P1c); this filtered jar proves the boundary.
+//
+// Published to Maven Central by .github/workflows/publish-api.yml on an `api-vX.Y.Z` tag.
+// Its version follows the API's own SemVer (docs/architecture/versioning.md §3.3), not the
+// plugin build number: `-PapiVersion=X.Y.Z`, defaulting to the plugin version for mavenLocal.
+val apiVersion: String = providers.gradleProperty("apiVersion").getOrElse(project.version.toString())
+val apiPackage = "net/artisanmc/modules/api/**"
+
 val apiJar by tasks.registering(Jar::class) {
     archiveBaseName.set("artisan-core-api")
     archiveClassifier.set("")
     from(sourceSets.main.get().output) {
-        include("net/artisanmc/modules/api/**")
+        include(apiPackage)
     }
+}
+
+val apiSourcesJar by tasks.registering(Jar::class) {
+    archiveBaseName.set("artisan-core-api")
+    archiveClassifier.set("sources")
+    from(sourceSets.main.get().allSource) {
+        include(apiPackage)
+    }
+}
+
+// Maven Central requires a javadoc jar. The API is Kotlin and documented in its KDoc
+// (shipped in the sources jar) and docs/architecture/api-surface.md.
+val apiJavadocJar by tasks.registering(Jar::class) {
+    archiveBaseName.set("artisan-core-api")
+    archiveClassifier.set("javadoc")
+    from(layout.projectDirectory.dir("src/apiJavadoc"))
 }
 
 publishing {
@@ -120,9 +144,58 @@ publishing {
         create<MavenPublication>("coreApi") {
             groupId = "net.artisanmc"
             artifactId = "artisan-core-api"
-            version = project.version.toString()
+            version = apiVersion
             artifact(apiJar)
+            artifact(apiSourcesJar)
+            artifact(apiJavadocJar)
+            pom {
+                name.set("Artisan Core API")
+                description.set("Public module API of Artisan, the Paper menu editor: data sources, commands, events, schemas.")
+                url.set("https://artisanmc.net")
+                licenses {
+                    license {
+                        name.set("GNU General Public License v3.0")
+                        url.set("https://www.gnu.org/licenses/gpl-3.0.txt")
+                    }
+                }
+                developers {
+                    developer {
+                        id.set("IbanEtchep")
+                        name.set("Iban Etchepareborde")
+                        url.set("https://github.com/IbanEtchep")
+                    }
+                }
+                scm {
+                    url.set("https://github.com/artisanmc/artisan")
+                    connection.set("scm:git:https://github.com/artisanmc/artisan.git")
+                }
+                // The API classes are compiled Kotlin; paper-api is left to the consumer
+                // (every module already compiles against it).
+                withXml {
+                    val deps = asNode().appendNode("dependencies")
+                    val stdlib = deps.appendNode("dependency")
+                    stdlib.appendNode("groupId", "org.jetbrains.kotlin")
+                    stdlib.appendNode("artifactId", "kotlin-stdlib")
+                    stdlib.appendNode("version", "2.0.21")
+                }
+            }
         }
+    }
+    repositories {
+        // Bundle staged for the Maven Central Portal upload (publish-api.yml).
+        maven {
+            name = "centralBundle"
+            url = uri(layout.buildDirectory.dir("central-bundle"))
+        }
+    }
+}
+
+// Signs only when a key is provided (CI release); mavenLocal publishing stays unsigned.
+val signingKey: String? = providers.environmentVariable("SIGNING_KEY").orNull
+if (signingKey != null) {
+    signing {
+        useInMemoryPgpKeys(signingKey, providers.environmentVariable("SIGNING_PASSWORD").orNull)
+        sign(publishing.publications["coreApi"])
     }
 }
 
