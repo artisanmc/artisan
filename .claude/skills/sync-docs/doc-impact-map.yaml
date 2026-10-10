@@ -38,30 +38,14 @@ mappings:
   - touches: "plugin/src/main/kotlin/**/BundleHasher.kt"
     updates:
       - "docs/architecture/invariants.md"
-      - "testdata/project-hash-conformance.json"
+      - "testdata/project-snapshot-hash-conformance.json"
     reason: "Hash algorithm — must stay byte-order sorted and conformance vector regenerated on both sides"
 
   - touches: "backend/src/lib/hashUtils.ts"
     updates:
       - "docs/architecture/invariants.md"
-      - "testdata/project-hash-conformance.json"
+      - "testdata/project-snapshot-hash-conformance.json"
     reason: "Backend half of the cross-language hash equality"
-
-  - touches: "plugin/src/main/kotlin/**/SyncScanner.kt"
-    updates:
-      - "docs/architecture/invariants.md"
-    reason: "Poll-first disk sync (scan / quiescence / deep tick)"
-
-  - touches: "plugin/src/main/kotlin/**/BundleDownloader.kt"
-    updates:
-      - "docs/architecture/invariants.md"
-    reason: "Atomic write, deletion sweep, recordSync"
-
-  - touches: "plugin/src/main/kotlin/**/LocalPushSender.kt"
-    updates:
-      - "docs/architecture/invariants.md"
-      - "docs/architecture/plugin-commands.md"
-    reason: "Auto-push / pushLocal fallback semantics"
 
   - touches: "plugin/src/main/kotlin/**/ProjectDeleter.kt"
     updates:
@@ -137,22 +121,6 @@ mappings:
       - "CONTEXT.md"
       - "CHANGELOG.md"
     reason: "Schema change requires db:generate + entity doc, and may shift the glossary"
-
-  - touches: "backend/src/lib/commitStorage.ts"
-    updates:
-      - "docs/architecture/entities.md"
-      - "docs/architecture/invariants.md"
-    reason: "Commit storage + computeContentHash must stay the canonical hash"
-
-  - touches: "backend/src/lib/branchStorage.ts"
-    updates:
-      - "docs/architecture/entities.md"
-    reason: "Branches storage + merge engine (findLCA / merge-into live here, there is no mergeEngine.ts)"
-
-  - touches: "backend/src/lib/divergence.ts"
-    updates:
-      - "docs/architecture/invariants.md"
-    reason: "Divergence resolution merge (P3c)"
 
   - touches: "backend/src/lib/sessionManager.ts"
     updates:
