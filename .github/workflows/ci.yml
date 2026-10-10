@@ -79,5 +79,5 @@ jobs:
           java-version: 21
           cache: gradle
       - uses: gradle/actions/setup-gradle@v5
-      # Also stages the Maven Central bundle (unsigned) so publish-api.yml never meets a broken publication.
-      - run: bash ./gradlew test shadowJar publishCoreApiPublicationToCentralBundleRepository --no-daemon
+      # Also builds the API publication (jar, sources, POM) so publish-api.yml never meets a broken one.
+      - run: bash ./gradlew test shadowJar publishCoreApiPublicationToMavenLocal --no-daemon

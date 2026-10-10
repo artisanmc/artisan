@@ -23,6 +23,7 @@ The jar is provided at runtime by the installed Artisan plugin, so declare it as
 repositories {
     mavenCentral()
     maven("https://repo.papermc.io/repository/maven-public/")
+    maven("https://repo.artisanmc.net/releases")
 }
 
 dependencies {
@@ -42,13 +43,17 @@ dependencies {
 </dependency>
 ```
 
-The artifact is on Maven Central. Its version is the API's own SemVer (see the
-`Since` column of each API member), independent of the Artisan plugin build number.
+In Maven, add the repository `https://repo.artisanmc.net/releases` to your `<repositories>`.
+
+The artifact is published on `repo.artisanmc.net`. Its version is the API's own SemVer
+(see the `Since` column of each API member), independent of the Artisan plugin build
+number. `https://repo.artisanmc.net/snapshots` carries `1.0.0-SNAPSHOT`, rebuilt from
+every API change on Artisan's main branch.
 It declares `org.jetbrains.kotlin:kotlin-stdlib` as a dependency: the API is
 written in Kotlin and a few signatures (`kotlin.Unit`, `Function2`) surface in Java
 call sites. Keep it `compileOnly` / `provided` as well, never shade it.
 
-To compile against unreleased API changes, publish the artifact locally from the
+To compile against local, uncommitted API changes, publish the artifact from the
 Artisan plugin sources and add `mavenLocal()` to your repositories:
 
 ```bash

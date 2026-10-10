@@ -4,7 +4,6 @@ plugins {
     kotlin("jvm") version "2.0.21"
     id("io.github.goooler.shadow") version "8.1.8"
     `maven-publish`
-    signing
 }
 
 group = "net.artisanmc"
@@ -109,9 +108,10 @@ tasks.shadowJar {
 // Business-module plugins compileOnly this + paper-api. The full :api Gradle
 // subproject split is deferred (cf. P1c); this filtered jar proves the boundary.
 //
-// Published to Maven Central by .github/workflows/publish-api.yml on an `api-vX.Y.Z` tag.
-// Its version follows the API's own SemVer (docs/architecture/versioning.md §3.3), not the
-// plugin build number: `-PapiVersion=X.Y.Z`, defaulting to the plugin version for mavenLocal.
+// Published to repo.artisanmc.net (Reposilite) by .github/workflows/publish-api.yml: an
+// `api-vX.Y.Z` tag publishes a release, a push to main a snapshot. The release version follows
+// the API's own SemVer (docs/architecture/versioning.md §3.3), not the plugin build number:
+// `-PapiVersion=X.Y.Z`, defaulting to the plugin version (1.0.0-SNAPSHOT) otherwise.
 val apiVersion: String = providers.gradleProperty("apiVersion").getOrElse(project.version.toString())
 val apiPackage = "net/artisanmc/modules/api/**"
 
@@ -131,14 +131,6 @@ val apiSourcesJar by tasks.registering(Jar::class) {
     }
 }
 
-// Maven Central requires a javadoc jar. The API is Kotlin and documented in its KDoc
-// (shipped in the sources jar) and docs/architecture/api-surface.md.
-val apiJavadocJar by tasks.registering(Jar::class) {
-    archiveBaseName.set("artisan-core-api")
-    archiveClassifier.set("javadoc")
-    from(layout.projectDirectory.dir("src/apiJavadoc"))
-}
-
 publishing {
     publications {
         create<MavenPublication>("coreApi") {
@@ -147,7 +139,6 @@ publishing {
             version = apiVersion
             artifact(apiJar)
             artifact(apiSourcesJar)
-            artifact(apiJavadocJar)
             pom {
                 name.set("Artisan Core API")
                 description.set("Public module API of Artisan, the Paper menu editor: data sources, commands, events, schemas.")
@@ -182,20 +173,16 @@ publishing {
         }
     }
     repositories {
-        // Bundle staged for the Maven Central Portal upload (publish-api.yml).
+        // Credentials: -PartisanRepoUsername / -PartisanRepoPassword (or ORG_GRADLE_PROJECT_*),
+        // only read when this repository is published to.
         maven {
-            name = "centralBundle"
-            url = uri(layout.buildDirectory.dir("central-bundle"))
+            name = "artisanRepo"
+            url = uri(
+                if (apiVersion.endsWith("-SNAPSHOT")) "https://repo.artisanmc.net/snapshots"
+                else "https://repo.artisanmc.net/releases",
+            )
+            credentials(PasswordCredentials::class)
         }
-    }
-}
-
-// Signs only when a key is provided (CI release); mavenLocal publishing stays unsigned.
-val signingKey: String? = providers.environmentVariable("SIGNING_KEY").orNull
-if (signingKey != null) {
-    signing {
-        useInMemoryPgpKeys(signingKey, providers.environmentVariable("SIGNING_PASSWORD").orNull)
-        sign(publishing.publications["coreApi"])
     }
 }
 

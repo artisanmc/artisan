@@ -9,7 +9,7 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
-- `net.artisanmc:artisan-core-api` is published on **Maven Central** (first version 1.5.0): add-ons depend on it with `mavenCentral()` instead of building Artisan and publishing to `mavenLocal`. The API is versioned by its own SemVer, released by pushing an `api-vX.Y.Z` tag.
+- `net.artisanmc:artisan-core-api` is published on **`https://repo.artisanmc.net`** (first release 1.5.0): add-ons declare that repository instead of building Artisan and publishing to `mavenLocal`. Releases (`/releases`) follow the API's own SemVer and are cut by pushing an `api-vX.Y.Z` tag; `/snapshots` carries `1.0.0-SNAPSHOT`, rebuilt on every API change on `main`.
 
 - **Import from Nexo** in the project's Resources tab: pick glyphs from the server's Nexo config and copy their textures into the project as ordinary images, usable as menu backgrounds, title glyphs or image buttons. Glyphs whose texture is missing from the Nexo pack are greyed out. Importing a glyph again updates its image and keeps its uses. Works without Nexo running (Artisan reads `plugins/Nexo/` directly). New: `GET /api/v1/user/projects/:projectId/nexo-glyphs[/:glyphId]`, asset creation accepts `replace=true`, WS `nexo_glyphs_list` / `nexo_glyph_read`.
 
