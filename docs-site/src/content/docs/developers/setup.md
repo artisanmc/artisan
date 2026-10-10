@@ -50,7 +50,8 @@ dependencies {
 
 Versions follow the API's own SemVer (the version a member appeared in), not the
 plugin build number. To track unreleased changes, use
-`https://repo.artisanmc.net/snapshots` and version `1.0.0-SNAPSHOT`.
+`https://repo.artisanmc.net/snapshots` and the next minor version with
+`-SNAPSHOT` (after release `1.6.0`: `1.7.0-SNAPSHOT`).
 
 The POM declares `kotlin-stdlib`, which the API's few Kotlin types (`kotlin.Unit`,
 `Function2`) need in Java call sites. Sources (with KDoc) are published alongside.
