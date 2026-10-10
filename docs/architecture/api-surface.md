@@ -281,8 +281,12 @@ net.artisanmc:artisan-core-api:<version>
 
 Served by Artisan's Maven repository `https://repo.artisanmc.net` (Reposilite, `deploy/reposilite/`), published by `.github/workflows/publish-api.yml`:
 
-- tag `api-vX.Y.Z` → `/releases`, version `X.Y.Z` — the API's own SemVer (the `Since` column above), independent of the plugin build number `1.0.<run>`;
-- push to `main` touching the API or `plugin/build.gradle.kts` → `/snapshots`, version `X.(Y+1).0-SNAPSHOT` computed from the latest `api-vX.Y.Z` tag (after `api-v1.6.0`: `1.7.0-SNAPSHOT`). The snapshot names the next minor, so it always sorts above the latest release; no manual bump. Without any `api-v*` tag the snapshot job fails on purpose.
+The version is **this document**: the highest `Since` version above (last table cell or "Since X.Y.Z" in prose, read by `deploy/api-version.mjs`) — the API's own SemVer, independent of the plugin build number `1.0.<run>`. On a push to `main` touching the API sources, `plugin/build.gradle.kts` or this file:
+
+- highest `Since` above the latest `api-vX.Y.Z` tag → **release** `X.Y.Z` to `/releases`, then the workflow creates the tag and a GitHub Release. Nobody tags by hand;
+- otherwise → **snapshot** `X.(Y+1).0-SNAPSHOT` (next minor after the latest release, so it sorts above it) to `/snapshots`.
+
+Releasing a new member = marking it with the next version here, in the same PR. The `API version` check (`.github/workflows/api-version-check.yml`) fails a PR that changes `net/artisanmc/modules/api/**` without raising the highest `Since` above the latest release; label `api:no-release` exempts a change with no published effect (KDoc, formatting). A patch release (1.6.1) is the same mechanism: mark the fixed member with the patch version (`Since` 1.6.1).
 
 The publication carries a sources jar (KDoc) and a POM declaring `kotlin-stdlib`. License: GPL-3.0, like the repo. External module plugins declare it as `compileOnly` (the jar is provided by the running Artisan plugin at runtime):
 
