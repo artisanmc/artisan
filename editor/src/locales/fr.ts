@@ -2283,6 +2283,19 @@ const fr: typeof en = {
     save: "Enregistrer",
     saveFailed: "Enregistrement impossible : le serveur n'a pas répondu.",
     refused: "Refusé par le serveur : {{detail}}",
+    refusedField: "{{field}} : {{reason}}",
+    errors: {
+      unknown_key: "réglage inconnu du plugin.",
+      invalid_type: "valeur du mauvais type.",
+      unsafe_path: "le chemin doit rester dans le dossier du serveur.",
+      invalid_reference: "choisir une image au format projet:image.",
+    },
+    sourceFields: {
+      enabled: "Activée",
+      label: "Nom affiché",
+      path: "Dossier",
+      extensions: "Extensions",
+    },
     listHint: "Valeurs séparées par des virgules.",
     vanillaTexture: "Texture vanilla",
     connectionHint:
