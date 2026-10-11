@@ -2203,6 +2203,19 @@ export default {
     save: "Save",
     saveFailed: "Could not save: the server did not answer.",
     refused: "Refused by the server: {{detail}}",
+    refusedField: "{{field}}: {{reason}}",
+    errors: {
+      unknown_key: "not a setting this plugin knows.",
+      invalid_type: "wrong kind of value.",
+      unsafe_path: "the path must stay inside the server folder.",
+      invalid_reference: "pick an image as project:image.",
+    },
+    sourceFields: {
+      enabled: "Enabled",
+      label: "Display name",
+      path: "Folder",
+      extensions: "Extensions",
+    },
     listHint: "Comma-separated values.",
     vanillaTexture: "Vanilla texture",
     connectionHint:

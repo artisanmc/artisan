@@ -80,14 +80,27 @@ describe("ServerConfigSection", () => {
     );
   });
 
-  it("shows the plugin's refusal", async () => {
+  it("explains the plugin's refusal with the field's label", async () => {
     const { ServerConfigError } = await import("@/lib/api/serverConfig");
     api.patchServerConfig.mockRejectedValue(
-      new ServerConfigError("invalid_config", "language: invalid_type"),
+      new ServerConfigError("invalid_config", "resource-pack.send-delay-ticks: unsafe_path"),
     );
     renderSection();
     fireEvent.change(await screen.findByLabelText("Langue"), { target: { value: "xx" } });
     fireEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
-    expect(await screen.findByText(/language: invalid_type/)).toBeInTheDocument();
+    expect(
+      await screen.findByText(
+        "Délai d'envoi (ticks) : le chemin doit rester dans le dossier du serveur.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("names assistant source fields by source and field", async () => {
+    api.getServerConfig.mockResolvedValue({
+      config: { "assistant.import-sources.zmenu.path": "plugins/zMenu/menus" },
+      online: true,
+    });
+    renderSection();
+    expect(await screen.findByLabelText("zmenu · Dossier")).toBeInTheDocument();
   });
 });
