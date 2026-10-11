@@ -36,9 +36,15 @@ plugin.
    driver dans `modules.api` : aucun conflit de classloader possible. Chaque plugin
    garde sa couche d'accès et **ses propres migrations** (aucune API de migration
    imposée : les plugins existants en ont déjà une).
-5. **Dialectes** : `h2` (défaut, un fichier par plugin sous `plugins/Artisan/database/`,
-   aucune installation), `mysql`, `mariadb` (une base partagée : chaque plugin
-   préfixe ses tables). `DatabaseDialect` est un enum Java, comme `FieldKind`.
+5. **Dialectes** : `h2` (défaut, aucune installation), `mysql`, `mariadb`.
+   `DatabaseDialect` est un enum Java, comme `FieldKind`. **Une seule base pour
+   toute la suite**, quel que soit le dialecte : chaque plugin préfixe ses tables.
+   En H2, un seul fichier `plugins/Artisan/database/suite` (révision 2026-10-11 :
+   d'abord un fichier par plugin). Raison : les plugins référenceront des tables
+   d'Artisan par clé étrangère (table des serveurs, pour qu'un renommage de
+   serveur soit un seul `UPDATE`), et une clé étrangère ne traverse pas deux
+   fichiers H2. Tous les pools vivent dans la JVM d'Artisan, ce que le mode
+   embarqué de H2 permet.
 6. **HikariCP et les drivers ne sont pas embarqués** : `libraries:` du `plugin.yml`,
    téléchargés par Paper au démarrage dans le classloader d'Artisan. Le jar reste
    léger et rien n'est relocalisé. Contrepartie : le premier démarrage a besoin de
@@ -48,7 +54,9 @@ plugin.
    présence, téléportation) suivra dans la même facade, avec `server_name` et
    `redis` dans `environment.yml`.
 
-*Rejeté :* un pool partagé (une fuite dans un plugin bloque toute la suite) ;
+*Rejeté :* un fichier H2 par plugin (isole les plugins, mais interdit toute
+clé étrangère vers une table d'Artisan et diverge de MySQL) ; un pool partagé
+(une fuite dans un plugin bloque toute la suite) ;
 garder le nom `connection.yml` (le fichier ne contient plus seulement la connexion
 au backend) ; drivers shadés et relocalisés (~7 Mo de plus dans chaque jar
 d'Artisan pour un usage optionnel) ; une API de migration commune (les plugins à

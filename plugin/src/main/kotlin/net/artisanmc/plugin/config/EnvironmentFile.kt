@@ -71,9 +71,9 @@ object EnvironmentFile {
         |# Leave server_key empty to run offline using only local projects.
         |ws_url: ${quote(wsUrl)}
         |
-        |# Database lent to the plugins of the suite, one connection pool per plugin
+        |# Database shared by the plugins of the suite, one connection pool per plugin
         |# (pool size: database.pool-size in config.yml). Changes apply after a restart.
-        |#   h2      : one file per plugin under plugins/Artisan/database/, nothing to set up
+        |#   h2      : a single file, plugins/Artisan/database/suite.mv.db, nothing to set up
         |#   mysql   : MySQL 8+
         |#   mariadb : MariaDB 10.6+
         |database:
