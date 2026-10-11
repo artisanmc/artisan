@@ -54,6 +54,12 @@ dependencies {
         exclude("com.google.code.gson", "gson")
         exclude("it.unimi.dsi", "fastutil")
     }
+    // Database lent to the suite (ADR suite-foundation-database): HikariCP and the
+    // JDBC drivers are not shaded — Paper downloads them from `libraries:` in
+    // plugin.yml into Artisan's classloader. Keep both lists in sync.
+    compileOnly("com.zaxxer:HikariCP:6.2.1")
+    testImplementation("com.zaxxer:HikariCP:6.2.1")
+    testImplementation("com.h2database:h2:2.3.232")
     implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.17.2")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.17.2")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")

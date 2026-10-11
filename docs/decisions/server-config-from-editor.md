@@ -1,6 +1,8 @@
 # Config serveur modifiable depuis l'éditeur — `connection.yml` à part
 
-**Status :** accepted (2026-10-08).
+**Status :** accepted (2026-10-08). `connection.yml` renommé `environment.yml`
+et étendu aux identifiants de base de données par l'ADR `suite-foundation-database`
+(2026-10-11) ; le critère « jamais écrit depuis l'éditeur » est inchangé.
 
 ## Contexte
 

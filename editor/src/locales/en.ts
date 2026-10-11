@@ -2219,7 +2219,7 @@ export default {
     listHint: "Comma-separated values.",
     vanillaTexture: "Vanilla texture",
     connectionHint:
-      "The backend link (server_key, ws_url) lives in connection.yml and is edited by hand only.",
+      "The backend link (server_key, ws_url) and the database credentials live in environment.yml, edited by hand only.",
     groups: {
       general: "General",
       textures: "Container textures",
@@ -2231,6 +2231,9 @@ export default {
     fields: {
       language: "Language",
       per_player_language: "Per-player language",
+      database: {
+        "pool-size": "Database connections per plugin",
+      },
       editor: {
         access_mode: "Access mode (invitation or console)",
         console_only: "/artisan editor from the console only",
