@@ -13,6 +13,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 const TEXTURES = "resource-pack.container-textures.";
+const SOURCE_FIELD = /^assistant\.import-sources\.([^.]+)\.([^.]+)$/;
 
 /** Vanilla container layout: square, 256 px or an HD multiple (cf. backend vanillaGui.ts). */
 const containerLayout = (w: number, h: number) => w === h && w >= 256 && w % 256 === 0;
@@ -79,7 +80,22 @@ export function ServerConfigSection({
       return JSON.stringify(next) === JSON.stringify(config[key]) ? rest : { ...rest, [key]: next };
     });
   };
-  const label = (key: string) => t(`serverConfig.fields.${key}`, { defaultValue: key });
+  const label = (key: string) => {
+    const source = SOURCE_FIELD.exec(key);
+    if (source)
+      return `${source[1]} · ${t(`serverConfig.sourceFields.${source[2]}`, { defaultValue: source[2] })}`;
+    return t(`serverConfig.fields.${key}`, { defaultValue: key });
+  };
+  /** `"<key>: <code>"` from the plugin → "<label> : <explanation>". */
+  const refusal = (detail: string) => {
+    const [key, code] = detail.split(": ");
+    return code && key
+      ? t("serverConfig.refusedField", {
+          field: label(key),
+          reason: t(`serverConfig.errors.${code}`, { defaultValue: code }),
+        })
+      : t("serverConfig.refused", { detail });
+  };
 
   const save = async () => {
     setSaving(true);
@@ -89,7 +105,7 @@ export function ServerConfigSection({
     } catch (e) {
       setError(
         e instanceof ServerConfigError && e.detail
-          ? t("serverConfig.refused", { detail: e.detail })
+          ? refusal(e.detail)
           : t("serverConfig.saveFailed"),
       );
     } finally {
