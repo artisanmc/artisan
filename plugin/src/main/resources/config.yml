@@ -1,6 +1,12 @@
 # Server settings — editable by hand or from the editor's server page.
-# The backend link (server_key, ws_url) lives in connection.yml, which the
-# editor never writes.
+# The backend link (server_key, ws_url) and the database credentials live in
+# environment.yml, which the editor never reads nor writes.
+
+# Database lent to the plugins of the suite (credentials in environment.yml).
+database:
+  # Maximum connections of each plugin's pool. Applies to pools opened after
+  # a change: restart the server for plugins already connected.
+  pool-size: 4
 
 # Language for plugin system messages (en, fr). Defaults to en.
 # Place custom lang files in plugins/Artisan/lang/<code>.yml to override.

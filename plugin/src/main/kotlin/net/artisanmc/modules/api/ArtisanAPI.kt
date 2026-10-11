@@ -12,6 +12,7 @@ import org.bukkit.plugin.java.JavaPlugin
  * - the [schemas] registry for versioned data migrations
  * - the [modules] runtime registry for dynamic module registration
  * - the [projectRoots] registry for Add-on-owned project directories
+ * - the [database] lent to the plugins of the suite (one pool per plugin)
  *
  * Modules MUST go through this facade — direct access to the plugin internals
  * is allowed only inside the module's own package.
@@ -37,6 +38,8 @@ class ArtisanAPI(
     @net.artisanmc.modules.api.annotations.Beta val models: ModelRegistry = ModelRegistry(),
     /** Module-declared Config screens — reported at Presence (ADR module-config-screens). */
     @net.artisanmc.modules.api.annotations.Beta val screens: EditorScreenRegistry = EditorScreenRegistry(),
+    /** One connection pool per plugin, credentials in `environment.yml` (ADR suite-foundation-database). */
+    @net.artisanmc.modules.api.annotations.Beta val database: DatabaseApi = DatabaseApi.NONE,
 ) {
     /**
      * Returns true if this core version satisfies the module's declared minimum

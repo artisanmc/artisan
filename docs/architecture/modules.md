@@ -142,6 +142,11 @@ export interface BackendModule {
 
 C'est le pattern Vault / PlaceholderAPI / WorldGuard — bien connu et accepté du marché MC.
 
+Le core prête aussi l'**infrastructure** aux Add-ons : `api.database.dataSource(plugin)` donne
+un pool de connexions propre à l'Add-on, identifiants réglés une fois par l'admin dans
+`plugins/Artisan/environment.yml` (ADR `suite-foundation-database`). Un Add-on n'embarque ni
+driver ni config SQL ; il garde sa couche d'accès et ses migrations.
+
 #### 3.3.1 Plugin core
 
 ```

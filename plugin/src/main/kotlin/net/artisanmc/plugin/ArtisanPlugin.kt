@@ -64,6 +64,9 @@ open class ArtisanPlugin : JavaPlugin() {
     private var resourcePackManager: net.artisanmc.plugin.resourcepack.ResourcePackManager? = null
     lateinit var api: ArtisanAPI
         private set
+    /** Pools lent through `api.database` (ADR `suite-foundation-database`). */
+    lateinit var database: net.artisanmc.plugin.database.PooledDatabase
+        private set
 
     companion object {
         fun defaultModules(): List<ArtisanModule> = listOf(
@@ -75,6 +78,7 @@ open class ArtisanPlugin : JavaPlugin() {
             val registry = ModuleRegistry()
             val nexoForCapture = net.artisanmc.plugin.engine.NexoItemRenderer.tryInit()
             plugin.projectRoots = net.artisanmc.plugin.project.ProjectRoots(File(plugin.dataFolder, "projects"), plugin.logger)
+            plugin.database = net.artisanmc.plugin.database.PooledDatabase(plugin::databaseSettings, plugin.logger)
             val api = ArtisanAPI(
                 plugin = plugin,
                 dataSources = DataSourceRegistry(),
@@ -89,6 +93,7 @@ open class ArtisanPlugin : JavaPlugin() {
                     plugin.refreshProjectsFromDisk()
                 },
                 projectRoots = plugin.projectRoots,
+                database = plugin.database,
                 items = object : net.artisanmc.modules.api.ItemStackApi {
                     override fun serialize(stack: org.bukkit.inventory.ItemStack): String =
                         net.artisanmc.plugin.items.ItemDescriptor.serialize(stack)
@@ -197,6 +202,7 @@ open class ArtisanPlugin : JavaPlugin() {
         saveDefaultConfig()
         api = buildApi(this)
         server.servicesManager.register(ArtisanAPI::class.java, api, this, org.bukkit.plugin.ServicePriority.Normal)
+        server.pluginManager.registerEvents(database, this)
         val cfg = loadPluginConfig()
         cfg.assistantImportSourceWarnings.forEach { logger.warning("[assistant] $it") }
         projectRoots.coreRoot.mkdirs()
@@ -321,6 +327,7 @@ open class ArtisanPlugin : JavaPlugin() {
 
     override fun onDisable() {
         api.modules.active().forEach { runCatching { it.onDisable() } }
+        if (::database.isInitialized) database.closeAll()
         artisanCommand.shutdown()
         commandRegistrar.unregisterAll()
         menuProvider.shutdown()
@@ -410,7 +417,7 @@ open class ArtisanPlugin : JavaPlugin() {
         return updater::install
     }
 
-    val connectionFile: File get() = File(dataFolder, "connection.yml")
+    val environmentFile: File get() = File(dataFolder, "environment.yml")
 
     /** Called on the main thread; reloads on the next tick, once the reply is sent. */
     private val serverConfigAccess = object : net.artisanmc.plugin.config.ServerConfigAccess {
@@ -424,15 +431,22 @@ open class ArtisanPlugin : JavaPlugin() {
         }
     }
 
-    /** Re-reads `config.yml` + `connection.yml` (ADR `server-config-from-editor`). */
+    /** Re-reads `config.yml` + `environment.yml` (ADRs `server-config-from-editor`, `suite-foundation-database`). */
     fun loadPluginConfig(): PluginConfig {
-        net.artisanmc.plugin.config.ConnectionFile.prepare(File(dataFolder, "config.yml"), connectionFile)
+        net.artisanmc.plugin.config.EnvironmentFile.prepare(
+            File(dataFolder, "config.yml"), File(dataFolder, "connection.yml"), environmentFile,
+        )
         reloadConfig()
         return currentConfig()
     }
 
+    fun databaseSettings(): net.artisanmc.plugin.database.DatabaseSettings =
+        net.artisanmc.plugin.database.DatabaseSettings.from(
+            org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(environmentFile), config, dataFolder,
+        ) { logger.warning("[database] environment variable $it is not set (environment.yml)") }
+
     fun currentConfig(): PluginConfig =
-        PluginConfig.from(config, org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(connectionFile))
+        PluginConfig.from(config, org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(environmentFile))
 
     fun reinit(cfg: PluginConfig) {
         cfg.assistantImportSourceWarnings.forEach { logger.warning("[assistant] $it") }
