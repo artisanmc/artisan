@@ -237,7 +237,7 @@ class ArtisanCommand(
 
     /**
      * Redeem a link code minted by the editor when the Server was added, writing
-     * the returned secret to connection.yml and reconnecting. Running this on an
+     * the returned secret to environment.yml and reconnecting. Running this on an
      * already-linked server **overwrites** the key (rotation / re-link) — the code
      * is explicit intent, so we proceed with a WARN rather than block.
      */
@@ -256,7 +256,7 @@ class ArtisanCommand(
             plugin.logger.warning("[link] Server already linked — /artisan link overwrites the existing key.")
         }
         sender.sendMessage(lang.get("artisan.link_connecting", senderLang))
-        val connectionFile = plugin.connectionFile
+        val environmentFile = plugin.environmentFile
         val client = LinkClient(cfg.httpBaseUrl)
         // Blocking REST call off the main thread; hop back for config + reinit.
         Bukkit.getScheduler().runTaskAsynchronously(plugin, Runnable {
@@ -264,8 +264,8 @@ class ArtisanCommand(
             Bukkit.getScheduler().runTask(plugin, Runnable {
                 when (result) {
                     is LinkResult.Success -> {
-                        ConfigWriter.writeServerKey(connectionFile, result.serverKey)
-                        plugin.logger.info("Server linked (server_key written to connection.yml)")
+                        ConfigWriter.writeServerKey(environmentFile, result.serverKey)
+                        plugin.logger.info("Server linked (server_key written to environment.yml)")
                         sender.sendMessage(lang.get("artisan.link_linked", senderLang))
                         plugin.reinit(plugin.loadPluginConfig())
                         sender.sendMessage(lang.get("artisan.link_ready", senderLang))

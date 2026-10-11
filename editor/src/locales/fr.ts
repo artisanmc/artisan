@@ -2299,7 +2299,7 @@ const fr: typeof en = {
     listHint: "Valeurs séparées par des virgules.",
     vanillaTexture: "Texture vanilla",
     connectionHint:
-      "La connexion au backend (server_key, ws_url) vit dans connection.yml et ne se modifie qu'à la main.",
+      "La connexion au backend (server_key, ws_url) et les identifiants de la base de données vivent dans environment.yml, qui ne se modifie qu'à la main.",
     groups: {
       general: "Général",
       textures: "Textures des conteneurs",
@@ -2311,6 +2311,9 @@ const fr: typeof en = {
     fields: {
       language: "Langue",
       per_player_language: "Langue de chaque joueur",
+      database: {
+        "pool-size": "Connexions à la base par plugin",
+      },
       editor: {
         access_mode: "Mode d'accès (invitation ou console)",
         console_only: "/artisan editor réservé à la console",
