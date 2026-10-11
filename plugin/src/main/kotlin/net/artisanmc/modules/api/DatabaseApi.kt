@@ -12,8 +12,9 @@ import javax.sql.DataSource
  *
  * Only `javax.sql.DataSource` crosses the boundary: the pool and the JDBC
  * drivers stay inside Artisan, and a plugin brings its own access layer (JDBC,
- * JDBI…) and its own migrations. H2 keeps one file per plugin; MySQL and MariaDB
- * share the configured database, so a plugin prefixes its tables.
+ * JDBI…) and its own migrations. Every plugin of the suite shares one database
+ * (the configured MySQL/MariaDB one, or a single H2 file), so a plugin prefixes
+ * its tables.
  */
 @Beta
 interface DatabaseApi {
