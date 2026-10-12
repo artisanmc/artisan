@@ -57,7 +57,7 @@ Auth Google/Discord : identités communes `oauth_accounts` (migration 0034, anci
 # Plugin (Kotlin 2.0 / Paper 1.21.4)
 cd plugin
 ./gradlew test          # suite plugin (unit + intégration MockWebServer)
-./gradlew shadowJar     # → build/libs/artisan-plugin-1.0.0-SNAPSHOT-all.jar
+./gradlew shadowJar     # → paper/build/libs/artisan-plugin-1.0.0-SNAPSHOT-all.jar
 ./gradlew deploy        # compile + redémarre le container
 
 # Backend (Bun + Hono + PostgreSQL)
@@ -99,6 +99,10 @@ docker/          Config serveur Minecraft (itzg/minecraft-server)
 docs-site/       Astro Starlight — docs user publiques (EN)
 docs/            architecture/ · decisions/ · specs/ · schema/ · superpowers/
 ```
+
+**Plugin en modules Gradle** — `plugin/api` (surface add-ons), `plugin/core` (domaine, sans Bukkit),
+`plugin/database`, `plugin/paper` (Bukkit + jar). Un import `org.bukkit` hors de `paper` ou `api` ne compile
+pas. Détail : `plugin/README.md`, ADR `plugin-gradle-modules`.
 
 **Modular monolith** — chaque module vit en 3 layers symétriques :
 `plugin/…/modules/{id}/` (impl `ArtisanModule`), `backend/src/modules/{id}/` (`BackendModule`),

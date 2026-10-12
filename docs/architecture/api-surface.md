@@ -3,7 +3,7 @@
 This document lists the **stable** API surface of Artisan Core that modules can safely depend on.
 Anything not listed here is internal and may change without notice.
 
-> Source of truth : the `@Stable` annotations in `plugin/src/main/kotlin/net/artisanmc/modules/api/`.
+> Source of truth : the `@Stable` annotations in `plugin/api/src/main/kotlin/net/artisanmc/modules/api/`.
 > This doc is hand-maintained; future versions will auto-generate it (see `versioning.md` §9.2).
 
 ## Annotations

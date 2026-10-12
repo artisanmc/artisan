@@ -11,31 +11,31 @@
 mappings:
   # --- Plugin: user-visible surface ---
 
-  - touches: "plugin/src/main/resources/config.yml"
+  - touches: "plugin/paper/src/main/resources/config.yml"
     updates:
       - "docs-site/src/content/docs/getting-started/install-admin.md"
     reason: "User-visible plugin config (Reference + Config sections)"
 
-  - touches: "plugin/src/main/kotlin/**/PluginConfig.kt"
+  - touches: "plugin/*/src/main/kotlin/**/PluginConfig.kt"
     updates:
       - "docs-site/src/content/docs/getting-started/install-admin.md"
     reason: "Plugin config schema / defaults"
 
-  - touches: "plugin/src/main/kotlin/**/ArtisanCommand.kt"
+  - touches: "plugin/*/src/main/kotlin/**/ArtisanCommand.kt"
     updates:
       - "docs/architecture/plugin-commands.md"
       - "docs-site/src/content/docs/getting-started/install-admin.md"
       - "CLAUDE.md"
     reason: "Commands: dev detail in plugin-commands.md, user table in install-admin §5, one-line list in CLAUDE.md"
 
-  - touches: "plugin/src/main/kotlin/**/ResourcePackDelegator.kt"
+  - touches: "plugin/*/src/main/kotlin/**/ResourcePackDelegator.kt"
     updates:
       - "docs-site/src/content/docs/getting-started/install-admin.md"
     reason: "Resource pack distribution modes (install-admin §8)"
 
   # --- Plugin: sync, hashing, disk layout (the invariants) ---
 
-  - touches: "plugin/src/main/kotlin/**/BundleHasher.kt"
+  - touches: "plugin/*/src/main/kotlin/**/BundleHasher.kt"
     updates:
       - "docs/architecture/invariants.md"
       - "testdata/project-snapshot-hash-conformance.json"
@@ -47,12 +47,12 @@ mappings:
       - "testdata/project-snapshot-hash-conformance.json"
     reason: "Backend half of the cross-language hash equality"
 
-  - touches: "plugin/src/main/kotlin/**/ProjectDeleter.kt"
+  - touches: "plugin/*/src/main/kotlin/**/ProjectDeleter.kt"
     updates:
       - "docs/architecture/invariants.md"
     reason: ".artisan-trash/ handling"
 
-  - touches: "plugin/src/main/kotlin/**/yaml/LangFlattener.kt"
+  - touches: "plugin/*/src/main/kotlin/**/yaml/LangFlattener.kt"
     updates:
       - "docs/architecture/project-files.md"
       - "testdata/lang-tree-conformance.json"
@@ -64,7 +64,7 @@ mappings:
       - "testdata/lang-tree-conformance.json"
     reason: "lang/ tree writer (the only writer)"
 
-  - touches: "plugin/src/main/kotlin/**/I18nAddresses.kt"
+  - touches: "plugin/*/src/main/kotlin/**/I18nAddresses.kt"
     updates:
       - "docs/architecture/project-files.md"
       - "testdata/i18n-address-conformance.json"
@@ -72,7 +72,7 @@ mappings:
 
   # --- Module API surface (3 layers) ---
 
-  - touches: "plugin/src/main/kotlin/net/artisanmc/modules/api/"
+  - touches: "plugin/api/src/main/"
     updates:
       - "docs/architecture/api-surface.md"
       - "docs/architecture/modules.md"

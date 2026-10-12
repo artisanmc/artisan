@@ -7,7 +7,7 @@ import { appendFileSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 const SEMVER = /^(\d+)\.(\d+)\.(\d+)$/;
-export const API_SOURCES = "plugin/src/main/kotlin/net/artisanmc/modules/api/";
+export const API_SOURCES = "plugin/api/src/main/";
 export const API_SURFACE = "docs/architecture/api-surface.md";
 export const NO_RELEASE_LABEL = "api:no-release";
 

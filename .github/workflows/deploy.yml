@@ -83,6 +83,6 @@ jobs:
           API_URL: https://api.artisanmc.net
           PLUGIN_SIGNING_KEY: ${{ secrets.PLUGIN_SIGNING_KEY }}
           PLUGIN_VERSION: 1.0.${{ github.event.workflow_run.run_number }}
-          PLUGIN_JAR: plugin/build/libs/artisan-plugin-1.0.${{ github.event.workflow_run.run_number }}-all.jar
+          PLUGIN_JAR: plugin/paper/build/libs/artisan-plugin-1.0.${{ github.event.workflow_run.run_number }}-all.jar
           EXPECTED_SHA: ${{ github.event.workflow_run.head_sha }}
         run: node deploy/publish-plugin.mjs publish
