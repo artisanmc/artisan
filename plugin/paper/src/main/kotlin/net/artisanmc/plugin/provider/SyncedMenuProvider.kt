@@ -175,6 +175,8 @@ class SyncedMenuProvider(
     @Volatile private var editorUrl: String? = null
     @Volatile private var networkName: String? = null
     @Volatile private var customItemsManager: CustomItemsManager = CustomItemsManager(emptyList())
+
+    fun customItems(): List<Map<String, String>> = customItemsManager.items()
     @Volatile private var resourcePackManagerRef: ResourcePackManager? = null
 
     fun setResourcePackManager(mgr: ResourcePackManager) {

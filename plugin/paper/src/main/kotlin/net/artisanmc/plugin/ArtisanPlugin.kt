@@ -276,6 +276,7 @@ open class ArtisanPlugin : JavaPlugin() {
         override fun models() = api.models.declared().map { it.document }
         override fun screens() = api.screens.declared().map { it.toWire() }
         override fun serverConfig() = serverConfigAccess.report()
+        override fun customItems() = provider.customItems()
     }
 
     internal fun stopEditor() {
@@ -288,7 +289,8 @@ open class ArtisanPlugin : JavaPlugin() {
         editorUrl = web.url
         if (!web.enabled) return
         try {
-            val router = net.artisanmc.plugin.hub.EditorApi.router(localServer, editorSessions, logger)
+            val vanilla = net.artisanmc.plugin.hub.VanillaAssets(File(dataFolder, "cache/minecraft"), localServer.minecraftVersion, logger)
+            val router = net.artisanmc.plugin.hub.EditorApi.router(localServer, editorSessions, logger, vanilla)
             val server = net.artisanmc.plugin.hub.HubServer(
                 web, router, editorSessions, net.artisanmc.plugin.hub.EditorAssets(javaClass.classLoader), editorChannel, logger,
             )
