@@ -31,6 +31,14 @@ class Call(
 
     fun body(): JsonNode? = runCatching { mapper.readTree(Content.Source.asString(request)) }.getOrNull()
 
+    /** Le corps brut, ou null au-delà de [limit] octets. */
+    fun bytes(limit: Int): ByteArray? {
+        if (request.length > limit) return null
+        val buffer = Content.Source.asByteBuffer(request)
+        if (buffer.remaining() > limit) return null
+        return ByteArray(buffer.remaining()).also { buffer.get(it) }
+    }
+
     fun json(body: Any?, status: Int = 200) = send(status, "application/json", mapper.writeValueAsBytes(body))
 
     fun error(status: Int, code: String, message: String? = null) =
