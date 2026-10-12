@@ -157,7 +157,7 @@ class SyncedMenuProvider(
     }
 
     /** L'éditeur servi par le plugin : mêmes gestionnaires que le WebSocket, sans réseau. */
-    val link = LocalServerLink(::dispatch)
+    val link = LocalServerLink(::dispatch, java.time.Duration.ofSeconds(30))
 
     private fun send(payload: Map<String, Any?>) {
         if (link.deliver(payload)) return
