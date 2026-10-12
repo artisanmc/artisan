@@ -27,7 +27,7 @@ Override l'URL admin via `ADMIN_DATABASE_URL` si Postgres n'est pas sur
 
 ## Vecteurs de conformance cross-langage
 
-Trois vecteurs partagés verrouillent une égalité entre implémentations Kotlin et TS. Changer l'algo
+Ces vecteurs partagés verrouillent une égalité entre implémentations (Kotlin ↔ TS, backend ↔ éditeur). Changer l'algo
 = mettre à jour les deux côtés **et** régénérer le vecteur.
 
 | Vecteur | Asservi par |
@@ -35,6 +35,7 @@ Trois vecteurs partagés verrouillent une égalité entre implémentations Kotli
 | `testdata/project-hash-conformance.json` | `BundleHashConformanceTest` (plugin) + `hashUtils.test.ts` (backend) |
 | `testdata/lang-tree-conformance.json` | `LangFlattener` (plugin) + `langTree.ts` (éditeur) |
 | `testdata/i18n-address-conformance.json` | `I18nAddresses.kt` (plugin) + sites i18n éditeur |
+| `testdata/resource-pack-conformance.json` | `resourcePackConformance.test.ts` (backend, source — régénérer par `bun backend/scripts/gen-resource-pack-conformance.ts`) + idem (éditeur, `lib/pack/`) : zip octet pour octet |
 
 ## Menus en paquets — checklist manuelle
 
