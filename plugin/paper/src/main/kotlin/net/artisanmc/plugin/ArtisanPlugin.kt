@@ -220,13 +220,9 @@ open class ArtisanPlugin : JavaPlugin() {
 
         langManager = LangManager.fromPlugin(this, cfg.language, cfg.perPlayerLanguage)
 
-        capturedItems = net.artisanmc.plugin.items.CapturedItemStore(projectRoots, logger)
-        capturedItems.reload()
-        val softDeps = SoftDepRegistry(this, capturedItems)
         cooldowns = CooldownStore()
         sessions = MenuSessionStore()
         navigationHistory = NavigationHistoryStore()
-        evaluator = ConditionEvaluator(softDeps, cooldowns)
         // Disk-cached asset index: glyph/font titles keep rendering with the
         // backend down or gone (offline completeness — the catalog was
         // previously HTTP-only and booted empty offline).
@@ -234,95 +230,11 @@ open class ArtisanPlugin : JavaPlugin() {
             cacheFile = java.io.File(dataFolder, "cache/asset-index.json"),
         )
         assetCatalog.loadFromDisk()
-
         commandRegistrar = CommandRegistrar(this, langManager)
-        menuProvider = SyncedMenuProvider(
-            roots            = projectRoots,
-            serverKey        = cfg.serverKey,
-            editorAccessMode = cfg.editorAccessMode,
-            wsUrl            = cfg.wsUrl,
-            logger           = logger,
-            evaluator        = evaluator,
-            sessions         = sessions,
-            history          = navigationHistory,
-            onReload         = { scheduler.onGlobal(::applyReload) },
-            executorProvider = { executor },
-            lookupAsset      = assetCatalog::lookup,
-            offsetEncoderProvider = assetCatalog::offsetEncoder,
-            installedModules = { api.modules.active().map { mapOf("id" to it.id, "version" to description.version) } },
-            dataSources = api.dataSources,
-            dataSourcesReport = { net.artisanmc.plugin.ws.DataSourceReport.build(api.dataSources) },
-            declaredModelsReport = { api.models.declared().map { it.document } },
-            editorScreensReport = { api.screens.declared().map { it.toWire() } },
-            importSources = ImportSourceReader(
-                serverRoot = java.io.File(".").toPath(),
-                sources = cfg.assistantImportSources,
-                logger = logger,
-            ),
-            scheduler = scheduler,
-            menuWindows = menuWindows,
-            pluginVersion = description.version,
-            pluginUpdater = pluginUpdater(cfg),
-            nexoGlyphs = net.artisanmc.plugin.customitems.NexoGlyphReader(java.io.File(server.pluginsFolder, "Nexo")),
-            serverConfig = serverConfigAccess,
-        )
-        moduleMessageSender = { m -> (menuProvider as? SyncedMenuProvider)?.sendModuleMessage(m) }
-        defaultModules().forEach { api.modules.register(it) }
-        // Inject before load() so the initial hello includes the correct custom_items_hash.
-        // Nexo/Oraxen fire their "items loaded" events before Artisan enables (softdepend order),
-        // so registering hot-reload listeners alone is not sufficient for the first startup.
-        val pluginsDir = server.pluginsFolder
-        val customItemsManager = net.artisanmc.plugin.customitems.CustomItemsManager(
-            listOf(
-                net.artisanmc.plugin.customitems.NexoSource(pluginsDir),
-                net.artisanmc.plugin.customitems.OraxenSource(pluginsDir),
-                net.artisanmc.plugin.customitems.ItemsAdderSource(pluginsDir),
-            )
-        )
-        val syncedProvider = menuProvider as? SyncedMenuProvider
-        syncedProvider?.setCustomItemsManager(customItemsManager)
-        val delegator: net.artisanmc.plugin.resourcepack.ResourcePackDelegator? =
-            cfg.resourcePack.delegateToDir?.let { path ->
-                val target = File(path)
-                // `.zip` paths target a single file; everything else targets a directory.
-                // Validate the right thing in each mode — for zip mode the *parent*
-                // directory must be writable (we write/atomic-replace the zip there),
-                // not the zip itself.
-                val isZipTarget = target.name.endsWith(".zip", ignoreCase = true)
-                val checkDir = if (isZipTarget) target.parentFile ?: target else target
-                if (!checkDir.exists()) checkDir.mkdirs()
-                if (!checkDir.isDirectory || !checkDir.canWrite()) {
-                    logger.warning(
-                        "[delegate] delegate-to-dir ${target.absolutePath} parent " +
-                        "(${checkDir.absolutePath}) is not a writable directory — " +
-                        "falling back to legacy push mode"
-                    )
-                    null
-                } else {
-                    val dir = target
-                    logger.info("[delegate] delegation enabled, target dir: ${dir.absolutePath}")
-                    net.artisanmc.plugin.resourcepack.ResourcePackDelegator(dir, logger)
-                }
-            }
-        val resourcePackManager = net.artisanmc.plugin.resourcepack.ResourcePackManager(
-            plugin = this,
-            config = cfg.resourcePack,
-            logger = logger,
-            assetCatalog = assetCatalog,
-            delegator = delegator,
-            cacheFile = java.io.File(dataFolder, "cache/resource-pack.json"),
-            packLoads = packLoads,
-        )
-        // Restore the last applied project info so push mode survives a restart
-        // during a backend outage (a later hello_ack simply refreshes).
-        resourcePackManager.loadFromDisk()
-        syncedProvider?.setResourcePackManager(resourcePackManager)
-        registerResourcePackManager(resourcePackManager)
-        menuProvider.load()
-        if (syncedProvider != null) registerCustomItemsReloadListeners(syncedProvider)
 
-        executor = ActionExecutor(this, menuProvider, sessions, softDeps, cooldowns, evaluator, api.commands, navigationHistory)
-        commandRegistrar.reload(menuProvider.allBundles(), executor, evaluator)
+        // Les modules s'inscrivent avant le premier `hello`, qui les annonce.
+        startRuntime(cfg) { defaultModules().forEach { api.modules.register(it) } }
+        registerCustomItemsReloadListeners()
 
         artisanCommand = ArtisanCommand(this, langManager)
         getCommand("artisan")?.setExecutor(artisanCommand)
@@ -341,8 +253,13 @@ open class ArtisanPlugin : JavaPlugin() {
         logger.info("Artisan disabled")
     }
 
-    private fun registerCustomItemsReloadListeners(provider: SyncedMenuProvider) {
+    /**
+     * Enregistrés une seule fois : chaque événement vise le provider courant, pour qu'un
+     * `/artisan reload` n'empile pas un écouteur de plus par rechargement.
+     */
+    private fun registerCustomItemsReloadListeners() {
         val mgr = server.pluginManager
+        val notify = { scheduler.async { (menuProvider as? SyncedMenuProvider)?.notifyCustomItemsReload() } }
 
         // Initial custom items hash sync, post-server-load.
         // Runs regardless of which custom-items plugin is installed.
@@ -353,7 +270,7 @@ open class ArtisanPlugin : JavaPlugin() {
             @org.bukkit.event.EventHandler
             fun on(event: org.bukkit.event.server.ServerLoadEvent) {
                 scheduler.asyncLater(40L) {
-                    provider.notifyCustomItemsReload()
+                    (menuProvider as? SyncedMenuProvider)?.notifyCustomItemsReload()
                     // Un module qui écrit dans son project à l'activation n'a plus
                     // rien à rattraper : le disque est la seule vérité, donc son
                     // fichier est déjà en place (ADR `server-disk-only-storage`).
@@ -368,9 +285,7 @@ open class ArtisanPlugin : JavaPlugin() {
             mgr.registerEvents(object : org.bukkit.event.Listener {
                 @org.bukkit.event.EventHandler
                 fun on(event: com.nexomc.nexo.api.events.NexoItemsLoadedEvent) {
-                    scheduler.async {
-                        provider.notifyCustomItemsReload()
-                    }
+                    notify()
                 }
             }, this)
         }
@@ -379,9 +294,7 @@ open class ArtisanPlugin : JavaPlugin() {
             mgr.registerEvents(object : org.bukkit.event.Listener {
                 @org.bukkit.event.EventHandler
                 fun on(event: io.th0rgal.oraxen.api.events.OraxenItemsLoadedEvent) {
-                    scheduler.async {
-                        provider.notifyCustomItemsReload()
-                    }
+                    notify()
                 }
             }, this)
         }
@@ -397,9 +310,7 @@ open class ArtisanPlugin : JavaPlugin() {
                     org.bukkit.event.EventPriority.NORMAL,
                     { _, event ->
                         if (eventClass.isInstance(event)) {
-                            scheduler.async {
-                                provider.notifyCustomItemsReload()
-                            }
+                            notify()
                         }
                     },
                     this,
@@ -458,101 +369,108 @@ open class ArtisanPlugin : JavaPlugin() {
         cfg.assistantImportSourceWarnings.forEach { logger.warning("[assistant] $it") }
         langManager = LangManager.fromPlugin(this, cfg.language, cfg.perPlayerLanguage)
         menuProvider.unload()
-        projectRoots.coreRoot.mkdirs()
+        startRuntime(cfg)
+        // ServerLoadEvent est passé : l'empreinte des custom items part d'ici, une fois
+        // la nouvelle connexion établie.
+        scheduler.asyncLater(40L) { (menuProvider as? SyncedMenuProvider)?.notifyCustomItemsReload() }
+    }
 
+    /**
+     * Ce que `/artisan reload` reconstruit depuis la config : items capturés,
+     * provider et sa connexion, pack de ressources, moteur d'actions, commandes.
+     * [beforeLoad] s'exécute une fois le provider créé, avant sa connexion.
+     */
+    private fun startRuntime(cfg: PluginConfig, beforeLoad: () -> Unit = {}) {
+        projectRoots.coreRoot.mkdirs()
         capturedItems = net.artisanmc.plugin.items.CapturedItemStore(projectRoots, logger)
         capturedItems.reload()
         val softDeps = SoftDepRegistry(this, capturedItems)
         evaluator = ConditionEvaluator(softDeps, cooldowns)
 
-        menuProvider = SyncedMenuProvider(
-            roots            = projectRoots,
-            serverKey        = cfg.serverKey,
-            editorAccessMode = cfg.editorAccessMode,
-            wsUrl            = cfg.wsUrl,
-            logger           = logger,
-            evaluator        = evaluator,
-            sessions         = sessions,
-            history          = navigationHistory,
-            onReload         = { scheduler.onGlobal(::applyReload) },
-            executorProvider = { executor },
-            lookupAsset      = assetCatalog::lookup,
-            offsetEncoderProvider = assetCatalog::offsetEncoder,
-            installedModules = { api.modules.active().map { mapOf("id" to it.id, "version" to description.version) } },
-            dataSources = api.dataSources,
-            dataSourcesReport = { net.artisanmc.plugin.ws.DataSourceReport.build(api.dataSources) },
-            declaredModelsReport = { api.models.declared().map { it.document } },
-            editorScreensReport = { api.screens.declared().map { it.toWire() } },
-            importSources = ImportSourceReader(
-                serverRoot = java.io.File(".").toPath(),
-                sources = cfg.assistantImportSources,
-                logger = logger,
+        val provider = createProvider(cfg)
+        menuProvider = provider
+        moduleMessageSender = { m -> provider.sendModuleMessage(m) }
+        beforeLoad()
+        // Avant load() : le premier hello porte déjà l'empreinte des custom items. Nexo et
+        // Oraxen annoncent leurs items avant qu'Artisan démarre (ordre softdepend).
+        val pluginsDir = server.pluginsFolder
+        provider.setCustomItemsManager(
+            net.artisanmc.plugin.customitems.CustomItemsManager(
+                listOf(
+                    net.artisanmc.plugin.customitems.NexoSource(pluginsDir),
+                    net.artisanmc.plugin.customitems.OraxenSource(pluginsDir),
+                    net.artisanmc.plugin.customitems.ItemsAdderSource(pluginsDir),
+                ),
             ),
-            scheduler = scheduler,
-            menuWindows = menuWindows,
-            pluginVersion = description.version,
-            pluginUpdater = pluginUpdater(cfg),
-            nexoGlyphs = net.artisanmc.plugin.customitems.NexoGlyphReader(java.io.File(server.pluginsFolder, "Nexo")),
-            serverConfig = serverConfigAccess,
         )
-        moduleMessageSender = { m -> (menuProvider as? SyncedMenuProvider)?.sendModuleMessage(m) }
-        val pluginsDirReinit = server.pluginsFolder
-        val customItemsManagerReinit = net.artisanmc.plugin.customitems.CustomItemsManager(
-            listOf(
-                net.artisanmc.plugin.customitems.NexoSource(pluginsDirReinit),
-                net.artisanmc.plugin.customitems.OraxenSource(pluginsDirReinit),
-                net.artisanmc.plugin.customitems.ItemsAdderSource(pluginsDirReinit),
-            )
-        )
-        val syncedProviderReinit = menuProvider as? SyncedMenuProvider
-        syncedProviderReinit?.setCustomItemsManager(customItemsManagerReinit)
-        val delegatorReinit: net.artisanmc.plugin.resourcepack.ResourcePackDelegator? =
-            cfg.resourcePack.delegateToDir?.let { path ->
-                val target = File(path)
-                // `.zip` paths target a single file; everything else targets a directory.
-                // Validate the right thing in each mode — for zip mode the *parent*
-                // directory must be writable (we write/atomic-replace the zip there),
-                // not the zip itself.
-                val isZipTarget = target.name.endsWith(".zip", ignoreCase = true)
-                val checkDir = if (isZipTarget) target.parentFile ?: target else target
-                if (!checkDir.exists()) checkDir.mkdirs()
-                if (!checkDir.isDirectory || !checkDir.canWrite()) {
-                    logger.warning(
-                        "[delegate] delegate-to-dir ${target.absolutePath} parent " +
-                        "(${checkDir.absolutePath}) is not a writable directory — " +
-                        "falling back to legacy push mode"
-                    )
-                    null
-                } else {
-                    val dir = target
-                    logger.info("[delegate] delegation enabled, target dir: ${dir.absolutePath}")
-                    net.artisanmc.plugin.resourcepack.ResourcePackDelegator(dir, logger)
-                }
-            }
-        val resourcePackManagerReinit = net.artisanmc.plugin.resourcepack.ResourcePackManager(
+        val packs = net.artisanmc.plugin.resourcepack.ResourcePackManager(
             plugin = this,
             config = cfg.resourcePack,
             logger = logger,
             assetCatalog = assetCatalog,
-            delegator = delegatorReinit,
+            delegator = packDelegator(cfg),
             cacheFile = java.io.File(dataFolder, "cache/resource-pack.json"),
             packLoads = packLoads,
         )
-        resourcePackManagerReinit.loadFromDisk()
-        syncedProviderReinit?.setResourcePackManager(resourcePackManagerReinit)
-        registerResourcePackManager(resourcePackManagerReinit)
-        menuProvider.load()
-        if (syncedProviderReinit != null) registerCustomItemsReloadListeners(syncedProviderReinit)
-        executor = ActionExecutor(this, menuProvider, sessions, softDeps, cooldowns, evaluator, api.commands, navigationHistory)
-        commandRegistrar.reload(menuProvider.allBundles(), executor, evaluator)
+        // Le dernier pack appliqué survit à un redémarrage pendant une panne du backend.
+        packs.loadFromDisk()
+        provider.setResourcePackManager(packs)
+        registerResourcePackManager(packs)
+        provider.load()
 
-        // reinit happens after ServerLoadEvent has already fired, so we kick off
-        // the initial custom items hash sync here ourselves. Short delay lets the
-        // fresh WsClient finish handshaking before notify pushes the hash.
-        val reinitProvider = menuProvider as? SyncedMenuProvider
-        if (reinitProvider != null) {
-            scheduler.asyncLater(40L) { reinitProvider.notifyCustomItemsReload() }
+        executor = ActionExecutor(this, provider, sessions, softDeps, cooldowns, evaluator, api.commands, navigationHistory)
+        commandRegistrar.reload(provider.allBundles(), executor, evaluator)
+    }
+
+    private fun createProvider(cfg: PluginConfig) = SyncedMenuProvider(
+        roots            = projectRoots,
+        serverKey        = cfg.serverKey,
+        editorAccessMode = cfg.editorAccessMode,
+        wsUrl            = cfg.wsUrl,
+        logger           = logger,
+        evaluator        = evaluator,
+        sessions         = sessions,
+        history          = navigationHistory,
+        onReload         = { scheduler.onGlobal(::applyReload) },
+        executorProvider = { executor },
+        lookupAsset      = assetCatalog::lookup,
+        offsetEncoderProvider = assetCatalog::offsetEncoder,
+        installedModules = { api.modules.active().map { mapOf("id" to it.id, "version" to description.version) } },
+        dataSources = api.dataSources,
+        dataSourcesReport = { net.artisanmc.plugin.ws.DataSourceReport.build(api.dataSources) },
+        declaredModelsReport = { api.models.declared().map { it.document } },
+        editorScreensReport = { api.screens.declared().map { it.toWire() } },
+        importSources = ImportSourceReader(
+            serverRoot = java.io.File(".").toPath(),
+            sources = cfg.assistantImportSources,
+            logger = logger,
+        ),
+        scheduler = scheduler,
+        menuWindows = menuWindows,
+        pluginVersion = description.version,
+        pluginUpdater = pluginUpdater(cfg),
+        nexoGlyphs = net.artisanmc.plugin.customitems.NexoGlyphReader(java.io.File(server.pluginsFolder, "Nexo")),
+        serverConfig = serverConfigAccess,
+    )
+
+    /**
+     * Délégation du pack à Nexo, Oraxen ou ItemsAdder. Un chemin `.zip` vise un fichier,
+     * dont le dossier parent doit être inscriptible ; tout autre chemin vise un dossier.
+     * Sinon, repli sur l'envoi direct aux joueurs.
+     */
+    private fun packDelegator(cfg: PluginConfig): net.artisanmc.plugin.resourcepack.ResourcePackDelegator? {
+        val target = File(cfg.resourcePack.delegateToDir ?: return null)
+        val checkDir = if (target.name.endsWith(".zip", ignoreCase = true)) target.parentFile ?: target else target
+        if (!checkDir.exists()) checkDir.mkdirs()
+        if (!checkDir.isDirectory || !checkDir.canWrite()) {
+            logger.warning(
+                "[delegate] delegate-to-dir ${target.absolutePath} parent " +
+                    "(${checkDir.absolutePath}) is not a writable directory — falling back to legacy push mode",
+            )
+            return null
         }
+        logger.info("[delegate] delegation enabled, target dir: ${target.absolutePath}")
+        return net.artisanmc.plugin.resourcepack.ResourcePackDelegator(target, logger)
     }
 
     /**
