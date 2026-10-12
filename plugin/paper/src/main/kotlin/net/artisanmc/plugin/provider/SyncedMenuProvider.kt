@@ -1,6 +1,7 @@
 package net.artisanmc.plugin.provider
 
 import net.artisanmc.plugin.scheduling.Scheduler
+import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
@@ -26,6 +27,7 @@ import net.artisanmc.plugin.resourcepack.AssetEntry
 import net.artisanmc.plugin.project.ProjectSnapshot
 import net.artisanmc.plugin.protocol.EditorPaths
 import net.artisanmc.plugin.protocol.EditorRequest
+import net.artisanmc.plugin.protocol.LocalServerLink
 import net.artisanmc.plugin.protocol.ProjectReads
 import net.artisanmc.plugin.protocol.ProjectWorkspace
 import net.artisanmc.plugin.protocol.ProjectWrites
@@ -74,6 +76,8 @@ class SyncedMenuProvider(
     private val pluginUpdater: (() -> net.artisanmc.plugin.update.PluginUpdater.Result)? = null,
     private val nexoGlyphs: net.artisanmc.plugin.customitems.NexoGlyphReader? = null,
     private val serverConfig: net.artisanmc.plugin.config.ServerConfigAccess? = null,
+    /** Annonces sans requête (`projects_reloaded`…) : l'éditeur servi par le plugin les relaie. */
+    private val editorEvents: (Map<String, Any?>) -> Unit = {},
 ) : MenuProvider {
     private var copyMinecraftVersion = "1.21.4"
     /** Ce que `project_read` sert : l'état lu au dernier chargement, jamais le disque courant. */
@@ -152,10 +156,17 @@ class SyncedMenuProvider(
         testSendOverride = fn
     }
 
+    /** L'éditeur servi par le plugin : mêmes gestionnaires que le WebSocket, sans réseau. */
+    val link = LocalServerLink(::dispatch)
+
     private fun send(payload: Map<String, Any?>) {
+        if (link.deliver(payload)) return
+        if (payload["request_id"] == null) editorEvents(payload)
         val raw = jsonMapper.writeValueAsString(payload)
         testSendOverride?.invoke(raw) ?: wsClient?.send(payload)
     }
+
+    val minecraftVersion: String get() = copyMinecraftVersion
 
     /** Module-message escape hatch (api.messages) — fire-and-forget over the WS. */
     fun sendModuleMessage(payload: Map<String, Any>) = send(payload)
@@ -206,14 +217,14 @@ class SyncedMenuProvider(
             onReload?.invoke()
         }
         reloadFromDisk()
+        val mcVersion = try {
+            org.bukkit.Bukkit.getServer().minecraftVersion
+        } catch (e: Exception) {
+            "1.21.4"
+        }
+        copyMinecraftVersion = mcVersion
         if (serverKey.isNotEmpty()) {
-            val mcVersion = try {
-                org.bukkit.Bukkit.getServer().minecraftVersion
-            } catch (e: Exception) {
-                "1.21.4"
-            }
             val availableSources = customItemsManager.availableSources()
-            copyMinecraftVersion = mcVersion
             logger?.info("[ART] Custom item sources available: ${availableSources.ifEmpty { listOf("(none)") }}")
             // Custom items hash is computed off-thread (see registerCustomItemsReloadListeners).
             // hello sends an empty hash; the backend learns the real hash via a follow-up
@@ -485,7 +496,10 @@ class SyncedMenuProvider(
 
 
     private fun handleMessage(raw: String) {
-        val node = runCatching { jsonMapper.readTree(raw) }.getOrNull() ?: return
+        dispatch(runCatching { jsonMapper.readTree(raw) }.getOrNull() ?: return)
+    }
+
+    private fun dispatch(node: JsonNode) {
         when (val request = EditorRequest.parse(node) ?: return) {
             is EditorRequest.HelloAck -> onHelloAck(request)
             is EditorRequest.DraftUpdate -> onDraftUpdate(request)
