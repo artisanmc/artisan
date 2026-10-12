@@ -48,7 +48,7 @@ Ce fichier garde l'**opérationnel** (commandes, invariants, env vars) + l'**ori
 ```bash
 cd plugin
 ./gradlew test          # suite plugin (unit + intégration MockWebServer), ~45 fichiers
-./gradlew shadowJar     # → build/libs/artisan-plugin-1.0.0-SNAPSHOT-all.jar
+./gradlew shadowJar     # → paper/build/libs/artisan-plugin-1.0.0-SNAPSHOT-all.jar
 ./gradlew deploy        # compile + redémarre le container (JAR monté depuis build/libs/)
 ```
 
@@ -133,7 +133,7 @@ CONTEXT.md               ← glossaire domaine (source de vérité pour les term
 
 Artisan suit le pattern **modular monolith** spécifié dans `docs/architecture/modules.md`. Chaque module vit en 3 layers symétriques :
 
-- Plugin : `plugin/src/main/kotlin/net/artisanmc/modules/{id}/` — implements `ArtisanModule`
+- Plugin : `plugin/paper/src/main/kotlin/net/artisanmc/modules/{id}/` — implements `ArtisanModule`
 - Backend : `backend/src/modules/{id}/` — exports `BackendModule`
 - Éditeur : `editor/src/modules/{id}/` — exports `FrontendModule`
 
