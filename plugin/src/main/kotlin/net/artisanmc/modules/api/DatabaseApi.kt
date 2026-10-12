@@ -5,33 +5,20 @@ import org.bukkit.plugin.Plugin
 import javax.sql.DataSource
 
 /**
- * Database lent by Artisan to the plugins of the suite (ADR
- * `suite-foundation-database`): the admin sets the credentials once in
- * `plugins/Artisan/environment.yml`, and each plugin gets its **own** connection
- * pool, so a plugin leaking connections never starves another.
- *
- * Only `javax.sql.DataSource` crosses the boundary: the pool and the JDBC
- * drivers stay inside Artisan, and a plugin brings its own access layer (JDBC,
- * JDBI…) and its own migrations. H2 keeps one file per plugin; MySQL and MariaDB
- * share the configured database, so a plugin prefixes its tables.
+ * One connection pool per plugin over a database shared by the whole suite:
+ * prefix your tables. The plugin brings its own access layer and migrations.
  */
 @Beta
 interface DatabaseApi {
-    /** Dialect configured by the admin. */
     val dialect: DatabaseDialect
 
     /**
-     * The pool of [owner], opened on the first call and returned as is afterwards.
-     * Closed when [owner] is disabled: call it again from the next `onEnable`.
-     * Opening it checks a connection, so the first call blocks briefly: make it
-     * from `onEnable`, not from a hot path.
-     *
-     * @throws IllegalStateException when the database is unreachable or misconfigured
+     * Blocks on the first call to check a connection: call it from `onEnable`.
+     * The pool is closed when [owner] is disabled.
      */
     fun dataSource(owner: Plugin): DataSource
 
     companion object {
-        /** Inert default (tests / partial wiring): every call throws. */
         @JvmField
         val NONE: DatabaseApi = object : DatabaseApi {
             override val dialect: DatabaseDialect get() = throw IllegalStateException("No database: Artisan is not running")

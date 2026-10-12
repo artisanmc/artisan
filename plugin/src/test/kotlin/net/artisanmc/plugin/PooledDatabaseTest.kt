@@ -26,20 +26,26 @@ class PooledDatabaseTest {
     private fun yaml(text: String) = YamlConfiguration().apply { loadFromString(text) }
 
     @Test
-    fun `defaults to one h2 file per plugin`() {
+    fun `defaults to one h2 database shared by the suite`() {
         val quests = MockBukkit.createMockPlugin("Quests")
         val guilds = MockBukkit.createMockPlugin("Guilds")
 
         db.dataSource(quests).connection.use { c ->
-            c.createStatement().execute("CREATE TABLE q (id INT)")
-            c.createStatement().execute("INSERT INTO q VALUES (1)")
+            c.createStatement().execute("CREATE TABLE artisan_servers (id INT PRIMARY KEY)")
+            c.createStatement().execute("INSERT INTO artisan_servers VALUES (1)")
         }
         db.dataSource(guilds).connection.use { c ->
-            val tables = c.metaData.getTables(null, null, "Q", null)
-            assertFalse(tables.next(), "a plugin never sees another plugin's H2 tables")
+            c.createStatement().execute(
+                "CREATE TABLE guilds_homes (server_id INT REFERENCES artisan_servers(id))",
+            )
+            c.createStatement().execute("INSERT INTO guilds_homes VALUES (1)")
         }
+        assertNotSame(db.dataSource(quests), db.dataSource(guilds), "still one pool per plugin")
         assertEquals(DatabaseDialect.H2, db.dialect)
-        assertTrue(dir.resolve("database").listFiles()!!.any { it.name.startsWith("Quests") })
+        assertEquals(
+            listOf("${PooledDatabase.H2_FILE}.mv.db"),
+            dir.resolve("database").listFiles()!!.map { it.name }.filter { it.endsWith(".mv.db") },
+        )
     }
 
     @Test
