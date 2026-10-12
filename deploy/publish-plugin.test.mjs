@@ -53,6 +53,7 @@ test("ne republie que si plugin/ a changé depuis la release servie", async () =
 test("le déploiement construit et publie le plugin après le backend", () => {
   const workflow = readFileSync(fileURLToPath(new URL("../.github/workflows/deploy.yml", import.meta.url)), "utf8");
   assert.match(workflow, /PLUGIN_SIGNING_KEY: \$\{\{ secrets\.PLUGIN_SIGNING_KEY \}\}/);
-  assert.match(workflow, /-PartisanVersion=1\.0\.\$\{\{ github\.event\.workflow_run\.run_number \}\}/);
+  assert.match(workflow, /PLUGIN_VERSION: 1\.0\.\$\{\{ github\.event\.workflow_run\.run_number \}\}\$\{\{ github\.event\.workflow_run\.head_branch == 'staging' && '-staging' \|\| '' \}\}/);
+  assert.match(workflow, /-PartisanVersion=\$PLUGIN_VERSION/);
   assert.ok(workflow.indexOf("node deploy/coolify-deploy.mjs") < workflow.indexOf("node deploy/publish-plugin.mjs publish"));
 });

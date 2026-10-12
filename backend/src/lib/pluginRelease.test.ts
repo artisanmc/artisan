@@ -24,6 +24,11 @@ describe("buildNumber", () => {
 		expect(buildNumber("1.0.0-SNAPSHOT")).toBe(0);
 		expect(buildNumber(undefined)).toBe(0);
 	});
+	it("ne lit que les versions de son canal", () => {
+		expect(buildNumber("1.0.42-staging")).toBe(0);
+		expect(buildNumber("1.0.42-staging", "staging")).toBe(42);
+		expect(buildNumber("1.0.42", "staging")).toBe(0);
+	});
 });
 
 describe("storeRelease", () => {
@@ -50,6 +55,15 @@ describe("storeRelease", () => {
 		const bytes = jar("v1");
 		const out = await storeRelease(bytes, "1.0.9", signed(bytes, "1.0.1"), null, { root, publicKey: publicKeyB64 });
 		expect(out).toEqual({ ok: false, error: "invalid_signature" });
+	});
+
+	it("refuse un JAR signé d'un autre canal", async () => {
+		const root = dir();
+		const bytes = jar("staging");
+		const out = await storeRelease(bytes, "1.0.5-staging", signed(bytes, "1.0.5-staging"), null, { root, publicKey: publicKeyB64 });
+		expect(out).toEqual({ ok: false, error: "invalid_signature" });
+		const ok = await storeRelease(bytes, "1.0.5-staging", signed(bytes, "1.0.5-staging"), null, { root, publicKey: publicKeyB64, channel: "staging" });
+		expect(ok).toEqual({ ok: true });
 	});
 
 	it("refuse une version qui n'est pas plus récente", async () => {

@@ -31,5 +31,7 @@ RUN npm run build
 
 FROM nginx:alpine AS serve
 COPY --from=build /app/editor/dist /usr/share/nginx/html
-COPY editor/nginx.conf /etc/nginx/conf.d/default.conf
+# Hôtes rendus au boot par l'image nginx (envsubst des templates) ; staging les surcharge.
+ENV MARKETING_HOST=artisanmc.net EDITOR_HOST=editor.artisanmc.net
+COPY editor/nginx.conf /etc/nginx/templates/default.conf.template
 EXPOSE 80

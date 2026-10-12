@@ -71,6 +71,22 @@ Après le backend, si `plugin/` a changé depuis le commit de la release servie 
 
 La clé publique est codée en dur dans `backend/src/lib/pluginRelease.ts` et `plugin/…/update/PluginUpdater.kt`. Perdre la clé privée oblige à en générer une nouvelle, à remplacer ces deux constantes, et à installer **à la main** la release suivante sur chaque serveur : les plugins déjà déployés refuseront tout JAR signé par la nouvelle clé.
 
+## Staging
+
+La branche `staging` se déploie comme `main`, dans l'environnement Coolify `staging` du projet Artisan (Postgres, volume et clé de chiffrement propres — jamais ceux de la prod). `deploy.yml` choisit l'environnement GitHub d'après la branche : `production` pour `main`, `staging` pour `staging`, chacun avec ses `COOLIFY_*_UUID`.
+
+| Hostname | Rôle |
+|---|---|
+| `staging.artisanmc.net` | vitrine + wiki |
+| `staging-editor.artisanmc.net` | éditeur |
+| `staging-api.artisanmc.net` | API |
+
+Un seul niveau de sous-domaine : le certificat Cloudflare gratuit ne couvre pas `*.staging.artisanmc.net`. L'éditeur reçoit `MARKETING_HOST=staging.artisanmc.net` et `EDITOR_HOST=staging-editor.artisanmc.net` au runtime (rendus dans nginx au boot ; défauts = prod), plus les build args `VITE_*` pointant `staging-api` / `staging-editor`. Le backend reçoit `PLUGIN_RELEASE_CHANNEL=staging`.
+
+**Canal du plugin.** Les builds `staging` sont versionnés `1.0.<run>-staging`. La signature couvre la version : le backend prod refuse un JAR `-staging`, le backend staging n'accepte que ceux-là, et le plugin ne suit que le canal de sa version courante. Changer un serveur de canal = réinstaller le JAR à la main. Même clé de signature pour les deux canaux.
+
+Pour livrer sur staging : `git push origin <commit>:staging`. Promouvoir = merger dans `main`.
+
 ## Vérification et rollback
 
 ### Vitrine et wiki

@@ -73,6 +73,21 @@ class PluginUpdaterTest {
         assertEquals(PluginUpdater.Result(true, "1.0.7"), updater("1.0.0-SNAPSHOT").install())
     }
 
+    @Test fun `un plugin release refuse un build staging`() {
+        release("1.0.9-staging", "jar".toByteArray())
+        assertEquals(PluginUpdater.Result(false, error = "not_newer"), updater("1.0.1").install())
+    }
+
+    @Test fun `un plugin staging refuse une release prod`() {
+        release("1.0.9", "jar".toByteArray())
+        assertEquals(PluginUpdater.Result(false, error = "not_newer"), updater("1.0.1-staging").install())
+    }
+
+    @Test fun `un plugin staging suit le canal staging`() {
+        release("1.0.9-staging", "jar".toByteArray())
+        assertEquals(PluginUpdater.Result(true, "1.0.9-staging"), updater("1.0.1-staging").install())
+    }
+
     @Test fun `aucune release publiee`() {
         server.enqueue(MockResponse().setResponseCode(404))
         assertEquals(PluginUpdater.Result(false, error = "no_release"), updater().install())
