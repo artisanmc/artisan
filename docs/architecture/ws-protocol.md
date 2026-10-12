@@ -242,6 +242,23 @@ le backend n'est qu'un **relais** (ADR `server-disk-only-storage`).
 - **Snapshot hash partagé** : `BundleHasher.snapshotHash` et `hashUtils.computeProjectSnapshotHash` suivent le vecteur `testdata/project-snapshot-hash-conformance.json` pour les stockages serveur et hébergé.
 - **OkHttp thread** : `SyncedMenuProvider.handleMessage` tourne sur le callback WS d'OkHttp — pas d'I/O bloquant direct.
 
+## Côté plugin : un gestionnaire par message
+
+Un message entrant devient une `EditorRequest` (`core`, package `protocol`), type scellé : un message
+inconnu ou sans champ obligatoire est ignoré. `SyncedMenuProvider.handleMessage` route chaque type
+par un `when` exhaustif ; ajouter un message sans gestionnaire ne compile pas.
+
+| Gestionnaire | Module | Messages |
+|---|---|---|
+| `ProjectReads` | `core` | `project_list`, `project_read`, `project_history`, `asset_read`, `config_read` |
+| `ProjectWrites` | `core` | `project_write`, `asset_write`, `config_write`, `project_copy`, `project_rename`, `project_draft_request`, `project_deleted` |
+| `ServerQueries` | `paper` | `online_players_fetch`, `papi_placeholders_fetch`, `head_texture_fetch`, `player_inventory_fetch`, `data_source_fetch`, `server_config_write`, `import_sources_*`, `nexo_glyph*` |
+| `SyncedMenuProvider` | `paper` | `hello_ack`, `draft_update`, `resource_pack_updated`, `session_replaced`, `custom_items_request`, `ping` |
+
+Les gestionnaires `core` ne voient les Projects qu'à travers `ProjectWorkspace` (instantané, exécuteur
+disque, rechargement) ; l'idempotence par `operation_id` et le quota commercial vivent dans
+`ProjectMutations`.
+
 ## Miroir du Snapshot (2026-09-26)
 
 ADR `snapshot-mirror-and-backend-history`. Pour un plugin qui annonce `snapshot_mirror_v1`,
