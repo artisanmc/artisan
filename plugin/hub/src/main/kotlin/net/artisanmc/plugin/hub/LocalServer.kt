@@ -16,4 +16,6 @@ interface LocalServer {
     fun models(): List<Map<String, Any?>>
     fun screens(): List<Map<String, Any?>>
     fun serverConfig(): Map<String, Any?>?
+    /** Items de Nexo, Oraxen, ItemsAdder : `{id, label, category}`. */
+    fun customItems(): List<Map<String, String>>
 }

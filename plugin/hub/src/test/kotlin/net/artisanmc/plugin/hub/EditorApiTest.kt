@@ -34,11 +34,12 @@ class EditorApiTest {
         override fun models() = listOf(mapOf<String, Any?>("id" to "plain"), mapOf<String, Any?>("id" to "shop:item"))
         override fun screens() = emptyList<Map<String, Any?>>()
         override fun serverConfig() = mapOf<String, Any?>("language" to "en")
+        override fun customItems() = listOf(mapOf("id" to "nexo:coin", "label" to "coin", "category" to "nexo"))
     }
     private val sessions = Sessions()
     private val player = UUID.randomUUID()
     private val hub = HubServer(
-        WebConfig(port = 0, bind = "127.0.0.1"), EditorApi.router(server, sessions, null), sessions,
+        WebConfig(port = 0, bind = "127.0.0.1"), EditorApi.router(server, sessions, null, VanillaAssets(java.nio.file.Files.createTempDirectory("vanilla").toFile(), "1.21.4", null, manifestUrl = VanillaAssetsTest.OFFLINE)), sessions,
         EditorAssets(javaClass.classLoader), EditorChannel(null), Logger.getAnonymousLogger(),
     )
     private val client = HttpClient.newHttpClient()
@@ -164,6 +165,20 @@ class EditorApiTest {
 
         answer = { mapOf("ok" to false, "error" to "unknown_project") }
         assertEquals(404, call("POST", "$path/read", mapOf("project_id" to "nope", "table" to "t")).first)
+    }
+
+    @Test
+    fun `items and textures come from the server`() {
+        val items = call("GET", "/api/v1/user/projects/shop/items").second!!
+        assertEquals("1.21.4", items["version"].asText())
+        assertEquals("stone", items["items"][0]["id"].asText())
+        assertEquals("nexo:coin", call("GET", "/api/v1/user/projects/shop/custom-items").second!!["items"][0]["id"].asText())
+
+        val request = HttpRequest.newBuilder(URI("http://127.0.0.1:${hub.port}/api/v1/textures/1.21.4/icons/stone")).header("Cookie", cookie).build()
+        val png = client.send(request, HttpResponse.BodyHandlers.ofString())
+        assertEquals(200, png.statusCode())
+        assertEquals("icon", png.body())
+        assertEquals(404, call("GET", "/api/v1/textures/1.21.4/item/missing").first)
     }
 
     @Test
