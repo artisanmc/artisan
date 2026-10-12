@@ -68,6 +68,15 @@ open class ArtisanPlugin : JavaPlugin() {
     private var resourcePackManager: net.artisanmc.plugin.resourcepack.ResourcePackManager? = null
     lateinit var api: ArtisanAPI
         private set
+    /** Connexions à l'éditeur : survivent à `/artisan reload`, pas au redémarrage. */
+    val editorSessions = net.artisanmc.plugin.hub.Sessions()
+    private val editorChannel by lazy { net.artisanmc.plugin.hub.EditorChannel(logger) }
+    /** Null si `web.enabled` est faux ou si le port n'a pas pu être ouvert. */
+    @Volatile var editor: net.artisanmc.plugin.hub.HubServer? = null
+        private set
+    /** Adresse publique de l'éditeur, configurée dans `web.url` ; vide si non renseignée. */
+    var editorUrl: String = ""
+        private set
     /** Pools lent through `api.database` (ADR `suite-foundation-database`). */
     lateinit var database: net.artisanmc.plugin.database.PooledDatabase
         private set
@@ -235,6 +244,7 @@ open class ArtisanPlugin : JavaPlugin() {
         // Les modules s'inscrivent avant le premier `hello`, qui les annonce.
         startRuntime(cfg) { defaultModules().forEach { api.modules.register(it) } }
         registerCustomItemsReloadListeners()
+        startEditor(cfg.web)
 
         artisanCommand = ArtisanCommand(this, langManager)
         getCommand("artisan")?.setExecutor(artisanCommand)
@@ -244,6 +254,7 @@ open class ArtisanPlugin : JavaPlugin() {
     }
 
     override fun onDisable() {
+        stopEditor()
         api.modules.active().forEach { runCatching { it.onDisable() } }
         if (::database.isInitialized) database.closeAll()
         artisanCommand.shutdown()
@@ -251,6 +262,27 @@ open class ArtisanPlugin : JavaPlugin() {
         menuProvider.shutdown()
         if (packetEventsLoaded) runCatching { PacketEvents.getAPI().terminate() }
         logger.info("Artisan disabled")
+    }
+
+    internal fun stopEditor() {
+        editor?.stop()
+        editor = null
+    }
+
+    /** Jetty vient de `libraries:` : s'il manque (serveur sans accès sortant), le plugin tourne sans éditeur. */
+    private fun startEditor(web: net.artisanmc.plugin.hub.WebConfig) {
+        editorUrl = web.url
+        if (!web.enabled) return
+        try {
+            val router = net.artisanmc.plugin.hub.Router()
+            net.artisanmc.plugin.hub.AuthRoutes(editorSessions).register(router)
+            val server = net.artisanmc.plugin.hub.HubServer(
+                web, router, editorSessions, net.artisanmc.plugin.hub.EditorAssets(javaClass.classLoader), editorChannel, logger,
+            )
+            if (server.start()) editor = server
+        } catch (e: LinkageError) {
+            logger.warning("[Artisan] Editor disabled: web server libraries are missing (${e.message})")
+        }
     }
 
     /**

@@ -6,6 +6,7 @@ dependencies {
     implementation(project(":artisan-api"))
     implementation(project(":artisan-core"))
     implementation(project(":artisan-database"))
+    implementation(project(":artisan-hub"))
 
     compileOnly("io.papermc.paper:paper-api:1.21.7-R0.1-SNAPSHOT")
     compileOnly("com.github.MilkBowl:VaultAPI:1.7.1")
@@ -29,6 +30,10 @@ dependencies {
     }
     testImplementation("com.zaxxer:HikariCP:6.2.1")
     testImplementation("com.h2database:h2:2.3.232")
+    // Jetty vient de `libraries:` en production, comme HikariCP.
+    compileOnly("org.eclipse.jetty:jetty-server:12.1.12")
+    testImplementation("org.eclipse.jetty:jetty-server:12.1.12")
+    testImplementation("org.eclipse.jetty.websocket:jetty-websocket-jetty-server:12.1.12")
     implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.17.2")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.17.2")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
