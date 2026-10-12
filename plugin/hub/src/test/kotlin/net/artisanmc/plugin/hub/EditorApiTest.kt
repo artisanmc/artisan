@@ -185,6 +185,23 @@ class EditorApiTest {
     }
 
     @Test
+    fun `nexo glyphs are read from the server`() {
+        answer = { message ->
+            when (message["glyph_id"]) {
+                null -> mapOf("ok" to true, "glyphs" to listOf(mapOf("id" to "bg", "texture" to "gui/bg", "available" to true)))
+                "bg" -> mapOf("ok" to true, "content_base64" to java.util.Base64.getEncoder().encodeToString("png".toByteArray()))
+                else -> mapOf("ok" to false, "error" to "not_found")
+            }
+        }
+        assertEquals("bg", call("GET", "/api/v1/user/projects/shop/nexo-glyphs").second!!["glyphs"][0]["id"].asText())
+        val request = HttpRequest.newBuilder(URI("http://127.0.0.1:${hub.port}/api/v1/user/projects/shop/nexo-glyphs/bg")).header("Cookie", cookie).build()
+        val png = client.send(request, HttpResponse.BodyHandlers.ofString())
+        assertEquals("image/png", png.headers().firstValue("Content-Type").get())
+        assertEquals("png", png.body())
+        assertEquals(404, call("GET", "/api/v1/user/projects/shop/nexo-glyphs/nope").first)
+    }
+
+    @Test
     fun `a pack built by the editor is served and applied`() {
         val zip = "PK\u0003\u0004pack".toByteArray()
         val put = HttpRequest.newBuilder(URI("http://127.0.0.1:${hub.port}/api/v1/networks/local/servers/local/resource-pack"))
