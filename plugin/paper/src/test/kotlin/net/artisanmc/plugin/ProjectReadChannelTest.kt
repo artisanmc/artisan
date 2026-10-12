@@ -184,7 +184,7 @@ class ProjectReadChannelTest {
         val h = Harness()
         val p = h.project("gros")
         h.write(p, "manifest.yaml", "id: gros\n")
-        h.write(p, "lang/en.yaml", "x".repeat(SyncedMenuProvider.MAX_PROJECT_BYTES + 1))
+        h.write(p, "lang/en.yaml", "x".repeat(net.artisanmc.plugin.protocol.ProjectReads.MAX_PROJECT_BYTES + 1))
 
         h.read("gros")
 
