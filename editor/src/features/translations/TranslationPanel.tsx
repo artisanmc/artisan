@@ -3,6 +3,7 @@ import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { YamlCodeEditor } from "@/components/ui/yaml-code-editor";
 import type { I18nKey, ProjectId } from "@/domain/types";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
+import { copyText } from "@/lib/clipboard";
 import {
   type TranslationRow,
   buildTranslationRows,
@@ -635,7 +636,7 @@ function YamlBody({
 
   const onCopy = async () => {
     try {
-      await navigator.clipboard.writeText(draft);
+      await copyText(draft);
       toast.success(t("translations.yamlCopied"));
     } catch {
       toast.error(t("translations.yamlClipboardBlocked"));
