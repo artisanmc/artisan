@@ -107,7 +107,7 @@ class HubServer(
     }
 
     private fun login(call: Call, token: String) {
-        val session = sessions.redeem(token) ?: return call.redirect("/?login=expired")
+        val session = sessions.redeem(token) ?: return call.redirect("/login?expired=1")
         call.setCookie(
             HttpCookie.build(COOKIE, session.id)
                 .path("/")

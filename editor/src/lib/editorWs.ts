@@ -1,4 +1,5 @@
-const WS_URL = (import.meta.env.VITE_API_URL ?? "http://localhost:3001").replace(/^http/, "ws");
+const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
+const WS_URL = (API_URL || window.location.origin).replace(/^http/, "ws");
 import type { ProjectRenamed } from "@/features/project/onProjectRenamed";
 
 export type DraftUpdateHandler = (

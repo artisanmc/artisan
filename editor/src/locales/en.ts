@@ -8,6 +8,7 @@ import { onboardingEn } from "./onboarding";
 import { planCatalogEn } from "./planCatalog";
 import { projectCopyEn } from "./projectCopy";
 import { projectIdentityEn } from "./projectIdentity";
+import { selfHostedEn } from "./selfHosted";
 import { serverCanvasEn } from "./serverCanvas";
 import { tasksEn } from "./tasks";
 export default {
@@ -94,6 +95,7 @@ export default {
   },
   accountDeletion: accountDeletionEn,
   drafts: draftsEn,
+  selfHosted: selfHostedEn,
   serverCanvas: serverCanvasEn,
   changes: changesEn,
   navigation: {
