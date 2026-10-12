@@ -40,7 +40,8 @@ class PluginUpdater(
         } catch (_: IOException) { return Result(false, error = "download_failed") }
         val version = meta.path("version").asText()
         val sha = meta.path("sha256").asText()
-        if (buildNumber(version) <= buildNumber(currentVersion)) return Result(false, error = "not_newer")
+        val channel = channel(currentVersion)
+        if (buildNumber(version, channel) <= buildNumber(currentVersion, channel)) return Result(false, error = "not_newer")
         if (!verify(version, sha, meta.path("signature").asText())) return Result(false, error = "invalid_signature")
 
         val bytes = try {
@@ -78,7 +79,13 @@ class PluginUpdater(
 
         fun message(version: String, sha256: String) = "artisan-plugin\n$version\n$sha256"
 
-        /** Les releases sont `1.0.<run CI>` ; une version de dev vaut 0. */
-        fun buildNumber(version: String): Int = Regex("""^\d+\.\d+\.(\d+)$""").find(version)?.groupValues?.get(1)?.toIntOrNull() ?: 0
+        /** Un plugin ne suit que son canal : `1.0.N-staging` reste sur staging, `1.0.N` (ou un build de dev) sur la prod. */
+        fun channel(version: String) = if (version.endsWith("-staging")) "staging" else ""
+
+        /** Les releases sont `1.0.<run CI>` (+ `-<canal>`) ; une version de dev ou d'un autre canal vaut 0. Miroir du backend. */
+        fun buildNumber(version: String, channel: String = ""): Int {
+            val m = Regex("""^\d+\.\d+\.(\d+)(?:-([a-z]+))?$""").find(version) ?: return 0
+            return if (m.groupValues[2] == channel) m.groupValues[1].toInt() else 0
+        }
     }
 }
