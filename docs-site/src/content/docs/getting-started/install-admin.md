@@ -235,7 +235,7 @@ never sent to the backend, and the editor never reads nor writes it.
 server_key: ""   # written by /artisan link — keep it private
 ws_url: "wss://api.artisanmc.net/ws/plugin"
 database:
-  type: "h2"     # h2 (one file per plugin, nothing to set up) | mysql | mariadb
+  type: "h2"     # h2 (a single file, nothing to set up) | mysql | mariadb
   host: "localhost"
   port: 3306
   name: "minecraft"
