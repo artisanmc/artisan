@@ -33,6 +33,15 @@ sont ses permissions `artisan.editor.*` au moment de la demande. Toute route de
 l'API exige une session ; une requête qui modifie quelque chose ou ouvre un
 WebSocket doit venir de la même origine que la page.
 
+**⑥ Mêmes routes que le backend, en attendant l'éditeur réécrit.** Le hub sert le
+sous-ensemble des routes REST que l'éditeur appelle (`AccountRoutes`, `ServerRoutes`,
+`ProjectRoutes`), avec un réseau et un serveur uniques nommés `local` et l'identité
+d'un Project égale au nom de son dossier. Chaque route traduit sa requête en message
+du protocole (`project_read`, `project_write`, `project_draft_request`…) passé par
+`ServerLink` aux gestionnaires existants : aucune logique de Project n'est dupliquée.
+Les brouillons privés restent sur le disque du serveur, un jeu par UUID de joueur.
+Sans équivalent pour l'instant : Versions (vides), objets vanilla et textures (vides).
+
 *Rejeté :* Javalin (deux runtimes Kotlin), le serveur HTTP du JDK (pas de
 WebSocket), embarquer Jetty dans le jar (+3 Mo, à relocaliser).
 
