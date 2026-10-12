@@ -9,6 +9,7 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+- Editor served by the plugin: the resource pack is now built in the browser after each publish (and after a container-texture change in the server configuration), the same way the backend built it, and sent to the server. Projects are ordered by folder name, the server knowing no creation date; any failed read keeps the previous pack, and a failure shows a toast without blocking the publish.
 - Editor served by the plugin: a resource pack sent by the editor (`PUT /api/v1/networks/local/servers/local/resource-pack`, `artisan.editor.publish`) is served by the plugin itself at `/resource-pack/<sha1>.zip` and applied like the cloud one, delegated to the pack host or pushed to players. Pushing needs `web.url` to be reachable by players.
 - Editor served by the plugin: the item library is filled by the server. The vanilla catalogue ships in the jar, custom items come from Nexo, Oraxen and ItemsAdder directly, and textures are downloaded once from Mojang (checksum verified, into `plugins/Artisan/cache/minecraft/`) the first time the editor asks for one. `-PwithEditor` also embeds the 3D block icons (about 15 MB).
 - Editor served by the plugin: module configuration screens (warps, quests…) now read and write through the server itself; writing needs `artisan.editor.publish`, like publishing.
