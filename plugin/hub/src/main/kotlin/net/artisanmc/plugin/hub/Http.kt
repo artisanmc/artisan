@@ -1,0 +1,96 @@
+package net.artisanmc.plugin.hub
+
+import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.databind.ObjectMapper
+import org.eclipse.jetty.http.HttpCookie
+import org.eclipse.jetty.http.HttpHeader
+import org.eclipse.jetty.io.Content
+import org.eclipse.jetty.server.Request
+import org.eclipse.jetty.server.Response
+import org.eclipse.jetty.util.Callback
+import org.eclipse.jetty.util.Fields
+
+/** Une requête HTTP en cours : ce qu'elle porte, et une seule réponse à donner. */
+class Call(
+    val request: Request,
+    private val response: Response,
+    private val callback: Callback,
+    val params: Map<String, String>,
+    val session: EditorSession?,
+) {
+    val method: String get() = request.method
+    val path: String get() = Request.getPathInContext(request)
+
+    private val query: Fields by lazy { Request.extractQueryParameters(request) }
+
+    fun query(name: String): String? = query.getValue(name)
+
+    fun cookie(name: String): String? = Request.getCookies(request).firstOrNull { it.name == name }?.value
+
+    fun header(name: String): String? = request.headers.get(name)
+
+    fun body(): JsonNode? = runCatching { mapper.readTree(Content.Source.asString(request)) }.getOrNull()
+
+    fun json(body: Any?, status: Int = 200) = send(status, "application/json", mapper.writeValueAsBytes(body))
+
+    fun error(status: Int, code: String, message: String? = null) =
+        json(if (message == null) mapOf("error" to code) else mapOf("error" to code, "message" to message), status)
+
+    fun send(status: Int, contentType: String, bytes: ByteArray, cacheControl: String = "no-store") {
+        response.status = status
+        response.headers.put(HttpHeader.CONTENT_TYPE, contentType)
+        response.headers.put(HttpHeader.CACHE_CONTROL, cacheControl)
+        response.write(true, java.nio.ByteBuffer.wrap(bytes), callback)
+    }
+
+    fun setCookie(cookie: HttpCookie) = Response.addCookie(response, cookie)
+
+    fun redirect(location: String) {
+        response.status = 302
+        response.headers.put(HttpHeader.LOCATION, location)
+        response.headers.put(HttpHeader.CACHE_CONTROL, "no-store")
+        callback.succeeded()
+    }
+
+    companion object {
+        val mapper = ObjectMapper()
+    }
+}
+
+/** Routes `GET /api/v1/projects/:id/files` : les segments `:nom` deviennent des paramètres. */
+class Router {
+    private class Route(val method: String, val segments: List<String>, val permission: String?, val handler: (Call) -> Unit)
+
+    private val routes = mutableListOf<Route>()
+
+    /** [permission] null : route publique. Sinon, une session portant cette permission. */
+    fun on(method: String, pattern: String, permission: String?, handler: (Call) -> Unit) {
+        routes += Route(method, split(pattern), permission, handler)
+    }
+
+    fun match(method: String, path: String): Match? {
+        val segments = split(path)
+        for (route in routes) {
+            if (route.method != method || route.segments.size != segments.size) continue
+            val params = HashMap<String, String>()
+            val matches = route.segments.indices.all { i ->
+                val expected = route.segments[i]
+                if (expected.startsWith(":")) {
+                    params[expected.substring(1)] = java.net.URLDecoder.decode(segments[i], Charsets.UTF_8)
+                    true
+                } else expected == segments[i]
+            }
+            if (matches) return Match(route.permission, params, route.handler)
+        }
+        return null
+    }
+
+    fun knows(path: String): Boolean {
+        val segments = split(path)
+        return routes.any { r -> r.segments.size == segments.size && r.segments.indices.all { r.segments[it].startsWith(":") || r.segments[it] == segments[it] } }
+    }
+
+    class Match(val permission: String?, val params: Map<String, String>, val handler: (Call) -> Unit)
+
+    private fun split(path: String) = path.trim('/').split('/').filter { it.isNotEmpty() }
+}

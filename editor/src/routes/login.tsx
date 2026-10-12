@@ -1,5 +1,7 @@
 import { LoginForm } from "@/features/auth/LoginForm";
+import { SelfHostedSignIn } from "@/features/selfHosted/SelfHostedSignIn";
 import { safeAuthReturn } from "@/lib/authReturn";
+import { SELF_HOSTED } from "@/lib/selfHosted";
 import { useAuthStore } from "@/state/authStore";
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 
@@ -31,7 +33,11 @@ function LoginPage() {
   return (
     <div className="grain relative flex min-h-screen items-center justify-center bg-[var(--surface)] p-8">
       <div aria-hidden className="page-glow pointer-events-none absolute inset-0" />
-      <LoginForm apiUrl={apiUrl} onSuccess={handleLoginSuccess} />
+      {SELF_HOSTED ? (
+        <SelfHostedSignIn expired={new URLSearchParams(window.location.search).has("expired")} />
+      ) : (
+        <LoginForm apiUrl={apiUrl} onSuccess={handleLoginSuccess} />
+      )}
     </div>
   );
 }

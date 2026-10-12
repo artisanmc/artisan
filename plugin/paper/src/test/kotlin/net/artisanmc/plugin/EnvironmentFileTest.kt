@@ -67,6 +67,8 @@ class EnvironmentFileTest {
         assertEquals("wss://api.artisanmc.net/ws/plugin", env.getString("ws_url"))
         assertEquals("h2", env.getString("database.type"))
         assertEquals(3306, env.getInt("database.port"))
+        assertEquals(8765, env.getInt("web.port"))
+        assertTrue(env.getBoolean("web.enabled"))
     }
 
     @Test

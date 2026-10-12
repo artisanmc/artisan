@@ -9,6 +9,9 @@ import { detectInitialTheme } from "@/state/themeStore";
 import { registerModule, listModules } from "@artisan/editor-sdk";
 import { menusModule } from "./modules/menus";
 import { commandsModule } from "./modules/commands";
+import { installRandomUuidFallback } from "@/lib/randomUuid";
+
+installRandomUuidFallback();
 
 // Apply data-theme to <html> before React mounts — prevents FOUC on reload.
 document.documentElement.dataset.theme = detectInitialTheme();

@@ -3,7 +3,6 @@ import { WorkspaceView } from "@/components/ui/workspace-view";
 import type { Asset } from "@/domain/asset";
 import type { ElementId, MenuId, ProjectId } from "@/domain/types";
 import { AssetsTab } from "@/features/assets/AssetsTab";
-import { AssistantBody } from "@/features/assistant/AssistantBody";
 import {
   IMAGE_BUTTON_DRAG_PREFIX,
   ImageButtonDragPreview,
@@ -49,6 +48,7 @@ import { validActiveLang } from "@/lib/i18nUsages";
 import { documentDestination, projectDestination } from "@/lib/projectNavigation";
 import { useProjectPrincipalId } from "@/lib/projectPrincipal";
 import { projectUrlId } from "@/lib/projectUrlId";
+import { SELF_HOSTED } from "@/lib/selfHosted";
 import { useIsDesktop } from "@/lib/useMediaQuery";
 import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
@@ -74,11 +74,18 @@ import {
   useParams,
   useSearch,
 } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { ResolvedProjectContext } from "./ResolvedProjectContext";
 import { goToDocument } from "./goToDocument";
+
+// Hors du build auto-hébergé (code conservé) : le chargement différé laisse Vite l'écarter.
+const AssistantBody = SELF_HOSTED
+  ? () => null
+  : lazy(() =>
+      import("@/features/assistant/AssistantBody").then((m) => ({ default: m.AssistantBody })),
+    );
 
 export type ProjectSearch = {
   tab?: "overview" | "translations" | "data-sources" | "resources" | "assistant" | "history";
@@ -418,12 +425,14 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
           title={t("assistant.title")}
         >
           <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col">
-            <AssistantBody
-              projectId={pId}
-              networkId={networkId}
-              serverId={serverId}
-              serverOnline={!offline}
-            />
+            <Suspense fallback={null}>
+              <AssistantBody
+                projectId={pId}
+                networkId={networkId}
+                serverId={serverId}
+                serverOnline={!offline}
+              />
+            </Suspense>
           </div>
         </WorkspaceView>
       )}
