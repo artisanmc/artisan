@@ -70,6 +70,16 @@ mappings:
       - "testdata/i18n-address-conformance.json"
     reason: "Canonical i18n addresses, derived on both sides"
 
+  - touches: "backend/src/lib/resourcePackBuilder.ts"
+    updates:
+      - "testdata/resource-pack-conformance.json"
+    reason: "Backend pack builder (and its lib/ helpers) is the source of the shared zip vector; regenerate with bun backend/scripts/gen-resource-pack-conformance.ts"
+
+  - touches: "editor/src/lib/pack/**"
+    updates:
+      - "testdata/resource-pack-conformance.json"
+    reason: "Browser port of the pack builder: must keep matching the vector byte for byte, never regenerate it from here"
+
   # --- Module API surface (3 layers) ---
 
   - touches: "plugin/api/src/main/"
