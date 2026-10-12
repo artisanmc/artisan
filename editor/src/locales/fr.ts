@@ -9,6 +9,7 @@ import { onboardingFr } from "./onboarding";
 import { planCatalogFr } from "./planCatalog";
 import { projectCopyFr } from "./projectCopy";
 import { projectIdentityFr } from "./projectIdentity";
+import { selfHostedFr } from "./selfHosted";
 import { serverCanvasFr } from "./serverCanvas";
 import { tasksFr } from "./tasks";
 
@@ -98,6 +99,7 @@ const fr: typeof en = {
   },
   accountDeletion: accountDeletionFr,
   drafts: draftsFr,
+  selfHosted: selfHostedFr,
   serverCanvas: serverCanvasFr,
   changes: changesFr,
   navigation: {

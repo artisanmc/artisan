@@ -20,6 +20,8 @@ class EditorCommandTest {
     @BeforeTest fun setup() { MockBukkit.mock() }
     @AfterTest  fun teardown() { MockBukkit.unmock() }
 
+    // Ces cas décrivent le mode cloud : l'éditeur servi par le plugin est arrêté.
+
     /** Stub [MenuProvider] whose [editorInfo] can be fixed per test. */
     private class StubProvider(private val info: Pair<String, String>?) : MenuProvider {
         override fun load() {}
@@ -41,6 +43,7 @@ class EditorCommandTest {
     @Test
     fun `editor on a linked server prints the server deep link and network name`() {
         val plugin = MockBukkit.load(ArtisanPlugin::class.java)
+        plugin.stopEditor()
         plugin.setMenuProviderForTesting(StubProvider("http://localhost:5173/networks/my-net/servers/my-server" to "Test"))
         val sender = MockBukkit.getMock()!!.consoleSender
         val cmd = plugin.getCommand("artisan")!!
@@ -55,6 +58,7 @@ class EditorCommandTest {
     @Test
     fun `editor on a keyless server routes to the link flow hint`() {
         val plugin = MockBukkit.load(ArtisanPlugin::class.java)
+        plugin.stopEditor()
         plugin.setMenuProviderForTesting(StubProvider(null))
         val sender = MockBukkit.getMock()!!.consoleSender
         val cmd = plugin.getCommand("artisan")!!
@@ -72,6 +76,7 @@ class EditorCommandTest {
     fun `editor on a linked-but-not-connected server shows connecting message and does not trigger setup`() {
         val plugin = MockBukkit.load(ArtisanPlugin::class.java)
         // Simulate a linked server (has server_key) but backend is not yet reachable (editorInfo() is null)
+        plugin.stopEditor()
         plugin.environmentFile.writeText("server_key: \"sk_${"a".repeat(64)}\"\n")
         plugin.setMenuProviderForTesting(StubProvider(null))
         val sender = MockBukkit.getMock()!!.consoleSender
