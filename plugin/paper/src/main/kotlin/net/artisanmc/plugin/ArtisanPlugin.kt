@@ -264,6 +264,20 @@ open class ArtisanPlugin : JavaPlugin() {
         logger.info("Artisan disabled")
     }
 
+    /** Le serveur vu par l'éditeur qu'il sert : toujours le provider courant, qui change à chaque reload. */
+    private val localServer = object : net.artisanmc.plugin.hub.LocalServer {
+        private val provider get() = menuProvider as SyncedMenuProvider
+        override val link: net.artisanmc.plugin.protocol.ServerLink get() = provider.link
+        override val label: String get() = File(".").absoluteFile.normalize().name.ifBlank { "Minecraft" }
+        override val minecraftVersion: String get() = provider.minecraftVersion
+        override val pluginVersion: String get() = description.version
+        override fun modules() = api.modules.active().map { mapOf("id" to it.id, "version" to description.version) }
+        override fun dataSources() = net.artisanmc.plugin.ws.DataSourceReport.build(api.dataSources)
+        override fun models() = api.models.declared().map { it.document }
+        override fun screens() = api.screens.declared().map { it.toWire() }
+        override fun serverConfig() = serverConfigAccess.report()
+    }
+
     internal fun stopEditor() {
         editor?.stop()
         editor = null
@@ -274,8 +288,7 @@ open class ArtisanPlugin : JavaPlugin() {
         editorUrl = web.url
         if (!web.enabled) return
         try {
-            val router = net.artisanmc.plugin.hub.Router()
-            net.artisanmc.plugin.hub.AuthRoutes(editorSessions).register(router)
+            val router = net.artisanmc.plugin.hub.EditorApi.router(localServer, editorSessions, logger)
             val server = net.artisanmc.plugin.hub.HubServer(
                 web, router, editorSessions, net.artisanmc.plugin.hub.EditorAssets(javaClass.classLoader), editorChannel, logger,
             )
@@ -483,6 +496,7 @@ open class ArtisanPlugin : JavaPlugin() {
         pluginUpdater = pluginUpdater(cfg),
         nexoGlyphs = net.artisanmc.plugin.customitems.NexoGlyphReader(java.io.File(server.pluginsFolder, "Nexo")),
         serverConfig = serverConfigAccess,
+        editorEvents = { editorChannel.relay(it) },
     )
 
     /**
