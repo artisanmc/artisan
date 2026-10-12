@@ -241,7 +241,19 @@ database:
   name: "minecraft"
   user: "root"
   password: "${ARTISAN_DB_PASSWORD}"   # any value may read an environment variable
+web:
+  enabled: true
+  port: 8765     # the only port to open; players never need it
+  bind: ""       # empty: every interface; "127.0.0.1" behind a reverse proxy
+  url: ""        # public address used in /artisan editor links; empty: the address the player joined with
 ```
+
+The `web` section serves the editor from the server itself. `/artisan editor`, run
+in game, prints a single-use link valid 60 seconds that signs you in as your
+player. Rights come from permissions: `artisan.editor.view`, `.edit`, `.publish`
+and `.config` (`artisan.editor` grants all four). Jetty is downloaded by Paper on
+the first start; if the port is taken the server starts without the editor and
+says so in the console. Web changes apply after a restart.
 
 Each plugin that asks Artisan for the database gets its own connection pool, of
 `database.pool-size` connections (in `config.yml`). Database changes apply after a

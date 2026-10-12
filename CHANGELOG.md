@@ -9,6 +9,7 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+- **Editor served by the plugin** (`v2`, first step): a `web` section in `environment.yml` (`enabled`, `port` 8765, `bind`, `url`) starts a web server (Jetty, downloaded by Paper through `libraries:`). In game, `/artisan editor` prints a single-use link valid 60 seconds that signs the player in; rights come from the new `artisan.editor.view|edit|publish|config` permissions, all granted by `artisan.editor`. A taken port leaves the server running without the editor.
 - `/artisan reload` no longer stacks one more custom-items listener (Nexo, Oraxen, ItemsAdder, server load) per reload: they are registered once at startup and always target the current connection. Internal: startup and reload share one runtime builder in `ArtisanPlugin`.
 - Internal: the plugin's editor protocol handler is split into typed requests (`EditorRequest`) and one handler per message (`ProjectReads`, `ProjectWrites` in `core`, `ServerQueries` in `paper`). Same messages, same replies.
 - **Folia and Leaf support**: the plugin declares `folia-supported: true` and schedules every task on the thread that owns what it touches (the player's region, the global thread, or async). Menu clicks, module actions, inventory snapshots and resource-pack pushes run on the player's thread; console commands, config reloads and command registration on the global thread. The `teleport` action now uses `teleportAsync`. Bundle reloads coming from the editor no longer register commands from an I/O thread.

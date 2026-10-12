@@ -2,6 +2,8 @@ package net.artisanmc.plugin.command
 
 import net.artisanmc.plugin.ArtisanPlugin
 import net.artisanmc.plugin.config.ConfigWriter
+import net.artisanmc.plugin.hub.EditorPermissions
+import net.artisanmc.plugin.hub.Sessions
 import net.artisanmc.plugin.provider.SyncedMenuProvider
 import net.artisanmc.plugin.lang.LangManager
 import net.artisanmc.plugin.render.TitleCompiler
@@ -175,6 +177,7 @@ class ArtisanCommand(
     private fun editor(sender: CommandSender) {
         val cfg = plugin.currentConfig()
         val senderLang = lang.playerLang(sender)
+        plugin.editor?.let { return editorLink(sender, senderLang, it.port ?: cfg.web.port) }
         if (cfg.editorConsoleOnly && sender !is ConsoleCommandSender) {
             sender.sendMessage(lang.get("artisan.editor_console_only", senderLang))
             return
@@ -200,6 +203,28 @@ class ArtisanCommand(
                 // Linked but not yet connected to backend (e.g., backend down at boot).
                 sender.sendMessage(lang.get("artisan.editor_connecting", senderLang))
             }
+        }
+    }
+
+    /** Un lien à usage unique : l'identité dans l'éditeur est celle du joueur qui le demande. */
+    private fun editorLink(sender: CommandSender, senderLang: String, port: Int) {
+        if (sender !is Player) {
+            sender.sendMessage(lang.get("artisan.editor_in_game_only", senderLang))
+            return
+        }
+        val permissions = EditorPermissions.ALL.filter(sender::hasPermission).toSet()
+        if (EditorPermissions.VIEW !in permissions) {
+            sender.sendMessage(lang.get("artisan.editor_no_permission", senderLang))
+            return
+        }
+        when (val link = plugin.editorSessions.issueLink(sender.uniqueId, sender.name, permissions)) {
+            is Sessions.LinkResult.Issued -> {
+                val host = sender.virtualHost?.hostString ?: plugin.server.ip.ifBlank { "localhost" }
+                val base = plugin.editorUrl.ifEmpty { "http://$host:$port" }
+                sender.sendMessage(lang.get("artisan.editor_link", senderLang, "url" to "$base/login/${link.token}"))
+            }
+            is Sessions.LinkResult.TooSoon ->
+                sender.sendMessage(lang.get("artisan.editor_link_too_soon", senderLang, "seconds" to link.retryAfter.seconds.coerceAtLeast(1).toString()))
         }
     }
 
