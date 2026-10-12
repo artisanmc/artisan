@@ -11,6 +11,7 @@
 ```bash
 ./gradlew test        # tous les modules
 ./gradlew shadowJar   # → paper/build/libs/artisan-plugin-<version>-all.jar
+./gradlew shadowJar -PwithEditor   # avec l'éditeur servi par le plugin (npm run build:self-hosted)
 ```
 
 Threads : le plugin tourne sur Paper, Folia et Leaf. Planifier passe par le port `Scheduler`,

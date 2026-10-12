@@ -12,6 +12,7 @@
     "generate-routes": "tsr generate",
     "prebuild": "npm --prefix ../docs-site run build",
     "build": "npm run generate-routes && tsc -p tsconfig.app.json && vite build",
+    "build:self-hosted": "tsr generate && vite build --mode self-hosted --outDir dist-self-hosted",
     "postbuild": "node scripts/copy-wiki.mjs",
     "typecheck": "tsc -b",
     "preview": "vite preview",

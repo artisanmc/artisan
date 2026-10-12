@@ -12,3 +12,24 @@ dependencies {
     testImplementation("org.eclipse.jetty:jetty-server:$jetty")
     testImplementation("org.eclipse.jetty.websocket:jetty-websocket-jetty-server:$jetty")
 }
+
+// `-PwithEditor` : le build de l'éditeur (`npm run build:self-hosted`) part dans le jar,
+// servi sous `/`. Sans lui, le serveur web répond que ce build n'embarque pas l'éditeur.
+val editorDir: File = rootDir.resolve("../editor").canonicalFile
+val editorDist: File = editorDir.resolve("dist-self-hosted")
+
+val buildEditor by tasks.registering(Exec::class) {
+    workingDir = editorDir
+    commandLine(if (System.getProperty("os.name").startsWith("Windows")) "npm.cmd" else "npm", "run", "build:self-hosted")
+    inputs.dir(editorDir.resolve("src"))
+    inputs.file(editorDir.resolve("package-lock.json"))
+    inputs.file(editorDir.resolve(".env.self-hosted"))
+    outputs.dir(editorDist)
+}
+
+if (providers.gradleProperty("withEditor").isPresent) {
+    tasks.processResources {
+        dependsOn(buildEditor)
+        from(editorDist) { into("editor") }
+    }
+}
