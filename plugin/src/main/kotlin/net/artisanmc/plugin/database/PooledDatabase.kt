@@ -15,9 +15,7 @@ import java.util.Locale
 import java.util.logging.Logger
 import javax.sql.DataSource
 
-/** What a pool needs, read from `environment.yml` (credentials) and `config.yml` (pool size). */
 data class DatabaseSettings(
-    /** Null when `database.type` is not a known dialect: every call then fails with [type] in the message. */
     val dialect: DatabaseDialect?,
     val type: String,
     val host: String,
@@ -26,7 +24,6 @@ data class DatabaseSettings(
     val user: String,
     val password: String,
     val poolSize: Int,
-    /** Parent of the per-plugin H2 files. */
     val h2Dir: File,
 ) {
     override fun toString() = "DatabaseSettings($type, $host:$port/$name, user=$user, poolSize=$poolSize)"
@@ -62,17 +59,15 @@ data class DatabaseSettings(
     }
 }
 
-/**
- * [DatabaseApi] backed by one HikariCP pool per plugin (ADR `suite-foundation-database`).
- * Settings are read when a pool opens, so a change applies to pools opened
- * afterwards. HikariCP and the drivers come from `libraries:` in `plugin.yml`
- * and stay in Artisan's classloader: only [DataSource] reaches the plugins.
- */
 class PooledDatabase(
     private val settings: () -> DatabaseSettings,
     private val logger: Logger,
 ) : DatabaseApi, Listener {
     private val pools = HashMap<String, HikariDataSource>()
+
+    companion object {
+        const val H2_FILE = "suite"
+    }
 
     override val dialect: DatabaseDialect get() = settings().let { it.dialect ?: unknownType(it) }
 
@@ -82,7 +77,6 @@ class PooledDatabase(
         return open(owner.name, settings()).also { pools[owner.name] = it }
     }
 
-    /** Pool of a disabled plugin is closed: its next `onEnable` gets a fresh one. */
     @EventHandler
     fun onPluginDisable(event: PluginDisableEvent) = close(event.plugin.name)
 
@@ -100,7 +94,7 @@ class PooledDatabase(
     private fun open(owner: String, s: DatabaseSettings): HikariDataSource {
         val dialect = s.dialect ?: unknownType(s)
         val url = when (dialect) {
-            DatabaseDialect.H2 -> "jdbc:h2:file:" + File(s.h2Dir, owner).absolutePath
+            DatabaseDialect.H2 -> "jdbc:h2:file:" + File(s.h2Dir, H2_FILE).absolutePath
             DatabaseDialect.MYSQL -> "jdbc:mysql://${s.host}:${s.port}/${s.name}"
             DatabaseDialect.MARIADB -> "jdbc:mariadb://${s.host}:${s.port}/${s.name}"
         }
