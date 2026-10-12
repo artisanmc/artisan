@@ -8,6 +8,7 @@ import org.bukkit.event.inventory.InventoryClickEvent
 import org.bukkit.event.inventory.InventoryCloseEvent
 import org.bukkit.event.inventory.InventoryDragEvent
 import org.bukkit.event.player.PlayerQuitEvent
+import net.artisanmc.plugin.scheduling.schedulerFor
 import org.bukkit.plugin.Plugin
 
 class MenuListener(
@@ -18,6 +19,7 @@ class MenuListener(
     private val history: NavigationHistoryStore? = null,
     private val resync: (Player) -> Unit = { it.updateInventory() },
 ) : Listener {
+    private val scheduler = schedulerFor(plugin)
 
     @EventHandler
     fun onClick(event: InventoryClickEvent) {
@@ -35,7 +37,7 @@ class MenuListener(
         // Bukkit forbids opening/closing an inventory inside InventoryClickEvent:
         // the client then misses every slot whose item is unchanged from the
         // previous menu (decoration panes on the same slots). Next tick.
-        plugin.server.scheduler.runTask(plugin, Runnable { executor.handle(handler, slotCtx) })
+        scheduler.player(player.uniqueId) { executor.handle(handler, slotCtx) }
     }
 
     @EventHandler
@@ -48,9 +50,9 @@ class MenuListener(
     /** Le contenu n'existant que côté client, c'est à nous d'annuler sa prédiction. */
     private fun resendNextTick(player: Player, anchor: org.bukkit.inventory.Inventory) {
         val window = windows?.get(player.uniqueId)?.takeIf { it.anchor === anchor } ?: return
-        plugin.server.scheduler.runTask(plugin, Runnable {
+        scheduler.player(player.uniqueId) {
             if (windows.get(player.uniqueId) === window) window.resend()
-        })
+        }
     }
 
     @EventHandler
@@ -66,9 +68,7 @@ class MenuListener(
             // vrai contenu une fois la fenêtre fermée. Seulement si c'est bien
             // cette ancre : ouvrir B depuis A ferme A après avoir posé B.
             if (windows?.release(player, event.inventory) == true) {
-                plugin.server.scheduler.runTask(plugin, Runnable {
-                    if (player.isOnline) resync(player)
-                })
+                scheduler.player(player.uniqueId) { resync(player) }
             }
         }
     }
@@ -84,12 +84,12 @@ class MenuListener(
     private fun endNavigationIfClosed(player: Player, goBack: Boolean, ctx: ExecutionContext?) {
         val store = history ?: return
         val shown = store.current(player)?.takeIf { it.kind == NavigationEntry.Kind.MENU } ?: return
-        plugin.server.scheduler.runTask(plugin, Runnable {
-            if (store.current(player) !== shown) return@Runnable
-            if (player.openInventory.topInventory?.holder is ArtisanMenuHolder) return@Runnable
+        scheduler.player(player.uniqueId) {
+            if (store.current(player) !== shown) return@player
+            if (player.openInventory.topInventory?.holder is ArtisanMenuHolder) return@player
             if (goBack && ctx != null && store.hasPrevious(player)) executor.execute(listOf(Action.OpenPreviousMenu), ctx)
             else store.clear(player)
-        })
+        }
     }
 
     @EventHandler

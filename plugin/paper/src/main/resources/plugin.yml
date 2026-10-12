@@ -2,6 +2,7 @@ name: Artisan
 version: '${version}'
 main: net.artisanmc.plugin.ArtisanPlugin
 api-version: '1.21'
+folia-supported: true
 softdepend: [Vault, PlaceholderAPI, WorldGuard, Nexo, Oraxen, ItemsAdder, HeadDatabase]
 description: Artisan GUI editor plugin
 # Downloaded by Paper at startup, kept out of the jar (ADR suite-foundation-database).

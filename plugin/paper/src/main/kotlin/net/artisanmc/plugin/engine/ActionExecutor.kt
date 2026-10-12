@@ -4,6 +4,7 @@ import net.artisanmc.modules.api.CommandRegistry
 import net.artisanmc.plugin.actiondsl.dslToEngineSteps
 import net.artisanmc.plugin.actiondsl.parseActionDsl
 import net.artisanmc.plugin.model.LocalizedText
+import net.artisanmc.plugin.scheduling.schedulerFor
 import net.artisanmc.plugin.provider.MenuProvider
 import net.artisanmc.plugin.render.LenientText
 import net.kyori.adventure.text.minimessage.MiniMessage
@@ -26,6 +27,7 @@ class ActionExecutor(
     private val commandRegistry: CommandRegistry? = null,
     private val history: NavigationHistoryStore? = null,
 ) {
+    private val scheduler by lazy { schedulerFor(plugin) }
 
     fun handle(handler: ClickHandler, ctx: ExecutionContext) {
         val cooldown = handler.cooldown
@@ -123,7 +125,7 @@ class ActionExecutor(
                 val cmd = resolveText(action.command, ctx).trimStart('/')
                 val bridged = if (!action.asConsole) tryRegistryDispatch(cmd, player) else false
                 if (!bridged) {
-                    if (action.asConsole) Bukkit.dispatchCommand(Bukkit.getConsoleSender(), cmd)
+                    if (action.asConsole) scheduler.onGlobal { Bukkit.dispatchCommand(Bukkit.getConsoleSender(), cmd) }
                     else player.performCommand(cmd)
                 }
             }
@@ -197,7 +199,7 @@ class ActionExecutor(
             }
             is Action.Teleport -> {
                 val world = action.world?.let { Bukkit.getWorld(it) } ?: return ctx
-                player.teleport(org.bukkit.Location(world, action.x, action.y, action.z, action.yaw, action.pitch))
+                player.teleportAsync(org.bukkit.Location(world, action.x, action.y, action.z, action.yaw, action.pitch))
             }
             is Action.PaginationNext -> return paginate(ctx, action.elementId, +1)
             is Action.PaginationPrev -> return paginate(ctx, action.elementId, -1)
