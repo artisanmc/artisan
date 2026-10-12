@@ -77,6 +77,7 @@ open class ArtisanPlugin : JavaPlugin() {
     /** Adresse publique de l'éditeur, configurée dans `web.url` ; vide si non renseignée. */
     var editorUrl: String = ""
         private set
+    private var editorBind: String = ""
     /** Pools lent through `api.database` (ADR `suite-foundation-database`). */
     lateinit var database: net.artisanmc.plugin.database.PooledDatabase
         private set
@@ -277,6 +278,12 @@ open class ArtisanPlugin : JavaPlugin() {
         override fun screens() = api.screens.declared().map { it.toWire() }
         override fun serverConfig() = serverConfigAccess.report()
         override fun customItems() = provider.customItems()
+        override fun applyResourcePack(hash: String, path: String) {
+            val port = editor?.port ?: return
+            val local = editorBind.takeUnless { it.isBlank() || it == "0.0.0.0" } ?: "127.0.0.1"
+            val base = editorUrl.ifEmpty { "http://${server.ip.ifBlank { "localhost" }}:$port" }
+            provider.applyLocalResourcePack("$base$path", "http://$local:$port$path", hash)
+        }
     }
 
     internal fun stopEditor() {
@@ -287,10 +294,12 @@ open class ArtisanPlugin : JavaPlugin() {
     /** Jetty vient de `libraries:` : s'il manque (serveur sans accès sortant), le plugin tourne sans éditeur. */
     private fun startEditor(web: net.artisanmc.plugin.hub.WebConfig) {
         editorUrl = web.url
+        editorBind = web.bind
         if (!web.enabled) return
         try {
             val vanilla = net.artisanmc.plugin.hub.VanillaAssets(File(dataFolder, "cache/minecraft"), localServer.minecraftVersion, logger)
-            val router = net.artisanmc.plugin.hub.EditorApi.router(localServer, editorSessions, logger, vanilla)
+            val packs = net.artisanmc.plugin.hub.PackStore(File(dataFolder, "cache/resource-pack"))
+            val router = net.artisanmc.plugin.hub.EditorApi.router(localServer, editorSessions, logger, vanilla, packs)
             val server = net.artisanmc.plugin.hub.HubServer(
                 web, router, editorSessions, net.artisanmc.plugin.hub.EditorAssets(javaClass.classLoader), editorChannel, logger,
             )

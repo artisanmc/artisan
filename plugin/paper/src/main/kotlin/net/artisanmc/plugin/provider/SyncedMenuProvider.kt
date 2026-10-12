@@ -555,6 +555,11 @@ class SyncedMenuProvider(
         }
     }
 
+    /** Un pack construit par l'éditeur et servi par le hub : [downloadUrl] est l'adresse locale du hub. */
+    fun applyLocalResourcePack(playerUrl: String, downloadUrl: String, hash: String) {
+        rpm()?.applyFromBackend(playerUrl, downloadUrl, hash)
+    }
+
     private fun applyResourcePack(url: String, hash: String, what: String) {
         try {
             rpm()?.applyFromBackend(url, resolvePluginDownloadUrl(url), hash)

@@ -49,6 +49,12 @@ texture demandée, dans `plugins/Artisan/cache/minecraft/<version>/`. Les items 
 lisent directement dans `CustomItemsManager` (`ItemRoutes`, `VanillaAssets`).
 *Rejeté :* télécharger les icônes depuis les releases GitHub (dépôt privé).
 
+**⑧ Le pack, servi par le serveur.** L'éditeur envoie le zip qu'il construit ; le hub le
+garde sous son SHA-1 (`PackStore`, trois derniers), le sert publiquement sous
+`/resource-pack/<sha1>.zip` et le remet au `ResourcePackManager` avec cette URL. Délégation
+et envoi direct restent tels quels : seul l'émetteur du zip change.
+*Rejeté :* supprimer l'envoi direct (prévu au plan) ; il ne coûte rien et sert les serveurs sans hôte de pack.
+
 *Rejeté :* Javalin (deux runtimes Kotlin), le serveur HTTP du JDK (pas de
 WebSocket), embarquer Jetty dans le jar (+3 Mo, à relocaliser).
 
