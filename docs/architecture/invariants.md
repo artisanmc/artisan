@@ -106,10 +106,10 @@ reproduit côté éditeur par `lib/contentHash.ts` (SHA-256 UTF-8, hex minuscule
 
 ## OkHttp — pas d'I/O bloquant dans le callback WS
 
-`SyncedMenuProvider.handleMessage` est appelé sur le thread WS callback d'OkHttp. Les lectures et
-écritures de `project_read` / `project_write` sont dispatchées sur
-`httpClient.dispatcher.executorService`. Ne jamais faire d'I/O bloquant dans le callback WS
-directement.
+`SyncedMenuProvider.handleMessage` est appelé sur le thread WS callback d'OkHttp. Il ne fait que
+typer le message (`EditorRequest.parse`) et le router vers son gestionnaire. Toute réponse part par
+`Replies` (exécuteur OkHttp) ; toute lecture ou écriture disque d'un Project par `ProjectWorkspace.io`,
+une à la fois. Ne jamais faire d'I/O bloquant dans le callback WS directement.
 
 ## Threads — Folia, Leaf, Paper
 
