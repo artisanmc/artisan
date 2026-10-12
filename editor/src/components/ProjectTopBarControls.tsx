@@ -60,6 +60,7 @@ import { WORKSPACE_VIEW_TABS, type WorkspaceViewTab } from "@/features/project/w
 import { type ServerChecks, serverChecksFor } from "@/features/serverIndex/serverChecks";
 import { useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
 import type { ProjectFileConflict } from "@/lib/api/projectFiles";
+import { copyText } from "@/lib/clipboard";
 import { cn } from "@/lib/cx";
 import { countMissingForLang, listLanguages } from "@/lib/i18nUsages";
 import { useProjectPrincipalId } from "@/lib/projectPrincipal";
@@ -832,7 +833,7 @@ function SaveControls({
               className="btn btn-sm btn-primary"
               onClick={async () => {
                 try {
-                  await navigator.clipboard.writeText(lastSaveError ?? "");
+                  await copyText(lastSaveError ?? "");
                   toast.success(t("save.copied"));
                 } catch {
                   toast.error(t("save.copyFailed"));

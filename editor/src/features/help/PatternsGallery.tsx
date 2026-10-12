@@ -1,4 +1,5 @@
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { copyText } from "@/lib/clipboard";
 import { Check, Copy } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -43,7 +44,7 @@ function PatternCard({ pattern }: { pattern: Pattern }) {
 
   const copy = async () => {
     try {
-      await navigator.clipboard.writeText(pattern.snippet);
+      await copyText(pattern.snippet);
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
