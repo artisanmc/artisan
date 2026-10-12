@@ -2125,6 +2125,7 @@ const fr: typeof en = {
     nothing: "Rien à déployer",
     cannotDeployTitle: "Serveur inconnu — impossible de déployer",
     deployed: "Déployé sur le serveur",
+    packFailed: "Le resource pack n’a pas pu être reconstruit ; les joueurs gardent le précédent.",
     failed: "Échec du déploiement",
     reviewTitle: "Déployer sur le serveur ?",
     reviewBody:

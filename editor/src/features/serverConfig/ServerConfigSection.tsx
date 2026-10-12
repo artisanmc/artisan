@@ -1,6 +1,7 @@
 import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { rebuildServerPackInBackground } from "@/features/project/resourcePackSync";
 import type { ProjectSummary } from "@/lib/api/networks";
 import {
   type ServerConfig,
@@ -9,6 +10,7 @@ import {
   patchServerConfig,
 } from "@/lib/api/serverConfig";
 import { listAssets } from "@/lib/api/userAssets";
+import { SELF_HOSTED } from "@/lib/selfHosted";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -102,6 +104,9 @@ export function ServerConfigSection({
     try {
       setConfig(await patchServerConfig(networkId, serverKeyId, changes));
       setChanges({});
+      // Le backend reconstruisait le pack quand les textures de conteneur changeaient.
+      if (SELF_HOSTED && Object.keys(changes).some((key) => key.startsWith(TEXTURES)))
+        rebuildServerPackInBackground(t);
     } catch (e) {
       setError(
         e instanceof ServerConfigError && e.detail
