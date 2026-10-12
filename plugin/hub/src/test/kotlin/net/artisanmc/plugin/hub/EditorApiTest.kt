@@ -148,10 +148,31 @@ class EditorApiTest {
     }
 
     @Test
+    fun `config screens read and write the project on disk`() {
+        val path = "/api/v1/networks/local/servers/local/config"
+        answer = { mapOf("ok" to true, "files" to listOf(mapOf("path" to "warps/spawn.yml", "content" to "x: 1"))) }
+        val (status, body) = call("POST", "$path/read", mapOf("project_id" to "warps", "table" to "warps"))
+        assertEquals(200, status)
+        assertEquals("warps/spawn.yml", body!!["files"][0]["path"].asText())
+        assertEquals(mapOf("type" to "config_read", "project_id" to "warps", "table" to "warps"), sent.last())
+
+        assertEquals(422, call("POST", "$path/write", mapOf("project_id" to "warps", "files" to emptyList<Any>())).first)
+        answer = { mapOf("ok" to true) }
+        val files = listOf(mapOf("path" to "warps/spawn.yml", "content" to "x: 2"))
+        assertEquals(200, call("POST", "$path/write", mapOf("project_id" to "warps", "files" to files)).first)
+        assertEquals("config_write", sent.last()["type"])
+
+        answer = { mapOf("ok" to false, "error" to "unknown_project") }
+        assertEquals(404, call("POST", "$path/read", mapOf("project_id" to "nope", "table" to "t")).first)
+    }
+
+    @Test
     fun `rights follow permissions`() {
         val token = (sessions.issueLink(UUID.randomUUID(), "Guest", setOf(EditorPermissions.VIEW)) as Sessions.LinkResult.Issued).token
         cookie = "${HubServer.COOKIE}=" + sessions.redeem(token)!!.id
         assertEquals(403, call("PUT", "/api/v1/projects/shop/files", mapOf("files" to emptyList<Any>())).first)
         assertEquals(403, call("PATCH", "/api/v1/networks/local/servers/local/server-config", mapOf("changes" to mapOf("a" to 1))).first)
+        val write = mapOf("project_id" to "warps", "files" to listOf(mapOf("path" to "a.yml", "content" to "")))
+        assertEquals(403, call("POST", "/api/v1/networks/local/servers/local/config/write", write).first)
     }
 }
