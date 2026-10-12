@@ -59,6 +59,12 @@ aborting pending downloads and revoking blob URLs; account/content changes canno
 reuse a different scope. Regression coverage: `useAuthenticatedImage.test.tsx`.
 Transient HTTP 5xx preview failures retry twice (500 ms, then 1 s) while mounted;
 permanent 4xx failures are not retried. Unmount/session change cancels pending retries.
+In the self-hosted build (`SELF_HOSTED`), `assetPreviewUrl` and `fontGlyphUrl` resolve to
+routes the plugin already serves (`features/assets/localAssetUrl.ts`): the draft blob
+(`…/drafts/:id/blobs/:hash`) when the bytes changed in the private draft, otherwise the
+published file (`/api/v1/projects/:id/binary?path=`). Asset CRUD runs in the browser
+(`features/assets/localAssets.ts`, a port of `backend/src/lib/assetHandlers.ts` on top of
+the draft snapshot and blobs), switched at the `lib/api/userAssets.ts` boundary.
 
 Backend `imageButtons.ts` collects all display/state variants from menu files and
 resizes PNGs with nearest-neighbour sampling into 18-pixel slot cells. Contain
