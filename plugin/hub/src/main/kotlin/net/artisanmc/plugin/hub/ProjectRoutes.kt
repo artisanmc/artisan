@@ -40,7 +40,11 @@ class ProjectRoutes(private val server: LocalServer, private val relay: Relay) {
                     "project" to summary(root),
                     "networkId" to LOCAL,
                     "serverKeyId" to LOCAL,
-                    "capabilities" to mapOf("liveData" to true, "captureInGame" to false, "preview" to true, "canRename" to false),
+                    "capabilities" to mapOf(
+                        "liveData" to true, "captureInGame" to false, "preview" to true, "canRename" to false,
+                        // Assistant et migration hors de l'éditeur auto-hébergé ; supprimer un Project passait par le backend.
+                        "canUseAssistant" to false, "canDelete" to false, "canCopyToServer" to false,
+                    ),
                     "minecraftVersion" to server.minecraftVersion,
                     "connection" to mapOf("available" to true),
                 ))
