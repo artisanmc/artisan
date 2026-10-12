@@ -15,9 +15,7 @@ import java.util.Locale
 import java.util.logging.Logger
 import javax.sql.DataSource
 
-/** What a pool needs, read from `environment.yml` (credentials) and `config.yml` (pool size). */
 data class DatabaseSettings(
-    /** Null when `database.type` is not a known dialect: every call then fails with [type] in the message. */
     val dialect: DatabaseDialect?,
     val type: String,
     val host: String,
@@ -26,7 +24,6 @@ data class DatabaseSettings(
     val user: String,
     val password: String,
     val poolSize: Int,
-    /** Directory of the H2 database shared by the suite. */
     val h2Dir: File,
 ) {
     override fun toString() = "DatabaseSettings($type, $host:$port/$name, user=$user, poolSize=$poolSize)"
@@ -62,12 +59,6 @@ data class DatabaseSettings(
     }
 }
 
-/**
- * [DatabaseApi] backed by one HikariCP pool per plugin over a single database (ADR `suite-foundation-database`).
- * Settings are read when a pool opens, so a change applies to pools opened
- * afterwards. HikariCP and the drivers come from `libraries:` in `plugin.yml`
- * and stay in Artisan's classloader: only [DataSource] reaches the plugins.
- */
 class PooledDatabase(
     private val settings: () -> DatabaseSettings,
     private val logger: Logger,
@@ -75,11 +66,6 @@ class PooledDatabase(
     private val pools = HashMap<String, HikariDataSource>()
 
     companion object {
-        /**
-         * One H2 database for the whole suite, like the shared MySQL one: plugins
-         * prefix their tables and may reference Artisan's (e.g. a server table).
-         * The pools all live in Artisan's JVM, so embedded mode allows it.
-         */
         const val H2_FILE = "suite"
     }
 
@@ -91,7 +77,6 @@ class PooledDatabase(
         return open(owner.name, settings()).also { pools[owner.name] = it }
     }
 
-    /** Pool of a disabled plugin is closed: its next `onEnable` gets a fresh one. */
     @EventHandler
     fun onPluginDisable(event: PluginDisableEvent) = close(event.plugin.name)
 
