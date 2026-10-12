@@ -1,5 +1,6 @@
 package net.artisanmc.plugin
 
+import net.artisanmc.plugin.scheduling.Scheduler
 import be.seeseemelk.mockbukkit.MockBukkit
 import be.seeseemelk.mockbukkit.ServerMock
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -26,7 +27,7 @@ class PlayerInventoryFetchTest {
         val dir = Files.createTempDirectory("artisan_inv_").toFile()
         val p = SyncedMenuProvider(
             roots = net.artisanmc.plugin.project.ProjectRoots(dir), serverKey = "", wsUrl = "", logger = null,
-            runOnMainThread = { task -> task() },
+            scheduler = Scheduler.Direct,
         )
         p.load()
         p.setSendForTesting { raw ->

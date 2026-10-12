@@ -12,4 +12,7 @@
 ./gradlew shadowJar   # → paper/build/libs/artisan-plugin-<version>-all.jar
 ```
 
+Threads : le plugin tourne sur Paper, Folia et Leaf. Planifier passe par le port `Scheduler`,
+jamais par `Bukkit.getScheduler()` (voir `docs/architecture/invariants.md`, section Threads).
+
 Décision et contexte : `docs/decisions/plugin-gradle-modules.md`.
