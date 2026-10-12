@@ -1,6 +1,7 @@
 package net.artisanmc.plugin.provider
 
 import com.fasterxml.jackson.core.type.TypeReference
+import net.artisanmc.plugin.scheduling.Scheduler
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
@@ -58,11 +59,8 @@ class SyncedMenuProvider(
         override fun listAll() = emptyList<ImportSourceListing>()
         override fun read(selections: List<ImportSelection>) = ImportReadResult.Success(emptyList())
     },
-    /**
-     * Dispatches a task onto the Bukkit main thread (fetchers touch the Bukkit
-     * API). Default = synchronous, for tests; ArtisanPlugin injects the scheduler.
-     */
-    private val runOnMainThread: (() -> Unit) -> Unit = { it() },
+    /** Les fetchers touchent l'API Bukkit : ils passent par le thread qui possède l'état lu. */
+    private val scheduler: Scheduler = Scheduler.Direct,
     private val editorAccessMode: String = "invitation",
     private val menuWindows: net.artisanmc.plugin.render.MenuWindows? = null,
     private val pluginVersion: String = "1.0.0",
@@ -780,7 +778,7 @@ class SyncedMenuProvider(
                 val access = serverConfig ?: return
                 @Suppress("UNCHECKED_CAST")
                 val changes = jsonMapper.convertValue(node["changes"], Map::class.java) as? Map<String, Any?> ?: emptyMap()
-                runOnMainThread {
+                scheduler.global {
                     val error = runCatching { access.write(changes) }.getOrElse { "write_error: ${describeError(it)}" }
                     val base = mapOf("type" to "server_config_write_result", "request_id" to requestId)
                     send(base + if (error == null) mapOf("ok" to true, "server_config" to access.report())
@@ -805,7 +803,7 @@ class SyncedMenuProvider(
                     }
                 }
                 try {
-                    runOnMainThread {
+                    scheduler.global {
                         try {
                             val names = org.bukkit.Bukkit.getOnlinePlayers()
                                 .map { it.name }
@@ -834,7 +832,7 @@ class SyncedMenuProvider(
                     }
                 }
                 try {
-                    runOnMainThread {
+                    scheduler.global {
                         try {
                             val catalog = evaluator.deps.papi?.declaredPlaceholders()
                                 ?: net.artisanmc.plugin.engine.PapiPlaceholderCatalog(emptyList())
@@ -866,12 +864,12 @@ class SyncedMenuProvider(
                     return
                 }
                 try {
-                    runOnMainThread {
+                    scheduler.global {
                         try {
                             val hdb = evaluator.deps.hdbHeads
                             if (hdb == null) {
                                 reply(mapOf("ok" to false, "error" to "hdb_unavailable"))
-                                return@runOnMainThread
+                                return@global
                             }
                             val stack = hdb.buildStack(id, 1)
                             val texture = stack?.let { net.artisanmc.plugin.items.ItemDescriptor.derive(it, null)["head_texture"] as? String }
@@ -904,13 +902,14 @@ class SyncedMenuProvider(
                     }
                 }
                 try {
-                    runOnMainThread {
+                    val player = org.bukkit.Bukkit.getPlayerExact(playerName)
+                    if (player == null) {
+                        reply(mapOf("ok" to false, "error" to "player_not_found"))
+                        return
+                    }
+                    val notFound = { reply(mapOf("ok" to false, "error" to "player_not_found")) }
+                    scheduler.player(player.uniqueId, onGone = notFound) {
                         try {
-                            val player = org.bukkit.Bukkit.getPlayerExact(playerName)
-                            if (player == null) {
-                                reply(mapOf("ok" to false, "error" to "player_not_found"))
-                                return@runOnMainThread
-                            }
                             val nexo = evaluator.deps.nexoItems
                             val slots = ArrayList<Map<String, Any>>()
                             // 0-35 storage, 36-39 armor, 40 offhand — mirror the
@@ -976,7 +975,7 @@ class SyncedMenuProvider(
                     if (limit != null) put("limit", limit)
                 }
                 try {
-                    runOnMainThread {
+                    scheduler.global {
                         try {
                             val rows = registry.fetch(
                                 ref, null,

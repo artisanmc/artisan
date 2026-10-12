@@ -1,5 +1,6 @@
 package net.artisanmc.plugin
 
+import net.artisanmc.plugin.scheduling.DispatchingScheduler
 import be.seeseemelk.mockbukkit.MockBukkit
 import com.fasterxml.jackson.databind.ObjectMapper
 import net.artisanmc.plugin.provider.SyncedMenuProvider
@@ -32,7 +33,7 @@ class HeadTextureFetchTest {
             roots = net.artisanmc.plugin.project.ProjectRoots(Files.createTempDirectory("head-preview").toFile()),
             serverKey = "", wsUrl = "", logger = null,
             evaluator = ConditionEvaluator(deps, CooldownStore()),
-            runOnMainThread = { mainTasks.add(it) },
+            scheduler = DispatchingScheduler { mainTasks.add(it) },
         )
         provider.load()
         provider.setSendForTesting { raw -> replies.add(mapper.readValue(raw, Map::class.java)); latch.countDown() }
