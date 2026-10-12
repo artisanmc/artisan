@@ -1,6 +1,7 @@
 package net.artisanmc.plugin.resourcepack
 
 import net.artisanmc.plugin.config.ResourcePackConfig
+import net.artisanmc.plugin.scheduling.schedulerFor
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
@@ -29,6 +30,8 @@ open class ResourcePackManager(
     init {
         packLoads?.delegated = delegator != null
     }
+
+    private val scheduler by lazy { schedulerFor(plugin) }
 
 
     @Volatile
@@ -118,7 +121,7 @@ open class ResourcePackManager(
             if (delegator == null) {
                 oldInfo?.let { old ->
                     for (player in plugin.server.onlinePlayers) {
-                        removePackSafe(player, old.uuid)
+                        scheduler.onPlayer(player.uniqueId) { removePackSafe(player, old.uuid) }
                     }
                 }
                 previousUuid = null
@@ -131,12 +134,12 @@ open class ResourcePackManager(
             return
         }
         if (!config.enabled) return
+        // Captured before the overwrite below: a push deferred to the player's
+        // thread must still remove the pack this update replaces.
+        val replaced = previousUuid
         for (player in plugin.server.onlinePlayers) {
-            pushToPlayer(player)
+            scheduler.onPlayer(player.uniqueId) { pushToPlayer(player, replaced) }
         }
-        // Track the current UUID as "previous" so the NEXT update can remove it cleanly.
-        // pushToPlayer reads previousUuid BEFORE we overwrite it here, so the first push
-        // sees null and only adds; subsequent pushes see the prior UUID and remove+add.
         previousUuid = info.uuid
     }
 
@@ -172,11 +175,11 @@ open class ResourcePackManager(
     }
 
     /**
-     * Test seam — production hops to the main server thread before dispatching
+     * Test seam — production hops to the global thread before dispatching
      * the host reload command. Tests override to run inline.
      */
     protected open fun runMainThread(action: () -> Unit) {
-        plugin.server.scheduler.runTask(plugin, Runnable { action() })
+        scheduler.global(action)
     }
 
     /**
@@ -213,7 +216,7 @@ open class ResourcePackManager(
         }
     }
 
-    fun pushToPlayer(player: Player) {
+    fun pushToPlayer(player: Player, replaced: UUID? = previousUuid) {
         if (!config.enabled) {
             logger?.info("[resource-pack] pushToPlayer: project disabled for ${player.name}")
             return
@@ -228,7 +231,7 @@ open class ResourcePackManager(
         // projects on the client), so other RP plugins like Nexo/Oraxen/ItemsAdder coexist.
         // But because our UUID changes on every rebuild (it's derived from the hash), we
         // must explicitly remove the previous Artisan UUID to avoid orphan accumulation.
-        previousUuid?.let { prev ->
+        replaced?.let { prev ->
             if (prev != info.uuid) {
                 removePackSafe(player, prev)
             }
@@ -274,7 +277,7 @@ open class ResourcePackManager(
         if (config.sendDelayTicks <= 0L) {
             pushToPlayer(player)
         } else {
-            plugin.server.scheduler.runTaskLater(plugin, Runnable { pushToPlayer(player) }, config.sendDelayTicks)
+            scheduler.playerLater(player.uniqueId, config.sendDelayTicks) { pushToPlayer(player) }
         }
     }
 

@@ -111,6 +111,24 @@ reproduit côté éditeur par `lib/contentHash.ts` (SHA-256 UTF-8, hex minuscule
 `httpClient.dispatcher.executorService`. Ne jamais faire d'I/O bloquant dans le callback WS
 directement.
 
+## Threads — Folia, Leaf, Paper
+
+Le plugin déclare `folia-supported: true`. Sur Folia et avec le parallel world ticking de Leaf,
+il n'y a plus de thread principal : chaque joueur appartient au thread de sa région, l'état
+serveur (command map, commandes console, config) au thread global. Toute planification passe par
+le port `Scheduler` (`core`, package `scheduling`) :
+
+| Méthode | Pour |
+|---|---|
+| `player` / `onPlayer` | Inventaire, menu, téléportation, son : tout ce qui touche un joueur. |
+| `global` / `onGlobal` | Command map, `dispatchCommand` console, reinit de config, reload des bundles. |
+| `async` | Ce qui ne touche pas au monde (I/O, notifications à l'éditeur). |
+
+`on*` exécute tout de suite si le thread courant convient, sinon planifie. `schedulerFor(plugin)`
+choisit `RegionizedScheduler` (Paper, Folia, Leaf) ou `BukkitTaskScheduler` (MockBukkit).
+`SchedulerBoundaryTest` refuse tout `Bukkit.getScheduler()`, `server.scheduler` ou
+`isPrimaryThread` hors de `PaperSchedulers.kt`. Téléporter : `teleportAsync`, jamais `teleport`.
+
 ## Reload atomique
 
 `reloadFromDisk()` construit un nouveau `ConcurrentHashMap` **entier**, puis l'assigne à
