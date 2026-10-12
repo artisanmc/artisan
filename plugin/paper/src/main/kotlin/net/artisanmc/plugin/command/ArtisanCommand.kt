@@ -228,10 +228,10 @@ class ArtisanCommand(
         }
         sender.sendMessage(lang.get("artisan.member_sending", sender))
         provider.addMember(email).whenComplete { result, _ ->
-            if (plugin.isEnabled) Bukkit.getScheduler().runTask(plugin, Runnable {
+            if (plugin.isEnabled) plugin.scheduler.global {
                 val status = result?.takeIf { it in setOf("added", "already_member", "console_disabled", "invalid_email", "account_not_found", "offline", "timeout") } ?: "failed"
                 sender.sendMessage(lang.get("artisan.member_$status", sender))
-            })
+            }
         }
     }
 
@@ -259,9 +259,9 @@ class ArtisanCommand(
         val environmentFile = plugin.environmentFile
         val client = LinkClient(cfg.httpBaseUrl)
         // Blocking REST call off the main thread; hop back for config + reinit.
-        Bukkit.getScheduler().runTaskAsynchronously(plugin, Runnable {
+        plugin.scheduler.async {
             val result = client.redeem(code)
-            Bukkit.getScheduler().runTask(plugin, Runnable {
+            plugin.scheduler.global {
                 when (result) {
                     is LinkResult.Success -> {
                         ConfigWriter.writeServerKey(environmentFile, result.serverKey)
@@ -275,7 +275,7 @@ class ArtisanCommand(
                         sender.sendMessage(lang.get("artisan.link_failed", senderLang, "reason" to result.reason))
                     }
                 }
-            })
-        })
+            }
+        }
     }
 }

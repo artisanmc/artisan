@@ -1,5 +1,6 @@
 package net.artisanmc.plugin
 
+import net.artisanmc.plugin.scheduling.DispatchingScheduler
 import com.fasterxml.jackson.databind.ObjectMapper
 import net.artisanmc.plugin.engine.*
 import net.artisanmc.plugin.project.ProjectRoots
@@ -21,7 +22,7 @@ class PapiPlaceholdersFetchTest {
             roots = ProjectRoots(Files.createTempDirectory("papi-fetch").toFile()),
             serverKey = "", wsUrl = "", logger = null,
             evaluator = ConditionEvaluator(deps, CooldownStore()),
-            runOnMainThread = { mainTasks.add(it) },
+            scheduler = DispatchingScheduler { mainTasks.add(it) },
         )
         provider.load()
         val latch = CountDownLatch(1)

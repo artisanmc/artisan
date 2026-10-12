@@ -2,6 +2,8 @@ package net.artisanmc.plugin
 
 import net.artisanmc.plugin.assistant.ImportSourceReader
 import net.artisanmc.modules.api.*
+import net.artisanmc.plugin.scheduling.Scheduler
+import net.artisanmc.plugin.scheduling.schedulerFor
 import net.artisanmc.modules.api.schemas.SchemaRegistry
 import net.artisanmc.modules.commands.CommandsModule
 import net.artisanmc.modules.menus.MenusModule
@@ -25,6 +27,7 @@ import java.io.File
 open class ArtisanPlugin : JavaPlugin() {
     lateinit var menuProvider: MenuProvider
         private set
+    val scheduler: Scheduler by lazy { schedulerFor(this) }
 
     /**
      * Reprise de l'instantané demandée par un Add-on (`api.project.reload()`).
@@ -47,6 +50,7 @@ open class ArtisanPlugin : JavaPlugin() {
     private val openedContainers = net.artisanmc.plugin.render.OpenedContainers()
     private var packetEventsLoaded = false
     private lateinit var cooldowns: CooldownStore
+    private lateinit var evaluator: ConditionEvaluator
     private lateinit var commandRegistrar: CommandRegistrar
     /** Exposed for /artisan dump-title diagnostics. */
     lateinit var assetCatalog: net.artisanmc.plugin.resourcepack.AssetCatalog
@@ -152,8 +156,7 @@ open class ArtisanPlugin : JavaPlugin() {
                                 ),
                             )
                         }
-                        if (org.bukkit.Bukkit.isPrimaryThread()) run.run()
-                        else org.bukkit.Bukkit.getScheduler().runTask(plugin, run)
+                        plugin.scheduler.onPlayer(player.uniqueId, run::run)
                     }
                 },
             )
@@ -167,6 +170,14 @@ open class ArtisanPlugin : JavaPlugin() {
             }
             return api
         }
+    }
+
+    /** Appelé depuis les threads d'I/O du provider : la command map n'est sûre que sur le thread global. */
+    private fun applyReload() {
+        capturedItems.reload()
+        commandRegistrar.reload(menuProvider.allBundles(), executor, evaluator)
+        api.modules.active().forEach { runCatching { it.onReload() } }
+        api.events.publish(ConfigReloadEvent(moduleId = "menus"))
     }
 
     /** PacketEvents est intégré au jar (relocalisé) : chargé ici, initialisé en tête d'[onEnable]. */
@@ -215,7 +226,7 @@ open class ArtisanPlugin : JavaPlugin() {
         cooldowns = CooldownStore()
         sessions = MenuSessionStore()
         navigationHistory = NavigationHistoryStore()
-        val evaluator = ConditionEvaluator(softDeps, cooldowns)
+        evaluator = ConditionEvaluator(softDeps, cooldowns)
         // Disk-cached asset index: glyph/font titles keep rendering with the
         // backend down or gone (offline completeness — the catalog was
         // previously HTTP-only and booted empty offline).
@@ -234,12 +245,7 @@ open class ArtisanPlugin : JavaPlugin() {
             evaluator        = evaluator,
             sessions         = sessions,
             history          = navigationHistory,
-            onReload         = {
-                capturedItems.reload()
-                commandRegistrar.reload(menuProvider.allBundles(), executor, evaluator)
-                api.modules.active().forEach { runCatching { it.onReload() } }
-                api.events.publish(ConfigReloadEvent(moduleId = "menus"))
-            },
+            onReload         = { scheduler.onGlobal(::applyReload) },
             executorProvider = { executor },
             lookupAsset      = assetCatalog::lookup,
             offsetEncoderProvider = assetCatalog::offsetEncoder,
@@ -253,7 +259,7 @@ open class ArtisanPlugin : JavaPlugin() {
                 sources = cfg.assistantImportSources,
                 logger = logger,
             ),
-            runOnMainThread = { task -> server.scheduler.runTask(this@ArtisanPlugin, Runnable { task() }) },
+            scheduler = scheduler,
             menuWindows = menuWindows,
             pluginVersion = description.version,
             pluginUpdater = pluginUpdater(cfg),
@@ -346,14 +352,14 @@ open class ArtisanPlugin : JavaPlugin() {
         mgr.registerEvents(object : org.bukkit.event.Listener {
             @org.bukkit.event.EventHandler
             fun on(event: org.bukkit.event.server.ServerLoadEvent) {
-                server.scheduler.runTaskLaterAsynchronously(this@ArtisanPlugin, Runnable {
+                scheduler.asyncLater(40L) {
                     provider.notifyCustomItemsReload()
                     // Un module qui écrit dans son project à l'activation n'a plus
                     // rien à rattraper : le disque est la seule vérité, donc son
                     // fichier est déjà en place (ADR `server-disk-only-storage`).
                     // Avant, il fallait rejouer le contrôle de synchro du hello_ack,
                     // sinon le sweep du bundle suivant effaçait le fichier.
-                }, 40L)
+                }
             }
         }, this)
 
@@ -362,9 +368,9 @@ open class ArtisanPlugin : JavaPlugin() {
             mgr.registerEvents(object : org.bukkit.event.Listener {
                 @org.bukkit.event.EventHandler
                 fun on(event: com.nexomc.nexo.api.events.NexoItemsLoadedEvent) {
-                    server.scheduler.runTaskAsynchronously(this@ArtisanPlugin, Runnable {
+                    scheduler.async {
                         provider.notifyCustomItemsReload()
-                    })
+                    }
                 }
             }, this)
         }
@@ -373,9 +379,9 @@ open class ArtisanPlugin : JavaPlugin() {
             mgr.registerEvents(object : org.bukkit.event.Listener {
                 @org.bukkit.event.EventHandler
                 fun on(event: io.th0rgal.oraxen.api.events.OraxenItemsLoadedEvent) {
-                    server.scheduler.runTaskAsynchronously(this@ArtisanPlugin, Runnable {
+                    scheduler.async {
                         provider.notifyCustomItemsReload()
-                    })
+                    }
                 }
             }, this)
         }
@@ -391,9 +397,9 @@ open class ArtisanPlugin : JavaPlugin() {
                     org.bukkit.event.EventPriority.NORMAL,
                     { _, event ->
                         if (eventClass.isInstance(event)) {
-                            server.scheduler.runTaskAsynchronously(this@ArtisanPlugin, Runnable {
+                            scheduler.async {
                                 provider.notifyCustomItemsReload()
-                            })
+                            }
                         }
                     },
                     this,
@@ -426,7 +432,7 @@ open class ArtisanPlugin : JavaPlugin() {
         override fun write(changes: Map<String, Any?>): String? {
             editable().apply(config, changes)?.let { return it }
             saveConfig()
-            server.scheduler.runTask(this@ArtisanPlugin, Runnable { reinit(loadPluginConfig()) })
+            scheduler.global { reinit(loadPluginConfig()) }
             return null
         }
     }
@@ -457,7 +463,7 @@ open class ArtisanPlugin : JavaPlugin() {
         capturedItems = net.artisanmc.plugin.items.CapturedItemStore(projectRoots, logger)
         capturedItems.reload()
         val softDeps = SoftDepRegistry(this, capturedItems)
-        val evaluator = ConditionEvaluator(softDeps, cooldowns)
+        evaluator = ConditionEvaluator(softDeps, cooldowns)
 
         menuProvider = SyncedMenuProvider(
             roots            = projectRoots,
@@ -468,12 +474,7 @@ open class ArtisanPlugin : JavaPlugin() {
             evaluator        = evaluator,
             sessions         = sessions,
             history          = navigationHistory,
-            onReload         = {
-                capturedItems.reload()
-                commandRegistrar.reload(menuProvider.allBundles(), executor, evaluator)
-                api.modules.active().forEach { runCatching { it.onReload() } }
-                api.events.publish(ConfigReloadEvent(moduleId = "menus"))
-            },
+            onReload         = { scheduler.onGlobal(::applyReload) },
             executorProvider = { executor },
             lookupAsset      = assetCatalog::lookup,
             offsetEncoderProvider = assetCatalog::offsetEncoder,
@@ -487,7 +488,7 @@ open class ArtisanPlugin : JavaPlugin() {
                 sources = cfg.assistantImportSources,
                 logger = logger,
             ),
-            runOnMainThread = { task -> server.scheduler.runTask(this@ArtisanPlugin, Runnable { task() }) },
+            scheduler = scheduler,
             menuWindows = menuWindows,
             pluginVersion = description.version,
             pluginUpdater = pluginUpdater(cfg),
@@ -550,9 +551,7 @@ open class ArtisanPlugin : JavaPlugin() {
         // fresh WsClient finish handshaking before notify pushes the hash.
         val reinitProvider = menuProvider as? SyncedMenuProvider
         if (reinitProvider != null) {
-            server.scheduler.runTaskLaterAsynchronously(this, Runnable {
-                reinitProvider.notifyCustomItemsReload()
-            }, 40L)
+            scheduler.asyncLater(40L) { reinitProvider.notifyCustomItemsReload() }
         }
     }
 
