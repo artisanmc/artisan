@@ -70,7 +70,7 @@ class HubServerTest {
         assertTrue(hub.start())
         val token = (sessions.issueLink(UUID.randomUUID(), "Iban", setOf(EditorPermissions.VIEW)) as Sessions.LinkResult.Issued).token
         assertEquals("/", get("/login/$token").headers().firstValue("Location").get())
-        assertEquals("/?login=expired", get("/login/$token").headers().firstValue("Location").get())
+        assertEquals("/login?expired=1", get("/login/$token").headers().firstValue("Location").get())
     }
 
     @Test
