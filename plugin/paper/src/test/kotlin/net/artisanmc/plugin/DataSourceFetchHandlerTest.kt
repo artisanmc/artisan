@@ -1,5 +1,6 @@
 package net.artisanmc.plugin
 
+import net.artisanmc.plugin.scheduling.DispatchingScheduler
 import be.seeseemelk.mockbukkit.MockBukkit
 import com.fasterxml.jackson.databind.ObjectMapper
 import net.artisanmc.modules.api.DataSourceDeclaration
@@ -27,7 +28,7 @@ class DataSourceFetchHandlerTest {
         val p = SyncedMenuProvider(
             roots = net.artisanmc.plugin.project.ProjectRoots(dir), serverKey = "", wsUrl = "", logger = null,
             dataSources = registry,
-            runOnMainThread = { task -> mainThreadRuns++; task() },
+            scheduler = DispatchingScheduler { task -> mainThreadRuns++; task() },
         )
         p.load()
         p.setSendForTesting { raw ->
@@ -196,7 +197,7 @@ class DataSourceFetchHandlerTest {
         val p = SyncedMenuProvider(
             roots = net.artisanmc.plugin.project.ProjectRoots(dir), serverKey = "", wsUrl = "", logger = null,
             dataSources = registry,
-            runOnMainThread = { throw IllegalStateException("plugin disabled") },
+            scheduler = DispatchingScheduler { throw IllegalStateException("plugin disabled") },
         )
         p.load()
         p.setSendForTesting { raw ->
