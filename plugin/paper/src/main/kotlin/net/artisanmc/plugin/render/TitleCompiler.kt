@@ -296,8 +296,9 @@ object TitleCompiler {
                 val text = interpolate(resolveLText(layer.value, langMap, lang, defaultLang))
                 val colored = layer.color?.let { "<color:$it>$text</color>" } ?: text
                 // Custom font asset: use its namespace directly (user-imported font).
-                if (layer.fontAssetId != null) {
-                    val ns = lookupAsset(layer.fontAssetId)?.takeIf { it.type == "font" }?.namespace
+                val fontAssetId = layer.fontAssetId
+                if (fontAssetId != null) {
+                    val ns = lookupAsset(fontAssetId)?.takeIf { it.type == "font" }?.namespace
                     if (ns != null) return Pair(
                         "<font:$ns>$colored</font>",
                         startX + estimateBodyWidth(layer, langMap, lookupAsset, interpolate, lang, defaultLang),
