@@ -68,6 +68,15 @@ open class ArtisanPlugin : JavaPlugin() {
     private var resourcePackManager: net.artisanmc.plugin.resourcepack.ResourcePackManager? = null
     lateinit var api: ArtisanAPI
         private set
+    /** Connexions à l'éditeur : survivent à `/artisan reload`, pas au redémarrage. */
+    val editorSessions = net.artisanmc.plugin.hub.Sessions()
+    private val editorChannel by lazy { net.artisanmc.plugin.hub.EditorChannel(logger) }
+    /** Null si `web.enabled` est faux ou si le port n'a pas pu être ouvert. */
+    @Volatile var editor: net.artisanmc.plugin.hub.HubServer? = null
+        private set
+    /** Adresse publique de l'éditeur, configurée dans `web.url` ; vide si non renseignée. */
+    var editorUrl: String = ""
+        private set
     /** Pools lent through `api.database` (ADR `suite-foundation-database`). */
     lateinit var database: net.artisanmc.plugin.database.PooledDatabase
         private set
@@ -235,6 +244,7 @@ open class ArtisanPlugin : JavaPlugin() {
         // Les modules s'inscrivent avant le premier `hello`, qui les annonce.
         startRuntime(cfg) { defaultModules().forEach { api.modules.register(it) } }
         registerCustomItemsReloadListeners()
+        startEditor(cfg.web)
 
         artisanCommand = ArtisanCommand(this, langManager)
         getCommand("artisan")?.setExecutor(artisanCommand)
@@ -244,6 +254,7 @@ open class ArtisanPlugin : JavaPlugin() {
     }
 
     override fun onDisable() {
+        stopEditor()
         api.modules.active().forEach { runCatching { it.onDisable() } }
         if (::database.isInitialized) database.closeAll()
         artisanCommand.shutdown()
@@ -251,6 +262,40 @@ open class ArtisanPlugin : JavaPlugin() {
         menuProvider.shutdown()
         if (packetEventsLoaded) runCatching { PacketEvents.getAPI().terminate() }
         logger.info("Artisan disabled")
+    }
+
+    /** Le serveur vu par l'éditeur qu'il sert : toujours le provider courant, qui change à chaque reload. */
+    private val localServer = object : net.artisanmc.plugin.hub.LocalServer {
+        private val provider get() = menuProvider as SyncedMenuProvider
+        override val link: net.artisanmc.plugin.protocol.ServerLink get() = provider.link
+        override val label: String get() = File(".").absoluteFile.normalize().name.ifBlank { "Minecraft" }
+        override val minecraftVersion: String get() = provider.minecraftVersion
+        override val pluginVersion: String get() = description.version
+        override fun modules() = api.modules.active().map { mapOf("id" to it.id, "version" to description.version) }
+        override fun dataSources() = net.artisanmc.plugin.ws.DataSourceReport.build(api.dataSources)
+        override fun models() = api.models.declared().map { it.document }
+        override fun screens() = api.screens.declared().map { it.toWire() }
+        override fun serverConfig() = serverConfigAccess.report()
+    }
+
+    internal fun stopEditor() {
+        editor?.stop()
+        editor = null
+    }
+
+    /** Jetty vient de `libraries:` : s'il manque (serveur sans accès sortant), le plugin tourne sans éditeur. */
+    private fun startEditor(web: net.artisanmc.plugin.hub.WebConfig) {
+        editorUrl = web.url
+        if (!web.enabled) return
+        try {
+            val router = net.artisanmc.plugin.hub.EditorApi.router(localServer, editorSessions, logger)
+            val server = net.artisanmc.plugin.hub.HubServer(
+                web, router, editorSessions, net.artisanmc.plugin.hub.EditorAssets(javaClass.classLoader), editorChannel, logger,
+            )
+            if (server.start()) editor = server
+        } catch (e: LinkageError) {
+            logger.warning("[Artisan] Editor disabled: web server libraries are missing (${e.message})")
+        }
     }
 
     /**
@@ -451,6 +496,7 @@ open class ArtisanPlugin : JavaPlugin() {
         pluginUpdater = pluginUpdater(cfg),
         nexoGlyphs = net.artisanmc.plugin.customitems.NexoGlyphReader(java.io.File(server.pluginsFolder, "Nexo")),
         serverConfig = serverConfigAccess,
+        editorEvents = { editorChannel.relay(it) },
     )
 
     /**

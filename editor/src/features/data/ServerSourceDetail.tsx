@@ -8,6 +8,7 @@ import {
   previewDataSource,
 } from "@/lib/api/dataSources";
 import { getNetworkServersStatus } from "@/lib/api/networks";
+import { copyText } from "@/lib/clipboard";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -57,7 +58,7 @@ export function ServerSourceDetail({ networkId, serverId, source }: ServerSource
   };
 
   const copyRef = async () => {
-    await navigator.clipboard.writeText(source.ref);
+    await copyText(source.ref);
     toast.success(t("dataSources.refCopied"));
   };
 

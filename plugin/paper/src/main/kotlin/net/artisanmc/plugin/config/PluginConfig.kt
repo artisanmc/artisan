@@ -1,5 +1,7 @@
 package net.artisanmc.plugin.config
 
+import net.artisanmc.plugin.hub.WebConfig
+
 import org.bukkit.configuration.file.FileConfiguration
 import java.util.Locale
 
@@ -73,6 +75,7 @@ data class PluginConfig(
     val assistantImportSources: List<ImportSourceConfig>,
     val assistantImportSourceWarnings: List<String>,
     val editorAccessMode: String = "invitation",
+    val web: WebConfig = WebConfig(),
 ) {
     /**
      * HTTP(S) origin of the backend, derived from [wsUrl]: `wss://host/ws/plugin`
@@ -145,6 +148,12 @@ data class PluginConfig(
                 ),
                 assistantImportSources = sources,
                 assistantImportSourceWarnings = sourceWarnings,
+                web = WebConfig(
+                    enabled = environment.getBoolean("web.enabled", true),
+                    port = environment.getInt("web.port", 8765),
+                    bind = EnvironmentFile.string(environment, "web.bind", ""),
+                    url = EnvironmentFile.string(environment, "web.url", "").trimEnd('/'),
+                ),
             )
         }
 

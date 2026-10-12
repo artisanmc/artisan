@@ -58,6 +58,7 @@ Auth Google/Discord : identités communes `oauth_accounts` (migration 0034, anci
 cd plugin
 ./gradlew test          # suite plugin (unit + intégration MockWebServer)
 ./gradlew shadowJar     # → paper/build/libs/artisan-plugin-1.0.0-SNAPSHOT-all.jar
+./gradlew shadowJar -PwithEditor   # idem, avec l'éditeur auto-hébergé embarqué (npm requis)
 ./gradlew deploy        # compile + redémarre le container
 
 # Backend (Bun + Hono + PostgreSQL)

@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PatternsGallery } from "@/features/help/PatternsGallery";
+import { copyText } from "@/lib/clipboard";
 import type { PlaceholderEntry } from "@/lib/placeholderCatalog";
 import { Check, Copy } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -65,7 +66,7 @@ export function ItemContextSidebar({ entries }: { entries: PlaceholderEntry[] })
                         aria-label={`${t(copied === entry.path ? "patterns.copied" : "patterns.copy")} {${entry.path}}`}
                         onClick={async () => {
                           try {
-                            await navigator.clipboard.writeText(`{${entry.path}}`);
+                            await copyText(`{${entry.path}}`);
                             setStatus("");
                             setCopied(entry.path);
                             clearTimeout(copyTimer.current);

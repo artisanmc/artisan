@@ -55,6 +55,17 @@ object EnvironmentFile {
         |# Leave server_key empty to run offline using only local projects.
         |ws_url: ${quote(wsUrl)}
         |
+        |# Web editor served by this server. Changes apply after a restart.
+        |#   port : the only port to open; players never need it, admins do
+        |#   bind : empty listens on every interface, "127.0.0.1" behind a reverse proxy
+        |#   url  : public address put in /artisan editor links, e.g. "https://editor.example.com";
+        |#          empty uses the address the player joined with
+        |web:
+        |  enabled: true
+        |  port: 8765
+        |  bind: ""
+        |  url: ""
+        |
         |# Database shared by the plugins of the suite, one connection pool per plugin
         |# (pool size: database.pool-size in config.yml). Changes apply after a restart.
         |#   h2      : a single file, plugins/Artisan/database/suite.mv.db, nothing to set up
