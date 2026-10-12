@@ -168,7 +168,7 @@ class ActionExecutor(
                 val item = ItemStack(material, action.count)
                 if (action.name != null || action.lore.isNotEmpty()) {
                     val meta = item.itemMeta
-                    if (action.name != null) meta.displayName(LenientText.parse(resolveText(action.name, ctx)))
+                    action.name?.let { meta.displayName(LenientText.parse(resolveText(it, ctx))) }
                     if (action.lore.isNotEmpty()) meta.lore(action.lore.map { LenientText.parse(resolveText(it, ctx)) })
                     item.itemMeta = meta
                 }

@@ -337,8 +337,9 @@ object MenuRenderer {
         )
         val localCtx = ctx.copy(args = ctx.args + ("base" to baseValues))
         if (app.count != null) item.amount = count
-        if (item.type == Material.PLAYER_HEAD && app.head != null) {
-            item = HeadApplier.apply(item, resolveText(app.head, langMap, localCtx, papi), deps)
+        val head = app.head
+        if (item.type == Material.PLAYER_HEAD && head != null) {
+            item = HeadApplier.apply(item, resolveText(head, langMap, localCtx, papi), deps)
         }
         val meta: ItemMeta = item.itemMeta ?: return item
         if (app.title != null) {

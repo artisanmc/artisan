@@ -28,7 +28,8 @@ class PackCommand(
             sender.sendMessage(lang.get("cmd.in_game_only", sender))
             return true
         }
-        if (compiled.permission != null && !sender.hasPermission(compiled.permission)) {
+        val permission = compiled.permission
+        if (permission != null && !sender.hasPermission(permission)) {
             sender.sendMessage(lang.get("cmd.no_permission", sender))
             return true
         }
