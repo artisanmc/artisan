@@ -20,7 +20,7 @@ const surface = `
 
 Some prose. Since 1.4.0.
 `;
-const apiFile = "plugin/src/main/kotlin/net/artisanmc/modules/api/ProjectRootRegistry.kt";
+const apiFile = "plugin/api/src/main/kotlin/net/artisanmc/modules/api/ProjectRootRegistry.kt";
 
 test("la version courante est la plus haute version Since (tri numérique, pas lexical)", () => {
   assert.equal(currentApiVersion(surface), "1.10.0");

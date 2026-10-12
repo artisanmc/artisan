@@ -1,6 +1,6 @@
 # Commandes plugin `/artisan`
 
-Détail dev-facing. Source de vérité : `plugin/src/main/kotlin/net/artisanmc/plugin/command/ArtisanCommand.kt`.
+Détail dev-facing. Source de vérité : `plugin/paper/src/main/kotlin/net/artisanmc/plugin/command/ArtisanCommand.kt`.
 La table user-facing (EN) vit dans `docs-site/src/content/docs/getting-started/install-admin.md` §5 —
 les deux doivent bouger ensemble.
 

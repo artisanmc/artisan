@@ -9,6 +9,7 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+- Internal: the plugin is split into Gradle modules (`api`, `core`, `database`, `paper`) so the domain code compiles without Bukkit. Same classes, same jar, now built at `plugin/paper/build/libs/` (ADR `plugin-gradle-modules`).
 - **Database for the plugins of the suite** (API 1.7.0, single shared H2 file since 1.7.1, `@Beta`): `api.database.dataSource(plugin)` hands each plugin its own connection pool (HikariCP), so plugins built on Artisan no longer configure SQL themselves. H2 works out of the box (a single file shared by the suite, `plugins/Artisan/database/suite.mv.db`); MySQL and MariaDB are set once in `environment.yml`. Pool size is `database.pool-size` in `config.yml`, editable from the server page. HikariCP and the JDBC drivers are downloaded by Paper on first start (`libraries:`, about 7 MB) instead of being bundled. Nothing opens until a plugin asks for it.
 - **`connection.yml` becomes `environment.yml`**, which now also holds the database credentials. Any value may read an environment variable (`"${ARTISAN_DB_PASSWORD}"`). Existing servers are migrated at startup and `connection.yml` is deleted; the editor still never reads nor writes this file. `/artisan link` writes the key there.
 
