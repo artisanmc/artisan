@@ -8,7 +8,7 @@ on:
   push:
     branches: [main]
     paths:
-      - plugin/src/main/kotlin/net/artisanmc/modules/api/**
+      - plugin/api/**
       - plugin/build.gradle.kts
       - docs/architecture/api-surface.md
   workflow_dispatch:
