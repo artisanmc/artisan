@@ -6,7 +6,7 @@
  * and overlaying the `space` provider's hard-coded advances on top.
  *
  * Output:
- *  - plugin/src/main/kotlin/gg/artisan/plugin/render/CharAdvances.kt
+ *  - plugin/core/src/main/kotlin/net/artisanmc/plugin/render/CharAdvances.kt
  *  - editor/src/features/canvas/title/charAdvances.ts
  *
  * The MC vanilla logic is: try each provider in order; the first to claim a
@@ -31,7 +31,7 @@ import { PNG } from "pngjs";
 const VERSION = process.argv[2] ?? "1.21.4";
 const FONT_DIR = join(import.meta.dir, "../data/mc-assets", VERSION, "font");
 const TEXTURE_DIR = join(import.meta.dir, "../data/mc-assets", VERSION, "textures/font");
-const PLUGIN_OUT = join(import.meta.dir, "../../plugin/src/main/kotlin/gg/artisan/plugin/render/CharAdvances.kt");
+const PLUGIN_OUT = join(import.meta.dir, "../../plugin/core/src/main/kotlin/net/artisanmc/plugin/render/CharAdvances.kt");
 const EDITOR_OUT = join(import.meta.dir, "../../editor/src/features/canvas/title/charAdvances.ts");
 
 interface BitmapProvider {
@@ -125,7 +125,7 @@ kt.push(" *");
 kt.push(" * Do not edit by hand. Regenerate via:");
 kt.push(" *   cd backend && bun scripts/gen-char-advances.ts [version]");
 kt.push(" */");
-kt.push("internal val CHAR_ADVANCES: Map<Int, Int> = mapOf(");
+kt.push("val CHAR_ADVANCES: Map<Int, Int> = mapOf(");
 for (const [cp, adv] of sorted) {
   const cpHex = "0x" + cp.toString(16).padStart(4, "0").toUpperCase();
   kt.push(`    ${cpHex} to ${adv},`);
