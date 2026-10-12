@@ -10,7 +10,7 @@ object EditorApi {
         AccountRoutes(server, sessions).register(router)
         ServerRoutes(server, relay).register(router)
         ProjectRoutes(server, relay).register(router)
-        ItemRoutes(server, vanilla).register(router)
+        ItemRoutes(server, relay, vanilla).register(router)
         packs?.let { PackRoutes(server, it).register(router) }
         return router
     }
