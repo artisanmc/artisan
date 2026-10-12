@@ -1,11 +1,17 @@
 import type { Asset, AssetType, AssetUsage } from "@/domain/asset";
 import {
+  assetJsonFields,
+  listLocalAssets,
+  performLocalAssetMutation,
+} from "@/features/assets/localAssets";
+import {
   type AssetMutation,
   mutateDraftAssets,
   trackDraftAssetPreparation,
 } from "@/features/project/persistedDrafts";
 import { projectFetch } from "@/lib/projectFetch";
 import { watchProjectPrincipal } from "@/lib/projectPrincipal";
+import { SELF_HOSTED } from "@/lib/selfHosted";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
 import { DraftApiError, type PersistedDraft } from "./projectDrafts";
 
@@ -18,9 +24,14 @@ export async function listAssets(
   projectId: string,
   filters: { type?: AssetType; search?: string } = {},
 ): Promise<Asset[]> {
-  const params = new URLSearchParams(filters);
   const remote = useProjectDraftStore.getState().get(projectId)?.remote;
   const draftId = remote && remote.revision > 0 ? remote.id : undefined;
+  // Auto-hébergé : pas de backend, l'éditeur lit l'arbre du brouillon ou du disque.
+  if (SELF_HOSTED) {
+    const assets = await listLocalAssets(projectId, filters, draftId);
+    return assets.map((asset) => ({ ...asset, ...(draftId ? { draftId } : {}) }));
+  }
+  const params = new URLSearchParams(filters);
   if (draftId) params.set("draftId", draftId);
   const response = await projectFetch(projectId, `${base(projectId)}?${params}`, {
     credentials: "include",
@@ -30,6 +41,13 @@ export async function listAssets(
   return body.assets.map((asset) => ({ ...asset, ...(draftId ? { draftId } : {}) }));
 }
 async function perform(projectId: string, operation: AssetMutation): Promise<AssetResponse> {
+  if (SELF_HOSTED) {
+    const result = await performLocalAssetMutation(projectId, operation);
+    return {
+      ...result,
+      ...(result.asset ? { asset: { ...result.asset, draftId: operation.id } } : {}),
+    };
+  }
   const input = operation.asset!;
   const params = new URLSearchParams({
     draftId: operation.id,
@@ -53,16 +71,7 @@ async function perform(projectId: string, operation: AssetMutation): Promise<Ass
   } else {
     headers["Content-Type"] = "application/json";
     body = JSON.stringify({
-      ...Object.fromEntries(
-        Object.entries(input.fields).map(([key, value]) => [
-          key,
-          key === "usages"
-            ? JSON.parse(value)
-            : ["height", "ascent"].includes(key)
-              ? Number(value)
-              : value,
-        ]),
-      ),
+      ...assetJsonFields(input.fields),
       draftSnapshot: operation.snapshot,
       draftName: operation.name,
     });
