@@ -1,6 +1,8 @@
 ---
 title: Projects
 description: Create, import, draft and publish projects on your Minecraft servers.
+sidebar:
+  order: 2
 ---
 
 The **Buttons** panel beside the canvas contains **Game items**, **Captured items**
@@ -36,11 +38,11 @@ Every project lives on a Minecraft server's disk, in `plugins/Artisan/projects/<
 (or in the folder an add-on registers). The editor is served by the plugin itself:
 type `/artisan editor` in game and open the single-use link it prints. What you can do
 depends on your permissions (`artisan.editor.view`, `.edit`, `.publish`, `.config`);
-see [Open the editor](/wiki/getting-started/install-admin/#2-open-the-editor).
+see [Open the editor](/wiki/getting-started/open-the-editor/).
 
 In a network of servers, the editor lists the hub's own projects and those of every
 connected leaf server. A leaf's project is named `<server>.<folder>`, for example
-`survie2.shop`.
+`survie2.shop`. See [Network mode](/wiki/network/concepts/#project-ids).
 
 ## Create a project
 
