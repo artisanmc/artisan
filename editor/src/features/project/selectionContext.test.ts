@@ -71,8 +71,8 @@ describe("selectionContext", () => {
   });
 
   /**
-   * Le cas qui justifie `selectionMenuId` : `grid` existe dans m1 ET m2.
-   * Sans le scope, on éditerait le premier menu trouvé.
+   * The case that justifies `selectionMenuId`: `grid` exists in m1 AND m2.
+   * Without the scope, the first menu found would be edited.
    */
   it("un id d'élément partagé se résout dans le menu de la sélection", () => {
     expect(ctx(["grid"], "m2")).toEqual({ kind: "element", menuId: "m2", elementId: "grid" });

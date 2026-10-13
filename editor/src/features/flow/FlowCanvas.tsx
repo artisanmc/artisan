@@ -75,16 +75,15 @@ interface FlowCanvasProps {
 
 /**
  * Unified editor for the current selection. Routes by kind:
- *   Project            → project-level fields (description, source).
+ *   Project         → project-level fields (description, source).
  *   Menu            → title / permission / rows / background.
  *   Element         → identity + per-state cards (with all state-level
  *                     fields embedded) + click handlers for the focused state.
  *   Command         → command identity + step tree.
  *
- * The "Properties" / "Code" split is gone: everything for the current
- * selection is rendered together so users always see how state-level
- * fields (title, count, lore, conditions) and click handlers belong to a
- * specific state card.
+ * Everything for the current selection is rendered together so users always
+ * see how state-level fields (title, count, lore, conditions) and click
+ * handlers belong to a specific state card.
  */
 export function FlowCanvas({ projectId }: FlowCanvasProps) {
   const { t } = useTranslation();
@@ -100,9 +99,8 @@ export function FlowCanvas({ projectId }: FlowCanvasProps) {
 
   if (!project) return <EmptyHint label={t("projectNotFound")} />;
 
-  // La nature de la sélection est dérivée UNE fois (`selectionContext`) et
-  // partagée avec le gating des onglets du panneau : deux dispatches séparés
-  // finiraient par ne plus être d'accord.
+  // The kind of selection is derived ONCE (`selectionContext`) and shared with
+  // the panel's tab gating: two separate dispatches would end up disagreeing.
   const ctx = selectionContext(project, ids, selectionMenuId);
 
   switch (ctx.kind) {
@@ -160,9 +158,7 @@ function EmptyHint({ label }: { label: string }) {
   );
 }
 
-// ────────────────────────────────────────────────────────────────────────────
 // Element editor
-// ────────────────────────────────────────────────────────────────────────────
 
 function ElementEditor({
   projectId,
@@ -258,7 +254,7 @@ function ElementEditor({
         {!element.places ? (
           <PositionsField projectId={projectId} menuId={menu.id} element={element} />
         ) : null}
-        {/* Iteration is managed at the MENU level (Données — Set d'items);
+        {/* Iteration is managed at the MENU level (data section — item set);
             the element only shows its binding as context for the states. */}
         {element.iterates ? (
           <div className="mb-3 rounded border border-[var(--brand-line)] border-dashed bg-[var(--brand-soft)] px-2.5 py-1.5 text-[11px] text-[var(--brand)]">
@@ -1112,9 +1108,7 @@ function PositionsField({
   );
 }
 
-// ────────────────────────────────────────────────────────────────────────────
 // Command editor
-// ────────────────────────────────────────────────────────────────────────────
 
 function CommandEditor({ projectId, command }: { projectId: ProjectId; command: Command }) {
   const setCommandField = useAccountStore((s) => s.setCommandField);
@@ -1386,9 +1380,7 @@ function CommandArgsEditor({ projectId, command }: { projectId: ProjectId; comma
   );
 }
 
-// ────────────────────────────────────────────────────────────────────────────
 // Dialog editor
-// ────────────────────────────────────────────────────────────────────────────
 
 function DialogIdField({ projectId, dialogId }: { projectId: ProjectId; dialogId: DialogId }) {
   const { t } = useTranslation();
@@ -1833,9 +1825,7 @@ function DialogEditor({ projectId, dialog }: { projectId: ProjectId; dialog: Dia
   );
 }
 
-// ────────────────────────────────────────────────────────────────────────────
 // Shared
-// ────────────────────────────────────────────────────────────────────────────
 
 function Lane({ label, children }: { label: string; children: React.ReactNode }) {
   return (

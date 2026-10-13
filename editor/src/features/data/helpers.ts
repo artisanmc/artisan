@@ -3,11 +3,6 @@ import type { FieldType } from "@/domain/types";
 /**
  * Render-friendly summary of a FieldType — used in source pickers and
  * sidebar tooltips. "list of string", "object with 3 fields", etc.
- *
- * The inference family (`inferFieldTypeFromValue`, `coerceValueToType`,
- * `defaultValueForFieldType`) died with the declared-schema refactor (ADR
- * `project-sources-and-data-models`) — Project sources now declare their
- * shape via Data models (`@/domain/dataModels`).
  */
 export function summarizeFieldType(type: FieldType): string {
   switch (type.kind) {

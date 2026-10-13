@@ -2,7 +2,7 @@ import * as THREE from "three";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
 
-// ── Types ──────────────────────────────────────────────────────────────────────
+// Types
 
 interface ModelFace {
   texture: string;
@@ -32,7 +32,7 @@ export interface ResolvedModel {
   guiLight: "front" | "side";
 }
 
-// ── Singleton renderer + camera ────────────────────────────────────────────────
+// Singleton renderer + camera
 
 let _renderer: THREE.WebGLRenderer | null = null;
 let _camera: THREE.OrthographicCamera | null = null;
@@ -57,7 +57,7 @@ function getCamera(): THREE.OrthographicCamera {
   return _camera;
 }
 
-// ── Caches ─────────────────────────────────────────────────────────────────────
+// Caches
 
 const renderCache = new Map<string, Promise<string | null>>();
 
@@ -72,7 +72,7 @@ function cacheKey(modelPath: string, version: string): string {
   return `${version}:${modelPath}`;
 }
 
-// ── Bundle preload ─────────────────────────────────────────────────────────────
+// Bundle preload
 
 export async function preloadModels(version: string): Promise<void> {
   const url = `${API_URL}/api/v1/model-bundle/${version}`;
@@ -86,7 +86,7 @@ export async function preloadModels(version: string): Promise<void> {
   } catch { /* silently degrade — individual fetches will handle it */ }
 }
 
-// ── Model fetching + resolution ────────────────────────────────────────────────
+// Model fetching + resolution
 
 // Model JSON cache — block/orientable, block/cube_all etc. are shared by hundreds
 // of items; without this every render re-fetches the full parent chain.
@@ -137,7 +137,7 @@ export async function resolveModel(
   return result;
 }
 
-// ── Texture variable resolution ────────────────────────────────────────────────
+// Texture variable resolution
 
 function resolveVar(textures: Record<string, string>, key: string, depth = 0): string | null {
   if (depth > 8) return null;
@@ -147,7 +147,7 @@ function resolveVar(textures: Record<string, string>, key: string, depth = 0): s
   return v.replace(/^minecraft:/, "");
 }
 
-// ── Flat 2D layer compositing (item/generated multi-layer items) ───────────────
+// Flat 2D layer compositing (item/generated multi-layer items)
 
 function loadImage(url: string): Promise<HTMLImageElement | null> {
   return new Promise(resolve => {
@@ -201,7 +201,7 @@ async function renderFlat(
   return canvas.toDataURL("image/png");
 }
 
-// ── Entity model rendering ────────────────────────────────────────────────────
+// Entity model rendering
 
 interface EntityBox {
   origin: [number, number, number];
@@ -425,7 +425,7 @@ async function renderEntityItem(itemId: string, version: string): Promise<string
   } catch { return null; }
 }
 
-// ── Texture loading ─────────────────────────────────────────────────────────────
+// Texture loading
 
 const texCache = new Map<string, THREE.Texture | null>();
 
@@ -473,7 +473,7 @@ async function loadModelTextures(
   return out;
 }
 
-// ── Scene building ─────────────────────────────────────────────────────────────
+// Scene building
 
 // Face vertex positions in 0-16 space (viewed from outside, CCW winding):
 export function faceVerts(
@@ -666,7 +666,7 @@ function buildScene(model: ResolvedModel, textures: Map<string, THREE.Texture>):
   return scene;
 }
 
-// ── Public API ─────────────────────────────────────────────────────────────────
+// Public API
 
 export function renderToCanvas(
   modelPath: string,

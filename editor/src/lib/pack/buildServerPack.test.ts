@@ -18,7 +18,7 @@ const PNG_1x1 = new Uint8Array([
 const vanilla = (file: string) =>
   new Uint8Array(readFileSync(resolve(__dirname, `../../assets/minecraft/${file}.png`)));
 
-/** Deux Projects, chacun un glyphe au même codepoint et un menu qui le pose. */
+/** Two Projects, each with a glyph at the same codepoint and a menu that uses it. */
 function projectTree(id: string, glyph: string) {
   return {
     files: [
@@ -52,7 +52,7 @@ function mockHub(options: { failBinary?: string; server?: string; projects?: unk
     if (png) return new Response(vanilla(png[1]!));
     const { pathname, searchParams } = new URL(url);
     if (pathname === `/api/v1/networks/local/servers/${server}/projects`)
-      // Désordonnés exprès : le plus ancien (par identifiant) doit gagner le codepoint.
+      // Unordered on purpose: the oldest (by id) must win the codepoint.
       return json({ project_ids: ["beta", "alpha"], projects: options.projects });
     if (pathname === `/api/v1/networks/local/servers/${server}/server-config`)
       return json({ config: {}, online: true });
@@ -121,7 +121,7 @@ describe("buildServerPack", () => {
       },
     );
     expect(built.hash).toBe(expected.hash);
-    // Comparaison octet à octet sans le diff profond de vitest, très lent sur un zip.
+    // Byte-for-byte comparison without vitest's deep diff, very slow on a zip.
     expect(Buffer.from(built.zipBytes).equals(Buffer.from(expected.zipBytes))).toBe(true);
   });
 

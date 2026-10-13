@@ -144,16 +144,16 @@ describe("ServerProjectPage", () => {
   });
 
   /**
-   * Le contenu d'un Project se lit sur le disque de SON serveur : ça prend le
-   * temps que ça prend. Ne rien rendre pendant ce temps (`return null`) donnait
-   * une page blanche de plusieurs secondes, qu'on prend pour une panne.
+   * A Project's content is read from ITS server's disk: it takes as long as it
+   * takes. Rendering nothing meanwhile (`return null`) gave a blank page for
+   * several seconds, which looks like an outage.
    */
   it("annonce la lecture au lieu de laisser une page blanche", () => {
     loaderState.loaded = false;
     render(<ServerProjectPage />);
     expect(screen.getByText("project.loading")).toBeInTheDocument();
-    // Un squelette à la forme de l'écran, pas un rond dans le vide : la mise en
-    // page ne doit pas sauter quand les données arrivent.
+    // A skeleton shaped like the screen, not a spinner in the void: the layout
+    // must not jump when the data arrives.
     expect(screen.getByTestId("project-skeleton")).toBeInTheDocument();
     expect(screen.queryByTestId("topbar")).not.toBeInTheDocument();
   });

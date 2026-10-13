@@ -19,12 +19,12 @@ interface ResizeHandlesProps {
   /**
    * Fired continuously during a corner drag with new aspect-preserved
    * dimensions. The parent is responsible for applying the new size to the
-   * UI (and ultimately the backend on commit).
+   * UI (and persisting it on commit).
    */
   onResize: (dims: { width: number; height: number }) => void;
   /**
    * Fired exactly once on drag end with the final dimensions. Parents can
-   * use this to commit to the backend (PATCH asset height).
+   * use this to persist the new size (asset height).
    */
   onResizeEnd?: (dims: { width: number; height: number }) => void;
 }
@@ -43,8 +43,7 @@ interface ResizeHandlesProps {
  * the aspect ratio.
  *
  * This component is purely presentational — it does not mutate any store. The
- * parent (typically `useTitleLayerDrag` in P1.4) owns the state and backend
- * commit.
+ * parent (typically `useTitleLayerDrag`) owns the state and the commit.
  */
 export function ResizeHandles({ x, y, width, height, onResize, onResizeEnd }: ResizeHandlesProps) {
   // Snapshot of the rect at drag-start. We need the ORIGINAL aspect ratio so
@@ -122,8 +121,7 @@ export function ResizeHandles({ x, y, width, height, onResize, onResizeEnd }: Re
   const handleDragMove = useCallback(
     (corner: Corner) => (e: Konva.KonvaEventObject<DragEvent>) => {
       e.cancelBubble = true;
-      // TODO P3+: shift-drag = stretch (requires PNG resample on backend)
-      // For now shift is a no-op — drag stays aspect-locked.
+      // Shift-drag stays aspect-locked (stretching would need a PNG resample).
       //
       // Konva guarantees the drag protocol: dragstart → dragmove → dragend.
       // `onDragStart={beginDrag}` always runs first, so `dragStartRef.current`
@@ -142,7 +140,6 @@ export function ResizeHandles({ x, y, width, height, onResize, onResizeEnd }: Re
   const handleDragEnd = useCallback(
     (corner: Corner) => (e: Konva.KonvaEventObject<DragEvent>) => {
       e.cancelBubble = true;
-      // TODO P3+: shift-drag = stretch (requires PNG resample on backend)
       const node = e.target;
       const dims = computeDims(corner, node.x(), node.y());
       // Reset the drag snapshot so the next drag samples the current size.

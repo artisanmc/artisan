@@ -4,10 +4,11 @@ import type { PreviewCallContext } from "./previewCallContexts";
 import { currentCallIndex, effectivePreviewArgs, nextCallContext } from "./previewCallNavigation";
 
 /**
- * Naviguer d'un contexte à l'autre est le geste d'édition d'un menu paramétré :
- * un seul document sert N écrans, et le placement n'est lisible qu'à travers
- * l'un d'eux (ADR `parameterised-menu-over-menu-per-category`). Ces deux
- * fonctions sont la logique derrière l'arête cliquable et le bandeau du canvas.
+ * Moving from one context to another is the editing gesture of a
+ * parameterised menu: one document serves N screens, and placement is only
+ * readable through one of them (ADR `parameterised-menu-over-menu-per-category`).
+ * These two functions are the logic behind the clickable edge and the canvas
+ * banner.
  */
 const CTX: PreviewCallContext[] = [
   {
@@ -32,8 +33,8 @@ describe("currentCallIndex", () => {
     expect(currentCallIndex(CTX, {})).toBe(-1);
   });
 
-  /** Un seul argument sur deux ne suffit pas : on regarderait un écran hybride
-   *  qui ne correspond à aucun appel réel. */
+  /** Matching one argument out of two is not enough: it would show a hybrid
+   *  screen that matches no real call. */
   it("rend -1 sur une correspondance partielle", () => {
     expect(currentCallIndex(CTX, { category: "les_kits" })).toBe(-1);
   });
@@ -49,9 +50,9 @@ describe("nextCallContext", () => {
     expect(nextCallContext(CTX, CTX[2]!.args)?.label).toBe("Les Clés");
   });
 
-  /** Cliquer l'arête shop_main → shop_category ne doit proposer que les écrans
-   *  atteignables DEPUIS shop_main : c'est ce qui fait défiler les catégories
-   *  sans jamais sauter sur un appel venu d'ailleurs. */
+  /** Clicking the shop_main → shop_category edge must only offer screens
+   *  reachable FROM shop_main: that is what cycles through categories without
+   *  ever jumping to a call coming from elsewhere. */
   it("se restreint aux contextes d'un appelant donné", () => {
     expect(nextCallContext(CTX, CTX[1]!.args, "shop_main")?.label).toBe("Les Clés");
     expect(nextCallContext(CTX, {}, "promo")?.label).toBe("Promo");
@@ -67,10 +68,9 @@ describe("nextCallContext", () => {
 });
 
 /**
- * Le bandeau annonçait « choisis un contexte » au-dessus d'un menu déjà rendu
- * dans un contexte précis : il ne lisait que les arguments explicites, alors
- * qu'un input avec un `default` s'applique de lui-même. Il décrivait un état
- * que personne ne voyait.
+ * The banner said "pick a context" above a menu already rendered in a
+ * specific context: it only read the explicit arguments, while an input with
+ * a `default` applies on its own. It described a state nobody saw.
  */
 describe("effectivePreviewArgs", () => {
   const menu = {
@@ -90,7 +90,7 @@ describe("effectivePreviewArgs", () => {
     expect(effectivePreviewArgs(menu, { category: "kits" })).toEqual({ category: "kits" });
   });
 
-  /** Un défaut vide n'est pas un contexte : il ne doit pas prétendre en être un. */
+  /** An empty default is not a context: it must not pretend to be one. */
   it("ignore un défaut vide", () => {
     expect(effectivePreviewArgs(menu, undefined)).not.toHaveProperty("category_name");
   });

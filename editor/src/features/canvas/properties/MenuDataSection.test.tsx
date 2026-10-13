@@ -1,10 +1,9 @@
 import type { ContextInput, Menu, SourceRef } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
 import { useServerDataSourcesStore } from "@/state/serverDataSourcesStore";
-// Unified « Données » section (2026-07-26): the set d'items block lives inside
-// each list card of the menu panel. This suite covers the exported pieces —
-// extractArgTokens (used by PreviewContextSection) and MenuSetBlock (create /
-// delete a menu-level set).
+// Unified data section: the item set block lives inside each list card of the
+// menu panel. This suite covers the exported pieces — extractArgTokens (used
+// by PreviewContextSection) and MenuSetBlock (create / delete a menu-level set).
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 import { MenuSetBlock, extractArgTokens } from "./MenuDataSection";

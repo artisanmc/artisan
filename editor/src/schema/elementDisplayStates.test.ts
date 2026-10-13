@@ -67,14 +67,14 @@ describe("reading — flat display + states", () => {
   });
 
   /**
-   * Ce test disait l'inverse jusqu'au 2026-08-29 : `appearances` devait être
-   * IGNORÉ, sans repli de lecture. La décision reposait sur une prémisse —
-   * `menu/v1` était pré-prod, les fichiers seraient réinitialisés — que la
-   * production a démentie : des menus écrits avant le changement y vivaient
-   * encore, et l'éditeur les rendait vides sans rien dire.
+   * This test used to say the opposite: `appearances` was to be IGNORED, with
+   * no read fallback. That decision rested on a premise — `menu/v1` was
+   * pre-production, files would be reset — that production disproved: menus
+   * written before the change still lived there, and the editor rendered them
+   * empty without a word.
    *
-   * Ce qui reste intact de la décision d'origine : rien n'est jamais RÉÉCRIT
-   * dans l'ancienne forme, et un état ne s'hérite pas. Seule la lecture cède.
+   * What remains of the original decision: nothing is ever REWRITTEN in the old
+   * form, and a state is not inherited. Only reading gives way.
    */
   it("lit encore une liste `appearances` héritée, faute de quoi le fichier serait invisible", () => {
     const { menu } = menuV1ToDomain(
@@ -95,15 +95,14 @@ describe("reading — flat display + states", () => {
 });
 
 /**
- * Les fichiers écrits AVANT le 17 août portent `appearances:` — une liste, le
- * premier élément faisant office de display. Le changement de format les avait
- * laissés derrière lui : plus aucun champ reconnu, donc un display vide, des
- * items invisibles et un template sans contenu. Sans message, et sur des
- * fichiers parfaitement valides — c'est ce qui a cassé les menus Boutique en
- * production, dix jours après coup.
+ * Older files carry `appearances:` — a list whose first item acts as the
+ * display. The format change had left them behind: no recognised field any
+ * more, so an empty display, invisible items and a template without content.
+ * With no message, on perfectly valid files — that is what broke the Boutique
+ * menus in production, ten days later.
  *
- * On les lit donc encore. On ne les réécrit jamais : l'écriture reste
- * canonique, donc le premier enregistrement remet le fichier à l'endroit.
+ * So they are still read. They are never rewritten that way: writing stays
+ * canonical, so the first save puts the file right.
  */
 describe("reading — le format `appearances:` d'avant reste lisible", () => {
   it("prend la première appearance comme display, les suivantes comme states", () => {
@@ -139,16 +138,16 @@ describe("reading — le format `appearances:` d'avant reste lisible", () => {
       wireMenu({ material: "ARROW", appearances: [{ material: "DIAMOND" }] }) as never,
       opts,
     );
-    // Le format courant fait foi : la liste est un vestige, pas une alternative.
+    // The current format wins: the list is a leftover, not an alternative.
     expect(menu.layers[0]!.elements[0]!.display.material).toBe("ARROW");
   });
 });
 
 /**
- * Les fichiers d'avant portent aussi du texte STRUCTURÉ — `{ kind: plain, value:
- * { key: … } }`, la forme des calques de titre. Le lecteur de lore les passait à
- * `String()`, ce qui donne littéralement « [object Object] » dans l'infobulle et
- * en jeu : un lore illisible, sur un fichier que rien ne signale.
+ * Older files also carry STRUCTURED text — `{ kind: plain, value:
+ * { key: … } }`, the title layer shape. The lore reader passed them to
+ * `String()`, which literally gives "[object Object]" in the tooltip and in
+ * game: unreadable lore, on a file nothing flags.
  */
 describe("reading — du texte structuré dans le lore ne donne jamais [object Object]", () => {
   it("résout une ligne portant une référence i18n", () => {

@@ -103,7 +103,7 @@ describe("searchQuery", () => {
   });
   it("chercher le nom du menu propriétaire surface ses items", () => {
     const r = searchQuery(buildSearchIndex(project(), "en"), "shop");
-    expect(r.some((e) => e.label === "DIAMOND")).toBe(true); // l'item est trouvé via owner "Shop"
+    expect(r.some((e) => e.label === "DIAMOND")).toBe(true); // the item is found via owner "Shop"
   });
   it("classe élément avant contenu, exact/préfixe avant sous-chaîne", () => {
     const idx = buildSearchIndex(project(), "en");
@@ -124,7 +124,7 @@ describe("groupResultsForDisplay", () => {
       haystack: id,
       target: { openId: id },
     });
-    // ordre par score (entrée) : menuA, command, menuB, content  → menuB doit rejoindre menuA
+    // score order (input): menuA, command, menuB, content → menuB must join menuA
     const input = [
       e("menuA", "menu"),
       e("cmd", "command"),

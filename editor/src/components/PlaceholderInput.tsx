@@ -128,7 +128,6 @@ export function PlaceholderInput({
         setOpen(false);
         return;
       }
-      // Derive query from the anchor to the current caret.
       const tail = next.slice(anchorPos, caretPos);
       // Close if the user added a closing brace, a space, or a newline.
       if ((trigger === "%" ? /[%{}\s]/ : /[}\s]/).test(tail)) {
@@ -179,7 +178,7 @@ export function PlaceholderInput({
     // Replace from anchorPos - 1 (the `{`) through the current caret with
     // `{path}`. Then close.
     const caret = el.selectionStart ?? value.length;
-    const bracePos = anchorPos - 1; // position of the `{` in value
+    const bracePos = anchorPos - 1;
     if (bracePos < 0 || value[bracePos] !== trigger) return;
     const token = trigger === "%" ? path : `{${path}}`;
     const newValue = value.slice(0, bracePos) + token + value.slice(caret);

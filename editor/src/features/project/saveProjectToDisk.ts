@@ -10,7 +10,7 @@ import { useProjectDraftStore } from "@/state/projectDraftStore";
 import { applyRenames, planWrite, toRelative } from "./diskSave";
 import { publishPersistedDraft, usePersistedDraftStore } from "./persistedDrafts";
 
-/** L'arbre rel-keyed que produirait un enregistrement de [project], sans écrire. */
+/** The rel-keyed tree a save of [project] would produce, without writing. */
 export function projectTree(project: Project): Record<string, string> {
   const cloned = structuredClone(project);
   rekeyProject(cloned);
@@ -18,12 +18,12 @@ export function projectTree(project: Project): Record<string, string> {
 }
 
 /**
- * Réintègre dans le Project le contenu disque que l'admin a choisi de garder.
+ * Brings the disk content the admin chose to keep back into the Project.
  *
- * On repart de l'arbre courant de l'éditeur — donc **les éditions non
- * conflictuelles survivent** — on y remplace les seuls fichiers tranchés en
- * faveur du serveur, et on re-parse. Pas de fusion ligne à ligne : le choix est
- * au niveau fichier, comme partout ailleurs dans le modèle.
+ * Starts from the editor's current tree — so **non-conflicting edits
+ * survive** — replaces only the files resolved in the server's favour, and
+ * re-parses. No line-by-line merge: the choice is per file, as everywhere
+ * else in the model.
  */
 export function adoptDiskIntoProject(
   project: Project,
@@ -50,19 +50,14 @@ export type SaveToDiskResult =
       ok: false;
       error: "conflict";
       conflicts: ProjectFileConflict[];
-      /** L'état réel du dossier au moment du conflit — voir un renommage. */
+      /** The folder's real state at conflict time — to spot a rename. */
       diskFiles: string[];
     }
   | { ok: false; error: ProjectFilesError; code?: string; status?: number; message?: string };
 
 /**
- * Enregistre un Project sur le disque de son serveur (ADR
- * `server-disk-only-storage`, P2) — le seul chemin par lequel du contenu atteint
- * le disque depuis l'éditeur.
- *
- * Remplace `persistProject` : plus de copie backend, plus d'auto-save. Le geste
- * est explicite, et ce qui n'a pas été enregistré vit dans la page — comme dans
- * n'importe quel éditeur.
+ * Saves a Project to its server's disk (ADR `server-disk-only-storage`) — the
+ * only path by which content reaches the disk from the editor.
  */
 export async function saveProjectToDisk(
   project: Project,
@@ -72,8 +67,8 @@ export async function saveProjectToDisk(
   const next = projectTree(project);
 
   const store = useProjectBaselineStore.getState();
-  // Pas de base = ce Project n'a jamais été lu sur le disque, donc il n'y est
-  // pas encore : c'est une création ou un import, et l'écriture doit le dire.
+  // No base = this Project was never read from the disk, so it is not there
+  // yet: it is a create or an import, and the write must say so.
   const known = store.get(project.id);
   const baseline = known ?? {};
   if (usePersistedDraftStore.getState().sessions[project.id]) {
@@ -162,12 +157,12 @@ export async function saveProjectToDisk(
       };
     }
   }
-  // Les renommages déclarés transforment « supprimer + créer » en déplacement :
-  // seule l'intention de l'éditeur permet de les distinguer.
+  // Declared renames turn "delete + create" into a move: only the editor's
+  // intent can tell them apart.
   const declared = useProjectDraftStore.getState().pendingRenames[project.id] ?? [];
   const plan = await applyRenames(await planWrite(baseline, next), declared, baseline);
-  // Rien n'a bougé : on s'épargne l'aller-retour, et surtout on n'écrit pas des
-  // fichiers identiques (ce qui polluerait la corbeille pour rien).
+  // Nothing moved: skip the round trip, and above all do not write identical
+  // files (which would pollute the trash for nothing).
   if (plan.empty) return { ok: true, wrote: 0 };
 
   const res = await projectClient(project.id).write({
@@ -176,13 +171,13 @@ export async function saveProjectToDisk(
     create: known === undefined,
   });
   if (!res.ok) {
-    // Un conflit n'avance PAS la base : le plugin n'a rien écrit, donc ce qu'on
-    // croit savoir du disque reste ce qu'on avait chargé.
+    // A conflict does NOT move the base: the plugin wrote nothing, so what we
+    // believe about the disk stays what we loaded.
     return res;
   }
   store.set(project.id, next);
-  // Le travail est parti sur le serveur : le brouillon n'a plus rien à sauver.
-  // Le laisser ferait proposer « reprendre mon travail » sur du déjà-enregistré.
+  // The work reached the server: the draft has nothing left to save. Keeping it
+  // would offer "resume my work" on already-saved content.
   useProjectDraftStore.getState().clear(project.id);
   return { ok: true, wrote: plan.files.length + plan.deletes.length + plan.renames.length };
 }

@@ -4,7 +4,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DataSourceEditor } from "./DataSourceEditor";
 
-// Le sujet est l'éditeur de source, pas CodeMirror : un textarea tient sa place.
+// The subject is the source editor, not CodeMirror: a textarea stands in for it.
 vi.mock("@/components/ui/yaml-code-editor", () => ({
   YamlCodeEditor: ({
     value,
@@ -91,7 +91,7 @@ describe("DataSourceEditor", () => {
     expect(project().dataSources[0]!.name).toBe("settings");
   });
 
-  // ── bascule Formulaire ↔ YAML ────────────────────────────────────────────
+  // Form ↔ YAML switch
 
   it("montre le YAML de la source", () => {
     render(<DataSourceEditor projectId={PID} source={project().dataSources[0]!} />);
@@ -100,9 +100,9 @@ describe("DataSourceEditor", () => {
   });
 
   /**
-   * Le défaut signalé : après un aller-retour sur l'onglet YAML, une édition
-   * faite dans le FORMULAIRE était écrasée par un brouillon périmé au retour
-   * sur YAML. L'onglet doit toujours refléter l'état courant.
+   * The reported defect: after a round trip through the YAML tab, an edit made
+   * in the FORM was overwritten by a stale draft when coming back to YAML. The
+   * tab must always reflect the current state.
    */
   it("relit l'état courant à chaque ouverture de l'onglet YAML", () => {
     const view = render(<DataSourceEditor projectId={PID} source={project().dataSources[0]!} />);

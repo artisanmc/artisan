@@ -1,8 +1,8 @@
 export type HeadSource = "none" | "hdb" | "basehead" | "playerhead";
 
 /**
- * Tête du joueur qui ouvre le menu — le cas courant. `{player.name}` est un
- * placeholder de contexte résolu au rendu par le plugin, pas une valeur figée.
+ * Head of the player opening the menu — the common case. `{player.name}` is a
+ * context placeholder resolved by the plugin at render time, not a fixed value.
  */
 export const VIEWER_HEAD = "playerhead:{player.name}";
 

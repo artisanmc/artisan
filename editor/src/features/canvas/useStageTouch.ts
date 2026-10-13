@@ -17,7 +17,7 @@ export function useStageTouch({ openContextMenuAt, onTouchMove, onTouchEnd }: Us
   const longPressTimerRef = useRef<number | null>(null);
   const longPressStartRef = useRef<{ x: number; y: number } | null>(null);
 
-  // ── Touch handling: long-press for context menu, pinch via usePanZoom ──
+  // Touch handling: long-press for context menu, pinch via usePanZoom
   const cancelLongPress = useCallback(() => {
     if (longPressTimerRef.current !== null) {
       window.clearTimeout(longPressTimerRef.current);

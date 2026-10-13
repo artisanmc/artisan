@@ -81,8 +81,8 @@ export function AssetUploadDialog({
     setError(null);
     try {
       // Always `glyph` — see the component docblock for the rationale.
-      // The backend allocates a font codepoint for glyph uploads, which
-      // makes the asset usable everywhere (titles + slot icons).
+      // Glyph uploads get a font codepoint, which makes the asset usable
+      // everywhere (titles + slot icons).
       const asset = await uploadAsset(projectId, { file, type: "glyph", name, usages });
       upsertAsset(asset);
       reset();

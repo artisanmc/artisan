@@ -1,4 +1,4 @@
-import "@/i18n"; // initialise the default react-i18next instance for useTranslation
+import "@/i18n";
 import * as api from "@/lib/api/networks";
 import type { ServerStatusEntry } from "@/lib/api/networks";
 import { fireEvent, render, screen } from "@testing-library/react";
@@ -57,8 +57,8 @@ describe("ServerRow", () => {
     expect(screen.getByText(/Lobby/)).toBeInTheDocument();
     expect(screen.getByText(/1\.2\.3\.5/)).toBeInTheDocument();
     expect(screen.getByText(/1\.21\.4/)).toBeInTheDocument();
-    // Plus de multiplicateur d'instances : une clé = un serveur vivant, le
-    // backend évince l'ancienne connexion (ADR `server-disk-only-storage`).
+    // One key = one live server: the hub evicts the previous connection
+    // (ADR `server-disk-only-storage`), so there is no instance multiplier.
     expect(screen.queryByText(/x2/)).toBeNull();
   });
 
@@ -104,9 +104,9 @@ describe("ServerRow — mise à jour du plugin en attente", () => {
 describe("LinkedServersDropdown", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  // Le déclencheur parle du serveur qui PORTE le project ouvert : son disque
-  // conditionne tout (ADR `server-disk-only-storage`). L'agrégat réseau pouvait
-  // afficher « 2/3 » pendant que ce serveur-là était justement celui qui manquait.
+  // The trigger describes the server that HOLDS the open project: its disk
+  // conditions everything (ADR `server-disk-only-storage`). The network aggregate
+  // could show "2/3" while this very server was the missing one.
   it("annonce l'état du serveur courant, pas l'agrégat du réseau", async () => {
     vi.mocked(api.getNetworkServersStatus).mockResolvedValue({
       online: 2,
@@ -134,8 +134,8 @@ describe("LinkedServersDropdown", () => {
     expect(await screen.findByText("2/3")).toBeInTheDocument();
   });
 
-  // Le hors-ligne n'est plus un bandeau : c'est le badge qui le porte, et son
-  // infobulle qui donne la raison exacte (date de la copie, brouillon, jamais publié).
+  // Offline is not a banner: the badge carries it, with a tooltip giving the
+  // exact reason (copy date, draft, never published).
   it("explique le hors-ligne du serveur courant en infobulle sur le badge", async () => {
     vi.mocked(api.getNetworkServersStatus).mockResolvedValue({
       online: 0,

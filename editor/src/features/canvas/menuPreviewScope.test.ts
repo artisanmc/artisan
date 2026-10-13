@@ -320,10 +320,10 @@ describe("renderPreview with the builtin player", () => {
 
 // An Add-on's project declares its owner (`manifest.module`) and carries the
 // module's data as ordinary Project sources (ADR bare-data-files). Before this,
-// `boutique:categories` only resolved through the module's dead moduleData path
+// `boutique:categories` only resolved through the module's moduleData path
 // or a live server snapshot — so offline, a placement element found no rows and
 // the canvas drew dashed "dangling" slots labelled after the element id
-// ("Grid"), instead of the seven categories (2026-08-12).
+// ("Grid"), instead of the seven categories.
 describe("resolveSourceRef — a module-owned project answers for its own namespace", () => {
   afterEach(() => clearRegistry());
 

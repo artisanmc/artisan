@@ -7,9 +7,9 @@ describe("useSettledFlag", () => {
   afterEach(() => vi.useRealTimers());
 
   /**
-   * Le cas nominal du cache : la revalidation répond en quelques centaines de
-   * millisecondes. Un bandeau qui apparaît et disparaît dans cet intervalle
-   * coûte plus d'attention qu'il n'en informe.
+   * The cache's nominal case: revalidation answers in a few hundred
+   * milliseconds. A banner that appears and disappears in that interval costs
+   * more attention than it informs.
    */
   it("reste faux si l'état se corrige avant le délai", () => {
     const { result, rerender } = renderHook(({ flag }) => useSettledFlag(flag, 600), {
@@ -25,7 +25,7 @@ describe("useSettledFlag", () => {
     expect(result.current).toBe(false);
   });
 
-  /** Ce qui s'attarde doit se dire : la règle tient pour les attentes réelles. */
+  /** What lingers must be said: the rule holds for real waits. */
   it("devient vrai quand l'état persiste", () => {
     const { result } = renderHook(() => useSettledFlag(true, 600));
     expect(result.current).toBe(false);

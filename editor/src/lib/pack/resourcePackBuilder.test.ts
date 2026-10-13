@@ -74,12 +74,12 @@ describe("buildResourcePackZip", () => {
     const entries = unzipSync(zipBytes);
     expect(entries["pack.mcmeta"]).toBeDefined();
     const meta = JSON.parse(strFromU8(entries["pack.mcmeta"]));
-    // Minecraft lit la section `pack` : sous un autre nom de racine, le client
-    // refuse le pack entier.
+    // Minecraft reads the `pack` section: under another root name, the client
+    // rejects the whole pack.
     expect(meta.pack.pack_format).toBe(64);
     expect(meta.pack.supported_formats).toEqual({ min_inclusive: 22, max_inclusive: 200 });
     expect(typeof meta.pack.description).toBe("string");
-    // L'icône du pack s'appelle `pack.png` — sous un autre nom, elle n'existe pas.
+    // The pack icon is named `pack.png` — under another name, it does not exist.
     expect(entries["pack.png"]).toBeDefined();
   });
 

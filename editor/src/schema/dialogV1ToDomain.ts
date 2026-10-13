@@ -97,7 +97,7 @@ export function dialogV1ToDomain(
   const buttons: DialogButton[] = ((src.buttons as Json[]) ?? []).map((b) => ({
     id: b.id,
     label: text(b.label),
-    // dialog/v1 button `actions` is an Action DSL string (Phase 2). Unlike the
+    // dialog/v1 button `actions` is an Action DSL string. Unlike the
     // old flat-action wire, if-branches now round-trip.
     steps: parseSteps(b.actions),
   }));

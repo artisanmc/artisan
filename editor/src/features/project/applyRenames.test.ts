@@ -4,8 +4,8 @@ import { planWrite, applyRenames } from "./diskSave";
 const BASE = { "menus/ancien.yaml": "title: A\n", "lang/fr.yaml": "x: y\n" };
 
 /**
- * Renommer est un déplacement. L'arbre seul montre une disparition et une
- * apparition — seul l'éditeur sait que c'est le même Document.
+ * Renaming is a move. The tree alone shows a disappearance and an
+ * appearance — only the editor knows it is the same Document.
  */
 describe("applyRenames", () => {
   it("remplace supprimer+créer par un déplacement", async () => {
@@ -19,7 +19,7 @@ describe("applyRenames", () => {
     expect(plan.renames).toEqual([
       { from: "menus/ancien.yaml", to: "menus/nouveau.yaml", base_hash: expect.stringMatching(/^[0-9a-f]{64}$/) },
     ]);
-    // Ni suppression de l'ancien, ni création du nouveau : le fichier bouge.
+    // Neither a delete of the old one nor a create of the new one: the file moves.
     expect(plan.deletes).toEqual([]);
     expect(plan.files).toEqual([]);
   });
@@ -35,8 +35,8 @@ describe("applyRenames", () => {
     expect(plan.renames).toHaveLength(1);
     expect(plan.deletes).toEqual([]);
     expect(plan.files).toHaveLength(1);
-    // Après le déplacement, la destination porte l'ancien contenu : c'est lui
-    // que le compare-and-swap doit attendre, et non « aucun fichier ».
+    // After the move, the destination holds the old content: that is what the
+    // compare-and-swap must expect, not "no file".
     expect(plan.files[0]!.base_hash).toBe(plan.renames[0]!.base_hash);
   });
 

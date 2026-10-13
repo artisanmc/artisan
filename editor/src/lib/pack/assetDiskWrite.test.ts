@@ -6,9 +6,9 @@ import { CODEPOINT_MAX, CODEPOINT_MIN } from "./codepoints";
 import type { DiskAsset } from "./diskAssets";
 
 /**
- * Écriture d'un asset sur le disque du serveur (ADR `assets-on-server-disk`, P5).
+ * Writing an asset to the server's disk (ADR `assets-on-server-disk`).
  *
- * Le backend relaie, il n'écrit plus : le plugin reste le seul écrivain.
+ * The plugin stays the only writer.
  */
 describe("assetDiskWrite", () => {
   const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
@@ -22,8 +22,8 @@ describe("assetDiskWrite", () => {
     expect(descriptorYaml({ ascent: 8, codepoint: 57344, width: 16, height: 16 })).toBe(
       "ascent: 8\ncodepoint: 57344\nwidth: 16\nheight: 16\n",
     );
-    // Pas de clés nulles : un fichier que l'admin ouvre doit contenir des faits,
-    // pas des cases vides.
+    // No null keys: a file the admin opens must contain facts, not empty
+    // boxes.
     expect(descriptorYaml({ ascent: null, codepoint: null })).toBe("{}\n");
   });
 
@@ -39,11 +39,11 @@ describe("assetDiskWrite", () => {
   });
 
   /**
-   * U+F800..U+F8FF appartient aux providers `space` (cf. `spaceOffsets.ts`), et
-   * U+F900+ au bloc CJK Compatibility dont la police par défaut a des glyphes.
-   * L'allocateur SQL s'arrêtait à U+F7FF pour cette raison ; son successeur sur
-   * disque montait jusqu'à U+F8FF — il aurait fini par attribuer à un glyphe le
-   * codepoint d'une espace.
+   * U+F800..U+F8FF belongs to the `space` providers (cf. `spaceOffsets.ts`), and
+   * U+F900+ to the CJK Compatibility block, where the default font has glyphs.
+   * The old SQL allocator stopped at U+F7FF for that reason; its on-disk
+   * successor went up to U+F8FF — it would eventually have given a glyph a
+   * space's codepoint.
    */
   test("ne sort pas de la plage réservée aux glyphes", () => {
     const all: DiskAsset[] = [];

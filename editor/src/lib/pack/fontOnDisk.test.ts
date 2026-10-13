@@ -5,17 +5,16 @@ import { diskAssetsFromTree } from "./diskAssets";
 import { FONT_DESCRIPTOR, fontFilesFor, fontFromDisk } from "./fontOnDisk";
 
 /**
- * Une police **dépliée** sur le disque du serveur (ADR `assets-on-server-disk`,
- * question ouverte tranchée le 2026-08-17).
+ * A font **unpacked** on the server's disk (ADR `assets-on-server-disk`).
  *
- * Mesure qui a décidé : l'ASCII vanilla fait 95 PNG + un descripteur, 26 Ko en
- * tout. Garder le zip aurait mis une boîte noire au milieu d'un dossier dont
- * tout le reste s'édite à la main — pour économiser 96 entrées.
+ * The deciding measure: vanilla ASCII is 95 PNGs + a descriptor, 26 KB in
+ * total. Keeping the zip would have put a black box in the middle of a folder
+ * where everything else is hand-editable — to save 96 entries.
  *
- * Forme retenue :
+ * Chosen shape:
  *
- *     assets/fonts/<nom>/font.yaml     ← quel caractère, quelle image, ascent
- *     assets/fonts/<nom>/<texture>.png ← un fichier par glyphe
+ *     assets/fonts/<name>/font.yaml     ← which character, which image, ascent
+ *     assets/fonts/<name>/<texture>.png ← one file per glyph
  */
 describe("police dépliée", () => {
   const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
@@ -38,8 +37,8 @@ describe("police dépliée", () => {
       "assets/fonts/pixelmix/glyphs/b.png",
     ]);
     expect(descriptor.path).toBe(`assets/fonts/pixelmix/${FONT_DESCRIPTOR}`);
-    // Le descripteur dit ce que les PNG ne savent pas dire : quel caractère
-    // affiche quelle image, à quelle hauteur.
+    // The descriptor says what the PNGs cannot: which character shows which
+    // image, at which height.
     expect(descriptor.content).toContain("char: a");
     expect(descriptor.content).toContain("texture: glyphs/a.png");
     expect(descriptor.content).toContain("ascent: 7");
@@ -54,8 +53,8 @@ describe("police dépliée", () => {
   });
 
   test("les PNG d'une police ne sont pas des assets à part entière", () => {
-    // Sans ça, la bibliothèque afficherait 95 « glyphes » nommés a, b, c… à côté
-    // de la police : c'est elle, l'asset, pas chacune de ses images.
+    // Otherwise the library would show 95 "glyphs" named a, b, c… next to the
+    // font: the font is the asset, not each of its images.
     const found = diskAssetsFromTree(
       "p1",
       [
@@ -70,7 +69,7 @@ describe("police dépliée", () => {
         { path: "assets/glyphs/diamant.png", hash: "h3", size: 4 },
       ],
     );
-    // Triés par chemin : `assets/fonts/…` vient avant `assets/glyphs/…`.
+    // Sorted by path: `assets/fonts/…` comes before `assets/glyphs/…`.
     expect(found.map((a) => [a.row.id, a.row.type])).toEqual([
       ["pixelmix", "font"],
       ["diamant", "glyph"],

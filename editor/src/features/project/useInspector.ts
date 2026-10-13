@@ -6,19 +6,18 @@ import { useEffect, useMemo } from "react";
 import { type SelectionContext, selectionContext } from "./selectionContext";
 
 export interface Inspector {
-  /** Le panneau doit-il exister ? */
+  /** Should the panel exist? */
   open: boolean;
   ctx: SelectionContext;
 }
 
 /**
- * La règle d'ouverture du panneau d'édition, écrite UNE fois. Le panneau est
- * monté à deux endroits (la planche et la vue focus) ; la dupliquer là-bas,
- * c'est se garantir qu'ils divergeront.
+ * The edit panel's opening rule, written ONCE. The panel is mounted in two
+ * places (the board and the focus view); duplicating it there guarantees
+ * they will diverge.
  *
- * Règle : présent ssi quelque chose est sélectionné — ou si l'utilisateur a
- * explicitement demandé les paramètres du project, qui ne correspondent à
- * aucune sélection.
+ * Rule: present iff something is selected — or the user explicitly asked for
+ * the project settings, which match no selection.
  */
 export function useInspector(projectId: ProjectId): Inspector {
   const ids = useSelectionStore((s) => s.ids);
@@ -32,9 +31,9 @@ export function useInspector(projectId: ProjectId): Inspector {
     [project, ids, selectionMenuId],
   );
 
-  // Sélectionner quoi que ce soit range les paramètres du project : sans ça,
-  // revenir à une sélection vide les rouvrirait alors que l'utilisateur vient
-  // justement de désélectionner pour dégager le canvas.
+  // Selecting anything puts the project settings away: otherwise going back to
+  // an empty selection would reopen them right after the user deselected to
+  // clear the canvas.
   useEffect(() => {
     if (ids.size > 0 && projectSettingsOpen) setProjectSettingsOpen(false);
   }, [ids.size, projectSettingsOpen, setProjectSettingsOpen]);

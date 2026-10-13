@@ -40,8 +40,8 @@ export function SearchPalette({ projectId }: { projectId: ProjectId }) {
   const editedNamespace = project ? namespaceOf(project) : projectId;
 
   const index = useMemo(() => (project ? buildSearchIndex(project, activeLang) : []), [project, activeLang]);
-  // Les autres projects du serveur : leurs Documents seulement (pas leur contenu).
-  // Le project édité est déjà indexé en détail, et en direct — jamais en double.
+  // The server's other projects: their Documents only (not their content).
+  // The edited project is already indexed in detail, and live — never twice.
   const remote = useMemo(
     () =>
       toSearchEntries(
@@ -70,8 +70,8 @@ export function SearchPalette({ projectId }: { projectId: ProjectId }) {
 
   const choose = (entry: SearchEntry | undefined) => {
     if (!entry) return;
-    // Un Document d'un autre project s'ouvre centré sur sa planche (`?doc=`) ;
-    // un Document de ce project centre la planche courante.
+    // A Document from another project opens centered on its board (`?doc=`); a
+    // Document from this project centers the current board.
     goToDocument(navigate, {
       networkId: params.networkId,
       serverId: params.serverId,

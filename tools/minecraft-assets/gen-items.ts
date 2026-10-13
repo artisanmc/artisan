@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 /**
  * Usage: bun gen-items.ts [version]
- * Télécharge d'abord le jar client Mojang dans mc-assets/<version>/ s'il manque.
+ * Downloads the Mojang client jar into mc-assets/<version>/ first if missing.
  *
  * For each item outputs { id, label, category, texture, model? }:
  *   - texture: flat sprite path (item/sword) — used for flat items and as fallback

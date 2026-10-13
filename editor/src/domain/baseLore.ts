@@ -2,21 +2,21 @@ import { deleteLText } from "@/lib/i18n";
 import { addressedAppearances } from "./element";
 import type { Appearance, LText, Project } from "./types";
 
-/** Placeholder rendant le lore de l'item de base, à l'endroit où il est écrit. */
+/** Placeholder rendering the base item's lore where it is written. */
 export const BASE_LORE_TOKEN = "{base.lore}";
 
 /**
- * Retire le `{base.lore}` de tête devenu inutile.
+ * Removes a leading `{base.lore}` that has become useless.
  *
- * Tant qu'un lore explicite écrasait celui de l'item de base, conserver ce
- * dernier imposait d'écrire le placeholder — l'éditeur et la migration du
- * catalogue Boutique l'inséraient donc d'office, y compris là où l'auteur n'en
- * avait jamais rien demandé. Le lore de base étant désormais conservé par
- * défaut, « `lore_mode: replace` + `{base.lore}` en première ligne » dit
- * exactement ce que dit le défaut : on le réécrit sous sa forme nue.
+ * While an explicit lore overwrote the base item's lore, keeping the latter
+ * required writing the placeholder — so the editor and the Boutique catalogue
+ * migration inserted it everywhere, even where the author never asked for it.
+ * Now that the base lore is kept by default, "`lore_mode: replace` +
+ * `{base.lore}` on the first line" says exactly what the default says: it is
+ * rewritten in its bare form.
  *
- * Strictement équivalent au rendu ; un token ailleurs qu'en tête positionne
- * réellement le lore de base et n'est pas touché.
+ * Strictly equivalent in rendering; a token anywhere other than the head
+ * really positions the base lore and is left alone.
  */
 export function normalizeBaseLore(project: Project): void {
   for (const menu of project.menus ?? [])
@@ -43,11 +43,11 @@ function normalizeAppearance(project: Project, appearance: Appearance): void {
 }
 
 /**
- * Les valeurs d'item vivent au fond des lignes de source : descente récursive.
+ * Item values live deep inside source rows: recursive descent.
  *
- * Une ligne de lore y est un littéral OU un nœud `LText` — c'est la forme qui
- * sort de l'import, chaque ligne portant sa propre adresse. Les deux comptent :
- * ne lire que les littéraux laissait les catalogues réels intacts.
+ * A lore line there is a literal OR an `LText` node — the shape coming out of
+ * import, each line carrying its own address. Both count: reading only
+ * literals left real catalogues untouched.
  */
 function normalizeItemValues(project: Project, value: unknown): void {
   if (Array.isArray(value)) {
@@ -68,9 +68,10 @@ function normalizeItemValues(project: Project, value: unknown): void {
 }
 
 /**
- * Retire le token de tête de `lines` (muté) et dit si quelque chose a bougé.
- * Vidée de son token, une ligne disparaît — avec ses traductions, l'adresse de
- * chaque ligne étant redérivée de sa position à l'écriture.
+ * Removes the leading token from `lines` (mutated) and reports whether
+ * anything moved. Emptied of its token, a line disappears — with its
+ * translations, since each line's address is re-derived from its position on
+ * write.
  */
 function stripHead(project: Project, lines: unknown[]): boolean {
   const head = lines[0];

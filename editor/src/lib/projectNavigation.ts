@@ -19,15 +19,15 @@ export function projectDestination(
           to: "/networks/$networkId/servers/$serverId/projects/$projectId" as const,
           params: { networkId, serverId, projectId },
         };
-  // Tout Project de compte appartient à un serveur (ADR `server-only-projects`) :
-  // sans serveur connu, on revient au Network.
+  // Every account Project belongs to a server (ADR `server-only-projects`):
+  // without a known server, go back to the Network.
   return { to: "/networks/$networkId" as const, params: { networkId } };
 }
 
 /**
- * La vue d'un Document atteint par une référence (`main` ou `boutique:main`) :
- * un id qualifié ouvre le project qu'il nomme, par son dossier — l'identifiant
- * que les URLs de project acceptent déjà.
+ * The view of a Document reached by a reference (`main` or `boutique:main`):
+ * a qualified id opens the project it names, by its folder — the id project
+ * URLs already accept.
  */
 export function documentDestination(
   networkId: string | null | undefined,

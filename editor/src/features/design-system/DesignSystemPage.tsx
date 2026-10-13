@@ -232,7 +232,7 @@ export function DesignSystemPage() {
           renames={[{ from: "menus/old.yaml", to: "menus/new.yaml" }]}
         />
       </Section>
-      {/* ── Rules ─────────────────────────────────────────────────────── */}
+      {/* Rules */}
       <Section id="guidelines" title={t("adminDesign.guidelines.heading")}>
         <div className="card p-5">
           <ul className="flex list-disc flex-col gap-1.5 pl-5 text-[13px] text-[var(--text-mut)]">
@@ -243,7 +243,7 @@ export function DesignSystemPage() {
         </div>
       </Section>
 
-      {/* ── Color tokens ──────────────────────────────────────────────── */}
+      {/* Color tokens */}
       <Section id="colors" title={t("adminDesign.sections.colors")}>
         <div className="flex items-center gap-3">
           <span className="text-[13px] text-[var(--text-mut)]">{t("adminDesign.themeHint")}</span>
@@ -263,7 +263,7 @@ export function DesignSystemPage() {
         </div>
       </Section>
 
-      {/* ── Typography ────────────────────────────────────────────────── */}
+      {/* Typography */}
       <Section id="typography" title={t("adminDesign.sections.typography")}>
         <div className="card flex flex-col gap-5 p-5">
           <div className="flex flex-col gap-1">
@@ -295,7 +295,7 @@ export function DesignSystemPage() {
         </div>
       </Section>
 
-      {/* ── Radii & shadows ───────────────────────────────────────────── */}
+      {/* Radii & shadows */}
       <Section id="radii-shadows" title={t("adminDesign.sections.radiiShadows")}>
         <div className="card flex flex-col gap-6 p-5">
           <div className="flex flex-wrap items-end gap-5">
@@ -323,7 +323,7 @@ export function DesignSystemPage() {
         </div>
       </Section>
 
-      {/* ── CSS utility classes ───────────────────────────────────────── */}
+      {/* CSS utility classes */}
       <Section id="css-utilities" title={t("adminDesign.sections.cssUtilities")}>
         <div className="card flex flex-col gap-6 p-5">
           <div className="flex flex-wrap items-center gap-3">
@@ -380,7 +380,7 @@ export function DesignSystemPage() {
         </div>
       </Section>
 
-      {/* ── React primitives (components/ui) ──────────────────────────── */}
+      {/* React primitives (components/ui) */}
       <Section id="primitives" title={t("adminDesign.sections.primitives")}>
         <div className="card flex flex-col gap-6 p-5">
           <div className="flex flex-col gap-2">
@@ -560,7 +560,7 @@ export function DesignSystemPage() {
         </div>
       </Section>
 
-      {/* ── Search palette ────────────────────────────────────────────── */}
+      {/* Search palette */}
       <Section id="search-palette" title={t("adminDesign.sections.searchPalette")}>
         <div className="card flex flex-col gap-4 p-5">
           <span className="text-[12px] text-[var(--text-mut)]">
@@ -599,7 +599,7 @@ export function DesignSystemPage() {
         </div>
       </Section>
 
-      {/* ── Canvas toolbar ────────────────────────────────────────────── */}
+      {/* Canvas toolbar */}
       <Section id="canvas-toolbar" title={t("adminDesign.sections.canvasToolbar")}>
         <div className="card flex flex-col gap-4 p-5">
           <span className="mono text-[11px] text-[var(--text-faint)]">{"<CanvasToolbar>"}</span>
@@ -616,7 +616,7 @@ export function DesignSystemPage() {
         </div>
       </Section>
 
-      {/* ── Shared app components ─────────────────────────────────────── */}
+      {/* Shared app components */}
       <Section id="app-components" title={t("adminDesign.sections.appComponents")}>
         <div className="card flex flex-col gap-6 p-5">
           <div className="flex flex-col gap-2">
@@ -648,7 +648,7 @@ export function DesignSystemPage() {
         </div>
       </Section>
 
-      {/* ── Data viz ──────────────────────────────────────────────────── */}
+      {/* Code editor */}
       <Section id="codeEditor" title={t("adminDesign.sections.codeEditor")}>
         <div className="card flex flex-col gap-2 p-5">
           <span className="mono text-[11px] text-[var(--text-faint)]">{"<YamlCodeEditor>"}</span>

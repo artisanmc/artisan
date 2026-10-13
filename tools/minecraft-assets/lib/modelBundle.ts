@@ -1,10 +1,10 @@
-// Bundle des modèles vanilla : la chaîne de parents de chaque item, résolue une fois.
+// Vanilla model bundle: each item's parent chain, resolved once.
 import { join } from "path";
 import { existsSync } from "fs";
 import { readFile, readdir } from "fs/promises";
 import { assetsRoot } from "./mcAssets";
 
-// ── Types (mirror editor's ResolvedModel) ─────────────────────────────────────
+// Types (mirror editor's ResolvedModel)
 
 interface ResolvedModel {
   elements: unknown[];
@@ -13,7 +13,7 @@ interface ResolvedModel {
   guiLight: "front" | "side";
 }
 
-// ── Disk-level model JSON cache ────────────────────────────────────────────────
+// Disk-level model JSON cache
 
 const diskCache = new Map<string, Record<string, unknown> | null>();
 
@@ -35,7 +35,7 @@ async function readModelJson(
   }
 }
 
-// ── Model chain resolution ─────────────────────────────────────────────────────
+// Model chain resolution
 // Mirrors the logic in editor/src/lib/mcModelRenderer.ts resolveModel().
 // Parents always resolve from vanillaDir (matches what the frontend does with isCustom=false).
 
@@ -72,7 +72,7 @@ async function resolveChain(
   return result;
 }
 
-// ── Bundle builders ────────────────────────────────────────────────────────────
+// Bundle builders
 
 const ROOT = join(import.meta.dir, "..");
 

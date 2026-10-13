@@ -1,30 +1,29 @@
 import { useEffect, useState } from "react";
 
 /**
- * Au-delà de quoi une revalidation EN COURS mérite d'être annoncée.
+ * Past this, a revalidation IN PROGRESS deserves to be announced.
  *
- * Généreux à dessein. Une revalidation qui aboutit — même en une seconde et
- * demie — n'a rien à signaler : le contenu affiché est celui de la visite
- * précédente, il sera remplacé, et prévenir dans cet intervalle ne fait que
- * clignoter. Ce qui mérite un avis, c'est l'attente qui s'installe : à ce
- * moment-là, l'utilisateur se demande à juste titre ce qu'il regarde.
+ * Generous on purpose. A revalidation that succeeds — even in a second and a
+ * half — has nothing to report: the displayed content is the previous visit's,
+ * it will be replaced, and warning in that interval only flickers. What
+ * deserves a notice is a wait that settles in: by then, the user rightly
+ * wonders what they are looking at.
  *
- * Le cas VRAIMENT à risque n'est pas celui-ci — c'est l'échec, où l'écran peut
- * rester daté indéfiniment. Celui-là s'annonce sans délai (cf. les appelants).
+ * The REALLY risky case is not this one — it is failure, where the screen can
+ * stay dated indefinitely. That one is announced without delay (cf. callers).
  */
 export const STALE_NOTICE_DELAY_MS = 3_000;
 
 /**
- * Vrai seulement quand [flag] l'est resté [delayMs] d'affilée.
+ * True only once [flag] has stayed true for [delayMs] in a row.
  *
- * Sert aux avertissements qui ne valent que s'ils durent. Un affichage daté qui
- * se corrige en 200 ms n'a besoin de prévenir personne : le bandeau
- * apparaîtrait et disparaîtrait avant d'être lu, et cette agitation coûte plus
- * d'attention qu'elle n'en informe. S'il s'attarde — serveur lent, hors ligne —
- * alors il faut le dire, et la règle tient : un état daté ne reste jamais
- * silencieux.
+ * For warnings that only matter if they last. A dated display that corrects
+ * itself in 200 ms needs to warn no one: the banner would appear and vanish
+ * before being read, and that agitation costs more attention than it informs.
+ * If it lingers — slow server, offline — then it must be said, and the rule
+ * holds: a dated state is never silent.
  *
- * Retombe à faux immédiatement : ce qui n'est plus vrai s'efface sans délai.
+ * Drops back to false immediately: what is no longer true clears without delay.
  */
 export function useSettledFlag(flag: boolean, delayMs: number): boolean {
   const [settled, setSettled] = useState(false);

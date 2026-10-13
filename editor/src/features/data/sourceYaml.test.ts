@@ -52,9 +52,8 @@ describe("sourceYamlFiles", () => {
     const p = project();
     const data = sourceYamlFiles(p, source(p, "ranks")).find((f) => f.path === "data/ranks.yaml")!;
     expect(data.content).toContain("vip");
-    // Table en fichier unique = liste de lignes : les aides du schéma ne sont
-    // PAS répétées à chaque ligne (elles le sont pour les fichiers objet et
-    // par-row, cf. transformBare.test).
+    // Single-file table = list of rows: the schema's help texts are NOT repeated
+    // on every row (they are for object and per-row files, cf. transformBare.test).
     expect(data.content).not.toContain("Prix en jetons.");
   });
 });
@@ -72,7 +71,7 @@ describe("applySourceYaml", () => {
     expect(s.value.motd).toBe("bonjour");
   });
 
-  // Une édition de source ne doit pas devenir une réécriture du project.
+  // A source edit must not turn into a rewrite of the project.
   it("ne touche ni aux menus ni à la mise en page", () => {
     const p = project();
     p.menus = [{ id: "m1", projectId: PID, title: [], rows: 3, layers: [] } as never];

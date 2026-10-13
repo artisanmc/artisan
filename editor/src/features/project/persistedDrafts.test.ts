@@ -440,7 +440,7 @@ it("treats a discard conflict on an already closed draft as done", async () => {
   expect(useProjectDraftStore.getState().get("p1")).toBeUndefined();
 });
 
-/** Charge le brouillon, édite manifest.yaml, puis simule une autre session qui a écrit le même fichier. */
+/** Loads the draft, edits manifest.yaml, then simulates another session that wrote the same file. */
 async function setupSameFileConflict(): Promise<void> {
   vi.mocked(api.listDrafts).mockResolvedValue([remote]);
   await loadPersistedDrafts("p1", "u1");
@@ -522,7 +522,7 @@ it("tranche un conflit : prendre l'autre session ne réécrit rien", async () =>
   await resolveDraftConflict("p1", { "manifest.yaml": "disk" });
   expect(api.updateDraft).not.toHaveBeenCalled();
   expect(useProjectDraftStore.getState().get("p1")?.tree["manifest.yaml"]).toBe("theirs");
-  // La version de l'autre session n'est pas publiée : la base reste le disque.
+  // The other session's version is not published: the base stays the disk.
   expect(useProjectDraftStore.getState().get("p1")?.baseline["manifest.yaml"]).toBe("base");
   expect(usePersistedDraftStore.getState().sessions.p1?.status).toBe("saved");
   expect(usePersistedDraftStore.getState().sessions.p1?.draftConflict).toBeUndefined();
@@ -554,7 +554,7 @@ it("garde la base sur le disque quand il reprend le travail d'une autre session"
   const saved = vi.mocked(api.updateDraft).mock.calls.at(-1)![4];
   expect(saved.tree).toEqual({ "g.yaml": "A", "m.yaml": "B" });
   expect(saved.baseline).toEqual(disk);
-  // Relu par le backend (rebase contre le disque), le travail de B survit.
+  // Re-read by the hub (rebase against the disk), B's work survives.
   expect(rebaseDraft(saved, { files: disk, binaries: {} }).snapshot.tree["m.yaml"]).toBe("B");
 });
 

@@ -38,8 +38,8 @@ export function HeadField({ head, onChange }: { head: string; onChange: (v: stri
             const next = e.target.value as HeadSource;
             setLocalSource(next);
             if (next === "none") onChange("");
-            // Le joueur qui ouvre le menu est le cas courant : choisir la
-            // source suffit, sans avoir à taper un pseudo.
+            // The player opening the menu is the common case: choosing the source is
+            // enough, without typing a name.
             else if (next === "playerhead" && !headValueOf(head).trim()) onChange(VIEWER_HEAD);
             else {
               const rebuilt = buildHeadValue(next, headValueOf(head));

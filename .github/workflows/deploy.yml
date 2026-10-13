@@ -1,7 +1,7 @@
 name: Deploy production
 
-# Seule la vitrine artisanmc.net (landing + wiki) est déployée : ressource Coolify
-# construite depuis editor/Dockerfile (npm run build:site). Cf. deploy/README.md.
+# Only the artisanmc.net showcase (landing + wiki) is deployed: a Coolify resource
+# built from editor/Dockerfile (npm run build:site). Cf. deploy/README.md.
 on:
   workflow_run:
     workflows: [CI]

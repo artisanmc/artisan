@@ -1,4 +1,4 @@
-/** `crypto.randomUUID` n'existe qu'en contexte sécurisé ; `getRandomValues` partout. */
+/** `crypto.randomUUID` only exists in a secure context; `getRandomValues` everywhere. */
 export function installRandomUuidFallback(): void {
   if (typeof crypto === "undefined" || typeof crypto.randomUUID === "function") return;
   crypto.randomUUID = () => {

@@ -8,8 +8,8 @@ import { listModules } from "@artisan/editor-sdk";
 /**
  * Config screens edit a live working copy held in the account store under a
  * scratch project id (ADR module-config-screens). The scratch is NEVER
- * persisted to the backend (filtered out of the auto-save and the sidebar) —
- * saving goes through the WS live channel (`configWrite`) instead.
+ * persisted (filtered out of drafts and the sidebar) — saving goes through the
+ * WS live channel (`configWrite`) instead.
  */
 const SCRATCH_PREFIX = "__screen__";
 

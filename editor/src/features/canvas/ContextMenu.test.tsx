@@ -34,9 +34,9 @@ beforeEach(() => {
 
 describe("ContextMenu — fond du canvas", () => {
   /**
-   * Le panneau d'édition n'apparaît plus qu'à la sélection ; le clic droit sur
-   * le fond est la porte d'entrée naturelle vers les paramètres du projet,
-   * puisque c'est précisément le geste qui désélectionne.
+   * The edit panel only appears on selection; right-clicking the background is
+   * the natural entry point to project settings, since it is precisely the
+   * gesture that deselects.
    */
   it("propose les paramètres du projet", async () => {
     const user = userEvent.setup();
@@ -52,7 +52,7 @@ describe("ContextMenu — fond du canvas", () => {
     expect(onOpenProjectSettings).toHaveBeenCalled();
   });
 
-  /** En vue focus, « créer ici » disparaît — les paramètres, eux, restent. */
+  /** In focus view, "create here" disappears — settings stay. */
   it("les garde en vue focus, sans les entrées « créer ici »", () => {
     render(<ContextMenu {...baseProps} state={emptyTargetState} />);
     expect(screen.getByText(/Paramètres du projet|Project settings/i)).toBeInTheDocument();

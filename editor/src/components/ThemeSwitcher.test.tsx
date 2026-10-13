@@ -9,7 +9,6 @@ vi.mock("react-i18next", () => ({
 }));
 
 beforeEach(() => {
-  // Reset store to dark before each test
   useThemeStore.setState({ theme: "dark" });
   document.documentElement.dataset.theme = "dark";
 });

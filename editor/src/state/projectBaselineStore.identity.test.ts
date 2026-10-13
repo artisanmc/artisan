@@ -2,15 +2,14 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { useProjectBaselineStore } from "./projectBaselineStore";
 
 /**
- * La base sert de repère « depuis quel chargement ce brouillon date-t-il ? », et
- * ce repère se lit par IDENTITÉ d'objet (`useDraftSync`). Reposer une base
- * identique en contenu mais nouvelle en mémoire faisait donc croire à un
- * nouveau chargement — et la synchro figeait alors `initialTree` sur l'arbre
- * courant, ce qui déclarait le brouillon PROPRE alors qu'il portait du travail.
- * Au rechargement suivant, ce travail était jeté.
+ * The base serves as the "which load does this draft date from?" marker, and
+ * that marker is read by object IDENTITY (`useDraftSync`). Setting a base with
+ * identical content but a new object therefore looked like a new load — and
+ * the sync then froze `initialTree` on the current tree, declaring the draft
+ * CLEAN while it held work. On the next reload, that work was thrown away.
  *
- * C'est devenu systématique quand la revalidation s'est mise à reposer la base
- * à chaque visite : ce qui était un cas rare est devenu le cas courant.
+ * It became systematic when revalidation started setting the base on every
+ * visit: a rare case became the common case.
  */
 describe("projectBaselineStore — l'identité ne change que si le contenu change", () => {
   beforeEach(() => {

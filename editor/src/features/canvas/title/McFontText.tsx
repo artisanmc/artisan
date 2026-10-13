@@ -37,8 +37,8 @@ interface McFontTextProps {
   scale: number;
   /**
    * Optional tint colour. Tinting bitmap glyphs requires either an offscreen
-   * canvas composite or a Konva filter — both are deferred to spec phase 2.
-   * Accepted for API parity; currently ignored.
+   * canvas composite or a Konva filter — not implemented yet. Accepted for API
+   * parity; currently ignored.
    */
   color?: string;
   /**

@@ -332,7 +332,7 @@ function ContextInputsEditor({ projectId, menu }: { projectId: ProjectId; menu: 
                     onRemove={() => removeInput({ projectId, menuId: menu.id, index: i })}
                     isInvalid={isInvalid}
                   />
-                  {/* Unified Données section: an object param exposes its
+                  {/* Unified data section: an object param exposes its
                       nested lists (sets) right inside its card. */}
                   {input.type === "object" && input.rowOf ? (
                     <ObjectParamLists projectId={projectId} menu={menu} input={input} />

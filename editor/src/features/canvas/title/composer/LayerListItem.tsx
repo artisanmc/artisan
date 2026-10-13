@@ -24,7 +24,7 @@ interface LayerListItemProps {
  * Layout, left → right:
  *  1. Eye toggle — flips `${menuId}:${index}` in `hiddenLayerKeys`.
  *  2. Drag handle — visual only; the parent's dnd library targets it
- *     via `data-drag-handle="true"`. Drag-reorder logic is wired in P1.9.
+ *     via `data-drag-handle="true"`.
  *  3. Auto-name label — derived from `layer.kind` + asset name / i18n value.
  *     Falls back to a truncated asset id when the asset isn't loaded.
  *  4. Delete — confirms via `window.confirm` then calls

@@ -345,7 +345,7 @@ interface AccountState {
     x: number;
     y: number;
   }) => void;
-  /** Réarrange la planche en conservant la disposition interne des groupes. */
+  /** Rearranges the board while keeping the groups' inner layout. */
   releaseBoardPositions: (input: { projectId: ProjectId; mode?: ArrangeMode }) => void;
   rearrangeCanvasGroup: (input: { projectId: ProjectId; groupId: string }) => void;
   createCanvasGroup: (input: { projectId: ProjectId; name: string; nodeIds: string[]; color?: string }) => string;
@@ -481,7 +481,7 @@ interface AccountState {
   addCapturedItem: (input: { projectId: ProjectId; item: CapturedItem }) => void;
   removeCapturedItem: (input: { projectId: ProjectId; itemId: CapturedItemId }) => void;
   /**
-   * Create THE set d'items of one menu list (Données du menu) — a
+   * Create THE item set of one menu list (menu data section) — a
    * SELF-CONTAINED element (no Item template): appearances seeded from the
    * source's schema heuristics (icon/name/price), i18n minted canonically.
    * `iterates` auto-fills a slot range; `places` starts empty and is fed by
@@ -1245,13 +1245,11 @@ function validateArgOrder(args: CommandArg[]): void {
 }
 
 /**
- * Middleware: `temporal(stateCreator)` — undo/redo seulement.
+ * Middleware: `temporal(stateCreator)` — undo/redo only.
  *
- * Ce store n'est **pas** persisté : le contenu d'un Project vient du serveur
- * (ADR `server-disk-only-storage`), et le travail non enregistré vit dans
- * `projectDraftStore`, qui est explicitement daté et proposé plutôt qu'appliqué.
- * Ce commentaire décrivait un `persist` retiré depuis — le genre de phrase qui
- * fait conclure à tort que l'état est sauvegardé.
+ * This store is **not** persisted: a Project's content comes from the server
+ * (ADR `server-disk-only-storage`), and unsaved work lives in
+ * `projectDraftStore`.
  *
  * Action functions are stable refs, so excluding them via `partialize` keeps the
  * temporal diff narrow.
@@ -1563,10 +1561,10 @@ export const useAccountStore = create<AccountState>()(
         ),
       setDialogId: ({ projectId: pId, oldId, newId }) => {
         if (oldId === newId) return;
-        // Renommer est un DÉPLACEMENT, et seul l'éditeur le sait : l'arbre seul
-        // ne montrerait qu'une disparition et une apparition. Sans cette
-        // intention, la corbeille archive une suppression qui n'en est pas une
-        // et l'historique du fichier devient orphelin de son nouveau nom.
+        // Renaming is a MOVE, and only the editor knows it: the tree alone would
+        // only show a disappearance and an appearance. Without this intent, the
+        // trash archives a deletion that is not one and the file's history is
+        // orphaned from its new name.
         useProjectDraftStore
           .getState()
           .recordRename(pId, `dialogs/${oldId}.yaml`, `dialogs/${newId}.yaml`);
@@ -2301,7 +2299,7 @@ export const useAccountStore = create<AccountState>()(
             const menu = project.menus.find((m) => m.id === mId);
             if (!menu) return;
             // Release the i18n keys of text-bearing layers that the new layer
-            // set drops, so switching title modes (composé ↔ vanilla) doesn't
+            // set drops, so switching title modes (composed ↔ vanilla) doesn't
             // leak orphaned "(unused)" keys. Keys kept in `layers` (e.g. a
             // migrated title) are preserved.
             const keptKeys = titleLayerKeys(layers);
@@ -2666,10 +2664,10 @@ export const useAccountStore = create<AccountState>()(
       },
       setMenuId: ({ projectId: pId, oldId, newId }) => {
         if (oldId === newId) return;
-        // Renommer est un DÉPLACEMENT, et seul l'éditeur le sait : l'arbre seul
-        // ne montrerait qu'une disparition et une apparition. Sans cette
-        // intention, la corbeille archive une suppression qui n'en est pas une
-        // et l'historique du fichier devient orphelin de son nouveau nom.
+        // Renaming is a MOVE, and only the editor knows it: the tree alone would
+        // only show a disappearance and an appearance. Without this intent, the
+        // trash archives a deletion that is not one and the file's history is
+        // orphaned from its new name.
         useProjectDraftStore
           .getState()
           .recordRename(pId, `menus/${oldId}.yaml`, `menus/${newId}.yaml`);
@@ -2721,10 +2719,10 @@ export const useAccountStore = create<AccountState>()(
       },
       setCommandId: ({ projectId: pId, oldId, newId }) => {
         if (oldId === newId) return;
-        // Renommer est un DÉPLACEMENT, et seul l'éditeur le sait : l'arbre seul
-        // ne montrerait qu'une disparition et une apparition. Sans cette
-        // intention, la corbeille archive une suppression qui n'en est pas une
-        // et l'historique du fichier devient orphelin de son nouveau nom.
+        // Renaming is a MOVE, and only the editor knows it: the tree alone would
+        // only show a disappearance and an appearance. Without this intent, the
+        // trash archives a deletion that is not one and the file's history is
+        // orphaned from its new name.
         useProjectDraftStore
           .getState()
           .recordRename(pId, `commands/${oldId}.yaml`, `commands/${newId}.yaml`);
@@ -4145,7 +4143,6 @@ function rewriteCanvasEdgeIds(project: Project, oldId: string, newId: string) {
   }
 }
 
-// ────────────────────────────────────────────────────────────────────────────
 // v1 → v2 migration. v1 had ClickHandler.{requirements?, actions, fallback?}
 // and Command.actions; v2 has ClickHandler.steps and Command.steps with the
 // recursive Step tree. Wrap the old flat lists; if requirements/fallback are
@@ -4153,7 +4150,6 @@ function rewriteCanvasEdgeIds(project: Project, oldId: string, newId: string) {
 //
 // We accept `unknown` because zustand's migrate only knows the shape from the
 // schema version stored in localStorage — not the current types.
-// ────────────────────────────────────────────────────────────────────────────
 type V1Action = { type: string; [k: string]: unknown };
 type V1ClickHandler = {
   requirements?: unknown[];

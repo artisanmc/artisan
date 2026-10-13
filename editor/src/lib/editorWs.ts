@@ -3,10 +3,9 @@ const WS_URL = (API_URL || window.location.origin).replace(/^http/, "ws");
 
 export interface EditorWsHandlers {
   /**
-   * Le plugin vient de relire ses Projects (`/artisan reload`, ou sa propre
-   * écriture). C'est le seul moment où une édition faite à la main sur le
-   * disque devient réelle — donc le seul moment où notre version connue peut
-   * être devenue fausse.
+   * The plugin just re-read its Projects (`/artisan reload`, or its own write).
+   * The only moment a hand edit on the disk becomes real — so the only moment
+   * our known version may have become wrong.
    */
   onProjectsReloaded?: (serverKeyId: string, projects: { id: string; hash: string }[]) => void;
 }

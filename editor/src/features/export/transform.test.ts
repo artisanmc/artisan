@@ -78,8 +78,8 @@ describe("transform", () => {
     const manifest = parse(files["plugins/Artisan/projects/p_test/manifest.yaml"]!);
     expect(manifest.schema).toBe("manifest/v1");
     expect(manifest).not.toHaveProperty("project_id");
-    // Plus de bloc `files:` : les Documents se découvrent par scan des dossiers,
-    // des deux côtés. Ce qui atteste leur existence, c'est le fichier lui-même.
+    // No `files:` block: Documents are discovered by scanning the folders, on
+    // both sides. What proves they exist is the file itself.
     expect(manifest.files).toBeUndefined();
     expect(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]).toBeDefined();
     expect(files["plugins/Artisan/projects/p_test/commands/heal.yaml"]).toBeDefined();
@@ -290,9 +290,7 @@ describe("transform", () => {
     const files = transform(project);
     const manifestYaml = files["plugins/Artisan/projects/p_test/manifest.yaml"]!;
     // The editor emits block-style YAML for nested objects (the `yaml` lib's
-    // default with our yamlOpts). The backend mirror test below asserts the
-    // same block-style shape is parseable. If you change to flow style here,
-    // update the backend mirror fixture too.
+    // default with our yamlOpts).
     const editorYaml = files["plugins/Artisan/projects/p_test/.artisan/editor.yaml"]!;
     expect(editorYaml).toContain("layout:");
     expect(editorYaml).toContain("shop:");
@@ -363,7 +361,7 @@ describe("transform", () => {
     const files = transform(project);
     const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
     expect(menu.schema).toBe("menu/v1");
-    // L'identité est le NOM DU FICHIER, plus un champ du document.
+    // The identity is the FILE NAME, not a field of the document.
     expect("id" in menu).toBe(false);
     expect(menu.size).toBe(27);
     expect(Array.isArray(menu.title)).toBe(true);
@@ -1603,12 +1601,12 @@ describe("projectToCommandV1 / projectToDialogV1", () => {
 });
 
 /**
- * Refs d'assets par NOM (ADR `assets-on-server-disk`, décision 2).
+ * Asset refs by NAME (ADR `assets-on-server-disk`, decision 2).
  *
- * `asset: icone_diamant` remplacera `asset_id: ast_9f3c1a` : sur un disque qu'un
- * humain doit pouvoir lire, un id opaque est une énigme. La lecture tolérante
- * est déployée AVANT que quoi que ce soit n'écrive la forme nouvelle — la prod
- * doit savoir lire l'après avant d'y être.
+ * `asset: icone_diamant` will replace `asset_id: ast_9f3c1a`: on a disk a
+ * human must be able to read, an opaque id is a riddle. Tolerant reading
+ * ships BEFORE anything writes the new form — production must be able to
+ * read the new shape before reaching it.
  */
 describe("refs d'assets — nom et id opaque", () => {
   it("lit `asset: <nom>` comme `asset_id: <id>`", () => {

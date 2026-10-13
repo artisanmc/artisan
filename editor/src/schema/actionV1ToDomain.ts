@@ -50,10 +50,10 @@ const DOMAIN_CONDITIONS = new Set([
 export interface StepConverter {
   condition: (c: Json) => DomainCondition | null;
   /**
-   * Parse an Action DSL string (menu/command/dialog click-handler wire since
-   * Phase 2 of ADR `action-dsl`) into domain steps. `@key` → registered LText
-   * ref (translation pulled from `ctx.ref`); a `"literal"` → a freshly-minted
-   * key (`ctx.text`). Blank/unparseable input → `[]` (recorded as unsupported).
+   * Parse an Action DSL string (menu/command/dialog click-handler wire, ADR
+   * `action-dsl`) into domain steps. `@key` → registered LText ref (translation
+   * pulled from `ctx.ref`); a `"literal"` → a freshly-minted key (`ctx.text`).
+   * Blank/unparseable input → `[]` (recorded as unsupported).
    */
   steps: (dsl: unknown) => DomainStep[];
   /**
@@ -72,7 +72,7 @@ export interface StepConverter {
 export function makeStepConverter(ctx: ConverterCtx): StepConverter {
   const { text, ref, pushUnsupported } = ctx;
 
-  // ── conditions (explicit per-type mapping; NOT pass-through) ──────────────
+  // Conditions (explicit per-type mapping; NOT pass-through)
   function condition(c: Json): DomainCondition | null {
     if (!c || typeof c !== "object") {
       pushUnsupported("condition: <invalid>");
@@ -144,7 +144,7 @@ export function makeStepConverter(ctx: ConverterCtx): StepConverter {
     return { conds, joins: new Array(Math.max(0, conds.length - 1)).fill("and") };
   }
 
-  // ── Action DSL string → domain steps (Phase 2 wire) ───────────────────────
+  // Action DSL string → domain steps
   // A DSL `@key` reference resolves to a registered LText (translation pulled
   // via `ctx.ref`); a `"literal"` mints a fresh key via `ctx.text`. The codec
   // (`parseActionDsl` + `dslStepsToSteps`) owns the action/condition vocabulary,
@@ -195,7 +195,7 @@ export function makeStepConverter(ctx: ConverterCtx): StepConverter {
     }
   }
 
-  // ── legacy structured actions/steps (module-data literal path only) ───────
+  // Legacy structured actions/steps (module-data literal path only)
   function action(a: Json): DomainAction | null {
     switch (a.type) {
       case "open_menu":
