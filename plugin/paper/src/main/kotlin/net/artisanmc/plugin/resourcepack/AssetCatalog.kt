@@ -75,16 +75,16 @@ class AssetCatalog(
     fun offsetEncoder(): OffsetEncoder = encoderRef.get()
 
     /**
-     * Downloads the pack at [projectUrl], extracts `assets/artisan/asset-index.json`,
+     * Downloads the pack at [packUrl], extracts `assets/artisan/asset-index.json`,
      * parses it, and atomically swaps the in-memory map. On any failure (non-2xx,
      * missing entry, parse error, IOException) the previous state is preserved.
      *
-     * @param projectUrl    URL of the resource-pack .zip
+     * @param packUrl    URL of the resource-pack .zip
      * @param expectedHash  expected SHA-1 of the pack (currently unused)
      */
     @Suppress("UNUSED_PARAMETER")
-    fun update(projectUrl: String, expectedHash: String) {
-        val req = Request.Builder().url(projectUrl).build()
+    fun update(packUrl: String, expectedHash: String) {
+        val req = Request.Builder().url(packUrl).build()
         try {
             httpClient.newCall(req).execute().use { resp ->
                 if (!resp.isSuccessful) return

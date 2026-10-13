@@ -215,7 +215,7 @@ class SyncedMenuProviderTest {
     }
 
     @Test
-    fun `provider clears resource project when hello_ack resource_pack is null`() {
+    fun `provider clears the resource pack when hello_ack resource_pack is null`() {
         val packsRoot = Files.createTempDirectory("artisan_packs_").toFile()
         val mgr = ResourcePackManager(plugin, ResourcePackConfig(enabled = true, prompt = "<gold>x</gold>", sendOnJoin = false, sendDelayTicks = 0L, delegateToDir = null, delegateReloadCommand = null))
         mgr.onUpdate(ResourcePackInfo.from("http://stale", "a".repeat(40), "<gold>x</gold>"))

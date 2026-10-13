@@ -160,7 +160,7 @@ open class ResourcePackManager(
                     plugin.server.dispatchCommand(plugin.server.consoleSender, reloadCmd)
                 }
             } else {
-                logger?.info("[delegate] project updated — reload the host RP plugin to apply (set resource-pack.delegate-reload-command to automate)")
+                logger?.info("[delegate] pack updated — reload the host RP plugin to apply (set resource-pack.delegate-reload-command to automate)")
             }
         }
     }
@@ -209,12 +209,12 @@ open class ResourcePackManager(
 
     fun pushToPlayer(player: Player, replaced: UUID? = previousUuid) {
         if (!config.enabled) {
-            logger?.info("[resource-pack] pushToPlayer: project disabled for ${player.name}")
+            logger?.info("[resource-pack] pushToPlayer: pack disabled for ${player.name}")
             return
         }
         val info = currentPackInfo
         if (info == null) {
-            logger?.warning("[resource-pack] pushToPlayer: no project info available for ${player.name} (currentPackInfo is null)")
+            logger?.warning("[resource-pack] pushToPlayer: no pack info available for ${player.name} (currentPackInfo is null)")
             return
         }
         // addResourcePack (additive) instead of setResourcePack (which replaces every pack
@@ -227,9 +227,9 @@ open class ResourcePackManager(
             }
         }
         try {
-            logger?.info("[resource-pack] pushing project to ${player.name}: ${info.url} hash=${info.hash}")
+            logger?.info("[resource-pack] pushing pack to ${player.name}: ${info.url} hash=${info.hash}")
             packLoads?.pushed(info.uuid)
-            addProject(player, info)
+            addPack(player, info)
         } catch (t: Throwable) {
             logger?.warning("[resource-pack] addResourcePack failed for ${player.name}: ${t.message}")
         }
@@ -237,7 +237,7 @@ open class ResourcePackManager(
 
     private fun removePackSafe(player: Player, uuid: UUID) {
         try {
-            removeProject(player, uuid)
+            removePack(player, uuid)
         } catch (t: Throwable) {
             logger?.warning("[resource-pack] removeResourcePack failed for ${player.name}: ${t.message}")
         }
@@ -248,7 +248,7 @@ open class ResourcePackManager(
      * underlying [Player.addResourcePack] (which throws `UnimplementedOperationException`
      * under MockBukkit).
      */
-    protected open fun addProject(player: Player, info: ResourcePackInfo) {
+    protected open fun addPack(player: Player, info: ResourcePackInfo) {
         // Paper's additive addResourcePack takes a plain-text prompt (the Component overload
         // only exists on the deprecated setResourcePack form). Serialize the prompt component
         // to a legacy §-coded string so colors/formatting still survive in the prompt dialog.
@@ -256,8 +256,8 @@ open class ResourcePackManager(
         player.addResourcePack(info.uuid, info.url, info.sha1Bytes, promptText, false)
     }
 
-    /** Test seam — see [addProject]. */
-    protected open fun removeProject(player: Player, uuid: UUID) {
+    /** Test seam — see [addPack]. */
+    protected open fun removePack(player: Player, uuid: UUID) {
         player.removeResourcePack(uuid)
     }
 

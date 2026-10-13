@@ -77,7 +77,7 @@ class ProjectReadChannelTest {
     }
 
     @Test
-    fun `project_read renvoie l'arbre complet, chemins relatifs tries`() {
+    fun `project_read returns the full tree, relative paths sorted`() {
         val h = Harness()
         val p = h.project("boutique")
         h.write(p, "manifest.yaml", "id: boutique\n")
@@ -98,7 +98,7 @@ class ProjectReadChannelTest {
     }
 
     @Test
-    fun `project_read inclut l'etat editeur mais pas la corbeille ni les metadonnees de sync`() {
+    fun `project_read includes editor state but not the trash or sync metadata`() {
         val h = Harness()
         val p = h.project("boutique")
         h.write(p, "manifest.yaml", "id: boutique\n")
@@ -116,7 +116,7 @@ class ProjectReadChannelTest {
     }
 
     @Test
-    fun `project_list rend les projects charges, tries`() {
+    fun `project_list returns the loaded projects, sorted`() {
         val h = Harness()
         h.write(h.project("zeta"), "manifest.yaml", "id: zeta\n")
         h.write(h.project("alpha"), "manifest.yaml", "id: alpha\n")
@@ -134,7 +134,7 @@ class ProjectReadChannelTest {
     }
 
     @Test
-    fun `project_list rend une liste vide quand le serveur n'a aucun project`() {
+    fun `project_list is empty when the server has no project`() {
         val h = Harness()
         h.provider.load()
         h.provider.handleMessageForTesting("""{"type":"project_list","request_id":"l2"}""")
@@ -159,7 +159,7 @@ class ProjectReadChannelTest {
     }
 
     @Test
-    fun `project_read sur un project inconnu repond unknown_project`() {
+    fun `project_read of an unknown project replies unknown_project`() {
         val h = Harness()
         h.read("jamais_cree")
 
@@ -169,7 +169,7 @@ class ProjectReadChannelTest {
     }
 
     @Test
-    fun `project_read refuse une traversee de chemin`() {
+    fun `project_read rejects a path traversal`() {
         val h = Harness()
         h.read("../../etc")
 
@@ -179,7 +179,7 @@ class ProjectReadChannelTest {
     }
 
     @Test
-    fun `project_read refuse un arbre au dela du plafond`() {
+    fun `project_read rejects a tree over the size cap`() {
         val h = Harness()
         val p = h.project("gros")
         h.write(p, "manifest.yaml", "id: gros\n")

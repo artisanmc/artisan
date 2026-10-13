@@ -338,7 +338,7 @@ class MenuTitleParserTest {
      * replaces `asset_id: ast_9f3c1a`.
      */
     @Test
-    fun `un layer accepte la ref par nom comme l'id opaque`() {
+    fun `a layer accepts a ref by name as well as the opaque id`() {
         val byName = MenuTitleParser.parse(
             listOf(
                 mapOf("kind" to "background", "asset" to "fond_boutique"),

@@ -167,7 +167,7 @@ class ProjectWriteChannelTest {
     }
 
     @Test
-    fun `ecrit les fichiers et confirme`() {
+    fun `writes the files and acknowledges`() {
         val h = Harness()
         val p = h.project("boutique")
         h.write(p, "manifest.yaml", "id: boutique\n")
@@ -182,7 +182,7 @@ class ProjectWriteChannelTest {
     }
 
     @Test
-    fun `n'archive plus l'ancien contenu - l'historique vit dans les Versions du backend`() {
+    fun `does not archive the previous content`() {
         val h = Harness()
         val p = h.project("boutique")
         h.write(p, "menus/shop_main.yaml", "title: Ancien\n")
@@ -198,7 +198,7 @@ class ProjectWriteChannelTest {
     }
 
     @Test
-    fun `refuse tout en bloc si un base_hash a bouge, et rend le contenu disque`() {
+    fun `rejects the whole batch if one base_hash moved, and returns the disk content`() {
         val h = Harness()
         val p = h.project("boutique")
         h.write(p, "menus/a.yaml", "title: A disque\n")
@@ -226,7 +226,7 @@ class ProjectWriteChannelTest {
     }
 
     @Test
-    fun `un conflit rend l'etat reel du dossier, pour voir un renommage`() {
+    fun `a conflict returns the actual folder listing, so a rename shows`() {
         val h = Harness()
         val p = h.project("boutique")
         // Someone renamed a.yaml to renomme.yaml on disk. For the CAS that is a
@@ -248,7 +248,7 @@ class ProjectWriteChannelTest {
     }
 
     @Test
-    fun `un base_hash nul veut dire fichier neuf, et entre en conflit s'il existe deja`() {
+    fun `a null base_hash means a new file, and conflicts if it already exists`() {
         val h = Harness()
         val p = h.project("boutique")
         h.write(p, "menus/deja.yaml", "title: Existant\n")
@@ -267,7 +267,7 @@ class ProjectWriteChannelTest {
     }
 
     @Test
-    fun `supprime un fichier sous CAS sans l'archiver`() {
+    fun `deletes a file under CAS without archiving it`() {
         val h = Harness()
         val p = h.project("boutique")
         h.write(p, "menus/vieux.yaml", "title: Vieux\n")
@@ -281,7 +281,7 @@ class ProjectWriteChannelTest {
     }
 
     @Test
-    fun `l'editeur peut ecrire son propre etat mais pas la corbeille`() {
+    fun `the editor may write its own state but not other metadata`() {
         val h = Harness()
         val p = h.project("boutique")
 
@@ -301,7 +301,7 @@ class ProjectWriteChannelTest {
     }
 
     @Test
-    fun `cree le dossier du project quand l'appelant le demande explicitement`() {
+    fun `creates the project folder when the caller explicitly asks`() {
         val h = Harness()
         // No `project()`: the folder does not exist yet, as after a creation or an
         // import in the editor.
@@ -317,7 +317,7 @@ class ProjectWriteChannelTest {
     }
 
     @Test
-    fun `project_history rend les versions archivees, la plus recente d'abord`() {
+    fun `project_history returns archived versions, most recent first`() {
         val h = Harness()
         val p = h.project("boutique")
         val hist = File(p, ".artisan/history/menus/m.yaml").also { it.mkdirs() }
@@ -340,7 +340,7 @@ class ProjectWriteChannelTest {
     }
 
     @Test
-    fun `project_history sur un fichier sans archive rend une liste vide`() {
+    fun `project_history of a file without archives is an empty list`() {
         val h = Harness()
         h.project("boutique")
         h.provider.handleMessageForTesting(
@@ -354,7 +354,7 @@ class ProjectWriteChannelTest {
     }
 
     @Test
-    fun `project_history refuse de lire hors de l'arbre du project`() {
+    fun `project_history refuses to read outside the project tree`() {
         val h = Harness()
         h.project("boutique")
         h.provider.handleMessageForTesting(
@@ -367,7 +367,7 @@ class ProjectWriteChannelTest {
     }
 
     @Test
-    fun `refuse une traversee de chemin et un project inconnu`() {
+    fun `rejects a path traversal and an unknown project`() {
         val h = Harness()
         h.project("boutique")
         h.send(writeMsg("boutique", """[

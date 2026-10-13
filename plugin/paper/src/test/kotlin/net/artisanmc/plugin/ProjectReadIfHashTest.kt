@@ -54,7 +54,7 @@ class ProjectReadIfHashTest {
     }
 
     @Test
-    fun `la reponse porte l'empreinte de ce qu'elle contient`() {
+    fun `the reply carries the hash of what it contains`() {
         val h = Harness()
         h.write("boutique", "menus/m.yaml", "schema: menu/v1\nsize: 27\n")
         h.provider.load()
@@ -65,7 +65,7 @@ class ProjectReadIfHashTest {
     }
 
     @Test
-    fun `la meme empreinte rendue vaut 'rien n'a bouge', sans transporter l'arbre`() {
+    fun `sending back the same hash means unchanged, without the tree`() {
         val h = Harness()
         h.write("boutique", "menus/m.yaml", "schema: menu/v1\nsize: 27\n")
         h.provider.load()
@@ -79,7 +79,7 @@ class ProjectReadIfHashTest {
     }
 
     @Test
-    fun `un rechargement qui change le contenu change l'empreinte, et l'arbre revient`() {
+    fun `a reload that changes the content changes the hash, and the tree comes back`() {
         val h = Harness()
         h.write("boutique", "menus/m.yaml", "schema: menu/v1\nsize: 27\n")
         h.provider.load()

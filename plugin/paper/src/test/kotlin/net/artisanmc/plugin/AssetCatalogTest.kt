@@ -43,7 +43,7 @@ class AssetCatalogTest {
             server.enqueue(MockResponse().setBody(Buffer().apply { write(zipBytes) }))
             val cache = tmp.resolve("asset-index.json").toFile()
             val catalog = AssetCatalog(cacheFile = cache)
-            catalog.update(server.url("/project.zip").toString(), "hash")
+            catalog.update(server.url("/pack.zip").toString(), "hash")
             assertEquals(1, catalog.size())
             kotlin.test.assertTrue(cache.exists())
             kotlin.test.assertTrue(cache.readText().contains("asset_cache1"))
@@ -109,7 +109,7 @@ class AssetCatalogTest {
             server.enqueue(MockResponse().setBody(Buffer().apply { write(zipBytes) }))
 
             val catalog = AssetCatalog()
-            catalog.update(server.url("/project.zip").toString(), "deadbeef")
+            catalog.update(server.url("/pack.zip").toString(), "deadbeef")
 
             val entry = catalog.lookup("asset_a1b2c3")
             assertNotNull(entry)
@@ -142,7 +142,7 @@ class AssetCatalogTest {
             server.enqueue(MockResponse().setBody(Buffer().apply { write(zipBytes) }))
 
             val catalog = AssetCatalog()
-            catalog.update(server.url("/project.zip").toString(), "deadbeef")
+            catalog.update(server.url("/pack.zip").toString(), "deadbeef")
 
             assertEquals(2, catalog.size())
             assertNotNull(catalog.lookup("asset_aaa"))
@@ -163,7 +163,7 @@ class AssetCatalogTest {
             server.enqueue(MockResponse().setResponseCode(500))
 
             val catalog = AssetCatalog()
-            catalog.update(server.url("/project.zip").toString(), "deadbeef")
+            catalog.update(server.url("/pack.zip").toString(), "deadbeef")
 
             assertNull(catalog.lookup("asset_a1b2c3"))
             assertEquals(0, catalog.size())
@@ -178,7 +178,7 @@ class AssetCatalogTest {
             server.enqueue(MockResponse().setBody(Buffer().apply { write(zipBytes) }))
 
             val catalog = AssetCatalog()
-            catalog.update(server.url("/project.zip").toString(), "deadbeef")
+            catalog.update(server.url("/pack.zip").toString(), "deadbeef")
 
             assertEquals(0, catalog.size())
         }
@@ -206,7 +206,7 @@ class AssetCatalogTest {
             server.enqueue(MockResponse().setBody(Buffer().apply { write(zipBytes) }))
 
             val catalog = AssetCatalog()
-            catalog.update(server.url("/project.zip").toString(), "deadbeef")
+            catalog.update(server.url("/pack.zip").toString(), "deadbeef")
 
             val entry = catalog.lookup("asset_x")
             assertNotNull(entry)
@@ -237,7 +237,7 @@ class AssetCatalogTest {
             server.enqueue(MockResponse().setBody(Buffer().apply { write(zipBytes) }))
 
             val catalog = AssetCatalog()
-            catalog.update(server.url("/project.zip").toString(), "deadbeef")
+            catalog.update(server.url("/pack.zip").toString(), "deadbeef")
 
             val entry = catalog.lookup("asset_g")
             assertNotNull(entry)
@@ -267,7 +267,7 @@ class AssetCatalogTest {
             server.enqueue(MockResponse().setBody(Buffer().apply { write(zipBytes) }))
 
             val catalog = AssetCatalog()
-            catalog.update(server.url("/project.zip").toString(), "deadbeef")
+            catalog.update(server.url("/pack.zip").toString(), "deadbeef")
 
             val enc = catalog.offsetEncoder()
             // 7 = 4 + 2 + 1
@@ -289,7 +289,7 @@ class AssetCatalogTest {
             server.enqueue(MockResponse().setBody(Buffer().apply { write(zipBytes) }))
 
             val catalog = AssetCatalog()
-            catalog.update(server.url("/project.zip").toString(), "deadbeef")
+            catalog.update(server.url("/pack.zip").toString(), "deadbeef")
 
             // EMPTY encoder returns "" for any offset.
             assertEquals("", catalog.offsetEncoder().encode(7))
@@ -318,7 +318,7 @@ class AssetCatalogTest {
             server.enqueue(MockResponse().setBody(Buffer().apply { write(zipBytes) }))
 
             val catalog = AssetCatalog()
-            catalog.update(server.url("/project.zip").toString(), "deadbeef")
+            catalog.update(server.url("/pack.zip").toString(), "deadbeef")
 
             val entry = catalog.lookup("asset_bg")
             assertNotNull(entry)
@@ -327,7 +327,7 @@ class AssetCatalogTest {
     }
 
     @Test
-    fun `width defaults to 0 when absent (legacy v1 project)`() {
+    fun `width defaults to 0 when absent (legacy v1 pack)`() {
         MockWebServer().use { server ->
             server.start()
             val indexJson = """
@@ -342,7 +342,7 @@ class AssetCatalogTest {
             server.enqueue(MockResponse().setBody(Buffer().apply { write(zipBytes) }))
 
             val catalog = AssetCatalog()
-            catalog.update(server.url("/project.zip").toString(), "deadbeef")
+            catalog.update(server.url("/pack.zip").toString(), "deadbeef")
 
             val entry = catalog.lookup("asset_bg")
             assertNotNull(entry)
@@ -367,10 +367,10 @@ class AssetCatalogTest {
             server.enqueue(MockResponse().setResponseCode(500))
 
             val catalog = AssetCatalog()
-            catalog.update(server.url("/project.zip").toString(), "hash1")
+            catalog.update(server.url("/pack.zip").toString(), "hash1")
             assertNotNull(catalog.lookup("asset_x"))
 
-            catalog.update(server.url("/project.zip").toString(), "hash2")
+            catalog.update(server.url("/pack.zip").toString(), "hash2")
             // Previous state preserved despite 500.
             assertNotNull(catalog.lookup("asset_x"))
         }
