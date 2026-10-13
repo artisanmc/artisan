@@ -9,6 +9,7 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+- Editor served by the plugin: other servers of the network can connect to the server hosting the editor on `/ws/plugin`, with the shared secret as `server_key` and their name as `proxy_name`. The editor lists them, offline ones included, and edits their projects through them; a project on another server is named `<server>.<folder>`.
 - Editor served by the plugin: project assets (images, glyphs, fonts) work. Upload, rename, resize, duplicate and delete run in the browser on the private draft, with the backend's validation, error messages, codepoint allocation and on-disk layout; previews come from the draft blobs or the published files. Nexo glyph import goes through the server too.
 - Editor served by the plugin: the resource pack is now built in the browser after each publish (and after a container-texture change in the server configuration), the same way the backend built it, and sent to the server. Projects are ordered by folder name, the server knowing no creation date; any failed read keeps the previous pack, and a failure shows a toast without blocking the publish.
 - Editor served by the plugin: a resource pack sent by the editor (`PUT /api/v1/networks/local/servers/local/resource-pack`, `artisan.editor.publish`) is served by the plugin itself at `/resource-pack/<sha1>.zip` and applied like the cloud one, delegated to the pack host or pushed to players. Pushing needs `web.url` to be reachable by players.
