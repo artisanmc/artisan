@@ -545,7 +545,8 @@ class SyncedMenuProvider(
 
     private fun onHelloAck(ack: EditorRequest.HelloAck) {
         logger?.info("Connected to Artisan backend (session=${ack.sessionId})")
-        apiUrl = ack.bundleUrl
+        // Le hub d'un réseau ne connaît pas son adresse interne : celle que la feuille a jointe sert.
+        apiUrl = ack.bundleUrl ?: net.artisanmc.plugin.config.deriveHttpBaseUrl(wsUrl).ifEmpty { null }
         editorUrl = ack.editorUrl ?: editorUrl
         networkName = ack.networkName ?: networkName
         // Plus de `project_hashes` ni de contrôle de synchro : le backend ne détient
