@@ -71,6 +71,11 @@ dans la mémoire du hub. Une feuille sur H2 le signale au démarrage, car les do
 suite n'y sont pas partagées.
 *Rejeté :* refuser le démarrage sans MySQL (prévu au plan) ; rien du hub n'en a besoin.
 
+**⑪ Version du protocole.** Le `hello` porte `ProtocolVersion.CURRENT` (`1.0`). Une majeure
+différente de celle du hub : le serveur reste listé « mise à jour requise » et le hub ne lui
+envoie plus rien (503 `plugin_update_required`). Une mineure différente ne fait qu'ajouter
+des champs. Une release publie tous les jars sous un seul numéro.
+
 *Rejeté :* Javalin (deux runtimes Kotlin), le serveur HTTP du JDK (pas de
 WebSocket), embarquer Jetty dans le jar (+3 Mo, à relocaliser).
 

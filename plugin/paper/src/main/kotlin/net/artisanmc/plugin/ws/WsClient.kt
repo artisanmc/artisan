@@ -96,7 +96,7 @@ class WsClient(
             val hello = mapOf(
                 "type" to "hello",
                 "editor_access_mode" to editorAccessMode,
-                "protocol_version" to "1",
+                "protocol_version" to net.artisanmc.plugin.protocol.ProtocolVersion.CURRENT,
                 // Wire de contenu de projet : 2 = étapes structurées keyed
                 // (ADR content-version-negotiation). Absente = 1 (DSL legacy).
                 "content_version" to CONTENT_VERSION,
