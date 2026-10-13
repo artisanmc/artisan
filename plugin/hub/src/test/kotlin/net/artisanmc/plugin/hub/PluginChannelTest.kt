@@ -132,6 +132,7 @@ class PluginChannelTest {
         val projects = list.get(5, TimeUnit.SECONDS).second!!
         assertEquals("survie2.shop", projects["projects"][0]["id"].asText())
         assertEquals("survie2", projects["projects"][0]["serverKeyId"].asText())
+        assertEquals("shop", projects["projects"][0]["externalId"].asText())
 
         val read = get("/api/v1/projects/survie2.shop/files")
         val readRequest = leaf.next()
