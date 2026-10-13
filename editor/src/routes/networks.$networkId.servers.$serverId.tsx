@@ -114,6 +114,8 @@ function ServerOverview({
   const navigate = useNavigate();
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [status, setStatus] = useState<"loading" | "ready" | "unavailable">("loading");
+  /** Pourquoi la liste manque, quand le serveur le dit (hors ligne, plugin à mettre à jour). */
+  const [unavailableReason, setUnavailableReason] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const serverScreens = useServerScreensStore((s) => s.screens);
   const localProjects = useAccountStore((s) => s.account.projects);
@@ -148,6 +150,7 @@ function ServerOverview({
       if (!res.ok) {
         setProjects([]);
         setStatus("unavailable");
+        setUnavailableReason(res.error);
         return;
       }
       setProjects(diskProjectsToSummaries(networkId, serverKeyId, res.projectIds, res.projects));
@@ -171,6 +174,8 @@ function ServerOverview({
 
   // Même découpage que la sidebar — projects ordinaires d'un côté, modules
   // installés de l'autre avec leurs onglets (ADR `addon-owned-project-roots`).
+  const updateRequired = status === "unavailable" && unavailableReason === "plugin_update_required";
+
   const { flatProjects, moduleGroups } = buildProjectGroups({
     projects,
     screens: serverScreens,
@@ -197,7 +202,7 @@ function ServerOverview({
             <button
               type="button"
               className="btn-ghost btn-sm"
-              disabled={!serverKeyId}
+              disabled={!serverKeyId || updateRequired}
               onClick={() => setImportOpen(true)}
             >
               {t("topbar.import")}
@@ -216,7 +221,13 @@ function ServerOverview({
             </p>
           ) : status === "unavailable" ? (
             <p className="text-[13px] text-[var(--text-mut)]">
-              {t("serverDetail.projectsUnavailable")}
+              {t(
+                updateRequired
+                  ? "serverDetail.updateRequired"
+                  : unavailableReason === "server_offline"
+                    ? "serverDetail.serverOffline"
+                    : "serverDetail.projectsUnavailable",
+              )}
             </p>
           ) : flatProjects.length === 0 ? (
             <p className="text-[13px] text-[var(--text-mut)]">{t("serverDetail.noProjects")}</p>
@@ -308,7 +319,7 @@ function ServerOverview({
             )}
           </section>
         )}
-        {serverKeyId && (
+        {serverKeyId && !updateRequired && (
           <section className="flex flex-col gap-3">
             <div className="flex items-center gap-3">
               <h2 className="eyebrow">{t("serverConfig.title")}</h2>
