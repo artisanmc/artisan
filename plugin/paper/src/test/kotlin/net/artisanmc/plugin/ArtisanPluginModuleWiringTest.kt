@@ -62,9 +62,20 @@ class ArtisanPluginModuleWiringTest {
         // MockBukkit loads the test, the mock add-on and Artisan's own modules with one
         // class loader: Artisan's modules go too here, unlike on a real server.
         // A MockPlugin is not a JavaPlugin, so disablePlugin() would not fire the event.
+        val warnings = mutableListOf<String>()
+        val handler = object : java.util.logging.Handler() {
+            override fun publish(r: java.util.logging.LogRecord) { warnings += "${r.message} ${r.thrown ?: ""}" }
+            override fun flush() {}
+            override fun close() {}
+        }
+        plugin.logger.addHandler(handler)
         plugin.server.pluginManager.callEvent(org.bukkit.event.server.PluginDisableEvent(addon))
+        plugin.logger.removeHandler(handler)
 
-        assertTrue(disabled)
+        assertTrue(disabled) {
+            "active=${plugin.api.modules.active().map { it.id }}, addon loader=${addon.javaClass.classLoader}, " +
+                "test loader=${javaClass.classLoader}, logs=$warnings"
+        }
         assertFalse(plugin.api.modules.has("homes"))
         assertFalse(plugin.api.commands.has("homes:go"))
     }
