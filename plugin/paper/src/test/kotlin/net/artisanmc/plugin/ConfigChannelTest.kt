@@ -127,7 +127,7 @@ class ConfigChannelTest {
     }
 
     @Test
-    fun `config_write ecrit atomiquement et supprime, sans rien pousser`() {
+    fun `config_write writes atomically and deletes, without pushing anything`() {
         val h = Harness()
         val dir = File(h.project("boutique"), "data/categories").also { it.mkdirs() }
         File(dir, "old.yaml").writeText("name: Old\n")

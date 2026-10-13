@@ -17,7 +17,7 @@ class PlayerPrefsTest {
     private fun patch(json: String) = prefs.update(player, Call.mapper.readTree(json))
 
     @Test
-    fun `the tour follows the backend rules`() {
+    fun `the tour starts once and stays completed`() {
         assertEquals(true, patch("""{"editor_tour":{"action":"start"}}""").second)
         assertEquals(false, patch("""{"editor_tour":{"action":"start"}}""").second)
         patch("""{"editor_tour":{"action":"complete"}}""")

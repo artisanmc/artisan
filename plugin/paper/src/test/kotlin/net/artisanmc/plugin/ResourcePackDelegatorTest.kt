@@ -59,7 +59,7 @@ class ResourcePackDelegatorTest {
     }
 
     @Test
-    fun `applyBytes skips project-mcmeta at zip root`() {
+    fun `applyBytes skips pack-mcmeta at zip root`() {
         val zip = buildZip(mapOf(
             "pack.mcmeta" to """{"pack":{"pack_format":64}}""".toByteArray(),
             "assets/artisan/font/default.json" to "{}".toByteArray(),
@@ -108,7 +108,7 @@ class ResourcePackDelegatorTest {
         hostFile.parentFile.mkdirs()
         hostFile.writeText("host content")
         val hostRoot = File(tempDir, "pack.mcmeta")
-        hostRoot.writeText("""{"project":{"pack_format":64}}""")
+        hostRoot.writeText("""{"pack":{"pack_format":64}}""")
 
         val zip = buildZip(mapOf(
             "assets/artisan/x.json" to "{}".toByteArray(),
@@ -168,7 +168,7 @@ class ResourcePackDelegatorTest {
     }
 
     @Test
-    fun `zip mode writes a zip file with assets-artisan entries plus project-mcmeta`() {
+    fun `zip mode writes a zip file with assets-artisan entries plus pack-mcmeta`() {
         val target = File(tempDir, "artisan.zip")
         val zip = buildZip(mapOf(
             "assets/artisan/font/default.json" to "{}".toByteArray(),

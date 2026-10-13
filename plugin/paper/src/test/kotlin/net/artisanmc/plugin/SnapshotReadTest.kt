@@ -58,7 +58,7 @@ class SnapshotReadTest {
     }
 
     @Test
-    fun `une edition disque n'apparait pas avant un reload`() {
+    fun `a disk edit does not show before a reload`() {
         val h = Harness()
         val p = h.project("boutique")
         h.write(p, "menus/m.yaml", "schema: menu/v1\nsize: 27\n")
@@ -76,7 +76,7 @@ class SnapshotReadTest {
     }
 
     @Test
-    fun `une racine enregistree par un Add-on APRES le chargement devient lisible`() {
+    fun `a root an add-on registers after loading becomes readable`() {
         val h = Harness()
         h.provider.load()
 
@@ -93,7 +93,7 @@ class SnapshotReadTest {
     }
 
     @Test
-    fun `un Add-on qui ecrit son propre disque peut faire reprendre l'instantane`() {
+    fun `an add-on that writes its own files can refresh the snapshot`() {
         val h = Harness()
         val p = h.project("boutique")
         h.write(p, "menus/m.yaml", "schema: menu/v1\nsize: 27\n")
@@ -114,7 +114,7 @@ class SnapshotReadTest {
     }
 
     @Test
-    fun `l'instantane garde les octets exacts, commentaires compris`() {
+    fun `the snapshot keeps the exact bytes, comments included`() {
         val h = Harness()
         val p = h.project("boutique")
         val exact = "# portage zMenu\nschema: menu/v1\n\nsize:   27\n"
@@ -126,7 +126,7 @@ class SnapshotReadTest {
     }
 
     @Test
-    fun `un fichier illisible figure dans l'instantane et reste reparable`() {
+    fun `an unparseable file is in the snapshot and stays repairable`() {
         val h = Harness()
         val p = h.project("boutique")
         h.write(p, "menus/ok.yaml", "schema: menu/v1\nsize: 27\n")

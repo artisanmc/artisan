@@ -25,7 +25,7 @@ class ElementLegacyAppearancesTest {
     private fun parse(yaml: String): MenuYaml = mapper.readValue(yaml.trimIndent(), MenuYaml::class.java)
 
     @Test
-    fun `la premiere appearance devient le display, les suivantes des states`() {
+    fun `the first appearance becomes the display, the rest become states`() {
         val menu = parse(
             """
             schema: menu/v1
@@ -50,7 +50,7 @@ class ElementLegacyAppearancesTest {
     }
 
     @Test
-    fun `le format courant l'emporte sur une liste residuelle`() {
+    fun `the current format wins over a leftover list`() {
         val menu = parse(
             """
             schema: menu/v1
