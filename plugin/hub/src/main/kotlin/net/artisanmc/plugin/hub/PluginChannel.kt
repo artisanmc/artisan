@@ -2,6 +2,7 @@ package net.artisanmc.plugin.hub
 
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.node.ObjectNode
+import net.artisanmc.plugin.protocol.ProtocolVersion
 import org.eclipse.jetty.websocket.api.Callback
 import org.eclipse.jetty.websocket.api.Session
 import java.security.MessageDigest
@@ -65,7 +66,11 @@ class PluginChannel(
         )
         session.sendText(Call.mapper.writeValueAsString(ack), Callback.NOOP)
         server.attach(session, hello)
-        logger?.info("[Artisan] Server $name connected to the editor")
+        if (server.updateRequired) {
+            logger?.warning("[Artisan] Server $name speaks protocol ${hello.path("protocol_version").asText("?")}, the hub ${ProtocolVersion.CURRENT}: update both to the same release")
+        } else {
+            logger?.info("[Artisan] Server $name connected to the editor")
+        }
         return server
     }
 

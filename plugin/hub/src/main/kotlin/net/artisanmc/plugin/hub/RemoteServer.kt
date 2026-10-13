@@ -3,6 +3,7 @@ package net.artisanmc.plugin.hub
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.node.ObjectNode
+import net.artisanmc.plugin.protocol.ProtocolVersion
 import net.artisanmc.plugin.protocol.ServerLink
 import org.eclipse.jetty.websocket.api.Callback
 import org.eclipse.jetty.websocket.api.Session
@@ -43,6 +44,7 @@ class RemoteServer(
     override val online: Boolean get() = session?.isOpen == true
     override val minecraftVersion: String get() = hello.path("minecraft_version").asText("")
     override val pluginVersion: String get() = hello.path("plugin_version").asText("")
+    override val updateRequired: Boolean get() = !ProtocolVersion.compatible(hello.path("protocol_version").asText("1"))
 
     override fun modules() = list("installed_modules")
     override fun dataSources() = list("data_sources")
@@ -110,6 +112,7 @@ class RemoteServer(
     }
 
     private fun send(message: Map<String, Any?>): Boolean {
+        if (updateRequired) return false
         val current = session?.takeIf { it.isOpen } ?: return false
         send(current, message)
         return true

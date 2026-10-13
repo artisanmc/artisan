@@ -8,6 +8,7 @@ import java.util.logging.Logger
 /** Une requête du protocole, puis une réponse HTTP construite depuis sa réponse. */
 class Relay(private val logger: Logger?) {
     fun send(call: Call, server: EditorServer, message: Map<String, Any?>, respond: (Map<String, Any?>) -> Unit) {
+        if (server.updateRequired) return call.error(503, "plugin_update_required")
         server.link.request(message).whenComplete { reply, failure ->
             try {
                 val cause = (failure as? CompletionException)?.cause ?: failure
