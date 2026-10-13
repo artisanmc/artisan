@@ -1,12 +1,10 @@
 import { Badge } from "@/components/ui/badge";
-import { SELF_HOSTED } from "@/lib/selfHosted";
 import { displayServerLabel } from "@/lib/serverLabel";
 import { useNetworksStore } from "@/state/networksStore";
 import { useServersStore } from "@/state/serversStore";
 import { useSidebarStore } from "@/state/sidebarStore";
 import { useNavigate, useParams } from "@tanstack/react-router";
-import { Link } from "@tanstack/react-router";
-import { ChevronDown, Plus } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -95,26 +93,7 @@ export function ServerSelector({ servers }: Props) {
     });
   };
 
-  if (servers.length === 0) {
-    // Servi par le plugin, le hub est toujours là : pas de parcours de création.
-    if (SELF_HOSTED) return null;
-    return (
-      <Link
-        to="/setup"
-        className="flex w-full items-center justify-between rounded-[14px] border border-dashed border-[var(--border)] bg-transparent px-3 py-2.5 text-left transition-colors hover:border-[var(--brand-line)] hover:bg-[var(--brand-soft)]"
-      >
-        <div className="flex flex-col">
-          <span className="text-[9.5px] font-bold uppercase tracking-[.14em] text-[var(--text-faint)]">
-            {t("sidebar.serverLabel")}
-          </span>
-          <span className="mt-0.5 text-[13px] font-medium text-[var(--text-mut)]">
-            {t("sidebar.noServers")}
-          </span>
-        </div>
-        <Plus className="size-3.5 text-[var(--brand)]" />
-      </Link>
-    );
-  }
+  if (servers.length === 0) return null;
 
   const displayLabel = active
     ? displayServerLabel({ id: active.serverId, label: active.serverLabel || null })

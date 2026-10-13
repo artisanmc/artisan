@@ -23,7 +23,7 @@ data class ProjectSnapshot(
 ) {
     val projectIds: List<String> get() = files.keys.sorted()
 
-    /** L'empreinte de `project_read`, comparée par le backend à celle du `hello`. */
+    /** L'empreinte de `project_read`, annoncée aussi par `projects_reloaded`. */
     fun hash(projectId: String): String = BundleHasher.snapshotHash(
         files[projectId] ?: emptyMap(),
         (binaries[projectId] ?: emptyMap()).mapValues { it.value.hash },
@@ -31,8 +31,6 @@ data class ProjectSnapshot(
     )
 
     fun hashes(): List<Map<String, String>> = projectIds.map { mapOf("id" to it, "hash" to hash(it)) }
-
-    fun without(projectId: String) = ProjectSnapshot(files - projectId, binaries - projectId, skipped - projectId)
 
     companion object {
         val EMPTY = ProjectSnapshot(emptyMap(), emptyMap(), emptyMap())

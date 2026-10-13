@@ -36,7 +36,7 @@ class EditableConfig(private val defaults: Configuration) {
             else -> false
         }
         if (!typed) return "invalid_type"
-        if ((key.endsWith(".path") || key == "resource-pack.delegate-to-dir") && unsafePath(value as String)) return "unsafe_path"
+        if (key == "resource-pack.delegate-to-dir" && unsafePath(value as String)) return "unsafe_path"
         if (key.startsWith("resource-pack.container-textures.") && value != "" && !TEXTURE_REF.matches(value as String)) return "invalid_reference"
         return null
     }

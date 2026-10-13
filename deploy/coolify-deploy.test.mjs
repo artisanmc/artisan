@@ -17,12 +17,9 @@ import {
 const env = {
   COOLIFY_BASE_URL: "https://coolify.example.test",
   COOLIFY_API_TOKEN: "coolify-secret-token",
-  COOLIFY_BACKEND_UUID: "backend uuid",
   COOLIFY_EDITOR_UUID: "editor uuid",
   CF_ACCESS_CLIENT_ID: "access-client-id",
   CF_ACCESS_CLIENT_SECRET: "access-client-secret",
-  API_HEALTH_URL: "https://api.artisanmc.net/health",
-  EDITOR_HEALTH_URL: "https://editor.artisanmc.net/health",
   MARKETING_HEALTH_URL: "https://artisanmc.net/",
   EXPECTED_SHA: "0123456789abcdef0123456789abcdef01234567",
 };
@@ -56,8 +53,10 @@ test("production workflow deploys only the current successful main CI SHA", () =
   assert.match(workflow, /node deploy\/coolify-deploy\.mjs/);
   assert.match(workflow, /^\s{4}timeout-minutes: 30$/m);
   assert.match(workflow, /EXPECTED_SHA: \$\{\{ github\.event\.workflow_run\.head_sha \}\}/);
-  assert.match(workflow, /API_HEALTH_URL: https:\/\/api\.artisanmc\.net\/health/);
-  assert.match(workflow, /EDITOR_HEALTH_URL: https:\/\/editor\.artisanmc\.net\//);
+  assert.match(workflow, /COOLIFY_EDITOR_UUID: \$\{\{ vars\.COOLIFY_EDITOR_UUID \}\}/);
+  assert.match(workflow, /MARKETING_HEALTH_URL: https:\/\/artisanmc\.net\//);
+  assert.doesNotMatch(workflow, /COOLIFY_BACKEND_UUID|API_HEALTH_URL|EDITOR_HEALTH_URL|api\.artisanmc\.net/);
+  assert.doesNotMatch(workflow, /publish-plugin|PLUGIN_SIGNING_KEY|setup-java/);
 });
 
 test("buildHeaders returns exactly the Coolify and Cloudflare headers", () => {
@@ -80,13 +79,12 @@ test("deployProduction validates every required variable before fetching", async
   assert.equal(fetches, 0);
 });
 
-test("deployProduction strictly deploys and health-checks backend before editor", async () => {
+test("deployProduction deploys the site resource then waits for the marketing health URL", async () => {
   const calls = [];
   const fetchImpl = async (url, options = {}) => {
     calls.push([url, options.method ?? "GET"]);
     if (url.includes("/api/v1/deploy?")) {
-      const uuid = url.includes("backend%20uuid") ? "backend-deployment" : "editor-deployment";
-      return response({ deployments: [{ deployment_uuid: uuid }] });
+      return response({ deployments: [{ deployment_uuid: "site-deployment" }] });
     }
     if (url.includes("/api/v1/deployments/")) {
       return response({ status: "finished", commit: env.EXPECTED_SHA });
@@ -97,14 +95,9 @@ test("deployProduction strictly deploys and health-checks backend before editor"
   await deployProduction({ fetchImpl, sleep: async () => {} }, env);
 
   assert.deepEqual(calls, [
-    ["https://coolify.example.test/api/v1/applications/backend%20uuid", "PATCH"],
-    ["https://coolify.example.test/api/v1/deploy?uuid=backend%20uuid&force=false", "POST"],
-    ["https://coolify.example.test/api/v1/deployments/backend-deployment", "GET"],
-    ["https://api.artisanmc.net/health", "GET"],
     ["https://coolify.example.test/api/v1/applications/editor%20uuid", "PATCH"],
     ["https://coolify.example.test/api/v1/deploy?uuid=editor%20uuid&force=false", "POST"],
-    ["https://coolify.example.test/api/v1/deployments/editor-deployment", "GET"],
-    ["https://editor.artisanmc.net/health", "GET"],
+    ["https://coolify.example.test/api/v1/deployments/site-deployment", "GET"],
     ["https://artisanmc.net/", "GET"],
   ]);
 });
@@ -114,9 +107,9 @@ test("pinApplicationRevision sends the validated SHA to Coolify", async () => {
   await pinApplicationRevision(async (url, options) => {
     request = { url, options };
     return response({ message: "updated" });
-  }, env, "backend uuid");
+  }, env, "editor uuid");
 
-  assert.equal(request.url, "https://coolify.example.test/api/v1/applications/backend%20uuid");
+  assert.equal(request.url, "https://coolify.example.test/api/v1/applications/editor%20uuid");
   assert.equal(request.options.method, "PATCH");
   assert.equal(request.options.headers["Content-Type"], "application/json");
   assert.deepEqual(JSON.parse(request.options.body), { git_commit_sha: env.EXPECTED_SHA });
@@ -144,14 +137,14 @@ test("fetchWithTimeout aborts a stalled request", async () => {
 
 test("triggerDeployment rejects non-2xx responses", async () => {
   await assert.rejects(
-    triggerDeployment(async () => response({}, { ok: false, status: 401 }), env, "backend"),
+    triggerDeployment(async () => response({}, { ok: false, status: 401 }), env, "editor"),
     /HTTP 401/,
   );
 });
 
 test("triggerDeployment rejects a response without deployment UUID", async () => {
   await assert.rejects(
-    triggerDeployment(async () => response({ deployments: [] }), env, "backend"),
+    triggerDeployment(async () => response({ deployments: [] }), env, "editor"),
     /Coolify did not return a deployment UUID/,
   );
 });
@@ -200,7 +193,7 @@ test("waitForHealth retries non-2xx and network errors before success", async ()
     const outcome = outcomes.shift();
     if (outcome instanceof Error) throw outcome;
     return outcome;
-  }, env.API_HEALTH_URL, async (delay) => { sleepDelays.push(delay); });
+  }, env.MARKETING_HEALTH_URL, async (delay) => { sleepDelays.push(delay); });
   assert.deepEqual(sleepDelays, [5_000, 5_000]);
 });
 
@@ -222,37 +215,35 @@ test("waitForHealth times out after exactly 30 polls and names the URL", async (
     waitForHealth(async () => {
       polls += 1;
       return response({}, { ok: false, status: 503 });
-    }, env.EDITOR_HEALTH_URL, async () => {}),
-    (error) => error.message.includes(env.EDITOR_HEALTH_URL),
+    }, env.MARKETING_HEALTH_URL, async () => {}),
+    (error) => error.message.includes(env.MARKETING_HEALTH_URL),
   );
   assert.equal(polls, 30);
 });
 
-test("deployProduction never triggers editor after backend failure", async () => {
+test("deployProduction skips the health check after a failed deployment", async () => {
   const urls = [];
   await assert.rejects(
     deployProduction({
       fetchImpl: async (url) => {
         urls.push(url);
-        if (url.includes("/api/v1/deploy?")) return response({ deployments: [{ deployment_uuid: "backend-deployment" }] });
+        if (url.includes("/api/v1/deploy?")) return response({ deployments: [{ deployment_uuid: "site-deployment" }] });
         return response({ status: "failed" });
       },
       sleep: async () => {},
     }, env),
     /failed/,
   );
-  assert.equal(urls.some((url) => url.includes("editor%20uuid")), false);
+  assert.equal(urls.includes(env.MARKETING_HEALTH_URL), false);
 });
 
-test("deployProduction never triggers editor after backend health failure", async () => {
-  const urls = [];
+test("deployProduction fails when the marketing site never becomes healthy", async () => {
   await assert.rejects(
     deployProduction({
       fetchImpl: async (url) => {
-        urls.push(url);
         if (url.includes("/api/v1/applications/")) return response({});
         if (url.includes("/api/v1/deploy?")) {
-          return response({ deployments: [{ deployment_uuid: "backend-deployment" }] });
+          return response({ deployments: [{ deployment_uuid: "site-deployment" }] });
         }
         if (url.includes("/api/v1/deployments/")) {
           return response({ status: "finished", commit: env.EXPECTED_SHA });
@@ -261,9 +252,8 @@ test("deployProduction never triggers editor after backend health failure", asyn
       },
       sleep: async () => {},
     }, env),
-    (error) => error.message.includes(env.API_HEALTH_URL),
+    (error) => error.message.includes(env.MARKETING_HEALTH_URL),
   );
-  assert.equal(urls.some((url) => url.includes("editor%20uuid")), false);
 });
 
 test("main-module failure is nonzero and does not expose secrets", () => {
@@ -272,7 +262,7 @@ test("main-module failure is nonzero and does not expose secrets", () => {
     ...env,
     COOLIFY_API_TOKEN: "cli-secret-token",
     CF_ACCESS_CLIENT_SECRET: "cli-access-secret",
-    API_HEALTH_URL: "",
+    MARKETING_HEALTH_URL: "",
   };
   const scriptPath = fileURLToPath(new URL("./coolify-deploy.mjs", import.meta.url));
   const result = spawnSync(process.execPath, [scriptPath], {

@@ -1,8 +1,10 @@
-import { describe, expect, it } from "vitest";
 import type { Asset } from "@/domain/asset";
+import { describe, expect, it, vi } from "vitest";
 import { fontGlyphUrl } from "./fontGlyphUrl";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
+vi.mock("@/features/assets/localAssetUrl", () => ({
+  localFontGlyphUrl: (asset: Asset, texture: string) => `local:${asset.id}/${texture}`,
+}));
 
 function makeFontAsset(overrides: Partial<Asset> = {}): Asset {
   return {
@@ -54,11 +56,9 @@ describe("fontGlyphUrl", () => {
     expect(fontGlyphUrl(asset, "a")).toBeNull();
   });
 
-  it("returns URL with contentHash query param and texture path for known char", () => {
+  it("resolves the glyph texture of a known char in the project tree", () => {
     const asset = makeFontAsset();
-    expect(fontGlyphUrl(asset, "a")).toBe(
-      `${API_URL}/api/v1/textures/asset-font/p1/font-1/glyphs/a.png?h=abc123`,
-    );
+    expect(fontGlyphUrl(asset, "a")).toBe("local:font-1/glyphs/a.png");
   });
 
   it("returns null when char is missing from glyphMap", () => {
@@ -75,9 +75,7 @@ describe("fontGlyphUrl", () => {
         ],
       },
     });
-    expect(fontGlyphUrl(asset, "x")).toBe(
-      `${API_URL}/api/v1/textures/asset-font/p1/font-1/glyphs/sub-dir/x_1.png?h=abc123`,
-    );
+    expect(fontGlyphUrl(asset, "x")).toBe("local:font-1/glyphs/sub-dir/x_1.png");
   });
 
   it("strips unsafe characters from the texture path", () => {
@@ -93,10 +91,8 @@ describe("fontGlyphUrl", () => {
     // ".." is composed of allowed chars (`.`), but the leading slash separator
     // and the `$` are stripped where applicable. Our allowlist keeps `.`, `/`,
     // `-`, `_`, alphanumerics — so `../escape.png` becomes `../escape.png`
-    // (backend enforces path-traversal guard); `$foo.png` becomes `foo.png`.
-    expect(fontGlyphUrl(asset, "d")).toBe(
-      `${API_URL}/api/v1/textures/asset-font/p1/font-1/foo.png?h=abc123`,
-    );
+    // (the tree lookup only knows real paths); `$foo.png` becomes `foo.png`.
+    expect(fontGlyphUrl(asset, "d")).toBe("local:font-1/foo.png");
     // Verify `$` was actually stripped.
     expect(fontGlyphUrl(asset, "d")).not.toContain("$");
   });

@@ -42,8 +42,8 @@ du protocole (`project_read`, `project_write`, `project_draft_request`…) pass�
 Les brouillons privés restent sur le disque du serveur, un jeu par UUID de joueur.
 Sans équivalent pour l'instant : Versions (vides).
 
-**⑦ Items et textures vanilla sans backend.** Le catalogue d'items (`backend/data/items`)
-voyage dans le jar ; les icônes 3D (`backend/assets-seed`) aussi avec `-PwithEditor`. Les
+**⑦ Items et textures vanilla sans backend.** Le catalogue d'items (`tools/minecraft-assets/items`)
+voyage dans le jar ; les icônes 3D (`tools/minecraft-assets/icons`) aussi avec `-PwithEditor`. Les
 textures sont extraites du jar client Mojang, téléchargé et vérifié (SHA-1) à la première
 texture demandée, dans `plugins/Artisan/cache/minecraft/<version>/`. Les items custom se
 lisent directement dans `CustomItemsManager` (`ItemRoutes`, `VanillaAssets`).

@@ -27,6 +27,7 @@ class EditableConfigTest {
         assertEquals("", report["resource-pack.container-textures.chest"])
         assertFalse("server_key" in report)
         assertFalse("ws_url" in report)
+        assertFalse(report.keys.any { it.startsWith("editor.") || it.startsWith("assistant.") })
     }
 
     @Test
@@ -36,7 +37,6 @@ class EditableConfigTest {
             "language" to "fr",
             "resource-pack.send-delay-ticks" to 40,
             "resource-pack.container-textures.chest" to "ui:menu_items",
-            "assistant.import-sources.zmenu.extensions" to listOf(".yml"),
         )))
         assertEquals("fr", cfg.getString("language"))
         assertEquals(40L, cfg.getLong("resource-pack.send-delay-ticks"))
@@ -64,7 +64,6 @@ class EditableConfigTest {
         val cfg = fileConfig()
         for (bad in listOf("/etc", "C:\\Windows", "\\\\host\\share", "plugins/../../x", "..")) {
             assertEquals("resource-pack.delegate-to-dir: unsafe_path", editable.apply(cfg, mapOf("resource-pack.delegate-to-dir" to bad)), bad)
-            assertEquals("assistant.import-sources.zmenu.path: unsafe_path", editable.apply(cfg, mapOf("assistant.import-sources.zmenu.path" to bad)), bad)
         }
         assertNull(editable.apply(cfg, mapOf("resource-pack.delegate-to-dir" to "plugins/Nexo/pack/external_packs/artisan.zip")))
         assertNull(editable.apply(cfg, mapOf("resource-pack.delegate-to-dir" to "")))

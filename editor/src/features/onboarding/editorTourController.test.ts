@@ -1,29 +1,6 @@
 import { expect, test, vi } from "vitest";
 import { createEditorTourController } from "./editorTourController";
 
-test("an anonymous demo presents its welcome once and can resume after remount", async () => {
-  let saved: { step: number; completed: boolean } | null = null;
-  const deps = {
-    readGuest: () => saved,
-    writeGuest: (value: { step: number; completed: boolean }) => {
-      saved = value;
-    },
-    readAccount: vi.fn(),
-    writeAccount: vi.fn(),
-  };
-  const first = createEditorTourController(deps);
-  await first.activate({ accountId: null, demo: true, ready: true });
-  expect(first.getSnapshot()).toMatchObject({ open: true, step: 0 });
-  await first.next();
-  first.defer();
-  expect(first.getSnapshot()).toMatchObject({ open: false, step: 1 });
-  const remounted = createEditorTourController(deps);
-  await remounted.activate({ accountId: null, demo: true, ready: true });
-  expect(remounted.getSnapshot()).toMatchObject({ open: false, step: 1 });
-  await remounted.resume();
-  expect(remounted.getSnapshot()).toMatchObject({ open: true, step: 1 });
-});
-
 test("switching account clears old progress immediately and ignores its late successful write", async () => {
   let finishWrite!: (value: unknown) => void;
   let finishRead!: (value: {
@@ -46,7 +23,7 @@ test("switching account clears old progress immediately and ignores its late suc
         }),
     ),
   });
-  await tour.activate({ accountId: "alice", demo: false, ready: true });
+  await tour.activate({ accountId: "alice", ready: true });
   await tour.resume();
   const saving = tour.next();
   tour.deactivate();
@@ -57,7 +34,7 @@ test("switching account clears old progress immediately and ignores its late suc
     open: false,
     busy: false,
   });
-  const loading = tour.activate({ accountId: "bob", demo: false, ready: true });
+  const loading = tour.activate({ accountId: "bob", ready: true });
   finishWrite({ user: { id: "alice", editorTour: { step: 3, completed: false } } });
   await saving;
   expect(tour.getSnapshot()).toMatchObject({ progress: null, status: "loading" });
@@ -66,7 +43,7 @@ test("switching account clears old progress immediately and ignores its late suc
   expect(tour.getSnapshot()).toMatchObject({ open: false, progress: { completed: true } });
 });
 
-test("explicit demo progress imports before automatic start and a failed import remains retryable", async () => {
+test("transferred progress imports before automatic start and a failed import remains retryable", async () => {
   const guest = { step: 4, completed: false };
   const clearTransfer = vi.fn();
   const writeAccount = vi
@@ -81,10 +58,10 @@ test("explicit demo progress imports before automatic start and a failed import 
     readTransfer: (id: string) => (id === "alice" ? guest : null),
     clearTransfer,
   });
-  await tour.activate({ accountId: "alice", demo: true, ready: true });
+  await tour.activate({ accountId: "alice", ready: true });
   expect(tour.getSnapshot()).toMatchObject({ status: "error", open: false });
   expect(clearTransfer).not.toHaveBeenCalled();
-  await tour.activate({ accountId: "alice", demo: false, ready: true });
+  await tour.activate({ accountId: "alice", ready: true });
   expect(tour.getSnapshot()).toMatchObject({ open: false, step: 4, progress: guest });
   expect(writeAccount).toHaveBeenCalledTimes(2);
   expect(writeAccount).toHaveBeenLastCalledWith("alice", { action: "import", ...guest });
@@ -99,7 +76,7 @@ test("failed progress writes remain retryable and a deferred in-flight write can
     readAccount: async () => ({ id: "alice", editorTour: { step: 2, completed: false } }),
     writeAccount,
   });
-  await tour.activate({ accountId: "alice", demo: false, ready: true });
+  await tour.activate({ accountId: "alice", ready: true });
   await tour.resume();
   await tour.next();
   expect(tour.getSnapshot()).toMatchObject({ status: "error", busy: false, open: true, step: 2 });
@@ -118,7 +95,7 @@ test("failed progress writes remain retryable and a deferred in-flight write can
   expect(tour.getSnapshot()).toMatchObject({ status: "ready", busy: false, open: false, step: 3 });
 });
 
-test("an unready workspace or anonymous non-demo route cannot present or record the tour", async () => {
+test("an unready workspace or an anonymous visitor cannot present or record the tour", async () => {
   const readGuest = vi.fn(() => null);
   const writeGuest = vi.fn();
   const readAccount = vi.fn();
@@ -128,10 +105,10 @@ test("an unready workspace or anonymous non-demo route cannot present or record 
     readAccount,
     writeAccount: vi.fn(),
   });
-  await tour.activate({ accountId: "alice", demo: true, ready: false });
+  await tour.activate({ accountId: "alice", ready: false });
   await tour.resume();
   expect(tour.getSnapshot().open).toBe(false);
-  await tour.activate({ accountId: null, demo: false, ready: true });
+  await tour.activate({ accountId: null, ready: true });
   await tour.replay();
   expect(tour.getSnapshot()).toMatchObject({ open: false, status: "idle" });
   expect(readAccount).not.toHaveBeenCalled();
@@ -154,7 +131,7 @@ test.each(["offline", "missing", "wrong-account", "signed-out"])(
       readAccount,
       writeAccount,
     });
-    await tour.activate({ accountId: "alice", demo: true, ready: true });
+    await tour.activate({ accountId: "alice", ready: true });
     expect(tour.getSnapshot()).toMatchObject({ open: false, status: "error" });
     expect(writeAccount).not.toHaveBeenCalled();
     readAccount.mockResolvedValue({
@@ -180,8 +157,8 @@ test("a late account read cannot open or write into another account", async () =
         : Promise.resolve({ id: "bob", editorTour: { step: 6, completed: true } }),
     writeAccount,
   });
-  const alice = tour.activate({ accountId: "alice", demo: false, ready: true });
-  await tour.activate({ accountId: "bob", demo: false, ready: true });
+  const alice = tour.activate({ accountId: "alice", ready: true });
+  await tour.activate({ accountId: "bob", ready: true });
   finishAlice({ id: "alice", editorTour: null });
   await alice;
   expect(writeAccount).not.toHaveBeenCalled();
@@ -204,7 +181,7 @@ test("account progress survives defer, back and replay without resetting complet
     }),
   };
   const tour = createEditorTourController(deps);
-  await tour.activate({ accountId: "alice", demo: false, ready: true });
+  await tour.activate({ accountId: "alice", ready: true });
   expect(tour.getSnapshot().open).toBe(false);
   await tour.resume();
   await tour.next();
@@ -222,7 +199,7 @@ test("account progress survives defer, back and replay without resetting complet
   expect(writeGuest).not.toHaveBeenCalled();
 });
 
-test("a signed-in demo uses account truth and only opens after winning its automatic claim", async () => {
+test("a signed-in visitor uses account truth and only opens after winning its automatic claim", async () => {
   const readGuest = vi.fn(() => ({ step: 4, completed: true }));
   const readAccount = vi.fn().mockResolvedValue({ id: "alice", editorTour: null });
   const writeAccount = vi.fn().mockResolvedValue({
@@ -235,7 +212,7 @@ test("a signed-in demo uses account truth and only opens after winning its autom
     readAccount,
     writeAccount,
   });
-  await tour.activate({ accountId: "alice", demo: true, ready: true });
+  await tour.activate({ accountId: "alice", ready: true });
   expect(readGuest).not.toHaveBeenCalled();
   expect(writeAccount).toHaveBeenCalledWith("alice", { action: "start" });
   expect(tour.getSnapshot()).toMatchObject({ open: true, progress: { step: 0, completed: false } });
@@ -244,6 +221,6 @@ test("a signed-in demo uses account truth and only opens after winning its autom
     user: { id: "alice", editorTour: { step: 0, completed: false } },
     tourStarted: false,
   });
-  await tour.activate({ accountId: "alice", demo: false, ready: true });
+  await tour.activate({ accountId: "alice", ready: true });
   expect(tour.getSnapshot().open).toBe(false);
 });

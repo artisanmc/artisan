@@ -5,12 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import net.artisanmc.plugin.project.ProjectDraftStore
 import net.artisanmc.plugin.project.ProjectPathPolicy
 import net.artisanmc.plugin.project.ProjectPublisher
-import net.artisanmc.plugin.protocol.EditorRequest.AssetWrite
 import net.artisanmc.plugin.protocol.EditorRequest.ConfigWrite
-import net.artisanmc.plugin.protocol.EditorRequest.ProjectCopy
-import net.artisanmc.plugin.protocol.EditorRequest.ProjectDeleted
 import net.artisanmc.plugin.protocol.EditorRequest.ProjectDraft
-import net.artisanmc.plugin.protocol.EditorRequest.ProjectRename
 import net.artisanmc.plugin.protocol.EditorRequest.ProjectWrite
 import net.artisanmc.plugin.sync.BundleHasher
 import net.artisanmc.plugin.sync.ProjectFilesReader
@@ -29,8 +25,6 @@ class ProjectWrites(
     private val replies: Replies,
     private val send: (Map<String, Any?>) -> Unit,
     private val logger: Logger?,
-    private val minecraftVersion: () -> String,
-    private val installedModuleIds: () -> Set<String>,
 ) {
     private val roots get() = workspace.roots
     private val mutations = ProjectMutations(roots)
@@ -42,7 +36,6 @@ class ProjectWrites(
         val binaries = request.binaries
         if (binaries == null || !isValidWrite(request, binaries)) return reply.error("invalid_path")
         replies.offThread("project_write", workspace.io) {
-            if (rejected(projectId, reply)) return@offThread
             if (mutations.deniedByQuota(
                     reply, request.message, projectId,
                     request.writes.map { it.path } + binaries.filter { it.contentBase64 != null }.map { it.path },
@@ -69,7 +62,7 @@ class ProjectWrites(
                     return@offThread reply.send(mapOf("ok" to false, "error" to "conflict", "conflicts" to conflicts, "disk_files" to onDisk))
                 }
                 mutations.commit(projectDir, request.message, changes(projectDir, request, decoded))
-                workspace.reload(clearDrafts = true)
+                workspace.reload()
                 reply.ok()
             } catch (e: Throwable) {
                 reply.failure("write_error", "project_write '$projectId'", e)
@@ -152,48 +145,6 @@ class ProjectWrites(
         return archived + historyMoves
     }
 
-    /**
-     * Écriture d'assets binaires, groupée et tout-ou-rien : une police dépliée,
-     * c'est ~96 fichiers, et une police à moitié posée serait pire qu'aucune.
-     */
-    fun assets(request: AssetWrite) {
-        val reply = replies.to(request, "asset_write_result")
-        val (_, projectId, writes) = request
-        if (writes.isEmpty() || !EditorPaths.isSafeProjectId(projectId) ||
-            writes.any { !EditorPaths.isWritable(it.path) || !ProjectFilesReader.isBinary(it.path) }
-        ) return reply.error("invalid_path")
-        replies.offThread("asset_write", workspace.io) {
-            try {
-                if (rejected(projectId, reply)) return@offThread
-                if (mutations.deniedByQuota(reply, request.message, projectId, writes.map { it.path }, emptyList())) return@offThread
-                val projectDir = roots.dirFor(projectId)
-                if (!projectDir.isDirectory) return@offThread reply.error("unknown_project")
-                if (mutations.replayed(projectDir, request.message, reply)) return@offThread
-                val conflicts = writes.mapNotNull { w ->
-                    val actual = ProjectPathPolicy.resolve(projectDir, w.path).takeIf { it.isFile }?.let { BundleHasher.hashBytes(it.readBytes()) }
-                    if (actual == w.baseHash) null else mapOf("path" to w.path, "disk_hash" to actual)
-                }
-                if (conflicts.isNotEmpty()) {
-                    // `disk_hash` au premier niveau : la forme à un fichier l'attendait.
-                    return@offThread reply.send(mapOf(
-                        "ok" to false, "error" to "conflict", "conflicts" to conflicts, "disk_hash" to conflicts.first()["disk_hash"],
-                    ))
-                }
-                // Décoder AVANT d'écrire : un base64 cassé au milieu du lot laisserait la moitié des glyphes posés.
-                val decoded = try {
-                    writes.associate { w -> w.path to w.contentBase64?.let { Base64.getDecoder().decode(it) } }
-                } catch (_: IllegalArgumentException) {
-                    return@offThread reply.error("invalid_content")
-                }
-                mutations.commit(projectDir, request.message, ProjectPublisher(projectDir).withHistory(decoded))
-                workspace.reload(clearDrafts = false)
-                reply.ok()
-            } catch (e: Throwable) {
-                reply.failure("write_error", "asset_write '$projectId'", e)
-            }
-        }
-    }
-
     /** Écriture d'une table d'écran de config : un simple changement disque, rechargé. */
     fun config(request: ConfigWrite) {
         val reply = replies.to(request, "config_write_result")
@@ -202,7 +153,6 @@ class ProjectWrites(
             writes.any { !EditorPaths.isSafeRelPath(it.first) } || deletes.any { !EditorPaths.isSafeRelPath(it) }
         ) return reply.error("invalid_path")
         replies.offThread("config_write", workspace.io) {
-            if (rejected(projectId, reply)) return@offThread
             if (mutations.deniedByQuota(reply, request.message, projectId, writes.map { it.first }, deletes)) return@offThread
             val projectDir = roots.dirFor(projectId)
             if (!projectDir.isDirectory) return@offThread reply.error("unknown_project")
@@ -211,7 +161,7 @@ class ProjectWrites(
                 val changes = writes.associate { (path, content) -> path to content.toByteArray(Charsets.UTF_8) }.toMutableMap<String, ByteArray?>()
                 deletes.forEach { changes[it] = null }
                 mutations.commit(projectDir, request.message, changes)
-                workspace.reload(clearDrafts = true)
+                workspace.reload()
                 reply.ok()
             } catch (e: Throwable) {
                 reply.failure("write_error", "config_write '$projectId'", e)
@@ -219,45 +169,13 @@ class ProjectWrites(
         }
     }
 
-    fun copy(request: ProjectCopy) = replies.offThread("project_copy", workspace.io) {
-        val copier = roots.copier
-        val beforeActivation = copier.activationRevision
-        val result = copier.handle(request.message, minecraftVersion(), installedModuleIds()) { target, files ->
-            mutations.quotaDenial(request.message, target, files, emptyList())
-        }
-        if (copier.activationRevision != beforeActivation) {
-            runCatching { workspace.reload(clearDrafts = false) }.onFailure { error ->
-                logger?.log(Level.WARNING, "[Artisan] Project copy activated on disk, but runtime reload failed.", error)
-            }
-        }
-        send(result + mapOf("type" to "project_copy_result", "request_id" to request.requestId))
-    }
-
-    fun rename(request: ProjectRename) = replies.offThread("project_rename", workspace.io) {
-        val result = mutableMapOf<String, Any?>(
-            "type" to "project_rename_result", "request_id" to request.requestId,
-            "operation_id" to request.operationId, "project_id" to request.projectId, "target_project_id" to request.targetProjectId,
-        )
-        try {
-            val error = roots.renamer.rename(request.operationId, request.projectId, request.targetProjectId)
-            result["ok"] = error == null
-            if (error != null) result["error"] = error else workspace.reload(clearDrafts = true)
-        } catch (e: Exception) {
-            result["ok"] = false
-            result["error"] = "rename_error"
-            result["message"] = Replies.describe(e)
-        }
-        send(result)
-    }
-
     /** Brouillons privés (`project_drafts`). La réponse part avant le rechargement d'une publication. */
     fun draft(request: ProjectDraft) = replies.offThread("project_draft_request", workspace.io) {
         val projectId = request.projectId
         val result: JsonNode = try {
-            val error = if (!EditorPaths.isSafeProjectId(projectId)) "invalid_path" else roots.renamer.mutationError(projectId)
             val root = roots.dirFor(projectId)
             when {
-                error != null -> mapper.valueToTree<JsonNode>(mapOf("ok" to false, "error" to error))
+                !EditorPaths.isSafeProjectId(projectId) -> mapper.valueToTree<JsonNode>(mapOf("ok" to false, "error" to "invalid_path"))
                 !root.isDirectory -> mapper.valueToTree<JsonNode>(mapOf("ok" to false, "error" to "unknown_project"))
                 else -> ProjectDraftStore(root) { changes ->
                     mutations.quotaDenial(
@@ -276,23 +194,11 @@ class ProjectWrites(
         send(payload)
         if (result.path("ok").asBoolean() && request.message.path("action").asText() == "publish") {
             try {
-                workspace.reload(clearDrafts = true)
+                workspace.reload()
             } catch (error: Exception) {
                 logger?.log(Level.WARNING, "[Artisan] Draft published but runtime reload failed", error)
             }
         }
-    }
-
-    fun deleted(request: ProjectDeleted) = replies.offThread("project_deleted", workspace.io) {
-        val projectId = request.projectId
-        if (EditorPaths.isSafeProjectId(projectId) && roots.renamer.mutationError(projectId) == null) workspace.delete(projectId)
-    }
-
-    /** Un Project en cours de renommage refuse toute écriture. */
-    private fun rejected(projectId: String, reply: Replies.Reply): Boolean {
-        val error = roots.renamer.mutationError(projectId) ?: return false
-        reply.error(error)
-        return true
     }
 
     private companion object {

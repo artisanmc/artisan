@@ -10,12 +10,10 @@ import {
   patchServerConfig,
 } from "@/lib/api/serverConfig";
 import { listAssets } from "@/lib/api/userAssets";
-import { SELF_HOSTED } from "@/lib/selfHosted";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 const TEXTURES = "resource-pack.container-textures.";
-const SOURCE_FIELD = /^assistant\.import-sources\.([^.]+)\.([^.]+)$/;
 
 /** Vanilla container layout: square, 256 px or an HD multiple (cf. backend vanillaGui.ts). */
 const containerLayout = (w: number, h: number) => w === h && w >= 256 && w % 256 === 0;
@@ -82,12 +80,7 @@ export function ServerConfigSection({
       return JSON.stringify(next) === JSON.stringify(config[key]) ? rest : { ...rest, [key]: next };
     });
   };
-  const label = (key: string) => {
-    const source = SOURCE_FIELD.exec(key);
-    if (source)
-      return `${source[1]} · ${t(`serverConfig.sourceFields.${source[2]}`, { defaultValue: source[2] })}`;
-    return t(`serverConfig.fields.${key}`, { defaultValue: key });
-  };
+  const label = (key: string) => t(`serverConfig.fields.${key}`, { defaultValue: key });
   /** `"<key>: <code>"` from the plugin → "<label> : <explanation>". */
   const refusal = (detail: string) => {
     const [key, code] = detail.split(": ");
@@ -105,7 +98,7 @@ export function ServerConfigSection({
       setConfig(await patchServerConfig(networkId, serverKeyId, changes));
       setChanges({});
       // Le backend reconstruisait le pack quand les textures de conteneur changeaient.
-      if (SELF_HOSTED && Object.keys(changes).some((key) => key.startsWith(TEXTURES)))
+      if (Object.keys(changes).some((key) => key.startsWith(TEXTURES)))
         rebuildServerPackInBackground(t, serverKeyId);
     } catch (e) {
       setError(
@@ -197,7 +190,6 @@ export function ServerConfigSection({
     ["textures", keys.filter((k) => k.startsWith(TEXTURES))],
     ["resourcePack", keys.filter((k) => k.startsWith("resource-pack.") && !k.startsWith(TEXTURES))],
     ["editor", keys.filter((k) => k.startsWith("editor."))],
-    ["assistant", keys.filter((k) => k.startsWith("assistant."))],
   ];
   const grouped = new Set(groups.flatMap(([, ks]) => ks));
   groups.push(["other", keys.filter((k) => !grouped.has(k))]);

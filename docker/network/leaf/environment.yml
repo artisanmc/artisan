@@ -1,5 +1,3 @@
-server_key: ""
-ws_url: ""
 web:
   enabled: true
   role: "leaf"

@@ -1,5 +1,4 @@
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -9,9 +8,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useNetworkServersStatus } from "@/components/useNetworkServersStatus";
-import { type ServerStatusEntry, isPluginOutdated, updateServerPlugin } from "@/lib/api/networks";
-import { SELF_HOSTED } from "@/lib/selfHosted";
-import { useState } from "react";
+import { type ServerStatusEntry, isPluginOutdated } from "@/lib/api/networks";
 import { useTranslation } from "react-i18next";
 
 type TFn = ReturnType<typeof useTranslation>["t"];
@@ -33,27 +30,11 @@ export function ServerRow({
   s,
   lang,
   t,
-  onUpdatePlugin,
 }: {
   s: ServerStatusEntry;
   lang: string;
   t: TFn;
-  onUpdatePlugin?: () => Promise<void>;
 }) {
-  const [updating, setUpdating] = useState(false);
-  const [updateError, setUpdateError] = useState<string | null>(null);
-  const update = async () => {
-    if (!onUpdatePlugin) return;
-    setUpdating(true);
-    setUpdateError(null);
-    try {
-      await onUpdatePlugin();
-    } catch (e) {
-      setUpdateError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setUpdating(false);
-    }
-  };
   return (
     <div className="flex flex-col gap-0.5 px-2.5 py-1.5">
       <div className="flex items-center gap-2">
@@ -99,22 +80,6 @@ export function ServerRow({
         <div className="pl-3.5 text-[11px] text-[var(--text-mut)]">
           {t("linkedServers.pluginUpdatePending", { version: s.pluginUpdatePending })}
         </div>
-      ) : s.pluginUpdateVersion && onUpdatePlugin ? (
-        <div className="flex flex-col gap-1 pl-3.5 pt-1">
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] text-[var(--text-mut)]">
-              {t("linkedServers.pluginUpdateAvailable", { version: s.pluginUpdateVersion })}
-            </span>
-            <Button size="sm" variant="primary" disabled={updating} onClick={update}>
-              {t(updating ? "linkedServers.pluginUpdating" : "linkedServers.pluginUpdate")}
-            </Button>
-          </div>
-          {updateError ? (
-            <span className="text-[11px] text-[var(--danger)]">
-              {t("linkedServers.pluginUpdateFailed", { error: updateError })}
-            </span>
-          ) : null}
-        </div>
       ) : null}
     </div>
   );
@@ -123,7 +88,6 @@ export function ServerRow({
 /**
  * Status dot (beside the server in the breadcrumb) + dropdown listing every server key in the current network with
  * live online/offline state, last-seen time and last IP. Polls every 15s.
- * Seule action : installer la dernière version du plugin. Replaces the single-server ServerStatusBadge.
  */
 export function LinkedServersDropdown({
   networkId,
@@ -136,7 +100,7 @@ export function LinkedServersDropdown({
   downHint?: string;
 }) {
   const { t, i18n } = useTranslation();
-  const { data, refresh } = useNetworkServersStatus(networkId, currentServerKeyId);
+  const { data } = useNetworkServersStatus(networkId, currentServerKeyId);
 
   if (!networkId || data === null) return null;
 
@@ -192,17 +156,7 @@ export function LinkedServersDropdown({
         <DropdownMenuLabel>{t("linkedServers.serverTitle")}</DropdownMenuLabel>
         <DropdownMenuSeparator />
         {current ? (
-          <ServerRow
-            s={current}
-            lang={i18n.language}
-            t={t}
-            onUpdatePlugin={
-              // Servi par le plugin : la mise à jour se fait sur le serveur, pas d'ici.
-              SELF_HOSTED
-                ? undefined
-                : () => updateServerPlugin(networkId, current.id).then(refresh)
-            }
-          />
+          <ServerRow s={current} lang={i18n.language} t={t} />
         ) : (
           <div className="px-2.5 py-2 text-[12px] text-[var(--text-faint)]">
             {t("linkedServers.empty")}

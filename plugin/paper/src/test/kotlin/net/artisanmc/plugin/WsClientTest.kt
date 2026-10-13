@@ -1,6 +1,7 @@
 package net.artisanmc.plugin
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import net.artisanmc.plugin.ws.HubLink
 import net.artisanmc.plugin.ws.WsClient
 import okhttp3.Response
 import okhttp3.WebSocket
@@ -13,11 +14,13 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class WsClientTest {
+    private fun hub(server: MockWebServer) = HubLink(server.url("/ws/plugin").toString(), "network-secret", "survie")
+
     @Test
-    fun `reconnect reports current project identity and rename receipts`() {
+    fun `each hello carries the network identity and the current server config`() {
         val server = MockWebServer()
         val hellos = java.util.concurrent.CopyOnWriteArrayList<String>()
-        val projectId = java.util.concurrent.atomic.AtomicReference("old")
+        val language = java.util.concurrent.atomic.AtomicReference("en")
         val received = CountDownLatch(2)
         repeat(2) {
             server.enqueue(MockResponse().withWebSocketUpgrade(object : ClosingWebSocketListener() {
@@ -25,7 +28,7 @@ class WsClientTest {
                     hellos.add(text)
                     received.countDown()
                     if (hellos.size == 1) {
-                        projectId.set("new")
+                        language.set("fr")
                         ws.close(1012, "restart")
                     }
                 }
@@ -33,16 +36,17 @@ class WsClientTest {
         }
         server.start()
         val client = WsClient(
-            url = server.url("/ws/plugin").toString(), serverKey = "test", mcVersion = "1.21.4",
-            localProjectIds = listOf("stale_constructor_snapshot"), onMessage = {},
-            projectPresence = { mapOf("local_project_ids" to listOf(projectId.get()), "capabilities" to listOf("project_rename")) },
+            hub = hub(server), mcVersion = "1.21.4", onMessage = {},
+            serverConfig = { mapOf("language" to language.get()) },
         )
         try {
             client.connect()
             assertTrue(received.await(8, TimeUnit.SECONDS))
             val mapper = ObjectMapper()
-            assertEquals(listOf("old", "new"), hellos.map { mapper.readTree(it)["local_project_ids"][0].asText() })
-            assertEquals("project_rename", mapper.readTree(hellos.last())["capabilities"][0].asText())
+            assertEquals(listOf("en", "fr"), hellos.map { mapper.readTree(it)["server_config"]["language"].asText() })
+            val hello = mapper.readTree(hellos.last())
+            assertEquals("network-secret", hello["server_key"].asText())
+            assertEquals("survie", hello["proxy_name"].asText())
         } finally {
             client.disconnect()
             server.shutdown()
@@ -56,7 +60,7 @@ class WsClientTest {
             MockResponse().withWebSocketUpgrade(object : ClosingWebSocketListener() {
                 override fun onMessage(ws: WebSocket, text: String) {
                     ws.send(
-                        """{"type":"hello_ack","session_id":"s1","server_id":"srv1","tier":"free","needs_sync":false,"latest_bundle_hash":""}"""
+                        """{"type":"hello_ack","session_id":"s1","server_id":"srv1"}"""
                     )
                 }
             })
@@ -66,10 +70,8 @@ class WsClientTest {
         val received = mutableListOf<String>()
         val latch = CountDownLatch(1)
         val client = WsClient(
-            url = server.url("/ws/plugin").toString(),
-            serverKey = "sk_test",
+            hub = hub(server),
             mcVersion = "1.21.4",
-            currentBundleHash = "",
             onMessage = { msg -> received.add(msg); latch.countDown() },
         )
         client.connect()
@@ -96,10 +98,8 @@ class WsClientTest {
         server.start()
 
         val client = WsClient(
-            url = server.url("/ws/plugin").toString(),
-            serverKey = "sk_test",
+            hub = hub(server),
             mcVersion = "1.21.4",
-            currentBundleHash = "",
             installedModules = {
                 listOf(
                     mapOf("id" to "menus", "version" to "1.0.0"),

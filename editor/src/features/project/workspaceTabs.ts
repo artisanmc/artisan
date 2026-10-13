@@ -9,7 +9,6 @@ export type WorkspaceViewTab =
   | "translations"
   | "data-sources"
   | "resources"
-  | "assistant"
   | "history";
 
 export const WORKSPACE_VIEW_TABS: WorkspaceViewTab[] = [
@@ -17,6 +16,5 @@ export const WORKSPACE_VIEW_TABS: WorkspaceViewTab[] = [
   "translations",
   "data-sources",
   "resources",
-  "assistant",
   "history",
 ];

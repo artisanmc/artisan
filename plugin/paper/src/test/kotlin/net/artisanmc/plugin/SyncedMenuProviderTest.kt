@@ -62,7 +62,7 @@ class SyncedMenuProviderTest {
     fun `resolves menu by id from disk`() {
         val packsRoot = Files.createTempDirectory("artisan_packs_").toFile()
         writePackFixture(packsRoot)
-        val provider = SyncedMenuProvider(net.artisanmc.plugin.project.ProjectRoots(packsRoot), serverKey = "", wsUrl = "", logger = null)
+        val provider = SyncedMenuProvider(net.artisanmc.plugin.project.ProjectRoots(packsRoot), logger = null)
         provider.load()
         val menu = provider.findMenu("m_shop")
         assertNotNull(menu)
@@ -73,7 +73,7 @@ class SyncedMenuProviderTest {
     fun `openMenu creates a 27-slot inventory for the player`() {
         val packsRoot = Files.createTempDirectory("artisan_packs_").toFile()
         writePackFixture(packsRoot)
-        val provider = SyncedMenuProvider(net.artisanmc.plugin.project.ProjectRoots(packsRoot), serverKey = "", wsUrl = "", logger = null)
+        val provider = SyncedMenuProvider(net.artisanmc.plugin.project.ProjectRoots(packsRoot), logger = null)
         provider.load()
         val player = server.addPlayer()
         provider.openMenu(player, "m_shop", "en")
@@ -94,7 +94,7 @@ class SyncedMenuProviderTest {
     private fun twoProjectProvider(): SyncedMenuProvider {
         val root = Files.createTempDirectory("artisan_ns_").toFile()
         writeTwoProjectsWithSameMenuId(root)
-        return SyncedMenuProvider(net.artisanmc.plugin.project.ProjectRoots(root), serverKey = "", wsUrl = "", logger = null)
+        return SyncedMenuProvider(net.artisanmc.plugin.project.ProjectRoots(root), logger = null)
             .also { it.load() }
     }
 
@@ -126,9 +126,9 @@ class SyncedMenuProviderTest {
     }
 
     @Test
-    fun `no WsClient created when serverKey is empty`() {
+    fun `no WsClient created without a hub`() {
         val packsRoot = Files.createTempDirectory("artisan_packs_").toFile()
-        val provider = SyncedMenuProvider(net.artisanmc.plugin.project.ProjectRoots(packsRoot), serverKey = "", wsUrl = "", logger = null)
+        val provider = SyncedMenuProvider(net.artisanmc.plugin.project.ProjectRoots(packsRoot), logger = null)
         provider.load()
         provider.unload()  // must not throw
     }
@@ -139,7 +139,7 @@ class SyncedMenuProviderTest {
         // every subsequent bundle download after /artisan reload because the executor is
         // shared across load/unload cycles. After the fix, only shutdown() may stop it.
         val packsRoot = Files.createTempDirectory("artisan_packs_").toFile()
-        val provider = SyncedMenuProvider(net.artisanmc.plugin.project.ProjectRoots(packsRoot), serverKey = "", wsUrl = "", logger = null)
+        val provider = SyncedMenuProvider(net.artisanmc.plugin.project.ProjectRoots(packsRoot), logger = null)
         provider.load()
         provider.unload()
         val httpField = SyncedMenuProvider::class.java.getDeclaredField("httpClient").apply { isAccessible = true }
@@ -153,7 +153,7 @@ class SyncedMenuProviderTest {
     @Test
     fun `shutdown tears down httpClient executor`() {
         val packsRoot = Files.createTempDirectory("artisan_packs_").toFile()
-        val provider = SyncedMenuProvider(net.artisanmc.plugin.project.ProjectRoots(packsRoot), serverKey = "", wsUrl = "", logger = null)
+        val provider = SyncedMenuProvider(net.artisanmc.plugin.project.ProjectRoots(packsRoot), logger = null)
         provider.load()
         provider.shutdown()
         val httpField = SyncedMenuProvider::class.java.getDeclaredField("httpClient").apply { isAccessible = true }
@@ -165,7 +165,7 @@ class SyncedMenuProviderTest {
     fun `provider forwards resource_pack_updated to manager`() {
         val packsRoot = Files.createTempDirectory("artisan_packs_").toFile()
         val mgr = ResourcePackManager(plugin, ResourcePackConfig(enabled = true, prompt = "<gold>x</gold>", sendOnJoin = false, sendDelayTicks = 0L, delegateToDir = null, delegateReloadCommand = null))
-        val provider = SyncedMenuProvider(net.artisanmc.plugin.project.ProjectRoots(packsRoot), serverKey = "", wsUrl = "", logger = null, resourcePackManager = mgr)
+        val provider = SyncedMenuProvider(net.artisanmc.plugin.project.ProjectRoots(packsRoot), logger = null, resourcePackManager = mgr)
         provider.load()
         val hash = "0".repeat(40)
         val raw = """{"type":"resource_pack_updated","url":"http://x/$hash.zip","hash":"$hash"}"""
@@ -179,10 +179,10 @@ class SyncedMenuProviderTest {
     fun `provider applies resource_pack from hello_ack`() {
         val packsRoot = Files.createTempDirectory("artisan_packs_").toFile()
         val mgr = ResourcePackManager(plugin, ResourcePackConfig(enabled = true, prompt = "<gold>x</gold>", sendOnJoin = false, sendDelayTicks = 0L, delegateToDir = null, delegateReloadCommand = null))
-        val provider = SyncedMenuProvider(net.artisanmc.plugin.project.ProjectRoots(packsRoot), serverKey = "", wsUrl = "", logger = null, resourcePackManager = mgr)
+        val provider = SyncedMenuProvider(net.artisanmc.plugin.project.ProjectRoots(packsRoot), logger = null, resourcePackManager = mgr)
         provider.load()
         val hash = "f".repeat(40)
-        val raw = """{"type":"hello_ack","session_id":"s","project_hashes":{},"resource_pack":{"url":"http://x/$hash.zip","hash":"$hash"}}"""
+        val raw = """{"type":"hello_ack","session_id":"s","resource_pack":{"url":"http://x/$hash.zip","hash":"$hash"}}"""
         val handle = provider.javaClass.getDeclaredMethod("handleMessage", String::class.java)
         handle.isAccessible = true
         handle.invoke(provider, raw)
@@ -190,55 +190,26 @@ class SyncedMenuProviderTest {
     }
 
     @Test
-    fun `hello_ack with bundle_url splits player and download URLs`() {
-        // When the backend sends a Docker-internal bundle_url AND a player-facing
-        // resource_pack.url, the plugin must:
-        //   - keep the player URL on ResourcePackInfo.url (for setResourcePack)
-        //   - rewrite resource_pack.url with bundle_url's host for downloadUrl
-        //     (so AssetCatalog can actually reach the backend).
+    fun `a leaf downloads the hub pack through the hub address it joined`() {
         val packsRoot = Files.createTempDirectory("artisan_packs_").toFile()
         val mgr = ResourcePackManager(plugin, ResourcePackConfig(enabled = true, prompt = "<gold>x</gold>", sendOnJoin = false, sendDelayTicks = 0L, delegateToDir = null, delegateReloadCommand = null))
-        val provider = SyncedMenuProvider(net.artisanmc.plugin.project.ProjectRoots(packsRoot), serverKey = "", wsUrl = "", logger = null, resourcePackManager = mgr)
-        provider.load()
-        val hash = "f".repeat(40)
-        val raw = """{"type":"hello_ack","session_id":"s","project_hashes":{},"bundle_url":"http://backend:3001","resource_pack":{"url":"http://localhost:3001/api/v1/resource-pack/sk/${hash}.zip","hash":"$hash"}}"""
-        val handle = provider.javaClass.getDeclaredMethod("handleMessage", String::class.java)
-        handle.isAccessible = true
-        handle.invoke(provider, raw)
+        val provider = SyncedMenuProvider(
+            net.artisanmc.plugin.project.ProjectRoots(packsRoot), logger = null, resourcePackManager = mgr,
+            hub = net.artisanmc.plugin.ws.HubLink("ws://hub:8765/ws/plugin", "secret", "survie"),
+        )
+        val hash = "b".repeat(40)
+        provider.handleMessageForTesting("""{"type":"resource_pack_updated","url":"http://localhost:8765/api/v1/resource-pack/$hash.zip","hash":"$hash"}""")
         val info = mgr.currentPackInfo
         assertNotNull(info)
-        assertEquals("http://localhost:3001/api/v1/resource-pack/sk/${hash}.zip", info.url)
-        assertEquals("http://backend:3001/api/v1/resource-pack/sk/${hash}.zip", info.downloadUrl)
+        assertEquals("http://localhost:8765/api/v1/resource-pack/$hash.zip", info.url)
+        assertEquals("http://hub:8765/api/v1/resource-pack/$hash.zip", info.downloadUrl)
     }
 
     @Test
-    fun `resource_pack_updated rewrites downloadUrl using apiUrl`() {
+    fun `resolvePluginDownloadUrl falls back to player URL without a hub`() {
         val packsRoot = Files.createTempDirectory("artisan_packs_").toFile()
-        val mgr = ResourcePackManager(plugin, ResourcePackConfig(enabled = true, prompt = "<gold>x</gold>", sendOnJoin = false, sendDelayTicks = 0L, delegateToDir = null, delegateReloadCommand = null))
-        val provider = SyncedMenuProvider(net.artisanmc.plugin.project.ProjectRoots(packsRoot), serverKey = "", wsUrl = "", logger = null, resourcePackManager = mgr)
+        val provider = SyncedMenuProvider(net.artisanmc.plugin.project.ProjectRoots(packsRoot), logger = null)
         provider.load()
-        // First seed apiUrl via a hello_ack.
-        val helloHash = "a".repeat(40)
-        val hello = """{"type":"hello_ack","session_id":"s","project_hashes":{},"bundle_url":"http://backend:3001","resource_pack":{"url":"http://localhost:3001/api/v1/resource-pack/sk/${helloHash}.zip","hash":"$helloHash"}}"""
-        val handle = provider.javaClass.getDeclaredMethod("handleMessage", String::class.java)
-        handle.isAccessible = true
-        handle.invoke(provider, hello)
-        // Now send a resource_pack_updated — should reuse the cached apiUrl.
-        val newHash = "b".repeat(40)
-        val updated = """{"type":"resource_pack_updated","url":"http://localhost:3001/api/v1/resource-pack/sk/${newHash}.zip","hash":"$newHash"}"""
-        handle.invoke(provider, updated)
-        val info = mgr.currentPackInfo
-        assertNotNull(info)
-        assertEquals(newHash, info.hash)
-        assertEquals("http://backend:3001/api/v1/resource-pack/sk/${newHash}.zip", info.downloadUrl)
-    }
-
-    @Test
-    fun `resolvePluginDownloadUrl falls back to player URL when apiUrl is unset`() {
-        val packsRoot = Files.createTempDirectory("artisan_packs_").toFile()
-        val provider = SyncedMenuProvider(net.artisanmc.plugin.project.ProjectRoots(packsRoot), serverKey = "", wsUrl = "", logger = null)
-        provider.load()
-        // No hello_ack received → apiUrl is null → resolve returns input untouched.
         val resolved = provider.resolvePluginDownloadUrl("http://localhost:3001/api/v1/resource-pack/x.zip")
         assertEquals("http://localhost:3001/api/v1/resource-pack/x.zip", resolved)
     }
@@ -248,36 +219,12 @@ class SyncedMenuProviderTest {
         val packsRoot = Files.createTempDirectory("artisan_packs_").toFile()
         val mgr = ResourcePackManager(plugin, ResourcePackConfig(enabled = true, prompt = "<gold>x</gold>", sendOnJoin = false, sendDelayTicks = 0L, delegateToDir = null, delegateReloadCommand = null))
         mgr.onUpdate(ResourcePackInfo.from("http://stale", "a".repeat(40), "<gold>x</gold>"))
-        val provider = SyncedMenuProvider(net.artisanmc.plugin.project.ProjectRoots(packsRoot), serverKey = "", wsUrl = "", logger = null, resourcePackManager = mgr)
+        val provider = SyncedMenuProvider(net.artisanmc.plugin.project.ProjectRoots(packsRoot), logger = null, resourcePackManager = mgr)
         provider.load()
-        val raw = """{"type":"hello_ack","session_id":"s","project_hashes":{},"resource_pack":null}"""
+        val raw = """{"type":"hello_ack","session_id":"s","resource_pack":null}"""
         val handle = provider.javaClass.getDeclaredMethod("handleMessage", String::class.java)
         handle.isAccessible = true
         handle.invoke(provider, raw)
         assertNull(mgr.currentPackInfo)
-    }
-
-    @Test
-    fun `editorInfo prefers server_url over editor_url when both are present`() {
-        val packsRoot = Files.createTempDirectory("artisan_packs_").toFile()
-        val provider = SyncedMenuProvider(net.artisanmc.plugin.project.ProjectRoots(packsRoot), serverKey = "", wsUrl = "", logger = null)
-        provider.load()
-        val raw = """{"type":"hello_ack","session_id":"s","project_hashes":{},"network_name":"N","editor_url":"http://localhost:5173","server_url":"http://localhost:5173/networks/n/servers/s"}"""
-        val handle = provider.javaClass.getDeclaredMethod("handleMessage", String::class.java)
-        handle.isAccessible = true
-        handle.invoke(provider, raw)
-        assertEquals("http://localhost:5173/networks/n/servers/s" to "N", provider.editorInfo())
-    }
-
-    @Test
-    fun `editorInfo falls back to editor_url when server_url is absent (older backend)`() {
-        val packsRoot = Files.createTempDirectory("artisan_packs_").toFile()
-        val provider = SyncedMenuProvider(net.artisanmc.plugin.project.ProjectRoots(packsRoot), serverKey = "", wsUrl = "", logger = null)
-        provider.load()
-        val raw = """{"type":"hello_ack","session_id":"s","project_hashes":{},"network_name":"N","editor_url":"http://localhost:5173"}"""
-        val handle = provider.javaClass.getDeclaredMethod("handleMessage", String::class.java)
-        handle.isAccessible = true
-        handle.invoke(provider, raw)
-        assertEquals("http://localhost:5173" to "N", provider.editorInfo())
     }
 }

@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
+const API_URL = import.meta.env.VITE_API_URL ?? "";
 
 /** A module-declared Config screen (ADR module-config-screens), wire verbatim. */
 export interface ServerEditorScreen {

@@ -94,13 +94,4 @@ describe("ServerConfigSection", () => {
       ),
     ).toBeInTheDocument();
   });
-
-  it("names assistant source fields by source and field", async () => {
-    api.getServerConfig.mockResolvedValue({
-      config: { "assistant.import-sources.zmenu.path": "plugins/zMenu/menus" },
-      online: true,
-    });
-    renderSection();
-    expect(await screen.findByLabelText("zmenu · Dossier")).toBeInTheDocument();
-  });
 });

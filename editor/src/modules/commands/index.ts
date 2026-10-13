@@ -7,7 +7,7 @@ export const commandsModule: FrontendModule = {
   sidebar: {
     icon: () => null,
     label: "Commandes",
-    to: "/networks",
+    to: "/",
   },
   routes: [],
 };

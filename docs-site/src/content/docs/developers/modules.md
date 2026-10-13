@@ -50,7 +50,7 @@ api.modules.register(MyModule(this))
 ```
 
 The registry calls your `onEnable(api)` immediately, on the main thread, and
-notifies the backend — your module (and everything it declared) shows up in the
+notifies the editor — your module (and everything it declared) shows up in the
 editor without a reconnect. Registering the same `id` twice throws
 `DuplicateModuleException`.
 
@@ -175,10 +175,9 @@ between modules. No module ever imports another module's classes.
   (material or custom ref, head texture, enchanted, count, name). Use both to
   build a "capture the item in my hand" admin command whose result the editor
   renders correctly.
-- **`api.messages.send(type, payload)`** — fire-and-forget message to the
-  backend, routed by `type` to your module's backend layer. No-op while
-  disconnected, so word your UX accordingly ("the update lands in a few
-  seconds").
+- **`api.messages.send(type, payload)`** — fire-and-forget message. Since the
+  backend was removed, nothing receives it; kept for compatibility, do not rely
+  on it.
 - **`api.actions.execute(player, actions, args, projectId)`** — run an
   [Action DSL](/wiki/editor/data-sources/#action-fields--the-action-dsl) string on
   behalf of a player: the chain an admin authored on a row (an item's on-buy,

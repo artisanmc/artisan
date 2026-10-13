@@ -31,7 +31,7 @@ class HeadTextureFetchTest {
         val mainTasks = mutableListOf<() -> Unit>()
         val provider = SyncedMenuProvider(
             roots = net.artisanmc.plugin.project.ProjectRoots(Files.createTempDirectory("head-preview").toFile()),
-            serverKey = "", wsUrl = "", logger = null,
+            logger = null,
             evaluator = ConditionEvaluator(deps, CooldownStore()),
             scheduler = DispatchingScheduler { mainTasks.add(it) },
         )
@@ -55,7 +55,7 @@ class HeadTextureFetchTest {
         var reply: Map<*, *>? = null
         val provider = SyncedMenuProvider(
             roots = net.artisanmc.plugin.project.ProjectRoots(Files.createTempDirectory("head-preview").toFile()),
-            serverKey = "", wsUrl = "", logger = null,
+            logger = null,
         )
         provider.load()
         provider.setSendForTesting { raw ->

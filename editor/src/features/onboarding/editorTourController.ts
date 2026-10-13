@@ -3,7 +3,6 @@ export type { EditorTourProgress } from "@/lib/api/auth";
 
 export interface EditorTourIdentity {
   accountId: string | null;
-  demo: boolean;
   ready: boolean;
 }
 
@@ -154,7 +153,7 @@ export function createEditorTourController(deps: EditorTourDependencies) {
       };
     },
     async activate(identity: EditorTourIdentity) {
-      if (!identity.ready || (!identity.accountId && !identity.demo)) {
+      if (!identity.ready || !identity.accountId) {
         ++generation;
         current = null;
         update({ status: "idle", open: false, progress: null, step: 0, busy: false, error: null });

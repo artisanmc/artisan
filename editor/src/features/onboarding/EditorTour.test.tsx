@@ -15,13 +15,13 @@ afterEach(() => {
   useTourPresentation.setState({ step: null });
 });
 
-it("spotlights the demo Export action and finishes only on explicit confirmation", async () => {
+it("spotlights the Save action and finishes only on explicit confirmation", async () => {
   const user = userEvent.setup();
   const actions = { next: vi.fn(), back: vi.fn(), defer: vi.fn(), complete: vi.fn() };
   vi.mocked(HTMLElement.prototype.getBoundingClientRect).mockImplementation(function (
     this: HTMLElement,
   ) {
-    return this.dataset.tour === "demo-export"
+    return this.dataset.tour === "save"
       ? new DOMRect(600, 10, 120, 40)
       : new DOMRect(40, 80, 100, 80);
   });
@@ -30,15 +30,7 @@ it("spotlights the demo Export action and finishes only on explicit confirmation
       <button data-tour="save" type="button">
         Save
       </button>
-      <button data-tour="demo-export" type="button">
-        Export
-      </button>
-      <EditorTour
-        state={{ open: true, step: 6, busy: false }}
-        demo
-        storage="demo"
-        actions={actions}
-      />
+      <EditorTour state={{ open: true, step: 6, busy: false }} storage="server" actions={actions} />
     </>,
   );
   await waitFor(() =>
@@ -52,28 +44,18 @@ it("spotlights the demo Export action and finishes only on explicit confirmation
 it("skips an unavailable target after layout settles without completing the final step", async () => {
   const actions = { next: vi.fn(), back: vi.fn(), defer: vi.fn(), complete: vi.fn() };
   const view = render(
-    <EditorTour
-      state={{ open: true, step: 2, busy: false }}
-      demo
-      storage="demo"
-      actions={actions}
-    />,
+    <EditorTour state={{ open: true, step: 2, busy: false }} storage="server" actions={actions} />,
   );
   expect(actions.next).not.toHaveBeenCalled();
   await waitFor(() => expect(actions.next).toHaveBeenCalledOnce(), { timeout: 1200 });
   view.rerender(
-    <EditorTour
-      state={{ open: true, step: 6, busy: false }}
-      demo
-      storage="demo"
-      actions={actions}
-    />,
+    <EditorTour state={{ open: true, step: 6, busy: false }} storage="server" actions={actions} />,
   );
   expect(screen.getByRole("button", { name: /Terminer|Finish/ })).toBeInTheDocument();
   expect(actions.complete).not.toHaveBeenCalled();
 });
 
-it("walks through six demo stops, explains Export, and cleans up presentation when deferred", async () => {
+it("walks through six stops, explains saving, and cleans up presentation when deferred", async () => {
   const user = userEvent.setup();
   const complete = vi.fn();
   function Example() {
@@ -81,19 +63,17 @@ it("walks through six demo stops, explains Export, and cleans up presentation wh
     const [open, setOpen] = useState(true);
     return (
       <>
-        <div data-tour="demo-intro" />
+        <div data-tour="navigation" />
         <div data-tour="canvas" />
         <div data-tour="library" />
         <div data-tour="elements" />
         <div data-tour="tabs" />
-        <button type="button" data-tour="demo-export">
-          Export
+        <button type="button" data-tour="save">
+          Save
         </button>
         <EditorTour
           state={{ open, step, busy: false }}
-          demo
-          storage="demo"
-          canUseAssistant={false}
+          storage="server"
           actions={{
             next: () => setStep(step + 1),
             back: () => setStep(step - 1),
@@ -107,11 +87,13 @@ it("walks through six demo stops, explains Export, and cleans up presentation wh
   render(<Example />);
   await user.click(await screen.findByRole("button", { name: /Commencer|Let's go/ }));
   expect(
-    await screen.findByRole("dialog", { name: /Un espace pour essayer|Your space to try things/ }),
+    await screen.findByRole("dialog", {
+      name: /Vos projets au même endroit|Your projects, in one place/,
+    }),
   ).toBeInTheDocument();
   for (let step = 1; step < 6; step++)
     await user.click(screen.getByRole("button", { name: /Suivant|Next/ }));
-  expect(screen.getByRole("dialog")).toHaveTextContent(/Exporter ce projet|Export this project/);
+  expect(screen.getByRole("dialog")).toHaveTextContent(/Déployer|Deploy/);
   expect(complete).not.toHaveBeenCalled();
   await user.click(screen.getByRole("button", { name: /Plus tard|Later/ }));
   expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
@@ -124,12 +106,7 @@ it("waits for a higher-priority dialog to close before presenting the tour", asy
   blocker.setAttribute("role", "dialog");
   document.body.append(blocker);
   render(
-    <EditorTour
-      state={{ open: true, step: 0, busy: false }}
-      demo
-      storage="demo"
-      actions={actions}
-    />,
+    <EditorTour state={{ open: true, step: 0, busy: false }} storage="server" actions={actions} />,
   );
   expect(screen.queryByRole("dialog", { name: /Découvrir Artisan|Discover Artisan/ })).toBeNull();
   await act(async () => blocker.remove());

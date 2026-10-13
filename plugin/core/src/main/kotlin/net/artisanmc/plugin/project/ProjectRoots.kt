@@ -25,16 +25,6 @@ class ProjectRoots(
     /** projectId -> owning module id, when the Add-on named it at registration. */
     private val owners = ConcurrentHashMap<String, String>()
 
-    val copier: ProjectCopier by lazy { ProjectCopier(this, onRecoveryFailure = { error ->
-        logger?.log(java.util.logging.Level.WARNING, "[Artisan] Copy receipt recovery failed; affected targets remain isolated.", error)
-    }) }
-
-    val renamer: ProjectRenamer by lazy {
-        ProjectRenamer(this) { operationId, error ->
-            logger?.log(java.util.logging.Level.WARNING, "[Artisan] Rename $operationId blocked; affected project roots remain isolated until recovery.", error)
-        }
-    }
-
     fun isRegistered(projectId: String): Boolean = registered.keys.any { it.equals(projectId, ignoreCase = File.separatorChar == '\\') }
     fun registeredRoots(): Map<String, File> = registered.toMap()
 
@@ -85,9 +75,6 @@ class ProjectRoots(
     /** The project dir for [projectId]: a registered Add-on root, else `<coreRoot>/<projectId>`. */
     fun dirFor(projectId: String): File = registered[projectId] ?: File(coreRoot, projectId)
 
-    /** Where [projectId]'s move-to-trash lands: `.artisan-trash` beside its dir (per-root). */
-    fun trashDirFor(projectId: String): File = File(dirFor(projectId).parentFile, ".artisan-trash")
-
     /**
      * All known projects, projectId -> dir: the core root scanned by directory name
      * (hidden dirs excluded) unioned with registered Add-on roots, which win on a
@@ -95,13 +82,11 @@ class ProjectRoots(
      */
     @Synchronized
     fun all(): Map<String, File> {
-        renamer // Recover pending moves before any runtime discovery.
-        copier // Recover copy activation receipts before exposing destination directories.
         val out = sortedMapOf<String, File>()
         coreRoot.listFiles()
-            ?.filter { it.isDirectory && !it.name.startsWith(".") && !renamer.isPending(it.name) && !copier.isPending(it.name) }
+            ?.filter { it.isDirectory && !it.name.startsWith(".") }
             ?.forEach { out[it.name] = it }
-        registered.forEach { (id, dir) -> if (!renamer.isPending(id)) out[id] = dir }
+        out.putAll(registered)
         return out.filterValues { dir ->
             runCatching { ProjectPublisher(dir).recover() }.onFailure {
                 logger?.log(java.util.logging.Level.WARNING, "[Artisan] Publication recovery blocked; project remains isolated: ${dir.name}", it)

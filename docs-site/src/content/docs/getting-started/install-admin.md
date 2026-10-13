@@ -1,275 +1,222 @@
 ---
 title: Install on a Paper server
-description: Get Artisan running on your Paper server in five minutes.
+description: Install Artisan on your Paper server and open the editor it serves.
 ---
 
-This guide walks you through installing the Artisan plugin on a Paper
-server and linking it to the Artisan backend so you can design menus
-from the web editor.
+Artisan is self-hosted: the plugin serves the web editor from your own Minecraft
+server. There is no account to create and no external service to link.
 
 > **Prerequisites**
-> - Paper 1.21.4 or newer
+> - Paper 1.21 or newer (Folia and Leaf are supported)
 > - Java 21
-> - An Artisan backend (self-hosted or managed)
+> - Outbound internet access at first start: Paper downloads the plugin's
+>   libraries (Jetty, HikariCP, JDBC drivers) from Maven Central
 
-## 1. Download the plugin
+## 1. Install the plugin
 
-Download the latest `artisan-plugin-*.jar` from the Artisan GitHub
-Releases page, then drop it into your server's `plugins/` folder. Nothing
-else is required: the plugin ships its own copy of PacketEvents.
+Download the latest `artisan-plugin-*.jar` from the Artisan GitHub Releases page
+and drop it into your server's `plugins/` folder. Nothing else is required: the
+plugin ships its own copy of PacketEvents.
 
-Restart the server once. A default `plugins/Artisan/config.yml` (settings) and
-`plugins/Artisan/environment.yml` (the link to the backend and the database credentials) are generated. The plugin will log a startup line indicating offline mode
-because no `server_key` is set yet.
+Restart the server. Artisan creates `plugins/Artisan/config.yml` (settings) and
+`plugins/Artisan/environment.yml` (web editor, network and database), and starts
+the editor's web server on port **8765**.
 
-### Updating the plugin
+To update, replace the jar and restart. Every server of a network must run the
+same Artisan release.
 
-When a newer Artisan plugin is available, the server badge in the editor's top bar shows **Update**. Any network member can click it. The plugin downloads the new version from Artisan, checks its signature, and places it in `plugins/update/`. Paper swaps it in at the **next restart**, and the badge says so until then. Restart the server whenever it suits you.
+## 2. Open the editor
 
-## 2. Link your server
+The editor listens on `web.port` (8765 by default) of the server. Open that port
+to the admins who use the editor; players never need it unless Artisan pushes the
+resource pack itself (see [Resource packs](#4-resource-packs)).
 
-Linking is **editor-first**: you add the server in the web editor, which gives
-you a one-time code, and you run that code on your Minecraft server.
-
-1. First, point the plugin at the backend. Open `plugins/Artisan/environment.yml`:
-
-   ```yaml
-   ws_url: "wss://api.artisanmc.net/ws/plugin"
-   ```
-
-   This is the backend host, not the editor host (`editor.artisanmc.net` serves
-   the web app only and answers `/api` requests with `405`). Adjust `ws_url`
-   only if you are self-hosting the backend. Leave `server_key` empty —
-   `/artisan link` fills it in.
-
-2. In the editor, create a network and **Add a server**. You'll get a command
-   like `/artisan link ABCD2345`.
-
-3. Run that command in-game or from the console. The plugin redeems the code,
-   writes the `server_key` to `environment.yml`, and connects immediately — no
-   restart needed. Codes are single-use and expire after 10 minutes.
-
-To **re-link** a server later (rotate its key, or move it to a different server
-entry), use **Re-link / new code** on the server card in the editor and run the
-new `/artisan link <code>` — it rotates the key in place, keeping your projects.
-
-## 3. Open the editor
-
-In-game, run:
+In game, run:
 
 ```
 /artisan editor
 ```
 
-The command requires the `artisan.editor` permission, granted to ops by default. If running it as a non-op produces no response, grant the permission via your permissions plugin (LuckPerms, PermissionsEx, etc.) or run from console.
+It prints a link that signs you in as your player. The link works once and expires
+after 60 seconds; you can request one per minute. The session lasts 12 hours and
+ends when the server restarts.
 
-If the server is linked and connected to the backend, this prints a clickable deep-link straight to this server's page in the editor, along with the network it belongs to. If the server is linked but the backend connection hasn't come up yet (e.g. just after a restart), it tells you to retry shortly. If the server is not yet linked, it prints the editor home URL so you can add the server there and get a link code.
+What you can do in the editor depends on permissions, read when you request the link:
 
-Opening the editor URL requires signing in with your Artisan account, and that account must be a **member of the network** the server is linked to (the account that created the network is the owner; invite teammates from the network settings page).
+| Permission | Allows |
+|---|---|
+| `artisan.editor.view` | Open the editor and read projects |
+| `artisan.editor.edit` | Change projects (private drafts) |
+| `artisan.editor.publish` | Publish projects to the server |
+| `artisan.editor.config` | Change the server configuration from the editor |
+| `artisan.editor` | All four (granted to ops by default) |
 
-By default, a signed-in non-member sees **Request access**. They can send a message to the network managers, who approve or deny it from **Members** (email notification requires SMTP).
+Give access to your team with a permissions plugin (LuckPerms…). Once the editor
+opens, see the [Editor overview](/wiki/editor/) to create your first menu.
 
-To authorize accounts from the server console instead, configure:
+The link uses `web.url` when set, otherwise `http://<address you joined with>:8765`.
+If the port is taken, or Jetty could not be downloaded, the server starts without
+the editor and says so in the console.
+
+## 3. HTTPS (optional)
+
+The editor works over plain HTTP. To serve it on a domain with HTTPS, put it
+behind a reverse proxy (Caddy, nginx) or a Cloudflare Tunnel, and tell Artisan
+its public address:
 
 ```yaml
-editor:
-  access_mode: console # invitation (default) | console
+# environment.yml
+web:
+  bind: "127.0.0.1"                  # only the local proxy can reach the port
+  url: "https://editor.example.com"  # used in /artisan editor links
 ```
 
-Run `artisan reload` after changing this setting. If any server in the network
-enables console access, the access page lists those servers and shows
-`artisan member add <email>` for the signed-in account. Run the copied command
-in one of their consoles (RCON supported). It grants **member access to the whole
-network**, including every server and project. Existing roles are preserved.
-The account must already exist, and the server must be connected to the backend.
-The page opens automatically after authorization. Manual invitations remain
-available in both modes. Set every enabled server back to `invitation` and reload
-to restore access requests. This setting is independent of `editor.console_only`.
+The proxy must forward WebSocket upgrades (`/ws/editor`). Restart the server
+after changing `web.*`.
 
-Once the editor opens, see the [Editor overview](/wiki/editor/) for next steps — how to create your first project and menu, add slots, and wire up actions.
+## 4. Resource packs
 
-## 4. Invite your team
+Custom images, glyphs and fonts reach players through a resource pack. The editor
+builds it in your browser after each publish and uploads it to the server. Artisan
+then applies it in one of two ways, set by `resource-pack.delegate-to-dir` in
+`config.yml`.
 
-From the web editor, click your network name in the top bar, then **Members**. As the owner, you can invite teammates by email or share an invite link. Click **Invite** and either enter an email address (they'll receive a link by mail) or leave it blank to copy a link and share it manually. Invited users become **members** with full editorial access to all projects on every server in your network. Only the owner can manage members, rotate or create server keys, and rename the network.
+**Delegation to a pack host (recommended)** — if you already run Nexo, Oraxen or
+ItemsAdder, Artisan writes its pack where that plugin merges external packs and
+runs its reload command. Players get a single pack prompt and nothing else needs
+to be exposed.
 
-## 5. Useful commands
+```yaml
+# Nexo: a single zip (its directory scanner skips PNGs for non-vanilla namespaces)
+resource-pack:
+  delegate-to-dir: "plugins/Nexo/pack/external_packs/artisan.zip"
+  delegate-reload-command: "n reload"
+```
+
+```yaml
+# Oraxen / ItemsAdder: a directory, written under <path>/assets/artisan/
+resource-pack:
+  delegate-to-dir: "plugins/Oraxen/pack/external_packs/artisan"
+  delegate-reload-command: "oraxen reload pack"
+```
+
+The path is filesystem-absolute or relative to the server root.
+
+**Push by Artisan** — leave `delegate-to-dir` empty. Artisan sends its pack to each
+player using the 1.20.3+ pack stack, alongside other packs. Players download it
+from the editor's web server (`/resource-pack/<sha1>.zip`), so the editor port must
+be reachable by players and `web.url` must be an address they can open.
+
+## 5. Several servers (network)
+
+Behind a proxy, one server serves the editor for all of them: the **hub**. The
+others are **leaves**: they connect to the hub, and the editor reaches their
+projects through it.
+
+On each leaf, in `environment.yml`:
+
+```yaml
+web:
+  role: "leaf"
+  name: "survival"                          # its name in the editor; empty uses the server folder name
+  hub-url: "ws://10.0.0.5:8765/ws/plugin"   # the hub's address on the internal network
+```
+
+The hub keeps the default `role: "hub"`. Hub and leaves share a secret, found in
+this order:
+
+1. `web.secret`, if set (the same value on every server);
+2. the Velocity forwarding secret in `config/paper-global.yml`;
+3. otherwise a secret the hub generates in `plugins/Artisan/network-secret`: copy
+   it into `web.secret` on each leaf.
+
+Keep `/ws/plugin` on your internal network. All servers must run the same Artisan
+release: the editor lists a server on another version as needing an update and
+does not edit it. To share the suite plugins' data between servers, use MySQL or
+MariaDB (`database.type`); H2 works but keeps one database per server.
+
+A project of a leaf shows in the editor as `<server>.<folder>`. `/artisan editor`
+works on any server of the network: a leaf asks the hub for the link.
+
+## 6. Commands
 
 | Command | Description |
 |---|---|
-| `/artisan menu <id>` | Open a menu by id (in-game, players only). |
-| `/artisan reload` | Reload all menus from disk. |
-| `artisan member add <email>` | Console/RCON only, requires `editor.access_mode: console`. Add an existing account as a member of this server's entire network. |
-| `/artisan sync status` | Show the last sync status with the backend. |
-| `/artisan sync reject` | Reload menus from disk and reconnect to the backend. |
-| `/artisan editor` | Print the deep-link to this server's editor page + network name if linked (requires `artisan.editor` permission), otherwise print the editor home URL to add the server. |
-| `/artisan link <code>` | Redeem a link code from the editor: writes the `server_key` to `environment.yml` and connects. On an already-linked server it rotates the key in place. Codes are single-use and expire after 10 minutes. |
-| `/artisan pushLocal <id\|--all>` | Manually push local on-disk project changes to the backend. Rarely needed: the plugin scans your project files every few seconds and pushes disk edits automatically. When both the disk and the web editor changed since the last sync, nothing is overwritten: the editor shows a resolution banner where you pick, per file, which side to keep — `pushLocal` remains the "force the disk side" shortcut. |
-
-## 6. Billing administration (super-admins)
-
-Super-admins have a dedicated **`/admin/billing`** page in the editor with four tabs:
-
-- **Sales** — top-up revenue (per currency) and active subscribers per plan over a chosen period (7 / 30 days or custom range).
-- **Credit packs** — manage one-off packs and their Stripe products/prices.
-- **Subscriptions** — inspect code-managed standard plans and create private custom offers from a standard version. Custom drafts can be saved without Stripe; choose a target Network before publishing. Changing published terms creates a new draft version and preserves existing subscribers' conditions. See [Managing subscription plans](/wiki/admin/console/#presenting-subscription-plans).
-- **Manual grant** — add top-up credits to a specific network (recorded as an adjustment in the audit trail), e.g. for support or compensation.
-
-Networks use Free by default and its limits apply automatically. Plan limits are
-managed under Subscriptions; there is no separate editor access switch.
+| `/artisan menu <id>` | Open a menu by id (in game, players only). |
+| `/artisan reload` | Reload settings and menus from disk, including files edited by hand. `web.*` changes need a restart. |
+| `/artisan sync status` | Points to the server log. |
+| `/artisan sync reject` | Reload menus from disk; on a leaf, reconnect to the hub. |
+| `/artisan editor` | Print your sign-in link to the editor (in game, requires `artisan.editor.view`). |
 
 ## 7. Troubleshooting
 
-**Connection refused / backend unreachable**
-The plugin cannot reach `ws_url`. Check outbound internet access and
-firewall rules on your server host.
+**`/artisan editor` says the editor is disabled**
+The web server did not start: `web.enabled` is `false`, the port is taken, or Jetty
+could not be downloaded. The startup log says which.
 
-**Invalid server_key**
-The key was rotated or revoked. Get a fresh one from your dashboard,
-paste it into `environment.yml`, and run `/artisan reload`.
+**The link does not open**
+The editor port is not reachable from your browser. Open `web.port` in your
+firewall, or set `web.url` to the address you use (reverse proxy, tunnel).
+
+**On a leaf, `/artisan editor` says the hub is offline**
+The leaf cannot reach `web.hub-url`, or the secrets differ. Check the leaf's
+startup log and the hub's address.
+
+**A server shows "Update required"**
+It runs a different Artisan release from the hub. Install the same jar everywhere.
 
 **Resource pack not loading**
-By default the plugin sends its own resource pack on join. If a competing
-plugin (Oraxen, Nexo, ItemsAdder) also sends one, players see two prompts
-at login. See _Resource pack distribution_ below.
+In push mode, players must reach the editor port at `web.url`. If another plugin
+(Oraxen, Nexo, ItemsAdder) also sends a pack, players see two prompts: switch to
+delegation.
 
-**Editor link says server is not linked**
-`server_key` or `ws_url` is empty. Complete step 2 first.
-
-**Disk edits don't show up in the editor**
-The plugin waits for a file to stop changing before pushing it, so a slow
-upload is never sent half-written — give it a few seconds. If the web editor
-also changed the same project since the last sync, nothing is pushed on its
-own: open the project in the editor and resolve the banner, or run
-`/artisan pushLocal <id>` to force the disk side.
-
-**`/artisan editor` says "connecting, retry shortly"**
-The server is linked (`server_key` set) but hasn't completed its WebSocket handshake with the backend yet — usually just after a restart or a brief backend outage. Wait a few seconds and run the command again; check `ws_url` reachability if it persists.
+**Files edited by hand don't show up**
+Run `/artisan reload`.
 
 **Menus open empty**
 Menu content is sent to players through packets. If the startup log shows
 `PacketEvents failed to load` or `failed to start`, your server version is
 newer than the bundled PacketEvents: update Artisan.
 
-**`/artisan editor` is console-only**
-`editor.console_only` is set to `true` in `config.yml`. Either change it
-or run the command from the console.
+## 8. Reference: `environment.yml` and `config.yml`
 
-## 8. Assistant server import sources
-
-The AI assistant can attach text files directly from named, read-only roots on
-the Minecraft server. Only users who can edit the linked Project can request
-their listing and contents. Configure the roots locally in
-`plugins/Artisan/config.yml`:
+`environment.yml` says where and who this server is: web editor, network and the
+database lent to the plugins of the suite. Only the plugin reads it; the editor
+never reads nor writes it. Any value may read an environment variable
+(`"${NAME}"`). Changes apply after a restart.
 
 ```yaml
-assistant:
-  import-sources:
-    zmenu:
-      enabled: true
-      label: "zMenu"
-      path: "plugins/zMenu/menus"
-      extensions: [".yml", ".yaml"]
-    deluxe-menus:
-      enabled: true
-      label: "DeluxeMenus"
-      path: "plugins/DeluxeMenus/gui_menus"
-      extensions: [".yml", ".yaml"]
-```
-
-Relative paths start at the Minecraft server root; an absolute path is also
-accepted when the administrator declares it explicitly. Extension matching is
-case-insensitive. Artisan never writes to these roots and rejects hidden path
-segments, path traversal, and symbolic links (including links in intermediate
-directories). Selecting a folder in the editor expands it into explicit file
-paths; the plugin accepts only regular files in a read request.
-
-Each source listing is limited to 5,000 entries. One assistant turn may read at
-most 200 files, 1 MiB per file, and 8 MiB in total. Files must be valid UTF-8.
-Invalid, missing, or unreadable sources are omitted and produce a warning in the
-server console. Set `enabled: false` to keep a configured source private.
-Run `/artisan reload` after changing the source configuration.
-
-## 9. Resource pack distribution (advanced)
-
-Three modes, controlled by `resource-pack.delegate-to-dir` in `config.yml`.
-
-**Default — Artisan pushes its own pack**
-
-Leave `delegate-to-dir` empty. Artisan pushes its pack to each player
-using the 1.20.3+ multi-pack stack, coexisting with other RP plugins.
-Two login prompts appear when a host plugin also pushes one.
-
-**Delegation to a directory** — for Oraxen / ItemsAdder
-
-```yaml
-resource-pack:
-  delegate-to-dir: "plugins/Oraxen/pack/external_packs/artisan"
-  delegate-reload-command: "oraxen reload pack"
-```
-
-Artisan writes its pack contents under `<path>/assets/artisan/`
-on every update and skips the player push. Set `delegate-reload-command`
-so the host plugin reloads its merged pack automatically.
-
-**Delegation to a zip** — for Nexo
-
-```yaml
-resource-pack:
-  delegate-to-dir: "plugins/Nexo/pack/external_packs/artisan.zip"
-  delegate-reload-command: "n reload"
-```
-
-Same idea, but written as a single zip file. Required for Nexo because
-its directory scanner skips PNGs for non-vanilla namespaces — only the
-zip-merger picks them up.
-
-The path is filesystem-absolute or relative to the server root.
-
-## 10. Reference: `environment.yml` and `config.yml`
-
-`environment.yml` says where and who this server is: the link to the backend and
-the database lent to the plugins of the suite. Only the plugin reads it: it is
-never sent to the backend, and the editor never reads nor writes it.
-
-```yaml
-server_key: ""   # written by /artisan link — keep it private
-ws_url: "wss://api.artisanmc.net/ws/plugin"
+web:
+  enabled: true
+  port: 8765     # the only port to open; players need it only in push mode
+  bind: ""       # empty: every interface; "127.0.0.1" behind a reverse proxy
+  url: ""        # public address used in /artisan editor links; empty: the address the player joined with
+  role: "hub"    # "hub", or "leaf" on every other server of a network
+  name: ""       # this server's name in the editor; empty: the server folder name
+  hub-url: ""    # on a leaf, e.g. "ws://10.0.0.5:8765/ws/plugin"
+  secret: ""     # empty: Velocity forwarding secret, else plugins/Artisan/network-secret
 database:
   type: "h2"     # h2 (a single file, nothing to set up) | mysql | mariadb
   host: "localhost"
   port: 3306
   name: "minecraft"
   user: "root"
-  password: "${ARTISAN_DB_PASSWORD}"   # any value may read an environment variable
-web:
-  enabled: true
-  port: 8765     # the only port to open; players never need it
-  bind: ""       # empty: every interface; "127.0.0.1" behind a reverse proxy
-  url: ""        # public address used in /artisan editor links; empty: the address the player joined with
+  password: ""   # e.g. "${ARTISAN_DB_PASSWORD}"
 ```
 
-The `web` section serves the editor from the server itself. `/artisan editor`, run
-in game, prints a single-use link valid 60 seconds that signs you in as your
-player. Rights come from permissions: `artisan.editor.view`, `.edit`, `.publish`
-and `.config` (`artisan.editor` grants all four). Jetty is downloaded by Paper on
-the first start; if the port is taken the server starts without the editor and
-says so in the console. Web changes apply after a restart.
-
-Each plugin that asks Artisan for the database gets its own connection pool, of
-`database.pool-size` connections (in `config.yml`). Database changes apply after a
-restart. HikariCP and the JDBC drivers are downloaded by Paper on the first start
-(Maven Central, about 7 MB).
-
-Servers set up before this file keep working: at startup the plugin moves
-`server_key` and `ws_url` from `connection.yml` (or from an older `config.yml`)
-into `environment.yml`, then deletes `connection.yml`.
+Each plugin that asks Artisan for the database gets its own connection pool of
+`database.pool-size` connections (in `config.yml`). Artisan itself creates no
+tables.
 
 `config.yml` holds every other setting. Edit it by hand (then `/artisan reload`)
-or from the **Configuration** section of the server page in the editor: the
-plugin checks each value, rewrites the file (comments kept) and reloads. From the
-editor, paths must stay under the server root (no absolute path, no `..`).
+or from the **Configuration** section of the server page in the editor (requires
+`artisan.editor.config`): the plugin checks each value, rewrites the file
+(comments kept) and reloads. From the editor, paths must stay under the server
+root (no absolute path, no `..`).
 
 ```yaml
+database:
+  pool-size: 4
 
 # Language for plugin system messages (en, fr). Defaults to en.
 # Place custom lang files in plugins/Artisan/lang/<code>.yml to override.
@@ -279,64 +226,16 @@ language: "en"
 # a matching lang file is available. Falls back to 'language' if not.
 per_player_language: false
 
-# Editor access settings.
-editor:
-  # Set to true to restrict /artisan editor to console only (no in-game players).
-  console_only: false
-
-# Read-only roots that Project members may browse from the AI assistant.
-assistant:
-  import-sources:
-    zmenu:
-      enabled: true
-      label: "zMenu"
-      path: "plugins/zMenu/menus"
-      extensions: [".yml", ".yaml"]
-    deluxe-menus:
-      enabled: true
-      label: "DeluxeMenus"
-      path: "plugins/DeluxeMenus/gui_menus"
-      extensions: [".yml", ".yaml"]
-
-# Resource pack pushed by Artisan (independent from Oraxen/Nexo/ItemsAdder packs;
-# uses the 1.20.3+ pack stack so it coexists with other packs side-by-side).
 resource-pack:
-  # Only gates the push to players. In delegation mode (delegate-to-dir set)
-  # Artisan never touches players, so this flag decides nothing there —
-  # keep it true.
+  # Only gates the push to players; keep it true in delegation mode.
   enabled: true
   prompt: "<gold>Pack Artisan</gold>"
   send-on-join: true
   send-delay-ticks: 20
-  # When set, Artisan stops pushing its own RP to players and writes its
-  # pack contents to this path. The admin configures the host RP plugin
-  # (Oraxen / Nexo / ItemsAdder / etc.) to read from it.
-  #
-  # In this mode `enabled`, `prompt`, `send-on-join` and `send-delay-ticks`
-  # are moot: Artisan only exports `assets/artisan/*` and the host plugin
-  # serves it.
-  #
-  # Output shape depends on the path suffix:
-  #   - `<path>.zip`  → single zip file with `assets/artisan/*` and a
-  #                     minimal pack.mcmeta. **Use this with Nexo's
-  #                     pack/external_packs/** — its directory scanner skips
-  #                     PNGs for non-vanilla namespaces, the zip-merger does
-  #                     not.
-  #   - `<path>`      → directory; Artisan writes under
-  #                     `<path>/assets/artisan/` (wiped before each update).
-  #
-  # Path is filesystem-absolute or relative to the server root.
-  #
-  # Nexo example:
-  #   delegate-to-dir: "plugins/Nexo/pack/external_packs/artisan.zip"
-  #   delegate-reload-command: "n reload"
-  #
-  # Default: empty (legacy mode — Artisan pushes its own RP to players).
+  # Empty: Artisan pushes its pack. Set: Artisan writes it there instead
+  # (".zip" suffix: a single zip; otherwise a directory) for the host plugin.
   delegate-to-dir: ""
-  # Optional: command dispatched on the console after each pack update.
-  # Use this to auto-reload the host RP plugin so players don't see missing
-  # glyphs until they manually rejoin. Examples: "n reload" (Nexo),
-  # "oraxen reload pack" (Oraxen).
+  # Console command run after each pack update, e.g. "n reload" (Nexo).
   delegate-reload-command: ""
   # Textures drawn back on the other windows when a menu turns its vanilla
   # texture off. "project:image" names a project image in the vanilla layout

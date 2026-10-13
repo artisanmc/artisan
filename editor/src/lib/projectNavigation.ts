@@ -8,13 +8,7 @@ export function projectDestination(
   documentId?: string,
 ) {
   const projectId = typeof project === "string" ? project : projectUrlId(project);
-  if (!networkId)
-    return documentId
-      ? {
-          to: "/demo/projects/$projectId/document/$documentId" as const,
-          params: { projectId, documentId },
-        }
-      : { to: "/demo/projects/$projectId" as const, params: { projectId } };
+  if (!networkId) return { to: "/" as const };
   if (serverId)
     return documentId
       ? {

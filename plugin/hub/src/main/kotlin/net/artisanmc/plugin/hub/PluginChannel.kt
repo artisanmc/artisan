@@ -10,9 +10,9 @@ import java.util.UUID
 import java.util.logging.Logger
 
 /**
- * WebSocket `/ws/plugin` : les autres serveurs du réseau s'y relient avec leur client du
- * backend, inchangé. Le `hello` doit porter le secret partagé (`server_key`) et le nom du
- * serveur (`proxy_name`) ; sans eux la connexion est fermée.
+ * WebSocket `/ws/plugin` : les feuilles du réseau s'y relient. Le `hello` doit porter le
+ * secret partagé (`server_key`) et le nom du serveur (`proxy_name`) ; sans eux la
+ * connexion est fermée.
  */
 class PluginChannel(
     private val servers: Servers,

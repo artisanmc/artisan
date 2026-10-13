@@ -134,5 +134,5 @@ version greater than or equal to the one you pass.
 | `models` | Declare `model/v1` shapes | `@Beta` |
 | `screens` | Declare editor config screens | `@Beta` |
 | `items` | Serialize/describe captured `ItemStack`s | `@Beta` |
-| `messages` | Fire-and-forget messages to the backend | `@Beta` |
+| `messages` | Fire-and-forget messages (no receiver since the backend was removed) | `@Beta` |
 | `actions` | Run an Action DSL string for a player | `@Beta` |

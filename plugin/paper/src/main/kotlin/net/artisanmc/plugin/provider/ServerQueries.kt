@@ -3,9 +3,6 @@ package net.artisanmc.plugin.provider
 import com.fasterxml.jackson.databind.ObjectMapper
 import net.artisanmc.modules.api.DataSourceRegistry
 import net.artisanmc.modules.api.PlayerRequiredException
-import net.artisanmc.plugin.assistant.ImportReadResult
-import net.artisanmc.plugin.assistant.ImportSelection
-import net.artisanmc.plugin.assistant.ImportSourceAccess
 import net.artisanmc.plugin.config.ServerConfigAccess
 import net.artisanmc.plugin.customitems.NexoGlyphReader
 import net.artisanmc.plugin.engine.ConditionEvaluator
@@ -14,8 +11,6 @@ import net.artisanmc.plugin.engine.PapiPlaceholderCatalog
 import net.artisanmc.plugin.items.ItemDescriptor
 import net.artisanmc.plugin.protocol.EditorRequest.DataSourceFetch
 import net.artisanmc.plugin.protocol.EditorRequest.HeadTextureFetch
-import net.artisanmc.plugin.protocol.EditorRequest.ImportSourcesList
-import net.artisanmc.plugin.protocol.EditorRequest.ImportSourcesRead
 import net.artisanmc.plugin.protocol.EditorRequest.NexoGlyphRead
 import net.artisanmc.plugin.protocol.EditorRequest.NexoGlyphsList
 import net.artisanmc.plugin.protocol.EditorRequest.OnlinePlayersFetch
@@ -30,7 +25,7 @@ import java.util.logging.Logger
 
 /**
  * Ce que l'éditeur demande au serveur en marche : joueurs, placeholders, têtes,
- * inventaires, data sources, sources d'import. Tout ce qui lit l'API Bukkit passe
+ * inventaires, data sources, glyphes Nexo. Tout ce qui lit l'API Bukkit passe
  * par le [scheduler] ; les réponses repartent hors du thread du monde.
  */
 class ServerQueries(
@@ -39,7 +34,6 @@ class ServerQueries(
     private val logger: Logger?,
     private val evaluator: ConditionEvaluator,
     private val dataSources: DataSourceRegistry?,
-    private val importSources: ImportSourceAccess,
     private val nexoGlyphs: NexoGlyphReader?,
     private val serverConfig: ServerConfigAccess?,
 ) {
@@ -155,42 +149,6 @@ class ServerQueries(
             val error = runCatching { access.write(request.changes) }.getOrElse { "write_error: ${Replies.describe(it)}" }
             if (error == null) reply.ok("server_config" to access.report())
             else reply.error("invalid_config", error)
-        }
-    }
-
-    fun importSourcesList(request: ImportSourcesList) {
-        val reply = replies.to(request, "import_sources_list_result")
-        replies.offThread("import_sources_list") {
-            try {
-                val sources = importSources.listAll().map { source ->
-                    buildMap<String, Any> {
-                        put("id", source.id)
-                        put("label", source.label)
-                        put("files", source.files.map { file -> mapOf("path" to file.path, "size" to file.size) })
-                        source.error?.let { put("error", it) }
-                    }
-                }
-                reply.ok("sources" to sources)
-            } catch (e: Throwable) {
-                reply.failure("read_error", "import source listing", e)
-            }
-        }
-    }
-
-    fun importSourcesRead(request: ImportSourcesRead) {
-        val reply = replies.to(request, "import_sources_read_result")
-        replies.offThread("import_sources_read") {
-            try {
-                val selections = request.selections ?: return@offThread reply.error("invalid_input")
-                when (val result = importSources.read(selections.map { ImportSelection(it.sourceId, it.paths) })) {
-                    is ImportReadResult.Success -> reply.ok("files" to result.files.map { file ->
-                        mapOf("source_id" to file.sourceId, "path" to file.path, "content" to file.content)
-                    })
-                    is ImportReadResult.Failure -> reply.error(result.error, result.message)
-                }
-            } catch (e: Throwable) {
-                reply.failure("read_error", "import source read", e)
-            }
         }
     }
 

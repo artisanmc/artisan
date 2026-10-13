@@ -16,7 +16,7 @@ class LocalServerLinkProviderTest {
     private val events: MutableList<Map<String, Any?>> = Collections.synchronizedList(mutableListOf())
     private val provider = SyncedMenuProvider(
         roots = net.artisanmc.plugin.project.ProjectRoots(root),
-        serverKey = "", wsUrl = "", logger = null,
+        logger = null,
         editorEvents = { events += it },
     ).also { it.setSendForTesting { raw -> sent += raw } }
 

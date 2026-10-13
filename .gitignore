@@ -29,6 +29,7 @@ docker/server/
 
 # Generated MC assets (large binary artifacts — regenerated via gen-items.ts + gen-icons.ts)
 backend/data/mc-assets/
+tools/minecraft-assets/mc-assets/
 
 # Runtime dev artifacts (regenerated at runtime by editor/backend — not source)
 backend/data/assets/

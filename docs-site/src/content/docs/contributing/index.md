@@ -3,19 +3,32 @@ title: Contributing
 description: Architecture and development guide for contributors and forkers.
 ---
 
-The contributing guide is under construction.
+Artisan has no backend: the Paper plugin serves the editor, its API and the resource
+pack itself. The architecture notes for contributors live in the repository, under
+`docs/architecture/` (in French).
 
-Sections planned:
-- Repo layout (editor / backend / plugin)
-- Running the stack locally (Docker Compose)
-- Self-hosting your own backend
-- WebSocket protocol and bundle format
-- Adding a new feature end-to-end
+## Repository layout
 
-## Google sign-in for local development
+| Folder | Content |
+|---|---|
+| `editor/` | The web editor (React 19, Vite, Konva). It also builds the resource pack, in the browser. |
+| `plugin/` | The Paper plugin (Kotlin 2.0), in Gradle modules: `api` (surface for add-ons), `core` (domain, no Bukkit), `database`, `hub` (web server and network), `paper` (Bukkit integration and the jar). |
+| `tools/minecraft-assets/` | Bun generators for vanilla Minecraft assets (item catalogue, 3D icons, glyph widths). Their outputs are committed and embedded in the jar. |
+| `docs-site/` | This wiki (Astro Starlight). |
+| `docker/` | Local Minecraft servers for development. |
 
-Create an OAuth client of type **Web application** in Google Cloud Console. Configure the consent screen and, while the app is in testing, add the intended test users. Register `http://localhost:3001/api/v1/auth/google/callback` as an authorized redirect URI.
+## Running it locally
 
-Set `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `GOOGLE_REDIRECT_URI` in your local `.env` (see `.env.example`). Keep the secret on the backend. Docker Compose forwards these values; apply with `docker compose up -d --no-deps backend`. Its startup runs database migrations, including migration 0034, which preserves existing Discord links.
+```bash
+cd plugin
+./gradlew test                     # plugin test suite
+./gradlew shadowJar -PwithEditor   # jar with the editor embedded (npm required)
+cd ..
+docker compose up                  # Paper on 25565, editor on http://localhost:8765
+```
 
-For a hosted installation, use the public HTTPS backend callback URL and set `EDITOR_URL` to the editor's public origin. All three Google settings must be present for the button to appear. An actual Google login requires valid credentials and the exact registered callback; automated tests use locally signed test tokens.
+Join the server, type `/artisan editor` and open the link. For a hub and a leaf
+server, use `docker compose -f docker/network/compose.yml up` instead.
+
+Editor tests run with `cd editor && npm test`; the self-hosted build alone is
+`npm run build`.

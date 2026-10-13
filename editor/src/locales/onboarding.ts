@@ -15,9 +15,6 @@ export const onboardingEn = {
   navigationTitle: "Your projects, in one place",
   navigationDescription:
     "Open navigation to move between your Networks, servers and projects.",
-  demoTitle: "Your space to try things",
-  demoDescription:
-    "This demo is your own temporary project. Explore the editor, and export what you create to keep it.",
   canvasTitle: "See how your menus connect",
   canvasDescription:
     "The canvas brings your menus and their links together. Select a menu or one of its buttons to edit it.",
@@ -29,16 +26,12 @@ export const onboardingEn = {
     "The left sidebar lists the open project's menus, commands and dialogs. Pick one to centre the canvas on it, or create another with +.",
   tabsTitle: "Go beyond the canvas",
   tabsDescription:
-    "These tabs hold translations, data sources and resources. The assistant can help you create and refine your project.",
-  tabsDemoDescription:
     "These tabs hold translations, data sources and resources. Return to Canvas whenever you want to edit your menus.",
   saveTitle: "Keep your work",
   saveServerDescription:
     "Save keeps a private draft on your account. Deploy lets you review the changes before applying them to your Minecraft server.",
   saveLocalDescription:
     "Your edits stay in this browser. Use Export project from the project menu to download a copy you can keep.",
-  saveDemoDescription:
-    "Choose Export this project to download your demo before it expires. You can pick up this tour again from the project menu.",
 };
 
 export const onboardingFr = {
@@ -58,9 +51,6 @@ export const onboardingFr = {
   navigationTitle: "Vos projets au même endroit",
   navigationDescription:
     "Ouvrez la navigation pour retrouver vos Networks, serveurs et projets.",
-  demoTitle: "Un espace pour essayer",
-  demoDescription:
-    "Cette démo est votre propre projet temporaire. Explorez l’éditeur, et exportez vos créations pour les conserver.",
   canvasTitle: "Visualisez les liens entre vos menus",
   canvasDescription:
     "Le canvas rassemble vos menus et leurs liens. Sélectionnez un menu ou l’un de ses boutons pour le modifier.",
@@ -72,14 +62,10 @@ export const onboardingFr = {
     "La barre de gauche liste les menus, commandes et dialogues du projet ouvert. Choisissez-en un pour centrer le canvas dessus, ou créez-en un avec +.",
   tabsTitle: "Allez au-delà du canvas",
   tabsDescription:
-    "Ces onglets regroupent les traductions, sources de données et ressources. L’assistant peut vous aider à créer et affiner votre projet.",
-  tabsDemoDescription:
     "Ces onglets regroupent les traductions, sources de données et ressources. Revenez à Canvas pour modifier vos menus.",
   saveTitle: "Conservez votre travail",
   saveServerDescription:
     "Enregistrer conserve un brouillon privé sur votre compte. Déployer permet de vérifier les changements avant de les appliquer à votre serveur Minecraft.",
   saveLocalDescription:
     "Vos modifications restent dans ce navigateur. Utilisez Exporter le projet dans le menu du projet pour télécharger une copie à conserver.",
-  saveDemoDescription:
-    "Choisissez Exporter ce projet pour télécharger votre démo avant son expiration. La visite reste accessible depuis le menu du projet.",
 };

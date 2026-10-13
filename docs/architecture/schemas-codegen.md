@@ -21,7 +21,7 @@ Offsets default to zero, are bounded to ±4096 pixels and move the centered imag
 inside its clipped footprint. New editor buttons explicitly use `native`.
 This additive field uses the existing v1 appearance format and requires an updated
 plugin for rendering. Editor, canonical TS and Kotlin types mirror it manually.
-`menu/v1/imageButtons.ts` supplies shared semantic checks to editor/backend:
+`menu/v1/imageButtons.ts` supplies shared semantic checks to the editor (pack builder included):
 fixed, in-bounds rectangular positions without overlap (including other layers).
 Comma-separated ranges and YAML position lists support vertical rectangles.
 `menuImageButton.test.ts`, `imageButtons.test.ts` and `MenuRendererImageButtonTest`

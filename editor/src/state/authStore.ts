@@ -1,39 +1,20 @@
 import type { Account } from "@/domain/types";
 import type { AuthUserDto } from "@/lib/api/auth";
-import {
-  AuthUnreachableError,
-  login as apiLogin,
-  logout as apiLogout,
-  signup as apiSignup,
-  getMe,
-} from "@/lib/api/auth";
-import { clearImportRecovery } from "@/lib/importRecovery";
-import { clearCopyRecovery } from "@/lib/copyRecovery";
+import { AuthUnreachableError, logout as apiLogout, getMe } from "@/lib/api/auth";
 import { create } from "zustand";
 import { useProjectCacheStore } from "./projectCacheStore";
 import { useProjectDraftStore } from "./projectDraftStore";
 import { useProjectRuntimeStore } from "./projectRuntimeStore";
 
-/** Ce qu'on sait de la session — « unknown » tant que le backend n'a pas
- *  répondu. La démo possède un principal invité distinct de cette session de compte. */
+/** Ce qu'on sait de la session — « unknown » tant que le serveur n'a pas répondu. */
 export type SessionStatus = "unknown" | "signed-out" | "signed-in";
 
 interface AuthState {
   currentUser: AuthUserDto | null;
   isLoading: boolean;
   sessionStatus: SessionStatus;
-  /** Le dernier `/me` n'a pas abouti — l'app réessaye en arrière-plan. */
-  backendUnreachable: boolean;
   error: string | null;
   hydrate: (apiUrl: string) => Promise<void>;
-  login: (
-    apiUrl: string,
-    payload: { email: string; password: string },
-  ) => Promise<{ ok: true } | { ok: false; error: string; status: number }>;
-  signup: (
-    apiUrl: string,
-    payload: { email: string; password: string; name: string },
-  ) => Promise<{ ok: true } | { ok: false; error: string; status: number }>;
   logout: (apiUrl: string) => Promise<void>;
 }
 
@@ -66,17 +47,6 @@ function whenVisible(): Promise<void> {
  *  marchent dessus. */
 let hydrateGeneration = 0;
 
-export function clearDeletedAccountSession(): void {
-  ++hydrateGeneration;
-  useAuthStore.setState({
-    currentUser: null,
-    sessionStatus: "signed-out",
-    isLoading: false,
-    backendUnreachable: false,
-    error: null,
-  });
-}
-
 export const useAuthStore = create<AuthState>((set) => ({
   currentUser: null,
   // Start true: hydrate() has not yet run on first render. Routes that gate on
@@ -85,20 +55,12 @@ export const useAuthStore = create<AuthState>((set) => ({
   // logged-in users to /login.
   isLoading: true,
   sessionStatus: "unknown",
-  backendUnreachable: false,
   error: null,
   async hydrate(apiUrl) {
     const generation = ++hydrateGeneration;
     set({ isLoading: true });
-    /*
-     * Cette session décrit le compte ; le projet de démo utilise son propre principal.
-     * Un backend injoignable (502, cold start, coupure
-     * réseau) n'autorise donc aucune de ces deux réponses — et surtout pas
-     * « déconnecté », qui envoyait sur un /login incapable de fonctionner
-     * puisque c'est le même backend qui l'anime. La session reste « unknown »
-     * et on réessaye jusqu'à savoir : l'app affiche le vrai problème (backend
-     * injoignable) au lieu d'en inventer un autre.
-     */
+    // Un serveur injoignable (redémarrage, coupure réseau) ne dit pas « déconnecté » :
+    // la session reste « unknown » et on réessaye jusqu'à savoir.
     let user: AuthUserDto | null = null;
     for (let attempt = 0; ; attempt++) {
       if (generation !== hydrateGeneration) return;
@@ -109,7 +71,6 @@ export const useAuthStore = create<AuthState>((set) => ({
         if (!(e instanceof AuthUnreachableError)) throw e;
         // Un utilisateur déjà connu le reste : lui, l'app peut le servir.
         set((s) => ({
-          backendUnreachable: true,
           error: "auth_unreachable",
           isLoading: s.currentUser === null ? s.isLoading : false,
         }));
@@ -122,7 +83,6 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({
       currentUser: user,
       sessionStatus: user ? "signed-in" : "signed-out",
-      backendUnreachable: false,
       isLoading: false,
       error: null,
     });
@@ -149,32 +109,11 @@ export const useAuthStore = create<AuthState>((set) => ({
       }
     }
   },
-  async login(apiUrl, payload) {
-    set({ isLoading: true, error: null });
-    const result = await apiLogin({ apiUrl }, payload);
-    if (result.ok) {
-      set({ currentUser: result.data.user, sessionStatus: "signed-in", isLoading: false });
-      return { ok: true };
-    }
-    set({ error: result.error, isLoading: false });
-    return { ok: false, error: result.error, status: result.status };
-  },
-  async signup(apiUrl, payload) {
-    set({ isLoading: true, error: null });
-    const result = await apiSignup({ apiUrl }, payload);
-    if (result.ok) {
-      set({ currentUser: result.data.user, sessionStatus: "signed-in", isLoading: false });
-      return { ok: true };
-    }
-    set({ error: result.error, isLoading: false });
-    return { ok: false, error: result.error, status: result.status };
-  },
   async logout(apiUrl) {
     await apiLogout({ apiUrl });
     set({
       currentUser: null,
       sessionStatus: "signed-out",
-      backendUnreachable: false,
       error: null,
     });
   },
@@ -201,8 +140,6 @@ useAuthStore.subscribe(async (state) => {
   lastSeenUserId = id;
   if (previous === null) return; // first sign-in — keep prior state
   useProjectDraftStore.getState().setOwner(id);
-  clearImportRecovery();
-  clearCopyRecovery();
   useProjectRuntimeStore.getState().set(null);
   useProjectCacheStore.setState({ entries: {} });
   // Dynamic imports to avoid store import cycles (same pattern as hydrate()).
