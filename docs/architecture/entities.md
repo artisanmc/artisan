@@ -10,7 +10,7 @@ L'ancien modèle cloud (45 tables, 66 migrations Drizzle) est récupérable au c
 
 | Entité | Identité | Où |
 |---|---|---|
-| **Server** | `local` pour le serveur qui héberge le hub ; `proxy_name` (`web.name`, sinon le nom du dossier du serveur) pour une feuille | Mémoire du hub (`Servers`, `RemoteServer`). Une feuille déconnectée reste listée hors ligne jusqu'au redémarrage du hub. |
+| **Server** | `local` pour le serveur qui héberge le hub ; `proxy_name` (`name`, sinon le nom du dossier du serveur) pour une feuille | Mémoire du hub (`Servers`, `RemoteServer`). Une feuille déconnectée reste listée hors ligne jusqu'au redémarrage du hub. |
 | **Network** | Unique, nommé `local` ; libellé = nom du dossier du serveur hub | Implicite : le hub et les feuilles qui partagent son secret. |
 | **Project** | Nom de son dossier (`shop`) ; `<serveur>.<dossier>` hors du serveur du hub (`survie2.shop`) | Disque : `plugins/Artisan/projects/<dossier>/`, ou la racine qu'un add-on enregistre (`ProjectRootRegistry`, `identity: addon`). Cf. `project-files.md`. |
 | **Brouillon privé** | `draft_id` dans un Project, propriétaire = UUID du joueur | Disque : `<project>/.artisan/drafts/<id>/draft.json` + blobs (`ProjectDraftStore`). |
@@ -30,7 +30,7 @@ demande (`artisan.editor` les donne toutes). L'accès se donne avec un plugin de
 | Fichier | Contenu | Écrit par |
 |---|---|---|
 | `config.yml` | Réglages éditables (langue, pack de ressources, taille des pools…) | L'admin, ou l'éditeur (`server_config_write`, validé clé par clé). |
-| `environment.yml` | `web.*` (port, bind, url, rôle, nom, hub-url, secret) et identifiants de base | L'admin seul ; jamais lu ni écrit par l'éditeur. |
+| `environment.yml` | `name` (nom du serveur), `web.*` (port, bind, url, hub, secret) et identifiants de base | L'admin seul ; jamais lu ni écrit par l'éditeur. |
 | `network-secret` | Secret du réseau généré par le hub quand ni `web.secret` ni Velocity n'en donnent | Le hub, une fois. |
 | `projects/` | Les Projects | Le plugin (seul écrivain), sur geste de l'éditeur, ou l'admin à la main puis `/artisan reload`. |
 | `editor-prefs/<uuid>.json` | Préférences d'éditeur d'un joueur (`PATCH /api/v1/auth/me`) | Le hub. |

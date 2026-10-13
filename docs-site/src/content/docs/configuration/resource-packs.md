@@ -52,7 +52,7 @@ If the directory cannot be written, Artisan logs
 and pushes the pack itself.
 
 In delegation mode the server downloads the pack from the editor's web server: on a
-leaf, from the HTTP address of its `web.hub-url`. Players never contact it.
+leaf, from the HTTP address of its `web.hub`. Players never contact it.
 
 ## Push by Artisan
 
@@ -84,7 +84,7 @@ leaf is uploaded through the hub, stored by the hub, and:
 
 - in push mode, players of the leaf download it from the **hub's** `web.url`;
 - in delegation mode, the leaf downloads it from the hub over the internal address
-  of `web.hub-url` and hands it to its local pack plugin.
+  of `web.hub` and hands it to its local pack plugin.
 
 The last applied pack is cached on each server (`plugins/Artisan/cache/`) and
 survives restarts, even while the hub is unreachable.

@@ -24,14 +24,14 @@ The secret comes from Velocity's forwarding secret, already in every server's
 
 ```yaml
 # plugins/Artisan/environment.yml
+name: "lobby"
+
 web:
   enabled: true
   port: 8765
   bind: "10.0.0.5"                    # private network only; Caddy proxies to it
   url: "https://editor.example.com"
-  role: "hub"
-  name: "lobby"
-  hub-url: ""
+  hub: ""                             # empty: this server is the hub
   secret: ""                          # Velocity forwarding secret
 
 database:
@@ -62,11 +62,14 @@ ufw allow from 10.0.0.2 to any port 25565 proto tcp
 
 ```yaml
 # plugins/Artisan/environment.yml
+name: "survival"
+
 web:
   enabled: true
-  role: "leaf"
-  name: "survival"
-  hub-url: "ws://10.0.0.5:8765/ws/plugin"
+  port: 8765
+  bind: ""
+  url: ""
+  hub: "10.0.0.5:8765"                # the lobby's private address and web.port
   secret: ""                          # Velocity forwarding secret
 
 database:
@@ -82,11 +85,14 @@ database:
 
 ```yaml
 # plugins/Artisan/environment.yml
+name: "skyblock"
+
 web:
   enabled: true
-  role: "leaf"
-  name: "skyblock"
-  hub-url: "ws://10.0.0.5:8765/ws/plugin"
+  port: 8765
+  bind: ""
+  url: ""
+  hub: "10.0.0.5:8765"                # the lobby's private address and web.port
   secret: ""
 
 database:
@@ -152,4 +158,4 @@ web:
 
 The repository ships a two-server network for testing:
 `docker compose -f docker/network/compose.yml up` (a hub on ports 25565 and 8765, a
-leaf on 25566). Its leaf uses the Docker service name: `hub-url: "ws://hub:8765/ws/plugin"`.
+leaf on 25566). Its leaf uses the Docker service name: `hub: "hub:8765"`.

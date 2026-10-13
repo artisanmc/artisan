@@ -28,25 +28,26 @@ object EnvironmentFile {
         |# to the editor, never written by it. Everything else lives in config.yml.
         |# Any value may reference an environment variable: "${'$'}{NAME}".
         |
+        |# This server's name in the editor; empty uses the server folder name.
+        |# Behind Velocity, use its name in velocity.toml: letters, digits, _ and - only.
+        |name: ""
+        |
         |# Web editor served by this server. Changes apply after a restart.
-        |#   port : the only port to open; players never need it, admins do
-        |#   bind : empty listens on every interface, "127.0.0.1" behind a reverse proxy
-        |#   url  : public address put in /artisan editor links, e.g. "https://editor.example.com";
-        |#          empty uses the address the player joined with
+        |#   port   : the only port to open; players never need it, admins do
+        |#   bind   : empty listens on every interface, "127.0.0.1" behind a reverse proxy
+        |#   url    : public address put in /artisan editor links, e.g. "https://editor.example.com";
+        |#            empty uses the address the player joined with
         |# In a network, one server is the hub and serves the editor for all of them:
-        |#   role    : "hub", or "leaf" on every other server
-        |#   name    : this server's name in the editor; empty uses the server folder name
-        |#   hub-url : on a leaf, the hub's address, e.g. "ws://10.0.0.5:8765/ws/plugin"
-        |#   secret  : shared by the hub and its leaves; empty uses the Velocity forwarding
-        |#             secret, else the hub generates one in plugins/Artisan/network-secret
+        |#   hub    : on every other server, the hub's address and web port, e.g. "10.0.0.5:8765";
+        |#            empty means this server is the hub
+        |#   secret : shared by the hub and the other servers; empty uses the Velocity forwarding
+        |#            secret, else the hub generates one in plugins/Artisan/network-secret
         |web:
         |  enabled: true
         |  port: 8765
         |  bind: ""
         |  url: ""
-        |  role: "hub"
-        |  name: ""
-        |  hub-url: ""
+        |  hub: ""
         |  secret: ""
         |
         |# Database shared by the plugins of the suite, one connection pool per plugin

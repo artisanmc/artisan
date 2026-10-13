@@ -21,14 +21,14 @@ players download the resource pack from the same address. Port 8765 stays closed
 
 ```yaml
 # plugins/Artisan/environment.yml
+name: ""
+
 web:
   enabled: true
   port: 8765
   bind: "127.0.0.1"
   url: "https://editor.example.com"
-  role: "hub"
-  name: ""
-  hub-url: ""
+  hub: ""
   secret: ""
 
 database:

@@ -434,7 +434,7 @@ class SyncedMenuProvider(
             is EditorRequest.HelloAck -> onHelloAck(request)
             is EditorRequest.ResourcePackUpdated -> applyResourcePack(request.url, request.hash, "resource_pack_updated payload")
             EditorRequest.SessionReplaced -> logger?.warning(
-                "[Artisan] Another server joined the hub with this server's name (web.name); this one is disconnected from the editor.",
+                "[Artisan] Another server joined the hub with this server's name (name in environment.yml); this one is disconnected from the editor.",
             )
             EditorRequest.CustomItemsRequest -> sendCustomItems()
 

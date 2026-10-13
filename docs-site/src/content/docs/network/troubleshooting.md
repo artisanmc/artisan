@@ -18,8 +18,7 @@ Check the leaf's startup log for:
 
 | Leaf log | Cause | Fix |
 |---|---|---|
-| No such line | `web.role` is not exactly `"leaf"` (the server runs as a second hub) | Set `role: "leaf"` and restart. |
-| `… at (web.hub-url not set)` | `web.hub-url` is empty | Set it to the hub's `/ws/plugin` address. |
+| No such line | `web.hub` is empty (the server runs as a second hub) | Set `hub` to the hub's address, e.g. `"10.0.0.5:8765"`, and restart. |
 | `WS failure: Failed to connect to /10.0.0.5:8765` (or similar) | The leaf cannot reach the hub: wrong address, hub down, firewall, hub `web.bind` on another interface | Test from the leaf machine: `curl -I http://10.0.0.5:8765/`. |
 | Line present, no `WS failure`, hub logs nothing | The leaf found **no secret** at all, and does not try to connect | Set `web.secret`, or enable Velocity forwarding, or copy the hub's `network-secret` (see [the shared secret](/wiki/network/setup/#4-the-shared-secret)). |
 
@@ -44,17 +43,25 @@ The secrets differ. Common causes:
 [Artisan] Server refused on /ws/plugin: invalid proxy_name
 ```
 
-The leaf's name is `local`, which is reserved for the hub (set through `web.name`, or
-taken from a server folder named `local`). Set another `web.name`, using letters,
+The leaf's name was not accepted by the hub. Set another `name`, using letters,
 digits, `_` or `-`.
+
+```
+[Artisan] name "…" in environment.yml is invalid: …
+```
+
+The leaf refuses its own `name` before connecting: it contains a character other than
+letters, digits, `_` and `-`, is longer than 64 characters, or is `local` (reserved for
+the hub). Artisan never rewrites a written name, since it must match the server's name in
+`velocity.toml`. Fix it and restart.
 
 A refused leaf keeps retrying, up to once a minute.
 
 ## Two servers fight over one entry
 
-Two leaves share a name (often both empty `web.name` with the same folder name, such
+Two leaves share a name (often both empty `name` with the same folder name, such
 as `data` in Docker images). Each connection replaces the other. Give every server a
-distinct `web.name`.
+distinct `name`.
 
 ## `/artisan editor` on a leaf: "The editor hub cannot be reached right now"
 
@@ -97,6 +104,6 @@ MariaDB — see [Database](/wiki/configuration/database/).
 
 In push mode, players of every server download the pack from the **hub's** `web.url`:
 it must be reachable from the internet. In delegation mode, the leaf downloads it from
-its `web.hub-url` host on `web.port`; the log shows
+the address in its `web.hub`; the log shows
 `[delegate] apply failed: download or extract of <url> failed: …` when it cannot. See
 [Resource packs](/wiki/configuration/resource-packs/#in-a-network).
