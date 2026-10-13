@@ -148,7 +148,7 @@ describe("ServerProjectPage", () => {
    * takes. Rendering nothing meanwhile (`return null`) gave a blank page for
    * several seconds, which looks like an outage.
    */
-  it("annonce la lecture au lieu de laisser une page blanche", () => {
+  it("announces the read instead of leaving a blank page", () => {
     loaderState.loaded = false;
     render(<ServerProjectPage />);
     expect(screen.getByText("project.loading")).toBeInTheDocument();

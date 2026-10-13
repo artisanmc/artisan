@@ -62,7 +62,7 @@ describe("useProjectLoader", () => {
     expect(read).toHaveBeenLastCalledWith("internal-second", undefined, undefined, undefined);
   });
 
-  it("charge le contenu depuis le DISQUE du serveur, pas depuis le backend", async () => {
+  it("loads the content from the server's DISK, not from the backend", async () => {
     useAuthStore.setState({ currentUser: { id: "u1", name: "x", email: "x@a.b" } } as never);
     vi.spyOn(userProjectsApi, "loadUserProject").mockResolvedValue({
       project: { id: "p1", name: "p", hash: "h", externalId: "boutique_shop" },
@@ -88,7 +88,7 @@ describe("useProjectLoader", () => {
     });
   });
 
-  it("serveur éteint avec une copie du backend : ouvert, daté, hors ligne", async () => {
+  it("server down with a backend copy: open, dated, offline", async () => {
     useAuthStore.setState({ currentUser: { id: "u1", name: "x", email: "x@a.b" } } as never);
     vi.spyOn(userProjectsApi, "loadUserProject").mockResolvedValue({
       project: { id: "p1", name: "p", hash: "h", externalId: "boutique_shop" },
@@ -113,7 +113,7 @@ describe("useProjectLoader", () => {
     unmount();
   });
 
-  it("jamais publié : ouvert depuis le brouillon, serveur non connecté annoncé", async () => {
+  it("never published: opened from the draft, server not connected announced", async () => {
     useAuthStore.setState({ currentUser: { id: "u1", name: "x", email: "x@a.b" } } as never);
     vi.spyOn(userProjectsApi, "loadUserProject").mockResolvedValue({
       project: { id: "p1", name: "prepare", hash: "h", externalId: "prepare" },
@@ -151,7 +151,7 @@ describe("useProjectLoader", () => {
     unmount();
   });
 
-  it("serveur hors ligne : pas de repli, le Project n'est pas ouvrable", async () => {
+  it("server offline: no fallback, the Project cannot be opened", async () => {
     useAuthStore.setState({ currentUser: { id: "u1", name: "x", email: "x@a.b" } } as never);
     vi.spyOn(userProjectsApi, "loadUserProject").mockResolvedValue({
       project: { id: "p1", name: "p", hash: "h" },
@@ -215,7 +215,7 @@ describe("useProjectLoader", () => {
     await waitFor(() => expect(result.current.project).not.toBeNull());
   });
 
-  it("ce que le serveur a rendu devient la version connue", async () => {
+  it("what the server returned becomes the known version", async () => {
     useAuthStore.setState({ currentUser: { id: "u1", name: "x", email: "x@a.b" } } as never);
     vi.spyOn(userProjectsApi, "loadUserProject").mockResolvedValue({
       project: { id: "p1", name: "p", hash: "h", externalId: "boutique_shop" },
@@ -241,7 +241,7 @@ describe("useProjectLoader", () => {
    * sends NOTHING back, and the known version stays on screen — but it stops
    * being announced as dated, because it was just confirmed.
    */
-  it("annonce l'empreinte détenue et garde sa copie quand le serveur dit « inchangé »", async () => {
+  it("announces the held fingerprint and keeps its copy when the server says 'unchanged'", async () => {
     useAuthStore.setState({ currentUser: { id: "u1", name: "x", email: "x@a.b" } } as never);
     useProjectCacheStore.getState().put(projectCacheKey("p1", undefined, undefined, "u1"), {
       identity: {

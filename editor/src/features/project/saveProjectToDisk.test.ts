@@ -71,7 +71,7 @@ describe("saveProjectToDisk", () => {
     expect(useProjectDraftStore.getState().get("p1")).toBeUndefined();
   });
 
-  it("n'écrit rien quand l'arbre est identique à la base", async () => {
+  it("writes nothing when the tree is identical to the base", async () => {
     const project = emptyProject();
     // First pass: capture what the project produces and make it the base.
     vi.mocked(writeProjectFiles).mockResolvedValue({ ok: true });
@@ -125,7 +125,7 @@ describe("saveProjectToDisk", () => {
     expect(useProjectDraftStore.getState().get("p1")?.binaryBaseline).toEqual(before);
   });
 
-  it("un enregistrement réussi devient la nouvelle base", async () => {
+  it("a successful save becomes the new base", async () => {
     const project = emptyProject();
     vi.mocked(writeProjectFiles).mockResolvedValue({ ok: true });
 
@@ -138,7 +138,7 @@ describe("saveProjectToDisk", () => {
     expect(Object.keys(baseline!).every((p) => !p.startsWith("plugins/"))).toBe(true);
   });
 
-  it("un conflit n'avance pas la base — rien n'a été écrit sur disque", async () => {
+  it("a conflict does not advance the base — nothing was written to disk", async () => {
     const project = emptyProject();
     vi.mocked(writeProjectFiles).mockResolvedValue({
       ok: false,
@@ -158,7 +158,7 @@ describe("saveProjectToDisk", () => {
     expect(useProjectBaselineStore.getState().get("p1")).toBeUndefined();
   });
 
-  it("remonte une panne de serveur telle quelle", async () => {
+  it("surfaces a server failure as is", async () => {
     vi.mocked(writeProjectFiles).mockResolvedValue({ ok: false, error: "server_offline" });
 
     const res = await saveProjectToDisk(emptyProject(), "n1", "s1");

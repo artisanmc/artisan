@@ -118,7 +118,7 @@ describe("rearrangeProjectLayout — modes", () => {
     });
   };
 
-  it("columns libère les positions ; un autre mode les persiste toutes", () => {
+  it("columns releases the positions; another mode persists them all", () => {
     const project = fanout();
     expect(rearrangeProjectLayout(project, undefined, "columns")!.canvasLayout).toEqual({});
     for (const mode of ["wrap", "auto", "cluster", "force"] as const) {
@@ -127,7 +127,7 @@ describe("rearrangeProjectLayout — modes", () => {
     }
   });
 
-  it("deux modes donnent deux dispositions distinctes", () => {
+  it("two modes give two distinct layouts", () => {
     const project = fanout();
     const wrap = rearrangeProjectLayout(project, undefined, "wrap")!.canvasLayout;
     const cluster = rearrangeProjectLayout(project, undefined, "cluster")!.canvasLayout;

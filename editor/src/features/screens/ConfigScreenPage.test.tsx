@@ -72,8 +72,8 @@ async function ready() {
  * DATED, and saving on it would send a compare-and-swap on a wrong base. Show,
  * announce, and only open editing afterwards.
  */
-describe("ConfigScreenPage — dernière version connue", () => {
-  it("affiche le connu sans attendre le serveur, et le dit", async () => {
+describe("ConfigScreenPage — last known version", () => {
+  it("shows the known version without waiting for the server, and says so", async () => {
     useScreenCacheStore.getState().put(screenCacheKey("n", "s", "boutique:settings"), {
       files: [{ path: "data/shop_settings.yaml", content: "whole_shop_discount: 42\n" }],
       models: [],
@@ -95,7 +95,7 @@ describe("ConfigScreenPage — dernière version connue", () => {
    * indefinitely and editing stays closed — without a notice, nothing would
    * explain why saving is no longer possible.
    */
-  it("un échec de revalidation se dit tout de suite", async () => {
+  it("a revalidation failure is reported right away", async () => {
     useScreenCacheStore.getState().put(screenCacheKey("n", "s", "boutique:settings"), {
       files: [{ path: "data/shop_settings.yaml", content: "whole_shop_discount: 42\n" }],
       models: [],
@@ -110,7 +110,7 @@ describe("ConfigScreenPage — dernière version connue", () => {
     expect(screen.queryByRole("button", { name: /Enregistr/ })).toBeNull();
   });
 
-  it("n'ouvre pas l'enregistrement tant que la copie est datée", async () => {
+  it("does not enable saving while the copy is dated", async () => {
     useScreenCacheStore.getState().put(screenCacheKey("n", "s", "boutique:settings"), {
       files: [{ path: "data/shop_settings.yaml", content: "whole_shop_discount: 42\n" }],
       models: [],
@@ -126,7 +126,7 @@ describe("ConfigScreenPage — dernière version connue", () => {
     expect(screen.queryByRole("button", { name: /Recharger/ })).toBeNull();
   });
 
-  it("la réponse du serveur remplace le connu et rend la main", async () => {
+  it("the server's response replaces the known version and hands control back", async () => {
     useScreenCacheStore.getState().put(screenCacheKey("n", "s", "boutique:settings"), {
       files: [{ path: "data/shop_settings.yaml", content: "whole_shop_discount: 42\n" }],
       models: [],
@@ -141,7 +141,7 @@ describe("ConfigScreenPage — dernière version connue", () => {
     expect(screen.getByRole("button", { name: /Enregistr/ })).toBeTruthy();
   });
 
-  it("ce que le serveur a rendu devient la version connue", async () => {
+  it("what the server returned becomes the known version", async () => {
     renderPage();
     await ready();
     await waitFor(() =>

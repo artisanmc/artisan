@@ -84,8 +84,8 @@ function load() {
   return { project, menu: project.menus[0]! };
 }
 
-describe("aperçu boutique — placements hors du contexte d'aperçu", () => {
-  it("le filtre de l'input ne laisse passer que la catégorie prévisualisée", () => {
+describe("shop preview — placements outside the preview context", () => {
+  it("the input filter only lets the previewed category through", () => {
     const { project, menu } = load();
     const scope = buildPreviewScope(menu, project, { "boutique:items": ROWS });
     // The `category: '{category}'` filter interpolates with the `les_cles` default.
@@ -94,7 +94,7 @@ describe("aperçu boutique — placements hors du contexte d'aperçu", () => {
     ]);
   });
 
-  it("un placement dont la ligne n'est pas dans le contexte est PENDANT, pas brut", () => {
+  it("a placement whose row is not in the context is PENDING, not raw", () => {
     const { project, menu } = load();
     const scope = buildPreviewScope(menu, project, { "boutique:items": ROWS });
     const element = menu.layers[0]!.elements[0]!;
@@ -141,12 +141,12 @@ describe("aperçu boutique — placements hors du contexte d'aperçu", () => {
    * missing key proves nothing there, so it must leave no trace on screen.
    * Without a context filter, the same absence is a real hole and must show.
    */
-  it("hors contexte, un placement ne laisse pas de case pointillée", () => {
+  it("out of context, a placement leaves no dotted slot", () => {
     const { menu } = load();
     expect(sourceIsContextFiltered(menu, menu.layers[0]!.elements[0]!.places!.source)).toBe(true);
   });
 
-  it("le slot partagé rend le placement DU contexte, pas le premier de la liste", () => {
+  it("the shared slot renders the placement OF the context, not the first in the list", () => {
     // The core of the bug: a parameterised menu reuses the same slots from one
     // category to another. Taking the first placement at the position missed
     // as soon as the preview showed another category — no row bound, and the
@@ -179,7 +179,7 @@ describe("aperçu boutique — placements hors du contexte d'aperçu", () => {
     );
   });
 
-  it("le lore de l'apparence est bien lisible (et pas un objet)", () => {
+  it("the appearance's lore is readable (and not an object)", () => {
     const { project, menu } = load();
     const appearance = menu.layers[0]!.elements[0]!.display!;
     // This is what the tooltip reads. If it renders "" or an object, the hover lies.

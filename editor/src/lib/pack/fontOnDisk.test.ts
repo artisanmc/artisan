@@ -16,7 +16,7 @@ import { FONT_DESCRIPTOR, fontFilesFor, fontFromDisk } from "./fontOnDisk";
  *     assets/fonts/<name>/font.yaml     ← which character, which image, ascent
  *     assets/fonts/<name>/<texture>.png ← one file per glyph
  */
-describe("police dépliée", () => {
+describe("unfolded font", () => {
   const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
   const parsed = {
     glyphMap: [
@@ -30,7 +30,7 @@ describe("police dépliée", () => {
     warnings: [],
   };
 
-  test("un fichier par glyphe, plus le descripteur", () => {
+  test("one file per glyph, plus the descriptor", () => {
     const { binaries, descriptor } = fontFilesFor("pixelmix", parsed);
     expect(binaries.map((b) => b.path)).toEqual([
       "assets/fonts/pixelmix/glyphs/a.png",
@@ -44,7 +44,7 @@ describe("police dépliée", () => {
     expect(descriptor.content).toContain("ascent: 7");
   });
 
-  test("relue depuis le disque, elle redonne sa carte de glyphes", () => {
+  test("read back from disk, it yields its glyph map again", () => {
     const { binaries, descriptor } = fontFilesFor("pixelmix", parsed);
     const meta = fontFromDisk(descriptor.content);
     expect(meta?.namespace).toBe("artisan:pixelmix");
@@ -52,7 +52,7 @@ describe("police dépliée", () => {
     expect(binaries).toHaveLength(2);
   });
 
-  test("les PNG d'une police ne sont pas des assets à part entière", () => {
+  test("a font's PNGs are not assets in their own right", () => {
     // Otherwise the library would show 95 "glyphs" named a, b, c… next to the
     // font: the font is the asset, not each of its images.
     const found = diskAssetsFromTree(

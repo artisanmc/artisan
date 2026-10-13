@@ -119,8 +119,8 @@ function flatTemplateFiles(): Record<string, string> {
   return files;
 }
 
-describe("templates/ au format display + states", () => {
-  it("inline le display à plat, comme pour un Element", () => {
+describe("templates/ in display + states format", () => {
+  it("inlines the flat display, as for an Element", () => {
     const p = projectFromFiles(PID, flatTemplateFiles());
     const [a, b] = elementsOf(p);
 

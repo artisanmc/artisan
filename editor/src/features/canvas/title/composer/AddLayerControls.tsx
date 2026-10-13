@@ -7,6 +7,7 @@ import {
   useEffect,
   useRef,
 } from "react";
+import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
 import { useUiStore } from "@/state/uiStore";
@@ -65,6 +66,7 @@ interface ActiveGesture {
  * This avoids double-fire without needing a shared flag between handlers.
  */
 export function AddLayerControls({ onPlace, imageControl }: AddLayerControlsProps) {
+  const { t } = useTranslation();
   const setDragging = useUiStore((s) => s.setDraggingNewLayer);
 
   // The single active gesture (if any). Refs (not state) so we don't
@@ -173,13 +175,15 @@ export function AddLayerControls({ onPlace, imageControl }: AddLayerControlsProp
           size="sm"
           variant="outline"
           className="flex-1"
-          title="+ Image"
-          aria-label="+ Image"
+          title={t("layersPanel.addImage")}
+          aria-label={t("layersPanel.addImage")}
           onPointerDown={(e) => onPointerDown("image", e)}
           onClick={(e) => onClick("image", e)}
         >
           <ImageIcon className="h-3.5 w-3.5 @[15rem]:mr-1" />
-          <span className="hidden whitespace-nowrap @[15rem]:inline">+ Image</span>
+          <span className="hidden whitespace-nowrap @[15rem]:inline">
+            {t("layersPanel.addImage")}
+          </span>
         </Button>
       )}
       <Button
@@ -188,13 +192,13 @@ export function AddLayerControls({ onPlace, imageControl }: AddLayerControlsProp
         size="sm"
         variant="outline"
         className="flex-1"
-        title="+ Texte"
-        aria-label="+ Texte"
+        title={t("layersPanel.addText")}
+        aria-label={t("layersPanel.addText")}
         onPointerDown={(e) => onPointerDown("text", e)}
         onClick={(e) => onClick("text", e)}
       >
         <Type className="h-3.5 w-3.5 @[15rem]:mr-1" />
-        <span className="hidden whitespace-nowrap @[15rem]:inline">+ Texte</span>
+        <span className="hidden whitespace-nowrap @[15rem]:inline">{t("layersPanel.addText")}</span>
       </Button>
     </div>
   );

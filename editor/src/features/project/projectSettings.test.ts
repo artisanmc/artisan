@@ -9,7 +9,7 @@ beforeEach(() => {
 });
 
 describe("projectSettings", () => {
-  it("ouvrir les paramètres vide la sélection", () => {
+  it("opening the settings clears the selection", () => {
     useSelectionStore.getState().set(["m1"]);
     openProjectSettings();
     expect(useSelectionStore.getState().ids.size).toBe(0);
@@ -17,7 +17,7 @@ describe("projectSettings", () => {
   });
 
   /** The way out: without it, the settings stayed open indefinitely. */
-  it("refermer remet les deux à zéro", () => {
+  it("closing resets both", () => {
     openProjectSettings();
     dismissInspector();
     expect(useUiStore.getState().projectSettingsOpen).toBe(false);

@@ -1,5 +1,7 @@
+import type { TFunction } from "i18next";
 import { Eye, EyeOff, GripVertical, Trash2 } from "lucide-react";
 import type { MouseEvent } from "react";
+import { useTranslation } from "react-i18next";
 
 import type { Asset } from "@/domain/asset";
 import type { AssetId, MenuId, MenuTitleLayer, ProjectId } from "@/domain/types";
@@ -34,6 +36,7 @@ interface LayerListItemProps {
  * so they don't also select the row.
  */
 export function LayerListItem({ projectId, menuId, index, layer }: LayerListItemProps) {
+  const { t } = useTranslation();
   const hidden = useUiStore((s) => s.hiddenLayerKeys.has(`${menuId}:${index}`));
   const selected = useUiStore(
     (s) => s.selectedLayerKey?.menuId === menuId && s.selectedLayerKey?.index === index,
@@ -47,7 +50,7 @@ export function LayerListItem({ projectId, menuId, index, layer }: LayerListItem
   const activeLang = useUiStore((s) => s.activeLang);
   const assets = useAssetStore((s) => s.assets);
 
-  const name = deriveAutoName(layer, assets, project, activeLang);
+  const name = deriveAutoName(layer, assets, project, activeLang, t);
 
   const onRowClick = () => {
     setSelectedLayerKey({ menuId, index });
@@ -66,7 +69,7 @@ export function LayerListItem({ projectId, menuId, index, layer }: LayerListItem
 
   const onDeleteClick = (e: MouseEvent) => {
     e.stopPropagation();
-    if (window.confirm("Supprimer cet élément du titre ?")) {
+    if (window.confirm(t("layerListItem.deleteConfirm"))) {
       removeLayer({ projectId, menuId, index });
       // Sync uiStore: clear/shift stale selection + hidden flags. Without
       // this, the next layer (which shifted up) would inherit selection and
@@ -100,8 +103,8 @@ export function LayerListItem({ projectId, menuId, index, layer }: LayerListItem
         data-testid="layer-list-item-eye"
         data-hidden={hidden ? "true" : "false"}
         onClick={onEyeClick}
-        title={hidden ? "Afficher" : "Masquer"}
-        aria-label={hidden ? "Afficher l'élément" : "Masquer l'élément"}
+        title={hidden ? t("layerListItem.show") : t("layerListItem.hide")}
+        aria-label={hidden ? t("layerListItem.showElement") : t("layerListItem.hideElement")}
         className="grid h-6 w-6 place-items-center rounded text-[var(--text-mut)] hover:bg-[var(--surface-raised-2)] hover:text-[var(--text)]"
       >
         {hidden ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
@@ -111,8 +114,8 @@ export function LayerListItem({ projectId, menuId, index, layer }: LayerListItem
         data-testid="layer-list-item-drag"
         data-drag-handle="true"
         onClick={onDragHandleClick}
-        title="Glisser pour réordonner"
-        aria-label="Glisser pour réordonner"
+        title={t("layerListItem.dragToReorder")}
+        aria-label={t("layerListItem.dragToReorder")}
         className="grid h-6 w-4 cursor-grab place-items-center text-[var(--text-faint)] hover:text-[var(--text-mut)]"
       >
         <GripVertical className="h-3.5 w-3.5" />
@@ -126,8 +129,8 @@ export function LayerListItem({ projectId, menuId, index, layer }: LayerListItem
         type="button"
         data-testid="layer-list-item-delete"
         onClick={onDeleteClick}
-        title="Supprimer"
-        aria-label="Supprimer l'élément du titre"
+        title={t("layerListItem.delete")}
+        aria-label={t("layerListItem.deleteElement")}
         className="grid h-6 w-6 place-items-center rounded text-[var(--text-faint)] opacity-0 transition-opacity hover:bg-[var(--surface-raised-2)] hover:text-[var(--danger)] focus:opacity-100 group-hover:opacity-100"
       >
         <Trash2 className="h-3.5 w-3.5" />
@@ -143,7 +146,7 @@ export function LayerListItem({ projectId, menuId, index, layer }: LayerListItem
  *  - background / glyph → "Image • <asset name | truncated id>"
  *      The two runtime kinds collapse into one UI concept; we drop the
  *      "Background" vocabulary entirely.
- *  - text               → "Texte • <first 20 chars of the resolved value>"
+ *  - text               → "Text • <first 20 chars of the resolved value>"
  *  - external_glyph     → "Image (Oraxen/Nexo) • <name>" so the user
  *      understands the source without seeing the word "glyph".
  */
@@ -152,32 +155,36 @@ function deriveAutoName(
   assets: Asset[],
   project: ReturnType<typeof useAccountStore.getState>["account"]["projects"][number] | undefined,
   activeLang: string,
+  t: TFunction,
 ): string {
   if (layer.kind === "background" || layer.kind === "glyph") {
-    return `Image • ${resolveAssetName(layer.assetId, assets)}`;
+    return t("layerListItem.nameImage", { name: resolveAssetName(layer.assetId, assets) });
   }
   if (layer.kind === "text") {
     const raw = project ? getText(project, layer.value, activeLang) : "";
     const display = raw && raw.length > 0 ? raw : layer.value.key;
-    return `Texte • ${truncate(display, 20)}`;
+    return t("layerListItem.nameText", { text: truncate(display, 20) });
   }
   if (layer.kind === "plain") {
     const raw = project ? getText(project, layer.value, activeLang) : "";
     const display = raw && raw.length > 0 ? raw : layer.value.key;
-    return `Titre vanilla • ${truncate(display, 20)}`;
+    return t("layerListItem.namePlain", { text: truncate(display, 20) });
   }
   if (layer.kind === "textarea") {
     const raw = project ? getText(project, layer.value, activeLang) : "";
     const firstLine = (raw && raw.split("\n")[0]) || layer.value.key;
     const hasMore = raw && raw.includes("\n");
     const suffix = hasMore ? "…" : "";
-    return `Texte • ${truncate(firstLine, 18)}${suffix}`;
+    return t("layerListItem.nameText", { text: `${truncate(firstLine, 18)}${suffix}` });
   }
   if (layer.kind === "external_glyph") {
-    return `Image (${externalProviderLabel(layer.provider)}) • ${layer.glyphName}`;
+    return t("layerListItem.nameExternal", {
+      provider: externalProviderLabel(layer.provider),
+      name: layer.glyphName,
+    });
   }
   // Exhaustiveness — discriminated union is closed.
-  return "Calque inconnu";
+  return t("layerListItem.nameUnknown");
 }
 
 function externalProviderLabel(provider: "oraxen" | "nexo" | "itemsadder"): string {

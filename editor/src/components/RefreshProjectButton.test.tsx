@@ -55,7 +55,7 @@ describe("RefreshProjectButton", () => {
     useProjectCacheStore.setState({ reloadToken: 0 } as never);
   });
 
-  it("sans travail en cours, actualise sans rien demander", async () => {
+  it("with no work in progress, refreshes without asking", async () => {
     render(<RefreshProjectButton projectId={PID} />);
     await userEvent.click(screen.getByRole("button", { name: "topbar.refresh" }));
     expect(useProjectCacheStore.getState().reloadToken).toBe(1);
@@ -65,7 +65,7 @@ describe("RefreshProjectButton", () => {
    * Overwriting is what a refresh is expected to do — but what is lost here
    * exists nowhere else, so never without asking.
    */
-  it("avec du travail non enregistré, demande confirmation avant d'écraser", async () => {
+  it("with unsaved work, asks for confirmation before overwriting", async () => {
     seedDraft(true);
     render(<RefreshProjectButton projectId={PID} />);
     await userEvent.click(screen.getByRole("button", { name: "topbar.refresh" }));
@@ -79,7 +79,7 @@ describe("RefreshProjectButton", () => {
     expect(useProjectDraftStore.getState().drafts[PID]).toBeUndefined();
   });
 
-  it("annuler ne touche ni au brouillon ni à l'affichage", async () => {
+  it("cancel touches neither the draft nor the display", async () => {
     seedDraft(true);
     render(<RefreshProjectButton projectId={PID} />);
     await userEvent.click(screen.getByRole("button", { name: "topbar.refresh" }));

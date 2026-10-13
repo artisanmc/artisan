@@ -799,9 +799,9 @@ function generatedHeader(name: string, fields: ModelField[]): string {
   // comments, because it overwrites them and must not pretend otherwise.
   return (
     [
-      `# ── ${name} — géré par Artisan (les valeurs sont éditables à la main)`,
-      "# Les commentaires sont générés depuis le schéma : un commentaire ajouté",
-      "# ailleurs qu'en tête de fichier est écrasé au prochain enregistrement.",
+      `# ── ${name} — managed by Artisan (values can be edited by hand)`,
+      "# Comments are generated from the schema: a comment added anywhere",
+      "# other than the top of the file is overwritten on the next save.",
     ].join("\n") + "\n"
   );
 }

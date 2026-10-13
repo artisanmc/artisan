@@ -14,8 +14,8 @@ function load(files: Record<string, string>) {
  * The file name is a Document's identity — mirror of the plugin's
  * `withFileId`. The inner `id:` field was a second source for the same truth.
  */
-describe("l'identité d'un Document vient de son nom de fichier", () => {
-  it("charge un menu sans champ id", () => {
+describe("a Document's identity comes from its file name", () => {
+  it("loads a menu without an id field", () => {
     const project = load({
       [`${BASE}/manifest.yaml`]: "schema: manifest/v1\nfiles:\n  menus:\n    - accueil\n",
       [`${BASE}/menus/accueil.yaml`]: "schema: menu/v1\nsize: 27\n",
@@ -23,7 +23,7 @@ describe("l'identité d'un Document vient de son nom de fichier", () => {
     expect(project.menus.map((m) => m.id)).toEqual(["accueil"]);
   });
 
-  it("ignore un id interne divergent au profit du fichier", () => {
+  it("ignores a diverging internal id in favour of the file", () => {
     const project = load({
       [`${BASE}/manifest.yaml`]: "schema: manifest/v1\nfiles:\n  menus:\n    - accueil\n",
       [`${BASE}/menus/accueil.yaml`]: "schema: menu/v1\nid: vieux_nom\nsize: 27\n",
@@ -31,7 +31,7 @@ describe("l'identité d'un Document vient de son nom de fichier", () => {
     expect(project.menus.map((m) => m.id)).toEqual(["accueil"]);
   });
 
-  it("n'écrit plus le champ id dans le fichier", () => {
+  it("no longer writes the id field into the file", () => {
     const project = load({
       [`${BASE}/manifest.yaml`]: "schema: manifest/v1\nfiles:\n  menus:\n    - accueil\n",
       [`${BASE}/menus/accueil.yaml`]: "schema: menu/v1\nsize: 27\n",
@@ -44,7 +44,7 @@ describe("l'identité d'un Document vient de son nom de fichier", () => {
     expect("id" in doc).toBe(false);
   });
 
-  it("le round-trip conserve l'identité", () => {
+  it("the round trip keeps the identity", () => {
     const project = load({
       [`${BASE}/manifest.yaml`]: "schema: manifest/v1\nfiles:\n  menus:\n    - accueil\n",
       [`${BASE}/menus/accueil.yaml`]: "schema: menu/v1\nsize: 27\n",

@@ -17,7 +17,7 @@ const ROWS = [
 ];
 
 describe("unplacedRows", () => {
-  it("ne rend que les lignes qu'aucun placement ne réclame", () => {
+  it("renders only the rows that no placement claims", () => {
     const out = unplacedRows(
       { keyField: "id", placements: [{ key: "cle_rare" }] },
       ROWS,
@@ -25,7 +25,7 @@ describe("unplacedRows", () => {
     expect(out.map((r) => r.id)).toEqual(["cle_legendaire", "cle_cosmetique"]);
   });
 
-  it("rend une liste vide quand tout est posé — le plateau disparaît", () => {
+  it("returns an empty list when everything is placed — the tray disappears", () => {
     const out = unplacedRows(
       {
         keyField: "id",
@@ -38,7 +38,7 @@ describe("unplacedRows", () => {
 
   /** A placement matching no row (neighbouring category, deleted row) must
    *  hide nothing here — it lives on, silently. */
-  it("ignore les placements sans ligne correspondante", () => {
+  it("ignores placements without a matching row", () => {
     const out = unplacedRows(
       { keyField: "id", placements: [{ key: "kit_mineur" }] },
       ROWS,
@@ -46,7 +46,7 @@ describe("unplacedRows", () => {
     expect(out).toHaveLength(3);
   });
 
-  it("rend une liste vide sur une source vide", () => {
+  it("returns an empty list for an empty source", () => {
     expect(unplacedRows({ keyField: "id", placements: [] }, [])).toEqual([]);
   });
 
@@ -56,7 +56,7 @@ describe("unplacedRows", () => {
    * can place; the tray stays silent and the panel has to flag the
    * misconfigured source.
    */
-  it("écarte les lignes sans Row key plutôt que d'offrir des tuiles mortes", () => {
+  it("drops rows without a Row key rather than offering dead tiles", () => {
     expect(unplacedRows({ keyField: "missing", placements: [] }, ROWS)).toEqual([]);
   });
 });

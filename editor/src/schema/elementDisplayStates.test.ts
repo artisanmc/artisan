@@ -76,7 +76,7 @@ describe("reading — flat display + states", () => {
    * What remains of the original decision: nothing is ever REWRITTEN in the old
    * form, and a state is not inherited. Only reading gives way.
    */
-  it("lit encore une liste `appearances` héritée, faute de quoi le fichier serait invisible", () => {
+  it("still reads a legacy `appearances` list, otherwise the file would be invisible", () => {
     const { menu } = menuV1ToDomain(
       wireMenu({ appearances: [{ material: "GOLD_INGOT" }] }) as never,
       opts,
@@ -104,8 +104,8 @@ describe("reading — flat display + states", () => {
  * So they are still read. They are never rewritten that way: writing stays
  * canonical, so the first save puts the file right.
  */
-describe("reading — le format `appearances:` d'avant reste lisible", () => {
-  it("prend la première appearance comme display, les suivantes comme states", () => {
+describe("reading — the former `appearances:` format stays readable", () => {
+  it("takes the first appearance as display, the following ones as states", () => {
     const { menu } = menuV1ToDomain(
       wireMenu({
         appearances: [
@@ -122,7 +122,7 @@ describe("reading — le format `appearances:` d'avant reste lisible", () => {
     expect(el.states[0]!.material).toBe("EMERALD");
   });
 
-  it("réécrit au format courant : le fichier se répare au premier enregistrement", () => {
+  it("rewrites to the current format: the file repairs itself on the first save", () => {
     const { menu } = menuV1ToDomain(
       wireMenu({ appearances: [{ material: "DIAMOND" }] }) as never,
       opts,
@@ -133,7 +133,7 @@ describe("reading — le format `appearances:` d'avant reste lisible", () => {
     expect(JSON.stringify(out)).toContain("DIAMOND");
   });
 
-  it("un display à plat l'emporte sur une liste `appearances` résiduelle", () => {
+  it("a flat display wins over a leftover `appearances` list", () => {
     const { menu } = menuV1ToDomain(
       wireMenu({ material: "ARROW", appearances: [{ material: "DIAMOND" }] }) as never,
       opts,
@@ -149,8 +149,8 @@ describe("reading — le format `appearances:` d'avant reste lisible", () => {
  * `String()`, which literally gives "[object Object]" in the tooltip and in
  * game: unreadable lore, on a file nothing flags.
  */
-describe("reading — du texte structuré dans le lore ne donne jamais [object Object]", () => {
-  it("résout une ligne portant une référence i18n", () => {
+describe("reading — structured text in the lore never yields [object Object]", () => {
+  it("resolves a row carrying an i18n reference", () => {
     const { menu } = menuV1ToDomain(
       wireMenu({ material: "DIAMOND", lore: [{ key: "boutique.item.lore" }] }) as never,
       opts,
@@ -158,7 +158,7 @@ describe("reading — du texte structuré dans le lore ne donne jamais [object O
     expect(menu.layers[0]!.elements[0]!.display.lore!.key).toBe("boutique.item.lore");
   });
 
-  it("aplatit un calque `{ kind: plain, value }`", () => {
+  it("flattens a `{ kind: plain, value }` layer", () => {
     const { menu, i18nKeys } = menuV1ToDomain(
       wireMenu({
         material: "DIAMOND",
@@ -170,7 +170,7 @@ describe("reading — du texte structuré dans le lore ne donne jamais [object O
     expect(i18nKeys[lore.key]!.en).toBe("Une ligne\nUne autre");
   });
 
-  it("un objet inconnu se voit, au lieu de se déguiser en [object Object]", () => {
+  it("an unknown object shows up, instead of disguising itself as [object Object]", () => {
     const { menu, i18nKeys } = menuV1ToDomain(
       wireMenu({ material: "DIAMOND", lore: [{ inattendu: 1 }] }) as never,
       opts,
