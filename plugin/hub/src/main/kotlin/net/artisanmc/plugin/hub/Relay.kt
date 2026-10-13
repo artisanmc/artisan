@@ -6,8 +6,8 @@ import java.util.logging.Level
 import java.util.logging.Logger
 
 /** Une requête du protocole, puis une réponse HTTP construite depuis sa réponse. */
-class Relay(private val server: LocalServer, private val logger: Logger?) {
-    fun send(call: Call, message: Map<String, Any?>, respond: (Map<String, Any?>) -> Unit) {
+class Relay(private val logger: Logger?) {
+    fun send(call: Call, server: EditorServer, message: Map<String, Any?>, respond: (Map<String, Any?>) -> Unit) {
         server.link.request(message).whenComplete { reply, failure ->
             try {
                 val cause = (failure as? CompletionException)?.cause ?: failure
