@@ -85,10 +85,10 @@ cp .env.example .env && docker compose up   # backend:3001 + editor:5173 + minec
 **Commandes plugin** — `/artisan menu|reload|sync|link|editor|member add <email>|dump-title`, détail dans
 `docs/architecture/plugin-commands.md`.
 
-**Assets MC** — `bun backend/scripts/gen-items.ts [version]` → `gen-icons.ts` → `pack-icons.ts`
-(→ `backend/assets-seed/icons-<version>.zip`, **à committer**). `backend/data/` est un volume en
-prod : les icônes 3D ne se régénèrent jamais côté serveur, elles voyagent dans l'image et sont
-déposées au boot par `lib/assetSeed.ts` (jamais d'écrasement — le volume est la vérité).
+**Assets MC** — `cd tools/minecraft-assets && bun gen-items.ts [version]` → `gen-icons.ts` → `pack-icons.ts`
+(→ `items/<version>.json` + `icons/icons-<version>.zip`, **à committer** ; le hub les embarque). Détail :
+`tools/minecraft-assets/README.md`. Tant que `backend/` existe, recopier aussi le catalogue dans
+`backend/data/items/` et l'archive dans `backend/assets-seed/` (déposée au boot par `lib/assetSeed.ts`).
 
 ## Architecture
 
@@ -97,6 +97,7 @@ editor/          React 19 + Vite + Konva
 backend/         Bun + Hono + PostgreSQL (Drizzle)
 plugin/          Kotlin 2.0 + Paper 1.21.4 + OkHttp
 docker/          Config serveur Minecraft (itzg/minecraft-server)
+tools/minecraft-assets/  Générateurs Bun des assets MC vanilla (items, icônes 3D, largeurs de glyphes)
 docs-site/       Astro Starlight — docs user publiques (EN)
 docs/            architecture/ · decisions/ · specs/ · schema/ · superpowers/
 ```

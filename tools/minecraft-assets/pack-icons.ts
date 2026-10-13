@@ -1,15 +1,14 @@
 #!/usr/bin/env bun
 /**
- * Usage: bun backend/scripts/pack-icons.ts [version...]
- * Sans argument : réempaquette toutes les versions déjà présentes dans assets-seed/.
+ * Usage: bun pack-icons.ts [version...]
+ * Sans argument : réempaquette toutes les versions déjà présentes dans icons/.
  *
- * Empaquette dans `backend/assets-seed/icons-<version>.zip` les artefacts que le
- * serveur ne sait pas régénérer :
- *   - data/mc-assets/<version>/textures/icons/*.png  (rendus par gen-icons.ts)
- *   - data/items/<version>.json                      (post-rendu, pointe vers icons/)
+ * Empaquette dans `icons/icons-<version>.zip` les artefacts qu'on ne sait pas
+ * régénérer sans navigateur :
+ *   - mc-assets/<version>/textures/icons/*.png  (rendus par gen-icons.ts)
+ *   - items/<version>.json                      (post-rendu, pointe vers icons/)
  *
- * `backend/data/` est un volume en prod, exclu de l'image ; ces archives, elles,
- * voyagent avec l'image et sont déposées au boot par `lib/assetSeed.ts`.
+ * Le hub les embarque dans son jar avec -PwithEditor (plugin/hub/build.gradle.kts).
  * À rejouer (et à committer) après chaque `gen-items.ts` + `gen-icons.ts`, donc
  * à chaque nouvelle version de Minecraft.
  */
@@ -18,8 +17,8 @@ import { zipSync } from "fflate";
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync, statSync } from "fs";
 import { join } from "path";
 
-const DATA_DIR = join(import.meta.dir, "..", "data");
-const SEED_DIR = join(import.meta.dir, "..", "assets-seed");
+const DATA_DIR = import.meta.dir;
+const SEED_DIR = join(import.meta.dir, "icons");
 
 const versions =
   process.argv.slice(2).length > 0
@@ -58,5 +57,5 @@ for (const version of versions) {
   const out = join(SEED_DIR, `icons-${version}.zip`);
   writeFileSync(out, zipSync(entries, { level: 9 }));
   const mb = (statSync(out).size / 1048576).toFixed(1);
-  console.log(`✓ ${version} : ${Object.keys(entries).length} fichiers → assets-seed/icons-${version}.zip (${mb} Mo)`);
+  console.log(`✓ ${version} : ${Object.keys(entries).length} fichiers → icons/icons-${version}.zip (${mb} Mo)`);
 }

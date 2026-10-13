@@ -6,7 +6,7 @@
  * editor uses both to crop the right pixels and align baselines across atlases.
  *
  * Generated alongside CHAR_ADVANCES — do not edit by hand.
- *   cd backend && bun scripts/gen-char-advances.ts [version]
+ *   cd tools/minecraft-assets && bun gen-char-advances.ts [version]
  */
 
 export type AtlasName = 'ascii' | 'accented' | 'nonlatin_european';

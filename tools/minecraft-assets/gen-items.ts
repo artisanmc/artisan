@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 /**
- * Usage: bun backend/scripts/gen-items.ts [version]
- * Requires MC assets to be downloaded first.
+ * Usage: bun gen-items.ts [version]
+ * Télécharge d'abord le jar client Mojang dans mc-assets/<version>/ s'il manque.
  *
  * For each item outputs { id, label, category, texture, model? }:
  *   - texture: flat sprite path (item/sword) — used for flat items and as fallback
@@ -11,16 +11,13 @@
 import { join } from "path";
 import { existsSync } from "fs";
 import { readFile, readdir, writeFile } from "fs/promises";
-import { assetsRoot } from "../src/lib/mcAssets";
+import { assetsRoot, ensureAssets } from "./lib/mcAssets";
 
 const VERSION = process.argv[2] ?? "1.21.4";
 const ASSETS = assetsRoot(VERSION);
-const OUT_PATH = join(import.meta.dir, "..", "data", "items", `${VERSION}.json`);
+const OUT_PATH = join(import.meta.dir, "items", `${VERSION}.json`);
 
-if (!existsSync(join(ASSETS, ".done"))) {
-  console.error(`Assets for ${VERSION} not downloaded yet.`);
-  process.exit(1);
-}
+await ensureAssets(VERSION);
 
 const itemsDir = join(ASSETS, "items");
 const modelsDir = join(ASSETS, "models");

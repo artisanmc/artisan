@@ -4,14 +4,14 @@
  * Pourquoi : `/app/data` est un volume persistant, exclu de l'image (voir
  * `.dockerignore`). Les textures vanilla se re-téléchargent seules depuis Mojang
  * (`mcAssets.ensureAssets`), mais les icônes 3D sont **pré-rendues** en local
- * (`scripts/gen-icons.ts`, Playwright + Three.js) et rien ne les régénère côté
+ * (`tools/minecraft-assets/gen-icons.ts`, Playwright + Three.js) et rien ne les régénère côté
  * serveur : le script consomme le champ `model` d'`items/<version>.json` et le
  * remplace par la texture rendue, donc un second run en prod ne produirait rien.
  * Elles voyagent donc avec l'image, dans `backend/assets-seed/*.zip`, et sont
  * déposées ici au boot si le volume ne les a pas déjà.
  *
  * Le volume reste la vérité : un fichier déjà présent n'est jamais écrasé.
- * Régénérer les archives : `bun backend/scripts/pack-icons.ts <version>`.
+ * Régénérer les archives : `tools/minecraft-assets/pack-icons.ts`, puis les recopier ici.
  */
 
 import { unzipSync } from "fflate";

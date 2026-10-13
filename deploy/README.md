@@ -39,7 +39,7 @@ VOLUME_PATH=<COOLIFY_BACKEND_VOLUME_PATH> \
 
 Les placeholders doivent être remplacés par les valeurs réelles affichées dans les dashboards ; aucun UUID ou token fictif n'est une valeur déployable.
 
-Ce seed manuel n'est plus requis pour faire marcher la bibliothèque de l'éditeur : les textures vanilla se retéléchargent seules depuis Mojang (`lib/mcAssets.ensureAssets`), et les icônes 3D pré-rendues + les `items/<version>.json` correspondants voyagent dans l'image (`backend/assets-seed/icons-<version>.zip`), déposés dans le volume au boot par `lib/assetSeed.ts` s'ils y manquent — un fichier déjà présent n'est jamais écrasé. À chaque nouvelle version de Minecraft : `gen-items.ts`, `gen-icons.ts`, puis `pack-icons.ts` et **committer l'archive**. `seed-data.sh` reste utile pour transférer le reste du volume (assets uploadés, resource packs).
+Ce seed manuel n'est plus requis pour faire marcher la bibliothèque de l'éditeur : les textures vanilla se retéléchargent seules depuis Mojang (`lib/mcAssets.ensureAssets`), et les icônes 3D pré-rendues + les `items/<version>.json` correspondants voyagent dans l'image (`backend/assets-seed/icons-<version>.zip`), déposés dans le volume au boot par `lib/assetSeed.ts` s'ils y manquent — un fichier déjà présent n'est jamais écrasé. À chaque nouvelle version de Minecraft : `gen-items.ts`, `gen-icons.ts`, puis `pack-icons.ts` dans `tools/minecraft-assets/`, recopier l'archive dans `backend/assets-seed/` et **la committer**. `seed-data.sh` reste utile pour transférer le reste du volume (assets uploadés, resource packs).
 
 ## Livraison GitHub Actions
 
