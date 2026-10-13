@@ -44,6 +44,12 @@ class ArtisanAPI(
     @net.artisanmc.modules.api.annotations.Beta val screens: EditorScreenRegistry = EditorScreenRegistry(),
     /** One connection pool per plugin, credentials in `environment.yml` (ADR suite-foundation-database). */
     @net.artisanmc.modules.api.annotations.Beta val database: DatabaseApi = DatabaseApi.NONE,
+    /** Open, query and watch menus. */
+    @net.artisanmc.modules.api.annotations.Beta val menus: MenuApi = MenuApi.NOOP,
+    /** Artisan's Folia-aware scheduler. */
+    @net.artisanmc.modules.api.annotations.Beta val scheduler: SchedulerApi = SchedulerApi.DIRECT,
+    /** `%namespace_key%` placeholders for menus, optionally exposed to PlaceholderAPI. */
+    @net.artisanmc.modules.api.annotations.Beta val placeholders: PlaceholderRegistry = PlaceholderRegistry.NOOP,
 ) {
     /** Version of this API (the `Since` numbering of the published `artisan-core-api`). Since 1.8.0. */
     @Stable

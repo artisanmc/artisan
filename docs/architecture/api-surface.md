@@ -175,6 +175,57 @@ Fire-and-forget module messages (`api.messages.send(type, payload)`). Since 1.4.
 | `dialect` | `DatabaseDialect` | 1.7.0 |
 | `dataSource(owner: Plugin)` | `javax.sql.DataSource` | 1.7.0 |
 
+### `net.artisanmc.modules.api.MenuApi` (`@Beta`)
+
+`api.menus` — open, close and query a player's Artisan menu, and listen to menus opening, clicks and closes. A menu is named by `MenuRef(projectId?, menuId)` (`toString()` = `project:menu`, `MenuRef.parse`) or by the same text ref the Action DSL takes (`shop:main`, or a bare id resolved server-wide). Callable from any thread: `open`/`close` run on the player's region thread (scheduled if needed); `open` returns false, opening nothing, when no menu matches. Listeners (`fun interface`s) return a `MenuSubscription` whose `cancel()` removes them, and run on the player's region thread. Implemented in `paper` by `PaperMenuApi` over the menu provider, the session store and `MenuEventDispatcher`.
+
+| Member | Type | Since |
+|---|---|---|
+| `ArtisanAPI.menus` | `MenuApi` | 1.8.0 |
+| `open(player, menu: MenuRef, args: Map<String, Any>)` | `Boolean` | 1.8.0 |
+| `open(player, ref: String, args: Map<String, Any>)` | `Boolean` | 1.8.0 |
+| `open(player, ref: String)` | `Boolean` | 1.8.0 |
+| `close(player)` | `Unit` | 1.8.0 |
+| `openMenu(player)` | `MenuRef?` | 1.8.0 |
+| `menus()` | `List<MenuRef>` | 1.8.0 |
+| `onOpen(MenuOpenListener)`, `onClick(MenuClickListener)`, `onClose(MenuCloseListener)` | `MenuSubscription` | 1.8.0 |
+| `MenuRef(projectId: String?, menuId: String)`, `MenuRef.parse(ref)` | — | 1.8.0 |
+| `NOOP` | `MenuApi` | 1.8.0 |
+
+### Menu events (`@Beta`)
+
+`MenuOpenEvent`, `MenuClickEvent`, `MenuCloseEvent` — Bukkit `PlayerEvent`s (with `getHandlerList()`), passed to the `MenuApi` listeners first, then fired through Bukkit's plugin manager, on the player's region thread. Open fires before rendering (cancel = nothing opens; history untouched); click fires on the tick after the click, before the slot's actions (cancel = actions skipped); close fires from `InventoryCloseEvent`. A menu opened over another fires the new open, then the old close (`OPEN_NEW`); repaints (pagination, `set`) do the same. They live in the API so non-add-on plugins can listen.
+
+| Member | Type | Since |
+|---|---|---|
+| `MenuOpenEvent.menu`, `.args` | `MenuRef`, `Map<String, Any>` | 1.8.0 |
+| `MenuClickEvent.menu`, `.slot`, `.click`, `.hasActions` | `MenuRef`, `Int`, `ClickType`, `Boolean` | 1.8.0 |
+| `MenuCloseEvent.menu`, `.reason` | `MenuRef`, `InventoryCloseEvent.Reason` | 1.8.0 |
+
+### `net.artisanmc.modules.api.SchedulerApi` (`@Beta`)
+
+`api.scheduler.forPlugin(owner)` — a `TaskScheduler` backed by the core `Scheduler` port (`RegionizedScheduler` on Paper/Folia/Leaf, `BukkitTaskScheduler` otherwise), whose tasks belong to `owner`. Global, region (`Location`), entity (skipped if removed) and async threads, each immediate or delayed (ticks; 0 = as soon as possible); `isOwnedByCurrentThread(entity)`, `isGlobalThread()`. No cancellation handle, no repeating tasks — Paper's schedulers remain available for those. `DIRECT` runs everything inline (tests).
+
+| Member | Type | Since |
+|---|---|---|
+| `ArtisanAPI.scheduler` | `SchedulerApi` | 1.8.0 |
+| `forPlugin(owner: Plugin)` | `TaskScheduler` | 1.8.0 |
+| `TaskScheduler.runGlobal`, `runGlobalLater`, `runAt`, `runAtLater`, `runFor`, `runForLater`, `runAsync`, `runAsyncLater` | `Unit` | 1.8.0 |
+| `TaskScheduler.isOwnedByCurrentThread(entity)`, `isGlobalThread()` | `Boolean` | 1.8.0 |
+
+### `net.artisanmc.modules.api.PlaceholderRegistry` (`@Beta`)
+
+`api.placeholders.register(namespace, resolver[, exposeToPapi])` — every `%<namespace>_<key>%` in menu text, action text and conditions asks the `PlaceholderResolver` (`resolve(player: Player?, key): String?`; null leaves the token as written). Resolved in Artisan's own `%…%` step (the `PapiProvider` the renderer, executor and condition evaluator use) before PlaceholderAPI, so it works without PlaceholderAPI. `exposeToPapi = true` with PlaceholderAPI enabled also registers an expansion of that identifier. Namespace `[a-z][a-z0-9]*` (`IllegalArgumentException`), unique (`IllegalStateException`). `unregister`, `namespaces()`, `resolve(player, text)`. Not yet reported to the editor's placeholder autocompletion.
+
+| Member | Type | Since |
+|---|---|---|
+| `ArtisanAPI.placeholders` | `PlaceholderRegistry` | 1.8.0 |
+| `register(namespace, resolver)`, `register(namespace, resolver, exposeToPapi)` | `Unit` | 1.8.0 |
+| `unregister(namespace)` | `Unit` | 1.8.0 |
+| `namespaces()` | `Set<String>` | 1.8.0 |
+| `resolve(player, text)` | `String` | 1.8.0 |
+| `PlaceholderResolver.resolve(player: Player?, key)` | `String?` | 1.8.0 |
+
 ### `net.artisanmc.modules.api.Stability`
 
 Declared (not inferred) axis of a data source. `STATIC` = a stable, enumerable key-set (`fetcher(null)` returns the authoritative rows, each identified by `keyField`) — placeable in a menu's placement mode. `DYNAMIC` (default) = runtime/player-dependent, unbounded — pagination only.
