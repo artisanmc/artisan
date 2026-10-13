@@ -221,6 +221,7 @@ open class ArtisanPlugin : JavaPlugin() {
         saveDefaultConfig()
         api = buildApi(this)
         server.servicesManager.register(ArtisanAPI::class.java, api, this, org.bukkit.plugin.ServicePriority.Normal)
+        registerAddonRelease()
         server.pluginManager.registerEvents(database, this)
         val cfg = loadPluginConfig()
         projectRoots.coreRoot.mkdirs()
@@ -249,8 +250,26 @@ open class ArtisanPlugin : JavaPlugin() {
         logger.info("Artisan ${description.version} enabled")
     }
 
+    /**
+     * What an add-on registered goes away when its plugin disables. The event fires
+     * before that plugin's own onDisable: its modules' onDisable still sees it enabled,
+     * and a plugin reloader can register the same ids again.
+     */
+    private fun registerAddonRelease() {
+        server.pluginManager.registerEvents(object : org.bukkit.event.Listener {
+            @org.bukkit.event.EventHandler
+            fun on(event: org.bukkit.event.server.PluginDisableEvent) {
+                if (event.plugin === this@ArtisanPlugin) return
+                api.modules.unregisterLoadedBy(event.plugin.javaClass.classLoader).forEach {
+                    logger.log(java.util.logging.Level.WARNING, "[Artisan] ${it.message}", it.cause)
+                }
+            }
+        }, this)
+    }
+
     override fun onDisable() {
         stopEditor()
+        // Modules of add-ons already went with their plugin (registerAddonRelease).
         api.modules.active().forEach { runCatching { it.onDisable() } }
         if (::database.isInitialized) database.closeAll()
         commandRegistrar.unregisterAll()

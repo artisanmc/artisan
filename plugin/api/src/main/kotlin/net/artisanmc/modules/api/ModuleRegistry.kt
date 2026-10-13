@@ -11,7 +11,7 @@ class DuplicateModuleException(id: String) : IllegalArgumentException("Module '$
 /**
  * Runtime registry for [ArtisanModule]s. Modules obtained via Bukkit ServicesManager
  * call [register] to activate; the registry calls [ArtisanModule.onEnable] and signals
- * [onChange] so the plugin can push a `modules_changed` WS frame.
+ * [onChange] so the plugin can push a `modules_changed` WS frame. [unregister] undoes it.
  *
  * Must be [bind]ed to an [ArtisanAPI] before [register] is called.
  */
@@ -43,17 +43,68 @@ class ModuleRegistry {
             if (_active.any { it.id == module.id }) throw DuplicateModuleException(module.id)
             _active.add(module)
         }
-        boundApi.dataSources.currentOwner = module.id
-        boundApi.models.currentOwner = module.id
-        boundApi.screens.currentOwner = module.id
+        setOwner(boundApi, module.id)
         try {
             module.onEnable(boundApi)
         } finally {
-            boundApi.dataSources.currentOwner = null
-            boundApi.models.currentOwner = null
-            boundApi.screens.currentOwner = null
+            setOwner(boundApi, null)
         }
         onChange?.run()
+    }
+
+    /**
+     * Unregister the module [id]: calls its [ArtisanModule.onDisable], then removes the
+     * data sources, commands, models and screens it registered from its `onEnable`.
+     * Signals [onChange]. Returns false if no such module is registered. Since 1.8.0.
+     *
+     * Artisan does it on its own when the plugin that loaded the module disables.
+     */
+    @Stable
+    fun unregister(id: String): Boolean {
+        val module = synchronized(_active) {
+            _active.firstOrNull { it.id == id }?.also { _active.remove(it) }
+        } ?: return false
+        try {
+            module.onDisable()
+        } finally {
+            api?.let {
+                it.dataSources.unregisterOwnedBy(id)
+                it.commands.unregisterOwnedBy(id)
+                it.models.unregisterOwnedBy(id)
+                it.screens.unregisterOwnedBy(id)
+            }
+            onChange?.run()
+        }
+        return true
+    }
+
+    /**
+     * Unregister everything a disabling plugin left behind: its modules (see
+     * [unregister]), then the data sources and commands whose callback was loaded
+     * by [loader]. Returns the failures of modules' `onDisable`, for the caller to log.
+     */
+    @Internal
+    fun unregisterLoadedBy(loader: ClassLoader): List<Exception> {
+        val failures = mutableListOf<Exception>()
+        for (module in active().filter { it.javaClass.classLoader === loader }) {
+            try {
+                unregister(module.id)
+            } catch (e: Exception) {
+                failures += IllegalStateException("Module '${module.id}' failed to disable", e)
+            }
+        }
+        api?.let {
+            it.dataSources.unregisterLoadedBy(loader)
+            it.commands.unregisterLoadedBy(loader)
+        }
+        return failures
+    }
+
+    private fun setOwner(api: ArtisanAPI, moduleId: String?) {
+        api.dataSources.currentOwner = moduleId
+        api.commands.currentOwner = moduleId
+        api.models.currentOwner = moduleId
+        api.screens.currentOwner = moduleId
     }
 
     /** Returns an immutable snapshot of currently active modules. */

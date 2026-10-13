@@ -46,6 +46,29 @@ class ArtisanPluginModuleWiringTest {
     }
 
     @Test
+    fun `an add-on's module is disabled and unregistered when its plugin disables`() {
+        val plugin = MockBukkit.load(ArtisanPlugin::class.java)
+        val addon = MockBukkit.createMockPlugin()
+        var disabled = false
+        plugin.api.modules.register(object : net.artisanmc.modules.api.ArtisanModule {
+            override val id = "homes"
+            override val schemaVersion = "homes/v1"
+            override fun onEnable(api: ArtisanAPI) {
+                api.commands.register(net.artisanmc.modules.api.CommandDeclaration("homes:go") { _, _ -> })
+            }
+            override fun onDisable() { disabled = true }
+        })
+
+        // MockBukkit loads the test, the mock add-on and Artisan's own modules with one
+        // class loader: Artisan's modules go too here, unlike on a real server.
+        plugin.server.pluginManager.disablePlugin(addon)
+
+        assertTrue(disabled)
+        assertFalse(plugin.api.modules.has("homes"))
+        assertFalse(plugin.api.commands.has("homes:go"))
+    }
+
+    @Test
     fun `ArtisanAPI is exposed via the services manager`() {
         val plugin = MockBukkit.load(ArtisanPlugin::class.java)
         val provided = plugin.server.servicesManager

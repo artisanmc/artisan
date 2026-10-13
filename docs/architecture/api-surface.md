@@ -30,6 +30,12 @@ Contract implemented by every module.
 | `onEnable(api: ArtisanAPI)` | `Unit` | 1.0.0 |
 | `onDisable()` | `Unit` | 1.0.0 |
 | `onReload()` | `Unit` (default empty) | 1.0.0 |
+| `onReload()` as a JVM default method (Java modules may leave it out) | | 1.8.0 |
+| `onDisable()` called when the module's own plugin disables | | 1.8.0 |
+
+`onDisable()` runs when the module is unregistered: when the plugin whose class loader loaded the module disables (`PluginDisableEvent`, fired before that plugin's own `onDisable`), on `ModuleRegistry.unregister`, or, for the modules still registered, when Artisan disables. Before 1.8.0 it only ran at Artisan's disable, after the add-on's plugin was already disabled.
+
+The api module compiles with `-Xjvm-default=all-compatibility`: interface members with a body (`onReload()`, `ProjectContentApi.reload()`, `ProjectRootRegistry.register(projectId, dir, moduleId)`) are JVM default methods, and their `DefaultImpls` stay for add-ons compiled against 1.7.x and earlier.
 
 ### `net.artisanmc.modules.api.ArtisanAPI`
 
@@ -52,6 +58,10 @@ val api = server.servicesManager.getRegistration(ArtisanAPI::class.java)?.provid
 | `isCompatibleWith(minVersion: String)` | `Boolean` | 1.1.0 |
 | `project` | `ProjectContentApi` | 1.2.0 |
 | `projectRoots` | `ProjectRootRegistry` | 1.5.0 |
+| `apiVersion` | `String` | 1.8.0 |
+| `isCompatibleWith` compares `apiVersion` | | 1.8.0 |
+
+`coreVersion` is the Artisan plugin version (`plugin.yml`, `1.0.<build>`), unrelated to the API numbering. `apiVersion` is this API's version, generated at build time from this document (highest `Since`, the `generateApiVersion` task of `plugin/api`). `isCompatibleWith(min)` is true when `apiVersion` has the same major as `min` and is greater or equal (`SemVer.satisfies`); before 1.8.0 it compared `coreVersion`, so `isCompatibleWith("1.7.0")` was false on every server.
 
 ### `net.artisanmc.modules.api.ModuleRegistry`
 
@@ -62,7 +72,11 @@ Manages the set of active modules for a running Artisan instance.
 | `register(module: ArtisanModule)` | `@Stable` | `Unit` | Register a module. Throws `DuplicateModuleException` if the id is already registered. Triggers `modules_changed` WS message if the plugin is connected. |
 | `active()` | `@Stable` | `List<ArtisanModule>` | Returns all currently registered modules. |
 | `has(id: String)` | `@Stable` | `Boolean` | Returns true if a module with that id is registered. |
+| `unregister(id: String)` | `@Stable` | `Boolean` | Calls the module's `onDisable()`, removes it and the data sources, commands, models and screens registered from its `onEnable`, triggers `modules_changed`. False for an unknown id. Since 1.8.0 |
 | `bind(api: ArtisanAPI, onChange: Runnable)` | `@Internal` | `Unit` | Used internally by the plugin to be notified on registry changes (triggers `modules_changed`). DO NOT USE from modules. |
+| `unregisterLoadedBy(loader: ClassLoader)` | `@Internal` | `List<Exception>` | Called by Artisan on `PluginDisableEvent`: unregisters the modules loaded by that plugin's class loader, then the data sources and commands whose callback it loaded. Returns the `onDisable()` failures. |
+
+A plugin that disables (server stop, `/reload`, PlugMan) loses everything it registered before its own `onDisable` runs, so registering the same ids again after a reload works.
 
 Exceptions: `DuplicateModuleException`.
 
@@ -76,6 +90,7 @@ Exceptions: `DuplicateModuleException`.
 | `refs()` | `Set<String>` | 1.0.0 |
 | `declarations()` | `List<DataSourceDeclaration>` | 1.2.0 |
 | `registered()` | `List<RegisteredDataSource>` | 1.3.0 |
+| `unregister(ref: String)` | `Boolean` | 1.8.0 |
 
 Exceptions: `UnknownDataSourceException`, `DuplicateDataSourceException`, `PlayerRequiredException`.
 
@@ -93,6 +108,8 @@ Exceptions: `UnknownDataSourceException`, `DuplicateDataSourceException`, `Playe
 | `schemaHint` | `String?` | `@Sunset` | 1.0.0 → 2.0.0 |
 
 Constructing a `Stability.STATIC` declaration without a non-blank `keyField` throws (`require`) — a static source must declare its Row key.
+
+The constructors of `DataSourceDeclaration`, `DataSourceField` and `PlayerRequiredException` carry `@JvmOverloads` since 1.8.0: from Java, `new DataSourceDeclaration(ref, fetcher)` works. `ApiSurfaceIsJavaFriendlyTest` fails on a public constructor with default arguments and no overloads (except `ArtisanAPI`, built by Artisan only).
 
 ### Aucun type Kotlin ne traverse la frontière (1.5.0)
 
@@ -132,9 +149,9 @@ qui est corrigé, c'est qu'aucun add-on Artisan n'a plus de raison d'en chercher
 
 Captured-item helpers for modules (`api.items`): `serialize(stack)` — canonical wrapped YAML (what a project stores under `items/<id>.yml`) — and `describe(stack)` — the generic display descriptor (material enriched to a recognized custom ref, head_texture, enchanted, count, name). Since 1.4.0.
 
-### `net.artisanmc.modules.api.ModuleMessagesApi` (`@Beta`)
+### `net.artisanmc.modules.api.ModuleMessagesApi` (`@Beta`, `@Sunset`)
 
-Fire-and-forget module messages (`api.messages.send(type, payload)`). Since 1.4.0. **Sans destinataire depuis la phase F (2026-10)** : il n'y a plus de couche module côté serveur web ; sur une feuille le message part au hub, qui ignore les types inconnus, et sur le hub il n'est relayé nulle part. Candidat à `@Sunset`. ⚠️ **Ne pas s'en servir pour muter un project** : le contenu vit sur le disque et le module y écrit lui-même (ADR `server-disk-only-storage`). `boutique_additem` en fut l'exemple, et ne l'est plus.
+Fire-and-forget module messages (`api.messages.send(type, payload)`). Since 1.4.0. **Sans destinataire depuis la phase F (2026-10)** : il n'y a plus de couche module côté serveur web ; sur une feuille le message part au hub, qui ignore les types inconnus, et sur le hub il n'est relayé nulle part. `@Sunset` (removal in 2.0.0, no replacement) on the interface and on `ArtisanAPI.messages` since 1.8.0. ⚠️ **Ne pas s'en servir pour muter un project** : le contenu vit sur le disque et le module y écrit lui-même (ADR `server-disk-only-storage`). `boutique_additem` en fut l'exemple, et ne l'est plus.
 
 ### `net.artisanmc.modules.api.ModuleActionsApi` (`@Beta`)
 
@@ -206,8 +223,11 @@ Since 1.3.0.
 | `dispatch(name: String, player: Player, args: Map<String, Any?>)` | `Unit` | 1.0.0 |
 | `has(name: String)` | `Boolean` | 1.0.0 |
 | `names()` | `Set<String>` | 1.0.0 |
+| `unregister(name: String)` | `Boolean` | 1.8.0 |
 
 Exceptions: `UnknownCommandException`, `DuplicateCommandException`.
+
+Commands registered from a module's `onEnable` record that module since 1.8.0, so `ModuleRegistry.unregister` removes them.
 
 Runtime consumer (since 1.2.0): `run_command` actions whose command matches `namespace:name` and is registered here are dispatched to the module handler with `args = {argv: List<String>, raw: String}`. Unknown refs fall back to Bukkit.
 
@@ -218,7 +238,10 @@ Runtime consumer (since 1.2.0): `run_command` actions whose command matches `nam
 | `subscribe(type: Class<out ModuleEvent>, handler: ModuleEventHandler)` | `Unit` | 1.0.0 (signature 1.5.0) |
 | `publish(event: ModuleEvent)` | `Unit` | 1.0.0 |
 
-Event types: `DataReloadEvent`, `ConfigReloadEvent`. Modules may add their own subclasses of `ModuleEvent`.
+Event types: `DataReloadEvent`, `ConfigReloadEvent`. Add-ons may define their own events by implementing `ModuleEvent`, an open interface since 1.8.0 (sealed before: add-on events did not compile).
+
+- `ConfigReloadEvent("menus")` is published by Artisan after every content reload, after the modules' `onReload()`.
+- `DataReloadEvent` is never published nor consumed by Artisan (menus re-fetch their sources on every render): it is for add-ons that cache another add-on's rows.
 
 ### `net.artisanmc.modules.api.schemas.SchemaRegistry<T>`
 
@@ -250,6 +273,7 @@ Read-only project content on disk (`plugins/Artisan/projects/`). The `.artisan*`
 | `list(projectId: String, dir: String)` | `List<String>` | 1.2.0 |
 | `read(projectId: String, relPath: String)` | `String?` | 1.2.0 |
 | `hasContent(dir: String)` | `Boolean` | 1.2.0 |
+| `reload()` | `Unit` | 1.6.0 |
 
 ### `net.artisanmc.modules.api.ProjectRootRegistry`
 
@@ -268,6 +292,15 @@ module's declared screens to find the owner.
 |---|---|---|
 | `register(projectId: String, dir: File)` | `Unit` | 1.5.0 |
 | `register(projectId: String, dir: File, moduleId: String)` | `Unit` | 1.6.0 |
+| Reload deferred to the next tick | | 1.8.0 |
+
+Registering reloads the projects on the next server tick, once the caller's `onEnable` has returned: bootstrap content written after `register` is read, and modules' `onReload()` runs then. Before 1.8.0 the reload ran inside `register`, calling the add-on's own `onReload()` while its `onEnable` was still running, and files written afterwards stayed invisible until `project.reload()`.
+
+### `net.artisanmc.modules.api.SemVer`
+
+| Member | Type | Since |
+|---|---|---|
+| `satisfies(core: String, min: String)` | `Boolean` — same major and `core >= min`; a `-SUFFIX` is ignored | 1.1.0 |
 
 ## Beta APIs (may change)
 
@@ -275,7 +308,10 @@ None at this time.
 
 ## Deprecated APIs
 
-None at this time.
+| Member | Sunset since | Removed in | Replacement |
+|---|---|---|---|
+| `DataSourceDeclaration.schemaHint` | 1.3.0 | 2.0.0 | `schema` |
+| `ModuleMessagesApi`, `ArtisanAPI.messages` | 1.8.0 | 2.0.0 | none — nothing receives the messages |
 
 ## Internal — DO NOT USE
 
