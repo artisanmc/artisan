@@ -376,7 +376,7 @@ Non-examples:
 ## Hub
 
 The server whose plugin serves the editor (web server on `web.port`, 8765 by
-default): `web.role: hub`, the default. A lone server is its own hub. In a
+default): `web.hub` empty, the default. A lone server is its own hub. In a
 **Network**, the **Leaves** connect to the hub's `/ws/plugin`, and the editor
 reaches them through it. ADR `editor-web-server`.
 
@@ -439,8 +439,8 @@ Non-examples:
 
 ## Leaf
 
-A server of a **Network** that does not serve the editor (`web.role: leaf`): its
-plugin connects to the **Hub** at `web.hub-url` with the **Network secret** and
+A server of a **Network** that does not serve the editor (`web.hub` set): its
+plugin connects to the **Hub** at `web.hub` with the **Network secret** and
 its name, then answers the editor's requests relayed by the hub. `/artisan editor`
 typed on a leaf asks the hub for the **Login link**.
 
@@ -449,7 +449,7 @@ typed on a leaf asks the hub for the **Login link**.
 *Was* the act of binding a Server to its cloud credential (`/artisan link <code>`,
 link codes, server keys). Removed with the backend in phase F: a server needs no
 credential to serve its own editor, and a **Leaf** joins its **Hub** with
-`web.hub-url` and the **Network secret**. State recoverable at commit `f085f576`.
+`web.hub` and the **Network secret**. State recoverable at commit `f085f576`.
 _Avoid_: link code, server key, claim, setup.
 
 ## Login link
@@ -736,7 +736,7 @@ Non-examples:
 A single Minecraft server running Artisan — what **Projects** attach to and
 deploy onto. It holds one or more Projects on its disk. In a **Network** it is
 either the **Hub** (id `local` in the editor) or a **Leaf**, identified by its
-name (`web.name`, else its server folder name). Whether it is **online** is its
+name (`name`, else its server folder name). Whether it is **online** is its
 **Presence**, a runtime fact, not part of the entity.
 
 Non-examples:

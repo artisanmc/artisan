@@ -121,11 +121,11 @@ the Free and Pro plans, which matches Artisan's resource pack limit.
 In a [network](/wiki/network/concepts/), leaves connect to the hub's `/ws/plugin`.
 Two ways to arrange this with a proxy:
 
-| Setup | Hub `web.bind` | Leaves' `web.hub-url` |
+| Setup | Hub `web.bind` | Leaves' `web.hub` |
 |---|---|---|
-| Leaves on the same machine as the hub | `"127.0.0.1"` | `ws://127.0.0.1:8765/ws/plugin` |
-| Leaves on other machines of a private network (recommended) | the hub's private address, e.g. `"10.0.0.5"`; point the proxy at it too | `ws://10.0.0.5:8765/ws/plugin` |
-| Leaves elsewhere on the internet | `"127.0.0.1"` | `wss://editor.example.com/ws/plugin`, through the proxy |
+| Leaves on the same machine as the hub | `"127.0.0.1"` | `"127.0.0.1:8765"` |
+| Leaves on other machines of a private network (recommended) | the hub's private address, e.g. `"10.0.0.5"`; point the proxy at it too | `"10.0.0.5:8765"` |
+| Leaves elsewhere on the internet | `"127.0.0.1"` | `"https://editor.example.com"`, through the proxy (`wss://…/ws/plugin`) |
 
 `/ws/plugin` is protected by the shared secret, but keep it on your internal network
 when you can. When leaves connect directly, you can refuse it at the proxy:

@@ -20,14 +20,14 @@ et avec eux `editor.access_mode` / `editor.console_only`.
 
 En jeu seulement (`editor_in_game_only` sinon) ; sans `artisan.editor.view` : refus.
 
-**Serveur seul ou hub** (`web.role: hub`, serveur web démarré) : imprime un lien
+**Serveur seul ou hub** (`web.hub` vide, serveur web démarré) : imprime un lien
 `<base>/login/<jeton>` à usage unique, valable 60 s, un par joueur et par minute
 (`hub/Sessions.kt`). `<base>` vaut `web.url`, sinon `http://<adresse rejointe par le joueur>:<port>`.
 La session ouverte porte l'UUID du joueur et ses permissions `artisan.editor.view|edit|publish|config`
 au moment de la demande (`artisan.editor` les donne toutes). Serveur web absent (`web.enabled: false`,
 port pris, Jetty non téléchargé) : `editor_disabled`.
 
-**Feuille du réseau** (`web.role: leaf`) : le serveur lit les mêmes permissions et demande le lien
+**Feuille du réseau** (`web.hub` renseigné) : le serveur lit les mêmes permissions et demande le lien
 au hub par `/ws/plugin` (`editor_link`, réponse `editor_link_result`). Le hub ne consulte aucune
 permission lui-même. `<base>` vaut le `web.url` du hub, sinon l'adresse rejointe par le joueur avec
 le port du hub. Hub injoignable : `editor_hub_offline`.

@@ -14,6 +14,33 @@ fun deriveHttpBaseUrl(wsUrl: String): String {
     return if (pathStart >= 0) http.substring(0, pathStart) else http
 }
 
+/**
+ * `web.hub` → the hub's plugin WebSocket. A bare host takes the default port 8765; an http(s)
+ * address (a reverse proxy) becomes ws(s) on its own port; a ws(s) URL is kept. Blank in → blank out.
+ */
+fun hubWebSocketUrl(address: String): String {
+    val raw = address.trim()
+    if (raw.isEmpty() || raw.startsWith("ws://") || raw.startsWith("wss://")) return raw
+    val scheme = if (raw.startsWith("https://")) "wss" else "ws"
+    val host = raw.substringAfter("://").substringBefore('/')
+    val bare = "://" !in raw && ':' !in host.substringAfterLast(']')
+    return "$scheme://$host${if (bare) ":8765" else ""}/ws/plugin"
+}
+
+private val SERVER_NAME = Regex("[A-Za-z0-9_-]{1,64}")
+
+/**
+ * This server's name in the network, the one Velocity knows it by. A written `name` is kept
+ * as is or refused (null): altering it would break the match with Velocity and stored locations.
+ * Empty: the [folder] name, made valid.
+ */
+fun serverName(name: String, folder: String): String? {
+    val written = name.trim()
+    if (written.isNotEmpty()) return written.takeIf { SERVER_NAME.matches(it) && !it.equals("local", ignoreCase = true) }
+    val fromFolder = folder.replace(Regex("[^A-Za-z0-9_-]"), "-").take(64).ifEmpty { "Minecraft" }
+    return if (fromFolder.equals("local", ignoreCase = true)) "$fromFolder-" else fromFolder
+}
+
 data class ResourcePackConfig(
     val enabled: Boolean,
     val prompt: String,
@@ -47,9 +74,8 @@ data class PluginConfig(
                     port = environment.getInt("web.port", 8765),
                     bind = EnvironmentFile.string(environment, "web.bind", ""),
                     url = EnvironmentFile.string(environment, "web.url", "").trimEnd('/'),
-                    role = if (environment.getString("web.role") == WebConfig.LEAF) WebConfig.LEAF else WebConfig.HUB,
-                    name = EnvironmentFile.string(environment, "web.name", ""),
-                    hubUrl = EnvironmentFile.string(environment, "web.hub-url", ""),
+                    name = EnvironmentFile.string(environment, "name", ""),
+                    hubUrl = hubWebSocketUrl(EnvironmentFile.string(environment, "web.hub", "")),
                     secret = EnvironmentFile.string(environment, "web.secret", ""),
                 ),
             )

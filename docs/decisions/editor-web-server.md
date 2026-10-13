@@ -70,6 +70,10 @@ MySQL n'est pas exigé : les brouillons restent sur le disque de chaque serveur 
 dans la mémoire du hub. Une feuille sur H2 le signale au démarrage, car les données de la
 suite n'y sont pas partagées.
 *Rejeté :* refuser le démarrage sans MySQL (prévu au plan) ; rien du hub n'en a besoin.
+*Amendement 2026-10-13 :* `web.role` est supprimé : un serveur est une feuille exactement quand
+`web.hub` est renseigné, vide il est le hub. `web.hub` (ex-`web.hub-url`) prend `hôte[:port]`
+(port 8765 par défaut, ou une adresse `https://` de proxy) et le plugin en dérive l'URL
+WebSocket `ws(s)://…/ws/plugin`. `web.name` devient la clé racine `name`.
 
 **⑪ Version du protocole.** Le `hello` porte `ProtocolVersion.CURRENT` (`1.0`). Une majeure
 différente de celle du hub : le serveur reste listé « mise à jour requise » et le hub ne lui

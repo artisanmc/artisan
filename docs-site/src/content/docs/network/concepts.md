@@ -12,10 +12,10 @@ network mode, **one** Paper server serves the editor for all of them.
 
 | | Hub | Leaf |
 |---|---|---|
-| `web.role` | `"hub"` (the default) | `"leaf"` |
+| `web.hub` | `""` (the default) | The hub's address, e.g. `"10.0.0.5:8765"` |
 | How many | Exactly one per network | Every other server |
 | Web server | Serves the editor, its API, `/ws/editor`, `/ws/plugin` and resource packs on `web.port` | None: opens no port |
-| Connection | Accepts leaves on `/ws/plugin` | Opens a WebSocket to the hub's `web.hub-url`, authenticated by the shared secret |
+| Connection | Accepts leaves on `/ws/plugin` | Opens a WebSocket to the hub at `web.hub`, authenticated by the shared secret |
 | Projects | Its own, in `plugins/Artisan/projects/` | Its own, in its `plugins/Artisan/projects/` |
 | `/artisan editor` | Issues the link | Asks the hub for a link |
 
@@ -27,7 +27,7 @@ is installed on the proxy itself.
                           │  https://editor.example.com
                           ▼
    ┌──────────── hub (lobby) ───────────┐
-   │ Artisan, web.role: hub, port 8765  │
+   │ Artisan, web.hub empty, port 8765  │
    └──────▲───────────────────▲─────────┘
           │ /ws/plugin        │ /ws/plugin      (internal network, shared secret)
    ┌──────┴──────┐     ┌──────┴──────┐
@@ -56,7 +56,7 @@ The editor names projects by server:
 | On the hub | `<folder>`, e.g. `shop` |
 | On a leaf | `<server>.<folder>`, e.g. `survival.shop` |
 
-`<server>` is the leaf's `web.name`, or its folder name when empty. Two servers may
+`<server>` is the leaf's `name`, or its folder name when empty. Two servers may
 have a project folder with the same name; the prefix keeps them apart. Choose stable
 names: renaming a server changes the ids of its projects in the editor.
 

@@ -22,7 +22,7 @@ artisan:
   editor_no_permission: "<red>[Artisan] Permission manquante : artisan.editor</red>"
   editor_link: "<aqua>[Artisan] </aqua><green>Ouvrir l'éditeur : <click:open_url:'{url}'><aqua><underlined>cliquer ici</underlined></aqua></click> <gray>(usage unique, valable 60 secondes)</gray></green>"
   editor_link_too_soon: "<yellow>[Artisan] Un lien vient d'être généré. Réessaie dans {seconds} s.</yellow>"
-  editor_hub_offline: "<yellow>[Artisan] Le hub de l'éditeur est injoignable pour l'instant. Réessaie dans quelques secondes, et vérifie web.hub-url si ça persiste.</yellow>"
+  editor_hub_offline: "<yellow>[Artisan] Le hub de l'éditeur est injoignable pour l'instant. Réessaie dans quelques secondes, et vérifie web.hub dans environment.yml si ça persiste.</yellow>"
   editor_in_game_only: "<red>[Artisan] Lance /artisan editor en jeu : l'éditeur te connecte en tant que ton joueur.</red>"
   editor_disabled: "<red>[Artisan] L'éditeur web ne tourne pas sur ce serveur. Vérifie web.enabled dans environment.yml et le log de démarrage.</red>"
   prefix: "<aqua>[Artisan] </aqua>"
