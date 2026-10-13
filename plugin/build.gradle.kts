@@ -42,5 +42,9 @@ subprojects {
         useJUnitPlatform()
         // Conformance vectors are resolved from plugin/ (../docs, ../testdata).
         workingDir = rootDir
+        // A hung test fails with its name and a thread dump instead of stalling CI.
+        systemProperty("junit.jupiter.execution.timeout.default", "2m")
+        systemProperty("junit.jupiter.execution.timeout.threaddump.enabled", "true")
+        testLogging { exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL }
     }
 }
