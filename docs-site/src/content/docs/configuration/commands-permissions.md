@@ -9,25 +9,21 @@ sidebar:
 
 | Command | Description |
 |---|---|
-| `/artisan menu <id>` | Open a menu by id. Players only; ids autocomplete. |
-| `/artisan reload` | Re-read `config.yml`, `environment.yml` and the language files, and reload every project from disk (including files edited by hand). On a leaf, reconnects to the hub. The web server and database pools are not restarted: `web.*` and `database.*` changes need a server restart. |
+| `/artisan menu <id>` | Open a menu by id. Players only; ids autocomplete. Requires `artisan.menu`. |
+| `/artisan reload` | Re-read `config.yml`, `environment.yml` and the language files, and reload every project from disk (including files edited by hand). On a leaf, reconnects to the hub. The web server and database pools are not restarted: `web.*` and `database.*` changes need a server restart. Requires `artisan.admin`. |
 | `/artisan editor` | Print your single-use sign-in link to the editor. Players only; requires `artisan.editor.view`. See [Open the editor](/wiki/getting-started/open-the-editor/). |
-| `/artisan sync reject` | Reload projects from disk; on a leaf, reconnect to the hub. |
+| `/artisan sync reject` | Reload projects from disk; on a leaf, reconnect to the hub. Requires `artisan.admin`. |
 | `/artisan sync status` | Only points to the server log. |
 
 Projects can also declare their own commands; they are registered when the project
 loads and skipped (with a warning in the log) if another plugin already owns the name.
 
-:::caution
-Artisan declares no permission on `/artisan menu`, `/artisan reload` and
-`/artisan sync`. Restrict them with your permissions plugin if players must not run
-them (for example by denying the `artisan` command and granting it to staff).
-:::
-
 ## Permissions
 
 | Permission | Allows | Default |
 |---|---|---|
+| `artisan.admin` | `/artisan reload`, `/artisan sync` and `/artisan dump-title`. | op |
+| `artisan.menu` | Open any menu by id with `/artisan menu`. Deny it to keep players to the menus your projects open for them. | everyone |
 | `artisan.editor` | All four editor permissions below. | op |
 | `artisan.editor.view` | Request a link with `/artisan editor`, open the editor, read projects. | op |
 | `artisan.editor.edit` | Change projects (private drafts). | op |

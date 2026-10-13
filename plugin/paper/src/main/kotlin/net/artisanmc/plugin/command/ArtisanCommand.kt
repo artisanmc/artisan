@@ -22,7 +22,7 @@ class ArtisanCommand(
     ): List<String> {
         return when {
             args.size == 1 -> listOf("menu", "reload", "sync", "editor", "dump-title")
-                .filter { it.startsWith(args[0].lowercase()) }
+                .filter { it.startsWith(args[0].lowercase()) && PERMISSIONS[it]?.let(sender::hasPermission) != false }
             args.size == 2 && args[0].equals("menu", ignoreCase = true) ->
                 plugin.menuProvider.listMenuIds().filter { it.startsWith(args[1]) }
             args.size == 2 && args[0].equals("dump-title", ignoreCase = true) ->
@@ -34,6 +34,11 @@ class ArtisanCommand(
     }
 
     override fun onCommand(sender: CommandSender, command: Command, label: String, args: Array<out String>): Boolean {
+        val permission = PERMISSIONS[args.getOrNull(0)?.lowercase()]
+        if (permission != null && !sender.hasPermission(permission)) {
+            sender.sendMessage(lang.get("cmd.no_permission", sender))
+            return true
+        }
         when (args.getOrNull(0)?.lowercase()) {
             "menu" -> {
                 if (sender !is Player) { sender.sendMessage(lang.get("artisan.in_game_only", sender)); return true }
@@ -215,5 +220,15 @@ class ArtisanCommand(
                 sender.sendMessage(message)
             }
         }
+    }
+
+    private companion object {
+        /** `editor` checks its own rights, finer grained. */
+        val PERMISSIONS = mapOf(
+            "menu" to "artisan.menu",
+            "reload" to "artisan.admin",
+            "sync" to "artisan.admin",
+            "dump-title" to "artisan.admin",
+        )
     }
 }
