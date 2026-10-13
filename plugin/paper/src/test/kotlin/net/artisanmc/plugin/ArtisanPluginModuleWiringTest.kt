@@ -48,7 +48,6 @@ class ArtisanPluginModuleWiringTest {
     @Test
     fun `an add-on's module is disabled and unregistered when its plugin disables`() {
         val plugin = MockBukkit.load(ArtisanPlugin::class.java)
-        val addon = MockBukkit.createMockPlugin()
         var disabled = false
         plugin.api.modules.register(object : net.artisanmc.modules.api.ArtisanModule {
             override val id = "homes"
@@ -59,23 +58,19 @@ class ArtisanPluginModuleWiringTest {
             override fun onDisable() { disabled = true }
         })
 
-        // MockBukkit loads the test, the mock add-on and Artisan's own modules with one
-        // class loader: Artisan's modules go too here, unlike on a real server.
-        // A MockPlugin is not a JavaPlugin, so disablePlugin() would not fire the event.
-        val warnings = mutableListOf<String>()
-        val handler = object : java.util.logging.Handler() {
-            override fun publish(r: java.util.logging.LogRecord) { warnings += "${r.message} ${r.thrown ?: ""}" }
-            override fun flush() {}
-            override fun close() {}
-        }
-        plugin.logger.addHandler(handler)
+        // MockBukkit gives a mock plugin its own class loader; this proxy is defined by the
+        // test's, like the module above (and Artisan's own modules, which go too here).
+        val addon = java.lang.reflect.Proxy.newProxyInstance(javaClass.classLoader, arrayOf(org.bukkit.plugin.Plugin::class.java)) { _, method, _ ->
+            when (method.returnType) {
+                java.lang.Boolean.TYPE -> true
+                Integer.TYPE -> 0
+                String::class.java -> "Homes"
+                else -> null
+            }
+        } as org.bukkit.plugin.Plugin
         plugin.server.pluginManager.callEvent(org.bukkit.event.server.PluginDisableEvent(addon))
-        plugin.logger.removeHandler(handler)
 
-        assertTrue(disabled) {
-            "active=${plugin.api.modules.active().map { it.id }}, addon loader=${addon.javaClass.classLoader}, " +
-                "test loader=${javaClass.classLoader}, logs=$warnings"
-        }
+        assertTrue(disabled)
         assertFalse(plugin.api.modules.has("homes"))
         assertFalse(plugin.api.commands.has("homes:go"))
     }
