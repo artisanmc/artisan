@@ -283,10 +283,20 @@ open class ArtisanPlugin : JavaPlugin() {
         override fun applyResourcePack(hash: String, path: String) {
             val port = editor?.port ?: return
             val local = editorBind.takeUnless { it.isBlank() || it == "0.0.0.0" } ?: "127.0.0.1"
-            val base = editorUrl.ifEmpty { "http://${server.ip.ifBlank { "localhost" }}:$port" }
-            provider.applyLocalResourcePack("$base$path", "http://$local:$port$path", hash)
+            provider.applyLocalResourcePack("${editorBase()}$path", "http://$local:$port$path", hash)
         }
     }
+
+    /** L'adresse de l'éditeur pour les joueurs et les autres serveurs : `web.url`, sinon l'IP du serveur. */
+    private fun editorBase(): String =
+        editorUrl.ifEmpty { "http://${server.ip.ifBlank { "localhost" }}:${editor?.port ?: 8765}" }
+
+    /** Le nom de ce serveur dans le réseau : `web.name`, sinon le nom de son dossier. */
+    private fun networkName(web: net.artisanmc.plugin.hub.WebConfig): String =
+        web.name.ifBlank { File(".").absoluteFile.normalize().name }.replace(Regex("[^A-Za-z0-9_-]"), "-").take(64)
+
+    private fun networkSecret(web: net.artisanmc.plugin.hub.WebConfig): String =
+        net.artisanmc.plugin.config.NetworkSecret.resolve(web.secret, File("."), File(dataFolder, "network-secret"), generate = !web.leaf)
 
     internal fun stopEditor() {
         editor?.stop()
@@ -298,12 +308,21 @@ open class ArtisanPlugin : JavaPlugin() {
         editorUrl = web.url
         editorBind = web.bind
         if (!web.enabled) return
+        if (web.leaf) {
+            logger.info("[Artisan] Editor served by the hub at ${web.hubUrl.ifBlank { "(web.hub-url not set)" }}")
+            if (databaseSettings().type.equals("h2", ignoreCase = true)) {
+                logger.warning("[Artisan] Network mode with an H2 database: each server keeps its own suite data. Use MySQL or MariaDB to share it.")
+            }
+            return
+        }
         try {
             val vanilla = net.artisanmc.plugin.hub.VanillaAssets(File(dataFolder, "cache/minecraft"), localServer.minecraftVersion, logger)
             val packs = net.artisanmc.plugin.hub.PackStore(File(dataFolder, "cache/resource-pack"))
-            val router = net.artisanmc.plugin.hub.EditorApi.router(net.artisanmc.plugin.hub.Servers(localServer), editorSessions, logger, vanilla, packs)
+            val servers = net.artisanmc.plugin.hub.Servers(localServer)
+            val router = net.artisanmc.plugin.hub.EditorApi.router(servers, editorSessions, logger, vanilla, packs)
+            val plugins = net.artisanmc.plugin.hub.PluginChannel(servers, networkSecret(web), editorChannel, ::editorBase, logger)
             val server = net.artisanmc.plugin.hub.HubServer(
-                web, router, editorSessions, net.artisanmc.plugin.hub.EditorAssets(javaClass.classLoader), editorChannel, logger,
+                web, router, editorSessions, net.artisanmc.plugin.hub.EditorAssets(javaClass.classLoader), editorChannel, logger, plugins,
             )
             if (server.start()) editor = server
         } catch (e: LinkageError) {
@@ -480,11 +499,12 @@ open class ArtisanPlugin : JavaPlugin() {
         commandRegistrar.reload(provider.allBundles(), executor, evaluator)
     }
 
+    /** Une feuille parle au hub comme au backend : même client, l'adresse et la clé du réseau. */
     private fun createProvider(cfg: PluginConfig) = SyncedMenuProvider(
         roots            = projectRoots,
-        serverKey        = cfg.serverKey,
+        serverKey        = if (cfg.web.leaf) networkSecret(cfg.web).takeIf { cfg.web.hubUrl.isNotBlank() }.orEmpty() else cfg.serverKey,
         editorAccessMode = cfg.editorAccessMode,
-        wsUrl            = cfg.wsUrl,
+        wsUrl            = if (cfg.web.leaf) cfg.web.hubUrl else cfg.wsUrl,
         logger           = logger,
         evaluator        = evaluator,
         sessions         = sessions,
@@ -510,6 +530,7 @@ open class ArtisanPlugin : JavaPlugin() {
         nexoGlyphs = net.artisanmc.plugin.customitems.NexoGlyphReader(java.io.File(server.pluginsFolder, "Nexo")),
         serverConfig = serverConfigAccess,
         editorEvents = { editorChannel.relay(it) },
+        proxyName = if (cfg.web.leaf) networkName(cfg.web) else "",
     )
 
     /**

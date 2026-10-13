@@ -153,6 +153,10 @@ data class PluginConfig(
                     port = environment.getInt("web.port", 8765),
                     bind = EnvironmentFile.string(environment, "web.bind", ""),
                     url = EnvironmentFile.string(environment, "web.url", "").trimEnd('/'),
+                    role = if (environment.getString("web.role") == WebConfig.LEAF) WebConfig.LEAF else WebConfig.HUB,
+                    name = EnvironmentFile.string(environment, "web.name", ""),
+                    hubUrl = EnvironmentFile.string(environment, "web.hub-url", ""),
+                    secret = EnvironmentFile.string(environment, "web.secret", ""),
                 ),
             )
         }
