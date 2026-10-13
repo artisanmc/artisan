@@ -249,9 +249,9 @@ class ResourcePackManagerTest {
     }
 
     @Test
-    fun `applyFromBackend with dual URLs stores both on the info`() {
+    fun `applyPack with dual URLs stores both on the info`() {
         val mgr = ResourcePackManager(plugin, config(enabled = false), logger = plugin.logger)
-        mgr.applyFromBackend(
+        mgr.applyPack(
             playerUrl = "http://localhost:3001/project.zip",
             downloadUrl = "http://backend:3001/project.zip",
             hash = SAMPLE_HASH,
@@ -263,9 +263,9 @@ class ResourcePackManagerTest {
     }
 
     @Test
-    fun `single-URL applyFromBackend defaults downloadUrl to url`() {
+    fun `single-URL applyPack defaults downloadUrl to url`() {
         val mgr = ResourcePackManager(plugin, config(enabled = false), logger = plugin.logger)
-        mgr.applyFromBackend(url = "http://x/project.zip", hash = SAMPLE_HASH)
+        mgr.applyPack(url = "http://x/project.zip", hash = SAMPLE_HASH)
         val info = mgr.currentPackInfo
         assertNotNull(info)
         assertEquals("http://x/project.zip", info.url)
@@ -284,7 +284,7 @@ class ResourcePackManagerTest {
             logger = plugin.logger,
             assetCatalog = AssetCatalog(),
         )
-        mgr.applyFromBackend(
+        mgr.applyPack(
             playerUrl = "http://player-only.example/project.zip",
             downloadUrl = "http://backend:3001/api/v1/resource-pack/aa.zip",
             hash = SAMPLE_HASH,

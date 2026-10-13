@@ -12,7 +12,7 @@ import org.bukkit.event.player.PlayerQuitEvent
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
-/** Vanilla container texture a pack can make transparent (cf. backend vanillaGui.ts). */
+/** Vanilla container texture a pack can make transparent (cf. editor/src/lib/pack/vanillaGui.ts). */
 enum class ContainerTexture { CHEST, HOPPER, DISPENSER }
 
 /**

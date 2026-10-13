@@ -21,8 +21,7 @@ import java.util.zip.ZipInputStream
 class ServerOfflineException(server: String) : RuntimeException("server $server is offline")
 
 /**
- * Un serveur du réseau relié par `/ws/plugin`. Il parle au hub comme il parlait au backend :
- * ce qu'il annonce au `hello` (modules, sources, configuration) est gardé ici, et chaque
+ * Un serveur du réseau relié par `/ws/plugin`. Ce qu'il annonce au `hello` (modules, sources, configuration) est gardé ici, et chaque
  * requête de l'éditeur part sur son WebSocket avec un `request_id`.
  */
 class RemoteServer(

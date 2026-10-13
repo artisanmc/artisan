@@ -3,7 +3,6 @@ package net.artisanmc.plugin.protocol
 import com.fasterxml.jackson.databind.ObjectMapper
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertIs
 import kotlin.test.assertNull
 
 class EditorRequestTest {
@@ -24,9 +23,7 @@ class EditorRequestTest {
             EditorRequest.PackUpdate.Incomplete,
             (parse("""{"type":"hello_ack","resource_pack":{"url":"u"}}""") as EditorRequest.HelloAck).resourcePack,
         )
-        val ack = parse("""{"type":"hello_ack","api_url":"a","editor_url":"e","resource_pack":{"url":"u","hash":"h"}}""") as EditorRequest.HelloAck
-        assertEquals("a", ack.bundleUrl)
-        assertEquals("e", ack.editorUrl)
+        val ack = parse("""{"type":"hello_ack","resource_pack":{"url":"u","hash":"h"}}""") as EditorRequest.HelloAck
         assertEquals(EditorRequest.PackUpdate.Apply("u", "h"), ack.resourcePack)
     }
 
@@ -45,16 +42,9 @@ class EditorRequestTest {
     }
 
     @Test
-    fun `asset_write keeps the single-file form`() {
-        val write = parse("""{"type":"asset_write","request_id":"r","project_id":"p","path":"a.png","content_base64":"AA=="}""")
-        assertIs<EditorRequest.AssetWrite>(write)
-        assertEquals(listOf(EditorRequest.BinaryWrite("a.png", "AA==", null)), write.writes)
-    }
-
-    @Test
-    fun `an invalid selection rejects the whole import read`() {
-        val read = parse("""{"type":"import_sources_read","request_id":"r","selections":[{"source_id":"s","paths":["a",1]}]}""")
-        assertIs<EditorRequest.ImportSourcesRead>(read)
-        assertNull(read.selections)
+    fun `messages only the cloud backend sent are ignored`() {
+        for (type in listOf("ping", "draft_update", "project_deleted", "project_copy", "project_rename", "asset_write", "import_sources_list")) {
+            assertNull(parse("""{"type":"$type","request_id":"r","project_id":"p","menu_id":"m","menu_yaml":"x"}"""), type)
+        }
     }
 }

@@ -48,7 +48,7 @@ class AssetCatalog(
     /** Optional on-disk cache of the last successfully downloaded index. When
      *  set, [update] persists the raw JSON here (atomic .tmp + rename) and
      *  [loadFromDisk] restores it at boot — custom title glyphs keep rendering
-     *  with the backend down or gone (offline completeness, ADR
+     *  with the hub unreachable (offline completeness, ADR
      *  files-first-source-of-truth #7). */
     private val cacheFile: java.io.File? = null,
 ) {

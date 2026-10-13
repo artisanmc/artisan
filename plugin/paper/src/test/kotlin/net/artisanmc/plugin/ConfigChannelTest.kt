@@ -13,13 +13,13 @@ import java.util.concurrent.TimeUnit
 class ConfigChannelTest {
     private val mapper = ObjectMapper()
 
-    private class Harness(serverKey: String = "") {
+    private class Harness {
         val root: File = Files.createTempDirectory("artisan_cfg_").toFile()
         val sink: MutableList<Map<String, Any?>> = java.util.Collections.synchronizedList(mutableListOf())
         var latch: CountDownLatch = CountDownLatch(1)
         val provider = SyncedMenuProvider(
             roots = net.artisanmc.plugin.project.ProjectRoots(root),
-            serverKey = serverKey, wsUrl = "", logger = null,
+            logger = null,
         )
         init {
             provider.setSendForTesting { raw ->
@@ -128,7 +128,7 @@ class ConfigChannelTest {
 
     @Test
     fun `config_write ecrit atomiquement et supprime, sans rien pousser`() {
-        val h = Harness(serverKey = "sk_test")
+        val h = Harness()
         val dir = File(h.project("boutique"), "data/categories").also { it.mkdirs() }
         File(dir, "old.yaml").writeText("name: Old\n")
         h.latch = CountDownLatch(1) // config_write_result seul
@@ -149,8 +149,7 @@ class ConfigChannelTest {
         assertFalse(File(dir, "old.yaml").exists())
         assertFalse(File(dir, "weapons.yaml.artisan-tmp").exists())
 
-        // Plus de push : le disque est la seule vérité, il n'y a plus de copie
-        // backend à tenir au courant (ADR `server-disk-only-storage`).
+        // Plus de push : le disque est la seule vérité (ADR `server-disk-only-storage`).
         val types = h.sink.map { it["type"] }
         assertFalse("local_push" in types, "rien ne doit être poussé, got $types")
         val result = h.sink.first { it["type"] == "config_write_result" }
@@ -159,8 +158,8 @@ class ConfigChannelTest {
     }
 
     @Test
-    fun `config_write with offline server key skips push but still writes`() {
-        val h = Harness(serverKey = "")
+    fun `config_write without a hub still writes`() {
+        val h = Harness()
         h.project("boutique")
         val payload = mapOf(
             "type" to "config_write", "request_id" to "w2", "project_id" to "boutique",
@@ -169,9 +168,7 @@ class ConfigChannelTest {
         h.provider.handleMessageForTesting(mapper.writeValueAsString(payload))
         h.await()
 
-        // Ce que ce test garde : rien n'est POUSSÉ vers une copie backend qui
-        // n'existe plus. L'annonce de rechargement, elle, est attendue — elle dit
-        // à l'éditeur d'aller revalider.
+        // L'annonce de rechargement est attendue : elle dit à l'éditeur d'aller revalider.
         assertFalse("local_push" in h.sink.map { it["type"] })
         assertEquals(true, h.awaitReply()["ok"])
         assertEquals("whole_shop_discount: 5\n", File(h.root, "boutique/data/shop_settings.yaml").readText())

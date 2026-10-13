@@ -73,14 +73,4 @@ class ProjectRootsTest {
         assertEquals(projectDir, roots.all()["boutique_shop"])
         assertEquals(projectDir, roots.dirFor("boutique_shop"))
     }
-
-    @Test fun `trash for a core project sits at the top of the core root`() {
-        assertEquals(File(coreRoot, ".artisan-trash"), roots.trashDirFor("user_proj"))
-    }
-
-    @Test fun `trash for a registered add-on project sits alongside its dir`() {
-        val projectDir = File(addonDir, "project")
-        roots.register("boutique_shop", projectDir)
-        assertEquals(File(addonDir, ".artisan-trash"), roots.trashDirFor("boutique_shop"))
-    }
 }

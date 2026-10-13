@@ -31,7 +31,7 @@ class ProjectWriteChannelTest {
         val latch = CountDownLatch(1)
         val provider = SyncedMenuProvider(
             roots = net.artisanmc.plugin.project.ProjectRoots(root),
-            serverKey = "", wsUrl = "", logger = null,
+            logger = null,
         )
         init {
             provider.setSendForTesting { raw ->
@@ -146,7 +146,6 @@ class ProjectWriteChannelTest {
                 mapOf("type" to "config_read", "table" to path),
                 mapOf("type" to "config_write", "files" to listOf(mapOf("path" to path, "content" to "private"))),
                 mapOf("type" to "asset_read", "path" to path),
-                mapOf("type" to "asset_write", "files" to listOf(mapOf("path" to path, "content_base64" to "eA=="))),
             )) {
                 h.sink.clear()
                 h.send(mapper.writeValueAsString(message + mapOf("request_id" to "r", "project_id" to "shop")))
@@ -167,46 +166,6 @@ class ProjectWriteChannelTest {
         h.send(message.replace("w1", "w2"))
         assertEquals(true, h.reply()["ok"])
         assertEquals("external edit", h.read(project, "a.yaml"))
-    }
-
-    @Test
-    fun `project rename moves files and private history then rejects stale create writes`() {
-        val h = Harness()
-        val p = h.project("old")
-        h.write(p, "manifest.yaml", "schema: manifest/v1\n")
-        h.write(p, ".artisan/history/menus/a.yaml/1", "previous")
-        h.send("""{"type":"project_rename","request_id":"r1","operation_id":"op1","project_id":"old","target_project_id":"new"}""")
-        assertEquals("project_rename_result", h.reply()["type"])
-        assertEquals(true, h.reply()["ok"])
-        assertFalse(p.exists())
-        assertEquals("previous", h.read(File(h.root, "new"), ".artisan/history/menus/a.yaml/1"))
-        h.sink.clear()
-        h.send("""{"type":"project_write","request_id":"w2","project_id":"old","create":true,"files":[{"path":"manifest.yaml","content":"stale","base_hash":null}]}""")
-        assertEquals("project_renamed", h.reply()["error"])
-        assertFalse(p.exists())
-    }
-
-    @Test
-    fun `renamed roots refuse old asset config and case variant writes`() {
-        val h = Harness()
-        h.project("old")
-        h.send("""{"type":"project_rename","request_id":"r1","operation_id":"op1","project_id":"old","target_project_id":"new"}""")
-        assertEquals(true, h.reply()["ok"])
-        for (message in listOf(
-            """{"type":"asset_write","request_id":"a1","project_id":"old","files":[{"path":"assets/a.png","content_base64":"eA==","base_hash":null}]}""",
-            """{"type":"config_write","request_id":"c1","project_id":"old","files":[{"path":"data/settings.yaml","content":"x: 1"}]}""",
-        )) {
-            h.sink.clear()
-            h.send(message)
-            assertEquals("project_renamed", h.reply()["error"])
-        }
-        if (File.separatorChar == '\\') {
-            h.sink.clear()
-            h.send("""{"type":"project_write","request_id":"w2","project_id":"OLD","create":true,"files":[{"path":"manifest.yaml","content":"stale","base_hash":null}]}""")
-            assertEquals("project_renamed", h.reply()["error"])
-        }
-        assertFalse(File(h.root, "old").exists())
-        assertFalse(File(h.root, "new/assets/a.png").exists())
     }
 
     @Test

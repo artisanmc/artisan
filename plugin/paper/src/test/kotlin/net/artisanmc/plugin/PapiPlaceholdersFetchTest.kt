@@ -20,7 +20,7 @@ class PapiPlaceholdersFetchTest {
         val deps = SoftDepRegistry(null, papi, null, null, null, null)
         val provider = SyncedMenuProvider(
             roots = ProjectRoots(Files.createTempDirectory("papi-fetch").toFile()),
-            serverKey = "", wsUrl = "", logger = null,
+            logger = null,
             evaluator = ConditionEvaluator(deps, CooldownStore()),
             scheduler = DispatchingScheduler { mainTasks.add(it) },
         )
@@ -41,7 +41,7 @@ class PapiPlaceholdersFetchTest {
     @Test fun `missing PlaceholderAPI returns an empty catalog`() {
         val provider = SyncedMenuProvider(
             roots = ProjectRoots(Files.createTempDirectory("papi-absent").toFile()),
-            serverKey = "", wsUrl = "", logger = null,
+            logger = null,
         )
         provider.load()
         val latch = CountDownLatch(1)
