@@ -34,6 +34,7 @@ artisan:
   editor_no_permission: "<red>[Artisan] Missing permission: artisan.editor</red>"
   editor_link: "<aqua>[Artisan] </aqua><green>Open the editor: <click:open_url:'{url}'><aqua><underlined>click here</underlined></aqua></click> <gray>(single use, valid 60 seconds)</gray></green>"
   editor_link_too_soon: "<yellow>[Artisan] A link was just generated. Try again in {seconds} s.</yellow>"
+  editor_hub_offline: "<yellow>[Artisan] The editor hub cannot be reached right now. Try again in a few seconds, and check web.hub-url if this persists.</yellow>"
   editor_in_game_only: "<red>[Artisan] Run /artisan editor in game: the editor signs you in as your player.</red>"
   editor_linked: "<aqua>[Artisan] </aqua><green>This server belongs to network <white>{network}</white> — edit at <click:open_url:'{url}'><aqua><underlined>{url}</underlined></aqua></click></green>"
   editor_not_linked: "<yellow>[Artisan] This server isn't linked yet. Add it in the editor at <click:open_url:'{url}'><aqua><underlined>{url}</underlined></aqua></click>, then run <white>/artisan link <CODE></white>.</yellow>"

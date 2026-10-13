@@ -15,7 +15,8 @@ import java.util.logging.Level
 import java.util.logging.Logger
 
 /**
- * Le serveur web de l'éditeur : fichiers de l'éditeur, API, WebSocket `/ws/editor`.
+ * Le serveur web de l'éditeur : fichiers de l'éditeur, API, WebSocket `/ws/editor`, et
+ * `/ws/plugin` pour les autres serveurs du réseau quand [plugins] est donné.
  * Toute route de l'API exige une session ; une requête qui modifie quelque chose doit
  * venir de la même origine que la page.
  */
@@ -26,6 +27,7 @@ class HubServer(
     private val assets: EditorAssets,
     private val channel: EditorChannel,
     private val logger: Logger,
+    private val plugins: PluginChannel? = null,
 ) {
     private var server: Server? = null
 
@@ -48,6 +50,9 @@ class HubServer(
                     Response.writeError(request, response, callback, 403)
                     null
                 } else channel.endpoint()
+            }
+            if (plugins != null) {
+                container.addMapping("/ws/plugin") { _, _, _ -> plugins.endpoint() }
             }
         }
         sockets.handler = Routes()

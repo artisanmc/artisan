@@ -8,9 +8,10 @@ import net.artisanmc.plugin.hub.ServerRoutes.Companion.SERVER
  * (`/resource-pack/<sha1>.zip`, public comme l'était celui du backend) et le remet au
  * `ResourcePackManager` : délégation à l'hôte de pack ou envoi direct, inchangés.
  */
-class PackRoutes(private val server: LocalServer, private val store: PackStore) {
+class PackRoutes(private val servers: Servers, private val store: PackStore) {
     fun register(router: Router) {
         router.on("PUT", "$SERVER/resource-pack", PUBLISH) { call ->
+            val server = servers.of(call) ?: return@on call.error(404, "not_found")
             val zip = call.bytes(MAX_BYTES) ?: return@on call.error(413, "too_large")
             if (zip.size < 4 || zip[0] != 'P'.code.toByte() || zip[1] != 'K'.code.toByte()) return@on call.error(422, "invalid_zip")
             val hash = store.put(zip)

@@ -1,5 +1,6 @@
 package net.artisanmc.plugin.ws
 
+import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import net.artisanmc.plugin.update.PluginUpdater
 import okhttp3.*
@@ -28,6 +29,8 @@ class WsClient(
     private val pluginVersion: String = "1.0.0",
     /** Bloquant (téléchargement) : appelé hors du thread WS. Null = mise à jour non proposée. */
     private val pluginUpdater: (() -> PluginUpdater.Result)? = null,
+    /** Nom du serveur dans le réseau, attendu par le hub d'un autre serveur ; vide pour le cloud. */
+    private val proxyName: String = "",
 ) {
     private val httpClient = OkHttpClient.Builder()
         .pingInterval(30, TimeUnit.SECONDS)
@@ -39,6 +42,18 @@ class WsClient(
     @Volatile private var retryDelay = 1L
     @Volatile private var authenticated = false
     private val memberRequests = ConcurrentHashMap<String, CompletableFuture<String>>()
+    private val requests = ConcurrentHashMap<String, CompletableFuture<JsonNode?>>()
+
+    /** Une requête au hub ; sa réponse `<type>_result`, ou null hors ligne ou sans réponse. */
+    fun request(message: Map<String, Any?>, timeoutSeconds: Long = 15): CompletableFuture<JsonNode?> {
+        if (!authenticated) return CompletableFuture.completedFuture(null)
+        val id = UUID.randomUUID().toString()
+        val result = CompletableFuture<JsonNode?>()
+        requests[id] = result
+        result.completeOnTimeout(null, timeoutSeconds, TimeUnit.SECONDS).whenComplete { _, _ -> requests.remove(id) }
+        if (socket?.send(mapper.writeValueAsString(message + ("request_id" to id))) != true) result.complete(null)
+        return result
+    }
 
     fun addMember(email: String): CompletableFuture<String> {
         if (editorAccessMode != "console") return CompletableFuture.completedFuture("console_disabled")
@@ -58,6 +73,8 @@ class WsClient(
         authenticated = false
         memberRequests.values.forEach { it.complete("offline") }
         memberRequests.clear()
+        requests.values.forEach { it.complete(null) }
+        requests.clear()
     }
 
     fun connect() {
@@ -94,12 +111,13 @@ class WsClient(
             val hello = mapOf(
                 "type" to "hello",
                 "editor_access_mode" to editorAccessMode,
-                "protocol_version" to "1",
+                "protocol_version" to net.artisanmc.plugin.protocol.ProtocolVersion.CURRENT,
                 // Wire de contenu de projet : 2 = étapes structurées keyed
                 // (ADR content-version-negotiation). Absente = 1 (DSL legacy).
                 "content_version" to CONTENT_VERSION,
                 "core_version" to pluginVersion,   // Mirrors plugin_version (kept for backward compat).
                 "server_key" to serverKey,
+                "proxy_name" to proxyName.ifEmpty { null },
                 "plugin_version" to pluginVersion,
                 "minecraft_version" to mcVersion,
                 "current_bundle_hash" to currentBundleHash,
@@ -133,6 +151,10 @@ class WsClient(
                         else logger?.warning("Artisan update failed: ${result.error}")
                         send(mapOf("type" to "plugin_update_result", "request_id" to requestId, "ok" to result.ok, "version" to result.version, "error" to result.error))
                     }
+                    return
+                }
+                "editor_link_result" -> {
+                    requests.remove(message.path("request_id").asText())?.complete(message)
                     return
                 }
                 "member_add_result" -> {

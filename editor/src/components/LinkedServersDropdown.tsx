@@ -8,17 +8,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tooltip } from "@/components/ui/tooltip";
-import {
-  type NetworkServersStatus,
-  type ServerStatusEntry,
-  getNetworkServersStatus,
-  isPluginOutdated,
-  updateServerPlugin,
-} from "@/lib/api/networks";
-import { useCallback, useEffect, useState } from "react";
+import { useNetworkServersStatus } from "@/components/useNetworkServersStatus";
+import { type ServerStatusEntry, isPluginOutdated, updateServerPlugin } from "@/lib/api/networks";
+import { SELF_HOSTED } from "@/lib/selfHosted";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
-
-const POLL_MS = 15_000;
 
 type TFn = ReturnType<typeof useTranslation>["t"];
 
@@ -92,7 +86,11 @@ export function ServerRow({
           t("linkedServers.neverConnected")
         )}
       </div>
-      {isPluginOutdated(s) ? (
+      {s.updateRequired ? (
+        <div className="pl-3.5 text-[11px] text-[var(--danger)]">
+          {t("linkedServers.updateRequired")}
+        </div>
+      ) : isPluginOutdated(s) ? (
         <div className="pl-3.5 text-[11px] text-[var(--danger)]">
           {t("linkedServers.pluginOutdated")}
         </div>
@@ -138,22 +136,7 @@ export function LinkedServersDropdown({
   downHint?: string;
 }) {
   const { t, i18n } = useTranslation();
-  const [data, setData] = useState<NetworkServersStatus | null>(null);
-
-  const refresh = useCallback(async () => {
-    if (!networkId) return;
-    try {
-      setData(await getNetworkServersStatus(networkId, currentServerKeyId));
-    } catch {
-      /* silent — keep last known state */
-    }
-  }, [networkId, currentServerKeyId]);
-
-  useEffect(() => {
-    refresh();
-    const id = setInterval(refresh, POLL_MS);
-    return () => clearInterval(id);
-  }, [refresh]);
+  const { data, refresh } = useNetworkServersStatus(networkId, currentServerKeyId);
 
   if (!networkId || data === null) return null;
 
@@ -166,9 +149,15 @@ export function LinkedServersDropdown({
   const current = currentServerKeyId
     ? data.servers.find((s) => s.id === currentServerKeyId)
     : undefined;
-  const up = current ? current.online : online > 0;
+  const up = current ? current.online && !current.updateRequired : online > 0;
   const label = current
-    ? t(current.online ? "linkedServers.up" : "linkedServers.down")
+    ? t(
+        current.updateRequired
+          ? "linkedServers.updateRequired"
+          : current.online
+            ? "linkedServers.up"
+            : "linkedServers.down",
+      )
     : t("linkedServers.count", { online, total });
 
   const trigger = (
@@ -207,7 +196,12 @@ export function LinkedServersDropdown({
             s={current}
             lang={i18n.language}
             t={t}
-            onUpdatePlugin={() => updateServerPlugin(networkId, current.id).then(refresh)}
+            onUpdatePlugin={
+              // Servi par le plugin : la mise à jour se fait sur le serveur, pas d'ici.
+              SELF_HOSTED
+                ? undefined
+                : () => updateServerPlugin(networkId, current.id).then(refresh)
+            }
           />
         ) : (
           <div className="px-2.5 py-2 text-[12px] text-[var(--text-faint)]">

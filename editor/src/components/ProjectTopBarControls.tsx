@@ -595,7 +595,7 @@ function SaveControls({
         setLastSaveError(null);
         setSaveErrorOpen(false);
         toast.success(res.wrote === 0 ? t("deploy.nothing") : t("deploy.deployed"));
-        if (SELF_HOSTED) rebuildServerPackInBackground(t);
+        if (SELF_HOSTED) rebuildServerPackInBackground(t, project.serverKeyId);
         setConflicts([]);
         setChoices({});
         return;

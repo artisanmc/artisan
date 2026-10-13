@@ -85,6 +85,12 @@ describe("ServerRow", () => {
     render(<ServerRow s={entry({ id: "c", label: "Events" })} lang="en" t={t} />);
     expect(screen.getByText("linkedServers.neverConnected")).toBeInTheDocument();
   });
+
+  it("a server the hub flags updateRequired says so instead of the outdated hint", () => {
+    render(<ServerRow s={entry({ online: true, updateRequired: true })} lang="en" t={t} />);
+    expect(screen.getByText("linkedServers.updateRequired")).toBeInTheDocument();
+    expect(screen.queryByText("linkedServers.pluginOutdated")).toBeNull();
+  });
 });
 
 describe("ServerRow — mise à jour du plugin", () => {
@@ -176,6 +182,16 @@ describe("LinkedServersDropdown", () => {
     expect(await screen.findByRole("tooltip")).toHaveTextContent(
       /Serveur hors ligne — version du 01\/10\/2026/,
     );
+  });
+
+  it("annonce « mise à jour requise » pour un serveur courant incompatible", async () => {
+    vi.mocked(api.getNetworkServersStatus).mockResolvedValue({
+      online: 1,
+      total: 1,
+      servers: [entry({ id: "lobby", online: true, isCurrent: true, updateRequired: true })],
+    });
+    render(<LinkedServersDropdown networkId="local" currentServerKeyId="lobby" />);
+    expect(await screen.findByText(/Update required|Mise à jour requise/)).toBeInTheDocument();
   });
 
   it("renders nothing without a networkId", () => {

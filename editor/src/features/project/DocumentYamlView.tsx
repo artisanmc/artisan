@@ -91,7 +91,7 @@ export function DocumentYamlView({
         project;
       replaceProject(adoptDiskIntoProject(current, { [relPath]: written }, []));
       toast.success(t("save.saved"));
-      if (SELF_HOSTED) rebuildServerPackInBackground(t);
+      if (SELF_HOSTED) rebuildServerPackInBackground(t, project.serverKeyId);
     } catch {
       toast.error(t("save.failed"));
     } finally {

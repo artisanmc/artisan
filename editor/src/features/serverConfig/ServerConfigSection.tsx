@@ -106,7 +106,7 @@ export function ServerConfigSection({
       setChanges({});
       // Le backend reconstruisait le pack quand les textures de conteneur changeaient.
       if (SELF_HOSTED && Object.keys(changes).some((key) => key.startsWith(TEXTURES)))
-        rebuildServerPackInBackground(t);
+        rebuildServerPackInBackground(t, serverKeyId);
     } catch (e) {
       setError(
         e instanceof ServerConfigError && e.detail

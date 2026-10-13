@@ -1157,6 +1157,9 @@ const fr: typeof en = {
     offlineBody:
       "Impossible de joindre le serveur de ce project, et aucun brouillon n'est disponible. Vérifie que le serveur est démarré et connecté, puis réessaie.",
     loadFailedTitle: "Impossible d'ouvrir ce project",
+    updateRequiredTitle: "Ce serveur doit mettre Artisan à jour",
+    updateRequiredBody:
+      "Son plugin Artisan n'est pas compatible avec celui du hub. Mets Artisan à jour sur ce serveur, puis réessaie.",
     loadFailedBody:
       "Le chargement a échoué. Le code ci-dessous dit pourquoi ; s'il persiste, il est aussi dans la console du navigateur.",
     notLoaded:
@@ -1275,6 +1278,7 @@ const fr: typeof en = {
     pluginUpdating: "Installation…",
     pluginUpdatePending: "Plugin {{version}} installé — redémarre le serveur pour l'appliquer",
     pluginUpdateFailed: "Échec de la mise à jour ({{error}})",
+    updateRequired: "Mise à jour requise",
   },
   sidebar: {
     projectDocuments: "Documents de {{name}}",
@@ -2349,6 +2353,9 @@ const fr: typeof en = {
     noProjects: "Aucun projet sur ce serveur.",
     loadingProjects: "Chargement des projets…",
     projectsUnavailable: "Serveur injoignable — impossible de lister ses projets.",
+    serverOffline: "Ce serveur est hors ligne — ses projets s'afficheront dès qu'il se reconnectera.",
+    updateRequired:
+      "Le plugin Artisan de ce serveur n'est pas compatible avec celui du hub. Mets-le à jour pour éditer ce serveur.",
     documentCount_one: "{{count}} élément",
     documentCount_other: "{{count}} éléments",
     openBoard: "Planche générale",
