@@ -1,26 +1,14 @@
 import i18n from "@/i18n";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { clearDeletedAccountSession, useAuthStore } from "./authStore";
+import { useAuthStore } from "./authStore";
 
 const API = "http://x";
-
-test("an in-flight hydration cannot restore a deleted account", async () => {
-  let complete!: (response: Response) => void;
-  vi.spyOn(globalThis, "fetch").mockReturnValue(new Promise(resolve => { complete = resolve; }));
-  const pending = useAuthStore.getState().hydrate(API);
-  clearDeletedAccountSession();
-  complete(new Response(JSON.stringify({ user: { id: "deleted", email: "a@b.c", name: "A", avatarUrl: null } }), { status: 200 }));
-  await pending;
-  expect(useAuthStore.getState().currentUser).toBeNull();
-  expect(useAuthStore.getState().sessionStatus).toBe("signed-out");
-});
 
 beforeEach(() => {
   useAuthStore.setState({
     currentUser: null,
     isLoading: false,
     sessionStatus: "unknown",
-    backendUnreachable: false,
     error: null,
   });
   vi.restoreAllMocks();
@@ -73,7 +61,6 @@ describe("authStore.hydrate", () => {
     expect(useAuthStore.getState().currentUser?.id).toBe("u1");
     expect(useAuthStore.getState().isLoading).toBe(false);
     expect(useAuthStore.getState().sessionStatus).toBe("signed-in");
-    expect(useAuthStore.getState().backendUnreachable).toBe(false);
     vi.useRealTimers();
   });
 
@@ -89,7 +76,6 @@ describe("authStore.hydrate", () => {
     // que ceux dont on n'a jamais rien su.
     expect(useAuthStore.getState().currentUser?.id).toBe("u1");
     expect(useAuthStore.getState().isLoading).toBe(false);
-    expect(useAuthStore.getState().backendUnreachable).toBe(true);
     fetchSpy.mockResolvedValue(
       new Response(
         JSON.stringify({ user: { id: "u1", email: "a@e.com", name: "Alice", avatarUrl: null } }),
@@ -115,7 +101,6 @@ describe("authStore.hydrate", () => {
     await vi.advanceTimersByTimeAsync(60_000);
     expect(useAuthStore.getState().sessionStatus).toBe("unknown");
     expect(useAuthStore.getState().currentUser).toBeNull();
-    expect(useAuthStore.getState().backendUnreachable).toBe(true);
     expect(fetchSpy.mock.calls.length).toBeGreaterThan(2);
     // On rend le backend joignable pour que la boucle de réessai s'arrête.
     fetchSpy.mockResolvedValue(new Response(null, { status: 401 }));
@@ -195,40 +180,7 @@ describe("authStore.hydrate", () => {
       .mockResolvedValue(new Response(null, { status: 401 }));
     await useAuthStore.getState().hydrate(API);
     expect(useAuthStore.getState().sessionStatus).toBe("signed-out");
-    expect(useAuthStore.getState().backendUnreachable).toBe(false);
     expect(fetchSpy).toHaveBeenCalledTimes(1);
-  });
-});
-
-describe("authStore.login", () => {
-  test("sets currentUser on success", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response(
-        JSON.stringify({ user: { id: "u2", email: "b@e.com", name: "Bob", avatarUrl: null } }),
-        { status: 200, headers: { "Content-Type": "application/json" } },
-      ),
-    );
-    const result = await useAuthStore
-      .getState()
-      .login(API, { email: "b@e.com", password: "longenoughpw" });
-    expect(result.ok).toBe(true);
-    expect(useAuthStore.getState().currentUser?.id).toBe("u2");
-    expect(useAuthStore.getState().error).toBeNull();
-  });
-
-  test("sets error on 401", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response(JSON.stringify({ error: "invalid_credentials" }), {
-        status: 401,
-        headers: { "Content-Type": "application/json" },
-      }),
-    );
-    const result = await useAuthStore
-      .getState()
-      .login(API, { email: "x@y.z", password: "longenoughpw" });
-    expect(result.ok).toBe(false);
-    expect(useAuthStore.getState().error).toBe("invalid_credentials");
-    expect(useAuthStore.getState().currentUser).toBeNull();
   });
 });
 

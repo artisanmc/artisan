@@ -12,7 +12,7 @@ const isTypingTarget = (target: EventTarget | null) => {
 
 /**
  * Minecraft-hotbar-style tab switching: the physical top-row digits (and
- * numpad) 1-6 jump between the workspace views in topbar order — 1 = Canvas,
+ * numpad) 1-5 jump between the workspace views in topbar order — 1 = Canvas,
  * 2 = Translations, … Uses `e.code` (physical key), NOT `e.key`, so it fires
  * without Shift on layouts where the unshifted top-row key isn't a digit
  * (AZERTY), exactly like Minecraft binds its hotbar.
@@ -20,7 +20,7 @@ const isTypingTarget = (target: EventTarget | null) => {
  * Ignored while typing in a field, when any modifier is held, or when the
  * search palette is open — so it never eats a keystroke the user meant for text.
  */
-export function useWorkspaceTabShortcuts(canUseAssistant = true, hasHistory = true): void {
+export function useWorkspaceTabShortcuts(hasHistory = true): void {
   const navigate = useNavigate();
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -31,7 +31,6 @@ export function useWorkspaceTabShortcuts(canUseAssistant = true, hasHistory = tr
       if (!m) return;
       const tab = WORKSPACE_VIEW_TABS[Number(m[1]) - 1];
       if (!tab) return;
-      if (tab === "assistant" && !canUseAssistant) return;
       if (tab === "history" && !hasHistory) return;
       e.preventDefault();
       navigate({
@@ -42,5 +41,5 @@ export function useWorkspaceTabShortcuts(canUseAssistant = true, hasHistory = tr
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [navigate, canUseAssistant, hasHistory]);
+  }, [navigate, hasHistory]);
 }

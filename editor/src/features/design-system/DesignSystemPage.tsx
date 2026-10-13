@@ -61,7 +61,7 @@ import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 /**
- * Living style guide rendered at /admin/design. Every token, utility class
+ * Living style guide rendered at /design. Every token, utility class
  * and ui/ primitive of the editor is shown live here — when adding a new
  * component or token, add its specimen to this page in the same commit.
  *

@@ -48,11 +48,9 @@ import { validActiveLang } from "@/lib/i18nUsages";
 import { documentDestination, projectDestination } from "@/lib/projectNavigation";
 import { useProjectPrincipalId } from "@/lib/projectPrincipal";
 import { projectUrlId } from "@/lib/projectUrlId";
-import { SELF_HOSTED } from "@/lib/selfHosted";
 import { useIsDesktop } from "@/lib/useMediaQuery";
 import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
-import { useDemoStore } from "@/state/demoStore";
 import { useProjectRuntime } from "@/state/projectRuntimeStore";
 import { useUiStore } from "@/state/uiStore";
 import {
@@ -74,34 +72,21 @@ import {
   useParams,
   useSearch,
 } from "@tanstack/react-router";
-import { Suspense, lazy, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { ResolvedProjectContext } from "./ResolvedProjectContext";
 import { goToDocument } from "./goToDocument";
 
-// Hors du build auto-hébergé (code conservé) : le chargement différé laisse Vite l'écarter.
-const AssistantBody = SELF_HOSTED
-  ? () => null
-  : lazy(() =>
-      import("@/features/assistant/AssistantBody").then((m) => ({ default: m.AssistantBody })),
-    );
-
 export type ProjectSearch = {
-  tab?: "overview" | "translations" | "data-sources" | "resources" | "assistant" | "history";
+  tab?: "overview" | "translations" | "data-sources" | "resources" | "history";
   /** Lien profond : centrer la planche sur ce Document à l'ouverture (`goToDocument`). */
   doc?: string;
 };
 
 export const validateProjectSearch = (search: Record<string, unknown>): ProjectSearch => {
   const t = search.tab;
-  if (
-    t === "translations" ||
-    t === "data-sources" ||
-    t === "resources" ||
-    t === "assistant" ||
-    t === "history"
-  )
+  if (t === "translations" || t === "data-sources" || t === "resources" || t === "history")
     return { tab: t };
   const doc = typeof search.doc === "string" && search.doc ? { doc: search.doc } : {};
   return { tab: "overview", ...doc };
@@ -129,7 +114,6 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
   const principalId = useProjectPrincipalId(loadRef);
   const runtime = useProjectRuntime(project?.id);
   const authLoading = useAuthStore((s) => s.isLoading);
-  const demo = useDemoStore((s) => s.active && s.session?.projectId === pId);
   const tourState = useEditorTourState();
   const tourPresenting = useTourPresentation((s) => s.step !== null);
   // La visite ne dépend pas du serveur : sa progression vit dans le compte ou le
@@ -140,8 +124,8 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
   const accountId = currentUser?.id ?? null;
   useEffect(() => {
     if (!pId) return;
-    return mountEditorTour({ accountId, demo, ready: tourReady });
-  }, [accountId, demo, tourReady, pId]);
+    return mountEditorTour({ accountId, ready: tourReady });
+  }, [accountId, tourReady, pId]);
   const navigate = useNavigate();
   const { tab = "overview", doc } = useSearch({ strict: false }) as ProjectSearch;
   // Lien profond `?doc=` (arbre d'un autre project, planche générale, palette) :
@@ -187,7 +171,7 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
 
   useGlobalSearchShortcut();
   useServerIndexLoader(networkId, serverId, !!project && !loadError);
-  useWorkspaceTabShortcuts(runtime?.capabilities.canUseAssistant !== false, !!runtime?.serverId);
+  useWorkspaceTabShortcuts(!!runtime?.serverId);
 
   // networkId comes directly from the URL param — no lazy fetch needed.
 
@@ -426,24 +410,6 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
           <DataSourcesPanelContent projectId={pId} />
         </div>
       </WorkspaceView>
-      {runtime?.capabilities.canUseAssistant !== false && (
-        <WorkspaceView
-          active={presentedTab === "assistant"}
-          onExit={exitToCanvas}
-          title={t("assistant.title")}
-        >
-          <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col">
-            <Suspense fallback={null}>
-              <AssistantBody
-                projectId={pId}
-                networkId={networkId}
-                serverId={serverId}
-                serverOnline={!offline}
-              />
-            </Suspense>
-          </div>
-        </WorkspaceView>
-      )}
       {runtime?.serverId ? (
         <WorkspaceView
           active={presentedTab === "history"}
@@ -543,7 +509,7 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
         </div>
       )}
 
-      {/* The secondary views (translations / data sources / history / assistant)
+      {/* The secondary views (translations / data sources / history)
           replace the canvas in the center region via WorkspaceView (?tab=) — no
           modal, no docked pane. The content area keeps the concave top-left
           corner + hairline so the sidebar and topbar read as one continuous
@@ -568,13 +534,7 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
       </div>
 
       <LibraryDragOverlay />
-      <EditorTour
-        state={tourState}
-        actions={editorTourController}
-        demo={demo}
-        storage={demo ? "demo" : "server"}
-        canUseAssistant={runtime?.capabilities.canUseAssistant}
-      />
+      <EditorTour state={tourState} actions={editorTourController} storage="server" />
 
       {showDeleteDialog && project && (
         <DeleteProjectDialog

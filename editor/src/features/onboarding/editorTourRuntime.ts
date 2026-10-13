@@ -4,7 +4,7 @@ import { useSyncExternalStore } from "react";
 import { type EditorTourIdentity, createEditorTourController } from "./editorTourController";
 import { createEditorTourStorage } from "./editorTourStorage";
 
-const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
+const apiUrl = import.meta.env.VITE_API_URL ?? "";
 const storage = createEditorTourStorage(
   () => localStorage,
   () => sessionStorage,
@@ -26,7 +26,7 @@ export const editorTourController = createEditorTourController({
 });
 
 function currentAuthReturn(): string | null {
-  if (window.location.pathname === "/login" || window.location.pathname === "/signup")
+  if (window.location.pathname === "/login")
     return new URLSearchParams(window.location.search).get("next");
   return window.location.pathname;
 }
@@ -41,12 +41,6 @@ useAuthStore.subscribe((state) => {
     editorTourController.deactivate();
   }
 });
-
-export function prepareEditorTourAuthentication(returnTo = "/demo/projects/demo") {
-  const auth = useAuthStore.getState();
-  if (auth.sessionStatus === "signed-out" && !auth.currentUser)
-    storage.prepareTransfer(null, returnTo);
-}
 
 export function useEditorTourState() {
   return useSyncExternalStore(editorTourController.subscribe, editorTourController.getSnapshot);

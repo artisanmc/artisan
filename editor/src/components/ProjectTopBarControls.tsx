@@ -65,9 +65,7 @@ import { copyText } from "@/lib/clipboard";
 import { cn } from "@/lib/cx";
 import { countMissingForLang, listLanguages } from "@/lib/i18nUsages";
 import { useProjectPrincipalId } from "@/lib/projectPrincipal";
-import { SELF_HOSTED } from "@/lib/selfHosted";
 import { useAccountStore } from "@/state/accountStore";
-import { useDemoStore } from "@/state/demoStore";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
 import { useProjectRuntime } from "@/state/projectRuntimeStore";
@@ -84,7 +82,6 @@ import {
   Play,
   Redo2,
   Search,
-  Sparkles,
   Undo2,
 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -251,7 +248,6 @@ const TAB_META: Record<WorkspaceViewTab, { labelKey: string; Icon: typeof Langua
   translations: { labelKey: "project.tabs.translations", Icon: LanguagesIcon },
   "data-sources": { labelKey: "project.tabs.dataSources", Icon: DatabaseIcon },
   resources: { labelKey: "project.tabs.resources", Icon: Images },
-  assistant: { labelKey: "assistant.title", Icon: Sparkles },
   history: { labelKey: "project.tabs.history", Icon: HistoryIcon },
 };
 
@@ -271,19 +267,17 @@ function WorkspaceViewNav({ project }: { project: Project }) {
       search: (prev) =>
         ({ ...(prev as object), tab: tab === "overview" ? undefined : tab }) as never,
     });
-  // Les Versions n'existent que pour un Project serveur (pas la démo).
-  const views = WORKSPACE_VIEW_TABS.filter(
-    (tab) =>
-      (tab !== "assistant" || runtime?.capabilities.canUseAssistant !== false) &&
-      (tab !== "history" || !!runtime?.serverId),
-  ).map((tab) => ({
-    tab,
-    label: t(TAB_META[tab].labelKey),
-    Icon: TAB_META[tab].Icon,
-    badge: tab === "translations" ? missing : 0,
-    // Le chiffre suit WORKSPACE_VIEW_TABS, comme le raccourci, même si un onglet est masqué.
-    hotkey: WORKSPACE_VIEW_TABS.indexOf(tab) + 1,
-  }));
+  // Les Versions n'existent que pour un Project serveur.
+  const views = WORKSPACE_VIEW_TABS.filter((tab) => tab !== "history" || !!runtime?.serverId).map(
+    (tab) => ({
+      tab,
+      label: t(TAB_META[tab].labelKey),
+      Icon: TAB_META[tab].Icon,
+      badge: tab === "translations" ? missing : 0,
+      // Le chiffre suit WORKSPACE_VIEW_TABS, comme le raccourci, même si un onglet est masqué.
+      hotkey: WORKSPACE_VIEW_TABS.indexOf(tab) + 1,
+    }),
+  );
   return (
     <div className="flex w-full items-center gap-1 lg:w-max lg:rounded-[var(--r-md)] lg:bg-[var(--surface-raised)] lg:p-1">
       {views.map((v) => {
@@ -292,7 +286,7 @@ function WorkspaceViewNav({ project }: { project: Project }) {
           <button
             key={v.tab}
             type="button"
-            // Tooltip carries the hotbar digit (1-6) for discoverability.
+            // Tooltip carries the hotbar digit (1-5) for discoverability.
             title={`${v.label} (${v.hotkey})`}
             aria-label={v.label}
             aria-current={isActive ? "page" : undefined}
@@ -521,8 +515,6 @@ function SaveControls({
   };
   const [draftsOpen, setDraftsOpen] = useState(false);
   const draftSession = usePersistedDraftStore((s) => s.sessions[projectId]);
-  // La démo ne publie rien : son travail sort par l'export (ADR `server-only-projects`).
-  const demo = useDemoStore((s) => s.active);
   const draftNeedsAttention =
     draftSession?.status === "conflict" ||
     draftSession?.status === "offline" ||
@@ -595,7 +587,7 @@ function SaveControls({
         setLastSaveError(null);
         setSaveErrorOpen(false);
         toast.success(res.wrote === 0 ? t("deploy.nothing") : t("deploy.deployed"));
-        if (SELF_HOSTED) rebuildServerPackInBackground(t, project.serverKeyId);
+        rebuildServerPackInBackground(t, project.serverKeyId);
         setConflicts([]);
         setChoices({});
         return;
@@ -725,28 +717,26 @@ function SaveControls({
             </button>
           </Tooltip>
         )}
-        {!demo && (
-          <button
-            type="button"
-            onClick={openReview}
-            disabled={saving || !canSave || !dirty}
-            title={
-              !canSave
-                ? t("deploy.cannotDeployTitle")
-                : dirty
-                  ? t("deploy.deployTitle")
-                  : t("deploy.nothing")
-            }
-            className="btn btn-sm btn-primary"
-          >
-            {saving ? (
-              <Spinner aria-hidden role="presentation" className="text-current" />
-            ) : (
-              <Play className="size-4" fill="currentColor" aria-hidden />
-            )}
-            {saving ? t("deploy.deploying") : t("deploy.deploy")}
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={openReview}
+          disabled={saving || !canSave || !dirty}
+          title={
+            !canSave
+              ? t("deploy.cannotDeployTitle")
+              : dirty
+                ? t("deploy.deployTitle")
+                : t("deploy.nothing")
+          }
+          className="btn btn-sm btn-primary"
+        >
+          {saving ? (
+            <Spinner aria-hidden role="presentation" className="text-current" />
+          ) : (
+            <Play className="size-4" fill="currentColor" aria-hidden />
+          )}
+          {saving ? t("deploy.deploying") : t("deploy.deploy")}
+        </button>
         {dirty || draftSession || lastSaveError ? (
           <DropdownMenu>
             <DropdownMenuTrigger

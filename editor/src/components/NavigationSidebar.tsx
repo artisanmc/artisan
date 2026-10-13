@@ -175,7 +175,7 @@ export function NavigationSidebar({ children }: { children: ReactNode }) {
       </Button>
       {desktop && !visible && (
         <Link
-          to="/networks"
+          to="/"
           aria-label="Artisan"
           className="fixed left-14 top-3.5 z-40 flex size-9 items-center justify-center rounded-[var(--r-md)] hover:bg-[var(--surface-hover)]"
         >

@@ -3,7 +3,6 @@ import { editorTourController } from "@/features/onboarding/editorTourRuntime";
 import { useTourPresentation } from "@/features/onboarding/tourPresentation";
 import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
-import { useDemoStore } from "@/state/demoStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -11,6 +10,22 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { ProjectCanvasPage } from "./ProjectWorkspace";
 import { useProjectLibraryStore } from "./projectLibraryStore";
 
+const tour = vi.hoisted(() => ({
+  progress: null as { step: number; completed: boolean } | null,
+}));
+vi.mock("@/lib/api/auth", () => ({
+  getMe: async () => ({ id: "u1", editorTour: tour.progress }),
+  patchMe: async (
+    _options: unknown,
+    { editor_tour: action }: { editor_tour: { action: string; step?: number } },
+  ) => {
+    const started = action.action === "start" && !tour.progress;
+    if (action.action === "start") tour.progress ??= { step: 0, completed: false };
+    if (action.action === "progress") tour.progress = { step: action.step!, completed: false };
+    if (action.action === "complete") tour.progress = { step: 6, completed: true };
+    return { user: { id: "u1", editorTour: tour.progress }, tourStarted: started };
+  },
+}));
 const setup = vi.hoisted(() => ({
   ready: true,
   tab: "overview",
@@ -49,7 +64,6 @@ vi.mock("@/features/translations/TranslationPanel", () => ({
   TranslationPanelContent: () => null,
 }));
 vi.mock("@/features/data/DataSourcesPanel", () => ({ DataSourcesPanelContent: () => null }));
-vi.mock("@/features/assistant/AssistantBody", () => ({ AssistantBody: () => null }));
 vi.mock("@/features/help/PatternsGallery", () => ({ PatternsGallery: () => null }));
 vi.mock("@/features/search/SearchPalette", () => ({ SearchPalette: () => null }));
 vi.mock("@/lib/useMediaQuery", () => ({ useIsDesktop: () => true }));
@@ -57,17 +71,8 @@ vi.mock("@/lib/useMediaQuery", () => ({ useIsDesktop: () => true }));
 beforeEach(() => {
   localStorage.clear();
   editorTourController.deactivate();
-  useAuthStore.setState({ currentUser: null, isLoading: false });
-  useDemoStore.setState({
-    active: true,
-    expired: false,
-    session: {
-      projectId: "p1",
-      principal: { kind: "guest", id: "guest1" },
-      csrfToken: "csrf",
-      expiresAt: "2099-01-01T00:00:00Z",
-    },
-  });
+  tour.progress = null;
+  useAuthStore.setState({ currentUser: { id: "u1" } as never, isLoading: false });
   useSelectionStore.getState().clear();
   useProjectLibraryStore.getState().close();
   useTourPresentation.setState({ step: null });
@@ -99,7 +104,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-it("starts only after a resolved demo workspace, then resumes from its real project menu", async () => {
+it("starts only after a resolved workspace, then resumes from its real project menu", async () => {
   const user = userEvent.setup();
   setup.ready = false;
   const view = render(<ProjectCanvasPage projectRef="p1" />);
@@ -112,16 +117,18 @@ it("starts only after a resolved demo workspace, then resumes from its real proj
   await user.click(screen.getByRole("button", { name: /Plus d'actions|More actions/ }));
   await user.click(screen.getByRole("menuitem", { name: /Reprendre la visite|Resume the tour/ }));
   expect(
-    await screen.findByRole("dialog", { name: /Un espace pour essayer|Your space to try things/ }),
+    await screen.findByRole("dialog", {
+      name: /Vos projets au même endroit|Your projects, in one place/,
+    }),
   ).toBeInTheDocument();
   // Rythmé par les vrais délais de la visite (~2,3 s seul) : 5 s ne suffisent pas sous charge.
 }, 15_000);
 
-it("replays the tour on a project opened from the backend copy while its server is offline", async () => {
-  // La visite ne dépend pas du serveur : sa progression vit dans le compte ou le
-  // navigateur. Un serveur éteint rendait « Refaire la visite » muet.
+it("replays the tour on a project whose server is offline", async () => {
+  // La visite ne dépend pas du serveur Minecraft : un serveur éteint rendait
+  // « Refaire la visite » muet.
   const user = userEvent.setup();
-  localStorage.setItem("artisan:editor-tour:guest", JSON.stringify({ step: 6, completed: true }));
+  tour.progress = { step: 6, completed: true };
   setup.offline = true;
   setup.stale = true;
   render(<ProjectCanvasPage projectRef="p1" />);

@@ -1,10 +1,6 @@
-import { AdminSidebar } from "@/components/AdminSidebar";
-import { BackendUnreachable } from "@/components/BackendUnreachable";
 import { NavigationSidebar } from "@/components/NavigationSidebar";
-import { DemoSidebar } from "@/components/DemoSidebar";
 import { ProjectSidebar } from "@/components/ProjectSidebar";
 import { onProjectsReloaded as onProjectsReloadedInEditor } from "@/features/project/onProjectsReloaded";
-import { onProjectRenamed } from "@/features/project/onProjectRenamed";
 import { useDraftSync } from "@/features/project/useDraftSync";
 import { EditorWs } from "@/lib/editorWs";
 import { useAuthStore } from "@/state/authStore";
@@ -14,45 +10,24 @@ import { useServerDataSourcesStore } from "@/state/serverDataSourcesStore";
 import { useServerPapiPlaceholdersStore } from "@/state/serverPapiPlaceholdersStore";
 import { useServerScreensStore } from "@/state/serverScreensStore";
 import { useServersStore } from "@/state/serversStore";
-import { PostHogProvider } from "@posthog/react";
-import { Outlet, createRootRoute, useRouterState } from "@tanstack/react-router";
-import posthog from "posthog-js";
-import { analyticsEnabled, capturePageView } from "@/lib/analytics";
+import { Outlet, createRootRoute } from "@tanstack/react-router";
 import { useEffect } from "react";
-import { useTranslation } from "react-i18next";
-import { toast } from "sonner";
-
 
 export const Route = createRootRoute({
   component: RootLayout,
 });
 
 export function RootLayout() {
-  if (!analyticsEnabled) return <RootLayoutInner />;
-  return (
-    <PostHogProvider client={posthog}>
-      <RootLayoutInner />
-    </PostHogProvider>
-  );
-}
-
-function RootLayoutInner() {
   // Tient le brouillon du navigateur à jour — rien n'atteint le disque sans le
   // geste Enregistrer, mais plus rien ne se perd à la fermeture d'un onglet.
   useDraftSync();
-  usePostHogPageView();
-  const { i18n } = useTranslation();
   const user = useAuthStore((s) => s.currentUser);
   const userId = user?.id;
-  const sessionStatus = useAuthStore((s) => s.sessionStatus);
-  const backendUnreachable = useAuthStore((s) => s.backendUnreachable);
   const activeNetworkId = useNetworksStore((s) => s.activeId);
   const activeServerId = useServersStore((s) => s.activeServerId);
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const isDemo = pathname.startsWith("/demo");
   useEffect(() => {
     const catalog = useServerPapiPlaceholdersStore.getState();
-    if (!userId || !activeNetworkId || !activeServerId || isDemo) {
+    if (!userId || !activeNetworkId || !activeServerId) {
       catalog.clear();
       return;
     }
@@ -61,9 +36,9 @@ function RootLayoutInner() {
     refresh();
     const timer = setInterval(refresh, 15_000);
     return () => { clearInterval(timer); catalog.clear(); };
-  }, [userId, activeNetworkId, activeServerId, isDemo]);
+  }, [userId, activeNetworkId, activeServerId]);
   useEffect(() => {
-    const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
+    const apiUrl = import.meta.env.VITE_API_URL ?? "";
     useAuthStore.getState().hydrate(apiUrl);
   }, []);
   // Presence + live draft WS as soon as the active network+server pair is
@@ -79,14 +54,8 @@ function RootLayoutInner() {
 
     let cancelled = false;
     let ws: EditorWs | null = null;
-    const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
+    const apiUrl = import.meta.env.VITE_API_URL ?? "";
     EditorWs.connectAsUser(apiUrl, {
-      onProjectRenamed,
-      onDraftUpdate: (_projectId, menuId) => {
-        // Capture the current i18n instance's translation at fire time — `t` is
-        // deliberately not a dep below so a language switch doesn't reconnect the WS.
-        toast(i18n.t("sync.draftConflict", { menuId }));
-      },
       // Le serveur a rechargé : ce qu'on affiche peut être devenu faux. La
       // décision de relire (ou de ne rien faire) est prise dans
       // `onProjectsReloaded` — notamment, elle épargne le travail en cours.
@@ -105,8 +74,8 @@ function RootLayoutInner() {
         ws = connected;
       })
       .catch(() => {
-        // No WS ticket (e.g. cookie expired mid-session) — presence/assets
-        // still work over REST, live co-edit notices are simply unavailable.
+        // No WS ticket (e.g. cookie expired mid-session) — everything still
+        // works over REST, reload notices are simply unavailable.
       });
 
     return () => {
@@ -114,43 +83,18 @@ function RootLayoutInner() {
       ws?.disconnect();
     };
   }, [user, activeNetworkId, activeServerId]);
-  // Session jamais déterminée + backend muet : on montre le vrai problème au
-  // lieu d'une app à moitié rendue (ou d'un /login que le même backend anime).
-  const sessionUndetermined = sessionStatus === "unknown" && backendUnreachable;
-  const showSidebar = !!user;
-  // Admin area swaps the workspace sidebar for the admin section nav.
-  // Non-admins keep the workspace sidebar (the /admin layout shows "forbidden").
-  const isMarketingPage = pathname === "/" || pathname === "/pricing" || pathname === "/pricing/";
-  const isAdminArea = pathname.startsWith("/admin") && !!user?.isAdmin;
   return (
     <div className="relative flex h-full">
-      {pathname.startsWith("/demo/projects/") ? (
-        // La démo n'a ni compte ni serveur, mais ses Documents ont besoin d'une
-        // place depuis le retrait du panneau de droite.
+      {user && (
         <NavigationSidebar>
-          <DemoSidebar />
+          <ProjectSidebar />
         </NavigationSidebar>
-      ) : (
-        showSidebar &&
-        !isMarketingPage &&
-        !pathname.startsWith("/demo") && (
-          <NavigationSidebar>
-            {isAdminArea ? <AdminSidebar /> : <ProjectSidebar />}
-          </NavigationSidebar>
-        )
       )}
-      <main className={`flex min-w-0 flex-1 flex-col ${isMarketingPage ? "overflow-y-auto" : "overflow-hidden"}`}>
-        {sessionUndetermined && !isMarketingPage ? <BackendUnreachable /> : <Outlet />}
+      <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        <Outlet />
       </main>
     </div>
   );
-}
-
-function usePostHogPageView() {
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
-  useEffect(() => {
-    capturePageView(window.location.href);
-  }, [pathname]);
 }
 
 // L'auto-save vers le SERVEUR a été retiré avec la bascule « disque seul » (ADR

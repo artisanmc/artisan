@@ -67,11 +67,6 @@ export function EditorAccessNotice({ projectId, networkId, serverId }: AccessSco
       className="flex flex-col items-start gap-2 px-2.5 py-2 text-sm text-[var(--text)]"
     >
       <span>{message}</span>
-      {(locked || access?.reason === "free_quota_reached") && (
-        <a href="/pricing" className="text-[var(--brand)] underline underline-offset-2">
-          {t("editorAccess.proLink")}
-        </a>
-      )}
       {unknown && (
         <Button variant="outline" size="sm" onClick={() => setRevision((value) => value + 1)}>
           {t("editorAccess.retry")}
