@@ -16,11 +16,28 @@ test("plugin CI invokes the Gradle wrapper through Bash", () => {
 
 test("editor CI does not enforce the repository-wide lint while its baseline is red", () => {
   assert.doesNotMatch(workflow, /run: npm run lint/);
-  assert.match(workflow, /run: npm run build/);
+});
+
+test("editor CI runs the deploy tests, editor tests, both builds and the wiki verify", () => {
+  for (const step of [
+    /run: node --test deploy\/\*\.test\.mjs/,
+    /run: npm test -- --run\n\s+working-directory: editor/,
+    /run: npm run build\n\s+working-directory: editor/,
+    /run: npm run build:site\n\s+working-directory: editor/,
+    /run: npm run verify\n\s+working-directory: docs-site/,
+  ]) {
+    assert.match(workflow, step);
+  }
+});
+
+test("CI builds no cloud editor: no VITE_* env, no cloud hosts", () => {
+  assert.doesNotMatch(workflow, /VITE_/);
+  assert.doesNotMatch(workflow, /api\.artisanmc\.net|editor\.artisanmc\.net/);
 });
 
 test("GitHub-maintained JavaScript actions use their Node 24 releases", () => {
   const workflows = `${workflow}\n${deployWorkflow}`;
+  // Java ne sert plus qu'au job plugin de la CI : deploy.yml ne construit plus de JAR.
 
   assert.doesNotMatch(
     workflows,

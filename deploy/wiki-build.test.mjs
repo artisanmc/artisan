@@ -4,7 +4,7 @@ import { test } from "node:test";
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 
-test("the wiki build shares the editor deployment and is included in CI", async () => {
+test("the wiki is built into the site image by build:site and in CI", async () => {
   const docker = await read("editor/Dockerfile");
   const ignore = await read(".dockerignore");
   const workflow = await read(".github/workflows/ci.yml");
@@ -12,11 +12,16 @@ test("the wiki build shares the editor deployment and is included in CI", async 
   assert.match(docker, /COPY docs-site\/package\.json docs-site\/package-lock\.json/);
   assert.match(docker, /COPY editor\/packages/);
   assert.ok(docker.indexOf("COPY editor/packages") < docker.indexOf("RUN npm ci"));
+  assert.match(docker, /RUN npm run build:site/);
   assert.doesNotMatch(ignore, /^docs-site\s*$/m);
-  assert.match(workflow, /working-directory: docs-site/);
-  assert.match(editor.scripts.prebuild, /docs-site.*build/);
-  assert.match(editor.scripts.predev, /docs-site.*build/);
-  assert.match(editor.scripts.postbuild, /copy-wiki/);
+  assert.match(editor.scripts["build:site"], /docs-site.*build/);
+  assert.match(editor.scripts["build:site"], /copy-wiki/);
+  assert.match(workflow, /run: npm ci\n\s+working-directory: docs-site/);
+  assert.match(workflow, /run: npm run build:site\n\s+working-directory: editor/);
+  assert.ok(
+    workflow.indexOf("working-directory: docs-site") < workflow.indexOf("run: npm run build:site"),
+    "docs-site dependencies are installed before build:site",
+  );
 });
 
 test("production wiki locations do not use the application fallback", async () => {
