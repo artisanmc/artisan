@@ -29,6 +29,25 @@ class RegionizedScheduler(private val plugin: Plugin) : Scheduler {
         server.getPlayer(playerId)?.scheduler?.runDelayed(plugin, { task() }, null, delayTicks.coerceAtLeast(1))
     }
 
+    override fun entity(entityId: UUID, delayTicks: Long, onGone: () -> Unit, task: () -> Unit) {
+        val scheduler = server.getEntity(entityId)?.scheduler ?: return onGone()
+        val scheduled =
+            if (delayTicks <= 0) scheduler.run(plugin, { task() }, Runnable(onGone))
+            else scheduler.runDelayed(plugin, { task() }, Runnable(onGone), delayTicks)
+        if (scheduled == null) onGone()
+    }
+
+    override fun region(worldId: UUID, chunkX: Int, chunkZ: Int, delayTicks: Long, task: () -> Unit) {
+        val world = server.getWorld(worldId) ?: return
+        if (delayTicks <= 0) server.regionScheduler.execute(plugin, world, chunkX, chunkZ, Runnable(task))
+        else server.regionScheduler.runDelayed(plugin, world, chunkX, chunkZ, { task() }, delayTicks)
+    }
+
+    override fun ownsEntity(entityId: UUID): Boolean {
+        val entity = server.getEntity(entityId) ?: return false
+        return server.isOwnedByCurrentRegion(entity)
+    }
+
     override fun async(task: () -> Unit) {
         server.asyncScheduler.runNow(plugin) { task() }
     }
@@ -63,6 +82,11 @@ class BukkitTaskScheduler(private val plugin: Plugin) : Scheduler {
 
     override fun playerLater(playerId: UUID, delayTicks: Long, task: () -> Unit) = globalLater(delayTicks) {
         if (plugin.server.getPlayer(playerId) != null) task()
+    }
+
+    override fun entity(entityId: UUID, delayTicks: Long, onGone: () -> Unit, task: () -> Unit) {
+        val run = { if (plugin.server.getEntity(entityId)?.isValid == true) task() else onGone() }
+        if (delayTicks <= 0) global(run) else globalLater(delayTicks, run)
     }
 
     override fun async(task: () -> Unit) {
