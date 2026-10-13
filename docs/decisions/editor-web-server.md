@@ -55,6 +55,14 @@ garde sous son SHA-1 (`PackStore`, trois derniers), le sert publiquement sous
 et envoi direct restent tels quels : seul l'émetteur du zip change.
 *Rejeté :* supprimer l'envoi direct (prévu au plan) ; il ne coûte rien et sert les serveurs sans hôte de pack.
 
+**⑨ Le réseau, relié au hub par `/ws/plugin`.** Les autres serveurs gardent leur client du
+backend (`WsClient`, `SyncedMenuProvider`) et le pointent vers le hub. Leur `hello` porte le
+secret partagé en `server_key` et leur nom en `proxy_name` ; le hub garde ce qu'il annonce
+(`RemoteServer`) et relaie chaque requête de l'éditeur par `request_id`. Un serveur déconnecté
+reste listé hors ligne (503 `server_offline`). Un Project hors du serveur du hub s'identifie
+`<serveur>.<dossier>` (`Servers.project`) : deux serveurs peuvent avoir le même dossier.
+*Rejeté :* un identifiant opaque par Project (il faudrait une base pour le retrouver).
+
 *Rejeté :* Javalin (deux runtimes Kotlin), le serveur HTTP du JDK (pas de
 WebSocket), embarquer Jetty dans le jar (+3 Mo, à relocaliser).
 

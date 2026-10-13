@@ -28,6 +28,8 @@ class WsClient(
     private val pluginVersion: String = "1.0.0",
     /** Bloquant (téléchargement) : appelé hors du thread WS. Null = mise à jour non proposée. */
     private val pluginUpdater: (() -> PluginUpdater.Result)? = null,
+    /** Nom du serveur dans le réseau, attendu par le hub d'un autre serveur ; vide pour le cloud. */
+    private val proxyName: String = "",
 ) {
     private val httpClient = OkHttpClient.Builder()
         .pingInterval(30, TimeUnit.SECONDS)
@@ -100,6 +102,7 @@ class WsClient(
                 "content_version" to CONTENT_VERSION,
                 "core_version" to pluginVersion,   // Mirrors plugin_version (kept for backward compat).
                 "server_key" to serverKey,
+                "proxy_name" to proxyName.ifEmpty { null },
                 "plugin_version" to pluginVersion,
                 "minecraft_version" to mcVersion,
                 "current_bundle_hash" to currentBundleHash,

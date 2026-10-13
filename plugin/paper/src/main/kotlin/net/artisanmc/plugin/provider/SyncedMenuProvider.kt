@@ -78,6 +78,7 @@ class SyncedMenuProvider(
     private val serverConfig: net.artisanmc.plugin.config.ServerConfigAccess? = null,
     /** Annonces sans requête (`projects_reloaded`…) : l'éditeur servi par le plugin les relaie. */
     private val editorEvents: (Map<String, Any?>) -> Unit = {},
+    private val proxyName: String = "",
 ) : MenuProvider {
     private var copyMinecraftVersion = "1.21.4"
     /** Ce que `project_read` sert : l'état lu au dernier chargement, jamais le disque courant. */
@@ -250,6 +251,7 @@ class SyncedMenuProvider(
                 projectPresence   = ::projectPresence,
                 pluginVersion     = pluginVersion,
                 pluginUpdater     = pluginUpdater,
+                proxyName         = proxyName,
             )
             wsClient = client
             client.connect()
