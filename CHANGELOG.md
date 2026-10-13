@@ -9,6 +9,7 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+- `/artisan reload`, `sync` and `dump-title` now require `artisan.admin` (op by default); `/artisan menu` checks `artisan.menu` (granted to everyone by default).
 - Editor served by the plugin: projects can be created, renamed and deleted again, on the hub's server and on leaves (`project_create`, `project_rename`, `project_delete`, `artisan.editor.publish`). Deleting moves the folder to `.artisan-trash/` on the server; renaming moves the folder with its drafts and refuses a name already taken. Add-on projects cannot be renamed or deleted. `hello` now carries `protocol_version: "1.1"`; a leaf still on `1.0` is asked to update instead of being sent these requests.
 - The about, privacy and terms pages (copied into the self-hosted editor and artisanmc.net) describe the self-hosted editor: no Artisan account, no analytics on artisanmc.net, nothing collected by Artisan; what the editor keeps stays on the server that hosts it.
 - Editor served by the plugin: language, theme and guided-tour progress are kept per player on the server hosting the editor (`plugins/Artisan/editor-prefs/<uuid>.json`), so the tour opens once for each player and the preferences follow them across browsers. The editor no longer asks for model bundles or custom-item textures and models, which the plugin does not serve: vanilla items use the pre-rendered icons, custom items keep their placeholder.
