@@ -1,1 +1,0 @@
-CREATE UNIQUE INDEX IF NOT EXISTS "credit_purchases_session_uniq" ON "credit_purchases" USING btree ("stripe_session_id") WHERE stripe_session_id is not null;
