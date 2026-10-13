@@ -1,4 +1,4 @@
-// Partie vanilla de backend/src/routes/modelBundle.ts, sans la route ni les items custom.
+// Bundle des modèles vanilla : la chaîne de parents de chaque item, résolue une fois.
 import { join } from "path";
 import { existsSync } from "fs";
 import { readFile, readdir } from "fs/promises";

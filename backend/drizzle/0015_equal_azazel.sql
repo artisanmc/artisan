@@ -1,1 +1,0 @@
-ALTER TABLE "network_billing" ADD COLUMN "current_period_id" text;
