@@ -1,11 +1,11 @@
 #!/usr/bin/env bun
 /**
- * Usage: bun backend/scripts/gen-icons.ts [version]
+ * Usage: bun gen-icons.ts [version]
  * Requires gen-items.ts to have been run first for the same version.
  *
  * For each item with a `model` field in items/{version}.json:
  *   - Renders to a 128x128 PNG via Playwright + Three.js headless
- *   - Saves PNG to data/mc-assets/{version}/textures/icons/{id}.png
+ *   - Saves PNG to mc-assets/{version}/textures/icons/{id}.png
  *   - Replaces { texture, model } with { texture: "icons/{id}" } in items.json
  *
  * Note: Playwright rendering is delegated to renderer-worker.mjs (Node.js) because
@@ -15,12 +15,12 @@
 import { join } from "path";
 import { existsSync } from "fs";
 import { mkdir, readFile, writeFile } from "fs/promises";
-import { assetsRoot } from "../src/lib/mcAssets";
-import { buildVanillaBundle } from "../src/routes/modelBundle";
+import { assetsRoot } from "./lib/mcAssets";
+import { buildVanillaBundle } from "./lib/modelBundle";
 
 const VERSION = process.argv[2] ?? "1.21.11";
 const ASSETS = assetsRoot(VERSION);
-const ITEMS_PATH = join(import.meta.dir, "..", "data", "items", `${VERSION}.json`);
+const ITEMS_PATH = join(import.meta.dir, "items", `${VERSION}.json`);
 
 if (!existsSync(join(ASSETS, ".done"))) {
   console.error(`Assets for ${VERSION} not downloaded. Run gen-items.ts first.`);
@@ -145,7 +145,7 @@ const workerProc = Bun.spawn(["node", workerPath], {
   stdin: new TextEncoder().encode(workerConfig),
   stdout: "pipe",
   stderr: "inherit",
-  cwd: join(import.meta.dir, ".."),
+  cwd: import.meta.dir,
 });
 
 let rendered = 0;

@@ -6,7 +6,7 @@
  * (MC empty-cell default) are omitted — lookup falls back to 1 for those.
  *
  * Do not edit by hand. Regenerate via:
- *   cd backend && bun scripts/gen-char-advances.ts [version]
+ *   cd tools/minecraft-assets && bun gen-char-advances.ts [version]
  */
 export const CHAR_ADVANCES: Readonly<Record<number, number>> = {
   0x0020: 4,
