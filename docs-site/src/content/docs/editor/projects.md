@@ -150,8 +150,15 @@ Add-on projects keep the identity registered by their add-on. Boutique uses
 `boutique_addon`. Project URLs use this exact ID, without replacing underscores or
 changing case; different servers can hold the same ID.
 
-Projects cannot be renamed from the editor. Renaming a folder by hand on the server
-makes it a different project, and private drafts stay with the old name.
+To rename a project, open its settings and choose **Edit** next to its ID. The folder is
+renamed on the server and keeps its private drafts; a name already used by another project
+is refused. Add-on projects cannot be renamed. A folder renamed by hand on the server
+appears under its new name at `/artisan reload`.
+
+**Delete project** in the project settings moves the folder to `.artisan-trash/` in the
+server's projects folder, drafts included; nothing is erased, so an administrator can move
+it back and run `/artisan reload`. A leaf server running an older Artisan must be updated
+before projects can be created, renamed or deleted on it.
 
 ZIP imports use the enclosing project folder as the project's identity, rather than an
 old manifest ID. See [Importing a project from a ZIP](#importing-a-project-from-a-zip)

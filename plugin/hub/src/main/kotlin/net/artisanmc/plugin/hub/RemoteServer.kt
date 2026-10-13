@@ -43,7 +43,8 @@ class RemoteServer(
     override val online: Boolean get() = session?.isOpen == true
     override val minecraftVersion: String get() = hello.path("minecraft_version").asText("")
     override val pluginVersion: String get() = hello.path("plugin_version").asText("")
-    override val updateRequired: Boolean get() = !ProtocolVersion.compatible(hello.path("protocol_version").asText("1"))
+    override val protocolVersion: String get() = hello.path("protocol_version").asText("1")
+    override val updateRequired: Boolean get() = !ProtocolVersion.compatible(protocolVersion)
 
     override fun modules() = list("installed_modules")
     override fun dataSources() = list("data_sources")

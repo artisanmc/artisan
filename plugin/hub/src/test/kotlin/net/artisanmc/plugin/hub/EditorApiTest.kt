@@ -140,6 +140,45 @@ class EditorApiTest {
     }
 
     @Test
+    fun `projects are created, renamed and deleted on the server disk`() {
+        val (created, body) = call("POST", "/api/v1/networks/local/projects", mapOf("name" to "shop", "serverKeyId" to "local"))
+        assertEquals(201, created)
+        assertEquals("shop", body!!["project"]["id"].asText())
+        assertEquals(mapOf("type" to "project_create", "project_id" to "shop"), sent.last())
+        assertEquals(404, call("POST", "/api/v1/networks/local/projects", mapOf("name" to "shop", "serverKeyId" to "nope")).first)
+        assertEquals(422, call("POST", "/api/v1/networks/local/projects", mapOf("serverKeyId" to "local")).first)
+
+        val (renamed, identity) = call("POST", "/api/v1/projects/shop/rename", mapOf("operationId" to "op1", "targetId" to "store"))
+        assertEquals(200, renamed)
+        assertEquals("store", identity!!["projectId"].asText())
+        assertEquals("store", identity["diskId"].asText())
+        assertEquals(mapOf("type" to "project_rename", "project_id" to "shop", "target_project_id" to "store"), sent.last())
+
+        assertEquals(200, call("DELETE", "/api/v1/user/projects/store").first)
+        assertEquals(mapOf("type" to "project_delete", "project_id" to "store"), sent.last())
+
+        for ((error, status) in listOf("project_exists" to 409, "invalid_name" to 422)) {
+            answer = { mapOf("ok" to false, "error" to error) }
+            val (code, refused) = call("POST", "/api/v1/networks/local/projects", mapOf("name" to "shop", "serverKeyId" to "local"))
+            assertEquals(status, code)
+            assertEquals(error, refused!!["error"].asText())
+        }
+        answer = { mapOf("ok" to false, "error" to "destination_exists") }
+        assertEquals(409, call("POST", "/api/v1/projects/shop/rename", mapOf("targetId" to "store")).first)
+        answer = { mapOf("ok" to false, "error" to "unknown_project") }
+        assertEquals(404, call("DELETE", "/api/v1/user/projects/shop").first)
+    }
+
+    @Test
+    fun `a folder project can be renamed and deleted, an add-on project cannot`() {
+        answer = { mapOf("ok" to true, "project_roots" to listOf(mapOf("project_id" to "shop", "identity" to "folder"), mapOf("project_id" to "quests", "identity" to "addon"))) }
+        val shop = call("GET", "/api/v1/user/projects/shop").second!!["capabilities"]
+        assertEquals(true, shop["canRename"].asBoolean())
+        assertEquals(true, shop["canDelete"].asBoolean())
+        assertEquals(false, call("GET", "/api/v1/user/projects/quests").second!!["capabilities"]["canDelete"].asBoolean())
+    }
+
+    @Test
     fun `server config and live data`() {
         assertEquals("en", call("GET", "/api/v1/networks/local/servers/local/server-config").second!!["config"]["language"].asText())
         assertEquals(422, call("PATCH", "/api/v1/networks/local/servers/local/server-config", mapOf("changes" to emptyMap<String, Any>())).first)
@@ -231,5 +270,8 @@ class EditorApiTest {
         assertEquals(403, call("PATCH", "/api/v1/networks/local/servers/local/server-config", mapOf("changes" to mapOf("a" to 1))).first)
         val write = mapOf("project_id" to "warps", "files" to listOf(mapOf("path" to "a.yml", "content" to "")))
         assertEquals(403, call("POST", "/api/v1/networks/local/servers/local/config/write", write).first)
+        assertEquals(403, call("DELETE", "/api/v1/user/projects/shop").first)
+        assertEquals(403, call("POST", "/api/v1/projects/shop/rename", mapOf("targetId" to "store")).first)
+        assertEquals(403, call("POST", "/api/v1/networks/local/projects", mapOf("name" to "shop", "serverKeyId" to "local")).first)
     }
 }

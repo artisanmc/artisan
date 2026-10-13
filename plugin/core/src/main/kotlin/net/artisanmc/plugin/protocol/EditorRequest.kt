@@ -72,6 +72,10 @@ sealed interface EditorRequest {
         override val message: JsonNode,
     ) : Mutation
 
+    data class ProjectCreate(override val requestId: String, val projectId: String) : WithReply
+    data class ProjectDelete(override val requestId: String, val projectId: String) : WithReply
+    data class ProjectRename(override val requestId: String, val projectId: String, val targetId: String) : WithReply
+
     /** Les brouillons lisent eux-mêmes leur protocole (`ProjectDraftStore`). */
     data class ProjectDraft(override val requestId: String, val projectId: String, override val message: JsonNode) : Mutation
 
@@ -136,6 +140,11 @@ sealed interface EditorRequest {
                     message = node,
                 )
                 "project_draft_request" -> ProjectDraft(requestId, node.text("project_id") ?: return null, node)
+                "project_create" -> ProjectCreate(requestId, node.text("project_id") ?: return null)
+                "project_delete" -> ProjectDelete(requestId, node.text("project_id") ?: return null)
+                "project_rename" -> ProjectRename(
+                    requestId, node.text("project_id") ?: return null, node.text("target_project_id") ?: return null,
+                )
                 else -> null
             }
         }
