@@ -27,6 +27,7 @@ Dernière révision : 2026-06-19.
 | **MiniMessage** | Custom TS parser (~500 LOC) | npm @minecraft-js/minimessage, adventure-webui | Zéro dépendance, intégration native avec l'autocomplete i18n/PAPI. adventure-webui sert de référence visuelle (MIT). |
 | **Tests backend** | `bun:test` | Vitest, Jest | Natif Bun, zero config. |
 | **PNG button resizing** | `pngjs` 7 | Native image processing dependency | Pure JS PNG decode/encode on Bun, nearest-neighbour scaling and transparent padding for multi-slot buttons; no native binary installation. |
+| **Pack de ressources (éditeur)** | `fflate` 0.8.2 + PNG/deflate maison (`editor/src/lib/pack/`) | `pngjs`, `crypto.subtle` | Le pack se construit aussi dans le navigateur. `pngjs` dépend de Node, `crypto.subtle` exige HTTPS : PNG, deflate Z_RLE et SHA-1 en JS pur, octet pour octet identiques à `pngjs` + zlib côté backend. |
 | **Google ID tokens** | `jose` 6 (RS256 + cached remote Google JWKS) | Hand-written JWT/signature verification | Standard verification of issuer, audience and expiry on Bun; Google authorization-code flow additionally binds state, nonce and PKCE. |
 | **Tests editor** | Vitest + Playwright | Jest, Cypress | Vitest s'intègre à Vite. Playwright > Cypress en 2026. |
 | **Tests plugin** | JUnit 5 + MockBukkit + MockWebServer | - | Standards Paper/Bukkit. MockWebServer (OkHttp) pour simuler le backend en intégration. |

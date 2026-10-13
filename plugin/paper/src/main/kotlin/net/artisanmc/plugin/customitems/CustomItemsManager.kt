@@ -37,19 +37,18 @@ class CustomItemsManager(private val sources: List<CustomItemSource>) {
      * entry. Returns null when no items are available.
      */
     fun buildBundle(): Pair<String, String>? {
-        val entries = collect()
-        if (entries.isEmpty()) return null
+        val items = items()
+        if (items.isEmpty()) return null
+        return Pair(computeHash(), encode(items))
+    }
 
-        val items = entries.sortedBy { it.id }.map { e ->
-            mapOf(
-                "id"       to e.id,
-                "label"    to stripColorCodes(e.label),
-                "category" to e.category,
-            )
-        }
-        val hash = computeHash()
-        val data = encode(items)
-        return Pair(hash, data)
+    /** `{id, label, category}` triés par id, couleurs retirées. */
+    fun items(): List<Map<String, String>> = collect().sortedBy { it.id }.map { e ->
+        mapOf(
+            "id"       to e.id,
+            "label"    to stripColorCodes(e.label),
+            "category" to e.category,
+        )
     }
 
     internal fun stripColorCodes(s: String): String = s.replace(Regex("§[0-9a-fk-orA-FK-OR]"), "")

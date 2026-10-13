@@ -175,6 +175,8 @@ class SyncedMenuProvider(
     @Volatile private var editorUrl: String? = null
     @Volatile private var networkName: String? = null
     @Volatile private var customItemsManager: CustomItemsManager = CustomItemsManager(emptyList())
+
+    fun customItems(): List<Map<String, String>> = customItemsManager.items()
     @Volatile private var resourcePackManagerRef: ResourcePackManager? = null
 
     fun setResourcePackManager(mgr: ResourcePackManager) {
@@ -551,6 +553,11 @@ class SyncedMenuProvider(
             is EditorRequest.PackUpdate.Apply -> applyResourcePack(pack.url, pack.hash, "resource_pack info from hello_ack")
             EditorRequest.PackUpdate.Incomplete -> Unit
         }
+    }
+
+    /** Un pack construit par l'éditeur et servi par le hub : [downloadUrl] est l'adresse locale du hub. */
+    fun applyLocalResourcePack(playerUrl: String, downloadUrl: String, hash: String) {
+        rpm()?.applyFromBackend(playerUrl, downloadUrl, hash)
     }
 
     private fun applyResourcePack(url: String, hash: String, what: String) {

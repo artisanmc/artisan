@@ -1,4 +1,6 @@
 import type { Asset } from "@/domain/asset";
+import { localFontGlyphUrl } from "@/features/assets/localAssetUrl";
+import { SELF_HOSTED } from "@/lib/selfHosted";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
 
@@ -26,5 +28,6 @@ export function fontGlyphUrl(asset: Asset, char: string): string | null {
   // Light sanitization to be defensive against malformed glyphMap entries;
   // backend also enforces the path-traversal guard.
   const safePath = entry.texture.replace(/[^a-zA-Z0-9_./-]/g, "");
+  if (SELF_HOSTED) return localFontGlyphUrl(asset, safePath);
   return `${API_URL}/api/v1/textures/asset-font/${asset.projectId}/${asset.id}/${safePath}?h=${asset.contentHash}${asset.draftId ? `&draftId=${encodeURIComponent(asset.draftId)}` : ""}`;
 }
