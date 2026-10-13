@@ -56,7 +56,7 @@ public final class HomesModule implements ArtisanModule {
         loadFromProject();
     }
 
-    @Override public void onReload() { loadFromProject(); }   // required in Java
+    @Override public void onReload() { loadFromProject(); }   // optional since API 1.8.0
     @Override public void onDisable() {}
 
     private void loadFromProject() { /* … */ }
@@ -81,13 +81,17 @@ tells the editor that the module list changed — connected editors pick up your
 module, sources, models and screens without reconnecting.
 
 - Registering an id twice throws `DuplicateModuleException`.
+- `api.modules.unregister("homes")` (Since 1.8.0) calls your `onDisable()` and
+  removes the module with the data sources, commands, models and screens it
+  declared in `onEnable(api)`. You rarely need it: Artisan does it when your
+  plugin disables.
 - `api.modules.has("boutique")` and `api.modules.active()` let you check for
   other modules (to integrate with them only when present).
 
 **Declare inside `onEnable(api)`.** The registries record which module owns a
-data source, model or screen only while your `onEnable(api)` runs. Registered
-elsewhere, a data source shows up as unattributed and a model or screen has no
-owner in the editor. Commands carry no owner either way.
+data source, command, model or screen only while your `onEnable(api)` runs.
+Registered elsewhere, a data source shows up as unattributed and a model or
+screen has no owner in the editor.
 
 ## Lifecycle
 
@@ -95,22 +99,23 @@ owner in the editor. Commands carry no owner either way.
 |---|---|---|
 | `onEnable(api)` | Once, inside `api.modules.register` | Declare everything, load initial content |
 | `onReload()` | After the projects are re-read from disk: a publish from the editor, `/artisan reload`, a sync on a network leaf, a module calling `api.project.reload()` or registering a project root | Re-read your files, rebuild caches |
-| `onDisable()` | When **Artisan** disables (server stop) | Release threads, executors, connections |
+| `onDisable()` | When **your plugin** starts disabling (server stop, `/reload`, a plugin reloader), before your plugin's own `onDisable()`; on `api.modules.unregister`; or when Artisan disables | Release threads, executors, connections |
 
 `onReload()` is the hook people forget. Admins edit in the browser, publish,
 and the files on disk change; until you re-read them, your plugin serves stale
 data. An exception thrown from `onReload()` is caught and ignored, so log your
 own failures.
 
-:::caution[Your plugin disables first]
-Your plugin depends on Artisan, so the server disables **your plugin before
-Artisan**. Artisan calls your module's `onDisable()` afterwards, when your
-plugin is already disabled. Do your real cleanup in your plugin's own
-`onDisable()`; keep the module's `onDisable()` idempotent.
+:::note[When your plugin disables]
+Since API 1.8.0, as soon as your plugin starts disabling, Artisan calls your
+module's `onDisable()` — your plugin is still enabled at that point — then
+removes your modules, and the data sources and commands your plugin
+registered (matched by the class loader of your fetchers and handlers). A
+plugin reloader can then enable your plugin again and register the same ids.
 
-There is no way to unregister a module, data source or command. Plugin
-reloaders (`/reload`, PlugMan) leave the old registrations behind and the next
-`register` throws a `Duplicate…Exception`: restart the server instead.
+Before 1.8.0, Artisan called `onDisable()` only when it disabled itself, after
+your plugin, and kept every registration: a reload threw a
+`Duplicate…Exception`.
 :::
 
 ## Read project content
@@ -163,13 +168,13 @@ val projectDir = File(plugin.dataFolder, "editor")
 api.projectRoots.register("homes", projectDir, id)   // projectId, directory, owning module id
 ```
 
-- Call it **once per boot, from `onEnable(api)`, before writing bootstrap
-  content.** Artisan then reads, hashes, publishes, trashes and hot-reloads that
-  project from your directory.
-- Registering **reloads the projects right away**, and that reload calls every
-  active module's `onReload()` — yours included, while your `onEnable(api)` is
-  still running. Assign your fields (the `api` handle first) before calling
-  `register`.
+- Call it **once per boot, from `onEnable(api)`.** Artisan then reads, hashes,
+  publishes, trashes and hot-reloads that project from your directory.
+- Registering reloads the projects **on the next server tick**, once your
+  `onEnable` has returned (Since 1.8.0): files you write after `register` in the
+  same `onEnable` are read, and every module's `onReload()` — yours included —
+  runs then. Before 1.8.0 the reload ran inside `register`, calling your
+  `onReload()` before your `onEnable(api)` was done.
 - The `projectId` is a permanent identity: the editor cannot rename a
   registered project. If a project with the same id exists in the core
   directory, yours wins.
@@ -208,8 +213,10 @@ A document's id is its file name: `menus/homes.yaml` is the menu `homes`.
 
 Write into a temporary sibling directory and rename it into place, so a crash
 mid-write never leaves a half-populated project that blocks the next attempt.
-Then call `api.project.reload()`: the reload triggered by `register` ran before
-your files existed.
+Written in the same `onEnable` as `register`, the files are picked up by the
+reload on the next tick. Against API 1.7.x and earlier, call
+`api.project.reload()` after writing: there, `register` reloaded before your
+files existed.
 Copying files from your jar's resources is the simplest way to ship them; the
 [worked example](/wiki/developers/example/) does exactly that.
 
