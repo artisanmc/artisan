@@ -3,7 +3,7 @@ import { useServersStore } from "@/state/serversStore";
 import { useEffect, useState } from "react";
 import { headPreviewUrl } from "./headTexture";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
+const API_URL = import.meta.env.VITE_API_URL ?? "";
 const cache = new Map<
   string,
   { expires: number; pending: Promise<string | undefined>; url?: string }

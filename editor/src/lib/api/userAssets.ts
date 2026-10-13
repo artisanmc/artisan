@@ -1,9 +1,5 @@
 import type { Asset, AssetType, AssetUsage } from "@/domain/asset";
-import {
-  assetJsonFields,
-  listLocalAssets,
-  performLocalAssetMutation,
-} from "@/features/assets/localAssets";
+import { listLocalAssets, performLocalAssetMutation } from "@/features/assets/localAssets";
 import {
   type AssetMutation,
   mutateDraftAssets,
@@ -11,13 +7,10 @@ import {
 } from "@/features/project/persistedDrafts";
 import { projectFetch } from "@/lib/projectFetch";
 import { watchProjectPrincipal } from "@/lib/projectPrincipal";
-import { SELF_HOSTED } from "@/lib/selfHosted";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
-import { DraftApiError, type PersistedDraft } from "./projectDrafts";
+import type { PersistedDraft } from "./projectDrafts";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
-const base = (projectId: string) =>
-  `${API_URL}/api/v1/user/projects/${encodeURIComponent(projectId)}/assets`;
+const API_URL = import.meta.env.VITE_API_URL ?? "";
 type AssetResponse = { draft: PersistedDraft; asset?: Asset; warnings?: string[] };
 type RequestAsset = NonNullable<AssetMutation["asset"]>;
 export async function listAssets(
@@ -26,67 +19,12 @@ export async function listAssets(
 ): Promise<Asset[]> {
   const remote = useProjectDraftStore.getState().get(projectId)?.remote;
   const draftId = remote && remote.revision > 0 ? remote.id : undefined;
-  // Auto-hébergé : pas de backend, l'éditeur lit l'arbre du brouillon ou du disque.
-  if (SELF_HOSTED) {
-    const assets = await listLocalAssets(projectId, filters, draftId);
-    return assets.map((asset) => ({ ...asset, ...(draftId ? { draftId } : {}) }));
-  }
-  const params = new URLSearchParams(filters);
-  if (draftId) params.set("draftId", draftId);
-  const response = await projectFetch(projectId, `${base(projectId)}?${params}`, {
-    credentials: "include",
-  });
-  if (!response.ok) throw new Error("Failed to load assets");
-  const body = (await response.json()) as { assets: Asset[] };
-  return body.assets.map((asset) => ({ ...asset, ...(draftId ? { draftId } : {}) }));
+  // L'éditeur lit l'arbre du brouillon ou du disque.
+  const assets = await listLocalAssets(projectId, filters, draftId);
+  return assets.map((asset) => ({ ...asset, ...(draftId ? { draftId } : {}) }));
 }
 async function perform(projectId: string, operation: AssetMutation): Promise<AssetResponse> {
-  if (SELF_HOSTED) {
-    const result = await performLocalAssetMutation(projectId, operation);
-    return {
-      ...result,
-      ...(result.asset ? { asset: { ...result.asset, draftId: operation.id } } : {}),
-    };
-  }
-  const input = operation.asset!;
-  const params = new URLSearchParams({
-    draftId: operation.id,
-    draftRevision: String(operation.revision),
-  });
-  let body: BodyInit;
-  const headers: Record<string, string> = { "Idempotency-Key": operation.operationId };
-  if (input.file) {
-    const form = new FormData();
-    for (const [key, value] of Object.entries(input.fields)) form.set(key, value);
-    form.set("draftSnapshot", JSON.stringify(operation.snapshot));
-    form.set("draftName", operation.name);
-    form.set(
-      "file",
-      new Blob([Uint8Array.from(atob(input.file.base64), (char) => char.charCodeAt(0))], {
-        type: input.file.type,
-      }),
-      input.file.name,
-    );
-    body = form;
-  } else {
-    headers["Content-Type"] = "application/json";
-    body = JSON.stringify({
-      ...assetJsonFields(input.fields),
-      draftSnapshot: operation.snapshot,
-      draftName: operation.name,
-    });
-  }
-  const response = await projectFetch(projectId, `${base(projectId)}${input.suffix}?${params}`, {
-    method: input.method,
-    credentials: "include",
-    headers,
-    body,
-    signal: AbortSignal.timeout(25_000),
-  });
-  const result = await response.json();
-  if (!response.ok)
-    throw new DraftApiError(result.error ?? "asset_update_failed", response.status, result.draft);
-  if (!result.draft) throw new Error("draft_acknowledgement_missing");
+  const result = await performLocalAssetMutation(projectId, operation);
   return {
     ...result,
     ...(result.asset ? { asset: { ...result.asset, draftId: operation.id } } : {}),

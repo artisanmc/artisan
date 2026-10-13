@@ -24,52 +24,6 @@ export interface ApiOptions {
   apiUrl: string;
 }
 
-export function requestAccountDeletion({ apiUrl }: ApiOptions) {
-  return postJson<void>(`${apiUrl}/api/v1/auth/delete-account/request`, {});
-}
-
-export function deleteAccount({ apiUrl }: ApiOptions, payload: { token: string }) {
-  return postJson<void>(`${apiUrl}/api/v1/auth/delete-account`, payload);
-}
-
-async function postJson<T>(
-  url: string,
-  body: unknown,
-): Promise<{ ok: true; data: T } | { ok: false; status: number; error: string }> {
-  const res = await fetch(url, {
-    method: "POST",
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (res.status === 204) return { ok: true, data: undefined as unknown as T };
-  const data = await res.json().catch(() => ({}));
-  if (res.ok) return { ok: true, data: data as T };
-  return { ok: false, status: res.status, error: (data as { error?: string }).error ?? "unknown" };
-}
-
-export async function signup(
-  { apiUrl }: ApiOptions,
-  payload: { email: string; password: string; name: string },
-) {
-  return postJson<{ user: AuthUserDto }>(`${apiUrl}/api/v1/auth/signup`, payload);
-}
-
-export async function login({ apiUrl }: ApiOptions, payload: { email: string; password: string }) {
-  return postJson<{ user: AuthUserDto }>(`${apiUrl}/api/v1/auth/login`, payload);
-}
-
-export async function forgotPassword({ apiUrl }: ApiOptions, payload: { email: string }) {
-  return postJson<void>(`${apiUrl}/api/v1/auth/forgot-password`, payload);
-}
-
-export async function resetPassword(
-  { apiUrl }: ApiOptions,
-  payload: { token: string; password: string },
-) {
-  return postJson<void>(`${apiUrl}/api/v1/auth/reset-password`, payload);
-}
-
 export async function logout({ apiUrl }: ApiOptions) {
   await fetch(`${apiUrl}/api/v1/auth/logout`, { method: "POST", credentials: "include" });
 }

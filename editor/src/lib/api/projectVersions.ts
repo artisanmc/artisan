@@ -1,6 +1,6 @@
 import { projectFetch } from "@/lib/projectFetch";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
+const API_URL = import.meta.env.VITE_API_URL ?? "";
 
 /** Une Version d'un Project serveur : un Snapshot que le serveur a chargé. */
 export interface ProjectVersionSummary {

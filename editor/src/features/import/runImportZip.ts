@@ -90,8 +90,7 @@ export type ApplyImportResult =
 const EMPTY_REFERENCE: ImportReference = { files: {}, binaries: {} };
 
 /**
- * Le chemin tel que le snapshot de brouillon backend l'accepte
- * (`validSnapshot` dans `backend/src/lib/projectDrafts.ts`). Un fichier hors de
+ * Le chemin tel que le snapshot de brouillon l'accepte. Un fichier hors de
  * ce domaine ne peut pas vivre dans un brouillon : on l'écarte plutôt que de
  * faire échouer tout l'import.
  */
