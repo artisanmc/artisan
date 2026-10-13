@@ -1,4 +1,5 @@
 import { type DragEvent, type ReactNode, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import type { AssetId, MenuId, MenuTitleLayer, ProjectId } from "@/domain/types";
 import { cn } from "@/lib/cx";
@@ -51,6 +52,7 @@ const DND_MIME = "application/x-layer-index";
  * whichever menu the selectionStore now points at).
  */
 export function LayersPanel({ projectId, menuId, className, imageControl }: LayersPanelProps) {
+  const { t } = useTranslation();
   const setSelectedLayerKey = useUiStore((s) => s.setSelectedLayerKey);
   const setSelectedMenuId = useUiStore((s) => s.setSelectedMenuId);
 
@@ -68,11 +70,7 @@ export function LayersPanel({ projectId, menuId, className, imageControl }: Laye
 
   const switchToVanilla = () => {
     if (!menu || isVanillaMode) return;
-    if (
-      menu.title.length > 0 &&
-      !window.confirm("Passer en mode vanilla supprimera les layers actuels. Continuer ?")
-    )
-      return;
+    if (menu.title.length > 0 && !window.confirm(t("layersPanel.switchToVanillaConfirm"))) return;
     // Migrate the first text-bearing layer's i18n key into the plain layer so
     // the title text + its translations survive the round-trip (mirror of
     // switchToComposed). Minting a fresh key here would orphan the old one
@@ -224,7 +222,7 @@ export function LayersPanel({ projectId, menuId, className, imageControl }: Laye
               : "text-[var(--text-mut)] hover:text-[var(--text)]",
           )}
         >
-          Vanilla
+          {t("layersPanel.vanilla")}
         </button>
         <button
           type="button"
@@ -236,7 +234,7 @@ export function LayersPanel({ projectId, menuId, className, imageControl }: Laye
               : "text-[var(--text-mut)] hover:text-[var(--text)]",
           )}
         >
-          Composé (Resource Project)
+          {t("layersPanel.composed")}
         </button>
       </div>
 

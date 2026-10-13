@@ -26,7 +26,7 @@ class ItemDetailsTest {
         return item
     }
 
-    // ── enchant id normalization ─────────────────────────────────────────────
+    // enchant id normalization
 
     @Test
     fun `normalizes namespaced, uppercase and legacy Bukkit enchant ids`() {
@@ -42,7 +42,7 @@ class ItemDetailsTest {
         assertEquals("mymod:soulbound", ItemDetails.normalizeEnchantId("MyMod:Soulbound"))
     }
 
-    // ── enchant parsing ──────────────────────────────────────────────────────
+    // enchant parsing
 
     @Test
     fun `parses the canonical map form`() {
@@ -71,8 +71,6 @@ class ItemDetailsTest {
         assertTrue(ItemDetails.parseEnchants("sharpness").isEmpty())
         assertTrue(ItemDetails.parseEnchants(emptyMap<String, Any>()).isEmpty())
     }
-
-    // ── application ──────────────────────────────────────────────────────────
 
     @Test
     fun `applies enchantments at the requested level`() {

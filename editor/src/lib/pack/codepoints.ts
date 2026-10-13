@@ -1,13 +1,10 @@
 /**
- * La plage de codepoints réservée aux glyphes d'un Project.
+ * The codepoint range reserved for a Project's glyphs.
  *
- * On s'arrête à U+F7FF : U+F800..U+F8FF appartient aux providers `space`
- * (`lib/spaceOffsets.ts`) et U+F900+ au bloc CJK Compatibility Ideographs, où la
- * police par défaut de Minecraft a déjà des glyphes — un bitmap provider n'y
- * prendrait pas la main, et le joueur verrait des idéogrammes.
- *
- * Ces bornes vivaient dans `codepointAllocator` (allocateur SQL, mort avec la
- * table) ; elles n'ont rien à voir avec le stockage, elles décrivent Minecraft.
+ * It stops at U+F7FF: U+F800..U+F8FF belongs to the `space` providers
+ * (`lib/spaceOffsets.ts`) and U+F900+ to the CJK Compatibility Ideographs
+ * block, where Minecraft's default font already has glyphs — a bitmap
+ * provider would not take over there, and the player would see ideographs.
  */
 export const CODEPOINT_MIN = 0xe000; // 57344
 export const CODEPOINT_MAX = 0xf7ff; // 63487

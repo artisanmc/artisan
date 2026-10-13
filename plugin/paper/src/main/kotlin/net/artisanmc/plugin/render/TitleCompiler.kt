@@ -11,7 +11,7 @@ import net.kyori.adventure.text.minimessage.MiniMessage
  * Compiles a list of [MenuTitleLayer]s into an Adventure [Component] suitable for
  * use as a `GuiInventory` title.
  *
- * Positioning model (since the "spaces font" sub-project):
+ * Positioning model:
  *
  *  - The compiler wraps the entire title in `<font:artisan:default>...</font>`.
  *    That font includes a `reference` to `minecraft:default` (so plain text falls
@@ -25,8 +25,7 @@ import net.kyori.adventure.text.minimessage.MiniMessage
  *
  * Width estimation is best-effort:
  *  - Image (background/glyph): [AssetEntry.width]; falls back to 16 px when 0.
- *  - Text: heuristic `length * 6` (MC default font is mostly 6 px wide per char;
- *    real widths range 1–9 — accuracy is not pixel-perfect for v1).
+ *  - Text: per-char advances from [CHAR_ADVANCES], +1 px per bold char.
  *  - External glyph: 8 px placeholder.
  *
  * Pure function: no side effects, no global state, no I/O. The [lookupAsset]
@@ -52,7 +51,7 @@ object TitleCompiler {
     /** A title glyph's top lands at chest-Y `13 - ascent`. Mirrors `GLYPH_Y_BASE` in `editor/src/lib/pack/fontJsonBuilder.ts`. */
     internal const val GLYPH_Y_BASE = 13
 
-    /** Fallback width for an image asset whose `width` is unknown (legacy v1 project). */
+    /** Fallback width for an image asset whose `width` is unknown (legacy pack). */
     private const val FALLBACK_IMAGE_WIDTH = 16
 
     /** Width estimate for an external-provider glyph (since we can't introspect it). */
@@ -177,8 +176,7 @@ object TitleCompiler {
      * MC draws a 1-px drop shadow under every glyph in chest titles, which
      * darkens image glyphs sampled from the font texture. Suppressing it at
      * the root cascades to every child segment. Trade-off: text layers also
-     * lose their shadow. Acceptable for v3; per-layer shadow control can be
-     * reintroduced later if needed.
+     * lose their shadow.
      */
     fun compileTitle(
         layers: List<MenuTitleLayer>,
@@ -195,7 +193,7 @@ object TitleCompiler {
         defaultLang: String = "",
     ): Component {
         if (layers.isEmpty()) return Component.empty()
-        // Plain (vanilla) mode: no resource project, no font wrapper, no shadow suppression.
+        // Plain (vanilla) mode: no resource pack, no font wrapper, no shadow suppression.
         // Emit raw MiniMessage and let MC render with its default font and shadow.
         if (layers.all { it is MenuTitleLayer.Plain }) {
             val sb = StringBuilder()
@@ -255,9 +253,8 @@ object TitleCompiler {
      *
      * Returns a [Pair] of (fragment, newCursorX). [startX] is the cursor position
      * at the moment this layer begins drawing; the returned cursor is
-     * `startX + estimateBodyWidth(...)` for all current kinds. The Textarea branch
-     * (Task 4) will own its own per-line offset emission and therefore needs both
-     * the incoming cursor and the [offsetEncoder].
+     * `startX + estimateBodyWidth(...)`, except for Textarea, which emits its own
+     * per-line offsets with [offsetEncoder] and returns its real end cursor.
      *
      * Returned MiniMessage assumes it will be rendered inside an outer
      * `<font:artisan:default>` (set by [compileTitle]).
@@ -304,15 +301,11 @@ object TitleCompiler {
                         startX + estimateBodyWidth(layer, langMap, lookupAsset, interpolate, lang, defaultLang),
                     )
                 }
-                // Y-specific font: resource project includes text_y{Y}.json for Y in
-                // [TEXT_Y_MIN, TEXT_Y_MAX], each using minecraft:font/ascii.png with
+                // Y-specific font: the pack includes text_y{Y}_h{H}.json for Y in
+                // [minYForSize(H), TEXT_Y_MAX], each using minecraft:font/ascii.png with
                 // ascent = 13 - Y so the glyph top lands at the desired chest-relative
-                // Y pixel. Clamp out-of-range Y to the nearest valid value — without
-                // this, MC would resolve a missing font and render every char as a
-                // missing-glyph square in the title.
-                // Clamp UP to the per-size floor (ascent <= height schema constraint)
-                // and DOWN to TEXT_Y_MAX. Anything below the floor would resolve to
-                // a missing-font reference and render as missing-glyph squares.
+                // Y pixel. Clamp out-of-range Y to the nearest valid value: otherwise MC
+                // resolves a missing font and renders every char as a missing-glyph square.
                 val clampedY = layer.y.coerceIn(minYForSize(layer.size), TEXT_Y_MAX)
                 "<font:artisan:text_y${clampedY}_h${layer.size}>$colored</font>"
             }
@@ -321,8 +314,7 @@ object TitleCompiler {
                 layer.color?.let { "<color:$it>$text</color>" } ?: text
             }
             is MenuTitleLayer.ExternalGlyph -> {
-                // ExternalGlyphsCatalog doesn't exist yet (Sub-project 5).
-                // Fall back to a visible placeholder so the menu still opens.
+                // No external glyph catalog yet: a visible placeholder keeps the menu opening.
                 "□"
             }
             is MenuTitleLayer.Textarea -> {
@@ -458,18 +450,13 @@ object TitleCompiler {
     }
 
     /**
-     * Resolve an [LText] reference against a language map. When the key isn't
-     * present (referencedKeys serialization could be lagging, or the user just
-     * never typed a value), we return `""` rather than echoing the raw key —
-     * showing `menus.foo.title` in chat is worse than showing nothing.
-     */
-    // Legacy § codes are converted to MiniMessage tags at the resolution choke
-    // point — the compiled title string embeds user text inside MM machinery
-    // (font wrapper, offsets), where a raw § would make the final deserialize throw.
-    /**
-     * A ref resolves through its key and renders EMPTY when missing — never echo
-     * a raw key at a player. A literal (inline mode) resolves through its
-     * canonical address and falls back to the literal text itself.
+     * Resolve an [LText] against a language map. A ref resolves through its key and
+     * renders EMPTY when missing: never echo a raw key at a player. A literal (inline
+     * mode) resolves through its canonical address and falls back to the literal text.
+     *
+     * Legacy § codes are converted to MiniMessage tags here: the compiled title embeds
+     * user text inside MiniMessage machinery (font wrapper, offsets), where a raw §
+     * would make the final deserialize throw.
      */
     private fun resolveLText(
         value: LText,

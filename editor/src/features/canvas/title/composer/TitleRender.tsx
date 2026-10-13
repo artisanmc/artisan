@@ -142,7 +142,7 @@ interface TitleRenderProps {
  * backdrop + every layer in array order (first = bottom). Designed to live
  * inside an existing `<Stage><Layer>`; the caller owns Stage sizing.
  *
- * Always interactive (v3): clicks on layers select them via
+ * Always interactive: clicks on layers select them via
  * `uiStore.selectedLayerKey`, drags update positions via `useTitleLayerDrag`,
  * and image layers expose `ResizeHandles` when selected. Clicks on the
  * title-bar grey backdrop (non-layer area) clear the selection.
@@ -153,7 +153,7 @@ interface TitleRenderProps {
  *  - glyph → image at intrinsic asset size, scaled
  *  - text → McFontText (bitmap font, if `fontAssetId` bound) or
  *    MiniMessageKonvaText (vector fallback)
- *  - external_glyph → dashed amber placeholder until SP5
+ *  - external_glyph → dashed amber placeholder
  */
 export function TitleRender({ projectId, menuId, scale }: TitleRenderProps) {
   const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
@@ -475,8 +475,7 @@ function LayerNode({
     );
   } else if (layer.kind === "external_glyph") {
     // external_glyph — runtime resolves these; in the editor we show a
-    // dashed placeholder labelled with `provider:glyphName` (SP5 will do
-    // proper rendering).
+    // dashed placeholder labelled with `provider:glyphName`.
     body = (
       <>
         <Rect
@@ -573,8 +572,7 @@ function LayerNode({
       {body}
       {selected ? (
         <>
-          {/* Yellow 1-px stroke around the bounding box. Matches the v3 design
-              spec (was emerald in v2). */}
+          {/* Yellow 1-px stroke around the bounding box. */}
           <Rect
             x={-1}
             y={-1}

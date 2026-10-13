@@ -4,15 +4,14 @@ import net.artisanmc.modules.api.ArtisanAPI
 import net.artisanmc.modules.api.ArtisanModule
 
 /**
- * Encapsulates the existing CommandRegistrar / ArtisanCommand / CommandCompiler pipeline.
- * V1 scope: thin wrapper. Physical relocation happens in Phase B5.
+ * The CommandRegistrar / ArtisanCommand / CommandCompiler pipeline as a module.
+ * A thin wrapper: those classes are wired by ArtisanPlugin.
  */
 class CommandsModule : ArtisanModule {
     override val id = "commands"
     override val schemaVersion = "command/v1"
 
     override fun onEnable(api: ArtisanAPI) {
-        // Wiring done by ArtisanPlugin for V1 — see B5 for relocation plan.
     }
 
     override fun onDisable() {}

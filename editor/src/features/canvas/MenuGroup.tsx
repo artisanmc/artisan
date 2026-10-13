@@ -117,7 +117,7 @@ export function MenuGroup({ projectId, menu, position, layout, solo = false }: M
   const [tex] = useImage(TEXTURE_URLS[INVENTORY_TYPES[type].textureKey]);
   const box = menuBoxSize(type, menu.rows);
   const single = usesSingleBackground(type);
-  // `vanilla_texture: false` : fenêtre transparente en jeu, seuls des repères restent.
+  // `vanilla_texture: false`: transparent window in game, only guides remain.
   const outline = menu.vanillaTexture === false ? transparentOutline(type, menu.rows) : null;
 
   const { onMenuDragStart, onMenuDragEnd } = useMenuDrag({ projectId, menuId: menu.id, position });
@@ -355,14 +355,12 @@ export function MenuGroup({ projectId, menu, position, layout, solo = false }: M
         for (const { placement, info } of resolved) {
           elementsByPosition.set(placement.position, info);
         }
-        // Une source filtrée par le contexte ne rend qu'une tranche du tout :
-        // les placements des AUTRES contextes n'y résolvent rien, et ce n'est
-        // pas une anomalie — ils sont posés sur les mêmes slots à dessein. Les
-        // afficher couvrait le menu de cases pointillées, au point de faire
-        // croire à un territoire réservé de mode paginé en plein placement.
-        //
-        // Sans filtre contextuel, la même absence est un vrai trou (ligne
-        // supprimée) et doit se voir.
+        // A source filtered by the context renders only a slice of the whole: the
+        // placements of OTHER contexts resolve to nothing there, and that is not an
+        // anomaly — they sit on the same slots on purpose. Showing them covered the
+        // menu with dashed slots, to the point of suggesting a reserved paginated area.
+        // Without a context filter, the same absence is a real hole (deleted row)
+        // and must show.
         if (!sourceIsContextFiltered(menu, places.source)) {
           for (const { placement, info } of unresolved) {
             if (!elementsByPosition.has(placement.position)) {
@@ -407,9 +405,9 @@ export function MenuGroup({ projectId, menu, position, layout, solo = false }: M
       onDragStart={solo ? undefined : onMenuDragStart}
       onDragMove={solo ? undefined : nodeAlign.onDragMove}
       onDragEnd={solo ? undefined : onMenuDragEnd}
-      // Selection stays active in solo too: sans ça, un clic sur un élément
-      // condamnait la vue — plus rien ne permettait de re-sélectionner le menu.
-      // Les clics slot font cancelBubble, donc seul le fond remonte ici.
+      // Selection stays active in solo too: otherwise a click on an element locked
+      // the view — nothing let the menu be selected again. Slot clicks set
+      // cancelBubble, so only the background bubbles up here.
       onClick={onClick}
       onTap={onClick}
       onDblClick={solo ? undefined : () => dispatchOpenElement(menu.id)}
@@ -510,11 +508,9 @@ export function MenuGroup({ projectId, menu, position, layout, solo = false }: M
         />
       ) : null}
       {/* Title bar — TitleRender draws all title layers (background + glyphs +
-          text) faithfully, matching what the plugin emits in-game. Always
-          interactive (v3): clicks on layers select them, clicks on the grey
-          backdrop set this menu as the selected one (and clear any layer
-          selection belonging to this menu). All wiring lives in TitleRender;
-          no overlay Rect needed here. */}
+          text) faithfully, matching what the plugin emits in-game. Clicks on
+          layers select them, clicks on the grey backdrop set this menu as the
+          selected one (and clear any layer selection belonging to this menu). */}
       <TitleRender projectId={projectId} menuId={menu.id} scale={TEX_SCALE} />
       <ImageButtonsRender projectId={projectId} menu={menu} />
       <PlacementTray
@@ -847,11 +843,10 @@ export function MenuGroup({ projectId, menu, position, layout, solo = false }: M
           onNext={() => setPage(info.elementId, Math.min(info.totalPages - 1, info.page + 1))}
         />
       ))}
-      {/* DERNIER enfant volontairement : sa liste déroulante s'ouvre par-dessus
-          le haut du menu, et dans Konva l'ordre de rendu EST l'ordre de
-          priorité au clic. Rendu avant les slots, ses premières lignes étaient
-          couvertes par eux — le clic les traversait et sélectionnait l'élément
-          du dessous au lieu de choisir le contexte (2026-08-12). */}
+      {/* LAST child on purpose: its dropdown opens over the top of the menu,
+          and in Konva render order IS click priority. Rendered before the
+          slots, its first lines were covered by them — the click went through
+          and selected the element below instead of picking the context. */}
       <PreviewContextBanner
         menu={menu}
         project={project}

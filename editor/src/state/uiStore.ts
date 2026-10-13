@@ -82,11 +82,10 @@ interface UiState {
   editorPaneWidth: number;
   setEditorPaneWidth: (w: number) => void;
   /**
-   * Le panneau d'édition est l'inspecteur de la sélection : il n'existe que
-   * s'il y a quelque chose à inspecter. Les paramètres du PROJECT, eux, ne
-   * correspondent à aucune sélection — ce drapeau est le « rien de sélectionné,
-   * mais montre-moi quand même le project » posé par la racine de l'arbre.
-   * Éphémère : jamais persisté.
+   * The edit panel is the selection's inspector: it only exists when there is
+   * something to inspect. The PROJECT settings match no selection — this flag
+   * is the "nothing selected, but show me the project anyway" set by the tree
+   * root. Ephemeral: never persisted.
    */
   projectSettingsOpen: boolean;
   setProjectSettingsOpen: (open: boolean) => void;
@@ -183,34 +182,34 @@ interface UiState {
   /** Width (px) of the AI assistant pane when docked on the right (desktop). */
   assistantPaneWidth: number;
   setAssistantPaneWidth: (w: number) => void;
-  /** Mode d'interaction du canvas : main (pan, défaut) ou sélection (clic + marquee). Persisté. */
+  /** Canvas interaction mode: hand (pan, default) or select (click + marquee). Persisted. */
   canvasMode: "select" | "hand";
   setCanvasMode: (m: "select" | "hand") => void;
-  /** Dernier mode de réarrangement choisi dans la barre. Persisté. */
+  /** Last rearrange mode chosen in the toolbar. Persisted. */
   arrangeMode: ArrangeMode;
   setArrangeMode: (m: ArrangeMode) => void;
   /**
-   * Pan/zoom sauvegardé de la planche principale, indexé par projectId. Permet de
-   * quitter la planche (ex. ouvrir la vue d'un élément unique) puis d'y revenir
-   * exactement au même endroit + zoom, y compris après un rechargement.
+   * Saved pan/zoom of the main board, keyed by projectId. Lets the user leave
+   * the board (e.g. open a single element's view) and come back to exactly the
+   * same place + zoom, including after a reload.
    */
   canvasViewports: Record<string, ViewportState>;
   minimapVisible: boolean;
   setMinimapVisible: (visible: boolean) => void;
   setCanvasViewport: (projectId: ProjectId, viewport: ViewportState) => void;
   /**
-   * Pan/zoom de la vue individuelle, **partagé par tous les documents** et
-   * persisté : le cadrage suit l'utilisateur quand il passe d'un menu à un
-   * autre, au lieu de repartir du cadrage par défaut à chaque ouverture.
-   * `null` = jamais réglé, la vue s'ajuste alors au document.
-   * `canvasViewports` conserve séparément le cadrage de chaque projet.
+   * Pan/zoom of the single view, **shared by all documents** and persisted: the
+   * framing follows the user from one menu to another, instead of resetting to
+   * the default framing on every open.
+   * `null` = never set, the view then fits the document.
+   * `canvasViewports` keeps each project's framing separately.
    */
   documentViewport: ViewportState | null;
   setDocumentViewport: (viewport: ViewportState | null) => void;
   /**
-   * « Centre la planche sur ce Document » (`goToDocument`). Éphémère, jamais
-   * persisté ; le `nonce` fait qu'un second clic sur le même Document recentre.
-   * La planche du project la consomme dès qu'elle peut y répondre.
+   * "Center the board on this Document" (`goToDocument`). Ephemeral, never
+   * persisted; the `nonce` makes a second click on the same Document re-center.
+   * The project's board consumes it as soon as it can respond.
    */
   centerRequest: CenterRequest | null;
   requestCenter: (projectId: string, docId: string) => void;
@@ -234,7 +233,7 @@ export const useUiStore = create<UiState>()(
         // Sync the i18next instance lazily — importing here keeps the
         // store free of a hard dep on the i18n module at module load.
         import("@/i18n").then(({ default: i18n }) => i18n.changeLanguage(lang));
-        // Sync to backend if logged-in. Fire-and-forget — UI doesn't block.
+        // Sync to the account if logged-in. Fire-and-forget — UI doesn't block.
         // Dynamic imports avoid module-load-time circular deps with authStore.
         import("./authStore").then(({ useAuthStore }) => {
           const user = useAuthStore.getState().currentUser;
@@ -427,8 +426,8 @@ export const useUiStore = create<UiState>()(
         arrangeMode: state.arrangeMode,
         canvasViewports: state.canvasViewports,
         minimapVisible: state.minimapVisible,
-        // Persisté : le cadrage de la vue
-        // individuelle suit l'utilisateur, page à page et après rechargement.
+        // Persisted: the single view's framing follows the user, page to page and
+        // after a reload.
         documentViewport: state.documentViewport,
       }),
       // Discard retired inspector tabs and restore the editor language.

@@ -16,7 +16,7 @@ object EditorPermissions {
     val ALL = listOf(VIEW, EDIT, PUBLISH, CONFIG)
 }
 
-/** Un joueur connecté à l'éditeur. Ses permissions sont celles qu'il avait en demandant le lien. */
+/** A player signed in to the editor. Its permissions are the ones it had when asking for the link. */
 data class EditorSession(
     val id: String,
     val playerId: UUID,
@@ -28,8 +28,8 @@ data class EditorSession(
 }
 
 /**
- * Liens de connexion donnés par `/artisan editor`, puis sessions ouvertes par ces liens.
- * Un lien sert une fois, vit [linkTtl], et un joueur n'en obtient qu'un par [linkInterval].
+ * Sign-in links given by `/artisan editor`, then the sessions those links open.
+ * A link works once, lives [linkTtl], and a player gets at most one per [linkInterval].
  */
 class Sessions(
     private val clock: Clock = Clock.systemUTC(),
@@ -62,7 +62,7 @@ class Sessions(
         return LinkResult.Issued(token)
     }
 
-    /** Échange un lien contre une session. Null : lien inconnu, déjà servi ou expiré. */
+    /** Trades a link for a session. Null: unknown, already used or expired link. */
     fun redeem(token: String): EditorSession? {
         val link = links.remove(token) ?: return null
         val now = clock.instant()

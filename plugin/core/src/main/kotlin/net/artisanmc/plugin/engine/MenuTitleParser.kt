@@ -8,7 +8,7 @@ import net.artisanmc.plugin.model.MenuTitleLayer
  *
  * Accepts four shapes for tolerance:
  *  - `null` / empty string → empty list (no title)
- *  - a bare string (legacy) → one [MenuTitleLayer.Text] wrapping the string at (8, 5).
+ *  - a bare string (legacy) → one [MenuTitleLayer.Plain] layer.
  *    If the string is of the form `{i18n:foo.bar}`, the `foo.bar` key is unwrapped.
  *  - a single map → one-element list
  *  - a list of maps → list of layers
@@ -49,7 +49,7 @@ object MenuTitleParser {
 
     private fun parseLayers(node: Any?): List<MenuTitleLayer> = when (node) {
         null -> emptyList()
-        // Legacy bare-string format → plain vanilla layer (no resource project needed).
+        // Legacy bare-string format → plain vanilla layer (no resource pack needed).
         is String -> if (node.isEmpty()) emptyList() else listOf(
             MenuTitleLayer.Plain(value = literalToLText(node))
         )
@@ -66,12 +66,10 @@ object MenuTitleParser {
     }
 
     /**
-     * Ref d'asset : `asset: <nom>` d'abord, `asset_id: <id opaque>` ensuite.
+     * Asset ref: `asset: <name>` first, then the legacy `asset_id: <opaque id>`.
      *
-     * Le nom de fichier devient l'identité d'un asset (ADR
-     * `assets-on-server-disk`) — sur un disque qu'un humain doit pouvoir lire,
-     * `ast_9f3c1a` est une énigme. L'ancienne forme reste lue : un Project que
-     * la descente n'a pas encore touché doit rester ouvrable.
+     * The file name is an asset's identity (ADR `assets-on-server-disk`). The old
+     * form is still read so a Project not yet migrated keeps opening.
      */
     private fun assetRef(m: Map<String, Any?>, legacyKey: String, key: String): String? =
         m[key] as? String ?: m[legacyKey] as? String
@@ -155,9 +153,7 @@ object MenuTitleParser {
      * Legacy `title: "<string>"` compatibility.
      *
      * If `raw` looks like `{i18n:foo.bar}`, unwrap to the bare key `foo.bar`.
-     * Otherwise wrap the literal string as the [LText.key]; the title compiler
-     * (Task 18) treats keys with no entry in the lang map as literal text — the
-     * exact same fallback chain as the legacy `BundleMenu.resolveTitle(lang)`.
+     * Otherwise the string is a literal [LText].
      */
     private fun literalToLText(raw: String): LText {
         if (raw.startsWith("{i18n:") && raw.endsWith("}")) {

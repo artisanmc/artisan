@@ -30,10 +30,9 @@ open class PapiProvider {
     }
 
     /**
-     * Tolérant : une PlaceholderAPI installée mais **cassée** (ex. incompatibilité
-     * de version Paper — son `<clinit>` jette `ExceptionInInitializerError`) ne
-     * doit jamais faire planter un menu. On rend le texte tel quel en cas d'échec,
-     * les `%papi%` restent simplement non résolus.
+     * Tolerant: an installed but **broken** PlaceholderAPI (e.g. Paper version
+     * mismatch, its `<clinit>` throws `ExceptionInInitializerError`) must never crash
+     * a menu. On failure the text is returned as is, `%papi%` simply stay unresolved.
      */
     open fun resolve(player: Player, text: String): String =
         runCatching { me.clip.placeholderapi.PlaceholderAPI.setPlaceholders(player, text) }
@@ -63,8 +62,6 @@ class WorldGuardProvider {
         }.getOrNull()
     }
 }
-
-// ─── Custom item stack renderers ────────────────────────────────────────────
 
 class NexoItemRenderer {
     fun buildStack(id: String, count: Int): ItemStack? = runCatching {
@@ -138,8 +135,6 @@ class HeadDatabaseRenderer {
         }.getOrNull()
     }
 }
-
-// ─── Registry ────────────────────────────────────────────────────────────────
 
 class SoftDepRegistry(
     val vault: VaultProvider?,

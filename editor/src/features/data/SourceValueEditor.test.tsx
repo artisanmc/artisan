@@ -327,7 +327,7 @@ describe("ModelFieldsEditor", () => {
   });
 });
 
-// ─── stable row identity (model-ref "items mixed across rows" regression) ────
+// Stable row identity (model-ref "items mixed across rows" regression)
 // Index keys made React reuse a stateful child (RowKeyEditor draft) for a
 // DIFFERENT row after a mid-list delete. Keys are now identity-derived from
 // the Row key value.
@@ -369,7 +369,7 @@ describe("SourceRowsTable — stable row keys", () => {
   });
 });
 
-// ─── composable kinds widgets (map / enum / union) ───────────────────────────
+// Composable kinds widgets (map / enum / union)
 
 describe("ValueEditor — map / enum / union widgets", () => {
   function seedComposable() {
@@ -467,7 +467,7 @@ describe("ValueEditor — map / enum / union widgets", () => {
   });
 });
 
-// ─── slice 3: hints, asymmetric validation, master-detail, conditions ────────
+// Hints, asymmetric validation, master-detail, conditions
 
 describe("form generator — hints + validation (§7)", () => {
   function seedHinted(masterDetail = false) {
@@ -570,7 +570,7 @@ describe("form generator — hints + validation (§7)", () => {
   });
 });
 
-// ─── untyped config source (ADR bare-data-files: never a dead end) ───────────
+// Untyped config source (ADR bare-data-files: never a dead end)
 
 describe("ConfigValueForm — schemaless file", () => {
   function seedUntyped() {
@@ -610,7 +610,7 @@ describe("ConfigValueForm — schemaless file", () => {
   });
 });
 
-// ─── ADR yaml-assisted-editing ⑨: hints are visible, the key stays visible ───
+// ADR yaml-assisted-editing ⑨: hints are visible, the key stays visible
 
 describe("field hints in the form", () => {
   function seedHinted() {

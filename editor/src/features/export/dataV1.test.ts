@@ -185,7 +185,7 @@ describe("bare data export", () => {
   });
 });
 
-// ─── composable kinds: map / enum / union ────────────────────────────────────
+// Composable kinds: map / enum / union
 
 describe("bare export — map / enum / union kinds", () => {
   const B = `plugins/Artisan/projects/${PID}`;
@@ -292,7 +292,7 @@ describe("bare export — map / enum / union kinds", () => {
   });
 });
 
-// ─── per-row file granularity ────────────────────────────────────────────────
+// Per-row file granularity
 
 describe("bare export — per-row file granularity", () => {
   const B = `plugins/Artisan/projects/${PID}`;

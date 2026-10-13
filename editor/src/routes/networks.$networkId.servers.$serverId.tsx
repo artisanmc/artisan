@@ -28,13 +28,14 @@ export const Route = createFileRoute("/networks/$networkId/servers/$serverId")({
 });
 
 /**
- * Le cadre : qui es-tu, quel serveur, et est-ce bien cette page qu'on regarde.
+ * The frame: who you are, which server, and whether this page is really the
+ * one being viewed.
  *
- * Il ne s'abonne à AUCUN état d'édition — quand une route enfant occupe
- * l'écran, ce composant n'est qu'un passe-plat vers `<Outlet>`, et un parent
- * qui se re-rend re-rend tout le canvas sous lui. Tout ce qui vit et respire
- * (lecture disque, projects, modules) est descendu dans `ServerOverview`, qui
- * n'existe que lorsque la vue d'ensemble est réellement affichée.
+ * It subscribes to NO editing state — when a child route fills the screen,
+ * this component is only a pass-through to `<Outlet>`, and a parent that
+ * re-renders re-renders the whole canvas below it. Everything live (disk read,
+ * projects, modules) moved down into `ServerOverview`, which only exists when
+ * the overview is actually displayed.
  */
 export default function ServerDetailPage() {
   const { networkId, serverId } = useParams({
@@ -64,9 +65,9 @@ export default function ServerDetailPage() {
         // serverId param is the server slug (old links may still pass the id).
         const sk = d.serverKeys.find((k) => k.slug === serverId || k.id === serverId);
         if (!sk) {
-          // Le network existe, ce serveur non : l'URL est périmée. On renvoie au
-          // network — l'alternative serait d'attendre indéfiniment une lecture
-          // disque qu'on ne peut adresser à personne.
+          // The network exists, this server does not: the URL is stale. Go back to the
+          // network — the alternative would be waiting forever for a disk read that
+          // cannot be addressed to anyone.
           navigate({ to: "/networks/$networkId", params: { networkId }, replace: true });
           return;
         }
@@ -107,9 +108,9 @@ function ServerOverview({
   label,
 }: {
   networkId: string;
-  /** Forme URL (slug le plus souvent) — celle que portent les liens. */
+  /** URL form (usually a slug) — the one links carry. */
   serverId: string;
-  /** Id réel du server_key, `null` tant que le network n'a pas répondu. */
+  /** Real server_key id, `null` until the network has answered. */
   serverKeyId: string | null;
   label: string;
 }) {
@@ -117,7 +118,7 @@ function ServerOverview({
   const navigate = useNavigate();
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [status, setStatus] = useState<"loading" | "ready" | "unavailable">("loading");
-  /** Pourquoi la liste manque, quand le serveur le dit (hors ligne, plugin à mettre à jour). */
+  /** Why the list is missing, when the server says so (offline, plugin to update). */
   const [unavailableReason, setUnavailableReason] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const serverScreens = useServerScreensStore((s) => s.screens);
@@ -136,13 +137,13 @@ function ServerOverview({
   }, [serverKeyId]);
 
   /**
-   * Les Projects se lisent sur le disque du serveur, comme dans la sidebar : le
-   * backend n'en tient plus de liste (ADR `server-disk-only-storage`), le nom du
-   * dossier EST l'identité.
+   * Projects are read from the server's disk, as in the sidebar: the hub keeps
+   * no list of them (ADR `server-disk-only-storage`), the folder name IS the
+   * identity.
    *
-   * Trois états, jamais confondus : on lit, on a lu, on n'a pas pu lire. Un
-   * serveur hors ligne n'est pas un serveur sans projects — l'annoncer vide
-   * serait affirmer un vide qu'on n'a pas constaté.
+   * Three states, never confused: reading, read, could not read. An offline
+   * server is not a server without projects — announcing it empty would assert
+   * an emptiness not observed.
    */
   const reloadProjects = useCallback(() => {
     if (!serverKeyId) return undefined;
@@ -166,17 +167,17 @@ function ServerOverview({
 
   useEffect(() => reloadProjects(), [reloadProjects]);
 
-  // Les Config screens décident du regroupement : la page les charge pour SON
-  // serveur au lieu d'attendre que la sidebar l'ait fait — sinon un project
-  // possédé s'affiche d'abord à plat puis saute sous son module. L'appel est
-  // idempotent (le store ignore une source déjà chargée).
+  // Config screens decide the grouping: the page loads them for ITS server
+  // instead of waiting for the sidebar to do it — otherwise an owned project
+  // first shows flat then jumps under its module. The call is idempotent (the
+  // store ignores a source already loaded).
   useEffect(() => {
     if (!serverKeyId) return;
     useServerScreensStore.getState().load({ networkId, serverId: serverKeyId });
   }, [networkId, serverKeyId]);
 
-  // Même découpage que la sidebar — projects ordinaires d'un côté, modules
-  // installés de l'autre avec leurs onglets (ADR `addon-owned-project-roots`).
+  // Same split as the sidebar — ordinary projects on one side, installed
+  // modules on the other with their tabs (ADR `addon-owned-project-roots`).
   const updateRequired = status === "unavailable" && unavailableReason === "plugin_update_required";
 
   const { flatProjects, moduleGroups } = buildProjectGroups({
@@ -243,13 +244,11 @@ function ServerOverview({
                     params={{ networkId, serverId, projectId: projectUrlId(w) }}
                     className="card flex flex-1 items-center justify-between p-4 hover:bg-[var(--surface-hover)]"
                   >
-                    {/* Plus de compteur de Documents : le backend ne détient
-                        plus les fichiers (ADR `server-disk-only-storage`), donc
-                        il ne peut plus le connaître sans interroger le disque du
-                        serveur. Un compteur figé de l'ancien monde aurait menti. */}
+                    {/* No Document counter: the hub does not hold the files, so it
+                        cannot know it without querying the server's disk. */}
                     <span className="text-[14px] font-medium text-[var(--text)]">{w.name}</span>
                   </Link>
-                  {/* L'ID se modifie dans les Propriétés du projet ; ici ne reste que la reprise d'un changement en attente. */}
+                  {/* The ID is changed in the project Properties; only resuming a pending change remains here. */}
                   {w.pendingRename && <RenameProjectButton project={w} onRenamed={(diskId) => { if (serverKeyId) onProjectRenamed({ projectId: w.id, serverKeyId, previousDiskId: w.externalId ?? w.id, diskId }); }} />}
                 </li>
               ))}
@@ -269,7 +268,7 @@ function ServerOverview({
               <ul className="flex flex-col gap-2">
                 {moduleGroups.map((g) => (
                   <li key={g.id} className="card flex flex-col gap-3 p-4">
-                    {/* TODO(P2): render the module's icon once modules ship real icons */}
+                    {/* TODO: render the module's icon once modules ship real icons */}
                     <span className="text-[14px] font-semibold text-[var(--text)]">{g.label}</span>
                     <ul className="flex flex-wrap gap-1.5">
                       {g.entries.map((e) => {

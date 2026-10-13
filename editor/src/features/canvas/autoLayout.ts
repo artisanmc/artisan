@@ -17,12 +17,12 @@ export interface ProjectBoard {
 const bySignature = new Map<string, ProjectBoard>();
 
 /**
- * La planche d'un project : tous ses Documents, arrangés automatiquement.
- * `canvasLayout` ne liste plus les membres de la planche ; il ne garde que
- * les positions posées à la main, qui priment sur l'arrangement.
+ * A project's board: all its Documents, arranged automatically.
+ * `canvasLayout` only keeps the positions set by hand, which take precedence
+ * over the arrangement.
  *
- * Mémoïsé sur la forme du graphe : éditer un slot ou un texte ne recalcule
- * rien, seul un Document ou un lien ajouté, retiré ou redimensionné le fait.
+ * Memoised on the graph's shape: editing a slot or a text recomputes nothing,
+ * only an added, removed or resized Document or link does.
  */
 export function projectBoard(project: Project): ProjectBoard {
   const graph = deriveServerGraph([project]);
@@ -78,9 +78,9 @@ export function rearrangeProjectLayout(
   const groups = normalizeCanvasGroups(project.canvasGroups, liveDocumentIds(project));
   const target = groups.find((g) => g.id === groupId);
   if (groupId !== undefined && !target) return null;
-  // Sans groupe manuel, `columns` libère les positions et laisse la planche
-  // s'auto-arranger (comportement historique). Les autres modes doivent au
-  // contraire calculer et persister leur arrangement.
+  // Without a manual group, `columns` releases the positions and lets the board
+  // arrange itself (original behaviour). The other modes must instead compute
+  // and persist their arrangement.
   if (!groups.length && mode === "columns")
     return { canvasLayout: {} as Project["canvasLayout"], canvasGroups: groups, canvasEdges: {} };
 

@@ -32,7 +32,7 @@ function pickFile() {
 describe("ImportProjectDialog", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("applique directement un import sans conflit", async () => {
+  it("applies an import without conflicts directly", async () => {
     mocks.prepareImportZip.mockResolvedValue({
       ok: true,
       preview: {
@@ -64,7 +64,7 @@ describe("ImportProjectDialog", () => {
     await waitFor(() => expect(onImported).toHaveBeenCalledWith("shop", true));
   });
 
-  it("tranche les conflits fichier par fichier", async () => {
+  it("settles the conflicts file by file", async () => {
     mocks.prepareImportZip.mockResolvedValue({
       ok: true,
       preview: {
@@ -103,7 +103,7 @@ describe("ImportProjectDialog", () => {
     );
   });
 
-  it("en écrasement, confirme sans demander de choix et applique sans choix", async () => {
+  it("in overwrite mode, confirms without asking for choices and applies without choices", async () => {
     mocks.prepareImportZip.mockResolvedValue({
       ok: true,
       preview: {
@@ -138,7 +138,7 @@ describe("ImportProjectDialog", () => {
     await waitFor(() => expect(mocks.applyImportZip).toHaveBeenCalledWith(expect.anything(), {}));
   });
 
-  it("en écrasement, fait confirmer la suppression des fichiers absents de l'archive", async () => {
+  it("in overwrite mode, asks to confirm deleting the files missing from the archive", async () => {
     mocks.prepareImportZip.mockResolvedValue({
       ok: true,
       preview: {

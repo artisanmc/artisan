@@ -1,17 +1,16 @@
 import { create } from "zustand";
 
 /**
- * La **base** de chaque Project ouvert : le contenu rel-keyed des fichiers tels
- * qu'ils ont été lus sur le disque du serveur (ADR `server-disk-only-storage`).
+ * The **base** of each open Project: the rel-keyed content of the files as
+ * they were read from the server's disk (ADR `server-disk-only-storage`).
  *
- * C'est la référence du compare-and-swap : l'enregistrement compare l'arbre
- * courant à cette base pour n'envoyer que le delta, et fait porter à chaque
- * entrée le hash de ce qu'elle croyait trouver sur disque. Un enregistrement
- * réussi devient la nouvelle base ; un conflit ne la touche pas — rien n'a été
- * écrit, la base reste ce qu'on avait chargé.
+ * It is the compare-and-swap reference: a save compares the current tree to
+ * this base to send only the delta, and makes each entry carry the hash of
+ * what it expected on disk. A successful save becomes the new base; a conflict
+ * does not touch it — nothing was written, the base stays what was loaded.
  *
- * Hors du store de projects à dessein : ce n'est pas du domaine, c'est de la
- * comptabilité de synchronisation, et elle ne doit pas voyager dans l'undo/redo.
+ * Kept out of the projects store on purpose: this is not domain, it is sync
+ * bookkeeping, and it must not travel through undo/redo.
  */
 interface ProjectBaselineState {
   binaryBaselines: Record<string, Record<string, { hash: string; size: number }>>;
@@ -36,17 +35,16 @@ export const useProjectBaselineStore = create<ProjectBaselineState>()((set, get)
   setBinaries: (projectId, files) =>
     set((state) => ({ binaryBaselines: { ...state.binaryBaselines, [projectId]: files } })),
   /**
-   * Repose la base — en GARDANT l'objet précédent si le contenu n'a pas bougé.
+   * Sets the base — KEEPING the previous object if the content has not moved.
    *
-   * L'identité de cet objet est lue comme « est-ce le même chargement ? »
-   * (`useDraftSync`). Un nouvel objet au contenu identique faisait donc croire à
-   * un nouveau chargement : la synchro refigeait `initialTree` sur l'arbre
-   * courant, déclarait le brouillon PROPRE alors qu'il portait du travail non
-   * enregistré, et ce travail était jeté au rechargement suivant.
+   * This object's identity is read as "is it the same load?" (`useDraftSync`).
+   * A new object with identical content therefore looked like a new load: the
+   * sync re-froze `initialTree` on the current tree, declared the draft CLEAN
+   * while it held unsaved work, and that work was thrown away on the next
+   * reload.
    *
-   * Anodin tant que la base ne se reposait qu'à l'ouverture ; systématique
-   * depuis que chaque revalidation la repose. Le contenu décide, pas la
-   * référence.
+   * Harmless while the base was only set on open; systematic since every
+   * revalidation sets it. The content decides, not the reference.
    */
   set: (projectId, files) =>
     set((s) => {

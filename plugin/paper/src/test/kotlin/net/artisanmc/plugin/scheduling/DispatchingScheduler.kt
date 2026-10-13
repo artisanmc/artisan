@@ -2,7 +2,7 @@ package net.artisanmc.plugin.scheduling
 
 import java.util.UUID
 
-/** Toutes les tâches passent par [dispatch], quel que soit leur thread cible. */
+/** Every task goes through [dispatch], whatever its target thread. */
 class DispatchingScheduler(private val dispatch: (() -> Unit) -> Unit) : Scheduler {
     override fun global(task: () -> Unit) = dispatch(task)
     override fun globalLater(delayTicks: Long, task: () -> Unit) = dispatch(task)

@@ -16,9 +16,9 @@ const mockParams = vi.hoisted(() => ({
   },
 }));
 
-// La liste des Projects vient désormais du DISQUE du serveur actif (ADR
-// `server-disk-only-storage`) : le dossier EST l'identité, donc le libellé
-// affiché est son nom de dossier, plus le `name` d'une ligne en base.
+// The Project list comes from the active server's DISK (ADR
+// `server-disk-only-storage`): the folder IS the identity, so the label
+// shown is its folder name.
 vi.mock("@/lib/api/projectFiles", () => ({
   listServerProjects: vi.fn(async () => ({ ok: true, projectIds: ["pack_a", "pack_b"] })),
 }));
@@ -42,8 +42,8 @@ vi.mock("@tanstack/react-router", async () => {
 describe("ProjectSidebar", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
-    // `mockResolvedValue` d'un test précédent survivrait sinon : on repose la
-    // réponse disque par défaut avant chacun.
+    // A previous test's `mockResolvedValue` would otherwise survive: reset the
+    // default disk response before each test.
     vi.mocked(listServerProjects).mockResolvedValue({
       ok: true,
       projectIds: ["pack_a", "pack_b"],
@@ -57,7 +57,7 @@ describe("ProjectSidebar", () => {
     useAccountStore.setState({ account: { id: "", projects: [], projectOrder: [] } } as any);
   });
 
-  it("liste les Projects du disque du serveur actif, triés", async () => {
+  it("lists the active server's Projects from its disk, sorted", async () => {
     vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
       network: { id: "net_1", name: "Mon Network", tier: "free" },
       projects: [
@@ -82,8 +82,8 @@ describe("ProjectSidebar", () => {
     });
     render(<ProjectSidebar />);
     const items = await screen.findAllByRole("link", { name: /pack_a|pack_b/ });
-    // L'ordre vient du plugin (dossiers triés) : pack_a avant pack_b. Le libellé
-    // est le nom du dossier — c'est lui l'identité désormais.
+    // The order comes from the plugin (sorted folders): pack_a before pack_b. The
+    // label is the folder name, which is the identity.
     expect(items[0]).toHaveTextContent("pack_a");
     expect(items[1]).toHaveTextContent("pack_b");
   });
@@ -104,7 +104,7 @@ describe("ProjectSidebar", () => {
     );
   });
 
-  describe("arbre des documents du project ouvert", () => {
+  describe("document tree of the open project", () => {
     const loaded = (id: string) =>
       ({
         id,
@@ -128,7 +128,7 @@ describe("ProjectSidebar", () => {
       useServerIndexStore.getState().reset();
     });
 
-    it("déplie le project ouvert en ses documents, groupés par type", async () => {
+    it("expands the open project into its documents, grouped by type", async () => {
       mockParams.current = { networkId: "net_1", serverId: "sk_1", projectId: "pack_a" };
       render(<ProjectSidebar />);
       const tree = await screen.findByRole("group", { name: /pack_a/ });
@@ -136,7 +136,7 @@ describe("ProjectSidebar", () => {
       expect(tree).toHaveTextContent("/heal");
     });
 
-    it("porte paramètres et création sur la ligne du project ouvert, plus de ligne « Paramètres »", async () => {
+    it("puts settings and creation on the open project's row, no more 'Settings' row", async () => {
       mockParams.current = { networkId: "net_1", serverId: "sk_1", projectId: "pack_a" };
       render(<ProjectSidebar />);
       const tree = await screen.findByRole("group", { name: /pack_a/ });
@@ -147,14 +147,14 @@ describe("ProjectSidebar", () => {
       expect(tree).not.toHaveTextContent(/Paramètres du projet/);
     });
 
-    it("ne déplie pas les projects qui ne sont pas ouverts", async () => {
+    it("does not expand projects that are not open", async () => {
       mockParams.current = { networkId: "net_1", serverId: "sk_1", projectId: "pack_a" };
       render(<ProjectSidebar />);
       await screen.findByRole("group", { name: /pack_a/ });
       expect(screen.getAllByRole("group", { name: /documents/i })).toHaveLength(1);
     });
 
-    it("déplie à la demande un autre project, depuis son état publié", async () => {
+    it("expands another project on demand, from its published state", async () => {
       mockParams.current = { networkId: "net_1", serverId: "sk_1", projectId: "pack_a" };
       useServerIndexStore.setState({
         scope: "net_1/sk_1",
@@ -182,7 +182,7 @@ describe("ProjectSidebar", () => {
       expect(toggle).toHaveAttribute("aria-expanded", "true");
     });
 
-    it("montre le project ouvert même s'il n'est pas listé (démo, sans network)", async () => {
+    it("shows the open project even when it is not listed (demo, no network)", async () => {
       mockParams.current = { projectId: "pack_a" };
       useNetworksStore.setState({ networks: [], activeId: null } as never);
       render(<ProjectSidebar />);
@@ -190,7 +190,7 @@ describe("ProjectSidebar", () => {
       expect(tree).toHaveTextContent("accueil");
     });
 
-    it("ne déplie rien hors d'un project", async () => {
+    it("expands nothing outside a project", async () => {
       render(<ProjectSidebar />);
       await screen.findByRole("link", { name: /pack_a/ });
       expect(screen.queryByRole("group", { name: /documents/i })).toBeNull();
@@ -228,7 +228,7 @@ describe("ProjectSidebar", () => {
   });
 
   it("resolves slug URL params and lists the active server's workspaces", async () => {
-    // Phase 4a routes put slugs (not ids) in networkId/serverId params.
+    // Routes put slugs (not ids) in networkId/serverId params.
     mockParams.current = { networkId: "mon-network", serverId: "survival" };
     useNetworksStore.setState({
       networks: [{ id: "net_1", name: "Mon Network", slug: "mon-network", tier: "free" }],
@@ -265,11 +265,11 @@ describe("ProjectSidebar", () => {
     expect(screen.queryByRole("link", { name: /Shop/ })).not.toBeInTheDocument();
   });
 
-  // Un serveur persisté qui n'existe plus ne peut plus « retomber sur tout le
-  // network » : un Project appartient à un serveur et se lit sur SON disque
-  // (ADR `server-disk-only-storage`). Il n'y a donc rien à lister — le sélecteur
-  // de serveur reste là pour en choisir un vrai.
-  it("un serveur persisté disparu ne liste rien plutôt qu'une liste d'un autre serveur", async () => {
+  // A persisted server that no longer exists cannot "fall back to the whole
+  // network": a Project belongs to a server and is read from ITS disk
+  // (ADR `server-disk-only-storage`). There is nothing to list — the server
+  // picker stays there to choose a real one.
+  it("a persisted server that vanished lists nothing rather than another server's list", async () => {
     mockParams.current = {};
     useServersStore.setState({ activeServerId: "sk_deleted" } as any);
     vi.mocked(listServerProjects).mockResolvedValueOnce({ ok: false, error: "forbidden" });
@@ -284,12 +284,11 @@ describe("ProjectSidebar", () => {
   });
 
   /**
-   * Même exigence que la page d'un serveur : une liste vide affirmée pendant la
-   * lecture, ou pour un serveur hors ligne, se lit comme « ce serveur n'a rien »
-   * — et le bouton « Nouveau projet » invite alors à écrire sur un disque
-   * qu'on ne joint pas.
+   * Same requirement as a server page: an empty list asserted while reading, or
+   * for an offline server, reads as "this server has nothing" — and the "New
+   * project" button then invites writing to a disk that cannot be reached.
    */
-  it("dit qu'elle lit plutôt que d'afficher une liste vide", async () => {
+  it("says it is reading rather than showing an empty list", async () => {
     vi.mocked(listServerProjects).mockReturnValue(new Promise(() => {}) as never);
     vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
       network: { id: "net_1", name: "Mon Network", tier: "free" },
@@ -301,7 +300,7 @@ describe("ProjectSidebar", () => {
     expect(screen.queryByText("+ Nouveau projet")).toBeNull();
   });
 
-  it("dit que le serveur est injoignable, et n'invite plus à y créer un projet", async () => {
+  it("says the server is unreachable, and no longer invites creating a project there", async () => {
     vi.mocked(listServerProjects).mockResolvedValue({ ok: false, error: "server_offline" });
     vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
       network: { id: "net_1", name: "Mon Network", tier: "free" },
@@ -314,7 +313,7 @@ describe("ProjectSidebar", () => {
     expect(screen.queryByText("+ Nouveau projet")).toBeNull();
   });
 
-  it("retrouve le bouton de création quand la lecture a abouti", async () => {
+  it("brings the create button back once the read has succeeded", async () => {
     vi.mocked(listServerProjects).mockResolvedValue({ ok: true, projectIds: ["pack_a"] });
     vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
       network: { id: "net_1", name: "Mon Network", tier: "free" },

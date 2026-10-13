@@ -14,10 +14,8 @@ export interface FontMeta {
     ascent: number;
     height: number;
     /**
-     * Pixel width of the glyph PNG. Written by the backend's mcFontsParser
-     * (read from the PNG header) and consumed by the canvas renderer to
-     * advance the cursor between glyphs. Required: present on every glyph
-     * the backend emits since SP4 Task 3.
+     * Pixel width of the glyph PNG (read from the PNG header), consumed by the
+     * canvas renderer to advance the cursor between glyphs.
      */
     width: number;
   }>;

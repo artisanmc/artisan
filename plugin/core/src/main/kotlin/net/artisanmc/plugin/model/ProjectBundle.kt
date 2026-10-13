@@ -21,7 +21,7 @@ data class ManifestYaml(
     val files: ManifestFiles = ManifestFiles(),
     /** Lore lines wider than this many MC pixels wrap ([net.artisanmc.plugin.render.LoreWrap]). 0 = never. */
     @JsonProperty("lore_max_width") val loreMaxWidth: Int = 0,
-    /** ESC rouvre l'écran précédent de la pile au lieu de tout fermer ([net.artisanmc.plugin.render.MenuListener]). */
+    /** ESC reopens the previous screen of the stack instead of closing everything ([net.artisanmc.plugin.render.MenuListener]). */
     @JsonProperty("escape_goes_back") val escapeGoesBack: Boolean = false,
 )
 
@@ -38,7 +38,7 @@ data class ContextInputYaml(
     val name: String = "",
     val type: String = "string",
     val default: String? = null,
-    /** ConnectorBinding canonique ({ref, params?, filter?, sort?, limit?}) — consommé en Phase B. */
+    /** Canonical ConnectorBinding (`{ref, params?, filter?, sort?, limit?}`). */
     val source: Map<String, Any> = emptyMap(),
 )
 
@@ -91,8 +91,7 @@ data class PlacementYaml(
     val page: Int = 0,
     val position: Int = 0,
     // No per-placement override: how a placed row looks and behaves comes from
-    // the Item template only (CONTEXT.md "Placement"; editor stopped authoring
-    // overrides 2026-07-16, runtime support dropped with the data-sources epic).
+    // the Item template only (CONTEXT.md "Placement").
 )
 
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -100,7 +99,7 @@ data class MenuYaml(
     val schema: String = "",
     val id: String = "",
     /**
-     * Title is a discriminated structure since the title composer (Task 16):
+     * Title is a discriminated structure:
      *  - `null` / `""` → no title
      *  - `String` (legacy) → single text layer at the default position
      *  - `Map` → one layer
@@ -110,9 +109,9 @@ data class MenuYaml(
     val title: Any? = null,
     val size: Int = 27,
     @JsonProperty("inventory_type") val inventoryType: String = "chest",
-    /** `visible` (défaut) | `hidden` : cf. [net.artisanmc.plugin.render.PlayerInventoryMode]. */
+    /** `visible` (default) | `hidden`: see [net.artisanmc.plugin.render.PlayerInventoryMode]. */
     @JsonProperty("player_inventory") val playerInventory: String = "visible",
-    /** `false` : coffre transparent (le pack rend generic_54.png invisible), cf. VanillaGuiTitle. */
+    /** `false`: transparent chest (the pack makes generic_54.png invisible), see VanillaGuiTitle. */
     @JsonProperty("vanilla_texture") val vanillaTexture: Boolean = true,
     val permission: String? = null,
     // Canonical wire name: `inputs`; `context_inputs` is the legacy spelling.
@@ -187,15 +186,14 @@ class ElementYamlDeserializer : StdDeserializer<ElementYaml>(ElementYaml::class.
         val node: JsonNode = codec.readTree(p)
         if (!node.isObject) return ElementYaml()
         /*
-         * Forme d'avant l'ADR `element-display-and-states` : une LISTE
-         * `appearances`, display en tête. On la lit encore, faute de quoi ces
-         * fichiers — que rien ne réécrit, le bootstrap d'un Add-on ne retouchant
-         * jamais un project existant — ouvrent un menu SANS ses items, sans une
-         * erreur ni un log.
+         * Form from before ADR `element-display-and-states`: an `appearances` LIST,
+         * display first. Still read, otherwise those files (nothing rewrites them:
+         * an Add-on bootstrap never touches an existing project) open a menu WITHOUT
+         * its items, with no error and no log.
          *
-         * Le format courant l'emporte dès qu'un champ à plat est présent : la
-         * liste est un vestige, pas une alternative. L'éditeur réécrit au format
-         * courant au premier enregistrement.
+         * The current format wins as soon as one flat field is present: the list is
+         * a leftover, not an alternative. The editor rewrites the current format on
+         * the first save.
          */
         val flat = codec.treeToValue(node, AppearanceYaml::class.java)
         val legacy = node.get("appearances")
@@ -239,11 +237,11 @@ data class AppearanceYaml(
     /** Field-local text (ADR `field-local-translations`): literal or `{lang: text}` map. */
     val title: LocalizedText? = null,
     val lore: List<LocalizedText> = emptyList(),
-    /** Wire handler par type de clic : string (legacy DSL), `{steps}`, ou keyed (map/liste). */
+    /** Wire handler per click type: string (legacy DSL), `{steps}`, or keyed (map/list). */
     val click: Map<String, Any?> = emptyMap(),
     @JsonProperty("if")
     val conditions: Any? = null,
-    // ── advanced details, all applied by [net.artisanmc.plugin.render.ItemDetails] ──
+    // advanced details, all applied by [net.artisanmc.plugin.render.ItemDetails]
     /** Map `{id: level}` (canonical) or list `[{id, level}]`. Loose ids tolerated. */
     val enchants: Any? = null,
     /** Glint with no real enchantment. */
@@ -323,7 +321,7 @@ data class DialogButtonYaml(
     val id: String = "",
     val label: LocalizedText? = null,
     val requirements: List<Map<String, Any>> = emptyList(),
-    /** Wire handler : string (legacy DSL), `{steps}`, ou keyed (map/liste) — cf. ADR structured-action-wire. */
+    /** Wire handler: string (legacy DSL), `{steps}`, or keyed (map/list); see ADR structured-action-wire. */
     val actions: Any? = null,
     val fallback: Any? = null,
 )
@@ -344,7 +342,7 @@ data class BundleDialog(
     val langMaps: Map<String, Map<String, String>>,
     /** Fallback language used when the player's locale isn't shipped by the project. See [BundleMenu.defaultLang]. */
     val defaultLang: String = "en",
-    /** Dossier du project qui le définit — le namespace de ses références (cf. [BundleMenu.projectId]). */
+    /** Folder of the defining project: the namespace of its references (see [BundleMenu.projectId]). */
     val projectId: String = "",
 ) {
     val id: String get() = yaml.id
@@ -376,7 +374,7 @@ data class CommandYaml(
     /** The Action DSL string: canonical `actions` (string form) or legacy `steps`. */
     val dsl: String get() = (actions as? String) ?: steps
 
-    /** Wire handler brut : `actions` (canonique) ou `steps` (legacy). */
+    /** Raw wire handler: `actions` (canonical) or `steps` (legacy). */
     val handler: Any? get() = actions ?: steps.ifEmpty { null }
 
     /**
@@ -546,14 +544,14 @@ data class ProjectBundle(
     val dialogs: List<BundleDialog>,
     val dataSources: List<BundleDataSource> = emptyList(),
     /**
-     * Traductions du project (`lang/<code>.yaml`). Portées ici en plus des
-     * copies par menu/dialog : une action de data source exécutée par un module
-     * n'a ni menu ni dialog en contexte, mais doit pouvoir résoudre `@clé`
-     * (ADR yaml-assisted-editing ④ — l'i18n suit le consommateur).
+     * The project's translations (`lang/<code>.yaml`). Carried here on top of the
+     * per-menu/dialog copies: a data-source action run by a module has no menu or
+     * dialog in context but must still resolve `@key` (ADR yaml-assisted-editing:
+     * i18n follows the consumer).
      */
     val langMaps: Map<String, Map<String, String>> = emptyMap(),
 ) {
-    /** Même chaîne de repli déterministe que [BundleMenu.langMapWithFallback]. */
+    /** Same deterministic fallback chain as [BundleMenu.langMapWithFallback]. */
     fun langMapWithFallback(lang: String): Map<String, String> =
         langMaps[defaultLang].orEmpty() + langMaps[lang].orEmpty()
 }
@@ -565,8 +563,8 @@ data class BundleMenu(
     val compiledAppearances: Map<String, List<CompiledAppearance>> = emptyMap(),
     val slotToElement: Map<Int, String> = emptyMap(),
     /**
-     * Parsed title layers. The canonical representation since Task 16 of the title-composer plan.
-     * Computed by [MenuTitleParser.parse] at compile time. Task 18's `TitleCompiler` consumes this list.
+     * Parsed title layers, the canonical title representation. Computed by
+     * [MenuTitleParser.parse] at compile time and consumed by `TitleCompiler`.
      */
     val title: List<MenuTitleLayer> = MenuTitleParser.parse(yaml.title, yaml.id),
     /**
@@ -576,9 +574,9 @@ data class BundleMenu(
      */
     val defaultLang: String = "en",
     /**
-     * Dossier du project qui le définit. C'est le namespace des références : un
-     * `open_menu` nu tiré de ce menu se résout d'abord ici (`DocumentTable`).
-     * Vide pour un menu sans project (brouillon relayé, tests).
+     * Folder of the defining project, the namespace of its references: a bare
+     * `open_menu` fired from this menu resolves here first (`DocumentTable`).
+     * Empty for a menu without a project (relayed draft, tests).
      */
     val projectId: String = "",
     /** From the project manifest — see [ManifestYaml.loreMaxWidth]. */
@@ -599,9 +597,8 @@ data class BundleMenu(
         langMaps[defaultLang].orEmpty() + langMaps[lang].orEmpty()
 
     /**
-     * Legacy title resolver kept for backward-compat until Task 18 replaces it with `TitleCompiler.compileTitle`.
-     *
-     * Only handles the legacy string shape — for array-shaped titles, returns an empty string.
+     * Legacy title resolver. Only handles the legacy string shape: returns an empty
+     * string for layered titles.
      */
     fun resolveTitle(lang: String): String {
         val raw = yaml.title as? String ?: return ""

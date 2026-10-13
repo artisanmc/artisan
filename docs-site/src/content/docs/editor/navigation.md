@@ -1,6 +1,8 @@
 ---
 title: Navigation & back buttons
 description: Let players walk back through the menus and dialogs they came from with a single back action.
+sidebar:
+  order: 8
 ---
 
 Menus and dialogs remember the screens a player came through. That history lets

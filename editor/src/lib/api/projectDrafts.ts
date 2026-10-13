@@ -12,7 +12,7 @@ export interface PersistedDraft {
   snapshot: ProjectDraft;
   source: string;
   updatedAt: string;
-  /** Fichiers modifiés des deux côtés depuis la base, calculés par le backend à l'ouverture. */
+  /** Files changed on both sides since the base, computed by the hub on open. */
   conflicts?: ProjectFileConflict[];
 }
 export class DraftApiError extends Error {
@@ -124,7 +124,7 @@ export async function uploadDraftBlob(
   ).draft;
 }
 
-/** Les octets d'une image modifiée dans ce brouillon (privée, jamais publiée). */
+/** The bytes of an image changed in this draft (private, never published). */
 export async function readDraftBlob(projectId: string, id: string, hash: string): Promise<Uint8Array> {
   const response = await projectFetch(
     projectId,

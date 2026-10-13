@@ -71,8 +71,8 @@ export function EditorTour({
       ["navigation", "navigation-trigger"],
       ["canvas"],
       ["library", "library-trigger"],
-      // Les Documents du project ouvert, dans la barre de gauche ; repliée,
-      // on montre le bouton qui l'ouvre.
+      // The open project's Documents, in the left bar; when collapsed, show the
+      // button that opens it.
       ["elements", "navigation-trigger"],
       ["tabs"],
       storage === "local" ? ["project-menu"] : ["save", "project-menu"],

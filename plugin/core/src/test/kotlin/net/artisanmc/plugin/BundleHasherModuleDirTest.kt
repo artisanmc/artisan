@@ -25,7 +25,7 @@ class BundleHasherModuleDirTest {
             File(dir, "shop/items.yaml").writeText("items: [sword]")
             assertNotEquals(withModule, BundleHasher.hash(dir))
 
-            // Le namespace .artisan reste exclu.
+            // The .artisan namespace stays excluded.
             val beforeSyncFile = BundleHasher.hash(dir)
             File(dir, ".artisan-sync.yaml").writeText("x: 1")
             assertEquals(beforeSyncFile, BundleHasher.hash(dir))

@@ -1,18 +1,18 @@
 import type { Action, Condition, ElementId, I18nKey, IfCase, LText, MenuId, DialogId, Step } from "@/domain/types";
 
 /**
- * Codec structuré des chaînes d'actions (ADR `structured-action-wire`).
+ * Structured codec for action chains (ADR `structured-action-wire`).
  *
- * Wire = YAML keyed par nom, texte = `LocalizedText` (string = `defaultLang`, ou
- * `{ <lang>: texte }`). Éditeur : domaine `Step[]` ⇄ wire structuré.
+ * Wire = YAML keyed by name, text = `LocalizedText` (string = `defaultLang`, or
+ * `{ <lang>: text }`). Editor: domain `Step[]` ⇄ structured wire.
  *
- * Formes :
- *  - action = map à une clé : 1 arg → valeur, 0 arg → `null`, multi → map.
- *  - condition = map à une clé ; `if:` = liste (AND) ; `or:`/`and:` = liste,
- *    `not:` = condition ; `else if` = `if` en tête du `else`.
- *  - un step string (en entrée de liste) = action sans argument.
+ * Shapes:
+ *  - action = single-key map: 1 arg → value, 0 args → `null`, several → map.
+ *  - condition = single-key map; `if:` = list (AND); `or:`/`and:` = list,
+ *    `not:` = condition; `else if` = `if` at the head of the `else`.
+ *  - a string step (as a list entry) = action without arguments.
  *
- * `LocalizedText` est indentique côté structurel : `string | Record<lang,string>`.
+ * `LocalizedText` is structurally identical: `string | Record<lang,string>`.
  */
 export type FieldText = string | Record<string, string>;
 /** Wire step, untrusted (YAML/JSON). */
@@ -35,7 +35,7 @@ function oneName(raw: Record<string, unknown>): { name: string; value: unknown }
   return { name, value: raw[name] };
 }
 
-// ── text ─────────────────────────────────────────────────────────────────────
+// Text
 
 /** Wire text value is a string or a lang map. */
 function isFieldText(v: unknown): v is FieldText {
@@ -47,7 +47,7 @@ function decodeText(v: unknown, c: ActionTextCodec): LText {
   return c.fromWire(typeof v === "string" ? v : "");
 }
 
-// ── actions: encode ──────────────────────────────────────────────────────────
+// Actions: encode
 
 function encodeAction(a: Action, c: ActionTextCodec): StructuredStep {
   switch (a.type) {
@@ -141,7 +141,7 @@ function encodeAction(a: Action, c: ActionTextCodec): StructuredStep {
   }
 }
 
-// ── actions: decode ──────────────────────────────────────────────────────────
+// Actions: decode
 
 function str(v: unknown): string {
   return typeof v === "string" ? v : v == null ? "" : String(v);
@@ -241,7 +241,7 @@ function decodeAction(name: string, value: unknown, c: ActionTextCodec): Action 
   }
 }
 
-// ── conditions: encode ───────────────────────────────────────────────────────
+// Conditions: encode
 
 export function conditionToStructured(c: Condition): Record<string, unknown> {
   switch (c.type) {
@@ -307,7 +307,7 @@ export function conditionsToStructured(
   return top.map(conditionToStructured);
 }
 
-// ── conditions: decode ───────────────────────────────────────────────────────
+// Conditions: decode
 
 /** Keyed condition (wire) → domain, or null if unknown. Exported for
  *  appearance/state `if` import (ADR `structured-action-wire`). */
@@ -385,7 +385,7 @@ function decodeIfConditions(raw: unknown): Condition[] {
   return list.map(decodeCondition).filter((c): c is Condition => c !== null);
 }
 
-// ── steps ────────────────────────────────────────────────────────────────────
+// Steps
 
 export function stepsToStructured(steps: Step[], c: ActionTextCodec): StructuredStep[] {
   return steps.map((s) => encodeStep(s, c));

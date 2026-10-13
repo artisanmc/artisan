@@ -21,7 +21,7 @@ import {
 
 export interface ImportTarget {
   networkId: string;
-  /** Id réel du server_key (pas le slug d'URL). */
+  /** Real server_key id (not the URL slug). */
   serverId: string;
 }
 
@@ -44,7 +44,7 @@ export type ImportError =
   | "invalid_path"
   | "unknown";
 
-/** Les codes d'erreur que `POST /networks/:id/projects` peut renvoyer. */
+/** The error codes `POST /networks/:id/projects` can return. */
 const CREATE_ERRORS: ImportError[] = [
   "server_offline",
   "fetch_timeout",
@@ -64,14 +64,14 @@ function mapCreateError(code: string): ImportError {
 
 export interface ImportPreview {
   target: ImportTarget;
-  /** Id disque (nom de dossier) — l'identité du Project côté serveur. */
+  /** Disk id (folder name) — the Project's identity on the server. */
   projectId: string;
   /**
-   * Id interne backend — la clé des brouillons. `null` tant que le Project
-   * n'existe pas encore ; les lectures passent par l'id disque, jamais par lui.
+   * Internal id — the drafts' key. `null` while the Project does not exist
+   * yet; reads go through the disk id, never through it.
    */
   projectRef: string | null;
-  /** Le dossier existe déjà sur le serveur (instantané lu comme référence). */
+  /** The folder already exists on the server (snapshot read as the reference). */
   exists: boolean;
   mode: ImportMode;
   diff: ImportDiff;
@@ -90,9 +90,8 @@ export type ApplyImportResult =
 const EMPTY_REFERENCE: ImportReference = { files: {}, binaries: {} };
 
 /**
- * Le chemin tel que le snapshot de brouillon l'accepte. Un fichier hors de
- * ce domaine ne peut pas vivre dans un brouillon : on l'écarte plutôt que de
- * faire échouer tout l'import.
+ * The path as the draft snapshot accepts it. A file outside that domain
+ * cannot live in a draft: it is skipped rather than failing the whole import.
  */
 function isDraftPath(path: string): boolean {
   if (path.length === 0 || path.length > 512 || /[\\:]/.test(path)) return false;
@@ -123,8 +122,9 @@ function referenceOf(
 }
 
 /**
- * Lit le ZIP, résout son identité, lit l'instantané courant du serveur (miroir)
- * et calcule les conflits. N'écrit rien — l'appelant décide de l'application.
+ * Reads the ZIP, resolves its identity, reads the server's current snapshot
+ * and computes the conflicts. Writes nothing — the caller decides whether to
+ * apply.
  */
 export async function prepareImportZip(
   file: Blob,
@@ -155,7 +155,7 @@ export async function prepareImportZip(
   const kept: Record<string, string | Uint8Array> = {};
   for (const [path, content] of Object.entries(relative)) {
     if (isDraftPath(path)) kept[path] = content;
-    else console.warn(`[import] chemin ignoré (invalide pour un brouillon) : ${path}`);
+    else console.warn(`[import] path skipped (invalid for a draft): ${path}`);
   }
   const input = await prepareImportTree(kept);
   if (Object.keys(input.files).length === 0 && Object.keys(input.binaries).length === 0)
@@ -167,9 +167,9 @@ export async function prepareImportZip(
     (project) => (project.externalId ?? project.id) === normalized.projectId,
   );
   const exists = Boolean(summary) || listing.projectIds.includes(normalized.projectId);
-  // Le brouillon se keye sur l'id interne : un nom de dossier déjà pris par un
-  // autre serveur donne un id interne distinct (jamais `getProject` sur un
-  // diskId, incident cross-tenant 2026-08-12).
+  // The draft is keyed on the internal id: a folder name already taken by
+  // another server yields a distinct internal id (never `getProject` on a
+  // diskId).
   const projectRef = summary?.id ?? null;
   if (exists && !projectRef) return { ok: false, error: "read_error" };
 
@@ -197,8 +197,8 @@ export async function prepareImportZip(
 }
 
 /**
- * Applique l'import dans le **brouillon** du Project (jamais directement sur le
- * disque) : l'admin relit et déploie. Crée le Project s'il n'existe pas encore.
+ * Applies the import to the Project's **draft** (never directly to the disk):
+ * the admin reviews and deploys. Creates the Project if it does not exist yet.
  */
 export async function applyImportZip(
   preview: ImportPreview,
@@ -217,30 +217,29 @@ export async function applyImportZip(
     } catch (error) {
       const code = error instanceof Error ? error.message : "create_failed";
       if (code === "project_exists") {
-        // Le listing (miroir) ne le voyait pas encore, mais le serveur le
-        // porte : on résout son ancre interne et l'import devient une mise à
-        // jour, pas un échec.
+        // The listing did not see it yet, but the server holds it: resolve its
+        // internal anchor and the import becomes an update, not a failure.
         try {
           const resolved = await loadUserProject(projectId, target.serverId, target.networkId);
           projectRef = resolved.project.id;
         } catch {
-          console.error("[import] project_exists mais l'ancre est introuvable");
+          console.error("[import] project_exists but the anchor cannot be found");
           return { ok: false, error: "create_failed" };
         }
       } else {
-        console.error("[import] createProject a échoué :", code);
+        console.error("[import] createProject failed:", code);
         return { ok: false, error: mapCreateError(code) };
       }
     }
-    // Le Project neuf peut porter un `manifest.yaml` d'ancrage : la base du
-    // brouillon doit le refléter, sinon la publication entrerait en conflit.
+    // The new Project may carry an anchoring `manifest.yaml`: the draft's base
+    // must reflect it, otherwise publishing would conflict.
     const read = await readProjectFiles(target.networkId, target.serverId, projectId);
     if (read.ok && !read.unchanged) reference = referenceOf(read.files, read.binaries ?? []);
     else if (!read.ok && read.error !== "server_offline")
       return { ok: false, error: filesError(read.error) };
   }
 
-  // Sans ancre interne, les brouillons n'ont pas de clé : jamais l'id disque.
+  // Without an internal anchor, drafts have no key: never the disk id.
   if (!projectRef) return { ok: false, error: "create_failed" };
 
   const resolved = resolveImport(preview.input, reference, preview.mode, choices);
@@ -266,8 +265,8 @@ export async function applyImportZip(
     const changed = Object.entries(resolved.binaries)
       .filter(([path, meta]) => reference.binaries[path]?.hash !== meta.hash)
       .map(([, meta]) => meta);
-    // Une image retirée par l'écrasement compte aussi : sans mise à jour, le
-    // brouillon garderait l'arbre d'images du serveur.
+    // An image removed by the overwrite counts too: without an update, the
+    // draft would keep the server's image tree.
     const removed = Object.keys(reference.binaries).some((path) => !(path in resolved.binaries));
     if (changed.length > 0 || removed) {
       for (const meta of changed) {
@@ -302,9 +301,9 @@ export async function applyImportZip(
     return { ok: false, error: "write_error" };
   }
 
-  // Le brouillon backend fraîchement créé doit devenir celui de la session :
-  // un brouillon local plus ancien détournerait la sélection à l'ouverture.
-  // Le store local est keyé sur l'id interne, pas sur le nom de dossier.
+  // The freshly created server draft must become the session's: an older local
+  // draft would hijack the selection on open. The local store is keyed on the
+  // internal id, not on the folder name.
   useProjectDraftStore.getState().clear(projectRef);
   return { ok: true, projectId, created, conflicts: preview.diff.conflicts.length };
 }

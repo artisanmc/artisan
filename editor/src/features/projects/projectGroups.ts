@@ -9,12 +9,12 @@ import { getModule } from "@artisan/editor-sdk";
 export type OwnedProject = ProjectSummary & { ownerModule: string };
 
 /**
- * Les ids lus sur le disque du serveur, présentés comme des Projects.
+ * The ids read from the server's disk, presented as Projects.
  *
- * Il n'y a rien d'autre à en dire : le nom du dossier EST l'identité, et le
- * backend n'en tient plus de fiche (ADR `server-disk-only-storage`). Les
- * champs qui décrivaient sa copie (`hash`) restent donc vides — une seule
- * fabrique pour que la sidebar et la page d'un serveur ne divergent pas.
+ * Nothing more to say: the folder name IS the identity (ADR
+ * `server-disk-only-storage`). The fields that described the old copy
+ * (`hash`) stay empty — a single factory so the sidebar and a server's page
+ * do not diverge.
  */
 export function diskProjectsToSummaries(
   networkId: string,
@@ -41,8 +41,8 @@ export function diskProjectsToSummaries(
   ];
 }
 
-/** Une ligne sous un module. `label: null` = l'entrée « Éditeur » générique :
- *  le nom du module est déjà porté par l'en-tête du groupe. */
+/** A row under a module. `label: null` = the generic "Editor" entry: the
+ *  module name is already carried by the group header. */
 export type ModuleGroupEntry =
   | { kind: "project"; project: OwnedProject; label: string | null }
   | { kind: "screen"; screen: ServerEditorScreen }
@@ -53,16 +53,16 @@ export interface ModuleGroup {
   label: string;
   projects: OwnedProject[];
   screens: ServerEditorScreen[];
-  /** Le module a une route éditeur (`/m/<id>`) → entrée « Configuration ». */
+  /** The module has an editor route (`/m/<id>`) → "Configuration" entry. */
   hasScreen: boolean;
   entries: ModuleGroupEntry[];
-  /** Tout le groupe tient en une seule entrée projet : une surface qui préfère
-   *  une ligne unique l'affiche sous le nom du module (cas boutique). */
+  /** The whole group fits in a single project entry: a surface that prefers a
+   *  single row shows it under the module name (shop case). */
   collapsed: boolean;
 }
 
 export interface ProjectGroupsInput {
-  /** Les Projects du serveur, déjà ordonnés par la surface appelante. */
+  /** The server's Projects, already ordered by the calling surface. */
   projects: ProjectSummary[];
   screens: ServerEditorScreen[];
   mountedModuleIds: string[];
@@ -70,14 +70,13 @@ export interface ProjectGroupsInput {
 }
 
 /**
- * Sépare les Projects ordinaires des Projects possédés par un Add-on
- * (ADR `addon-owned-project-roots`) et compose, pour chaque module installé,
- * son groupe : le canvas, ses Config screens (ADR `module-config-screens`) et
- * sa route de configuration.
+ * Splits ordinary Projects from Projects owned by an Add-on
+ * (ADR `addon-owned-project-roots`) and composes, for each installed module,
+ * its group: the canvas, its Config screens (ADR `module-config-screens`) and
+ * its configuration route.
  *
- * Fonction pure et partagée : la sidebar et la page d'un serveur affichent la
- * même chose parce qu'elles lisent la même liste, pas parce qu'on a recopié la
- * règle deux fois.
+ * Pure, shared function: the sidebar and a server's page show the same thing
+ * because they read the same list, not because the rule was copied twice.
  */
 export function buildProjectGroups({
   projects,
@@ -99,8 +98,8 @@ export function buildProjectGroups({
 
   const moduleGroups = groupIds.map((id) => {
     const groupProjects = ownedProjects.filter((p) => p.ownerModule === id);
-    // Écrans déclarés à la Presence ; à défaut, écrans synthétisés depuis les
-    // tables de modèles déclarés du project possédé.
+    // Screens declared in the Presence; failing that, screens synthesised from
+    // the owned project's declared model tables.
     const declared = screens.filter((s) => s.moduleId === id);
     const groupScreens =
       declared.length > 0
@@ -124,9 +123,9 @@ export function buildProjectGroups({
     ];
     return {
       id,
-      // Un module routable porte un libellé de sidebar ; sinon son displayName.
-      // moduleNav ne liste que les modules AVEC un écran — repli sur le
-      // displayName du module enregistré pour les autres (boutique).
+      // A routable module carries a sidebar label; otherwise its displayName.
+      // moduleNav only lists modules WITH a screen — fall back to the registered
+      // module's displayName for the others (shop).
       label: nav.find((m) => m.id === id)?.sidebar.label ?? getModule(id)?.displayName ?? id,
       projects: groupProjects,
       screens: groupScreens,

@@ -63,40 +63,39 @@ async function ready() {
 }
 
 /**
- * Ces écrans lisaient le serveur à CHAQUE ouverture — trois allers-retours — et
- * restaient vides pendant ce temps, pour un contenu presque toujours identique
- * à la visite d'avant.
+ * These screens read the server on EVERY open — three round trips — and
+ * stayed empty meanwhile, for content almost always identical to the previous
+ * visit.
  *
- * Ils affichent donc la dernière version connue tout de suite. Mais un écran de
- * Config édite les fichiers du serveur en direct : tant que la revalidation n'a
- * pas répondu, ce qui est à l'écran est DATÉ, et enregistrer dessus ferait
- * partir un compare-and-swap sur une base fausse. On montre, on annonce, on
- * n'ouvre l'édition qu'après.
+ * So they show the last known version right away. But a Config screen edits
+ * the server's files live: until revalidation answers, what is on screen is
+ * DATED, and saving on it would send a compare-and-swap on a wrong base. Show,
+ * announce, and only open editing afterwards.
  */
-describe("ConfigScreenPage — dernière version connue", () => {
-  it("affiche le connu sans attendre le serveur, et le dit", async () => {
+describe("ConfigScreenPage — last known version", () => {
+  it("shows the known version without waiting for the server, and says so", async () => {
     useScreenCacheStore.getState().put(screenCacheKey("n", "s", "boutique:settings"), {
       files: [{ path: "data/shop_settings.yaml", content: "whole_shop_discount: 42\n" }],
       models: [],
       fetchedAt: new Date().toISOString(),
     });
-    // Le serveur ne répond jamais : si l'écran l'attend, il reste vide.
+    // The server never answers: if the screen waits for it, it stays empty.
     configRead.mockReturnValue(new Promise(() => {}));
 
     renderPage();
 
     await waitFor(() => expect(screen.getByDisplayValue("42")).toBeTruthy());
-    // Le contenu est là tout de suite, et RIEN ne clignote : une revalidation
-    // qui aboutit — même en une seconde et demie — n'a rien à signaler.
+    // The content is there right away, and NOTHING flickers: a revalidation that
+    // succeeds — even in a second and a half — has nothing to report.
     expect(screen.queryByTestId("screen-stale-banner")).toBeNull();
   });
 
   /**
-   * Le cas qui compte vraiment : la revalidation échoue. L'écran reste daté
-   * sans terme et l'édition reste fermée — sans avis, rien n'expliquerait
-   * pourquoi on ne peut plus enregistrer.
+   * The case that really matters: revalidation fails. The screen stays dated
+   * indefinitely and editing stays closed — without a notice, nothing would
+   * explain why saving is no longer possible.
    */
-  it("un échec de revalidation se dit tout de suite", async () => {
+  it("a revalidation failure is reported right away", async () => {
     useScreenCacheStore.getState().put(screenCacheKey("n", "s", "boutique:settings"), {
       files: [{ path: "data/shop_settings.yaml", content: "whole_shop_discount: 42\n" }],
       models: [],
@@ -111,7 +110,7 @@ describe("ConfigScreenPage — dernière version connue", () => {
     expect(screen.queryByRole("button", { name: /Enregistr/ })).toBeNull();
   });
 
-  it("n'ouvre pas l'enregistrement tant que la copie est datée", async () => {
+  it("does not enable saving while the copy is dated", async () => {
     useScreenCacheStore.getState().put(screenCacheKey("n", "s", "boutique:settings"), {
       files: [{ path: "data/shop_settings.yaml", content: "whole_shop_discount: 42\n" }],
       models: [],
@@ -122,12 +121,12 @@ describe("ConfigScreenPage — dernière version connue", () => {
     renderPage();
     await waitFor(() => expect(screen.getByDisplayValue("42")).toBeTruthy());
 
-    // Écrire depuis une base datée, c'est écraser ce qui a changé entre-temps.
+    // Writing from a dated base overwrites what changed meanwhile.
     expect(screen.queryByRole("button", { name: /Enregistr/ })).toBeNull();
     expect(screen.queryByRole("button", { name: /Recharger/ })).toBeNull();
   });
 
-  it("la réponse du serveur remplace le connu et rend la main", async () => {
+  it("the server's response replaces the known version and hands control back", async () => {
     useScreenCacheStore.getState().put(screenCacheKey("n", "s", "boutique:settings"), {
       files: [{ path: "data/shop_settings.yaml", content: "whole_shop_discount: 42\n" }],
       models: [],
@@ -138,11 +137,11 @@ describe("ConfigScreenPage — dernière version connue", () => {
 
     await waitFor(() => expect(screen.getByDisplayValue("10")).toBeTruthy());
     expect(screen.queryByTestId("screen-stale-banner")).toBeNull();
-    // Revalidé : l'édition s'ouvre.
+    // Revalidated: editing opens.
     expect(screen.getByRole("button", { name: /Enregistr/ })).toBeTruthy();
   });
 
-  it("ce que le serveur a rendu devient la version connue", async () => {
+  it("what the server returned becomes the known version", async () => {
     renderPage();
     await ready();
     await waitFor(() =>

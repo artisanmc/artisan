@@ -7,10 +7,10 @@ import { type ReactNode, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 /**
- * Serveur › project, en tête de la topbar. Le network n'est plus qu'en infobulle
- * du serveur, pour laisser la place aux onglets. Le serveur ouvre la liste des
- * serveurs du network : en choisir un mène à sa page.
- * Hors network (démo), seul le project s'affiche.
+ * Server › project, at the head of the topbar. The network only shows in the
+ * server's tooltip, leaving room for the tabs. The server opens the list of
+ * the network's servers: picking one leads to its page.
+ * Outside a network (demo), only the project is shown.
  */
 export function ProjectBreadcrumb({
   networkRef,
@@ -21,7 +21,7 @@ export function ProjectBreadcrumb({
   networkRef: string | null | undefined;
   serverRef: string | null | undefined;
   projectName: string;
-  /** Pastille d'état du serveur, devant son nom. */
+  /** Server status dot, before its name. */
   serverStatus?: ReactNode;
 }) {
   const { t } = useTranslation();

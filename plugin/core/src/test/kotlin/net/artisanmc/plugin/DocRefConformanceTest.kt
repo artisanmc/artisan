@@ -8,9 +8,9 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * `testdata/doc-ref-conformance.json` fixe la résolution d'une référence de
- * Document sur un serveur à plusieurs projects. L'éditeur (`docRef.test.ts`) lit
- * le même vecteur : le lien que la planche dessine est celui que le jeu suit.
+ * `testdata/doc-ref-conformance.json` pins how a Document reference resolves on a
+ * server with several projects. The editor (`docRef.test.ts`) reads the same vector:
+ * the link the board draws is the one the game follows.
  */
 class DocRefConformanceTest {
     private data class Doc(val project: String, val id: String)

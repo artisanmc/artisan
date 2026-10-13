@@ -83,16 +83,15 @@ export function makeAppearanceConverter(bridge: I18nBridge): {
   // `\n`). A single `{i18n:}` line references that key; otherwise the literal
   // lines are joined and allocated a fresh key.
   /**
-   * Une ligne de lore, telle qu'elle peut se présenter sur le fil.
+   * A lore line, as it may appear on the wire.
    *
-   * La forme canonique est une chaîne. Mais des fichiers écrits avant portent du
-   * texte STRUCTURÉ — une référence i18n (`{ key: … }`) ou un calque
-   * (`{ kind: plain, value: … }`, la forme des titres). `String()` les rendait
-   * littéralement « [object Object] », dans l'éditeur comme en jeu : un lore
-   * illisible sur un fichier que rien ne signale.
+   * The canonical form is a string. But older files carry STRUCTURED text — an
+   * i18n reference (`{ key: … }`) or a layer (`{ kind: plain, value: … }`, the
+   * title shape). `String()` rendered them literally as "[object Object]", in
+   * the editor as in game: unreadable lore on a file nothing flags.
    *
-   * Ce qu'on ne sait toujours pas lire finit en JSON plutôt qu'en
-   * « [object Object] » : l'un se diagnostique, l'autre non.
+   * What still cannot be read ends up as JSON rather than "[object Object]":
+   * one can be diagnosed, the other cannot.
    */
   function loreLine(line: unknown): string | Record<string, string> {
     if (typeof line === "string") return line;
@@ -158,7 +157,7 @@ export function menuV1ToDomain(
   const i18nKeys: Record<string, Record<string, string>> = {};
   const unsupported: string[] = [];
 
-  // ── i18n bridge ──────────────────────────────────────────────────────────
+  // i18n bridge
   function ref(key: string): LText {
     const tr = opts.translations?.[key];
     if (tr) i18nKeys[key] = { ...tr };
@@ -178,14 +177,14 @@ export function menuV1ToDomain(
     return { key };
   }
 
-  // ── shared wire→domain converter (appearance conditions + DSL steps) ──────
+  // Shared wire→domain converter (appearance conditions + DSL steps)
   const { appearance } = makeAppearanceConverter({
     text,
     ref,
     pushUnsupported: (s) => unsupported.push(s),
   });
 
-  // ── title layers (inverse of serializeTitleLayer) ─────────────────────────
+  // Title layers (inverse of serializeTitleLayer)
   /** Layer `value`: canonical string form (`"{i18n:key}"` or literal), a
    *  field-local `{lang: text}` map, or the legacy `{key}` object form. */
   function layerValue(v: unknown): LText {
@@ -307,13 +306,12 @@ export function menuV1ToDomain(
   }
 
   function element(el: Json): DomainElement {
-    // Forme d'avant le 17 août : une LISTE `appearances`, display en tête.
-    // Le format courant l'emporte s'il est là — la liste n'est qu'un vestige.
-    // On la lit encore parce que des fichiers écrits avant existent en
-    // production : ne plus les reconnaître ne les signalait pas, ça les rendait
-    // vides (items invisibles, template sans contenu). Lecteur tolérant,
-    // écrivain canonique — l'enregistrement suivant remet le fichier à
-    // l'endroit, et `appearances` disparaît de lui-même.
+    // Older shape: an `appearances` LIST, display first. The current format wins
+    // if present — the list is only a leftover. It is still read because files
+    // written before exist in production: no longer recognising them did not
+    // flag them, it rendered them empty (invisible items, empty template).
+    // Tolerant reader, canonical writer — the next save puts the file right, and
+    // `appearances` disappears on its own.
     const flat = appearance(el);
     const legacy =
       Object.keys(flat).length === 0 && Array.isArray(el.appearances)
@@ -352,7 +350,7 @@ export function menuV1ToDomain(
   // twin — an LText ref (`title: { key: … }`) — is the same sugar with the
   // text held in a lang file, and is what a module bootstrap emits. Neither is
   // an array: mapping over them threw and took the whole editor down with a
-  // black page (Boutique menus, 2026-08-12).
+  // black page.
   const rawTitle = src.title as unknown;
   const titleEntries: (MenuTitleLayer | null)[] =
     typeof rawTitle === "string"

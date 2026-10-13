@@ -2,12 +2,12 @@ package net.artisanmc.plugin.protocol
 
 import net.artisanmc.plugin.project.ProjectPathPolicy
 
-/** Ce que l'éditeur peut voir et écrire dans un Project. */
+/** What the editor can see and write in a Project. */
 object EditorPaths {
     /**
-     * Ce que `project_read` retire de l'arbre disque. L'éditeur a besoin de
-     * `.artisan/editor.yaml` (layout du board, `i18n_mode`) — il n'a rien à
-     * faire de la corbeille ni de l'état de sync.
+     * What `project_read` removes from the disk tree. The editor needs
+     * `.artisan/editor.yaml` (board layout, `i18n_mode`), not the trash, history or
+     * private drafts.
      */
     fun isInvisible(rel: String): Boolean {
         if (ProjectPathPolicy.isPrivate(rel)) return true
@@ -17,10 +17,9 @@ object EditorPaths {
     }
 
     /**
-     * Garde de chemin pour `project_write`. Distinct de [isSafeRelPath], qui
-     * refuse **tout** `.artisan*` : l'éditeur est propriétaire de
-     * `.artisan/editor.yaml` et doit pouvoir l'écrire. Ce qu'il ne voit pas en
-     * lecture, il ne peut pas l'écrire.
+     * Path guard for `project_write`. Distinct from [isSafeRelPath], which rejects
+     * **every** `.artisan*` path: the editor owns `.artisan/editor.yaml` and must be
+     * able to write it. What it cannot read, it cannot write.
      */
     fun isWritable(p: String): Boolean {
         if (!ProjectPathPolicy.valid(p)) return false

@@ -79,13 +79,7 @@ for (let i = 0; i < toRender.length; i++) {
   try {
     const dataUrl = await page.evaluate(
       async ({ modelPath, version, tints }) => {
-        return window.renderToCanvas(
-          modelPath,
-          version,
-          false,
-          undefined,
-          tints ?? undefined,
-        );
+        return window.renderToCanvas(modelPath, version, tints ?? undefined);
       },
       { modelPath: item.model, version: VERSION, tints: item.tints ?? null },
     );

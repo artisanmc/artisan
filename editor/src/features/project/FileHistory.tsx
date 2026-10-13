@@ -4,18 +4,16 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 /**
- * La corbeille d'un fichier (ADR `server-disk-only-storage` décision 5) : les
- * versions que le plugin a archivées avant chaque écrasement, la plus récente
- * d'abord.
+ * A file's trash (ADR `server-disk-only-storage` decision 5): the versions the
+ * plugin archived before each overwrite, most recent first.
  *
- * Ce n'est **pas** un historique de projet : on restaure un fichier, jamais un
- * point dans le temps. « Remets ce menu comme il était » marche ; « remets tout
- * à hier soir » n'existe pas, et c'est assumé.
+ * This is **not** a project history: a file is restored, never a point in
+ * time. "Put this menu back as it was" works; "put everything back to last
+ * night" does not exist, by design.
  *
- * Restaurer = remettre le contenu dans l'éditeur, puis enregistrer normalement.
- * Aucun chemin d'écriture privilégié : une restauration passe par le même
- * compare-and-swap que le reste, donc elle ne peut pas écraser dans le dos de
- * quelqu'un.
+ * Restore = put the content back in the editor, then save normally. No
+ * privileged write path: a restore goes through the same compare-and-swap as
+ * everything else, so it cannot overwrite behind someone's back.
  */
 export function FileHistory({
   networkId,

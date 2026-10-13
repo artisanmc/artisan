@@ -64,7 +64,7 @@ function actionTextCodec(project: Project): ActionTextCodec {
   return { toWire: fieldTextOf(project), fromWire: () => ({ key: "" as I18nKey }) };
 }
 
-// ─── condition serialization ────────────────────────────────────────────────
+// Condition serialization
 // Most conditions are stored snake_case and contain no LText — pass through
 // as-is. Exceptions: composites (recursive) and pagination (camelCase domain).
 
@@ -78,7 +78,7 @@ function serializeCondition(c: Condition): unknown {
   return c;
 }
 
-// ─── appearance serialization ────────────────────────────────────────────────
+// Appearance serialization
 
 function serializeAppearance(app: Appearance, project: Project): Record<string, unknown> {
   const out: Record<string, unknown> = {};
@@ -110,7 +110,7 @@ function serializeAppearance(app: Appearance, project: Project): Record<string, 
   return out;
 }
 
-// ─── element serialization ───────────────────────────────────────────────────
+// Element serialization
 
 /**
  * Serialize an element. A set is self-contained: how its rows look and behave
@@ -152,7 +152,7 @@ function serializeElement(el: Element, project: Project): Record<string, unknown
   return out;
 }
 
-// ─── layer serialization ─────────────────────────────────────────────────────
+// Layer serialization
 
 /** Canonical wire is a flat `elements` list (document order = stacking order,
  *  later wins per slot) — editor layers flatten at export; the legacy `layers`
@@ -161,7 +161,7 @@ function serializeElements(menu: Menu, project: Project): Record<string, unknown
   return menu.layers.flatMap((l) => l.elements).map((el) => serializeElement(el, project));
 }
 
-// ─── title layer serialization ───────────────────────────────────────────────
+// Title layer serialization
 
 function serializeTitleLayer(
   layer: MenuTitleLayer,
@@ -225,7 +225,7 @@ function serializeTitleLayer(
   return layer;
 }
 
-// ─── legacy title reader ─────────────────────────────────────────────────────
+// Legacy title reader
 
 const LEGACY_TEXT_X = 8;
 const LEGACY_TEXT_Y = 5;
@@ -236,8 +236,8 @@ const LEGACY_TEXT_Y = 5;
  *
  * - `null`/`undefined`              → `[]`
  * - `string`                        → one text layer at (8,5) using the
- *                                     string as a literal i18n key (the
- *                                     legacy format before Task 11)
+ *                                     string as a literal i18n key (legacy
+ *                                     format)
  * - single `{ kind, ... }` map      → wrapped in a one-element array
  * - `[{ kind, ... }, ...]`          → mapped element-by-element
  *
@@ -288,9 +288,9 @@ function parseTitleLayer(node: unknown): MenuTitleLayer | null {
   }
   if (!node || typeof node !== "object") return null;
   const m = node as Record<string, unknown>;
-  // Ref d'asset : `asset: <nom>` d'abord, `asset_id: <id opaque>` ensuite. Le
-  // nom de fichier devient l'identité d'un asset (ADR `assets-on-server-disk`)
-  // — l'ancienne forme reste lue tant que la descente n'a pas eu lieu.
+  // Asset ref: `asset: <name>` first, then `asset_id: <opaque id>`. The file
+  // name becomes an asset's identity (ADR `assets-on-server-disk`) — the old
+  // form is still read until the migration has happened.
   const assetRef = (key: "asset" | "font"): string | null => {
     const legacy = key === "asset" ? "asset_id" : "font_asset_id";
     if (typeof m[key] === "string") return m[key] as string;
@@ -380,7 +380,7 @@ function parseTitleLayer(node: unknown): MenuTitleLayer | null {
   }
 }
 
-// ─── menu serialization ──────────────────────────────────────────────────────
+// Menu serialization
 
 /**
  * Serialize a single Menu into a canonical `menu/v1` object (snake_case,
@@ -443,7 +443,7 @@ export function projectToMenuV1(project: Project): ({ id: string } & Record<stri
   return project.menus.map((m) => serializeMenuToV1(m, project));
 }
 
-// ─── command serialization ───────────────────────────────────────────────────
+// Command serialization
 
 export function serializeCommand(cmd: Command, project: Project): Record<string, unknown> {
   const out: Record<string, unknown> = {
@@ -474,7 +474,7 @@ export function projectToCommandV1(project: Project): Record<string, unknown>[] 
   return project.commands.map((c) => serializeCommand(c, project));
 }
 
-// ─── dialog serialization ────────────────────────────────────────────────────
+// Dialog serialization
 
 function serializeDialogBody(body: DialogBody, t: FieldTextOf): Record<string, unknown> {
   if (body.type === "text") return { type: "text", text: t(body.text.key) };
@@ -534,7 +534,7 @@ export function projectToDialogV1(project: Project): Record<string, unknown>[] {
   return project.dialogs.map((d) => serializeDialog(d, project));
 }
 
-// ─── translations serialization ──────────────────────────────────────────────
+// Translations serialization
 
 /**
  * Keys that belong to the **project**, not to any document site: presentation
@@ -604,7 +604,7 @@ function serializeLang(
   return out;
 }
 
-// ─── Project sources (data/v1) ───────────────────────────────────────────────
+// Project sources (data/v1)
 // Denormalized per ADR project-sources-and-data-models: Data models are inlined
 // as flattened field kinds — the Bundle/plugin never see model identity (same
 // philosophy as Item templates inlined into menu/v1). ltext values export as
@@ -764,7 +764,7 @@ function serializeDataValue(
   }
 }
 
-// ─── bare data emission (ADR bare-data-files) ────────────────────────────────
+// Bare data emission (ADR bare-data-files)
 
 /** Non-default translations of every data-source ltext site, re-addressed to
  *  the canonical key-site path, plus the set of node keys those sites hold
@@ -799,9 +799,9 @@ function generatedHeader(name: string, fields: ModelField[]): string {
   // comments, because it overwrites them and must not pretend otherwise.
   return (
     [
-      `# ── ${name} — géré par Artisan (les valeurs sont éditables à la main)`,
-      "# Les commentaires sont générés depuis le schéma : un commentaire ajouté",
-      "# ailleurs qu'en tête de fichier est écrasé au prochain enregistrement.",
+      `# ── ${name} — managed by Artisan (values can be edited by hand)`,
+      "# Comments are generated from the schema: a comment added anywhere",
+      "# other than the top of the file is overwritten on the next save.",
     ].join("\n") + "\n"
   );
 }
@@ -1066,17 +1066,17 @@ function emitDataSources(
   return claimed;
 }
 
-// ─── public API ──────────────────────────────────────────────────────────────
+// Public API
 
 /**
  * Transform a Project into a flat map of filename → YAML string.
  * Keys use the server-side path (e.g. "plugins/Artisan/menus/shop_main.yaml").
  */
 /**
- * Retire le champ `id` avant d'écrire un Document sur disque : le fichier porte
- * déjà son identité dans son nom (miroir du `withFileId` du plugin). Les
- * sérialiseurs le gardent parce que l'assistant IA en a besoin sur le fil, où il
- * n'y a pas de nom de fichier pour le porter.
+ * Removes the `id` field before writing a Document to disk: the file already
+ * carries its identity in its name (mirror of the plugin's `withFileId`). The
+ * serializers keep it because the AI assistant needs it on the wire, where
+ * there is no file name to carry it.
  */
 function withoutId<T extends object>(doc: T): Omit<T, "id"> {
   const { id: _id, ...rest } = doc as T & { id?: unknown };
@@ -1088,8 +1088,8 @@ export function transform(project: Project): Record<string, string> {
 
   const yamlOpts = { lineWidth: 0 };
 
-  // Id DISQUE : ces chemins sont écrits tels quels sur le serveur, qui range
-  // le project sous son propre nom de dossier (cf. `Project.diskId`).
+  // DISK id: these paths are written as-is on the server, which stores the
+  // project under its own folder name (cf. `Project.diskId`).
   const base = `plugins/Artisan/projects/${project.diskId ?? project.id}`;
 
   for (const menu of project.menus) {
@@ -1155,16 +1155,16 @@ export function transform(project: Project): Record<string, string> {
   const manifest: Record<string, unknown> = {
     schema: "manifest/v1",
     // Round-trip the Add-on owner id (ADR addon-owned-project-roots) so it survives
-    // an editor save — the backend re-derives `ownerModule` from it.
+    // an editor save — `ownerModule` is re-derived from it on load.
     ...(project.ownerModule ? { module: project.ownerModule } : {}),
     default_lang: project.defaultLang,
     languages: langs,
     ...(project.loreMaxWidth ? { lore_max_width: project.loreMaxWidth } : {}),
     ...(project.escapeGoesBack ? { escape_goes_back: true } : {}),
-    // Plus de bloc `files:` : il recopiait le contenu de menus/, commands/ et
-    // dialogs/ sans y ajouter ni ordre de chargement ni exclusion — un index à
-    // tenir à jour à la main dont le seul effet possible était de se
-    // désynchroniser. Les Documents sont découverts par scan, des deux côtés.
+    // No `files:` block: it duplicated the content of menus/, commands/ and
+    // dialogs/ without adding load order or exclusions — a hand-maintained index
+    // whose only possible effect was to drift out of sync. Documents are
+    // discovered by scanning, on both sides.
   };
   // Data models: models/<id>.yaml (model/v1), fields VERBATIM (cross-model refs
   // preserved) — the lossless editor store. data/<id>.yaml stays denormalized
@@ -1243,8 +1243,8 @@ export function transform(project: Project): Record<string, string> {
   files[`${base}/manifest.yaml`] = stringify(manifest, yamlOpts);
 
   // No meta.yaml: nothing consumed it, and its `exported_at` timestamp made
-  // every export a different byte tree (dirty hash on every save — removed
-  // 2026-07-25). transform() is now a pure function of the Project.
+  // every export a different byte tree. transform() is a pure function of the
+  // Project.
 
   return files;
 }

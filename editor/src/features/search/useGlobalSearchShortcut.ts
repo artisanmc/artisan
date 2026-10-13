@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useUiStore } from "@/state/uiStore";
 
-/** Ouvre la palette de recherche au Cmd/Ctrl+K (global, même depuis un input). */
+/** Opens the search palette on Cmd/Ctrl+K (global, even from an input). */
 export function useGlobalSearchShortcut(): void {
   useEffect(() => {
     function onKey(e: KeyboardEvent) {

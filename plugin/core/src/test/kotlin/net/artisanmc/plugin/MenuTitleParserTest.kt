@@ -317,7 +317,7 @@ class MenuTitleParserTest {
 
     @Test
     fun `text size falls back to 8 when invalid`() {
-        // 10 is not in {4,8,12,16,20,24,32} — parser must reject silently.
+        // 10 is not in {8,12,16,20,24,32} — parser must reject silently.
         val src = listOf(mapOf("kind" to "text", "value" to mapOf("key" to "k"),
                                 "x" to 8, "y" to 5, "size" to 10))
         val text = MenuTitleParser.parse(src).single() as MenuTitleLayer.Text
@@ -334,15 +334,11 @@ class MenuTitleParserTest {
     }
 
     /**
-     * Refs d'assets par NOM (ADR `assets-on-server-disk`, décision 2).
-     *
-     * `asset: icone_diamant` remplacera `asset_id: ast_9f3c1a` : sur un disque
-     * qu'un humain doit pouvoir lire, un id opaque est une énigme. La lecture
-     * tolérante arrive AVANT que quoi que ce soit n'écrive la forme nouvelle —
-     * la prod doit savoir lire l'après avant d'y être.
+     * Asset refs by NAME (ADR `assets-on-server-disk`): `asset: icone_diamant`
+     * replaces `asset_id: ast_9f3c1a`.
      */
     @Test
-    fun `un layer accepte la ref par nom comme l'id opaque`() {
+    fun `a layer accepts a ref by name as well as the opaque id`() {
         val byName = MenuTitleParser.parse(
             listOf(
                 mapOf("kind" to "background", "asset" to "fond_boutique"),
@@ -354,8 +350,7 @@ class MenuTitleParserTest {
         assertEquals("icone_diamant", (byName[1] as MenuTitleLayer.Glyph).assetId)
         assertEquals("pixelmix", (byName[2] as MenuTitleLayer.Text).fontAssetId)
 
-        // L'ancienne forme continue d'être lue : la descente n'a pas encore eu
-        // lieu, et un Project non migré doit rester ouvrable.
+        // The old form is still read: a Project not yet migrated must keep opening.
         val byId = MenuTitleParser.parse(
             listOf(mapOf("kind" to "background", "asset_id" to "ast_9f3c1a"))
         )

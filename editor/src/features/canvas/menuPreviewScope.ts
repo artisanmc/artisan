@@ -50,8 +50,7 @@ export function moduleLocalRows(
  *  - unknown / malformed → undefined
  *
  * Local module rows win over the server snapshot (they're what WILL be
- * deployed). The legacy imported-connector sample fallback was removed
- * 2026-07-17 — server-reported sources + snapshots superseded it.
+ * deployed).
  */
 export function resolveSourceRef(
   ref: SourceRef,
@@ -150,8 +149,7 @@ export function makeSamplePlayer(name: string = SAMPLE_PLAYER_NAME): Record<stri
  * menu declares a contextInput with that name — caller arg wins, like the
  * plugin runtime.
  *
- * Used by MenuGroup and ItemTooltip preview rendering. Replaces the
- * pre-Plan-C1 sampleContext blob.
+ * Used by MenuGroup and ItemTooltip preview rendering.
  */
 export function buildPreviewScope(
   menu: Menu,

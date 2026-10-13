@@ -72,11 +72,8 @@ class ElementDisplayStatesTest {
 
     @Test
     /**
-     * Ce test disait l'inverse jusqu'au 2026-08-29 : la liste devait être
-     * IGNORÉE. La décision supposait qu'aucun fichier ancien ne survivrait ;
-     * la production a montré le contraire, et un menu sans ses items ne
-     * ressemble pas à une panne mais à une mauvaise configuration.
-     * Cf. `ElementLegacyAppearancesTest` et l'ADR corrigé.
+     * Old files do survive in production, and a menu without its items looks like a
+     * misconfiguration rather than a failure. See `ElementLegacyAppearancesTest`.
      */
     fun `the legacy appearances list is still read`() {
         val menu = parse(

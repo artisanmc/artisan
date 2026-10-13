@@ -9,8 +9,8 @@ export interface SourceFile {
 
 const base = (project: Project) => `plugins/Artisan/projects/${project.diskId ?? project.id}/`;
 
-/** Les chemins qui appartiennent à cette source : son fichier data (ou son
- *  dossier par-row) et son schéma beside. */
+/** The paths belonging to this source: its data file (or its per-row
+ *  folder) and its beside schema. */
 function ownsPath(rel: string, sourceId: string): boolean {
   return (
     rel === `data/${sourceId}.yaml` ||
@@ -20,8 +20,8 @@ function ownsPath(rel: string, sourceId: string): boolean {
 }
 
 /**
- * Les fichiers d'une source, tels que le writer canonique les émettrait —
- * c'est ce que l'onglet YAML montre et édite (ADR `yaml-assisted-editing` ⑦/⑧).
+ * The files of a source, as the canonical writer would emit them — what the
+ * YAML tab shows and edits (ADR `yaml-assisted-editing` ⑦/⑧).
  */
 export function sourceYamlFiles(project: Project, source: DataSource): SourceFile[] {
   const emitted = transform(project);
@@ -33,18 +33,18 @@ export function sourceYamlFiles(project: Project, source: DataSource): SourceFil
 }
 
 /**
- * Réinjecte le YAML édité dans le project : le texte est reparsé par le même
- * importeur que le chargement, et **seules** les données en sortent — menus,
- * dialogs et mise en page ne sont pas touchés par une édition de source.
+ * Writes the edited YAML back into the project: the text is reparsed by the
+ * same importer as loading, and **only** the data comes out of it — menus,
+ * dialogs and layout are not touched by a source edit.
  *
- * Renvoie null si le YAML ne parse pas en un project exploitable : l'appelant
- * garde alors l'état courant (l'éditeur laisse le texte cassé enregistrable,
- * mais ne détruit pas le domaine avec).
+ * Returns null if the YAML does not parse into a usable project: the caller
+ * then keeps the current state (the editor leaves the broken text savable,
+ * but does not destroy the domain with it).
  */
 export function applySourceYaml(project: Project, edited: SourceFile[]): Project | null {
   const files: Record<string, string> = { ...transform(project) };
   const prefix = base(project);
-  // Un fichier supprimé de l'ensemble édité disparaît aussi du project.
+  // A file removed from the edited set also disappears from the project.
   const editedPaths = new Set(edited.map((f) => prefix + f.path));
   for (const path of Object.keys(files)) {
     if (editedPaths.has(path)) continue;
@@ -63,8 +63,8 @@ export function applySourceYaml(project: Project, edited: SourceFile[]): Project
     ...project,
     dataSources: reparsed.dataSources,
     dataModels: reparsed.dataModels,
-    // Les valeurs ltext du fichier peuvent minter/adopter des clés : la table
-    // de traduction suit, sinon les textes réapparaîtraient vides.
+    // The file's ltext values may mint/adopt keys: the translation table follows,
+    // otherwise the texts would come back empty.
     i18nKeys: reparsed.i18nKeys,
   };
 }

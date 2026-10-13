@@ -6,12 +6,12 @@ les deux doivent bouger ensemble.
 
 | Sous-commande | Effet |
 |---|---|
-| `menu <menu_id>` | Ouvre un menu. Joueurs uniquement (`in_game_only` sinon). Résout la langue via `lang.playerLang(sender)`. |
-| `reload` | `reinit(loadPluginConfig())` + `menuProvider.unload()/load()`. Reprend `language` / `per_player_language` et les éditions faites à la main sur le disque. Ne redémarre pas le serveur web : `web.*` demande un redémarrage. |
+| `menu <menu_id>` | Permission `artisan.menu`. Ouvre un menu. Joueurs uniquement (`in_game_only` sinon). Résout la langue via `lang.playerLang(sender)`. |
+| `reload` | Permission `artisan.admin`. `reinit(loadPluginConfig())` + `menuProvider.unload()/load()`. Reprend `language` / `per_player_language` et les éditions faites à la main sur le disque. Ne redémarre pas le serveur web : `web.*` demande un redémarrage. |
 | `sync status` | Message fixe renvoyant aux logs (vestige de la synchro cloud). |
-| `sync reject` | `menuProvider.unload()/load()` — recharge depuis le disque et, sur une feuille, reconnecte au hub. |
+| `sync reject` | Permission `artisan.admin`. `menuProvider.unload()/load()` — recharge depuis le disque et, sur une feuille, reconnecte au hub. |
 | `editor` | Lien de connexion à l'éditeur. Cf. ci-dessous. |
-| `dump-title <menu_id> [lang]` | **Diagnostic**, non documenté côté user. Compile le titre du menu et imprime chaque étape : le MiniMessage exact émis, les advances d'offset, et le curseur X MC à chaque frontière de layer. À utiliser quand la position en jeu diffère de l'aperçu éditeur. |
+| `dump-title <menu_id> [lang]` | Permission `artisan.admin`. **Diagnostic**, non documenté côté user. Compile le titre du menu et imprime chaque étape : le MiniMessage exact émis, les advances d'offset, et le curseur X MC à chaque frontière de layer. À utiliser quand la position en jeu diffère de l'aperçu éditeur. |
 
 Supprimés en phase F : `link <code>` (liaison au cloud), `member add <email>` (accès console),
 et avec eux `editor.access_mode` / `editor.console_only`.

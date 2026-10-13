@@ -1,6 +1,8 @@
 ---
 title: Custom heads
 description: Use HeadDatabase ids, base64 textures, or player names as menu item heads.
+sidebar:
+  order: 5
 ---
 
 Pick **Player Head** as an element's material and a **custom head** row appears under it.

@@ -44,7 +44,7 @@ describe("accountStore", () => {
     const getProject = () =>
       useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
 
-    describe("createMenuSet (set d'items au niveau du menu — sans template)", () => {
+    describe("createMenuSet (menu-level item set — no template)", () => {
       const SCHEMA = [{ name: "id" }, { name: "name" }, { name: "icon" }, { name: "price" }];
       const setupMenu = () => {
         const mId = useAccountStore.getState().createMenu({ projectId: PERSONAL, id: "m_set" });
@@ -2116,7 +2116,7 @@ describe("accountStore", () => {
   });
 });
 
-describe("accountStore — positions de la planche", () => {
+describe("accountStore — board positions", () => {
   const P = projectId("p_personal");
   const project = () => useAccountStore.getState().account.projects.find((p) => p.id === P)!;
 
@@ -2126,7 +2126,7 @@ describe("accountStore — positions de la planche", () => {
     useAccountStore.temporal.getState().clear();
   });
 
-  it("releaseBoardPositions libère toutes les positions posées à la main, sans toucher aux Documents", () => {
+  it("releaseBoardPositions releases every hand-placed position, without touching the Documents", () => {
     useAccountStore.getState().setCanvasPosition({ projectId: P, nodeId: "m_about", x: 5, y: 6 });
     const menus = project().menus.map((m) => m.id);
     useAccountStore.getState().releaseBoardPositions({ projectId: P });
@@ -2134,7 +2134,7 @@ describe("accountStore — positions de la planche", () => {
     expect(project().menus.map((m) => m.id)).toEqual(menus);
   });
 
-  it("releaseBoardPositions libère aussi les ancres de liens forcées", () => {
+  it("releaseBoardPositions also releases the forced link anchors", () => {
     useAccountStore.getState().setEdgeAnchor({
       projectId: P,
       edgeId: "m_shop_main->m_profile",
@@ -2146,7 +2146,7 @@ describe("accountStore — positions de la planche", () => {
     expect(project().canvasEdges ?? {}).toEqual({});
   });
 
-  it("releaseBoardPositions s'annule : les positions reviennent", () => {
+  it("releaseBoardPositions can be undone: the positions come back", () => {
     useAccountStore.getState().setCanvasPosition({ projectId: P, nodeId: "m_about", x: 5, y: 6 });
     useAccountStore.getState().releaseBoardPositions({ projectId: P });
     useAccountStore.temporal.getState().undo();

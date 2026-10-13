@@ -129,8 +129,9 @@ vers les mêmes gestionnaires que le WebSocket : lectures et écritures disque s
 
 ## `.artisan-trash/` est réservé
 
-Nom réservé au top d'une racine de Projects, exclu du hash et de l'éditeur. Plus rien ne le crée
-depuis la suppression de `project_deleted` ; ne jamais l'utiliser pour autre chose.
+Nom réservé au top d'une racine de Projects, exclu du hash et de l'éditeur. `project_delete`
+(`ProjectFolders`) y déplace le dossier d'un Project supprimé, sous `<id>-<horodatage>` : rien
+n'est jamais effacé. Ne jamais l'utiliser pour autre chose.
 
 ## Le contenu des menus n'existe que côté client
 

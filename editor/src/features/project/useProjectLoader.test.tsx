@@ -62,7 +62,7 @@ describe("useProjectLoader", () => {
     expect(read).toHaveBeenLastCalledWith("internal-second", undefined, undefined, undefined);
   });
 
-  it("charge le contenu depuis le DISQUE du serveur, pas depuis le backend", async () => {
+  it("loads the content from the server's DISK, not from the backend", async () => {
     useAuthStore.setState({ currentUser: { id: "u1", name: "x", email: "x@a.b" } } as never);
     vi.spyOn(userProjectsApi, "loadUserProject").mockResolvedValue({
       project: { id: "p1", name: "p", hash: "h", externalId: "boutique_shop" },
@@ -79,16 +79,16 @@ describe("useProjectLoader", () => {
 
     await waitFor(() => expect(result.current.project).not.toBeNull());
     expect(result.current.error).toBeNull();
-    // Lu sous l'id disque, auprès du serveur propriétaire. Sans version connue,
-    // aucune empreinte à annoncer : le serveur envoie l'arbre.
+    // Read under the disk id, from the owning server. With no known version,
+    // there is no fingerprint to announce: the server sends the tree.
     expect(readSpy).toHaveBeenCalledWith("p1", undefined, undefined, undefined);
-    // Ce qui a été lu devient la base du compare-and-swap.
+    // What was read becomes the compare-and-swap base.
     expect(useProjectBaselineStore.getState().get("p1")).toEqual({
       "manifest.yaml": "id: boutique_shop\n",
     });
   });
 
-  it("serveur éteint avec une copie du backend : ouvert, daté, hors ligne", async () => {
+  it("server down with a backend copy: open, dated, offline", async () => {
     useAuthStore.setState({ currentUser: { id: "u1", name: "x", email: "x@a.b" } } as never);
     vi.spyOn(userProjectsApi, "loadUserProject").mockResolvedValue({
       project: { id: "p1", name: "p", hash: "h", externalId: "boutique_shop" },
@@ -113,7 +113,7 @@ describe("useProjectLoader", () => {
     unmount();
   });
 
-  it("jamais publié : ouvert depuis le brouillon, serveur non connecté annoncé", async () => {
+  it("never published: opened from the draft, server not connected announced", async () => {
     useAuthStore.setState({ currentUser: { id: "u1", name: "x", email: "x@a.b" } } as never);
     vi.spyOn(userProjectsApi, "loadUserProject").mockResolvedValue({
       project: { id: "p1", name: "prepare", hash: "h", externalId: "prepare" },
@@ -151,7 +151,7 @@ describe("useProjectLoader", () => {
     unmount();
   });
 
-  it("serveur hors ligne : pas de repli, le Project n'est pas ouvrable", async () => {
+  it("server offline: no fallback, the Project cannot be opened", async () => {
     useAuthStore.setState({ currentUser: { id: "u1", name: "x", email: "x@a.b" } } as never);
     vi.spyOn(userProjectsApi, "loadUserProject").mockResolvedValue({
       project: { id: "p1", name: "p", hash: "h" },
@@ -170,10 +170,10 @@ describe("useProjectLoader", () => {
   });
 
   /**
-   * Le disque du serveur est loin : plusieurs secondes d'attente à chaque
-   * ouverture, pour un contenu presque toujours identique à la visite
-   * précédente. On affiche donc ce qu'on avait, tout de suite, et on revalide
-   * derrière — sans jamais faire passer le cache pour la vérité (`stale`).
+   * The server's disk is far away: several seconds of waiting on every open,
+   * for content almost always identical to the previous visit. So what we had
+   * is shown right away and revalidated behind — without ever passing the cache
+   * off as the truth (`stale`).
    */
   it("keeps the cached project closed until the server responds", async () => {
     useAuthStore.setState({ currentUser: { id: "u1", name: "x", email: "x@a.b" } } as never);
@@ -193,8 +193,8 @@ describe("useProjectLoader", () => {
       networkId: "net_1",
       serverKeyId: "sk_1",
     } as never);
-    // La lecture disque ne répond pas tout de suite : c'est exactement la
-    // fenêtre pendant laquelle l'écran restait vide.
+    // The disk read does not answer right away: exactly the window during which
+    // the screen stayed empty.
     let release: (v: unknown) => void = () => {};
     vi.spyOn(projectFilesApi, "readProjectFiles").mockReturnValue(
       new Promise((r) => {
@@ -215,7 +215,7 @@ describe("useProjectLoader", () => {
     await waitFor(() => expect(result.current.project).not.toBeNull());
   });
 
-  it("ce que le serveur a rendu devient la version connue", async () => {
+  it("what the server returned becomes the known version", async () => {
     useAuthStore.setState({ currentUser: { id: "u1", name: "x", email: "x@a.b" } } as never);
     vi.spyOn(userProjectsApi, "loadUserProject").mockResolvedValue({
       project: { id: "p1", name: "p", hash: "h", externalId: "boutique_shop" },
@@ -237,11 +237,11 @@ describe("useProjectLoader", () => {
   });
 
   /**
-   * Le gain de la revalidation par empreinte : quand rien n'a bougé, le serveur
-   * ne renvoie RIEN, et la version connue reste à l'écran — mais elle cesse
-   * d'être annoncée comme datée, parce qu'elle vient d'être confirmée.
+   * The payoff of fingerprint revalidation: when nothing moved, the server
+   * sends NOTHING back, and the known version stays on screen — but it stops
+   * being announced as dated, because it was just confirmed.
    */
-  it("annonce l'empreinte détenue et garde sa copie quand le serveur dit « inchangé »", async () => {
+  it("announces the held fingerprint and keeps its copy when the server says 'unchanged'", async () => {
     useAuthStore.setState({ currentUser: { id: "u1", name: "x", email: "x@a.b" } } as never);
     useProjectCacheStore.getState().put(projectCacheKey("p1", undefined, undefined, "u1"), {
       identity: {
@@ -268,10 +268,10 @@ describe("useProjectLoader", () => {
 
     await waitFor(() => expect(result.current.project).not.toBeNull());
     expect(readSpy).toHaveBeenCalledWith("p1", undefined, undefined, "empreinte-connue");
-    // Revalidé : la copie affichée n'est plus « datée », elle est confirmée.
+    // Revalidated: the displayed copy is no longer "dated", it is confirmed.
     await waitFor(() => expect(result.current.stale).toBe(false));
-    // Ce qui est à l'écran est bien ce que le serveur porte : c'est la base du
-    // compare-and-swap, sinon un enregistrement partirait sur du sable.
+    // What is on screen is indeed what the server holds: it is the
+    // compare-and-swap base, otherwise a save would build on sand.
     expect(useProjectBaselineStore.getState().get("p1")).toEqual({
       "manifest.yaml": "id: boutique_shop",
     });

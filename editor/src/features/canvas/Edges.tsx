@@ -16,7 +16,7 @@ import { findPreviewCallContexts } from "./previewCallContexts";
 import { nextCallContext } from "./previewCallNavigation";
 import { groupEdges } from "./groupedBoard";
 
-/** Ne garde que les edges dont les deux extrémités sont sur la planche. */
+/** Keeps only the edges whose two ends are on the board. */
 export function visibleEdges(edges: Edge[], layout: Record<string, { x: number; y: number }>): Edge[] {
   return edges.filter((e) => layout[e.source] && layout[e.target]);
 }
@@ -56,9 +56,9 @@ export function Edges({ project, layout, representatives }: EdgesProps) {
   const snapshots = useServerSnapshotsStore((s) => s.rowsByRef);
 
   /**
-   * Cliquer un lien vers un menu paramétré fait ce que ferait un joueur :
-   * on entre dedans par cet appel. Recliquer avance d'un contexte — c'est la
-   * navigation de catégorie en catégorie, sans passer par un panneau.
+   * Clicking a link to a parameterised menu does what a player would do: enter
+   * it through that call. Clicking again advances one context — category to
+   * category navigation, without going through a panel.
    * Cf. ADR `parameterised-menu-over-menu-per-category`.
    */
   const enterEdge = (edge: Edge) => {

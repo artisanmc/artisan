@@ -2,12 +2,12 @@ import { graphlib, layout } from "@dagrejs/dagre";
 import type { DocumentKind } from "./serverGraph";
 
 /**
- * Stratégie d'arrangement :
- * - `columns` : couches dagre LR, un rank = une colonne (historique).
- * - `wrap` : idem mais une colonne trop haute se replie en sous-colonnes.
- * - `auto` : `wrap` en LR ou TB selon le ratio de la planche.
- * - `cluster` : les enfants d'un parent sont packés en bloc grille à sa droite.
- * - `force` : ressorts + répulsion déterministes, grappes organiques.
+ * Arrangement strategy:
+ * - `columns`: dagre LR layers, one rank = one column (original mode).
+ * - `wrap`: same, but a column that is too tall folds into sub-columns.
+ * - `auto`: `wrap` in LR or TB depending on the board's ratio.
+ * - `cluster`: a parent's children are packed as a grid block to its right.
+ * - `force`: deterministic springs + repulsion, organic clusters.
  */
 export type ArrangeMode = "columns" | "wrap" | "auto" | "cluster" | "force" | "structured";
 
@@ -26,9 +26,9 @@ export interface ArrangeEdge {
 type Point = { x: number; y: number };
 
 export interface Arrangement {
-  /** Coins haut-gauche, comme `Stage` et `nodeBox` les attendent. */
+  /** Top-left corners, as `Stage` and `nodeBox` expect them. */
   positions: Record<string, Point>;
-  /** Ancre de l'intitulé de la gouttière ; `null` si aucun Document n'est isolé. */
+  /** Anchor of the gutter's label; `null` if no Document is isolated. */
   gutter: Point | null;
 }
 
@@ -42,13 +42,13 @@ export const GUTTER_LABEL_HEIGHT = 36;
 const GUTTER_CELL_GAP = 48;
 const GUTTER_KIND_ORDER: Record<DocumentKind, number> = { menu: 0, dialog: 1, command: 2 };
 
-/** Budget de hauteur (wrap) ou de largeur (TB) d'une sous-colonne avant repli. */
+/** Height (wrap) or width (TB) budget of a sub-column before folding. */
 const WRAP_STACK_MAX = 1500;
-/** Nombre maximal de nœuds empilés dans une sous-colonne. */
+/** Maximum number of nodes stacked in a sub-column. */
 const WRAP_ROWS_MAX = 5;
-/** Budget de hauteur du bloc d'enfants d'un parent (mode cluster). */
+/** Height budget of a parent's children block (cluster mode). */
 const CLUSTER_STACK_MAX = 1200;
-/** Ratio cible (largeur / hauteur) visé par le mode auto. */
+/** Target ratio (width / height) aimed at by auto mode. */
 const AUTO_TARGET_RATIO = 16 / 9;
 
 const compare = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
@@ -59,7 +59,7 @@ interface Placed {
   height: number;
 }
 
-/** Composantes connexes sans tenir compte du sens des arêtes, triées. */
+/** Connected components ignoring edge direction, sorted. */
 function components(keys: string[], edges: ArrangeEdge[]): string[][] {
   const parent = new Map(keys.map((k) => [k, k]));
   const find = (k: string): string => {
@@ -81,10 +81,9 @@ function components(keys: string[], edges: ArrangeEdge[]): string[][] {
 }
 
 /**
- * Arêtes retour d'une composante : DFS depuis les nœuds que rien ne cible.
- * Une arête vers un nœud encore sur la pile referme un cycle ; on l'écarte du
- * calcul des couches pour qu'un « retour au menu principal » ne repousse pas
- * le menu principal d'une couche.
+ * Back edges of a component: DFS from the nodes nothing targets. An edge to a
+ * node still on the stack closes a cycle; it is left out of the layering so a
+ * "back to the main menu" does not push the main menu down a layer.
  */
 function forwardEdges(keys: string[], edges: ArrangeEdge[], preferredRoots: string[] = []): ArrangeEdge[] {
   const out = new Map<string, string[]>(keys.map((k) => [k, []]));
@@ -131,11 +130,11 @@ function forwardEdges(keys: string[], edges: ArrangeEdge[], preferredRoots: stri
 }
 
 /**
- * Centre chaque point d'entrée (nœud que rien ne cible : une commande) sur le
- * Document qu'il ouvre — la médiane s'il en ouvre plusieurs. dagre équilibre
- * quatre alignements et laisse souvent une commande à mi-chemin. Si la place
- * est prise, la position libre la plus proche : on ne recouvre jamais un autre
- * nœud, et on ne s'éloigne pas au-delà de la hauteur du Document visé.
+ * Centres each entry point (node nothing targets: a command) on the Document
+ * it opens — the median if it opens several. dagre balances four alignments
+ * and often leaves a command halfway. If the spot is taken, the nearest free
+ * position: never overlap another node, and never move further than the
+ * target Document's height.
  */
 function alignEntryPoints(
   nodes: ArrangeNode[],
@@ -224,9 +223,9 @@ function layoutComponent(nodes: ArrangeNode[], edges: ArrangeEdge[]): Placed {
 }
 
 /**
- * Arrangement complet d'une planche : un graphe par couches (dagre) par
- * composante connexe, une composante par ligne, les Documents sans
- * lien en gouttière. Déterministe : l'ordre d'entrée n'a aucun effet.
+ * Full arrangement of a board: a layered graph (dagre) per connected
+ * component, one component per row, unlinked Documents in the gutter.
+ * Deterministic: input order has no effect.
  */
 function arrangeFree(
   input: { nodes: ArrangeNode[]; edges: ArrangeEdge[]; preferredRoots?: string[] },
@@ -250,8 +249,8 @@ function arrangeFree(
   const linked = new Set(edges.flatMap((e) => [e.source, e.target]));
   const positions: Record<string, Point> = {};
 
-  // Un groupe relié par ligne : chaque ligne est un parcours qui se lit de
-  // gauche à droite, depuis son point d'entrée.
+  // One linked group per row: each row is a path read from left to right,
+  // starting at its entry point.
   let y = BOARD_MARGIN;
   const groups = components(
     nodes.filter((n) => linked.has(n.key)).map((n) => n.key),
@@ -316,10 +315,9 @@ interface Packed {
 }
 
 /**
- * Répartit les nœuds d'un composant en couches (dagre) puis replie chaque
- * couche en sous-colonnes (LR) ou sous-rangées (TB) dès que l'empilement
- * dépasse un budget. L'ordre de lecture reste gauche→droite, les frères
- * d'une même couche restent voisins.
+ * Splits a component's nodes into layers (dagre) then folds each layer into
+ * sub-columns (LR) or sub-rows (TB) as soon as the stack exceeds a budget.
+ * Reading order stays left→right, siblings of a layer stay neighbours.
  */
 function layoutWrapped(
   nodes: ArrangeNode[],
@@ -418,7 +416,7 @@ function layoutWrapped(
   return { positions, width, height };
 }
 
-/** Empile des blocs enfants en colonnes, repliées au-delà d'un budget de hauteur. */
+/** Stacks child blocks into columns, folded past a height budget. */
 function packBlocks(items: Sized[], maxStack: number, gap: number): Packed {
   const columns: number[][] = [];
   let cur: number[] = [];
@@ -453,9 +451,10 @@ function packBlocks(items: Sized[], maxStack: number, gap: number): Packed {
 }
 
 /**
- * Le parent à gauche, ses enfants packés en bloc grille à sa droite. Approximation
- * en arbre : un nœud à plusieurs parents n'apparaît que sous le premier (ordre
- * déterministe). C'est le mode qui matérialise le regroupement logique.
+ * The parent on the left, its children packed as a grid block to its right.
+ * Tree approximation: a node with several parents only appears under the
+ * first one (deterministic order). This is the mode that materialises the
+ * logical grouping.
  */
 function layoutClustered(
   nodes: ArrangeNode[],
@@ -526,7 +525,7 @@ function layoutClustered(
   return { positions, width, height: Math.max(0, y - COMPONENT_GAP) };
 }
 
-/** Étalonné sur une position seed, mis à l'échelle en poussant les chevauchements. */
+/** Calibrated on a seed position, scaled by pushing overlaps apart. */
 function separate(rects: Rect[], gap: number): void {
   for (let iter = 0; iter < 80; iter++) {
     let moved = false;
@@ -538,7 +537,7 @@ function separate(rects: Rect[], gap: number): void {
         const overlapY = Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y);
         if (overlapX <= 0 || overlapY <= 0) continue;
         moved = true;
-        // Repousse sur l'axe de moindre recouvrement, moitié chacun, + la marge.
+        // Push along the axis of least overlap, half each, plus the margin.
         if (overlapX < overlapY) {
           const push = (overlapX + gap) / 2;
           const dir = a.x <= b.x ? 1 : -1;
@@ -556,7 +555,7 @@ function separate(rects: Rect[], gap: number): void {
   }
 }
 
-/** Distance centre-à-centre le long de (ux,uy) où deux rectangles se touchent. */
+/** Centre-to-centre distance along (ux,uy) at which two rectangles touch. */
 function contactDistance(na: ArrangeNode, nb: ArrangeNode, ux: number, uy: number): number {
   return (
     (Math.abs(ux) * na.width + Math.abs(uy) * na.height) / 2 +
@@ -564,7 +563,7 @@ function contactDistance(na: ArrangeNode, nb: ArrangeNode, ux: number, uy: numbe
   );
 }
 
-/** Centre moyen d'un ensemble de clés. */
+/** Mean centre of a set of keys. */
 function centroid(keys: string[], points: Map<string, Point>): Point {
   let x = 0;
   let y = 0;
@@ -577,8 +576,8 @@ function centroid(keys: string[], points: Map<string, Point>): Point {
 }
 
 /**
- * Compacte un groupe : ressorts à distance de contact + collision rectangle,
- * sans champ lointain. Renvoie les coins haut-gauche (non normalisés).
+ * Compacts a group: springs at contact distance + rectangle collision, with no
+ * far field. Returns top-left corners (not normalised).
  */
 function packBySprings(
   nodes: ArrangeNode[],
@@ -646,7 +645,7 @@ function packBySprings(
   return out;
 }
 
-/** Positions Fruchterman-Reingold (rapproche les liens, écarte le reste). */
+/** Fruchterman-Reingold positions (pulls links together, pushes the rest apart). */
 function frCenters(nodes: ArrangeNode[], links: ArrangeEdge[], seed: Placed): Map<string, Point> {
   const keys = nodes.map((n) => n.key);
   const centers = new Map<string, Point>();
@@ -717,9 +716,9 @@ function frCenters(nodes: ArrangeNode[], links: ArrangeEdge[], seed: Placed): Ma
 }
 
 /**
- * Détecte les communautés : les liens de pont entre groupes s'étirent sous la
- * répulsion, on coupe ceux plus longs que `moyenne + écart-type`, puis on prend
- * les composantes connexes du graphe restant.
+ * Detects communities: bridge links between groups stretch under repulsion,
+ * those longer than `mean + standard deviation` are cut, then the connected
+ * components of the remaining graph are taken.
  */
 function detectCommunities(
   keys: string[],
@@ -742,11 +741,11 @@ function detectCommunities(
 }
 
 /**
- * Organique « deux niveaux ». Une passe de force détecte les groupes (les liens
- * de pont entre communautés s'étirent et sont coupés au-delà de la moyenne).
- * Chaque groupe est ensuite compacté au contact, puis les groupes sont posés
- * aux positions de la force avec un vrai vide entre eux : groupes lisibles,
- * sans l'étalement interne d'une répulsion globale. Déterministe.
+ * Two-level organic layout. A force pass detects the groups (bridge links
+ * between communities stretch and are cut past the mean). Each group is then
+ * compacted to contact, and the groups are placed at the force positions with
+ * a real gap between them: readable groups, without the internal spread of a
+ * global repulsion. Deterministic.
  */
 function layoutForced(
   nodes: ArrangeNode[],
@@ -795,9 +794,9 @@ function layoutForced(
     boxes.push({ members, placed, rect: { ...placed } });
   }
 
-  // Compacte les groupes entre eux : chaque bloc est un nœud d'un méta-graphe
-  // complet, ressorté au contact et écarté par collision. Les groupes restent
-  // serrés dans l'ensemble tout en gardant un vide net entre eux.
+  // Compacts the groups together: each block is a node of a complete
+  // meta-graph, sprung to contact and pushed apart by collision. Groups stay
+  // tight overall while keeping a clear gap between them.
   const META_EDGE_GAP = 140;
   const META_PACK_GAP = 180;
   const metaNodes: ArrangeNode[] = boxes.map((b, i) => ({
@@ -851,9 +850,9 @@ function layoutForced(
 }
 
 /**
- * Structuré : mêmes groupes que `force`, mais chaque groupe est rangé en
- * couches compactes (colonnes repliées, ordre de navigation) et les blocs sont
- * posés en rangées alignées. Moins organique, plus lisible.
+ * Structured: same groups as `force`, but each group is laid out in compact
+ * layers (folded columns, navigation order) and the blocks are placed in
+ * aligned rows. Less organic, more readable.
  */
 function layoutStructured(
   nodes: ArrangeNode[],
@@ -885,8 +884,8 @@ function layoutStructured(
     };
   });
 
-  // Rangées : blocs hauts d'abord pour des rangées régulières ; largeur cible
-  // ≈ ratio d'écran appliqué à l'aire totale.
+  // Rows: tall blocks first for regular rows; target width ≈ screen ratio
+  // applied to the total area.
   const ordered = [...blocks].sort(
     (a, b) => b.placed.height - a.placed.height || compare(a.members[0]!, b.members[0]!),
   );
@@ -932,7 +931,7 @@ function layoutStructured(
   return { positions: out, width, height };
 }
 
-/** Score d'écart au ratio cible : 0 = planche idéalement proportionnée. */
+/** Distance from the target ratio: 0 = ideally proportioned board. */
 function aspectDistance(arrangement: Arrangement, nodes: ArrangeNode[]): number {
   let maxX = 0;
   let maxY = 0;
@@ -972,11 +971,11 @@ function resolveArrangement(input: {
 }
 
 /**
- * L'arrangement, avec les positions fixées par l'utilisateur. Un nœud fixé
- * reste dans le calcul (ses arêtes structurent les couches de ses voisins) :
- * fixer un nœud là où il était déjà ne déplace donc rien. Seuls les nœuds
- * automatiques qui chevauchent un nœud fixé descendent dans leur colonne.
- * Deux nœuds fixés peuvent se chevaucher : c'est l'utilisateur qui l'a voulu.
+ * The arrangement, with the positions pinned by the user. A pinned node stays
+ * in the computation (its edges structure its neighbours' layers): pinning a
+ * node where it already was therefore moves nothing. Only automatic nodes
+ * overlapping a pinned node move down their column. Two pinned nodes may
+ * overlap: the user wanted it.
  */
 export function arrangeBoard(input: {
   nodes: ArrangeNode[];

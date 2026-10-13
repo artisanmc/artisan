@@ -4,20 +4,20 @@ import net.artisanmc.plugin.project.ProjectRoots
 import net.artisanmc.plugin.project.ProjectSnapshot
 import java.util.concurrent.Executor
 
-/** Les Projects chargés, vus par les gestionnaires du protocole. */
+/** The loaded Projects, as seen by the protocol handlers. */
 interface ProjectWorkspace {
     val roots: ProjectRoots
     val snapshot: ProjectSnapshot
 
     /**
-     * Toute lecture ou écriture disque d'un Project passe ici : hors du callback
-     * WebSocket, et une à la fois, pour qu'aucune écriture ne croise un rechargement.
+     * Every disk read or write of a Project goes through here: off the WebSocket
+     * callback, and one at a time, so no write crosses a reload.
      */
     val io: Executor
 
     /**
-     * Relit le disque, puis prévient le runtime (commandes, modules). Écrire, c'est
-     * savoir qu'on a écrit : sans reprise, l'éditeur ne verrait pas sa propre écriture.
+     * Re-reads the disk, then notifies the runtime (commands, modules). Whoever writes
+     * knows it wrote: without this, the editor would not see its own write.
      */
     fun reload()
 }

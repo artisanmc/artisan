@@ -157,7 +157,7 @@ describe("AddLayerControls", () => {
     expect(useUiStore.getState().draggingNewLayer).toBeNull();
   });
 
-  // --- Keyboard accessibility (P1.7 fix) ---
+  // Keyboard accessibility
 
   it("Enter key on focused + Image button calls onPlace('image', null)", () => {
     const onPlace = vi.fn();

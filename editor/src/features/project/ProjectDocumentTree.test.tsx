@@ -36,13 +36,13 @@ beforeEach(() => {
 });
 
 describe("ProjectDocumentTree", () => {
-  it("liste les documents par catégorie", () => {
+  it("lists the documents by category", () => {
     render(<ProjectDocumentTree projectId={PID} onOpen={vi.fn()} />);
     expect(screen.getByText("/heal")).toBeInTheDocument();
     expect(screen.getByText("m1")).toBeInTheDocument();
   });
 
-  it("porte une icône par catégorie, pas une par document", () => {
+  it("carries one icon per category, not one per document", () => {
     render(<ProjectDocumentTree projectId={PID} onOpen={vi.fn()} />);
     const menus = screen.getByRole("list", { name: /menus/i });
     expect(within(menus).getAllByRole("button", { name: /^m\d$/ })).toHaveLength(2);
@@ -53,14 +53,14 @@ describe("ProjectDocumentTree", () => {
     expect(heading.parentElement?.querySelector("svg")).not.toBeNull();
   });
 
-  it("ouvre un document au clic", () => {
+  it("opens a document on click", () => {
     const onOpen = vi.fn();
     render(<ProjectDocumentTree projectId={PID} onOpen={onOpen} />);
     fireEvent.click(screen.getByText("/heal"));
     expect(onOpen).toHaveBeenCalledWith("c1");
   });
 
-  it("la ligne racine ouvre les paramètres du project sans rien sélectionner", () => {
+  it("the root row opens the project settings without selecting anything", () => {
     useSelectionStore.getState().set(["m1" as never]);
     render(<ProjectDocumentTree projectId={PID} onOpen={vi.fn()} />);
     fireEvent.click(screen.getByTestId("project-settings"));
@@ -68,7 +68,7 @@ describe("ProjectDocumentTree", () => {
     expect(useSelectionStore.getState().ids.size).toBe(0);
   });
 
-  it("propose de créer un menu, une commande et un dialogue", async () => {
+  it("offers to create a menu, a command and a dialog", async () => {
     const user = userEvent.setup();
     render(<ProjectDocumentTree projectId={PID} onOpen={vi.fn()} />);
     await user.click(screen.getByTestId("project-create"));

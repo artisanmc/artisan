@@ -33,7 +33,7 @@ export function extractArgTokens(input: SourceRefInput): string[] {
 
 /**
  * The lists of ONE object param (`category` -> `category.items`), rendered
- * inside its card in the unified Données section: auto-detected top-level
+ * inside its card in the unified data section: auto-detected top-level
  * lists + hand-typed dotted paths (freedom over guessing).
  */
 export function ObjectParamLists({
@@ -190,7 +190,7 @@ export function ObjectParamLists({
   );
 }
 
-// ─── Set d'items du menu (ADR item-templates… révisé : le set vit au MENU) ───
+// Menu item sets (ADR item-templates, revised: the set lives on the MENU)
 
 /** The element consuming this menu list, either mode. */
 function findSetElement(menu: Menu, inputName: string): Element | undefined {
@@ -200,7 +200,7 @@ function findSetElement(menu: Menu, inputName: string): Element | undefined {
 }
 
 /**
- * Per-list "Set d'items" block: create the set (paginated / placed 1-by-1) or
+ * Per-list item set block: create the set (paginated / placed 1-by-1) or
  * show its state. Placement mode opens the CONTEXTUAL row panel: the rows
  * offered are those of the current preview context (e.g. the boutique category
  * selected in "Preview as…"), so the admin navigates category by category and
@@ -244,7 +244,7 @@ export function MenuSetBlock({
   );
 }
 
-/** The Set d'items block for ONE menu list — `listName` may be a plain input
+/** The item set block for ONE menu list — `listName` may be a plain input
  *  name or a dotted path into an object param (`category.items`). */
 function MenuSetBlockCore({
   projectId,

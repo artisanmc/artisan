@@ -6,7 +6,7 @@ import { useProjectCacheStore } from "./projectCacheStore";
 import { useProjectDraftStore } from "./projectDraftStore";
 import { useProjectRuntimeStore } from "./projectRuntimeStore";
 
-/** Ce qu'on sait de la session — « unknown » tant que le serveur n'a pas répondu. */
+/** What we know about the session — "unknown" until the server has answered. */
 export type SessionStatus = "unknown" | "signed-out" | "signed-in";
 
 interface AuthState {
@@ -18,15 +18,15 @@ interface AuthState {
   logout: (apiUrl: string) => Promise<void>;
 }
 
-/** Attentes entre deux `/me` tant que le backend est injoignable, puis palier. */
+/** Delays between two `/me` calls while the hub is unreachable, then plateau. */
 const AUTH_RETRY_DELAYS = [1_000, 3_000, 6_000, 10_000];
 
 /**
- * Attend que l'onglet redevienne visible.
+ * Waits for the tab to become visible again.
  *
- * Un onglet caché n'a personne devant lui : continuer à interroger un backend
- * qui redémarre, depuis chaque onglet ouvert, n'avance rien. Le retour de
- * l'onglet est de toute façon le moment où la réponse commence à compter.
+ * A hidden tab has nobody in front of it: polling a restarting hub from every
+ * open tab achieves nothing. The tab coming back is anyway when the answer
+ * starts to matter.
  */
 function whenVisible(): Promise<void> {
   if (typeof document === "undefined" || document.visibilityState !== "hidden") {
@@ -42,9 +42,8 @@ function whenVisible(): Promise<void> {
   });
 }
 
-/** Deux `hydrate()` concurrents (remontage, reconnexion manuelle) : seule la
- *  plus récente a le droit de conclure, sinon deux boucles de réessai se
- *  marchent dessus. */
+/** Two concurrent `hydrate()` calls (remount, manual reconnect): only the
+ *  most recent may conclude, otherwise two retry loops step on each other. */
 let hydrateGeneration = 0;
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -59,8 +58,8 @@ export const useAuthStore = create<AuthState>((set) => ({
   async hydrate(apiUrl) {
     const generation = ++hydrateGeneration;
     set({ isLoading: true });
-    // Un serveur injoignable (redémarrage, coupure réseau) ne dit pas « déconnecté » :
-    // la session reste « unknown » et on réessaye jusqu'à savoir.
+    // An unreachable server (restart, network cut) does not mean "signed out":
+    // the session stays "unknown" and we retry until we know.
     let user: AuthUserDto | null = null;
     for (let attempt = 0; ; attempt++) {
       if (generation !== hydrateGeneration) return;
@@ -69,7 +68,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         break;
       } catch (e) {
         if (!(e instanceof AuthUnreachableError)) throw e;
-        // Un utilisateur déjà connu le reste : lui, l'app peut le servir.
+        // An already known user stays known: the app can serve them.
         set((s) => ({
           error: "auth_unreachable",
           isLoading: s.currentUser === null ? s.isLoading : false,

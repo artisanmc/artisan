@@ -53,10 +53,10 @@ class PluginConfigTest {
               prompt: "<gold>x</gold>"
               send-on-join: true
               send-delay-ticks: 20
-              delegate-to-dir: "/srv/mc/plugins/Oraxen/project"
+              delegate-to-dir: "/srv/mc/plugins/Oraxen/pack"
         """.trimIndent())
         val cfg = PluginConfig.from(yaml)
-        assertEquals("/srv/mc/plugins/Oraxen/project", cfg.resourcePack.delegateToDir)
+        assertEquals("/srv/mc/plugins/Oraxen/pack", cfg.resourcePack.delegateToDir)
     }
 
     @Test

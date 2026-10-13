@@ -1,6 +1,8 @@
 ---
 title: Image buttons
 description: Use a PNG as a clickable menu button covering one or several slots.
+sidebar:
+  order: 3
 ---
 
 Open **Buttons → Images**, upload a PNG if needed, then drag its thumbnail

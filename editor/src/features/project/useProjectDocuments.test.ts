@@ -17,7 +17,7 @@ function project(): Project {
 }
 
 describe("buildProjectDocuments", () => {
-  it("groupe par catégorie avec id, label et type", () => {
+  it("groups by category with id, label and type", () => {
     const groups = buildProjectDocuments(project(), "en");
     const menus = groups.find((g) => g.type === "menu")!;
     expect(menus.items[0]).toMatchObject({ id: "m1", type: "menu" });

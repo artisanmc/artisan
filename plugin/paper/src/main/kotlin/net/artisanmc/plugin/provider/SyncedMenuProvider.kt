@@ -54,30 +54,29 @@ class SyncedMenuProvider(
     private val declaredModelsReport: () -> List<Map<String, Any?>> = { emptyList() },
     /** Module-declared Config screens, reported at Presence (ADR module-config-screens). */
     private val editorScreensReport: () -> List<Map<String, Any?>> = { emptyList() },
-    /** Les fetchers touchent l'API Bukkit : ils passent par le thread qui possède l'état lu. */
+    /** Fetchers touch the Bukkit API: they run on the thread that owns the state they read. */
     private val scheduler: Scheduler = Scheduler.Direct,
     private val menuWindows: net.artisanmc.plugin.render.MenuWindows? = null,
     private val pluginVersion: String = "1.0.0",
     private val nexoGlyphs: net.artisanmc.plugin.customitems.NexoGlyphReader? = null,
     private val serverConfig: net.artisanmc.plugin.config.ServerConfigAccess? = null,
-    /** Annonces sans requête (`projects_reloaded`…) : l'éditeur servi par le plugin les relaie. */
+    /** Unrequested announcements (`projects_reloaded`…): the editor served by the plugin relays them. */
     private val editorEvents: (Map<String, Any?>) -> Unit = {},
-    /** Sur une feuille, le hub auquel se relier ; null sur le hub ou un serveur seul. */
+    /** On a leaf, the hub to connect to; null on the hub or a standalone server. */
     private val hub: HubLink? = null,
 ) : MenuProvider {
     private var copyMinecraftVersion = "1.21.4"
-    /** Ce que `project_read` sert : l'état lu au dernier chargement, jamais le disque courant. */
+    /** What `project_read` serves: the state read at the last load, never the current disk. */
     @Volatile private var projects = ProjectSnapshot.EMPTY
 
     /**
-     * Menus et dialogs de tous les projects, résolus par référence (`main`,
-     * `boutique:main`) — cf. [net.artisanmc.plugin.engine.DocumentTable]. Les
-     * bundles sont chargés dans l'ordre des projects : en cas d'ambiguïté, le
-     * dernier gagne, comme la table unique d'avant les namespaces.
+     * Menus and dialogs of every project, resolved by reference (`main`,
+     * `boutique:main`); see [net.artisanmc.plugin.engine.DocumentTable]. Bundles
+     * load in project order: on ambiguity, the last one wins.
      */
     @Volatile private var menuTable = net.artisanmc.plugin.engine.DocumentTable<BundleMenu>(emptyList()) { it.id }
     @Volatile private var dialogTable = net.artisanmc.plugin.engine.DocumentTable<BundleDialog>(emptyList()) { it.id }
-    /** Une seule alerte par référence ambiguë et par project appelant : pas un log par clic. */
+    /** One warning per ambiguous reference and calling project, not one log per click. */
     private val warnedAmbiguous = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
     @Volatile private var bundles = listOf<ProjectBundle>()
     /** `pack:` refs resolve against the live bundle list (survives hot-reload swaps). */
@@ -133,7 +132,7 @@ class SyncedMenuProvider(
         testSendOverride = fn
     }
 
-    /** L'éditeur servi par le plugin : mêmes gestionnaires que le WebSocket, sans réseau. */
+    /** The editor served by the plugin: same handlers as the WebSocket, without the network. */
     val link = LocalServerLink(::dispatch, java.time.Duration.ofSeconds(30))
 
     private fun send(payload: Map<String, Any?>) {
@@ -148,7 +147,7 @@ class SyncedMenuProvider(
     /** Module-message escape hatch (api.messages) — fire-and-forget over the WS. */
     fun sendModuleMessage(payload: Map<String, Any>) = send(payload)
 
-    /** Le hub sert les packs à son adresse publique ; la feuille les télécharge par celle qu'elle a jointe. */
+    /** The hub serves packs at its public address; a leaf downloads them through the address it joined. */
     private val hubBaseUrl: String? = hub?.let { net.artisanmc.plugin.config.deriveHttpBaseUrl(it.url).ifEmpty { null } }
     @Volatile private var customItemsManager: CustomItemsManager = CustomItemsManager(emptyList())
 
@@ -162,24 +161,21 @@ class SyncedMenuProvider(
     private fun rpm(): ResourcePackManager? = resourcePackManager ?: resourcePackManagerRef
 
     /**
-     * Enregistre une racine d'Add-on et reprend l'instantané.
-     *
-     * Passe aussi par le listener ci-dessous quand l'Add-on appelle
-     * `api.projectRoots.register(...)` lui-même — c'est le chemin réel.
+     * Registers an Add-on root; the snapshot is reloaded through `roots.onRegister`,
+     * which is also the path taken when the Add-on calls `api.projectRoots.register(...)`.
      */
     fun registerProjectRoot(projectId: String, dir: File) = roots.register(projectId, dir)
 
     /**
-     * Reprend l'instantané depuis le disque, puis prévient les modules.
+     * Reloads the snapshot from disk, then notifies the modules.
      *
-     * Exposé aux Add-ons via `api.project.reload()` : celui qui écrit dans sa
-     * propre racine (`/boutiqueadmin additem`) est le seul à savoir qu'il a
-     * écrit. Sans cet appel, son écriture reste invisible au serveur qui tourne
-     * ET à l'éditeur jusqu'à un `/artisan reload` tapé à la main — l'admin
-     * capture un item, ne le voit nulle part, et croit la commande cassée.
+     * Exposed to Add-ons as `api.project.reload()`: whoever writes into its own root
+     * (`/boutiqueadmin additem`) is the only one who knows it wrote. Without this call
+     * the write stays invisible to the running server AND to the editor until someone
+     * types `/artisan reload`.
      *
-     * Ce n'est PAS un retour de la surveillance disque : c'est une déclaration
-     * explicite, faite par l'auteur de l'écriture, au moment où il l'a faite.
+     * This is NOT disk watching: it is an explicit declaration by the writer, at the
+     * moment of the write.
      */
     fun refreshFromDisk() {
         reloadFromDisk()
@@ -187,9 +183,9 @@ class SyncedMenuProvider(
     }
 
     override fun load() {
-        // Un Add-on enregistre sa racine à SON activation, après la nôtre :
-        // l'instantané pris ici ne peut pas la contenir. Sans ce réabonnement,
-        // son Project répondrait `unknown_project` jusqu'au prochain reload.
+        // An Add-on registers its root when IT enables, after us: the snapshot taken
+        // here cannot contain it. Without this hook, its Project would answer
+        // `unknown_project` until the next reload.
         roots.onRegister = { _, _ ->
             reloadFromDisk()
             onReload?.invoke()
@@ -204,8 +200,8 @@ class SyncedMenuProvider(
         if (hub != null) {
             val availableSources = customItemsManager.availableSources()
             logger?.info("[ART] Custom item sources available: ${availableSources.ifEmpty { listOf("(none)") }}")
-            // Le hello part sans empreinte des custom items : elle suit par `custom_items_changed`,
-            // calculée hors du thread principal (registerCustomItemsReloadListeners).
+            // The hello goes out without the custom items hash: it follows as `custom_items_changed`,
+            // computed off the main thread (registerCustomItemsReloadListeners).
             val client = WsClient(
                 hub               = hub,
                 mcVersion         = mcVersion,
@@ -227,9 +223,8 @@ class SyncedMenuProvider(
         wsClient?.disconnect()
         httpClient.dispatcher.cancelAll()
         httpClient.connectionPool.evictAll()
-        // Executor is intentionally NOT shut down here — it is shared across load/unload
-        // cycles (e.g. /artisan reload) and shutting it would break subsequent bundle downloads.
-        // The hard tear-down lives in shutdown().
+        // The executor is intentionally NOT shut down here: it is shared across load/unload
+        // cycles (e.g. /artisan reload). The hard tear-down lives in shutdown().
     }
 
     override fun shutdown() {
@@ -238,7 +233,7 @@ class SyncedMenuProvider(
         httpClient.dispatcher.executorService.awaitTermination(5, TimeUnit.SECONDS)
     }
 
-    /** Sur une feuille, le lien de l'éditeur vient du hub ; null s'il ne répond pas. */
+    /** On a leaf, the editor link comes from the hub; null if it does not answer. */
     fun requestEditorLink(player: java.util.UUID, name: String, permissions: Set<String>, host: String?) =
         wsClient?.request(mapOf(
             "type" to "editor_link", "player_id" to player.toString(), "player_name" to name,
@@ -257,7 +252,7 @@ class SyncedMenuProvider(
                 ?: net.kyori.adventure.text.Component.text("Menu '$menuId' not found."))
             return
         }
-        // Les clics de ce menu se résolvent dans SON project, pas dans celui d'où l'on vient.
+        // This menu's clicks resolve in ITS project, not in the one we came from.
         val opened = ctx.copy(projectId = menu.projectId.ifEmpty { null } ?: ctx.projectId)
         history?.setCurrent(
             player,
@@ -383,11 +378,8 @@ class SyncedMenuProvider(
         customItemsManager = manager
     }
 
-    // Le SyncScanner a été retiré avec la sémantique de reload : une édition
-    // disque ne s'applique qu'à `/artisan reload`, comme pour tout autre plugin
-    // Minecraft. Surveiller le disque en continu coûtait la surprise (le serveur
-    // changeait sous les pieds de l'admin) sans donner le bénéfice (l'éditeur
-    // n'était live pour autant — il ne voyait rien avant un rechargement de page).
+    // A hand edit on disk applies only on `/artisan reload`, like any other Minecraft
+    // plugin: the disk is deliberately not watched.
 
     private fun reloadFromDisk() = synchronized(roots) {
         // Declared model docs feed the reader so BARE data files resolve their
@@ -400,8 +392,8 @@ class SyncedMenuProvider(
         }, { projectId, rel, reason ->
             failures.getOrPut(projectId) { java.util.concurrent.ConcurrentHashMap() }[rel] = reason
         }).readAll()
-        // L'instantané se prend sur tous les fichiers, pas seulement ceux qui ont
-        // compilé : ce qui a échoué doit rester lisible et réparable.
+        // The snapshot covers every file, not only those that compiled: what failed
+        // must stay readable and fixable.
         val dirs = roots.all()
         projects = ProjectSnapshot(
             files = dirs.mapValues { (_, dir) ->
@@ -418,21 +410,15 @@ class SyncedMenuProvider(
     }
 
     /**
-     * Annonce le rechargement, avec l'empreinte de chaque Project.
+     * Announces the reload, with each Project's fingerprint, so the editor learns that
+     * hand edits now apply.
      *
-     * Une édition faite à la main ne compte qu'au reload : c'est notre règle, et
-     * elle a un corollaire que rien ne remplissait — l'éditeur n'avait AUCUN
-     * moyen d'apprendre que ce moment était arrivé. Il gardait sa dernière
-     * version connue jusqu'à ce que quelqu'un pense à actualiser.
-     *
-     * L'empreinte voyage avec l'annonce : celui qui a déjà celle-là sait, sans
-     * un aller-retour de plus, qu'il n'a rien à refaire. C'est la même que celle
-     * de `project_read`, sans quoi chaque reload provoquerait un rapatriement
-     * inutile de l'arbre.
+     * The fingerprint is the same as `project_read`'s: a client that already holds it
+     * knows, without another round trip, that it has nothing to refetch.
      */
     private fun announceReload() {
         val hashes = projects.hashes()
-        // Fire-and-forget : sans hub joignable l'annonce se perd ; `project_read` rend la même empreinte.
+        // Fire-and-forget: without a reachable hub the announcement is lost; `project_read` returns the same fingerprint.
         runCatching { send(mapOf("type" to "projects_reloaded", "projects" to hashes)) }
     }
 
@@ -467,6 +453,9 @@ class SyncedMenuProvider(
             is EditorRequest.ProjectWrite -> projectWrites.write(request)
             is EditorRequest.ConfigWrite -> projectWrites.config(request)
             is EditorRequest.ProjectDraft -> projectWrites.draft(request)
+            is EditorRequest.ProjectCreate -> projectWrites.create(request)
+            is EditorRequest.ProjectDelete -> projectWrites.delete(request)
+            is EditorRequest.ProjectRename -> projectWrites.rename(request)
         }
     }
 
@@ -479,7 +468,7 @@ class SyncedMenuProvider(
         }
     }
 
-    /** Un pack construit par l'éditeur et servi par le hub : [downloadUrl] est l'adresse locale du hub. */
+    /** A pack built by the editor and served by the hub: [downloadUrl] is the hub's local address. */
     fun applyLocalResourcePack(playerUrl: String, downloadUrl: String, hash: String) {
         rpm()?.applyPack(playerUrl, downloadUrl, hash)
     }
@@ -517,7 +506,6 @@ class SyncedMenuProvider(
                 append(parsed.rawPath ?: "")
                 parsed.rawQuery?.let { append('?').append(it) }
             }
-            // Trim trailing slash on base to avoid double slashes.
             val trimmedBase = if (base.endsWith('/')) base.dropLast(1) else base
             if (pathAndQuery.isEmpty()) playerUrl else trimmedBase + pathAndQuery
         } catch (_: Throwable) {

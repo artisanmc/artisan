@@ -39,7 +39,7 @@ export interface ItemEditorProps {
   inherited: ResolvedItem;
   preview: ResolvedItem;
   entries?: PlaceholderEntry[];
-  /** `"replace"` = le lore de l'item de base est écarté ; absent = il est conservé. */
+  /** `"replace"` = the base item's lore is dropped; absent = it is kept. */
   loreMode?: "replace";
   onLoreMode?: (value: "replace" | undefined) => void;
   onText: (field: "title" | "lore", value: string | undefined) => void;
@@ -109,8 +109,8 @@ export function ItemEditor({
       <span className="text-[10px] text-[var(--text-faint)]">{t("itemBinding.inherited")}</span>
     ) : null;
   function textField(field: "title" | "lore", own: string | undefined, label: string) {
-    // Le lore de base s'applique déjà sans rien écrire : pré-remplir le champ
-    // avec `{base.lore}` faisait croire qu'il fallait le demander.
+    // The base lore already applies without writing anything: prefilling the
+    // field with `{base.lore}` suggested it had to be asked for.
     const raw = own ?? (field === "title" && hasInherited(field) ? "{base.title}" : "");
     const shown = field === "title" ? (preview.title ?? "") : preview.lore.join("\n");
     return (

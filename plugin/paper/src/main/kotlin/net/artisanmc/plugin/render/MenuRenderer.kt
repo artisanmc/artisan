@@ -28,9 +28,8 @@ class ArtisanMenuHolder : InventoryHolder {
 }
 
 object MenuRenderer {
-    /** Placeholder rendant le lore de l'item de base, là où il est écrit. */
+    /** Placeholder rendering the base item's lore where it is written. */
     private const val BASE_LORE = "{base.lore}"
-
 
     private val itemMapper = ObjectMapper().registerKotlinModule()
 
@@ -44,9 +43,9 @@ object MenuRenderer {
     private fun parse(text: String) = LenientText.parse(text).applyFallbackStyle(noItalic)
 
     /**
-     * Liste source d'une itération / d'un placement : clé plate des args
-     * (sourceRef classique) OU chemin pointé dans un objet de contexte
-     * (`category.items` — objet passé entier via `context: { category: "{cat}" }`).
+     * Source list of an iteration / a placement: a flat args key (classic sourceRef) OR a
+     * dotted path into a context object (`category.items`, an object passed whole through
+     * `context: { category: "{cat}" }`).
      */
     private fun sourceList(args: Map<String, Any>, source: String): List<*> =
         (args[source] ?: exprListValue(source, args)) as? List<*> ?: emptyList<Any>()
@@ -76,14 +75,12 @@ object MenuRenderer {
         windows: MenuWindows? = null,
     ): MenuSession {
         // Deterministic fallback chain: requested lang → project defaultLang → empty.
-        // Previously fell back to `langMaps.values.firstOrNull()` which is map-
-        // iteration-order dependent (non-deterministic across loads).
         val langMap = menu.langMapWithFallback(lang)
 
-        // §15.4 : defaults déclarés (l'appelant gagne par nom) + fetch des
-        // ConnectorBinding — `pack:` (Project sources du bundle, ltext résolus
-        // ici avec la langue du viewer) puis DataSourceRegistry curryfié sur le
-        // player. Cf. ProjectDataResolver pour le pourquoi du non-registry.
+        // Declared defaults (the caller wins by name) + ConnectorBinding fetches:
+        // `pack:` (the bundle's Project sources, ltext resolved here in the viewer's
+        // language) then the DataSourceRegistry curried on the player. See
+        // ProjectDataResolver for why Project sources stay out of the registry.
         val fetch: ((String, Map<String, Any?>) -> Any?)? =
             if (dataSources == null && projectData == null) null
             else { ref, params ->
@@ -117,13 +114,13 @@ object MenuRenderer {
             sourceArgs = ctx.sourceArgs + fetchedArgs + directArgs,
         )
 
-        // Contenu adressé par rawSlot : en `hidden`, les positions
-        // `size until size + 36` désignent les slots joueur de la fenêtre.
+        // Content addressed by rawSlot: in `hidden` mode, positions
+        // `size until size + 36` are the window's player slots.
         val invType = INVENTORY_TYPES[menu.yaml.inventoryType]
         val content = MenuSlots(invType?.defaultSize ?: menu.yaml.size, PlayerInventoryMode.parse(menu.yaml.playerInventory))
         val slotLimit = content.slotLimit
 
-        // Pré-calcul des fenêtres de pagination de chaque élément itérant.
+        // Pagination window of each iterating element.
         val pageInfo = mutableMapOf<String, PageInfo>()
         for (element in menu.yaml.allElements) {
             val iter = element.iterates
@@ -170,13 +167,12 @@ object MenuRenderer {
             interpolate = interpolate,
             defaultLang = menu.defaultLang,
         )
-        // MockBukkit n'implémente pas l'overload Component de createInventory —
-        // fallback legacy uniquement dans ce cas (la prod garde le Component,
-        // indispensable aux titres pixel-perfect à base de fonts).
-        // Branche sur inventory_type : hopper/dropper créent un container du bon
-        // TYPE (un dropper a 9 slots comme un chest 1-row mais un type distinct),
-        // donc on ne peut pas se reposer sur size. Chest garde le createInventory
-        // basé sur size.
+        // MockBukkit does not implement createInventory's Component overload: legacy
+        // fallback only in that case (production keeps the Component, required for
+        // pixel-perfect font titles).
+        // Branches on inventory_type: hopper/dropper create a container of the right
+        // TYPE (a dropper has 9 slots like a 1-row chest but a distinct type), so size
+        // alone is not enough. Chest keeps the size-based createInventory.
         val inv = if (invType != null) {
             runCatching { Bukkit.createInventory(ArtisanMenuHolder(), invType, title) }
                 .getOrElse {
@@ -252,7 +248,7 @@ object MenuRenderer {
                 }
                 continue
             }
-            // Élément itérant : une entrée de la liste par slot, fenêtrée par page.
+            // Iterating element: one list entry per slot, windowed by page.
             val list = sourceList(renderCtx.args, iter.source)
             val info = renderCtx.pageInfo[element.id] ?: PageInfo(0, 1)
             val window = list.drop(info.page * slots.size).take(slots.size)
@@ -270,9 +266,9 @@ object MenuRenderer {
             }
         }
 
-        // Ancre vide : le contenu part par paquets. Enregistrée avant l'ouverture,
-        // dont les paquets doivent déjà être réécrits ; retirée si un autre
-        // plugin a annulé l'ouverture (sinon sa prochaine fenêtre serait prise).
+        // Empty anchor: the content goes out as packets. Registered before opening,
+        // whose packets must already be rewritten; released if another plugin
+        // cancelled the open (otherwise its next window would be captured).
         windows?.open(player, inv, content, menu.yaml.vanillaTexture)
         player.openInventory(inv)
         if (player.openInventory.topInventory !== inv) windows?.release(player, inv)
@@ -319,8 +315,8 @@ object MenuRenderer {
             itemMapper.convertValue(fields, AppearanceYaml::class.java).copy(extends = extension)
         }
         val count = (app.count ?: base?.count ?: 1).coerceIn(1, 64)
-        // Le material peut être un placeholder ({input} ou {alias.field}) — résolu
-        // via le contexte avant le lookup vanilla/custom.
+        // The material may be a placeholder ({input} or {alias.field}), resolved
+        // through the context before the vanilla/custom lookup.
         val resolvedMaterial = rawMaterial?.let { ctx.render(it, papi) }
         var item = base?.let { buildItem(it, langMap, ctx, deps, depth = depth + 1) }
             ?: (value as? String)?.let { buildItem(AppearanceYaml(item = it), langMap, ctx, deps, depth = depth + 1) }
@@ -369,8 +365,8 @@ object MenuRenderer {
             }
             val legacy = legacyToken != null && rawLines.any { it.contains(legacyToken) }
             val tokened = rawLines.map { if (legacy) it.replace(legacyToken!!, BASE_LORE) else it }
-            // Le lore de base reste par défaut : il ne part que sur `lore_mode: replace`
-            // ou quand `{base.lore}` le place lui-même (sinon il sortirait deux fois).
+            // The base lore stays by default: it goes away only with `lore_mode: replace`
+            // or when `{base.lore}` places it itself (otherwise it would show twice).
             val replacement = tokened.any { it.contains(BASE_LORE) } || app.loreMode == "replace"
             val base = if (replacement) emptyList() else meta.lore() ?: emptyList()
             val lines = tokened.flatMap { raw -> localCtx.render(raw, papi) { key -> langMap[key] }.split("\n") }
