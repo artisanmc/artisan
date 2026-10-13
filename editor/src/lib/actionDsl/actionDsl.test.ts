@@ -33,6 +33,16 @@ describe("action DSL codec", () => {
     });
   }
 
+  it("reads project:id refs as one token, and still opens blocks with a trailing colon", () => {
+    expect(parseActionDsl("open_menu 2024:main")).toEqual([
+      { kind: "action", action: { type: "open_menu", menuId: "2024:main" } },
+    ]);
+    const [step] = parseActionDsl("if world_is(shop):\n  open_menu shop:main");
+    expect(step?.kind).toBe("if");
+    expect(() => parseActionDsl("open_menu :main")).toThrow();
+    expect(() => parseActionDsl("open_menu shop:")).toThrow();
+  });
+
   it("empty source parses to no steps", () => {
     expect(parseActionDsl("")).toEqual([]);
     expect(parseActionDsl("\n  # just a comment\n")).toEqual([]);
