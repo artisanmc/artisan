@@ -1,8 +1,17 @@
 package net.artisanmc.plugin.hub
 
-/** Les serveurs que l'éditeur atteint. Celui qui héberge le hub s'appelle [LOCAL]. */
+import java.util.concurrent.ConcurrentHashMap
+
+/**
+ * Les serveurs que l'éditeur atteint. Celui qui héberge le hub s'appelle [LOCAL] ; les autres
+ * se relient par `/ws/plugin` et restent listés, hors ligne, après une déconnexion.
+ */
 class Servers(val local: EditorServer) {
-    fun all(): List<EditorServer> = listOf(local)
+    private val remote = ConcurrentHashMap<String, RemoteServer>()
+
+    fun all(): List<EditorServer> = listOf(local) + remote.values.sortedBy { it.id }
+
+    fun remote(id: String, create: (String) -> RemoteServer): RemoteServer = remote.computeIfAbsent(id, create)
 
     fun find(id: String?): EditorServer? = all().firstOrNull { it.id == id }
 
@@ -36,9 +45,9 @@ class Servers(val local: EditorServer) {
 }
 
 class ProjectRef(val server: EditorServer, val folder: String) {
-    val id: String get() = id(server, folder)
+    val id: String get() = id(server.id, folder)
 
     companion object {
-        fun id(server: EditorServer, folder: String) = if (server.id == Servers.LOCAL) folder else "${server.id}.$folder"
+        fun id(server: String, folder: String) = if (server == Servers.LOCAL) folder else "$server.$folder"
     }
 }

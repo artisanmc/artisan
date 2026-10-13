@@ -13,6 +13,7 @@ class Relay(private val logger: Logger?) {
                 val cause = (failure as? CompletionException)?.cause ?: failure
                 when {
                     cause is TimeoutException -> call.error(504, "fetch_timeout")
+                    cause is ServerOfflineException -> call.error(503, "server_offline")
                     cause != null -> {
                         logger?.log(Level.WARNING, "[Artisan] ${message["type"]} failed", cause)
                         call.error(502, "fetch_error", cause.message)

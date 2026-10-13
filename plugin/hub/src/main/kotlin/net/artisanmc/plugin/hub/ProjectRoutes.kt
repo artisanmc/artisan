@@ -26,7 +26,7 @@ class ProjectRoutes(private val servers: Servers, private val relay: Relay) {
                 if (!ok(reply)) return@send readError(call, reply)
                 val projects = roots(reply).map { summary(server, it) }
                 call.json(mapOf(
-                    "project_ids" to (reply["project_ids"] as? List<*>).orEmpty().map { ProjectRef.id(server, it as String) },
+                    "project_ids" to (reply["project_ids"] as? List<*>).orEmpty().map { ProjectRef.id(server.id, it as String) },
                     "projects" to projects,
                     "pending_renames" to emptyList<Any>(),
                 ))
@@ -232,7 +232,7 @@ class ProjectRoutes(private val servers: Servers, private val relay: Relay) {
 
     private fun summary(server: EditorServer, root: Map<String, Any?>): Map<String, Any?> {
         val folder = root["project_id"] as String
-        val id = ProjectRef.id(server, folder)
+        val id = ProjectRef.id(server.id, folder)
         return mapOf(
             "id" to id, "name" to folder, "externalId" to id, "slug" to id,
             "networkId" to LOCAL, "serverKeyId" to server.id, "hash" to "",
