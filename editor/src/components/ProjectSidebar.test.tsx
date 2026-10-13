@@ -57,18 +57,6 @@ describe("ProjectSidebar", () => {
     useAccountStore.setState({ account: { id: "", projects: [], projectOrder: [] } } as any);
   });
 
-  it("n'a plus de sélecteur de serveur ni de lien vers le network : le fil d'Ariane de la topbar les remplace", async () => {
-    vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
-      network: { id: "net_1", name: "Mon Network", tier: "free" },
-      projects: [],
-      serverKeys: [{ id: "sk_1", label: "Survival" }],
-    });
-    render(<ProjectSidebar />);
-    await screen.findByRole("link", { name: /pack_a/ });
-    expect(screen.queryByText(/^Serveur$|^Server$/i)).toBeNull();
-    expect(screen.queryByRole("link", { name: /Mon Network/ })).toBeNull();
-  });
-
   it("liste les Projects du disque du serveur actif, triés", async () => {
     vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
       network: { id: "net_1", name: "Mon Network", tier: "free" },

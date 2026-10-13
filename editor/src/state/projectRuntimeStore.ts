@@ -7,7 +7,6 @@ export interface ProjectRuntime {
   serverId: string | null;
   minecraftVersion: string | null;
   capabilities: {
-    canUseAssistant?: boolean;
     canImport?: boolean;
     canDelete?: boolean;
     canRename: boolean;
@@ -19,7 +18,6 @@ export interface ProjectRuntime {
   connection: { available: boolean };
 }
 export const unavailableProjectCapabilities = Object.freeze({
-  canUseAssistant: false,
   canImport: false,
   canDelete: false,
   canCopyToServer: false,
@@ -36,7 +34,6 @@ export function projectRuntime(metadata: UserProjectLoadResult): ProjectRuntime 
     serverId,
     minecraftVersion: metadata.minecraftVersion ?? null,
     capabilities: {
-      canUseAssistant: true,
       canImport: true,
       canDelete: true,
       canCopyToServer: false,

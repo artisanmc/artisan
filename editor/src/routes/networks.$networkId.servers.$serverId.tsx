@@ -1,5 +1,4 @@
 import { projectUrlId } from "@/lib/projectUrlId";
-import { RequestAccessPanel } from "@/components/network-detail/RequestAccessPanel";
 import { ImportProjectDialog } from "@/features/import/ImportProjectDialog";
 import { buildProjectGroups, diskProjectsToSummaries } from "@/features/projects/projectGroups";
 import { RenameProjectButton } from "@/features/projects/RenameProjectButton";
@@ -41,6 +40,7 @@ export default function ServerDetailPage() {
   const { networkId, serverId } = useParams({
     from: "/networks/$networkId/servers/$serverId",
   });
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const currentUser = useAuthStore((s) => s.currentUser);
   const authLoading = useAuthStore((s) => s.isLoading);
@@ -74,8 +74,6 @@ export default function ServerDetailPage() {
         setServerKeyId(sk.id);
       })
       .catch((e: Error & { status?: number }) => {
-        // A logged-in user without membership → offer to request access instead
-        // of bouncing. A stale/nonexistent id (404) still bounces.
         if (e?.status === 403) {
           setAccessDenied(true);
         } else if (e?.status === 404) {
@@ -84,7 +82,12 @@ export default function ServerDetailPage() {
       });
   }, [networkId, serverId, navigate]);
 
-  if (accessDenied) return <RequestAccessPanel networkIdOrSlug={networkId} />;
+  if (accessDenied)
+    return (
+      <div className="flex h-full items-center justify-center p-8 text-[var(--text-mut)]">
+        {t("serverDetail.accessDenied")}
+      </div>
+    );
   if (childMatches.length > 0) return <Outlet />;
 
   return (

@@ -36,13 +36,13 @@ describe("project URLs", () => {
       documentId: "menu",
     });
   });
-  it("keeps the demo scope with its folder ID; a Network alone leads back to the Network", () => {
+  it("a Network alone leads back to the Network; no Network leads home", () => {
     expect(projectDestination("network", { id: "internal", externalId: "My_Project" })).toEqual({
       to: "/networks/$networkId",
       params: { networkId: "network" },
     });
-    expect(
-      projectDestination(null, { id: "guest-internal", externalId: "demo" }).params.projectId,
-    ).toBe("demo");
+    expect(projectDestination(null, { id: "internal", externalId: "My_Project" })).toEqual({
+      to: "/",
+    });
   });
 });

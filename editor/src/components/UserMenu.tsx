@@ -6,13 +6,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { EditorAccessNotice } from "@/features/project/EditorAccessNotice";
-import { type SubscriptionDto, getSubscription } from "@/lib/api/billing";
 import { useAuthStore } from "@/state/authStore";
 import { useNetworksStore } from "@/state/networksStore";
 import { useSidebarStore } from "@/state/sidebarStore";
 import { Link } from "@tanstack/react-router";
-import { LogOut, Settings as SettingsIcon, Shield, UserIcon } from "lucide-react";
-import { useEffect, useState } from "react";
+import { LogOut, Settings as SettingsIcon, UserIcon } from "lucide-react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 function getInitial(name: string | null | undefined): string {
@@ -36,38 +35,10 @@ export function UserMenu({
   const storedNetworkId = useNetworksStore((s) => s.activeId);
   const networkId = selectedNetworkId === undefined ? storedNetworkId : selectedNetworkId;
   const [open, setOpen] = useState(false);
-  const [subscription, setSubscription] = useState<{
-    networkId: string;
-    value: SubscriptionDto;
-  } | null>(null);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: opening the menu refreshes the subscription.
-  useEffect(() => {
-    let live = true;
-    setSubscription(null);
-    if (user && networkId) {
-      void getSubscription(networkId)
-        .then((value) => {
-          if (live && value) setSubscription({ networkId, value });
-        })
-        .catch(() => {});
-    }
-    return () => {
-      live = false;
-    };
-  }, [user, networkId, open]);
-  const currentSubscription = subscription?.networkId === networkId ? subscription.value : null;
-  const planName =
-    currentSubscription?.effectivePlan?.name ??
-    (currentSubscription
-      ? currentSubscription.status &&
-        !["canceled", "incomplete_expired"].includes(currentSubscription.status)
-        ? currentSubscription.planName
-        : "Free"
-      : null);
   const closeSidebar = useSidebarStore((s) => s.close);
   const displayName = user?.name ?? t("userMenu.anonymous");
   const initial = getInitial(user?.name);
-  const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
+  const apiUrl = import.meta.env.VITE_API_URL ?? "";
 
   const onLogout = async () => {
     await useAuthStore.getState().logout(apiUrl);
@@ -96,9 +67,6 @@ export function UserMenu({
           )}
           <span className="min-w-0 flex-1">
             <span className="block truncate font-medium">{displayName}</span>
-            {user && planName && (
-              <span className="block truncate text-xs text-[var(--text-mut)]">{planName}</span>
-            )}
           </span>
         </button>
       </DropdownMenuTrigger>
@@ -124,25 +92,11 @@ export function UserMenu({
               </>
             )}
             <DropdownMenuItem asChild>
-              <Link to="/account" onClick={closeSidebar} className="flex items-center gap-2.5">
-                <UserIcon className="size-[14px]" />
-                {t("userMenu.profile")}
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
               <Link to="/settings" onClick={closeSidebar} className="flex items-center gap-2.5">
                 <SettingsIcon className="size-[14px]" />
                 {t("sidebar.settings")}
               </Link>
             </DropdownMenuItem>
-            {user.isAdmin && (
-              <DropdownMenuItem asChild>
-                <Link to="/admin" onClick={closeSidebar} className="flex items-center gap-2.5">
-                  <Shield className="size-[14px]" />
-                  {t("userMenu.admin")}
-                </Link>
-              </DropdownMenuItem>
-            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={onLogout}

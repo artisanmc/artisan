@@ -50,7 +50,6 @@ import { useServersStore } from "@/state/serversStore";
 import { useSidebarStore } from "@/state/sidebarStore";
 import { CSS } from "@dnd-kit/utilities";
 import { ChevronDown, ChevronRight, Folder, FolderOpen, GripVertical } from "lucide-react";
-import { SELF_HOSTED } from "@/lib/selfHosted";
 import { NewProjectDialog } from "./NewProjectDialog";
 import { type ServerEntry, ServerSelector } from "./ServerSelector";
 import { UserMenu } from "./UserMenu";
@@ -252,11 +251,13 @@ export function ProjectSidebar() {
     };
   }, [networks, activeNetworkId, refetchToken, storeRefreshToken]);
 
-  // Servi par le plugin : le hub et les serveurs qui s'y connectent, avec leur état.
-  const { data: serversStatus } = useNetworkServersStatus(SELF_HOSTED ? activeNetworkId : null);
-  const selectorEntries = SELF_HOSTED
-    ? withServersStatus(allServerEntries, activeNetworkId, serversStatus?.servers ?? [])
-    : [];
+  // Le hub et les serveurs qui s'y connectent, avec leur état.
+  const { data: serversStatus } = useNetworkServersStatus(activeNetworkId);
+  const selectorEntries = withServersStatus(
+    allServerEntries,
+    activeNetworkId,
+    serversStatus?.servers ?? [],
+  );
 
   const serverIds = new Set(serverProjects.map((p) => p.id));
   const optimisticEntries: ProjectSummary[] = localProjects
@@ -332,7 +333,7 @@ export function ProjectSidebar() {
   return (
     <nav className="flex h-full flex-col gap-3.5 px-3 py-2">
       <Link
-        to={SELF_HOSTED ? "/" : "/networks"}
+        to="/"
         onClick={() => useSidebarStore.getState().close()}
         className="flex h-12 shrink-0 items-center gap-1 rounded-[10px] px-1.5 transition-colors hover:bg-[var(--surface-hover)]"
       >
@@ -347,7 +348,7 @@ export function ProjectSidebar() {
         <ArtisanWordmark />
       </Link>
 
-      {SELF_HOSTED && <ServerSelector servers={selectorEntries} />}
+      <ServerSelector servers={selectorEntries} />
 
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden">
         {openProjectId && !openIsListed && (
@@ -551,32 +552,21 @@ export function withServersStatus(
  */
 function ProjectLink({
   projectId,
-  internalId,
   networkId,
   serverId,
   className,
   children,
 }: {
   projectId: string;
-  internalId: string;
   networkId: string | null;
   serverId: string | null;
   className: string;
   children: ReactNode;
 }) {
   const close = () => useSidebarStore.getState().close();
-  return networkId ? (
+  return (
     <Link
       {...projectDestination(networkId, projectId, serverId ?? undefined)}
-      onClick={close}
-      className={className}
-    >
-      {children}
-    </Link>
-  ) : (
-    <Link
-      to="/project/$projectId"
-      params={{ projectId: internalId }}
       onClick={close}
       className={className}
     >
@@ -792,7 +782,6 @@ function OwnedProjectItem({
       <div className="flex items-center gap-0.5 rounded-[10px] hover:bg-[var(--surface-hover)]">
         <ProjectLink
           projectId={urlId ?? id}
-          internalId={id}
           networkId={networkId}
           serverId={serverId}
           className={
@@ -877,7 +866,6 @@ function SortableProjectItem({
         )}
         <ProjectLink
           projectId={urlId ?? id}
-          internalId={id}
           networkId={networkId}
           serverId={serverId}
           className={

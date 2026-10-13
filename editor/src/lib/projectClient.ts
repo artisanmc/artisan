@@ -1,7 +1,7 @@
 import { readFileHistory, readProjectFiles, writeProjectFiles } from "./api/projectFiles";
 import { projectFetch } from "./projectFetch";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
+const API_URL = import.meta.env.VITE_API_URL ?? "";
 /** Bound once to the immutable authorized identity; storage location stays behind HTTP. */
 export function projectClient(projectId: string) {
   return {

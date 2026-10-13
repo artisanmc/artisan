@@ -2,10 +2,10 @@ import type { TFunction } from "i18next";
 import { toast } from "sonner";
 
 /**
- * Éditeur auto-hébergé : après une écriture sur le disque, reconstruit le resource
+ * Après une écriture sur le disque, reconstruit le resource
  * pack dans le navigateur et l'envoie au plugin, sans bloquer la publication. Un
- * échec laisse le pack précédent en place et se signale par un toast. L'appelant
- * garde l'appel derrière `SELF_HOSTED` ; le constructeur n'est chargé qu'à ce moment.
+ * échec laisse le pack précédent en place et se signale par un toast. Le constructeur
+ * n'est chargé qu'à ce moment.
  * Serveur inconnu : rien n'est reconstruit, plutôt que le pack d'un autre serveur.
  */
 export function rebuildServerPackInBackground(
