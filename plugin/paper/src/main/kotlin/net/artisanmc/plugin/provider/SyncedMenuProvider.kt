@@ -185,11 +185,10 @@ class SyncedMenuProvider(
     override fun load() {
         // An Add-on registers its root when IT enables, after us: the snapshot taken
         // here cannot contain it. Without this hook, its Project would answer
-        // `unknown_project` until the next reload.
-        roots.onRegister = { _, _ ->
-            reloadFromDisk()
-            onReload?.invoke()
-        }
+        // `unknown_project` until the next reload. Deferred to the next tick so the
+        // Add-on's onEnable has returned: its bootstrap writes are read, and its
+        // onReload() never runs before its onEnable is done.
+        roots.onRegister = { _, _ -> scheduler.global(::refreshFromDisk) }
         reloadFromDisk()
         val mcVersion = try {
             org.bukkit.Bukkit.getServer().minecraftVersion

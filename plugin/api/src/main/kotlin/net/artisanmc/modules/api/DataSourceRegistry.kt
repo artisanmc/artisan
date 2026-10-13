@@ -34,6 +34,18 @@ class DataSourceRegistry {
         }
     }
 
+    /** Removes the data source [ref]; false if none was registered. Since 1.8.0. */
+    @Stable
+    fun unregister(ref: String): Boolean = sources.remove(ref) != null
+
+    internal fun unregisterOwnedBy(moduleId: String) {
+        sources.values.removeIf { it.moduleId == moduleId }
+    }
+
+    internal fun unregisterLoadedBy(loader: ClassLoader) {
+        sources.values.removeIf { it.declaration.fetcher.javaClass.classLoader === loader }
+    }
+
     @Stable
     fun fetch(ref: String, player: Player?, params: Map<String, Any?>): List<Map<String, Any?>> {
         val entry = sources[ref] ?: throw UnknownDataSourceException(ref)
