@@ -41,6 +41,8 @@ du protocole (`project_read`, `project_write`, `project_draft_request`…) pass�
 `ServerLink` aux gestionnaires existants : aucune logique de Project n'est dupliquée.
 Les brouillons privés restent sur le disque du serveur, un jeu par UUID de joueur.
 Sans équivalent pour l'instant : Versions (vides).
+*Révisé le 2026-10-13 par [server-identity-and-versions](server-identity-and-versions.md) :
+Versions et brouillons dans la base de la suite.*
 
 **⑦ Items et textures vanilla sans backend.** Le catalogue d'items (`tools/minecraft-assets/items`)
 voyage dans le jar ; les icônes 3D (`tools/minecraft-assets/icons`) aussi avec `-PwithEditor`. Les

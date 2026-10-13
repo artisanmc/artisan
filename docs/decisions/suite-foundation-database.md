@@ -1,6 +1,9 @@
 # Artisan prête la base de données à la suite — `environment.yml`, un pool par plugin
 
-**Status :** accepted (2026-10-11).
+**Status :** accepted (2026-10-11). *Révisé le 2026-10-13 par
+[server-identity-and-versions](server-identity-and-versions.md) : un réseau de plusieurs
+serveurs exige MySQL ou MariaDB (refus au démarrage en H2), Artisan crée ses propres tables
+(`artisan_servers`, Versions, brouillons) avec ses migrations.*
 
 ## Contexte
 
