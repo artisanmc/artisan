@@ -27,9 +27,35 @@ val buildEditor by tasks.registering(Exec::class) {
     outputs.dir(editorDist)
 }
 
+// Catalogue d'items vanilla généré côté backend (`gen-items.ts`), une version par fichier.
+val vanillaItems: File = rootDir.resolve("../backend/data/items").canonicalFile
+val vanillaIndex by tasks.registering {
+    val out = layout.buildDirectory.file("generated/vanilla/items/versions.txt")
+    inputs.dir(vanillaItems)
+    outputs.file(out)
+    doLast {
+        val versions = vanillaItems.listFiles { f -> f.extension == "json" }.orEmpty().map { it.nameWithoutExtension }.sorted()
+        out.get().asFile.apply { parentFile.mkdirs() }.writeText(versions.joinToString("\n"))
+    }
+}
+
+tasks.processResources {
+    dependsOn(vanillaIndex)
+    from(vanillaItems) { include("*.json"); into("vanilla/items") }
+    from(layout.buildDirectory.dir("generated/vanilla")) { into("vanilla") }
+}
+
 if (providers.gradleProperty("withEditor").isPresent) {
     tasks.processResources {
         dependsOn(buildEditor)
         from(editorDist) { into("editor") }
+        // Icônes 3D des blocs (`gen-icons.ts`), utiles seulement à l'éditeur : ~15 Mo.
+        rootDir.resolve("../backend/assets-seed").listFiles { f -> f.name.matches(Regex("icons-.*\\.zip")) }.orEmpty().forEach { zip ->
+            from(zipTree(zip)) {
+                include("mc-assets/**")
+                eachFile { path = "vanilla/" + path.removePrefix("mc-assets/") }
+                includeEmptyDirs = false
+            }
+        }
     }
 }

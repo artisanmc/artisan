@@ -2099,6 +2099,7 @@ export default {
     nothing: "Nothing to deploy",
     cannotDeployTitle: "Unknown server — cannot deploy",
     deployed: "Deployed to the server",
+    packFailed: "The resource pack could not be rebuilt; players keep the previous one.",
     failed: "Deploy failed",
     reviewTitle: "Deploy to the server?",
     reviewBody:

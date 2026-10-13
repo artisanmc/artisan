@@ -69,14 +69,6 @@ class ProjectRoutes(private val server: LocalServer, private val relay: Relay) {
         router.on("GET", "/api/v1/projects/:project/versions", VIEW) { it.json(mapOf("versions" to emptyList<Any>())) }
         router.on("GET", "/api/v1/projects/:project/versions/:version", VIEW) { it.error(404, "not_found") }
 
-        router.on("GET", "/api/v1/user/projects/:project/items", VIEW) { call ->
-            call.json(mapOf("version" to server.minecraftVersion, "items" to emptyList<Any>()))
-        }
-        router.on("GET", "/api/v1/user/projects/:project/custom-items", VIEW) { call ->
-            call.json(mapOf("serverKeyId" to LOCAL, "items" to emptyList<Any>()))
-        }
-        router.on("GET", "/api/v1/user/projects/:project/assets", VIEW) { it.json(mapOf("assets" to emptyList<Any>())) }
-
         drafts(router)
     }
 
