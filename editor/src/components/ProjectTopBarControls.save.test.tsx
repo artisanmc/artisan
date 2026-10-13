@@ -70,11 +70,10 @@ function baseProject(name: string): Project {
 }
 
 /**
- * Régression : le bouton Enregistrer sérialisait la prop `project`, qui vient
- * d'un `useState` figé au chargement (`useProjectLoader`). Toutes les éditions
- * vivent dans `useAccountStore` — enregistrer écrivait donc le Project tel
- * qu'il était à l'OUVERTURE, et perdait silencieusement tout le travail de la
- * session. Constaté en jeu le 2026-08-13 (un élément ajouté n'apparaissait pas).
+ * Regression: the Save button serialised the `project` prop, which comes from
+ * a `useState` frozen at load (`useProjectLoader`). All edits live in
+ * `useAccountStore`, so saving wrote the Project as it was when OPENED and
+ * silently lost the whole session's work.
  */
 describe("ProjectTopBarControls — Enregistrer", () => {
   it("explains how to recover a conflicting backend draft", async () => {
@@ -153,8 +152,8 @@ describe("ProjectTopBarControls — Enregistrer", () => {
     useAccountStore.setState({
       account: { id: "n1", projects: [live], projectOrder: [live.id] },
     } as never);
-    // Enregistrer ne s'active que s'il y a du travail en cours : c'est le
-    // brouillon qui le dit, donc il faut un brouillon sale pour pouvoir cliquer.
+    // Save is only enabled when there is work in progress: the draft says so,
+    // so a dirty draft is needed to be able to click.
     useProjectDraftStore.getState().save("p1", {
       baseline: { "menus/m.yaml": "a\n" },
       tree: { "menus/m.yaml": "b\n" },
@@ -171,10 +170,9 @@ describe("ProjectTopBarControls — Enregistrer", () => {
   });
 
   /**
-   * Le bouton porte à lui seul l'état « as-tu du travail en cours ? » : actif
-   * s'il y a quelque chose à écrire, inactif sinon. C'est ce qui a remplacé le
-   * bandeau, puis le petit « non enregistré » à côté — un bouton qui ne fait
-   * rien dit déjà qu'il n'y a rien à faire.
+   * The button alone carries "do you have work in progress?": enabled when
+   * there is something to write, disabled otherwise — a button that does
+   * nothing already says there is nothing to do.
    */
   it("est inactif quand rien n'a été modifié depuis le chargement", () => {
     const p = baseProject("intact");

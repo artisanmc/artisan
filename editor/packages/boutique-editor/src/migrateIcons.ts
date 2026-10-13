@@ -40,8 +40,8 @@ export function migrateIcons(raw: unknown): void {
   for (const row of rows) {
     const lore = Array.isArray(row.lore) ? row.lore : [];
     if (lore.length > 0) {
-      // Le lore de base est conservé par défaut : le lore du catalogue s'ajoute
-      // simplement dessous, sans placeholder ni remplacement explicite.
+      // The base lore is kept by default: the catalogue lore is simply appended
+      // below it, with no placeholder or explicit replacement.
       row.icon = { extends: row.icon, lore };
     }
     Reflect.deleteProperty(row, "lore");
@@ -52,8 +52,8 @@ export function migrateIcons(raw: unknown): void {
     const token = `{${alias}.lore}`;
     if (!Object.values(old).some((text) => text.includes(token))) continue;
     const key = `${app.lore!.key}.item_extension` as I18nKey;
-    // Le token positionne le lore de l'icône là où le catalogue l'écrivait ; une
-    // langue qui ne le portait pas s'en tient au défaut (lore de base au-dessus).
+    // The token places the icon's lore where the catalogue wrote it; a language
+    // that did not carry it keeps the default (base lore on top).
     project.i18nKeys[key] = Object.fromEntries(
       Object.entries(old).map(([lang, text]) => [lang, text.replaceAll(token, "{base.lore}")]),
     );

@@ -29,8 +29,8 @@ import { projectFetch } from "@/lib/projectFetch";
 import { sha256Hex } from "@/lib/sha256";
 
 /**
- * Les assets d'un Project : l'éditeur les valide et les range lui-même, sur le
- * brouillon privé (snapshot + blobs) que le plugin garde déjà.
+ * A Project's assets: the editor validates and stores them itself, on the
+ * private draft (snapshot + blobs) the plugin already keeps.
  */
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
@@ -66,7 +66,7 @@ function fail(status: number, error: string, draft?: PersistedDraft): never {
   throw new DraftApiError(error, status, draft);
 }
 
-/** Les champs d'une requête JSON d'asset, typés comme le client les envoie au backend. */
+/** The fields of an asset JSON request, typed as the client sends them. */
 export function assetJsonFields(fields: Record<string, string>): Record<string, unknown> {
   return Object.fromEntries(
     Object.entries(fields).map(([key, value]) => [
@@ -110,7 +110,7 @@ function serialize(row: AssetRow): Asset {
   ) as Asset;
 }
 
-/** Liste : le snapshot du brouillon serveur s'il y en a un, sinon le disque publié. */
+/** List: the server draft's snapshot if there is one, otherwise the published disk. */
 export async function listLocalAssets(
   projectId: string,
   filters: { type?: AssetType; search?: string },
@@ -135,7 +135,7 @@ export async function listLocalAssets(
     .map(serialize);
 }
 
-/** `DraftAssetStorage` côté navigateur : lit le snapshot figé, écrit blobs puis révision. */
+/** Browser-side `DraftAssetStorage`: reads the frozen snapshot, writes blobs then a revision. */
 class DraftOverlay {
   updatedDraft?: PersistedDraft;
   constructor(
@@ -155,7 +155,7 @@ class DraftOverlay {
     return { files, binaries, assets: diskAssetsFromTree(this.projectId, files, binaries) };
   }
 
-  /** Octets vérifiés d'un asset : publiés s'ils n'ont pas bougé, sinon blob du brouillon. */
+  /** Verified bytes of an asset: published if unchanged, otherwise the draft blob. */
   async bytes(asset: DiskAsset): Promise<Uint8Array | null> {
     const meta = this.snapshot.binaryTree?.[asset.path];
     if (!meta) return null;
@@ -189,7 +189,7 @@ class DraftOverlay {
     return new Uint8Array(await response.arrayBuffer());
   }
 
-  /** Tout ou rien : base hashes contrôlés, blobs posés, puis une seule révision. */
+  /** All or nothing: base hashes checked, blobs written, then a single revision. */
   async commit(batch: WriteBatch): Promise<void> {
     const { id, revision, name, operationId } = this.operation;
     const next = structuredClone(this.snapshot);
@@ -323,7 +323,7 @@ async function create(
   const now = new Date().toISOString();
   const disk = overlay.read();
 
-  // Police dépliée : un PNG par glyphe plus son descripteur, en une révision.
+  // Unpacked font: one PNG per glyph plus its descriptor, in one revision.
   if (parsedFont) {
     if (disk.assets.some((a) => a.row.type === "font" && a.row.id === assetFileName(name)))
       fail(409, "Asset name already exists");
@@ -353,7 +353,7 @@ async function create(
 
   const path = assetDiskPath(type, name);
   const existingSame = disk.assets.find((a) => a.path === path);
-  // `replace` = réimport : nouveaux pixels, même codepoint/ascent/usages.
+  // `replace` = reimport: new pixels, same codepoint/ascent/usages.
   const replace = fields.replace === "true";
   if (existingSame && !replace) fail(409, "Asset name already exists");
   if (!existingSame && replace) fail(404, "not_found");
@@ -430,7 +430,7 @@ async function patch(
     fail(400, "ascent only valid for glyph");
   const nextAscent = typeof body.ascent === "number" ? body.ascent : row.ascent;
 
-  // La hauteur d'un glyphe entraîne sa largeur (avance rendue par Minecraft).
+  // A glyph's height drives its width (advance rendered by Minecraft).
   let nextHeight = row.height;
   let nextWidth = row.width;
   let nextContentWidth = row.contentWidth;
@@ -501,7 +501,7 @@ async function duplicate(overlay: DraftOverlay, id: string): Promise<Body> {
   for (let n = 2; taken.has(assetFileName(newName)); n++) newName = `${src.name}_copy${n}`;
   const bytes = await overlay.bytes(found);
   if (!bytes) fail(503, "server_offline");
-  // Une copie ne partage jamais le codepoint de son original.
+  // A copy never shares its original's codepoint.
   const codepoint = nextFreeCodepoint(disk.assets);
   await overlay.writeAsset({
     type: src.type,
@@ -525,7 +525,7 @@ async function remove(overlay: DraftOverlay, id: string): Promise<Body> {
   const disk = overlay.read();
   const found = lookup(disk, id);
   if (found.row.type === "font") {
-    // Une police est un dossier : ses glyphes partent avec elle.
+    // A font is a folder: its glyphs go with it.
     const dir = found.path.slice(0, found.path.lastIndexOf("/"));
     const meta = found.row.fontMeta as { glyphMap?: { texture: string }[] } | null;
     const glyphs: WriteBatch["binaries"] = [];
@@ -559,9 +559,8 @@ async function remove(overlay: DraftOverlay, id: string): Promise<Body> {
 }
 
 /**
- * Applique une mutation d'asset au brouillon privé, comme le ferait
- * `POST|PATCH|DELETE /api/v1/user/projects/:id/assets…?draftId=` sur le backend.
- * Les échecs sont des `DraftApiError` portant le même code et le même statut.
+ * Applies an asset mutation to the private draft. Failures are
+ * `DraftApiError`s carrying the matching code and status.
  */
 export async function performLocalAssetMutation(
   projectId: string,

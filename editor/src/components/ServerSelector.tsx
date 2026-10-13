@@ -17,13 +17,13 @@ export interface ServerEntry {
   /** URL slug — the networkId URL param may carry it instead of the id. */
   networkSlug?: string;
   networkName: string;
-  /** Absent = état inconnu : rien n'est affiché plutôt qu'un hors-ligne supposé. */
+  /** Absent = unknown state: nothing is shown rather than an assumed offline. */
   online?: boolean;
-  /** Plugin trop différent du hub : listé, mais pas éditable. */
+  /** Plugin too different from the hub: listed, but not editable. */
   updateRequired?: boolean;
 }
 
-/** Pastille + mention d'état d'un serveur ; rien tant que l'état n'est pas connu. */
+/** A server's status dot + label; nothing until the state is known. */
 function ServerState({ entry }: { entry: ServerEntry }) {
   const { t } = useTranslation();
   if (entry.updateRequired)
@@ -59,7 +59,7 @@ export function ServerSelector({ servers }: Props) {
   const [open, setOpen] = useState(false);
 
   // Active server = URL param (strict: false so it works on any nested route).
-  // Slug routes (phase 4a) put the slug in the param, old links the id — match both.
+  // Slug routes put the slug in the param, old links the id — match both.
   const params = useParams({ strict: false }) as {
     networkId?: string;
     serverId?: string;

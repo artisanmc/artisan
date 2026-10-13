@@ -3,12 +3,11 @@ import { describe, expect, it } from "vitest";
 import { isResolvedContext } from "./resolvedContexts";
 
 /**
- * Un contexte d'appel se calcule en résolvant les arguments du lien contre les
- * lignes de l'appelant. Quand la source n'a pas de données — serveur non lié,
- * donc aucun snapshot — il n'y a aucune ligne à itérer et les templates
- * ressortent tels quels : `{cat}`, `{cat.id}`. Les proposer comme contexte donne
- * un bandeau qui affiche « Vu depuis : shop_main › {cat} » et un choix qui ne
- * change rien.
+ * A call context is computed by resolving the link's arguments against the
+ * caller's rows. When the source has no data — server not linked, so no
+ * snapshot — there is no row to iterate and the templates come out verbatim:
+ * `{cat}`, `{cat.id}`. Offering them as a context gives a banner reading
+ * "Seen from: shop_main › {cat}" and a choice that changes nothing.
  */
 describe("isResolvedContext", () => {
   it("accepte des valeurs réellement résolues", () => {
@@ -24,7 +23,7 @@ describe("isResolvedContext", () => {
     expect(isResolvedContext({ cat: "{cat}" })).toBe(false);
   });
 
-  /** Un seul argument non résolu suffit : l'écran obtenu serait faux. */
+  /** A single unresolved argument is enough: the resulting screen would be wrong. */
   it("rejette dès qu'un argument sur deux est brut", () => {
     expect(isResolvedContext({ category: "les_cles", category_name: "{cat.name}" })).toBe(false);
   });

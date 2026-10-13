@@ -85,7 +85,7 @@ describe.each([
     expect([...useSelectionStore.getState().ids]).toEqual(["m1"]);
   });
 
-  /** Le grief de départ : le panneau mangeait de la place en permanence. */
+  /** The original complaint: the panel took up space permanently. */
   it("sans sélection, la scène est seule", () => {
     renderIt();
     expect(screen.getByTestId("canvas")).toBeInTheDocument();
@@ -98,7 +98,7 @@ describe.each([
     expect(screen.getByTestId("inspector")).toBeInTheDocument();
   });
 
-  /** Les paramètres du project ne correspondent à aucune sélection. */
+  /** Project settings match no selection. */
   it("les paramètres du project l'ouvrent sans rien sélectionner", () => {
     useUiStore.getState().setProjectSettingsOpen(true);
     renderIt();
@@ -107,8 +107,8 @@ describe.each([
   });
 
   /**
-   * Sinon, désélectionner pour dégager le canvas rouvrirait les paramètres du
-   * project au lieu de tout fermer.
+   * Otherwise, deselecting to clear the canvas would reopen the project
+   * settings instead of closing everything.
    */
   it("sélectionner range les paramètres du project", () => {
     useUiStore.getState().setProjectSettingsOpen(true);

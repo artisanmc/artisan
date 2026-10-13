@@ -74,7 +74,7 @@ describe("EditorPane — propriétés uniquement", () => {
     expect(screen.queryAllByRole("tab")).toHaveLength(0);
   });
 
-  /** On ne dépose ni item ni glyphe dans une commande. */
+  /** No item or glyph is dropped into a command. */
   it("une commande affiche ses propriétés sans catalogue", () => {
     useSelectionStore.getState().set(["c1"]);
     render(<EditorPane projectId={PID} />);
@@ -90,8 +90,8 @@ describe("EditorPane — propriétés uniquement", () => {
 });
 
 /**
- * Les paramètres du project survivent à une sélection vide — c'est ce qui les
- * distingue d'une sélection — donc ils avaient besoin d'une sortie explicite.
+ * Project settings survive an empty selection — that is what sets them apart
+ * from a selection — so they needed an explicit way out.
  */
 describe("EditorPane — fermeture", () => {
   it("la croix vide la sélection et referme les paramètres du projet", () => {

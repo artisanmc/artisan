@@ -21,10 +21,9 @@ import { toast } from "sonner";
 import { adoptDiskIntoProject, projectTree } from "./saveProjectToDisk";
 
 /**
- * Remplace le contenu texte du brouillon par celui de la Version. Rien n'est
- * publié : l'utilisateur publie ensuite normalement (compare-and-swap compris).
- * Les binaires (images) restent ceux du brouillon — la Version n'en garde que
- * l'empreinte.
+ * Replaces the draft's text content with the Version's. Nothing is
+ * published: the user then publishes normally (compare-and-swap included).
+ * Binaries (images) stay the draft's — the Version only keeps their hash.
  */
 export function restoreVersionIntoDraft(projectId: string, version: ProjectVersionContent) {
   const { account, replaceProject } = useAccountStore.getState();
@@ -42,7 +41,7 @@ const binaryTree = (version: ProjectVersionContent | null) =>
     (version?.binaries ?? []).map((b) => [b.path, { hash: b.hash, size: b.size }]),
   );
 
-/** Ce qu'une Version a changé par rapport à la précédente (vide → tout est ajouté). */
+/** What a Version changed compared to the previous one (empty → everything is added). */
 export function versionChangeSet(
   version: ProjectVersionContent,
   previous: ProjectVersionContent | null,
@@ -58,10 +57,10 @@ export function versionChangeSet(
 const PREVIEW_PATHS = 3;
 
 /**
- * Onglet Historique du workspace : les Versions du Project serveur, la plus
- * récente d'abord (ADR `snapshot-mirror-and-backend-history`, décision 6). Une
- * Version signée vient d'un déploiement depuis l'éditeur ; sans auteur, c'est le
- * serveur qui a rechargé des fichiers modifiés à la main.
+ * The workspace's History tab: the server Project's Versions, most recent
+ * first (ADR `snapshot-mirror-and-backend-history`, decision 6). A signed
+ * Version comes from a deployment from the editor; without an author, the
+ * server reloaded files modified by hand.
  */
 export function ProjectHistory({ projectId, active }: { projectId: string; active: boolean }) {
   const { t } = useTranslation();
@@ -82,8 +81,8 @@ export function ProjectHistory({ projectId, active }: { projectId: string; activ
     }
   };
 
-  // Recharger à chaque retour sur l'onglet : un déploiement a pu passer entre-temps.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: on réagit à l'activation, pas à `load`.
+  // Reload on every return to the tab: a deployment may have happened meanwhile.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reacts to activation, not to `load`.
   useEffect(() => {
     if (active) void load();
   }, [active, projectId]);
@@ -137,7 +136,7 @@ export function ProjectHistory({ projectId, active }: { projectId: string; activ
   );
 }
 
-/** Les diffs d'une Version, puis « repartir de cette version » dans le brouillon. */
+/** A Version's diffs, then "start again from this version" in the draft. */
 export function VersionDiffDialog({
   projectId,
   version,

@@ -1,12 +1,10 @@
 /**
- * Domain types for the Artisan editor scaffold.
+ * Domain types for the Artisan editor.
  *
- * - References (open_menu, source ref, i18n key) may dangle: a target id
- *   that doesn't resolve at runtime is a no-op (or the plugin surfaces an
- *   error to the player). The editor doesn't enforce hermeticity — projects
- *   can freely reference each other or have stale ids.
- * - "Element" is the canonical name (per main-spec §8.1); the old "Slot" name
- *   from the prior proto is dropped.
+ * References (open_menu, source ref, i18n key) may dangle: a target id that
+ * doesn't resolve at runtime is a no-op (or the plugin surfaces an error to
+ * the player). The editor doesn't enforce hermeticity — projects can freely
+ * reference each other or have stale ids.
  */
 
 import type { ItemEnchant, ItemHideFlag } from "./itemAdvanced";
@@ -43,8 +41,8 @@ export interface LText {
 }
 
 /**
- * Discrete font heights for `text` and `textarea` title layers. The backend
- * bakes one resource-pack font variant per (Y, size) pair. Restricted to
+ * Discrete font heights for `text` and `textarea` title layers. One
+ * resource-pack font variant is baked per (Y, size) pair. Restricted to
  * vanilla and upscale multiples — downscale (h<8) was dropped because
  * nearest-neighbor downsampling renders ASCII glyphs illegible and MC's
  * 1-pixel bold offset becomes visually dominant. Default 8 = vanilla.
@@ -117,12 +115,12 @@ export interface CanvasGroup {
 export interface Project {
   id: ProjectId;
   /**
-   * L'id que le SERVEUR propriétaire utilise sur disque et sur le fil — le nom
-   * du dossier `plugins/Artisan/projects/<diskId>/`, donc le préfixe de toutes
-   * les clés de `files`. Unique par serveur seulement : un Add-on bootstrappe
-   * le même (`boutique_shop`) sur chaque serveur qui l'installe. Diffère de
-   * `id` (unique plateforme) quand un autre serveur détenait déjà cet id
-   * disque. Absent = identique à `id`.
+   * The id the owning SERVER uses on disk and on the wire — the name of the
+   * `plugins/Artisan/projects/<diskId>/` folder, hence the prefix of every key
+   * of `files`. Unique per server only: an Add-on bootstraps the same one
+   * (`boutique_shop`) on every server that installs it. Differs from `id`
+   * (platform-unique) when another server already held that disk id.
+   * Absent = same as `id`.
    */
   diskId?: string;
   name: string;
@@ -142,10 +140,10 @@ export interface Project {
   /** Declared data shapes for Project sources (optional: absent on older stored projects = []). */
   dataModels?: DataModel[];
   /**
-   * @deprecated Dead since 2026-07-17 — the early "import connector YAML" flow
-   * was superseded by server-reported data sources (+ snapshots + module-local
-   * rows). Field kept optional so previously stored projects still parse;
-   * nothing reads or writes it anymore.
+   * @deprecated The early "import connector YAML" flow was superseded by
+   * server-reported data sources (+ snapshots + module-local rows). Field kept
+   * optional so previously stored projects still parse; nothing reads or
+   * writes it anymore.
    */
   importedConnectors?: ConnectorSpec[];
   i18nKeys: Record<I18nKey, Record<string, string>>;
@@ -176,7 +174,7 @@ export interface Project {
    * Per-module opaque state, keyed by module id (e.g. "boutique"). Owned by
    * the module's editor package; the host never interprets it. Round-trips
    * through editorJson. Modules derive their exportFiles() output from here.
-   * Backend file-import seeds `{ __files: Record<relPath, content> }` for
+   * File import seeds `{ __files: Record<relPath, content> }` for
    * unrecognized project dirs; modules normalize that on first read.
    */
   moduleData?: Record<string, unknown>;
@@ -338,7 +336,7 @@ export interface Appearance {
   lore?: LText | null;
   loreMode?: "replace";
   click?: ClickMap;
-  // ── advanced details (see domain/itemAdvanced.ts for the wire form) ───────
+  // Advanced details (see domain/itemAdvanced.ts for the wire form)
   enchants?: ItemEnchant[];
   /** Glint with no real enchantment. Redundant — and dropped — when `enchants` is set. */
   enchanted?: boolean;
@@ -517,10 +515,9 @@ export type Condition =
   | { type: "and"; of: Condition[] }
   | { type: "or"; of: Condition[] }
   /**
-   * Free-form boolean expression evaluated via the DSL (cf.
-   * web/src/lib/expr/). Used when typed conditions don't fit, e.g.
-   * comparisons with operators other than == or against runtime
-   * iteration fields.
+   * Free-form boolean expression evaluated via the DSL (cf. src/lib/expr/).
+   * Used when typed conditions don't fit, e.g. comparisons with operators
+   * other than == or against runtime iteration fields.
    */
   | { type: "expression"; expr: string };
 
@@ -654,7 +651,7 @@ export interface UnionVariant {
 export interface ModelField {
   name: string;
   type: ModelFieldType;
-  // ── presentation hints (ADR composable-data-models §7) — closed set, part
+  // Presentation hints (ADR composable-data-models §7) — closed set, part
   // of the declaration (same owner as the shape), invisible to the runtime.
   /** Display label in the generated form (fallback: the field name). */
   label?: string;
@@ -662,7 +659,7 @@ export interface ModelField {
   help?: string;
   /** Section header the field is grouped under. */
   section?: string;
-  // ── validation vocabulary (§7) — asymmetric enforcement: blocking inside
+  // Validation vocabulary (§7) — asymmetric enforcement: blocking inside
   // the generated form, surfaced-never-blocking for hand-edited files.
   required?: boolean;
   /** Prefill for fresh instances AND the `set_default` migration value. */
@@ -763,10 +760,8 @@ export type DataSource =
     };
 
 /**
- * Spec of a plugin-sourced connector. Either pushed to the editor via
- * WS at server connection (plan paid) or manually imported from a YAML
- * file generated by the Artisan plugin (plan free). Stored on the
- * project so exports ship with their connector specs.
+ * Spec of a plugin-sourced connector, stored on the project so exports ship
+ * with their connector specs.
  */
 export interface ConnectorSpec {
   /** Stable namespaced ref, e.g. "chestshop:items", "essentials:warps". */

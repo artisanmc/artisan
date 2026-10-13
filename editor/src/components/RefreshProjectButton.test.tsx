@@ -62,8 +62,8 @@ describe("RefreshProjectButton", () => {
   });
 
   /**
-   * Écraser est bien ce qu'on attend d'un rafraîchissement — mais ce qui est
-   * perdu ici n'existe nulle part ailleurs, donc jamais sans le demander.
+   * Overwriting is what a refresh is expected to do — but what is lost here
+   * exists nowhere else, so never without asking.
    */
   it("avec du travail non enregistré, demande confirmation avant d'écraser", async () => {
     seedDraft(true);
@@ -75,7 +75,7 @@ describe("RefreshProjectButton", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "topbar.refreshConfirm" }));
     expect(useProjectCacheStore.getState().reloadToken).toBe(1);
-    // Le brouillon part AVANT la relecture, sinon il se réappliquerait par-dessus.
+    // The draft goes BEFORE the re-read, otherwise it would reapply on top.
     expect(useProjectDraftStore.getState().drafts[PID]).toBeUndefined();
   });
 

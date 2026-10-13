@@ -19,7 +19,7 @@ export async function listAssets(
 ): Promise<Asset[]> {
   const remote = useProjectDraftStore.getState().get(projectId)?.remote;
   const draftId = remote && remote.revision > 0 ? remote.id : undefined;
-  // L'éditeur lit l'arbre du brouillon ou du disque.
+  // The editor reads the draft's tree or the disk's.
   const assets = await listLocalAssets(projectId, filters, draftId);
   return assets.map((asset) => ({ ...asset, ...(draftId ? { draftId } : {}) }));
 }

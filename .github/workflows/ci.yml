@@ -31,7 +31,7 @@ jobs:
         working-directory: docs-site
       - run: npm test -- --run
         working-directory: editor
-      # Éditeur auto-hébergé (embarqué dans le plugin), puis la vitrine + wiki d'artisanmc.net.
+      # Self-hosted editor (embedded in the plugin), then the artisanmc.net showcase + wiki.
       - run: npm run build
         working-directory: editor
       - run: npm run build:site

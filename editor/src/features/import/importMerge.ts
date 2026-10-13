@@ -1,38 +1,37 @@
 import { hashBytes } from "@/lib/contentHash";
 
 /**
- * Fusion d'un Project importé (ZIP) contre l'instantané courant du serveur
- * (miroir backend), fichier par fichier.
+ * Merge of an imported Project (ZIP) against the server's current snapshot,
+ * file by file.
  *
- * Deux modes :
- * - **Écraser** : l'import devient le nouvel état ; ce que le serveur portait
- *   et que le ZIP ignore disparaît ;
- * - **Fusionner** : on part de l'état serveur, on ajoute les fichiers de
- *   l'import, et seuls les fichiers présents des deux côtés avec un contenu
- *   différent demandent un choix. Rien n'est supprimé.
+ * Two modes:
+ * - **Overwrite**: the import becomes the new state; what the server held and
+ *   the ZIP ignores disappears;
+ * - **Merge**: start from the server state, add the import's files, and only
+ *   files present on both sides with different content ask for a choice.
+ *   Nothing is deleted.
  *
- * Le grain est le fichier (ADR `no-branch-conflict-resolution`) : pas de
- * fusion ligne à ligne. Les renommages ne sont pas détectés — un import ne
- * transporte pas cette intention.
+ * The grain is the file (ADR `no-branch-conflict-resolution`): no line-by-line
+ * merge. Renames are not detected — an import does not carry that intent.
  */
 
 export type ImportMode = "merge" | "overwrite";
 export type ImportChoice = "import" | "server";
 
-/** Un binaire importé, octets compris, avec son identité déjà calculée. */
+/** An imported binary, bytes included, with its identity already computed. */
 export interface ImportBinary {
   bytes: Uint8Array;
   hash: string;
   size: number;
 }
 
-/** L'arbre d'un Project importé, rel-keyed (chemins sans le préfixe projet). */
+/** The tree of an imported Project, rel-keyed (paths without the project prefix). */
 export interface ImportTree {
   files: Record<string, string>;
   binaries: Record<string, ImportBinary>;
 }
 
-/** L'état publié du serveur (miroir) : texte et métadonnées d'images. */
+/** The server's published state: text and image metadata. */
 export interface ImportReference {
   files: Record<string, string>;
   binaries: Record<string, { hash: string; size: number }>;
@@ -41,24 +40,24 @@ export interface ImportReference {
 export interface ImportConflict {
   path: string;
   kind: "text" | "binary";
-  /** Contenu serveur pour un conflit texte ; `null` pour un binaire. */
+  /** Server content for a text conflict; `null` for a binary. */
   server: string | null;
-  /** Identité serveur pour un conflit binaire ; `null` pour un texte. */
+  /** Server identity for a binary conflict; `null` for a text. */
   serverBinary: { hash: string; size: number } | null;
 }
 
 export interface ImportDiff {
-  /** Présents seulement dans l'import — ajoutés sans conflit. */
+  /** Present only in the import — added without conflict. */
   additions: string[];
-  /** Identiques des deux côtés — rien à faire. */
+  /** Identical on both sides — nothing to do. */
   identical: string[];
-  /** Présents des deux côtés, contenu différent — à trancher. */
+  /** Present on both sides with different content — to resolve. */
   conflicts: ImportConflict[];
-  /** Présents seulement sur le serveur — conservés en fusion, supprimés en écrasement. */
+  /** Present only on the server — kept when merging, deleted when overwriting. */
   serverOnly: string[];
 }
 
-/** Le résultat résolu : l'arbre texte final et les images (octets pour celles à publier). */
+/** The resolved result: the final text tree and the images (bytes for those to publish). */
 export interface ResolvedImport {
   files: Record<string, string>;
   binaries: Record<string, { hash: string; size: number; bytes?: Uint8Array }>;
@@ -66,7 +65,7 @@ export interface ResolvedImport {
 
 const sort = (paths: string[]): string[] => paths.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
 
-/** Sépare un arbre importé (texte + octets) et calcule l'identité des binaires. */
+/** Splits an imported tree (text + bytes) and computes the binaries' identity. */
 export async function prepareImportTree(
   entries: Record<string, string | Uint8Array>,
 ): Promise<ImportTree> {
@@ -82,7 +81,7 @@ export async function prepareImportTree(
   return { files, binaries };
 }
 
-/** Ce que l'import change par rapport à l'instantané courant. */
+/** What the import changes compared to the current snapshot. */
 export function diffImport(input: ImportTree, reference: ImportReference): ImportDiff {
   const additions: string[] = [];
   const identical: string[] = [];
@@ -116,11 +115,11 @@ export function diffImport(input: ImportTree, reference: ImportReference): Impor
 }
 
 /**
- * Résout l'import en un arbre complet, destiné au brouillon.
+ * Resolves the import into a complete tree, meant for the draft.
  *
- * En fusion, un conflit sans choix retombe sur l'import (l'intention de
- * l'import est l'état visé) ; la modale, elle, ne valide rien tant que tous les
- * fichiers n'ont pas été tranchés — ce défaut n'est là que pour un appel direct.
+ * When merging, a conflict without a choice falls back to the import (the
+ * import's intent is the target state); the modal validates nothing until
+ * every file has been resolved — this default only exists for a direct call.
  */
 export function resolveImport(
   input: ImportTree,
@@ -138,7 +137,7 @@ export function resolveImport(
     return { files, binaries };
   }
 
-  // Fusion : l'état serveur est la base, l'import s'y superpose.
+  // Merge: the server state is the base, the import is laid over it.
   for (const [path, content] of Object.entries(reference.files)) files[path] = content;
   for (const [path, bin] of Object.entries(reference.binaries))
     binaries[path] = { hash: bin.hash, size: bin.size };

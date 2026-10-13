@@ -20,7 +20,7 @@ export function documentLabel(project: Project, id: string, activeLang: string):
   return id;
 }
 
-/** Pure: construit la liste catégorisée des éléments du project (source de vérité du panneau). */
+/** Pure: builds the project's categorised element list (the panel's source of truth). */
 export function buildProjectDocuments(project: Project, activeLang: string): ProjectDocumentGroup[] {
   // Menus and dialogs are labelled by their id in the panel (their title is
   // decorative, often empty or ambiguous — not a stable identifier).

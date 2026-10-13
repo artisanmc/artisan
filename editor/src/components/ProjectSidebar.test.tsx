@@ -16,9 +16,9 @@ const mockParams = vi.hoisted(() => ({
   },
 }));
 
-// La liste des Projects vient désormais du DISQUE du serveur actif (ADR
-// `server-disk-only-storage`) : le dossier EST l'identité, donc le libellé
-// affiché est son nom de dossier, plus le `name` d'une ligne en base.
+// The Project list comes from the active server's DISK (ADR
+// `server-disk-only-storage`): the folder IS the identity, so the label
+// shown is its folder name.
 vi.mock("@/lib/api/projectFiles", () => ({
   listServerProjects: vi.fn(async () => ({ ok: true, projectIds: ["pack_a", "pack_b"] })),
 }));
@@ -42,8 +42,8 @@ vi.mock("@tanstack/react-router", async () => {
 describe("ProjectSidebar", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
-    // `mockResolvedValue` d'un test précédent survivrait sinon : on repose la
-    // réponse disque par défaut avant chacun.
+    // A previous test's `mockResolvedValue` would otherwise survive: reset the
+    // default disk response before each test.
     vi.mocked(listServerProjects).mockResolvedValue({
       ok: true,
       projectIds: ["pack_a", "pack_b"],
@@ -82,8 +82,8 @@ describe("ProjectSidebar", () => {
     });
     render(<ProjectSidebar />);
     const items = await screen.findAllByRole("link", { name: /pack_a|pack_b/ });
-    // L'ordre vient du plugin (dossiers triés) : pack_a avant pack_b. Le libellé
-    // est le nom du dossier — c'est lui l'identité désormais.
+    // The order comes from the plugin (sorted folders): pack_a before pack_b. The
+    // label is the folder name, which is the identity.
     expect(items[0]).toHaveTextContent("pack_a");
     expect(items[1]).toHaveTextContent("pack_b");
   });
@@ -228,7 +228,7 @@ describe("ProjectSidebar", () => {
   });
 
   it("resolves slug URL params and lists the active server's workspaces", async () => {
-    // Phase 4a routes put slugs (not ids) in networkId/serverId params.
+    // Routes put slugs (not ids) in networkId/serverId params.
     mockParams.current = { networkId: "mon-network", serverId: "survival" };
     useNetworksStore.setState({
       networks: [{ id: "net_1", name: "Mon Network", slug: "mon-network", tier: "free" }],
@@ -265,10 +265,10 @@ describe("ProjectSidebar", () => {
     expect(screen.queryByRole("link", { name: /Shop/ })).not.toBeInTheDocument();
   });
 
-  // Un serveur persisté qui n'existe plus ne peut plus « retomber sur tout le
-  // network » : un Project appartient à un serveur et se lit sur SON disque
-  // (ADR `server-disk-only-storage`). Il n'y a donc rien à lister — le sélecteur
-  // de serveur reste là pour en choisir un vrai.
+  // A persisted server that no longer exists cannot "fall back to the whole
+  // network": a Project belongs to a server and is read from ITS disk
+  // (ADR `server-disk-only-storage`). There is nothing to list — the server
+  // picker stays there to choose a real one.
   it("un serveur persisté disparu ne liste rien plutôt qu'une liste d'un autre serveur", async () => {
     mockParams.current = {};
     useServersStore.setState({ activeServerId: "sk_deleted" } as any);
@@ -284,10 +284,9 @@ describe("ProjectSidebar", () => {
   });
 
   /**
-   * Même exigence que la page d'un serveur : une liste vide affirmée pendant la
-   * lecture, ou pour un serveur hors ligne, se lit comme « ce serveur n'a rien »
-   * — et le bouton « Nouveau projet » invite alors à écrire sur un disque
-   * qu'on ne joint pas.
+   * Same requirement as a server page: an empty list asserted while reading, or
+   * for an offline server, reads as "this server has nothing" — and the "New
+   * project" button then invites writing to a disk that cannot be reached.
    */
   it("dit qu'elle lit plutôt que d'afficher une liste vide", async () => {
     vi.mocked(listServerProjects).mockReturnValue(new Promise(() => {}) as never);

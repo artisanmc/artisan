@@ -29,9 +29,9 @@ export function fitViewport(
 }
 
 /**
- * Le cadrage de `fitViewport`, pour un Document posé n'importe où sur la
- * planche : même échelle (jamais au-delà de 1:1), son coin haut-gauche à
- * l'endroit où `fitViewport` place l'origine.
+ * The `fitViewport` framing, for a Document placed anywhere on the board:
+ * same scale (never above 1:1), its top-left corner where `fitViewport`
+ * places the origin.
  */
 export function centerViewport(
   view: { w: number; h: number },

@@ -76,7 +76,7 @@ export function useMarqueeSelection({ stageRef, viewport, project, layout, activ
     [active, rect, start, project, layout],
   );
 
-  // Bug 2: if the mouse is released outside the canvas, Konva's onMouseUp
+  // If the mouse is released outside the canvas, Konva's onMouseUp
   // never fires and the marquee rect stays visible. Clean it up via window.
   // On a normal on-stage release onMouseUp runs first (selects), then this
   // fires harmlessly on an already-cleared rect.

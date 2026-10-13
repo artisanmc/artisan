@@ -81,7 +81,7 @@ import { goToDocument } from "./goToDocument";
 
 export type ProjectSearch = {
   tab?: "overview" | "translations" | "data-sources" | "resources" | "history";
-  /** Lien profond : centrer la planche sur ce Document à l'ouverture (`goToDocument`). */
+  /** Deep link: center the board on this Document on open (`goToDocument`). */
   doc?: string;
 };
 
@@ -117,10 +117,10 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
   const authLoading = useAuthStore((s) => s.isLoading);
   const tourState = useEditorTourState();
   const tourPresenting = useTourPresentation((s) => s.step !== null);
-  // La visite ne dépend pas du serveur : sa progression vit dans le compte ou le
-  // navigateur, et elle montre l'écran affiché. Exiger un serveur joignable la
-  // rendait muette (« Refaire la visite » sans effet) sur un project ouvert
-  // depuis la copie du backend.
+  // The tour does not depend on the server: its progress lives in the account or
+  // the browser, and it shows the screen on display. Requiring a reachable
+  // server silenced it ("Restart the tour" did nothing) on a project opened
+  // from the hub's copy.
   const tourReady = !authLoading && !!principalId && !!project && !loadError;
   const accountId = currentUser?.id ?? null;
   useEffect(() => {
@@ -129,11 +129,11 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
   }, [accountId, tourReady, pId]);
   const navigate = useNavigate();
   const { tab = "overview", doc } = useSearch({ strict: false }) as ProjectSearch;
-  // Lien profond `?doc=` (arbre d'un autre project, planche générale, palette) :
-  // une fois le project chargé, centrer sa planche sur le Document — goToDocument
-  // retire le paramètre au passage, un rechargement ne recentre donc pas.
+  // `?doc=` deep link (another project's tree, overview board, palette): once
+  // the project is loaded, center its board on the Document. goToDocument
+  // removes the parameter, so a reload does not re-center.
   const loadedId = project?.id;
-  // biome-ignore lint/correctness/useExhaustiveDependencies: on réagit au lien et au chargement, pas à chaque édition du project.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reacts to the link and the load, not to every project edit.
   useEffect(() => {
     if (!doc || !project) return;
     goToDocument(navigate, { networkId, serverId, project, ref: doc });
@@ -159,7 +159,7 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
       hash: true,
     });
   }, [canonicalId, projectId, networkId, serverId, documentId, navigate]);
-  // Le dossier est l'identité du Project : renommé, il s'ouvre sous son nouveau nom.
+  // The folder is the Project's identity: once renamed, it opens under its new name.
   useEffect(() => {
     const renamed = (raw: Event) => {
       const { previousDiskId, diskId } = (raw as CustomEvent<ProjectRenamed>).detail;
@@ -170,8 +170,8 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
     return () => window.removeEventListener("ifz:project_renamed", renamed);
   }, [projectId, networkId, serverId, navigate]);
 
-  // La langue active est persistée globalement : un project qui a perdu cette
-  // langue (fichiers lang/ retirés) doit retomber sur sa langue par défaut.
+  // The active language is persisted globally: a project that lost that
+  // language (lang/ files removed) must fall back to its default language.
   const activeLang = useUiStore((s) => s.activeLang);
   const setActiveLang = useUiStore((s) => s.setActiveLang);
   useEffect(() => {
@@ -183,8 +183,6 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
   useGlobalSearchShortcut();
   useServerIndexLoader(networkId, serverId, !!project && !loadError);
   useWorkspaceTabShortcuts(!!runtime?.serverId);
-
-  // networkId comes directly from the URL param — no lazy fetch needed.
 
   const [patternsOpen, setPatternsOpen] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -237,17 +235,14 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
         search={{ next: window.location.pathname + window.location.search }}
       />
     );
-  // Serveur injoignable : le contenu d'un Project vit sur SON disque et nulle
-  // part ailleurs (ADR `server-disk-only-storage`). Il n'y a donc rien à
-  // afficher — et surtout pas une copie périmée. On le dit, au lieu de laisser
-  // une page blanche qu'on prend pour un chargement qui n'aboutit jamais.
-  // TOUT échec de chargement doit se voir. Ne traiter que le cas « hors ligne »
-  // laissait les autres (project inconnu, lecture refusée, transport) retomber
-  // sur le `return null` ci-dessous — une page vide qu'on prend pour un
-  // chargement sans fin. C'est la même erreur, à un cas près.
-  // Serveur injoignable mais brouillon ouvert : on édite, on ne bloque pas.
-  // L'état est daté et annoncé (bandeau ci-dessous), pas présenté comme la
-  // vérité — décision 7 révisée.
+  // Every load failure must show. The Project's content lives on ITS server's
+  // disk and nowhere else (ADR `server-disk-only-storage`), so there is nothing
+  // to display, and certainly not a stale copy. Handling only the offline case
+  // let the others (unknown project, read refused, transport) fall through to a
+  // blank page that looks like an endless load.
+  // Server unreachable but a draft is open: editing goes on, nothing blocks.
+  // The state is dated and announced (banner below), not presented as the
+  // truth.
   if (loadError && !fromDraft) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
@@ -272,10 +267,9 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
       </div>
     );
   }
-  // La lecture est en vol. Elle passe par le backend PUIS par le plugin, jusqu'au
-  // disque du serveur : ça prend le temps que ça prend, et parfois plusieurs
-  // secondes. Ne rien rendre (l'ancien `return null`) donnait une page blanche
-  // qu'on prend pour une panne — on dit ce qu'on attend, et d'où.
+  // The read is in flight. It goes through the hub THEN the plugin, down to the
+  // server's disk, and can take several seconds. Rendering nothing gave a blank
+  // page that looks like an outage: say what is awaited, and from where.
   if (!project) {
     return <ProjectLoadingSkeleton />;
   }
@@ -380,8 +374,8 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
         <Outlet />
       </ResolvedProjectContext.Provider>
     ) : (
-      // Le canvas occupe toute la région ; l'inspecteur n'apparaît que s'il y a
-      // quelque chose à inspecter (`CanvasWithInspector`).
+      // The canvas fills the region; the inspector only appears when there is
+      // something to inspect (`CanvasWithInspector`).
       <CanvasWithInspector
         projectId={pId}
         canvas={<Stage projectId={pId} />}
@@ -567,13 +561,13 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
       )}
 
       {/* Global search palette — fixed overlay, inert when searchOpen=false. */}
-      {/* Pas de bandeau « hors ligne » : le badge serveur de la topbar l'affiche
-          déjà en rouge, et tenter d'enregistrer le dit explicitement au moment du
-          geste. Une barre pleine largeur répétait une information déjà là. */}
+      {/* No "offline" banner: the topbar's server badge already shows it in red,
+          and trying to save says so explicitly at that moment. A full-width
+          bar repeated information already there. */}
       {failed.length > 0 ? (
-        // Ces Documents existent et s'éditent, mais le serveur ne les exécute
-        // pas. Sans ce bandeau ils disparaissaient simplement de la liste, des
-        // deux côtés, sans que rien n'explique pourquoi.
+        // These Documents exist and can be edited, but the server does not run
+        // them. Without this banner they simply vanished from the list, on both
+        // sides, with nothing explaining why.
         <div className="shrink-0 border-b border-[var(--border)] px-4 py-2 text-[12px] text-[var(--warning-fg,var(--text-mut))]">
           {t("project.notLoaded", { count: failed.length })}{" "}
           <span className="font-mono">
@@ -623,5 +617,4 @@ function LibraryDragGhost({ material }: { material: string }) {
   );
 }
 
-// Named alias for tests
 export { ProjectCanvasPage as ServerProjectPage };

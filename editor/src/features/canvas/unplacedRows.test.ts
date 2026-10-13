@@ -3,12 +3,12 @@ import { describe, expect, it } from "vitest";
 import { unplacedRows } from "./unplacedRows";
 
 /**
- * Ce qui reste à poser, pour le **Preview context** courant.
+ * What is left to place, for the current **Preview context**.
  *
- * C'est le signal qui manquait : ajouter une catégorie remplissait la source
- * sans que rien, sur la planche, n'indique qu'il y avait du travail. Les lignes
- * viennent du contexte regardé, donc le plateau change quand on navigue d'une
- * catégorie à l'autre (ADR `parameterised-menu-over-menu-per-category`).
+ * This is the missing signal: adding a category filled the source without
+ * anything on the board showing there was work to do. The rows come from the
+ * context being viewed, so the tray changes when navigating from one category
+ * to another (ADR `parameterised-menu-over-menu-per-category`).
  */
 const ROWS = [
   { id: "cle_legendaire", name: "Clé Légendaire" },
@@ -36,8 +36,8 @@ describe("unplacedRows", () => {
     expect(out).toEqual([]);
   });
 
-  /** Un placement qui ne matche aucune ligne (catégorie voisine, ligne
-   *  supprimée) ne doit rien masquer ici — il vit sa vie, silencieux. */
+  /** A placement matching no row (neighbouring category, deleted row) must
+   *  hide nothing here — it lives on, silently. */
   it("ignore les placements sans ligne correspondante", () => {
     const out = unplacedRows(
       { keyField: "id", placements: [{ key: "kit_mineur" }] },
@@ -51,10 +51,10 @@ describe("unplacedRows", () => {
   });
 
   /**
-   * `keyField` mal réglé : aucune ligne ne porte la clé, donc AUCUNE n'est
-   * plaçable — un placement s'épingle par Row key. Les afficher quand même
-   * donnerait des tuiles qu'aucun clic ne peut poser ; le plateau reste muet et
-   * c'est le panneau qui doit signaler la source mal configurée.
+   * Misconfigured `keyField`: no row carries the key, so NONE is placeable — a
+   * placement pins by Row key. Showing them anyway would give tiles no click
+   * can place; the tray stays silent and the panel has to flag the
+   * misconfigured source.
    */
   it("écarte les lignes sans Row key plutôt que d'offrir des tuiles mortes", () => {
     expect(unplacedRows({ keyField: "missing", placements: [] }, ROWS)).toEqual([]);

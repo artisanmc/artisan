@@ -106,8 +106,8 @@ describe("ItemTooltip menu scope", () => {
 });
 
 /**
- * Ce que le serveur rend, l'aperçu doit le rendre : un item capturé porte son
- * propre lore, les lignes du template s'ajoutent dessous.
+ * What the server renders, the preview must render: a captured item carries
+ * its own lore, the template's lines are appended below.
  */
 describe("ItemTooltip over a captured item", () => {
   const captured = {

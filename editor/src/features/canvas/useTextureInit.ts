@@ -6,13 +6,11 @@ import { useEffect } from "react";
 import { useTextureStore } from "./textureStore";
 
 /**
- * Initialises the texture store as soon as a logged-in user AND a projectId
- * are available. Must be called from a component that is always mounted
+ * Initialises the texture store as soon as a principal AND a projectId are
+ * available. Must be called from a component that is always mounted
  * (e.g. EditorPane), NOT from Library which is conditionally rendered per tab.
  *
- * Items are resolved via `/api/v1/user/projects/{projectId}/items`, which
- * picks a representative server_key binding and falls back to the newest
- * available items.json if no MC version is known yet.
+ * Items are resolved via `/api/v1/user/projects/{projectId}/items`.
  *
  * `projectId` overrides the last active project — a module Config screen edits
  * a project without opening its canvas, and its item pickers still need the
@@ -55,9 +53,8 @@ export function useTextureInit(projectId?: string) {
     Promise.all([fetchUserItems(lastActiveProjectId), fetchUserCustomItems(lastActiveProjectId)])
       .then(async ([vanilla, custom]) => {
         if (!isCurrent()) return;
-        // Le premier fetch peut partir avec le slug de l'URL, avant que le
-        // project soit chargé : une erreur ne doit pas rester collée une fois
-        // le vrai id résolu.
+        // The first fetch may go out with the URL slug, before the project is
+        // loaded: an error must not stick once the real id is resolved.
         setLibraryError(false);
         setData(vanilla.version, vanilla.items);
         setLibraryItems(vanilla.items);

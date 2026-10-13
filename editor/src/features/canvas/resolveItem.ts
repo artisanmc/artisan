@@ -9,7 +9,7 @@ import { getText } from "@/lib/i18n";
 import { wrapLore } from "@/lib/loreWrap";
 import { renderPreview } from "./menuPreviewScope";
 
-/** Placeholder rendant le lore de l'item de base, à l'endroit où il est écrit. */
+/** Placeholder rendering the base item's lore where it is written. */
 export const BASE_LORE = "{base.lore}";
 
 export interface ResolvedItem extends AdvancedFields {
@@ -115,9 +115,9 @@ export function resolveItem(
         const rendered = tokened
           .flatMap((line) => text(line, local).split("\n"))
           .flatMap((line) => wrapLore(line, project.loreMaxWidth ?? 0));
-        // Le lore de base reste par défaut ; il ne part que sur demande explicite
-        // (`lore_mode: replace`) ou quand `{base.lore}` le place lui-même —
-        // sinon il apparaîtrait deux fois.
+        // The base lore stays by default; it only goes on explicit request
+        // (`lore_mode: replace`) or when `{base.lore}` places it itself —
+        // otherwise it would appear twice.
         const replacement =
           tokened.some((line) => rawText(line).includes(BASE_LORE)) ||
           own.lore_mode === "replace" ||

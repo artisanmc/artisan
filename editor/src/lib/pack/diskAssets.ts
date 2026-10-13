@@ -5,18 +5,16 @@ import { FONT_DESCRIPTOR, FONT_DIR, fontFromDisk } from "./fontOnDisk";
 import type { AssetRow } from "./resourcePackBuilder";
 
 /**
- * Les assets d'un Project **lus sur le disque du serveur** (ADR
- * `assets-on-server-disk`, P4).
+ * A Project's assets **read from the server's disk** (ADR
+ * `assets-on-server-disk`).
  *
- * Rend la même forme que les lignes de la table `assets` — c'est ce que le
- * constructeur de resource pack attend, et le but de cette phase est de changer
- * la SOURCE sans toucher au reste. La table part en P6.
+ * Returns the shape the resource pack builder expects (`AssetRow`).
  *
- * L'identité d'un asset est son **nom de fichier** : `assets/glyphs/diamant.png`
- * devient l'asset `diamant`. Son descripteur frère (`diamant.yaml`) porte ce que
- * le PNG ne sait pas dire — ascent, codepoint, largeur de contenu. Un asset sans
- * descripteur reste utilisable avec des défauts : une faute de frappe dans un
- * `.yaml` ne doit pas faire disparaître une image (règle des fichiers data nus).
+ * An asset's identity is its **file name**: `assets/glyphs/diamant.png`
+ * becomes the asset `diamant`. Its sibling descriptor (`diamant.yaml`) carries
+ * what the PNG cannot say — ascent, codepoint, content width. An asset without
+ * a descriptor stays usable with defaults: a typo in a `.yaml` must not make
+ * an image disappear (bare data files rule).
  */
 export interface DiskAsset {
   row: AssetRow;
@@ -48,11 +46,11 @@ function num(value: unknown, fallback: number | null): number | null {
 }
 
 /**
- * Assemble les assets d'un Project depuis l'arbre annoncé par le serveur.
+ * Assembles a Project's assets from the tree announced by the server.
  *
- * `binaries` porte les chemins et les empreintes ; `files` porte les
- * descripteurs. Aucun octet ne circule ici — les octets se demandent asset par
- * asset, à qui en a besoin (côté backend : `readDiskAssetBytes`).
+ * `binaries` carries the paths and fingerprints; `files` carries the
+ * descriptors. No bytes travel here — bytes are requested asset by asset, by
+ * whoever needs them.
  */
 export function diskAssetsFromTree(
   anchorProjectId: string,
@@ -68,16 +66,16 @@ export function diskAssetsFromTree(
         descriptors.set(f.path.replace(/\.yaml$/, ""), parsed as Record<string, unknown>);
       }
     } catch {
-      // Descripteur illisible : l'image reste utilisable avec des défauts. La
-      // faire disparaître pour une faute de frappe punirait la mauvaise chose.
+      // Unreadable descriptor: the image stays usable with defaults. Making it
+      // disappear for a typo would punish the wrong thing.
     }
   }
 
   const out: DiskAsset[] = [];
 
-  // Une POLICE est un dossier, pas un fichier : `assets/fonts/<nom>/font.yaml`
-  // plus un PNG par glyphe. C'est elle l'asset — sans ça, la bibliothèque
-  // afficherait 95 « glyphes » nommés a, b, c… à côté d'elle.
+  // A FONT is a folder, not a file: `assets/fonts/<name>/font.yaml` plus one
+  // PNG per glyph. The font is the asset — otherwise the library would show 95
+  // "glyphs" named a, b, c… next to it.
   for (const f of files) {
     if (!f.path.startsWith(`${FONT_DIR}/`) || !f.path.endsWith(`/${FONT_DESCRIPTOR}`)) continue;
     const dir = f.path.slice(0, -(FONT_DESCRIPTOR.length + 1));
@@ -87,8 +85,8 @@ export function diskAssetsFromTree(
     const now = new Date();
     out.push({
       path: f.path,
-      // Le hash d'une police, c'est celui de son descripteur : c'est lui qui
-      // change quand on ajoute, retire ou déplace un glyphe.
+      // A font's hash is its descriptor's: that is what changes when a glyph is
+      // added, removed or moved.
       hash: sha256(f.content),
       row: {
         id: name,
@@ -110,7 +108,7 @@ export function diskAssetsFromTree(
 
   for (const bin of binaries) {
     const type = typeOf(bin.path);
-    if (type === null) continue; // hors des dossiers d'assets : pas notre affaire
+    if (type === null) continue; // outside the asset folders: not our business
     const meta = descriptors.get(bin.path.replace(/\.[^.]+$/, "")) ?? {};
     const now = new Date();
     out.push({

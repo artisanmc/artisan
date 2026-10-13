@@ -40,10 +40,10 @@ describe("action DSL ↔ domain steps adapter", () => {
   });
 });
 
-// ADR yaml-assisted-editing ④ : une action de data source PEUT référencer une
-// clé i18n — le plugin la résout désormais dans les lang/ du project. La clé
-// est explicite (jamais dérivée d'une position), donc elle doit survivre au
-// round-trip sans être confondue avec un littéral.
+// ADR yaml-assisted-editing ④: a data source action MAY reference an i18n
+// key — the plugin now resolves it in the project's lang/. The key is
+// explicit (never derived from a position), so it must survive the round
+// trip without being mistaken for a literal.
 describe("actions de data source — clés i18n explicites", () => {
   it("préserve @clé et distingue le littéral", () => {
     const dsl = 'send_message @shop.bought\nsend_message "merci !"';
@@ -52,8 +52,8 @@ describe("actions de data source — clés i18n explicites", () => {
       { kind: "action", action: { type: "send_message", text: { key: "@shop.bought" } } },
       { kind: "action", action: { type: "send_message", text: { key: "merci !" } } },
     ]);
-    // Le littéral repart entre guillemets, la référence sans — sinon le runtime
-    // afficherait « @shop.bought » au joueur, ou chercherait une clé « merci ! ».
+    // The literal goes back quoted, the reference unquoted — otherwise the runtime
+    // would show "@shop.bought" to the player, or look up a key "merci !".
     expect(printFromSteps(steps)).toBe(dsl);
   });
 });

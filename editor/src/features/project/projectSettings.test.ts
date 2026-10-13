@@ -16,7 +16,7 @@ describe("projectSettings", () => {
     expect(useUiStore.getState().projectSettingsOpen).toBe(true);
   });
 
-  /** La sortie : sans elle, les paramètres restaient ouverts indéfiniment. */
+  /** The way out: without it, the settings stayed open indefinitely. */
   it("refermer remet les deux à zéro", () => {
     openProjectSettings();
     dismissInspector();

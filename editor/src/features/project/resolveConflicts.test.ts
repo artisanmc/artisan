@@ -2,13 +2,14 @@ import { describe, it, expect } from "vitest";
 import { applyResolutions } from "./resolveConflicts";
 
 /**
- * Résolution d'un conflit d'enregistrement (ADR `server-disk-only-storage`, P2).
+ * Resolving a save conflict (ADR `server-disk-only-storage`).
  *
- * Tout passe par un seul geste : **adopter le contenu disque comme base**.
- * - « garder ma version » → la base devient le disque, donc le ré-enregistrement
- *   porte le bon jeton et écrase légitimement ;
- * - « prendre celle du serveur » → la base devient le disque *et* l'arbre de
- *   l'éditeur aussi, donc il n'y a plus rien à écrire pour ce fichier.
+ * Everything goes through a single gesture: **adopt the disk content as the
+ * base**.
+ * - "keep mine" → the base becomes the disk, so the re-save carries the right
+ *   token and legitimately overwrites;
+ * - "take the server's" → the base becomes the disk *and* so does the
+ *   editor's tree, so there is nothing left to write for that file.
  */
 describe("applyResolutions", () => {
   const conflicts = [
@@ -26,7 +27,7 @@ describe("applyResolutions", () => {
       "menus/a.yaml": "title: A serveur\n",
       "menus/b.yaml": "title: B serveur\n",
     });
-    // Rien à réintégrer : l'éditeur garde ce qu'il a.
+    // Nothing to bring back: the editor keeps what it has.
     expect(out.adoptFromDisk).toEqual({});
   });
 
@@ -47,9 +48,8 @@ describe("applyResolutions", () => {
       { "menus/parti.yaml": "mine" },
     );
 
-    // Absent de la base = « je m'attends à ce qu'il n'y ait pas de fichier ici »,
-    // ce qui produira base_hash null au ré-enregistrement : exactement l'état
-    // du disque.
+    // Absent from the base = "I expect no file here", which yields base_hash null
+    // on re-save: exactly the disk's state.
     expect("menus/parti.yaml" in out.nextBaseline).toBe(false);
   });
 
@@ -77,8 +77,8 @@ describe("applyResolutions", () => {
   it("un fichier sans choix explicite est laissé intact — jamais de défaut silencieux", () => {
     const out = applyResolutions({}, conflicts, { "menus/a.yaml": "mine" });
 
-    // b n'a pas été tranché : sa base ne bouge pas, donc le ré-enregistrement
-    // rebutera dessus plutôt que de trancher à la place de l'admin.
+    // b was not resolved: its base does not move, so the re-save fails on it
+    // rather than deciding for the admin.
     expect("menus/b.yaml" in out.nextBaseline).toBe(false);
     expect(out.unresolved).toEqual(["menus/b.yaml"]);
   });

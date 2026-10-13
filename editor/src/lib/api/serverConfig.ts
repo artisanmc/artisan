@@ -6,7 +6,7 @@ export type ServerConfig = Record<string, unknown>;
 const url = (networkId: string, serverKeyId: string) =>
   `${API_URL}/api/v1/networks/${encodeURIComponent(networkId)}/servers/${encodeURIComponent(serverKeyId)}/server-config`;
 
-/** `config: null` = plugin offline since the backend started, or too old to report it. */
+/** `config: null` = plugin offline since the hub started, or too old to report it. */
 export async function getServerConfig(
   networkId: string,
   serverKeyId: string,

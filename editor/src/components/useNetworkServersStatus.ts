@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 
 const POLL_MS = 15_000;
 
-/** État des serveurs du network, relu toutes les 15 s. Un échec garde le dernier état connu. */
+/** The network's server states, re-read every 15 s. A failure keeps the last known state. */
 export function useNetworkServersStatus(
   networkId: string | null | undefined,
   currentServerKeyId?: string,
@@ -15,7 +15,7 @@ export function useNetworkServersStatus(
     try {
       setData(await getNetworkServersStatus(networkId, currentServerKeyId));
     } catch {
-      /* silencieux : on garde le dernier état connu */
+      /* silent: keep the last known state */
     }
   }, [networkId, currentServerKeyId]);
 

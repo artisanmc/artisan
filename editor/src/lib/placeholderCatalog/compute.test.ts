@@ -63,7 +63,6 @@ describe("PlaceholderCatalog.compute", () => {
     expect(result).toEqual(BUILTIN_MENU);
   });
 
-  // Task 3 tests
   it("emits a primitive contextInput as a single entry with coerced sample", () => {
     const project = emptyProject();
     project.menus.push({
@@ -79,7 +78,7 @@ describe("PlaceholderCatalog.compute", () => {
       ],
     });
     const out = compute(project, { kind: "menu", menuId: "m1" as MenuId });
-    // Sorted alpha by path within context origin (Task 8 sort applied throughout).
+    // Sorted alpha by path within context origin.
     // The declared `player` input shadows the builtins (caller arg wins), so
     // there is exactly one `player` entry; its player-typed subfields still show.
     expect(out).toEqual([
@@ -150,7 +149,6 @@ describe("PlaceholderCatalog.compute", () => {
     expect(out.map((e) => e.path)).toContain("player");
   });
 
-  // Task 4 tests
   it("flattens an object-typed dataSource into one entry per leaf", () => {
     const project = emptyProject();
     project.dataSources.push({
@@ -243,7 +241,6 @@ describe("PlaceholderCatalog.compute", () => {
     expect(out).toEqual(BUILTIN_MENU);
   });
 
-  // Task 5 tests
   it("emits iteration alias leaves when the element iterates over a list of objects", () => {
     const project = emptyProject();
     project.dataModels = [
@@ -472,7 +469,6 @@ describe("PlaceholderCatalog.compute", () => {
     expect(actionOut.map((e) => e.path)).toEqual(elementOut.map((e) => e.path));
   });
 
-  // Task 6 tests
   it("returns the builtin {player} entries for dialog scope (no contextInputs modeled)", () => {
     const project = emptyProject();
     const out = compute(project, { kind: "dialog", dialogId: "d1" as DialogId });
@@ -489,7 +485,6 @@ describe("PlaceholderCatalog.compute", () => {
     expect(out).toEqual(BUILTIN_MENU);
   });
 
-  // Task 7 test
   it("omits sourceRef inputs whose dataSource was deleted, and warns once per render", () => {
     const project = emptyProject();
     project.menus.push({
@@ -508,7 +503,6 @@ describe("PlaceholderCatalog.compute", () => {
     warn.mockRestore();
   });
 
-  // Task 8 test
   it("sorts entries by origin (context → iteration → source) then alpha by path", () => {
     const project = emptyProject();
     project.dataModels = [

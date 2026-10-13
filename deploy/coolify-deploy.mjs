@@ -110,7 +110,7 @@ export async function deployProduction(deps, env) {
     throw new Error(`Missing required environment variables: ${missing.join(", ")}`);
   }
 
-  // Une seule ressource : la vitrine artisanmc.net (landing + wiki), construite par editor/Dockerfile.
+  // A single resource: the artisanmc.net showcase (landing + wiki), built by editor/Dockerfile.
   const { fetchImpl, sleep = defaultSleep } = deps;
   await pinApplicationRevision(fetchImpl, env, env.COOLIFY_EDITOR_UUID);
   const deployment = await triggerDeployment(fetchImpl, env, env.COOLIFY_EDITOR_UUID);

@@ -59,7 +59,7 @@ it("lists deployments and server edits, shows a Version's diff, and restores it 
       screen.getAllByRole("button", { name: /See changes|Voir les changements/ })[1]!,
     );
     const dialog = await screen.findByRole("dialog");
-    // Le diff compare v1 à la Version d'avant (v0), qui avait old.yaml.
+    // The diff compares v1 to the previous Version (v0), which had old.yaml.
     expect(await within(dialog).findByText("old.yaml")).toBeInTheDocument();
     expect(api.readProjectVersion).toHaveBeenCalledWith(project.id, "v0");
 

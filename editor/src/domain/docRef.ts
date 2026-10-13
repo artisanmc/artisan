@@ -1,14 +1,14 @@
 /**
- * Référence à un Document depuis un autre Document (cible d'un `open_menu`,
- * d'un `open_dialog`…).
+ * Reference to a Document from another Document (target of an `open_menu`,
+ * an `open_dialog`…).
  *
- * - `main` : id **nu**, résolu d'abord dans le project qui référence, puis sur le
- *   serveur s'il n'y est défini qu'une fois.
- * - `boutique:main` : id **qualifié** par le namespace d'un project — le nom de
- *   son dossier sur le disque du serveur.
+ * - `main`: **bare** id, resolved first in the referencing project, then on
+ *   the server if it is defined there only once.
+ * - `boutique:main`: id **qualified** by a project's namespace — the name of
+ *   its folder on the server's disk.
  *
- * `:` ne peut figurer ni dans un nom de dossier de project (refusé par le plugin)
- * ni dans un nom de fichier sous Windows, donc il ne coupe jamais un id.
+ * `:` can appear neither in a project folder name (rejected by the plugin)
+ * nor in a Windows file name, so it never splits an id.
  */
 export interface DocRef {
   namespace: string | null;
@@ -22,9 +22,9 @@ export function parseDocRef(raw: string): DocRef {
 }
 
 /**
- * Les Documents qu'une référence atteint, parmi ceux qui portent son id
- * (`candidatesOf(id)`) : 0 = introuvable, 1 = résolue, plus = ambiguë.
- * Verrouillé avec le plugin (`DocumentTable`) par `testdata/doc-ref-conformance.json`.
+ * The Documents a reference reaches, among those carrying its id
+ * (`candidatesOf(id)`): 0 = not found, 1 = resolved, more = ambiguous.
+ * Locked with the plugin (`DocumentTable`) by `testdata/doc-ref-conformance.json`.
  */
 export function resolveDocRef<T extends { namespace: string; projectId: string }>(
   candidatesOf: (id: string) => T[],
@@ -38,6 +38,6 @@ export function resolveDocRef<T extends { namespace: string; projectId: string }
   return local.length > 0 ? local : all;
 }
 
-/** Le namespace d'un project : son dossier disque, qui peut différer de son id interne. */
+/** A project's namespace: its disk folder, which may differ from its internal id. */
 export const projectNamespace = (project: { id: string; diskId?: string }): string =>
   project.diskId ?? project.id;

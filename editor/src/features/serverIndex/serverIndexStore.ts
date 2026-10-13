@@ -3,7 +3,7 @@ import { create } from "zustand";
 import type { ServerProjectsResult } from "./serverIndexLoader";
 
 interface ServerIndexState {
-  /** `<network>/<server>` tels que l'URL les nomme ; `null` = rien chargé. */
+  /** `<network>/<server>` as the URL names them; `null` = nothing loaded. */
   scope: string | null;
   status: "idle" | "loading" | ServerProjectsResult["status"];
   projects: Project[];
@@ -17,15 +17,15 @@ export const serverIndexScope = (networkId: string, serverId: string): string =>
   `${networkId}/${serverId}`;
 
 /**
- * Les projects publiés du serveur courant, en lecture seule. Éphémère : rien
- * n'est persisté, le backend et le cache du chargeur servent la visite suivante.
+ * The current server's published projects, read-only. Ephemeral: nothing is
+ * persisted, the hub and the loader's cache serve the next visit.
  */
 export const useServerIndexStore = create<ServerIndexState>((set, get) => ({
   scope: null,
   status: "idle",
   projects: [],
   failed: [],
-  // Un autre serveur ne doit jamais montrer les projects du précédent.
+  // Another server must never show the previous one's projects.
   begin: (scope) =>
     set(
       get().scope === scope

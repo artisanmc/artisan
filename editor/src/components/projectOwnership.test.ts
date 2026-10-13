@@ -8,12 +8,12 @@ const screen = (p: Partial<ServerEditorScreen>): ServerEditorScreen => ({
 });
 
 /**
- * Le regroupement « Modules installés » se faisait sur `ownerModule`, que le
- * backend lisait dans sa copie du project. Cette copie n'existe plus (ADR
- * `server-disk-only-storage`) et la Boutique est retombée dans la liste plate.
+ * The "Installed modules" grouping used `ownerModule`, read from a stored copy
+ * of the project. That copy no longer exists (ADR `server-disk-only-storage`)
+ * and the Boutique fell back into the flat list.
  *
- * La propriété se redérive des **écrans déclarés**, qui portent déjà le couple
- * module → project : c'est le module lui-même qui l'a déclaré au Presence.
+ * Ownership is re-derived from the **declared screens**, which already carry
+ * the module → project pair: the module itself declared it in its Presence.
  */
 describe("ownerModuleOf", () => {
   it("rattache un project à son module via un écran déclaré", () => {
@@ -22,8 +22,8 @@ describe("ownerModuleOf", () => {
   });
 
   it("matche sur l'id DISQUE, celui que le module déclare", () => {
-    // Quand un autre serveur détient déjà l'id disque, l'id interne diffère —
-    // mais le module, lui, a déclaré son id disque.
+    // When another server already holds the disk id, the internal id differs —
+    // but the module declared its disk id.
     const owner = ownerModuleOf(
       { id: "proj_58967c930e9e", externalId: "boutique_shop" },
       [screen({})],

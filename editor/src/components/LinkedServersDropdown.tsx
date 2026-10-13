@@ -96,7 +96,7 @@ export function LinkedServersDropdown({
 }: {
   networkId: string | null | undefined;
   currentServerKeyId?: string;
-  /** Explication du hors-ligne du serveur courant, affichée en infobulle sur le badge. */
+  /** Why the current server is offline, shown as a tooltip on the badge. */
   downHint?: string;
 }) {
   const { t, i18n } = useTranslation();
@@ -105,11 +105,10 @@ export function LinkedServersDropdown({
   if (!networkId || data === null) return null;
 
   const { online, total } = data;
-  // Ce qui compte sur cette page, c'est l'état du serveur qui PORTE le project
-  // ouvert : son contenu vit sur son disque, donc il conditionne tout (ADR
-  // `server-disk-only-storage`). L'agrégat réseau ne disait rien de ça — « 2/2 »
-  // pouvait s'afficher pendant que TON serveur était le seul à manquer.
-  // Le détail des autres serveurs reste dans le menu déroulant.
+  // What matters here is the state of the server that HOLDS the open project:
+  // its content lives on its disk, so it conditions everything (ADR
+  // `server-disk-only-storage`). The network aggregate could show "2/2" while
+  // YOUR server was the only one missing. The other servers stay in the dropdown.
   const current = currentServerKeyId
     ? data.servers.find((s) => s.id === currentServerKeyId)
     : undefined;
@@ -148,10 +147,8 @@ export function LinkedServersDropdown({
   return (
     <DropdownMenu>
       {downHint ? <Tooltip content={downHint}>{trigger}</Tooltip> : trigger}
-      {/* Le project ouvert vit sur le disque d'UN serveur : c'est celui-là, et
-          lui seul, qui a quelque chose à dire ici. Lister tout le parc du network
-          à cet endroit répondait à une question que personne ne se pose depuis
-          cette page (ADR `server-disk-only-storage`). */}
+      {/* The open project lives on ONE server's disk: only that server has
+          something to say here (ADR `server-disk-only-storage`). */}
       <DropdownMenuContent align="end" className="min-w-[16rem]">
         <DropdownMenuLabel>{t("linkedServers.serverTitle")}</DropdownMenuLabel>
         <DropdownMenuSeparator />

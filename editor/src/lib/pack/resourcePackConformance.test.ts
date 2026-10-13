@@ -36,7 +36,7 @@ const VANILLA_FILE: Record<GuiContainer, string> = {
 const vanilla = (c: GuiContainer) =>
   new Uint8Array(readFileSync(resolve(__dirname, `../../assets/minecraft/${VANILLA_FILE[c]}.png`)));
 
-/** L'assemblage de `buildServerPack`, sans réseau : le même que le générateur du backend. */
+/** `buildServerPack`'s assembly, without network. */
 function buildCase(c: ConformanceCase) {
   const allAssets: AssetRow[] = [];
   const contribs: GlyphContribution[] = [];

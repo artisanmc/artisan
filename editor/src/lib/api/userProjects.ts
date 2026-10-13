@@ -6,7 +6,7 @@ export interface UserProjectLoadResult {
     id: string;
     name: string;
     slug?: string | null;
-    /** Id disque du project côté serveur propriétaire (cf. `Project.diskId`). */
+    /** The project's disk id on the owning server (cf. `Project.diskId`). */
     externalId?: string | null;
     serverKeyId?: string | null;
   };
@@ -43,8 +43,8 @@ export async function loadUserProject(
     },
   );
   if (!res.ok) {
-    // Serveur hors ligne ou plugin à mettre à jour : le code remonte tel quel pour
-    // que l'éditeur l'explique au lieu d'afficher un statut HTTP.
+    // Server offline or plugin to update: the code is passed up as is so the
+    // editor explains it instead of showing an HTTP status.
     const body = (await res.json().catch(() => null)) as { error?: unknown } | null;
     if (body?.error === "server_offline" || body?.error === "plugin_update_required")
       throw new Error(body.error);
@@ -62,7 +62,7 @@ export async function getNetworkOfProject(projectId: string): Promise<string | n
   }
 }
 
-/** DELETE /api/v1/user/projects/:projectId — le serveur met le dossier à sa corbeille. Rejette avec le code d'erreur. */
+/** DELETE /api/v1/user/projects/:projectId — the server moves the folder to its trash. Rejects with the error code. */
 export async function deleteUserProject(projectId: string): Promise<void> {
   const res = await projectFetch(
     projectId,

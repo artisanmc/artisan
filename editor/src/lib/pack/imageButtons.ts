@@ -30,7 +30,7 @@ export function imageButtonsFromMenus(
   const out: ImageButtonPlacement[] = [];
   for (const file of files) {
     if (!/^menus\/.*\.ya?ml$/.test(file.path)) continue;
-    // biome-ignore lint/suspicious/noExplicitAny: YAML libre, lu champ par champ comme au backend
+    // biome-ignore lint/suspicious/noExplicitAny: free-form YAML, read field by field
     let doc: any;
     try {
       doc = parse(file.content);

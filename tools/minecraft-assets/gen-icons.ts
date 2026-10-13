@@ -51,7 +51,7 @@ console.log("Building model bundle…");
 const bundle = await buildVanillaBundle(VERSION);
 console.log(`  ${Object.keys(bundle).length} models resolved.`);
 
-// ── Local file server ────────────────────────────────────────────────────────────
+// Local file server
 // Serves exactly the routes mcModelRenderer.ts fetches from:
 //   /api/v1/model-bundle/:version → pre-built bundle JSON
 //   /api/v1/textures/:version/*   → PNG files from mc-assets/textures/
@@ -100,7 +100,7 @@ const server = Bun.serve({
 const baseUrl = `http://localhost:${server.port}`;
 console.log(`File server on ${baseUrl}`);
 
-// ── Bundle renderer (Three.js + mcModelRenderer) for browser injection ────────────
+// Bundle renderer (Three.js + mcModelRenderer) for browser injection
 // Bun.build bundles editor/src/lib/mcModelRenderer.ts + three into a single IIFE.
 // define replaces import.meta.env.VITE_API_URL with our local server URL.
 
@@ -122,7 +122,7 @@ if (!buildResult.success) {
 const rendererJs = await buildResult.outputs[0].text();
 console.log(`  Bundle: ${(rendererJs.length / 1024).toFixed(0)} KB`);
 
-// ── Playwright render loop (via Node.js subprocess) ──────────────────────────────
+// Playwright render loop (via Node.js subprocess)
 // Playwright's --remote-debugging-pipe transport doesn't work under Bun on Windows.
 // We delegate the Playwright work to a Node.js worker script that communicates via
 // stdin (config JSON) and stdout (JSON-line progress events).
@@ -195,7 +195,7 @@ if (exitCode !== 0) {
   process.exit(exitCode);
 }
 
-// ── Update items.json ────────────────────────────────────────────────────────────
+// Update items.json
 // Rendered items: drop `model` and `tints`, set texture to "icons/{id}".
 // Unrendered items: keep as-is (client-side fallback still works).
 

@@ -32,15 +32,15 @@ interface ContextMenuProps {
   onClose: () => void;
   onCopy: () => void;
   onPaste: () => void;
-  /** Clic droit sur un slot : coller les items copiés à partir de ce slot. */
+  /** Right-click on a slot: paste the copied items starting from this slot. */
   onPasteAt: (anchor: { menuId: MenuId; position: number }) => void;
   onDuplicate: () => void;
   onDelete: () => void;
   onMoveTo: (toProjectId: ProjectId) => void;
-  /** Fond du canvas : montrer les paramètres du project dans le panneau. */
+  /** Canvas background: show the project settings in the panel. */
   onOpenProjectSettings: () => void;
   onGroup?: () => void;
-  /** Absents en vue focus : créer « ici » suppose une position de planche. */
+  /** Absent in focus view: creating "here" requires a board position. */
   onCreateMenuAt?: (world: { x: number; y: number }) => void;
   onCreateCommandAt?: (world: { x: number; y: number }) => void;
   onCreateDialogAt?: (world: { x: number; y: number }) => void;

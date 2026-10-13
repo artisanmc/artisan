@@ -110,7 +110,7 @@ describe("rearrangeProjectLayout — modes", () => {
       },
     ],
   });
-  /** Un menu principal qui ouvre huit sous-menus : le rank qui fait une colonne de dix. */
+  /** A main menu opening eight submenus: the rank that makes a column of ten. */
   const fanout = () => {
     const children = ["a", "b", "c", "d", "e", "f", "g", "h"];
     return makeProject({

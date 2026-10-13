@@ -38,10 +38,10 @@ export function DocumentView({
   const relPath = project ? documentRelPath(project, eid) : null;
 
   useEffect(() => {
-    // Par défaut, sélectionne l'élément (menu/commande/dialog) lui-même. Mais si une
-    // sélection cible déjà cet élément ou l'un de ses enfants — ex. la palette de
-    // recherche qui sélectionne un item précis avant que cette vue ne monte — on la
-    // préserve au lieu de l'écraser.
+    // By default, select the element (menu/command/dialog) itself. But if a
+    // selection already targets this element or one of its children — e.g. the
+    // search palette selecting a specific item before this view mounts — keep it
+    // instead of overwriting it.
     const childIds = new Set<string>([documentId as string]);
     for (const layer of menu?.layers ?? [])
       for (const el of layer.elements ?? []) childIds.add(el.id);
@@ -56,10 +56,10 @@ export function DocumentView({
     [navigate, params.networkId, params.serverId, project, projectId],
   );
 
-  // Echap revient à la planche. On ignore l'événement si le focus est dans un
-  // champ de saisie (les éditeurs inline du FlowCanvas gèrent déjà Echap pour
-  // annuler une édition), si un autre handler l'a déjà consommé, ou si une
-  // modale/menu/liste est ouverte (qui doit fermer en premier).
+  // Escape goes back to the board. The event is ignored if focus is in an input
+  // (FlowCanvas's inline editors already handle Escape to cancel an edit), if
+  // another handler already consumed it, or if a modal/menu/list is open (it
+  // must close first).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape" || e.defaultPrevented) return;
@@ -91,8 +91,8 @@ export function DocumentView({
           Esc
         </kbd>
       </button>
-      {/* Le libellé est du MiniMessage (titre de menu/dialogue) : on rend le
-          style plutôt que d'imprimer les balises. */}
+      {/* The label is MiniMessage (menu/dialog title): render the style
+          instead of printing the tags. */}
       <MiniMessageInline
         source={project ? documentLabel(project, documentId as string, activeLang) : documentId}
         className="truncate text-[13px] font-medium text-[var(--text)]"

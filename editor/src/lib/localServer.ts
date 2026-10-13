@@ -1,2 +1,2 @@
-/** Identifiant du réseau et du serveur uniques que sert le plugin. */
+/** Id of the single network and server the plugin serves. */
 export const LOCAL_ID = "local";

@@ -2,7 +2,7 @@ import { Navigate, Outlet, createFileRoute, useChildMatches } from "@tanstack/re
 
 export const Route = createFileRoute("/networks/$networkId")({ component: NetworkDetailPage });
 
-/** Le plugin ne sert qu'un réseau : la liste de ses serveurs vit dans la barre latérale. */
+/** The plugin serves a single network: its server list lives in the sidebar. */
 export function NetworkDetailPage() {
   const childMatches = useChildMatches();
   if (childMatches.length > 0) return <Outlet />;

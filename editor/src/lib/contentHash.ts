@@ -1,23 +1,21 @@
 import { sha256Hex } from "./sha256";
 
 /**
- * SHA-256 d'un contenu de fichier, hex minuscule.
+ * SHA-256 of a file's content, lowercase hex.
  *
- * C'est le jeton de compare-and-swap de l'enregistrement (ADR
- * `server-disk-only-storage`) : miroir exact de `BundleHasher.hashContent`
- * côté plugin. Rien à voir avec le hash d'arbre — pas de clé, pas de tri,
- * juste le contenu en UTF-8.
+ * The save's compare-and-swap token (ADR `server-disk-only-storage`): exact
+ * mirror of the plugin's `BundleHasher.hashContent`. Unrelated to the tree
+ * hash — no key, no sorting, just the UTF-8 content.
  */
 export async function hashContent(content: string): Promise<string> {
   return hashBytes(new TextEncoder().encode(content));
 }
 
 /**
- * SHA-256 des octets d'un fichier binaire (image, police), hex minuscule.
+ * SHA-256 of a binary file's bytes (image, font), lowercase hex.
  *
- * Miroir de `BundleHasher.hashBytes` côté plugin, et de la métadonnée `hash`
- * d'un asset : c'est l'identité d'un binaire dans les arbres (disque, miroir,
- * brouillon).
+ * Mirror of the plugin's `BundleHasher.hashBytes`, and of an asset's `hash`
+ * metadata: the identity of a binary in the trees (disk, mirror, draft).
  */
 export async function hashBytes(bytes: Uint8Array): Promise<string> {
   if (!globalThis.crypto?.subtle) return sha256Hex(bytes);

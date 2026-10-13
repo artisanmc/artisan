@@ -29,7 +29,7 @@ function assertNoOverlap(
   }
 }
 
-/** Graphe synthétique déterministe : composantes, cycles, arêtes retour, orphelins. */
+/** Deterministic synthetic graph: components, cycles, back edges, orphans. */
 function synthetic(count: number) {
   let seed = 42;
   const rand = () => {
@@ -294,7 +294,7 @@ describe("arrangeBoard — modes", () => {
     }
     return { w, h };
   };
-  /** Un parent et dix enfants : le rank de dix est ce qui fait des colonnes interminables. */
+  /** One parent and ten children: a rank of ten is what makes endless columns. */
   const wide = () => {
     const nodes: ArrangeNode[] = [menu("main")];
     const edges: ArrangeEdge[] = [];

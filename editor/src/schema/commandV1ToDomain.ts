@@ -53,7 +53,7 @@ export function commandV1ToDomain(
     pushUnsupported: (s) => unsupported.push(s),
   });
 
-  // command/v1 action chain is an Action DSL string (Phase 2 of ADR action-dsl).
+  // command/v1 action chain is an Action DSL string (ADR action-dsl).
   // Canonical field is `actions`; `steps` is the legacy spelling still accepted.
   const steps = parseSteps(src.actions ?? src.steps);
 

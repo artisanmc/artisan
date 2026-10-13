@@ -45,11 +45,11 @@ interface Target {
 }
 
 /**
- * Le graphe de navigation de tout un serveur, avec la résolution lexicale des
- * références (`parseDocRef`) : un id nu vise d'abord son propre project, puis
- * le serveur s'il n'y est défini qu'une fois ; `project:id` vise ce project.
- * Un id nu absent du project et porté par deux autres est ambigu : la planche
- * refuse de deviner.
+ * The navigation graph of a whole server, with lexical resolution of
+ * references (`parseDocRef`): a bare id targets its own project first, then
+ * the server if it is defined there only once; `project:id` targets that
+ * project. A bare id missing from the project and carried by two others is
+ * ambiguous: the board refuses to guess.
  */
 export function deriveServerGraph(projects: Project[]): ServerGraph {
   const nodes: BoardNode[] = [];

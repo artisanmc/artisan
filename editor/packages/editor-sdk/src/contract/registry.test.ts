@@ -49,7 +49,7 @@ describe("collectModuleExportFiles", () => {
       routes: [],
       exportFiles: () => ({
         "boutique/items.yaml": "items: []",
-        "menus/hijack.yaml": "nope", // hors namespace → ignoré
+        "menus/hijack.yaml": "nope", // outside the namespace: ignored
       }),
     });
     expect(collectModuleExportFiles({})).toEqual({ "boutique/items.yaml": "items: []" });

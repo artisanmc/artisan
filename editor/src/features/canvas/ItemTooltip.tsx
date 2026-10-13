@@ -153,8 +153,8 @@ export function ItemTooltip({ projectId }: ItemTooltipProps) {
   } else if (element.places && slotPosition != null) {
     const totalPages = placementTotalPages(element.places.placements);
     const page = Math.min(Math.max(0, pageByElement[element.id] ?? 0), totalPages - 1);
-    // Le placement du contexte COURANT, pas le premier de la liste : plusieurs
-    // catégories se partagent les mêmes slots (cf. `placementAtSlot`).
+    // The placement of the CURRENT context, not the first in the list: several
+    // categories share the same slots (cf. `placementAtSlot`).
     const rowsHere = lookupPath(sampleCtx, element.places.source);
     const placement = placementAtSlot(element.places, rowsHere, page, slotPosition);
     if (placement) {

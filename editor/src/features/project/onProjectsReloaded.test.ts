@@ -29,10 +29,9 @@ function seedDraft(dirty: boolean) {
 }
 
 /**
- * Le plugin annonce ses rechargements : c'est le seul moment où une édition
- * faite à la main sur le disque devient réelle. L'éditeur en tire la conduite
- * la plus discrète possible — et surtout, il ne jette jamais du travail en
- * cours pour aller chercher du frais.
+ * The plugin announces its reloads: the only moment a hand edit on the disk
+ * becomes real. The editor reacts as discreetly as possible — and above all,
+ * never throws away work in progress to fetch fresh data.
  */
 describe("onProjectsReloaded", () => {
   beforeEach(() => {
@@ -46,7 +45,7 @@ describe("onProjectsReloaded", () => {
     expect(useProjectCacheStore.getState().reloadToken).toBe(1);
   });
 
-  /** Rien n'a changé pour nous : relire coûterait un aller-retour pour rien. */
+  /** Nothing changed for us: re-reading would cost a round trip for nothing. */
   it("ne relit pas quand l'empreinte annoncée est celle qu'on a déjà", () => {
     seedCache("identique");
     onProjectsReloaded("sk_1", [{ id: "boutique", hash: "identique" }]);
@@ -54,9 +53,8 @@ describe("onProjectsReloaded", () => {
   });
 
   /**
-   * Du travail non enregistré n'existe nulle part ailleurs. Une relecture
-   * automatique le remplacerait sans qu'on ait rien demandé — c'est exactement
-   * ce que le bouton Actualiser fait confirmer.
+   * Unsaved work exists nowhere else. An automatic re-read would replace it
+   * without being asked — exactly what the Refresh button asks to confirm.
    */
   it("ne touche à rien tant qu'il y a du travail non enregistré, où qu'il soit", () => {
     seedCache("ancienne");

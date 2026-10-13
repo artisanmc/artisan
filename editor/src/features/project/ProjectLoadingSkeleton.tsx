@@ -2,22 +2,22 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslation } from "react-i18next";
 
 /**
- * L'attente d'un Project, à la forme de ce qui va s'afficher.
+ * Waiting for a Project, shaped like what will be shown.
  *
- * Le contenu se lit sur le disque de SON serveur : il y a forcément un délai,
- * et le nier avec une page blanche le fait passer pour une panne. Un squelette
- * qui reprend la disposition réelle — barre du haut, arbre à gauche, canvas —
- * tient la mise en page pendant ce délai, de sorte que l'arrivée des données ne
- * fasse pas sauter l'écran.
+ * The content is read from ITS server's disk: there is necessarily a delay,
+ * and denying it with a blank page makes it look like an outage. A skeleton
+ * matching the real layout — top bar, tree on the left, canvas — holds the
+ * layout during that delay, so the data arriving does not make the screen
+ * jump.
  *
- * Le libellé reste : un squelette dit « bientôt », il ne dit pas QUOI on
- * attend ni d'où ça vient.
+ * The label stays: a skeleton says "soon", it does not say WHAT is awaited
+ * or where it comes from.
  */
 export function ProjectLoadingSkeleton() {
   const { t } = useTranslation();
   return (
     <div className="flex h-full min-h-0 flex-col" data-testid="project-skeleton">
-      {/* Barre du haut : marque, nav de vues, actions à droite. */}
+      {/* Top bar: brand, view nav, actions on the right. */}
       <div className="flex items-center gap-3 border-b border-[var(--border-soft)] px-4 py-2.5">
         <Skeleton className="h-6 w-32" />
         <Skeleton className="h-6 w-56" />
@@ -27,7 +27,7 @@ export function ProjectLoadingSkeleton() {
       </div>
 
       <div className="flex min-h-0 flex-1">
-        {/* Arbre des Documents. */}
+        {/* Document tree. */}
         <div className="hidden w-[240px] shrink-0 flex-col gap-2 border-r border-[var(--border-soft)] p-3 lg:flex">
           <Skeleton className="h-4 w-24" />
           {[0, 1, 2, 3, 4].map((i) => (

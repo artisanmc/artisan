@@ -464,21 +464,8 @@ describe("ResizeHandles", () => {
     onResize.mockClear();
     onResizeEnd.mockClear();
 
-    // Second drag: target (300, 120). Opposite NW=(0,0). dx=300, dy=120.
-    //   Using NEW origin (200×100, aspect 2): dx/origW = 1.5; dy/origH = 1.2.
-    //     → width wins. newW=300, newH=300/2=150.
-    //   If we WRONGLY used the OLD origin (100×50, aspect 2): dx/origW = 3.0;
-    //   dy/origH = 2.4 → width wins. newW=300, newH=300/2=150. Same! So
-    //   we instead use an asymmetric NEW aspect to disambiguate: rerender
-    //   with width=200 height=100 (still aspect 2) is not enough. Tweak:
-    //   pick clientX=300 clientY=180. With NEW origin: dx/origW=1.5,
-    //   dy/origH=1.8 → height wins → newH=180, newW=180*2=360.
-    //   With OLD origin: dx/origW=3.0, dy/origH=3.6 → height wins →
-    //   newH=180, newW=180*2=360. Still the same because aspect is identical.
-    //
-    // To make the test actually disambiguate, rerender with a DIFFERENT
-    // aspect (e.g. 200×80, aspect=2.5) — then OLD vs NEW snapshot would
-    // produce a different aspect in the result.
+    // Rerender with a DIFFERENT aspect (200×80, aspect=2.5) so an OLD vs NEW
+    // snapshot would produce a different aspect in the result.
     rerender(
       <ResizeHandles
         x={0}

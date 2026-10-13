@@ -19,7 +19,7 @@ import { useHeadPreviewUrl } from "./useHeadPreviewUrl";
 import { useTextureUrl } from "./textureStore";
 
 /**
- * "Items capturés" section of the Library tab — the universal capture flow
+ * "Captured items" section of the Library tab — the universal capture flow
  * (ADR captured-items-and-module-field-kit). Two halves:
  *  - the project's captured items as draggable tiles (`item:<id>` material
  *    refs — same drag/arm gesture as vanilla Library items, zero new drop code);
