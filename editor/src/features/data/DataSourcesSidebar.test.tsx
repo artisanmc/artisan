@@ -22,7 +22,7 @@ function project(): Project {
     ],
     dataSources: [
       { id: "categories", name: "Catégories", shape: "table", modelId: "boutique:category", rows: [] },
-      // Typée par une déclaration de module, comme la table — mais en Config.
+      // Typed by a module declaration, like the table — but as a Config.
       { id: "shop_settings", name: "Réglages", shape: "config", modelId: "boutique:shop_settings", fields: [], value: {} },
       { id: "ranks", name: "Grades", shape: "table", modelId: "mdl_local", rows: [] },
     ],
@@ -42,9 +42,9 @@ function renderSidebar() {
 }
 
 describe("DataSourcesSidebar — données possédées par un module", () => {
-  // Le panneau du canvas est une surface de BINDING : une source dont le model
-  // est déclaré par un module s'édite dans l'écran du module. Sinon on peut y
-  // casser son schéma ou la supprimer (ADR module-config-screens).
+  // The canvas panel is a BINDING surface: a source whose model is declared by
+  // a module is edited in the module's screen. Otherwise its schema could be
+  // broken or the source deleted here (ADR module-config-screens).
   it("ne propose pas à l'édition une Config typée par une déclaration de module", () => {
     renderSidebar();
     const managed = screen.getByTestId("module-managed-sources");

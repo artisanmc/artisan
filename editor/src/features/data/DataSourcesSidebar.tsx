@@ -33,10 +33,10 @@ export function DataSourcesSidebar({
   const servers = useServersStore((s) => s.servers);
   const localProjects = useAccountStore((s) => s.account.projects);
 
-  // Une source à model module-déclaré s'édite dans l'écran du module, pas ici
-  // (ADR module-config-screens) — quelle que soit sa forme : une Config typée
-  // par une déclaration (shop_settings) n'est pas plus modifiable ici qu'une
-  // Table (categories).
+  // A source with a module-declared model is edited in the module's screen, not
+  // here (ADR module-config-screens) — whatever its shape: a Config typed by a
+  // declaration (shop_settings) is no more editable here than a Table
+  // (categories).
   const isModuleManaged = (d: DataSource) => {
     const modelId = d.modelId;
     const model = modelId ? (project.dataModels ?? []).find((m) => m.id === modelId) : undefined;

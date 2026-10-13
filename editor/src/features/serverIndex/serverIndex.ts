@@ -8,15 +8,15 @@ import { projectUrlId } from "@/lib/projectUrlId";
 export type IndexedKind = "menu" | "command" | "dialog";
 
 /**
- * Un Document d'un project du serveur, vu de l'extérieur de ce project. `ref` est
- * son identité qualifiée (`<dossier>:<id>`) : le nom du dossier disque est le
- * namespace, donc le même id dans deux projects reste deux Documents.
+ * A Document of a server project, seen from outside that project. `ref` is
+ * its qualified identity (`<folder>:<id>`): the disk folder name is the
+ * namespace, so the same id in two projects stays two Documents.
  */
 export interface IndexedDocument {
   ref: string;
   namespace: string;
   projectName: string;
-  /** L'identifiant de project qu'attendent les URLs de l'éditeur. */
+  /** The project id the editor's URLs expect. */
   urlId: string;
   docId: string;
   kind: IndexedKind;
@@ -25,7 +25,7 @@ export interface IndexedDocument {
 
 export const namespaceOf = (project: Project): string => projectNamespace(project);
 
-/** Les Documents d'un project, dans l'ordre menus, commandes, dialogs. Pur. */
+/** A project's Documents, in menus, commands, dialogs order. Pure. */
 export function indexProjectDocuments(project: Project, lang: string): IndexedDocument[] {
   const namespace = namespaceOf(project);
   const common = { namespace, projectName: project.name, urlId: projectUrlId(project) };
@@ -49,9 +49,9 @@ export function indexProjectDocuments(project: Project, lang: string): IndexedDo
 }
 
 /**
- * Les Documents d'autres projects, au format de la palette de recherche. Le nom
- * du project est le « contexte » du résultat : il dit où il vit, et la palette le
- * cherche aussi (un nom de project retrouve ses Documents).
+ * Other projects' Documents, in the search palette's format. The project name
+ * is the result's "context": it says where it lives, and the palette searches
+ * it too (a project name finds its Documents).
  */
 export function toSearchEntries(documents: IndexedDocument[]): SearchEntry[] {
   return documents.map((d) => {

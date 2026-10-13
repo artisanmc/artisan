@@ -66,18 +66,17 @@ export function ConfigScreenPage({
 
   const [phase, setPhase] = useState<Phase>("loading");
   /**
-   * L'écran montre la dernière version connue pendant que le serveur répond.
-   * Elle est DATÉE : on l'affiche, on le dit, et on n'ouvre pas l'édition —
-   * enregistrer depuis une base périmée ferait partir le compare-and-swap sur
-   * ce qui n'est plus là.
+   * The screen shows the last known version while the server answers. It is
+   * DATED: show it, say so, and do not open editing — saving from a stale base
+   * would send the compare-and-swap against what is no longer there.
    */
   const [stale, setStale] = useState(false);
-  // Différé : le bandeau ne sert que si l'attente dure. Voir `useSettledFlag`.
+  // Deferred: the banner is only useful if the wait lasts. See `useSettledFlag`.
   const [errorCode, setErrorCode] = useState<ConfigErrorCode | null>(null);
-  // Une revalidation en vol se résoudra d'elle-même : on n'en parle que si elle
-  // s'éternise. Un échec, lui, laisse l'écran daté ET l'édition fermée sans
-  // terme — il s'annonce sans attendre, sinon rien n'explique pourquoi on ne
-  // peut plus enregistrer.
+  // A revalidation in flight will resolve on its own: only mention it if it
+  // drags on. A failure leaves the screen dated AND editing closed
+  // indefinitely — it is announced right away, otherwise nothing explains why
+  // saving is no longer possible.
   const revalidating = useSettledFlag(stale && errorCode === null, STALE_NOTICE_DELAY_MS);
   const staleSettled = (stale && errorCode !== null) || revalidating;
   const [original, setOriginal] = useState<ConfigFile[]>([]);
@@ -106,8 +105,8 @@ export function ConfigScreenPage({
     const cacheKey = screenCacheKey(networkId, serverId, screen.id);
     const known = useScreenCacheStore.getState().get(cacheKey);
     if (known) {
-      // Rien à attendre : tout ce qu'il faut pour rendre l'écran a été rangé à
-      // la visite précédente, modèles déclarés compris.
+      // Nothing to wait for: everything needed to render the screen was stored on
+      // the previous visit, declared models included.
       const fromCache = buildScratchProject(screen, known.files, known.models as never);
       useAccountStore.getState().upsertScratchProject(fromCache);
       setDeclaredModels(known.models as never);
@@ -133,8 +132,8 @@ export function ConfigScreenPage({
     ]);
     if (!res.ok) {
       setErrorCode(res.error);
-      // Une copie datée à l'écran vaut mieux qu'un écran d'erreur — mais elle
-      // reste datée, et l'édition reste fermée.
+      // A dated copy on screen beats an error screen — but it stays dated, and
+      // editing stays closed.
       if (!known) setPhase(res.error === "server_offline" ? "offline" : "error");
       return;
     }
@@ -184,7 +183,7 @@ export function ConfigScreenPage({
   const diff = useMemo(() => {
     if (!screen || phase !== "ready") return null;
     if (draft) {
-      // Canonicalisation immédiate: the typed text is parsed into the domain
+      // Immediate canonicalisation: the typed text is parsed into the domain
       // and re-emitted by the writer — unless it does not parse, in which case
       // the text itself is what we save (it is the admin's file).
       if (yamlErrors.length > 0) {

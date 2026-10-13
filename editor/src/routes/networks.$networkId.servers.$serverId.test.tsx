@@ -127,9 +127,9 @@ describe("ServerDetailPage", () => {
   });
 
   /**
-   * La liste vient du disque du serveur, comme la sidebar (ADR
-   * `server-disk-only-storage`) — la table des projects ne décrit plus ce qui
-   * existe. Le slug d'URL doit être résolu en id avant l'appel.
+   * The list comes from the server's disk, like the sidebar (ADR
+   * `server-disk-only-storage`). The URL slug must be resolved to an id before
+   * the call.
    */
   it("lit les Projects sur le disque du serveur, par ids résolus", async () => {
     render(<ServerDetailPage />);
@@ -137,9 +137,9 @@ describe("ServerDetailPage", () => {
   });
 
   /**
-   * Plus de compteur de Documents ici : le backend ne détient plus les fichiers
-   * (ADR `server-disk-only-storage`), donc il ne peut plus le connaître sans
-   * interroger le disque du serveur.
+   * No Document counter here: the hub does not hold the files (ADR
+   * `server-disk-only-storage`), so it cannot know it without querying the
+   * server's disk.
    */
   it("n'affiche plus de compteur de Documents — le backend ne le connaît plus", async () => {
     render(<ServerDetailPage />);
@@ -156,8 +156,8 @@ describe("ServerDetailPage", () => {
     );
   });
 
-  /** Même regroupement que la sidebar : un project possédé par un Add-on sort
-   *  de la liste plate et apparaît sous le nom du module. */
+  /** Same grouping as the sidebar: a project owned by an Add-on leaves the flat
+   *  list and appears under the module name. */
   it("affiche un project possédé sous son module, pas dans la liste des projects", async () => {
     screensState.screens = [
       {
@@ -195,9 +195,9 @@ describe("ServerDetailPage", () => {
   });
 
   /**
-   * Tant que le disque n'a pas répondu, la page ne prétend rien : afficher
-   * « aucun projet » pendant la lecture, c'est affirmer un vide qu'on n'a pas
-   * constaté — exactement ce qui donnait un serveur « vide » au premier rendu.
+   * Until the disk has answered, the page claims nothing: showing "no project"
+   * during the read asserts an emptiness not observed — exactly what gave an
+   * "empty" server on first render.
    */
   it("n'annonce pas un serveur vide tant que la lecture disque n'a pas répondu", async () => {
     vi.mocked(listServerProjects).mockReturnValue(new Promise(() => {}) as never);
@@ -230,8 +230,8 @@ describe("ServerDetailPage", () => {
     expect(screen.queryByText("serverConfig.title")).not.toBeInTheDocument();
   });
 
-  /** Les Config screens décident du regroupement : la page les charge pour SON
-   *  serveur, sinon un project possédé apparaît d'abord à plat puis saute. */
+  /** Config screens decide the grouping: the page loads them for ITS server,
+   *  otherwise an owned project first appears flat then jumps. */
   it("charge les Config screens de son propre serveur", async () => {
     render(<ServerDetailPage />);
     await waitFor(() =>
@@ -240,10 +240,10 @@ describe("ServerDetailPage", () => {
   });
 
   /**
-   * Quand une route enfant occupe l'écran (le canvas d'un Project), cette page
-   * n'est qu'un passe-plat : elle ne doit ni lire le disque, ni s'abonner à
-   * l'état d'édition. Sinon chaque frappe dans l'éditeur re-rendait le parent,
-   * donc l'`<Outlet>`, donc tout le canvas.
+   * When a child route fills the screen (a Project's canvas), this page is only
+   * a pass-through: it must neither read the disk nor subscribe to editing
+   * state. Otherwise every keystroke in the editor re-rendered the parent, hence
+   * the `<Outlet>`, hence the whole canvas.
    */
   it("ne lit pas le disque quand une route enfant est affichée", async () => {
     routerState.childMatches = [{ id: "child" }];
@@ -252,8 +252,8 @@ describe("ServerDetailPage", () => {
     expect(listServerProjects).not.toHaveBeenCalled();
   });
 
-  /** Slug de serveur inconnu de ce network : l'URL est périmée, on renvoie au
-   *  network plutôt que de tourner indéfiniment sur « lecture en cours ». */
+  /** Server slug unknown to this network: the URL is stale, go back to the
+   *  network rather than spinning forever on "reading". */
   it("renvoie au network quand le serveur n'existe pas", async () => {
     vi.mocked(getNetwork).mockResolvedValueOnce({
       network: { id: "net_1", name: "Mon Réseau", tier: "free" },

@@ -96,7 +96,7 @@ export function LayerEditForm({ projectId }: LayerEditFormProps) {
   return null;
 }
 
-// ─── Image (background | glyph) ────────────────────────────────────────────
+// Image (background | glyph)
 
 /**
  * generic_54.png asymmetry (Mojang bug): chest slot border is at y=17 but the item
@@ -185,12 +185,11 @@ function ImageLayerForm({ projectId, menuId, index, layer }: ImageLayerFormProps
           <div className="truncate text-xs text-zinc-200">{asset?.name ?? "<image manquante>"}</div>
           <div className="text-[10px] text-zinc-500">
             {/* `width` is intentionally local-only — MC fonts derive glyph
-                width from PNG transparency, so the backend doesn't persist a
-                width field. ResizeHandles mutates `asset.width` optimistically
-                in `assetStore` (via `useTitleLayerDrag.onResize`) for live
-                preview; only `height` round-trips through PATCH. The number
-                below therefore reflects the latest optimistic value, not a
-                server-confirmed one. */}
+                width from PNG transparency, so no width field is persisted.
+                ResizeHandles mutates `asset.width` optimistically in
+                `assetStore` (via `useTitleLayerDrag.onResize`) for live
+                preview; only `height` is saved. The number below therefore
+                reflects the latest optimistic value. */}
             {asset ? `${asset.type} · ${asset.width} × ${asset.height} px` : "image non chargée"}
           </div>
         </div>
@@ -258,7 +257,7 @@ function ImageLayerForm({ projectId, menuId, index, layer }: ImageLayerFormProps
   );
 }
 
-// ─── Text ──────────────────────────────────────────────────────────────────
+// Text
 
 interface PlainLayerFormProps {
   projectId: ProjectId;
@@ -311,7 +310,7 @@ function PlainLayerForm({ projectId, menuId, layer }: PlainLayerFormProps) {
   );
 }
 
-// ─── External glyph ────────────────────────────────────────────────────────
+// External glyph
 
 interface ExternalGlyphFormProps {
   projectId: ProjectId;
@@ -377,7 +376,7 @@ function ExternalGlyphForm({ projectId, menuId, index, layer }: ExternalGlyphFor
   );
 }
 
-// ─── Textarea ──────────────────────────────────────────────────────────────
+// Textarea
 
 interface TextLayerFormProps {
   projectId: ProjectId;

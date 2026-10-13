@@ -2,12 +2,12 @@ import { describe, it, expect } from "vitest";
 import { isDirty, draftAge } from "./draft";
 
 /**
- * Le brouillon (ADR `server-disk-only-storage`, décisions 3 et 7 révisées) : la
- * base et l'arbre courant, gardés dans le navigateur.
+ * The draft (ADR `server-disk-only-storage`, revised decisions 3 and 7): the
+ * base and the current tree, kept in the browser.
  *
- * `isDirty` répond à la seule question qui compte pour l'admin — « ai-je du
- * travail non enregistré ? » — et elle doit y répondre **sans** hacher quoi que
- * ce soit : elle alimente un indicateur permanent, pas un enregistrement.
+ * `isDirty` answers the only question that matters to the admin — "do I have
+ * unsaved work?" — and must answer it **without** hashing anything: it feeds a
+ * permanent indicator, not a save.
  */
 describe("isDirty", () => {
   it("un arbre identique à la base n'est pas sale", () => {
@@ -28,12 +28,12 @@ describe("isDirty", () => {
   });
 
   it("une base absente avec un arbre vide n'est pas sale", () => {
-    // Un project fraîchement ouvert et vide ne doit pas s'annoncer modifié.
+    // A freshly opened, empty project must not report itself as modified.
     expect(isDirty(undefined, {})).toBe(false);
   });
 
   it("une base absente avec du contenu est sale", () => {
-    // Rien n'a jamais été lu du serveur : tout est à écrire.
+    // Nothing was ever read from the server: everything is to be written.
     expect(isDirty(undefined, { "menus/a.yaml": "x\n" })).toBe(true);
   });
 });

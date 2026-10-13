@@ -8,14 +8,14 @@ import type { useNavigate } from "@tanstack/react-router";
 type Navigate = ReturnType<typeof useNavigate>;
 
 /**
- * Aller à un Document : la **seule** façon d'y arriver depuis l'arbre, la
- * palette, la planche générale ou une pastille de lien.
+ * Go to a Document: the **only** way to get there from the tree, the palette,
+ * the overview board or a link chip.
  *
- * Dans le project courant : le Document est sélectionné (l'inspecteur s'ouvre)
- * et la planche se centre dessus — on reste sur la planche, on quitte la vue
- * focus ou un onglet s'il y en avait un. Une référence qualifiée vers un autre
- * project (`boutique:main`) ouvre ce project, centré par le lien `?doc=`.
- * La vue focus reste au double-clic sur un nœud.
+ * In the current project: the Document is selected (the inspector opens) and
+ * the board centers on it — we stay on the board, leaving the focus view or a
+ * tab if there was one. A qualified ref to another project (`boutique:main`)
+ * opens that project, centered via the `?doc=` link.
+ * The focus view stays on double-click on a node.
  */
 export function goToDocument(
   navigate: Navigate,

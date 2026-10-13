@@ -36,7 +36,7 @@ describe("displayServerLabel", () => {
   });
 
   it("strips the srv_ prefix (real server-key row ids) before shortening", () => {
-    // Real ids are "srv_<12 hex>" (backend auth.ts) — never show "Server srv_".
+    // Real ids are "srv_<12 hex>" — never show "Server srv_".
     expect(displayServerLabel({ id: "srv_276b8aecfe69", label: null })).toBe("Server 276b");
   });
 });

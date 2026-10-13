@@ -799,7 +799,7 @@ function minimalMenu(p: { appTitle?: string; if?: unknown[] }): Record<string, u
 // `title` has two sugar forms that are not arrays: the bare string, and its
 // i18n twin — an LText ref, which is what a module bootstrap emits when the
 // text lives in a lang file. Mapping over the ref threw and took the editor
-// down with a black page (Boutique menus, 2026-08-12).
+// down with a black page.
 describe("title sugar — non-array forms", () => {
   const base = { schema: "menu/v1", id: "m", size: 27 };
 

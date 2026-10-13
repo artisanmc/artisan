@@ -13,13 +13,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 /**
- * ProjectTopBarControls
- *
- * Top-bar control strip for the project route. Encapsulates:
+ * Top-bar control strip for the project route:
  *   - LangSwitcher  (content language for the project)
  *   - UndoRedoButtons
- *   - SaveControls  (Enregistrer + résolution de conflit)
- *   - TopBarKebabMenu  (Paramètres / Import / Export / Patterns / Delete)
+ *   - SaveControls  (Save + conflict resolution)
+ *   - TopBarKebabMenu  (Settings / Import / Export / Patterns / Delete)
  *
  * History/branch navigation lives in the History tab (HistoryTab component).
  * Route-specific handlers (import, export, etc.) are passed as props.
@@ -89,10 +87,6 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { useStore } from "zustand";
 
-// ---------------------------------------------------------------------------
-// Public interface
-// ---------------------------------------------------------------------------
-
 export interface ProjectTopBarControlsProps {
   project: Project;
   projectId: ProjectId;
@@ -110,17 +104,15 @@ export interface ProjectTopBarControlsProps {
 
   networkId?: string | null;
 
-  /** Serveur du Project injoignable : le badge le signale, l'infobulle l'explique. */
+  /** The Project's server is unreachable: the badge shows it, the tooltip explains it. */
   offline?: boolean;
   offlineSince?: string | null;
   unpublished?: boolean;
 }
 
 /**
- * Full top-bar header area for the project route. Renders a single
- * 52px row with the project name dot + name on the left and controls on the right.
- *
- * Branch / history navigation lives in the History tab (HistoryTab component).
+ * Full top-bar header area for the project route: a single 52px row with the
+ * project name on the left and controls on the right.
  */
 export function ProjectTopBarControls({
   project,
@@ -146,8 +138,8 @@ export function ProjectTopBarControls({
   const { tab } = useSearch({ strict: false }) as { tab?: string };
   const { serverId: serverRef } = useParams({ strict: false }) as { serverId?: string };
 
-  // Le hors-ligne n'est plus un bandeau : le badge serveur le porte déjà en rouge,
-  // et l'infobulle en donne la raison exacte (date de la copie, brouillon, never-published).
+  // Offline is not a banner: the server badge already shows it in red, and the
+  // tooltip gives the exact reason (copy date, draft, never-published).
   const pushStatusHint = offline
     ? unpublished
       ? t("project.unpublishedOffline")
@@ -220,10 +212,6 @@ export function ProjectTopBarControls({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Sub-components (moved from workspace.$projectId.tsx)
-// ---------------------------------------------------------------------------
-
 /**
  * Top-bar language switcher. Lets the user flip the active language for
  * the editor — every text input and canvas preview re-resolves through
@@ -239,9 +227,9 @@ export function ProjectTopBarControls({
  * `?tab=` (deep links / back-button keep working) and the active one is
  * highlighted — Canvas (`overview`) is first so returning to the board is one
  * click. Selecting a secondary view REPLACES the canvas in the center region
- * (see WorkspaceView); it no longer floats as a modal. The missing-translations
- * badge rides on the Translations entry. Order (and thus the 1-6 hotbar digit
- * shortcut) comes from WORKSPACE_VIEW_TABS — see useWorkspaceTabShortcuts.
+ * (see WorkspaceView). The missing-translations badge rides on the
+ * Translations entry. Order (and thus the hotbar digit shortcut) comes from
+ * WORKSPACE_VIEW_TABS — see useWorkspaceTabShortcuts.
  */
 const TAB_META: Record<WorkspaceViewTab, { labelKey: string; Icon: typeof LanguagesIcon }> = {
   overview: { labelKey: "project.tabs.canvas", Icon: LayoutDashboard },
@@ -267,14 +255,14 @@ function WorkspaceViewNav({ project }: { project: Project }) {
       search: (prev) =>
         ({ ...(prev as object), tab: tab === "overview" ? undefined : tab }) as never,
     });
-  // Les Versions n'existent que pour un Project serveur.
+  // Versions only exist for a server Project.
   const views = WORKSPACE_VIEW_TABS.filter((tab) => tab !== "history" || !!runtime?.serverId).map(
     (tab) => ({
       tab,
       label: t(TAB_META[tab].labelKey),
       Icon: TAB_META[tab].Icon,
       badge: tab === "translations" ? missing : 0,
-      // Le chiffre suit WORKSPACE_VIEW_TABS, comme le raccourci, même si un onglet est masqué.
+      // The digit follows WORKSPACE_VIEW_TABS, like the shortcut, even if a tab is hidden.
       hotkey: WORKSPACE_VIEW_TABS.indexOf(tab) + 1,
     }),
   );
@@ -286,7 +274,7 @@ function WorkspaceViewNav({ project }: { project: Project }) {
           <button
             key={v.tab}
             type="button"
-            // Tooltip carries the hotbar digit (1-5) for discoverability.
+            // Tooltip carries the hotbar digit for discoverability.
             title={`${v.label} (${v.hotkey})`}
             aria-label={v.label}
             aria-current={isActive ? "page" : undefined}
@@ -459,10 +447,10 @@ function SearchButton() {
 }
 
 /**
- * Réaligne le Project affiché sur le brouillon après une résolution de conflit :
- * les fichiers repris de l'autre session (choix « prendre celle de l'autre » ou
- * mis à jour automatiquement) entrent dans l'arbre de l'éditeur. On ne touche
- * qu'aux chemins qui diffèrent, jamais aux fichiers non concernés.
+ * Realigns the displayed Project with the draft after a conflict resolution:
+ * files taken from the other session (choice "take theirs" or updated
+ * automatically) enter the editor's tree. Only paths that differ are touched,
+ * never unrelated files.
  */
 function syncAccountFromDraft(projectId: ProjectId): void {
   const live = useAccountStore.getState().account.projects.find((p) => p.id === projectId);
@@ -481,14 +469,14 @@ function syncAccountFromDraft(projectId: ProjectId): void {
 }
 
 /**
- * Deux gestes, deux destinations :
- * - Enregistrer pousse le brouillon sur le compte (il s'y synchronise aussi seul) ;
- * - Déployer, le seul geste qui écrit sur le disque du serveur (ADR
- *   `server-disk-only-storage`), passe d'abord par une relecture des diffs.
+ * Two gestures, two destinations:
+ * - Save pushes the draft (which also syncs on its own);
+ * - Deploy, the only gesture that writes to the server's disk (ADR
+ *   `server-disk-only-storage`), first goes through a diff review.
  *
- * Un conflit ouvre la modale de résolution ; rien n'a été écrit à ce moment-là
- * (le plugin applique tout ou rien), et aucun fichier n'est tranché sans choix
- * explicite de l'admin.
+ * A conflict opens the resolution modal; nothing has been written at that
+ * point (the plugin applies all or nothing), and no file is decided without
+ * an explicit choice from the admin.
  */
 function SaveControls({
   projectId,
@@ -498,10 +486,10 @@ function SaveControls({
   const { t } = useTranslation();
   const user = useProjectPrincipalId(projectId);
   const replaceProject = useAccountStore((s) => s.replaceProject);
-  // Le Project VIVANT, pas la prop : celle-ci vient d'un `useState` figé au
-  // chargement (`useProjectLoader`) alors que toutes les éditions atterrissent
-  // dans `useAccountStore`. Enregistrer la prop écrivait le Project tel qu'il
-  // était à l'ouverture — tout le travail de la session partait en silence.
+  // The LIVE Project, not the prop: the prop comes from a `useState` frozen at
+  // load (`useProjectLoader`) while every edit lands in `useAccountStore`.
+  // Saving the prop wrote the Project as it was when opened — the whole
+  // session's work was silently lost.
   const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
   const [saving, setSaving] = useState(false);
   const [lastSaveError, setLastSaveError] = useState<string | null>(null);
@@ -523,8 +511,8 @@ function SaveControls({
   const [conflictTree, setConflictTree] = useState<Record<string, string>>({});
   const [diskFiles, setDiskFiles] = useState<string[]>([]);
   const [choices, setChoices] = useState<Record<string, ConflictChoice>>({});
-  // « open » : conflits trouvés à l'ouverture du brouillon — trancher ne publie rien.
-  // « draft » : une autre session a avancé le brouillon — trancher fichier par fichier.
+  // "open": conflicts found when opening the draft — resolving publishes nothing.
+  // "draft": another session moved the draft forward — resolve file by file.
   const [conflictSource, setConflictSource] = useState<"save" | "open" | "draft">("save");
   const openConflicts = draftSession?.openConflicts;
   useEffect(() => {
@@ -539,8 +527,8 @@ function SaveControls({
   const draftConflict = draftSession?.draftConflict;
   useEffect(() => {
     if (!draftConflict) return;
-    // Aucun fichier divergent : le rebase suffit, on l'applique sans modale —
-    // seule la mise à jour de l'arbre de l'éditeur reste à faire.
+    // No diverging file: the rebase is enough and is applied without a modal —
+    // only the editor tree update remains.
     if (draftConflict.conflicts.length === 0) {
       void resolveDraftConflict(projectId, {})
         .then(() => syncAccountFromDraft(projectId))
@@ -558,25 +546,25 @@ function SaveControls({
   const [reviewChecks, setReviewChecks] = useState<ServerChecks | undefined>();
   const [savingDraft, setSavingDraft] = useState(false);
 
-  // « As-tu du travail non enregistré ? » — lu depuis le brouillon, qui porte
-  // déjà l'arbre sérialisé. Le recalculer ici resérialiserait tout le Project à
-  // CHAQUE rendu de la topbar. Le brouillon a 800 ms de retard : c'est un
-  // indicateur, pas un verrou.
+  // "Do you have unsaved work?" — read from the draft, which already holds the
+  // serialised tree. Recomputing it here would reserialise the whole Project on
+  // EVERY topbar render. The draft lags 800 ms behind: it is an indicator, not
+  // a lock.
   const draft = useProjectDraftStore((s) => (project ? s.drafts[project.id] : undefined));
   const dirty = draft ? hasDraftChanges(draft) : false;
   const canSave = Boolean(user && project);
 
   /**
-   * Enregistrer = écrire les fichiers du serveur. C'est le seul chemin par
-   * lequel une édition atteint le disque (ADR `server-disk-only-storage`).
+   * Save = write the server's files. It is the only path through which an edit
+   * reaches the disk (ADR `server-disk-only-storage`).
    */
   const runSave = async (): Promise<void> => {
     if (!project) {
       toast.info(t("deploy.cannotDeployTitle"));
       return;
     }
-    // Un conflit de brouillon non tranché est déjà proposé par la modale : on
-    // n'empile pas un dialogue d'échec par-dessus.
+    // An unresolved draft conflict is already offered by the modal: do not
+    // stack a failure dialog on top of it.
     if (draftSession?.draftConflict) return;
     setSaving(true);
     try {
@@ -595,8 +583,8 @@ function SaveControls({
       if (res.error === "conflict") {
         setConflictSource("save");
         setConflictTree(attemptedTree);
-        // Rien n'a été écrit : le plugin applique tout ou rien. On demande à
-        // l'admin de trancher fichier par fichier, jamais à sa place.
+        // Nothing was written: the plugin applies all or nothing. The admin is asked
+        // to decide file by file, never on their behalf.
         setConflicts(res.conflicts);
         setDiskFiles(res.diskFiles);
         setChoices({});
@@ -615,7 +603,7 @@ function SaveControls({
     flushDraftEdits();
     const live = useAccountStore.getState().account.projects.find((p) => p.id === projectId);
     const current = useProjectDraftStore.getState().get(projectId);
-    // Contrôles contre l'état publié des autres projects, lu à l'instant de la revue.
+    // Checks against the other projects' published state, read at review time.
     setReviewChecks(serverChecksFor(live ?? project, useServerIndexStore.getState()));
     setReview({
       before: useProjectBaselineStore.getState().get(projectId) ?? {},
@@ -659,7 +647,7 @@ function SaveControls({
     }
     const baseline = useProjectBaselineStore.getState().get(project.id) ?? {};
     const outcome = applyResolutions(baseline, conflicts, choices);
-    if (outcome.unresolved.length > 0) return; // le bouton est déjà désactivé
+    if (outcome.unresolved.length > 0) return; // the button is already disabled
     useProjectBaselineStore.getState().set(project.id, outcome.nextBaseline);
     if (Object.keys(outcome.adoptFromDisk).length > 0 || outcome.removeFromTree.length > 0) {
       replaceProject(adoptDiskIntoProject(project, outcome.adoptFromDisk, outcome.removeFromTree));
@@ -667,7 +655,7 @@ function SaveControls({
     setConflicts([]);
     setChoices({});
     if (conflictSource === "open") {
-      // La base du brouillon suit le choix ; l'enregistrement automatique la conserve.
+      // The draft's base follows the choice; autosave keeps it.
       const local = useProjectDraftStore.getState().get(project.id);
       if (local)
         useProjectDraftStore
@@ -677,9 +665,9 @@ function SaveControls({
       toast.info(t("save.conflictOpenResolved"));
       return;
     }
-    // Le re-parse ci-dessus ne s'est pas encore propagé à cette closure ; le
-    // prochain rendu tient le Project à jour, et l'admin réenregistre. On
-    // relance quand même quand rien n'a été adopté : la base suffit.
+    // The re-parse above has not reached this closure yet; the next render keeps
+    // the Project up to date and the admin saves again. Still rerun when nothing
+    // was adopted: the base is enough.
     if (Object.keys(outcome.adoptFromDisk).length === 0 && outcome.removeFromTree.length === 0) {
       await runSave();
     } else {
@@ -894,9 +882,8 @@ function SaveControls({
                     <p className="text-xs text-[var(--text-faint)]">
                       {t("save.conflictDeletedOnDisk")}
                     </p>
-                    {/* Un renommage à la main ressemble à une suppression : sans
-                        voir ce que contient le dossier maintenant, « garder ma
-                        version » recrée l'ancien fichier à côté du nouveau. */}
+                    {/* A manual rename looks like a deletion: without seeing what the
+                        folder holds now, "keep mine" recreates the old file next to the new one. */}
                     {diskFiles.length > 0 ? (
                       <p className="text-xs text-[var(--text-faint)]">
                         {t("save.conflictDiskNow")}{" "}

@@ -23,27 +23,27 @@ export interface ProjectLoadResult {
   urlId: string | null;
   networkId: string | null;
   error: string | null;
-  /** Le serveur propriétaire est injoignable — le Project n'est pas ouvrable. */
+  /** The owning server is unreachable — the Project cannot be opened. */
   offline: boolean;
   /**
-   * Documents présents sur le serveur mais que celui-ci n'a **pas** réussi à
-   * charger. Ils s'éditent normalement (leur texte est là) mais ne tournent pas.
+   * Documents present on the server that it did **not** manage to load. They
+   * can be edited normally (their text is there) but do not run.
    */
   failed: FailedDocument[];
-  /** L'état affiché vient d'un brouillon local, pas du serveur. */
+  /** The displayed state comes from a local draft, not from the server. */
   fromDraft: boolean;
   /**
-   * L'écran montre la **dernière version connue** (cache) pendant que la
-   * lecture du serveur est en vol. Daté, donc annoncé : le disque du serveur
-   * reste la vérité, et l'affichage ne doit pas prétendre l'être.
+   * The screen shows the **last known version** (cache) while the server read
+   * is in flight. Dated, so announced: the server's disk stays the truth, and
+   * the display must not claim to be it.
    */
   stale: boolean;
   /**
-   * Serveur éteint, Project ouvert depuis la copie du backend : la date de ce
-   * Snapshot (ADR `snapshot-mirror-and-backend-history`, décision 7).
+   * Server off, Project opened from the hub's copy: the date of that Snapshot
+   * (ADR `snapshot-mirror-and-backend-history`, decision 7).
    */
   offlineSince: string | null;
-  /** Jamais publié (Server non relié) : le contenu vit tout entier dans le brouillon. */
+  /** Never published (Server not linked): the content lives entirely in the draft. */
   unpublished: boolean;
 }
 
@@ -57,8 +57,8 @@ function treeToShow(
   return resumable ? { tree: draft.tree, fromDraft: true } : { tree: fallback, fromDraft: false };
 }
 
-/** Les derniers modèles déclarés rapportés par le serveur — rangés avec la
- *  version connue pour que la visite suivante n'ait rien à attendre. */
+/** The last declared models reported by the server — stored with the known
+ *  version so the next visit has nothing to wait for. */
 let lastDeclaredModels: unknown[] | undefined;
 
 /** Parse the current working tree after resolving contextual models. */
@@ -95,8 +95,8 @@ async function buildProject(
 
 /** Install a project only from the currently authorized, uncancelled load. */
 function mirrorIntoAccount(loaded: Project, networkId: string | null): void {
-  // EN PRÉSERVANT l'ordre existant — l'écraser remontait le project visité en
-  // tête de sidebar.
+  // PRESERVING the existing order — overwriting it moved the visited project to
+  // the top of the sidebar.
   const current = useAccountStore.getState().account;
   const idx = current.projects.findIndex((p) => p.id === loaded.id);
   const loadedId = loaded.id as ProjectId;
@@ -127,7 +127,7 @@ export function useProjectLoader(projectId: string, serverRef?: string | null, n
   const [offlineSince, setOfflineSince] = useState<string | null>(null);
   const [unpublished, setUnpublished] = useState(false);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: reloadToken relance la lecture sur Actualiser.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reloadToken restarts the read on Refresh.
   useEffect(() => {
     const scope = JSON.stringify([ownerId, networkRef, serverRef, projectId]);
     useProjectRuntimeStore.getState().set(null);
@@ -152,7 +152,7 @@ export function useProjectLoader(projectId: string, serverRef?: string | null, n
       flushDraftEdits();
       let retry = false;
       let validated = false;
-      // Serveur éteint mais copie du backend : ouvert, daté, et on revérifie.
+      // Server off but the hub has a copy: open, dated, and re-checked.
       const settle = (since: string | undefined, neverPublished = false) => {
         setUnpublished(neverPublished);
         if (since) {
@@ -169,17 +169,17 @@ export function useProjectLoader(projectId: string, serverRef?: string | null, n
       return loadUserProject(projectId, serverRef, networkRef)
         .then(async (res) => {
           if (cancelled) return;
-          // Le contenu vient du DISQUE du serveur, jamais du backend (ADR
-          // `server-disk-only-storage`) : la réponse ci-dessus ne sert plus qu'à
-          // l'identité (nom, slug, serveur propriétaire, network).
+          // The content comes from the server's DISK, never from the hub (ADR
+          // `server-disk-only-storage`): the response above only provides the
+          // identity (name, slug, owning server, network).
           const diskId = res.project.externalId ?? res.project.id;
           setResolvedUrl({ scope, id: diskId });
           const ownerServerId = res.project.serverKeyId ?? res.serverKeyId;
           const runtime = projectRuntime(res);
           useProjectRuntimeStore.getState().set(runtime);
           useServersStore.getState().setActiveServerId(runtime.serverId);
-          // On annonce l'empreinte qu'on détient : si le serveur porte la même, il
-          // ne renvoie rien et notre copie vient d'être revalidée.
+          // Announce the fingerprint we hold: if the server has the same one, it
+          // sends nothing and our copy has just been revalidated.
           const disk = await projectClient(res.project.id).read(cached?.hash);
           if (cancelled) return;
           if (!disk.ok) {
@@ -208,8 +208,8 @@ export function useProjectLoader(projectId: string, serverRef?: string | null, n
               Object.fromEntries(binaries.map(({ path, hash, size }) => [path, { hash, size }])),
             );
           if (disk.unchanged) {
-            // Revalidé : ce qu'on affiche EST ce que le serveur porte. Rien à
-            // reconstruire, rien à retransporter — seul le drapeau tombe.
+            // Revalidated: what is shown IS what the server holds. Nothing to rebuild,
+            // nothing to carry again — only the flag drops.
             if (cached) {
               const draft = useProjectDraftStore.getState().get(res.project.id);
               useProjectBaselineStore
@@ -235,8 +235,8 @@ export function useProjectLoader(projectId: string, serverRef?: string | null, n
               settle(disk.offlineSince, disk.unpublished);
               return;
             }
-            // Pas de cache mais un « inchangé » : on ne sait pas de quoi il parle.
-            // On redemande sans empreinte plutôt que d'afficher du vide.
+            // No cache but an "unchanged": we do not know what it refers to. Ask again
+            // without a fingerprint rather than showing nothing.
             const full = await projectClient(res.project.id).read();
             if (cancelled) return;
             if (!full.ok || full.unchanged) {
@@ -279,21 +279,20 @@ export function useProjectLoader(projectId: string, serverRef?: string | null, n
             return;
           }
           setFailed(disk.failed);
-          // Un brouillon avec du travail non enregistré est REPRIS : tu retrouves
-          // ton travail en rouvrant, comme dans n'importe quel éditeur. Ce qui
-          // t'évite de le confondre avec l'état du serveur, ce n'est plus un
-          // bandeau mais l'état de la topbar : Enregistrer n'est actif que s'il y
-          // a quelque chose à enregistrer, et Annuler y revient d'un clic.
+          // A draft with unsaved work is RESUMED: reopening brings your work back, as
+          // in any editor. What keeps you from confusing it with the server's state is
+          // no longer a banner but the topbar state: Save is only enabled when there is
+          // something to save, and Cancel goes back to it in one click.
           const draft = useProjectDraftStore.getState().get(res.project.id);
           const resumable = draft && (draft.remote || hasDraftChanges(draft)) ? draft : null;
           if (draft && !resumable) useProjectDraftStore.getState().clear(res.project.id);
 
-          // La base du compare-and-swap : ce que le disque contenait à l'ouverture.
+          // The compare-and-swap base: what the disk held on open.
           useProjectBaselineStore.getState().set(res.project.id, resumable?.baseline ?? disk.files);
 
-          // La base reste celle du SERVEUR : c'est elle que le compare-and-swap
-          // doit présenter, sinon on écraserait sans le savoir ce qui a changé
-          // depuis. Seul l'arbre affiché vient du brouillon.
+          // The base stays the SERVER's: it is what the compare-and-swap must present,
+          // otherwise changes made since would be overwritten unknowingly. Only the
+          // displayed tree comes from the draft.
           useProjectCacheStore.getState().put(cacheKey, {
             identity: res,
             diskId,

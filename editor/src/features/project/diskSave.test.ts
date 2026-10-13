@@ -2,12 +2,12 @@ import { describe, it, expect } from "vitest";
 import { planWrite, toRelative } from "./diskSave";
 
 /**
- * Le planificateur d'enregistrement (ADR `server-disk-only-storage`, P2).
+ * The save planner (ADR `server-disk-only-storage`).
  *
- * L'éditeur garde en mémoire la **base** : le contenu de chaque fichier tel
- * qu'il l'a chargé. Enregistrer = comparer l'arbre courant à cette base, et
- * n'envoyer que ce qui a bougé, chaque entrée portant le hash de sa base pour
- * que le plugin puisse refuser si le disque a changé entre-temps.
+ * The editor keeps the **base** in memory: each file's content as it was
+ * loaded. Saving = comparing the current tree to that base and sending only
+ * what moved, each entry carrying its base hash so the plugin can refuse if
+ * the disk changed meanwhile.
  */
 describe("planWrite", () => {
   it("n'envoie que ce qui a changé", async () => {
@@ -16,7 +16,7 @@ describe("planWrite", () => {
       "menus/b.yaml": "title: B\n",
     };
     const next = {
-      "menus/a.yaml": "title: A\n", // inchangé
+      "menus/a.yaml": "title: A\n", // unchanged
       "menus/b.yaml": "title: B modifié\n",
     };
 
@@ -32,7 +32,7 @@ describe("planWrite", () => {
 
     expect(plan.files).toHaveLength(1);
     expect(plan.files[0]!.path).toBe("menus/neuf.yaml");
-    // null = « je m'attends à ce qu'il n'y ait pas de fichier ici ».
+    // null = "I expect no file here".
     expect(plan.files[0]!.base_hash).toBeNull();
   });
 
@@ -51,7 +51,7 @@ describe("planWrite", () => {
     const plan = await planWrite(baseline, { "menus/a.yaml": "nouveau\n" });
     const planOfBase = await planWrite({}, { "menus/a.yaml": "ancien\n" });
 
-    // sha256("ancien\n") — le jeton décrit ce qu'on croyait trouver sur disque.
+    // sha256("ancien\n") — the token describes what we expected on disk.
     expect(plan.files[0]!.base_hash).not.toBeNull();
     expect(plan.files[0]!.base_hash).not.toBe(planOfBase.files[0]!.base_hash);
   });

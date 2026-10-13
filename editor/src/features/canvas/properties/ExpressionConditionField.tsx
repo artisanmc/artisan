@@ -29,9 +29,9 @@ type Mode = "form" | "freetext";
  *  - "form"     : 3 inputs (left / op dropdown / right). Default when
  *                 the current `expr` parses cleanly as a comparison.
  *                 Edits serialize back to a string immediately.
- *  - "freetext" : a single monospace input (same UX as Plan B1). Used
- *                 when the user picks complex shapes (ternary, &&, etc.)
- *                 or explicitly toggles. Auto-detected from `expr`.
+ *  - "freetext" : a single monospace input. Used when the user picks
+ *                 complex shapes (ternary, &&, etc.) or explicitly
+ *                 toggles. Auto-detected from `expr`.
  *
  * The mode toggle is a small button rendered next to the form. Switching
  * mode never destroys content — going from form to freetext keeps the

@@ -14,16 +14,14 @@ import { useTranslation } from "react-i18next";
 interface NewProjectDialogProps {
   /** Network the new workspace will be created in. When null, the trigger is disabled. */
   networkId: string | null;
-  /** Server key to associate the new project with (forwarded to the backend). */
+  /** Server key to associate the new project with. */
   serverKeyId?: string | null;
   /** Called with the new workspace id after a successful create. */
   onCreated?: (id: string) => void;
   trigger?: ReactElement;
 }
 
-/**
- * Creates the project on the server's disk through the backend relay.
- */
+/** Creates the project on the server's disk through the hub. */
 export function NewProjectDialog({
   networkId,
   serverKeyId,

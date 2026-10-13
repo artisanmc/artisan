@@ -19,7 +19,7 @@ export function DeployReviewDialog({
   onCancel,
 }: {
   changes: ChangeSet | null;
-  /** Ce que ce déploiement pourrait casser dans les autres projects du serveur. */
+  /** What this deployment could break in the server's other projects. */
   checks?: ServerChecks;
   onConfirm: () => void;
   onCancel: () => void;

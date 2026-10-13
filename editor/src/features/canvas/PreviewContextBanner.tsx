@@ -14,13 +14,13 @@ const HEIGHT = 18;
 const ROW = 16;
 
 /**
- * Le **Preview context** d'un menu paramétré, affiché sur le menu lui-même.
+ * The **Preview context** of a parameterised menu, shown on the menu itself.
  *
- * Un menu à inputs est un document pour N écrans : ses Placements portent tous
- * les contextes à la fois, et sans contexte posé il ne rend RIEN (le filtre
- * compare à une valeur vide). Laisser ça dans un panneau de propriétés donnait
- * un menu vide que rien n'expliquait — d'où ce bandeau, qui dit toujours quel
- * écran on regarde et ouvre la liste des autres.
+ * A menu with inputs is one document for N screens: its Placements carry every
+ * context at once, and with no context set it renders NOTHING (the filter
+ * compares to an empty value). Leaving that in a properties panel gave an
+ * empty menu that nothing explained — hence this banner, which always says
+ * which screen is shown and opens the list of the others.
  *
  * Cf. ADR `parameterised-menu-over-menu-per-category`.
  */
@@ -48,24 +48,24 @@ export function PreviewContextBanner({
   const all = hasInputs
     ? findPreviewCallContexts(menu, project as Project, snapshots, activeLang)
     : [];
-  // Sans données de source (serveur non connecté), les arguments du lien
-  // ressortent bruts : `{cat}`. Les proposer donnerait un choix qui ne change
-  // rien — mieux vaut dire que les données manquent.
+  // Without source data (server not connected), the link arguments come out
+  // raw: `{cat}`. Offering them would give a choice that changes nothing —
+  // better to say the data is missing.
   const contexts = resolvedContexts(all);
-  // Le défaut d'un input compte : c'est l'écran que le canvas rend déjà.
+  // An input's default counts: it is the screen the canvas already renders.
   const current = currentCallIndex(contexts, effectivePreviewArgs(menu, previewArgs));
 
   /**
-   * Rien de choisi ⇒ on prend le premier appel connu.
+   * Nothing chosen ⇒ take the first known call.
    *
-   * L'écran n'était pas « sans contexte » pour autant : les défauts des inputs
-   * s'appliquaient déjà, et le canvas rendait donc une catégorie précise
-   * pendant que le bandeau réclamait un choix. Pire, cet état intermédiaire est
-   * bancal — le filtre valait `les_cles` mais le NOM de la catégorie restait
-   * vide, un écran qui n'existe à aucun appel réel.
+   * The screen was not "without context" before that: the input defaults
+   * already applied, so the canvas rendered a specific category while the
+   * banner asked for a choice. Worse, that in-between state was inconsistent —
+   * the filter was `les_cles` but the category NAME stayed empty, a screen that
+   * matches no real call.
    *
-   * Choisir le premier appel rend l'affichage cohérent avec ce qu'il annonce,
-   * et l'utilisateur reste libre d'en changer.
+   * Picking the first call makes the display match what it announces, and the
+   * user remains free to change it.
    */
   useEffect(() => {
     if (current >= 0 || contexts.length === 0) return;
@@ -74,7 +74,7 @@ export function PreviewContextBanner({
     setMenuPreviewArgs(menu.id, first.args);
   }, [current, contexts, menu.id, setMenuPreviewArgs]);
 
-  // Un menu sans input n'a qu'un écran : rien à choisir, rien à afficher.
+  // A menu without inputs has a single screen: nothing to choose, nothing to show.
   if (!hasInputs || all.length === 0) return null;
 
   const stale = contexts.length === 0;

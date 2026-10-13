@@ -15,7 +15,7 @@ import { useUiStore } from "@/state/uiStore";
 const DRAG_THRESHOLD_PX = 5;
 
 interface AddLayerControlsProps {
-  /** Remplace le bouton `+ Image` intégré (ex. le sélecteur de ressources du menu). */
+  /** Replaces the built-in `+ Image` button (e.g. the menu's resource picker). */
   imageControl?: ReactNode;
   /**
    * Called when the user finishes adding a layer.

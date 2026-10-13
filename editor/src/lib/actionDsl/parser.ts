@@ -125,7 +125,7 @@ class BlockParser {
   }
 }
 
-// ── action lines ─────────────────────────────────────────────────────────────
+// Action lines
 
 function parseActionLine(line: LogicalLine): DslAction {
   const c = new LineCursor(line.tokens, line.line);
@@ -234,7 +234,7 @@ function parseVerb(verb: string, c: LineCursor): DslAction {
   }
 }
 
-// ── conditions ───────────────────────────────────────────────────────────────
+// Conditions
 
 class CondParser {
   private pos = 0;
@@ -395,7 +395,7 @@ class CondParser {
   }
 }
 
-// ── shared helpers ───────────────────────────────────────────────────────────
+// Shared helpers
 
 /** Canonical reconstruction of an expression token run (single-spaced ops). */
 export function exprSource(toks: Token[]): string {

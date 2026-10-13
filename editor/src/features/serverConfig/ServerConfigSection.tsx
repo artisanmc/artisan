@@ -15,7 +15,7 @@ import { useTranslation } from "react-i18next";
 
 const TEXTURES = "resource-pack.container-textures.";
 
-/** Vanilla container layout: square, 256 px or an HD multiple (cf. backend vanillaGui.ts). */
+/** Vanilla container layout: square, 256 px or an HD multiple. */
 const containerLayout = (w: number, h: number) => w === h && w >= 256 && w % 256 === 0;
 
 /**
@@ -97,7 +97,7 @@ export function ServerConfigSection({
     try {
       setConfig(await patchServerConfig(networkId, serverKeyId, changes));
       setChanges({});
-      // Le backend reconstruisait le pack quand les textures de conteneur changeaient.
+      // Changing container textures requires rebuilding the pack.
       if (Object.keys(changes).some((key) => key.startsWith(TEXTURES)))
         rebuildServerPackInBackground(t, serverKeyId);
     } catch (e) {

@@ -870,7 +870,7 @@ describe("TitleRender", () => {
     expect(end.cancelBubble).toBe(true);
     // Parent's onDragEnd was never invoked — the inner handler is the only
     // one that ran. (In real Konva, cancelBubble halts the bubble walk;
-    // here we assert the spy spy stayed at zero calls.)
+    // here we assert the spy stayed at zero calls.)
     expect(parentDragEnd).not.toHaveBeenCalled();
   });
 });
@@ -1102,10 +1102,8 @@ describe("TitleRender — textarea layer", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
 // Helpers for the wrap + resize-handle describe block below.
 // Mirrors the pattern from LayerEditForm.test.tsx (seedProject with i18nKeys).
-// ---------------------------------------------------------------------------
 
 const K = (s: string) => s as I18nKey;
 

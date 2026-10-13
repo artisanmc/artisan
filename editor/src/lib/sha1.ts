@@ -1,6 +1,6 @@
 /**
- * SHA-1 en JS pur, hex minuscule — l'empreinte d'un resource pack que Minecraft
- * vérifie. Même raison que sha256.ts : pas de `crypto.subtle` hors HTTPS.
+ * Pure-JS SHA-1, lowercase hex — the resource pack fingerprint Minecraft
+ * checks. Same reason as sha256.ts: no `crypto.subtle` outside HTTPS.
  */
 const rotl = (x: number, n: number) => (x << n) | (x >>> (32 - n));
 

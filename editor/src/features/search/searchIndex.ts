@@ -9,10 +9,10 @@ export interface SearchEntry {
   id: string;
   group: SearchGroup;
   label: string;
-  /** Où se trouve le match — traduit par la palette via t(context.key, { owner }). */
+  /** Where the match is — translated by the palette via t(context.key, { owner }). */
   context?: { key: string; owner: string };
   haystack: string;
-  /** `projectUrlId` : le Document vit dans un autre project du serveur. */
+  /** `projectUrlId`: the Document lives in another project of the server. */
   target: { openId: string; selectId?: string; focusedSlot?: number; projectUrlId?: string };
 }
 
@@ -39,10 +39,10 @@ export function buildSearchIndex(project: Project, activeLang: string): SearchEn
 
     for (const layer of menu.layers ?? []) {
       for (const el of layer.elements ?? []) {
-        // display seulement ; les états conditionnels ne sont pas indexés
+        // display only; conditional states are not indexed
         const ap = el.display;
         if (!ap) continue;
-        // première slot de l'élément (ancre de navigation) ; undefined si positions vide
+        // the element's first slot (navigation anchor); undefined if positions is empty
         const slot = parsePositions(el.positions)[0];
         const baseTarget = { openId: menu.id, selectId: el.id, focusedSlot: slot };
         if (ap.material) {
@@ -138,10 +138,10 @@ export function buildSearchIndex(project: Project, activeLang: string): SearchEn
   return out;
 }
 
-/** Réordonne des résultats déjà classés par score en groupes CONTIGUS,
- *  dans l'ordre de première apparition (le groupe du meilleur match d'abord),
- *  en préservant l'ordre intra-groupe. Ne change pas le classement, seulement
- *  la contiguïté d'affichage (évite les en-têtes de groupe répétés). */
+/** Reorders results already ranked by score into CONTIGUOUS groups, in order
+ *  of first appearance (the best match's group first), preserving the order
+ *  within a group. Does not change the ranking, only the display contiguity
+ *  (avoids repeated group headers). */
 export function groupResultsForDisplay(results: SearchEntry[]): SearchEntry[] {
   const buckets = new Map<SearchGroup, SearchEntry[]>();
   for (const r of results) {

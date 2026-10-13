@@ -2,11 +2,10 @@ import type { TFunction } from "i18next";
 import { toast } from "sonner";
 
 /**
- * Après une écriture sur le disque, reconstruit le resource
- * pack dans le navigateur et l'envoie au plugin, sans bloquer la publication. Un
- * échec laisse le pack précédent en place et se signale par un toast. Le constructeur
- * n'est chargé qu'à ce moment.
- * Serveur inconnu : rien n'est reconstruit, plutôt que le pack d'un autre serveur.
+ * After a disk write, rebuilds the resource pack in the browser and sends it
+ * to the plugin, without blocking publication. A failure leaves the previous
+ * pack in place and shows a toast. The builder is only loaded at that point.
+ * Unknown server: nothing is rebuilt, rather than another server's pack.
  */
 export function rebuildServerPackInBackground(
   t: TFunction,

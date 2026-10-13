@@ -62,8 +62,7 @@ export function YamlCodeEditor({
         foldGutter: true,
         autocompletion: false,
         highlightActiveLine: true,
-        // Keeps the block's indentation on Enter and indents with Tab — the
-        // "passer à la ligne garde l'espacement" behaviour.
+        // Keeps the block's indentation on Enter and indents with Tab.
         indentOnInput: true,
         tabSize: 2,
       }}

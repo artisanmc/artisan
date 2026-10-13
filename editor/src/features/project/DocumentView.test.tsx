@@ -124,7 +124,7 @@ describe("DocumentView", () => {
     expect([...useSelectionStore.getState().ids]).toEqual(["m1"]);
   });
   it("préserve une sélection d'enfant déjà posée (ex. depuis la recherche)", () => {
-    // La palette de recherche sélectionne l'item AVANT que DocumentView ne monte.
+    // The search palette selects the item BEFORE DocumentView mounts.
     useSelectionStore.getState().set(["el1"], 13);
     render(<DocumentView projectId={PID} documentId={"m1" as any} />);
     expect([...useSelectionStore.getState().ids]).toEqual(["el1"]);
@@ -132,8 +132,8 @@ describe("DocumentView", () => {
   });
 });
 
-// La topbar pleine largeur est remplacée par une bulle flottante au même
-// endroit, et le panneau d'édition reprend la carte flottante du canvas.
+// The full-width topbar is replaced by a floating bubble in the same place,
+// and the edit panel takes the canvas's floating card.
 describe("DocumentView — chrome flottant", () => {
   function setDesktop(matches: boolean) {
     window.matchMedia = ((query: string) => ({
@@ -153,7 +153,7 @@ describe("DocumentView — chrome flottant", () => {
     const bubble = screen.getByTestId("document-view-bubble");
     expect(bubble.className).toContain("absolute");
     expect(bubble.className).toContain("backdrop-blur");
-    // Aucune <header> en flux qui réserverait de la hauteur.
+    // No in-flow <header> reserving height.
     expect(document.querySelector("header")).toBeNull();
   });
 

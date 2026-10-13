@@ -11,8 +11,8 @@ function load(files: Record<string, string>) {
 }
 
 /**
- * Le nom de fichier est l'identité d'un Document — miroir du `withFileId` du
- * plugin. Le champ `id:` interne était une seconde source pour la même vérité.
+ * The file name is a Document's identity — mirror of the plugin's
+ * `withFileId`. The inner `id:` field was a second source for the same truth.
  */
 describe("l'identité d'un Document vient de son nom de fichier", () => {
   it("charge un menu sans champ id", () => {
@@ -39,8 +39,8 @@ describe("l'identité d'un Document vient de son nom de fichier", () => {
     const out = transform(project);
     const doc = parse(out[`${BASE}/menus/accueil.yaml`]!) as Record<string, unknown>;
     expect(doc.schema).toBe("menu/v1");
-    // Le fichier porte déjà son identité dans son nom : la répéter dedans, c'est
-    // rouvrir la porte à la divergence.
+    // The file already carries its identity in its name: repeating it inside
+    // reopens the door to divergence.
     expect("id" in doc).toBe(false);
   });
 

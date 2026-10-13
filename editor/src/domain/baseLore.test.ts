@@ -129,7 +129,7 @@ describe("base lore normalization", () => {
       extends: "item:1",
       lore: [{ key: "sources.categories.vip.items.icon.lore_2" }],
     });
-    // La ligne du token disparaît avec ses traductions ; les autres gardent les leurs.
+    // The token's line disappears with its translations; the others keep theirs.
     expect(keys(project)["sources.categories.vip.items.icon.lore"]).toBeUndefined();
     expect(keys(project)["sources.categories.vip.items.icon.lore_2"]).toEqual({
       fr: "Rare",

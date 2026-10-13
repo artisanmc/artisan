@@ -24,7 +24,7 @@ describe("computeAndApplyAlignment", () => {
     seed(); useAlignmentStore.getState().clear();
     const node = fakeNode(104, 600);
     computeAndApplyAlignment(PID, "m2", node as any, false);
-    expect(node.x()).toBe(100); // aligné sur m1.left (diff 4 <= threshold)
+    expect(node.x()).toBe(100); // aligned on m1.left (diff 4 <= threshold)
     expect(useAlignmentStore.getState().guides.length).toBeGreaterThan(0);
   });
   it("Alt on → pas de snap ni guide", () => {
@@ -47,7 +47,7 @@ describe("useNodeAlignment.onDragMove", () => {
       y: (v?: number) => (v === undefined ? ny : ((ny = v), ny)),
     };
     result.current.onDragMove({ target: slotNode, evt: { altKey: false } } as any);
-    expect(nx).toBe(104); // pas de snap (event ignoré)
+    expect(nx).toBe(104); // no snap (event ignored)
     expect(useAlignmentStore.getState().guides).toEqual([]);
   });
 
@@ -61,6 +61,6 @@ describe("useNodeAlignment.onDragMove", () => {
       y: (v?: number) => (v === undefined ? ny : ((ny = v), ny)),
     };
     result.current.onDragMove({ target: menuNode, evt: { altKey: false } } as any);
-    expect(nx).toBe(100); // snap appliqué (m1.left)
+    expect(nx).toBe(100); // snap applied (m1.left)
   });
 });

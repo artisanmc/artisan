@@ -1,14 +1,14 @@
 import type { Project } from "@/domain/types";
 
 /**
- * Ce que la sélection courante désigne, pour le project donné. Une seule
- * dérivation, partagée par le dispatch du panneau (`FlowCanvas`) et par le
- * gating de ses onglets — les écrire deux fois, c'est les faire diverger.
+ * What the current selection designates, for the given project. A single
+ * derivation, shared by the panel's dispatch (`FlowCanvas`) and its tab
+ * gating — writing them twice makes them diverge.
  */
 /**
- * Les ids sont des `string` nus : ce type traverse les familles (menu,
- * commande, dialogue, élément) et leurs marques nominales ne se recouvrent
- * pas. Le rebranding se fait chez l'appelant, qui sait ce qu'il cherche.
+ * Ids are bare `string`s: this type spans families (menu, command, dialog,
+ * element) whose nominal brands do not overlap. Rebranding happens at the
+ * caller, which knows what it is looking for.
  */
 export type SelectionContext =
   | { kind: "none" }
@@ -35,9 +35,9 @@ export function selectionContext(
     if (project.menus.some((m) => m.id === id)) return { kind: "menu", menuId: id };
   }
 
-  // Un id d'élément n'est unique QUE dans son menu (menu/v1) : on restreint la
-  // résolution au menu où la sélection a été faite, sinon un id partagé (deux
-  // menus avec `grid`) éditerait le mauvais.
+  // An element id is unique ONLY within its menu (menu/v1): resolution is
+  // restricted to the menu where the selection was made, otherwise a shared id
+  // (two menus with `grid`) would edit the wrong one.
   const menus = selectionMenuId
     ? project.menus.filter((m) => m.id === selectionMenuId)
     : project.menus;

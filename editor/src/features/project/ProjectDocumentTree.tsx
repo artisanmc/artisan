@@ -33,8 +33,8 @@ const TYPE_LABEL_KEY: Record<DocumentType, string> = {
 };
 
 /**
- * Paramètres et création d'un project : deux boutons icône, posés à droite du
- * nom du project (ligne de la barre de gauche, ou en-tête de l'arbre).
+ * A project's settings and creation: two icon buttons, to the right of the
+ * project name (left bar row, or tree header).
  */
 export function ProjectActions({ projectId }: { projectId: ProjectId }) {
   const { t } = useTranslation();
@@ -88,11 +88,11 @@ export function ProjectActions({ projectId }: { projectId: ProjectId }) {
 }
 
 /**
- * Le registre d'un project : ses Documents groupés par type.
+ * A project's registry: its Documents grouped by type.
  *
- * `header="name"` : une ligne avec le nom du project et ses actions (démo, où
- * aucune ligne de project ne les porte). `header="none"` : la ligne du project
- * dans la barre de gauche porte déjà nom et actions.
+ * `header="name"`: a row with the project name and its actions (demo, where
+ * no project row carries them). `header="none"`: the project's row in the
+ * left bar already carries the name and actions.
  */
 export function ProjectDocumentTree({
   projectId,
@@ -113,7 +113,7 @@ export function ProjectDocumentTree({
     (project.dialogs ?? []).length === 0;
 
   return (
-    // biome-ignore lint/a11y/useSemanticElements: un groupe nommé de listes de navigation, pas un formulaire — <fieldset> serait faux.
+    // biome-ignore lint/a11y/useSemanticElements: a named group of navigation lists, not a form — <fieldset> would be wrong.
     <div
       role="group"
       aria-label={t("sidebar.projectDocuments", { name: project.name })}
@@ -137,9 +137,9 @@ export function ProjectDocumentTree({
 }
 
 /**
- * Les Documents d'un project groupés par type. `editable` ajoute le menu `···`
- * (éditer, supprimer) ; sans lui, une liste en lecture — un project du serveur
- * vu depuis l'index (état publié), qu'on ne modifie pas d'ici.
+ * A project's Documents grouped by type. `editable` adds the `···` menu
+ * (edit, delete); without it, a read-only list — a server project seen
+ * through the index (published state), not modified from here.
  */
 export function DocumentGroups({
   project,
@@ -156,8 +156,8 @@ export function DocumentGroups({
     <>
       {buildProjectDocuments(project, activeLang).map((g) => {
         if (g.items.length === 0) return null;
-        // Une icône par catégorie, dans son en-tête : répétée sur chaque ligne,
-        // elle ne disait rien de plus que l'en-tête et mangeait la largeur.
+        // One icon per category, in its header: repeated on every row it said
+        // nothing more than the header and ate the width.
         const Icon = TYPE_ICON[g.type];
         const label = t(TYPE_LABEL_KEY[g.type]);
         return (
@@ -189,7 +189,7 @@ function DocumentRow({
   item,
   onOpen,
 }: {
-  /** `null` = lecture seule : pas de menu d'actions. */
+  /** `null` = read-only: no actions menu. */
   projectId: ProjectId | null;
   item: ProjectDocumentItem;
   onOpen: () => void;

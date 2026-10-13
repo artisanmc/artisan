@@ -14,7 +14,7 @@ vi.mock("react-konva", () => ({
   Text: () => <div />,
 }));
 
-// On contrôle les edges directement. Reconfigurable par test via mockEdges.
+// The edges are controlled directly, reconfigurable per test through mockEdges.
 let mockEdges: { id: string; source: string; target: string; triggers: unknown[] }[] = [
   { id: "m1->shop", source: "m1", target: "shop", triggers: [] },
 ];
@@ -61,8 +61,8 @@ describe("GhostChips", () => {
   });
 
   /**
-   * En vue focus il n'y a pas de planche à peupler : la pastille sert à
-   * circuler vers le Document cible, qu'il soit posé sur la planche ou non.
+   * In focus view there is no board to populate: the chip navigates to the
+   * target Document, whether it is on the board or not.
    */
   it("en focus, le clic ouvre la cible au lieu de la poser sur la planche", () => {
     const onOpen = vi.fn();

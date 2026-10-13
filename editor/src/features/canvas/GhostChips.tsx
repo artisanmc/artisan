@@ -12,9 +12,9 @@ interface GhostChipsProps {
   project: Project;
   layout: Record<string, { x: number; y: number }>;
   /**
-   * En vue focus, le clic ouvre la cible : la pastille devient la navigation.
-   * Sur la planche, tout Document existant est déjà posé ; une pastille n'y
-   * signale qu'une cible absente du project, et n'a rien à ouvrir.
+   * In focus view, a click opens the target: the chip becomes navigation.
+   * On the board every existing Document is already placed; a chip there only
+   * signals a target missing from the project, with nothing to open.
    */
   onOpen?: (target: string) => void;
   representatives?: Record<string, string>;
@@ -51,7 +51,7 @@ export function GhostChips({ project, layout, onOpen, representatives }: GhostCh
         const i = indexBySource[idx] ?? 0;
         const label = `→ ${documentLabel(project, target, activeLang)}`;
         const width = Math.max(48, label.length * CHAR_W + CHIP_PAD * 2);
-        // Ancre : coin haut-droit de la source, décalé verticalement par chip.
+        // Anchor: top-right corner of the source, offset vertically per chip.
         const x = box.x + box.width + 8;
         const y = box.y + i * (CHIP_H + CHIP_GAP);
 

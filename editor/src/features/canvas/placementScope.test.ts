@@ -7,11 +7,11 @@ function menuWith(inputs: unknown[]): Menu {
 }
 
 /**
- * Le cas réel qui a motivé ça : un menu de boutique porte les placements de
- * TOUTES ses catégories, sur les mêmes slots, parce qu'une seule catégorie est
- * vivante à la fois. Affichés ensemble, les quarante placements des autres
- * catégories couvraient le menu de cases pointillées — on croyait voir un
- * territoire réservé de mode paginé, en plein mode placement.
+ * The real case behind this: a shop menu carries the placements of ALL its
+ * categories, on the same slots, because only one category is live at a time.
+ * Shown together, the other categories' forty placements covered the menu
+ * with dashed slots — it looked like a reserved paginated area, in the middle
+ * of placement mode.
  */
 describe("sourceIsContextFiltered", () => {
   it("reconnaît une source filtrée par une entrée du menu", () => {
@@ -27,8 +27,8 @@ describe("sourceIsContextFiltered", () => {
     expect(sourceIsContextFiltered(menu, "items")).toBe(true);
   });
 
-  /** Filtre en dur : la source rend toujours la même chose, donc une clé
-   *  introuvable est bien un trou, et doit se voir. */
+  /** Hard-coded filter: the source always renders the same thing, so a missing
+   *  key is a real hole, and must show. */
   it("ne compte pas un filtre à valeur fixe", () => {
     const menu = menuWith([
       { kind: "sourceRef", name: "items", ref: "boutique:items", filter: { category: "cles" } },

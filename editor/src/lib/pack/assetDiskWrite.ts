@@ -11,7 +11,7 @@ const DIR_BY_TYPE: Record<string, string> = {
   font: "assets/fonts",
 };
 
-/** Nom de fichier = identité. Un nom d'asset est déjà contraint, on le confirme. */
+/** File name = identity. An asset name is already constrained; this confirms it. */
 export function assetFileName(name: string): string {
   return (
     name
@@ -48,12 +48,12 @@ export function descriptorYaml(d: DiskAssetDescriptor): string {
 }
 
 /**
- * Le premier codepoint libre de la zone privée, **lu sur le disque**.
+ * The first free codepoint of the private use area, **read from the disk**.
  *
- * L'unicité était garantie par un index SQL ; elle devient une proposition de
- * l'éditeur, et la fusion au build tranche les collisions résiduelles (ADR
- * décision 6). Un admin qui édite ses fichiers à la main peut donc en dupliquer
- * un : ça ne casse pas le build, ça se journalise.
+ * Uniqueness used to be guaranteed by a SQL index; it is now a proposal from
+ * the editor, and the merge at build time settles remaining collisions (ADR
+ * decision 6). An admin hand-editing their files can therefore duplicate one:
+ * it does not break the build, it gets logged.
  */
 export function nextFreeCodepoint(existing: DiskAsset[]): number {
   const used = new Set(existing.map((a) => a.row.codepoint).filter((c): c is number => c !== null));
@@ -65,27 +65,26 @@ export interface DiskAssetsTree {
   assets: DiskAsset[];
   files: { path: string; content: string }[];
   /**
-   * Les binaires BRUTS de l'arbre. Distincts de `assets` : les PNG d'une police
-   * dépliée n'y sont pas des assets à part entière (c'est la police, l'asset),
-   * mais ce sont bien des fichiers, et les supprimer demande leur empreinte.
+   * The tree's RAW binaries. Distinct from `assets`: the PNGs of an unpacked
+   * font are not assets in their own right (the font is the asset), but they
+   * are files, and deleting them needs their fingerprint.
    */
   binaries: { path: string; hash: string; size: number }[];
 }
 
 /**
- * L'état du disque, tel que le serveur l'a lu.
+ * The disk's state, as the server read it.
  *
- * L'échec est **qualifié**, et ça n'est pas cosmétique : tant que la table
- * servait de repli, « le serveur n'a pas répondu » et « le Project n'a pas cet
- * asset » pouvaient se confondre sans dommage. Le disque devenu seule source
- * (P6), les confondre ferait lire un serveur éteint comme une bibliothèque
- * vide — et un geste de suppression porterait sur ce vide.
+ * The failure is **qualified**, and that is not cosmetic: with the disk as the
+ * only source, confusing "the server did not answer" with "the Project does
+ * not have this asset" would read an offline server as an empty library — and
+ * a delete gesture would act on that emptiness.
  */
 export type DiskAssetsRead =
   | ({ ok: true } & DiskAssetsTree)
   | { ok: false; error: "server_offline" | "read_error" };
 
-/** Descripteur courant d'un asset, tel qu'il est sur le disque. */
+/** An asset's current descriptor, as it is on disk. */
 export function descriptorOf(
   files: { path: string; content: string }[],
   path: string,

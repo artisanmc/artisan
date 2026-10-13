@@ -8,8 +8,8 @@ type SwitchProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, "onChange"> & {
 };
 
 /**
- * Interrupteur on/off pour un réglage enregistré. Pour un simple masquage
- * d'aperçu (état d'interface), l'œil des listes reste de mise.
+ * On/off switch for a saved setting. For merely hiding a preview (UI state),
+ * the lists' eye toggle stays the norm.
  */
 export function Switch({ checked, onCheckedChange, className, disabled, ...props }: SwitchProps) {
   return (

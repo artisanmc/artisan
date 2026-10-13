@@ -73,7 +73,7 @@ describe("saveProjectToDisk", () => {
 
   it("n'écrit rien quand l'arbre est identique à la base", async () => {
     const project = emptyProject();
-    // Première passe : on capture ce que le project produit, et on en fait la base.
+    // First pass: capture what the project produces and make it the base.
     vi.mocked(writeProjectFiles).mockResolvedValue({ ok: true });
     await saveProjectToDisk(project, "n1", "s1");
     vi.mocked(writeProjectFiles).mockClear();
@@ -134,7 +134,7 @@ describe("saveProjectToDisk", () => {
     const baseline = useProjectBaselineStore.getState().get("p1");
     expect(baseline).toBeDefined();
     expect(Object.keys(baseline!).length).toBeGreaterThan(0);
-    // Les chemins sont relatifs au project, jamais canoniques.
+    // Paths are project-relative, never canonical.
     expect(Object.keys(baseline!).every((p) => !p.startsWith("plugins/"))).toBe(true);
   });
 

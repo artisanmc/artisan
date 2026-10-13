@@ -12,7 +12,7 @@ describe("alignmentGuides", () => {
   it("snap centerY (même ligne) quand les centres verticaux s'alignent", () => {
     const d2 = { x: 300, y: 102, width: 50, height: 50 }; // centerY=127 vs A.centerY=125, diff 2
     const r = alignmentGuides(d2, [A], 6);
-    expect(r.snapY).toBe(100); // centerY aligné → top = A.centerY - height/2 = 125 - 25 = 100
+    expect(r.snapY).toBe(100); // centerY aligned → top = A.centerY - height/2 = 125 - 25 = 100
     expect(r.guides.some((g) => g.axis === "y")).toBe(true);
   });
   it("rien hors threshold", () => {

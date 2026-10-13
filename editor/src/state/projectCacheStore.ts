@@ -3,72 +3,69 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 /**
- * **La dernière version connue** d'un Project : l'arbre que le serveur nous a
- * rendu la fois d'avant, avec de quoi le reconstruire sans réseau.
+ * **The last known version** of a Project: the tree the server returned last
+ * time, with what is needed to rebuild it without network.
  *
- * Pourquoi ça existe : le contenu vit sur le disque du serveur (ADR
- * `server-disk-only-storage`), donc l'ouvrir demande un aller-retour jusqu'au
- * plugin — plusieurs secondes, pour un contenu presque toujours identique à la
- * visite précédente. On affiche ce qu'on avait, tout de suite, et on revalide
- * derrière.
+ * Why it exists: the content lives on the server's disk (ADR
+ * `server-disk-only-storage`), so opening it takes a round trip to the
+ * plugin — several seconds, for content almost always identical to the
+ * previous visit. What we had is shown right away, and revalidated behind.
  *
- * Ce que ce cache n'est PAS, et ne doit jamais devenir :
+ * What this cache is NOT, and must never become:
  *
- * - **une vérité** — le disque du serveur l'est. Ce qui vient d'ici s'affiche
- *   marqué (`stale`), jamais en se faisant passer pour frais. C'est la même
- *   règle que les brouillons, pour la même raison : un état daté présenté comme
- *   courant fait travailler l'admin sur ce qu'il ne voit pas.
- * - **un brouillon** — un brouillon porte MES modifications non enregistrées
- *   (`projectDraftStore`) ; ce cache porte ce que LE SERVEUR avait. Les deux
- *   coexistent : on peut avoir un cache sans brouillon (Project seulement
- *   consulté), et le brouillon garde sa propre base de compare-and-swap.
+ * - **a truth** — the server's disk is. What comes from here is shown marked
+ *   (`stale`), never passed off as fresh. Same rule as drafts, for the same
+ *   reason: a dated state presented as current makes the admin work on what
+ *   they do not see.
+ * - **a draft** — a draft holds MY unsaved changes (`projectDraftStore`); this
+ *   cache holds what THE SERVER had. Both coexist: there can be a cache
+ *   without a draft (Project only viewed), and the draft keeps its own
+ *   compare-and-swap base.
  *
- * Il ne sert jamais de base au compare-and-swap : celle-ci reste ce que le
- * serveur a rendu à l'ouverture (`projectBaselineStore`). Enregistrer depuis un
- * cache périmé écraserait ce qui a changé entre-temps.
+ * It never serves as the compare-and-swap base: that stays what the server
+ * returned on open (`projectBaselineStore`). Saving from a stale cache would
+ * overwrite what changed meanwhile.
  */
 export interface CachedProject {
-  /** L'identité rendue par le backend — de quoi rebâtir le Project hors ligne. */
+  /** The identity returned by the hub — enough to rebuild the Project offline. */
   identity: unknown;
-  /** Id du dossier sur le disque du serveur. */
+  /** The folder id on the server's disk. */
   diskId: string;
   /**
-   * Le serveur propriétaire, par son id INTERNE.
+   * The owning server, by its INTERNAL id.
    *
-   * La clé d'entrée, elle, porte ce que l'URL présente (un slug, parfois un
-   * id) : elle ne peut donc pas servir à reconnaître un Project annoncé par le
-   * plugin, qui ne connaît que les ids. D'où ce champ.
+   * The entry key carries what the URL shows (a slug, sometimes an id): it
+   * cannot be used to recognise a Project announced by the plugin, which only
+   * knows ids. Hence this field.
    */
   serverKeyId?: string | null;
   /** L'arbre rel-keyed, tel que le serveur l'a rendu. */
   tree: Record<string, string>;
   binaries?: { path: string; hash: string; size: number }[];
   /**
-   * Les modèles déclarés par les modules du serveur, tels qu'ils étaient.
+   * The models declared by the server's modules, as they were.
    *
-   * Ils viennent du serveur, pas des fichiers — mais les ranger ici est ce qui
-   * permet d'afficher la version connue SANS aucun aller-retour. La visite
-   * suivante les rafraîchit ; entre-temps, un modèle d'hier vaut mieux qu'un
-   * écran d'attente.
+   * They come from the server, not from the files — but storing them here is
+   * what allows showing the known version WITHOUT any round trip. The next
+   * visit refreshes them; meanwhile, yesterday's model beats a waiting screen.
    */
   declaredModels?: unknown[];
-  /** Documents que le serveur n'avait pas su charger, à réafficher tels quels. */
+  /** Documents the server could not load, shown again as is. */
   failed?: FailedDocument[];
   /**
-   * L'empreinte que le serveur a rendue avec cet arbre. On la lui redonne à la
-   * visite suivante (`if_hash`) : s'il porte la même, il ne renvoie rien.
-   * Calculée par le plugin seul — on ne fait que la conserver.
+   * The fingerprint the server returned with this tree. It is given back on the
+   * next visit (`if_hash`): if the server holds the same one, it sends nothing.
+   * Computed by the plugin only — we just keep it.
    */
   hash?: string | null;
-  /** Quand — un cache sans date ne peut pas s'annoncer daté. */
+  /** When — a cache without a date cannot announce itself as dated. */
   fetchedAt: string;
 }
 
 /**
- * La clé d'une entrée. L'URL peut porter un slug OU un id, et le même nom peut
- * exister sur deux serveurs : la clé porte donc les deux, telles qu'elles se
- * présentent, sans résolution — résoudre demanderait le réseau qu'on cherche
- * justement à éviter.
+ * An entry's key. The URL may carry a slug OR an id, and the same name may
+ * exist on two servers: the key therefore carries both, as they come, without
+ * resolution — resolving would need the network we are trying to avoid.
  */
 export function projectCacheKey(projectId: string, serverRef?: string | null, networkRef?: string | null, ownerId?: string | null): string {
   return JSON.stringify([ownerId, networkRef, serverRef, projectId]);
@@ -77,10 +74,10 @@ export function projectCacheKey(projectId: string, serverRef?: string | null, ne
 interface ProjectCacheState {
   entries: Record<string, CachedProject>;
   /**
-   * Bumpé par le geste « Actualiser ». Le chargeur en dépend, donc le relire
-   * relance une vraie lecture du disque — la seule façon, pour l'admin, de
-   * demander explicitement la version du serveur (les modifications faites à la
-   * main sur le disque ne sont prises en compte qu'au reload du plugin).
+   * Bumped by the "Refresh" gesture. The loader depends on it, so re-reading it
+   * triggers a real disk read — the only way for the admin to explicitly ask
+   * for the server's version (hand edits on the disk are only picked up on the
+   * plugin's reload).
    */
   reloadToken: number;
   requestReload: () => void;
@@ -105,8 +102,8 @@ export const useProjectCacheStore = create<ProjectCacheState>()(
     }),
     {
       name: "artisan.project-cache",
-      // Le jeton d'actualisation est un geste, pas un état : le persister
-      // ferait relire au prochain démarrage pour une raison périmée.
+      // The refresh token is a gesture, not a state: persisting it would trigger a
+      // re-read on the next start for a stale reason.
       partialize: (s) => ({ entries: s.entries }),
     },
   ),
