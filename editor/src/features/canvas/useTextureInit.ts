@@ -1,5 +1,5 @@
 import { fetchUserCustomItems, fetchUserItems } from "@/lib/api/userProjects";
-import { preloadModels, renderToCanvas } from "@/lib/mcModelRenderer";
+import { renderToCanvas } from "@/lib/mcModelRenderer";
 import { useProjectPrincipalId, watchProjectPrincipal } from "@/lib/projectPrincipal";
 import { useUiStore } from "@/state/uiStore";
 import { useEffect } from "react";
@@ -23,7 +23,6 @@ export function useTextureInit(projectId?: string) {
   const lastActiveProjectId = projectId ?? lastActive;
   const currentUser = useProjectPrincipalId(lastActiveProjectId ?? undefined);
   const setData = useTextureStore((s) => s.setData);
-  const setCustomData = useTextureStore((s) => s.setCustomData);
   const setRendered = useTextureStore((s) => s.setRendered);
   const setLibraryItems = useTextureStore((s) => s.setLibraryItems);
   const setLibraryCustomData = useTextureStore((s) => s.setLibraryCustomData);
@@ -34,7 +33,6 @@ export function useTextureInit(projectId?: string) {
     useTextureStore.setState({
       version: "",
       byMaterial: {},
-      customByMaterial: {},
       renderedByMaterial: {},
       libraryItems: [],
       libraryCustomData: { serverKeyId: "", items: [] },
@@ -64,21 +62,14 @@ export function useTextureInit(projectId?: string) {
         setData(vanilla.version, vanilla.items);
         setLibraryItems(vanilla.items);
         setLibraryCustomData(custom);
-        if (custom.serverKeyId) setCustomData(custom.items, custom.serverKeyId);
-        await preloadModels(vanilla.version);
-        if (!isCurrent()) return;
-        if (custom.serverKeyId) await preloadModels(vanilla.version, true, custom.serverKeyId);
-        if (!isCurrent()) return;
+        // The embedded catalog ships pre-rendered icons (no model bundle to
+        // preload), and custom items are names only: they keep a placeholder.
         setLibraryBundleReady(true);
-        for (const item of [...vanilla.items, ...custom.items]) {
+        for (const item of vanilla.items) {
           if (!item.model) continue;
-          const isCustomItem = custom.items.some((c) => c.id === item.id);
-          const keyId = isCustomItem ? custom.serverKeyId : undefined;
-          renderToCanvas(item.model, vanilla.version, isCustomItem, keyId, item.tints).then(
-            (src) => {
-              if (src && isCurrent()) setRendered(item.id, src);
-            },
-          );
+          renderToCanvas(item.model, vanilla.version, item.tints).then((src) => {
+            if (src && isCurrent()) setRendered(item.id, src);
+          });
         }
       })
       .catch((err) => {
@@ -94,7 +85,6 @@ export function useTextureInit(projectId?: string) {
     currentUser,
     lastActiveProjectId,
     setData,
-    setCustomData,
     setRendered,
     setLibraryItems,
     setLibraryCustomData,
