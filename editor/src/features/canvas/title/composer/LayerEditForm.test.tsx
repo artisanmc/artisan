@@ -25,7 +25,7 @@ vi.mock("@/features/assets/AssetPicker", () => ({
     ) : null,
 }));
 
-// Mock the backend API. Tests reach into the `duplicateAsset` spy.
+// Mock the assets API. Tests reach into the `duplicateAsset` spy.
 vi.mock("@/lib/api/userAssets", async () => {
   const actual = await vi.importActual<typeof import("@/lib/api/userAssets")>("@/lib/api/userAssets");
   return {

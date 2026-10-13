@@ -42,9 +42,11 @@ class EditorApiTest {
     private val applied = Collections.synchronizedList(mutableListOf<Pair<String, String>>())
     private val sessions = Sessions()
     private val player = UUID.randomUUID()
+    private val prefsDir = java.nio.file.Files.createTempDirectory("prefs").toFile()
+    private val prefs = PlayerPrefs(prefsDir)
     private val hub = HubServer(
         WebConfig(port = 0, bind = "127.0.0.1"), EditorApi.router(Servers(server), sessions, null, VanillaAssets(java.nio.file.Files.createTempDirectory("vanilla").toFile(), "1.21.4", null, manifestUrl = VanillaAssetsTest.OFFLINE),
-            PackStore(java.nio.file.Files.createTempDirectory("packs").toFile())), sessions,
+            PackStore(java.nio.file.Files.createTempDirectory("packs").toFile()), prefs), sessions,
         EditorAssets(javaClass.classLoader), EditorChannel(null), Logger.getAnonymousLogger(),
     )
     private val client = HttpClient.newHttpClient()
@@ -74,7 +76,25 @@ class EditorApiTest {
         assertEquals(200, status)
         assertEquals(player.toString(), body!!["user"]["id"].asText())
         assertEquals("Iban", body["user"]["name"].asText())
-        assertTrue(body["user"]["editorTour"]["completed"].asBoolean())
+        assertTrue(body["user"]["editorTour"].isNull)
+    }
+
+    @Test
+    fun `editor preferences are kept per player`() {
+        val (status, body) = call("PATCH", "/api/v1/auth/me", mapOf("theme" to "dark", "editor_language" to "fr", "editor_tour" to mapOf("action" to "start")))
+        assertEquals(200, status)
+        assertTrue(body!!["tourStarted"].asBoolean())
+        assertEquals(0, body["user"]["editorTour"]["step"].asInt())
+        call("PATCH", "/api/v1/auth/me", mapOf("editor_tour" to mapOf("action" to "progress", "step" to 3)))
+        val me = call("GET", "/api/v1/auth/me").second!!["user"]
+        assertEquals("dark", me["theme"].asText())
+        assertEquals("fr", me["editorLanguage"].asText())
+        assertEquals(3, me["editorTour"]["step"].asInt())
+        assertTrue(java.io.File(prefsDir, "$player.json").isFile)
+        assertEquals(422, call("PATCH", "/api/v1/auth/me", mapOf("theme" to "neon")).first)
+        assertEquals(422, call("PATCH", "/api/v1/auth/me", mapOf("editor_tour" to mapOf("action" to "progress", "step" to 9))).first)
+        assertEquals(400, call("PATCH", "/api/v1/auth/me", mapOf("theme" to "x".repeat(PlayerPrefs.MAX_BODY))).first)
+        assertEquals("dark", call("GET", "/api/v1/auth/me").second!!["user"]["theme"].asText())
     }
 
     @Test
@@ -137,6 +157,45 @@ class EditorApiTest {
         answer = { mapOf("ok" to false, "error" to "draft_conflict") }
         assertEquals(409, call("PUT", "/api/v1/user/projects/shop/drafts/d1", mapOf("revision" to 1, "snapshot" to emptyMap<String, Any>())).first)
         assertEquals(422, call("PUT", "/api/v1/user/projects/shop/drafts/d1", mapOf("snapshot" to emptyMap<String, Any>())).first)
+    }
+
+    @Test
+    fun `projects are created, renamed and deleted on the server disk`() {
+        val (created, body) = call("POST", "/api/v1/networks/local/projects", mapOf("name" to "shop", "serverKeyId" to "local"))
+        assertEquals(201, created)
+        assertEquals("shop", body!!["project"]["id"].asText())
+        assertEquals(mapOf("type" to "project_create", "project_id" to "shop"), sent.last())
+        assertEquals(404, call("POST", "/api/v1/networks/local/projects", mapOf("name" to "shop", "serverKeyId" to "nope")).first)
+        assertEquals(422, call("POST", "/api/v1/networks/local/projects", mapOf("serverKeyId" to "local")).first)
+
+        val (renamed, identity) = call("POST", "/api/v1/projects/shop/rename", mapOf("operationId" to "op1", "targetId" to "store"))
+        assertEquals(200, renamed)
+        assertEquals("store", identity!!["projectId"].asText())
+        assertEquals("store", identity["diskId"].asText())
+        assertEquals(mapOf("type" to "project_rename", "project_id" to "shop", "target_project_id" to "store"), sent.last())
+
+        assertEquals(200, call("DELETE", "/api/v1/user/projects/store").first)
+        assertEquals(mapOf("type" to "project_delete", "project_id" to "store"), sent.last())
+
+        for ((error, status) in listOf("project_exists" to 409, "invalid_name" to 422)) {
+            answer = { mapOf("ok" to false, "error" to error) }
+            val (code, refused) = call("POST", "/api/v1/networks/local/projects", mapOf("name" to "shop", "serverKeyId" to "local"))
+            assertEquals(status, code)
+            assertEquals(error, refused!!["error"].asText())
+        }
+        answer = { mapOf("ok" to false, "error" to "destination_exists") }
+        assertEquals(409, call("POST", "/api/v1/projects/shop/rename", mapOf("targetId" to "store")).first)
+        answer = { mapOf("ok" to false, "error" to "unknown_project") }
+        assertEquals(404, call("DELETE", "/api/v1/user/projects/shop").first)
+    }
+
+    @Test
+    fun `a folder project can be renamed and deleted, an add-on project cannot`() {
+        answer = { mapOf("ok" to true, "project_roots" to listOf(mapOf("project_id" to "shop", "identity" to "folder"), mapOf("project_id" to "quests", "identity" to "addon"))) }
+        val shop = call("GET", "/api/v1/user/projects/shop").second!!["capabilities"]
+        assertEquals(true, shop["canRename"].asBoolean())
+        assertEquals(true, shop["canDelete"].asBoolean())
+        assertEquals(false, call("GET", "/api/v1/user/projects/quests").second!!["capabilities"]["canDelete"].asBoolean())
     }
 
     @Test
@@ -231,5 +290,8 @@ class EditorApiTest {
         assertEquals(403, call("PATCH", "/api/v1/networks/local/servers/local/server-config", mapOf("changes" to mapOf("a" to 1))).first)
         val write = mapOf("project_id" to "warps", "files" to listOf(mapOf("path" to "a.yml", "content" to "")))
         assertEquals(403, call("POST", "/api/v1/networks/local/servers/local/config/write", write).first)
+        assertEquals(403, call("DELETE", "/api/v1/user/projects/shop").first)
+        assertEquals(403, call("POST", "/api/v1/projects/shop/rename", mapOf("targetId" to "store")).first)
+        assertEquals(403, call("POST", "/api/v1/networks/local/projects", mapOf("name" to "shop", "serverKeyId" to "local")).first)
     }
 }

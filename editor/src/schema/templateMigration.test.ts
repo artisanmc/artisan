@@ -91,13 +91,13 @@ const elementsOf = (p: ReturnType<typeof projectFromFiles>) =>
   p.menus[0]!.layers.flatMap((l) => l.elements);
 
 /**
- * Le même arbre, mais dont le template a été réécrit au format courant : display
- * à PLAT + `states` (le passage `appearances` → display, 2026-08-17).
+ * The same tree, but with the template rewritten in the current format: FLAT
+ * display + `states` (the `appearances` → display switch).
  *
- * C'est la forme qu'un Add-on à jour écrit sur le disque. Le lecteur de
- * migration, lui, ne connaissait que `appearances:` : il rendait donc une liste
- * vide, l'élément héritait d'un display vide, et le menu s'affichait sans items
- * — sans le moindre message. Un fichier parfaitement valide, invisible.
+ * This is the shape an up-to-date Add-on writes to disk. The migration reader
+ * only knew `appearances:`: it returned an empty list, the element inherited
+ * an empty display, and the menu showed without items — without a single
+ * message. A perfectly valid file, invisible.
  */
 function flatTemplateFiles(): Record<string, string> {
   const files = legacyFiles();
@@ -119,8 +119,8 @@ function flatTemplateFiles(): Record<string, string> {
   return files;
 }
 
-describe("templates/ au format display + states", () => {
-  it("inline le display à plat, comme pour un Element", () => {
+describe("templates/ in display + states format", () => {
+  it("inlines the flat display, as for an Element", () => {
     const p = projectFromFiles(PID, flatTemplateFiles());
     const [a, b] = elementsOf(p);
 
@@ -129,7 +129,7 @@ describe("templates/ au format display + states", () => {
       expect(el.states).toHaveLength(1);
       expect(el.states[0]!.material).toBe("BARRIER");
     }
-    // alias / key_field restent portés par le binding, comme avant.
+    // alias / key_field stay carried by the binding, as before.
     expect(a!.iterates?.alias).toBe("item");
     expect(b!.places?.keyField).toBe("id");
   });

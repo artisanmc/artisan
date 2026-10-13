@@ -144,7 +144,7 @@ class ConditionEvaluatorTest {
         assertTrue(eval.evaluateAll(emptyList<Condition>(), ctx(player())))
     }
 
-    // ── expression (leaf evaluator, ADR action-dsl §6) ──────────────────────
+    // expression (leaf evaluator, ADR action-dsl §6)
 
     @Test fun `expression numeric comparison against resolved args`() {
         val p = player()

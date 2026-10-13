@@ -10,14 +10,13 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
 /**
- * `project_read` — l'éditeur lit l'arbre complet d'un Project depuis le disque du
- * serveur (ADR `server-disk-only-storage`, P0). Généralise `config_read`, qui ne
- * portait qu'une Table d'écran de config.
+ * `project_read`: the editor reads a Project's full tree from the server's disk (ADR
+ * `server-disk-only-storage`). Generalises `config_read`, which only carried one
+ * config screen Table.
  *
- * Différence avec le scan de sync (`ProjectFilesReader.readRelative`) : celui-ci
- * exclut tout `.artisan*`, alors que l'éditeur a besoin de `.artisan/editor.yaml`
- * (layout du board, `i18n_mode`). Seules la corbeille et les métadonnées de sync
- * restent hors champ.
+ * Unlike the disk scan (`ProjectFilesReader.readRelative`), which excludes every
+ * `.artisan*`, the editor needs `.artisan/editor.yaml` (board layout, `i18n_mode`).
+ * Only the trash and the sync metadata stay out of scope.
  */
 class ProjectReadChannelTest {
     private class Harness {
@@ -36,18 +35,18 @@ class ProjectReadChannelTest {
                 latch.countDown()
             }
         }
-        /** Attend LA RÉPONSE : les annonces de rechargement voyagent sur le
-         *  même fil et peuvent arriver avant elle. */
+        /** Waits for THE REPLY: reload announcements travel on the same
+         *  connection and may arrive before it. */
         fun await(replies: Int = 1) {
             val deadline = System.currentTimeMillis() + 5000
             while (System.currentTimeMillis() < deadline) {
                 if (sink.count { it["type"] != "projects_reloaded" } >= replies) return
                 Thread.sleep(10)
             }
-            throw AssertionError("attendait $replies réponse(s), reçu ${sink.size} message(s)")
+            throw AssertionError("expected $replies reply(ies), got ${sink.size} message(s)")
         }
-        /** La réponse attendue, en ignorant les annonces de rechargement qui
-         *  voyagent sur le même fil. */
+        /** The expected reply, ignoring the reload announcements travelling on
+         *  the same connection. */
         fun awaitReply(): Map<String, Any?> {
             val deadline = System.currentTimeMillis() + 5000
             while (System.currentTimeMillis() < deadline) {
@@ -65,8 +64,8 @@ class ProjectReadChannelTest {
             f.writeText(content)
         }
         fun read(projectId: String, requestId: String = "r1") {
-            // L'éditeur voit ce que le serveur a CHARGÉ (instantané) : il faut
-            // donc un chargement, comme en vrai au démarrage ou à /artisan reload.
+            // The editor sees what the server LOADED (snapshot), so a load is needed,
+            // as for real at startup or on /artisan reload.
             provider.load()
             provider.handleMessageForTesting(
                 """{"type":"project_read","request_id":"$requestId","project_id":"$projectId"}"""
@@ -78,7 +77,7 @@ class ProjectReadChannelTest {
     }
 
     @Test
-    fun `project_read renvoie l'arbre complet, chemins relatifs tries`() {
+    fun `project_read returns the full tree, relative paths sorted`() {
         val h = Harness()
         val p = h.project("boutique")
         h.write(p, "manifest.yaml", "id: boutique\n")
@@ -99,7 +98,7 @@ class ProjectReadChannelTest {
     }
 
     @Test
-    fun `project_read inclut l'etat editeur mais pas la corbeille ni les metadonnees de sync`() {
+    fun `project_read includes editor state but not the trash or sync metadata`() {
         val h = Harness()
         val p = h.project("boutique")
         h.write(p, "manifest.yaml", "id: boutique\n")
@@ -117,7 +116,7 @@ class ProjectReadChannelTest {
     }
 
     @Test
-    fun `project_list rend les projects charges, tries`() {
+    fun `project_list returns the loaded projects, sorted`() {
         val h = Harness()
         h.write(h.project("zeta"), "manifest.yaml", "id: zeta\n")
         h.write(h.project("alpha"), "manifest.yaml", "id: alpha\n")
@@ -129,13 +128,13 @@ class ProjectReadChannelTest {
         val msg = h.awaitReply()
         assertEquals("project_list_result", msg["type"])
         assertEquals(true, msg["ok"])
-        // Le dossier EST le project : son nom est l'identité, et l'ordre est
-        // déterministe pour que la sidebar ne danse pas d'un tick à l'autre.
+        // The folder IS the project: its name is the identity, and the order is
+        // deterministic so the sidebar does not shuffle from one tick to the next.
         assertEquals(listOf("alpha", "zeta"), msg["project_ids"])
     }
 
     @Test
-    fun `project_list rend une liste vide quand le serveur n'a aucun project`() {
+    fun `project_list is empty when the server has no project`() {
         val h = Harness()
         h.provider.load()
         h.provider.handleMessageForTesting("""{"type":"project_list","request_id":"l2"}""")
@@ -160,7 +159,7 @@ class ProjectReadChannelTest {
     }
 
     @Test
-    fun `project_read sur un project inconnu repond unknown_project`() {
+    fun `project_read of an unknown project replies unknown_project`() {
         val h = Harness()
         h.read("jamais_cree")
 
@@ -170,7 +169,7 @@ class ProjectReadChannelTest {
     }
 
     @Test
-    fun `project_read refuse une traversee de chemin`() {
+    fun `project_read rejects a path traversal`() {
         val h = Harness()
         h.read("../../etc")
 
@@ -180,7 +179,7 @@ class ProjectReadChannelTest {
     }
 
     @Test
-    fun `project_read refuse un arbre au dela du plafond`() {
+    fun `project_read rejects a tree over the size cap`() {
         val h = Harness()
         val p = h.project("gros")
         h.write(p, "manifest.yaml", "id: gros\n")

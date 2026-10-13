@@ -8,7 +8,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/** Unit-tests the DSL AST → engine model mapper (Phase 1.5, ADR action-dsl). */
+/** Unit-tests the DSL AST → engine model mapper (ADR action-dsl). */
 class DslToEngineTest {
 
     private fun map(dsl: String): List<Step> = dslToEngineSteps(parseActionDsl(dsl))

@@ -8,9 +8,9 @@ const API_URL = import.meta.env.VITE_API_URL ?? "";
 type BinaryTree = Record<string, { hash: string; size: number }>;
 
 /**
- * Aperçus de l'éditeur auto-hébergé, servis par des routes que le plugin connaît
- * déjà : le blob du brouillon quand l'image y a changé, sinon le fichier publié.
- * Même octets que `GET /api/v1/textures/asset…` du backend, sans le résoudre côté serveur.
+ * Previews for the self-hosted editor, served by routes the plugin already
+ * knows: the draft blob when the image changed there, the published file
+ * otherwise.
  */
 function trees(projectId: string, draftId: string | undefined) {
   const local = useProjectDraftStore.getState().get(projectId);
@@ -28,7 +28,7 @@ function fileUrl(asset: Asset, path: string, hash: string | undefined, published
   return `${API_URL}/api/v1/projects/${project}/binary?path=${encodeURIComponent(path)}&h=${hash ?? asset.contentHash}`;
 }
 
-/** Le PNG d'une texture ou d'un glyphe : son chemin réel dans l'arbre, à défaut le chemin canonique. */
+/** A texture or glyph PNG: its real path in the tree, or the canonical path as a fallback. */
 export function localAssetPreviewUrl(asset: Asset): string {
   const { published, draft } = trees(asset.projectId, asset.draftId);
   const dir = assetDiskPath(asset.type, asset.id).replace(/\/[^/]*$/, "/");
@@ -42,7 +42,7 @@ export function localAssetPreviewUrl(asset: Asset): string {
   return fileUrl(asset, path, asset.contentHash, published);
 }
 
-/** Un glyphe d'une police dépliée : `assets/fonts/<police>/<texture>`. */
+/** A glyph of an unpacked font: `assets/fonts/<font>/<texture>`. */
 export function localFontGlyphUrl(asset: Asset, texture: string): string {
   const { published, draft } = trees(asset.projectId, asset.draftId);
   const path = `${FONT_DIR}/${asset.id}/${texture}`;

@@ -12,8 +12,8 @@ export interface ServerKeySummary {
   id: string;
   label: string | null;
   slug?: string;
-  /** Un plugin est branché en ce moment. Sans lui, ses Projects ne se listent
-   *  pas — c'est son disque qui les porte (ADR `server-disk-only-storage`). */
+  /** A plugin is connected right now. Without it, its Projects are not listed —
+   *  its disk holds them (ADR `server-disk-only-storage`). */
   online?: boolean;
 }
 
@@ -27,14 +27,14 @@ export interface ProjectSummary {
   updatedAt?: string;
   networkId: string;
   serverKeyId: string | null;
-  /** Id disque du project côté serveur propriétaire — c'est celui qu'un module
-   *  déclare (`externalId`), et il diffère de `id` dès qu'un autre serveur a déjà
-   *  réclamé le même nom. */
+  /** The project's disk id on the owning server — the one a module declares
+   *  (`externalId`); it differs from `id` as soon as another server has already
+   *  claimed the same name. */
   externalId?: string | null;
   /** Owning Add-on module id, as the plugin reported it with the project's root
    *  (`project_roots[].module_id`). Null for a folder or an add-on registered without
    *  its module — `ownerModuleOf` then falls back to the declared screens.
-   *  Groupe le project sous "Modules installés" au lieu de la liste plate. */
+   *  Groups the project under "Installed modules" instead of the flat list. */
   ownerModule?: string | null;
 }
 
@@ -65,8 +65,8 @@ export async function getNetwork(id: string): Promise<{
   return { network: json.network, projects: json.projects, serverKeys: json.serverKeys };
 }
 
-/** Version du wire de contenu que la plateforme exige pour écrire (ADR
- *  `content-version-negotiation`). 2 = étapes structurées keyed. */
+/** Content wire version the platform requires to write (ADR
+ *  `content-version-negotiation`). 2 = keyed structured steps. */
 export const MIN_CONTENT_VERSION = 2;
 
 export interface ServerStatusEntry {
@@ -77,21 +77,21 @@ export interface ServerStatusEntry {
   /** ISO timestamp of the last *accepted* hello; null = never connected. */
   lastSeenAt: string | null;
   lastSeenIp: string | null;
-  /** Version du wire de contenu lue par le plugin (1 = DSL legacy, 2 = keyed). */
+  /** Content wire version read by the plugin (1 = legacy DSL, 2 = keyed). */
   contentVersion?: number;
-  /** Version du plugin connecté (null = jamais vu depuis le démarrage du backend). */
+  /** Connected plugin version (null = not seen since the hub started). */
   pluginVersion?: string | null;
-  /** Version plus récente installable depuis l'éditeur ; null = rien à proposer. */
+  /** Newer version installable from the editor; null = nothing to offer. */
   pluginUpdateVersion?: string | null;
-  /** Version déjà posée dans `plugins/update/`, appliquée au prochain redémarrage. */
+  /** Version already placed in `plugins/update/`, applied on the next restart. */
   pluginUpdatePending?: string | null;
-  /** Éditeur servi par le plugin : version majeure du protocole différente du hub,
-   *  le serveur ne peut pas être édité tant que son plugin n'est pas à jour. */
+  /** Editor served by the plugin: protocol major version differs from the hub's,
+   *  the server cannot be edited until its plugin is updated. */
   updateRequired?: boolean;
   isCurrent: boolean;
 }
 
-/** Un plugin connecté en retard : il ne sait pas lire ce que l'éditeur écrit. */
+/** A connected plugin that lags behind: it cannot read what the editor writes. */
 export function isPluginOutdated(s: ServerStatusEntry): boolean {
   return s.online && (s.contentVersion ?? 1) < MIN_CONTENT_VERSION;
 }

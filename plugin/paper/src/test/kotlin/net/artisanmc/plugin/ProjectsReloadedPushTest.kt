@@ -8,14 +8,13 @@ import java.io.File
 import java.nio.file.Files
 
 /**
- * Le plugin annonce ses rechargements.
+ * The plugin announces its reloads.
  *
- * Une édition faite à la main sur le disque ne compte qu'au reload — c'est la
- * sémantique de tous les plugins Minecraft, et celle qu'Artisan tient. Mais
- * l'éditeur, lui, n'a aucun moyen de savoir que ce moment est arrivé : il
- * garderait sa dernière version connue jusqu'à ce que quelqu'un pense à
- * actualiser. Le reload est donc poussé, avec l'empreinte de chaque Project —
- * celui qui l'a déjà n'a rien à refaire.
+ * A hand edit on disk only counts at reload: the semantics of every Minecraft plugin,
+ * and the ones Artisan keeps. But the editor has no way to know that moment came: it
+ * would keep its last known version until someone thinks of refreshing. So the reload
+ * is pushed, with each Project's fingerprint; an editor that already has it has
+ * nothing to redo.
  */
 class ProjectsReloadedPushTest {
     private class Harness {
@@ -40,13 +39,13 @@ class ProjectsReloadedPushTest {
     }
 
     @Test
-    fun `un chargement annonce les Projects et leur empreinte`() {
+    fun `a load announces the projects and their hash`() {
         val h = Harness()
         h.write("boutique", "menus/m.yaml", "schema: menu/v1\nsize: 27\n")
         h.provider.load()
 
         val push = h.pushes().lastOrNull()
-        assertNotNull(push, "le rechargement doit être annoncé")
+        assertNotNull(push, "the reload must be announced")
         @Suppress("UNCHECKED_CAST")
         val projects = push!!["projects"] as List<Map<String, Any?>>
         val boutique = projects.single { it["id"] == "boutique" }
@@ -55,15 +54,15 @@ class ProjectsReloadedPushTest {
     }
 
     @Test
-    fun `l'empreinte annoncee suit le contenu`() {
+    fun `the announced hash follows the content`() {
         val h = Harness()
         h.write("boutique", "menus/m.yaml", "schema: menu/v1\nsize: 27\n")
         h.provider.load()
         @Suppress("UNCHECKED_CAST")
         val first = (h.pushes().last()["projects"] as List<Map<String, Any?>>).single()["hash"] as String
 
-        // Édition à la main PUIS reload : c'est le moment où le serveur, et donc
-        // l'éditeur, doit en tenir compte.
+        // Hand edit THEN reload: the moment the server, and so the editor, must
+        // take it into account.
         h.write("boutique", "menus/m.yaml", "schema: menu/v1\nsize: 54\n")
         h.provider.load()
         @Suppress("UNCHECKED_CAST")
@@ -73,7 +72,7 @@ class ProjectsReloadedPushTest {
     }
 
     @Test
-    fun `l'empreinte annoncee est celle que project_read rendra`() {
+    fun `the announced hash is the one project_read returns`() {
         val h = Harness()
         h.write("boutique", "menus/m.yaml", "schema: menu/v1\nsize: 27\n")
         h.provider.load()
@@ -86,8 +85,8 @@ class ProjectsReloadedPushTest {
         )
         Thread.sleep(300)
         val read = h.sink.single { it["type"] == "project_read_result" }
-        // Deux empreintes différentes pour le même instantané feraient rapatrier
-        // l'arbre à chaque reload, exactement ce qu'on cherche à éviter.
+        // Two different fingerprints for the same snapshot would refetch the tree
+        // on every reload, exactly what this avoids.
         assertEquals(announced, read["hash"])
     }
 }

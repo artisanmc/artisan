@@ -29,7 +29,7 @@ vi.mock("./Edges", () => ({ Edges: () => <div data-testid="edges" /> }));
 
 const PID = "p1" as ProjectId;
 
-/** `m1` est sur la planche, `m2` ne l'est pas — c'est tout l'enjeu du focus. */
+/** `m1` is on the board, `m2` is not — that is the whole point of focus. */
 function project(): Project {
   return {
     id: PID,
@@ -64,22 +64,22 @@ describe("Stage — mode focus", () => {
   });
 
   /**
-   * Le focus fabrique sa propre table de layout : l'appartenance à la planche
-   * n'a aucun effet sur lui. C'est ce qui garantit qu'un Document jamais posé
-   * sur la planche reste pleinement éditable.
+   * Focus builds its own layout table: board membership has no effect on it.
+   * That is what guarantees a Document never placed on the board stays fully
+   * editable.
    */
-  it("rend le document ciblé même absent de canvasLayout", () => {
+  it("renders the targeted document even when absent from canvasLayout", () => {
     render(<Stage projectId={PID} focus={"m2" as ElementId} />);
     expect(groupNames()).toContain("menu:m2");
   });
 
-  it("ne rend aucun autre document, même présent sur la planche", () => {
+  it("renders no other document, even one present on the board", () => {
     render(<Stage projectId={PID} focus={"m2" as ElementId} />);
     expect(groupNames()).not.toContain("menu:m1");
   });
 
-  /** Pas de position de planche en focus : le déplacer n'aurait rien à écrire. */
-  it("le document focalisé n'est pas déplaçable", () => {
+  /** No board position in focus: moving it would have nothing to write. */
+  it("the focused document cannot be dragged", () => {
     render(<Stage projectId={PID} focus={"m2" as ElementId} />);
     const g = screen
       .getAllByTestId("konva-group")
@@ -88,11 +88,11 @@ describe("Stage — mode focus", () => {
   });
 
   /**
-   * Le trou que la fusion comble : la vue document enregistrait un canvas à
-   * elle, sans cible de dépôt — glisser un item depuis la Bibliothèque ne
-   * faisait rien, en silence.
+   * The gap the merge fills: the document view registered a canvas of its own,
+   * with no drop target — dragging an item from the Library silently did
+   * nothing.
    */
-  it("accepte le dépôt d'un item depuis la Bibliothèque", () => {
+  it("accepts dropping an item from the Library", () => {
     vi.spyOn(HTMLDivElement.prototype, "getBoundingClientRect").mockReturnValue({
       left: 0,
       top: 0,

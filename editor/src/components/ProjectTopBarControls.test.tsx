@@ -193,12 +193,12 @@ describe("ProjectTopBarControls", () => {
       assets: [],
     } as any;
     render(<ProjectTopBarControls project={project} projectId={"p1" as any} />);
-    // Make assertions broad — we just want to confirm the trio is in the DOM.
+    // Broad assertions — we just want to confirm the trio is in the DOM.
     // Titles may be in English or French depending on test locale.
     const undoMatches = screen.getAllByTitle(/Undo \(|Annuler \(/i);
     expect(undoMatches.length).toBeGreaterThanOrEqual(1);
-    // Déployer écrit sur le serveur ; Enregistrer (brouillon du compte) n'existe
-    // qu'avec une session de brouillons.
+    // Deploy writes to the server; Save (account draft) only exists with a
+    // drafts session.
     expect(screen.getByRole("button", { name: /^(Deploy|Déployer)/ })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^(Save|Enregistrer)$/ })).toBeNull();
   });

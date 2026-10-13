@@ -1,7 +1,11 @@
 ---
 title: Data models & config screens
-description: Declare the shape of your plugin's configuration and get a generated editing UI.
+description: Declare the shape of your plugin's configuration and get a generated editing UI — model/v1 documents, field kinds, migrations, config screens.
+sidebar:
+  order: 8
 ---
+
+`api.models` and `api.screens` are `@Beta` (Since 1.5.0 and 1.6.0).
 
 Level 3 integration: instead of shipping a `config.yml` and hoping admins edit it
 correctly, you **declare the shape** of your configuration as a `model/v1`
@@ -33,9 +37,27 @@ api.models.declare(mapOf(
 ))
 ```
 
-In Java, build the documents with `LinkedHashMap` in a dedicated class (see the
-Boutique's `ShopModels`) — keeping them in one place makes versioning them
-obvious.
+In Java, build the documents in one dedicated class (the Boutique has
+`ShopModels`) — keeping them together makes versioning them obvious:
+
+```java
+static Map<String, Object> kit() {
+    Map<String, Object> doc = new LinkedHashMap<>();
+    doc.put("schema", "model/v1");
+    doc.put("id", "myplugin:kit");
+    doc.put("name", "Kit");
+    doc.put("key_field", "id");
+    doc.put("version", 1);
+    doc.put("fields", List.of(
+            Map.of("name", "id", "type", Map.of("kind", "string"), "required", true),
+            Map.of("name", "name", "type", Map.of("kind", "ltext"), "required", true),
+            Map.of("name", "cooldown", "type", Map.of("kind", "integer"), "default", 0, "min", 0)));
+    return doc;
+}
+```
+
+`schema`, `id`, `key_field` and `fields` are required; `key_field` names the
+top-level scalar field that identifies a row.
 
 Declare from `onEnable(api)` so the model is attributed to your module.
 A duplicate or non-namespaced id throws at declare time.
@@ -127,7 +149,8 @@ The files are **bare**: no wrapper, no schema envelope, no editor bookkeeping.
 Your plugin parses them with any YAML library. Declared model shapes are never
 copied to disk — they live in your jar, referenced by id.
 
-Read them through `api.project` and rebuild your cache in `onReload()`.
+Read them through [`api.project`](/wiki/developers/modules/#read-project-content)
+and rebuild your cache in `onReload()` — it runs after every publish.
 
 ## Config screens
 
@@ -148,28 +171,35 @@ api.screens.declare("myplugin:kits", "Kits", "data/kits", "myplugin_project")
 Absolute paths, `..`, and a first segment starting with `.artisan` are rejected
 at declare time, as is a duplicate id.
 
-A module that declares models and owns a project but no screen still gets a
-fallback **Données** screen synthesized by the editor — declaring screens is how
-you name and split them meaningfully.
+A module that declares models and owns a project (registered with its module
+id) but declares no screen still gets fallback screens: the editor adds one per
+table of that project whose model is one of the module's, labelled with the
+table's name. Declaring screens is how you name and order them yourself.
 
-Config screens edit **live**, over the WebSocket relay: changes go to the
-connected server. They are disabled (greyed out) while the server is offline.
+Config screens edit **live**: changes go to the server that hosts the project.
+They are disabled (greyed out) while that server is offline.
+
+`declared()` lists the declared screens (and `api.models.declared()` /
+`has(id)` the models), sorted by id.
 
 ## Putting it together
 
 The Boutique Add-on, end to end, in its `onEnable`:
 
 ```java
-File projectDir = new File(getDataFolder(), "editor");
-api.getProjectRoots().register("boutique_shop", projectDir);   // own the project root
-bootstrapIfAbsent(projectDir);                                 // ship default content
-api.getModules().register(new BoutiqueModule(this, repo));     // then, inside onEnable(api):
-//   api.getModels().declare(ShopModels.item());
-//   api.getModels().declare(ShopModels.category());
-//   api.getScreens().declare("boutique:catalog", "Catalogue", "data/categories", "boutique_shop");
-//   api.getDataSources().register(/* boutique:categories, boutique:items */);
-//   api.getCommands().register(new CommandDeclaration("boutique:buy", …));
+// BoutiqueModule.onEnable(ArtisanAPI api)
+File projectDir = new File(plugin.getDataFolder(), "editor");
+api.getProjectRoots().register("boutique_shop", projectDir, getId());  // own the project
+bootstrapIfAbsent(projectDir);                                         // ship default content
+api.getModels().declare(ShopModels.item());
+api.getModels().declare(ShopModels.category());
+api.getScreens().declare("boutique:catalog", "Catalogue", "data/categories", "boutique_shop");
+api.getDataSources().register(/* boutique:categories, boutique:items */);
+api.getCommands().register(new CommandDeclaration("boutique:buy", /* … */));
 ```
+
+The [worked example](/wiki/developers/example/) does the same for a small kits
+add-on, end to end.
 
 Result for the admin: a **Catalogue** screen with a master-detail catalog form,
 translated item names, item pickers, purchase actions authored visually — and

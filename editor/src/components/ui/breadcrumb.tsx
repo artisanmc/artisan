@@ -9,14 +9,14 @@ import { cn } from "@/lib/cx";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { Children, type ReactNode, useState } from "react";
 
-/** Classes d'un niveau cliquable (lien du routeur ou `<a>`). */
+/** Classes of a clickable level (router link or `<a>`). */
 export const breadcrumbLinkClass =
   "block min-w-0 truncate rounded-[6px] px-1 py-0.5 text-[var(--text-mut)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]";
 
 /**
- * Fil d'Ariane : chaque enfant est un niveau, séparé du précédent par un
- * chevron. Les niveaux vides (`null`, `false`) sont ignorés. Le dernier est en
- * général un `BreadcrumbCurrent`.
+ * Breadcrumb: each child is a level, separated from the previous one by a
+ * chevron. Empty levels (`null`, `false`) are skipped. The last one is
+ * usually a `BreadcrumbCurrent`.
  */
 export function Breadcrumb({
   label,
@@ -32,7 +32,7 @@ export function Breadcrumb({
     <nav aria-label={label} className={cn("min-w-0", className)}>
       <ol className="flex min-w-0 items-center gap-0.5 text-sm">
         {levels.map((level, i) => (
-          // biome-ignore lint/suspicious/noArrayIndexKey: les niveaux sont positionnels.
+          // biome-ignore lint/suspicious/noArrayIndexKey: levels are positional.
           <li key={i} className="flex min-w-0 items-center gap-0.5">
             {i > 0 && (
               <ChevronRight aria-hidden className="size-3.5 shrink-0 text-[var(--text-faint)]" />
@@ -45,7 +45,7 @@ export function Breadcrumb({
   );
 }
 
-/** Le niveau où l'on se trouve : pas un lien. */
+/** The current level: not a link. */
 export function BreadcrumbCurrent({ children, title }: { children: ReactNode; title?: string }) {
   return (
     <span
@@ -61,16 +61,16 @@ export function BreadcrumbCurrent({ children, title }: { children: ReactNode; ti
 export interface BreadcrumbSwitcherItem {
   id: string;
   label: string;
-  /** Pastille ou icône devant le libellé, dans le menu. */
+  /** Dot or icon before the label, in the menu. */
   leading?: ReactNode;
 }
 
-/** Au-delà, le menu gagne un champ de recherche. */
+/** Above this, the menu gets a search field. */
 const SWITCHER_SEARCH_THRESHOLD = 7;
 
 /**
- * Niveau qui ouvre la liste de ses voisins (serveurs d'un network…) pour en
- * changer. Recherche seulement quand la liste est longue.
+ * Level that opens the list of its siblings (servers of a network…) to
+ * switch. Search only when the list is long.
  */
 export function BreadcrumbSwitcher({
   current,

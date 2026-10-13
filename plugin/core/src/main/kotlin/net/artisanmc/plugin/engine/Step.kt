@@ -1,8 +1,8 @@
 package net.artisanmc.plugin.engine
 
 /**
- * Arbre d'exécution canonique menu/v1 d'un clic (ou d'une commande) :
- * une séquence d'actions plates et de branches if / else-if / else.
+ * Canonical menu/v1 execution tree of a click (or a command): a sequence of flat
+ * actions and if / else-if / else branches.
  */
 sealed class Step {
     data class ActionStep(val action: Action) : Step()
@@ -10,9 +10,9 @@ sealed class Step {
 }
 
 /**
- * Un cas d'un [Step.IfStep]. `joins` contient les opérateurs ("and"/"or")
- * entre conditions consécutives, évalués de gauche à droite sans précédence ;
- * absent ou plus court que nécessaire = "and".
+ * One case of a [Step.IfStep]. `joins` holds the operators ("and"/"or") between
+ * consecutive conditions, evaluated left to right without precedence; missing or
+ * shorter than needed = "and".
  */
 data class IfCase(
     val conditions: List<Condition>,

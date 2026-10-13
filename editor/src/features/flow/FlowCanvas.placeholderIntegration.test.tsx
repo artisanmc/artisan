@@ -15,7 +15,7 @@ import { useAccountStore } from "@/state/accountStore";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 
-// ── Minimal project fixture ──────────────────────────────────────────────────────
+// Minimal project fixture
 
 const PACK_ID = "p_smoke" as ProjectId;
 const MENU_ID = "m_smoke" as MenuId;
@@ -55,14 +55,14 @@ function makeProject(): Project {
   };
 }
 
-// ── Thin wrapper component ────────────────────────────────────────────────────
+// Thin wrapper component
 
 function TitleInput({ location }: { location: FieldLocation }) {
   const entries = usePlaceholderEntries(PACK_ID, location);
   return <PlaceholderInput value="" onChange={() => {}} entries={entries} />;
 }
 
-// ── Tests ─────────────────────────────────────────────────────────────────────
+// Tests
 
 describe("placeholder catalog → hook → PlaceholderInput integration", () => {
   beforeEach(() => {

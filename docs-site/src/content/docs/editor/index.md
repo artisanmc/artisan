@@ -1,6 +1,8 @@
 ---
 title: Editor
 description: Documentation for menu and pack creators using the Artisan web editor.
+sidebar:
+  order: 1
 ---
 
 Build Minecraft inventory menus in your browser: place items, edit their appearance,

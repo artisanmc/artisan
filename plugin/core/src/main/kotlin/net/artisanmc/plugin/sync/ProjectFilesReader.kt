@@ -4,22 +4,22 @@ import java.io.File
 
 object ProjectFilesReader {
 
-    /** Ce qu'on sait d'un binaire sans le porter : son empreinte et sa taille. */
+    /** What is known about a binary without carrying it: its hash and size. */
     data class BinaryInfo(val hash: String, val size: Long)
 
     /**
-     * Extensions transportées comme **octets**, jamais comme texte.
+     * Extensions carried as **bytes**, never as text.
      *
-     * Les lire en UTF-8 les mutilerait (un PNG commence par 0x89, qui n'est pas
-     * de l'UTF-8 valide), et les faire voyager dans l'arbre de `project_read`
-     * enflerait chaque ouverture de Project — ADR `assets-on-server-disk`.
+     * Reading them as UTF-8 would mangle them (a PNG starts with 0x89, which is not
+     * valid UTF-8), and shipping them in the `project_read` tree would bloat every
+     * Project open (ADR `assets-on-server-disk`).
      */
     private val BINARY_EXTENSIONS = setOf("png", "zip", "jpg", "jpeg", "ogg", "ttf", "otf")
 
     fun isBinary(relPath: String): Boolean =
         relPath.substringAfterLast('.', "").lowercase() in BINARY_EXTENSIONS
 
-    /** relPath → empreinte + taille des binaires, `.artisan*` exclus. */
+    /** relPath → hash + size of the binaries, `.artisan*` excluded. */
     fun binaries(projectDir: File): Map<String, BinaryInfo> {
         val out = mutableMapOf<String, BinaryInfo>()
         projectDir.walkTopDown()
@@ -34,7 +34,7 @@ object ProjectFilesReader {
         return out
     }
 
-    /** Tous les chemins réellement présents — texte ET binaires. */
+    /** Every path actually present, text AND binary. */
     fun allPaths(projectDir: File): List<String> =
         (readAll(projectDir).keys + binaries(projectDir).keys).sorted()
 
@@ -51,24 +51,21 @@ object ProjectFilesReader {
             .filter { it.isFile && !java.nio.file.Files.isSymbolicLink(it.toPath()) }
             .forEach { file ->
                 val rel = file.relativeTo(projectDir).path.replace('\\', '/')
-                // Exclus par construction : un PNG lu en UTF-8 revient mutilé.
                 if (!isBinary(rel) && !rel.startsWith(".artisan/history/", ignoreCase = true) && !net.artisanmc.plugin.project.ProjectPathPolicy.isPrivate(rel)) out[rel] = file.readText(Charsets.UTF_8)
             }
         return out
     }
 
     /**
-     * relPath-keyed map excluding `.artisan*` sync metadata. Both the hash
-     * (`BundleHasher`) and the wire forms (`read`, below) derive from this —
-     * a `.artisan*` first segment is out of the hash and never uploaded (the
-     * backend preserves its copies).
+     * relPath-keyed map excluding `.artisan*` metadata. Both the hash
+     * (`BundleHasher`) and [read] derive from this.
      */
     fun readRelative(projectDir: File): Map<String, String> =
         readAll(projectDir).filterKeys { !BundleHasher.isArtisanMeta(it) }
 
     /**
-     * Canonical files map keyed by "plugins/Artisan/projects/<projectId>/<relPath>"
-     * (the form the backend stores). Thin re-key over [readRelative].
+     * Files map keyed by "plugins/Artisan/projects/<projectId>/<relPath>".
+     * Thin re-key over [readRelative].
      */
     fun read(projectDir: File, projectId: String): Map<String, String> {
         val prefix = "plugins/Artisan/projects/$projectId/"

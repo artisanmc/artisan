@@ -1,6 +1,8 @@
 ---
 title: Data sources
 description: Explore server data sources, preview live rows, and filter them per menu.
+sidebar:
+  order: 9
 ---
 
 Modules installed on your server (the Boutique Add-on, third-party plugins…) can expose **data sources** — live lists of rows such as shop items or quests. The editor's **Data** tab shows them under **Server sources**, grouped by the module that declares them.

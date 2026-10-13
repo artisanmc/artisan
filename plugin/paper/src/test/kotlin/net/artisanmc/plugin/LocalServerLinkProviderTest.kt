@@ -9,7 +9,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/** L'éditeur servi par le plugin parle aux mêmes gestionnaires que le WebSocket, sans réseau. */
+/** The editor served by the plugin talks to the same handlers as the WebSocket, without network. */
 class LocalServerLinkProviderTest {
     private val root: File = Files.createTempDirectory("artisan_link_").toFile()
     private val sent: MutableList<String> = Collections.synchronizedList(mutableListOf())

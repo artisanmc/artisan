@@ -1,9 +1,8 @@
 /**
  * Regression: typing in a state card's title field must reach the store.
- * The user edited "§7Retour" → "<gray>Retour" in the edit panel, deployed
- * three times — and the three commits carried an IDENTICAL editor_json:
- * the edit never left the UI. This mounts the real ElementEditor path
- * (FlowCanvas) for a plain element and asserts the store write.
+ * An edit of "§7Retour" → "<gray>Retour" in the edit panel never left the
+ * UI. This mounts the real ElementEditor path (FlowCanvas) for a plain
+ * element and asserts the store write.
  */
 import "@/i18n";
 import type { Account, ElementId, I18nKey, MenuId, Project, ProjectId } from "@/domain/types";

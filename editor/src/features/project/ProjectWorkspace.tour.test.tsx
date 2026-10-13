@@ -121,12 +121,12 @@ it("starts only after a resolved workspace, then resumes from its real project m
       name: /Vos projets au même endroit|Your projects, in one place/,
     }),
   ).toBeInTheDocument();
-  // Rythmé par les vrais délais de la visite (~2,3 s seul) : 5 s ne suffisent pas sous charge.
+  // Paced by the tour's real delays (~2.3 s alone): 5 s is not enough under load.
 }, 15_000);
 
 it("replays the tour on a project whose server is offline", async () => {
-  // La visite ne dépend pas du serveur Minecraft : un serveur éteint rendait
-  // « Refaire la visite » muet.
+  // The tour does not depend on the Minecraft server: an offline server made
+  // "Restart the tour" do nothing.
   const user = userEvent.setup();
   tour.progress = { step: 6, completed: true };
   setup.offline = true;

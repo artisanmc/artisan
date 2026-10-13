@@ -58,7 +58,7 @@ class MenuRendererDataSourceTest {
         val menu = BundleCompiler.compile(shopMenu(), emptyMap())
         val inv = MenuRenderer.open(p, menu, "en", ExecutionContext(p), dataSources = registry).slots
         assertEquals(Material.DIAMOND_SWORD, inv[10]?.type)
-        assertNull(inv[11]) // apple filtrée (category != weapons)
+        assertNull(inv[11]) // apple filtered out (category != weapons)
     }
 
     private fun directRefMenu(): MenuYaml = mapper.readValue(

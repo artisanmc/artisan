@@ -4,27 +4,21 @@ import java.io.File
 import java.security.MessageDigest
 
 /**
- * Hachage de contenu — deux usages, tous deux **locaux au plugin**.
+ * Content hashing.
  *
- * - [hash] / [hashFiles] : empreinte d'un arbre de fichiers, utilisée par le
- *   `SyncScanner` pour repérer qu'un dossier a changé entre deux ticks.
- * - [hashContent] : empreinte d'un **contenu de fichier**, jeton de
- *   compare-and-swap de `project_write`. L'éditeur la reproduit en TypeScript
- *   (`lib/contentHash.ts`) — SHA-256 de l'UTF-8, hex minuscule.
- *
- * Le hash d'arbre fut un invariant inter-langage : il devait rester
- * byte-identique au `computeBundleHash` du backend, sous peine d'inventer des
- * divergences, et un vecteur partagé le verrouillait. Cette contrainte est
- * tombée avec le stockage backend (ADR `server-disk-only-storage`) : plus
- * personne d'autre ne calcule ce hash, donc il n'y a plus rien à accorder.
+ * - [hash] / [hashFiles] / [snapshotHash]: fingerprint of a file tree, computed by
+ *   the plugin only, so no cross-language convention applies.
+ * - [hashContent]: fingerprint of a **file's content**, the compare-and-swap token
+ *   of `project_write`. The editor reproduces it in TypeScript
+ *   (`lib/contentHash.ts`): SHA-256 of the UTF-8 bytes, lowercase hex.
  */
 object BundleHasher {
 
     /**
-     * Hash d'une map relPath → contenu : clés triées en ordre d'octets (`String`
-     * compare de Kotlin, JAMAIS locale-aware), chaque entrée émise en
-     * `<relPath>` + LF + contenu + LF, concaténée, SHA-256 hex minuscule. Map
-     * vide => "" (sentinelle « pas de contenu »).
+     * Hash of a relPath → content map: keys sorted in byte order (Kotlin `String`
+     * compare, NEVER locale-aware), each entry emitted as `<relPath>` + LF +
+     * content + LF, concatenated, SHA-256 lowercase hex. Empty map => "" (the
+     * "no content" sentinel).
      */
     fun hashFiles(relFiles: Map<String, String>): String {
         if (relFiles.isEmpty()) return ""
@@ -36,16 +30,16 @@ object BundleHasher {
     }
 
     /**
-     * Empreinte de ce que `project_read` s'apprête à répondre.
+     * Fingerprint of what `project_read` is about to answer.
      *
-     * Elle couvre les trois choses que l'éditeur reçoit — le texte, les binaires
-     * annoncés (par leur propre empreinte, pas leurs octets) et les documents que
-     * le serveur n'a pas su charger. Un binaire remplacé ou un YAML redevenu
-     * lisible change donc l'empreinte : sans ça, « rien n'a bougé » mentirait sur
-     * exactement ce que l'éditeur affiche.
+     * It covers the three things the editor receives: the text, the announced
+     * binaries (by their own hash, not their bytes) and the documents the server
+     * failed to load. A replaced binary or a YAML that became readable again changes
+     * the fingerprint; otherwise "nothing changed" would lie about exactly what the
+     * editor shows.
      *
-     * Elle n'est calculée QUE par le plugin, et lui est rendue telle quelle par
-     * l'éditeur : il n'y a aucune convention inter-langage à tenir ici.
+     * Computed ONLY by the plugin and handed back verbatim by the editor: no
+     * cross-language convention to keep here.
      */
     fun snapshotHash(
         files: Map<String, String>,
@@ -56,30 +50,28 @@ object BundleHasher {
         for ((rel, content) in files) merged["f/$rel"] = content
         for ((rel, hash) in binaryHashes) merged["b/$rel"] = hash
         for ((rel, reason) in failed) merged["x/$rel"] = reason
-        // Un Project vide a quand même une empreinte : `hashFiles` rend "" sur une
-        // map vide, et "" ne peut pas se comparer à quoi que ce soit.
+        // An empty Project still gets a fingerprint: `hashFiles` returns "" for an
+        // empty map, and "" cannot be compared to anything. The seed string is part
+        // of the hash value: do not change it.
         return if (merged.isEmpty()) sha256("vide") else hashFiles(merged)
     }
 
-    /** Hash d'un dossier de project (relPath-keyed, `.artisan*` exclus). */
+    /** Hash of a project folder (relPath-keyed, `.artisan*` excluded). */
     fun hash(projectDir: File): String = hashFiles(ProjectFilesReader.readRelative(projectDir))
 
-    /**
-     * Hash d'un **contenu de fichier** seul — le jeton de compare-and-swap de
-     * `project_write`. Pas de clé, pas de tri, juste le contenu.
-     */
+    /** Hash of a single **file content**: the compare-and-swap token of `project_write`. */
     fun hashContent(content: String): String = sha256(content)
 
     /**
-     * Même jeton, pour un contenu **binaire** (ADR `assets-on-server-disk`).
-     * SHA-256 des octets bruts : passer par une String les corromprait.
+     * Same token for **binary** content (ADR `assets-on-server-disk`). SHA-256 of
+     * the raw bytes: going through a String would corrupt them.
      */
     fun hashBytes(bytes: ByteArray): String =
         MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
 
     /**
-     * Un premier segment commençant par `.artisan` est une métadonnée (état
-     * éditeur, corbeille) : hors hash, et invisible au scan de contenu.
+     * A first segment starting with `.artisan` is metadata (editor state, trash):
+     * excluded from the hash and invisible to the content scan.
      */
     fun isArtisanMeta(relPath: String): Boolean =
         relPath.substringBefore('/').startsWith(".artisan")

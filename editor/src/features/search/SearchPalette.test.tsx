@@ -61,18 +61,18 @@ describe("SearchPalette", () => {
     useSelectionStore.getState().clear();
   });
 
-  it("ne rend rien si searchOpen = false", () => {
+  it("renders nothing when searchOpen = false", () => {
     useUiStore.setState({ searchOpen: false } as any);
     const { container } = render(<SearchPalette projectId={PID} />);
     expect(container.querySelector("input")).toBeNull();
   });
-  it("taper filtre et affiche les résultats", () => {
+  it("typing filters and shows the results", () => {
     render(<SearchPalette projectId={PID} />);
     fireEvent.change(screen.getByRole("combobox"), { target: { value: "heal" } });
     expect(screen.getByText("/heal")).toBeInTheDocument();
     expect(screen.queryByText("Shop")).not.toBeInTheDocument();
   });
-  it("Entrée sur un menu centre la planche dessus et le sélectionne", () => {
+  it("Enter on a menu centers the board on it and selects it", () => {
     render(<SearchPalette projectId={PID} />);
     fireEvent.change(screen.getByRole("combobox"), { target: { value: "shop" } });
     fireEvent.keyDown(screen.getByRole("combobox"), { key: "Enter" });
@@ -82,20 +82,20 @@ describe("SearchPalette", () => {
     expect(useUiStore.getState().centerRequest).toMatchObject({ docId: "m_shop" });
     expect(useUiStore.getState().searchOpen).toBe(false);
   });
-  it("Entrée sur un item sélectionne l'élément + slot", () => {
+  it("Enter on an item selects the element + slot", () => {
     render(<SearchPalette projectId={PID} />);
     fireEvent.change(screen.getByRole("combobox"), { target: { value: "diamond" } });
     fireEvent.keyDown(screen.getByRole("combobox"), { key: "Enter" });
     expect([...useSelectionStore.getState().ids]).toContain("el_buy");
     expect(useSelectionStore.getState().focusedSlot).toBe(13);
   });
-  it("Esc ferme la palette", () => {
+  it("Esc closes the palette", () => {
     render(<SearchPalette projectId={PID} />);
     fireEvent.keyDown(screen.getByRole("combobox"), { key: "Escape" });
     expect(useUiStore.getState().searchOpen).toBe(false);
   });
 
-  describe("autres projects du serveur", () => {
+  describe("other projects of the server", () => {
     const boutique = (): Project =>
       ({
         id: "boutique" as ProjectId,
@@ -125,7 +125,7 @@ describe("SearchPalette", () => {
       });
     });
 
-    it("propose leurs Documents, avec le project en contexte, et y navigue", () => {
+    it("offers their Documents, with the project as context, and navigates there", () => {
       render(<SearchPalette projectId={PID} />);
       fireEvent.change(screen.getByRole("combobox"), { target: { value: "catalogue" } });
       expect(screen.getByText("Catalogue")).toBeInTheDocument();
@@ -140,21 +140,21 @@ describe("SearchPalette", () => {
       );
     });
 
-    it("ne répète pas le project en cours d'édition, déjà indexé en détail", () => {
+    it("does not repeat the project being edited, already indexed in detail", () => {
       useServerIndexStore.setState({ projects: [boutique(), project()] });
       render(<SearchPalette projectId={PID} />);
       fireEvent.change(screen.getByRole("combobox"), { target: { value: "heal" } });
       expect(screen.getAllByText("/heal")).toHaveLength(1);
     });
 
-    it("ignore ce qui a été chargé pour un autre serveur", () => {
+    it("ignores what was loaded for another server", () => {
       useServerIndexStore.setState({ scope: "n1/ailleurs" });
       render(<SearchPalette projectId={PID} />);
       fireEvent.change(screen.getByRole("combobox"), { target: { value: "catalogue" } });
       expect(screen.queryByText("Catalogue")).not.toBeInTheDocument();
     });
 
-    it("garde les résultats du project édité avant ceux des autres", () => {
+    it("keeps the edited project's results before the others'", () => {
       useServerIndexStore.setState({
         projects: [{ ...boutique(), commands: [{ id: "c", projectId: "boutique", name: "heal2", arguments: [], steps: [] }] } as unknown as Project],
       });

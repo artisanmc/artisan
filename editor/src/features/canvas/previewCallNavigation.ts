@@ -2,27 +2,27 @@ import type { Menu } from "@/domain/types";
 import type { PreviewCallContext } from "./previewCallContexts";
 
 /**
- * Navigation d'un **Preview context** à l'autre.
+ * Navigation from one **Preview context** to another.
  *
- * Un menu paramétré est un document pour N écrans : ses Placements portent
- * toutes les catégories à la fois, et un même slot a un occupant différent selon
- * le contexte regardé (ADR `parameterised-menu-over-menu-per-category`). Passer
- * d'un contexte au suivant est donc le geste d'édition central — d'où deux
- * points d'entrée partagés : l'arête du board et le bandeau du menu.
+ * A parameterised menu is one document for N screens: its Placements carry
+ * every category at once, and the same slot has a different occupant
+ * depending on the context viewed (ADR
+ * `parameterised-menu-over-menu-per-category`). Moving from one context to the
+ * next is therefore the central editing gesture — hence two shared entry
+ * points: the board edge and the menu banner.
  */
 
-/** L'index du contexte actuellement posé, ou -1. */
+/** Index of the context currently set, or -1. */
 /**
- * Les arguments RÉELLEMENT en vigueur pour l'aperçu.
+ * The arguments ACTUALLY in effect for the preview.
  *
- * Rien de choisi ne veut pas dire aucun contexte : un input qui porte un
- * `default` s'applique quand même, et c'est bien cet écran-là que le canvas
- * rend. Le bandeau lisait les seuls arguments explicites et annonçait donc
- * « choisis un contexte » au-dessus d'un menu déjà rendu dans un contexte
- * précis — il décrivait un état que personne ne voyait.
+ * Nothing chosen does not mean no context: an input carrying a `default`
+ * still applies, and that is the screen the canvas renders. The banner read
+ * only the explicit arguments and so said "pick a context" above a menu
+ * already rendered in a specific context — it described a state nobody saw.
  *
- * On ne pose rien dans le store pour autant : le défaut n'est pas un choix de
- * l'utilisateur, c'est ce qui vaut tant qu'il n'a pas choisi.
+ * Nothing is written to the store though: the default is not a user choice,
+ * it is what applies until they choose.
  */
 export function effectivePreviewArgs(
   menu: Menu,
@@ -42,16 +42,16 @@ export function currentCallIndex(
 ): number {
   const args = previewArgs ?? {};
   return contexts.findIndex((c) =>
-    // TOUS les arguments doivent correspondre : une correspondance partielle
-    // donnerait un écran hybride qui ne correspond à aucun appel réel.
+    // ALL arguments must match: a partial match would give a hybrid screen that
+    // matches no real call.
     Object.entries(c.args).every(([k, v]) => JSON.stringify(args[k] ?? "") === JSON.stringify(v)),
   );
 }
 
 /**
- * Le contexte suivant, en boucle. [from] restreint aux appels venus de ce menu :
- * cliquer l'arête `shop_main → shop_category` fait défiler les catégories sans
- * sauter sur un appel venu d'ailleurs.
+ * The next context, wrapping around. [from] restricts to calls coming from
+ * that menu: clicking the `shop_main → shop_category` edge cycles through the
+ * categories without jumping to a call coming from elsewhere.
  */
 export function nextCallContext(
   contexts: PreviewCallContext[],

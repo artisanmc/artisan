@@ -11,8 +11,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
 /**
- * Same cases as imageButtonArea.test.ts (editor) and imageButtons.test.ts
- * (backend): all three must agree on which slots form a button and where its
+ * Same cases as the editor's imageButtonArea.test.ts and imageButtons.test.ts
+ * (pack builder): all three must agree on which slots form a button and where its
  * image is drawn.
  */
 class ImageButtonLayoutTest {

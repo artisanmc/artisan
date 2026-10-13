@@ -2,7 +2,7 @@ package net.artisanmc.plugin.engine
 
 import org.bukkit.entity.Player
 
-/** Page courante + nombre de pages d'un élément itérant, calculés au rendu. */
+/** Current page + page count of an iterating element, computed at render. */
 data class PageInfo(val page: Int, val pageCount: Int)
 
 data class ExecutionContext(
@@ -12,18 +12,18 @@ data class ExecutionContext(
     /** Project default language — fallback for field-local maps ([LocalizedText]). */
     val defaultLang: String = "en",
     val langMap: Map<String, String> = emptyMap(),
-    /** Pages demandées par élément itérant (elementId → page). Écrit par pagination_next/prev. */
+    /** Requested page per iterating element (elementId → page). Written by pagination_next/prev. */
     val pagination: Map<String, Int> = emptyMap(),
-    /** Snapshot du dernier rendu (clamps + pageCount). Lu par les conditions pagination_at_*. */
+    /** Snapshot of the last render (clamps + pageCount). Read by the pagination_at_* conditions. */
     val pageInfo: Map<String, PageInfo> = emptyMap(),
-    /** Profondeur d'appels `run_actions` imbriqués — garde anti-cycle (max 16). */
+    /** Nesting depth of `run_actions` calls: anti-cycle guard (max 16). */
     val runActionsDepth: Int = 0,
     /** Values fetched by the renderer, retained locally but not inherited by another menu. */
     val sourceArgs: Map<String, Any> = emptyMap(),
     /**
-     * Le project du Document dont viennent les actions (menu cliqué, commande,
-     * dialog). Un `open_menu` / `open_dialog` à id nu s'y résout d'abord.
-     * `null` = pas de project (API, `/artisan menu`) : résolution sur le serveur.
+     * Project of the Document the actions come from (clicked menu, command, dialog).
+     * An `open_menu` / `open_dialog` with a bare id resolves there first.
+     * `null` = no project (API, `/artisan menu`): resolved server-wide.
      */
     val projectId: String? = null,
     /** Lore wrap width of the menu being rendered (MC pixels, 0 = never). */
@@ -33,9 +33,9 @@ data class ExecutionContext(
         get() = args.filter { (name, value) -> name !in sourceArgs || value !== sourceArgs[name] }
 
     /**
-     * Args + built-ins implicites : `player` = joueur courant (jamais écrasé
-     * si l'appelant a bindé un arg du même nom). Toute résolution de texte
-     * passe par ici, pas par `args` directement.
+     * Args + implicit built-ins: `player` = current player (never overrides an arg of
+     * the same name bound by the caller). All text resolution goes through here, not
+     * through `args` directly.
      */
     val resolvedArgs: Map<String, Any>
         get() = if ("player" in args) args else args + ("player" to player)

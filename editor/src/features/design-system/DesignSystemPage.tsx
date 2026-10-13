@@ -111,11 +111,11 @@ const BTN_CLASSES = [
   "btn btn-danger",
   "btn btn-discord",
 ];
-const SAMPLE_YAML = `# Réglages boutique — géré par Artisan
-# Remise appliquée à toute la boutique (0 à 100).
+const SAMPLE_YAML = `# Shop settings — managed by Artisan
+# Discount applied to the whole shop (0 to 100).
 whole_shop_discount: 10
 placeholders:
-  # Placeholder disponible : %price%.
+  # Available placeholder: %price%.
   price_display: "%price% tokens"
 `;
 
@@ -182,11 +182,11 @@ export function DesignSystemPage() {
             Primalcraft
           </a>
           <BreadcrumbSwitcher
-            current="survie"
+            current="survival"
             items={[
               { id: "lobby", label: "Lobby" },
-              { id: "survie", label: "Survie" },
-              { id: "creatif", label: "Créatif" },
+              { id: "survival", label: "Survival" },
+              { id: "creative", label: "Creative" },
             ]}
             onSelect={() => {}}
             searchPlaceholder={t("breadcrumb.searchServers")}
@@ -196,8 +196,8 @@ export function DesignSystemPage() {
       </Section>
       <Section id="file-diff" title={t("save.diffLabel")}>
         <FileDiff
-          before={"name: Boutique\nprice: 10\nenabled: true\n"}
-          after={"name: Boutique\nprice: 20\nenabled: true\n"}
+          before={"name: Shop\nprice: 10\nenabled: true\n"}
+          after={"name: Shop\nprice: 20\nenabled: true\n"}
         />
       </Section>
       <Section id="tooltip" title={t("drafts.save")}>
@@ -221,18 +221,18 @@ export function DesignSystemPage() {
       <Section id="change-list" title={t("drafts.changes")}>
         <ChangeList
           before={{
-            "menus/shop.yaml": "title: Boutique\nsize: 27\nprice: 10\n",
-            "menus/old.yaml": "title: Ancien\n",
+            "menus/shop.yaml": "title: Shop\nsize: 27\nprice: 10\n",
+            "menus/old.yaml": "title: Old\n",
           }}
           after={{
-            "menus/shop.yaml": "title: Boutique\nsize: 27\nprice: 20\n",
-            "menus/new.yaml": "title: Ancien\n",
+            "menus/shop.yaml": "title: Shop\nsize: 27\nprice: 20\n",
+            "menus/new.yaml": "title: Old\n",
             "lang/en.yaml": "shop.title: Shop\n",
           }}
           renames={[{ from: "menus/old.yaml", to: "menus/new.yaml" }]}
         />
       </Section>
-      {/* ── Rules ─────────────────────────────────────────────────────── */}
+      {/* Rules */}
       <Section id="guidelines" title={t("adminDesign.guidelines.heading")}>
         <div className="card p-5">
           <ul className="flex list-disc flex-col gap-1.5 pl-5 text-[13px] text-[var(--text-mut)]">
@@ -243,7 +243,7 @@ export function DesignSystemPage() {
         </div>
       </Section>
 
-      {/* ── Color tokens ──────────────────────────────────────────────── */}
+      {/* Color tokens */}
       <Section id="colors" title={t("adminDesign.sections.colors")}>
         <div className="flex items-center gap-3">
           <span className="text-[13px] text-[var(--text-mut)]">{t("adminDesign.themeHint")}</span>
@@ -263,7 +263,7 @@ export function DesignSystemPage() {
         </div>
       </Section>
 
-      {/* ── Typography ────────────────────────────────────────────────── */}
+      {/* Typography */}
       <Section id="typography" title={t("adminDesign.sections.typography")}>
         <div className="card flex flex-col gap-5 p-5">
           <div className="flex flex-col gap-1">
@@ -295,7 +295,7 @@ export function DesignSystemPage() {
         </div>
       </Section>
 
-      {/* ── Radii & shadows ───────────────────────────────────────────── */}
+      {/* Radii & shadows */}
       <Section id="radii-shadows" title={t("adminDesign.sections.radiiShadows")}>
         <div className="card flex flex-col gap-6 p-5">
           <div className="flex flex-wrap items-end gap-5">
@@ -323,7 +323,7 @@ export function DesignSystemPage() {
         </div>
       </Section>
 
-      {/* ── CSS utility classes ───────────────────────────────────────── */}
+      {/* CSS utility classes */}
       <Section id="css-utilities" title={t("adminDesign.sections.cssUtilities")}>
         <div className="card flex flex-col gap-6 p-5">
           <div className="flex flex-wrap items-center gap-3">
@@ -380,7 +380,7 @@ export function DesignSystemPage() {
         </div>
       </Section>
 
-      {/* ── React primitives (components/ui) ──────────────────────────── */}
+      {/* React primitives (components/ui) */}
       <Section id="primitives" title={t("adminDesign.sections.primitives")}>
         <div className="card flex flex-col gap-6 p-5">
           <div className="flex flex-col gap-2">
@@ -428,8 +428,7 @@ export function DesignSystemPage() {
               <Skeleton className="h-20 w-full" />
             </div>
             <p className="text-[11.5px] text-[var(--text-faint)]">
-              À la forme de ce qui va s'afficher : la mise en page ne saute pas quand les données
-              arrivent. Pour une attente courte et localisée, préférer {"<Spinner>"}.
+              {t("adminDesign.specimens.skeletonHint")}
             </p>
           </div>
           <div className="flex flex-col gap-2">
@@ -437,11 +436,11 @@ export function DesignSystemPage() {
             <div className="flex items-center gap-2">
               <Spinner />
               <span className="text-[13px] text-[var(--text-mut)]">
-                Lecture des fichiers du serveur…
+                {t("adminDesign.specimens.spinnerLabel")}
               </span>
             </div>
             <p className="text-[11.5px] text-[var(--text-faint)]">
-              Toujours accompagné de ce qu'on attend : un rond qui tourne seul n'informe de rien.
+              {t("adminDesign.specimens.spinnerHint")}
             </p>
           </div>
           <SwitchSpecimen />
@@ -487,12 +486,12 @@ export function DesignSystemPage() {
           <div className="flex flex-col gap-2">
             <span className="mono text-[11px] text-[var(--text-faint)]">{"<Collapsible>"}</span>
             <div className="max-w-md">
-              <Collapsible title="Paramètres avancés" meta={<Badge variant="sage">3</Badge>}>
+              <Collapsible title={t("adminDesign.specimens.collapsibleTitle")} meta={<Badge variant="sage">3</Badge>}>
                 <p className="text-[13px] text-[var(--text-mut)]">
-                  Contenu démonté tant que la section est repliée.
+                  {t("adminDesign.specimens.collapsibleBody")}
                 </p>
               </Collapsible>
-              <Collapsible title="Section ouverte par défaut" defaultOpen>
+              <Collapsible title={t("adminDesign.specimens.collapsibleOpenTitle")} defaultOpen>
                 <p className="text-[13px] text-[var(--text-mut)]">defaultOpen</p>
               </Collapsible>
             </div>
@@ -560,7 +559,7 @@ export function DesignSystemPage() {
         </div>
       </Section>
 
-      {/* ── Search palette ────────────────────────────────────────────── */}
+      {/* Search palette */}
       <Section id="search-palette" title={t("adminDesign.sections.searchPalette")}>
         <div className="card flex flex-col gap-4 p-5">
           <span className="text-[12px] text-[var(--text-mut)]">
@@ -599,7 +598,7 @@ export function DesignSystemPage() {
         </div>
       </Section>
 
-      {/* ── Canvas toolbar ────────────────────────────────────────────── */}
+      {/* Canvas toolbar */}
       <Section id="canvas-toolbar" title={t("adminDesign.sections.canvasToolbar")}>
         <div className="card flex flex-col gap-4 p-5">
           <span className="mono text-[11px] text-[var(--text-faint)]">{"<CanvasToolbar>"}</span>
@@ -616,7 +615,7 @@ export function DesignSystemPage() {
         </div>
       </Section>
 
-      {/* ── Shared app components ─────────────────────────────────────── */}
+      {/* Shared app components */}
       <Section id="app-components" title={t("adminDesign.sections.appComponents")}>
         <div className="card flex flex-col gap-6 p-5">
           <div className="flex flex-col gap-2">
@@ -648,7 +647,7 @@ export function DesignSystemPage() {
         </div>
       </Section>
 
-      {/* ── Data viz ──────────────────────────────────────────────────── */}
+      {/* Code editor */}
       <Section id="codeEditor" title={t("adminDesign.sections.codeEditor")}>
         <div className="card flex flex-col gap-2 p-5">
           <span className="mono text-[11px] text-[var(--text-faint)]">{"<YamlCodeEditor>"}</span>
@@ -752,6 +751,7 @@ function FileDropzoneSpecimen() {
 }
 
 function WorkspaceViewSpecimen() {
+  const { t } = useTranslation();
   const [active, setActive] = useState(false);
   return (
     <div className="relative h-56 overflow-hidden rounded-[var(--r-lg)] border border-[var(--border-soft)]">
@@ -762,8 +762,7 @@ function WorkspaceViewSpecimen() {
       </div>
       <WorkspaceView active={active} onExit={() => setActive(false)} title="WorkspaceView">
         <p className="text-[13px] text-[var(--text-mut)]">
-          Vue de travail qui remplace le canvas dans la zone centrale (panneau opaque, keep-alive).
-          Le canvas reste monté dessous — jamais display:none. Échap / × reviennent au canvas.
+          {t("adminDesign.specimens.workspaceViewBody")}
         </p>
       </WorkspaceView>
     </div>
@@ -771,6 +770,7 @@ function WorkspaceViewSpecimen() {
 }
 
 function CheckboxSpecimen() {
+  const { t } = useTranslation();
   const [on, setOn] = useState(true);
   return (
     <div className="flex flex-col gap-2">
@@ -778,18 +778,18 @@ function CheckboxSpecimen() {
         {"<Checkbox checked onCheckedChange>"}
       </span>
       <div className="flex items-center gap-3">
-        <Checkbox checked={on} onCheckedChange={setOn} aria-label="Appliquer à tous" />
-        <Checkbox checked={false} disabled onCheckedChange={() => {}} aria-label="Désactivé" />
+        <Checkbox checked={on} onCheckedChange={setOn} aria-label={t("adminDesign.specimens.applyToAll")} />
+        <Checkbox checked={false} disabled onCheckedChange={() => {}} aria-label={t("adminDesign.specimens.disabled")} />
       </div>
       <p className="text-[11.5px] text-[var(--text-faint)]">
-        Pour un état de formulaire confirmé explicitement. Un réglage persistant qui change le
-        résultat en jeu garde {"<Switch>"}.
+        {t("adminDesign.specimens.checkboxHint")}
       </p>
     </div>
   );
 }
 
 function SwitchSpecimen() {
+  const { t } = useTranslation();
   const [on, setOn] = useState(true);
   return (
     <div className="flex flex-col gap-2">
@@ -797,11 +797,11 @@ function SwitchSpecimen() {
         {"<Switch checked onCheckedChange>"}
       </span>
       <div className="flex items-center gap-3">
-        <Switch checked={on} onCheckedChange={setOn} aria-label="Texture par défaut" />
-        <Switch checked={false} disabled onCheckedChange={() => {}} aria-label="Désactivé" />
+        <Switch checked={on} onCheckedChange={setOn} aria-label={t("adminDesign.specimens.defaultTexture")} />
+        <Switch checked={false} disabled onCheckedChange={() => {}} aria-label={t("adminDesign.specimens.disabled")} />
       </div>
       <p className="text-[11.5px] text-[var(--text-faint)]">
-        Pour un réglage enregistré qui change le résultat en jeu. Un masquage d'aperçu garde l'œil.
+        {t("adminDesign.specimens.switchHint")}
       </p>
     </div>
   );

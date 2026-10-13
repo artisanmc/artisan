@@ -19,7 +19,7 @@ interface MaterialPickerProps {
   /** Trigger element rendered by the consumer (a small icon button typically). */
   trigger: React.ReactNode;
   onPick: (material: string) => void;
-  /** When set, adds a "Capturés" tab: pick a captured item or capture straight
+  /** When set, adds a "Captured" tab: pick a captured item or capture straight
    *  from a player's inventory mirror (returns an `item:<id>` ref). */
   projectId?: import("@/domain/types").ProjectId;
 }

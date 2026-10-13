@@ -19,7 +19,7 @@ export function EditorPane({ projectId }: { projectId: ProjectId }) {
   const projectSettingsOpen = useUiStore((s) => s.projectSettingsOpen);
   const [yamlMode, setYamlMode] = useState(false);
 
-  // Un élément n'a pas de fichier à lui : on montre celui de son menu.
+  // An element has no file of its own: show its menu's.
   const ctx = selectionContext(project, ids, selectionMenuId);
   const docId =
     ctx.kind === "menu" || ctx.kind === "element"

@@ -1,9 +1,9 @@
 name: Publish API
 
-# Version source : la plus haute version `Since` de docs/architecture/api-surface.md
-# (deploy/api-version.mjs). Au-dessus du dernier tag api-vX.Y.Z → release X.Y.Z
-# (/releases, puis tag + GitHub Release créés ici). Sinon → snapshot de la mineure
-# suivante (/snapshots). Aucun tag à poser à la main.
+# Version source: the highest `Since` version in docs/architecture/api-surface.md
+# (deploy/api-version.mjs). Above the last api-vX.Y.Z tag → release X.Y.Z
+# (/releases, then tag + GitHub Release created here). Otherwise → snapshot of the
+# next minor (/snapshots). No tag to create by hand.
 on:
   push:
     branches: [main]

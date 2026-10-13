@@ -8,17 +8,15 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * Les menus écrits AVANT le passage au display à plat portent `appearances:` —
- * une liste dont la première entrée fait office de display.
+ * Menus written BEFORE the flat display carry `appearances:`, a list whose first
+ * entry acts as the display.
  *
- * Le lecteur ne les reconnaissait plus : display vide, donc un menu qui s'ouvre
- * sans ses items, en jeu comme dans l'éditeur. Pas d'erreur, pas de log — juste
- * des cases vides sur un fichier parfaitement valide. Un Add-on dont le
- * bootstrap ne retouche jamais un project existant laisse ces fichiers en place
- * indéfiniment : personne ne les réécrira à notre place.
+ * If the reader ignored them, the menu would open without its items, in game and in
+ * the editor, with no error and no log. An Add-on whose bootstrap never touches an
+ * existing project leaves these files in place indefinitely.
  *
- * On les lit donc encore. L'éditeur, lui, réécrit au format courant dès le
- * premier enregistrement — la tolérance est un pont, pas une seconde forme.
+ * So they are still read. The editor rewrites the current format on the first save:
+ * the tolerance is a bridge, not a second form.
  */
 class ElementLegacyAppearancesTest {
 
@@ -27,7 +25,7 @@ class ElementLegacyAppearancesTest {
     private fun parse(yaml: String): MenuYaml = mapper.readValue(yaml.trimIndent(), MenuYaml::class.java)
 
     @Test
-    fun `la premiere appearance devient le display, les suivantes des states`() {
+    fun `the first appearance becomes the display, the rest become states`() {
         val menu = parse(
             """
             schema: menu/v1
@@ -52,7 +50,7 @@ class ElementLegacyAppearancesTest {
     }
 
     @Test
-    fun `le format courant l'emporte sur une liste residuelle`() {
+    fun `the current format wins over a leftover list`() {
         val menu = parse(
             """
             schema: menu/v1

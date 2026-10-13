@@ -7,7 +7,7 @@ import net.artisanmc.plugin.hub.Relay.Companion.body
 import net.artisanmc.plugin.hub.Relay.Companion.errorCode
 import net.artisanmc.plugin.hub.Relay.Companion.ok
 
-/** `/api/v1/networks/local/servers/:server/…` : ce que le serveur déclare, sa configuration, ses données live. */
+/** `/api/v1/networks/local/servers/:server/…`: what the server declares, its configuration, its live data. */
 class ServerRoutes(private val servers: Servers, private val relay: Relay) {
     fun register(router: Router) {
         on(router, "GET", "modules", VIEW) { call, server -> call.json(mapOf("modules" to server.modules())) }
@@ -29,7 +29,7 @@ class ServerRoutes(private val servers: Servers, private val relay: Relay) {
             }
         }
 
-        // Écrans de config des modules : lecture et écriture directes sur le disque, comme une publication.
+        // Module config screens: direct disk read and write, like a publish.
         on(router, "POST", "config/read", VIEW) { call, server ->
             val request = call.body()
             val project = request?.get("project_id")?.takeIf { it.isTextual && it.asText().isNotEmpty() }
@@ -109,7 +109,7 @@ class ServerRoutes(private val servers: Servers, private val relay: Relay) {
         }
     }
 
-    /** Les écrans de config nomment leur Project comme l'éditeur ou comme le module : `survie2.shop` ou `shop`. */
+    /** Config screens name their Project like the editor or like the module: `survie2.shop` or `shop`. */
     private fun folder(server: EditorServer, project: String) = project.removePrefix("${server.id}.")
 
     private fun configError(call: Call, reply: Map<String, Any?>, fallback: String) {
@@ -133,7 +133,7 @@ class ServerRoutes(private val servers: Servers, private val relay: Relay) {
         const val SERVER = "/api/v1/networks/:network/servers/:server"
         private val HDB_ID = Regex("[0-9]{1,10}")
 
-        /** Sans facturation ni quota : l'accès est toujours ouvert. */
+        /** No billing or quota: access is always open. */
         val EDITOR_ACCESS = mapOf(
             "enabled" to true, "quota" to null, "proUntil" to null,
             "inventoryAvailable" to true, "count" to null, "reason" to null,

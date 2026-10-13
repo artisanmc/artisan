@@ -4,7 +4,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DataSourceEditor } from "./DataSourceEditor";
 
-// Le sujet est l'éditeur de source, pas CodeMirror : un textarea tient sa place.
+// The subject is the source editor, not CodeMirror: a textarea stands in for it.
 vi.mock("@/components/ui/yaml-code-editor", () => ({
   YamlCodeEditor: ({
     value,
@@ -91,20 +91,20 @@ describe("DataSourceEditor", () => {
     expect(project().dataSources[0]!.name).toBe("settings");
   });
 
-  // ── bascule Formulaire ↔ YAML ────────────────────────────────────────────
+  // Form ↔ YAML switch
 
-  it("montre le YAML de la source", () => {
+  it("shows the source's YAML", () => {
     render(<DataSourceEditor projectId={PID} source={project().dataSources[0]!} />);
     fireEvent.click(screen.getByRole("button", { name: "YAML" }));
     expect((screen.getByLabelText("data/ds_1.yaml") as HTMLTextAreaElement).value).toContain("coins");
   });
 
   /**
-   * Le défaut signalé : après un aller-retour sur l'onglet YAML, une édition
-   * faite dans le FORMULAIRE était écrasée par un brouillon périmé au retour
-   * sur YAML. L'onglet doit toujours refléter l'état courant.
+   * The reported defect: after a round trip through the YAML tab, an edit made
+   * in the FORM was overwritten by a stale draft when coming back to YAML. The
+   * tab must always reflect the current state.
    */
-  it("relit l'état courant à chaque ouverture de l'onglet YAML", () => {
+  it("re-reads the current state each time the YAML tab opens", () => {
     const view = render(<DataSourceEditor projectId={PID} source={project().dataSources[0]!} />);
     fireEvent.click(screen.getByRole("button", { name: "YAML" }));
     fireEvent.click(screen.getByRole("button", { name: "Formulaire" }));
@@ -120,7 +120,7 @@ describe("DataSourceEditor", () => {
     expect(shown).not.toContain("coins");
   });
 
-  it("un aller-retour sans rien toucher ne modifie pas la source", () => {
+  it("a round trip without touching anything leaves the source unchanged", () => {
     render(<DataSourceEditor projectId={PID} source={project().dataSources[0]!} />);
     fireEvent.click(screen.getByRole("button", { name: "YAML" }));
     fireEvent.click(screen.getByRole("button", { name: "Formulaire" }));

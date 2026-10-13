@@ -42,8 +42,8 @@ class EditorRequestTest {
     }
 
     @Test
-    fun `messages only the cloud backend sent are ignored`() {
-        for (type in listOf("ping", "draft_update", "project_deleted", "project_copy", "project_rename", "asset_write", "import_sources_list")) {
+    fun `retired message types are ignored`() {
+        for (type in listOf("ping", "draft_update", "project_deleted", "project_copy", "asset_write", "import_sources_list")) {
             assertNull(parse("""{"type":"$type","request_id":"r","project_id":"p","menu_id":"m","menu_yaml":"x"}"""), type)
         }
     }

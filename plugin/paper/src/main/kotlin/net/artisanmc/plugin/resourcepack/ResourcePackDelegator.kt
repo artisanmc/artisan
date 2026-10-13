@@ -10,7 +10,7 @@ import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
 /**
- * Writes the `assets/artisan/` subtree of the Artisan resource project into a
+ * Writes the `assets/artisan/` subtree of the Artisan resource pack into a
  * target owned by a host plugin (Oraxen / Nexo / ItemsAdder / etc.). Used when
  * the admin sets `resource-pack.delegate-to-dir` in `config.yml`.
  *
@@ -18,14 +18,14 @@ import java.util.zip.ZipOutputStream
  *
  *  - `*.zip` → a single zip file at that path. Inside, the layout is the
  *    standard MC resource-pack tree (assets/artisan/...) plus a minimal
- *    `pack.mcmeta`. **Use this with Nexo's `project/external_packs/`**: Nexo's
+ *    `pack.mcmeta`. **Use this with Nexo's `pack/external_packs/`**: Nexo's
  *    directory scanner skips `.png` files for non-vanilla namespaces, but
  *    its zip-merger pulls every entry, so wrapping our content in a zip
  *    sidesteps the limitation entirely.
  *
  *  - any other path → a directory. We write under `<targetDir>/assets/artisan/`
  *    and own only that subtree (wipe before each extraction). Works for hosts
- *    whose project-build merges arbitrary directories.
+ *    whose pack build merges arbitrary directories.
  *
  * In both modes the host plugin still owns its own `pack.mcmeta` (in the
  * directory case we never write at the root; in the zip case our internal
@@ -50,8 +50,7 @@ open class ResourcePackDelegator(
     }
 
     /**
-     * Same as [apply] but takes the bytes directly. Used by tests; production
-     * code uses [apply] which downloads.
+     * Same as [apply] but takes the bytes directly.
      */
     open fun applyBytes(zipBytes: ByteArray, expectedHash: String) {
         val actualHash = sha1Hex(zipBytes)
@@ -65,7 +64,7 @@ open class ResourcePackDelegator(
 
     /**
      * Zip output mode. Writes a fresh `targetDir` file containing the
-     * `assets/artisan/` entries from the backend zip plus a minimal
+     * `assets/artisan/` entries from the downloaded zip plus a minimal
      * `pack.mcmeta` (some hosts skip zips lacking it). Atomic via a temp file
      * + rename so a partial write never gets picked up by a host that's
      * watching the directory.
@@ -74,8 +73,8 @@ open class ResourcePackDelegator(
         targetDir.parentFile?.mkdirs()
         val tmp = File(targetDir.parentFile, "${targetDir.name}.tmp")
         ZipOutputStream(FileOutputStream(tmp)).use { zos ->
-            // pack.mcmeta first — required by some host project-mergers to
-            // recognize the zip as a valid resource project.
+            // pack.mcmeta first: some host pack mergers require it to recognize
+            // the zip as a valid resource pack.
             zos.putNextEntry(ZipEntry("pack.mcmeta"))
             zos.write(PACK_MCMETA_JSON.toByteArray(Charsets.UTF_8))
             zos.closeEntry()
@@ -105,12 +104,12 @@ open class ResourcePackDelegator(
             tmp.copyTo(targetDir, overwrite = true)
             tmp.delete()
         }
-        logger?.info("[delegate] wrote Artisan project zip to ${targetDir.absolutePath}")
+        logger?.info("[delegate] wrote Artisan pack zip to ${targetDir.absolutePath}")
     }
 
     /**
      * Directory output mode. Wipes `<targetDir>/assets/artisan/` then
-     * extracts the matching entries from the backend zip.
+     * extracts the matching entries from the downloaded zip.
      */
     private fun writeDirectory(zipBytes: ByteArray) {
         val artisanRoot = File(targetDir, "assets/artisan")
@@ -141,7 +140,7 @@ open class ResourcePackDelegator(
                 zis.closeEntry()
             }
         }
-        logger?.info("[delegate] extracted Artisan project into ${artisanRoot.absolutePath}")
+        logger?.info("[delegate] extracted Artisan pack into ${artisanRoot.absolutePath}")
     }
 
     private fun acceptEntry(name: String): Boolean =
@@ -152,11 +151,10 @@ open class ResourcePackDelegator(
             .joinToString("") { "%02x".format(it) }
 
     companion object {
-        // Minimal valid pack.mcmeta, aligné sur celui du backend. La racine
-        // s'appelle `pack` — c'est ce que lisent Minecraft et le fusionneur de
-        // l'hôte ; le renommage Interfaze→Artisan l'avait passée à `project`,
-        // et un hôte qui valide le mcmeta écartait alors tout le zip.
-        // pack_format 22 = plancher 1.20.5+ (fournisseur de police `space`).
+        // Minimal valid pack.mcmeta. The root key must be `pack`: that is what
+        // Minecraft and the host's merger read, and a host that validates the
+        // mcmeta discards the whole zip otherwise.
+        // pack_format 22 = 1.20.5+ floor (`space` font provider).
         private const val PACK_MCMETA_JSON =
             "{\"pack\":{\"pack_format\":64," +
                 "\"supported_formats\":{\"min_inclusive\":22,\"max_inclusive\":200}," +

@@ -4,9 +4,9 @@ import type { IssueOwner, ServerChecks, ServerIssue } from "./serverChecks";
 const ref = (o: IssueOwner) => `${o.namespace}:${o.docId}`;
 
 /**
- * Ce que ce déploiement pourrait casser **ailleurs** sur le serveur. Des
- * avertissements : rien ici ne bloque. Et une absence de résultat n'est jamais
- * présentée comme un feu vert quand les contrôles n'ont pas pu tourner.
+ * What this deployment could break **elsewhere** on the server. Warnings:
+ * nothing here blocks. And an absence of results is never presented as a
+ * green light when the checks could not run.
  */
 export function ServerChecksSection({ checks }: { checks: ServerChecks }) {
   const { t } = useTranslation();

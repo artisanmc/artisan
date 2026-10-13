@@ -56,10 +56,9 @@ import { useStageTouch } from "./useStageTouch";
 interface StageProps {
   projectId: ProjectId;
   /**
-   * Vue focus : le stage ne montre que ce Document, quelle que soit son
-   * appartenance à la planche. Tout le reste de la chrome (arêtes, pastilles,
-   * sélection, dépôt d'items, clavier) est celle de la planche — c'est le point
-   * de la fusion : une seule implémentation, deux cadrages.
+   * Focus view: the stage only shows this Document, whatever its board
+   * membership. All the remaining chrome (edges, chips, selection, item drop,
+   * keyboard) is the board's — one implementation, two framings.
    */
   focus?: ElementId;
 }
@@ -81,20 +80,20 @@ function StageCanvas({ projectId, focus }: StageProps) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<Konva.Stage>(null);
   const [size, setSize] = useState({ w: 0, h: 0 });
-  // Restore the saved pan/zoom for this project so leaving the board (single
-  // element view) and returning lands on the same spot + zoom. Read once at
-  // mount (non-reactive); persisted back via the effect below.
-  // Le focus a son propre cadrage, partagé par tous les Documents (passer de
-  // l'un à l'autre garde la vue là où l'utilisateur l'a mise) et persisté ;
-  // la planche garde le sien, persisté par projet.
+  // Restore the saved pan/zoom for this project so leaving the board and
+  // returning lands on the same spot + zoom. Read once at mount (non-reactive);
+  // persisted back via the effect below.
+  // Focus has its own framing, shared by every Document (moving from one to
+  // another keeps the view where the user put it) and persisted; the board
+  // keeps its own, persisted per project.
   const savedFocusViewport = useUiStore.getState().documentViewport;
   const { viewport, setViewport, onWheel, onTouchMove, onTouchEnd } = usePanZoom(
     focusMode
       ? (savedFocusViewport ?? { x: 0, y: 0, scale: 1 })
       : useUiStore.getState().canvasViewports[projectId],
   );
-  // En focus, la vue est cadrée à l'ouverture puis ne se bat plus avec
-  // l'utilisateur : dès qu'il a navigué, elle reste où il l'a mise.
+  // In focus, the view is framed on open and then stops fighting the user:
+  // once they have navigated, it stays where they put it.
   const touchedRef = useRef(!focusMode || savedFocusViewport !== null);
   const markTouched = useCallback(() => {
     touchedRef.current = true;
@@ -170,12 +169,11 @@ function StageCanvas({ projectId, focus }: StageProps) {
   }, [projectId, viewport, focusMode]);
 
   /**
-   * Toute la différence planche / focus tient ici. La planche montre tous les
-   * Documents, arrangés (`projectBoard`), `canvasLayout` ne gardant que les
-   * positions posées à la main ; le focus
-   * fabrique une planche synthétique d'un seul Document posé à l'origine.
-   * Tout ce qui suit — arêtes, pastilles hors-planche, marquee, hit-test,
-   * dépôt — consomme cette table et suit sans le savoir.
+   * The whole board / focus difference lives here. The board shows every
+   * Document, arranged (`projectBoard`), `canvasLayout` keeping only the
+   * positions set by hand; focus builds a synthetic board of a single Document
+   * placed at the origin. Everything that follows — edges, off-board chips,
+   * marquee, hit-test, drop — consumes this table and follows unknowingly.
    */
   const gutterColor = useCssVar("--text-mut");
   const [groupDialog, setGroupDialog] = useState<GroupDialogState>(null);
@@ -201,12 +199,12 @@ function StageCanvas({ projectId, focus }: StageProps) {
     [board, focus],
   );
 
-  // Cadrage initial du Document focalisé : centré, réduit seulement s'il ne
-  // tient pas — jamais agrandi.
+  // Initial framing of the focused Document: centred, shrunk only if it does
+  // not fit — never enlarged.
   const focusBox = useMemo(() => {
     if (!focus) return null;
-    // `focus` est un id de Document (l'ombrelle) ; `menu.id` est un MenuId.
-    // Les marques nominales ne se recouvrent pas, la comparaison est textuelle.
+    // `focus` is a Document id (the umbrella); `menu.id` is a MenuId. Nominal
+    // brands do not overlap, so the comparison is textual.
     const menu = project?.menus.find((m) => (m.id as string) === (focus as string));
     return menu ? menuBoxSize(menu.inventoryType ?? "chest", menu.rows) : null;
   }, [project, focus]);
@@ -215,8 +213,8 @@ function StageCanvas({ projectId, focus }: StageProps) {
     setViewport(fitViewport(size, focusBox));
   }, [size, focusBox, setViewport]);
 
-  // `goToDocument` : centrer la planche sur un Document. La demande attend que
-  // la planche ait une taille et que le Document y soit placé, puis est consommée.
+  // `goToDocument`: centre the board on a Document. The request waits for the
+  // board to have a size and the Document to be placed, then is consumed.
   const centerRequest = useUiStore((s) => s.centerRequest);
   useEffect(() => {
     if (focusMode || !centerRequest) return;
@@ -273,8 +271,8 @@ function StageCanvas({ projectId, focus }: StageProps) {
       // won't clear). suppressed = a marquee drag just finished.
       const suppressed = marquee.shouldConsumeClick();
       if (!suppressed && e.target === e.target.getStage()) {
-        // Cliquer le fond veut dire « j'ai fini » : ça vide la sélection ET
-        // referme les paramètres du project, qui ne sont pas une sélection.
+        // Clicking the background means "I'm done": it clears the selection AND
+        // closes the project settings, which are not a selection.
         dismissInspector();
         useEdgeSelectionStore.getState().select(null);
         useUiStore.getState().setSelectedLayerKey(null);
@@ -359,10 +357,10 @@ function StageCanvas({ projectId, focus }: StageProps) {
     return () => setStageSlotHitTest(null);
   }, [project, layout, viewport]);
 
-  // Expose the live wrapper rect + viewport so the 3rd-column LayersPanel can
-  // convert drag-end client coords into canvas coords (cursor-based new-layer
-  // attach in P1.11). The provider reads refs at call time, so consumers
-  // always see the current pan/scale + bounding box.
+  // Expose the live wrapper rect + viewport so the LayersPanel can convert
+  // drag-end client coords into canvas coords (cursor-based new-layer attach).
+  // The provider reads refs at call time, so consumers always see the current
+  // pan/scale + bounding box.
   useEffect(() => {
     setStageGeometryProvider(() => {
       const wrapper = wrapperRef.current;
@@ -515,7 +513,7 @@ function StageCanvas({ projectId, focus }: StageProps) {
         }}
         onClick={onStageClick}
         onDblClick={(e) => {
-          // Échappatoire du focus : un double-clic sur le fond recadre.
+          // Focus escape hatch: double-clicking the background reframes.
           if (!focusBox || e.target !== e.target.getStage()) return;
           const fitted = fitViewport(size, focusBox);
           touchedRef.current = false;
@@ -607,9 +605,9 @@ function StageCanvas({ projectId, focus }: StageProps) {
             project={project}
             layout={layout}
             representatives={board?.representatives}
-            // En focus, tous les liens du Document sont hors-planche : la
-            // pastille devient le moyen de circuler de Document en Document,
-            // au lieu de peupler une planche qu'on ne regarde pas.
+            // In focus, every link of the Document is off-board: the chip becomes the
+            // way to move from Document to Document, instead of populating a board
+            // nobody is looking at.
             onOpen={focusMode ? dispatchOpenElement : undefined}
           />
         </Layer>
@@ -673,8 +671,8 @@ function StageCanvas({ projectId, focus }: StageProps) {
           }
           closeCtxMenu();
         }}
-        // Créer « ici » pose une position de planche : sans planche, l'entrée
-        // n'a pas de sens et disparaît du menu contextuel.
+        // Creating "here" sets a board position: without a board the entry makes
+        // no sense and disappears from the context menu.
         onCreateMenuAt={
           focusMode
             ? undefined

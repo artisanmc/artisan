@@ -7,8 +7,8 @@ import net.artisanmc.plugin.model.BundleDialog
 import net.artisanmc.plugin.model.LocalizedText
 
 /**
- * Textes d'un dialog après résolution, index-alignés sur les listes du YAML
- * (bodyTexts[i] = null pour un body non-text). Consommé par [DialogRenderer].
+ * A dialog's resolved texts, index-aligned with the YAML lists (bodyTexts[i] = null
+ * for a non-text body). Consumed by [DialogRenderer].
  */
 internal data class ResolvedDialogTexts(
     val title: String,
@@ -19,10 +19,10 @@ internal data class ResolvedDialogTexts(
 )
 
 /**
- * Chaîne de résolution texte des dialogs — même ordre que MenuRenderer.resolveText :
- * i18n d'abord, puis le Template ({player} & co). Séparé de
- * [DialogRenderer] pour rester testable sous MockBukkit (l'API dialog Paper
- * 1.21.7 n'existe pas sur le classpath de test paper-api 1.21.1).
+ * Dialog text resolution chain, same order as MenuRenderer.resolveText: i18n first,
+ * then the Template ({player} & co). Kept apart from [DialogRenderer] to stay testable
+ * under MockBukkit (the Paper 1.21.7 dialog API is not on the paper-api 1.21.1 test
+ * classpath).
  */
 internal object DialogTextResolver {
 

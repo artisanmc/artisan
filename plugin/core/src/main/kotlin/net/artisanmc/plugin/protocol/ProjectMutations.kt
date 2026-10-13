@@ -12,8 +12,8 @@ import java.io.File
 import java.util.UUID
 
 /**
- * Ce que toute écriture de l'éditeur partage : l'idempotence par `operation_id`
- * (un message rejoué rend la réponse déjà donnée) et le quota commercial.
+ * What every editor write shares: idempotency by `operation_id` (a replayed message
+ * returns the reply already given) and the commercial quota.
  */
 internal class ProjectMutations(private val roots: ProjectRoots) {
     private val mapper = ObjectMapper()
@@ -21,7 +21,7 @@ internal class ProjectMutations(private val roots: ProjectRoots) {
     private fun fingerprint(message: JsonNode): String =
         BundleHasher.hashBytes(mapper.writeValueAsBytes(message.deepCopy<ObjectNode>().also { it.remove("request_id") }))
 
-    /** Vrai si [message] a déjà été appliqué : la réponse d'origine est renvoyée. */
+    /** True if [message] was already applied: the original reply is sent again. */
     fun replayed(projectDir: File, message: JsonNode, reply: Replies.Reply): Boolean {
         val publisher = ProjectPublisher(projectDir)
         publisher.recover()
@@ -39,7 +39,7 @@ internal class ProjectMutations(private val roots: ProjectRoots) {
         )
     }
 
-    /** Raison du refus commercial, ou null si l'écriture passe. */
+    /** Reason for the commercial refusal, or null if the write goes through. */
     fun quotaDenial(
         message: JsonNode,
         projectId: String,
@@ -58,7 +58,7 @@ internal class ProjectMutations(private val roots: ProjectRoots) {
         return ResourceQuota.assess(quota, inventory, projectId, roots.isRegistered(projectId), files, deletes, renames)
     }
 
-    /** Répond le refus de quota s'il y en a un. */
+    /** Replies with the quota refusal, if any. */
     fun deniedByQuota(
         reply: Replies.Reply,
         message: JsonNode,

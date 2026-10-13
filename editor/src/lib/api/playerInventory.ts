@@ -18,7 +18,7 @@ export type InventoryFetchResult =
 
 /**
  * Snapshot of an online player's inventory, relayed to the connected plugin
- * (5 s backend timeout). Feeds the capture panel — each slot carries the opaque
+ * (5 s hub timeout). Feeds the capture panel — each slot carries the opaque
  * serialized stack plus its display descriptor.
  */
 export async function fetchPlayerInventory(

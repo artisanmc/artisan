@@ -24,7 +24,7 @@ class MenuRendererPlayerSlotsTest {
     private val mapper = ObjectMapper(YAMLFactory()).registerKotlinModule()
     private fun player() = MockBukkit.getMock()!!.addPlayer()
 
-    /** Slot 0 dans le menu, 27 (1er slot d'inventaire) et 62 (dernier de la barre rapide) côté joueur. */
+    /** Slot 0 in the menu, 27 (1st inventory slot) and 62 (last hotbar slot) on the player side. */
     private fun menu(playerInventory: String? = null): MenuYaml = mapper.readValue(
         """
         schema: menu/v1
@@ -51,7 +51,7 @@ class MenuRendererPlayerSlotsTest {
         assertEquals(Material.STONE, session.slots[0]?.type)
         assertEquals(Material.STONE, session.slots[27]?.type)
         assertEquals(Material.STONE, session.slots[62]?.type)
-        assertEquals(setOf(0, 27, 62), session.activeClicks.keys) // 63 = hors fenêtre
+        assertEquals(setOf(0, 27, 62), session.activeClicks.keys) // 63 = outside the window
         assertSame(session.slots, windows.get(p.uniqueId)!!.slots)
         assertSame(p.openInventory.topInventory, windows.get(p.uniqueId)!!.anchor)
     }

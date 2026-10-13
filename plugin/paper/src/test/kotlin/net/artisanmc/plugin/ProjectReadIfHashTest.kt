@@ -10,17 +10,15 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
 /**
- * `project_read` sait dire « rien n'a bougé ».
+ * `project_read` can say "nothing moved".
  *
- * L'éditeur garde la dernière version connue d'un Project ; sans ce mot-là, il
- * doit rapatrier l'arbre entier à chaque ouverture pour découvrir qu'il est
- * identique — plusieurs secondes, pour rien. Il renvoie donc l'empreinte qu'on
- * lui a donnée (`if_hash`), et le plugin répond `unchanged` sans rien
- * transporter.
+ * The editor keeps a Project's last known version; without that answer it would have
+ * to fetch the whole tree on every open to find out it is identical: several seconds,
+ * for nothing. So it sends back the fingerprint it was given (`if_hash`), and the
+ * plugin answers `unchanged` without carrying anything.
  *
- * L'empreinte est calculée par le PLUGIN seul et lui est simplement rendue :
- * personne d'autre ne la recalcule, donc il n'y a aucune convention
- * inter-langage à tenir.
+ * The fingerprint is computed by the PLUGIN alone and simply handed back to it: nobody
+ * else recomputes it, so there is no cross-language convention to keep.
  */
 class ProjectReadIfHashTest {
     private class Harness {
@@ -56,18 +54,18 @@ class ProjectReadIfHashTest {
     }
 
     @Test
-    fun `la reponse porte l'empreinte de ce qu'elle contient`() {
+    fun `the reply carries the hash of what it contains`() {
         val h = Harness()
         h.write("boutique", "menus/m.yaml", "schema: menu/v1\nsize: 27\n")
         h.provider.load()
 
         val hash = h.read("boutique")["hash"] as String?
-        assertNotNull(hash, "project_read_result doit porter une empreinte")
+        assertNotNull(hash, "project_read_result must carry a fingerprint")
         assertTrue(hash!!.isNotEmpty())
     }
 
     @Test
-    fun `la meme empreinte rendue vaut 'rien n'a bouge', sans transporter l'arbre`() {
+    fun `sending back the same hash means unchanged, without the tree`() {
         val h = Harness()
         h.write("boutique", "menus/m.yaml", "schema: menu/v1\nsize: 27\n")
         h.provider.load()
@@ -76,12 +74,12 @@ class ProjectReadIfHashTest {
         val again = h.read("boutique", ifHash = hash)
         assertEquals(true, again["ok"])
         assertEquals(true, again["unchanged"])
-        assertNull(again["files"], "un arbre inchangé ne se transporte pas")
+        assertNull(again["files"], "an unchanged tree is not carried")
         assertEquals(hash, again["hash"])
     }
 
     @Test
-    fun `un rechargement qui change le contenu change l'empreinte, et l'arbre revient`() {
+    fun `a reload that changes the content changes the hash, and the tree comes back`() {
         val h = Harness()
         h.write("boutique", "menus/m.yaml", "schema: menu/v1\nsize: 27\n")
         h.provider.load()

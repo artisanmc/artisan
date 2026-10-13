@@ -26,17 +26,16 @@ const VANILLA_TEXTURES: Record<GuiContainer, string> = {
 };
 
 /**
- * Le resource pack du serveur, construit dans le navigateur (éditeur auto-hébergé) :
- * même orchestration que `rebuildResourcePack` du backend, lue par les routes que
- * le plugin émule. **Toute lecture ratée fait échouer la construction** : le serveur
- * garde alors son pack précédent plutôt que d'en recevoir un amputé.
+ * The server's resource pack, built in the browser (self-hosted editor), read
+ * through the routes the plugin serves. **Any failed read fails the build**:
+ * the server then keeps its previous pack rather than receiving a truncated
+ * one.
  *
- * Ordre des Projects : le backend trie par date de création (le plus ancien gagne
- * les collisions de codepoints) ; sans base de données le plugin n'a pas cette date,
- * on trie donc par identifiant (nom du dossier) — stable d'un build à l'autre.
+ * Project order: by id (folder name) — stable from one build to the next; the
+ * first one wins codepoint collisions.
  *
- * En mode réseau, chaque serveur a son propre pack, bâti avec ses seuls Projects ;
- * ceux d'un autre serveur que le hub portent l'id `<serveur>.<dossier>`.
+ * In network mode, each server has its own pack, built from its own Projects
+ * only; those of a server other than the hub carry the id `<server>.<folder>`.
  */
 export async function buildServerPack(serverId: string): Promise<BuildResult> {
   const list = await listServerProjects(LOCAL_ID, serverId);
@@ -60,7 +59,7 @@ export async function buildServerPack(serverId: string): Promise<BuildResult> {
   for (const projectId of projectIds) {
     const client = projectClient(projectId);
     const tree = await client.read();
-    // Disparu entre la liste et la lecture : une absence explicite, comme au backend.
+    // Gone between the listing and the read: an explicit absence.
     if (!tree.ok && tree.error === "unknown_project") continue;
     if (!tree.ok || tree.unchanged) throw new Error(`project_read_failed:${projectId}`);
     const files = Object.entries(tree.files).map(([path, content]) => ({ path, content }));
@@ -84,7 +83,7 @@ export async function buildServerPack(serverId: string): Promise<BuildResult> {
         continue;
       }
       if (a.row.type !== "font") continue;
-      // Une police est dépliée sur le disque : ses glyphes sont des fichiers frères du descripteur.
+      // A font is unpacked on disk: its glyphs are sibling files of the descriptor.
       const meta = a.row.fontMeta as { glyphMap?: { texture: string }[] } | null;
       const dir = a.path.slice(0, a.path.lastIndexOf("/"));
       const fontMap = new Map<string, Uint8Array>();
@@ -104,7 +103,7 @@ export async function buildServerPack(serverId: string): Promise<BuildResult> {
       (await fetchBytes(VANILLA_TEXTURES[container]));
   }
 
-  // Le plugin qui sert cet éditeur redessine les conteneurs transparents (`vanilla_gui_v1`).
+  // The plugin serving this editor redraws transparent containers (`vanilla_gui_v1`).
   return buildResourcePackZip(
     allAssets,
     glyphPngs,
@@ -116,7 +115,7 @@ export async function buildServerPack(serverId: string): Promise<BuildResult> {
   );
 }
 
-/** `resource-pack.container-textures.*` du `config.yml`, comme `containerTextureRefs` du backend. */
+/** `resource-pack.container-textures.*` from `config.yml`. */
 function containerTextureRefs(
   config: Record<string, unknown> | null,
 ): Record<GuiContainer, string | undefined> {
@@ -133,7 +132,7 @@ async function fetchBytes(url: string): Promise<Uint8Array> {
   return new Uint8Array(await response.arrayBuffer());
 }
 
-/** Remet le pack au plugin, qui le sert aux joueurs (permission `artisan.editor.publish`). */
+/** Hands the pack to the plugin, which serves it to players (permission `artisan.editor.publish`). */
 export async function uploadResourcePack(
   serverId: string,
   zip: Uint8Array,
@@ -155,9 +154,9 @@ const running = new Map<string, Promise<void>>();
 const queued = new Map<string, Promise<void>>();
 
 /**
- * Reconstruit et envoie le pack d'un serveur en arrière-plan. Une construction à la
- * fois par serveur, au plus une en attente : les demandes arrivées pendant qu'une
- * tourne partagent la suivante, qui relira l'état publié le plus récent.
+ * Rebuilds and sends a server's pack in the background. One build at a time
+ * per server, at most one pending: requests arriving while one runs share the
+ * next, which re-reads the most recent published state.
  */
 export function requestResourcePackRebuild(serverId: string): Promise<void> {
   const waiting = queued.get(serverId);

@@ -7,13 +7,13 @@ import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Fenêtre de menu ouverte par joueur : ancre Bukkit (vide), id de fenêtre
- * protocole et contenu ([MenuSlots]).
+ * The open menu window per player: Bukkit anchor (empty), protocol window id and
+ * contents ([MenuSlots]).
  *
- * Le contenu n'existe que côté client : les paquets sortants de la fenêtre sont
- * réécrits depuis les slots (routage pur ici, adaptateur dans
- * [PacketEventsMenuPackets]). Rien n'est retiré de l'inventaire réel — un
- * crash, une mort ou une déconnexion menu ouvert ne fait rien perdre.
+ * The contents exist client-side only: the window's outgoing packets are rewritten
+ * from the slots (pure routing here, adapter in [PacketEventsMenuPackets]). Nothing is
+ * taken from the real inventory: a crash, a death or a disconnect with a menu open
+ * loses nothing.
  */
 class MenuWindows(private val sink: ClientSlotSink) {
 
@@ -21,17 +21,17 @@ class MenuWindows(private val sink: ClientSlotSink) {
         val player: Player,
         val anchor: Inventory,
         val slots: MenuSlots,
-        /** `vanilla_texture` du menu : false garde le coffre transparent (cf. VanillaGuiTitle). */
+        /** The menu's `vanilla_texture`: false keeps the chest transparent (see VanillaGuiTitle). */
         val vanillaTexture: Boolean = true,
     ) : MenuSlots.Client {
-        /** Id de fenêtre protocole, capturé sur le paquet d'ouverture. -1 avant. */
+        /** Protocol window id, captured from the open packet. -1 before. */
         @Volatile var windowId: Int = -1
             internal set
 
-        /** Dernier stateId vu pour la fenêtre, repris par les envois propres. */
+        /** Last stateId seen for the window, reused by our own sends. */
         @Volatile var stateId: Int = 0
 
-        /** Items convertis au format du listener réseau, par rawSlot. */
+        /** Items converted to the network listener's format, by rawSlot. */
         private val converted = ConcurrentHashMap<Int, Any>()
 
         @Suppress("UNCHECKED_CAST")
@@ -51,9 +51,9 @@ class MenuWindows(private val sink: ClientSlotSink) {
         }
 
         /**
-         * Renvoie toute la fenêtre. Après un clic annulé, le client a déjà
-         * prédit son effet (objet pris, slot vidé) et le serveur ne resynchronise
-         * pas toujours par la fenêtre du menu (slots joueur : fenêtre 0, ou rien).
+         * Resends the whole window. After a cancelled click the client has already
+         * predicted its effect (item taken, slot emptied) and the server does not always
+         * resync through the menu window (player slots: window 0, or nothing).
          */
         fun resend() {
             if (windowId < 0) return
@@ -64,7 +64,7 @@ class MenuWindows(private val sink: ClientSlotSink) {
 
     private val windows = ConcurrentHashMap<UUID, Window>()
 
-    /** À poser AVANT `openInventory` : les paquets d'ouverture sont réécrits. */
+    /** Call BEFORE `openInventory`: the open packets are rewritten. */
     fun open(player: Player, anchor: Inventory, slots: MenuSlots, vanillaTexture: Boolean = true): Window {
         val window = Window(player, anchor, slots, vanillaTexture)
         slots.client = window
@@ -75,9 +75,8 @@ class MenuWindows(private val sink: ClientSlotSink) {
     fun get(playerId: UUID): Window? = windows[playerId]
 
     /**
-     * Retire la fenêtre seulement si [anchor] est la sienne. Ouvrir un menu B
-     * depuis un menu A pose B puis ferme A : la fermeture de A ne doit pas
-     * emporter B. `true` si une fenêtre a été retirée.
+     * Removes the window only if [anchor] is its own. Opening menu B from menu A sets
+     * B then closes A: closing A must not take B with it. `true` if a window was removed.
      */
     fun release(player: Player, anchor: Inventory): Boolean {
         val window = windows[player.uniqueId] ?: return false
@@ -94,9 +93,9 @@ class MenuWindows(private val sink: ClientSlotSink) {
         if (window.slots.client === window) window.slots.client = null
     }
 
-    // ── Routage des paquets sortants (threads réseau) ────────────────────────
+    // Outgoing packet routing (network threads).
 
-    /** Premier `OPEN_WINDOW` après [open] = celui du menu. */
+    /** The first `OPEN_WINDOW` after [open] is the menu's. */
     fun onOpenWindow(playerId: UUID, windowId: Int) {
         val window = windows[playerId] ?: return
         if (window.windowId < 0) window.windowId = windowId
@@ -105,19 +104,19 @@ class MenuWindows(private val sink: ClientSlotSink) {
     private fun openWindow(playerId: UUID, windowId: Int): Window? =
         windows[playerId]?.takeIf { it.windowId >= 0 && it.windowId == windowId }
 
-    /** `WINDOW_ITEMS` : contenu remplacé, `null` = paquet intact. */
+    /** `WINDOW_ITEMS`: contents replaced, `null` = packet untouched. */
     fun <T : Any> rewriteWindowItems(playerId: UUID, windowId: Int, items: List<T>, convert: (ItemStack) -> T, empty: T): List<T>? {
         val window = openWindow(playerId, windowId) ?: return null
         return MenuSlots.rewriteContent(items, window.slots) { window.view(it, convert, empty) }
     }
 
-    /** `SET_SLOT` : item remplacé, `null` = paquet intact. */
+    /** `SET_SLOT`: item replaced, `null` = packet untouched. */
     fun <T : Any> rewriteSetSlot(playerId: UUID, windowId: Int, rawSlot: Int, convert: (ItemStack) -> T, empty: T): T? {
         val window = openWindow(playerId, windowId) ?: return null
         return MenuSlots.rewriteSlot(rawSlot, window.slots) { window.view(it, convert, empty) }
     }
 
-    /** `SET_PLAYER_INVENTORY` (1.21.2+), index joueur : réécrit si le bas est `hidden`. */
+    /** `SET_PLAYER_INVENTORY` (1.21.2+), player index: rewritten if the bottom is `hidden`. */
     fun <T : Any> rewritePlayerInventory(playerId: UUID, index: Int, convert: (ItemStack) -> T, empty: T): T? {
         val window = windows[playerId]?.takeIf { it.windowId >= 0 } ?: return null
         val raw = MenuSlots.playerInventoryToRaw(index, window.slots.topSize) ?: return null

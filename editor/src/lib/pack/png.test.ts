@@ -18,7 +18,7 @@ function chunk(type: string, data: number[]): number[] {
   return [...be(data.length), ...body, ...be(crc32(new Uint8Array(body)))];
 }
 
-/** PNG écrit à la main : `lines` = lignes déjà filtrées (octet de filtre compris). */
+/** Hand-written PNG: `lines` = already-filtered rows (filter byte included). */
 function png(
   w: number,
   h: number,
@@ -46,7 +46,7 @@ function png(
 }
 
 describe("encodePng", () => {
-  // Empreintes de pngjs 7 (`PNG.sync.write`) sur les mêmes pixels : zip identique au backend.
+  // pngjs 7 (`PNG.sync.write`) fingerprints on the same pixels: identical output.
   test("writes the same bytes as pngjs", () => {
     const small = createImage(3, 2);
     small.data.forEach((_, i) => {

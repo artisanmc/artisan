@@ -10,7 +10,7 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.UUID
 import java.util.logging.Logger
 
-/** Le hub d'un réseau, vu d'une feuille : son `/ws/plugin`, le secret partagé et le nom de la feuille. */
+/** A network's hub as seen from a leaf: its `/ws/plugin`, the shared secret and the leaf's name. */
 data class HubLink(val url: String, val secret: String, val serverName: String)
 
 class WsClient(
@@ -36,7 +36,7 @@ class WsClient(
     @Volatile private var authenticated = false
     private val requests = ConcurrentHashMap<String, CompletableFuture<JsonNode?>>()
 
-    /** Une requête au hub ; sa réponse `<type>_result`, ou null hors ligne ou sans réponse. */
+    /** A request to the hub; its `<type>_result` reply, or null when offline or unanswered. */
     fun request(message: Map<String, Any?>, timeoutSeconds: Long = 15): CompletableFuture<JsonNode?> {
         if (!authenticated) return CompletableFuture.completedFuture(null)
         val id = UUID.randomUUID().toString()

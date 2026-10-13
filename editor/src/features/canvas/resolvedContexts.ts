@@ -1,21 +1,21 @@
 import type { PreviewCallContext } from "./previewCallContexts";
 
-/** `{token}` ou `{token.champ}` resté tel quel faute de ligne à résoudre. */
+/** `{token}` or `{token.field}` left verbatim for lack of a row to resolve. */
 const UNRESOLVED = /\{[a-z][a-z0-9_]*(?:\.[a-z0-9_]+)*\}/i;
 
 /**
- * Le contexte tient-il debout ?
+ * Does the context hold up?
  *
- * Les arguments d'un lien se résolvent contre les lignes de l'appelant. Sans
- * données — source live d'un serveur non connecté — il n'y a rien à itérer et
- * les templates ressortent bruts. Un tel contexte n'ouvre aucun écran réel :
- * l'afficher donne un bandeau qui dit « › {cat} » et un choix qui ne change rien.
+ * A link's arguments resolve against the caller's rows. Without data — live
+ * source of a disconnected server — there is nothing to iterate and the
+ * templates come out raw. Such a context opens no real screen: showing it
+ * gives a banner reading "› {cat}" and a choice that changes nothing.
  */
 export function isResolvedContext(args: Record<string, unknown>): boolean {
   return Object.values(args).every((v) => typeof v !== "string" || !UNRESOLVED.test(v));
 }
 
-/** Les seuls contextes qu'on propose à l'édition. */
+/** The only contexts offered for editing. */
 export function resolvedContexts(contexts: PreviewCallContext[]): PreviewCallContext[] {
   return contexts.filter((c) => isResolvedContext(c.args));
 }

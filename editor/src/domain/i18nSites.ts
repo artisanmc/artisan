@@ -329,8 +329,8 @@ function* visitModelValueLTexts(
  */
 export function* visitDataSourceLTexts(project: Project, ds: DataSource): Generator<LTextSite> {
   const models = project.dataModels ?? [];
-  // Addressed by ID, not display name (ADR bare-data-files ④: "l'adresse ne
-  // change pas") — renaming a source must not re-address every key, and the
+  // Addressed by ID, not display name (ADR bare-data-files ④: "the address does
+  // not change") — renaming a source must not re-address every key, and the
   // plugin derives the same address from the file name at resolve time.
   const sourceKey = String(ds.id).toLowerCase();
   if (ds.shape === "table") {
@@ -512,7 +512,7 @@ export function adoptAddressedTranslations(
   }
 }
 
-// ── Rekey: assign every site its canonical key ───────────────────────────────
+// Rekey: assign every site its canonical key.
 // Lazy canonicalization at the deploy/export/persist boundary. Folds over the
 // traversal above; idempotent (moveLTextKey no-ops when already correct). Safe
 // inside an immer producer.
@@ -545,7 +545,7 @@ export function rekeyProject(project: Project): void {
   rekey(project, visitProjectLTexts(project));
 }
 
-// ── Mint / release: per-mutation key lifecycle ───────────────────────────────
+// Mint / release: per-mutation key lifecycle.
 // Folds the per-mutation alloc/gc lifecycle over the same traversal. Both are
 // immer-safe and operate in place on the live nodes the visitor yields.
 

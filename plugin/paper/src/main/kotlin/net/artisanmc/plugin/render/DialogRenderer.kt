@@ -31,7 +31,7 @@ object DialogRenderer {
     fun open(player: Player, dialog: BundleDialog, lang: String, ctx: ExecutionContext, executor: ActionExecutor) {
         val langMap = dialog.langMapWithFallback(lang)
         val ctxWithLang = ctx.copy(lang = lang, defaultLang = dialog.defaultLang, langMap = langMap)
-        // i18n puis args ({player} & co) — même chaîne que MenuRenderer.resolveText.
+        // i18n then args ({player} & co): same chain as MenuRenderer.resolveText.
         val texts = DialogTextResolver.resolveAll(dialog, langMap, ctxWithLang)
 
         val bodyComponents: List<DialogBody> = dialog.yaml.body.mapIndexedNotNull { i, b ->
@@ -86,7 +86,7 @@ object DialogRenderer {
 
         val buttons = dialog.yaml.buttons.mapIndexed { i, btnYaml ->
             val requirements = btnYaml.requirements.map { ConditionParser.parse(it) }
-            // Button `actions` : keyed (map/liste), string DSL, ou `{steps}`.
+            // Button `actions`: keyed (map/list), DSL string, or `{steps}`.
             val steps        = runCatching {
                 ActionChainCompiler.compile(
                     btnYaml.actions,

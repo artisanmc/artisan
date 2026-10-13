@@ -170,7 +170,7 @@ describe("PlaceholderInput", () => {
 
   it("renders the hint below the input when entries is non-empty and the popup is closed", () => {
     render(<PlaceholderInput value="" onChange={() => {}} entries={entries} />);
-    // Matches both French "insérer" and English "insert"
+    // Matches both the French and the English hint
     expect(screen.getByText(/ins[eé]rer|insert/i)).toBeInTheDocument();
   });
 

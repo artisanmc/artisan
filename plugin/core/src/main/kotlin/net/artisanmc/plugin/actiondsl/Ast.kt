@@ -2,12 +2,11 @@ package net.artisanmc.plugin.actiondsl
 
 /**
  * Action DSL AST — the pure, Project-free representation the Action DSL parses to
- * and prints from. Cf. ADR `docs/decisions/action-dsl.md`. This is a language-
- * symmetric mirror of the TS AST in `editor/src/lib/actionDsl/ast.ts`; it is
- * DELIBERATELY decoupled from the plugin engine models (`engine/Action.kt`,
- * `engine/Condition.kt`). The DSL→engine mapping is a separate (Phase 1.5)
- * concern. The cross-stack invariant locked here is the TEXT round-trip, not
- * AST-JSON equality.
+ * and prints from (ADR `action-dsl`). Language-symmetric mirror of the TS AST in
+ * `editor/src/lib/actionDsl/ast.ts`, DELIBERATELY decoupled from the plugin engine
+ * models (`engine/Action.kt`, `engine/Condition.kt`); `DslToEngine.kt` maps between
+ * them. The cross-stack invariant locked here is the TEXT round-trip, not AST-JSON
+ * equality.
  */
 
 /** A text argument: an inline literal (`"..."`) or an i18n key reference (`@key`). */

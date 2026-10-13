@@ -1,160 +1,186 @@
 ---
 title: API reference
-description: Stability contract and the public surface of net.artisanmc.modules.api.
+description: Every public type of net.artisanmc.modules.api, grouped, with its stability, the API version it appeared in, and a link to its source.
+sidebar:
+  order: 12
 ---
 
-Everything in `net.artisanmc.modules.api.*` is API. Everything under
-`net.artisanmc.plugin.*` is core internals — do not import it, it changes
-without notice.
+Everything in `net.artisanmc.modules.api` (artifact
+`net.artisanmc:artisan-core-api`) is API. Everything under
+`net.artisanmc.plugin.*` is internal — do not import it.
+
+**Since** is the API version a member appeared in; compile against the lowest
+version that has everything you use ([Versions](/wiki/developers/setup/#versions-and-compatibility)).
+"—" marks a member the API changelog does not date. Sources (with KDoc) are
+published next to the jar; the links below go to the repository.
 
 ## Stability annotations
 
 | Annotation | Meaning |
 |---|---|
-| `@Stable` | Covered by SemVer. No breaking change within a major version. |
-| `@Beta` | Experimental. May change in a minor version. |
-| `@Internal` | Do not call from a module. |
-| `@Sunset(reason, removeInVersion, replacement)` | Scheduled for removal, with the replacement named. |
+| `@Stable` | Covered by SemVer: no breaking change within a major version |
+| `@Beta` | Experimental: may change in a minor version |
+| `@Internal` | Do not call from an add-on |
+| `@Sunset(reason, removeInVersion, replacement)` | Works until `removeInVersion`; move to `replacement` |
 
-`@Sunset` exists instead of `@Deprecated` to avoid clashing with
-`kotlin.Deprecated` and to carry the removal schedule.
+`@Stable`, `@Beta` and `@Internal` have source retention (visible in the
+sources jar and your IDE, not at runtime); `@Sunset` is kept at runtime.
 
-## `ArtisanModule`
+## Entry points
 
-| Member | Since |
-|---|---|
-| `id: String` | 1.0.0 |
-| `schemaVersion: String` | 1.0.0 |
-| `onEnable(api: ArtisanAPI)` | 1.0.0 |
-| `onDisable()` | 1.0.0 |
-| `onReload()` (default empty) | 1.0.0 |
+| Type | Stability | Since | Members |
+|---|---|---|---|
+| [`ArtisanAPI`][ArtisanAPI] | `@Stable` | 1.0.0 | The facade, obtained from Bukkit's `ServicesManager` or passed to `onEnable(api)`. Properties below |
+| [`ArtisanModule`][ArtisanModule] | `@Stable` | 1.0.0 | `id`, `schemaVersion`, `onEnable(api)`, `onDisable()`, `onReload()` (Kotlin default; abstract for Java) |
+| [`ModuleRegistry`][ModuleRegistry] | `@Stable` | 1.1.0 | `register(module)`, `active()`, `has(id)`; `bind(…)` is `@Internal` |
+| [`SemVer`][SemVer] | `@Stable` | — | `satisfies(core, min)`: same major and `core ≥ min` |
 
-## `ArtisanAPI`
+### `ArtisanAPI` properties
 
-| Member | Type | Since |
-|---|---|---|
-| `plugin` | `JavaPlugin` | 1.0.0 |
-| `dataSources` | `DataSourceRegistry` | 1.0.0 |
-| `commands` | `CommandRegistry` | 1.0.0 |
-| `events` | `ModuleEventBus` | 1.0.0 |
-| `schemas` | `SchemaRegistry<MutableMap<String, Any?>>` | 1.0.0 |
-| `modules` | `ModuleRegistry` | 1.1.0 |
-| `coreVersion` | `String` | 1.1.0 |
-| `isCompatibleWith(minVersion)` | `Boolean` | 1.1.0 |
-| `project` | `ProjectContentApi` | 1.2.0 |
-| `projectRoots` | `ProjectRootRegistry` | 1.5.0 |
-| `items` `@Beta` | `ItemStackApi` | 1.4.0 |
-| `messages` `@Beta` | `ModuleMessagesApi` | 1.4.0 |
-| `actions` `@Beta` | `ModuleActionsApi` | 1.4.0 |
-| `models` `@Beta` | `ModelRegistry` | 1.5.0 |
-| `screens` `@Beta` | `EditorScreenRegistry` | 1.6.0 |
+| Property | Type | Stability | Since |
+|---|---|---|---|
+| `plugin` | `JavaPlugin` (Artisan's) | `@Stable` | 1.0.0 |
+| `dataSources` | `DataSourceRegistry` | `@Stable` | 1.0.0 |
+| `commands` | `CommandRegistry` | `@Stable` | 1.0.0 |
+| `events` | `ModuleEventBus` | `@Stable` | 1.0.0 |
+| `schemas` | `SchemaRegistry<MutableMap<String, Any?>>` | `@Stable` | 1.0.0 |
+| `modules` | `ModuleRegistry` | `@Stable` | 1.1.0 |
+| `coreVersion` | `String` — the Artisan **plugin** version | `@Stable` | 1.1.0 |
+| `isCompatibleWith(minVersion)` | `Boolean` — against `coreVersion` | `@Stable` | 1.1.0 |
+| `project` | `ProjectContentApi` | `@Stable` | 1.2.0 |
+| `projectRoots` | `ProjectRootRegistry` | `@Stable` | 1.5.0 |
+| `items` | `ItemStackApi` | `@Beta` | 1.4.0 |
+| `messages` | `ModuleMessagesApi` | `@Beta` | 1.4.0 |
+| `actions` | `ModuleActionsApi` | `@Beta` | 1.4.0 |
+| `models` | `ModelRegistry` | `@Beta` | 1.5.0 |
+| `screens` | `EditorScreenRegistry` | `@Beta` | 1.6.0 |
+| `database` | `DatabaseApi` | `@Beta` | 1.7.0 |
 
-## `ModuleRegistry`
+## Data sources
 
-`register(module)` (throws `DuplicateModuleException`), `active()`, `has(id)`.
-Since 1.1.0. `bind(...)` is `@Internal`.
+Guide: [Data sources](/wiki/developers/data-sources/).
 
-## `DataSourceRegistry`
+| Type | Stability | Since | Members |
+|---|---|---|---|
+| [`DataSourceRegistry`][DataSourceRegistry] | `@Stable` | 1.0.0 | `register(decl)`, `fetch(ref, player?, params)`, `has(ref)`, `refs()`, `declarations()` (1.2.0), `registered()` (1.3.0) |
+| [`DataSourceDeclaration`][DataSourceDeclaration] | `@Stable` | 1.0.0 | `ref`, `fetcher` (1.3.0, type 1.5.0), `schema` (1.3.0), `stability` (1.4.0), `keyField` (1.4.0), `schemaHint` (`@Sunset`, removed in 2.0.0) |
+| [`DataFetcher`][Callbacks] | `@Stable` | 1.5.0 | `fetch(player: Player?, params): List<Map<String, Any?>>` |
+| [`DataSourceField`][DataSourceDeclaration] | `@Stable` | 1.3.0 | `name`, `type: FieldKind`, `description?` |
+| [`FieldKind`][FieldKind] | `@Stable` | 1.3.0 | `STRING`, `NUMBER`, `INTEGER`, `BOOLEAN`, `LIST`, `OBJECT`, `ITEM` (Java enum) |
+| [`Stability`][Stability] | `@Stable` | 1.4.0 | `STATIC`, `DYNAMIC` (Java enum) |
+| [`RegisteredDataSource`][DataSourceRegistry] | `@Stable` | 1.3.0 | `declaration`, `moduleId?` (null outside a module's `onEnable`) |
+| [`PlayerRequiredException`][DataSourceDeclaration] | `@Stable` | 1.3.0 | Thrown by a fetcher that needs a real player |
+| `UnknownDataSourceException`, `DuplicateDataSourceException` | `@Stable` | 1.0.0 | Unknown ref on `fetch`; ref registered twice |
 
-`register(decl)`, `fetch(ref, player, params)`, `has(ref)`, `refs()`,
-`declarations()` (1.2.0), `registered()` (1.3.0).
+> **Breaking change in 1.3.0** — the fetcher's `player` became nullable
+> (`Player?`): the editor preview passes `null`.
+> **1.5.0** — `fetcher` became the `DataFetcher` functional interface instead
+> of a Kotlin function type (source compatible for lambdas).
 
-Exceptions: `UnknownDataSourceException`, `DuplicateDataSourceException`,
-`PlayerRequiredException`.
+## Commands
 
-> **Breaking change in 1.3.0** — `fetch`/`fetcher` took `player: Player`, now
-> `player: Player?`. Preview mode passes `null`.
+Guide: [Commands](/wiki/developers/commands/).
 
-### `DataSourceDeclaration`
+| Type | Stability | Since | Members |
+|---|---|---|---|
+| [`CommandRegistry`][CommandRegistry] | `@Stable` | 1.0.0 | `register(decl)`, `dispatch(name, player, args)`, `has(name)`, `names()` |
+| [`CommandDeclaration`][CommandDeclaration] | `@Stable` | 1.0.0 | `name`, `handler: CommandHandler` |
+| [`CommandHandler`][Callbacks] | `@Stable` | 1.5.0 | `handle(player: Player, args: Map<String, Any?>)` — `args = {argv: List<String>, raw: String}` from menus |
+| `UnknownCommandException`, `DuplicateCommandException` | `@Stable` | 1.0.0 | Unknown name on `dispatch`; name registered twice |
 
-| Member | Type | Since |
-|---|---|---|
-| `ref` | `String` | 1.0.0 |
-| `fetcher` | `(Player?, Map<String, Any?>) -> List<Map<String, Any?>>` | 1.3.0 |
-| `schema` | `List<DataSourceField>` | 1.3.0 |
-| `stability` | `Stability` | 1.4.0 |
-| `keyField` | `String?` | 1.4.0 |
-| `schemaHint` | `String?` — `@Sunset`, removed in 2.0.0, use `schema` | 1.0.0 |
+Since 1.2.0, `run_command "<ns:name> …" as player` actions dispatch to this
+registry when the ref is registered; anything else runs as a Bukkit command.
 
-`DataSourceField(name, type: FieldKind, description?)`;
-`FieldKind` ∈ `STRING`, `NUMBER`, `INTEGER`, `BOOLEAN`, `LIST`, `OBJECT`;
-`Stability` ∈ `STATIC`, `DYNAMIC`;
-`RegisteredDataSource(declaration, moduleId?)` — `moduleId` is null for sources
-registered outside a module's `onEnable`.
+## Menus and actions
 
-## `CommandRegistry`
+Guide: [Menus](/wiki/developers/menus/).
 
-`register(decl)`, `dispatch(name, player, args)`, `has(name)`, `names()`.
-Since 1.0.0. Exceptions: `UnknownCommandException`, `DuplicateCommandException`.
+| Type | Stability | Since | Members |
+|---|---|---|---|
+| [`ModuleActionsApi`][ModuleActionsApi] | `@Beta` | 1.4.0 | `execute(player, actions, args = {}, projectId = null)` — runs Action DSL on the player's thread; `projectId` since 1.6.0 |
+| [`ItemStackApi`][ItemStackApi] | `@Beta` | 1.4.0 | `serialize(stack): String`, `describe(stack): Map<String, Any>` |
+| [`ModuleMessagesApi`][ModuleMessagesApi] | `@Beta` | 1.4.0 | `send(type, payload)` — has had no receiver since the editor moved into the plugin; do not use |
 
-Since 1.2.0, `run_command` menu actions matching a registered `namespace:name`
-are dispatched here with `args = {argv: List<String>, raw: String}`; unknown
-refs fall back to Bukkit.
+## Modules, projects and content
 
-## `ModuleEventBus`
+Guide: [Modules](/wiki/developers/modules/).
 
-`subscribe<T : ModuleEvent>(handler)`, `subscribeRaw(type, handler)`,
-`publish(event)`. Since 1.0.0. Built-in events: `DataReloadEvent(dataSourceRef)`,
-`ConfigReloadEvent(moduleId)`. Modules may define their own `ModuleEvent`
-subtypes.
+| Type | Stability | Since | Members |
+|---|---|---|---|
+| [`ProjectContentApi`][ProjectContentApi] | `@Stable` | 1.2.0 | `projectIds()`, `list(projectId, dir)`, `read(projectId, relPath)`, `hasContent(dir)`, `reload()` (—) |
+| [`ProjectRootRegistry`][ProjectRootRegistry] | `@Stable` | 1.5.0 | `register(projectId, dir)`, `register(projectId, dir, moduleId)` (1.6.0), `NOOP` |
+| [`SchemaRegistry<T>`][SchemaRegistry] | `@Stable` | 1.0.0 | `register(migration)`, `loadToCurrent(data, currentVersion, versionOf)`, `has(from)` |
+| [`SchemaMigration<T>`][SchemaMigration] | `@Stable` | 1.0.0 | `from`, `to`, `migrate(data)` — pure, idempotent, write-once |
+| [`SchemaVersionReader<T>`][Callbacks] | `@Stable` | 1.5.0 | `versionOf(document): String` |
+| `UnsupportedSchemaVersionException`, `CircularMigrationException` | `@Stable` | 1.0.0 | No migration from a version; migration loop |
+| `DuplicateModuleException` | `@Stable` | 1.1.0 | Module id registered twice |
 
-## `ProjectContentApi`
+`SchemaRegistry`, `SchemaMigration` and their exceptions live in
+`net.artisanmc.modules.api.schemas`.
 
-`projectIds()`, `list(projectId, dir)`, `read(projectId, relPath)`,
-`hasContent(dir)`. Since 1.2.0. Read-only; the `.artisan*` namespace is never
-exposed.
+## Data models and config screens
 
-## `ProjectRootRegistry`
+Guide: [Data models & config screens](/wiki/developers/data-models/).
 
-`register(projectId, dir)`. Since 1.5.0. Pass a dedicated directory — sync
-deletes anything under a project root that is not in the bundle.
+| Type | Stability | Since | Members |
+|---|---|---|---|
+| [`ModelRegistry`][ModelRegistry] | `@Beta` | 1.5.0 | `declare(document)`, `has(id)`, `declared()` |
+| [`DeclaredModel`][ModelRegistry] | `@Beta` | 1.5.0 | `id`, `document`, `moduleId?` |
+| [`EditorScreenRegistry`][EditorScreenRegistry] | `@Beta` | 1.6.0 | `declare(id, label, table, projectId)`, `declared()` |
+| [`EditorScreenDeclaration`][EditorScreenRegistry] | `@Beta` | 1.6.0 | `id`, `label`, `table`, `projectId`, `moduleId?`, `toWire()` |
+| `DuplicateModelException`, `DuplicateEditorScreenException` | `@Beta` | 1.5.0 / 1.6.0 | Id declared twice |
 
-## `ModelRegistry` `@Beta`
+## Database
 
-`declare(document)`, `has(id)`, `declared()`. Since 1.5.0. The document is a
-verbatim `model/v1` map with a namespaced `id`; a duplicate or non-namespaced id
-throws. Pure passthrough — nothing is interpreted plugin-side.
+Guide: [Database](/wiki/developers/database/).
 
-## `EditorScreenRegistry` `@Beta`
+| Type | Stability | Since | Members |
+|---|---|---|---|
+| [`DatabaseApi`][DatabaseApi] | `@Beta` | 1.7.0 | `dialect`, `dataSource(owner: Plugin): javax.sql.DataSource`, `NONE` |
+| [`DatabaseDialect`][DatabaseDialect] | `@Beta` | 1.7.0 | `H2`, `MYSQL`, `MARIADB` (Java enum) |
 
-`declare(id, label, table, projectId)`, `declared()`. Since 1.6.0. `id` must be
-namespaced; `table` must be a safe project-relative path.
+Since 1.7.1 every plugin shares a single H2 file (1.7.0 kept one per plugin).
 
-## `ItemStackApi` `@Beta`
+## Events
 
-`serialize(stack): String` — canonical wrapped YAML, what the editor saves
-under `items/<id>.yml`. `describe(stack): Map<String, Any>` — display descriptor
-(material, enriched to a recognized custom ref when possible; head texture;
-enchanted; count; name). Since 1.4.0.
+Guide: [Events & reloads](/wiki/developers/events/).
 
-## `ModuleMessagesApi` `@Beta`
+| Type | Stability | Since | Members |
+|---|---|---|---|
+| [`ModuleEventBus`][ModuleEventBus] | `@Stable` | 1.0.0 | `subscribe(type, handler)` (signature 1.5.0), `publish(event)` |
+| [`ModuleEvent`][ModuleEventBus] | `@Stable` | 1.0.0 | Sealed marker: only the two events below exist |
+| [`ConfigReloadEvent`][ModuleEventBus] | `@Stable` | 1.0.0 | `moduleId` |
+| [`DataReloadEvent`][ModuleEventBus] | `@Stable` | 1.0.0 | `dataSourceRef` |
+| [`ModuleEventHandler`][Callbacks] | `@Stable` | 1.5.0 | `onEvent(event: ModuleEvent)` |
 
-`send(type, payload)` — fire-and-forget message. Since the backend was removed,
-no module layer receives it: it is effectively a no-op, kept for compatibility.
-Since 1.4.0.
+## File formats
 
-## `ModuleActionsApi` `@Beta`
+Add-ons that ship or read project files meet these YAML schemas: `manifest/v1`,
+`menu/v1`, `command/v1`, `dialog/v1`, `model/v1`, `template/v1`, plus bare data
+files under `data/`. Artisan rejects unsupported versions when it reads a
+project. The JSON Schemas live in the repository under
+[`docs/schema/`](https://github.com/artisanmc/artisan/tree/main/docs/schema).
 
-`execute(player, actions, args = {}, projectId = null)` — runs an Action DSL
-string on the main thread. `args` become `{name}` placeholders (`player` is
-implicit); `projectId` puts that project's `lang/` in scope so `@key` resolves.
-Malformed input is skipped with a warning. Since 1.4.0.
-
-## `SchemaRegistry<T>` / `SchemaMigration<T>`
-
-`register(migration)`, `loadToCurrent(data, currentVersion, versionOf)`,
-`has(from)`. A migration carries `from`, `to`, `migrate(data)`. Migrations must
-be pure, idempotent, and write-once. Exceptions:
-`UnsupportedSchemaVersionException`, `CircularMigrationException`. Since 1.0.0.
-
-## Protocol surfaces
-
-- **WebSocket** — between a leaf server and its hub, `hello` carries
-  `protocol_version: "1.0"`. A different major version means the hub serves
-  nothing to that server until both run the same release. Unknown message types
-  are logged and ignored.
-- **REST** — versioned under `/api/v1/*`. A breaking change ships as `/api/v2/`
-  alongside, with v1 kept for 6–12 months.
-- **YAML schemas** — `manifest/v1`, `menu/v1`, `command/v1`, `dialog/v1`,
-  `data/v1`, `model/v1`, `template/v1`. Unsupported versions are rejected by the
-  plugin reader; migrations bring legacy data forward.
+[ArtisanAPI]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/kotlin/net/artisanmc/modules/api/ArtisanAPI.kt
+[ArtisanModule]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/kotlin/net/artisanmc/modules/api/ArtisanModule.kt
+[ModuleRegistry]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/kotlin/net/artisanmc/modules/api/ModuleRegistry.kt
+[SemVer]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/kotlin/net/artisanmc/modules/api/SemVer.kt
+[Callbacks]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/kotlin/net/artisanmc/modules/api/Callbacks.kt
+[DataSourceRegistry]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/kotlin/net/artisanmc/modules/api/DataSourceRegistry.kt
+[DataSourceDeclaration]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/kotlin/net/artisanmc/modules/api/DataSourceDeclaration.kt
+[FieldKind]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/FieldKind.java
+[Stability]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/Stability.java
+[CommandRegistry]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/kotlin/net/artisanmc/modules/api/CommandRegistry.kt
+[CommandDeclaration]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/kotlin/net/artisanmc/modules/api/CommandDeclaration.kt
+[ModuleActionsApi]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/kotlin/net/artisanmc/modules/api/ModuleActionsApi.kt
+[ItemStackApi]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/kotlin/net/artisanmc/modules/api/ItemStackApi.kt
+[ModuleMessagesApi]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/kotlin/net/artisanmc/modules/api/ModuleMessagesApi.kt
+[ProjectContentApi]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/kotlin/net/artisanmc/modules/api/ProjectContentApi.kt
+[ProjectRootRegistry]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/kotlin/net/artisanmc/modules/api/ProjectRootRegistry.kt
+[SchemaRegistry]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/kotlin/net/artisanmc/modules/api/schemas/SchemaRegistry.kt
+[SchemaMigration]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/kotlin/net/artisanmc/modules/api/schemas/SchemaMigration.kt
+[ModelRegistry]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/kotlin/net/artisanmc/modules/api/ModelRegistry.kt
+[EditorScreenRegistry]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/kotlin/net/artisanmc/modules/api/EditorScreenRegistry.kt
+[DatabaseApi]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/kotlin/net/artisanmc/modules/api/DatabaseApi.kt
+[DatabaseDialect]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/DatabaseDialect.java
+[ModuleEventBus]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/kotlin/net/artisanmc/modules/api/ModuleEventBus.kt

@@ -3,8 +3,8 @@ package net.artisanmc.plugin.hub
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Les serveurs que l'éditeur atteint. Celui qui héberge le hub s'appelle [LOCAL] ; les autres
- * se relient par `/ws/plugin` et restent listés, hors ligne, après une déconnexion.
+ * The servers the editor reaches. The one hosting the hub is [LOCAL]; the others connect
+ * through `/ws/plugin` and stay listed, offline, after a disconnect.
  */
 class Servers(val local: EditorServer) {
     private val remote = ConcurrentHashMap<String, RemoteServer>()
@@ -15,14 +15,14 @@ class Servers(val local: EditorServer) {
 
     fun find(id: String?): EditorServer? = all().firstOrNull { it.id == id }
 
-    /** Le serveur des routes `/api/v1/networks/:network/servers/:server/…`. */
+    /** The server of `/api/v1/networks/:network/servers/:server/…` routes. */
     fun of(call: Call): EditorServer? =
         if (call.params["network"] != LOCAL) null else find(call.params["server"])
 
     /**
-     * Un Project se nomme comme son dossier sur le serveur du hub (`shop`), et
-     * `<serveur>.<dossier>` ailleurs (`survie2.shop`) : sans base de données, le nom du
-     * dossier est la seule identité, et deux serveurs peuvent avoir le même.
+     * A Project is named after its folder on the hub's server (`shop`), and
+     * `<server>.<folder>` elsewhere (`survie2.shop`): without a database the folder name
+     * is the only identity, and two servers may have the same one.
      */
     fun project(id: String): ProjectRef? {
         val server = if ('.' in id) find(id.substringBefore('.'))?.takeIf { it.id != LOCAL } else local
@@ -30,7 +30,7 @@ class Servers(val local: EditorServer) {
         return if (server == null || folder.isEmpty()) null else ProjectRef(server, folder)
     }
 
-    /** Le Project de `:project` ; une route qui nomme un serveur accepte aussi le seul nom du dossier. */
+    /** The Project of `:project`; a route naming a server also accepts the bare folder name. */
     fun projectOf(call: Call): ProjectRef? {
         val id = call.params["project"] ?: return null
         if (!call.params.containsKey("server")) return project(id)

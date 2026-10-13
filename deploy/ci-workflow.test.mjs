@@ -37,7 +37,7 @@ test("CI builds no cloud editor: no VITE_* env, no cloud hosts", () => {
 
 test("GitHub-maintained JavaScript actions use their Node 24 releases", () => {
   const workflows = `${workflow}\n${deployWorkflow}`;
-  // Java ne sert plus qu'au job plugin de la CI : deploy.yml ne construit plus de JAR.
+  // Java is only needed by the CI plugin job: deploy.yml no longer builds a JAR.
 
   assert.doesNotMatch(
     workflows,

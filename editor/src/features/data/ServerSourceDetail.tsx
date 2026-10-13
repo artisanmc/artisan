@@ -17,7 +17,7 @@ interface ServerSourceDetailProps {
   networkId: string;
   serverId: string;
   source: ServerDataSource;
-  /** Kept for call-site compat; sets d'items now live at the MENU level. */
+  /** Kept for call-site compat; item sets live at the MENU level. */
   projectId?: ProjectId;
 }
 

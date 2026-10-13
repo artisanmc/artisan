@@ -1,4 +1,4 @@
-// P3 files-first (ADR files-first-source-of-truth): the file tree is the
+// ADR files-first-source-of-truth: the file tree is the
 // canonical, lossless Project representation. This suite locks the editor-side
 // full-project importer `projectFromFiles` as the exact inverse of
 // `transform()` — domain → files → domain → files must be a fixed point
@@ -424,7 +424,7 @@ describe("projectFromFiles (files → domain, inverse of transform)", () => {
 // so it can differ from the platform-unique internal id. Files always carry the
 // DISK id: reading must not depend on the two matching, and writing must keep
 // emitting the disk id or the plugin would receive a tree under a directory it
-// does not use (incident 2026-08-12).
+// does not use.
 describe("disk id ≠ internal id", () => {
   const DISK = "boutique_shop";
   const INTERNAL = "proj_58967c930e9e";

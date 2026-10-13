@@ -4,10 +4,10 @@ import { describe, expect, test } from "vitest";
 import { diskAssetsFromTree } from "./diskAssets";
 
 /**
- * Les assets vus depuis le disque du serveur (ADR `assets-on-server-disk`, P4).
+ * Assets as seen from the server's disk (ADR `assets-on-server-disk`).
  *
- * L'identité est le **nom de fichier**, le type vient du dossier, et le
- * descripteur frère porte ce que le PNG ne sait pas dire.
+ * The identity is the **file name**, the type comes from the folder, and the
+ * sibling descriptor carries what the PNG cannot say.
  */
 describe("diskAssetsFromTree", () => {
   const bin = (path: string, hash = "h") => ({ path, hash, size: 10 });
@@ -33,7 +33,7 @@ describe("diskAssetsFromTree", () => {
     });
   });
 
-  test("le nom de fichier est l'identité, le dossier donne le type", () => {
+  test("the file name is the identity, the folder gives the type", () => {
     const found = diskAssetsFromTree(
       "p1",
       [],
@@ -45,7 +45,7 @@ describe("diskAssetsFromTree", () => {
     ]);
   });
 
-  test("le descripteur frère porte ascent, codepoint et dimensions", () => {
+  test("the sibling descriptor carries ascent, codepoint and dimensions", () => {
     const found = diskAssetsFromTree(
       "p1",
       [
@@ -65,9 +65,9 @@ describe("diskAssetsFromTree", () => {
     });
   });
 
-  test("un descripteur cassé ne fait pas disparaître l'image", () => {
-    // Punir l'image pour une faute de frappe dans son `.yaml` punirait la
-    // mauvaise chose — l'admin verrait un glyphe manquant sans savoir pourquoi.
+  test("a broken descriptor does not make the image disappear", () => {
+    // Punishing the image for a typo in its `.yaml` would punish the wrong
+    // thing — the admin would see a missing glyph without knowing why.
     const found = diskAssetsFromTree(
       "p1",
       [{ path: "assets/glyphs/diamant.yaml", content: "ascent: : :\n" }],
@@ -77,9 +77,9 @@ describe("diskAssetsFromTree", () => {
     expect(found[0]!.row.ascent).toBeNull();
   });
 
-  test("un binaire hors des dossiers d'assets n'est pas un asset", () => {
-    // Une image posée à la racine du Project n'a rien à faire dans le pack :
-    // l'appartenance se lit au dossier, pas à l'extension.
+  test("a binary outside the asset folders is not an asset", () => {
+    // An image at the Project root has no business in the pack: membership is
+    // read from the folder, not the extension.
     expect(diskAssetsFromTree("p1", [], [bin("capture.png")])).toEqual([]);
   });
 });

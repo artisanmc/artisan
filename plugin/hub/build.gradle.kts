@@ -1,7 +1,7 @@
-// Serveur web de l'éditeur auto-hébergé : HTTP, WebSocket, sessions.
-// Aucune dépendance de plateforme : le jeu n'est atteint qu'à travers les ports de `core`.
-// Jetty n'est pas embarqué : Paper le télécharge depuis `libraries:` de plugin.yml.
-// Garder les deux listes alignées.
+// Web server of the self-hosted editor: HTTP, WebSocket, sessions.
+// No platform dependency: the game is reached only through `core`'s ports.
+// Jetty is not bundled: Paper downloads it from `libraries:` in plugin.yml.
+// Keep both lists in sync.
 val jetty = "12.1.12"
 
 dependencies {
@@ -13,8 +13,8 @@ dependencies {
     testImplementation("org.eclipse.jetty.websocket:jetty-websocket-jetty-server:$jetty")
 }
 
-// `-PwithEditor` : le build de l'éditeur (`npm run build`) part dans le jar,
-// servi sous `/`. Sans lui, le serveur web répond que ce build n'embarque pas l'éditeur.
+// `-PwithEditor`: the editor build (`npm run build`) goes into the jar, served under `/`.
+// Without it, the web server answers that this build does not ship the editor.
 val editorDir: File = rootDir.resolve("../editor").canonicalFile
 val editorDist: File = editorDir.resolve("dist-self-hosted")
 
@@ -26,7 +26,7 @@ val buildEditor by tasks.registering(Exec::class) {
     outputs.dir(editorDist)
 }
 
-// Catalogue d'items vanilla (`tools/minecraft-assets/gen-items.ts`), une version par fichier.
+// Vanilla item catalog (`tools/minecraft-assets/gen-items.ts`), one version per file.
 val minecraftAssets: File = rootDir.resolve("../tools/minecraft-assets").canonicalFile
 val vanillaItems: File = minecraftAssets.resolve("items")
 val vanillaIndex by tasks.registering {
@@ -49,7 +49,7 @@ if (providers.gradleProperty("withEditor").isPresent) {
     tasks.processResources {
         dependsOn(buildEditor)
         from(editorDist) { into("editor") }
-        // Icônes 3D des blocs (`gen-icons.ts`), utiles seulement à l'éditeur : ~15 Mo.
+        // 3D block icons (`gen-icons.ts`), only used by the editor: ~15 MB.
         minecraftAssets.resolve("icons").listFiles { f -> f.name.matches(Regex("icons-.*\\.zip")) }.orEmpty().forEach { zip ->
             from(zipTree(zip)) {
                 include("mc-assets/**")

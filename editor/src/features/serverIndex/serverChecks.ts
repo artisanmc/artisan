@@ -9,11 +9,11 @@ export interface IssueOwner {
 }
 
 export type ServerIssue =
-  /** Deux commandes revendiquent le même nom ou alias : le jeu n'en garde qu'une. */
+  /** Two commands claim the same name or alias: the game keeps only one. */
   | { kind: "command_conflict"; name: string; owners: IssueOwner[] }
-  /** Un menu ou un dialog porte le même id dans deux projects : le jeu n'en garde qu'un. */
+  /** A menu or dialog has the same id in two projects: the game keeps only one. */
   | { kind: "duplicate_id"; docKind: "menu" | "dialog"; id: string; owners: IssueOwner[] }
-  /** Un lien du project édité ne mène nulle part de sûr. */
+  /** A link in the edited project leads nowhere safe. */
   | {
       kind: "broken_link";
       reason: "missing" | "ambiguous";
@@ -23,13 +23,13 @@ export type ServerIssue =
 
 export interface ServerChecks {
   /**
-   * `pending` / `unavailable` : les contrôles n'ont **pas** été faits — l'absence
-   * de problème ne doit alors jamais se lire comme un feu vert. `none` : aucun
-   * index à attendre (hors serveur).
+   * `pending` / `unavailable`: the checks were **not** run — an absence of
+   * problems must then never read as a green light. `none`: no index to wait
+   * for (outside a server).
    */
   status: "ready" | "pending" | "unavailable" | "none";
   issues: ServerIssue[];
-  /** Projects que l'index n'a pas pu lire : les contrôles sont alors incomplets. */
+  /** Projects the index could not read: the checks are then incomplete. */
   unreadable: string[];
 }
 
@@ -62,14 +62,14 @@ const byOwner = (a: IssueOwner, b: IssueOwner) =>
   byText(a.namespace, b.namespace) || byText(a.docId, b.docId);
 
 /**
- * Ce qu'un déploiement du project `edited` risquerait de casser **sur le
- * serveur**, vu par aucun contrôle d'un seul project : le plugin range les menus,
- * les dialogs et les commandes dans des tables uniques, sans notion de project.
+ * What a deployment of project `edited` could break **on the server**, seen
+ * by no single-project check: the plugin stores menus, dialogs and commands in
+ * global tables, with no notion of project.
  *
- * `edited` est son état de travail ; `others` l'état publié des autres projects.
- * Ne sont rapportés que les problèmes qui impliquent `edited` — un conflit entre
- * deux autres projects existe déjà, et ce déploiement n'en est pas la cause.
- * Ce sont des avertissements : rien ici n'empêche de déployer.
+ * `edited` is its working state; `others` the published state of the other
+ * projects. Only problems involving `edited` are reported — a conflict between
+ * two other projects already exists, and this deployment does not cause it.
+ * These are warnings: nothing here prevents deploying.
  */
 export function checkServerIssues(edited: Project, others: Project[]): ServerIssue[] {
   const editedNamespace = namespaceOf(edited);
@@ -88,7 +88,7 @@ const owner = (project: Project, docId: string): IssueOwner => ({
   docId,
 });
 
-/** Le nom sous lequel le jeu enregistre une commande : `name`, sinon son id. */
+/** The name under which the game registers a command: `name`, else its id. */
 const triggerName = (c: { id: string; name: string }) => (c.name || c.id).toLowerCase();
 
 function commandConflicts(all: Project[], editedNamespace: string): ServerIssue[] {

@@ -16,7 +16,7 @@ export function CanvasToolbar({
   onRearrange,
   rearrangeDisabled = false,
 }: {
-  /** Absent en vue focus : il n'y a qu'un Document, rien à arranger. */
+  /** Absent in focus view: there is only one Document, nothing to arrange. */
   onRearrange?: (mode: ArrangeMode) => void;
   rearrangeDisabled?: boolean;
 } = {}) {

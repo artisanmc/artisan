@@ -20,14 +20,14 @@ function fakeNode(x0: number, y0: number) {
   return { x: (v?: number) => (v === undefined ? nx : ((nx = v), nx)), y: (v?: number) => (v === undefined ? ny : ((ny = v), ny)) };
 }
 describe("computeAndApplyAlignment", () => {
-  it("snappe le nœud et publie des guides (Alt off)", () => {
+  it("snaps the node and publishes guides (Alt off)", () => {
     seed(); useAlignmentStore.getState().clear();
     const node = fakeNode(104, 600);
     computeAndApplyAlignment(PID, "m2", node as any, false);
-    expect(node.x()).toBe(100); // aligné sur m1.left (diff 4 <= threshold)
+    expect(node.x()).toBe(100); // aligned on m1.left (diff 4 <= threshold)
     expect(useAlignmentStore.getState().guides.length).toBeGreaterThan(0);
   });
-  it("Alt on → pas de snap ni guide", () => {
+  it("Alt on → no snap and no guide", () => {
     seed(); useAlignmentStore.getState().clear();
     const node = fakeNode(104, 600);
     computeAndApplyAlignment(PID, "m2", node as any, true);
@@ -37,7 +37,7 @@ describe("computeAndApplyAlignment", () => {
 });
 
 describe("useNodeAlignment.onDragMove", () => {
-  it("ignore les events bubblés d'un enfant (target.id != selfId)", () => {
+  it("ignores events bubbled from a child (target.id != selfId)", () => {
     seed(); useAlignmentStore.getState().clear();
     const { result } = renderHook(() => useNodeAlignment(PID, "m2"));
     let nx = 104, ny = 600;
@@ -47,11 +47,11 @@ describe("useNodeAlignment.onDragMove", () => {
       y: (v?: number) => (v === undefined ? ny : ((ny = v), ny)),
     };
     result.current.onDragMove({ target: slotNode, evt: { altKey: false } } as any);
-    expect(nx).toBe(104); // pas de snap (event ignoré)
+    expect(nx).toBe(104); // no snap (event ignored)
     expect(useAlignmentStore.getState().guides).toEqual([]);
   });
 
-  it("agit quand target.id === selfId", () => {
+  it("acts when target.id === selfId", () => {
     seed(); useAlignmentStore.getState().clear();
     const { result } = renderHook(() => useNodeAlignment(PID, "m2"));
     let nx = 104, ny = 600;
@@ -61,6 +61,6 @@ describe("useNodeAlignment.onDragMove", () => {
       y: (v?: number) => (v === undefined ? ny : ((ny = v), ny)),
     };
     result.current.onDragMove({ target: menuNode, evt: { altKey: false } } as any);
-    expect(nx).toBe(100); // snap appliqué (m1.left)
+    expect(nx).toBe(100); // snap applied (m1.left)
   });
 });

@@ -133,7 +133,7 @@ function materialFromId(raw: unknown): string | undefined {
     .toUpperCase();
 }
 
-// ── modern data-component form ───────────────────────────────────────────────
+// Modern data-component form
 
 function readComponents(components: Dict, out: CapturedStackDetails): void {
   const name =
@@ -205,7 +205,7 @@ function readComponents(components: Dict, out: CapturedStackDetails): void {
   }
 }
 
-// ── legacy Bukkit form ───────────────────────────────────────────────────────
+// Legacy Bukkit form
 
 function readLegacyMeta(meta: Dict, out: CapturedStackDetails): void {
   const name = plainText(meta["display-name"]);

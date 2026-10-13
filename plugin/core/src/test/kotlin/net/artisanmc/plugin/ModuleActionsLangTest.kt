@@ -6,11 +6,10 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * ADR `yaml-assisted-editing` ④ — l'i18n suit le consommateur : une source de
- * données est consommée par le runtime d'Artisan, donc une action qu'elle porte
- * peut référencer `@clé`. La plomberie DSL existait déjà
- * (`DslText.Ref` → `{i18n:clé}` → `ActionExecutor.resolveText`) ; ce qui
- * manquait, c'est la table de langue du project au moment de l'exécution.
+ * ADR `yaml-assisted-editing`: i18n follows the consumer. A data source is consumed
+ * by Artisan's runtime, so an action it carries can reference `@key`
+ * (`DslText.Ref` → `{i18n:key}` → `ActionExecutor.resolveText`), resolved against
+ * the project's lang table at execution time.
  */
 class ModuleActionsLangTest {
 
@@ -33,7 +32,7 @@ class ModuleActionsLangTest {
         assertEquals("Bought!", projectLangMap(bundles, "boutique_shop", "en")["shop.bought"])
     }
 
-    /** Repli déterministe : la langue par défaut comble les clés manquantes. */
+    /** Deterministic fallback: the default language fills missing keys. */
     @Test
     fun `falls back to the default language for missing keys`() {
         val bundles = listOf(
@@ -42,7 +41,7 @@ class ModuleActionsLangTest {
         assertEquals("Acheté !", projectLangMap(bundles, "boutique_shop", "en")["shop.bought"])
     }
 
-    /** Sans project (ou project inconnu), pas de table : le texte reste littéral. */
+    /** Without a project (or with an unknown one), no table: the text stays literal. */
     @Test
     fun `is empty without a resolvable project`() {
         val bundles = listOf(bundle("boutique_shop", mapOf("fr" to mapOf("k" to "v"))))

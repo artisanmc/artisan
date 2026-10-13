@@ -7,8 +7,8 @@ import { DockedInspectorContext } from "./inspectorLayout";
 import { useInspector } from "./useInspector";
 
 /**
- * Le canvas et, à droite, l'inspecteur de la sélection — rien d'autre : les
- * Documents du project vivent dans la barre de gauche (`ProjectSidebar`).
+ * The canvas and, on the right, the selection's inspector — nothing else: the
+ * project's Documents live in the left bar (`ProjectSidebar`).
  */
 export function ProjectWorkspacePanels({
   projectId,

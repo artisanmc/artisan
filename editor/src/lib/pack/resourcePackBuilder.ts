@@ -21,9 +21,9 @@ export interface BuildResult {
   hash: string;
 }
 
-// `pack` est le nom que Minecraft attend à la racine : le renommage
-// Interfaze→Artisan l'avait transformé en `project`, ce qui rend le
-// pack.mcmeta invalide — pour le client comme pour le fusionneur de l'hôte.
+// `pack` is the name Minecraft expects at the root: the Interfaze→Artisan
+// rename had turned it into `project`, which makes pack.mcmeta invalid — for
+// the client as for the host's merger.
 const PACK_MCMETA = {
   pack: {
     pack_format: 64,
@@ -170,8 +170,8 @@ export function buildResourcePackZip(
   // Fixed mtime: zip entry headers embed a DOS timestamp (2s resolution) that
   // defaults to "now" — two identical rebuilds straddling a window produced
   // different bytes, so the same content hashed differently and clients
-  // re-downloaded an unchanged project (flaked CI's determinism test, blocked the
-  // 2026-07-24 deploy). Any constant works; content changes still change the hash.
+  // re-downloaded an unchanged project (and flaked CI's determinism test). Any
+  // constant works; content changes still change the hash.
   const zipBytes = zipSync(files, { level: 0, mtime: new Date("2020-01-01T00:00:00Z") });
   const hash = sha1Hex(zipBytes);
   return { zipBytes, hash };

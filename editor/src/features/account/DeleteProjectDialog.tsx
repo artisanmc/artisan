@@ -25,6 +25,7 @@ interface DeleteProjectDialogProps {
 export function DeleteProjectDialog({ projectId, projectName, open, onOpenChange }: DeleteProjectDialogProps) {
   const [confirm, setConfirm] = useState("");
   const [deleting, setDeleting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const user = useAuthStore((s) => s.currentUser);
   const removeProject = useAccountStore((s) => s.removeProject);
   const projectOrder = useAccountStore((s) => s.account.projectOrder);
@@ -36,16 +37,22 @@ export function DeleteProjectDialog({ projectId, projectName, open, onOpenChange
   const handleDelete = async () => {
     if (!canDelete || !user || deleting) return;
     setDeleting(true);
+    setError(null);
     try {
       await deleteUserProject(projectId);
-      removeProject(projectId);
-      const remaining = projectOrder.filter((id) => id !== projectId);
-      if (remaining.length > 0) {
-        const destination = await loadUserProject(remaining[0]!);
-        navigate(projectDestination(destination.networkId, destination.project, destination.serverKeyId));
-      } else {
-        navigate({ to: "/" });
-      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "delete_failed");
+      setDeleting(false);
+      return;
+    }
+    removeProject(projectId);
+    const remaining = projectOrder.filter((id) => id !== projectId);
+    try {
+      if (remaining.length === 0) throw new Error("no_project_left");
+      const destination = await loadUserProject(remaining[0]!);
+      navigate(projectDestination(destination.networkId, destination.project, destination.serverKeyId));
+    } catch {
+      navigate({ to: "/" });
     } finally {
       setDeleting(false);
       onOpenChange(false);
@@ -53,7 +60,10 @@ export function DeleteProjectDialog({ projectId, projectName, open, onOpenChange
   };
 
   const handleOpenChange = (v: boolean) => {
-    if (!v) setConfirm("");
+    if (!v) {
+      setConfirm("");
+      setError(null);
+    }
     onOpenChange(v);
   };
 
@@ -82,6 +92,13 @@ export function DeleteProjectDialog({ projectId, projectName, open, onOpenChange
               autoFocus
             />
           </div>
+          {error && (
+            <div role="alert" className="text-xs text-[var(--danger)]">
+              {t(`deleteProjectDialog.errors.${error}`, {
+                defaultValue: t("deleteProjectDialog.errors.delete_failed"),
+              })}
+            </div>
+          )}
           <div className="flex justify-end gap-2">
             <Button variant="ghost" onClick={() => handleOpenChange(false)} disabled={deleting}>
               {t("deleteProjectDialog.cancel")}

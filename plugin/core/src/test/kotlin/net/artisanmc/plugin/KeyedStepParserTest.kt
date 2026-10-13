@@ -4,9 +4,7 @@ import net.artisanmc.plugin.engine.*
 import net.artisanmc.plugin.model.*
 import kotlin.test.*
 
-/**
- * ADR `structured-action-wire` — wire d'action keyed par nom, côté plugin.
- */
+/** ADR `structured-action-wire`: the name-keyed action wire, plugin side. */
 class KeyedStepParserTest {
 
     private fun menu(vararg elements: ElementYaml) = MenuYaml(

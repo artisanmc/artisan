@@ -67,9 +67,9 @@ describe("boutiqueLocalRows", () => {
   });
 });
 
-// Since bare-data-files the catalogue is a Project source, not moduleData.
-// Reading only moduleData left `boutique:items` unresolvable offline, so a
-// category menu drew dashed slots instead of its items (2026-08-12).
+// The catalogue is a Project source, not moduleData. Reading only moduleData
+// left `boutique:items` unresolvable offline, so a category menu drew dashed
+// slots instead of its items.
 describe("rows derived from the project's files", () => {
   const project = {
     dataSources: [

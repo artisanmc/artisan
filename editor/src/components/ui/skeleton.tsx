@@ -1,12 +1,11 @@
 import { cn } from "@/lib/cx";
 
 /**
- * Bloc gris qui pulse, à la place de ce qui n'est pas encore arrivé.
+ * Pulsing grey block standing in for what has not arrived yet.
  *
- * Il ne dit pas « ça charge » — il dit **ce qui va arriver et où** : un
- * squelette qui reprend la forme de l'écran fait tenir la mise en page pendant
- * l'attente, au lieu de la faire sauter au moment où les données tombent.
- * C'est ça qu'on gagne sur un rond qui tourne au centre du vide.
+ * It does not say "loading" — it says **what will arrive and where**: a
+ * skeleton shaped like the screen holds the layout while waiting, instead of
+ * making it jump when the data lands.
  */
 export function Skeleton({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (

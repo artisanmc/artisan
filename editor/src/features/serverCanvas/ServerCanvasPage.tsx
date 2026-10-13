@@ -40,7 +40,7 @@ interface ProbeResult {
   failed: boolean;
 }
 
-/** Charge un project exactement comme sa propre vue (disque + brouillon), pour que la planche montre la même chose. */
+/** Loads a project exactly like its own view (disk + draft), so the board shows the same thing. */
 function ProjectProbe({
   loadRef,
   serverId,
@@ -234,7 +234,7 @@ export function ServerCanvasPage() {
               onOpen={(node) => {
                 const project = projects.find((p) => p.id === node.projectId);
                 if (!project) return;
-                // Ouvre la planche du project, centrée sur le Document (goToDocument).
+                // Opens the project's board, centered on the Document (goToDocument).
                 void navigate({
                   to: "/networks/$networkId/servers/$serverId/projects/$projectId",
                   params: { networkId, serverId, projectId: projectUrlId(project) },
@@ -396,8 +396,8 @@ function Board({
             />
           )}
         </Layer>
-        {/* Rendu identique aux vues project, mais sans aucun geste : un calque
-            qui n'écoute rien ne peut ni déplacer un menu ni en modifier un slot. */}
+        {/* Same rendering as the project views, but with no gesture: a layer
+            that listens to nothing can neither move a menu nor edit a slot. */}
         <Layer listening={false} imageSmoothingEnabled={false}>
           {nodes.map((n) => {
             const project = byProject.get(n.projectId);

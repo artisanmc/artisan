@@ -2,10 +2,6 @@
  * `@artisan/editor-sdk` — the public surface a frontend module compiles
  * against. Modules import ONLY from this entrypoint.
  *
- * P1b scope: module-system contract + ONE base component (Button) + cn, as a
- * real workspace package. Fattening with the full design system / SchemaForm
- * is P2 (cf. docs/superpowers/specs/2026-06-17-first-party-module-extensibility-design.md).
- *
  * Test-only helpers (clearRegistry, clearModuleBus) are deliberately NOT
  * re-exported here.
  */

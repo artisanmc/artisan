@@ -28,18 +28,18 @@ class ConfigChannelTest {
                 latch.countDown()
             }
         }
-        /** Attend LA RÉPONSE : les annonces de rechargement voyagent sur le
-         *  même fil et peuvent arriver avant elle. */
+        /** Waits for THE REPLY: reload announcements travel on the same
+         *  connection and may arrive before it. */
         fun await(replies: Int = 1) {
             val deadline = System.currentTimeMillis() + 5000
             while (System.currentTimeMillis() < deadline) {
                 if (sink.count { it["type"] != "projects_reloaded" } >= replies) return
                 Thread.sleep(10)
             }
-            throw AssertionError("attendait $replies réponse(s), reçu ${sink.size} message(s)")
+            throw AssertionError("expected $replies reply(ies), got ${sink.size} message(s)")
         }
-        /** La réponse attendue, en ignorant les annonces de rechargement qui
-         *  voyagent sur le même fil. */
+        /** The expected reply, ignoring the reload announcements travelling on
+         *  the same connection. */
         fun awaitReply(): Map<String, Any?> {
             val deadline = System.currentTimeMillis() + 5000
             while (System.currentTimeMillis() < deadline) {
@@ -109,7 +109,7 @@ class ConfigChannelTest {
     fun `config_read guards traversal, artisan namespace and unknown project`() {
         val h = Harness()
         h.project("boutique")
-        // Trois requêtes, trois réponses : attendre la première ne suffit pas.
+        // Three requests, three replies: waiting for the first is not enough.
         h.provider.handleMessageForTesting(
             """{"type":"config_read","request_id":"g1","project_id":"boutique","table":"../outside"}"""
         )
@@ -127,11 +127,11 @@ class ConfigChannelTest {
     }
 
     @Test
-    fun `config_write ecrit atomiquement et supprime, sans rien pousser`() {
+    fun `config_write writes atomically and deletes, without pushing anything`() {
         val h = Harness()
         val dir = File(h.project("boutique"), "data/categories").also { it.mkdirs() }
         File(dir, "old.yaml").writeText("name: Old\n")
-        h.latch = CountDownLatch(1) // config_write_result seul
+        h.latch = CountDownLatch(1) // config_write_result only
 
         val payload = mapOf(
             "type" to "config_write", "request_id" to "w1", "project_id" to "boutique",
@@ -149,9 +149,9 @@ class ConfigChannelTest {
         assertFalse(File(dir, "old.yaml").exists())
         assertFalse(File(dir, "weapons.yaml.artisan-tmp").exists())
 
-        // Plus de push : le disque est la seule vérité (ADR `server-disk-only-storage`).
+        // No push: the disk is the only truth (ADR `server-disk-only-storage`).
         val types = h.sink.map { it["type"] }
-        assertFalse("local_push" in types, "rien ne doit être poussé, got $types")
+        assertFalse("local_push" in types, "nothing must be pushed, got $types")
         val result = h.sink.first { it["type"] == "config_write_result" }
         assertEquals(true, result["ok"])
         assertEquals("w1", result["request_id"])
@@ -168,7 +168,7 @@ class ConfigChannelTest {
         h.provider.handleMessageForTesting(mapper.writeValueAsString(payload))
         h.await()
 
-        // L'annonce de rechargement est attendue : elle dit à l'éditeur d'aller revalider.
+        // The reload announcement is expected: it tells the editor to revalidate.
         assertFalse("local_push" in h.sink.map { it["type"] })
         assertEquals(true, h.awaitReply()["ok"])
         assertEquals("whole_shop_discount: 5\n", File(h.root, "boutique/data/shop_settings.yaml").readText())

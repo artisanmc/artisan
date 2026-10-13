@@ -107,8 +107,6 @@ private class BlockParser(private val lines: List<LogicalLine>) {
     }
 }
 
-// ── action lines ─────────────────────────────────────────────────────────────
-
 private fun parseActionLine(line: LogicalLine): DslAction {
     val c = LineCursor(line.tokens, line.line)
     val verb = c.word()
@@ -185,8 +183,6 @@ private fun parseVerb(verb: String, c: LineCursor): DslAction = when (verb) {
     }
     else -> throw DslParseError("Unknown action '$verb'", c.line, 1)
 }
-
-// ── conditions ───────────────────────────────────────────────────────────────
 
 private class CondParser(private val toks: List<Token>, private val line: Int) {
     private var pos = 0
@@ -334,8 +330,6 @@ private class CondParser(private val toks: List<Token>, private val line: Int) {
         return DslCondition.Expression(exprSource(run))
     }
 }
-
-// ── line cursor ──────────────────────────────────────────────────────────────
 
 private class MenuTail(val clearContext: Boolean, val context: Map<String, String>?)
 

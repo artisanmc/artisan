@@ -4,14 +4,13 @@ import net.artisanmc.modules.api.ArtisanAPI
 import net.artisanmc.modules.api.ArtisanModule
 
 /**
- * First Artisan module — encapsulates the existing menu rendering pipeline:
- * - SyncedMenuProvider (WS sync, project loading)
+ * The menu rendering pipeline as a module:
+ * - SyncedMenuProvider (project loading)
  * - MenuListener (Bukkit InventoryClickEvent)
  * - TitleCompiler, AssetCatalog
  *
- * V1 scope: this module is a thin wrapper. The existing classes are kept in
- * net.artisanmc.plugin.* and instantiated inside [onEnable]. Phase B5 moves
- * the relevant classes physically under modules/menus/.
+ * A thin wrapper: those classes live in net.artisanmc.plugin.* and are wired by
+ * ArtisanPlugin, which also handles their reload and shutdown.
  */
 class MenusModule : ArtisanModule {
     override val id = "menus"
@@ -21,15 +20,11 @@ class MenusModule : ArtisanModule {
 
     override fun onEnable(api: ArtisanAPI) {
         this.api = api
-        // Wiring happens in ArtisanPlugin for V1 — see migration note in onEnable docstring.
-        // This keeps the patch surface minimal: existing instantiation order is preserved.
     }
 
     override fun onDisable() {
-        // Provider shutdown is handled by ArtisanPlugin.onDisable for V1.
     }
 
     override fun onReload() {
-        // Hot-reload trigger forwarded via api.events in Phase H.
     }
 }

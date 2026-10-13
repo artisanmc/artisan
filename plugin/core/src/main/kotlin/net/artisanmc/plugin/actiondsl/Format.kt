@@ -5,7 +5,7 @@ import kotlin.math.floor
 
 /**
  * Number + string formatting helpers that mirror JS semantics so the printed DSL
- * is byte-identical across TS and Kotlin. Cf. ADR `docs/decisions/action-dsl.md`.
+ * is byte-identical across TS and Kotlin (ADR `action-dsl`).
  */
 
 /**
