@@ -3,11 +3,18 @@ package net.artisanmc.modules.api
 import net.artisanmc.modules.api.annotations.Stable
 import java.util.concurrent.CopyOnWriteArrayList
 
-/** Marker for events published on the bus. */
+/**
+ * Marker for events published on the bus. Add-ons may define their own events by
+ * implementing it (open since 1.8.0, sealed before).
+ */
 @Stable
-sealed interface ModuleEvent
+interface ModuleEvent
 
-/** A module signals that its data source needs to be re-fetched by consumers. */
+/**
+ * A module signals that its data source needs to be re-fetched by consumers.
+ * Artisan neither publishes nor consumes it (menus re-fetch on every render):
+ * it is for add-ons that cache another add-on's rows.
+ */
 @Stable
 data class DataReloadEvent(val dataSourceRef: String) : ModuleEvent
 

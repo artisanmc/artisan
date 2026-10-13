@@ -56,6 +56,41 @@ class ApiSurfaceIsJavaFriendlyTest {
         }
     }
 
+    /**
+     * An interface member with a Kotlin body must be a JVM default method, or a Java
+     * implementer has to write it (`ArtisanModule.onReload()` before 1.8.0).
+     * Its `DefaultImpls` twin stays for add-ons compiled before (all-compatibility).
+     */
+    @Test
+    fun `interface members with a body are java default methods`() {
+        val offenders = mutableListOf<String>()
+        for (impls in apiClasses().filter { it.simpleName == "DefaultImpls" }) {
+            val itf = impls.enclosingClass ?: continue
+            // `$default` / `$annotations` are Kotlin helpers, not members.
+            for (m in impls.declaredMethods.filter { Modifier.isStatic(it.modifiers) && Modifier.isPublic(it.modifiers) && '$' !in it.name }) {
+                val params = m.parameterTypes.drop(1).toTypedArray()
+                val declared = runCatching { itf.getDeclaredMethod(m.name, *params) }.getOrNull()
+                if (declared == null || !declared.isDefault) offenders += "${itf.name}#${m.name}"
+            }
+        }
+        if (offenders.isNotEmpty()) fail("Not JVM default methods (-Xjvm-default):\n" + offenders.sorted().joinToString("\n") { "  - $it" })
+    }
+
+    /**
+     * A constructor with Kotlin default arguments must have `@JvmOverloads`: Java has no
+     * default arguments, and passing every `null` by hand is how add-ons broke on new fields.
+     * [ArtisanAPI] is only constructed by Artisan.
+     */
+    @Test
+    fun `constructors with default arguments have java overloads`() {
+        val offenders = apiClasses()
+            .filter { Modifier.isPublic(it.modifiers) && it != ArtisanAPI::class.java }
+            .filter { cls -> cls.declaredConstructors.any { c -> c.isSynthetic && c.parameterTypes.lastOrNull()?.name == "kotlin.jvm.internal.DefaultConstructorMarker" } }
+            .filter { cls -> cls.constructors.count { !it.isSynthetic } < 2 }
+            .map { it.name }
+        if (offenders.isNotEmpty()) fail("Add @JvmOverloads to the constructor of:\n" + offenders.sorted().joinToString("\n") { "  - $it" })
+    }
+
     /** `kotlin.Metadata` stays, but as an annotation, never in a signature. */
     private fun isKotlin(t: Class<*>): Boolean =
         generateSequence(t) { if (it.isArray) it.componentType else null }
