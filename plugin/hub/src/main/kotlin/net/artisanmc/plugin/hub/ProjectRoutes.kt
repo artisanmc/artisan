@@ -1,7 +1,7 @@
 package net.artisanmc.plugin.hub
 
 import com.fasterxml.jackson.databind.JsonNode
-import net.artisanmc.plugin.hub.AccountRoutes.Companion.LOCAL
+import net.artisanmc.plugin.hub.Servers.Companion.LOCAL
 import net.artisanmc.plugin.hub.EditorPermissions.EDIT
 import net.artisanmc.plugin.hub.EditorPermissions.PUBLISH
 import net.artisanmc.plugin.hub.EditorPermissions.VIEW
@@ -15,31 +15,32 @@ import java.util.Base64
 import java.util.UUID
 
 /**
- * Projects, publication et brouillons. L'identifiant d'un Project est le nom de son dossier :
- * sans base de données, c'est la seule identité qui existe.
+ * Projects, publication et brouillons. L'identifiant d'un Project vient du nom de son
+ * dossier ([Servers.project]) : sans base de données, c'est la seule identité qui existe.
  */
-class ProjectRoutes(private val server: LocalServer, private val relay: Relay) {
+class ProjectRoutes(private val servers: Servers, private val relay: Relay) {
     fun register(router: Router) {
         router.on("GET", "$SERVER/projects", VIEW) { call ->
-            if (!local(call)) return@on
-            relay.send(call, mapOf("type" to "project_list")) { reply ->
+            val server = servers.of(call) ?: return@on call.error(404, "not_found")
+            relay.send(call, server, mapOf("type" to "project_list")) { reply ->
                 if (!ok(reply)) return@send readError(call, reply)
+                val projects = roots(reply).map { summary(server, it) }
                 call.json(mapOf(
-                    "project_ids" to reply["project_ids"],
-                    "projects" to roots(reply).map(::summary),
+                    "project_ids" to (reply["project_ids"] as? List<*>).orEmpty().map { ProjectRef.id(server, it as String) },
+                    "projects" to projects,
                     "pending_renames" to emptyList<Any>(),
                 ))
             }
         }
-        router.on("GET", "/api/v1/user/projects/:project", VIEW) { call ->
-            val projectId = call.params.getValue("project")
-            relay.send(call, mapOf("type" to "project_list")) { reply ->
+        onProject(router, "GET", "/api/v1/user/projects/:project", VIEW) { call, project ->
+            val server = project.server
+            relay.send(call, server, mapOf("type" to "project_list")) { reply ->
                 if (!ok(reply)) return@send readError(call, reply)
-                val root = roots(reply).firstOrNull { it["project_id"] == projectId } ?: return@send call.error(404, "not_found")
+                val root = roots(reply).firstOrNull { it["project_id"] == project.folder } ?: return@send call.error(404, "not_found")
                 call.json(mapOf(
-                    "project" to summary(root),
+                    "project" to summary(server, root),
                     "networkId" to LOCAL,
-                    "serverKeyId" to LOCAL,
+                    "serverKeyId" to server.id,
                     "capabilities" to mapOf(
                         "liveData" to true, "captureInGame" to false, "preview" to true, "canRename" to false,
                         // Assistant et migration hors de l'éditeur auto-hébergé ; supprimer un Project passait par le backend.
@@ -50,21 +51,21 @@ class ProjectRoutes(private val server: LocalServer, private val relay: Relay) {
                 ))
             }
         }
-        router.on("GET", "/api/v1/projects/:project/editor-access", VIEW) { call ->
-            relay.send(call, mapOf("type" to "project_list")) { reply ->
-                val root = roots(reply).firstOrNull { it["project_id"] == call.params["project"] }
+        onProject(router, "GET", "/api/v1/projects/:project/editor-access", VIEW) { call, project ->
+            relay.send(call, project.server, mapOf("type" to "project_list")) { reply ->
+                val root = roots(reply).firstOrNull { it["project_id"] == project.folder }
                 val origin = if (root?.get("identity") == "addon") "module" else "personal"
                 call.json(EDITOR_ACCESS + ("projectOrigin" to origin))
             }
         }
 
         for (base in listOf("/api/v1/projects/:project", "$SERVER/projects/:project")) {
-            router.on("GET", "$base/files", VIEW) { call -> if (local(call)) read(call) }
-            router.on("PUT", "$base/files", PUBLISH) { call -> if (local(call)) write(call) }
-            router.on("GET", "$base/history", VIEW) { call -> if (local(call)) history(call) }
+            onProject(router, "GET", "$base/files", VIEW, ::read)
+            onProject(router, "PUT", "$base/files", PUBLISH, ::write)
+            onProject(router, "GET", "$base/history", VIEW, ::history)
         }
-        router.on("GET", "/api/v1/projects/:project/binary", VIEW) { call -> asset(call) }
-        router.on("GET", "$SERVER/projects/:project/asset", VIEW) { call -> if (local(call)) asset(call) }
+        onProject(router, "GET", "/api/v1/projects/:project/binary", VIEW, ::asset)
+        onProject(router, "GET", "$SERVER/projects/:project/asset", VIEW, ::asset)
         // Les Versions sont l'historique que gardait le backend : rien à montrer sans lui.
         router.on("GET", "/api/v1/projects/:project/versions", VIEW) { it.json(mapOf("versions" to emptyList<Any>())) }
         router.on("GET", "/api/v1/projects/:project/versions/:version", VIEW) { it.error(404, "not_found") }
@@ -72,18 +73,25 @@ class ProjectRoutes(private val server: LocalServer, private val relay: Relay) {
         drafts(router)
     }
 
-    private fun read(call: Call) {
-        val message = mapOf("type" to "project_read", "project_id" to call.params["project"], "if_hash" to call.query("if_hash"))
-        relay.send(call, message) { reply -> if (ok(reply)) call.json(body(reply)) else readError(call, reply) }
+    private fun onProject(router: Router, method: String, pattern: String, permission: String, handler: (Call, ProjectRef) -> Unit) {
+        router.on(method, pattern, permission) { call ->
+            val project = servers.projectOf(call) ?: return@on call.error(404, "not_found")
+            handler(call, project)
+        }
     }
 
-    private fun write(call: Call) {
+    private fun read(call: Call, project: ProjectRef) {
+        val message = mapOf("type" to "project_read", "project_id" to project.folder, "if_hash" to call.query("if_hash"))
+        relay.send(call, project.server, message) { reply -> if (ok(reply)) call.json(body(reply)) else readError(call, reply) }
+    }
+
+    private fun write(call: Call, project: ProjectRef) {
         val request = call.body()
         if (request == null || !request.path("files").isArray) return call.error(422, "invalid_input")
         val operationId = operationId(request) ?: return call.error(422, "invalid_input")
         val message = buildMap<String, Any?> {
             put("type", "project_write")
-            put("project_id", call.params["project"])
+            put("project_id", project.folder)
             put("operation_id", operationId)
             put("files", request["files"])
             put("deletes", request["deletes"] ?: emptyList<Any>())
@@ -91,7 +99,7 @@ class ProjectRoutes(private val server: LocalServer, private val relay: Relay) {
             put("create", request.path("create").asBoolean(false))
             request["binaries"]?.let { put("binaries", it) }
         }
-        relay.send(call, message) { reply ->
+        relay.send(call, project.server, message) { reply ->
             val error = errorCode(reply)
             val detail = reply["message"] as? String
             when {
@@ -106,16 +114,16 @@ class ProjectRoutes(private val server: LocalServer, private val relay: Relay) {
         }
     }
 
-    private fun history(call: Call) {
+    private fun history(call: Call, project: ProjectRef) {
         val path = call.query("path") ?: return call.error(422, "invalid_input")
-        relay.send(call, mapOf("type" to "project_history", "project_id" to call.params["project"], "path" to path)) { reply ->
+        relay.send(call, project.server, mapOf("type" to "project_history", "project_id" to project.folder, "path" to path)) { reply ->
             if (ok(reply)) call.json(mapOf("versions" to reply["versions"])) else readError(call, reply)
         }
     }
 
-    private fun asset(call: Call) {
+    private fun asset(call: Call, project: ProjectRef) {
         val path = call.query("path") ?: return call.error(422, "invalid_input")
-        relay.send(call, mapOf("type" to "asset_read", "project_id" to call.params["project"], "path" to path)) { reply ->
+        relay.send(call, project.server, mapOf("type" to "asset_read", "project_id" to project.folder, "path" to path)) { reply ->
             val content = reply["content_base64"] as? String
             if (!ok(reply) || content == null) return@send readError(call, reply)
             call.send(200, contentType(path), Base64.getDecoder().decode(content), "private, no-cache")
@@ -125,50 +133,50 @@ class ProjectRoutes(private val server: LocalServer, private val relay: Relay) {
     /** Les brouillons privés restent sur le disque du serveur (`ProjectDraftStore`), un jeu par joueur. */
     private fun drafts(router: Router) {
         val base = "/api/v1/user/projects/:project/drafts"
-        router.on("GET", base, VIEW) { call -> draft(call, "list") }
-        router.on("GET", "$base/:draft", VIEW) { call -> draft(call, "read", "draft_id" to call.params["draft"]) }
-        router.on("GET", "$base/:draft/blobs/:hash", VIEW) { call ->
-            val hash = call.params.getValue("hash").takeIf { SHA256.matches(it) } ?: return@on call.error(422, "invalid_input")
-            val message = draftMessage(call, "read_blob", "draft_id" to call.params["draft"], "hash" to hash)
-            relay.send(call, message) { reply ->
+        onProject(router, "GET", base, VIEW) { call, project -> draft(call, project, "list") }
+        onProject(router, "GET", "$base/:draft", VIEW) { call, project -> draft(call, project, "read", "draft_id" to call.params["draft"]) }
+        onProject(router, "GET", "$base/:draft/blobs/:hash", VIEW) { call, project ->
+            val hash = call.params.getValue("hash").takeIf { SHA256.matches(it) } ?: return@onProject call.error(422, "invalid_input")
+            val message = draftMessage(call, project, "read_blob", "draft_id" to call.params["draft"], "hash" to hash)
+            relay.send(call, project.server, message) { reply ->
                 val content = reply["content_base64"] as? String
                 if (ok(reply) && content != null) call.send(200, "application/octet-stream", Base64.getDecoder().decode(content))
-                else draftResponse(call, reply)
+                else draftResponse(call, project, reply)
             }
         }
-        router.on("POST", base, EDIT) { call ->
+        onProject(router, "POST", base, EDIT) { call, project ->
             val request = call.body()
             val id = request?.get("id")?.takeIf { it.isTextual && IDENTIFIER.matches(it.asText()) }?.asText()
             val operationId = request?.let(::operationId)
-            if (id == null || operationId == null || !request.path("snapshot").isObject) return@on call.error(422, "invalid_input")
-            draft(call, "create", "draft_id" to id, "operation_id" to operationId, "name" to request["name"], "snapshot" to request["snapshot"], created = true)
+            if (id == null || operationId == null || !request.path("snapshot").isObject) return@onProject call.error(422, "invalid_input")
+            draft(call, project, "create", "draft_id" to id, "operation_id" to operationId, "name" to request["name"], "snapshot" to request["snapshot"], created = true)
         }
-        router.on("PUT", "$base/:draft", EDIT) { call ->
+        onProject(router, "PUT", "$base/:draft", EDIT) { call, project ->
             revised(call) { request, revision, operationId ->
                 if (!request.path("snapshot").isObject) return@revised call.error(422, "invalid_input")
                 draft(
-                    call, "update", "draft_id" to call.params["draft"], "expected_revision" to revision,
+                    call, project, "update", "draft_id" to call.params["draft"], "expected_revision" to revision,
                     "operation_id" to operationId, "name" to request["name"], "snapshot" to request["snapshot"],
                 )
             }
         }
-        router.on("DELETE", "$base/:draft", EDIT) { call ->
+        onProject(router, "DELETE", "$base/:draft", EDIT) { call, project ->
             revised(call) { _, revision, operationId ->
-                draft(call, "discard", "draft_id" to call.params["draft"], "expected_revision" to revision, "operation_id" to operationId)
+                draft(call, project, "discard", "draft_id" to call.params["draft"], "expected_revision" to revision, "operation_id" to operationId)
             }
         }
-        router.on("POST", "$base/:draft/publish", PUBLISH) { call ->
+        onProject(router, "POST", "$base/:draft/publish", PUBLISH) { call, project ->
             revised(call) { _, revision, operationId ->
-                draft(call, "publish", "draft_id" to call.params["draft"], "expected_revision" to revision, "operation_id" to operationId)
+                draft(call, project, "publish", "draft_id" to call.params["draft"], "expected_revision" to revision, "operation_id" to operationId)
             }
         }
-        router.on("POST", "$base/:draft/blobs", EDIT) { call ->
+        onProject(router, "POST", "$base/:draft/blobs", EDIT) { call, project ->
             revised(call) { request, revision, operationId ->
                 val hash = request["hash"]?.asText()?.takeIf { SHA256.matches(it) }
                 val content = request["contentBase64"]?.takeIf { it.isTextual }?.asText()
                 if (hash == null || content == null) return@revised call.error(422, "invalid_input")
                 draft(
-                    call, "write_blob", "draft_id" to call.params["draft"], "expected_revision" to revision,
+                    call, project, "write_blob", "draft_id" to call.params["draft"], "expected_revision" to revision,
                     "operation_id" to operationId, "hash" to hash, "content_base64" to content,
                 )
             }
@@ -183,19 +191,19 @@ class ProjectRoutes(private val server: LocalServer, private val relay: Relay) {
         then(request, revision, operationId)
     }
 
-    private fun draftMessage(call: Call, action: String, vararg fields: Pair<String, Any?>) = mapOf(
+    private fun draftMessage(call: Call, project: ProjectRef, action: String, vararg fields: Pair<String, Any?>) = mapOf(
         "type" to "project_draft_request",
-        "project_id" to call.params["project"],
+        "project_id" to project.folder,
         "owner_id" to call.session!!.playerId.toString(),
         "action" to action,
     ) + fields
 
-    private fun draft(call: Call, action: String, vararg fields: Pair<String, Any?>, created: Boolean = false) {
-        relay.send(call, draftMessage(call, action, *fields)) { reply -> draftResponse(call, reply, created) }
+    private fun draft(call: Call, project: ProjectRef, action: String, vararg fields: Pair<String, Any?>, created: Boolean = false) {
+        relay.send(call, project.server, draftMessage(call, project, action, *fields)) { reply -> draftResponse(call, project, reply, created) }
     }
 
-    private fun draftResponse(call: Call, reply: Map<String, Any?>, created: Boolean = false) {
-        val projectId = call.params["project"]
+    private fun draftResponse(call: Call, project: ProjectRef, reply: Map<String, Any?>, created: Boolean = false) {
+        val projectId = project.id
         @Suppress("UNCHECKED_CAST")
         fun attach(draft: Any?) = (draft as? Map<String, Any?>)?.plus("projectId" to projectId) ?: draft
         val body = (reply - setOf("type", "request_id")).toMutableMap()
@@ -214,15 +222,6 @@ class ProjectRoutes(private val server: LocalServer, private val relay: Relay) {
         call.json(body, status)
     }
 
-    private fun local(call: Call): Boolean {
-        val scoped = call.params.containsKey("network")
-        if (scoped && (call.params["network"] != LOCAL || call.params["server"] != LOCAL)) {
-            call.error(404, "not_found")
-            return false
-        }
-        return true
-    }
-
     private fun operationId(request: JsonNode): String? {
         val value = request["operationId"] ?: return UUID.randomUUID().toString()
         return value.asText().takeIf { value.isTextual && IDENTIFIER.matches(it) }
@@ -231,11 +230,12 @@ class ProjectRoutes(private val server: LocalServer, private val relay: Relay) {
     @Suppress("UNCHECKED_CAST")
     private fun roots(reply: Map<String, Any?>) = (reply["project_roots"] as? List<Map<String, Any?>>).orEmpty()
 
-    private fun summary(root: Map<String, Any?>): Map<String, Any?> {
-        val id = root["project_id"] as String
+    private fun summary(server: EditorServer, root: Map<String, Any?>): Map<String, Any?> {
+        val folder = root["project_id"] as String
+        val id = ProjectRef.id(server, folder)
         return mapOf(
-            "id" to id, "name" to id, "externalId" to id, "slug" to id,
-            "networkId" to LOCAL, "serverKeyId" to LOCAL, "hash" to "",
+            "id" to id, "name" to folder, "externalId" to id, "slug" to id,
+            "networkId" to LOCAL, "serverKeyId" to server.id, "hash" to "",
             "identityKind" to root["identity"], "ownerModule" to root["module_id"],
             "capabilities" to mapOf("canRename" to false),
         )

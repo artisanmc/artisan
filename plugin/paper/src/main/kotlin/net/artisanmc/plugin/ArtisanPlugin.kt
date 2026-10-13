@@ -266,8 +266,10 @@ open class ArtisanPlugin : JavaPlugin() {
     }
 
     /** Le serveur vu par l'éditeur qu'il sert : toujours le provider courant, qui change à chaque reload. */
-    private val localServer = object : net.artisanmc.plugin.hub.LocalServer {
+    private val localServer = object : net.artisanmc.plugin.hub.EditorServer {
         private val provider get() = menuProvider as SyncedMenuProvider
+        override val id = net.artisanmc.plugin.hub.Servers.LOCAL
+        override val online = true
         override val link: net.artisanmc.plugin.protocol.ServerLink get() = provider.link
         override val label: String get() = File(".").absoluteFile.normalize().name.ifBlank { "Minecraft" }
         override val minecraftVersion: String get() = provider.minecraftVersion
@@ -299,7 +301,7 @@ open class ArtisanPlugin : JavaPlugin() {
         try {
             val vanilla = net.artisanmc.plugin.hub.VanillaAssets(File(dataFolder, "cache/minecraft"), localServer.minecraftVersion, logger)
             val packs = net.artisanmc.plugin.hub.PackStore(File(dataFolder, "cache/resource-pack"))
-            val router = net.artisanmc.plugin.hub.EditorApi.router(localServer, editorSessions, logger, vanilla, packs)
+            val router = net.artisanmc.plugin.hub.EditorApi.router(net.artisanmc.plugin.hub.Servers(localServer), editorSessions, logger, vanilla, packs)
             val server = net.artisanmc.plugin.hub.HubServer(
                 web, router, editorSessions, net.artisanmc.plugin.hub.EditorAssets(javaClass.classLoader), editorChannel, logger,
             )
