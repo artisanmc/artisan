@@ -93,10 +93,9 @@ object BundleCompiler {
         }
 
     /**
-     * Wire handler de clic → [ClickHandler]. Le legacy (objet
-     * `{requirements, actions, fallback, cooldown, steps}`) est détecté par ses
-     * clés ; le reste (string DSL, `{steps}`, keyed) passe par
-     * [ActionChainCompiler].
+     * Click wire handler → [ClickHandler]. The legacy object
+     * (`{requirements, actions, fallback, cooldown, steps}`) is detected by its keys;
+     * everything else (DSL string, `{steps}`, keyed) goes through [ActionChainCompiler].
      */
     @Suppress("UNCHECKED_CAST")
     private fun compileClickHandler(raw: Any?, prefix: String): ClickHandler {

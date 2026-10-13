@@ -3,22 +3,21 @@ package net.artisanmc.plugin.engine
 import net.artisanmc.plugin.model.LocalizedText
 
 /**
- * Parseur du wire d'action **structuré keyed par nom** (ADR
- * `structured-action-wire`). Une action est `{ <nom>: args }`, une condition
- * `{ <nom>: args }` ; `if` est une liste (AND implicite), `or:`/`and:` une
- * liste, `not:` une condition ; le texte est un [LocalizedText].
+ * Parser for the **name-keyed structured** action wire (ADR `structured-action-wire`).
+ * An action is `{ <name>: args }`, a condition `{ <name>: args }`; `if` is a list
+ * (implicit AND), `or:`/`and:` a list, `not:` a condition; text is a [LocalizedText].
  *
- * Lecture tolérante : un handler **string** est l'ancien Action DSL ; un objet
- * `{steps: "<dsl>"}` est la forme legacy enveloppée ; une **string en entrée de
- * liste** est une action sans argument. Le parser ne jette pas : une entrée
- * invalide est ignorée (philosophie tolérante du chargeur de bundle).
+ * Tolerant read: a **string** handler is the old Action DSL; a `{steps: "<dsl>"}`
+ * object is the legacy wrapped form; a **string list entry** is an action without
+ * arguments. The parser never throws: an invalid entry is ignored, like the rest of
+ * the bundle loader.
  */
 object KeyedStepParser {
 
     /**
-     * Parse un wire **keyed** (map = step unique, liste = steps). Une string =
-     * action sans argument (utilisé pour les entrées de liste, pas pour un
-     * handler entier — le handler string est l'ancien DSL, cf. [ActionChainCompiler]).
+     * Parse a **keyed** wire (map = single step, list = steps). A string is an action
+     * without arguments (for list entries, not a whole handler: a string handler is
+     * the old DSL, see [ActionChainCompiler]).
      */
     fun parseKeyed(raw: Any?): List<Step> = when (raw) {
         null -> emptyList()
@@ -27,8 +26,6 @@ object KeyedStepParser {
         is String -> listOfNotNull(parseStep(raw))
         else -> emptyList()
     }
-
-    // ── steps ────────────────────────────────────────────────────────────────
 
     private fun parseStep(raw: Any?): Step? = when {
         raw is String -> Step.ActionStep(parseNoArg(raw))
@@ -59,8 +56,6 @@ object KeyedStepParser {
         }
         return Step.IfStep(cases, elseSteps)
     }
-
-    // ── actions ──────────────────────────────────────────────────────────────
 
     private fun parseNoArg(name: String): Action = when (name) {
         "close_menu" -> Action.CloseMenu
@@ -136,9 +131,7 @@ object KeyedStepParser {
         }
     }
 
-    // ── conditions ───────────────────────────────────────────────────────────
-
-    /** Parse une liste de conditions keyed (ou legacy `{type}`) — `if` d'appearance. */
+    /** Parse a list of keyed (or legacy `{type}`) conditions: an appearance's `if`. */
     fun parseConditions(raw: Any?): List<Condition> = asList(raw).mapNotNull { parseCondition(it) }
 
     @Suppress("UNCHECKED_CAST")
@@ -174,8 +167,6 @@ object KeyedStepParser {
             else -> null
         }
     }
-
-    // ── helpers ──────────────────────────────────────────────────────────────
 
     private fun textOf(value: Any?): LocalizedText = when {
         value is String -> LocalizedText.of(value)

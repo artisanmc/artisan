@@ -106,9 +106,8 @@ class ProjectPublisher(private val root: File, private val afterApply: (Int) -> 
     }
 
     /**
-     * `.artisan/history/` n'est plus alimenté : l'historique vit dans les Versions
-     * du backend (ADR `snapshot-mirror-and-backend-history`, décision 6). Les
-     * archives existantes restent lisibles par `project_history`.
+     * `.artisan/history/` is no longer fed; existing archives stay readable through
+     * `project_history`.
      */
     fun withHistory(changes: Map<String, ByteArray?>): Map<String, ByteArray?> = changes
 

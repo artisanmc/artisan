@@ -17,16 +17,16 @@ import java.util.concurrent.TimeUnit
 import java.util.zip.GZIPInputStream
 import java.util.zip.ZipInputStream
 
-/** Le serveur ne répond pas : il s'est déconnecté, ou n'est jamais venu depuis le démarrage du hub. */
+/** The server does not answer: it disconnected, or never connected since the hub started. */
 class ServerOfflineException(server: String) : RuntimeException("server $server is offline")
 
 /**
- * Un serveur du réseau relié par `/ws/plugin`. Ce qu'il annonce au `hello` (modules, sources, configuration) est gardé ici, et chaque
- * requête de l'éditeur part sur son WebSocket avec un `request_id`.
+ * A network server connected through `/ws/plugin`. What it announces in `hello` (modules, sources,
+ * configuration) is kept here, and each editor request goes out on its WebSocket with a `request_id`.
  */
 class RemoteServer(
     override val id: String,
-    /** Adresse publique du hub : les packs qu'il sert y sont téléchargés. */
+    /** The hub's public address: the packs it serves are downloaded from there. */
     private val publicUrl: () -> String,
     private val timeout: Duration = Duration.ofSeconds(30),
 ) : EditorServer {
@@ -59,7 +59,7 @@ class RemoteServer(
         send(mapOf("type" to "resource_pack_updated") + update)
     }
 
-    /** Une nouvelle connexion remplace l'ancienne : un serveur qui redémarre se recolle tout seul. */
+    /** A new connection replaces the old one: a restarting server reattaches by itself. */
     fun attach(session: Session, hello: ObjectNode) {
         val previous = this.session
         this.hello = hello
@@ -79,7 +79,7 @@ class RemoteServer(
         pending.values.forEach { it.completeExceptionally(offline) }
     }
 
-    /** Ce que le serveur envoie après le `hello` : réponses, puis annonces. */
+    /** What the server sends after `hello`: replies, then announcements. */
     fun receive(message: JsonNode, editors: EditorChannel) {
         val requestId = message.path("request_id").asText("")
         if (requestId.isNotEmpty()) {
@@ -131,7 +131,7 @@ class RemoteServer(
     private fun map(node: JsonNode?): Map<String, Any?>? =
         node?.takeIf { it.isObject }?.let { Call.mapper.convertValue(it, MAP) }
 
-    /** Le format de `CustomItemsManager.buildBundle` : `items.json` dans un zip, gzippé, en base64. */
+    /** The `CustomItemsManager.buildBundle` format: `items.json` in a zip, gzipped, base64. */
     private fun decodeCustomItems(data: String): List<Map<String, String>> = runCatching {
         ZipInputStream(GZIPInputStream(ByteArrayInputStream(Base64.getDecoder().decode(data)))).use { zip ->
             generateSequence { zip.nextEntry }.firstOrNull { it.name == "items.json" } ?: return@use customItems

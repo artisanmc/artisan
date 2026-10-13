@@ -260,8 +260,8 @@ class BareDataFilesReaderTest {
     @Test
     fun `a mapping with an unrelated schema-like key stays a bare object`() {
         val dir = writeProject()
-        // "schema" here is USER DATA (not `data/v1`) — grill Q2: only the exact
-        // legacy header switches to the legacy path.
+        // "schema" here is USER DATA (not `data/v1`): only the exact legacy header
+        // switches to the legacy path.
         File(dir, "data/db.yaml").writeText("schema: public\nhost: localhost\n")
 
         val src = read(dir).dataSources.single()

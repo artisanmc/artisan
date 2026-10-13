@@ -167,7 +167,7 @@ class ArtisanCommand(
         editorLink(sender, senderLang, editor.port ?: cfg.web.port)
     }
 
-    /** Un lien à usage unique : l'identité dans l'éditeur est celle du joueur qui le demande. */
+    /** A single-use link: the identity in the editor is the player who asked for it. */
     private fun editorLink(sender: CommandSender, senderLang: String, port: Int) {
         if (sender !is Player) {
             sender.sendMessage(lang.get("artisan.editor_in_game_only", senderLang))
@@ -189,7 +189,7 @@ class ArtisanCommand(
         }
     }
 
-    /** Sur une feuille, le hub donne le lien, avec les permissions que ce serveur a lues pour le joueur. */
+    /** On a leaf, the hub issues the link, with the permissions this server read for the player. */
     private fun hubLink(sender: CommandSender, senderLang: String) {
         if (sender !is Player) {
             sender.sendMessage(lang.get("artisan.editor_in_game_only", senderLang))

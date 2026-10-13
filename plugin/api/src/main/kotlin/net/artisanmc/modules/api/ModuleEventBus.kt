@@ -21,12 +21,11 @@ class ModuleEventBus {
     private val subs = CopyOnWriteArrayList<Sub>()
 
     /**
-     * S'abonner aux événements de type [type].
+     * Subscribe to events of type [type].
      *
-     * A remplacé l'ancien `inline fun <reified T> subscribe(handler: (T) -> Unit)` :
-     * une fonction inline reified n'est appelable que depuis Kotlin, et sa
-     * signature bytecode exposait un `kotlin.jvm.functions.Function1` sur la
-     * surface publique (cf. [ModuleEventHandler]).
+     * Takes a `Class` rather than a reified type parameter: an inline reified
+     * function is callable from Kotlin only, and its bytecode signature exposed a
+     * `kotlin.jvm.functions.Function1` on the public surface (see [ModuleEventHandler]).
      */
     @Stable
     fun subscribe(type: Class<out ModuleEvent>, handler: ModuleEventHandler) {

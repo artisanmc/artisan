@@ -81,7 +81,7 @@ class SyncedMenuProviderTest {
         assertEquals(27, player.openInventory.topInventory.size)
     }
 
-    /** Deux projects qui portent chacun un menu `main`, de tailles différentes pour les distinguer. */
+    /** Two projects each carrying a `main` menu, with different sizes to tell them apart. */
     private fun writeTwoProjectsWithSameMenuId(root: File) {
         for ((project, size) in listOf("core" to 27, "shop" to 54)) {
             val dir = File(root, project).apply { mkdirs() }

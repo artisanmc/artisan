@@ -8,11 +8,11 @@ import java.util.concurrent.ConcurrentHashMap
  * the core projects root (`plugins/Artisan/projects/`, scanned by directory name)
  * with **Add-on-owned roots** an Add-on registers at `onEnable` (ADR
  * `addon-owned-project-roots`). An Add-on registers a *dedicated* directory it
- * owns — never its plugin data folder root, since bundle sync deletes files under
- * a project dir that aren't in the bundle.
+ * owns, never its plugin data folder root: every file under a project dir is
+ * project content.
  *
  * Discovery ([all]) and every `projectId -> File` resolution ([dirFor]) go through
- * here so the core's read/hash/download-sweep/trash/hot-reload operate per root.
+ * here so the core's read/hash/publish/trash/hot-reload operate per root.
  * On a `projectId` collision across roots, the registered Add-on root wins.
  */
 class ProjectRoots(
@@ -38,23 +38,21 @@ class ProjectRoots(
     }
 
     /**
-     * Notifié à chaque racine enregistrée.
+     * Notified for each registered root.
      *
-     * Un Add-on s'active APRÈS le core — 9 s plus tard en conditions réelles — et
-     * n'enregistre sa racine qu'à ce moment. Le lecteur du core doit donc pouvoir
-     * en tenir compte : sans ça, tout ce qui est capturé au chargement (dont
-     * l'instantané servi à l'éditeur) ignore les projects d'Add-on pour de bon.
+     * An Add-on enables AFTER the core (seconds later in practice) and only then
+     * registers its root. The core reader must account for it: otherwise everything
+     * captured at load (including the snapshot served to the editor) ignores Add-on
+     * projects for good.
      */
     @Volatile var onRegister: ((String, File) -> Unit)? = null
 
     @Synchronized
     override fun register(projectId: String, dir: File) {
-        // A core-root directory of the same id is now shadowed — invisible to
-        // read, hash, sync and the scanner. Silent shadowing is a trap: the copy
-        // still looks like a live project on disk, and the day this Add-on fails
-        // to enable, nothing registers the root, `all()` re-exposes the stale
-        // tree, and the divergence banner (default: disk) offers to push it over
-        // the real one. One WARN for post-mortem — house "no theater" rule.
+        // A core-root directory of the same id is now shadowed: invisible to every
+        // read. Silent shadowing is a trap: the copy still looks like a live project
+        // on disk, and the day this Add-on fails to enable, nothing registers the
+        // root and `all()` re-exposes the stale tree. One WARN for post-mortem.
         val shadowed = File(coreRoot, projectId)
         if (shadowed.isDirectory && shadowed.canonicalFile != dir.canonicalFile) {
             logger?.warning(

@@ -10,7 +10,7 @@ import org.eclipse.jetty.server.Response
 import org.eclipse.jetty.util.Callback
 import org.eclipse.jetty.util.Fields
 
-/** Une requête HTTP en cours : ce qu'elle porte, et une seule réponse à donner. */
+/** An HTTP request in flight: what it carries, and the single response to give. */
 class Call(
     val request: Request,
     private val response: Response,
@@ -31,7 +31,7 @@ class Call(
 
     fun body(): JsonNode? = runCatching { mapper.readTree(Content.Source.asString(request)) }.getOrNull()
 
-    /** Le corps brut, ou null au-delà de [limit] octets. */
+    /** The raw body, or null beyond [limit] bytes. */
     fun bytes(limit: Int): ByteArray? {
         if (request.length > limit) return null
         val buffer = Content.Source.asByteBuffer(request)
@@ -65,13 +65,13 @@ class Call(
     }
 }
 
-/** Routes `GET /api/v1/projects/:id/files` : les segments `:nom` deviennent des paramètres. */
+/** Routes like `GET /api/v1/projects/:id/files`: `:name` segments become parameters. */
 class Router {
     private class Route(val method: String, val segments: List<String>, val permission: String?, val handler: (Call) -> Unit)
 
     private val routes = mutableListOf<Route>()
 
-    /** [permission] null : route publique. Sinon, une session portant cette permission. */
+    /** Null [permission]: public route. Otherwise, a session holding that permission. */
     fun on(method: String, pattern: String, permission: String?, handler: (Call) -> Unit) {
         routes += Route(method, split(pattern), permission, handler)
     }
@@ -102,7 +102,7 @@ class Router {
         return routes.any { r -> fits(r.segments, segments) && r.segments.indices.all { r.segments[it].startsWith(":") || r.segments[it] == "*" || r.segments[it] == segments[it] } }
     }
 
-    /** Un `*` final prend le reste du chemin, au moins un segment. */
+    /** A trailing `*` takes the rest of the path, at least one segment. */
     private fun fits(pattern: List<String>, segments: List<String>) =
         if (pattern.lastOrNull() == "*") segments.size >= pattern.size else segments.size == pattern.size
 

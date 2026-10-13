@@ -16,8 +16,8 @@ import java.util.Base64
 import java.util.UUID
 
 /**
- * Projects, publication et brouillons. L'identifiant d'un Project vient du nom de son
- * dossier ([Servers.project]) : sans base de données, c'est la seule identité qui existe.
+ * Projects, publishing and drafts. A Project's id comes from its folder name
+ * ([Servers.project]): without a database, that is the only identity there is.
  */
 class ProjectRoutes(private val servers: Servers, private val relay: Relay) {
     fun register(router: Router) {
@@ -45,7 +45,7 @@ class ProjectRoutes(private val servers: Servers, private val relay: Relay) {
                     "serverKeyId" to server.id,
                     "capabilities" to mapOf(
                         "liveData" to true, "captureInGame" to false, "preview" to true, "canRename" to movable,
-                        // Assistant et migration hors de l'éditeur auto-hébergé.
+                        // No assistant or migration in the self-hosted editor.
                         "canUseAssistant" to false, "canDelete" to movable, "canCopyToServer" to false,
                     ),
                     "minecraftVersion" to server.minecraftVersion,
@@ -68,7 +68,7 @@ class ProjectRoutes(private val servers: Servers, private val relay: Relay) {
         }
         onProject(router, "GET", "/api/v1/projects/:project/binary", VIEW, ::asset)
         onProject(router, "GET", "$SERVER/projects/:project/asset", VIEW, ::asset)
-        // Les Versions sont l'historique que gardait le backend : rien à montrer sans lui.
+        // The self-hosted editor keeps no Versions.
         router.on("GET", "/api/v1/projects/:project/versions", VIEW) { it.json(mapOf("versions" to emptyList<Any>())) }
         router.on("GET", "/api/v1/projects/:project/versions/:version", VIEW) { it.error(404, "not_found") }
 
@@ -76,7 +76,7 @@ class ProjectRoutes(private val servers: Servers, private val relay: Relay) {
         lifecycle(router)
     }
 
-    /** Créer, supprimer (corbeille du serveur) et renommer le dossier d'un Project. */
+    /** Create, delete (to the server's trash) and rename a Project folder. */
     private fun lifecycle(router: Router) {
         router.on("POST", "/api/v1/networks/:network/projects", PUBLISH) { call ->
             val request = call.body()
@@ -109,7 +109,7 @@ class ProjectRoutes(private val servers: Servers, private val relay: Relay) {
         }
     }
 
-    /** Une feuille d'une release plus ancienne ignorerait le message : on le dit au lieu d'attendre le timeout. */
+    /** A leaf on an older release would ignore the message: say so instead of waiting for the timeout. */
     private fun speaksFolders(call: Call, server: EditorServer): Boolean {
         if (ProtocolVersion.minor(server.protocolVersion) >= ProtocolVersion.PROJECT_FOLDERS) return true
         call.error(501, "plugin_update_required")
@@ -182,7 +182,7 @@ class ProjectRoutes(private val servers: Servers, private val relay: Relay) {
         }
     }
 
-    /** Les brouillons privés restent sur le disque du serveur (`ProjectDraftStore`), un jeu par joueur. */
+    /** Private drafts stay on the server's disk (`ProjectDraftStore`), one set per player. */
     private fun drafts(router: Router) {
         val base = "/api/v1/user/projects/:project/drafts"
         onProject(router, "GET", base, VIEW) { call, project -> draft(call, project, "list") }

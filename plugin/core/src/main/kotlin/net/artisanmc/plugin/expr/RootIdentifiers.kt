@@ -7,9 +7,6 @@ package net.artisanmc.plugin.expr
  * A Template renders its source when any of these is unbound (ADR
  * `expression-parity` §4); a condition does not — there an unbound name is
  * legitimately null. Hence a caller-side check rather than evaluator behaviour.
- *
- * Static per AST, so it is computed once at bundle load and carried with the
- * parsed template rather than recomputed for every rendered row.
  */
 fun rootIdentifiers(node: Node): Set<String> {
     val out = LinkedHashSet<String>()

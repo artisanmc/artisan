@@ -225,7 +225,7 @@ class ActionExecutorTest {
         executor().execute(listOf(Action.ShowTitle(title = "<red>x")), ctx(p))
     }
 
-    // ── canonical step-tree execution (kind: action / if) ────────────────────
+    // canonical step-tree execution (kind: action / if)
 
     private fun give(material: String) = Step.ActionStep(Action.GiveItem(material, 1))
 
@@ -339,7 +339,7 @@ class ActionExecutorTest {
         assertTrue(p.inventory.contains(org.bukkit.Material.STONE))
     }
 
-    // ── set_arg / set_arg_cycle_* ─────────────────────────────────────────────
+    // set_arg / set_arg_cycle_*
 
     private fun openSession(p: Player, menuId: String = "shop", args: Map<String, Any> = emptyMap()) {
         sessions.set(p, MenuSession(menuId, ExecutionContext(p, args = args), emptyMap()))
@@ -412,7 +412,7 @@ class ActionExecutorTest {
         val p = player()
         val sessionCtx = ExecutionContext(p, args = mapOf("shops" to listOf(mapOf("id" to "s1"))))
         val slotArgs = mapOf("shop" to mapOf("id" to "s1"))
-        // Le listener merge session.ctx.args + slotArgs[slot] avant handle().
+        // The listener merges session.ctx.args + slotArgs[slot] before handle().
         val merged = sessionCtx.copy(args = sessionCtx.args + slotArgs)
         val resolved = executor().resolveArgs("buy {shop.id}", merged)
         assertEquals("buy s1", resolved)

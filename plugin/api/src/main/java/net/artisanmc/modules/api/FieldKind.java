@@ -5,11 +5,11 @@ import net.artisanmc.modules.api.annotations.Stable;
 /**
  * Row-field kinds a data source can declare in its {@link DataSourceDeclaration#getSchema()}.
  *
- * <p>Déclaré en Java, pas en Kotlin : un enum Kotlin expose un
- * {@code getEntries()} qui renvoie {@code kotlin.enums.EnumEntries}. Ce type
- * serait relocalisé par le shadowJar alors que le JAR d'API publié, lui, ne
- * l'est pas — un add-on Kotlin écrivant {@code FieldKind.entries} compilerait
- * puis casserait au runtime. Cf. ApiSurfaceIsJavaFriendlyTest.
+ * <p>Declared in Java, not Kotlin: a Kotlin enum exposes {@code getEntries()},
+ * which returns {@code kotlin.enums.EnumEntries}. The shadowJar relocates that type
+ * but the published API JAR does not, so a Kotlin add-on writing
+ * {@code FieldKind.entries} would compile and then break at runtime.
+ * See ApiSurfaceIsJavaFriendlyTest.
  */
 @Stable
 public enum FieldKind {

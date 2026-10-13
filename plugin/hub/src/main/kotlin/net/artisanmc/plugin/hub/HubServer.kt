@@ -15,10 +15,10 @@ import java.util.logging.Level
 import java.util.logging.Logger
 
 /**
- * Le serveur web de l'éditeur : fichiers de l'éditeur, API, WebSocket `/ws/editor`, et
- * `/ws/plugin` pour les autres serveurs du réseau quand [plugins] est donné.
- * Toute route de l'API exige une session ; une requête qui modifie quelque chose doit
- * venir de la même origine que la page.
+ * The editor's web server: editor files, API, WebSocket `/ws/editor`, and `/ws/plugin`
+ * for the network's other servers when [plugins] is given.
+ * Every API route requires a session; a request that changes something must come from
+ * the same origin as the page.
  */
 class HubServer(
     private val config: WebConfig,
@@ -33,7 +33,7 @@ class HubServer(
 
     val port: Int? get() = (server?.connectors?.firstOrNull() as? ServerConnector)?.localPort
 
-    /** Faux si le port est pris ou refusé : le plugin tourne alors sans éditeur. */
+    /** False if the port is taken or refused: the plugin then runs without the editor. */
     fun start(): Boolean {
         val threads = QueuedThreadPool(32, 2).apply { name = "artisan-web"; isDaemon = true }
         val jetty = Server(threads)
@@ -125,7 +125,7 @@ class HubServer(
         call.redirect("/")
     }
 
-    /** L'en-tête `Origin`, quand il est présent, doit désigner l'hôte qui répond. */
+    /** The `Origin` header, when present, must name the answering host. */
     private fun sameOrigin(request: Request): Boolean {
         val origin = request.headers.get("Origin") ?: return true
         val host = request.headers.get("Host") ?: return false

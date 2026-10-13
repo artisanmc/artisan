@@ -12,12 +12,12 @@ import java.io.File
 interface ProjectRootRegistry {
     /**
      * Register that [projectId]'s working copy lives at [dir] — a **dedicated**
-     * directory the Add-on owns. Do NOT pass the plugin's data-folder root: bundle
-     * sync deletes any file under a project dir that isn't in the bundle, so the
-     * dir must hold nothing but that project's files.
+     * directory the Add-on owns. Do NOT pass the plugin's data-folder root: the core
+     * treats every file under a project dir as project content (read, hashed, shown
+     * and edited in the editor), so the dir must hold nothing but that project's files.
      *
-     * The core then reads, hashes, downloads, sweeps, trashes and hot-reloads that
-     * project from [dir] (its `.artisan-trash/` sits beside it). On a projectId
+     * The core then reads, hashes, publishes, trashes and hot-reloads that project
+     * from [dir] (its `.artisan-trash/` sits beside it). On a projectId
      * collision with a core-scanned project, the registered dir wins.
      */
     @Stable fun register(projectId: String, dir: File)

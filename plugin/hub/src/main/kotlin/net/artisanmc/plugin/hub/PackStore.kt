@@ -3,7 +3,7 @@ package net.artisanmc.plugin.hub
 import java.io.File
 import java.security.MessageDigest
 
-/** Les packs construits par l'éditeur, nommés par leur SHA-1 ; les trois derniers restent servis. */
+/** Packs built by the editor, named by their SHA-1; the last three stay served. */
 class PackStore(private val dir: File) {
     fun put(zip: ByteArray): String {
         val hash = MessageDigest.getInstance("SHA-1").digest(zip).joinToString("") { "%02x".format(it) }

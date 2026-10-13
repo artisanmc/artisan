@@ -46,7 +46,7 @@ class RunCommandBridgeTest {
     @Test fun `namespaced command unknown to the registry falls back to Bukkit`() {
         val p = MockBukkit.getMock()!!.addPlayer()
         val executor = makeExecutor(commandRegistry = CommandRegistry())
-        // Ne doit pas throw UnknownCommandException — performCommand est le fallback.
+        // Must not throw UnknownCommandException: performCommand is the fallback.
         executor.execute(listOf(Action.RunCommand(command = "essentials:home base", asConsole = false)), ExecutionContext(p))
     }
 

@@ -76,8 +76,6 @@ private fun menuTail(clear: Boolean, context: Map<String, String>?): String {
     return s
 }
 
-// ── conditions ───────────────────────────────────────────────────────────────
-
 private fun printFlat(conditions: List<DslCondition>, joins: List<String>?): String {
     val out = StringBuilder(printAtom(conditions[0]))
     for (i in 1 until conditions.size) {

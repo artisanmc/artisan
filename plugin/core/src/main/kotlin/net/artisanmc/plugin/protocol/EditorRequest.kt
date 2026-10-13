@@ -5,12 +5,11 @@ import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 
 /**
- * Ce que l'éditeur, relayé par le hub, demande au serveur. Un message dont le
- * type est inconnu ou dont un champ obligatoire manque ne devient pas une requête :
- * il est ignoré, comme avant le typage.
+ * What the editor, relayed by the hub, asks the server. A message whose type is
+ * unknown or that lacks a required field does not become a request: it is ignored.
  *
- * [Mutation.message] garde le message brut des écritures : l'empreinte
- * d'idempotence le hache tel quel, et la politique commerciale y est lue.
+ * [Mutation.message] keeps the raw write message: the idempotency fingerprint
+ * hashes it verbatim, and `commercial_policy` is read from it.
  */
 sealed interface EditorRequest {
     sealed interface WithReply : EditorRequest {
@@ -45,7 +44,7 @@ sealed interface EditorRequest {
     ) : WithReply
 
     data class ProjectList(override val requestId: String) : WithReply
-    /** [ifHash] : l'empreinte que l'éditeur possède déjà ; égale à la nôtre, rien ne voyage. */
+    /** [ifHash]: the fingerprint the editor already has; when it equals ours, nothing is sent. */
     data class ProjectRead(override val requestId: String, val projectId: String, val ifHash: String?) : WithReply
     data class ProjectHistory(override val requestId: String, val projectId: String, val path: String) : WithReply
     data class AssetRead(override val requestId: String, val projectId: String, val path: String) : WithReply
@@ -58,7 +57,7 @@ sealed interface EditorRequest {
         val writes: List<FileWrite>,
         val deletes: List<FileDelete>,
         val renames: List<FileRename>,
-        /** `null` : liste présente mais mal formée, refusée en `invalid_path`. */
+        /** `null`: list present but malformed, rejected as `invalid_path`. */
         val binaries: List<BinaryWrite>?,
         val create: Boolean,
         override val message: JsonNode,
@@ -76,7 +75,7 @@ sealed interface EditorRequest {
     data class ProjectDelete(override val requestId: String, val projectId: String) : WithReply
     data class ProjectRename(override val requestId: String, val projectId: String, val targetId: String) : WithReply
 
-    /** Les brouillons lisent eux-mêmes leur protocole (`ProjectDraftStore`). */
+    /** Drafts parse their own protocol (`ProjectDraftStore`). */
     data class ProjectDraft(override val requestId: String, val projectId: String, override val message: JsonNode) : Mutation
 
     sealed interface PackUpdate {
@@ -85,11 +84,11 @@ sealed interface EditorRequest {
         data object Incomplete : PackUpdate
     }
 
-    /** `baseHash` null : « je m'attends à ce que le fichier n'existe pas ». */
+    /** `baseHash` null: "I expect the file not to exist". */
     data class FileWrite(val path: String, val content: String, val baseHash: String?)
     data class FileDelete(val path: String, val baseHash: String?)
     data class FileRename(val from: String, val to: String, val baseHash: String?)
-    /** `contentBase64` null : suppression. */
+    /** `contentBase64` null: delete. */
     data class BinaryWrite(val path: String, val contentBase64: String?, val baseHash: String?)
 
     companion object {

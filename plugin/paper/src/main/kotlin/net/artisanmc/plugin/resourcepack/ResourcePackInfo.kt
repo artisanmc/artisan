@@ -5,12 +5,12 @@ import net.kyori.adventure.text.minimessage.MiniMessage
 import java.util.UUID
 
 /**
- * Resource project identity + delivery URLs.
+ * Resource pack identity + delivery URLs.
  *
- * @param url         External URL used by the player's Minecraft client to download the project
+ * @param url         External URL used by the player's Minecraft client to download the pack
  *                    (e.g. `http://localhost:8765/resource-pack/...`). Must be reachable
  *                    from the player's machine.
- * @param downloadUrl Plugin-side URL used by the plugin itself to download the project (e.g. for
+ * @param downloadUrl Plugin-side URL used by the plugin itself to download the pack (e.g. for
  *                    AssetCatalog extraction). In Docker setups this is the internal address
  *                    of the hub (e.g. `http://hub:8765/resource-pack/...`), because `localhost`
  *                    inside a leaf's container points to that container.
