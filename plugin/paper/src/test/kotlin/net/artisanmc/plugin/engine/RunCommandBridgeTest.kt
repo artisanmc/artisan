@@ -43,6 +43,16 @@ class RunCommandBridgeTest {
         assertEquals("sword extra", seen?.get("raw"))
     }
 
+    @Test fun `quoted arguments and a differently cased ref reach the handler`() {
+        val p = MockBukkit.getMock()!!.addPlayer()
+        var seen: Map<String, Any?>? = null
+        val registry = registryWith("boutique:buy") { _, args -> seen = args }
+        val executor = makeExecutor(commandRegistry = registry)
+        executor.execute(listOf(Action.RunCommand(command = "Boutique:Buy \"Diamond Sword\" 2", asConsole = false)), ExecutionContext(p))
+        assertEquals(listOf("Diamond Sword", "2"), seen?.get("argv"))
+        assertEquals("\"Diamond Sword\" 2", seen?.get("raw"))
+    }
+
     @Test fun `namespaced command unknown to the registry falls back to Bukkit`() {
         val p = MockBukkit.getMock()!!.addPlayer()
         val executor = makeExecutor(commandRegistry = CommandRegistry())

@@ -1,5 +1,6 @@
 package net.artisanmc.plugin.engine
 
+import net.artisanmc.modules.api.MenuRef
 import org.bukkit.entity.Player
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
@@ -12,7 +13,9 @@ data class MenuSession(
     /** The window's contents (the Bukkit anchor stays empty). */
     val slots: net.artisanmc.plugin.render.MenuSlots = net.artisanmc.plugin.render.MenuSlots(0),
     val escapeGoesBack: Boolean = false,
-)
+) {
+    val ref: MenuRef get() = MenuRef(ctx.projectId, menuId)
+}
 
 class MenuSessionStore {
     private val sessions = ConcurrentHashMap<UUID, MenuSession>()

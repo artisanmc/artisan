@@ -64,6 +64,8 @@ class SyncedMenuProvider(
     private val editorEvents: (Map<String, Any?>) -> Unit = {},
     /** On a leaf, the hub to connect to; null on the hub or a standalone server. */
     private val hub: HubLink? = null,
+    /** `api.menus` listeners and the Bukkit menu events. */
+    private val menuEvents: net.artisanmc.plugin.render.MenuEventDispatcher? = null,
 ) : MenuProvider {
     private var copyMinecraftVersion = "1.21.4"
     /** What `project_read` serves: the state read at the last load, never the current disk. */
@@ -185,11 +187,10 @@ class SyncedMenuProvider(
     override fun load() {
         // An Add-on registers its root when IT enables, after us: the snapshot taken
         // here cannot contain it. Without this hook, its Project would answer
-        // `unknown_project` until the next reload.
-        roots.onRegister = { _, _ ->
-            reloadFromDisk()
-            onReload?.invoke()
-        }
+        // `unknown_project` until the next reload. Deferred to the next tick so the
+        // Add-on's onEnable has returned: its bootstrap writes are read, and its
+        // onReload() never runs before its onEnable is done.
+        roots.onRegister = { _, _ -> scheduler.global(::refreshFromDisk) }
         reloadFromDisk()
         val mcVersion = try {
             org.bukkit.Bukkit.getServer().minecraftVersion
@@ -254,6 +255,8 @@ class SyncedMenuProvider(
         }
         // This menu's clicks resolve in ITS project, not in the one we came from.
         val opened = ctx.copy(projectId = menu.projectId.ifEmpty { null } ?: ctx.projectId)
+        val ref = net.artisanmc.modules.api.MenuRef(opened.projectId, menu.id)
+        if (menuEvents?.open(net.artisanmc.modules.api.MenuOpenEvent(player, ref, ctx.navigationArgs)) == false) return
         history?.setCurrent(
             player,
             net.artisanmc.plugin.engine.NavigationEntry(

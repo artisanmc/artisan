@@ -48,6 +48,10 @@ class EditorScreenRegistry {
     /** Owner captured for declarations happening right now (cf. DataSourceRegistry). */
     @Volatile internal var currentOwner: String? = null
 
+    internal fun unregisterOwnedBy(moduleId: String) {
+        screens.values.removeIf { it.moduleId == moduleId }
+    }
+
     @Beta
     fun declare(id: String, label: String, table: String, projectId: String) {
         require(id.contains(":")) { "editor screen id must be namespaced (namespace:screen): '$id'" }

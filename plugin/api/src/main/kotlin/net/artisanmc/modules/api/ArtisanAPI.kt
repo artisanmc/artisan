@@ -28,10 +28,14 @@ class ArtisanAPI(
     @Stable val events: ModuleEventBus,
     @Stable val schemas: SchemaRegistry<MutableMap<String, Any?>>,
     @Stable val modules: ModuleRegistry,
+    /** The Artisan plugin version (`plugin.yml`, `1.0.<build>`). Not the API version: see [apiVersion]. */
     @Stable val coreVersion: String,
     @Stable val project: ProjectContentApi,
     @Stable val projectRoots: ProjectRootRegistry = ProjectRootRegistry.NOOP,
     @net.artisanmc.modules.api.annotations.Beta val items: ItemStackApi = ItemStackApi.NOOP,
+    @net.artisanmc.modules.api.annotations.Sunset(
+        reason = "No receiver since the editor moved into the plugin", removeInVersion = "2.0.0",
+    )
     @net.artisanmc.modules.api.annotations.Beta val messages: ModuleMessagesApi = ModuleMessagesApi.NOOP,
     @net.artisanmc.modules.api.annotations.Beta val actions: ModuleActionsApi = ModuleActionsApi.NOOP,
     /** Module-declared Data models — model/v1 passthrough to Presence (ADR composable-data-models). */
@@ -40,11 +44,21 @@ class ArtisanAPI(
     @net.artisanmc.modules.api.annotations.Beta val screens: EditorScreenRegistry = EditorScreenRegistry(),
     /** One connection pool per plugin, credentials in `environment.yml` (ADR suite-foundation-database). */
     @net.artisanmc.modules.api.annotations.Beta val database: DatabaseApi = DatabaseApi.NONE,
+    /** Open, query and watch menus. */
+    @net.artisanmc.modules.api.annotations.Beta val menus: MenuApi = MenuApi.NOOP,
+    /** Artisan's Folia-aware scheduler. */
+    @net.artisanmc.modules.api.annotations.Beta val scheduler: SchedulerApi = SchedulerApi.DIRECT,
+    /** `%namespace_key%` placeholders for menus, optionally exposed to PlaceholderAPI. */
+    @net.artisanmc.modules.api.annotations.Beta val placeholders: PlaceholderRegistry = PlaceholderRegistry.NOOP,
 ) {
+    /** Version of this API (the `Since` numbering of the published `artisan-core-api`). Since 1.8.0. */
+    @Stable
+    val apiVersion: String get() = ApiVersion.CURRENT
+
     /**
-     * Returns true if this core version satisfies the module's declared minimum
-     * (same major, core >= min).
+     * True if the running API satisfies the add-on's minimum API version
+     * (same major, [apiVersion] >= min). Compared against [coreVersion] before 1.8.0.
      */
     @Stable
-    fun isCompatibleWith(minVersion: String): Boolean = SemVer.satisfies(coreVersion, minVersion)
+    fun isCompatibleWith(minVersion: String): Boolean = SemVer.satisfies(apiVersion, minVersion)
 }

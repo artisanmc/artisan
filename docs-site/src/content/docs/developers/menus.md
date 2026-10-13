@@ -1,6 +1,6 @@
 ---
 title: Menus
-description: How an add-on works with Artisan menus — shipping menus, opening them from code, running admin-authored actions, and feeding them with data, commands, placeholders and items.
+description: How an add-on works with Artisan menus — shipping menus, opening and watching them from code, running admin-authored actions, and feeding them with data, commands, placeholders and items.
 sidebar:
   order: 7
 ---
@@ -14,11 +14,70 @@ click actions. An add-on does not build inventories through the API — it
 |---|---|
 | Supplies the rows a menu shows | [Data sources](/wiki/developers/data-sources/) |
 | Runs code when a button is clicked | [Commands](/wiki/developers/commands/) |
-| Opens a menu, or runs any admin-authored actions | `api.actions` (below) |
-| Exposes per-player values (`%homes_count%`) | A PlaceholderAPI expansion (below) |
+| Opens, closes or queries a player's menu | `api.menus` (below) |
+| Reacts to menus opening, clicks, closing | `api.menus` listeners or Bukkit events (below) |
+| Runs any admin-authored actions | `api.actions` (below) |
+| Exposes per-player values (`%homes_count%`) | `api.placeholders` (below) |
 | Ships starter menus admins can restyle | Your [own project](/wiki/developers/modules/#own-your-project-directory) |
 
 ## Open a menu from your code
+
+`api.menus` (`@Beta`, Since 1.8.0) opens a menu by reference: `project:menu`,
+or a bare id looked up on the whole server.
+
+```kotlin
+api.menus.open(player, "homes:main")
+api.menus.open(player, MenuRef("homes", "details"), mapOf("home" to home))
+```
+
+```java
+api.getMenus().open(player, "homes:main");
+api.getMenus().open(player, new MenuRef("homes", "details"), Map.of("home", home));
+```
+
+| Method | Does |
+|---|---|
+| `open(player, ref)` / `open(player, ref, args)` / `open(player, MenuRef, args)` | Opens the menu with `args` as its context (what `open_menu … with` passes); `false` when no menu matches, nothing opens |
+| `close(player)` | Closes the player's Artisan menu, if one is open |
+| `openMenu(player)` | The `MenuRef` the player has open, or `null` |
+| `menus()` | Every menu of every loaded project |
+
+`MenuRef(projectId, menuId)` prints as `project:menu`; `MenuRef.parse("homes:main")`
+reads one. Every method may be called from any thread: opening and closing run
+on the player's thread (their region's thread on Folia), scheduled if needed.
+Args are passed as is, so a map stays a map and the menu can read `{home.world}`.
+
+## Listen to menus
+
+```kotlin
+val subscription = api.menus.onClick { event ->
+    if (event.menu.projectId == "homes" && event.slot == 13) {
+        event.isCancelled = true          // skip the button's actions
+        openTeleportPicker(event.player)
+    }
+}
+// later: subscription.cancel()
+```
+
+| Listener | Event | Fields | Cancellable |
+|---|---|---|---|
+| `onOpen` | `MenuOpenEvent` | `player`, `menu`, `args` | Yes: nothing opens |
+| `onClick` | `MenuClickEvent` | `player`, `menu`, `slot` (raw slot), `click` (Bukkit `ClickType`), `hasActions` | Yes: the button's actions are skipped |
+| `onClose` | `MenuCloseEvent` | `player`, `menu`, `reason` (Paper `InventoryCloseEvent.Reason`) | No |
+
+Listeners run on the player's thread. A click is delivered on the tick after
+it happened, before the button's actions, so you may open another menu or
+inventory from it; a close comes from Bukkit's close event, so schedule
+anything you open from there with [`api.scheduler`](/wiki/developers/threading/).
+Opening a menu over another fires the new menu's open, then the old window's
+close (reason `OPEN_NEW`). Pagination and `set` repaint by reopening the window,
+which fires the same pair. A listener that throws is logged and skipped.
+
+The same events are Bukkit events (see [Events](/wiki/developers/events/#bukkit-events)),
+fired right after the listeners: a plugin that is not an add-on can use
+`@EventHandler`.
+
+## Run actions
 
 `api.actions` (`@Beta`, Since 1.4.0) runs Action DSL — the same language admins
 write on buttons — for a player. Opening a menu is one action:
@@ -56,7 +115,8 @@ interpolated into text.
 `execute` may be called from any thread — Artisan runs the actions on the
 player's thread. Malformed text is skipped with a warning in the console rather
 than thrown, so test your strings. A menu id that matches nothing tells the
-player the menu was not found.
+player the menu was not found. `open_menu homes:main` reaches a menu of another
+project.
 
 Other actions work the same way: `close_menu`, `open_dialog <id>`,
 `send_message "…"`, `give_item DIAMOND 1`, `run_command "…" as console`…
@@ -117,16 +177,51 @@ actions: 'open_menu homes'
 
 Admins can also open any menu with `/artisan menu <id>`.
 
-## PlaceholderAPI
+## Placeholders
 
-When PlaceholderAPI is installed, Artisan resolves `%placeholders%` in menu
-titles, names, lore and action text for the viewing player. A PlaceholderAPI
-expansion is therefore the simplest way to show a single per-player value
-(`%homes_count%`, `%homes_max%`).
+`api.placeholders` (`@Beta`, Since 1.8.0) is the simplest way to show a single
+per-player value. Register a namespace, and every `%<namespace>_<key>%` in menu
+titles, names, lore, action text and conditions asks your resolver — with or
+without PlaceholderAPI installed:
 
-Return your placeholders from your expansion's `getPlaceholders()`: the editor
-lists every declared placeholder in its autocompletion, grouped by expansion.
-Undeclared placeholders still resolve in game; they just do not show up there.
+```kotlin
+api.placeholders.register("homes", { player, key ->
+    when (key) {
+        "count" -> player?.let { homeCache.count(it.uniqueId).toString() }
+        "max" -> "5"
+        else -> null                     // unknown key: the token stays as written
+    }
+}, true)                                 // also a PlaceholderAPI expansion, if installed
+```
+
+```java
+api.getPlaceholders().register("homes", (player, key) -> switch (key) {
+    case "count" -> player == null ? null : String.valueOf(homeCache.count(player.getUniqueId()));
+    case "max" -> "5";
+    default -> null;
+}, true);
+```
+
+| Member | Does |
+|---|---|
+| `register(namespace, resolver)` | Artisan menus only |
+| `register(namespace, resolver, exposeToPapi)` | With `true` and PlaceholderAPI installed, also registers a PlaceholderAPI expansion with that identifier, so scoreboards and chat plugins can show it |
+| `unregister(namespace)` | Removes it, and its expansion |
+| `namespaces()` | The registered namespaces |
+| `resolve(player, text)` | `text` with Artisan's placeholders, then PlaceholderAPI's, resolved |
+
+A namespace is a lowercase identifier without `_` (`[a-z][a-z0-9]*`); a malformed
+one throws `IllegalArgumentException`, one already taken `IllegalStateException`.
+Artisan's namespaces are resolved before PlaceholderAPI, so they win over an
+expansion of the same name inside menus. The resolver runs on the viewing
+player's thread at every render: read from memory, never block. Called through
+PlaceholderAPI it runs on whatever thread asked, with `player = null` for an
+offline player.
+
+An existing PlaceholderAPI expansion keeps working too: Artisan hands what is
+left to PlaceholderAPI. Return its placeholders from `getPlaceholders()` and the
+editor lists them in its autocompletion; namespaces registered through
+`api.placeholders` are not listed there yet.
 
 Use a data source instead when the value is a list or has several fields.
 
@@ -146,7 +241,6 @@ Write the serialized YAML into your project, then call `api.project.reload()`.
 
 ## What the API does not do
 
-There is no API to build a menu in code, to listen to a menu being opened,
-clicked or closed, or to read which menu a player has open. Model those
-interactions as commands called from the menu's actions, and keep menus as
-documents the admin owns.
+There is no API to build a menu in code: menus stay documents the admin owns.
+React to them with listeners or commands, feed them with data sources and
+placeholders.

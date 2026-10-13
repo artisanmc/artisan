@@ -38,9 +38,41 @@ class ArtisanPluginModuleWiringTest {
     }
 
     @Test
-    fun `isCompatibleWith returns true for matching version`() {
+    fun `isCompatibleWith compares the API version, not the plugin version`() {
         val plugin = MockBukkit.load(ArtisanPlugin::class.java)
-        assertTrue(plugin.api.isCompatibleWith("1.0.0"))
+        assertTrue(plugin.api.isCompatibleWith("1.7.0"))
+        assertTrue(plugin.api.isCompatibleWith(plugin.api.apiVersion))
+        assertFalse(plugin.api.isCompatibleWith("2.0.0"))
+    }
+
+    @Test
+    fun `an add-on's module is disabled and unregistered when its plugin disables`() {
+        val plugin = MockBukkit.load(ArtisanPlugin::class.java)
+        var disabled = false
+        plugin.api.modules.register(object : net.artisanmc.modules.api.ArtisanModule {
+            override val id = "homes"
+            override val schemaVersion = "homes/v1"
+            override fun onEnable(api: ArtisanAPI) {
+                api.commands.register(net.artisanmc.modules.api.CommandDeclaration("homes:go") { _, _ -> })
+            }
+            override fun onDisable() { disabled = true }
+        })
+
+        // MockBukkit gives a mock plugin its own class loader; this proxy is defined by the
+        // test's, like the module above (and Artisan's own modules, which go too here).
+        val addon = java.lang.reflect.Proxy.newProxyInstance(javaClass.classLoader, arrayOf(org.bukkit.plugin.Plugin::class.java)) { _, method, _ ->
+            when (method.returnType) {
+                java.lang.Boolean.TYPE -> true
+                Integer.TYPE -> 0
+                String::class.java -> "Homes"
+                else -> null
+            }
+        } as org.bukkit.plugin.Plugin
+        plugin.server.pluginManager.callEvent(org.bukkit.event.server.PluginDisableEvent(addon))
+
+        assertTrue(disabled)
+        assertFalse(plugin.api.modules.has("homes"))
+        assertFalse(plugin.api.commands.has("homes:go"))
     }
 
     @Test

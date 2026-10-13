@@ -2,7 +2,8 @@
  * Action DSL lexer. Cf. ADR `action-dsl`. Splits source into logical lines
  * (blank + `#`-comment lines dropped) carrying their indentation depth and a
  * flat token list. Indentation is significant (block structure); a trailing
- * `:` on a header line becomes a COLON token. The parser consumes these.
+ * `:` on a header line becomes a COLON token. A `project:id` reference
+ * (`open_menu shop:main`) lexes as one word. The parser consumes these.
  */
 
 export type TokenType =
@@ -39,6 +40,8 @@ export class DslLexError extends Error {
 
 // Dots allowed inside words so expression paths (`alias.field`) lex as one token.
 const WORD_RE = /[A-Za-z_][A-Za-z0-9_.]*/y;
+// A project folder name (`my-shop`, `2024`), `:`, then an id.
+const REF_RE = /[A-Za-z0-9][A-Za-z0-9_-]*:[A-Za-z_][A-Za-z0-9_.]*/y;
 const NUMBER_RE = /[0-9]+(?:\.[0-9]+)?/y;
 const KEY_RE = /@[A-Za-z0-9_][A-Za-z0-9_.]*/y;
 const PAPI_RE = /%[A-Za-z_][A-Za-z0-9_]*%/y;
@@ -107,6 +110,15 @@ function tokenizeLine(content: string, line: number): Token[] {
       tokens.push({ type: "papi", value: m[0], col: i + 1 });
       i = PAPI_RE.lastIndex;
       continue;
+    }
+    if (/[A-Za-z0-9]/.test(c)) {
+      REF_RE.lastIndex = i;
+      const m = REF_RE.exec(content);
+      if (m) {
+        tokens.push({ type: "word", value: m[0], col: i + 1 });
+        i = REF_RE.lastIndex;
+        continue;
+      }
     }
     if (c >= "0" && c <= "9") {
       NUMBER_RE.lastIndex = i;

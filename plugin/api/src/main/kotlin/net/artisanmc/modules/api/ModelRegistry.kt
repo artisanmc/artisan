@@ -35,6 +35,10 @@ class ModelRegistry {
     /** Owner captured for declarations happening right now (cf. DataSourceRegistry). */
     @Volatile internal var currentOwner: String? = null
 
+    internal fun unregisterOwnedBy(moduleId: String) {
+        models.values.removeIf { it.moduleId == moduleId }
+    }
+
     @Beta
     fun declare(document: Map<String, Any?>) {
         val id = document["id"] as? String

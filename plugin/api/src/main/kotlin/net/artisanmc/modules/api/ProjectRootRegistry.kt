@@ -6,7 +6,7 @@ import java.io.File
 /**
  * Lets an Add-on host its Project in its **own plugin dir** instead of the core
  * `plugins/Artisan/projects/` (ADR `addon-owned-project-roots`). Call [register]
- * once from `onEnable(api)`, before the Add-on writes its bootstrap content.
+ * once from `onEnable(api)`.
  */
 @Stable
 interface ProjectRootRegistry {
@@ -19,6 +19,10 @@ interface ProjectRootRegistry {
      * The core then reads, hashes, publishes, trashes and hot-reloads that project
      * from [dir] (its `.artisan-trash/` sits beside it). On a projectId
      * collision with a core-scanned project, the registered dir wins.
+     *
+     * The projects are reloaded on the next server tick, once the caller's
+     * `onEnable` has returned (since 1.8.0; immediately before): bootstrap content
+     * written after this call is picked up, and modules' `onReload()` runs then.
      */
     @Stable fun register(projectId: String, dir: File)
 
