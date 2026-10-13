@@ -3,12 +3,15 @@ package net.artisanmc.plugin.hub
 import net.artisanmc.plugin.protocol.ServerLink
 
 /**
- * Le serveur qui héberge l'éditeur, vu par ses routes. Ce que le backend apprenait au
+ * Un serveur que l'éditeur atteint, vu par ses routes. Ce que le backend apprenait au
  * `hello` (modules, sources de données, configuration) se lit ici à la demande.
  */
-interface LocalServer {
+interface EditorServer {
+    /** [Servers.LOCAL] pour le serveur qui héberge le hub. */
+    val id: String
     val link: ServerLink
     val label: String
+    val online: Boolean
     val minecraftVersion: String
     val pluginVersion: String
     fun modules(): List<Map<String, Any?>>
