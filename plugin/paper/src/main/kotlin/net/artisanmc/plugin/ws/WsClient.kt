@@ -1,5 +1,6 @@
 package net.artisanmc.plugin.ws
 
+import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import net.artisanmc.plugin.update.PluginUpdater
 import okhttp3.*
@@ -41,6 +42,18 @@ class WsClient(
     @Volatile private var retryDelay = 1L
     @Volatile private var authenticated = false
     private val memberRequests = ConcurrentHashMap<String, CompletableFuture<String>>()
+    private val requests = ConcurrentHashMap<String, CompletableFuture<JsonNode?>>()
+
+    /** Une requête au hub ; sa réponse `<type>_result`, ou null hors ligne ou sans réponse. */
+    fun request(message: Map<String, Any?>, timeoutSeconds: Long = 15): CompletableFuture<JsonNode?> {
+        if (!authenticated) return CompletableFuture.completedFuture(null)
+        val id = UUID.randomUUID().toString()
+        val result = CompletableFuture<JsonNode?>()
+        requests[id] = result
+        result.completeOnTimeout(null, timeoutSeconds, TimeUnit.SECONDS).whenComplete { _, _ -> requests.remove(id) }
+        if (socket?.send(mapper.writeValueAsString(message + ("request_id" to id))) != true) result.complete(null)
+        return result
+    }
 
     fun addMember(email: String): CompletableFuture<String> {
         if (editorAccessMode != "console") return CompletableFuture.completedFuture("console_disabled")
@@ -60,6 +73,8 @@ class WsClient(
         authenticated = false
         memberRequests.values.forEach { it.complete("offline") }
         memberRequests.clear()
+        requests.values.forEach { it.complete(null) }
+        requests.clear()
     }
 
     fun connect() {
@@ -136,6 +151,10 @@ class WsClient(
                         else logger?.warning("Artisan update failed: ${result.error}")
                         send(mapOf("type" to "plugin_update_result", "request_id" to requestId, "ok" to result.ok, "version" to result.version, "error" to result.error))
                     }
+                    return
+                }
+                "editor_link_result" -> {
+                    requests.remove(message.path("request_id").asText())?.complete(message)
                     return
                 }
                 "member_add_result" -> {

@@ -17,8 +17,10 @@ import java.util.logging.Logger
 class PluginChannel(
     private val servers: Servers,
     private val secret: String,
+    private val sessions: Sessions,
     private val editors: EditorChannel,
-    private val publicUrl: () -> String,
+    /** L'adresse publique du hub ; l'hôte par lequel un joueur a rejoint sert de repli. */
+    private val publicUrl: (host: String?) -> String,
     private val logger: Logger?,
 ) {
     fun endpoint(): Session.Listener = object : Session.Listener.AutoDemanding {
@@ -33,6 +35,7 @@ class PluginChannel(
             val session = session ?: return
             val message = runCatching { Call.mapper.readTree(text) }.getOrNull()?.takeIf { it.isObject } ?: return
             val current = server
+            if (current != null && message.path("type").asText() == "editor_link") return link(session, message)
             if (current != null) return current.receive(message, editors)
             if (message.path("type").asText() != "hello") return
             val name = message.path("proxy_name").asText("")
@@ -54,12 +57,12 @@ class PluginChannel(
     }
 
     private fun welcome(session: Session, name: String, hello: ObjectNode): RemoteServer {
-        val server = servers.remote(name) { RemoteServer(it, publicUrl) }
+        val server = servers.remote(name) { RemoteServer(it, publicUrl = { publicUrl(null) }) }
         val ack = mapOf(
             "type" to "hello_ack",
             "session_id" to UUID.randomUUID().toString(),
             "server_id" to name,
-            "editor_url" to publicUrl(),
+            "editor_url" to publicUrl(null),
             "network_name" to servers.local.label,
             // Un objet sans adresse laisse au serveur le pack qu'il a déjà ; null le lui retirerait.
             "resource_pack" to (server.pack ?: emptyMap<String, String>()),
@@ -72,6 +75,28 @@ class PluginChannel(
             logger?.info("[Artisan] Server $name connected to the editor")
         }
         return server
+    }
+
+    /**
+     * `/artisan editor` tapé sur ce serveur : le hub donne le lien. Il ne consulte aucune
+     * permission lui-même, il reprend celles que le serveur a lues pour ce joueur.
+     */
+    private fun link(session: Session, message: JsonNode) {
+        val player = runCatching { UUID.fromString(message.path("player_id").asText()) }.getOrNull()
+        val name = message.path("player_name").asText("")
+        val permissions = message.path("permissions").map { it.asText() }.filter { it in EditorPermissions.ALL }.toSet()
+        val result = when {
+            player == null || name.isEmpty() || EditorPermissions.VIEW !in permissions -> mapOf("ok" to false, "error" to "invalid_input")
+            else -> when (val link = sessions.issueLink(player, name, permissions)) {
+                is Sessions.LinkResult.Issued -> {
+                    val host = message.path("host").asText("").ifEmpty { null }
+                    mapOf("ok" to true, "url" to publicUrl(host) + HubServer.LOGIN + link.token)
+                }
+                is Sessions.LinkResult.TooSoon -> mapOf("ok" to false, "error" to "too_soon", "retry_after" to link.retryAfter.seconds.coerceAtLeast(1))
+            }
+        }
+        val reply = mapOf("type" to "editor_link_result", "request_id" to message.path("request_id").asText()) + result
+        session.sendText(Call.mapper.writeValueAsString(reply), Callback.NOOP)
     }
 
     private fun refuse(session: Session, reason: String) {
