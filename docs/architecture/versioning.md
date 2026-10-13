@@ -14,9 +14,9 @@ Artisan a 6 contrats distincts à gérer. Chacun a sa propre discipline.
 |---|---|---|
 | **1. Schemas de données** | `menu/v1`, `command/v1`, `shop/v1`, ... | Versioning explicite + migration framework |
 | **2. API Java publique** | `ArtisanAPI` + classes exposées aux modules | SemVer strict + `@Stable`/`@Beta`/`@Internal` |
-| **3. Protocol WebSocket** | Messages plugin ↔ backend | Version dans handshake + multi-version handlers |
-| **4. REST API** | Endpoints backend ↔ editor | URL versioning `/api/v1/*` |
-| **5. Database schema** | Tables Postgres, indexes | Drizzle migrations forward-only |
+| **3. Protocol WebSocket** | Messages hub ↔ serveur (`/ws/plugin`) | `protocol_version` majeur.mineur au `hello` ; majeure différente = serveur non servi |
+| **4. REST API** | Routes du hub ↔ éditeur | URL versioning `/api/v1/*` ; éditeur et hub livrés dans le même jar |
+| **5. Database schema** | Tables des plugins de la suite (H2, MySQL, MariaDB) | Chaque plugin migre ses propres tables ; Artisan n'en a aucune |
 | **6. Resource pack format** | CMD strings, fonts, asset structure | `pack_format` + asset registry versionné |
 
 Toutes ces surfaces doivent rester **backward compatible** dans une même major version.
@@ -267,95 +267,50 @@ Outil : `japicmp` en CI pour catch les regressions binary compat avant release.
 
 ## 4. Protocol WebSocket
 
-`papi_placeholders_fetch/result` is an additive protocol v1 extension: legacy
-plugins time out to an empty suggestion catalog; no content-version bump is needed.
+Depuis la phase F (2026-10), le protocole relie le hub (serveur web de l'éditeur) aux serveurs
+du réseau ; il n'y a plus de backend ni de plugins d'âges différents face à un service central.
+Le risque reste : hub et feuilles sont des jars distincts, mis à jour à des moments différents.
 
 ### 4.1 Version dans le handshake
 
 ```json
 {
   "type": "hello",
-  "protocol_version": "1",
-  "core_version": "1.0.0",
-  "server_key": "sk_...",
-  "installed_modules": [
-    { "id": "menus", "version": "1.0.0" },
-    { "id": "shop", "version": "1.0.0" }
-  ]
+  "protocol_version": "1.0",
+  "server_key": "<secret du réseau>",
+  "proxy_name": "survie2",
+  "plugin_version": "1.0.42",
+  "minecraft_version": "1.21.7",
+  "installed_modules": [{ "id": "menus", "version": "1.0.42" }]
 }
 ```
 
-`protocol_version` discrimine le format global des messages WS.
+`ProtocolVersion.CURRENT` (`plugin/core/…/protocol/ProtocolVersion.kt`) :
 
-### 4.2 Multi-version handlers backend
+- **Majeure** : change quand un message existant change de sens. Majeure différente de celle du
+  hub → serveur listé « mise à jour requise » (`updateRequired`), le hub ne lui envoie plus rien,
+  toute route qui le vise répond 503 `plugin_update_required`.
+- **Mineure** : ajoute des champs ou des messages, que l'autre côté ignore.
+- **Une release = un numéro** pour tous les jars ; mettre à jour hub et feuilles ensemble.
 
-Le backend supporte plusieurs versions en parallèle :
+Le serveur qui héberge le hub lui parle en process (`LocalServerLink`) : jamais d'écart de version.
 
-```typescript
-const protocolHandlers: Record<string, ProtocolHandler> = {
-  "1": new ProtocolHandlerV1(),
-  "2": new ProtocolHandlerV2(),  // future
-};
+### 4.2 Messages non reconnus
 
-ws.on("message", (raw) => {
-  const msg = JSON.parse(raw);
-  
-  if (msg.type === "hello") {
-    const handler = protocolHandlers[msg.protocol_version] || protocolHandlers["1"];
-    activeHandlers.set(ws, handler);
-  }
-  
-  const handler = activeHandlers.get(ws);
-  handler.handle(msg, ws);
-});
-```
+Un message au `type` inconnu ou sans champ obligatoire **n'est jamais une erreur fatale** :
+`EditorRequest.parse` rend `null` côté serveur, `RemoteServer.receive` ignore côté hub.
 
-**Maintien 2 versions en parallèle pendant 6-12 mois** quand tu fais un bump.
+### 4.3 Évolution d'un message
 
-### 4.3 Messages non-reconnus
-
-Un message avec un `type` inconnu **n'est jamais une erreur fatale**. Le receiver log un warning et ignore :
-
-```kotlin
-fun onMessage(msg: JsonObject) {
-    val type = msg["type"].asString
-    val handler = messageHandlers[type] ?: run {
-        logger.debug("Unknown message type '$type' from ${msg["protocol_version"]?.asString}. Ignoring.")
-        return
-    }
-    handler.handle(msg)
-}
-```
-
-Permet aux clients plus récents d'envoyer des messages que les vieux servers ne comprennent pas, sans crash.
-
-### 4.4 Évolution d'un message individuel
-
-Chaque message peut aussi avoir son propre versioning local :
-
-```json
-{
-  "type": "bundle_available",
-  "v": 2,
-  "project_id": "shop",
-  "url": "https://cdn.artisanmc.net/...",
-  "hash": "sha256:abc...",
-  "signed_url": "..."     // ajouté en v2
-}
-```
-
-Le handler v2 lit `signed_url` ; le handler v1 (anciens plugins) ignore le champ qu'il ne connaît pas.
-
-Les quotas commerciaux négocient `resource_quota_v2` dans les capacités du hello,
-sans changer `protocol_version`. V2 accepte `commercial_policy.quota: null`
-(illimité) ; V1 reste compatible avec les quotas effectifs finis et
-`pro_until: null`. Une offre illimitée exige V2 sur toutes les connexions actives
-du serveur, sinon la mutation renvoie `plugin_update_required` sans envoi.
-Voir `ws-protocol.md`, section quotas, pour les valeurs acceptées.
+Ajouter un champ optionnel : mineure. Renommer, retirer ou changer le sens d'un champ : majeure.
+`server_key` (secret du réseau) et `proxy_name` (nom du serveur) gardent leurs noms hérités du
+backend pour cette raison.
 
 ---
 
 ## 5. REST API
+
+Depuis la phase F, l'API est servie par le hub et consommée par l'éditeur embarqué dans le même jar : un changement d'API et l'éditeur qui en dépend partent ensemble. Le préfixe `/api/v1/` reste, les règles ci-dessous ne valent que si un client externe apparaît.
 
 ### 5.1 URL versioning
 
@@ -401,63 +356,22 @@ fastify.get("/api/v1/menus/:id", async (req, reply) => {
 
 ### 5.4 Compatibility check editor
 
-L'editor envoie son `User-Agent` ou un header custom `X-Artisan-Editor-Version`. Le backend log les usages d'endpoints deprecated et alerte si trop de trafic legacy avant un sunset.
+Sans objet tant que l'éditeur voyage dans le même jar que le hub qui sert l'API.
 
 ---
 
-## 6. Database schema (Drizzle)
+## 6. Database schema
 
-### 6.1 Migrations folder
+Plus de PostgreSQL ni de migrations Drizzle depuis la phase F (2026-10) : l'historique des 66
+migrations est au commit `f085f576` (branche `v2`).
 
-```
-/backend/migrations/
-  0001_initial.sql
-  0002_add_workspace_translations.sql
-  0003_add_module_versions_per_server.sql
-  0004_add_ai_credits_remaining.sql
-  ...
-```
+Artisan prête une base à la suite (`environment.yml` → `database.type: h2 | mysql | mariadb`,
+`DatabaseApi`, ADR `suite-foundation-database`) mais **n'y crée aucune table**. Chaque plugin de
+la suite préfixe ses tables et apporte ses migrations ; la règle forward-only (ajouter, relâcher,
+jamais détruire de données sans période de dépréciation) s'applique à chacun.
 
-Auto-générées par Drizzle Kit (`drizzle-kit generate:pg`) à partir des changements détectés sur `/backend/db/schema.ts`.
-
-### 6.2 Forward-only
-
-**Tu n'écris JAMAIS de migration qui drop des données**. Tu écris des migrations qui :
-
-- ✅ Ajoutent des tables, colonnes, indexes
-- ✅ Rendent une colonne nullable (relax constraint)
-- ✅ Renomment via copy + drop ultérieur (en 2 migrations séparées espacées)
-- ❌ Drop des colonnes (sauf après période de deprecation longue)
-- ❌ Change le type d'une colonne (faire add new col + migrate data + drop old en 2-3 steps)
-
-### 6.3 Pattern de retrait de colonne
-
-Pour supprimer la colonne `legacy_size` :
-
-1. **Migration N** : marque la colonne deprecated dans le code (read OK, écriture stoppée).
-2. **Code release** : tous les writes vont vers la nouvelle colonne.
-3. **Migration N+M** (après 3-6 mois) : `ALTER TABLE menus DROP COLUMN legacy_size`. Tous les writes sont déjà sur la nouvelle col, zero impact.
-
-### 6.4 Test en staging avant prod
-
-- Pull dump prod → restore en staging
-- Apply migration en staging
-- Run smoke tests
-- Si tout OK, apply en prod (idéalement pendant low-traffic window)
-
-### 6.5 Rollback emergency
-
-Pour les migrations critiques (rares), tu peux écrire une migration **down** :
-
-```sql
--- migrations/0005_up.sql
-ALTER TABLE menus ADD COLUMN custom_textures BOOLEAN DEFAULT false;
-
--- migrations/0005_down.sql
-ALTER TABLE menus DROP COLUMN custom_textures;
-```
-
-Drizzle ne supporte pas natif les downs, mais tu peux les écrire à la main pour les emergency rollbacks.
+Ce qu'Artisan persiste vit sur disque (Projects, brouillons, `config.yml`, `environment.yml`,
+cf. `entities.md`) : ses formats évoluent par les schémas versionnés (§2), pas par migration SQL.
 
 ---
 
@@ -690,8 +604,8 @@ Pour chaque release du core ou d'un module :
   - SpigotMC resource (free core) ou Premium Resources (modules)
   - Modrinth (core)
   - BBV / Polymart (modules premium)
-- [ ] artisanmc.net backend déployé avec compat avec la nouvelle version
-- [ ] Editor déployé si nécessaire
+- [ ] Le jar embarque l'éditeur (`./gradlew shadowJar -PwithEditor`)
+- [ ] `artisan-api` publié (`maven-publish`)
 
 ### 11.3 Post-release
 
@@ -712,8 +626,7 @@ Pour chaque release du core ou d'un module :
 | Annotations `@Stable`, `@Beta`, `@Internal`, `@Deprecated` | 0,5 jour |
 | `SchemaRegistry` avec migration framework | 1-2 jours |
 | Protocol version + dispatch dans le hub WS | 1 jour |
-| URL versioning `/api/v1/*` côté Fastify | 0,5 jour |
-| Drizzle migrations folder + workflow doc | 0,5 jour |
+| URL versioning `/api/v1/*` | 0,5 jour |
 | `CHANGELOG.md` initial + règle de commit dans contribution.md | 0,1 jour |
 | `docs/architecture/api-surface.md` v1 | 0,5 jour |
 
@@ -732,7 +645,7 @@ Tu mets juste **les fondations**. Le reste vient organiquement quand tu en as be
 
 - **Chaque commit qui touche `net.artisanmc.api.*` doit mettre à jour CHANGELOG**.
 - **Chaque nouveau schema version est créé dans un dossier séparé**, jamais en modifiant un existant.
-- **Chaque DB migration est forward-only par défaut**.
+- **Chaque changement de sens d'un message WS bumpe la majeure de `ProtocolVersion`** (hub et feuilles se mettent à jour ensemble).
 - **Chaque endpoint REST a un URL versionné**.
 
 Ces 4 disciplines suffisent à t'éviter 90 % des emmerdes de versioning futures.
@@ -758,6 +671,5 @@ Spoiler : tu vas les casser, en particulier au début.
 - [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 - [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html)
 - [japicmp - Java API Comparison](https://github.com/siom79/japicmp)
-- [Drizzle Migrations docs](https://orm.drizzle.team/docs/migrations)
 - [JSON Schema migration patterns](https://json-schema.org/blog/posts/migration-strategies)
 

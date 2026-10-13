@@ -1,5 +1,7 @@
 # Accounts-only editing — suppression du mode session anonyme
 
+**Statut : remplacé (phase F, 2026-10)** — plus de comptes : l'identité est le joueur qui a demandé le lien de `/artisan editor`, les droits ses permissions `artisan.editor.*`. Voir [editor-web-server](editor-web-server.md).
+
 **Statut : accepted (2026-07-11).** Décision issue d'une session grill-with-docs ; termes `Link` et `Membership` fixés dans `CONTEXT.md` le même jour.
 
 L'édition web exige désormais un compte : le lien de session anonyme émis par `/artisan editor` (trust dance `trusteditor`, surface REST `/api/v1/editor-session/:token/*`, `sessionStore` éditeur) est supprimé — cutover sec, pas de fenêtre de coexistence. `/artisan editor` devient purement informatif (link code si le Server est vierge, URL de l'éditeur sinon), l'autorisation d'éditer est portée par la **Membership** (owner/member, scope Network, checks par capacités centralisées), et l'entrée d'équipe se fait par invitation (lien + email — infra Scaleway TEM). La sync plugin ↔ backend (server key, bundles, `local_push`/FTP) n'est pas concernée : c'est une auth serveur, pas une session navigateur.
