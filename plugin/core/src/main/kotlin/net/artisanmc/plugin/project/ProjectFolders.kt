@@ -8,10 +8,10 @@ import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 
 /**
- * Créer, mettre à la corbeille et renommer le dossier d'un Project de la racine core.
- * Chaque opération rend un code d'erreur du protocole, ou null si elle a eu lieu.
- * Brouillons, historique et journaux vivent dans `.artisan/` : ils suivent le dossier.
- * Les Projects d'un Add-on appartiennent à leur Add-on : jamais déplacés ici.
+ * Create, trash and rename a Project folder of the core root.
+ * Each operation returns a protocol error code, or null when it happened.
+ * Drafts, history and journals live in `.artisan/`: they follow the folder.
+ * An Add-on's Projects belong to their Add-on: never moved here.
  */
 class ProjectFolders(private val roots: ProjectRoots, private val now: () -> Instant = Instant::now) {
     private val coreRoot get() = roots.coreRoot
@@ -22,7 +22,7 @@ class ProjectFolders(private val roots: ProjectRoots, private val now: () -> Ins
         return if (File(coreRoot, projectId).mkdirs()) null else "write_error"
     }
 
-    /** Jamais d'effacement : le dossier part dans `.artisan-trash/<id>-<horodatage>/`. */
+    /** Never erased: the folder moves to `.artisan-trash/<id>-<timestamp>/`. */
     fun delete(projectId: String): String? {
         val dir = movable(projectId) ?: return error(projectId)
         val trash = File(coreRoot, TRASH).apply { mkdirs() }
@@ -38,7 +38,7 @@ class ProjectFolders(private val roots: ProjectRoots, private val now: () -> Ins
         if (!isValidName(targetId) || targetId == projectId) return "invalid_path"
         val dir = movable(projectId) ?: return error(projectId)
         val target = File(coreRoot, targetId)
-        // Changer la casse seule désigne le même dossier sur un disque insensible à la casse.
+        // A case-only change names the same folder on a case-insensitive disk.
         val sameFolder = target.exists() && Files.isSameFile(dir.toPath(), target.toPath())
         if (roots.isRegistered(targetId) || (target.exists() && !sameFolder)) return "destination_exists"
         Files.move(dir.toPath(), target.toPath(), ATOMIC_MOVE)
@@ -63,7 +63,7 @@ class ProjectFolders(private val roots: ProjectRoots, private val now: () -> Ins
         private val NAME = Regex("[A-Za-z0-9][A-Za-z0-9_-]{0,127}")
         private val RESERVED = Regex("(?i)CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9]")
 
-        /** Même règle que l'éditeur (`isValidProjectFolderName`) : un nom de dossier sûr partout. */
+        /** Same rule as the editor (`isValidProjectFolderName`): a folder name safe everywhere. */
         fun isValidName(name: String) = NAME.matches(name) && !RESERVED.matches(name)
     }
 }

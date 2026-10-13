@@ -15,7 +15,7 @@ import java.util.zip.ZipInputStream
  * @param height    Pixel height used by the font glyph (defaults to 0 when absent).
  * @param width     Pixel width of the source PNG. Used by [net.artisanmc.plugin.render.TitleCompiler]
  *                  to advance the cursor past an image layer. 0 when absent
- *                  (legacy v1 projects) — TitleCompiler falls back to a default.
+ *                  (legacy packs); TitleCompiler then falls back to a default.
  * @param namespace Font namespace (e.g. `artisan:my_font`) for font-type assets;
  *                  null for non-font types (glyph, texture, etc.).
  */
@@ -33,7 +33,7 @@ data class AssetEntry(
 }
 
 /**
- * Maintains an in-memory map of asset id → [AssetEntry] sourced from the project zip,
+ * Maintains an in-memory map of asset id → [AssetEntry] sourced from the pack zip,
  * plus an [OffsetEncoder] derived from the index's `offsets` table (schema v2+).
  *
  * Thread-safe: [update] downloads the zip on the calling thread, parses
@@ -47,9 +47,8 @@ class AssetCatalog(
     private val mapper: ObjectMapper = ObjectMapper(),
     /** Optional on-disk cache of the last successfully downloaded index. When
      *  set, [update] persists the raw JSON here (atomic .tmp + rename) and
-     *  [loadFromDisk] restores it at boot — custom title glyphs keep rendering
-     *  with the hub unreachable (offline completeness, ADR
-     *  files-first-source-of-truth #7). */
+     *  [loadFromDisk] restores it at boot, so custom title glyphs keep rendering
+     *  with the hub unreachable. */
     private val cacheFile: java.io.File? = null,
 ) {
     private val state = AtomicReference<Map<String, AssetEntry>>(emptyMap())
@@ -70,18 +69,18 @@ class AssetCatalog(
     fun size(): Int = state.get().size
 
     /**
-     * Returns the [OffsetEncoder] built from the project's `offsets` field.
+     * Returns the [OffsetEncoder] built from the pack's `offsets` field.
      * Returns [OffsetEncoder.EMPTY] before any successful [update].
      */
     fun offsetEncoder(): OffsetEncoder = encoderRef.get()
 
     /**
-     * Downloads the project at [projectUrl], extracts `assets/artisan/asset-index.json`,
+     * Downloads the pack at [projectUrl], extracts `assets/artisan/asset-index.json`,
      * parses it, and atomically swaps the in-memory map. On any failure (non-2xx,
      * missing entry, parse error, IOException) the previous state is preserved.
      *
-     * @param projectUrl       URL of the resource-pack .zip
-     * @param expectedHash  expected SHA-1 of the project (currently informational; reserved for future integrity checks)
+     * @param projectUrl    URL of the resource-pack .zip
+     * @param expectedHash  expected SHA-1 of the pack (currently unused)
      */
     @Suppress("UNUSED_PARAMETER")
     fun update(projectUrl: String, expectedHash: String) {

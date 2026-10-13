@@ -49,7 +49,7 @@ resource-pack:
   #   delegate-to-dir: "plugins/Nexo/pack/external_packs/artisan.zip"
   #   delegate-reload-command: "n reload"
   #
-  # Default: empty (legacy mode — Artisan pushes its own RP to players).
+  # Default: empty (Artisan pushes its own RP to players).
   delegate-to-dir: ""
   # Optional: command dispatched on the console after each pack update.
   # Use this to auto-reload the host RP plugin so players don't see missing

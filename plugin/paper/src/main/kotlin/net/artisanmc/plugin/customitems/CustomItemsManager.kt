@@ -16,7 +16,7 @@ class CustomItemsManager(private val sources: List<CustomItemSource>) {
 
     /**
      * Stable SHA-256 of the sorted (id|label) list across all available sources.
-     * Texture/model content is intentionally NOT hashed — bundles no longer carry it.
+     * Texture/model content is intentionally NOT hashed: bundles do not carry it.
      * Returns "" when no sources produce any items.
      */
     fun computeHash(): String {
@@ -42,7 +42,7 @@ class CustomItemsManager(private val sources: List<CustomItemSource>) {
         return Pair(computeHash(), encode(items))
     }
 
-    /** `{id, label, category}` triés par id, couleurs retirées. */
+    /** `{id, label, category}` sorted by id, colours stripped. */
     fun items(): List<Map<String, String>> = collect().sortedBy { it.id }.map { e ->
         mapOf(
             "id"       to e.id,

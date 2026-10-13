@@ -4,8 +4,8 @@ import net.artisanmc.plugin.hub.EditorPermissions.VIEW
 import net.artisanmc.plugin.hub.Servers.Companion.LOCAL
 
 /**
- * Le compte et le réseau tels que l'éditeur les attend du backend : le joueur connecté,
- * un réseau unique nommé [LOCAL], et ses serveurs.
+ * The account and network as the editor expects them: the signed-in player, a single
+ * network named [LOCAL], and its servers.
  */
 class AccountRoutes(private val servers: Servers, private val sessions: Sessions, private val prefs: PlayerPrefs?) {
     fun register(router: Router) {
@@ -22,7 +22,7 @@ class AccountRoutes(private val servers: Servers, private val sessions: Sessions
             sessions.close(call.session!!.id)
             call.json(mapOf("ok" to true))
         }
-        // `/ws/editor` s'authentifie par le cookie de session : le ticket n'est qu'un passage obligé.
+        // `/ws/editor` authenticates with the session cookie: the ticket is only a required step.
         router.on("POST", "/api/v1/user/ws-ticket", VIEW) { it.json(mapOf("ticket" to "session")) }
         router.on("GET", "/api/v1/networks", VIEW) { it.json(mapOf("networks" to listOf(network()))) }
         router.on("GET", "/api/v1/networks/:network", VIEW) { call ->
@@ -36,7 +36,7 @@ class AccountRoutes(private val servers: Servers, private val sessions: Sessions
         }
     }
 
-    /** Sans [prefs], le tour reste fermé : sa progression ne serait gardée nulle part. */
+    /** Without [prefs], the tour stays closed: its progress would be kept nowhere. */
     private fun user(session: EditorSession, saved: PlayerPrefs.Prefs? = prefs?.read(session.playerId)) = mapOf(
         "id" to session.playerId.toString(),
         "email" to "",

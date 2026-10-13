@@ -12,13 +12,12 @@ import java.io.File
  * Cross-stack conformance: the Kotlin Action DSL codec MUST agree, on the TEXT
  * round-trip, with the shared vector `testdata/action-dsl-conformance.json` — the
  * same fixtures the TS suite (`editor/src/lib/actionDsl/actionDsl.test.ts`)
- * asserts against. Cf. ADR `docs/decisions/action-dsl.md`. The AST-JSON in the
- * fixture is TS-shaped, so we assert the language-agnostic invariant instead:
+ * asserts against (ADR `action-dsl`). The AST-JSON in the fixture is TS-shaped,
+ * so we assert the language-agnostic invariant instead:
  *   - print(parse(dsl))          == canonicalDsl
  *   - print(parse(canonicalDsl)) == canonicalDsl  (idempotent)
  *
- * The fixture file is located by walking up from the working dir, mirroring
- * `BundleHashConformanceTest`'s discovery of `project-hash-conformance.json`.
+ * The fixture file is located by walking up from the working dir.
  */
 class ActionDslConformanceTest {
 

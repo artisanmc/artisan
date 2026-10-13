@@ -3,10 +3,9 @@ package net.artisanmc.plugin.model
 /**
  * One layer composed into a menu's GUI title.
  *
- * A menu title is now a list of these layers (see Task 16 of the title-composer plan).
- * Legacy `title: "<string>"` and `title: "{i18n:...}"` YAML values are normalised
- * by [net.artisanmc.plugin.engine.MenuTitleParser] into a single [Text] layer at
- * the default position (x=8, y=5).
+ * A menu title is a list of these layers. Legacy `title: "<string>"` and
+ * `title: "{i18n:...}"` YAML values are normalised by
+ * [net.artisanmc.plugin.engine.MenuTitleParser] into a single [Plain] layer.
  */
 sealed class MenuTitleLayer {
     /** A background image rendered at the title origin. */
@@ -22,17 +21,17 @@ sealed class MenuTitleLayer {
         val y: Int,
         val fontAssetId: String? = null,
         val color: String? = null,
-        /** Bitmap font height in MC pixels. Must be in {4,8,12,16,20,24,32}; the
+        /** Bitmap font height in MC pixels. Must be in {8,12,16,20,24,32}; the
          *  parser falls back to 8 for invalid values. Ignored when [fontAssetId]
          *  is set — custom fonts ship at their own native size. */
         val size: Int = 8,
     ) : MenuTitleLayer()
 
     /**
-     * A plain vanilla text layer — no resource project required.
+     * A plain vanilla text layer, no resource pack required.
      * Emitted as raw MiniMessage without any custom font wrapper, so the
      * vanilla MC font renders it exactly as the client expects. Servers that
-     * don't distribute a resource project should use this instead of [Text].
+     * don't distribute a resource pack should use this instead of [Text].
      */
     data class Plain(val value: LText, val color: String? = null) : MenuTitleLayer()
 

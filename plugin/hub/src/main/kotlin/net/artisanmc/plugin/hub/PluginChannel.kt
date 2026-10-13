@@ -10,16 +10,16 @@ import java.util.UUID
 import java.util.logging.Logger
 
 /**
- * WebSocket `/ws/plugin` : les feuilles du réseau s'y relient. Le `hello` doit porter le
- * secret partagé (`server_key`) et le nom du serveur (`proxy_name`) ; sans eux la
- * connexion est fermée.
+ * WebSocket `/ws/plugin`: the network's leaves connect here. The `hello` must carry the
+ * shared secret (`server_key`) and the server name (`proxy_name`); without them the
+ * connection is closed.
  */
 class PluginChannel(
     private val servers: Servers,
     private val secret: String,
     private val sessions: Sessions,
     private val editors: EditorChannel,
-    /** L'adresse publique du hub ; l'hôte par lequel un joueur a rejoint sert de repli. */
+    /** The hub's public address; the host a player joined through is the fallback. */
     private val publicUrl: (host: String?) -> String,
     private val logger: Logger?,
 ) {
@@ -64,7 +64,7 @@ class PluginChannel(
             "server_id" to name,
             "editor_url" to publicUrl(null),
             "network_name" to servers.local.label,
-            // Un objet sans adresse laisse au serveur le pack qu'il a déjà ; null le lui retirerait.
+            // An object without an address leaves the server its current pack; null would remove it.
             "resource_pack" to (server.pack ?: emptyMap<String, String>()),
         )
         session.sendText(Call.mapper.writeValueAsString(ack), Callback.NOOP)
@@ -78,8 +78,8 @@ class PluginChannel(
     }
 
     /**
-     * `/artisan editor` tapé sur ce serveur : le hub donne le lien. Il ne consulte aucune
-     * permission lui-même, il reprend celles que le serveur a lues pour ce joueur.
+     * `/artisan editor` typed on this server: the hub gives the link. It checks no
+     * permission itself; it uses the ones the server read for this player.
      */
     private fun link(session: Session, message: JsonNode) {
         val player = runCatching { UUID.fromString(message.path("player_id").asText()) }.getOrNull()

@@ -4,7 +4,7 @@ import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-/** Le scheduler Bukkit n'existe pas sur Folia : tout passe par [Scheduler]. */
+/** The Bukkit scheduler does not exist on Folia: everything goes through [Scheduler]. */
 class SchedulerBoundaryTest {
     private val legacy = Regex("""getScheduler\(\)|server\.scheduler\b|BukkitRunnable|\bisPrimaryThread\b""")
 

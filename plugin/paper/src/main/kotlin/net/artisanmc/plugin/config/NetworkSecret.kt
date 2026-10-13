@@ -6,9 +6,9 @@ import java.security.SecureRandom
 import java.util.Base64
 
 /**
- * Le secret qui relie le hub et ses feuilles, dans l'ordre : `web.secret`, le secret de
- * transfert Velocity que chaque serveur du réseau connaît déjà (`config/paper-global.yml`),
- * puis celui que le hub a généré dans [stored]. Vide si rien ne le donne.
+ * The secret linking the hub and its leaves, in order: `web.secret`, the Velocity
+ * forwarding secret every server of the network already knows (`config/paper-global.yml`),
+ * then the one the hub generated in [stored]. Empty if none of them provides it.
  */
 object NetworkSecret {
     fun resolve(configured: String, serverRoot: File, stored: File, generate: Boolean): String {

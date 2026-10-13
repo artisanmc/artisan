@@ -11,7 +11,7 @@ class PackCommand(
     private val compiled: CompiledCommand,
     private val executor: ActionExecutor,
     private val lang: LangManager,
-    /** Project qui définit la commande : ses `open_menu` à id nu s'y résolvent d'abord. */
+    /** Project defining the command: its `open_menu` with a bare id resolve there first. */
     private val projectId: String? = null,
 ) : Command(
     compiled.name,

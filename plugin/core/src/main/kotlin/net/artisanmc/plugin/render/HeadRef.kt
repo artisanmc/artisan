@@ -3,11 +3,11 @@ package net.artisanmc.plugin.render
 import java.util.UUID
 
 /**
- * Référence de tête custom portée par AppearanceYaml.head.
+ * Custom head reference carried by AppearanceYaml.head.
  *  - hdb:<id>              → HeadDatabase
- *  - basehead:<base64>     → profil avec property "textures"
- *  - playerhead:<pseudo>   → tête du joueur nommé (placeholders résolus en amont)
- *  - "eyJ…" sans préfixe   → tolérance YAML édité main, traité comme basehead
+ *  - basehead:<base64>     → profile with a "textures" property
+ *  - playerhead:<name>     → the named player's head (placeholders resolved upstream)
+ *  - "eyJ…" without prefix → tolerated for hand-edited YAML, treated as basehead
  */
 sealed interface HeadRef {
     data class Hdb(val id: String) : HeadRef
@@ -26,7 +26,7 @@ sealed interface HeadRef {
             }
         }
 
-        /** UUID stable dérivé du base64 — deux items de même texture restent comparables. */
+        /** Stable UUID derived from the base64: two items with the same texture stay comparable. */
         fun uuidFor(base64: String): UUID = UUID.nameUUIDFromBytes(base64.toByteArray(Charsets.UTF_8))
     }
 }

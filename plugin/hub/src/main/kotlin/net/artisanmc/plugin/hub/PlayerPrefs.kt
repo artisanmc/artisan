@@ -7,8 +7,8 @@ import java.nio.file.StandardCopyOption
 import java.util.UUID
 
 /**
- * Les préférences d'éditeur d'un joueur (langue, thème, tour guidé), un petit fichier JSON par UUID
- * dans [dir]. Seules les clés connues sont lues et écrites.
+ * A player's editor preferences (language, theme, guided tour), one small JSON file per UUID
+ * in [dir]. Only known keys are read and written.
  */
 class PlayerPrefs(private val dir: File) {
     data class Tour(val step: Int, val completed: Boolean)
@@ -28,9 +28,9 @@ class PlayerPrefs(private val dir: File) {
     }
 
     /**
-     * Applique un `PATCH /auth/me` : `editor_language`, `theme`, `editor_tour` (`start`, `progress`,
-     * `complete`, `import`, comme le backend le faisait). Rend les préférences et, pour `start`,
-     * si le tour vient d'être lancé.
+     * Applies a `PATCH /auth/me`: `editor_language`, `theme`, `editor_tour` (`start`, `progress`,
+     * `complete`, `import`). Returns the preferences and, for `start`, whether the tour was just
+     * started.
      */
     @Synchronized
     fun update(player: UUID, body: JsonNode): Pair<Prefs, Boolean?> {

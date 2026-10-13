@@ -9,16 +9,16 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 
 /**
- * Le serveur vu par le hub : un message du protocole éditeur (`project_read`, `project_write`…)
- * et sa réponse (`project_read_result`…). Le futur échoue en `TimeoutException` sans réponse.
+ * The server as seen by the hub: an editor protocol message (`project_read`, `project_write`…)
+ * and its reply (`project_read_result`…). The future fails with `TimeoutException` without a reply.
  */
 fun interface ServerLink {
     fun request(message: Map<String, Any?>): CompletableFuture<Map<String, Any?>>
 }
 
 /**
- * Le hub et le serveur dans le même process : le message passe aux mêmes gestionnaires que
- * ceux du WebSocket, et la réponse revient par [deliver] au lieu de partir sur le réseau.
+ * Hub and server in the same process: the message goes to the same handlers as the
+ * WebSocket's, and the reply comes back through [deliver] instead of the network.
  */
 class LocalServerLink(
     private val dispatch: (JsonNode) -> Unit,
@@ -40,7 +40,7 @@ class LocalServerLink(
         return reply.orTimeout(timeout.toMillis(), TimeUnit.MILLISECONDS)
     }
 
-    /** Vrai si [payload] répond à une requête de ce lien : il ne doit alors partir nulle part ailleurs. */
+    /** True if [payload] answers a request of this link: it must then go nowhere else. */
     fun deliver(payload: Map<String, Any?>): Boolean {
         val id = payload["request_id"] as? String ?: return false
         return pending[id]?.complete(payload) != null

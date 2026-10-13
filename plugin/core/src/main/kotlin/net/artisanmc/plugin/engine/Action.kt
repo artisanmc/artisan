@@ -73,12 +73,12 @@ sealed class Action {
     ) : Action()
     data object CloseDialog : Action()
     data class SetArg(val arg: String, val value: String) : Action()
-    /** `list` est la liste de valeurs séparées par des virgules ("price,name"). */
+    /** `list` is the comma-separated value list ("price,name"). */
     data class SetArgCycleNext(val arg: String, val list: String) : Action()
     data class SetArgCyclePrev(val arg: String, val list: String) : Action()
     /**
-     * Exécute la chaîne d'actions (DSL) portée par la valeur de source [actions]
-     * (une expression de scope, ex. `item.on_buy`). Cf. ADR action-dsl §run_actions.
+     * Runs the action chain (DSL) carried by the source value [actions] (a scope
+     * expression, e.g. `item.on_buy`). See ADR action-dsl §run_actions.
      */
     data class RunActions(val actions: String) : Action()
 }

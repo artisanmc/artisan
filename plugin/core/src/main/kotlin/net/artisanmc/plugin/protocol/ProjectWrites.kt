@@ -20,9 +20,9 @@ import java.util.logging.Level
 import java.util.logging.Logger
 
 /**
- * Les écritures de l'éditeur. Chacune est un compare-and-swap tout-ou-rien :
- * `base_hash` décrit l'état attendu, un seul fichier qui a bougé annule tout,
- * et rien n'est écrit avant que tout soit vérifié et décodé.
+ * The editor's writes. Each is an all-or-nothing compare-and-swap: `base_hash`
+ * describes the expected state, a single file that moved cancels everything, and
+ * nothing is written before everything is checked and decoded.
  */
 class ProjectWrites(
     private val workspace: ProjectWorkspace,
@@ -49,8 +49,8 @@ class ProjectWrites(
             ) return@offThread
             val projectDir = roots.dirFor(projectId)
             if (!projectDir.isDirectory) {
-                // Un Project neuf n'a pas encore de dossier : créé seulement sur demande,
-                // sinon un id mal tapé sèmerait un dossier fantôme.
+                // A new Project has no folder yet: created only on request, otherwise
+                // a mistyped id would leave a ghost folder.
                 if (!request.create) return@offThread reply.error("unknown_project")
                 if (!projectDir.mkdirs()) return@offThread reply.error("write_error", "mkdir failed")
             }
@@ -59,9 +59,9 @@ class ProjectWrites(
                 val decoded = binaries.associate { b -> b.path to b.contentBase64?.let { Base64.getDecoder().decode(it) } }
                 val conflicts = conflicts(projectDir, request, binaries)
                 if (conflicts.isNotEmpty()) {
-                    // Le contenu disque voyage avec le conflit (diff sans second aller-retour),
-                    // et l'état réel du dossier aussi : un renommage fait à la main ressemble
-                    // à une suppression, et « garder ma version » recréerait l'ancien fichier.
+                    // The disk content travels with the conflict (diff without a second round
+                    // trip), and so does the folder's real state: a rename done by hand looks
+                    // like a delete, and "keep my version" would recreate the old file.
                     val onDisk = ProjectFilesReader.readAll(projectDir).keys.filter { !EditorPaths.isInvisible(it) }.sorted()
                     return@offThread reply.send(mapOf("ok" to false, "error" to "conflict", "conflicts" to conflicts, "disk_files" to onDisk))
                 }
@@ -96,7 +96,7 @@ class ProjectWrites(
             val dest = ProjectPathPolicy.resolve(projectDir, to)
             listOfNotNull(
                 if (current?.let(BundleHasher::hashContent) == expected) null else mapOf("path" to from, "disk" to current),
-                // La destination doit être libre : un renommage n'écrase jamais un fichier existant.
+                // The destination must be free: a rename never overwrites an existing file.
                 if (dest.exists()) mapOf("path" to to, "disk" to dest.takeIf { it.isFile }?.readText(Charsets.UTF_8)) else null,
             )
         }
@@ -113,8 +113,8 @@ class ProjectWrites(
     }
 
     /**
-     * Un renommage porte une intention que l'arbre ne reconstitue pas : sans elle, la
-     * corbeille archiverait une fausse suppression et l'historique perdrait son fichier.
+     * A rename carries an intent the tree cannot rebuild: without it, the trash would
+     * archive a false delete and the history would lose its file.
      */
     private fun changes(projectDir: File, request: ProjectWrite, binaries: Map<String, ByteArray?>): Map<String, ByteArray?> {
         fun resolve(path: String) = ProjectPathPolicy.resolve(projectDir, path)
@@ -137,7 +137,7 @@ class ProjectWrites(
         val renamedFrom = request.renames.map { it.from }.toSet()
         val archived = ProjectPublisher(projectDir).withHistory(changes.filterKeys { it !in renamedFrom }).toMutableMap()
         renamedFrom.forEach { archived[it] = null }
-        // Renommé ET modifié : la source s'archive sous son nouveau nom.
+        // Renamed AND modified: the source is archived under its new name.
         request.renames.forEach { (from, to, _) ->
             val before = resolve(from).readBytes()
             if (changes[to]?.contentEquals(before) == false) {
@@ -149,7 +149,7 @@ class ProjectWrites(
         return archived + historyMoves
     }
 
-    /** Écriture d'une table d'écran de config : un simple changement disque, rechargé. */
+    /** Config screen table write: a plain disk change, then reload. */
     fun config(request: ConfigWrite) {
         val reply = replies.to(request, "config_write_result")
         val (_, projectId, writes, deletes) = request
@@ -180,7 +180,7 @@ class ProjectWrites(
     fun rename(request: ProjectRename) =
         folder(request, "project_rename", request.projectId) { it.rename(request.projectId, request.targetId) }
 
-    /** Un dossier de Project créé, mis à la corbeille ou renommé, puis rechargé avant la réponse. */
+    /** A Project folder created, trashed or renamed, then reloaded before the reply. */
     private fun folder(request: EditorRequest.WithReply, type: String, source: String? = null, operation: (ProjectFolders) -> String?) {
         val reply = replies.to(request, "${type}_result")
         if (source != null && !EditorPaths.isSafeProjectId(source)) return reply.error("invalid_path")
@@ -195,7 +195,7 @@ class ProjectWrites(
         }
     }
 
-    /** Brouillons privés (`project_drafts`). La réponse part avant le rechargement d'une publication. */
+    /** Private drafts (`project_drafts`). The reply goes out before a publish's reload. */
     fun draft(request: ProjectDraft) = replies.offThread("project_draft_request", workspace.io) {
         val projectId = request.projectId
         val result: JsonNode = try {

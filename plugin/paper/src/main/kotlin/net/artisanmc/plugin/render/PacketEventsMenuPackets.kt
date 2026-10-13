@@ -16,14 +16,14 @@ import org.bukkit.entity.Player
 private val toClient: (org.bukkit.inventory.ItemStack) -> ItemStack = SpigotConversionUtil::fromBukkitItemStack
 
 /**
- * Adaptateur PacketEvents du routage de [MenuWindows] : les paquets sortants
- * d'une fenêtre de menu reçoivent le contenu de ses [MenuSlots].
+ * PacketEvents adapter for [MenuWindows] routing: a menu window's outgoing packets
+ * receive the contents of its [MenuSlots].
  *
- * `OPEN_WINDOW` capture l'id ; `WINDOW_ITEMS` (renvoyé après chaque clic annulé)
- * et `SET_SLOT` sont réécrits ; `SET_PLAYER_INVENTORY` (1.21.2+) aussi quand le
- * bas est `hidden`. Le serveur ne connaît pas ce contenu : chacune de ses
- * resynchros doit être rattrapée ici. `OPEN_WINDOW` porte aussi, pour tout
- * coffre, la texture vanilla en tête de titre ([VanillaGuiTitle]).
+ * `OPEN_WINDOW` captures the id; `WINDOW_ITEMS` (resent after every cancelled click)
+ * and `SET_SLOT` are rewritten; `SET_PLAYER_INVENTORY` (1.21.2+) too when the bottom is
+ * `hidden`. The server does not know this content, so every resync it sends must be
+ * caught here. For any chest, `OPEN_WINDOW` also carries the vanilla texture at the
+ * start of the title ([VanillaGuiTitle]).
  */
 class PacketEventsMenuPackets(
     private val windows: MenuWindows,
@@ -72,8 +72,8 @@ class PacketEventsMenuPackets(
     }
 
     /**
-     * Capture l'id d'une fenêtre Artisan, puis rend à toute fenêtre de coffre sa
-     * texture vanilla par le titre quand le pack l'a rendue transparente.
+     * Captures an Artisan window's id, then gives any chest window back its vanilla
+     * texture through the title when the pack made it transparent.
      */
     private fun onOpenWindow(event: PacketSendEvent, playerId: java.util.UUID) {
         val menuPending = windows.get(playerId)?.let { it.windowId < 0 } == true
@@ -86,7 +86,7 @@ class PacketEventsMenuPackets(
     }
 }
 
-/** Envois propres du contenu d'une fenêtre ; déjà réécrits, donc silencieux. */
+/** Our own sends of a window's contents; already rewritten, so silent. */
 class PacketEventsSlotSink(private val stateId: (Player) -> Int) : ClientSlotSink {
     override fun sendAll(player: Player, windowId: Int, items: List<org.bukkit.inventory.ItemStack?>) {
         val packet = WrapperPlayServerWindowItems(

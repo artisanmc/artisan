@@ -13,11 +13,11 @@ dependencies {
     compileOnly("me.clip:placeholderapi:2.11.6")
     compileOnly("com.nexomc:nexo:0.9.0")
     compileOnly("io.th0rgal:oraxen:1.189.0")
-    // Contenu des menus envoyé par paquets (PacketEventsMenuPackets). Intégré et
-    // relocalisé : chaque version majeure de Minecraft impose de le mettre à jour.
-    // Netty et adventure-api/key sont fournis par Paper. adventure-nbt ne l'est pas
-    // (NoClassDefFoundError BinaryTag), ni examination depuis Paper 26.x
-    // (ClassNotFoundException Examinable) : embarqués et relocalisés.
+    // Menu contents sent as packets (PacketEventsMenuPackets). Bundled and relocated:
+    // every major Minecraft version requires updating it.
+    // Netty and adventure-api/key are provided by Paper. adventure-nbt is not
+    // (NoClassDefFoundError BinaryTag), nor is examination since Paper 26.x
+    // (ClassNotFoundException Examinable): bundled and relocated.
     implementation("com.github.retrooper:packetevents-spigot:2.14.0") {
         exclude("io.netty")
         exclude("net.kyori", "adventure-api")
@@ -30,7 +30,7 @@ dependencies {
     }
     testImplementation("com.zaxxer:HikariCP:6.2.1")
     testImplementation("com.h2database:h2:2.3.232")
-    // Jetty vient de `libraries:` en production, comme HikariCP.
+    // Jetty comes from `libraries:` in production, like HikariCP.
     compileOnly("org.eclipse.jetty:jetty-server:12.1.12")
     testImplementation("org.eclipse.jetty:jetty-server:12.1.12")
     testImplementation("org.eclipse.jetty.websocket:jetty-websocket-jetty-server:12.1.12")
@@ -52,24 +52,23 @@ tasks.processResources {
 
 tasks.shadowJar {
     archiveBaseName.set("artisan-plugin")
-    // PAS de `relocate("kotlin", …)` — essayé le 2026-08-08, ça casse le runtime.
-    // kotlin-reflect (tiré par jackson-module-kotlin, qui lit nos data classes)
-    // résout les built-ins par NOM DE CHAÎNE, depuis des fichiers .kotlin_builtins
-    // que le relocateur ne réécrit pas : il cherche `kotlin.jvm.functions.Function2`
-    // qui n'existe alors plus, et CHAQUE project est skippé au load.
+    // NO `relocate("kotlin", …)`: it breaks the runtime. kotlin-reflect (pulled in by
+    // jackson-module-kotlin, which reads our data classes) resolves built-ins BY STRING
+    // NAME from .kotlin_builtins files the relocator does not rewrite: it looks for
+    // `kotlin.jvm.functions.Function2`, which no longer exists, and EVERY project is
+    // skipped at load.
     //
-    // La cause du LinkageError inter-plugins est traitée en amont, à la frontière :
-    // la surface modules.api n'expose plus aucun type kotlin.*, donc un add-on ne
-    // résout plus jamais `kotlin.*` par le lookup global des plugins — c'était le
-    // déclencheur (le loader de Boutique cherchait Function2, absente de son JAR,
-    // et récupérait celle d'un autre plugin Kotlin).
-    // Cf. ApiSurfaceIsJavaFriendlyTest + docs/architecture/api-surface.md.
+    // The cross-plugin LinkageError is handled at the boundary instead: the modules.api
+    // surface exposes no kotlin.* type, so an add-on never resolves `kotlin.*` through
+    // the global plugin lookup (that was the trigger: an add-on's loader looked for
+    // Function2, missing from its JAR, and got another Kotlin plugin's copy).
+    // See ApiSurfaceIsJavaFriendlyTest and docs/architecture/api-surface.md.
     relocate("com.fasterxml.jackson", "net.artisanmc.shaded.jackson")
     relocate("okhttp3", "net.artisanmc.shaded.okhttp3")
     relocate("okio", "net.artisanmc.shaded.okio")
     relocate("com.github.retrooper.packetevents", "net.artisanmc.shaded.packetevents.api")
     relocate("io.github.retrooper.packetevents", "net.artisanmc.shaded.packetevents.impl")
-    // `adventure.nbt.api` appartient à adventure-api (fourni par Paper) : pas relocalisé.
+    // `adventure.nbt.api` belongs to adventure-api (provided by Paper): not relocated.
     relocate("net.kyori.adventure.nbt", "net.artisanmc.shaded.adventure.nbt") {
         exclude("net.kyori.adventure.nbt.api.**")
     }

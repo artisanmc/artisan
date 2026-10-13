@@ -4,17 +4,17 @@ import net.artisanmc.plugin.sync.BundleHasher
 import net.artisanmc.plugin.sync.ProjectFilesReader
 
 /**
- * L'état des Projects tel que lu au dernier chargement, remplacé d'un bloc.
+ * The Projects' state as read at the last load, replaced as a whole.
  *
- * [files] : les octets bruts de chaque fichier texte, ce que sert `project_read`
- * et donc ce que l'éditeur affiche — l'état que le serveur exécute, pas le disque
- * courant. Des octets bruts, pas un modèle : le compare-and-swap compare des
- * octets. Un fichier illisible y figure aussi, donc reste réparable.
+ * [files]: the raw text of each text file, what `project_read` serves and so what
+ * the editor shows: the state the server runs, not the current disk. Raw content,
+ * not a model: the compare-and-swap compares bytes. An unreadable file is included
+ * too, so it stays fixable.
  *
- * [binaries] : l'empreinte et la taille des binaires, sans leur contenu, lu à la
- * demande (`asset_read`, ADR `assets-on-server-disk`).
+ * [binaries]: hash and size of the binaries, without their content, which is read
+ * on demand (`asset_read`, ADR `assets-on-server-disk`).
  *
- * [skipped] : les Documents qui n'ont pas compilé, et pourquoi.
+ * [skipped]: the Documents that failed to compile, and why.
  */
 data class ProjectSnapshot(
     val files: Map<String, Map<String, String>>,
@@ -23,7 +23,7 @@ data class ProjectSnapshot(
 ) {
     val projectIds: List<String> get() = files.keys.sorted()
 
-    /** L'empreinte de `project_read`, annoncée aussi par `projects_reloaded`. */
+    /** The `project_read` fingerprint, also announced by `projects_reloaded`. */
     fun hash(projectId: String): String = BundleHasher.snapshotHash(
         files[projectId] ?: emptyMap(),
         (binaries[projectId] ?: emptyMap()).mapValues { it.value.hash },

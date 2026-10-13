@@ -16,12 +16,12 @@ data class NavigationEntry(
     val args: Map<String, Any> = emptyMap(),
     val pagination: Map<String, Int> = emptyMap(),
     val lang: String = "en",
-    /** Project de l'écran : le retour rouvre `projectId:id`, jamais un homonyme d'un autre project. */
+    /** The screen's project: going back reopens `projectId:id`, never a namesake from another project. */
     val projectId: String? = null,
 ) {
     enum class Kind { MENU, DIALOG }
 
-    /** La référence qui rouvre exactement cet écran. */
+    /** The reference that reopens exactly this screen. */
     val ref: String get() = if (projectId.isNullOrEmpty()) id else "$projectId:$id"
 }
 
@@ -73,10 +73,10 @@ class NavigationHistoryStore(private val maxDepth: Int = 32) {
     }
 
     /**
-     * Un `open_menu` qui rouvre l'écran d'avant (bouton retour câblé en `open_menu`)
-     * est un retour : on retire l'écran quitté et l'ancienne entrée au lieu d'empiler,
-     * sinon chaque aller-retour rallonge la pile en boucle. Args ignorés : un tel
-     * bouton hérite des args de l'écran enfant.
+     * An `open_menu` reopening the previous screen (a back button wired as `open_menu`)
+     * is a return: the left screen and the old entry are removed instead of pushed,
+     * otherwise every round trip grows the stack. Args are ignored: such a button
+     * inherits the child screen's args.
      */
     @Synchronized
     fun collapseReturn(player: Player) {

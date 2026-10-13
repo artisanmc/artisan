@@ -1,8 +1,8 @@
 package net.artisanmc.plugin.hub
 
 /**
- * Le build Vite de l'éditeur, embarqué sous `editor/` dans le jar. Tout chemin qui n'est
- * pas un fichier rend `index.html` : le routeur de l'éditeur s'en charge dans le navigateur.
+ * The editor's Vite build, bundled under `editor/` in the jar. Any path that is not a
+ * file returns `index.html`: the editor's router handles it in the browser.
  */
 class EditorAssets(private val loader: ClassLoader, private val root: String = "editor") {
     val embedded: Boolean get() = loader.getResource("$root/index.html") != null
@@ -11,7 +11,7 @@ class EditorAssets(private val loader: ClassLoader, private val root: String = "
         val path = call.path.trimStart('/')
         val file = path.takeIf { it.isNotEmpty() && ".." !in it }?.let { read(it) }
         if (file != null) {
-            // Vite nomme ses fichiers par empreinte : un fichier d'assets/ ne change jamais.
+            // Vite names its files by hash: a file under assets/ never changes.
             val cache = if (path.startsWith("assets/")) "public, max-age=31536000, immutable" else "no-cache"
             return call.send(200, contentType(path), file, cache)
         }

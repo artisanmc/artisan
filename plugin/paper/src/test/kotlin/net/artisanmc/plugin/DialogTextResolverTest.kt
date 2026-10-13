@@ -12,10 +12,9 @@ import net.artisanmc.plugin.render.DialogTextResolver
 import kotlin.test.*
 
 /**
- * La chaîne de résolution texte des dialogs (i18n → args) vit dans
- * DialogTextResolver, séparé de DialogRenderer : l'API dialog Paper 1.21.7
- * n'existe pas sur le classpath de test (paper-api 1.21.1 via MockBukkit),
- * DialogRenderer n'est donc pas chargeable ici.
+ * The dialog text resolution chain (i18n → args) lives in DialogTextResolver, apart
+ * from DialogRenderer: the Paper 1.21.7 dialog API is not on the test classpath
+ * (paper-api 1.21.1 through MockBukkit), so DialogRenderer cannot be loaded here.
  */
 class DialogTextResolverTest {
     @BeforeTest fun setup() { MockBukkit.mock() }

@@ -5,7 +5,7 @@ import net.artisanmc.plugin.hub.Relay.Companion.errorCode
 import net.artisanmc.plugin.hub.Relay.Companion.ok
 import java.util.Base64
 
-/** Catalogue d'items (vanilla, puis Nexo, Oraxen, ItemsAdder), textures vanilla et glyphes Nexo. */
+/** Item catalog (vanilla, then Nexo, Oraxen, ItemsAdder), vanilla textures and Nexo glyphs. */
 class ItemRoutes(private val servers: Servers, private val relay: Relay, private val vanilla: VanillaAssets?) {
     fun register(router: Router) {
         router.on("GET", "/api/v1/user/projects/:project/items", VIEW) { call ->
@@ -16,7 +16,7 @@ class ItemRoutes(private val servers: Servers, private val relay: Relay, private
             val project = servers.projectOf(call) ?: return@on call.error(404, "not_found")
             call.json(mapOf("serverKeyId" to project.server.id, "items" to project.server.customItems()))
         }
-        // La version demandée est ignorée : un seul serveur, une seule version de textures.
+        // The requested version is ignored: one server, one texture version.
         router.on("GET", "/api/v1/textures/:version/*", VIEW) { call ->
             val png = vanilla?.texture(call.params.getValue("*")) ?: return@on call.error(404, "not_found")
             call.send(200, "image/png", png, "private, max-age=86400")

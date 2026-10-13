@@ -104,7 +104,7 @@ class ResourcePackManagerTest {
         mgr.onUpdate(ResourcePackInfo.from("http://player", "http://internal", SAMPLE_HASH, "<gold>x</gold>"))
         assertTrue(cache.exists())
 
-        // Fresh manager (simulated restart, backend down) restores the info.
+        // Fresh manager (simulated restart, hub down) restores the info.
         val mgr2 = ResourcePackManager(plugin, config(), logger = plugin.logger, cacheFile = cache)
         mgr2.loadFromDisk()
         assertEquals("http://player", mgr2.currentPackInfo?.url)

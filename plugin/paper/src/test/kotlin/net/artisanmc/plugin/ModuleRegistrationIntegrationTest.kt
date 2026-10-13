@@ -24,16 +24,16 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**
- * Integration test (Task 6): external registrant → presence seam.
+ * Integration test: external registrant → presence seam.
  *
  * Proves: a simulated external `depend:[Artisan]` plugin obtains [ArtisanAPI] via
  * [org.bukkit.plugin.ServicesManager], calls `api.modules.register(module)` **after**
  * the WS `hello` handshake, and a `modules_changed` frame carrying that module
- * reaches the (mock) backend.
+ * reaches the (mock) hub.
  *
- * Shape: lighter fallback — drives SyncedMenuProvider directly against MockWebServer
- * (mirroring FullSyncIntegrationTest), builds ArtisanAPI + ModuleRegistry the same
- * way ArtisanPlugin.buildApi does, then registers a "quests" module post-hello.
+ * Drives SyncedMenuProvider directly against MockWebServer, builds ArtisanAPI +
+ * ModuleRegistry the same way ArtisanPlugin.buildApi does, then registers a "quests"
+ * module post-hello.
  */
 class ModuleRegistrationIntegrationTest {
 
@@ -57,7 +57,7 @@ class ModuleRegistrationIntegrationTest {
         // Collect every frame sent by the provider so we can assert on them.
         val received = Collections.synchronizedList(mutableListOf<Map<*, *>>())
         // We need two latches:
-        //   1. helloLatch  — backend received the hello → we can register the module
+        //   1. helloLatch  — the hub received the hello → we can register the module
         //   2. changedLatch — provider sent a modules_changed frame
         val helloLatch = CountDownLatch(1)
         val changedLatch = CountDownLatch(1)

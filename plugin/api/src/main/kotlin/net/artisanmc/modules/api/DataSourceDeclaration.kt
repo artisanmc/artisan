@@ -25,7 +25,7 @@ class PlayerRequiredException(message: String? = null) : RuntimeException(messag
  *
  * @param ref Globally unique reference, format "namespace:id" (e.g. "shop:items").
  * @param fetcher Pure function returning rows for a given player + params.
- *                `player` is null in preview mode (editor "Prévisualiser") — return
+ *                `player` is null in preview mode (the editor's preview) — return
  *                generic data or throw [PlayerRequiredException].
  *                Called on the server main thread at menu render time: MUST
  *                return fast (serve from an in-memory cache, no blocking I/O).
