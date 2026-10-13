@@ -1,18 +1,25 @@
 ---
 title: Modules
-description: Implement ArtisanModule — lifecycle, commands, project files, and your own project root.
+description: Implement ArtisanModule — registration, lifecycle, reading project files, owning a project directory and shipping default content.
+sidebar:
+  order: 4
 ---
 
-A **module** is the unit of integration. Implementing `ArtisanModule` gets your
-plugin a lifecycle tied to Artisan's own (enable, disable, hot-reload after a
-sync), attribution in the editor UI, and access to project content on disk.
+A **module** is your plugin's identity inside Artisan. Implementing
+`ArtisanModule` gets you:
+
+- a listing in the editor (the server reports its active modules, and the
+  editor groups your data sources, models and screens under your module);
+- attribution: everything you declare in `onEnable(api)` is tagged with your
+  module id;
+- a reload hook, called every time project content changes on disk.
 
 ## The contract
 
 ```kotlin
-class MyModule(private val plugin: MyPlugin) : ArtisanModule {
-    override val id = "myplugin"            // lowercase, used as data source namespace
-    override val schemaVersion = "myplugin/v1"
+class HomesModule(private val plugin: HomesPlugin) : ArtisanModule {
+    override val id = "homes"                 // lowercase; also your namespace
+    override val schemaVersion = "homes/v1"   // the shape of your own files
 
     private lateinit var api: ArtisanAPI
 
@@ -23,181 +30,214 @@ class MyModule(private val plugin: MyPlugin) : ArtisanModule {
         loadFromProject()
     }
 
-    override fun onReload() = loadFromProject()  // called after every disk sync
+    override fun onReload() = loadFromProject()
 
     override fun onDisable() {
-        // release listeners, executors, threads
+        // stop your tasks, close what you opened
     }
+
+    private fun loadFromProject() { /* read files, rebuild caches */ }
 }
 ```
 
 ```java
-public final class MyModule implements ArtisanModule {
-    @Override public String getId() { return "myplugin"; }
-    @Override public String getSchemaVersion() { return "myplugin/v1"; }
-    @Override public void onEnable(ArtisanAPI api) { /* … */ }
-    @Override public void onReload() { /* … */ }
+public final class HomesModule implements ArtisanModule {
+    private final HomesPlugin plugin;
+    private ArtisanAPI api;
+
+    public HomesModule(HomesPlugin plugin) { this.plugin = plugin; }
+
+    @Override public String getId() { return "homes"; }
+    @Override public String getSchemaVersion() { return "homes/v1"; }
+
+    @Override public void onEnable(ArtisanAPI api) {
+        this.api = api;
+        // register data sources, commands…
+        loadFromProject();
+    }
+
+    @Override public void onReload() { loadFromProject(); }   // required in Java
     @Override public void onDisable() {}
+
+    private void loadFromProject() { /* … */ }
 }
 ```
+
+| Member | Meaning |
+|---|---|
+| `id` | Lowercase module id (`boutique`, `homes`). Use the same string as the namespace of your refs: `homes:list`, `homes:teleport` |
+| `schemaVersion` | The version of the YAML shape your module understands (`homes/v1`). Informational; pair it with [schema migrations](#migrate-your-own-yaml) |
 
 ## Register it
 
-From your plugin's `onEnable`, after obtaining the API handle:
+From your plugin's `onEnable`, once you have the [API handle](/wiki/developers/setup/#get-the-api-handle):
 
 ```kotlin
-api.modules.register(MyModule(this))
+api.modules.register(HomesModule(this))
 ```
 
-The registry calls your `onEnable(api)` immediately, on the main thread, and
-notifies the editor — your module (and everything it declared) shows up in the
-editor without a reconnect. Registering the same `id` twice throws
-`DuplicateModuleException`.
+`register` calls your `onEnable(api)` **immediately and synchronously**, then
+tells the editor that the module list changed — connected editors pick up your
+module, sources, models and screens without reconnecting.
 
-**Order matters.** Anything you want attributed to your module — data sources,
-declared models, config screens — must be declared inside `onEnable(api)`. The
-registry tracks ownership only for that window.
+- Registering an id twice throws `DuplicateModuleException`.
+- `api.modules.has("boutique")` and `api.modules.active()` let you check for
+  other modules (to integrate with them only when present).
+
+**Declare inside `onEnable(api)`.** The registries record which module owns a
+data source, model or screen only while your `onEnable(api)` runs. Registered
+elsewhere, a data source shows up as unattributed and a model or screen has no
+owner in the editor. Commands carry no owner either way.
 
 ## Lifecycle
 
-| Hook | When | What to do |
+| Hook | When | Do |
 |---|---|---|
-| `onEnable(api)` | Once, at registration | Declare everything, read initial project content |
-| `onReload()` | After every project sync from the editor, and on `/artisan reload` | Re-read project files, rebuild caches |
-| `onDisable()` | Plugin disable | Release listeners, executors, threads |
+| `onEnable(api)` | Once, inside `api.modules.register` | Declare everything, load initial content |
+| `onReload()` | After the projects are re-read from disk: a publish from the editor, `/artisan reload`, a sync on a network leaf, a module calling `api.project.reload()` or registering a project root | Re-read your files, rebuild caches |
+| `onDisable()` | When **Artisan** disables (server stop) | Release threads, executors, connections |
 
-`onReload()` is the one people forget. Admins edit in the browser, the change
-lands on disk seconds later, and your in-memory state is stale until you re-read.
+`onReload()` is the hook people forget. Admins edit in the browser, publish,
+and the files on disk change; until you re-read them, your plugin serves stale
+data. An exception thrown from `onReload()` is caught and ignored, so log your
+own failures.
+
+:::caution[Your plugin disables first]
+Your plugin depends on Artisan, so the server disables **your plugin before
+Artisan**. Artisan calls your module's `onDisable()` afterwards, when your
+plugin is already disabled. Do your real cleanup in your plugin's own
+`onDisable()`; keep the module's `onDisable()` idempotent.
+
+There is no way to unregister a module, data source or command. Plugin
+reloaders (`/reload`, PlugMan) leave the old registrations behind and the next
+`register` throws a `Duplicate…Exception`: restart the server instead.
+:::
 
 ## Read project content
 
-`api.project` is a read-only view of project files on disk, with `/` separators.
-The `.artisan*` namespace (sync metadata, trash) is never exposed.
+A **project** is a directory of YAML on the server disk: menus, commands,
+dialogs, translations, data files. `api.project` is a read-only view of every
+project, with `/` separators:
 
 ```kotlin
-for (pid in api.project.projectIds()) {
-    val rows = api.project.list(pid, "data/categories")     // relative paths, sorted
-        .filter { it.endsWith(".yaml") }
-    for (rel in rows) {
-        val yaml = api.project.read(pid, "data/categories/$rel") ?: continue
-        // parse and cache
+for (projectId in api.project.projectIds()) {
+    for (rel in api.project.list(projectId, "data/homes")) {      // sorted, relative to the dir
+        if (!rel.endsWith(".yaml")) continue
+        val text = api.project.read(projectId, "data/homes/$rel") ?: continue
+        // parse with your YAML library, then cache
     }
 }
 ```
 
-`hasContent(dir)` is a cheap bootstrap check: "does any project already have a
-non-empty `<dir>/`?" — use it to decide whether to write your default content.
+| Method | Returns |
+|---|---|
+| `projectIds()` | Ids of the projects on disk (core directory and registered roots) |
+| `list(projectId, dir)` | File paths under `<project>/<dir>`, relative to `dir`, sorted; empty if absent |
+| `read(projectId, relPath)` | UTF-8 content, or `null` if missing or outside the project |
+| `hasContent(dir)` | True when at least one project has a non-empty `<dir>/` — a cheap "is there anything yet?" check |
+| `reload()` | Re-read projects from disk, then call every module's `onReload()` |
 
-Re-read in `onReload()`; never cache a file handle.
+The `.artisan*` namespace (drafts, history, trash, metadata) is never visible
+through this API.
 
-## Commands callable from menus
+### After writing your own files, call `reload()`
 
-Register a handler and menu buttons can call it through a `run_command` action
-using your `namespace:name` ref:
-
-```kotlin
-api.commands.register(CommandDeclaration("myplugin:teleport") { player, args ->
-    val argv = args["argv"] as? List<*> ?: emptyList<String>()
-    // …
-})
-```
-
-```java
-api.getCommands().register(new CommandDeclaration("myplugin:teleport", (player, args) -> {
-    handle(player, args);
-    return kotlin.Unit.INSTANCE;
-}));
-```
-
-Handlers receive `args = {argv: List<String>, raw: String}`. A `run_command`
-action whose command does not match a registered ref falls through to Bukkit, so
-your ref never shadows a real command.
-
-## Own your project root
-
-By default a project lives in `plugins/Artisan/projects/<id>/`. An Add-on can
-host its own project inside **its** plugin folder instead — admins then find your
-configuration where they expect it, and uninstalling your plugin takes its
-content with it.
+Artisan serves a snapshot of the projects taken at load time. If your plugin
+writes files into its project (an admin command that adds an item, say), call:
 
 ```kotlin
-val projectDir = File(dataFolder, "editor")
-api.projectRoots.register("myplugin_shop", projectDir)
+api.project.reload()
 ```
 
-Register it **before** writing any bootstrap content, and once per boot.
+Without it, the running server and the editor keep the old content until
+someone types `/artisan reload`.
 
-:::caution[Use a dedicated directory]
-Never pass your plugin's data-folder root. Sync deletes any file under a project
-directory that is not part of the bundle — point it at a subdirectory that holds
-nothing but that project's files (`plugins/MyPlugin/editor/`, not
-`plugins/MyPlugin/`).
+## Own your project directory
+
+By default projects live in `plugins/Artisan/projects/<id>/`. An add-on can host
+its project in **its own** plugin folder instead: admins find your content where
+they expect it, and removing your plugin removes it.
+
+```kotlin
+val projectDir = File(plugin.dataFolder, "editor")
+api.projectRoots.register("homes", projectDir, id)   // projectId, directory, owning module id
+```
+
+- Call it **once per boot, from `onEnable(api)`, before writing bootstrap
+  content.** Artisan then reads, hashes, publishes, trashes and hot-reloads that
+  project from your directory.
+- Registering **reloads the projects right away**, and that reload calls every
+  active module's `onReload()` — yours included, while your `onEnable(api)` is
+  still running. Assign your fields (the `api` handle first) before calling
+  `register`.
+- The `projectId` is a permanent identity: the editor cannot rename a
+  registered project. If a project with the same id exists in the core
+  directory, yours wins.
+- The three-argument form (Since 1.6.0) names your module so the editor lists
+  the project under it even when you declare no config screen. The two-argument
+  form (Since 1.5.0) still works.
+
+:::danger[Use a dedicated directory]
+Never pass your plugin's data folder itself. When content is published, files
+under a project directory that are not part of the project are deleted. Point
+it at a subdirectory that holds nothing else (`plugins/Homes/editor/`, not
+`plugins/Homes/`).
 :::
 
 ### Ship default content
 
 On first boot, write a starter project so admins open the editor to something
-real rather than an empty canvas — a manifest, a menu or two, and your data
-files. Write to a temporary sibling directory and rename atomically, so a failed
-write never leaves a half-populated project that blocks every future retry:
+real: a manifest, a menu, your data files, translations.
 
 ```
-plugins/MyPlugin/editor/
+plugins/Homes/editor/
   manifest.yaml
-  menus/shop_main.yaml
-  data/categories/weapons.yaml
+  menus/homes.yaml
+  data/settings.yaml
   lang/en.yaml
 ```
 
-Artisan picks the directory up, hashes it, and pushes it to the editor on the
-next sync.
-
-## React to other modules
-
-```kotlin
-api.events.subscribe<DataReloadEvent> { event ->
-    if (event.dataSourceRef == "boutique:items") invalidateCache()
-}
-api.events.publish(ConfigReloadEvent("myplugin"))
+```yaml
+# manifest.yaml
+schema: manifest/v1
+default_lang: en
+languages: [en]
 ```
 
-Two event types ship with the core — `DataReloadEvent(dataSourceRef)` and
-`ConfigReloadEvent(moduleId)`. You may publish your own `ModuleEvent` subtypes;
-subscribers that do not know the type simply do not receive it.
+A document's id is its file name: `menus/homes.yaml` is the menu `homes`.
 
-The event bus and the two registries are the **only** sanctioned channels
-between modules. No module ever imports another module's classes.
+Write into a temporary sibling directory and rename it into place, so a crash
+mid-write never leaves a half-populated project that blocks the next attempt.
+Then call `api.project.reload()`: the reload triggered by `register` ran before
+your files existed.
+Copying files from your jar's resources is the simplest way to ship them; the
+[worked example](/wiki/developers/example/) does exactly that.
 
-## Beta helpers
+## Migrate your own YAML
 
-- **`api.items`** — `serialize(stack)` returns the canonical YAML Artisan stores
-  under `items/<id>.yml`; `describe(stack)` returns the display descriptor
-  (material or custom ref, head texture, enchanted, count, name). Use both to
-  build a "capture the item in my hand" admin command whose result the editor
-  renders correctly.
-- **`api.messages.send(type, payload)`** — fire-and-forget message. Since the
-  backend was removed, nothing receives it; kept for compatibility, do not rely
-  on it.
-- **`api.actions.execute(player, actions, args, projectId)`** — run an
-  [Action DSL](/wiki/editor/data-sources/#action-fields--the-action-dsl) string on
-  behalf of a player: the chain an admin authored on a row (an item's on-buy,
-  say) after your own logic succeeded. Runs on the main thread; `args` become
-  `{name}` placeholders; passing `projectId` puts that project's `lang/` files in
-  scope so `@key` messages resolve. Malformed input is skipped with a warning —
-  bad admin data never breaks your transaction.
-
-## Schema migrations
-
-When your own YAML shape changes, register a migration instead of breaking
-existing installs:
+If your plugin reads its own versioned YAML documents (with a `schema:` key
+such as `homes/v1`), register one migration per step instead of breaking old
+installs:
 
 ```kotlin
 api.schemas.register(object : SchemaMigration<MutableMap<String, Any?>> {
-    override val from = "myplugin/v1"
-    override val to = "myplugin/v2"
-    override fun migrate(data: MutableMap<String, Any?>) = data.apply { /* … */ }
+    override val from = "homes/v1"
+    override val to = "homes/v2"
+    override fun migrate(data: MutableMap<String, Any?>): MutableMap<String, Any?> {
+        data["max_homes"] = data.remove("limit")
+        data["schema"] = to
+        return data
+    }
 })
+
+val current = api.schemas.loadToCurrent(doc, "homes/v2") { it["schema"] as String }
 ```
 
-Migrations must be pure, idempotent, and write-once — never edit a shipped
-migration, add the next one.
+`loadToCurrent` chains migrations until the document reaches the target version.
+An unknown version throws `UnsupportedSchemaVersionException`, a loop throws
+`CircularMigrationException`. Migrations must be pure (no I/O), idempotent and
+never edited once released — add the next one instead.
+
+The registry is shared by every module: key your versions with your own
+namespace (`homes/v1`, never `v1`). For data edited through the editor, prefer
+the declarative migrations of [data models](/wiki/developers/data-models/#version-and-migrate-your-shape).
