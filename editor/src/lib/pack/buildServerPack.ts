@@ -3,8 +3,8 @@ import chestTextureUrl from "@/assets/minecraft/generic_54.png";
 import hopperTextureUrl from "@/assets/minecraft/hopper.png";
 import { listServerProjects } from "@/lib/api/projectFiles";
 import { getServerConfig } from "@/lib/api/serverConfig";
+import { LOCAL_ID } from "@/lib/localServer";
 import { projectClient } from "@/lib/projectClient";
-import { LOCAL_ID } from "@/lib/selfHosted";
 import { type DiskAsset, diskAssetsFromTree } from "./diskAssets";
 import { type ImageButtonPlacement, imageButtonsFromMenus } from "./imageButtons";
 import { type GlyphPlacement, glyphPlacementsFromMenus } from "./menuGlyphPlacements";
@@ -17,7 +17,7 @@ import {
   transparentContainersFromMenus,
 } from "./vanillaGui";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
+const API_URL = import.meta.env.VITE_API_URL ?? "";
 
 const VANILLA_TEXTURES: Record<GuiContainer, string> = {
   chest: chestTextureUrl,
@@ -44,9 +44,7 @@ export async function buildServerPack(serverId: string): Promise<BuildResult> {
   const idOf = (folder: string) =>
     list.projects?.find((p) => (p.externalId ?? p.id) === folder)?.id ??
     (serverId === LOCAL_ID ? folder : `${serverId}.${folder}`);
-  const projectIds = list.projectIds
-    .map(idOf)
-    .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+  const projectIds = list.projectIds.map(idOf).sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
 
   const config = await getServerConfig(LOCAL_ID, serverId);
 

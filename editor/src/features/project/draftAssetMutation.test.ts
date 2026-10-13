@@ -1,7 +1,6 @@
 import * as api from "@/lib/api/projectDrafts";
 import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
-import { useDemoStore } from "@/state/demoStore";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
 import { beforeEach, expect, test, vi } from "vitest";
@@ -43,40 +42,6 @@ beforeEach(() => {
     sessions: { project: { ownerId: "owner", drafts: [draft], active: draft, status: "saved" } },
   });
   vi.spyOn(api, "updateDraft").mockResolvedValue(draft);
-});
-test("a late guest rejection cannot clear an asset intent remapped to the account", async () => {
-  useDemoStore.getState().setSession({
-    principal: { kind: "guest", id: "owner" },
-    projectId: "project",
-    csrfToken: "csrf",
-    expiresAt: "2099-01-01",
-  });
-  let reject!: (error: Error) => void;
-  const perform = vi.fn(
-    () =>
-      new Promise<{ draft: typeof draft }>((_, fail) => {
-        reject = fail;
-      }),
-  );
-  const saving = mutateDraftAssets("project", input, perform);
-  const rejected = expect(saving).rejects.toThrow("claim_pending");
-  await vi.waitFor(() => expect(perform).toHaveBeenCalledOnce());
-  const local = useProjectDraftStore.getState().get("project")!;
-  useDemoStore.getState().setSession(null);
-  useAuthStore.setState({ currentUser: { id: "account" } } as never);
-  useProjectDraftStore.setState({
-    ownerId: "account",
-    drafts: { project: { ...local, remote: { ...local.remote!, ownerId: "account" } } },
-  });
-  usePersistedDraftStore.setState({
-    sessions: { project: { ownerId: "account", drafts: [], status: "pending" } },
-  });
-  reject(new api.DraftApiError("claim_pending", 409));
-  await rejected;
-  expect(
-    useProjectDraftStore.getState().get("project")?.remote?.pendingMutation?.asset?.file?.base64,
-  ).toBe("AP8=");
-  expect(usePersistedDraftStore.getState().sessions.project?.ownerId).toBe("account");
 });
 test.each([{}, { "manifest.yaml": "name: Demo" }])(
   "first asset action materializes a clean private draft: %j",

@@ -1,7 +1,7 @@
 package net.artisanmc.plugin.protocol
 
 /**
- * Version du protocole entre un serveur et le hub (ou le backend), envoyée au `hello`.
+ * Version du protocole entre une feuille et le hub, envoyée au `hello`.
  * La majeure change quand un message existant change de sens : le hub refuse alors de
  * parler au serveur. La mineure ne fait qu'ajouter des champs, que l'autre côté ignore.
  */

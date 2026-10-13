@@ -1,20 +1,29 @@
 # Editor & rendering internals
 
+> **Phase F (2026-10)** : plus de backend. L'éditeur est servi par le plugin (build
+> `npm run build`, même origine que l'API du hub ; ADR
+> `editor-web-server`) et ne garde que ce mode. Démo, comptes, facturation, administration,
+> pages publiques de tarifs, projets hébergés et copie vers Minecraft sont supprimés
+> (sections retirées de ce fichier) ; l'assistant reste dans le dépôt, hors du build. Les
+> entrées datées ci-dessous qui citent « le backend » décrivent le comportement cloud : la
+> même route est désormais servie par le hub (cf. `rest-endpoints.md`), sans miroir
+> d'instantané, sans Versions (liste vide) et sans rebase de brouillon côté serveur.
+
 `ServerPlaceholderInput` wraps the catalog-agnostic `PlaceholderInput` for live
 PlaceholderAPI `%…%` completion in title, lore, dialog and action text fields,
 including `RevealField` and module MiniMessage fields. `{…}` keeps its own catalog.
-`serverPapiPlaceholdersStore` scopes declarations by account/Network/Server,
+`serverPapiPlaceholdersStore` scopes declarations by session/Network/Server,
 deduplicates pending requests and ignores late replies after scope changes/logout.
 The root refreshes every 15 s and on `projects_reloaded`; fields refresh on focus.
-Offline/errors clear suggestions; demo/no-server contexts have no server catalog.
+Offline/errors clear suggestions.
 Only expansion-declared tokens are offered, without an external catalog or guessed prefixes.
 
-Draft API requests allow 45 seconds so the backend's 30-second plugin response
-window can complete. A local transport timeout becomes retryable `fetch_timeout`
+Draft API requests allow 45 seconds so the hub's 30-second response window for a
+leaf server can complete (10 s for the hub's own server). A local transport timeout becomes retryable `fetch_timeout`
 (504), preserving the pending operation ID: a publication may already be durable
 even if its acknowledgement is lost. The plugin confirms the durable write before
 runtime reload, which separately announces `projects_reloaded`. Regression coverage:
-`editor/src/lib/api/projectDrafts.test.ts` (28-second success and backend timeout).
+`editor/src/lib/api/projectDrafts.test.ts` (28-second success and server timeout).
 
 ## Image buttons
 
@@ -48,7 +57,7 @@ move the image within its clipped area; they never change click targets. Existin
 images keep their fit/footprint when replaced; **Fit slots to image** is explicit.
 `menu/v1/imageButtonGeometry.ts` shares canvas/resource-pack sizing and centering, and
 `imageButtonArea` — the rectangle of raw slots a button covers and its image origin — used
-by the editor (`imageButtonRect`, `rectanglePositions`) and the backend (`imageButtons.ts`),
+by the editor (`imageButtonRect`, `rectanglePositions`) and its pack builder (`lib/pack/imageButtons.ts`),
 mirrored by the plugin (`ImageButtonLayout.kt`, same test cases). With `player_inventory:
 hidden`, a rectangle may sit in the inventory rows or the hotbar, never across two sections.
 `useAuthenticatedImageUrl` shares authenticated PNG requests and blob URLs by
@@ -63,10 +72,10 @@ In the self-hosted build (`SELF_HOSTED`), `assetPreviewUrl` and `fontGlyphUrl` r
 routes the plugin already serves (`features/assets/localAssetUrl.ts`): the draft blob
 (`…/drafts/:id/blobs/:hash`) when the bytes changed in the private draft, otherwise the
 published file (`/api/v1/projects/:id/binary?path=`). Asset CRUD runs in the browser
-(`features/assets/localAssets.ts`, a port of `backend/src/lib/assetHandlers.ts` on top of
+(`features/assets/localAssets.ts`, a port of the former backend `assetHandlers.ts` on top of
 the draft snapshot and blobs), switched at the `lib/api/userAssets.ts` boundary.
 
-Backend `imageButtons.ts` collects all display/state variants from menu files and
+The pack builder (`lib/pack/imageButtons.ts`) collects all display/state variants from menu files and
 resizes PNGs with nearest-neighbour sampling into 18-pixel slot cells. Contain
 centres with transparent padding; stretch fills the rectangle; native keeps source pixels.
 Source assets are unchanged. Derived keys include the asset SHA-256, pixel dimensions, fit and Y,
@@ -79,41 +88,11 @@ footprints produce no active image button. Plain title text renders after images
 
 ## Project display name
 
-`ProjectTopBarControls` subscribes to the current account project's name so
+`ProjectTopBarControls` subscribes to the current project's name so
 settings edits update the header immediately, falling back to the loaded name.
 `projectFromFiles` defaults Boutique-owned projects (`manifest.module: boutique`)
 to `Boutique` when their metadata name is absent or matches their internal/disk ID.
 Explicit custom names remain unchanged; IDs and folder names are unaffected.
-
-## Temporary demo workspace
-
-`features/demo/DemoWorkspace.tsx` composes the shared `ProjectWorkspace` under
-`/demo/projects/$projectId`; the document child also uses `DocumentView`.
-`projectPrincipal` selects the matching cookie-backed guest before the account
-principal, including during sign-in. Shared `projectFetch` adds guest CSRF only
-to that project's mutations and observes authoritative expiry headers. Capability
-metadata hides AI/import/delete/copy/live server actions; components do not branch
-on storage kind. The example bytes live in `backend/src/templates/demo-project.json`
-and pass the normal menu schema and project loader tests.
-
-`demoLifecycle` flushes edits and awaits serialized draft/asset writes, including
-file preparation before the upload starts, before
-authentication. A session-scoped return path restores the demo after OAuth.
-Confirmation restores the guest recovery scope and loads its persisted draft
-session when account return or direct reload has not completed that initialization.
-An unavailable session blocks claim submission; it never bypasses confirmation.
-Claims persist their owner, project, operation and destination before dispatch;
-retry includes `projectId` so account-bound recovery also works after cookie loss.
-Only confirmed target unavailability permits an explicit replacement operation.
-On confirmed receipt, local text/binary edits and rename intent move to the account
-scope while immutable project/draft IDs stay stable. Account-generation checks
-prevent late logout/relogin responses from repopulating private state.
-Texture initialization clears prior custom/rendered caches on project or principal
-changes and ignores late catalog, model-preload and rendering results.
-
-The profile's `DeleteAccountSection` requests an email after a Dialog confirmation. Public `/delete-account` renders `DeleteAccountConfirmation` and submits only on an explicit click. `accountDeletionToken.ts` reads the fragment into memory and removes it before analytics initializes; reloading requires reopening the email link. Successful deletion clears local auth and invalidates pending profile hydration so a late `/me` cannot restore the removed identity.
-
-Les titres de l’interface (`h1`–`h6`, `.display`, `.font-display`) utilisent `--font-display: "Inter", sans-serif` en graisse 700, chargé depuis Bunny Fonts dans `editor/index.html`. Le texte courant et le monospace gardent leurs polices ; les polices de rendu Minecraft restent indépendantes. Spécimen dans `/admin/design`.
 
 ## Tests et CI
 
@@ -182,25 +161,25 @@ Le plugin embarque `assets/artisan/asset-index.json` (schéma **v2**) dans le zi
 
 ## Title Composer — pixel offsets (spaces font)
 
-Pour positionner chaque layer à son `x` exact, le backend embarque dans `assets/artisan/font/default.json` un provider `space` (MC 1.20+) mappant 18 codepoints (`U+F800..U+F811`) à des advances en pixels (puissances de 2 ±1/±2/.../±256 → portée ±511 px par décomposition gourmande, **plus avec réutilisation** des chars). On évite `U+F900..U+FAFF` (CJK Compatibility Ideographs) où la font vanilla a des glyphes qui empêcheraient le provider `space` de s'appliquer.
+Pour positionner chaque layer à son `x` exact, le pack (construit par l'éditeur) embarque dans `assets/artisan/font/default.json` un provider `space` (MC 1.20+) mappant 18 codepoints (`U+F800..U+F811`) à des advances en pixels (puissances de 2 ±1/±2/.../±256 → portée ±511 px par décomposition gourmande, **plus avec réutilisation** des chars). On évite `U+F900..U+FAFF` (CJK Compatibility Ideographs) où la font vanilla a des glyphes qui empêcheraient le provider `space` de s'appliquer.
 
 Pipeline :
 
-1. **Backend** — `backend/src/lib/spaceOffsets.ts` = source de vérité de la table. `buildDefaultFontJson` ajoute le provider `space` après les bitmaps. `buildAssetIndex` (v2) émet `offsets` (codepoint hex uppercase → advance) + un `width` par entrée.
+1. **Éditeur** — `editor/src/lib/pack/spaceOffsets.ts` = source de vérité de la table (`fontJsonBuilder.ts`, `assetIndexBuilder.ts`). `buildDefaultFontJson` ajoute le provider `space` après les bitmaps. `buildAssetIndex` (v2) émet `offsets` (codepoint hex uppercase → advance) + un `width` par entrée.
 2. **Plugin** — `AssetCatalog` parse `offsets` à chaque update RP et construit un `OffsetEncoder` (`net.artisanmc.plugin.render.OffsetEncoder`). `TitleCompiler.compileTitle` track `currentX`, insère `offsetEncoder.encode(targetX - currentX)` avant chaque body de layer, avance `currentX = targetX + estimateBodyWidth(layer)`.
 3. **Estimation de largeur** (best-effort) : Image → `AssetEntry.width` (fallback 16) ; Text → `length * 6` (heuristique imprécise) ; ExternalGlyph → 8 px.
 
 **Coordonnées x** : `layer.x` = pixels depuis le bord gauche du coffre (`chest-x 0`). Le titre MC est dessiné à `titleLabelX = 8`. `TitleCompiler` initialise `currentX = TITLE_LABEL_X = 8` pour absorber ce décalage : `x=8` → offset nul, `x=0` → offset `-8`.
 
-L'encoder plugin est **lenient** : ne lève jamais d'exception, retourne `""` si table vide (catalog pas chargé), best-effort hors plage. Côté backend, `encodeOffset` est **strict** (throw) pour attraper les bugs à la source.
+L'encoder plugin est **lenient** : ne lève jamais d'exception, retourne `""` si table vide (catalog pas chargé), best-effort hors plage. Côté éditeur, `encodeOffset` est **strict** (throw) pour attraper les bugs à la source.
 
 ## Custom fonts (SP4)
 
-Import MCFonts via "Import font" dans l'AssetsTab : drop d'un `.zip` (`font.json` + glyph PNGs). Le backend parse/valide/stocke (`data/assets/{projectId}/fonts/{asset_id}/`) et crée une row `Asset` `type=font` + `fontMeta = { namespace, glyphMap }`. À la régén RP : `assets/artisan/font/<name>.json` + `textures/font/<name>/*.png` embarqués. Éditeur : `TitleRender` rend pixel-perfect via `McFontText` (composition Konva des glyph PNGs).
+Import MCFonts via "Import font" dans l'AssetsTab : drop d'un `.zip` (`font.json` + glyph PNGs). L'éditeur parse/valide la police (`lib/pack/mcFontsParser.ts`), l'écrit dans le brouillon puis, à la publication, sous `assets/fonts/` du Project (`lib/pack/assetDiskWrite.ts`). À la régén RP : `assets/artisan/font/<name>.json` + `textures/font/<name>/*.png` embarqués. Éditeur : `TitleRender` rend pixel-perfect via `McFontText` (composition Konva des glyph PNGs).
 
 Background = "gros glyph" : sa hauteur vient de l'ascent de l'asset (`y = 13 - ascent`).
 
-**Glyph layers = Y par calque.** `layer.y` est le haut de l'image en pixels coffre. Le plugin (`TitleCompiler`) rend un glyph dont `y == 13 - ascent` avec `artisan:default`, sinon via `<font:artisan:glyph_y{Y}>`. Le backend (`rebuildResourcePack` → `glyphPlacementsFromMenus`) lit les `menus/*.yaml` de chaque Project et émet `assets/artisan/font/glyph_y{Y}.json` pour les seuls couples (glyph, Y) utilisés : chaque provider recharge sa texture côté client, donc pas de matrice complète comme `text_y`. Plancher partagé par les 3 couches : `y >= 13 - height` (MC refuse `ascent > height`). `LayerEditForm` expose X/Y et "Caler en fond de coffre" (x=0, y=17) ; l'`AssetPicker` reçoit `projectId` et propose l'upload (`AssetUploadDialog.onUploaded` → pick direct).
+**Glyph layers = Y par calque.** `layer.y` est le haut de l'image en pixels coffre. Le plugin (`TitleCompiler`) rend un glyph dont `y == 13 - ascent` avec `artisan:default`, sinon via `<font:artisan:glyph_y{Y}>`. Le constructeur du pack (`lib/pack/buildServerPack.ts` → `glyphPlacementsFromMenus`) lit les `menus/*.yaml` de chaque Project et émet `assets/artisan/font/glyph_y{Y}.json` pour les seuls couples (glyph, Y) utilisés : chaque provider recharge sa texture côté client, donc pas de matrice complète comme `text_y`. Plancher partagé par les 3 couches : `y >= 13 - height` (MC refuse `ascent > height`). `LayerEditForm` expose X/Y et "Caler en fond de coffre" (x=0, y=17) ; l'`AssetPicker` reçoit `projectId` et propose l'upload (`AssetUploadDialog.onUploaded` → pick direct).
 
 ## Title Composer UX v3
 
@@ -347,7 +326,7 @@ Un menu est un coffre (défaut), un hopper (5×1) ou un dropper (3×3). La **sin
 
 **Inventaire du joueur (`player_inventory`, 2026-09-25)** : `Menu.playerInventory` (absent = `visible`, stocké seulement si `hidden`). En `hidden`, les positions `size..size+35` (rawSlot protocole) sont éditables sur les 4 lignes vanilla sous le menu : `slotMcXY(i, type, rows)` place les positions `≥ slotCount` sur ces cellules (`playerInvY` par type, `null` = après les lignes du coffre ; +4 px avant la barre rapide), `positionCount` donne le nombre adressable (`MenuGroup`, clavier, `MenuProperties`), `hitTestSlot` les retourne. Les déplacements de sélection passent par une grille visuelle (`positionToCell` / `cellToPosition` : lignes du menu puis 4 lignes de 9) au lieu de `% cols`. Redimensionner le menu ou changer de type **décale** les positions joueur (`shiftPlayerPositions` dans `accountStore`) pour que chaque bouton reste sur le même slot joueur ; le refus de rétrécissement ne porte plus que sur les positions du menu. Les image buttons restent limités à la grille du menu.
 
-**Texture par défaut (`vanilla_texture`, 2026-09-25)** : en mode titre composé, `VanillaTextureLayer` est la première ligne fixe de `LayersPanel` (non déplaçable, non supprimable) avec un `Switch` (`components/ui/switch.tsx`, spécimen `/admin/design`) — l'œil des layers reste un masquage d'aperçu, le `Switch` un réglage enregistré qui change le jeu. Désactivée (tous types de conteneur), `MenuGroup` ne dessine plus la texture mais `transparentOutline(type, rows)` : cadre pointillé (garde une forme de hit pour le drag) et cellules de slot en traits légers, menu **et** 36 slots joueur, selon la géométrie du type. Repasser en titre vanilla réactive la texture.
+**Texture par défaut (`vanilla_texture`, 2026-09-25)** : en mode titre composé, `VanillaTextureLayer` est la première ligne fixe de `LayersPanel` (non déplaçable, non supprimable) avec un `Switch` (`components/ui/switch.tsx`, spécimen `/design`) — l'œil des layers reste un masquage d'aperçu, le `Switch` un réglage enregistré qui change le jeu. Désactivée (tous types de conteneur), `MenuGroup` ne dessine plus la texture mais `transparentOutline(type, rows)` : cadre pointillé (garde une forme de hit pour le drag) et cellules de slot en traits légers, menu **et** 36 slots joueur, selon la géométrie du type. Repasser en titre vanilla réactive la texture.
 
 **Switch de type = keep+warn** : `MenuProperties` expose un sélecteur de type (Chest / Hopper / Dropper) ; le sélecteur de rows n'apparaît que pour le chest. Passer à un conteneur plus petit **conserve** les éléments hors-plage et affiche un chip d'avertissement — jamais de suppression silencieuse (`setMenuField` keep+warn).
 
@@ -447,7 +426,7 @@ si son snapshot distant actif est strictement identique au local, sa révision e
 réconciliée sans écriture. Une différence de contenu ou une édition pendant la lecture
 maintient le conflit et préserve le travail local.
 Un point sur le chevron signale seulement un conflit ou une sauvegarde non confirmée.
-**Conflits à l'ouverture (2026-09-26)** : le backend rend le brouillon rebasé sur le
+**Conflits à l'ouverture (2026-09-26, cloud — le hub ne rebase pas)** : le backend rendait le brouillon rebasé sur le
 Snapshot et ses `conflicts` ; `loadPersistedDrafts`/`selectPersistedDraft` les posent
 dans `session.openConflicts`, et `ProjectTopBarControls` ouvre la même modale que pour
 un conflit d'enregistrement (`conflictSource: "open"`). Appliquer met à jour la base du
@@ -478,8 +457,8 @@ hébergés », de copie vers Minecraft ni d'import ZIP ; la démo n'a plus de r�
 son bouton **Exporter** (`runExportDraftZip`) télécharge le brouillon courant (texte de
 l'éditeur, images publiées ou privées). `useProjectLoader` expose `unpublished` ;
 l'infobulle du badge serveur l'annonce quand le serveur n'est pas connecté.
-**Serveur éteint (2026-09-26)** : `readProjectFiles` rend `offlineSince` ; `useProjectLoader` ouvre alors le Project en `offline` + `stale`, expose `offlineSince` et revérifie toutes les 15 s ; l'infobulle du badge serveur affiche la date de la copie. Depuis le 2026-10-02, plus de bandeau `ProjectStaleNotice` — l'état est porté par le badge serveur et son infobulle (`downHint`).
-**Versions (2026-09-26, onglet depuis 2026-10-04)** : la vue `?tab=history` du workspace
+**Serveur éteint (2026-09-26, cloud — le hub ne rend jamais `offlineSince`)** : `readProjectFiles` rend `offlineSince` ; `useProjectLoader` ouvre alors le Project en `offline` + `stale`, expose `offlineSince` et revérifie toutes les 15 s ; l'infobulle du badge serveur affiche la date de la copie. Depuis le 2026-10-02, plus de bandeau `ProjectStaleNotice` — l'état est porté par le badge serveur et son infobulle (`downHint`).
+**Versions (2026-09-26, onglet depuis 2026-10-04 ; le hub rend une liste vide)** : la vue `?tab=history` du workspace
 (`ProjectHistory`, 6ᵉ entrée de la nav, masquée sans `runtime.serverId` donc en démo) liste
 les Versions — badge « Déploiement » (auteur) ou « Modif. serveur » (auteur `null`). « Voir les
 changements » ouvre `VersionDiffDialog` : `ChangeList` de la Version contre `previousId`
@@ -659,24 +638,9 @@ L'index montre l'état **publié** : le brouillon d'un project non édité n'y e
 
 ### Fil d'Ariane de la topbar (depuis 2026-10-02)
 
-`ProjectBreadcrumb` (`components/`) remplace le nom seul du project en tête de la topbar : **serveur › project**. Le serveur est un `BreadcrumbSwitcher` : il ouvre la liste des serveurs du network (pastille en ligne/hors ligne, champ de recherche au-delà de 7) et en choisir un mène à sa page. Le network n'apparaît plus qu'en infobulle du serveur (2026-10-08), pour laisser la place aux onglets ; sa page reste accessible depuis la liste `/networks` et le compte. La pastille d'état devant le serveur (`LinkedServersDropdown`) garde son propre menu. Hors network (démo), seul le project s'affiche. Rendu par `components/ui/breadcrumb.tsx` (`Breadcrumb`, `BreadcrumbCurrent`, `BreadcrumbSwitcher`, `breadcrumbLinkClass` ; spécimens sur `/admin/design`). Les onglets de la topbar n'affichent que leur icône (nom en infobulle avec le raccourci).
+`ProjectBreadcrumb` (`components/`) remplace le nom seul du project en tête de la topbar : **serveur › project**. Le serveur est un `BreadcrumbSwitcher` : il ouvre la liste des serveurs du network (pastille en ligne/hors ligne, champ de recherche au-delà de 7) et en choisir un mène à sa page. Le network n'apparaît plus qu'en infobulle du serveur (2026-10-08), pour laisser la place aux onglets ; sa page reste accessible depuis la liste `/networks` et le compte. La pastille d'état devant le serveur (`LinkedServersDropdown`) garde son propre menu. Hors network (démo), seul le project s'affiche. Rendu par `components/ui/breadcrumb.tsx` (`Breadcrumb`, `BreadcrumbCurrent`, `BreadcrumbSwitcher`, `breadcrumbLinkClass` ; spécimens sur `/design`). Les onglets de la topbar n'affichent que leur icône (nom en infobulle avec le raccourci).
 
 ## UI shell — Project + Settings (depuis 2026-05-27)
-
-Facturation admin : l'onglet `BillingAssignmentsTab` sélectionne un Network, une version
-publiée éligible et une expiration locale facultative ; Free retire l'attribution. Le
-formulaire est réinitialisé au changement de Network. `UserMenu` affiche le plan effectif
-et `CreditsPage` distingue l'attribution administrative d'un abonnement payant.
-
-Le menu `UserMenu` de la sidebar affiche le plan du Network sélectionné sous le
-nom utilisateur (nom de souscription, ou Free sans souscription active). Sa section
-« Utilisation des ressources » reprend `EditorAccessNotice` pour le serveur
-sélectionné, directement via `GET /networks/:networkId/servers/:serverId/editor-access`,
-même sans Project. Le compteur couvre tous ses Projects personnels ; les modules
-restent exemptés. Un changement de serveur réinitialise le compteur et ignore les
-anciennes réponses. Le bandeau est retiré de `ProjectWorkspace`.
-L'inventaire est chargé à l'ouverture du menu et rafraîchi toutes les 15 secondes
-tant qu'il reste ouvert ; quotas, alertes et réessai conservent leur logique.
 
 `features/onboarding/EditorTour` and `editorTourController` coordinate a welcome and six brief guided-tour steps in
 the shared Project workspace: navigation/demo, canvas, Buttons/properties,
@@ -734,7 +698,6 @@ Cf. `docs/superpowers/specs/2026-05-27-workspace-shell-and-settings-design.md`.
 - **Top bar** (`ProjectTopBarControls.tsx`) : surface compacte arrondie (`--r-lg`), groupes espacés sans séparateurs. Identité projet/serveur, navigation en capsules (`--r-md`, fond doux actif), outils contextuels puis recherche compacte, Enregistrer (brouillon) puis Déployer, menu `⋯` et Éléments tout à droite. Boutons et annuler/rétablir sur Canvas ; langue sur Canvas et Traductions. Les libellés des onglets se replient en icônes avant xl ; les groupes peuvent revenir à la ligne sous md. Raccourcis numériques en infobulles, routage et badges inchangés. Actualiser reste dans `⋯` via `RefreshProjectButton.renderTrigger`, avec confirmation montée hors menu. Abandonner les modifications reste dans le chevron de Déployer.
 - **Colonnes droites (`ProjectWorkspacePanels`)** : canvas, `EditorPane` pleine hauteur, puis arbre `ProjectPanel` de 240 px tout à droite. Les propriétés apparaissent uniquement avec sélection/paramètres projet sur le canvas ou un menu ; commandes/dialogues individuels gardent leur éditeur central. Un `SplitPane` horizontal règle la largeur des propriétés (`editorPaneWidth`, persistée et plafonnée selon la place disponible). Aucune division verticale des propriétés. Le bouton Éléments est à droite de la topbar ; fermer l’arbre conserve les propriétés et inversement. Dans l’arbre, `ArrowLeftToLine` ajoute au canvas et `ArrowRightToLine` en retire. `DockedInspectorContext` empêche un second inspecteur flottant. Le canvas garde le même montage quand les panneaux changent. Mobile : scène/propriétés restent en split vertical.
 - **`/settings`** — sidebar de sections (V1 = Apparence, héberge `EditorLangSwitcher`) + main content.
-- **`/admin`** — console super-admin. `routes/admin.tsx` est un **layout route** (gate admin + `<Outlet/>`) avec pages enfants `admin.index.tsx` (IA, `AssistantConfigForm`) et `admin.design.tsx` (`DesignSystemPage`). Pas d'onglets : sur `/admin*` (et user admin), `__root.tsx` remplace la `ProjectSidebar` par **`AdminSidebar`** (`components/AdminSidebar.tsx`) — même shell (brand top, `UserMenu` bottom, drawer mobile conservé), nav de sections IA / Design system + lien « Retour à l'éditeur » (→ `/networks`). **Gate côté composant** via `authStore` (mirror de `account.tsx`) : retourne `null` tant que `isLoading`, puis « admins only » si `!currentUser.isAdmin` (le `isAdmin` vient du `/me`). Le backend reste de toute façon gardé `requireAdmin` sur `/api/v1/admin/*`. Le client API (`lib/api/adminConfig.ts`) est en **cookie** (`credentials:"include"`). L'entrée « Console admin » sur `/account` n'apparaît que pour les admins. Clé API **write-only** : le GET ne renvoie jamais la clé (`keySet: boolean`), le champ vide laisse la clé inchangée.
 
 ## Rendu data source live + mode placement (depuis 2026-07-15)
 
@@ -785,13 +748,13 @@ Kind de champ `actions` (`ModelFieldType`) : une **Action chain** (`Step[]`) sto
 ## Export / import de project (.zip)
 
 **Export** (`features/export/runExportZip.ts`) — l'archive est l'arbre de fichiers
-**tel que le backend le stocke**, pas une régénération depuis le domaine : flush de
+**tel que le serveur le stocke**, pas une régénération depuis le domaine : flush de
 l'auto-save (`persistProject`), `GET /api/v1/user/projects/:id` → `files`, `buildZip`
 verbatim. Deux conséquences voulues : l'archive porte ce que le domaine ne modélise
 pas (`.artisan/editor.yaml`, les fichiers propres d'une racine Add-on), et **aucune
 validation ne peut bloquer la sortie des fichiers** — récupérer sa config ne dépend
 pas de sa validité (promesse anti-lock-in, ADR `files-first-source-of-truth`).
-Réseau requis : sans backend joignable l'export échoue, il n'y a pas de repli sur
+Réseau requis : sans serveur joignable l'export échoue, il n'y a pas de repli sur
 `transform()` (un repli produirait une archive *presque* fidèle sans le dire).
 
 **Import** (`features/export/runImportZip.ts`) — `zip → files → projectFromFiles`,
@@ -817,6 +780,8 @@ manifest, sinon du nom de dossier. Erreurs typées `not_a_zip` / `no_manifest`.
 - **Round-trip** : l'oracle `menuV1ToDomain.roundtrip.test.ts` exporte un project domain riche puis le ré-importe. Note : un `if` d'appearance OR-joiné ne round-trip **pas** structurellement (l'export enrobe une liste pure-OR en une condition composite `{type:"or", of:[…]}`) — l'oracle utilise donc des AND-joins.
 
 ## Pipeline d'application IA (panel assistant — sous-plan 4a)
+
+> Phase F : l'assistant et la migration zMenu/DeluxeMenus sont hors du build auto-hébergé (`SELF_HOSTED`), leur moteur backend supprimé. Sections 4a, 4b et migration gardées pour une réintroduction.
 
 **Depuis le 2026-09-09 :** le chat envoie `background:true` et un `requestId` idempotent. `TaskTimeline` suit les tâches persistées via GET, restaure leurs résultats après rechargement et n'appelle Stop que sur clic explicite. Le temps écoulé, l'activité réelle et la présence du worker sont distincts ; le raisonnement reçu du fournisseur est dépliable. `taskProposals.ts` applique uniquement sur clic et après comparaison du hash de base avec le brouillon courant. `start_migration` rend le moteur de migration accessible au chat ; `MigrationPanel` montre ses résultats et reprises, sans mode à choisir. Les descriptions SSE/application immédiate ci-dessous documentent seulement le chemin historique de compatibilité.
 
@@ -882,7 +847,7 @@ Le sélecteur de modèle `ModelSelector` rend les tiers (`cheap` / `balanced` / 
 
 `components/ui/guided-tour.tsx` exports `GuidedTour`, using semantic tokens and a
 Radix modal for keyboard focus, with responsive target highlighting. Escape defers
-the tour and restores focus. Specimen: `/admin/design`, section `guided-tour`.
+the tour and restores focus. Specimen: `/design`, section `guided-tour`.
 
 `components/ui/file-diff.tsx` affiche une comparaison unifiée serveur → éditeur,
 avec numéros de ligne, contexte, signes −/+, tokens `danger-soft`/`success-soft`
@@ -898,13 +863,13 @@ les longues lignes et n’a pas de hauteur max : un seul conteneur défile, l’
 fichier reste collé en haut. Des zones de défilement imbriquées rendaient la fin des longs diffs illisible. Les contenus identiques et fichiers absents
 sont explicites. Le calcul LCS est borné à un million de cellules ; au-delà,
 les portions différentes apparaissent comme un remplacement complet.
-Spécimen dans `/admin/design`. `SaveControls` conserve l'arbre de la tentative
+Spécimen dans `/design`. `SaveControls` conserve l'arbre de la tentative
 refusée et compare chaque contenu `conflicts[].disk` à cet arbre dans un
 `Collapsible` (premier ouvert). Les choix de résolution restent explicites.
 
-Source de vérité visuelle de l'éditeur, visualisable en live sur **`/admin/design`** (route `admin_.design.tsx`, gate admin, page `features/design-system/DesignSystemPage.tsx`).
+Source de vérité visuelle de l'éditeur, visualisable en live sur **`/design`** (page `features/design-system/DesignSystemPage.tsx` ; la route passe de `/admin/design` à `/design` avec la suppression de l'administration).
 
-**Règle pour tout nouveau développement UI** : passer en priorité par le design system — d'abord les composants `components/ui/` (Button, Input, FormField, Badge, EmptyState, Card, Dialog, Sheet, Tabs, DropdownMenu) ou les classes utilitaires de `styles/globals.css` (`.btn*`, `.input`, `.card`, `.chip`, `.badge*`, `.tab`, `.eyebrow`, `.field-label`, `.rule`…) ; si un composant manque, le **créer dans `components/ui/`** puis ajouter son spécimen à la page `/admin/design` dans le même commit. Jamais de hex/rgba en dur (toujours `var(--token)`) — exception : le canvas Konva, non thémable par CSS.
+**Règle pour tout nouveau développement UI** : passer en priorité par le design system — d'abord les composants `components/ui/` (Button, Input, FormField, Badge, EmptyState, Card, Dialog, Sheet, Tabs, DropdownMenu) ou les classes utilitaires de `styles/globals.css` (`.btn*`, `.input`, `.card`, `.chip`, `.badge*`, `.tab`, `.eyebrow`, `.field-label`, `.rule`…) ; si un composant manque, le **créer dans `components/ui/`** puis ajouter son spécimen à la page `/design` dans le même commit. Jamais de hex/rgba en dur (toujours `var(--token)`) — exception : le canvas Konva, non thémable par CSS.
 
 Structure des tokens (`styles/globals.css`) en 3 couches :
 1. **Palette brute** : `--gray-*`, `--emerald-*`, `--red-*`, `--amber-*`, fonts (`--font-display` Spectral / `--font-body` Hanken Grotesque / `--font-mono` IBM Plex Mono), radii `--r-xs…--r-pill`.
@@ -915,134 +880,18 @@ Les composants ne référencent **que** la couche 2 (ou les aliases couche 3 pou
 
 ### Primitives `Table` / `StatCard` / `HBar`
 
-Trois nouveaux composants de présentation de données, visualisables en live sur **`/admin/design`** :
+Trois nouveaux composants de présentation de données, visualisables en live sur **`/design`** :
 
 - **`Table`** (`components/ui/Table.tsx`) — tableau multi-ligne scrollable, sortable par colonne, avec ligne d'en-tête collante. Headers `align-left/center/right`, cells alignées. Wrapper shadcn.
 - **`StatCard`** (`components/ui/StatCard.tsx`) — carte de métrique (label + valeur + contexte, optionnel badge trending). Utilisé dans les dashboards d'usage (`/admin/ai/usage`).
 - **`HBar`** (`components/ui/HBar.tsx`) — barre horizontale segmentée (répartition : couleurs par segment). Visualise les proportions (ex. usage par modèle). Tokens de couleur `--success` / `--warning` / `--danger` et variantes `-soft`.
-- **`Collapsible`** (`components/ui/collapsible.tsx`) — section repliable (trigger pleine largeur + chevron, `title` / `meta` pour un badge ou compteur, contrôlé ou non via `open`/`defaultOpen`). **Le contenu est démonté tant que la section est fermée** — c'est la raison d'être du composant : les sections lourdes que la plupart des utilisateurs n'ouvrent jamais (les paramètres avancés d'un item) ne coûtent rien. Spécimen sur `/admin/design`.
-- **`DataTable`** (`components/ui/data-table.tsx`) — visualiseur générique de lignes de preview, utilisé par l'explorateur de sources du serveur et la section « Données du menu » du menu. Deux vues : **Tableau** (colonnes = union des clés des lignes, ordre de première apparition) et **YAML**. Les lignes arrivent en JSON sur le WS, mais une cellule de tableau ne sait qu'aplatir un objet en blob d'une ligne — dès qu'une source imbrique (`stages` → `objectives` de `msquests:quests`, `items` de `boutique:categories`), la vue YAML est la seule lisible : indentée, colorée, **pliable**. Le toggle n'apparaît que si l'appelant passe `tableLabel` + `yamlLabel` (composant muet, il ne traduit pas) ; la vue Tableau reste le défaut. Sérialisation en `lineWidth: 0` — une string MiniMessage doit rester sur une ligne pour être copiable. Spécimen sur `/admin/design`.
+- **`Collapsible`** (`components/ui/collapsible.tsx`) — section repliable (trigger pleine largeur + chevron, `title` / `meta` pour un badge ou compteur, contrôlé ou non via `open`/`defaultOpen`). **Le contenu est démonté tant que la section est fermée** — c'est la raison d'être du composant : les sections lourdes que la plupart des utilisateurs n'ouvrent jamais (les paramètres avancés d'un item) ne coûtent rien. Spécimen sur `/design`.
+- **`DataTable`** (`components/ui/data-table.tsx`) — visualiseur générique de lignes de preview, utilisé par l'explorateur de sources du serveur et la section « Données du menu » du menu. Deux vues : **Tableau** (colonnes = union des clés des lignes, ordre de première apparition) et **YAML**. Les lignes arrivent en JSON sur le WS, mais une cellule de tableau ne sait qu'aplatir un objet en blob d'une ligne — dès qu'une source imbrique (`stages` → `objectives` de `msquests:quests`, `items` de `boutique:categories`), la vue YAML est la seule lisible : indentée, colorée, **pliable**. Le toggle n'apparaît que si l'appelant passe `tableLabel` + `yamlLabel` (composant muet, il ne traduit pas) ; la vue Tableau reste le défaut. Sérialisation en `lineWidth: 0` — une string MiniMessage doit rester sur une ligne pour être copiable. Spécimen sur `/design`.
 - **`YamlCodeEditor`** (`components/ui/yaml-code-editor.tsx`) — CodeMirror + `@codemirror/lang-yaml`. `readOnly` donne le **mode lecture** : même coloration, mêmes gouttières, même pliage, contenu non éditable (`onChange` devient optionnel), sélection et copie conservées. C'est ce mode qu'utilise la vue YAML de `DataTable`. Dette connue : `YAML_CM_THEME` code ses couleurs en hex et force `theme="dark"`, contrairement à la règle « couleurs via `var(--token)` » — visible le jour où une surface YAML atterrit sur un fond clair.
-- **`Checkbox`** (`components/ui/checkbox.tsx`) — case à cocher native teintée `accent-[var(--brand)]`, contrôlée (`checked` / `onCheckedChange`). Pour un état de formulaire confirmé explicitement (ex. « garder ce choix pour tous les fichiers suivants » dans l'import de projet) ; un réglage persistant qui change le résultat en jeu garde `<Switch>`. Spécimen sur `/admin/design`.
+- **`Checkbox`** (`components/ui/checkbox.tsx`) — case à cocher native teintée `accent-[var(--brand)]`, contrôlée (`checked` / `onCheckedChange`). Pour un état de formulaire confirmé explicitement (ex. « garder ce choix pour tous les fichiers suivants » dans l'import de projet) ; un réglage persistant qui change le résultat en jeu garde `<Switch>`. Spécimen sur `/design`.
 
-### Admin AI
+## Public landing
 
-Panel admin système de modèles IA, accessible à `/admin` (gate super-admin côté composant) :
-
-- **`/admin/ai`** — catalogue + configuration
-  - Table `Table` des modèles (`GET /api/v1/admin/ai/models`) : id, provider, base model, status (activé/test).
-  - Actions : éditer champs (nom, prix, status), supprimer, tester.
-  - Sections « Providers » et « Settings » : configuration provider OpenAI-compatible (`GET/PUT /api/v1/admin/ai/providers`) et settings globaux (`GET/PUT /api/v1/admin/ai/settings`).
-  - Client API : `editor/src/lib/api/adminModels.ts` (`getModels`, `updateModel`, `deleteModel`, `testConnection`, etc.).
-
-- **`/admin/ai/usage`** — dashboards agrégés
-  - Cartes `StatCard` : crédits utilisés (total, ce mois), marge estimée (prix vs coût provider).
-  - Graphiques `HBar` : répartition usage par modèle, par user.
-  - `GET /api/v1/admin/ai/usage/summary` (résumés) + `GET /api/v1/admin/ai/usage/logs` (détails).
-  - Client API : `editor/src/lib/api/adminAiUsage.ts` (`getUsageSummary`, `getUsageLogs`).
-
-- **`/admin/ai/usage/logs`** — événements détaillés
-  - Table avec filtres (user, date, model, status).
-  - Export CSV via bouton.
-  - `GET /api/v1/admin/ai/usage/logs?q=&format=csv` (backend `adminRoutes.ts`).
-
-- **Profil utilisateur — onglet AI** (`/account`, tab `"ai"`)
-  - Vue consommation utilisateur (total, dernière utilisation).
-  - Formulaire grant de crédits (bouton « Ajouter des crédits » → modal `POST /api/v1/admin/ai/credits/grant`).
-  - Client API : shared `adminAiUsage.ts` (lectu résumé user) + endpoint spécifique grant.
-
-### Placement tray and slot dragging
-
-Preview context changes (canvas banner, board edges and properties selector) apply
-all call arguments through `uiStore.setMenuPreviewArgs` in one store update.
-Writing arguments separately exposes a partial context to the canvas reconciler,
-which can trigger the banner's first-context fallback and undo the selection.
-Single-field input edits continue to use `setMenuPreviewArg`.
-
-Item tooltips resolve the hovered element within its menu (`hoverStore.menuId` +
-`elementId`), since element IDs such as `player` can repeat across menus.
-`MenuGroup` supplies the menu on hover; leaving clears it. `ItemTooltip` subscribes
-to the current project so title/lore edits update live, and hides if the hovered
-menu disappears instead of falling back to a same-ID element in another menu.
-
-The canvas placement tray binds each row under the placement alias when resolving its material and supports nested source paths. Dragging a placed item updates only its keyed placement on the current page, using the preview context to disambiguate shared slots. Other placements and the display cache are preserved; dropping outside the menu removes only that placement. Alt-drag also moves the row, since a row has one placement. Placement drags bypass ordinary position-list mutations.
-Ordinary item paste, move, duplicate and selection moves preserve placement elements during empty-position cleanup: an empty ordinary position list is valid when places is set.
-Placement tray height includes the card top offset, icon, label gap, label height and bottom padding; stacked trays use that same height plus spacing to avoid overlap.
-
-### Project identity and rename (2026-09-12)
-
-The exporter no longer emits `manifest.project_id`. ZIP imports use the enclosing
-folder; rootless archives require a chosen target through `useProjectZipImport`.
-Explicit targets share `isValidProjectFolderName` with rename UI rules.
-Hosted imports (`importHostedProject`) send the file batch with operation id
-`<uuid>-files`, computed at send time: the backend only accepts `[a-zA-Z0-9_-]`, and the
-earlier `<uuid>:files` made every hosted ZIP import fail with `invalid_input` (fixed
-2026-09-25). A taken folder surfaces `destination_exists`; the import dialog then offers
-another folder name (`<folder>_2` prefilled) or **Overwrite**, which calls
-`importHostedProject(..., { overwrite: true })`: it reuses the hosted project of that folder
-(`listHostedProjects`) and writes the archive exactly, deleting files and binaries it lacks.
-`diskProjectsToSummaries` retains authoritative internal IDs and negotiated
-`capabilities.canRename` from server listings, with compatible legacy fallback.
-
-`RenameProjectButton` uses the neutral project rename API and keeps the operation
-UUID and target in session storage until a confirmed or terminal result. A
-pending operation remains recoverable when the server becomes unavailable.
-Listings retain durable pending anchors via `pendingRename` metadata even when
-their disk aliases are hidden; the shared summary factory keeps their retry row,
-and the server operation restores Retry after refresh without browser storage.
-`project_renamed` notifications flush pending local edits, rebind only matching
-server/internal IDs, invalidate cached hashes and trigger controlled loader
-revalidation. Relative draft trees, private owner identity and CAS baselines
-remain intact; an older autosave acknowledgement cannot replace newer edits.
-## Public product and pricing pages
-
-`features/marketing` hosts the public `/` landing and `/pricing` catalog. `MarketingLayout` reuses semantic tokens, existing buttons/cards/dialogs, shared navigation and an EN/FR language selector; public routes scroll without workspace sidebars and remain visible during auth hydration or an API outage. The demo and wiki links target `/demo` and `/wiki/`.
-
-`DemoAuthReturn` only recovers a pending demo from the default `/account` landing. It preserves explicit pricing, billing and public destinations instead of overriding them with an older demo intent.
-
-The landing links to `/demo` in a new tab (`target="_blank"`, `rel="noopener noreferrer"`). It does not embed or initialize a demo session. The `#editor` navigation anchor targets the product features section.
-
-Pricing reads the public billing catalog, never local price constants; loading, empty and failed catalogs are distinct. A selected plan returns through safe local `next` URLs, including Google/Discord, then requires network selection and an explicit checkout action. A network can be created in this flow. Membership and subscription checks precede payment; existing nonterminal subscriptions use the portal. Backend capability and duplicate-subscription guards remain authoritative. `/credits` restores the verified `networkId` returned by checkout, formats monthly/yearly periods, includes top-up bonuses and treats checkout return as pending until authoritative billing data arrives.
-
-Standard selection uses the catalogue's stable `key` and billing interval; limits,
-credit cadence and payment readiness come from the same API response. Free has no
-checkout. A loaded catalogue without Stripe remains visible with purchasing
-unavailable. `/credits` requests the selected Network's catalogue so eligible
-private offers appear there; it clears/reloads offers on Network changes. Credit
-cadence is distinct from billing interval, including monthly grants on annual Pro.
-
-Admin billing shows code-managed versions read-only. A custom offer starts as a
-copy of a standard version with independent limits, capabilities and conditions.
-Draft saving and explicit publication are separate; publication requires a target
-Network. Editing published terms creates a successor draft. The API independently
-enforces code-managed protection and private eligibility; hiding an action in the
-UI is not the authorization check.
-
-Admin billing has no separate editor-policy tab or enforcement switch. Free is the
-default Network plan. `/credits` displays `/billing/subscription.effectivePlan`
-independently of payment status, without exposing a portal for an absent subscription.
-Plan rows and forms distinguish `creditInterval` from billing `interval`: standard
-annual Pro displays 500 credits/month and annual billing; custom annual grants stay annual.
-
-## Hosted and server project context
-
-Both URL families mount `ProjectWorkspace`; `projectClient(immutableProjectId)` binds files,
-history and binary reads/writes independently of a server URL. Resolved project metadata
-supplies capabilities, Minecraft version and connection availability. Hosted opening clears
-stale active-server selection; capture and live model context follow capabilities.
-`projectPrincipal` owns the account principal accessor used by persisted draft operations.
-Asset mutations serialize with draft autosave and retain a frozen snapshot, bytes and
-operation ID for uncertain acknowledgements. A three-way merge preserves edits made while
-an upload runs. Protected canvas images are fetched with credentials into revocable blob
-URLs, scoped to the principal and versioned asset URL. ZIP imports use one mixed text/binary
-transaction and owner-scoped session recovery; exported files exclude private metadata.
-
-`CopyProjectToServerButton` composes into the shared topbar through `canCopyToServer`
-(missing capability defaults to false). `copyProjectToServer` sends one atomic backend
-copy request bound to a saved source revision, never a series of file writes. Explicit
-Apply waits for `waitForDraftWrites`, flushes typing, and uses the common publication
-path, which preserves later edits. Saved-version copy does not publish any draft.
-Browser recovery stores only the operation UUID and frozen destination/revision under
-owner/project scope; status/resume endpoints remain authoritative after lost ACKs.
-Logout clears recovery and invalidates asynchronous completions via a generation guard.
-Known pre-acceptance rejections release choices; uncertain requests retain them.
+`features/marketing` hosts the public `/` landing of artisanmc.net (`MarketingLayout`,
+semantic tokens, EN/FR language selector). The pricing page, billing catalogue, credits
+and demo links were removed with the cloud in phase F.

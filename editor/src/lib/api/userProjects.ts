@@ -1,5 +1,5 @@
 import { projectFetch } from "@/lib/projectFetch";
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
+const API_URL = import.meta.env.VITE_API_URL ?? "";
 
 export interface UserProjectLoadResult {
   project: {
@@ -13,7 +13,6 @@ export interface UserProjectLoadResult {
   networkId: string | null;
   serverKeyId: string | null;
   capabilities?: {
-    canUseAssistant?: boolean;
     canImport?: boolean;
     canDelete?: boolean;
     canCopyToServer?: boolean;

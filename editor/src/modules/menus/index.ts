@@ -14,7 +14,7 @@ export const menusModule: FrontendModule = {
   sidebar: {
     icon: () => null,
     label: "Menus",
-    to: "/networks",
+    to: "/",
   },
   routes: [],
 };

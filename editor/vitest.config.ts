@@ -8,6 +8,9 @@ export default defineConfig({
     globals: true,
     setupFiles: ["./tests/setup.ts"],
     exclude: ["**/node_modules/**", "**/dist/**", "**/e2e/**"],
+    // The app calls its same-origin hub (`VITE_API_URL` empty); tests pin an
+    // absolute origin so they can parse the URLs they intercept.
+    env: { VITE_API_URL: "http://localhost:3001" },
     // Node 25 enabled native Web Storage by default; its localStorage shadows
     // jsdom's polyfill but exposes methods as non-functions in the test pool.
     execArgv: vitestWorkerExecArgv(),
@@ -21,10 +24,6 @@ export default defineConfig({
         __dirname,
         "./packages/boutique-editor/src/index.ts",
       ),
-      // projectImportRoundTrip.test.ts imports backend/src/lib/projectImport.ts,
-      // whose "yaml" import resolves from backend/node_modules — absent in CI
-      // (the editor job only runs npm ci). Pin it to the editor's copy.
-      yaml: path.resolve(__dirname, "./node_modules/yaml"),
     },
   },
 });

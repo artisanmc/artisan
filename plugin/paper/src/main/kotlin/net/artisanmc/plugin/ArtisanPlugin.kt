@@ -1,6 +1,5 @@
 package net.artisanmc.plugin
 
-import net.artisanmc.plugin.assistant.ImportSourceReader
 import net.artisanmc.modules.api.*
 import net.artisanmc.plugin.scheduling.Scheduler
 import net.artisanmc.plugin.scheduling.schedulerFor
@@ -225,7 +224,6 @@ open class ArtisanPlugin : JavaPlugin() {
         server.servicesManager.register(ArtisanAPI::class.java, api, this, org.bukkit.plugin.ServicePriority.Normal)
         server.pluginManager.registerEvents(database, this)
         val cfg = loadPluginConfig()
-        cfg.assistantImportSourceWarnings.forEach { logger.warning("[assistant] $it") }
         projectRoots.coreRoot.mkdirs()
 
         langManager = LangManager.fromPlugin(this, cfg.language, cfg.perPlayerLanguage)
@@ -233,9 +231,7 @@ open class ArtisanPlugin : JavaPlugin() {
         cooldowns = CooldownStore()
         sessions = MenuSessionStore()
         navigationHistory = NavigationHistoryStore()
-        // Disk-cached asset index: glyph/font titles keep rendering with the
-        // backend down or gone (offline completeness — the catalog was
-        // previously HTTP-only and booted empty offline).
+        // Disk-cached asset index: glyph/font titles render from the last pack, even offline.
         assetCatalog = net.artisanmc.plugin.resourcepack.AssetCatalog(
             cacheFile = java.io.File(dataFolder, "cache/asset-index.json"),
         )
@@ -258,7 +254,6 @@ open class ArtisanPlugin : JavaPlugin() {
         stopEditor()
         api.modules.active().forEach { runCatching { it.onDisable() } }
         if (::database.isInitialized) database.closeAll()
-        artisanCommand.shutdown()
         commandRegistrar.unregisterAll()
         menuProvider.shutdown()
         if (packetEventsLoaded) runCatching { PacketEvents.getAPI().terminate() }
@@ -403,14 +398,6 @@ open class ArtisanPlugin : JavaPlugin() {
         menuProvider = provider
     }
 
-    /** Pose le dernier JAR signé dans `plugins/update/` : Paper l'applique au prochain démarrage. */
-    private fun pluginUpdater(cfg: PluginConfig): () -> net.artisanmc.plugin.update.PluginUpdater.Result {
-        val updater = net.artisanmc.plugin.update.PluginUpdater(
-            cfg.httpBaseUrl, cfg.serverKey, description.version, java.io.File(server.updateFolderFile, file.name),
-        )
-        return updater::install
-    }
-
     val environmentFile: File get() = File(dataFolder, "environment.yml")
 
     /** Called on the main thread; reloads on the next tick, once the reply is sent. */
@@ -427,9 +414,7 @@ open class ArtisanPlugin : JavaPlugin() {
 
     /** Re-reads `config.yml` + `environment.yml` (ADRs `server-config-from-editor`, `suite-foundation-database`). */
     fun loadPluginConfig(): PluginConfig {
-        net.artisanmc.plugin.config.EnvironmentFile.prepare(
-            File(dataFolder, "config.yml"), File(dataFolder, "connection.yml"), environmentFile,
-        )
+        net.artisanmc.plugin.config.EnvironmentFile.prepare(environmentFile)
         reloadConfig()
         return currentConfig()
     }
@@ -443,7 +428,6 @@ open class ArtisanPlugin : JavaPlugin() {
         PluginConfig.from(config, org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(environmentFile))
 
     fun reinit(cfg: PluginConfig) {
-        cfg.assistantImportSourceWarnings.forEach { logger.warning("[assistant] $it") }
         langManager = LangManager.fromPlugin(this, cfg.language, cfg.perPlayerLanguage)
         menuProvider.unload()
         startRuntime(cfg)
@@ -489,7 +473,7 @@ open class ArtisanPlugin : JavaPlugin() {
             cacheFile = java.io.File(dataFolder, "cache/resource-pack.json"),
             packLoads = packLoads,
         )
-        // Le dernier pack appliqué survit à un redémarrage pendant une panne du backend.
+        // Le dernier pack appliqué survit à un redémarrage, hub injoignable compris.
         packs.loadFromDisk()
         provider.setResourcePackManager(packs)
         registerResourcePackManager(packs)
@@ -499,12 +483,8 @@ open class ArtisanPlugin : JavaPlugin() {
         commandRegistrar.reload(provider.allBundles(), executor, evaluator)
     }
 
-    /** Une feuille parle au hub comme au backend : même client, l'adresse et la clé du réseau. */
     private fun createProvider(cfg: PluginConfig) = SyncedMenuProvider(
         roots            = projectRoots,
-        serverKey        = if (cfg.web.leaf) networkSecret(cfg.web).takeIf { cfg.web.hubUrl.isNotBlank() }.orEmpty() else cfg.serverKey,
-        editorAccessMode = cfg.editorAccessMode,
-        wsUrl            = if (cfg.web.leaf) cfg.web.hubUrl else cfg.wsUrl,
         logger           = logger,
         evaluator        = evaluator,
         sessions         = sessions,
@@ -518,20 +498,21 @@ open class ArtisanPlugin : JavaPlugin() {
         dataSourcesReport = { net.artisanmc.plugin.ws.DataSourceReport.build(api.dataSources) },
         declaredModelsReport = { api.models.declared().map { it.document } },
         editorScreensReport = { api.screens.declared().map { it.toWire() } },
-        importSources = ImportSourceReader(
-            serverRoot = java.io.File(".").toPath(),
-            sources = cfg.assistantImportSources,
-            logger = logger,
-        ),
         scheduler = scheduler,
         menuWindows = menuWindows,
         pluginVersion = description.version,
-        pluginUpdater = pluginUpdater(cfg),
         nexoGlyphs = net.artisanmc.plugin.customitems.NexoGlyphReader(java.io.File(server.pluginsFolder, "Nexo")),
         serverConfig = serverConfigAccess,
         editorEvents = { editorChannel.relay(it) },
-        proxyName = if (cfg.web.leaf) networkName(cfg.web) else "",
+        hub = hubLink(cfg.web),
     )
+
+    /** Seule une feuille ouvre un WebSocket : vers `web.hub-url`, avec le secret du réseau. */
+    private fun hubLink(web: net.artisanmc.plugin.hub.WebConfig): net.artisanmc.plugin.ws.HubLink? {
+        if (!web.leaf || web.hubUrl.isBlank()) return null
+        val secret = networkSecret(web).ifEmpty { return null }
+        return net.artisanmc.plugin.ws.HubLink(web.hubUrl, secret, networkName(web))
+    }
 
     /**
      * Délégation du pack à Nexo, Oraxen ou ItemsAdder. Un chemin `.zip` vise un fichier,

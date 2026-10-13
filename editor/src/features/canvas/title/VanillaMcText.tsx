@@ -17,7 +17,7 @@ function advance(ch: string): number {
   return cp !== undefined ? (CHAR_ADVANCES[cp] ?? 1) : 1;
 }
 
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
+const API_URL = import.meta.env.VITE_API_URL ?? "";
 
 const ATLAS_URLS: Record<AtlasName, string> = {
   ascii: `${API_URL}/api/v1/textures/1.21.4/font/ascii`,

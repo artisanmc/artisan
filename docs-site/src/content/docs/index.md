@@ -25,10 +25,8 @@ Design inventory menus in your browser, give every item an action, and bring the
 
 ### Connect your server
 
-[Install Artisan](/wiki/getting-started/install-admin/) and connect your Network. The installation guide covers server access, resource packs, configuration, and live sync.
+[Install Artisan](/wiki/getting-started/install-admin/): the plugin serves the editor itself, from your own server. The installation guide covers editor access, HTTPS, resource packs, networks of servers, and configuration.
 
 ### Extend Artisan
 
 [Explore the developer API](/wiki/developers/) to expose data from your plugin, register commands, and build modules that work with the visual editor.
-
-Ready to start? [Open Artisan](/networks) or [compare the plans](/pricing).

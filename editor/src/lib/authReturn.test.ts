@@ -1,15 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { pricingSignupUrl, safeAuthReturn } from "./authReturn";
+import { safeAuthReturn } from "./authReturn";
 
 describe("authentication return", () => {
   it.each(["https://evil.test", "//evil.test", "/\\evil.test", "/\nevil.test", null])(
     "rejects unsafe next %s",
     (value) => {
-      expect(safeAuthReturn(value)).toBe("/account");
+      expect(safeAuthReturn(value)).toBe("/");
     },
   );
-  it("preserves the selected offer as a local path through signup", () => {
-    const href = new URL(pricingSignupUrl("plan&one"), "http://local");
-    expect(safeAuthReturn(href.searchParams.get("next"))).toBe("/pricing?plan=plan%26one");
+  it("keeps a local path", () => {
+    expect(safeAuthReturn("/networks/local/servers/local")).toBe("/networks/local/servers/local");
   });
 });

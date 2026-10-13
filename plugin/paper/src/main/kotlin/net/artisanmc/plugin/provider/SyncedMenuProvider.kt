@@ -3,23 +3,15 @@ package net.artisanmc.plugin.provider
 import net.artisanmc.plugin.scheduling.Scheduler
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
-import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import net.artisanmc.plugin.customitems.CustomItemsManager
-import net.artisanmc.plugin.assistant.ImportReadResult
-import net.artisanmc.plugin.assistant.ImportSelection
-import net.artisanmc.plugin.assistant.ImportSourceAccess
-import net.artisanmc.plugin.assistant.ImportSourceListing
 import net.artisanmc.plugin.engine.ActionExecutor
 import net.artisanmc.plugin.resourcepack.ResourcePackManager
-import net.artisanmc.plugin.engine.BundleCompiler
 import net.artisanmc.plugin.engine.ConditionEvaluator
 import net.artisanmc.plugin.engine.ExecutionContext
 import net.artisanmc.plugin.engine.MenuSessionStore
 import net.artisanmc.plugin.lang.LangManager
 import net.artisanmc.plugin.model.BundleDialog
 import net.artisanmc.plugin.model.BundleMenu
-import net.artisanmc.plugin.model.MenuYaml
 import net.artisanmc.plugin.model.ProjectBundle
 import net.artisanmc.plugin.render.DialogRenderer
 import net.artisanmc.plugin.render.MenuRenderer
@@ -33,20 +25,18 @@ import net.artisanmc.plugin.protocol.ProjectWorkspace
 import net.artisanmc.plugin.protocol.ProjectWrites
 import net.artisanmc.plugin.protocol.Replies
 import net.artisanmc.plugin.sync.ProjectFilesReader
+import net.artisanmc.plugin.ws.HubLink
 import net.artisanmc.plugin.ws.WsClient
 import net.artisanmc.plugin.yaml.ProjectReader
 import okhttp3.OkHttpClient
 import org.bukkit.entity.Player
 import java.io.File
-import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executor
 import java.util.concurrent.TimeUnit
 import java.util.logging.Logger
 
 class SyncedMenuProvider(
     private val roots: net.artisanmc.plugin.project.ProjectRoots,
-    private val serverKey: String,
-    private val wsUrl: String,
     private val logger: Logger?,
     private val evaluator: ConditionEvaluator = ConditionEvaluator.EMPTY,
     private val sessions: MenuSessionStore? = null,
@@ -64,26 +54,20 @@ class SyncedMenuProvider(
     private val declaredModelsReport: () -> List<Map<String, Any?>> = { emptyList() },
     /** Module-declared Config screens, reported at Presence (ADR module-config-screens). */
     private val editorScreensReport: () -> List<Map<String, Any?>> = { emptyList() },
-    private val importSources: ImportSourceAccess = object : ImportSourceAccess {
-        override fun listAll() = emptyList<ImportSourceListing>()
-        override fun read(selections: List<ImportSelection>) = ImportReadResult.Success(emptyList())
-    },
     /** Les fetchers touchent l'API Bukkit : ils passent par le thread qui possède l'état lu. */
     private val scheduler: Scheduler = Scheduler.Direct,
-    private val editorAccessMode: String = "invitation",
     private val menuWindows: net.artisanmc.plugin.render.MenuWindows? = null,
     private val pluginVersion: String = "1.0.0",
-    private val pluginUpdater: (() -> net.artisanmc.plugin.update.PluginUpdater.Result)? = null,
     private val nexoGlyphs: net.artisanmc.plugin.customitems.NexoGlyphReader? = null,
     private val serverConfig: net.artisanmc.plugin.config.ServerConfigAccess? = null,
     /** Annonces sans requête (`projects_reloaded`…) : l'éditeur servi par le plugin les relaie. */
     private val editorEvents: (Map<String, Any?>) -> Unit = {},
-    private val proxyName: String = "",
+    /** Sur une feuille, le hub auquel se relier ; null sur le hub ou un serveur seul. */
+    private val hub: HubLink? = null,
 ) : MenuProvider {
     private var copyMinecraftVersion = "1.21.4"
     /** Ce que `project_read` sert : l'état lu au dernier chargement, jamais le disque courant. */
     @Volatile private var projects = ProjectSnapshot.EMPTY
-    @Volatile private var cachedProjectPresence: Map<String, Any> = emptyMap()
 
     /**
      * Menus et dialogs de tous les projects, résolus par référence (`main`,
@@ -98,7 +82,6 @@ class SyncedMenuProvider(
     @Volatile private var bundles = listOf<ProjectBundle>()
     /** `pack:` refs resolve against the live bundle list (survives hot-reload swaps). */
     private val projectDataResolver = net.artisanmc.plugin.engine.ProjectDataResolver { bundles }
-    private val draftMenus = ConcurrentHashMap<String, BundleMenu>()
 
     private fun indexDocuments(loaded: List<ProjectBundle>) {
         menuTable = net.artisanmc.plugin.engine.DocumentTable(
@@ -126,7 +109,6 @@ class SyncedMenuProvider(
         return r.value
     }
     private val jsonMapper = ObjectMapper()
-    private val yamlMapper = ObjectMapper(YAMLFactory()).registerKotlinModule()
     private val httpClient = OkHttpClient()
     @Volatile private var wsClient: WsClient? = null
 
@@ -136,21 +118,15 @@ class SyncedMenuProvider(
         override val io = Executor { task ->
             httpClient.dispatcher.executorService.execute { synchronized(roots) { task.run() } }
         }
-        override fun reload(clearDrafts: Boolean) {
+        override fun reload() {
             reloadFromDisk()
-            if (clearDrafts) draftMenus.clear()
             onReload?.invoke()
         }
-        override fun delete(projectId: String) = deleteProject(projectId)
     }
     private val replies = Replies(httpClient.dispatcher.executorService, ::send, logger)
     private val projectReads = ProjectReads(workspace, replies)
-    private val projectWrites = ProjectWrites(
-        workspace, replies, ::send, logger,
-        minecraftVersion = { copyMinecraftVersion },
-        installedModuleIds = { installedModules().mapNotNull { it["id"] }.toSet() },
-    )
-    private val queries = ServerQueries(replies, scheduler, logger, evaluator, dataSources, importSources, nexoGlyphs, serverConfig)
+    private val projectWrites = ProjectWrites(workspace, replies, ::send, logger)
+    private val queries = ServerQueries(replies, scheduler, logger, evaluator, dataSources, nexoGlyphs, serverConfig)
     @Volatile private var testSendOverride: ((String) -> Unit)? = null
 
     internal fun setSendForTesting(fn: (String) -> Unit) {
@@ -172,9 +148,8 @@ class SyncedMenuProvider(
     /** Module-message escape hatch (api.messages) — fire-and-forget over the WS. */
     fun sendModuleMessage(payload: Map<String, Any>) = send(payload)
 
-    @Volatile private var apiUrl: String? = null
-    @Volatile private var editorUrl: String? = null
-    @Volatile private var networkName: String? = null
+    /** Le hub sert les packs à son adresse publique ; la feuille les télécharge par celle qu'elle a jointe. */
+    private val hubBaseUrl: String? = hub?.let { net.artisanmc.plugin.config.deriveHttpBaseUrl(it.url).ifEmpty { null } }
     @Volatile private var customItemsManager: CustomItemsManager = CustomItemsManager(emptyList())
 
     fun customItems(): List<Map<String, String>> = customItemsManager.items()
@@ -226,32 +201,22 @@ class SyncedMenuProvider(
             "1.21.4"
         }
         copyMinecraftVersion = mcVersion
-        if (serverKey.isNotEmpty()) {
+        if (hub != null) {
             val availableSources = customItemsManager.availableSources()
             logger?.info("[ART] Custom item sources available: ${availableSources.ifEmpty { listOf("(none)") }}")
-            // Custom items hash is computed off-thread (see registerCustomItemsReloadListeners).
-            // hello sends an empty hash; the backend learns the real hash via a follow-up
-            // custom_items_changed message once the async task runs. Keeping hashing off
-            // the main thread leaves onEnable responsive even for sources we don't control.
+            // Le hello part sans empreinte des custom items : elle suit par `custom_items_changed`,
+            // calculée hors du thread principal (registerCustomItemsReloadListeners).
             val client = WsClient(
-                url               = wsUrl,
-                serverKey         = serverKey,
-                editorAccessMode  = editorAccessMode,
+                hub               = hub,
                 mcVersion         = mcVersion,
-                // Le backend ne détient plus de contenu : il n'a rien à comparer.
-                currentBundleHash = "",
-                localProjectIds   = bundles.map { it.projectId },
-                customItemsHash   = "",
                 installedModules  = installedModules,
                 dataSources       = dataSourcesReport,
                 declaredModels    = declaredModelsReport,
                 editorScreens     = editorScreensReport,
+                serverConfig      = { serverConfig?.report() },
                 onMessage         = ::handleMessage,
                 logger            = logger,
-                projectPresence   = ::projectPresence,
                 pluginVersion     = pluginVersion,
-                pluginUpdater     = pluginUpdater,
-                proxyName         = proxyName,
             )
             wsClient = client
             client.connect()
@@ -273,11 +238,6 @@ class SyncedMenuProvider(
         httpClient.dispatcher.executorService.awaitTermination(5, TimeUnit.SECONDS)
     }
 
-    override fun editorInfo(): Pair<String, String>? {
-        val url = editorUrl ?: return null
-        return url to (networkName ?: "")
-    }
-
     /** Sur une feuille, le lien de l'éditeur vient du hub ; null s'il ne répond pas. */
     fun requestEditorLink(player: java.util.UUID, name: String, permissions: Set<String>, host: String?) =
         wsClient?.request(mapOf(
@@ -285,13 +245,10 @@ class SyncedMenuProvider(
             "permissions" to permissions.toList(), "host" to host,
         )) ?: java.util.concurrent.CompletableFuture.completedFuture(null)
 
-    fun addMember(email: String): java.util.concurrent.CompletableFuture<String> =
-        wsClient?.addMember(email) ?: java.util.concurrent.CompletableFuture.completedFuture("offline")
-
     override fun findMenu(menuId: String): BundleMenu? = findMenu(menuId, null)
     override fun findMenu(ref: String, fromProject: String?): BundleMenu? =
-        draftMenus[ref] ?: resolveRef(menuTable, "Menu", ref, fromProject)
-    override fun listMenuIds(): List<String> = (menuTable.ids + draftMenus.keys).distinct().sorted()
+        resolveRef(menuTable, "Menu", ref, fromProject)
+    override fun listMenuIds(): List<String> = menuTable.ids.distinct().sorted()
     override fun allBundles(): List<ProjectBundle> = bundles
 
     override fun openMenu(player: Player, menuId: String, lang: String, ctx: ExecutionContext) {
@@ -411,17 +368,14 @@ class SyncedMenuProvider(
         }
     }
 
-    /** Re-report presence to the backend after the active module set changed. */
+    /** Re-report presence to the hub after the active module set changed. */
     fun notifyModulesChanged(modules: List<Map<String, String>>) {
         wsClient?.send(mapOf(
             "type" to "modules_changed",
-            "server_key" to serverKey,
             "installed_modules" to modules,
             "data_sources" to dataSourcesReport(),
             "declared_models" to declaredModelsReport(),
             "editor_screens" to editorScreensReport(),
-            "project_roots" to roots.descriptors(),
-            "identity_migrations" to identityMigrations(),
         ))
     }
 
@@ -460,7 +414,6 @@ class SyncedMenuProvider(
         )
         bundles = loaded
         indexDocuments(loaded)
-        refreshProjectPresence()
         announceReload()
     }
 
@@ -479,32 +432,9 @@ class SyncedMenuProvider(
      */
     private fun announceReload() {
         val hashes = projects.hashes()
-        // Fire-and-forget : sans WS connecté (démarrage, coupure) l'annonce se
-        // perd ; le `hello` suivant porte les mêmes empreintes (`snapshot_hashes`).
-        runCatching { send(mapOf("type" to "projects_reloaded", "projects" to hashes,
-            "project_roots" to roots.descriptors(), "identity_migrations" to identityMigrations())) }
+        // Fire-and-forget : sans hub joignable l'annonce se perd ; `project_read` rend la même empreinte.
+        runCatching { send(mapOf("type" to "projects_reloaded", "projects" to hashes)) }
     }
-
-    private fun identityMigrations(): List<Map<String, String>> =
-        if (roots.isRegistered("boutique_addon")) listOf(mapOf("from" to "boutique_shop", "to" to "boutique_addon")) else emptyList()
-
-    private fun projectPresence(): Map<String, Any> =
-        serverConfig?.let { cachedProjectPresence + ("server_config" to it.report()) } ?: cachedProjectPresence
-
-    internal fun projectPresenceForTesting(): Map<String, Any> = projectPresence()
-
-    /** Called under the project mutation lock; WS callbacks only read the published map. */
-    private fun refreshProjectPresence() {
-        cachedProjectPresence = mapOf(
-            "capabilities" to listOf("project_rename", "project_drafts_v1", "project_mixed_write_v1", "project_copy_v1", "resource_quota_v1", "resource_quota_v2", "vanilla_gui_v1", "snapshot_mirror_v1"),
-            "local_project_ids" to projects.projectIds,
-            "snapshot_hashes" to projects.hashes(),
-            "project_roots" to roots.descriptors(),
-            "project_rename_results" to roots.renamer.completed(),
-            "identity_migrations" to identityMigrations(),
-        )
-    }
-
 
     private fun handleMessage(raw: String) {
         dispatch(runCatching { jsonMapper.readTree(raw) }.getOrNull() ?: return)
@@ -513,15 +443,11 @@ class SyncedMenuProvider(
     private fun dispatch(node: JsonNode) {
         when (val request = EditorRequest.parse(node) ?: return) {
             is EditorRequest.HelloAck -> onHelloAck(request)
-            is EditorRequest.DraftUpdate -> onDraftUpdate(request)
             is EditorRequest.ResourcePackUpdated -> applyResourcePack(request.url, request.hash, "resource_pack_updated payload")
             EditorRequest.SessionReplaced -> logger?.warning(
-                "[Artisan] Un autre serveur s'est connecté avec CETTE clé serveur — " +
-                    "celui-ci est déconnecté de l'éditeur. Une clé = un serveur : " +
-                    "génère une clé par serveur dans l'éditeur.",
+                "[Artisan] Another server joined the hub with this server's name (web.name); this one is disconnected from the editor.",
             )
             EditorRequest.CustomItemsRequest -> sendCustomItems()
-            EditorRequest.Ping -> wsClient?.send(mapOf("type" to "pong"))
 
             is EditorRequest.OnlinePlayersFetch -> queries.onlinePlayers(request)
             is EditorRequest.PapiPlaceholdersFetch -> queries.papiPlaceholders(request)
@@ -529,8 +455,6 @@ class SyncedMenuProvider(
             is EditorRequest.PlayerInventoryFetch -> queries.playerInventory(request)
             is EditorRequest.DataSourceFetch -> queries.dataSource(request)
             is EditorRequest.ServerConfigWrite -> queries.serverConfigWrite(request)
-            is EditorRequest.ImportSourcesList -> queries.importSourcesList(request)
-            is EditorRequest.ImportSourcesRead -> queries.importSourcesRead(request)
             is EditorRequest.NexoGlyphsList -> queries.nexoGlyphs(request)
             is EditorRequest.NexoGlyphRead -> queries.nexoGlyph(request)
 
@@ -541,23 +465,13 @@ class SyncedMenuProvider(
             is EditorRequest.ConfigRead -> projectReads.config(request)
 
             is EditorRequest.ProjectWrite -> projectWrites.write(request)
-            is EditorRequest.AssetWrite -> projectWrites.assets(request)
             is EditorRequest.ConfigWrite -> projectWrites.config(request)
-            is EditorRequest.ProjectCopy -> projectWrites.copy(request)
-            is EditorRequest.ProjectRename -> projectWrites.rename(request)
             is EditorRequest.ProjectDraft -> projectWrites.draft(request)
-            is EditorRequest.ProjectDeleted -> projectWrites.deleted(request)
         }
     }
 
     private fun onHelloAck(ack: EditorRequest.HelloAck) {
-        logger?.info("Connected to Artisan backend (session=${ack.sessionId})")
-        // Le hub d'un réseau ne connaît pas son adresse interne : celle que la feuille a jointe sert.
-        apiUrl = ack.bundleUrl ?: net.artisanmc.plugin.config.deriveHttpBaseUrl(wsUrl).ifEmpty { null }
-        editorUrl = ack.editorUrl ?: editorUrl
-        networkName = ack.networkName ?: networkName
-        // Plus de `project_hashes` ni de contrôle de synchro : le backend ne détient
-        // plus de contenu, il n'y a rien à comparer au disque (ADR `server-disk-only-storage`).
+        logger?.info("Connected to the Artisan hub (session=${ack.sessionId})")
         when (val pack = ack.resourcePack) {
             EditorRequest.PackUpdate.Cleared -> rpm()?.onUpdate(null)
             is EditorRequest.PackUpdate.Apply -> applyResourcePack(pack.url, pack.hash, "resource_pack info from hello_ack")
@@ -567,21 +481,15 @@ class SyncedMenuProvider(
 
     /** Un pack construit par l'éditeur et servi par le hub : [downloadUrl] est l'adresse locale du hub. */
     fun applyLocalResourcePack(playerUrl: String, downloadUrl: String, hash: String) {
-        rpm()?.applyFromBackend(playerUrl, downloadUrl, hash)
+        rpm()?.applyPack(playerUrl, downloadUrl, hash)
     }
 
     private fun applyResourcePack(url: String, hash: String, what: String) {
         try {
-            rpm()?.applyFromBackend(url, resolvePluginDownloadUrl(url), hash)
+            rpm()?.applyPack(url, resolvePluginDownloadUrl(url), hash)
         } catch (t: Throwable) {
             logger?.warning("Invalid $what: ${t.message}")
         }
-    }
-
-    private fun onDraftUpdate(draft: EditorRequest.DraftUpdate) {
-        val parsed = runCatching { yamlMapper.readValue(draft.menuYaml, MenuYaml::class.java) }.getOrNull() ?: return
-        draftMenus[draft.menuId] = BundleCompiler.compile(parsed, emptyMap(), logger)
-        logger?.info("Draft updated for ${draft.menuId}")
     }
 
     private fun sendCustomItems() = replies.offThread("custom_items_request") {
@@ -595,36 +503,14 @@ class SyncedMenuProvider(
         }
     }
 
-    private fun deleteProject(projectId: String) {
-        // Atomic switch: drop the project from the in-memory bundles BEFORE touching disk.
-        bundles = bundles.filterNot { it.projectId == projectId }
-        indexDocuments(bundles)
-        // The move-to-trash needs no suppression: the project root disappears, so
-        // the scanner simply drops its state instead of seeing an edit.
-        net.artisanmc.plugin.sync.ProjectDeleter(roots, logger).delete(projectId)
-        projects = projects.without(projectId)
-        refreshProjectPresence()
-        onReload?.invoke()
-    }
-
     /**
-     * Resolve the plugin-side download URL for a resource project.
-     *
-     * The backend sends the player-facing URL in `resource_pack.url` (built from
-     * `RESOURCE_PACK_BASE_URL`), which is what the player's MC client needs. In a
-     * Docker setup, that URL is typically `http://localhost:3001/...` — which from
-     * inside the `minecraft` container resolves to the minecraft container itself,
-     * not the backend.
-     *
-     * To let the plugin download the same project (for [net.artisanmc.plugin.resourcepack.AssetCatalog]),
-     * we rebuild the URL using [apiUrl] (Docker-internal backend address from
-     * `bundle_url` / `api_url` in `hello_ack`) plus the path of the original URL.
-     *
-     * Falls back to [playerUrl] if [apiUrl] is null (single-host deployments) or if
-     * the URL cannot be parsed.
+     * The hub hands out the player-facing pack URL, which may not resolve from this
+     * server (e.g. `localhost` inside a container). The download for the
+     * [net.artisanmc.plugin.resourcepack.AssetCatalog] keeps its path but goes to the
+     * hub address this leaf joined. Falls back to [playerUrl].
      */
     internal fun resolvePluginDownloadUrl(playerUrl: String): String {
-        val base = apiUrl ?: return playerUrl
+        val base = hubBaseUrl ?: return playerUrl
         return try {
             val parsed = java.net.URI(playerUrl)
             val pathAndQuery = buildString {

@@ -4,7 +4,7 @@
  * emit text_y{Y}.json with shifted ascent so glyphs land at any chest-y.
  *
  * Regenerate alongside the char-advance tables via:
- *   cd backend && bun scripts/gen-char-advances.ts [version]
+ *   cd tools/minecraft-assets && bun gen-char-advances.ts [version]
  */
 
 export const VANILLA_ASCII: { height: number; ascent: number; chars: string[] } = {

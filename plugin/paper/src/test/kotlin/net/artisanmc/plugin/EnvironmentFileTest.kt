@@ -10,75 +10,30 @@ import kotlin.test.assertTrue
 
 class EnvironmentFileTest {
     private val dir = Files.createTempDirectory("artisan_env_").toFile()
-    private val config = dir.resolve("config.yml")
-    private val connection = dir.resolve("connection.yml")
     private val environment = dir.resolve("environment.yml")
-
-    private fun prepare() = EnvironmentFile.prepare(config, connection, environment)
-
-    @Test
-    fun `moves server_key and ws_url out of config yml`() {
-        config.writeText("# Language\nlanguage: \"fr\"\nserver_key: \"sk_abc\"\nws_url: \"ws://localhost:3001/ws/plugin\"\n")
-        prepare()
-
-        val env = YamlConfiguration.loadConfiguration(environment)
-        assertEquals("sk_abc", env.getString("server_key"))
-        assertEquals("ws://localhost:3001/ws/plugin", env.getString("ws_url"))
-        val cfg = YamlConfiguration.loadConfiguration(config)
-        assertFalse(cfg.contains("server_key"))
-        assertFalse(cfg.contains("ws_url"))
-        assertEquals("fr", cfg.getString("language"))
-        assertTrue(config.readText().contains("# Language"), "comments kept")
-    }
-
-    @Test
-    fun `migrates connection yml and removes it`() {
-        connection.writeText("server_key: \"sk_conn\"\nws_url: \"wss://self.hosted/ws/plugin\"\n")
-        config.writeText("language: \"en\"\n")
-        prepare()
-
-        val env = YamlConfiguration.loadConfiguration(environment)
-        assertEquals("sk_conn", env.getString("server_key"))
-        assertEquals("wss://self.hosted/ws/plugin", env.getString("ws_url"))
-        assertEquals("h2", env.getString("database.type"))
-        assertFalse(connection.exists())
-    }
-
-    @Test
-    fun `existing environment yml wins over stale copies`() {
-        environment.writeText("server_key: \"sk_new\"\nws_url: \"wss://x/ws/plugin\"\ndatabase:\n  type: \"mysql\"\n")
-        connection.writeText("server_key: \"sk_conn\"\n")
-        config.writeText("server_key: \"sk_old\"\n")
-        val before = environment.readText()
-        prepare()
-
-        assertEquals(before, environment.readText(), "never rewritten once it exists")
-        assertFalse(connection.exists())
-        assertFalse(YamlConfiguration.loadConfiguration(config).contains("server_key"))
-    }
 
     @Test
     fun `fresh install gets a default environment yml`() {
-        config.writeText("language: \"en\"\n")
-        prepare()
+        EnvironmentFile.prepare(environment)
 
         val env = YamlConfiguration.loadConfiguration(environment)
-        assertEquals("", env.getString("server_key"))
-        assertEquals("wss://api.artisanmc.net/ws/plugin", env.getString("ws_url"))
         assertEquals("h2", env.getString("database.type"))
         assertEquals(3306, env.getInt("database.port"))
         assertEquals(8765, env.getInt("web.port"))
         assertTrue(env.getBoolean("web.enabled"))
         assertEquals("hub", env.getString("web.role"))
+        assertEquals("", env.getString("web.hub-url"))
+        assertEquals("", env.getString("web.secret"))
+        assertFalse(env.contains("server_key"))
+        assertFalse(env.contains("ws_url"))
     }
 
     @Test
-    fun `untouched when already migrated`() {
-        environment.writeText("server_key: \"sk\"\nws_url: \"wss://y\"\n")
-        config.writeText("language: \"en\"\n")
-        val before = config.readText() to environment.readText()
-        prepare()
-        assertEquals(before, config.readText() to environment.readText())
+    fun `an existing environment yml is never rewritten`() {
+        environment.writeText("web:\n  role: \"leaf\"\ndatabase:\n  type: \"mysql\"\n")
+        val before = environment.readText()
+        EnvironmentFile.prepare(environment)
+        assertEquals(before, environment.readText())
     }
 
     @Test

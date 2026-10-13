@@ -29,13 +29,11 @@ import { projectFetch } from "@/lib/projectFetch";
 import { sha256Hex } from "@/lib/sha256";
 
 /**
- * Les assets d'un Project pour l'éditeur auto-hébergé : sans backend, l'éditeur
- * rejoue `backend/src/lib/assetHandlers.ts` lui-même, sur le brouillon privé
- * (snapshot + blobs) que le plugin garde déjà. Mêmes validations, mêmes messages,
- * même disposition sur le disque — seul l'endroit où le code tourne change.
+ * Les assets d'un Project : l'éditeur les valide et les range lui-même, sur le
+ * brouillon privé (snapshot + blobs) que le plugin garde déjà.
  */
 
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
+const API_URL = import.meta.env.VITE_API_URL ?? "";
 const NAME_RE = /^[a-z0-9_-]+$/;
 const MAX_RAW_BYTES = 2 * 1024 * 1024;
 const MAX_FONT_BYTES = 5 * 1024 * 1024;

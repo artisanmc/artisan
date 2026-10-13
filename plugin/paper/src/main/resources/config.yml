@@ -1,6 +1,6 @@
 # Server settings — editable by hand or from the editor's server page.
-# The backend link (server_key, ws_url) and the database credentials live in
-# environment.yml, which the editor never reads nor writes.
+# The web editor, network and database settings live in environment.yml,
+# which the editor never reads nor writes.
 
 # Database lent to the plugins of the suite (credentials in environment.yml).
 database:
@@ -15,31 +15,6 @@ language: "en"
 # When true, plugin messages are sent in each player's client language when
 # a matching lang file is available. Falls back to 'language' if not.
 per_player_language: false
-
-# Editor access settings.
-editor:
-  # invitation (default) or console: allow artisan member add <email> from console.
-  # Grants member access to the server's entire network. Apply with /artisan reload.
-  access_mode: invitation
-  # Set to true to restrict /artisan editor to console only (no in-game players).
-  console_only: false
-
-# Read-only roots that Project members may browse from the AI assistant.
-# Paths may be absolute or relative to the Minecraft server root. Only files
-# matching the declared extensions are exposed; hidden paths and symlinks are
-# always rejected. Remove a source or set enabled: false to stop exposing it.
-assistant:
-  import-sources:
-    zmenu:
-      enabled: true
-      label: "zMenu"
-      path: "plugins/zMenu/menus"
-      extensions: [".yml", ".yaml"]
-    deluxe-menus:
-      enabled: true
-      label: "DeluxeMenus"
-      path: "plugins/DeluxeMenus/gui_menus"
-      extensions: [".yml", ".yaml"]
 
 # Resource pack pushed by Artisan (independent from Oraxen/Nexo/ItemsAdder packs;
 # uses the 1.20.3+ pack stack so it coexists with other packs side-by-side).

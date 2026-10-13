@@ -27,7 +27,7 @@ class ProjectReadChannelTest {
         val roots = net.artisanmc.plugin.project.ProjectRoots(root)
         val provider = SyncedMenuProvider(
             roots = roots,
-            serverKey = "", wsUrl = "", logger = null,
+            logger = null,
         )
         init {
             provider.setSendForTesting { raw ->

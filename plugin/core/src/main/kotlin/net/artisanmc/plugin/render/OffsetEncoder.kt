@@ -5,7 +5,7 @@ package net.artisanmc.plugin.render
  * with the `space` provider in the `artisan:default` font.
  *
  * The codepoint → advance mapping is loaded from the resource project's
- * `asset-index.json` (`offsets` field, schema version 2). Backend writes
+ * `asset-index.json` (`offsets` field, schema version 2). The editor writes
  * powers of two in both signs (±1, ±2, ..., ±256), so a greedy decomposition
  * by descending magnitude reaches any offset in `[-511, +511]` exactly.
  *

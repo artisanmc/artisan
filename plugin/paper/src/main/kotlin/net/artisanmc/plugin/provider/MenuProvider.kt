@@ -26,6 +26,4 @@ interface MenuProvider {
     fun findDialog(dialogId: String): BundleDialog? = null
     fun findDialog(ref: String, fromProject: String?): BundleDialog? = findDialog(ref)
     fun openDialog(player: Player, dialogId: String, lang: String, ctx: ExecutionContext) {}
-    /** (editorUrl, networkName) once known from hello_ack; null before the plugin has connected. */
-    fun editorInfo(): Pair<String, String>? = null
 }

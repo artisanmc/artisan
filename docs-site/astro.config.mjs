@@ -28,12 +28,6 @@ export default defineConfig({
           autogenerate: { directory: 'editor' },
         },
         {
-          label: 'Admin',
-          items: [
-            { label: 'Admin console', slug: 'admin/console' },
-          ],
-        },
-        {
           label: 'Developers',
           items: [
             { label: 'Overview', slug: 'developers' },

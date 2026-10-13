@@ -43,7 +43,7 @@ export const useThemeStore = create<ThemeState>()(
         import("./authStore").then(({ useAuthStore }) => {
           const user = useAuthStore.getState().currentUser;
           if (!user) return;
-          const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
+          const apiUrl = import.meta.env.VITE_API_URL ?? "";
           import("@/lib/api/auth").then(({ patchMe }) =>
             patchMe({ apiUrl }, { theme: next }).catch(() => {
               console.warn("theme sync to backend failed (offline?)");

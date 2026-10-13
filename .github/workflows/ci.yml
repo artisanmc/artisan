@@ -13,32 +13,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  backend:
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: postgres
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres -d postgres"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-    steps:
-      - uses: actions/checkout@v5
-      - uses: oven-sh/setup-bun@v2
-      - run: bun install --frozen-lockfile
-        working-directory: backend
-      - run: bun run test
-        working-directory: backend
-        env:
-          ADMIN_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
-
   editor:
     runs-on: ubuntu-latest
     steps:
@@ -57,12 +31,11 @@ jobs:
         working-directory: docs-site
       - run: npm test -- --run
         working-directory: editor
+      # Éditeur auto-hébergé (embarqué dans le plugin), puis la vitrine + wiki d'artisanmc.net.
       - run: npm run build
         working-directory: editor
-        env:
-          VITE_API_URL: https://api.artisanmc.net
-          VITE_PLUGIN_WS_URL: wss://api.artisanmc.net/ws/plugin
-          VITE_EDITOR_URL: https://editor.artisanmc.net
+      - run: npm run build:site
+        working-directory: editor
       - run: npm run verify
         working-directory: docs-site
 

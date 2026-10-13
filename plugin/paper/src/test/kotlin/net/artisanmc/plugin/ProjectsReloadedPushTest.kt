@@ -23,7 +23,7 @@ class ProjectsReloadedPushTest {
         val sink: MutableList<Map<String, Any?>> = java.util.Collections.synchronizedList(mutableListOf())
         val provider = SyncedMenuProvider(
             roots = net.artisanmc.plugin.project.ProjectRoots(root),
-            serverKey = "", wsUrl = "", logger = null,
+            logger = null,
         )
         init {
             provider.setSendForTesting { raw ->

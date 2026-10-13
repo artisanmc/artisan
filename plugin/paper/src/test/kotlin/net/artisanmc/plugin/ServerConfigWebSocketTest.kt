@@ -26,7 +26,7 @@ class ServerConfigWebSocketTest {
 
     private fun provider(sent: LinkedBlockingQueue<String>) = SyncedMenuProvider(
         roots = ProjectRoots(Files.createTempDirectory("artisan-projects-").toFile()),
-        serverKey = "", wsUrl = "", logger = null,
+        logger = null,
         serverConfig = access,
     ).also { it.setSendForTesting(sent::add) }
 
@@ -37,16 +37,6 @@ class ServerConfigWebSocketTest {
             provider.javaClass.getDeclaredMethod("handleMessage", String::class.java)
                 .apply { isAccessible = true }.invoke(provider, raw)
             return mapper.readTree(sent.poll(2, TimeUnit.SECONDS))
-        } finally {
-            provider.shutdown()
-        }
-    }
-
-    @Test
-    fun `hello presence carries the editable config`() {
-        val provider = provider(LinkedBlockingQueue())
-        try {
-            assertEquals(mapOf("language" to "en"), provider.projectPresenceForTesting()["server_config"])
         } finally {
             provider.shutdown()
         }

@@ -3,12 +3,10 @@ package net.artisanmc.modules.api
 import net.artisanmc.modules.api.annotations.Beta
 
 /**
- * Fire-and-forget module messages over the plugin ↔ backend WS. The backend
- * routes by `type` to the module's backend layer. No-op while disconnected —
+ * Fire-and-forget module messages towards the editor. No-op while disconnected —
  * modules should phrase their UX accordingly ("update lands in a few seconds").
  *
- * NOT a way to change project content: the backend stores none (ADR
- * `server-disk-only-storage`). A module that wants to change its own files
+ * NOT a way to change project content (ADR `server-disk-only-storage`). A module that wants to change its own files
  * writes them itself and calls [ProjectContentApi.reload].
  */
 @Beta

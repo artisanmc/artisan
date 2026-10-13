@@ -12,7 +12,7 @@ import { useTextureStore } from "./textureStore";
 /** ID prefix for Library items inside the top-level DndContext. */
 export const LIBRARY_DRAG_PREFIX = "lib:";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
+const API_URL = import.meta.env.VITE_API_URL ?? "";
 
 const TILE_SIZE = 48;
 const GAP = 6;

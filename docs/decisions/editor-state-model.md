@@ -1,5 +1,7 @@
 # Editor state model — backend-authoritative with broadcast collaboration
 
+**Statut : remplacé (phase F, 2026-10)** — plus de backend autoritaire : le disque du serveur fait foi, l'éditeur publie par compare-and-swap. Voir [editor-web-server](editor-web-server.md).
+
 **Status :** accepted (2026-04-29)
 
 ## Décision
