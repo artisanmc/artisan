@@ -11,12 +11,12 @@ import { useProjectBaselineStore } from "./projectBaselineStore";
  * It became systematic when revalidation started setting the base on every
  * visit: a rare case became the common case.
  */
-describe("projectBaselineStore — l'identité ne change que si le contenu change", () => {
+describe("projectBaselineStore — the identity changes only when the content changes", () => {
   beforeEach(() => {
     useProjectBaselineStore.setState({ baselines: {} } as never);
   });
 
-  it("garde le même objet quand on repose un contenu identique", () => {
+  it("keeps the same object when an identical content is set again", () => {
     const store = useProjectBaselineStore.getState();
     store.set("p1", { "menus/a.yaml": "x" });
     const first = store.get("p1");
@@ -26,7 +26,7 @@ describe("projectBaselineStore — l'identité ne change que si le contenu chang
     expect(useProjectBaselineStore.getState().get("p1")).toBe(first);
   });
 
-  it("change d'objet dès qu'un contenu diffère", () => {
+  it("changes object as soon as a content differs", () => {
     const store = useProjectBaselineStore.getState();
     store.set("p1", { "menus/a.yaml": "x" });
     const first = store.get("p1");
@@ -36,7 +36,7 @@ describe("projectBaselineStore — l'identité ne change que si le contenu chang
     expect(useProjectBaselineStore.getState().get("p1")).not.toBe(first);
   });
 
-  it("change d'objet quand un fichier apparaît ou disparaît", () => {
+  it("changes object when a file appears or disappears", () => {
     const store = useProjectBaselineStore.getState();
     store.set("p1", { "menus/a.yaml": "x" });
     const first = store.get("p1");

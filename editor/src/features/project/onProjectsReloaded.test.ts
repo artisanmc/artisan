@@ -39,14 +39,14 @@ describe("onProjectsReloaded", () => {
     useProjectDraftStore.setState({ drafts: {} } as never);
   });
 
-  it("relit quand l'empreinte annoncée diffère de celle qu'on détient", () => {
+  it("re-reads when the announced fingerprint differs from the one held", () => {
     seedCache("ancienne");
     onProjectsReloaded("sk_1", [{ id: "boutique", hash: "nouvelle" }]);
     expect(useProjectCacheStore.getState().reloadToken).toBe(1);
   });
 
   /** Nothing changed for us: re-reading would cost a round trip for nothing. */
-  it("ne relit pas quand l'empreinte annoncée est celle qu'on a déjà", () => {
+  it("does not re-read when the announced fingerprint is the one already held", () => {
     seedCache("identique");
     onProjectsReloaded("sk_1", [{ id: "boutique", hash: "identique" }]);
     expect(useProjectCacheStore.getState().reloadToken).toBe(0);
@@ -56,7 +56,7 @@ describe("onProjectsReloaded", () => {
    * Unsaved work exists nowhere else. An automatic re-read would replace it
    * without being asked — exactly what the Refresh button asks to confirm.
    */
-  it("ne touche à rien tant qu'il y a du travail non enregistré, où qu'il soit", () => {
+  it("touches nothing while there is unsaved work, wherever it is", () => {
     seedCache("ancienne");
     seedDraft(true);
     onProjectsReloaded("sk_1", [{ id: "boutique", hash: "nouvelle" }]);
@@ -64,14 +64,14 @@ describe("onProjectsReloaded", () => {
     expect(useProjectDraftStore.getState().drafts.p1).toBeDefined();
   });
 
-  it("un brouillon propre ne bloque pas la relecture", () => {
+  it("a clean draft does not block the re-read", () => {
     seedCache("ancienne");
     seedDraft(false);
     onProjectsReloaded("sk_1", [{ id: "boutique", hash: "nouvelle" }]);
     expect(useProjectCacheStore.getState().reloadToken).toBe(1);
   });
 
-  it("une annonce qui ne concerne aucun Project connu ne relit rien", () => {
+  it("an announcement about no known Project re-reads nothing", () => {
     seedCache("ancienne");
     onProjectsReloaded("sk_1", [{ id: "un_autre", hash: "peu importe" }]);
     expect(useProjectCacheStore.getState().reloadToken).toBe(0);

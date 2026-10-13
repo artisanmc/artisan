@@ -26,11 +26,11 @@ function project(): Project {
   } as Project;
 }
 
-describe("Stage — planche dérivée", () => {
+describe("Stage — derived board", () => {
   beforeEach(() => {
     useAccountStore.setState({ account: { id: "a" as any, projects: [project()], projectOrder: [PID] } } as any);
   });
-  it("rend tous les Documents du project, même ceux jamais posés à la main", () => {
+  it("renders every Document of the project, even those never placed by hand", () => {
     render(<Stage projectId={PID} />);
     const names = screen.getAllByTestId("konva-group").map((g) => g.getAttribute("data-name"));
     expect(names).toContain("menu:m1");

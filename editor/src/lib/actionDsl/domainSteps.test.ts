@@ -44,8 +44,8 @@ describe("action DSL ↔ domain steps adapter", () => {
 // key — the plugin now resolves it in the project's lang/. The key is
 // explicit (never derived from a position), so it must survive the round
 // trip without being mistaken for a literal.
-describe("actions de data source — clés i18n explicites", () => {
-  it("préserve @clé et distingue le littéral", () => {
+describe("data source actions — explicit i18n keys", () => {
+  it("preserves @key and tells the literal apart", () => {
     const dsl = 'send_message @shop.bought\nsend_message "merci !"';
     const steps = parseToSteps(dsl);
     expect(steps).toEqual([

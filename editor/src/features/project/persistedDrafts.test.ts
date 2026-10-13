@@ -457,7 +457,7 @@ async function setupSameFileConflict(): Promise<void> {
   await syncPersistedDraft("p1");
 }
 
-it("rebase une autre session et adopte en silence les fichiers qu'elle a seuls touchés", async () => {
+it("rebases another session and silently adopts the files only it touched", async () => {
   vi.mocked(api.listDrafts).mockResolvedValue([remote]);
   await loadPersistedDrafts("p1", "u1");
   const mine = useProjectDraftStore.getState().get("p1")!;
@@ -490,7 +490,7 @@ it("rebase une autre session et adopte en silence les fichiers qu'elle a seuls t
   expect(local.remote?.revision).toBe(2);
 });
 
-it("signale un fichier édité des deux côtés et cesse d'écrire tant que ce n'est pas tranché", async () => {
+it("flags a file edited on both sides and stops writing until it is settled", async () => {
   await setupSameFileConflict();
   const session = usePersistedDraftStore.getState().sessions.p1;
   expect(session?.draftConflict?.conflicts).toEqual([{ path: "manifest.yaml", disk: "theirs" }]);
@@ -501,7 +501,7 @@ it("signale un fichier édité des deux côtés et cesse d'écrire tant que ce n
   expect(api.updateDraft).toHaveBeenCalledOnce();
 });
 
-it("tranche un conflit : garder ma version écrit à la révision distante", async () => {
+it("settles a conflict: keeping my version writes at the remote revision", async () => {
   await setupSameFileConflict();
   vi.mocked(api.updateDraft).mockImplementation(async (_p, _id, revision, _name, saved) => ({
     ...remote,
@@ -516,7 +516,7 @@ it("tranche un conflit : garder ma version écrit à la révision distante", asy
   expect(useProjectDraftStore.getState().get("p1")?.remote?.revision).toBe(3);
 });
 
-it("tranche un conflit : prendre l'autre session ne réécrit rien", async () => {
+it("settles a conflict: taking the other session rewrites nothing", async () => {
   await setupSameFileConflict();
   vi.mocked(api.updateDraft).mockClear();
   await resolveDraftConflict("p1", { "manifest.yaml": "disk" });
@@ -535,7 +535,7 @@ const revisionOf = (revision: number, tree: Record<string, string>) => ({
   snapshot: { baseline: disk, tree, initialTree: disk, at: 1 },
 });
 
-it("garde la base sur le disque quand il reprend le travail d'une autre session", async () => {
+it("keeps the base on disk when it takes over another session's work", async () => {
   vi.mocked(api.listDrafts).mockResolvedValue([revisionOf(1, disk)]);
   await loadPersistedDrafts("p1", "u1");
   const mine = useProjectDraftStore.getState().get("p1")!;
@@ -558,7 +558,7 @@ it("garde la base sur le disque quand il reprend le travail d'une autre session"
   expect(rebaseDraft(saved, { files: disk, binaries: {} }).snapshot.tree["m.yaml"]).toBe("B");
 });
 
-it("ne signale pas de conflit sur un fichier changé depuis la dernière révision commune", async () => {
+it("does not flag a conflict on a file changed since the last common revision", async () => {
   const shared = { ...disk, "m.yaml": "S" };
   vi.mocked(api.listDrafts).mockResolvedValue([revisionOf(1, shared)]);
   await loadPersistedDrafts("p1", "u1");
@@ -572,7 +572,7 @@ it("ne signale pas de conflit sur un fichier changé depuis la dernière révisi
   expect(useProjectDraftStore.getState().get("p1")?.tree).toEqual({ "g.yaml": "A", "m.yaml": "B" });
 });
 
-it("ne vide pas la base d'images locale quand le brouillon distant n'en porte pas", async () => {
+it("does not empty the local image base when the remote draft carries none", async () => {
   vi.mocked(api.listDrafts).mockResolvedValue([remote]);
   await loadPersistedDrafts("p1", "u1");
   const mine = useProjectDraftStore.getState().get("p1")!;
@@ -597,7 +597,7 @@ it("ne vide pas la base d'images locale quand le brouillon distant n'en porte pa
   expect(local.binaryTree).toEqual(binaries);
 });
 
-it("détecte un conflit de révision à l'ouverture quand une autre session a avancé le brouillon", async () => {
+it("detects a revision conflict on open when another session advanced the draft", async () => {
   vi.mocked(api.listDrafts).mockResolvedValue([remote]);
   await loadPersistedDrafts("p1", "u1");
   const mine = useProjectDraftStore.getState().get("p1")!;

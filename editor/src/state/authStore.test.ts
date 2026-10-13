@@ -39,7 +39,7 @@ describe("authStore.hydrate", () => {
    * user to /login while the sidebar stayed there — the app contradicted
    * itself. As long as we do not know, stay loading and retry.
    */
-  test("un /me en 502 ne déconnecte pas : réessaye puis charge l'utilisateur", async () => {
+  test("a /me returning 502 does not sign out: retries then loads the user", async () => {
     vi.useFakeTimers();
     const fetchSpy = vi
       .spyOn(globalThis, "fetch")
@@ -63,7 +63,7 @@ describe("authStore.hydrate", () => {
     vi.useRealTimers();
   });
 
-  test("garde l'utilisateur en place si /me devient injoignable en cours de session", async () => {
+  test("keeps the user in place if /me becomes unreachable mid-session", async () => {
     vi.useFakeTimers();
     useAuthStore.setState({
       currentUser: { id: "u1", email: "a@e.com", name: "Alice", avatarUrl: null },
@@ -91,7 +91,7 @@ describe("authStore.hydrate", () => {
    * conclusion — least of all "signed out", since /login would be just as
    * unusable. Stay "unknown" and retry, indefinitely.
    */
-  test("ne conclut jamais à une déconnexion tant que le backend est injoignable", async () => {
+  test("never concludes a sign-out while the backend is unreachable", async () => {
     vi.useFakeTimers();
     const fetchSpy = vi
       .spyOn(globalThis, "fetch")
@@ -114,7 +114,7 @@ describe("authStore.hydrate", () => {
    * `hydrate` die silently: `isLoading` stayed true forever, hence a blank app
    * with no explanation.
    */
-  test("un /me au corps illisible est traité comme injoignable, pas comme une panne fatale", async () => {
+  test("a /me with an unreadable body is treated as unreachable, not as a fatal failure", async () => {
     vi.useFakeTimers();
     const fetchSpy = vi
       .spyOn(globalThis, "fetch")
@@ -143,7 +143,7 @@ describe("authStore.hydrate", () => {
    * struggling server every 10 s from N open tabs helps no one — wait for the
    * tab to come back, which is anyway when the answer matters.
    */
-  test("suspend les réessais quand l'onglet est caché, et reprend à son retour", async () => {
+  test("suspends retries while the tab is hidden, and resumes when it returns", async () => {
     vi.useFakeTimers();
     Object.defineProperty(document, "visibilityState", {
       configurable: true,
@@ -172,7 +172,7 @@ describe("authStore.hydrate", () => {
     vi.useRealTimers();
   });
 
-  test("un 401 dit « non connecté », lui, et ne réessaye pas", async () => {
+  test("a 401 does say 'not signed in', and does not retry", async () => {
     const fetchSpy = vi
       .spyOn(globalThis, "fetch")
       .mockResolvedValue(new Response(null, { status: 401 }));

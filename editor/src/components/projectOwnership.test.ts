@@ -16,12 +16,12 @@ const screen = (p: Partial<ServerEditorScreen>): ServerEditorScreen => ({
  * the module → project pair: the module itself declared it in its Presence.
  */
 describe("ownerModuleOf", () => {
-  it("rattache un project à son module via un écran déclaré", () => {
+  it("attaches a project to its module through a declared screen", () => {
     const owner = ownerModuleOf({ id: "boutique_shop" }, [screen({})]);
     expect(owner).toBe("boutique");
   });
 
-  it("matche sur l'id DISQUE, celui que le module déclare", () => {
+  it("matches on the DISK id, the one the module declares", () => {
     // When another server already holds the disk id, the internal id differs —
     // but the module declared its disk id.
     const owner = ownerModuleOf(
@@ -31,16 +31,16 @@ describe("ownerModuleOf", () => {
     expect(owner).toBe("boutique");
   });
 
-  it("laisse un project ordinaire dans la liste plate", () => {
+  it("leaves an ordinary project in the flat list", () => {
     expect(ownerModuleOf({ id: "pack_ac4c" }, [screen({})])).toBeUndefined();
   });
 
-  it("respecte une propriété déjà connue plutôt que de la redériver", () => {
+  it("respects an already-known ownership rather than re-deriving it", () => {
     const owner = ownerModuleOf({ id: "x", ownerModule: "quests" }, [screen({})]);
     expect(owner).toBe("quests");
   });
 
-  it("ignore un écran sans module", () => {
+  it("ignores a screen without a module", () => {
     expect(ownerModuleOf({ id: "boutique_shop" }, [screen({ moduleId: null })])).toBeUndefined();
   });
 });

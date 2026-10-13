@@ -375,7 +375,7 @@ describe("schema hints become per-key comments", () => {
   it("states that hand-written comments are overwritten", () => {
     const out = transform(projectWith({ whole_shop_discount: 10 }))[`${base}/data/shop_settings.yaml`]!;
     expect(out).toMatch(/^# ──/m);
-    expect(out.toLowerCase()).toContain("écras");
+    expect(out.toLowerCase()).toContain("overwritten");
   });
 
   it("still round-trips: comments carry no data", () => {

@@ -35,20 +35,20 @@ function project(): Project {
 const source = (p: Project, id: string) => p.dataSources.find((d) => String(d.id) === id) as DataSource;
 
 describe("sourceYamlFiles", () => {
-  it("ne rend que les fichiers de la source demandée", () => {
+  it("renders only the files of the requested source", () => {
     const p = project();
     const files = sourceYamlFiles(p, source(p, "ranks"));
     expect(files.map((f) => f.path)).toContain("data/ranks.yaml");
     expect(files.every((f) => f.path.includes("ranks"))).toBe(true);
   });
 
-  it("inclut le schéma beside d'une source project-authored", () => {
+  it("includes the beside schema of a project-authored source", () => {
     const p = project();
     const paths = sourceYamlFiles(p, source(p, "ranks")).map((f) => f.path);
     expect(paths).toContain("models/ranks.yaml");
   });
 
-  it("montre le contenu que le writer écrirait", () => {
+  it("shows the content the writer would write", () => {
     const p = project();
     const data = sourceYamlFiles(p, source(p, "ranks")).find((f) => f.path === "data/ranks.yaml")!;
     expect(data.content).toContain("vip");
@@ -59,7 +59,7 @@ describe("sourceYamlFiles", () => {
 });
 
 describe("applySourceYaml", () => {
-  it("réinjecte une valeur éditée à la main", () => {
+  it("re-injects a value edited by hand", () => {
     const p = project();
     const files = sourceYamlFiles(p, source(p, "settings"));
     const edited = files.map((f) =>
@@ -72,7 +72,7 @@ describe("applySourceYaml", () => {
   });
 
   // A source edit must not turn into a rewrite of the project.
-  it("ne touche ni aux menus ni à la mise en page", () => {
+  it("touches neither the menus nor the layout", () => {
     const p = project();
     p.menus = [{ id: "m1", projectId: PID, title: [], rows: 3, layers: [] } as never];
     p.canvasLayout = { m1: { x: 42, y: 7 } } as never;
@@ -81,7 +81,7 @@ describe("applySourceYaml", () => {
     expect(next.canvasLayout).toEqual({ m1: { x: 42, y: 7 } });
   });
 
-  it("est un point fixe quand rien n'est édité", () => {
+  it("is a fixed point when nothing is edited", () => {
     const p = project();
     const next = applySourceYaml(p, sourceYamlFiles(p, source(p, "ranks")))!;
     expect(next.dataSources.map((d) => String(d.id)).sort()).toEqual(["ranks", "settings"]);

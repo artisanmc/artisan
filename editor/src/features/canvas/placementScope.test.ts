@@ -14,7 +14,7 @@ function menuWith(inputs: unknown[]): Menu {
  * of placement mode.
  */
 describe("sourceIsContextFiltered", () => {
-  it("reconnaît une source filtrée par une entrée du menu", () => {
+  it("recognizes a source filtered by a menu input", () => {
     const menu = menuWith([
       { kind: "primitive", name: "category", type: "string" },
       {
@@ -29,19 +29,19 @@ describe("sourceIsContextFiltered", () => {
 
   /** Hard-coded filter: the source always renders the same thing, so a missing
    *  key is a real hole, and must show. */
-  it("ne compte pas un filtre à valeur fixe", () => {
+  it("does not count a fixed-value filter", () => {
     const menu = menuWith([
       { kind: "sourceRef", name: "items", ref: "boutique:items", filter: { category: "cles" } },
     ]);
     expect(sourceIsContextFiltered(menu, "items")).toBe(false);
   });
 
-  it("ne compte pas une source sans filtre", () => {
+  it("does not count a source without a filter", () => {
     const menu = menuWith([{ kind: "sourceRef", name: "items", ref: "pack:ds_items" }]);
     expect(sourceIsContextFiltered(menu, "items")).toBe(false);
   });
 
-  it("suit la racine d'un chemin pointé", () => {
+  it("follows the root of a dotted path", () => {
     const menu = menuWith([
       {
         kind: "sourceRef",
@@ -53,7 +53,7 @@ describe("sourceIsContextFiltered", () => {
     expect(sourceIsContextFiltered(menu, "category.items")).toBe(true);
   });
 
-  it("une source inconnue du menu ne filtre rien", () => {
+  it("a source unknown to the menu filters nothing", () => {
     expect(sourceIsContextFiltered(menuWith([]), "items")).toBe(false);
   });
 });

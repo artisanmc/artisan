@@ -235,7 +235,7 @@ describe("arrangeBoard", () => {
   });
 });
 
-describe("arrangeBoard — positions fixées", () => {
+describe("arrangeBoard — pinned positions", () => {
   it("keeps a pinned Document exactly where it was put", () => {
     const nodes = [cmd("c"), menu("m"), menu("sub")];
     const edges = [link("c", "m"), link("m", "sub")];
@@ -305,7 +305,7 @@ describe("arrangeBoard — modes", () => {
     return { nodes, edges };
   };
 
-  it("wrap replie le rank de dix en sous-colonnes, contrairement à columns", () => {
+  it("wrap folds the rank of ten into sub-columns, unlike columns", () => {
     const { nodes, edges } = wide();
     const flat = arrangeBoard({ nodes, edges, mode: "columns" });
     const wrapped = arrangeBoard({ nodes, edges, mode: "wrap" });
@@ -313,7 +313,7 @@ describe("arrangeBoard — modes", () => {
     assertNoOverlap(nodes, wrapped.positions);
   });
 
-  it("wrap ne dépend pas de l'ordre d'entrée", () => {
+  it("wrap does not depend on the input order", () => {
     const { nodes, edges } = wide();
     const a = arrangeBoard({ nodes, edges, mode: "wrap" });
     const b = arrangeBoard({
@@ -324,14 +324,14 @@ describe("arrangeBoard — modes", () => {
     expect(b).toEqual(a);
   });
 
-  it("cluster met les enfants à droite du parent, sans chevauchement", () => {
+  it("cluster puts the children to the right of the parent, without overlap", () => {
     const { nodes, edges } = wide();
     const { positions } = arrangeBoard({ nodes, edges, mode: "cluster" });
     expect(positions.main!.x).toBeLessThan(positions.sub_0!.x);
     assertNoOverlap(nodes, positions);
   });
 
-  it("cluster ne dépend pas de l'ordre d'entrée", () => {
+  it("cluster does not depend on the input order", () => {
     const { nodes, edges } = wide();
     const a = arrangeBoard({ nodes, edges, mode: "cluster" });
     const b = arrangeBoard({
@@ -342,7 +342,7 @@ describe("arrangeBoard — modes", () => {
     expect(b).toEqual(a);
   });
 
-  it("auto renvoie une planche complète, sans chevauchement, stable", () => {
+  it("auto returns a complete board, without overlap, stable", () => {
     const { nodes, edges } = wide();
     const a = arrangeBoard({ nodes, edges, mode: "auto" });
     expect(Object.keys(a.positions)).toHaveLength(nodes.length);
@@ -355,7 +355,7 @@ describe("arrangeBoard — modes", () => {
     expect(b).toEqual(a);
   });
 
-  it("structured range les groupes en blocs alignés, sans chevauchement, stable", () => {
+  it("structured lays the groups out in aligned blocks, without overlap, stable", () => {
     const { nodes, edges } = wide();
     const a = arrangeBoard({ nodes, edges, mode: "structured" });
     expect(Object.keys(a.positions)).toHaveLength(nodes.length);
@@ -368,7 +368,7 @@ describe("arrangeBoard — modes", () => {
     expect(b).toEqual(a);
   });
 
-  it("force étale les Documents reliés sans chevauchement, de façon déterministe", () => {
+  it("force spreads linked Documents without overlap, deterministically", () => {
     const { nodes, edges } = wide();
     const a = arrangeBoard({ nodes, edges, mode: "force" });
     expect(Object.keys(a.positions)).toHaveLength(nodes.length);

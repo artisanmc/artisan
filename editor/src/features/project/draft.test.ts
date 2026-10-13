@@ -10,29 +10,29 @@ import { isDirty, draftAge } from "./draft";
  * permanent indicator, not a save.
  */
 describe("isDirty", () => {
-  it("un arbre identique à la base n'est pas sale", () => {
+  it("a tree identical to the base is not dirty", () => {
     const t = { "menus/a.yaml": "x\n", "lang/fr.yaml": "y\n" };
     expect(isDirty(t, { ...t })).toBe(false);
   });
 
-  it("un contenu modifié est sale", () => {
+  it("a modified content is dirty", () => {
     expect(isDirty({ "menus/a.yaml": "x\n" }, { "menus/a.yaml": "z\n" })).toBe(true);
   });
 
-  it("un fichier ajouté est sale", () => {
+  it("an added file is dirty", () => {
     expect(isDirty({}, { "menus/a.yaml": "x\n" })).toBe(true);
   });
 
-  it("un fichier supprimé est sale", () => {
+  it("a deleted file is dirty", () => {
     expect(isDirty({ "menus/a.yaml": "x\n" }, {})).toBe(true);
   });
 
-  it("une base absente avec un arbre vide n'est pas sale", () => {
+  it("a missing base with an empty tree is not dirty", () => {
     // A freshly opened, empty project must not report itself as modified.
     expect(isDirty(undefined, {})).toBe(false);
   });
 
-  it("une base absente avec du contenu est sale", () => {
+  it("a missing base with content is dirty", () => {
     // Nothing was ever read from the server: everything is to be written.
     expect(isDirty(undefined, { "menus/a.yaml": "x\n" })).toBe(true);
   });
@@ -41,19 +41,19 @@ describe("isDirty", () => {
 describe("draftAge", () => {
   const now = new Date("2026-08-15T12:00:00Z").getTime();
 
-  it("rend les heures pleines au-delà d'une heure", () => {
+  it("renders whole hours beyond one hour", () => {
     expect(draftAge(now - 3 * 3_600_000, now)).toEqual({ unit: "hours", value: 3 });
   });
 
-  it("rend les minutes en deçà — « il y a 0 h » ne veut rien dire", () => {
+  it("renders minutes below that — '0 h ago' means nothing", () => {
     expect(draftAge(now - 12 * 60_000, now)).toEqual({ unit: "minutes", value: 12 });
   });
 
-  it("un brouillon tout juste pris se dit « à l'instant », pas « 0 minute »", () => {
+  it("a draft just taken reads 'just now', not '0 minutes'", () => {
     expect(draftAge(now - 20_000, now)).toEqual({ unit: "now", value: 0 });
   });
 
-  it("les jours au-delà de 48 h : « il y a 73 h » ne se lit pas", () => {
+  it("days beyond 48 h: '73 h ago' does not read well", () => {
     expect(draftAge(now - 73 * 3_600_000, now)).toEqual({ unit: "days", value: 3 });
   });
 });

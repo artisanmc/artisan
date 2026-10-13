@@ -11,7 +11,7 @@ describe("useSettledFlag", () => {
    * milliseconds. A banner that appears and disappears in that interval costs
    * more attention than it informs.
    */
-  it("reste faux si l'état se corrige avant le délai", () => {
+  it("stays false if the state recovers before the delay", () => {
     const { result, rerender } = renderHook(({ flag }) => useSettledFlag(flag, 600), {
       initialProps: { flag: true },
     });
@@ -26,7 +26,7 @@ describe("useSettledFlag", () => {
   });
 
   /** What lingers must be said: the rule holds for real waits. */
-  it("devient vrai quand l'état persiste", () => {
+  it("becomes true when the state persists", () => {
     const { result } = renderHook(() => useSettledFlag(true, 600));
     expect(result.current).toBe(false);
     act(() => {
@@ -35,7 +35,7 @@ describe("useSettledFlag", () => {
     expect(result.current).toBe(true);
   });
 
-  it("retombe à faux sans délai", () => {
+  it("drops back to false without delay", () => {
     const { result, rerender } = renderHook(({ flag }) => useSettledFlag(flag, 600), {
       initialProps: { flag: true },
     });

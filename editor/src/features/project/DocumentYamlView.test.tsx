@@ -50,7 +50,7 @@ describe("DocumentYamlView", () => {
     });
   });
 
-  it("écrit exactement le texte tapé, commentaires et espacement compris", async () => {
+  it("writes exactly the typed text, comments and spacing included", async () => {
     render(
       <DocumentYamlView
         project={project()}
@@ -69,7 +69,7 @@ describe("DocumentYamlView", () => {
     expect(plan.files[0]!.path).toBe("menus/accueil.yaml");
   });
 
-  it("passe par le compare-and-swap comme n'importe quelle écriture", async () => {
+  it("goes through compare-and-swap like any other write", async () => {
     render(
       <DocumentYamlView
         project={project()}
@@ -87,7 +87,7 @@ describe("DocumentYamlView", () => {
     expect(vi.mocked(writeProjectFiles).mock.calls[0]![3].files[0]!.base_hash).toMatch(/^[0-9a-f]{64}$/);
   });
 
-  it("n'enregistre rien tant que le texte n'a pas changé", () => {
+  it("saves nothing while the text has not changed", () => {
     render(
       <DocumentYamlView
         project={project()}

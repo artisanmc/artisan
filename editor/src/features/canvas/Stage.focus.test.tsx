@@ -68,18 +68,18 @@ describe("Stage — mode focus", () => {
    * That is what guarantees a Document never placed on the board stays fully
    * editable.
    */
-  it("rend le document ciblé même absent de canvasLayout", () => {
+  it("renders the targeted document even when absent from canvasLayout", () => {
     render(<Stage projectId={PID} focus={"m2" as ElementId} />);
     expect(groupNames()).toContain("menu:m2");
   });
 
-  it("ne rend aucun autre document, même présent sur la planche", () => {
+  it("renders no other document, even one present on the board", () => {
     render(<Stage projectId={PID} focus={"m2" as ElementId} />);
     expect(groupNames()).not.toContain("menu:m1");
   });
 
   /** No board position in focus: moving it would have nothing to write. */
-  it("le document focalisé n'est pas déplaçable", () => {
+  it("the focused document cannot be dragged", () => {
     render(<Stage projectId={PID} focus={"m2" as ElementId} />);
     const g = screen
       .getAllByTestId("konva-group")
@@ -92,7 +92,7 @@ describe("Stage — mode focus", () => {
    * with no drop target — dragging an item from the Library silently did
    * nothing.
    */
-  it("accepte le dépôt d'un item depuis la Bibliothèque", () => {
+  it("accepts dropping an item from the Library", () => {
     vi.spyOn(HTMLDivElement.prototype, "getBoundingClientRect").mockReturnValue({
       left: 0,
       top: 0,

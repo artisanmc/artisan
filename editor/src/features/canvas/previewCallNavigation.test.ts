@@ -25,27 +25,27 @@ const CTX: PreviewCallContext[] = [
 ];
 
 describe("currentCallIndex", () => {
-  it("reconnaît le contexte dont TOUS les arguments correspondent", () => {
+  it("recognizes the context whose arguments ALL match", () => {
     expect(currentCallIndex(CTX, { category: "les_kits", category_name: "Les Kits" })).toBe(1);
   });
 
-  it("rend -1 quand aucun contexte n'est posé", () => {
+  it("returns -1 when no context is set", () => {
     expect(currentCallIndex(CTX, {})).toBe(-1);
   });
 
   /** Matching one argument out of two is not enough: it would show a hybrid
    *  screen that matches no real call. */
-  it("rend -1 sur une correspondance partielle", () => {
+  it("returns -1 on a partial match", () => {
     expect(currentCallIndex(CTX, { category: "les_kits" })).toBe(-1);
   });
 });
 
 describe("nextCallContext", () => {
-  it("part du premier contexte quand aucun n'est posé", () => {
+  it("starts from the first context when none is set", () => {
     expect(nextCallContext(CTX, {})?.label).toBe("Les Clés");
   });
 
-  it("avance d'un cran, et boucle à la fin", () => {
+  it("advances one step, and wraps around at the end", () => {
     expect(nextCallContext(CTX, CTX[0]!.args)?.label).toBe("Les Kits");
     expect(nextCallContext(CTX, CTX[2]!.args)?.label).toBe("Les Clés");
   });
@@ -53,16 +53,16 @@ describe("nextCallContext", () => {
   /** Clicking the shop_main → shop_category edge must only offer screens
    *  reachable FROM shop_main: that is what cycles through categories without
    *  ever jumping to a call coming from elsewhere. */
-  it("se restreint aux contextes d'un appelant donné", () => {
+  it("narrows to the contexts of a given caller", () => {
     expect(nextCallContext(CTX, CTX[1]!.args, "shop_main")?.label).toBe("Les Clés");
     expect(nextCallContext(CTX, {}, "promo")?.label).toBe("Promo");
   });
 
-  it("rend null quand l'appelant n'ouvre aucun contexte", () => {
+  it("returns null when the caller opens no context", () => {
     expect(nextCallContext(CTX, {}, "inconnu")).toBeNull();
   });
 
-  it("rend null sans contexte du tout", () => {
+  it("returns null with no context at all", () => {
     expect(nextCallContext([], {})).toBeNull();
   });
 });
@@ -82,16 +82,16 @@ describe("effectivePreviewArgs", () => {
     ],
   } as never;
 
-  it("applique le défaut d'un input quand rien n'a été choisi", () => {
+  it("applies an input's default when nothing has been chosen", () => {
     expect(effectivePreviewArgs(menu, undefined)).toEqual({ category: "les_cles" });
   });
 
-  it("un choix explicite l'emporte sur le défaut", () => {
+  it("an explicit choice wins over the default", () => {
     expect(effectivePreviewArgs(menu, { category: "kits" })).toEqual({ category: "kits" });
   });
 
   /** An empty default is not a context: it must not pretend to be one. */
-  it("ignore un défaut vide", () => {
+  it("ignores an empty default", () => {
     expect(effectivePreviewArgs(menu, undefined)).not.toHaveProperty("category_name");
   });
 });
