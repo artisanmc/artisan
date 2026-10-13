@@ -31,6 +31,14 @@ class Call(
 
     fun body(): JsonNode? = runCatching { mapper.readTree(Content.Source.asString(request)) }.getOrNull()
 
+    /** Le corps brut, ou null au-delà de [limit] octets. */
+    fun bytes(limit: Int): ByteArray? {
+        if (request.length > limit) return null
+        val buffer = Content.Source.asByteBuffer(request)
+        if (buffer.remaining() > limit) return null
+        return ByteArray(buffer.remaining()).also { buffer.get(it) }
+    }
+
     fun json(body: Any?, status: Int = 200) = send(status, "application/json", mapper.writeValueAsBytes(body))
 
     fun error(status: Int, code: String, message: String? = null) =
@@ -71,11 +79,15 @@ class Router {
     fun match(method: String, path: String): Match? {
         val segments = split(path)
         for (route in routes) {
-            if (route.method != method || route.segments.size != segments.size) continue
+            if (route.method != method || !fits(route.segments, segments)) continue
             val params = HashMap<String, String>()
+            if (route.segments.last() == "*") {
+                params["*"] = segments.drop(route.segments.size - 1).joinToString("/") { java.net.URLDecoder.decode(it, Charsets.UTF_8) }
+            }
             val matches = route.segments.indices.all { i ->
                 val expected = route.segments[i]
-                if (expected.startsWith(":")) {
+                if (expected == "*") true
+                else if (expected.startsWith(":")) {
                     params[expected.substring(1)] = java.net.URLDecoder.decode(segments[i], Charsets.UTF_8)
                     true
                 } else expected == segments[i]
@@ -87,8 +99,12 @@ class Router {
 
     fun knows(path: String): Boolean {
         val segments = split(path)
-        return routes.any { r -> r.segments.size == segments.size && r.segments.indices.all { r.segments[it].startsWith(":") || r.segments[it] == segments[it] } }
+        return routes.any { r -> fits(r.segments, segments) && r.segments.indices.all { r.segments[it].startsWith(":") || r.segments[it] == "*" || r.segments[it] == segments[it] } }
     }
+
+    /** Un `*` final prend le reste du chemin, au moins un segment. */
+    private fun fits(pattern: List<String>, segments: List<String>) =
+        if (pattern.lastOrNull() == "*") segments.size >= pattern.size else segments.size == pattern.size
 
     class Match(val permission: String?, val params: Map<String, String>, val handler: (Call) -> Unit)
 

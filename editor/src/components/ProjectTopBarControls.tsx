@@ -51,6 +51,7 @@ import {
 } from "@/features/project/persistedDrafts";
 import { openProjectSettings } from "@/features/project/projectSettings";
 import { type ConflictChoice, applyResolutions } from "@/features/project/resolveConflicts";
+import { rebuildServerPackInBackground } from "@/features/project/resourcePackSync";
 import {
   adoptDiskIntoProject,
   projectTree,
@@ -64,6 +65,7 @@ import { copyText } from "@/lib/clipboard";
 import { cn } from "@/lib/cx";
 import { countMissingForLang, listLanguages } from "@/lib/i18nUsages";
 import { useProjectPrincipalId } from "@/lib/projectPrincipal";
+import { SELF_HOSTED } from "@/lib/selfHosted";
 import { useAccountStore } from "@/state/accountStore";
 import { useDemoStore } from "@/state/demoStore";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
@@ -593,6 +595,7 @@ function SaveControls({
         setLastSaveError(null);
         setSaveErrorOpen(false);
         toast.success(res.wrote === 0 ? t("deploy.nothing") : t("deploy.deployed"));
+        if (SELF_HOSTED) rebuildServerPackInBackground(t);
         setConflicts([]);
         setChoices({});
         return;

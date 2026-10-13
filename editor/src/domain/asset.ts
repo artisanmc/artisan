@@ -1,3 +1,6 @@
+import { localAssetPreviewUrl } from "@/features/assets/localAssetUrl";
+import { SELF_HOSTED } from "@/lib/selfHosted";
+
 export type AssetType = "texture" | "glyph" | "font";
 export type AssetId = string;
 export type AssetUsage = "button" | "menu";
@@ -43,5 +46,6 @@ const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
 
 /** URL to fetch the raw PNG of an asset for preview. */
 export function assetPreviewUrl(asset: Asset): string {
+  if (SELF_HOSTED) return localAssetPreviewUrl(asset);
   return `${API_URL}/api/v1/textures/asset/${asset.projectId}/${asset.id}?h=${asset.contentHash}${asset.draftId ? `&draftId=${encodeURIComponent(asset.draftId)}` : ""}`;
 }

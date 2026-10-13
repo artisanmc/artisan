@@ -34,11 +34,15 @@ class EditorApiTest {
         override fun models() = listOf(mapOf<String, Any?>("id" to "plain"), mapOf<String, Any?>("id" to "shop:item"))
         override fun screens() = emptyList<Map<String, Any?>>()
         override fun serverConfig() = mapOf<String, Any?>("language" to "en")
+        override fun customItems() = listOf(mapOf("id" to "nexo:coin", "label" to "coin", "category" to "nexo"))
+        override fun applyResourcePack(hash: String, path: String) { applied += hash to path }
     }
+    private val applied = Collections.synchronizedList(mutableListOf<Pair<String, String>>())
     private val sessions = Sessions()
     private val player = UUID.randomUUID()
     private val hub = HubServer(
-        WebConfig(port = 0, bind = "127.0.0.1"), EditorApi.router(server, sessions, null), sessions,
+        WebConfig(port = 0, bind = "127.0.0.1"), EditorApi.router(server, sessions, null, VanillaAssets(java.nio.file.Files.createTempDirectory("vanilla").toFile(), "1.21.4", null, manifestUrl = VanillaAssetsTest.OFFLINE),
+            PackStore(java.nio.file.Files.createTempDirectory("packs").toFile())), sessions,
         EditorAssets(javaClass.classLoader), EditorChannel(null), Logger.getAnonymousLogger(),
     )
     private val client = HttpClient.newHttpClient()
@@ -164,6 +168,57 @@ class EditorApiTest {
 
         answer = { mapOf("ok" to false, "error" to "unknown_project") }
         assertEquals(404, call("POST", "$path/read", mapOf("project_id" to "nope", "table" to "t")).first)
+    }
+
+    @Test
+    fun `items and textures come from the server`() {
+        val items = call("GET", "/api/v1/user/projects/shop/items").second!!
+        assertEquals("1.21.4", items["version"].asText())
+        assertEquals("stone", items["items"][0]["id"].asText())
+        assertEquals("nexo:coin", call("GET", "/api/v1/user/projects/shop/custom-items").second!!["items"][0]["id"].asText())
+
+        val request = HttpRequest.newBuilder(URI("http://127.0.0.1:${hub.port}/api/v1/textures/1.21.4/icons/stone")).header("Cookie", cookie).build()
+        val png = client.send(request, HttpResponse.BodyHandlers.ofString())
+        assertEquals(200, png.statusCode())
+        assertEquals("icon", png.body())
+        assertEquals(404, call("GET", "/api/v1/textures/1.21.4/item/missing").first)
+    }
+
+    @Test
+    fun `nexo glyphs are read from the server`() {
+        answer = { message ->
+            when (message["glyph_id"]) {
+                null -> mapOf("ok" to true, "glyphs" to listOf(mapOf("id" to "bg", "texture" to "gui/bg", "available" to true)))
+                "bg" -> mapOf("ok" to true, "content_base64" to java.util.Base64.getEncoder().encodeToString("png".toByteArray()))
+                else -> mapOf("ok" to false, "error" to "not_found")
+            }
+        }
+        assertEquals("bg", call("GET", "/api/v1/user/projects/shop/nexo-glyphs").second!!["glyphs"][0]["id"].asText())
+        val request = HttpRequest.newBuilder(URI("http://127.0.0.1:${hub.port}/api/v1/user/projects/shop/nexo-glyphs/bg")).header("Cookie", cookie).build()
+        val png = client.send(request, HttpResponse.BodyHandlers.ofString())
+        assertEquals("image/png", png.headers().firstValue("Content-Type").get())
+        assertEquals("png", png.body())
+        assertEquals(404, call("GET", "/api/v1/user/projects/shop/nexo-glyphs/nope").first)
+    }
+
+    @Test
+    fun `a pack built by the editor is served and applied`() {
+        val zip = "PK\u0003\u0004pack".toByteArray()
+        val put = HttpRequest.newBuilder(URI("http://127.0.0.1:${hub.port}/api/v1/networks/local/servers/local/resource-pack"))
+            .PUT(HttpRequest.BodyPublishers.ofByteArray(zip)).header("Cookie", cookie).build()
+        val response = client.send(put, HttpResponse.BodyHandlers.ofString())
+        assertEquals(200, response.statusCode())
+        val hash = mapper.readTree(response.body())["hash"].asText()
+        assertEquals(listOf(hash to "/resource-pack/$hash.zip"), applied.toList())
+
+        val get = HttpRequest.newBuilder(URI("http://127.0.0.1:${hub.port}/resource-pack/$hash.zip")).build()
+        val served = client.send(get, HttpResponse.BodyHandlers.ofByteArray())
+        assertEquals(200, served.statusCode())
+        assertTrue(zip.contentEquals(served.body()))
+
+        val bad = HttpRequest.newBuilder(URI("http://127.0.0.1:${hub.port}/api/v1/networks/local/servers/local/resource-pack"))
+            .PUT(HttpRequest.BodyPublishers.ofString("nope")).header("Cookie", cookie).build()
+        assertEquals(422, client.send(bad, HttpResponse.BodyHandlers.ofString()).statusCode())
     }
 
     @Test
