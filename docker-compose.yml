@@ -1,22 +1,6 @@
 services:
-  postgres:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_DB: artisan
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-    volumes:
-      - pg-data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
   # Boutique add-on's own MySQL (Azuriom shop schema) — separate from Artisan's
-  # Postgres. Boutique creates its tables on enable; a fresh empty DB is fine.
+  # own database. Boutique creates its tables on enable; a fresh empty DB is fine.
   boutique-mysql:
     image: mysql:8.4
     environment:
@@ -32,82 +16,6 @@ services:
       timeout: 5s
       retries: 15
 
-  backend:
-    image: oven/bun:1
-    working_dir: /app
-    volumes:
-      - ./backend:/app
-      # The assistant module imports the canonical schema from docs/ at runtime
-      # (single source of truth); mount it so the relative import resolves to /docs.
-      - ./docs:/docs
-      # Several backend files import shared codecs from editor/src at runtime
-      # (e.g. projectImport → editor/src/lib/actionDsl/parser; @/-aliased imports
-      # in those files are type-only and erased). Mount editor/ so ../../../editor
-      # resolves to /editor.
-      - ./editor:/editor
-    ports:
-      - "3001:3001"
-    environment:
-      PORT: "3001"
-      DEMO_TTL_HOURS: ${DEMO_TTL_HOURS:-24}
-      DEMO_MINECRAFT_VERSION: ${DEMO_MINECRAFT_VERSION:-1.21.4}
-      DEMO_MAX_BYTES: ${DEMO_MAX_BYTES:-20971520}
-      DEMO_MAX_FILES: ${DEMO_MAX_FILES:-1000}
-      DEMO_GLOBAL_MAX_BYTES: ${DEMO_GLOBAL_MAX_BYTES:-536870912}
-      DEMO_MAX_SESSIONS: ${DEMO_MAX_SESSIONS:-1000}
-      DEMO_CREATIONS_PER_HOUR: ${DEMO_CREATIONS_PER_HOUR:-5}
-      DEMO_MUTATIONS_PER_MINUTE: ${DEMO_MUTATIONS_PER_MINUTE:-60}
-      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/artisan
-      # URL the browser uses to reach the API (publish bundles, etc.)
-      API_BASE_URL: ${API_BASE_URL:-http://localhost:3001}
-      EDITOR_URL: ${EDITOR_URL:-http://localhost:5173}
-      MARKETING_URL: ${MARKETING_URL:-}
-      SMTP_HOST: ${SMTP_HOST:-}
-      SMTP_PORT: ${SMTP_PORT:-587}
-      SMTP_USER: ${SMTP_USER:-}
-      SMTP_PASS: ${SMTP_PASS:-}
-      MAIL_FROM: ${MAIL_FROM:-}
-      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
-      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
-      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-http://localhost:3001/api/v1/auth/google/callback}
-      DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID:-}
-      DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET:-}
-      DISCORD_REDIRECT_URI: ${DISCORD_REDIRECT_URI:-http://localhost:3001/api/v1/auth/discord/callback}
-      # URL the Minecraft plugin uses to download bundles (internal Docker network)
-      BUNDLE_BASE_URL: ${BUNDLE_BASE_URL:-http://backend:3001}
-      # URL handed to player MC clients via setResourcePack — must be reachable
-      # from the player's machine (NOT from inside the Docker network). Default:
-      # API_BASE_URL fallback chain. Override for remote/public servers.
-      RESOURCE_PACK_BASE_URL: ${RESOURCE_PACK_BASE_URL:-}
-      # Super-admin console + AI assistant (passed through from .env)
-      ADMIN_BOOTSTRAP_EMAILS: ${ADMIN_BOOTSTRAP_EMAILS:-}
-      CONFIG_ENC_KEY: ${CONFIG_ENC_KEY:-}
-      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
-      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
-      ASSISTANT_PROVIDER: ${ASSISTANT_PROVIDER:-}
-      ASSISTANT_BASE_URL: ${ASSISTANT_BASE_URL:-}
-      ASSISTANT_API_KEY: ${ASSISTANT_API_KEY:-}
-      ASSISTANT_MODEL: ${ASSISTANT_MODEL:-}
-    command: >
-      sh -c "bun install && bun run db:migrate && bun run start"
-    depends_on:
-      postgres:
-        condition: service_healthy
-
-  editor:
-    image: node:22-alpine
-    working_dir: /app
-    volumes:
-      - ./editor:/app
-      # Editor schema tooling / converter reference docs/ types at the repo root.
-      - ./docs:/docs
-      - ./docs-site:/docs-site
-      - wiki-node-modules:/docs-site/node_modules
-    ports:
-      - "5173:5173"
-    command: >
-      sh -c "npm install && npm --prefix /docs-site ci && npm run dev -- --host"
-
   minecraft:
     # Minecraft 26.1+ exige Java 25.
     image: itzg/minecraft-server:java25
@@ -115,6 +23,8 @@ services:
       - ./docker/server:/data
     ports:
       - "25565:25565"
+      # Éditeur servi par le plugin (web.port).
+      - "8765:8765"
     environment:
       EULA: "TRUE"
       TYPE: PAPER
@@ -123,12 +33,8 @@ services:
       RCON_PASSWORD: local
       BROADCAST_RCON_TO_OPS: "false"
     depends_on:
-      backend:
-        condition: service_started
       boutique-mysql:
         condition: service_healthy
 
 volumes:
-  pg-data:
   boutique-mysql-data:
-  wiki-node-modules:
