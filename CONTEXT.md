@@ -323,9 +323,9 @@ Non-examples:
 ## Draft
 
 A named, private working copy of a **Project**, owned by a player (Minecraft UUID
-of the editor session) and stored on the Project's own server disk, in
-`.artisan/drafts/` (since phase F, 2026-10; before that, in the backend). A player
-may have several drafts for the same Project. It stores a file baseline, edited
+of the editor session) and stored in the suite database, beside the Project's
+**Versions**: it survives the server being offline, a hub change or a lost machine.
+A player may have several drafts for the same Project. It stores a file baseline, edited
 tree and rename intentions. Saving a draft does not publish it: explicit
 publication commits files and the draft's final state in one atomic,
 compare-and-swap-checked write. Browser copies are recovery backups.
@@ -559,6 +559,10 @@ billing unit any more, and not the proxy topology either — though in practice 
 hub and leaves are often the servers behind one Velocity proxy, whose forwarding
 secret can serve as the Network secret.
 
+A Network of more than one server shares one suite database (MySQL or MariaDB):
+each server records its own **Versions** there, and any server can become the hub
+without moving data. A lone server may keep its embedded database.
+
 Non-examples:
 - A Velocity/Bungee proxy is not the Network and runs no Artisan code.
 - The cloud Network (accounts, members, plans) was removed in phase F (2026-10).
@@ -657,10 +661,10 @@ Non-examples:
 
 ## Project
 
-**Storage (revised 2026-10, phase F):** every Project belongs to a **Server**
-and lives on its disk — published content and private **Drafts** alike. The
-editor shows the server's current **Snapshot**. Hosted projects, the demo and
-backend Versions are gone.
+**Storage (revised 2026-10):** every Project belongs to a **Server**; its
+published content lives on that server's disk. Its **Versions** and **Drafts**
+live in the suite database. The editor shows the server's current **Snapshot**.
+Hosted projects and the demo are gone.
 
 The editable collection of GUI content — its **Menus**,
 **Commands**, **Dialogs**, translations, and assets. A Project is a tree of files
@@ -673,13 +677,14 @@ the granular unit of organisation *and* of **portability**: a server's content i
 split into Projects so each can be exported, shared, and imported independently.
 Projects are exported and imported as ZIP; they are never live-linked to one another.
 
-A Project is identified by its **folder name**, unique **per server** only — an
-Add-on bootstraps the same one everywhere it is installed, so `boutique_addon`
-names a different Project on every server that runs the Boutique Add-on. Without
-a database there is no other identity (the cloud's platform-wide internal id is
-gone). Seen from the **Hub**, a Project of a **Leaf** is named
-`<server>.<folder>` (`survie2.shop`); a Project of the hub itself keeps its bare
-folder name. Renaming the folder by hand makes it a different Project.
+A Project's identity is a **project id** generated once and kept with its files,
+so a renamed folder — by the editor or by hand — keeps its Versions and Drafts. A
+copied folder that arrives with an id already used on the same Server gets a new
+one. An Add-on's Project is identified by its manifest instead (`boutique_addon`
+names a different Project on every server that runs the Boutique Add-on). Its
+**folder name**, unique **per server**, is what people see: seen from the **Hub**,
+a Project of a **Leaf** is named `<server>.<folder>` (`survie2.shop`); a Project
+of the hub itself keeps its bare folder name.
 
 This is the **canonical** domain term, and code/DB/API/UI **now all say `project`**
 (`projectId`, `/projects` routes, `project_id` WS fields, the
@@ -735,8 +740,11 @@ Non-examples:
 
 A single Minecraft server running Artisan — what **Projects** attach to and
 deploy onto. It holds one or more Projects on its disk. In a **Network** it is
-either the **Hub** (id `local` in the editor) or a **Leaf**, identified by its
-name (`name`, else its server folder name). Whether it is **online** is its
+either the **Hub** (id `local` in the editor) or a **Leaf**. Its identity is a
+**server id** generated once, at its first start; its **name** (`name`, else its
+server folder name, the name Velocity routes by) is an attribute that may change:
+a renamed Server keeps its Versions and everything else attached to it. Two
+Servers of a Network never share a name. Whether it is **online** is its
 **Presence**, a runtime fact, not part of the entity.
 
 Non-examples:
@@ -753,12 +761,18 @@ Non-examples:
 - A hand edit on the server disk is **not** in the Snapshot until the next reload.
 - A **Draft** is never a Snapshot: it is unpublished work.
 
-## Version — **retired term** (2026-10)
+## Version
 
-*Was* a recorded state of a server Project kept by the backend (every differing
-**Snapshot**, with date and author). Removed with the backend; the hub serves an
-empty list. Older per-file archives in `.artisan/history/` stay readable.
+A recorded state of a server **Project**: one per **Snapshot** that differs from
+the previous Version, with its date and author. Publishing from the editor makes a
+Version authored by the publishing player; a hand edit on the server disk becomes a
+Version when the plugin loads it (start or `/artisan reload`), with no author and
+marked as changed on disk.
 _Avoid_: commit, backup.
+
+Non-examples:
+- A **Draft** save is not a Version: only what the server loads is recorded.
+- A reload that loads identical files records nothing.
 
 ## Template
 
