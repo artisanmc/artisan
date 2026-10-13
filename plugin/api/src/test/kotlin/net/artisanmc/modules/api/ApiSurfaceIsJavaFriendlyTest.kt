@@ -86,7 +86,8 @@ class ApiSurfaceIsJavaFriendlyTest {
         val offenders = apiClasses()
             .filter { Modifier.isPublic(it.modifiers) && it != ArtisanAPI::class.java }
             .filter { cls -> cls.declaredConstructors.any { c -> c.isSynthetic && c.parameterTypes.lastOrNull()?.name == "kotlin.jvm.internal.DefaultConstructorMarker" } }
-            .filter { cls -> cls.constructors.count { !it.isSynthetic } < 2 }
+            // A companion object has no public constructor of its own, only the synthetic one.
+            .filter { cls -> cls.constructors.count { !it.isSynthetic } == 1 }
             .map { it.name }
         if (offenders.isNotEmpty()) fail("Add @JvmOverloads to the constructor of:\n" + offenders.sorted().joinToString("\n") { "  - $it" })
     }
