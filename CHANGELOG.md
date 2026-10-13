@@ -9,6 +9,7 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+- Internal: the Minecraft asset generators (`gen-items`, `gen-icons`, `pack-icons`, `gen-char-advances`, `gen-vanilla-font-zip`) and their committed outputs (vanilla item catalogue, 3D icon archives) live in the standalone Bun package `tools/minecraft-assets/` instead of the backend; the hub jar reads them from there.
 - Editor served by the plugin: the sidebar lists every server of the network with its connected state and switches between them; a server whose plugin must be updated shows "Update required" and offers no edits, an offline one is shown offline, and the resource pack is rebuilt for the server of the published project.
 - Network mode: `/artisan editor` on a leaf asks the hub for the sign-in link, carrying the player's editor permissions as read on that server.
 - Network mode: a server whose protocol major version differs from the hub's is listed as needing an update, and the hub sends it nothing until both run the same release. `hello` now carries `protocol_version: "1.0"`.

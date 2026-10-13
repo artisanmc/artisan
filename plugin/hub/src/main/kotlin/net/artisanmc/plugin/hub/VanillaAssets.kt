@@ -16,7 +16,7 @@ import java.util.zip.ZipFile
  * Items et textures vanilla, sans le backend.
  *
  * Le catalogue d'items et les icônes 3D sont générés une fois par version côté dépôt
- * (`backend/data/items`, `backend/assets-seed`) et voyagent dans le jar. Les textures
+ * (`tools/minecraft-assets/items`, `tools/minecraft-assets/icons`) et voyagent dans le jar. Les textures
  * viennent du jar client Mojang, téléchargé une seule fois dans `<cache>/<version>/`, à la
  * première texture demandée : un serveur qui n'ouvre jamais l'éditeur ne télécharge rien.
  */

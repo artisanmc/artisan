@@ -27,8 +27,9 @@ val buildEditor by tasks.registering(Exec::class) {
     outputs.dir(editorDist)
 }
 
-// Catalogue d'items vanilla généré côté backend (`gen-items.ts`), une version par fichier.
-val vanillaItems: File = rootDir.resolve("../backend/data/items").canonicalFile
+// Catalogue d'items vanilla (`tools/minecraft-assets/gen-items.ts`), une version par fichier.
+val minecraftAssets: File = rootDir.resolve("../tools/minecraft-assets").canonicalFile
+val vanillaItems: File = minecraftAssets.resolve("items")
 val vanillaIndex by tasks.registering {
     val out = layout.buildDirectory.file("generated/vanilla/items/versions.txt")
     inputs.dir(vanillaItems)
@@ -50,7 +51,7 @@ if (providers.gradleProperty("withEditor").isPresent) {
         dependsOn(buildEditor)
         from(editorDist) { into("editor") }
         // Icônes 3D des blocs (`gen-icons.ts`), utiles seulement à l'éditeur : ~15 Mo.
-        rootDir.resolve("../backend/assets-seed").listFiles { f -> f.name.matches(Regex("icons-.*\\.zip")) }.orEmpty().forEach { zip ->
+        minecraftAssets.resolve("icons").listFiles { f -> f.name.matches(Regex("icons-.*\\.zip")) }.orEmpty().forEach { zip ->
             from(zipTree(zip)) {
                 include("mc-assets/**")
                 eachFile { path = "vanilla/" + path.removePrefix("mc-assets/") }

@@ -82,11 +82,9 @@ Sans arguments, le wrapper migre une fois puis lance chaque fichier dans un proc
 Règle : tout merge dans `main` qui modifie `schema.ts` DOIT inclure la migration générée. Pas de push live de schema en prod.
 
 ```bash
-# Générer les données items (à faire avant gen-icons.ts)
-bun backend/scripts/gen-items.ts [version]    # télécharge assets MC + génère items.json avec champs model
-
-# Pre-render les icônes 3D server-side (Playwright + Three.js, nécessite gen-items.ts d'abord)
-bun backend/scripts/gen-icons.ts [version]    # rend 750 PNGs → data/mc-assets/{version}/textures/icons/
+# Assets MC : voir tools/minecraft-assets/README.md (cd tools/minecraft-assets d'abord)
+bun gen-items.ts [version]    # télécharge assets MC + génère items/<version>.json avec champs model
+bun gen-icons.ts [version]    # rend les PNGs 3D → mc-assets/{version}/textures/icons/
                                                # puis met à jour items.json (remplace model par texture icons/{id})
 # Note : utilise Node.js en sous-processus pour Playwright (workaround Bun+Windows pipe IPC)
 ```

@@ -75,6 +75,12 @@ mappings:
       - "testdata/resource-pack-conformance.json"
     reason: "Backend pack builder (and its lib/ helpers) is the source of the shared zip vector; regenerate with bun backend/scripts/gen-resource-pack-conformance.ts"
 
+  - touches: "tools/minecraft-assets/*.ts"
+    updates:
+      - "tools/minecraft-assets/README.md"
+      - "CLAUDE.md"
+    reason: "Minecraft asset generators: what each script does and run order in the README, one-line pipeline in CLAUDE.md (Assets MC)"
+
   - touches: "editor/src/lib/pack/**"
     updates:
       - "testdata/resource-pack-conformance.json"

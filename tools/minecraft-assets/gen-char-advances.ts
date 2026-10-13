@@ -8,6 +8,8 @@
  * Output:
  *  - plugin/core/src/main/kotlin/net/artisanmc/plugin/render/CharAdvances.kt
  *  - editor/src/features/canvas/title/charAdvances.ts
+ *  - editor/src/features/canvas/title/charCells.ts
+ *  - editor/src/lib/pack/vanillaFontChars.ts
  *
  * The MC vanilla logic is: try each provider in order; the first to claim a
  * codepoint wins. We replicate this by writing lower-priority entries first
@@ -19,7 +21,7 @@
  * compact; the consumer falls back to 1 for missing entries.
  *
  * Usage:
- *   cd backend && bun scripts/gen-char-advances.ts [version]
+ *   cd tools/minecraft-assets && bun gen-char-advances.ts [version]
  *
  * The version arg defaults to 1.21.4. Re-run when bumping MC version.
  */
@@ -29,8 +31,8 @@ import { join } from "node:path";
 import { PNG } from "pngjs";
 
 const VERSION = process.argv[2] ?? "1.21.4";
-const FONT_DIR = join(import.meta.dir, "../data/mc-assets", VERSION, "font");
-const TEXTURE_DIR = join(import.meta.dir, "../data/mc-assets", VERSION, "textures/font");
+const FONT_DIR = join(import.meta.dir, "mc-assets", VERSION, "font");
+const TEXTURE_DIR = join(import.meta.dir, "mc-assets", VERSION, "textures/font");
 const PLUGIN_OUT = join(import.meta.dir, "../../plugin/core/src/main/kotlin/net/artisanmc/plugin/render/CharAdvances.kt");
 const EDITOR_OUT = join(import.meta.dir, "../../editor/src/features/canvas/title/charAdvances.ts");
 
@@ -123,7 +125,7 @@ kt.push(" * priority order, overlaid with include/space.json. Codepoints whose a
 kt.push(" * (MC empty-cell default) are omitted — lookup falls back to 1 for those.");
 kt.push(" *");
 kt.push(" * Do not edit by hand. Regenerate via:");
-kt.push(" *   cd backend && bun scripts/gen-char-advances.ts [version]");
+kt.push(" *   cd tools/minecraft-assets && bun gen-char-advances.ts [version]");
 kt.push(" */");
 kt.push("val CHAR_ADVANCES: Map<Int, Int> = mapOf(");
 for (const [cp, adv] of sorted) {
@@ -144,7 +146,7 @@ ts.push(" * priority order, overlaid with include/space.json. Codepoints whose a
 ts.push(" * (MC empty-cell default) are omitted — lookup falls back to 1 for those.");
 ts.push(" *");
 ts.push(" * Do not edit by hand. Regenerate via:");
-ts.push(" *   cd backend && bun scripts/gen-char-advances.ts [version]");
+ts.push(" *   cd tools/minecraft-assets && bun gen-char-advances.ts [version]");
 ts.push(" */");
 ts.push("export const CHAR_ADVANCES: Readonly<Record<number, number>> = {");
 for (const [cp, adv] of sorted) {
@@ -197,7 +199,7 @@ cellsTs.push(" * Each atlas has its own cell size + ascent (see ATLAS_META below
 cellsTs.push(" * editor uses both to crop the right pixels and align baselines across atlases.");
 cellsTs.push(" *");
 cellsTs.push(" * Generated alongside CHAR_ADVANCES — do not edit by hand.");
-cellsTs.push(" *   cd backend && bun scripts/gen-char-advances.ts [version]");
+cellsTs.push(" *   cd tools/minecraft-assets && bun gen-char-advances.ts [version]");
 cellsTs.push(" */");
 cellsTs.push("");
 cellsTs.push("export type AtlasName = 'ascii' | 'accented' | 'nonlatin_european';");
@@ -265,7 +267,7 @@ function emitProvider(name: string, p: BitmapProvider): string {
   lines.push(`};`);
   return lines.join("\n");
 }
-const VANILLA_OUT = join(import.meta.dir, "../src/lib/vanillaFontChars.ts");
+const VANILLA_OUT = join(import.meta.dir, "../../editor/src/lib/pack/vanillaFontChars.ts");
 const vanilla: string[] = [];
 vanilla.push("/**");
 vanilla.push(` * Vanilla MC ${VERSION} bitmap font definitions extracted from`);
@@ -273,7 +275,7 @@ vanilla.push(" * assets/minecraft/font/include/default.json. Used by fontJsonBui
 vanilla.push(" * emit text_y{Y}.json with shifted ascent so glyphs land at any chest-y.");
 vanilla.push(" *");
 vanilla.push(" * Regenerate alongside the char-advance tables via:");
-vanilla.push(" *   cd backend && bun scripts/gen-char-advances.ts [version]");
+vanilla.push(" *   cd tools/minecraft-assets && bun gen-char-advances.ts [version]");
 vanilla.push(" */");
 vanilla.push("");
 const ascii = bitmapProviders.find((p) => p.file === "minecraft:font/ascii.png")!;
