@@ -4,8 +4,8 @@ import { join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("../dist/", import.meta.url));
-const applicationPaths = new Set(["/", "/pricing", "/networks"]);
-const allowedApplicationPaths = new Set([...applicationPaths, "/demo"]);
+const applicationPaths = new Set(["/"]);
+const allowedApplicationPaths = applicationPaths;
 const pages = (await readdir(root, { recursive: true })).filter((path) => path.endsWith(".html"));
 assert.ok(pages.length > 10, "The wiki must contain its complete guides, not just a landing page.");
 await access(join(root, "pagefind", "pagefind.js"));

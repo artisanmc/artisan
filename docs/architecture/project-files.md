@@ -14,14 +14,21 @@ plugins/Artisan/projects/
     data/<source_id>.yaml          ← Project sources (schema data/v1, refs `pack:<id>`)
     templates/<id>.yaml            ← schema template/v1, résolus au load plugin
     models/<id>.yaml               ← schema model/v1, ignorés par le plugin
-    .artisan-sync.yaml             ← SyncMetadata (syncedHash, backendHash, syncedAt)
-    .artisan/editor.yaml           ← état de la planche éditeur
+    assets/{glyphs,textures,fonts}/ ← images et polices (binaires, écrits par la publication)
+    .artisan/editor.yaml           ← état de la planche éditeur (seul `.artisan*` que l'éditeur écrit)
+    .artisan/drafts/<id>/          ← brouillons privés (draft.json porte l'UUID du joueur propriétaire, + blobs)
+    .artisan/transactions/         ← journal de publication, reçus dans `.receipts/`
+    .artisan/history/              ← archives d'avant 2026-09-26, lues seulement
 ```
+
+Un Project s'identifie par le nom de son dossier ; vu depuis le hub d'un réseau, un Project d'une
+feuille s'appelle `<serveur>.<dossier>` (cf. `entities.md`). `.artisan-sync.yaml` (ancienne
+métadonnée de synchro cloud) peut subsister sur un vieux serveur : il reste exclu et ignoré.
 
 Les fichiers `data/` portent les Data models **inlinés** ; les valeurs `ltext` sont des clés i18n
 résolues au bind, les valeurs item des refs material.
 
-Les chemins dont le **premier segment** commence par `.artisan` sont hors hash, jamais uploadés et
+Les chemins dont le **premier segment** commence par `.artisan` sont hors hash et
 invisibles au scan disque — cf. `invariants.md` § Exclusion `.artisan*` universelle. Idem pour
 `.artisan-trash/`, au top de `projectsDir`.
 

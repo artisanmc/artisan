@@ -126,10 +126,10 @@ api.events.publish(DataReloadEvent("myplugin:homes"))
 
 ## How it reaches the editor
 
-At connection time the plugin reports every registered source to the backend in
-the `hello` frame — `ref`, owning module, declared schema, stability, key field.
-A module registering later triggers a `modules_changed` frame, so sources appear
-without a reconnect. Admins see them in the editor under **Data → Server
+The editor reads every registered source from the plugin (a leaf server reports
+them to its hub in the `hello` frame) — `ref`, owning module, declared schema, stability, key field.
+A module registering later is picked up too (`modules_changed` on a leaf), so sources
+appear without a reconnect. Admins see them in the editor under **Data → Server
 sources**, grouped by module, with a live **Preview**.
 
 Preview requests round-trip to your fetcher with `player = null` and are

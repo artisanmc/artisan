@@ -1,5 +1,7 @@
 # Versioning & négociation du contenu (wire éditeur → plugin)
 
+**Statut : remplacé (phase F, 2026-10)** — plus d'éditeur central face à des plugins d'âges différents : éditeur et hub voyagent dans le même jar, et le `hello` des feuilles porte `protocol_version` (majeure différente = serveur non servi). Voir [editor-web-server](editor-web-server.md).
+
 **Status:** proposed (2026-10-01)
 
 ## Contexte

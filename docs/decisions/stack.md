@@ -4,6 +4,8 @@ Décisions consolidées sur la stack du produit, avec rationale et alternatives 
 
 Dernière révision : 2026-06-19.
 
+> **Phase F (2026-10)** : le backend (Bun, Hono, Drizzle, PostgreSQL), les e-mails, Google/Discord et l'hébergement OVH/Coolify sont supprimés. L'éditeur est servi par le plugin avec Jetty 12 (ADR [editor-web-server](editor-web-server.md)) ; le pack se construit dans le navigateur. Les lignes correspondantes ci-dessous sont historiques.
+
 ---
 
 ## Résumé en une table

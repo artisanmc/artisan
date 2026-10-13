@@ -122,15 +122,16 @@ namespaced; `table` must be a safe project-relative path.
 
 ## `ItemStackApi` `@Beta`
 
-`serialize(stack): String` — canonical wrapped YAML, what the backend stores
+`serialize(stack): String` — canonical wrapped YAML, what the editor saves
 under `items/<id>.yml`. `describe(stack): Map<String, Any>` — display descriptor
 (material, enriched to a recognized custom ref when possible; head texture;
 enchanted; count; name). Since 1.4.0.
 
 ## `ModuleMessagesApi` `@Beta`
 
-`send(type, payload)` — fire-and-forget over the plugin ↔ backend WebSocket,
-routed by `type` to your backend layer. No-op while disconnected. Since 1.4.0.
+`send(type, payload)` — fire-and-forget message. Since the backend was removed,
+no module layer receives it: it is effectively a no-op, kept for compatibility.
+Since 1.4.0.
 
 ## `ModuleActionsApi` `@Beta`
 
@@ -148,9 +149,10 @@ be pure, idempotent, and write-once. Exceptions:
 
 ## Protocol surfaces
 
-- **WebSocket** — carries `protocol_version: "1"` in `hello`. Unknown message
-  types are logged and ignored, so old plugins keep working against new
-  backends.
+- **WebSocket** — between a leaf server and its hub, `hello` carries
+  `protocol_version: "1.0"`. A different major version means the hub serves
+  nothing to that server until both run the same release. Unknown message types
+  are logged and ignored.
 - **REST** — versioned under `/api/v1/*`. A breaking change ships as `/api/v2/`
   alongside, with v1 kept for 6–12 months.
 - **YAML schemas** — `manifest/v1`, `menu/v1`, `command/v1`, `dialog/v1`,

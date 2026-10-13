@@ -1,5 +1,7 @@
 # Pas de résolution de conflits au niveau branche
 
+**Statut : remplacé (phase F, 2026-10)** — les branches et commits du backend sont supprimés avec lui. Voir [editor-web-server](editor-web-server.md).
+
 **Status :** accepted (2026-06-17)
 
 ## Décision

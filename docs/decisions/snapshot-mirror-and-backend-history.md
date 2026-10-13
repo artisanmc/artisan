@@ -1,5 +1,7 @@
 # Miroir d'instantané, brouillons et Versions côté backend pour les projets serveur
 
+**Statut : remplacé (phase F, 2026-10)** — le backend, son miroir, ses brouillons et ses Versions sont supprimés ; les brouillons sont revenus sur le disque du serveur. Voir [editor-web-server](editor-web-server.md).
+
 **Status :** accepted (2026-09-26) — étapes 1 à 4 implémentées le 2026-09-27 (miroir et liste des Projects, Versions, brouillons backend avec conflits à l'ouverture, ouverture serveur éteint). L'épopée « Servers non reliés » reste à faire. Révise
 [server-disk-only-storage](server-disk-only-storage.md) (décisions 1, 5 et 7) et
 [project-storage-modes](project-storage-modes.md) (brouillons serveur dans

@@ -1,5 +1,7 @@
 # Projets serveur et hébergés : une seule source de vérité par projet
 
+**Statut : remplacé (phase F, 2026-10)** — plus de projets hébergés ni de stockage backend : un Project vit sur le disque de son serveur. Voir [editor-web-server](editor-web-server.md).
+
 **Statut :** accepté le 2026-09-12. Phases 1 à 7 vérifiées et déployées localement,
 dont la conservation de la démo dans le navigateur et la chaîne protocole
 Minecraft. Smoke final validé et fixtures d'acceptation nettoyées. Le

@@ -4,6 +4,8 @@ Spec d'architecture pour le pattern "modules" qui permet à Artisan d'évoluer d
 
 Statut : **architecture cible** — V1 implémente le menu editor comme premier module en suivant ce pattern. V1.5+ ajoute d'autres modules (shop, quests, kits, etc.). V3+ ouvre un SDK pour modules tiers.
 
+> **Révision phase F (2026-10)** : plus de backend. Le plugin sert l'éditeur (module Gradle `hub`, ADR `editor-web-server`) ; un module vit en **2 endroits** (plugin + éditeur), livrés dans le même jar. Les passages sur le backend (§3.2, §3.3.5, §10 « Backend », §13.5, §13.8, §14) décrivent l'état cloud, gardé pour l'historique ; état récupérable au commit `f085f576`.
+
 ---
 
 ## 1. Vision et positioning
@@ -31,7 +33,7 @@ Le résultat : un admin gère **tous ses plugins compatibles Artisan** depuis un
 
 ## 2. Architecture : modular monolith
 
-**Une seule app web, un seul backend, un seul plugin Java**. Mais avec des frontières de modules claires dans le code. Pas de microfrontends, pas de Module Federation, pas de plugin SDK dynamic loading. Trop complexe pour zéro ROI tant que tu écris tous les modules toi-même.
+**Une seule app web, un seul plugin Java** (qui sert l'app web). Mais avec des frontières de modules claires dans le code. Pas de microfrontends, pas de Module Federation, pas de plugin SDK dynamic loading. Trop complexe pour zéro ROI tant que tu écris tous les modules toi-même.
 
 Modular monolith donne :
 
@@ -44,7 +46,7 @@ Modular monolith donne :
 
 ## 3. Module abstraction
 
-Un **module Artisan** vit dans 3 endroits : éditeur web (frontend), backend, plugin Paper. Ces 3 parties d'un module sont déployées ensemble (parties du monolith) mais logiquement séparées.
+Un **module Artisan** vit dans 2 endroits : éditeur web (frontend) et plugin Paper. Les deux parties sont livrées ensemble (le build de l'éditeur est embarqué dans le jar du socle) mais logiquement séparées. Jusqu'à la phase F, une troisième partie vivait dans le backend (§3.2).
 
 ### 3.1 Frontend module
 
@@ -53,7 +55,7 @@ Un **module Artisan** vit dans 3 endroits : éditeur web (frontend), backend, pl
   index.ts          ← Module registration
   editor/           ← Composants UI pour configurer ce module
   preview/          ← Preview du résultat (optionnel)
-  schemas/          ← JSON schemas locaux (mirror du backend)
+  schemas/          ← JSON schemas locaux
   hooks/            ← Hooks React spécifiques au module
 ```
 
@@ -92,7 +94,9 @@ Le core charge ce registry au boot, monte les routes, register les WS handlers, 
 
 > **SDK barrel (depuis 2026-06-15)** — le contrat `FrontendModule` + le registre + l'event bus sont exposés via un point d'entrée unique `@artisan/editor-sdk` (alias interne `editor/src/sdk/index.ts`). Les modules importent **uniquement** depuis ce barrel, jamais depuis `@/modules/api/...` en profondeur. En M1 c'est un re-export interne (pas encore un package npm publié) ; cf. `docs/superpowers/specs/2026-06-15-modules-architecture-design.md`. Les modules core menus/commands consomment déjà le barrel (dogfooding).
 
-### 3.2 Backend module
+### 3.2 Backend module (supprimé en phase F)
+
+> Plus de backend : un module n'a plus de routes ni de tables côté serveur web. Ce que le hub sait d'un module vient du `hello` (`installed_modules`, `data_sources`, `declared_models`, `editor_screens`) ou d'un appel direct au plugin. Section gardée pour l'historique.
 
 ```
 /backend/src/modules/{module_id}/
@@ -169,7 +173,7 @@ artisan-core/
       SchemaRegistry
       ModuleRegistry
     sync/
-      WebSocketClient                     ← Connection à artisanmc.net backend
+      WebSocketClient                     ← Connection au hub du réseau (feuille)
     storage/
       FilesystemMenuProvider
       CloudMenuProvider
@@ -252,7 +256,9 @@ interface ArtisanModule {
 4. **Versioning indépendant** : ship shop 1.5 sans toucher au core.
 5. **Pattern familier** au marché MC (Vault, PlaceholderAPI, WorldGuard).
 
-#### 3.3.5 Backend reste monolithique
+#### 3.3.5 Backend reste monolithique (historique)
+
+> Depuis la phase F, c'est le hub qui lit `installed_modules` au `hello` (ou directement dans le plugin pour le serveur `local`) et l'éditeur qui filtre son UI selon ces modules.
 
 Le backend (Fastify) et l'éditeur web restent **un seul deployment chacun**. Au WebSocket handshake, le plugin core déclare les modules installés sur le serveur :
 
@@ -585,7 +591,7 @@ Si tu valides cette architecture, voici les ajouts à intégrer dans les 2-3 sem
 
 **Effort : ~2-3 jours** de refactor opportuniste. Le code de rendu menus existe déjà — tu le **wrapes** dans la classe `MenusModule`.
 
-### Backend (Fastify)
+### Backend (Fastify) — supprimé en phase F
 
 - Interface `BackendModule` (~30 lignes)
 - Module registry au boot
@@ -714,7 +720,7 @@ Documentation claire dans `docs/architecture/api-surface.md` (à créer V1) qui 
 - Notification quand une major est planifiée 3+ mois à l'avance.
 - Beta access aux modules updates avant la release de la core major.
 
-**Backend (artisanmc.net)** :
+**Backend (artisanmc.net)** (supprimé en phase F ; le hub affiche « mise à jour requise » pour une majeure de protocole différente, cf. `versioning.md` §4) :
 - Détecte les versions installées via WebSocket handshake.
 - Affiche un warning dans l'éditeur web : *"Artisan Shop 1.0.0 is incompatible with Artisan core 2.0.0 (released 3 days ago). Update Shop to 2.0.0."*
 - Email automatique aux Pro users quand un module qu'ils ont a une update disponible.
@@ -744,6 +750,8 @@ En pratique pour ton stade de projet :
 **Idéalement, tu ne fais jamais de major 2.0.** Tu accumules en mineurs (`1.5`, `1.10`, `1.20`) en gardant le backward compat. C'est ce qu'a fait Bukkit pendant 15 ans.
 
 ### 13.8 Auto-update et marketplace (V3+)
+
+> Écarté avec le cloud : sans backend, la mise à jour des jars reste manuelle (releases, marketplaces).
 
 À terme, artisanmc.net peut offrir un **auto-update système** :
 
@@ -800,7 +808,9 @@ plugin/
 
 ---
 
-## 14. Module assistant (feature IA — backend-only)
+## 14. Module assistant (feature IA — backend-only, supprimé en phase F)
+
+> **Supprimé** avec le backend (2026-10). Le panneau de l'éditeur reste dans le dépôt, hors du build auto-hébergé (`SELF_HOSTED`) ; le moteur décrit ci-dessous est récupérable au commit `f085f576`.
 
 > **Statut** : en cours de construction (sous-plans 2a–2d livrés ; crédits 3 + panel éditeur 4 à venir). Vit pour l'instant sous `backend/src/modules/assistant/` (pas encore les 3 layers symétriques d'un Add-on standard ; le panel éditeur arrive en sous-plan 4).
 

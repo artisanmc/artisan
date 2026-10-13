@@ -1,5 +1,7 @@
 # Pas de port `LiveSessions` tant que le multi-instance n'est pas engagé
 
+**Statut : remplacé (phase F, 2026-10)** — `ws/hub.ts` et le backend sont supprimés ; l'état temps réel vit dans le hub du plugin (`Servers`, `Sessions`, `EditorChannel`). Voir [editor-web-server](editor-web-server.md).
+
 **Status :** accepted (2026-06-17)
 
 ## Décision

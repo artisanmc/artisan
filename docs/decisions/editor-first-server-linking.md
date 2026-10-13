@@ -1,5 +1,7 @@
 # Editor-first server linking — un seul chemin `link`, `setup` supprimé
 
+**Statut : remplacé (phase F, 2026-10)** — plus de liaison au cloud : `/artisan link` et les clés serveur sont supprimés ; une feuille se relie au hub par `web.hub-url` et le secret du réseau. Voir [editor-web-server](editor-web-server.md).
+
 **Statut : accepted (2026-07-15).** Fait suite à l'accounts-only cutover (`accounts-only-editing.md`) qui avait déjà pointé « des server keys orphelins créés par `/artisan setup` relancé face à une UI incompréhensible ».
 
 Le lien d'un Server à un Network passe désormais par **un seul flux, initié depuis l'éditeur** :

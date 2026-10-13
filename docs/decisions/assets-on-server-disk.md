@@ -1,5 +1,7 @@
 # Les assets vivent sur le disque du serveur, le backend n'en garde qu'un cache
 
+**Statut : remplacé (phase F, 2026-10)** — le backend et son cache sont supprimés ; les assets vivent sous `assets/` du Project et le pack se construit dans le navigateur. Voir [editor-web-server](editor-web-server.md).
+
 **Status :** accepted (2026-08-17) — **implémenté sauf la suppression de la
 table** (P0→P5 + polices dépliées ; P6 attend que la descente ait tourné en
 prod). Achève `server-disk-only-storage` en lui retirant son exception n°1
