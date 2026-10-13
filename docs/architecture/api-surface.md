@@ -229,7 +229,7 @@ Exceptions: `UnknownCommandException`, `DuplicateCommandException`.
 
 Commands registered from a module's `onEnable` record that module since 1.8.0, so `ModuleRegistry.unregister` removes them.
 
-Runtime consumer (since 1.2.0): `run_command` actions whose command matches `namespace:name` and is registered here are dispatched to the module handler with `args = {argv: List<String>, raw: String}`. Unknown refs fall back to Bukkit.
+Runtime consumer (since 1.2.0): `run_command … as player` actions whose command starts with a `namespace:name` ref registered here are dispatched to the module handler with `args = {argv: List<String>, raw: String}`. Unknown refs fall back to Bukkit; `as console` always goes to Bukkit. The ref matches ignoring case (exact match first), and `argv` honours double quotes (`"Diamond Sword"`, `\"` and `\\` escapes; an unbalanced quote falls back to splitting on spaces) — plugin behaviour, not an API change.
 
 ### `net.artisanmc.modules.api.ModuleEventBus`
 
