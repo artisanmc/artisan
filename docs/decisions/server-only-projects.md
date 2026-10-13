@@ -1,5 +1,7 @@
 # Projets serveur uniquement — l'hébergé est retiré, la démo est jetable
 
+**Statut : remplacé (phase F, 2026-10)** — la démo et le backend sont supprimés ; il ne reste que des projets serveur. Voir [editor-web-server](editor-web-server.md).
+
 **Status :** accepted (2026-09-27) — implémenté : étape 1 le 2026-09-27, étape 2 le 2026-09-28. Révise
 [project-storage-modes](project-storage-modes.md) (projets hébergés, réclamation de
 la démo, « Copier vers Minecraft », import ZIP hébergé) et remplit la direction

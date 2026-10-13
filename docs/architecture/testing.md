@@ -1,41 +1,36 @@
 # Tests — couverture par couche
 
-Zones couvertes, pas liste de fichiers — `glob **/*.test.*` donne la liste exacte et à jour.
+Zones couvertes, pas liste de fichiers — `glob **/*Test.kt` / `**/*.test.*` donne la liste exacte.
+Il n'y a plus de suite backend depuis la phase F (2026-10).
 
 | Couche | Lancer | Zones couvertes |
 |---|---|---|
-| Backend (~47 fichiers) | `cd backend && bun run test` | hub WS, bundles, server-keys, ws-ticket, auth (signup/login/Discord/session), networks + branches + commits + merge engine, custom items, resource pack (builder / font json / asset index / space offsets / storage), assets (PATCH height, duplicate), version-conflict guard, project import, miroir du Snapshot (store, validité, lecture, branchement hub). |
-| Plugin (~45 fichiers) | `cd plugin && ./gradlew test` | bundle hash/download, conflict detection, full-sync intégration (MockWebServer), action parse/exec (incl. `show_title`), title parser/compiler + offset encoder, asset catalog, resource pack manager/delegator, config, project deleter, local push, empreintes du Snapshot au `hello`. |
-| Éditeur (≥120 fichiers) | `cd editor && npm test` | expr DSL (lexer/parser/eval/template), canvas + édition de Document, export (transform/validate/zip), i18n, custom items & assets Library, title composer v3, merge/conflits, auth UI, networks/setup/account routes. |
-| E2E éditeur | `cd editor && npx playwright test` | `smoke.spec.ts` — canvas charge, sidebar visible (1 test). |
+| Plugin `core` | `cd plugin && ./gradlew :core:test` | Langage d'actions, expressions et templates, parseurs YAML, lecture des Projects, brouillons et journal de publication (`ProjectPublisherRecoveryTest`), empreinte d'instantané, vecteurs de conformance. |
+| Plugin `hub` | `./gradlew :hub:test` | Serveur web (session par lien, permissions, même origine, port occupé), routes héritées du backend (`EditorApiTest`), `/ws/plugin` (secret, version de protocole, lien demandé par une feuille, serveur hors ligne), catalogue et textures vanilla. |
+| Plugin `paper` | `./gradlew :paper:test` | Rendu des menus (MockBukkit), contrat des paquets (`MenuSlotsContractTest`), gestionnaires du protocole (`Project*ChannelTest`, `ConfigChannelTest`, fetch live), `LocalServerLink`, `WsClient` (MockWebServer), pack de ressources (manager, délégation), config et `environment.yml`, secret réseau, scheduler. |
+| Plugin `api`, `database` | `./gradlew test` | Surface Java-friendly (`ApiSurfaceIsJavaFriendlyTest`), pools de connexions. |
+| Éditeur | `cd editor && npm test` | Expr DSL, canvas + édition de Document, export (transform/validate/zip), i18n, title composer, pack de ressources dans le navigateur (`lib/pack/`), brouillons et conflits, routes. |
+| E2E éditeur | `cd editor && npx playwright test` | `smoke.spec.ts` — canvas charge, sidebar visible. |
 
-E2E cross-stack (éditeur → backend → plugin de bout en bout) : **non automatisé**, test manuel via
-Docker.
+E2E éditeur → hub → serveur : **non automatisé**, test manuel sur `docker compose` (serveur seul)
+ou `docker/network/compose.yml` (hub + feuille).
 
-## Backend — `bun run test`, jamais `bun test`
+## Vecteurs de conformance
 
-Le wrapper `scripts/test.ts` redirige `DATABASE_URL` vers la DB `artisan_test` (auto-create +
-migrate) avant de spawner vitest. `bun test` direct bypasse le wrapper, et les `beforeEach(clearAll)`
-des tests vident alors la DB **dev** `artisan` — incident réel le 2026-06-01, toutes les données dev
-wipées. Si tu vois `bun test src/...` dans un terminal d'agent, c'est un bug.
-
-Garde mécanique : `db/index.ts` throw si `NODE_ENV=test` et que le nom de la DB ne contient pas
-`test`.
-
-Override l'URL admin via `ADMIN_DATABASE_URL` si Postgres n'est pas sur
-`postgres/postgres@localhost:5432`.
-
-## Vecteurs de conformance cross-langage
-
-Ces vecteurs partagés verrouillent une égalité entre implémentations (Kotlin ↔ TS, backend ↔ éditeur). Changer l'algo
-= mettre à jour les deux côtés **et** régénérer le vecteur.
+Ces vecteurs partagés verrouillent une égalité entre implémentations (Kotlin ↔ TS). Changer
+l'algo = mettre à jour les deux côtés **et** régénérer le vecteur.
 
 | Vecteur | Asservi par |
 |---|---|
-| `testdata/project-hash-conformance.json` | `BundleHashConformanceTest` (plugin) + `hashUtils.test.ts` (backend) |
+| `testdata/action-dsl-conformance.json`, `action-dsl-eval-conformance.json` | `ActionDslConformanceTest`, `LeafEvalConformanceTest` (plugin) + `lib/actionDsl/*.test.ts` (éditeur) |
+| `testdata/template-conformance.json` | `TemplateConformanceTest` (plugin) + `lib/expr/template/conformance.test.ts` (éditeur) |
 | `testdata/lang-tree-conformance.json` | `LangFlattener` (plugin) + `langTree.ts` (éditeur) |
-| `testdata/i18n-address-conformance.json` | `I18nAddresses.kt` (plugin) + sites i18n éditeur |
-| `testdata/resource-pack-conformance.json` | `resourcePackConformance.test.ts` (backend, source — régénérer par `bun backend/scripts/gen-resource-pack-conformance.ts`) + idem (éditeur, `lib/pack/`) : zip octet pour octet |
+| `testdata/lore-wrap-conformance.json` | `LoreWrapConformanceTest` (plugin) + `loreWrap.test.ts` (éditeur) |
+| `testdata/doc-ref-conformance.json` | `DocRefConformanceTest` (plugin) + `domain/docRef.test.ts` (éditeur) |
+| `testdata/element-structural-keys.json` | `ElementStructuralKeysTest` (plugin) + `schema/elementStructuralKeys.test.ts` (éditeur) |
+| `testdata/i18n-address-conformance.json` | `I18nAddressConformanceTest` (plugin) + `i18nAddressConformance.test.ts` (éditeur) |
+| `testdata/project-snapshot-hash-conformance.json` | `ProjectSnapshotHashConformanceTest` (plugin seul : l'éditeur ne recalcule pas l'empreinte) |
+| `testdata/resource-pack-conformance.json` | `lib/pack/resourcePackConformance.test.ts` (éditeur) : zip octet pour octet. Le constructeur du pack de l'éditeur en est désormais propriétaire — le script backend qui le générait a disparu avec le backend ; un changement voulu du zip met à jour `entries`/`sha1` du vecteur dans le même commit. |
 
 ## Menus en paquets — checklist manuelle
 

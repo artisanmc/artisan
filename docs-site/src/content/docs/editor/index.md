@@ -4,22 +4,20 @@ description: Documentation for menu and pack creators using the Artisan web edit
 ---
 
 Build Minecraft inventory menus in your browser: place items, edit their appearance,
-and choose what happens when a player clicks. Start with [the demo](/demo) to try
-the canvas without an account, or [open your Networks](/networks) to continue a project.
-
-Select **Try the demo** on the [Artisan home page](/) to open the editor in a new
-tab. Use **Export this project** to download what you made before the demo expires.
+and choose what happens when a player clicks. The editor is served by the Artisan
+plugin on your own server: [install it](/wiki/getting-started/install-admin/), then
+type `/artisan editor` in game and open the link it prints.
 
 ## Your first menu
 
-1. Open a project or the demo's example menu. The [Projects guide](/wiki/editor/projects/)
-   explains hosting, access, private drafts, and keeping a demo in your account.
+1. Open a project of one of your servers. The [Projects guide](/wiki/editor/projects/)
+   explains where projects live, private drafts, and publishing.
 2. Open **Buttons**, then drag a game item onto a menu slot. Select it to edit its
    properties. For custom artwork, follow [Image buttons](/wiki/editor/image-buttons/).
 3. Add click actions and conditions. Use the visual blocks or explore the
    [Action DSL](/wiki/editor/data-sources/#action-fields--the-action-dsl).
-4. **Save** keeps your private draft. When your menu is ready for players,
-   [connect your Paper server](/wiki/getting-started/install-admin/) and use **Deploy**.
+4. **Save** keeps your private draft on the server. When your menu is ready for
+   players, use **Deploy** to publish it.
 
 Add [composed titles](/wiki/editor/composed-titles/) and
 [translations](/wiki/editor/translations/) when you want to take the design further.
@@ -28,12 +26,10 @@ Add [composed titles](/wiki/editor/composed-titles/) and
 
 The first time you open a project, a short guided tour introduces navigation,
 the canvas, Buttons and properties, Elements, view tabs, and saving your work.
-It also works in the demo, with an explanation of **Export this project**.
 Choose **Later** or close the tour to continue on your own; it will not open
 automatically again. Use **Resume the tour** in the project menu to pick up where you
-left off, or **Take the tour again** after finishing. Account progress follows you across
-devices. Without an account, the demo remembers it in this browser; clearing
-browser data resets that guest progress.
+left off, or **Take the tour again** after finishing. Progress is remembered in this
+browser; clearing browser data resets it.
 
 On mobile, project controls use two rows and the view tabs keep their icons.
 Opening Buttons temporarily hides Properties without clearing the selection.

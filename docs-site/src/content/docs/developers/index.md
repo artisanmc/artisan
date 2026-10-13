@@ -34,7 +34,7 @@ level 3, and every example in these pages is taken from it.
 
 - **Files stay the source of truth.** Everything an admin edits lands as plain
   YAML in a project directory on the server disk. Your plugin reads files, not a
-  database, and keeps working if the Artisan backend is unreachable.
+  database, and keeps working when nobody has the editor open.
 - **Stable API.** Anything annotated `@Stable` follows SemVer within a major
   version. `@Beta` may move in a minor. Nothing outside
   `net.artisanmc.modules.api.*` is API.
