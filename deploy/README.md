@@ -1,102 +1,82 @@
 # Déploiement production Artisan
 
-La production tourne sur un VPS OVH 4 vCPU / 8 Go sous Ubuntu 26.04, avec Coolify. Le serveur Minecraft reste externe : le plugin ouvre uniquement une connexion sortante vers `wss://api.artisanmc.net/ws/plugin`.
+Depuis le retrait du cloud (phase F), **seule la vitrine `artisanmc.net` est déployée** : la landing et
+le wiki (docs-site). Il n'y a plus d'API ni d'éditeur hébergés — l'éditeur est embarqué dans le plugin,
+qui tourne sur le serveur Minecraft de chaque utilisateur. Le VPS OVH (Ubuntu, Coolify) héberge
+aussi le dépôt Maven `repo.artisanmc.net` (voir plus bas).
 
-## Réseau et Cloudflare
+## Ce qui est servi
 
-Cloudflare gère les nameservers de `artisanmc.net`. Créer un Tunnel nommé et y publier :
+L'image `editor/Dockerfile` (contexte = racine du dépôt) exécute `npm run build:site` : build Astro du
+wiki, build Vite `--mode site` de la landing, puis copie du wiki dans `dist/wiki/`. Nginx
+(`editor/nginx.conf`) sert un unique bloc `artisanmc.net` :
+
+- `/` → landing ; `/health` → `200 ok` ;
+- `/wiki` → `308 /wiki/` ; `/wiki/…` → fichiers du wiki, 404 du wiki pour un guide inconnu ;
+- tout autre chemin inconnu → 404 (pas de fallback SPA, pas de `/pricing`, pas de redirection éditeur).
+
+Les redirections restent relatives (`absolute_redirect off`) pour garder le schéma et le port publics
+derrière le proxy.
+
+## Cloudflare et Coolify
+
+Cloudflare gère les nameservers de `artisanmc.net`. Le Tunnel nommé publie :
 
 | Hostname public | Service Coolify |
 |---|---|
-| `api.artisanmc.net` | backend, port 3001 |
-| `artisanmc.net` | vitrine, tarifs et wiki, éditeur nginx, port 80 |
-| `editor.artisanmc.net` | éditeur nginx, port 80 |
-| `coolify.artisanmc.net` | interface Coolify |
+| `artisanmc.net` | ressource « editor » (la vitrine), port 80 |
+| `repo.artisanmc.net` | Reposilite, port 8080 |
+| `coolify.artisanmc.net` | interface Coolify, derrière Cloudflare Access |
 
-Ne créer aucun enregistrement A/AAAA vers l'origine. Le firewall du VPS n'expose directement aucun port entrant 80, 443 ou 8000 ; l'accès web passe par le Tunnel. Protéger `coolify.artisanmc.net` avec Cloudflare Access. Créer un service token Access dédié à GitHub Actions, sans réutiliser un jeton utilisateur.
+Aucun enregistrement A/AAAA vers l'origine ; le firewall du VPS n'expose aucun port web entrant.
 
-La limite du plan Cloudflare actif s'applique au corps de chaque requête HTTP d'upload entrante. Chaque upload de bundle ou custom item doit rester sous cette limite. Elle ne régit pas les téléchargements de resource packs.
-
-## Ressources Coolify
-
-Créer un projet Artisan contenant :
-
-- PostgreSQL 16, privé sur le réseau Coolify, sans port public ;
-- le backend depuis le contexte `/` et `backend/Dockerfile`, domaine `https://api.artisanmc.net`, health check `/health`, stockage persistant monté sur `/app/data` ;
-- l'éditeur depuis le contexte `/` et `editor/Dockerfile`, domaines `https://artisanmc.net` et `https://editor.artisanmc.net`, avec les build args `VITE_API_URL=https://api.artisanmc.net`, `VITE_PLUGIN_WS_URL=wss://api.artisanmc.net/ws/plugin` et `VITE_EDITOR_URL=https://editor.artisanmc.net`.
-
-Créer les deux hostnames dans le Tunnel Cloudflare vers la même ressource Coolify, en conservant le nom d'hôte public transmis à Nginx. L'apex sert `/`, `/pricing` et `/wiki/` ; les chemins de l'application y redirigent vers `editor.artisanmc.net` avec leur requête. Sur le sous-domaine éditeur, les pages de vitrine redirigent vers l'apex. Le backend garde `EDITOR_URL=https://editor.artisanmc.net` et reçoit `MARKETING_URL=https://artisanmc.net` pour les appels API de la vitrine.
-
-Copier les variables backend de [`.env.production.example`](.env.production.example), remplacer seulement les exemples/secrets dans Coolify, et conserver les valeurs publiques canoniques. `DATABASE_URL` doit utiliser la connection string interne de PostgreSQL. Générer et conserver durablement `CONFIG_ENC_KEY`; ne jamais le committer.
-
-Le volume `/app/data` contient les données runtime et les assets. Après sa création, le seed initial peut être envoyé depuis la racine du repo :
-
-```bash
-VPS_HOST=root@<VPS_HOST> \
-VOLUME_PATH=<COOLIFY_BACKEND_VOLUME_PATH> \
-./deploy/seed-data.sh
-```
-
-Les placeholders doivent être remplacés par les valeurs réelles affichées dans les dashboards ; aucun UUID ou token fictif n'est une valeur déployable.
-
-Ce seed manuel n'est plus requis pour faire marcher la bibliothèque de l'éditeur : les textures vanilla se retéléchargent seules depuis Mojang (`lib/mcAssets.ensureAssets`), et les icônes 3D pré-rendues + les `items/<version>.json` correspondants voyagent dans l'image (`backend/assets-seed/icons-<version>.zip`), déposés dans le volume au boot par `lib/assetSeed.ts` s'ils y manquent — un fichier déjà présent n'est jamais écrasé. À chaque nouvelle version de Minecraft : `gen-items.ts`, `gen-icons.ts`, puis `pack-icons.ts` dans `tools/minecraft-assets/`, recopier l'archive dans `backend/assets-seed/` et **la committer**. `seed-data.sh` reste utile pour transférer le reste du volume (assets uploadés, resource packs).
+La ressource Coolify de la vitrine (historiquement « editor », d'où `COOLIFY_EDITOR_UUID`) se construit
+depuis le contexte `/` avec `editor/Dockerfile`, **sans build args**, domaine `https://artisanmc.net`.
+Désactiver l'auto-deploy sur push : seul le workflow GitHub déploie.
 
 ## Livraison GitHub Actions
 
-### Connexion Google
+`.github/workflows/ci.yml` (job editor) : tests `deploy/*.test.mjs`, tests éditeur, `npm run build`
+(éditeur auto-hébergé), `npm run build:site` (vitrine + wiki), `npm run verify` dans `docs-site`
+(liens, ancres, assets, index de recherche). Le job plugin lance les tests Gradle et `shadowJar`.
 
-Créer un client OAuth Google de type **Application Web** avec le callback exact `https://api.artisanmc.net/api/v1/auth/google/callback`. Dans Coolify, renseigner `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` et `GOOGLE_REDIRECT_URI` sur le backend, au runtime uniquement, puis redéployer. Conserver `EDITOR_URL=https://editor.artisanmc.net`. Le secret ne doit jamais être placé dans les variables `VITE_*` ou dans Git.
+`.github/workflows/deploy.yml` se déclenche quand la CI réussit sur `main` : il refuse un SHA qui n'est
+plus la tête de `main`, puis `deploy/coolify-deploy.mjs` épingle `git_commit_sha` sur la ressource,
+déclenche le déploiement, vérifie que Coolify rapporte exactement ce commit et attend que
+`https://artisanmc.net/` réponde. Chaque requête et le job ont un délai maximal.
 
-Compléter le branding Google avec le domaine `artisanmc.net`, puis publier l'application depuis **Audience** pour l'accès public. Après déploiement, `/api/v1/auth/google/configured` doit renvoyer `configured: true`; vérifier le retour vers `/account` après consentement Google et la conservation du compte existant.
+Environnement GitHub `production` :
 
-Désactiver l'auto-deploy Coolify sur push. Les seules releases automatiques passent par `.github/workflows/ci.yml`, puis `.github/workflows/deploy.yml` sur la révision courante validée de `main`.
-
-Dans l'environnement GitHub `production`, définir exactement :
-
-| Type | Nom | Valeur attendue |
+| Type | Nom | Valeur |
 |---|---|---|
 | Variable | `COOLIFY_BASE_URL` | `https://coolify.artisanmc.net` |
-| Variable | `COOLIFY_BACKEND_UUID` | UUID réel de la ressource backend Coolify |
-| Variable | `COOLIFY_EDITOR_UUID` | UUID réel de la ressource éditeur Coolify |
+| Variable | `COOLIFY_EDITOR_UUID` | UUID de la ressource Coolify de la vitrine |
 | Secret | `COOLIFY_API_TOKEN` | token API Coolify dédié au déploiement |
 | Secret | `CF_ACCESS_CLIENT_ID` | client ID du service token Cloudflare Access |
 | Secret | `CF_ACCESS_CLIENT_SECRET` | secret du service token Cloudflare Access |
-| Secret | `PLUGIN_SIGNING_KEY` | clé privée Ed25519 (PEM PKCS8) qui signe le JAR du plugin |
 
-Le workflow reçoit le SHA validé par CI, épingle `git_commit_sha` sur chaque application Coolify avant son déploiement, puis vérifie que Coolify rapporte exactement ce commit. Il déploie le backend en premier, attend `https://api.artisanmc.net/health`, puis déploie et vérifie `https://editor.artisanmc.net/health` et `https://artisanmc.net/`. Chaque requête réseau et le job complet ont un délai maximal. Les WebSockets sont vérifiés séparément après la release. Ne dupliquer aucune de ces valeurs dans le dépôt.
+Après une release : ouvrir `/`, ouvrir `/wiki/`, rechercher un terme, suivre un guide, confirmer qu'une
+URL inconnue (dans et hors `/wiki/`) répond 404. Rollback : redéployer dans Coolify la dernière
+révision saine (le site est statique, sans état).
 
-### Release du plugin
+En local : `npm ci --prefix docs-site`, puis `npm run dev:site --prefix editor`.
 
-Après le backend, si `plugin/` a changé depuis le commit de la release servie (`GET /api/v1/plugin-release`), le workflow construit le JAR en version `1.0.<numéro du run CI>`, le signe avec `PLUGIN_SIGNING_KEY` et l'envoie par `PUT /api/v1/plugin-release` (`deploy/publish-plugin.mjs`). Le backend le garde dans le volume (`/app/data/plugin-release/`) et le propose aux serveurs connectés ; un membre du network clique **Mettre à jour** dans le badge serveur de l'éditeur, le plugin pose le JAR dans `plugins/update/` et Paper l'applique au redémarrage suivant.
+## API publique et Reposilite
 
-La clé publique est codée en dur dans `backend/src/lib/pluginRelease.ts` et `plugin/…/update/PluginUpdater.kt`. Perdre la clé privée oblige à en générer une nouvelle, à remplacer ces deux constantes, et à installer **à la main** la release suivante sur chaque serveur : les plugins déjà déployés refuseront tout JAR signé par la nouvelle clé.
+- `.github/workflows/api-version-check.yml` + `deploy/api-version.mjs` : une PR qui touche l'API publique
+  doit monter la version `Since` la plus haute de `docs/architecture/api-surface.md`.
+- `.github/workflows/publish-api.yml` publie `artisan-core-api` sur `repo.artisanmc.net` ; déploiement
+  et tokens Reposilite : [`reposilite/README.md`](reposilite/README.md).
 
-## Vérification et rollback
+## Retrait du cloud — checklist au passage de `main`
 
-### Vitrine et wiki
+À faire une fois la branche sans cloud mergée dans `main` :
 
-Les redirections Nginx restent relatives (`absolute_redirect off`) pour conserver le protocole HTTPS et le port publics derrière le proxy, notamment pour `/wiki` vers `/wiki/`.
-
-La même image `editor/Dockerfile` sert la vitrine et les tarifs sur `artisanmc.net`, l'éditeur sur `editor.artisanmc.net`, et le wiki Astro Starlight à `artisanmc.net/wiki/`. Le build installe les workspaces éditeur et les dépendances `docs-site`, puis `npm run build` compile les deux sites et copie les guides dans `editor/dist/wiki/`. Nginx réserve ce préfixe aux fichiers du wiki : un guide inconnu retourne la page 404 du wiki avec un statut 404, sans charger l'application React.
-
-En local : `npm ci --prefix docs-site`, puis `npm run dev --prefix editor`. Le wiki est compilé au démarrage de Vite ; après une modification de documentation, relancer `npm run build --prefix docs-site` pour actualiser `/wiki/`. Docker Compose monte aussi `docs-site` et isole ses dépendances Linux dans le volume `wiki-node-modules`.
-
-La CI vérifie le routage (`node --test deploy/*.test.mjs`), compile les pages et contrôle tous les liens internes, ancres, assets et l'index de recherche (`npm run verify --prefix docs-site`). Après déploiement, ouvrir `/wiki/`, rechercher un terme, suivre un guide et confirmer qu'une URL inconnue sous `/wiki/` répond 404.
-
-Après une release :
-
-1. vérifier que `/health` répond correctement sur l'API ;
-2. vérifier l'ouverture des WebSockets éditeur et plugin via `wss://api.artisanmc.net` ;
-3. charger l'éditeur et confirmer que ses requêtes ciblent `api.artisanmc.net`, jamais `localhost:3001` ;
-4. confirmer qu'un plugin externe se reconnecte et reçoit les événements attendus.
-
-En cas d'échec, consulter les logs de la ressource concernée puis utiliser le rollback du workflow/Coolify vers la dernière image saine. Les migrations DB sont forward-only et s'exécutent au démarrage du backend : ne jamais supposer qu'un rollback applicatif annule le schéma. Si une migration rend l'ancienne image incompatible, corriger en avant avec une nouvelle migration et une nouvelle release.
-
-## Sauvegardes
-
-- Exécuter chaque jour un backup PostgreSQL vers un stockage hors VPS.
-- Sauvegarder chaque jour `/app/data` hors VPS ; `mc-assets/` reste re-seedable, les données runtime ne le sont pas toutes.
-- Documenter la rétention et les alertes avec les valeurs du fournisseur réellement choisi.
-- Effectuer régulièrement un exercice de restauration PostgreSQL et `/app/data` dans un environnement isolé, puis consigner durée et résultat.
-
-Garder Ubuntu et Coolify patchés. Un backup n'est considéré fiable qu'après une restauration réussie.
+- [ ] Coolify : supprimer la ressource backend, la ressource PostgreSQL et le volume `/app/data`
+      (après une dernière sauvegarde si besoin).
+- [ ] Tunnel Cloudflare : retirer `api.artisanmc.net` et `editor.artisanmc.net`.
+- [ ] Ressource vitrine : retirer le domaine `https://editor.artisanmc.net` et les anciens build args
+      `VITE_*` ; ne garder que `https://artisanmc.net`.
+- [ ] GitHub `production` : supprimer la variable `COOLIFY_BACKEND_UUID` et le secret `PLUGIN_SIGNING_KEY`.
+- [ ] Supprimer les clients OAuth Google et Discord de l'app.
+- [ ] Supprimer le webhook Stripe (et désactiver les produits/prix devenus inutiles).
