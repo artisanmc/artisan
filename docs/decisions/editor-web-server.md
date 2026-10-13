@@ -55,6 +55,27 @@ garde sous son SHA-1 (`PackStore`, trois derniers), le sert publiquement sous
 et envoi direct restent tels quels : seul l'émetteur du zip change.
 *Rejeté :* supprimer l'envoi direct (prévu au plan) ; il ne coûte rien et sert les serveurs sans hôte de pack.
 
+**⑨ Le réseau, relié au hub par `/ws/plugin`.** Les autres serveurs gardent leur client du
+backend (`WsClient`, `SyncedMenuProvider`) et le pointent vers le hub. Leur `hello` porte le
+secret partagé en `server_key` et leur nom en `proxy_name` ; le hub garde ce qu'il annonce
+(`RemoteServer`) et relaie chaque requête de l'éditeur par `request_id`. Un serveur déconnecté
+reste listé hors ligne (503 `server_offline`). Un Project hors du serveur du hub s'identifie
+`<serveur>.<dossier>` (`Servers.project`) : deux serveurs peuvent avoir le même dossier.
+*Rejeté :* un identifiant opaque par Project (il faudrait une base pour le retrouver).
+
+**⑩ Rôles `hub` et `leaf`.** `web.role: leaf` coupe le serveur web et pointe le client vers
+`web.hub-url` avec le secret du réseau pour clé : `web.secret`, sinon le secret de transfert
+Velocity (`config/paper-global.yml`), sinon celui que le hub génère dans `network-secret`.
+MySQL n'est pas exigé : les brouillons restent sur le disque de chaque serveur et les sessions
+dans la mémoire du hub. Une feuille sur H2 le signale au démarrage, car les données de la
+suite n'y sont pas partagées.
+*Rejeté :* refuser le démarrage sans MySQL (prévu au plan) ; rien du hub n'en a besoin.
+
+**⑪ Version du protocole.** Le `hello` porte `ProtocolVersion.CURRENT` (`1.0`). Une majeure
+différente de celle du hub : le serveur reste listé « mise à jour requise » et le hub ne lui
+envoie plus rien (503 `plugin_update_required`). Une mineure différente ne fait qu'ajouter
+des champs. Une release publie tous les jars sous un seul numéro.
+
 *Rejeté :* Javalin (deux runtimes Kotlin), le serveur HTTP du JDK (pas de
 WebSocket), embarquer Jetty dans le jar (+3 Mo, à relocaliser).
 

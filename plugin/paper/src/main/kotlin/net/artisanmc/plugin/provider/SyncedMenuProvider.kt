@@ -78,6 +78,7 @@ class SyncedMenuProvider(
     private val serverConfig: net.artisanmc.plugin.config.ServerConfigAccess? = null,
     /** Annonces sans requête (`projects_reloaded`…) : l'éditeur servi par le plugin les relaie. */
     private val editorEvents: (Map<String, Any?>) -> Unit = {},
+    private val proxyName: String = "",
 ) : MenuProvider {
     private var copyMinecraftVersion = "1.21.4"
     /** Ce que `project_read` sert : l'état lu au dernier chargement, jamais le disque courant. */
@@ -250,6 +251,7 @@ class SyncedMenuProvider(
                 projectPresence   = ::projectPresence,
                 pluginVersion     = pluginVersion,
                 pluginUpdater     = pluginUpdater,
+                proxyName         = proxyName,
             )
             wsClient = client
             client.connect()
@@ -275,6 +277,13 @@ class SyncedMenuProvider(
         val url = editorUrl ?: return null
         return url to (networkName ?: "")
     }
+
+    /** Sur une feuille, le lien de l'éditeur vient du hub ; null s'il ne répond pas. */
+    fun requestEditorLink(player: java.util.UUID, name: String, permissions: Set<String>, host: String?) =
+        wsClient?.request(mapOf(
+            "type" to "editor_link", "player_id" to player.toString(), "player_name" to name,
+            "permissions" to permissions.toList(), "host" to host,
+        )) ?: java.util.concurrent.CompletableFuture.completedFuture(null)
 
     fun addMember(email: String): java.util.concurrent.CompletableFuture<String> =
         wsClient?.addMember(email) ?: java.util.concurrent.CompletableFuture.completedFuture("offline")
@@ -543,7 +552,8 @@ class SyncedMenuProvider(
 
     private fun onHelloAck(ack: EditorRequest.HelloAck) {
         logger?.info("Connected to Artisan backend (session=${ack.sessionId})")
-        apiUrl = ack.bundleUrl
+        // Le hub d'un réseau ne connaît pas son adresse interne : celle que la feuille a jointe sert.
+        apiUrl = ack.bundleUrl ?: net.artisanmc.plugin.config.deriveHttpBaseUrl(wsUrl).ifEmpty { null }
         editorUrl = ack.editorUrl ?: editorUrl
         networkName = ack.networkName ?: networkName
         // Plus de `project_hashes` ni de contrôle de synchro : le backend ne détient

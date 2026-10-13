@@ -21,7 +21,9 @@ class EditorApiTest {
     private val mapper = ObjectMapper()
     private val sent: MutableList<Map<String, Any?>> = Collections.synchronizedList(mutableListOf())
     private var answer: (Map<String, Any?>) -> Map<String, Any?> = { mapOf("ok" to true) }
-    private val server = object : LocalServer {
+    private val server = object : EditorServer {
+        override val id = Servers.LOCAL
+        override val online = true
         override val link = ServerLink { message ->
             sent += message
             CompletableFuture.completedFuture(mapOf("type" to "${message["type"]}_result") + answer(message))
@@ -41,7 +43,7 @@ class EditorApiTest {
     private val sessions = Sessions()
     private val player = UUID.randomUUID()
     private val hub = HubServer(
-        WebConfig(port = 0, bind = "127.0.0.1"), EditorApi.router(server, sessions, null, VanillaAssets(java.nio.file.Files.createTempDirectory("vanilla").toFile(), "1.21.4", null, manifestUrl = VanillaAssetsTest.OFFLINE),
+        WebConfig(port = 0, bind = "127.0.0.1"), EditorApi.router(Servers(server), sessions, null, VanillaAssets(java.nio.file.Files.createTempDirectory("vanilla").toFile(), "1.21.4", null, manifestUrl = VanillaAssetsTest.OFFLINE),
             PackStore(java.nio.file.Files.createTempDirectory("packs").toFile())), sessions,
         EditorAssets(javaClass.classLoader), EditorChannel(null), Logger.getAnonymousLogger(),
     )

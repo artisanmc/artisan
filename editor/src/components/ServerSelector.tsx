@@ -1,3 +1,5 @@
+import { Badge } from "@/components/ui/badge";
+import { SELF_HOSTED } from "@/lib/selfHosted";
 import { displayServerLabel } from "@/lib/serverLabel";
 import { useNetworksStore } from "@/state/networksStore";
 import { useServersStore } from "@/state/serversStore";
@@ -17,6 +19,35 @@ export interface ServerEntry {
   /** URL slug — the networkId URL param may carry it instead of the id. */
   networkSlug?: string;
   networkName: string;
+  /** Absent = état inconnu : rien n'est affiché plutôt qu'un hors-ligne supposé. */
+  online?: boolean;
+  /** Plugin trop différent du hub : listé, mais pas éditable. */
+  updateRequired?: boolean;
+}
+
+/** Pastille + mention d'état d'un serveur ; rien tant que l'état n'est pas connu. */
+function ServerState({ entry }: { entry: ServerEntry }) {
+  const { t } = useTranslation();
+  if (entry.updateRequired)
+    return (
+      <Badge variant="brick" data-testid="server-state-updateRequired">
+        {t("linkedServers.updateRequired")}
+      </Badge>
+    );
+  if (entry.online === undefined) return null;
+  return (
+    <span
+      className="flex shrink-0 items-center gap-1.5 text-[11px] text-[var(--text-faint)]"
+      data-testid={`server-state-${entry.online ? "online" : "offline"}`}
+    >
+      <span
+        aria-hidden
+        className="size-1.5 rounded-full"
+        style={{ background: entry.online ? "var(--success)" : "var(--text-faint)" }}
+      />
+      {!entry.online && t("linkedServers.down")}
+    </span>
+  );
 }
 
 interface Props {
@@ -60,11 +91,13 @@ export function ServerSelector({ servers }: Props) {
     useNetworksStore.getState().setActiveId(entry.networkId);
     navigate({
       to: "/networks/$networkId/servers/$serverId",
-      params: { networkId: entry.networkId, serverId: entry.serverId },
+      params: { networkId: entry.networkId, serverId: entry.serverSlug ?? entry.serverId },
     });
   };
 
   if (servers.length === 0) {
+    // Servi par le plugin, le hub est toujours là : pas de parcours de création.
+    if (SELF_HOSTED) return null;
     return (
       <Link
         to="/setup"
@@ -97,12 +130,13 @@ export function ServerSelector({ servers }: Props) {
         onClick={() => setOpen((o) => !o)}
         className="flex w-full items-center justify-between rounded-[14px] border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2.5 text-left transition-colors hover:border-[var(--border-strong)]"
       >
-        <div className="flex flex-col">
+        <div className="flex min-w-0 flex-col">
           <span className="text-[9.5px] font-bold uppercase tracking-[.14em] text-[var(--text-faint)]">
             {t("sidebar.serverLabel")}
           </span>
-          <span className="mt-0.5 text-[13.5px] font-medium text-[var(--text)]">
-            {displayLabel}
+          <span className="mt-0.5 flex items-center gap-2 text-[13.5px] font-medium text-[var(--text)]">
+            <span className="truncate">{displayLabel}</span>
+            {active && <ServerState entry={active} />}
           </span>
         </div>
         <ChevronDown
@@ -126,6 +160,7 @@ export function ServerSelector({ servers }: Props) {
               <span className="text-[13px] text-[var(--text-mut)] hover:text-[var(--text)]">
                 {displayServerLabel({ id: entry.serverId, label: entry.serverLabel || null })}
               </span>
+              <ServerState entry={entry} />
               {multiNetwork && (
                 <span className="ml-2 text-[11px] text-[var(--text-faint)]">
                   {entry.networkName}

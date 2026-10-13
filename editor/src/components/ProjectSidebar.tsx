@@ -33,7 +33,12 @@ const restrictToVerticalAxis: Modifier = ({ transform }) => ({ ...transform, x: 
 import type { ProjectId } from "@/domain/types";
 import { buildProjectGroups, diskProjectsToSummaries } from "@/features/projects/projectGroups";
 import type { ServerEditorScreen } from "@/lib/api/configScreens";
-import { type ProjectSummary, getNetwork, listNetworks } from "@/lib/api/networks";
+import {
+  type ProjectSummary,
+  type ServerStatusEntry,
+  getNetwork,
+  listNetworks,
+} from "@/lib/api/networks";
 import { listServerProjects } from "@/lib/api/projectFiles";
 import { displayServerLabel } from "@/lib/serverLabel";
 import { urlNetworkId, urlServerId } from "@/lib/urlIds";
@@ -45,9 +50,11 @@ import { useServersStore } from "@/state/serversStore";
 import { useSidebarStore } from "@/state/sidebarStore";
 import { CSS } from "@dnd-kit/utilities";
 import { ChevronDown, ChevronRight, Folder, FolderOpen, GripVertical } from "lucide-react";
+import { SELF_HOSTED } from "@/lib/selfHosted";
 import { NewProjectDialog } from "./NewProjectDialog";
-import type { ServerEntry } from "./ServerSelector";
+import { type ServerEntry, ServerSelector } from "./ServerSelector";
 import { UserMenu } from "./UserMenu";
+import { useNetworkServersStatus } from "./useNetworkServersStatus";
 
 export function ProjectSidebar() {
   const { t } = useTranslation();
@@ -69,6 +76,7 @@ export function ProjectSidebar() {
   const [projectsStatus, setProjectsStatus] = useState<"loading" | "ready" | "unavailable">(
     "loading",
   );
+  const [updateRequired, setUpdateRequired] = useState(false);
   const [allServerEntries, setAllServerEntries] = useState<ServerEntry[]>([]);
   const [refetchToken, setRefetchToken] = useState(0);
   useEffect(() => {
@@ -190,6 +198,7 @@ export function ProjectSidebar() {
           : [],
       );
       setProjectsStatus(res.ok ? "ready" : "unavailable");
+      setUpdateRequired(!res.ok && res.error === "plugin_update_required");
     });
     return () => {
       cancelled = true;
@@ -242,6 +251,12 @@ export function ProjectSidebar() {
       cancelled = true;
     };
   }, [networks, activeNetworkId, refetchToken, storeRefreshToken]);
+
+  // Servi par le plugin : le hub et les serveurs qui s'y connectent, avec leur état.
+  const { data: serversStatus } = useNetworkServersStatus(SELF_HOSTED ? activeNetworkId : null);
+  const selectorEntries = SELF_HOSTED
+    ? withServersStatus(allServerEntries, activeNetworkId, serversStatus?.servers ?? [])
+    : [];
 
   const serverIds = new Set(serverProjects.map((p) => p.id));
   const optimisticEntries: ProjectSummary[] = localProjects
@@ -317,7 +332,7 @@ export function ProjectSidebar() {
   return (
     <nav className="flex h-full flex-col gap-3.5 px-3 py-2">
       <Link
-        to="/networks"
+        to={SELF_HOSTED ? "/" : "/networks"}
         onClick={() => useSidebarStore.getState().close()}
         className="flex h-12 shrink-0 items-center gap-1 rounded-[10px] px-1.5 transition-colors hover:bg-[var(--surface-hover)]"
       >
@@ -332,6 +347,8 @@ export function ProjectSidebar() {
         <ArtisanWordmark />
       </Link>
 
+      {SELF_HOSTED && <ServerSelector servers={selectorEntries} />}
+
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden">
         {openProjectId && !openIsListed && (
           <UnlistedOpenProject urlId={openProjectId} networkId={netParam} serverId={srvParam} />
@@ -345,7 +362,9 @@ export function ProjectSidebar() {
               <div className="px-2.5 pb-1 text-[11.5px] text-[var(--text-faint)]">
                 {projectsStatus === "loading"
                   ? t("sidebar.loadingProjects")
-                  : t("sidebar.projectsUnavailable")}
+                  : updateRequired
+                    ? t("linkedServers.updateRequired")
+                    : t("sidebar.projectsUnavailable")}
               </div>
             )}
             <DndContext
@@ -489,6 +508,39 @@ export function ProjectSidebar() {
       />
     </nav>
   );
+}
+
+/**
+ * Les serveurs du network actif, complétés par l'état que rapporte `servers-status` :
+ * un serveur connecté au hub depuis le chargement y apparaît sans attendre.
+ */
+export function withServersStatus(
+  entries: ServerEntry[],
+  networkId: string | null,
+  statuses: ServerStatusEntry[],
+): ServerEntry[] {
+  const inNetwork = entries.filter((e) => e.networkId === networkId);
+  const known = new Set(inNetwork.map((e) => e.serverId));
+  const template = inNetwork[0];
+  const added: ServerEntry[] =
+    networkId && template
+      ? statuses
+          .filter((s) => !known.has(s.id))
+          .map((s) => ({
+            serverId: s.id,
+            serverSlug: s.id,
+            serverLabel: s.label ?? s.id,
+            networkId,
+            networkSlug: template.networkSlug,
+            networkName: template.networkName,
+          }))
+      : [];
+  return [...inNetwork, ...added].map((entry) => {
+    const status = statuses.find((s) => s.id === entry.serverId);
+    return status
+      ? { ...entry, online: status.online, updateRequired: status.updateRequired === true }
+      : entry;
+  });
 }
 
 /**

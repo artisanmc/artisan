@@ -34,13 +34,21 @@ const VANILLA_TEXTURES: Record<GuiContainer, string> = {
  * Ordre des Projects : le backend trie par date de création (le plus ancien gagne
  * les collisions de codepoints) ; sans base de données le plugin n'a pas cette date,
  * on trie donc par identifiant (nom du dossier) — stable d'un build à l'autre.
+ *
+ * En mode réseau, chaque serveur a son propre pack, bâti avec ses seuls Projects ;
+ * ceux d'un autre serveur que le hub portent l'id `<serveur>.<dossier>`.
  */
-export async function buildServerPack(): Promise<BuildResult> {
-  const list = await listServerProjects(LOCAL_ID, LOCAL_ID);
+export async function buildServerPack(serverId: string): Promise<BuildResult> {
+  const list = await listServerProjects(LOCAL_ID, serverId);
   if (!list.ok) throw new Error(`project_list_failed:${list.error}`);
-  const projectIds = [...list.projectIds].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+  const idOf = (folder: string) =>
+    list.projects?.find((p) => (p.externalId ?? p.id) === folder)?.id ??
+    (serverId === LOCAL_ID ? folder : `${serverId}.${folder}`);
+  const projectIds = list.projectIds
+    .map(idOf)
+    .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
 
-  const config = await getServerConfig(LOCAL_ID, LOCAL_ID);
+  const config = await getServerConfig(LOCAL_ID, serverId);
 
   const allAssets: AssetRow[] = [];
   const contribs: GlyphContribution[] = [];
@@ -128,9 +136,12 @@ async function fetchBytes(url: string): Promise<Uint8Array> {
 }
 
 /** Remet le pack au plugin, qui le sert aux joueurs (permission `artisan.editor.publish`). */
-export async function uploadResourcePack(zip: Uint8Array): Promise<{ hash: string }> {
+export async function uploadResourcePack(
+  serverId: string,
+  zip: Uint8Array,
+): Promise<{ hash: string }> {
   const response = await fetch(
-    `${API_URL}/api/v1/networks/${LOCAL_ID}/servers/${LOCAL_ID}/resource-pack`,
+    `${API_URL}/api/v1/networks/${LOCAL_ID}/servers/${serverId}/resource-pack`,
     {
       method: "PUT",
       credentials: "include",
@@ -142,33 +153,36 @@ export async function uploadResourcePack(zip: Uint8Array): Promise<{ hash: strin
   return response.json();
 }
 
-let running: Promise<void> | null = null;
-let queued: Promise<void> | null = null;
+const running = new Map<string, Promise<void>>();
+const queued = new Map<string, Promise<void>>();
 
 /**
- * Reconstruit et envoie le pack en arrière-plan. Une construction à la fois, au plus
- * une en attente : les demandes arrivées pendant qu'une tourne partagent la suivante,
- * qui relira l'état publié le plus récent.
+ * Reconstruit et envoie le pack d'un serveur en arrière-plan. Une construction à la
+ * fois par serveur, au plus une en attente : les demandes arrivées pendant qu'une
+ * tourne partagent la suivante, qui relira l'état publié le plus récent.
  */
-export function requestResourcePackRebuild(): Promise<void> {
-  if (queued) return queued;
-  if (!running) return start();
-  queued = running
+export function requestResourcePackRebuild(serverId: string): Promise<void> {
+  const waiting = queued.get(serverId);
+  if (waiting) return waiting;
+  const current = running.get(serverId);
+  if (!current) return start(serverId);
+  const next = current
     .catch(() => undefined)
     .then(() => {
-      queued = null;
-      return start();
+      queued.delete(serverId);
+      return start(serverId);
     });
-  return queued;
+  queued.set(serverId, next);
+  return next;
 }
 
-function start(): Promise<void> {
+function start(serverId: string): Promise<void> {
   const run = (async () => {
-    const { zipBytes } = await buildServerPack();
-    await uploadResourcePack(zipBytes);
+    const { zipBytes } = await buildServerPack(serverId);
+    await uploadResourcePack(serverId, zipBytes);
   })().finally(() => {
-    if (running === run) running = null;
+    if (running.get(serverId) === run) running.delete(serverId);
   });
-  running = run;
+  running.set(serverId, run);
   return run;
 }

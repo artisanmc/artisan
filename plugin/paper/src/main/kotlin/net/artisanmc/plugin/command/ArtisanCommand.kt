@@ -177,6 +177,7 @@ class ArtisanCommand(
     private fun editor(sender: CommandSender) {
         val cfg = plugin.currentConfig()
         val senderLang = lang.playerLang(sender)
+        if (cfg.web.enabled && cfg.web.leaf) return hubLink(sender, senderLang)
         plugin.editor?.let { return editorLink(sender, senderLang, it.port ?: cfg.web.port) }
         if (cfg.editorConsoleOnly && sender !is ConsoleCommandSender) {
             sender.sendMessage(lang.get("artisan.editor_console_only", senderLang))
@@ -225,6 +226,34 @@ class ArtisanCommand(
             }
             is Sessions.LinkResult.TooSoon ->
                 sender.sendMessage(lang.get("artisan.editor_link_too_soon", senderLang, "seconds" to link.retryAfter.seconds.coerceAtLeast(1).toString()))
+        }
+    }
+
+    /** Sur une feuille, le hub donne le lien, avec les permissions que ce serveur a lues pour le joueur. */
+    private fun hubLink(sender: CommandSender, senderLang: String) {
+        if (sender !is Player) {
+            sender.sendMessage(lang.get("artisan.editor_in_game_only", senderLang))
+            return
+        }
+        val permissions = EditorPermissions.ALL.filter(sender::hasPermission).toSet()
+        if (EditorPermissions.VIEW !in permissions) {
+            sender.sendMessage(lang.get("artisan.editor_no_permission", senderLang))
+            return
+        }
+        val provider = plugin.menuProvider as? SyncedMenuProvider
+            ?: return sender.sendMessage(lang.get("artisan.editor_hub_offline", senderLang))
+        provider.requestEditorLink(sender.uniqueId, sender.name, permissions, sender.virtualHost?.hostString).whenComplete { reply, _ ->
+            if (!plugin.isEnabled) return@whenComplete
+            plugin.scheduler.global {
+                val message = when {
+                    reply == null -> lang.get("artisan.editor_hub_offline", senderLang)
+                    reply.path("ok").asBoolean() -> lang.get("artisan.editor_link", senderLang, "url" to reply.path("url").asText())
+                    reply.path("error").asText() == "too_soon" ->
+                        lang.get("artisan.editor_link_too_soon", senderLang, "seconds" to reply.path("retry_after").asText("60"))
+                    else -> lang.get("artisan.editor_hub_offline", senderLang)
+                }
+                sender.sendMessage(message)
+            }
         }
     }
 

@@ -60,6 +60,34 @@ describe("ServerSelector", () => {
     });
   });
 
+  it("navigates with the server slug when it has one", async () => {
+    render(<ServerSelector servers={[{ ...SERVERS[0]!, serverSlug: "survival" }]} />);
+    await userEvent.click(screen.getByText(/Sélectionner un serveur|Select a server/));
+    await userEvent.click(screen.getByText("Survival"));
+    expect(mockNavigate).toHaveBeenCalledWith({
+      to: "/networks/$networkId/servers/$serverId",
+      params: { networkId: "net_1", serverId: "survival" },
+    });
+  });
+
+  it("shows each server's connected state, and update required over it", async () => {
+    render(
+      <ServerSelector
+        servers={[
+          { ...SERVERS[0]!, online: true },
+          { ...SERVERS[1]!, online: false },
+          { ...SERVERS[0]!, serverId: "sk_3", serverLabel: "Lobby", online: true, updateRequired: true },
+        ]}
+      />,
+    );
+    await userEvent.click(screen.getByText(/Sélectionner un serveur|Select a server/));
+    expect(screen.getByTestId("server-state-online")).toBeInTheDocument();
+    expect(screen.getByTestId("server-state-offline")).toHaveTextContent(/Offline|Hors ligne/);
+    expect(screen.getByTestId("server-state-updateRequired")).toHaveTextContent(
+      /Update required|Mise à jour requise/,
+    );
+  });
+
   it("shows the persisted server as active on routes without a serverId param", () => {
     useServersStore.setState({ activeServerId: "sk_1" });
     render(<ServerSelector servers={SERVERS} />);

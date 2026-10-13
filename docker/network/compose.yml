@@ -1,0 +1,34 @@
+# Deux serveurs Paper en réseau, sans backend : le hub sert l'éditeur, la feuille s'y relie.
+# Depuis la racine du dépôt :
+#   (cd plugin && ./gradlew shadowJar -PwithEditor)
+#   docker compose -f docker/network/compose.yml up
+# Éditeur : http://localhost:8765, lien donné par /artisan editor sur l'un ou l'autre serveur.
+services:
+  hub:
+    image: itzg/minecraft-server:java25
+    ports:
+      - "25565:25565"
+      - "8765:8765"
+    environment: &paper
+      EULA: "TRUE"
+      TYPE: PAPER
+      VERSION: "26.2"
+      MEMORY: 1G
+      ONLINE_MODE: "FALSE"
+      RCON_PASSWORD: local
+    volumes:
+      - ./data/hub:/data
+      - ../../plugin/paper/build/libs/artisan-plugin-1.0.0-SNAPSHOT-all.jar:/plugins/Artisan.jar:ro
+      - ./hub/environment.yml:/data/plugins/Artisan/environment.yml:ro
+
+  leaf:
+    image: itzg/minecraft-server:java25
+    ports:
+      - "25566:25565"
+    environment: *paper
+    volumes:
+      - ./data/leaf:/data
+      - ../../plugin/paper/build/libs/artisan-plugin-1.0.0-SNAPSHOT-all.jar:/plugins/Artisan.jar:ro
+      - ./leaf/environment.yml:/data/plugins/Artisan/environment.yml:ro
+    depends_on:
+      - hub

@@ -36,6 +36,14 @@ describe("userProjects API client", () => {
     await expect(loadUserProject("p1")).rejects.toThrow();
   });
 
+  it.each(["server_offline", "plugin_update_required"])(
+    "surfaces the hub's 503 %s as the error message",
+    async (code) => {
+      global.fetch = vi.fn(async () => new Response(JSON.stringify({ error: code }), { status: 503 }));
+      await expect(loadUserProject("lobby.shop")).rejects.toThrow(code);
+    },
+  );
+
   it("sends both location references and preserves the exact project ID", async () => {
     global.fetch = vi.fn(async () => new Response(JSON.stringify({ project: { id: "internal", externalId: "My_Project" } })));
     await loadUserProject("My_Project", "survival", "network-b");
