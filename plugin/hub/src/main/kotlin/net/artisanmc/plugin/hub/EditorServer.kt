@@ -1,5 +1,6 @@
 package net.artisanmc.plugin.hub
 
+import net.artisanmc.plugin.protocol.ProtocolVersion
 import net.artisanmc.plugin.protocol.ServerLink
 
 /**
@@ -14,6 +15,8 @@ interface EditorServer {
     val online: Boolean
     /** Sa version majeure du protocole n'est pas celle du hub : rien ne lui est envoyé. */
     val updateRequired: Boolean get() = false
+    /** Une mineure plus ancienne que celle du hub ignore les messages ajoutés depuis. */
+    val protocolVersion: String get() = ProtocolVersion.CURRENT
     val minecraftVersion: String
     val pluginVersion: String
     fun modules(): List<Map<String, Any?>>

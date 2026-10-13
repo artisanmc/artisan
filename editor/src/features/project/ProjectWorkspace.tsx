@@ -36,6 +36,7 @@ import { ProjectHistory } from "@/features/project/ProjectHistory";
 import { ProjectLibraryWorkspace } from "@/features/project/ProjectLibrary";
 import { ProjectLoadingSkeleton } from "@/features/project/ProjectLoadingSkeleton";
 import { ProjectWorkspacePanels } from "@/features/project/ProjectWorkspacePanels";
+import type { ProjectRenamed } from "@/features/project/onProjectRenamed";
 import { useProjectLoader } from "@/features/project/useProjectLoader";
 import { useWorkspaceTabShortcuts } from "@/features/project/useWorkspaceTabShortcuts";
 import { SearchPalette } from "@/features/search/SearchPalette";
@@ -158,6 +159,16 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
       hash: true,
     });
   }, [canonicalId, projectId, networkId, serverId, documentId, navigate]);
+  // Le dossier est l'identité du Project : renommé, il s'ouvre sous son nouveau nom.
+  useEffect(() => {
+    const renamed = (raw: Event) => {
+      const { previousDiskId, diskId } = (raw as CustomEvent<ProjectRenamed>).detail;
+      if (previousDiskId !== projectId) return;
+      void navigate({ ...projectDestination(networkId, diskId, serverId), replace: true });
+    };
+    window.addEventListener("ifz:project_renamed", renamed);
+    return () => window.removeEventListener("ifz:project_renamed", renamed);
+  }, [projectId, networkId, serverId, navigate]);
 
   // La langue active est persistée globalement : un project qui a perdu cette
   // langue (fichiers lang/ retirés) doit retomber sur sa langue par défaut.
@@ -546,7 +557,10 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
               setShowDeleteDialog(false);
               navigate({ to: "/" });
             } catch (e) {
-              toast.error(e instanceof Error ? e.message : t("toast.deleteFailed"));
+              const code = e instanceof Error ? e.message : "delete_failed";
+              toast.error(
+                t(`deleteProjectDialog.errors.${code}`, { defaultValue: t("toast.deleteFailed") }),
+              );
             }
           }}
         />

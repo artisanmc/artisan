@@ -11,6 +11,7 @@ import net.artisanmc.plugin.hub.Relay.Companion.ok
 import net.artisanmc.plugin.hub.Relay.Companion.readError
 import net.artisanmc.plugin.hub.ServerRoutes.Companion.EDITOR_ACCESS
 import net.artisanmc.plugin.hub.ServerRoutes.Companion.SERVER
+import net.artisanmc.plugin.protocol.ProtocolVersion
 import java.util.Base64
 import java.util.UUID
 
@@ -37,14 +38,15 @@ class ProjectRoutes(private val servers: Servers, private val relay: Relay) {
             relay.send(call, server, mapOf("type" to "project_list")) { reply ->
                 if (!ok(reply)) return@send readError(call, reply)
                 val root = roots(reply).firstOrNull { it["project_id"] == project.folder } ?: return@send call.error(404, "not_found")
+                val movable = movable(server, root)
                 call.json(mapOf(
                     "project" to summary(server, root),
                     "networkId" to LOCAL,
                     "serverKeyId" to server.id,
                     "capabilities" to mapOf(
-                        "liveData" to true, "captureInGame" to false, "preview" to true, "canRename" to false,
-                        // Assistant et migration hors de l'éditeur auto-hébergé ; supprimer un Project passait par le backend.
-                        "canUseAssistant" to false, "canDelete" to false, "canCopyToServer" to false,
+                        "liveData" to true, "captureInGame" to false, "preview" to true, "canRename" to movable,
+                        // Assistant et migration hors de l'éditeur auto-hébergé.
+                        "canUseAssistant" to false, "canDelete" to movable, "canCopyToServer" to false,
                     ),
                     "minecraftVersion" to server.minecraftVersion,
                     "connection" to mapOf("available" to true),
@@ -71,7 +73,57 @@ class ProjectRoutes(private val servers: Servers, private val relay: Relay) {
         router.on("GET", "/api/v1/projects/:project/versions/:version", VIEW) { it.error(404, "not_found") }
 
         drafts(router)
+        lifecycle(router)
     }
+
+    /** Créer, supprimer (corbeille du serveur) et renommer le dossier d'un Project. */
+    private fun lifecycle(router: Router) {
+        router.on("POST", "/api/v1/networks/:network/projects", PUBLISH) { call ->
+            val request = call.body()
+            val name = request?.get("name")?.takeIf { it.isTextual }?.asText()?.trim()
+            val serverId = request?.get("serverKeyId")?.takeIf { it.isTextual }?.asText()
+            if (name.isNullOrEmpty() || serverId == null) return@on call.error(422, "invalid_input")
+            val server = servers.find(serverId)?.takeIf { call.params["network"] == LOCAL }
+                ?: return@on call.error(404, "server_key_not_in_network")
+            if (!speaksFolders(call, server)) return@on
+            relay.send(call, server, mapOf("type" to "project_create", "project_id" to name)) { reply ->
+                if (!ok(reply)) return@send folderError(call, reply)
+                call.json(mapOf("project" to summary(server, mapOf("project_id" to name, "identity" to "folder"))), 201)
+            }
+        }
+        onProject(router, "DELETE", "/api/v1/user/projects/:project", PUBLISH) { call, project ->
+            if (!speaksFolders(call, project.server)) return@onProject
+            relay.send(call, project.server, mapOf("type" to "project_delete", "project_id" to project.folder)) { reply ->
+                if (ok(reply)) call.json(mapOf("ok" to true)) else folderError(call, reply)
+            }
+        }
+        onProject(router, "POST", "/api/v1/projects/:project/rename", PUBLISH) { call, project ->
+            val target = call.body()?.get("targetId")?.takeIf { it.isTextual }?.asText()?.trim()
+            if (target.isNullOrEmpty()) return@onProject call.error(422, "invalid_input")
+            if (!speaksFolders(call, project.server)) return@onProject
+            val message = mapOf("type" to "project_rename", "project_id" to project.folder, "target_project_id" to target)
+            relay.send(call, project.server, message) { reply ->
+                if (!ok(reply)) return@send folderError(call, reply)
+                call.json(mapOf("projectId" to ProjectRef.id(project.server.id, target), "diskId" to target))
+            }
+        }
+    }
+
+    /** Une feuille d'une release plus ancienne ignorerait le message : on le dit au lieu d'attendre le timeout. */
+    private fun speaksFolders(call: Call, server: EditorServer): Boolean {
+        if (ProtocolVersion.minor(server.protocolVersion) >= ProtocolVersion.PROJECT_FOLDERS) return true
+        call.error(501, "plugin_update_required")
+        return false
+    }
+
+    private fun folderError(call: Call, reply: Map<String, Any?>) = when (val code = errorCode(reply)) {
+        "project_exists", "destination_exists", "addon_immutable" -> call.error(409, code)
+        "invalid_name", "invalid_path" -> call.error(422, code)
+        else -> readError(call, reply)
+    }
+
+    private fun movable(server: EditorServer, root: Map<String, Any?>) =
+        root["identity"] == "folder" && ProtocolVersion.minor(server.protocolVersion) >= ProtocolVersion.PROJECT_FOLDERS
 
     private fun onProject(router: Router, method: String, pattern: String, permission: String, handler: (Call, ProjectRef) -> Unit) {
         router.on(method, pattern, permission) { call ->
@@ -237,7 +289,7 @@ class ProjectRoutes(private val servers: Servers, private val relay: Relay) {
             "id" to id, "name" to folder, "externalId" to folder, "slug" to id,
             "networkId" to LOCAL, "serverKeyId" to server.id, "hash" to "",
             "identityKind" to root["identity"], "ownerModule" to root["module_id"],
-            "capabilities" to mapOf("canRename" to false),
+            "capabilities" to mapOf("canRename" to movable(server, root)),
         )
     }
 

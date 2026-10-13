@@ -467,6 +467,9 @@ class SyncedMenuProvider(
             is EditorRequest.ProjectWrite -> projectWrites.write(request)
             is EditorRequest.ConfigWrite -> projectWrites.config(request)
             is EditorRequest.ProjectDraft -> projectWrites.draft(request)
+            is EditorRequest.ProjectCreate -> projectWrites.create(request)
+            is EditorRequest.ProjectDelete -> projectWrites.delete(request)
+            is EditorRequest.ProjectRename -> projectWrites.rename(request)
         }
     }
 

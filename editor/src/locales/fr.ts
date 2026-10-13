@@ -276,6 +276,8 @@ const fr: typeof en = {
       invalid_name: "Utilise un nom de dossier valide pour le projet (128 caractères maximum).",
       invalid_path: "Ce nom de projet n’est pas valide.",
       forbidden: "Tu n’as pas accès à ce serveur.",
+      plugin_update_required:
+        "Ce serveur utilise une version plus ancienne d’Artisan. Mets son plugin à jour pour créer des projets.",
       create_failed: "Impossible de créer le projet sur le serveur. Réessaie.",
     },
     cancel: "Annuler",
@@ -306,11 +308,20 @@ const fr: typeof en = {
   deleteProjectDialog: {
     title: "Supprimer le projet",
     warning:
-      "Cela supprimera définitivement « {{name}} » ainsi que tous ses menus, commandes et données. Cette action est irréversible.",
+      "« {{name}} » disparaîtra de l'éditeur avec tous ses menus, commandes, données et brouillons. Son dossier est déplacé dans `.artisan-trash/` sur le serveur, d'où un administrateur peut le récupérer.",
     confirmLabel: "Tapez l'ID du projet pour confirmer :",
     cancel: "Annuler",
     delete: "Supprimer",
     deleting: "Suppression…",
+    errors: {
+      server_offline: "Le serveur est hors ligne. Connectez-le pour supprimer le projet.",
+      fetch_timeout: "Le serveur n'a pas répondu à temps. Vérifiez la liste des projets avant de réessayer.",
+      plugin_update_required:
+        "Ce serveur utilise une version plus ancienne d'Artisan. Mettez son plugin à jour pour supprimer des projets.",
+      addon_immutable: "Ce projet est géré par un add-on et ne peut pas être supprimé.",
+      unknown_project: "Ce projet n'existe plus sur le serveur.",
+      delete_failed: "Impossible de supprimer le projet sur le serveur. Réessayez.",
+    },
   },
   menuProperties: {
     emptyMenuTitle: "Menu vide",

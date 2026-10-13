@@ -276,7 +276,7 @@ Le risque reste : hub et feuilles sont des jars distincts, mis à jour à des mo
 ```json
 {
   "type": "hello",
-  "protocol_version": "1.0",
+  "protocol_version": "1.1",
   "server_key": "<secret du réseau>",
   "proxy_name": "survie2",
   "plugin_version": "1.0.42",
@@ -290,7 +290,9 @@ Le risque reste : hub et feuilles sont des jars distincts, mis à jour à des mo
 - **Majeure** : change quand un message existant change de sens. Majeure différente de celle du
   hub → serveur listé « mise à jour requise » (`updateRequired`), le hub ne lui envoie plus rien,
   toute route qui le vise répond 503 `plugin_update_required`.
-- **Mineure** : ajoute des champs ou des messages, que l'autre côté ignore.
+- **Mineure** : ajoute des champs ou des messages, que l'autre côté ignore. Une route qui envoie un
+  message ajouté vérifie la mineure du serveur visé et répond 501 `plugin_update_required` au lieu
+  d'attendre un timeout (`1.1` : `project_create`, `project_delete`, `project_rename`).
 - **Une release = un numéro** pour tous les jars ; mettre à jour hub et feuilles ensemble.
 
 Le serveur qui héberge le hub lui parle en process (`LocalServerLink`) : jamais d'écart de version.

@@ -34,6 +34,9 @@ export async function renameProject(
         "invalid_path",
         "invalid_input",
         "addon_immutable",
+        "unknown_project",
+        "server_offline",
+        "plugin_update_required",
         "rename_failed",
       ].includes(code);
     throw Object.assign(new Error(code), { terminal });

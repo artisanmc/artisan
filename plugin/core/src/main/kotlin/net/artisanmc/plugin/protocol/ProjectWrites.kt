@@ -3,10 +3,14 @@ package net.artisanmc.plugin.protocol
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import net.artisanmc.plugin.project.ProjectDraftStore
+import net.artisanmc.plugin.project.ProjectFolders
 import net.artisanmc.plugin.project.ProjectPathPolicy
 import net.artisanmc.plugin.project.ProjectPublisher
 import net.artisanmc.plugin.protocol.EditorRequest.ConfigWrite
+import net.artisanmc.plugin.protocol.EditorRequest.ProjectCreate
+import net.artisanmc.plugin.protocol.EditorRequest.ProjectDelete
 import net.artisanmc.plugin.protocol.EditorRequest.ProjectDraft
+import net.artisanmc.plugin.protocol.EditorRequest.ProjectRename
 import net.artisanmc.plugin.protocol.EditorRequest.ProjectWrite
 import net.artisanmc.plugin.sync.BundleHasher
 import net.artisanmc.plugin.sync.ProjectFilesReader
@@ -165,6 +169,28 @@ class ProjectWrites(
                 reply.ok()
             } catch (e: Throwable) {
                 reply.failure("write_error", "config_write '$projectId'", e)
+            }
+        }
+    }
+
+    fun create(request: ProjectCreate) = folder(request, "project_create") { it.create(request.projectId) }
+
+    fun delete(request: ProjectDelete) = folder(request, "project_delete", request.projectId) { it.delete(request.projectId) }
+
+    fun rename(request: ProjectRename) =
+        folder(request, "project_rename", request.projectId) { it.rename(request.projectId, request.targetId) }
+
+    /** Un dossier de Project créé, mis à la corbeille ou renommé, puis rechargé avant la réponse. */
+    private fun folder(request: EditorRequest.WithReply, type: String, source: String? = null, operation: (ProjectFolders) -> String?) {
+        val reply = replies.to(request, "${type}_result")
+        if (source != null && !EditorPaths.isSafeProjectId(source)) return reply.error("invalid_path")
+        replies.offThread(type, workspace.io) {
+            try {
+                operation(ProjectFolders(roots))?.let { return@offThread reply.error(it) }
+                workspace.reload()
+                reply.ok()
+            } catch (e: Throwable) {
+                reply.failure("write_error", type, e)
             }
         }
     }
