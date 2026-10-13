@@ -645,7 +645,7 @@ L'index montre l'état **publié** : le brouillon d'un project non édité n'y e
 `features/onboarding/EditorTour` and `editorTourController` coordinate a welcome and six brief guided-tour steps in
 the shared Project workspace: navigation/demo, canvas, Buttons/properties,
 Elements, tabs, then Save or keeping the demo. Automatic presentation is claimed
-once per account through `PATCH /auth/me`; anonymous demos keep browser state.
+once per player through `PATCH /auth/me` (the hub keeps it in `plugins/Artisan/editor-prefs/<uuid>.json`); anonymous demos keep browser state.
 Later/close preserves progress without another automatic opening; the project
 menu resumes an unfinished tour or replays a completed one. Guest progress is
 transferred only on the matching return from explicit demo authentication, without

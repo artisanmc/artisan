@@ -42,9 +42,11 @@ class EditorApiTest {
     private val applied = Collections.synchronizedList(mutableListOf<Pair<String, String>>())
     private val sessions = Sessions()
     private val player = UUID.randomUUID()
+    private val prefsDir = java.nio.file.Files.createTempDirectory("prefs").toFile()
+    private val prefs = PlayerPrefs(prefsDir)
     private val hub = HubServer(
         WebConfig(port = 0, bind = "127.0.0.1"), EditorApi.router(Servers(server), sessions, null, VanillaAssets(java.nio.file.Files.createTempDirectory("vanilla").toFile(), "1.21.4", null, manifestUrl = VanillaAssetsTest.OFFLINE),
-            PackStore(java.nio.file.Files.createTempDirectory("packs").toFile())), sessions,
+            PackStore(java.nio.file.Files.createTempDirectory("packs").toFile()), prefs), sessions,
         EditorAssets(javaClass.classLoader), EditorChannel(null), Logger.getAnonymousLogger(),
     )
     private val client = HttpClient.newHttpClient()
@@ -74,7 +76,25 @@ class EditorApiTest {
         assertEquals(200, status)
         assertEquals(player.toString(), body!!["user"]["id"].asText())
         assertEquals("Iban", body["user"]["name"].asText())
-        assertTrue(body["user"]["editorTour"]["completed"].asBoolean())
+        assertTrue(body["user"]["editorTour"].isNull)
+    }
+
+    @Test
+    fun `editor preferences are kept per player`() {
+        val (status, body) = call("PATCH", "/api/v1/auth/me", mapOf("theme" to "dark", "editor_language" to "fr", "editor_tour" to mapOf("action" to "start")))
+        assertEquals(200, status)
+        assertTrue(body!!["tourStarted"].asBoolean())
+        assertEquals(0, body["user"]["editorTour"]["step"].asInt())
+        call("PATCH", "/api/v1/auth/me", mapOf("editor_tour" to mapOf("action" to "progress", "step" to 3)))
+        val me = call("GET", "/api/v1/auth/me").second!!["user"]
+        assertEquals("dark", me["theme"].asText())
+        assertEquals("fr", me["editorLanguage"].asText())
+        assertEquals(3, me["editorTour"]["step"].asInt())
+        assertTrue(java.io.File(prefsDir, "$player.json").isFile)
+        assertEquals(422, call("PATCH", "/api/v1/auth/me", mapOf("theme" to "neon")).first)
+        assertEquals(422, call("PATCH", "/api/v1/auth/me", mapOf("editor_tour" to mapOf("action" to "progress", "step" to 9))).first)
+        assertEquals(400, call("PATCH", "/api/v1/auth/me", mapOf("theme" to "x".repeat(PlayerPrefs.MAX_BODY))).first)
+        assertEquals("dark", call("GET", "/api/v1/auth/me").second!!["user"]["theme"].asText())
     }
 
     @Test
