@@ -61,7 +61,8 @@ class ArtisanPluginModuleWiringTest {
 
         // MockBukkit loads the test, the mock add-on and Artisan's own modules with one
         // class loader: Artisan's modules go too here, unlike on a real server.
-        plugin.server.pluginManager.disablePlugin(addon)
+        // A MockPlugin is not a JavaPlugin, so disablePlugin() would not fire the event.
+        plugin.server.pluginManager.callEvent(org.bukkit.event.server.PluginDisableEvent(addon))
 
         assertTrue(disabled)
         assertFalse(plugin.api.modules.has("homes"))
