@@ -31,12 +31,11 @@ jobs:
         working-directory: docs-site
       - run: npm test -- --run
         working-directory: editor
+      # Éditeur auto-hébergé (embarqué dans le plugin), puis la vitrine + wiki d'artisanmc.net.
       - run: npm run build
         working-directory: editor
-        env:
-          VITE_API_URL: https://api.artisanmc.net
-          VITE_PLUGIN_WS_URL: wss://api.artisanmc.net/ws/plugin
-          VITE_EDITOR_URL: https://editor.artisanmc.net
+      - run: npm run build:site
+        working-directory: editor
       - run: npm run verify
         working-directory: docs-site
 
