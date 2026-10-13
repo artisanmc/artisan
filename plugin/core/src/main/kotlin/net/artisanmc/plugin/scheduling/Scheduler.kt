@@ -16,6 +16,19 @@ interface Scheduler {
     fun player(playerId: UUID, onGone: () -> Unit = {}, task: () -> Unit)
     fun playerLater(playerId: UUID, delayTicks: Long, task: () -> Unit)
 
+    /**
+     * On the thread that owns the entity, after [delayTicks] (0 = as soon as possible);
+     * [onGone] instead if it is removed first. Paper has one thread: the global one.
+     */
+    fun entity(entityId: UUID, delayTicks: Long, onGone: () -> Unit = {}, task: () -> Unit) =
+        if (delayTicks <= 0) global(task) else globalLater(delayTicks, task)
+
+    /** On the thread that owns this chunk, after [delayTicks] (0 = as soon as possible). */
+    fun region(worldId: UUID, chunkX: Int, chunkZ: Int, delayTicks: Long, task: () -> Unit) =
+        if (delayTicks <= 0) global(task) else globalLater(delayTicks, task)
+
+    fun ownsEntity(entityId: UUID): Boolean = ownsGlobal()
+
     fun async(task: () -> Unit)
     fun asyncLater(delayTicks: Long, task: () -> Unit)
 
@@ -40,6 +53,8 @@ interface Scheduler {
         override fun playerLater(playerId: UUID, delayTicks: Long, task: () -> Unit) = task()
         override fun async(task: () -> Unit) = task()
         override fun asyncLater(delayTicks: Long, task: () -> Unit) = task()
+        override fun entity(entityId: UUID, delayTicks: Long, onGone: () -> Unit, task: () -> Unit) = task()
+        override fun region(worldId: UUID, chunkX: Int, chunkZ: Int, delayTicks: Long, task: () -> Unit) = task()
         override fun ownsPlayer(playerId: UUID) = true
         override fun ownsGlobal() = true
     }

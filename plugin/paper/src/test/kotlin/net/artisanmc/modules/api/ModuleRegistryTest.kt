@@ -13,13 +13,16 @@ class ModuleRegistryTest {
     @BeforeEach fun setUp() { MockBukkit.mock() }
     @AfterEach fun tearDown() { MockBukkit.unmock() }
 
-    private fun module(moduleId: String) = object : ArtisanModule {
+    private fun module(moduleId: String, declare: (ArtisanAPI) -> Unit = {}) = object : ArtisanModule {
         override val id = moduleId
         override val schemaVersion = "$moduleId/v1"
         var enabled = false
-        override fun onEnable(api: ArtisanAPI) { enabled = true }
-        override fun onDisable() {}
+        var disabled = false
+        override fun onEnable(api: ArtisanAPI) { enabled = true; declare(api) }
+        override fun onDisable() { disabled = true }
     }
+
+    private lateinit var api: ArtisanAPI
 
     /** Builds a throwaway bound registry backed by a real MockBukkit plugin. */
     private fun boundRegistry(onChange: () -> Unit = {}): ModuleRegistry {
@@ -41,6 +44,7 @@ class ModuleRegistryTest {
             },
         )
         reg.bind(api, onChange)
+        this.api = api
         return reg
     }
 
@@ -64,6 +68,46 @@ class ModuleRegistryTest {
     @Test fun `unbound registry errors on register`() {
         val reg = ModuleRegistry()
         assertThrows(IllegalStateException::class.java) { reg.register(module("quests")) }
+    }
+
+    @Test fun `unregister disables the module and drops what it registered`() {
+        var changes = 0
+        val reg = boundRegistry { changes++ }
+        val m = module("quests") {
+            it.dataSources.register(DataSourceDeclaration("quests:list", { _, _ -> emptyList() }))
+            it.commands.register(CommandDeclaration("quests:start") { _, _ -> })
+            it.models.declare(mapOf("id" to "quests:quest"))
+        }
+        reg.register(m)
+        api.dataSources.register(DataSourceDeclaration("other:list", { _, _ -> emptyList() }))
+
+        assertTrue(reg.unregister("quests"))
+
+        assertTrue(m.disabled)
+        assertFalse(reg.has("quests"))
+        assertEquals(setOf("other:list"), api.dataSources.refs())
+        assertFalse(api.commands.has("quests:start"))
+        assertFalse(api.models.has("quests:quest"))
+        assertEquals(2, changes)
+        reg.register(module("quests"))
+        assertTrue(reg.has("quests"))
+    }
+
+    @Test fun `unregister of an unknown id is false`() {
+        assertFalse(boundRegistry().unregister("ghost"))
+    }
+
+    @Test fun `unregisterLoadedBy only touches what that loader loaded`() {
+        val reg = boundRegistry()
+        reg.register(module("quests"))
+        api.commands.register(CommandDeclaration("free:cmd") { _, _ -> })
+
+        assertTrue(reg.unregisterLoadedBy(ClassLoader.getPlatformClassLoader()).isEmpty())
+        assertTrue(reg.has("quests"))
+
+        reg.unregisterLoadedBy(javaClass.classLoader)
+        assertFalse(reg.has("quests"))
+        assertFalse(api.commands.has("free:cmd"))
     }
 
     @Test fun `has is false for unknown`() {

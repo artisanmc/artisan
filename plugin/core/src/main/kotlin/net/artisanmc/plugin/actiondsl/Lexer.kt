@@ -4,7 +4,8 @@ package net.artisanmc.plugin.actiondsl
  * Action DSL lexer. Language-symmetric port of `editor/src/lib/actionDsl/lexer.ts`.
  * Splits source into logical lines (blank + `#`-comment lines dropped) carrying
  * their indentation depth and a flat token list. Indentation is significant; a
- * trailing `:` on a header line becomes a COLON token.
+ * trailing `:` on a header line becomes a COLON token. A `project:id` reference
+ * (`open_menu shop:main`) lexes as one WORD.
  */
 
 enum class TokenType { WORD, NUMBER, STRING, KEY, PAPI, OP, COLON }
@@ -17,6 +18,8 @@ class DslLexError(message: String, val line: Int, val col: Int) :
     RuntimeException("$message (line $line, col $col)")
 
 private val WORD_RE = Regex("[A-Za-z_][A-Za-z0-9_.]*")
+/** A project folder name (`my-shop`, `2024`), `:`, then an id. */
+private val REF_RE = Regex("[A-Za-z0-9][A-Za-z0-9_-]*:[A-Za-z_][A-Za-z0-9_.]*")
 private val KEY_RE = Regex("@[A-Za-z0-9_][A-Za-z0-9_.]*")
 private val PAPI_RE = Regex("%[A-Za-z_][A-Za-z0-9_]*%")
 private val NUMBER_RE = Regex("[0-9]+(?:\\.[0-9]+)?")
@@ -82,6 +85,14 @@ private fun tokenizeLine(content: String, line: Int): List<Token> {
             tokens.add(Token(TokenType.PAPI, m.value, i + 1))
             i = m.range.last + 1
             continue
+        }
+        if (c in 'A'..'Z' || c in 'a'..'z' || c in '0'..'9') {
+            val m = REF_RE.matchAt(content, i)
+            if (m != null) {
+                tokens.add(Token(TokenType.WORD, m.value, i + 1))
+                i = m.range.last + 1
+                continue
+            }
         }
         if (c in '0'..'9') {
             val m = NUMBER_RE.matchAt(content, i)

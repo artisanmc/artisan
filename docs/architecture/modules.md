@@ -220,7 +220,7 @@ class ShopPlugin : JavaPlugin() {
         if (!core.api.isCompatibleWith(MIN_CORE_API_VERSION)) {
             return disableWithError(
                 "Artisan Shop ${description.version} requires Artisan core $MIN_CORE_API_VERSION+. " +
-                "Current core: ${core.description.version}."
+                "Current API: ${core.api.apiVersion}."
             )
         }
         
@@ -247,6 +247,8 @@ interface ArtisanModule {
     fun onReload()                          // Hot-reload de la config
 }
 ```
+
+Depuis l'API 1.8.0, `onDisable()` est appelé quand le plugin qui a chargé le module se désactive (`PluginDisableEvent`, avant son propre `onDisable`), et tout ce que ce plugin a enregistré (modules, data sources, commandes) est retiré : un rechargement de plugin peut ré-enregistrer les mêmes ids. `ModuleRegistry.unregister(id)` fait la même chose à la demande.
 
 #### 3.3.4 Avantages du split plugins
 
@@ -664,7 +666,7 @@ class ShopPlugin : JavaPlugin() {
         if (!core.api.isCompatibleWith(MIN_CORE_API_VERSION)) {
             return disableWithError(
                 "Artisan Shop ${description.version} requires Artisan core $MIN_CORE_API_VERSION or higher. " +
-                "Current core: ${core.description.version}. " +
+                "Current API: ${core.api.apiVersion}. " +
                 "Update: https://www.spigotmc.org/resources/artisan/"
             )
         }
@@ -698,7 +700,7 @@ L'admin voit l'erreur claire dans les logs, sait quoi faire, a le choix (update 
 - Registries publics (`DataSourceRegistry`, `CommandRegistry`, `SchemaRegistry`, `ModuleRegistry`)
 - Classes `DataSourceDeclaration`, `CommandDeclaration`
 - Schemas versionnés (`menu/v1`, `command/v1`, `shop/v1`, etc.)
-- Events publics (`MenuOpenedEvent`, `CommandExecutedEvent`, etc.)
+- Events publics : bus `ModuleEventBus` (`ConfigReloadEvent`, `DataReloadEvent`) ; événements Bukkit de menu `MenuOpenEvent`, `MenuClickEvent`, `MenuCloseEvent` (`@Beta`, API 1.8.0)
 
 **Internals (les modules NE doivent PAS en dépendre)** :
 - Implémentation interne du WebSocket client

@@ -11,6 +11,45 @@ java {
     withSourcesJar()
 }
 
+// `ArtisanAPI.apiVersion` at runtime: the highest `Since` of api-surface.md, read the
+// way deploy/api-version.mjs reads it (last table cell, or "Since X.Y.Z" in prose).
+val generateApiVersion by tasks.registering {
+    val surface = rootProject.layout.projectDirectory.file("../docs/architecture/api-surface.md")
+    val out = layout.buildDirectory.dir("generated/api-version")
+    inputs.file(surface)
+    outputs.dir(out)
+    doLast {
+        val semver = Regex("""\d+\.\d+\.\d+""")
+        val found = surface.asFile.readLines().flatMap { line ->
+            val lastCell = Regex("""^\|(.*)\|$""").find(line.trim())?.groupValues?.get(1)?.split("|")?.last()?.trim()
+            listOfNotNull(lastCell?.takeIf { semver.matches(it) }) +
+                Regex("""\b[Ss]ince (\d+\.\d+\.\d+)\b""").findAll(line).map { it.groupValues[1] }
+        }
+        val version = found.maxByOrNull { v -> v.split(".").fold(0L) { acc, n -> acc * 100_000 + n.toLong() } }
+            ?: error("No Since version found in ${surface.asFile}")
+        val file = out.get().file("net/artisanmc/modules/api/ApiVersion.kt").asFile
+        file.parentFile.mkdirs()
+        file.writeText(
+            """
+            |package net.artisanmc.modules.api
+            |
+            |/** Generated from docs/architecture/api-surface.md by the `generateApiVersion` task. */
+            |@net.artisanmc.modules.api.annotations.Internal
+            |internal object ApiVersion {
+            |    const val CURRENT = "$version"
+            |}
+            |""".trimMargin(),
+        )
+    }
+}
+
+extensions.configure<org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension> {
+    sourceSets.getByName("main").kotlin.srcDir(generateApiVersion)
+    // Interface members with a body become JVM default methods (Java add-ons may
+    // leave `onReload()` out), and DefaultImpls stay for add-ons compiled before 1.8.0.
+    compilerOptions { freeCompilerArgs.add("-Xjvm-default=all-compatibility") }
+}
+
 tasks.jar {
     archiveBaseName.set("artisan-core-api")
 }

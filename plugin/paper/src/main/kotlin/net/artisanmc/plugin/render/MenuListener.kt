@@ -1,5 +1,7 @@
 package net.artisanmc.plugin.render
 
+import net.artisanmc.modules.api.MenuClickEvent
+import net.artisanmc.modules.api.MenuCloseEvent
 import net.artisanmc.plugin.engine.*
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
@@ -17,6 +19,7 @@ class MenuListener(
     private val executor: ActionExecutor,
     private val windows: MenuWindows? = null,
     private val history: NavigationHistoryStore? = null,
+    private val events: MenuEventDispatcher? = null,
     private val resync: (Player) -> Unit = { it.updateInventory() },
 ) : Listener {
     private val scheduler = schedulerFor(plugin)
@@ -27,17 +30,21 @@ class MenuListener(
         event.isCancelled = true
         val player = event.whoClicked as? Player ?: return
         resendNextTick(player, event.inventory)
-        val session = sessions.get(player)
-        val clickType = event.click.toIfzClickType()
-        val handler = session?.activeClicks?.get(event.rawSlot)?.get(clickType)
-        handler ?: return
-        val slotCtx = session!!.ctx.copy(
-            args = session.ctx.args + (session.slotArgs[event.rawSlot] ?: emptyMap()),
+        val session = sessions.get(player) ?: return
+        val slot = event.rawSlot
+        val click = event.click
+        val handler = session.activeClicks[slot]?.get(click.toIfzClickType())
+        if (handler == null && events == null) return
+        val slotCtx = session.ctx.copy(
+            args = session.ctx.args + (session.slotArgs[slot] ?: emptyMap()),
         )
         // Bukkit forbids opening/closing an inventory inside InventoryClickEvent:
         // the client then misses every slot whose item is unchanged from the
         // previous menu (decoration panes on the same slots). Next tick.
-        scheduler.player(player.uniqueId) { executor.handle(handler, slotCtx) }
+        scheduler.player(player.uniqueId) {
+            val proceed = events?.click(MenuClickEvent(player, session.ref, slot, click, handler != null)) ?: true
+            if (proceed && handler != null) executor.handle(handler, slotCtx)
+        }
     }
 
     @EventHandler
@@ -61,6 +68,7 @@ class MenuListener(
             val player = event.player as? Player ?: return
             val session = sessions.get(player)
             sessions.remove(player)
+            if (session != null) events?.close(MenuCloseEvent(player, session.ref, event.reason))
             val goBack = session?.escapeGoesBack == true && event.reason == InventoryCloseEvent.Reason.PLAYER
             endNavigationIfClosed(player, goBack, session?.ctx)
             // The client showed the menu's content in its own inventory (a window's

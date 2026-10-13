@@ -1,6 +1,7 @@
 package net.artisanmc.plugin.engine
 
 import net.artisanmc.modules.api.CommandRegistry
+import net.artisanmc.plugin.command.ModuleCommandLine
 import net.artisanmc.plugin.actiondsl.dslToEngineSteps
 import net.artisanmc.plugin.actiondsl.parseActionDsl
 import net.artisanmc.plugin.model.LocalizedText
@@ -229,14 +230,9 @@ class ActionExecutor(
      */
     private fun tryRegistryDispatch(cmd: String, player: Player): Boolean {
         val registry = commandRegistry ?: return false
-        val space = cmd.indexOf(' ')
-        val ref = if (space == -1) cmd else cmd.substring(0, space)
-        if (!Regex("^[a-z][a-z0-9_]*:[a-z][a-z0-9_]*$").matches(ref)) return false
-        if (!registry.has(ref)) return false
-        val raw = if (space == -1) "" else cmd.substring(space + 1)
-        val argv = if (raw.isEmpty()) emptyList() else raw.split(' ').filter { it.isNotEmpty() }
-        runCatching { registry.dispatch(ref, player, mapOf("argv" to argv, "raw" to raw)) }
-            .onFailure { Bukkit.getLogger().warning("[Artisan] command '$ref' failed: ${it.message}") }
+        val line = ModuleCommandLine.parse(cmd, registry.names()) ?: return false
+        runCatching { registry.dispatch(line.ref, player, mapOf("argv" to line.argv, "raw" to line.raw)) }
+            .onFailure { Bukkit.getLogger().warning("[Artisan] command '${line.ref}' failed: ${it.message}") }
         return true
     }
 

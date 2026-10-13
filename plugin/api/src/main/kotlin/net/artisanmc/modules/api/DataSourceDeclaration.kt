@@ -6,7 +6,7 @@ import org.bukkit.entity.Player
 
 /** One declared row field — drives editor tooling (schema table, filter autocomplete). */
 @Stable
-data class DataSourceField(
+data class DataSourceField @JvmOverloads constructor(
     val name: String,
     val type: FieldKind,
     val description: String? = null,
@@ -18,7 +18,7 @@ data class DataSourceField(
  * typed `player_required` preview error.
  */
 @Stable
-class PlayerRequiredException(message: String? = null) : RuntimeException(message)
+class PlayerRequiredException @JvmOverloads constructor(message: String? = null) : RuntimeException(message)
 
 /**
  * Declares a data source a module exposes to the rest of the system.
@@ -39,7 +39,7 @@ class PlayerRequiredException(message: String? = null) : RuntimeException(messag
  *                 when [stability] is [Stability.STATIC]; ignored (typically null) otherwise.
  */
 @Stable
-data class DataSourceDeclaration(
+data class DataSourceDeclaration @JvmOverloads constructor(
     val ref: String,
     val fetcher: DataFetcher,
     val schema: List<DataSourceField> = emptyList(),

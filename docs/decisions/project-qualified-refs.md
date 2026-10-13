@@ -42,9 +42,13 @@ propre — namespace, langue par défaut, traductions — : ce n'est pas qu'un d
 - **Noms de commandes** : enregistrés par Bukkit à l'échelle du serveur, ils ne
   sont pas des références de Document. Deux projects qui revendiquent `/craft`
   restent en conflit ; la revue de déploiement l'affiche.
-- **DSL texte** (`action-dsl`) : sa grammaire n'accepte pas `:` dans un
-  identifiant et n'est pas étendue. L'éditeur écrit le format structuré
-  (`structured-action-wire`), où `open_menu: boutique:main` est une simple chaîne.
+- ~~**DSL texte** (`action-dsl`) : sa grammaire n'accepte pas `:` dans un
+  identifiant et n'est pas étendue.~~ Depuis 2026-10 le lexer lit
+  `<dossier>:<id>` comme un seul mot (`open_menu boutique:main`, dossier avec
+  tiret ou chiffres compris), des deux côtés et dans
+  `testdata/action-dsl-conformance.json`. L'éditeur écrit toujours le format
+  structuré (`structured-action-wire`), où `open_menu: boutique:main` est une
+  simple chaîne.
 ## Éditeur
 
 - Les sélecteurs de cible d'`open_menu` / `open_dialog` listent, sous le nom de
