@@ -27,7 +27,10 @@ interface ArtisanModule {
     @Stable
     fun onDisable()
 
-    /** Called when the menu cache is reloaded from disk (e.g. WS bundle update). */
+    /**
+     * Called when the projects are reloaded from disk (publish, `/artisan reload`, sync).
+     * A JVM default method since 1.8.0: Java modules may leave it out.
+     */
     @Stable
     fun onReload() {}
 }

@@ -25,4 +25,18 @@ class ModuleEventBusTest {
 
         assertTrue(received.isEmpty())
     }
+
+    private data class HomeSetEvent(val name: String) : ModuleEvent
+
+    @Test
+    fun `add-ons can publish and subscribe to their own events`() {
+        val bus = ModuleEventBus()
+        val received = mutableListOf<String>()
+        bus.subscribe(HomeSetEvent::class.java) { received.add((it as HomeSetEvent).name) }
+        bus.subscribe(DataReloadEvent::class.java) { received.add("wrong") }
+
+        bus.publish(HomeSetEvent("base"))
+
+        assertEquals(listOf("base"), received)
+    }
 }
