@@ -96,6 +96,9 @@ export interface ServerStatusEntry {
   pluginUpdateVersion?: string | null;
   /** Version déjà posée dans `plugins/update/`, appliquée au prochain redémarrage. */
   pluginUpdatePending?: string | null;
+  /** Éditeur servi par le plugin : version majeure du protocole différente du hub,
+   *  le serveur ne peut pas être édité tant que son plugin n'est pas à jour. */
+  updateRequired?: boolean;
   isCurrent: boolean;
 }
 

@@ -1138,6 +1138,9 @@ export default {
     offlineBody:
       "Can't reach this project's server, and no draft is available. Make sure the server is running and connected, then try again.",
     loadFailedTitle: "Could not open this project",
+    updateRequiredTitle: "This server needs an Artisan update",
+    updateRequiredBody:
+      "Its Artisan plugin is not compatible with the hub's. Update Artisan on that server, then retry.",
     loadFailedBody:
       "Loading failed. The code below says why; if it persists, it is also in the browser console.",
     notLoaded:
@@ -1255,6 +1258,7 @@ export default {
     pluginUpdating: "Installing…",
     pluginUpdatePending: "Plugin {{version}} installed — restart the server to apply it",
     pluginUpdateFailed: "Update failed ({{error}})",
+    updateRequired: "Update required",
   },
   sidebar: {
     projectDocuments: "Documents of {{name}}",
@@ -2269,6 +2273,9 @@ export default {
     noProjects: "No projects on this server yet.",
     loadingProjects: "Loading projects…",
     projectsUnavailable: "Server unreachable — its projects can’t be listed.",
+    serverOffline: "This server is offline — its projects will be listed once it reconnects.",
+    updateRequired:
+      "This server’s Artisan plugin is not compatible with the hub’s. Update it to edit this server.",
     documentCount_one: "{{count}} element",
     documentCount_other: "{{count}} elements",
     openBoard: "Server board",

@@ -16,11 +16,13 @@ import {
   mintServerLinkCode,
   updateServerKey,
 } from "@/lib/api/networks";
+import { SELF_HOSTED } from "@/lib/selfHosted";
 import { displayServerLabel } from "@/lib/serverLabel";
 import { useAuthStore } from "@/state/authStore";
 import { useNetworksStore } from "@/state/networksStore";
 import {
   Link,
+  Navigate,
   Outlet,
   createFileRoute,
   useChildMatches,
@@ -87,6 +89,9 @@ export function NetworkDetailPage() {
 
   if (accessDenied) return <RequestAccessPanel networkIdOrSlug={networkId} />;
   if (childMatches.length > 0) return <Outlet />;
+  // Servi par le plugin : cette page ne porte que de la gestion cloud (facturation,
+  // serveurs, membres). La liste des serveurs vit dans la barre latérale.
+  if (SELF_HOSTED) return <Navigate to="/" replace />;
   if (!detail)
     return (
       <div className="flex h-full items-center justify-center p-8 text-[var(--text-mut)]">
