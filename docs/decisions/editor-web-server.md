@@ -63,6 +63,14 @@ reste listé hors ligne (503 `server_offline`). Un Project hors du serveur du hu
 `<serveur>.<dossier>` (`Servers.project`) : deux serveurs peuvent avoir le même dossier.
 *Rejeté :* un identifiant opaque par Project (il faudrait une base pour le retrouver).
 
+**⑩ Rôles `hub` et `leaf`.** `web.role: leaf` coupe le serveur web et pointe le client vers
+`web.hub-url` avec le secret du réseau pour clé : `web.secret`, sinon le secret de transfert
+Velocity (`config/paper-global.yml`), sinon celui que le hub génère dans `network-secret`.
+MySQL n'est pas exigé : les brouillons restent sur le disque de chaque serveur et les sessions
+dans la mémoire du hub. Une feuille sur H2 le signale au démarrage, car les données de la
+suite n'y sont pas partagées.
+*Rejeté :* refuser le démarrage sans MySQL (prévu au plan) ; rien du hub n'en a besoin.
+
 *Rejeté :* Javalin (deux runtimes Kotlin), le serveur HTTP du JDK (pas de
 WebSocket), embarquer Jetty dans le jar (+3 Mo, à relocaliser).
 
