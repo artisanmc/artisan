@@ -84,11 +84,13 @@ add-on needs no Kotlin dependency at all.
 From Java:
 
 - properties are getters — `api.getDataSources()`, `module.getId()`;
-- Kotlin default arguments do not exist — pass every constructor or method
-  parameter (`new DataSourceDeclaration(ref, fetcher, schema, null, Stability.DYNAMIC, null)`);
+- declaration constructors have Java overloads for their optional parameters
+  (`new DataSourceDeclaration(ref, fetcher)`, `new DataSourceField(name, kind)`,
+  since API 1.8.0); interface methods with optional parameters
+  (`api.getActions().execute(…)`) still take every argument;
 - lambdas are plain Java lambdas; a `CommandHandler` returns `void`;
-- implement every method of `ArtisanModule`, including `onReload()` (its
-  Kotlin default body is not a Java default method).
+- `ArtisanModule.onReload()` is a default method since API 1.8.0: override it
+  only if you need it. Against an older API, implement it.
 
 A **Kotlin** add-on must bring its own Kotlin standard library: shade it into
 your jar and relocate it (Shadow's `relocate("kotlin", "com.example.myplugin.kotlin")`),
@@ -176,11 +178,25 @@ server owner may run an older Artisan than the API you compiled against; a
 member that does not exist there fails at the call with `NoSuchMethodError`
 (or `NoClassDefFoundError` for a whole type).
 
-:::caution[`coreVersion` is not the API version]
-`api.coreVersion` and `api.isCompatibleWith(min)` compare against the **Artisan
-plugin's** version string (`plugin.yml`), which does not follow the API's
-numbering. Do not pass an API *Since* version to `isCompatibleWith`. To require
-a recent member, probe it once at startup instead:
+Check the running API at startup with `isCompatibleWith`, passing the *Since*
+of the newest member you use:
+
+```kotlin
+if (!api.isCompatibleWith("1.8.0")) {
+    logger.severe("MyPlugin needs Artisan API 1.8.0+, this server runs ${api.apiVersion}.")
+    server.pluginManager.disablePlugin(this)
+    return
+}
+```
+
+`isCompatibleWith(min)` returns true when `api.apiVersion` has the same major
+as `min` and is greater than or equal to it.
+
+:::caution[Servers older than API 1.8.0]
+`apiVersion` itself appeared in 1.8.0, and before it `isCompatibleWith`
+compared the **Artisan plugin's** version (`coreVersion`, `1.0.<build>`):
+`isCompatibleWith("1.7.0")` was false there. If you support older servers,
+probe the member you need instead:
 
 ```kotlin
 val hasDatabase = try {
@@ -192,8 +208,7 @@ val hasDatabase = try {
 ```
 :::
 
-`isCompatibleWith(min)` returns true when the plugin version has the same major
-as `min` and is greater than or equal to it.
+`coreVersion` is the Artisan plugin version, for logs and support only.
 
 ## What the handle gives you
 
@@ -207,10 +222,11 @@ as `min` and is greater than or equal to it.
 | `schemas` | Migrate your own versioned YAML documents | `@Stable` | 1.0.0 |
 | `project` | Read project files from disk, trigger a reload | `@Stable` | 1.2.0 |
 | `projectRoots` | Host your project in your own plugin folder | `@Stable` | 1.5.0 |
-| `coreVersion` / `isCompatibleWith` | Artisan plugin version | `@Stable` | 1.1.0 |
+| `apiVersion` / `isCompatibleWith` | The running API version, and a check against it (compared `coreVersion` before 1.8.0) | `@Stable` | 1.8.0 / 1.1.0 |
+| `coreVersion` | The Artisan plugin version (`1.0.<build>`), not the API version | `@Stable` | 1.1.0 |
 | `actions` | Run Action DSL for a player — open menus, give items… | `@Beta` | 1.4.0 |
 | `items` | Serialize and describe `ItemStack`s the way the editor stores them | `@Beta` | 1.4.0 |
 | `models` | Declare `model/v1` shapes for your config | `@Beta` | 1.5.0 |
 | `screens` | Declare config screens in the editor | `@Beta` | 1.6.0 |
 | `database` | A connection pool on the suite's shared database | `@Beta` | 1.7.0 |
-| `messages` | Fire-and-forget messages — no receiver any more, do not use | `@Beta` | 1.4.0 |
+| `messages` | Fire-and-forget messages — no receiver any more, do not use (`@Sunset` since 1.8.0, removed in 2.0.0) | `@Beta` | 1.4.0 |

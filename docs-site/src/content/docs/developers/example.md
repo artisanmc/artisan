@@ -149,7 +149,7 @@ class KitsModule(private val plugin: KitsPlugin) : ArtisanModule {
     private val lastClaims = ConcurrentHashMap<String, Long>()
 
     override fun onEnable(api: ArtisanAPI) {
-        this.api = api   // first: registering the project root below calls onReload()
+        this.api = api   // first: before API 1.8.0, registering the root calls onReload() right away
 
         // 1. Own a project in plugins/Kits/editor/, ship the starter content.
         val projectDir = File(plugin.dataFolder, "editor")
@@ -248,10 +248,12 @@ class KitsModule(private val plugin: KitsPlugin) : ArtisanModule {
 
 Points worth noticing:
 
-- `this.api` is assigned **first**: `projectRoots.register` reloads the
-  projects immediately, which calls `onReload()` before `onEnable` returns.
+- `this.api` is assigned **first**: before API 1.8.0, `projectRoots.register`
+  reloads the projects immediately, which calls `onReload()` before `onEnable`
+  returns. Since 1.8.0 that reload waits for the next tick.
 - The bootstrap runs after `register`, then `api.project.reload()` makes the
-  new files visible to the running server and the editor.
+  new files visible right away. Since 1.8.0 the reload of the next tick would
+  pick them up anyway; the call keeps the example working on 1.7.x.
 - The fetcher only reads memory (`kits`, `lastClaims`), so it is safe on any
   region thread and returns instantly. With `player == null` (editor preview)
   every kit shows as ready.
