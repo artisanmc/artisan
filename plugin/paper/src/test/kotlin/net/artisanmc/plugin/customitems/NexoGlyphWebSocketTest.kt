@@ -22,7 +22,7 @@ class NexoGlyphWebSocketTest {
         val sent = LinkedBlockingQueue<String>()
         val provider = SyncedMenuProvider(
             roots = ProjectRoots(Files.createTempDirectory("artisan-projects-").toFile()),
-            serverKey = "", wsUrl = "", logger = null,
+            logger = null,
             nexoGlyphs = NexoGlyphReader(nexo),
         ).also { it.setSendForTesting(sent::add) }
         try {

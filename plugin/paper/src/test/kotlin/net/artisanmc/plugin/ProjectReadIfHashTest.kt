@@ -29,7 +29,7 @@ class ProjectReadIfHashTest {
         var latch = CountDownLatch(1)
         val provider = SyncedMenuProvider(
             roots = net.artisanmc.plugin.project.ProjectRoots(root),
-            serverKey = "", wsUrl = "", logger = null,
+            logger = null,
         )
         init {
             provider.setSendForTesting { raw ->

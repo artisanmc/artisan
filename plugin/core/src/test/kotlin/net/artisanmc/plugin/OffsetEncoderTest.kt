@@ -7,7 +7,7 @@ import kotlin.test.assertTrue
 
 class OffsetEncoderTest {
 
-    /** Standard table mirroring `backend/src/lib/spaceOffsets.ts`. */
+    /** Standard table mirroring `editor/src/lib/pack/spaceOffsets.ts`. */
     private val standardMap: Map<Int, Int> = run {
         val advances = listOf(1, 2, 4, 8, 16, 32, 64, 128, 256, -1, -2, -4, -8, -16, -32, -64, -128, -256)
         advances.mapIndexed { i, adv -> (0xF800 + i) to adv }.toMap()

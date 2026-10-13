@@ -19,8 +19,8 @@ import java.util.concurrent.TimeUnit
  * en UTF-8 le détruirait au passage.
  *
  * D'où la règle structurelle : l'arbre **annonce** les binaires (chemin + hash +
- * taille) sans les porter, et `asset_read` / `asset_write` les transportent un
- * par un, par chemin.
+ * taille) sans les porter : `asset_read` les lit un par un, par chemin, et
+ * `project_write` les écrit dans sa liste `binaries`.
  */
 class AssetTransferTest {
     private class Harness {
@@ -29,7 +29,7 @@ class AssetTransferTest {
         var latch = CountDownLatch(1)
         val provider = SyncedMenuProvider(
             roots = net.artisanmc.plugin.project.ProjectRoots(root),
-            serverKey = "", wsUrl = "", logger = null,
+            logger = null,
         )
         init {
             provider.setSendForTesting { raw ->
@@ -39,6 +39,12 @@ class AssetTransferTest {
             }
         }
         fun project(id: String): File = File(root, id).also { it.mkdirs() }
+        private var operations = 0
+        /** `project_write` sans fichier texte : chaque écriture a sa propre opération. */
+        fun writeBinaries(vararg paths: String, content: String) = send(
+            """{"type":"project_write","request_id":"r","operation_id":"op-${++operations}","project_id":"boutique","binaries":[""" +
+                paths.joinToString(",") { """{"path":"$it","content_base64":"$content","base_hash":null}""" } + "]}",
+        )
         fun write(project: File, rel: String, bytes: ByteArray) {
             val f = File(project, rel)
             f.parentFile.mkdirs()
@@ -112,7 +118,7 @@ class AssetTransferTest {
     }
 
     @Test
-    fun `asset_write ecrit un binaire et refuse si la base a bouge`() {
+    fun `project_write ecrit un binaire et refuse si la base a bouge`() {
         val h = Harness()
         val p = h.project("boutique")
         h.write(p, "menus/m.yaml", "schema: menu/v1\n".toByteArray())
@@ -120,36 +126,26 @@ class AssetTransferTest {
 
         val b64 = Base64.getEncoder().encodeToString(png)
         // base_hash null = « je m'attends à ce que le fichier n'existe pas ».
-        val created = h.send(
-            """{"type":"asset_write","request_id":"r","project_id":"boutique",""" +
-            """"path":"assets/glyphs/diamant.png","content_base64":"$b64","base_hash":null}"""
-        )
+        val created = h.writeBinaries("assets/glyphs/diamant.png", content = b64)
         assertEquals(true, created["ok"])
         assertArrayEquals(png, File(p, "assets/glyphs/diamant.png").readBytes())
 
         // Réécrire en prétendant que le fichier est toujours absent doit être
-        // refusé : c'est le même compare-and-swap que `project_write`, sinon
-        // deux admins qui téléversent le même nom s'écrasent en silence.
-        val conflict = h.send(
-            """{"type":"asset_write","request_id":"r","project_id":"boutique",""" +
-            """"path":"assets/glyphs/diamant.png","content_base64":"$b64","base_hash":null}"""
-        )
+        // refusé : sinon deux admins qui téléversent le même nom s'écrasent en silence.
+        val conflict = h.writeBinaries("assets/glyphs/diamant.png", content = b64)
         assertEquals(false, conflict["ok"])
         assertEquals("conflict", conflict["error"])
     }
 
     @Test
-    fun `asset_write rend le nouvel etat visible sans reload manuel`() {
+    fun `un binaire ecrit est visible sans reload manuel`() {
         val h = Harness()
         val p = h.project("boutique")
         h.write(p, "menus/m.yaml", "schema: menu/v1\n".toByteArray())
         h.provider.load()
 
         val b64 = Base64.getEncoder().encodeToString(png)
-        h.send(
-            """{"type":"asset_write","request_id":"r","project_id":"boutique",""" +
-            """"path":"assets/textures/fond.png","content_base64":"$b64","base_hash":null}"""
-        )
+        h.writeBinaries("assets/textures/fond.png", content = b64)
 
         // Écrire, c'est savoir qu'on a écrit : l'instantané reprend, sinon
         // l'éditeur téléverserait une image qu'il ne verrait pas ensuite.
@@ -164,21 +160,17 @@ class AssetTransferTest {
      * Une police importée, c'est ~96 fichiers (mesuré sur l'ASCII vanilla :
      * 95 PNG + son descripteur, 26 Ko en tout). Les écrire un par un ferait 96
      * allers-retours et, surtout, laisserait une police à moitié posée si l'un
-     * échouait. Comme `project_write` : tout ou rien.
+     * échouait : tout ou rien.
      */
     @Test
-    fun `asset_write ecrit plusieurs binaires en tout ou rien`() {
+    fun `project_write ecrit plusieurs binaires en tout ou rien`() {
         val h = Harness()
         val p = h.project("boutique")
         h.write(p, "menus/m.yaml", "schema: menu/v1\n".toByteArray())
         h.provider.load()
 
         val b64 = Base64.getEncoder().encodeToString(png)
-        val res = h.send(
-            """{"type":"asset_write","request_id":"r","project_id":"boutique","files":[""" +
-            """{"path":"assets/fonts/pixelmix/a.png","content_base64":"$b64","base_hash":null},""" +
-            """{"path":"assets/fonts/pixelmix/b.png","content_base64":"$b64","base_hash":null}]}"""
-        )
+        val res = h.writeBinaries("assets/fonts/pixelmix/a.png", "assets/fonts/pixelmix/b.png", content = b64)
         assertEquals(true, res["ok"])
         assertArrayEquals(png, File(p, "assets/fonts/pixelmix/a.png").readBytes())
         assertArrayEquals(png, File(p, "assets/fonts/pixelmix/b.png").readBytes())
@@ -193,11 +185,7 @@ class AssetTransferTest {
 
         val b64 = Base64.getEncoder().encodeToString(png)
         // Le second prétend que le fichier n'existe pas — il existe.
-        val res = h.send(
-            """{"type":"asset_write","request_id":"r","project_id":"boutique","files":[""" +
-            """{"path":"assets/fonts/pixelmix/a.png","content_base64":"$b64","base_hash":null},""" +
-            """{"path":"assets/fonts/pixelmix/b.png","content_base64":"$b64","base_hash":null}]}"""
-        )
+        val res = h.writeBinaries("assets/fonts/pixelmix/a.png", "assets/fonts/pixelmix/b.png", content = b64)
         assertEquals(false, res["ok"])
         assertEquals("conflict", res["error"])
         // RIEN n'a été écrit : une police à moitié posée serait pire qu'aucune.

@@ -28,7 +28,7 @@ class OnlinePlayersFetchTest {
     private fun provider(sink: MutableList<Map<String, Any?>>, latch: CountDownLatch): SyncedMenuProvider {
         val dir = Files.createTempDirectory("artisan_players_").toFile()
         val p = SyncedMenuProvider(
-            roots = net.artisanmc.plugin.project.ProjectRoots(dir), serverKey = "", wsUrl = "", logger = null,
+            roots = net.artisanmc.plugin.project.ProjectRoots(dir), logger = null,
             scheduler = Scheduler.Direct,
         )
         p.load()

@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 
 /**
- * Ce que l'éditeur, relayé par le backend, demande au serveur. Un message dont le
+ * Ce que l'éditeur, relayé par le hub, demande au serveur. Un message dont le
  * type est inconnu ou dont un champ obligatoire manque ne devient pas une requête :
  * il est ignoré, comme avant le typage.
  *
@@ -21,24 +21,12 @@ sealed interface EditorRequest {
         val message: JsonNode
     }
 
-    data class HelloAck(
-        val sessionId: String?,
-        val bundleUrl: String?,
-        val editorUrl: String?,
-        val networkName: String?,
-        val resourcePack: PackUpdate,
-    ) : EditorRequest
+    data class HelloAck(val sessionId: String?, val resourcePack: PackUpdate) : EditorRequest
 
-    data class DraftUpdate(val menuId: String, val menuYaml: String) : EditorRequest
     data object SessionReplaced : EditorRequest
     data object CustomItemsRequest : EditorRequest
     data class ResourcePackUpdated(val url: String, val hash: String) : EditorRequest
-    data class ProjectDeleted(val projectId: String) : EditorRequest
-    data object Ping : EditorRequest
 
-    data class ImportSourcesList(override val requestId: String) : WithReply
-    /** `null` : sélection mal formée, refusée en `invalid_input`. */
-    data class ImportSourcesRead(override val requestId: String, val selections: List<Selection>?) : WithReply
     data class NexoGlyphsList(override val requestId: String) : WithReply
     data class NexoGlyphRead(override val requestId: String, val glyphId: String?) : WithReply
     data class ServerConfigWrite(override val requestId: String, val changes: Map<String, Any?>) : WithReply
@@ -76,13 +64,6 @@ sealed interface EditorRequest {
         override val message: JsonNode,
     ) : Mutation
 
-    data class AssetWrite(
-        override val requestId: String,
-        val projectId: String,
-        val writes: List<BinaryWrite>,
-        override val message: JsonNode,
-    ) : Mutation
-
     data class ConfigWrite(
         override val requestId: String,
         val projectId: String,
@@ -91,24 +72,14 @@ sealed interface EditorRequest {
         override val message: JsonNode,
     ) : Mutation
 
-    /** La copie et les brouillons lisent eux-mêmes leur protocole (`ProjectCopier`, `ProjectDraftStore`). */
-    data class ProjectCopy(override val requestId: String, override val message: JsonNode) : Mutation
+    /** Les brouillons lisent eux-mêmes leur protocole (`ProjectDraftStore`). */
     data class ProjectDraft(override val requestId: String, val projectId: String, override val message: JsonNode) : Mutation
-
-    data class ProjectRename(
-        override val requestId: String,
-        val operationId: String,
-        val projectId: String,
-        val targetProjectId: String,
-    ) : WithReply
 
     sealed interface PackUpdate {
         data object Cleared : PackUpdate
         data class Apply(val url: String, val hash: String) : PackUpdate
         data object Incomplete : PackUpdate
     }
-
-    data class Selection(val sourceId: String, val paths: List<String>)
 
     /** `baseHash` null : « je m'attends à ce que le fichier n'existe pas ». */
     data class FileWrite(val path: String, val content: String, val baseHash: String?)
@@ -124,20 +95,13 @@ sealed interface EditorRequest {
             val type = node["type"]?.asText() ?: return null
             if (type == "session_replaced") return SessionReplaced
             if (type == "custom_items_request") return CustomItemsRequest
-            if (type == "ping") return Ping
             if (type == "hello_ack") return helloAck(node)
-            if (type == "draft_update") {
-                return DraftUpdate(node.text("menu_id") ?: return null, node.text("menu_yaml") ?: return null)
-            }
             if (type == "resource_pack_updated") {
                 return ResourcePackUpdated(node.text("url") ?: return null, node.text("hash") ?: return null)
             }
-            if (type == "project_deleted") return ProjectDeleted(node.text("project_id") ?: return null)
 
             val requestId = node.text("request_id") ?: return null
             return when (type) {
-                "import_sources_list" -> ImportSourcesList(requestId)
-                "import_sources_read" -> ImportSourcesRead(requestId, selections(node["selections"]))
                 "nexo_glyphs_list" -> NexoGlyphsList(requestId)
                 "nexo_glyph_read" -> NexoGlyphRead(requestId, node.text("glyph_id"))
                 "server_config_write" -> ServerConfigWrite(requestId, objectOrNull(node["changes"]) ?: emptyMap())
@@ -162,7 +126,6 @@ sealed interface EditorRequest {
                 "asset_read" -> AssetRead(requestId, node.text("project_id") ?: return null, node.text("path") ?: return null)
                 "config_read" -> ConfigRead(requestId, node.text("project_id") ?: return null, node.text("table") ?: return null)
                 "project_write" -> projectWrite(requestId, node.text("project_id") ?: return null, node)
-                "asset_write" -> AssetWrite(requestId, node.text("project_id") ?: return null, assetWrites(node), node)
                 "config_write" -> ConfigWrite(
                     requestId = requestId,
                     projectId = node.text("project_id") ?: return null,
@@ -172,14 +135,7 @@ sealed interface EditorRequest {
                     deletes = node.array("deletes").mapNotNull { it.asText() },
                     message = node,
                 )
-                "project_copy" -> ProjectCopy(requestId, node)
                 "project_draft_request" -> ProjectDraft(requestId, node.text("project_id") ?: return null, node)
-                "project_rename" -> ProjectRename(
-                    requestId = requestId,
-                    operationId = node.text("operation_id") ?: return null,
-                    projectId = node.text("project_id") ?: return null,
-                    targetProjectId = node.text("target_project_id") ?: return null,
-                )
                 else -> null
             }
         }
@@ -194,13 +150,7 @@ sealed interface EditorRequest {
                     if (url != null && hash != null) PackUpdate.Apply(url, hash) else PackUpdate.Incomplete
                 }
             }
-            return HelloAck(
-                sessionId = node.text("session_id"),
-                bundleUrl = node.text("bundle_url") ?: node.text("api_url"),
-                editorUrl = node.text("server_url") ?: node.text("editor_url"),
-                networkName = node.text("network_name"),
-                resourcePack = update,
-            )
+            return HelloAck(sessionId = node.text("session_id"), resourcePack = update)
         }
 
         private fun projectWrite(requestId: String, projectId: String, node: JsonNode) = ProjectWrite(
@@ -231,25 +181,6 @@ sealed interface EditorRequest {
                 ) return null
                 BinaryWrite(path.asText(), content.takeIf { !it.isNull }?.asText(), baseHash(b))
             }
-        }
-
-        private fun assetWrites(node: JsonNode): List<BinaryWrite> {
-            val files = node["files"]?.takeIf { it.isArray }
-                ?: return listOfNotNull(node.text("path")?.let { BinaryWrite(it, node.nullableText("content_base64"), baseHash(node)) })
-            return files.mapNotNull { f ->
-                BinaryWrite(f.text("path") ?: return@mapNotNull null, f.nullableText("content_base64"), baseHash(f))
-            }
-        }
-
-        private fun selections(node: JsonNode?): List<Selection>? {
-            if (node?.isArray != true) return null
-            val parsed = node.mapNotNull { selection ->
-                val sourceId = selection["source_id"]?.takeIf { it.isTextual }?.asText() ?: return@mapNotNull null
-                val pathsNode = selection["paths"]?.takeIf { it.isArray } ?: return@mapNotNull null
-                val paths = pathsNode.mapNotNull { it.takeIf { path -> path.isTextual }?.asText() }
-                if (paths.size != pathsNode.size()) null else Selection(sourceId, paths)
-            }
-            return parsed.takeIf { it.size == node.size() }
         }
 
         private fun objectField(node: JsonNode, field: String): Map<String, Any?> =

@@ -49,7 +49,7 @@ object TitleCompiler {
      */
     internal const val TITLE_LABEL_X = 8
 
-    /** A title glyph's top lands at chest-Y `13 - ascent`. Mirrors `GLYPH_Y_BASE` in `backend/src/lib/fontJsonBuilder.ts`. */
+    /** A title glyph's top lands at chest-Y `13 - ascent`. Mirrors `GLYPH_Y_BASE` in `editor/src/lib/pack/fontJsonBuilder.ts`. */
     internal const val GLYPH_Y_BASE = 13
 
     /** Fallback width for an image asset whose `width` is unknown (legacy v1 project). */
@@ -59,8 +59,8 @@ object TitleCompiler {
     private const val EXTERNAL_GLYPH_WIDTH = 8
 
     /**
-     * Range of Y values for which the backend generates `text_y{Y}.json` font
-     * files. Kept in sync with `backend/src/lib/resourcePackBuilder.ts`.
+     * Range of Y values for which the editor generates `text_y{Y}.json` font
+     * files. Kept in sync with `editor/src/lib/pack/resourcePackBuilder.ts`.
      *
      * Lines whose Y lands outside this range would resolve to a missing font
      * namespace and render as missing-glyph squares in-game. Both the Text and
@@ -71,10 +71,10 @@ object TitleCompiler {
     internal const val TEXT_Y_MAX = 172
 
     /**
-     * Minimum chest-Y for which the backend emits `text_y{Y}_h{H}.json`. Below
+     * Minimum chest-Y for which the editor emits `text_y{Y}_h{H}.json`. Below
      * this, the font's ascent would exceed its height — MC 1.21+ and Nexo both
      * reject these as schema-invalid. Kept in sync with `minYForSize(h)` in
-     * `backend/src/lib/fontJsonBuilder.ts`; see the test there for the formula.
+     * `editor/src/lib/pack/fontJsonBuilder.ts`; see the test there for the formula.
      */
     internal val MIN_Y_BY_SIZE: Map<Int, Int> = mapOf(
         8 to 5,
@@ -285,7 +285,7 @@ object TitleCompiler {
                 val entry = lookupAsset(layer.assetId) ?: return Pair("", startX)
                 val ch = entry.codepointChar ?: return Pair("", startX)
                 // The default font draws the glyph at `13 - ascent`. Any other Y
-                // goes through `glyph_y{Y}`, which the backend emits for each
+                // goes through `glyph_y{Y}`, which the editor emits for each
                 // (glyph, Y) its menus use — clamped like it to `ascent <= height`.
                 val y = maxOf(layer.y, GLYPH_Y_BASE - entry.height)
                 if (entry.namespace != null) "<font:${entry.namespace}><white>$ch</white></font>"
@@ -350,7 +350,7 @@ object TitleCompiler {
                 for ((i, line) in lines.withIndex()) {
                     val lineY = layer.y + i * layer.lineHeight
                     // text_y{Y}_h{H}.json files exist for Y in [minYForSize(H), TEXT_Y_MAX]
-                    // (kept in sync with backend/src/lib/resourcePackBuilder.ts).
+                    // (kept in sync with editor/src/lib/pack/resourcePackBuilder.ts).
                     // Lines outside this range would render as missing-glyph
                     // squares in-game, so drop them rather than emit broken refs.
                     if (lineY < minYForSize(layer.size) || lineY > TEXT_Y_MAX) break

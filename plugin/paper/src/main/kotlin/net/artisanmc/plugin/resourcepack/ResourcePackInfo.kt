@@ -8,13 +8,12 @@ import java.util.UUID
  * Resource project identity + delivery URLs.
  *
  * @param url         External URL used by the player's Minecraft client to download the project
- *                    (e.g. `http://localhost:3001/api/resource-pack/...`). Must be reachable
+ *                    (e.g. `http://localhost:8765/resource-pack/...`). Must be reachable
  *                    from the player's machine.
  * @param downloadUrl Plugin-side URL used by the plugin itself to download the project (e.g. for
  *                    AssetCatalog extraction). In Docker setups this is the internal address
- *                    of the backend container (e.g. `http://backend:3001/api/resource-pack/...`)
- *                    because `localhost` inside the minecraft container points to the minecraft
- *                    container, not the backend.
+ *                    of the hub (e.g. `http://hub:8765/resource-pack/...`), because `localhost`
+ *                    inside a leaf's container points to that container.
  * @param hash        Lowercase 40-char SHA-1 hex hash.
  * @param sha1Bytes   Raw 20-byte SHA-1 (decoded from [hash]).
  * @param uuid        Deterministic UUID derived from [hash].

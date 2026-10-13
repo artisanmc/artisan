@@ -2,7 +2,6 @@ package net.artisanmc.plugin.ws
 
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
-import net.artisanmc.plugin.update.PluginUpdater
 import okhttp3.*
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -11,26 +10,20 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.UUID
 import java.util.logging.Logger
 
+/** Le hub d'un réseau, vu d'une feuille : son `/ws/plugin`, le secret partagé et le nom de la feuille. */
+data class HubLink(val url: String, val secret: String, val serverName: String)
+
 class WsClient(
-    private val url: String,
-    private val serverKey: String,
+    private val hub: HubLink,
     private val mcVersion: String,
-    private val currentBundleHash: String = "",
-    private val localProjectIds: List<String> = emptyList(),
-    private val customItemsHash: String = "",
     private val installedModules: () -> List<Map<String, String>> = { emptyList() },
     private val dataSources: () -> List<Map<String, Any?>> = { emptyList() },
     private val declaredModels: () -> List<Map<String, Any?>> = { emptyList() },
     private val editorScreens: () -> List<Map<String, Any?>> = { emptyList() },
+    private val serverConfig: () -> Map<String, Any?>? = { null },
     private val onMessage: (String) -> Unit,
     private val logger: Logger? = null,
-    private val projectPresence: () -> Map<String, Any> = { emptyMap() },
-    private val editorAccessMode: String = "invitation",
     private val pluginVersion: String = "1.0.0",
-    /** Bloquant (téléchargement) : appelé hors du thread WS. Null = mise à jour non proposée. */
-    private val pluginUpdater: (() -> PluginUpdater.Result)? = null,
-    /** Nom du serveur dans le réseau, attendu par le hub d'un autre serveur ; vide pour le cloud. */
-    private val proxyName: String = "",
 ) {
     private val httpClient = OkHttpClient.Builder()
         .pingInterval(30, TimeUnit.SECONDS)
@@ -41,7 +34,6 @@ class WsClient(
     @Volatile private var socket: WebSocket? = null
     @Volatile private var retryDelay = 1L
     @Volatile private var authenticated = false
-    private val memberRequests = ConcurrentHashMap<String, CompletableFuture<String>>()
     private val requests = ConcurrentHashMap<String, CompletableFuture<JsonNode?>>()
 
     /** Une requête au hub ; sa réponse `<type>_result`, ou null hors ligne ou sans réponse. */
@@ -55,30 +47,14 @@ class WsClient(
         return result
     }
 
-    fun addMember(email: String): CompletableFuture<String> {
-        if (editorAccessMode != "console") return CompletableFuture.completedFuture("console_disabled")
-        if (!authenticated) return CompletableFuture.completedFuture("offline")
-        val id = UUID.randomUUID().toString()
-        val result = CompletableFuture<String>()
-        memberRequests[id] = result
-        result.completeOnTimeout("timeout", 15, TimeUnit.SECONDS)
-            .whenComplete { _, _ -> memberRequests.remove(id) }
-        if (socket?.send(mapper.writeValueAsString(mapOf("type" to "member_add", "request_id" to id, "email" to email))) != true) {
-            result.complete("offline")
-        }
-        return result
-    }
-
-    private fun clearMemberRequests() {
+    private fun clearRequests() {
         authenticated = false
-        memberRequests.values.forEach { it.complete("offline") }
-        memberRequests.clear()
         requests.values.forEach { it.complete(null) }
         requests.clear()
     }
 
     fun connect() {
-        val req = Request.Builder().url(url).build()
+        val req = Request.Builder().url(hub.url).build()
         socket = httpClient.newWebSocket(req, Listener())
     }
 
@@ -87,7 +63,7 @@ class WsClient(
     }
 
     fun disconnect() {
-        clearMemberRequests()
+        clearRequests()
         scheduler.shutdownNow()
         socket?.close(1000, "Plugin disabling")
         httpClient.dispatcher.cancelAll()
@@ -96,44 +72,22 @@ class WsClient(
         httpClient.dispatcher.executorService.awaitTermination(5, TimeUnit.SECONDS)
     }
 
-    companion object {
-        /**
-         * Version du **format de contenu** de projet que ce plugin sait lire
-         * (ADR `content-version-negotiation`). À incrémenter à chaque évolution
-         * cassante du wire. 2 = étapes structurées keyed.
-         */
-        const val CONTENT_VERSION = 2
-    }
-
     private inner class Listener : WebSocketListener() {
         override fun onOpen(ws: WebSocket, response: Response) {
             retryDelay = 1
             val hello = mapOf(
                 "type" to "hello",
-                "editor_access_mode" to editorAccessMode,
                 "protocol_version" to net.artisanmc.plugin.protocol.ProtocolVersion.CURRENT,
-                // Wire de contenu de projet : 2 = étapes structurées keyed
-                // (ADR content-version-negotiation). Absente = 1 (DSL legacy).
-                "content_version" to CONTENT_VERSION,
-                "core_version" to pluginVersion,   // Mirrors plugin_version (kept for backward compat).
-                "server_key" to serverKey,
-                "proxy_name" to proxyName.ifEmpty { null },
+                "server_key" to hub.secret,
+                "proxy_name" to hub.serverName,
                 "plugin_version" to pluginVersion,
                 "minecraft_version" to mcVersion,
-                "current_bundle_hash" to currentBundleHash,
-                "local_project_ids" to localProjectIds,
-                "custom_items_hash" to customItemsHash.ifEmpty { null },
                 "installed_modules" to installedModules(),
                 "data_sources" to dataSources(),
-                // Module-declared Data models (ADR composable-data-models §4):
-                // model/v1 documents passed through verbatim.
                 "declared_models" to declaredModels(),
-                // Module-declared Config screens (ADR module-config-screens).
                 "editor_screens" to editorScreens(),
-            ) + projectPresence().let { presence ->
-                if (pluginUpdater == null) presence
-                else presence + ("capabilities" to ((presence["capabilities"] as? List<*>).orEmpty() + "plugin_update_v1"))
-            }
+                "server_config" to serverConfig(),
+            )
             ws.send(mapper.writeValueAsString(hello))
         }
 
@@ -141,27 +95,9 @@ class WsClient(
             val message = runCatching { mapper.readTree(text) }.getOrNull()
             when (message?.get("type")?.asText()) {
                 "hello_ack" -> authenticated = true
-                "session_replaced" -> clearMemberRequests()
-                "plugin_update" -> {
-                    val requestId = message.path("request_id").asText()
-                    val updater = pluginUpdater
-                    scheduler.execute {
-                        val result = updater?.invoke() ?: PluginUpdater.Result(false, error = "no_release")
-                        if (result.ok) logger?.info("Artisan ${result.version} installed in the update folder; restart the server to apply it.")
-                        else logger?.warning("Artisan update failed: ${result.error}")
-                        send(mapOf("type" to "plugin_update_result", "request_id" to requestId, "ok" to result.ok, "version" to result.version, "error" to result.error))
-                    }
-                    return
-                }
+                "session_replaced" -> clearRequests()
                 "editor_link_result" -> {
                     requests.remove(message.path("request_id").asText())?.complete(message)
-                    return
-                }
-                "member_add_result" -> {
-                    val result = if (message.path("ok").asBoolean()) {
-                        if (message.path("already_member").asBoolean()) "already_member" else "added"
-                    } else message.path("error").asText("failed")
-                    memberRequests.remove(message.path("request_id").asText())?.complete(result)
                     return
                 }
             }
@@ -169,13 +105,13 @@ class WsClient(
         }
 
         override fun onFailure(ws: WebSocket, t: Throwable, response: Response?) {
-            clearMemberRequests()
+            clearRequests()
             logger?.warning("WS failure: ${t.message}")
             scheduleReconnect()
         }
 
         override fun onClosing(ws: WebSocket, code: Int, reason: String) {
-            clearMemberRequests()
+            clearRequests()
             ws.close(code, reason)
         }
 
