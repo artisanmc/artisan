@@ -9,6 +9,15 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+- **Add-on API 1.8.0**:
+  - `api.apiVersion` gives the API version (generated from `api-surface.md` at build time), and `isCompatibleWith(min)` now compares it instead of the plugin version: `isCompatibleWith("1.7.0")` was false on every server. `coreVersion` stays the plugin version.
+  - `ModuleEvent` is an open interface: add-ons define and publish their own events on `api.events`. `DataReloadEvent` is documented as add-on to add-on only (Artisan neither publishes nor reads it).
+  - `ModuleRegistry.unregister(id)`, `DataSourceRegistry.unregister(ref)` and `CommandRegistry.unregister(name)`. When a plugin disables, Artisan calls the `onDisable()` of its modules (before the plugin's own `onDisable`, while it is still enabled) and drops its modules, data sources and commands, so `/reload` and plugin reloaders no longer hit `Duplicate…Exception`. Artisan's own shutdown only disables the modules still registered.
+  - `projectRoots.register` reloads the projects on the next tick instead of inside the call: the add-on's `onReload()` no longer runs during its `onEnable`, and bootstrap files written after `register` are read without `project.reload()`.
+  - Java: `ArtisanModule.onReload()` (and the other interface members with a body) are JVM default methods, binary compatible with add-ons built on 1.7.x; `DataSourceDeclaration`, `DataSourceField` and `PlayerRequiredException` constructors get Java overloads (`new DataSourceDeclaration(ref, fetcher)`).
+  - `ModuleMessagesApi` / `api.messages` are `@Sunset` (removed in 2.0.0): nothing has received them since the editor moved into the plugin.
+  - `api-surface.md` now dates `ProjectContentApi.reload()` (1.6.0) and `SemVer` (1.1.0).
+
 - `/artisan reload`, `sync` and `dump-title` now require `artisan.admin` (op by default); `/artisan menu` checks `artisan.menu` (granted to everyone by default).
 - Editor served by the plugin: projects can be created, renamed and deleted again, on the hub's server and on leaves (`project_create`, `project_rename`, `project_delete`, `artisan.editor.publish`). Deleting moves the folder to `.artisan-trash/` on the server; renaming moves the folder with its drafts and refuses a name already taken. Add-on projects cannot be renamed or deleted. `hello` now carries `protocol_version: "1.1"`; a leaf still on `1.0` is asked to update instead of being sent these requests.
 - The about, privacy and terms pages (copied into the self-hosted editor and artisanmc.net) describe the self-hosted editor: no Artisan account, no analytics on artisanmc.net, nothing collected by Artisan; what the editor keeps stays on the server that hosts it.
