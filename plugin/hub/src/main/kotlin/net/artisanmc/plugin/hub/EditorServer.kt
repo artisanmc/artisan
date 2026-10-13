@@ -12,6 +12,8 @@ interface EditorServer {
     val link: ServerLink
     val label: String
     val online: Boolean
+    /** Sa version majeure du protocole n'est pas celle du hub : rien ne lui est envoyé. */
+    val updateRequired: Boolean get() = false
     val minecraftVersion: String
     val pluginVersion: String
     fun modules(): List<Map<String, Any?>>

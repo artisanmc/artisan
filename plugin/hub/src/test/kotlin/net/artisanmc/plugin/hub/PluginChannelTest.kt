@@ -86,8 +86,8 @@ class PluginChannelTest {
 
         fun next(): JsonNode = received.poll(5, TimeUnit.SECONDS) ?: error("nothing received")
 
-        fun hello(key: String = "s3cret", name: String = "survie2") = send(mapOf(
-            "type" to "hello", "server_key" to key, "proxy_name" to name, "protocol_version" to "1",
+        fun hello(key: String = "s3cret", name: String = "survie2", protocol: String = "1") = send(mapOf(
+            "type" to "hello", "server_key" to key, "proxy_name" to name, "protocol_version" to protocol,
             "minecraft_version" to "1.21.4", "plugin_version" to "2.0.0",
             "installed_modules" to listOf(mapOf("id" to "quests", "version" to "1.0.0")),
             "server_config" to mapOf("language" to "fr"),
@@ -138,6 +138,19 @@ class PluginChannelTest {
         assertEquals("shop", readRequest["project_id"].asText())
         leaf.send(mapOf("type" to "project_read_result", "request_id" to readRequest["request_id"].asText(), "ok" to true, "files" to emptyList<Any>()))
         assertEquals(200, read.get(5, TimeUnit.SECONDS).first)
+    }
+
+    @Test
+    fun `a server on another major protocol version is shown but not used`() {
+        val leaf = Leaf()
+        leaf.hello(protocol = "2.0")
+        leaf.next()
+        val status = get("/api/v1/networks/local/servers-status").get().second!!
+        assertEquals(true, status["servers"][1]["updateRequired"].asBoolean())
+        val (code, body) = get("/api/v1/networks/local/servers/survie2/projects").get(5, TimeUnit.SECONDS)
+        assertEquals(503, code)
+        assertEquals("plugin_update_required", body!!["error"].asText())
+        assertTrue(leaf.received.isEmpty())
     }
 
     @Test
