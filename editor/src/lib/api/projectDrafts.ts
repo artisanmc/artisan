@@ -27,7 +27,7 @@ export class DraftApiError extends Error {
     super(code);
   }
 }
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
+const API_URL = import.meta.env.VITE_API_URL ?? "";
 async function call(projectId: string, suffix = "", method = "GET", body?: unknown) {
   // The plugin channel waits up to 30s; allow its response to reach the browser.
   const signal = AbortSignal.timeout(45_000);

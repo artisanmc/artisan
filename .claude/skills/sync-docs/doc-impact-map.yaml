@@ -6,7 +6,8 @@
 # CLAUDE.md is a ROUTER, not a reference: it only holds commands, the three
 # consequential pitfalls, the module import rule and the doc routing table.
 # Only map to it when a change actually touches one of those. Everything else
-# belongs in docs/architecture/*, CONTEXT.md, docs-site/ or .env.example.
+# belongs in docs/architecture/*, CONTEXT.md or docs-site/.
+# AGENTS.md mirrors CLAUDE.md: update both together.
 
 mappings:
   # --- Plugin: user-visible surface ---
@@ -26,12 +27,13 @@ mappings:
       - "docs/architecture/plugin-commands.md"
       - "docs-site/src/content/docs/getting-started/install-admin.md"
       - "CLAUDE.md"
-    reason: "Commands: dev detail in plugin-commands.md, user table in install-admin §5, one-line list in CLAUDE.md"
+      - "AGENTS.md"
+    reason: "Commands: dev detail in plugin-commands.md, user table in install-admin, one-line list in CLAUDE.md"
 
   - touches: "plugin/*/src/main/kotlin/**/ResourcePackDelegator.kt"
     updates:
       - "docs-site/src/content/docs/getting-started/install-admin.md"
-    reason: "Resource pack distribution modes (install-admin §8)"
+    reason: "Resource pack distribution modes (install-admin, Resource packs section)"
 
   # --- Plugin: sync, hashing, disk layout (the invariants) ---
 
@@ -39,18 +41,7 @@ mappings:
     updates:
       - "docs/architecture/invariants.md"
       - "testdata/project-snapshot-hash-conformance.json"
-    reason: "Hash algorithm — must stay byte-order sorted and conformance vector regenerated on both sides"
-
-  - touches: "backend/src/lib/hashUtils.ts"
-    updates:
-      - "docs/architecture/invariants.md"
-      - "testdata/project-snapshot-hash-conformance.json"
-    reason: "Backend half of the cross-language hash equality"
-
-  - touches: "plugin/*/src/main/kotlin/**/ProjectDeleter.kt"
-    updates:
-      - "docs/architecture/invariants.md"
-    reason: ".artisan-trash/ handling"
+    reason: "Snapshot hash — computed by the plugin only; keep byte-order sorting and regenerate the vector on purpose"
 
   - touches: "plugin/*/src/main/kotlin/**/yaml/LangFlattener.kt"
     updates:
@@ -70,17 +61,19 @@ mappings:
       - "testdata/i18n-address-conformance.json"
     reason: "Canonical i18n addresses, derived on both sides"
 
-  - touches: "backend/src/lib/resourcePackBuilder.ts"
+  - touches: "tools/minecraft-assets/*.ts"
     updates:
-      - "testdata/resource-pack-conformance.json"
-    reason: "Backend pack builder (and its lib/ helpers) is the source of the shared zip vector; regenerate with bun backend/scripts/gen-resource-pack-conformance.ts"
+      - "tools/minecraft-assets/README.md"
+      - "CLAUDE.md"
+      - "AGENTS.md"
+    reason: "Minecraft asset generators: what each script does and run order in the README, one-line pipeline in CLAUDE.md (Assets MC)"
 
   - touches: "editor/src/lib/pack/**"
     updates:
       - "testdata/resource-pack-conformance.json"
-    reason: "Browser port of the pack builder: must keep matching the vector byte for byte, never regenerate it from here"
+    reason: "The editor owns the pack builder and its byte-for-byte vector since the backend was removed: an intended zip change updates entries/sha1 in the same commit"
 
-  # --- Module API surface (3 layers) ---
+  # --- Module API surface (2 layers: plugin + editor) ---
 
   - touches: "plugin/api/src/main/"
     updates:
@@ -89,63 +82,70 @@ mappings:
       - "CHANGELOG.md"
     reason: "Public module API — affects every module, must hit CHANGELOG + api-surface"
 
-  - touches: "backend/src/modules/api/"
-    updates:
-      - "docs/architecture/modules.md"
-    reason: "Backend module API surface"
-
   - touches: "editor/packages/editor-sdk/src/**"
     updates:
       - "docs/architecture/modules.md"
     reason: "Frontend module API surface (@artisan/editor-sdk — FrontendModule, registerModule)"
 
-  # --- Backend: protocol, REST, data model ---
+  # --- Hub (editor web server) and protocol ---
 
-  - touches: "backend/src/ws/hub.ts"
-    updates:
-      - "docs/architecture/ws-protocol.md"
-    reason: "WS message table + data flow"
-
-  - touches: "backend/src/protocol.ts"
-    updates:
-      - "docs/architecture/ws-protocol.md"
-      - "docs/architecture/versioning.md"
-      - "CHANGELOG.md"
-    reason: "WS protocol shape — needs a version bump consideration"
-
-  - touches: "backend/src/routes/**"
+  - touches: "plugin/hub/src/main/kotlin/**/*Routes.kt"
     updates:
       - "docs/architecture/rest-endpoints.md"
     reason: "REST index points at the route file — add/remove/rename must be reflected"
 
-  - touches: "backend/src/app.ts"
+  - touches: "plugin/hub/src/main/kotlin/**/{HubServer,EditorApi,Http,Relay}.kt"
     updates:
       - "docs/architecture/rest-endpoints.md"
+    reason: "Route mounting, session/origin checks and relay status codes (Conventions section)"
+
+  - touches: "plugin/hub/src/main/kotlin/**/{PluginChannel,RemoteServer,EditorChannel,Servers}.kt"
+    updates:
+      - "docs/architecture/ws-protocol.md"
+    reason: "/ws/plugin and /ws/editor: hello fields read by the hub, relayed messages, server naming"
+
+  - touches: "plugin/core/src/main/kotlin/**/protocol/**"
+    updates:
+      - "docs/architecture/ws-protocol.md"
+    reason: "Message types, fields and handlers"
+
+  - touches: "plugin/core/src/main/kotlin/**/protocol/ProtocolVersion.kt"
+    updates:
+      - "docs/architecture/ws-protocol.md"
+      - "docs/architecture/versioning.md"
       - "CHANGELOG.md"
-    reason: "Route mounts are part of the versioned REST surface"
+    reason: "Protocol version — a major bump stops hub and leaves from talking until both update"
 
-  - touches: "backend/src/db/schema.ts"
+  - touches: "plugin/paper/src/main/kotlin/**/ws/WsClient.kt"
     updates:
-      - "backend/drizzle/"
-      - "docs/architecture/entities.md"
-      - "CONTEXT.md"
-      - "CHANGELOG.md"
-    reason: "Schema change requires db:generate + entity doc, and may shift the glossary"
+      - "docs/architecture/ws-protocol.md"
+    reason: "Leaf client: hello payload, reconnection, editor_link"
 
-  - touches: "backend/src/lib/sessionManager.ts"
+  - touches: "plugin/hub/src/main/kotlin/**/{Sessions,WebConfig,PackStore,VanillaAssets}.kt"
     updates:
       - "docs/architecture/entities.md"
-    reason: "Session lifecycle / cookie semantics (Auth & comptes)"
+      - "docs-site/src/content/docs/getting-started/install-admin.md"
+    reason: "What the hub keeps (sessions, packs, caches) and the web settings admins configure"
 
-  - touches: "backend/src/lib/membershipGuard.ts"
+  - touches: "plugin/paper/src/main/kotlin/**/config/{EnvironmentFile,NetworkSecret}.kt"
     updates:
+      - "docs-site/src/content/docs/getting-started/install-admin.md"
       - "docs/architecture/entities.md"
-    reason: "Membership checks used by network endpoints"
+    reason: "environment.yml template (web.*, database) and network secret resolution"
 
-  - touches: "backend/src/lib/networkTransferStorage.ts"
+  - touches: "plugin/core/src/main/kotlin/**/project/{ProjectDraftStore,ProjectPublisher,ProjectPathPolicy}.kt"
     updates:
+      - "docs/architecture/invariants.md"
       - "docs/architecture/entities.md"
-    reason: "Network transfer storage + table"
+      - "docs/architecture/project-files.md"
+    reason: "Drafts, publication journal and private .artisan paths on disk"
+
+  - touches: "docker/network/**"
+    updates:
+      - "CLAUDE.md"
+      - "AGENTS.md"
+      - "docs-site/src/content/docs/getting-started/install-admin.md"
+    reason: "Hub + leaf example (commands section, network setup guide)"
 
   # --- Editor ---
 
@@ -164,7 +164,7 @@ mappings:
     updates:
       - "editor/src/features/design-system/DesignSystemPage.tsx"
       - "docs/architecture/editor-internals.md"
-    reason: "Design system: a new/changed component needs its specimen on /admin/design in the same commit"
+    reason: "Design system: a new/changed component needs its specimen on /design in the same commit"
 
   - touches: "editor/src/styles/globals.css"
     updates:
@@ -201,14 +201,10 @@ mappings:
       - "CHANGELOG.md"
     reason: "Types are hand-aligned (editor types.ts + plugin) and fixtures must stay green; a shipped version is never edited, it gets a new folder"
 
-  - touches: ".env.example"
-    updates:
-      - "CLAUDE.md"
-    reason: "Only if a variable changes something operational documented in the router (URLs, test DB)"
-
   - touches: "docker-compose.yml"
     updates:
       - "CLAUDE.md"
+      - "AGENTS.md"
       - "docs-site/src/content/docs/contributing/"
     reason: "Stack layout (commands section + contributing guide)"
 

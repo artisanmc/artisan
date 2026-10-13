@@ -4,7 +4,6 @@ import { rebuildServerPackInBackground } from "@/features/project/resourcePackSy
 import { adoptDiskIntoProject } from "@/features/project/saveProjectToDisk";
 import { hashContent } from "@/lib/contentHash";
 import { projectClient } from "@/lib/projectClient";
-import { SELF_HOSTED } from "@/lib/selfHosted";
 import { useAccountStore } from "@/state/accountStore";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { useRef, useState } from "react";
@@ -91,7 +90,7 @@ export function DocumentYamlView({
         project;
       replaceProject(adoptDiskIntoProject(current, { [relPath]: written }, []));
       toast.success(t("save.saved"));
-      if (SELF_HOSTED) rebuildServerPackInBackground(t, project.serverKeyId);
+      rebuildServerPackInBackground(t, project.serverKeyId);
     } catch {
       toast.error(t("save.failed"));
     } finally {

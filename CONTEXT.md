@@ -79,8 +79,8 @@ Grouping changes only editor metadata, never Document files or runtime navigatio
 
 A Bundle *was* the hash-keyed materialization of a **Project**, announced by the
 backend (`bundle_available`) and downloaded by the plugin. The mechanism no
-longer exists: the backend stores no Project content and never writes to a
-server's disk, so there is nothing to publish, hash, announce, or fetch (ADR
+longer exists (the backend itself was removed in 2026-10): nothing stores a second
+copy of Project content, so there is nothing to publish, hash, announce, or fetch (ADR
 `server-disk-only-storage`). A Project's files on the server *are* the Project —
 there is no second artifact to name.
 
@@ -300,8 +300,8 @@ Non-examples:
   resources the Documents reference. They are still **files of the Project**
   (`lang/`, `assets/`): a glyph or a background is authored content, not a build
   artifact, so it lives on the server's disk with everything else (ADR
-  `assets-on-server-disk`). The backend keeps no copy: no `assets` table, no
-  volume — only a throwaway cache keyed by content hash.
+  `assets-on-server-disk`). Nothing keeps a copy elsewhere; the resource pack is
+  rebuilt from them in the editor.
 
 ## Document reference
 
@@ -322,13 +322,13 @@ Non-examples:
 
 ## Draft
 
-A named, private working copy of a **Project**, owned by a user and persisted in
-the backend. Its Project determines the Network and Server; a user may have
-several drafts for the same Project. It stores a file baseline, edited tree and
-rename intentions. Saving a draft does not publish it: explicit publication
-uses the plugin's file compare-and-swap. Browser copies are recovery backups.
-An AI task will act on a user's draft through the same operations, with separate
-publication authorization; there is no permanent shared "AI draft".
+A named, private working copy of a **Project**, owned by a player (Minecraft UUID
+of the editor session) and stored on the Project's own server disk, in
+`.artisan/drafts/` (since phase F, 2026-10; before that, in the backend). A player
+may have several drafts for the same Project. It stores a file baseline, edited
+tree and rename intentions. Saving a draft does not publish it: explicit
+publication commits files and the draft's final state in one atomic,
+compare-and-swap-checked write. Browser copies are recovery backups.
 
 ## Element
 
@@ -372,6 +372,17 @@ Non-examples:
 - The **Action DSL** is a statement language (one action per line, `if`/`else`
   blocks). An Expression is one value, and appears *inside* it.
 - The surrounding text of a lore line is a **Template**, not an Expression.
+
+## Hub
+
+The server whose plugin serves the editor (web server on `web.port`, 8765 by
+default): `web.role: hub`, the default. A lone server is its own hub. In a
+**Network**, the **Leaves** connect to the hub's `/ws/plugin`, and the editor
+reaches them through it. ADR `editor-web-server`.
+
+Non-examples:
+- Not a proxy: the hub is an ordinary Paper server; Velocity runs no Artisan code.
+- Not the cloud backend's `ws/hub.ts`, removed in phase F.
 
 ## Item set
 
@@ -426,26 +437,28 @@ Non-examples:
 - The translation **value** (`"Buy now"` in `en`) is not the key site; the key
   site is the slot the value is filed under.
 
-## Link
+## Leaf
 
-The **act of binding a Server to its credential**, always initiated from the
-editor: a logged-in user adds a Server to a **Network** on the web, which creates
-the Server row (keyless — `hash` NULL until redeemed) and prints a **link code**;
-the admin runs **`/artisan link <code>`** on the Minecraft server, which redeems
-the code for the Server's **key** (minted at redeem time), writes it to
-`config.yml`, and connects. Re-issuing a code for an existing Server and
-re-running `link` **rotates** its key in place — same Server row, same Projects,
-no duplicate key. Ownership afterwards moves only via a Network **transfer**.
-See `docs/decisions/editor-first-server-linking.md`.
+A server of a **Network** that does not serve the editor (`web.role: leaf`): its
+plugin connects to the **Hub** at `web.hub-url` with the **Network secret** and
+its name, then answers the editor's requests relayed by the hub. `/artisan editor`
+typed on a leaf asks the hub for the **Login link**.
 
-Non-examples:
-- A **transfer** is not a Link — transfer moves already-owned things between
-  owners with its own safeguards; Link binds a Server to its key.
-- "Claim" / "setup" are not canonical — domain and code say Link
-  (`link_codes`, `/artisan link`, `POST /link/:code/redeem`). The old WS pairing
-  (`/artisan setup`) and web `claim` flow were removed 2026-07-15.
-- Post-link, `/artisan editor` printing the Server deep-link is not a Link — the
-  binding already exists; the command is informative only.
+## Link — **retired term** (2026-10)
+
+*Was* the act of binding a Server to its cloud credential (`/artisan link <code>`,
+link codes, server keys). Removed with the backend in phase F: a server needs no
+credential to serve its own editor, and a **Leaf** joins its **Hub** with
+`web.hub-url` and the **Network secret**. State recoverable at commit `f085f576`.
+_Avoid_: link code, server key, claim, setup.
+
+## Login link
+
+The single-use link `/artisan editor` prints in game (`/login/<token>`, valid
+60 seconds, one per player per minute). Opening it starts an **editor session**
+(cookie, 12 hours, in the hub's memory) that carries the player's UUID, name and
+`artisan.editor.*` permissions as they were when the link was requested. It is
+the only way into the editor: there are no accounts.
 
 ## LText
 
@@ -461,20 +474,13 @@ language with a fallback chain. A fresh domain LText is minted with a random
 provisional key (`lt_<rand>`); canonicalization to a semantic key happens lazily
 at the deploy/export/persist boundary, not per edit.
 
-## Membership
+## Membership — **retired term** (2026-10)
 
-A user's belonging to a **Network**, carrying a **role** that scopes what they may
-do there. Two roles exist: **owner** (governance — billing, transfer,
-Network deletion, member management, key rotation) and **member** (full editorial
-access to every Server and Project of the Network, nothing destructive at Network
-level). Roles are per-Network: the same user may be owner of one Network and
-member of another. The role set is expected to grow — owner/member is the current
-vocabulary, not a closed law.
-
-Non-examples:
-- A Membership is **not** per-Server or per-Project — access is granted at
-  Network granularity (finer ACLs are deliberately out of the domain today).
-- The owning user is not the Network; see **Network**.
+*Was* a user account's role (owner/member) in a cloud **Network**. There are no
+accounts any more: editor access is a player's Bukkit permissions
+(`artisan.editor.view|edit|publish|config`), read when they request a **Login link**,
+and granted with a permissions plugin (LuckPerms…), not by invitation.
+_Avoid_: member, owner, invitation, access request, transfer.
 
 ## Menu
 
@@ -512,9 +518,9 @@ _Avoid_: browser history, breadcrumb (this is a stack, not a path).
 ## Module
 
 A **capability** of the platform — one coherent vertical of functionality
-(menus, commands, translations, dialogs, shop, quests…) built in three symmetric
-layers: plugin (`ArtisanModule`), backend (`BackendModule`), editor
-(`FrontendModule`), wired through a `ModuleRegistry`. A Module is the *logical*
+(menus, commands, translations, dialogs, shop, quests…) built in two symmetric
+layers: plugin (`ArtisanModule`) and editor (`FrontendModule`), wired through a
+`ModuleRegistry` (a third, backend layer existed until phase F, 2026-10). A Module is the *logical*
 unit of capability, deliberately distinct from the artifact that ships it.
 
 Two families, split by **distribution**:
@@ -546,38 +552,31 @@ Non-examples:
 
 ## Network
 
-A group of **Servers** under one ownership/team — the unit of ownership, access
-(**memberships** with roles), billing (a paid **Plan version**), and handover (**transfer**).
-**Not** a Minecraft proxy topology: a Network is who-owns-what, not which servers
-sit behind a proxy (the two often coincide but needn't). A User may belong to
-several Networks and a Network has several members — so a Network is **not** a
-User/Account, but the shared container they have access to.
+The servers one editor reaches: a **Hub** and the **Leaves** that share its
+**Network secret**. A lone server is a Network of one (its hub). The editor still
+names it `local` (a leftover of the cloud routes). It is not an ownership or
+billing unit any more, and not the proxy topology either — though in practice the
+hub and leaves are often the servers behind one Velocity proxy, whose forwarding
+secret can serve as the Network secret.
 
 Non-examples:
-- A Bungee/Velocity proxy cluster doesn't define a Network — ownership does;
-  Artisan never sees the proxy topology.
-- The owning **User** is not the Network; users are *members* of Networks.
+- A Velocity/Bungee proxy is not the Network and runs no Artisan code.
+- The cloud Network (accounts, members, plans) was removed in phase F (2026-10).
 
-## Plan and entitlements
+## Network secret
 
-A **standard plan** is a code-managed commercial offer with a stable key (`free`
-or `pro`). Its billing interval and version identify immutable conditions;
-database and payment-provider IDs are environment-specific references.
-A **custom offer** is an independent copy of standard conditions, managed in the
-admin console and private to one Network. A draft grants no access; publishing
-makes the offer available to its intended Network, subject to payment readiness.
+The shared secret a **Leaf** presents to the **Hub** on `/ws/plugin` (sent as
+`server_key` in `hello`, a legacy field name). Resolved in order: `web.secret`,
+the Velocity forwarding secret from `config/paper-global.yml`, then a secret the
+hub generates once in `plugins/Artisan/network-secret` (to copy to each leaf).
 
-A **Plan version** fixes price, billing and credit cadence, limits and capabilities.
-Changing published conditions creates a successor; existing subscribers retain
-their paid version. Billing cadence and credit cadence are distinct: standard
-annual Pro is paid yearly but grants credits monthly.
+## Plan and entitlements — **retired term** (2026-10)
 
-**Entitlements** are a Network's effective limits and capabilities, resolved from
-an active **manual assignment**, otherwise its confirmed paid version until expiry,
-then from Free. A manual assignment grants a published plan's full rights and
-recurring credits without payment, optionally until a fixed date. Features check these
-rights rather than a plan name or the denormalized `tier` flag. A null limit means
-unlimited; zero means no allowance.
+*Was* the cloud's commercial model (Free/Pro plans, custom offers, AI credits,
+resource quotas). Removed in phase F: the core is free and Add-ons are sold once on
+marketplaces. `ProjectMutations` still understands a `commercial_policy` quota,
+but nothing sends one.
+_Avoid_: plan, tier, credits, quota, Pro.
 
 ## Placement
 
@@ -619,22 +618,22 @@ over the WS link — not something authored in the editor. It answers "what is
 actually live on this server right now?": at minimum whether the Server is
 **online** (≥1 plugin instance connected) and **which Modules** are installed
 there (`installed_modules`). The live connection is the source of truth; the
-editor reads a persisted projection of it (`server_modules` rows + an `online`
-boolean) to gate which UI to show.
+editor reads the hub's in-memory copy of it (from the leaf's `hello` and
+`modules_changed`, or straight from the plugin for the hub's own server) to gate
+which UI to show.
 
 Examples:
 - The Quests add-on appears in the editor only when the Server's Presence
   includes the `quests` module — "installed on the server → visible in the editor."
-- A Server reads as online the moment one instance connects; how *many* instances
-  are connected is not surfaced (Presence exposes a boolean, never a count).
+- A Leaf reads as online while its `/ws/plugin` socket is open; a second
+  connection under the same name replaces the first.
 
 Non-examples:
 - **Authored config** is not Presence — Presence is the live mirror, config is the
   declared intent. A Module may be configured for a Server yet absent from its
   Presence (not actually installed), or installed yet unconfigured.
-- The **server key** is not Presence — the key is the durable credential; Presence
-  is the transient "is it connected, and with what" fact that the key's instances
-  report.
+- The **Network secret** is not Presence — it is the durable credential; Presence
+  is the transient "is it connected, and with what" fact.
 
 ## Preview context
 
@@ -658,46 +657,33 @@ Non-examples:
 
 ## Project
 
-**Storage (revised 2026-09-27, ADR `server-only-projects`):** every account
-Project belongs to a **Server**, linked or not; account-owned hosted projects are
-retired. Published content lives on the server disk; private **Drafts** and
-**Versions** live in the backend, and the editor shows the server's current
-**Snapshot**. A Project on an unlinked Server has no published content yet — only
-drafts — until its first publication. A temporary demo belongs to its DemoSession,
-without a fake User, Network or Server; it is disposable and leaves only through
-export.
+**Storage (revised 2026-10, phase F):** every Project belongs to a **Server**
+and lives on its disk — published content and private **Drafts** alike. The
+editor shows the server's current **Snapshot**. Hosted projects, the demo and
+backend Versions are gone.
 
 The editable collection of GUI content — its **Menus**,
 **Commands**, **Dialogs**, translations, and assets. A Project is a tree of files
-on its owning disk: Minecraft server or durable backend volume. That disk is the
-authority for published content; publication is explicit. A text editor
+on its server's disk. That disk is the authority for published content; publication is explicit. A text editor
 can still edit server files directly. The web editor is a client of the project's
 files (cf. ADR `files-first-source-of-truth`). A Project belongs to
 **exactly one Server**.
 A Server holds **one or more** Projects. The Project is
 the granular unit of organisation *and* of **portability**: a server's content is
 split into Projects so each can be exported, shared, and imported independently.
-ZIP export is available everywhere, demo included; ZIP import is withdrawn
-until it can target a Server. Projects are never live-linked to one another.
+Projects are exported and imported as ZIP; they are never live-linked to one another.
 
-A Project has **two identifiers, and only one of them is global**. Its *disk id*
-is the directory name the owning server uses, and it is unique **per server**
-only — an Add-on bootstraps the same one everywhere it is installed, so
-`boutique_addon` names a different Project on every server that runs the Boutique
-Add-on. Its *internal id* is unique platform-wide and is what the backend rows
-address. Editor URLs use the exact folder/module ID within a Network + Server
-(server Projects) or the current DemoSession. The
-internal ID remains the key for drafts, history, relationships and content APIs.
-Renaming changes the public folder ID, never that internal key. Old slugs and
-completed rename sources resolve only when unambiguous in the location; current
-folder IDs take precedence. Treating a disk id as global is what let one
-server overwrite another tenant's Project (2026-08-12); see
-`docs/architecture/entities.md` § `projects.externalId`.
+A Project is identified by its **folder name**, unique **per server** only — an
+Add-on bootstraps the same one everywhere it is installed, so `boutique_addon`
+names a different Project on every server that runs the Boutique Add-on. Without
+a database there is no other identity (the cloud's platform-wide internal id is
+gone). Seen from the **Hub**, a Project of a **Leaf** is named
+`<server>.<folder>` (`survie2.shop`); a Project of the hub itself keeps its bare
+folder name. Renaming the folder by hand makes it a different Project.
 
 This is the **canonical** domain term, and code/DB/API/UI **now all say `project`**
-(`projects` table, `projectId`, `createProject`, `/projects` routes, `project_id` /
-`project_hashes` WS fields, the `plugins/Artisan/projects/` disk dir, and the
-editor UI). It was historically called **`pack`** in code/DB/API and labelled
+(`projectId`, `/projects` routes, `project_id` WS fields, the
+`plugins/Artisan/projects/` disk dir, and the editor UI). It was historically called **`pack`** in code/DB/API and labelled
 **"Workspace"** in the UI; the 2026-06-18 full-stack rename brought every layer onto
 `project`. "Pack" was rejected as the domain word because it collides with Artisan's
 own generated **resource pack** (and the Minecraft "texture pack" reflex);
@@ -731,13 +717,13 @@ A directory a **Module** declares as editable from the editor. Its *kind*
 decides what the files inside are worth, and the Module chooses by deciding
 where to put them (cf. ADR `yaml-assisted-editing`):
 
-- A **project root** holds a **Project** — its files are versioned, survive the
-  server, can be edited while the server is offline, and carry translations in
-  their own `lang/`. It may live inside the Module's own plugin directory, so
-  "versioned" never means "moved into Artisan's folder".
+- A **project root** holds a **Project** — its files go through private drafts
+  and compare-and-swap publication, and carry translations in their own `lang/`.
+  It may live inside the Module's own plugin directory, so a project root never
+  means "moved into Artisan's folder".
 - A **plain root** is any other declared directory (typically a plugin's own
-  config): editable live against the Server, with no history, no offline
-  editing, and no translations of ours — its content is consumed by its owner,
+  config): editable live against the Server, with no drafts and no
+  translations of ours — its content is consumed by its owner,
   so its wording is its owner's business.
 
 Non-examples:
@@ -747,26 +733,15 @@ Non-examples:
 
 ## Server
 
-A single Minecraft server within a **Network** — what **Projects** attach to and
-deploy onto. Identified and authenticated by its **key** (a rotatable bearer
-secret, hashed in the `server_keys` row); code/DB call the entity `server_key` /
-`serverKeyId`. A Server belongs to one Network and holds one or more Projects.
-
-The **key** is the Server's *credential*, not the Server: rotating it — or running
-several plugin instances on one key — leaves the same Server. Whether a Server is
-**online** (≥1 instance currently connected) is its **Presence**, a runtime fact,
-not part of the entity.
-
-A Server is **unlinked** until `/artisan link` redeems its key: it exists in its
-Network and can hold Projects made of drafts only, prepared before the plugin is
-installed. Linking changes nothing about those Projects; their first publication
-creates their folders on the disk.
+A single Minecraft server running Artisan — what **Projects** attach to and
+deploy onto. It holds one or more Projects on its disk. In a **Network** it is
+either the **Hub** (id `local` in the editor) or a **Leaf**, identified by its
+name (`web.name`, else its server folder name). Whether it is **online** is its
+**Presence**, a runtime fact, not part of the entity.
 
 Non-examples:
-- The bearer secret is **not** the Server; it's the credential. Rotation swaps the
-  secret, same Server.
-- A connected plugin process is a runtime *instance* of the Server, not a separate
-  Server (instances may share one key).
+- The cloud server key and "unlinked Server" are gone (phase F, 2026-10): a
+  Server exists for the editor only while it runs Artisan.
 
 ## Snapshot
 
@@ -778,18 +753,12 @@ Non-examples:
 - A hand edit on the server disk is **not** in the Snapshot until the next reload.
 - A **Draft** is never a Snapshot: it is unpublished work.
 
-## Version
+## Version — **retired term** (2026-10)
 
-A recorded state of a server Project: every **Snapshot** that differs from the
-previous one, with its date and author (the user
-who published, or the server itself after a hand edit and reload). Versions are
-browsable per file or for the whole Project. Restoring one never publishes: it
-loads that content into the user's **Draft**, which is then published normally.
-_Avoid_: commit, backup, trash (the retired on-disk `.artisan/history/`)
-
-Non-examples:
-- Several hand edits between two reloads form a single Version.
-- A Draft autosave is not a Version; only what the server loads is.
+*Was* a recorded state of a server Project kept by the backend (every differing
+**Snapshot**, with date and author). Removed with the backend; the hub serves an
+empty list. Older per-file archives in `.artisan/history/` stay readable.
+_Avoid_: commit, backup.
 
 ## Template
 

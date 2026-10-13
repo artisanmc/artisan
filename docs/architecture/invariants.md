@@ -1,57 +1,54 @@
 # Invariants critiques
 
-Règles qu'on ne peut pas casser sans casser l'édition plugin ↔ backend ↔ éditeur.
+Règles qu'on ne peut pas casser sans casser l'édition éditeur ↔ hub ↔ serveur.
 Chaque entrée dit **quoi**, **pourquoi**, et **ce qui la verrouille** (test / vecteur de conformance).
 
-Résumé exécutable dans `CLAUDE.md` § Invariants — ce fichier est le détail.
+Résumé exécutable dans `CLAUDE.md` § Pièges — ce fichier est le détail.
 
 ---
 
-## Le contenu d'un Project vit sur le disque du serveur, et nulle part ailleurs
+## Tout vit sur le disque du serveur
 
-ADR `server-disk-only-storage` (2026-08-13). Le backend ne stocke **aucun** contenu de Project :
-ni `filesJson`, ni commits, ni branches. Ce qu'il garde d'un Project, c'est son **identité** (nom,
-slug, serveur propriétaire, network) — de quoi le lister et le router dans l'éditeur.
+Depuis la phase F (2026-10), il n'y a plus de backend ni de copie centrale. Contenu publié
+**et** brouillons privés d'un Project vivent dans son dossier, sur le serveur qui le charge
+(ADR `editor-web-server`, révision du 2026-10-12 de `server-disk-only-storage`) :
 
-- **Lecture** : `project_read` → l'arbre complet, relPath-keyed, lu à la demande sur le disque.
-- **Écriture** : `project_write`, sur **geste explicite** de l'admin. Le **plugin est le seul
-  écrivain** — le backend relaie, il n'arbitre jamais (il n'a aucune copie avec quoi arbitrer).
-- **Serveur hors ligne** (révisé 2026-09-26, ADR `snapshot-mirror-and-backend-history`
-  décision 7) : le Project s'ouvre depuis la dernière copie du Snapshot, **datée**
-  (`offlineSince`) et annoncée comme telle ; le brouillon reste modifiable, publier attend le
-  retour du serveur. Sans copie, il reste inouvrable.
-- **Exception en cours de résorption** : les assets binaires (textures, glyphes, polices) vivent
-  encore sur un volume backend. ADR `assets-on-server-disk` (2026-08-17) les ramène sous
-  `assets/` dans le Project, le backend n'en gardant qu'un **cache jetable** clé par contenu.
-  **Rien n'est implémenté** — tant que ça dure, un dossier de Project renommé sur le disque
-  orpheline silencieusement ses glyphes (ils pendent à l'ancienne ligne d'ancrage).
+- **Lecture** : `project_read` rend l'instantané chargé par le serveur, pas le disque courant.
+- **Écriture** : `project_write` ou la publication d'un brouillon, sur **geste explicite**. Le
+  **plugin est le seul écrivain** ; le hub relaie et n'arbitre jamais.
+- **Brouillons** : `<project>/.artisan/drafts/`, un jeu par UUID de joueur, sauvegardés
+  automatiquement. La publication écrit projet et état final du brouillon dans **un seul commit
+  atomique** (`ProjectPublisher`, journal `.artisan/transactions/` rejoué après crash).
+- **Serveur éteint** : l'éditeur qu'il héberge l'est aussi ; une feuille éteinte est listée hors
+  ligne (503 `server_offline`). Rien n'est ouvrable sans le serveur.
+- **Édition à la main** : prise en compte à `/artisan reload` seulement (le `SyncScanner` a été
+  retiré). L'éditeur l'apprend par `projects_reloaded`.
 
-> **Révision 2026-09-26** (ADR `snapshot-mirror-and-backend-history`) : le backend garde un
-> **miroir jetable** du Snapshot, servi seulement si son hash égale le dernier hash annoncé par
-> le plugin. Il n'est jamais une autorité ni une base de compare-and-swap : la publication
-> reste un CAS contre le disque, et vider `project_snapshots` ne perd rien.
+## Un nom de serveur = un serveur vivant
 
-Corollaire : il n'existe plus de divergence disque↔backend, donc plus de `detectSyncAction`, plus
-de `sync_divergence`, plus de `bundle_available`. Le `SyncScanner` subsiste, mais **uniquement**
-pour recharger à chaud une édition faite à la main ou par un agent : il ne décide plus de rien.
+Sur `/ws/plugin`, le hub identifie une feuille par son `proxy_name`. Une nouvelle connexion
+sous le même nom **remplace** l'ancienne (`RemoteServer.attach`), prévenue par `session_replaced`.
+Deux serveurs sous un même nom ont chacun leur disque : les laisser coexister ferait lire l'un et
+écrire l'autre. **Dernier arrivé gagne** : un serveur qui crashe laisse une connexion morte, et
+« premier gagne » verrouillerait le vrai serveur dehors. Deux serveurs qui se disputent un nom
+deviennent visibles (déconnexions en boucle) au lieu de diverger en silence. Le nom `local` est
+réservé au serveur du hub.
 
-## Une clé serveur = un serveur vivant
+## Une release, une version de protocole
 
-Au `hello`, le backend **évince** toute connexion déjà liée à la même clé (dernier arrivé gagne) et
-prévient l'évincé par `session_replaced`.
+Le `hello` porte `ProtocolVersion.CURRENT`. Majeure différente de celle du hub : la feuille
+reste listée « mise à jour requise » et **rien ne lui est envoyé** (`RemoteServer.send` refuse,
+`Relay` répond 503 `plugin_update_required`) — on n'écrit jamais chez un serveur qui pourrait
+mal lire. Mineure différente : champs additifs, ignorés par l'autre côté. Tous les jars d'une
+release portent le même numéro. **Verrouillé par** `PluginChannelTest` (« another major protocol version »).
 
-Ce n'était pas nécessaire tant que le backend détenait le contenu : les N instances téléchargeaient
-le même bundle, donc parler à l'une ou l'autre revenait au même. Depuis `server-disk-only-storage`,
-chacune a **son** disque et rien ne les synchronise — le relais (`firstPluginSender`) ferait lire un
-disque et écrire l'autre, puis basculerait **en silence** quand la première tombe, produisant des
-conflits fantômes sur des fichiers que personne n'a touchés.
+## Session et même origine
 
-**Dernier arrivé gagne, et pas l'inverse** : un serveur qui crashe laisse une connexion morte ;
-« premier gagne » verrouillerait le vrai serveur dehors jusqu'à expiration du keepalive, au pire
-moment. Deux serveurs qui se disputent réellement une clé deviennent visibles (déconnexions en
-boucle) au lieu de diverger en silence.
-
-**Verrouillé par** `hub.test.ts` § « une clé serveur = un serveur vivant ».
+Toute route `/api/` exige une session (cookie `HttpOnly`, `SameSite=Strict`) portant la
+permission de la route ; toute requête qui modifie quelque chose, et l'ouverture de
+`/ws/editor`, exige un `Origin` du même hôte. Seuls `/login/<jeton>`, `/resource-pack/<sha1>.zip`,
+les fichiers de l'éditeur et `/ws/plugin` (secret partagé) sont publics. Le hub ne lit jamais une
+permission lui-même : il reprend celles que le serveur a lues pour le joueur au moment du lien.
 
 ## Compare-and-swap par fichier, tout ou rien
 
@@ -68,48 +65,39 @@ le fichier neuf et le fichier disparu).
 
 **Verrouillé par** `ProjectWriteChannelTest` (plugin) et `diskSave` / `resolveConflicts` (éditeur).
 
-## Versions en base — la corbeille disque n'est plus alimentée (2026-09-26)
+## Historique : `.artisan/history/` n'est plus alimenté
 
-ADR `snapshot-mirror-and-backend-history`, décision 6. Chaque Snapshot reçu par le miroir qui
-diffère du précédent devient une **Version** (`project_versions`, contenus dans `snapshot_blobs`) :
-date, auteur (l'utilisateur dont l'écriture a précédé ce Snapshot, sinon le serveur) et manifeste.
-L'historique d'un fichier et celui du Project se lisent en base ; **restaurer ne publie jamais** :
-le contenu va dans le brouillon, puis la publication normale (CAS) s'applique.
-
-Le plugin n'écrit plus `.artisan/history/` (`withHistory` est l'identité) ; les archives existantes
-restent lisibles par `project_history`, qui sert de repli tant qu'un Project n'a aucune Version.
-Limites assumées : plusieurs éditions à la main entre deux reloads forment une seule Version ;
-les images d'une Version ne sont que des hashes (leurs octets ne sont pas conservés) ; perdre la
-base perd les Versions, jamais le contenu publié.
+`ProjectPublisher.withHistory` est l'identité depuis le 2026-09-26 (l'historique était passé au
+backend, supprimé depuis). Les archives existantes restent lisibles par `project_history` et
+suivent un renommage ; aucune écriture n'en crée. Il n'existe aucune Version d'un Project.
 
 ## Exclusion `.artisan*` universelle (2026-07-23)
 
 Tout relPath dont le **premier segment** commence par `.artisan` est une métadonnée : hors hash,
 invisible au scan de contenu.
 
-Une nuance est apparue avec la bascule disque-seul : l'éditeur **possède**
-`.artisan/editor.yaml` (layout du board, `i18n_mode`) et doit pouvoir l'écrire. La règle de
-`project_read` / `project_write` est donc plus fine que l'exclusion hash — et symétrique : **ce que
-l'éditeur ne voit pas en lecture, il ne peut pas l'écrire**. Restent invisibles et interdits :
-`.artisan/history/` (corbeille), `.artisan-trash/`, `.artisan-sync.yaml`.
+L'éditeur **possède** `.artisan/editor.yaml` (layout du board, `i18n_mode`) et doit pouvoir
+l'écrire. La règle de `project_read` / `project_write` (`EditorPaths`) est donc plus fine que
+l'exclusion hash — et symétrique : **ce que l'éditeur ne voit pas en lecture, il ne peut pas
+l'écrire**. Restent invisibles et interdits : `.artisan/history/`, `.artisan/drafts/`,
+`.artisan/transactions/` (`ProjectPathPolicy.isPrivate`), `.artisan-trash/`, `.artisan-sync.yaml`.
 
-## Le hash n'est plus un invariant inter-langage
+## Le hash n'est pas un invariant inter-langage
 
-Il l'a été : `BundleHasher` (plugin) et `hashUtils.computeBundleHash` (backend) devaient produire
-le même hash d'arbre au byte près, sous peine d'inventer des divergences, et un vecteur partagé
-(`testdata/project-hash-conformance.json`) le verrouillait. Le backend ne calcule plus rien : le
-vecteur et son implémentation backend ont disparu.
+Le hash d'arbre (`BundleHasher.snapshotHash`) n'est calculé que par le plugin : l'éditeur le
+garde et le rend en `if_hash`, sans le recalculer. `testdata/project-snapshot-hash-conformance.json`
+le fige côté plugin (`ProjectSnapshotHashConformanceTest`).
 
-Restent deux usages, tous deux locaux : le hash d'arbre (`BundleHasher.hash`) pour la détection de
-changement du scanner, et `hashContent` — un **contenu de fichier**, jeton du compare-and-swap,
-reproduit côté éditeur par `lib/contentHash.ts` (SHA-256 UTF-8, hex minuscule).
+Seul `hashContent` / `hashBytes` (SHA-256 d'un contenu de fichier, hex minuscule), jeton du
+compare-and-swap, est reproduit côté éditeur par `lib/contentHash.ts`, avec un repli en JS pur
+(`lib/sha256.ts`) quand `crypto.subtle` manque (HTTP hors `localhost`).
 
-## OkHttp — pas d'I/O bloquant dans le callback WS
+## Pas d'I/O bloquant dans le callback WS
 
-`SyncedMenuProvider.handleMessage` est appelé sur le thread WS callback d'OkHttp. Il ne fait que
-typer le message (`EditorRequest.parse`) et le router vers son gestionnaire. Toute réponse part par
-`Replies` (exécuteur OkHttp) ; toute lecture ou écriture disque d'un Project par `ProjectWorkspace.io`,
-une à la fois. Ne jamais faire d'I/O bloquant dans le callback WS directement.
+Sur une feuille, `SyncedMenuProvider.handleMessage` tourne sur le thread de callback d'OkHttp ;
+côté hub, `PluginChannel` sur celui de Jetty. Ils ne font que typer le message
+(`EditorRequest.parse`) et le router. Toute réponse part par `Replies` ; toute lecture ou écriture
+disque d'un Project par `ProjectWorkspace.io`, une à la fois.
 
 ## Threads — Folia, Leaf, Paper
 
@@ -129,34 +117,20 @@ choisit `RegionizedScheduler` (Paper, Folia, Leaf) ou `BukkitTaskScheduler` (Moc
 `SchedulerBoundaryTest` refuse tout `Bukkit.getScheduler()`, `server.scheduler` ou
 `isPrimaryThread` hors de `PaperSchedulers.kt`. Téléporter : `teleportAsync`, jamais `teleport`.
 
+Le hub ajoute ses propres threads : Jetty (`artisan-web`, 32 max) répond aux requêtes HTTP et
+WebSocket, et ne touche jamais le jeu directement. Le serveur `local` passe par `LocalServerLink`
+vers les mêmes gestionnaires que le WebSocket : lectures et écritures disque sur
+`ProjectWorkspace.io`, accès joueurs et inventaires par le `Scheduler`.
+
 ## Reload atomique
 
 `reloadFromDisk()` construit un nouveau `ConcurrentHashMap` **entier**, puis l'assigne à
 `@Volatile var menus`. Ne jamais modifier le map en place.
 
-## Détection = contenu, jamais événement
+## `.artisan-trash/` est réservé
 
-Spec `2026-07-30-poll-first-disk-sync-design`. `SyncScanner` remplace l'ancien `ProjectWatcher`
-inotify, dont la correction dépendait d'événements OS jamais délivrés sur bind mount Docker / NFS /
-SMB. Il ne sert plus qu'au hot-reload, mais la règle tient toujours : **aucun chemin de correction
-ne dépend d'un événement de système de fichiers.**
-
-Le tick fait : court-circuit `stat` (signature chemins/tailles/mtimes), quiescence sur 2 ticks
-consécutifs avant dispatch (un upload FTP en cours n'est jamais rechargé à moitié), et un deep tick
-tous les 10 ticks = vrai hash de contenu, filet pour les FS à granularité mtime grossière.
-
-Le comportement est **identique en dev Docker et en prod Linux** — c'est le gain principal.
-
-## DELETE project = soft-delete
-
-`DELETE /api/v1/user/projects/:projectId` (cookie auth + membership) marque `deletedAt`
-(`softDeleteProject`, la ligne reste en DB) et broadcast `project_deleted` au plugin (qui
-move-to-trash) et aux autres connexions éditeur.
-
-## `.artisan-trash/` is sacred
-
-Répertoire au top de `projectsDir`, créé par `ProjectDeleter`. Ne jamais utiliser ce nom pour autre
-chose.
+Nom réservé au top d'une racine de Projects, exclu du hash et de l'éditeur. Plus rien ne le crée
+depuis la suppression de `project_deleted` ; ne jamais l'utiliser pour autre chose.
 
 ## Le contenu des menus n'existe que côté client
 
@@ -187,9 +161,9 @@ le mettre à jour, puis de passer la checklist manuelle de `testing.md`.
 
 `vanilla_texture: false` ne peut pas être local à un menu : le client dessine la même texture pour
 **toutes** les fenêtres d'un type — `generic_54.png` (coffres, tonneaux, ender chests, menus 9×N),
-`hopper.png` (entonnoirs), `dispenser.png` (distributeurs **et** droppers). Le pack (backend
-`vanillaGui.ts`) remplace donc par une texture transparente celle de chaque type dont **un** menu
-d'un projet lié au serveur l'utilise (coffre / entonnoir / dropper, indépendamment), et le signale
+`hopper.png` (entonnoirs), `dispenser.png` (distributeurs **et** droppers). Le pack (construit par l'éditeur,
+`editor/src/lib/pack/vanillaGui.ts`) remplace donc par une texture transparente celle de chaque type dont **un** menu
+d'un projet du serveur l'utilise (coffre / entonnoir / dropper, indépendamment), et le signale
 dans `asset-index.json` : `vanilla_gui.transparent_chests|hoppers|dispensers`.
 
 - **Chaque pack** embarque la police `artisan:vanilla_gui` : 6 glyphs `generic_9x1..6` découpées
@@ -211,8 +185,7 @@ dans `asset-index.json` : `vanilla_gui.transparent_chests|hoppers|dispensers`.
 - **Source des glyphs** : la texture vanilla (copie de l'éditeur), ou l'image `projet:image` que le
   `config.yml` du serveur nomme dans `resource-pack.container-textures.{chest,hopper,dispenser}`
   (format vanilla, 256×256 ou multiple HD : découpée à son échelle, dessinée à la taille vanilla ;
-  ADR `server-config-from-editor`). Une image absente ou au mauvais format est ignorée avec un WARN
-  backend. C'est ainsi qu'un pack **serveur** qui restyle ces
+  ADR `server-config-from-editor`). Une image absente ou au mauvais format est ignorée. C'est ainsi qu'un pack **serveur** qui restyle ces
   conteneurs garde son aspect.
 - Un autre pack serveur qui remplace aussi ces textures (Nexo, Oraxen, ItemsAdder) : le dernier chargé
   gagne. Un pack **perso** côté joueur est écrasé (les packs serveur passent au-dessus) et ses

@@ -130,11 +130,11 @@ qui est corrigé, c'est qu'aucun add-on Artisan n'a plus de raison d'en chercher
 
 ### `net.artisanmc.modules.api.ItemStackApi` (`@Beta`)
 
-Captured-item helpers for modules (`api.items`): `serialize(stack)` — canonical wrapped YAML (what the backend stores under `items/<id>.yml`) — and `describe(stack)` — the generic display descriptor (material enriched to a recognized custom ref, head_texture, enchanted, count, name). Since 1.4.0.
+Captured-item helpers for modules (`api.items`): `serialize(stack)` — canonical wrapped YAML (what a project stores under `items/<id>.yml`) — and `describe(stack)` — the generic display descriptor (material enriched to a recognized custom ref, head_texture, enchanted, count, name). Since 1.4.0.
 
 ### `net.artisanmc.modules.api.ModuleMessagesApi` (`@Beta`)
 
-Fire-and-forget module messages over the plugin ↔ backend WS (`api.messages.send(type, payload)`) — routed backend-side by `type` to the module's backend layer. No-op while disconnected. Since 1.4.0. ⚠️ **Ne pas s'en servir pour muter un project** : le contenu vit sur le disque et le module y écrit lui-même (ADR `server-disk-only-storage`). `boutique_additem` en fut l'exemple, et ne l'est plus.
+Fire-and-forget module messages (`api.messages.send(type, payload)`). Since 1.4.0. **Sans destinataire depuis la phase F (2026-10)** : il n'y a plus de couche module côté serveur web ; sur une feuille le message part au hub, qui ignore les types inconnus, et sur le hub il n'est relayé nulle part. Candidat à `@Sunset`. ⚠️ **Ne pas s'en servir pour muter un project** : le contenu vit sur le disque et le module y écrit lui-même (ADR `server-disk-only-storage`). `boutique_additem` en fut l'exemple, et ne l'est plus.
 
 ### `net.artisanmc.modules.api.ModuleActionsApi` (`@Beta`)
 
@@ -312,7 +312,7 @@ The artifact contains only the `net.artisanmc.modules.api.*` packages filtered t
 
 ## Protocol surfaces
 
-- **WebSocket** : the WS protocol carries `protocol_version: "1"` in the hello message. Backend tolerates unknown message types (logs + ignores). See `versioning.md` §4.
-- **REST API** : versioned under `/api/v1/*` (since 1.0). See `versioning.md` §5.
-- **YAML schemas** : `manifest/v1`, `menu/v1`, `command/v1`, `dialog/v1`. Plugin `PackReader` rejects unsupported versions; the schema migration framework brings legacy data forward when newer versions ship.
-- **Database** : Drizzle migrations under `backend/drizzle/` are append-only. See `versioning.md` §6.
+- **WebSocket** : the hub ↔ server protocol carries `protocol_version` (`"1.0"`, major.minor) in the hello message; a different major is refused, unknown message types are ignored. See `versioning.md` §4 and `ws-protocol.md`.
+- **REST API** : versioned under `/api/v1/*`, served by the hub to the editor shipped in the same jar. See `versioning.md` §5.
+- **YAML schemas** : `manifest/v1`, `menu/v1`, `command/v1`, `dialog/v1`. Plugin `ProjectReader` rejects unsupported versions; the schema migration framework brings legacy data forward when newer versions ship.
+- **Database** : Artisan owns no tables; each suite plugin migrates its own through `DatabaseApi`. See `versioning.md` §6.

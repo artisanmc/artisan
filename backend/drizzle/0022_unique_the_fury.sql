@@ -1,1 +1,0 @@
-ALTER TABLE "server_keys" ALTER COLUMN "hash" DROP NOT NULL;

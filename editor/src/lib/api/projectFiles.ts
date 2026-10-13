@@ -3,7 +3,7 @@ import { projectFetch } from "@/lib/projectFetch";
 import { isPrivateProjectPath } from "@/lib/projectFileVisibility";
 import type { ProjectSummary } from "./networks";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
+const API_URL = import.meta.env.VITE_API_URL ?? "";
 
 /**
  * Lecture / écriture des fichiers d'un Project **sur le disque du serveur**

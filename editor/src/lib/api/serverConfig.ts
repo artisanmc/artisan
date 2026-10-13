@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
+const API_URL = import.meta.env.VITE_API_URL ?? "";
 
 /** Editable `config.yml` of a server, flat dotted keys (ADR `server-config-from-editor`). */
 export type ServerConfig = Record<string, unknown>;

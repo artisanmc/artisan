@@ -2,191 +2,217 @@
 # when which source files change. Used by the /sync-docs skill.
 #
 # Patterns: minimatch-style globs. ** = recursive wildcard.
+#
+# CLAUDE.md is a ROUTER, not a reference: it only holds commands, the three
+# consequential pitfalls, the module import rule and the doc routing table.
+# Only map to it when a change actually touches one of those. Everything else
+# belongs in docs/architecture/*, CONTEXT.md or docs-site/.
+# AGENTS.md mirrors CLAUDE.md: update both together.
 
 mappings:
-  - touches: "plugin/src/main/resources/config.yml"
+  # --- Plugin: user-visible surface ---
+
+  - touches: "plugin/paper/src/main/resources/config.yml"
     updates:
       - "docs-site/src/content/docs/getting-started/install-admin.md"
     reason: "User-visible plugin config (Reference + Config sections)"
 
-  - touches: "plugin/src/main/kotlin/**/IfzCommand.kt"
-    updates:
-      - "docs-site/src/content/docs/getting-started/install-admin.md"
-      - "CLAUDE.md"
-    reason: "User-visible commands (table in install-admin + plugin section in CLAUDE.md)"
-
-  - touches: "plugin/src/main/kotlin/**/ResourcePackDelegator.kt"
-    updates:
-      - "docs-site/src/content/docs/getting-started/install-admin.md"
-      - "CLAUDE.md"
-    reason: "Resource pack distribution mode (Resource pack section)"
-
-  - touches: "plugin/src/main/kotlin/**/PluginConfig.kt"
+  - touches: "plugin/*/src/main/kotlin/**/PluginConfig.kt"
     updates:
       - "docs-site/src/content/docs/getting-started/install-admin.md"
     reason: "Plugin config schema / defaults"
 
-  - touches: "backend/src/lib/hub.ts"
+  - touches: "plugin/*/src/main/kotlin/**/ArtisanCommand.kt"
     updates:
+      - "docs/architecture/plugin-commands.md"
+      - "docs-site/src/content/docs/getting-started/install-admin.md"
       - "CLAUDE.md"
-    reason: "WS protocol (AI-facing only — no user-visible surface)"
+      - "AGENTS.md"
+    reason: "Commands: dev detail in plugin-commands.md, user table in install-admin, one-line list in CLAUDE.md"
 
-  - touches: "backend/src/db/schema.ts"
+  - touches: "plugin/*/src/main/kotlin/**/ResourcePackDelegator.kt"
     updates:
-      - "CONTEXT.md"
+      - "docs-site/src/content/docs/getting-started/install-admin.md"
+    reason: "Resource pack distribution modes (install-admin, Resource packs section)"
+
+  # --- Plugin: sync, hashing, disk layout (the invariants) ---
+
+  - touches: "plugin/*/src/main/kotlin/**/BundleHasher.kt"
+    updates:
+      - "docs/architecture/invariants.md"
+      - "testdata/project-snapshot-hash-conformance.json"
+    reason: "Snapshot hash — computed by the plugin only; keep byte-order sorting and regenerate the vector on purpose"
+
+  - touches: "plugin/*/src/main/kotlin/**/yaml/LangFlattener.kt"
+    updates:
+      - "docs/architecture/project-files.md"
+      - "testdata/lang-tree-conformance.json"
+    reason: "lang/ tree reader — mirror of langTree.ts, locked by shared vector"
+
+  - touches: "editor/src/lib/langTree.ts"
+    updates:
+      - "docs/architecture/project-files.md"
+      - "testdata/lang-tree-conformance.json"
+    reason: "lang/ tree writer (the only writer)"
+
+  - touches: "plugin/*/src/main/kotlin/**/I18nAddresses.kt"
+    updates:
+      - "docs/architecture/project-files.md"
+      - "testdata/i18n-address-conformance.json"
+    reason: "Canonical i18n addresses, derived on both sides"
+
+  - touches: "tools/minecraft-assets/*.ts"
+    updates:
+      - "tools/minecraft-assets/README.md"
       - "CLAUDE.md"
-    reason: "Domain entities — may shift glossary or AI architecture notes"
+      - "AGENTS.md"
+    reason: "Minecraft asset generators: what each script does and run order in the README, one-line pipeline in CLAUDE.md (Assets MC)"
+
+  - touches: "editor/src/lib/pack/**"
+    updates:
+      - "testdata/resource-pack-conformance.json"
+    reason: "The editor owns the pack builder and its byte-for-byte vector since the backend was removed: an intended zip change updates entries/sha1 in the same commit"
+
+  # --- Module API surface (2 layers: plugin + editor) ---
+
+  - touches: "plugin/api/src/main/"
+    updates:
+      - "docs/architecture/api-surface.md"
+      - "docs/architecture/modules.md"
+      - "CHANGELOG.md"
+    reason: "Public module API — affects every module, must hit CHANGELOG + api-surface"
+
+  - touches: "editor/packages/editor-sdk/src/**"
+    updates:
+      - "docs/architecture/modules.md"
+    reason: "Frontend module API surface (@artisan/editor-sdk — FrontendModule, registerModule)"
+
+  # --- Hub (editor web server) and protocol ---
+
+  - touches: "plugin/hub/src/main/kotlin/**/*Routes.kt"
+    updates:
+      - "docs/architecture/rest-endpoints.md"
+    reason: "REST index points at the route file — add/remove/rename must be reflected"
+
+  - touches: "plugin/hub/src/main/kotlin/**/{HubServer,EditorApi,Http,Relay}.kt"
+    updates:
+      - "docs/architecture/rest-endpoints.md"
+    reason: "Route mounting, session/origin checks and relay status codes (Conventions section)"
+
+  - touches: "plugin/hub/src/main/kotlin/**/{PluginChannel,RemoteServer,EditorChannel,Servers}.kt"
+    updates:
+      - "docs/architecture/ws-protocol.md"
+    reason: "/ws/plugin and /ws/editor: hello fields read by the hub, relayed messages, server naming"
+
+  - touches: "plugin/core/src/main/kotlin/**/protocol/**"
+    updates:
+      - "docs/architecture/ws-protocol.md"
+    reason: "Message types, fields and handlers"
+
+  - touches: "plugin/core/src/main/kotlin/**/protocol/ProtocolVersion.kt"
+    updates:
+      - "docs/architecture/ws-protocol.md"
+      - "docs/architecture/versioning.md"
+      - "CHANGELOG.md"
+    reason: "Protocol version — a major bump stops hub and leaves from talking until both update"
+
+  - touches: "plugin/paper/src/main/kotlin/**/ws/WsClient.kt"
+    updates:
+      - "docs/architecture/ws-protocol.md"
+    reason: "Leaf client: hello payload, reconnection, editor_link"
+
+  - touches: "plugin/hub/src/main/kotlin/**/{Sessions,WebConfig,PackStore,VanillaAssets}.kt"
+    updates:
+      - "docs/architecture/entities.md"
+      - "docs-site/src/content/docs/getting-started/install-admin.md"
+    reason: "What the hub keeps (sessions, packs, caches) and the web settings admins configure"
+
+  - touches: "plugin/paper/src/main/kotlin/**/config/{EnvironmentFile,NetworkSecret}.kt"
+    updates:
+      - "docs-site/src/content/docs/getting-started/install-admin.md"
+      - "docs/architecture/entities.md"
+    reason: "environment.yml template (web.*, database) and network secret resolution"
+
+  - touches: "plugin/core/src/main/kotlin/**/project/{ProjectDraftStore,ProjectPublisher,ProjectPathPolicy}.kt"
+    updates:
+      - "docs/architecture/invariants.md"
+      - "docs/architecture/entities.md"
+      - "docs/architecture/project-files.md"
+    reason: "Drafts, publication journal and private .artisan paths on disk"
+
+  - touches: "docker/network/**"
+    updates:
+      - "CLAUDE.md"
+      - "AGENTS.md"
+      - "docs-site/src/content/docs/getting-started/install-admin.md"
+    reason: "Hub + leaf example (commands section, network setup guide)"
+
+  # --- Editor ---
 
   - touches: "editor/src/features/canvas/**"
     updates:
+      - "docs/architecture/editor-internals.md"
       - "docs-site/src/content/docs/editor/"
-      - "CLAUDE.md"
-    reason: "User-visible editor UX (editor section + CLAUDE.md ops/UI notes)"
+    reason: "Canvas internals + user-visible editor UX"
 
-  - touches: ".env.example"
+  - touches: "editor/src/components/SchemaForm/"
     updates:
-      - "CLAUDE.md"
-    reason: "Environment variables table"
+      - "docs/architecture/editor-internals.md"
+    reason: "SchemaForm is the module form multiplier"
+
+  - touches: "editor/src/components/ui/"
+    updates:
+      - "editor/src/features/design-system/DesignSystemPage.tsx"
+      - "docs/architecture/editor-internals.md"
+    reason: "Design system: a new/changed component needs its specimen on /design in the same commit"
+
+  - touches: "editor/src/styles/globals.css"
+    updates:
+      - "editor/src/features/design-system/DesignSystemPage.tsx"
+      - "docs/architecture/editor-internals.md"
+    reason: "Tokens and utility classes are part of the design system surface"
+
+  - touches: "editor/src/components/ProjectTabs.tsx"
+    updates:
+      - "docs/architecture/editor-internals.md"
+    reason: "UI shell — project tab structure"
+
+  - touches: "editor/src/components/ProjectSidebar.tsx"
+    updates:
+      - "docs/architecture/editor-internals.md"
+    reason: "UI shell — sidebar structure"
+
+  - touches: "editor/src/routes/settings.tsx"
+    updates:
+      - "docs/architecture/editor-internals.md"
+      - "docs-site/src/content/docs/editor/"
+    reason: "/settings is user-facing — section list + Apparence flow"
+
+  - touches: "editor/src/routes/networks.$networkId.servers.$serverId.projects.$projectId.tsx"
+    updates:
+      - "docs/architecture/editor-internals.md"
+    reason: "Project shell layout (top bar + tab strip + content per ?tab=)"
+
+  # --- Schemas, stack, config ---
+
+  - touches: "docs/schema/**/schema.json"
+    updates:
+      - "docs/architecture/schemas-codegen.md"
+      - "CHANGELOG.md"
+    reason: "Types are hand-aligned (editor types.ts + plugin) and fixtures must stay green; a shipped version is never edited, it gets a new folder"
 
   - touches: "docker-compose.yml"
     updates:
       - "CLAUDE.md"
+      - "AGENTS.md"
       - "docs-site/src/content/docs/contributing/"
-    reason: "Stack layout (contributing guide when filled, CLAUDE.md commands section)"
+    reason: "Stack layout (commands section + contributing guide)"
 
-  - touches: "backend/src/routes/auth.ts"
+  - touches: "*/package.json"
     updates:
-      - "CLAUDE.md"
-    reason: "Auth endpoints (Auth section in CLAUDE.md)"
+      - "docs/decisions/stack.md"
+    reason: "Dependency / stack change — add to the Pivots table if it reverses a choice"
 
-  - touches: "backend/src/routes/discordOauth.ts"
-    updates:
-      - "CLAUDE.md"
-    reason: "Discord OAuth endpoints (Auth section in CLAUDE.md)"
-
-  - touches: "backend/src/lib/sessionManager.ts"
-    updates:
-      - "CLAUDE.md"
-    reason: "Session lifecycle / cookie semantics"
-
-  - touches: "backend/src/routes/userNetworks.ts"
-    updates:
-      - "CLAUDE.md"
-    reason: "Network endpoints (section Modèle d'entités + Custom Items — endpoints et cache)"
-
-  - touches: "backend/src/routes/userPacks.ts"
-    updates:
-      - "CLAUDE.md"
-    reason: "Pack endpoints (Custom Items — endpoints et cache section)"
-
-  - touches: "backend/src/lib/membershipGuard.ts"
-    updates:
-      - "CLAUDE.md"
-    reason: "Reference for membership checks in network endpoints"
-
-  - touches: "plugin/src/main/kotlin/**/LocalPushSender.kt"
-    updates:
-      - "CLAUDE.md"
-    reason: "Local push command (Plugin commands section)"
-
-  - touches: "backend/src/lib/commitStorage.ts"
-    updates:
-      - "CLAUDE.md"
-    reason: "Phase 2 commits storage (Modèle d'entités — Phase 2 section)"
-
-  - touches: "backend/src/lib/branchStorage.ts"
-    updates:
-      - "CLAUDE.md"
-    reason: "Phase 2 branches storage + Phase 3 findLCA (Modèle d'entités — Phase 2 / Phase 3 sections)"
-
-  - touches: "backend/src/routes/userBranches.ts"
-    updates:
-      - "CLAUDE.md"
-    reason: "Phase 2 branches endpoints + Phase 3 merge-into / resolve (section endpoints)"
-
-  - touches: "backend/src/lib/mergeEngine.ts"
-    updates:
-      - "CLAUDE.md"
-    reason: "Phase 3 merge engine (Modèle d'entités — Phase 3 section)"
-
-  - touches: "backend/src/routes/link.ts"
-    updates:
-      - "CLAUDE.md"
-    reason: "Claim endpoint auth + smart-count (Plan accounts × networks UX — endpoints + entities)"
-
-  - touches: "backend/src/routes/networkTransfers.ts"
-    updates:
-      - "CLAUDE.md"
-    reason: "Network transfer init/get/accept endpoints (Plan accounts × networks UX)"
-
-  - touches: "backend/src/lib/networkTransferStorage.ts"
-    updates:
-      - "CLAUDE.md"
-    reason: "Network transfer storage helpers + table (Plan accounts × networks UX — entities)"
-
-  - touches: "backend/src/routes/userNetworks.ts"
-    updates:
-      - "CLAUDE.md"
-    reason: "Delete server-key endpoint (Plan accounts × networks UX — endpoints)"
-
-  - touches: "plugin/src/main/kotlin/gg/interfaze/modules/api/"
-    updates:
-      - "CLAUDE.md"
-      - "docs/architecture/modules.md"
-      - "docs/architecture/api-surface.md"
-      - "CHANGELOG.md"
-    reason: "Plugin module API surface (interfaces, registries) — changes here affect every module + must be reflected in CHANGELOG + api-surface doc"
-
-  - touches: "backend/src/modules/api/"
-    updates:
-      - "CLAUDE.md"
-      - "docs/architecture/modules.md"
-    reason: "Backend module API surface"
-
-  - touches: "editor/src/modules/api/"
-    updates:
-      - "CLAUDE.md"
-      - "docs/architecture/modules.md"
-    reason: "Frontend module API surface"
-
-  - touches: "editor/src/components/SchemaForm/"
-    updates:
-      - "CLAUDE.md"
-    reason: "SchemaForm is the module form multiplier — any new feature documented in CLAUDE.md form-gen section"
-
-  - touches: "backend/src/db/schema.ts"
-    updates:
-      - "backend/drizzle/"
-      - "CHANGELOG.md"
-    reason: "Schema change requires drizzle-kit generate + CHANGELOG entry"
-
-  - touches: "backend/src/app.ts"
-    updates:
-      - "CHANGELOG.md"
-    reason: "Route mount changes are part of the REST API surface (versioned)"
-
-  - touches: "backend/src/protocol.ts"
-    updates:
-      - "CHANGELOG.md"
-      - "docs/architecture/versioning.md"
-    reason: "WS protocol changes need version bump consideration"
-
-  - touches: "editor/src/routes/settings.tsx"
-    updates:
-      - "CLAUDE.md"
-    reason: "/settings is user-facing — section list + Apparence flow documented in CLAUDE.md UI shell section"
-
-  - touches: "editor/src/components/WorkspaceTabs.tsx"
-    updates:
-      - "CLAUDE.md"
-    reason: "Workspace tab structure (Overview / Translations / Data Sources) — UI shell mapping in CLAUDE.md"
-
-  - touches: "editor/src/components/WorkspaceSidebar.tsx"
-    updates:
-      - "CLAUDE.md"
-    reason: "Sidebar structure (Network dropdown + Workspaces + Modules + Settings button)"
-
-  - touches: "editor/src/routes/workspace.$workspaceId.tsx"
-    updates:
-      - "CLAUDE.md"
-    reason: "Workspace shell layout (top bar + tab strip + content per ?tab=) — UI shell mapping"
+  - touches: "CONTEXT.md"
+    updates: []
+    reason: "Glossary is the source of truth for terms — nothing downstream to sync, but code should follow it"

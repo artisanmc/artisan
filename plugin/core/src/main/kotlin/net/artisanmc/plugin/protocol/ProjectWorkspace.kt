@@ -18,10 +18,6 @@ interface ProjectWorkspace {
     /**
      * Relit le disque, puis prévient le runtime (commandes, modules). Écrire, c'est
      * savoir qu'on a écrit : sans reprise, l'éditeur ne verrait pas sa propre écriture.
-     * [clearDrafts] oublie les aperçus non publiés de l'éditeur.
      */
-    fun reload(clearDrafts: Boolean)
-
-    /** Retire le Project du runtime avant de le mettre à la corbeille. */
-    fun delete(projectId: String)
+    fun reload()
 }

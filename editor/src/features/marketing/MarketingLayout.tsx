@@ -1,32 +1,25 @@
 import { Button } from "@/components/ui/button";
-import { useAuthStore } from "@/state/authStore";
-import { useUiStore } from "@/state/uiStore";
+import { setSiteLang } from "@/site/i18n";
 import { ChevronDown, Menu, X } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import "./marketing.css";
-import { editorHref } from "./marketingUrls";
+
+export const INSTALL_URL = "/wiki/getting-started/install-admin/";
 
 export function MarketingLayout({
   children,
-  page = "home",
   description,
-}: { children: ReactNode; page?: "home" | "pricing"; description?: string }) {
+}: { children: ReactNode; description: string }) {
   const { t, i18n } = useTranslation();
-  const user = useAuthStore((s) => s.currentUser);
   const [menuOpen, setMenuOpen] = useState(false);
   useEffect(() => {
-    const old = document.title;
-    document.title =
-      page === "pricing" ? `${t("marketing.nav.pricing")} · Artisan` : t("marketing.nav.homeTitle");
-    return () => {
-      document.title = old;
-    };
-  }, [page, t]);
+    document.title = t("marketing.nav.homeTitle");
+  }, [t]);
 
   return (
     <div className="marketing">
-      <meta name="description" content={description ?? t("marketing.pricing.intro")} />
+      <meta name="description" content={description} />
       <a className="marketing-skip" href="#main-content">
         {i18n.language.startsWith("fr") ? "Aller au contenu" : "Skip to content"}
       </a>
@@ -38,9 +31,6 @@ export function MarketingLayout({
           </a>
           <nav className="marketing-desktop-nav" aria-label={t("marketing.nav.menu")}>
             <a href="/#editor">{t("marketing.nav.product")}</a>
-            <a href="/pricing" aria-current={page === "pricing" ? "page" : undefined}>
-              {t("marketing.nav.pricing")}
-            </a>
             <a href="/wiki/">{t("marketing.nav.wiki")}</a>
           </nav>
           <div className="marketing-nav-actions">
@@ -48,22 +38,15 @@ export function MarketingLayout({
               <span className="sr-only">{t("marketing.nav.language")}</span>
               <select
                 value={i18n.language.startsWith("fr") ? "fr" : "en"}
-                onChange={(e) => useUiStore.getState().setEditorLang(e.target.value as "en" | "fr")}
+                onChange={(e) => setSiteLang(e.target.value as "en" | "fr")}
               >
                 <option value="en">EN</option>
                 <option value="fr">FR</option>
               </select>
               <ChevronDown size={12} />
             </label>
-            {!user && (
-              <a className="marketing-login" href={editorHref("/login")}>
-                {t("marketing.nav.login")}
-              </a>
-            )}
             <Button asChild variant="primary" className="marketing-nav-cta">
-              <a href={editorHref(user ? "/networks" : "/signup")}>
-                {t(user ? "marketing.nav.workspace" : "marketing.nav.start")}
-              </a>
+              <a href={INSTALL_URL}>{t("marketing.nav.start")}</a>
             </Button>
             <Button
               className="marketing-mobile-toggle"
@@ -88,11 +71,8 @@ export function MarketingLayout({
             <a href="/#editor" onClick={() => setMenuOpen(false)}>
               {t("marketing.nav.product")}
             </a>
-            <a href="/pricing">{t("marketing.nav.pricing")}</a>
             <a href="/wiki/">{t("marketing.nav.wiki")}</a>
-            <a href={editorHref(user ? "/networks" : "/login")}>
-              {t(user ? "marketing.nav.workspace" : "marketing.nav.login")}
-            </a>
+            <a href={INSTALL_URL}>{t("marketing.nav.start")}</a>
           </nav>
         )}
       </header>
@@ -108,17 +88,13 @@ export function MarketingLayout({
           </div>
           <div>
             <h2>{t("marketing.footer.product")}</h2>
-            <a href={editorHref("/demo")} target="_blank" rel="noopener noreferrer">
-              {t("marketing.footer.demo")}
-            </a>
-            <a href="/pricing">{t("marketing.nav.pricing")}</a>
-            <a href={editorHref(user ? "/networks" : "/signup")}>{t("marketing.nav.start")}</a>
+            <a href="/#editor">{t("marketing.nav.product")}</a>
+            <a href={INSTALL_URL}>{t("marketing.nav.start")}</a>
           </div>
           <div>
             <h2>{t("marketing.footer.resources")}</h2>
             <a href="/wiki/">{t("marketing.nav.wiki")}</a>
-            <a href="/wiki/getting-started/install-admin/">{t("marketing.footer.install")}</a>
-            <a href="/wiki/editor/credits/">{t("marketing.footer.credits")}</a>
+            <a href={INSTALL_URL}>{t("marketing.footer.install")}</a>
           </div>
           <div>
             <h2>{t("marketing.footer.legal")}</h2>

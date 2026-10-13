@@ -21,7 +21,7 @@ class ProjectDraftChannelTest {
     private inner class Harness(onReload: (() -> Unit)? = null) {
         val roots = ProjectRoots(root)
         val replies = LinkedBlockingQueue<String>()
-        val provider = SyncedMenuProvider(roots, "", "", null, onReload = onReload).also { p ->
+        val provider = SyncedMenuProvider(roots, null, onReload = onReload).also { p ->
             p.setSendForTesting { raw -> if (mapper.readTree(raw)["type"].asText() == "project_draft_result") replies.add(raw) }
         }
         fun request(action: String, owner: String = "alice", extra: Map<String, Any?> = emptyMap()) {

@@ -21,7 +21,7 @@ class ProjectPresenceTest {
         }))
         server.start()
         val roots = ProjectRoots(Files.createTempDirectory("artisan_presence").toFile())
-        val provider = SyncedMenuProvider(roots, "test", server.url("/ws/plugin").toString(), null)
+        val provider = SyncedMenuProvider(roots, null, hub = net.artisanmc.plugin.ws.HubLink(server.url("/ws/plugin").toString(), "test", "survie"))
         try {
             synchronized(roots) {
                 provider.load()

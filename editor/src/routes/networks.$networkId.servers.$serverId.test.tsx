@@ -270,12 +270,12 @@ describe("ServerDetailPage", () => {
     );
   });
 
-  it("403 for a logged-in user renders the request-access panel instead of bouncing", async () => {
+  it("403 for a logged-in user says access is denied instead of bouncing", async () => {
     vi.mocked(getNetwork).mockRejectedValueOnce(
       Object.assign(new Error("forbidden"), { status: 403 }),
     );
     render(<ServerDetailPage />);
-    await screen.findByText("requestAccess.title");
+    await screen.findByText("serverDetail.accessDenied");
     expect(navigateSpy).not.toHaveBeenCalled();
   });
 

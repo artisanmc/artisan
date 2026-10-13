@@ -1,5 +1,7 @@
 # Le disque du serveur est le seul store — le backend ne stocke plus de contenu de Project
 
+**Statut : remplacé (phase F, 2026-10)** — le backend n'existe plus ; la décision de fond (le disque du serveur est le seul store, le plugin seul écrivain) tient, servie directement par le hub, brouillons compris. Voir [editor-web-server](editor-web-server.md).
+
 **Status :** accepted (2026-08-12) — **rien n'est implémenté**. Révise
 `files-first-source-of-truth` (décisions 2 et 6) et répond à la question ouverte
 laissée par `module-config-screens` (« Live-only généralisé au canvas […] Grill
