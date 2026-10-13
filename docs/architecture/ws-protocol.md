@@ -11,7 +11,7 @@ backend ↔ plugin est parlé par le hub. Le **même** jeu de messages sert deux
 | Transport | Quand | Classe |
 |---|---|---|
 | En process | Le serveur qui héberge le hub (serveur seul, ou hub d'un réseau) | `LocalServerLink` (`core`) : le message passe aux gestionnaires du WebSocket, la réponse revient par `deliver`, timeout 10 s. |
-| WebSocket `/ws/plugin` | Une feuille du réseau (`web.role: leaf`) | `WsClient` côté feuille, `PluginChannel` + `RemoteServer` côté hub, timeout 30 s par requête. |
+| WebSocket `/ws/plugin` | Une feuille du réseau (`web.hub` renseigné) | `WsClient` côté feuille, `PluginChannel` + `RemoteServer` côté hub, timeout 30 s par requête. |
 
 Le hub n'interprète aucun contenu : chaque route REST de l'éditeur devient un message du
 protocole (`project_read`, `project_write`, `project_draft_request`…) passé par `ServerLink`
@@ -19,7 +19,9 @@ protocole (`project_read`, `project_write`, `project_draft_request`…) passé p
 
 ## Connexion d'une feuille
 
-Une feuille se connecte à `web.hub-url` (ex. `ws://10.0.0.5:8765/ws/plugin`) et envoie `hello`.
+Une feuille se connecte à l'adresse WebSocket dérivée de `web.hub` (`hubWebSocketUrl`, `PluginConfig.kt` :
+`"10.0.0.5:8765"` → `ws://10.0.0.5:8765/ws/plugin`, hôte nu → port 8765, `https://…` → `wss://…`,
+URL `ws(s)://` gardée telle quelle) et envoie `hello`.
 Reconnexion avec backoff exponentiel (1 s → 60 s) ; ping OkHttp toutes les 30 s.
 
 **`hello`** (feuille → hub). Champs envoyés par `WsClient` et lus par le hub :
@@ -28,7 +30,7 @@ Reconnexion avec backoff exponentiel (1 s → 60 s) ; ping OkHttp toutes les 30 
 |---|---|
 | `protocol_version` | `ProtocolVersion.CURRENT` (`"1.1"`). Majeure différente de celle du hub : serveur listé `updateRequired`, plus rien ne lui est envoyé (503 `plugin_update_required`). Mineure inférieure à 1 : pas de `project_create`/`_delete`/`_rename` (501 `plugin_update_required`). |
 | `server_key` | Le **secret du réseau** (nom de champ hérité). Comparé en temps constant ; faux ou vide : fermeture 1008. |
-| `proxy_name` | Nom du serveur dans le réseau (`web.name`, sinon le nom du dossier du serveur). `[A-Za-z0-9_-]{1,64}`, jamais `local`. Identité du serveur et préfixe de ses Projects (`<serveur>.<dossier>`). |
+| `proxy_name` | Nom du serveur dans le réseau (clé racine `name`, sinon le nom du dossier du serveur). `[A-Za-z0-9_-]{1,64}`, jamais `local`. Identité du serveur et préfixe de ses Projects (`<serveur>.<dossier>`). |
 | `plugin_version`, `minecraft_version` | Affichés dans la liste des serveurs ; la version Minecraft choisit le catalogue d'items. |
 | `installed_modules` | `[{id, version}]` : présence des modules (`GET …/modules`). |
 | `data_sources` | `[{ref, module_id?, schema?, schema_hint?, stability?, key_field?}]` (`DataSourceReport`). |
@@ -77,7 +79,7 @@ le message est ignoré (`EditorRequest.parse` rend `null`).
 | `data_source_fetch` | `data_source_fetch_result` | `{ref, params, filter, sort, limit, args}` → `{rows, truncated}` (50 lignes, ≤ 256 Ko). `unknown_source`, `player_required`, `fetch_error`. |
 | `nexo_glyphs_list` / `nexo_glyph_read` | `nexo_glyphs_list_result` / `nexo_glyph_read_result` | Glyphes Nexo lus dans `plugins/Nexo/glyphs/` (sans API Nexo) ; `{glyphs:[{id, texture, available}]}` puis `{content_base64}`. |
 | `custom_items_request` | `custom_items_bundle` | Sans `request_id`. Le serveur répond `{hash, data}`, `data = base64(gzip(zip))`, catalogue dans `items.json`. |
-| `resource_pack_updated` | — | `{url, hash}` : le pack que le hub vient de recevoir pour ce serveur, servi sous `/resource-pack/<sha1>.zip`. Le serveur l'applique (délégation ou envoi direct, `ResourcePackManager`) ; une feuille le télécharge par l'adresse du hub qu'elle connaît (`web.hub-url`), les joueurs par l'URL publique. |
+| `resource_pack_updated` | — | `{url, hash}` : le pack que le hub vient de recevoir pour ce serveur, servi sous `/resource-pack/<sha1>.zip`. Le serveur l'applique (délégation ou envoi direct, `ResourcePackManager`) ; une feuille le télécharge par l'adresse du hub qu'elle connaît (`web.hub`), les joueurs par l'URL publique. |
 
 ### Serveur → hub (annonces et requêtes)
 

@@ -17,18 +17,20 @@ Nothing goes on the proxy.
 
 ## 2. Configure the hub
 
-On `lobby`, `role` stays `hub`. Give it a public editor address and make `/ws/plugin`
+On `lobby`, `hub` stays empty: that makes it the hub. Give it a public editor address and make `/ws/plugin`
 reachable from the leaves:
 
 ```yaml
 # lobby — plugins/Artisan/environment.yml
+name: "lobby"
+
 web:
   enabled: true
   port: 8765
   bind: ""                            # or "10.0.0.5" to listen on the private network only
   url: "https://editor.example.com"   # or "http://<public-ip>:8765"
-  role: "hub"
-  name: "lobby"
+  hub: ""
+  secret: ""
 ```
 
 Setting `url` on the hub matters in a network: without it, links fall back to the
@@ -39,16 +41,23 @@ nothing listens on 8765.
 
 ```yaml
 # survival — plugins/Artisan/environment.yml
+name: "survival"
+
 web:
   enabled: true
-  role: "leaf"
-  name: "survival"
-  hub-url: "ws://10.0.0.5:8765/ws/plugin"
+  port: 8765
+  bind: ""
+  url: ""
+  hub: "10.0.0.5:8765"
+  secret: ""
 ```
 
-`hub-url` is the hub's address **as the leaf sees it**: a private IP, a Docker service
-name (`ws://lobby:8765/ws/plugin`), or `wss://editor.example.com/ws/plugin` through a
-TLS reverse proxy. Repeat with `name: "skyblock"` on the other leaf.
+Setting `hub` is what makes a server a leaf. It is the hub's address and `web.port`
+**as the leaf sees it**: a private IP (`"10.0.0.5:8765"`; a bare `"10.0.0.5"` takes
+port 8765), a Docker service name (`"lobby:8765"`), or `"https://editor.example.com"`
+through a TLS reverse proxy. The plugin builds the WebSocket address
+(`ws://10.0.0.5:8765/ws/plugin`) itself. Repeat with `name: "skyblock"` on the other
+leaf.
 
 ## 4. The shared secret
 
