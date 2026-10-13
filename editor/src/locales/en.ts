@@ -268,6 +268,8 @@ export default {
       invalid_name: "Use a valid folder name for the project (128 characters maximum).",
       invalid_path: "This project name is not valid.",
       forbidden: "You do not have access to this server.",
+      plugin_update_required:
+        "This server runs an older Artisan. Update its plugin to create projects.",
       create_failed: "Could not create the project on the server. Try again.",
     },
     cancel: "Cancel",
@@ -298,11 +300,19 @@ export default {
   deleteProjectDialog: {
     title: "Delete project",
     warning:
-      'This will permanently delete "{{name}}" and all its menus, commands, and data. This cannot be undone.',
+      '"{{name}}" will disappear from the editor with all its menus, commands, data and drafts. Its folder is moved to `.artisan-trash/` on the server, where an administrator can recover it.',
     confirmLabel: "Type the project ID to confirm:",
     cancel: "Cancel",
     delete: "Delete",
     deleting: "Deleting…",
+    errors: {
+      server_offline: "The server is offline. Connect it to delete the project.",
+      fetch_timeout: "The server did not respond in time. Check the project list before trying again.",
+      plugin_update_required: "This server runs an older Artisan. Update its plugin to delete projects.",
+      addon_immutable: "This project is managed by an add-on and cannot be deleted.",
+      unknown_project: "This project no longer exists on the server.",
+      delete_failed: "Could not delete the project on the server. Try again.",
+    },
   },
   menuProperties: {
     emptyMenuTitle: "Empty menu",

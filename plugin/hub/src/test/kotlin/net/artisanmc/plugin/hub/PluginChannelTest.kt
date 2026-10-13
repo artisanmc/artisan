@@ -141,6 +141,59 @@ class PluginChannelTest {
         assertEquals(200, read.get(5, TimeUnit.SECONDS).first)
     }
 
+    private fun send(method: String, path: String, body: Any? = null): CompletableFuture<Pair<Int, JsonNode?>> {
+        val publisher = body?.let { HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(it)) } ?: HttpRequest.BodyPublishers.noBody()
+        val request = HttpRequest.newBuilder(URI("http://127.0.0.1:${hub.port}$path")).method(method, publisher).header("Cookie", cookie).build()
+        return client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+            .thenApply { it.statusCode() to runCatching { mapper.readTree(it.body()) }.getOrNull() }
+    }
+
+    @Test
+    fun `projects on another server are created, renamed and deleted through its socket`() {
+        val leaf = Leaf()
+        leaf.hello(protocol = "1.1")
+        leaf.next()
+
+        val create = send("POST", "/api/v1/networks/local/projects", mapOf("name" to "shop", "serverKeyId" to "survie2"))
+        val createRequest = leaf.next()
+        assertEquals("project_create", createRequest["type"].asText())
+        assertEquals("shop", createRequest["project_id"].asText())
+        leaf.send(mapOf("type" to "project_create_result", "request_id" to createRequest["request_id"].asText(), "ok" to true))
+        val (created, body) = create.get(5, TimeUnit.SECONDS)
+        assertEquals(201, created)
+        assertEquals("survie2.shop", body!!["project"]["id"].asText())
+
+        val rename = send("POST", "/api/v1/projects/survie2.shop/rename", mapOf("targetId" to "store"))
+        val renameRequest = leaf.next()
+        assertEquals("project_rename", renameRequest["type"].asText())
+        assertEquals("shop", renameRequest["project_id"].asText())
+        assertEquals("store", renameRequest["target_project_id"].asText())
+        leaf.send(mapOf("type" to "project_rename_result", "request_id" to renameRequest["request_id"].asText(), "ok" to true))
+        assertEquals("survie2.store", rename.get(5, TimeUnit.SECONDS).second!!["projectId"].asText())
+
+        val delete = send("DELETE", "/api/v1/user/projects/survie2.store")
+        val deleteRequest = leaf.next()
+        assertEquals("project_delete", deleteRequest["type"].asText())
+        leaf.send(mapOf("type" to "project_delete_result", "request_id" to deleteRequest["request_id"].asText(), "ok" to false, "error" to "addon_immutable"))
+        assertEquals(409, delete.get(5, TimeUnit.SECONDS).first)
+    }
+
+    @Test
+    fun `a server of an older release is told to update instead of waiting for a reply`() {
+        val leaf = Leaf()
+        leaf.hello(protocol = "1.0")
+        leaf.next()
+        for ((code, body) in listOf(
+            send("POST", "/api/v1/networks/local/projects", mapOf("name" to "shop", "serverKeyId" to "survie2")),
+            send("POST", "/api/v1/projects/survie2.shop/rename", mapOf("targetId" to "store")),
+            send("DELETE", "/api/v1/user/projects/survie2.shop"),
+        ).map { it.get(5, TimeUnit.SECONDS) }) {
+            assertEquals(501, code)
+            assertEquals("plugin_update_required", body!!["error"].asText())
+        }
+        assertTrue(leaf.received.isEmpty())
+    }
+
     @Test
     fun `a server on another major protocol version is shown but not used`() {
         val leaf = Leaf()
