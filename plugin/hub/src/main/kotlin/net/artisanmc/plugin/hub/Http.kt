@@ -46,6 +46,8 @@ class Call(
 
     fun send(status: Int, contentType: String, bytes: ByteArray, cacheControl: String = "no-store") {
         response.status = status
+        // A request body left unread makes Jetty drop the connection; say so, or the client reuses it and fails.
+        if (status >= 400 && request.length != 0L) response.headers.put(HttpHeader.CONNECTION, "close")
         response.headers.put(HttpHeader.CONTENT_TYPE, contentType)
         response.headers.put(HttpHeader.CACHE_CONTROL, cacheControl)
         response.write(true, java.nio.ByteBuffer.wrap(bytes), callback)
