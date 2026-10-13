@@ -34,6 +34,11 @@ un lien `<base>/login/<jeton>` à usage unique, valable 60 s, un par joueur et p
 La session ouverte porte l'UUID du joueur et ses permissions `artisan.editor.view|edit|publish|config`
 au moment de la demande (`artisan.editor` les donne toutes). Sans `view` : refus.
 
+**Sur une feuille du réseau** (`web.role: leaf`) : le serveur lit les mêmes permissions et
+demande le lien au hub par `/ws/plugin` (`editor_link`, réponse `editor_link_result`). Le hub
+ne consulte aucune permission lui-même. `<base>` vaut le `web.url` du hub, sinon l'adresse
+rejointe par le joueur avec le port du hub. Hub injoignable : `editor_hub_offline`.
+
 **Sinon (cloud), purement informatif**, accounts-only — aucune session ni trust en jeu.
 
 - Linké + connecté → imprime le deep-link `server_url` + le nom du network (depuis `hello_ack`).

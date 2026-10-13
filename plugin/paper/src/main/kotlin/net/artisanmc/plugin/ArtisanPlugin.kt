@@ -287,9 +287,9 @@ open class ArtisanPlugin : JavaPlugin() {
         }
     }
 
-    /** L'adresse de l'éditeur pour les joueurs et les autres serveurs : `web.url`, sinon l'IP du serveur. */
-    private fun editorBase(): String =
-        editorUrl.ifEmpty { "http://${server.ip.ifBlank { "localhost" }}:${editor?.port ?: 8765}" }
+    /** L'adresse de l'éditeur pour les joueurs et les autres serveurs : `web.url`, sinon [host] ou l'IP du serveur. */
+    private fun editorBase(host: String? = null): String =
+        editorUrl.ifEmpty { "http://${host ?: server.ip.ifBlank { "localhost" }}:${editor?.port ?: 8765}" }
 
     /** Le nom de ce serveur dans le réseau : `web.name`, sinon le nom de son dossier. */
     private fun networkName(web: net.artisanmc.plugin.hub.WebConfig): String =
@@ -320,7 +320,7 @@ open class ArtisanPlugin : JavaPlugin() {
             val packs = net.artisanmc.plugin.hub.PackStore(File(dataFolder, "cache/resource-pack"))
             val servers = net.artisanmc.plugin.hub.Servers(localServer)
             val router = net.artisanmc.plugin.hub.EditorApi.router(servers, editorSessions, logger, vanilla, packs)
-            val plugins = net.artisanmc.plugin.hub.PluginChannel(servers, networkSecret(web), editorChannel, ::editorBase, logger)
+            val plugins = net.artisanmc.plugin.hub.PluginChannel(servers, networkSecret(web), editorSessions, editorChannel, ::editorBase, logger)
             val server = net.artisanmc.plugin.hub.HubServer(
                 web, router, editorSessions, net.artisanmc.plugin.hub.EditorAssets(javaClass.classLoader), editorChannel, logger, plugins,
             )
