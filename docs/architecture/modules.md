@@ -700,7 +700,7 @@ L'admin voit l'erreur claire dans les logs, sait quoi faire, a le choix (update 
 - Registries publics (`DataSourceRegistry`, `CommandRegistry`, `SchemaRegistry`, `ModuleRegistry`)
 - Classes `DataSourceDeclaration`, `CommandDeclaration`
 - Schemas versionnés (`menu/v1`, `command/v1`, `shop/v1`, etc.)
-- Events publics (`MenuOpenedEvent`, `CommandExecutedEvent`, etc.)
+- Events publics : bus `ModuleEventBus` (`ConfigReloadEvent`, `DataReloadEvent`) ; événements Bukkit de menu `MenuOpenEvent`, `MenuClickEvent`, `MenuCloseEvent` (`@Beta`, API 1.8.0)
 
 **Internals (les modules NE doivent PAS en dépendre)** :
 - Implémentation interne du WebSocket client

@@ -464,9 +464,11 @@ actions: 'open_menu kits'
 
 ## Going further
 
-- Open the menu from your own Bukkit command:
-  `api.actions.execute(player, "open_menu kits", emptyMap(), "kits")` —
-  see [Menus](/wiki/developers/menus/).
+- Open the menu from your own Bukkit command: `api.menus.open(player, "kits:kits")`
+  — see [Menus](/wiki/developers/menus/).
+- Show how many kits are ready anywhere in a menu with a placeholder:
+  `api.placeholders.register("kits") { player, key -> if (key == "ready" && player != null) kits.values.count { secondsLeft(player.uniqueId, it) == 0L }.toString() else null }`,
+  then write `%kits_ready%` in a title or lore.
 - Make `name` an `ltext` field to let admins translate it (the value then
   becomes a key into the project's `lang/` files).
 - Persist claims with [the database](/wiki/developers/database/), and publish

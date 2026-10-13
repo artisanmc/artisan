@@ -64,6 +64,8 @@ class SyncedMenuProvider(
     private val editorEvents: (Map<String, Any?>) -> Unit = {},
     /** On a leaf, the hub to connect to; null on the hub or a standalone server. */
     private val hub: HubLink? = null,
+    /** `api.menus` listeners and the Bukkit menu events. */
+    private val menuEvents: net.artisanmc.plugin.render.MenuEventDispatcher? = null,
 ) : MenuProvider {
     private var copyMinecraftVersion = "1.21.4"
     /** What `project_read` serves: the state read at the last load, never the current disk. */
@@ -253,6 +255,8 @@ class SyncedMenuProvider(
         }
         // This menu's clicks resolve in ITS project, not in the one we came from.
         val opened = ctx.copy(projectId = menu.projectId.ifEmpty { null } ?: ctx.projectId)
+        val ref = net.artisanmc.modules.api.MenuRef(opened.projectId, menu.id)
+        if (menuEvents?.open(net.artisanmc.modules.api.MenuOpenEvent(player, ref, ctx.navigationArgs)) == false) return
         history?.setCurrent(
             player,
             net.artisanmc.plugin.engine.NavigationEntry(

@@ -1,6 +1,6 @@
 ---
 title: Events & reloads
-description: The module event bus, the built-in events, your own events, and how your add-on learns that content changed.
+description: The module event bus, the built-in events, your own events, the menu Bukkit events, and how your add-on learns that content changed.
 sidebar:
   order: 10
 ---
@@ -83,6 +83,29 @@ subscribe to it, like Artisan does with `artisan-core-api`.
 
 ## Bukkit events
 
-Artisan does not fire Bukkit events of its own. Listen to Bukkit events in your
-plugin as usual, and use [commands](/wiki/developers/commands/) for anything a
-menu should trigger.
+Since 1.8.0 Artisan fires three Bukkit events for its menus, so any plugin —
+add-on or not — can react with a plain `@EventHandler`. They live in the API
+artifact (`net.artisanmc.modules.api`), so compile against it.
+
+| Event | Fired | Cancellable |
+|---|---|---|
+| `MenuOpenEvent` | Before a menu opens: `getPlayer()`, `menu` (`MenuRef`), `args` | Yes: nothing opens |
+| `MenuClickEvent` | On the tick after a click, before the button's actions: `menu`, `slot`, `click`, `hasActions` | Yes: the actions are skipped |
+| `MenuCloseEvent` | When the window closes: `menu`, `reason` | No |
+
+```java
+@EventHandler
+public void onMenuClick(MenuClickEvent event) {
+    if ("shop".equals(event.getMenu().getProjectId()) && !event.getPlayer().hasPermission("shop.use")) {
+        event.setCancelled(true);
+    }
+}
+```
+
+They run on the player's thread (their region's thread on Folia), right after
+the `api.menus` listeners, which receive the same objects: either side can
+cancel, and Bukkit handlers see a listener's cancellation
+(`ignoreCancelled = true` works). See
+[Menus](/wiki/developers/menus/#listen-to-menus) for the ordering of opens and
+closes. For anything a button itself should trigger, prefer
+[commands](/wiki/developers/commands/).

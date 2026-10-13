@@ -56,6 +56,9 @@ sources jar and your IDE, not at runtime); `@Sunset` is kept at runtime.
 | `models` | `ModelRegistry` | `@Beta` | 1.5.0 |
 | `screens` | `EditorScreenRegistry` | `@Beta` | 1.6.0 |
 | `database` | `DatabaseApi` | `@Beta` | 1.7.0 |
+| `menus` | `MenuApi` | `@Beta` | 1.8.0 |
+| `scheduler` | `SchedulerApi` | `@Beta` | 1.8.0 |
+| `placeholders` | `PlaceholderRegistry` | `@Beta` | 1.8.0 |
 
 ## Data sources
 
@@ -86,7 +89,7 @@ Guide: [Commands](/wiki/developers/commands/).
 |---|---|---|---|
 | [`CommandRegistry`][CommandRegistry] | `@Stable` | 1.0.0 | `register(decl)`, `unregister(name)` (1.8.0), `dispatch(name, player, args)`, `has(name)`, `names()` |
 | [`CommandDeclaration`][CommandDeclaration] | `@Stable` | 1.0.0 | `name`, `handler: CommandHandler` |
-| [`CommandHandler`][Callbacks] | `@Stable` | 1.5.0 | `handle(player: Player, args: Map<String, Any?>)` — `args = {argv: List<String>, raw: String}` from menus |
+| [`CommandHandler`][Callbacks] | `@Stable` | 1.5.0 | `handle(player: Player, args: Map<String, Any?>)` — `args = {argv: List<String>, raw: String}` from menus; `argv` honours double quotes |
 | `UnknownCommandException`, `DuplicateCommandException` | `@Stable` | 1.0.0 | Unknown name on `dispatch`; name registered twice |
 
 Since 1.2.0, `run_command "<ns:name> …" as player` actions dispatch to this
@@ -98,9 +101,27 @@ Guide: [Menus](/wiki/developers/menus/).
 
 | Type | Stability | Since | Members |
 |---|---|---|---|
+| [`MenuApi`][MenuApi] | `@Beta` | 1.8.0 | `open(player, ref[, args])`, `open(player, MenuRef, args)`, `close(player)`, `openMenu(player)`, `menus()`, `onOpen/onClick/onClose(listener): MenuSubscription`, `NOOP` |
+| [`MenuRef`][MenuApi] | `@Beta` | 1.8.0 | `projectId?`, `menuId`, `parse(ref)`; `toString()` = `project:menu` |
+| [`MenuOpenListener`, `MenuClickListener`, `MenuCloseListener`][MenuApi] | `@Beta` | 1.8.0 | `onOpen(event)`, `onClick(event)`, `onClose(event)` |
+| [`MenuSubscription`][MenuApi] | `@Beta` | 1.8.0 | `cancel()` |
+| [`MenuOpenEvent`][MenuEvents] | `@Beta` | 1.8.0 | Bukkit `PlayerEvent`, `Cancellable`: `menu`, `args` |
+| [`MenuClickEvent`][MenuEvents] | `@Beta` | 1.8.0 | Bukkit `PlayerEvent`, `Cancellable`: `menu`, `slot`, `click: ClickType`, `hasActions` |
+| [`MenuCloseEvent`][MenuEvents] | `@Beta` | 1.8.0 | Bukkit `PlayerEvent`: `menu`, `reason: InventoryCloseEvent.Reason` |
+| [`PlaceholderRegistry`][PlaceholderRegistry] | `@Beta` | 1.8.0 | `register(namespace, resolver[, exposeToPapi])`, `unregister(namespace)`, `namespaces()`, `resolve(player, text)`, `NOOP` |
+| [`PlaceholderResolver`][PlaceholderRegistry] | `@Beta` | 1.8.0 | `resolve(player: Player?, key): String?` |
 | [`ModuleActionsApi`][ModuleActionsApi] | `@Beta` | 1.4.0 | `execute(player, actions, args = {}, projectId = null)` — runs Action DSL on the player's thread; `projectId` since 1.6.0 |
 | [`ItemStackApi`][ItemStackApi] | `@Beta` | 1.4.0 | `serialize(stack): String`, `describe(stack): Map<String, Any>` |
 | [`ModuleMessagesApi`][ModuleMessagesApi] | `@Beta`, `@Sunset` (1.8.0, removed in 2.0.0) | 1.4.0 | `send(type, payload)` — has had no receiver since the editor moved into the plugin; do not use |
+
+## Scheduling
+
+Guide: [Threading & Folia](/wiki/developers/threading/).
+
+| Type | Stability | Since | Members |
+|---|---|---|---|
+| [`SchedulerApi`][SchedulerApi] | `@Beta` | 1.8.0 | `forPlugin(owner: Plugin): TaskScheduler`, `DIRECT` |
+| [`TaskScheduler`][SchedulerApi] | `@Beta` | 1.8.0 | `runGlobal[Later]`, `runAt[Later](location, …)`, `runFor[Later](entity, …)`, `runAsync[Later]`, `isOwnedByCurrentThread(entity)`, `isGlobalThread()`, `DIRECT` |
 
 ## Modules, projects and content
 
@@ -154,6 +175,9 @@ Guide: [Events & reloads](/wiki/developers/events/).
 | [`DataReloadEvent`][ModuleEventBus] | `@Stable` | 1.0.0 | `dataSourceRef` — between add-ons only: Artisan neither publishes nor reads it |
 | [`ModuleEventHandler`][Callbacks] | `@Stable` | 1.5.0 | `onEvent(event: ModuleEvent)` |
 
+The menu Bukkit events (`MenuOpenEvent`, `MenuClickEvent`, `MenuCloseEvent`) are
+listed under [Menus and actions](#menus-and-actions).
+
 ## File formats
 
 Add-ons that ship or read project files meet these YAML schemas: `manifest/v1`,
@@ -185,3 +209,7 @@ project. The JSON Schemas live in the repository under
 [DatabaseApi]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/kotlin/net/artisanmc/modules/api/DatabaseApi.kt
 [DatabaseDialect]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/DatabaseDialect.java
 [ModuleEventBus]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/kotlin/net/artisanmc/modules/api/ModuleEventBus.kt
+[MenuApi]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/kotlin/net/artisanmc/modules/api/MenuApi.kt
+[MenuEvents]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/kotlin/net/artisanmc/modules/api/MenuEvents.kt
+[PlaceholderRegistry]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/kotlin/net/artisanmc/modules/api/PlaceholderRegistry.kt
+[SchedulerApi]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/kotlin/net/artisanmc/modules/api/SchedulerApi.kt

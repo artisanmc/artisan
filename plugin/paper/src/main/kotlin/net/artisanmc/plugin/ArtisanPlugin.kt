@@ -76,6 +76,10 @@ open class ArtisanPlugin : JavaPlugin() {
     var editorUrl: String = ""
         private set
     private var editorBind: String = ""
+    /** `api.menus` listeners, fired with the Bukkit menu events. */
+    val menuEvents by lazy { net.artisanmc.plugin.render.MenuEventDispatcher(logger) }
+    /** `api.placeholders`: survives `/artisan reload`. */
+    val placeholders by lazy { PaperPlaceholders(this) }
     /** Pools lent through `api.database` (ADR `suite-foundation-database`). */
     lateinit var database: net.artisanmc.plugin.database.PooledDatabase
         private set
@@ -106,6 +110,15 @@ open class ArtisanPlugin : JavaPlugin() {
                 },
                 projectRoots = plugin.projectRoots,
                 database = plugin.database,
+                menus = net.artisanmc.plugin.provider.PaperMenuApi(
+                    provider = { if (plugin::menuProvider.isInitialized) plugin.menuProvider else null },
+                    sessions = { if (plugin::sessions.isInitialized) plugin.sessions else null },
+                    langOf = { if (plugin::langManager.isInitialized) plugin.langManager.playerLang(it) else "en" },
+                    scheduler = plugin.scheduler,
+                    events = plugin.menuEvents,
+                ),
+                scheduler = net.artisanmc.plugin.scheduling.PaperSchedulerApi,
+                placeholders = plugin.placeholders,
                 items = object : net.artisanmc.modules.api.ItemStackApi {
                     override fun serialize(stack: org.bukkit.inventory.ItemStack): String =
                         net.artisanmc.plugin.items.ItemDescriptor.serialize(stack)
@@ -246,7 +259,7 @@ open class ArtisanPlugin : JavaPlugin() {
         artisanCommand = ArtisanCommand(this, langManager)
         getCommand("artisan")?.setExecutor(artisanCommand)
         getCommand("artisan")?.tabCompleter = artisanCommand
-        server.pluginManager.registerEvents(MenuListener(this, sessions, executor, menuWindows, history = navigationHistory), this)
+        server.pluginManager.registerEvents(MenuListener(this, sessions, executor, menuWindows, history = navigationHistory, events = menuEvents), this)
         logger.info("Artisan ${description.version} enabled")
     }
 
@@ -457,7 +470,7 @@ open class ArtisanPlugin : JavaPlugin() {
         projectRoots.coreRoot.mkdirs()
         capturedItems = net.artisanmc.plugin.items.CapturedItemStore(projectRoots, logger)
         capturedItems.reload()
-        val softDeps = SoftDepRegistry(this, capturedItems)
+        val softDeps = SoftDepRegistry(this, capturedItems, placeholders)
         evaluator = ConditionEvaluator(softDeps, cooldowns)
 
         val provider = createProvider(cfg)
@@ -517,6 +530,7 @@ open class ArtisanPlugin : JavaPlugin() {
         serverConfig = serverConfigAccess,
         editorEvents = { editorChannel.relay(it) },
         hub = hubLink(cfg.web),
+        menuEvents = menuEvents,
     )
 
     /** Only a leaf opens a WebSocket: to `web.hub-url`, with the network secret. */
