@@ -1,31 +1,32 @@
 ---
 title: Data sources
-description: Expose your plugin's live data to Artisan menus with one declaration.
+description: Expose your plugin's live data to Artisan menus — declaration, fetcher contract, schema, static sources, editor preview.
+sidebar:
+  order: 5
 ---
 
-A **data source** is a named list of rows your plugin exposes to the rest of the
-system. Once registered, admins reference it in any menu — paginate over it,
-filter it, sort it, place individual rows on specific slots, bind its fields into
-item names and lore. You write the fetcher; the editor and the menu runtime do
-the rest.
+A **data source** is a named list of rows your plugin exposes. Once registered,
+admins use it in any menu: paginate over it, filter and sort it, place single
+rows on chosen slots, and bind row fields into item names, lore and actions.
+You write the fetcher; the editor and the menu runtime do the rest.
 
 ## Register one
 
 ```kotlin
 api.dataSources.register(
     DataSourceDeclaration(
-        ref = "myplugin:homes",
+        ref = "homes:list",
         fetcher = { player, params ->
-            if (player == null) throw PlayerRequiredException("homes are per-player")
-            homeCache.of(player).map { h ->
-                mapOf("id" to h.name, "world" to h.world, "x" to h.x, "z" to h.z)
+            if (player == null) throw PlayerRequiredException("homes are per player")
+            homeCache.of(player.uniqueId).map { home ->
+                mapOf("id" to home.name, "world" to home.world, "x" to home.x, "z" to home.z)
             }
         },
         schema = listOf(
             DataSourceField("id", FieldKind.STRING, "Home name"),
-            DataSourceField("world", FieldKind.STRING, null),
-            DataSourceField("x", FieldKind.NUMBER, null),
-            DataSourceField("z", FieldKind.NUMBER, null),
+            DataSourceField("world", FieldKind.STRING),
+            DataSourceField("x", FieldKind.NUMBER),
+            DataSourceField("z", FieldKind.NUMBER),
         ),
     )
 )
@@ -33,109 +34,148 @@ api.dataSources.register(
 
 ```java
 api.getDataSources().register(new DataSourceDeclaration(
-        "myplugin:homes",
+        "homes:list",
         (player, params) -> {
-            if (player == null) throw new PlayerRequiredException("homes are per-player");
-            return homeCache.of(player).stream().map(this::homeRow).collect(Collectors.toList());
+            if (player == null) throw new PlayerRequiredException("homes are per player");
+            return homeCache.of(player.getUniqueId()).stream().map(Home::toRow).toList();
         },
         List.of(
                 new DataSourceField("id", FieldKind.STRING, "Home name"),
-                new DataSourceField("world", FieldKind.STRING, null)),
-        null,              // schemaHint (deprecated, pass null)
-        Stability.DYNAMIC, // stability
-        null));            // keyField
+                new DataSourceField("world", FieldKind.STRING, null),
+                new DataSourceField("x", FieldKind.NUMBER, null),
+                new DataSourceField("z", FieldKind.NUMBER, null)),
+        null,               // schemaHint — @Sunset, always null
+        Stability.DYNAMIC,  // stability
+        null));             // keyField
 ```
 
-Register from your module's `onEnable(api)` (see [Modules](/wiki/developers/modules/))
-so the core can attribute the source to your module in the editor's UI.
-Registering directly on the registry works too — the source is then shown as
-unattributed.
+Register from your module's `onEnable(api)` so the editor shows the source
+under your module ([Modules](/wiki/developers/modules/)). Registering from
+anywhere else works, but the source is listed as unattributed.
 
-## The `ref`
+## The declaration
 
-Globally unique, `namespace:id`, lowercase — e.g. `boutique:items`,
-`myplugin:homes`. Use your plugin's name as the namespace. Registering a `ref`
-twice throws `DuplicateDataSourceException`.
+| Parameter | Default | Meaning |
+|---|---|---|
+| `ref` | — | Globally unique `namespace:id`, lowercase (`boutique:items`). Use your module id as namespace. A second registration throws `DuplicateDataSourceException` |
+| `fetcher` | — | `DataFetcher`: `(Player?, Map<String, Any?>) -> List<Map<String, Any?>>` |
+| `schema` | empty | Declared row fields — powers the editor's field pickers, filter autocomplete and schema table |
+| `schemaHint` | `null` | `@Sunset` (removed in 2.0.0) — use `schema` |
+| `stability` | `DYNAMIC` | Whether the set of rows is knowable at design time — see [Static or dynamic](#static-or-dynamic) |
+| `keyField` | `null` | The field identifying each row; required when `stability = STATIC` |
 
 ## The fetcher contract
 
-```kotlin
-(player: Player?, params: Map<String, Any?>) -> List<Map<String, Any?>>
+1. **It runs on a game thread, at menu render time** — the viewing player's
+   region thread (the main thread on Paper). It must return immediately: read
+   an in-memory cache that you refresh elsewhere, asynchronously. Never query
+   SQL, HTTP or files inside a fetcher. See [Threading & Folia](/wiki/developers/threading/).
+2. **`player` may be `null`.** The editor's preview calls the fetcher with no
+   player. Return generic or sample rows when you can; when the data means
+   nothing without a player, throw `PlayerRequiredException` — the editor shows
+   a clear "needs a player" notice instead of an error.
+3. **Rows are plain, JSON-shaped maps.** Keys are field names; values are
+   strings, numbers, booleans, lists or nested maps. They travel to the editor
+   for previews.
+4. **It is called again on every render.** Each time a menu opens or repaints
+   (page change, an argument changed by a button), the runtime fetches again.
+   There is no menu-side cache to invalidate.
+
+### Parameters, filters, sorting
+
+A menu binds a source through a **context input**:
+
+```yaml
+inputs:
+  - name: items
+    type: list
+    source:
+      ref: boutique:items
+      params: { owner: '{player}' }        # passed to your fetcher
+      filter: { category: '{category}' }   # applied by Artisan after the fetch
+      sort: { by: price, direction: asc }  # applied by Artisan
+      limit: 20                            # applied by Artisan
 ```
 
-Three rules, all of them load-bearing:
-
-1. **It runs on the main server thread, at menu render time.** It must return
-   fast: serve from an in-memory cache, refresh it asynchronously elsewhere.
-   Never do blocking I/O (SQL, HTTP, file reads) inside a fetcher.
-2. **`player` may be null.** The editor's *Preview* button calls fetchers with
-   no player. Return generic/sample rows if you can; if the data is meaningless
-   without a player, throw `PlayerRequiredException` — the editor turns it into
-   a clean "needs an online player" notice instead of an error.
-3. **Rows are plain maps.** Keys are field names, values are scalars, lists, or
-   nested maps. Keep them JSON-shaped — they travel over the WebSocket for
-   previews.
-
-Nested rows are allowed and useful: the Boutique's `boutique:categories` rows
-carry an `items` list, so a menu can either flat-join items and filter by
-category, or paginate `category.items` from a category context.
+Only `params` reaches your fetcher (as the `params` map, placeholders already
+resolved). Filtering, sorting and limits are done by Artisan on the rows you
+return, so a plain fetcher gets them for free. Use `params` when the fetch
+itself depends on an argument — a page of a remote listing, another player's
+name.
 
 ## Declare a schema
 
-`schema` is a list of `DataSourceField(name, type, description?)` with
-`FieldKind` in `STRING`, `NUMBER`, `INTEGER`, `BOOLEAN`, `LIST`, `OBJECT`.
+`schema` is a list of `DataSourceField(name, type, description)`:
 
-It is optional but strongly recommended: it powers the editor's schema table,
-the filter autocomplete, and the field pickers when binding item names and lore.
-Without it, admins have to type field names blind.
+| `FieldKind` | For |
+|---|---|
+| `STRING` | Text |
+| `NUMBER` | Decimal numbers |
+| `INTEGER` | Whole numbers |
+| `BOOLEAN` | `true` / `false` |
+| `LIST` | A list (of scalars or of nested rows) |
+| `OBJECT` | A nested map |
+| `ITEM` | A complete item value (a material name, an `item:<id>` reference, or a structured item). Offered in the editor under **Displayed item → Use an item from data** |
 
-Prefer exposing **pre-computed, display-ready fields** over making admins
-recompose text. The Boutique exposes `price_display` (already formatted by the
-shop settings) next to the raw `price`, so a menu binds `{item.price_display}`
-and stops caring about currency formatting.
+The schema is optional but strongly recommended: without it, admins type field
+names blind.
 
-## Static vs dynamic
+Expose **display-ready fields** next to raw ones. The Boutique returns
+`price_display` (formatted with the shop's currency settings) beside `price`, so
+a menu binds `{item.price_display}` and never deals with formatting.
 
-`stability` declares whether your **key-set** — which rows exist — is knowable
-at design time. It is a declaration, never inferred.
+Nested rows are fine and useful: `boutique:categories` rows carry an `items`
+list, so a menu can paginate `category.items` from a category context.
+
+## Static or dynamic
+
+`stability` declares whether your **set of rows** is knowable at design time.
+It is declared, never inferred.
 
 | | `Stability.STATIC` | `Stability.DYNAMIC` (default) |
 |---|---|---|
-| Key-set | Stable, finite, enumerable | Runtime/player-dependent, unbounded |
-| `fetcher(null, …)` | Must return the authoritative rows | May return nothing useful |
-| `keyField` | **Required** — the field identifying each row | Ignored (`null`) |
-| In menus | Pagination **and** placement mode (drop one row on one slot) | Pagination only |
+| Rows | Stable, finite, enumerable | Depend on the player or on runtime state |
+| `fetcher(null, …)` | Must return the complete, authoritative rows | May return nothing useful |
+| `keyField` | **Required** — constructing without it throws | Ignored |
+| In menus | Pagination **and** placement (pin one row on one slot) | Pagination only |
 
-Shop categories and items are `STATIC` keyed by `id` — an admin can drop
-"the weapons category" on slot 11. Auction listings or player homes are
-`DYNAMIC` — only pagination makes sense.
+Shop categories are `STATIC` keyed by `id` — an admin can drop "the weapons
+category" on slot 11. Auction listings or player homes are `DYNAMIC`. Field
+*values* of a static source may still vary per player; only the set of keys has
+to be stable.
 
-Field *values* may still resolve per-player on a static source: the key-set is
-what has to be stable, not the content.
+## How menus use it
 
-Constructing a `STATIC` declaration without a non-blank `keyField` throws.
+Admins wire your source in the editor; the YAML it writes looks like this:
 
-## Signal a reload
-
-When your data changes underneath (config reload, admin command), tell
-consumers to re-fetch:
-
-```kotlin
-api.events.publish(DataReloadEvent("myplugin:homes"))
+```yaml
+elements:
+  - id: homes
+    positions: '10-16'
+    iterates: { source: homes:list, alias: home }   # one item per row
+    material: RED_BED
+    title: '{home.id}'
+    click:
+      left: 'run_command "homes:teleport {home.id}" as player'
 ```
 
-## How it reaches the editor
+`iterates.source` (pagination) and `places.source` (placement on a static
+source) accept a ref directly, or the name of a context input. Row fields are
+read with `{alias.field}` — see [Expressions](/wiki/editor/expressions/). The
+click calls a command your plugin registered: [Commands](/wiki/developers/commands/).
 
-The editor reads every registered source from the plugin (a leaf server reports
-them to its hub in the `hello` frame) — `ref`, owning module, declared schema, stability, key field.
-A module registering later is picked up too (`modules_changed` on a leaf), so sources
-appear without a reconnect. Admins see them in the editor under **Data → Server
-sources**, grouped by module, with a live **Preview**.
+## Preview in the editor
 
-Preview requests round-trip to your fetcher with `player = null` and are
-truncated to 50 rows.
+The editor lists every registered source under **Data → Server sources**,
+grouped by module, with its schema, stability and key field
+([Exploring sources](/wiki/editor/data-sources/)). **Preview** runs your fetcher
+on the server with `player = null` and the admin's test parameters, then
+applies the menu's filters; results are truncated to 50 rows.
 
-## Consuming other modules' sources
+A source registered after the editor connected (a module enabled late) appears
+without a reconnect.
+
+## Consume another plugin's source
 
 ```kotlin
 if (api.dataSources.has("boutique:items")) {
@@ -143,6 +183,8 @@ if (api.dataSources.has("boutique:items")) {
 }
 ```
 
-`fetch` throws `UnknownDataSourceException` for an unregistered ref. This is the
-only sanctioned way for modules to read each other's data — never take a direct
-dependency on another module's classes.
+`fetch` runs the other plugin's fetcher on your thread and throws
+`UnknownDataSourceException` for an unknown ref. This is the sanctioned way to
+read another integration's data — never import its classes.
+`refs()`, `declarations()` and `registered()` (declarations with their owning
+module id) list what is available.

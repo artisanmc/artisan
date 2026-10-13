@@ -1,21 +1,27 @@
 ---
 title: Depend on the API
-description: Add artisan-core-api to your build, declare the dependency, and obtain the ArtisanAPI handle.
+description: Add artisan-core-api to your build, declare the dependency in plugin.yml, obtain the ArtisanAPI handle and handle API versions.
+sidebar:
+  order: 2
 ---
 
 ## The artifact
-
-The public API surface ships as a standalone, self-contained jar:
 
 ```
 net.artisanmc:artisan-core-api:<version>
 ```
 
-It contains **only** the `net.artisanmc.modules.api.*` packages. Nothing under
-`net.artisanmc.plugin.*` is included — that is core internals and is not API.
+It contains only the `net.artisanmc.modules.api` packages, with a sources jar
+(KDoc included). Nothing under `net.artisanmc.plugin.*` ships in it — that is
+Artisan's internals, not API. License: GPL-3.0, like Artisan.
 
-The jar is provided at runtime by the installed Artisan plugin, so declare it as
-`compileOnly` / `provided` — never shade it.
+The classes are provided at runtime by the installed Artisan plugin: declare the
+dependency as `compileOnly` (Gradle) or `provided` (Maven), and **never shade it**.
+
+| Repository | Contents |
+|---|---|
+| `https://repo.artisanmc.net/releases` | Released versions (`1.7.1`, …) |
+| `https://repo.artisanmc.net/snapshots` | `X.Y.0-SNAPSHOT` of the next minor, rebuilt on every API change |
 
 ### Gradle (Kotlin DSL)
 
@@ -27,112 +33,184 @@ repositories {
 }
 
 dependencies {
-    compileOnly("io.papermc.paper:paper-api:1.21.4-R0.1-SNAPSHOT")
-    compileOnly("net.artisanmc:artisan-core-api:1.6.0")
+    compileOnly("io.papermc.paper:paper-api:1.21.7-R0.1-SNAPSHOT")
+    compileOnly("net.artisanmc:artisan-core-api:1.7.1")
+}
+
+java {
+    toolchain.languageVersion.set(JavaLanguageVersion.of(21))
 }
 ```
 
 ### Maven
 
 ```xml
-<repository>
-    <id>artisan</id>
-    <url>https://repo.artisanmc.net/releases</url>
-</repository>
+<repositories>
+    <repository>
+        <id>papermc</id>
+        <url>https://repo.papermc.io/repository/maven-public/</url>
+    </repository>
+    <repository>
+        <id>artisan</id>
+        <url>https://repo.artisanmc.net/releases</url>
+    </repository>
+</repositories>
 
-<dependency>
-    <groupId>net.artisanmc</groupId>
-    <artifactId>artisan-core-api</artifactId>
-    <version>1.6.0</version>
-    <scope>provided</scope>
-</dependency>
+<dependencies>
+    <dependency>
+        <groupId>io.papermc.paper</groupId>
+        <artifactId>paper-api</artifactId>
+        <version>1.21.7-R0.1-SNAPSHOT</version>
+        <scope>provided</scope>
+    </dependency>
+    <dependency>
+        <groupId>net.artisanmc</groupId>
+        <artifactId>artisan-core-api</artifactId>
+        <version>1.7.1</version>
+        <scope>provided</scope>
+    </dependency>
+</dependencies>
 ```
 
-Versions follow the API's own SemVer (the version a member appeared in), not the
-plugin build number. A version is released as soon as a member marked with it lands. To track unreleased changes, use
-`https://repo.artisanmc.net/snapshots` and the next minor version with
-`-SNAPSHOT` (after release `1.6.0`: `1.7.0-SNAPSHOT`).
+Artisan targets Paper 1.21+ (Folia and Leaf included) on Java 21.
 
-The POM declares `kotlin-stdlib`, which the API's few Kotlin types (`kotlin.Unit`,
-`Function2`) need in Java call sites. Sources (with KDoc) are published alongside.
+### Java or Kotlin
 
-The API is licensed GPL-3.0, like the rest of Artisan.
+The API is written in Kotlin but **no Kotlin type crosses its boundary**:
+callbacks are functional interfaces (`DataFetcher`, `CommandHandler`,
+`ModuleEventHandler`, `SchemaVersionReader`), enums are Java enums. A Java
+add-on needs no Kotlin dependency at all.
+
+From Java:
+
+- properties are getters — `api.getDataSources()`, `module.getId()`;
+- Kotlin default arguments do not exist — pass every constructor or method
+  parameter (`new DataSourceDeclaration(ref, fetcher, schema, null, Stability.DYNAMIC, null)`);
+- lambdas are plain Java lambdas; a `CommandHandler` returns `void`;
+- implement every method of `ArtisanModule`, including `onReload()` (its
+  Kotlin default body is not a Java default method).
+
+A **Kotlin** add-on must bring its own Kotlin standard library: shade it into
+your jar and relocate it (Shadow's `relocate("kotlin", "com.example.myplugin.kotlin")`),
+or load it through Paper's `libraries:` in `plugin.yml`. Do not rely on finding
+`kotlin.*` on the server — another plugin's copy may be a different version.
 
 ## Declare the dependency in `plugin.yml`
 
 ```yaml
 name: MyPlugin
-main: com.example.MyPlugin
+version: '1.0.0'
+main: com.example.myplugin.MyPlugin
 api-version: '1.21'
-depend: [Artisan]        # hard dependency: your plugin needs Artisan
+folia-supported: true    # only if your plugin really is (see Threading & Folia)
+depend: [Artisan]        # your plugin cannot run without Artisan
 # softdepend: [Artisan]  # or: integrate only when Artisan is present
 ```
 
-Use `depend` when your plugin is an Add-on that has no reason to run without
-Artisan. Use `softdepend` when Artisan integration is a bonus — then guard every
-API call behind a presence check.
+Both `depend` and `softdepend` make the server enable Artisan **before** your
+plugin, so the API handle is ready in your `onEnable`.
+
+- `depend` — an add-on that has no reason to run without Artisan.
+- `softdepend` — Artisan integration is a bonus. Keep every reference to
+  `net.artisanmc.*` classes inside a separate class that you only load once you
+  know Artisan is present, or the JVM fails to load your main class on servers
+  without it.
 
 ## Get the API handle
 
-`ArtisanAPI` is registered as a Bukkit service. Fetch it in your `onEnable`,
-after Artisan has enabled:
+Artisan registers `ArtisanAPI` as a Bukkit service during its `onEnable`:
 
 ```kotlin
-val registration = server.servicesManager.getRegistration(ArtisanAPI::class.java)
-if (registration == null) {
-    logger.severe("Artisan not found — integration disabled.")
-    return
+override fun onEnable() {
+    val api = server.servicesManager.load(ArtisanAPI::class.java)
+    if (api == null) {
+        logger.severe("Artisan is not installed — MyPlugin disabled.")
+        server.pluginManager.disablePlugin(this)
+        return
+    }
+    // register modules, data sources, commands…
 }
-val api: ArtisanAPI = registration.provider
 ```
 
 ```java
-var reg = getServer().getServicesManager().getRegistration(ArtisanAPI.class);
-if (reg == null) {
-    getLogger().severe("Artisan not found — MyPlugin disabled.");
-    getServer().getPluginManager().disablePlugin(this);
-    return;
+@Override
+public void onEnable() {
+    ArtisanAPI api = getServer().getServicesManager().load(ArtisanAPI.class);
+    if (api == null) {
+        getLogger().severe("Artisan is not installed — MyPlugin disabled.");
+        getServer().getPluginManager().disablePlugin(this);
+        return;
+    }
+    // register modules, data sources, commands…
 }
-ArtisanAPI api = reg.getProvider();
 ```
 
-:::note[Kotlin API from Java]
-The API is Kotlin. From Java, properties are getters (`api.getDataSources()`,
-`api.getModels()`), Kotlin default arguments do not apply (pass every
-constructor parameter explicitly), and lambdas returning `Unit` must
-`return kotlin.Unit.INSTANCE;`.
-:::
-
-## Check core compatibility
-
-Declare the minimum core version you need and bail out politely if the server
-runs an older one:
+With `softdepend`, test presence first, then touch Artisan classes from a
+separate class:
 
 ```kotlin
-if (!api.isCompatibleWith("1.5.0")) {
-    logger.severe("Artisan ${api.coreVersion} is too old — MyPlugin needs 1.5.0+.")
-    return
+if (server.pluginManager.isPluginEnabled("Artisan")) {
+    ArtisanHook.enable(this)   // the only class that imports net.artisanmc.*
 }
 ```
 
-`isCompatibleWith` is satisfied when the core has the **same major** and a
-version greater than or equal to the one you pass.
+Keep the handle for the life of your plugin; it does not change while the
+server runs.
 
-## What you can do with the handle
+## Versions and compatibility
 
-| Property | What it gives you | Stability |
-|---|---|---|
-| `plugin` | The core `JavaPlugin` — scheduler, server, data folder | `@Stable` |
-| `dataSources` | Register/fetch data sources | `@Stable` |
-| `commands` | Register handlers callable from menu buttons | `@Stable` |
-| `modules` | Register your `ArtisanModule` | `@Stable` |
-| `events` | Subscribe/publish reload events | `@Stable` |
-| `schemas` | Register schema migrations | `@Stable` |
-| `project` | Read project files from disk | `@Stable` |
-| `projectRoots` | Host your own Project in your plugin folder | `@Stable` |
-| `coreVersion` / `isCompatibleWith` | Version negotiation | `@Stable` |
-| `models` | Declare `model/v1` shapes | `@Beta` |
-| `screens` | Declare editor config screens | `@Beta` |
-| `items` | Serialize/describe captured `ItemStack`s | `@Beta` |
-| `messages` | Fire-and-forget messages (no receiver since the backend was removed) | `@Beta` |
-| `actions` | Run an Action DSL string for a player | `@Beta` |
+The API has **its own SemVer**, independent of the Artisan plugin's version
+number. Every member is documented with the API version it appeared in — its
+*Since* (see the [API reference](/wiki/developers/api-reference/)). A new API
+version is released as soon as a member marked with it lands.
+
+| Annotation | Promise |
+|---|---|
+| `@Stable` | No breaking change within a major version (1.x) |
+| `@Beta` | May change in a minor version — pin the API version you tested |
+| `@Sunset(reason, removeInVersion, replacement)` | Still works, removed in `removeInVersion`; move to `replacement` |
+| `@Internal` | Never call it |
+
+**Compile against the lowest API version that has everything you use.** The
+server owner may run an older Artisan than the API you compiled against; a
+member that does not exist there fails at the call with `NoSuchMethodError`
+(or `NoClassDefFoundError` for a whole type).
+
+:::caution[`coreVersion` is not the API version]
+`api.coreVersion` and `api.isCompatibleWith(min)` compare against the **Artisan
+plugin's** version string (`plugin.yml`), which does not follow the API's
+numbering. Do not pass an API *Since* version to `isCompatibleWith`. To require
+a recent member, probe it once at startup instead:
+
+```kotlin
+val hasDatabase = try {
+    api.database      // added in API 1.7.0
+    true
+} catch (e: NoSuchMethodError) {
+    false
+}
+```
+:::
+
+`isCompatibleWith(min)` returns true when the plugin version has the same major
+as `min` and is greater than or equal to it.
+
+## What the handle gives you
+
+| Property | What for | Stability | Since |
+|---|---|---|---|
+| `plugin` | Artisan's own `JavaPlugin` (logger, data folder) — register your listeners and tasks on **your** plugin, not this one | `@Stable` | 1.0.0 |
+| `modules` | Register your `ArtisanModule` | `@Stable` | 1.1.0 |
+| `dataSources` | Register and fetch data sources | `@Stable` | 1.0.0 |
+| `commands` | Register handlers that menu buttons can call | `@Stable` | 1.0.0 |
+| `events` | Subscribe to and publish reload events | `@Stable` | 1.0.0 |
+| `schemas` | Migrate your own versioned YAML documents | `@Stable` | 1.0.0 |
+| `project` | Read project files from disk, trigger a reload | `@Stable` | 1.2.0 |
+| `projectRoots` | Host your project in your own plugin folder | `@Stable` | 1.5.0 |
+| `coreVersion` / `isCompatibleWith` | Artisan plugin version | `@Stable` | 1.1.0 |
+| `actions` | Run Action DSL for a player — open menus, give items… | `@Beta` | 1.4.0 |
+| `items` | Serialize and describe `ItemStack`s the way the editor stores them | `@Beta` | 1.4.0 |
+| `models` | Declare `model/v1` shapes for your config | `@Beta` | 1.5.0 |
+| `screens` | Declare config screens in the editor | `@Beta` | 1.6.0 |
+| `database` | A connection pool on the suite's shared database | `@Beta` | 1.7.0 |
+| `messages` | Fire-and-forget messages — no receiver any more, do not use | `@Beta` | 1.4.0 |
