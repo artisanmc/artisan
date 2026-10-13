@@ -20,9 +20,8 @@ open class ResourcePackManager(
     private val delegator: ResourcePackDelegator? = null,
     /** Optional on-disk cache of the last applied project info ({url, download_url,
      *  hash} JSON). When set, [onUpdate] persists here and [loadFromDisk]
-     *  restores at boot — push mode keeps working across a restart during a
-     *  backend outage (previously `currentPackInfo` was only ever set from
-     *  `hello_ack`, so a backend-down boot pushed nothing). */
+     *  restores at boot — push mode keeps working across a restart, even
+     *  before a leaf reaches its hub. */
     private val cacheFile: java.io.File? = null,
     /** Records the packs pushed here, so a player counts once one of them is loaded. */
     private val packLoads: PackLoadTracker? = null,
@@ -83,20 +82,19 @@ open class ResourcePackManager(
      * the project hash).
      *
      * Singleton — we assume every online player is on the same Artisan project at any moment,
-     * which is currently true: the backend serves one resource project per server_key and all
-     * online players share that server_key.
+     * which is currently true: the editor builds one resource pack per server.
      */
     @Volatile
     private var previousUuid: UUID? = null
 
     /**
-     * Build and apply a [ResourcePackInfo] from a backend-supplied URL + hash.
+     * Build and apply a [ResourcePackInfo] from a pack URL + hash.
      *
      * @param url  External URL used to push the project to the player.
      * @param hash 40-char hex SHA-1.
      */
-    fun applyFromBackend(url: String, hash: String) {
-        applyFromBackend(url, url, hash)
+    fun applyPack(url: String, hash: String) {
+        applyPack(url, url, hash)
     }
 
     /**
@@ -104,10 +102,10 @@ open class ResourcePackManager(
      *
      * @param playerUrl   External URL the player's client uses (sent via `addResourcePack`).
      * @param downloadUrl Plugin-side URL the plugin uses to download the project itself (for
-     *                    [AssetCatalog]). In Docker, this should be the internal backend URL.
+     *                    [AssetCatalog]). In Docker, this is the hub's internal address.
      * @param hash        40-char hex SHA-1.
      */
-    fun applyFromBackend(playerUrl: String, downloadUrl: String, hash: String) {
+    fun applyPack(playerUrl: String, downloadUrl: String, hash: String) {
         onUpdate(ResourcePackInfo.from(playerUrl, downloadUrl, hash, config.prompt))
     }
 

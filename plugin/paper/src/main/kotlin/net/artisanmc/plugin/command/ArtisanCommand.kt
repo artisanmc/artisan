@@ -1,20 +1,14 @@
 package net.artisanmc.plugin.command
 
 import net.artisanmc.plugin.ArtisanPlugin
-import net.artisanmc.plugin.config.ConfigWriter
 import net.artisanmc.plugin.hub.EditorPermissions
 import net.artisanmc.plugin.hub.Sessions
 import net.artisanmc.plugin.provider.SyncedMenuProvider
 import net.artisanmc.plugin.lang.LangManager
 import net.artisanmc.plugin.render.TitleCompiler
-import net.artisanmc.plugin.ws.LinkClient
-import net.artisanmc.plugin.ws.LinkResult
-import org.bukkit.Bukkit
 import org.bukkit.command.Command
 import org.bukkit.command.CommandExecutor
 import org.bukkit.command.CommandSender
-import org.bukkit.command.ConsoleCommandSender
-import org.bukkit.command.RemoteConsoleCommandSender
 import org.bukkit.command.TabCompleter
 import org.bukkit.entity.Player
 
@@ -23,19 +17,12 @@ class ArtisanCommand(
     private val lang: LangManager,
 ) : CommandExecutor, TabCompleter {
 
-    fun shutdown() {
-        // Nothing to tear down: `/artisan link` is a one-shot blocking REST call.
-    }
-
     override fun onTabComplete(
         sender: CommandSender, command: Command, label: String, args: Array<out String>
     ): List<String> {
         return when {
-            args.size == 1 -> (listOf("menu", "reload", "sync", "link", "editor", "dump-title") +
-                if (sender is ConsoleCommandSender || sender is RemoteConsoleCommandSender) listOf("member") else emptyList())
+            args.size == 1 -> listOf("menu", "reload", "sync", "editor", "dump-title")
                 .filter { it.startsWith(args[0].lowercase()) }
-            args.size == 2 && args[0].equals("member", ignoreCase = true) && (sender is ConsoleCommandSender || sender is RemoteConsoleCommandSender) ->
-                listOf("add").filter { it.startsWith(args[1].lowercase()) }
             args.size == 2 && args[0].equals("menu", ignoreCase = true) ->
                 plugin.menuProvider.listMenuIds().filter { it.startsWith(args[1]) }
             args.size == 2 && args[0].equals("dump-title", ignoreCase = true) ->
@@ -74,9 +61,7 @@ class ArtisanCommand(
                     else -> sender.sendMessage(lang.get("artisan.usage_sync", sender))
                 }
             }
-            "link" -> link(sender, args.getOrNull(1)?.uppercase())
             "editor" -> editor(sender)
-            "member" -> member(sender, args)
             "dump-title" -> {
                 val menuId = args.getOrNull(1) ?: run {
                     sender.sendMessage("Usage: /artisan dump-title <menu_id> [lang]")
@@ -178,33 +163,8 @@ class ArtisanCommand(
         val cfg = plugin.currentConfig()
         val senderLang = lang.playerLang(sender)
         if (cfg.web.enabled && cfg.web.leaf) return hubLink(sender, senderLang)
-        plugin.editor?.let { return editorLink(sender, senderLang, it.port ?: cfg.web.port) }
-        if (cfg.editorConsoleOnly && sender !is ConsoleCommandSender) {
-            sender.sendMessage(lang.get("artisan.editor_console_only", senderLang))
-            return
-        }
-        if (!sender.hasPermission("artisan.editor")) {
-            sender.sendMessage(lang.get("artisan.editor_no_permission", senderLang))
-            return
-        }
-        val info = plugin.menuProvider.editorInfo()
-        when {
-            info != null -> {
-                // Linked and connected to backend
-                val (url, networkName) = info
-                sender.sendMessage(lang.get("artisan.editor_linked", senderLang, "network" to networkName, "url" to url))
-            }
-            cfg.serverKey.isEmpty() -> {
-                // Not linked: point at the editor home so the admin can add the
-                // server there, which prints a code for `/artisan link <code>`.
-                val home = cfg.editorHomeUrl.ifEmpty { "https://editor.artisanmc.net" }
-                sender.sendMessage(lang.get("artisan.editor_not_linked", senderLang, "url" to home))
-            }
-            else -> {
-                // Linked but not yet connected to backend (e.g., backend down at boot).
-                sender.sendMessage(lang.get("artisan.editor_connecting", senderLang))
-            }
-        }
+        val editor = plugin.editor ?: return sender.sendMessage(lang.get("artisan.editor_disabled", senderLang))
+        editorLink(sender, senderLang, editor.port ?: cfg.web.port)
     }
 
     /** Un lien à usage unique : l'identité dans l'éditeur est celle du joueur qui le demande. */
@@ -253,82 +213,6 @@ class ArtisanCommand(
                     else -> lang.get("artisan.editor_hub_offline", senderLang)
                 }
                 sender.sendMessage(message)
-            }
-        }
-    }
-
-    private fun member(sender: CommandSender, args: Array<out String>) {
-        if (sender !is ConsoleCommandSender && sender !is RemoteConsoleCommandSender) {
-            sender.sendMessage(lang.get("artisan.member_console_only", sender))
-            return
-        }
-        if (plugin.currentConfig().editorAccessMode != "console") {
-            sender.sendMessage(lang.get("artisan.member_console_disabled", sender))
-            return
-        }
-        if (args.size != 3 || !args[1].equals("add", ignoreCase = true)) {
-            sender.sendMessage(lang.get("artisan.member_usage", sender))
-            return
-        }
-        val email = args[2]
-        if (email.length > 254 || !Regex("[^\\s@]+@[^\\s@]+\\.[^\\s@]+").matches(email)) {
-            sender.sendMessage(lang.get("artisan.member_invalid_email", sender))
-            return
-        }
-        val provider = plugin.menuProvider as? SyncedMenuProvider
-        if (provider == null) {
-            sender.sendMessage(lang.get("artisan.member_offline", sender))
-            return
-        }
-        sender.sendMessage(lang.get("artisan.member_sending", sender))
-        provider.addMember(email).whenComplete { result, _ ->
-            if (plugin.isEnabled) plugin.scheduler.global {
-                val status = result?.takeIf { it in setOf("added", "already_member", "console_disabled", "invalid_email", "account_not_found", "offline", "timeout") } ?: "failed"
-                sender.sendMessage(lang.get("artisan.member_$status", sender))
-            }
-        }
-    }
-
-    /**
-     * Redeem a link code minted by the editor when the Server was added, writing
-     * the returned secret to environment.yml and reconnecting. Running this on an
-     * already-linked server **overwrites** the key (rotation / re-link) — the code
-     * is explicit intent, so we proceed with a WARN rather than block.
-     */
-    private fun link(sender: CommandSender, code: String?) {
-        val cfg = plugin.currentConfig()
-        val senderLang = lang.playerLang(sender)
-        if (code.isNullOrBlank()) {
-            sender.sendMessage(lang.get("artisan.link_usage", senderLang))
-            return
-        }
-        if (cfg.httpBaseUrl.isEmpty()) {
-            sender.sendMessage(lang.get("artisan.link_ws_missing", senderLang))
-            return
-        }
-        if (cfg.serverKey.isNotEmpty()) {
-            plugin.logger.warning("[link] Server already linked — /artisan link overwrites the existing key.")
-        }
-        sender.sendMessage(lang.get("artisan.link_connecting", senderLang))
-        val environmentFile = plugin.environmentFile
-        val client = LinkClient(cfg.httpBaseUrl)
-        // Blocking REST call off the main thread; hop back for config + reinit.
-        plugin.scheduler.async {
-            val result = client.redeem(code)
-            plugin.scheduler.global {
-                when (result) {
-                    is LinkResult.Success -> {
-                        ConfigWriter.writeServerKey(environmentFile, result.serverKey)
-                        plugin.logger.info("Server linked (server_key written to environment.yml)")
-                        sender.sendMessage(lang.get("artisan.link_linked", senderLang))
-                        plugin.reinit(plugin.loadPluginConfig())
-                        sender.sendMessage(lang.get("artisan.link_ready", senderLang))
-                    }
-                    is LinkResult.Failure -> {
-                        plugin.logger.warning("[link] redeem failed: ${result.reason}")
-                        sender.sendMessage(lang.get("artisan.link_failed", senderLang, "reason" to result.reason))
-                    }
-                }
             }
         }
     }

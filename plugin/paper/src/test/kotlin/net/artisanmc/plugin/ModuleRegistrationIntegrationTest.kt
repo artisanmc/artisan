@@ -101,11 +101,8 @@ class ModuleRegistrationIntegrationTest {
                         "hello" -> {
                             // Respond with a minimal hello_ack so the provider settles.
                             ws.send(mapper.writeValueAsString(mapOf(
-                                "type"               to "hello_ack",
-                                "session_id"         to "sess_modreg",
-                                "needs_sync"         to false,
-                                "project_hashes"     to emptyMap<String, String>(),
-                                "deleted_project_ids" to emptyList<String>(),
+                                "type"       to "hello_ack",
+                                "session_id" to "sess_modreg",
                             )))
                             helloLatch.countDown()
                         }
@@ -121,9 +118,8 @@ class ModuleRegistrationIntegrationTest {
 
             provider = SyncedMenuProvider(
                 roots            = net.artisanmc.plugin.project.ProjectRoots(packsDir),
-                serverKey        = "sk_modreg_test",
-                wsUrl            = server.url("/ws/plugin").toString(),
                 logger           = null,
+                hub              = net.artisanmc.plugin.ws.HubLink(server.url("/ws/plugin").toString(), "secret", "survie"),
                 installedModules = { registry.active().map { mapOf("id" to it.id, "version" to "1.0.0") } },
             )
             provider!!.load()
@@ -140,7 +136,7 @@ class ModuleRegistrationIntegrationTest {
             // Here we use the api we built directly (same object that would be in ServicesManager).
             api.modules.register(questsModule())
 
-            // Assert that a modules_changed frame arrives at the backend within 5s.
+            // Assert that a modules_changed frame arrives at the hub within 5s.
             assertTrue(changedLatch.await(5, TimeUnit.SECONDS),
                 "Expected modules_changed frame within 5s after register(). Received frames: $received")
 

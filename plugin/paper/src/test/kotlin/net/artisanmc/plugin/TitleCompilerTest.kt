@@ -16,7 +16,7 @@ import kotlin.test.assertTrue
 
 class TitleCompilerTest {
 
-    /** Standard space-offset table mirroring `backend/src/lib/spaceOffsets.ts`. */
+    /** Standard space-offset table mirroring `editor/src/lib/pack/spaceOffsets.ts`. */
     private val standardOffsetMap: Map<Int, Int> = run {
         val advances = listOf(1, 2, 4, 8, 16, 32, 64, 128, 256, -1, -2, -4, -8, -16, -32, -64, -128, -256)
         advances.mapIndexed { i, adv -> (0xF800 + i) to adv }.toMap()

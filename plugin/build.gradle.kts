@@ -5,8 +5,7 @@ plugins {
     id("io.github.goooler.shadow") version "8.1.8" apply false
 }
 
-// La CI de déploiement passe `-PartisanVersion=1.0.<run>` : c'est ce numéro que
-// l'éditeur compare pour proposer la mise à jour (cf. PluginUpdater).
+// La CI de déploiement passe `-PartisanVersion=1.0.<run>`.
 val artisanVersion = providers.gradleProperty("artisanVersion").getOrElse("1.0.0-SNAPSHOT")
 
 subprojects {
