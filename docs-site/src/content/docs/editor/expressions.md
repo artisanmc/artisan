@@ -1,6 +1,8 @@
 ---
 title: Expressions
 description: Compose item names, lore and titles from your data — fields, conditions and list joins, with the same result in the preview and in game.
+sidebar:
+  order: 7
 ---
 
 Every text you type in the editor — an item name, a lore line, a menu title, even a

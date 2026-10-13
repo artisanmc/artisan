@@ -1,6 +1,8 @@
 ---
 title: Advanced item parameters
 description: Add enchantments, custom model data, colours, and raw NBT to menu items.
+sidebar:
+  order: 4
 ---
 
 Every item state has an **Advanced parameters** section, collapsed under the lore field.

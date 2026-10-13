@@ -1,6 +1,8 @@
 ---
 title: Contributing
 description: Architecture and development guide for contributors and forkers.
+sidebar:
+  order: 1
 ---
 
 Artisan has no backend: the Paper plugin serves the editor, its API and the resource
