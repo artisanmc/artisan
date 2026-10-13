@@ -234,7 +234,7 @@ class ProjectRoutes(private val servers: Servers, private val relay: Relay) {
         val folder = root["project_id"] as String
         val id = ProjectRef.id(server.id, folder)
         return mapOf(
-            "id" to id, "name" to folder, "externalId" to id, "slug" to id,
+            "id" to id, "name" to folder, "externalId" to folder, "slug" to id,
             "networkId" to LOCAL, "serverKeyId" to server.id, "hash" to "",
             "identityKind" to root["identity"], "ownerModule" to root["module_id"],
             "capabilities" to mapOf("canRename" to false),
