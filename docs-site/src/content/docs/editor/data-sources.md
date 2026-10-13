@@ -99,6 +99,7 @@ Every actions field has two editing modes, toggled top-right:
 give_item DIAMOND 5
 take_money 100
 run_command "spawn" as player
+open_menu boutique:main              # project:menu opens a menu of another project
 broadcast "&aWelcome {player}!"     # quoted text can hold placeholders
 broadcast @shop.vip_purchased        # @key = a translatable message (in your lang files)
 

@@ -31,6 +31,9 @@ api.getCommands().register(new CommandDeclaration("homes:teleport", (player, arg
 ```
 
 Registering the same name twice throws `DuplicateCommandException`.
+`api.commands.unregister("homes:teleport")` (Since 1.8.0) removes it; Artisan
+does it for you when your plugin disables, and for a module's commands on
+`api.modules.unregister`.
 
 ## Call it from a menu
 
@@ -44,8 +47,9 @@ run_command "homes:teleport {home.id}" as player
 Placeholders (`{home.id}`, `{player}`, `%papi%`) are resolved first, then
 Artisan checks the first word:
 
-- it matches `^[a-z][a-z0-9_]*:[a-z][a-z0-9_]*$` (lowercase `namespace:name`)
-  **and** is registered → your handler runs;
+- it is a `namespace:name` ref (`^[A-Za-z][A-Za-z0-9_]*:[A-Za-z][A-Za-z0-9_]*$`)
+  **and** is registered → your handler runs. Case does not matter:
+  `Homes:Teleport` reaches `homes:teleport` (an exact match wins if both exist);
 - otherwise the text runs as a normal Bukkit command, so a ref never shadows a
   real `plugin:command`.
 
@@ -57,11 +61,19 @@ to the server console as a Bukkit command.
 | Argument | Value |
 |---|---|
 | `player` | The player who triggered the action — never `null` |
-| `args["argv"]` | `List<String>`: the text after the ref, split on spaces (empty tokens dropped) |
-| `args["raw"]` | `String`: the text after the ref, unsplit (`""` when there is none) |
+| `args["argv"]` | `List<String>`: the text after the ref, split on spaces (empty tokens dropped), quotes honoured |
+| `args["raw"]` | `String`: the text after the ref as written, quotes included (`""` when there is none) |
 
-Arguments are split on spaces with no quoting: pass a value that contains
-spaces last and read it from `raw`, or pass an id instead of a display name.
+Double quotes keep a value with spaces together; inside them, `\"` is a quote
+and `\\` a backslash. In the Action DSL the command is itself a quoted string,
+so the quotes are escaped once more:
+
+```
+run_command "boutique:gift \"{target}\" \"Diamond Sword\"" as player
+```
+
+gives `argv = ["Steve", "Diamond Sword"]`. Text with an unbalanced quote is
+split on spaces alone, as it was before quotes were understood.
 
 ## Threading and errors
 

@@ -23,6 +23,8 @@ click:
     - open_menu: boutique:main
 ```
 
+The same form works in Action DSL text: `open_menu boutique:main`.
+
 If a bare id matches several other projects, the last loaded one opens (as
 before) and the server log says which projects define it. The deploy review
 warns about it too.

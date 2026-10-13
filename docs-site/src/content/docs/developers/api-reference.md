@@ -11,7 +11,7 @@ Everything in `net.artisanmc.modules.api` (artifact
 
 **Since** is the API version a member appeared in; compile against the lowest
 version that has everything you use ([Versions](/wiki/developers/setup/#versions-and-compatibility)).
-"—" marks a member the API changelog does not date. Sources (with KDoc) are
+Sources (with KDoc) are
 published next to the jar; the links below go to the repository.
 
 ## Stability annotations
@@ -31,9 +31,9 @@ sources jar and your IDE, not at runtime); `@Sunset` is kept at runtime.
 | Type | Stability | Since | Members |
 |---|---|---|---|
 | [`ArtisanAPI`][ArtisanAPI] | `@Stable` | 1.0.0 | The facade, obtained from Bukkit's `ServicesManager` or passed to `onEnable(api)`. Properties below |
-| [`ArtisanModule`][ArtisanModule] | `@Stable` | 1.0.0 | `id`, `schemaVersion`, `onEnable(api)`, `onDisable()`, `onReload()` (Kotlin default; abstract for Java) |
-| [`ModuleRegistry`][ModuleRegistry] | `@Stable` | 1.1.0 | `register(module)`, `active()`, `has(id)`; `bind(…)` is `@Internal` |
-| [`SemVer`][SemVer] | `@Stable` | — | `satisfies(core, min)`: same major and `core ≥ min` |
+| [`ArtisanModule`][ArtisanModule] | `@Stable` | 1.0.0 | `id`, `schemaVersion`, `onEnable(api)`, `onDisable()` (called when your plugin disables since 1.8.0), `onReload()` (default method, Java included since 1.8.0) |
+| [`ModuleRegistry`][ModuleRegistry] | `@Stable` | 1.1.0 | `register(module)`, `unregister(id)` (1.8.0), `active()`, `has(id)`; `bind(…)` and `unregisterLoadedBy(…)` are `@Internal` |
+| [`SemVer`][SemVer] | `@Stable` | 1.1.0 | `satisfies(core, min)`: same major and `core ≥ min` |
 
 ### `ArtisanAPI` properties
 
@@ -46,15 +46,19 @@ sources jar and your IDE, not at runtime); `@Sunset` is kept at runtime.
 | `schemas` | `SchemaRegistry<MutableMap<String, Any?>>` | `@Stable` | 1.0.0 |
 | `modules` | `ModuleRegistry` | `@Stable` | 1.1.0 |
 | `coreVersion` | `String` — the Artisan **plugin** version | `@Stable` | 1.1.0 |
-| `isCompatibleWith(minVersion)` | `Boolean` — against `coreVersion` | `@Stable` | 1.1.0 |
+| `apiVersion` | `String` — the API version | `@Stable` | 1.8.0 |
+| `isCompatibleWith(minVersion)` | `Boolean` — against `apiVersion` (against `coreVersion` before 1.8.0) | `@Stable` | 1.1.0 |
 | `project` | `ProjectContentApi` | `@Stable` | 1.2.0 |
 | `projectRoots` | `ProjectRootRegistry` | `@Stable` | 1.5.0 |
 | `items` | `ItemStackApi` | `@Beta` | 1.4.0 |
-| `messages` | `ModuleMessagesApi` | `@Beta` | 1.4.0 |
+| `messages` | `ModuleMessagesApi` | `@Beta`, `@Sunset` (1.8.0) | 1.4.0 |
 | `actions` | `ModuleActionsApi` | `@Beta` | 1.4.0 |
 | `models` | `ModelRegistry` | `@Beta` | 1.5.0 |
 | `screens` | `EditorScreenRegistry` | `@Beta` | 1.6.0 |
 | `database` | `DatabaseApi` | `@Beta` | 1.7.0 |
+| `menus` | `MenuApi` | `@Beta` | 1.8.0 |
+| `scheduler` | `SchedulerApi` | `@Beta` | 1.8.0 |
+| `placeholders` | `PlaceholderRegistry` | `@Beta` | 1.8.0 |
 
 ## Data sources
 
@@ -62,8 +66,8 @@ Guide: [Data sources](/wiki/developers/data-sources/).
 
 | Type | Stability | Since | Members |
 |---|---|---|---|
-| [`DataSourceRegistry`][DataSourceRegistry] | `@Stable` | 1.0.0 | `register(decl)`, `fetch(ref, player?, params)`, `has(ref)`, `refs()`, `declarations()` (1.2.0), `registered()` (1.3.0) |
-| [`DataSourceDeclaration`][DataSourceDeclaration] | `@Stable` | 1.0.0 | `ref`, `fetcher` (1.3.0, type 1.5.0), `schema` (1.3.0), `stability` (1.4.0), `keyField` (1.4.0), `schemaHint` (`@Sunset`, removed in 2.0.0) |
+| [`DataSourceRegistry`][DataSourceRegistry] | `@Stable` | 1.0.0 | `register(decl)`, `unregister(ref)` (1.8.0), `fetch(ref, player?, params)`, `has(ref)`, `refs()`, `declarations()` (1.2.0), `registered()` (1.3.0) |
+| [`DataSourceDeclaration`][DataSourceDeclaration] | `@Stable` | 1.0.0 | `ref`, `fetcher` (1.3.0, type 1.5.0), `schema` (1.3.0), `stability` (1.4.0), `keyField` (1.4.0), `schemaHint` (`@Sunset`, removed in 2.0.0); Java overloads (1.8.0) |
 | [`DataFetcher`][Callbacks] | `@Stable` | 1.5.0 | `fetch(player: Player?, params): List<Map<String, Any?>>` |
 | [`DataSourceField`][DataSourceDeclaration] | `@Stable` | 1.3.0 | `name`, `type: FieldKind`, `description?` |
 | [`FieldKind`][FieldKind] | `@Stable` | 1.3.0 | `STRING`, `NUMBER`, `INTEGER`, `BOOLEAN`, `LIST`, `OBJECT`, `ITEM` (Java enum) |
@@ -83,9 +87,9 @@ Guide: [Commands](/wiki/developers/commands/).
 
 | Type | Stability | Since | Members |
 |---|---|---|---|
-| [`CommandRegistry`][CommandRegistry] | `@Stable` | 1.0.0 | `register(decl)`, `dispatch(name, player, args)`, `has(name)`, `names()` |
+| [`CommandRegistry`][CommandRegistry] | `@Stable` | 1.0.0 | `register(decl)`, `unregister(name)` (1.8.0), `dispatch(name, player, args)`, `has(name)`, `names()` |
 | [`CommandDeclaration`][CommandDeclaration] | `@Stable` | 1.0.0 | `name`, `handler: CommandHandler` |
-| [`CommandHandler`][Callbacks] | `@Stable` | 1.5.0 | `handle(player: Player, args: Map<String, Any?>)` — `args = {argv: List<String>, raw: String}` from menus |
+| [`CommandHandler`][Callbacks] | `@Stable` | 1.5.0 | `handle(player: Player, args: Map<String, Any?>)` — `args = {argv: List<String>, raw: String}` from menus; `argv` honours double quotes |
 | `UnknownCommandException`, `DuplicateCommandException` | `@Stable` | 1.0.0 | Unknown name on `dispatch`; name registered twice |
 
 Since 1.2.0, `run_command "<ns:name> …" as player` actions dispatch to this
@@ -97,9 +101,27 @@ Guide: [Menus](/wiki/developers/menus/).
 
 | Type | Stability | Since | Members |
 |---|---|---|---|
+| [`MenuApi`][MenuApi] | `@Beta` | 1.8.0 | `open(player, ref[, args])`, `open(player, MenuRef, args)`, `close(player)`, `openMenu(player)`, `menus()`, `onOpen/onClick/onClose(listener): MenuSubscription`, `NOOP` |
+| [`MenuRef`][MenuApi] | `@Beta` | 1.8.0 | `projectId?`, `menuId`, `parse(ref)`; `toString()` = `project:menu` |
+| [`MenuOpenListener`, `MenuClickListener`, `MenuCloseListener`][MenuApi] | `@Beta` | 1.8.0 | `onOpen(event)`, `onClick(event)`, `onClose(event)` |
+| [`MenuSubscription`][MenuApi] | `@Beta` | 1.8.0 | `cancel()` |
+| [`MenuOpenEvent`][MenuEvents] | `@Beta` | 1.8.0 | Bukkit `PlayerEvent`, `Cancellable`: `menu`, `args` |
+| [`MenuClickEvent`][MenuEvents] | `@Beta` | 1.8.0 | Bukkit `PlayerEvent`, `Cancellable`: `menu`, `slot`, `click: ClickType`, `hasActions` |
+| [`MenuCloseEvent`][MenuEvents] | `@Beta` | 1.8.0 | Bukkit `PlayerEvent`: `menu`, `reason: InventoryCloseEvent.Reason` |
+| [`PlaceholderRegistry`][PlaceholderRegistry] | `@Beta` | 1.8.0 | `register(namespace, resolver[, exposeToPapi])`, `unregister(namespace)`, `namespaces()`, `resolve(player, text)`, `NOOP` |
+| [`PlaceholderResolver`][PlaceholderRegistry] | `@Beta` | 1.8.0 | `resolve(player: Player?, key): String?` |
 | [`ModuleActionsApi`][ModuleActionsApi] | `@Beta` | 1.4.0 | `execute(player, actions, args = {}, projectId = null)` — runs Action DSL on the player's thread; `projectId` since 1.6.0 |
 | [`ItemStackApi`][ItemStackApi] | `@Beta` | 1.4.0 | `serialize(stack): String`, `describe(stack): Map<String, Any>` |
-| [`ModuleMessagesApi`][ModuleMessagesApi] | `@Beta` | 1.4.0 | `send(type, payload)` — has had no receiver since the editor moved into the plugin; do not use |
+| [`ModuleMessagesApi`][ModuleMessagesApi] | `@Beta`, `@Sunset` (1.8.0, removed in 2.0.0) | 1.4.0 | `send(type, payload)` — has had no receiver since the editor moved into the plugin; do not use |
+
+## Scheduling
+
+Guide: [Threading & Folia](/wiki/developers/threading/).
+
+| Type | Stability | Since | Members |
+|---|---|---|---|
+| [`SchedulerApi`][SchedulerApi] | `@Beta` | 1.8.0 | `forPlugin(owner: Plugin): TaskScheduler`, `DIRECT` |
+| [`TaskScheduler`][SchedulerApi] | `@Beta` | 1.8.0 | `runGlobal[Later]`, `runAt[Later](location, …)`, `runFor[Later](entity, …)`, `runAsync[Later]`, `isOwnedByCurrentThread(entity)`, `isGlobalThread()`, `DIRECT` |
 
 ## Modules, projects and content
 
@@ -107,8 +129,8 @@ Guide: [Modules](/wiki/developers/modules/).
 
 | Type | Stability | Since | Members |
 |---|---|---|---|
-| [`ProjectContentApi`][ProjectContentApi] | `@Stable` | 1.2.0 | `projectIds()`, `list(projectId, dir)`, `read(projectId, relPath)`, `hasContent(dir)`, `reload()` (—) |
-| [`ProjectRootRegistry`][ProjectRootRegistry] | `@Stable` | 1.5.0 | `register(projectId, dir)`, `register(projectId, dir, moduleId)` (1.6.0), `NOOP` |
+| [`ProjectContentApi`][ProjectContentApi] | `@Stable` | 1.2.0 | `projectIds()`, `list(projectId, dir)`, `read(projectId, relPath)`, `hasContent(dir)`, `reload()` (1.6.0) |
+| [`ProjectRootRegistry`][ProjectRootRegistry] | `@Stable` | 1.5.0 | `register(projectId, dir)`, `register(projectId, dir, moduleId)` (1.6.0), `NOOP`; the reload it triggers runs on the next tick since 1.8.0 |
 | [`SchemaRegistry<T>`][SchemaRegistry] | `@Stable` | 1.0.0 | `register(migration)`, `loadToCurrent(data, currentVersion, versionOf)`, `has(from)` |
 | [`SchemaMigration<T>`][SchemaMigration] | `@Stable` | 1.0.0 | `from`, `to`, `migrate(data)` — pure, idempotent, write-once |
 | [`SchemaVersionReader<T>`][Callbacks] | `@Stable` | 1.5.0 | `versionOf(document): String` |
@@ -148,10 +170,13 @@ Guide: [Events & reloads](/wiki/developers/events/).
 | Type | Stability | Since | Members |
 |---|---|---|---|
 | [`ModuleEventBus`][ModuleEventBus] | `@Stable` | 1.0.0 | `subscribe(type, handler)` (signature 1.5.0), `publish(event)` |
-| [`ModuleEvent`][ModuleEventBus] | `@Stable` | 1.0.0 | Sealed marker: only the two events below exist |
-| [`ConfigReloadEvent`][ModuleEventBus] | `@Stable` | 1.0.0 | `moduleId` |
-| [`DataReloadEvent`][ModuleEventBus] | `@Stable` | 1.0.0 | `dataSourceRef` |
+| [`ModuleEvent`][ModuleEventBus] | `@Stable` | 1.0.0 | Marker interface; open to add-on events since 1.8.0 (sealed before) |
+| [`ConfigReloadEvent`][ModuleEventBus] | `@Stable` | 1.0.0 | `moduleId` — published by Artisan (`"menus"`) after every content reload |
+| [`DataReloadEvent`][ModuleEventBus] | `@Stable` | 1.0.0 | `dataSourceRef` — between add-ons only: Artisan neither publishes nor reads it |
 | [`ModuleEventHandler`][Callbacks] | `@Stable` | 1.5.0 | `onEvent(event: ModuleEvent)` |
+
+The menu Bukkit events (`MenuOpenEvent`, `MenuClickEvent`, `MenuCloseEvent`) are
+listed under [Menus and actions](#menus-and-actions).
 
 ## File formats
 
@@ -184,3 +209,7 @@ project. The JSON Schemas live in the repository under
 [DatabaseApi]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/kotlin/net/artisanmc/modules/api/DatabaseApi.kt
 [DatabaseDialect]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/DatabaseDialect.java
 [ModuleEventBus]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/kotlin/net/artisanmc/modules/api/ModuleEventBus.kt
+[MenuApi]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/kotlin/net/artisanmc/modules/api/MenuApi.kt
+[MenuEvents]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/kotlin/net/artisanmc/modules/api/MenuEvents.kt
+[PlaceholderRegistry]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/kotlin/net/artisanmc/modules/api/PlaceholderRegistry.kt
+[SchedulerApi]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/kotlin/net/artisanmc/modules/api/SchedulerApi.kt

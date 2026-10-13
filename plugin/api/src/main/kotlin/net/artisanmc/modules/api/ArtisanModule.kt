@@ -23,11 +23,18 @@ interface ArtisanModule {
     @Stable
     fun onEnable(api: ArtisanAPI)
 
-    /** Called on plugin disable. Modules must release listeners, executors, threads. */
+    /**
+     * Called when the module is unregistered: when the plugin that loaded it starts
+     * disabling (before that plugin's own `onDisable`), on [ModuleRegistry.unregister],
+     * or when Artisan disables. Modules must release listeners, executors, threads.
+     */
     @Stable
     fun onDisable()
 
-    /** Called when the menu cache is reloaded from disk (e.g. WS bundle update). */
+    /**
+     * Called when the projects are reloaded from disk (publish, `/artisan reload`, sync).
+     * A JVM default method since 1.8.0: Java modules may leave it out.
+     */
     @Stable
     fun onReload() {}
 }

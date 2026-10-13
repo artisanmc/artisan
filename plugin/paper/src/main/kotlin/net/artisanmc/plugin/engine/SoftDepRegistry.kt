@@ -147,9 +147,14 @@ class SoftDepRegistry(
     /** Captured project items (`item:<id>` refs) — exact deserialized stacks. */
     val capturedItems: net.artisanmc.plugin.items.CapturedItemStore? = null,
 ) {
-    constructor(plugin: JavaPlugin, capturedItems: net.artisanmc.plugin.items.CapturedItemStore? = null) : this(
+    /** [placeholders] = the add-on namespaces, resolved before PlaceholderAPI. */
+    constructor(
+        plugin: JavaPlugin,
+        capturedItems: net.artisanmc.plugin.items.CapturedItemStore? = null,
+        placeholders: PaperPlaceholders? = null,
+    ) : this(
         vault           = VaultProvider.tryInit(plugin),
-        papi            = PapiProvider.tryInit(),
+        papi            = PapiProvider.tryInit().let { placeholders?.pipeline(it) ?: it },
         worldGuard      = WorldGuardProvider.tryInit(),
         nexoItems       = NexoItemRenderer.tryInit(),
         oraxenItems     = OraxenItemRenderer.tryInit(),

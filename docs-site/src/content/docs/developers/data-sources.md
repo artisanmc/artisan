@@ -49,6 +49,10 @@ api.getDataSources().register(new DataSourceDeclaration(
         null));             // keyField
 ```
 
+Since API 1.8.0 the optional parameters can be left out from Java too:
+`new DataSourceDeclaration(ref, fetcher)`, `new DataSourceDeclaration(ref, fetcher, schema)`,
+`new DataSourceField(name, kind)`.
+
 Register from your module's `onEnable(api)` so the editor shows the source
 under your module ([Modules](/wiki/developers/modules/)). Registering from
 anywhere else works, but the source is listed as unattributed.
@@ -57,7 +61,7 @@ anywhere else works, but the source is listed as unattributed.
 
 | Parameter | Default | Meaning |
 |---|---|---|
-| `ref` | — | Globally unique `namespace:id`, lowercase (`boutique:items`). Use your module id as namespace. A second registration throws `DuplicateDataSourceException` |
+| `ref` | — | Globally unique `namespace:id`, lowercase (`boutique:items`). Use your module id as namespace. A second registration throws `DuplicateDataSourceException`; `unregister(ref)` (Since 1.8.0) frees it |
 | `fetcher` | — | `DataFetcher`: `(Player?, Map<String, Any?>) -> List<Map<String, Any?>>` |
 | `schema` | empty | Declared row fields — powers the editor's field pickers, filter autocomplete and schema table |
 | `schemaHint` | `null` | `@Sunset` (removed in 2.0.0) — use `schema` |
@@ -188,3 +192,9 @@ if (api.dataSources.has("boutique:items")) {
 read another integration's data — never import its classes.
 `refs()`, `declarations()` and `registered()` (declarations with their owning
 module id) list what is available.
+
+## Remove one
+
+`api.dataSources.unregister("homes:list")` (Since 1.8.0) removes a source and
+returns whether it existed. Artisan removes your sources by itself when your
+plugin disables, and a module's sources with `api.modules.unregister`.
